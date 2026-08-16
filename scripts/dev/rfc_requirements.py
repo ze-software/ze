@@ -671,7 +671,7 @@ def scan_ci_tags(src: str, path: str) -> List[Tag]:
 # literal `endswith` chains in scan_tree and _git_baseline_tag_polarities; extending one
 # and not the other desynchronizes the ratchet baseline and manufactures phantom polarity
 # losses, silently and in the green direction.
-TIER_VERIFY = "verify"  # runs in a ze-verify stage, i.e. on every push
+TIER_VERIFY = "verify"  # runs in a ze-precommit-verify stage, i.e. on every push
 TIER_NIGHTLY = "nightly"  # runs in a scheduled advisory workflow
 TIER_UNRUN = "unrun"  # nothing runs it automatically: a tag here is refused
 
@@ -707,7 +707,7 @@ def functional_suites(path: str = FUNCTIONAL_MK) -> Tuple[str, ...]:
     except OSError as exc:
         raise ParseError(
             f"{path}: cannot read the functional-test recipe, so the set of suites that "
-            f"run inside ze-verify is unknown: {exc}"
+            f"run inside ze-precommit-verify is unknown: {exc}"
         ) from exc
     found = _ALL_SUITES_RE.findall(src)
     if not found:
@@ -731,7 +731,7 @@ def functional_suites(path: str = FUNCTIONAL_MK) -> Tuple[str, ...]:
     names = tuple(n for n in found[0].split() if n)
     if not names:
         raise ParseError(
-            f'{path}: `all_suites=""` is empty; no suite runs in ze-verify'
+            f'{path}: `all_suites=""` is empty; no suite runs in ze-precommit-verify'
         )
     # A name on that line is a DECLARATION, and the `run_suite` call is the execution. The
     # two drifted apart once already: `ipsec` sat in all_suites with no run_suite line, so
@@ -916,9 +916,9 @@ def scheduled_workflow_targets(path: str = WORKFLOWS_DIR) -> Dict[str, str]:
 # whether CI runs that target, which _interop_carriers reads from the workflows.
 INTEROP_TREES: Tuple[Tuple[str, str, str], ...] = (
     ("interop-bgp", "test/interop/scenarios/", "ze-interop-test"),
-    ("interop-ipsec", "test/ipsec-interop/", "ze-ipsec-interop-test"),
-    ("interop-l2tp", "test/l2tp-interop/", "ze-deployment-l2tp-ppp-docker-test"),
-    ("interop-pppoe", "test/pppoe-interop/", "ze-deployment-pppoe-accel-docker-test"),
+    ("interop-ipsec", "test/ipsec-interop/", "ze-interop-ipsec-test"),
+    ("interop-l2tp", "test/l2tp-interop/", "ze-deployment-docker-l2tp-ppp-test"),
+    ("interop-pppoe", "test/pppoe-interop/", "ze-deployment-docker-pppoe-accel-test"),
 )
 
 
@@ -1010,7 +1010,7 @@ CARRIERS: Tuple[Carrier, ...] = (
         "_test.go",
         "go",
         "make ze-unit-test",
-        "ze-verify (unit stage)",
+        "ze-precommit-verify (unit stage)",
     ),
     # ONE verify-tier row per suite ze-functional-test actually names, derived from its
     # recipe. A single `prefix=""` row credited ANY .ci anywhere under internal/, pkg/ or
@@ -1023,7 +1023,7 @@ CARRIERS: Tuple[Carrier, ...] = (
         ".ci",
         "ci",
         "make ze-functional-test",
-        "ze-verify (functional stage",
+        "ze-precommit-verify (functional stage",
         functional_suites(),
     ),
     # .et is the cheapest verify-tier NON-unit carrier available, and it costs one row:
@@ -1037,12 +1037,12 @@ CARRIERS: Tuple[Carrier, ...] = (
         "editor",
         ".et",
         "ci",
-        "make ze-editor-test",
-        "ze-verify (functional stage",
+        "make ze-functional-editor-test",
+        "ze-precommit-verify (functional stage",
         [s for s in functional_suites() if s == EDITOR_SUITE],
     ),
     # test/exabgp-compat is NOT one of ze-functional-test's suites: it has its own stage,
-    # `ze-exabgp-test`, which stagesForMode lists in BOTH verify modes. A separate target
+    # `ze-functional-exabgp-test`, which stagesForMode lists in BOTH verify modes. A separate target
     # is a separate fact, so it is a declared row rather than a second suite list.
     Carrier(
         "functional-exabgp",
@@ -1051,10 +1051,10 @@ CARRIERS: Tuple[Carrier, ...] = (
         "test/exabgp-compat/",
         ".ci",
         "ci",
-        "make ze-exabgp-test",
-        "ze-verify (exabgp stage)",
+        "make ze-functional-exabgp-test",
+        "ze-precommit-verify (exabgp stage)",
     ),
-    # Catch-alls for the two extensions. Reached by a .ci/.et under a suite no ze-verify
+    # Catch-alls for the two extensions. Reached by a .ci/.et under a suite no ze-precommit-verify
     # stage runs, under internal/ or pkg/ (TEST_ROOTS includes both and no suite walks
     # either), or under an interop tree beside a check.py this table already refuses.
     Carrier(
@@ -1064,7 +1064,7 @@ CARRIERS: Tuple[Carrier, ...] = (
         "",
         ".ci",
         "ci",
-        "no ze-verify stage walks this directory",
+        "no ze-precommit-verify stage walks this directory",
         "no automated caller; ze-functional-test runs "
         + ", ".join(functional_suites()),
     ),
@@ -1075,7 +1075,7 @@ CARRIERS: Tuple[Carrier, ...] = (
         "",
         ".et",
         "ci",
-        "no ze-verify stage walks this directory",
+        "no ze-precommit-verify stage walks this directory",
         "no automated caller; only test/" + EDITOR_SUITE + "/ is walked for .et",
     ),
     # One row per interop tree, and NOT a tier literal in sight. Each tree's tier is read
@@ -1145,7 +1145,7 @@ def _refuse_unrun(carrier: Carrier, tag: Tag) -> ParseError:
         f"workflow (the interop jobs in .github/workflows/evidence-nightly.yml are the "
         f"pattern); an interop carrier's tier is derived from that set, so the job is the "
         f"whole fix and CARRIERS needs no edit -- or bind the requirement to a .ci instead, "
-        f"which runs inside ze-verify on every push"
+        f"which runs inside ze-precommit-verify on every push"
     )
 
 
@@ -1206,7 +1206,7 @@ def scan_tree(root: str = PROJECT_DIR) -> List[Tag]:
 # it instead would report the requirement as uncovered AND lose a polarity against HEAD,
 # so one broken symbol would arrive as a wall of messages that each name the wrong defect.
 #
-# Reachable inside the merge gate, not only in a standalone run. `ze-verify-changed` runs
+# Reachable inside the merge gate, not only in a standalone run. `ze-precommit-verify-changed` runs
 # ze-rfc-check in full and then ze-unit-test-CHANGED (scripts/status/verify_run.go:237,251),
 # so a broken tagged package outside the change set is credited while nothing compiles it.
 #
@@ -1625,7 +1625,7 @@ def check_enrolment(
             f"rfc/extraction/{rfc}.json. Enrolling gates the requirements the summary "
             f"LISTS; nothing bounds what it MISSED until the source text has been walked "
             f"site by site (ai/rules/rfc-compliance.md, Extraction Completeness). Run: "
-            f"make ze-rfc-extract STEM={rfc}, then classify every site and section. "
+            f"make ze-rfc-extraction-create STEM={rfc}, then classify every site and section. "
             f"RFCs enrolled before this gate existed are grandfathered and unaffected"
         )
     return errs
@@ -1735,7 +1735,7 @@ def _git_baseline_status_rows() -> Optional[Dict[str, Dict[str, str]]]:
 
     Read through `_git_cat_blobs` rather than a per-file `git show`: that reader's docstring
     makes the batch interface a condition of the check being kept, and one more fork per
-    `make ze-verify` is exactly the cost it was written to avoid.
+    `make ze-precommit-verify` is exactly the cost it was written to avoid.
 
     None, not {}: the completeness ratchet asks "did this stem HAVE a row at HEAD", and an
     empty answer would say "no" for all 157 of them -- which turns a deleted-row check into
@@ -2207,7 +2207,7 @@ def _git_cat_blobs(paths: Sequence[str]) -> Dict[str, str]:
     A `git show` per file is the obvious spelling and costs ~350 forks here. Measured on
     this tree: the gate runs 1.7s at HEAD, 3.4s with per-file `git show`, and 2.2s with this
     batch read -- so the baseline costs +0.5s (~30%) instead of +1.7s (~100%). A gate that
-    doubles the time of every `make ze-verify` is a gate people learn to skip, so the batch
+    doubles the time of every `make ze-precommit-verify` is a gate people learn to skip, so the batch
     interface is a condition of the check being kept rather than an optimization.
 
     Missing or unreadable paths are simply absent from the result: a blob we cannot read
@@ -4102,7 +4102,7 @@ def run_reseal() -> int:
     """`make ze-rfc-reseal`: the ONLY thing that writes rfc/audit/ without a human editing it.
 
     Deliberately not folded into `--check` (a check that writes cannot be trusted to report) nor
-    into `--write` (`ze-rfc-index` runs routinely, for reasons that have nothing to do with an
+    into `--write` (`ze-rfc-index-update` runs routinely, for reasons that have nothing to do with an
     audit, so re-sealing there would automate the blind re-stamp reflex this exists to remove).
     Owner ruling 2026-07-29, spec A-7.
     """
@@ -4118,7 +4118,7 @@ def run_reseal() -> int:
             print(f"{GREEN}re-stamped{RESET} {line}")
         print(
             f"{GREEN}re-sealed{RESET} {len(resealed)} shifted verdict(s); "
-            f"{len(refused)} refused. The ledger now needs: make ze-rfc-index"
+            f"{len(refused)} refused. The ledger now needs: make ze-rfc-index-update"
         )
     else:
         print(
@@ -4543,7 +4543,7 @@ def evidence_tier(rel: str) -> str:
 
 
 def is_nightly_only(found: Sequence[Tag]) -> bool:
-    """A requirement HAS evidence, and none of it runs inside ze-verify.
+    """A requirement HAS evidence, and none of it runs inside ze-precommit-verify.
 
     The distinction R-1 exists for: a nightly-advisory scenario and a merge-gate unit test
     are both "a tag", and flattening them into one 'proven' cell is how a claim nothing
@@ -4582,7 +4582,7 @@ class RFCCoverage(NamedTuple):
     one: int
     annotated: int
     missing: int  # gated requirements with no tag and no annotation
-    # Gated requirements whose evidence exists but runs in NO ze-verify stage. Its own
+    # Gated requirements whose evidence exists but runs in NO ze-precommit-verify stage. Its own
     # column, never folded into `both`/`one`: those two are the merge-gate view, and a
     # nightly-only requirement is not merge-gate-proven (AC-11). Defaulted so the
     # positional construction in rfc_coverage stays readable at the call site.
@@ -4676,7 +4676,7 @@ def _render_rollup(
     nightly_total = sum(c.nightly_only for c in cov)
     out.append(
         f"**Nightly-only** ({nightly_total} requirement(s)) counts what is proven ONLY by "
-        f"evidence no `ze-verify` stage runs -- today, interop scenarios, which are "
+        f"evidence no `ze-precommit-verify` stage runs -- today, interop scenarios, which are "
         f"scheduled and advisory. **Both** and **One polarity** are the polarity view: "
         f"they answer which polarities exist, not which pipeline runs them, so a "
         f"nightly-only requirement is counted there too. **Nightly-only** is the tier view "
@@ -5188,7 +5188,7 @@ def render_shards(
         # derived `file.go:line` in a document only where a generator maintains it, and a
         # file declares that here. This page is nothing but such citations.
         out.append(
-            f"GENERATED by `make ze-rfc-index` -- do not edit. Requirement text is "
+            f"GENERATED by `make ze-rfc-index-update` -- do not edit. Requirement text is "
             f"authored in `{summary_rel(rfc)}`; the test links are derived from "
             f"`RFC requirement:` tags in the tests themselves. The index over every RFC is "
             f"`ai/RFC-REQUIREMENTS.md`."
@@ -5276,7 +5276,7 @@ def render_index(
     out.append("# RFC Requirement Ledger")
     out.append("")
     out.append(
-        "GENERATED by `make ze-rfc-index` -- do not edit. Requirement text is authored in "
+        "GENERATED by `make ze-rfc-index-update` -- do not edit. Requirement text is authored in "
         "`rfc/short/*.md`; the test links are derived from `RFC requirement:` tags in the "
         "tests themselves (`ai/rules/evidence.md`)."
     )
@@ -6258,7 +6258,7 @@ def _artifact_document(
         # than by a per-kind ladder here. A kind's mandatory field dropped on refresh is a
         # reviewer's decision destroyed (ai/rules/never-destroy-work.md), and the writer's
         # own re-parse then refuses the whole write: `duplicate-of` lost `mapped-to` this
-        # way, so `make ze-rfc-extract STEM=rfc1035` could not refresh the one artifact in
+        # way, so `make ze-rfc-extraction-create STEM=rfc1035` could not refresh the one artifact in
         # the corpus that carried one. A seventh kind inherits this.
         if keep and keep.mapped_to and "mapped-to" not in entry:
             entry["mapped-to"] = keep.mapped_to
@@ -6335,7 +6335,7 @@ def _validated_stem(stem: str) -> str:
 # atomic same-filesystem rename. The cost is litter: a kill between `mkdtemp` and the
 # `finally` leaves a `.staging-*` directory inside TRACKED rfc/extraction/, which the next
 # `git add` would commit. Staging somewhere gitignored instead is not the fix -- `tmp/`
-# becomes a symlink to $TMPDIR under `make ze-migrate-scratch`, so the rename could cross
+# becomes a symlink to $TMPDIR under `make ze-scratch-migrate`, so the rename could cross
 # a filesystem and raise EXDEV -- so the litter is swept by the next run.
 _STAGING_PREFIX = ".staging-"
 
@@ -6393,7 +6393,7 @@ def run_extract_skeleton(stem: str) -> int:
     # Re-validating with a second, hand-written checker would only prove the copy agrees
     # with itself. The one question that matters is whether parse_extraction_artifact will
     # accept this file, and the honest way to answer it is to run it. Without this, a
-    # derivation defect made `make ze-rfc-extract STEM=rfc2865` print success over a file
+    # derivation defect made `make ze-rfc-extraction-create STEM=rfc2865` print success over a file
     # that could not be re-read, and one such artifact committed makes every later --check
     # exit "cannot run", hiding every other RFC violation in the repository.
     #
@@ -6612,7 +6612,7 @@ def _evaluate_extraction(
         return errs + [
             f"{where}: source-sha no longer matches {inv.source_path}. The source text "
             f"changed under this sign-off, so the walk no longer bounds what the summary "
-            f"missed. Re-run: make ze-rfc-extract STEM={art.stem}, re-classify any site "
+            f"missed. Re-run: make ze-rfc-extraction-create STEM={art.stem}, re-classify any site "
             f"that moved, and bump signed-off"
         ]
     if art.source_path != inv.source_path:
@@ -6636,7 +6636,7 @@ def _evaluate_extraction(
     for sid in sorted(set(derived_sites) - set(art_sites)):
         errs.append(
             f"{where}: derived site {sid} is absent from the sign-off "
-            f"({derived_sites[sid].quote[:80]!r}). Re-run make ze-rfc-extract "
+            f"({derived_sites[sid].quote[:80]!r}). Re-run make ze-rfc-extraction-create "
             f"STEM={art.stem} and classify it"
         )
     for sid in sorted(set(art_sites) - set(derived_sites)):
@@ -6921,7 +6921,7 @@ def check_extraction_ratchet() -> List[str]:
                 f"{art.path}: exclusions rose from {was.excluded} to {art.excluded}, but "
                 f"'resign-reason' is unchanged from the previous sign-off "
                 f"({was.resign_reason[:60]!r}). It is carried forward automatically by "
-                f"make ze-rfc-extract, so an unchanged reason justifies the EARLIER walk, "
+                f"make ze-rfc-extraction-create, so an unchanged reason justifies the EARLIER walk, "
                 f"not this one. Say what this walk found that raised the exclusions"
             )
     return errs
@@ -7263,7 +7263,7 @@ def check_drain_floor(enrolled: Set[str], signed: Dict[str, Extraction]) -> List
         f"{floor} extraction sign-off(s) by now (rate {budget.rate}/calendar month since "
         f"{budget.start.isoformat()}, capped at the {len(enrolled)} enrolled RFC(s)), and "
         f"there are {total} ({_register_phrase(counts)}; every register counts, umbrella "
-        f"D6), leaving {backlog} unsigned. Walk another RFC: make ze-rfc-extract "
+        f"D6), leaving {backlog} unsigned. Walk another RFC: make ze-rfc-extraction-create "
         f"STEM=<stem>, then classify every site"
     ]
 
@@ -7330,23 +7330,23 @@ def check_ledger_fresh(
             current = fh.read()
     if current != body:
         rel = os.path.relpath(LEDGER_FILE, PROJECT_DIR)
-        errs.append(f"{rel} is stale vs its sources -- run: make ze-rfc-index")
+        errs.append(f"{rel} is stale vs its sources -- run: make ze-rfc-index-update")
 
     shards = render_shards(requirements, tags, enrolled)
     for stem in shard_stems(requirements):
         path = shard_path(stem)
         if not os.path.exists(path):
-            errs.append(f"{shard_rel(stem)} is missing -- run: make ze-rfc-index")
+            errs.append(f"{shard_rel(stem)} is missing -- run: make ze-rfc-index-update")
             continue
         with open(path, encoding="utf-8") as fh:
             if fh.read() != shards[stem] + "\n":
                 errs.append(
-                    f"{shard_rel(stem)} is stale vs its sources -- run: make ze-rfc-index"
+                    f"{shard_rel(stem)} is stale vs its sources -- run: make ze-rfc-index-update"
                 )
     for stem in _prunable_shards(set(shards)):
         errs.append(
             f"{shard_rel(stem)} renders no requirement section and the generator no longer "
-            f"owns it -- run: make ze-rfc-index"
+            f"owns it -- run: make ze-rfc-index-update"
         )
     return errs
 
@@ -7737,7 +7737,7 @@ def run_write() -> int:
 
 
 def run_check_fresh() -> int:
-    """Just the freshness half of run_check -- what `ze-doc-test` runs so a docs-focused
+    """Just the freshness half of run_check -- what `ze-doc-verify` runs so a docs-focused
     pass catches a stale `ai/RFC-REQUIREMENTS.md` or a stale shard without paying for the
     full coverage evaluation. The same check also runs inside `run_check` (ze-rfc-check),
     which is where verify catches it.
@@ -7802,7 +7802,7 @@ def run_show(stem: str) -> int:
         print(
             f"{RED}{BOLD}rfc-requirements: cannot run{RESET}: no requirement page for "
             f"{stem} at {shard_rel(stem)}. Either the RFC declares no requirement, or the "
-            f"shards are not written -- run: make ze-rfc-index"
+            f"shards are not written -- run: make ze-rfc-index-update"
         )
         return 2
     with open(path, encoding="utf-8") as fh:
@@ -7865,7 +7865,7 @@ def main(argv: Sequence[str]) -> int:
             print(
                 f"{RED}{BOLD}rfc-requirements: cannot run{RESET}: --show needs a stem, "
                 f"e.g. --show rfc7296. The pages it reads are written by: "
-                f"make ze-rfc-index"
+                f"make ze-rfc-index-update"
             )
             return 2
         try:
@@ -7886,7 +7886,7 @@ def main(argv: Sequence[str]) -> int:
             print(
                 f"{RED}{BOLD}rfc-requirements: cannot run{RESET}: --extract-skeleton "
                 f"needs a stem, e.g. --extract-skeleton rfc7296 "
-                f"(make ze-rfc-extract STEM=rfc7296)"
+                f"(make ze-rfc-extraction-create STEM=rfc7296)"
             )
             return 2
         try:

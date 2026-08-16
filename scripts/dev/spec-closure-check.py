@@ -177,7 +177,7 @@ def _journal_evidence(repo: Path) -> dict[str, str]:
                 if not named_malformed:
                     print(
                         f"warning: malformed journal row in {relpath} "
-                        "(run `make ze-journal`)",
+                        "(run `make ze-journal-report`)",
                         file=sys.stderr,
                     )
                     named_malformed = True

@@ -17,15 +17,15 @@ const verifyWiringDocsTimeout = 60 * time.Second
 // PREVENTS: YANG command tree drift staying advisory until commit-time hooks.
 func TestVerifyWiringDocsRoutesCommandChanges(t *testing.T) {
 	out := runVerifyWiringDocsDryRun(t, "internal/component/cmd/show/yang/ze-cli-show-cmd.yang")
-	mustContain(t, out, "ze-validate-commands")
+	mustContain(t, out, "ze-command-contract-check")
 }
 
 // VALIDATES: Changing anchored docs schedules documentation validation and stale-anchor checks.
 // PREVENTS: source-anchored documentation drift bypassing the normal verify path.
 func TestVerifyWiringDocsRoutesAnchoredDocChanges(t *testing.T) {
 	out := runVerifyWiringDocsDryRun(t, "docs/DESIGN.md")
-	mustContain(t, out, "ze-doc-test")
-	mustContain(t, out, "ze-doc-check-stale")
+	mustContain(t, out, "ze-doc-verify")
+	mustContain(t, out, "ze-doc-index-check")
 }
 
 // VALIDATES: Changing a test file that declares a `func Fuzz` schedules the
@@ -55,7 +55,7 @@ func TestVerifyWiringDocsRoutesFuzzTargetChanges(t *testing.T) {
 }
 
 // VALIDATES: Changing plugin registration schedules registry-backed inventory checks.
-// PREVENTS: plugin/all.go and command inventory drift staying outside ze-verify.
+// PREVENTS: plugin/all.go and command inventory drift staying outside ze-precommit-verify.
 func TestVerifyWiringDocsRoutesPluginRegistrationChanges(t *testing.T) {
 	out := runVerifyWiringDocsDryRun(t, "internal/plugins/static/register.go")
 	mustContain(t, out, "ze-inventory-json")

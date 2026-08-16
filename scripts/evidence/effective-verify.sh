@@ -56,5 +56,5 @@ if [ -n "$(git status --porcelain)" ]; then
     exit 1
 fi
 
-ZE_SKIP_SUITES=firewall,web ZE_SUITE_TIMEOUT=1200s make ze-verify
+ZE_SKIP_SUITES=firewall,web ZE_SUITE_TIMEOUT=1200s make ze-precommit-verify
 '

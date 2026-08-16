@@ -350,8 +350,8 @@ Not applicable. Nothing wire-visible changes; this is config storage.
      verification method. -->
 | Deliverable | Verification method |
 |-------------|---------------------|
-| A List prefix resolves to a directory key | `make ze-test-pkg PKG=./internal/component/config/storage` |
-| The operator's review shows a structural delete on blob storage | `make ze-editor-test` |
+| A List prefix resolves to a directory key | `make ze-unit-pkg-test PKG=./internal/component/config/storage` |
+| The operator's review shows a structural delete on blob storage | `make ze-functional-editor-test` |
 | `.et` tests can ask for blob-backed storage | `grep -n "option=storage" test/editor/session/diff-structural-op-blob.et docs/functional-tests.md ai/rules/testing.md` |
 | No dead branch or false comment survives in the key resolution | Read `resolvePathToKey` and `resolveKey` in `internal/component/config/storage/blob.go` |
 
@@ -423,7 +423,7 @@ Not applicable. No RFC governs ze's config storage.
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-verify` passes (the pre-commit gate; `ai/rules/git-safety.md`)
+- [ ] `make ze-precommit-verify` passes (the pre-commit gate; `ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding

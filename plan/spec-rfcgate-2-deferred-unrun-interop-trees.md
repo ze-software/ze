@@ -33,13 +33,13 @@ executes only when somebody remembers to type the target:
 
 | Tree | Scenarios | Runner | Automated caller |
 |------|-----------|--------|------------------|
-| `test/ipsec-interop/` | 12 `check.py` | `make ze-ipsec-interop-test` | none |
-| `test/l2tp-interop/` | 2 `check.py` (+1 self-run scenario) | `make ze-deployment-l2tp-ppp-docker-test` | none |
-| `test/pppoe-interop/` | 1 `check.py` | `make ze-deployment-pppoe-accel-docker-test` | none |
+| `test/ipsec-interop/` | 12 `check.py` | `make ze-interop-ipsec-test` | none |
+| `test/l2tp-interop/` | 2 `check.py` (+1 self-run scenario) | `make ze-deployment-docker-l2tp-ppp-test` | none |
+| `test/pppoe-interop/` | 1 `check.py` | `make ze-deployment-docker-pppoe-accel-test` | none |
 
 → Constraint: the counts above are measured (`find test/*-interop -name check.py`),
 not the 10/3/1 the deferral row carried. The l2tp runner's target name is
-`ze-deployment-l2tp-ppp-docker-test` (`mk/test-integration.mk`), not "the L2TP
+`ze-deployment-docker-l2tp-ppp-test` (`mk/test-integration.mk`), not "the L2TP
 interop runner" as `CARRIERS` currently spells it.
 
 Because nothing runs them, `scripts/dev/rfc_requirements.py` classifies each as
@@ -127,8 +127,8 @@ that pass with the dataplane broken.
   pins that the `interop` job exists, runs `make ze-interop-test` by name, and is
   advisory. `TestWorkflowMakeTargetsExist` proves every `make <target>` a workflow
   names is real. `parseMakeTargets()` is the shared extractor.
-- [ ] `mk/test-integration.mk` - `ze-interop-test`, `ze-ipsec-interop-test`,
-  `ze-deployment-l2tp-ppp-docker-test`, `ze-deployment-pppoe-accel-docker-test`.
+- [ ] `mk/test-integration.mk` - `ze-interop-test`, `ze-interop-ipsec-test`,
+  `ze-deployment-docker-l2tp-ppp-test`, `ze-deployment-docker-pppoe-accel-test`.
 - [ ] `test/ipsec-interop/run.py` - `build_images()` cross-compiles ze on the HOST
   (`CGO_ENABLED=0 GOOS=linux go build`) into the gitignored `test/ipsec-interop/ze-linux`,
   then Docker COPYs it. Preflight is `docker info` only; a missing daemon exits 1.
@@ -208,7 +208,7 @@ that pass with the dataplane broken.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The ipsec lab actually passes, so its green is real rather than assumed | deferral note says all three are unverified since the launcher fix | the tree cannot earn a tier at all | ran `make ze-ipsec-interop-test IPSEC_INTEROP_SCENARIO=01-psk-site-to-site` on Darwin/Docker: exit 0, Ze-side XFRM SA present, ESP counters advanced | **confirmed for 01 only -- see A-9/A-10** |
+| A-1 | The ipsec lab actually passes, so its green is real rather than assumed | deferral note says all three are unverified since the launcher fix | the tree cannot earn a tier at all | ran `make ze-interop-ipsec-test IPSEC_INTEROP_SCENARIO=01-psk-site-to-site` on Darwin/Docker: exit 0, Ze-side XFRM SA present, ESP counters advanced | **confirmed for 01 only -- see A-9/A-10** |
 | A-9 | Scenario 02 passes once its fail-open handler is gone | assumed by A-1 generalising from 01 | the tree carries a real, previously-hidden dataplane defect | ran it 2026-08-01 with the handler removed: FAILS at `wait_xfrm_sa(ZE_CONTAINER)`. strongSwan installs its XFRM SA, Ze installs none. This is exactly the failure the `except (AssertionError, Exception)` was converting into a pass | **broken -- real defect, see below** |
 | A-10 | Scenario 04 passes once its fail-open handler is gone | same | EAP-TLS is not interoperable today | ran it 2026-08-01: FAILS EARLIER than the removed handler, at step 1 `swan.wait_sa_established("ze")`. strongSwan logs `EAP method EAP_TLS failed for peer ze-test-client`; Ze logs `eap: authenticator sent Failure`. The handler removal did not cause it and could not have hidden it | **broken -- real defect, see below** |
 | A-2 | `test/ipsec-interop/ze-linux` is a build output, not a checked-in input CI would lack | `.gitignore` line for it; absent from `git ls-files`; `run.py` `build_images()` regenerates it | CI could never build the image | `git check-ignore -v` and `git ls-files` | **confirmed** |
@@ -246,7 +246,7 @@ that pass with the dataplane broken.
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
 | `# RFC requirement:` tag in `test/ipsec-interop/scenarios/*/check.py` | → | `carrier_for()` → `_lookup()` returns `interop-ipsec` with `TIER_NIGHTLY` | `test_ipsec_interop_carrier_earns_nightly_when_wired` (`scripts/dev/rfc_requirements_test.py`) |
-| `.github/workflows/evidence-nightly.yml` `ipsec-interop` job | → | `scheduled_workflow_targets()` reports `ze-ipsec-interop-test` | `TestEvidenceNightlyRunsIpsecInterop` (`scripts/dev/github_workflows_test.go`) |
+| `.github/workflows/evidence-nightly.yml` `ipsec-interop` job | → | `scheduled_workflow_targets()` reports `ze-interop-ipsec-test` | `TestEvidenceNightlyRunsIpsecInterop` (`scripts/dev/github_workflows_test.go`) |
 | A workflow that does NOT name a tree's runner | → | that tree's carrier resolves `TIER_UNRUN` and `_refuse_unrun()` fires | `test_interop_carrier_falls_to_unrun_without_a_scheduled_caller` |
 | Deleting the interop job at HEAD→tree | → | `_build_head_carriers()` labels HEAD `nightly` and tree `unrun`, so the evidence ratchet reports a LOSS | `test_head_carriers_read_head_workflows` |
 
@@ -256,7 +256,7 @@ that pass with the dataplane broken.
      observable behavior, never as the mechanism used to reach it. -->
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | `.github/workflows/evidence-nightly.yml` after the change | carries an `ipsec-interop` job, `continue-on-error: true`, running `make ze-ipsec-interop-test` by name, with `actions/setup-go` (the lab cross-compiles ze on the host) |
+| AC-1 | `.github/workflows/evidence-nightly.yml` after the change | carries an `ipsec-interop` job, `continue-on-error: true`, running `make ze-interop-ipsec-test` by name, with `actions/setup-go` (the lab cross-compiles ze on the host) |
 | AC-2 | An `RFC requirement:` tag in `test/ipsec-interop/scenarios/*/check.py` | is accepted and labelled `interop/nightly`; `make ze-rfc-check` exits 0 |
 | AC-3 | `04-eap-tls/check.py` and `02-ipsec-bgp-redistribute-frr/check.py` run against a host where the Ze-side XFRM SA never appears | the scenario FAILS. No `except Exception` path reports a pass |
 | AC-4 | An `RFC requirement:` tag in `test/l2tp-interop/scenarios/*/check.py` | BLOCKED on A-6. Accepted as `interop/nightly` only once a scheduled job runs the lab green; otherwise the tag stays refused and the refusal names the runner |
@@ -280,7 +280,7 @@ a test, and that path is covered by the Wiring Test table above.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `test_scheduled_workflow_targets_reads_make_targets` | `scripts/dev/rfc_requirements_test.py` | the reader finds `ze-interop-test` and `ze-ipsec-interop-test` in a scheduled workflow fixture | |
+| `test_scheduled_workflow_targets_reads_make_targets` | `scripts/dev/rfc_requirements_test.py` | the reader finds `ze-interop-test` and `ze-interop-ipsec-test` in a scheduled workflow fixture | |
 | `test_scheduled_workflow_targets_ignores_push_only_workflow` | same | a target named only by `verify.yml` (push/pull_request) does not grant a NIGHTLY tier | |
 | `test_scheduled_workflow_targets_ignores_comments` | same | a commented-out `make` line grants nothing, matching `stripComments` on the Go side | |
 | `test_scheduled_workflow_targets_fails_closed_when_unreadable` | same | an unreadable workflow dir raises `ParseError`, never "everything runs" (`ai/rules/evidence.md`) | |
@@ -301,7 +301,7 @@ a test, and that path is covered by the Wiring Test table above.
      Structure: ai/patterns/functional-test.md -->
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| N-A - no daemon-visible behavior changes. The user entry point is `make ze-rfc-check`, exercised by `--selftest` (699 tests) and by the gate itself in `ze-verify`. No `internal/**` or `cmd/**` Go file is modified. | - | - | - |
+| N-A - no daemon-visible behavior changes. The user entry point is `make ze-rfc-check`, exercised by `--selftest` (699 tests) and by the gate itself in `ze-precommit-verify`. No `internal/**` or `cmd/**` Go file is modified. | - | - | - |
 
 ### Interop Tests (Scope: protocol)
 <!-- REQUIRED when wire-visible behavior changes. See
@@ -344,7 +344,7 @@ bound to this tree yet, so no false evidence is created either way.
   caveat outright.
 - `ai/rules/testing.md` - update the carrier table: `test/ipsec-interop/` is no
   longer in the refused list, and the l2tp target name is corrected.
-- `ai/RFC-REQUIREMENTS.md` - regenerated by `make ze-rfc-index`.
+- `ai/RFC-REQUIREMENTS.md` - regenerated by `make ze-rfc-index-update`.
 
 ## Files to Create
 - None. Every file this spec needs already exists.
@@ -410,14 +410,14 @@ avoid, so the checks are fixed before the tier is available.
 2. **Phase: Discriminating checks (AC-3)** -- remove the two fail-open handlers
    - Tests: `04-eap-tls` and `02-ipsec-bgp-redistribute-frr` run green on a host WITH XFRM, and fail on one without
    - Files: the two `check.py`
-   - Verify: `make ze-ipsec-interop-test` still exits 0 here (XFRM is present); mutation-check by asserting a bogus container name and confirming the scenario reddens
+   - Verify: `make ze-interop-ipsec-test` still exits 0 here (XFRM is present); mutation-check by asserting a bogus container name and confirming the scenario reddens
 3. **Phase: Derive the tier (AC-2, AC-6, AC-7)** -- replace the literal with a reader
    - Tests: the seven `rfc_requirements_test.py` tests, `TestWorkflowTargetExtractorsAgree`
    - Files: `scripts/dev/rfc_requirements.py`, `scripts/dev/github_workflows_test.go`
    - Verify: `python3 scripts/dev/rfc_requirements.py --selftest` green; the phase-1 carrier test now PASSES; removing the BGP `interop` job from a fixture refuses the BGP tags
 4. **Phase: Docs and ledger** -- correct the stale claims, regenerate
    - Files: `ai/rules/testing.md`, `docs/labs/pppoe-interop.md`, `ai/RFC-REQUIREMENTS.md`
-   - Verify: `make ze-rfc-index && make ze-rfc-check && make ze-doc-test`
+   - Verify: `make ze-rfc-index-update && make ze-rfc-check && make ze-doc-verify`
 5. **Phase: l2tp / pppoe (AC-4, AC-5) -- BLOCKED, needs the owner ruling below**
    - Do not start until A-6/A-7 are settled. Wiring a lab whose kernel prerequisite
      the runner lacks produces a nightly red, which earns no tier and trains people
@@ -448,7 +448,7 @@ avoid, so the checks are fixed before the tier is available.
 |-------------|---------------------|
 | `ipsec-interop` job exists and is advisory | `go test -tags "ze_core $TAGS" -run TestEvidenceNightlyRunsIpsecInterop ./scripts/dev/` |
 | A tag in `test/ipsec-interop/` is accepted | add one, run `make ze-rfc-check`, expect exit 0 and a non-zero `interop/nightly` count |
-| The two checks discriminate | `make ze-ipsec-interop-test IPSEC_INTEROP_SCENARIO=04-eap-tls` green; then break the container name and confirm red |
+| The two checks discriminate | `make ze-interop-ipsec-test IPSEC_INTEROP_SCENARIO=04-eap-tls` green; then break the container name and confirm red |
 | The tier is derived | `python3 scripts/dev/rfc_requirements.py --selftest` |
 | Deleting the BGP interop job refuses BGP tags | the fixture test `test_interop_carrier_falls_to_unrun_without_a_scheduled_caller` |
 | The gate is still green overall | `make ze-rfc-check` exit 0 |
@@ -537,7 +537,7 @@ N-A. Scope is tooling. This spec changes which carriers may hold an
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-verify` passes (the pre-commit gate; `ai/rules/git-safety.md`)
+- [ ] `make ze-precommit-verify` passes (the pre-commit gate; `ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding

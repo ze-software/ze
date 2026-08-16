@@ -2,7 +2,7 @@
 #
 # Quick reference:
 #   make ze-mutation-test       All non-excluded packages (slow on full repo)
-#   make ze-mutation-changed    Only changed files (incremental, fast)
+#   make ze-mutation-test-changed    Only changed files (incremental, fast)
 #   make ze-mutation-report     Full run with HTML report
 #
 # gomu is vendored in tools.go and invoked via go run. No install needed.
@@ -12,7 +12,7 @@
 # (ze_test, ze_chaos, ze_perf, ze_analyze) and other non-mutatable
 # paths are excluded via .gomuignore.
 
-.PHONY: ze-mutation-test ze-mutation-changed ze-mutation-report
+.PHONY: ze-mutation-test ze-mutation-test-changed ze-mutation-pkg-test ze-mutation-report
 
 GOMU_WORKERS   ?= 2
 GOMU_TIMEOUT   ?= 120
@@ -42,7 +42,7 @@ ze-mutation-test:
 # Incremental mutation test on changed files only.
 # The changed-pkgs.sh pre-check avoids invoking gomu when nothing changed;
 # gomu's own --incremental does a separate git-diff pass internally.
-ze-mutation-changed:
+ze-mutation-test-changed:
 	@set -o pipefail; \
 	pkgs=$$(scripts/dev/changed-pkgs.sh 2>/dev/null); \
 	if [ -z "$$pkgs" ]; then \
@@ -67,14 +67,14 @@ ze-mutation-changed:
 
 # Run mutation test on one or more packages, output surviving mutants as JSON.
 # Usage:
-#   make ze-mutation-pkg PKG=./internal/core/textbuf/         (single package)
-#   make ze-mutation-pkg PKG=./internal/core/...              (all under core/)
-#   make ze-mutation-pkg PKG="./internal/core/textbuf/ ./internal/core/netutil/"  (list)
-ze-mutation-pkg:
+#   make ze-mutation-pkg-test PKG=./internal/core/textbuf/         (single package)
+#   make ze-mutation-pkg-test PKG=./internal/core/...              (all under core/)
+#   make ze-mutation-pkg-test PKG="./internal/core/textbuf/ ./internal/core/netutil/"  (list)
+ze-mutation-pkg-test:
 	@set -o pipefail; \
 	if [ -z "$(PKG)" ]; then \
-		echo "Usage: make ze-mutation-pkg PKG=./internal/core/textbuf/"; \
-		echo "       make ze-mutation-pkg PKG=./internal/core/..."; \
+		echo "Usage: make ze-mutation-pkg-test PKG=./internal/core/textbuf/"; \
+		echo "       make ze-mutation-pkg-test PKG=./internal/core/..."; \
 		exit 1; \
 	fi; \
 	mkdir -p tmp; \

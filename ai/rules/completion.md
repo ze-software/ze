@@ -76,7 +76,7 @@ nobody checked.
 | 3 | Every user-facing behavior has a functional test (`.ci`/`.et`) per `ai/rules/testing.md` |
 | 4 | Protocol features have interop tests per `ai/rules/interop-and-goal-validation.md` |
 | 5 | Goal Validation table filled with concrete evidence per goal |
-| 6 | The code compiles and `make ze-verify` passes |
+| 6 | The code compiles and `make ze-precommit-verify` passes |
 | 7 | No TODO, FIXME, or stub remains in the new code |
 | 8 | No item was silently dropped from scope |
 | 9 | Every function is reachable from a user entry point (wired, not just library) |
@@ -296,7 +296,7 @@ one.
 | the same failure in a shard, a commit body, a report and a summary | pick one place |
 
 Enforced: `check_known_failure_load_excuses` in `scripts/dev/verify_wiring_docs.py`
-(`make ze-verify-wiring-docs`, inside `make ze-verify`) fails a CHANGED
+(`make ze-wiring-docs-check`, inside `make ze-precommit-verify`) fails a CHANGED
 `plan/known-failures/` shard containing "under load", "loaded host", "load
 average", "load-sensitive", "passes in isolation", "resource contention" or
 "contended host". `README.md` and `RESOLVED.md` are exempt: the first states this
@@ -488,13 +488,13 @@ If you find yourself checking wiring for the first time at completion, three ear
 
 ### Mechanical Check (MANDATORY before claiming done)
 
-`make ze-verify` runs `make ze-verify-wiring-docs`. That changed-file
+`make ze-precommit-verify` runs `make ze-wiring-docs-check`. That changed-file
 gate is blocking and checks:
 
 **The wiring gate MUST verify that:**
 - new exported Go symbols under `internal/` or `cmd/` have a non-test
   production reference in `internal/` or `cmd/`;
-- command declaration changes run `make ze-validate-commands`;
+- command declaration changes run `make ze-command-contract-check`;
 - source-anchored documentation changes run doc drift and stale-anchor
   checks;
 - plugin registration and generated inventory source changes run
@@ -578,7 +578,7 @@ A wiring test proves the feature is reachable from its intended entry point (con
 | "Deferred to next spec" | Next spec won't pick it up. Feature ships unwired. |
 | "Requires infrastructure not yet built" | Then the feature is blocked, not done. |
 | "Unit tests cover the logic" | Unit tests prove the algorithm, not the wiring. |
-| "make ze-verify passes" | Passing tests that don't exercise the entry point prove nothing. |
+| "make ze-precommit-verify passes" | Passing tests that don't exercise the entry point prove nothing. |
 | "Go test exercises the handler" | A Go test with mocked entry points is not a `.ci` test. |
 
 **If the wiring test cannot be written, the feature MUST NOT be considered done: it is blocked.**
@@ -635,7 +635,7 @@ Before: writing the journal row, claiming "done", asking to commit.
 
 | Claim | Acceptable Evidence | NOT Acceptable |
 |-------|-------------------|----------------|
-| Feature works | Test name + output | "make ze-verify passes" |
+| Feature works | Test name + output | "make ze-precommit-verify passes" |
 | Feature is wired in | Wiring test that exercises entry-to-feature path | Unit test with mock/fake entry point |
 | AC-N done (wiring) | Functional test name exercising full path | Unit test in isolation |
 | AC-N done (logic) | Unit test name + file, assertion matches AC text | "should work" |

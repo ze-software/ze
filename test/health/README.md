@@ -8,10 +8,10 @@ is hand-written). Do not hand-edit the data; edit the collectors instead.
 
 | File | What it is | Written by |
 |------|-----------|-----------|
-| `latest.json` | Every metric, with each ratio's numerator and denominator | `make ze-test-health` |
+| `latest.json` | Every metric, with each ratio's numerator and denominator | `make ze-test-health-update` |
 | `history.ndjson` | Append-only KPI series, one row per recorded sample | `make ze-test-health-record` |
-| `sensitivity-baseline.json` | Ratchet floors for the assert-nothing and tag-orphan counts (lower is better; ratchets DOWN) | `make ze-test-health` (tightens only) |
-| `quality-baseline.json` | Locked-in best for the higher-is-better ratios (proof density, mutation kill, negative-test share); a metric warns only when it drops below its best, so the attention table shows regressions, not a permanent gap to an arbitrary target. Ratchets UP | `make ze-test-health` |
+| `sensitivity-baseline.json` | Ratchet floors for the assert-nothing and tag-orphan counts (lower is better; ratchets DOWN) | `make ze-test-health-update` (tightens only) |
+| `quality-baseline.json` | Locked-in best for the higher-is-better ratios (proof density, mutation kill, negative-test share); a metric warns only when it drops below its best, so the attention table shows regressions, not a permanent gap to an arbitrary target. Ratchets UP | `make ze-test-health-update` |
 
 ## What is gated, and what is only published
 
@@ -26,11 +26,11 @@ The volume counters are published, not gated. Byte-comparing the whole report
 charged a regenerate-and-commit to roughly 60% of commits, because every added
 test moves a denominator, and a check that fires that often for cosmetic reasons
 gets routed around instead of read. The counters are refreshed by
-`make ze-regen` and may lag the tree by a few tests; the page says so.
+`make ze-generated-files-update` and may lag the tree by a few tests; the page says so.
 
 **The ratchets do not depend on any of this.** `make ze-test-sensitivity-check`
 enforces them from the tree itself, reading only `sensitivity-baseline.json`, at
-stage 10 of `ze-verify`. Report staleness cannot weaken them.
+stage 10 of `ze-precommit-verify`. Report staleness cannot weaken them.
 
 ## Why the report is reproducible
 
@@ -61,10 +61,10 @@ for mutation scores.
 ## The ratchets
 
 `sensitivity-baseline.json` holds floors, not facts. `make ze-test-sensitivity-check`
-(stage 10 of `make ze-verify`, both modes) fails when a count rises above its floor
+(stage 10 of `make ze-precommit-verify`, both modes) fails when a count rises above its floor
 and names every offending file.
 
-`make ze-test-health` only ever *lowers* a floor. Writing a higher one would let a
+`make ze-test-health-update` only ever *lowers* a floor. Writing a higher one would let a
 regression be laundered into the baseline by running the generator, so the floor
 falls when the debt is paid and never rises. This follows `test/.ci-sleep-baseline`.
 
@@ -81,10 +81,10 @@ func TestCloseWithNoBundle(t *testing.T) { ... }
 
 | Command | Does |
 |---------|------|
-| `make ze-test-health` | Regenerate the page, `latest.json`, and the baseline |
-| `make ze-test-health-check` | Fail if the committed page is stale (runs inside `ze-regen-check-readonly`) |
+| `make ze-test-health-update` | Regenerate the page, `latest.json`, and the baseline |
+| `make ze-test-health-check` | Fail if the committed page is stale (runs inside `ze-generated-files-check`) |
 | `make ze-test-health-record` | Append one KPI sample, then regenerate the page |
-| `make ze-test-sensitivity-check` | Enforce the ratchets (runs inside `ze-verify`) |
+| `make ze-test-sensitivity-check` | Enforce the ratchets (runs inside `ze-precommit-verify`) |
 | `go run scripts/checks/inert_tests.go` | Human-readable list of every inert and orphaned test |
 
 The website renders the same data at `quality/health/` via

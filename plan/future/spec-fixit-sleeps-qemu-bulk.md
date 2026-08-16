@@ -197,7 +197,7 @@ Per-directory raw vs blind (the brief's numbers are the raw column):
 | tc qdisc programmed by OnConfigure | -> | tc readback poll replacing the blind hold | `test/traffic/022-boot-qdisc-tc.ci` (QEMU) |
 | dhcp/tftp zero-listener path | -> | deterministic wait on the asserted listener state | `test/install/dhcp-zero-listener.ci`, `test/install/tftp-zero-listener.ci` (QEMU) |
 | ddos characterize pipeline | -> | deterministic wait on the characterization result | `test/plugin/ddos-detect-characterize.ci` (QEMU) |
-| a sleep is removed from any `.ci` | -> | `check_ci_sleep_ratchet` (`scripts/dev/verify_wiring_docs.py`) | `test/.ci-sleep-baseline` lowered; `make ze-verify-changed` green |
+| a sleep is removed from any `.ci` | -> | `check_ci_sleep_ratchet` (`scripts/dev/verify_wiring_docs.py`) | `test/.ci-sleep-baseline` lowered; `make ze-precommit-verify-changed` green |
 
 ## Acceptance Criteria
 
@@ -381,11 +381,11 @@ Every open question above is resolved for readiness. Empirical confirmations tha
 - [ ] Tests written -- each converted `.ci` IS its own functional test and keeps its exact assertions; infra changes (if any) get red-first unit tests.
 - [ ] Tests FAIL -- infra unit tests are red-first (TDD); a converted `.ci` that fails surfaces a real race, fixed at the source, never with a re-added sleep.
 - [ ] Tests PASS -- each converted test green under QEMU, both before (AC-1) and after (AC-4) conversion.
-- [ ] make ze-test / `make ze-qemu-needs-linux-test` -- affected suites green before each batch's commit; skip counts read, not just exit codes.
+- [ ] make ze-standard-test / `make ze-qemu-needs-linux-test` -- affected suites green before each batch's commit; skip counts read, not just exit codes.
 
 ### Quality Gates
 - [ ] `test/.ci-sleep-baseline` lowered by exactly the number of sleeps removed, same change.
-- [ ] `make ze-verify-changed` green (ratchet + justification gates).
+- [ ] `make ze-precommit-verify-changed` green (ratchet + justification gates).
 - [ ] `make ze-lint-changed` green.
 - [ ] Every kept sleep still carries a justifying comment.
 - [ ] No bounded poll and no deliberate timer converted for baseline credit.

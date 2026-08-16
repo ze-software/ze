@@ -831,7 +831,7 @@ Phases 2-6 do not start until then.**~~ **Both answered 2026-07-16. Phases 2-6 M
 | Phase 5: netns doctor check reconciliation (AC-3) | Phase 4 |
 | Phase 6: functional and QEMU tests | Phase 5 |
 
-2. **Full verification**: `make ze-verify`
+2. **Full verification**: `make ze-precommit-verify`
 3. **Complete spec**: learned summary, two-commit closure.
 
 ### Critical Review Checklist
@@ -1037,7 +1037,7 @@ folded in here). The spec is promoted to `ready` on that basis. Thomas: override
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete (every row has a concrete test name, none deferred)
 - [ ] `/ze-review` gate clean (Review Gate section filled: 0 BLOCKER, 0 ISSUE)
-- [ ] `make ze-test` passes (lint + all ze tests)
+- [ ] `make ze-standard-test` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
 - [ ] QEMU: N/A for this half. The doctor check is host-testable; the linux-only netns leg and its QEMU gate moved to `plan/spec-bgp-netns.md` (`ai/rules/platform-linux.md`)
 - [ ] Documentation Update Checklist answered Yes/No with source evidence

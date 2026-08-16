@@ -1,17 +1,18 @@
-.PHONY: all build ze ze-appliance ze-setup-bin chaos test analyse clean clean-all fmt vet tidy generate help
-.PHONY: ze-docker ze-docker-lab
-.PHONY: ze-lint ze-vet-evidence ze-race-reactor ze-linux-test ze-exabgp-test ze-vulncheck
-.PHONY: ze-test ze-verify ze-verify-changed ze-verify-list ze-validate ze-validate-tree ze-smoke ze-ci ze-all ze-all-test
-.PHONY: ze-lint-changed ze-unit-test-changed ze-clean-tmp ze-clean-sessions ze-hook-test
-.PHONY: ze-tier-check ze-iface-resolution-check ze-plugin-boundary-check ze-config-coercion-check ze-fs-persistence-check ze-dash-stdio-check ze-port-defaults-check ze-yang-leaf-mentions ze-platform-vet ze-ci-dispatch-check
-.PHONY: ze-test-sensitivity-check ze-test-health ze-test-health-check ze-test-health-record ze-weakened-check
+.PHONY: all build ze ze-appliance-build ze-setup-build ze-stripped-build ze-chaos-build ze-test-build ze-analyze-build clean clean-all fmt vet tidy generate help
+.PHONY: ze-docker-build ze-docker-lab-build
+.PHONY: ze-lint ze-evidence-vet ze-unit-reactor-test-race ze-unit-linux-test ze-functional-exabgp-test ze-dependency-vulnerability-check
+.PHONY: ze-standard-test ze-precommit-verify ze-precommit-verify-changed ze-precommit-verify-list ze-repository-check ze-repository-tree-check ze-smoke-verify ze-ci-verify ze-all-verify ze-all-test
+.PHONY: ze-lint-changed ze-unit-test-changed ze-tmp-clean ze-sessions-clean ze-unit-hook-test
+.PHONY: ze-tier-check ze-iface-resolution-check ze-plugin-boundary-check ze-config-coercion-check ze-fs-persistence-check ze-dash-stdio-check ze-port-defaults-check ze-yang-leaf-mentions-report ze-platform-vet ze-ci-dispatch-check
+.PHONY: ze-test-sensitivity-check ze-test-health-update ze-test-health-check ze-test-health-record ze-weakened-check
 .PHONY: ze-tracked-build-check
-.PHONY: ze-iso ze-iso-init ze-iso-build ze-iso-check ze-pxe
-.PHONY: ze-sync-vendor-web ze-check-vendor-web ze-check-vendor-web-updates ze-htmx-upgrade-check ze-htmx-upgrade-report ze-ai-sync ze-ai-instructions
-.PHONY: ze-plugin-imports-check ze-fuzz-targets-check ze-yang-glue-check ze-feature-tags-check ze-web-assets-check ze-templ-orphan-check ze-templ-generate-check ze-regen ze-regen-check ze-regen-check-readonly ze-arch-map ze-arch-map-check
-.PHONY: ze-web-golden-check ze-web-golden-update ze-templ-port-check ze-chaos-golden-update
-.PHONY: check ze-setup
+.PHONY: ze-iso-full-build ze-iso-initialize ze-iso-build ze-iso-check ze-pxe-build
+.PHONY: ze-vendor-web-sync ze-vendor-web-check ze-vendor-web-update-report ze-htmx-upgrade-check ze-htmx-upgrade-report ze-ai-skills-sync ze-ai-instructions-generate ze-ai-sync-check
+.PHONY: ze-proto-generate ze-plugin-snapshot-update ze-plugin-imports-check ze-fuzz-targets-check ze-yang-glue-check ze-feature-tags-check ze-web-assets-check ze-templ-orphan-check ze-templ-generate-check ze-generated-files-update ze-generated-files-update-check ze-generated-files-check ze-arch-map-update ze-arch-map-check
+.PHONY: ze-web-golden-check ze-web-golden-update ze-templ-port-check ze-chaos-golden-update ze-doc-links-check
+.PHONY: check ze-dev-setup
 .PHONY: help-test help-deploy help-dev
+.PHONY: ze-rfc-check ze-rfc-index-update ze-rfc-reseal ze-rfc-extraction-create ze-rfc-extraction-status
 
 # Environment: keep build caches within CURDIR (not TMPDIR - breaks Unix socket tests)
 # GOCACHE is on the durable side (cache/ -> ~/.cache/ze), not disposable tmp/, so it
@@ -24,11 +25,11 @@ export CGO_ENABLED := 0
 # writes scratch. This replaces the old tmp/go.mod nested-module sentinel: `go list ./...`
 # skips a directory SYMLINK named tmp/ (verified), so no marker file is needed.
 # See scripts/dev/ensure-links.py and plan/spec-relocate-scratch-and-cache.md.
-.PHONY: ze-ensure-links ze-migrate-scratch
-ze-ensure-links:
+.PHONY: ze-links-ensure ze-scratch-migrate
+ze-links-ensure:
 	@python3 scripts/dev/ensure-links.py --quiet
 
-ze-migrate-scratch:
+ze-scratch-migrate:
 	@python3 scripts/dev/ensure-links.py --migrate
 
 # Where Homebrew is, asked of the machine rather than written down. It is under
@@ -156,7 +157,7 @@ ZE_MODULE = github.com/ze-software/ze
 # than on ze -- dev_setup_test.py checks for brew or apt, and Alpine has neither.
 # The rest shell out to gate binaries they compile on the fly, which over the 9p
 # mount blows their own 60s timeouts. They cost ~33 minutes of the VM run and
-# every failure was environmental. They still run in full under `make ze-verify`
+# every failure was environmental. They still run in full under `make ze-precommit-verify`
 # on the host, so nothing is uncovered by skipping them here.
 ZE_PACKAGES_EXCLUDE ?=
 ZE_PACKAGES = $$(go list ./... | grep -v '^github.com/ze-software/ze$$'$(if $(ZE_PACKAGES_EXCLUDE), | grep -vE '$(ZE_PACKAGES_EXCLUDE)',))
@@ -192,8 +193,8 @@ all: ze-lint ze-unit-test build
 # source's removal removes it. The removal is a tracked-file deletion, so it
 # shows in `git status` and in review.
 #
-# No gate under `make ze-verify` names that deletion in the same cycle. Do NOT
-# claim ze-regen-check covers it: nothing runs that target, and
+# No gate under `make ze-precommit-verify` names that deletion in the same cycle. Do NOT
+# claim ze-generated-files-update-check covers it: nothing runs that target, and
 # TestVerifyStagesGuardGeneratedFiles asserts it must stay unwired. The real
 # catch is ze-templ-orphan-check on a fresh checkout, one cycle later, where the
 # file is on disk with no source.
@@ -202,7 +203,7 @@ all: ze-lint ze-unit-test build
 # asset copy is a GENERATED file. //go:embed cannot reach outside its own
 # package, so one library is vendored once per consumer, and a copy that
 # nothing regenerates diverges from third_party/web/ without a sound.
-# ze-check-vendor-web is its read-only twin, below.
+# ze-vendor-web-check is its read-only twin, below.
 generate:
 	@go run scripts/codegen/yang_glue.go
 	@go run scripts/codegen/plugin_imports.go
@@ -214,15 +215,17 @@ generate:
 
 # Regenerate api/proto/*.pb.go from api/proto/ze.proto. Deliberately NOT part of
 # `generate`: it needs protoc on PATH, while the .pb.go files are checked in so a
-# normal build never calls it. The two codegen plugins are built from vendor/, so
-# their versions are pinned by go.mod; only the `protoc vN` header comment
-# reflects the locally installed protoc.
+# normal build never calls it. The two codegen plugins are built from vendor/,
+# so their versions are pinned by go.mod; only the `protoc vN` header comment
+# reflects the locally installed protoc. protoc-gen-go applies json_name to
+# protojson descriptors but not encoding/json struct tags, so the post-step
+# derives those tags from the same explicit options in ze.proto.
 #
 # Needed after any change to the module path: the embedded rawDesc carries
 # go_package as a LENGTH-PREFIXED field, so a textual rewrite of a
 # different-length path compiles and decodes to garbage. rename_module_path.py
 # refuses .pb.go for exactly this reason and points here.
-ze-proto-gen:
+ze-proto-generate:
 	@command -v protoc >/dev/null || { echo "protoc not found -- install it (brew install protobuf)"; exit 1; }
 	@go build -mod=vendor -o bin/protoc-gen-go google.golang.org/protobuf/cmd/protoc-gen-go
 	@go build -mod=vendor -o bin/protoc-gen-go-grpc google.golang.org/grpc/cmd/protoc-gen-go-grpc
@@ -230,6 +233,7 @@ ze-proto-gen:
 		--go_out=. --go_opt=module=$(ZE_MODULE) \
 		--go-grpc_out=. --go-grpc_opt=module=$(ZE_MODULE) \
 		api/proto/ze.proto
+	@python3 scripts/codegen/proto_json_tags.py
 	@echo "Regenerated api/proto/ze.pb.go api/proto/ze_grpc.pb.go"
 
 ze-plugin-imports-check:
@@ -394,7 +398,7 @@ ze-chaos-golden-update:
 # registry after adding or removing a plugin. ze-unit-test fails with a clear
 # "unexpected/missing" message and points here, so the lists never silently
 # drift from all.go. Review the diff before committing.
-ze-plugin-snapshot:
+ze-plugin-snapshot-update:
 	@$(GO_TEST) -run 'TestRegisteredPluginNames|TestRegisteredWireMethods|TestYANGSchemaProviders' ./internal/component/plugin/all/ -update
 	@echo "Updated internal/component/plugin/all/testdata/*.snapshot"
 
@@ -406,16 +410,16 @@ ze:
 	$(GO) build -tags 'ze_core ze_distro $(ZE_FEATURES) $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o $(ZEBIN_ZE) ./cmd/ze
 	$(call ZE_SEED_SESSION_STORE,$(ZEBIN_ZE))
 
-ze-appliance:
+ze-appliance-build:
 	@mkdir -p $(ZE_BIN_DIR)
 	$(GO) build -tags 'ze_core ze_appliance $(ZE_FEATURES) $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o $(ZEBIN_APPLIANCE) ./cmd/ze
 	$(call ZE_SEED_SESSION_STORE,$(ZEBIN_APPLIANCE))
 
-ze-setup-bin:
+ze-setup-build:
 	@mkdir -p $(ZE_BIN_DIR)
 	$(GO) build -tags 'ze_setup $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o $(ZEBIN_SETUP) ./cmd/ze
 
-ze-stripped:
+ze-stripped-build:
 	@mkdir -p $(ZE_BIN_DIR)
 	$(GO) build -tags 'ze_core ze_ssh $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o $(ZEBIN_STRIPPED) ./cmd/ze
 	$(call ZE_SEED_SESSION_STORE,$(ZEBIN_STRIPPED))
@@ -423,21 +427,18 @@ ze-stripped:
 # ze-chaos and ze-perf drive an in-process BGP reactor, so they force ze_bgp on:
 # their own tags (ze_chaos / ze_perf) do not include ZE_FEATURES, and without it
 # the BGP plugins would silently register nothing rather than fail to build.
-chaos:
+ze-chaos-build:
 	@mkdir -p $(ZE_BIN_DIR)
 	$(GO) build -tags 'ze_chaos ze_bgp' -o $(ZEBIN_CHAOS) ./cmd/ze
 
-test:
+ze-test-build:
 	@mkdir -p $(ZE_BIN_DIR)
 	$(GO) build -tags 'ze_test $(ZE_FEATURES) $(ZE_TAGS)' -o $(ZEBIN_TEST) ./cmd/ze
 
-analyze:
+ze-analyze-build:
 	@mkdir -p $(ZE_BIN_DIR)
 	$(GO) build -tags ze_analyze -o $(ZEBIN_ANALYZE) ./cmd/ze
 
-perf:
-	@mkdir -p $(ZE_BIN_DIR)
-	$(GO) build -tags 'ze_perf ze_bgp' -o $(ZEBIN_PERF) ./cmd/ze
 
 $(ZEBIN_ZE): $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze..."
@@ -497,7 +498,7 @@ ZE_LAB_TAG ?= latest
 # the Dockerfile, so `docker compose build` and a bare `docker build` get the same
 # binary make does. ZE_TAGS is passed as EXTRA tags, its meaning everywhere else
 # in this file.
-ze-docker:
+ze-docker-build:
 	@command -v docker >/dev/null || { echo "error: docker not found"; exit 1; }
 	docker build \
 		-f docker/Dockerfile \
@@ -508,7 +509,7 @@ ze-docker:
 		-t $(ZE_DOCKER_IMAGE):latest \
 		.
 
-ze-docker-lab:
+ze-docker-lab-build:
 	@command -v docker >/dev/null || { echo "error: docker not found"; exit 1; }
 	docker build \
 		-f docker/Dockerfile.lab \
@@ -550,15 +551,15 @@ ze-lint:
 	@echo "Running ze linter (GOOS=linux, integration tag)..."
 	@GOOS=linux golangci-lint run --build-tags integration $(ZE_LINT_PKGS)
 
-ze-vet-evidence:
+ze-evidence-vet:
 	@echo "Vetting evidence scripts (GOOS=linux)..."
 	@GOOS=linux go vet ./scripts/evidence/...
 
-ze-race-reactor:
+ze-unit-reactor-test-race:
 	@echo "Stress race-test reactor (count=20)..."
 	$(GO_TEST_RACE) -count=20 ./internal/component/bgp/reactor/...
 
-ze-linux-test:
+ze-unit-linux-test:
 	@command -v docker >/dev/null || { echo "error: docker not found"; exit 1; }
 	@mkdir -p tmp/linux-go-cache tmp/linux-gomodcache
 	docker run --rm \
@@ -571,7 +572,7 @@ ze-linux-test:
 		$(ZE_LINUX_GO_IMAGE) \
 		go test $(ZE_LINUX_TEST_PACKAGES) -count=1
 
-ze-exabgp-test: $(ZEBIN_ZE) $(ZEBIN_TEST)
+ze-functional-exabgp-test: $(ZEBIN_ZE) $(ZEBIN_TEST)
 	@echo "Running ExaBGP compatibility tests..."
 	uv run --with paramiko $(ZEBIN_TEST) exabgp --all --timeout $(ZE_EXABGP_TIMEOUT)s
 
@@ -591,7 +592,7 @@ ze-exabgp-test: $(ZEBIN_ZE) $(ZEBIN_TEST)
 # vendor churn. This repo vendors dependencies, and adding x/vuln as a module
 # `tool` dependency would vendor its large analysis tree (x/tools SSA, callgraph,
 # and related packages).
-ze-vulncheck:
+ze-dependency-vulnerability-check:
 	@echo "Running govulncheck (SCA: module deps vs vuln.go.dev)..."
 	$(GO) run -exec='env GOOS=linux GOARCH=amd64' golang.org/x/vuln/cmd/govulncheck@latest ./...
 
@@ -613,7 +614,7 @@ ze-lint-changed:
 	echo "Linting changed packages (GOOS=linux, integration tag): $$pkgs" && \
 	GOOS=linux golangci-lint run --build-tags integration $$pkgs
 
-ze-unit-test-changed: ze-ensure-links
+ze-unit-test-changed: ze-links-ensure
 	@pkgs=$$(scripts/dev/changed-pkgs.sh); \
 	if [ -z "$$pkgs" ]; then echo "No changed Go packages to test"; exit 0; fi; \
 	echo "Testing changed packages: $$pkgs"; \
@@ -630,7 +631,7 @@ ze-unit-test-changed: ze-ensure-links
 # session-id agreement between lib/session-id.sh and pretool-writeedit.py -- the
 # shell WRITES the markers Python READS, and a mismatch fails CLOSED).
 # See ai/rules/repo-maintenance.md.
-ze-hook-test:
+ze-unit-hook-test:
 	@echo "Hook dispatcher parity (golden exit codes)..."
 	@python3 scripts/dev/hook-parity-check.py
 	@echo "Hook behavioural fixtures (format-alloc / validate-spec / design-gate / commit-gate)..."
@@ -638,7 +639,7 @@ ze-hook-test:
 
 # ─── Composite verification targets ────────────────────────────────────────
 
-ze-test: ze-lint ze-unit-test ze-functional-test ze-exabgp-test ze-fuzz-test
+ze-standard-test: ze-lint ze-unit-test ze-functional-test ze-functional-exabgp-test ze-fuzz-test
 	@echo "All ze tests passed"
 
 ZE_VERIFY_LOG ?= tmp/ze-verify.log
@@ -651,14 +652,14 @@ ZE_VERIFY_LOG ?= tmp/ze-verify.log
 # conditional, and the parse is subtle (a naive `findstring n,$(MAKEFLAGS)`
 # false-positives on --no-print-directory, refusing every real verify). One
 # tested implementation beats two, and nothing is forged either way.
-ze-verify:
-	@scripts/dev/verify-lock.sh ze-verify env ZE_VERIFY_MAKE="$(MAKE)" $(GO) run ./scripts/status/verify_run.go ze-verify
+ze-precommit-verify:
+	@scripts/dev/verify-lock.sh ze-precommit-verify env ZE_VERIFY_MAKE="$(MAKE)" $(GO) run ./scripts/status/verify_run.go ze-precommit-verify
 
 # Print the stage list without running anything.
-#   make ze-verify-list
-#   make ze-verify-list ZE_VERIFY_MODE=ze-verify-changed
+#   make ze-precommit-verify-list
+#   make ze-precommit-verify-list ZE_VERIFY_MODE=ze-precommit-verify-changed
 #
-# Use THIS, never `make -n ze-verify` (nor -t / -q): the ze-verify recipe above
+# Use THIS, never `make -n ze-precommit-verify` (nor -t / -q): the ze-precommit-verify recipe above
 # contains $(MAKE), so make executes it even in those no-execute modes while
 # every stage sub-make does nothing and "passes" -- the runner would then write
 # a FRESH tmp/ze-verify.status for a tree nothing actually verified.
@@ -667,11 +668,11 @@ ze-verify:
 # The variable is ZE_VERIFY_MODE, not MODE: make imports the environment, and
 # MODE is a common enough name that a stray `export MODE=...` would silently
 # make this print the wrong list.
-ze-verify-list:
-	@$(GO) run ./scripts/status/verify_run.go --list $(or $(ZE_VERIFY_MODE),ze-verify)
+ze-precommit-verify-list:
+	@$(GO) run ./scripts/status/verify_run.go --list $(or $(ZE_VERIFY_MODE),ze-precommit-verify)
 
-ze-verify-changed:
-	@scripts/dev/verify-lock.sh ze-verify-changed env ZE_VERIFY_MAKE="$(MAKE)" $(GO) run ./scripts/status/verify_run.go ze-verify-changed; rc=$$?; python3 scripts/dev/perf-suggest.py || true; exit $$rc
+ze-precommit-verify-changed:
+	@scripts/dev/verify-lock.sh ze-precommit-verify-changed env ZE_VERIFY_MAKE="$(MAKE)" $(GO) run ./scripts/status/verify_run.go ze-precommit-verify-changed; rc=$$?; python3 scripts/dev/perf-suggest.py || true; exit $$rc
 
 # Module-tier placement gate (ai/rules/architecture.md): a config-driven engine
 # must live in internal/component/ if a feature depends on it, else internal/plugins/.
@@ -689,7 +690,7 @@ ze-tier-check:
 # tags, never hand-written (ai/rules/evidence.md).
 # --selftest proves the gate against its own fixtures before it judges the live tree.
 #
-# Wired into `make ze-verify` via stagesForMode() in scripts/status/verify_run.go (BOTH
+# Wired into `make ze-precommit-verify` via stagesForMode() in scripts/status/verify_run.go (BOTH
 # branches) -- that function is the only live stage list; nothing in this Makefile
 # enumerates verify stages any more.
 ze-rfc-check:
@@ -699,7 +700,7 @@ ze-rfc-check:
 # Regenerate the RFC requirement ledger (requirement -> enforcing tests): the index
 # ai/RFC-REQUIREMENTS.md, and one file per RFC stem under rfc/requirements/ holding that
 # RFC's rows. It also deletes a shard whose stem no longer renders.
-ze-rfc-index:
+ze-rfc-index-update:
 	@python3 scripts/dev/rfc_requirements.py --write
 
 # Re-stamp the audit verdicts a mechanical edit staled (plan/spec-rfcgate-3-audit-teeth.md).
@@ -710,11 +711,11 @@ ze-rfc-index:
 #
 # Deliberately its OWN target. It is the only thing that writes rfc/audit/ without a human
 # editing it, and folding it into ze-rfc-check (a check that writes cannot be trusted to
-# report) or ze-rfc-index (which runs routinely for reasons unrelated to any audit) would
+# report) or ze-rfc-index-update (which runs routinely for reasons unrelated to any audit) would
 # automate the blind re-stamp reflex the spec exists to remove. Owner ruling 2026-07-29.
 #
 # A verdict whose unit, cited producer code, or requirement text moved is REFUSED and stays
-# stale: that one needs /ze-rfc-audit <rfc>. Run `make ze-rfc-index` afterwards.
+# stale: that one needs /ze-rfc-audit <rfc>. Run `make ze-rfc-index-update` afterwards.
 ze-rfc-reseal:
 	@python3 scripts/dev/rfc_requirements.py --reseal
 
@@ -724,9 +725,9 @@ ze-rfc-reseal:
 # hand in rfc/extraction/<stem>.json. Generation alone can never produce a passing
 # sign-off -- an unclassified site FAILS `make ze-rfc-check` -- so mass-generating
 # skeletons makes the gate redder, never greener.
-#   make ze-rfc-extract STEM=rfc7296
-ze-rfc-extract:
-	@test -n "$(STEM)" || { echo "usage: make ze-rfc-extract STEM=<rfc-stem>"; exit 2; }
+#   make ze-rfc-extraction-create STEM=rfc7296
+ze-rfc-extraction-create:
+	@test -n "$(STEM)" || { echo "usage: make ze-rfc-extraction-create STEM=<rfc-stem>"; exit 2; }
 	@python3 scripts/dev/rfc_requirements.py --extract-skeleton $(STEM)
 
 # The machine-readable extraction counts the umbrella's drain quota consumes
@@ -797,7 +798,7 @@ ze-port-defaults-check:
 # internal/component/plugin/all/config_claims_test.go, which runs under
 # ze-unit-test. --selftest first proves the scan fires on a fixture whose
 # answer is known; TestYANGLeafMentionReport (scripts/checks) runs the same.
-ze-yang-leaf-mentions:
+ze-yang-leaf-mentions-report:
 	@$(GO) run scripts/checks/yang_leaf_mentions.go --selftest
 	@$(GO) run scripts/checks/yang_leaf_mentions.go
 
@@ -846,10 +847,10 @@ ze-tracked-build-check:
 # sibling test/health/latest.json, and the ratchet baseline. Output is a pure
 # function of committed state -- no wall-clock value -- so ze-test-health-check can
 # gate it for staleness the way every other generated file here is gated.
-ze-test-health:
+ze-test-health-update:
 	@python3 scripts/dev/testing_health.py --write
 
-# Staleness gate for the above; a prerequisite of ze-regen-check-readonly.
+# Staleness gate for the above; a prerequisite of ze-generated-files-check.
 ze-test-health-check:
 	@python3 scripts/dev/testing_health.py --check
 
@@ -870,10 +871,10 @@ ze-platform-vet:
 	@echo "Vetting iface/host trees (GOOS=freebsd)..."
 	@GOOS=freebsd go vet ./internal/component/host/... ./internal/component/iface/... ./internal/plugins/iface/...
 
-ze-validate:
+ze-repository-check:
 	@python3 scripts/dev/validate.py --root .
 
-# The half of ze-validate that `make ze-verify` runs (stagesForMode,
+# The half of ze-repository-check that `make ze-precommit-verify` runs (stagesForMode,
 # scripts/status/verify_run.go). Three of the five checks read the tree:
 # check_source_anchor_line_numbers and check_source_anchor_stale_paths walk
 # docs/**/*.md, check_spec_ac_completeness walks plan/spec-*.md. They judge the
@@ -887,27 +888,27 @@ ze-validate:
 # caller for every new exported symbol, check_cli_handler_coverage wants a .ci
 # test naming every newly registered command. That already happened once with
 # the checker run by hand (spec-session-scoped-build-artifacts: 10
-# pre-existing findings pulled into one session's scope), and inside ze-verify
+# pre-existing findings pulled into one session's scope), and inside ze-precommit-verify
 # it would red a run whose author changed none of it. Same reasoning as
-# ze-ste-check, which stays out of ze-doc-test for the same reason (mk/inventory.mk).
+# ze-ste-check, which stays out of ze-doc-verify for the same reason (mk/inventory.mk).
 #
 # Declaring an EMPTY changed set is what selects the tree-wide three: both
 # changed-file checks return no findings before reading anything, and the other
-# three take --root and are untouched. Run `make ze-validate` to get all five
+# three take --root and are untouched. Run `make ze-repository-check` to get all five
 # over your own tree.
-ze-validate-tree:
+ze-repository-tree-check:
 	@python3 scripts/dev/validate.py --root . --changed-file ''
 
-ze-all: ze-verify ze-chaos-verify
+ze-all-verify: ze-precommit-verify ze-chaos-verify
 	@echo "All verification passed (ze + chaos)"
 
-ze-all-test: ze-test ze-chaos-verify
+ze-all-test: ze-standard-test ze-chaos-verify
 	@echo "All tests passed (ze + chaos + fuzz)"
 
-ze-smoke: ze-lint ze-unit-test build
+ze-smoke-verify: ze-lint ze-unit-test build
 	@echo "Ze smoke check passed"
 
-ze-ci: ze-smoke
+ze-ci-verify: ze-smoke-verify
 
 # ─── Utilities ──────────────────────────────────────────────────────────────
 
@@ -933,17 +934,17 @@ tidy:
 	@echo "Tidying dependencies..."
 	go mod tidy
 
-ze-sync-vendor-web:
+ze-vendor-web-sync:
 	@go run scripts/vendor/sync_web.go
 
-# The staleness gate for the vendor sync in `generate`, and a `ze-verify` stage.
+# The staleness gate for the vendor sync in `generate`, and a `ze-precommit-verify` stage.
 # It reads two directory trees and no network, so it runs in an offline CI and
-# in an offline checkout. `ze-check-vendor-web-updates` is where the npm
+# in an offline checkout. `ze-vendor-web-update-report` is where the npm
 # registry query lives.
-ze-check-vendor-web:
+ze-vendor-web-check:
 	@go run scripts/vendor/check_web.go
 
-ze-check-vendor-web-updates:
+ze-vendor-web-update-report:
 	@go run scripts/vendor/check_web.go --updates
 
 # htmx 2 -> htmx 4 upgrade gate (plan/spec-web-htmx4-cutover, AC-13). It runs
@@ -961,30 +962,30 @@ ze-htmx-upgrade-check:
 ze-htmx-upgrade-report:
 	@python3 scripts/dev/htmx_upgrade_check.py --report
 
-ze-arch-map:
+ze-arch-map-update:
 	@python3 scripts/dev/arch_map.py
 
-ze-ai-instructions: ze-arch-map
+ze-ai-instructions-generate: ze-arch-map-update
 	@sed 's/{{TOOL}}/Claude/' ai/INSTRUCTIONS.md > CLAUDE.md
 	@sed 's/{{TOOL}}/Codex/' ai/INSTRUCTIONS.md > AGENTS.md
 
-ze-ai-sync:
+ze-ai-skills-sync:
 	@scripts/dev/skill_sync.sh
 
 # CLAUDE.md / AGENTS.md / skills mirrors are gitignored: git diff can NEVER
-# show drift for them. ze-ai-check compares content against a fresh
+# show drift for them. ze-ai-sync-check compares content against a fresh
 # generation instead. The session-start hook runs it and warns when stale.
-ze-ai-check:
+ze-ai-sync-check:
 	@scripts/dev/skill_sync.sh --check
 
-ze-regen: generate ze-rules-render ze-rules-condensed ze-ai-instructions ze-ai-sync ze-doc-index ze-rules-index ze-discovery-index ze-test-health
+ze-generated-files-update: generate ze-rules-render-update ze-rules-condensed-update ze-ai-instructions-generate ze-ai-skills-sync ze-doc-index-update ze-rules-index-update ze-discovery-index-update ze-test-health-update
 	@echo "All generated files updated"
 
-# Write-safe twin of ze-regen-check, and the ONLY one wired into verify
+# Write-safe twin of ze-generated-files-update-check, and the ONLY one wired into verify
 # (stagesForMode in scripts/status/verify_run.go, both branches).
 #
-# ze-regen-check below cannot go into verify: its `ze-regen` prerequisite
-# REWRITES every generated file and only then diffs, so `make ze-verify` would
+# ze-generated-files-update-check below cannot go into verify: its `ze-generated-files-update` prerequisite
+# REWRITES every generated file and only then diffs, so `make ze-precommit-verify` would
 # leave a dirty working tree whenever anything was stale. This target reaches
 # the same verdict without writing: each generator's own --check regenerates in
 # memory and diffs.
@@ -995,7 +996,7 @@ ze-regen: generate ze-rules-render ze-rules-condensed ze-ai-instructions ze-ai-s
 # have made a fifth copy of "how to check yang glue" -- the same duplication
 # this spec deleted from the stage list. TestRegenCheckReadonlyCoversGenerators
 # (scripts/status/verify_run_test.go) derives the required set from the
-# `generate` / `ze-regen` recipes and fails when a generator gains no check.
+# `generate` / `ze-generated-files-update` recipes and fails when a generator gains no check.
 #
 # Generator -> output -> covering prerequisite:
 #   plugin_imports.go -> plugin/all/all.go                   -> ze-plugin-imports-check
@@ -1004,9 +1005,9 @@ ze-regen: generate ze-rules-render ze-rules-condensed ze-ai-instructions ze-ai-s
 #                        docs/guide/quickstart.md            -> ze-feature-tags-check
 #   templ generate    -> internal/**/*_templ.go              -> ze-templ-generate-check
 #   fuzz-targets.py   -> mk/test-fuzz-targets.mk             -> ze-fuzz-targets-check
-#   sync_web.go       -> internal/**/assets/<vendored file>  -> ze-check-vendor-web
+#   sync_web.go       -> internal/**/assets/<vendored file>  -> ze-vendor-web-check
 #   web_assets.go     -> internal/**/page_assets.go           -> ze-web-assets-check
-#   code_to_docs.py   -> ai/CODE-TO-DOCS.md                  -> ze-doc-check-stale
+#   code_to_docs.py   -> ai/CODE-TO-DOCS.md                  -> ze-doc-index-check
 #   rules_points.py   -> ai/rules/<rule>.md (from ai/rules/points/) -> ze-rules-render-check
 #   rules_index.py    -> ai/rules/INDEX.md                   -> ze-rules-index-check
 #   rules_condensed.py-> ai/rules/TRIGGERS.md, ai/rules/CORE.md -> ze-rules-condensed-check
@@ -1018,7 +1019,7 @@ ze-regen: generate ze-rules-render ze-rules-condensed ze-ai-instructions ze-ai-s
 #
 #   skill_sync.sh --check (CLAUDE.md, AGENTS.md, .claude|.codex|.agents/skills).
 #   Every one of its targets is GITIGNORED (.gitignore), so they do not exist at
-#   all in the fresh checkout CI runs `make ze-verify` against, and the check
+#   all in the fresh checkout CI runs `make ze-precommit-verify` against, and the check
 #   exits 1 there: "No such file or directory" on all three mirror dirs, "stale"
 #   on both .md files. Wiring it in would red EVERY CI run.
 #   To reproduce, give the test tree its own git root -- skill_sync.sh starts by
@@ -1029,18 +1030,18 @@ ze-regen: generate ze-rules-render ze-rules-condensed ze-ai-instructions ze-ai-s
 #   already lives there as the warn-only .claude/hooks/session-start.sh check.
 #   Do not "fix" this by wiring it in.
 #
-#   check_doc_links.py --md-only, which ze-regen-check's recipe ends with. It
-#   checks references, not generated-file staleness, and ze-doc-links runs the
+#   check_doc_links.py --md-only, which ze-generated-files-update-check's recipe ends with. It
+#   checks references, not generated-file staleness, and ze-doc-links-check runs the
 #   FULL check (a strict superset) in the stage slot immediately before this one.
 ze-arch-map-check:
 	@python3 scripts/dev/arch_map.py --check
 
-ze-regen-check-readonly: ze-plugin-imports-check ze-yang-glue-check ze-feature-tags-check ze-templ-generate-check ze-fuzz-targets-check ze-check-vendor-web ze-web-assets-check ze-doc-check-stale ze-rules-render-check ze-rules-index-check ze-rules-condensed-check ze-rules-lint ze-arch-map-check ze-discovery-index-check ze-test-health-check
+ze-generated-files-check: ze-plugin-imports-check ze-yang-glue-check ze-feature-tags-check ze-templ-generate-check ze-fuzz-targets-check ze-vendor-web-check ze-web-assets-check ze-doc-index-check ze-rules-render-check ze-rules-index-check ze-rules-condensed-check ze-rules-lint ze-arch-map-check ze-discovery-index-check ze-test-health-check
 	@echo "All generated files are up to date"
 
-ze-regen-check: ze-regen
+ze-generated-files-update-check: ze-generated-files-update
 	@if ! git diff --quiet -- ai/CODE-TO-DOCS.md ':(glob)ai/rules/*.md' ai/PACKAGE-MAP.md ai/DOCS-TO-CODE.md internal/component/plugin/all/all.go .golangci.yml gokrazy/ze/config.json docs/guide/quickstart.md mk/test-fuzz-targets.mk ':(glob)internal/**/*_templ.go' 2>/dev/null; then \
-		echo "ERROR: Generated files are stale. Run 'make ze-regen' and commit the result." >&2; \
+		echo "ERROR: Generated files are stale. Run 'make ze-generated-files-update' and commit the result." >&2; \
 		git diff --stat -- ai/CODE-TO-DOCS.md ':(glob)ai/rules/*.md' ai/PACKAGE-MAP.md ai/DOCS-TO-CODE.md internal/component/plugin/all/all.go .golangci.yml gokrazy/ze/config.json docs/guide/quickstart.md mk/test-fuzz-targets.mk ':(glob)internal/**/*_templ.go'; \
 		exit 1; \
 	fi
@@ -1056,7 +1057,7 @@ ze-regen-check: ze-regen
 	@python3 scripts/dev/check_doc_links.py --md-only
 	@echo "All generated files are up to date"
 
-ze-doc-links:
+ze-doc-links-check:
 	@python3 scripts/dev/check_doc_links.py
 
 # clean removes bin/, coverage, and THIS session's WHOLE directory
@@ -1100,7 +1101,7 @@ clean-all:
 # session's binaries, seeded store and state/ digest with it. The exclusions
 # below only ever protect tmp/session/ and tmp/kernel/ from being removed as
 # CHILDREN. Reproduced in a fixture, 2026-08-10.
-ze-clean-tmp:
+ze-tmp-clean:
 	@echo "Cleaning tmp/ scratch files older than 24h..."
 	@find tmp/ -maxdepth 1 -type f -not -name go.mod -mmin +1440 -delete 2>/dev/null || true
 	@find tmp/ -mindepth 1 -maxdepth 1 -type d -not -name session -not -name kernel \
@@ -1113,7 +1114,7 @@ ze-clean-tmp:
 # scratch, and the markers that carry a spec claim across a compaction, and an
 # automatic sweep of any of them deletes the operator's own data unasked.
 #
-# ze-clean-sessions is the operator's route, and BEFORE is what makes it one: a
+# ze-sessions-clean is the operator's route, and BEFORE is what makes it one: a
 # date the person types, never a default and never "now minus a window". The
 # YYYY-MM-DD- prefix every session directory carries turns "older than" into an
 # integer comparison, so the target needs no clock and no stat.
@@ -1135,7 +1136,7 @@ ze-clean-tmp:
 # BEFORE reaches the recipe through the ENVIRONMENT ($$BEFORE), never spliced
 # into the shell text as $(BEFORE). Interpolating it put the operator's typing
 # inside a double-quoted shell literal BEFORE the format check could see it, so
-# `make ze-clean-sessions 'BEFORE=";touch pwn;x"'` ran that touch and only then
+# `make ze-sessions-clean 'BEFORE=";touch pwn;x"'` ran that touch and only then
 # reported a bad date. mk/session.mk refuses a quote in the session id for this
 # exact reason one file away. `export` is what makes $$BEFORE readable here.
 #
@@ -1146,15 +1147,15 @@ ze-clean-tmp:
 # no privilege boundary. $(ZE_SESSION_ROOT) below is spliced for the same reason:
 # it is a test seam a caller sets deliberately.
 export BEFORE
-ze-clean-sessions:
+ze-sessions-clean:
 	@if [ -z "$$BEFORE" ]; then \
-		echo "ze-clean-sessions: BEFORE=<YYYY-MM-DD> is required, and removes session directories dated strictly before it"; \
-		echo "  example: make ze-clean-sessions BEFORE=$$(date +%Y-%m-01)"; \
+		echo "ze-sessions-clean: BEFORE=<YYYY-MM-DD> is required, and removes session directories dated strictly before it"; \
+		echo "  example: make ze-sessions-clean BEFORE=$$(date +%Y-%m-01)"; \
 		exit 2; \
 	fi
 	@case "$$BEFORE" in \
 		[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]) ;; \
-		*) echo "ze-clean-sessions: BEFORE must be YYYY-MM-DD, got '$$BEFORE'"; exit 2 ;; \
+		*) echo "ze-sessions-clean: BEFORE must be YYYY-MM-DD, got '$$BEFORE'"; exit 2 ;; \
 	esac
 	@cutoff=$$(echo "$$BEFORE" | tr -d -); removed=0; \
 	for d in $(ZE_SESSION_ROOT)/????-??-??-*; do \
@@ -1171,7 +1172,7 @@ check: fmt vet
 
 # ─── Setup ──────────────────────────────────────────────────────────────────
 
-ze-setup:
+ze-dev-setup:
 	python3 scripts/dev/dev-setup.py $(if $(CHECK),--check)
 
 # ─── Help ───────────────────────────────────────────────────────────────────
@@ -1180,32 +1181,32 @@ help:
 	@echo "Ze Network OS -- Build & Test"
 	@echo ""
 	@echo "  Start here (new contributor):"
-	@echo "    make ze-setup             Full dev setup: build deps, linters, appliance tools (one-time)"
-	@echo "    make ze-setup CHECK=1     Probe only: list missing tools, exit nonzero if any required"
-	@echo "    make ze-smoke             Verify setup: lint + unit + build (~2 min)"
+	@echo "    make ze-dev-setup                          Full dev setup: build deps, linters, appliance tools (one-time)"
+	@echo "    make ze-dev-setup CHECK=1                  Probe only: list missing tools, exit nonzero if any required"
+	@echo "    make ze-smoke-verify                       Verify setup: lint + unit + build (~2 min)"
 	@echo ""
 	@echo "  Daily development:"
-	@echo "    make ze-test-bgp          Unit tests for one component group (-race)"
-	@echo "                              Also: ze-test-core, ze-test-plugins, ze-test-config, ze-test-cli, ze-test-rest"
-	@echo "    make ze-encode-test       Single functional suite (encode, plugin, decode, parse, reload, ...)"
-	@echo "    make ze-verify            Pre-commit gate: lint + wiring/docs + SCA + unit + functional + exabgp (4-10 min)"
-	@echo "    make ze-verify-changed    Scoped verify: changed packages + wiring/docs + SCA, then full functional"
+	@echo "    make ze-unit-bgp-test                      Unit tests for one component group (-race)"
+	@echo "                                               Also: ze-unit-core-test, ze-unit-plugins-test, ze-unit-config-test, ze-unit-cli-test, ze-unit-rest-test"
+	@echo "    make ze-functional-encode-test             Single functional suite (encode, plugin, decode, parse, reload, ...)"
+	@echo "    make ze-precommit-verify                   Pre-commit gate: lint + wiring/docs + SCA + unit + functional + exabgp (4-10 min)"
+	@echo "    make ze-precommit-verify-changed           Scoped verify: changed packages + wiring/docs + SCA, then full functional"
 	@echo ""
-	@echo "  Cadence -- the checks ze-verify and the nightly workflows do NOT run:"
-	@echo "    make ze-daily             Seconds. Run this one every morning"
-	@echo "    make ze-weekly            Minutes. Takes the verify lock; not beside a verify"
-	@echo "    make ze-monthly           Docker/QEMU/root. Members report rather than gate"
+	@echo "  Cadence -- the checks ze-precommit-verify and the nightly workflows do NOT run:"
+	@echo "    make ze-cadence-daily-run                  Seconds. Run this one every morning"
+	@echo "    make ze-cadence-weekly-run                 Minutes. Takes the verify lock; not beside a verify"
+	@echo "    make ze-cadence-monthly-run                Docker/QEMU/root. Members report rather than gate"
 	@echo ""
 	@echo "  Build:"
-	@echo "    make build                All binaries (ze, ze-stripped, ze-test, ze-chaos, ze-perf, ze-analyze)"
-	@echo "    make ze                   Just $(ZEBIN_ZE)"
-	@echo "    make ze-stripped          Just $(ZEBIN_STRIPPED)"
-	@echo "    make ze-path              Print this session's ze path (never hardcode bin/ze)"
+	@echo "    make build                                 All binaries (ze, ze-stripped, ze-test, ze-chaos, ze-perf, ze-analyze)"
+	@echo "    make ze                                    Just $(ZEBIN_ZE)"
+	@echo "    make ze-stripped-build                     Just $(ZEBIN_STRIPPED)"
+	@echo "    make ze-session-binary-path                Print this session's ze path (never hardcode bin/ze)"
 	@echo ""
 	@echo "  More help:"
-	@echo "    make help-test            All test targets (unit, functional, fuzz, chaos, interop, ...)"
-	@echo "    make help-deploy          Gokrazy appliance, kernel builds, deployment evidence"
-	@echo "    make help-dev             Inventory, doc validation, spec status, utilities"
+	@echo "    make help-test                             All test targets (unit, functional, fuzz, chaos, interop, ...)"
+	@echo "    make help-deploy                           Gokrazy appliance, kernel builds, deployment evidence"
+	@echo "    make help-dev                              Inventory, doc validation, spec status, utilities"
 	@echo ""
 	@echo "  See also: docs/contributing/testing.md"
 
@@ -1213,233 +1214,233 @@ help-test:
 	@echo "Ze Test Targets"
 	@echo ""
 	@echo "  Unit tests (Go test with -race):"
-	@echo "    ze-unit-test              All packages (~5 min)"
-	@echo "    ze-unit-test-cover        All packages with coverage report"
-	@echo "    ze-test-bgp               BGP component group (~1:30)"
-	@echo "    ze-test-core              Core libraries (~30s)"
-	@echo "    ze-test-plugins           Plugins (~40s)"
-	@echo "    ze-test-config            Config component (~20s)"
-	@echo "    ze-test-cli               CLI component (~10s)"
-	@echo "    ze-test-rest              Everything else (~1:00)"
-	@echo "    ze-race-reactor           Stress race-test reactor (-race -count=20)"
+	@echo "    ze-unit-test                               All packages (~5 min)"
+	@echo "    ze-unit-test-coverage                      All packages with coverage report"
+	@echo "    ze-unit-bgp-test                           BGP component group (~1:30)"
+	@echo "    ze-unit-core-test                          Core libraries (~30s)"
+	@echo "    ze-unit-plugins-test                       Plugins (~40s)"
+	@echo "    ze-unit-config-test                        Config component (~20s)"
+	@echo "    ze-unit-cli-test                           CLI component (~10s)"
+	@echo "    ze-unit-rest-test                          Everything else (~1:00)"
+	@echo "    ze-unit-reactor-test-race                  Stress race-test reactor (-race -count=20)"
 	@echo ""
 	@echo "  Functional tests (.ci suites via $(ZEBIN_TEST)):"
-	@echo "    ze-functional-test        All 24 gating suites"
-	@echo "    ze-encode-test            BGP wire encoding"
-	@echo "    ze-plugin-test            Plugin behavior"
-	@echo "    ze-decode-test            Wire decoding"
-	@echo "    ze-parse-test             Config parsing"
-	@echo "    ze-reload-test            Config reload"
-	@echo "    ze-ui-test                CLI/completion"
-	@echo "    ze-editor-test            TUI editor (.et files)"
-	@echo "    ze-managed-test           Managed config"
-	@echo "    ze-web-test               Web UI (browser)"
-	@echo "    ze-l2tp-test              L2TP"
-	@echo "    ze-firewall-test          Firewall"
-	@echo "    ze-policy-test            Policy routing"
-	@echo "    ze-ospf-test              OSPF config and doctor"
+	@echo "    ze-functional-test                         All 24 gating suites"
+	@echo "    ze-functional-encode-test                  BGP wire encoding"
+	@echo "    ze-functional-plugin-test                  Plugin behavior"
+	@echo "    ze-functional-decode-test                  Wire decoding"
+	@echo "    ze-functional-parse-test                   Config parsing"
+	@echo "    ze-functional-reload-test                  Config reload"
+	@echo "    ze-functional-ui-test                      CLI/completion"
+	@echo "    ze-functional-editor-test                  TUI editor (.et files)"
+	@echo "    ze-functional-managed-test                 Managed config"
+	@echo "    ze-functional-web-test                     Web UI (browser)"
+	@echo "    ze-functional-l2tp-test                    L2TP"
+	@echo "    ze-functional-firewall-test                Firewall"
+	@echo "    ze-functional-policy-test                  Policy routing"
+	@echo "    ze-functional-ospf-test                    OSPF config and doctor"
 	@echo "    ---"
-	@echo "    ze-static-test            Static routes (release evidence only)"
-	@echo "    ze-traffic-test           Traffic control (release evidence only)"
-	@echo "    ze-vpp-test               VPP stub (release evidence only)"
-	@echo "    ze-l2tp-wire-test         L2TP wire-level (release evidence only)"
-	@echo "    ze-isis-wire-test         IS-IS wire-level decode (release evidence only)"
-	@echo "    ze-ospf-wire-test         OSPFv2 wire-level decode (release evidence only)"
+	@echo "    ze-functional-static-test                  Static routes (release evidence only)"
+	@echo "    ze-functional-traffic-test                 Traffic control (release evidence only)"
+	@echo "    ze-functional-vpp-test                     VPP stub (release evidence only)"
+	@echo "    ze-functional-l2tp-wire-test               L2TP wire-level (release evidence only)"
+	@echo "    ze-functional-isis-wire-test               IS-IS wire-level decode (release evidence only)"
+	@echo "    ze-functional-ospf-wire-test               OSPFv2 wire-level decode (release evidence only)"
 	@echo ""
 	@echo "  Functional tests run against an ISOLATED binary set by default"
 	@echo "  (tmp/testbin-<pid>/, removed on exit), so a running suite never touches"
 	@echo "  $(ZEBIN_ZE) and you can keep building/editing while it runs."
 	@echo "    ZE_SUFFIX=<name>          Pin a stable, kept dir (tmp/testbin-<name>/)"
-	@echo "    ZE_TEST_CANONICAL=1       Opt out: rebuild $(ZEBIN_ZE) + $(ZEBIN_TEST) in place"
+	@echo "    ZE_TEST_CANONICAL=1                        Opt out: rebuild $(ZEBIN_ZE) + $(ZEBIN_TEST) in place"
 	@echo ""
 	@echo "  Fuzz:"
-	@echo "    ze-fuzz-test              All fuzz targets (10s each)"
-	@echo "    ze-fuzz-one               Single target (FUZZ=name PKG=path TIME=30s)"
+	@echo "    ze-fuzz-test                               All fuzz targets (10s each)"
+	@echo "    ze-fuzz-one-test                           Single target (FUZZ=name PKG=path TIME=30s)"
 	@echo ""
 	@echo "  Chaos:"
-	@echo "    ze-chaos-test              Unit + functional + integration + web"
-	@echo "    ze-chaos-verify            Lint + all chaos tests"
-	@echo "    ze-chaos-functional-test   In-process BGP chaos simulation"
-	@echo "                               Options: CHAOS_SEED=N CHAOS_DURATION=60s CHAOS_PEERS=8"
-	@echo "    ze-chaos-integration-test  End-to-end: Ze + chaos peers (.ci tests)"
+	@echo "    ze-chaos-test                              Unit + functional + integration + web"
+	@echo "    ze-chaos-verify                            Lint + all chaos tests"
+	@echo "    ze-chaos-functional-test                   In-process BGP chaos simulation"
+	@echo "                                               Options: CHAOS_SEED=N CHAOS_DURATION=60s CHAOS_PEERS=8"
+	@echo "    ze-chaos-integration-test                  End-to-end: Ze + chaos peers (.ci tests)"
 	@echo ""
 	@echo "  ExaBGP compatibility:"
-	@echo "    ze-exabgp-test            Ze encoding matches ExaBGP (ZE_EXABGP_TIMEOUT=180)"
+	@echo "    ze-functional-exabgp-test                  Ze encoding matches ExaBGP (ZE_EXABGP_TIMEOUT=180)"
 	@echo ""
 	@echo "  Interop (Docker):"
-	@echo "    ze-interop-test           FRR/BIRD interop (INTEROP_SCENARIO=name for one)"
-	@echo "    ze-ipsec-interop-test     strongSwan IKEv2 (IPSEC_INTEROP_SCENARIO=name)"
+	@echo "    ze-interop-test                            FRR/BIRD interop (INTEROP_SCENARIO=name for one)"
+	@echo "    ze-interop-ipsec-test                      strongSwan IKEv2 (IPSEC_INTEROP_SCENARIO=name)"
 	@echo ""
 	@echo "  netlab (needs netlab installed):"
-	@echo "    ze-netlab-render-check    contrib/netlab renders to golden (ARGS=--update, NETLAB=path)"
+	@echo "    ze-netlab-render-check                     contrib/netlab renders to golden (ARGS=--update, NETLAB=path)"
 	@echo ""
 	@echo "  Stress (Linux, root, netns):"
-	@echo "    ze-stress-test            BGP stress with ze-test peer injector"
-	@echo "    ze-stress-bird-test       BIRD baseline comparison"
-	@echo "    ze-stress-profile         1M route profiling (saves pprof to tmp/)"
+	@echo "    ze-stress-test                             BGP stress with ze-test peer injector"
+	@echo "    ze-stress-bird-test                        BIRD baseline comparison"
+	@echo "    ze-stress-profile                          1M route profiling (saves pprof to tmp/)"
 	@echo ""
 	@echo "  Integration (CAP_NET_ADMIN / root):"
-	@echo "    ze-integration-test       All netns integration tests"
-	@echo "    ze-integration-iface-test     iface netlink"
-	@echo "    ze-integration-fib-test       FIB kernel routes"
-	@echo "    ze-integration-firewall-test  nftables"
-	@echo "    ze-integration-traffic-test   tc qdisc"
-	@echo "    ze-netns-test             firewall/policy/ospf/ospfv3 .ci in a per-test netns"
-	@echo "    ze-netns-plugin-test      plugin .ci needing CAP_SYSLOG (/dev/kmsg)"
+	@echo "    ze-integration-test                        All netns integration tests"
+	@echo "    ze-integration-iface-test                  iface netlink"
+	@echo "    ze-integration-fib-test                    FIB kernel routes"
+	@echo "    ze-integration-firewall-test               nftables"
+	@echo "    ze-integration-traffic-test                tc qdisc"
+	@echo "    ze-netns-test                              firewall/policy/ospf/ospfv3 .ci in a per-test netns"
+	@echo "    ze-netns-plugin-test                       plugin .ci needing CAP_SYSLOG (/dev/kmsg)"
 	@echo ""
 	@echo "  QEMU (macOS-friendly, no Docker Desktop kernel limits):"
-	@echo "    ze-qemu-all-test          FULL suite in QEMU: functional + unit + integration (host-compiled)"
-	@echo "    ze-qemu-debug RUN=...      Run specific tests verbosely in QEMU (RUN='bin/ze-test-linux-arm64 bgp parse 91 -v')"
-	@echo "    ze-qemu-shell             Persistent QEMU VM for interactive debugging (run in background)"
-	@echo "    ze-qemu-integration-test  Integration tests in QEMU Alpine VM"
-	@echo "    ze-qemu-l2tp-ppp-test     L2TP PPP/NCP in QEMU with gokrazy kernel"
-	@echo "    ze-qemu-pppoe-accel-test  PPPoE client vs accel-ppp AC in QEMU"
-	@echo "    ze-qemu-pppoe-test        PPPoE access-concentrator .ci suite in QEMU (netns + runtime kernel)"
-	@echo "    ze-qemu-traffic-usage-test  traffic-usage eBPF TCX accounting in QEMU"
-	@echo "    ze-qemu-ldp-frr-test      LDP interop against FRR ldpd in QEMU"
-	@echo "    ze-qemu-isis-frr-test     IS-IS interop against FRR isisd in QEMU"
-	@echo "    ze-qemu-vrrp-keepalived-test  VRRP interop against keepalived in QEMU"
+	@echo "    ze-qemu-all-test                           FULL suite in QEMU: functional + unit + integration (host-compiled)"
+	@echo "    ze-qemu-debug RUN=...                      Run specific tests verbosely in QEMU (RUN='bin/ze-test-linux-arm64 bgp parse 91 -v')"
+	@echo "    ze-qemu-shell                              Persistent QEMU VM for interactive debugging (run in background)"
+	@echo "    ze-qemu-integration-test                   Integration tests in QEMU Alpine VM"
+	@echo "    ze-qemu-l2tp-ppp-test                      L2TP PPP/NCP in QEMU with gokrazy kernel"
+	@echo "    ze-qemu-pppoe-accel-test                   PPPoE client vs accel-ppp AC in QEMU"
+	@echo "    ze-qemu-pppoe-test                         PPPoE access-concentrator .ci suite in QEMU (netns + runtime kernel)"
+	@echo "    ze-qemu-traffic-usage-test                 traffic-usage eBPF TCX accounting in QEMU"
+	@echo "    ze-qemu-ldp-frr-test                       LDP interop against FRR ldpd in QEMU"
+	@echo "    ze-qemu-isis-frr-test                      IS-IS interop against FRR isisd in QEMU"
+	@echo "    ze-qemu-vrrp-keepalived-test               VRRP interop against keepalived in QEMU"
 	@echo ""
 	@echo "  Live (Docker + internet):"
-	@echo "    ze-live-test              All live tests"
-	@echo "    ze-live-rpki-test         RPKI with real-world data (stayrtr)"
+	@echo "    ze-live-test                               All live tests"
+	@echo "    ze-live-rpki-test                          RPKI with real-world data (stayrtr)"
 	@echo ""
 	@echo "  Linux-only Go tests:"
-	@echo "    ze-linux-test             Run in Docker (ZE_LINUX_TEST_PACKAGES=...)"
+	@echo "    ze-unit-linux-test                         Run in Docker (ZE_LINUX_TEST_PACKAGES=...)"
 	@echo ""
 	@echo "  Performance benchmarks (Docker):"
-	@echo "    ze-perf-bench             Run against all DUTs (PERF_DUT=name for one)"
-	@echo "    ze-perf-report            Generate comparison report"
-	@echo "    ze-perf-track             Update history tracking"
+	@echo "    ze-perf-bench                              Run against all DUTs (PERF_DUT=name for one)"
+	@echo "    ze-perf-report                             Generate comparison report"
+	@echo "    ze-perf-history-record                     Update history tracking"
 	@echo ""
 	@echo "  Test health (would a regression be caught, not how many tests exist):"
-	@echo "    ze-test-health            Regenerate docs/features/test-health.md + test/health/"
-	@echo "    ze-test-health-check      Fail if a structural fact drifted (in ze-verify)"
-	@echo "    ze-test-health-record     Append one KPI sample to the committed history"
+	@echo "    ze-test-health-update                      Regenerate docs/features/test-health.md + test/health/"
+	@echo "    ze-test-health-check                       Fail if a structural fact drifted (in ze-precommit-verify)"
+	@echo "    ze-test-health-record                      Append one KPI sample to the committed history"
 	@echo "    ze-test-sensitivity-check Ratchet: tests that cannot fail, files no target runs"
-	@echo "    ze-weakened-check         Check test/weakened.md parses for the commit gate"
+	@echo "    ze-weakened-check                          Check test/weakened.md parses for the commit gate"
 	@echo ""
 	@echo "  Composite targets:"
-	@echo "    ze-smoke                  Lint + unit + build (~2 min)"
-	@echo "    ze-verify                 Pre-commit gate: lint + wiring/docs + SCA + unit (two-pass) + functional + exabgp"
-	@echo "    ze-verify-changed         Scoped: changed packages + wiring/docs + SCA + functional + exabgp"
-	@echo "    ze-validate               All five checks: source anchors, wiring, spec completeness (~0.2s)"
-	@echo "    ze-validate-tree          The three tree-wide checks of ze-validate; runs inside ze-verify"
-	@echo "    ze-test                   All ze tests including fuzz"
-	@echo "    ze-all                    ze-verify + chaos-verify"
-	@echo "    ze-all-test               ze-test + chaos-verify"
+	@echo "    ze-smoke-verify                            Lint + unit + build (~2 min)"
+	@echo "    ze-precommit-verify                        Pre-commit gate: lint + wiring/docs + SCA + unit (two-pass) + functional + exabgp"
+	@echo "    ze-precommit-verify-changed                Scoped: changed packages + wiring/docs + SCA + functional + exabgp"
+	@echo "    ze-repository-check                        All five checks: source anchors, wiring, spec completeness (~0.2s)"
+	@echo "    ze-repository-tree-check                   The three tree-wide checks of ze-repository-check; runs inside ze-precommit-verify"
+	@echo "    ze-standard-test                           All standard Ze tests including fuzz"
+	@echo "    ze-all-verify                              ze-precommit-verify + ze-chaos-verify"
+	@echo "    ze-all-test                                ze-standard-test + ze-chaos-verify"
 	@echo ""
 	@echo "  Release evidence (external infra required):"
-	@echo "    ze-release-evidence-preflight  Check required tooling (Docker, QEMU)"
-	@echo "    ze-release-evidence            Full matrix: interop + chaos + fuzz + perf + QEMU + deploy"
-	@echo "    ze-perf-gate                   Perf bench (ze DUT) + regression check"
-	@echo "    ze-release-assets             Rebuild every release-owned website asset"
-	@echo "    ze-terminal-demos-release     Re-record all terminal demos for this release"
-	@echo "    ze-terminal-demo-tools       Install native VHS, ffmpeg, and ttyd (macOS/Ubuntu)"
+	@echo "    ze-release-evidence-preflight              Check required tooling (Docker, QEMU)"
+	@echo "    ze-release-evidence-verify                 Full matrix: interop + chaos + fuzz + perf + QEMU + deploy"
+	@echo "    ze-perf-evidence-update-check              Perf bench (ze DUT) + regression check"
+	@echo "    ze-release-assets-update                   Rebuild every release-owned website asset"
+	@echo "    ze-terminal-demos-release-render           Re-record all terminal demos for this release"
+	@echo "    ze-terminal-demo-tools-install             Install native VHS, ffmpeg, and ttyd (macOS/Ubuntu)"
 	@echo ""
-	@echo "  Escalation: single test -> package -> component group -> ze-verify"
+	@echo "  Escalation: single test -> package -> component group -> ze-precommit-verify"
 	@echo "  See docs/contributing/testing.md for the full workflow."
 
 help-deploy:
 	@echo "Ze Deployment Targets"
 	@echo ""
 	@echo "  Appliance installer ISO (from JSON config):"
-	@echo "    ze-iso                   Full build from config: init + kernel + initrd + image + ISO"
-	@echo "                             CONFIG=prod.json SSH_PASSWORD='...'"
-	@echo "    ze-iso-build             Rebuild (appliance already initialized)"
-	@echo "                             NAME=prod APPLIANCE_BUILDER=docker"
-	@echo "    ze-iso-check             Check ISO build prerequisites"
-	@echo "    ze-pxe                   Build iPXE + TFTP for PXE boot"
-	@echo "                             NAME=prod PXE_DIR=build/pxe"
+	@echo "    ze-iso-full-build                          Full build from config: init + kernel + initrd + image + ISO"
+	@echo "                                               CONFIG=prod.json SSH_PASSWORD='...'"
+	@echo "    ze-iso-build                               Rebuild (appliance already initialized)"
+	@echo "                                               NAME=prod APPLIANCE_BUILDER=docker"
+	@echo "    ze-iso-check                               Check ISO build prerequisites"
+	@echo "    ze-pxe-build                               Build iPXE + TFTP for PXE boot"
+	@echo "                                               NAME=prod PXE_DIR=build/pxe"
 	@echo ""
 	@echo "  Docker:"
-	@echo "    ze-docker                Build deployment image, scratch base (ZE_DOCKER_IMAGE=ze ZE_DOCKER_TAG=...)"
-	@echo "    ze-docker-lab            Build lab image for netlab/containerlab, alpine base (ZE_LAB_IMAGE=netlab/ze ZE_LAB_TAG=latest)"
+	@echo "    ze-docker-build                            Build deployment image, scratch base (ZE_DOCKER_IMAGE=ze ZE_DOCKER_TAG=...)"
+	@echo "    ze-docker-lab-build                        Build lab image for netlab/containerlab, alpine base (ZE_LAB_IMAGE=netlab/ze ZE_LAB_TAG=latest)"
 	@echo ""
 	@echo "  Gokrazy VM appliance (see docs/guide/appliance.md):"
-	@echo "    ze-gokrazy-deps              One-time: download gokrazy system packages"
-	@echo "    ze-gokrazy USER=x PASS=y     Build bootable VM image"
-	@echo "    ze-gokrazy-run               Boot in QEMU (Ctrl-A X to quit)"
-	@echo "                                 GOKRAZY_ARCH=arm64 for Apple Silicon"
+	@echo "    ze-gokrazy-deps-download                   One-time: download gokrazy system packages"
+	@echo "    ze-gokrazy-build USER=x PASS=y             Build bootable VM image"
+	@echo "    ze-gokrazy-run                             Boot in QEMU (Ctrl-A X to quit)"
+	@echo "                                               GOKRAZY_ARCH=arm64 for Apple Silicon"
 	@echo ""
 	@echo "  Custom kernel:"
-	@echo "    ze-kernel KERNEL_ARCH=amd64  Build/materialize the runtime kernel (L2TP/PPP built in; ~30 min cold via KERNEL_BUILDER=docker, instant from cache)"
-	@echo "    ze-kernel-vmlinuz KERNEL_ARCH=amd64  Stage tmp/kernel/vmlinuz only (what the QEMU targets need; no gokrazy module cache)"
-	@echo "    ze-kernel-clean              Restore pinned rtr7/kernel"
+	@echo "    ze-kernel-build KERNEL_ARCH=amd64          Build/materialize the runtime kernel (L2TP/PPP built in; ~30 min cold via KERNEL_BUILDER=docker, instant from cache)"
+	@echo "    ze-kernel-vmlinuz-stage KERNEL_ARCH=amd64  Stage tmp/kernel/vmlinuz only (what the QEMU targets need; no gokrazy module cache)"
+	@echo "    ze-kernel-clean                            Restore pinned rtr7/kernel"
 	@echo ""
 	@echo "  Deployment evidence:"
-	@echo "    ze-deployment-vpp-test            Real VPP daemon in Docker"
-	@echo "    ze-deployment-l2tp-test           External L2TP peer in Docker"
-	@echo "    ze-deployment-l2tp-ppp-test       Full PPP/NCP in Linux netns"
-	@echo "    ze-deployment-l2tp-ppp-docker-test  PPP/NCP Docker lab (Ze LNS + LAC + FRR)"
-	@echo "    ze-deployment-pppoe-accel-docker-test  PPPoE Docker lab (Ze client + accel-ppp AC)"
-	@echo "    ze-deployment-gokrazy-l2tp-ppp-test  PPP against QEMU appliance"
-	@echo "    ze-docker-evidence EVIDENCE_SCRIPT=... EVIDENCE_PACKAGES=..."
-	@echo "    ze-deployment-preflight      Check deployment tooling availability"
-	@echo "    ze-release-check             Clean release-candidate verification in Docker"
+	@echo "    ze-deployment-vpp-test                     Real VPP daemon in Docker"
+	@echo "    ze-deployment-l2tp-test                    External L2TP peer in Docker"
+	@echo "    ze-deployment-l2tp-ppp-test                Full PPP/NCP in Linux netns"
+	@echo "    ze-deployment-docker-l2tp-ppp-test         PPP/NCP Docker lab (Ze LNS + LAC + FRR)"
+	@echo "    ze-deployment-docker-pppoe-accel-test      PPPoE Docker lab (Ze client + accel-ppp AC)"
+	@echo "    ze-deployment-gokrazy-l2tp-ppp-test        PPP against QEMU appliance"
+	@echo "    ze-docker-evidence-run EVIDENCE_SCRIPT=... EVIDENCE_PACKAGES=..."
+	@echo "    ze-deployment-preflight                    Check deployment tooling availability"
+	@echo "    ze-release-check                           Clean release-candidate verification in Docker"
 
 help-dev:
 	@echo "Ze Development Tools"
 	@echo ""
 	@echo "  Inventory:"
-	@echo "    ze-inventory             Plugins, YANG, RPCs, tests, packages"
-	@echo "    ze-inventory-json        Same as JSON"
-	@echo "    ze-command-list          All registered commands by verb"
-	@echo "    ze-command-list-json     Same as JSON"
+	@echo "    ze-inventory                               Plugins, YANG, RPCs, tests, packages"
+	@echo "    ze-inventory-json                          Same as JSON"
+	@echo "    ze-command-list                            All registered commands by verb"
+	@echo "    ze-command-list-json                       Same as JSON"
 	@echo ""
 	@echo "  Wiki:"
-	@echo "    ze-wiki-update           Regenerate all auto-generated wiki pages"
-	@echo "    ze-wiki-commands         Regenerate wiki/command-reference.md"
+	@echo "    ze-wiki-update                             Regenerate all auto-generated wiki pages"
+	@echo "    ze-wiki-commands-update                    Regenerate wiki/command-reference.md"
 	@echo ""
 	@echo "  Documentation validation:"
-	@echo "    ze-doc-test              All doc checks (drift + anchors + YANG/handler contract)"
-	@echo "    ze-doc-drift             Docs claims vs live registry/Makefile/filesystem"
-	@echo "    ze-doc-index             Regenerate ai/CODE-TO-DOCS.md (code->docs reverse index)"
-	@echo "    ze-rules-index           Regenerate ai/rules/INDEX.md (one-line overview of every rule)"
-	@echo "    ze-validate-commands     YANG command tree vs registered handlers"
-	@echo "    ze-consistency           Code/doc consistency: design refs, cross-refs, stale refs"
-	@echo "    ze-verify-wiring-docs     Changed-file-aware wiring, docs, command, and inventory gate"
+	@echo "    ze-doc-verify                              All doc checks (drift + anchors + YANG/handler contract)"
+	@echo "    ze-doc-drift-check                         Docs claims vs live registry/Makefile/filesystem"
+	@echo "    ze-doc-index-update                        Regenerate ai/CODE-TO-DOCS.md (code->docs reverse index)"
+	@echo "    ze-rules-index-update                      Regenerate ai/rules/INDEX.md (one-line overview of every rule)"
+	@echo "    ze-command-contract-check                  YANG command tree vs registered handlers"
+	@echo "    ze-consistency-check                       Code/doc consistency: design refs, cross-refs, stale refs"
+	@echo "    ze-wiring-docs-check                       Changed-file-aware wiring, docs, command, and inventory gate"
 	@echo ""
 	@echo "  Commit integrity:"
-	@echo "    ze-tracked-build-check   Compile the tree GIT HOLDS (REV=<sha> for another commit)"
+	@echo "    ze-tracked-build-check                     Compile the tree GIT HOLDS (REV=<sha> for another commit)"
 	@echo ""
 	@echo "  Spec management:"
-	@echo "    ze-spec-status           Spec inventory with progress status"
-	@echo "    ze-spec-status-json      Same as JSON"
+	@echo "    ze-spec-status                             Spec inventory with progress status"
+	@echo "    ze-spec-status-json                        Same as JSON"
 	@echo ""
 	@echo "  Module / protobuf:"
-	@echo "    ze-proto-gen             Regenerate api/proto/*.pb.go from ze.proto (needs protoc)"
+	@echo "    ze-proto-generate                          Regenerate api/proto/*.pb.go from ze.proto (needs protoc)"
 	@echo "    (rename the module path)  python3 scripts/dev/rename_module_path.py --to <module> --apply"
 	@echo ""
 	@echo "  Code:"
-	@echo "    fmt                      Format code (gofmt + goimports, excludes vendor/)"
-	@echo "    vet                      Run go vet"
-	@echo "    tidy                     Tidy go.mod"
-	@echo "    check                    Quick check (fmt + vet)"
+	@echo "    fmt                                        Format code (gofmt + goimports, excludes vendor/)"
+	@echo "    vet                                        Run go vet"
+	@echo "    tidy                                       Tidy go.mod"
+	@echo "    check                                      Quick check (fmt + vet)"
 	@echo ""
 	@echo "  Supply chain (SCA):"
-	@echo "    ze-vulncheck             govulncheck: live tool and vuln.go.dev DB; verification plus daily CI"
+	@echo "    ze-dependency-vulnerability-check          govulncheck: live tool and vuln.go.dev DB; verification plus daily CI"
 	@echo ""
 	@echo "  Generated files:"
-	@echo "    ze-regen                 Regenerate all generated files"
-	@echo "    ze-regen-check           Verify generated files are up to date (REGENERATES first)"
-	@echo "    ze-regen-check-readonly  Same verdict, writes nothing (this is what ze-verify runs)"
-	@echo "    ze-verify-list           Print the ze-verify stage list (never use make -n ze-verify)"
-	@echo "    ze-plugin-imports-check   Verify generated plugin blank imports are current"
-	@echo "    ze-web-assets-check      Gate: each page's generated asset set matches its markup"
-	@echo "    ze-ai-instructions       Generate CLAUDE.md and AGENTS.md"
-	@echo "    ze-ai-sync               Sync canonical skills to tool directories"
-	@echo "    ze-ai-check              Check generated agent files match canonical sources"
-	@echo "    ze-doc-index             Regenerate ai/CODE-TO-DOCS.md"
-	@echo "    ze-rules-index           Regenerate ai/rules/INDEX.md"
-	@echo "    ze-sync-vendor-web       Sync vendored web assets (also part of 'generate')"
-	@echo "    ze-check-vendor-web      Gate: each consumer asset copy matches third_party/web/"
-	@echo "    ze-check-vendor-web-updates  Ask the npm registry for newer web asset versions"
-	@echo "    ze-htmx-upgrade-check    Gate: htmx own scanner reports no unexplained htmx 4 issue"
-	@echo "    ze-htmx-upgrade-report   Print every htmx 4 upgrade issue, explained or not"
+	@echo "    ze-generated-files-update                  Regenerate all generated files"
+	@echo "    ze-generated-files-update-check            Verify generated files are up to date (REGENERATES first)"
+	@echo "    ze-generated-files-check                   Same verdict, writes nothing (this is what ze-precommit-verify runs)"
+	@echo "    ze-precommit-verify-list                   Print the ze-precommit-verify stage list (never use make -n ze-precommit-verify)"
+	@echo "    ze-plugin-imports-check                    Verify generated plugin blank imports are current"
+	@echo "    ze-web-assets-check                        Gate: each page's generated asset set matches its markup"
+	@echo "    ze-ai-instructions-generate                Generate CLAUDE.md and AGENTS.md"
+	@echo "    ze-ai-skills-sync                          Sync canonical skills to tool directories"
+	@echo "    ze-ai-sync-check                           Check generated agent files match canonical sources"
+	@echo "    ze-doc-index-update                        Regenerate ai/CODE-TO-DOCS.md"
+	@echo "    ze-rules-index-update                      Regenerate ai/rules/INDEX.md"
+	@echo "    ze-vendor-web-sync                         Sync vendored web assets (also part of 'generate')"
+	@echo "    ze-vendor-web-check                        Gate: each consumer asset copy matches third_party/web/"
+	@echo "    ze-vendor-web-update-report                Ask the npm registry for newer web asset versions"
+	@echo "    ze-htmx-upgrade-check                      Gate: htmx own scanner reports no unexplained htmx 4 issue"
+	@echo "    ze-htmx-upgrade-report                     Print every htmx 4 upgrade issue, explained or not"
 	@echo ""
 	@echo "  Cleanup:"
-	@echo "    clean                    Session-safe: bin/, coverage, this session's scratch only"
-	@echo "    clean-all                Full wipe: bin/ + ALL of tmp/ (shared caches, all sessions)"
-	@echo "    ze-clean-tmp             Remove tmp/ scratch files older than 24h"
-	@echo "    ze-clean-sessions        Remove session dirs dated before BEFORE=<YYYY-MM-DD>"
+	@echo "    clean                                      Session-safe: bin/, coverage, this session's scratch only"
+	@echo "    clean-all                                  Full wipe: bin/ + ALL of tmp/ (shared caches, all sessions)"
+	@echo "    ze-tmp-clean                               Remove tmp/ scratch files older than 24h"
+	@echo "    ze-sessions-clean                          Remove session dirs dated before BEFORE=<YYYY-MM-DD>"

@@ -247,7 +247,7 @@ implementation. Both are kept: they catch different failure shapes.
 ## Files to Modify
 - `rfc/short/rfc2866.md` - Section 4.1 section and the gated MUST `RFC2866-4.1-1`
 - `rfc/short/rfc2869.md` - Section 5.17 section, attribute-87 row, `RFC2869-5.17-1`
-- `ai/RFC-REQUIREMENTS.md` - regenerated once (derived; `make ze-rfc-index`)
+- `ai/RFC-REQUIREMENTS.md` - regenerated once (derived; `make ze-rfc-index-update`)
 - `internal/component/radius/dict.go` - `AttrNASPortID` (87)
 - `internal/component/l2tp/plugins/authradius/handler.go` - `buildAccessRequestAttrs`
 - `internal/component/l2tp/plugins/authradius/acct.go` - attrs 8 and 87, `subscriberIPv4`
@@ -364,7 +364,7 @@ session could verify a pppoe lab fix.
 | One session yields one port identity | interop run: `Accounting-Start carries the same NAS-Port-Id` |
 | The gated path proves the wire, not only the Docker lab | `test/l2tp/radius-acct-wire.ci` PASSes in QEMU (`ze-qemu-debug`, suite id 10) and SKIPs on the unprivileged host; the ledger binds it to `RFC2866-4.1-1` as functional/verify evidence |
 | The tests would fail if the code were removed | nine unit mutations each turned the owning tests red: drop attr 8; report the NAS address instead; accept a non-IPv4 value; drop attr 87 from accounting; drop attr 87 from auth; drop the format validation; resolve the session's NAS-Port-Id from empty facts; take the session address from the wrong payload field; make the nas-identifier guard never fire. Two interop mutations each turned the scenario red, and two `.ci` mutations (remove the YANG leaf, stop validating) each turned the owning `.ci` red |
-| Nothing regressed | `make ze-test-pkg` green for `./internal/component/radius`, `./internal/component/l2tp/plugins/authradius` and `./internal/component/l2tp`; `make ze-lint-changed` 0 issues; `make ze-cli-grammar-check` and `make ze-yang-glue-check` OK |
+| Nothing regressed | `make ze-unit-pkg-test` green for `./internal/component/radius`, `./internal/component/l2tp/plugins/authradius` and `./internal/component/l2tp`; `make ze-lint-changed` 0 issues; `make ze-cli-grammar-check` and `make ze-yang-glue-check` OK |
 
 ## Review Gate
 
@@ -404,7 +404,7 @@ session could verify a pppoe lab fix.
 
 ### Goal Gates (MUST pass)
 - [ ] Full `/ze-spec` DESIGN completed and approved before implementation
-- [ ] `make ze-test` passes (after implementation)
+- [ ] `make ze-standard-test` passes (after implementation)
 - [ ] Feature code integrated (`internal/*`)
 
 ### Quality Gates (SHOULD pass)

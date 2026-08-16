@@ -4,7 +4,7 @@ level:
 stage:
 ---
 ```bash
-make ze-verify
+make ze-precommit-verify
 # On failure, read:
 tmp/ze-verify-failures.log
 ```

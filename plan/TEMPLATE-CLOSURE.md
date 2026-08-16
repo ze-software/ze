@@ -24,7 +24,7 @@
 
 ### Documentation Updates
 - [docs updated, naming each source anchor, or "None" with the grep that proves it]
-- [`make ze-doc-test` result if docs changed]
+- [`make ze-doc-verify` result if docs changed]
 
 ### Deviations from Plan
 - [what differed from the spec and why]

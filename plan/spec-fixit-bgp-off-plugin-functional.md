@@ -256,7 +256,7 @@ covered: `test/plugin/fib-table.ci`, `fib-ecmp-realtime.ci`,
    - Verify: daemon healthy; no panic; graceful skip observed.
 4. **Phase: FIB install under bgp off (AC-4)** — `needs-linux` `.ci` with static route + `fib{kernel{}}`, asserting kernel FIB readback. Use config-file + kernel readback (no SSH) so it also holds against the `ze_core` QEMU binary.
    - Verify: route present under QEMU; absent if the install path is broken.
-5. **Full verification** → `make ze-verify` + `make ze-qemu-needs-linux-test` for AC-4.
+5. **Full verification** → `make ze-precommit-verify` + `make ze-qemu-needs-linux-test` for AC-4.
 6. **Mutation-verify each behavior-guarding test** (`ai/rules/testing.md`): break the always-on registration / FIB install, confirm the matching test flips red, revert.
 7. **Complete spec** → audit tables, learned summary, two-commit closure.
 
@@ -417,8 +417,8 @@ covered: `test/plugin/fib-table.ci`, `fib-ecmp-realtime.ci`,
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean
-- [ ] `make ze-test` passes (lint + all ze tests)
-- [ ] `make ze-verify` passes; AC-4 verified under `make ze-qemu-needs-linux-test`
+- [ ] `make ze-standard-test` passes (lint + all ze tests)
+- [ ] `make ze-precommit-verify` passes; AC-4 verified under `make ze-qemu-needs-linux-test`
 - [ ] No production behavior changed (or defect + fix documented in Deviations)
 - [ ] Documentation Update Checklist answered Yes/No with source evidence
 - [ ] Risks & Assumptions: every A-N confirmed or broken

@@ -370,7 +370,7 @@ func TestOpenHeaderEqualCoversEveryOpenField(t *testing.T) {
 // (plan/deferrals/fixit-dynamic-peer-settings-unlocked-read.md).
 //
 // DISCRIMINATION: this test asserts nothing by itself. It is a RACE DETECTOR test,
-// and it is evidence only under -race (make ze-race-reactor). Reverting
+// and it is evidence only under -race (make ze-unit-reactor-test-race). Reverting
 // SettingsSnapshot to Settings in reconcilePeersJournaled makes it report the write
 // below against the read in the reconcile.
 func TestReloadDecisionReadsPeerSettingsUnderLock(t *testing.T) {

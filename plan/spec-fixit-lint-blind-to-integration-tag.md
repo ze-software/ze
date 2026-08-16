@@ -72,7 +72,7 @@ Neither is chosen here. Phase 2 chooses, with evidence.
   is a coupling that needs justification.
 - **Add a second lint invocation.** A separate make target lints with `-tags
   integration`. It keeps the generator honest and the two concerns apart. It costs
-  a second golangci-lint pass, and it needs wiring into `ze-verify` and
+  a second golangci-lint pass, and it needs wiring into `ze-precommit-verify` and
   `ze-lint-changed` or it will not run when it matters.
 
 ## Required Reading
@@ -136,7 +136,7 @@ Neither is chosen here. Phase 2 chooses, with evidence.
 
 ### Integration Points
 - `Makefile` and `mk/` lint targets, which is where a second invocation would land.
-- `ze-verify` stage ordering, which decides whether the new coverage gates a commit.
+- `ze-precommit-verify` stage ordering, which decides whether the new coverage gates a commit.
 - `ai/rules/repo-maintenance.md`, which readers use to find which check enforces what.
 
 ### Architectural Verification
@@ -194,7 +194,7 @@ here.
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | The clean-up is large enough to stall the gate landing | phase 3 runs long | land the gate FIRST against a recorded baseline, then burn the baseline down. Never land a lint exclusion instead |
-| R-2 | A second lint pass slows `ze-verify` enough that someone disables it | verify wall time rises noticeably | measure the added time in phase 2 and let it choose the shape |
+| R-2 | A second lint pass slows `ze-precommit-verify` enough that someone disables it | verify wall time rises noticeably | measure the added time in phase 2 and let it choose the shape |
 | R-3 | The new coverage reaches the full lint but not `ze-lint-changed`, so new files still land unlinted | a new integration test passes the changed-file gate with a real finding | make the changed-file path part of AC, not a follow-up |
 | R-4 | Teaching the generator a non-gate tag invites more non-gate tags later | a second lint-only tag is proposed | if the generator shape wins, name the allowed set explicitly and test that an unknown tag is refused |
 
@@ -215,7 +215,7 @@ here.
 | `make generate` | → | `rewriteGolangci` tag list, UNCHANGED by this spec | `make ze-feature-tags-check` |
 | `dep_audit.py --check` | → | drift comparison, UNCHANGED by this spec | its own selftest, unmodified |
 
-No new make target and no new `ze-verify` stage: both entry points above are
+No new make target and no new `ze-precommit-verify` stage: both entry points above are
 already stages (`stagesForMode`), so the coverage gates a commit through the
 targets that exist. `ai/INDEX.md` needs no row, because no name was added for a
 developer to learn.
@@ -388,7 +388,7 @@ exactly that reason.
 |----------|------------------------|-----------|
 | A second golangci-lint invocation inside the EXISTING `ze-lint` and `ze-lint-changed` targets, run with `GOOS=linux --build-tags integration` | Teach `rewriteGolangci` to append lint-only tags. Rejected on evidence | The generator shape cannot express GOOS, and GOOS is what actually gates these files: 75 of the 77 are `//go:build integration && linux`. Measured on darwin, `--build-tags integration` WITHOUT `GOOS=linux` reports `0 issues` across the netlink, ike/dataplane and vrrp packages that hold 40+ findings. Shape A would therefore have landed a change, passed its own test on Linux CI, and left every dev machine exactly as blind as before |
 | The second pass passes ONLY `--build-tags integration`, not a re-derived tag list | Spell `ze_core` + `$(ZE_FEATURES)` again on the command line | `--build-tags` ADDS to the config list rather than replacing it (measured against golangci-lint v2.10.1 with a two-tag probe module: config `aaa` + flag `bbb` reports BOTH files). So the generated gate list still applies and nothing is duplicated, which is what keeps `.golangci.yml` generated-and-untouched. If a future release switched to replace semantics the failure is LOUD, not silent: every `ze_`-gated package would report `build constraints exclude all Go files` |
-| No new make target; extend the two that exist | A third target wired into `stagesForMode` | Fewer moving parts for the same coverage. `ze-verify` and `ze-verify-changed` already run these two, so no stage list, golden, or `ai/INDEX.md` row changes, and every existing caller (`ze-test`, `ze-smoke`, `all`) inherits the pass. A new target only adds a name a developer must learn to run |
+| No new make target; extend the two that exist | A third target wired into `stagesForMode` | Fewer moving parts for the same coverage. `ze-precommit-verify` and `ze-precommit-verify-changed` already run these two, so no stage list, golden, or `ai/INDEX.md` row changes, and every existing caller (`ze-standard-test`, `ze-smoke-verify`, `all`) inherits the pass. A new target only adds a name a developer must learn to run |
 | `ze-lint-changed` chains the two passes with `&&` | `;` between them | The recipe is one shell, so `;` makes the recipe's status the SECOND pass's: a real finding in pass 1 would exit 0. `TestChangedLintCoversIntegrationTaggedFiles` pins the `&&` |
 
 ### Cost (R-2)
@@ -412,7 +412,7 @@ On Linux CI both passes analyse the same GOOS and differ only by the tag, so onl
 - [ ] AC-1..AC-6 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding

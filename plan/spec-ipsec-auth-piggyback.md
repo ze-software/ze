@@ -31,7 +31,7 @@ polarities by `TestErrInitiatorSurvivesPiggybackedErrorNotify`
 (`internal/component/ike/engine/rfc7296_errornotify_test.go`), recorded at
 `ai/RFC-REQUIREMENTS.md` with its positive tag at
 `internal/component/ike/engine/rfc7296_errornotify_test.go` and its negative tag at
-`:406`. Both are unit tier, so `make ze-verify` runs them on every push.
+`:406`. Both are unit tier, so `make ze-precommit-verify` runs them on every push.
 
 The value of this spec is operational, and not a compliance gain. A peer whose Child SA
 fails keeps its IKE SA. It retries the Child SA with one CREATE_CHILD_SA exchange, and
@@ -353,7 +353,7 @@ owner's approval, because the RFC-tagged-test hook blocks it.
 | `ipsec-auth-piggyback-expiry` | `test/ipsec/ipsec-auth-piggyback-expiry.ci` | The unattended SA is deleted | |
 | `ipsec-show-sa-no-child` | `test/ipsec/ipsec-show-sa-no-child.ci` | The operator reads the intermediate state | |
 
-The `ipsec` suite runs inside `ze-verify`, so a `.ci` there earns a verify tier. A `.ci`
+The `ipsec` suite runs inside `ze-precommit-verify`, so a `.ci` there earns a verify tier. A `.ci`
 that makes IKE_AUTH refuse the Child SA while AUTH still verifies needs a configuration
 that disagrees on ESP only. `plan/deferrals/rfcgate-1b-rfc7296-pilot.md` records that a
 disjoint `esp-group` fails `selectResponderESP` at IKE_AUTH, so the SA never establishes.
@@ -491,7 +491,7 @@ intolerant owner loop dies anyway, and the capability then looks present and doe
      reads the state. R-1 is closed here
 7. **Phase: Interoperability and documentation**
    - Tests: scenarios `22-auth-piggyback` and `23-auth-piggyback-attach`,
-     `make ze-doc-test`, `make ze-rfc-check`
+     `make ze-doc-verify`, `make ze-rfc-check`
    - Files: the two scenario directories, the documentation checklist rows
    - Verify: both strongSwan scenarios pass, and no RFC row lost a polarity
 
@@ -526,7 +526,7 @@ intolerant owner loop dies anyway, and the capability then looks present and doe
 | The bound is enforced | `test/ipsec/ipsec-auth-piggyback-expiry.ci` passes |
 | The initiator invents no SPI | `TestInitiatorInstallsNoChildSAWhenNoneAccepted` passes |
 | `RFC7296-2.21.2-2` keeps both polarities | `make ze-rfc-check` passes, and `ai/RFC-REQUIREMENTS.md` still shows both columns filled |
-| The ledger is fresh | `make ze-rfc-index` produces no diff |
+| The ledger is fresh | `make ze-rfc-index-update` produces no diff |
 | No interop tag was added | `grep -rn 'RFC requirement:' test/ipsec-interop/` returns nothing |
 | Interoperability is proven | Scenarios `22-auth-piggyback` and `23-auth-piggyback-attach` pass |
 | The operator can read the state | `test/ipsec/ipsec-show-sa-no-child.ci` passes |
@@ -598,7 +598,7 @@ MAY, so a later reader does not read the code as a mandatory behavior.
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding

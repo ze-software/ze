@@ -169,7 +169,7 @@ func TestYANGSchemaProviders(t *testing.T) {
 // (yang_glue_check_test.go): a register.go in a package this one does not yet
 // import is not a build input here, so `go test` can serve a cached PASS after
 // one appears, and the full-verify stage is ze-unit-test-cached. The uncached
-// backstop is the ze-regen-check-readonly make stage, whose
+// backstop is the ze-generated-files-check make stage, whose
 // ze-plugin-imports-check prerequisite runs the same --check from a recipe in
 // both stagesForMode branches. This test is the fast local signal, not the
 // whole guard.

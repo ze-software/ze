@@ -96,7 +96,7 @@ authored disposition, and a reason required when the count moves the wrong way.
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- `make ze-rfc-check`. Also `make ze-verify`, which runs it as a stage.
+- `make ze-rfc-check`. Also `make ze-precommit-verify`, which runs it as a stage.
 
 ### Transformation Path
 1. Each `rfc/short/<stem>.md` is parsed into `Requirement` rows carrying `rid`,
@@ -217,14 +217,14 @@ lowered a level would now be refused.
 4. **Phase: Ratchet** -- add the check, one-directional
    - Verify: AC-1, AC-2, AC-3, AC-4
 5. **Phase: Correct the misleading test and the rule**
-   - Verify: AC-6, AC-7, and `make ze-rules-condensed` then `make ze-rules-lint`
+   - Verify: AC-6, AC-7, and `make ze-rules-condensed-update` then `make ze-rules-lint`
 
 ## Checklist
 
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-7 all demonstrated
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 
 ### TDD

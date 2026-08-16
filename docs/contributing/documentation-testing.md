@@ -2,42 +2,42 @@
 
 Ze ships several tools that validate documentation against the live code.
 They live in `scripts/` and are exposed as `make ze-*` targets. The full
-documentation check is still explicit, while `make ze-verify` runs a
+documentation check is still explicit, while `make ze-precommit-verify` runs a
 changed-file-aware wiring, documentation, command, and inventory gate.
 
-<!-- source: mk/inventory.mk -- ze-doc-test and ze-verify-wiring-docs -->
+<!-- source: mk/inventory.mk -- ze-doc-verify and ze-wiring-docs-check -->
 <!-- source: scripts/status/verify_run.go -- stagesForMode -->
 
 ## Quick start
 
 ```sh
-make ze-doc-test              # Run all documentation tests
-make ze-verify-wiring-docs    # Run changed-file-aware wiring/doc/inventory gate
+make ze-doc-verify              # Run all documentation tests
+make ze-wiring-docs-check    # Run changed-file-aware wiring/doc/inventory gate
 ```
 
-`ze-doc-test` runs every documentation checker and returns non-zero if any of
+`ze-doc-verify` runs every documentation checker and returns non-zero if any of
 them report drift. Run it after editing documentation files, after adding or
-removing plugins, or as part of review. `ze-verify-wiring-docs` selects the
-checks needed for the current diff and is included in `make ze-verify`.
+removing plugins, or as part of review. `ze-wiring-docs-check` selects the
+checks needed for the current diff and is included in `make ze-precommit-verify`.
 
 ## What gets checked
 
 | Tool | Make target | What it validates |
 |------|-------------|-------------------|
-| `scripts/docvalid/doc_drift.go` | `ze-doc-drift` | `docs/DESIGN.md` plugin counts, family lists, `.ci` test totals, interop scenario count, fuzz target count, Go test count, compared to the live plugin registry, family registry, and filesystem walk. Also `docs/comparison.md` family rows, README test-count claims, `docs/features.md` status labels, `docs/functional-tests.md` release-gate suite claims derived from the Makefile, and narrow forbidden stale-claim checks such as the old text parser allocation claim. |
-| `scripts/docvalid/commands.go` | `ze-validate-commands` | Every YANG `ze:command` declaration has a registered RPC or local CLI handler, and every registered RPC handler has a matching YANG declaration. |
-| `scripts/dev/code_to_docs.py --check` | `ze-doc-check-stale`, `ze-doc-test` and `ze-regen-check-readonly` | Three things: every `<!-- source: ... -->` path under `docs/` points to an existing source file or directory, every SYMBOL the anchor names after its `--` is declared in the `.go` file it points at, AND `ai/CODE-TO-DOCS.md` itself matches what the generator would write now. Check mode never writes. The freshness half was added 2026-07-20: before it, check mode built the index in memory and compared nothing, so a stale `ai/CODE-TO-DOCS.md` reported "all references valid" and exit 0 (it had drifted by 24 code paths). The failures report separately: a stale FILE names the regen target, a broken ANCHOR prints `MISSING: <path>` with its referencing doc and line, and an undeclared symbol prints `CLAIM:` with the doc, the line, the anchored file and the token. |
-| `scripts/dev/check_doc_links.py` | `ze-doc-links`, and the `--md-only` subset at the end of `ze-regen-check` | Five checks over the path references in the tree: every backticked path and markdown link in `ai/`, `.claude/rules/` and the `plan/` meta documents resolves; every `// Design:` target resolves; every backticked `*.sh` filename and `c_*`/`check_*` function name in the hook-describing documents names something in the tree; every `doc-links: ignore` marker states a reason; and every path reference in every OTHER tracked file resolves too. The last two checks read every TRACKED file, not the walked corpus. A marker no other check reads is audited, and a dead path in any tracked file fails the gate. `make ze-doc-test` does NOT run this script: `ze-doc-links` is its own `ze-verify` stage. |
-| `scripts/dev/digest_check.py` | `ze-digest-check` and `ze-doc-test` | Every `file:line` anchor in `ai/digests/*.md` resolves to a real file (subsystem-relative via each digest's `<!-- digest-base: -->` header) and an in-range line. Keeps the hand-maintained flow digests from rotting silently as code moves. |
-| `scripts/lint/consistency.go` | `ze-consistency` | Mixed code/doc consistency: `// Design:` references on `.go` files, cross-reference bidirectionality (`// Detail:` <-> `// Overview:`), stale package references in docs and scripts. |
-| `scripts/dev/verify_wiring_docs.py` | `ze-verify-wiring-docs` | Changed-file-aware router used by `make ze-verify`. It runs wiring checks for new exported Go symbols, `ze-validate-commands` for command sources, `ze-doc-test` and stale doc-index checks for source-anchored docs, plus inventory checks for plugin/YANG/registration sources. |
+| `scripts/docvalid/doc_drift.go` | `ze-doc-drift-check` | `docs/DESIGN.md` plugin counts, family lists, `.ci` test totals, interop scenario count, fuzz target count, Go test count, compared to the live plugin registry, family registry, and filesystem walk. Also `docs/comparison.md` family rows, README test-count claims, `docs/features.md` status labels, `docs/functional-tests.md` release-gate suite claims derived from the Makefile, and narrow forbidden stale-claim checks such as the old text parser allocation claim. |
+| `scripts/docvalid/commands.go` | `ze-command-contract-check` | Every YANG `ze:command` declaration has a registered RPC or local CLI handler, and every registered RPC handler has a matching YANG declaration. |
+| `scripts/dev/code_to_docs.py --check` | `ze-doc-index-check`, `ze-doc-verify` and `ze-generated-files-check` | Three things: every `<!-- source: ... -->` path under `docs/` points to an existing source file or directory, every SYMBOL the anchor names after its `--` is declared in the `.go` file it points at, AND `ai/CODE-TO-DOCS.md` itself matches what the generator would write now. Check mode never writes. The freshness half was added 2026-07-20: before it, check mode built the index in memory and compared nothing, so a stale `ai/CODE-TO-DOCS.md` reported "all references valid" and exit 0 (it had drifted by 24 code paths). The failures report separately: a stale FILE names the regen target, a broken ANCHOR prints `MISSING: <path>` with its referencing doc and line, and an undeclared symbol prints `CLAIM:` with the doc, the line, the anchored file and the token. |
+| `scripts/dev/check_doc_links.py` | `ze-doc-links-check`, and the `--md-only` subset at the end of `ze-generated-files-update-check` | Five checks over the path references in the tree: every backticked path and markdown link in `ai/`, `.claude/rules/` and the `plan/` meta documents resolves; every `// Design:` target resolves; every backticked `*.sh` filename and `c_*`/`check_*` function name in the hook-describing documents names something in the tree; every `doc-links: ignore` marker states a reason; and every path reference in every OTHER tracked file resolves too. The last two checks read every TRACKED file, not the walked corpus. A marker no other check reads is audited, and a dead path in any tracked file fails the gate. `make ze-doc-verify` does NOT run this script: `ze-doc-links-check` is its own `ze-precommit-verify` stage. |
+| `scripts/dev/digest_check.py` | `ze-digest-check` and `ze-doc-verify` | Every `file:line` anchor in `ai/digests/*.md` resolves to a real file (subsystem-relative via each digest's `<!-- digest-base: -->` header) and an in-range line. Keeps the hand-maintained flow digests from rotting silently as code moves. |
+| `scripts/lint/consistency.go` | `ze-consistency-check` | Mixed code/doc consistency: `// Design:` references on `.go` files, cross-reference bidirectionality (`// Detail:` <-> `// Overview:`), stale package references in docs and scripts. |
+| `scripts/dev/verify_wiring_docs.py` | `ze-wiring-docs-check` | Changed-file-aware router used by `make ze-precommit-verify`. It runs wiring checks for new exported Go symbols, `ze-command-contract-check` for command sources, `ze-doc-verify` and stale doc-index checks for source-anchored docs, plus inventory checks for plugin/YANG/registration sources. |
 | `scripts/dev/ste_check.py --check` | `ze-ste-check`, and `commit_helper.py create` | The six banned ASD-STE100 habits (synonym rotation, hedging, frozen verbs, marketing adjectives, run-ons, phrasal verbs) in every changed file. Each file is compared against its own HEAD version, and it fails when a habit grew, so a document nobody touched can never fail. The BLOCKING form runs at commit time over the commit's own files. Read the whole tree with `make ze-ste-review`. Rule: `ai/rules/writing.md`. |
 
-`ze-doc-test` runs doc drift, command validation, and source-anchor validation
+`ze-doc-verify` runs doc drift, command validation, and source-anchor validation
 (path and symbol) unconditionally and reports
-a combined verdict. `ze-verify-wiring-docs` is the changed-file-aware gate used
-by `make ze-verify`; it delegates to the direct targets in the table only when
-the current diff touches matching sources. `ze-consistency` is left standalone
+a combined verdict. `ze-wiring-docs-check` is the changed-file-aware gate used
+by `make ze-precommit-verify`; it delegates to the direct targets in the table only when
+the current diff touches matching sources. `ze-consistency-check` is left standalone
 because it covers both documentation and code-style concerns and is run as part
 of code review, not doc review.
 
@@ -54,15 +54,15 @@ of code review, not doc review.
 | Situation | Recommended target |
 |-----------|--------------------|
 | After you write any prose, in any file | `make ze-ste-review-changed` |
-| After editing any file under `docs/` | `make ze-doc-test` |
-| After adding or removing a plugin | `make ze-doc-test` |
-| After writing a path reference in ANY tracked file | `make ze-doc-links` (`ze-doc-test` does not cover it) |
-| After adding or renaming a YANG `ze:command` | `make ze-validate-commands` |
-| After adding a doc validator, inventory source, command source, or exported Go API | `make ze-verify-wiring-docs` |
-| Before opening a documentation PR | `make ze-doc-test` |
+| After editing any file under `docs/` | `make ze-doc-verify` |
+| After adding or removing a plugin | `make ze-doc-verify` |
+| After writing a path reference in ANY tracked file | `make ze-doc-links-check` (`ze-doc-verify` does not cover it) |
+| After adding or renaming a YANG `ze:command` | `make ze-command-contract-check` |
+| After adding a doc validator, inventory source, command source, or exported Go API | `make ze-wiring-docs-check` |
+| Before opening a documentation PR | `make ze-doc-verify` |
 
-The full `ze-doc-test` remains the explicit documentation review target.
-`make ze-verify` runs `ze-verify-wiring-docs`, which invokes the relevant doc,
+The full `ze-doc-verify` remains the explicit documentation review target.
+`make ze-precommit-verify` runs `ze-wiring-docs-check`, which invokes the relevant doc,
 command, inventory, and wiring checks for changed files.
 
 <!-- source: scripts/dev/verify_wiring_docs.py -- selected_targets -->
@@ -70,7 +70,7 @@ command, inventory, and wiring checks for changed files.
 
 ## How to interpret output
 
-### `ze-doc-drift`
+### `ze-doc-drift-check`
 
 ```
   Documentation drift detected (N issues)
@@ -84,7 +84,7 @@ Each issue points at a file, a line number (0 = file-level), and a
 description. Most fixes are mechanical: update a count, add a missing
 table row, remove a stale entry.
 
-### `ze-validate-commands`
+### `ze-command-contract-check`
 
 ```
 # Command Validation
@@ -114,7 +114,7 @@ Two-direction check. Both directions are contract bugs:
 | Feature inventory row has no status | Add one of: Supported, Partial, Experimental, Stub-backed, Rejected, Future |
 | Functional test release-gate list wrong | Update `docs/functional-tests.md` to match `ze-functional-test` in the Makefile |
 | Stale text parser allocation claim | Update `docs/architecture/api/text-parser.md` to describe `textparse.NewScanner` and source-linked result allocations |
-| Stale source anchor path | Fix or remove the `<!-- source: ... -->` path, then rerun `make ze-doc-test` |
+| Stale source anchor path | Fix or remove the `<!-- source: ... -->` path, then rerun `make ze-doc-verify` |
 | `CLAIM: ... names 'Sym', which is not declared there` | Read the anchored file. When the symbol moved, point the anchor at the file that DECLARES it; when the name changed, write the new one; when the symbol is gone, the sentence above the anchor is wrong too, so fix the sentence. Never reword a real symbol into prose to silence the finding: the check already ignores a token the anchored file names anywhere, so a finding means the token is absent from that file, which no call, field, parameter or env key of that file can be |
 | `cannot read the anchored file, so its symbols are unverifiable` | The anchor points at a file the checker could not read or decode. Fix the path. The check fails closed here on purpose: an unreadable file proves nothing about the claims above it |
 | `doc-links: ignore marker states no reason` | Write the reason inline, `<!-- doc-links: ignore (why this path cannot resolve) -->`, or delete the marker and repair the reference it was hiding. A marker with no reason is a silent allowlist |
@@ -192,15 +192,15 @@ and scans `docs/`/`scripts/` for references to packages that no longer exist.
    following the patterns in `doc_drift.go`.
 2. Add a `make ze-foo-check` target to `mk/inventory.mk` or the owning `mk/`
    file.
-3. Add the new target to `ze-doc-test` if failure should fail the umbrella.
+3. Add the new target to `ze-doc-verify` if failure should fail the umbrella.
 4. Add the new target to `scripts/dev/verify_wiring_docs.py` if changed files
-   should trigger it during `make ze-verify`.
+   should trigger it during `make ze-precommit-verify`.
 5. Add a row to the table in this file.
 6. Update `ai/INDEX.md`, and the discovery-surface table of
    `ai/rules/repo-maintenance.md`, when the new check changes what future
    agents should run or discover. That rule file is GENERATED: edit its point
    file under `ai/rules/points/repo-maintenance/`, then run
-   `make ze-rules-condensed`.
+   `make ze-rules-condensed-update`.
 7. Add a help entry in the Makefile or owning `mk/` quick reference.
 
 ## See also

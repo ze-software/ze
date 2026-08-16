@@ -352,7 +352,7 @@ Each phase ends with a Self-Critical Review. Fix issues before proceeding.
    - Files: `chain_test.go`
 8. **Functional tests** → `anomaly-observe-show.ci` green on the DUT.
 9. **Docs** → command-reference, plugin inventory (Documentation Update Checklist Yes rows).
-10. **Full verification** → `make ze-verify` (or lint + unit + functional).
+10. **Full verification** → `make ze-precommit-verify` (or lint + unit + functional).
 11. **Complete spec** → audit tables, learned summary `plan/learned/NNN-anomaly-3-observe.md`, two commits (A: code+tests+docs+spec+summary; B: `git rm` spec).
 
 ### Critical Review Checklist (/implement stage 6)
@@ -513,7 +513,7 @@ N/A - no RFC/protocol behavior.
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete - every row has a concrete test name
 - [ ] `/ze-review` gate clean (0 BLOCKER, 0 ISSUE)
-- [ ] `make ze-test` passes (lint + all ze tests)
+- [ ] `make ze-standard-test` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/plugins/anomaly/observe/`)
 - [ ] Integration completeness proven end-to-end
 - [ ] Documentation Update Checklist answered Yes/No with source evidence

@@ -42,7 +42,7 @@ identifiers in any importer.
 - [ ] `ai/rules/protocol.md` - IKE probe row + exceptions
   → Constraint: after this spec, IKE maps cleanly with no exceptions; probe row and exceptions table both change
 - [ ] `docs/architecture/bfd.md` is NOT affected; the 2 anchors into `ike/wire` live elsewhere - grep `source: internal/component/ike/wire` to locate them at implementation time
-  → Constraint: `make ze-doc-test` gates the anchor sweep (`scripts/dev/code_to_docs.py` does literal path-exists checks)
+  → Constraint: `make ze-doc-verify` gates the anchor sweep (`scripts/dev/code_to_docs.py` does literal path-exists checks)
 
 ### RFC Summaries (MUST for protocol work)
 - [ ] Not applicable: no protocol behavior changes; RFC 7296 semantics are untouched (rename only).
@@ -100,14 +100,14 @@ identifiers in any importer.
 |----|-----------|-------|----------|--------------|--------|
 | A-1 | All importers live under `internal/component/ike/` | repo-wide import grep 2026-07-08 listed 17 files, all in `ike/engine` | wider rewrite needed | rerun the import grep at implementation start | confirmed (2026-07-08 snapshot) |
 | A-2 | No local `packet` identifier in any importer | grep audit 2026-07-08: zero declarations | compile errors after rewrite | `go build ./internal/component/ike/...` | confirmed (2026-07-08 snapshot) |
-| A-3 | Exactly 2 doc source anchors point into `ike/wire` | anchor grep 2026-07-08 | doc-test failures reveal more | `make ze-doc-test` after sweep | confirmed (2026-07-08 snapshot) |
+| A-3 | Exactly 2 doc source anchors point into `ike/wire` | anchor grep 2026-07-08 | doc-test failures reveal more | `make ze-doc-verify` after sweep | confirmed (2026-07-08 snapshot) |
 | A-4 | No string literal, YANG node, metric, or CLI word depends on the package name | pkg/ grep zero refs; no quoted literals found carrying the name | user-visible break | repo grep for `ike/wire` after rename must return only history (plan/learned) | confirmed (2026-07-08 snapshot) |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | Another session has uncommitted edits under `ike/` when the rename lands | `git status` shows ike/ files modified before starting | check status first; land in a quiet window (umbrella R-1) |
-| R-2 | A missed reference form (build tag file, generated code, script) escapes the grep | build or gate failure after rename | full `make ze-verify`; final repo-wide grep for the old path is an AC |
+| R-2 | A missed reference form (build tag file, generated code, script) escapes the grep | build or gate failure after rename | full `make ze-precommit-verify`; final repo-wide grep for the old path is an AC |
 
 ## Wiring Test (MANDATORY — NOT deferrable)
 
@@ -123,9 +123,9 @@ identifiers in any importer.
 | AC-1 | after rename | `internal/component/ike/wire/` does not exist; `internal/component/ike/packet/` builds; package clause is `packet` in all 34 files |
 | AC-2 | repo-wide grep for the old import path | zero hits in code, scripts, docs/ and ai/ (living surfaces); history under plan/learned/ exempt |
 | AC-3 | `scripts/dev/protocol_skeleton_report.py` | summary shows `legacy 3`; `--verbose` shows `ike: ... packet=canonical`; `--selftest` OK with ("ike", "wire") fixtures removed and `ospf/wire == domain` retained |
-| AC-4 | `make ze-doc-test` | green after the 2 anchors (and any prose mentions) are updated |
+| AC-4 | `make ze-doc-verify` | green after the 2 anchors (and any prose mentions) are updated |
 | AC-5 | rule surfaces | `ai/rules/go-standards.md` `wire` row no longer carries an ike exception; `ai/rules/protocol.md` IKE probe row says "none" under Exceptions |
-| AC-6 | `make ze-verify` | green, including regenerated `ai/PACKAGE-MAP.md` |
+| AC-6 | `make ze-precommit-verify` | green, including regenerated `ai/PACKAGE-MAP.md` |
 
 ## End-to-End User Stories (MANDATORY for new features)
 
@@ -166,7 +166,7 @@ identifiers in any importer.
 - `ai/rules/protocol.md` - IKE probe row exceptions -> none; exceptions table row removed
 - `scripts/dev/protocol_skeleton_report.py` - LEGACY_EXCEPTIONS ("ike","wire") removed; selftest fixtures updated
 - docs with the 2 source anchors into `ike/wire` (locate by grep at implementation time) - anchor + prose sweep
-- `ai/PACKAGE-MAP.md` - regenerated (`make ze-discovery-index`)
+- `ai/PACKAGE-MAP.md` - regenerated (`make ze-discovery-index-update`)
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
@@ -194,7 +194,7 @@ identifiers in any importer.
 | 13 | Route metadata keys added/changed? | [ ] | No |
 | 14 | Prometheus counters added/changed? | [ ] | No |
 | 15 | Registered inventory changed? | [ ] | No |
-| 16 | Changed source referenced by doc anchors? | [ ] | Yes - the 2 anchors; gated by `make ze-doc-test` |
+| 16 | Changed source referenced by doc anchors? | [ ] | Yes - the 2 anchors; gated by `make ze-doc-verify` |
 | 17 | Docs show examples for this area? | [ ] | No examples carry package paths |
 
 ## Files to Create
@@ -227,10 +227,10 @@ identifiers in any importer.
    - Files: `internal/component/ike/packet/`, `internal/component/ike/engine/*.go`, `scripts/dev/protocol_skeleton_report.py`
    - Verify: AC-1, AC-2 (code), AC-3
 3. **Phase: rule + doc sweep** — go-standards.md, protocol.md, the 2 anchors + prose, regenerate PACKAGE-MAP.
-   - Tests: `make ze-doc-test`, `make ze-rules-index` if rule headers changed
+   - Tests: `make ze-doc-verify`, `make ze-rules-index-update` if rule headers changed
    - Files: per Files to Modify
    - Verify: AC-4, AC-5
-4. **Full verification** — `make ze-verify`; AC-6.
+4. **Full verification** — `make ze-precommit-verify`; AC-6.
 5. **Complete spec** — audit tables, learned summary, two-commit closure (commit A: rename + rules + docs + spec + learned; commit B: git rm spec).
 
 ### Critical Review Checklist (/implement stage 6)
@@ -331,7 +331,7 @@ Not applicable: no RFC-covered behavior changes.
 ## Goal Validation (BLOCKING)
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
-| rename with zero behavior change | functional test | (fill: `make ze-verify` output + old-path grep) |
+| rename with zero behavior change | functional test | (fill: `make ze-precommit-verify` output + old-path grep) |
 
 ## Review Gate
 
@@ -379,7 +379,7 @@ Not applicable: no RFC-covered behavior changes.
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled — 0 BLOCKER, 0 ISSUE)
-- [ ] `make ze-test` passes (lint + all ze tests)
+- [ ] `make ze-standard-test` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
 - [ ] Integration completeness proven end-to-end
 - [ ] Documentation Update Checklist answered Yes/No with source evidence

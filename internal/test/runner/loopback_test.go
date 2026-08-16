@@ -192,7 +192,7 @@ func TestEnsureLoopbackAliasAcceptsPresentIPv6(t *testing.T) {
 // TestEnsureLoopbackAliasMissingIPv6NamesTheFix verifies that an absent IPv6
 // address is reported with the command that adds it, and is NOT added here.
 //
-// VALIDATES: the error names the address, `make ze-setup`, and the exact
+// VALIDATES: the error names the address, `make ze-dev-setup`, and the exact
 // platform command, so an operator can act on it without reading the source.
 // PREVENTS: the silent path this replaced -- a warning, then a bind failure or a
 // whole-test timeout naming neither the address nor the fix.
@@ -202,7 +202,7 @@ func TestEnsureLoopbackAliasMissingIPv6NamesTheFix(t *testing.T) {
 	err := ensureLoopbackAlias(ip)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), absentIPv6, "the operator must be told WHICH address is missing")
-	assert.Contains(t, err.Error(), "make ze-setup", "the supported route must be named")
+	assert.Contains(t, err.Error(), "make ze-dev-setup", "the supported route must be named")
 
 	var want string
 	switch runtime.GOOS {
@@ -272,7 +272,7 @@ func TestExtractBindAddresses(t *testing.T) {
 // meant to carry it (loopbackCandidate), and a globally scoped address is
 // skipped. The suite's own second IPv6 address is fd00::2
 // (scripts/dev/dev-setup.py), so this one is absent both on a host that has run
-// `make ze-setup` and on one that has not. A host that did carry it would redden
+// `make ze-dev-setup` and on one that has not. A host that did carry it would redden
 // the cases below rather than hide them.
 const absentULA = "fd00:7e57:c0de::1"
 
@@ -372,7 +372,7 @@ func TestConfigLocalBindAddresses(t *testing.T) {
 		// `auto` asks Ze to pick the address, so there is none to check.
 		{"local_auto", bgpConfigWithLocal("auto"), false},
 		{"local_wildcard", bgpConfigWithLocal("0.0.0.0"), false},
-		// The shape test/parse/graceful-restart-llgr.ci carries. `make ze-setup`
+		// The shape test/parse/graceful-restart-llgr.ci carries. `make ze-dev-setup`
 		// could not add this address, so probing it would fail a passing test
 		// with an error naming a fix that does not apply.
 		{"local_routable_not_probed", bgpConfigWithLocal("192.0.2.1"), false},
@@ -394,7 +394,7 @@ func TestConfigLocalBindAddresses(t *testing.T) {
 			}
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), absentULA, "the failing address must be named")
-			assert.Contains(t, err.Error(), "make ze-setup", "the supported route must be named")
+			assert.Contains(t, err.Error(), "make ze-dev-setup", "the supported route must be named")
 		})
 	}
 }
@@ -462,7 +462,7 @@ func TestEnsureBindAddressesFromParsedCI(t *testing.T) {
 			}
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), absentULA, "the failing address must be named")
-			assert.Contains(t, err.Error(), "make ze-setup", "the supported route must be named")
+			assert.Contains(t, err.Error(), "make ze-dev-setup", "the supported route must be named")
 		})
 	}
 }

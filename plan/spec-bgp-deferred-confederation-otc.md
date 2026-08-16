@@ -268,7 +268,7 @@ handling is a large open design question -- is unaffected.)
 4. **Phase: Confederation core.** Member-AS config plus AS_CONFED origination, if the decision is to support it
 5. **Phase: OTC value selection.** Stamp the Confederation Identifier on confederation egress
 6. **Functional and interop tests** → prove the boundary behavior against a third-party daemon
-7. **Full verification** → `make ze-verify`
+7. **Full verification** → `make ze-precommit-verify`
 
 ## RFC Documentation
 
@@ -285,7 +285,7 @@ R012 and R013.
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-4 all demonstrated
 - [ ] Wiring Test table complete: every row has a concrete test name
-- [ ] `make ze-test` passes (lint + all ze tests)
+- [ ] `make ze-standard-test` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Registration over hardcoding verified
 

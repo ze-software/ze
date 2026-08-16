@@ -8,7 +8,7 @@ Set up a Ze development environment with all build, lint, and test dependencies.
 
 ```bash
 git clone <repo-url> && cd ze
-make ze-setup
+make ze-dev-setup
 ```
 
 This detects your OS (macOS with Homebrew or Debian/Ubuntu with apt), installs
@@ -19,7 +19,7 @@ missing tools, vendors Go dependencies, and reports what it did.
 Probe the current host without installing anything:
 
 ```bash
-make ze-setup CHECK=1
+make ze-dev-setup CHECK=1
 ```
 
 Exits 0 if all required tools are present, nonzero if any are missing.
@@ -91,7 +91,7 @@ it fails the same silent way.
 
 ### Linux
 
-`make ze-setup` installs the apt packages itself, the same way it installs the
+`make ze-dev-setup` installs the apt packages itself, the same way it installs the
 Homebrew ones on macOS. Each command is echoed before it runs. It takes
 `apt-get update` once per run, because a container image ships no package
 lists, and it sets `DEBIAN_FRONTEND=noninteractive` so a package with a debconf
@@ -129,7 +129,7 @@ OTHER architecture needs that architecture's set too, through
 `kernel.apparmor_restrict_unprivileged_userns=1`, which blocks the sandbox
 Chrome relies on and makes the `agent-browser` web functional tests fail to
 launch Chrome (`No usable sandbox!`). Setup checks this tunable as
-`userns-unrestricted`. When it is restricted, `make ze-setup` (install mode)
+`userns-unrestricted`. When it is restricted, `make ze-dev-setup` (install mode)
 echoes and then runs these commands via `sudo` to lift it globally:
 
 ```bash
@@ -140,7 +140,7 @@ sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 The `/etc/sysctl.d` drop-in makes the change survive reboots. It goes through
 the same root route as the package installs, so on a root run the echoed lines
 carry no `sudo`, and when root is out of reach it prints the commands to run by
-hand instead. `make ze-setup CHECK=1` only reports the state, never changes it.
+hand instead. `make ze-dev-setup CHECK=1` only reports the state, never changes it.
 
 **KVM device access.** `/dev/kvm` is `root:kvm` mode 0660, so QEMU-backed
 evidence (the appliance boot proofs and every `ze-qemu-*` target) needs your
@@ -160,7 +160,7 @@ even after the command succeeds. Log out and back in, or run one command with
 the new group:
 
 ```bash
-sg kvm -c 'make ze-vpp-hugepages-qemu-test'
+sg kvm -c 'make ze-qemu-vpp-hugepages-test'
 ```
 
 Setup distinguishes the two states: `kvm-access` reports `pending` when the
@@ -198,8 +198,8 @@ missing address fails at once naming the command above.
 
 <!-- source: internal/test/runner/loopback.go -- the runner's probe and its error -->
 
-Neither addition survives a reboot. Re-run `make ze-setup` after one;
-`make ze-setup CHECK=1` says when it is needed. The merge gate adds the IPv6
+Neither addition survives a reboot. Re-run `make ze-dev-setup` after one;
+`make ze-dev-setup CHECK=1` says when it is needed. The merge gate adds the IPv6
 address the same way, as its own workflow step (`.github/workflows/verify.yml`).
 
 These three, and the apt installs above, are every place setup reaches for root.
@@ -211,7 +211,7 @@ section governs each of them.
 Verify everything works:
 
 ```bash
-make ze-smoke    # lint + unit tests + build (~2 min)
+make ze-smoke-verify    # lint + unit tests + build (~2 min)
 ```
 
 Check that appliance tools are detected:

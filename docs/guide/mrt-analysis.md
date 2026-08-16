@@ -10,7 +10,7 @@ and congestion handling.
 ## Building
 
 ```
-make analyze
+make ze-analyze-build
 ```
 
 This produces `bin/ze-analyze`.

@@ -4,7 +4,7 @@ level: MUST
 stage:
 ---
 **Know what you are trading.** A `caps=net-admin` test does NOT run in the merge
-gate: `make ze-verify` runs unprivileged, so the marker turns an opaque hang into
+gate: `make ze-precommit-verify` runs unprivileged, so the marker turns an opaque hang into
 an honest skip there. Its home is `.github/workflows/qemu-nightly.yml`, which
 runs `ze-qemu-needs-linux-test` on a schedule, so the marker RELOCATES the
 coverage rather than deleting it. `TestCapabilityGatedTestsHaveAQemuHome`

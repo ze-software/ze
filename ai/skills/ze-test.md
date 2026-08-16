@@ -9,13 +9,13 @@ Use this whenever you are about to create a `.ci` test, or change an existing
 one. It is the repo's modus operandi for test authoring, and step 1 is not
 optional.
 
-See also: `/ze-debug` (a test is failing and you do not know why), `/ze-verify`
+See also: `/ze-debug` (a test is failing and you do not know why), `/ze-precommit-verify`
 (the gate, after promotion)
 
 ## Step 1 — Draft it where nothing can see it (BLOCKING)
 
 **Never write or iterate on a `.ci` inside `test/<suite>/`.** That directory is
-live: every `make ze-verify` in the checkout runs it, including runs by other
+live: every `make ze-precommit-verify` in the checkout runs it, including runs by other
 sessions working on unrelated things, who then have to work out whether your
 half-written test is their regression.
 

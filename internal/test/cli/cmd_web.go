@@ -402,7 +402,7 @@ func zeTestBuildChaos(ctx context.Context, baseDir, zeBin string) (string, error
 			return filepath.Join(dir, "ze-chaos"), nil
 		}
 
-		return "", fmt.Errorf("ZE_TEST_NO_BUILD set but %s is missing (build it with `make chaos`)", chaosPath)
+		return "", fmt.Errorf("ZE_TEST_NO_BUILD set but %s is missing (build it with `make ze-chaos-build`)", chaosPath)
 	}
 
 	cmd := exec.CommandContext(ctx, "go", "build", "-tags", "ze_chaos ze_bgp", "-o", chaosPath, "./cmd/ze") //nolint:gosec // paths from internal runner
@@ -616,7 +616,7 @@ func zeTestStartChaosServer(ctx context.Context, bins zeTestWebBinaries, listenA
 	return srv, nil
 }
 
-// zeTestReadyTimeout bounds a server start. Under `make ze-verify` the web
+// zeTestReadyTimeout bounds a server start. Under `make ze-precommit-verify` the web
 // suite overlaps the -race unit stage, and a forked daemon can take well over
 // 30s just to bind under that CPU starvation, so the budget scales by the same
 // contention headroom the runner applies to per-test budgets. A standalone run

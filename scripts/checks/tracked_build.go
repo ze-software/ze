@@ -3,7 +3,7 @@
 // tracked_build COMPILES the repository as git holds it, which is the one
 // population no other check in this repository compiles.
 //
-// `make ze`, `make ze-verify`, `make ze-lint-changed` and the test targets all
+// `make ze`, `make ze-precommit-verify`, `make ze-lint-changed` and the test targets all
 // build and run the WORKING TREE, so they see uncommitted and untracked files.
 // A commit that lands a CONSUMER while its PRODUCER stays uncommitted is
 // therefore green for the session that wrote it and broken for anybody who
@@ -22,7 +22,7 @@
 // Usage:   go run scripts/checks/tracked_build.go [--rev=REV] [--repo=DIR]
 //                                                 [--keep] [--json] [--matrix]
 //                                                 [--selftest] [--package-floor=N] [--deadline=D]
-// Called by: make ze-tracked-build-check, and `make ze-verify` via
+// Called by: make ze-tracked-build-check, and `make ze-precommit-verify` via
 //            stagesForMode() in scripts/status/verify_run.go.
 //
 //go:build ignore
@@ -80,7 +80,7 @@ type tagSet struct {
 
 // buildMatrix is a REPRESENTATIVE set, not the full matrix the Makefile can
 // build, and the choice is a cost decision: about 45 seconds warm, against a
-// 25-minute `make ze-verify`.
+// 25-minute `make ze-precommit-verify`.
 //
 // Included: every flavor whose failure stops a person or the test suite from
 // working -- the daemon, the functional runner, the appliance image, the two
@@ -121,7 +121,7 @@ var buildMatrix = []tagSet{
 		Tags:        []string{"ze_setup"},
 		Anchor:      "./cmd/ze",
 		AnchorFiles: []string{"setup_dispatch.go", "setup_features_setup.go"},
-		Why:         "bin/ze-setup, the Makefile's ze-setup-bin target: a disjoint cmd/ze dispatch",
+		Why:         "bin/ze-setup, the Makefile's ze-setup-build target: a disjoint cmd/ze dispatch",
 	},
 	{
 		Name:   "host",
@@ -163,7 +163,7 @@ var packageFloor = defaultPackageFloor
 const defaultPackageFloor = 200
 
 // runDeadline bounds the whole run. A wedged `git archive` or `go build` would
-// otherwise stall a `make ze-verify` stage with no limit at all.
+// otherwise stall a `make ze-precommit-verify` stage with no limit at all.
 //
 // A variable, not a constant, only so `--deadline` can shorten it for the gate's
 // own tests: the INCOMPLETE path is unreachable otherwise, and an untested
@@ -402,7 +402,7 @@ func resolveRev(ctx context.Context, repo, rev string) (string, error) {
 
 // scratchTree returns an EMPTY directory to extract into, under this session's
 // scratch dir (scripts/dev/session-scratch.sh) so two concurrent sessions never
-// share one and `make ze-clean-sessions BEFORE=<date>` reclaims it with the rest
+// share one and `make ze-sessions-clean BEFORE=<date>` reclaims it with the rest
 // of that session. Nothing under tmp/session/ is removed automatically. Never
 // /tmp: a hook refuses it, and this repository keeps its scratch inside the
 // checkout on purpose.
@@ -834,7 +834,7 @@ func tagWhy(name string) string {
 func runSelftest() error {
 	// Under tmp/, never the system temp dir: this repository keeps its scratch
 	// inside the checkout so it is visible to the operator and covered by
-	// `make ze-clean-tmp`. No session sweep reclaims it; nothing is removed
+	// `make ze-tmp-clean`. No session sweep reclaims it; nothing is removed
 	// automatically any more.
 	if err := os.MkdirAll("tmp", 0o750); err != nil {
 		return fmt.Errorf("create tmp/: %w", err)

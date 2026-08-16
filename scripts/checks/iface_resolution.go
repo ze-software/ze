@@ -15,7 +15,7 @@
 // command with no iface backend loaded, or a kernel-sourced device name.
 //
 // Usage:     go run scripts/checks/iface_resolution.go [--json]
-// Called by: make ze-iface-resolution-check (wired into ze-verify) and
+// Called by: make ze-iface-resolution-check (wired into ze-precommit-verify) and
 //            scripts/checks/iface_resolution_test.go
 //
 //go:build ignore

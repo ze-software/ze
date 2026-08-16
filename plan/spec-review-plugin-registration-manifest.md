@@ -249,7 +249,7 @@ config and plugin `.ci` suites are the regression gate.
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
 | CLI command `ze plugin manifest` | [ ] | `cmd/ze/` plugin subcommand; `ai/rules/cli.md` |
-| Manifest completeness gate in verify | [ ] | `internal/component/plugin/manifest_test.go`, run under `make ze-verify` |
+| Manifest completeness gate in verify | [ ] | `internal/component/plugin/manifest_test.go`, run under `make ze-precommit-verify` |
 | Functional tests | [ ] | `test/plugin/plugin-manifest-hooks.ci`, `plugin-yang-single-declare.ci` |
 
 ### Documentation Update Checklist (BLOCKING)
@@ -275,7 +275,7 @@ config and plugin `.ci` suites are the regression gate.
 | 3. Wiring phase | Wiring Test table |
 | 4. Implement (TDD) | Implementation Phases below |
 | 5. /ze-review gate | Review Gate |
-| 6. Full verification | `make ze-verify` |
+| 6. Full verification | `make ze-precommit-verify` |
 
 ### Implementation Phases
 
@@ -290,7 +290,7 @@ config and plugin `.ci` suites are the regression gate.
    the single declaration; delete the duplicate `RegisterModule` calls; preserve leaf tier.
    - Tests: `TestRegistrationYANGForwardedToLoader`, `TestRegistryDoesNotImportConfigYANG`,
      `plugin-yang-single-declare.ci`, `make ze-tier-check`.
-4. **Full verification** → `make ze-verify` (config + plugin `.ci` suites are the regression gate).
+4. **Full verification** → `make ze-precommit-verify` (config + plugin `.ci` suites are the regression gate).
 5. **Complete spec** → learned summary `plan/learned/NNN-plugin-registration-manifest.md`; two commits.
 
 ### Critical Review Checklist (/implement stage 6)
@@ -404,7 +404,7 @@ config and plugin `.ci` suites are the regression gate.
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (0 BLOCKER, 0 ISSUE)
-- [ ] `make ze-test` passes (lint + all ze tests)
+- [ ] `make ze-standard-test` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
 - [ ] Documentation Update Checklist answered Yes/No with source evidence
 

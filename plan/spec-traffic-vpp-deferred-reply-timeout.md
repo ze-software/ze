@@ -303,7 +303,7 @@ any wire; it installs a client-side deadline.
 2. **Phase: bind the deadline** -- write the constants, the env entry, the clamping reader and the constructor.
    - Tests: the two above turn green
    - Files: `internal/plugins/traffic/vpp/timeout_linux.go` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) -->
-   - Verify: `make ze-test-pkg PKG=./internal/plugins/traffic/vpp`
+   - Verify: `make ze-unit-pkg-test PKG=./internal/plugins/traffic/vpp`
 3. **Phase: use the constructor** -- replace the inline literal in `(*backend).Apply`.
    - Tests: every test in `apply_test.go` stays green and unedited
    - Files: `internal/plugins/traffic/vpp/backend_linux.go`
@@ -314,8 +314,8 @@ any wire; it installs a client-side deadline.
    - Verify: `make ze-qemu-integration-test`, and read the output for a line naming `internal/plugins/traffic/vpp`. A zero exit alone does not satisfy AC-5 (R-3)
 5. **Phase: documentation** -- the seam doc, and any stale source anchor the checklist grep finds.
    - Files: `docs/architecture/traffic/fw-7b-backend-hardening.md`
-   - Verify: `make ze-doc-test`
-6. **Full verification** -- `make ze-verify`, then set Status to `verification`, commit, and stop. Closure belongs to a later Opus 5 session (`Handoff | verify`).
+   - Verify: `make ze-doc-verify`
+6. **Full verification** -- `make ze-precommit-verify`, then set Status to `verification`, commit, and stop. Closure belongs to a later Opus 5 session (`Handoff | verify`).
 
 ### Critical Review Checklist
 
@@ -408,7 +408,7 @@ any wire; it installs a client-side deadline.
 - [ ] AC-1 to AC-6 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding

@@ -63,8 +63,8 @@ git apply scripts/dev/patches/netlink-xfrm-fixes.patch
 
 `TestNetlinkXFRMPatchApplied` uses `git apply --reverse --check` to require the
 exact corrections, with their context lines. It runs in `./scripts/dev`, which
-`ZE_PACKAGES` covers, so `make ze-unit-test` runs it as a `ze-verify` stage.
-`make ze-test-pkg PKG=./scripts/dev` is the narrow way to run it alone.
+`ZE_PACKAGES` covers, so `make ze-unit-test` runs it as a `ze-precommit-verify` stage.
+`make ze-unit-pkg-test PKG=./scripts/dev` is the narrow way to run it alone.
 
 ## Traps this code exists to avoid
 

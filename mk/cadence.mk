@@ -1,13 +1,13 @@
 # ─── Cadence targets: what to run daily, weekly and monthly ─────────────────
 #
 # The repository has more than forty check, census and audit targets. `make
-# ze-verify` runs 27 of them and the nightly workflows run a dozen more, which
+# ze-precommit-verify` runs 27 of them and the nightly workflows run a dozen more, which
 # leaves a set that is in NEITHER and is therefore run by nobody. These three
 # targets exist so the owner runs one command instead of remembering that set.
 #
-# They are deliberately NOT stages of ze-verify: `TestStagesForModeMatchesGolden`
+# They are deliberately NOT stages of ze-precommit-verify: `TestStagesForModeMatchesGolden`
 # (scripts/status/verify_run_test.go) locks that stage list against a golden, and
-# ze-verify is a merge gate whose job is to be fast and decisive. A cadence run
+# ze-precommit-verify is a merge gate whose job is to be fast and decisive. A cadence run
 # is the opposite. It surfaces things, and most of what it surfaces is a census
 # that has no verdict to give.
 #
@@ -21,7 +21,7 @@
 # either the censuses drag it red every day until it is ignored, or the gates
 # are swallowed. The summary table is the product; the exit code covers gates.
 
-.PHONY: ze-daily ze-weekly ze-monthly
+.PHONY: ze-cadence-daily-run ze-cadence-weekly-run ze-cadence-monthly-run
 
 # The runner both targets share. `$(1)` is the banner.
 #
@@ -60,7 +60,7 @@ endef
 # ─── Daily ──────────────────────────────────────────────────────────────────
 #
 # Seconds. No Docker, no QEMU, no network, and it MUST NOT take the repo-wide
-# verify lock, so it never blocks on somebody else's ze-verify.
+# verify lock, so it never blocks on somebody else's ze-precommit-verify.
 #
 # ze-ste-check is a `note` and MUST stay one. CLAUDE.md is explicit that the
 # writing rule "is a GUIDELINE, not a law and not a gate. The checker reports and
@@ -68,38 +68,38 @@ endef
 # checkout five sessions share it reports on their half-finished prose as readily
 # as on yours -- and a gate that reds on somebody else's work gets switched off.
 #
-# ze-validate is here because it is the cheapest unrun gate in the repository:
-# ze-verify runs ze-validate-tree, which passes `--changed-file ''`, and both
+# ze-repository-check is here because it is the cheapest unrun gate in the repository:
+# ze-precommit-verify runs ze-repository-tree-check, which passes `--changed-file ''`, and both
 # check_cross_package_wiring and check_cli_handler_coverage (scripts/dev/validate.py)
 # return empty before reading anything when the changed-file list is empty. So
 # those two checks are in the tree, are wired to a target, and run nowhere.
-ze-daily:
-	$(call ZE_CADENCE_RUN,ze-daily -- run this one every morning,\
-		run_check gate ze-validate $(MAKE) --no-print-directory ze-validate; \
+ze-cadence-daily-run:
+	$(call ZE_CADENCE_RUN,ze-cadence-daily-run -- run this one every morning,\
+		run_check gate ze-repository-check $(MAKE) --no-print-directory ze-repository-check; \
 		run_check note ze-ste-check $(MAKE) --no-print-directory ze-ste-check; \
 		run_check note ze-spec-status $(MAKE) --no-print-directory ze-spec-status; \
-		run_check note ze-journal $(MAKE) --no-print-directory ze-journal; \
-		run_check note ze-setup-probe $(MAKE) --no-print-directory ze-setup CHECK=1; \
+		run_check note ze-journal-report $(MAKE) --no-print-directory ze-journal-report; \
+		run_check note ze-setup-probe $(MAKE) --no-print-directory ze-dev-setup CHECK=1; \
 	)
 
 # ─── Weekly ─────────────────────────────────────────────────────────────────
 #
 # Minutes, still local. ze-chaos-verify takes the SAME repo-wide lock as
-# ze-verify (scripts/dev/verify-lock.sh, mk/test-chaos.mk), so do not start this
+# ze-precommit-verify (scripts/dev/verify-lock.sh, mk/test-chaos.mk), so do not start this
 # beside a verify: it will block rather than fail, which looks like a hang.
 #
-# ze-race-reactor is here because ai/rules/testing.md requires it for every
-# reactor concurrency change and nothing enforces that. ze-consistency is here
+# ze-unit-reactor-test-race is here because ai/rules/testing.md requires it for every
+# reactor concurrency change and nothing enforces that. ze-consistency-check is here
 # because its own Go test only ever drives t.TempDir() fixtures, never the
 # repository, so the live tree is unchecked until someone runs the target.
-ze-weekly:
-	$(call ZE_CADENCE_RUN,ze-weekly -- takes the verify lock; do not run beside a verify,\
-		run_check gate ze-consistency $(MAKE) --no-print-directory ze-consistency; \
-		run_check gate ze-race-reactor $(MAKE) --no-print-directory ze-race-reactor; \
+ze-cadence-weekly-run:
+	$(call ZE_CADENCE_RUN,ze-cadence-weekly-run -- takes the verify lock; do not run beside a verify,\
+		run_check gate ze-consistency-check $(MAKE) --no-print-directory ze-consistency-check; \
+		run_check gate ze-unit-reactor-test-race $(MAKE) --no-print-directory ze-unit-reactor-test-race; \
 		run_check gate ze-chaos-verify $(MAKE) --no-print-directory ze-chaos-verify; \
 		run_check note ze-rules-router-report $(MAKE) --no-print-directory ze-rules-router-report; \
 		run_check note ze-rfc-extraction-status $(MAKE) --no-print-directory ze-rfc-extraction-status; \
-		run_check note ze-check-vendor-web-updates $(MAKE) --no-print-directory ze-check-vendor-web-updates; \
+		run_check note ze-vendor-web-update-report $(MAKE) --no-print-directory ze-vendor-web-update-report; \
 		run_check note ze-test-health-record $(MAKE) --no-print-directory ze-test-health-record; \
 	)
 
@@ -107,7 +107,7 @@ ze-weekly:
 #
 # Needs Docker, QEMU, root or a long build, so every member is a `note`: on a
 # machine without the infrastructure the member reports and the run continues.
-# A gate here would only teach the owner that ze-monthly always fails.
+# A gate here would only teach the owner that ze-cadence-monthly-run always fails.
 #
 # The preflight probes run FIRST and answer what this machine can do, which is
 # the one thing worth knowing before the slow members start.
@@ -115,11 +115,11 @@ ze-weekly:
 # ze-qemu-integration-test earns its place: evidence-nightly.yml excludes it
 # because hosted runners have no reliable KVM, so the gate ai/rules/platform-linux.md
 # mandates for linux-only code runs on no machine but this one.
-ze-monthly:
-	$(call ZE_CADENCE_RUN,ze-monthly -- needs Docker/QEMU/root; members report rather than gate,\
+ze-cadence-monthly-run:
+	$(call ZE_CADENCE_RUN,ze-cadence-monthly-run -- needs Docker/QEMU/root; members report rather than gate,\
 		run_check note ze-deployment-preflight $(MAKE) --no-print-directory ze-deployment-preflight; \
 		run_check note ze-qemu-integration-test $(MAKE) --no-print-directory ze-qemu-integration-test; \
-		run_check note ze-perf-gate $(MAKE) --no-print-directory ze-perf-gate; \
-		run_check note ze-mutation-changed $(MAKE) --no-print-directory ze-mutation-changed; \
+		run_check note ze-perf-evidence-update-check $(MAKE) --no-print-directory ze-perf-evidence-update-check; \
+		run_check note ze-mutation-test-changed $(MAKE) --no-print-directory ze-mutation-test-changed; \
 		run_check note ze-ste-review $(MAKE) --no-print-directory ze-ste-review; \
 	)

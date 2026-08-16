@@ -244,7 +244,7 @@ class TestLoadRegeneratesFromTree(unittest.TestCase):
     test/health/latest.json was committed before the last test change.
     PREVENTS: the site silently serving stale numbers (the reason this path
     exists) -- a regressing metric would keep reading green on the site until
-    someone re-ran `make ze-test-health` and re-committed the snapshot.
+    someone re-ran `make ze-test-health-update` and re-committed the snapshot.
     """
 
     def test_generator_output_supersedes_a_stale_snapshot(self):

@@ -170,7 +170,7 @@ func TestNetnsLinkSkipsWithoutNetnsMode(t *testing.T) {
 
 // VALIDATES: the same test RUNS (no skip reason) when netns mode is active.
 // PREVENTS: the gate silencing the eleven ospf/ospfv3 tests in the one mode that
-// does provision their links (make ze-netns-test / ze-netns-qemu-test), which
+// does provision their links (make ze-netns-test / ze-qemu-netns-test), which
 // would turn a precise gate into a permanent coverage hole.
 func TestNetnsLinkRunsUnderNetnsMode(t *testing.T) {
 	// withNeedsLinux=false: needs-linux skips on every non-Linux host, which would

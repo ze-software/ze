@@ -114,7 +114,7 @@ Points captured at skeleton creation (2026-07-08), to be re-verified at design:
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | Internal cross-references force import cycles between the new subpackages | first extraction fails to compile without dependency inversion | design phase must produce a dependency-ordered extraction sequence before any move |
-| R-2 | 331 doc anchors + prose make the sweep error-prone | `make ze-doc-test` red tail | per-extraction anchor sweeps, not one big-bang sweep |
+| R-2 | 331 doc anchors + prose make the sweep error-prone | `make ze-doc-verify` red tail | per-extraction anchor sweeps, not one big-bang sweep |
 
 ## Wiring Test (MANDATORY — NOT deferrable)
 
@@ -128,7 +128,7 @@ Points captured at skeleton creation (2026-07-08), to be re-verified at design:
 |-------|-------------------|-------------------|
 | AC-1 | after decomposition | `internal/component/bgp/reactor` no longer exists as a 69-file package; its concerns live in glossary-named subpackages (fill exact target list during design) |
 | AC-2 | `scripts/dev/protocol_skeleton_report.py` | ("bgp", "reactor") LEGACY_EXCEPTIONS row removed; summary legacy count drops accordingly |
-| AC-3 | behavior | full `make ze-verify` green; decode/encode/integration suites unchanged |
+| AC-3 | behavior | full `make ze-precommit-verify` green; decode/encode/integration suites unchanged |
 
 ## End-to-End User Stories (MANDATORY for new features)
 
@@ -351,7 +351,7 @@ Points captured at skeleton creation (2026-07-08), to be re-verified at design:
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled — 0 BLOCKER, 0 ISSUE)
-- [ ] `make ze-test` passes (lint + all ze tests)
+- [ ] `make ze-standard-test` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
 - [ ] Integration completeness proven end-to-end
 - [ ] Documentation Update Checklist answered Yes/No with source evidence

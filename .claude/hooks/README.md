@@ -177,7 +177,7 @@ An id from any source is used only when it is safe as a filename component
 points cannot disagree on the marker path.
 
 The regression harness is `scripts/dev/hook-fixture-check.py` (section
-`session-id`), run by `make ze-hook-test`.
+`session-id`), run by `make ze-unit-hook-test`.
 
 ### The session directory
 
@@ -197,7 +197,7 @@ definition is `.claude/hooks/lib/session-dir.sh` (`_session_dir`), used by
 `internal/test/sessionpath` implement the same rule for their own callers, and
 `TestMakeAndGoAgreeOnBinDir` (`scripts/dev/session_bin_dir_test.py`) is what
 stops the copies drifting. Nothing under `tmp/session/` is ever removed
-automatically; `make ze-clean-sessions BEFORE=<YYYY-MM-DD>` is the operator's
+automatically; `make ze-sessions-clean BEFORE=<YYYY-MM-DD>` is the operator's
 route.
 
 Its regression harness is `hook-fixture-check.py` section

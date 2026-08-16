@@ -16,7 +16,7 @@ The feature is two things that share collectors but not enforcement.
 | | Ratchets | Report |
 |---|---|---|
 | Question | "Did this commit make sensitivity worse?" | "What is the state of the suite?" |
-| Enforced by | `make ze-test-sensitivity-check`, stage 10 of `ze-verify` | `make ze-test-health-check`, inside `ze-regen-check-readonly` |
+| Enforced by | `make ze-test-sensitivity-check`, stage 10 of `ze-precommit-verify` | `make ze-test-health-check`, inside `ze-generated-files-check` |
 | Reads | `test/health/sensitivity-baseline.json` + the working tree | the committed report vs the tree |
 | Source | `scripts/checks/inert_tests.go` | `scripts/dev/testing_health.py` |
 <!-- source: scripts/status/verify_run.go -- stagesForMode; the two stages -->
@@ -87,7 +87,7 @@ floor, so deleting the baseline cannot launder a regression; first-time creation
 is the explicit `--bootstrap-baseline`.
 
 The ratchet scans the WORKING TREE, so an inert test is caught by the
-`ze-verify` run that precedes its commit, not blamed on the next one.
+`ze-precommit-verify` run that precedes its commit, not blamed on the next one.
 
 ## The per-commit weakening record
 
@@ -107,7 +107,7 @@ makes that safe is a human reading it.
 | Refused at commit time by | `weakened_problems` (`scripts/dev/commit_helper.py`) |
 | Reads | `test/weakened.md` + the HEAD content of the paths the commit names |
 | Source | `scripts/dev/check_weakened_tests.py`, called by both gates |
-| Parse gate | `make ze-weakened-check`, in `ze-verify` both modes |
+| Parse gate | `make ze-weakened-check`, in `ze-precommit-verify` both modes |
 <!-- source: scripts/status/verify_run.go -- stagesForMode -->
 
 **The file is replaced per commit, and that shape is the whole design.** Delete
@@ -163,7 +163,7 @@ gated. Byte-comparing the whole report charged a regenerate-and-commit to ~60%
 of commits, because every added test moves a denominator, and a check that fires
 that often for cosmetic reasons gets routed around rather than read: the
 "advisory gate permanently red" failure the report is built to expose. The
-counters are refreshed by `make ze-regen` and the page discloses that they may
+counters are refreshed by `make ze-generated-files-update` and the page discloses that they may
 lag.
 <!-- source: scripts/dev/testing_health.py -- structural_facts, do_check -->
 

@@ -102,7 +102,7 @@ def main():
         print(
             "error: Docker unavailable, cannot run the PPPoE interop lab -- every "
             "scenario runs in containers. Start Docker (or install it), then re-run: "
-            "make ze-deployment-pppoe-accel-docker-test",
+            "make ze-deployment-docker-pppoe-accel-test",
             file=sys.stderr,
         )
         sys.exit(1)

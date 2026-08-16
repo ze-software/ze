@@ -4,7 +4,7 @@ level: MUST
 stage:
 ---
 - **Blocking gate:** `check_ci_sleep_justification` in
-  `scripts/dev/verify_wiring_docs.py`, run by `make ze-verify-wiring-docs` (and the
+  `scripts/dev/verify_wiring_docs.py`, run by `make ze-wiring-docs-check` (and the
   inventory make gate). Scoped to CHANGED `.ci` files: a session MUST justify
   the sleeps in the tests it touches. Fails (exit 1) listing every unjustified
   `file:line`.

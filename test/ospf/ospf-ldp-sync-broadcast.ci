@@ -114,7 +114,7 @@ EOF_CONF
 # bound the test actually asserts is the 6s poll above, which runtime_fails when
 # the state does not reach synchronized. At 20s the budget covered plugin startup
 # plus that poll only on an idle host, and the test timed out inside a full
-# `make ze-verify` (22 suites at once) while passing 89/89 in 13.1s on its own.
+# `make ze-precommit-verify` (22 suites at once) while passing 89/89 in 13.1s on its own.
 cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=60s
 expect=exit:code=0
 expect=stderr:contains=broadcast ldp-sync interface driven to synchronized

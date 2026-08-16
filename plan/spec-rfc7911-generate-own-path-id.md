@@ -322,7 +322,7 @@ a tagged test in both polarities.
 
 ### Goal Gates (MUST pass)
 - [ ] `make ze-rfc-check` green with `RFC7911-2-2` carrying both polarities
-- [ ] `make ze-verify` green, or scoped evidence with attribution
+- [ ] `make ze-precommit-verify` green, or scoped evidence with attribution
 
 ### TDD
 - [ ] Tests written

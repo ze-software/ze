@@ -83,7 +83,7 @@ context dimensions and add targets for the uncovered context-consuming surfaces.
 - [ ] `internal/component/bgp/wireu/mpwire_test.go` - `FuzzParseNLRIs` :603 varies `hasAddPath` :612 across 4 families :617-630 -- THE precedent
 - [ ] `internal/core/bgp/capability/capability.go` - `Parse` :177, `ParseFromOptionalParams` :847: no Fuzz* in the package at all
 - [ ] `internal/core/bgp/attribute` mpnlri - `ParseMPReachNLRI` (`mpnlri.go`), `ParseMPUnreachNLRI` (:532): not fuzzed
-- [ ] `mk/test-fuzz.mk` - `ze-fuzz-test` runs each target at `-fuzztime=10s -timeout=60s`; `ze-fuzz-one FUZZ= PKG= TIME=` for one target
+- [ ] `mk/test-fuzz.mk` - `ze-fuzz-test` runs each target at `-fuzztime=10s -timeout=60s`; `ze-fuzz-one-test FUZZ= PKG= TIME=` for one target
 
 **Behavior to preserve:** (unless user explicitly said to change)
 - Existing fuzz targets keep their names and seeds (corpus continuity); widening adds
@@ -98,7 +98,7 @@ context dimensions and add targets for the uncovered context-consuming surfaces.
 
 ### Entry Point
 - `make ze-fuzz-test` (all targets, enumerated in `mk/test-fuzz.mk`);
-  `make ze-fuzz-one FUZZ=<target> PKG=<pkg>` for one.
+  `make ze-fuzz-one-test FUZZ=<target> PKG=<pkg>` for one.
 
 ### Transformation Path
 1. Fuzz engine mutates (data []byte, context args: asn4 bool, hasAddPath bool, family index int, extended bool as applicable per target).
@@ -143,7 +143,7 @@ context dimensions and add targets for the uncovered context-consuming surfaces.
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
 | make ze-fuzz-test | → | new/widened targets in the enumeration | enumeration includes every Fuzz* (AC-4 grep check) |
-| make ze-fuzz-one FUZZ=FuzzParseCapabilities | → | capability.Parse under fuzz | FuzzParseCapabilities seed run |
+| make ze-fuzz-one-test FUZZ=FuzzParseCapabilities | → | capability.Parse under fuzz | FuzzParseCapabilities seed run |
 
 ## Acceptance Criteria
 
@@ -265,7 +265,7 @@ feasibility reference; they are no longer tied to a shipping target.
 3. **Phase: new surfaces** - capability, MP_REACH/MP_UNREACH (AC-3); no UPDATE-with-context target (dropped -- see AC-3)
 4. **Phase: soak + coverage check** - A-2/A-3 measurements recorded in this spec;
    findings triaged per R-3
-5. `make ze-verify`, learned summary, two-commit closure
+5. `make ze-precommit-verify`, learned summary, two-commit closure
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -429,7 +429,7 @@ feasibility reference; they are no longer tied to a shipping target.
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete -- every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled -- 0 BLOCKER, 0 ISSUE)
-- [ ] `make ze-test` passes (lint + all ze tests)
+- [ ] `make ze-standard-test` passes (lint + all ze tests)
 - [ ] Feature code integrated (fuzz targets + make enumeration)
 - [ ] Integration completeness proven end-to-end
 - [ ] Documentation Update Checklist answered Yes/No with source evidence

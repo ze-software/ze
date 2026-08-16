@@ -9,5 +9,5 @@ stage:
 | "The tests pass, so it's correct." | Tests can be vacuous (dead exit codes, cumulative-match needles). A reviewer finds the vacuous test; the green bar does not. |
 | "It's a small/mechanical change." | Renames collide roots; one-line guards fail open. Size is judged after review. |
 | "I already know this code is correct." | The bug is precisely what you're sure isn't there. |
-| "ze-validate / lint passed." | Those are mechanical gates. They are not a critical review. |
+| "ze-repository-check / lint passed." | Those are mechanical gates. They are not a critical review. |
 | "Re-running review is wasteful." | The fix is new code. Unreviewed new code is the next bug. |

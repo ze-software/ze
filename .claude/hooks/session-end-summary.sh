@@ -38,7 +38,7 @@ BRANCH=$(git branch --show-current 2>/dev/null)
 # next edit against the pretool session-state gate, which requires the file after
 # a compaction. Nothing reclaims it either: no timer and no hook deletes anything
 # under tmp/session/, so the file this hook writes outlives the session that
-# wrote it and `make ze-clean-sessions BEFORE=<date>` is what removes it.
+# wrote it and `make ze-sessions-clean BEFORE=<date>` is what removes it.
 #
 # The test was `-z "$HAS_CHANGES" && -z "$SELECTED_SPEC"`. SELECTED_SPEC read a
 # marker path nothing writes, so it was ALWAYS empty and the test reduced to the

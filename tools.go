@@ -4,7 +4,7 @@
 
 // Package main imports tool dependencies so they are vendored.
 // Run tools via: go run <import-path> [args...]
-// See Makefile ze-setup target.
+// See Makefile ze-dev-setup target.
 package main
 
 import (

@@ -3,7 +3,7 @@
   "renderer": {
     "name": "ze-demo",
     "version": "2",
-    "image": "ze-terminal-demos:vhs-0.11.0-playwright-1.55.0",
+    "image": "ze-terminal-demos-render:vhs-0.11.0-playwright-1.55.0",
     "platform": "linux/native"
   },
   "gallery_page": "guide/terminal-demonstrations.md",

@@ -191,7 +191,7 @@ SetResponse extension mechanism where it fits. No new custom proto.
 2. **Phase: transaction store** - record append/list/get + retention
 3. **Phase: confirmed commit** - timer, confirm verb, restart behavior (per A-3 decision)
 4. **Phase: rollback-to-id + gNMI ID exposure**
-5. Functional tests, full verification (`make ze-verify`), learned summary, two-commit closure
+5. Functional tests, full verification (`make ze-precommit-verify`), learned summary, two-commit closure
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -264,7 +264,7 @@ SetResponse extension mechanism where it fits. No new custom proto.
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-6 all demonstrated
 - [ ] Wiring Test table complete
-- [ ] `make ze-test` passes
+- [ ] `make ze-standard-test` passes
 
 ### TDD
 - [ ] Tests written

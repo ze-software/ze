@@ -73,7 +73,7 @@ Tests in `scripts/dev/rules_points_test.py`.
 
 ## STEP 2 -- round-trip gate (BLOCKING, before any real split lands)
 
-`make ze-rules-points-roundtrip`: for each of the 27 rules, split into points in
+`make ze-rules-points-roundtrip-check`: for each of the 27 rules, split into points in
 a scratch directory, render back, diff against the committed file. All 27 must
 be byte-identical. Only when that is green does the split get committed.
 
@@ -85,8 +85,8 @@ split.
 
 | Change | File |
 |--------|------|
-| `ai/rules/<rule>.md` rendered by `make ze-rules-render` | `Makefile`, `mk/` |
-| Added to the regen set and its freshness gate | `ze-regen`, `ze-regen-check` |
+| `ai/rules/<rule>.md` rendered by `make ze-rules-render-update` | `Makefile`, `mk/` |
+| Added to the regen set and its freshness gate | `ze-generated-files-update`, `ze-generated-files-update-check` |
 | An edit to a rendered rule is refused and names the point file | `c_generated_files` in `.claude/hooks/pretool-writeedit.py` |
 | The sync-direction row | `ai/rules/repo-maintenance.md`, "Canonical Sources and Sync Direction" |
 
@@ -115,7 +115,7 @@ the argument for doing it: see "Also fix while in here" below.
 
 ## Discovery updates owed (`ai/rules/repo-maintenance.md` requires these in the same work)
 
-- `ai/INDEX.md`: Dev Tools rows for `ze-rules-points-roundtrip`, `ze-rules-render`, `ze-rules-coverage`
+- `ai/INDEX.md`: Dev Tools rows for `ze-rules-points-roundtrip-check`, `ze-rules-render-update`, `ze-rules-coverage`
 - `ai/rules/rule-format.md`: rewritten for the point format. It currently describes the single-file format this work replaces
 - `ai/rules/repo-maintenance.md`: the Canonical Sources row and the Hook-to-Rule Mapping note
 - A `docs/contributing/` page owning rule authoring, if the format change is user-visible
@@ -133,12 +133,12 @@ the argument for doing it: see "Also fix while in here" below.
 ## THEN
 
 ```
-make ze-rules-points-roundtrip && make ze-rules-coverage && make ze-doc-test
+make ze-rules-points-roundtrip-check && make ze-rules-coverage && make ze-doc-verify
 ```
 
 ## Already done 2026-08-06, no action owed
 
-- `make ze-regen`. The generated `CLAUDE.md` was stale and its dispatch table
+- `make ze-generated-files-update`. The generated `CLAUDE.md` was stale and its dispatch table
   named 32 rule paths that no longer exist after the consolidation to 27 rules.
   The canonical `ai/INSTRUCTIONS.md` was clean, so the regeneration was the whole
   fix.
@@ -147,7 +147,7 @@ make ze-rules-points-roundtrip && make ze-rules-coverage && make ze-doc-test
   emits two; `CONDENSED.md` was deleted) and that `TRIGGERS.md` carries "All 97"
   rules (it carries 27). The rule-count copy is now a pointer to the generator's
   own printed count rather than a second number that can drift again.
-  `make ze-rules-condensed` produced no digest change, since the rule's
+  `make ze-rules-condensed-update` produced no digest change, since the rule's
   `**When:**` trigger is what reaches `TRIGGERS.md` and it did not move.
   `make ze-rules-lint` passes over all 27.
 

@@ -23,7 +23,7 @@ and copy, with subprocess used only for `make`, the kernel's own
 
 <!-- source: tools/kernel-builder/build.py -- the single builder driver -->
 
-Raw `make -C tools/installer-kernel` and `make ze-kernel` stay free of any Ze
+Raw `make -C tools/installer-kernel` and `make ze-kernel-build` stay free of any Ze
 binary, so nothing verifies their output. They consume the same registry and the
 same builder.
 
@@ -57,7 +57,7 @@ same builder.
   Copy the builder directory into the scratch root. A symlink resolves back to
   the real repository through `Path(__file__).resolve()` and defeats the
   isolation.
-- `ze-validate` flags an exported symbol in a changed Go file that has no
+- `ze-repository-check` flags an exported symbol in a changed Go file that has no
   cross-package caller, even when the symbol predates the change. Appliance-only
   helpers stay unexported for that reason.
 

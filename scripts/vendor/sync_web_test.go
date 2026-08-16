@@ -17,7 +17,7 @@ import (
 //
 // The recipe is read from make rather than from the Makefile text, so a recipe
 // line built from a variable still answers. `make -n` is safe for this target
-// because its recipe holds no $(MAKE): the warning above ze-verify in the
+// because its recipe holds no $(MAKE): the warning above ze-precommit-verify in the
 // Makefile is about that target alone.
 //
 // scripts/codegen/web_assets_test.go holds the same helper. The two test

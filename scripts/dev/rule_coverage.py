@@ -109,7 +109,7 @@ def _is_rule_path(rel: str) -> bool:
 
 # The rule paths `ai/rules/CORE.md` carries, one per section heading. Membership
 # is DERIVED from that file at every run, never listed here: `make
-# ze-rules-condensed` regenerates CORE.md, and a list in this file would go stale
+# ze-rules-condensed-update` regenerates CORE.md, and a list in this file would go stale
 # the moment it does (`ai/rules/evidence.md`).
 CORE_RULE_LINE = re.compile(
     r"^`" + re.escape(RULES_DIR) + r"([^`/]+\.md)`\s*$", re.MULTILINE

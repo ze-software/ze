@@ -319,7 +319,7 @@ Transport (TLS) and authentication (pre-declared per-client shared secret) are *
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-12 all demonstrated
 - [ ] Wiring Test table complete
-- [ ] `make ze-test` passes
+- [ ] `make ze-standard-test` passes
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
 - [ ] Architecture docs updated (`docs/architecture/fleet-config.md`)
 - [ ] Risks & Assumptions: every A-N confirmed or broken

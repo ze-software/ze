@@ -260,7 +260,7 @@ storage, and adds a YANG `fleet {}` config container for operator-managed device
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-13 all demonstrated
 - [ ] Wiring Test table complete
-- [ ] `make ze-test` passes
+- [ ] `make ze-standard-test` passes
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
 - [ ] Architecture docs updated
 

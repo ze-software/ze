@@ -342,7 +342,7 @@ and the Section 4.2 four are that spec's.
 5. **Phase: tag the Section 3.3 requirements**
    - Tests: every test named above gains its `RFC requirement: RFC7705-3.3-N <polarity>` tag
    - Files: `internal/component/bgp/reactor/peer_forward_facts_test.go`, `internal/component/bgp/reactor/config_test.go`, `internal/component/bgp/reactor/session_validation_test.go`
-   - Verify: AC-10 passes; `make ze-rfc-index` renders the five rows with enforcing tests. `make ze-rfc-check` still fails on enrolment, which `plan/spec-bgp-as-migration.md` closes
+   - Verify: AC-10 passes; `make ze-rfc-index-update` renders the five rows with enforcing tests. `make ze-rfc-check` still fails on enrolment, which `plan/spec-bgp-as-migration.md` closes
 6. **Phase: configuration surface and documentation**
    - Tests: existing `test/parse/session-policy-config.ci`
    - Files: `internal/component/bgp/yang/ze-bgp-conf.yang`, `docs/guide/configuration.md`, `docs/features/rfc-status.md`
@@ -371,8 +371,8 @@ and the Section 4.2 four are that spec's.
 | Wire-level coverage exists | `ls test/plugin/bgp-local-as-*.ci` returns four files |
 | The collapse is gone | `grep -n "!s.LocalASNoPrepend && !s.LocalASReplaceAS" internal/component/bgp/reactor/peer_forward_facts.go` returns nothing |
 | Section 3.3 is evidenced | `grep -c "RFC7705-3.3" ai/RFC-REQUIREMENTS.md` shows all five with enforcing tests |
-| Ledger regenerated in the same commit | `make ze-rfc-index` then `git diff --stat ai/RFC-REQUIREMENTS.md` |
-| No unrelated regressions | `make ze-verify` |
+| Ledger regenerated in the same commit | `make ze-rfc-index-update` then `git diff --stat ai/RFC-REQUIREMENTS.md` |
+| No unrelated regressions | `make ze-precommit-verify` |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -438,7 +438,7 @@ Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code.
 - [ ] AC-1..AC-10 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-verify` passes (the pre-commit gate; `ai/rules/git-safety.md`)
+- [ ] `make ze-precommit-verify` passes (the pre-commit gate; `ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding

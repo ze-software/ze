@@ -245,7 +245,7 @@ Skeleton-level; the design phase expands these.
    - Verify: tests fail -> implement -> pass
 4. **Functional tests** -> full .ci coverage
 5. **RFC refs** -> conformance audit rows
-6. **Full verification** -> `make ze-verify`
+6. **Full verification** -> `make ze-precommit-verify`
 7. **Complete spec** -> audit + learned summary + two-commit closure
 
 ### Critical Review Checklist (/implement stage 6)
@@ -394,7 +394,7 @@ enforcement (e.g. parity validators).
 - [ ] AC-1..AC-3 all demonstrated
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `make ze-test` passes
+- [ ] `make ze-standard-test` passes
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Documentation Update Checklist answered with source evidence
 

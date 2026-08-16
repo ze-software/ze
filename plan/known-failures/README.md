@@ -26,9 +26,9 @@ Pre-existing test failures tracked here per `ai/rules/git-safety.md` ("Before An
 Commit" -> pre-existing failures >10 min): logged, not blocking unrelated commits.
 
 **Scope: TEST reds whose MECHANISM you could not determine.** Deterministic
-structural gates (`ze-lint`, `ze-lint-changed`, `ze-tier-check`, `ze-vet-evidence`,
-`ze-plugin-boundary-check`, `ze-iface-resolution-check`, `ze-regen-check-readonly`,
-`ze-verify-wiring-docs`) are NEVER logged here -- a red means the tree is
+structural gates (`ze-lint`, `ze-lint-changed`, `ze-tier-check`, `ze-evidence-vet`,
+`ze-plugin-boundary-check`, `ze-iface-resolution-check`, `ze-generated-files-check`,
+`ze-wiring-docs-check`) are NEVER logged here -- a red means the tree is
 structurally broken; fix it at the source. `scripts/dev/commit_helper.py` enforces
 this by refusing `--unverified` while a structural gate is red (see
 `ai/rules/git-safety.md` "Structural Gates Are Never Known-Red").
@@ -115,7 +115,7 @@ Two remain open, for different reasons:
 
 The sweep also found bugs that were NOT tracked here, which is the other reason
 to run the suite rather than read about it: `make ze-unit-test` was red on every
-darwin host (`ze-installer-unit-test` cross-compiled a linux test binary and then
+darwin host (`ze-unit-installer-test` cross-compiled a linux test binary and then
 tried to exec it); the test runner put the wrong `ze` on a child's PATH (under a
 session the binary is `ze-<id>`, so a bare `ze` lookup found whatever stale
 `bin/ze` existed -- a DARWIN binary when driving QEMU); and interface address

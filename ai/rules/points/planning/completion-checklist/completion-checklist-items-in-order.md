@@ -31,7 +31,7 @@ stage:
 [ ] 7. Review Mistake Log -- check MEMORY.md, promote if seen before
 [ ] 7. Update spec -- Implementation Summary, Documentation Updates, Deviations
 [ ] 7. Write journal row: append a row to `plan/journal/<class>.md` naming the spec in the Spec column
-[ ] 7. Verify: `make ze-verify` + git status + git diff, no unintended changes
+[ ] 7. Verify: `make ze-precommit-verify` + git status + git diff, no unintended changes
 [ ] 7. Executive Summary Report -- present to user with what was done and what is left (including deferred).
         BLOCKING: journal row (step 10) must exist. Name the file in the report.
         Do NOT ask to commit. The user will tell you when to commit.

@@ -2,7 +2,7 @@
 
 // Script to check codebase consistency across multiple dimensions.
 // Run: go run scripts/lint/consistency.go
-// Or: make ze-consistency
+// Or: make ze-consistency-check
 //
 // Checks performed:
 //   - JSON struct tags use kebab-case (not snake_case or camelCase)

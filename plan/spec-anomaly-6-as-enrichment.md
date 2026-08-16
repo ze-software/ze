@@ -259,7 +259,7 @@ N/A -- this spec adds no SAFI, capability, or attribute; no wire format changes.
 | 3. Wiring phase | Wiring Test table -- add the failing propagation tests first |
 | 4. Implement (TDD) | Implementation Phases below |
 | 5. /ze-review gate | Review Gate section |
-| 6. Full verification | `make ze-verify` (includes `ze-tier-check`) |
+| 6. Full verification | `make ze-precommit-verify` (includes `ze-tier-check`) |
 | 7-13 | Critical / Deliverables / Security review below |
 | 14. Present summary | Executive Summary + learned summary |
 
@@ -285,7 +285,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
    - Verify: source-branch-only stamp; persists across window reset; `Snapshot` carries it
 5. **Phase: tier + full verify** -- prove the guardrail holds
    - Tests: `make ze-tier-check` (exit 0); grep proves no `anomaly -> flowexport` import
-   - Verify: `make ze-verify` (or `ze-verify-changed`) green
+   - Verify: `make ze-precommit-verify` (or `ze-precommit-verify-changed`) green
 6. **Docs** -- update the subsystem/meta doc (checklist row 12/16) with a source anchor
 7. **Complete spec** -- fill audit tables; learned summary to `plan/learned/NNN-anomaly-6-as-enrichment.md`; two commits (A: code+tests+spec+learned; B: `git rm` spec)
 
@@ -439,7 +439,7 @@ by construction, not by exception.
 - [ ] End-to-End User Stories: story 1 and 2 have a working path + passing test; story 3 documented as child 7
 - [ ] Wiring Test table complete -- every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (0 BLOCKER, 0 ISSUE)
-- [ ] `make ze-test` passes (lint + all ze tests, incl. `ze-tier-check`)
+- [ ] `make ze-standard-test` passes (lint + all ze tests, incl. `ze-tier-check`)
 - [ ] Feature code integrated (`internal/core/observation`, `internal/plugins/flowexport`, `internal/component/trafficfeature`)
 - [ ] Integration completeness proven end-to-end (facts surface carries `SrcAS`)
 - [ ] Documentation Update Checklist answered Yes/No with source evidence

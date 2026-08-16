@@ -1,6 +1,6 @@
 name: verify
 
-# The fast merge gate: `make ze-verify` (unit + functional + static gates) on
+# The fast merge gate: `make ze-precommit-verify` (unit + functional + static gates) on
 # every push and pull request. Ported from .woodpecker/verify.yml when the
 # validation moved off Codeberg's shared Woodpecker runners onto GitHub Actions
 # (the repo is pushed to both codeberg.org and github.com/ze-software/ze; GitHub
@@ -8,11 +8,11 @@ name: verify
 #
 # The stage list is NOT reproduced here: it lives in `stagesForMode`
 # (scripts/status/verify_run.go) and nowhere else, and this workflow runs nothing
-# but `make ze-verify`, so a gate absent from that function runs nowhere. To read
-# the live list: `make ze-verify-list`. See docs/functional-tests.md.
+# but `make ze-precommit-verify`, so a gate absent from that function runs nowhere. To read
+# the live list: `make ze-precommit-verify-list`. See docs/functional-tests.md.
 #
 # scripts/dev/github_workflows_test.go pins this workflow's shape (push +
-# pull_request, runs ze-verify, never a heavy/scheduled suite).
+# pull_request, runs ze-precommit-verify, never a heavy/scheduled suite).
 
 on:
   push:
@@ -31,7 +31,7 @@ jobs:
       # git attributes every file to the graft commit, so package age -- the
       # whole point of the metric -- cannot be derived. `do_check` compares
       # every metric status, so the committed `ok` never matched CI's
-      # `unknown` and ze-regen-check-readonly was red on EVERY run, with a
+      # `unknown` and ze-generated-files-check was red on EVERY run, with a
       # diagnostic ("regenerate and commit") that could not fix it: regenerating
       # in a full clone reproduces the `ok` already committed.
       - name: Checkout
@@ -58,10 +58,10 @@ jobs:
       # forward_next_hop.go). IPv4 fixtures spend 127.0.0.0/8, which Linux routes
       # to lo already. IPv6 gives a host exactly ::1, so the second address is
       # real configuration, and adding it needs CAP_NET_ADMIN -- which the bare
-      # `make ze-verify` below does not have. fd00::/8 is unique-local (RFC
+      # `make ze-precommit-verify` below does not have. fd00::/8 is unique-local (RFC
       # 4193), never globally routable, so a fixture cannot leak a packet onto a
       # real network. Same address, same reason, on a developer machine:
-      # `make ze-setup` (scripts/dev/dev-setup.py, loopback_addresses).
+      # `make ze-dev-setup` (scripts/dev/dev-setup.py, loopback_addresses).
       #
       # This runs after the apt step because `ip` comes from iproute2 there.
       - name: Add the loopback address the functional suite binds
@@ -71,7 +71,7 @@ jobs:
       # user-writable global prefix, so `npm install -g` below works without sudo.
       # apt's `nodejs npm` land a root-owned /usr prefix and would EACCES a bare
       # `npm install -g` -- and agent-browser is load-bearing (the .wb web suite
-      # hard-fails without it, failing all of ze-verify).
+      # hard-fails without it, failing all of ze-precommit-verify).
       - name: Set up Node
         uses: actions/setup-node@v7
         with:
@@ -92,5 +92,5 @@ jobs:
           npm install -g agent-browser
           agent-browser install --with-deps
 
-      - name: make ze-verify
-        run: make ze-verify
+      - name: make ze-precommit-verify
+        run: make ze-precommit-verify

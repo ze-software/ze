@@ -1,6 +1,6 @@
 // VALIDATES: test/draft/ is invisible to suite discovery and to every repo-wide
 //            .ci gate, and that SuiteDir routes --draft at the incubator.
-// PREVENTS:  a test under development reddening `make ze-verify` -- for its
+// PREVENTS:  a test under development reddening `make ze-precommit-verify` -- for its
 //            author, and worse, for another session sharing the checkout who then
 //            has to decide whether the red is theirs. The whole point of the
 //            directory is that answer is always "no".

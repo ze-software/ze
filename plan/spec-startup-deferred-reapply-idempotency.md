@@ -204,7 +204,7 @@ Not applicable: config-apply lifecycle work, no wire protocol behavior changes.
 3. **Phase: NTP fix** - skip the `startWorker` handoff when the delivered section is unchanged, keeping the handoff synchronous when it does run (A-2).
 4. **Phase: Audit fixes** - fix each non-idempotent handler found, one test per fix.
 5. **Phase: Restart trigger** - audit and fix boot-apply against surviving objects (AC-5).
-6. **Full verification** -> `make ze-verify`.
+6. **Full verification** -> `make ze-precommit-verify`.
 7. **Complete spec** -> fill audit tables, write learned summary. Two commits per `ai/rules/planning.md`.
 
 ### Critical Review Checklist
@@ -227,7 +227,7 @@ Not applicable: config-apply lifecycle work, no wire protocol behavior changes.
 - [ ] Audit classification table filled with producer `file:line` for every participant
 - [ ] Wiring Test table complete - every row has a concrete test name
 - [ ] `/ze-review` gate clean (0 BLOCKER, 0 ISSUE)
-- [ ] `make ze-test` passes (lint + all ze tests)
+- [ ] `make ze-standard-test` passes (lint + all ze tests)
 - [ ] Risks & Assumptions: every A-N confirmed or broken (none `unvalidated`)
 
 ### Quality Gates (SHOULD pass - defer with user approval)

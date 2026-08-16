@@ -138,7 +138,7 @@ To check the service status, use `systemctl status ze.service` directly.
 ## Installing on Real Hardware (End to End)
 
 This is the bare-metal walkthrough for the PXE install flow. It is exactly what
-`make ze-install-qemu-test` exercises in software (build an image, serve it,
+`make ze-qemu-install-test` exercises in software (build an image, serve it,
 boot an installer kernel + initrd that writes the disk, then log in over SSH). It lets you
 dry-run the
 same chain before touching hardware. The reference subsections below
@@ -248,7 +248,7 @@ commit; the committed config replaces the bootstrap config on the next restart.
   extra fixed disks or net-boot into the shell and inspect `/sys/block`.
 - **Download stalls / non-standard port**: confirm the image server's port and
   pass `ze.port=` in the iPXE cmdline.
-- **Dry-run first**: `make ze-install-qemu-test` reproduces the whole chain in
+- **Dry-run first**: `make ze-qemu-install-test` reproduces the whole chain in
   QEMU and will surface a broken image, kernel, or initrd without hardware.
 
 ## Appliance ISO Install
@@ -432,7 +432,7 @@ via HTTP. Stock iPXE binaries are bundled in `tools/ipxe-binaries/` and
 staged automatically by `ze install remote`.
 
 The default `--pxe-dir build/pxe` is relative, resolved against the working
-directory. `make ze-pxe` stages artifacts into `build/pxe` from the repo root,
+directory. `make ze-pxe-build` stages artifacts into `build/pxe` from the repo root,
 so run `ze install remote` from the repo root too (as `pxe.sh` does), or pass an
 absolute `--pxe-dir`. Run from a different directory and the server looks for
 `build/pxe` under that directory and reports the missing artifacts by their
@@ -718,8 +718,8 @@ End-to-end boot and install are covered by the QEMU evidence harness, which
 boots the real Go initrd:
 
 ```bash
-make ze-install-qemu-test       # HTTP PXE install
-make ze-install-iso-qemu-test   # ISO install
+make ze-qemu-install-test       # HTTP PXE install
+make ze-qemu-install-iso-test   # ISO install
 ```
 
 ### No External Binaries
@@ -792,7 +792,7 @@ was BUILT, and `ze appliance iso` reads it to decide the image in
 
 ## End-to-End QEMU Verification
 
-`make ze-install-qemu-test` exercises the entire chain in QEMU with no hardware:
+`make ze-qemu-install-test` exercises the entire chain in QEMU with no hardware:
 it builds the initrd, builds a real appliance image with `ze appliance`
 (see the [appliance guide](appliance.md)), boots the installer kernel + initrd
 against a blank virtio disk, has the initrd download and write the image and
@@ -801,10 +801,10 @@ provisioned power user. That final login is the regression test for credential
 loading from the installed zefs.
 
 ```bash
-ZE_INSTALL_KERNEL=$PWD/build/kernel/Image make ze-install-qemu-test
+ZE_INSTALL_KERNEL=$PWD/build/kernel/Image make ze-qemu-install-test
 ```
 
-`make ze-install-iso-qemu-test` exercises the appliance ISO transport. It builds
+`make ze-qemu-install-iso-test` exercises the appliance ISO transport. It builds
 the initrd and appliance image, creates an ISO through `ze appliance
 iso`, boots that ISO in QEMU, verifies the embedded image is written without the
 PXE-only ZeFS download branch, verifies the installer powers off safely, inspects
@@ -813,7 +813,7 @@ ZeFS database.
 <!-- source: scripts/evidence/effective-install-iso-qemu.py -- main -->
 
 ```bash
-ZE_INSTALL_KERNEL=$PWD/build/kernel/Image make ze-install-iso-qemu-test
+ZE_INSTALL_KERNEL=$PWD/build/kernel/Image make ze-qemu-install-iso-test
 ```
 
 The ISO evidence self-skips with `INSTALL-ISO-QEMU: SKIP` when QEMU, a suitable

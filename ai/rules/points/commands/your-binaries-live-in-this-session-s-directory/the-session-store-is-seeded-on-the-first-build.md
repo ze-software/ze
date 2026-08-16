@@ -5,7 +5,7 @@ stage:
 ---
 That session-local `etc/ze` is SEEDED, once, by the first ze_core binary this
 session builds (`scripts/dev/session-seed-store.sh`, called from the `ze`,
-`ze-appliance` and `ze-stripped` recipes -- the three that link
+`ze-appliance-build` and `ze-stripped-build` recipes -- the three that link
 `internal/plugins/init` and the silent `NewBlob` path). An
 unseeded store is not red: `NewBlob`
 (`internal/component/config/storage/blob.go`) creates the blob and returns a nil

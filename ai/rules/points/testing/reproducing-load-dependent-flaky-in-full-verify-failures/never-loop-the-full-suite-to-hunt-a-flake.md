@@ -3,7 +3,7 @@ kind: directive
 level: MUST
 stage:
 ---
-- **MUST NOT loop `make ze-functional-test` / `make ze-verify` to hunt a flake.**
+- **MUST NOT loop `make ze-functional-test` / `make ze-precommit-verify` to hunt a flake.**
   MUST use the stress reproducer against the suspected suite.
 - **MUST static-clear the hypothesized site before trusting it.** MUST read the function
   that PRODUCES the crash (the reslice, the buffer allocation), not a byte-count

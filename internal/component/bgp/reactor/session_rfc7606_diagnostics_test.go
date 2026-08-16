@@ -25,7 +25,7 @@ import (
 // The sink is a syncBuffer, not a bytes.Buffer: the override is process-global, so every
 // live session's background goroutines (keepalive and hold timers, the cancel goroutine)
 // write into it while the test reads it. A bare bytes.Buffer here is a data race, seen
-// under `make ze-race-reactor` between a keepalive timer's Debug line and this test's
+// under `make ze-unit-reactor-test-race` between a keepalive timer's Debug line and this test's
 // String().
 //
 // rfc-test-change-approved: Thomas, 2026-08-11 -- captureSessionLog's sink changed from

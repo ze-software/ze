@@ -7,7 +7,7 @@ Each directive below is one physical line on purpose. `condense_body`
 (`scripts/dev/rules_condensed.py`) emits a bold-led LINE raw into
 `ai/rules/CORE.md`, so an instruction that wraps arrives there cut in half.
 
-**Run `make ze-verify` in the foreground, wait for it, and never poll: the foreground return IS the completion signal.**
+**Run `make ze-precommit-verify` in the foreground, wait for it, and never poll: the foreground return IS the completion signal.**
 No background run, no sleep-and-check loop, no `tail` on a log that is still
 growing.
 

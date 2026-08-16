@@ -1,7 +1,7 @@
 name: govulncheck
 
-# Software-composition analysis (SCA). `make ze-vulncheck` is the shared
-# mandatory target used by both `make ze-verify` modes and this workflow. It
+# Software-composition analysis (SCA). `make ze-dependency-vulnerability-check` is the shared
+# mandatory target used by both `make ze-precommit-verify` modes and this workflow. It
 # scans the module dependency graph against the Go vulnerability database and
 # reports vulnerabilities reachable from Ze's call graph.
 #
@@ -45,4 +45,4 @@ jobs:
       # the current tool without changing go.mod or vendor. A non-zero exit
       # fails this scheduled or manually triggered job.
       - name: govulncheck (SCA)
-        run: make ze-vulncheck
+        run: make ze-dependency-vulnerability-check

@@ -91,13 +91,13 @@ need to find a way to run a 7.+ kernel."
 - [ ] `mk/test-integration.mk` lines 436-441 - the explicit cost/benefit already made
       for a sibling target, and the source of the stock kernel version: "the stock
       Alpine 6.12.13-0-virt kernel"; staying on stock "keeps this target runnable
-      without a ~30-minute `make ze-kernel` build first".
+      without a ~30-minute `make ze-kernel-build` build first".
       -> Constraint: the ~30-minute build is the real blocker, not capability.
-- [ ] `mk/gokrazy.mk` lines 194-200 - `ze-kernel`: builds via `make -C gokrazy/kernel`
+- [ ] `mk/gokrazy.mk` lines 194-200 - `ze-kernel-build`: builds via `make -C gokrazy/kernel`
       and stages to `tmp/kernel/vmlinuz`. Its own echo scopes the staging to the l2tp
       and pppoe labs.
-- [ ] `mk/gokrazy.mk` lines 202-205 - `ze-kernel` also needs `KERNEL_MODULE_VERSION`
-      and `KERNEL_MODCACHE_DIR`, i.e. a prior `make ze-gokrazy-deps`. A cost the QEMU
+- [ ] `mk/gokrazy.mk` lines 202-205 - `ze-kernel-build` also needs `KERNEL_MODULE_VERSION`
+      and `KERNEL_MODCACHE_DIR`, i.e. a prior `make ze-gokrazy-deps-download`. A cost the QEMU
       targets do not pay today.
 - [ ] `scripts/evidence/qemu-run.py` lines 505-509 - the `--kernel` flag already
       exists: "Path to custom kernel (e.g. tmp/kernel/vmlinuz for gokrazy kernel with
@@ -180,7 +180,7 @@ need to find a way to run a 7.+ kernel."
 - [ ] `mk/gokrazy.mk` line 37 and line 177 - `GOKRAZY_ARCH ?= amd64`, `KERNEL_ARCH ?=
       $(GOKRAZY_ARCH)`, while `mk/test-integration.mk` line 216 derives `QEMU_GOARCH`
       from `uname -m` (arm64 on Apple Silicon).
-      -> Constraint: a bare `make ze-kernel` on Apple Silicon stages an **amd64**
+      -> Constraint: a bare `make ze-kernel-build` on Apple Silicon stages an **amd64**
       vmlinuz to `tmp/kernel/vmlinuz` (`mk/gokrazy.mk`, arch-unkeyed), the `test
       -f` guard accepts it (`mk/test-integration.mk`), and the VM fails to boot.
       R-6 is a live bug, not a hypothetical. Any target this spec wires MUST derive
@@ -235,14 +235,14 @@ therefore unproven under QEMU with the default target, while
 
 **CONFIRMED: the mechanism already exists end to end.** `qemu-run.py` takes
 `--kernel`, passes `-kernel` and extracts Alpine's
-initramfs-virt for custom-kernel boot. `make ze-kernel` builds and stages
+initramfs-virt for custom-kernel boot. `make ze-kernel-build` builds and stages
 `tmp/kernel/vmlinuz` (`mk/gokrazy.mk`). Three targets already use it
 (`mk/test-integration.mk, 427, 459`). Nothing here needs inventing.
 
 **CONFIRMED: cost is the blocker, and it is already written down.** The VRRP target's
 comment states the tradeoff explicitly: staying on stock "keeps this target runnable
-without a ~30-minute `make ze-kernel` build first, matching the isis-frr/ldp-frr
-labs" (`:441`). `ze-kernel` additionally requires a prior `make ze-gokrazy-deps`
+without a ~30-minute `make ze-kernel-build` build first, matching the isis-frr/ldp-frr
+labs" (`:441`). `ze-kernel-build` additionally requires a prior `make ze-gokrazy-deps-download`
 (`mk/gokrazy.mk`). A naive `--kernel` addition to `ze-qemu-all-test` imposes
 that ~30 minutes plus a dependency step on every full QEMU run.
 
@@ -275,12 +275,12 @@ initramfs -> the same suites run, with `firewall` no longer skipped.
 | Boundary | Crossing | Consequence of divergence |
 |----------|----------|---------------------------|
 | ze kernel -> Alpine initramfs/userland | Custom-kernel boot pairs `tmp/kernel/vmlinuz` with Alpine's extracted initramfs-virt (`qemu-run.py`) | Missing modules or a version mismatch: the VM fails to boot, or boots without the drivers the suite needs |
-| Kernel build -> QEMU run | `make ze-kernel` stages `tmp/kernel/vmlinuz`; the targets consume it | An absent or stale kernel: today's labs hard-fail with a `test -f` guard, which is the pattern to reuse |
-| `make ze-gokrazy-deps` -> `ze-kernel` | Kernel packaging needs the pinned modcache (`mk/gokrazy.mk`) | A full QEMU run inherits a dependency step it does not have today |
+| Kernel build -> QEMU run | `make ze-kernel-build` stages `tmp/kernel/vmlinuz`; the targets consume it | An absent or stale kernel: today's labs hard-fail with a `test -f` guard, which is the pattern to reuse |
+| `make ze-gokrazy-deps-download` -> `ze-kernel-build` | Kernel packaging needs the pinned modcache (`mk/gokrazy.mk`) | A full QEMU run inherits a dependency step it does not have today |
 | Host arch -> VM arch | ISO arch and `KERNEL_ARCH` are chosen independently (`qemu-run.py`, `mk/gokrazy.mk`) | A kernel/ISO arch mismatch fails to boot; the labs pass `GOKRAZY_ARCH=arm64` by hand |
 
 ### Integration Points
-`mk/test-integration.mk` (the QEMU targets), `mk/gokrazy.mk` (`ze-kernel`),
+`mk/test-integration.mk` (the QEMU targets), `mk/gokrazy.mk` (`ze-kernel-build`),
 `scripts/evidence/qemu-run.py` (`--kernel`), `scripts/evidence/qemu-all-tests.sh`
 (suite list and skips), `ai/rules/platform-linux.md` (the rule that sends agents here).
 
@@ -346,9 +346,9 @@ work; the change is the harness those `.ci` files run on.
       stock-vs-custom kernel decision and names the ~30-minute build as
       the reason to avoid `--kernel`. That calculus changes once the kernel is cached;
       update it with the cache spec's outcome
-- [ ] ~~`mk/gokrazy.mk` - `ze-kernel` staging/caching if the cost story needs it~~
+- [ ] ~~`mk/gokrazy.mk` - `ze-kernel-build` staging/caching if the cost story needs it~~
       OWNED BY `spec-fixit-qemu-artifact-cache` (handoff contract row 2). Do not edit
-      it here: two specs editing `ze-kernel` is exactly the rework the dependency
+      it here: two specs editing `ze-kernel-build` is exactly the rework the dependency
       exists to prevent
 - [ ] ~~`plan/spec-fixit-firewall-concurrency-deadlock.md` - R-5/R-6 are resolved or
       re-scoped by this work~~ **DO NOT EDIT. A concurrent agent owns that spec**
@@ -378,7 +378,7 @@ work; the change is the harness those `.ci` files run on.
 6. NEW: re-mark the 21 firewall `.ci` from `skip-os:value=darwin` to
    `option=needs-linux` (AC-10), per file, so `ze-qemu-needs-linux-test` stops
    silently skipping the suite. Verify natively first: both directives skip on darwin
-   (`record_parse.go`), so `make ze-verify` must stay green.
+   (`record_parse.go`), so `make ze-precommit-verify` must stay green.
 7. Update `ai/rules/platform-linux.md`. Report the R-5/R-6 outcome to the firewall spec's
    owner; do not edit that file.
 
@@ -396,7 +396,7 @@ work; the change is the harness those `.ci` files run on.
 | ~~AC-8~~ | ~~An Alpine version bump reclaims the superseded ISO~~ | **MOVED to the cache spec, AC-4** (contract row 5) |
 | ~~AC-9~~ | ~~A config-fragment change MISSES the kernel cache~~ | **MOVED to the cache spec, contract row 4.** Already implemented there: `kernelCacheVariantFor` (`internal/appliance/cache.go`) hashes every resolved fragment + manifest + builder script. The cache spec's job is to route the make path through it |
 | AC-10 | `make ze-qemu-needs-linux-test` after this work | The firewall tests actually RUN, not SKIP. Requires the 21 `.ci` to carry `option=needs-linux` (`record_parse.go`, `:383-397`), not `skip-os:value=darwin`. Without this, the target reports green while running zero firewall tests, which is the status quo and looks identical to success |
-| AC-11 | `make ze-kernel` with no `GOKRAZY_ARCH` on an arm64 host, then a QEMU target | Either the correct arm64 kernel is used, or the target fails loudly. NEVER an amd64 vmlinuz silently accepted by `test -f` and then failing at boot (R-6, `mk/gokrazy.mk,177,200`) |
+| AC-11 | `make ze-kernel-build` with no `GOKRAZY_ARCH` on an arm64 host, then a QEMU target | Either the correct arm64 kernel is used, or the target fails loudly. NEVER an amd64 vmlinuz silently accepted by `test -f` and then failing at boot (R-6, `mk/gokrazy.mk,177,200`) |
 | AC-12 | `test/parse/cli-show-version.ci` after the change | Still passes. The QEMU ze build deliberately omits version ldflags (`mk/test-integration.mk`); the kernel swap must not tempt anyone to restore them |
 
 ## Risks & Assumptions
@@ -419,7 +419,7 @@ work; the change is the harness those `.ci` files run on.
 | R-3 | A silent fallback to stock when the kernel is missing | The suite passes suspiciously fast, or the crash returns | AC-4: hard-fail, mirroring the `test -f` guard the labs already use |
 | R-4 | The kernel/initramfs seam breaks obscurely (VM boots, subtle driver differences) | Unrelated suites fail only under QEMU | Bisect per suite; AC-5 requires no regressions |
 | R-5 | ~~The two QEMU targets keep disagreeing about firewall~~ **BROKEN 2026-07-16: they do not disagree, neither runs it** | ~~One skips it, the other runs it~~ | Superseded. `ze-qemu-needs-linux-test` sets `ZE_QEMU_LINUX_ONLY=1` and `record_parse.go` skips every non-`needs-linux` test; 0 of 23 firewall `.ci` are marked `needs-linux`. The real risk is the INVERSE: removing `firewall` from the skip lists looks like it fixes both targets but only fixes `ze-qemu-all-test`, leaving a silent gap that looks closed. Mitigation: AC-10 |
-| R-6 | Kernel/ISO arch mismatch on the two host arches | Boot fails on one arch only | **FIXED 2026-08-07** by `ze-qemu-kernel-guard` (`mk/test-integration.mk`), which keys on `QEMU_GOARCH` and compares the staged kernel against the architecture-keyed cache entry. Proven with a real Alpine x86_64 `vmlinuz-virt` staged on this arm64 host: the target exits 2 naming the architecture. Original note kept below. **CONFIRMED live, not hypothetical**: `GOKRAZY_ARCH ?= amd64` (`mk/gokrazy.mk`) + arch-unkeyed staging + existence-only guard (`mk/test-integration.mk`) means a bare `make ze-kernel` on Apple Silicon stages an unbootable amd64 kernel and the guard passes. Derive `KERNEL_ARCH` from `QEMU_GOARCH`; the cache spec's arch-keyed variant (`cache.go`) makes the mismatch a cache MISS instead of a boot failure |
+| R-6 | Kernel/ISO arch mismatch on the two host arches | Boot fails on one arch only | **FIXED 2026-08-07** by `ze-qemu-kernel-guard` (`mk/test-integration.mk`), which keys on `QEMU_GOARCH` and compares the staged kernel against the architecture-keyed cache entry. Proven with a real Alpine x86_64 `vmlinuz-virt` staged on this arm64 host: the target exits 2 naming the architecture. Original note kept below. **CONFIRMED live, not hypothetical**: `GOKRAZY_ARCH ?= amd64` (`mk/gokrazy.mk`) + arch-unkeyed staging + existence-only guard (`mk/test-integration.mk`) means a bare `make ze-kernel-build` on Apple Silicon stages an unbootable amd64 kernel and the guard passes. Derive `KERNEL_ARCH` from `QEMU_GOARCH`; the cache spec's arch-keyed variant (`cache.go`) makes the mismatch a cache MISS instead of a boot failure |
 | R-7 | The 21 `.ci` re-marking (`skip-os` -> `needs-linux`) changes native behavior | Suites that were silent on darwin start reporting SKIP with a different reason, or a `.ci` that genuinely needs `skip-os` for a non-kernel reason gets mis-marked | Both directives skip on darwin, so native results should be unchanged in substance (`record_parse.go`); verify per file rather than sed-ing all 21. Any file whose darwin skip is NOT about the kernel keeps `skip-os` |
 
 ## Open Questions (research before design)
@@ -454,12 +454,12 @@ work; the change is the harness those `.ci` files run on.
   (`gokrazy/kernel/Makefile`). A cache that loses that property is worse than no
   cache: a config change would appear to work while testing the old kernel. AC-9
   holds it.
-- Should `ze-qemu-all-test` require `make ze-gokrazy-deps` (`mk/gokrazy.mk`)?
+- Should `ze-qemu-all-test` require `make ze-gokrazy-deps-download` (`mk/gokrazy.mk`)?
   That is a new dependency for a target that currently needs only QEMU.
   -> AUTONOMOUS DEFAULT (2026-07-17): NO new manual step. The cache spec's ensure
   target (Handoff Contract row 2, `ze-kernel-ensure`) encapsulates the modcache
   prerequisite: `ze-qemu-all-test` gains a single make prerequisite on that target,
-  which internally satisfies `make ze-gokrazy-deps` on the build path (cache miss) and
+  which internally satisfies `make ze-gokrazy-deps-download` on the build path (cache miss) and
   is a no-op on a hit. The operator still runs one command. Rationale: preserves
   "`ze-qemu-all-test` must stay runnable without a manual multi-step setup"
   (Current Behavior / Behavior to preserve); the deps step is a cache-build concern
@@ -579,7 +579,7 @@ kept the existence-only `test -f` that this spec's own comment calls out as the
 R-6 hole, and their error hints still said `GOKRAZY_ARCH=arm64`, which is the
 variable that causes the bug rather than the one that fixes it. They were one
 `define` away, so they were converted rather than homed. `ze-qemu-pppoe-test` had
-adopted the guard without the `ze-host` prerequisite the guard's first command
+adopted the guard without the `ze-host-build` prerequisite the guard's first command
 needs, so on a clean checkout it denied while reporting the wrong cause; it now
 declares it, and the test derives the list of guard users from the file so the
 next adopter is covered without editing the test.
@@ -613,12 +613,12 @@ Recorded here so the two can be reconciled by their owners rather than by a race
 | AC-1 | Done | The firewall suite ran to completion on 7.1.4 under QEMU with no panic, `009-set-element-timeout` included. Direct probe: a set with `flags timeout` and an element with `timeout 5s` are accepted, read back as `expires 5s`, and the VM survives `nft flush ruleset` |
 | AC-2 | Done | `firewall` removed from the default skip list in `mk/test-integration.mk` AND `scripts/evidence/qemu-all-tests.sh`. Suite result on the fixed kernel: `pass 23/23 100.0% 28.4s`. Guarded by `TestFirewallNotInDefaultQemuSkips` |
 | AC-3 | Done | Both targets pass `--kernel $(ZE_QEMU_KERNEL)`. The VM reports `Linux localhost 7.1.4 ... aarch64`, not 6.12.13-0-virt. Guarded by `TestQemuFunctionalTargetsBootTheRuntimeKernel` |
-| AC-4 | Done | `tmp/kernel/vmlinuz` moved aside, `make ze-qemu-all-test` exits 2 with `error: tmp/kernel/vmlinuz not found -- this target boots ze's runtime kernel and never stock Alpine (run: make ze-kernel KERNEL_ARCH=arm64)`. Restored after. Guarded by `TestQemuTargetsGuardTheStagedKernel` |
+| AC-4 | Done | `tmp/kernel/vmlinuz` moved aside, `make ze-qemu-all-test` exits 2 with `error: tmp/kernel/vmlinuz not found -- this target boots ze's runtime kernel and never stock Alpine (run: make ze-kernel-build KERNEL_ARCH=arm64)`. Restored after. Guarded by `TestQemuTargetsGuardTheStagedKernel` |
 | AC-5 | **Partly** | Every regression the kernel switch caused is found, fixed and re-measured green: `policy` PASS, and the `cos-*`, `iface-*` and `forked-route-install-kernel` tests gone from the failure list. What AC-5 still lacks is a STOCK-kernel baseline for the reds that were red in both runs, so "unrelated" is argued rather than measured for `ospf` and `ddos-*`. See "Full-suite result" |
 | AC-10 | Done | Landed by `6c27ebd37` before this work; verified rather than redone. 21 of 23 carry `option=needs-linux:caps=net-admin`, 0 carry `skip-os:value=darwin`, and the 2 unmarked start no daemon. Guarded by `TestFirewallCiTestsAreNeedsLinux` |
 | AC-11 | Done | A REAL amd64 kernel (Alpine's own `vmlinuz-virt` for x86_64) staged at `tmp/kernel/vmlinuz` on this arm64 host: `make ze-qemu-needs-linux-test` exits 2 with `error: ... is not this tree's arm64 runtime kernel -- wrong architecture, or a kernel config fragment changed after it was staged`. The guard derives its architecture from `QEMU_GOARCH`, never `GOKRAZY_ARCH` |
 | AC-12 | Done | `test/parse/cli-show-version.ci` runs in the `parse` suite of the full pass. No ldflags were added to the QEMU ze build |
-| AC-6..AC-9 | Consumed | Delivered by the absorbed cache work (learned 1173). `mk/gokrazy.mk` routes `ze-kernel` through `~/.cache/ze`, and this spec did not edit it |
+| AC-6..AC-9 | Consumed | Delivered by the absorbed cache work (learned 1173). `mk/gokrazy.mk` routes `ze-kernel-build` through `~/.cache/ze`, and this spec did not edit it |
 
 Beyond the ACs, and the reason the suite could not have gone green without it:
 the appliance kernel config defect above. R-3 also has a proof of its own -- the
@@ -742,7 +742,7 @@ two files between the two runs recorded here).
 - [ ] Tests written
 - [ ] Tests FAIL (red) before implementation
 - [ ] Tests PASS (green) after implementation
-- [ ] `make ze-test` green
+- [ ] `make ze-standard-test` green
 - [ ] AC-1 answered by a real run BEFORE any wiring is designed
 - [ ] No silent fallback to the stock kernel (AC-4)
 - [ ] `firewall` removed from BOTH default skip lists (`mk/test-integration.mk`, `qemu-all-tests.sh`)

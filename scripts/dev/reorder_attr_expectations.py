@@ -19,7 +19,7 @@ Anything that fails those assertions is left alone and reported, so a green
 suite afterwards means the bytes MOVED and nothing else did.
 
 The 1285 sweep counted test/encode and test/plugin and missed
-test/exabgp-compat/encoding, which is why `make ze-exabgp-test` went red on the
+test/exabgp-compat/encoding, which is why `make ze-functional-exabgp-test` went red on the
 13 conf-* tests whose families carry MP_REACH alongside a higher-coded
 attribute. Those expectations were captured from ExaBGP, and permuting them
 keeps the suite's byte-exact comparison while accepting the convention the

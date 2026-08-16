@@ -227,7 +227,7 @@ Not applicable: this is a display-time annotation with no wire protocol behavior
 4. **Phase: Render.** Annotate each leaf-list element in the web fragment builder
 5. **Phase: Attach.** Add `ze:decorate "community-name"` to the community leaf-list
 6. **Functional test** → prove the annotation appears in the web config view
-7. **Full verification** → `make ze-verify`
+7. **Full verification** → `make ze-precommit-verify`
 
 ## RFC Documentation
 
@@ -244,7 +244,7 @@ added, so no new RFC constraint comments are expected beyond what
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-5 all demonstrated
 - [ ] Wiring Test table complete: every row has a concrete test name
-- [ ] `make ze-test` passes (lint + all ze tests)
+- [ ] `make ze-standard-test` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Registration over hardcoding verified
 - [ ] Documentation Update Checklist answered Yes/No with source evidence

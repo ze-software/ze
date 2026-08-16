@@ -1,7 +1,7 @@
 // Design: (none -- build tool)
 //
 // sync_web copies vendored web assets from third_party/web/{htmx,ze,uplot}/ to all
-// consumer directories. Run by `make generate` and by `make ze-sync-vendor-web`.
+// consumer directories. Run by `make generate` and by `make ze-vendor-web-sync`.
 //
 // Source of truth: third_party/web/. See third_party/web/MANIFEST.md.
 // The read-only twin that gates the result is scripts/vendor/check_web.go.

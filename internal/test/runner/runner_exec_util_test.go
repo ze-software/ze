@@ -378,7 +378,7 @@ func TestResolveOrchestratedTimeout(t *testing.T) {
 // version wired childEnv into runTest's two sites only; every .ci carrying `cmd=`
 // directives (all of test/ospf, including the ospf-ldp-sync-restore crash this
 // came from) returns early to runOrchestrated, whose exec site was still building
-// its own env. 82 ze daemons in one ze-ospf-test run, none with the variable set.
+// its own env. 82 ze daemons in one ze-functional-ospf-test run, none with the variable set.
 //
 // NOTE on what the variable is for: a runtime THROW ("fatal error: ...") already
 // dumps every goroutine without it. It matters for a user-level runtime panic,

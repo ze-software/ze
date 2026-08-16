@@ -29,7 +29,7 @@ docs/
 
 .claude/
   rules/                   # Auto-loaded Claude-specific rules
-  skills/                  # Generated from ai/skills/ (make ze-ai-sync)
+  skills/                  # Generated from ai/skills/ (make ze-ai-skills-sync)
   hooks/                   # Session hooks
 
 plan/

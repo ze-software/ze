@@ -212,7 +212,7 @@ report a failure no test can cause is worse than a vehicle that refuses to run.
 - [ ] Tests written
 - [ ] Tests FAIL
 - [ ] Tests PASS
-- [ ] make ze-test
+- [ ] make ze-standard-test
 
 ## Review Gate
 ### Run 1 (initial)

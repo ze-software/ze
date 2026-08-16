@@ -25,7 +25,7 @@ const webAssetsTimeout = 60 * time.Second
 // The recipe is read from make rather than from the Makefile text, so a target
 // moved into an mk/*.mk fragment, or a recipe line built from a variable, still
 // answers. `make -n` is safe here because the generate recipe holds no $(MAKE):
-// the warning above ze-verify in the Makefile is about that target alone.
+// the warning above ze-precommit-verify in the Makefile is about that target alone.
 func makeRecipe(t *testing.T, target string) string {
 	t.Helper()
 

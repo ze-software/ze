@@ -21,7 +21,7 @@ file and costs about a tenth of reading it. Never read a whole file to hunt for
 a symbol, and never report that you cannot look.
 
 **You hold no Monitor, so wait on a long command in the FOREGROUND** with the
-largest timeout your harness allows. `make ze-verify` returns when it is done,
+largest timeout your harness allows. `make ze-precommit-verify` returns when it is done,
 and that return is the completion signal (`ai/rules/git-safety.md`). Never write
 a polling loop: `.claude/hooks/pretool-bash.py` blocks one.
 

@@ -1,7 +1,7 @@
 # Appliance builder
 
 `ze appliance` is the build-host tooling for gokrazy-based Ze appliance images.
-It replaced a `make ze-gokrazy USER=x PASS=y` workflow that carried credentials
+It replaced a `make ze-gokrazy-build USER=x PASS=y` workflow that carried credentials
 on the command line.
 
 <!-- source: internal/appliance/main.go -- command dispatch, built at call time -->

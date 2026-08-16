@@ -9,7 +9,7 @@ Build the selected spec: wiring first, then feature phases, with review loops
 until the diff is clean. **Closure is a separate skill** -- when this one ends,
 run `/ze-close`.
 
-See also: `/ze-close` (deliverables, security, docs, Review Gate, the two closure commits), `/ze-audit` (check what exists first), `/ze-review` (the adversarial pass), `/ze-verify` (run tests)
+See also: `/ze-close` (deliverables, security, docs, Review Gate, the two closure commits), `/ze-audit` (check what exists first), `/ze-review` (the adversarial pass), `/ze-precommit-verify` (run tests)
 
 ## Delegation
 
@@ -45,7 +45,7 @@ phase itself.
 - **Why one agent per phase.** Cost per API call is the context size at that
   call, and context grows with turns. A long agent therefore pays more for every
   later call it makes. Measured over this machine's session transcripts
-  (`make ze-token-economy`), implementation agents ran 144 API calls each
+  (`make ze-token-economy-report`), implementation agents ran 144 API calls each
   at 294k mean context, more of both than any other phase. Splitting
   the spec across phase agents cuts the turns each one carries. It does not cut
   the work: every phase still runs the full steps below.
@@ -147,7 +147,7 @@ half lives in `plan/TEMPLATE-CLOSURE.md` and `/ze-close` appends it when it is
 first needed.
 
 **Verification: inner loop vs gate.** Steps 6 and 9 use the fast targets to
-iterate. `make ze-verify` is the pre-commit GATE (`ai/rules/git-safety.md`) and
+iterate. `make ze-precommit-verify` is the pre-commit GATE (`ai/rules/git-safety.md`) and
 is the only command the spec's Goal Gates name. Do not add a third spelling.
 
 ## Steps

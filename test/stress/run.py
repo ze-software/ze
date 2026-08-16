@@ -3,7 +3,7 @@
 
 Uses network namespaces and veth pairs. Requires root (sudo) on Linux.
 The BGP traffic is generated and streamed by `bin/ze-test peer --mode
-inject` (built from this repo). Run `make ze-test` before the first run.
+inject` (built from this repo). Run `make ze-standard-test` before the first run.
 
 Usage:
     sudo python3 test/stress/run.py                     # run all scenarios

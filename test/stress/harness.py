@@ -251,7 +251,7 @@ def _ze_test_binary():
     candidate = os.path.join(_project_root(), "bin", "ze-test")
     if not os.path.isfile(candidate):
         raise RuntimeError(
-            "bin/ze-test not found at %s -- run 'make ze-test' first" % candidate
+            "bin/ze-test not found at %s -- run 'make ze-standard-test' first" % candidate
         )
     return candidate
 

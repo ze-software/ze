@@ -24,7 +24,7 @@ requirements, and workflow expectations. Key points:
 
 - **TDD:** tests written before implementation
 - **Specs drive work:** no code without a spec
-- **`make ze-verify` must pass** before any submission
+- **`make ze-precommit-verify` must pass** before any submission
 - **No partial deliveries:** code + tests + docs in one piece
 
 ## License

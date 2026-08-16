@@ -3,7 +3,7 @@ kind: directive
 level: MUST
 stage:
 ---
-- You MUST NOT run `make ze-verify`, `make ze-verify-changed`, lint, or tests as a
+- You MUST NOT run `make ze-precommit-verify`, `make ze-precommit-verify-changed`, lint, or tests as a
   late commit gate.
 - You MUST inspect only enough state to stage exactly the requested files and avoid
   ignored, generated, unrelated, or user-owned paths.
@@ -15,5 +15,5 @@ stage:
   the generated script.
 - You MUST report `Verification skipped by Thomas owner override` in the final response
   and, when useful, in the commit body.
-- You MUST NOT claim tests, lint, `ze-verify`, integrations, or behavior were
+- You MUST NOT claim tests, lint, `ze-precommit-verify`, integrations, or behavior were
   verified if they were skipped.

@@ -152,7 +152,7 @@ func flushedByDelete(target deviceAddress, existing []deviceAddress) []netip.Pre
 // fakeOps pattern, ai/rules/testing.md). Keeping it OS-independent is what lets
 // removeAddressGuarded -- and therefore the guard's WIRING, not just its
 // helpers -- be driven by a fake on any host, so the coverage runs under
-// `make ze-verify` rather than only under the QEMU integration suite.
+// `make ze-precommit-verify` rather than only under the QEMU integration suite.
 type addrRemover interface {
 	// List returns the addresses currently configured on dev.
 	List(dev string) ([]deviceAddress, error)

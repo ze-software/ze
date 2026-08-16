@@ -674,7 +674,7 @@ class TestBaselineOnlyTightens(unittest.TestCase):
 
     VALIDATES: a regression cannot be laundered into the baseline by running the
     generator, which is the single most abusable behaviour in this file.
-    PREVENTS: `make ze-test-health` quietly blessing a worse tree.
+    PREVENTS: `make ze-test-health-update` quietly blessing a worse tree.
     """
 
     def _baseline(self, root):
@@ -949,7 +949,7 @@ class TestWriteCheckRoundTrip(unittest.TestCase):
 
     VALIDATES: spec AC-1, AC-2, AC-12.
     PREVENTS: the defect where the page was rendered BEFORE the baseline moved,
-    so the ratchet's own remediation ("run make ze-test-health to tighten it")
+    so the ratchet's own remediation ("run make ze-test-health-update to tighten it")
     left the page stale and failed the very next verify. Nothing drove the write
     -> check round trip, which is why it shipped.
     """
@@ -975,7 +975,7 @@ class TestWriteCheckRoundTrip(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = self._repo(tmp)
             # Deliberately slack floors, the exact state the ratchet reports as
-            # "baseline is slack -- run make ze-test-health to tighten it".
+            # "baseline is slack -- run make ze-test-health-update to tighten it".
             write(
                 root, th.BASELINE, json.dumps({"assert-nothing": 500, "tag-orphan": 50})
             )

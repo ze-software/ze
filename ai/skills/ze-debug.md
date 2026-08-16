@@ -9,7 +9,7 @@ Investigate and fix test failures using parallel hypotheses.
 
 The user will paste failing test output as context.
 
-See also: `/ze-verify` (re-verify after fix)
+See also: `/ze-precommit-verify` (re-verify after fix)
 
 ## Delegation
 

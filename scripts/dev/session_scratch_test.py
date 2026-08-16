@@ -19,7 +19,7 @@ Owner decision, 2026-08-03 (plan/spec-session-bin-directory.md, AC-7 and AC-16):
 no session end, no age timer and no hook may remove anything under tmp/session/.
 Growth is the accepted price of never deleting the operator's data unasked, and
 cleanup is made easy instead -- the YYYY-MM-DD- prefix, and
-`make ze-clean-sessions BEFORE=<date>` (driven in session_bin_dir_test.py).
+`make ze-sessions-clean BEFORE=<date>` (driven in session_bin_dir_test.py).
 TestSessionEndDeletesNothing and TestNoAutomaticDeletionRemains are what stop
 the sweeps coming back under a new name.
 """
@@ -338,7 +338,7 @@ class TestNoAutomaticDeletionRemains(unittest.TestCase):
 
 
 class TestCleanTmpPreservesSessionRoot(unittest.TestCase):
-    """AC-10: `make ze-clean-tmp` never reaches a live session's directory.
+    """AC-10: `make ze-tmp-clean` never reaches a live session's directory.
 
     The target sweeps the tmp/ ROOT: files older than 24h, and directories older
     than 24h other than session/ and kernel/. It is operator-invoked, so it is
@@ -351,7 +351,7 @@ class TestCleanTmpPreservesSessionRoot(unittest.TestCase):
 
     def _recipe(self) -> str:
         proc = subprocess.run(
-            ["make", "-n", "ze-clean-tmp"],
+            ["make", "-n", "ze-tmp-clean"],
             cwd=str(REPO),
             capture_output=True,
             text=True,
@@ -400,11 +400,11 @@ class TestCleanTmpPreservesSessionRoot(unittest.TestCase):
 
             self.assertTrue(
                 (session / "bin" / "ze").is_file(),
-                "ze-clean-tmp reached a session's binaries",
+                "ze-tmp-clean reached a session's binaries",
             )
             self.assertTrue(
                 (flat / ".session-sid-LIVE").is_file(),
-                "ze-clean-tmp reached a session's claim marker",
+                "ze-tmp-clean reached a session's claim marker",
             )
             self.assertTrue((kernel / "vmlinuz").is_file(), "the kernel cache went")
             # The control: the sweep really ran, so the two survivals above are
@@ -443,14 +443,14 @@ class TestCleanTmpPreservesSessionRoot(unittest.TestCase):
                 check=True,
             )
 
-            self.assertTrue(tmp_root.is_dir(), "ze-clean-tmp removed the tmp/ root")
+            self.assertTrue(tmp_root.is_dir(), "ze-tmp-clean removed the tmp/ root")
             self.assertTrue(
                 (session / "bin" / "ze").is_file(),
-                "ze-clean-tmp took a session's binaries with the tmp/ root",
+                "ze-tmp-clean took a session's binaries with the tmp/ root",
             )
             self.assertTrue(
                 (session / "state" / "session-state-spec-x-sid-LIVE.md").is_file(),
-                "ze-clean-tmp took a session's spec digest with the tmp/ root",
+                "ze-tmp-clean took a session's spec digest with the tmp/ root",
             )
 
 

@@ -45,7 +45,7 @@ destination, because the pilot is still open and owns them.
 
 ## 3. A measurement that stops one investigation being repeated
 
-`make ze-ipsec-interop-test` on this macOS host reports **2 passed, 8 failed**. That looks
+`make ze-interop-ipsec-test` on this macOS host reports **2 passed, 8 failed**. That looks
 alarming after a wire-parser change, and it is not a regression.
 
 I rebuilt `ze` with all twelve WP-3 files reverted to HEAD through `go build -overlay` and

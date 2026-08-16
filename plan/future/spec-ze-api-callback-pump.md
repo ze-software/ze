@@ -184,7 +184,7 @@ behavior.
    - Verify: AC-1, AC-4, AC-5
 4. **Phase: Migrate exactly one fixture, and prove it still discriminates**
    - Verify: AC-2, and A-2
-5. **Phase: `make ze-plugin-test`, entire**
+5. **Phase: `make ze-functional-plugin-test`, entire**
    - Verify: AC-3
 
 ## Checklist
@@ -192,7 +192,7 @@ behavior.
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-5 all demonstrated
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 
 ### TDD

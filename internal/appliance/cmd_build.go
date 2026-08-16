@@ -58,7 +58,7 @@ func e2fsSearchDirs() []string {
 		dirs = append(dirs, filepath.Join(prefix, "sbin"))
 	}
 	// /usr/local/sbin is in the tail because mk/gokrazy.mk searches it for the
-	// same two tools, and leaving it out here let `make ze-gokrazy` and `ze
+	// same two tools, and leaving it out here let `make ze-gokrazy-build` and `ze
 	// appliance build` pick different mkfs.ext4 binaries on one host.
 	//
 	// On macOS it has usually arrived already: /usr/local is one of the two
@@ -298,7 +298,7 @@ func runGokInProcess(args []string) error {
 	// Resolve strictly from the checked-in modcache. gok reads the ambient GOPROXY
 	// and does not force offline, so a module missing from the builddir/modcache
 	// would silently resolve to a NEWER version than the pins choose. off makes
-	// that a loud failure instead. Explicit GOPROXY wins (ze-gokrazy-deps is a
+	// that a loud failure instead. Explicit GOPROXY wins (ze-gokrazy-deps-download is a
 	// separate, network-using target). Mirrors cmd/ze-gok/main.go.
 	if os.Getenv("GOPROXY") == "" {
 		if setErr := os.Setenv("GOPROXY", "off"); setErr != nil {

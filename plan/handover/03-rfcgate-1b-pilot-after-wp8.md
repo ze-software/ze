@@ -30,7 +30,7 @@ needs. Nothing here is blocked on anything except the model.
 | `1ebdb35cc` | WP-8, four rows landed and two held |
 
 Four structural gates were red at HEAD when this session started and are green now:
-`ze-rfc-check`, `ze-doc-test`, `ze-regen-check-readonly`, and `go test ./scripts/dev`. The
+`ze-rfc-check`, `ze-doc-verify`, `ze-generated-files-check`, and `go test ./scripts/dev`. The
 cause of all four was a stale generated index, not a code defect.
 
 ## Owner decisions, 2026-07-31 (BINDING, do not re-open)
@@ -151,7 +151,7 @@ where the command exited non-zero, or claimed a mutation table that a re-run con
 Each was caught by re-running the command in the main thread. Budget for that.
 
 **`make X | tee` reports tee's exit status.** The session's first act was to call a
-six-stage-red `ze-verify` green because of this. Use `echo "EXIT=${PIPESTATUS[0]}"`.
+six-stage-red `ze-precommit-verify` green because of this. Use `echo "EXIT=${PIPESTATUS[0]}"`.
 
 **A commit gate reads the literal phrase "out of scope" as an undeclared deferral.** Two
 WP-3 comments used it to mean RFC scope and blocked the commit. Reword rather than file a
@@ -170,7 +170,7 @@ sibling session shares this checkout.
 
 ## Verification state
 
-`make ze-verify-changed` passed all 19 stages at `11:58:19Z`, before WP-3 and WP-8 landed.
+`make ze-precommit-verify-changed` passed all 19 stages at `11:58:19Z`, before WP-3 and WP-8 landed.
 Since then each package was verified with the changed-scope targets and the ike suite, and
-each guard was independently mutation-checked in the main thread. **A full `make ze-verify`
+each guard was independently mutation-checked in the main thread. **A full `make ze-precommit-verify`
 has not run since WP-8. Run one first.**

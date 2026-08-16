@@ -57,7 +57,7 @@ is DISJOINT:
   `gokapi@20251205`, `internal@20251208` (+ all non-gokrazy deps). NOT `gokrazy/gokrazy`.
 - `gokrazy/modcache/` commits ONLY `gokrazy/gokrazy@20260703` (init: dhcp/ntp/randomd/heartbeat,
   baked into the image, kept auditable). Its `.gitignore` whitelists just `gokrazy/gokrazy@*/**`;
-  the other 1.4G (tools, x/*, serial-busybox, ...) is DOWNLOADED by `ze-gokrazy-deps` and
+  the other 1.4G (tools, x/*, serial-busybox, ...) is DOWNLOADED by `ze-gokrazy-deps-download` and
   gitignored. So committed overlap is ~zero.
 
 **Spike (attempt: vendor `gokrazy/gokrazy` + `replace` to it) hit a HARD WALL — the pins do not
@@ -80,7 +80,7 @@ compiles the ze code that uses it (`cmd/ze-gok`, `internal/appliance/updater`,
 (`20260703063348`), `updater`/`internal` -> Jun 2026, + transitive bumps. Every ze consumer
 compiles with ZERO code changes and the appliance unit tests pass. Bonus: it fixes a real latent
 mismatch (`gok`/`tools` were April while building the July `gokrazy@20260703` init; now aligned).
-Committed on compile+unit-test strength (user-authorized); full `make ze-gokrazy` image build +
+Committed on compile+unit-test strength (user-authorized); full `make ze-gokrazy-build` image build +
 QEMU boot with the July `gok` is to be **verified separately**.
 
 **Step 2 (image build reads `vendor/`) is BLOCKED and NOT pursued.** Verified empirically: `go mod
@@ -113,11 +113,11 @@ status quo is worth changing.
 ## Data Flow
 
 ### Entry Point
-- `make ze-gokrazy` (image build) and the `bin/gok` build in `mk/gokrazy.mk` — both are build-time consumers of the committed dependency stores; there is no runtime data flow.
+- `make ze-gokrazy-build` (image build) and the `bin/gok` build in `mk/gokrazy.mk` — both are build-time consumers of the committed dependency stores; there is no runtime data flow.
 
 ### Transformation Path
 1. Root-module builds resolve deps from `vendor/` via `-mod=vendor`.
-2. `ze-gokrazy-deps` downloads the gitignored remainder into `gokrazy/modcache/`.
+2. `ze-gokrazy-deps-download` downloads the gitignored remainder into `gokrazy/modcache/`.
 3. Builddir module builds resolve from `GOMODCACHE=gokrazy/modcache` (committed `gokrazy/gokrazy@*` + downloaded rest).
 4. (Blocked step 2 would insert: a generation step materializing a module cache from `vendor/`.)
 
@@ -128,7 +128,7 @@ status quo is worth changing.
 | Builddir modules -> modcache | versioned `pkg@vX.Y.Z` GOMODCACHE layout |
 
 ### Integration Points
-- `mk/gokrazy.mk` build targets; `scripts` around `ze-gokrazy-deps`; `.gitignore` whitelists.
+- `mk/gokrazy.mk` build targets; `scripts` around `ze-gokrazy-deps-download`; `.gitignore` whitelists.
 
 ## Wiring Test
 
@@ -136,7 +136,7 @@ Build tooling only — no daemon feature, no new runtime entry point; existing t
 
 | Entry Point | -> | Feature Code | Test |
 |-------------|----|--------------|------|
-| `make ze-gokrazy` | -> | unified dependency store (step 2, if pursued) | `make ze-gokrazy` full image build + QEMU boot via `scripts/evidence/qemu-run.py` |
+| `make ze-gokrazy-build` | -> | unified dependency store (step 2, if pursued) | `make ze-gokrazy-build` full image build + QEMU boot via `scripts/evidence/qemu-run.py` |
 
 ## 🧪 TDD Test Plan
 
@@ -159,7 +159,7 @@ Build tooling only — no daemon feature, no new runtime entry point; existing t
 ## Implementation Steps
 
 1. (DONE 2026-07-18) Bump the gokrazy stack to one mutually-consistent snapshot.
-2. Verify separately: full `make ze-gokrazy` image build + QEMU boot with the July `gok` (outstanding from step 1).
+2. Verify separately: full `make ze-gokrazy-build` image build + QEMU boot with the July `gok` (outstanding from step 1).
 3. DECISION GATE (Thomas): is replacing the zero-duplication status quo with a vendor-derived generated modcache worth the machinery? If no, close this spec as cancelled.
 4. If yes: build the generation step (kernel `replace => tmp/kernel/pkg` pattern extended), then flip `bin/gok` to `-mod=mod` against it.
 
@@ -167,5 +167,5 @@ Build tooling only — no daemon feature, no new runtime entry point; existing t
 
 - [ ] Tests written (build-level: the QEMU boot evidence run is the test for this spec)
 - [ ] Tests FAIL before the change where applicable (N/A for the step-1 bump, already landed)
-- [ ] Tests PASS: `make ze-gokrazy` image build + QEMU boot green
-- [ ] `make ze-test` / `make ze-verify` green before any commit
+- [ ] Tests PASS: `make ze-gokrazy-build` image build + QEMU boot green
+- [ ] `make ze-standard-test` / `make ze-precommit-verify` green before any commit

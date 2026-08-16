@@ -83,7 +83,7 @@ structured for Codeberg's wiki renderer. Key files:
 
 ### Phase 4: Regenerate reverse index
 
-14. **Regenerate `ai/CODE-TO-DOCS.md`:** Run `make ze-doc-index` to update the code-to-docs reverse index. If any docs/ source anchors were added, changed, or removed, this keeps the index in sync.
+14. **Regenerate `ai/CODE-TO-DOCS.md`:** Run `make ze-doc-index-update` to update the code-to-docs reverse index. If any docs/ source anchors were added, changed, or removed, this keeps the index in sync.
 
 ### Phase 5: Commit
 

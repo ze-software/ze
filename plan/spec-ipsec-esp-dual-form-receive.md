@@ -347,7 +347,7 @@ a current one. Answer route C by reading the 6.19.11 receive path, and record th
 | `ipsec-esp-form-change` | `test/ipsec/ipsec-esp-form-change.ci` | The peer changes form on an established SA, and traffic keeps flowing | NOT writable at this tier; see "What is NOT done" |
 | `ipsec-esp-form-vpp-reject` | `test/ipsec/ipsec-esp-form-vpp-reject.ci` | An operator selects VPP and gets a clear refusal | dropped: AC-5 is not-applicable by measurement |
 
-The `ipsec` suite runs inside `ze-verify` (`mk/test-functional.mk` and `:217`), so a
+The `ipsec` suite runs inside `ze-precommit-verify` (`mk/test-functional.mk` and `:217`), so a
 `.ci` there earns a verify tier.
 
 ### QEMU Integration Tests
@@ -819,12 +819,12 @@ Stated plainly rather than left to be discovered (`ai/rules/completion.md`).
 
 | Item | State |
 |------|-------|
-| `test/ipsec/ipsec-esp-form-change.ci` | NOT written, and NOT writable at functional tier. Three findings block it, each measured. (1) The suite runs unprivileged in the host namespace (`mk/test-functional.mk`, `ze-ipsec-test`), and every ipsec `.ci` selects `ze.test.ike.dataplane=noop`, which installs nothing in the kernel. (2) The `.ci` framework has no ESP injector and no packet observer: `RunEngineSteps` (`internal/test/runner/engine_steps.go`) only dispatches CLI commands, and the whole IKE command surface is show, monitor and clear. (3) The dual-form path needs a TEMPLATED inbound state, which needs `sa.NATDetected \|\| sa.localPort == 4500` (`engine/child.go`), and two loopback ze daemons produce neither. A `.ci` here could assert only that no rekey happened, which is the absence-assertion vacuity trap in `ai/rules/interop-and-goal-validation.md`. AC-4's proof is the QEMU probe plus scenario 23 instead |
+| `test/ipsec/ipsec-esp-form-change.ci` | NOT written, and NOT writable at functional tier. Three findings block it, each measured. (1) The suite runs unprivileged in the host namespace (`mk/test-functional.mk`, `ze-functional-ipsec-test`), and every ipsec `.ci` selects `ze.test.ike.dataplane=noop`, which installs nothing in the kernel. (2) The `.ci` framework has no ESP injector and no packet observer: `RunEngineSteps` (`internal/test/runner/engine_steps.go`) only dispatches CLI commands, and the whole IKE command surface is show, monitor and clear. (3) The dual-form path needs a TEMPLATED inbound state, which needs `sa.NATDetected \|\| sa.localPort == 4500` (`engine/child.go`), and two loopback ze daemons produce neither. A `.ci` here could assert only that no rekey happened, which is the absence-assertion vacuity trap in `ai/rules/interop-and-goal-validation.md`. AC-4's proof is the QEMU probe plus scenario 23 instead |
 | `test/ipsec-interop/scenarios/23-esp-form-change/` | WRITTEN and PASSING, and RED under mutation. It is the proof of AC-4 against a real peer |
 | `test/ipsec/ipsec-esp-encap-no-nat.ci` | NOT written, blocked by the same three findings. User story 1 needs the peer to encapsulate, which two loopback ze daemons never do. Its reachable home is a new interop scenario `22-esp-encap-no-nat` using strongSwan's `encap = yes`, which fakes NAT-D at IKE_SA_INIT and is a valid vici key in 5.9.14 |
 | `test/ipsec/ipsec-esp-form-vpp-reject.ci` | NOT written, and it must NOT be. AC-5 is not-applicable by measurement: VPP's inbound lookup is encapsulation-blind, so one VPP SA already takes both forms and there is nothing to refuse (`dataplane/vpp.go`). A test asserting a refusal would assert behaviour that must not exist. This confirms the 2026-08-02 audit's "drop the planned `ipsec-esp-form-vpp-reject.ci`" |
 | `scripts/evidence/qemu-all-tests.sh` has no `fsuite ipsec` line | Discovered 2026-08-03. A `needs-linux` `.ci` in `test/ipsec/` would skip natively AND never run in QEMU, so it would be dead coverage. This is why option (1) above cannot be routed around with `option=needs-linux:caps=net-admin` |
-| `ai/RFC-REQUIREMENTS.md` regeneration | NOT run. `make ze-rfc-index` is REQUIRED after moving or renaming a tagged test, and one test was renamed. The main thread directed that the ledger not be regenerated while it is stale from another session |
+| `ai/RFC-REQUIREMENTS.md` regeneration | NOT run. `make ze-rfc-index-update` is REQUIRED after moving or renaming a tagged test, and one test was renamed. The main thread directed that the ledger not be regenerated while it is stale from another session |
 | Throughput of the re-presented form | Not measured. R-1 stands for the bare form on a templated SA |
 
 ## Known Limitations
@@ -853,7 +853,7 @@ on its header rules.
 - [ ] AC-1..AC-7 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding

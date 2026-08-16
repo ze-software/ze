@@ -113,7 +113,7 @@ const errorPrefix = "error: "
 // own "error: ". Without this the CLI renders "error: error: <msg>".
 //
 // Unexported: the only caller is ExecCommand above. It was exported without a
-// cross-package consumer, which ze-validate reports as an unwired export.
+// cross-package consumer, which ze-repository-check reports as an unwired export.
 func trimErrorPrefix(s string) string {
 	return strings.TrimPrefix(s, errorPrefix)
 }

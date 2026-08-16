@@ -203,7 +203,7 @@ improve-6's post-wave corrections.)
 | `make ze-unit-test` (runs plugin/all package tests) | → | claim-union builder + root comparison | TestConfigSchemaRootsClaimed |
 | `make ze-unit-test` | → | phantom-claim inverse check | TestConfigRootsPhantomClaims |
 | `ze doctor` | → | unclaimed-roots doctor check + diagnostic code | test/plugin/doctor-config-claims.ci |
-| `make ze-yang-leaf-mentions` (advisory, phase 2) | → | leaf mention-check report | TestYANGLeafMentionReport (self-test fixture) |
+| `make ze-yang-leaf-mentions-report` (advisory, phase 2) | → | leaf mention-check report | TestYANGLeafMentionReport (self-test fixture) |
 
 ## Acceptance Criteria
 
@@ -254,7 +254,7 @@ improve-6's post-wave corrections.)
 ## Files to Modify
 - `internal/core/diagnostic/codes.go` - register the unclaimed-config-root diagnostic code (AC-7)
 - doctor registration in the owning package (`internal/component/plugin/server`, exact registration site per `ai/rules/repo-maintenance.md` at implementation)
-- `Makefile`/`mk/` - `ze-yang-leaf-mentions` advisory target (phase 2; NOT added to verify stages)
+- `Makefile`/`mk/` - `ze-yang-leaf-mentions-report` advisory target (phase 2; NOT added to verify stages)
 - `ai/INDEX.md` - keyword row (discovery checklist below)
 - `docs/comparison.md` - config-completeness parity note vs the reviewed daemon
 - gate-mapping/doc rows per `ai/rules/repo-maintenance.md` (exact files at implementation)
@@ -344,7 +344,7 @@ improve-6's post-wave corrections.)
      (`ai/rules/evidence.md`).
    - Tests: TestYANGLeafMentionReport (AC-8)
 5. **Docs + discovery rows** -- comparison.md, ai/INDEX.md, gate-mapping rows.
-6. **Full verification** -- `make ze-verify`; learned summary; two-commit closure.
+6. **Full verification** -- `make ze-precommit-verify`; learned summary; two-commit closure.
 
 ### Critical Review Checklist (/implement stage 6)
 | Check | What to verify for this spec | Result |
@@ -410,8 +410,8 @@ improve-6's post-wave corrections.)
 | Leaf-level check is a HEURISTIC mention-check, phase 2, advisory-first | (a) reflect YANG leaves vs config-struct json tags -- INFEASIBLE: config-input structs carry zero json tags (`as112/config.go`; tags live only on show/state output structs); (b) wait for spec-review-typed-config-decode -- that spec is schema-driven with explicitly no struct registry, BGP-only, status design; (c) strict unknown-key rejection at verify -- different direction (config-not-in-schema), recorded as follow-up | Plugins hand-parse `map[string]any` with string-literal keys, so an AST scan of the owning plugin package for leaf-name literals vs YANG leaves under its claimed roots is implementable today; precedent for literal-grep drift guards: `as112/redistribute_test.go` TestMaxCommunitiesMatchesYANG. Heuristic, so advisory + allowlist, never a hard gate |
 
 ## Known Limitations
-- `ai/INDEX.md` has no keyword row for this gate, and `make ze-doc-index` is owed
-  (`ai/CODE-TO-DOCS.md` is stale, which fails `make ze-doc-test`). Both are
+- `ai/INDEX.md` has no keyword row for this gate, and `make ze-doc-index-update` is owed
+  (`ai/CODE-TO-DOCS.md` is stale, which fails `make ze-doc-verify`). Both are
   outside this session's permitted scope: a concurrent session is restructuring
   `ai/`. The debt grew by the source anchors this work added.
 - The doctor check can only report a root that survives in the SCHEMA while its
@@ -458,7 +458,7 @@ improve-6's post-wave corrections.)
 | Doctor surface | `internal/component/doctor/checks_config_claims.go` -- `checkConfigClaims`, `configClaimDiagnostics`; called from `runChecks` (`doctor.go`) |
 | Diagnostic codes | `internal/core/diagnostic/codes.go` -- `doctor-config-root-unclaimed`, `doctor-config-claims-unavailable` |
 | Functional test | `test/ui/doctor-config-claims.ci` (runs in the `ui` suite, inside `make ze-functional-test`) |
-| Advisory leaf report | `scripts/checks/yang_leaf_mentions.go` -> `make ze-yang-leaf-mentions` (in NO verify stage) |
+| Advisory leaf report | `scripts/checks/yang_leaf_mentions.go` -> `make ze-yang-leaf-mentions-report` (in NO verify stage) |
 
 ### Bugs Found/Fixed
 - `scripts/checks/port_defaults.go` had no `serviceYANG` entry for the `gnmi`
@@ -466,7 +466,7 @@ improve-6's post-wave corrections.)
   before any of this work started. The gnmi module does carry
   `refine port { default 9339 }`, matching the Go table, so the gate was red on a
   missing mapping rather than on real drift. Fixed: the mapping is added and the
-  gate reports OK over 8 services. It blocked `make ze-test-pkg PKG=./scripts/checks`,
+  gate reports OK over 8 services. It blocked `make ze-unit-pkg-test PKG=./scripts/checks`,
   which this work has to run.
 
 ### Documentation Updates
@@ -481,8 +481,8 @@ improve-6's post-wave corrections.)
 | Planned | Actual | Why |
 |---------|--------|-----|
 | Allowlist at `internal/component/plugin/all/testdata/config-claims-allowlist.json` | `internal/component/config/claims/allowlist.json`, embedded | The doctor check needs the same entries at run time, and `testdata/` is not reachable from a binary. One file, two readers, no second list |
-| Gate is only a plugin/all unit test | Unit test AND `scripts/checks/config_claims.go` in both verify stages | Same shape as `yang_glue_check_test.go` beside `ze-regen-check-readonly`: the test is the fast local signal, the make stage is the wired gate. It also gives `claims.Audit` a production caller |
-| `test/plugin/doctor-config-claims.ci` | `test/ui/doctor-config-claims.ci` | The test needs `ze-stripped` (see Known Limitations); only `ze-ui-test` provisions it (`ZE_TEST_DEPS_STRIPPED`, `mk/test-functional.mk`). The `ui` suite runs inside `make ze-functional-test`, which is a verify stage, so the test is wired either way |
+| Gate is only a plugin/all unit test | Unit test AND `scripts/checks/config_claims.go` in both verify stages | Same shape as `yang_glue_check_test.go` beside `ze-generated-files-check`: the test is the fast local signal, the make stage is the wired gate. It also gives `claims.Audit` a production caller |
+| `test/plugin/doctor-config-claims.ci` | `test/ui/doctor-config-claims.ci` | The test needs `ze-stripped` (see Known Limitations); only `ze-functional-ui-test` provisions it (`ZE_TEST_DEPS_STRIPPED`, `mk/test-functional.mk`). The `ui` suite runs inside `make ze-functional-test`, which is a verify stage, so the test is wired either way |
 | Phase-2 report carries an allowlist with reasons (R-4) | No allowlist | The report always exits 0 and is in no verify stage, so a suppression list has no consumer. Suppressing an entry would only hide it from a reader who asked for the report |
 | `ai/INDEX.md` keyword row (Discovery checklist step 1) | NOT DONE -- see Known Limitations | This session was instructed not to touch `ai/`, where a concurrent session is mid-restructure |
 
@@ -508,7 +508,7 @@ improve-6's post-wave corrections.)
 | AC-5 | Done | `TestAuditRejectsAllowlistEntryWithoutJustification`, `TestAllowlistParses` | A rejected entry does NOT suppress its subtree |
 | AC-6 | Done | `TestFeatureGatedModulesEnumerated` | Derived from `feature-gates.txt`; fires under a reduced tag set |
 | AC-7 | Done | `TestConfigClaimsCheck*` (5 unit tests), `test/ui/doctor-config-claims.ci` | Codes registered and reachable through `ze explain` |
-| AC-8 | Done | `make ze-yang-leaf-mentions`; `TestYANGLeafMentionReport`, `TestYANGLeafMentionReportRunsOverTheTree` | Advisory, exits 0, in no verify stage |
+| AC-8 | Done | `make ze-yang-leaf-mentions-report`; `TestYANGLeafMentionReport`, `TestYANGLeafMentionReportRunsOverTheTree` | Advisory, exits 0, in no verify stage |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
@@ -528,7 +528,7 @@ improve-6's post-wave corrections.)
 | `test/plugin/doctor-config-claims.ci` | Moved | -> `test/ui/doctor-config-claims.ci` (see Deviations) |
 | `internal/core/diagnostic/codes.go` | Modified | Two codes added |
 | doctor registration | Created | `internal/component/doctor/checks_config_claims.go`, called from `runChecks` |
-| `Makefile` / `mk/` | Modified | `ze-yang-leaf-mentions` (Makefile), `ze-config-claims-check` (mk/inventory.mk) |
+| `Makefile` / `mk/` | Modified | `ze-yang-leaf-mentions-report` (Makefile), `ze-config-claims-check` (mk/inventory.mk) |
 | `ai/INDEX.md` | NOT DONE | Out of this session's permitted scope |
 | `docs/comparison.md` | Modified | |
 
@@ -546,7 +546,7 @@ improve-6's post-wave corrections.)
 | No config schema node can be silently unclaimed | mutation of production code, gate goes red | `internal/plugins/static/register.go` `ConfigRoots` changed to `"sttaic"`: `TestConfigSchemaRootsClaimed` reports `unclaimed-subtree: static ... (11 config leaves, from ze-static-conf)` and `TestConfigRootsPhantomClaims` reports `phantom-claim: sttaic: plugin:static ...`. Restored, both green |
 | A leafless presence container is not a hole in the gate | mutation | `internal/plugins/connected/register.go` typo'd: `make ze-config-claims-check` exits 2 with `unclaimed-subtree: connected ... (0 config leaves)`. Restored, exit 0 |
 | The claim allowlist cannot be used to silence a subtree | mutation | `storage` entry's `reason` cleared: `TestClaimAllowlistReasons` AND `TestConfigSchemaRootsClaimed` both go red, and the subtree is STILL reported unclaimed |
-| The gate checks the whole surface, not a reduced one | mutation of the tag set | `make ze-test-pkg PKG=./internal/component/plugin/all RUN=TestFeatureGatedModulesEnumerated ZE_FEATURES='ze_bgp ze_ssh'` fails, naming every module that vanished |
+| The gate checks the whole surface, not a reduced one | mutation of the tag set | `make ze-unit-pkg-test PKG=./internal/component/plugin/all RUN=TestFeatureGatedModulesEnumerated ZE_FEATURES='ze_bgp ze_ssh'` fails, naming every module that vanished |
 | An operator learns about undelivered config from the product | functional test on a real binary | `test/ui/doctor-config-claims.ci` passes against `ze-stripped`, which has IKE compiled out: `doctor-config-root-unclaimed` for `pki`, silence for `static`, and `ze explain` describes the code. Unwiring `checkConfigClaims` from `runChecks` and rebuilding turns it red; restored, green |
 | The advisory leaf report is not vacuous | mutation | `literals[lf.name]` forced true: selftest fails with "the unread fixture leaf was not reported". `leafRE` broken: selftest and `TestYANGLeafMentionReportRunsOverTheTree` both fail |
 
@@ -597,10 +597,10 @@ waved through.
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
-| `internal/component/config/claims/{claims,schema}.go`, `allowlist.json` | Yes | `make ze-test-pkg PKG=./internal/component/config/claims` passes |
-| `internal/component/plugin/all/config_claims_test.go` | Yes | `make ze-test-pkg PKG=./internal/component/plugin/all` passes |
-| `internal/component/doctor/checks_config_claims.go` | Yes | `make ze-test-pkg PKG=./internal/component/doctor` passes |
-| `scripts/checks/config_claims.go`, `yang_leaf_mentions.go` | Yes | `make ze-test-pkg PKG=./scripts/checks` passes |
+| `internal/component/config/claims/{claims,schema}.go`, `allowlist.json` | Yes | `make ze-unit-pkg-test PKG=./internal/component/config/claims` passes |
+| `internal/component/plugin/all/config_claims_test.go` | Yes | `make ze-unit-pkg-test PKG=./internal/component/plugin/all` passes |
+| `internal/component/doctor/checks_config_claims.go` | Yes | `make ze-unit-pkg-test PKG=./internal/component/doctor` passes |
+| `scripts/checks/config_claims.go`, `yang_leaf_mentions.go` | Yes | `make ze-unit-pkg-test PKG=./scripts/checks` passes |
 | `test/ui/doctor-config-claims.ci` | Yes | `ze-test ui --pattern doctor-config-claims` passes |
 
 ### AC Verified (grep/test)
@@ -619,7 +619,7 @@ waved through.
 | `make ze-config-claims-check` (both `stagesForMode` branches) | -- | `TestStagesForModeMatchesGolden` locks both lists; gate reports OK over 36 roots / 72 claims |
 | `make ze-unit-test` (plugin/all) | -- | package tests pass |
 | `ze doctor` -> `runChecks` | `test/ui/doctor-config-claims.ci` | Yes: unwiring `runChecks` turns the `.ci` red |
-| `make ze-yang-leaf-mentions` | -- | selftest OK; 69 modules, 1075 leaves, 81 findings |
+| `make ze-yang-leaf-mentions-report` | -- | selftest OK; 69 modules, 1075 leaves, 81 findings |
 
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
@@ -645,7 +645,7 @@ waved through.
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete -- every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled -- 0 BLOCKER, 0 ISSUE)
-- [ ] `make ze-test` passes (lint + all ze tests)
+- [ ] `make ze-standard-test` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`, or `scripts/checks/*`)
 - [ ] Integration completeness proven end-to-end
 - [ ] Documentation Update Checklist answered Yes/No with source evidence

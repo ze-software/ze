@@ -757,7 +757,7 @@ class TestUnrunCarrierRefused(unittest.TestCase):
     """AC-7: a tag in a suite nothing executes is refused, not marked.
 
     A marker is a note; a refusal is a guard (ai/rules/evidence.md). Raised from
-    scan_tree so `make ze-rfc-index` refuses it too -- a check that only run_check enforced
+    scan_tree so `make ze-rfc-index-update` refuses it too -- a check that only run_check enforced
     would let `--write` publish a ledger crediting evidence no pipeline runs.
     """
 
@@ -776,7 +776,7 @@ class TestUnrunCarrierRefused(unittest.TestCase):
         msg = str(cm.exception)
         self.assertIn("test/l2tp-interop/scenarios/01-lac/check.py", msg)
         self.assertIn("interop-l2tp", msg)
-        self.assertIn("make ze-deployment-l2tp-ppp-docker-test", msg)
+        self.assertIn("make ze-deployment-docker-l2tp-ppp-test", msg)
         self.assertIn("SCHEDULED workflow", msg)
 
     def test_unrun_carrier_without_a_tag_is_silent(self):
@@ -1627,7 +1627,7 @@ class TestLedgerFreshness(unittest.TestCase):
     def test_stale_when_file_differs(self):
         errs = self._check("not the rendered ledger\n")
         self.assertEqual(len(errs), 1)
-        self.assertIn("ze-rfc-index", errs[0])
+        self.assertIn("ze-rfc-index-update", errs[0])
 
     def test_missing_ledger_reads_as_stale(self):
         """A missing ledger is '' != body, so it fails closed rather than passing by
@@ -1735,7 +1735,7 @@ class TestShardBanner(unittest.TestCase):
             head = "\n".join(body.split("\n")[:10])
             self.assertIn("GENERATED", head, stem)
             self.assertIn("do not edit", head, stem)
-            self.assertIn("make ze-rfc-index", head, stem)
+            self.assertIn("make ze-rfc-index-update", head, stem)
 
 
 class TestShardWrite(unittest.TestCase):
@@ -1814,7 +1814,7 @@ class TestShardWrite(unittest.TestCase):
             )
 
     def test_write_emits_one_file_per_stem(self):
-        """AC-1, the wiring test: `make ze-rfc-index` reaches the shard directory."""
+        """AC-1, the wiring test: `make ze-rfc-index-update` reaches the shard directory."""
         with _shard_tree():
             code, out = self._write()
             self.assertEqual(code, 0, out)
@@ -1943,7 +1943,7 @@ class TestShardFreshness(unittest.TestCase):
             errs = self._check()
             self.assertEqual(len(errs), 1, errs)
             self.assertIn(R.shard_rel("rfc7606"), errs[0])
-            self.assertIn("ze-rfc-index", errs[0])
+            self.assertIn("ze-rfc-index-update", errs[0])
 
     def test_missing_shard_is_stale(self):
         """AC-5: a deleted shard is the state a byte comparison over one file used to catch
@@ -1953,7 +1953,7 @@ class TestShardFreshness(unittest.TestCase):
             errs = self._check()
             self.assertEqual(len(errs), 1, errs)
             self.assertIn(R.shard_rel("rfc9999"), errs[0])
-            self.assertIn("ze-rfc-index", errs[0])
+            self.assertIn("ze-rfc-index-update", errs[0])
 
     def test_orphan_shard_is_stale(self):
         """AC-6: a markdown file the render did not produce is an RFC page that reads as
@@ -1981,7 +1981,7 @@ class TestShardFreshness(unittest.TestCase):
             errs = self._check()
             self.assertEqual(len(errs), 1, errs)
             self.assertIn(R.shard_rel("rfc0000"), errs[0])
-            self.assertIn("ze-rfc-index", errs[0])
+            self.assertIn("ze-rfc-index-update", errs[0])
 
     def test_the_gate_names_what_the_write_deletes(self):
         """The gate and the prune must never disagree about what the generator owns. The
@@ -2053,11 +2053,11 @@ class TestShardShow(unittest.TestCase):
         with self._tree():
             code, out = self._show("rfc0000")
             self.assertEqual(code, 2, out)
-            self.assertIn("ze-rfc-index", out)
+            self.assertIn("ze-rfc-index-update", out)
 
             code, out = _run_capturing(lambda: R.main(["prog", "--show"]))
             self.assertEqual(code, 2, out)
-            self.assertIn("ze-rfc-index", out)
+            self.assertIn("ze-rfc-index-update", out)
 
     def test_show_refuses_a_separator_in_the_stem(self):
         """Security Review row: the stem becomes a path, so it may never carry one.
@@ -3691,7 +3691,7 @@ class TestSummaryParseErrorWiring(unittest.TestCase):
 # --------------------------------------------------------------------------
 class TestLedgerStaleness(unittest.TestCase):
     """AC-20 at the CLI level: a committed ai/RFC-REQUIREMENTS.md that drifts from a fresh
-    render must fail `--check-fresh` (what ze-doc-test runs) and name the regeneration
+    render must fail `--check-fresh` (what ze-doc-verify runs) and name the regeneration
     target. TestLedgerFreshness drives the check_ledger_fresh helper; this drives the
     run_check_fresh entry point, so an unwired helper still fails here. Driven from
     fixtures so it does not depend on the live tree (whose tags may be mid-flight)."""
@@ -3743,7 +3743,7 @@ class TestLedgerStaleness(unittest.TestCase):
         differs from the fresh render, and the message points at the regeneration target."""
         code, out = self._drive("# a stale, hand-drifted ledger\n")
         self.assertNotEqual(code, 0, out)
-        self.assertIn("ze-rfc-index", out)
+        self.assertIn("ze-rfc-index-update", out)
 
     def test_missing_ledger_fails(self):
         """A missing ledger must fail closed at the CLI too, not pass by vacuum."""
@@ -4268,7 +4268,7 @@ class TestSiteInventory(unittest.TestCase):
 
     def test_a_repeated_section_id_is_merged_not_emitted_twice(self):
         """`parse_extraction_artifact` refuses a duplicate section, so a derivation that
-        emits one produces a skeleton that cannot be re-read: `make ze-rfc-extract` exits 0
+        emits one produces a skeleton that cannot be re-read: `make ze-rfc-extraction-create` exits 0
         having bricked the stem, and every later --check reports 'cannot run', hiding every
         other RFC violation in the repository."""
         inv = self._inv(_SRC_TABLE_ROW_HEADING)
@@ -4715,7 +4715,7 @@ class TestSkeletonWriter(unittest.TestCase):
         re-parses its own output before it lands, so the whole refresh was refused.
 
         Found in the live tree, not in a fixture. rfc/extraction/rfc1035.json holds one
-        `duplicate-of` site, so `make ze-rfc-extract STEM=rfc1035` could not write at all
+        `duplicate-of` site, so `make ze-rfc-extraction-create STEM=rfc1035` could not write at all
         -- it printed 'a defect in the derivation' and exited 2, leaving the reviewer no
         way to re-run the walk after the source moved. The carry-forward is now driven by
         what the PARSER stored rather than by a per-kind ladder, so a seventh kind with an
@@ -4893,7 +4893,7 @@ class TestSkeletonWriter(unittest.TestCase):
         """The writer round-trips its own output through parse_extraction_artifact before
         the file lands.
 
-        Without it `make ze-rfc-extract STEM=rfc2865` exited 0 announcing success while
+        Without it `make ze-rfc-extraction-create STEM=rfc2865` exited 0 announcing success while
         writing a file that could not be re-read -- and one such committed file makes every
         later `--check` print 'cannot run', hiding EVERY other RFC violation in the repo.
         A guard that neither denies nor speaks does not exist
@@ -6216,7 +6216,7 @@ class TestExtractionLedger(unittest.TestCase):
             self.assertEqual(
                 len(errs), 1, f"the index alone must be named stale, got: {errs}"
             )
-            self.assertIn("ze-rfc-index", errs[0])
+            self.assertIn("ze-rfc-index-update", errs[0])
             self.assertNotIn(
                 "requirements/",
                 errs[0],
@@ -6800,7 +6800,7 @@ class TestFixtureIsolationFromTheRealExtractionTree(_ExtractionDrive):
 
 class TestSkeletonWriterWiring(unittest.TestCase):
     def test_extract_skeleton_dispatches_from_main(self):
-        """AC-2: `make ze-rfc-extract STEM=x` reaches run_extract_skeleton."""
+        """AC-2: `make ze-rfc-extraction-create STEM=x` reaches run_extract_skeleton."""
         seen = {}
 
         def fake(stem):
@@ -6864,12 +6864,12 @@ class TestRealTreeExtraction(unittest.TestCase):
         self.assertEqual(self.unparsed, [], "enrolled summaries that no longer parse")
 
     def test_every_enrolled_stem_round_trips_through_the_parser(self):
-        """Generate, then re-read: what `make ze-rfc-extract STEM=<stem>` would write for
+        """Generate, then re-read: what `make ze-rfc-extraction-create STEM=<stem>` would write for
         every enrolled RFC must satisfy parse_extraction_artifact.
 
         Fixtures cannot see this. rfc2865, rfc2869, rfc1195 and sflow-v5 each carry a
         column-0 line the heading pattern reads as a heading, so each derived a duplicate
-        section id and produced a skeleton that could not be re-read -- `ze-rfc-extract`
+        section id and produced a skeleton that could not be re-read -- `ze-rfc-extraction-create`
         exited 0 over a bricked file, and one such artifact committed would have made every
         later --check print 'cannot run' and hide every other RFC violation in the repo.
         252 fixture tests were green throughout."""
@@ -6898,7 +6898,7 @@ class TestRealTreeExtraction(unittest.TestCase):
         walk after the source text moves.
 
         rfc1035's single `duplicate-of` site failed exactly here: `mapped-to` was dropped,
-        the re-parse guard refused the write, and `make ze-rfc-extract STEM=rfc1035`
+        the re-parse guard refused the write, and `make ze-rfc-extraction-create STEM=rfc1035`
         exited 2 over a file it declined to touch."""
         tmp = _mkdtemp("ze-refresh-")
         try:
@@ -7038,7 +7038,7 @@ class TestGrandfatheredBacklog(unittest.TestCase):
 
 
 class TestCITierIsEarnedNotAssumed(unittest.TestCase):
-    """A `.ci`/`.et` claims merge-gate tier only where a ze-verify stage runs it.
+    """A `.ci`/`.et` claims merge-gate tier only where a ze-precommit-verify stage runs it.
 
     The `functional` and `editor` carriers used to declare `prefix=""`, so ANY `.ci`
     anywhere under internal/, pkg/ or test/ was credited `functional/verify` by extension
@@ -7116,11 +7116,11 @@ class TestCITierIsEarnedNotAssumed(unittest.TestCase):
 
     def test_exabgp_compat_is_verify_tier_via_its_own_stage(self):
         """test/exabgp-compat is not in ze-functional-test's list; it runs in the SEPARATE
-        ze-exabgp-test stage, which is in both stagesForMode branches."""
+        ze-functional-exabgp-test stage, which is in both stagesForMode branches."""
         c = R.carrier_for("test/exabgp-compat/encoding/x.ci")
         self.assertIsNotNone(c)
         self.assertEqual(c.tier, R.TIER_VERIFY)
-        self.assertIn("ze-exabgp-test", c.runner)
+        self.assertIn("ze-functional-exabgp-test", c.runner)
 
     def test_scan_tree_refuses_a_tag_in_an_unrun_ci(self):
         """End-to-end: the refusal fires through scan_tree, not only through carrier_for."""
@@ -7288,8 +7288,8 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
-      - name: make ze-ipsec-interop-test
-        run: make ze-ipsec-interop-test
+      - name: make ze-interop-ipsec-test
+        run: make ze-interop-ipsec-test
 """
 
 _PUSH_ONLY_WF = """\
@@ -7303,7 +7303,7 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
-      - run: make ze-ipsec-interop-test
+      - run: make ze-interop-ipsec-test
 """
 
 
@@ -7330,8 +7330,8 @@ class TestInteropTierIsDerivedFromWorkflows(unittest.TestCase):
         with _workflows(nightly=_SCHEDULED_WF) as d:
             found = R.scheduled_workflow_targets(d)
         self.assertIn("ze-interop-test", found)
-        self.assertIn("ze-ipsec-interop-test", found)
-        self.assertEqual(found["ze-ipsec-interop-test"], "nightly.yml")
+        self.assertIn("ze-interop-ipsec-test", found)
+        self.assertEqual(found["ze-interop-ipsec-test"], "nightly.yml")
 
     def test_scheduled_workflow_targets_ignores_push_only_workflow(self):
         """A target named ONLY by a push/pull_request workflow grants no nightly tier.
@@ -7342,13 +7342,13 @@ class TestInteropTierIsDerivedFromWorkflows(unittest.TestCase):
     def test_scheduled_workflow_targets_ignores_comments(self):
         """Matches stripComments on the Go side: a commented-out command is not a caller."""
         body = _SCHEDULED_WF.replace(
-            "        run: make ze-ipsec-interop-test",
-            "        # run: make ze-ipsec-interop-test",
+            "        run: make ze-interop-ipsec-test",
+            "        # run: make ze-interop-ipsec-test",
         )
         with _workflows(nightly=body) as d:
             found = R.scheduled_workflow_targets(d)
         self.assertIn("ze-interop-test", found)
-        self.assertNotIn("ze-ipsec-interop-test", found)
+        self.assertNotIn("ze-interop-ipsec-test", found)
 
     def test_scheduled_workflow_targets_fails_closed_when_unreadable(self):
         """The unsafe direction is answering 'everything runs': that would upgrade every
@@ -7384,7 +7384,7 @@ class TestInteropTierIsDerivedFromWorkflows(unittest.TestCase):
             line=3,
         )
         msg = str(R._refuse_unrun(by_name["interop-ipsec"], tag))
-        self.assertIn("make ze-ipsec-interop-test", msg)
+        self.assertIn("make ze-interop-ipsec-test", msg)
         self.assertIn("nothing executes automatically", msg)
 
     def test_l2tp_and_pppoe_stay_unrun_today(self):
@@ -7463,7 +7463,7 @@ class TestTierMatchesPipelineReality(unittest.TestCase):
                 continue
             target = _make_target(c.runner)
             stages = _verify_stages(verify_src)
-            # Prefix, not equality: ze-verify splits the unit run into ze-unit-test-cached
+            # Prefix, not equality: ze-precommit-verify splits the unit run into ze-unit-test-cached
             # and ze-unit-test-race-changed (full) or ze-unit-test-changed (changed mode),
             # while `make ze-unit-test` is the whole-suite target a human runs. What must
             # hold is that SOME verify stage runs this target's work.
@@ -7489,7 +7489,7 @@ class TestTierMatchesPipelineReality(unittest.TestCase):
             self.assertIn(
                 suite,
                 tokens,
-                f"carrier {c.name} claims a ze-verify functional suite that "
+                f"carrier {c.name} claims a ze-precommit-verify functional suite that "
                 f"mk/test-functional.mk does not run",
             )
 
@@ -8651,7 +8651,7 @@ class TestAuditUnitFreshness(_AuditFixture):
 
     def test_shifted_message_names_reseal_and_not_index(self):
         """AC-14 is explicit about the WORDS: the remedy is `make ze-rfc-reseal`, and it must not
-        name `make ze-rfc-index`, which does not clear this state (A-7)."""
+        name `make ze-rfc-index-update`, which does not clear this state (A-7)."""
         v = self.verdict()
         v["tests"] = {self.key: "0" * 16}
         errs = R.check_audit_freshness(
@@ -8660,7 +8660,7 @@ class TestAuditUnitFreshness(_AuditFixture):
         self.assertTrue(errs)
         self.assertIn("make ze-rfc-reseal", errs[0])
         self.assertIn("SHIFTED", errs[0])
-        self.assertNotIn("ze-rfc-index", errs[0])
+        self.assertNotIn("ze-rfc-index-update", errs[0])
 
     def test_stale_message_does_not_offer_the_mechanical_remedy(self):
         """The inverse, and the one that matters: a real judgement change must not be handed a
@@ -9922,7 +9922,7 @@ class TestScopeReaderIsDeclared(unittest.TestCase):
 class TestIndexNeverWritesAudit(_AuditFixture):
     """A-7/AC-16: `--check` is read-only and `--write` touches the ledger alone, so
     `--reseal` is the only path by which an evidence file changes without a human editing it.
-    ze-rfc-index runs ROUTINELY, for reasons that have nothing to do with an audit."""
+    ze-rfc-index-update runs ROUTINELY, for reasons that have nothing to do with an audit."""
 
     def _snapshot(self, adir):
         out = {}
@@ -10008,7 +10008,7 @@ class TestResealOnlyTouchesShifted(_AuditFixture):
                 code, out = _run_capturing(R.run_reseal)
         self.assertEqual(code, 0, out)
         self.assertIn("re-stamped", out)
-        self.assertIn("ze-rfc-index", out, "the follow-up command must be named")
+        self.assertIn("ze-rfc-index-update", out, "the follow-up command must be named")
 
     def test_run_reseal_fails_closed_on_a_malformed_record(self):
         stem = "rfc9999"
@@ -10077,7 +10077,7 @@ class TestWorklistMeaningNamesTheState(unittest.TestCase):
     Every non-fresh reason rendered "the verdict no longer describes what it judged", which is the
     OPPOSITE of what `shifted` means -- there the tagged unit IS byte-identical and only the file
     around it moved -- so the ledger sent that reader to re-read an RFC when one mechanical
-    command clears it. Reachable transiently between `ze-rfc-index` and `ze-rfc-reseal`.
+    command clears it. Reachable transiently between `ze-rfc-index-update` and `ze-rfc-reseal`.
     """
 
     def test_shifted_says_byte_identical_and_names_reseal(self):
@@ -12442,20 +12442,20 @@ class TestRealTree(unittest.TestCase):
 
         566 tag lines across 73 files moved during the pilot. A moved tag line stales the
         ledger, and the ledger then cites a test at a line that holds something else. The
-        fix is `make ze-rfc-index` in the same commit, never a hand edit.
+        fix is `make ze-rfc-index-update` in the same commit, never a hand edit.
         """
         enrolled, reqs, _errs, tags, _by_stem = R._collect_for_check()
         self.assertEqual(
             R.check_ledger_fresh(reqs, tags, enrolled),
             [],
-            "regenerate with: make ze-rfc-index",
+            "regenerate with: make ze-rfc-index-update",
         )
 
         # The rows live in RFC 7296's own shard, which is where the operator's question
         # ("which test enforces this requirement") is answered after the split.
         path = R.shard_path("rfc7296")
         self.assertTrue(
-            os.path.exists(path), f"{path} is absent -- run: make ze-rfc-index"
+            os.path.exists(path), f"{path} is absent -- run: make ze-rfc-index-update"
         )
         with open(path, encoding="utf-8") as fh:
             shard = fh.read()

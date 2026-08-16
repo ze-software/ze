@@ -407,7 +407,7 @@ Migrate one family at a time. Each family is an independently mergeable unit. Or
    - Verify: build clean, no references
 
 9. **Functional tests** -- existing .ci tests pass
-10. **Full verification** -- `make ze-verify`
+10. **Full verification** -- `make ze-precommit-verify`
 11. **Complete spec** -- learned summary, two-commit closure
 
 ### Critical Review Checklist
@@ -652,7 +652,7 @@ plugin dispatch. `test/encode/{flow,flow-redirect,simple-flow,flow-rate-packets}
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `make ze-test` passes
+- [ ] `make ze-standard-test` passes
 - [ ] Feature code integrated
 - [ ] Integration completeness proven end-to-end
 - [ ] Documentation Update Checklist answered

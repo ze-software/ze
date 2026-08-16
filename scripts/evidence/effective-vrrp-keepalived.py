@@ -389,7 +389,7 @@ def probe_kernel_feature(cmd: list[str], config_symbol: str, what: str) -> None:
             f"kernel lacks {what}: `{' '.join(cmd)}` failed in a private namespace. "
             f"This lab needs {config_symbol} in the running kernel. "
             f"Either boot a kernel with {config_symbol} built in (add it to "
-            f"gokrazy/kernel/runtime.config and run `make ze-kernel`, then pass "
+            f"gokrazy/kernel/runtime.config and run `make ze-kernel-build`, then pass "
             f"--kernel tmp/kernel/vmlinuz to qemu-run.py like the l2tp/pppoe labs "
             f"in mk/test-integration.mk), or install the matching module package."
         )

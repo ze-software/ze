@@ -38,7 +38,7 @@ netlab daemons usually build their own image. Ze does not, and `ze.yml` sets
 `clab.build: False` with `image: netlab/ze:latest`. Build that image from the ze
 tree first:
 
-    make ze-docker-lab
+    make ze-docker-lab-build
 
 It is a SECOND image, not the deployment one. `docker/Dockerfile` stays a static
 binary on a scratch base. The lab image adds a shell and `iproute2`, because
@@ -64,7 +64,7 @@ netlab searches both by default (`netsim/defaults/paths.yml`,
 
 ## Running the reference topology
 
-    make ze-docker-lab
+    make ze-docker-lab-build
     netlab up -t contrib/netlab/topology.yml
 
 The topology is three ze nodes:
@@ -118,5 +118,5 @@ ze still RUNS what they emitted.
 - **No LLDP.** Ze sends and receives no LLDP frame, so a netlab validation that
   reads an LLDP table cannot pass. containerlab does not need LLDP. Its links
   are veths the topology names.
-- **No published image.** `make ze-docker-lab` builds it locally. There is
+- **No published image.** `make ze-docker-lab-build` builds it locally. There is
   nothing to pull.

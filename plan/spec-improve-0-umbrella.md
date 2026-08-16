@@ -226,7 +226,7 @@ Umbrella only: user stories live in child specs.
 
 ### Goal Gates (MUST pass)
 - [ ] All six child specs individually pass their own gates
-- [ ] `make ze-test` passes after each child lands
+- [ ] `make ze-standard-test` passes after each child lands
 
 ### TDD
 - [ ] Tests written (per child)

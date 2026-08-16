@@ -28,7 +28,7 @@ is the probe Ze is waiting on. Without that step the absence below would also ho
 for a Ze that simply never rekeys.
 
 NOTE: requires the Docker strongSwan interop lab; run under
-      `make ze-ipsec-interop-test IPSEC_INTEROP_SCENARIO=24-delete-while-window-held`.
+      `make ze-interop-ipsec-test IPSEC_INTEROP_SCENARIO=24-delete-while-window-held`.
 """
 
 import os

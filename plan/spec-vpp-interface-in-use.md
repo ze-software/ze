@@ -195,7 +195,7 @@ Add referential-integrity validation for VPP interface usage:
 3. **Phase: Conflict + dangle detection** — reject conflicts and delete-while-referenced with clear messages.
    - Tests: `TestVPPInterfaceConflictFeatureAndMember`, `TestVPPInterfaceDeleteWhileReferenced`, `TestVPPInterfaceSingleRoleOK`
 4. **Functional test**
-5. **Full verification** → `make ze-verify`
+5. **Full verification** → `make ze-precommit-verify`
 6. **Complete spec** → audit, learned summary, two-commit closure.
 
 ### Critical Review Checklist (/implement stage 6)
@@ -265,7 +265,7 @@ Add referential-integrity validation for VPP interface usage:
 - [ ] End-to-End User Stories: every story has a working path and passing test
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `make ze-test` passes
+- [ ] `make ze-standard-test` passes
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Documentation Update Checklist answered
 

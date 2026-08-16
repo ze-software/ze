@@ -11,7 +11,7 @@ Validates: Phase A of spec-fixit-ipsec-clear-reestablish. Ze initiates a PSK tun
 Prevents:  a malformed / mis-placed Delete on the clear path, and the clear paying a
            full DPD timeout against a live peer.
 
-NOTE: requires the Docker strongSwan interop lab; run under `make ze-ipsec-interop-test`.
+NOTE: requires the Docker strongSwan interop lab; run under `make ze-interop-ipsec-test`.
       Authored in a parked session that could not run Docker; validate at CI.
 """
 

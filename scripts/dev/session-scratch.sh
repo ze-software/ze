@@ -18,7 +18,7 @@
 #
 # So two sessions never clobber each other's scratch, and an operator reads the
 # age of a session off its name and removes it by date, with
-# `make ze-clean-sessions BEFORE=<YYYY-MM-DD>`.
+# `make ze-sessions-clean BEFORE=<YYYY-MM-DD>`.
 #
 # NOTHING under tmp/session/ is ever removed automatically (owner decision,
 # 2026-08-03): not at session end, not on an age timer, not by a hook. The price

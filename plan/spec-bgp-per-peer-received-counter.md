@@ -326,7 +326,7 @@ this spec's Task asks for.
    - Files: `lg/handler_api.go`
    - Verify: received >= imported.
 4. **Functional tests** -> both `.ci` pass.
-5. **Full verification** -> `make ze-verify-changed` (scope to changed while other sessions run).
+5. **Full verification** -> `make ze-precommit-verify-changed` (scope to changed while other sessions run).
 6. **Complete spec** -> audit tables, learned summary, two-commit closure.
 
 ### Critical Review Checklist (/implement stage 6)
@@ -384,7 +384,7 @@ Facts established while auditing; carry these into any re-design.
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete - every row has a concrete test name
 - [ ] `/ze-review` gate clean
-- [ ] `make ze-test` passes (or `make ze-verify-changed` when scoped, with rationale)
+- [ ] `make ze-standard-test` passes (or `make ze-precommit-verify-changed` when scoped, with rationale)
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Documentation Update Checklist answered Yes/No with source evidence
 

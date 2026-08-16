@@ -317,7 +317,7 @@ producer, and it passes two arguments so the cut stays UNBOUNDED.
 UPDATE and the observer reports `dest peer was never sent the relayed copy of the
 stored route`, while the plugin still reports `replay selected 1 route(s)` — the
 exact gap between plugin-side selection and engine-side relay that the old test
-could not see. GREEN once restored. `make ze-plugin-test` 558/558.
+could not see. GREEN once restored. `make ze-functional-plugin-test` 558/558.
 
 ### I-6 — smaller relay gaps
 
@@ -713,7 +713,7 @@ path-id. Step 2's chunking bounds route count rather than bytes.
 4. Ownership scope and respawn (I-3, I-4).
 5. Make `adj-rib-in-replay-on-peerup.ci` gate (I-5); mutation-verify.
 6. The smaller gaps (I-6).
-7. `make ze-verify`, `make ze-race-reactor`, per-test stress-repro; independent review to clean.
+7. `make ze-precommit-verify`, `make ze-unit-reactor-test-race`, per-test stress-repro; independent review to clean.
 
 ## Checklist
 ### TDD
@@ -723,7 +723,7 @@ path-id. Step 2's chunking bounds route count rather than bytes.
 ### Completion (BLOCKING — before ANY commit)
 - [ ] Every AC has working code + test
 - [ ] 372 / 378 / 394 / 395 still green and non-reproducing under stress
-- [ ] `make ze-race-reactor` green
-- [ ] `make ze-test` passes
+- [ ] `make ze-unit-reactor-test-race` green
+- [ ] `make ze-standard-test` passes
 - [ ] Independent review clean
 - [ ] Learned summary written

@@ -2,7 +2,7 @@
   The image recipe netlab would use if it built the ze image itself.
 
   It does not build it today: contrib/netlab/ze.yml sets `clab.build: False` and
-  names netlab/ze:latest, which `make ze-docker-lab` builds from
+  names netlab/ze:latest, which `make ze-docker-lab-build` builds from
   docker/Dockerfile.lab in the ze tree. That is the right way round while ze is
   unpublished, because the lab image and the deployment image must carry the
   SAME feature set, and only the ze tree holds feature-gates.txt, the file both

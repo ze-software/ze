@@ -30,7 +30,7 @@ to be executed on a root host".
 - **Full QEMU gokrazy L2TP appliance proof (from spec-gokrazy-init-bump AC-6, 2026-07-10)** -
   **DISCHARGED 2026-08-05.** It ran at the source spec's closure on the dev host, which by
   then carried `qemu-system-x86_64`, `xl2tpd`, `pppd`, `/dev/ppp`, `l2tp_ppp` and kvm-group
-  access: `make ze-vpp-hugepages-qemu-test` -> `VPP-HUGEPAGES-QEMU: PASS cmdline has
+  access: `make ze-qemu-vpp-hugepages-test` -> `VPP-HUGEPAGES-QEMU: PASS cmdline has
   hugepages=64, hugepages-total=64`, and `scripts/evidence/effective-gokrazy-l2tp-ppp.py`
   -> exit 0, `OK: gokrazy Ze appliance completed real L2TP PPP/IPCP with Ze ppp0 and LAC
   ppp0, dataplane ping, route inject, and clean teardown`. The row in
@@ -39,16 +39,16 @@ to be executed on a root host".
   assumption is now testable rather than assumed.
   -> Trap found while discharging it: the durable runtime-kernel cache entry can be keyed
   `<pinned-version>-...` while holding a DIFFERENT release with no `modules.builtin`. The
-  proof fails closed with exit 1 and names the fix (`make ze-kernel KERNEL_ARCH=amd64`).
+  proof fails closed with exit 1 and names the fix (`make ze-kernel-build KERNEL_ARCH=amd64`).
   Under `sudo` it probes ROOT's cache, so pass `XDG_CACHE_HOME` at the cache holding the
   kernel.
   -> Constraint (added 2026-08-03 at the source spec's closure): the boot proof is
-  `make ze-vpp-hugepages-qemu-test` plus `ze-deployment-gokrazy-l2tp-ppp-test`.
+  `make ze-qemu-vpp-hugepages-test` plus `ze-deployment-gokrazy-l2tp-ppp-test`.
   It is NOT `test/appliance/serial-login.ci`, which boots nothing and which the
   source spec wrongly named (`ai/rules/platform-linux.md` strikes it out of the
   proof table).
   -> Constraint: **read the known fail-open before diagnosing a boot failure.**
-  `make ze-gokrazy` injects the seed database with `debugfs -w -R`, whose stderr
+  `make ze-gokrazy-build` injects the seed database with `debugfs -w -R`, whose stderr
   it discards and which exits 0 even when the write fails. An image whose
   `/perm` database was never written therefore builds green and dies at boot
   with no cause in the build log. That is a live deferral homed at
@@ -236,7 +236,7 @@ run reveals a defect, that defect gets its own spec.
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled — 0 BLOCKER, 0 ISSUE)
-- [ ] `make ze-test` passes (lint + all ze tests)
+- [ ] `make ze-standard-test` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
 - [ ] Integration completeness proven end-to-end
 - [ ] Documentation Update Checklist answered Yes/No with source evidence

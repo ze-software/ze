@@ -18,7 +18,7 @@
 // it honest is its self-test.
 //
 // Usage:   go run scripts/checks/yang_leaf_mentions.go [--json] [--selftest]
-// Called by: make ze-yang-leaf-mentions (advisory; not a verify stage)
+// Called by: make ze-yang-leaf-mentions-report (advisory; not a verify stage)
 //
 //go:build ignore
 

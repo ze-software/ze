@@ -486,7 +486,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
    - Verify: deprecated commands show `[deprecated]` suffix; removed commands hidden from help
 
 9. **Functional tests** -- create end-to-end .ci tests
-10. **Full verification** -- `make ze-verify`
+10. **Full verification** -- `make ze-precommit-verify`
 11. **Complete spec** -- audit, learned summary, spec closure
 
 ### Critical Review Checklist (/implement stage 6)
@@ -623,7 +623,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 - [ ] AC-1..AC-12 all demonstrated
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `make ze-test` passes
+- [ ] `make ze-standard-test` passes
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
 - [ ] Integration completeness proven end-to-end
 - [ ] Architecture docs updated

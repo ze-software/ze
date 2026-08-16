@@ -107,7 +107,7 @@ tests gain `RFC requirement:` tags; the 9 zero-capture summaries are re-authored
    every MUST-level requirement is covered or annotated.
 2. Tagging enforcing tests (`RFC requirement: <id> <polarity>`) makes the derived ledger show the
    requirement→test link; the gate turns green for that RFC.
-3. `make ze-rfc-index` regenerates `ai/RFC-REQUIREMENTS.md`; `ze-doc-test` fails if it is stale.
+3. `make ze-rfc-index-update` regenerates `ai/RFC-REQUIREMENTS.md`; `ze-doc-verify` fails if it is stale.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -163,7 +163,7 @@ Design not started. When picked up, run `/ze-spec` to:
 ### Assumptions
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|-----------|-------|----------|--------------|--------|
-| A-1 | The rollup's nearest-to-enrollable ranking is still accurate after the pilot's fixes | `ai/RFC-REQUIREMENTS.md` derived rollup | Re-rank before starting | Re-run `make ze-rfc-index` and read the rollup | unvalidated |
+| A-1 | The rollup's nearest-to-enrollable ranking is still accurate after the pilot's fixes | `ai/RFC-REQUIREMENTS.md` derived rollup | Re-rank before starting | Re-run `make ze-rfc-index-update` and read the rollup | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -182,7 +182,7 @@ and the enforcing test carries the machine-checked `// RFC requirement: <id> <po
 - [ ] Tests written for each newly tagged requirement
 - [ ] Tests FAIL before the enforcing code/tag exists
 - [ ] Tests PASS after
-- [ ] `make ze-test` passes
+- [ ] `make ze-standard-test` passes
 - [ ] `make ze-rfc-check` green for every enrolled RFC
 
 ### Quality Gates (SHOULD pass)

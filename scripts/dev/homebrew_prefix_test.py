@@ -505,7 +505,7 @@ class TestKegOnlyLookupCoversBothLayouts(unittest.TestCase):
         """Asserted over WHERE the probe looks, not over what it answers.
 
         `probe_e2fsprogs` ends its list with /usr/sbin and /sbin, so on
-        any Linux host that has e2fsprogs -- which `make ze-setup` installs as a
+        any Linux host that has e2fsprogs -- which `make ze-dev-setup` installs as a
         required tool, and which is where `python_tests_test.go` runs this --
         the boolean is True with both Homebrew branches deleted. A test on the
         boolean alone is green either way. `e2fsprogs_dirs` exists so this
@@ -540,7 +540,7 @@ class TestKegOnlyLookupCoversBothLayouts(unittest.TestCase):
 
         `shutil.which` answers nothing for a keg-only formula however well it is
         installed, so this is the only thing standing between a correct machine
-        and `make ze-setup` offering to reinstall what is already there.
+        and `make ze-dev-setup` offering to reinstall what is already there.
         """
         for layout in (
             ("opt", "e2fsprogs", "sbin"),

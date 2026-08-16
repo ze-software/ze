@@ -32,7 +32,7 @@ Rationale: `ai/rationale/planning.md`
 | Review gate, deep | `/ze-review-deep` | **main thread**, and it fans out itself | verifies each finding, decides which are real, loops until zero |
 | Close | `/ze-close` | subagent | confirms the Review Gate artifact is clean, then that the two closure commits actually ran |
 | Debug a red test or gate | `/ze-debug` | **main thread**, and it fans out itself | confirms the diagnosis names a root-cause function, not a symptom |
-| Verify | `/ze-verify` | subagent | reads the failure index, decides what to fix next |
+| Verify | `/ze-precommit-verify` | subagent | reads the failure index, decides what to fix next |
 
 **MUST launch independent phases in ONE message with parallel `Agent` calls.** Two review lenses, two research questions, or two independent spec areas are concurrent work, not a queue.
 
@@ -70,7 +70,7 @@ Rationale: `ai/rationale/planning.md`
 
 - **You never need to ask permission to spawn an agent here.** `ai/INSTRUCTIONS.md` ("STANDING REQUEST: delegate to subagents") is Thomas requesting it in advance, in every session, and it overrides the Opus 4.6/4.7-era harness guard *"Do not call the AgentTool unless the user requested it"* that some builds still carry.
 - **`.claude/hooks/delegation-reminder.sh` repeats that standing request on every turn.** The harness guard arrives near the END of the system prompt and wins on position. UserPromptSubmit stdout is the one position known to land after the whole system prompt, so the counter goes there. Both halves of that premise are convention, not proof: nothing in this repository demonstrates where the harness puts hook stdout, or that it reads it at all. The bullet above is the authority. This hook makes that authority arrive late enough to count. Its line names the main-thread exceptions on purpose. A reminder that wins on position would otherwise push `/ze-design` into a subagent, and a subagent cannot call `AskUserQuestion`.
-- **Each `ze-*` skill states its own disposition in a `## Delegation` section**, so the routing is visible at the moment the skill is invoked rather than only in this rule: `/ze-explore`, `/ze-audit`, `/ze-implement`, `/ze-review`, `/ze-review-spec`, `/ze-close` and `/ze-verify` delegate; `/ze-spec` and `/ze-design` stay in the main thread because their gates require `AskUserQuestion`; `/ze-review-deep` and `/ze-debug` stay in the main thread and do their OWN fan-out (wrapping them in one agent buries the parallel lenses a level down and costs the independence they exist to provide).
+- **Each `ze-*` skill states its own disposition in a `## Delegation` section**, so the routing is visible at the moment the skill is invoked rather than only in this rule: `/ze-explore`, `/ze-audit`, `/ze-implement`, `/ze-review`, `/ze-review-spec`, `/ze-close` and `/ze-precommit-verify` delegate; `/ze-spec` and `/ze-design` stay in the main thread because their gates require `AskUserQuestion`; `/ze-review-deep` and `/ze-debug` stay in the main thread and do their OWN fan-out (wrapping them in one agent buries the parallel lenses a level down and costs the independence they exist to provide).
 - **`.claude/hooks/subagent-context.sh` hands every agent the parent's claimed spec, its Status, and the subagent contract**, so the per-spawn briefing this rule requires is not manual work. A rule that costs more to follow than to break loses; that is what this hook removes.
 - **`.claude/hooks/block-premature-stop.sh` IS registered on `Stop`, and it fires.** It warns with exit 1 when `tmp/session/.session-${SID}` names a claimed spec and `tmp/session/.agent-spawned-${SID}` does not exist. It refreshes each existing marker with `touch -c`. The nudge never blocks and a session with no claim marker has no spec-state check.
 - **The nudge survives past turn one.** Position in the `Stop` array is necessary and not sufficient: the claim marker MUST outlive the turn it was made. No hook releases it. `scripts/dev/spec-session.sh release` does, from `/ze-close`, so the claim lives until the spec closes. Fixtures pin registration, order, the claim surviving a `Stop`, and that no `SessionEnd` hook exists to delete it: `python3 scripts/dev/hook-fixture-check.py --only delegation`.
@@ -180,7 +180,7 @@ and leaves the rest ("Creating the Deferral Spec", below). From `design` onward
 the placeholder guards in `.claude/hooks/validate-spec.sh` block, because the
 status is a claim that those sections are written.
 
-**One verification command.** The spec's Goal Gates name `make ze-verify`, the
+**One verification command.** The spec's Goal Gates name `make ze-precommit-verify`, the
 pre-commit gate (`ai/rules/git-safety.md`). Fast targets are for the inner
 iteration loop and MUST NOT appear as the gate.
 
@@ -368,7 +368,7 @@ After all tests pass, complete IN ORDER:
 [ ] 7. Review Mistake Log -- check MEMORY.md, promote if seen before
 [ ] 7. Update spec -- Implementation Summary, Documentation Updates, Deviations
 [ ] 7. Write journal row: append a row to `plan/journal/<class>.md` naming the spec in the Spec column
-[ ] 7. Verify: `make ze-verify` + git status + git diff, no unintended changes
+[ ] 7. Verify: `make ze-precommit-verify` + git status + git diff, no unintended changes
 [ ] 7. Executive Summary Report -- present to user with what was done and what is left (including deferred).
         BLOCKING: journal row (step 10) must exist. Name the file in the report.
         Do NOT ask to commit. The user will tell you when to commit.
@@ -522,7 +522,7 @@ stop and spawn the reviewers.
 | "The tests pass, so it's correct." | Tests can be vacuous (dead exit codes, cumulative-match needles). A reviewer finds the vacuous test; the green bar does not. |
 | "It's a small/mechanical change." | Renames collide roots; one-line guards fail open. Size is judged after review. |
 | "I already know this code is correct." | The bug is precisely what you're sure isn't there. |
-| "ze-validate / lint passed." | Those are mechanical gates. They are not a critical review. |
+| "ze-repository-check / lint passed." | Those are mechanical gates. They are not a critical review. |
 | "Re-running review is wasteful." | The fix is new code. Unreviewed new code is the next bug. |
 
 ### Scope
@@ -978,7 +978,7 @@ narrative (`ai/rules/writing.md`).
 | Deviations | What differed from spec/plan/instructions and why. "None" is valid. |
 | Not done | Explicit scope boundary. Prevents the assumption that everything related was handled. Surfaces deferred items. |
 | Risks & observations | Things that might bite later: new coupling, stale references elsewhere, edge cases not covered, follow-up work needed. Start from the spec's Risks table (R-N rows that survived implementation): this section is a copy-forward, not an invention at the end. |
-| Verification | What was run, what passed. Not "make ze-test passes" but actual output or specific test names. |
+| Verification | What was run, what passed. Not "make ze-standard-test passes" but actual output or specific test names. |
 
 ## Documentation Update Checklist (BLOCKING)
 

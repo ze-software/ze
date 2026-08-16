@@ -232,7 +232,7 @@ reach green (`ai/rules/completion.md`).
 
 ### Goal Gates (MUST pass)
 - [ ] Every AC demonstrated
-- [ ] `make ze-verify` passes
+- [ ] `make ze-precommit-verify` passes
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 - [ ] Feature code integrated, not library-only
 

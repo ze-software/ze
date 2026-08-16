@@ -181,7 +181,7 @@ func NewRunner(tests *EncodingTests, baseDir string) (*Runner, error) {
 	// are attributable and go with that session's directory when the operator
 	// removes it, instead of accumulating as unowned $TMPDIR/ze-functional-*
 	// dirs. They do not "die with the session": nothing under tmp/session/ is
-	// removed automatically, and `make ze-clean-sessions BEFORE=<YYYY-MM-DD>` is
+	// removed automatically, and `make ze-sessions-clean BEFORE=<YYYY-MM-DD>` is
 	// the route. EnsureScratchRoot returns "" when no
 	// session is active, which is exactly what MkdirTemp reads as "use the
 	// system temp dir" -- so a human or CI run is unchanged.
@@ -439,7 +439,7 @@ func (r *Runner) Run(ctx context.Context, opts *RunOptions) bool {
 	// Set on the RUNNER, so every child inherits it -- childEnv covers only the
 	// sites that build an explicit env, and a site that leaves Cmd.Env nil hands
 	// the child this process's environment instead. Measured before this line
-	// existed: 72 ze samples in one ze-ospf-test run, 7 with the variable.
+	// existed: 72 ze samples in one ze-functional-ospf-test run, 7 with the variable.
 	// A caller's own value wins; see childEnv for what the variable does and,
 	// more importantly, does not buy.
 	if os.Getenv("GOTRACEBACK") == "" { //nolint:forbidigo // Go runtime var, not a ze.* setting

@@ -13,7 +13,7 @@ Contract:
     every worktree/checkout gets its own scratch (never key on --git-common-dir).
   - NEVER converts an existing REAL tmp/ directory in place (never-destroy-work +
     concurrent-session safety). It only creates a symlink when the path is absent or is
-    already a symlink. Converting a populated real tmp/ is `make ze-migrate-scratch`'s job.
+    already a symlink. Converting a populated real tmp/ is `make ze-scratch-migrate`'s job.
   - The durable cache root matches Go's resolveCacheDir() (internal/appliance/cache.go:47-57).
 """
 
@@ -110,7 +110,7 @@ def ensure_symlink(link: Path, target: Path, auto_repoint: bool = True) -> str:
     if link.exists():
         return (
             f"SKIP     {link.name}: a real path exists here; "
-            f"run `make ze-migrate-scratch` to convert it to a symlink"
+            f"run `make ze-scratch-migrate` to convert it to a symlink"
         )
 
     try:
@@ -157,7 +157,7 @@ SENTINEL = """\
 // that would otherwise fail with "directory ... outside main module").
 //
 // Committed so it is present on a fresh checkout. scripts/dev/ensure-links.py recreates
-// it whenever tmp/ is a real directory; after the opt-in `make ze-migrate-scratch`, tmp/
+// it whenever tmp/ is a real directory; after the opt-in `make ze-scratch-migrate`, tmp/
 // is a symlink that `go list` skips without any sentinel, so this file is not needed there.
 // Keep this content in sync with SENTINEL in scripts/dev/ensure-links.py.
 module ze-tmp-scratch

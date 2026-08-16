@@ -19,7 +19,7 @@ Generate a structured implementation summary from an RFC text file.
 3. WRITE: `rfc/short/$ARGUMENTS.md`
 4. CHECK errata: https://www.rfc-editor.org/errata/rfcNNNN
 5. ALLOCATE requirement IDs (see "Requirement IDs" below) — every checklist line gets one
-6. REGISTER: run `make ze-rfc-index` to render the requirement into `rfc/requirements/<stem>.md`,
+6. REGISTER: run `make ze-rfc-index-update` to render the requirement into `rfc/requirements/<stem>.md`,
    then `make ze-rfc-check`. **A summary that is new since HEAD and declares gated MUSTs
    must be enrolled in the same change** (`check_new_summaries`): writing obligations down
    and gating none of them is how a compliance claim rots. Enrolling does not mean every
@@ -73,7 +73,7 @@ nothing re-checked. Record the walk instead, in an artifact a machine re-checks 
 `make ze-rfc-check`:
 
 ```
-make ze-rfc-extract STEM=$ARGUMENTS     # writes an UNCLASSIFIED skeleton
+make ze-rfc-extraction-create STEM=$ARGUMENTS     # writes an UNCLASSIFIED skeleton
                                         # then classify every site and section by hand
 make ze-rfc-check                       # re-derives the inventory and judges it
 ```
@@ -101,7 +101,7 @@ list says which sentence, by name.
 
 ## Keep the ledger committed (BLOCKING)
 
-`make ze-rfc-index` writes two outputs from the summaries and the `RFC requirement:` tags.
+`make ze-rfc-index-update` writes two outputs from the summaries and the `RFC requirement:` tags.
 One is `ai/RFC-REQUIREMENTS.md`, the index of counts, coverage rollup, audit coverage,
 extraction sign-off and backlog. The other is one file per RFC under `rfc/requirements/`,
 holding that RFC's requirement rows.
@@ -110,11 +110,11 @@ The per-RFC file records each enforcing test's `file:line`. It goes stale when y
 retire a requirement. It also goes stale whenever a tagged test is added, moved, deleted or
 re-tagged. An unrelated edit that shifts a tagged test's line stales it too.
 
-Regenerate with `make ze-rfc-index`. **Commit BOTH outputs in the SAME commit** as the
+Regenerate with `make ze-rfc-index-update`. **Commit BOTH outputs in the SAME commit** as the
 change that caused the drift: the index, and every changed file under `rfc/requirements/`.
 Commit the index alone and the gate is red for the next session.
 `ze-rfc-check` renders both and fails on any mismatch, and it
-runs in both `ze-verify` and `ze-verify-changed` (`check_ledger_fresh`,
+runs in both `ze-precommit-verify` and `ze-precommit-verify-changed` (`check_ledger_fresh`,
 `scripts/dev/rfc_requirements.py`). A ledger left stale is not silently tolerated: it
 surfaces later as a cross-commit diff that the next session inherits and the freshness gate
 pins on them. This cuts both ways: it is also why you must not regenerate the ledger as a
@@ -370,7 +370,7 @@ Step-by-step, pseudocode if RFC provides it.
 - Every checklist line gets a unique, permanent ID. Never renumber, never reuse
 - Never tick a checkbox — coverage is derived from test tags, not declared here
 - Never hand-write a test path into a summary — `rfc/requirements/<stem>.md` is generated
-- Run `make ze-rfc-index` and commit BOTH its outputs in the same change whenever a tagged
+- Run `make ze-rfc-index-update` and commit BOTH its outputs in the same change whenever a tagged
   test is added, moved, deleted, or re-tagged: `ai/RFC-REQUIREMENTS.md` and every changed
   file under `rfc/requirements/`. The per-RFC file records `file:line`, and `ze-rfc-check`
   fails on a stale index and on a stale per-RFC file
@@ -391,7 +391,7 @@ Step-by-step, pseudocode if RFC provides it.
 | Need | Use |
 |------|-----|
 | Check requirements are covered | `make ze-rfc-check` |
-| Regenerate the requirement ledger | `make ze-rfc-index` → `ai/RFC-REQUIREMENTS.md` and `rfc/requirements/` |
+| Regenerate the requirement ledger | `make ze-rfc-index-update` → `ai/RFC-REQUIREMENTS.md` and `rfc/requirements/` |
 | Read one RFC's requirement → test rows | `python3 scripts/dev/rfc_requirements.py --show <stem>` |
 | Re-audit that tests still enforce letter and spirit | `/ze-rfc-audit <rfc>` |
 | Public per-RFC support status | `docs/features/rfc-status.md` (product ledger; must agree with `{gap}` annotations) |

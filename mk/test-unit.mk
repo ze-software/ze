@@ -2,18 +2,18 @@
 #
 # Quick reference:
 #   make ze-unit-test          All packages, -race (~5 min)
-#   make ze-test-bgp           BGP component group only (~1:30)
-#   make ze-test-core           Core libraries only (~30s)
-#   make ze-test-plugins       Plugins only (~40s)
-#   make ze-test-config        Config only (~20s)
-#   make ze-test-cli           CLI only (~10s)
-#   make ze-test-rest          Everything else (~1:00)
-#   make ze-test-pkg PKG=...   ONE package or pattern, while developing it
+#   make ze-unit-bgp-test           BGP component group only (~1:30)
+#   make ze-unit-core-test           Core libraries only (~30s)
+#   make ze-unit-plugins-test       Plugins only (~40s)
+#   make ze-unit-config-test        Config only (~20s)
+#   make ze-unit-cli-test           CLI only (~10s)
+#   make ze-unit-rest-test          Everything else (~1:00)
+#   make ze-unit-pkg-test PKG=...   ONE package or pattern, while developing it
 
-.PHONY: ze-unit-test ze-installer-unit-test ze-unit-test-cover ze-unit-test-cached ze-unit-test-race-changed
-.PHONY: ze-test-bgp ze-test-core ze-test-plugins ze-test-config ze-test-cli ze-test-rest ze-test-pkg
+.PHONY: ze-unit-test ze-unit-installer-test ze-unit-test-coverage ze-unit-test-cached ze-unit-test-race-changed
+.PHONY: ze-unit-bgp-test ze-unit-core-test ze-unit-plugins-test ze-unit-config-test ze-unit-cli-test ze-unit-rest-test ze-unit-pkg-test
 
-ze-unit-test ze-unit-test-cover ze-unit-test-cached ze-unit-test-race-changed ze-test-rest ze-test-pkg: ze-ensure-links
+ze-unit-test ze-unit-test-coverage ze-unit-test-cached ze-unit-test-race-changed ze-unit-rest-test ze-unit-pkg-test: ze-links-ensure
 
 # Component groups for scoped testing (ze-test-<group>).
 # "rest" = everything in ZE_PACKAGES not covered by a named group.
@@ -30,7 +30,7 @@ ZE_GROUP_REST    = $$(go list ./... | grep -v /cmd/ze-chaos \
 	| grep -v '^github.com/ze-software/ze/internal/component/cli')
 
 # Run ze unit tests with race detector (default-on features plus bare-core compile-out checks).
-ze-unit-test: ze-installer-unit-test
+ze-unit-test: ze-unit-installer-test
 	@echo "Running ze unit tests..."
 	$(GO_TEST_RACE) $(ZE_PACKAGES)
 	@echo "Unit tests: bare ze_core compile-out checks..."
@@ -52,15 +52,15 @@ ze-unit-test: ze-installer-unit-test
 #
 #     fork/exec .../disk.test: exec format error
 #
-# and took `make ze-unit-test` (and with it `make all`, `make ze-test`,
-# `make ze-smoke`) red on every darwin dev machine. So off Linux we type-check
+# and took `make ze-unit-test` (and with it `make all`, `make ze-standard-test`,
+# `make ze-smoke-verify`) red on every darwin dev machine. So off Linux we type-check
 # the tag-guarded files with `go vet` -- which compiles _test.go files without
 # running them, and unlike `go test -c` accepts a package pattern, so a second
 # package under internal/install cannot silently drop out -- and the real
 # execution happens in the Alpine VM via `make ze-qemu-integration-test`
 # (ai/rules/platform-linux.md: linux-only code runs under QEMU, never "unfixable
 # on this host").
-ze-installer-unit-test:
+ze-unit-installer-test:
 ifeq ($(shell go env GOOS),linux)
 	@echo "Unit tests: installer initrd (ze_installer tag)..."
 	GOOS=linux go test -tags 'ze_core ze_installer' ./internal/install/...
@@ -70,7 +70,7 @@ else
 endif
 
 # Run ze unit tests with coverage.
-ze-unit-test-cover:
+ze-unit-test-coverage:
 	@echo "Running ze unit tests with coverage..."
 	$(GO_TEST_RACE) -coverprofile=coverage.out $(ZE_PACKAGES)
 	go tool cover -html=coverage.out -o coverage.html
@@ -101,27 +101,27 @@ ze-unit-test-race-changed:
 # Each group covers one logical area. Use during development to test only
 # what you're working on. All groups together = ze-unit-test.
 
-ze-test-bgp:
+ze-unit-bgp-test:
 	@echo "Unit tests: bgp group..."
 	$(GO_TEST_RACE) $(ZE_GROUP_BGP)
 
-ze-test-core:
+ze-unit-core-test:
 	@echo "Unit tests: core group..."
 	$(GO_TEST_RACE) $(ZE_GROUP_CORE)
 
-ze-test-plugins:
+ze-unit-plugins-test:
 	@echo "Unit tests: plugins group..."
 	$(GO_TEST_RACE) $(ZE_GROUP_PLUGINS)
 
-ze-test-config:
+ze-unit-config-test:
 	@echo "Unit tests: config group..."
 	$(GO_TEST_RACE) $(ZE_GROUP_CONFIG)
 
-ze-test-cli:
+ze-unit-cli-test:
 	@echo "Unit tests: cli group..."
 	$(GO_TEST_RACE) $(ZE_GROUP_CLI)
 
-ze-test-rest:
+ze-unit-rest-test:
 	@echo "Unit tests: rest group (everything not in a named group)..."
 	$(GO_TEST_RACE) $(ZE_GROUP_REST)
 
@@ -131,28 +131,28 @@ ze-test-rest:
 # the same command. GOCACHE is exported by the top-level Makefile to
 # cache/go-cache and that export reaches make RECIPES only, so a shell run uses
 # the user's own ~/.cache/go-build: it rebuilds cold, shares nothing with
-# ze-verify, and leaves the project cache no warmer than it found it. The feature
+# ze-precommit-verify, and leaves the project cache no warmer than it found it. The feature
 # tags, the timeout, GOMAXPROCS and CGO_ENABLED for race come from GO_TEST /
 # GO_TEST_RACE and a shell run drops all of them (ai/rules/commands.md).
 #
-#   make ze-test-pkg PKG=./internal/component/ike/eap
-#   make ze-test-pkg PKG=./internal/component/ike/... RUN=TestEAPTLS
-#   make ze-test-pkg PKG=./scripts/dev RACE=0        # skip -race while iterating
+#   make ze-unit-pkg-test PKG=./internal/component/ike/eap
+#   make ze-unit-pkg-test PKG=./internal/component/ike/... RUN=TestEAPTLS
+#   make ze-unit-pkg-test PKG=./scripts/dev RACE=0        # skip -race while iterating
 #
 # RACE defaults to 1, matching the group targets above: a package tested without
-# it has not been tested the way ze-verify tests it.
+# it has not been tested the way ze-precommit-verify tests it.
 RACE ?= 1
 
-# Nested makes must stay QUIET, exactly as they are under ze-verify, which runs
+# Nested makes must stay QUIET, exactly as they are under ze-precommit-verify, which runs
 # every stage with --no-print-directory. A test that shells out to make and
 # compares stdout byte for byte (scripts/dev/session_bin_dir_test.py runs
-# `make ze-path`) otherwise sees a "make[1]: Entering directory" banner here and
-# not there, so the same package passes in ze-verify and fails in this target.
+# `make ze-session-binary-path`) otherwise sees a "make[1]: Entering directory" banner here and
+# not there, so the same package passes in ze-precommit-verify and fails in this target.
 # A scoped target whose verdict disagrees with the full gate is worse than no
 # scoped target at all.
-ze-test-pkg:
+ze-unit-pkg-test:
 ifndef PKG
-	$(error PKG is required, e.g. make ze-test-pkg PKG=./internal/component/ike/eap)
+	$(error PKG is required, e.g. make ze-unit-pkg-test PKG=./internal/component/ike/eap)
 endif
 	@echo "Unit tests: $(PKG)$(if $(RUN), -run $(RUN))$(if $(filter 0,$(RACE)), (no -race))..."
 	MAKEFLAGS=--no-print-directory $(if $(filter 0,$(RACE)),$(GO_TEST),$(GO_TEST_RACE)) $(if $(RUN),-run '$(RUN)') $(PKG)

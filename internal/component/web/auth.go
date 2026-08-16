@@ -523,7 +523,7 @@ func SecurityHeaders(next http.Handler) http.Handler {
 //
 // It is unexported because every caller is in this package: the daemon builds
 // its server here (server.go) and the captures live beside it. An exported name
-// with no cross-package caller is what `make ze-validate` refuses.
+// with no cross-package caller is what `make ze-repository-check` refuses.
 func serverHandler(mux http.Handler) http.Handler {
 	return SecurityHeaders(errorfragment.Middleware(mux))
 }

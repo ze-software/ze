@@ -783,8 +783,8 @@ def render_dir(rule_dir: Path) -> str:
     # shape: `points_on_disk` globs `<rule>/*/*.md` and the loop below globs
     # `<section>/*.md`. A point one level deeper is therefore read by nothing,
     # rendered into nothing, and named by no gate, while `ze-rules-render-check`,
-    # `ze-rules-gate-map` and `ze-rules-points-roundtrip` all exit 0. That is
-    # R-4, and `make ze-regen` renders in WRITE mode, so the instruction is gone
+    # `ze-rules-gate-map-report` and `ze-rules-points-roundtrip-check` all exit 0. That is
+    # R-4, and `make ze-generated-files-update` renders in WRITE mode, so the instruction is gone
     # from the rendered rule with every gate green.
     deep = sorted(
         "/".join(p.relative_to(rule_dir).parts)
@@ -1515,7 +1515,7 @@ def corpus_shrink(
     to 45 and testing 204 to 204, each having lost a point behind an addition,
     while planning's 191-to-186 drop was the only one it could see. A guard whose
     miss path returns the permissive answer is the shape `ai/rules/evidence.md`
-    refuses, and `make ze-rules-gate-map` exited 0 over all of it.
+    refuses, and `make ze-rules-gate-map-report` exited 0 over all of it.
 
     A RENAME is therefore a retirement of the old id. The count form could not
     see one at all; this one reports it, so the ledger row says where the
@@ -2179,7 +2179,7 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"rules-points: {line}", file=sys.stderr)
             print(
                 f"rules-points: {len(failures)} rule(s) are stale; "
-                "run `make ze-rules-render`",
+                "run `make ze-rules-render-update`",
                 file=sys.stderr,
             )
             return 1

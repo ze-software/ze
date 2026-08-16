@@ -49,7 +49,7 @@ disturbed.
 
 **Test surface that exists today.** `test/plugin/ddos-incident-confidence.ci` and
 the other twelve `ddos-*.ci` fixtures cover the detector and its responders;
-`make ze-plugin-test` is the owning gate. There is no functional fixture that
+`make ze-functional-plugin-test` is the owning gate. There is no functional fixture that
 drives the reporting client against a failing API, so the durability fix needs a
 new one that asserts an incident survives a failed open, which is the assertion
 that would fail today.

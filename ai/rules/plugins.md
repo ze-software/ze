@@ -798,7 +798,7 @@ Do not copy-paste the severity choice between plugins: judge each one on what ac
 
 ### The mechanical check
 
-`make ze-plugin-boundary-check` (wired into `ze-verify`/`ze-verify-changed`) runs `scripts/checks/plugin_process_boundary.go`: it scans every package under the generator's plugin search roots, derived at runtime from `scripts/codegen/plugin_imports.go`'s `pluginDirs` + `nestedPluginDomains` (13 namespaces today, including `internal/component/l2tp/plugins/` and `internal/component/firewall/plugins/`), never a second hardcoded list, for calls to a maintained dangerous-call list, and fails if a plugin package contains one with no `.IsInternal()`/`warnIfExternal(` call anywhere in that same package. `--print-roots` shows the derived set. This is a presence heuristic (it does not prove the guard actually covers the call at runtime), the same rigor level as the sibling `ze-iface-resolution-check`.
+`make ze-plugin-boundary-check` (wired into `ze-precommit-verify`/`ze-precommit-verify-changed`) runs `scripts/checks/plugin_process_boundary.go`: it scans every package under the generator's plugin search roots, derived at runtime from `scripts/codegen/plugin_imports.go`'s `pluginDirs` + `nestedPluginDomains` (13 namespaces today, including `internal/component/l2tp/plugins/` and `internal/component/firewall/plugins/`), never a second hardcoded list, for calls to a maintained dangerous-call list, and fails if a plugin package contains one with no `.IsInternal()`/`warnIfExternal(` call anywhere in that same package. `--print-roots` shows the derived set. This is a presence heuristic (it does not prove the guard actually covers the call at runtime), the same rigor level as the sibling `ze-iface-resolution-check`.
 <!-- source: scripts/checks/plugin_process_boundary.go -- loadScanRootsFrom -->
 
 Add a new entry to `scripts/checks/plugin_process_boundary.go`'s `dangerousCalls` list whenever a new instance of this class is found and fixed, so the check stays current. Add a new `allowlist` entry only for a package's own legitimate calls to its own function.
@@ -887,7 +887,7 @@ A feature is compile-out-able **only when nothing always-on (untagged, non-test)
 imports its package** for ANY reason: lifecycle OR a borrowed helper. Always-on
 code reaches it ONLY through build-tag-gated registration. A single direct
 `import` from untagged code pins the package into every binary and defeats the
-compile-out. `scripts/dev/dep_audit.py --check` (run by `make ze-verify`, target
+compile-out. `scripts/dev/dep_audit.py --check` (run by `make ze-precommit-verify`, target
 `ze-tier-check`) fails on any such importer.
 
 If always-on code needs a non-lifecycle helper the feature happens to export
@@ -931,7 +931,7 @@ DERIVES from this file**. Do NOT hand-edit a parallel list:
 2. **Pick the shape** (see below): construction registry, or a seam.
 3. **Add lines** to `feature-gates.txt` for every owned package that MUST vanish: the main package (`ze_<x> internal/component/<x>`) plus sidecars such as command-schema packages under `internal/plugins/<x>-cmd`.
 4. **Create the gated files** for your shape (`service_<x>.go` + `register_<x>.go`, or an `*_infra.go` seam + gated registration). All carry `//go:build ze_<x>`. Feature-only helpers live INSIDE a gated file, or a no-feature build flags them U1000-unused.
-5. `make generate`. This emits `all_ze_<x>.go` (plugin_imports) AND regenerates the three static tag lists from the manifest (`feature_tags.go`: `.golangci.yml` `build-tags`, `gokrazy/ze/config.json` `GoBuildTags`, `docs/guide/quickstart.md`). Those files' tag lists MUST NOT be hand-edited. Then `make ze-verify-changed`.
+5. `make generate`. This emits `all_ze_<x>.go` (plugin_imports) AND regenerates the three static tag lists from the manifest (`feature_tags.go`: `.golangci.yml` `build-tags`, `gokrazy/ze/config.json` `GoBuildTags`, `docs/guide/quickstart.md`). Those files' tag lists MUST NOT be hand-edited. Then `make ze-precommit-verify-changed`.
 6. Write present/absent build-tag tests: `cmd/ze/hub/build_tag_<x>_present_test.go` (`//go:build ze_<x>`) and `_absent_test.go` (`//go:build !ze_<x>`); an absent test asserts via `go tool nm` that zero feature symbols are linked.
 
 That is the whole list. Step 3 (edit `feature-gates.txt`) is the ONLY manifest

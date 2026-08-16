@@ -201,7 +201,7 @@ are the config surface and the per-key policy applied at the auth callback.
 3. **Phase: Auth + policy** - accept `sk-*` in match; enforce touch/verify at the callback.
    - Tests: `TestSKKeyAuthAccepts`, `TestSKKeyTouchRequiredRejects`
 4. **Functional + interop** - CI security-key login; OpenSSH-client interop.
-5. **Full verification** -> `make ze-verify`
+5. **Full verification** -> `make ze-precommit-verify`
 6. **Complete spec** -> audit, learned summary, two-commit closure.
 
 ### Critical Review Checklist (/implement stage 6)
@@ -255,7 +255,7 @@ are the config surface and the per-key policy applied at the auth callback.
 - [ ] End-to-End User Stories: working path + passing test
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `make ze-test` passes
+- [ ] `make ze-standard-test` passes
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Documentation Update Checklist answered
 

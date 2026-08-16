@@ -33,7 +33,7 @@ The D-1 audit in the source spec found the Go path is a strict superset on every
 step the two share, and that the make path hardcodes `/perm` offsets which will
 rot silently if the partition layout changes.
 
-Decide whether `make ze-gokrazy` should become a thin wrapper over
+Decide whether `make ze-gokrazy-build` should become a thin wrapper over
 `ze appliance build` (retiring the shell seeding, the hardcoded offsets, and the
 duplicated mkfs/debugfs work) or whether the two are deliberately different
 products. If they converge, `ZEFS=` and the `CERTNAME` cert cache must survive in
@@ -89,7 +89,7 @@ OK                        <- the assertion does not false-positive
 ```
 
 The convergence question this spec exists for is untouched. Whether
-`make ze-gokrazy` becomes a thin wrapper over `ze appliance build` is still open,
+`make ze-gokrazy-build` becomes a thin wrapper over `ze appliance build` is still open,
 and if it does, this assertion goes with the shell seeding it guards.
 
 Two further items deferred out of the same source spec (recorded in its
@@ -98,7 +98,7 @@ removes; this spec is their home):
 
 - ~~**Gate the tracked builddir `go.sum` files against the root module.**~~
   **DONE 2026-08-05.** `scripts/dev/gokrazy_gosum_check.py`, run by
-  `make ze-gokrazy-gosum-check` and a prerequisite of `make ze-gokrazy`, so the
+  `make ze-gokrazy-gosum-check` and a prerequisite of `make ze-gokrazy-build`, so the
   image cannot be built over a drift.
 
   It fires on ONE condition, the only one that cannot be legitimate: the same
@@ -173,7 +173,7 @@ removes; this spec is their home):
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- The gokrazy make target (`mk/gokrazy.mk`, `ze-gokrazy` recipe): operator supplies USER/PASS, or ZEFS, or neither.
+- The gokrazy make target (`mk/gokrazy.mk`, `ze-gokrazy-build` recipe): operator supplies USER/PASS, or ZEFS, or neither.
 - `ze appliance build <name>` (`internal/appliance/cmd_build.go`, `buildOne`): operator builds a named appliance created by `ze appliance init`.
 - Both converge on the shared preparer and gok. Only the seeding above them differs.
 
@@ -416,7 +416,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
    - Verify: tests fail → implement → tests pass → wiring test passes
 4. **Functional tests** → Create after feature works. Cover user-visible behavior.
 5. **RFC refs** → Add `// RFC NNNN Section X.Y` comments (protocol work only)
-6. **Full verification** → `make ze-verify` (lint + all ze tests except fuzz)
+6. **Full verification** → `make ze-precommit-verify` (lint + all ze tests except fuzz)
 7. **Complete spec** → Fill audit tables, write learned summary to `plan/learned/NNN-<name>.md`. TWO commits: commit A saves code + tests + spec + learned summary; commit B does `git rm` of the spec. BLOCKING: summary is part of commit A, not a follow-up.
 
 ### Critical Review Checklist (/implement stage 6)
@@ -518,7 +518,7 @@ MUST document: validation rules, error conditions, state transitions, timer cons
 
 ### Documentation Updates
 - [Docs updated, with source anchors named, or "None" with grep evidence]
-- [If docs were changed: `make ze-doc-test` result]
+- [If docs were changed: `make ze-doc-verify` result]
 
 ### Deviations from Plan
 - [Differences from original plan and why]
@@ -628,7 +628,7 @@ MUST document: validation rules, error conditions, state transitions, timer cons
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled — 0 BLOCKER, 0 ISSUE)
-- [ ] `make ze-test` passes (lint + all ze tests)
+- [ ] `make ze-standard-test` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
 - [ ] Integration completeness proven end-to-end
 - [ ] Documentation Update Checklist answered Yes/No with source evidence

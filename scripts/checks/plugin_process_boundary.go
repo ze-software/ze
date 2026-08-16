@@ -32,7 +32,7 @@
 // the owning package itself calling its own function).
 //
 // Usage:     go run scripts/checks/plugin_process_boundary.go [--json|--selftest]
-// Called by: make ze-plugin-boundary-check (wired into ze-verify via
+// Called by: make ze-plugin-boundary-check (wired into ze-precommit-verify via
 //            scripts/status/verify_run.go's stagesForMode) and
 //            scripts/checks/plugin_process_boundary_test.go
 //

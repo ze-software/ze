@@ -231,7 +231,7 @@ func TestISISReceivedPurgeRefloodSurfaced(t *testing.T) {
 // microseconds. Measured on 2026-07-27 against the pre-fix code (lifetime
 // reverted to a plain uint32), the version without the re-arm caught the
 // regression in only 6 of 12 single runs -- a coin flip in a -count=1 suite,
-// which is what ze-verify runs. Re-originating keeps both post-publication
+// which is what ze-precommit-verify runs. Re-originating keeps both post-publication
 // writes (the decrement and markPurgedLocked) flowing for the whole run.
 func TestISISLSDBEntryAccessorsAreRaceFree(t *testing.T) {
 	d := New(nil)

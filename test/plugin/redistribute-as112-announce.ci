@@ -192,7 +192,7 @@ bgp {
 			# puts this local address on the wire, and RFC 4271 Section 5.1.3
 			# forbids handing a peer its own address as NEXT_HOP. A host has one
 			# IPv6 loopback address, so ze takes fd00::2 -- unique-local (RFC
-			# 4193) and never globally routable. `make ze-setup` adds it; the
+			# 4193) and never globally routable. `make ze-dev-setup` adds it; the
 			# runner cannot (internal/test/runner/loopback.go).
 			#
 			# THE TWO ENDS SIT IN DIFFERENT IPv6 SCOPES, and that was measured

@@ -254,7 +254,7 @@ At run time `ze doctor` judges one config on one build and reports
 nobody. That covers what the build-time gate cannot see: a plugin compiled out,
 or one that failed to load.
 
-`make ze-yang-leaf-mentions` is the advisory companion. It reports YANG leaves
+`make ze-yang-leaf-mentions-report` is the advisory companion. It reports YANG leaves
 whose kebab name appears in no string literal of the owning package, which is a
 candidate for "delivered but never read". The signal is a heuristic, so it exits
 0 and sits in no verify stage.

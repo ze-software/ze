@@ -8,7 +8,7 @@ description: Fix Surviving Mutations
 Run mutation testing on a package, analyze surviving mutants, and either
 strengthen tests or fix code bugs exposed by the mutations.
 
-See also: `make ze-mutation-pkg PKG=./path/` (raw mutation run)
+See also: `make ze-mutation-pkg-test PKG=./path/` (raw mutation run)
 
 ## Instructions
 
@@ -17,7 +17,7 @@ See also: `make ze-mutation-pkg PKG=./path/` (raw mutation run)
 
 2. Run mutation testing:
    ```
-   make ze-mutation-pkg PKG=$ARGUMENTS
+   make ze-mutation-pkg-test PKG=$ARGUMENTS
    ```
 
 3. Parse `tmp/mutation-report.json` for surviving mutations:
@@ -42,7 +42,7 @@ See also: `make ze-mutation-pkg PKG=./path/` (raw mutation run)
 
 6. Re-run gomu on the same package to measure improvement:
    ```
-   make ze-mutation-pkg PKG=$ARGUMENTS
+   make ze-mutation-pkg-test PKG=$ARGUMENTS
    ```
 
 7. Report the before/after mutation score and list what was fixed vs skipped.

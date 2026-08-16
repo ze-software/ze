@@ -650,7 +650,7 @@ var (
 //
 // No browser runs here, and none is available to run. The .wb harness drives
 // HTTP and executes no script. agent-browser is an interactive tool with no
-// hook in make ze-verify. What a browser adds over this is layout and event
+// hook in make ze-precommit-verify. What a browser adds over this is layout and event
 // order. It would also catch a selector that matches the wrong element, which
 // no component here can produce.
 func TestErrorDrawerWiringHoldsTogether(t *testing.T) {

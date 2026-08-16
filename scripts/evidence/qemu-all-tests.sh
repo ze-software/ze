@@ -217,7 +217,7 @@ fsuite traffic "$ZE_TEST_BIN" traffic --all -p 1
 # ZE_PACKAGES_EXCLUDE drops ./scripts/... -- see the Makefile's ZE_PACKAGES for
 # why. Short version: host developer-tooling gates, no linux-only surface, and in
 # the VM they fail on Alpine having neither brew nor apt and on 9p compile
-# timeouts. They run in full under `make ze-verify` on the host.
+# timeouts. They run in full under `make ze-precommit-verify` on the host.
 run_check "unit tests (no -race, cacheable)" \
 	make --no-print-directory GOCACHE="$GOCACHE" GOMODCACHE="$GOMODCACHE" \
 	ZE_PACKAGES_EXCLUDE='/scripts/' ze-unit-test-cached
@@ -293,7 +293,7 @@ fi
 # regression, it is the bare-`go test` trap ai/rules/commands.md describes:
 # four internal/component/doctor listener tests failed for want of ze_ssh alone,
 # reporting "expected ssh listener from fallback collection" while passing in
-# ze-verify. Derived from feature-gates.txt so this cannot drift from the
+# ze-precommit-verify. Derived from feature-gates.txt so this cannot drift from the
 # Makefile's own ZE_FEATURES.
 integration_tags="ze_core integration"
 if [ -f feature-gates.txt ]; then

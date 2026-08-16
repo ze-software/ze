@@ -147,7 +147,7 @@ get harder, not easier. The tests written for them must assert over a real negot
   `Registration.DoctorChecks` declaration.
 
 **Behavior to preserve:** (unless the user explicitly said to change it)
-- Every `test/ipsec/*.ci` stays green. The suite runs inside `ze-verify`
+- Every `test/ipsec/*.ci` stays green. The suite runs inside `ze-precommit-verify`
   (`mk/test-functional.mk` lists it in `all_suites`, and `:217` carries its `run_suite`
   line).
 - Every scenario under `test/ipsec-interop/scenarios/` stays green. The directory holds
@@ -324,7 +324,7 @@ count assertion beside it. A counter is proven over a chain that holds the paylo
 | `ipsec-ipcomp-vpp-reject` | `test/ipsec/ipsec-ipcomp-vpp-reject.ci` | The operator commits compression with VPP active and gets a clear error | |
 | `ipsec-show-sa-ipcomp` | `test/ipsec/ipsec-show-sa-ipcomp.ci` | The operator reads the negotiated algorithm and CPI | |
 
-The `ipsec` suite runs inside `ze-verify` (`mk/test-functional.mk` and `:217`), so a
+The `ipsec` suite runs inside `ze-precommit-verify` (`mk/test-functional.mk` and `:217`), so a
 `.ci` there earns a verify tier. A `.ci` that drives a crafted IKEv2 inner payload chain needs
 a scripted IKEv2 peer, and `internal/test/cli/` has none today. Building one is in scope for
 the design phase, and it serves many other rows in the rfcgate-1b RFC 7296 pilot spec.
@@ -372,7 +372,7 @@ a tag.
 - `mk/test-integration.mk` - the QEMU target
 - `rfc/short/rfc7296.md` - the four checklist rows and the Section Index entry
 - `docs/features/rfc-status.md` - RFC 7296 row
-- `ai/RFC-REQUIREMENTS.md` - regenerated with `make ze-rfc-index`
+- `ai/RFC-REQUIREMENTS.md` - regenerated with `make ze-rfc-index-update`
 
 ## Files to Create
 - `internal/component/ike/engine/rfc7296_ipcomp_test.go` - the tagged compliance tests
@@ -487,7 +487,7 @@ needed, which would carry `units bytes`. Second, whether the algorithm enumerati
    - Verify: `ze doctor --json` reports the check, the QEMU target passes, and both strongSwan
      scenarios pass
 8. **Phase: Compliance rows and documentation**
-   - Tests: `make ze-rfc-check`, `make ze-doc-test`
+   - Tests: `make ze-rfc-check`, `make ze-doc-verify`
    - Files: `rfc/short/rfc7296.md`, `docs/features/rfc-status.md`, `ai/RFC-REQUIREMENTS.md`,
      the documentation checklist rows
    - Verify: the four rows land in one commit at `-1` through `-4`, and the regenerated ledger
@@ -521,7 +521,7 @@ needed, which would carry `units bytes`. Second, whether the algorithm enumerati
 |-------------|---------------------|
 | The four rows exist in the summary | `grep -c 'RFC7296-2\.22-' rfc/short/rfc7296.md` returns 4 |
 | The four rows are proven | `make ze-rfc-check` passes and `ai/RFC-REQUIREMENTS.md` shows four bound rows |
-| The ledger is fresh | `make ze-rfc-index` produces no diff |
+| The ledger is fresh | `make ze-rfc-index-update` produces no diff |
 | Compression is off by default | `test/ipsec/ipsec-ipcomp-disabled.ci` passes |
 | Both backends are covered | `TestXFRMInstallsCompressionState` and `TestVPPBackendRefusesCompression` pass |
 | The kernel path is proven | The QEMU target passes |
@@ -598,7 +598,7 @@ informational builders, and the dataplane compression call.
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding

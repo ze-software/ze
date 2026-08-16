@@ -15,7 +15,7 @@ import (
 const changedPkgsTimeout = 30 * time.Second
 
 // VALIDATES: changed-pkgs.sh reports both uncommitted changes AND packages
-// committed since the last green verify, so scoped ze-verify-changed cannot
+// committed since the last green verify, so scoped ze-precommit-verify-changed cannot
 // silently skip a package whose change already landed.
 // PREVENTS: the regression class where a committed-but-unverified package
 // (e.g. web/testing in c148c9e80) leaves the working-tree diff and a scoped

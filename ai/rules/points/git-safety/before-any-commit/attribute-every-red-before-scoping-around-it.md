@@ -14,4 +14,4 @@ can break a different package's compile/test (a real case: `aihelp` broke
 consumer's tests (a missing YANG typedef failed `bgp/config`, not the plugin that
 introduced it), and adding a plugin invalidates the `plugin/all` golden
 snapshots. Before scoping around a red, `go test`/`vet` the reverse-dependency
-closure of your changed packages, or run full `ze-verify` once.
+closure of your changed packages, or run full `ze-precommit-verify` once.

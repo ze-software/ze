@@ -24,7 +24,7 @@ deferral shard, on 2026-08-09.
 Reproduction, run on 2026-08-09 at commit 1359f3324:
 
 ```
-make ze-doc-drift                             # "No documentation drift detected"
+make ze-doc-drift-check                             # "No documentation drift detected"
 python3 scripts/dev/code_to_docs.py --check   # "all references valid"
 grep -rn 'internal/plugins/explain' docs/     # no output
 ```
@@ -76,8 +76,8 @@ one registry against one table.
 ## Data Flow (MANDATORY)
 
 ### Entry Point
-- `make ze-doc-test` runs `scripts/docvalid/doc_drift.go`, and `ze-doc-test` is a
-  stage of `make ze-verify` (`stagesForMode` in `scripts/status/verify_run.go`).
+- `make ze-doc-verify` runs `scripts/docvalid/doc_drift.go`, and `ze-doc-verify` is a
+  stage of `make ze-precommit-verify` (`stagesForMode` in `scripts/status/verify_run.go`).
 
 ### Transformation Path
 1. A check enumerates package directories from `git ls-files`.
@@ -129,8 +129,8 @@ one registry against one table.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `make ze-doc-test` | → | the package-without-a-doc check in `doc_drift.go` | `TestPackageWithNoDocumentationHomeIsReported` |
-| `make ze-doc-test` | → | plugin discovery across both registries | `TestPluginRegisteringACLIRootIsSeen` |
+| `make ze-doc-verify` | → | the package-without-a-doc check in `doc_drift.go` | `TestPackageWithNoDocumentationHomeIsReported` |
+| `make ze-doc-verify` | → | plugin discovery across both registries | `TestPluginRegisteringACLIRootIsSeen` |
 
 This is agent tooling with no user-facing surface, so the existing test suite
 carries the proof: the Go test beside the check, plus the gate over the real tree.
@@ -162,7 +162,7 @@ target over the real tree.
 
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `make ze-doc-test` | `mk/inventory.mk` | an agent cannot land a package with no documentation home | |
+| `make ze-doc-verify` | `mk/inventory.mk` | an agent cannot land a package with no documentation home | |
 
 ## Files to Modify
 - `scripts/docvalid/doc_drift.go` - the check
@@ -214,13 +214,13 @@ target over the real tree.
 
 1. **Phase: Classify the 85** -- every undocumented directory gets a page, a reason, or an exclusion with a stated property
    - Verify: A-1 answered with numbers
-2. **Phase: Wiring** -- the check exists, reachable from `make ze-doc-test`, reporting nothing
+2. **Phase: Wiring** -- the check exists, reachable from `make ze-doc-verify`, reporting nothing
    - Tests: `TestRecordedReasonSuppressesTheFinding`
 3. **Phase: Both registries** -- the class-b check sees a CLI-root plugin
    - Tests: `TestPluginRegisteringACLIRootIsSeen`
 4. **Phase: Arm** -- the finding fails the gate
    - Tests: `TestPackageWithNoDocumentationHomeIsReported`
-5. **Phase: The rule** -- the obligation in `ai/rules/points/go-standards/`, then `make ze-rules-condensed`
+5. **Phase: The rule** -- the obligation in `ai/rules/points/go-standards/`, then `make ze-rules-condensed-update`
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -235,7 +235,7 @@ target over the real tree.
 | Deliverable | Verification method |
 |-------------|---------------------|
 | The check exists and reports a package with no doc | `go test ./scripts/docvalid/` |
-| The tree is clean under it | `make ze-doc-test` |
+| The tree is clean under it | `make ze-doc-verify` |
 | The escape is counted, not silent | the published reason count |
 
 ### Security Review Checklist
@@ -278,7 +278,7 @@ target over the real tree.
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-4 all demonstrated
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled
 - [ ] Critical Review passes (all 6 checks in `ai/rules/quality.md`)

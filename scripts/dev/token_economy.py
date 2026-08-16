@@ -962,7 +962,7 @@ def render(sessions: list[Session], cap: int, top: int) -> list[str]:
         out.append("  the parent wrote, and drifts as a live session grows. A fork")
         out.append("  reports 0: it inherits its parent's context, so it has no floor.")
         out.append("  ACROSS sessions the rows do not compare, because the always-on")
-        out.append("  preamble changes size. Scope with make ze-token-economy")
+        out.append("  preamble changes size. Scope with make ze-token-economy-report")
         out.append("  ZE_SESSION=<id>. See ai/agents/, ai/rules/context-economy.md.")
 
     out.extend(_render_tools(sessions))

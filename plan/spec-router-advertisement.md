@@ -120,7 +120,7 @@ Additional findings (2026-07-10 research pass, all read firsthand):
 - The ppp send path sets only `ControlMessage.IfIndex` (ra_linux.go); it never sets the IPv6 multicast hop limit. See A-4.
 - `internal/component/iface/register.go` - `reconcileDHCP` (register.go) builds a desired per-unit service set from parsed config and diffs it against running clients; `DHCPStopper` (register.go) + `SetDHCPClientFactory` (register.go) keep the component free of any import of the client plugin; shutdown stops all clients (register.go+). This is the lifecycle pattern the RA sender copies.
 - `internal/component/iface/config.go` - per-unit ipv6 settings are parsed into `ipv6Settings` (config.go) with a nested `dhcpv6UnitConfig` (config.go) parsed by `parseDHCPv6Config` (config.go); parse errors propagate to OnConfigVerify (config.go comment), which is where the new cross-field RA checks reject invalid config.
-- `internal/component/iface/resolve.go` - the shared resolver: `Resolve` (resolve.go) returns a `Binding` (Ifindex, OsName, OperMAC, ...), `Subscribe` (resolve.go) delivers per-logical-name link events. `scripts/checks/iface_resolution.go` (patterns at :62-66) fails ze-verify for any direct `net.InterfaceByName`/`LinkByName` call outside its allowlist; `internal/component/l2tp/ppp/` is exempt only because pppN names are kernel-assigned (allowlist entry :55).
+- `internal/component/iface/resolve.go` - the shared resolver: `Resolve` (resolve.go) returns a `Binding` (Ifindex, OsName, OperMAC, ...), `Subscribe` (resolve.go) delivers per-logical-name link events. `scripts/checks/iface_resolution.go` (patterns at :62-66) fails ze-precommit-verify for any direct `net.InterfaceByName`/`LinkByName` call outside its allowlist; `internal/component/l2tp/ppp/` is exempt only because pppN names are kernel-assigned (allowlist entry :55).
 - `internal/plugins/iface/netlink/slaac_linux.go` - receive side: `addrOrigin` (slaac_linux.go) classifies kernel-autoconfigured addresses (static/slaac/temporary/dynamic) from IFA_F_* flags; ze deliberately runs no userspace RA client (file header comment). Untouched by this spec.
 - `internal/component/iface/register.go` also carries receive-side RA state: `suppressRAForConfig`/`restoreAcceptRaDefrtr` (register.go) toggle `accept_ra_defrtr` for route-priority handling, and NTF_ROUTER neighbor events track discovered routers (register.go). This is about ACCEPTING RAs from other routers; it does not conflict with sending, but the reconcile code lives in the same file and the new code must not disturb it.
 - `internal/component/iface/yang/ze-iface-conf.yang` - the per-unit `ipv6` container (ze-iface-conf.yang) already hosts `dhcpv6` (ze-iface-conf.yang, `ze:backend "netlink"`); `mirror` (ze-iface-conf.yang) shows the `ze:os "linux"` + `ze:backend` combination. The new `router-advertisement` container is a sibling of `dhcpv6`.
@@ -409,7 +409,7 @@ Each phase ends with a Self-Critical Review. Fix issues before proceeding.
    - Files: `doctor_linux.go`, `internal/core/diagnostic/codes.go`, the `.ci`
    - Verify: AC-2 end to end in QEMU; AC-12
 7. **Functional tests + RFC refs** - `// RFC 4861 Section X.Y` comments over validation, timer constants, and the zero-lifetime rule
-8. **Full verification** - `make ze-verify`
+8. **Full verification** - `make ze-precommit-verify`
 9. **Complete spec** - audit tables, learned summary, two-commit closure
 
 ### Critical Review Checklist (/implement stage 6)
@@ -687,7 +687,7 @@ mutation of the producing code turned that test red.)
 ### Goal Gates (MUST pass)
 - [ ] Full `/ze-spec` DESIGN completed ~~and approved~~ before implementation (design filled 2026-07-10; user instruction 2026-07-10 authorized conversion to ready)
 - [ ] QEMU SLAAC test passes (`TestRASenderPeerAutoconfigures` + `test/plugin/iface-ra-slaac.ci`)
-- [ ] `make ze-test` passes (after implementation)
+- [ ] `make ze-standard-test` passes (after implementation)
 - [ ] Feature code integrated (`internal/*`)
 - [ ] `make ze-iface-resolution-check` passes with no new allowlist entries (AC-11)
 

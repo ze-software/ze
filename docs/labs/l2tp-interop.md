@@ -50,7 +50,7 @@ environment causes an immediate refusal.
 ## Running
 
 ```
-make ze-deployment-l2tp-ppp-docker-test          # all scenarios
+make ze-deployment-docker-l2tp-ppp-test          # all scenarios
 python3 test/l2tp-interop/run.py 01-ppp-ipv4     # single scenario
 VERBOSE=1 python3 test/l2tp-interop/run.py       # debug output
 ```
@@ -117,7 +117,7 @@ PPPoL2TP host support as 01 and 02.
 |--------|---------------|-------------------|
 | `make ze-deployment-l2tp-test` | Control tunnel + incoming-call session (skip-kernel-probe) | No |
 | `make ze-deployment-l2tp-ppp-test` | Native Linux full PPP/NCP/kernel proof in peer-isolated netns | Yes |
-| `make ze-deployment-l2tp-ppp-docker-test` | Peer-isolated Docker lab (this) | Yes (host kernel) |
+| `make ze-deployment-docker-l2tp-ppp-test` | Peer-isolated Docker lab (this) | Yes (host kernel) |
 | `make ze-deployment-gokrazy-l2tp-ppp-test` | QEMU gokrazy appliance LNS with real netns LAC | Yes (host LAC side and appliance kernel) |
 | `test/plugin/redistribute-l2tp-*.ci` | Synthetic BGP UPDATE rendering | No |
 
@@ -133,7 +133,7 @@ to a host bridge by TAP (user-mode slirp cannot deliver the LAC's inbound UDP
 while the appliance kernel provides Ze's LNS-side PPPoL2TP support. The proof
 resolves that kernel itself: the pinned rtr7 kernel has no l2tp support, so
 the script validates `KERNEL_PKG` or materializes the runtime kernel from the
-durable cache, and fails fast with the `make ze-kernel KERNEL_ARCH=<arch>`
+durable cache, and fails fast with the `make ze-kernel-build KERNEL_ARCH=<arch>`
 command when it cannot.
 <!-- source: scripts/evidence/effective-gokrazy-l2tp-ppp.py -- resolve_kernel_pkg, qemu_command -->
 

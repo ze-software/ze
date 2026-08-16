@@ -141,7 +141,7 @@ def build_hint(output: str) -> str:
 
     `ze appliance build` resolves the gokrazy system packages strictly from the
     repo-local gokrazy/modcache with GOPROXY=off (internal/appliance/cmd_build.go
-    ensureModcache). On a checkout where `make ze-gokrazy-deps` has never run,
+    ensureModcache). On a checkout where `make ze-gokrazy-deps-download` has never run,
     that cache holds neither github.com/rtr7/kernel nor the Go toolchain the
     builddir modules pin, and gok reports "toolchain not available" -- which
     reads as a broken Go installation and is not one. This does NOT skip: the
@@ -152,7 +152,7 @@ def build_hint(output: str) -> str:
     for marker in ("toolchain not available", "incomplete packages", "GOPROXY=off"):
         if marker in output:
             return (
-                " (gokrazy/modcache looks unpopulated -- run `make ze-gokrazy-deps`"
+                " (gokrazy/modcache looks unpopulated -- run `make ze-gokrazy-deps-download`"
                 " once, then retry)"
             )
     return ""

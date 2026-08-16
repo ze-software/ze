@@ -274,15 +274,15 @@ for item in "${REQUIRED_CHECKLIST[@]}"; do
 done
 
 # === VERIFICATION COMMAND ===
-# ONE command names the pre-commit gate, and it is `make ze-verify`
+# ONE command names the pre-commit gate, and it is `make ze-precommit-verify`
 # (ai/rules/git-safety.md Step 1). This gate used to demand the literal string
-# `make ze-test`, which is `ze-lint ze-unit-test ze-functional-test
-# ze-exabgp-test ze-fuzz-test` (Makefile) -- the fuzz-inclusive target that the
+# `make ze-standard-test`, which is `ze-lint ze-unit-test ze-functional-test
+# ze-functional-exabgp-test ze-fuzz-test` (Makefile) -- the fuzz-inclusive target that the
 # commit rule does NOT use. The template shipped all three spellings at once.
 # Accept the legacy string so the 50 specs predating this change keep
 # validating, but warn, so new specs converge on the real gate.
-VERIFY_CMD='make ze-'"verify"
-LEGACY_CMD='make ze-'"test"
+VERIFY_CMD='make ze-precommit-verify'
+LEGACY_CMD='make ze-standard-test'
 if grep -q "$VERIFY_CMD" "$FILE_PATH"; then
     :
 elif grep -q "$LEGACY_CMD" "$FILE_PATH"; then
@@ -336,8 +336,8 @@ elif echo "$FUNC_TEST_SECTION" | grep -qiE 'N/A|not applicable|no new .* feature
 elif echo "$FUNC_TEST_SECTION" | grep -qE '\.(ci|et|wb)'; then
     : # names a functional test — always acceptable.
     # Three suites exist and each owns a surface no other one reaches: .ci runs
-    # the daemon (ze-plugin-test and its siblings), .et drives the config editor
-    # (ze-editor-test), .wb drives the web interfaces (ze-web-test). Accepting
+    # the daemon (ze-functional-plugin-test and its siblings), .et drives the config editor
+    # (ze-functional-editor-test), .wb drives the web interfaces (ze-functional-web-test). Accepting
     # only .ci made a web or editor spec name a file type its surface does not
     # have, so the spec named a .ci that was never written. test/web holds 89
     # .wb and zero .ci.

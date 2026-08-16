@@ -9,7 +9,7 @@ Prepare a commit script (verification only when needed) and run it yourself.
 Does NOT run git commit or git add as direct tool calls -- everything goes
 through the script. This is not a late implementation review.
 
-See also: `/ze-commit` (commit without verification), `/ze-verify` (standalone verification)
+See also: `/ze-commit` (commit without verification), `/ze-precommit-verify` (standalone verification)
 
 ## Steps
 
@@ -19,12 +19,12 @@ See also: `/ze-commit` (commit without verification), `/ze-verify` (standalone v
    question only when files cannot be safely classified.
 2. **Verification decision:** Apply `ai/rules/git-safety.md`.
    - If the scope is only `docs/`, `ai/`, `.claude/`, `plan/`, or `README.md`
-     files per the NO row, skip `ze-verify` entirely and record the skip reason.
+     files per the NO row, skip `ze-precommit-verify` entirely and record the skip reason.
    - Before any verify target, run `scripts/dev/verify-status.sh check`.
-   - If it prints FRESH, MUST NOT run `make ze-verify` or
-     `make ze-verify-changed` again. Use the reported timestamp as evidence.
-   - If it prints STALE and `ze-verify` applies, run `make ze-verify` once.
-     Do not substitute `make ze-verify-changed` unless the user explicitly
+   - If it prints FRESH, MUST NOT run `make ze-precommit-verify` or
+     `make ze-precommit-verify-changed` again. Use the reported timestamp as evidence.
+   - If it prints STALE and `ze-precommit-verify` applies, run `make ze-precommit-verify` once.
+     Do not substitute `make ze-precommit-verify-changed` unless the user explicitly
      requested a changed-only gate.
 3. **Failure handling:** If verification fails, read
    `tmp/ze-verify-failures.log` first, report the blocking failure groups, and
@@ -56,7 +56,7 @@ scripts/dev/commit_helper.py create \
 
 - **NEVER run `git add` or `git commit` as bare tool calls.** Route them through the commit script, then run the script by the path its `script=` line printed.
 - Use `scripts/dev/commit_helper.py create` unless the commit shape cannot be expressed by the helper.
-- Always run `scripts/dev/verify-status.sh check` before any verify target. A FRESH PASS is authoritative and forbids rerunning `make ze-verify` or `make ze-verify-changed`.
+- Always run `scripts/dev/verify-status.sh check` before any verify target. A FRESH PASS is authoritative and forbids rerunning `make ze-precommit-verify` or `make ze-precommit-verify-changed`.
 - If verification is STALE and required, run one required gate, then proceed from its result. Do not stack extra health checks or speculative gates.
 - Do not run late completeness audits, health checks, recent-commit style reviews, remaining-work tables, or companion-artifact reviews unless the user explicitly asks for them.
 - Never include spec files unless the user explicitly asks.

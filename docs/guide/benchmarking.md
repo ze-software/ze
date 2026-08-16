@@ -213,7 +213,7 @@ Limit the comparison window to the last N entries with `--last`:
 ze-perf track --check --last 5 history.ndjson
 ```
 
-For the full flag reference, see [ze-perf track](command-reference.md#ze-perf-track).
+For the full flag reference, see [ze-perf track](command-reference.md#ze-perf-history-record).
 
 ## Understanding Results
 

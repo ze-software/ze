@@ -262,7 +262,7 @@ carried no such table, which `/ze-implement` needs before it may run.
 
 ## Goal Gates
 
-- `make ze-verify` passes.
+- `make ze-precommit-verify` passes.
 - `make ze-rfc-check` shows RFC 9190 enrolled, with no annotation covering a
   feature this spec built.
 - Scenarios 04 and 06 green, plus the new resumption scenario.

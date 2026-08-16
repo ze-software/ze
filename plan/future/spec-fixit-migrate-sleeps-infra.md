@@ -571,7 +571,7 @@ Migration-adapted TDD (each converted `.ci` IS its own functional test; infra pi
 - [ ] Tests written — infra pieces (P2/P4/P6) get unit tests; each converted `.ci` keeps its exact assertions.
 - [ ] Tests FAIL — infra unit tests are red-first (TDD); a converted `.ci` that FAILS surfaces a real race, fixed at the source (never a re-added sleep).
 - [ ] Tests PASS — each converted test 3x green (host) or via `make ze-qemu-needs-linux-test` (linux-only).
-- [ ] make ze-test / `bin/ze-test <suite> --all` + QEMU — affected suites green before each piece's commit.
+- [ ] make ze-standard-test / `bin/ze-test <suite> --all` + QEMU — affected suites green before each piece's commit.
 
 ## Review Gate
 ### Run 1 (initial)

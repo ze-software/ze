@@ -130,7 +130,7 @@ These are not anecdotes. Each one changes a design decision in this spec.
 
 ### Integration Points
 - `ai/skills/ze-close.md` step 6, where the summary is written.
-- `mk/inventory.mk` `ze-doc-test`, where a queue-depth gate would join.
+- `mk/inventory.mk` `ze-doc-verify`, where a queue-depth gate would join.
 - `ai/INDEX.md` Dev Tools, where any new tool must appear in the same phase.
 
 ### Architectural Verification
@@ -174,7 +174,7 @@ These are not anecdotes. Each one changes a design decision in this spec.
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
 | `make ze-learned-queue` | → | the queue-depth reporter | `test_queue_reports_unrouted_age` in `scripts/dev/learned_queue_test.py` |
-| `make ze-doc-test` | → | the gate declared in `mk/inventory.mk` | `test_target_declared_in_doc_test` in `scripts/dev/learned_queue_test.py` |
+| `make ze-doc-verify` | → | the gate declared in `mk/inventory.mk` | `test_target_declared_in_doc_test` in `scripts/dev/learned_queue_test.py` |
 | `/ze-close` on a spec that produced a lesson | → | the routing step in `ai/skills/ze-close.md` | `test_close_skill_names_the_routing_step` in `scripts/dev/learned_queue_test.py` |
 
 ## Acceptance Criteria
@@ -187,7 +187,7 @@ These are not anecdotes. Each one changes a design decision in this spec.
 | AC-4 | `docs/architecture/` is measured before and after the pilot | Growth is under 3 lines per routed item, proving merge rather than append (A-3, R-1) |
 | AC-5 | Two independent agents route the same 5 summaries | Their destinations agree on at least 4 of 5, or the disagreement is reported as a taxonomy defect (A-4) |
 | AC-6 | `make ze-learned-queue` runs | It reports how many summaries are unrouted and how old the oldest is, and names the destination taxonomy in its help |
-| AC-7 | A summary sits unrouted past the agreed age | `make ze-doc-test` reports it. The gate counts unrouted AGE, never total count (R-5) |
+| AC-7 | A summary sits unrouted past the agreed age | `make ze-doc-verify` reports it. The gate counts unrouted AGE, never total count (R-5) |
 | AC-8 | The pilot's numbers do not justify the full pass | The spec records that plainly and the full pass is not done. A pilot that says no is a successful pilot |
 | AC-9 | Any tool this spec adds | Appears in `ai/INDEX.md` Dev Tools in the same phase that creates it |
 | AC-10 | Any tool this spec adds that rewrites a file | Preserves the file's mode, with a test that fails when the restoration is removed |
@@ -221,7 +221,7 @@ N-A. Scope is tooling. No wire-visible behavior changes.
 
 - `ai/skills/ze-close.md` - a routing step after the summary is written
 - `ai/rules/planning.md` - "Writing Learned Summaries" states the lifecycle: written, routed, removed
-- `mk/inventory.mk` - declare `ze-learned-queue`, add it to `ze-doc-test`
+- `mk/inventory.mk` - declare `ze-learned-queue`, add it to `ze-doc-verify`
 - `ai/INDEX.md` - Dev Tools row, in the same phase (AC-9)
 - `ai/rules/repo-maintenance.md` - discovery-surface row
 
@@ -355,7 +355,7 @@ N-A. Scope is tooling. No wire-visible behavior changes.
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-10 all demonstrated
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled
 - [ ] Every A-N confirmed or broken, none `unvalidated`

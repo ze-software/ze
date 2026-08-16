@@ -88,7 +88,7 @@ def indexes_fed_by(path: str, header_text: str = "") -> frozenset[str]:
     # freshness is satisfied, and it never obliges any OTHER index to ride along.
     if path in OUTPUTS:
         return frozenset({path})
-    # Makefile / mk/ carry the ze-discovery-index wiring that runs every
+    # Makefile / mk/ carry the ze-discovery-index-update wiring that runs every
     # generator, so a change there can drift any index. Conservative: demand all.
     if path == "Makefile" or path.startswith("mk/"):
         return frozenset(OUTPUTS)

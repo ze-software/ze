@@ -25,8 +25,8 @@
 # Use --check (content comparison against a fresh generation in a temp dir)
 # to detect drift; the session-start hook runs it and warns.
 #
-# Usage: make ze-ai-sync          (sync)
-#        make ze-ai-check         (check only, no writes)
+# Usage: make ze-ai-skills-sync          (sync)
+#        make ze-ai-sync-check         (check only, no writes)
 #        scripts/dev/skill_sync.sh [--dry-run|--check]
 
 set -euo pipefail
@@ -111,7 +111,7 @@ if [ "$mode" = "check" ]; then
     done
 
     if [ "$stale" -ne 0 ]; then
-        echo "generated agent files are stale -- run: make ze-regen" >&2
+        echo "generated agent files are stale -- run: make ze-generated-files-update" >&2
         exit 1
     fi
     echo "generated agent files in sync"

@@ -151,4 +151,4 @@ the first job of whoever takes this spec.
 - [ ] Tests written before the fix
 - [ ] Tests FAIL without the fix
 - [ ] Tests PASS with the fix
-- [ ] `make ze-verify` green before commit
+- [ ] `make ze-precommit-verify` green before commit

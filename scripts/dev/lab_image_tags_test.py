@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Both container images build with the default feature set, derived once.
 
-`docker/Dockerfile` built `${ZE_TAGS:+-tags ${ZE_TAGS}}` and the `ze-docker`
+`docker/Dockerfile` built `${ZE_TAGS:+-tags ${ZE_TAGS}}` and the `ze-docker-build`
 target passed `--build-arg ZE_TAGS` only when the caller had already set it. With
-`ZE_TAGS` unset -- the documented invocation, `make ze-docker` -- the image held an
+`ZE_TAGS` unset -- the documented invocation, `make ze-docker-build` -- the image held an
 UNTAGGED binary: no `ze_core`, so `ze start` is an unknown command, and no `ze_bgp`,
 so a `bgp` config root is rejected as an unknown top-level keyword. `docker
 compose build` reached the same Dockerfile with no build arg at all.
@@ -155,7 +155,7 @@ class TestDockerTargetsAreDistinct(unittest.TestCase):
         return match.group(1)
 
     def test_ze_docker_lab_builds_the_lab_recipe(self):
-        body = self.target_body("ze-docker-lab")
+        body = self.target_body("ze-docker-lab-build")
         self.assertIn("-f docker/Dockerfile.lab", body)
         self.assertIn("-t $(ZE_LAB_IMAGE):$(ZE_LAB_TAG)", body)
         defaults = dict(
@@ -170,15 +170,15 @@ class TestDockerTargetsAreDistinct(unittest.TestCase):
         )
 
     def test_ze_docker_builds_the_deployment_recipe(self):
-        body = self.target_body("ze-docker")
+        body = self.target_body("ze-docker-build")
         self.assertIn("-f docker/Dockerfile", body)
         self.assertNotIn("Dockerfile.lab", body)
         self.assertIn("-t $(ZE_DOCKER_IMAGE):$(ZE_DOCKER_TAG)", body)
         self.assertNotIn("ZE_LAB_IMAGE", body)
 
     def test_both_targets_pass_ze_tags_as_extra_tags(self):
-        """`make ze-docker ZE_TAGS=maprib` keeps ze_core and the feature set."""
-        for name in ("ze-docker", "ze-docker-lab"):
+        """`make ze-docker-build ZE_TAGS=maprib` keeps ze_core and the feature set."""
+        for name in ("ze-docker-build", "ze-docker-lab-build"):
             with self.subTest(target=name):
                 self.assertIn("--build-arg ZE_TAGS=", self.target_body(name))
 

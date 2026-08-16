@@ -221,7 +221,7 @@ Not applicable. No protocol code.
 
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-N all demonstrated
-- [ ] `make ze-verify` passes
+- [ ] `make ze-precommit-verify` passes
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 
 ### TDD

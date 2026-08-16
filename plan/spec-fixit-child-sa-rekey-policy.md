@@ -297,7 +297,7 @@ backend and the capability marker the backend needs.
 
 ## Goal Gates
 
-- `make ze-verify` passes.
+- `make ze-precommit-verify` passes.
 - `make ze-qemu-integration-test` passes, including the two tests above.
 - The strongSwan interop scenario survives a Child SA rekey.
 
@@ -327,7 +327,7 @@ proven on XFRM only.
 - [ ] A-1 validated in QEMU before any production edit
 - [ ] A-3 validated by reading `narrowChildSelectors`
 - [ ] Every teardown path enumerated
-- [ ] `make ze-verify` green
+- [ ] `make ze-precommit-verify` green
 - [ ] QEMU integration green
 - [ ] Interop scenario green
 

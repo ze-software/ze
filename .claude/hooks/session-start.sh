@@ -11,8 +11,8 @@ source .claude/hooks/lib/state-file.sh
 # timer, and reaped the dated session directories of sessions that never fired
 # SessionEnd. Every one of those removed the operator's own files without being
 # asked, and one of them deleted the tracked tmp/go.mod sentinel on every start.
-# Cleanup is now operator-invoked only: `make ze-clean-tmp` for the tmp/ root,
-# `make ze-clean-sessions BEFORE=<YYYY-MM-DD>` for the dated session directories
+# Cleanup is now operator-invoked only: `make ze-tmp-clean` for the tmp/ root,
+# `make ze-sessions-clean BEFORE=<YYYY-MM-DD>` for the dated session directories
 # (owner decision, 2026-08-03).
 
 # --- Read this session's claimed spec (set via scripts/dev/spec-session.sh) ---
@@ -94,7 +94,7 @@ fi
 # are gitignored, so git never shows drift; compare content instead.
 if ! scripts/dev/skill_sync.sh --check >/dev/null 2>&1; then
     echo "Warning: generated agent files are stale (CLAUDE.md / AGENTS.md / skills mirrors)"
-    echo "   -> run: make ze-regen"
+    echo "   -> run: make ze-generated-files-update"
 fi
 
 # Blocking reminders

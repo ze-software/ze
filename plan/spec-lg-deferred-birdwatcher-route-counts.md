@@ -206,7 +206,7 @@ compatibility is covered by the functional test above.
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-6 all demonstrated
 - [ ] Wiring Test table complete
-- [ ] `make ze-test` passes (lint + all ze tests)
+- [ ] `make ze-standard-test` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
 - [ ] Risks & Assumptions: every A-N confirmed or broken (none `unvalidated`)
 

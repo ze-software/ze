@@ -35,7 +35,7 @@ func TestVerifyRunWritesArtifactsAndContinuesAfterStageFailures(t *testing.T) {
 
 	code, err := runVerify(context.Background(), verifyConfig{
 		Root:   root,
-		Mode:   "ze-verify",
+		Mode:   "ze-precommit-verify",
 		Stages: stages,
 		Now:    fixedNow,
 		Out:    io.Discard,
@@ -76,16 +76,16 @@ func TestVerifyRunProducesStageAndGroupSummaries(t *testing.T) {
 	stages := []stage{
 		{Name: "ze-unit-test-cached", Rerun: "make ze-unit-test-cached"},
 		{Name: "ze-functional-test", Rerun: "make ze-functional-test"},
-		{Name: "ze-verify-wiring-docs", Rerun: "make ze-verify-wiring-docs"},
+		{Name: "ze-wiring-docs-check", Rerun: "make ze-wiring-docs-check"},
 	}
 	outputs := map[string]string{
-		"ze-unit-test-cached":   readFixture(t, "go-test-mixed.log"),
-		"ze-functional-test":    readFixture(t, "functional-groups.log"),
-		"ze-verify-wiring-docs": readFixture(t, "wiring-failure.log"),
+		"ze-unit-test-cached":  readFixture(t, "go-test-mixed.log"),
+		"ze-functional-test":   readFixture(t, "functional-groups.log"),
+		"ze-wiring-docs-check": readFixture(t, "wiring-failure.log"),
 	}
 	code, err := runVerify(context.Background(), verifyConfig{
 		Root:   root,
-		Mode:   "ze-verify",
+		Mode:   "ze-precommit-verify",
 		Stages: stages,
 		Now:    fixedNow,
 		Out:    io.Discard,
@@ -109,8 +109,8 @@ func TestVerifyRunProducesStageAndGroupSummaries(t *testing.T) {
 		"Group: package:github.com/ze-software/ze/internal/example/beta",
 		"Stage: plugin",
 		"Rerun: ze-test bgp plugin 1 2",
-		"Group: subcheck:ze-doc-test",
-		"Rerun: make ze-doc-test",
+		"Group: subcheck:ze-doc-verify",
+		"Rerun: make ze-doc-verify",
 	} {
 		if !strings.Contains(failureText, want) {
 			t.Fatalf("failure index missing %q:\n%s", want, failureText)
@@ -131,19 +131,19 @@ func TestVerifyRunMixedFailureFixture(t *testing.T) {
 	stages := []stage{
 		{Name: "ze-unit-test-cached", Rerun: "make ze-unit-test-cached"},
 		{Name: "ze-functional-test", Rerun: "make ze-functional-test"},
-		{Name: "ze-verify-wiring-docs", Rerun: "make ze-verify-wiring-docs"},
-		{Name: "ze-exabgp-test", Rerun: "make ze-exabgp-test"},
+		{Name: "ze-wiring-docs-check", Rerun: "make ze-wiring-docs-check"},
+		{Name: "ze-functional-exabgp-test", Rerun: "make ze-functional-exabgp-test"},
 	}
 	outputs := map[string]string{
-		"ze-unit-test-cached":   readFixture(t, "go-test-mixed.log"),
-		"ze-functional-test":    readFixture(t, "functional-groups.log"),
-		"ze-verify-wiring-docs": readFixture(t, "wiring-failure.log"),
-		"ze-exabgp-test":        readFixture(t, "exabgp-summary.log"),
+		"ze-unit-test-cached":       readFixture(t, "go-test-mixed.log"),
+		"ze-functional-test":        readFixture(t, "functional-groups.log"),
+		"ze-wiring-docs-check":      readFixture(t, "wiring-failure.log"),
+		"ze-functional-exabgp-test": readFixture(t, "exabgp-summary.log"),
 	}
 
 	code, err := runVerify(context.Background(), verifyConfig{
 		Root:   root,
-		Mode:   "ze-verify",
+		Mode:   "ze-precommit-verify",
 		Stages: stages,
 		Now:    fixedNow,
 		Out:    io.Discard,
@@ -159,7 +159,7 @@ func TestVerifyRunMixedFailureFixture(t *testing.T) {
 	if code != 1 {
 		t.Fatalf("expected failure exit, got %d", code)
 	}
-	for _, want := range []string{"package:github.com/ze-software/ze/internal/example/alpha", "plugin:timeout:bfd", "subcheck:ze-doc-test", "exabgp:failed"} {
+	for _, want := range []string{"package:github.com/ze-software/ze/internal/example/alpha", "plugin:timeout:bfd", "subcheck:ze-doc-verify", "exabgp:failed"} {
 		mustReadFileContains(t, root, failuresLogPath, want)
 	}
 }
@@ -168,7 +168,7 @@ func TestVerifyRunAllPassFixture(t *testing.T) {
 	root := t.TempDir()
 	code, err := runVerify(context.Background(), verifyConfig{
 		Root:   root,
-		Mode:   "ze-verify",
+		Mode:   "ze-precommit-verify",
 		Stages: []stage{{Name: "ze-lint", Rerun: "make ze-lint"}, {Name: "ze-unit-test-cached", Rerun: "make ze-unit-test-cached"}},
 		Now:    fixedNow,
 		Out:    io.Discard,
@@ -188,7 +188,7 @@ func TestVerifyRunAllPassFixture(t *testing.T) {
 	mustReadFileContains(t, root, combinedLogPath, "PASS  all 2 verify stage(s)")
 
 	mustReadFileContains(t, root, statusPath, "exit=0")
-	mustReadFileContains(t, root, statusPath, "mode=ze-verify")
+	mustReadFileContains(t, root, statusPath, "mode=ze-precommit-verify")
 	mustReadFileContains(t, root, statusPath, "skipped=")
 }
 
@@ -230,7 +230,7 @@ func TestVerifyRunCapsInlineMembersAndExcerptLines(t *testing.T) {
 
 	_, err = runVerify(context.Background(), verifyConfig{
 		Root:   root,
-		Mode:   "ze-verify",
+		Mode:   "ze-precommit-verify",
 		Stages: []stage{{Name: "ze-functional-test", Rerun: "make ze-functional-test"}},
 		Now:    fixedNow,
 		Out:    io.Discard,
@@ -290,7 +290,7 @@ func TestLintFailuresGroupByPackageAndLinter(t *testing.T) {
 }
 
 func TestVetFailuresGroupByPackage(t *testing.T) {
-	groups := classifyVet(stage{Name: "ze-vet-evidence"}, "tmp/verify/vet.log", readFixture(t, "vet-mixed.log"))
+	groups := classifyVet(stage{Name: "ze-evidence-vet"}, "tmp/verify/vet.log", readFixture(t, "vet-mixed.log"))
 	if len(groups) != 2 {
 		t.Fatalf("expected two vet groups, got %+v", groups)
 	}
@@ -303,19 +303,19 @@ func TestVetFailuresGroupByPackage(t *testing.T) {
 }
 
 func TestWiringDocFailuresGroupBySubcheck(t *testing.T) {
-	text := "Running ze-doc-test...\noutput\nze-doc-test failed\n"
-	groups := classifyWiringDocs(stage{Name: "ze-verify-wiring-docs"}, "tmp/verify/wiring.log", text)
+	text := "Running ze-doc-verify...\noutput\nze-doc-verify failed\n"
+	groups := classifyWiringDocs(stage{Name: "ze-wiring-docs-check"}, "tmp/verify/wiring.log", text)
 	if len(groups) != 1 {
 		t.Fatalf("expected one group, got %+v", groups)
 	}
-	if groups[0].GroupID != "subcheck:ze-doc-test" || groups[0].Rerun != "make ze-doc-test" {
+	if groups[0].GroupID != "subcheck:ze-doc-verify" || groups[0].Rerun != "make ze-doc-verify" {
 		t.Fatalf("unexpected wiring group: %+v", groups[0])
 	}
 }
 
 func TestExabgpVerifyModeSummaryUsesNewlinesAndExactReproducers(t *testing.T) {
 	text := readFixture(t, "exabgp-summary.log")
-	groups := classifyExabgp(stage{Name: "ze-exabgp-test"}, "tmp/verify/exabgp.log", text)
+	groups := classifyExabgp(stage{Name: "ze-functional-exabgp-test"}, "tmp/verify/exabgp.log", text)
 	if len(groups) != 2 {
 		t.Fatalf("expected failed and timeout groups, got %+v", groups)
 	}
@@ -330,20 +330,20 @@ func TestExabgpVerifyModeSummaryUsesNewlinesAndExactReproducers(t *testing.T) {
 }
 
 // VALIDATES: stagesForMode's stage list is the ACTUAL source of truth for
-// `make ze-verify`/`ze-verify-changed` -- the Makefile targets invoke this
+// `make ze-precommit-verify`/`ze-precommit-verify-changed` -- the Makefile targets invoke this
 // program and enumerate no stages of their own.
 // PREVENTS: a verification gate landing somewhere that never executes under
-// `make ze-verify`. A duplicate _ze-verify-impl/_ze-verify-changed-impl pair
+// `make ze-precommit-verify`. A duplicate _ze-verify-impl/_ze-verify-changed-impl pair
 // used to make that trap easy: they read like the stage list, had zero callers,
 // and had silently drifted (ze-tier-check, ze-iface-resolution-check and
 // ze-plugin-boundary-check were listed there but never ran). They were deleted
 // by plan/spec-fixit-verify-stage-ssot.md; this test keeps the remaining list
 // honest.
 //
-// ze-hook-test is in the list for the same reason, having hit the same trap from
-// the other side: it was reachable ONLY by typing `make ze-hook-test` by hand --
-// absent from ze-test (Makefile), from this stage list, and from
-// .github/workflows/ (whose verify job's only step is `make ze-verify`). Its
+// ze-unit-hook-test is in the list for the same reason, having hit the same trap from
+// the other side: it was reachable ONLY by typing `make ze-unit-hook-test` by hand --
+// absent from ze-standard-test (Makefile), from this stage list, and from
+// .github/workflows/ (whose verify job's only step is `make ze-precommit-verify`). Its
 // checks guard the agent hooks, whose
 // failure mode is silent and fail-CLOSED: a session-id mismatch between
 // lib/session-id.sh and pretool-writeedit.py blocks every agent from writing while
@@ -354,9 +354,9 @@ func TestStagesForModeIncludesStaticAnalysisGates(t *testing.T) {
 		"ze-tier-check",
 		"ze-iface-resolution-check",
 		"ze-plugin-boundary-check",
-		"ze-hook-test",
+		"ze-unit-hook-test",
 	}
-	for _, mode := range []string{"ze-verify", "ze-verify-changed"} {
+	for _, mode := range []string{"ze-precommit-verify", "ze-precommit-verify-changed"} {
 		names := map[string]bool{}
 		for _, st := range stagesForMode(mode, "make") {
 			names[st.Name] = true
@@ -369,63 +369,63 @@ func TestStagesForModeIncludesStaticAnalysisGates(t *testing.T) {
 	}
 }
 
-// VALIDATES: the alloc-ceiling gate (ze-alloc-gate) is registered in the full
-// `ze-verify` stage list -- the ACTUAL source of truth CI runs via
-// `make ze-verify` (.github/workflows/verify.yml) -- and is deliberately absent from
-// the fast `ze-verify-changed` inline loop (spec-fixit-perf-alloc-ci-gate AC-3).
+// VALIDATES: the alloc-ceiling gate (ze-alloc-check) is registered in the full
+// `ze-precommit-verify` stage list -- the ACTUAL source of truth CI runs via
+// `make ze-precommit-verify` (.github/workflows/verify.yml) -- and is deliberately absent from
+// the fast `ze-precommit-verify-changed` inline loop (spec-fixit-perf-alloc-ci-gate AC-3).
 // PREVENTS: the perf-alloc regression gate merging a per-op heap allocation
 // undetected because the stage was never wired into the runner CI executes,
 // and PREVENTS it silently bloating the per-edit dev loop.
 func TestStagesIncludeAllocGate(t *testing.T) {
 	full := map[string]bool{}
-	for _, st := range stagesForMode("ze-verify", "make") {
+	for _, st := range stagesForMode("ze-precommit-verify", "make") {
 		full[st.Name] = true
 	}
-	if !full["ze-alloc-gate"] {
-		t.Errorf("stagesForMode(\"ze-verify\") missing ze-alloc-gate; CI would never run the alloc gate")
+	if !full["ze-alloc-check"] {
+		t.Errorf("stagesForMode(\"ze-precommit-verify\") missing ze-alloc-check; CI would never run the alloc gate")
 	}
 
 	changed := map[string]bool{}
-	for _, st := range stagesForMode("ze-verify-changed", "make") {
+	for _, st := range stagesForMode("ze-precommit-verify-changed", "make") {
 		changed[st.Name] = true
 	}
-	if changed["ze-alloc-gate"] {
-		t.Errorf("stagesForMode(\"ze-verify-changed\") must NOT include ze-alloc-gate (keeps the inline dev loop fast)")
+	if changed["ze-alloc-check"] {
+		t.Errorf("stagesForMode(\"ze-precommit-verify-changed\") must NOT include ze-alloc-check (keeps the inline dev loop fast)")
 	}
 }
 
 // VALIDATES: the documentation-consistency gate (doc drift + corpus path
-// references) is wired into the ACTUAL stage list CI runs via `make ze-verify`
+// references) is wired into the ACTUAL stage list CI runs via `make ze-precommit-verify`
 // (.github/workflows/verify.yml), for the default full mode. Before this the gate was
-// dark: stagesForMode enumerated every ze-verify stage and named no ze-doc-*
+// dark: stagesForMode enumerated every ze-precommit-verify stage and named no ze-doc-*
 // target, so `check_doc_links.py` could exit 1 with broken discovery-layer refs
 // while CI stayed green (spec-fixit-doc-gate-and-refs AC-1).
 // PREVENTS: a broken index/rule path reference or a doc count drift merging
 // undetected because no gate that CI runs ever exercised the doc checks.
 func TestStagesForModeIncludesDocGate(t *testing.T) {
 	names := map[string]bool{}
-	for _, st := range stagesForMode("ze-verify", "make") {
+	for _, st := range stagesForMode("ze-precommit-verify", "make") {
 		names[st.Name] = true
 	}
-	for _, want := range []string{"ze-doc-test", "ze-doc-links"} {
+	for _, want := range []string{"ze-doc-verify", "ze-doc-links-check"} {
 		if !names[want] {
-			t.Errorf("stagesForMode(%q) missing doc-gate stage %q; the doc checks would never run under CI", "ze-verify", want)
+			t.Errorf("stagesForMode(%q) missing doc-gate stage %q; the doc checks would never run under CI", "ze-precommit-verify", want)
 		}
 	}
 }
 
-// VALIDATES: the doc gate is ALSO wired into the fast `ze-verify-changed` inline
+// VALIDATES: the doc gate is ALSO wired into the fast `ze-precommit-verify-changed` inline
 // loop, not only the full run (spec-fixit-doc-gate-and-refs AC-1, R-3). A single
 // wired branch would let changed-mode sessions stay green on a broken reference.
 // PREVENTS: the changed-mode verify path skipping the doc-consistency gate.
 func TestStagesForModeChangedIncludesDocGate(t *testing.T) {
 	names := map[string]bool{}
-	for _, st := range stagesForMode("ze-verify-changed", "make") {
+	for _, st := range stagesForMode("ze-precommit-verify-changed", "make") {
 		names[st.Name] = true
 	}
-	for _, want := range []string{"ze-doc-test", "ze-doc-links"} {
+	for _, want := range []string{"ze-doc-verify", "ze-doc-links-check"} {
 		if !names[want] {
-			t.Errorf("stagesForMode(%q) missing doc-gate stage %q; changed-mode would skip the doc checks", "ze-verify-changed", want)
+			t.Errorf("stagesForMode(%q) missing doc-gate stage %q; changed-mode would skip the doc checks", "ze-precommit-verify-changed", want)
 		}
 	}
 }
@@ -467,9 +467,9 @@ func mustReadFileContains(t *testing.T, root, rel, want string) {
 
 // ── Stage-list SSOT guards (plan/spec-fixit-verify-stage-ssot.md) ───────────
 //
-// stagesForMode is the ONLY live verify stage list: `make ze-verify` and
-// `make ze-verify-changed` both shell out to this runner (Makefile), and CI's
-// only step is `make ze-verify` (.github/workflows/verify.yml). A gate absent from
+// stagesForMode is the ONLY live verify stage list: `make ze-precommit-verify` and
+// `make ze-precommit-verify-changed` both shell out to this runner (Makefile), and CI's
+// only step is `make ze-precommit-verify` (.github/workflows/verify.yml). A gate absent from
 // stagesForMode therefore never runs anywhere.
 //
 // The goldens below are deliberately hand-maintained literals, not derived from
@@ -495,23 +495,24 @@ var goldenStagesZeVerify = []string{
 	"ze-config-claims-check",
 	"ze-test-sensitivity-check",
 	"ze-weakened-check",
+	"ze-staticcheck-feature-matrix-check",
 	"ze-tracked-build-check",
 	"ze-platform-vet",
-	"ze-verify-wiring-docs",
-	"ze-doc-test",
-	"ze-doc-links",
-	"ze-validate-tree",
-	"ze-regen-check-readonly",
-	"ze-check-vendor-web",
+	"ze-wiring-docs-check",
+	"ze-doc-verify",
+	"ze-doc-links-check",
+	"ze-repository-tree-check",
+	"ze-generated-files-check",
+	"ze-vendor-web-check",
 	"ze-htmx-upgrade-check",
-	"ze-vet-evidence",
-	"ze-hook-test",
-	"ze-vulncheck",
+	"ze-evidence-vet",
+	"ze-unit-hook-test",
+	"ze-dependency-vulnerability-check",
 	"ze-unit-test-cached",
 	"ze-unit-test-race-changed",
-	"ze-alloc-gate",
+	"ze-alloc-check",
 	"ze-functional-test",
-	"ze-exabgp-test",
+	"ze-functional-exabgp-test",
 }
 
 var goldenStagesZeVerifyChanged = []string{
@@ -527,26 +528,27 @@ var goldenStagesZeVerifyChanged = []string{
 	"ze-config-claims-check",
 	"ze-test-sensitivity-check",
 	"ze-weakened-check",
+	"ze-staticcheck-feature-matrix-check",
 	"ze-tracked-build-check",
 	"ze-platform-vet",
-	"ze-verify-wiring-docs",
-	"ze-doc-test",
-	"ze-doc-links",
-	"ze-validate-tree",
-	"ze-regen-check-readonly",
-	"ze-check-vendor-web",
+	"ze-wiring-docs-check",
+	"ze-doc-verify",
+	"ze-doc-links-check",
+	"ze-repository-tree-check",
+	"ze-generated-files-check",
+	"ze-vendor-web-check",
 	"ze-htmx-upgrade-check",
-	"ze-hook-test",
-	"ze-vulncheck",
+	"ze-unit-hook-test",
+	"ze-dependency-vulnerability-check",
 	"ze-unit-test-changed",
 	"ze-functional-test",
-	"ze-exabgp-test",
+	"ze-functional-exabgp-test",
 }
 
 // TestStagesForModeMatchesGolden locks the full stage list of BOTH modes.
 //
 // VALIDATES: stagesForMode returns exactly the committed golden list, in order,
-// with no duplicates, for `ze-verify` and `ze-verify-changed` alike (AC-2).
+// with no duplicates, for `ze-precommit-verify` and `ze-precommit-verify-changed` alike (AC-2).
 // PREVENTS: a stage being dropped, silently reordered, or added to only one of
 // the two hand-duplicated mode branches -- the precise drift that let the dead
 // _ze-verify-impl targets diverge from the live list for an unknown period.
@@ -555,8 +557,8 @@ func TestStagesForModeMatchesGolden(t *testing.T) {
 		mode   string
 		golden []string
 	}{
-		{"ze-verify", goldenStagesZeVerify},
-		{"ze-verify-changed", goldenStagesZeVerifyChanged},
+		{"ze-precommit-verify", goldenStagesZeVerify},
+		{"ze-precommit-verify-changed", goldenStagesZeVerifyChanged},
 	} {
 		t.Run(tc.mode, func(t *testing.T) {
 			var got []string
@@ -581,6 +583,37 @@ func TestStagesForModeMatchesGolden(t *testing.T) {
 	}
 }
 
+// TestVerifyStagesIncludeStaticcheckFeatureMatrix pins the matrix gate in both
+// live verification modes and keeps the tracked-build final-link stage after it.
+//
+// VALIDATES: full and changed verification both run the matrix gate (AC-8).
+// PREVENTS: one verification branch omitting the gate, or the new type-check
+// stage replacing tracked-build coverage.
+func TestVerifyStagesIncludeStaticcheckFeatureMatrix(t *testing.T) {
+	for _, mode := range []string{"ze-precommit-verify", "ze-precommit-verify-changed"} {
+		t.Run(mode, func(t *testing.T) {
+			var matrixIndex, trackedBuildIndex = -1, -1
+			for i, st := range stagesForMode(mode, "make") {
+				switch st.Name {
+				case "ze-staticcheck-feature-matrix-check":
+					if matrixIndex >= 0 {
+						t.Fatalf("%s lists ze-staticcheck-feature-matrix-check more than once", mode)
+					}
+					matrixIndex = i
+				case "ze-tracked-build-check":
+					trackedBuildIndex = i
+				}
+			}
+			if matrixIndex < 0 {
+				t.Fatalf("%s does not include ze-staticcheck-feature-matrix-check", mode)
+			}
+			if trackedBuildIndex <= matrixIndex {
+				t.Fatalf("%s must retain ze-tracked-build-check after the matrix gate", mode)
+			}
+		})
+	}
+}
+
 // goldenEditGuidance is deliberately explicit about BOTH branches. The obvious
 // wrong move on seeing one sub-test fail is to update that one golden and ship,
 // which blesses exactly the divergence TestStagesForModeBranchesAgree exists to
@@ -600,8 +633,8 @@ var modeSpecificStages = []struct {
 	{"ze-lint", "ze-lint-changed", "changed mode lints only changed packages"},
 	{"ze-unit-test-cached", "ze-unit-test-changed", "changed mode runs only changed packages' tests"},
 	{"ze-unit-test-race-changed", "", "race pass is full-verify only"},
-	{"ze-vet-evidence", "", "evidence vetting is full-verify only"},
-	{"ze-alloc-gate", "", "alloc ceiling is full-verify only (spec-fixit-perf-alloc-ci-gate AC-3)"},
+	{"ze-evidence-vet", "", "evidence vetting is full-verify only"},
+	{"ze-alloc-check", "", "alloc ceiling is full-verify only (spec-fixit-perf-alloc-ci-gate AC-3)"},
 }
 
 // TestStagesForModeBranchesAgree is the divergence check the goldens cannot be.
@@ -609,7 +642,7 @@ var modeSpecificStages = []struct {
 // VALIDATES: after removing the documented mode-specific stages, the two
 // branches of stagesForMode carry the IDENTICAL set of gates (AC-2's "fails if
 // the two branches diverge").
-// PREVENTS: a gate wired into `ze-verify` but not `ze-verify-changed` (or the
+// PREVENTS: a gate wired into `ze-precommit-verify` but not `ze-precommit-verify-changed` (or the
 // reverse), which is invisible to the per-mode goldens: each golden is its own
 // independent change-detector, so updating just the one that failed makes the
 // suite green with the fast dev loop silently missing the gate. An independent
@@ -623,18 +656,18 @@ func TestStagesForModeBranchesAgree(t *testing.T) {
 		}
 		return m
 	}
-	full, changed := set("ze-verify"), set("ze-verify-changed")
+	full, changed := set("ze-precommit-verify"), set("ze-precommit-verify-changed")
 
 	for _, ms := range modeSpecificStages {
 		if ms.full != "" {
 			if !full[ms.full] {
-				t.Errorf("modeSpecificStages lists %q as a full-verify stage, but stagesForMode(%q) does not emit it; the allowlist has rotted", ms.full, "ze-verify")
+				t.Errorf("modeSpecificStages lists %q as a full-verify stage, but stagesForMode(%q) does not emit it; the allowlist has rotted", ms.full, "ze-precommit-verify")
 			}
 			delete(full, ms.full)
 		}
 		if ms.changed != "" {
 			if !changed[ms.changed] {
-				t.Errorf("modeSpecificStages lists %q as a changed-mode stage, but stagesForMode(%q) does not emit it; the allowlist has rotted", ms.changed, "ze-verify-changed")
+				t.Errorf("modeSpecificStages lists %q as a changed-mode stage, but stagesForMode(%q) does not emit it; the allowlist has rotted", ms.changed, "ze-precommit-verify-changed")
 			}
 			delete(changed, ms.changed)
 		} else if changed[ms.full] {
@@ -643,19 +676,19 @@ func TestStagesForModeBranchesAgree(t *testing.T) {
 			// it from `full` only, and the symmetric-difference check below
 			// would then blame it for running in changed-mode but not full --
 			// the exact opposite of the truth.
-			t.Errorf("stage %q is documented full-verify-only in modeSpecificStages (%s), but stagesForMode(%q) now emits it too; update modeSpecificStages if that is deliberate", ms.full, ms.why, "ze-verify-changed")
+			t.Errorf("stage %q is documented full-verify-only in modeSpecificStages (%s), but stagesForMode(%q) now emits it too; update modeSpecificStages if that is deliberate", ms.full, ms.why, "ze-precommit-verify-changed")
 			delete(changed, ms.full)
 		}
 	}
 
 	for name := range full {
 		if !changed[name] {
-			t.Errorf("stage %q runs under `ze-verify` but NOT `ze-verify-changed`; add it to both branches, or document it in modeSpecificStages with a reason", name)
+			t.Errorf("stage %q runs under `ze-precommit-verify` but NOT `ze-precommit-verify-changed`; add it to both branches, or document it in modeSpecificStages with a reason", name)
 		}
 	}
 	for name := range changed {
 		if !full[name] {
-			t.Errorf("stage %q runs under `ze-verify-changed` but NOT `ze-verify`; add it to both branches, or document it in modeSpecificStages with a reason", name)
+			t.Errorf("stage %q runs under `ze-precommit-verify-changed` but NOT `ze-precommit-verify`; add it to both branches, or document it in modeSpecificStages with a reason", name)
 		}
 	}
 }
@@ -663,10 +696,10 @@ func TestStagesForModeBranchesAgree(t *testing.T) {
 // TestStagesForModeIncludesRegenCheck pins the generated-file staleness gate
 // into BOTH mode branches.
 //
-// VALIDATES: the write-safe, read-only regen check runs under `make ze-verify`
-// and `make ze-verify-changed` (AC-4).
+// VALIDATES: the write-safe, read-only regen check runs under `make ze-precommit-verify`
+// and `make ze-precommit-verify-changed` (AC-4).
 // PREVENTS: a stale generated file reaching a commit unnoticed because the only
-// gate that detected it -- `ze-regen-check` -- runs nowhere. Scoped honestly:
+// gate that detected it -- `ze-generated-files-update-check` -- runs nowhere. Scoped honestly:
 // this is NEW coverage for the ai/* discovery indexes, feature_tags' outputs
 // (.golangci.yml, gokrazy/ze/config.json, docs/guide/quickstart.md) and
 // mk/test-fuzz-targets.mk. It is REDUNDANT (a second, uncached path) for
@@ -674,35 +707,35 @@ func TestStagesForModeBranchesAgree(t *testing.T) {
 // TestVerifyWiringDocsChecksPluginImports already covered. CLAUDE.md/AGENTS.md
 // and the skill mirrors are NOT covered here at all -- see the two documented
 // exclusions above the target in the Makefile.
-// PREVENTS: the MUTATING `ze-regen-check` being wired instead: it depends on
-// `ze-regen`, which rewrites generated files before diffing them, so verify
+// PREVENTS: the MUTATING `ze-generated-files-update-check` being wired instead: it depends on
+// `ze-generated-files-update`, which rewrites generated files before diffing them, so verify
 // would leave a dirty working tree (spec R-1).
 func TestStagesForModeIncludesRegenCheck(t *testing.T) {
-	for _, mode := range []string{"ze-verify", "ze-verify-changed"} {
+	for _, mode := range []string{"ze-precommit-verify", "ze-precommit-verify-changed"} {
 		names := map[string]bool{}
 		for _, st := range stagesForMode(mode, "make") {
 			names[st.Name] = true
 		}
-		if !names["ze-regen-check-readonly"] {
-			t.Errorf("stagesForMode(%q) missing ze-regen-check-readonly; generated-file staleness would go unguarded", mode)
+		if !names["ze-generated-files-check"] {
+			t.Errorf("stagesForMode(%q) missing ze-generated-files-check; generated-file staleness would go unguarded", mode)
 		}
-		if names["ze-regen-check"] {
-			t.Errorf("stagesForMode(%q) wires the MUTATING ze-regen-check; it runs ze-regen and would leave verify with a dirty tree", mode)
+		if names["ze-generated-files-update-check"] {
+			t.Errorf("stagesForMode(%q) wires the MUTATING ze-generated-files-update-check; it runs ze-generated-files-update and would leave verify with a dirty tree", mode)
 		}
 	}
 }
 
-// TestStagesForModeIncludesValidateTree pins the ze-validate half that a shared
+// TestStagesForModeIncludesValidateTree pins the ze-repository-check half that a shared
 // checkout can carry into BOTH mode branches.
 //
-// VALIDATES: `make ze-validate-tree` runs under `make ze-verify` and
-// `make ze-verify-changed`, and the target it names exists.
+// VALIDATES: `make ze-repository-tree-check` runs under `make ze-precommit-verify` and
+// `make ze-precommit-verify-changed`, and the target it names exists.
 // PREVENTS: the five validate.py checks going back to having no automatic
 // caller at all. Until 2026-08-09 nothing ran them: no Makefile target depended
-// on ze-validate, no hook called it, commit_helper.py did not, and stagesForMode
+// on ze-repository-check, no hook called it, commit_helper.py did not, and stagesForMode
 // named neither. Their only callers were two sentences of prose in
 // ai/skills/ze-review.md and ai/skills/ze-close.md.
-// PREVENTS: the whole `ze-validate` target being wired instead. Two of its five
+// PREVENTS: the whole `ze-repository-check` target being wired instead. Two of its five
 // checks (check_cross_package_wiring, check_cli_handler_coverage in
 // scripts/dev/validate.py) take `changed_files` -- `git diff HEAD` plus
 // untracked files -- as their subject. Several sessions share this checkout, so
@@ -711,25 +744,25 @@ func TestStagesForModeIncludesRegenCheck(t *testing.T) {
 // cannot show. Wiring them would red a verify run whose author changed none of
 // the files being judged.
 func TestStagesForModeIncludesValidateTree(t *testing.T) {
-	for _, mode := range []string{"ze-verify", "ze-verify-changed"} {
+	for _, mode := range []string{"ze-precommit-verify", "ze-precommit-verify-changed"} {
 		names := map[string]bool{}
 		for _, st := range stagesForMode(mode, "make") {
 			names[st.Name] = true
 		}
-		if !names["ze-validate-tree"] {
-			t.Errorf("stagesForMode(%q) missing ze-validate-tree; the source-anchor and spec-AC checks would run nowhere", mode)
+		if !names["ze-repository-tree-check"] {
+			t.Errorf("stagesForMode(%q) missing ze-repository-tree-check; the source-anchor and spec-AC checks would run nowhere", mode)
 		}
-		if names["ze-validate"] {
-			t.Errorf("stagesForMode(%q) wires the full ze-validate; its two changed-file checks judge other sessions' uncommitted files in this shared checkout", mode)
+		if names["ze-repository-check"] {
+			t.Errorf("stagesForMode(%q) wires the full ze-repository-check; its two changed-file checks judge other sessions' uncommitted files in this shared checkout", mode)
 		}
 	}
 
 	corpus := makefileCorpus(t)
-	if !strings.Contains(corpus, "\nze-validate-tree:\n") {
-		t.Error("no ze-validate-tree target in the Makefile corpus: the stage would fail with 'No rule to make target'")
+	if !strings.Contains(corpus, "\nze-repository-tree-check:\n") {
+		t.Error("no ze-repository-tree-check target in the Makefile corpus: the stage would fail with 'No rule to make target'")
 	}
 	if !strings.Contains(corpus, "--changed-file ''") {
-		t.Error("ze-validate-tree no longer declares an empty changed set; without it validate.py falls back to git diff HEAD and the two changed-file checks come back")
+		t.Error("ze-repository-tree-check no longer declares an empty changed set; without it validate.py falls back to git diff HEAD and the two changed-file checks come back")
 	}
 }
 
@@ -793,7 +826,7 @@ func declaredMakeTargets(t *testing.T) map[string]bool {
 // pointer to the cause.
 func TestStagesAreRealMakeTargets(t *testing.T) {
 	targets := declaredMakeTargets(t)
-	for _, mode := range []string{"ze-verify", "ze-verify-changed"} {
+	for _, mode := range []string{"ze-precommit-verify", "ze-precommit-verify-changed"} {
 		for _, st := range stagesForMode(mode, "make") {
 			if !targets[st.Name] {
 				t.Errorf("stagesForMode(%q) emits stage %q, but no such make target is declared in Makefile or mk/*.mk", mode, st.Name)
@@ -808,7 +841,7 @@ func TestStagesAreRealMakeTargets(t *testing.T) {
 // Both are needed, and the reason is `go test` caching, not belt-and-braces.
 // The Python one runs as a subprocess under TestPythonUnitTests, so
 // verify_run.go is not one of its cache inputs: editing verify_run.go alone
-// serves it a cached PASS (and under ze-verify-changed, changed-pkgs.sh maps a
+// serves it a cached PASS (and under ze-precommit-verify-changed, changed-pkgs.sh maps a
 // *.go edit to ./scripts/status only). This one calls stagesForMode in-process,
 // so any edit to it invalidates this package and the check re-runs. Conversely
 // an edit to commit_helper.py invalidates ./scripts/dev and re-runs the Python
@@ -840,7 +873,7 @@ func TestStructuralGatesAreLiveStages(t *testing.T) {
 	}
 
 	live := map[string]bool{}
-	for _, mode := range []string{"ze-verify", "ze-verify-changed"} {
+	for _, mode := range []string{"ze-precommit-verify", "ze-precommit-verify-changed"} {
 		for _, st := range stagesForMode(mode, "make") {
 			live[st.Name] = true
 		}
@@ -852,7 +885,7 @@ func TestStructuralGatesAreLiveStages(t *testing.T) {
 	}
 }
 
-// regenCheckPrereqs is the full prerequisite set ze-regen-check-readonly must
+// regenCheckPrereqs is the full prerequisite set ze-generated-files-check must
 // carry, and why each one is there. Asserted as an EXACT set, not a floor: an
 // earlier version only checked `len(prereqs) >= 4`, and a reviewer showed that
 // half the list (including the only guard for ai/INSTRUCTIONS.md) could be
@@ -863,24 +896,24 @@ var regenCheckPrereqs = map[string]string{
 	"ze-feature-tags-check":    "feature_tags.go -> .golangci.yml, gokrazy/ze/config.json, docs/guide/quickstart.md",
 	"ze-templ-generate-check":  "templ generate -> internal/**/*_templ.go",
 	"ze-fuzz-targets-check":    "fuzz-targets.py -> mk/test-fuzz-targets.mk",
-	"ze-check-vendor-web":      "sync_web.go -> the vendored asset copy in each internal/**/assets/",
+	"ze-vendor-web-check":      "sync_web.go -> the vendored asset copy in each internal/**/assets/",
 	"ze-web-assets-check":      "web_assets.go -> the per-page asset set in each internal/**/page_assets.go",
-	"ze-doc-check-stale":       "code_to_docs.py -> ai/CODE-TO-DOCS.md",
+	"ze-doc-index-check":       "code_to_docs.py -> ai/CODE-TO-DOCS.md",
 	"ze-rules-render-check":    "rules_points.py -> ai/rules/<rule>.md, rendered from ai/rules/points/",
 	"ze-rules-index-check":     "rules_index.py -> ai/rules/INDEX.md",
 	"ze-rules-condensed-check": "rules_condensed.py -> ai/rules/TRIGGERS.md, ai/rules/CORE.md",
 	"ze-rules-lint":            "rules_lint.py -> ai/rules/*.md format contract (read-only validator, no generated output)",
-	"ze-arch-map-check":        "arch_map.py -> the architecture lists in ai/INSTRUCTIONS.md (NOT covered by ze-doc-test)",
+	"ze-arch-map-check":        "arch_map.py -> the architecture lists in ai/INSTRUCTIONS.md (NOT covered by ze-doc-verify)",
 	"ze-discovery-index-check": "package_map.py, docs_to_code.py -> the ai/ discovery indexes",
 	"ze-test-health-check":     "testing_health.py -> docs/features/test-health.md, test/health/latest.json, the sensitivity baseline",
 }
 
 // generatorChecks maps every generator reachable from `make generate` or
-// `make ze-regen` to the regenCheckPrereqs entry that guards its output.
+// `make ze-generated-files-update` to the regenCheckPrereqs entry that guards its output.
 //
 // An empty value means DELIBERATELY EXCLUDED, and the reason is recorded in the
-// exclusion block above ze-regen-check-readonly in the Makefile. In short: every
-// output of skill_sync.sh (reached via ze-ai-sync) is gitignored, so nothing
+// exclusion block above ze-generated-files-check in the Makefile. In short: every
+// output of skill_sync.sh (reached via ze-ai-skills-sync) is gitignored, so nothing
 // committed can drift and a fresh CI checkout -- where those files do not exist
 // at all -- would red on every run.
 var generatorChecks = map[string]string{
@@ -890,23 +923,23 @@ var generatorChecks = map[string]string{
 	"scripts/codegen/feature_tags.go":   "ze-feature-tags-check",
 	"github.com/a-h/templ/cmd/templ":    "ze-templ-generate-check",
 	"scripts/dev/fuzz-targets.py":       "ze-fuzz-targets-check",
-	"scripts/vendor/sync_web.go":        "ze-check-vendor-web",
+	"scripts/vendor/sync_web.go":        "ze-vendor-web-check",
 	"scripts/codegen/web_assets.go":     "ze-web-assets-check",
-	// `ze-regen:` prerequisite targets
-	"ze-ai-instructions": "ze-arch-map-check",
-	"ze-ai-sync":         "", // gitignored outputs -- excluded on purpose
-	"ze-doc-index":       "ze-doc-check-stale",
-	"ze-rules-render":    "ze-rules-render-check",
-	"ze-rules-index":     "ze-rules-index-check",
-	"ze-rules-condensed": "ze-rules-condensed-check",
-	"ze-discovery-index": "ze-discovery-index-check",
-	"ze-arch-map":        "ze-arch-map-check",
-	"generate":           "", // expanded into its own generators above
+	// `ze-generated-files-update:` prerequisite targets
+	"ze-ai-instructions-generate": "ze-arch-map-check",
+	"ze-ai-skills-sync":           "", // gitignored outputs -- excluded on purpose
+	"ze-doc-index-update":         "ze-doc-index-check",
+	"ze-rules-render-update":      "ze-rules-render-check",
+	"ze-rules-index-update":       "ze-rules-index-check",
+	"ze-rules-condensed-update":   "ze-rules-condensed-check",
+	"ze-discovery-index-update":   "ze-discovery-index-check",
+	"ze-arch-map-update":          "ze-arch-map-check",
+	"generate":                    "", // expanded into its own generators above
 	// Scripts run INSIDE those sub-targets' recipes. Walking only the target
 	// names left these invisible: a reviewer showed a new script added to
-	// ze-discovery-index's recipe would be accepted with no check at all.
+	// ze-discovery-index-update's recipe would be accepted with no check at all.
 	"scripts/dev/arch_map.py":        "ze-arch-map-check",
-	"scripts/dev/code_to_docs.py":    "ze-doc-check-stale",
+	"scripts/dev/code_to_docs.py":    "ze-doc-index-check",
 	"scripts/dev/rules_index.py":     "ze-rules-index-check",
 	"scripts/dev/rules_points.py":    "ze-rules-render-check",
 	"scripts/dev/rules_condensed.py": "ze-rules-condensed-check",
@@ -914,7 +947,7 @@ var generatorChecks = map[string]string{
 	"scripts/dev/docs_to_code.py":    "ze-discovery-index-check",
 	"scripts/dev/skill_sync.sh":      "", // gitignored outputs -- excluded on purpose
 	"scripts/dev/testing_health.py":  "ze-test-health-check",
-	"ze-test-health":                 "ze-test-health-check",
+	"ze-test-health-update":          "ze-test-health-check",
 }
 
 // recipeBody returns the lines of `target`'s recipe: everything after the rule
@@ -962,7 +995,7 @@ func recipeBody(t *testing.T, corpus, target string) (head string, body []string
 // optionalRecipeBody is recipeBody for a name that MIGHT not be a target.
 //
 // The deeper walk feeds it every field of a sub-target's rule head, and a
-// prerequisite is legally a file (`ze-doc-index: bin/ze`), a variable
+// prerequisite is legally a file (`ze-doc-index-update: bin/ze`), a variable
 // (`$(DEPS)`), or the order-only separator `|`. Those are not rule heads, and
 // hard-failing on them would report "target not found ... must not pass
 // vacuously" at a reader who did nothing wrong. Skip them instead; a real
@@ -993,14 +1026,14 @@ func optionalRecipeBody(corpus, target string) []string {
 // Deliberately NOT limited to `scripts/**.{go,py}`: an earlier version was, and
 // a reviewer showed that `@go run ./cmd/newgen` was silently exempt from the
 // coverage requirement. The interpreter set below covers every form this repo
-// actually uses -- including `$(GO) run`, which is house style at the ze-verify
-// and ze-verify-changed recipes, and `uv run`, used by the ExaBGP suite. A
+// actually uses -- including `$(GO) run`, which is house style at the ze-precommit-verify
+// and ze-precommit-verify-changed recipes, and `uv run`, used by the ExaBGP suite. A
 // HONEST LIMIT -- this is best-effort detection, NOT a guarantee. An earlier
 // version of this comment claimed a generator in an unlisted form "is NOT
 // silently ignored, because the exact-count assertions fail when the parsed set
 // changes size". A reviewer measured that false twice over: (a) there is NO
 // count assertion for generators found inside SUB-TARGET recipes -- the only
-// counts are on `generate:`'s 4 and `ze-regen`'s 9 prerequisites; and (b) even
+// counts are on `generate:`'s 4 and `ze-generated-files-update`'s 9 prerequisites; and (b) even
 // inside `generate:`, a form yielding no capture leaves the count at 4, so the
 // tripwire never fires. Measured misses at the time: `go run -tags x ./cmd/y`,
 // `python3 -m pkg.mod`, `$(MAKE) some-target`. The first two are now matched
@@ -1095,43 +1128,43 @@ var producerREs = []*regexp.Regexp{
 // TestRegenCheckReadonlyCoversGenerators enforces the spec's coverage
 // obligation as a test rather than a comment.
 //
-// VALIDATES: ze-regen-check-readonly carries exactly the documented
+// VALIDATES: ze-generated-files-check carries exactly the documented
 // prerequisite set, and every generator reachable from `make generate` or
-// `make ze-regen` is guarded by one of them (or is an explicit, reasoned
+// `make ze-generated-files-update` is guarded by one of them (or is an explicit, reasoned
 // exclusion).
 // PREVENTS: two distinct drifts. (a) A new generator added to `generate` or
-// `ze-regen` with no read-only check, leaving its output's staleness unguarded
+// `ze-generated-files-update` with no read-only check, leaving its output's staleness unguarded
 // everywhere -- the drift class this spec exists to kill, one level up from the
 // stage list; two of the four codegen scripts (feature_tags, fuzz-targets) were
-// previously guarded ONLY by the mutating ze-regen-check's `git diff`, which
+// previously guarded ONLY by the mutating ze-generated-files-update-check's `git diff`, which
 // runs nowhere. (b) A prerequisite being quietly dropped from the target, which
 // matters most for ze-arch-map-check: unlike the other doc checks it is NOT
-// also run by ze-doc-test, so deleting it would leave ai/INSTRUCTIONS.md's
+// also run by ze-doc-verify, so deleting it would leave ai/INSTRUCTIONS.md's
 // architecture lists with no guard at all.
 func TestRegenCheckReadonlyCoversGenerators(t *testing.T) {
 	corpus := makefileCorpus(t)
 
-	head, _ := recipeBody(t, corpus, "ze-regen-check-readonly")
+	head, _ := recipeBody(t, corpus, "ze-generated-files-check")
 	got := map[string]bool{}
 	for f := range strings.FieldsSeq(head) {
 		got[f] = true
 	}
 	for want, why := range regenCheckPrereqs {
 		if !got[want] {
-			t.Errorf("ze-regen-check-readonly is missing prerequisite %q (%s); that output's staleness would be unguarded under `make ze-verify`", want, why)
+			t.Errorf("ze-generated-files-check is missing prerequisite %q (%s); that output's staleness would be unguarded under `make ze-precommit-verify`", want, why)
 		}
 	}
 	for have := range got {
 		if _, known := regenCheckPrereqs[have]; !known {
-			t.Errorf("ze-regen-check-readonly has undocumented prerequisite %q; add it to regenCheckPrereqs with the generator and output it guards", have)
+			t.Errorf("ze-generated-files-check has undocumented prerequisite %q; add it to regenCheckPrereqs with the generator and output it guards", have)
 		}
 	}
 
-	// Every generator reachable from `make generate` or `make ze-regen`.
+	// Every generator reachable from `make generate` or `make ze-generated-files-update`.
 	//
-	// Walk the sub-targets' RECIPES too, not just their names. ze-discovery-index
-	// and ze-ai-instructions run generator scripts of their own, so stopping at
-	// the name would let a fourth script added inside ze-discovery-index's recipe
+	// Walk the sub-targets' RECIPES too, not just their names. ze-discovery-index-update
+	// and ze-ai-instructions-generate run generator scripts of their own, so stopping at
+	// the name would let a fourth script added inside ze-discovery-index-update's recipe
 	// go completely unguarded -- proven by a reviewer.
 	var producers []string
 	_, genBody := recipeBody(t, corpus, "generate")
@@ -1140,14 +1173,14 @@ func TestRegenCheckReadonlyCoversGenerators(t *testing.T) {
 		t.Fatalf("parsed %d generators from the `generate:` recipe (%v), expected 7; the recipe changed. Update generatorChecks to match. This test must not pass vacuously.", len(producers), producers)
 	}
 
-	regenHead, _ := recipeBody(t, corpus, "ze-regen")
+	regenHead, _ := recipeBody(t, corpus, "ze-generated-files-update")
 	subTargets := strings.Fields(regenHead)
 	// EXACT, not a floor: with `>= 5` a prerequisite could be DELETED from
-	// ze-regen unnoticed, so `make ze-regen` would stop regenerating an output
-	// that ze-regen-check-readonly (an un-parkable structural gate) still checks
+	// ze-generated-files-update unnoticed, so `make ze-generated-files-update` would stop regenerating an output
+	// that ze-generated-files-check (an un-parkable structural gate) still checks
 	// -- a red whose documented remediation does not fix it.
 	if len(subTargets) != 9 {
-		t.Fatalf("`ze-regen` has %d prerequisites (%v), expected 9; if that is deliberate, update this count and generatorChecks together.", len(subTargets), subTargets)
+		t.Fatalf("`ze-generated-files-update` has %d prerequisites (%v), expected 9; if that is deliberate, update this count and generatorChecks together.", len(subTargets), subTargets)
 	}
 	producers = append(producers, subTargets...)
 	for _, sub := range subTargets {
@@ -1156,8 +1189,8 @@ func TestRegenCheckReadonlyCoversGenerators(t *testing.T) {
 		}
 		_, subBody := recipeBody(t, corpus, sub)
 		producers = append(producers, producerScripts(strings.Join(subBody, "\n"))...)
-		// A sub-target may itself have prerequisites (ze-ai-instructions:
-		// ze-arch-map); walk those recipes too, one level.
+		// A sub-target may itself have prerequisites (ze-ai-instructions-generate:
+		// ze-arch-map-update); walk those recipes too, one level.
 		subHead, _ := recipeBody(t, corpus, sub)
 		for sub2 := range strings.FieldsSeq(subHead) {
 			sub2Body := optionalRecipeBody(corpus, sub2)
@@ -1168,14 +1201,14 @@ func TestRegenCheckReadonlyCoversGenerators(t *testing.T) {
 	for _, producer := range producers {
 		target, known := generatorChecks[producer]
 		if !known {
-			t.Errorf("`make generate`/`ze-regen` runs %q, but generatorChecks does not say which read-only check guards its output. Wire one into ze-regen-check-readonly and record it, or record it as a reasoned exclusion -- otherwise its staleness is unguarded everywhere.", producer)
+			t.Errorf("`make generate`/`ze-generated-files-update` runs %q, but generatorChecks does not say which read-only check guards its output. Wire one into ze-generated-files-check and record it, or record it as a reasoned exclusion -- otherwise its staleness is unguarded everywhere.", producer)
 			continue
 		}
 		if target == "" {
 			continue // documented exclusion
 		}
 		if !got[target] {
-			t.Errorf("%q is guarded by %q, but that is not a prerequisite of ze-regen-check-readonly, so it never runs under `make ze-verify`", producer, target)
+			t.Errorf("%q is guarded by %q, but that is not a prerequisite of ze-generated-files-check, so it never runs under `make ze-precommit-verify`", producer, target)
 		}
 	}
 }
@@ -1263,12 +1296,12 @@ func TestTemplCheckIsReadOnlyAndReportsOrphans(t *testing.T) {
 	}
 }
 
-// TestMakeDryRunDetectsDashN guards the refusal that keeps `make -n ze-verify`
+// TestMakeDryRunDetectsDashN guards the refusal that keeps `make -n ze-precommit-verify`
 // from forging a verified state.
 //
 // VALIDATES: makeDryRun reads MAKEFLAGS the way GNU make writes it -- short
 // flags concatenated in the first field with no leading dash.
-// PREVENTS: the single worst failure this runner can have. ze-verify's recipe
+// PREVENTS: the single worst failure this runner can have. ze-precommit-verify's recipe
 // contains $(MAKE), which GNU make executes even under -n, propagating -n to
 // every stage sub-make; each then echoes its recipe and exits 0. Writing
 // tmp/ze-verify.status from that run stamps exit=0 against the CURRENT tree
@@ -1322,7 +1355,7 @@ func TestMakeDryRunDetectsDashN(t *testing.T) {
 		{" -j8 --jobserver-auth=3,4 -- TARGET=not-a-flag", false, "n/t/q in a variable value must not match"},
 		// GNU make 3.81 (the macOS system make) writes a command-line variable
 		// override as the FIRST MAKEFLAGS word with no `--` separator and no
-		// leading space (captured: `make ze-verify ZE_VERIFY_LOG=tmp/x.log` ->
+		// leading space (captured: `make ze-precommit-verify ZE_VERIFY_LOG=tmp/x.log` ->
 		// MAKEFLAGS="ZE_VERIFY_LOG=tmp/ze-verify-gate12.log"). A flags word can
 		// never contain '=', so an override word must not be read as flags --
 		// without that, the 't' in "tmp" refused the exact invocation the
@@ -1353,7 +1386,7 @@ func TestStagesForModeRejectsUnknownMode(t *testing.T) {
 		}
 	}
 	// ...while the two real modes still work, so this is not vacuous.
-	for _, mode := range []string{"ze-verify", "ze-verify-changed"} {
+	for _, mode := range []string{"ze-precommit-verify", "ze-precommit-verify-changed"} {
 		if got := stagesForMode(mode, "make"); len(got) == 0 {
 			t.Errorf("stagesForMode(%q) returned no stages", mode)
 		}
@@ -1432,8 +1465,8 @@ func topLevelYAMLMap(t *testing.T, body, key string) map[string]*yaml.Node {
 // and manual triggers while normal local verification also runs the scan.
 //
 // VALIDATES: .github/workflows/govulncheck.yml remains scheduled and manually
-// dispatchable, invokes `make ze-vulncheck`, never triggers on push/pull_request,
-// and both local verification modes contain the exact `ze-vulncheck` stage.
+// dispatchable, invokes `make ze-dependency-vulnerability-check`, never triggers on push/pull_request,
+// and both local verification modes contain the exact `ze-dependency-vulnerability-check` stage.
 // PREVENTS: (a) the dedicated scheduled or manual trigger disappearing; (b) the
 // dedicated workflow moving onto push/pull_request events; (c) either normal
 // verification mode silently omitting the mandatory vulnerability scan.
@@ -1473,21 +1506,21 @@ func TestGovulncheckScheduledWorkflow(t *testing.T) {
 		}
 	}
 	// Invokes the single-source-of-truth make target.
-	if !strings.Contains(body, "make ze-vulncheck") {
-		t.Errorf("govulncheck.yml must run `make ze-vulncheck`; body (comments stripped):\n%s", body)
+	if !strings.Contains(body, "make ze-dependency-vulnerability-check") {
+		t.Errorf("govulncheck.yml must run `make ze-dependency-vulnerability-check`; body (comments stripped):\n%s", body)
 	}
 	// govulncheck is an exact stagesForMode entry in BOTH local verification
 	// modes, so neither path can silently skip the mandatory scan.
-	for _, mode := range []string{"ze-verify", "ze-verify-changed"} {
+	for _, mode := range []string{"ze-precommit-verify", "ze-precommit-verify-changed"} {
 		found := false
 		for _, st := range stagesForMode(mode, "make") {
-			if st.Name == "ze-vulncheck" {
+			if st.Name == "ze-dependency-vulnerability-check" {
 				found = true
 				break
 			}
 		}
 		if !found {
-			t.Errorf("stagesForMode(%q) must contain the exact stage %q", mode, "ze-vulncheck")
+			t.Errorf("stagesForMode(%q) must contain the exact stage %q", mode, "ze-dependency-vulnerability-check")
 		}
 	}
 }
@@ -1495,12 +1528,12 @@ func TestGovulncheckScheduledWorkflow(t *testing.T) {
 // TestGovulncheckTargetUsesLinuxAMD64Analysis pins the platform boundary of the
 // local SCA target.
 //
-// VALIDATES: `ze-vulncheck` runs one host-native `$(GO) run` invocation whose
+// VALIDATES: `ze-dependency-vulnerability-check` runs one host-native `$(GO) run` invocation whose
 // exec wrapper gives only the scanner process GOOS=linux and GOARCH=amd64.
 // PREVENTS: cross-compiling the govulncheck tool so it cannot run on a non-Linux
 // host, or silently analyzing a host-specific dependency graph instead of Linux.
 func TestGovulncheckTargetUsesLinuxAMD64Analysis(t *testing.T) {
-	_, body := recipeBody(t, makefileCorpus(t), "ze-vulncheck")
+	_, body := recipeBody(t, makefileCorpus(t), "ze-dependency-vulnerability-check")
 
 	var invocations []string
 	for _, line := range body {
@@ -1510,12 +1543,12 @@ func TestGovulncheckTargetUsesLinuxAMD64Analysis(t *testing.T) {
 		}
 	}
 	if len(invocations) != 1 {
-		t.Fatalf("ze-vulncheck must have exactly one host-native `$(GO) run` invocation, got %d. Recipe:\n%s", len(invocations), strings.Join(body, "\n"))
+		t.Fatalf("ze-dependency-vulnerability-check must have exactly one host-native `$(GO) run` invocation, got %d. Recipe:\n%s", len(invocations), strings.Join(body, "\n"))
 	}
 
 	const wantInvocation = "$(GO) run -exec='env GOOS=linux GOARCH=amd64' golang.org/x/vuln/cmd/govulncheck@latest ./..."
 	if invocation := invocations[0]; invocation != wantInvocation {
-		t.Errorf("ze-vulncheck must use the exact host-native Linux/amd64 scanner invocation.\nWant: %q\nGot:  %q", wantInvocation, invocation)
+		t.Errorf("ze-dependency-vulnerability-check must use the exact host-native Linux/amd64 scanner invocation.\nWant: %q\nGot:  %q", wantInvocation, invocation)
 	}
 }
 
@@ -1644,7 +1677,7 @@ func TestLintCoversIntegrationTaggedFiles(t *testing.T) {
 // VALIDATES: `ze-lint-changed` runs the same second pass, and that a failure in
 // the first pass cannot be masked by a clean second one.
 // PREVENTS: a new QEMU integration test landing unlinted. `ai/rules/commands.md`
-// makes ze-lint-changed the gate before claiming done, and ze-verify-changed
+// makes ze-lint-changed the gate before claiming done, and ze-precommit-verify-changed
 // runs it in place of ze-lint (stagesForMode), so full-lint-only coverage would
 // leave exactly the new files uncovered.
 func TestChangedLintCoversIntegrationTaggedFiles(t *testing.T) {

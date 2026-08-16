@@ -64,6 +64,6 @@ one, which is why it is noted here rather than in a fixit shard. If
 `plan/future/spec-ddos-baseline-warmup-maturity.md` lands first, its maturity
 accessor is the natural input to this check.
 
-**Owning gate.** `make ze-test-pkg PKG=./internal/plugins/ddos/detect` for the
-check itself, then `make ze-plugin-test`. `doctor_test.go` already exists in the
+**Owning gate.** `make ze-unit-pkg-test PKG=./internal/plugins/ddos/detect` for the
+check itself, then `make ze-functional-plugin-test`. `doctor_test.go` already exists in the
 package and is the place the new check's unit coverage belongs.

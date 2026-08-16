@@ -90,7 +90,7 @@ class TestUnsupportedOS(unittest.TestCase):
 class TestPrivilegeMode(unittest.TestCase):
     """No route to root may block on a password prompt.
 
-    `make ze-setup` runs from a Makefile, from a container build, and from an
+    `make ze-dev-setup` runs from a Makefile, from a container build, and from an
     agent session with no terminal at all. sudo reads its prompt from the stdin
     it inherits, so "can sudo act without a password" has to be answered BEFORE
     a command runs. Answered after, the answer arrives on a run that is already
@@ -243,13 +243,13 @@ class TestAptInstalls(unittest.TestCase):
     """Linux installs, rather than printing a list for a human to retype.
 
     macOS ran `brew install` and Linux printed `sudo apt-get install ...` and
-    returned False, so one `make ze-setup` set the machine up and the other
+    returned False, so one `make ze-dev-setup` set the machine up and the other
     produced homework. Every tool row already carries its apt package.
     """
 
     def setUp(self):
         # The once-per-run guard is module state, so each case starts from the
-        # state a fresh `make ze-setup` starts from.
+        # state a fresh `make ze-dev-setup` starts from.
         setattr(dev_setup, "_apt_updated", False)
 
     def _install(self, pkg="xorriso", mode="sudo", rc=0):
@@ -724,7 +724,7 @@ class TestPyrightAnswers(unittest.TestCase):
         (`pyright/node.py`) runs it with no redirection, and only the npm path
         is silenced. `json.loads` on the whole capture refuses the reply, so the
         run that just succeeded at installing node is the run that reds, on the
-        fresh Linux box `ze-setup` exists to prepare. The second run is green,
+        fresh Linux box `ze-dev-setup` exists to prepare. The second run is green,
         which is what makes this read as flakiness rather than a bug.
 
         The preamble is a Python dict repr, single-quoted, so it is not itself
@@ -851,7 +851,7 @@ class TestLoopbackAddresses(unittest.TestCase):
 
     def test_only_missing_addresses_are_added(self):
         """Idempotence is structural: a configured host passes an empty list, so
-        the re-run of `make ze-setup` runs no command at all.
+        the re-run of `make ze-dev-setup` runs no command at all.
         """
         with mock.patch.object(dev_setup, "loopback_bindable", return_value=True):
             self.assertEqual(dev_setup.missing_loopback_addresses(), [])
@@ -905,7 +905,7 @@ class TestLoopbackAddresses(unittest.TestCase):
         self.assertIn("sudo ifconfig lo0 inet6 fd00::2/128 alias", _said(printed))
 
     def test_check_mode_reports_and_changes_nothing(self):
-        """`make ze-setup CHECK=1` must never touch the interface."""
+        """`make ze-dev-setup CHECK=1` must never touch the interface."""
         with (
             mock.patch.object(dev_setup, "run_privileged") as privileged,
             mock.patch.object(

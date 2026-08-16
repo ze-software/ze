@@ -220,7 +220,7 @@ answer :65) are all current. Two material precision corrections:
 3. **Phase: Mismatch error** — clear error when the source family has no resolvable target.
    - Tests: `TestTracerouteSourceFamilyMismatch`
 4. **Functional test**
-5. **Full verification** → `make ze-verify`
+5. **Full verification** → `make ze-precommit-verify`
 6. **Complete spec** → audit, learned summary, two-commit closure.
 
 ### Critical Review Checklist (/implement stage 6)
@@ -292,7 +292,7 @@ answer :65) are all current. Two material precision corrections:
 - [ ] End-to-End User Stories: every story has a working path and passing test
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `make ze-test` passes
+- [ ] `make ze-standard-test` passes
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Documentation Update Checklist answered
 

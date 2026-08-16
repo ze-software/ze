@@ -40,7 +40,7 @@ option=needs-linux
 How it behaves (`internal/test/runner/record_parse.go`, the `needs-linux`
 option):
 
-- On a non-Linux host (`GOOS != linux`): the runner MUST set `SkipReason` and the test MUST report **SKIP**, never FAIL. Native `make ze-verify` / `make ze-functional-test` on darwin stays green without running the unsupported test.
+- On a non-Linux host (`GOOS != linux`): the runner MUST set `SkipReason` and the test MUST report **SKIP**, never FAIL. Native `make ze-precommit-verify` / `make ze-functional-test` on darwin stays green without running the unsupported test.
 - Inside the QEMU Alpine VM (`GOOS == linux`): the directive is inert, so the same `.ci` test runs for real against the Linux kernel.
 
 Two QEMU entry points run these tests, both **one VM for all of them** (never
@@ -54,10 +54,10 @@ runner, so the QEMU pass discovers `needs-linux` tests automatically.
 
 **Both targets boot ze's own runtime kernel, never the stock Alpine one.** Each
 passes `--kernel tmp/kernel/vmlinuz` and refuses to start
-without it, so `make ze-kernel-vmlinuz KERNEL_ARCH=<amd64|arm64>` is a
+without it, so `make ze-kernel-vmlinuz-stage KERNEL_ARCH=<amd64|arm64>` is a
 precondition of each. That command costs a copy on a cache hit and only builds
-on a miss. `make ze-kernel` also satisfies it and additionally assembles the
-gokrazy kernel package, which needs the module cache `make ze-gokrazy-deps`
+on a miss. `make ze-kernel-build` also satisfies it and additionally assembles the
+gokrazy kernel package, which needs the module cache `make ze-gokrazy-deps-download`
 downloads and a VM boot never reads.
 
 **A caller that runs one of these targets MUST supply the kernel itself.** The
@@ -69,7 +69,7 @@ that same job stages a kernel.
 
 **The guard compares, it does not merely check existence.** `GOKRAZY_ARCH`
 defaults to `amd64` on every host while `QEMU_GOARCH` follows `uname`, so a bare
-`make ze-kernel` on an Apple Silicon machine stages an amd64 vmlinuz that a
+`make ze-kernel-build` on an Apple Silicon machine stages an amd64 vmlinuz that a
 `test -f` accepts and QEMU then fails to boot, with no line naming the
 architecture. `ze-qemu-kernel-guard` (`mk/test-integration.mk`) compares the
 staged kernel against the architecture-keyed durable cache entry instead, which
@@ -78,7 +78,7 @@ mismatched kernel is an error exit, never a silent fall back to stock.
 
 **All six kernel-consuming targets use that one guard**, the two above plus
 `ze-qemu-pppoe-test`, `ze-qemu-l2tp-ppp-test`, `ze-qemu-pppoe-accel-test` and
-`ze-qemu-traffic-usage-test`. **A target that uses it MUST declare `: ze-host`**,
+`ze-qemu-traffic-usage-test`. **A target that uses it MUST declare `: ze-host-build`**,
 because the guard's first command execs that binary; without the prerequisite it
 still denies, but it names the wrong cause. `TestQemuTargetsGuardTheStagedKernel`
 (`scripts/evidence/qemu_kernel_wiring_test.go`) reads the guard's users out of the
@@ -99,7 +99,7 @@ Decision rule:
 | Same, AND opens a raw/packet socket (`resolve ping`, traceroute: `net.ListenPacket("ip4:icmp", ...)`) | `option=needs-linux:caps=net-raw` |
 | Same, AND loads eBPF | `option=needs-linux:caps=bpf` |
 | Needs to skip only on a specific non-Linux OS for an unrelated reason | `option=skip-os:value=darwin` |
-| Needs an OPTIONAL heavyweight artifact a checkout does not carry (the appliance module cache: `make ze-gokrazy-deps`) | `option=needs-path:value=<repo-rel>:hint=<cmd>` |
+| Needs an OPTIONAL heavyweight artifact a checkout does not carry (the appliance module cache: `make ze-gokrazy-deps-download`) | `option=needs-path:value=<repo-rel>:hint=<cmd>` |
 
 **`skip-os:value=darwin` MUST NOT be used as a substitute for `caps=`.** It hides a test from
 macOS and therefore RUNS it, unprivileged, on the Linux CI runner, which is
@@ -123,7 +123,7 @@ A `caps=` typo is a parse error on every host, so it cannot silently disable the
 gate.
 
 **Know what you are trading.** A `caps=net-admin` test does NOT run in the merge
-gate: `make ze-verify` runs unprivileged, so the marker turns an opaque hang into
+gate: `make ze-precommit-verify` runs unprivileged, so the marker turns an opaque hang into
 an honest skip there. Its home is `.github/workflows/qemu-nightly.yml`, which
 runs `ze-qemu-needs-linux-test` on a schedule, so the marker RELOCATES the
 coverage rather than deleting it. `TestCapabilityGatedTestsHaveAQemuHome`
@@ -247,13 +247,13 @@ The pattern (do all four in the same change):
 
 1. **Netns evidence script** `scripts/evidence/effective-<feature>.py`: you MUST run Ze and the peer daemon in two network namespaces joined by a veth, no Docker. You MUST mirror `effective-l2tp-ppp.py` (LineCollector, marker waits, kernel probe, cleanup).
 2. **Peer from Alpine packages**: you MUST install the peer daemon with `apk` via `--packages`, e.g. `xl2tpd` (L2TP) or `accel-ppp` (PPPoE). If the lab's Docker image built the peer from source, you MUST switch it to the Alpine package so both paths use the same build: `accel-ppp`, `frr`, and `xl2tpd` are all in Alpine community.
-3. **Runtime kernel for kernel modules**: if the feature needs a module absent from the stock Alpine VM kernel, you MUST run with `--kernel tmp/kernel/vmlinuz`, add the `CONFIG_*` to `gokrazy/kernel/runtime.config`, and add the symbol to `gokrazy/kernel/runtime.require`. PPPoE added `CONFIG_PPPOE` there exactly as L2TP added `CONFIG_PPPOL2TP`. `make ze-kernel-vmlinuz` stages the kernel to `tmp/kernel/vmlinuz` (gitignored scratch) but routes through a DURABLE cache first: it asks `ze-host` for the arch+config-keyed dir under `~/.cache/ze/runtime-kernel` and materializes from it in seconds on a hit (no ~30-min rebuild), building + populating only on a miss (or a `runtime.config` change). So `rm -rf tmp` costs a copy, not a rebuild, and a fresh worktree reuses the compiled kernel. The Alpine ISO is likewise cached and `.sha256`-verified under `~/.cache/ze/alpine-iso`. `scripts/dev/ensure-links.py` maintains the repo `cache` symlink (and, after the opt-in `make ze-migrate-scratch`, the `tmp` symlink) so the expensive artifacts live outside the disposable scratch tree.
+3. **Runtime kernel for kernel modules**: if the feature needs a module absent from the stock Alpine VM kernel, you MUST run with `--kernel tmp/kernel/vmlinuz`, add the `CONFIG_*` to `gokrazy/kernel/runtime.config`, and add the symbol to `gokrazy/kernel/runtime.require`. PPPoE added `CONFIG_PPPOE` there exactly as L2TP added `CONFIG_PPPOL2TP`. `make ze-kernel-vmlinuz-stage` stages the kernel to `tmp/kernel/vmlinuz` (gitignored scratch) but routes through a DURABLE cache first: it asks `ze-host` for the arch+config-keyed dir under `~/.cache/ze/runtime-kernel` and materializes from it in seconds on a hit (no ~30-min rebuild), building + populating only on a miss (or a `runtime.config` change). So `rm -rf tmp` costs a copy, not a rebuild, and a fresh worktree reuses the compiled kernel. The Alpine ISO is likewise cached and `.sha256`-verified under `~/.cache/ze/alpine-iso`. `scripts/dev/ensure-links.py` maintains the repo `cache` symlink (and, after the opt-in `make ze-scratch-migrate`, the `tmp` symlink) so the expensive artifacts live outside the disposable scratch tree.
 4. **You MUST add a `ze-qemu-<feature>-test` target** in `mk/test-integration.mk` calling `qemu-run.py --kernel ... --packages ... --run 'python3 scripts/evidence/effective-<feature>.py'`, and add it to `.PHONY` and the `Makefile` help block.
 
 | Lab | Docker target | QEMU target | Netns script |
 |-----|---------------|-------------|--------------|
-| L2TP (Ze LNS vs xl2tpd) | `ze-deployment-l2tp-ppp-docker-test` | `ze-qemu-l2tp-ppp-test` | `effective-l2tp-ppp.py` |
-| PPPoE (Ze client vs accel-ppp) | `ze-deployment-pppoe-accel-docker-test` | `ze-qemu-pppoe-accel-test` | `effective-pppoe-accel.py` |
+| L2TP (Ze LNS vs xl2tpd) | `ze-deployment-docker-l2tp-ppp-test` | `ze-qemu-l2tp-ppp-test` | `effective-l2tp-ppp.py` |
+| PPPoE (Ze client vs accel-ppp) | `ze-deployment-docker-pppoe-accel-test` | `ze-qemu-pppoe-accel-test` | `effective-pppoe-accel.py` |
 | VRRP (Ze vs keepalived) | `ze-interop-test INTEROP_SCENARIO=vrrp-mastership-keepalived` | `ze-qemu-vrrp-keepalived-test` | `effective-vrrp-keepalived.py` |
 
 **When you add a new interop lab, you MUST add its row here and ship both targets together.**
@@ -265,7 +265,7 @@ because the stock Alpine kernel already creates macvlan (bridge
 mode), bridge, veth and netns. Probe the stock kernel before
 reaching for it, so a lab that gains nothing does not gain a precondition.
 
-`make ze-kernel` routes through the durable architecture- and config-keyed cache
+`make ze-kernel-build` routes through the durable architecture- and config-keyed cache
 under `~/.cache/ze`, so it materializes on a cache hit and builds only on a miss
 or after a config fragment changes. The two functional targets
 (`ze-qemu-all-test`, `ze-qemu-needs-linux-test`) use `--kernel` unconditionally.
@@ -306,7 +306,7 @@ On Linux: the invoking user MUST be in the `kvm` group. `/dev/kvm` is
 `root:kvm` 0660, so a user outside it does not get a slow run, it gets no run:
 qemu exits with `Could not access KVM kernel module: Permission denied` and the
 calling evidence script reports the generic "did not reach SSH within the
-timeout", which reads as flakiness. `make ze-setup` checks this as `kvm-access`
+timeout", which reads as flakiness. `make ze-dev-setup` checks this as `kvm-access`
 and applies `sudo usermod -aG kvm $USER`; the new group only reaches a new
 login, so use `sg kvm -c '<command>'` in an existing shell. A host with no
 `/dev/kvm` reports `n/a` and legitimately runs under TCG.
@@ -336,14 +336,14 @@ Woodpecker instance could not.
 
 | Suite | Where it runs | Blocking? |
 |-------|---------------|-----------|
-| `make ze-verify` (unit + functional + static gates) | `.github/workflows/verify.yml`, push + pull_request | yes |
+| `make ze-precommit-verify` (unit + functional + static gates) | `.github/workflows/verify.yml`, push + pull_request | yes |
 | `ze-fuzz-test` | `.github/workflows/evidence-nightly.yml`, scheduled | advisory |
 | `ze-integration-test` (non-QEMU kernel suites) | `.github/workflows/evidence-nightly.yml`, scheduled, `sudo` (root) | advisory |
 | `ze-qemu-needs-linux-test` (Linux-only `.ci` functional surface) | `.github/workflows/qemu-nightly.yml`, job `needs-linux`, scheduled | advisory |
 | `ze-qemu-ldp-frr-test`, `ze-qemu-isis-frr-test`, `ze-qemu-vrrp-keepalived-test` (stock-kernel protocol labs) | `.github/workflows/qemu-nightly.yml`, job `protocol-labs`, scheduled | advisory |
 | `ze-qemu-l2tp-ppp-test`, `ze-qemu-pppoe-accel-test`, `ze-qemu-pppoe-test`, `ze-qemu-traffic-usage-test` (runtime-kernel labs) | `.github/workflows/qemu-nightly.yml`, job `runtime-kernel-labs`, scheduled | advisory |
-| `ze-interop-test`, `ze-ipsec-interop-test` (Docker interop trees) | `.github/workflows/evidence-nightly.yml`, scheduled | advisory |
-| `ze-qemu-integration-test` (Go `integration && linux` packages) | `make ze-release-evidence` only, by hand | -- |
+| `ze-interop-test`, `ze-interop-ipsec-test` (Docker interop trees) | `.github/workflows/evidence-nightly.yml`, scheduled | advisory |
+| `ze-qemu-integration-test` (Go `integration && linux` packages) | `make ze-release-evidence-verify` only, by hand | -- |
 | `ze-qemu-all-test` (full suite in the VM) | nothing; `manualQemuTargets` records why | -- |
 
 Two notes on the nightly row:
@@ -363,7 +363,7 @@ the job simply runs under `sudo` as root, which has those capabilities natively.
 It is advisory-first (`continue-on-error: true`): a red suite reports without
 marking the run failed, until a green baseline lets it flip to blocking.
 
-**`ze-qemu-integration-test` is NOT automated:** its only caller is `make ze-release-evidence` (`mk/test-release.mk`), which a person runs before a release. Its own cost keeps it out. You MUST NOT assume CI catches a broken Go `integration && linux` package for you.
+**`ze-qemu-integration-test` is NOT automated:** its only caller is `make ze-release-evidence-verify` (`mk/test-release.mk`), which a person runs before a release. Its own cost keeps it out. You MUST NOT assume CI catches a broken Go `integration && linux` package for you.
 
 **Every `ze-qemu-*-test` and `ze-*-interop-test` target MUST have a caller that runs on its own**: a workflow job, a script, or another make target. A `.PHONY` line, a `make help` entry, and a paragraph in `docs/` are mentions, not callers. `TestQemuAndInteropTargetsHaveACaller` (`scripts/dev/github_workflows_test.go`) derives the targets from `mk/*.mk` and the callers from actual invocation. **A target that is deliberately manual MUST be listed in that test's `manualQemuTargets` with the reason no pipeline runs it**. "Expensive" describes every target in the class and is not a reason.
 
@@ -382,7 +382,7 @@ gate, that every `make <target>` any workflow names exists, and that no
 | Forgetting to add package to Makefile | Test compiles but never runs in CI |
 | Using `t.Fatal` for missing capabilities | Use `t.Skip` so the test is portable |
 | Hardcoding `/dev/ttyS0` in a test | Use `pty.Open()` for a real PTY pair |
-| Reading a QEMU evidence timeout as "tcg is slow" | On Linux, check `kvm-access` first (`make ze-setup CHECK=1`). A user outside the `kvm` group makes qemu refuse to start, which surfaces as a timeout |
+| Reading a QEMU evidence timeout as "tcg is slow" | On Linux, check `kvm-access` first (`make ze-dev-setup CHECK=1`). A user outside the `kvm` group makes qemu refuse to start, which surfaces as a timeout |
 | Selecting the accelerator on `Path("/dev/kvm").exists()` | Existence is not access. Probe `os.access(..., R_OK\|W_OK)`, and branch on `sys.platform == "darwin"` for `hvf` |
 
 ## Initrd: Prefer Procfs/Sysfs Over External Commands
@@ -415,7 +415,7 @@ These init operations run in-process in Go:
 - **HTTP image/database download**: you MUST use `net/http` (`internal/install/disk/download.go`), not `wget`.
 - **mount / umount / loop / mknod / reboot / poweroff**: you MUST use `golang.org/x/sys/unix` syscalls and ioctls isolated in named `_linux.go` helpers (`mount_linux.go`, `loop_linux.go`, `blockdev_linux.go`), not `mount`/`losetup`/`reboot`.
 
-**Where a syscall is unavoidable, you MUST isolate it in a named `_linux.go` helper so the platform dependency is visible and testable behind a fake.** `internal/install/disk` and `cmd/ze-installer` MUST contain no `exec.Command` of an external binary; a QEMU install (`make ze-install-qemu-test`) proves it boots and installs cleanly.
+**Where a syscall is unavoidable, you MUST isolate it in a named `_linux.go` helper so the platform dependency is visible and testable behind a fake.** `internal/install/disk` and `cmd/ze-installer` MUST contain no `exec.Command` of an external binary; a QEMU install (`make ze-qemu-install-test`) proves it boots and installs cleanly.
 
 ## Appliance Dependency Bumps
 
@@ -445,10 +445,10 @@ builddir modules pin the fix and MVS takes the max).
 1. **Find a fixed upstream version.** You MUST fetch the candidate `.mod` from the proxy (`https://proxy.golang.org/github.com/gokrazy/gokrazy/@v/<version>.mod` or `@latest`) and confirm it `require`s the fixed dependency version. Only then bump.
 2. **You MUST bump the version string in the 7 builddir modules** under `gokrazy/ze/builddir/`: the `require` in `gokrazy` + `cmd/{dhcp,ntp,heartbeat,randomd}`, and the `replace` RHS in `serial-busybox` + `rtr7/kernel`. <!-- doc-links: ignore (cmd/{dhcp,ntp,heartbeat,randomd} are gokrazy submodules under gokrazy/ze/builddir/github.com/gokrazy/gokrazy/, not top-level cmd/) -->
 3. **You MUST remove any now-false workaround pin/comment** (e.g. an explicit `x/net` pin added because "upstream pins the old version"). Verify it is safe: `go list -m <dep>` in each builddir MUST still resolve `>=` the fixed version via the new upstream `require`.
-4. **You MUST regenerate the go.sums cleanly.** You MUST delete the affected builddir `go.sum` files (filesystem `rm`, never `git rm`), then run `make ze-gokrazy-deps` (runs `go mod download all` per builddir; the deleted sums regenerate from the new build list, pruning the old version string). You MUST NOT hand-edit hashes.
-5. **Re-vendor + prune.** `ze-gokrazy-deps` extracts the new version's source under `gokrazy/modcache/github.com/gokrazy/gokrazy@<new>/` (auto-whitelisted by the `@*` glob). You MUST `rm -rf` the old `@<old>` directory. You MUST confirm the working tree: old tracked files deleted, new source untracked, nothing unexpected (no docs/website, no binaries).
+4. **You MUST regenerate the go.sums cleanly.** You MUST delete the affected builddir `go.sum` files (filesystem `rm`, never `git rm`), then run `make ze-gokrazy-deps-download` (runs `go mod download all` per builddir; the deleted sums regenerate from the new build list, pruning the old version string). You MUST NOT hand-edit hashes.
+5. **Re-vendor + prune.** `ze-gokrazy-deps-download` extracts the new version's source under `gokrazy/modcache/github.com/gokrazy/gokrazy@<new>/` (auto-whitelisted by the `@*` glob). You MUST `rm -rf` the old `@<old>` directory. You MUST confirm the working tree: old tracked files deleted, new source untracked, nothing unexpected (no docs/website, no binaries).
 6. **Refresh coupling.** You MUST run `git grep <old-version-string>`, and update any doc/spec that referenced the old modcache path (e.g. `plan/spec-kernel-lockdown-hardening.md`).
-7. **Verify (BLOCKING).** You MUST confirm `grep -r <old-version>` is empty; the new committed `go.mod` names the fixed dependency version; `make ze-gokrazy` builds; and the appliance **boots in QEMU**. The image *build* alone is not sufficient: an init bump can regress boot.
+7. **Verify (BLOCKING).** You MUST confirm `grep -r <old-version>` is empty; the new committed `go.mod` names the fixed dependency version; `make ze-gokrazy-build` builds; and the appliance **boots in QEMU**. The image *build* alone is not sufficient: an init bump can regress boot.
 
 On step 4, one of the eight go.sum files is **untracked**:
 `gokrazy/ze/builddir/github.com/ze-software/ze/go.sum` is gitignored (see
@@ -461,11 +461,11 @@ before citing it:
 
 | Proof | What it does | Use it for |
 |-------|--------------|------------|
-| `make ze-vpp-hugepages-qemu-test` | builds a real image via `ze appliance build`, boots it in QEMU, asserts the kernel cmdline and the reserved hugepage count | the default boot proof |
+| `make ze-qemu-vpp-hugepages-test` | builds a real image via `ze appliance build`, boots it in QEMU, asserts the kernel cmdline and the reserved hugepage count | the default boot proof |
 | `ze-deployment-gokrazy-l2tp-ppp-test` | builds the appliance and boots it against a real LAC | the L2TP path |
 | ~~`test/appliance/serial-login.ci`~~ | **boots nothing.** Its header says the QEMU plan applies "when appliance serial test infrastructure is ready"; it asserts the argv[0] shell-invocation gate offline | never cite it as a boot proof |
 
-**A `SKIP` MUST NOT be treated as evidence.** Under a hardware accelerator the hugepage proof treats a no-answer as a FAIL; if it skips for want of KVM access, you MUST fix that (on Linux, group membership: `make ze-setup CHECK=1`) and rerun.
+**A `SKIP` MUST NOT be treated as evidence.** Under a hardware accelerator the hugepage proof treats a no-answer as a FAIL; if it skips for want of KVM access, you MUST fix that (on Linux, group membership: `make ze-dev-setup CHECK=1`) and rerun.
 
 ### Git safety
 
@@ -475,7 +475,7 @@ before citing it:
 
 **Anything that downloads into `gokrazy/modcache/` MUST carry `-modcacherw` (`GOFLAGS=-modcacherw`):** go's default read-only cache permissions (dirs `r-x`) make git unable to delete or overwrite modcache files on later checkouts and rebases (a `git pull --rebase` across the 2026-07 init bump wedged exactly this way).
 
-`make ze-gokrazy-deps` (`mk/gokrazy.mk`), `ze appliance build`
+`make ze-gokrazy-deps-download` (`mk/gokrazy.mk`), `ze appliance build`
 (`ensureModcacheRW`, `internal/appliance/cmd_build.go`), and `ze-gok`
 (`cmd/ze-gok/main.go`) all set it; keep the flag when running `go mod download` by
 hand. A cache written before the flag existed needs a one-time
@@ -510,7 +510,7 @@ That route is closed. **Every** image build now runs from a prepared copy of the
 instance under the project `tmp/`, carrying the full `builddir` with its
 filesystem-path replaces rewritten to absolute paths
 (`internal/appliance/instance`). Both entry points go through it: `ze appliance
-build` via `resolveBuildParentDir`, and `make ze-gokrazy` via `cmd/ze-gok`, which
+build` via `resolveBuildParentDir`, and `make ze-gokrazy-build` via `cmd/ze-gok`, which
 rewrites `--parent_dir` before gok sees it. Preparation fails closed when the
 builddir is missing or empty, rather than letting gok synthesize modules.
 

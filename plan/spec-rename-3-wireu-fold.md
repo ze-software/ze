@@ -111,7 +111,7 @@ audit snapshot and implementation.
 | A-1 | Zero identifier clashes between the two packages | comm audit 2026-07-08 (exported 60+81 vs 24+7; unexported 108 vs 34; tests included) | clash needs a rename first; fold design holds otherwise | rerun both comm audits at start | confirmed (2026-07-08 snapshot; MUST rerun at start) |
 | A-2 | Only doc.go and errors.go collide by filename | directory-listing comm 2026-07-08 | more file renames in the move | rerun listing comm at start | confirmed (2026-07-08 snapshot) |
 | A-3 | wireu -> message is the only cross-import between the pair | import grep 2026-07-08 (split.go; no reverse edge) | cycle would block the fold | grep both directions at start | confirmed (2026-07-08 snapshot) |
-| A-4 | 17 doc anchors point into `bgp/wireu` | anchor grep 2026-07-08 | doc-test reveals more | `make ze-doc-test` after sweep | confirmed (2026-07-08 snapshot) |
+| A-4 | 17 doc anchors point into `bgp/wireu` | anchor grep 2026-07-08 | doc-test reveals more | `make ze-doc-verify` after sweep | confirmed (2026-07-08 snapshot) |
 | A-5 | spec-rename-2 closed; destination is `bgp/packet` | Depends field | fold target absent | `make ze-spec-status` + `ls internal/component/bgp/packet` at start | unvalidated (checked at start) |
 
 ### Risks
@@ -135,10 +135,10 @@ audit snapshot and implementation.
 | AC-1 | after fold | `internal/component/bgp/wireu/` does not exist; its files live in `internal/component/bgp/packet/` with package clause `packet`; `errors.go` collision resolved (e.g. `errors_update.go`); doc.go content merged into the destination doc.go |
 | AC-2 | repo-wide grep for the old import path and `wireu.` qualifier | zero hits in code and living docs (plan/learned history exempt) |
 | AC-3 | `scripts/dev/protocol_skeleton_report.py` | summary `legacy 1` (only `bgp/reactor`); `--selftest` OK with ("bgp","wireu") fixtures removed |
-| AC-4 | `make ze-doc-test` | green after the 17-anchor + prose sweep |
+| AC-4 | `make ze-doc-verify` | green after the 17-anchor + prose sweep |
 | AC-5 | rule surfaces | go-standards.md glossary `wireu` row removed (decision recorded as superseded); protocol.md BGP row updated |
 | AC-6 | fuzz | `FuzzRewriteASPath` seed corpus found and passing from its new location |
-| AC-7 | `make ze-verify` | green, including regenerated `ai/PACKAGE-MAP.md` |
+| AC-7 | `make ze-precommit-verify` | green, including regenerated `ai/PACKAGE-MAP.md` |
 
 ## End-to-End User Stories (MANDATORY for new features)
 
@@ -210,7 +210,7 @@ audit snapshot and implementation.
 | 13 | Route metadata keys added/changed? | [ ] | No |
 | 14 | Prometheus counters added/changed? | [ ] | No |
 | 15 | Registered inventory changed? | [ ] | No |
-| 16 | Changed source referenced by doc anchors? | [ ] | Yes - 17 anchors; gated by `make ze-doc-test` |
+| 16 | Changed source referenced by doc anchors? | [ ] | Yes - 17 anchors; gated by `make ze-doc-verify` |
 | 17 | Docs show examples for this area? | [ ] | No examples carry package paths |
 
 ## Files to Create
@@ -247,10 +247,10 @@ audit snapshot and implementation.
    - Files: per Files to Modify
    - Verify: AC-1, AC-2 (code), AC-3, AC-6
 4. **Phase: rule + doc sweep** — go-standards.md, protocol.md, 17 anchors + prose, PACKAGE-MAP regen.
-   - Tests: `make ze-doc-test`
+   - Tests: `make ze-doc-verify`
    - Files: per Files to Modify
    - Verify: AC-4, AC-5
-5. **Full verification** — `make ze-verify`; AC-7.
+5. **Full verification** — `make ze-precommit-verify`; AC-7.
 6. **Complete spec** — audit tables, learned summary, two-commit closure.
 
 ### Critical Review Checklist (/implement stage 6)
@@ -355,7 +355,7 @@ Not applicable: existing `// RFC 4271/4760/7911` comments move verbatim with the
 ## Goal Validation (BLOCKING)
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
-| one codec package, zero behavior change | functional test | (fill: `make ze-verify` output + old-path greps + report summary) |
+| one codec package, zero behavior change | functional test | (fill: `make ze-precommit-verify` output + old-path greps + report summary) |
 
 ## Review Gate
 
@@ -403,7 +403,7 @@ Not applicable: existing `// RFC 4271/4760/7911` comments move verbatim with the
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled — 0 BLOCKER, 0 ISSUE)
-- [ ] `make ze-test` passes (lint + all ze tests)
+- [ ] `make ze-standard-test` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
 - [ ] Integration completeness proven end-to-end
 - [ ] Documentation Update Checklist answered Yes/No with source evidence

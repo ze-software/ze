@@ -26,7 +26,7 @@ Audit against three baselines:
 
 ## Ground rules
 
-- Strictly read-only: no code changes, no commits, no heavy gates rerun (no `make ze-verify`).
+- Strictly read-only: no code changes, no commits, no heavy gates rerun (no `make ze-precommit-verify`).
 - Agents may run cheap read-only commands (grep, git log, single-package `go vet`); no full builds or test suites. Cheap analysis scripts allowed with a short timeout, abandoned if slow.
 - Every finding must cite the producing code as `file:line` (`ai/rules/evidence.md`); uncited claims are dropped or labeled unverified.
 - BLOCKER/HIGH findings must survive adversarial verification (Phase 2) before entering the report.
@@ -55,7 +55,7 @@ Audit against three baselines:
 
 ## Dimensions 4-10 outcome (2026-07-16)
 
-Report: `tmp/repo-audit-dimensions-4-10-2026-07-16.md`. Dominant theme across 6 of 7 dims: **gate theatre** — heavy tooling exists (fuzz/mutation/perf/alloc/doc-links/integration/QEMU/govulncheck-worthy) but CI runs only `make ze-verify`, whose stage list omits most. Two BLOCKERs: (1) CI depth — no integration/QEMU/fuzz/mutation/interop in any CI [verified: grep .woodpecker+.github = none]; (2) uncommitted/unpushed — 53 unpushed commits + ~15 untracked planning-only specs, one an untracked dependency of a committed spec [verified: git]. HIGHs: ISIS/OSPF fuzzers written-but-not-enumerated; no govulncheck gate; doc gates dark + 16 broken discovery-index refs; verify-stage-list drift + ze-yang-glue-check unwired; spec citation rot + done-but-unclosed + 65 skeletons. One genuine code bug: LDP Hello-starvation (register.go, read reaches ReadFromUDP only after 5s hello ticker) [verified: direct read]. Resolved: peer_contract.go test-masking lead REFUTED (hole closed, peer_contract.go). Side effect: docs_to_code.py regenerated ai/DOCS-TO-CODE.md in working tree.
+Report: `tmp/repo-audit-dimensions-4-10-2026-07-16.md`. Dominant theme across 6 of 7 dims: **gate theatre** — heavy tooling exists (fuzz/mutation/perf/alloc/doc-links/integration/QEMU/govulncheck-worthy) but CI runs only `make ze-precommit-verify`, whose stage list omits most. Two BLOCKERs: (1) CI depth — no integration/QEMU/fuzz/mutation/interop in any CI [verified: grep .woodpecker+.github = none]; (2) uncommitted/unpushed — 53 unpushed commits + ~15 untracked planning-only specs, one an untracked dependency of a committed spec [verified: git]. HIGHs: ISIS/OSPF fuzzers written-but-not-enumerated; no govulncheck gate; doc gates dark + 16 broken discovery-index refs; verify-stage-list drift + ze-yang-glue-check unwired; spec citation rot + done-but-unclosed + 65 skeletons. One genuine code bug: LDP Hello-starvation (register.go, read reaches ReadFromUDP only after 5s hello ticker) [verified: direct read]. Resolved: peer_contract.go test-masking lead REFUTED (hole closed, peer_contract.go). Side effect: docs_to_code.py regenerated ai/DOCS-TO-CODE.md in working tree.
 
 Each agent returns a fixed schema: 2-3 genuine strengths; findings ranked by severity, each with `file:line` citation(s), concrete failure scenario, suggested fix; and its single highest-leverage recommendation. Max ~12 findings per agent, quality over quantity.
 

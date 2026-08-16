@@ -101,7 +101,7 @@ one, and let the scan set the order.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The four suites boot enough of each subsystem to observe these obligations at a boundary | they are named in `all_suites` and run in `make ze-verify` | the requirement needs a tier the suite cannot give | run each suite and read what it exercises | unvalidated |
+| A-1 | The four suites boot enough of each subsystem to observe these obligations at a boundary | they are named in `all_suites` and run in `make ze-precommit-verify` | the requirement needs a tier the suite cannot give | run each suite and read what it exercises | unvalidated |
 | A-2 | A useful share of the 84 are self-oracled | untested. Rank 4 came from intuition, and the L2TP cluster measured BETTER covered than predicted | the tranche buys tier without discrimination | run the oracle scan before picking | unvalidated |
 
 ### Risks
@@ -263,7 +263,7 @@ constraints, message ordering, and every MUST/MUST NOT.
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding

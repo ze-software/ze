@@ -2,7 +2,7 @@
 # changed-groups.sh -- emit the test group(s) containing modified .go files.
 #
 # Groups map directory prefixes to short names used by make targets
-# (ze-test-bgp, ze-test-core, etc.). If no .go files changed, prints
+# (ze-unit-bgp-test, ze-unit-core-test, etc.). If no .go files changed, prints
 # nothing. If a change doesn't match any group, prints "rest".
 #
 # Usage: scripts/dev/changed-groups.sh          → one group name per line

@@ -221,7 +221,7 @@ logger IS levelable at runtime through its registered `LevelVar`.
 2. **Phase: Apply level** — translate to `slog.Level` and set it on the dhcpserver logger.
    - Tests: `TestDHCPLogLevelAppliedToLogger`, `TestDHCPLogLevelDefault`
 3. **Functional test**
-4. **Full verification** → `make ze-verify`
+4. **Full verification** → `make ze-precommit-verify`
 5. **Complete spec** → audit, learned summary, two-commit closure.
 
 ### Critical Review Checklist (/implement stage 6)
@@ -287,7 +287,7 @@ logger IS levelable at runtime through its registered `LevelVar`.
 - [ ] End-to-End User Stories: every story has a working path and passing test
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `make ze-test` passes
+- [ ] `make ze-standard-test` passes
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Documentation Update Checklist answered
 

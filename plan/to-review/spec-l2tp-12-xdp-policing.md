@@ -375,7 +375,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
    - Files: `internal/component/plugin/all/all.go` (and `go.mod`/`go.sum` only if a newer minor is genuinely required)
    - Verify: `make generate`, `make ze-lint` pass; `git diff go.mod` is empty unless a version bump was justified
 
-9. **Full verification** -- `make ze-verify`
+9. **Full verification** -- `make ze-precommit-verify`
 10. **Complete spec** -- Fill audit tables, write learned summary
 
 ### Critical Review Checklist (/implement stage 6)
@@ -563,7 +563,7 @@ Section 3 (header format) for T-bit and tunnel/session ID extraction.
 - [ ] AC-1..AC-12 all demonstrated
 - [ ] Wiring Test table complete -- every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled -- 0 BLOCKER, 0 ISSUE)
-- [ ] `make ze-test` passes (lint + all ze tests)
+- [ ] `make ze-standard-test` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
 - [ ] Integration completeness proven end-to-end
 - [ ] Architecture docs updated

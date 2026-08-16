@@ -3,4 +3,4 @@ kind: note
 level:
 stage:
 ---
-`make ze-verify` separately runs `ze-verify-wiring-docs` (wiring/doc-drift gate); that is a Make target, not a Claude hook.
+`make ze-precommit-verify` separately runs `ze-wiring-docs-check` (wiring/doc-drift gate); that is a Make target, not a Claude hook.

@@ -480,7 +480,7 @@ MUST document: REQ-1 (EIM), REQ-2 (port preservation), REQ-3 (port parity), REQ-
 - [ ] AC-1..AC-10 all demonstrated
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `make ze-test` passes
+- [ ] `make ze-standard-test` passes
 - [ ] Feature code integrated
 - [ ] Integration completeness proven end-to-end
 - [ ] Documentation Update Checklist answered Yes/No with source evidence

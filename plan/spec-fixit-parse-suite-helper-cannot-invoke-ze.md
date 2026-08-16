@@ -81,7 +81,7 @@ them out of step.
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- `make ze-parse-test`, or `bin/ze-test parse <selector>`, over a `.ci` whose
+- `make ze-functional-parse-test`, or `bin/ze-test parse <selector>`, over a `.ci` whose
   `tmpfs=` helper script calls `ze`.
 
 ### Transformation Path
@@ -144,7 +144,7 @@ no wire behavior.
 | AC-1 | A parse-suite helper script invokes `ze` | It resolves and runs |
 | AC-2 | The same, on a host with a different `ze` on PATH | The binary under test wins, matching the orchestrated runner's stated guarantee |
 | AC-3 | Every existing `test/parse/` fixture | Passes unchanged, proven by the FULL suite and never a sample |
-| AC-4 | The orchestrated suite | Unchanged, proven by `make ze-plugin-test` |
+| AC-4 | The orchestrated suite | Unchanged, proven by `make ze-functional-plugin-test` |
 | AC-5 | `plan/deferrals/finish-ci-coverage.md` | Half two moves from `live` to a terminal state, and the shard is removed if that was its last live row |
 
 ## End-to-End User Stories
@@ -189,18 +189,18 @@ no wire behavior.
    - Verify: AC-1 is RED
 3. **Phase: Fix** -- at the producer the first phase named
    - Verify: AC-1, AC-2
-4. **Phase: Full suites** -- `make ze-parse-test` and `make ze-plugin-test`, both
+4. **Phase: Full suites** -- `make ze-functional-parse-test` and `make ze-functional-plugin-test`, both
    entire
    - Verify: AC-3, AC-4
 5. **Phase: Close the deferral row and the doc**
-   - Verify: AC-5, `make ze-doc-test`
+   - Verify: AC-5, `make ze-doc-verify`
 
 ## Checklist
 
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-5 all demonstrated
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 
 ### TDD

@@ -63,7 +63,7 @@ func verifyModeEnabled() bool {
 	return env.IsEnabled("ze.verify.mode")
 }
 
-// VerifyModeEnabled reports whether this run is part of a `make ze-verify`
+// VerifyModeEnabled reports whether this run is part of a `make ze-precommit-verify`
 // gate (the verify runner sets ZE_VERIFY_MODE=1). Suites use it to turn
 // silent environment skips into hard failures.
 func VerifyModeEnabled() bool {

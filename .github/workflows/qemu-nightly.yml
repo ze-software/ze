@@ -3,7 +3,7 @@ name: qemu-nightly
 # The Linux-only functional surface, run for real in the QEMU Alpine VM.
 #
 # WHY THIS EXISTS. `option=needs-linux` tests skip on the darwin dev host, and
-# `make ze-verify` runs on an UNPRIVILEGED GitHub runner, so any test that
+# `make ze-precommit-verify` runs on an UNPRIVILEGED GitHub runner, so any test that
 # programs the kernel (interfaces, nftables, FIB, eBPF) can execute in neither.
 # Before this workflow those tests ran unprivileged in the verify job and simply
 # failed: in CI run 30219943935 sixteen of them died with "operation not
@@ -117,8 +117,8 @@ jobs:
       # minute on "tmp/kernel/vmlinuz not found", and `continue-on-error` made
       # the run read green while it happened.
       #
-      # ze-kernel-vmlinuz, not ze-kernel: the second half of ze-kernel assembles
-      # the gokrazy kernel package from the module cache `make ze-gokrazy-deps`
+      # ze-kernel-vmlinuz-stage, not ze-kernel-build: the second half of ze-kernel-build assembles
+      # the gokrazy kernel package from the module cache `make ze-gokrazy-deps-download`
       # downloads, which a VM boot never touches.
       #
       # restore + save, never plain actions/cache. That action's post step carries
@@ -154,8 +154,8 @@ jobs:
       # without changing this line stages a kernel the guard then refuses by
       # architecture. That is an error exit with a message naming the cause, not
       # a silent boot of the wrong kernel.
-      - name: make ze-kernel-vmlinuz KERNEL_ARCH=amd64
-        run: make ze-kernel-vmlinuz KERNEL_ARCH=amd64
+      - name: make ze-kernel-vmlinuz-stage KERNEL_ARCH=amd64
+        run: make ze-kernel-vmlinuz-stage KERNEL_ARCH=amd64
 
       - name: Save the runtime kernel cache
         if: steps.kernel-cache.outputs.cache-hit != 'true'
@@ -320,8 +320,8 @@ jobs:
           path: ~/.cache/ze
           key: ze-runtime-kernel-amd64-${{ hashFiles('internal/appliance/kernel.version', 'gokrazy/kernel/**', 'tools/kernel-builder/**') }}
 
-      - name: make ze-kernel-vmlinuz KERNEL_ARCH=amd64
-        run: make ze-kernel-vmlinuz KERNEL_ARCH=amd64
+      - name: make ze-kernel-vmlinuz-stage KERNEL_ARCH=amd64
+        run: make ze-kernel-vmlinuz-stage KERNEL_ARCH=amd64
 
       - name: Save the runtime kernel cache
         if: steps.kernel-cache.outputs.cache-hit != 'true'

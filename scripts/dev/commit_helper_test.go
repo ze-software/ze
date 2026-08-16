@@ -247,7 +247,7 @@ func TestCommitHelperRejectsIgnoredPaths(t *testing.T) {
 	mustContain(t, stderr, "ignored path must not be committed: ignored.txt")
 }
 
-// VALIDATES: commit_helper refuses to write a script when ze-verify reports
+// VALIDATES: commit_helper refuses to write a script when ze-precommit-verify reports
 // STALE, and --unverified bypasses the gate with the reason recorded in output.
 // PREVENTS: silently preparing a commit over a red/stale verify -- the root
 // cause behind a batch of slipped-in breakage.
@@ -309,7 +309,7 @@ func TestCommitHelperStructuralGateNotBypassable(t *testing.T) {
 
 	// A structural gate (ze-tier-check) red must block even with --unverified.
 	writeFixture(t, root, "tmp/ze-verify-failures.json", `{
-  "mode": "ze-verify",
+  "mode": "ze-precommit-verify",
   "exit_code": 2,
   "combined_log": "tmp/ze-verify.log",
   "generated_at": "2026-07-07T00:00:00Z",
@@ -331,7 +331,7 @@ func TestCommitHelperStructuralGateNotBypassable(t *testing.T) {
 
 	// Control: a flaky TEST-stage red (ze-functional-test) stays bypassable.
 	writeFixture(t, root, "tmp/ze-verify-failures.json", `{
-  "mode": "ze-verify",
+  "mode": "ze-precommit-verify",
   "exit_code": 1,
   "combined_log": "tmp/ze-verify.log",
   "generated_at": "2026-07-07T00:00:00Z",

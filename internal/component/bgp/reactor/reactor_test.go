@@ -1677,7 +1677,7 @@ func testUpdatePayload() []byte {
 // bufMuxStd.block[0], so when the cache later evicted the entry and called
 // ReturnReadBuffer, the real bufmux either logged "double return detected"
 // or silently marked an in-use slot as free (memory corruption). The
-// ze-race-reactor run on 2026-04-11 surfaced ~300 of these errors across
+// ze-unit-reactor-test-race run on 2026-04-11 surfaced ~300 of these errors across
 // parallel tests. The sentinel makes the fake explicit instead.
 func testPoolBuf(t *testing.T) BufHandle {
 	t.Helper()

@@ -217,7 +217,7 @@ Design constraints Ze has that osvbng does not:
 
 ### Goal Gates (MUST pass)
 - [ ] Investigation decision recorded with measurement evidence and user sign-off
-- [ ] (if change adopted) `make ze-test` passes
+- [ ] (if change adopted) `make ze-standard-test` passes
 - [ ] (if change adopted) feature code integrated (`internal/*`)
 
 ### Quality Gates (SHOULD pass)

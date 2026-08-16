@@ -68,7 +68,7 @@ Source files read:
   the progress denominator. The `run_suite` shell function records each failed
   name, one `run_suite` call runs each suite, and the failure block prints
   `  make ze-<suite>-test` for every failed name. Below that block sit 33
-  standalone suite targets. `ze-isis-test` is the reference shape: prerequisite
+  standalone suite targets. `ze-functional-isis-test` is the reference shape: prerequisite
   `$(ZE_TEST_DEPS)`, then one recipe line
   `@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) isis --all`.
   A `.PHONY` block near the head of the file declares the targets.
@@ -83,9 +83,9 @@ Confirmed by reading the tree on 2026-08-11:
 | `test/rsvpte/` exists with 5 `.ci` files | `rsvpte-bandwidth.ci`, `rsvpte-frr.ci`, `rsvpte-lsp-setup.ci`, `rsvpte-lsp-teardown.ci`, `rsvpte-reroute.ci` |
 | `test/install/` exists with 40 `.ci` files | includes `install-help.ci`, `qemu-full.ci`, `qemu-iso.ci` |
 | The three aggregate lines take no extra arguments | the `run_suite ldp`, `run_suite rsvpte` and `run_suite install` lines each read `$(SUITE_RUN) $(ZE_TEST_RUN) <suite> --all` |
-| None of the three suites needs the `ze-functional-warm` prerequisite | `grep -rn "exec=go test" test/ldp test/rsvpte test/install` returns nothing. That prerequisite exists for `ze-ospf-test` and `ze-ospfv3-test`, whose `.ci` files shell out to `go test` |
+| None of the three suites needs the `ze-functional-test-warm` prerequisite | `grep -rn "exec=go test" test/ldp test/rsvpte test/install` returns nothing. That prerequisite exists for `ze-functional-ospf-test` and `ze-functional-ospfv3-test`, whose `.ci` files shell out to `go test` |
 | None of the three suites needs `$(ZE_TEST_DEPS_STRIPPED)` | `grep -rln "ze-stripped" test/ldp test/rsvpte test/install` returns nothing |
-| `ze-ipsec-test` is defined but absent from `.PHONY` | the target exists beside `ze-policy-test`; the `.PHONY` block does not name it |
+| `ze-functional-ipsec-test` is defined but absent from `.PHONY` | the target exists beside `ze-functional-policy-test`; the `.PHONY` block does not name it |
 
 Behavior to preserve: the four properties below stay true after the change.
 - The `all_suites` line stays the one place the gated suite set is written.
@@ -160,7 +160,7 @@ failure, and `make ze-<suite>-test` typed by an operator for one suite.
 | R-1 | `make ze-install-test` trips the 600s cap the aggregate shares | exit code 124 from `timeout` | the cap is shared with the aggregate on purpose. Do not raise `ZE_SUITE_TIMEOUT` for the new target alone: that makes the standalone and the aggregate disagree, which is the defect this spec closes. Record the measured duration and report it |
 | R-2 | A suite is red for a reason this change did not cause | the same `.ci` fails inside `make ze-functional-test` | attribute the red by test name (`ai/rules/commands.md`), then fix it or report it. Do not weaken the suite, and do not close the spec over it |
 | R-3 | Two suites run at once and poison each other through shared ports or the throwaway root | flaky failures that do not reproduce | run the three targets one at a time, and never beside a verify run (`ai/rules/commands.md`) |
-| R-4 | A doc edit goes stale against a source anchor | `make ze-doc-test` fails on an anchor | the four anchors naming `mk/test-functional.mk` cover the suite list, the non-gated targets, the isolated-binary block, and `ze-isis-test`. None of the four claims changes. Run `make ze-doc-test` after the doc edits |
+| R-4 | A doc edit goes stale against a source anchor | `make ze-doc-verify` fails on an anchor | the four anchors naming `mk/test-functional.mk` cover the suite list, the non-gated targets, the isolated-binary block, and `ze-functional-isis-test`. None of the four claims changes. Run `make ze-doc-verify` after the doc edits |
 
 ## Blast Radius
 
@@ -186,9 +186,9 @@ failure, and `make ze-<suite>-test` typed by an operator for one suite.
 | AC-1 | `make ze-ldp-test` on a clean tree | the ldp suite runs and reports 3 of 3 tests passed, with no test skipped for a missing binary |
 | AC-2 | `make ze-rsvpte-test` on a clean tree | the rsvpte suite runs and reports 5 of 5 tests passed |
 | AC-3 | `make ze-install-test` on a clean tree | the install suite runs over `test/install/*.ci` and reports 0 failures. Its pass, skip and fail counts match the install slice of the aggregate run |
-| AC-4 | The recipe text of each new target, compared against that suite's `run_suite` line | the command and its arguments are identical, `$(SUITE_RUN) $(ZE_TEST_RUN) <suite> --all`, with the same `$(ZE_ALT_TRAP)` trap and `$(ZE_ALT_BUILD)` prefix as `ze-isis-test` |
+| AC-4 | The recipe text of each new target, compared against that suite's `run_suite` line | the command and its arguments are identical, `$(SUITE_RUN) $(ZE_TEST_RUN) <suite> --all`, with the same `$(ZE_ALT_TRAP)` trap and `$(ZE_ALT_BUILD)` prefix as `ze-functional-isis-test` |
 | AC-5 | `make ze-functional-test` after the change | it still runs 24 suites. The progress counter reaches `[24/24]` and the final line reads `PASS  all 24 suites` when no suite is skipped |
-| AC-6 | `grep '^.PHONY' mk/test-functional.mk` | the declarations name `ze-ldp-test`, `ze-rsvpte-test`, `ze-install-test`, and `ze-ipsec-test`, which is the one existing target the same block omits |
+| AC-6 | `grep '^.PHONY' mk/test-functional.mk` | the declarations name `ze-ldp-test`, `ze-rsvpte-test`, `ze-install-test`, and `ze-functional-ipsec-test`, which is the one existing target the same block omits |
 | AC-7 | `make -n ze-ldp-test`, `make -n ze-rsvpte-test`, `make -n ze-install-test` | each prints a recipe and exits 0. Before the change each printed `No rule to make target` and exited 2 |
 
 ## 🧪 TDD Test Plan
@@ -229,7 +229,7 @@ observed run with a test count, never to the presence of a line.
 
 - `mk/test-functional.mk` - add the `ze-ldp-test`, `ze-rsvpte-test` and
   `ze-install-test` targets beside their siblings; add those three names and
-  `ze-ipsec-test` to the `.PHONY` block; add three lines to the quick-reference
+  `ze-functional-ipsec-test` to the `.PHONY` block; add three lines to the quick-reference
   comment at the head of the file
 - `ai/patterns/functional-test.md` - add `test/ldp/`, `test/rsvpte/` and
   `test/install/` rows to the directory to make-target table
@@ -278,7 +278,7 @@ None.
 | 13 | Route metadata keys added/changed? | No | none touched |
 | 14 | Prometheus counters added/changed? | No | none added |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | the suite inventory (`all_suites`) is unchanged. Only the per-suite entry points grow |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes, checked | `docs/functional-tests.md` carries four anchors naming `mk/test-functional.mk`: the `ze-functional-test` suite list (still 24), the non-gated functional targets (unchanged), the isolated-binary block (unchanged), and `ze-isis-test` (unchanged). Every claim still holds. Re-check with `make ze-doc-test` |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes, checked | `docs/functional-tests.md` carries four anchors naming `mk/test-functional.mk`: the `ze-functional-test` suite list (still 24), the non-gated functional targets (unchanged), the isolated-binary block (unchanged), and `ze-functional-isis-test` (unchanged). Every claim still holds. Re-check with `make ze-doc-verify` |
 | 17 | Existing docs show config/CLI/API examples for this area? | Yes | `docs/functional-tests.md` shows `bin/ze-test install --all` as the way to run the install suite. That example is now incomplete, and row 10 fixes it |
 
 ## Implementation Steps
@@ -289,20 +289,20 @@ None.
      `No rule to make target` lines with their exit code 2. This is the RED half
      of AC-7 and it cannot be recovered after the edit
    - Files: `mk/test-functional.mk`. Add the three targets, each an exact copy of
-     the `ze-isis-test` shape with the suite name swapped: prerequisite
+     the `ze-functional-isis-test` shape with the suite name swapped: prerequisite
      `$(ZE_TEST_DEPS)`, one recipe line carrying the `@trap '$(ZE_ALT_TRAP)' EXIT;`
      prefix, `$(ZE_ALT_BUILD)`, `$(SUITE_RUN)`, `$(ZE_TEST_RUN)`, the suite name,
      and `--all`. Take the argument list from that suite's own `run_suite` line,
      which is a bare `--all` for all three. Put `ze-ldp-test` and
      `ze-rsvpte-test` beside the other gated targets, and `ze-install-test`
-     beside `ze-appliance-test`. Add no `ze-functional-warm` prerequisite: none
+     beside `ze-functional-appliance-test`. Add no `ze-functional-test-warm` prerequisite: none
      of the three suites shells out to `go test`
    - Verify: `make -n` on each of the three names prints the recipe and exits 0.
      AC-7 is met
 2. **Phase: Declarations and the reference comment**
    - Tests: `grep '^.PHONY' mk/test-functional.mk` names all four new entries
    - Files: `mk/test-functional.mk`, the `.PHONY` block. Add `ze-ldp-test`,
-     `ze-rsvpte-test`, `ze-install-test`, and `ze-ipsec-test`. The last is a
+     `ze-rsvpte-test`, `ze-install-test`, and `ze-functional-ipsec-test`. The last is a
      defect of the same class in the same lines. That target has existed since
      the ipsec suite landed and was never declared. A file of that name in the
      repository root would silently disable it. Add the three matching lines to
@@ -318,7 +318,7 @@ None.
      though the target resolved
 4. **Phase: Aggregate and docs**
    - Tests: `make ze-functional-test` for AC-5, or read it from this session's
-     verify log if that run already happened. Then `make ze-doc-test` for the doc
+     verify log if that run already happened. Then `make ze-doc-verify` for the doc
      edits
    - Files: `ai/patterns/functional-test.md`, `docs/functional-tests.md`
    - Verify: AC-5, and the two documentation rows answered Yes above
@@ -348,7 +348,7 @@ None.
 | Each target runs its suite | the three recorded runs with their pass counts: 3, 5, and the install suite with 0 failures |
 | The aggregate is unchanged at 24 suites | the `[24/24]` progress line and the `PASS  all 24 suites` line from `make ze-functional-test` |
 | `.PHONY` names every target in the file | `grep '^.PHONY' mk/test-functional.mk`, compared against the target definitions |
-| Docs match the file | `make ze-doc-test` |
+| Docs match the file | `make ze-doc-verify` |
 
 ### Security Review Checklist
 
@@ -364,7 +364,7 @@ None.
 | A new target runs zero tests | the suite name is misspelled against the runner's own name. Compare it with the `run_suite` line |
 | A suite is red | attribute it by test name. Red inside the aggregate too means it predates this change: report it under `ai/rules/completion.md`. Red only standalone means the target is wrong: fix the target |
 | `make ze-install-test` exits 124 | R-1. Record the duration and report it. Do not raise the cap |
-| `make ze-doc-test` fails | a stale source anchor. Fix the doc claim, never the anchor |
+| `make ze-doc-verify` fails | a stale source anchor. Fix the doc claim, never the anchor |
 | 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
 
 ## Design Insights
@@ -376,10 +376,10 @@ None.
 
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| Add three explicit targets that copy the `ze-isis-test` shape | a pattern rule `ze-%-test` covering every present and future suite | a pattern rule matches any name, so a typo such as `ze-lpd-test` would resolve and hand a bad suite name to the runner instead of failing at make. It would also create targets for suites that must not run that way. The explicit copy keeps make's own "no rule" error as the guard |
+| Add three explicit targets that copy the `ze-functional-isis-test` shape | a pattern rule `ze-%-test` covering every present and future suite | a pattern rule matches any name, so a typo such as `ze-lpd-test` would resolve and hand a bad suite name to the runner instead of failing at make. It would also create targets for suites that must not run that way. The explicit copy keeps make's own "no rule" error as the guard |
 | Ship the three targets and nothing else | also add an inventory check that refuses an `all_suites` name with no matching target | the deferral row commissions the missing targets. A new gate is a separate deliverable with its own home, population and test, and `scripts/dev/rfc_requirements.py` already owns the nearest check over that same line: `_ALL_SUITES_RE` reads it, and the `undispatched` refusal rejects a name with no `run_suite` line. Extending that reader to target existence is separable work. It is recorded under Known Limitations and needs its own spec |
-| `$(ZE_TEST_DEPS)`, with no `ze-functional-warm` prerequisite | copy `ze-ospf-test`, which carries that prerequisite | the warm target exists for suites whose `.ci` files run `exec=go test` and pay the compile inside a per-test budget. None of the three does, so the prerequisite would compile a package set for nothing |
-| Add `ze-ipsec-test` to `.PHONY` in the same change | leave it, and spec it separately | it is one word on a line this change already edits, and it is the same defect class. Fixing it here costs nothing and leaves the file consistent (`ai/rules/completion.md`: related code is in scope) |
+| `$(ZE_TEST_DEPS)`, with no `ze-functional-test-warm` prerequisite | copy `ze-functional-ospf-test`, which carries that prerequisite | the warm target exists for suites whose `.ci` files run `exec=go test` and pay the compile inside a per-test budget. None of the three does, so the prerequisite would compile a package set for nothing |
+| Add `ze-functional-ipsec-test` to `.PHONY` in the same change | leave it, and spec it separately | it is one word on a line this change already edits, and it is the same defect class. Fixing it here costs nothing and leaves the file consistent (`ai/rules/completion.md`: related code is in scope) |
 
 ## Known Limitations
 
@@ -389,8 +389,8 @@ None.
   home, population and test. It needs its own spec, and this one does not create
   it.
 - The quick-reference comment at the head of `mk/test-functional.mk` is not
-  exhaustive today: it omits `ze-isis-test`, `ze-ipsec-test`, `ze-ospfv3-test`
-  and `ze-runner-test`. This change adds the three lines it creates and leaves
+  exhaustive today: it omits `ze-functional-isis-test`, `ze-functional-ipsec-test`, `ze-functional-ospfv3-test`
+  and `ze-functional-runner-test`. This change adds the three lines it creates and leaves
   those four gaps alone.
 - The evidence is a run on one host. A suite that depends on host tooling, such
   as the QEMU tests under `test/install/`, can behave differently elsewhere. The
@@ -402,7 +402,7 @@ None.
 ### Goal Gates (MUST pass)
 - [ ] AC-1 to AC-7 each proven by a recorded command and its output
 - [ ] Wiring Test table complete: every row a concrete command, none deferred
-- [ ] `make ze-verify` passes, or a scoped attribution is recorded per `ai/rules/git-safety.md`
+- [ ] `make ze-precommit-verify` passes, or a scoped attribution is recorded per `ai/rules/git-safety.md`
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
 - [ ] Every A-N confirmed or broken, none `unvalidated`
@@ -418,8 +418,8 @@ None.
 
 ### Quality Gates
 - [ ] `make ze-functional-test` reaches `[24/24]`
-- [ ] `make ze-doc-test`
-- [ ] `make ze-verify`
+- [ ] `make ze-doc-verify`
+- [ ] `make ze-precommit-verify`
 
 ### Closure
 - [ ] Status set to `verification`, the work committed, and the session stopped. Handoff is `verify`: a later Opus 5 session reviews that commit and closes the spec

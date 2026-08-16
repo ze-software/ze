@@ -343,7 +343,7 @@ daemon, and no RFC obligation is touched.
 | The recovery path survives | `TestPowerUserIgnoresLoginSets`, driven from a running daemon |
 | An untouched config still works | A `.ci` on a config with no login section at all |
 | Lint | `make ze-lint-changed` |
-| Schema | `make ze-doc-test`, `make ze-cli-grammar-check` |
+| Schema | `make ze-doc-verify`, `make ze-cli-grammar-check` |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -413,7 +413,7 @@ daemon, and no RFC obligation is touched.
 - [ ] AC-1..AC-11 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated on all four surfaces, not test-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding

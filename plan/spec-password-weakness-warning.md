@@ -278,7 +278,7 @@ re-approving the design.
 3. **Phase: Wire both set paths** - call the helper in `hashPlaintextSibling` (commit warning) and `runImpl` (stderr); never block.
    - Tests: `TestHashPlaintextWeakStillSets`
 4. **Functional test** - weak warns yet sets; strong is silent.
-5. **Full verification** → `make ze-verify`
+5. **Full verification** → `make ze-precommit-verify`
 6. **Complete spec** → audit, learned summary, two-commit closure.
 
 ### Critical Review Checklist (/implement stage 6)
@@ -347,7 +347,7 @@ re-approving the design.
 - [ ] End-to-End User Stories: every story has a working path and passing test
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `make ze-test` passes
+- [ ] `make ze-standard-test` passes
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Documentation Update Checklist answered
 

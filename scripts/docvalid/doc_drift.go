@@ -5,7 +5,7 @@
 // It reports any drift between what the code provides and what the docs claim.
 //
 // Usage: go run scripts/check-doc-drift.go [--strict]
-// Called by: make ze-doc-drift, .claude/hooks/check-doc-drift.sh
+// Called by: make ze-doc-drift-check, .claude/hooks/check-doc-drift.sh
 //
 // Exit codes:
 //   0 = no drift
@@ -64,7 +64,7 @@ func main() {
 			fmt.Fprintf(os.Stderr, "    \033[33m->\033[0m %s\n", iss.Detail)
 		}
 	}
-	fmt.Fprintf(os.Stderr, "\n  Run: make ze-doc-drift\n\n")
+	fmt.Fprintf(os.Stderr, "\n  Run: make ze-doc-drift-check\n\n")
 
 	if *strict {
 		os.Exit(2)

@@ -46,7 +46,7 @@ excuses above are about SKIPPING the query; issuing it and getting nothing back 
 a skip.
 
 **An empty result routes you to the second way, it does not leave you without one.**
-`gopls` is on PATH (`make ze-setup` installs it) and every context has Bash, so the
+`gopls` is on PATH (`make ze-dev-setup` installs it) and every context has Bash, so the
 same server answers the same questions: `gopls symbols <file>` maps a file, and
 `gopls definition|references <file>:<line>:<col>` answers about a symbol. The recipes
 and their measured costs are in `ai/rules/context-economy.md`. Which contexts carry
@@ -57,7 +57,7 @@ never read a whole file to hunt for a symbol on the strength of one empty query.
 binary every call returns `ENOENT: gopls` and the session silently falls back to
 reading whole files. That is what happened on one of the two dev machines: the server
 was absent there until 2026-08-05, and that machine's transcript store held 33
-sessions with no LSP call in any of them (`make ze-token-economy` reads
+sessions with no LSP call in any of them (`make ze-token-economy-report` reads
 `~/.claude/projects/`, so its counts are per-machine and say nothing about the other).
 The gate could not see it, and by design will not: it lifts on the query text, because
 a stuck session is the worse failure.
@@ -66,11 +66,11 @@ So a context whose registry DID serve the tool verifies the server ONCE per sess
 right after step 1:
 
 ```
-command -v gopls || make ze-setup
+command -v gopls || make ze-dev-setup
 ```
 
-When it is missing, SAY SO and install it (`make ze-setup` installs `gopls`, among
-the rest; `make ze-setup CHECK=1` only reports). Working on without a server, having
+When it is missing, SAY SO and install it (`make ze-dev-setup` installs `gopls`, among
+the rest; `make ze-dev-setup CHECK=1` only reports). Working on without a server, having
 seen it is absent, is the failure this paragraph exists to name. Once per session is
 the whole cost: do not re-probe before each call. A context that fell back to the CLI
 needs no separate probe -- it calls `gopls` directly, so a missing binary announces

@@ -386,7 +386,7 @@ are not verifiable locally.** Cite this section, not that doc.
    - Files: `lg/handler_api.go`
    - Verify: AC-6. `transformProtocols` untouched (D-4).
 6. **Phase: Interop** - `NN-keep-filtered-bird`; the only way to validate A-6.
-7. **Full verification** -> `make ze-verify-changed` when other sessions hold uncommitted work.
+7. **Full verification** -> `make ze-precommit-verify-changed` when other sessions hold uncommitted work.
 8. **Complete spec** -> audit tables, docs, learned summary, two-commit closure.
 
 ### Critical Review Checklist (/implement stage 6)
@@ -508,7 +508,7 @@ the table, gets this feature almost for free.
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete - every row has a concrete test name
 - [ ] `/ze-review` gate clean (0 BLOCKER, 0 ISSUE)
-- [ ] `make ze-test` passes (or `make ze-verify-changed` when scoped, with rationale)
+- [ ] `make ze-standard-test` passes (or `make ze-precommit-verify-changed` when scoped, with rationale)
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Documentation Update Checklist answered Yes/No with source evidence
 - [ ] Risks & Assumptions: every A-N confirmed or broken (A-6 needs the interop test)

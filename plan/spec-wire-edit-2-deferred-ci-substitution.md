@@ -203,7 +203,7 @@ A reader looking for what proved child 2's acceptance criteria.
 
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-4 all demonstrated
-- [ ] `make ze-verify` passes
+- [ ] `make ze-precommit-verify` passes
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 
 ### TDD

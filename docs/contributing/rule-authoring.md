@@ -13,9 +13,9 @@ depth is fixed at two, so a point id is always `<rule>/<section>/<slug>`.
 |------|-------|---------------|
 | `ai/rules/points/<rule>/manifest.md` | The title, the metadata block, the sections and the reading order | You |
 | `ai/rules/points/<rule>/<section>/<slug>.md` | One point: a frontmatter header, then the body verbatim | You |
-| `ai/rules/<rule>.md` | The rendered rule an agent reads | `make ze-rules-render` |
-| `ai/rules/TRIGGERS.md`, `ai/rules/CORE.md` | The session payload | `make ze-rules-condensed` |
-| `ai/rules/INDEX.md` | The dispatch index | `make ze-rules-index` |
+| `ai/rules/<rule>.md` | The rendered rule an agent reads | `make ze-rules-render-update` |
+| `ai/rules/TRIGGERS.md`, `ai/rules/CORE.md` | The session payload | `make ze-rules-condensed-update` |
+| `ai/rules/INDEX.md` | The dispatch index | `make ze-rules-index-update` |
 
 An Edit to any generated file is refused by `c_rendered_rules` in
 `.claude/hooks/pretool-writeedit.py`. The refusal names the point directory.
@@ -28,7 +28,7 @@ rather than a section of its own, and that is what keeps the depth at two.
 
 | Task | Steps |
 |------|-------|
-| Change one instruction | Edit the point file. Run `make ze-rules-render` |
+| Change one instruction | Edit the point file. Run `make ze-rules-render-update` |
 | Add an instruction | Pick a slug no file in that SECTION uses, write the point, add the slug under that section in the manifest, render |
 | Add a section | Add its line to the manifest, create the directory, and put at least one point in it. An empty section is refused |
 | Remove an instruction | Delete the point file AND its manifest line. Either one alone is a hard error |
@@ -37,7 +37,7 @@ rather than a section of its own, and that is what keeps the depth at two.
 
 A point body is copied through verbatim. The renderer joins bodies with one
 blank line and rewrites nothing inside one. That is what lets
-`make ze-rules-points-roundtrip` prove no byte was lost.
+`make ze-rules-points-roundtrip-check` prove no byte was lost.
 
 ## Pick a slug that is free
 
@@ -61,7 +61,7 @@ cannot derive either one and an empty line would claim the point was examined.
 
 | Field | Values | Notes |
 |-------|--------|-------|
-| `kind` | `directive`, `table`, `note`, `heading`, `fence` | Describes the block. `heading` and `fence` are structural, so `make ze-rules-gate-map` leaves them out of its counts |
+| `kind` | `directive`, `table`, `note`, `heading`, `fence` | Describes the block. `heading` and `fence` are structural, so `make ze-rules-gate-map-report` leaves them out of its counts |
 | `level` | `MUST`, `MUST NOT`, `SHOULD`, `SHOULD NOT`, `MAY` | The strongest RFC 2119 level the body states. Required on a `directive`, empty on every other kind. See "Every directive states a level" |
 | `stage` | empty | Reserved. It will let a design-phase agent skip implementation directives. Leave it empty |
 | `rationale` | a repo-relative path, or the line absent | Where the record of WHY this instruction exists lives: a `plan/learned/NNNN-*.md` summary, or an `ai/rationale/*.md` file |
@@ -85,7 +85,7 @@ reader who stops after the general statement is misled, and the repetition that
 prevents that is invisible: `ai/rules/writing.md` states the UK English
 exception at three levels, and a dedup pass can delete one copy with every gate
 staying green. The link closes that. Deleting the exception point leaves the
-general point naming nothing, and `make ze-rules-gate-map` fails.
+general point naming nothing, and `make ze-rules-gate-map-report` fails.
 
 Declare it when the exception lives in a DIFFERENT point. An instruction that
 states its own carve-out in the same block needs no link, and neither does one
@@ -176,7 +176,7 @@ every gate stays green, because the points and the rendered rule then agree on
 the smaller corpus.
 
 So a removal is declared: one row in `ai/rules/points/RETIRED.md`, naming the id
-and saying what happened to the instruction. `make ze-rules-gate-map` compares
+and saying what happened to the instruction. `make ze-rules-gate-map-report` compares
 each rule's point count against git HEAD and fails when a drop is not covered by
 a row added since HEAD. A row stops counting once it is committed, so nothing
 there pre-approves a future deletion.
@@ -197,7 +197,7 @@ A check that enforces nothing written in `ai/rules/` says so, with a reason:
     # ze point: none -- build hygiene, and no rule states where a Go binary lands
     def check_root_build(ctx):
 
-`make ze-rules-gate-map` joins those comments against the points on disk, and
+`make ze-rules-gate-map-report` joins those comments against the points on disk, and
 joins the two optional link fields the same way. It reports the gated points,
 the dangling bindings, the points that regressed, the checks that declare
 `none`, the two sets of links naming nothing, the ungated count, and the two
@@ -225,16 +225,16 @@ owes a row in that table, and a deleted check's row cannot survive it.
 
 ## The order the generators run in
 
-`make ze-rules-condensed` and `make ze-rules-index` parse the RENDERED rules, so
+`make ze-rules-condensed-update` and `make ze-rules-index-update` parse the RENDERED rules, so
 a render that has not run yet feeds them the previous text.
 
-    make ze-rules-render
-    make ze-rules-condensed
-    make ze-rules-index
+    make ze-rules-render-update
+    make ze-rules-condensed-update
+    make ze-rules-index-update
     make ze-rules-lint
 
-`make ze-doc-test` runs all of them, plus `ze-rules-render-check`,
-`ze-rules-points-roundtrip` and `ze-rules-gate-map`. Run it before you commit.
+`make ze-doc-verify` runs all of them, plus `ze-rules-render-check`,
+`ze-rules-points-roundtrip-check` and `ze-rules-gate-map-report`. Run it before you commit.
 
 After a trigger edit, READ your rule's row in the regenerated `TRIGGERS.md`. A
 trigger that lost half its clause is not visible from the point file alone.

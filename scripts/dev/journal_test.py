@@ -146,7 +146,7 @@ class TestReadJournalAtHead(TestCase):
     # PREVENTS: the on-disk guard keying on the raw HEAD listing, which counts
     # README.md.  With the README committed and the class files not, the guard
     # was skipped, the class-file loop ran over an empty list, and `make
-    # ze-journal` exited 0 printing nothing over a full journal.  This is the
+    # ze-journal-report` exited 0 printing nothing over a full journal.  This is the
     # ordering the real repository passes through: README.md lands with the
     # directory, class files land with the work.
     def test_head_with_only_readme_is_an_error(self) -> None:

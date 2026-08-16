@@ -14,7 +14,7 @@ is the source of truth for the artifacts.** This page explains how to run them.
 |-----------|-----|
 | netlab 26.08 | Renders the topology and calls containerlab |
 | containerlab and docker | Start the nodes |
-| `netlab/ze:latest` | The lab image, built by `make ze-docker-lab` |
+| `netlab/ze:latest` | The lab image, built by `make ze-docker-lab-build` |
 
 The lab image is not the deployment image. See [Docker](docker.md) for the two images
 and what separates them.
@@ -22,13 +22,13 @@ and what separates them.
 ## Step 1: build the image
 
 ```bash
-make ze-docker-lab
+make ze-docker-lab-build
 ```
 
 `contrib/netlab/ze.yml` sets `clab.build: False` and `image: netlab/ze:latest`, so netlab
 starts this image and builds nothing. `ZE_LAB_IMAGE` and `ZE_LAB_TAG` change the name.
 Change them and change `image:` in `ze.yml` to match.
-<!-- source: Makefile -- ze-docker-lab, ZE_LAB_IMAGE, ZE_LAB_TAG -->
+<!-- source: Makefile -- ze-docker-lab-build, ZE_LAB_IMAGE, ZE_LAB_TAG -->
 <!-- source: contrib/netlab/ze.yml -- clab.build, clab.image -->
 
 ## Step 2: give netlab the daemon definition

@@ -49,7 +49,7 @@ tests in both polarities, and enrol RFC 7705 in `rfc/enrolled.txt`.
 
 **Enrolment is the closing act, and the summary is parked until then.** A summary
 sitting in `rfc/short/` while declaring nine un-enrolled gated MUSTs fails
-`ze-rfc-check`, which runs inside `ze-verify` and `ze-verify-changed`, so it would
+`ze-rfc-check`, which runs inside `ze-precommit-verify` and `ze-precommit-verify-changed`, so it would
 red the tree for every session in this checkout for as long as this spec takes.
 Thomas ruled on 2026-07-28 to park it rather than carry that cost, so the summary
 lives at `rfc/pending/rfc7705.md` and the source text stays at
@@ -375,7 +375,7 @@ and writes the enrolment row that admits all nine in the same change.
    - Files: `internal/component/bgp/reactor/session_as_migration.go` and the connect-retry path
    - Verify: AC-10 passes, or A-5 resolves to a ruled deferral recorded here
 8. **Phase: unpark, enrol and close the ledger** -- BLOCKING, requires `plan/spec-bgp-local-as-options.md` landed
-   - Tests: `make ze-rfc-index` then `make ze-rfc-check`
+   - Tests: `make ze-rfc-index-update` then `make ze-rfc-check`
    - Files: move `rfc/pending/rfc7705.md` back under `rfc/short/`, then `rfc/enrolled.txt` and `ai/RFC-REQUIREMENTS.md`. Re-point the three specs' Required Reading rows at the restored summary and remove `rfc/pending/` if it is left empty
    - Verify: AC-12 passes, `ze-rfc-check` exits 0 with `rfc7705` enrolled rather than absent, and `ls rfc/pending/` is empty
 9. **Phase: documentation, counter and interop**
@@ -405,8 +405,8 @@ and writes the enrolment row that admits all nine in the same change.
 | Wire-level coverage | `ls test/plugin/bgp-as-migration-*.ci` returns three files |
 | RFC 7705 enrolled | `grep -n "^rfc7705" rfc/enrolled.txt` returns the row |
 | The gate is green | `make ze-rfc-check` exits 0 |
-| Ledger regenerated in the same commit | `make ze-rfc-index` then `git diff --stat ai/RFC-REQUIREMENTS.md` |
-| No unrelated regressions | `make ze-verify` |
+| Ledger regenerated in the same commit | `make ze-rfc-index-update` then `git diff --stat ai/RFC-REQUIREMENTS.md` |
+| No unrelated regressions | `make ze-precommit-verify` |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -480,7 +480,7 @@ Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code.
 - [ ] AC-1..AC-12 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-verify` passes (the pre-commit gate; `ai/rules/git-safety.md`)
+- [ ] `make ze-precommit-verify` passes (the pre-commit gate; `ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding

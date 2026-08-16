@@ -152,7 +152,7 @@ an owner question, recorded below, and not a `{gap}` this spec writes.
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The unit-only population is dominated by requirements whose oracle is ze's own code, so functional evidence adds real discrimination | today's five IKE defects, all unit-green for months | the backfill adds tier without adding discrimination | mutation: break the producer, check whether unit tests survive | **broken** for the L2TP cluster. `TestChallengeResponseKnown` and `TestCHAPAuthenticationKnownVector` re-derive the digest in the test body, so they DO catch a swapped field order. See Mistake Log |
 | A-2 | A `.ci` in `test/l2tp/` earns `functional/verify` | `mk/test-functional.mk` `all_suites` lists `l2tp` | the binding is refused as `TIER_UNRUN` | `carrier_for` on the landed file | **confirmed**: `functional-l2tp -> functional/verify`, runner `make ze-functional-test` |
-| A-3 | The l2tp suite runs natively on darwin, so the tranche executes in `make ze-verify` | only `session-stopccn-cascade.ci` carries `option=needs-linux` | the tier claim is true only inside QEMU | full suite run on this host | **confirmed**: 17/17 pass, 1 skip |
+| A-3 | The l2tp suite runs natively on darwin, so the tranche executes in `make ze-precommit-verify` | only `session-stopccn-cascade.ci` carries `option=needs-linux` | the tier claim is true only inside QEMU | full suite run on this host | **confirmed**: 17/17 pass, 1 skip |
 | A-4 | RFC 2661 §4.2 tunnel auth can carry a gated binding | the summary lists a §4.2 requirement | the strongest available evidence binds no gated id | read `rfc/short/rfc2661.md` | **broken**: RFC2661-4.2-1 is `[MAY]`, so it is not gated. The digest assertion still ships, binding no id |
 
 ### Risks
@@ -246,7 +246,7 @@ an owner question, recorded below, and not a `{gap}` this spec writes.
 | 6 | Has a user guide page? | No | - |
 | 7 | Wire format changed? | No | No encoder changed; the test observes the existing format |
 | 8 | Plugin SDK/protocol changed? | No | - |
-| 9 | RFC behavior implemented, changed, or newly proven? | **Yes, and OWED** | Three RFC 2661 requirements are newly proven at a new tier. `ai/RFC-REQUIREMENTS.md` needs `make ze-rfc-index`, deliberately NOT run this session (R-2). `docs/features/rfc-status.md` support level is unchanged, so no row edit is due |
+| 9 | RFC behavior implemented, changed, or newly proven? | **Yes, and OWED** | Three RFC 2661 requirements are newly proven at a new tier. `ai/RFC-REQUIREMENTS.md` needs `make ze-rfc-index-update`, deliberately NOT run this session (R-2). `docs/features/rfc-status.md` support level is unchanged, so no row edit is due |
 | 10 | Test infrastructure changed? | No | Uses the existing suite shape |
 | 11 | Affects daemon comparison? | No | - |
 | 12 | Internal architecture changed? | No | - |
@@ -288,7 +288,7 @@ an owner question, recorded below, and not a `{gap}` this spec writes.
 | Risk ranking | "Risk ranking" section below |
 | Three bound requirements | `python3 -c` over `rfc_requirements.scan_ci_tags` on the landed file |
 | Mutation evidence | Mutation table below |
-| Suite still green | `make ze-l2tp-test` |
+| Suite still green | `make ze-functional-l2tp-test` |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -428,7 +428,7 @@ unit-only by decision?
 
 ## Known Limitations
 - Three requirements moved. 1533 remain unit-only. The rule and the ranking are the durable output; the tranche is a worked example of applying them.
-- `ai/RFC-REQUIREMENTS.md` is not regenerated this session (R-2), so `make ze-rfc-check` will report ledger staleness until `make ze-rfc-index` runs.
+- `ai/RFC-REQUIREMENTS.md` is not regenerated this session (R-2), so `make ze-rfc-check` will report ledger staleness until `make ze-rfc-index-update` runs.
 - The reserved-bit-on-receive behaviour was not established either way: the probe produced no ze log line and no reply, and the cause was not isolated. It is not claimed as a finding.
 
 ## Checklist
@@ -437,7 +437,7 @@ unit-only by decision?
 - [ ] AC-1..AC-6 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-verify` passes (the pre-commit gate; `ai/rules/git-safety.md`)
+- [ ] `make ze-precommit-verify` passes (the pre-commit gate; `ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding

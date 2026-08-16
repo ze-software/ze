@@ -214,7 +214,7 @@ These four have no file yet. Routing stalls on them until one exists.
 | `561-bfd-4-operator-ux.md` | C | `ai/rules/plugins.md` | "**Plugin initialization ordering is now a cross-cutting concern.**" |
 | `562-bfd-5-authentication.md` | B | `docs/architecture/bfd.md` | "**Simple Password rejected at parse time, not at runtime.**" |
 | `563-bfd-6-echo-mode.md` | B | `docs/architecture/bfd.md` | "**Echo wire format is a 16-byte 'ZEEC' envelope.**" |
-| `565-bfd-3b-frr-interop.md` | C | `ai/rules/interop-and-goal-validation.md` | "**Interop scenarios are not part of 'make ze-verify'.**" |
+| `565-bfd-3b-frr-interop.md` | C | `ai/rules/interop-and-goal-validation.md` | "**Interop scenarios are not part of 'make ze-precommit-verify'.**" |
 | `567-iface-tunnel-mac-per-case.md` | A | `ai/digests/iface.md` | "'parseTunnelEntry' is specific to tunnels and must not be applied generically." |
 | `568-listener-dynamic-walk.md` | A | `docs/architecture/config/yang-config-design.md` | "The 'hasEnabledLeaf' check must inspect the schema parent container, not the config" |
 | `569-cmd-5-aspath-filter.md` | C | `docs/architecture/config/syntax.md` | "Ze's config parser consumes backslashes in quoted strings: ''\d'' becomes ''d''." |
@@ -336,7 +336,7 @@ These four have no file yet. Routing stalls on them until one exists.
 | `841-doc-drift-parser-claims.md` | C | `ai/rules/repo-maintenance.md` | "Stale parser claims can be semantically wrong while all source anchor paths still exist, so source-anchor validation is necessary but not sufficient." |
 | `845-plugin-self-containment.md` | C | `docs/architecture/command-ownership.md` | "The pki export '.ci' was passing **falsely**: a broad 'try/except' swallowed" |
 | `846-bgp-decode-encode-ownership.md` | C | `docs/architecture/command-ownership.md` | "Drop it and decode/encode silently vanish from help" |
-| `847-rules-index-generator.md` | C | `ai/rules/repo-maintenance.md` | "'CLAUDE.md'/'AGENTS.md' are git-ignored generated artifacts: edit 'ai/INSTRUCTIONS.md' and run 'make ze-ai-instructions'; they never appear in 'git st" |
+| `847-rules-index-generator.md` | C | `ai/rules/repo-maintenance.md` | "'CLAUDE.md'/'AGENTS.md' are git-ignored generated artifacts: edit 'ai/INSTRUCTIONS.md' and run 'make ze-ai-instructions-generate'; they never appear in 'git st" |
 | `848-command-surface-ownership.md` | C | `docs/architecture/command-ownership.md` | "**cmd/ze tests share one process registry.** Never call 'ResetForTest()' from a 'cmd/ze'" |
 | `852-cmd-to-plugin.md` | C | `ai/rules/plugins.md` | "any 'register.go' under 'internal/plugins/' without 'codegen:skip' gets added to 'plugin/all'" |
 | `855-clear-command-ownership.md` | B | `docs/architecture/command-ownership.md` | "**Full handler+schema move, not schema-only.** Moving only schema would leave the central package importing 'ike/engine' and depending on hub injectio" |
@@ -406,7 +406,7 @@ These four have no file yet. Routing stalls on them until one exists.
 | `1063-ownership-1-rs-invariant.md` | A | `ai/digests/config-pipeline.md` | "Config-validation schema is a UNION of ALL init()-registered YANG modules" |
 | `1064-ownership-2-coordinator-types.md` | A | `docs/architecture/plugin-manager-wiring.md` | "The registry leaf now has one component->component lateral edge ('config/storage')." |
 | `1065-ownership-3-reactor-modes.md` | A | `ai/digests/bgp-reactor.md` | "Any future reactor consumer must now state its mode." |
-| `1067-generated-discovery-indexes.md` | B | `ai/rules/repo-maintenance.md` | "Folding into 'ze-doc-test' alone would have been a no-op gate" |
+| `1067-generated-discovery-indexes.md` | B | `ai/rules/repo-maintenance.md` | "Folding into 'ze-doc-verify' alone would have been a no-op gate" |
 | `1068-digest-anchor-validator.md` | C | `ai/rules/repo-maintenance.md` | "The resolver fails closed on cross-base ambiguity" |
 | `1073-ddos-flowspec-wire.md` | C | `ai/rules/testing.md` | "a peer-based functional test is not optional for origination features -- parsing green != sending works." |
 | `1076-structural-gate-known-red.md` | C | `ai/rules/git-safety.md` | "A structural gate red is not 'pre-existing noise' to scope around." |

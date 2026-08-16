@@ -52,24 +52,24 @@ line per test plus periodic progress.
 
 | Directory | Runner command | Make target |
 |-----------|---------------|-------------|
-| `test/encode/` | `ze-test bgp encode [--all|--start N|N...]` | `make ze-encode-test` |
-| `test/plugin/` | `ze-test bgp plugin [--all|--start N|N...]` | `make ze-plugin-test` |
-| `test/decode/` | `ze-test bgp decode [--all|--start N|N...]` | `make ze-decode-test` |
-| `test/parse/` | `ze-test bgp parse [--all|--start N|N...]` | `make ze-parse-test` |
-| `test/reload/` | `ze-test bgp reload [--all|--start N|N...]` | `make ze-reload-test` |
-| `test/ui/` | `ze-test ui [--all|--start N|N...]` | `make ze-ui-test` |
-| `test/editor/` | `ze-test editor [--all|--start N|N...]` | `make ze-editor-test` |
-| `test/web/` | `ze-test web [--all|--start N|N...]` | `make ze-web-test` |
-| `test/managed/` | `ze-test managed [--all|--start N|N...]` | `make ze-managed-test` |
-| `test/l2tp/` | `ze-test l2tp [--all|--start N|N...]` | `make ze-l2tp-test` |
-| `test/firewall/` | `ze-test firewall [--all|--start N|N...]` | `make ze-firewall-test` |
-| `test/policy/` | `ze-test policy [--all|--start N|N...]` | `make ze-policy-test` |
-| `test/static/` | `ze-test static [--all|--start N|N...]` | `make ze-static-test` |
-| `test/traffic/` | `ze-test traffic [--all|--start N|N...]` | `make ze-traffic-test` |
-| `test/flow-export/` | `ze-test flow-export [--all|--start N|N...]` | `make ze-flow-export-test` |
-| `test/vpp/` | `ze-test vpp [--all|--start N|N...]` | `make ze-vpp-test` |
-| `test/l2tp-wire/` | `ze-test l2tp-wire [--all|--start N|N...]` | `make ze-l2tp-wire-test` |
-| `test/exabgp-compat/` | `ze-test exabgp [--all|--start N|N...]` | `make ze-exabgp-test` |
+| `test/encode/` | `ze-test bgp encode [--all|--start N|N...]` | `make ze-functional-encode-test` |
+| `test/plugin/` | `ze-test bgp plugin [--all|--start N|N...]` | `make ze-functional-plugin-test` |
+| `test/decode/` | `ze-test bgp decode [--all|--start N|N...]` | `make ze-functional-decode-test` |
+| `test/parse/` | `ze-test bgp parse [--all|--start N|N...]` | `make ze-functional-parse-test` |
+| `test/reload/` | `ze-test bgp reload [--all|--start N|N...]` | `make ze-functional-reload-test` |
+| `test/ui/` | `ze-test ui [--all|--start N|N...]` | `make ze-functional-ui-test` |
+| `test/editor/` | `ze-test editor [--all|--start N|N...]` | `make ze-functional-editor-test` |
+| `test/web/` | `ze-test web [--all|--start N|N...]` | `make ze-functional-web-test` |
+| `test/managed/` | `ze-test managed [--all|--start N|N...]` | `make ze-functional-managed-test` |
+| `test/l2tp/` | `ze-test l2tp [--all|--start N|N...]` | `make ze-functional-l2tp-test` |
+| `test/firewall/` | `ze-test firewall [--all|--start N|N...]` | `make ze-functional-firewall-test` |
+| `test/policy/` | `ze-test policy [--all|--start N|N...]` | `make ze-functional-policy-test` |
+| `test/static/` | `ze-test static [--all|--start N|N...]` | `make ze-functional-static-test` |
+| `test/traffic/` | `ze-test traffic [--all|--start N|N...]` | `make ze-functional-traffic-test` |
+| `test/flow-export/` | `ze-test flow-export [--all|--start N|N...]` | `make ze-functional-flow-export-test` |
+| `test/vpp/` | `ze-test vpp [--all|--start N|N...]` | `make ze-functional-vpp-test` |
+| `test/l2tp-wire/` | `ze-test l2tp-wire [--all|--start N|N...]` | `make ze-functional-l2tp-wire-test` |
+| `test/exabgp-compat/` | `ze-test exabgp [--all|--start N|N...]` | `make ze-functional-exabgp-test` |
 
 Gated suites (in `make ze-functional-test`): encode, plugin, parse, decode, reload,
 ui, editor, managed, l2tp, firewall, policy, web, install. Non-gated suites
@@ -269,7 +269,7 @@ Tests are named descriptively with kebab-case: `<feature>-<scenario>.ci`
 ```bash
 make ze-functional-test     # All functional tests
 make ze-unit-test           # Unit tests only
-make ze-verify              # Everything except fuzz (two-pass: cached + race-on-changed)
+make ze-precommit-verify              # Everything except fuzz (two-pass: cached + race-on-changed)
 ```
 
 ## Checklist

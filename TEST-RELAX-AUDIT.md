@@ -17,7 +17,7 @@ sweep, session 3, is not started.** What landed:
 | D-3 an assertion that cannot fail is now refused | `_TAUTOLOGY` (same file) |
 | D-4 added tokens found by multiset difference, not a positional slice | `run_audit` (`scripts/dev/audit-test-relaxation.py`) |
 | D-5 the whole multi-line justification is captured and wrapped | `relax_reasons`, `report` (same file) |
-| The stock is counted and held down | a census script and a ceiling file, run by `make ze-relax-census` in `ze-verify` both modes. All three retired on 2026-08-16 |
+| The stock is counted and held down | a census script and a ceiling file, run by `make ze-relax-census` in `ze-precommit-verify` both modes. All three retired on 2026-08-16 |
 | The three refuted l2tp justifications removed | `test/plugin/redistribute-l2tp-{announce,withdraw,multi-peer-nexthop}.ci` |
 
 Tests: 28 relax fixtures in `scripts/dev/hook-fixture-check.py` (394/394 pass),
@@ -100,7 +100,7 @@ only from `/ze-review` and `/ze-review-deep`, and it sees only new tokens. The
 never been reviewed, and no current mechanism can review them.
 
 *(As audited. A census target then read the stock and held it under a ceiling
-file, in `ze-verify` both modes. Both retired on 2026-08-16: see "The mechanism
+file, in `ze-precommit-verify` both modes. Both retired on 2026-08-16: see "The mechanism
 moved" at the foot of this page.)*
 
 ---

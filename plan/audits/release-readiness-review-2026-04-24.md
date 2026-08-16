@@ -34,11 +34,11 @@ The project is not releasable today. The main gate and independent evidence runs
 
 | Command | Result | Evidence |
 |---------|--------|----------|
-| `make ze-verify` | FAIL | Stops in `ze-lint` with 20 issues before tests run. |
+| `make ze-precommit-verify` | FAIL | Stops in `ze-lint` with 20 issues before tests run. |
 | `make ze-unit-test` | FAIL | Failing packages include `cmd/ze`, `internal/chaos/inprocess`, `internal/component/cmd/subscribe`, `internal/component/plugin/all`, `internal/component/ppp`, `internal/component/radius`, `internal/core/clock`, `internal/plugins/bfd/engine`. |
 | `make ze-functional-test` | FAIL | encode: 1 timeout; plugin: 11 failures/timeouts; parse: 72 failures; decode, reload, UI, editor, managed passed. |
-| `make ze-doc-test` | FAIL | 40 doc drift issues and 29 YANG commands with no handler. |
-| `make ze-consistency` | FAIL | 11794 errors and 4511 warnings, mostly because it scans `gokrazy/modcache`, plus real source size and plugin-structure errors. |
+| `make ze-doc-verify` | FAIL | 40 doc drift issues and 29 YANG commands with no handler. |
+| `make ze-consistency-check` | FAIL | 11794 errors and 4511 warnings, mostly because it scans `gokrazy/modcache`, plus real source size and plugin-structure errors. |
 | `make ze-inventory-json` | PASS | Reports 790 `.ci` tests and current registry inventory. |
 | `make ze-spec-status-json` | PASS | Shows many active/in-progress specs and done L2TP specs still in `plan/`. |
 
@@ -86,7 +86,7 @@ These prior findings appear fixed or materially improved in the current tree. Th
 
 | ID | Area | Location | Finding | Impact | First Fix |
 |----|------|----------|---------|--------|-----------|
-| P0-1 | Release gate | `make ze-verify`, `make ze-unit-test`, `make ze-functional-test`, `make ze-doc-test` | The main verification gate is red at lint, and independent unit, functional, and docs gates are also red. | No release or initial deployment decision can rely on current evidence. | Restore all mandatory gates to green before considering deployment. |
+| P0-1 | Release gate | `make ze-precommit-verify`, `make ze-unit-test`, `make ze-functional-test`, `make ze-doc-verify` | The main verification gate is red at lint, and independent unit, functional, and docs gates are also red. | No release or initial deployment decision can rely on current evidence. | Restore all mandatory gates to green before considering deployment. |
 | P0-2 | Hot path concurrency | `internal/component/bgp/reactor/session_coalesce.go`, `internal/component/bgp/plugins/adj_rib_in/rib.go,314`, `internal/component/plugin/process/delivery.go` | Race detector shows the session read/coalesce buffer being overwritten while plugin delivery reads the same data. | Corruption or nondeterministic route parsing on the receive path under load. | Give delivered raw messages immutable ownership, copy before buffer reuse, or refcount the buffer until all consumers complete. |
 | P0-3 | SSH authentication | `test/plugin/ssh-pubkey-auth.ci`, `internal/component/ssh/`, `cmd/ze/hub` | Functional test says a wrong SSH key authenticated. | Remote admin surface may accept unauthorized public keys until disproven. | Investigate immediately, add a focused unit/integration test, and make the functional test deterministic. |
 | P0-4 | Command routing | `internal/component/l2tp/yang/ze-l2tp-api.yang`, `internal/component/cmd/l2tp/`, plugin functional tests 309-312 | L2TP teardown commands are in tests/docs but dispatch as `unknown command`. | Operator cannot tear down L2TP sessions/tunnels through the advertised command surface. | Register the command paths or correct tests/docs to the real path. |
@@ -123,7 +123,7 @@ These prior findings appear fixed or materially improved in the current tree. Th
 |----|------|----------|---------|--------|-----------|
 | P1-17 | YANG command aliases | `internal/component/config/yang/command.go`, `ze-cli-show-cmd.yang`, `ze-cli-clear-cmd.yang` | Duplicate `ze:command` methods overwrite each other because `WireMethodToPath` stores one path. | Some documented aliases are unrouted. | Store all paths per wire method and register every alias. |
 | P1-18 | `bgp summary` path | `ze-peer-cmd.yang`, `internal/component/api/rest/server.go`, `cmd/ze/hub/session_factory.go` | Live command is `summary`, while REST/dashboard call `bgp summary`. | REST peer list and dashboard summary can fail. | Restore alias or change callers to live path. |
-| P1-19 | Command validator | `make ze-doc-test` | 29 YANG command paths have no handler. | Command docs and schema expose dead paths. | Fix registrations or remove command nodes. |
+| P1-19 | Command validator | `make ze-doc-verify` | 29 YANG command paths have no handler. | Command docs and schema expose dead paths. | Fix registrations or remove command nodes. |
 | P1-20 | Parser/config expectations | `make ze-functional-test` parse suite | 72 parse tests currently fail. | Config/parser evidence is unusable until reconciled. | Fix parser regressions or update invalid expectations with audit. |
 
 ### P1 - Platform, Dataplane, Persistence, Lifecycle
@@ -185,8 +185,8 @@ These prior findings appear fixed or materially improved in the current tree. Th
 | P2-32 | Static route tests | `test/static/*.ci`, `cmd/ze-test/` | Static tests exist but no runner/gate is registered. | Shipped static routes lack functional gate evidence. | Add `ze-test static` and Make target. |
 | P2-33 | L2TP wire tests | `test/l2tp-wire/*.ci`, `plan/deferrals.md` | `.ci` files exist but no runner is present. | Files look like evidence but do not run. | Add runner or move to spec artifacts. |
 | P2-34 | Stale counts | `README.md,59`, `docs/guide/status.md`, `docs/features.md` | Counts are stale: inventory has 790 `.ci`; interop has 33 scenarios. | Public release claims drift from reality. | Generate counts from inventory. |
-| P2-35 | `ze-ci` target | `Makefile:319-321` | `ze-ci` runs lint, unit, build only. | A release-named CI target skips functional/compat/fuzz evidence. | Rename to smoke or make it call the release gate. |
-| P2-36 | Docs drift | `make ze-doc-test`, `docs/DESIGN.md` | 40 docs drift issues, mostly shipped plugin table and interop count. | Architecture docs are not trustworthy enough for release. | Update docs from live registry or remove static enumerations. |
+| P2-35 | `ze-ci-verify` target | `Makefile:319-321` | `ze-ci-verify` runs lint, unit, build only. | A release-named CI target skips functional/compat/fuzz evidence. | Rename to smoke or make it call the release gate. |
+| P2-36 | Docs drift | `make ze-doc-verify`, `docs/DESIGN.md` | 40 docs drift issues, mostly shipped plugin table and interop count. | Architecture docs are not trustworthy enough for release. | Update docs from live registry or remove static enumerations. |
 | P2-37 | Security docs stale | `SECURITY.md`, `docs/architecture/fleet-config.md` | Docs still describe some fixed insecure defaults and miss current issues. | Operators get wrong trust-model guidance. | Rewrite security docs around current source and remaining risks. |
 | P2-38 | Consistency tool scope | `scripts/lint/consistency.go`, `gokrazy/modcache/` | Consistency scan includes vendored module caches. | Tool output is noisy enough to hide real source issues. | Exclude vendor/gokrazy modcache/tmp and keep real source checks. |
 
@@ -216,11 +216,11 @@ Objective: make the evidence honest and repeatable before fixing deeper behavior
 
 | Step | Scope | Exit Criteria |
 |------|-------|---------------|
-| 0.1 | Fix current lint failures | `make ze-verify` reaches unit tests. |
+| 0.1 | Fix current lint failures | `make ze-precommit-verify` reaches unit tests. |
 | 0.2 | Fix unit red packages | `make ze-unit-test` passes with race detector. |
 | 0.3 | Fix functional red suites | `make ze-functional-test` passes encode, plugin, parse, decode, reload, ui, editor, managed. |
-| 0.4 | Fix docs and command validation | `make ze-doc-test` passes with zero missing handlers. |
-| 0.5 | Repair consistency scope | `make ze-consistency` excludes dependency caches and reports actionable source-only findings. |
+| 0.4 | Fix docs and command validation | `make ze-doc-verify` passes with zero missing handlers. |
+| 0.5 | Repair consistency scope | `make ze-consistency-check` excludes dependency caches and reports actionable source-only findings. |
 | 0.6 | Define release evidence matrix | Every shipped suite is either gated, privileged-gated, optional, or explicitly non-evidence. |
 
 ### Phase 1 - Close Security Boundaries
@@ -319,7 +319,7 @@ Do not leave experimental status yet.
 Minimum bar for an initial controlled deployment:
 
 - All P0 findings closed.
-- `make ze-verify`, `make ze-unit-test`, `make ze-functional-test`, and `make ze-doc-test` green.
+- `make ze-precommit-verify`, `make ze-unit-test`, `make ze-functional-test`, and `make ze-doc-verify` green.
 - Security phase closed for SSH, API, MCP, authz defaults, L2TP PPP auth, and RADIUS accounting.
 - BGP receive-buffer race and malformed UPDATE delivery fixed with race and malformed-input tests.
 - Reload and managed config semantics made transactional enough that failed changes do not split runtime state.

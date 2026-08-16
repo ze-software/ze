@@ -203,7 +203,7 @@ cmd=background:seq=2:exec=ze -:stdin=ze-bgp
 # a proxy: the plugin injects the three prefixes' routes as separate commands,
 # so prefix 1 being complete says nothing about prefix 3, and under load the
 # graph for 10.10.3.0/24 was rendered from a partially populated RIB and missed
-# its exact-body match (seen once in a full ze-verify run, 2026-07-26; not
+# its exact-body match (seen once in a full ze-precommit-verify run, 2026-07-26; not
 # reproducible in 40 stressed runs of this test alone, because in isolation the
 # injection always wins the race). Each prefix now waits for its own state
 # rather than for prefix 1's (ai/rules/fix-dont-record.md).

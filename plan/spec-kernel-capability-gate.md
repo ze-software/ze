@@ -452,7 +452,7 @@ Each names its path and the test that proves it.
 | Exactly ONE XFRM probe in the tree | `grep -rn "func probeXFRM\|func xfrmAvailable\|func openXFRMNetlink" internal/` returns one Linux implementation and its non-Linux twin |
 | One shared `ipsecInUse`, three callers | `gopls references` on the predicate names the gate, `checkKernelModules`, and `extractIPsecListeners` |
 | Appliance kernel carries MPLS | `grep -n "CONFIG_MPLS" gokrazy/kernel/runtime.config gokrazy/kernel/runtime.require` returns both symbols |
-| The five functional tests exist and pass | `make ze-plugin-test` names each `kernel-capability-*` test |
+| The five functional tests exist and pass | `make ze-functional-plugin-test` names each `kernel-capability-*` test |
 | Every probe's three states are reachable in test | each `.ci` or unit test drives present, absent, and cannot-determine |
 | Diagnostic codes registered | `go test ./internal/component/doctor -run TestDoctorCoverageCodesRegistered` |
 
@@ -502,7 +502,7 @@ N-A. No RFC governs kernel capability detection.
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] `make ze-verify` green, or scoped evidence with attribution
+- [ ] `make ze-precommit-verify` green, or scoped evidence with attribution
 
 ### TDD
 - [ ] Tests written

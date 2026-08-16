@@ -131,7 +131,7 @@ This is a consolidation skeleton created from verified deferral survivors (backl
 2. **Phase: design** - for the chosen item, re-verify the `file:line` evidence and fill the Data Flow / Wiring / AC sections above.
 3. **Phase: wiring** - register entry points, write the failing wiring test.
 4. **Phase: implement (TDD)** - write test, fail, implement, pass, per work item.
-5. **Full verification** - `make ze-verify`.
+5. **Full verification** - `make ze-precommit-verify`.
 6. **Complete spec** - fill audit tables, write `plan/learned/NNN-<name>.md`, two-commit closure.
 
 ## Review Gate
@@ -164,7 +164,7 @@ This is a consolidation skeleton created from verified deferral survivors (backl
 ### Goal Gates (MUST pass)
 - [ ] Every chosen work item has feature code + test
 - [ ] Wiring Test table complete (concrete test names, none deferred)
-- [ ] `make ze-test` passes (lint + all ze tests)
+- [ ] `make ze-standard-test` passes (lint + all ze tests)
 - [ ] Registration over hardcoding respected
 
 ### TDD
@@ -177,5 +177,5 @@ This is a consolidation skeleton created from verified deferral survivors (backl
 
 ### Post-wave corrections (2026-07-10)
 
-- Stale line ref fixed: `mk/test-integration.mk` no longer points at the l2tp interop harness (line 112 now falls inside the deployment-evidence VPP block, between the `ze-deployment-vpp-test` recipe at :109-111 and `ze-deployment-vpp-iface-test` at :113). Verified current l2tp locations: the l2tp `.PHONY` declarations are at mk/test-integration.mk (plus `ze-qemu-l2tp-ppp-test` in the QEMU line :27); the target recipes are at :121-139 (`ze-deployment-l2tp-test` :121, `ze-deployment-l2tp-ppp-test` :125, `ze-deployment-l2tp-ppp-docker-test` :129, which invokes the `test/l2tp-interop/run.py` harness at :131, `ze-deployment-gokrazy-l2tp-ppp-test` :137) and `ze-qemu-l2tp-ppp-test` at :337. Core NCP/LCP evidence (`ncp.go`, `session_run.go` refs) is untouched by the wave.
+- Stale line ref fixed: `mk/test-integration.mk` no longer points at the l2tp interop harness (line 112 now falls inside the deployment-evidence VPP block, between the `ze-deployment-vpp-test` recipe at :109-111 and `ze-deployment-vpp-iface-test` at :113). Verified current l2tp locations: the l2tp `.PHONY` declarations are at mk/test-integration.mk (plus `ze-qemu-l2tp-ppp-test` in the QEMU line :27); the target recipes are at :121-139 (`ze-deployment-l2tp-test` :121, `ze-deployment-l2tp-ppp-test` :125, `ze-deployment-docker-l2tp-ppp-test` :129, which invokes the `test/l2tp-interop/run.py` harness at :131, `ze-deployment-gokrazy-l2tp-ppp-test` :137) and `ze-qemu-l2tp-ppp-test` at :337. Core NCP/LCP evidence (`ncp.go`, `session_run.go` refs) is untouched by the wave.
 - Coordination note: this spec is DISTINCT from the in-flight `plan/spec-followup-l2tp-call.md` (designed, in-progress as of 2026-07-10). Whoever picks this skeleton up must check that spec's state at design time and coordinate scope so neither duplicates nor contradicts the other's l2tp test work.

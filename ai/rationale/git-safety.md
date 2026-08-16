@@ -24,7 +24,7 @@ tea issue list
 tea issue create --title "..."
 ```
 
-## Why `ze-verify` Runs Foreground
+## Why `ze-precommit-verify` Runs Foreground
 
 Running foreground means the tool result IS the completion signal -- no
 polling, no missed notifications, log is ready to read on return. The
@@ -41,12 +41,12 @@ Anti-patterns that look like "smart" backgrounding but break:
 
 | Anti-pattern | What actually happens |
 |--------------|-----------------------|
-| `run_in_background: true` + `until pgrep -f ze-verify; do sleep 2; done` | The polling loop becomes the "running" task; you never see the completion notification for the real run |
+| `run_in_background: true` + `until pgrep -f ze-precommit-verify; do sleep 2; done` | The polling loop becomes the "running" task; you never see the completion notification for the real run |
 | `run_in_background: true` + `stat -c %Y` mtime check on `tmp/ze-verify.log` | Log is written continuously during the run; mtime never "settles" reliably |
 | `run_in_background: true` then assume you'll be notified | You will be, but a concurrent polling/sleep loop in Bash can swallow the notification |
 
 There is no legitimate reason to background it. `ai/rules/git-safety.md`
-("Running ze-verify") says foreground, wait, never poll, and `ai/skills/ze-verify.md`
+("Running ze-precommit-verify") says foreground, wait, never poll, and `ai/skills/ze-verify.md`
 step 2 says the same. This paragraph used to carve out an exception for
 "genuinely independent work to do for >60s while it runs", contradicting the
 rule it exists to explain, and enumerating "both cases" under a single bullet.

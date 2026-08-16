@@ -2,7 +2,7 @@
 
 // Web concurrent-edit stress test (spec followup-test-infra AC-7 / L97).
 //
-// Tier: evidence/release, NOT ze-verify (R-6). Each of the >=50 sessions builds
+// Tier: evidence/release, NOT ze-precommit-verify (R-6). Each of the >=50 sessions builds
 // a real editor (full YANG schema load + parse), so the storm is too heavy for
 // the pre-commit gate. Run it with:
 //

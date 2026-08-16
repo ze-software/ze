@@ -72,7 +72,7 @@ Corrections against the 2026-07 followup wave (see `tmp/review-followup/context.
   → Decision: the wave's stance: stub-backed `.ci` = wiring proof, real-VPP evidence = correctness proof (1097: "Real-VPP evidence is the authoritative apply-tier validation (A-6: the stub cannot run a full traffic Apply)"). This spec keeps that split and closes the CI side.
   → Constraint: 1097 gotcha: the traffic `.ci` suite is timing/stderr-capture sensitive under load; do NOT raise sleep baselines; poll the stub JSONL with deadlines instead.
 - [ ] `internal/test/cli/cmd_vpp.go`, `mk/test-functional.mk`, `mk/test-release.mk`
-  → Constraint: `ze-test vpp --all` discovers `test/vpp/*.ci` (`cmd_vpp.go`); run by `make ze-vpp-test`; the vpp suite is NOT in the gating `ze-functional-test` list (`mk/test-functional.mk` "platform deps or infra") and runs in `ze-functional-extra-evidence` (release evidence).
+  → Constraint: `ze-test vpp --all` discovers `test/vpp/*.ci` (`cmd_vpp.go`); run by `make ze-functional-vpp-test`; the vpp suite is NOT in the gating `ze-functional-test` list (`mk/test-functional.mk` "platform deps or infra") and runs in `ze-functional-extra-test` (release evidence).
 - [ ] `vendor/go.fd.io/govpp/adapter/statsclient/statsclient.go`
   → Constraint: stats are NOT binary-API messages: the client dials a `unixpacket` (SOCK_SEQPACKET) socket, receives ONE fd via SCM_RIGHTS, fstats + mmaps it read-only, and reads a versioned (1 or 2) stat segment. Emulation = seqpacket listener + memfd with a v1/v2-conformant segment.
 - [ ] `vendor/go.fd.io/govpp/core/connection.go`, `internal/component/vpp/conn.go`, `internal/component/vpp/vpp.go`
@@ -210,8 +210,8 @@ Beyond requests, two non-request surfaces are unemulated:
 ### Stub wiring (how .ci runs reach the stub)
 
 - The drivers embedded in each `test/vpp/*.ci` locate `test/scripts/vpp_stub.py` via the repo root and spawn it per-test with `--socket <tmp>/api.sock --log <tmp>/vpp-requests.jsonl --deadline N -v`.
-- `ze-test vpp` (registered `internal/test/cli/register.go`, implemented `cmd_vpp.go`) discovers `test/vpp/*.ci`; `make ze-vpp-test` = `bin/ze-test vpp --all` (`mk/test-functional.mk`).
-- The vpp suite is non-gating: absent from the `ze-functional-test` suite list (`mk/test-functional.mk`), present in `ze-functional-extra-evidence` (`mk/test-release.mk`).
+- `ze-test vpp` (registered `internal/test/cli/register.go`, implemented `cmd_vpp.go`) discovers `test/vpp/*.ci`; `make ze-functional-vpp-test` = `bin/ze-test vpp --all` (`mk/test-functional.mk`).
+- The vpp suite is non-gating: absent from the `ze-functional-test` suite list (`mk/test-functional.mk`), present in `ze-functional-extra-test` (`mk/test-release.mk`).
 
 **Behavior to preserve:**
 - All existing behaviour of the listed files; this backlog work only adds the missing pieces named in the Task work items.
@@ -277,7 +277,7 @@ Beyond requests, two non-request surfaces are unemulated:
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | Scope drift when the umbrella is split into per-item specs | Item needs its own design doc | Split into a dedicated spec and re-point |
-| R-2 | Daemon-based `.ci` timing sensitivity under load (1097 gotcha: WaitConnected + wait.py windows blow on a loaded box) | New tests pass solo, fail under `make ze-vpp-test` with concurrent sessions | Poll JSONL with generous deadlines instead of raising sleeps (ci-sleep rule); keep the vpp suite non-gating; report pressure, never weaken assertions |
+| R-2 | Daemon-based `.ci` timing sensitivity under load (1097 gotcha: WaitConnected + wait.py windows blow on a loaded box) | New tests pass solo, fail under `make ze-functional-vpp-test` with concurrent sessions | Poll JSONL with generous deadlines instead of raising sleeps (ci-sleep rule); keep the vpp suite non-gating; report pressure, never weaken assertions |
 | R-3 | 004-vpp-restart flakiness: reconnect window vs stub restart latency | reconnect logs show attempts exhausted | Driver starts the replacement stub BEFORE the old socket's clients notice (unlink+bind is instant); assert via JSONL of the new instance; A-4 timing check |
 | R-4 | Stub state model drifts from real VPP semantics (e.g. retval conventions, index reuse), giving false confidence | Stub-green test but real-VPP evidence red for the same flow | Recorded split: stub = wiring/regression proof only; real-VPP Docker evidence stays the correctness gate (Key Design Decisions); evidence scripts unchanged by this spec |
 | R-5 | Parity gate false positives/negatives: message constructions in helpers, aliased imports, or reply/details/event structs miscounted as requests | Gate flags a non-request type, or misses a new message | Map Go type -> wire name via the vendored `GetMessageName`/`GetMessageType` (only RequestMessage types count); scan non-test files only; fixture-tested like `scripts/checks/iface_resolution.go`; `--selftest` mode |
@@ -307,7 +307,7 @@ Beyond requests, two non-request surfaces are unemulated:
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
 | ~~AC-1~~ | ~~(define per work item when this skeleton moves to `design`)~~ | ~~(define at design time)~~ superseded by AC-1..AC-15 below (design 2026-07-10) |
-| AC-1 | `make ze-vpp-stub-parity-check` | Scans non-test `internal/` Go for binapi RequestMessage constructions, maps type -> wire name via vendored binapi, asserts each has a HANDLERS key in `vpp_stub.py`; RED while any of the 49 are missing, GREEN at completion; wired into the `ze-verify` check family; has `--selftest` + Go test like the sibling checks |
+| AC-1 | `make ze-vpp-stub-parity-check` | Scans non-test `internal/` Go for binapi RequestMessage constructions, maps type -> wire name via vendored binapi, asserts each has a HANDLERS key in `vpp_stub.py`; RED while any of the 49 are missing, GREEN at completion; wired into the `ze-precommit-verify` check family; has `--selftest` + Go test like the sibling checks |
 | AC-2 | ze applies `interface { backend vpp; loopback { unit ... address ... } }` against the stub (008) | Stub interface table allocates sw_if_index; create_loopback / sw_interface_set_flags / sw_interface_add_del_address / sw_interface_set_mtu handled with decoded fields in JSONL; `sw_interface_dump` streams the live table; 006 stays green (empty table at boot) |
 | AC-3 | peer announces then withdraws 10.20.0.0/24 (003) | JSONL shows ip_route_add_del is_add=true then is_add=false for the prefix; driver exit 0; uses the new `send-withdraw` peer directive |
 | AC-4 | stub SIGKILLed and a new instance bound on the same socket within the reconnect window (004) | govpp reconnects (A-3/A-4); a route announced after restart appears in the NEW instance's JSONL; ze does not crash or exit |
@@ -435,14 +435,14 @@ Not applicable with justification: the VPP binary API is not a wire protocol bet
 |----------|------------------------|-----------|
 | D-1: Scope = the FULL request surface ze sends (57 messages incl. firewall/static/srv6), not the skeleton's iface subset | (a) iface-only per skeleton; (b) "messages with .ci demand" only | User goal 2026-07-10: "implement things correctly and fully for VPP". The wave proved partial stub coverage rots silently; a closed inventory + parity gate ends that class of drift |
 | D-2: Stub becomes stateful (interface / route / policer / classify / acl-nat / wireguard tables) with `--seed-iface name[:index]` style pre-seeding | Canned per-message replies (status quo pattern, e.g. ip_route_lookup_v2) | Dumps must reflect prior adds (L180 explicitly: "state across calls"); traffic/firewall Apply resolves interfaces by dump, so ethernet-targeting tests need seeding; canned replies cannot express delete/reconcile paths |
-| D-3: Parity gate as `scripts/checks/vpp_stub_parity.go` wired into `ze-verify` | (a) runtime-only detection (assert no `unhandled:true` in .ci logs); (b) Python checker script; (c) no gate | (a) only covers exercised paths -- exactly how the current gap grew; (b) breaks the repo's checks convention (`scripts/checks/*.go` with `--selftest` + Go test, cf. `iface_resolution.go`); (c) is the status quo that failed. Runtime strict mode is kept as a complement (AC-14), not the gate |
+| D-3: Parity gate as `scripts/checks/vpp_stub_parity.go` wired into `ze-precommit-verify` | (a) runtime-only detection (assert no `unhandled:true` in .ci logs); (b) Python checker script; (c) no gate | (a) only covers exercised paths -- exactly how the current gap grew; (b) breaks the repo's checks convention (`scripts/checks/*.go` with `--selftest` + Go test, cf. `iface_resolution.go`); (c) is the status quo that failed. Runtime strict mode is kept as a complement (AC-14), not the gate |
 | D-4: Keep the generic unhandled fallback; add opt-in `--strict` (exit nonzero if any unhandled request was seen) | (a) delete the fallback; (b) fallback replies retval=-1 | (a) would hard-fail on future govpp-internal messages and break unrelated tests mid-transition; (b) misrepresents VPP (unknown-message errors are transport-level, not retval) and silently changes 5 existing tests. Strict mode gives new tests hard guarantees without destabilizing old ones |
 | D-5: Stub-backed `.ci` = CI-runnable WIRING/REGRESSION proof; real-VPP Docker evidence = CORRECTNESS proof. Both required; neither replaces the other | (a) stub as the only gate; (b) real-VPP in CI | The stub cannot validate VPP semantics (R-4; 1096's INVALID_VALUE lesson was only findable on real VPP); Docker VPP is not per-commit-runnable in CI. The wave chose real-VPP evidence for its new surface; this spec closes the CI half of the split |
 | D-6: Stats-segment emulation lives in `vpp_stub.py` behind `--stats-socket` (off by default) | (a) separate `vpp_stats_stub.py`; (b) Go helper inside ze-test | One VPP emulator process keeps `.ci` orchestration single-spawn; (b) would put VPP-protocol serving inside ze's own test binary, coupling emulator to consumer. Layout ground-truthed against vendored `statseg_v1.go`/`statseg_v2.go` (A-7); version choice (v1 vs v2) is an implementation detail so long as govpp accepts it |
 | D-7: 003-fib-withdraw uses an explicit RFC 4271 withdraw via a new `send-withdraw` peer directive | Session-drop purge (peer disconnects; RIB withdraws all) | Explicit withdraw exercises the UPDATE-withdraw decode -> RIB remove -> sysrib -> fib path distinctly; session-drop conflates it with purge logic. Purge-on-drop can be asserted opportunistically in 004 (post-kill) if stable |
 | D-8: 004-vpp-restart = external-mode stub process restart on the same socket, relying on govpp auto-reconnect (10x1s per `vpp.go`) | (a) in-stub socket bounce (drop + re-listen, same process); (b) ze-side vpp manager restart (non-external) | (a) doesn't prove message-table renegotiation with a fresh process (the real restart shape); (b) requires a real VPP binary. Distinct JSONL per instance avoids the startup truncation (:152-154) |
 | D-9: sw_interface_event is emitted organically on every sw_interface_set_flags while armed (mirrors real VPP), not via a scripted trigger API | driver-triggered event injection endpoint on the stub | Zero new stub control surface; ze's own SetAdminUp during apply produces the trigger; deterministic for 013 |
-| D-10: vpp suite stays NON-gating in `ze-functional-test`; the parity check IS gating in `ze-verify` | Promote the suite to gating now | R-2 (load sensitivity, 1097 gotcha) makes daemon-timing tests a bad commit gate today; the parity check is cheap, static, and catches the rot class. Revisit promotion once the grown suite proves stable in release evidence runs |
+| D-10: vpp suite stays NON-gating in `ze-functional-test`; the parity check IS gating in `ze-precommit-verify` | Promote the suite to gating now | R-2 (load sensitivity, 1097 gotcha) makes daemon-timing tests a bad commit gate today; the parity check is cheap, static, and catches the rot class. Revisit promotion once the grown suite proves stable in release evidence runs |
 | D-11: Handlers decode and log the request fields ze's tests assert on (prefix, sw_if_index, state, indices), not full-message decoding | Full generic decode via scraping binapi field layouts | Field-offsets are hand-verified per message today (existing style, e.g. ip_route_add_del :316-378); full generic decode is a large correctness surface with no consumer; log what tests assert, extend per test need |
 
 ## Known Limitations
@@ -459,7 +459,7 @@ Not applicable with justification: the VPP binary API is not a wire protocol bet
 2. **Phase: design** - for the chosen item, re-verify the `file:line` evidence and fill the Data Flow / Wiring / AC sections above. (Done 2026-07-10.)
 3. **Phase: wiring** - register entry points, write the failing wiring test.
 4. **Phase: implement (TDD)** - write test, fail, implement, pass, per work item.
-5. **Full verification** - `make ze-verify`.
+5. **Full verification** - `make ze-precommit-verify`.
 6. **Complete spec** - fill audit tables, write `plan/learned/NNN-<name>.md`, two-commit closure.
 
 ### /implement Stage Mapping
@@ -470,7 +470,7 @@ Not applicable with justification: the VPP binary API is not a wire protocol bet
 | 2. Audit | Files to Modify, Files to Create, TDD Test Plan, Message inventory |
 | 3. Wiring phase | Wiring Test table -- Phase W below (parity gate RED) |
 | 4. Implement (TDD) | Phases 1-7 below |
-| 5. Full verification | `make ze-lint && make ze-unit-test && make ze-functional-test` + `make ze-vpp-test` |
+| 5. Full verification | `make ze-lint && make ze-unit-test && make ze-functional-test` + `make ze-functional-vpp-test` |
 | 6-9. Reviews | Critical Review Checklist below; fix; re-verify |
 | 10-12. Deliverables/security/docs | Checklists below |
 | 13. /ze-review gate | Review Gate section |
@@ -480,7 +480,7 @@ Not applicable with justification: the VPP binary API is not a wire protocol bet
 
 Each phase: write test -> fail -> implement -> pass. Each ends with a self-critical review.
 
-1. **Phase W: parity gate (wiring, MANDATORY FIRST)** -- `scripts/checks/vpp_stub_parity.go` + test + `make ze-vpp-stub-parity-check` wired into `ze-verify`. RED: reports exactly the 49 missing handlers from the inventory (cross-check the count; any delta = inventory drift, update this spec).
+1. **Phase W: parity gate (wiring, MANDATORY FIRST)** -- `scripts/checks/vpp_stub_parity.go` + test + `make ze-vpp-stub-parity-check` wired into `ze-precommit-verify`. RED: reports exactly the 49 missing handlers from the inventory (cross-check the count; any delta = inventory drift, update this spec).
    - Tests: `vpp_stub_parity_test.go`; Verify: gate output lists 49
 2. **Phase 1: stub state + iface core** -- interface table (create/delete loopback + vlan subif, flags, addresses, mtu, mac, clear-stats, l2/bridge, qos), `sw_interface_dump` streaming, `--seed-iface`, `--strict`.
    - Tests: `008-iface-loopback.ci` (new), existing 001/002/005/006/007 stay green
@@ -496,8 +496,8 @@ Each phase: write test -> fail -> implement -> pass. Each ends with a self-criti
    - Tests: `016-traffic-apply.ci`, `017-firewall-acl-nat.ci`; Verify: A-5; parity gate now GREEN
 8. **Phase 7: stats segment** -- seqpacket + memfd + v1-or-v2 segment behind `--stats-socket`; canned interface/node/system counters.
    - Tests: `012-telemetry.ci`; Verify: A-6/A-7
-9. **Functional tests** -> all 12 new `.ci` green under `make ze-vpp-test`; docs (`docs/functional-tests.md`).
-10. **Full verification** -> `make ze-verify` (includes the new parity gate).
+9. **Functional tests** -> all 12 new `.ci` green under `make ze-functional-vpp-test`; docs (`docs/functional-tests.md`).
+10. **Full verification** -> `make ze-precommit-verify` (includes the new parity gate).
 11. **Complete spec** -> audit tables, `plan/learned/NNN-finish-vpp-stub.md`, two-commit closure.
 
 ### Critical Review Checklist (/implement stage 6)
@@ -518,8 +518,8 @@ Each phase: write test -> fail -> implement -> pass. Each ends with a self-criti
 | Deliverable | Verification method |
 |-------------|---------------------|
 | 49 new handlers | `make ze-vpp-stub-parity-check` output: 0 missing |
-| 12 new .ci | `ls test/vpp/*.ci` shows 17 files; `bin/ze-test vpp -l` lists them; `make ze-vpp-test` green |
-| parity gate wired | `grep ze-vpp-stub-parity-check Makefile mk/*.mk`; `make ze-verify` runs it |
+| 12 new .ci | `ls test/vpp/*.ci` shows 17 files; `bin/ze-test vpp -l` lists them; `make ze-functional-vpp-test` green |
+| parity gate wired | `grep ze-vpp-stub-parity-check Makefile mk/*.mk`; `make ze-precommit-verify` runs it |
 | peer withdraw directive | `go test ./internal/test/peer/ -run '.*[Ww]ithdraw.*'` |
 | strict mode | `python3 test/scripts/vpp_stub.py --help` shows `--strict`; a driver-level negative check |
 | stats emulation | 012 green; `ze_vpp_stats_up 1` scraped in its driver output |
@@ -605,7 +605,7 @@ Each phase: write test -> fail -> implement -> pass. Each ends with a self-criti
 
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
-| Stub covers every message ze sends (correct + full VPP support, CI side) | static gate + functional tests | `make ze-vpp-stub-parity-check` 0 missing; `make ze-vpp-test` all green |
+| Stub covers every message ze sends (correct + full VPP support, CI side) | static gate + functional tests | `make ze-vpp-stub-parity-check` 0 missing; `make ze-functional-vpp-test` all green |
 | Apply-tier VPP paths CI-covered without hardware | functional tests | 008-017 `.ci` green; test/traffic 020/026 "blocked on A-6" comments retired (updated to point at 016) |
 | Error/restart/telemetry paths covered | functional tests | 015, 004, 012 green |
 | Real-VPP correctness unchanged and still authoritative | evidence run | `make ze-deployment-vpp-test` + `ze-deployment-vpp-iface-test` still green (no evidence-script change in this spec) |
@@ -662,9 +662,9 @@ Each phase: write test -> fail -> implement -> pass. Each ends with a self-criti
 ### Goal Gates (MUST pass)
 - [ ] Every chosen work item has feature code + test
 - [ ] Wiring Test table complete (concrete test names, none deferred)
-- [ ] `make ze-test` passes (lint + all ze tests)
+- [ ] `make ze-standard-test` passes (lint + all ze tests)
 - [ ] Registration over hardcoding respected
-- [ ] AC-1..AC-15 all demonstrated; parity gate GREEN and wired into ze-verify
+- [ ] AC-1..AC-15 all demonstrated; parity gate GREEN and wired into ze-precommit-verify
 - [ ] End-to-End User Stories 1-12 each have a passing test
 - [ ] Risks & Assumptions: every A-N confirmed or broken (none `unvalidated`); broken ones in Mistake Log
 

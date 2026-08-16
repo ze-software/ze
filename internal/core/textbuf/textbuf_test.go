@@ -297,7 +297,7 @@ func TestPoolTransfersHeapSliceOnString(t *testing.T) {
 // requires Get to actually hand one back, and sync.Pool promises no such thing.
 // It is emptied at every GC, and an item parked in one P's private slot cannot
 // be stolen by another P. A single Release/Get pair asserted this and flaked in
-// full `ze-verify` runs under the parallel suite's memory pressure
+// full `ze-precommit-verify` runs under the parallel suite's memory pressure
 // (plan/known-failures/syncpool-capacity-identity-flakes.md).
 //
 // Retrying with GC off removes that environmental variable without weakening the

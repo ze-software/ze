@@ -237,7 +237,7 @@ sees templates. Template rendering happens inside HandleConfigFetch on the hub s
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-11 all demonstrated
 - [ ] Wiring Test table complete
-- [ ] `make ze-test` passes
+- [ ] `make ze-standard-test` passes
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
 
 ### Design

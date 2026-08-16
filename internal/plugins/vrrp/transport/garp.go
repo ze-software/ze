@@ -7,7 +7,7 @@
 // their ARP caches at the new Master. The frame is built into a caller-provided
 // buffer (buffer-first, ai/rules/performance.md); the AF_PACKET sender
 // (garp_linux.go) transmits it verbatim. This file has no build tag so the
-// golden-byte test runs on the native `make ze-verify` host (umbrella R-5).
+// golden-byte test runs on the native `make ze-precommit-verify` host (umbrella R-5).
 
 package transport
 

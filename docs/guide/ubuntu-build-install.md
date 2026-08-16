@@ -65,10 +65,10 @@ Ze also ships a setup checker. It uses the same tool list as the developer and a
 ```bash
 git clone https://github.com/ze-software/ze.git
 cd ze
-make ze-setup CHECK=1 || true
+make ze-dev-setup CHECK=1 || true
 ```
 
-In check mode (`CHECK=1`) this lists anything missing as `[missing] <tool>` and exits non-zero. Run plain `make ze-setup` without `CHECK=1` and it installs the missing packages itself, echoing each command first. Every command it runs as root goes through `sudo -n`, so nothing waits on a prompt it cannot answer. When sudo wants a password it asks once, with `sudo -v`, and only when a terminal is attached; with no terminal it prints the command and exits non-zero instead.
+In check mode (`CHECK=1`) this lists anything missing as `[missing] <tool>` and exits non-zero. Run plain `make ze-dev-setup` without `CHECK=1` and it installs the missing packages itself, echoing each command first. Every command it runs as root goes through `sudo -n`, so nothing waits on a prompt it cannot answer. When sudo wants a password it asks once, with `sudo -v`, and only when a terminal is attached; with no terminal it prints the command and exits non-zero instead.
 
 ## 2. Build Ze
 
@@ -89,7 +89,7 @@ ls -1 bin/ze bin/ze-setup bin/ze-test bin/ze-chaos bin/ze-perf
 
 The default build includes the feature gates listed in `feature-gates.txt` through `ZE_FEATURES` in the Makefile. Services such as SSH, web, REST, gRPC, gNMI, telemetry, looking glass, OSPF, IS-IS, LDP, and RSVP-TE are compiled in by the normal `make build` path.
 
-If you deliberately want a smaller custom binary, override the feature set. `ZE_TAGS` only *appends* to the full default feature set, so overriding `ZE_FEATURES` (or using the `ze-stripped` target, or `go build -tags ze_core`) is what actually shrinks the binary. This is for packagers and lab work, not the normal install path.
+If you deliberately want a smaller custom binary, override the feature set. `ZE_TAGS` only *appends* to the full default feature set, so overriding `ZE_FEATURES` (or using the `ze-stripped-build` target, or `go build -tags ze_core`) is what actually shrinks the binary. This is for packagers and lab work, not the normal install path.
 
 ```bash
 make ze ZE_FEATURES="ze_ssh ze_lg ze_web"

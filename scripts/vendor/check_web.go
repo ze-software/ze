@@ -9,8 +9,8 @@
 //
 // Usage: go run scripts/vendor/check_web.go [--root DIR] [--updates]
 //
-// Run by `make ze-check-vendor-web`, which is a stage of `make ze-verify` and a
-// prerequisite of ze-regen-check-readonly. `make ze-check-vendor-web-updates`
+// Run by `make ze-vendor-web-check`, which is a stage of `make ze-precommit-verify` and a
+// prerequisite of ze-generated-files-check. `make ze-vendor-web-update-report`
 // runs the registry query.
 //
 // Replaces the previous bash implementation (scripts/check-vendor-web.sh).
@@ -348,7 +348,7 @@ func run(root string, updates bool) error {
 	}
 
 	if problems > 0 {
-		return fmt.Errorf("%d consumer asset copy problem(s); run `make ze-sync-vendor-web` and commit the result", problems)
+		return fmt.Errorf("%d consumer asset copy problem(s); run `make ze-vendor-web-sync` and commit the result", problems)
 	}
 
 	fmt.Fprintf(os.Stdout, "  all %d consumer copies match their %s/ source\n", compared, vendorDir)

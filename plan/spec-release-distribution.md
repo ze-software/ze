@@ -134,7 +134,7 @@ The excluded binaries are host/developer, test/evidence, or target/appliance art
 - [ ] `internal/component/config/system/selfupdate.go` - current in-place self-update behavior (full line ranges below).
 - [ ] `Makefile:48-56,93-168` - derives feature tags from `feature-gates.txt`, uses wall-clock version/build date, and builds all local binaries.
 - [ ] `mk/test-release.mk` - composes the release evidence matrix but performs no packaging, signing, or publishing.
-- [ ] `.woodpecker/verify.yml:1-19` - runs `make ze-verify` on pushes and pull requests.
+- [ ] `.woodpecker/verify.yml:1-19` - runs `make ze-precommit-verify` on pushes and pull requests.
 - [ ] `.github/workflows/codeql.yml` - GitHub security analysis only.
 - [ ] `.github/workflows/pages.yml` - GitHub Pages publication only.
 - [ ] `internal/core/version/version.go` - compares eight-character CalVer releases lexically and exposes build metadata.
@@ -166,7 +166,7 @@ The excluded binaries are host/developer, test/evidence, or target/appliance art
 - The package service remains `ze.service`, runs as `ze:ze`, starts `/usr/bin/ze start`, uses `/etc/ze`, sets `/run/ze`, and retains the existing capability and hardening contract from `buildUnitFile`.
 - Existing `database.zefs`, active configuration, credentials, and `/etc/ze` survive upgrades and normal package removal.
 - Existing interactive `ze init`, source installation, `ze install systemd`, standalone/source self-update, appliance, and developer build paths keep their behavior; only package-marked installs select the mutation-blocking update backend.
-- `make ze-verify` remains the fast pre-commit gate; heavy release and package evidence stays in explicit release targets.
+- `make ze-precommit-verify` remains the fast pre-commit gate; heavy release and package evidence stays in explicit release targets.
 
 **Behavior to change:**
 - Authorized signed tags and the daily schedule produce complete release bundles for Linux `amd64` and `arm64`.
@@ -243,7 +243,7 @@ Boundaries Crossed section further below.)
 
 ### Evidence Path
 
-1. Protected default-branch `release-build.yml` calls `release-evidence.yml` only through local reusable `workflow_call`, passing required channel, release identity, candidate ref/SHA, caller workflow path/digest/run ID/attempt, and required-set version. `release-evidence.yml` has no PR, push, schedule, or manual trigger; it rejects a non-protected caller/ref or candidate-controlled workflow revision, checks out only the passed candidate as test input, and runs `make ze-release-evidence` on the dedicated reset runner.
+1. Protected default-branch `release-build.yml` calls `release-evidence.yml` only through local reusable `workflow_call`, passing required channel, release identity, candidate ref/SHA, caller workflow path/digest/run ID/attempt, and required-set version. `release-evidence.yml` has no PR, push, schedule, or manual trigger; it rejects a non-protected caller/ref or candidate-controlled workflow revision, checks out only the passed candidate as test input, and runs `make ze-release-evidence-verify` on the dedicated reset runner.
 2. Stable mandatory category IDs are exactly: `verify`, `chaos`, `fuzz`, `interop`, `ipsec-interop`, `l2tp-interop`, `pppoe-interop`, `functional-extra`, `perf`, `qemu`, `vpp-deployment`, `live`, `release-policy`, `release-repro`, `package-deb-amd64`, `package-deb-arm64`, `package-rpm-amd64`, `package-rpm-arm64`, `package-vm-deb`, `package-vm-rpm`, and `repository-tamper`. None may be skipped.
 3. Stable evidence also includes `mutation` as its only advisory category. It must execute and record either pass or advisory-fail; it may not be skipped and cannot substitute for a mandatory category.
 4. Nightly mandatory and allowed IDs are exactly: `verify`, `release-policy`, `release-repro`, `package-deb-amd64`, `package-deb-arm64`, `package-rpm-amd64`, `package-rpm-arm64`, `package-vm-deb`, `package-vm-rpm`, and `repository-tamper`; mutation is not a nightly category. VM categories use the nightly smoke profile, while stable uses full lifecycle.
@@ -838,7 +838,7 @@ All Python unit symbols run through `make ze-release-unit-test`, defined as `pyt
 | `make ze-release-install-functional-test` (`bin/ze-test install --all`) | `test/install/package-bootstrap.ci` | Safe automatic bootstrap, existing/unsafe state, no plaintext | |
 | same exact install-suite command | `test/install/package-doctor-unit.ci` | Effective unit/drop-in/query diagnostics and `ze explain` | |
 | same exact install-suite command | `test/install/package-self-update-guard.ci` | Real update handlers cannot stage/mutate packaged binary | |
-| `make ze-ui-test` (`bin/ze-test ui --all`) | `test/ui/init-automatic-help.ci` | Automatic flag and package purpose visible | |
+| `make ze-functional-ui-test` (`bin/ze-test ui --all`) | `test/ui/init-automatic-help.ci` | Automatic flag and package purpose visible | |
 | `make ze-release-repository-bootstrap-test` | `packaging/repository/install-ze-repository.sh`; `scripts/release/test_package_policy.py` | Same production install/remove script, local signed fixtures, tool/conflict/fingerprint/failure matrix | |
 | `effective-package-install.py --family deb --distro debian-12 --arch amd64 --profile full` | `scripts/evidence/` | Full DEB container/native-manager lifecycle | |
 | `effective-package-install.py --family deb --distro ubuntu-24.04 --arch amd64 --profile full` | same | Ubuntu DEB policy/lifecycle | |
@@ -910,7 +910,7 @@ All Python unit symbols run through `make ze-release-unit-test`, defined as `pyt
 | AC-32 | both retention units; both credential units; staging `retention` |
 | AC-33 | stable-delete/private-route unit; both retention units; staging `storage-isolation` |
 | AC-34 | both monitor units plus stale-clock credential unit; staging `monitoring` |
-| AC-35 | `DocumentationPolicyTest.test_user_and_operator_contract`; `make ze-doc-test`; both successful public probes executing guide commands |
+| AC-35 | `DocumentationPolicyTest.test_user_and_operator_contract`; `make ze-doc-verify`; both successful public probes executing guide commands |
 | AC-36 | `DependencyClosurePolicyTest.test_exact_candidate_closure`; `ActivationPolicyTest.test_dependency_canary_completion_gate`; public canary-failures scenario; all evidence/staging/successful public modes; signed first-public-canary record |
 
 ### Interop Tests
@@ -1030,7 +1030,7 @@ None. Every named release, package, repository, trust, bootstrap, recovery, moni
 | 2. Audit | Current Behavior, Files to Modify/Create, external tool lock |
 | 3. Wiring phase | Wiring Test table, new Make targets, workflow dry-run entry points, failing bootstrap `.ci` |
 | 4. Implement TDD | Phases below |
-| 5. Full verification | Focused tests, package matrix, QEMU VM, `make ze-verify`, exact release evidence |
+| 5. Full verification | Focused tests, package matrix, QEMU VM, `make ze-precommit-verify`, exact release evidence |
 | 6. Critical review | Critical Review Checklist |
 | 7. Fix issues | Every blocker/issue |
 | 8. Re-verify | Repeat exact affected and full gates |
@@ -1270,7 +1270,7 @@ Not applicable. This spec does not add or change a network protocol.
 
 ### Documentation Updates
 
-- Fill during implementation with source anchors and `make ze-doc-test` evidence.
+- Fill during implementation with source anchors and `make ze-doc-verify` evidence.
 
 ### Deviations from Plan
 
@@ -1401,8 +1401,8 @@ Not applicable. This spec does not add or change a network protocol.
 - [ ] `spec-release-evidence-gate.md` is complete and exact stable evidence passes.
 - [ ] `spec-release-audit-0-umbrella.md` and blocking child findings are complete.
 - [ ] `/ze-review-spec` and final `/ze-review` are clean.
-- [ ] `make ze-verify` and `make ze-lint-changed` pass.
-- [ ] `make ze-release-evidence` passes with no mandatory skip on the exact stable SHA.
+- [ ] `make ze-precommit-verify` and `make ze-lint-changed` pass.
+- [ ] `make ze-release-evidence-verify` passes with no mandatory skip on the exact stable SHA.
 - [ ] Package container and booted QEMU VM matrices pass for required distro/architecture/policy cases.
 - [ ] Staging stable/nightly/attestation-race/failure/freshness/storage/key-rotation/retention/monitoring/restore exercises pass.
 - [ ] Infrastructure preflight, dependency closure, raw/API-policy denials, five-bucket/three-domain prefix locks and brokered credentials, clock/monitor thresholds, input/final/final-attestation/refresh archive inventory, and clean-room restore pass.
@@ -1437,7 +1437,7 @@ Not applicable. This spec does not add or change a network protocol.
 - [ ] Tests fail for the intended missing behavior.
 - [ ] Tests pass after implementation.
 - [ ] Tests FAIL first and Tests PASS after, with output pasted per phase (`ai/rules/testing.md`).
-- [ ] `make ze-test` passes (lint + all ze tests) in addition to the release gates above.
+- [ ] `make ze-standard-test` passes (lint + all ze tests) in addition to the release gates above.
 - [ ] Boundary tests cover syntax/trusted date/clock, entropy, doctor deadline/output, SHA, size, path/envelope, workflow artifact/evidence sets, cache/freshness, retention credentials/batches, key/monitor thresholds, scriptlet count, storage/architecture/generation, and one-per-day limits.
 - [ ] Functional tests cover every user/operator entry point and every AC maps to exact evidence.
 - [ ] Six native package-manager cells and two full booted-systemd lifecycle tests pass.

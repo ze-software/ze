@@ -856,7 +856,7 @@ expect=exit:code=0
 | Decoding | `test/decode/` | `ze-test bgp decode` |
 | Config parsing | `test/parse/` | `ze-test bgp parse` |
 | Plugin behavior | `test/plugin/` | `ze-test bgp plugin` |
-| ExaBGP compat | `test/exabgp/` | `make ze-exabgp-test` |
+| ExaBGP compat | `test/exabgp/` | `make ze-functional-exabgp-test` |
 | Integration | `test/integration/` | `make ze-functional-test` |
 | Unit tests | `internal/**/*_test.go` | `go test -race ./...` |
 | Fuzz tests | Various | `make ze-fuzz-test` |
@@ -866,24 +866,24 @@ expect=exit:code=0
 
 | Target | What It Runs |
 |--------|-------------|
-| `make ze-verify` | Static gates + Linux/amd64 SCA + unit + functional + ExaBGP (pre-commit gate) |
+| `make ze-precommit-verify` | Static gates + Linux/amd64 SCA + unit + functional + ExaBGP (pre-commit gate) |
 | `make ze-unit-test` | Unit tests with race detector |
 | `make ze-functional-test` | All `.ci` functional tests |
 | `make ze-lint` | 27 linters via golangci-lint |
 | `make ze-fuzz-test` | Fuzz tests (10s per target) |
-| `make ze-exabgp-test` | ExaBGP compatibility suite |
+| `make ze-functional-exabgp-test` | ExaBGP compatibility suite |
 | `make ze-chaos-test` | Chaos unit + functional + web dashboard tests |
-| `make ze-test` | Everything including fuzz |
+| `make ze-standard-test` | Everything including fuzz |
 
-Both `ze-verify` modes run `make ze-vulncheck` before their unit stage. The outer
+Both `ze-precommit-verify` modes run `make ze-dependency-vulnerability-check` before their unit stage. The outer
 Go process stays host-native. Its exec wrapper starts the host-native govulncheck
 process with `GOOS=linux GOARCH=amd64`, so the scanner loads the Linux/amd64
 package graph. The target needs network access to the live Go vulnerability
 database.
-<!-- source: Makefile -- ze-verify, ze-verify-changed, ze-vulncheck -->
+<!-- source: Makefile -- ze-precommit-verify, ze-precommit-verify-changed, ze-dependency-vulnerability-check -->
 <!-- source: scripts/status/verify_run.go -- stagesForMode -->
 
-`make ze-verify` is the pre-commit gate. Not `go test`, not any subset. Every commit
+`make ze-precommit-verify` is the pre-commit gate. Not `go test`, not any subset. Every commit
 passes the full suite.
 
 ### Linting

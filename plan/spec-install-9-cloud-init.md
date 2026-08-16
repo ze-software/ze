@@ -439,7 +439,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
    - Verify: cloud image config includes ze-cloud-init package, omits pre-baked ZeFS
 
 6. **Functional tests** - create .ci tests after feature logic works
-7. **Full verification** - `make ze-verify`
+7. **Full verification** - `make ze-precommit-verify`
 8. **Complete spec** - fill audit tables, write learned summary
 
 ### Critical Review Checklist (/implement stage 6)
@@ -543,7 +543,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 - [ ] AC-1..AC-10 all demonstrated
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean (Review Gate section filled)
-- [ ] `make ze-test` passes (lint + all ze tests)
+- [ ] `make ze-standard-test` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
 - [ ] Integration completeness proven end-to-end
 - [ ] Documentation Update Checklist answered Yes/No with source evidence

@@ -7,7 +7,7 @@ import (
 
 // VALIDATES: the web suite fails hard (not silently skips) when agent-browser
 // is absent during a verify-gate run, and still skips for casual local runs.
-// PREVENTS: a green `make ze-verify` / CI pass that silently excluded all
+// PREVENTS: a green `make ze-precommit-verify` / CI pass that silently excluded all
 // .wb web tests because agent-browser was not installed.
 func TestWebBrowserMissingFailsInVerifyMode(t *testing.T) {
 	err := webBrowserMissing(true)

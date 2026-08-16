@@ -190,7 +190,7 @@ network address.
    - Tests: `TestParseAddressMatchCanonicalizesV4/V6`, `TestParseAddressMatchPreservesRange`, `TestParseAddressMatchNegation`
 3. **Phase: Verify case** — add the address-match handling in `validateMatch`, removing the acknowledged-gap comment.
 4. **Functional test**
-5. **Full verification** → `make ze-verify`
+5. **Full verification** → `make ze-precommit-verify`
 6. **Complete spec** → audit, learned summary, two-commit closure.
 
 ### Critical Review Checklist (/implement stage 6)
@@ -258,7 +258,7 @@ network address.
 - [ ] End-to-End User Stories: every story has a working path and passing test
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `make ze-test` passes
+- [ ] `make ze-standard-test` passes
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Documentation Update Checklist answered
 

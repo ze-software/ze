@@ -46,7 +46,7 @@ type inIfaliasreq struct {
 // IPv6: probes only, and never adds. The IPv6 sibling ioctl (SIOCAIFADDR_IN6)
 // returns EPERM to an unprivileged process just the same, and unlike IPv4 there
 // is no second loopback address to fall back on -- see loopback.go for why the
-// privilege lives in `make ze-setup` instead.
+// privilege lives in `make ze-dev-setup` instead.
 //
 // The caller fails the test on any error: a missing address surfaces later as a
 // bind failure or a whole-test timeout with nothing pointing at the cause.
@@ -89,7 +89,7 @@ func ensureLoopbackAlias(ip net.IP) error {
 	if _, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(fd), //nolint:staticcheck,gosec // no generic ioctl-with-pointer in x/sys/unix; unsafe required for ioctl struct
 		uintptr(unix.SIOCAIFADDR), uintptr(unsafe.Pointer(&req))); errno != 0 {
 		return fmt.Errorf("ensureLoopbackAlias: ioctl SIOCAIFADDR %v on lo0: %w:"+
-			" run `make ze-setup`, or add it by hand with `sudo ifconfig lo0 alias %v`", ip, errno, ip)
+			" run `make ze-dev-setup`, or add it by hand with `sudo ifconfig lo0 alias %v`", ip, errno, ip)
 	}
 
 	return nil

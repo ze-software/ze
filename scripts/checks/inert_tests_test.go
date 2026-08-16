@@ -57,7 +57,7 @@ func fixtureTree(t *testing.T, baselineJSON string, files map[string]string) str
 	}
 	// Every test root must exist: the gate treats a missing root as a failure
 	// rather than an empty one, because a silently shrunken scan is a passing
-	// scan (and `make ze-test-health` would then bake the small number into the
+	// scan (and `make ze-test-health-update` would then bake the small number into the
 	// floor). TestMissingTestRootFailsClosed removes one on purpose.
 	for _, r := range []string{"internal", "cmd", "pkg", "scripts", "test"} {
 		if err := os.MkdirAll(filepath.Join(dir, r), 0o750); err != nil {
@@ -482,7 +482,7 @@ func TestUnknownArgumentIsRejected(t *testing.T) {
 }
 
 // TestMissingTestRootFailsClosed stops a shrunken scan from being accepted, and
-// from being baked into the ratchet floor by the next `make ze-test-health`.
+// from being baked into the ratchet floor by the next `make ze-test-health-update`.
 //
 // VALIDATES: ai/rules/evidence.md.
 // PREVENTS: an unreadable internal/ yielding a small, passing count.

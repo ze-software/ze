@@ -204,7 +204,7 @@ Add a hardware watchdog:
    - Tests: `TestWatchdogConfigParse`, `TestWatchdogPetInterval`
 4. **Functional (QEMU)** - arm/pet/reboot/clean-stop.
 5. **Doctor** - device-presence check.
-6. **Full verification** -> `make ze-verify`
+6. **Full verification** -> `make ze-precommit-verify`
 7. **Complete spec** -> audit, learned summary, two-commit closure.
 
 ### Critical Review Checklist (/implement stage 6)
@@ -258,7 +258,7 @@ Add a hardware watchdog:
 - [ ] End-to-End User Stories: working path + passing test
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `make ze-test` passes
+- [ ] `make ze-standard-test` passes
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Documentation Update Checklist answered
 
@@ -274,5 +274,5 @@ Add a hardware watchdog:
 
 ### Post-wave corrections (2026-07-10)
 
-- New gate obligation: the followup wave added `ze-platform-vet` (`Makefile:337-341`), which vets `./internal/component/host/...`, `./internal/component/iface/...`, and `./internal/plugins/iface/...` under GOOS=darwin and GOOS=freebsd; it runs in the live `ze-verify` stage list in both branches (`scripts/status/verify_run.go`, `:141`). The `/dev/watchdog` open/ioctl/pet code is Linux-only, so the new component MUST follow the `_linux.go`/`_other.go` split convention regardless (a macOS dev host builds the tree). Additionally, this spec plans the component as a sibling of `internal/component/host/` (Files to Create: `internal/component/watchdog/`), which is NOT in the gate's current package list -- the design must either extend the `ze-platform-vet` package list to the new tree or place the platform-split code under an already-vetted tree, so the non-Linux stubs cannot rot silently.
+- New gate obligation: the followup wave added `ze-platform-vet` (`Makefile:337-341`), which vets `./internal/component/host/...`, `./internal/component/iface/...`, and `./internal/plugins/iface/...` under GOOS=darwin and GOOS=freebsd; it runs in the live `ze-precommit-verify` stage list in both branches (`scripts/status/verify_run.go`, `:141`). The `/dev/watchdog` open/ioctl/pet code is Linux-only, so the new component MUST follow the `_linux.go`/`_other.go` split convention regardless (a macOS dev host builds the tree). Additionally, this spec plans the component as a sibling of `internal/component/host/` (Files to Create: `internal/component/watchdog/`), which is NOT in the gate's current package list -- the design must either extend the `ze-platform-vet` package list to the new tree or place the platform-split code under an already-vetted tree, so the non-Linux stubs cannot rot silently.
 - `ze-system-conf.yang` (Files to Modify) was restructured by the wave: it gained resolver-related leaves including `dnssec-validation` (`internal/component/config/system/yang/ze-system-conf.yang`). No `watchdog` symbol exists anywhere in that file (grep 2026-07-10), so there is no conflict, but the planned `watchdog` container edit must rebase onto the current file layout at design time.

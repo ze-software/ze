@@ -197,7 +197,7 @@ Add AS-notation support:
 3. **Phase: Display notation** - thread notation mode into the ASN/AS-path formatter; render asdot/asdot+.
    - Tests: `TestASPathAppendTextNotation`
 4. **Functional test** - asdot input + asdot display end to end.
-5. **Full verification** → `make ze-verify`
+5. **Full verification** → `make ze-precommit-verify`
 6. **Complete spec** → audit, learned summary, two-commit closure.
 
 ### Critical Review Checklist (/implement stage 6)
@@ -264,7 +264,7 @@ Add AS-notation support:
 - [ ] End-to-End User Stories: every story has a working path and passing test
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `make ze-test` passes
+- [ ] `make ze-standard-test` passes
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Documentation Update Checklist answered
 

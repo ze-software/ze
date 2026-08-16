@@ -342,7 +342,7 @@ Added 2026-08-14, for the same reason.
 
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-4 demonstrated
-- [ ] `make ze-verify` passes
+- [ ] `make ze-precommit-verify` passes
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 - [ ] Deferral shard resolved: no live row without a destination
 

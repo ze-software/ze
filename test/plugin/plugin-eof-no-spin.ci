@@ -5,7 +5,7 @@
 #            busy-spinning a core forever on repeated instant EOF returns.
 # PREVENTS: the regression where a daemon dying WITHOUT a graceful `bye` leaves the
 #           external python plugin spinning at 100% CPU, which (holding the shared
-#           stdout pipe open) can deadlock ze-verify for hours.
+#           stdout pipe open) can deadlock ze-precommit-verify for hours.
 #
 # Pure SDK-level check: uses a socketpair as the callback fd (FD mode, no TLS) and
 # closes the peer to simulate the engine going away. No ze daemon, no CAP_NET_ADMIN,

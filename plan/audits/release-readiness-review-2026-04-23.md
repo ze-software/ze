@@ -13,7 +13,7 @@ This document consolidates a full-project review for release readiness and first
 - Read project rules, architecture docs, status docs, feature inventory, prior audit material, and current known-failure tracking.
 - Mapped repository structure and current scope.
 - Ran forked bundle reviews with traced entry paths and file:line evidence.
-- Ran `make ze-verify`.
+- Ran `make ze-precommit-verify`.
 
 ## Repository Facts
 
@@ -31,7 +31,7 @@ Current tree facts gathered during this review:
 
 ## Gate State
 
-`make ze-verify` is currently red before any tests run.
+`make ze-precommit-verify` is currently red before any tests run.
 
 It stops in lint with 20 issues, including:
 
@@ -80,7 +80,7 @@ This is not the main release risk, but it means the default fast gate is already
 | P1-21 | FIB VPP cold boot | race / blackhole | `internal/component/vpp/register.go`, `internal/plugins/fib/vpp/register.go` | `fib-vpp` falls back to noop backend on cold start and only listens for `vpp.reconnected`, not the first `vpp.connected`. | Route installation into VPP can stay permanently inert after boot. | Wait for initial VPP connectivity or recreate backend on both connected and reconnected. |
 | P1-22 | Policy route startup | rollback bug | `internal/plugins/policyroute/register.go,169-195` | Firewall state is applied before kernel rules, and failed startup does not roll back already-applied firewall state. | Failed startup can leave live marking or MSS changes behind. | Journal startup like reload or explicitly roll back firewall state on failure. |
 | P1-23 | Coverage docs | misleading evidence | `docs/ci-test-coverage.md,27-29`, cited `.ci` files using observer `sys.exit(1)` | Coverage doc marks cases closed while cited tests still use the observer-exit pattern that the runner does not treat as authoritative failure. | Coverage closure claims are overstated. | Re-audit every cited covered file and migrate them to `runtime_fail` or deterministic production-log assertions. |
-| P1-24 | Default release gate | evidence gap | `Makefile:132-154`, `cmd/ze-test/{l2tp,firewall,traffic,vpp,web}.go`, `docs/functional-tests.md` | `ze-verify` omits shipped L2TP, firewall, traffic, VPP, and web suites, while docs suggest broader coverage and even mention a non-existent `make ze-l2tp-test`. | The default gate does not exercise several user-facing subsystems. | Either add those suites to the release gate or document them as non-gating and not deployment evidence. |
+| P1-24 | Default release gate | evidence gap | `Makefile:132-154`, `cmd/ze-test/{l2tp,firewall,traffic,vpp,web}.go`, `docs/functional-tests.md` | `ze-precommit-verify` omits shipped L2TP, firewall, traffic, VPP, and web suites, while docs suggest broader coverage and even mention a non-existent `make ze-functional-l2tp-test`. | The default gate does not exercise several user-facing subsystems. | Either add those suites to the release gate or document them as non-gating and not deployment evidence. |
 | P1-25 | Security docs | misleading trust model | `cmd/ze/main.go`, `cmd/ze/internal/ssh/client/client.go`, `docs/architecture/fleet-config.md`, `SECURITY.md` | Current docs do not clearly disclose that remote managed TLS and remote SSH control lack host trust verification. | Operators can assume secure remote control paths that are currently insecure. | Update security and operations docs immediately, even before code fixes land. |
 
 ### P2 - Important Before Leaving Experimental
@@ -137,7 +137,7 @@ These should be treated as partial or non-authoritative until reworked:
    Remote SSH control, managed TLS, and several non-SSH command paths still trust too much or drop caller identity.
 
 2. The release evidence is weaker than the docs suggest.
-   The parse runner is structurally unsound, the default `ze-verify` gate omits several shipped suites, and counts or coverage claims are stale.
+   The parse runner is structurally unsound, the default `ze-precommit-verify` gate omits several shipped suites, and counts or coverage claims are stale.
 
 3. There are still silent no-op and accepted-but-ignored configuration paths.
    This shows up in `environment {}`, VPP FIB tuning, plugin-hub listener config, telemetry-without-BGP, and resolver config.
@@ -156,7 +156,7 @@ Objective: make the release gate and documentation truthful before relying on th
 
 | Step | Scope | Exit Criteria |
 |------|-------|---------------|
-| 0.1 | Fix current `make ze-verify` lint failures | Fast gate runs cleanly to the test phase. |
+| 0.1 | Fix current `make ze-precommit-verify` lint failures | Fast gate runs cleanly to the test phase. |
 | 0.2 | Repair or replace parse runner | Parse tests execute the behavior their files claim to test. |
 | 0.3 | Re-audit `docs/ci-test-coverage.md` and observer-exit tests | Coverage doc only cites valid evidence. |
 | 0.4 | Update README, status, functional-test docs, security docs | Counts, gating claims, and trust model match the tree. |
@@ -214,9 +214,9 @@ Objective: define the real go-live bar.
 
 | Step | Scope | Exit Criteria |
 |------|-------|---------------|
-| 5.1 | Bring shipped suites into the release decision | Either `ze-verify` runs them or they are explicitly non-gating. |
+| 5.1 | Bring shipped suites into the release decision | Either `ze-precommit-verify` runs them or they are explicitly non-gating. |
 | 5.2 | Clear P0 and P1 findings | No P0 and no accepted P1 left open for the intended deployment scope. |
-| 5.3 | Re-run full evidence set | `make ze-verify`, selected privileged suites, relevant interop and chaos runs are green. |
+| 5.3 | Re-run full evidence set | `make ze-precommit-verify`, selected privileged suites, relevant interop and chaos runs are green. |
 | 5.4 | Publish truthful status docs | README, status, security, and feature docs describe what is real today. |
 
 ## Suggested Spec Set

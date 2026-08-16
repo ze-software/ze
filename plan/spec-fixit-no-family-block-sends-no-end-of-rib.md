@@ -241,14 +241,14 @@ peers. Interop scenarios and the functional suite's EoR barrier both observe it.
 4. **Phase: Prove it on the wire and against a peer**
    - Verify: AC-4, AC-5
 5. **Phase: Documentation**
-   - Verify: `make ze-doc-test`
+   - Verify: `make ze-doc-verify`
 
 ## Checklist
 
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-6 all demonstrated
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 - [ ] Interop scenario passes with a named peer daemon
 

@@ -10,7 +10,7 @@ package main
 // off Codeberg's shared Woodpecker runners.
 //
 // The shape being pinned:
-//   - verify.yml is a push + pull_request gate that runs `make ze-verify` and
+//   - verify.yml is a push + pull_request gate that runs `make ze-precommit-verify` and
 //     nothing heavy or scheduled (the merge gate stays fast).
 //   - evidence-nightly.yml is scheduled-only, advisory, and runs fuzz AND the
 //     kernel integration suite by make-target name -- but never the QEMU target.
@@ -251,14 +251,14 @@ func makeTargetsInWorkflow(t *testing.T, name string) []string {
 
 // TestVerifyWorkflowIsTheFastMergeGate
 //
-// VALIDATES: verify.yml runs `make ze-verify` on push and pull_request, and adds
+// VALIDATES: verify.yml runs `make ze-precommit-verify` on push and pull_request, and adds
 // no scheduled or heavy work (the merge gate stays fast).
 // PREVENTS: (a) the fast gate silently becoming scheduled-only or dropping a
 // trigger; (b) a heavy suite being bolted onto every merge.
 func TestVerifyWorkflowIsTheFastMergeGate(t *testing.T) {
 	src := workflowFile(t, "verify.yml")
-	if !slices.Contains(makeTargetsInWorkflow(t, "verify.yml"), "ze-verify") {
-		t.Error("verify.yml must run `make ze-verify`")
+	if !slices.Contains(makeTargetsInWorkflow(t, "verify.yml"), "ze-precommit-verify") {
+		t.Error("verify.yml must run `make ze-precommit-verify`")
 	}
 	on := onBlock(t, "verify.yml")
 	for _, want := range []string{"push", "pull_request"} {
@@ -275,7 +275,7 @@ func TestVerifyWorkflowIsTheFastMergeGate(t *testing.T) {
 	// must not appear anywhere in the fast gate.
 	for _, heavy := range []string{
 		"ze-fuzz-test", "ze-integration-test", "ze-qemu-integration-test",
-		"ze-mutation-test", "ze-release-evidence",
+		"ze-mutation-test", "ze-release-evidence-verify",
 	} {
 		if strings.Contains(src, heavy) {
 			t.Errorf("verify.yml must not run %q: it is a scheduled/heavy suite, and the merge gate stays fast", heavy)
@@ -285,7 +285,7 @@ func TestVerifyWorkflowIsTheFastMergeGate(t *testing.T) {
 
 // TestVerifyWorkflowProvisionsTheLoopbackAddress
 //
-// VALIDATES: verify.yml adds fd00::2 to lo before it runs `make ze-verify`.
+// VALIDATES: verify.yml adds fd00::2 to lo before it runs `make ze-precommit-verify`.
 // PREVENTS: the merge gate reddening on every functional fixture that needs a
 // second IPv6 address. The runner cannot add one (CAP_NET_ADMIN), so the
 // workflow is the only place it can happen on this host, and a step that quietly
@@ -297,12 +297,12 @@ func TestVerifyWorkflowProvisionsTheLoopbackAddress(t *testing.T) {
 	if addAt < 0 {
 		t.Fatalf("verify.yml must add the loopback address the fixtures bind: %q", add)
 	}
-	verifyAt := strings.Index(src, "run: make ze-verify")
+	verifyAt := strings.Index(src, "run: make ze-precommit-verify")
 	if verifyAt < 0 {
-		t.Fatal("verify.yml must run `make ze-verify`")
+		t.Fatal("verify.yml must run `make ze-precommit-verify`")
 	}
 	if addAt > verifyAt {
-		t.Error("verify.yml must add fd00::2 BEFORE `make ze-verify`; after it the gate has already run")
+		t.Error("verify.yml must add fd00::2 BEFORE `make ze-precommit-verify`; after it the gate has already run")
 	}
 }
 
@@ -354,7 +354,7 @@ func TestEvidenceNightlyRunsFuzzAndIntegration(t *testing.T) {
 // VALIDATES: the nightly invokes `make ze-interop-test` by name, from its OWN
 // job, and that job is advisory (plan/spec-rfcgate-2-evidence.md AC-2, AC-3).
 // PREVENTS: the interop suite going back to having no automated caller at all.
-// Until this landed its only caller was ze-release-evidence, a manual
+// Until this landed its only caller was ze-release-evidence-verify, a manual
 // release-time target -- so the 104 BGP scenarios ran when somebody remembered.
 // That is the condition that makes an interop `RFC requirement:` tag inadmissible
 // (rfc_requirements.py CARRIERS, tier `unrun`): a tag is only evidence if
@@ -521,10 +521,10 @@ func TestQemuKernelPreconditionIsMetInTheSameJob(t *testing.T) {
 	}
 
 	// A stager either copies the kernel into place itself, or depends on one that
-	// does. The second case is what keeps `make ze-kernel` a valid answer here.
+	// does. The second case is what keeps `make ze-kernel-build` a valid answer here.
 	//
 	// The copy and the path must be on the SAME line. Over a joined recipe the
-	// two substrings meet without the staging command existing. ze-kernel-vmlinuz's
+	// two substrings meet without the staging command existing. ze-kernel-vmlinuz-stage's
 	// cache branches both run `cp -R`, and its echo names the path. So deleting
 	// the one line that stages the kernel left the target still reading as a
 	// stager. A guard that survives the deletion of what it checks for is not one.
@@ -667,7 +667,7 @@ func TestCapabilityGatedTestsHaveAQemuHome(t *testing.T) {
 //
 // VALIDATES: the perf-regression check is scheduled-only, never a merge gate.
 // PREVENTS: machine-dependent timing metrics gating push/pull_request merges (the
-// deterministic allocs/op gate is ze-alloc-gate, inside ze-verify).
+// deterministic allocs/op gate is ze-alloc-check, inside ze-precommit-verify).
 func TestPerfNightlyIsScheduled(t *testing.T) {
 	on := onBlock(t, "perf-nightly.yml")
 	for _, want := range []string{"schedule", "cron"} {
@@ -739,8 +739,8 @@ func TestWorkflowMakeTargetsExist(t *testing.T) {
 // .github/workflows, and main's pages.yml -- which used to invoke these two --
 // was deleted so that gh-pages owns the deploy. The invocations did not go away
 // with it: gh-pages/.github/workflows/pages.yml still runs
-// `make -C main ze-terminal-demo-tools` and `make -C main
-// ze-terminal-demos-release` against a checkout of THIS branch. That is a real
+// `make -C main ze-terminal-demo-tools-install` and `make -C main
+// ze-terminal-demos-release-render` against a checkout of THIS branch. That is a real
 // dependency no glob on main can see, so it is pinned here explicitly.
 func TestCrossBranchDemoTargetsExist(t *testing.T) {
 	root := repoRoot(t)
@@ -758,7 +758,7 @@ func TestCrossBranchDemoTargetsExist(t *testing.T) {
 
 	// Invoked by gh-pages/.github/workflows/pages.yml, which runs on the
 	// gh-pages branch against a `main` checkout.
-	for _, target := range []string{"ze-terminal-demo-tools", "ze-terminal-demos-release"} {
+	for _, target := range []string{"ze-terminal-demo-tools-install", "ze-terminal-demos-release-render"} {
 		if !strings.Contains(corpus, "\n"+target+":") {
 			t.Errorf("the gh-pages deploy runs `make -C main %s`, but no such target exists in Makefile or mk/*.mk: "+
 				"the website publish would fail with `No rule to make target` and nothing on main would report it", target)
@@ -787,7 +787,7 @@ func TestValidationIsNotOnWoodpecker(t *testing.T) {
 
 // TestEvidenceNightlyRunsIpsecInterop
 //
-// VALIDATES: the nightly invokes `make ze-ipsec-interop-test` by name, from its
+// VALIDATES: the nightly invokes `make ze-interop-ipsec-test` by name, from its
 // OWN advisory job, and that the job sets up Go
 // (plan/spec-rfcgate-2-deferred-unrun-interop-trees.md AC-1).
 // PREVENTS: the 12 strongSwan scenarios going back to having no automated caller.
@@ -800,8 +800,8 @@ func TestValidationIsNotOnWoodpecker(t *testing.T) {
 // a host toolchain the job dies at image build and reads as a scenario failure.
 func TestEvidenceNightlyRunsIpsecInterop(t *testing.T) {
 	targets := makeTargetsInWorkflow(t, "evidence-nightly.yml")
-	if !slices.Contains(targets, "ze-ipsec-interop-test") {
-		t.Errorf("evidence-nightly.yml must run `make ze-ipsec-interop-test`; targets found: %v", targets)
+	if !slices.Contains(targets, "ze-interop-ipsec-test") {
+		t.Errorf("evidence-nightly.yml must run `make ze-interop-ipsec-test`; targets found: %v", targets)
 	}
 	jobs := jobBlocks(t, "evidence-nightly.yml")
 	var found *jobBlock
@@ -910,7 +910,7 @@ var quotedSpan = regexp.MustCompile(`"[^"]*"|'[^']*'`)
 //
 // parseMakeTargets models a workflow's command lines and documents that `$(MAKE)`
 // is out of scope. Inside a make fragment `$(MAKE)` is the NORMAL spelling, and
-// the aggregate that runs the heavy suites (ze-release-evidence) reaches them
+// the aggregate that runs the heavy suites (ze-release-evidence-verify) reaches them
 // through a shell function: `run_if_qemu qemu $(MAKE) --no-print-directory
 // ze-qemu-integration-test`. So three things happen before the shared parser is
 // handed the fragment: quoted spans go (see quotedSpan), `$(MAKE)` becomes `make`,
@@ -950,7 +950,7 @@ func makeInvocations(recipe string) []string {
 
 // isQemuOrInteropTarget reports whether a make target belongs to the class this
 // guard covers: the QEMU VM labs and the containerised interop runners. Both are
-// expensive, both live outside `make ze-verify`, and both are therefore invisible
+// expensive, both live outside `make ze-precommit-verify`, and both are therefore invisible
 // to every gate a developer runs -- which is exactly the population where a
 // working target can sit for months with nothing calling it.
 func isQemuOrInteropTarget(name string) bool {
@@ -974,6 +974,24 @@ var manualQemuTargets = map[string]string{
 		"coverage is a strict superset of what this adds; scheduling both would pay a " +
 		"second ~90-minute VM run for no test that the first does not already execute. " +
 		"It is the developer's full-suite pass before a release.",
+	"ze-qemu-netns-test": "developer-only proof of the per-test netns launch path. " +
+		"ze-qemu-integration-test already executes the host-netns refusal guard, while " +
+		"this target adds a full cross-build and VM run for the same safety boundary.",
+	"ze-qemu-vpp-hugepages-test": "needs a host with usable KVM access plus QEMU, " +
+		"sshpass and e2fsprogs; ordinary hosted runners self-skip it, so scheduling it " +
+		"there would report no boot evidence.",
+	"ze-qemu-install-test": "needs an external ZE_INSTALL_KERNEL carrying the PXE, " +
+		"virtio and ext4 symbols; the checkout and hosted runners do not carry that " +
+		"artifact, so the target deliberately self-skips outside a prepared release host.",
+	"ze-qemu-install-iso-test": "needs an external ZE_INSTALL_KERNEL with ISO9660 and " +
+		"optical-drive support in addition to the installer symbols; no hosted workflow " +
+		"provides that kernel, so the target is prepared-host release evidence.",
+	"ze-qemu-install-scenarios-test": "needs the same external installer kernel as the " +
+		"full-chain proof and exercises destructive failure, pin and rescue branches on " +
+		"a prepared release host; ordinary runners would only record its self-skip.",
+	"ze-qemu-install-ventoy-test": "needs the external installer kernel plus " +
+		"grub-mkstandalone, xorriso and mtools; those release-host prerequisites are not " +
+		"present in the hosted workflow, where this target deliberately self-skips.",
 }
 
 // TestQemuAndInteropTargetsHaveACaller
@@ -987,7 +1005,7 @@ var manualQemuTargets = map[string]string{
 // a real FRR ldpd peer in a VM and was named only by its own `.PHONY` line, the
 // `make help` text, and a comment explaining that internal/plugins/ldp was
 // EXCLUDED from ze-qemu-integration-test in its favor. The coverage existed, was
-// correct, and executed nowhere. Nothing in `make ze-verify` can see this: these
+// correct, and executed nowhere. Nothing in `make ze-precommit-verify` can see this: these
 // targets are outside it by design, so their rot is silent by construction.
 //
 // Callers are derived from INVOCATION, never from mention. The three escapes that

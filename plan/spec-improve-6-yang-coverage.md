@@ -229,7 +229,7 @@ the report itself is a developer/agent tool.
 2. **Phase: module walk + counts** (A-1 prototype hardened)
 3. **Phase: ownership/gating join + violations** (AC-2..AC-4)
 4. **Phase: check mode + JSON output** (AC-5, AC-6; R-3 decision applied)
-5. `make ze-verify`, learned summary, two-commit closure
+5. `make ze-precommit-verify`, learned summary, two-commit closure
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -335,7 +335,7 @@ Decisions with the module that motivated it.
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-6 all demonstrated
 - [ ] Wiring Test table complete
-- [ ] `make ze-test` passes
+- [ ] `make ze-standard-test` passes
 
 ### TDD
 - [ ] Tests written

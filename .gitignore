@@ -9,7 +9,7 @@
 # cache/ is a SYMLINK to the durable cache (~/.cache/ze), created by
 # scripts/dev/ensure-links.py. tmp/ is a real scratch dir by default; the tracked tmp/go.mod
 # sentinel keeps `go list ./...` from descending into the Go/QEMU caches under it. After the
-# opt-in `make ze-migrate-scratch`, tmp/ becomes a symlink to $TMPDIR/ze/<checkout-id>, which
+# opt-in `make ze-scratch-migrate`, tmp/ becomes a symlink to $TMPDIR/ze/<checkout-id>, which
 # `go list` skips without a sentinel. See plan/spec-relocate-scratch-and-cache.md.
 /cache
 tmp/*
@@ -27,7 +27,7 @@ etc/ze/database.zefs*
 
 # Functional tests under development. A .ci in here is invisible to every suite
 # and every repo-wide gate (see test/draft/README.md), so a half-written test can
-# never redden `make ze-verify` or CI. Ignored rather than merely excluded: CI
+# never redden `make ze-precommit-verify` or CI. Ignored rather than merely excluded: CI
 # checks out git, so an ignored tree does not exist there at all, which makes the
 # guarantee independent of every gate remembering to skip it.
 # Promote with: mv test/draft/<suite>/<name>.ci test/<suite>/<name>.ci
@@ -80,7 +80,7 @@ scripts/zeledon/weekly/
 
 # Generated AI tool config (canonical sources: ai/skills/, ai/agents/,
 # ai/INSTRUCTIONS.md)
-# Regenerate with: make ze-ai-sync
+# Regenerate with: make ze-ai-skills-sync
 CLAUDE.md
 AGENTS.md
 .claude/skills/
@@ -110,7 +110,7 @@ internal/appliance/build/
 # module is only `replace ze => <repo root>`, so every line of its go.sum is
 # already in the root go.sum. The module bytes it would pin are not in the repo
 # either (gokrazy/modcache/.gitignore keeps only the gokrazy init source), so
-# `make ze-gokrazy-deps` is already a required post-clone step and regenerates
+# `make ze-gokrazy-deps-download` is already a required post-clone step and regenerates
 # this file. Tracking it only created a second place to update on every
 # dependency bump, and it silently drifted (it still pinned grpc v1.80.0 after
 # the root module moved). The other gokrazy/ze/builddir go.sum files stay

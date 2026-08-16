@@ -1,4 +1,4 @@
-# Test (item 5): make ze-kernel builds the runtime kernel via run.py and assembles
+# Test (item 5): make ze-kernel-build builds the runtime kernel via run.py and assembles
 # it into an OUT-OF-TREE package (tmp/kernel/pkg). The pinned rtr7/kernel modcache
 # is read, never mutated in place, and no tracked file is written.
 #
@@ -8,7 +8,7 @@
 # MODULES=yes/PATCHES_DIR in the docker env) no longer apply.
 #
 # // spec-gokrazy-builddir-tmp (AC-7/AC-8) then removed the tracked
-# go.mod replace that this test REQUIRED to be present after `make ze-kernel`.
+# go.mod replace that this test REQUIRED to be present after `make ze-kernel-build`.
 # The replace is now written into ze-gok's prepared copy of the instance, per
 # build, selected by KERNEL_PKG. The assertion is inverted and STRENGTHENED: the
 # tracked go.mod must be byte-identical after the build, not merely carry a
@@ -20,7 +20,7 @@ option=timeout:value=40s
 # The pinned rtr7/kernel module is an OPTIONAL heavyweight artifact, not part of
 # a checkout: gokrazy/modcache/.gitignore ignores everything except the vendored
 # gokrazy init source, so the module (and its 15 MB vmlinuz) exists only after
-# `make ze-gokrazy-deps`. This test drives a REAL `make ze-kernel`, which reads
+# `make ze-gokrazy-deps-download`. This test drives a REAL `make ze-kernel-build`, which reads
 # that module (mk/gokrazy.mk:280 refuses to assemble the package without it) and
 # checksums its vmlinuz before and after to prove it is not mutated. Without the
 # declaration the shasum on line 1 of the script failed
@@ -41,7 +41,7 @@ option=timeout:value=40s
 # a literal cp in the recipe passes the sibling and is caught by nothing in CI.
 # That gap is accepted because CI cannot materialize the module; it is not
 # closed by the sibling.
-option=needs-path:value=gokrazy/modcache/github.com/rtr7/kernel@*/vmlinuz:hint=make ze-gokrazy-deps
+option=needs-path:value=gokrazy/modcache/github.com/rtr7/kernel@*/vmlinuz:hint=make ze-gokrazy-deps-download
 
 tmpfs=run.sh:terminator=EOF_SH
 #!/bin/sh
@@ -84,7 +84,7 @@ if [ "$1" = run ]; then
 				*:/out)
 					out=${arg%:/out}
 					mkdir -p "$out/lib/modules/7.1.1-ze"
-# amd64 boot magic 'HdrS' at offset 0x202 so make ze-kernel's arch check accepts this fake build
+# amd64 boot magic 'HdrS' at offset 0x202 so make ze-kernel-build's arch check accepts this fake build
 					{ printf 'runtime-kernel'; head -c 500 /dev/zero; printf 'HdrS'; } > "$out/vmlinuz"
 					printf 'module\n' > "$out/lib/modules/7.1.1-ze/ze.ko"
 					printf 'CONFIG_RUNTIME=y\n' > "$out/config"
@@ -97,9 +97,9 @@ fi
 EOF_DOCKER
 chmod +x "$work/fakebin/docker"
 
-PATH="$work/fakebin:$PATH" make ze-kernel KERNEL_ARCH=amd64 >"$work/stdout" 2>"$work/stderr"
+PATH="$work/fakebin:$PATH" make ze-kernel-build KERNEL_ARCH=amd64 >"$work/stdout" 2>"$work/stderr"
 
-# make ze-kernel routes the runtime kernel through the durable cache: it prints
+# make ze-kernel-build routes the runtime kernel through the durable cache: it prints
 # "Runtime kernel cache HIT: materializing" (warm cache) or "cache MISS: building"
 # (cold cache -> run.py via the faked docker above). Either proves the routing ran;
 # asserting the literal build message would break on any warm-cache host.
@@ -118,7 +118,7 @@ grep -q 'out-of-tree' "$work/stdout"
 # its prepared COPY of the instance, so a custom-kernel build leaves the working
 # tree clean and cannot leak into a later build.
 if grep -q 'replace github.com/rtr7/kernel' "$gomod"; then
-	echo "make ze-kernel wrote a replace into the tracked $gomod" >&2
+	echo "make ze-kernel-build wrote a replace into the tracked $gomod" >&2
 	exit 1
 fi
 gomod_after=$(shasum -a256 "$gomod" | cut -d' ' -f1)

@@ -396,7 +396,7 @@ is still being confirmed.
 | 2. Audit | Files to Modify; validate A-1..A-4 |
 | 3. Wiring phase | Wiring Test table |
 | 4. Implement (TDD) | Implementation phases below |
-| 5. Full verification | `make ze-verify` |
+| 5. Full verification | `make ze-precommit-verify` |
 | 13. /ze-review gate | Review Gate section |
 
 ### Implementation Phases
@@ -425,7 +425,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
    - Verify: (fill after D-1)
 6. **Functional tests** → the three `.ci`
 7. **RFC refs** → `// draft-mangin-idr-attr-tombstone-00 Section 5.3: "<quoted requirement>"` above each branch
-8. **Full verification** → `make ze-verify`
+8. **Full verification** → `make ze-precommit-verify`
 9. **Complete spec** → learned summary, two commits
 
 ### Critical Review Checklist (/implement stage 6)
@@ -589,7 +589,7 @@ MUST document: the inherit MUST-clear-Transitive rule, the strip MUST-rebuild-fo
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled — 0 BLOCKER, 0 ISSUE)
-- [ ] `make ze-test` passes (lint + all ze tests)
+- [ ] `make ze-standard-test` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
 - [ ] Documentation Update Checklist answered Yes/No with source evidence
 - [ ] Risks & Assumptions: every A-N confirmed or broken (none `unvalidated`)

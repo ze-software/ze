@@ -44,9 +44,9 @@ The build needs BOTH `mkfs.ext4` and `debugfs` from e2fsprogs: it formats
 `/perm` with the first and injects the seed database with the second. The build
 finds them by itself, in `/usr/sbin`, `/sbin`, `/usr/local/sbin`, then the
 homebrew Cellar, and it takes the first directory holding both. Pass
-`make ze-gokrazy E2FS=/path/to/sbin` to name the directory instead. An empty
+`make ze-gokrazy-build E2FS=/path/to/sbin` to name the directory instead. An empty
 `E2FS=` is not an override and does not resume the search.
-<!-- source: mk/gokrazy.mk -- E2FS autodetect and the ze-gokrazy e2fsprogs guard -->
+<!-- source: mk/gokrazy.mk -- E2FS autodetect and the ze-gokrazy-build e2fsprogs guard -->
 
 For appliance ISO creation, install `grub-mkstandalone` (or `grub2-mkstandalone`)
 plus `xorriso`.
@@ -61,7 +61,7 @@ The gokrazy build tool (`gok`) is vendored in the repo at `vendor/github.com/gok
 After cloning the repo, download gokrazy system packages (Linux kernel, init, serial console) into the Go module cache. This is a one-time ~42MB download. The exact versions are pinned in `gokrazy/ze/builddir/*/go.mod` (tracked in git, verified by go.sum).
 
 ```bash
-make ze-gokrazy-deps
+make ze-gokrazy-deps-download
 ```
 
 After this, builds work offline.
@@ -106,36 +106,36 @@ Build the repo-local kernel before building an appliance intended to terminate
 L2TP subscribers:
 
 ```bash
-make ze-kernel                                   # default runtime build: docker, amd64
-make ze-kernel KERNEL_BUILDER=qemu               # force the shared QEMU backend
-make ze-kernel KERNEL_ARCH=arm64                 # runtime arm64 kernel
-make ze-kernel KERNEL_ARCH=arm64 KERNEL_BUILDER=qemu
-make ze-gokrazy USER=admin PASS=secret
+make ze-kernel-build                                   # default runtime build: docker, amd64
+make ze-kernel-build KERNEL_BUILDER=qemu               # force the shared QEMU backend
+make ze-kernel-build KERNEL_ARCH=arm64                 # runtime arm64 kernel
+make ze-kernel-build KERNEL_ARCH=arm64 KERNEL_BUILDER=qemu
+make ze-gokrazy-build USER=admin PASS=secret
 ```
 
 On Apple Silicon, use a native arm64 VM image to avoid x86_64 emulation while
 still building the kernel with the same L2TP/PPP options:
 
 ```bash
-make ze-kernel KERNEL_ARCH=arm64                 # default builder is docker
-make ze-kernel KERNEL_ARCH=arm64 KERNEL_BUILDER=qemu
-make ze-gokrazy GOKRAZY_ARCH=arm64 USER=admin PASS=secret
+make ze-kernel-build KERNEL_ARCH=arm64                 # default builder is docker
+make ze-kernel-build KERNEL_ARCH=arm64 KERNEL_BUILDER=qemu
+make ze-gokrazy-build GOKRAZY_ARCH=arm64 USER=admin PASS=secret
 make ze-gokrazy-run GOKRAZY_ARCH=arm64 GOKRAZY_QEMU_ACCEL=hvf
 ```
 
-`make ze-kernel` delegates to `gokrazy/kernel/Makefile`, which calls the single
+`make ze-kernel-build` delegates to `gokrazy/kernel/Makefile`, which calls the single
 shared driver `tools/kernel-builder/run.py`. The driver reads the kernel version
 from `internal/appliance/kernel.version`, selects the Docker backend by default
 (or the QEMU backend with `KERNEL_BUILDER=qemu`), resolves the tracked
 `gokrazy/kernel/kernel.config` + `runtime.config` fragments (plus the shared
 `# ze-include: efi-console` console fragment) and matching `.require` manifests,
-and emits `vmlinuz`, `lib/modules/`, and DTBs. `make ze-kernel` then assembles
+and emits `vmlinuz`, `lib/modules/`, and DTBs. `make ze-kernel-build` then assembles
 those into an out-of-tree kernel package (`tmp/kernel/pkg`, a copy of the pinned
 `rtr7/kernel` module with our artifacts overlaid) and points `gok` at it via a
 `go.mod` `replace`. The pinned module cache is never mutated in place and there
 is no backup to restore; `make ze-kernel-clean` drops the `replace` and removes
 `tmp/kernel`.
-<!-- source: mk/gokrazy.mk -- ze-kernel -->
+<!-- source: mk/gokrazy.mk -- ze-kernel-build -->
 <!-- source: gokrazy/kernel/Makefile -- all -->
 <!-- source: tools/kernel-builder/run.py -- main -->
 
@@ -156,7 +156,7 @@ and an L2TP-capable kernel: skip-build bypasses the proof's own kernel
 resolution, and an image on the pinned rtr7 kernel (which has no l2tp support)
 crash-loops at first boot instead of serving.
 <!-- source: gokrazy/kernel/runtime.config -- Ze L2TP/PPP kernel config -->
-<!-- source: mk/gokrazy.mk -- ze-kernel -->
+<!-- source: mk/gokrazy.mk -- ze-kernel-build -->
 <!-- source: scripts/evidence/effective-gokrazy-l2tp-ppp.py -- appliance L2TP proof -->
 
 ## Build an image
@@ -164,26 +164,26 @@ crash-loops at first boot instead of serving.
 First build (creates SSH credentials and a TLS certificate):
 
 ```bash
-make ze-gokrazy USER=admin PASS=secret
+make ze-gokrazy-build USER=admin PASS=secret
 ```
 
 Subsequent rebuilds reuse the existing database (same credentials, same TLS cert):
 
 ```bash
-make ze-gokrazy
+make ze-gokrazy-build
 ```
 
 To use a database from a running instance or another machine:
 
 ```bash
-make ze-gokrazy ZEFS=/path/to/database.zefs
+make ze-gokrazy-build ZEFS=/path/to/database.zefs
 ```
 
 To build with a different first-boot template without editing
 `gokrazy/ze/ze.conf`:
 
 ```bash
-make ze-gokrazy USER=admin PASS=secret GOKRAZY_TEMPLATE=tmp/my-ze.conf
+make ze-gokrazy-build USER=admin PASS=secret GOKRAZY_TEMPLATE=tmp/my-ze.conf
 ```
 
 The legacy Make first build:
@@ -197,10 +197,10 @@ The legacy Make first build:
 The database is kept at `tmp/gokrazy/init/database.zefs` between builds. Browsers
 that trust the certificate on first use will not prompt again after image
 rebuilds. Structured `ze appliance build` also writes a build manifest into
-`/perm/ze/build.json`; the legacy `make ze-gokrazy` flow does not.
+`/perm/ze/build.json`; the legacy `make ze-gokrazy-build` flow does not.
 
 The image lands at `tmp/gokrazy/ze.img`.
-<!-- source: mk/gokrazy.mk -- ze-gokrazy -->
+<!-- source: mk/gokrazy.mk -- ze-gokrazy-build -->
 
 ## Test in QEMU
 
@@ -253,8 +253,8 @@ The machine boots to a serial console (115200 baud). Ze starts automatically, ge
 
 The initial Ze config is stored as the seed template in `gokrazy/ze/ze.conf`.
 Legacy Make writes that file into `file/template/ze.conf` in ZeFS during
-`make ze-gokrazy`; structured `ze appliance assemble` uses the same default when
-no base or per-appliance overlay config is present. Because `make ze-gokrazy`
+`make ze-gokrazy-build`; structured `ze appliance assemble` uses the same default when
+no base or per-appliance overlay config is present. Because `make ze-gokrazy-build`
 runs `ze init --seed`, the seed DB has no `file/active/ze.conf` to shadow the
 template, so the template becomes the effective config on first boot (`ze
 appliance assemble` never wrote an active config, so it was already correct).
@@ -350,7 +350,7 @@ cmd/ze-gok/
   main.go                   # gok wrapper (built by make bin/gok)
 ```
 
-The gok build tool source is vendored in the main `vendor/github.com/gokrazy/` directory. The `builddir/` files are small text (go.mod + go.sum, ~27KB). System packages (kernel, init) live in the Go module cache after `make ze-gokrazy-deps`.
+The gok build tool source is vendored in the main `vendor/github.com/gokrazy/` directory. The `builddir/` files are small text (go.mod + go.sum, ~27KB). System packages (kernel, init) live in the Go module cache after `make ze-gokrazy-deps-download`.
 
 ### Builds never run from this directory
 
@@ -363,11 +363,11 @@ copy, and the copy is deleted afterwards.
 <!-- source: internal/appliance/instance/prepare.go -- Prepare, copyBuildDir, absolutizeReplaces -->
 
 Both entry points do this: `ze appliance build` through `resolveBuildParentDir`,
-and `make ze-gokrazy` through `bin/gok`, which rewrites `--parent_dir` before gok
+and `make ze-gokrazy-build` through `bin/gok`, which rewrites `--parent_dir` before gok
 sees it. As a result a build leaves the working tree unchanged, two builds in one
 checkout use isolated prepared instances, and a build that would have to resolve
 packages over the network fails instead of silently using unpinned versions. The
-one shared mutable path left is `tmp/kernel/pkg`: every `make ze-kernel` rewrites
+one shared mutable path left is `tmp/kernel/pkg`: every `make ze-kernel-build` rewrites
 it (starting with a delete), so concurrent kernel materializations for different
 architectures do collide there. The L2TP boot proof therefore consumes a per-run
 copy of the package, never the shared path.
@@ -378,14 +378,14 @@ copy of the package, never the shared path.
 To build against a locally built kernel, pass it per build:
 
 ```
-make ze-kernel                                   # builds tmp/kernel/pkg
-make ze-gokrazy KERNEL_PKG=tmp/kernel/pkg USER=admin PASS=secret
+make ze-kernel-build                                   # builds tmp/kernel/pkg
+make ze-gokrazy-build KERNEL_PKG=tmp/kernel/pkg USER=admin PASS=secret
 ```
 
 The `replace` is written into the prepared copy only, so nothing needs reverting
 afterwards and a later build without `KERNEL_PKG` uses the pinned kernel.
 
-<!-- source: mk/gokrazy.mk -- KERNEL_PKG, ze-kernel -->
+<!-- source: mk/gokrazy.mk -- KERNEL_PKG, ze-kernel-build -->
 <!-- source: internal/appliance/instance/prepare.go -- replaceKernel -->
 
 
@@ -448,7 +448,7 @@ kernel profile (both surfaced by `ze doctor`).
 Build the full ISO in one command:
 
 ```bash
-make ze-iso CONFIG=prod.json SSH_PASSWORD='choose-a-strong-one'
+make ze-iso-full-build CONFIG=prod.json SSH_PASSWORD='choose-a-strong-one'
 ```
 
 This runs the entire pipeline: init, kernel build, initrd, disk image, and ISO.
@@ -465,11 +465,11 @@ make ze-iso-build NAME=prod
 Set up PXE boot (optional, after the ISO build):
 
 ```bash
-make ze-pxe NAME=prod
+make ze-pxe-build NAME=prod
 ```
 
 See `make help-deploy` for all variables (`APPLIANCE_BUILDER`, `PXE_DIR`, etc.).
-<!-- source: mk/appliance.mk -- ze-iso, ze-iso-build, ze-pxe -->
+<!-- source: mk/appliance.mk -- ze-iso-full-build, ze-iso-build, ze-pxe-build -->
 
 ### Manual steps
 

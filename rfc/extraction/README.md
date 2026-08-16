@@ -1,7 +1,7 @@
 # Extraction sign-offs
 
 One file per RFC, `rfc/extraction/<stem>.json`. Written as an unclassified skeleton by
-`make ze-rfc-extract STEM=<stem>`, classified by hand, and re-checked by
+`make ze-rfc-extraction-create STEM=<stem>`, classified by hand, and re-checked by
 `make ze-rfc-check` on every run.
 
 Spec: `plan/spec-rfcgate-1-extraction.md`. Rule: `ai/rules/rfc-compliance.md`,

@@ -117,7 +117,7 @@ class AssertKernelPkgTest(unittest.TestCase):
             with self.assertRaises(SystemExit) as ctx:
                 PROOF.assert_kernel_pkg(pkg, "amd64", "unit test")
             msg = str(ctx.exception)
-            self.assertIn("make ze-kernel KERNEL_ARCH=amd64", msg)
+            self.assertIn("make ze-kernel-build KERNEL_ARCH=amd64", msg)
             self.assertIn("unit test", msg)
 
     def test_valid_package_passes(self):
@@ -309,7 +309,7 @@ class ResolveStagedAndCacheTest(_ResolveBase):
             finally:
                 PROOF.run_required = orig
             msg = str(ctx.exception)
-            self.assertIn("make ze-kernel KERNEL_ARCH=amd64", msg)
+            self.assertIn("make ze-kernel-build KERNEL_ARCH=amd64", msg)
             self.assertIn("sudo", msg)
             # Existing-but-bad cache: the remediation MUST say to remove the
             # entry first, because make's HIT branch is existence-only and
@@ -334,7 +334,7 @@ class ResolveStagedAndCacheTest(_ResolveBase):
             finally:
                 PROOF.run_required = orig
             msg = str(ctx.exception)
-            self.assertIn("build it once with: make ze-kernel KERNEL_ARCH=amd64", msg)
+            self.assertIn("build it once with: make ze-kernel-build KERNEL_ARCH=amd64", msg)
             self.assertNotIn("rm -rf", msg)
 
 

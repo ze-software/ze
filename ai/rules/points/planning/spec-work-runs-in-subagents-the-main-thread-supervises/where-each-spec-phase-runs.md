@@ -13,4 +13,4 @@ stage:
 | Review gate, deep | `/ze-review-deep` | **main thread**, and it fans out itself | verifies each finding, decides which are real, loops until zero |
 | Close | `/ze-close` | subagent | confirms the Review Gate artifact is clean, then that the two closure commits actually ran |
 | Debug a red test or gate | `/ze-debug` | **main thread**, and it fans out itself | confirms the diagnosis names a root-cause function, not a symptom |
-| Verify | `/ze-verify` | subagent | reads the failure index, decides what to fix next |
+| Verify | `/ze-precommit-verify` | subagent | reads the failure index, decides what to fix next |

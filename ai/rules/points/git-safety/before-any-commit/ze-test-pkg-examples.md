@@ -4,6 +4,6 @@ level:
 stage:
 ---
 ```
-make ze-test-pkg PKG=./internal/component/ike/eap
-make ze-test-pkg PKG=./internal/component/ike/... RUN=TestEAPTLS
+make ze-unit-pkg-test PKG=./internal/component/ike/eap
+make ze-unit-pkg-test PKG=./internal/component/ike/... RUN=TestEAPTLS
 ```

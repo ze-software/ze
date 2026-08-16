@@ -508,7 +508,7 @@ Each phase corresponds to a child spec. Phases are ordered by dependency.
 - [ ] AC-1..AC-12 all demonstrated
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `make ze-test` passes
+- [ ] `make ze-standard-test` passes
 - [ ] Feature code integrated
 - [ ] Integration completeness proven end-to-end
 - [ ] Architecture docs updated

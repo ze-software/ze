@@ -60,7 +60,7 @@ If scope is ambiguous, ask one narrow question; otherwise proceed.
 2. You MUST use `scripts/dev/commit_helper.py create` to write one message file and one commit script. You MUST pass `--file` once per explicit file and `--remove` for tracked deletions. The path is the `script=` line it prints (`ai/INSTRUCTIONS.md`). One session can run many subagents that share the session id, so `--push` adds a push after the commits only on an owner instruction (see "Pushing").
    `--append` adds a later commit block to a script you already prepared. You MUST pass `--script` with the path that create printed. Without `--script` it resolves only when the session has exactly one script, and otherwise refuses with the list. `--replace` rewrites the script `--script` names. It is refused when that script was prepared for a file set sharing nothing with yours. To start over, prepare a new one: a `create` without `--script` always gets its own path.
 3. The helper writes executable scripts, uses `git commit -F <message-file>`, and rejects ignored/generated paths. It never writes over an existing script unless `--script` names it, with `--replace` or `--append`. It also **gates on verify-status**: `create` runs `verify-status.sh check` and refuses unless FRESH, or unless you pass `--unverified "<reason>"` (owner override, or a failure you tried and could not reproduce, logged in `plan/known-failures/`). This makes "verify before commit" enforced rather than honor-system.
-   It further **gates on discovery-index freshness**: `create` refuses if a generated index (`ai/PACKAGE-MAP.md`, `ai/DOCS-TO-CODE.md`) is stale (run `make ze-regen`), or if the commit changes an index-feeding source (a `register.go`, a `.go` with a `// Package`/`// Design:` header) but omits the regenerated index. Override with `--stale-index-ok "<reason>"`. With no CI, this is the only place index freshness is enforced. `create` additionally **warns (non-blocking)** when HEAD's committed index does not match HEAD's committed sources, which catches a prior commit that bypassed the gate; it detects this by re-running the generators against a materialized copy of HEAD, so it works even when the working tree carries unrelated uncommitted changes.
+   It further **gates on discovery-index freshness**: `create` refuses if a generated index (`ai/PACKAGE-MAP.md`, `ai/DOCS-TO-CODE.md`) is stale (run `make ze-generated-files-update`), or if the commit changes an index-feeding source (a `register.go`, a `.go` with a `// Package`/`// Design:` header) but omits the regenerated index. Override with `--stale-index-ok "<reason>"`. With no CI, this is the only place index freshness is enforced. `create` additionally **warns (non-blocking)** when HEAD's committed index does not match HEAD's committed sources, which catches a prior commit that bypassed the gate; it detects this by re-running the generators against a materialized copy of HEAD, so it works even when the working tree carries unrelated uncommitted changes.
 4. If the helper cannot express the commit shape, you MUST hand-write the same script pattern and `chmod +x` it. You MUST give it a name no other agent will pick: `tmp/commit-<SESSION>-<tag>-<random>.sh`. You MUST NOT use heredocs. You MUST use `git commit -F <file>`.
 5. You MUST NOT end an output line with `.`, `,`, `:`, or `)` directly after a path/URL/command -- users copy-paste; trailing punctuation breaks it. You MUST put path on its own line or follow with a space.
 6. You MUST run the finished script yourself with `bash` and the helper's `script=` path. **When the commit contained any `.go`, `go.mod`, `go.sum`, or `vendor/` path, you MUST run `make ze-tracked-build-check` immediately afterwards** (about 45s): it compiles what git now holds, and it is the only check that reads that population -- see "Your Working Tree Is Not What You Committed" below. You MUST then report the resulting commit SHA(s), included files, message file, script path, whether the script pushed, and verification evidence or skip reason. You MUST NOT add a late completeness or remaining-work review unless the user explicitly asked for one.
@@ -214,12 +214,12 @@ it (the check is advisory, but the obligation is not).
 
 ## Before Any Commit
 
-### Step 0: Does `ze-verify` apply?
+### Step 0: Does `ze-precommit-verify` apply?
 
 BLOCKING only when the commit could plausibly affect build, tests, or
 generated code.
 
-| Files in commit | Run `ze-verify`? |
+| Files in commit | Run `ze-precommit-verify`? |
 |-----------------|------------------|
 | Any `.go`, `go.mod`, `go.sum`, `vendor/**` | YES |
 | `Makefile`, `scripts/**`, build/CI config | YES |
@@ -231,32 +231,32 @@ Mixed commit: one YES row -> run. Do not split a commit to skip.
 Decision rule: "could this make a Go test fail or break the build?"
 No = skip and note in commit summary. Unsure = run.
 
-### Step 1: If `ze-verify` applies (BLOCKING)
+### Step 1: If `ze-precommit-verify` applies (BLOCKING)
 
-`make ze-verify`, in the foreground ("Running ze-verify" below). Not `go test`,
+`make ze-precommit-verify`, in the foreground ("Running ze-precommit-verify" below). Not `go test`,
 not any subset.
 Before any verify target, check freshness. A FRESH status covers the
-byte-identical tree and forbids rerunning `make ze-verify` or
-`make ze-verify-changed`. The check output is qualified by mode:
-`FRESH(ze-verify)` covers everything; `FRESH(ze-verify-changed)` is a
+byte-identical tree and forbids rerunning `make ze-precommit-verify` or
+`make ze-precommit-verify-changed`. The check output is qualified by mode:
+`FRESH(ze-precommit-verify)` covers everything; `FRESH(ze-precommit-verify-changed)` is a
 weaker pass (no full lint, no vet evidence, no cached full unit pass) --
 for commit preparation treat both as FRESH, but when the work explicitly
 needs the full gate (release evidence, repo-wide changes), a full
-`make ze-verify` on a FRESH(ze-verify-changed) tree is permitted. A pass
-recorded with skipped suites (`ZE_SKIP_SUITES`) reports STALE. `ze-verify` uses a two-pass strategy: cached
+`make ze-precommit-verify` on a FRESH(ze-precommit-verify-changed) tree is permitted. A pass
+recorded with skipped suites (`ZE_SKIP_SUITES`) reports STALE. `ze-precommit-verify` uses a two-pass strategy: cached
 full pass (no `-race`) + `-race` only on component groups with changed
-`.go` files. `ze-verify-changed` scopes to packages with uncommitted
+`.go` files. `ze-precommit-verify-changed` scopes to packages with uncommitted
 `.go` changes PLUS packages committed since the last green verify
 (`scripts/dev/changed-pkgs.sh`, baseline = `git_sha` in
 `tmp/ze-verify.status`), so a package committed before it was verified is
 still tested rather than skipped on the now-clean tree. For reactor concurrency changes, also run `make
-ze-race-reactor`. Output writes: `tmp/ze-verify.log`, per-stage logs
+ze-unit-reactor-test-race`. Output writes: `tmp/ze-verify.log`, per-stage logs
 under `tmp/verify/`, `tmp/ze-verify-failures.log`,
 `tmp/ze-verify-failures.json`, and `tmp/ze-verify.status`.
 
 ```
-[ ] 0. `scripts/dev/verify-status.sh check`. FRESH -> MUST NOT run `make ze-verify` or `make ze-verify-changed` again; note timestamp. STALE -> continue only if the table above says verification applies.
-[ ] 1. `make ze-verify` (foreground, largest timeout your harness allows, never killed early) only when status is STALE and the table above says YES. On failure read `tmp/ze-verify-failures.log` FIRST, choose a stage-local group, then open that group's `tmp/verify/<nn>-<stage>.log`.
+[ ] 0. `scripts/dev/verify-status.sh check`. FRESH -> MUST NOT run `make ze-precommit-verify` or `make ze-precommit-verify-changed` again; note timestamp. STALE -> continue only if the table above says verification applies.
+[ ] 1. `make ze-precommit-verify` (foreground, largest timeout your harness allows, never killed early) only when status is STALE and the table above says YES. On failure read `tmp/ze-verify-failures.log` FIRST, choose a stage-local group, then open that group's `tmp/verify/<nn>-<stage>.log`.
 [ ] 2. Failure from current work, or any failure that blocks this commit's goal: fix + re-run. Any other failure, and never a deterministic structural gate, which is fixed before any commit (see "Structural Gates Are Never Known-Red" below): write its spec, finish this commit, ask Thomas whether that spec runs (`ai/rules/completion.md`). A `plan/known-failures/` shard is for a failure you tried and could not reproduce, and it carries the reproduction attempt and the next step.
 ```
 
@@ -267,8 +267,8 @@ its `plan/known-failures/` shard, are for **non-deterministic** failures only.
 Those are flaky or environmental TEST reds: load-sensitive races, GC-pressure pool
 flakes, host-specific listener probes ("Before Any Commit", above). A **deterministic
 structural gate** is NEVER eligible: `ze-lint`, `ze-lint-changed`, `ze-tier-check`,
-`ze-vet-evidence`, `ze-plugin-boundary-check`, `ze-iface-resolution-check`,
-`ze-regen-check-readonly`, `ze-verify-wiring-docs`, and `ze-tracked-build-check`
+`ze-evidence-vet`, `ze-plugin-boundary-check`, `ze-iface-resolution-check`,
+`ze-generated-files-check`, `ze-wiring-docs-check`, and `ze-tracked-build-check`
 fail only when the tree is structurally broken (a misplaced module tier, a
 lint/vet violation, a broken plugin boundary, an unresolved iface, a stale
 generated file, a stale wiring index, a HEAD that does not compile). Such a red
@@ -302,14 +302,14 @@ hole this gate was built to close: widening `--unverified`, or editing
 and shouted is safer than one that is improvised. It is never a substitute for
 fixing your own red (`ai/rules/completion.md`).
 
-`ze-regen-check-readonly` qualifies on the rule's own terms: a stale generated
-file is deterministic, reproducible, and fixed by `make ze-regen` (or the
+`ze-generated-files-check` qualifies on the rule's own terms: a stale generated
+file is deterministic, reproducible, and fixed by `make ze-generated-files-update` (or the
 specific `--fix` the failing check names). It is never flaky or environmental.
 
 ### Your Working Tree Is Not What You Committed (BLOCKING)
 
 **Nothing else in this repository COMPILES what git holds.** `make ze`,
-`ze-verify`, `ze-lint-changed`, `ze-rfc-check` and every test target build and
+`ze-precommit-verify`, `ze-lint-changed`, `ze-rfc-check` and every test target build and
 run your WORKING TREE, uncommitted and untracked files included. (One gate does
 read the commit: `commit_helper.py` judges discovery-index freshness against a
 materialized HEAD. It regenerates indexes; it compiles nothing.) So you MUST NOT
@@ -335,18 +335,18 @@ tree in place for inspection.
 test file committed without its fixture producer stays invisible here.
 
 Known gap, recorded rather than papered over. Several checks run under BOTH
-`ze-doc-test` and `ze-regen-check-readonly`. That overlap is harmless: the runner
+`ze-doc-verify` and `ze-generated-files-check`. That overlap is harmless: the runner
 continues across stage failures, so one underlying red fails both stages in the
-same run, `structural_gate_reds` always sees `ze-regen-check-readonly`, and the
+same run, `structural_gate_reds` always sees `ze-generated-files-check`, and the
 commit is blocked regardless of what `plan/known-failures/` says about
-`ze-doc-test`. The real gap is the checks that run ONLY under `ze-doc-test` --
+`ze-doc-verify`. The real gap is the checks that run ONLY under `ze-doc-verify` --
 `doc_drift.go`, `commands.go`, `digest_check.py`, and `rfc_requirements.py
 --check-fresh` (`mk/inventory.mk`; note the script's `--selftest`/`--check`
 invocations DO run as the `ze-rfc-check` stage, so only the `--check-fresh`
 ledger-staleness one is doc-test-exclusive). Those are just as deterministic and
 structural, and they ARE
-parkable, because `ze-doc-test` is not in the set. Whoever picks this up should
-decide whether `ze-doc-test` belongs in `STRUCTURAL_GATES`; that is where reds
+parkable, because `ze-doc-verify` is not in the set. Whoever picks this up should
+decide whether `ze-doc-verify` belongs in `STRUCTURAL_GATES`; that is where reds
 actually escape.
 
 This list is the prose mirror of `STRUCTURAL_GATES` in `scripts/dev/commit_helper.py`,
@@ -365,7 +365,7 @@ rewrites the artifact, so a fixed-and-reverified gate clears automatically.
 
 ### Thomas Owner Override: Commit Without Verify
 
-Thomas owns the repository and may explicitly override the `ze-verify`
+Thomas owns the repository and may explicitly override the `ze-precommit-verify`
 requirement for commit-script preparation. This override exists because an
 OpenAI session blocked Thomas by treating the agent rule as if it also bound
 the repository owner. It was added for OpenAI behavior, not for Anthropic.
@@ -383,7 +383,7 @@ Thomas in the active conversation. Do not infer the override from urgency alone.
 
 When the override is active:
 
-- You MUST NOT run `make ze-verify`, `make ze-verify-changed`, lint, or tests as a
+- You MUST NOT run `make ze-precommit-verify`, `make ze-precommit-verify-changed`, lint, or tests as a
   late commit gate.
 - You MUST inspect only enough state to stage exactly the requested files and avoid
   ignored, generated, unrelated, or user-owned paths.
@@ -395,22 +395,22 @@ When the override is active:
   the generated script.
 - You MUST report `Verification skipped by Thomas owner override` in the final response
   and, when useful, in the commit body.
-- You MUST NOT claim tests, lint, `ze-verify`, integrations, or behavior were
+- You MUST NOT claim tests, lint, `ze-precommit-verify`, integrations, or behavior were
   verified if they were skipped.
 
 ### Known-Red Full Verify: Scope to Changed (BLOCKING)
 
-When `make ze-verify` is known-red from failures this session did not cause --
+When `make ze-precommit-verify` is known-red from failures this session did not cause --
 pre-existing reds, or a separate session is actively clearing the global suite --
-do NOT rerun full `ze-verify` before committing. Rerunning re-surfaces other
+do NOT rerun full `ze-precommit-verify` before committing. Rerunning re-surfaces other
 sessions' noise that is not your regression and blocks progress. Gate the commit
 on changed scope only:
 
 You MUST run these scoped gates instead:
 
 - `make ze-lint-changed`
-- the touched packages' `go test` (or `make ze-verify-changed`)
-- `make ze-doc-test` / `make ze-validate` when those surfaces changed
+- the touched packages' `go test` (or `make ze-precommit-verify-changed`)
+- `make ze-doc-verify` / `make ze-repository-check` when those surfaces changed
 - a QEMU run for any linux-only runtime code touched
 
 Then prepare the user-run commit script listing ONLY this session's files
@@ -418,7 +418,7 @@ explicitly in `commit_helper.py create --file ...`, so the commit never pulls in
 another session's working-tree edits; exclude other sessions' files when
 reviewing `git diff`. This applies only when the global red is not yours -- a red
 caused by your own change must be fixed, not scoped around. Activate it only on an
-explicit owner direction (e.g. "another session is clearing ze-verify, check only
+explicit owner direction (e.g. "another session is clearing ze-precommit-verify, check only
 what we changed"), never inferred from a red suite alone.
 
 **The red MUST be attributed, not assumed (BLOCKING).** "Known-red" means you
@@ -432,10 +432,10 @@ can break a different package's compile/test (a real case: `aihelp` broke
 consumer's tests (a missing YANG typedef failed `bgp/config`, not the plugin that
 introduced it), and adding a plugin invalidates the `plugin/all` golden
 snapshots. Before scoping around a red, `go test`/`vet` the reverse-dependency
-closure of your changed packages, or run full `ze-verify` once.
+closure of your changed packages, or run full `ze-precommit-verify` once.
 
 **You MUST NOT let a red persist.** Scope-to-changed is a temporary bridge while the
-global suite is being cleared, not a standing mode. A `ze-verify` that stays red
+global suite is being cleared, not a standing mode. A `ze-precommit-verify` that stays red
 across sessions hides newly-introduced breakage under the existing red -- that is
 exactly how an import cycle, a YANG typedef gap, and stale registry snapshots all
 landed under one persistent red without any gate firing. You MUST log the failing stage in
@@ -444,7 +444,7 @@ MUST come before stacking more changes on top.
 
 ### Concurrent Verify Runs (BLOCKING)
 
-One `make ze-verify*` (or `ze-chaos-verify`) at a time repo-wide --
+One `make ze-precommit-verify*` (or `ze-chaos-verify`) at a time repo-wide --
 parallel runs share build cache + ports + `bin/ze` processes and
 trash each other. All variants are wrapped by
 `scripts/dev/verify-lock.sh` (`flock` on `tmp/.ze-verify.lock`); a
@@ -459,13 +459,13 @@ second invocation blocks automatically.
 Lock releases when the command exits. `flock` is fd-backed, not
 PID-backed -- no cleanup after a crash.
 
-### Running ze-verify
+### Running ze-precommit-verify
 
 Each directive below is one physical line on purpose. `condense_body`
 (`scripts/dev/rules_condensed.py`) emits a bold-led LINE raw into
 `ai/rules/CORE.md`, so an instruction that wraps arrives there cut in half.
 
-**Run `make ze-verify` in the foreground, wait for it, and never poll: the foreground return IS the completion signal.**
+**Run `make ze-precommit-verify` in the foreground, wait for it, and never poll: the foreground return IS the completion signal.**
 No background run, no sleep-and-check loop, no `tail` on a log that is still
 growing.
 
@@ -492,9 +492,9 @@ that threshold can reach a healthy run rather than a stuck one.
 **Never edit the tree while a verify runs, yours or anybody's: it reads the working tree.**
 An edit mid-run invalidates the run you are waiting for.
 
-### A SHARED CHECKOUT NEVER GIVES A CLEAN `ze-verify` (BLOCKING)
+### A SHARED CHECKOUT NEVER GIVES A CLEAN `ze-precommit-verify` (BLOCKING)
 
-**Several agents work this checkout at once. `make ze-verify` reads the WORKING
+**Several agents work this checkout at once. `make ze-precommit-verify` reads the WORKING
 TREE, so it reads their half-finished edits too, and a fully green run is
 unreachable by construction. You MUST NOT wait for one: it is a strategy that cannot terminate.**
 
@@ -506,7 +506,7 @@ prove your own work reddens somebody else's at the same time.
 YOUR files.** Before preparing the commit script:
 
 1. You MUST run the narrow gate owning each surface you changed (the table below).
-2. You MUST run the tests of each package you touched, with `make ze-test-pkg`.
+2. You MUST run the tests of each package you touched, with `make ze-unit-pkg-test`.
 3. You MUST ATTRIBUTE every red you saw: name the file, and say whether it is yours. `git
    status --porcelain` plus a modification time settles it in seconds. A red in a
    path your diff does not contain is not yours to chase.
@@ -521,7 +521,7 @@ concurrent-session interference is the third case, and the reason MUST say so.
 **A deterministic STRUCTURAL gate MUST NOT be waved through** (see "Structural
 Gates Are Never Known-Red"). Those read files, not a moving tree, so they are
 reproducible and yours to fix when your diff caused them: `ze-lint`,
-`ze-rules-lint`, `ze-doc-test`, `ze-rfc-check`, `ze-verify-wiring-docs`,
+`ze-rules-lint`, `ze-doc-verify`, `ze-rfc-check`, `ze-wiring-docs-check`,
 `ze-tier-check`. You MUST always green those. It is the TEST stages -- unit, functional,
 web -- whose reds a concurrent tree can manufacture.
 
@@ -533,50 +533,50 @@ settled tree.
 
 ### ONCE, AT THE END. Never during development (BLOCKING)
 
-**`make ze-verify` is a 25-stage full gate and takes 25 to 30 minutes. You MUST run it ONE
+**`make ze-precommit-verify` is a 25-stage full gate and takes 25 to 30 minutes. You MUST run it ONE
 time, when the work is finished and you are about to prepare the commit script.**
 Running it to "check in" mid-change is the single most expensive habit available in
 this repository, and it buys nothing a scoped check does not.
 
 **You MUST run what the change touches.** Every surface has one owning target, and it costs
 seconds to minutes rather than half an hour. Find yours in this table, run it after
-each edit, and keep `ze-verify` for the end.
+each edit, and keep `ze-precommit-verify` for the end.
 
 **You MUST go through `make`, or carry `GOCACHE` yourself.** `Makefile` exports
 `GOCACHE := $(CURDIR)/cache/go-cache`, and that export reaches make RECIPES only. A
 bare `go test` typed into a shell uses the user's own `~/.cache/go-build` instead,
-so it rebuilds the world cold, shares nothing with `ze-verify`, and leaves the
+so it rebuilds the world cold, shares nothing with `ze-precommit-verify`, and leaves the
 project cache no warmer than it found it. `Makefile` also defines the canonical
 invocation (`GO_TEST`, `GO_TEST_RACE`): the feature tags, the timeout, `GOMAXPROCS`
 and `CGO_ENABLED=1` for race. A bare `go test` drops all of it
 (`ai/rules/commands.md`, "Bare `go test` Lies").
 
-`make ze-test-pkg PKG=<pattern>` is the supported way to test ONE package while
+`make ze-unit-pkg-test PKG=<pattern>` is the supported way to test ONE package while
 you develop it. It carries all of the above. Add `RUN=<regexp>` to narrow, and
 `RACE=0` to drop `-race` while iterating -- but a package tested without `-race`
-has not been tested the way `ze-verify` tests it, so put it back before the end.
+has not been tested the way `ze-precommit-verify` tests it, so put it back before the end.
 
 ```
-make ze-test-pkg PKG=./internal/component/ike/eap
-make ze-test-pkg PKG=./internal/component/ike/... RUN=TestEAPTLS
+make ze-unit-pkg-test PKG=./internal/component/ike/eap
+make ze-unit-pkg-test PKG=./internal/component/ike/... RUN=TestEAPTLS
 ```
 
 | You changed | Run this |
 |-------------|----------|
-| A `.go` file | `make ze-test-pkg PKG=<that package>`, or the group target covering it (`ze-test-bgp`, `ze-test-core`, `ze-test-plugins`, `ze-test-config`, `ze-test-cli`, `ze-test-rest`). Then `make ze-lint-changed` (`ai/rules/commands.md`) |
-| A `.go` change that alters what the daemon PUTS ON THE WIRE, installs, or shows | the FUNCTIONAL suite owning that surface as well: `make ze-plugin-test`, `ze-encode-test`, `ze-decode-test`, `ze-parse-test`, `ze-reload-test`, `ze-ui-test`, `ze-web-test`. The unit tests of the package you edited are not evidence about the rail |
-| Reactor concurrency (`reactor/session*.go`, `forward_pool*.go`, `peer.go`) | `make ze-race-reactor` (`ai/rules/testing.md`) |
-| A `.ci` or `.et` test | its suite target: `make ze-plugin-test`, `ze-parse-test`, `ze-encode-test`, `ze-editor-test`, `ze-web-test`. Draft first in `test/draft/` |
+| A `.go` file | `make ze-unit-pkg-test PKG=<that package>`, or the group target covering it (`ze-unit-bgp-test`, `ze-unit-core-test`, `ze-unit-plugins-test`, `ze-unit-config-test`, `ze-unit-cli-test`, `ze-unit-rest-test`). Then `make ze-lint-changed` (`ai/rules/commands.md`) |
+| A `.go` change that alters what the daemon PUTS ON THE WIRE, installs, or shows | the FUNCTIONAL suite owning that surface as well: `make ze-functional-plugin-test`, `ze-functional-encode-test`, `ze-functional-decode-test`, `ze-functional-parse-test`, `ze-functional-reload-test`, `ze-functional-ui-test`, `ze-functional-web-test`. The unit tests of the package you edited are not evidence about the rail |
+| Reactor concurrency (`reactor/session*.go`, `forward_pool*.go`, `peer.go`) | `make ze-unit-reactor-test-race` (`ai/rules/testing.md`) |
+| A `.ci` or `.et` test | its suite target: `make ze-functional-plugin-test`, `ze-functional-parse-test`, `ze-functional-encode-test`, `ze-functional-editor-test`, `ze-functional-web-test`. Draft first in `test/draft/` |
 | Linux-only code (`//go:build linux`) | `make ze-qemu-integration-test`, or `make ze-qemu-needs-linux-test` for a `needs-linux` `.ci` (`ai/rules/platform-linux.md`) |
 | `rfc/short/*.md`, an `RFC requirement:` tag, `rfc/extraction/*` | `make ze-rfc-check` |
-| `docs/**`, `ai/**`, `plan/**` | `make ze-doc-test`, and `make ze-verify-wiring-docs` for the changed-file gates |
-| `ai/rules/*.md` | `make ze-rules-condensed` then `make ze-rules-lint`, and commit all three digests with the rule |
-| A `*.yang` file or a `ze:command` | `make ze-doc-test`, `make ze-cli-grammar-check` |
+| `docs/**`, `ai/**`, `plan/**` | `make ze-doc-verify`, and `make ze-wiring-docs-check` for the changed-file gates |
+| `ai/rules/*.md` | `make ze-rules-condensed-update` then `make ze-rules-lint`, and commit all three digests with the rule |
+| A `*.yang` file or a `ze:command` | `make ze-doc-verify`, `make ze-cli-grammar-check` |
 | A plugin `register.go`, or anything generated | `make generate`, `make ze-plugin-imports-check` |
 | A new package's placement | `make ze-tier-check` |
 | Anything, once the commit script has run and it carried Go | `make ze-tracked-build-check` -- the only check that compiles what git holds |
-| A `scripts/dev/*.py` tool | its sibling `*_test.py` directly (python needs no build cache), then `make ze-test-pkg PKG=./scripts/dev` |
-| Several of the above, and you want breadth | `make ze-verify-changed` |
+| A `scripts/dev/*.py` tool | its sibling `*_test.py` directly (python needs no build cache), then `make ze-unit-pkg-test PKG=./scripts/dev` |
+| Several of the above, and you want breadth | `make ze-precommit-verify-changed` |
 
 **A change to what the daemon PUTS ON THE WIRE, installs, or shows MUST run the
 functional suite that owns that surface before commit. The package's unit tests
@@ -635,7 +635,7 @@ traps, both of which have cost a full run:
   their own wording and no `FAIL` token, so a test-shaped grep reads a red lint
   stage as a clean run. You MUST read the summary block, not a pattern you chose.
 
-**A second `ze-verify` cannot overlap the first: it blocks on the repo-wide lock**
+**A second `ze-precommit-verify` cannot overlap the first: it blocks on the repo-wide lock**
 and runs the whole thing again afterwards, so you MUST NOT start one while another
 is live: it does not overlap the work, it doubles the wall clock.
 
@@ -647,7 +647,7 @@ more green by being run again.
 
 **The status record is what forces the second pass, so plan the FIRST one to be
 the last.** `commit_helper.py create` refuses unless
-`scripts/dev/verify-status.sh check` reports FRESH, and only a full `ze-verify`
+`scripts/dev/verify-status.sh check` reports FRESH, and only a full `ze-precommit-verify`
 writes that record. A narrow fix therefore still needs one more full run before a
 commit, which is precisely why the full run MUST come AFTER every gate you can
 check cheaply is already green: `make ze-lint`, the touched packages' `go test`,
@@ -705,10 +705,10 @@ via `git rebase <branch>`, never `git merge`. Linear history.
 
 A rebase of local commits onto a diverged `origin/main` can re-conflict on
 derivable bookkeeping files (`ai/PACKAGE-MAP.md`, `ai/DOCS-TO-CODE.md`).
-Regenerate with `make ze-discovery-index` at each rebase stop and continue.
+Regenerate with `make ze-discovery-index-update` at each rebase stop and continue.
 
 Finish the rebase first, then repair bookkeeping -- never mid-rebase. Afterwards
-regenerate the derived indexes with `make ze-discovery-index` and recompute any
+regenerate the derived indexes with `make ze-discovery-index-update` and recompute any
 derived ratchet the rebase loosened (e.g. `test/.ci-sleep-baseline` = actual
 `time.sleep(` count in `test/**/*.ci`).
 

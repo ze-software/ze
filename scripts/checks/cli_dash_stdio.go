@@ -40,7 +40,7 @@
 // inline "cliio:allow <reason>" marker on the call's line.
 //
 // Usage:     go run scripts/checks/cli_dash_stdio.go [--json|--selftest]
-// Called by: make ze-dash-stdio-check (wired into ze-verify via
+// Called by: make ze-dash-stdio-check (wired into ze-precommit-verify via
 //            scripts/status/verify_run.go) and scripts/checks/cli_dash_stdio_test.go
 //
 //go:build ignore

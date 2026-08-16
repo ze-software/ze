@@ -11,4 +11,4 @@ stage:
 | Renamed path | `scripts/dev/yang_move.py` handles slash paths, set commands, brace blocks, GetContainer chains |
 | New `environment/` leaf | `env.MustRegister()` in the component's config loader |
 | New `ze:listener` | Conflict detection via `FindListenerConflict` |
-| New `ze:command` | RPC handler + `make ze-doc-test` |
+| New `ze:command` | RPC handler + `make ze-doc-verify` |

@@ -73,9 +73,9 @@ func target(t *testing.T, mk, name string) string {
 // prerequisites returns the text after the colon on a target's own line.
 func prerequisites(t *testing.T, mk, name string) string {
 	t.Helper()
-	for _, l := range strings.Split(mk, "\n") {
-		if strings.HasPrefix(l, name+":") {
-			return strings.TrimSpace(strings.TrimPrefix(l, name+":"))
+	for l := range strings.SplitSeq(mk, "\n") {
+		if rest, ok := strings.CutPrefix(l, name+":"); ok {
+			return strings.TrimSpace(rest)
 		}
 	}
 	t.Fatalf("make target %q not found in %s", name, integrationMk)
@@ -84,12 +84,12 @@ func prerequisites(t *testing.T, mk, name string) string {
 
 // guardUsers returns every make target whose recipe runs ze-qemu-kernel-guard,
 // read from the file. A hand-written list would have missed ze-qemu-pppoe-test,
-// which adopted the guard without the ze-host prerequisite it needs.
+// which adopted the guard without the ze-host-build prerequisite it needs.
 func guardUsers(t *testing.T, mk string) []string {
 	t.Helper()
 	var names []string
 	var current string
-	for _, l := range strings.Split(mk, "\n") {
+	for l := range strings.SplitSeq(mk, "\n") {
 		if !strings.HasPrefix(l, "\t") && !strings.HasPrefix(l, " ") && strings.Contains(l, ":") &&
 			!strings.HasPrefix(l, "#") && !strings.Contains(l, ":=") && !strings.HasPrefix(l, ".") {
 			current = strings.TrimSpace(strings.SplitN(l, ":", 2)[0])
@@ -143,7 +143,7 @@ func TestQemuFunctionalTargetsBootTheRuntimeKernel(t *testing.T) {
 // continuing.
 // PREVENTS: a silent fall back to stock when tmp/kernel/vmlinuz is absent
 // (AC-4), and the arch trap where GOKRAZY_ARCH defaults to amd64 while
-// QEMU_GOARCH follows uname, so a bare `make ze-kernel` on an arm64 host
+// QEMU_GOARCH follows uname, so a bare `make ze-kernel-build` on an arm64 host
 // stages an unbootable amd64 vmlinuz that an existence-only `test -f` accepts
 // (AC-11).
 func TestQemuTargetsGuardTheStagedKernel(t *testing.T) {
@@ -154,16 +154,16 @@ func TestQemuTargetsGuardTheStagedKernel(t *testing.T) {
 		}
 	}
 
-	// Every user of the guard needs ze-host, because the guard's first command
-	// execs it. Derived from the file, so a target that adopts the guard later
-	// is covered without editing this test.
+	// Every user of the guard needs ze-host-build, because the guard's first
+	// command execs the ze-host binary. Derived from the file, so a target that
+	// adopts the guard later is covered without editing this test.
 	users := guardUsers(t, mk)
 	if len(users) < 2 {
 		t.Fatalf("found %d users of ze-qemu-kernel-guard (%v); the parser or the layout changed, and this test must not pass vacuously", len(users), users)
 	}
 	for _, name := range users {
-		if !strings.Contains(prerequisites(t, mk, name), "ze-host") {
-			t.Errorf("%s runs $(ze-qemu-kernel-guard) but does not declare `: ze-host`. On a clean checkout the guard execs a binary that is not there, so it denies while reporting the cache branch's message, whose hint does not fix the real cause", name)
+		if !strings.Contains(prerequisites(t, mk, name), "ze-host-build") {
+			t.Errorf("%s runs $(ze-qemu-kernel-guard) but does not declare `: ze-host-build`. On a clean checkout the guard execs a binary that is not there, so it denies while reporting the cache branch's message, whose hint does not fix the real cause", name)
 		}
 	}
 

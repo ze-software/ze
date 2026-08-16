@@ -10,7 +10,7 @@ VALIDATES: a reference to a gitignored (generated) path is not reported missing
            missing path still fails the gate.
 PREVENTS:  the CI-only red where a fresh checkout has no CLAUDE.md /
            AGENTS.md / .claude/skills (all gitignored, all produced by
-           `make ze-ai-sync`) and every rule file citing them is called broken.
+           `make ze-ai-skills-sync`) and every rule file citing them is called broken.
 """
 
 from __future__ import annotations

@@ -478,7 +478,7 @@ class TestArmedGate(unittest.TestCase):
 
         The findings go to stdout. If they reached `content`, check mode would
         build a different file from generate mode and report "stale -- run:
-        make ze-doc-index" forever, however many times you ran it.
+        make ze-doc-index-update" forever, however many times you ran it.
         """
         with tempfile.TemporaryDirectory() as tmp:
             root = self._tree(tmp, "Vanished")

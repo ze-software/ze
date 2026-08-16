@@ -429,9 +429,9 @@ address FORM, because the form is what changes the count.
 4. **Phase: Allocation and gates**
    - Tests: `TestAttributeWriteToAllocatesNothing`
    - Files: `internal/core/bgp/attribute/simple_test.go`
-   - Verify: `make ze-test-pkg PKG=./internal/core/bgp/attribute`,
-     `make ze-test-pkg PKG=./internal/component/bgp/reactor`,
-     `make ze-lint-changed`, `make ze-rfc-check`, and `make ze-doc-test` if any doc
+   - Verify: `make ze-unit-pkg-test PKG=./internal/core/bgp/attribute`,
+     `make ze-unit-pkg-test PKG=./internal/component/bgp/reactor`,
+     `make ze-lint-changed`, `make ze-rfc-check`, and `make ze-doc-verify` if any doc
      changed. Then record the red evidence table by reverting each fix in turn
 
 ### Critical Review Checklist
@@ -451,8 +451,8 @@ address FORM, because the form is what changes the count.
 | Deliverable | Verification method |
 |-------------|---------------------|
 | No `AsSlice()` write remains in a fixed-width attribute field | `grep -n "AsSlice()" internal/core/bgp/attribute/simple.go internal/core/bgp/attribute/as4.go` shows no copy into an AGGREGATOR, AS4_AGGREGATOR or ORIGINATOR_ID field |
-| The invariant holds package-wide | `make ze-test-pkg PKG=./internal/core/bgp/attribute` |
-| The announce plan refuses an unencodable NEXT_HOP | `make ze-test-pkg PKG=./internal/component/bgp/reactor` |
+| The invariant holds package-wide | `make ze-unit-pkg-test PKG=./internal/core/bgp/attribute` |
+| The announce plan refuses an unencodable NEXT_HOP | `make ze-unit-pkg-test PKG=./internal/component/bgp/reactor` |
 | Red evidence for every new test | The red evidence table in this spec, filled with the actual failure lines |
 | The RFC ledger is unchanged | `make ze-rfc-check` |
 | Lint clean | `make ze-lint-changed` |
@@ -521,7 +521,7 @@ Add the citation above the enforcing code:
 - [ ] AC-1..AC-7 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-verify` passes, or the shared-checkout evidence path in `ai/rules/git-safety.md` is followed with attribution
+- [ ] `make ze-precommit-verify` passes, or the shared-checkout evidence path in `ai/rules/git-safety.md` is followed with attribution
 - [ ] Feature code integrated (`internal/*`), not test-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding

@@ -213,7 +213,7 @@ Stage mapping follows `plan/TEMPLATE.md` unchanged.
 2. **Phase: QS-5** -- v2 keepalived config generator, v2 ze config, wire-field assertions against the golden shape
 3. **Phase: QS-6** -- IPv6 constants and addressing, v3 IPv6 configs both sides, election plus unsolicited NA plus neighbor-entry assertions
 4. **Phase: Regression** -- full lab run, QS-1..QS-3 unchanged
-5. **Full verification** -- `make ze-qemu-vrrp-keepalived-test`, then `make ze-verify`
+5. **Full verification** -- `make ze-qemu-vrrp-keepalived-test`, then `make ze-precommit-verify`
 6. **Complete spec** -- audit, learned summary, two-commit closure
 
 ### Failure Routing
@@ -243,7 +243,7 @@ rows in `docs/features/rfc-status.md` with the new interop evidence.
 - [ ] AC-1..AC-4 all demonstrated
 - [ ] Wiring Test table complete, every row a concrete scenario name
 - [ ] `/ze-review` gate clean (0 BLOCKER, 0 ISSUE)
-- [ ] `make ze-test` passes
+- [ ] `make ze-standard-test` passes
 - [ ] `make ze-qemu-vrrp-keepalived-test` passes with QS-1..QS-3, QS-5 and QS-6
 - [ ] Feature code integrated (`scripts/evidence/effective-vrrp-keepalived.py`, `mk/test-integration.mk`)
 - [ ] Documentation Update Checklist answered with source evidence

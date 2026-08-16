@@ -9,7 +9,7 @@ import "testing"
 func TestRunInitrdExists(t *testing.T) {
 	// RunInitrd is the PID-1 entry point. It cannot be unit-tested (requires
 	// PID 1 context + kernel reboot). Validated by QEMU wiring test:
-	// make ze-install-qemu-test boots the Go initrd and completes an HTTP
+	// make ze-qemu-install-test boots the Go initrd and completes an HTTP
 	// install end-to-end.
 	//
 	// This test verifies the function exists and is callable (compile check).

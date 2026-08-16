@@ -232,7 +232,7 @@ End-of-RIB or timer expiry. The two in-scope features extend that:
 4. **Phase: N-bit negotiation + retention gate** - advertise local N-bit; gate `onSessionDown` retention on negotiated N-bit; Hard Reset always flushes (TDD).
 5. **Phase: Selection Deferral Timer** - restarting-speaker deferral in the reactor; YANG config leaf (TDD).
 6. **Functional + interop tests** - `.ci` + interop scenarios.
-7. **Full verification** - `make ze-verify`.
+7. **Full verification** - `make ze-precommit-verify`.
 8. **Complete spec** - fill audit tables, write `plan/learned/NNN-gr-advanced.md`, two-commit closure.
 
 ### Critical Review Checklist
@@ -272,7 +272,7 @@ short summary with the `ze-rfc` skill before quoting it.
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-6 all demonstrated
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
-- [ ] `make ze-test` passes (lint + all ze tests)
+- [ ] `make ze-standard-test` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`), not just tests
 - [ ] Registration over hardcoding respected
 - [ ] Interop tests pass (or justified N/A)

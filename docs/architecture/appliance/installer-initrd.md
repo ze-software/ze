@@ -96,9 +96,9 @@ QEMU acceptance path as unproven until these run green on a machine that has a
 kernel and those tools:
 
 ```
-ZE_INSTALL_KERNEL=/path/to/vmlinuz make ze-install-scenarios-qemu-test
-ZE_INSTALL_KERNEL=/path/to/vmlinuz make ze-install-ventoy-qemu-test
-ZE_INSTALL_ARCH=arm64 ZE_INSTALL_KERNEL=/path/to/Image make ze-install-iso-qemu-test
+ZE_INSTALL_KERNEL=/path/to/vmlinuz make ze-qemu-install-scenarios-test
+ZE_INSTALL_KERNEL=/path/to/vmlinuz make ze-qemu-install-ventoy-test
+ZE_INSTALL_ARCH=arm64 ZE_INSTALL_KERNEL=/path/to/Image make ze-qemu-install-iso-test
 ```
 
 The first-run risks, most likely first: `nclient4` DHCP behavior under QEMU

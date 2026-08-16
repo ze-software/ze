@@ -95,7 +95,7 @@ jobs:
         run: sudo -E env "PATH=$PATH" make ze-integration-test
 
   # The 104 BGP interop scenarios had NO automated caller: ze-interop-test's only
-  # invoker was ze-release-evidence (mk/test-release.mk), a manual release-time
+  # invoker was ze-release-evidence-verify (mk/test-release.mk), a manual release-time
   # target behind run_if_docker. So the one suite that proves Ze against FRR, BIRD
   # and GoBGP ran when somebody remembered to run it.
   #
@@ -129,7 +129,7 @@ jobs:
         run: make ze-interop-test
 
   # The 12 strongSwan/IPsec scenarios had the same problem the BGP tree had above:
-  # a runner (`make ze-ipsec-interop-test`) and no automated caller, so
+  # a runner (`make ze-interop-ipsec-test`) and no automated caller, so
   # rfc_requirements.py CARRIERS refused an `RFC requirement:` tag there as tier
   # `unrun`. This job is what earns that tree its tier
   # (plan/spec-rfcgate-2-deferred-unrun-interop-trees.md AC-1, AC-2).
@@ -163,5 +163,5 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: go.sum
 
-      - name: make ze-ipsec-interop-test
-        run: make ze-ipsec-interop-test
+      - name: make ze-interop-ipsec-test
+        run: make ze-interop-ipsec-test

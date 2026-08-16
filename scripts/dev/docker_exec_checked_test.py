@@ -9,7 +9,7 @@ Three layers, on purpose:
 - the ENTRY POINT, driven as a subprocess against a synthetic tree, because a
   gate is only real if its command-line exit code is real (ai/rules/evidence.md);
 - the live ratchet, run over the real repository, so `make ze-unit-test`
-  enforces the floor as well as `make ze-docker-exec-check` does.
+  enforces the floor as well as `make ze-functional-docker-exec-check` does.
 """
 
 import json

@@ -44,7 +44,7 @@ scripts/dev/commit_helper.py create \
 
 - **NEVER run `git add` or `git commit` as bare tool calls.** Route them through the commit script, then run the script by the path its `script=` line printed.
 - Use `scripts/dev/commit_helper.py create` unless the commit shape cannot be expressed by the helper.
-- Do not run `make ze-verify`, `make ze-verify-changed`, lint, health checks, completeness audits, recent-commit style reviews, or remaining-work scans for `/ze-commit`.
+- Do not run `make ze-precommit-verify`, `make ze-precommit-verify-changed`, lint, health checks, completeness audits, recent-commit style reviews, or remaining-work scans for `/ze-commit`.
 - Never include spec files unless the user explicitly asks.
 - Never include documentation changes unless they're part of the task.
 - Protect unrelated work: include only explicit paths. Ask one narrow question if scope cannot be determined from context and the concise file list.

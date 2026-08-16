@@ -2,14 +2,14 @@ name: perf-nightly
 
 # Scheduled (Docker-free) performance-regression check. Runs the SAME
 # `bin/ze-perf track --check` timing check (convergence / throughput / p99) over
-# the committed NDJSON history that `make ze-perf-gate` uses -- referenced, not
+# the committed NDJSON history that `make ze-perf-evidence-update-check` uses -- referenced, not
 # duplicated. Ported from .woodpecker/perf-nightly.yml.
 #
 # Scheduled-only by design: timing metrics are machine-dependent and noisy across
 # CI hosts, so they must NOT gate push/pull_request merges. The always-run,
-# deterministic allocs/op gate is `make ze-alloc-gate`, wired into `make ze-verify`
+# deterministic allocs/op gate is `make ze-alloc-check`, wired into `make ze-precommit-verify`
 # (and so into verify.yml). The heavy Docker throughput/p99 DUT matrix stays in
-# `make ze-perf-gate`; this job needs no Docker.
+# `make ze-perf-evidence-update-check`; this job needs no Docker.
 #
 # The cron lives IN this file, so merging it creates the schedule.
 # `workflow_dispatch` is the manual re-trigger.
@@ -42,7 +42,7 @@ jobs:
 
       # Build the ze-perf binary (cmd/ze with the ze_perf tag); Docker-free.
       - name: Build ze-perf
-        run: make perf
+        run: make ze-perf-build
 
       # Docker-free timing regression check over stored history. With no history
       # recorded yet the job reports and passes -- nothing to regress against, and

@@ -25,7 +25,7 @@ import sys
 
 # A `ze point:` comment directly above a gate names the rule point it enforces
 # (`<rule-stem>/<slug>` under ai/rules/points/), or `none -- <why>`. Joined by
-# `make ze-rules-gate-map`, which fails on a point that does not exist.
+# `make ze-rules-gate-map-report`, which fails on a point that does not exist.
 
 # (skill, regex over the prompt) -- ordered, first match wins.
 # Each pattern names the ASK, never the subject matter: "review this diff" is a
@@ -69,7 +69,7 @@ SKILL_TRIGGERS = (
 # A prompt that names a REAL skill has been routed deliberately.
 #
 # The first version matched any `ze-<word>`, which the repo path (`ze-software`)
-# and every `make ze-verify` in a prompt satisfied. That switched the gate off
+# and every `make ze-precommit-verify` in a prompt satisfied. That switched the gate off
 # for almost every real prompt in this repository. Two things fix it: the slash
 # is required, and the name must be a skill that exists on disk.
 _SKILL_REF = re.compile(r"/(ze-[a-z0-9-]+)")

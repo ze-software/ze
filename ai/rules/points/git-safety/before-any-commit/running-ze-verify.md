@@ -3,4 +3,4 @@ kind: heading
 level:
 stage:
 ---
-### Running ze-verify
+### Running ze-precommit-verify

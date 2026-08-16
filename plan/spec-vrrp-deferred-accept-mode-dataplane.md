@@ -260,7 +260,7 @@ Stage mapping follows `plan/TEMPLATE.md` unchanged.
 3. **Phase: Lifecycle** -- install, remove, reconfigure, restart-safety
 4. **Phase: Tracking** -- config surface, decrement into `EffectivePriority`, advertisement path
 5. **Functional and interop tests** -- `.ci` coverage plus the keepalived lab re-run
-6. **Full verification** -- `make ze-verify`
+6. **Full verification** -- `make ze-precommit-verify`
 7. **Complete spec** -- audit, learned summary, two-commit closure
 
 ### Failure Routing
@@ -286,7 +286,7 @@ R014/R030/R031 rows in the `rfc/short/rfc9568.md` checklist.
 - [ ] AC-1..AC-6 all demonstrated
 - [ ] Wiring Test table complete, every row a concrete test
 - [ ] `/ze-review` gate clean (0 BLOCKER, 0 ISSUE)
-- [ ] `make ze-test` passes
+- [ ] `make ze-standard-test` passes
 - [ ] Feature code integrated (`internal/plugins/vrrp/`)
 - [ ] Documentation Update Checklist answered with source evidence
 

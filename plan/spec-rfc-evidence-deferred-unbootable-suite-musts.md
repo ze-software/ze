@@ -36,7 +36,7 @@ because two of them lower what Ze proves:
 
 | Route | What it costs | What it buys |
 |-------|---------------|--------------|
-| Add a verify-tier suite per subsystem | new suite infrastructure per subsystem, and the runtime it adds to `make ze-verify` | every one of the 242 becomes provable on every push |
+| Add a verify-tier suite per subsystem | new suite infrastructure per subsystem, and the runtime it adds to `make ze-precommit-verify` | every one of the 242 becomes provable on every push |
 | Accept nightly-only tier for these | a tier that is scheduled and advisory, not merge-gating | reachable today for VRRP, which has `ze-qemu-vrrp-keepalived-test`; the others have no nightly path either |
 | Leave them unit-only by decision | the obligation stays proven at the wrong altitude | nothing new to build |
 
@@ -124,7 +124,7 @@ bookkeeping.
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | A new suite is added and `make ze-verify` grows past its budget | verify wall time rises | measure the added runtime per suite before adding the second |
+| R-1 | A new suite is added and `make ze-precommit-verify` grows past its budget | verify wall time rises | measure the added runtime per suite before adding the second |
 | R-2 | The refusal is softened instead of answered, and 242 requirements gain a tier they do not have | a change to `CARRIERS` or `functional_suites` with no new runner | the tier must follow a runner, never precede it |
 
 ## Blast Radius
@@ -278,7 +278,7 @@ constraints, message ordering, and every MUST/MUST NOT.
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding

@@ -54,7 +54,7 @@
 # on-receive is exactly what a foreign peer can corroborate. It does not and cannot carry 5.1-2
 # (spec-rfcgate-2-evidence AC-18, umbrella D3). Two reasons, and the second is the load-bearing
 # one:
-#   1. a .ci runs inside `ze-verify` on every push; interop is nightly and advisory.
+#   1. a .ci runs inside `ze-precommit-verify` on every push; interop is nightly and advisory.
 #   2. scenario 47 CANNOT discriminate the split. §5.1's third bullet obliges every receiver to
 #      accept any combination of those fields, so a conforming FRR installs the route whether Ze
 #      splits the UPDATE or relays it whole -- the scenario's own docstring says so. Only an

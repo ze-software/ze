@@ -7,7 +7,7 @@
 ```
 
 Appended automatically by `scripts/dev/mutation_history.py` after every
-`make ze-mutation-test` / `ze-mutation-changed` / `ze-mutation-pkg` run.
+`make ze-mutation-test` / `ze-mutation-test-changed` / `ze-mutation-pkg-test` run.
 Commit the file with the run that produced it so mutation coverage has a
 trend and a reviewable baseline (the gomu incremental cache
 `.gomu_history.json` is gitignored and holds no kill/survive results).

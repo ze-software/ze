@@ -5,7 +5,7 @@
 # for a native Apple Silicon QEMU image.
 # Everything is vendored: gok tool deps in vendor/github.com/gokrazy/,
 # dependency pins in gokrazy/ze/builddir/*/go.mod.
-# After cloning, run `make ze-gokrazy-deps` once to populate the Go module cache
+# After cloning, run `make ze-gokrazy-deps-download` once to populate the Go module cache
 # for the gokrazy system packages (kernel, init). After that, builds work offline.
 #
 # Requires: e2fsprogs (brew install e2fsprogs)
@@ -22,20 +22,20 @@
 # Ze SSH CLI:     ssh -p 2222 <user>@localhost
 #
 # Usage:
-#   make ze-gokrazy-deps                    -- one-time: download gokrazy system packages
-#   make ze-gokrazy USER=admin PASS=secret CERTNAME=router.local  -- first build (cert cached per name)
-#   make ze-gokrazy USER=admin PASS=secret  -- first build (no cert caching without CERTNAME)
-#   make ze-gokrazy GOKRAZY_ARCH=arm64 USER=admin PASS=secret  -- native Apple Silicon VM image
-#   make ze-gokrazy                         -- rebuild: reuse existing credentials
-#   make ze-gokrazy ZEFS=/path/to/db.zefs   -- rebuild: use external database
-#   make ze-gokrazy KERNEL_PKG=tmp/kernel/pkg  -- build against a custom kernel (see ze-kernel)
+#   make ze-gokrazy-deps-download                    -- one-time: download gokrazy system packages
+#   make ze-gokrazy-build USER=admin PASS=secret CERTNAME=router.local  -- first build (cert cached per name)
+#   make ze-gokrazy-build USER=admin PASS=secret  -- first build (no cert caching without CERTNAME)
+#   make ze-gokrazy-build GOKRAZY_ARCH=arm64 USER=admin PASS=secret  -- native Apple Silicon VM image
+#   make ze-gokrazy-build                         -- rebuild: reuse existing credentials
+#   make ze-gokrazy-build ZEFS=/path/to/db.zefs   -- rebuild: use external database
+#   make ze-gokrazy-build KERNEL_PKG=tmp/kernel/pkg  -- build against a custom kernel (see ze-kernel-build)
 #   make ze-gokrazy-run                     -- boot image in QEMU
 #
 # Builds run from a COPY of gokrazy/ze under tmp/, prepared by ze-gok
 # (internal/appliance/instance). No build step writes to a tracked path, so a
 # custom-kernel build needs nothing reverted afterwards.
 
-.PHONY: ze-gokrazy ze-gokrazy-deps ze-gokrazy-run ze-gokrazy-gosum-check ze-kernel ze-kernel-vmlinuz ze-kernel-clean ze-host bin/gok
+.PHONY: ze-gokrazy-build ze-gokrazy-deps-download ze-gokrazy-run ze-gokrazy-gosum-check ze-kernel-build ze-kernel-vmlinuz-stage ze-kernel-clean ze-host-build bin/gok
 
 GOKRAZY_INSTANCE   := ze
 GOKRAZY_DIR        := gokrazy
@@ -97,7 +97,7 @@ bin/gok:
 
 GOMODCACHE_LOCAL := $(CURDIR)/$(GOKRAZY_DIR)/modcache
 
-ze-gokrazy-deps: bin/gok
+ze-gokrazy-deps-download: bin/gok
 	@echo "Downloading gokrazy dependencies into $(GOKRAZY_DIR)/modcache/..."
 	@for d in $$(find $(GOKRAZY_DIR)/$(GOKRAZY_INSTANCE)/builddir -name go.mod -exec dirname {} \;); do \
 		echo "  $$d"; \
@@ -105,7 +105,7 @@ ze-gokrazy-deps: bin/gok
 	done
 	@echo "Done. Builds now work offline."
 
-# Out-of-tree kernel package for a single build (see ze-kernel). Empty means the
+# Out-of-tree kernel package for a single build (see ze-kernel-build). Empty means the
 # pinned github.com/rtr7/kernel. Never inferred from the filesystem: an implicit
 # "use tmp/kernel/pkg if it exists" rule would silently give every later build a
 # custom kernel.
@@ -121,9 +121,9 @@ GOKRAZY_TEMPLATE ?= gokrazy/ze/ze.conf
 ze-gokrazy-gosum-check:
 	@python3 scripts/dev/gokrazy_gosum_check.py
 
-ze-gokrazy: ze bin/gok ze-gokrazy-gosum-check
+ze-gokrazy-build: ze bin/gok ze-gokrazy-gosum-check
 	@miss=""; for t in mkfs.ext4 debugfs; do { [ -n "$(E2FS)" ] && [ -x "$(E2FS)/$$t" ]; } || miss="$$miss $$t"; done; \
-		[ -z "$$miss" ] || { echo "error: e2fsprogs tool(s) not found:$$miss (searched '$(E2FS)'). Install e2fsprogs (Debian/Ubuntu: apt install e2fsprogs; Fedora: dnf install e2fsprogs; macOS: brew install e2fsprogs), or pass the sbin directory that holds BOTH mkfs.ext4 and debugfs: make ze-gokrazy E2FS=/path/to/sbin"; exit 1; }
+		[ -z "$$miss" ] || { echo "error: e2fsprogs tool(s) not found:$$miss (searched '$(E2FS)'). Install e2fsprogs (Debian/Ubuntu: apt install e2fsprogs; Fedora: dnf install e2fsprogs; macOS: brew install e2fsprogs), or pass the sbin directory that holds BOTH mkfs.ext4 and debugfs: make ze-gokrazy-build E2FS=/path/to/sbin"; exit 1; }
 	@mkdir -p tmp/gokrazy/init
 	@if [ -n "$(ZEFS)" ]; then \
 		echo "--- Using external database: $(ZEFS) ---"; \
@@ -160,7 +160,7 @@ ze-gokrazy: ze bin/gok ze-gokrazy-gosum-check
 		$(ZEBIN_ZE) data --path $(GOKRAZY_ZEFS) write file/template/ze.conf $(GOKRAZY_TEMPLATE); \
 	elif [ ! -f $(GOKRAZY_ZEFS) ]; then \
 		echo "error: no database found. First build requires credentials:"; \
-		echo "  make ze-gokrazy USER=admin PASS=secret"; \
+		echo "  make ze-gokrazy-build USER=admin PASS=secret"; \
 		exit 1; \
 	else \
 		echo "--- Reusing existing database ---"; \
@@ -211,7 +211,7 @@ ze-gokrazy: ze bin/gok ze-gokrazy-gosum-check
 	@echo "Run: make ze-gokrazy-run"
 
 ze-gokrazy-run:
-	@test -f $(GOKRAZY_IMG) || { echo "error: $(GOKRAZY_IMG) not found (run: make ze-gokrazy USER=admin PASS=secret)"; exit 1; }
+	@test -f $(GOKRAZY_IMG) || { echo "error: $(GOKRAZY_IMG) not found (run: make ze-gokrazy-build USER=admin PASS=secret)"; exit 1; }
 	@case "$(GOKRAZY_ARCH)" in \
 		amd64) command -v qemu-system-x86_64 >/dev/null || { echo "error: qemu-system-x86_64 not found (brew install qemu)"; exit 1; } ;; \
 		arm64) command -v qemu-system-aarch64 >/dev/null || { echo "error: qemu-system-aarch64 not found (brew install qemu)"; exit 1; }; test -f $(GOKRAZY_QEMU_AARCH64_BIOS) || { echo "error: $(GOKRAZY_QEMU_AARCH64_BIOS) not found"; exit 1; } ;; \
@@ -244,17 +244,17 @@ ze-gokrazy-run:
 	esac
 
 # ---------------------------------------------------------------------------
-# Custom kernel build (overrides the rtr7/kernel pin used by ze-gokrazy)
+# Custom kernel build (overrides the rtr7/kernel pin used by ze-gokrazy-build)
 # ---------------------------------------------------------------------------
 # The runtime kernel is built out-of-tree (tmp/kernel/build via run.py, which
 # reads internal/appliance/kernel.version), then assembled into an out-of-tree
 # kernel PACKAGE (tmp/kernel/pkg: a copy of the pinned rtr7/kernel module with
 # our vmlinuz/modules/DTBs/overlays).
 #
-# The package is selected PER BUILD: `make ze-gokrazy KERNEL_PKG=tmp/kernel/pkg`.
+# The package is selected PER BUILD: `make ze-gokrazy-build KERNEL_PKG=tmp/kernel/pkg`.
 # ze-gok writes the `replace github.com/rtr7/kernel => <pkg>` into its prepared
 # COPY of the instance, so no tracked file changes and there is nothing to
-# revert; omitting KERNEL_PKG builds the pin. ze-kernel therefore writes no
+# revert; omitting KERNEL_PKG builds the pin. ze-kernel-build therefore writes no
 # state, and ze-kernel-clean only removes tmp/kernel (plus a one-time migration
 # for replaces left in the tracked go.mod by the pre-2026-07-23 flow). The pinned
 # module cache is never mutated in place. gok resolves the kernel dir via
@@ -277,11 +277,11 @@ KERNEL_PINNED_BACKUP  := $(GOKRAZY_DIR)/modcache/.ze-pinned-kernel
 # target arch is passed as --arch, never applied to this build (CLAUDE.md "Binary naming
 # convention"). Go stays the single source of truth for the key (kernelCacheVariantFor),
 # so the make path can never drift from `ze appliance kernel`.
-ze-host:
+ze-host-build:
 	@echo "--- Building host ze binary (ze-host: -tags ze_core,ze_setup, NO GOARCH override) ---"
 	@$(GO) build -tags 'ze_core ze_setup' -o "$(CURDIR)/ze-host" ./cmd/ze
 
-# ze-kernel-vmlinuz routes the runtime kernel through the durable cache (~/.cache/ze,
+# ze-kernel-vmlinuz-stage routes the runtime kernel through the durable cache (~/.cache/ze,
 # Option C):
 # it asks ze-host for the arch+config-keyed cache dir, materializes from it on a HIT (no
 # ~30-min rebuild), or builds via run.py then populates the cache on a MISS. The copy is
@@ -293,19 +293,19 @@ ze-host:
 # tmp/kernel/build stays a materialized VIEW, so `rm -rf tmp` costs only a copy.
 #
 # It stops at tmp/kernel/vmlinuz, which is the whole of what the QEMU functional
-# targets need (mk/test-integration.mk, ze-qemu-kernel-guard). ze-kernel then adds
+# targets need (mk/test-integration.mk, ze-qemu-kernel-guard). ze-kernel-build then adds
 # the gokrazy package assembly, and THAT half needs the module cache
-# `make ze-gokrazy-deps` downloads. One target carrying both made booting a VM
+# `make ze-gokrazy-deps-download` downloads. One target carrying both made booting a VM
 # depend on an appliance build's downloads: .github/workflows/qemu-nightly.yml
 # could not satisfy the guard without them, so it staged no kernel at all and
 # every scheduled run died before the VM (2026-08-08 onwards).
-ze-kernel-vmlinuz: ze-host
+ze-kernel-vmlinuz-stage: ze-host-build
 	@case "$(KERNEL_ARCH)" in amd64|arm64) : ;; *) echo "error: unsupported KERNEL_ARCH=$(KERNEL_ARCH) (expected amd64 or arm64)"; exit 1 ;; esac
 	@: "Dry-run guard: this recipe line embeds $$(MAKE), so GNU make executes it"; \
 	: "even under -n. Without this, a dry run (or a make -n inspection test) would"; \
 	: "run the real cache materialize/build/populate and, on a cold cache, fail the"; \
 	: "magic check on a not-yet-built vmlinuz. The staging lines below still print,"; \
-	: "and so does ze-kernel's assembly, so a dry run still shows the whole path."; \
+	: "and so does ze-kernel-build's assembly, so a dry run still shows the whole path."; \
 	: "The real (non -n) path"; \
 	: "is byte-identical -- the guard is unreachable unless -n is set."; \
 	case "$(firstword -$(MAKEFLAGS))" in *n*) echo "--- (dry-run) runtime kernel: materialize from durable cache on HIT, or build via run.py into $(KERNEL_BUILD_DIR) on MISS ---"; exit 0 ;; esac; \
@@ -329,11 +329,11 @@ ze-kernel-vmlinuz: ze-host
 		$(MAKE) -C gokrazy/kernel BUILDER=$(KERNEL_BUILDER) ARCH=$(KERNEL_ARCH); \
 		: "Fail closed if what we are about to cache is not the requested"; \
 		: "architecture: tmp/kernel/build is one shared unlocked path, so a"; \
-		: "concurrent ze-kernel run with a different KERNEL_ARCH can rewrite it"; \
+		: "concurrent ze-kernel-build run with a different KERNEL_ARCH can rewrite it"; \
 		: "between our sub-make and this populate, and an existence-only HIT"; \
 		: "check would then serve the poisoned tree forever."; \
 		python3 -c "import sys; magic={'amd64':(0x202,b'HdrS'),'arm64':(0x38,b'ARMd')}[sys.argv[2]]; data=open(sys.argv[1],'rb').read(magic[0]+4); sys.exit(0 if data[magic[0]:magic[0]+4]==magic[1] else 1)" "$(KERNEL_BUILD_DIR)/vmlinuz" "$(KERNEL_ARCH)" || { \
-			echo "error: $(KERNEL_BUILD_DIR)/vmlinuz is missing or not a $(KERNEL_ARCH) kernel -- the build produced no usable image, or a concurrent ze-kernel run with a different KERNEL_ARCH clobbered the shared build dir; re-run: make ze-kernel KERNEL_ARCH=$(KERNEL_ARCH)"; exit 1; }; \
+			echo "error: $(KERNEL_BUILD_DIR)/vmlinuz is missing or not a $(KERNEL_ARCH) kernel -- the build produced no usable image, or a concurrent ze-kernel-build run with a different KERNEL_ARCH clobbered the shared build dir; re-run: make ze-kernel-build KERNEL_ARCH=$(KERNEL_ARCH)"; exit 1; }; \
 		echo "--- Populating durable cache: $$cache_dir ---"; \
 		cache_parent="$$(dirname "$$cache_dir")"; mkdir -p "$$cache_parent"; \
 		staging="$$(mktemp -d "$$cache_parent/.copytree-XXXXXX")" && \
@@ -346,13 +346,13 @@ ze-kernel-vmlinuz: ze-host
 	@mkdir -p tmp/kernel
 	@cp "$(KERNEL_BUILD_DIR)/vmlinuz" tmp/kernel/vmlinuz
 
-# ze-kernel is the appliance path: the staged vmlinuz above, plus the out-of-tree
+# ze-kernel-build is the appliance path: the staged vmlinuz above, plus the out-of-tree
 # gokrazy kernel package built from the pinned module cache. Unchanged for every
 # caller -- it still builds or materializes, stages, and assembles.
-ze-kernel: ze-kernel-vmlinuz
+ze-kernel-build: ze-kernel-vmlinuz-stage
 	@echo "--- Assembling out-of-tree kernel package ($(KERNEL_PKG_DIR)) ---"
-	@test -n "$(KERNEL_MODULE_VERSION)" || { echo "error: could not resolve pinned $(KERNEL_MODULE) version (run: make ze-gokrazy-deps)"; exit 1; }
-	@test -d "$(KERNEL_MODCACHE_DIR)" || { echo "error: $(KERNEL_MODCACHE_DIR) not found (run: make ze-gokrazy-deps)"; exit 1; }
+	@test -n "$(KERNEL_MODULE_VERSION)" || { echo "error: could not resolve pinned $(KERNEL_MODULE) version (run: make ze-gokrazy-deps-download)"; exit 1; }
+	@test -d "$(KERNEL_MODCACHE_DIR)" || { echo "error: $(KERNEL_MODCACHE_DIR) not found (run: make ze-gokrazy-deps-download)"; exit 1; }
 	@test -f "$(KERNEL_BUILD_DIR)/vmlinuz" || { echo "error: $(KERNEL_BUILD_DIR)/vmlinuz not found"; exit 1; }
 	@test -d "$(KERNEL_BUILD_DIR)/lib/modules" || { echo "error: $(KERNEL_BUILD_DIR)/lib/modules not found"; exit 1; }
 	@rm -rf "$(KERNEL_PKG_DIR)"
@@ -371,14 +371,14 @@ ze-kernel: ze-kernel-vmlinuz
 	fi
 	@echo ""
 	@module_version=""; for d in $(KERNEL_PKG_DIR)/lib/modules/*; do [ -d "$$d" ] || continue; module_version="$${d##*/}"; break; done; echo "Custom kernel: $$module_version (out-of-tree at $(KERNEL_PKG_DIR))"
-	@echo "Next: make ze-gokrazy KERNEL_PKG=$(KERNEL_PKG_DIR) USER=... PASS=..."
+	@echo "Next: make ze-gokrazy-build KERNEL_PKG=$(KERNEL_PKG_DIR) USER=... PASS=..."
 	@echo "      (omit KERNEL_PKG to build against the pinned kernel; nothing to revert)"
 
 ze-kernel-clean:
 	@$(MAKE) -C gokrazy/kernel clean
 	@# Migration only. Builds no longer write a replace into the tracked go.mod
 	@# (the kernel package is passed per build via KERNEL_PKG), so this clears a
-	@# replace left behind by a pre-2026-07-23 ze-kernel run.
+	@# replace left behind by a pre-2026-07-23 ze-kernel-build run.
 	@if grep -q 'replace $(KERNEL_MODULE) ' $(KERNEL_BUILDDIR_GOMOD) 2>/dev/null; then \
 		echo "--- Dropping a stale out-of-tree kernel replace from the tracked go.mod ---"; \
 		$(GO) mod edit -dropreplace=$(KERNEL_MODULE) $(KERNEL_BUILDDIR_GOMOD); \
@@ -390,4 +390,4 @@ ze-kernel-clean:
 		rm -rf "$(KERNEL_PINNED_BACKUP)"; \
 	fi
 	@rm -rf tmp/kernel
-	@echo "ze-gokrazy will now use the pinned rtr7/kernel."
+	@echo "ze-gokrazy-build will now use the pinned rtr7/kernel."

@@ -312,7 +312,7 @@ map cannot prove a real client can produce it.
 | The public looking glass survives | `lg-open-mode-stays-public` on a config that selects open |
 | No second user list | `grep -rn 'ExtractAuthUsers' internal/component/lg internal/component/gnmi` shows the shared source and nothing else parses users |
 | Lint | `make ze-lint-changed` |
-| Schema | `make ze-doc-test`, `make ze-cli-grammar-check` |
+| Schema | `make ze-doc-verify`, `make ze-cli-grammar-check` |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -372,7 +372,7 @@ map cannot prove a real client can produce it.
 - [ ] AC-1..AC-10 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated on both surfaces, not test-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding

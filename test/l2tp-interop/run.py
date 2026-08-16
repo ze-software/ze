@@ -126,7 +126,7 @@ def main():
         print(
             "error: Docker unavailable, cannot run the L2TP interop lab -- every "
             "scenario runs in containers. Start Docker (or install it), then re-run: "
-            "make ze-deployment-l2tp-ppp-docker-test",
+            "make ze-deployment-docker-l2tp-ppp-test",
             file=sys.stderr,
         )
         sys.exit(1)

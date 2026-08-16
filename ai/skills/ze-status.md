@@ -54,12 +54,12 @@ Generate the attention list by checking these conditions in order:
 | Spec listed by `scripts/dev/spec-closure-check.py --list` | "[spec] completed but not closed" | `/ze-close` (step 6 prepares the two closure commits) |
 | `spec-session.sh wip` count over `ZE_SPEC_WIP_CAP` | "N specs in flight (cap M) -- no new spec can be started" | `/ze-close` the stalest, or agree a new cap with the user |
 | Tests failing | "N test failures in last run" | `/ze-debug` |
-| Spec in-progress with uncommitted changes | "Uncommitted work on [spec]" | `/ze-verify` then `/ze-commit` |
+| Spec in-progress with uncommitted changes | "Uncommitted work on [spec]" | `/ze-precommit-verify` then `/ze-commit` |
 | Spec in skeleton/design status | "[spec] needs implementation" | `/ze-implement` |
 | Spec blocked | "[spec] blocked on [dependency]" | Check dependency |
 | Deferrals referencing selected spec | "N deferred items for [spec]" | Review `plan/deferrals/` |
 | No spec selected but specs exist | "No spec selected" | `/ze-spec` to resume or create |
-| Stale test results | "Tests not run recently" | `/ze-verify` |
+| Stale test results | "Tests not run recently" | `/ze-precommit-verify` |
 
 Only show items that actually apply. If nothing needs attention, say "Nothing pending."
 

@@ -91,7 +91,7 @@ class TestStaleAnchorPath(unittest.TestCase):
         # code_to_docs.py (extract_paths) keeps only paths under nine
         # PATH_PREFIX roots, so 74 anchors in docs/ -- under tools/, gokrazy/,
         # ai/, demos/, .github/ and docs/ itself -- are seen by this check
-        # alone. It reaches the gate through `make ze-validate-tree`, a stage of
+        # alone. It reaches the gate through `make ze-repository-tree-check`, a stage of
         # both verify modes (stagesForMode, scripts/status/verify_run.go).
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -152,7 +152,7 @@ class TestStaleAnchorPath(unittest.TestCase):
         # The website lives in a sibling checkout, so docs/contributing/gh-pages.md
         # anchors `../gh-pages/tools/build.py`. Resolving that says whether the
         # reader keeps both clones side by side, and a CI runner clones one:
-        # seven such anchors turned ze-validate-tree red on the runner and green
+        # seven such anchors turned ze-repository-tree-check red on the runner and green
         # on the author's machine, from identical bytes.
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -664,10 +664,10 @@ class TestSpecACCompleteness(unittest.TestCase):
 
 
 class TestChangedFileSelection(unittest.TestCase):
-    """`make ze-validate-tree` declares an EMPTY changed set.
+    """`make ze-repository-tree-check` declares an EMPTY changed set.
 
     The Makefile recipe is `validate.py --root . --changed-file ''`, and the
-    stage runs inside both `make ze-verify` modes (stagesForMode,
+    stage runs inside both `make ze-precommit-verify` modes (stagesForMode,
     scripts/status/verify_run.go). Which checks run must be decided by the flag
     being GIVEN. An empty list is falsy, so a selection written on truthiness
     reads the empty set as "no flag", falls back to git diff, and puts

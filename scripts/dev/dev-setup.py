@@ -6,8 +6,8 @@ with a single Python script that handles OS detection, probing, and
 installing all build, lint, and appliance/evidence dependencies.
 
 Usage:
-    make ze-setup              # install missing tools + vendor Go deps
-    make ze-setup CHECK=1      # probe only, exit nonzero if required tools missing
+    make ze-dev-setup              # install missing tools + vendor Go deps
+    make ze-dev-setup CHECK=1      # probe only, exit nonzero if required tools missing
 """
 
 from __future__ import annotations
@@ -245,7 +245,7 @@ GOPLS_PROBE_FILE = "internal/core/clock/clock.go"
 # gopls type-checks the package before it answers, so the first run on a cold
 # Go build cache pays for the standard library too. Measured warm on this
 # machine: 3.4s. The timeout is ~35x that, which leaves a cold cache room
-# without letting a hung server hold `make ze-setup` open indefinitely. A check
+# without letting a hung server hold `make ze-dev-setup` open indefinitely. A check
 # that reds spuriously is a check somebody disables.
 GOPLS_PROBE_TIMEOUT = 120
 
@@ -359,7 +359,7 @@ def pyright_summary(out: str) -> dict | None:
     progress lands on the stdout this probe captured. Only the npm path is
     silenced (`install_pyright`, `pyright/_utils.py`, `silent = '--outputjson'
     in args`). The reply is then valid JSON with text in front of it, the whole
-    decode fails, and `make ze-setup` reds on the fresh Linux box it exists to
+    decode fails, and `make ze-dev-setup` reds on the fresh Linux box it exists to
     prepare. The second run is green, which makes it read as flakiness.
 
     Returns None when no JSON object in `out` carries a summary. The preamble
@@ -670,12 +670,12 @@ def apply_kvm_fix() -> bool:
 #
 # This is setup work rather than runner work because the runner cannot do it:
 # SIOCAIFADDR_IN6 returns EPERM to an unprivileged process on darwin, and the
-# Linux route needs CAP_NET_ADMIN, while `make ze-verify` runs as an ordinary
+# Linux route needs CAP_NET_ADMIN, while `make ze-precommit-verify` runs as an ordinary
 # user (internal/test/runner/loopback.go reports the miss and names this script).
 #
 # Neither addition survives a reboot on either platform. That is deliberate: the
 # persistent forms (a launchd plist, a netplan or systemd-networkd unit) edit
-# files a developer's machine owns for other reasons. `make ze-setup` is cheap to
+# files a developer's machine owns for other reasons. `make ze-dev-setup` is cheap to
 # re-run, and CHECK=1 says when it is needed.
 LOOPBACK_IPV6 = "fd00::2"
 
@@ -739,7 +739,7 @@ def apply_loopback_fix(missing: list[str]) -> bool:
     """Print, then run, the commands that add the missing addresses.
 
     Idempotent by construction: only addresses that failed the bind probe are
-    passed in, so a re-run of `make ze-setup` on a configured host runs nothing.
+    passed in, so a re-run of `make ze-dev-setup` on a configured host runs nothing.
     Returns True only when every address binds afterwards.
     """
     for addr in missing:
@@ -784,7 +784,7 @@ def brew_prefixes() -> list[Path]:
     Homebrew has no single prefix: /opt/homebrew on Apple Silicon, /usr/local on
     Intel, and whatever an operator chose for a relocated install. Naming only
     the first made a properly installed e2fsprogs read as missing on an Intel
-    Mac, and `make ze-setup` then offered to install what was already there.
+    Mac, and `make ze-dev-setup` then offered to install what was already there.
 
     1. HOMEBREW_PREFIX, exported by `brew shellenv`. The only source that knows
        a relocated install.
@@ -1216,7 +1216,7 @@ def main() -> int:
         # "Steps", not "install commands": a tool that installed into a
         # directory off PATH needs the PATH fixed, not the install rerun.
         print(f"Finish the steps above for: {', '.join(pending_manual)}")
-        print("Then re-run: make ze-setup")
+        print("Then re-run: make ze-dev-setup")
         return 1
 
     if args.check:
@@ -1231,7 +1231,7 @@ def main() -> int:
             print(f"Setup complete. {'; '.join(summary)}")
         else:
             print("Setup complete. All tools already present.")
-        print("Verify with: make ze-smoke")
+        print("Verify with: make ze-smoke-verify")
     return 0
 
 

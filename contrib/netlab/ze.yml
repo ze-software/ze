@@ -43,7 +43,7 @@ clab:
     docker_shell: sh
     netlab_config_mode: sh
     netlab_start_daemon: "/usr/local/bin/ze start /etc/ze/ze.conf"
-  # The image is built by ze, not by netlab: `make ze-docker-lab` builds
+  # The image is built by ze, not by netlab: `make ze-docker-lab-build` builds
   # netlab/ze:latest from docker/Dockerfile.lab, deriving its feature tags from
   # feature-gates.txt. Dockerfile.j2 is kept beside the templates for the day
   # netlab builds it itself; flip build to True to use it.

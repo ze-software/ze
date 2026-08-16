@@ -46,15 +46,15 @@ BASH_CMDS = [
     "go test ./... | head -50",
     "go test ./... 2>&1 | tee tmp/t.log",
     "bin/ze-test bgp plugin | grep FAIL",
-    "git status | grep foo; make ze-rules-index",
+    "git status | grep foo; make ze-rules-index-update",
     "ls | head; go test ./... | grep FAIL",
     # A newline is a statement boundary only when it is NOT a continuation:
     # bash continues a pipeline after a trailing `|` or a backslash.
     "go test ./... 2>&1 |\n  grep -c FAIL",
-    "make ze-verify \\\n  | tail -40",
+    "make ze-precommit-verify \\\n  | tail -40",
     "./bin/ze-test bgp plugin | grep FAIL",
     # The same producer in this session's own directory (mk/session.mk
-    # ZE_BIN_DIR). Relative is what `make ze-path` prints; absolute is what a
+    # ZE_BIN_DIR). Relative is what `make ze-session-binary-path` prints; absolute is what a
     # subagent told to use absolute paths passes.
     "tmp/session/2026-08-10-abc123/bin/ze-test bgp plugin | grep FAIL",
     "/home/u/ze/tmp/session/2026-08-10-abc123/bin/ze-test bgp plugin | grep FAIL",
@@ -68,7 +68,7 @@ BASH_CMDS = [
     # position, so reading ABOUT a check stays allowed.
     "git diff scripts/dev/hook-fixture-check.py | head -60",
     # `|&` is bash shorthand for `2>&1 |`, i.e. a real pipeline.
-    "make ze-verify |& tail -5",
+    "make ze-precommit-verify |& tail -5",
     # A status reader CLAUDE.md tells every session to run before committing: the
     # role-in-filename heuristic would otherwise call it an expensive gate.
     "scripts/dev/verify-status.sh check | tail -1",
@@ -81,14 +81,14 @@ BASH_CMDS = [
     "cp .claude/worktrees/a internal/x",
     "rm internal/foo_test.go",
     "rm tmp/x",
-    "make ze-verify | grep X",
-    "make ze-verify 2>&1 | tee tmp/v.log",
+    "make ze-precommit-verify | grep X",
+    "make ze-precommit-verify 2>&1 | tee tmp/v.log",
     # `timeout`/`nice` carry operands of their own before the real command word.
     # A bare-integer test missed every one of these -- including `timeout 240s`,
     # the exact form ai/rules/git-safety.md tells sessions to use.
-    "timeout 240s make ze-verify | tail -5",
-    "timeout -k 5 30 make ze-verify | tail -5",
-    "nice -n 5 make ze-verify | head -20",
+    "timeout 240s make ze-precommit-verify | tail -5",
+    "timeout -k 5 30 make ze-precommit-verify | tail -5",
+    "nice -n 5 make ze-precommit-verify | head -20",
     # ... and the launcher must still resolve to the REAL command word: a cheap
     # command behind the same operands stays allowed.
     "timeout 240s ls | head -5",
@@ -142,23 +142,23 @@ BASH_CMDS = [
     "echo probe > sub/tmp/notes.txt",
     'make ze-unit-test-changed > "$dir/unit.log" 2>&1',
     "go test ./... 2>&1 | tee tmp/session/2026-08-10-abc123/t.log",
-    "make ze-doc-test > tmp/verify/out.log 2>&1",
-    "make ze-doc-test > tmp/ze-verify.log 2>&1",
-    "make ze-doc-test > tmp/.ze-verify-duration.txt 2>&1",
-    "make ze-doc-test > tmp/commit-abc123.log 2>&1",
-    "make ze-doc-test > tmp/delete-abc123.sh 2>&1",
-    "make ze-doc-test > tmp/mutation-survivors.md 2>&1",
-    "make ze-doc-test > tmp/test-timings.json 2>&1",
+    "make ze-doc-verify > tmp/verify/out.log 2>&1",
+    "make ze-doc-verify > tmp/ze-verify.log 2>&1",
+    "make ze-doc-verify > tmp/.ze-verify-duration.txt 2>&1",
+    "make ze-doc-verify > tmp/commit-abc123.log 2>&1",
+    "make ze-doc-verify > tmp/delete-abc123.sh 2>&1",
+    "make ze-doc-verify > tmp/mutation-survivors.md 2>&1",
+    "make ze-doc-verify > tmp/test-timings.json 2>&1",
     # A redirect quoted as a SEARCH argument is text, so the ban stays auditable
     # from Bash. The unquoted redirect above it is the discriminator: `grep` in
     # command position exempts nothing on its own.
     "grep -rn '> tmp/out.log' ai/rules",
-    'bash -c "make ze-doc-test > tmp/out.log"',
+    'bash -c "make ze-doc-verify > tmp/out.log"',
     # A heredoc body a non-shell READS is data: writing a document that quotes
     # the banned shape is how this rule gets explained. A shell RUNS what it is
     # fed, and a redirect outside the body is a redirect.
     "cat >> tmp/session/x/state.md <<'EOF'\n  -- never write > tmp/out.log\nEOF",
-    "bash <<'EOF'\nmake ze-doc-test > tmp/out.log\nEOF",
+    "bash <<'EOF'\nmake ze-doc-verify > tmp/out.log\nEOF",
     "cat > tmp/out.log <<'EOF'\nhello\nEOF",
 ]
 
@@ -626,10 +626,10 @@ BASH_GOLDEN = {
     "bin/ze-test bgp plugin | grep FAIL": 2,
     # Each STATEMENT is judged on its own: a cheap pipeline beside an expensive
     # command is fine, the expensive command's own lossy pipe is not.
-    "git status | grep foo; make ze-rules-index": 0,
+    "git status | grep foo; make ze-rules-index-update": 0,
     "ls | head; go test ./... | grep FAIL": 2,
     "go test ./... 2>&1 |\n  grep -c FAIL": 2,
-    "make ze-verify \\\n  | tail -40": 2,
+    "make ze-precommit-verify \\\n  | tail -40": 2,
     "./bin/ze-test bgp plugin | grep FAIL": 2,
     # AC-11: the session's own binaries are the same producer as bin/ze-test and
     # are blocked identically, relative or absolute. The date is load-bearing --
@@ -640,16 +640,16 @@ BASH_GOLDEN = {
     "python3 scripts/dev/hook-parity-check.py | tail -25": 2,
     "python3 scripts/dev/spec-session.sh wip | head -5": 0,
     "git diff scripts/dev/hook-fixture-check.py | head -60": 0,
-    "make ze-verify |& tail -5": 2,
+    "make ze-precommit-verify |& tail -5": 2,
     "scripts/dev/verify-status.sh check | tail -1": 0,
     "ls -la": 0,
-    "make ze-verify 2>&1 | tee tmp/v.log": 2,
-    "make ze-verify | grep X": 2,
+    "make ze-precommit-verify 2>&1 | tee tmp/v.log": 2,
+    "make ze-precommit-verify | grep X": 2,
     # A launcher's own operands (a suffixed duration, a flag with an argument)
     # sit in front of the command word; the producer behind them is still `make`.
-    "timeout 240s make ze-verify | tail -5": 2,
-    "timeout -k 5 30 make ze-verify | tail -5": 2,
-    "nice -n 5 make ze-verify | head -20": 2,
+    "timeout 240s make ze-precommit-verify | tail -5": 2,
+    "timeout -k 5 30 make ze-precommit-verify | tail -5": 2,
+    "nice -n 5 make ze-precommit-verify | head -20": 2,
     # Same launcher shape, cheap producer: nothing to block.
     "timeout 240s ls | head -5": 0,
     "rm internal/foo_test.go": 2,
@@ -691,22 +691,22 @@ BASH_GOLDEN = {
     "echo probe > sub/tmp/notes.txt": 0,
     'make ze-unit-test-changed > "$dir/unit.log" 2>&1': 0,
     "go test ./... 2>&1 | tee tmp/session/2026-08-10-abc123/t.log": 0,
-    "make ze-doc-test > tmp/verify/out.log 2>&1": 0,
-    "make ze-doc-test > tmp/ze-verify.log 2>&1": 0,
-    "make ze-doc-test > tmp/.ze-verify-duration.txt 2>&1": 0,
-    "make ze-doc-test > tmp/commit-abc123.log 2>&1": 0,
-    "make ze-doc-test > tmp/delete-abc123.sh 2>&1": 0,
-    "make ze-doc-test > tmp/mutation-survivors.md 2>&1": 0,
-    "make ze-doc-test > tmp/test-timings.json 2>&1": 0,
+    "make ze-doc-verify > tmp/verify/out.log 2>&1": 0,
+    "make ze-doc-verify > tmp/ze-verify.log 2>&1": 0,
+    "make ze-doc-verify > tmp/.ze-verify-duration.txt 2>&1": 0,
+    "make ze-doc-verify > tmp/commit-abc123.log 2>&1": 0,
+    "make ze-doc-verify > tmp/delete-abc123.sh 2>&1": 0,
+    "make ze-doc-verify > tmp/mutation-survivors.md 2>&1": 0,
+    "make ze-doc-verify > tmp/test-timings.json 2>&1": 0,
     # Auditability, and its discriminator: a QUOTED redirect opening a search
     # command is text; the unquoted `> tmp/notes.txt` above still blocks, and
     # quoting a real command to run-shape does not buy an escape.
     "grep -rn '> tmp/out.log' ai/rules": 0,
-    'bash -c "make ze-doc-test > tmp/out.log"': 2,
+    'bash -c "make ze-doc-verify > tmp/out.log"': 2,
     # Heredoc: data for a non-shell reader, a script for a shell, and the
     # redirect that opens the heredoc is judged on its own.
     "cat >> tmp/session/x/state.md <<'EOF'\n  -- never write > tmp/out.log\nEOF": 0,
-    "bash <<'EOF'\nmake ze-doc-test > tmp/out.log\nEOF": 2,
+    "bash <<'EOF'\nmake ze-doc-verify > tmp/out.log\nEOF": 2,
     "cat > tmp/out.log <<'EOF'\nhello\nEOF": 2,
 }
 WE_GOLDEN = {

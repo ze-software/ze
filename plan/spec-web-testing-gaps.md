@@ -73,7 +73,7 @@ every test-only breakage invisible to the one check that reads what git holds.
 ## Data Flow (MANDATORY)
 
 ### Entry Point
-- `make generate` and `make ze-verify`, for the checks that would carry these invariants.
+- `make generate` and `make ze-precommit-verify`, for the checks that would carry these invariants.
 
 ### Transformation Path
 1. To be filled by the implementing session.
@@ -121,7 +121,7 @@ every test-only breakage invisible to the one check that reads what git holds.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `make ze-verify` | → | the check that closes G-1 | to be named by the implementing session |
+| `make ze-precommit-verify` | → | the check that closes G-1 | to be named by the implementing session |
 
 ## Acceptance Criteria
 
@@ -240,7 +240,7 @@ every test-only breakage invisible to the one check that reads what git holds.
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding

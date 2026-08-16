@@ -4,7 +4,7 @@ The PXE installer boots an operator-supplied Linux kernel alongside the pure-Go
 installer initrd (a single static `cmd/ze-installer` binary, built by
 `ze appliance initrd`; see `docs/guide/ze-install.md`). `ze` ships no
 installer kernel, because the right kernel is site-specific. This directory
-builds one suitable for the QEMU end-to-end test (`make ze-install-qemu-test`,
+builds one suitable for the QEMU end-to-end test (`make ze-qemu-install-test`,
 `test/install/qemu-full.ci`) and for real hardware PXE/ISO deployment.
 
 ## Why a purpose-built kernel
@@ -97,7 +97,7 @@ python3 ../kernel-builder/build.py --src-dir /path/to/tools/installer-kernel --o
 ## Use with the QEMU install test
 
 ```sh
-ZE_INSTALL_KERNEL=$(pwd)/build/kernel/Image make ze-install-qemu-test
+ZE_INSTALL_KERNEL=$(pwd)/build/kernel/Image make ze-qemu-install-test
 ```
 
 Without `ZE_INSTALL_KERNEL` the test self-skips: there is no safe default kernel.

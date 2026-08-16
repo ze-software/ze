@@ -716,10 +716,10 @@ def main() -> int:
         return 2
 
     # The flag being GIVEN selects the set, never the truthiness of the list it
-    # built. `make ze-validate-tree` passes `--changed-file ''` to declare an
+    # built. `make ze-repository-tree-check` passes `--changed-file ''` to declare an
     # empty set, and an empty list is falsy: reading it as "no flag" would send
     # that target back to git diff and put both changed-file checks inside
-    # `make ze-verify`, where they judge other sessions' half-written files.
+    # `make ze-precommit-verify`, where they judge other sessions' half-written files.
     if args.changed_files is None:
         changed = changed_files(root)
     else:
@@ -727,19 +727,19 @@ def main() -> int:
     findings = run_checks(root, changed)
 
     if not findings:
-        print(f"{GREEN}ze-validate: all checks passed{RESET}")
+        print(f"{GREEN}ze-repository-check: all checks passed{RESET}")
         return 0
 
     issues = [f for f in findings if f.severity == "ISSUE"]
     warns = [f for f in findings if f.severity == "WARN"]
 
     if issues:
-        print(f"{RED}ze-validate: {len(issues)} issue(s) found{RESET}")
+        print(f"{RED}ze-repository-check: {len(issues)} issue(s) found{RESET}")
         for f in issues:
             print(f"  {RED}{f}{RESET}")
 
     if warns:
-        print(f"{YELLOW}ze-validate: {len(warns)} warning(s){RESET}")
+        print(f"{YELLOW}ze-repository-check: {len(warns)} warning(s){RESET}")
         for f in warns:
             print(f"  {YELLOW}{f}{RESET}")
 

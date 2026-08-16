@@ -515,16 +515,16 @@ inside a `terminator=` block):
   with a reason (a bare annotation is rejected).
 - **Five RFC make targets, and each clears a different red.**
   - `make ze-rfc-check` gates coverage and validates the audit records.
-  - `make ze-rfc-index` renders the ledger: one file per RFC under `rfc/requirements/`,
+  - `make ze-rfc-index-update` renders the ledger: one file per RFC under `rfc/requirements/`,
     and the index over them (`ai/RFC-REQUIREMENTS.md`).
-  - `make ze-rfc-extract STEM=<stem>` writes an extraction skeleton.
+  - `make ze-rfc-extraction-create STEM=<stem>` writes an extraction skeleton.
   - `make ze-rfc-extraction-status` prints the sign-off counts.
   - `make ze-rfc-reseal` re-stamps an audit verdict a mechanical edit staled.
 
   For an enrolled RFC (`rfc/enrolled.txt`) the gate fails unless every MUST has its
   pair or a reasoned annotation. Writing a summary does NOT enroll an RFC.
   Enrollment is a separate, deliberate step taken once the tests exist.
-  <!-- source: Makefile — ze-rfc-check, ze-rfc-index, ze-rfc-extract, ze-rfc-extraction-status, ze-rfc-reseal -->
+  <!-- source: Makefile — ze-rfc-check, ze-rfc-index-update, ze-rfc-extraction-create, ze-rfc-extraction-status, ze-rfc-reseal -->
 - **Enrol it, or declare why not.** Every summary under `rfc/short/` is in
   `rfc/enrolled.txt` or in `rfc/not-enrolled.txt`. One in neither reds the gate.
   Un-enrolment used to be the one state that carried no information. So "the RFC
@@ -562,7 +562,7 @@ inside a `terminator=` block):
 - **A `SHIFTED` verdict is not your problem to re-read.** When the gate says a
   verdict is SHIFTED, the tagged unit is byte-identical and only the file around it
   moved: a line shift, a sibling test, or a rewritten import. Run
-  `make ze-rfc-reseal` then `make ze-rfc-index`. It is the only command that writes
+  `make ze-rfc-reseal` then `make ze-rfc-index-update`. It is the only command that writes
   `rfc/audit/`, and that is deliberate. A check that also wrote cannot be trusted
   to report. And a regen target that wrote evidence would re-stamp hand-authored
   judgements during unrelated work.
@@ -608,7 +608,7 @@ Full rules: `ai/skills/ze-rfc.md`; audit method: `ai/skills/ze-rfc-audit.md`.
 [ ] Add Ze implementation notes section
 [ ] Cross-reference related RFCs
 [ ] Every MUST-level line has a stable id (see 9.7); disclose any {gap} in docs/features/rfc-status.md
-[ ] Extraction sign-off recorded: make ze-rfc-extract STEM=rfcNNNN, then classify
+[ ] Extraction sign-off recorded: make ze-rfc-extraction-create STEM=rfcNNNN, then classify
     every derived site and section in rfc/extraction/rfcNNNN.json (see 10.4)
 ```
 
@@ -626,7 +626,7 @@ in it bounds what the summary MISSED, and a green `make ze-rfc-check` is bounded
 by what was extracted. Record the walk in an artifact the gate re-checks:
 
 ```
-make ze-rfc-extract STEM=rfcNNNN     # writes an UNCLASSIFIED skeleton
+make ze-rfc-extraction-create STEM=rfcNNNN     # writes an UNCLASSIFIED skeleton
                                       # classify every site and section by hand
 make ze-rfc-check                     # re-derives the inventory and judges it
 ```
@@ -663,7 +663,7 @@ options and exits 2 before the recipe runs. The target always emits JSON.
 Before marking implementation complete:
 
 ```
-[ ] All tests pass: make ze-test (timeout 300s)
+[ ] All tests pass: make ze-standard-test (timeout 300s)
 [ ] All linting passes: make ze-lint (zero issues)
 [ ] All functional tests pass: make ze-functional-test
 [ ] RFC MUST tests tagged both polarities, make ze-rfc-check passes (see 9.7)

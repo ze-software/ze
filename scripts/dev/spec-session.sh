@@ -12,7 +12,7 @@
 # this helper's guarantee inverted -- `claim` OVERWROTE whatever spec another
 # session had claimed (observed 2026-07-16: two sessions, one marker, the second
 # clobbered the first). session-id.sh strategy 1 now reads the exported
-# $CLAUDE_CODE_SESSION_ID first; `make ze-hook-test` locks writer/reader parity.
+# $CLAUDE_CODE_SESSION_ID first; `make ze-unit-hook-test` locks writer/reader parity.
 #
 # The session id is derived the same way the hooks derive it (state-file.sh ->
 # session-id.sh), so a claim written here is read back identically by

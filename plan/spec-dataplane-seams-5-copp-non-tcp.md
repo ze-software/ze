@@ -282,7 +282,7 @@ and saying so in the docs.
 ### Deliverables Checklist
 | Deliverable | Verification method |
 |-------------|---------------------|
-| BGP behavior unchanged | `make ze-test-pkg PKG=./internal/plugins/copp` and the three existing `.ci` tests |
+| BGP behavior unchanged | `make ze-unit-pkg-test PKG=./internal/plugins/copp` and the three existing `.ci` tests |
 | No protocol silently unpoliced | Config validation rejects what the mechanism cannot see |
 | Withdrawal complete | Remove the plugin and check no ze-owned table remains, in any family |
 
@@ -320,7 +320,7 @@ and saying so in the docs.
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding

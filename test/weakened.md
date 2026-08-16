@@ -12,7 +12,7 @@ names, and refuses a commit whose weakenings this file does not cover.
 Both gates call one implementation, `scripts/dev/check_weakened_tests.py`, so
 neither can disagree with the other about what a diff weakens or which row
 covers it. `make ze-weakened-check` runs that checker over this file alone. It is
-a stage of `ze-verify` in both modes, so a table this parser cannot read goes red
+a stage of `ze-precommit-verify` in both modes, so a table this parser cannot read goes red
 before any commit needs it.
 
 A commit that weakens nothing carries the table with no rows.

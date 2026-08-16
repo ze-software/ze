@@ -5,10 +5,10 @@ stage:
 ---
 **Both targets boot ze's own runtime kernel, never the stock Alpine one.** Each
 passes `--kernel tmp/kernel/vmlinuz` and refuses to start
-without it, so `make ze-kernel-vmlinuz KERNEL_ARCH=<amd64|arm64>` is a
+without it, so `make ze-kernel-vmlinuz-stage KERNEL_ARCH=<amd64|arm64>` is a
 precondition of each. That command costs a copy on a cache hit and only builds
-on a miss. `make ze-kernel` also satisfies it and additionally assembles the
-gokrazy kernel package, which needs the module cache `make ze-gokrazy-deps`
+on a miss. `make ze-kernel-build` also satisfies it and additionally assembles the
+gokrazy kernel package, which needs the module cache `make ze-gokrazy-deps-download`
 downloads and a VM boot never reads.
 
 **A caller that runs one of these targets MUST supply the kernel itself.** The
@@ -20,7 +20,7 @@ that same job stages a kernel.
 
 **The guard compares, it does not merely check existence.** `GOKRAZY_ARCH`
 defaults to `amd64` on every host while `QEMU_GOARCH` follows `uname`, so a bare
-`make ze-kernel` on an Apple Silicon machine stages an amd64 vmlinuz that a
+`make ze-kernel-build` on an Apple Silicon machine stages an amd64 vmlinuz that a
 `test -f` accepts and QEMU then fails to boot, with no line naming the
 architecture. `ze-qemu-kernel-guard` (`mk/test-integration.mk`) compares the
 staged kernel against the architecture-keyed durable cache entry instead, which
@@ -29,7 +29,7 @@ mismatched kernel is an error exit, never a silent fall back to stock.
 
 **All six kernel-consuming targets use that one guard**, the two above plus
 `ze-qemu-pppoe-test`, `ze-qemu-l2tp-ppp-test`, `ze-qemu-pppoe-accel-test` and
-`ze-qemu-traffic-usage-test`. **A target that uses it MUST declare `: ze-host`**,
+`ze-qemu-traffic-usage-test`. **A target that uses it MUST declare `: ze-host-build`**,
 because the guard's first command execs that binary; without the prerequisite it
 still denies, but it names the wrong cause. `TestQemuTargetsGuardTheStagedKernel`
 (`scripts/evidence/qemu_kernel_wiring_test.go`) reads the guard's users out of the

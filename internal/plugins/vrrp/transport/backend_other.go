@@ -3,7 +3,7 @@
 // Design: docs/architecture/vrrp/vrrp-first-hop-redundancy.md -- non-Linux backend stub (ospf backend_other.go model)
 //
 // VRRP's raw proto-112 sockets, AF_PACKET GARP, and raw ICMPv6 NA senders are
-// Linux-only. Off Linux the backend returns a typed error so `make ze-verify`
+// Linux-only. Off Linux the backend returns a typed error so `make ze-precommit-verify`
 // (darwin) still builds and config validation keeps working; the pure frame
 // builders (garp.go / na.go) remain testable here.
 

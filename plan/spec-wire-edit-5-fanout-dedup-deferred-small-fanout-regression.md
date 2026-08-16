@@ -124,7 +124,7 @@ or a group-count signal the forward loop already has.
 
 ### Goal Gates (MUST pass)
 - [ ] Every AC demonstrated
-- [ ] `make ze-verify` passes
+- [ ] `make ze-precommit-verify` passes
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 

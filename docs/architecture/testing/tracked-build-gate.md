@@ -33,7 +33,7 @@ on a full pipe.
 ## Flavors and why each names a file
 
 Six build-tag flavors are compiled, at about 45s warm against a 25-minute
-`ze-verify`. `ze_chaos`, `ze_perf`, `ze_analyze` and `ze_core ze_ssh` are
+`ze-precommit-verify`. `ze_chaos`, `ze_perf`, `ze_analyze` and `ze_core ze_ssh` are
 dropped as developer tools or near-duplicates. Each flavor builds `./...`
 rather than its own main package: it costs 1.8s more and type-checks every
 package the tag set selects, not only the ones a binary imports.

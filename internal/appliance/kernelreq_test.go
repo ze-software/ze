@@ -169,7 +169,7 @@ func TestRuntimeFloorRequiresESP(t *testing.T) {
 // gokrazy/kernel/runtime.config, so raising the floor cannot break the appliance
 // build.
 // PREVENTS: the exact failure R-6 predicts. The floor and the fragment are two
-// files, and a floor entry with no fragment line fails `make ze-kernel` long after
+// files, and a floor entry with no fragment line fails `make ze-kernel-build` long after
 // the commit that added it.
 func TestRuntimeFragmentSetsFloorSymbols(t *testing.T) {
 	data, err := os.ReadFile(filepath.Join("..", "..", "gokrazy", "kernel", "runtime.config"))

@@ -383,7 +383,7 @@ def main():
                     "Python module to bridge processes to ze over SSH, but it is "
                     "not available in this Python environment.\n"
                     "  paramiko is provided by uv; run the exabgp tests via their\n"
-                    "  make target:      make ze-exabgp-test\n"
+                    "  make target:      make ze-functional-exabgp-test\n"
                     "  or a single test: uv run --with paramiko bin/ze-test exabgp <N>",
                     file=sys.stderr,
                 )

@@ -234,7 +234,7 @@ wireguard startup.conf toggle landed in the SAME files):
    - Tests: `TestCPUValidateOverlap`, `TestCPUValidateInsufficientCores`, `TestCPUValidateUnknownCore`
 4. **Phase: Boot isolation** — request isolcpus for the chosen cores (appliance config).
 5. **Functional tests**
-6. **Full verification** → `make ze-verify`
+6. **Full verification** → `make ze-precommit-verify`
 7. **Complete spec** → audit, learned summary, two-commit closure.
 
 ### Critical Review Checklist (/implement stage 6)
@@ -312,7 +312,7 @@ wireguard startup.conf toggle landed in the SAME files):
 - [ ] End-to-End User Stories: every story has a working path and passing test
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `make ze-test` passes
+- [ ] `make ze-standard-test` passes
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Documentation Update Checklist answered
 

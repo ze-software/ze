@@ -76,7 +76,7 @@ on macOS or any host without PPPoE kernel support.
 ### Docker (host kernel)
 
 ```
-make ze-deployment-pppoe-accel-docker-test               # all scenarios
+make ze-deployment-docker-pppoe-accel-test               # all scenarios
 python3 test/pppoe-interop/run.py 01-pppoe-chap-ipv4     # single scenario
 VERBOSE=1 python3 test/pppoe-interop/run.py              # debug output
 ```
@@ -87,7 +87,7 @@ Environment variables: `VERBOSE`, `NO_BUILD`, `SESSION_TIMEOUT` (default 90s),
 ### QEMU (macOS-friendly, no Docker)
 
 ```
-make ze-kernel GOKRAZY_ARCH=arm64      # once: build runtime kernel with CONFIG_PPPOE
+make ze-kernel-build GOKRAZY_ARCH=arm64      # once: build runtime kernel with CONFIG_PPPOE
 make ze-qemu-pppoe-accel-test
 ```
 
@@ -114,7 +114,7 @@ client stops.
 |--------|---------------|---------|-----------------------|
 | `test/pppoe/pppoe-basic.ci` | Server-side discovery (PADI/PADO/PADR/PADS) in a netns | Server (AC) | No (raw socket only) |
 | `test/pppoe/pppoe-vlan.ci` | Server-side discovery over VLAN | Server (AC) | No |
-| `make ze-deployment-pppoe-accel-docker-test` | Full client path vs a real AC, Docker (this) | Client | Yes (host kernel) |
+| `make ze-deployment-docker-pppoe-accel-test` | Full client path vs a real AC, Docker (this) | Client | Yes (host kernel) |
 | `make ze-qemu-pppoe-accel-test` | Same proof in QEMU netns (`effective-pppoe-accel.py`) | Client | Yes (runtime kernel) |
 
 The Docker lab and the QEMU runner prove the same thing with the same peer

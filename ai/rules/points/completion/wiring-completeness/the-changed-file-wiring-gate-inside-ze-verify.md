@@ -3,5 +3,5 @@ kind: note
 level:
 stage:
 ---
-`make ze-verify` runs `make ze-verify-wiring-docs`. That changed-file
+`make ze-precommit-verify` runs `make ze-wiring-docs-check`. That changed-file
 gate is blocking and checks:

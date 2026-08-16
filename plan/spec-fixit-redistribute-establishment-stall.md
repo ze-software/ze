@@ -568,7 +568,7 @@ three `.ci` files are byte-identical to HEAD (experiments were reverted from
 
 Reproduced at HEAD via a pristine `git archive` tree (the working tree does not build:
 `internal/component/command/pipe.go sessionFormat` undefined, another session's WIP).
-Runner `bin/ze-test bgp plugin <name>` (`make ze-plugin-test`).
+Runner `bin/ze-test bgp plugin <name>` (`make ze-functional-plugin-test`).
 
 -> Decision: **NEITHER expectation was edited and both stay red.** The AS_PATH each test
 asserts is byte-exact CORRECT. Neither red is a remove-private-as bug.
@@ -1053,5 +1053,5 @@ ze-peer does with a peer block containing only `expect=json`
 - [ ] Tests written (stall regression test + converted functional tests)
 - [ ] Tests FAIL before the fix (stall reproduced, `connections-established: 0`)
 - [ ] Tests PASS after the fix
-- [ ] `make ze-test` green
+- [ ] `make ze-standard-test` green
 - [ ] Review Gate: `/ze-review` clean (0 BLOCKER, 0 ISSUE)

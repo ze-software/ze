@@ -183,16 +183,16 @@ func vendorVersionedFixture(t *testing.T, drifted map[string]string) string {
 	return root
 }
 
-// verifyStages returns the stage list `make ze-verify` runs.
+// verifyStages returns the stage list `make ze-precommit-verify` runs.
 //
 // The list lives in stagesForMode (scripts/status/verify_run.go), not in the
 // Makefile, so it is read through the runner's own --list entry point.
 func verifyStages(t *testing.T) string {
 	t.Helper()
 
-	out, err := runVendorCommand(t, vendorRepoRoot(t), "go", "run", "./scripts/status/verify_run.go", "--list", "ze-verify")
+	out, err := runVendorCommand(t, vendorRepoRoot(t), "go", "run", "./scripts/status/verify_run.go", "--list", "ze-precommit-verify")
 	if err != nil {
-		t.Fatalf("list the ze-verify stages: %v\n%s", err, out)
+		t.Fatalf("list the ze-precommit-verify stages: %v\n%s", err, out)
 	}
 
 	return out
@@ -224,7 +224,7 @@ func TestDriftCheckExitsNonZeroOnMismatch(t *testing.T) {
 // with --updates DOES reach for the registry and says so.
 // PREVENTS: a commit gate whose verdict depends on npm being up and reachable.
 // A gate that cannot run offline turns every airgapped checkout, every CI
-// sandbox with no egress, and every train journey into a red `make ze-verify`
+// sandbox with no egress, and every train journey into a red `make ze-precommit-verify`
 // that no edit in the tree explains.
 func TestDriftCheckNeedsNoNetwork(t *testing.T) {
 	// Lines the registry query prints. checkVersion emits one per package,
@@ -269,13 +269,13 @@ func TestDriftCheckNeedsNoNetwork(t *testing.T) {
 	})
 }
 
-// VALIDATES: the drift gate is a stage of `make ze-verify`, so a consumer copy
+// VALIDATES: the drift gate is a stage of `make ze-precommit-verify`, so a consumer copy
 // that stops matching its source is caught before a commit.
 // PREVENTS: a gate that fails closed but that nothing runs. Drift then reaches
 // a release, because the only command that would have reported it is one an
 // operator has to remember to type.
 func TestZeVerifyRunsDriftGate(t *testing.T) {
-	const gate = "ze-check-vendor-web"
+	const gate = "ze-vendor-web-check"
 
 	stages := verifyStages(t)
 
@@ -285,7 +285,7 @@ func TestZeVerifyRunsDriftGate(t *testing.T) {
 		}
 	}
 
-	t.Fatalf("`make ze-verify` runs no %s stage; its stages are:\n%s", gate, stages)
+	t.Fatalf("`make ze-precommit-verify` runs no %s stage; its stages are:\n%s", gate, stages)
 }
 
 // htmx2CoreVersion is the version literal htmx 2 writes into its minified core.

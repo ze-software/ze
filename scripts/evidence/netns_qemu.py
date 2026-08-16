@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""In-VM driver for `make ze-netns-qemu-test` (Fix B, spec-netlink-ci-harness).
+"""In-VM driver for `make ze-qemu-netns-test` (Fix B, spec-netlink-ci-harness).
 
 Runs INSIDE the QEMU Alpine VM as root, cwd=/workspace. Exercises the per-test
 network-namespace launch mode end-to-end on a real Linux kernel: it setcaps the
@@ -171,7 +171,7 @@ SUITE_REGISTRY = {
     "pppoe": PPPOE_IDS,
 }
 
-# What `make ze-netns-qemu-test` runs on the stock Alpine kernel. A caller that
+# What `make ze-qemu-netns-test` runs on the stock Alpine kernel. A caller that
 # needs a different set names it in ZE_NETNS_QEMU_SUITES, which is how a suite
 # with a kernel requirement of its own gets its own target rather than becoming
 # everybody's precondition.

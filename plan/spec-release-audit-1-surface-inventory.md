@@ -86,14 +86,14 @@ Each finding should include:
 - [ ] `mk/test-functional.mk` - gated functional test suites
   -> Decision: `ze-functional-test` gates 12 suites, while extra suites remain release evidence only
 - [ ] `mk/test-release.mk` - full release evidence matrix
-  -> Decision: release inventory must include evidence categories from `ze-release-evidence`
+  -> Decision: release inventory must include evidence categories from `ze-release-evidence-verify`
 
 **Key insights:**
 - Ze has several registration layers, but no single source covers all user-visible surfaces.
 - Root CLI dispatch currently combines YANG verbs, a static switch, file/config startup, and registry fallback.
 - Online command wiring has two sources that can drift: YANG command/API schemas and `pluginserver.RegisterRPCs` handlers.
 - Web and LG routes have no central registry, so audit inventory must inspect route wiring.
-- The release evidence matrix already exists in `mk/test-release.mk` in this worktree, while `ze-verify` remains the fast gate.
+- The release evidence matrix already exists in `mk/test-release.mk` in this worktree, while `ze-precommit-verify` remains the fast gate.
 
 ## Current Behavior (MANDATORY)
 
@@ -106,10 +106,10 @@ Each finding should include:
 - [ ] `internal/component/ike/engine/register.go` - registers plugin name `ike`; current aggregate test did not fail on `ike`, likely because another imported command path pulls it in indirectly
 - [ ] `internal/component/plugin/server/rpc_register.go` - `RegisterRPCs` appends online command handlers for later wiring
 - [ ] `mk/test-functional.mk` - `ze-functional-test` runs encode, plugin, parse, decode, reload, ui, editor, managed, l2tp, firewall, policy, web
-- [ ] `mk/test-release.mk` - `ze-release-evidence` composes verify, chaos, fuzz, interop, ipsec-interop, l2tp-interop, functional-extra, perf, qemu, vpp-deployment, live
+- [ ] `mk/test-release.mk` - `ze-release-evidence-verify` composes verify, chaos, fuzz, interop, ipsec-interop, l2tp-interop, functional-extra, perf, qemu, vpp-deployment, live
 
 **Behavior to preserve:**
-- `make ze-verify` remains fast and stays distinct from heavyweight release evidence.
+- `make ze-precommit-verify` remains fast and stays distinct from heavyweight release evidence.
 - `cmdregistry` remains the registry for root metadata and local/offline commands.
 - Generated `internal/component/plugin/all/all.go` remains the aggregate import point for production registrations.
 - YANG remains the source of truth for online command tree shape.
@@ -177,9 +177,9 @@ Inventory data enters from code and tests:
 
 | Surface | Source | Evidence | Owner Audit | Inventory Status |
 |---------|--------|----------|-------------|------------------|
-| `ze` | `cmd/ze/` | `make ze-verify`, `test/ui`, `test/plugin`, `test/web`, `test/install` | config/CLI, web/API, plugins | Inventory started |
+| `ze` | `cmd/ze/` | `make ze-precommit-verify`, `test/ui`, `test/plugin`, `test/web`, `test/install` | config/CLI, web/API, plugins | Inventory started |
 | `ze-test` | `cmd/ze-test/` | all functional and evidence targets | surface inventory, test evidence | Inventory started |
-| `ze-perf` | `cmd/ze-perf/` | `make ze-perf-gate`, `test/perf` | resilience/security, release evidence | Inventory started |
+| `ze-perf` | `cmd/ze-perf/` | `make ze-perf-evidence-update-check`, `test/perf` | resilience/security, release evidence | Inventory started |
 | `ze-analyse` | `cmd/ze-analyse/` | unit/tests to be verified | docs/onboarding or protocol | Needs child audit row |
 | `ze-chaos` | `cmd/ze-chaos/` | `make ze-chaos-test`, `test/chaos-web` | resilience/security | Inventory started |
 
@@ -230,7 +230,7 @@ Inventory data enters from code and tests:
 
 | Surface Group | Source | Contents | Owner Audit | Inventory Status |
 |---------------|--------|----------|-------------|------------------|
-| Fast gate | `make ze-verify` | lint, vet evidence, cached unit, race-on-changed, functional, ExaBGP | all | Needs current run before release decision |
+| Fast gate | `make ze-precommit-verify` | lint, vet evidence, cached unit, race-on-changed, functional, ExaBGP | all | Needs current run before release decision |
 | Functional gate | `mk/test-functional.mk` | encode, plugin, parse, decode, reload, ui, editor, managed, l2tp, firewall, policy, web | all | Inventory started |
 | Extra functional | `mk/test-functional.mk`, `mk/test-release.mk` | static, traffic, vpp, l2tp-wire | system-linux, plugins/RIB | Release evidence only |
 | Interop/deployment | `mk/test-integration.mk`, `test/interop`, `test/ipsec-interop`, `test/l2tp-interop` | BGP interop, IPsec interop, L2TP PPP Docker, VPP deployment, QEMU | BGP protocol, system-linux | Release evidence only |
@@ -249,7 +249,7 @@ Inventory data enters from code and tests:
 | RA-RPC-001 | Major | online commands | YANG command/API schemas and RPC registrations | Some CLI/API command methods may appear in schema but lack matching registered handler, or vice versa | Generate diff of YANG `ze:command`/RPC methods vs `RegisterRPCs` wire methods | Every YANG command maps to a registered handler and every handler maps to a YANG path | Research found drift candidates in update, log, metrics, and peer API method names | Future fix should add a generated or test-backed diff between YANG methods and registered RPC methods | `spec-release-audit-3-config-cli.md` |
 | RA-WEB-001 | Major | REST/gRPC/MCP/LG coverage | `internal/component/api`, `internal/component/mcp`, `internal/component/lg` | Network API users may hit untested routes, auth modes, or streaming behavior | Map all routes/RPCs to functional tests | Every public route/RPC has happy-path, auth, and error coverage | Coverage appears concentrated on execute/basic paths, not full route matrix | Future fix should produce a route/RPC coverage matrix and add missing route-level evidence | `spec-release-audit-4-web-lg-api.md` |
 | RA-TEST-001 | Major | test gate inventory | `test/install`, `test/ipsec`, `test/pppoe`, Makefiles | Existing release-relevant tests may not run in any release gate | Compare `test/` dirs and `cmd/ze-test` subcommands with Make targets | Every shipped test suite has a documented runner and release disposition | Research found install tests not in Make gate and possible `ipsec`/`pppoe` runner gaps | Future fix should document or add release disposition for every `test/` directory, including Make/runner coverage | `spec-release-audit-1-surface-inventory.md`, then relevant child audit |
-| RA-DOC-002 | Minor | docs/test evidence | `docs/functional-tests.md`, `mk/test-fuzz.mk`, `mk/test-functional.mk` | Developer/release operator may run stale or incomplete evidence | Compare docs against Make targets | Docs match current gate composition and fuzz target count/time | Research found docs omit `ze-vet-evidence` and stale fuzz details | Future fix should update docs after source-backed verification of current targets | `spec-release-audit-8-docs-onboarding.md` |
+| RA-DOC-002 | Minor | docs/test evidence | `docs/functional-tests.md`, `mk/test-fuzz.mk`, `mk/test-functional.mk` | Developer/release operator may run stale or incomplete evidence | Compare docs against Make targets | Docs match current gate composition and fuzz target count/time | Research found docs omit `ze-evidence-vet` and stale fuzz details | Future fix should update docs after source-backed verification of current targets | `spec-release-audit-8-docs-onboarding.md` |
 
 ## Acceptance Criteria
 
@@ -368,7 +368,7 @@ Despite the template heading, these are audit documentation steps only. They do 
 2. **Phase: Online command inventory** - diff YANG `ze:command` and API RPC methods against `pluginserver.RegisterRPCs` registrations.
 3. **Phase: Plugin and schema inventory** - diff aggregate imports, registry names, expected plugin tests, config roots, and YANG modules.
 4. **Phase: Network route inventory** - enumerate web, LG, REST, gRPC, MCP, SSH routes/listeners and map tests.
-5. **Phase: Evidence inventory** - map every `test/` directory to `ze-test`, Make targets, `ze-verify`, `ze-release-evidence`, or explicit non-release disposition.
+5. **Phase: Evidence inventory** - map every `test/` directory to `ze-test`, Make targets, `ze-precommit-verify`, `ze-release-evidence-verify`, or explicit non-release disposition.
 6. **Phase: Finding triage** - classify findings and route to child audits.
 
 ### Critical Review Checklist
@@ -565,7 +565,7 @@ For this audit spec, "implementation" means audit documentation only. It does no
 
 - [ ] Every surface group has a matrix row with owner audit (AC-1)
 - [ ] Findings include reproduction, owner, and suggested direction (AC-9)
-- [ ] `make ze-test` evidence requested from future fix work where findings demand it
+- [ ] `make ze-standard-test` evidence requested from future fix work where findings demand it
 
 ### TDD (applies to future fix specs routed from findings)
 
@@ -583,6 +583,6 @@ Factual corrections only, re-verified in the current tree after the followup imp
   - Plugin: `exabgp-bridge` (`internal/plugins/exabgp/bridgeplugin/register.go`; snapshot entry `plugins.snapshot:53`), registering YANG module `ze-exabgp-bridge-conf` (`internal/plugins/exabgp/bridgeplugin/yang/ze-exabgp-bridge-conf.yang`).
   - Network surface: `internal/core/dnsserver` listener core with DoT (RFC 7858, `internal/core/dnsserver/secure.go`) and DoH (RFC 8484, `secure.go`) listeners, consumed by as112 and geodns.
   - YANG config surfaces: DoT/DoH containers in `ze-as112-conf.yang` (tls container `:147`, DoT enable `:160`, DoH enable `:197`) and `ze-geodns-conf.yang` (tls container `:232`, DoT enable `:243`, DoH enable `:280`); DNSSEC leaf `dnssec-validation` in `internal/component/config/system/yang/ze-system-conf.yang`.
-  - Verification gates: the live `ze-verify` stage list (`scripts/status/verify_run.go`, consumed at `:104`) gained `ze-port-defaults-check` (`scripts/checks/port_defaults.go`) and `ze-platform-vet` (`Makefile:337-341`) in both branches (`verify_run.go`, `:140-141`), alongside the existing `ze-tier-check`, `ze-iface-resolution-check` (`scripts/checks/iface_resolution.go`), and `ze-plugin-boundary-check` (`scripts/checks/plugin_process_boundary.go`).
+  - Verification gates: the live `ze-precommit-verify` stage list (`scripts/status/verify_run.go`, consumed at `:104`) gained `ze-port-defaults-check` (`scripts/checks/port_defaults.go`) and `ze-platform-vet` (`Makefile:337-341`) in both branches (`verify_run.go`, `:140-141`), alongside the existing `ze-tier-check`, `ze-iface-resolution-check` (`scripts/checks/iface_resolution.go`), and `ze-plugin-boundary-check` (`scripts/checks/plugin_process_boundary.go`).
 - **MCP row superseded** (Network and UI Surfaces): the legacy `internal/component/mcp/handler.go` was deleted; Streamable HTTP is the only transport (`internal/component/mcp/streamable.go` `handlePOST:404`, `handleGET:618`, `handleDELETE:681`). The row's "raw HTTP/OAuth/CORS route coverage" risk should be re-scoped to the streamable endpoints.
 - Housekeeping from this correction pass: the `## TDD Test Plan` heading was renamed to `## 🧪 TDD Test Plan` and the `## Wiring Test` and `## Checklist` sections above were added to satisfy the blocking spec validator; no audit content was changed by those edits.

@@ -18,7 +18,7 @@
 # Render it and compare against the golden files:
 #     make ze-netlab-render-check
 #
-# Run it (needs netlab, containerlab, docker, and `make ze-docker-lab` first):
+# Run it (needs netlab, containerlab, docker, and `make ze-docker-lab-build` first):
 #     netlab up -t contrib/netlab/topology.yml
 
 provider: clab

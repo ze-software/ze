@@ -234,7 +234,7 @@ Existing OSPF/IS-IS redistribution `.ci` scenarios are the regression gate.
 | 3. Wiring phase | Wiring Test table |
 | 4. Implement (TDD) | Implementation Phases below |
 | 5. /ze-review gate | Review Gate |
-| 6. Full verification | `make ze-verify` |
+| 6. Full verification | `make ze-precommit-verify` |
 
 ### Implementation Phases
 
@@ -249,7 +249,7 @@ Existing OSPF/IS-IS redistribution `.ci` scenarios are the regression gate.
    from the `:215` skip; prove dispatch parity.
    - Tests: `TestSkipIDsRemovedDispatchParity`, `TestSelfConsumerSkipLive`, `redistribute-consumer-skip.ci`.
 4. **Functional tests** → `redistribute-consumer-skip.ci`.
-5. **Full verification** → `make ze-verify`.
+5. **Full verification** → `make ze-precommit-verify`.
 6. **Complete spec** → learned summary `plan/learned/NNN-redistribute-orchestrator.md`; two commits.
 
 ### Critical Review Checklist (/implement stage 6)
@@ -351,7 +351,7 @@ Existing OSPF/IS-IS redistribution `.ci` scenarios are the regression gate.
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (0 BLOCKER, 0 ISSUE)
-- [ ] `make ze-test` passes (lint + all ze tests)
+- [ ] `make ze-standard-test` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Documentation Update Checklist answered Yes/No with source evidence
 

@@ -103,7 +103,7 @@ same vacuous-pass shape survives one layer in.
 
 ### Entry Point
 - A `.ci` fixture declares a check-mode `ze-peer` with `option=linger` and a
-  `reject=` directive. `make ze-plugin-test`, or any suite running that fixture,
+  `reject=` directive. `make ze-functional-plugin-test`, or any suite running that fixture,
   is the only entry point.
 
 ### Transformation Path
@@ -214,14 +214,14 @@ published `option=linger` contract. No daemon code.
 4. **Phase: Triage the corpus** -- every `option=linger` fixture
    - Verify: AC-4, AC-5, with a row per red
 5. **Phase: Correct the published contract and the false comment**
-   - Verify: `make ze-doc-test`
+   - Verify: `make ze-doc-verify`
 
 ## Checklist
 
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-5 all demonstrated
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 
 ### TDD

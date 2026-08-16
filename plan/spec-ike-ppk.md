@@ -220,7 +220,7 @@ Add RFC 8784 PPK:
 4. **Phase: Policy** - mandatory/optional resolution incl. NO_PPK_AUTH fallback.
    - Tests: `TestPPKPolicyMandatory`
 5. **Functional + interop test (strongSwan)**
-6. **Full verification** → `make ze-verify`
+6. **Full verification** → `make ze-precommit-verify`
 7. **Complete spec** → audit, learned summary, two-commit closure.
 
 ### Critical Review Checklist (/implement stage 6)
@@ -289,7 +289,7 @@ Add RFC 8784 PPK:
 - [ ] End-to-End User Stories: every story has a working path and passing test
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `make ze-test` passes
+- [ ] `make ze-standard-test` passes
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Documentation Update Checklist answered
 

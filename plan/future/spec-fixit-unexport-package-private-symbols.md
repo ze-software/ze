@@ -20,7 +20,7 @@ effect. Every change is a rename, so no behaviour moves.
 
 ## Task
 
-`make ze-validate` reports 467 findings of the form `exported symbol X has no
+`make ze-repository-check` reports 467 findings of the form `exported symbol X has no
 cross-package non-test caller`. They are true: each names a symbol that is
 exported but reached only from inside its own package. `check_cross_package_wiring`
 in `scripts/dev/validate.py` already suppresses the known false-positive shapes
@@ -76,7 +76,7 @@ That symbol is skipped. No edit, no decision.
 ## Data Flow (MANDATORY)
 
 ### Entry Point
-- `make ze-validate` reports the findings. The worklist is derived from its log.
+- `make ze-repository-check` reports the findings. The worklist is derived from its log.
 
 ### Transformation Path
 1. Parse the log into rows of `file`, `line`, `symbol`.
@@ -127,7 +127,7 @@ That symbol is skipped. No edit, no decision.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `make ze-validate` | → | `validate.py` `check_cross_package_wiring()` | the finding for each renamed symbol is gone from its output |
+| `make ze-repository-check` | → | `validate.py` `check_cross_package_wiring()` | the finding for each renamed symbol is gone from its output |
 
 ## Acceptance Criteria
 
@@ -135,8 +135,8 @@ That symbol is skipped. No edit, no decision.
 |-------|-------------------|-------------------|
 | AC-1 | A symbol on the worklist that `gopls rename` accepts | it is unexported, and its package compiles under every tag set for darwin and linux |
 | AC-2 | A symbol `gopls rename` refuses | it is left exactly as it was, and the refusal is recorded with its reason |
-| AC-3 | After every package is processed | `make ze-validate` reports no `has no cross-package non-test caller` finding except those recorded under AC-2 |
-| AC-4 | Any package touched | `make ze-test-pkg PKG=<pkg>` passes |
+| AC-3 | After every package is processed | `make ze-repository-check` reports no `has no cross-package non-test caller` finding except those recorded under AC-2 |
+| AC-4 | Any package touched | `make ze-unit-pkg-test PKG=<pkg>` passes |
 
 ## 🧪 TDD Test Plan
 
@@ -153,11 +153,11 @@ touch, and paste its result in the per-package commit.
 
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `make ze-plugin-test` | `test/plugin/*.ci` | a plugin still loads, registers and answers its commands after its package is renamed | |
-| `make ze-parse-test` | `test/parse/*.ci` | config still parses when `internal/component/config` symbols are unexported | |
-| `make ze-encode-test` | `test/encode/*.ci` | wire encoding is byte-identical after a BGP package rename | |
-| `make ze-ui-test` | `test/ui/*.ci` | CLI commands still dispatch after a `cmd/` or `internal/component/cli` rename | |
-| `make ze-web-test` | `test/web/*.ci` | web routes still resolve after an `internal/component/web` rename | |
+| `make ze-functional-plugin-test` | `test/plugin/*.ci` | a plugin still loads, registers and answers its commands after its package is renamed | |
+| `make ze-functional-parse-test` | `test/parse/*.ci` | config still parses when `internal/component/config` symbols are unexported | |
+| `make ze-functional-encode-test` | `test/encode/*.ci` | wire encoding is byte-identical after a BGP package rename | |
+| `make ze-functional-ui-test` | `test/ui/*.ci` | CLI commands still dispatch after a `cmd/` or `internal/component/cli` rename | |
+| `make ze-functional-web-test` | `test/web/*.ci` | web routes still resolve after an `internal/component/web` rename | |
 
 ## Files to Modify
 - roughly 300 Go files across `internal/`, `cmd/` and `pkg/`, one symbol per finding
@@ -210,7 +210,7 @@ touch, and paste its result in the per-package commit.
 
 `check_cross_package_wiring()` in `scripts/dev/validate.py` reads only the files
 named by `--changed-file`, which defaults to `changed_files(root)` (the git
-diff). A bare `make ze-validate` on a clean tree therefore reports nothing, and
+diff). A bare `make ze-repository-check` on a clean tree therefore reports nothing, and
 it is not the way to get the worklist. Name every non-test Go file under
 `internal/` and `cmd/` instead. The check shells out one `grep -rlw` per exported
 symbol, which costs about one second per file, so split the list and run the
@@ -279,7 +279,7 @@ for GOOS_V in darwin linux; do
     GOOS=$GOOS_V go vet -tags "$TAGS" ./$PKG/... || echo "FAILED: $GOOS_V / $TAGS"
   done
 done
-make ze-test-pkg PKG=./$PKG
+make ze-unit-pkg-test PKG=./$PKG
 ```
 
 `go vet` compiles, so an undefined name fails here. **The `GOOS=linux` pass is
@@ -313,8 +313,8 @@ file with `--file`. Read `ai/rules/git-safety.md` first. Never run `git add`,
 ### Deliverables Checklist
 | Deliverable | Verification method |
 |-------------|---------------------|
-| The backlog is cleared | `make ze-validate` shows no wiring finding outside the recorded skips |
-| Nothing broke | `make ze-test-pkg` green for every touched package |
+| The backlog is cleared | `make ze-repository-check` shows no wiring finding outside the recorded skips |
+| Nothing broke | `make ze-unit-pkg-test` green for every touched package |
 | The skips are recorded | one row per skipped symbol, with the gopls reason |
 
 ### Security Review Checklist
@@ -381,7 +381,7 @@ it.
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-4 all demonstrated
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled
 - [ ] Critical Review passes (all 6 checks in `ai/rules/quality.md`)
@@ -417,12 +417,12 @@ This section covers buckets 1 to 6 and 8. Bucket 7 is open (Remaining Work).
 | AC-1 | An accepted symbol is unexported and its package compiles in every build view | `go vet ./internal/... ./cmd/...` under GOOS darwin and linux, with `ze_core ze_distro $(ZE_FEATURES)` and `ze_test $(ZE_FEATURES)`: clean apart from the pre-existing `noescape` finding in `internal/core/textbuf/textbuf.go`, which the pre-rename baseline reports identically |
 | AC-2 | A refused symbol is untouched and its reason recorded | 139 refusals recorded in the per-bucket handoffs (`tmp/unexport-handoffs-buckets-1-6-8.md`), each carrying the `gopls` text |
 | AC-3 | No wiring finding remains outside the recorded skips | Per-package `validate.py --changed-file` re-run in every phase. NOT yet true tree-wide: bucket 7's 170 rows stay open |
-| AC-4 | Every touched package passes its tests | `make ze-test-pkg PKG=./<pkg>` green for all 161 processed packages, per phase |
+| AC-4 | Every touched package passes its tests | `make ze-unit-pkg-test PKG=./<pkg>` green for all 161 processed packages, per phase |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
-| `make ze-validate` -> `check_cross_package_wiring()` | none: the check IS the test | Yes. `validate.py --changed-file` re-run per package, and the finding for each renamed symbol is gone |
+| `make ze-repository-check` -> `check_cross_package_wiring()` | none: the check IS the test | Yes. `validate.py --changed-file` re-run per package, and the finding for each renamed symbol is gone |
 
 ### Assumptions Resolved
 | ID | Final Status | Evidence |

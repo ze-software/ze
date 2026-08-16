@@ -5,8 +5,8 @@
 <!-- source: cmd/ze/help_ai.go -- ze help ai output -->
 <!-- source: scripts/inventory/inventory.go -- make ze-inventory -->
 <!-- source: scripts/inventory/commands.go -- make ze-command-list -->
-<!-- source: scripts/docvalid/commands.go -- make ze-validate-commands -->
-<!-- source: scripts/docvalid/doc_drift.go -- make ze-doc-drift -->
+<!-- source: scripts/docvalid/commands.go -- make ze-command-contract-check -->
+<!-- source: scripts/docvalid/doc_drift.go -- make ze-doc-drift-check -->
 
 Ze is self-documenting: every plugin, environment variable, RPC, event type, and CLI command
 is registered at startup and discoverable at runtime. Nothing exists unregistered -- the
@@ -39,8 +39,8 @@ unregistered access (`env.MustRegister()`).
 | `make ze-inventory` | Full project inventory: plugins, YANG modules, RPCs, families, tests, packages |
 | `make ze-inventory-json` | Same as above, machine-readable JSON |
 | `make ze-command-list` | Every CLI command with wire method, help text, read-only flag, source |
-| `make ze-validate-commands` | Cross-check YANG command tree against registered handlers |
-| `make ze-doc-drift` | Detect documentation that no longer matches code |
+| `make ze-command-contract-check` | Cross-check YANG command tree against registered handlers |
+| `make ze-doc-drift-check` | Detect documentation that no longer matches code |
 
 ## Design Principle
 

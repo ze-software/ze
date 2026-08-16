@@ -308,7 +308,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 
 5. **RFC refs** -- Add `// RFC 8669 Section 8` comments above enforcing code
 
-6. **Full verification** -- `make ze-verify`
+6. **Full verification** -- `make ze-precommit-verify`
 
 7. **Complete spec** -- Fill audit tables, write learned summary
 
@@ -492,7 +492,7 @@ MUST document: the EBGP egress suppression condition, the explicit-configuration
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `make ze-test` passes
+- [ ] `make ze-standard-test` passes
 - [ ] Feature code integrated
 - [ ] Integration completeness proven end-to-end
 - [ ] Documentation Update Checklist answered Yes/No with source evidence

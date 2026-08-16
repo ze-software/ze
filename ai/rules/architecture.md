@@ -14,7 +14,7 @@ See also, for the pool/buffer/lazy principles: `ai/rules/performance.md`, `ai/ru
 **Before any spec: READ source, document current behavior, preserve by default.**
 **Before modifying a file, check what else needs to change. Changes to certain file types have predictable ripple effects.**
 **Trace full data flow before writing or reviewing specs.**
-**Where a Go package lives under `internal/` is decided by dependency direction, not by size or age. Three tiers, two mechanical axes. New code MUST land in the correct tier; an engine in the wrong tier fails `make ze-verify`.**
+**Where a Go package lives under `internal/` is decided by dependency direction, not by size or age. Three tiers, two mechanical axes. New code MUST land in the correct tier; an engine in the wrong tier fails `make ze-precommit-verify`.**
 **Persist runtime state through the managed zefs store, never as a loose file.**
 **Ze differs from typical Go projects in specific, load-bearing ways. An AI trained on standard Go patterns will default to the wrong approach unless it reads the divergence tables below. Each entry names the standard approach, the Ze approach, the rule that governs it, and a one-line reason.**
 
@@ -251,7 +251,7 @@ The gate enforces engine placement mechanically and enforces ambiguous non-engin
 
 The "wired as a plugin" signal is mechanical: the advisory reads composition roots (generated `all.go`, gated `all_<tag>.go`, `cmd/ze` dispatch companions, and `cmd/ze/setup_features_*.go`) to tell registered packages from genuine core candidates. It catches every shape: `registry.Register`, `RegisterRPCs`, `RegisterBackend`, doctor checks, `*-cmd` verb providers, and setup-feature commands. BGP codec/type packages are being split separately; `ike/dataplane` stays under component until its VPP backend is split from the interface package. There is **no permanent allowlist**.
 
-`scripts/dev/dep_audit.py --check` enforces the engine-placement rule, the non-engine category manifest, the **core import-direction rule** (`internal/core/` MUST NOT import `internal/component/` or `internal/plugins/`; grandfathered pairs live in the shrink-only `scripts/dev/core_import_baseline.txt` with a fix route each, and new pairs and stale rows both fail), the disable-ability rule, and golangci build-tag drift. It runs in `make ze-verify` (target `ze-tier-check`). It:
+`scripts/dev/dep_audit.py --check` enforces the engine-placement rule, the non-engine category manifest, the **core import-direction rule** (`internal/core/` MUST NOT import `internal/component/` or `internal/plugins/`; grandfathered pairs live in the shrink-only `scripts/dev/core_import_baseline.txt` with a fix route each, and new pairs and stale rows both fail), the disable-ability rule, and golangci build-tag drift. It runs in `make ze-precommit-verify` (target `ze-tier-check`). It:
 
 **`dep-audit` MUST behave as follows:**
 - parses `pluginDirs` from `scripts/codegen/plugin_imports.go` to exclude nested sub-plugin namespaces (so `bgp/plugins/*` are never flagged);
@@ -323,7 +323,7 @@ The four subsection names below are the required section names of a spec's Data 
 | Renamed path | `scripts/dev/yang_move.py` handles slash paths, set commands, brace blocks, GetContainer chains |
 | New `environment/` leaf | `env.MustRegister()` in the component's config loader |
 | New `ze:listener` | Conflict detection via `FindListenerConflict` |
-| New `ze:command` | RPC handler + `make ze-doc-test` |
+| New `ze:command` | RPC handler + `make ze-doc-verify` |
 
 #### Registration (`register.go`, `init()`)
 
@@ -357,14 +357,14 @@ The four subsection names below are the required section names of a spec's Data 
 
 #### Go Source to Documentation
 
-**When changing code, you MUST check `ai/CODE-TO-DOCS.md` for docs that reference the file. You MUST update any claims that are now wrong. Regenerate: `make ze-doc-index`.**
+**When changing code, you MUST check `ai/CODE-TO-DOCS.md` for docs that reference the file. You MUST update any claims that are now wrong. Regenerate: `make ze-doc-index-update`.**
 
 #### Documentation (`docs/`)
 
 | What changed | Also check |
 |---|---|
 | New factual claim | Source anchor: `<!-- source: path -- symbol -->` |
-| Feature count/list | `make ze-doc-test` validates against live registry |
+| Feature count/list | `make ze-doc-verify` validates against live registry |
 | Changed config syntax | `docs/guide/configuration.md` and `docs/architecture/config/syntax.md` |
 
 #### Spec (`plan/spec-*.md`)
@@ -433,7 +433,7 @@ Not every `os.WriteFile` is state. These stay raw and are allowlisted in the gua
 
 ### Gate
 
-`make ze-fs-persistence-check` (in `make ze-verify` / `ze-verify-changed`) runs `scripts/checks/direct_fs_persistence.go`: it flags any non-allowlisted raw filesystem write in the scanned trees. A new legitimate non-state writer needs an allowlist entry (with a reason); genuine state must move to `statestore`.
+`make ze-fs-persistence-check` (in `make ze-precommit-verify` / `ze-precommit-verify-changed`) runs `scripts/checks/direct_fs_persistence.go`: it flags any non-allowlisted raw filesystem write in the scanned trees. A new legitimate non-state writer needs an allowlist entry (with a reason); genuine state must move to `statestore`.
 
 ## Ze Divergences from Standard Go
 
@@ -481,10 +481,10 @@ Not every `os.WriteFile` is state. These stay raw and are allowlisted in the gua
 
 | Standard Go | Ze | Rule | Why |
 |---|---|---|---|
-| `go test ./...` for verification | `make ze-verify` (two-pass + functional + exabgp) | `ai/rules/testing.md` | 349 packages; cached full + race on changed groups |
+| `go test ./...` for verification | `make ze-precommit-verify` (two-pass + functional + exabgp) | `ai/rules/testing.md` | 349 packages; cached full + race on changed groups |
 | Unit tests prove correctness | Unit tests + `.ci` functional tests (both required) | `ai/rules/completion.md` | Unit proves algorithm; `.ci` proves user can reach the feature |
 | `testify/assert` | Standard library `testing` | (convention) | No test framework dependencies |
-| `go test -race` once | `make ze-race-reactor` (`-race -count=20`) for reactor code | `ai/rules/testing.md` | Rare schedules need repeated runs to surface |
+| `go test -race` once | `make ze-unit-reactor-test-race` (`-race -count=20`) for reactor code | `ai/rules/testing.md` | Rare schedules need repeated runs to surface |
 
 ### CLI / Commands
 

@@ -241,7 +241,7 @@ Three independent entry points converge on the same downstream consumers.
 ### Integration Points
 - `subscriber.DefaultRegistry` - the single registry both transports write; the migration must not change its API.
 - `subscriber/handler_registry.go` - where a transport-generic disconnect handler joins the existing pool, auth and shaper handlers for I-4.
-- `scripts/dev/verify_wiring_docs.py` `check_wiring` - the existing checker I-1 extends with an emit-versus-subscribe predicate, reached through the `wiring` target of `make ze-validate`.
+- `scripts/dev/verify_wiring_docs.py` `check_wiring` - the existing checker I-1 extends with an emit-versus-subscribe predicate, reached through the `wiring` target of `make ze-repository-check`.
 - `internal/core/events` `AllEventTypes` - the declared-topic inventory the I-1 guard reads.
 
 ### Architectural Verification
@@ -270,7 +270,7 @@ Three independent entry points converge on the same downstream consumers.
 |----|------|--------------|----------------------|
 | R-1 | Re-keying session metadata touches six call sites; one missed site reads nil and applies defaults silently | a functional test shows the default rate or no Session-Timeout where RADIUS supplied one | make the metadata accessor take a `subscriber.Session` rather than loose fields, so a missed site fails to compile |
 | R-2 | Splitting the topic changes when `SessionUp` fires, which observability and `show` output depend on | `show subscriber summary` or the observer reports a session late or not at all | migrate the observer in the same phase as the split, with its existing tests as the gate |
-| R-3 | The I-1 guard fires on legitimately unsubscribed topics (a topic emitted for external plugin processes only) | `make ze-validate` goes red on unrelated work | reuse the existing `WIRING_ALLOWLIST` mechanism for reviewed exceptions rather than inventing a second one |
+| R-3 | The I-1 guard fires on legitimately unsubscribed topics (a topic emitted for external plugin processes only) | `make ze-repository-check` goes red on unrelated work | reuse the existing `WIRING_ALLOWLIST` mechanism for reviewed exceptions rather than inventing a second one |
 | R-4 | Adding RFC checklist rows to five enrolled summaries makes `ze-rfc-check` red until every row has positive and negative tagged tests | the gate reports uncovered requirements mid-implementation | add each row in the same phase as its proof, never in a batch ahead of the tests |
 | R-5 | Nothing can drive a mid-session Configure-Request in a functional test today, so the end-to-end proof needs new harness capability | the functional phase has no way to reach the daemon | extend the scripted Python L2TP peer in `test/l2tp/` to send an LCP Configure-Request in a data message after session-up |
 | R-6 | The renegotiation path re-runs the auth phase, so a fix scoped to accounting alone leaves a duplicate RADIUS Access-Request | the fake RADIUS server sees two Access-Requests for one session | assert Access-Request count as well as Accounting-Start count in the same test |
@@ -318,7 +318,7 @@ tests instead.
 | AC-19 | The scripted L2TP peer is asked to renegotiate an established session | it sends an LCP Configure-Request in a data message and completes the exchange, giving AC-6, AC-7, AC-8 and AC-17 a functional entry point |
 | AC-10 | The daemon reloads its configuration with flow export enabled | the exported sysUpTime continues to increase and FIRST_SWITCHED / LAST_SWITCHED stay on the same epoch |
 | AC-11 | An L2TP session and a PPPoE session hold numerically equal identifier pairs | each reads back its own RADIUS profile attributes |
-| AC-12 | A build declares an event topic that is emitted and never subscribed | `make ze-validate` reports it and fails, unless the topic is in the reviewed allowlist |
+| AC-12 | A build declares an event topic that is emitted and never subscribed | `make ze-repository-check` reports it and fails, unless the topic is in the reviewed allowlist |
 | AC-13 | An operator sets a sub-millisecond `poll-sleep` value | the value is accepted and appears in the generated startup.conf in microseconds |
 | AC-14 | `ze doctor` runs against a VPP whose version is outside the supported range | a warning names the found version and the supported range |
 | AC-15 | A RADIUS Disconnect-Request names a PPPoE session | the session is torn down and the response is Disconnect-ACK |
@@ -524,7 +524,7 @@ tests instead.
 | Deliverable | Verification method |
 |-------------|---------------------|
 | No lifecycle consumer subscribes to `l2tpevents` | grep the six files named in Current Behavior for `l2tpevents` and expect no lifecycle topic |
-| Every subscriber topic has a subscriber | `make ze-validate` |
+| Every subscriber topic has a subscriber | `make ze-repository-check` |
 | PPPoE accounting reaches the wire | the accounting functional test's captured packets |
 | RFC gates hold | `make ze-rfc-check` |
 | Pool does not leak | the pool-release-cycle test run for more cycles than the pool holds addresses |
@@ -558,7 +558,7 @@ tests instead.
 |----------|------------------------|-----------|
 | Split the session-up topic so it fires once, and add a params-changed topic | make each consumer idempotent; suppress the side effects at the source with one latch | every existing consumer already assumes once-per-session, so the split makes six consumers correct without touching their logic, and a consumer that wants renegotiation opts in. Suppression alone would silently drop a legitimate MRU or address change |
 | Re-key session metadata by the subscriber session ID string | add a transport discriminator to the existing pair; leave it and block on a separate spec | the string key is already namespaced per transport and is the identifier every migrated consumer holds. A discriminator would keep a key whose meaning depends on transport, leaving the same trap for the next consumer |
-| Extend the existing `check_wiring` checker for the I-1 guard | a new AST-walking checker; a runtime subscriber count on the bus | `check_wiring` is already a symbol-versus-reference checker with an allowlist for reviewed exceptions and is already wired into `make ze-validate`. The `Emit` return value cannot serve, because its contract excludes in-process subscribers |
+| Extend the existing `check_wiring` checker for the I-1 guard | a new AST-walking checker; a runtime subscriber count on the bus | `check_wiring` is already a symbol-versus-reference checker with an allowlist for reviewed exceptions and is already wired into `make ze-repository-check`. The `Emit` return value cannot serve, because its contract excludes in-process subscribers |
 | On rekey, advance `CreatedAt` and carry `EstablishedAt` forward, in both directions | make both paths stamp the current time; make both carry the old time; add a third field for tunnel-first-established | RFC 7296 draws exactly this line and ze already has both fields. Section 2.18 makes the SA new (new SPIs, new keys), Section 2.8.3 makes the authentication unchanged and reserves a reset for reauthentication. Using the existing fields keeps `show ipsec` output shape unchanged; a third field would restate a distinction the two already carry |
 | Build the renegotiation harness in its own phase before the phases that need it | leave it as a risk row and decide during implementation; accept unit-level proof and record a deferral | the four renegotiation ACs are the core of the spec and unit tests are what missed this defect the first time. Discovering the harness is unreachable after the code has landed is the expensive order; discovering it first stops the spec cheaply |
 
@@ -587,7 +587,7 @@ constraints, message ordering, and every MUST/MUST NOT.
 - [ ] AC-1..AC-19 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] `make ze-rfc-check` passes with the four summaries extended
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered with evidence

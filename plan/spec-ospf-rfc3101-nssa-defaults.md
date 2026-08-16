@@ -242,7 +242,7 @@ Two entry points, one per direction.
 | R-1 | A v6 NSSA default is purged by an unrelated redistribution withdrawal, because `v6ExternalSelfTypes` includes `LSTypeNSSA` and `v6WithdrawExternal` builds its keep-set only from `redistV6` and `translations` | A redistributed external is withdrawn and the NSSA default vanishes with it | Add the default's `SelfLSARef` to that keep-set, and add a unit test that withdraws an unrelated external then asserts the default survives |
 | R-2 | THREE sites compute ABR status independently and on different clocks: `isAreaBorderRouter` inside `lsdb.OriginateFromTopology` (which sets the advertised Router-LSA B-bit), `ospfspf.IsABR` in `applyNSSADefaults` (live interface state, 1 Hz tick), and `IsABR` in `spf/computer.go` (SPF-result presence). A no-summary NSSA can briefly hold neither default across a backbone transition, and Ze can advertise B=1 while originating no default | Transient absence of any default in a backbone flap test; or a Router-LSA with the B-bit set while no default LSA exists | Owner decision 2026-08-02: UNIFY. Make the Router-LSA B-bit determination the single producer and have both default-route consumers read it, so what Ze advertises and what Ze originates cannot disagree |
 | R-3 | The meaning of `nssa { default-originate }` changed: it is now inert on an ABR. An operator upgrading gets a default they did not configure, and a leaf that silently stops doing what its old description said | An operator reports an unexpected `0.0.0.0/0` in an NSSA | Document in `docs/guide/ospf.md` and the YANG description, and call it out at closure as an operator-visible change |
-| R-4 | `ai/RFC-REQUIREMENTS.md` regeneration is entangled with a concurrent session's uncommitted rfc9190 work, so `make ze-rfc-index` would sweep foreign changes into this commit | `make ze-rfc-check` stays red on the staleness violation | Owner action: sequence the regeneration against the other session rather than running it blind |
+| R-4 | `ai/RFC-REQUIREMENTS.md` regeneration is entangled with a concurrent session's uncommitted rfc9190 work, so `make ze-rfc-index-update` would sweep foreign changes into this commit | `make ze-rfc-check` stays red on the staleness violation | Owner action: sequence the regeneration against the other session rather than running it blind |
 | R-5 | The evidence ratchet keys on `kind/tier`, so substituting a verify-tier `.ci` binding for a nightly-tier interop one fires it even at unchanged tag count | `check_evidence_ratchet` fails on a requirement whose evidence kind changed | Every new binding ADDS; no existing tag is moved or retargeted |
 | R-6 | `option=netns-link` tests skip outside `ZE_TEST_NETNS`, so a daemon-driving OSPF `.ci` runs under `make ze-netns-test` but not under `ze-qemu-needs-linux-test` | The new `.ci` passes locally but contributes no evidence in the tier that was expected | Confirm in DESIGN which suite the functional evidence must land in, and pick the option set accordingly |
 
@@ -446,7 +446,7 @@ never arrived", which is the vacuity trap `ai/rules/interop-and-goal-validation.
    - Files: `test/interop/scenarios/`
    - Verify: each scenario FAILS when the corresponding production change is reverted. Record which revert was used for each, per `ai/rules/interop-and-goal-validation.md`
 9. **Phase: RFC ledger and docs**
-   - Tests: `make ze-rfc-check`, `make ze-doc-test`, `make ze-validate`
+   - Tests: `make ze-rfc-check`, `make ze-doc-verify`, `make ze-repository-check`
    - Files: `rfc/short/rfc3101.md`, `docs/features/rfc-status.md`, `docs/guide/ospf.md`, `docs/architecture/wire/ospfv3.md`, `docs/features.md`, `docs/guide/configuration.md`, `docs/comparison.md`, `docs/functional-tests.md`, `docs/architecture/core-design.md`
    - Verify: every new binding ADDS rather than substitutes, so `check_evidence_ratchet` stays green (R-5)
 
@@ -455,7 +455,7 @@ never arrived", which is the vacuity trap `ai/rules/interop-and-goal-validation.
 | # | Action | Why it is the owner's |
 |---|--------|----------------------|
 | O-1 | Supply the `rfc-test-change-approved:` token for `internal/plugins/ospf/nssa_ac14_16_test.go` and `internal/plugins/ospf/spf/area_type_test.go`, which `scripts/dev/audit-test-relaxation.py` reports as `[WEAKENED]` | The gate reserves RFC-tagged test edits to the owner. Coverage was verified intact by review: no RFC3101-3.2-2 or 2.7-1 assertion was lost |
-| O-2 | Sequence the `ai/RFC-REQUIREMENTS.md` regeneration against the concurrent session | `make ze-rfc-index` would sweep that session's uncommitted rfc9190 work into this commit (R-4) |
+| O-2 | Sequence the `ai/RFC-REQUIREMENTS.md` regeneration against the concurrent session | `make ze-rfc-index-update` would sweep that session's uncommitted rfc9190 work into this commit (R-4) |
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -479,7 +479,7 @@ never arrived", which is the vacuity trap `ai/rules/interop-and-goal-validation.
 | Both gate polarities proven against FRR | `make ze-interop-test INTEROP_SCENARIO=ospf-nssa-two-abr-frr` and the v6 twin |
 | Functional coverage of the daemon | `make ze-functional-test` covering the `ospf` and `ospfv3` suites |
 | RFC ledger consistent | `make ze-rfc-check` exits 0 for rfc3101 (the rfc9190 and staleness violations are O-2's, not this spec's) |
-| Docs consistent | `make ze-doc-test`, `make ze-validate` |
+| Docs consistent | `make ze-doc-verify`, `make ze-repository-check` |
 | No test weakened | `python3 scripts/dev/audit-test-relaxation.py` clean for OSPF paths, or O-1 token supplied |
 
 ### Security Review Checklist
@@ -561,7 +561,7 @@ constraints, message ordering, and every MUST/MUST NOT.
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding

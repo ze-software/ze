@@ -418,7 +418,7 @@ gap), NOTE (worth stating). The C-N numbering here is the one referenced through
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (0 BLOCKER, 0 ISSUE)
-- [ ] `make ze-test` passes (lint + all ze tests)
+- [ ] `make ze-standard-test` passes (lint + all ze tests)
 - [ ] Doctor check `doctor-appliance-lockdown` registered + explainable; QEMU evidence green
 - [ ] Registration over hardcoding — doctor check registers and is core-discovered; no core/shared switch added
 - [ ] Documentation Update Checklist answered Yes/No with source evidence

@@ -199,7 +199,7 @@ bad suite token. No daemon code, no wire behavior, no test corpus change.
    - Verify: AC-1, AC-2, AC-3, AC-4
 4. **Phase: Confirm the original**
    - Verify: AC-5
-5. **Phase: `make ze-test-pkg PKG=./scripts/dev`**
+5. **Phase: `make ze-unit-pkg-test PKG=./scripts/dev`**
    - Verify: no sibling regressed
 
 ## Checklist
@@ -207,7 +207,7 @@ bad suite token. No daemon code, no wire behavior, no test corpus change.
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-5 all demonstrated
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 
 ### TDD

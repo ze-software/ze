@@ -4,7 +4,7 @@ level: MUST NOT
 stage:
 ---
 **Nothing else in this repository COMPILES what git holds.** `make ze`,
-`ze-verify`, `ze-lint-changed`, `ze-rfc-check` and every test target build and
+`ze-precommit-verify`, `ze-lint-changed`, `ze-rfc-check` and every test target build and
 run your WORKING TREE, uncommitted and untracked files included. (One gate does
 read the commit: `commit_helper.py` judges discovery-index freshness against a
 materialized HEAD. It regenerates indexes; it compiles nothing.) So you MUST NOT

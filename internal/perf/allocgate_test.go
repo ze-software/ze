@@ -151,11 +151,11 @@ func TestAllocGateWorstSample(t *testing.T) {
 // TestAllocGateEnforce is the real gate driver: mk/alloc-gate.mk runs the
 // reactor benchmarks with -benchmem, writes the output to a file, and points
 // ZE_ALLOC_GATE_BENCH at it. When the env var is unset (a normal `go test`
-// run) the test skips, so enforcement happens only via `make ze-alloc-gate`.
+// run) the test skips, so enforcement happens only via `make ze-alloc-check`.
 func TestAllocGateEnforce(t *testing.T) {
 	path := os.Getenv("ZE_ALLOC_GATE_BENCH")
 	if path == "" {
-		t.Skip("ZE_ALLOC_GATE_BENCH unset; run via `make ze-alloc-gate`")
+		t.Skip("ZE_ALLOC_GATE_BENCH unset; run via `make ze-alloc-check`")
 	}
 	data, err := os.ReadFile(path) //nolint:gosec // path supplied by the make gate within the repo
 	if err != nil {

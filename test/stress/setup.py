@@ -4,7 +4,7 @@
 Run once on a fresh Ubuntu VM. Requires root (sudo).
 
 The stress test harness uses:
-  - `bin/ze-test peer --mode inject` (in-tree, built via `make ze-test`)
+  - `bin/ze-test peer --mode inject` (in-tree, built via `make ze-standard-test`)
   - BIRD 2.x (for the scenario-04 baseline)
   - iproute2, ethtool (for netns / veth setup)
 
@@ -77,7 +77,7 @@ def verify():
 
     if ok:
         print("\nAll runtime tools installed.")
-        print("Build the harness binary with: make ze-test")
+        print("Build the harness binary with: make ze-standard-test")
     else:
         print("\nSome tools missing.", file=sys.stderr)
         sys.exit(1)

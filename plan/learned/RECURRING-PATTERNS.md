@@ -99,7 +99,7 @@ flagged by the user across sessions.
 4. `architecture.md` item 5: name the entry point and file:line
    before writing any feature code.
 
-**Gated by.** `make ze-verify-wiring-docs`, which runs `check_wiring` in
+**Gated by.** `make ze-wiring-docs-check`, which runs `check_wiring` in
 `scripts/dev/verify_wiring_docs.py`. It fails when a new exported symbol under
 `internal/` or `cmd/` has no non-test caller, so this pattern is now caught
 mechanically rather than at review time.
@@ -495,7 +495,7 @@ rely on test isolation.
 
 ### `go test` cache hides compile breaks in dependent packages
 
-**Symptom.** `make ze-verify` is green. A package that imports
+**Symptom.** `make ze-precommit-verify` is green. A package that imports
 your modified file fails to compile at the next build.
 
 **Cause.** `go test` caches the compile result per package. Modifying
@@ -509,7 +509,7 @@ is stale.
 
 **Avoid it by.** After modifying any exported identifier (type,
 function signature, constant, interface method), run
-`go clean -testcache` before `make ze-verify`, OR touch one file
+`go clean -testcache` before `make ze-precommit-verify`, OR touch one file
 in every importing package to force recompile.
 
 **Recover if you hit it.** Clean the test cache and re-run.
@@ -688,7 +688,7 @@ shard with a named destination spec.
 
 ### A full disk reads as a code breakage
 
-**Symptom.** `make ze-verify` reports `[build failed]` against dozens of
+**Symptom.** `make ze-precommit-verify` reports `[build failed]` against dozens of
 packages you never touched, and the functional suite fails a few unrelated
 tests. It looks like a concurrent session broke the tree.
 
@@ -724,7 +724,7 @@ mid-run.
 
 **Symptom.** `make ze-rfc-check` fails with the violation
 `rfc/requirements/<stem>.md is stale vs its sources`. You changed no tagged
-test. `ze-doc-test`, `ze-verify-wiring-docs`, `ze-regen-check-readonly`
+test. `ze-doc-verify`, `ze-wiring-docs-check`, `ze-generated-files-check`
 and `TestRFCLedgerFresh` all go red at the same time, because each one
 reads the same freshness fact.
 
@@ -742,7 +742,7 @@ Both times the whole diff was line numbers in `internal/component/mcp/`,
 which a different session was editing. `diff` of the regenerated ledger
 named the owning package in one line each time.
 
-**Avoid it by.** Running `make ze-rfc-index` immediately before you start
+**Avoid it by.** Running `make ze-rfc-index-update` immediately before you start
 a verify, not earlier in the session. Diff the regenerated files to see
 WHOSE tests moved: if every changed row names a package you never touched,
 the staleness is not yours. To read one RFC's rows and leave the index shut,
@@ -783,7 +783,7 @@ close the spec.
 
 ### Concurrent session corrupts another session's WIP
 
-**Symptom.** `make ze-verify` fails with compile errors in a
+**Symptom.** `make ze-precommit-verify` fails with compile errors in a
 file you did not touch. `git status` shows modifications you do not
 recognise. Another session's commit picked up your uncommitted files.
 
@@ -795,15 +795,15 @@ staged file, regardless of origin.
 **Evidence.** 581 (sysctl-0-plugin: another session's commit
 `fd5ebbb5` picked up our in-progress edits). 396 (bgp-monitor),
 438 (event-stream), 444 (fleet-config), 477 (zefs-key-registry),
-483 (exabgp-bridge-muxconn). 605, 627, 633 (concurrent `make ze-verify`
+483 (exabgp-bridge-muxconn). 605, 627, 633 (concurrent `make ze-precommit-verify`
 corrupted the shared log file).
 
 **Avoid it by.**
 1. `CLAUDE.md` already forbids `git add` / `git commit` from the Bash
    tool; commits only via a script the user runs.
-2. Before invoking `make ze-verify`, `git status` and confirm
+2. Before invoking `make ze-precommit-verify`, `git status` and confirm
    only expected files appear as modified.
-3. Only one `make ze-verify*` may run at a time across the tree;
+3. Only one `make ze-precommit-verify*` may run at a time across the tree;
    `verify-lock.sh` enforces this via `flock`.
 
 **Recover if you hit it.** `git stash` is forbidden (see
@@ -815,7 +815,7 @@ manually.
 
 ### Research subagents leaving `.go` files in `tmp/`
 
-**Symptom.** `make ze-verify` fails with compile errors in files
+**Symptom.** `make ze-precommit-verify` fails with compile errors in files
 under `tmp/` that are unrelated to any active spec.
 
 **Cause.** Research subagents fetched third-party source (e.g. vendor

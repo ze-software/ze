@@ -485,7 +485,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 
 13. **Functional tests** -- after feature works
 14. **RFC refs** -- add `// RFC 4555 Section X.Y` comments
-15. **Full verification** -- `make ze-verify`
+15. **Full verification** -- `make ze-precommit-verify`
 16. **Complete spec** -- audit, learned summary, delete spec
 
 ### Critical Review Checklist (/implement stage 6)
@@ -631,7 +631,7 @@ MUST document: capability negotiation, UPDATE_SA_ADDRESSES handling, COOKIE2 ver
 - [ ] AC-1..AC-13 all demonstrated
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `make ze-test` passes
+- [ ] `make ze-standard-test` passes
 - [ ] Feature code integrated
 - [ ] Integration completeness proven end-to-end
 - [ ] Architecture docs updated

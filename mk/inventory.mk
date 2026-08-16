@@ -1,19 +1,19 @@
 # Inventory, spec status, doc validation, and consistency tools
 #
 # Quick reference:
-#   make ze-verify-wiring-docs  Changed-file-aware wiring/doc/inventory gate
-#   make ze-doc-test             All doc checks (drift + anchors + YANG/handler)
+#   make ze-wiring-docs-check  Changed-file-aware wiring/doc/inventory gate
+#   make ze-doc-verify             All doc checks (drift + anchors + YANG/handler)
 #   make ze-ste-review           ASD-STE100 findings, with file:line and the fix
 #   make ze-ste-check            ASD-STE100 gate: no habit grew vs HEAD
 #   make ze-inventory            Plugin/YANG/RPC/test inventory
 #   make ze-spec-status          Spec progress overview (+ closure advisory)
 #   make ze-spec-citation-check  Spec citation freshness (dangling plan/spec refs)
-#   make ze-validate-commands    YANG command vs handler cross-check
+#   make ze-command-contract-check    YANG command vs handler cross-check
 #
 .PHONY: ze-spec-status ze-spec-status-json ze-spec-citation-check
 .PHONY: ze-inventory ze-inventory-json ze-command-list ze-command-list-json
-.PHONY: ze-validate-commands ze-validate-commands-json ze-command-ownership-check ze-command-ownership-check-json ze-cli-grammar-check ze-cli-grammar-check-json ze-config-claims-check ze-config-claims-check-json ze-doc-drift ze-doc-test ze-doc-index ze-doc-check-stale ze-rules-index ze-rules-index-check ze-rules-condensed ze-rules-condensed-check ze-rules-points-roundtrip ze-rules-render ze-rules-render-check ze-rules-gate-map ze-rules-payload ze-rules-router-report ze-rules-router-report-json ze-rules-lint ze-token-economy ze-discovery-index ze-discovery-index-check ze-digest-check ze-consistency
-.PHONY: ze-verify-wiring-docs ze-wiki-update ze-wiki-commands ze-journal
+.PHONY: ze-command-contract-check ze-command-contract-check-json ze-command-ownership-check ze-command-ownership-check-json ze-cli-grammar-check ze-cli-grammar-check-json ze-config-claims-check ze-config-claims-check-json ze-doc-drift-check ze-doc-verify ze-doc-index-update ze-doc-index-check ze-rules-index-update ze-rules-index-check ze-rules-condensed-update ze-rules-condensed-check ze-rules-points-roundtrip-check ze-rules-render-update ze-rules-render-check ze-rules-gate-map-report ze-rules-payload-report ze-rules-router-report ze-rules-router-report-json ze-rules-lint ze-token-economy-report ze-discovery-index-update ze-discovery-index-check ze-digest-check ze-consistency-check
+.PHONY: ze-wiring-docs-check ze-wiki-update ze-wiki-commands-update ze-journal-report
 .PHONY: ze-ste-check ze-ste-review ze-ste-review-changed ze-ste-review-json
 
 ze-spec-status:
@@ -47,20 +47,20 @@ ze-command-list:
 ze-command-list-json:
 	@$(GO_RUN) scripts/inventory/commands.go --json
 
-ze-wiki-update: ze-wiki-commands
+ze-wiki-update: ze-wiki-commands-update
 	@echo "Wiki updated"
 
-ze-wiki-commands:
+ze-wiki-commands-update:
 	@$(ZEBIN_ZE) help command --json | python3 scripts/dev/gen_wiki_commands.py > ../wiki/command-catalog.md
 	@echo "  -> ../wiki/command-catalog.md"
 
-ze-doc-drift:
+ze-doc-drift-check:
 	@$(GO_RUN) scripts/docvalid/doc_drift.go
 
-ze-validate-commands:
+ze-command-contract-check:
 	@$(GO_RUN) scripts/docvalid/commands.go
 
-ze-validate-commands-json:
+ze-command-contract-check-json:
 	@$(GO_RUN) scripts/docvalid/commands.go --json
 
 ze-command-ownership-check:
@@ -89,10 +89,10 @@ ze-config-claims-check-json:
 	@$(GO_RUN) scripts/checks/config_claims.go --json
 
 
-ze-verify-wiring-docs:
+ze-wiring-docs-check:
 	@python3 scripts/dev/verify_wiring_docs.py --make "$(MAKE)"
 
-ze-doc-test:
+ze-doc-verify:
 	@echo "Running documentation tests..."
 	@FAIL=0; \
 	echo ""; \
@@ -148,7 +148,7 @@ ze-doc-test:
 # stays until someone rewrites it, no baseline file exists to re-bless, and the
 # one way to green is to fix the prose. About 2 seconds.
 #
-# It is NOT wired into ze-doc-test. Several sessions share this checkout, so a
+# It is NOT wired into ze-doc-verify. Several sessions share this checkout, so a
 # tree-wide run reports a sibling session's in-flight sentences and nobody can
 # tell whose they are. The BLOCKING gate lives in commit_helper.py
 # (ste_problems), scoped to the files of ONE commit, which is the only place
@@ -165,16 +165,16 @@ ze-ste-review-changed:
 ze-ste-review-json:
 	@python3 scripts/dev/ste_check.py --json
 
-ze-doc-index:
+ze-doc-index-update:
 	@python3 scripts/dev/code_to_docs.py
 
-ze-doc-check-stale:
+ze-doc-index-check:
 	@python3 scripts/dev/code_to_docs.py --check
 
-# Depends on ze-rules-render for the reason ze-rules-condensed does, below:
+# Depends on ze-rules-render-update for the reason ze-rules-condensed-update does, below:
 # rules_index.py parses the RENDERED rules, so under `make -j` it must not race
 # the generator that writes them.
-ze-rules-index: ze-rules-render
+ze-rules-index-update: ze-rules-render-update
 	@python3 scripts/dev/rules_index.py
 
 ze-rules-index-check:
@@ -184,17 +184,17 @@ ze-rules-index-check:
 #   TRIGGERS.md   one routing line per rule (path, severity, **When:**)
 #   CORE.md       the directives of the always-on rules, derived from the
 #                 rung 1/2 ladder in ai/rules/rule-precedence.md
-# Generated from the canonical rule format; a stale artifact fails ze-doc-test.
+# Generated from the canonical rule format; a stale artifact fails ze-doc-verify.
 #
-# The ze-rules-render prerequisite is what ORDERS the two. Both digests parse
-# the RENDERED rules, which ze-rules-render writes with a plain write_text, and
+# The ze-rules-render-update prerequisite is what ORDERS the two. Both digests parse
+# the RENDERED rules, which ze-rules-render-update writes with a plain write_text, and
 # GNU make honours prerequisite ORDER only when it runs serially: under
-# `make -j ze-regen` the digest could be built from pre-render text or from a
+# `make -j ze-generated-files-update` the digest could be built from pre-render text or from a
 # torn read. A dependency edge is the ordering make actually enforces, an
 # order-only prerequisite (`|`) would not have (it orders a prerequisite against
 # its own target, never two siblings of one target), and .NOTPARALLEL would pay
 # for it by serialising every unrelated target in the file.
-ze-rules-condensed: ze-rules-render
+ze-rules-condensed-update: ze-rules-render-update
 	@python3 scripts/dev/rules_condensed.py
 
 ze-rules-condensed-check:
@@ -206,22 +206,22 @@ ze-rules-condensed-check:
 # This target is the gate on that: it exits non-zero naming any rule whose round
 # trip is not byte-identical. Scratch only, it never writes ai/rules/points/.
 #
-# It runs inside ze-doc-test, and the render check does NOT subsume it. They
+# It runs inside ze-doc-verify, and the render check does NOT subsume it. They
 # read the two directions of the same identity. `render --check` asks whether
 # the rendered rule matches the points; the round trip asks whether the rendered
 # rule can be split back into points at all. One blank line at the top of a
 # point body satisfies the first and breaks the second, and the corpus is then
 # permanently un-splittable with every other gate green.
-ze-rules-points-roundtrip:
+ze-rules-points-roundtrip-check:
 	@python3 scripts/dev/rules_points.py roundtrip
 
 # Rules-as-points render: ai/rules/points/<rule>/<section>/ -> ai/rules/<rule>.md. The
 # rendered rule is what every agent Reads, so this generator owns those files
 # and an edit to one is refused by .claude/hooks/pretool-writeedit.py. Order
-# matters inside ze-regen: ze-rules-condensed and ze-rules-index both parse the
+# matters inside ze-generated-files-update: ze-rules-condensed-update and ze-rules-index-update both parse the
 # RENDERED rules, and each one declares this target as a PREREQUISITE so make
 # enforces that under `-j` rather than the recipe order asserting it.
-ze-rules-render:
+ze-rules-render-update:
 	@python3 scripts/dev/rules_points.py render
 
 ze-rules-render-check:
@@ -240,12 +240,12 @@ ze-rules-render-check:
 # HEAD and declares `none` now, a rule holding fewer points than HEAD with no
 # row in ai/rules/points/RETIRED.md, and a `rationale`/`excepted-by` naming
 # nothing. All three read git HEAD, so this target needs a repository.
-ze-rules-gate-map:
+ze-rules-gate-map-report:
 	@python3 scripts/dev/rules_points.py coverage
 
 # What a session actually loads: ai/INSTRUCTIONS.md + TRIGGERS.md + CORE.md,
 # measured against the token budget and against the digest it replaces.
-ze-rules-payload:
+ze-rules-payload-report:
 	@python3 scripts/dev/rules_condensed.py --payload
 
 # Trigger-routing coverage: over every task description in plan/ (each open
@@ -264,25 +264,25 @@ ze-rules-router-report-json:
 # counterfactual. Reads the machine-local Claude Code transcript store
 # (~/.claude/projects/<slug>/), so a checkout with no transcripts reports that
 # and exits 0. Token counts only, never money. Override the ceiling with
-# `make ze-token-economy ZE_CONTEXT_CAP=150000`.
-# Scope to one session with `make ze-token-economy ZE_SESSION=<id-prefix>`. The
+# `make ze-token-economy-report ZE_CONTEXT_CAP=150000`.
+# Scope to one session with `make ze-token-economy-report ZE_SESSION=<id-prefix>`. The
 # startup-context comparison between two agent types is only valid inside one
 # session: the always-on preamble changes size between them, and it is the
 # largest term in that number.
 ZE_CONTEXT_CAP ?= 200000
 ZE_SESSION ?=
-ze-token-economy:
+ze-token-economy-report:
 	@python3 scripts/dev/token_economy.py --cap $(ZE_CONTEXT_CAP) $(if $(ZE_SESSION),--session $(ZE_SESSION))
 
 # Rule format lint: every ai/rules/*.md carries the required **When:** /
 # **Severity:** metadata block (see ai/rules/rule-format.md), so tooling can
-# parse triggers and severity instead of guessing. Runs inside ze-doc-test.
+# parse triggers and severity instead of guessing. Runs inside ze-doc-verify.
 ze-rules-lint:
 	@python3 scripts/dev/rules_lint.py
 
 # Generated discovery indexes: what each package does (PACKAGE-MAP), which files
 # implement a design doc (DOCS-TO-CODE). Sourced from the tree; a stale
-# index fails ze-doc-test.
+# index fails ze-doc-verify.
 #
 # `--check` exit codes: 0 = fresh, 3 = STALE (discovery_sources.STALE_EXIT),
 # 1 = the generator itself failed. Every caller here only needs pass/fail, so
@@ -290,7 +290,7 @@ ze-rules-lint:
 # distinction exists for commit_helper.py, which BLOCKS on 3 and must stay
 # warn-only on 1 -- do not "simplify" a caller into one that cannot tell them
 # apart, and do not reintroduce matching on the warning TEXT.
-ze-discovery-index:
+ze-discovery-index-update:
 	@python3 scripts/dev/package_map.py
 	@python3 scripts/dev/docs_to_code.py
 
@@ -300,16 +300,16 @@ ze-discovery-index-check:
 
 # Digest anchor validity: every `file:line` reference in ai/digests/*.md resolves
 # to a real file and an in-range line. The digests are hand-maintained, so this
-# catches the anchors rotting when code moves. Runs inside ze-doc-test.
+# catches the anchors rotting when code moves. Runs inside ze-doc-verify.
 ze-digest-check:
 	@python3 scripts/dev/digest_check.py
 
 # Problem journal detector: print every problem class with 2+ occurrences,
 # its row count, and the span between first and last date.  When every class
 # has 1 row it prints nothing and exits 0.
-ze-journal:
+ze-journal-report:
 	@python3 scripts/dev/journal.py
 
-ze-consistency:
+ze-consistency-check:
 	@echo "Running consistency checks..."
 	@go run scripts/lint/consistency.go .

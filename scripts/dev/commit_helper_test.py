@@ -1014,8 +1014,8 @@ class TestDiscoveryIndexProblems(unittest.TestCase):
 
 class TestStructuralGateRemediation(unittest.TestCase):
     """T-3 (AC-5): the structural-gate refusal must name a command that actually
-    refreshes tmp/ze-verify-failures.json. Only a full `make ze-verify` /
-    `ze-verify-changed` (verify_run.go) rewrites that record; `make <gate>` alone
+    refreshes tmp/ze-verify-failures.json. Only a full `make ze-precommit-verify` /
+    `ze-precommit-verify-changed` (verify_run.go) rewrites that record; `make <gate>` alone
     does not. A remediation that cannot work is worse than none (ai/rules/cli.md).
     """
 
@@ -1052,7 +1052,7 @@ class TestStructuralGateRemediation(unittest.TestCase):
                 msg = err.getvalue()
                 self.assertEqual(rc, 2, msg)
                 # Names the TRUE refresher.
-                self.assertIn("ze-verify", msg)
+                self.assertIn("ze-precommit-verify", msg)
                 # And makes explicit the per-gate command does NOT refresh the record.
                 self.assertRegex(msg, r"ze-verify-failures\.json")
                 self.assertIn("NOT", msg)
@@ -1081,7 +1081,7 @@ class TestStructuralRedOwnerOverride(unittest.TestCase):
 
         saved = (ch.verify_status, ch.structural_gate_reds)
         ch.verify_status = lambda repo: ("stale", "structural red")
-        ch.structural_gate_reds = lambda repo: ["ze-regen-check-readonly"]
+        ch.structural_gate_reds = lambda repo: ["ze-generated-files-check"]
         try:
             with tempfile.TemporaryDirectory() as tmp:
                 root = Path(tmp)
@@ -1128,7 +1128,7 @@ class TestStructuralRedOwnerOverride(unittest.TestCase):
         self.assertEqual(rc, 0, msg)
         # The override must be LOUD: silently proceeding would make a red tree
         # indistinguishable from a green one in the session transcript.
-        self.assertIn("ze-regen-check-readonly", msg)
+        self.assertIn("ze-generated-files-check", msg)
 
     def test_override_requires_a_reason(self):
         rc, msg = self._run(["--structural-red-ok", "   "])
@@ -1254,7 +1254,7 @@ class TestBrokenHeadFixEscape(unittest.TestCase):
 
 
 class TestStructuralGatesAreLiveStages(unittest.TestCase):
-    """STRUCTURAL_GATES must only name stages `make ze-verify` actually runs.
+    """STRUCTURAL_GATES must only name stages `make ze-precommit-verify` actually runs.
 
     structural_gate_reds() matches these names against the `stage` field of
     tmp/ze-verify-failures.json, which verify_run.go fills from stagesForMode().
@@ -1273,7 +1273,7 @@ class TestStructuralGatesAreLiveStages(unittest.TestCase):
     CACHING: this file runs as a python3 subprocess under TestPythonUnitTests
     (scripts/dev/python_tests_test.go), so verify_run.go is NOT a `go test`
     cache input for it. Editing verify_run.go alone can therefore serve a cached
-    PASS here (and under ze-verify-changed, changed-pkgs.sh maps a *.go edit to
+    PASS here (and under ze-precommit-verify-changed, changed-pkgs.sh maps a *.go edit to
     ./scripts/status only, never ./scripts/dev). The direction this test DOES
     cover reliably is an edit to commit_helper.py, which does invalidate
     ./scripts/dev. The other direction is covered by the Go twin,
@@ -1325,6 +1325,10 @@ class TestStructuralGatesAreLiveStages(unittest.TestCase):
             "STRUCTURAL_GATES names stages that stagesForMode never emits, so "
             f"structural_gate_reds can never match them: {dead}",
         )
+    def test_staticcheck_feature_matrix_is_structural(self):
+        """A red matrix verdict must block normal unverified commit preparation."""
+        self.assertIn("ze-staticcheck-feature-matrix-check", ch.STRUCTURAL_GATES)
+
 
     def test_structural_gates_is_not_empty(self):
         # The subset assertion above is satisfied by an empty frozenset too.

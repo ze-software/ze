@@ -191,7 +191,7 @@ moving, the blast radius includes every annotation in the corpus.
 - `scripts/dev/rfc_requirements.py` -- the new register check
 - `scripts/dev/rfc_requirements_test.py` -- the failing case first
 - `ai/rules/points/rfc-compliance/` -- the point file behind the protocol-only
-  directive, then `make ze-rules-condensed` and `make ze-rules-lint`
+  directive, then `make ze-rules-condensed-update` and `make ze-rules-lint`
 - `rfc/short/rfc1035.md` and whichever others AC-3 finds in prose
 
 ## Files to Create
@@ -218,7 +218,7 @@ moving, the blast radius includes every annotation in the corpus.
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-6 all demonstrated
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 
 ### TDD

@@ -7,11 +7,38 @@ directives, fuzz target list), see `docs/functional-tests.md`.
 ## First time setup
 
 ```sh
-make ze-setup    # install all dev tools: build deps, linters, appliance tools (one-time)
-make ze-smoke    # verify everything works: lint + unit + build (~2 min)
+make ze-dev-setup    # install all dev tools: build deps, linters, appliance tools (one-time)
+make ze-smoke-verify    # verify everything works: lint + unit + build (~2 min)
 ```
 
-If `ze-smoke` passes, your environment is ready.
+If `ze-smoke-verify` passes, your environment is ready.
+
+## Make target naming
+
+Public project targets use:
+
+```text
+ze-<family>[-<scope>...][-<subject>]-<action>[-<mode>][-<format>]
+```
+
+The family and scope come first, then the subject, then the action. For
+example, `ze-unit-bgp-test`, `ze-functional-plugin-test`, and
+`ze-qemu-install-iso-test` identify progressively more specific test families
+before saying that they run tests. Modes follow the action
+(`ze-unit-test-cached`, `ze-precommit-verify-changed`), and output formats come
+last (`ze-inventory-json`).
+
+Action words describe the contract: `check` is a read-only verdict, `verify` is
+a composite policy gate, `report` is advisory output, `update` rewrites tracked
+state, `sync` copies canonical state, and `build` produces an artifact. Build
+targets do not reuse binary basenames: `ze-appliance-build` produces
+`bin/ze-appliance`, and `ze-test-build` produces `bin/ze-test`.
+
+The conventional unprefixed entry points (`build`, `check`, `clean`, `fmt`,
+`generate`, `help`, `test`, `tidy`, and `vet`) remain short. Retired names have
+no compatibility aliases, so scripts and documentation must use the current
+spelling shown by `make help`, `make help-test`, `make help-deploy`, and
+`make help-dev`.
 
 ## The escalation ladder
 
@@ -21,23 +48,23 @@ Use the narrowest test that covers your change. Escalate only when needed.
 |------|-------------|------|------|
 | 1 | `go test -race -run TestName ./pkg/...` | Iterating on one test | seconds |
 | 2 | `go test -race ./internal/component/bgp/reactor/...` | Iterating on one package | seconds |
-| 3 | `make ze-test-bgp` | Done with a component, want to check for regressions | 10s - 1:30 |
-| 4 | `make ze-verify` | Ready to commit | ~2 min |
+| 3 | `make ze-unit-bgp-test` | Done with a component, want to check for regressions | 10s - 1:30 |
+| 4 | `make ze-precommit-verify` | Ready to commit | ~2 min |
 
-`make ze-verify` is the pre-commit gate. Everything below that is a development tool.
+`make ze-precommit-verify` is the pre-commit gate. Everything below that is a development tool.
 
 ### The cadence targets
 
 The ladder above is keyed to a change you are making. Three targets are keyed to
-the calendar instead, and they exist for one reason: `make ze-verify` runs 27
+the calendar instead, and they exist for one reason: `make ze-precommit-verify` runs 27
 checks and the nightly workflows run a dozen more, which leaves a set that is in
 NEITHER and is therefore run by nobody.
 
 | Target | Time | What it is for |
 |--------|------|----------------|
-| `make ze-daily` | seconds | Run it every morning. No Docker, no network, and it never takes the verify lock, so it cannot block |
-| `make ze-weekly` | minutes | Takes the same repo-wide lock as `ze-verify`. Do not start it beside one: it blocks rather than fails, which reads as a hang |
-| `make ze-monthly` | long | Needs Docker, QEMU or root. Its preflight probe runs first and says what this machine can do |
+| `make ze-cadence-daily-run` | seconds | Run it every morning. No Docker, no network, and it never takes the verify lock, so it cannot block |
+| `make ze-cadence-weekly-run` | minutes | Takes the same repo-wide lock as `ze-precommit-verify`. Do not start it beside one: it blocks rather than fails, which reads as a hang |
+| `make ze-cadence-monthly-run` | long | Needs Docker, QEMU or root. Its preflight probe runs first and says what this machine can do |
 
 Each member is one of two kinds. A `gate` has a verdict, and a non-zero exit
 fails the run. A `note` is a census or a report that exits 0 whatever it finds,
@@ -46,20 +73,20 @@ what makes an aggregate meaningless: the censuses would drag it red every day
 until it was ignored. The summary table is the product; the exit code covers the
 gates.
 
-`make ze-daily` is where `ze-validate` finally runs. `ze-verify` runs
-`ze-validate-tree`, which passes `--changed-file ''`, and two of validate's
+`make ze-cadence-daily-run` is where `ze-repository-check` finally runs. `ze-precommit-verify` runs
+`ze-repository-tree-check`, which passes `--changed-file ''`, and two of validate's
 checks return empty before reading anything when that list is empty.
 
 ### Component groups for step 3
 
 | Target | Scope | Time |
 |--------|-------|------|
-| `make ze-test-bgp` | BGP engine, wire, reactor | ~1:30 |
-| `make ze-test-core` | Core libraries | ~30s |
-| `make ze-test-plugins` | All plugins | ~40s |
-| `make ze-test-config` | Config parsing, YANG | ~20s |
-| `make ze-test-cli` | CLI component | ~10s |
-| `make ze-test-rest` | Everything else | ~1:00 |
+| `make ze-unit-bgp-test` | BGP engine, wire, reactor | ~1:30 |
+| `make ze-unit-core-test` | Core libraries | ~30s |
+| `make ze-unit-plugins-test` | All plugins | ~40s |
+| `make ze-unit-config-test` | Config parsing, YANG | ~20s |
+| `make ze-unit-cli-test` | CLI component | ~10s |
+| `make ze-unit-rest-test` | Everything else | ~1:00 |
 
 Pick the group matching your change.
 
@@ -120,10 +147,10 @@ bin/ze-test exabgp --start 20      # resume ExaBGP compatibility
 Run a full suite:
 
 ```sh
-make ze-encode-test     # all encode tests
-make ze-plugin-test     # all plugin tests
+make ze-functional-encode-test     # all encode tests
+make ze-functional-plugin-test     # all plugin tests
 make ze-functional-test # all release-gate suites
-make ze-exabgp-test     # ExaBGP compatibility through ze-test
+make ze-functional-exabgp-test     # ExaBGP compatibility through ze-test
 ```
 
 ### Mutation tests (gomu)
@@ -138,13 +165,13 @@ gomu uses overlay-based execution, so it never modifies source files on disk. It
 vendored in `tools.go` and runs via `go run`; no separate install is needed.
 
 ```sh
-make ze-mutation-changed                              # changed files only (fast)
-make ze-mutation-pkg PKG=./internal/core/textbuf/     # one package
+make ze-mutation-test-changed                              # changed files only (fast)
+make ze-mutation-pkg-test PKG=./internal/core/textbuf/     # one package
 make ze-mutation-test                                 # all non-excluded packages (slow)
 make ze-mutation-report                               # full run with HTML report
 ```
 
-Mutation testing is advisory. It never gates `ze-verify` or CI. A surviving mutant
+Mutation testing is advisory. It never gates `ze-precommit-verify` or CI. A surviving mutant
 is a signal that a test could be stronger, not a blocking failure.
 
 Files with custom build tags and `cmd/ze/` are excluded via `.gomuignore` because
@@ -199,12 +226,12 @@ COMMIT still needs a row for it, and that row is where you say which of the two
 happened.
 
 `make ze-weakened-check` runs the checker over the file and is a stage of
-`ze-verify` in both modes. The rule is `ai/rules/testing.md`, and the design is
+`ze-precommit-verify` in both modes. The rule is `ai/rules/testing.md`, and the design is
 `docs/architecture/testing/test-health.md`.
 
-## How `ze-verify` works
+## How `ze-precommit-verify` works
 
-`ze-verify` is the pre-commit gate. It uses a two-pass strategy to stay fast:
+`ze-precommit-verify` is the pre-commit gate. It uses a two-pass strategy to stay fast:
 
 1. **Lint** (27 linters via golangci-lint)
 2. **Vet evidence** (cross-compile evidence scripts for Linux)
@@ -284,17 +311,17 @@ fuzz corpus entry becomes a regression test automatically.
 
 | I want to... | Run |
 |--------------|-----|
-| Check my setup works | `make ze-smoke` |
+| Check my setup works | `make ze-smoke-verify` |
 | Run one Go test | `go test -race -run TestName ./pkg/...` |
 | Run one functional test | `bin/ze-test bgp plugin 42` |
-| Run tests for what I changed | `make ze-test-bgp` (pick your group) |
-| Pre-commit check | `make ze-verify` |
+| Run tests for what I changed | `make ze-unit-bgp-test` (pick your group) |
+| Pre-commit check | `make ze-precommit-verify` |
 | See all test targets | `make help-test` |
 | List functional tests | `bin/ze-test bgp encode --list` |
-| Run fuzz for one target | `make ze-fuzz-one FUZZ=FuzzName PKG=./path/... TIME=30s` |
-| Check test coverage | `make ze-unit-test-cover` then open `coverage.html` |
-| Mutation test changed files | `make ze-mutation-changed` |
-| Mutation test one package | `make ze-mutation-pkg PKG=./internal/core/textbuf/` |
+| Run fuzz for one target | `make ze-fuzz-one-test FUZZ=FuzzName PKG=./path/... TIME=30s` |
+| Check test coverage | `make ze-unit-test-coverage` then open `coverage.html` |
+| Mutation test changed files | `make ze-mutation-test-changed` |
+| Mutation test one package | `make ze-mutation-pkg-test PKG=./internal/core/textbuf/` |
 | Debug a verify failure | `grep FAIL tmp/ze-verify.log` |
 | Check the commit I just made compiles | `make ze-tracked-build-check` |
 | Prove a web or looking-glass template renders the same bytes | `make ze-web-golden-check` |

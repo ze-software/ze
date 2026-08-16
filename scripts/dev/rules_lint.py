@@ -11,7 +11,7 @@ The format (see ai/rules/rule-format.md) is:
 
 Tooling (rules_index.py, rules_condensed.py, and the eager @-import of
 TRIGGERS.md / CORE.md) relies on this block being present and machine-readable. This
-linter is the durable gate that keeps it true; it runs inside `make ze-doc-test`.
+linter is the durable gate that keeps it true; it runs inside `make ze-doc-verify`.
 
 Beyond presence, two checks keep the block HONEST, because a metadata field that
 is syntactically fine but semantically wrong is worse than a missing one: it

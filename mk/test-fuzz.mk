@@ -2,9 +2,9 @@
 #
 # Quick reference:
 #   make ze-fuzz-test                        All targets, 10s each
-#   make ze-fuzz-one FUZZ=FuzzName PKG=path  Single target, 30s default
+#   make ze-fuzz-one-test FUZZ=FuzzName PKG=path  Single target, 30s default
 
-.PHONY: ze-fuzz-test ze-fuzz-one
+.PHONY: ze-fuzz-test ze-fuzz-one-test
 
 # Run ze fuzz tests (all targets, 10s each).
 #
@@ -23,10 +23,10 @@
 #     where one target name is a prefix of another (FuzzParseVPN[AddPath]).
 include mk/test-fuzz-targets.mk
 
-# Run a single fuzz target for longer (usage: make ze-fuzz-one FUZZ=FuzzParseNLRIs PKG=./internal/component/bgp/wireu/... TIME=30s)
+# Run a single fuzz target for longer (usage: make ze-fuzz-one-test FUZZ=FuzzParseNLRIs PKG=./internal/component/bgp/wireu/... TIME=30s)
 FUZZ ?= FuzzParseNLRIs
 PKG  ?= ./internal/component/bgp/wireu/...
 TIME ?= 30s
 
-ze-fuzz-one:
+ze-fuzz-one-test:
 	$(GO_TEST) -fuzz=$(FUZZ) -fuzztime=$(TIME) $(PKG)

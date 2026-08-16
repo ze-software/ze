@@ -393,7 +393,7 @@ D does not have.
 3. **Phase: (fill during design)** - depends entirely on Q1.
 4. **Functional tests** → Create after the contract is chosen. Cover user-visible EOR timing.
 5. **RFC refs** → Add `// RFC 4724 Section 2 / Section 4` comments at the EOR emission and the wait.
-6. **Full verification** → `make ze-verify`
+6. **Full verification** → `make ze-precommit-verify`
 7. **Complete spec** → learned summary, two-commit closure.
 
 ### Critical Review Checklist (/implement stage 6)
@@ -573,7 +573,7 @@ recording that the deferral is a local policy choice and not an RFC deadline.
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled — 0 BLOCKER, 0 ISSUE)
-- [ ] `make ze-test` passes (lint + all ze tests)
+- [ ] `make ze-standard-test` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
 - [ ] Integration completeness proven end-to-end
 - [ ] Documentation Update Checklist answered Yes/No with source evidence

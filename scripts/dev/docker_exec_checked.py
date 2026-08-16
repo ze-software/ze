@@ -47,7 +47,7 @@ TURNING IT ON
     is the backlog, in the open, and it can only fall.
 
 Usage:     python3 scripts/dev/docker_exec_checked.py [--root DIR] [--json|--selftest]
-Called by: make ze-docker-exec-check (routed onto the verify path by
+Called by: make ze-functional-docker-exec-check (routed onto the verify path by
            scripts/dev/verify_wiring_docs.py when a test/**/*.py scenario or lab
            file changes) and scripts/dev/docker_exec_checked_test.py, whose
            TestRepoRatchet runs the real scan so `make ze-unit-test` enforces the

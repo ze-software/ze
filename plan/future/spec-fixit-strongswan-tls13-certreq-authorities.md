@@ -321,7 +321,7 @@ gains an RFC comment and no `RFC8446-*` requirement id is claimed by this spec.
 
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-4 demonstrated. AC-5 recorded with its trigger
-- [ ] `make ze-verify` passes
+- [ ] `make ze-precommit-verify` passes
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 - [ ] Deferral shard resolved: no live row without a destination
 

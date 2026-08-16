@@ -27,7 +27,7 @@ import (
 // THIS package, so `go test` may serve a cached PASS after one is edited (the
 // full-verify stage is ze-unit-test-cached). Measured: adding a stray .yang and
 // re-running without -count=1 returned a cached ok. The uncached backstop is
-// the `ze-regen-check-readonly` make stage, which runs the same
+// the `ze-generated-files-check` make stage, which runs the same
 // `yang_glue.go --check` from a recipe and is wired into both stagesForMode
 // branches. This feeder's value is the fast local signal; do not remove the
 // make stage on the strength of it.
@@ -52,7 +52,7 @@ func TestYANGGlueCurrent(t *testing.T) {
 
 	// Non-vacuity. yang_glue.go exits 0 with "no yang/ directories with .yang
 	// files found" when discoverYangDirs matches nothing, so a layout change or
-	// a broken walk turns this test (and the ze-regen-check-readonly line) green
+	// a broken walk turns this test (and the ze-generated-files-check line) green
 	// while guarding zero files. Assert it actually looked at a plausible number
 	// of directories, the same way TestPythonUnitTests fails on an empty glob.
 	const minYangDirs = 100 // 149 at the time of writing; a floor, not a count

@@ -3,7 +3,7 @@ kind: table
 level:
 stage:
 ---
-| Files in commit | Run `ze-verify`? |
+| Files in commit | Run `ze-precommit-verify`? |
 |-----------------|------------------|
 | Any `.go`, `go.mod`, `go.sum`, `vendor/**` | YES |
 | `Makefile`, `scripts/**`, build/CI config | YES |

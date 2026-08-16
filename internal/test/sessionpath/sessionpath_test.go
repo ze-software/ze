@@ -140,7 +140,7 @@ func TestRootPrefersAnExistingDatedDirectory(t *testing.T) {
 // VALIDATES: Root resolves a path without creating it, so make and Go can both
 // ask for the directory and neither mints one (make's recipes and
 // EnsureScratchRoot are the two places that create it).
-// PREVENTS: `make ze-path` or a runner probe leaving an empty dated directory
+// PREVENTS: `make ze-session-binary-path` or a runner probe leaving an empty dated directory
 // behind for every id it was ever asked about.
 func TestRootCreatesNothing(t *testing.T) {
 	base := t.TempDir()

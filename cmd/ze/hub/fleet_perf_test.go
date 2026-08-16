@@ -2,7 +2,7 @@
 
 // Fleet many-clients perf test (spec followup-test-infra AC-8 / L98).
 //
-// Tier: evidence/release, NOT ze-verify (R-6). It stands up the real managed
+// Tier: evidence/release, NOT ze-precommit-verify (R-6). It stands up the real managed
 // hub listener (TLS 1.3, self-signed cert, the managedMaxConns=128 accept cap)
 // and drives >=128 concurrent clients through auth + initial config sync. Run:
 //

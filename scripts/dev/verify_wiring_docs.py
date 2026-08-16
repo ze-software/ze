@@ -28,10 +28,10 @@ class Symbol:
 
 TARGET_ORDER = (
     "wiring",
-    "ze-validate-commands",
+    "ze-command-contract-check",
     "ze-command-ownership-check",
-    "ze-doc-test",
-    "ze-doc-check-stale",
+    "ze-doc-verify",
+    "ze-doc-index-check",
     "ze-discovery-index-check",
     "ze-digest-check",
     "ze-inventory-json",
@@ -39,15 +39,15 @@ TARGET_ORDER = (
     "ze-plugin-imports-check",
     "ze-fuzz-targets-check",
     "ze-templ-generate-check",
-    "ze-docker-exec-check",
+    "ze-functional-docker-exec-check",
     "ze-spec-citation-check",
 )
 
 MAKE_TARGETS = {
-    "ze-validate-commands",
+    "ze-command-contract-check",
     "ze-command-ownership-check",
-    "ze-doc-test",
-    "ze-doc-check-stale",
+    "ze-doc-verify",
+    "ze-doc-index-check",
     "ze-discovery-index-check",
     "ze-digest-check",
     "ze-inventory-json",
@@ -55,7 +55,7 @@ MAKE_TARGETS = {
     "ze-plugin-imports-check",
     "ze-fuzz-targets-check",
     "ze-templ-generate-check",
-    "ze-docker-exec-check",
+    "ze-functional-docker-exec-check",
     "ze-spec-citation-check",
 }
 
@@ -633,12 +633,12 @@ def selected_targets(root: Path, changed: Iterable[str]) -> list[str]:
         if is_wiring_source(path):
             selected.add("wiring")
         if is_command_source(root, path):
-            selected.add("ze-validate-commands")
+            selected.add("ze-command-contract-check")
         if is_command_ownership_source(path):
             selected.add("ze-command-ownership-check")
         if is_doc_source(root, path):
-            selected.add("ze-doc-test")
-            selected.add("ze-doc-check-stale")
+            selected.add("ze-doc-verify")
+            selected.add("ze-doc-index-check")
         if is_discovery_source(root, path):
             selected.add("ze-discovery-index-check")
         if is_digest_source(root, path):
@@ -652,7 +652,7 @@ def selected_targets(root: Path, changed: Iterable[str]) -> list[str]:
         if is_templ_source(path):
             selected.add("ze-templ-generate-check")
         if is_docker_exec_source(path):
-            selected.add("ze-docker-exec-check")
+            selected.add("ze-functional-docker-exec-check")
         if is_plan_source(path):
             selected.add("ze-spec-citation-check")
     return [target for target in TARGET_ORDER if target in selected]

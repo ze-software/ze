@@ -137,7 +137,7 @@ socket-layer write coalescing), not to remaining low-hanging fruit.
 
 **Behavior to preserve:**
 - All wire formats, JSON output shapes, CLI output, and RFC semantics are unchanged by every child.
-- `make ze-verify` green; `make ze-race-reactor` green for reactor changes.
+- `make ze-precommit-verify` green; `make ze-unit-reactor-test-race` green for reactor changes.
 
 **Behavior to change:**
 - None user-visible. Performance characteristics only.
@@ -174,14 +174,14 @@ socket-layer write coalescing), not to remaining low-hanging fruit.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The 2026-06-05 ze-perf baseline is reproducible on this machine | `test/perf/results/` JSON files | Before/after deltas are noise | Re-run `make ze-perf-bench PERF_DUT=ze` before child 1 | broken (Docker build infra stale: Dockerfile.ze references cmd/ze-test as separate directory; existing June 5 baseline used; per-child Go benchmarks are the proof per R-1) |
-| A-2 | No other session lands conflicting reactor changes mid-round, and the round starts from a clean committed base | git status at spec time | Rebase/benchmark churn; before/after deltas and `ze-race-reactor` muddied by unrelated in-flight edits | Check `tmp/session/selected-spec` + git log before each child. NOTE at spec time the working tree had ~48 uncommitted files (cos/iface/l2tp/plugin-registry, none in reactor) — run this round on a branch off a committed base so benchmark deltas and the race gate are attributable to the child only | unvalidated |
+| A-2 | No other session lands conflicting reactor changes mid-round, and the round starts from a clean committed base | git status at spec time | Rebase/benchmark churn; before/after deltas and `ze-unit-reactor-test-race` muddied by unrelated in-flight edits | Check `tmp/session/selected-spec` + git log before each child. NOTE at spec time the working tree had ~48 uncommitted files (cos/iface/l2tp/plugin-registry, none in reactor) — run this round on a branch off a committed base so benchmark deltas and the race gate are attributable to the child only | unvalidated |
 | A-3 | The negative findings hold (no new callers appeared) | Dossiers dated 2026-06-11 | A "cold" path may have become hot | Fresh grep for callers during each child's audit step | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | Micro-wins don't move ze-perf numbers (within noise) | Post-child re-measure shows no delta | Go benchmarks are the per-child proof; ze-perf movement is a bonus for children 1-2 and not expected for child 3 |
-| R-2 | Optimization introduces a data race | `make ze-race-reactor` failure | Race gate is BLOCKING in children touching reactor |
+| R-2 | Optimization introduces a data race | `make ze-unit-reactor-test-race` failure | Race gate is BLOCKING in children touching reactor |
 
 ## Wiring Test (MANDATORY — NOT deferrable)
 
@@ -212,7 +212,7 @@ socket-layer write coalescing), not to remaining low-hanging fruit.
 
 ### Functional Tests
 No user-facing behavior change at the umbrella level; existing test suite passes
-(`make ze-verify`) is the umbrella-level functional gate. Children reference the
+(`make ze-precommit-verify`) is the umbrella-level functional gate. Children reference the
 specific existing `.ci` suites that prove no regression on their paths.
 
 | Test | Location | End-User Scenario | Status |
@@ -419,7 +419,7 @@ preserve RFC 4271 semantics byte-for-byte, asserted by existing unit tests).
 - [ ] AC-1..AC-4 all demonstrated
 - [ ] Wiring Test table complete (per child)
 - [ ] `/ze-review` gate clean (Review Gate section filled — 0 BLOCKER, 0 ISSUE)
-- [ ] `make ze-test` passes (lint + all ze tests)
+- [ ] `make ze-standard-test` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Documentation Update Checklist answered Yes/No with source evidence
 

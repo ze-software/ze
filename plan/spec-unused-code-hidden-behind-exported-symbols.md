@@ -95,7 +95,7 @@ flagged symbols.
 - `plan/future/spec-fixit-unexport-package-private-symbols.md` is the producer of
   every finding this spec fixes; this spec cannot start its findings sweep
   until that spec's 8 buckets all close.
-- `make ze-lint-changed` / `make ze-verify` re-run the same linter and are
+- `make ze-lint-changed` / `make ze-precommit-verify` re-run the same linter and are
   the mechanical proof a deletion introduced no new finding.
 
 ## Findings collected so far
@@ -162,7 +162,7 @@ buckets close, rather than trust this partial list.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `make ze-lint-changed` on a package this spec touches | → | the deleted/trimmed declaration | the finding is gone from `golangci-lint` output, and `make ze-test-pkg PKG=<pkg>` still passes |
+| `make ze-lint-changed` on a package this spec touches | → | the deleted/trimmed declaration | the finding is gone from `golangci-lint` output, and `make ze-unit-pkg-test PKG=<pkg>` still passes |
 
 ## Acceptance Criteria
 
@@ -186,8 +186,8 @@ buckets close, rather than trust this partial list.
 
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `make ze-encode-test` | `test/encode/*.ci` | wire encoding stays byte-identical after `internal/core/bgp/attribute` findings are resolved | |
-| `make ze-plugin-test` | `test/plugin/*.ci` | a plugin still loads and answers its commands after `internal/plugins/debug` and `internal/component/l2tp` findings are resolved | |
+| `make ze-functional-encode-test` | `test/encode/*.ci` | wire encoding stays byte-identical after `internal/core/bgp/attribute` findings are resolved | |
+| `make ze-functional-plugin-test` | `test/plugin/*.ci` | a plugin still loads and answers its commands after `internal/plugins/debug` and `internal/component/l2tp` findings are resolved | |
 
 ## Files to Modify
 
@@ -226,11 +226,11 @@ lint-invisible dead code; only symbols the parent spec touches are covered.
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-4 all demonstrated
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-verify` passes
+- [ ] `make ze-precommit-verify` passes
 
 ### TDD
-- [ ] Tests written: none new; existing package tests and `make ze-encode-test` /
-  `make ze-plugin-test` are the regression net
+- [ ] Tests written: none new; existing package tests and `make ze-functional-encode-test` /
+  `make ze-functional-plugin-test` are the regression net
 - [ ] Tests FAIL: not applicable in the usual direction; the failure this spec
   guards against is a deletion that removes a live path, and the full-tag-set
   `go vet` plus the existing suite produce it deliberately

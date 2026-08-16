@@ -477,7 +477,7 @@ class DepthTest(unittest.TestCase):
     NOTHING. `render_dir` globbed `*.md` per section and never looked into a
     subdirectory, `points_on_disk` walked exactly `<rule>/*/*.md`, and the
     render check, the round trip and the gate map all exited 0 while the
-    instruction reached no rendered rule. `make ze-regen` renders in WRITE mode,
+    instruction reached no rendered rule. `make ze-generated-files-update` renders in WRITE mode,
     so the loss is committed with every gate green.
     """
 
@@ -1353,7 +1353,7 @@ class RenderAllTest(unittest.TestCase):
 
     Mutation this fixes: changing its `if check:` to `if False:` made `--check`
     REWRITE the tree and report no failures, so `ze-rules-render-check`,
-    `ze-doc-test` and `ze-regen-check-readonly` all exited 0 while silently
+    `ze-doc-verify` and `ze-generated-files-check` all exited 0 while silently
     overwriting rules. Every assertion below moves under that one edit.
     """
 
@@ -1851,7 +1851,7 @@ class CorpusRatchetTest(unittest.TestCase):
     """A point may not leave the corpus without saying so.
 
     Mutation this fixes: deleting a point file AND its manifest line left
-    `ze-rules-render-check`, `ze-rules-points-roundtrip`, `ze-rules-gate-map`,
+    `ze-rules-render-check`, `ze-rules-points-roundtrip-check`, `ze-rules-gate-map-report`,
     `ze-rules-lint` and all 73 tests green. The points and the rendered rule
     agree on the smaller corpus, so every gate that reads the tree as it IS sees
     nothing. Only a git diff on the rendered rule showed it.
@@ -1873,7 +1873,7 @@ class CorpusRatchetTest(unittest.TestCase):
     # VALIDATES: an ADDITION does not buy a DELETION. The rule's point count is
     # unchanged, so the count form saw nothing at all.
     # PREVENTS: the shape measured on 2026-08-09 -- 17 points deleted, 6
-    # declared, and `make ze-rules-gate-map` exiting 0. completion, git-safety,
+    # declared, and `make ze-rules-gate-map-report` exiting 0. completion, git-safety,
     # rfc-compliance and testing each lost a point behind an addition, and only
     # planning (191 -> 186) had a count drop the guard could see.
     def test_a_net_zero_add_and_delete_is_caught(self):

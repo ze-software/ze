@@ -15,7 +15,7 @@ Prevents:  the responderBusy-held-across-established-life wedge (AC-7), a naive
            supersede-on-unauthenticated-init (RFC 7296 Section 2.4 violation), and
            INITIAL_CONTACT never being emitted/honored.
 
-NOTE: requires the Docker strongSwan interop lab; run under `make ze-ipsec-interop-test`.
+NOTE: requires the Docker strongSwan interop lab; run under `make ze-interop-ipsec-test`.
       Authored in a parked session that could not run Docker; validate at CI. The
       "teardown without a Delete" step (break_link + terminate) may need tuning against
       the lab's charon version.

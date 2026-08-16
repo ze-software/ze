@@ -3,7 +3,7 @@
 // that would otherwise fail with "directory ... outside main module").
 //
 // Committed so it is present on a fresh checkout. scripts/dev/ensure-links.py recreates
-// it whenever tmp/ is a real directory; after the opt-in `make ze-migrate-scratch`, tmp/
+// it whenever tmp/ is a real directory; after the opt-in `make ze-scratch-migrate`, tmp/
 // is a symlink that `go list` skips without any sentinel, so this file is not needed there.
 // Keep this content in sync with SENTINEL in scripts/dev/ensure-links.py.
 module ze-tmp-scratch

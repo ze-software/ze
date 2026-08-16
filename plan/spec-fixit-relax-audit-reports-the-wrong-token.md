@@ -79,7 +79,7 @@ justified.
 ### Entry Point
 - A reviewer runs `python3 scripts/dev/audit-test-relaxation.py` at step 0 of
   `/ze-review`. That is the ONLY entry point: no `mk/*.mk` target and no stage of
-  `make ze-verify` invokes it, and `scripts/dev/commit_helper.py` does not either.
+  `make ze-precommit-verify` invokes it, and `scripts/dev/commit_helper.py` does not either.
   So a wrong `reason:` line is seen by a human reviewer or by nobody.
 
 ### Transformation Path
@@ -149,7 +149,7 @@ justified.
    - Verify: the assertion names the new token and the test is RED
 2. **Phase: Fix** -- derive the added set by identity in `run_audit`
    - Verify: AC-1 green, AC-2 and AC-3 added and green
-3. **Phase: Regression** -- `make ze-test-pkg PKG=./scripts/dev`
+3. **Phase: Regression** -- `make ze-unit-pkg-test PKG=./scripts/dev`
    - Verify: AC-4, every existing case still passes
 
 ## Checklist
@@ -157,7 +157,7 @@ justified.
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-4 all demonstrated
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 
 ### TDD

@@ -1,8 +1,8 @@
-// Design: docs/functional-tests.md -- alloc-ceiling gate (ze-alloc-gate stage)
+// Design: docs/functional-tests.md -- alloc-ceiling gate (ze-alloc-check stage)
 //
 // The gate parses `go test -benchmem` output for the reactor hot-path
 // ReportAllocs benchmarks (bufmux / forward-pool / EBGPWire) and asserts a
-// per-benchmark allocs/op ceiling. mk/alloc-gate.mk drives it as a ze-verify
+// per-benchmark allocs/op ceiling. mk/alloc-gate.mk drives it as a ze-precommit-verify
 // stage. allocs/op is machine-independent, so an integer ceiling is a stable
 // regression signal without a stored baseline host.
 package perf

@@ -55,16 +55,16 @@ type failureGroup struct {
 
 type stageResult struct {
 	Stage     string         `json:"stage"`
-	ExitCode  int            `json:"exit_code"`
+	ExitCode  int            `json:"exit-code"`
 	DetailLog string         `json:"detail-log"`
 	Groups    []failureGroup `json:"groups,omitempty"`
 }
 
 type verifyIndex struct {
 	Mode        string        `json:"mode"`
-	ExitCode    int           `json:"exit_code"`
-	CombinedLog string        `json:"combined_log"`
-	GeneratedAt string        `json:"generated_at"`
+	ExitCode    int           `json:"exit-code"`
+	CombinedLog string        `json:"combined-log"`
+	GeneratedAt string        `json:"generated-at"`
 	Stages      []stageResult `json:"stages"`
 }
 
@@ -116,7 +116,7 @@ func makeDryRun(makeflags string) bool {
 	}
 	// A short-flags word never contains '='. GNU make 3.81 (the macOS system
 	// make) writes a command-line variable override as the FIRST word with no
-	// `--` separator (`make ze-verify ZE_VERIFY_LOG=tmp/x.log` ->
+	// `--` separator (`make ze-precommit-verify ZE_VERIFY_LOG=tmp/x.log` ->
 	// MAKEFLAGS="ZE_VERIFY_LOG=tmp/x.log"); reading that as flags would refuse
 	// the run on the 't' in "tmp". Newer makes separate overrides with `--`,
 	// already handled by the leading-dash check above.
@@ -128,7 +128,7 @@ func makeDryRun(makeflags string) bool {
 
 // modeFullVerify is the default mode name, shared by main, --list and the
 // Makefile targets.
-const modeFullVerify = "ze-verify"
+const modeFullVerify = "ze-precommit-verify"
 
 func main() {
 	mode := modeFullVerify
@@ -137,8 +137,8 @@ func main() {
 	}
 
 	// `--list` prints the stage list and runs nothing. It exists so that
-	// "what does ze-verify run?" has a SAFE answer -- see the dry-run refusal
-	// below for why `make -n ze-verify` is not one.
+	// "what does ze-precommit-verify run?" has a SAFE answer -- see the dry-run refusal
+	// below for why `make -n ze-precommit-verify` is not one.
 	if mode == "--list" {
 		listMode := modeFullVerify
 		if len(os.Args) > 2 {
@@ -146,7 +146,7 @@ func main() {
 		}
 		stages := stagesForMode(listMode, "make")
 		if len(stages) == 0 {
-			fmt.Fprintf(os.Stderr, "verify runner: unknown mode %q (want ze-verify or ze-verify-changed)\n", listMode)
+			fmt.Fprintf(os.Stderr, "verify runner: unknown mode %q (want ze-precommit-verify or ze-precommit-verify-changed)\n", listMode)
 			os.Exit(2)
 		}
 		for _, st := range stages {
@@ -158,9 +158,9 @@ func main() {
 	// REFUSE to run under make's no-execute modes (-n, -t, -q). This is a
 	// fail-closed guard on the commit gate, not a convenience.
 	//
-	// `ze-verify`'s recipe contains $(MAKE), and GNU make executes such lines
+	// `ze-precommit-verify`'s recipe contains $(MAKE), and GNU make executes such lines
 	// even in those modes (it is how recursive make participates in them). So
-	// `make -n ze-verify` really starts this program, with the flag propagated
+	// `make -n ze-precommit-verify` really starts this program, with the flag propagated
 	// through MAKEFLAGS to every stage sub-make -- and each stage then does
 	// nothing. Under -n it echoes its recipe and exits 0; under -t a .PHONY
 	// stage prints "Nothing to be done" and exits 0, which is quieter still.
@@ -176,7 +176,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "  every stage sub-make does nothing. Under -n and -t the stages all report")
 		fmt.Fprintln(os.Stderr, "  success, so writing tmp/ze-verify.status would forge a FRESH verify record")
 		fmt.Fprintln(os.Stderr, "  for a completely unverified tree.")
-		fmt.Fprintln(os.Stderr, "  To see the stage list without running anything: make ze-verify-list")
+		fmt.Fprintln(os.Stderr, "  To see the stage list without running anything: make ze-precommit-verify-list")
 		os.Exit(2)
 	}
 
@@ -207,9 +207,9 @@ func defaultVerifyConfig(mode string, out io.Writer) verifyConfig {
 	}
 }
 
-// stagesForMode is the SINGLE SOURCE OF TRUTH for what `make ze-verify` and
-// `make ze-verify-changed` run. Both Makefile targets shell out to this runner,
-// and .github/workflows/verify.yml's only step is `make ze-verify` -- so a gate that
+// stagesForMode is the SINGLE SOURCE OF TRUTH for what `make ze-precommit-verify` and
+// `make ze-precommit-verify-changed` run. Both Makefile targets shell out to this runner,
+// and .github/workflows/verify.yml's only step is `make ze-precommit-verify` -- so a gate that
 // is not listed here runs NOWHERE, in CI or locally.
 //
 // Add a new gate to BOTH branches. The two lists are hand-duplicated on
@@ -230,7 +230,7 @@ func stagesForMode(mode, makeCmd string) []stage {
 		}
 	}
 	switch mode {
-	case "ze-verify-changed":
+	case "ze-precommit-verify-changed":
 		return []stage{
 			mk("ze-lint-changed"),
 			mk("ze-tier-check"),
@@ -246,18 +246,18 @@ func stagesForMode(mode, makeCmd string) []stage {
 			mk("ze-weakened-check"),
 			mk("ze-tracked-build-check"),
 			mk("ze-platform-vet"),
-			mk("ze-verify-wiring-docs"),
-			mk("ze-doc-test"),
-			mk("ze-doc-links"),
-			mk("ze-validate-tree"),
-			mk("ze-regen-check-readonly"),
-			mk("ze-check-vendor-web"),
+			mk("ze-wiring-docs-check"),
+			mk("ze-doc-verify"),
+			mk("ze-doc-links-check"),
+			mk("ze-repository-tree-check"),
+			mk("ze-generated-files-check"),
+			mk("ze-vendor-web-check"),
 			mk("ze-htmx-upgrade-check"),
-			mk("ze-hook-test"),
-			mk("ze-vulncheck"),
+			mk("ze-unit-hook-test"),
+			mk("ze-dependency-vulnerability-check"),
 			mk("ze-unit-test-changed"),
 			mk("ze-functional-test"),
-			mk("ze-exabgp-test"),
+			mk("ze-functional-exabgp-test"),
 		}
 	case modeFullVerify:
 		return []stage{
@@ -275,21 +275,21 @@ func stagesForMode(mode, makeCmd string) []stage {
 			mk("ze-weakened-check"),
 			mk("ze-tracked-build-check"),
 			mk("ze-platform-vet"),
-			mk("ze-verify-wiring-docs"),
-			mk("ze-doc-test"),
-			mk("ze-doc-links"),
-			mk("ze-validate-tree"),
-			mk("ze-regen-check-readonly"),
-			mk("ze-check-vendor-web"),
+			mk("ze-wiring-docs-check"),
+			mk("ze-doc-verify"),
+			mk("ze-doc-links-check"),
+			mk("ze-repository-tree-check"),
+			mk("ze-generated-files-check"),
+			mk("ze-vendor-web-check"),
 			mk("ze-htmx-upgrade-check"),
-			mk("ze-vet-evidence"),
-			mk("ze-hook-test"),
-			mk("ze-vulncheck"),
+			mk("ze-evidence-vet"),
+			mk("ze-unit-hook-test"),
+			mk("ze-dependency-vulnerability-check"),
 			mk("ze-unit-test-cached"),
 			mk("ze-unit-test-race-changed"),
-			mk("ze-alloc-gate"),
+			mk("ze-alloc-check"),
 			mk("ze-functional-test"),
-			mk("ze-exabgp-test"),
+			mk("ze-functional-exabgp-test"),
 		}
 	default:
 		// FAIL CLOSED on an unknown mode. This used to be the `default` branch
@@ -511,13 +511,13 @@ func classifyStage(st stage, detailLog, text string) []failureGroup {
 		groups = classifyGoTest(st, detailLog, text)
 	case "ze-lint", "ze-lint-changed":
 		groups = classifyLint(st, detailLog, text)
-	case "ze-vet-evidence", "ze-platform-vet":
+	case "ze-evidence-vet", "ze-platform-vet":
 		groups = classifyVet(st, detailLog, text)
-	case "ze-verify-wiring-docs":
+	case "ze-wiring-docs-check":
 		groups = classifyWiringDocs(st, detailLog, text)
 	case "ze-functional-test":
 		groups = classifyFunctional(detailLog, text)
-	case "ze-exabgp-test":
+	case "ze-functional-exabgp-test":
 		groups = classifyExabgp(st, detailLog, text)
 	}
 	if len(groups) == 0 {
@@ -962,7 +962,7 @@ func writeVerifyStatus(root string, exitCode int, mode, skipped string, now time
 	var content strings.Builder
 	writef(&content, "exit=%d\n", exitCode)
 	writef(&content, "timestamp=%s\n", now.UTC().Format(time.RFC3339))
-	// mode distinguishes FRESH(ze-verify) from the weaker FRESH(ze-verify-changed);
+	// mode distinguishes FRESH(ze-precommit-verify) from the weaker FRESH(ze-precommit-verify-changed);
 	// skipped records ZE_SKIP_SUITES so a partial pass cannot read as a full one.
 	writef(&content, "mode=%s\n", mode)
 	writef(&content, "skipped=%s\n", skipped)

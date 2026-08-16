@@ -453,7 +453,7 @@ var defaultRouteNLRI = []byte{0x00}
 // was ALSO ::1, so the fixture asked the encoder to advertise a peer its own address
 // as NEXT_HOP. RFC 4271 Section 5.1.3 forbids that, and originatedNextHopIsPeerOwn
 // (forward_next_hop.go) refuses it, so the fixture asserted the wire form of a message
-// Ze must never send. The peer moves to fd00::2, which `make ze-setup` provisions on
+// Ze must never send. The peer moves to fd00::2, which `make ze-dev-setup` provisions on
 // the loopback. Only the destination moves: the next hop stays ::1, so the asserted
 // bytes are unchanged and no assertion is weakened. Its twin
 // TestSendAnnounceAppendsLinkLocalWhenSection3Holds (peer_send_test.go) took the same

@@ -354,7 +354,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
    - Files: `cmd/ze/doctor/` / `health.go`
 9. **Functional + interop tests** - the `.ci` files including rate-independence and collector interop.
 10. **RFC refs** - `// RFC 7012 IE 34`, `// RFC 3954` field-type comments; PSAMP references.
-11. **Full verification** - `make ze-verify`.
+11. **Full verification** - `make ze-precommit-verify`.
 12. **Complete spec** - audit tables, learned summary, closure.
 
 ### Critical Review Checklist (/implement stage 6)
@@ -556,7 +556,7 @@ Specific constraints to document in code:
 - [ ] AC-1..AC-12 all demonstrated
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled — 0 BLOCKER, 0 ISSUE)
-- [ ] `make ze-test` passes (lint + all ze tests)
+- [ ] `make ze-standard-test` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
 - [ ] Integration completeness proven end-to-end
 - [ ] Architecture docs updated

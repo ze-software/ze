@@ -73,7 +73,7 @@ drop is logged. An empty `default:` branch is refused by the pretool hook.
 ## The consumer side is a standing gate, not a one-time migration
 
 `scripts/checks/iface_resolution.go` rejects new direct kernel name resolution
-outside its allowlist. It runs as a `ze-verify` stage through
+outside its allowlist. It runs as a `ze-precommit-verify` stage through
 `stagesForMode`, and the allowlist records every legitimate direct-resolution
 site.
 

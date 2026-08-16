@@ -28,7 +28,7 @@ func TestRIv3LSTypePerScope(t *testing.T) {
 			t.Errorf("%s RI type %#04x not Known()", c.name, uint16(c.typ))
 		}
 		// the FunctionCode()/UBit()/IsRouterInformation() accessors were removed
-		// (intra-package-only exports flagged by ze-validate); the SAME behavior is asserted
+		// (intra-package-only exports flagged by ze-repository-check); the SAME behavior is asserted
 		// directly on the wire bits here -- function code 12 in the low 13 bits and the U-bit set.
 		if uint16(c.typ)&0x1FFF != uint16(RIFunctionCode) {
 			t.Errorf("%s RI function code = %#x, want %#x", c.name, uint16(c.typ)&0x1FFF, uint16(RIFunctionCode))
@@ -44,7 +44,7 @@ func TestRIv3LSTypePerScope(t *testing.T) {
 
 func TestRIv3RecognizedRegardlessOfUBit(t *testing.T) {
 	// the IsRouterInformation() accessor was removed (intra-package-only export
-	// flagged by ze-validate); Known() now folds the function-code RI check, so the SAME
+	// flagged by ze-repository-check); Known() now folds the function-code RI check, so the SAME
 	// behavior -- RI recognized regardless of the U-bit, a non-RI/non-base type rejected -- is
 	// asserted through Known() here.
 	// A peer that encodes the RI LSA without the U-bit (U=0) is still recognized by function

@@ -697,7 +697,7 @@ def assert_kernel_pkg(
         detail = "\n  ".join(problems)
         raise SystemExit(
             f"unusable kernel package ({context}):\n  {detail}\n"
-            f"rebuild it with: make ze-kernel KERNEL_ARCH={arch}"
+            f"rebuild it with: make ze-kernel-build KERNEL_ARCH={arch}"
             " (~30 min on a cache miss, needs docker)"
         )
 
@@ -706,7 +706,7 @@ def copy_kernel_pkg(src: Path, work: Path, arch: str) -> Path:
     """Copy a kernel package into this run's work dir and validate the copy.
 
     `tmp/kernel/pkg` is a shared fixed path that any concurrent `make
-    ze-kernel` (another proof run, another arch, another session) rewrites
+    ze-kernel-build` (another proof run, another arch, another session) rewrites
     starting with an rm -rf. gok reads the package minutes after validation,
     so consuming the shared path directly is validate-then-clobber TOCTOU;
     the per-run copy is what gok actually reads.
@@ -721,7 +721,7 @@ def copy_kernel_pkg(src: Path, work: Path, arch: str) -> Path:
 
 def probe_kernel_cache_dir(root: Path) -> Path:
     """Ask ze-host for the arch-keyed runtime-kernel cache directory."""
-    run_required(["make", "ze-host"], "build host ze binary", cwd=root)
+    run_required(["make", "ze-host-build"], "build host ze binary", cwd=root)
     cache_probe = run_required(
         [
             str(root / "ze-host"),
@@ -743,7 +743,7 @@ def probe_kernel_cache_dir(root: Path) -> Path:
         raise SystemExit(
             "could not resolve the runtime kernel cache dir: ze-host"
             " appliance kernel --print-cache-dir produced no output;"
-            f" try: make ze-kernel KERNEL_ARCH={ARCH}"
+            f" try: make ze-kernel-build KERNEL_ARCH={ARCH}"
         )
     return Path(lines[-1].strip())
 
@@ -755,7 +755,7 @@ def resolve_kernel_pkg(root: Path, work: Path) -> Path:
     already-assembled `tmp/kernel/pkg` is reused (no shared-state rewrite, no
     `tmp/kernel/vmlinuz` restaging for the sibling QEMU labs); failing that,
     the runtime kernel is materialized from the durable cache via `make
-    ze-kernel`, and a cold or unusable cache fails fast with the exact command
+    ze-kernel-build`, and a cold or unusable cache fails fast with the exact command
     to run, instead of booting an image whose ze can only crash-loop. Either
     way the package handed to the build is a per-run copy under this proof's
     work dir (see copy_kernel_pkg).
@@ -781,16 +781,16 @@ def resolve_kernel_pkg(root: Path, work: Path) -> Path:
         detail = "\n  ".join(problems)
         # make's HIT branch is existence-only, so an EXISTING-but-invalid
         # cache entry (stub, wrong arch from a pre-guard populate) would be
-        # re-materialized as-is by `make ze-kernel`; the remediation is only
+        # re-materialized as-is by `make ze-kernel-build`; the remediation is only
         # true if the bad entry is removed first.
         if cache_dir.is_dir():
             remediation = (
                 f"the cache entry exists but is unusable; remove it first:\n"
                 f"  rm -rf {cache_dir}\n"
-                f"then rebuild it: make ze-kernel KERNEL_ARCH={ARCH}"
+                f"then rebuild it: make ze-kernel-build KERNEL_ARCH={ARCH}"
             )
         else:
-            remediation = f"build it once with: make ze-kernel KERNEL_ARCH={ARCH}"
+            remediation = f"build it once with: make ze-kernel-build KERNEL_ARCH={ARCH}"
         raise SystemExit(
             "this proof needs the runtime kernel (PPPoL2TP built in;"
             " the pinned rtr7 kernel has no l2tp support and the appliance"
@@ -800,21 +800,21 @@ def resolve_kernel_pkg(root: Path, work: Path) -> Path:
             " (~30 min, needs docker), then re-run this proof.\n"
             "note: this proof usually runs under sudo, and sudo commonly"
             " resets HOME, so the cache probed here is root's; a kernel built"
-            " as your own user lives in YOUR cache. Either run the ze-kernel"
+            " as your own user lives in YOUR cache. Either run the ze-kernel-build"
             " build under sudo too, or re-run the proof with XDG_CACHE_HOME"
             " pointed at the cache that holds the kernel"
         )
     sys.stderr.write(
         "materializing the runtime kernel package from the durable cache"
-        " (make ze-kernel; instant on this validated cache)...\n"
+        " (make ze-kernel-build; instant on this validated cache)...\n"
     )
     # Streamed (no capture): if the cache is evicted between the probe above
     # and this invocation, make's MISS branch starts a ~30-minute docker
     # build, and that must be visible live, not silent inside a pipe.
-    result = run(["make", "ze-kernel", f"KERNEL_ARCH={ARCH}"], cwd=root)
+    result = run(["make", "ze-kernel-build", f"KERNEL_ARCH={ARCH}"], cwd=root)
     if result.returncode != 0:
-        raise SystemExit("make ze-kernel failed; see output above")
-    assert_kernel_pkg(staged, ARCH, "assembled by make ze-kernel", pinned)
+        raise SystemExit("make ze-kernel-build failed; see output above")
+    assert_kernel_pkg(staged, ARCH, "assembled by make ze-kernel-build", pinned)
     return copy_kernel_pkg(staged, work, ARCH)
 
 
@@ -843,7 +843,7 @@ def prepare_instance(root: Path, work: Path) -> Path:
     copying the builddir and absolutizing every filesystem-path replace. So this
     symlinks the builddir rather than duplicating it, and the go.mod regexes are
     deleted along with the custom-kernel one, which is now selected per build
-    with `make ze-gokrazy KERNEL_PKG=...` instead of an in-tree replace.
+    with `make ze-gokrazy-build KERNEL_PKG=...` instead of an in-tree replace.
     """
     parent = work / "gokrazy-parent"
     instance = parent / "ze"
@@ -888,12 +888,12 @@ def build_image(root: Path, work: Path, template: Path) -> Path:
 
     env = os.environ.copy()
     env.setdefault("USER", "admin")
-    # No `make bin/gok` here: bin/gok is .PHONY and the ze-gokrazy target
+    # No `make bin/gok` here: bin/gok is .PHONY and the ze-gokrazy-build target
     # below rebuilds it (a stale gok once silently ran pre-preparer logic).
     parent = prepare_instance(root, work)
     cmd = [
         "make",
-        "ze-gokrazy",
+        "ze-gokrazy-build",
         f"GOKRAZY_DIR={parent}",
         "GOKRAZY_INSTANCE=ze",
         f"GOKRAZY_ARCH={ARCH}",
@@ -911,7 +911,7 @@ def build_image(root: Path, work: Path, template: Path) -> Path:
     cmd.append(f"KERNEL_PKG={kernel_pkg}")
     result = run(cmd, cwd=root, env=env)
     if result.returncode != 0:
-        raise SystemExit("make ze-gokrazy for L2TP appliance evidence failed")
+        raise SystemExit("make ze-gokrazy-build for L2TP appliance evidence failed")
     if not image.is_file():
         raise SystemExit(f"gokrazy image not found after build: {image}")
     return image

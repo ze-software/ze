@@ -10,7 +10,7 @@
 # driver self-skips with a clear reason when QEMU, a suitable kernel
 # (ZE_INSTALL_KERNEL), a static busybox, or the image-build tooling is absent.
 # It exits 0 in both the PASS and SKIP cases; a genuine boot/install/SSH failure
-# exits non-zero. The exhaustive from-scratch run is `make ze-install-qemu-test`.
+# exits non-zero. The exhaustive from-scratch run is `make ze-qemu-install-test`.
 
 cmd=foreground:seq=1:exec=python3 scripts/evidence/effective-install-qemu.py
 expect=exit:code=0

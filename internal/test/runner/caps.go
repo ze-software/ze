@@ -116,7 +116,7 @@ var hasCaps = func(tokens []string) bool {
 // skipReasonNetnsLink is the skip reason applied by applyNetnsLinkGate. It names
 // both targets that DO provision the links, so the reader's next step is one
 // command rather than a source dive.
-const skipReasonNetnsLink = "option=netns-link (needs the per-test netns launch mode; run via make ze-netns-qemu-test, or make ze-netns-test on Linux)"
+const skipReasonNetnsLink = "option=netns-link (needs the per-test netns launch mode; run via make ze-qemu-netns-test, or make ze-netns-test on Linux)"
 
 // applyNetnsLinkGate skips a record that declared `option=netns-link` when the
 // per-test netns launch mode is off.

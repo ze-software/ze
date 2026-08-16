@@ -15,7 +15,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 `TestFwdPool_BackpressureBehavior`
 (`internal/component/bgp/reactor/forward_pool_test.go`) fails under
-`make ze-race-reactor` at `-count=20`. It passes 5 runs out of 5 in isolation.
+`make ze-unit-reactor-test-race` at `-count=20`. It passes 5 runs out of 5 in isolation.
 `-race` reports zero data races.
 
 **This is a BROKEN TEST, and it must be FIXED. It must NOT go into
@@ -76,7 +76,7 @@ Source: `plan/deferrals/ad-hoc-2026-08-02-wire-edit-tail.md`, row 7.
 - [ ] `ai/rules/testing.md` - the assertion is the requirement
   → Constraint: the backpressure claim survives the rewrite unchanged.
 - [ ] `ai/rules/testing.md` - "Reactor Concurrency Code"
-  → Constraint: `make ze-race-reactor` is the required verification for anything in this package that shares state across goroutines.
+  → Constraint: `make ze-unit-reactor-test-race` is the required verification for anything in this package that shares state across goroutines.
 
 **Key insights:**
 - Two duration-shaped steps, not one. Fixing only `require.Never` may leave the fill sequence racy.
@@ -113,7 +113,7 @@ Source: `plan/deferrals/ad-hoc-2026-08-02-wire-edit-tail.md`, row 7.
 
 ### Integration Points
 - `internal/component/bgp/reactor/forward_pool.go` - the pool; may gain an observable so the condition is readable.
-- `make ze-race-reactor` - the target that reproduces the failure.
+- `make ze-unit-reactor-test-race` - the target that reproduces the failure.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
@@ -139,7 +139,7 @@ Source: `plan/deferrals/ad-hoc-2026-08-02-wire-edit-tail.md`, row 7.
 | R-1 | The fix replaces one duration with a longer one and the test reds again later on a busier host. | A rewrite that still names a millisecond figure as the proof. | A duration may bound a poll, never carry the assertion. The assertion reads a condition. |
 | R-2 | The test is quietly relaxed to assert something weaker that always passes. | The `PREVENTS:` line stops matching what the test checks. | The backpressure claim is the requirement (`ai/rules/testing.md`). |
 | R-3 | A new observable exists only for the test and is dead in production. | An accessor with one caller, and that caller is a `_test.go` file. | A test-only observable is acceptable when it reads state the pool already keeps. Adding new STATE for a test is not. Record which it is. |
-| R-4 | The failure is chased by looping `make ze-verify`. | Repeated full-suite runs in the session log. | `ai/rules/testing.md`: use `scripts/dev/stress-repro.py` against the suspected package. |
+| R-4 | The failure is chased by looping `make ze-precommit-verify`. | Repeated full-suite runs in the session log. | `ai/rules/testing.md`: use `scripts/dev/stress-repro.py` against the suspected package. |
 
 ## Blast Radius
 
@@ -159,7 +159,7 @@ Source: `plan/deferrals/ad-hoc-2026-08-02-wire-edit-tail.md`, row 7.
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | `make ze-race-reactor` at `-count=20` | `TestFwdPool_BackpressureBehavior` passes on every iteration |
+| AC-1 | `make ze-unit-reactor-test-race` at `-count=20` | `TestFwdPool_BackpressureBehavior` passes on every iteration |
 | AC-2 | `scripts/dev/stress-repro.py` against the reactor package under CPU oversubscription | The test passes; the pre-fix run must have reproduced the failure first |
 | AC-3 | The rewritten test | No assertion rests on an elapsed duration. A duration may bound a poll interval only, and carries a comment saying which condition the loop waits on |
 | AC-4 | Backpressure removed from `Dispatch` (a deliberate mutation) | The test FAILS. A test that passes with the behavior removed proves nothing |
@@ -175,7 +175,7 @@ Source: `plan/deferrals/ad-hoc-2026-08-02-wire-edit-tail.md`, row 7.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| not applicable, no user-facing behavior changes: this repairs a unit test's timing assumption. The driving surface is `make ze-race-reactor` | `internal/component/bgp/reactor/` | a developer runs the reactor race target and it is green every iteration | |
+| not applicable, no user-facing behavior changes: this repairs a unit test's timing assumption. The driving surface is `make ze-unit-reactor-test-race` | `internal/component/bgp/reactor/` | a developer runs the reactor race target and it is green every iteration | |
 
 ## Files to Modify
 - `internal/component/bgp/reactor/forward_pool_test.go` - replace both duration-shaped waits with condition waits
@@ -183,12 +183,12 @@ Source: `plan/deferrals/ad-hoc-2026-08-02-wire-edit-tail.md`, row 7.
 
 ## Implementation Steps
 
-1. Reproduce with `scripts/dev/stress-repro.py` against the reactor package. Capture the first failure's full output. Do not loop `make ze-verify` (`ai/rules/testing.md`).
+1. Reproduce with `scripts/dev/stress-repro.py` against the reactor package. Capture the first failure's full output. Do not loop `make ze-precommit-verify` (`ai/rules/testing.md`).
 2. Read the worker take path and settle A-2. This decides whether step 1 of the test is also broken.
 3. Settle A-3: find or add the observable for full and drained.
 4. Rewrite the waits. Every remaining sleep or timeout bounds a poll and carries a comment naming the condition.
 5. Mutate: remove backpressure from `Dispatch`, confirm the test reds, revert the mutation (AC-4).
-6. `make ze-race-reactor`, then `make ze-verify`.
+6. `make ze-unit-reactor-test-race`, then `make ze-precommit-verify`.
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -206,8 +206,8 @@ Source: `plan/deferrals/ad-hoc-2026-08-02-wire-edit-tail.md`, row 7.
 
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-5 all demonstrated
-- [ ] `make ze-verify` passes
-- [ ] `make ze-race-reactor` passes
+- [ ] `make ze-precommit-verify` passes
+- [ ] `make ze-unit-reactor-test-race` passes
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 
 ### TDD

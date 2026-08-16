@@ -959,7 +959,7 @@ def verify_status(repo: Path) -> tuple[str, str]:
     return ("fresh" if proc.returncode == 0 else "stale"), (out[0] if out else "")
 
 
-# Deterministic structural gates in `make ze-verify` (the non-test stages in
+# Deterministic structural gates in `make ze-precommit-verify` (the non-test stages in
 # scripts/status/verify_run.go stagesForMode). Unlike the unit/functional/exabgp
 # TEST stages, these NEVER fail for flaky or environmental reasons: a red means
 # the tree is structurally broken -- a module-tier misplacement, a lint or vet
@@ -983,16 +983,16 @@ STRUCTURAL_GATES = frozenset(
         "ze-tier-check",
         "ze-iface-resolution-check",
         "ze-plugin-boundary-check",
-        "ze-regen-check-readonly",
-        "ze-verify-wiring-docs",
-        "ze-vet-evidence",
+        "ze-generated-files-check",
+        "ze-wiring-docs-check",
+        "ze-evidence-vet",
         TRACKED_BUILD_GATE,
     }
 )
 
 
 def structural_gate_reds(repo: Path) -> list[str]:
-    """Structural-gate stages recorded red by the last `make ze-verify` run.
+    """Structural-gate stages recorded red by the last `make ze-precommit-verify` run.
 
     Reads tmp/ze-verify-failures.json, which verify_run.go rewrites after EVERY
     run (green or red, unconditionally), so a stale red cannot linger past a
@@ -1009,7 +1009,7 @@ def structural_gate_reds(repo: Path) -> list[str]:
     for st in data.get("stages", []) if isinstance(data, dict) else []:
         if not isinstance(st, dict):
             continue
-        if st.get("exit_code", 0) != 0 and st.get("stage") in STRUCTURAL_GATES:
+        if st.get("exit-code", 0) != 0 and st.get("stage") in STRUCTURAL_GATES:
             reds.append(st["stage"])
     return reds
 
@@ -1197,7 +1197,7 @@ def _judge_indexes(
             continue
         # Any other nonzero exit is the generator failing, not the index drifting.
         # Mirror discovery_index_freshness: unjudgeable, not stale. Show what it
-        # said -- the "run make ze-regen" advice cannot fix a crash.
+        # said -- the "run make ze-generated-files-update" advice cannot fix a crash.
         if verbose:
             output = ((proc.stdout or "") + (proc.stderr or "")).strip()[:400]
             print(
@@ -1246,7 +1246,7 @@ def _sweep_stale_commit_views(repo: Path) -> None:
     these directories also collects them, with no harness required. No session
     hook could do it anyway: nothing under tmp/session/ is ever swept, and these
     trees are not under it -- they sit at the tmp/ root, which only the
-    operator's own `make ze-clean-tmp` reaps.
+    operator's own `make ze-tmp-clean` reaps.
 
     One day old, so a concurrent session's LIVE view (which lasts seconds) can
     never be in scope.
@@ -1451,7 +1451,7 @@ def discovery_index_problems(
         return [
             "discovery indexes are stale in the working tree and the commit view\n"
             "  could not be built to check them: " + ", ".join(stale) + ".\n"
-            "  Run `make ze-regen` (or `make ze-discovery-index`) and include the\n"
+            "  Run `make ze-generated-files-update` (or `make ze-discovery-index-update`) and include the\n"
             "  regenerated files in this commit."
         ]
     if not still:
@@ -1477,7 +1477,7 @@ def discovery_index_problems(
         lines.append(
             "  omitted: "
             + ", ".join(omitted)
-            + "\n  Run `make ze-regen` (or `make ze-discovery-index`) and add them: "
+            + "\n  Run `make ze-generated-files-update` (or `make ze-discovery-index-update`) and add them: "
             + " ".join("--file " + m for m in omitted)
         )
     if included:
@@ -2081,12 +2081,12 @@ def feature_gate_tags(repo: Path) -> list[str]:
 def doc_drift_warnings(repo: Path) -> list[str]:
     """Advisory warning when docs drift from the live registry.
 
-    Runs under the SAME build tags as `make ze-doc-drift` (Makefile GO_RUN =
+    Runs under the SAME build tags as `make ze-doc-drift-check` (Makefile GO_RUN =
     `go run -tags '$(GO_TEST_TAGS)'`, GO_TEST_TAGS = `ze_core $(ZE_FEATURES)`).
     A bare `go run` here compiles out every feature-gated package, so the family
     registry holds only the four always-on families and EVERY address-family
     claim in docs/comparison.md and docs/DESIGN.md is reported as drift -- 11
-    fabricated warnings on a tree whose `make ze-doc-test` is green. That is the
+    fabricated warnings on a tree whose `make ze-doc-verify` is green. That is the
     trap ai/rules/commands.md names: dropping the feature tags fakes reds.
     """
     if not (repo / "scripts" / "docvalid" / "doc_drift.go").exists():
@@ -2829,7 +2829,7 @@ def _create(args: argparse.Namespace, repo: Path, session: str, tag: str) -> int
             gate_reds = []
         if gate_reds:
             raise UsageError(
-                "ze-verify has a DETERMINISTIC STRUCTURAL GATE red that "
+                "ze-precommit-verify has a DETERMINISTIC STRUCTURAL GATE red that "
                 "--unverified cannot bypass: " + ", ".join(gate_reds) + ".\n"
                 "  Structural gates (tier/lint/vet/plugin-boundary/iface-resolution/\n"
                 "  regen-check-readonly/wiring-docs/tracked-build) never fail for flaky\n"
@@ -2858,7 +2858,7 @@ def _create(args: argparse.Namespace, repo: Path, session: str, tag: str) -> int
                     if TRACKED_BUILD_GATE in gate_reds
                     else "To CLEAR this refusal you must refresh the verify record:\n"
                 )
-                + "  only `make ze-verify` (or `make ze-verify-changed`) rewrites\n"
+                + "  only `make ze-precommit-verify` (or `make ze-precommit-verify-changed`) rewrites\n"
                 "  tmp/ze-verify-failures.json -- `make "
                 + gate_reds[0]
                 + "` alone does\n"
@@ -2882,8 +2882,8 @@ def _create(args: argparse.Namespace, repo: Path, session: str, tag: str) -> int
         # self-service --unverified. The fixing commit passes both flags.
         if not args.unverified and not (args.structural_red_ok or "").strip():
             raise UsageError(
-                "ze-verify is not FRESH-green (" + (detail or "unknown") + ").\n"
-                "  Run `make ze-verify` (or `make ze-verify-changed`) until green, then\n"
+                "ze-precommit-verify is not FRESH-green (" + (detail or "unknown") + ").\n"
+                "  Run `make ze-precommit-verify` (or `make ze-precommit-verify-changed`) until green, then\n"
                 '  commit, OR pass --unverified "<reason>" to commit anyway (owner\n'
                 "  override, or a flaky/environmental known-red logged in\n"
                 "  plan/known-failures/; structural gates are never eligible)."
@@ -2977,7 +2977,7 @@ def _create(args: argparse.Namespace, repo: Path, session: str, tag: str) -> int
             "warning: HEAD's committed discovery index does not match HEAD's "
             "committed sources: " + ", ".join(head_stale) + ".\n"
             "  A prior commit bypassed the freshness gate, or an index was "
-            "committed that references not-yet-committed work. Run `make ze-regen`\n"
+            "committed that references not-yet-committed work. Run `make ze-generated-files-update`\n"
             "  once the tree is coherent and commit the fix.",
             file=sys.stderr,
         )
@@ -3078,7 +3078,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     create_cmd.add_argument(
         "--unverified",
-        help="reason to allow a commit when ze-verify is not FRESH-green "
+        help="reason to allow a commit when ze-precommit-verify is not FRESH-green "
         "(owner override, or a flaky/environmental known-red logged in "
         "plan/known-failures/; deterministic structural gates are never eligible)",
     )

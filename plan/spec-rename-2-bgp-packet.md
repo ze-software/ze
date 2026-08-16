@@ -56,7 +56,7 @@ Check `make ze-spec-status` before starting.
 - [ ] `ai/rules/protocol.md` - BGP probe row lists `message`+`wireu` as the pre-SDK codec pair
   → Constraint: probe row + exceptions table change here (message) and again in spec-rename-3 (wireu)
 - [ ] `docs/architecture/wire/messages.md` - the `// Design:` anchor for this package's files
-  → Constraint: prose + anchors updated in the same commit; `make ze-doc-test` gates
+  → Constraint: prose + anchors updated in the same commit; `make ze-doc-verify` gates
 - [ ] `ai/rules/performance.md` - the encoding architecture this package implements
   → Constraint: rename must not disturb WriteTo(buf, off) patterns; mechanical hunks only
 
@@ -115,9 +115,9 @@ Check `make ze-spec-status` before starting.
 |----|-----------|-------|----------|--------------|--------|
 | A-1 | rib-arch set closed before this starts | Depends field; user ordering decision 2026-07-08 | rename conflicts with in-flight branches | `make ze-spec-status` at start | unvalidated (checked at start) |
 | A-2 | No local `packet` identifier in any of the 124 importers | grep audit 2026-07-08: zero declarations | compile errors after rewrite | `go build ./...` | confirmed (2026-07-08 snapshot; re-grep at start) |
-| A-3 | 34 doc source anchors point into `bgp/message` | anchor grep 2026-07-08 | doc-test reveals more | `make ze-doc-test` after sweep | confirmed (2026-07-08 snapshot) |
+| A-3 | 34 doc source anchors point into `bgp/message` | anchor grep 2026-07-08 | doc-test reveals more | `make ze-doc-verify` after sweep | confirmed (2026-07-08 snapshot) |
 | A-4 | No string literal, YANG node, metric, or CLI word depends on the package name | quoted-literal grep 2026-07-08 found none; `pkg/` zero refs | user-visible break | post-rename repo grep AC | confirmed (2026-07-08 snapshot) |
-| A-5 | Only hook-parity-check.py hardcodes paths into this package among dev scripts | scripts/ grep 2026-07-08 | a script check breaks post-rename | rerun scripts/ grep at start; `make ze-verify` runs the checks | confirmed (2026-07-08 snapshot) |
+| A-5 | Only hook-parity-check.py hardcodes paths into this package among dev scripts | scripts/ grep 2026-07-08 | a script check breaks post-rename | rerun scripts/ grep at start; `make ze-precommit-verify` runs the checks | confirmed (2026-07-08 snapshot) |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -141,10 +141,10 @@ Check `make ze-spec-status` before starting.
 | AC-1 | after rename | `internal/component/bgp/message/` does not exist; `internal/component/bgp/packet/` builds; package clause `packet` in all files |
 | AC-2 | repo-wide grep for the old import path | zero hits in code, scripts, docs/ and ai/ living surfaces (plan/learned history exempt) |
 | AC-3 | `scripts/dev/protocol_skeleton_report.py` | summary `legacy 2` (after spec-1's 3); `--verbose` shows `bgp: ... packet=canonical`; `--selftest` OK with fixtures updated |
-| AC-4 | `make ze-doc-test` | green after the 34-anchor + prose sweep |
+| AC-4 | `make ze-doc-verify` | green after the 34-anchor + prose sweep |
 | AC-5 | rule surfaces | go-standards.md `message` row marked retired/historical; protocol.md BGP row no longer lists `message` |
 | AC-6 | `scripts/dev/hook-parity-check.py` | passes with fixture paths updated to `bgp/packet/` |
-| AC-7 | `make ze-verify` | green, including regenerated `ai/PACKAGE-MAP.md` |
+| AC-7 | `make ze-precommit-verify` | green, including regenerated `ai/PACKAGE-MAP.md` |
 
 ## End-to-End User Stories (MANDATORY for new features)
 
@@ -215,7 +215,7 @@ Check `make ze-spec-status` before starting.
 | 13 | Route metadata keys added/changed? | [ ] | No |
 | 14 | Prometheus counters added/changed? | [ ] | No |
 | 15 | Registered inventory changed? | [ ] | No |
-| 16 | Changed source referenced by doc anchors? | [ ] | Yes - 34 anchors; gated by `make ze-doc-test` |
+| 16 | Changed source referenced by doc anchors? | [ ] | Yes - 34 anchors; gated by `make ze-doc-verify` |
 | 17 | Docs show examples for this area? | [ ] | No examples carry package paths |
 
 ## Files to Create
@@ -252,10 +252,10 @@ Check `make ze-spec-status` before starting.
    - Files: per Files to Modify
    - Verify: AC-1, AC-2 (code), AC-3, AC-6
 4. **Phase: rule + doc sweep** — go-standards.md, protocol.md, 34 anchors + prose, PACKAGE-MAP regen.
-   - Tests: `make ze-doc-test`
+   - Tests: `make ze-doc-verify`
    - Files: per Files to Modify
    - Verify: AC-4, AC-5
-5. **Full verification** — `make ze-verify`; AC-7.
+5. **Full verification** — `make ze-precommit-verify`; AC-7.
 6. **Complete spec** — audit tables, learned summary, two-commit closure.
 
 ### Critical Review Checklist (/implement stage 6)
@@ -359,7 +359,7 @@ Not applicable: no RFC-covered behavior changes.
 ## Goal Validation (BLOCKING)
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
-| rename with zero behavior change | functional test | (fill: `make ze-verify` output + old-path grep) |
+| rename with zero behavior change | functional test | (fill: `make ze-precommit-verify` output + old-path grep) |
 
 ## Review Gate
 
@@ -407,7 +407,7 @@ Not applicable: no RFC-covered behavior changes.
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled — 0 BLOCKER, 0 ISSUE)
-- [ ] `make ze-test` passes (lint + all ze tests)
+- [ ] `make ze-standard-test` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
 - [ ] Integration completeness proven end-to-end
 - [ ] Documentation Update Checklist answered Yes/No with source evidence

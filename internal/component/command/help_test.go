@@ -85,7 +85,7 @@ func testVerbTree() *Node {
 				Name:        "validate",
 				Description: "Check without changing",
 				Children: map[string]*Node{
-					"config": {Name: "config", Description: "Validate configuration file", WireMethod: "ze-validate:config"},
+					"config": {Name: "config", Description: "Validate configuration file", WireMethod: "ze-repository-check:config"},
 				},
 			},
 			"monitor": {

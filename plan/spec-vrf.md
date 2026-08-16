@@ -229,7 +229,7 @@ This skeleton tracks the gap; it is NOT ready to implement.
 ### Goal Gates (MUST pass)
 - [ ] Full `/ze-spec` DESIGN completed and approved before implementation
 - [ ] QEMU table-isolation test passes
-- [ ] `make ze-test` passes (after implementation)
+- [ ] `make ze-standard-test` passes (after implementation)
 - [ ] Feature code integrated (`internal/*`)
 
 ### Quality Gates (SHOULD pass)

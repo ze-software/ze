@@ -540,7 +540,7 @@ For this audit spec, "implementation" means audit documentation only. It does no
 - [ ] AC-1..AC-7 demonstrated (protocol surfaces mapped, findings evidence-backed, audit-only scope held)
 - [ ] Every finding RA-BGP-001..RA-BGP-008 cites source/RFC/test evidence, owner, and requested verification
 - [ ] `make ze-spec-status` shows `release-audit-2-bgp-protocol`
-- [ ] `make ze-test` unaffected (audit-only: this spec changes no product code or tests)
+- [ ] `make ze-standard-test` unaffected (audit-only: this spec changes no product code or tests)
 
 ### TDD
 

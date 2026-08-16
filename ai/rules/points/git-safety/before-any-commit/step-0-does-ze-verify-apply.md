@@ -3,4 +3,4 @@ kind: heading
 level:
 stage:
 ---
-### Step 0: Does `ze-verify` apply?
+### Step 0: Does `ze-precommit-verify` apply?

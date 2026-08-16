@@ -259,7 +259,7 @@ NO_BUILD=1 make ze-interop-test                        # skip image rebuilds
 FRR_IMAGE=quay.io/frrouting/frr:10.3 make ze-interop-test  # override FRR version
 ```
 
-Interop tests require Docker and are not part of `make ze-verify` (which runs without
+Interop tests require Docker and are not part of `make ze-precommit-verify` (which runs without
 Docker). They are available as a separate target for protocol validation.
 
 The first run builds Docker images (takes a few minutes). Subsequent runs with `NO_BUILD=1`
@@ -327,20 +327,20 @@ Coverage includes:
 ### Running
 
 ```bash
-make ze-exabgp-test   # runs via uv with psutil dependency
+make ze-functional-exabgp-test   # runs via uv with psutil dependency
 ```
 
-ExaBGP compatibility is part of `make ze-verify` (the pre-commit gate).
+ExaBGP compatibility is part of `make ze-precommit-verify` (the pre-commit gate).
 <!-- source: test/exabgp-compat/encoding/ -- .ci test files for wire compatibility -->
 
 ## Test Hierarchy
 
 | Target | Includes Interop? | Includes ExaBGP? | Requires Docker? |
 |--------|-------------------|-------------------|-------------------|
-| `make ze-verify` | No | Yes | No |
-| `make ze-test` | No | Yes | No |
+| `make ze-precommit-verify` | No | Yes | No |
+| `make ze-standard-test` | No | Yes | No |
 | `make ze-interop-test` | Yes | No | Yes |
-| `make ze-exabgp-test` | No | Yes | No |
+| `make ze-functional-exabgp-test` | No | Yes | No |
 
 Interop tests are intentionally separate from the pre-commit gate because they require
 Docker and take longer to run. ExaBGP wire compatibility tests run as part of the

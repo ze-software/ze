@@ -181,7 +181,7 @@ confidence (FreeRADIUS quirks), not new wire coverage.
 - [ ] AC-1..AC-3 demonstrated
 - [ ] Docker availability confirmed
 - [ ] interop suite passes
-- [ ] `make ze-test` passes
+- [ ] `make ze-standard-test` passes
 
 ### TDD
 - [ ] Tests written

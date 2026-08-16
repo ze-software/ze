@@ -17,11 +17,11 @@ One file per problem class. Each file holds one table:
 - **Symptom** describes what went wrong.
 - **Fix** describes what was done about it.
 
-A row holds exactly five cells and starts with `|`. `make ze-journal` names a
+A row holds exactly five cells and starts with `|`. `make ze-journal-report` names a
 row that does not and exits non-zero, so prose in one of these files must not
 contain a `|`.
 
-`make ze-journal` prints every class with 2 or more rows, its count, and
+`make ze-journal-report` prints every class with 2 or more rows, its count, and
 the span between the first and last date. When every class has 1 row it
 prints nothing and exits 0. It reads git HEAD, never the working tree, so a
 row counts once it is committed.

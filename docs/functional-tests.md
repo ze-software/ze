@@ -9,9 +9,9 @@ Functional tests exercise release-gate behavior across BGP wire encoding and dec
 ```bash
 # Quick start
 make ze-functional-test   # Run all gating suites
-make ze-encode-test       # Encoding tests only
-make ze-plugin-test       # Plugin tests only
-make ze-reload-test       # Reload tests only
+make ze-functional-encode-test       # Encoding tests only
+make ze-functional-plugin-test       # Plugin tests only
+make ze-functional-reload-test       # Reload tests only
 ```
 
 ## Release Gate Coverage
@@ -19,26 +19,26 @@ make ze-reload-test       # Reload tests only
 The stage list is **not reproduced here**, deliberately. It lives in
 `stagesForMode` (`scripts/status/verify_run.go`) and nowhere else: both make
 targets shell out to that runner, and `.github/workflows/verify.yml` runs nothing
-but `make ze-verify`, so a gate absent from that function runs nowhere. To read the
-current list, run `make ze-verify-list` (or
-`make ze-verify-list ZE_VERIFY_MODE=ze-verify-changed`), or open the function.
+but `make ze-precommit-verify`, so a gate absent from that function runs nowhere. To read the
+current list, run `make ze-precommit-verify-list` (or
+`make ze-precommit-verify-list ZE_VERIFY_MODE=ze-precommit-verify-changed`), or open the function.
 
-Never use `make -n ze-verify` for this, nor `-t` / `-q`. The recipe contains `$(MAKE)`, which GNU
+Never use `make -n ze-precommit-verify` for this, nor `-t` / `-q`. The recipe contains `$(MAKE)`, which GNU
 make executes even under `-n`, propagating the flag to every stage sub-make: each
 would echo its recipe and exit 0, and the runner would write a FRESH
 `tmp/ze-verify.status` stamped with the current tree hash, certifying an entirely
 unverified tree. `-t` is the quieter of the three: a `.PHONY` stage prints "Nothing to be done" and exits 0, with no echoed recipes to hint that nothing ran. `verify_run.go` refuses all three for that reason, and
-`ze-verify-list` exists to give the question a safe answer.
+`ze-precommit-verify-list` exists to give the question a safe answer.
 
 An earlier version of this paragraph did enumerate the stages and had silently
 gone eight stages out of date, which is the same drift that killed the duplicate
 `_ze-verify-impl` Makefile targets. Nothing checks prose against `stagesForMode`,
 so any copy of the list here would rot the same way. Please do not re-add one.
 
-Broadly: `ze-verify` runs the static gates first (lint, module tier, plugin
+Broadly: `ze-precommit-verify` runs the static gates first (lint, module tier, plugin
 boundary, doc and generated-file freshness), then the Linux/amd64
-`ze-vulncheck` SCA stage before the unit, functional, and ExaBGP test stages.
-`ze-verify-changed` swaps in the changed-only lint and unit stages and drops the
+`ze-dependency-vulnerability-check` SCA stage before the unit, functional, and ExaBGP test stages.
+`ze-precommit-verify-changed` swaps in the changed-only lint and unit stages and drops the
 three full-verify-only stages. Both modes run the same vulnerability scan before
 their unit stage. The target needs network access to the live Go vulnerability
 database. `TestStagesForModeBranchesAgree` (`scripts/status/verify_run_test.go`)
@@ -58,11 +58,11 @@ The functional test target runs 24 suites: encode, plugin, parse, decode, reload
 ui, editor, managed, l2tp, firewall, policy, ipsec, ldp, rsvpte, isis, ospf, ospfv3,
 web, install, appliance, l2tp-wire, isis-wire, ospf-wire, runner.
 
-`make ze-validate` is a fast (~0.2s) post-verify check that catches recurring
+`make ze-repository-check` is a fast (~0.2s) post-verify check that catches recurring
 implementation mistakes: stale source anchors, line-number anchors, unwired
-exported symbols, and incomplete spec AC tables. Run it after `ze-verify` passes,
+exported symbols, and incomplete spec AC tables. Run it after `ze-precommit-verify` passes,
 before presenting work as complete.
-<!-- source: Makefile -- ze-verify, ze-verify-changed, ze-vulncheck, ze-exabgp-test -->
+<!-- source: Makefile -- ze-precommit-verify, ze-precommit-verify-changed, ze-dependency-vulnerability-check, ze-functional-exabgp-test -->
 <!-- source: scripts/dev/validate.py -- post-verify validation checks -->
 <!-- source: scripts/status/verify_run.go -- artifact writing and grouped summaries -->
 <!-- source: scripts/dev/verify-lock.sh -- verify-class lock -->
@@ -82,25 +82,25 @@ must be run manually:
 | OSPFv2 wire | `bin/ze-test ospf-wire --all` | Wire-level codec fixture separate from release-gate OSPF runtime scenarios |
 | IS-IS wire | `bin/ze-test isis-wire --all` | Wire-level codec fixture separate from release-gate IS-IS runtime scenarios |
 | BGP interop | `make ze-interop-test` or `python3 test/interop/run.py [scenario]` | Requires Docker peer daemons and image builds. **Fails closed**: with Docker unreachable the runner exits non-zero naming Docker, it does not report success over a lab it never started. Runs nightly and advisory in `.github/workflows/evidence-nightly.yml`, which is what lets an interop scenario carry an `RFC requirement:` tag at all -- a tag in a suite nothing executes is refused by `make ze-rfc-check` |
-| IPsec interop | `make ze-ipsec-interop-test` or `python3 test/ipsec-interop/run.py [scenario]` | strongSwan peer via Docker (privileged). Ze runs as initiator in some scenarios and as responder in others; each scenario's `ze.conf` says which, on its `connection-type` leaf, so this page does not restate the split. **Fails closed**: `wait_xfrm_sa` and `assert_esp_accepted` (`test/ipsec-interop/lab.py`) raise `AssertionError`, so a missing SA or an unmoved ESP counter is a failure and never a skip. Control plane verified from strongSwan logs. |
+| IPsec interop | `make ze-interop-ipsec-test` or `python3 test/ipsec-interop/run.py [scenario]` | strongSwan peer via Docker (privileged). Ze runs as initiator in some scenarios and as responder in others; each scenario's `ze.conf` says which, on its `connection-type` leaf, so this page does not restate the split. **Fails closed**: `wait_xfrm_sa` and `assert_esp_accepted` (`test/ipsec-interop/lab.py`) raise `AssertionError`, so a missing SA or an unmoved ESP counter is a failure and never a skip. Control plane verified from strongSwan logs. |
 | Chaos web | `bin/ze-test bgp chaos-web --all` | Chaos dashboard scenarios live under the BGP runner |
 
-These suites also have `make` targets: `make ze-static-test`,
-`make ze-traffic-test`, `make ze-flow-export-test`, `make ze-vpp-test`,
-`make ze-l2tp-wire-test`, `make ze-isis-wire-test`, and `make ze-ospf-wire-test`.
+These suites also have `make` targets: `make ze-functional-static-test`,
+`make ze-functional-traffic-test`, `make ze-functional-flow-export-test`, `make ze-functional-vpp-test`,
+`make ze-functional-l2tp-wire-test`, `make ze-functional-isis-wire-test`, and `make ze-functional-ospf-wire-test`.
 Chaos web is available through
 `make ze-chaos-web-test` and is also included in `make ze-chaos-test`.
 <!-- source: mk/test-functional.mk -- non-gated functional targets and ze-functional-test suite list -->
 
 Linux-tagged Go unit tests are separate from the functional suites. From a
-non-Linux workstation, use `make ze-linux-test`; it runs the default Linux-only
+non-Linux workstation, use `make ze-unit-linux-test`; it runs the default Linux-only
 unit package set in Docker and can be narrowed or expanded with
 `ZE_LINUX_TEST_PACKAGES="./pkg/a ./pkg/b"`.
 
 Clean release-candidate evidence can be run with `make ze-release-check`.
 The target refuses a dirty worktree, clones the repository into an ephemeral
 Docker container, mirrors the CI dependency setup, and runs
-`make ze-verify` there.
+`make ze-precommit-verify` there.
 
 `ze-deployment-*` targets are deployment-grade external evidence. Some use
 Docker because the local runner needs a Linux system service; Docker-specific
@@ -118,7 +118,7 @@ session are established. Full PPP/NCP/kernel dataplane peer evidence is a
 separate Linux-only target: `make ze-deployment-l2tp-ppp-test` creates Ze and
 LAC network namespaces joined by a veth underlay, then requires `xl2tpd`,
 `pppd`, `ping`, `/dev/ppp`, `iproute2`, and PPPoL2TP kernel support.
-`make ze-deployment-l2tp-ppp-docker-test` runs a peer-isolated Docker lab
+`make ze-deployment-docker-l2tp-ppp-test` runs a peer-isolated Docker lab
 with Ze LNS, a real `xl2tpd`/`pppd` LAC, and FRR as a BGP peer in separate
 containers on an isolated Docker bridge. It proves PPP LCP/IPCP, kernel
 `pppN` interface creation, dataplane ping, and BGP route redistribution from
@@ -127,7 +127,7 @@ kernel) to have PPPoL2TP support; it refuses to run if `/dev/ppp`, `ip l2tp`,
 or the `l2tp_ppp`/`pppol2tp` module is missing. Run individual scenarios with
 `python3 test/l2tp-interop/run.py <scenario-name>`.
 
-`make ze-deployment-pppoe-accel-docker-test` runs the inverse-role PPPoE lab:
+`make ze-deployment-docker-pppoe-accel-test` runs the inverse-role PPPoE lab:
 Ze as a PPPoE **client** (`pppoe-client` interface kind) against a real
 [accel-ppp](https://accel-ppp.org/) access concentrator (the Alpine `accel-ppp`
 package). It proves PADI/PADO/PADR/PADS discovery, LCP, CHAP-MD5 auth, IPCP
@@ -137,7 +137,7 @@ Ze as the PPPoE client (the `test/pppoe/*.ci` tests run Ze as the server). The
 Docker form needs host-kernel `/dev/ppp` + `pppoe`; on macOS or any host without
 it, `make ze-qemu-pppoe-accel-test` runs the same proof in a QEMU netns
 (`scripts/evidence/effective-pppoe-accel.py`) using the runtime kernel built by
-`make ze-kernel`. See `docs/labs/pppoe-interop.md`.
+`make ze-kernel-build`. See `docs/labs/pppoe-interop.md`.
 `make ze-qemu-vrrp-keepalived-test` runs the VRRP interop lab: Ze's VRRP against
 a real [keepalived](https://keepalived.org/) (the Alpine `keepalived` package,
 v2.3.1) on one L2 segment. Three network namespaces (Ze, keepalived, and a
@@ -145,7 +145,7 @@ passive observer) are bridged in a fourth, so the observer sees flooded
 multicast and can prove the virtual IP moves at layer 2 and not merely in a log.
 It proves RFC 9568 VRRPv3 election, failover on node death, the prio-0 graceful
 stop, and that keepalived accepts Ze's advert format. Unlike the L2TP and PPPoE
-labs it needs no `make ze-kernel`: the stock Alpine kernel already provides
+labs it needs no `make ze-kernel-build`: the stock Alpine kernel already provides
 macvlan, bridge and veth (probed 2026-07-15), so the target runs standalone.
 Keepalived state is read from its `notify_*` markers and every timing assertion
 is measured from tcpdump wire timestamps against the acceptance bands in
@@ -180,8 +180,8 @@ A mention in this document is not a caller.
 
 <!-- source: internal/test/cli/register.go -- subcommand registry -->
 <!-- source: internal/test/cli/cmd_bgp.go -- chaos-web suite -->
-<!-- source: Makefile -- ze-linux-test -->
-<!-- source: scripts/evidence/effective-verify.sh -- clean Docker ze-verify evidence -->
+<!-- source: Makefile -- ze-unit-linux-test -->
+<!-- source: scripts/evidence/effective-verify.sh -- clean Docker ze-precommit-verify evidence -->
 <!-- source: scripts/evidence/effective-l2tp-ppp.py -- full L2TP PPP/NCP peer evidence -->
 <!-- source: scripts/evidence/effective-vrrp-keepalived.py -- VRRP vs keepalived interop evidence -->
 <!-- source: mk/test-integration.mk -- ze-qemu-vrrp-keepalived-test -->
@@ -222,7 +222,7 @@ ze-test bgp plugin --draft --all
 ## Writing a Test: Draft First
 
 **Never write or iterate on a `.ci` inside `test/<suite>/`.** That directory is
-live: every `make ze-verify` in the checkout runs it, including runs by other
+live: every `make ze-precommit-verify` in the checkout runs it, including runs by other
 sessions working on unrelated things, who then have to work out whether your
 half-written test is their regression. The same applies to CHANGING an existing
 test.
@@ -327,12 +327,12 @@ component-group targets to test only the area you changed:
 
 | Target | Scope | Approx time |
 |--------|-------|-------------|
-| `make ze-test-bgp` | `./internal/component/bgp/...` (96 pkgs) | ~1:30 |
-| `make ze-test-core` | `./internal/core/...` (26 pkgs) | ~30s |
-| `make ze-test-plugins` | `./internal/plugins/...` (44 pkgs) | ~40s |
-| `make ze-test-config` | `./internal/component/config/...` (13 pkgs) | ~20s |
-| `make ze-test-cli` | `./internal/component/cli/...` (3 pkgs) | ~10s |
-| `make ze-test-rest` | Everything not in a named group (~70 pkgs) | ~1:00 |
+| `make ze-unit-bgp-test` | `./internal/component/bgp/...` (96 pkgs) | ~1:30 |
+| `make ze-unit-core-test` | `./internal/core/...` (26 pkgs) | ~30s |
+| `make ze-unit-plugins-test` | `./internal/plugins/...` (44 pkgs) | ~40s |
+| `make ze-unit-config-test` | `./internal/component/config/...` (13 pkgs) | ~20s |
+| `make ze-unit-cli-test` | `./internal/component/cli/...` (3 pkgs) | ~10s |
+| `make ze-unit-rest-test` | Everything not in a named group (~70 pkgs) | ~1:00 |
 | `make ze-unit-test` | All packages with `-race` | ~5 min |
 
 All groups run with `-race`.
@@ -355,7 +355,7 @@ run in the ordinary unit passes (no build tag):
 <!-- source: internal/component/bgp/reactor/forward_pool_property_test.go -- TestForwardPoolOrderingProperty -->
 <!-- source: internal/component/bgp/reactor/filter_ordered_property_test.go -- TestFilterChainRandomUpdatesProperty -->
 
-### Evidence / release-tier stress and perf tests (build-tagged, out of `ze-verify`)
+### Evidence / release-tier stress and perf tests (build-tagged, out of `ze-precommit-verify`)
 
 Resource-heavy, host-dependent tests kept out of the pre-commit gate. Each is
 gated by a build tag not in the default set and has a dedicated make target:
@@ -368,7 +368,7 @@ gated by a build tag not in the default set and has a dedicated make target:
 <!-- source: cmd/ze/hub/fleet_perf_test.go -- TestFleetManyClientsPerf -->
 <!-- source: mk/test-integration.mk -- ze-stress-web-test, ze-stress-fleet-test -->
 
-### netlab template render check (`make ze-netlab-render-check`, out of `ze-verify`)
+### netlab template render check (`make ze-netlab-render-check`, out of `ze-precommit-verify`)
 
 `contrib/netlab/` mirrors the netlab daemon integration: the daemon definition, the
 Jinja2 templates that emit ze configuration, one reference topology, and the committed
@@ -377,7 +377,7 @@ and runs `netlab create`. It then compares each rendered node configuration agai
 golden file, and runs `ze config validate` on each golden. It never writes to the
 operator's netlab install. `ARGS=--update` rewrites the golden files.
 
-It is out of `ze-verify` because it needs netlab installed, and `ze-verify` must run on
+It is out of `ze-precommit-verify` because it needs netlab installed, and `ze-precommit-verify` must run on
 a machine that has neither netlab nor Jinja2. **A missing netlab is an error exit, not a
 skip:** a check that passes without its dependency reports "no drift" about a render it
 never performed. `NETLAB=/path/to/netlab` names a specific install.
@@ -392,24 +392,24 @@ emitted.
 <!-- source: mk/test-integration.mk -- ze-netlab-render-check -->
 <!-- source: test/plugin/netlab-lab-profile.ci -- golden read, daemon start, json compact -->
 
-### Allocation-ceiling gate (`make ze-alloc-gate`, always-run in `ze-verify`)
+### Allocation-ceiling gate (`make ze-alloc-check`, always-run in `ze-precommit-verify`)
 
-`make ze-alloc-gate` runs the reactor hot-path `ReportAllocs` benchmarks
+`make ze-alloc-check` runs the reactor hot-path `ReportAllocs` benchmarks
 (bufmux / forward-pool / EBGPWire) with `-benchmem` at a bounded benchtime and
 asserts a per-benchmark `allocs/op` ceiling. allocs/op counts allocations, not
 time, so the ceiling is machine-independent; the gate needs no Docker and is
 registered as a stage in `scripts/status/verify_run.go`, so every full
-`make ze-verify` and CI push runs it (it is kept out of `ze-verify-changed` to
+`make ze-precommit-verify` and CI push runs it (it is kept out of `ze-precommit-verify-changed` to
 leave the inline dev loop fast). Registration over hardcoding: a hot-path
 benchmark opts in by adding one entry to `perf.AllocCeilings`
 (`internal/perf/allocgate.go`); the gate fails closed if a registered benchmark
 is absent from the output. The machine-dependent timing regression check
 (convergence / throughput / p99) is NOT in this gate: it runs scheduled-only via
 `.github/workflows/perf-nightly.yml` (`bin/ze-perf track --check`, scheduled), and
-the heavy Docker throughput/p99 DUT matrix stays in `make ze-perf-gate`.
+the heavy Docker throughput/p99 DUT matrix stays in `make ze-perf-evidence-update-check`.
 <!-- source: internal/perf/allocgate.go -- AllocCeilings, CheckAllocCeilings -->
-<!-- source: mk/alloc-gate.mk -- ze-alloc-gate target -->
-<!-- source: scripts/status/verify_run.go -- stagesForMode ze-verify includes ze-alloc-gate -->
+<!-- source: mk/alloc-gate.mk -- ze-alloc-check target -->
+<!-- source: scripts/status/verify_run.go -- stagesForMode ze-precommit-verify includes ze-alloc-check -->
 <!-- source: .github/workflows/perf-nightly.yml -- scheduled Docker-free perf --check -->
 
 ### Privileged kernel-state tests under QEMU (`option=needs-linux`)
@@ -524,7 +524,7 @@ under `make ze-qemu-needs-linux-test`, which sets no `ZE_TEST_NETNS`.
 #### Kernel-capability `plugin` subset (`make ze-netns-plugin-test`)
 
 One `test/plugin` test needs a real kernel capability and therefore cannot pass
-under a plain `make ze-plugin-test` on a privileged-capable but unprivileged
+under a plain `make ze-functional-plugin-test` on a privileged-capable but unprivileged
 Linux host:
 
 | Test | Needs | Why |
@@ -600,7 +600,7 @@ the host netns inode via `ZE_TEST_NETNS_HOST`, and `firewallnft.Apply` aborts
 before any kernel op if the current netns matches it (`refuseHostNetnsFirewall`).
 The env is test-only, so production is unaffected.
 
-**macOS / QEMU.** netns and nft do not exist on macOS; `make ze-netns-qemu-test`
+**macOS / QEMU.** netns and nft do not exist on macOS; `make ze-qemu-netns-test`
 exercises the launch path (child-inherits-netns + R-2 guard unit tests, and a
 firewall subset under `ZE_TEST_NETNS`) inside the QEMU Alpine VM.
 
@@ -608,7 +608,7 @@ firewall subset under `ZE_TEST_NETNS`) inside the QEMU Alpine VM.
 <!-- source: internal/test/runner/netns_linux_test.go -- TestNetnsLaunchChildInheritsNamespace (A-5) -->
 <!-- source: internal/test/runner/runner_exec.go -- runOrchestrated netns entry + SysProcAttr credential drop -->
 <!-- source: internal/plugins/firewall/nft/host_netns_guard_linux.go -- refuseHostNetnsFirewall (R-2) -->
-<!-- source: mk/test-integration.mk -- ze-netns-test / ze-netns-qemu-test -->
+<!-- source: mk/test-integration.mk -- ze-netns-test / ze-qemu-netns-test -->
 
 ### In-process integration tests (feeds that can't cross the plugin boundary)
 
@@ -626,24 +626,24 @@ synthetic observations. The anomaly facts→judgment→response chain
 Use the narrowest test scope that covers your change, then widen before committing:
 
 ```
-single test  →  single package  →  component group  →  ze-verify
+single test  →  single package  →  component group  →  ze-precommit-verify
 ```
 
 ```bash
 go test -race -run TestMyThing ./internal/component/config/system/...  # single test
-make ze-test-config                                                     # component group
-make ze-verify                                                          # pre-commit gate
+make ze-unit-config-test                                                     # component group
+make ze-precommit-verify                                                          # pre-commit gate
 ```
 
 #### Test binaries are isolated from your dev binary (automatic)
 
 Every functional target in `mk/test-functional.mk` — the gating
 `ze-functional-test`, every per-suite target, and therefore the functional stage
-of `make ze-verify` — runs against its **own** binary set by default, so testing
+of `make ze-precommit-verify` — runs against its **own** binary set by default, so testing
 and development never touch each other's binaries:
 
 ```bash
-make ze-parse-test        # builds ze/ze-test/ze-stripped in tmp/testbin-<id>/bin/,
+make ze-functional-parse-test        # builds ze/ze-test/ze-stripped in tmp/testbin-<id>/bin/,
                           # runs frozen against them, removes the dir on exit
 make ze                   # meanwhile: rebuild bin/ze as much as you like --
                           # the running suite never sees it
@@ -666,8 +666,8 @@ later tests. Now each target instead, at the start of its recipe:
   after a failed build.
 
 In auto mode the `<id>` is `pid-<make-PID>-<target>`: unique per invocation
-**and** per target, so chaining suites on one command line (`make ze-encode-test
-ze-plugin-test`, even under `-j`) never lets one target's cleanup delete another's
+**and** per target, so chaining suites on one command line (`make ze-functional-encode-test
+ze-functional-plugin-test`, even under `-j`) never lets one target's cleanup delete another's
 binaries. Each target rebuilds all three binaries (a deliberate cost for a
 uniform isolated set). Overrides:
 
@@ -681,17 +681,17 @@ baseline), last-writer-wins as for any two concurrent `ze-test` invocations.
 Every `tmp/testbin-<id>/` path above is the off-session one. Under an AI session
 the throwaway root is that session's own directory,
 `tmp/session/<YYYY-MM-DD>-<session-id>/testbin-<id>/`, and the dev binary the
-isolation protects is `$(make ze-path)` rather than `bin/ze`.
+isolation protects is `$(make ze-session-binary-path)` rather than `bin/ze`.
 
 An interrupted run (SIGKILL) can leave its `testbin-*` directory behind.
-Off-session `make ze-clean-tmp` sweeps directories older than 24h; on-session
-nothing is removed automatically, and `make ze-clean-sessions BEFORE=<YYYY-MM-DD>`
+Off-session `make ze-tmp-clean` sweeps directories older than 24h; on-session
+nothing is removed automatically, and `make ze-sessions-clean BEFORE=<YYYY-MM-DD>`
 takes the whole session directory when the operator asks for it.
 <!-- source: mk/test-functional.mk -- isolated-binary block, inline ZE_ALT_BUILD, per-recipe trap -->
 <!-- source: internal/test/runner/runner.go -- ze.bin/ze.test.bin/ze.test.no.build env, Build/verifyPrebuilt -->
 <!-- source: internal/test/runner/runner_exec.go -- bare-name ze/ze-test resolution, PATH prepend -->
 
-`make ze-verify` is the pre-commit gate. It runs a two-pass strategy:
+`make ze-precommit-verify` is the pre-commit gate. It runs a two-pass strategy:
 1. Cached full pass (all packages, no `-race`; completes quickly when nothing changed)
 2. Race pass on changed groups only (detects data races in what you touched)
 3. All functional test suites
@@ -704,7 +704,7 @@ failures without opening the full combined log. Open the referenced
 `tmp/verify/<nn>-<stage>.log` for full evidence for that group. Use
 `tmp/ze-verify.log` only when the whole combined run is needed.
 Automation should read `tmp/ze-verify-failures.json`.
-<!-- source: Makefile -- ze-test-bgp, ze-test-core, ze-test-plugins, ze-test-config, ze-test-cli, ze-test-rest -->
+<!-- source: Makefile -- ze-unit-bgp-test, ze-unit-core-test, ze-unit-plugins-test, ze-unit-config-test, ze-unit-cli-test, ze-unit-rest-test -->
 <!-- source: scripts/status/verify_run.go -- stage logs, compact index, JSON index -->
 <!-- source: mk/test-unit.mk -- ze-unit-test-cached, ze-unit-test-race-changed -->
 
@@ -749,7 +749,7 @@ Rules the gate enforces:
   enrolled RFC (`rfc/enrolled.txt`) it requires the positive/negative pair, or a
   reasoned `{gap}` / `{not-applicable}` / `{single-polarity}` annotation. It scans
   Go `_test.go` files and `.ci` files under `internal/`, `pkg/`, and `test/`.
-  `make ze-rfc-index` renders each RFC's requirement to test rows into
+  `make ze-rfc-index-update` renders each RFC's requirement to test rows into
   `rfc/requirements/<stem>.md`. It renders the index over them into
   `ai/RFC-REQUIREMENTS.md`.
 - **Do not edit a tagged test to make it pass.** Once a test carries an
@@ -770,7 +770,7 @@ re-derives the site inventory from the source and re-checks the arithmetic on
 every run.
 
 ```
-make ze-rfc-extract STEM=rfcNNNN     # unclassified skeleton; classify it by hand
+make ze-rfc-extraction-create STEM=rfcNNNN     # unclassified skeleton; classify it by hand
 make ze-rfc-check                    # re-derives and judges
 make ze-rfc-extraction-status        # JSON counts, per register, plus the backlog
 ```
@@ -816,7 +816,7 @@ wants a human:
 
 ```
 make ze-rfc-reseal                   # clears SHIFTED: a line shift or a sibling edit
-make ze-rfc-index                    # then re-render the ledger
+make ze-rfc-index-update                    # then re-render the ledger
 /ze-rfc-audit <rfc>                  # clears STALE: the tagged test itself changed
 ```
 
@@ -826,7 +826,7 @@ the whole file. Six of the sixteen commits that have touched the one existing au
 re-stamps of exactly that kind, in which no verdict changed.
 
 `make ze-rfc-reseal` is the only thing that writes `rfc/audit/` without a human edit.
-`ze-rfc-check` is read-only, and `ze-rfc-index` touches `ai/RFC-REQUIREMENTS.md` and
+`ze-rfc-check` is read-only, and `ze-rfc-index-update` touches `ai/RFC-REQUIREMENTS.md` and
 `rfc/requirements/` alone. A re-stamp can therefore never happen as a side effect of
 unrelated work.
 
@@ -1223,8 +1223,8 @@ expect=bgp:conn=2:seq=1:hex=...   # Both routes after reload
 ### 5. VPP Tests (`test/vpp/`)
 
 > **Not in the default release gate.** VPP tests are not included in
-> `make ze-verify` / `make ze-functional-test`. Run manually via
-> `make ze-vpp-test` or `bin/ze-test vpp`.
+> `make ze-precommit-verify` / `make ze-functional-test`. Run manually via
+> `make ze-functional-vpp-test` or `bin/ze-test vpp`.
 
 Functional tests that exercise `fib-vpp` end-to-end against a Python
 GoVPP-API stub. The stub replaces the real VPP process in CI: no DPDK,
@@ -1369,21 +1369,21 @@ Real failures exit non-zero.
 | `kernel-version-single-reader.ci` | No Makefile reads `kernel.version`; one variable name (`KERNEL_VERSION`) at the builder env boundary; `run.py` self-locates the version file (AC-14/AC-15) |
 | `kernel-version-provenance.ci` | Every build emits a `build/kernel.version` provenance sidecar; a malformed or pre-7 version is rejected before any build (AC-16/AC-17) |
 | `kernel-wiring.ci` | Installer and runtime Makefiles delegate the build to `tools/kernel-builder/run.py` (no inline docker/qemu) |
-| `ze-kernel-no-modcache-mutation.ci` | `make ze-kernel` consumes the runtime kernel out-of-tree via a go.mod replace and never mutates the pinned modcache or creates `.ze-pinned-kernel` (AC-9/AC-10) |
+| `ze-kernel-no-modcache-mutation.ci` | `make ze-kernel-build` consumes the runtime kernel out-of-tree via a go.mod replace and never mutates the pinned modcache or creates `.ze-pinned-kernel` (AC-9/AC-10) |
 | `qemu-full.ci` | PXE installer path writes the image, injects ZeFS, boots the written disk, and authenticates |
 | `qemu-iso.ci` | Appliance ISO path writes the embedded image unchanged, skips PXE ZeFS injection, powers off safely, boots the written disk, and authenticates |
-| `ze-kernel-overlay.ci` | `make ze-kernel` builds the runtime kernel via `run.py` and assembles it into an out-of-tree package (`tmp/kernel/pkg`) consumed via a go.mod replace, with the pinned modcache untouched |
+| `ze-kernel-overlay.ci` | `make ze-kernel-build` builds the runtime kernel via `run.py` and assembles it into an out-of-tree package (`tmp/kernel/pkg`) consumed via a go.mod replace, with the pinned modcache untouched |
 
 Run the install suite with `bin/ze-test install --all`. For exhaustive QEMU
 entry points:
 
-- `make ze-install-qemu-test` — PXE HTTP install.
-- `make ze-install-iso-qemu-test` — appliance ISO media (amd64 x86_64-UEFI or
+- `make ze-qemu-install-test` — PXE HTTP install.
+- `make ze-qemu-install-iso-test` — appliance ISO media (amd64 x86_64-UEFI or
   arm64 aarch64-UEFI; arch follows `ZE_INSTALL_ARCH` or the host).
-- `make ze-install-scenarios-qemu-test` — failure-path / pin / rescue evidence
+- `make ze-qemu-install-scenarios-test` — failure-path / pin / rescue evidence
   (R-6 goroutine-panic recovery, `ze.mac` boot-NIC pin and flush recovery, and
   the three-branch rescue console).
-- `make ze-install-ventoy-qemu-test` — Ventoy path: the appliance ISO carried as
+- `make ze-qemu-install-ventoy-test` — Ventoy path: the appliance ISO carried as
   a file on a FAT data disk, located by `tryVentoyISO` and installed. Needs
   `grub-mkstandalone` + `xorriso` + `mtools`.
 
@@ -1403,8 +1403,8 @@ kernel (`ZE_INSTALL_KERNEL`) or a required host tool is unavailable.
 <!-- source: test/install/appliance-kernel-runtime.ci -- runtime verified path -->
 <!-- source: test/install/kernel-version-provenance.ci -- provenance sidecar + version validation -->
 <!-- source: test/install/ze-kernel-no-modcache-mutation.ci -- out-of-tree consumption -->
-<!-- source: test/install/ze-kernel-overlay.ci -- ze-kernel out-of-tree package + go.mod replace -->
-<!-- source: mk/test-integration.mk -- ze-install-qemu-test, ze-install-iso-qemu-test, ze-install-scenarios-qemu-test, ze-install-ventoy-qemu-test -->
+<!-- source: test/install/ze-kernel-overlay.ci -- ze-kernel-build out-of-tree package + go.mod replace -->
+<!-- source: mk/test-integration.mk -- ze-qemu-install-test, ze-qemu-install-iso-test, ze-qemu-install-scenarios-test, ze-qemu-install-ventoy-test -->
 <!-- source: scripts/evidence/effective-install-scenarios-qemu.py -- R-6 fault, ze.mac pin/flush, rescue console evidence -->
 <!-- source: scripts/evidence/effective-install-ventoy-qemu.py -- Ventoy ISO-on-FAT evidence -->
 
@@ -1439,8 +1439,8 @@ holdtime, with Ze still in FRR's Level-1 topology.
 They are the goal-validation evidence for the IS-IS umbrella and run under the
 Linux Docker interop harness (`test/interop/daemons` has `isisd=yes`), not on darwin.
 
-Run with `bin/ze-test isis --all` or `make ze-isis-test`. The offline wire-decode
-suite is separate (`test/isis-wire/`, `make ze-isis-wire-test`).
+Run with `bin/ze-test isis --all` or `make ze-functional-isis-test`. The offline wire-decode
+suite is separate (`test/isis-wire/`, `make ze-functional-isis-wire-test`).
 <!-- source: test/interop/scenarios/isis-purge-reorig-frr/check.py -- re-origination above an own-LSP purge, witnessed by FRR -->
 <!-- source: internal/test/cli/register.go -- isis CI suite registration -->
 <!-- source: test/isis/isis-config.ci -- config validation evidence -->
@@ -1448,7 +1448,7 @@ suite is separate (`test/isis-wire/`, `make ze-isis-wire-test`).
 <!-- source: test/isis/isis-flooding.ci -- flooding CSNP/PSNP wire-format evidence -->
 <!-- source: test/isis/isis-auth.ci -- authentication config-surface evidence -->
 <!-- source: test/isis/isis-ipv6.ci -- dual-stack IPv6 SPF/install wiring evidence -->
-<!-- source: mk/test-functional.mk -- ze-isis-test -->
+<!-- source: mk/test-functional.mk -- ze-functional-isis-test -->
 
 The OSPF FRR interop scenarios exercise the unified OSPF engine against a live FRR
 `ospfd`/`ospf6d` over the shared Docker bridge. The OSPFv3 set proves a P2P and a broadcast
@@ -1997,8 +1997,8 @@ Total: 20 iterations, 18 passed, 2 failed, 0 timed out (90.0% pass rate)
 
 ### Run a single test
 
-These commands drive `ze-test` directly (build it with `make test`; the binary is
-beside `$(make ze-path)`), so unlike the `make ze-<suite>-test` targets they do
+These commands drive `ze-test` directly (build it with `make ze-test-build`; the binary is
+beside `$(make ze-session-binary-path)`), so unlike the `make ze-<suite>-test` targets they do
 **not** isolate: the runner rebuilds your `ze` in place. While actively editing,
 prefer the make targets (they build into a throwaway `testbin-<id>/bin/` and
 leave your `ze` alone — see
@@ -2253,7 +2253,7 @@ Usage: `ze-test rpki --port 3323 [--valid-asn 65001] [--invalid-asn 65099]`
 
 ### ExaBGP Compatibility Test Ports
 
-ExaBGP compatibility tests (`make ze-exabgp-test` or `bin/ze-test exabgp --all`) use OS-assigned dynamic ports. The mock BGP server (`test/exabgp-compat/bin/bgp`) binds to port 0, receives an OS-assigned port, and prints `PORT <N>` to stdout. The Go runner reads this line from the server process output and passes the discovered port to the ExaBGP wrapper client. This eliminates port collisions when running concurrent test instances. Use `--server ID --port N` and `--client ID --port N` for split-terminal debugging.
+ExaBGP compatibility tests (`make ze-functional-exabgp-test` or `bin/ze-test exabgp --all`) use OS-assigned dynamic ports. The mock BGP server (`test/exabgp-compat/bin/bgp`) binds to port 0, receives an OS-assigned port, and prints `PORT <N>` to stdout. The Go runner reads this line from the server process output and passes the discovered port to the ExaBGP wrapper client. This eliminates port collisions when running concurrent test instances. Use `--server ID --port N` and `--client ID --port N` for split-terminal debugging.
 <!-- source: test/exabgp-compat/bin/bgp -- dynamic port binding and PORT line output -->
 <!-- source: internal/test/cli/cmd_exabgp.go -- waitExaBGPPort and split debug modes -->
 
@@ -2262,13 +2262,13 @@ ExaBGP compatibility tests (`make ze-exabgp-test` or `bin/ze-test exabgp --all`)
 The ExaBGP compatibility runner is now integrated into `ze-test`, so it uses the
 same `--list`, `--all`, `--start`, `--pattern`, per-test result lines, periodic
 progress, and summary format as the other functional suites. `make
-ze-exabgp-test` runs:
+ze-functional-exabgp-test` runs:
 
 ```bash
 uv run --with paramiko bin/ze-test exabgp --all --timeout 180s
 ```
 <!-- source: internal/test/cli/cmd_exabgp.go -- standard selection and progress output -->
-<!-- source: Makefile -- ze-exabgp-test -->
+<!-- source: Makefile -- ze-functional-exabgp-test -->
 
 ---
 
@@ -2307,7 +2307,7 @@ Plugin test scripts use `wait_for_ack()` from `test/scripts/ze_api.py` to ensure
 
 ## Editor Tests (.et format)
 
-Editor tests (`test/editor/`) verify the interactive TUI editor and CLI using headless keystroke simulation. Run all editor tests with `make ze-editor-test` or `bin/ze-test editor --all`; select one with `bin/ze-test editor ID_OR_NAME`.
+Editor tests (`test/editor/`) verify the interactive TUI editor and CLI using headless keystroke simulation. Run all editor tests with `make ze-functional-editor-test` or `bin/ze-test editor --all`; select one with `bin/ze-test editor ID_OR_NAME`.
 
 <!-- source: internal/component/cli/testing/parser.go -- .et file parser -->
 <!-- source: internal/test/cli/cmd_editor.go -- cmdEditorMain selection flags -->
@@ -2344,11 +2344,11 @@ target). A new fuzzer is included by existing, not by editing the makefile;
 
 ```bash
 make ze-fuzz-test                                    # All fuzz targets, 10s each
-make ze-fuzz-one FUZZ=FuzzParseUpdate TIME=30s       # Single target, custom duration
+make ze-fuzz-one-test FUZZ=FuzzParseUpdate TIME=30s       # Single target, custom duration
 ```
 <!-- source: mk/test-fuzz.mk -- ze-fuzz-test -->
 
-Fuzz tests are not part of `make ze-verify` (they're time-bounded, not pass/fail
+Fuzz tests are not part of `make ze-precommit-verify` (they're time-bounded, not pass/fail
 in the traditional sense). Run them periodically or before releases.
 
 ### Fuzz Target Areas
@@ -2407,7 +2407,7 @@ func FuzzParseMyProtocol(f *testing.F) {
 ## Live Tests (Docker + Internet)
 
 Live tests run against real external infrastructure inside Docker containers.
-They are **not** part of `make ze-verify` and require both Docker and internet access.
+They are **not** part of `make ze-precommit-verify` and require both Docker and internet access.
 
 <!-- source: internal/component/bgp/plugins/rpki/rpki_live_test.go -- TestLiveRPKIValidation -->
 
@@ -2418,7 +2418,7 @@ make ze-live-test    # Run all live tests
 ### Build Tag
 
 Live tests use `//go:build live`. They are excluded from all normal test targets
-(`ze-unit-test`, `ze-functional-test`, `ze-verify`). The `ze-live-test` make target
+(`ze-unit-test`, `ze-functional-test`, `ze-precommit-verify`). The `ze-live-test` make target
 passes `-tags live` to include them.
 
 ### RPKI Live Test
@@ -2484,7 +2484,7 @@ pure-Go eBPF programs through `BPF_PROG_TEST_RUN`, and
 `attach_integration_linux_test.go` attaches them to a veth pair, injects packets
 with AF_PACKET, and scrapes `/metrics`. A dedicated
 `make ze-qemu-traffic-usage-test` runs the same tests against Ze's own runtime
-kernel (`tmp/kernel/vmlinuz`, built by `make ze-kernel`), which carries the
+kernel (`tmp/kernel/vmlinuz`, built by `make ze-kernel-build`), which carries the
 required `CONFIG_BPF_SYSCALL`, `CONFIG_BPF_JIT`, and `CONFIG_VETH`.
 <!-- source: internal/plugins/trafficusage/program_test.go -- BPF_PROG_TEST_RUN eBPF program tests -->
 <!-- source: internal/plugins/trafficusage/attach_integration_linux_test.go -- veth + AF_PACKET + /metrics scrape -->
@@ -2493,13 +2493,13 @@ required `CONFIG_BPF_SYSCALL`, `CONFIG_BPF_JIT`, and `CONFIG_VETH`.
 
 ```bash
 make ze-deployment-preflight       # Strict tool check for complete deployment evidence
-make ze-release-check              # Run clean Docker ze-verify release evidence
+make ze-release-check              # Run clean Docker ze-precommit-verify release evidence
 make ze-deployment-vpp-test        # Run real VPP daemon FIB, traffic, MPLS and IPsec evidence
 make ze-deployment-l2tp-test       # Run real xl2tpd LAC control/session evidence
 make ze-deployment-l2tp-ppp-test   # Run real xl2tpd/pppd PPP/NCP evidence on Linux
-make ze-install-qemu-test       # Run PXE installer QEMU evidence
-make ze-install-iso-qemu-test   # Run appliance ISO installer QEMU evidence
-make ze-deployment-l2tp-ppp-docker-test # Run L2TP PPP/NCP peer-isolated Docker lab (Ze LNS + LAC + FRR)
+make ze-qemu-install-test       # Run PXE installer QEMU evidence
+make ze-qemu-install-iso-test   # Run appliance ISO installer QEMU evidence
+make ze-deployment-docker-l2tp-ppp-test # Run L2TP PPP/NCP peer-isolated Docker lab (Ze LNS + LAC + FRR)
 ```
 
 The `ze-deployment-*` prefix marks deployment-grade external evidence;
@@ -2513,7 +2513,7 @@ such as `xl2tpd`, `pppd`, `/dev/ppp`, `iproute2`, and PPPoL2TP kernel support.
 ### Build Tag
 
 Integration tests use `//go:build integration && linux`. They are excluded from
-`ze-unit-test`, `ze-functional-test`, and `ze-verify`. The `ze-integration-*`
+`ze-unit-test`, `ze-functional-test`, and `ze-precommit-verify`. The `ze-integration-*`
 make targets pass `-tags integration` to include them.
 
 ### How They Work
@@ -2574,8 +2574,8 @@ negotiation, authentication, IP pool, and teardown over real loopback UDP.
 Run with `bin/ze-test l2tp`.
 
 > **In the default release gate.** The in-tree L2TP `.ci` tests are included in
-> `make ze-verify` / `make ze-functional-test` and can be run directly with
-> `make ze-l2tp-test` or `bin/ze-test l2tp --all`. External-peer and PPP
+> `make ze-precommit-verify` / `make ze-functional-test` and can be run directly with
+> `make ze-functional-l2tp-test` or `bin/ze-test l2tp --all`. External-peer and PPP
 > dataplane evidence remain separate deployment targets.
 
 ```bash
@@ -2599,7 +2599,7 @@ the LNS through the PPP tunnel from the LAC namespace to prove dataplane
 connectivity, observes subscriber route injection, and verifies teardown
 returns both namespaces' kernel L2TP/PPP state to their initial snapshots.
 
-On macOS, `make ze-deployment-l2tp-ppp-docker-test` runs that same proof in
+On macOS, `make ze-deployment-docker-l2tp-ppp-test` runs that same proof in
 privileged Linux containers. Docker is only a Linux userspace wrapper here: the
 test still fails unless the Docker host kernel has `/dev/ppp`, Generic Netlink
 L2TP, and PPPoL2TP support.
@@ -2611,10 +2611,10 @@ support. The proof resolves an L2TP-capable kernel itself: the pinned
 the proof's `l2tp enabled true` template makes ze's fail-closed module probe
 refuse startup and the appliance crash-loops without ever serving. The script
 therefore validates an explicit `KERNEL_PKG`, or materializes the runtime
-kernel from the durable cache via `make ze-kernel`, and fails fast naming
-`make ze-kernel KERNEL_ARCH=<arch>` when the cache cannot provide one
-(~30 min on a cache miss; `make ze-kernel` defaults to `KERNEL_BUILDER=docker`,
-set `KERNEL_BUILDER=qemu` to force the shared QEMU backend). `make ze-kernel`
+kernel from the durable cache via `make ze-kernel-build`, and fails fast naming
+`make ze-kernel-build KERNEL_ARCH=<arch>` when the cache cannot provide one
+(~30 min on a cache miss; `make ze-kernel-build` defaults to `KERNEL_BUILDER=docker`,
+set `KERNEL_BUILDER=qemu` to force the shared QEMU backend). `make ze-kernel-build`
 assembles the kernel as an out-of-tree package at `tmp/kernel/pkg`; it never
 mutates the tracked gokrazy module cache. The target builds a temporary
 gokrazy image with an L2TP first-boot template and proof-only runtime
@@ -2625,7 +2625,7 @@ slirp cannot deliver the LAC's inbound UDP 1701), drives a real
 LAC `pppN` address state, pings the Ze LNS address through PPP, and observes
 appliance route inject/withdraw logs.
 <!-- source: scripts/evidence/effective-gokrazy-l2tp-ppp.py -- resolve_kernel_pkg, qemu_command -->
-<!-- source: mk/gokrazy.mk -- ze-kernel -->
+<!-- source: mk/gokrazy.mk -- ze-kernel-build -->
 <!-- source: gokrazy/kernel/Makefile -- all -->
 <!-- source: internal/component/l2tp/kernel_linux.go -- probeKernelModules -->
 

@@ -564,7 +564,7 @@ standard TDD cycle (write test, fail, implement, pass) inside its own spec.
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-23 all demonstrated (across the child specs vrf-1..vrf-8)
 - [ ] Wiring Test table complete -- every row has a concrete `.ci` test, none deferred
-- [ ] `make ze-test` passes (lint + all ze tests) after each child lands
+- [ ] `make ze-standard-test` passes (lint + all ze tests) after each child lands
 - [ ] Feature code integrated (`internal/*`) and reachable from the config/CLI entry points
 - [ ] Backwards compatibility proven: config with no VRF block behaves exactly as today (AC-3)
 

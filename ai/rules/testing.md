@@ -91,7 +91,7 @@ Every AC-N MUST have a test whose assertion directly verifies the AC's **expecte
 ## Draft a Functional Test Before It Is Live (BLOCKING)
 
 Never write or iterate on a `.ci` inside `test/<suite>/`, and never edit a live
-one in place. That directory runs on every `make ze-verify` in the checkout,
+one in place. That directory runs on every `make ze-precommit-verify` in the checkout,
 including runs by OTHER sessions, who then have to work out whether your
 half-written test is their regression.
 
@@ -314,7 +314,7 @@ For every NEW or CHANGED `.ci`/`.et` that is meant to guard a SPECIFIC behavior:
    or the test is worthless: delete it, do not ship it.
 3. Revert the mutation immediately and confirm the test is green again.
 
-This is a MANUAL discipline. `make ze-mutation-test` / `ze-mutation-changed` (gomu,
+This is a MANUAL discipline. `make ze-mutation-test` / `ze-mutation-test-changed` (gomu,
 see "Mutation Testing" below) mutates Go source and runs only `go test` UNIT tests: it
 never executes `.ci`/`.et`, so it cannot catch a functional false-pass. Nothing else in
 the pipeline does either.
@@ -370,7 +370,7 @@ that proof. Editing it to match the code retires the evidence while the claim st
 | You believe the test is genuinely wrong | STOP. Show the user the RFC text beside the test and ask. Do not edit first and explain after |
 | The summary misquotes the RFC | Fix `rfc/short/rfcNNNN.md` (keep the id), then re-run `/ze-rfc-audit` |
 | Reformat / comment / re-tag | Allowed; behavior must be unchanged |
-| You added, moved, deleted, or re-tagged a tagged test (or an edit shifted its line) | Run `make ze-rfc-index` and commit BOTH of its outputs in the SAME commit: `ai/RFC-REQUIREMENTS.md` and every changed file under `rfc/requirements/`. The per-RFC file records each test's `file:line`, and `ze-rfc-check` (both verify modes) fails on a stale index AND on a stale per-RFC file, so committing the index alone lands on the next session as a red gate |
+| You added, moved, deleted, or re-tagged a tagged test (or an edit shifted its line) | Run `make ze-rfc-index-update` and commit BOTH of its outputs in the SAME commit: `ai/RFC-REQUIREMENTS.md` and every changed file under `rfc/requirements/`. The per-RFC file records each test's `file:line`, and `ze-rfc-check` (both verify modes) fails on a stale index AND on a stale per-RFC file, so committing the index alone lands on the next session as a red gate |
 
 **Where a tag MAY live, and what it is worth: four carriers, declared once in `CARRIERS` (`scripts/dev/rfc_requirements.py`) and derived by the scanner, the HEAD baseline, the ledger and the ratchets. Evidence has two axes: KIND (which layer the test exercises) and TIER (whether anything executes it).**
 
@@ -378,11 +378,11 @@ that proof. Editing it to match the code retires the evidence while the claim st
 |---------|--------------------|-------------|------|
 | `*_test.go` | `unit/verify` | `make ze-unit-test` | runs on every push |
 | `*.ci` | `functional/verify` | `make ze-functional-test` | runs on every push, but ONLY from a suite that target actually runs: the tier is derived per-suite from `mk/test-functional.mk`'s own `all_suites=` line, so a `.ci` in a suite outside it (traffic, vrrp, ipsec, flow-export, static, vpp, chaos) earns no verify tier, and `test/draft/` is skipped entirely |
-| `*.et` | `editor/verify` | `make ze-editor-test` | runs on every push, on the same earned-per-suite basis as `*.ci` |
+| `*.et` | `editor/verify` | `make ze-functional-editor-test` | runs on every push, on the same earned-per-suite basis as `*.ci` |
 | `test/interop/scenarios/*/check.py` | `interop/nightly` | `make ze-interop-test` | scheduled, ADVISORY |
-| `test/ipsec-interop/scenarios/*/check.py` | `interop/nightly` | `make ze-ipsec-interop-test` | scheduled, ADVISORY |
+| `test/ipsec-interop/scenarios/*/check.py` | `interop/nightly` | `make ze-interop-ipsec-test` | scheduled, ADVISORY |
 
-- **SHOULD prefer a `.ci` over an interop binding** when a behavior is reachable from both: a `.ci` runs inside `ze-verify` on every push, interop does not (owner decision, umbrella D3).
+- **SHOULD prefer a `.ci` over an interop binding** when a behavior is reachable from both: a `.ci` runs inside `ze-precommit-verify` on every push, interop does not (owner decision, umbrella D3).
 - A requirement whose ONLY evidence is nightly-tier is marked `**nightly-only**` on its ledger row and counted in its own rollup column: it is not merge-gate-proven, and the rollup deliberately never sums the two.
 - **An interop tier is DERIVED; it MUST NOT be declared.** A tree earns `interop/nightly` when a SCHEDULED workflow under `.github/workflows/` names its runner, which `scheduled_workflow_targets()` reads. So adding the job IS the whole fix and `CARRIERS` needs no edit, and deleting the job takes the tier away again rather than leaving a stale claim behind (`ai/rules/evidence.md`).
 - **A tag in `test/l2tp-interop/`, `test/pppoe-interop/`, or any other `check.py` tree is REFUSED** with an error naming the file, because no scheduled workflow runs those suites and a tag nothing executes is an absence of evidence rather than weak evidence. The l2tp and pppoe labs need host kernel modules (`l2tp_ppp`, `pppoe`, `/dev/ppp`) that no runner is yet confirmed to provide, so the sequence stays wire, observe one green run, then the tier follows on its own.
@@ -432,7 +432,7 @@ from -- a local the test itself filled is the defect, whatever the test is
 called. A broad detector would also flag correct table-driven tests that build
 local fixtures, so this remains a review obligation.
 
-`make ze-test-sensitivity-check` (stage 10 of `make ze-verify`, both modes) counts
+`make ze-test-sensitivity-check` (stage 10 of `make ze-precommit-verify`, both modes) counts
 them and enforces committed floors in `test/health/sensitivity-baseline.json`. The
 counts may only go DOWN, following the `test/.ci-sleep-baseline` convention.
 
@@ -443,10 +443,10 @@ counts may only go DOWN, following the `test/.ci-sleep-baseline` convention.
 
 Benchmarks and fuzz targets are deliberately exempt: a benchmark measures, and a
 fuzz target delegates its oracle to the engine. Raising a floor is forbidden:
-`make ze-test-health` only lowers one, so a regression cannot be laundered into
+`make ze-test-health-update` only lowers one, so a regression cannot be laundered into
 the baseline by regenerating.
 
-`docs/features/test-health.md` (generated, `make ze-test-health`) reports these
+`docs/features/test-health.md` (generated, `make ze-test-health-update`) reports these
 alongside RFC proof density, mutation kill rate, negative-test ratio, and
 technique adoption by package age. Read it before claiming the suite is healthy:
 it is the answer to "would a regression be caught", which no test count gives.
@@ -454,8 +454,8 @@ Details: `test/health/README.md`.
 
 | Target | Enforces | Notes |
 |--------|----------|-------|
-| `make ze-test-sensitivity-check` | The two ratchets, read from the tree | Stage 10 of `ze-verify`, both modes. Independent of the report |
-| `make ze-test-health-check` | STRUCTURAL facts only: orphaned test files, unproven RFCs, metric statuses | Inside `ze-regen-check-readonly`. Volume counters are published, not gated, so adding a test does not force a regeneration |
+| `make ze-test-sensitivity-check` | The two ratchets, read from the tree | Stage 10 of `ze-precommit-verify`, both modes. Independent of the report |
+| `make ze-test-health-check` | STRUCTURAL facts only: orphaned test files, unproven RFCs, metric statuses | Inside `ze-generated-files-check`. Volume counters are published, not gated, so adding a test does not force a regeneration |
 
 The split is deliberate. Byte-gating the whole report charged a
 regenerate-and-commit to ~60% of commits, and a check that fires that often for
@@ -508,13 +508,13 @@ Test one logical area during development instead of all 349 packages:
 
 | Target | Scope | Approx time |
 |--------|-------|-------------|
-| `make ze-test-bgp` | `./internal/component/bgp/...` (96 pkgs) | ~1:30 |
-| `make ze-test-core` | `./internal/core/...` (26 pkgs) | ~30s |
-| `make ze-test-plugins` | `./internal/plugins/...` (44 pkgs) | ~40s |
-| `make ze-test-config` | `./internal/component/config/...` (13 pkgs) | ~20s |
-| `make ze-test-cli` | `./internal/component/cli/...` (3 pkgs) | ~10s |
-| `make ze-test-rest` | Everything not in a named group (~70 pkgs) | ~1:00 |
-| `make ze-test-pkg PKG=<pattern>` | ONE package, or any pattern. `RUN=<regexp>` narrows, `RACE=0` drops `-race` while iterating | seconds |
+| `make ze-unit-bgp-test` | `./internal/component/bgp/...` (96 pkgs) | ~1:30 |
+| `make ze-unit-core-test` | `./internal/core/...` (26 pkgs) | ~30s |
+| `make ze-unit-plugins-test` | `./internal/plugins/...` (44 pkgs) | ~40s |
+| `make ze-unit-config-test` | `./internal/component/config/...` (13 pkgs) | ~20s |
+| `make ze-unit-cli-test` | `./internal/component/cli/...` (3 pkgs) | ~10s |
+| `make ze-unit-rest-test` | Everything not in a named group (~70 pkgs) | ~1:00 |
+| `make ze-unit-pkg-test PKG=<pattern>` | ONE package, or any pattern. `RUN=<regexp>` narrows, `RACE=0` drops `-race` while iterating | seconds |
 
 All groups run with `-race`. Use the group matching your change during iteration.
 
@@ -522,30 +522,30 @@ All groups run with `-race`. Use the group matching your change during iteration
 
 | Target | Purpose |
 |--------|---------|
-| `make ze-verify` | Pre-commit gate: lint, changed-file wiring/doc/inventory, vet evidence, Linux/amd64 SCA (`govulncheck`), two-pass unit, functional, and ExaBGP |
-| `make ze-verify-changed` | Changed-package lint/test plus wiring/doc/inventory, Linux/amd64 SCA (`govulncheck`), functional, and ExaBGP |
-| `make ze-verify-wiring-docs` | Changed-file-aware wiring, documentation, command, and inventory gate |
+| `make ze-precommit-verify` | Pre-commit gate: lint, changed-file wiring/doc/inventory, vet evidence, Linux/amd64 SCA (`govulncheck`), two-pass unit, functional, and ExaBGP |
+| `make ze-precommit-verify-changed` | Changed-package lint/test plus wiring/doc/inventory, Linux/amd64 SCA (`govulncheck`), functional, and ExaBGP |
+| `make ze-wiring-docs-check` | Changed-file-aware wiring, documentation, command, and inventory gate |
 | `make ze-unit-test` | All unit tests with `-race` under default-on feature tags, plus bare `ze_core` compile-out checks (~5 min) |
 | `make ze-functional-test` | All 13 functional test suites |
 | `make ze-lint` | 26 linters |
-| `make ze-ci` | lint + unit + build |
+| `make ze-ci-verify` | lint + unit + build |
 | `make ze-fuzz-test` | Fuzz tests (10s per target) |
-| `make ze-exabgp-test` | ExaBGP compatibility via `ze-test exabgp --all` |
-| `make ze-test` | All tests including fuzz |
-| `make ze-editor-test` | Editor `.et` tests (headless TUI) |
+| `make ze-functional-exabgp-test` | ExaBGP compatibility via `ze-test exabgp --all` |
+| `make ze-standard-test` | All tests including fuzz |
+| `make ze-functional-editor-test` | Editor `.et` tests (headless TUI) |
 | `make ze-chaos-test` | Chaos unit + functional + integration + web |
-| `make ze-race-reactor` | Stress race-test reactor (`-race -count=20`) -- REQUIRED when touching reactor concurrency code |
+| `make ze-unit-reactor-test-race` | Stress race-test reactor (`-race -count=20`) -- REQUIRED when touching reactor concurrency code |
 | `make ze-mutation-test` | Mutation testing via gomu on all non-excluded packages (advisory, slow) |
-| `make ze-mutation-changed` | Incremental mutation testing on changed files only (advisory, fast) |
+| `make ze-mutation-test-changed` | Incremental mutation testing on changed files only (advisory, fast) |
 | `make ze-mutation-report` | Mutation testing with HTML report to `tmp/mutation-report.html` |
-| `make ze-test-sensitivity-check` | Assert-nothing and tag-orphan ratchets (in `ze-verify`, both modes) |
-| `make ze-weakened-check` | Selftests `scripts/dev/check_weakened_tests.py`, then checks that `test/weakened.md` parses (in `ze-verify`, both modes) |
-| `make ze-test-health` | Regenerate `docs/features/test-health.md` + `test/health/latest.json` |
+| `make ze-test-sensitivity-check` | Assert-nothing and tag-orphan ratchets (in `ze-precommit-verify`, both modes) |
+| `make ze-weakened-check` | Selftests `scripts/dev/check_weakened_tests.py`, then checks that `test/weakened.md` parses (in `ze-precommit-verify`, both modes) |
+| `make ze-test-health-update` | Regenerate `docs/features/test-health.md` + `test/health/latest.json` |
 | `make ze-test-health-record` | Append one KPI sample to `test/health/history.ndjson` |
 
 ### Contended Run Verdicts
 
-When `make ze-verify` runs on a loaded machine, the failure index may show
+When `make ze-precommit-verify` runs on a loaded machine, the failure index may show
 `VERIFY FAILURE INDEX (CONTENDED RUN)` with host load details. This means the
 system had load > CPU count with concurrent ze-test or go-test processes.
 
@@ -617,12 +617,12 @@ Translate and Verify are pure functions with no VPP dependency at all. If a
 new backend cannot be tested with the fakeOps pattern, that is a design
 problem to fix before merging, not a deferral to log.
 
-### Two-Pass Verification (how `ze-verify` works)
+### Two-Pass Verification (how `ze-precommit-verify` works)
 
-`ze-verify` uses a two-pass strategy to avoid recompiling all 349 packages with
+`ze-precommit-verify` uses a two-pass strategy to avoid recompiling all 349 packages with
 `-race` every time:
 
-**A `ze-verify` run MUST execute these stages, in order:**
+**A `ze-precommit-verify` run MUST execute these stages, in order:**
 
 1. **Lint** (full or changed-only depending on target)
 2. **Cached full pass** (`go test` without `-race`): Go caches results by source hash.
@@ -653,7 +653,7 @@ whole suites before proving the affected code path works.
 If a changed file has an associated test file, feature test, or suite test, run
 that first. After it passes, run the next broader relevant scope, then the
 remaining gate. Order is: direct test -> file/feature test -> package ->
-component group -> whole suite or `ze-verify`.
+component group -> whole suite or `ze-precommit-verify`.
 
 | Step | Action | Command |
 |------|--------|---------|
@@ -671,12 +671,12 @@ component group -> whole suite or `ze-verify`.
 | Single encode test | `ze-test bgp encode N` | seconds |
 | Single editor test | `ze-test editor N` or `ze-test editor --pattern <name>` | seconds |
 | Single ExaBGP compatibility test | `ze-test exabgp N` or `ze-test exabgp --start N` | seconds |
-| Single Go test | `make ze-test-pkg PKG=./pkg/... RUN=TestName` | seconds |
-| Single package | `make ze-test-pkg PKG=./internal/component/bgp/reactor/` | seconds |
-| Component group | `make ze-test-bgp` (or core, plugins, config, cli, rest) | 10s-1:30 |
+| Single Go test | `make ze-unit-pkg-test PKG=./pkg/... RUN=TestName` | seconds |
+| Single package | `make ze-unit-pkg-test PKG=./internal/component/bgp/reactor/` | seconds |
+| Component group | `make ze-unit-bgp-test` (or core, plugins, config, cli, rest) | 10s-1:30 |
 | All unit tests | `make ze-unit-test` | ~5 min |
-| All editor tests | `make ze-editor-test` | ~30s |
-| Pre-commit gate | `make ze-verify` | 4-10 min (see `tmp/.ze-verify-duration.txt`) |
+| All editor tests | `make ze-functional-editor-test` | ~30s |
+| Pre-commit gate | `make ze-precommit-verify` | 4-10 min (see `tmp/.ze-verify-duration.txt`) |
 
 **A numeric id is a position, not an identity (BLOCKING for anything you keep).**
 `ze-test <suite> N` resolves `N` as a one-based ordinal over the sorted `.ci` glob,
@@ -713,12 +713,12 @@ and `getLogEnv` (`internal/core/slogutil/slogutil.go`) splits the subsystem on
 the WARN default -- with no error, which is why it has recurred three times. A
 hyphen in the key is legitimate ONLY when that exact subsystem is declared
 literally in Go (`slogutil.LazyLogger("bgp.filter.aspath-length")`). Enforced by
-`check_ci_log_subsystem_keys` in `make ze-verify-wiring-docs`.
+`check_ci_log_subsystem_keys` in `make ze-wiring-docs-check`.
 
-**Escalation ladder:** direct test -> file/feature test -> single package -> component group -> whole suite or `ze-verify`. If any rung fails, MUST fix from that evidence and rerun the failed rung or a narrower failing test, not a wider suite.
+**Escalation ladder:** direct test -> file/feature test -> single package -> component group -> whole suite or `ze-precommit-verify`. If any rung fails, MUST fix from that evidence and rerun the failed rung or a narrower failing test, not a wider suite.
 
-`make ze-verify` is the **final gate**, not a development tool. Use targeted commands and component groups during iteration.
-On failure, `make ze-verify` writes the compact index `tmp/ze-verify-failures.log`.
+`make ze-precommit-verify` is the **final gate**, not a development tool. Use targeted commands and component groups during iteration.
+On failure, `make ze-precommit-verify` writes the compact index `tmp/ze-verify-failures.log`.
 Read that file first. The next run MUST be the listed `Rerun` command for the
 failed stage, or an even narrower single test/package from the detail log. If
 multiple failures are listed, clear each one with its focused rerun. Only after
@@ -726,7 +726,7 @@ all focused reruns pass may you rerun the whole suite or gate as final
 confirmation. The combined log is `tmp/ze-verify.log`, and automation can read
 `tmp/ze-verify-failures.json`.
 
-**Overlapping runs:** If a test run is failing, MUST kill it before starting another. MUST NOT run `make ze-verify` twice concurrently.
+**Overlapping runs:** If a test run is failing, MUST kill it before starting another. MUST NOT run `make ze-precommit-verify` twice concurrently.
 
 **Understand before modifying:** Before bulk-editing `.ci` files or test files, MUST run one test and read its output to understand the format and expected behavior. Assumptions about test syntax cause cascading failures across every modified file.
 
@@ -736,7 +736,7 @@ confirmation. The combined log is `tmp/ze-verify.log`, and automation can read
 go test -race ./internal/component/bgp/message/... -v  # Single package
 go test -race ./... -run TestName -v          # Single test
 go test -race -cover ./...                    # Coverage
-make ze-fuzz-one FUZZ=FuzzName TIME=30s       # Single fuzz target
+make ze-fuzz-one-test FUZZ=FuzzName TIME=30s       # Single fuzz target
 ```
 
 ## Timing Baseline
@@ -789,7 +789,7 @@ other, but not from a sibling session: put it under your session's own directory
 gives the `scratch/` subdirectory of `tmp/session/<YYYY-MM-DD>-<session-id>/`, so scratch
 never collides with a sibling session (`ai/rules/commands.md`). Nothing removes it for you:
 the date in the directory name is what lets the operator find it later, with
-`make ze-clean-sessions BEFORE=<YYYY-MM-DD>`. A fixed name at
+`make ze-sessions-clean BEFORE=<YYYY-MM-DD>`. A fixed name at
 the `tmp/` ROOT is the failure this replaces: `tmp/` is keyed per checkout, so
 `tmp/out.log` names the same file for every session in it.
 A file at that root is refused: `check_scratch_path`
@@ -814,7 +814,7 @@ focused reruns pass may you rerun the whole suite or gate as final
 confirmation, except when the suite is the only available reproduction.
 
 ```bash
-make ze-verify
+make ze-precommit-verify
 # On failure, read:
 tmp/ze-verify-failures.log
 ```
@@ -827,7 +827,7 @@ line plus fresh artifacts. Never `| tail`.
 
 `.et` files in `test/editor/` test the interactive TUI editor via headless simulation.
 Infrastructure: `internal/component/cli/testing/` (parser, expect, headless, input, runner).
-Run: `make ze-editor-test` or `bin/ze-test editor --all`; select by id/name with `bin/ze-test editor N`, and filter with `bin/ze-test editor --pattern <name>`.
+Run: `make ze-functional-editor-test` or `bin/ze-test editor --all`; select by id/name with `bin/ze-test editor N`, and filter with `bin/ze-test editor --pattern <name>`.
 
 ### Directives
 
@@ -957,7 +957,7 @@ once (no `ZE_TEST_NO_BUILD`) rebuilds both binaries.
 
 ### Rules (stress reproduction)
 
-- **MUST NOT loop `make ze-functional-test` / `make ze-verify` to hunt a flake.**
+- **MUST NOT loop `make ze-functional-test` / `make ze-precommit-verify` to hunt a flake.**
   MUST use the stress reproducer against the suspected suite.
 - **MUST static-clear the hypothesized site before trusting it.** MUST read the function
   that PRODUCES the crash (the reslice, the buffer allocation), not a byte-count
@@ -980,19 +980,19 @@ When touching `internal/component/bgp/reactor/session*.go`, `forward_pool*.go`,
 `peer.go`, or any other reactor file that holds locks or shares state across
 goroutines, the standard `-race -count=1` unit run is **not enough**. The
 bufReader/bufWriter races (`d5843235`, `8dffd422`) lived 47 days because the
-schedule that triggered them was rare. Run `make ze-race-reactor` (`-race
+schedule that triggered them was rare. Run `make ze-unit-reactor-test-race` (`-race
 -count=20`) before claiming the change done.
 
 | Touched | Required verification |
 |---------|----------------------|
-| `session*.go` lock acquire/release, field assign | `make ze-race-reactor` |
-| `forward_pool*.go` worker drain or buffer release | `make ze-race-reactor` |
-| New goroutine in reactor package | `make ze-race-reactor` |
-| Any reactor field shared between Run loop and other goroutines | `make ze-race-reactor` |
+| `session*.go` lock acquire/release, field assign | `make ze-unit-reactor-test-race` |
+| `forward_pool*.go` worker drain or buffer release | `make ze-unit-reactor-test-race` |
+| New goroutine in reactor package | `make ze-unit-reactor-test-race` |
+| Any reactor field shared between Run loop and other goroutines | `make ze-unit-reactor-test-race` |
 | Reactor doc-only edits, log message changes | Not required |
 
 A passing `ze-unit-test` is NOT proof that a reactor concurrency change is
-race-free. Paste the `ze-race-reactor` output as evidence.
+race-free. Paste the `ze-unit-reactor-test-race` output as evidence.
 
 ## Observer-Exit Antipattern in `.ci` Tests (BLOCKING)
 
@@ -1030,7 +1030,7 @@ Detection hook: `c_observer_sys_exit` in `.claude/hooks/pretool-writeedit.py`
 
 **Sleep ratchet (BLOCKING):** the total `time.sleep(` count across
 `test/**/*.ci` MUST NOT increase. The committed baseline lives in
-`test/.ci-sleep-baseline`; `make ze-verify-wiring-docs` fails when the count
+`test/.ci-sleep-baseline`; `make ze-wiring-docs-check` fails when the count
 exceeds it. Use `ze_api` `wait_for_event` / `wait_for_shutdown` / `wait_until` /
 `dispatch_until` (the payload-predicate waits, below) instead of sleeps (sleeps
 hide real races). When your change removes sleeps, lower the baseline in the same
@@ -1077,7 +1077,7 @@ error). No em dashes in the comment text.
 ### Enforcement
 
 - **Blocking gate:** `check_ci_sleep_justification` in
-  `scripts/dev/verify_wiring_docs.py`, run by `make ze-verify-wiring-docs` (and the
+  `scripts/dev/verify_wiring_docs.py`, run by `make ze-wiring-docs-check` (and the
   inventory make gate). Scoped to CHANGED `.ci` files: a session MUST justify
   the sleeps in the tests it touches. Fails (exit 1) listing every unjustified
   `file:line`.
@@ -1134,14 +1134,14 @@ Mutation testing uses [gomu](https://github.com/sivchari/gomu) to verify that
 tests actually catch code changes. It modifies the AST (arithmetic, conditional,
 logical, bitwise, branch, return value, error handling operators) and checks
 whether the test suite detects each mutation. Advisory only, never gates
-`ze-verify`.
+`ze-precommit-verify`.
 
 gomu is vendored in `tools.go` and invoked via `go run`. No install needed.
 
 | Target | Purpose |
 |--------|---------|
 | `make ze-mutation-test` | Full run on all non-excluded packages (slow) |
-| `make ze-mutation-changed` | Incremental, changed files only (fast) |
+| `make ze-mutation-test-changed` | Incremental, changed files only (fast) |
 | `make ze-mutation-report` | Full run with HTML report to `tmp/mutation-report.html` |
 
 Tuning via environment: `GOMU_WORKERS` (default: `GO_TEST_PROCS`),
@@ -1176,9 +1176,9 @@ mutating, not after restoring.
 
 See `ai/rules/git-safety.md` for the full pre-commit workflow.
 
-`make ze-verify` is the ONLY acceptable pre-commit verification. Not `go test`. Not any subset.
-During development: `make ze-test-pkg PKG=<what you are changing>`, component groups
-(`make ze-test-bgp`), and `make ze-unit-test` are fine for fast iteration. A BARE `go test`
+`make ze-precommit-verify` is the ONLY acceptable pre-commit verification. Not `go test`. Not any subset.
+During development: `make ze-unit-pkg-test PKG=<what you are changing>`, component groups
+(`make ze-unit-bgp-test`), and `make ze-unit-test` are fine for fast iteration. A BARE `go test`
 is not: the Makefile exports `GOCACHE` to `cache/go-cache` into its own recipes only, so a
-shell run uses `~/.cache/go-build`, rebuilds cold, and shares nothing with `ze-verify`. It
+shell run uses `~/.cache/go-build`, rebuilds cold, and shares nothing with `ze-precommit-verify`. It
 also drops the feature tags, which is the separate lie recorded above.

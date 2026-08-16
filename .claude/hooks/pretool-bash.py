@@ -57,7 +57,7 @@ _scratch_spec.loader.exec_module(_scratch_path)
 #
 # A `ze point:` comment directly above a check names the rule point it enforces
 # (`<rule-stem>/<slug>` under ai/rules/points/), or `none -- <why>`. Joined by
-# `make ze-rules-gate-map`, which fails on a point that does not exist.
+# `make ze-rules-gate-map-report`, which fails on a point that does not exist.
 
 # --------------------------------------------------------------------------- #
 # Always-run string checks (run on every Bash command).
@@ -136,7 +136,7 @@ def check_root_build(cmd, _ctx):
         2,
         f"{RED}{BOLD}✘ BLOCKED: go build without -o bin/{RESET}\n\n"
         f"  {RED}→{RESET} Use: go build -o bin/<name> ./cmd/<name>\n"
-        f"  {RED}→{RESET} Or: make ze / make chaos / make test-runner",
+        f"  {RED}→{RESET} Or: make ze / make ze-chaos-build / make test-runner",
     )
 
 
@@ -158,7 +158,7 @@ EXPENSIVE_COMMAND = re.compile(
     r"(\./)?bin/ze[\w-]*|"
     # The same binaries in this session's own directory,
     # tmp/session/<YYYY-MM-DD>-<session-id>/bin/ze* (mk/session.mk ZE_BIN_DIR,
-    # internal/test/sessionpath). `make ze-path` prints a path relative to the
+    # internal/test/sessionpath). `make ze-session-binary-path` prints a path relative to the
     # checkout, and an agent told to use absolute paths passes the whole thing,
     # so both spellings reach this check and both name the same producer.
     r"([\w./-]*/)?tmp/session/\d{4}-\d{2}-\d{2}-[A-Za-z0-9._-]+/bin/ze[\w-]*|"
@@ -203,10 +203,10 @@ LOSSY_FILTER = re.compile(r"^\s*(head|tail|grep|egrep|fgrep|awk|sed|cat|less|mor
 # `nice -n 5 make ...`): the flag and its value both sit in front.
 LAUNCHER_OPT_WITH_ARG = {"-k", "--kill-after", "-s", "--signal", "-n", "--adjustment"}
 # The duration/niceness operand itself. `timeout` accepts a unit suffix and
-# sessions write one (`timeout <n>s make ze-verify`) -- the old bare-`isdigit()`
+# sessions write one (`timeout <n>s make ze-precommit-verify`) -- the old bare-`isdigit()`
 # test did not match it, so that invocation slipped straight past this gate.
 # No duration is named here on purpose: ai/rules/git-safety.md ("Running
-# ze-verify") sets the policy, and a number copied into a comment is the drift
+# ze-precommit-verify") sets the policy, and a number copied into a comment is the drift
 # this repo keeps paying for. A bare
 # negative niceness (`nice -5 make ...`) is a flag and the operand at once, hence
 # the optional leading `-`.
@@ -292,7 +292,7 @@ def check_pipe_tail(cmd, _ctx):
                 "❌ Blocked: piping an expensive command's output through a lossy "
                 f"filter ({segment.strip().split()[0]})\n"
                 "  -- The truncated output is what you would judge the run by.\n"
-                "  -- Use: make ze-verify ZE_VERIFY_LOG=tmp/ze-verify-$$.log\n"
+                "  -- Use: make ze-precommit-verify ZE_VERIFY_LOG=tmp/ze-verify-$$.log\n"
                 '  -- Or:  dir=$(scripts/dev/session-scratch.sh); <command> 2>&1 | tee "$dir/out.log"\n'
                 "  -- Then: Read the log with offset/limit",
             )
@@ -303,7 +303,7 @@ def check_pipe_tail(cmd, _ctx):
 # re-invokes the session when it exits, so a loop that watches one carries no
 # information the completion notification does not already carry. The harm is
 # not the fork cost commands.md measures: it is the WAKE and its LIFETIME.
-# A watcher ticking every few seconds competes with QEMU, Docker and ze-verify
+# A watcher ticking every few seconds competes with QEMU, Docker and ze-precommit-verify
 # for the same cores, and it keeps doing so long after its reason expired.
 POLL_LOOP_KEYWORD = re.compile(r"\b(while|until)\b")
 # `sleep` as a CALL. The boundary class carries `.` and `/` so the Python and
@@ -383,7 +383,7 @@ def check_poll_loop(cmd, _ctx):
             "  -- A repeated event belongs to the Monitor tool. Leave persistent\n"
             "     false, or its timeout_ms deadline does not apply.\n"
             "  -- One watcher at a time. Each wake competes with QEMU, Docker and\n"
-            "     ze-verify for the same cores.",
+            "     ze-precommit-verify for the same cores.",
         )
     return None
 

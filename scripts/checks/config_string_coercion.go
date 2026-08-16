@@ -25,7 +25,7 @@
 // allowlist entry, with a reason, only for a real non-config use.
 //
 // Usage:     go run scripts/checks/config_string_coercion.go [--json|--selftest]
-// Called by: make ze-config-coercion-check (wired into ze-verify via
+// Called by: make ze-config-coercion-check (wired into ze-precommit-verify via
 //            scripts/status/verify_run.go) and
 //            scripts/checks/config_string_coercion_test.go
 //

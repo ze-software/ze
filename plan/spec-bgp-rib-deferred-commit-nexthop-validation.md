@@ -203,7 +203,7 @@ already return.
 | A-1 | `(*MPReachNLRI).WriteTo` with SAFI 128 emits bytes identical to the deleted `vpnMPReachNLRI` for every next hop the rib rail can pass | `mpnlri.go` `nextHopOctets` adds `RDSize` for `SAFIVPN` and `WriteTo` writes 8 zero octets before each address; `commit.go` `buildVPNMPReachNLRI` writes the same fields in the same order | the VPN wire form changes and a peer rejects the UPDATE | `TestCommitVPNAnnounceCarriesTheRFC4364NextHop` pins the whole attribute value byte by byte, and `TestCommitService_VPNNextHopHasRD` stays green | unvalidated |
 | A-2 | `(*Transaction).QueueAnnounce` has no non-test caller, so no production path reaches `Commit` with routes today | grep over the tree: the only callers are `transaction/commit_manager_test.go`. `Peer.QueueAnnounce` and `OutgoingRIB.QueueAnnounce` are different methods on different types | the rail is live and the defect is shipping, which raises priority but changes no line of this spec | grep for `QueueAnnounce` at implementation time; record the result in the Implementation Summary | unvalidated |
 | A-3 | `attribute.ErrUnencodableNextHop` survives the wrapping `Commit` applies (`build update: %w`), so `errors.Is` holds at the `Commit` boundary | `commit.go` wraps with `%w` in both branches | the test asserts on a string instead of a sentinel, which is weaker | the new tests assert with `errors.Is` from `Commit`, not from the helper | unvalidated |
-| A-4 | No caller outside `internal/component/bgp/rib` names `vpnMPReachNLRI` or `buildVPNMPReachNLRI` | both are unexported and grep finds references only inside `commit.go` | the deletion breaks a build | `make ze-test-pkg PKG=./internal/component/bgp/rib` plus `make ze-lint-changed` | unvalidated |
+| A-4 | No caller outside `internal/component/bgp/rib` names `vpnMPReachNLRI` or `buildVPNMPReachNLRI` | both are unexported and grep finds references only inside `commit.go` | the deletion breaks a build | `make ze-unit-pkg-test PKG=./internal/component/bgp/rib` plus `make ze-lint-changed` | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -356,7 +356,7 @@ proving the same requirement, so it adds proof and removes none
      rows, and `TestCommitVPNAnnounceCarriesTheRFC4364NextHop`, before touching
      `commit.go`.
    - Files: `internal/component/bgp/rib/commit_nexthop_test.go`. <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) -->
-   - Verify: run `make ze-test-pkg PKG=./internal/component/bgp/rib`. The refusal test
+   - Verify: run `make ze-unit-pkg-test PKG=./internal/component/bgp/rib`. The refusal test
      MUST fail, and it MUST fail for the stated reason: `Commit` returns a nil error and
      the mock sender holds one UPDATE. Record what the captured MP_REACH shows in each
      row: next-hop length `0x00` on the IPv6 rows, next-hop length `0x18` followed by 24
@@ -389,10 +389,10 @@ proving the same requirement, so it adds proof and removes none
    - Work: rewrite the `ValidateNextHops` paragraph that says one assembling caller does
      not ask, and drop the deferral pointer with it. Say what is then true: all three
      assembling rails call `ValidateNextHops` before contributing the attribute.
-   - Verify: `make ze-lint-changed`, then `make ze-test-pkg PKG=./internal/core/bgp/attribute`.
+   - Verify: `make ze-lint-changed`, then `make ze-unit-pkg-test PKG=./internal/core/bgp/attribute`.
 5. **Phase: Discrimination proof (BLOCKING before any completion claim)**
    - Work: revert ONLY the phase 2 guard in the working tree, re-run
-     `make ze-test-pkg PKG=./internal/component/bgp/rib`, and paste the RED output into
+     `make ze-unit-pkg-test PKG=./internal/component/bgp/rib`, and paste the RED output into
      the spec. Restore the guard and paste the GREEN output
      (`ai/rules/interop-and-goal-validation.md`, "Prove the test discriminates"). Red
      looks like: `TestCommitRefusesAnAnnounceWhoseNextHopHasNoWireForm` fails on every
@@ -400,9 +400,9 @@ proving the same requirement, so it adds proof and removes none
    - Verify: the test cannot pass without the guard. If it can, the test asserts the
      wrong thing and must be fixed before anything else.
 6. **Phase: Gates and handoff**
-   - Verify: `make ze-test-pkg PKG=./internal/component/bgp/rib`,
-     `make ze-test-pkg PKG=./internal/core/bgp/attribute`, `make ze-lint-changed`,
-     `make ze-rfc-check`, and `make ze-verify` per `ai/rules/git-safety.md` (or the
+   - Verify: `make ze-unit-pkg-test PKG=./internal/component/bgp/rib`,
+     `make ze-unit-pkg-test PKG=./internal/core/bgp/attribute`, `make ze-lint-changed`,
+     `make ze-rfc-check`, and `make ze-precommit-verify` per `ai/rules/git-safety.md` (or the
      scoped evidence a shared checkout allows, attributed).
    - Then: commit, set `Status` to `verification`, and STOP. Handoff is `verify`: a
      later Opus 5 session reviews the commit and closes the spec.
@@ -427,7 +427,7 @@ proving the same requirement, so it adds proof and removes none
 | The refusal is visible | `grep -n "slog" internal/component/bgp/rib/commit.go` shows the Warn record in the guard branch |
 | The stale comment is gone | `grep -n "does NOT ask" internal/core/bgp/attribute/mpnlri.go` returns nothing |
 | The tests exist and drive the entry point | `grep -n "cs.Commit\|\.Commit(" internal/component/bgp/rib/commit_nexthop_test.go` shows every case calling `Commit`, none calling `buildMPReachNLRI` |
-| The package is green | `make ze-test-pkg PKG=./internal/component/bgp/rib` |
+| The package is green | `make ze-unit-pkg-test PKG=./internal/component/bgp/rib` |
 | The RFC ledger did not move | `make ze-rfc-check` |
 
 ### Security Review Checklist
@@ -499,7 +499,7 @@ and already documented there. The refusal test carries the
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
 - [ ] The new test was shown RED with the guard reverted, and the output is pasted
-- [ ] `make ze-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`), not test-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding

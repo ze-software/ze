@@ -224,7 +224,7 @@ Measured over every `.ci` whose block is named on a `cmd=...:exec=ze-peer ...:st
 
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-5 all demonstrated
-- [ ] `make ze-verify` passes
+- [ ] `make ze-precommit-verify` passes
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 - [ ] Each test proven to FAIL when its subject behavior is reverted
 

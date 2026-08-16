@@ -228,7 +228,7 @@ All refs re-verified against current code after the followup-spec wave:
 3. **Phase: Netlink audit** - confirm ipip/sit apply the TTL like gre/gretap.
    - Tests: `TestBuildGretunTTLApplied`
 4. **Functional test (device TTL check)**
-5. **Full verification** → `make ze-verify`
+5. **Full verification** → `make ze-precommit-verify`
 6. **Complete spec** → audit, learned summary, two-commit closure.
 
 ### Critical Review Checklist (/implement stage 6)
@@ -305,7 +305,7 @@ All refs re-verified against current code after the followup-spec wave:
 - [ ] End-to-End User Stories: every story has a working path and passing test
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `make ze-test` passes
+- [ ] `make ze-standard-test` passes
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Documentation Update Checklist answered
 

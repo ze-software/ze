@@ -85,7 +85,7 @@ class TestIndexesFedBy(unittest.TestCase):
             self.assertEqual(indexes_fed_by(gen), frozenset({out}), gen)
 
     def test_makefile_and_mk_feed_all(self):
-        # The ze-discovery-index wiring runs every generator; a change there can
+        # The ze-discovery-index-update wiring runs every generator; a change there can
         # drift any index, so demand all (conservative).
         self.assertEqual(indexes_fed_by("Makefile"), frozenset(OUTPUTS))
         self.assertEqual(indexes_fed_by("mk/inventory.mk"), frozenset(OUTPUTS))

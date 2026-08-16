@@ -1,11 +1,11 @@
 ---
-name: ze-verify
+name: ze-precommit-verify
 description: Verify
 ---
 
 # Verify
 
-Run `make ze-verify` and report results clearly.
+Run `make ze-precommit-verify` and report results clearly.
 
 See also: `/ze-debug` (investigate failures), `/ze-commit` (prepare commit after passing)
 
@@ -35,13 +35,13 @@ phase itself.
 ## Steps
 
 1. **Check for running verify:** If `tmp/.ze-verify.lock` exists and the PID inside is alive, another session is already running verify. Do NOT start a second run. Instead:
-   - Report "ze-verify already running (pid N), waiting for it to finish"
+   - Report "ze-precommit-verify already running (pid N), waiting for it to finish"
    - Wait for it to complete (the make target handles this automatically)
    - Read `tmp/ze-verify.log` for the results
-2. **Run verification:** Execute `make ze-verify` in the **foreground**, giving the call the largest timeout your harness allows. Never kill it for being slow. Output is auto-captured to `tmp/ze-verify.log`.
-   - **Do NOT use `run_in_background`. Do NOT write a polling loop (`until ... sleep 2; done`, `pgrep`, `stat`).** The foreground Bash return IS the completion signal. A polling loop becomes "the running task" and swallows the real completion notification. See `ai/rules/git-safety.md` "Running ze-verify".
-   - Custom log path: `make ze-verify ZE_VERIFY_LOG=tmp/ze-verify-myname.log`
-   - `ze-verify` runs `-race` on changed component groups (two-pass strategy). For reactor concurrency changes, also run `make ze-race-reactor`.
+2. **Run verification:** Execute `make ze-precommit-verify` in the **foreground**, giving the call the largest timeout your harness allows. Never kill it for being slow. Output is auto-captured to `tmp/ze-verify.log`.
+   - **Do NOT use `run_in_background`. Do NOT write a polling loop (`until ... sleep 2; done`, `pgrep`, `stat`).** The foreground Bash return IS the completion signal. A polling loop becomes "the running task" and swallows the real completion notification. See `ai/rules/git-safety.md` "Running ze-precommit-verify".
+   - Custom log path: `make ze-precommit-verify ZE_VERIFY_LOG=tmp/ze-verify-myname.log`
+   - `ze-precommit-verify` runs `-race` on changed component groups (two-pass strategy). For reactor concurrency changes, also run `make ze-unit-reactor-test-race`.
 3. **Parse results:** On failure, search the log:
    - `grep -E "^--- FAIL|^FAIL|TEST FAILURE|✗|═══ FAIL" tmp/ze-verify.log`
    - Also check exit code

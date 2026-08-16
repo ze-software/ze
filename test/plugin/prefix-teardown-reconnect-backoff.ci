@@ -25,7 +25,7 @@
 #     the connection-2 clause that states the property, because a reject alone
 #     also passes against a daemon with the whole reconnect path deleted.
 #
-# One unreproduced TIME, 2026-08-03, on the first full make ze-plugin-test after
+# One unreproduced TIME, 2026-08-03, on the first full make ze-functional-plugin-test after
 # promotion. The daemon stderr in that report stopped at the teardown: no
 # `timing: safeRunOnce returned`, no second attempt, nothing for 57 seconds, and
 # no truncation marker. It did not reproduce: the suite is green twice more with

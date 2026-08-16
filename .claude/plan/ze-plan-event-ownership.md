@@ -76,11 +76,11 @@ func init() {
 5. Delete domain files from core/events/ (bgp.go, interface.go, sysctl.go, etc.)
 6. Update events_test.go TestMain to import from sub-packages
 7. Use `scripts/dev/replace.py` for bulk replacements
-8. `make ze-verify`
+8. `make ze-precommit-verify`
 
 ## Verification
 
 ```
 go vet ./internal/...
-make ze-verify
+make ze-precommit-verify
 ```

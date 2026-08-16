@@ -464,7 +464,7 @@ needs the owner's approval under the `rfc-tagged-test` hook, and a fresh
 | `ipsec-ts-port-opaque-reject` | `test/ipsec/ipsec-ts-port-opaque-reject.ci` | A partial port mask is still refused, and the error names the value | |
 | `ipsec-show-sa-port-opaque` | `test/ipsec/ipsec-show-sa-port-opaque.ci` | The operator reads the installed selector and sees the opaque form | |
 
-The `ipsec` suite runs inside `ze-verify` (`mk/test-functional.mk`), so a `.ci` there earns
+The `ipsec` suite runs inside `ze-precommit-verify` (`mk/test-functional.mk`), so a `.ci` there earns
 a verify tier.
 
 ### QEMU Integration Tests (MANDATORY - `ai/rules/platform-linux.md`)
@@ -525,7 +525,7 @@ on the existing unit-tier tags.
 - `rfc/short/rfc7296.md` - no new row. Section 3.13.1 rows stay as they are
 - `docs/features/rfc-status.md` - the Remaining cell for RFC 7296 names the OPAQUE
   platform limit. That disclosure must go when the limit goes
-- `ai/RFC-REQUIREMENTS.md` - regenerated with `make ze-rfc-index`
+- `ai/RFC-REQUIREMENTS.md` - regenerated with `make ze-rfc-index-update`
 
 ## Files to Create
 - `internal/component/ike/dataplane/xfrm_opaque_integration_linux_test.go` - the four QEMU
@@ -615,7 +615,7 @@ on the existing unit-tier tags.
    - Verify: the commit accepts `port opaque`, and a peer proposing OPAQUE is answered. This
      phase is last on purpose (R-5)
 7. **Phase: The other backend, the tags, and the disclosure**
-   - Tests: `TestVPPBackendHandlesOpaquePort`, `make ze-rfc-check`, `make ze-doc-test`
+   - Tests: `TestVPPBackendHandlesOpaquePort`, `make ze-rfc-check`, `make ze-doc-verify`
    - Files: `internal/component/ike/dataplane/vpp.go`,
      `internal/component/ike/engine/ts_narrow_test.go`,
      `docs/features/rfc-status.md`, `ai/RFC-REQUIREMENTS.md`
@@ -660,7 +660,7 @@ on the existing unit-tier tags.
 | The public disclosure is gone | `grep -c 'OPAQUE ports' docs/features/rfc-status.md` returns 0 |
 | The vendor patch cannot be silently lost | `TestNetlinkPortMaskPatchPresent` passes, and it fails on a fresh `go mod vendor`. Route 1 only |
 | The upstream patch exists and was sent | The patch file exists, and the learned summary records the URL and the outcome |
-| The RFC tags describe reality | `make ze-rfc-index` produces no diff, and the tag comments say the form is programmed |
+| The RFC tags describe reality | `make ze-rfc-index-update` produces no diff, and the tag comments say the form is programmed |
 
 ### Security Review Checklist
 
@@ -741,7 +741,7 @@ the refusal existed.
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding

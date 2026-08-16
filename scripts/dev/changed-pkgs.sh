@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 # changed-pkgs.sh -- emit the Go package directories that scoped
-# verification (`make ze-verify-changed`) must cover.
+# verification (`make ze-precommit-verify-changed`) must cover.
 #
 # The set is the union of:
 #   1. packages with uncommitted .go changes (unstaged + staged + untracked)
-#   2. packages changed by commits made SINCE the last GREEN `make ze-verify`
+#   2. packages changed by commits made SINCE the last GREEN `make ze-precommit-verify`
 #   3. packages that IMPORT any package from (1)+(2) -- reverse dependencies;
 #      a behavior change in a core package must retest its importers, not
 #      only itself
 #
-# Why (2): ze-verify-changed historically derived its package set from the
+# Why (2): ze-precommit-verify-changed historically derived its package set from the
 # working-tree diff alone. Once a change was committed it left that diff, so
 # a scoped verify on the now-clean tree tested NOTHING in that package and
 # reported green even when the committed package's tests were red (a real
@@ -22,7 +22,7 @@
 # Non-Go inputs that a Go test EXECUTES are collected too, and map to the
 # package that runs them (see PYTHON_TEST_PKG below). Filtering every query on
 # '*.go' meant a Python-only or corpus-only change selected ZERO packages and
-# `make ze-verify-changed` exited 0 having tested nothing -- including for a
+# `make ze-precommit-verify-changed` exited 0 having tested nothing -- including for a
 # change to scripts/dev/rfc_requirements.py itself, whose 295-test suite is run
 # by scripts/dev/python_tests_test.go. Enrolling an RFC, committing an
 # extraction sign-off or arming the drain rate had the same hole: those files

@@ -186,7 +186,7 @@ ZEBIN_PERF      := $(ZE_BIN_DIR)/ze-perf
 # ze-stripped are equal seeders: each links internal/core/resolve (the silent
 # path), internal/component/ssh (the host key) and internal/plugins/init
 # (`ze init`, registered under //go:build ze_core). Seeding from the binary in
-# hand is what stops `make ze-stripped` leaving an empty store, and it asks no
+# hand is what stops `make ze-stripped-build` leaving an empty store, and it asks no
 # recipe to build a binary nobody wanted. ze-setup, ze-test, ze-chaos,
 # ze-analyze and ze-perf link no init and reach no silent path, so they do not
 # call this.
@@ -202,7 +202,7 @@ endif
 
 # Print the path of this session's ze binary. Scripts, docs and agents that used
 # to hardcode `bin/ze` ask for it here instead, so they keep working whether or
-# not a session is active:  $(make ze-path) show version
-.PHONY: ze-path
-ze-path:
+# not a session is active:  $(make ze-session-binary-path) show version
+.PHONY: ze-session-binary-path
+ze-session-binary-path:
 	@printf '%s\n' '$(ZEBIN_ZE)'

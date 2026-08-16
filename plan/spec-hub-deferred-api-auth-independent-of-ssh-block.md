@@ -255,7 +255,7 @@ change does not alter.
 | 7 | Wire format changed? | No | No wire format on this path |
 | 8 | Plugin SDK/protocol changed? | No | No SDK type crosses this seam |
 | 9 | RFC behavior implemented, changed, or newly proven? | N-A | No RFC governs local credential resolution |
-| 10 | Test infrastructure changed? | No | The new `.ci` uses the existing `test/plugin` suite and `make ze-plugin-test` |
+| 10 | Test infrastructure changed? | No | The new `.ci` uses the existing `test/plugin` suite and `make ze-functional-plugin-test` |
 | 11 | Affects daemon comparison? | No | `docs/comparison.md` makes no claim about this |
 | 12 | Internal architecture changed? | Yes | `docs/architecture/api/architecture.md` if it states where the API user list comes from; verify before editing |
 | 13 | Route metadata keys added/changed? | No | No route metadata |
@@ -289,7 +289,7 @@ change does not alter.
 6. **Phase: Functional proof and docs**
    - Tests: `test/plugin/mgmt-guard-api-users-without-ssh-block.ci`, and `test/ui/api-user-removed-by-reload.ci` kept green <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) -->
    - Files: the new `.ci`, `docs/guide/authentication.md`
-   - Verify: `make ze-plugin-test` passes, and reverting the resolution change alone turns the new `.ci` red
+   - Verify: `make ze-functional-plugin-test` passes, and reverting the resolution change alone turns the new `.ci` red
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -307,10 +307,10 @@ change does not alter.
 |-------------|---------------------|
 | The API user resolution no longer reads the SSH extractor | `grep -n 'ExtractSSHConfig' cmd/ze/hub/main.go cmd/ze/hub/mgmt_auth_reload.go` leaves only the SSH server's own use |
 | Exactly one reader of `system/authentication` in the resolution path | `grep -rn 'ExtractAuthUsers' cmd/ze/hub/ internal/component/config/infra/`, reviewed against the call sites |
-| Both call sites corrected | `make ze-test-pkg PKG=./cmd/ze/hub` with the four new unit tests present |
-| The functional chain works | `make ze-plugin-test` with the new `.ci` present |
-| The new `.ci` discriminates | Revert only the resolution change and re-run `make ze-plugin-test`; the new `.ci` must go red |
-| The live source survived | `make ze-ui-test` keeps `test/ui/api-user-removed-by-reload.ci` green |
+| Both call sites corrected | `make ze-unit-pkg-test PKG=./cmd/ze/hub` with the four new unit tests present |
+| The functional chain works | `make ze-functional-plugin-test` with the new `.ci` present |
+| The new `.ci` discriminates | Revert only the resolution change and re-run `make ze-functional-plugin-test`; the new `.ci` must go red |
+| The live source survived | `make ze-functional-ui-test` keeps `test/ui/api-user-removed-by-reload.ci` green |
 | Lint | `make ze-lint-changed` |
 
 ### Security Review Checklist
@@ -371,7 +371,7 @@ change does not alter.
 - [ ] AC-1..AC-12 all demonstrated, with the Way-specific rows resolved to the owner's answer
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`cmd/ze/hub/main.go`, `cmd/ze/hub/mgmt_auth_reload.go`), not test-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding

@@ -77,7 +77,7 @@ misleading message. Each is a general trap.
 <!-- source: scripts/evidence/effective-vpp-hugepages-qemu.py -- accelerator selection and the hugepage boot proof -->
 <!-- source: scripts/dev/dev-setup.py -- the kvm-access state check and its pending/missing/n-a states -->
 
-`make ze-setup` reports `kvm-access` as `present`, `pending`, `missing`, or
+`make ze-dev-setup` reports `kvm-access` as `present`, `pending`, `missing`, or
 `n/a`. `pending` means the user is in the `kvm` group but the running session
 predates it. That difference is the difference between "run this" and "log back
 in".

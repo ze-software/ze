@@ -349,7 +349,7 @@ Section 3.3.2). This is a deliberate, documented limitation (see Known Limitatio
 | 3. Wiring phase | Wiring Test table |
 | 4. Implement (TDD) | Implementation Phases below |
 | 5. /ze-review gate | Review Gate |
-| 6. Full verification | `make ze-verify` |
+| 6. Full verification | `make ze-precommit-verify` |
 | 7-10. Critical review loop | Critical Review Checklist |
 | 11. Deliverables | Deliverables Checklist |
 | 12. Security review | Security Review Checklist |
@@ -377,7 +377,7 @@ Section 3.3.2). This is a deliberate, documented limitation (see Known Limitatio
 5. **Functional + interop** -- QEMU `ip xfrm state` checks; strongSwan interop scenarios.
    - Verify: AC-11, R-4; A-1/A-2/A-4 validated
 6. **RFC refs** -- `// RFC 7296 Section 3.3.2` / `// RFC 4303 Section 3.3.3` on enforcing code
-7. **Full verification + complete spec** -- `make ze-verify`; fill audit; learned summary
+7. **Full verification + complete spec** -- `make ze-precommit-verify`; fill audit; learned summary
    `plan/learned/NNN-ipsec-12-esn.md`; two-commit closure
 
 ### Critical Review Checklist (/implement stage 6)
@@ -529,7 +529,7 @@ Add above enforcing code:
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete -- every row has a concrete test name
 - [ ] `/ze-review` gate clean (0 BLOCKER, 0 ISSUE)
-- [ ] `make ze-test` passes
+- [ ] `make ze-standard-test` passes
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Documentation Update Checklist answered Yes/No with source evidence
 - [ ] Risks & Assumptions: every A-N confirmed or broken; surviving risks copied to Executive Summary

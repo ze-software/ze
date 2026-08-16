@@ -21,7 +21,7 @@ audit; everything below serves it.
    alone: the summary is the thing under audit. RFC 7606's own list once said an UPDATE
    with no reachable NLRI must session-reset, dropping the RFC's "other than
    MP_UNREACH_NLRI" clause — which made it demand a reset on every End-of-RIB.
-4. Run `make ze-rfc-index`, then print that RFC's requirement → test map with
+4. Run `make ze-rfc-index-update`, then print that RFC's requirement → test map with
    `python3 scripts/dev/rfc_requirements.py --show $ARGUMENTS`, which reads
    `rfc/requirements/$ARGUMENTS.md`. If this regen produces a diff you did not cause
    (a pure `file:line` refresh from someone else's un-regenerated test edit), do NOT fold it
@@ -140,7 +140,7 @@ a test that no longer enforces its requirement.
 | State | What moved | What clears it |
 |-------|-----------|----------------|
 | `fresh` | nothing | — |
-| `shifted` | the FILE around a tagged unit: a line shift, a sibling test, an import rewrite. The unit itself is byte-identical, so nothing was re-judged | `make ze-rfc-reseal`, then `make ze-rfc-index`. **No re-reading is asked for** |
+| `shifted` | the FILE around a tagged unit: a line shift, a sibling test, an import rewrite. The unit itself is byte-identical, so nothing was re-judged | `make ze-rfc-reseal`, then `make ze-rfc-index-update`. **No re-reading is asked for** |
 | `stale-unit` | the tagged unit itself, or a cited producer in a `code` map | `/ze-rfc-audit <rfc>` — read it again |
 | `stale-requirement` | the checklist line's own text | `/ze-rfc-audit <rfc>` — every judgement under it is void |
 
@@ -150,7 +150,7 @@ written note. And each one taught the reflex that re-stamping is what you do whe
 red. That is the failure mode at fleet scale, so the class is now automated away.
 
 `make ze-rfc-reseal` is the ONLY thing that writes `rfc/audit/` without a human editing it.
-`make ze-rfc-check` is read-only, and `make ze-rfc-index` touches `ai/RFC-REQUIREMENTS.md`
+`make ze-rfc-check` is read-only, and `make ze-rfc-index-update` touches `ai/RFC-REQUIREMENTS.md`
 and `rfc/requirements/` alone.
 
 ## Rules
@@ -176,9 +176,9 @@ and `rfc/requirements/` alone.
 | Need | Use |
 |------|-----|
 | Does every MUST have its pair of tests? | `make ze-rfc-check` |
-| Requirement → test map for one RFC | `make ze-rfc-index`, then `python3 scripts/dev/rfc_requirements.py --show <stem>` → `rfc/requirements/<stem>.md` |
-| The backlog over every RFC | `make ze-rfc-index` → `ai/RFC-REQUIREMENTS.md` |
+| Requirement → test map for one RFC | `make ze-rfc-index-update`, then `python3 scripts/dev/rfc_requirements.py --show <stem>` → `rfc/requirements/<stem>.md` |
+| The backlog over every RFC | `make ze-rfc-index-update` → `ai/RFC-REQUIREMENTS.md` |
 | Which requirements are audited, proven, or carry a finding | the **Audit coverage** section of `ai/RFC-REQUIREMENTS.md` (derived, never hand-maintained) |
-| Clear a `shifted` verdict | `make ze-rfc-reseal`, then `make ze-rfc-index` |
+| Clear a `shifted` verdict | `make ze-rfc-reseal`, then `make ze-rfc-index-update` |
 | Write or re-author a summary | `/ze-rfc <rfc>` |
 | Public support claims | `docs/features/rfc-status.md` |

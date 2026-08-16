@@ -105,7 +105,7 @@ therefore authenticates against those users, on PPPoE and on L2TP.
 ## Interoperability
 
 Two Docker lab scenarios run Ze in each PPPoE role. `make
-ze-deployment-pppoe-accel-docker-test` runs both.
+ze-deployment-docker-pppoe-accel-test` runs both.
 
 | Scenario | Ze role | Peer | Proves |
 |----------|---------|------|--------|

@@ -225,7 +225,7 @@ DISCUSSES deferral policy: `completion.md` ("genuinely separable, out-of-scope
 ("Speculative `future work`"), `config.md` ("as `follow-up work`"), and
 one true word-sense collision — `performance.md`'s "buffer goes `out of
 scope`" (lexical scope, unrelated to deferring work). The generated digest
-flattened all of them, so every `make ze-rules-condensed` regeneration commit
+flattened all of them, so every `make ze-rules-condensed-update` regeneration commit
 re-tripped the gate. (That digest, CONDENSED.md, was deleted on 2026-08-03; the
 exemption still covers the rule corpus itself.)
 
@@ -300,7 +300,7 @@ exit was never the bug and is kept: a hook MUST no-op on tools it does not
 handle. Locked by three new fixtures in `scripts/dev/hook-fixture-check.py`
 (`validate-spec-argv-no-stdin-refuses`, `-absent-tool-name-refuses`,
 `-other-tool-quiet-pass`), which drive a structurally INVALID spec so that a pass
-can only mean no check ran. `make ze-hook-test`: 131/131 parity + 37/37 fixtures.
+can only mean no check ran. `make ze-unit-hook-test`: 131/131 parity + 37/37 fixtures.
 
 ---
 
@@ -395,17 +395,17 @@ here: `.claude/rules/session-start.md` was out of scope for this task.
 ### F4: the commit gate's structural-red advice does not do what it says
 
 **Friction:** `commit_helper.py`'s structural-gate refusal says:
-"re-run `make " + gate_reds[0] + "` (or `make ze-verify`) until green. If you
+"re-run `make " + gate_reds[0] + "` (or `make ze-precommit-verify`) until green. If you
 already fixed it, that re-run refreshes tmp/ze-verify-failures.json and clears
 this." It does not. `gate_reds[0]` is a stage name from `STRUCTURAL_GATES`
 (`:492-503`: `ze-lint`, `ze-lint-changed`, `ze-tier-check`, ...), and running that
 stage directly never writes the JSON. Verified at the producer: the only writer of
 `tmp/ze-verify-failures.json` is `scripts/status/verify_run.go`
 (`os.WriteFile(filepath.Join(root, failuresJSONPath), ...)`, path constant at
-`:28`), and `verify_run.go` is invoked only by `ze-verify` (Makefile:279-280) and
-`ze-verify-changed`. `make ze-lint-changed` is
+`:28`), and `verify_run.go` is invoked only by `ze-precommit-verify` (Makefile:279-280) and
+`ze-precommit-verify-changed`. `make ze-lint-changed` is
 `golangci-lint run $pkgs` and touches nothing else. Only the parenthetical
-`make ze-verify` actually clears the gate; the advice the message leads with does
+`make ze-precommit-verify` actually clears the gate; the advice the message leads with does
 not, for any of the eight gates.
 
 **Pattern:** Recurs for anyone who hits a structural red and follows the
@@ -422,7 +422,7 @@ correctly ("which `verify_run.go` rewrites after every run"). The rule is right;
 the error message contradicts it.
 
 **Proposed fix:** Reword `:1132-1134` to name a target that actually refreshes the
-artifact: fix at the source, then `make ze-verify` (or `make ze-verify-changed`)
+artifact: fix at the source, then `make ze-precommit-verify` (or `make ze-precommit-verify-changed`)
 (optionally suggesting `make <stage>` as a fast inner-loop check while making it
 explicit that only a full verify run rewrites the routing index and clears the
 gate). NOT done here: `scripts/dev/commit_helper.py` is explicitly out of scope for
@@ -681,7 +681,7 @@ a reproduction.
 
 ### F14: `verify_run.go` dry-run guard vs `ZE_VERIFY_LOG=` make override (FIXED at source)
 
-**Friction:** `make ze-verify ZE_VERIFY_LOG=tmp/ze-verify-gate12.log` -- the
+**Friction:** `make ze-precommit-verify ZE_VERIFY_LOG=tmp/ze-verify-gate12.log` -- the
 exact invocation `ai/rules/commands.md` and the `pipe-tail` Bash hook print
 as the sanctioned form -- exited 2 with the "refusing to run under make -n"
 message. GNU make 3.81 (the macOS system make) writes a command-line variable
@@ -762,7 +762,7 @@ clean -cache` is the safe recovery; nothing but rebuild time is lost.
 
 **Related, same area:** `Makefile:22-24` states the `tmp/go.mod` sentinel is
 obsolete because `go list` skips a *symlinked* `tmp/`. That holds only after the
-opt-in `make ze-migrate-scratch`. In a checkout where `tmp/` is still a real
+opt-in `make ze-scratch-migrate`. In a checkout where `tmp/` is still a real
 directory (`ensure-links.py` reports `SKIP tmp: a real path exists here`), the
 sentinel is load-bearing and deleting it lets `go list ./...` walk the caches.
 
@@ -770,7 +770,7 @@ sentinel is load-bearing and deleting it lets `go list ./...` walk the caches.
 
 **Friction:** `bin/ze-test-<session> bgp plugin 145` failed with a 30s timeout,
 "No messages received, no client output -- server likely failed to start or
-crashed". The same test had passed in 857ms in a full `make ze-verify` two hours
+crashed". The same test had passed in 857ms in a full `make ze-precommit-verify` two hours
 earlier. Roughly an hour went into isolating it: the editor, the test runner's
 production files and the concurrent session's commits were each reverted to HEAD
 and re-tested, and the daemon was run by hand against the extracted config (where
@@ -799,7 +799,7 @@ scratch dir, symlink them bare-named, and export ZE_BIN/ZE_TEST_BIN.
 
 **Proposed fix:** have the runner detect that it was launched without
 ZE_BIN/ZE_TEST_BIN for a suite that needs the isolated pair and say so ("run via
-make ze-plugin-test; a directly launched runner builds a ze without the zetest
+make ze-functional-plugin-test; a directly launched runner builds a ze without the zetest
 tag"), rather than letting the daemon start and the assertion time out. The
 `--server`/`--client` debug hints it prints on failure inherit the same problem
 and would mislead the same way.
@@ -1013,7 +1013,7 @@ trips `c_ignored_errors`. Before this change those three rules left CLI packages
 outside `cmd/` with no legal way to print at all.
 
 **Evidence.** 282, 622, 633; measurement + removal 2026-07-16 (l2tp `--user`
-session; `make ze-hook-test` 131/131 golden + 33/33 fixtures still green after).
+session; `make ze-unit-hook-test` 131/131 golden + 33/33 fixtures still green after).
 
 ---
 
@@ -1043,7 +1043,7 @@ to output of `make`, `go`, `golangci-lint`, or `bin/ze-*`.
 the `Read` tool:
 
 ```bash
-make ze-verify > tmp/ze-verify.log 2>&1
+make ze-precommit-verify > tmp/ze-verify.log 2>&1
 ```
 
 Then use `Read` with `offset` and `limit` to page through the log.
@@ -1553,7 +1553,7 @@ already has a "never reached a test" hint path, and it did not fire here.
 targets do:
 
 ```
-bindir=$PWD/$(dirname "$(make -s ze-path)")
+bindir=$PWD/$(dirname "$(make -s ze-session-binary-path)")
 env ZE_BIN=$bindir/ze ZE_TEST_BIN=$bindir/ze-test \
     python3 scripts/dev/stress-repro.py "bgp plugin --draft" --test 1 --any-failure
 ```
@@ -1651,15 +1651,15 @@ costs an operator approval even when no existing assertion is touched.
 ## Filed 2026-08-01 (bgp-update-withdraw-order): "regen the ledger in the SAME commit" cannot be obeyed in a shared checkout
 
 **What happened.** `ai/rules/testing.md` requires that adding or moving an
-`RFC requirement:` tagged test be accompanied by `make ze-rfc-index` and a
+`RFC requirement:` tagged test be accompanied by `make ze-rfc-index-update` and a
 committed `ai/RFC-REQUIREMENTS.md`, in the same commit. I added two tagged tests
 and could not comply. The ledger is a WHOLE-TREE derivative, and a concurrent
 session held uncommitted tagged tests of its own, so every regeneration also
 captured their in-flight `file:line` positions.
 
 Committing it would have swept their work into a commit titled as a BGP fix.
-Omitting it left the ledger stale, which reds four `ze-verify` stages at once
-(`ze-rfc-check`, `ze-doc-test`, `ze-verify-wiring-docs` and `ze-unit-test-cached`,
+Omitting it left the ledger stale, which reds four `ze-precommit-verify` stages at once
+(`ze-rfc-check`, `ze-doc-verify`, `ze-wiring-docs-check` and `ze-unit-test-cached`,
 all one cause).
 
 **How it resolved, which is the interesting part.** The other session committed

@@ -41,7 +41,7 @@ Every check answered honestly. "Probably fine" is not a pass — run the code, r
 | 6 | If I deliberately broke the production code path, would the test catch it? | Re-run after breaking it. Observer-exit antipattern hides this (`ai/rules/testing.md`) |
 | 7 | Did I rename a registered name (plugin / subsystem / log / dispatch key)? Did I grep every consumer? | `ai/rules/plugins.md` "Renaming a Registered Name" |
 | 8 | Did I add a guard / fallback to a function? Did I check sibling call sites? | `ai/rules/architecture.md` "Sibling Call-Site Audit" |
-| 9 | Did I touch reactor concurrency code? Did `make ze-race-reactor` pass? | `ai/rules/testing.md` "Reactor Concurrency Code" |
+| 9 | Did I touch reactor concurrency code? Did `make ze-unit-reactor-test-race` pass? | `ai/rules/testing.md` "Reactor Concurrency Code" |
 
 **MUST NOT present "version 1" knowing "version 2" is needed.** The first presentation SHOULD be the thorough one.
 
@@ -53,9 +53,9 @@ Every check answered honestly. "Probably fine" is not a pass — run the code, r
 
 Paste command output as evidence. "Should work" is not evidence.
 
-`make ze-verify` is the ONLY acceptable verification before claiming done. Run it in the foreground and wait for it to finish. Output auto-captured to `tmp/ze-verify.log`. See `ai/rules/git-safety.md` for the full pre-commit workflow, and its "Running ze-verify" for why you must not kill it for being slow.
+`make ze-precommit-verify` is the ONLY acceptable verification before claiming done. Run it in the foreground and wait for it to finish. Output auto-captured to `tmp/ze-verify.log`. See `ai/rules/git-safety.md` for the full pre-commit workflow, and its "Running ze-precommit-verify" for why you must not kill it for being slow.
 
-Race coverage: `ze-verify` runs `-race` on component groups with changed `.go` files (two-pass strategy). For reactor concurrency changes, also run `make ze-race-reactor` (`-race -count=20`).
+Race coverage: `ze-precommit-verify` runs `-race` on component groups with changed `.go` files (two-pass strategy). For reactor concurrency changes, also run `make ze-unit-reactor-test-race` (`-race -count=20`).
 
 ## Learned Summary Verification
 

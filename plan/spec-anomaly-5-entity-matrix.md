@@ -316,7 +316,7 @@ prerequisite) and 7 (as-entities-cohorts). This spec adds no AS field and no flo
    - Tests: `TestTrackedGaugeByDimension`, `TestResponderIgnoresNonSourceEntity`; `anomaly-show.ci` still green
    - Verify: no term for non-source; gauge per dimension
 8. **Functional tests** - `TestChainDestOutlier`/`TestChainPortOutlier` pass end to end; optional `.ci` if `fakeflow` present.
-9. **Full verification** - `make ze-verify` (or scoped to changed per `ai/rules/git-safety.md`).
+9. **Full verification** - `make ze-precommit-verify` (or scoped to changed per `ai/rules/git-safety.md`).
 10. **Complete spec** - fill audit tables; learned summary; two-commit closure per `.claude/rules/planning.md`.
 
 ### Critical Review Checklist (/implement stage 6)
@@ -342,7 +342,7 @@ prerequisite) and 7 (as-entities-cohorts). This spec adds no AS field and no flo
 | Responder guard | `go test ./internal/plugins/anomaly/shape/ -run NonSource` |
 | Source path unchanged | `go test ./internal/component/trafficfeature/ ./internal/plugins/anomaly/detect/ -run 'FanOut|ConfirmClear|FreezeLearn'` (existing tests, unmodified) |
 | Per-dimension gauge | `grep -n 'GaugeVec' internal/plugins/anomaly/detect/detector.go` |
-| Docs updated | `make ze-doc-test`; grep `docs/features.md` source anchors resolve |
+| Docs updated | `make ze-doc-verify`; grep `docs/features.md` source anchors resolve |
 
 ### Security Review Checklist (/implement stage 11)
 | Check | What to look for |
@@ -502,7 +502,7 @@ Widening the entity axis is not "teach the detector new keys" -- it is "teach th
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete - every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled - 0 BLOCKER, 0 ISSUE)
-- [ ] `make ze-test` passes (lint + all ze tests)
+- [ ] `make ze-standard-test` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/component/trafficfeature`, `internal/plugins/anomaly/detect`, `internal/core/anomalyevent`)
 - [ ] Integration completeness proven end-to-end (`TestChainDestOutlier`/`TestChainPortOutlier`)
 - [ ] Documentation Update Checklist answered Yes/No with source evidence

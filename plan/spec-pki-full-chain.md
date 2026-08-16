@@ -417,7 +417,7 @@ None deferred.
    - Files: `pki/tls.go` (helper), plugin doctor files + registrations, web doctor registration, `diagnostic/codes.go`
    - Verify: `doctor-tls-reference` registered and explainable; checks fire only when the leaf is set
 6. **Functional tests** -- fill the `.ci` files (`test/plugin/as112-dot-pki.ci`, `geodns-dot-pki.ci`, `test/reload/pki-reference-reload.ci`, complete the parse ones)
-7. **Full verification** -- `make ze-verify` (respect `scripts/dev/verify-status.sh check` freshness)
+7. **Full verification** -- `make ze-precommit-verify` (respect `scripts/dev/verify-status.sh check` freshness)
 8. **Complete spec** -- audit tables, learned summary `plan/learned/NNN-pki-full-chain.md`, two-commit closure
 
 ### Critical Review Checklist (/implement stage 6)
@@ -732,7 +732,7 @@ shape for core-hosted listeners like dnsserver.
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete -- every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled -- 0 BLOCKER, 0 ISSUE)
-- [ ] `make ze-test` passes (lint + all ze tests)
+- [ ] `make ze-standard-test` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
 - [ ] Integration completeness proven end-to-end
 - [ ] Documentation Update Checklist answered Yes/No with source evidence

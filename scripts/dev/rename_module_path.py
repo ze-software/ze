@@ -34,7 +34,7 @@ What it REFUSES, by design:
     plain string substitution of a different-length path silently corrupts the
     descriptor while still compiling. These are listed as "regenerate" and the
     .proto source (the canonical input) is rewritten normally, so re-running the
-    generator produces the correct bytes. See `make ze-proto-gen`.
+    generator produces the correct bytes. See `make ze-proto-generate`.
 
   - Occurrences that are NOT module paths but merely contain the same characters
     -- an absolute checkout path such as /Users/<you>/Code/<module>/. These live
@@ -536,7 +536,7 @@ def main(argv: list[str] | None = None) -> int:
         print("\nregenerate these, then verify (a plain rewrite would corrupt them):")
         for rel, _ in plan["regenerate"]:
             print(f"  {rel}")
-        print("  make ze-proto-gen")
+        print("  make ze-proto-generate")
 
     hits = residual_report(root, old)
     if hits:

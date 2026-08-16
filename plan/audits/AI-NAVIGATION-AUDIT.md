@@ -58,7 +58,7 @@ navigation problem worse. Most of what an agent needs is already here:
 | `ai/patterns/` (8) | mechanical recipes for CLI, plugin, config, family, test | hand |
 | `ai/rationale/` (44) | why each rule exists | hand |
 | `ai/skills/` (26) | end-to-end workflows (implement, review, debug, audit) | hand |
-| `ai/CODE-TO-DOCS.md` | code path to the docs that describe it | generated (`make ze-doc-index`) |
+| `ai/CODE-TO-DOCS.md` | code path to the docs that describe it | generated (`make ze-doc-index-update`) |
 | `ai/LEARNED-INDEX.md` | a curated slice of learned summaries by topic | hand |
 | `plan/learned/` (1082) + `DESIGN-HISTORY` / `RECURRING-PATTERNS` / `HOOK-FRICTION` | history: decisions, recurring traps, hook false positives | hand + append |
 | `docs/architecture/` (100) | canonical design of each subsystem | hand |
@@ -124,7 +124,7 @@ joining two sources you already keep:
 **Cost.** Low. Extend `scripts/dev/arch_map.py` (already walks the trees) or
 `scripts/inventory/inventory.go` (already imports the registry and renders a
 Description column, `inventory.go`), and wire it into the existing
-`ze-doc-test` / `ze-regen` freshness gate (`mk/inventory.mk`) so it cannot rot.
+`ze-doc-verify` / `ze-generated-files-update` freshness gate (`mk/inventory.mk`) so it cannot rot.
 
 **Why first.** It is the literal answer to your complaint, it is ~90% generatable from
 metadata you maintain, and the freshness gate keeps it honest. This is the single best
@@ -231,7 +231,7 @@ Two principles worth adopting:
 
 | # | Action | Payoff | Effort | Generatable |
 |---|--------|--------|--------|-------------|
-| 1 | Generate `ai/PACKAGE-MAP.md` (path, one-line role, key type) from registry `Description` + package doc first line; add to `ze-regen` gate | High: direct answer to "what does what" | Low | ~90% |
+| 1 | Generate `ai/PACKAGE-MAP.md` (path, one-line role, key type) from registry `Description` + package doc first line; add to `ze-generated-files-update` gate | High: direct answer to "what does what" | Low | ~90% |
 | 2 | Generate `ai/DOCS-TO-CODE.md` by inverting `// Design:` edges; add a `make` target + gate | Medium-High: ends the per-lookup grep | Low | 100% |
 | 3 | Generate a *complete* learned-summary index (all 1082, id + slug + first line) under `LEARNED-INDEX.md` | Medium: ends `ls`-and-guess for ~840 summaries | Low | 100% |
 | 4 | Add an "I want to understand, not change" front-door section to `ai/INDEX.md` | Medium: one cold-start entrypoint | Low | No |

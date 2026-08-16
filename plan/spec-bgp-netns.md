@@ -682,7 +682,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
    `make ze-qemu-needs-linux-test`. -> Constraint: the VPP+LCP END-TO-END rail is still NOT
    identified (Q12) and needs a VPP image carrying the linux-cp plugins. Identify it BEFORE
    Phase 2, or Phase 5 becomes an unbounded task discovered at the end.
-6. **Full verification**: `make ze-verify`
+6. **Full verification**: `make ze-precommit-verify`
 7. **Complete spec**: learned summary, two-commit closure per `ai/rules/planning.md`.
 
 ### Critical Review Checklist
@@ -911,7 +911,7 @@ observe which namespace the socket was created in. See "Interop Tests" for the e
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete (every row has a concrete test name, none deferred)
 - [ ] `/ze-review` gate clean (Review Gate section filled: 0 BLOCKER, 0 ISSUE)
-- [ ] `make ze-test` passes (lint + all ze tests)
+- [ ] `make ze-standard-test` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
 - [ ] QEMU integration test for the linux-only netns leg (`ai/rules/platform-linux.md`)
 - [ ] `make ze-tier-check` passes (core import direction)

@@ -73,7 +73,7 @@ func TestPutDropsLargerBuffer(t *testing.T) {
 // every Get into a fresh allocation -- the pool still "works", just without
 // pooling anything, so no other test in this file would notice.
 //
-// A single Put/Get pair used to assert this and flaked in full `ze-verify` runs
+// A single Put/Get pair used to assert this and flaked in full `ze-precommit-verify` runs
 // (plan/known-failures/syncpool-capacity-identity-flakes.md). That assertion was
 // not about our code: sync.Pool explicitly does NOT promise Get returns what was
 // just Put. It is emptied at every GC, and an item parked in one P's private

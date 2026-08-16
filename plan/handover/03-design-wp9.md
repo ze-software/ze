@@ -1027,7 +1027,7 @@ from nothing.
 | D | **The consumer** | `engine/cp.go`; the CP case at all **three** drop sites; the `startResponderEAP` signature; the reply insertion at `responder.go`; TS narrowing before `:613`; P1 (`_ = ipPool` → real wiring) | `2.19-2`, `2.19-3`, `4-2`, `4-3`, `3.15.1-1` | 1.5 days |
 | E | **Authorization and error paths** | The two fail-closed guards (8.1, 8.2); `FAILED_CP_REQUIRED` emission and its pre-`:623` short-circuit; `INTERNAL_ADDRESS_FAILURE` (8.4) | `2.19-5`, `2.19-6` | 0.5 day |
 | F | **Tests** | 34 tagged tests, every mutation in 9.3 run and reverted, the pool tests in 9.4, `test/ipsec/ipsec-remote-access-cp.ci`, and the strongSwan scenario `14-remote-access-cp` | all 17 proven | 1.5 days |
-| G | **Discovery and closure** | `docs/features.md`, the guide, `docs/architecture/wire/`, `docs/features/rfc-status.md` rows, the 17 summary rows, `make ze-rfc-index`, the R-8 Integration Checklist re-answer | -- | 0.5 day |
+| G | **Discovery and closure** | `docs/features.md`, the guide, `docs/architecture/wire/`, `docs/features/rfc-status.md` rows, the 17 summary rows, `make ze-rfc-index-update`, the R-8 Integration Checklist re-answer | -- | 0.5 day |
 
 **Total: roughly 6 days**, and phases A, B and C are genuinely parallel.
 
@@ -1207,7 +1207,7 @@ changing an obligation:
   string or no CP payload if CP is not supported", leaving "that case" unresolvable.
   Restore enough of `rfc/full/rfc7296.txt:3206-3208` to name the antecedent.
 
-After the rows land, run `make ze-rfc-index` and commit `ai/RFC-REQUIREMENTS.md` **in the
+After the rows land, run `make ze-rfc-index-update` and commit `ai/RFC-REQUIREMENTS.md` **in the
 same commit**. The ledger records each tagged test's `file:line`, and both verify modes of
 `ze-rfc-check` fail on a stale ledger (`ai/rules/testing.md`, RFC-Tagged Tests). With 34
 new tags across four files, this is not optional bookkeeping -- a skipped regen lands on

@@ -335,7 +335,7 @@ timeout arm deterministically.
 | Static isolation intact | The static suite passes with one unprogrammable route in the config |
 | One rollback verdict | `TestRollbackVerdictMatchesFirewall` |
 | Lint | `make ze-lint-changed` |
-| Packages | `make ze-test-pkg` for the three plugin packages and `internal/component/vpp` |
+| Packages | `make ze-unit-pkg-test` for the three plugin packages and `internal/component/vpp` |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -396,7 +396,7 @@ timeout arm deterministically.
 - [ ] AC-1..AC-10 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated in all three plugins, not test-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding

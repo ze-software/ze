@@ -20,7 +20,7 @@ Checked in order. The report stops at the first stage that is NOT satisfied.
 | 1 | Implementation | Every AC names the producing function, every TDD test exists, every "Files to Modify/Create" entry was touched, and the Wiring Test table rows all have a real `.ci` test |
 | 2 | Deferrals | Every LIVE row (Status not `done`/`cancelled`/`resolved`) that this spec still owes is homed at a spec that exists. A live row homed ELSEWHERE is not owed and does not hold the gate: see step 5 for the exact two-class test |
 | 3 | Review | A review (`/ze-review`, `/ze-review-spec`, or `/ze-review-deep`) has run AFTER the most recent spec-related code edit, and every finding was fixed |
-| 4 | Commit A | `make ze-verify` passed AND all spec-scoped changes (code + tests + docs + completed spec file) are committed |
+| 4 | Commit A | `make ze-precommit-verify` passed AND all spec-scoped changes (code + tests + docs + completed spec file) are committed |
 | 5 | Commit B (closure) | A journal row in `plan/journal/<class>.md` naming this spec is committed AND `plan/spec-<name>.md` has been removed via `git rm` in the same commit |
 
 A spec is **done** only when stage 5 is complete. Stages 1 through 4 are checkpoints, not endpoints.
@@ -47,7 +47,7 @@ A spec is **done** only when stage 5 is complete. Stages 1 through 4 are checkpo
    - If uncommitted code exists AND no review has run since it was written: STAGE = 3. Go to step 9.
    - If a review ran but reported unresolved BLOCKER or ISSUE items that are not yet fixed: STAGE = 3.
 7. **Stage 4 -- Commit A:** Check:
-   - Did `make ze-verify` pass recently? Check `tmp/ze-verify.log` (<1h old) or a documented pass in session state.
+   - Did `make ze-precommit-verify` pass recently? Check `tmp/ze-verify.log` (<1h old) or a documented pass in session state.
    - Are there uncommitted files in the spec scope (code, tests, docs, or the spec file itself)?
    - If uncommitted spec-scoped files remain: STAGE = 4. Go to step 9.
 8. **Stage 5 -- Commit B (closure):** Check:
@@ -92,7 +92,7 @@ Or: "No deferral is owed by this spec: every live row is homed elsewhere."
 
 ### Commit A (code + completed spec)
 - Uncommitted files in spec scope: [list, or "none"]
-- `make ze-verify`: [PASS (Nh ago) / FAIL / not run recently]
+- `make ze-precommit-verify`: [PASS (Nh ago) / FAIL / not run recently]
 
 ### Commit B (closure -- spec -> journal)
 - Journal row naming this spec: [present in plan/journal/<class>.md / missing]
@@ -113,7 +113,7 @@ Pick exactly ONE action based on the reported stage. Do not chain recommendation
 | 2 (resolvable) | Close the deferral: implement it or mark `done` in its `plan/deferrals/<source>.md` shard | A deferral that already exists in code is a bookkeeping bug, not scope |
 | 2 (genuine) | Ask user: implement now, move to another spec, or drop with `user-approved-drop` | A deferral cannot silently VANISH at closure. It may survive it: a row homed at another spec stays live, and its shard outlives this spec (`ai/rules/planning.md`). Homing it clears stage 2 -- do not treat a live homed row as unfinished closure work |
 | 3 | `/ze-review` (or `/ze-review-spec` for conformance, `/ze-review-deep` for exhaustive) | Uncommitted code without a post-edit review is a known failure mode |
-| 4 | `/ze-verify` then `/ze-commit` | Commit A must include the completed spec file with its audit tables filled -- this preserves it in git history |
+| 4 | `/ze-precommit-verify` then `/ze-commit` | Commit A must include the completed spec file with its audit tables filled -- this preserves it in git history |
 | 5 | Append a journal row to `plan/journal/<class>.md` naming this spec, stage `git rm plan/spec-<name>.md` + the journal file, then `/ze-commit` | Two-commit rule (`ai/rules/planning.md`): never delete a spec without committing it first |
 | done | "Spec complete. `/ze-spec` to pick the next one." | Nothing pending |
 

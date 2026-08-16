@@ -152,7 +152,7 @@ Nothing is stable yet. Expect changes in:
 If you decide to use Ze today:
 
 1. **Pin to a commit** -- there are no releases or version tags yet
-2. **Run the test suite** -- `make ze-verify` before deploying any build
+2. **Run the test suite** -- `make ze-precommit-verify` before deploying any build
 3. **Start with monitoring** -- use Ze to observe BGP sessions before relying on it for route injection
 4. **Keep ExaBGP as fallback** -- Ze can migrate ExaBGP configs, so you can switch back easily
 5. **Report issues** -- [github.com/ze-software/ze/issues](https://github.com/ze-software/ze/issues)

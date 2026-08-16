@@ -86,8 +86,8 @@ case "$cmd" in
         fi
         current=$(tree_hash)
         if [ "$current" = "$tree_hash" ]; then
-            # mode qualifies the freshness: ze-verify-changed is a weaker pass
-            # than full ze-verify (no full lint, no vet evidence, no cached
+            # mode qualifies the freshness: ze-precommit-verify-changed is a weaker pass
+            # than full ze-precommit-verify (no full lint, no vet evidence, no cached
             # full unit pass). Status files from before the mode field default
             # to the full label.
             echo "FRESH(${mode:-ze-verify}): tree unchanged since PASS at $timestamp (sha $git_sha)"

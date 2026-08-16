@@ -1,7 +1,7 @@
 # `test/draft/` — functional tests under development
 
 A `.ci` file here is **invisible to every suite and every repo-wide gate**. Write
-and iterate on it as long as you like; it cannot redden `make ze-verify`, and
+and iterate on it as long as you like; it cannot redden `make ze-precommit-verify`, and
 because the directory is gitignored it does not exist in CI at all.
 
 This directory is tracked only for this README. Everything else in it is ignored
@@ -15,7 +15,7 @@ so a subdirectory is already invisible to it. The problem was everything else: s
 gates walk `test/` RECURSIVELY, and each one would have seen a half-written draft.
 
 A test in progress used to have nowhere to live. Writing it in `test/<suite>/`
-meant every `make ze-verify` in the tree ran it — including runs by other sessions
+meant every `make ze-precommit-verify` in the tree ran it — including runs by other sessions
 working on unrelated things, who then had to decide whether the red was theirs.
 
 ## Layout

@@ -96,14 +96,14 @@ def _clean_env(session_id=None):
 
 
 def ze_path(session_id=None):
-    """`make ze-path` with ZE_SESSION_ID set, or with no session at all.
+    """`make ze-session-binary-path` with ZE_SESSION_ID set, or with no session at all.
 
     The id goes on the command line because that is the case with the sharpest
     edge: a command-line assignment outranks every makefile assignment, so a
     validator that reads only the environment would let `make ze
     ZE_SESSION_ID=../../etc` reach the -o path.
     """
-    cmd = ["make", "ze-path"]
+    cmd = ["make", "ze-session-binary-path"]
     if session_id is not None:
         cmd.append(f"ZE_SESSION_ID={session_id}")
     return subprocess.run(
@@ -185,7 +185,7 @@ def today():
 
 
 def ze_path_dated(sid):
-    """`make ze-path`, with the dates that could legitimately name the directory.
+    """`make ze-session-binary-path`, with the dates that could legitimately name the directory.
 
     A run that straddles midnight would otherwise fail on a date that was
     correct when the call was made.
@@ -314,7 +314,7 @@ class TestZePathOffSessionIsSharedBin(SessionDirCase):
 class TestMakeAndGoAgreeOnBinDir(SessionDirCase):
     """AC-1/AC-4/R-11: one directory, resolved by all FOUR implementations.
 
-    make's answer is the directory of `make ze-path`; Go's is
+    make's answer is the directory of `make ze-session-binary-path`; Go's is
     sessionpath.BinDir; the shell's is `_session_dir` in
     .claude/hooks/lib/session-dir.sh; python's is `session_dir` in
     .claude/hooks/pretool-writeedit.py. A disagreement is silent at runtime: the
@@ -487,7 +487,7 @@ class TestSessionDirsSortByDate(SessionDirCase):
     """
 
     def resolved_name(self, sid, date):
-        """The directory name `make ze-path` resolves for a planted dated dir."""
+        """The directory name `make ze-session-binary-path` resolves for a planted dated dir."""
         path = ROOT / SESSION_ROOT / f"{date}-{sid}"
         (path / "bin").mkdir(parents=True, exist_ok=True)
         resolved = ze_path(sid)
@@ -830,17 +830,22 @@ class TestSessionStoreIsSeeded(SessionDirCase):
     def test_every_ze_core_recipe_seeds_and_only_on_session(self):
         """AC-8 does not stop at `make ze`; AC-2 keeps every recipe unmoved.
 
-        ze, ze-appliance and ze-stripped each link `internal/core/resolve`,
+        ze, ze-appliance, and ze-stripped each link `internal/core/resolve`,
         `internal/component/ssh` and `internal/plugins/init` (measured with
         `go list -deps` over each recipe's own tags), so each resolves the same
         <session-dir>/etc/ze and each can seed it. A target that seeded only
         under `make ze` would leave the same silent empty store one target over.
         """
         sid = self.sid("recipe")
-        for target in ("ze", "ze-appliance", "ze-stripped"):
+        targets = (
+            ("ze", "ze"),
+            ("ze-appliance-build", "ze-appliance"),
+            ("ze-stripped-build", "ze-stripped"),
+        )
+        for target, binary_name in targets:
             with self.subTest(target=target, session=True):
                 self.assertIn(
-                    f"{SEED_SCRIPT} {SESSION_ROOT}/{today()}-{sid}/bin/{target}",
+                    f"{SEED_SCRIPT} {SESSION_ROOT}/{today()}-{sid}/bin/{binary_name}",
                     make_n(target, sid),
                     f"`make {target}` builds a session binary that resolves "
                     f"<session-dir>/etc/ze and leaves that store empty",
@@ -851,7 +856,7 @@ class TestSessionStoreIsSeeded(SessionDirCase):
                 self.assertNotIn(SESSION_ROOT, off, "a human's build moved")
 
         # The rest link no init and reach no silent path, so they never seed.
-        for target in ("ze-setup-bin", "test", "chaos", "analyze", "perf"):
+        for target in ("ze-setup-build", "ze-test-build", "ze-chaos-build", "ze-analyze-build", "ze-perf-build"):
             with self.subTest(target=target):
                 self.assertNotIn(
                     "session-seed-store",
@@ -868,7 +873,7 @@ class TestSessionStoreIsSeeded(SessionDirCase):
         """
         sid = self.sid("stripped-build")
         proc = subprocess.run(
-            ["make", "ze-stripped", f"ZE_SESSION_ID={sid}"],
+            ["make", "ze-stripped-build", f"ZE_SESSION_ID={sid}"],
             cwd=str(ROOT),
             env=_clean_env(),
             capture_output=True,
@@ -908,7 +913,7 @@ class TestValidationDoesNotRunShell(unittest.TestCase):
         marker = "ZE-INJECTION-MARKER"
         hostile = f"a'; echo {marker}; '"
         proc = subprocess.run(
-            ["make", "ze-path", f"ZE_SESSION_ID={hostile}"],
+            ["make", "ze-session-binary-path", f"ZE_SESSION_ID={hostile}"],
             cwd=str(ROOT),
             env=_clean_env(),
             capture_output=True,
@@ -920,7 +925,7 @@ class TestValidationDoesNotRunShell(unittest.TestCase):
 
 
 class CleanSessionsCase(unittest.TestCase):
-    """Drives `make ze-clean-sessions` against a fixture session root.
+    """Drives `make ze-sessions-clean` against a fixture session root.
 
     The target is real and so is the recipe; only the root it sweeps is
     redirected, through the ZE_SESSION_ROOT that mk/session.mk already defines
@@ -951,7 +956,7 @@ class CleanSessionsCase(unittest.TestCase):
         return path
 
     def clean(self, before=None):
-        cmd = ["make", "ze-clean-sessions", f"ZE_SESSION_ROOT={self.root}"]
+        cmd = ["make", "ze-sessions-clean", f"ZE_SESSION_ROOT={self.root}"]
         if before is not None:
             cmd.append(f"BEFORE={before}")
         return subprocess.run(
@@ -990,7 +995,7 @@ class TestCleanSessionsRefusesWithoutBefore(CleanSessionsCase):
         )
 
     def test_an_empty_before_removes_nothing(self):
-        # `make ze-clean-sessions BEFORE=` is what a shell variable that did not
+        # `make ze-sessions-clean BEFORE=` is what a shell variable that did not
         # expand looks like. It must refuse exactly as the bare form does.
         self.plant_dir("2020-01-01-ancient")
 

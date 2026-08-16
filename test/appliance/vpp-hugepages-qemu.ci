@@ -12,8 +12,8 @@
 # go toolchain are absent. It exits 0 in both PASS and SKIP cases; a genuine
 # mismatch exits non-zero, as does an appliance that never answers under a
 # hardware accelerator (kvm/hvf). On Linux that needs the invoking user in the
-# `kvm` group -- `make ze-setup` checks this as kvm-access. The exhaustive run is
-# `make ze-vpp-hugepages-qemu-test`.
+# `kvm` group -- `make ze-dev-setup` checks this as kvm-access. The exhaustive run is
+# `make ze-qemu-vpp-hugepages-test`.
 
 # The auto-timeout is derived from this test's rolling baseline (5x the average).
 # On a host without KVM the driver SKIPs in a couple of seconds, so the baseline

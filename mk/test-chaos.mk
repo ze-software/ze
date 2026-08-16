@@ -41,8 +41,8 @@ ze-chaos-web-test: $(ZEBIN_TEST)
 ze-chaos-test: ze-chaos-unit-test ze-chaos-functional-test ze-chaos-integration-test ze-chaos-web-test
 	@echo "All chaos tests passed"
 
-# Wrapped in the shared verify lock (see ze-verify) because chaos tests
-# run $(ZEBIN_ZE) instances that would contend with a concurrent ze-verify.
+# Wrapped in the shared verify lock (see ze-precommit-verify) because chaos tests
+# run $(ZEBIN_ZE) instances that would contend with a concurrent ze-precommit-verify.
 ze-chaos-verify:
 	@scripts/dev/verify-lock.sh ze-chaos-verify $(MAKE) --no-print-directory _ze-chaos-verify-impl
 

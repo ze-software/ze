@@ -265,9 +265,9 @@ metadata and no daemon comparison claim.
 
 | Deliverable | Verification method |
 |-------------|---------------------|
-| The refusal in `tlsMethod.Process` | `make ze-test-pkg PKG=./internal/component/ike/eap` |
-| The functional test | `make ze-ipsec-test` |
-| The interop regression | `make ze-ipsec-interop-test IPSEC_INTEROP_SCENARIO=04-eap-tls` |
+| The refusal in `tlsMethod.Process` | `make ze-unit-pkg-test PKG=./internal/component/ike/eap` |
+| The functional test | `make ze-functional-ipsec-test` |
+| The interop regression | `make ze-interop-ipsec-test IPSEC_INTEROP_SCENARIO=04-eap-tls` |
 
 ### Security Review Checklist
 
@@ -329,7 +329,7 @@ acknowledgement for the M-flagged case, so the next reader sees which case the R
 - [ ] AC-1 to AC-5 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated, not test-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled

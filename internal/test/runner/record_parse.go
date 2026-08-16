@@ -433,7 +433,7 @@ func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[s
 		// checkout carries. The only such artifact today is the appliance module
 		// cache: gokrazy/modcache/.gitignore ignores everything except the
 		// vendored gokrazy init source, so the pinned rtr7/kernel module (with
-		// its 15 MB vmlinuz) exists only after `make ze-gokrazy-deps`.
+		// its 15 MB vmlinuz) exists only after `make ze-gokrazy-deps-download`.
 		//
 		// Absent the path the test SKIPS with a reason naming the path and the
 		// command that materializes it. That is deliberately not a silent pass:

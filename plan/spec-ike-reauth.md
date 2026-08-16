@@ -214,7 +214,7 @@ Add IKEv2 reauthentication:
    - Tests: `TestReauthPeerOverride`
 4. **Phase: Validation** — reauth-time minimum.
 5. **Functional + interop tests (strongSwan)**
-6. **Full verification** → `make ze-verify`
+6. **Full verification** → `make ze-precommit-verify`
 7. **Complete spec** → audit, learned summary, two-commit closure.
 
 ### Critical Review Checklist (/implement stage 6)
@@ -287,7 +287,7 @@ teardown+re-establish orchestration, distinguishing it from the §1.3.3 rekey.
 - [ ] End-to-End User Stories: every story has a working path and passing test
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `make ze-test` passes
+- [ ] `make ze-standard-test` passes
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Documentation Update Checklist answered
 

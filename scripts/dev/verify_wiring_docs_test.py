@@ -236,8 +236,8 @@ class RoutedTargetsExistTest(unittest.TestCase):
 class DockerExecRoutingTest(unittest.TestCase):
     """Changed-file routing for the fail-open call-site ratchet.
 
-    Wiring row: a changed test/**/*.py must select ze-docker-exec-check, so
-    `make ze-verify-changed` runs the gate exactly when a scenario or a lab
+    Wiring row: a changed test/**/*.py must select ze-functional-docker-exec-check, so
+    `make ze-precommit-verify-changed` runs the gate exactly when a scenario or a lab
     could have added an unchecked read of a fail-open return value.
     """
 
@@ -254,7 +254,7 @@ class DockerExecRoutingTest(unittest.TestCase):
             "test/ipsec-interop/lab.py",
         ):
             with self.subTest(path=path):
-                self.assertIn("ze-docker-exec-check", selected_targets(root, [path]))
+                self.assertIn("ze-functional-docker-exec-check", selected_targets(root, [path]))
 
     def test_checker_and_baseline_select_the_target(self):
         root = self._root()
@@ -263,24 +263,24 @@ class DockerExecRoutingTest(unittest.TestCase):
             "test/health/docker-exec-baseline.json",
         ):
             with self.subTest(path=path):
-                self.assertIn("ze-docker-exec-check", selected_targets(root, [path]))
+                self.assertIn("ze-functional-docker-exec-check", selected_targets(root, [path]))
 
     def test_a_draft_and_an_unrelated_change_do_not_select_it(self):
         root = self._root()
         for path in ("test/draft/plugin/wip.py", "test/plugin/api-peer.ci"):
             with self.subTest(path=path):
-                self.assertNotIn("ze-docker-exec-check", selected_targets(root, [path]))
+                self.assertNotIn("ze-functional-docker-exec-check", selected_targets(root, [path]))
 
     def test_target_is_runnable_and_ordered(self):
-        self.assertIn("ze-docker-exec-check", MAKE_TARGETS)
-        self.assertIn("ze-docker-exec-check", TARGET_ORDER)
+        self.assertIn("ze-functional-docker-exec-check", MAKE_TARGETS)
+        self.assertIn("ze-functional-docker-exec-check", TARGET_ORDER)
 
 
 class TemplRoutingTest(unittest.TestCase):
     """Changed-file routing for the templ generated-output freshness gate.
 
     Wiring row: a changed .templ or *_templ.go must select
-    ze-templ-generate-check, so `make ze-verify-changed` runs the gate exactly
+    ze-templ-generate-check, so `make ze-precommit-verify-changed` runs the gate exactly
     when the pair could have gone stale.
     """
 

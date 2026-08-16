@@ -131,7 +131,7 @@ func TestParseConfig_TooManyCommunities(t *testing.T) {
 
 // TestMaxCommunitiesMatchesYANG guards against drift between the Go bound
 // (maxCommunities) and the YANG `max-elements` on the community leaf-list: both
-// cap the same list, so a change to one without the other would let ze-validate
+// cap the same list, so a change to one without the other would let ze-repository-check
 // and the engine disagree on acceptance.
 func TestMaxCommunitiesMatchesYANG(t *testing.T) {
 	yang := as112yang.ZeAs112ConfYANG

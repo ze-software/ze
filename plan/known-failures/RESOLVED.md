@@ -237,7 +237,7 @@ fix. If it returns, re-open with the daemon stderr rather than reusing this entr
 ### ~~`ze-test install` kernel tests (1-6, 20-31, 39, 40) -- broken by the isolated-binary layout~~ -- RESOLVED 2026-07-25: fixed by `ebf0dfbad`, shard was stale
 
 The shard (2026-07-22) predates the fix. `ebf0dfbad` (2026-07-24, "fix(test):
-install kernel suite green in isolated ze-verify layout") changed the 20 `.ci`
+install kernel suite green in isolated ze-precommit-verify layout") changed the 20 `.ci`
 files to resolve the repo as `${ZE_REPO_ROOT:-$(... command -v ze ...)}`, so the
 runner-exported `ZE_REPO_ROOT` (`internal/test/runner/runner_exec_util.go`)
 wins over the binary-neighbour derivation the shard blamed. Verified 2026-07-25
@@ -378,7 +378,7 @@ than a silent bump; converting these four counts to a snapshot remains open for
 whoever next touches that file.
 
 **A SECOND test had the same stale-`quiesce` root cause** and was only found when
-`make ze-verify` finally ran (2026-07-15): `internal/core/ipc` `TestExtractRPCs/system-api`
+`make ze-precommit-verify` finally ran (2026-07-15): `internal/core/ipc` `TestExtractRPCs/system-api`
 (`yang_test.go`) asserts `ElementsMatch` against its own hardcoded
 `wantRPCs` list, which also predated `ze-system:quiesce`. Fixed by adding the
 entry. Two hardcoded copies of the same list drifted from one added RPC, which is
@@ -626,7 +626,7 @@ also pass.
 
 **Resolved 2026-07-01.** `install/26` kernel-runtime-deps TOCTOU race was a
 shared-path collision: it read/created `tmp/kernel/build/vmlinuz` while
-`ze-kernel-overlay` (which runs `make ze-kernel`) moved/removed that same dir,
+`ze-kernel-overlay` (which runs `make ze-kernel-build`) moved/removed that same dir,
 so a concurrent `out.stat()` threw `FileNotFoundError`. Fixed by redirecting the
 test's build-output artifact to a per-test dir: `make -q -C gokrazy/kernel
 OUT="$work/out"` (the Makefile's `OUT :=` at `gokrazy/kernel/Makefile:19` loses
@@ -740,7 +740,7 @@ mandatory on every ipv4/unicast NLRI. The expected hex in
 internally inconsistent. Fixed the fixture (user-authorized per
 `ai/rules/testing.md`) to ze's correct output. Encode suite now 53/53.
 
-### 2026-06-17 -- `ze-exabgp-test` (was "10/40 product bugs") -> 40/40 PASS
+### 2026-06-17 -- `ze-functional-exabgp-test` (was "10/40 product bugs") -> 40/40 PASS
 
 **Resolved 2026-06-17.** The "10 distinct encoding bugs" was a mis-diagnosis.
 Verified non-deterministic: failure set changed every run (e.g. run A
@@ -797,7 +797,7 @@ Environment deps (skip-env tagged): show-policy-routes, wireguard-invalid.
 
 **Resolved 2026-06-10.** Namespace-aware subscribe + event polling.
 
-### 2026-06-11 -- `make ze-verify-wiring-docs` command validation drift
+### 2026-06-11 -- `make ze-wiring-docs-check` command validation drift
 
 **Resolved 2026-06-11.** Wiring, doc, and inventory gates all green.
 
@@ -869,7 +869,7 @@ Only the seven that actually fail were marked; the four sibling iface tests that
 pass unprivileged still run.
 
 **What this does NOT claim.** These seven now execute in no automated pipeline:
-CI runs `make ze-verify` unprivileged (so they skip), and no workflow invokes
+CI runs `make ze-precommit-verify` unprivileged (so they skip), and no workflow invokes
 `ze-qemu-needs-linux-test` -- `ai/rules/platform-linux.md` already records the QEMU
 suites as run by "NOTHING automated". The change converts an opaque hang into an
 honest skip; it does not give these tests a gate. Two follow-ups, both recorded in

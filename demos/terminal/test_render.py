@@ -462,7 +462,7 @@ class DemoLockTest(unittest.TestCase):
 
     def test_the_harness_tells_the_container_the_lock_is_held(self):
         command = terminal_render.container_command(
-            {"image": "ze-terminal-demos:test", "platform": "linux/native"},
+            {"image": "ze-terminal-demos-render:test", "platform": "linux/native"},
             pathlib.PurePosixPath("/src/demos/terminal/example/validate.sh"),
             False,
         )

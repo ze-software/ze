@@ -14,7 +14,7 @@
 - **Never write a `while` or `until` loop that calls `sleep`, and never put `pgrep` in a loop condition.**
 - **A poll that is genuinely the only available signal MUST die on its own. Wrap it in `timeout <seconds>`.** An unbounded watcher outlives the reason it was started for, because the session that started it has moved on.
 - **Stop a watcher the moment its reason changes.** `TaskStop` the background task. "It will end eventually" is how four of them come to tick at once.
-- **One watcher at a time, and never faster than one wake every 30 seconds.** Each wake competes with QEMU, Docker and `ze-verify` for the same cores. That contention is what makes the functional suites flaky, so a watcher can corrupt the run it is watching.
+- **One watcher at a time, and never faster than one wake every 30 seconds.** Each wake competes with QEMU, Docker and `ze-precommit-verify` for the same cores. That contention is what makes the functional suites flaky, so a watcher can corrupt the run it is watching.
 - **Foreground `sleep` is blocked by the harness because waiting is not work.** Reaching for a loop to win the sleep back inverts that intent. Do other work, or end the turn.
 - **The harness's own examples are unbounded, and this repo overrides them.** The Bash tool text prescribes an `until` loop when a foreground `sleep` is refused, and the `Monitor` schema shows `until grep -q ...; do sleep 0.5; done`. Both are refused here, and one word fixes both: `timeout`. The 30-second floor governs a watcher that spawns a process per wake (`pgrep`, `docker`, `curl`); a local file test inside a bound can be faster.
 - **Run `make ze-lint-changed` before claiming any Go implementation work is done.**
@@ -60,7 +60,7 @@ out behind build tags (`//go:build ze_isis`, `ze_ospf`, `ze_ldp`, `ze_rsvpte`,
 never register, so their validators, listeners and schema vanish and **unrelated
 tests fail with phantom reds**.
 
-**SHOULD prefer a make target** (`make ze-unit-test`, `make ze-verify-changed`). When you
+**SHOULD prefer a make target** (`make ze-unit-test`, `make ze-precommit-verify-changed`). When you
 MUST scope to packages, MUST pass the tags:
 
 ```
@@ -89,7 +89,7 @@ Never pipe `make`, `go test`, `go build`, `golangci-lint`,
 output to a file while still displaying it.
 
 Losing a failure line to `| head` means re-running the whole thing.
-`make ze-verify*` writes to `tmp/ze-verify.log` (+ `-failures.log`
+`make ze-precommit-verify*` writes to `tmp/ze-verify.log` (+ `-failures.log`
 summary) by default. Override with `ZE_VERIFY_LOG=tmp/ze-verify-$$.log`
 to avoid collisions between concurrent sessions. Read logs with the
 Read tool, with `offset`/`limit` for paging.
@@ -108,7 +108,7 @@ and Edit. Both call `.claude/hooks/lib/scratch_path.py`, so the two surfaces
 answer alike. A path carrying a directory component passes, which covers
 `tmp/session/<YYYY-MM-DD>-<sid>/` and every producer's own folder. The root
 names that are session-keyed or shared by design pass too:
-`ze-verify*`, `.ze-verify*`, `commit-*`, `commit-msg-*`, `delete-*`,
+`ze-precommit-verify*`, `.ze-verify*`, `commit-*`, `commit-msg-*`, `delete-*`,
 `mutation*`, `test-timings*`.
 
 Write ad-hoc scratch under this session's private directory instead:
@@ -121,7 +121,7 @@ make ze-unit-test-changed > "$dir/unit.log" 2>&1
 **Nothing under `tmp/session/` is ever deleted automatically**: not at session
 end, not on an age timer, not by a hook. Your directory outlives your session,
 so a log you wrote is still there tomorrow. Cleanup is the operator's:
-`make ze-clean-sessions BEFORE=<YYYY-MM-DD>` removes the session directories
+`make ze-sessions-clean BEFORE=<YYYY-MM-DD>` removes the session directories
 dated strictly before that date, and `make clean` removes your own. Do NOT
 relocate artifacts that are already session-keyed (commit scripts
 `tmp/commit-<sid>.sh`) or shared by design (`tmp/ze-verify.*`, the durable
@@ -140,7 +140,7 @@ always was.
 **MUST NOT hardcode `bin/ze`** in a command, script, or doc. Ask:
 
 ```
-$(make ze-path) show version          # <session-dir>/bin/ze, or bin/ze off-session
+$(make ze-session-binary-path) show version          # <session-dir>/bin/ze, or bin/ze off-session
 ```
 
 The directory carries the id, so the file name does not. That is what keeps
@@ -158,7 +158,7 @@ session's directory at midnight and orphan the binaries it is running.
 
 That session-local `etc/ze` is SEEDED, once, by the first ze_core binary this
 session builds (`scripts/dev/session-seed-store.sh`, called from the `ze`,
-`ze-appliance` and `ze-stripped` recipes -- the three that link
+`ze-appliance-build` and `ze-stripped-build` recipes -- the three that link
 `internal/plugins/init` and the silent `NewBlob` path). An
 unseeded store is not red: `NewBlob`
 (`internal/component/config/storage/blob.go`) creates the blob and returns a nil
@@ -176,7 +176,7 @@ bare name and an isolated `etc/ze` is what a test wants
 ## Never Launch a Functional Suite By Running The Runner Binary
 
 Running this session's `ze-test` binary yourself (`$(ZEBIN_TEST) bgp plugin 145`)
-is **not** equivalent to `make ze-plugin-test`, and the difference produces a
+is **not** equivalent to `make ze-functional-plugin-test`, and the difference produces a
 convincing false red.
 
 `mk/test-functional.mk` builds an ISOLATED, BARE-NAMED pair into
@@ -194,7 +194,7 @@ make target (`plan/learned/HOOK-FRICTION.md` F17).
 
 | Want | Use |
 |------|-----|
-| A whole suite | `make ze-plugin-test` (or `ze-encode-test`, `ze-parse-test`, ...) |
+| A whole suite | `make ze-functional-plugin-test` (or `ze-functional-encode-test`, `ze-functional-parse-test`, ...) |
 | One test, iterating | the make target's own invocation: build the isolated pair with its tags, symlink them bare-named, export `ZE_BIN`/`ZE_TEST_BIN` |
 | One test in the VM | `make ze-qemu-debug RUN='...'` -- flags BEFORE positional ids (`-v 145`, not `145 -v`) |
 
@@ -268,7 +268,7 @@ project.
 | A command this session launched in the background | Nothing. The completion notification is the wake-up |
 | A file or a log line one of your own commands will produce | ONE bounded loop in `run_in_background`: `timeout 300 bash -c 'until [ -f <path> ]; do sleep 30; done'`. It notifies once, then it is gone |
 | A repeated event (every ERROR line, every CI step) | The `Monitor` tool, with `persistent` left false so its `timeout_ms` deadline applies. `persistent: true` disables that deadline and rebuilds the problem this rule exists to stop |
-| Another session's `ze-verify` to release the lock | Do other work. `tmp/.ze-verify.lock.owner` names the holder, and `scripts/dev/verify-status.sh check` reports the last run's verdict. Never a watcher |
+| Another session's `ze-precommit-verify` to release the lock | Do other work. `tmp/.ze-verify.lock.owner` names the holder, and `scripts/dev/verify-status.sh check` reports the last run's verdict. Never a watcher |
 | Nothing in particular | Do not wait at all |
 
 ## Lint Gate
@@ -279,7 +279,7 @@ The per-edit hook (`auto-lint` in `.claude/hooks/posttool-writeedit.py`) uses
 `--new-from-rev=HEAD`, which only catches issues on lines changed since the last
 commit. Cross-file effects slip through: unused functions after refactoring,
 import issues from renaming, type mismatches across package boundaries.
-`make ze-verify` catches these but takes minutes (see `ai/rules/testing.md`
+`make ze-precommit-verify` catches these but takes minutes (see `ai/rules/testing.md`
 for current timings).
 
 ### The Rule

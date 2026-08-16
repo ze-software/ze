@@ -10,7 +10,7 @@ import (
 
 func TestBootstrapMountsProc(t *testing.T) {
 	// bootstrap() mounts /proc, /sys, /dev and sets up console fan-out.
-	// Validated by QEMU wiring test (make ze-install-qemu-test):
+	// Validated by QEMU wiring test (make ze-qemu-install-test):
 	// the Go initrd boots, parseCmdline reads /proc/cmdline (proves /proc
 	// is mounted), findTargetDisk reads /sys/block (proves /sys), and
 	// device nodes under /dev are accessible (proves devtmpfs).

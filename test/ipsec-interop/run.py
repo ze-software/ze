@@ -144,7 +144,7 @@ def main():
         print(
             "error: Docker unavailable, cannot run the IPsec interop lab -- every "
             "scenario runs in containers. Start Docker (or install it), then re-run: "
-            "make ze-ipsec-interop-test",
+            "make ze-interop-ipsec-test",
             file=sys.stderr,
         )
         sys.exit(1)

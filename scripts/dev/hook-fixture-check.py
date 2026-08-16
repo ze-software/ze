@@ -277,9 +277,9 @@ def run_rendered_rule(results: Results) -> None:
     # The three artifacts beside the rendered rules, each pointed at its OWN
     # generator rather than at the points.
     for name, target in (
-        ("INDEX.md", "make ze-rules-index"),
-        ("TRIGGERS.md", "make ze-rules-condensed"),
-        ("CORE.md", "make ze-rules-condensed"),
+        ("INDEX.md", "make ze-rules-index-update"),
+        ("TRIGGERS.md", "make ze-rules-condensed-update"),
+        ("CORE.md", "make ze-rules-condensed-update"),
     ):
         code, err = _writeedit(os.path.join(rules, name))
         results.check(
@@ -472,7 +472,7 @@ def run_rendered_rule(results: Results) -> None:
     code, err = _writeedit(os.path.join(rules, "index.md"))
     results.check(
         "rendered-rule-case-variant-names-the-real-generator",
-        code == 2 and ("make ze-rules-index" in err if insensitive else True),
+        code == 2 and ("make ze-rules-index-update" in err if insensitive else True),
         repr((code, err)),
     )
 
@@ -593,7 +593,7 @@ Fixture spec exercising validate-spec.sh arrow handling.
 - [ ] Tests written
 - [ ] Tests FAIL
 - [ ] Tests PASS
-- [ ] make ze-test passes
+- [ ] make ze-standard-test passes
 """
 
 
@@ -807,13 +807,13 @@ def run_validate_spec(results: Results) -> None:
         f"rc={rc} err={err[:200]!r}",
     )
 
-    # --- verification command: ONE gate, `make ze-verify` -------------------
+    # --- verification command: ONE gate, `make ze-precommit-verify` -------------------
     # The template used to ship three spellings at once and this hook demanded
-    # the fuzz-inclusive `ze-test` target, which is NOT the pre-commit gate
-    # (ai/rules/git-safety.md). `ze-verify` is clean; the legacy string still
+    # the fuzz-inclusive `ze-standard-test` target, which is NOT the pre-commit gate
+    # (ai/rules/git-safety.md). `ze-precommit-verify` is clean; the legacy string still
     # passes (50 specs predate the change) but warns; neither is an error.
-    _LEGACY_LINE = "- [ ] make ze-" + "test passes"
-    _VERIFY_LINE = "- [ ] `make ze-" + "verify` passes"
+    _LEGACY_LINE = "- [ ] make ze-standard-test passes"
+    _VERIFY_LINE = "- [ ] `make ze-precommit-verify` passes"
 
     def _warn_count(stderr: str) -> int:
         """Warnings are printed as a COUNT, not a list, so the two spellings are
@@ -1840,6 +1840,298 @@ def _run_session_id_cache_key(results: Results) -> None:
         shutil.rmtree(cache, ignore_errors=True)
 
 
+# VALIDATES: a fork SessionStart payload persists its safe parent session id, so
+# later Bash, Make, Python review, and scratch subprocesses use that parent.
+# PREVENTS: CLAUDE_CODE_FORK_SUBAGENT=1 losing the exported parent id while
+# ZE_SESSION_ID is absent, then minting a fallback for later commands.
+def _run_fork_parent_session_id(results: Results) -> None:
+    parent_sid = _DELEG_SID
+    spec_name = "spec-fork-parent.md"
+    work = _deleg_project(spec=spec_name)
+    try:
+        env_file = os.path.join(work, "persistent-env")
+        with open(env_file, "w"):
+            pass
+
+        # Deny the resolver's `ps` fallback. Linux can still read /proc, but the
+        # process tree carries no --session-id, so ancestry has no parent id on
+        # either supported platform. The payload is the only identity source.
+        deny_bin = os.path.join(work, "deny-bin")
+        os.makedirs(deny_bin)
+        ps = os.path.join(deny_bin, "ps")
+        with open(ps, "w") as fh:
+            fh.write("#!/bin/sh\nexit 126\n")
+        os.chmod(ps, 0o755)
+
+        env = dict(os.environ)
+        for name in (
+            "CLAUDE_CODE_SESSION_ID",
+            "CLAUDE_CODE_SESSION_ACCESS_TOKEN",
+            "ZE_SESSION_ID",
+        ):
+            env.pop(name, None)
+        env.update(
+            {
+                "CLAUDE_CODE_FORK_SUBAGENT": "1",
+                "CLAUDE_ENV_FILE": env_file,
+                "CLAUDE_PROJECT_DIR": work,
+                "PATH": deny_bin + os.pathsep + env["PATH"],
+            }
+        )
+        payload = json.dumps(
+            {
+                "hook_event_name": "SessionStart",
+                "session_id": parent_sid,
+                "source": "startup",
+            }
+        )
+        start = subprocess.run(
+            ["bash", os.path.join(HOOKS, "session-start.sh")],
+            input=payload,
+            text=True,
+            capture_output=True,
+            env=env,
+            timeout=60,
+        )
+        results.check(
+            "session-id-fork-parent-marker",
+            start.returncode == 0 and f"SPEC: {spec_name}" in start.stdout,
+            f"rc={start.returncode} stdout={start.stdout!r} stderr={start.stderr!r}",
+        )
+
+        def later(*command: str, cwd: str = ROOT) -> subprocess.CompletedProcess:
+            # Model a later command invocation. Claude starts a fresh subprocess
+            # after it sources CLAUDE_ENV_FILE, rather than mutating this runner.
+            return subprocess.run(
+                [
+                    "bash",
+                    "-c",
+                    '. "$CLAUDE_ENV_FILE"; exec "$@"',
+                    "fork-session-fixture",
+                    *command,
+                ],
+                cwd=cwd,
+                capture_output=True,
+                text=True,
+                env=env,
+                timeout=60,
+            )
+
+        env_probe = later(
+            sys.executable,
+            "-c",
+            (
+                "import os;"
+                "print(os.environ.get('CLAUDE_CODE_SESSION_ID', ''));"
+                "print('set' if 'ZE_SESSION_ID' in os.environ else 'unset')"
+            ),
+        )
+        results.check(
+            "session-id-fork-parent-persisted-env",
+            env_probe.returncode == 0
+            and env_probe.stdout.splitlines() == [parent_sid, "unset"],
+            f"rc={env_probe.returncode} out={env_probe.stdout!r} err={env_probe.stderr!r}",
+        )
+
+        bash_sid = later(
+            "bash",
+            "-c",
+            "source .claude/hooks/lib/session-id.sh; _session_id",
+        )
+        results.check(
+            "session-id-fork-parent-bash-command",
+            bash_sid.returncode == 0 and bash_sid.stdout.strip() == parent_sid,
+            f"rc={bash_sid.returncode} out={bash_sid.stdout!r} err={bash_sid.stderr!r}",
+        )
+
+        make_path = later("make", "ze-session-binary-path")
+        make_value = make_path.stdout.strip()
+        make_session = make_value.removesuffix("/bin/ze")
+        results.check(
+            "session-id-fork-parent-make-path",
+            make_path.returncode == 0
+            and make_value == f"{make_session}/bin/ze"
+            and re.fullmatch(
+                rf"tmp/session/\d{{4}}-\d{{2}}-\d{{2}}-{re.escape(parent_sid)}",
+                make_session,
+            )
+            is not None,
+            f"rc={make_path.returncode} out={make_path.stdout!r} err={make_path.stderr!r}",
+        )
+
+        review_path = later(
+            sys.executable,
+            "-c",
+            (
+                "import sys;"
+                "sys.path.insert(0, sys.argv[1]);"
+                "import review_gate;"
+                "print(review_gate.artifact_path('fork-parent'))"
+            ),
+            DEV,
+        )
+        results.check(
+            "session-id-fork-parent-review-artifact",
+            review_path.returncode == 0
+            and review_path.stdout.strip()
+            == f"tmp/review/fork-parent-{parent_sid}.md",
+            f"rc={review_path.returncode} out={review_path.stdout!r} "
+            f"err={review_path.stderr!r}",
+        )
+
+        scratch_one = later("scripts/dev/session-scratch.sh", "--path")
+        scratch_two = later("scripts/dev/session-scratch.sh", "--path")
+        expected_scratch = f"{make_session}/scratch"
+        results.check(
+            "session-id-fork-parent-scratch-stable",
+            scratch_one.returncode == scratch_two.returncode == 0
+            and scratch_one.stdout.strip()
+            == scratch_two.stdout.strip()
+            == expected_scratch,
+            f"first={scratch_one.stdout!r}/{scratch_one.stderr!r} "
+            f"second={scratch_two.stdout!r}/{scratch_two.stderr!r}",
+        )
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
+# VALIDATES: fork tool subprocesses with no session env use the canonical
+# session_id.py id in Make, review_gate, and repeated scratch paths without a
+# persistent environment file.
+# PREVENTS: Make falling back to bin/ze and review_gate falling back to shared
+# while session-scratch.sh resolves the fork's safe parent session id.
+def _run_fork_tool_session_id(results: Results) -> None:
+    work = tempfile.mkdtemp(prefix="ze-sid-fork-tool-", dir=_fixture_root())
+    try:
+        fork_env = dict(os.environ)
+        for name in (
+            "CLAUDE_CODE_SESSION_ID",
+            "CLAUDE_CODE_SESSION_ACCESS_TOKEN",
+            "ZE_SESSION_ID",
+            "CLAUDE_ENV_FILE",
+        ):
+            fork_env.pop(name, None)
+        fork_env.update(
+            {
+                "CLAUDE_CODE_FORK_SUBAGENT": "1",
+                "CLAUDE_PROJECT_DIR": work,
+            }
+        )
+
+        def run(
+            *command: str, env: dict = fork_env, cwd: str = ROOT
+        ) -> subprocess.CompletedProcess:
+            return subprocess.run(
+                command,
+                cwd=cwd,
+                capture_output=True,
+                text=True,
+                env=env,
+                timeout=60,
+            )
+
+        canonical = run(
+            sys.executable, os.path.join(HOOKS, "lib", "session_id.py")
+        )
+        canonical_sid = canonical.stdout.strip()
+        canonical_safe = (
+            re.fullmatch(r"[A-Za-z0-9._-]+", canonical_sid) is not None
+            and canonical_sid not in (".", "..", "shared")
+        )
+        results.check(
+            "session-id-fork-tool-canonical",
+            canonical.returncode == 0 and canonical_safe,
+            f"rc={canonical.returncode} out={canonical.stdout!r} "
+            f"err={canonical.stderr!r}",
+        )
+
+        make_path = run("make", "ze-session-binary-path")
+        make_expected = re.fullmatch(
+            rf"tmp/session/\d{{4}}-\d{{2}}-\d{{2}}-"
+            rf"{re.escape(canonical_sid)}/bin/ze",
+            make_path.stdout.strip(),
+        )
+        results.check(
+            "session-id-fork-tool-make-path",
+            make_path.returncode == 0
+            and canonical_safe
+            and make_expected is not None,
+            f"canonical={canonical_sid!r} rc={make_path.returncode} "
+            f"out={make_path.stdout!r} err={make_path.stderr!r}",
+        )
+
+        review_sid = run(
+            sys.executable,
+            "-c",
+            (
+                "import sys;"
+                "sys.path.insert(0, sys.argv[1]);"
+                "import review_gate;"
+                "print(review_gate.session_id())"
+            ),
+            DEV,
+        )
+        results.check(
+            "session-id-fork-tool-review-session",
+            review_sid.returncode == 0
+            and canonical_safe
+            and review_sid.stdout.strip() == canonical_sid,
+            f"canonical={canonical_sid!r} rc={review_sid.returncode} "
+            f"out={review_sid.stdout!r} err={review_sid.stderr!r}",
+        )
+
+        scratch_one = run(os.path.join(DEV, "session-scratch.sh"), "--path")
+        scratch_two = run(os.path.join(DEV, "session-scratch.sh"), "--path")
+        scratch_value = scratch_one.stdout.strip()
+        scratch_expected = re.fullmatch(
+            rf"tmp/session/\d{{4}}-\d{{2}}-\d{{2}}-"
+            rf"{re.escape(canonical_sid)}/scratch",
+            scratch_value,
+        )
+        results.check(
+            "session-id-fork-tool-scratch-stable",
+            scratch_one.returncode == scratch_two.returncode == 0
+            and canonical_safe
+            and scratch_one.stdout == scratch_two.stdout
+            and scratch_expected is not None,
+            f"canonical={canonical_sid!r} "
+            f"first={scratch_one.stdout!r}/{scratch_one.stderr!r} "
+            f"second={scratch_two.stdout!r}/{scratch_two.stderr!r}",
+        )
+
+        human_env = dict(fork_env)
+        human_env.pop("CLAUDE_CODE_FORK_SUBAGENT")
+        human_make = run("make", "ze-session-binary-path", env=human_env)
+        results.check(
+            "session-id-human-make-path",
+            human_make.returncode == 0 and human_make.stdout.strip() == "bin/ze",
+            f"rc={human_make.returncode} out={human_make.stdout!r} "
+            f"err={human_make.stderr!r}",
+        )
+
+        human_review = run(
+            sys.executable,
+            "-c",
+            (
+                "import sys;"
+                "sys.path.insert(0, sys.argv[1]);"
+                "import review_gate;"
+                "print(review_gate.session_id())"
+            ),
+            DEV,
+            env=human_env,
+        )
+        results.check(
+            "session-id-human-review-fallback",
+            human_review.returncode == 0
+            and human_review.stdout.strip() == "shared",
+            f"rc={human_review.returncode} out={human_review.stdout!r} "
+            f"err={human_review.stderr!r}",
+        )
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
 def run_session_id(results: Results) -> None:
     """Lock the shell writer and the Python reader to ONE session id.
 
@@ -1963,6 +2255,8 @@ def run_session_id(results: Results) -> None:
 
     _run_session_id_mint(results)
     _run_session_id_cache_key(results)
+    _run_fork_parent_session_id(results)
+    _run_fork_tool_session_id(results)
 
 
 # --------------------------------------------------------------------------- #
@@ -3913,7 +4207,7 @@ def run_delegation(results: Results) -> None:
         # An UNCLOSED fence is not a code block. Dropping the lines after it made
         # the gate fail OPEN: a real request passed with rc=0.
         unclosed = (
-            "Intro\n\n```bash\nmake ze-verify\n\nDone. Would you like me to continue?"
+            "Intro\n\n```bash\nmake ze-precommit-verify\n\nDone. Would you like me to continue?"
         )
         rc, err = _run_stop_hook(work, unclosed)
         results.check(
@@ -4034,7 +4328,7 @@ def run_delegation(results: Results) -> None:
         # dropped closing backtick is an ordinary typo, so this needs no intent.
         stray = (
             "I fixed the ` escaping bug. "
-            "Would you like me to also run `make ze-verify`?"
+            "Would you like me to also run `make ze-precommit-verify`?"
         )
         rc, err = _run_stop_hook(work, stray)
         results.check(
@@ -4887,14 +5181,14 @@ def run_phase_gates(results: Results) -> None:
     )
 
     # The first version matched any ze-<word>, so the repo path and any
-    # `make ze-verify` in a prompt switched the whole gate off.
+    # `make ze-precommit-verify` in a prompt switched the whole gate off.
     r = spawn(
         "Review the diff in /Users/x/Code/github.com/ze-software/ze/main and find bugs"
     )
     results.check(
         "agent-skill-repo-path-is-not-a-skill", r.returncode == 2, repr(r.stderr)
     )
-    r = spawn("Independently review this change for bugs. Run make ze-verify first.")
+    r = spawn("Independently review this change for bugs. Run make ze-precommit-verify first.")
     results.check(
         "agent-skill-make-target-is-not-a-skill", r.returncode == 2, repr(r.stderr)
     )

@@ -4,7 +4,7 @@ level:
 stage:
 ---
 Enforced: `check_known_failure_load_excuses` in `scripts/dev/verify_wiring_docs.py`
-(`make ze-verify-wiring-docs`, inside `make ze-verify`) fails a CHANGED
+(`make ze-wiring-docs-check`, inside `make ze-precommit-verify`) fails a CHANGED
 `plan/known-failures/` shard containing "under load", "loaded host", "load
 average", "load-sensitive", "passes in isolation", "resource contention" or
 "contended host". `README.md` and `RESOLVED.md` are exempt: the first states this

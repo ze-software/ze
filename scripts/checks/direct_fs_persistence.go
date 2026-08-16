@@ -26,7 +26,7 @@
 // registered pkg/zefs key), never a raw os write.
 //
 // Usage:     go run scripts/checks/direct_fs_persistence.go [--json|--selftest]
-// Called by: make ze-fs-persistence-check (wired into ze-verify via
+// Called by: make ze-fs-persistence-check (wired into ze-precommit-verify via
 //            scripts/status/verify_run.go) and
 //            scripts/checks/direct_fs_persistence_test.go
 //

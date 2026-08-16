@@ -154,7 +154,7 @@ func newAnnouncePeer(t *testing.T, peerAddr string) (*Peer, *recordingConn) {
 // fixture asked the encoder to advertise a peer its own address as NEXT_HOP.
 // RFC 4271 Section 5.1.3 forbids that, and originatedNextHopIsPeerOwn
 // (forward_next_hop.go) now refuses it, so the fixture was asserting the wire form
-// of a message Ze must never send. The peer moves to fd00::2, which `make ze-setup`
+// of a message Ze must never send. The peer moves to fd00::2, which `make ze-dev-setup`
 // provisions on the loopback. Section 3's condition still holds on both halves:
 // fd00::2 is connected so the peer is on-link, and ::1 is connected and passes
 // ValidateGlobalNextHop so the global next hop still shares a subnet. NO assertion

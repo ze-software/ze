@@ -83,7 +83,7 @@ func packetTypeLabel(payload []byte) string {
 // backends (internal/plugins/ospf/instance_v6_test.go fakeV6Handle): InterfaceHandle is
 // the transport's pluggable-backend seam, so an interface method cannot be unexported
 // without making the interface un-implementable from other packages. This is the spec's
-// "keep + justify (public API used by tests)" outcome for ze-validate's heuristic.
+// "keep + justify (public API used by tests)" outcome for ze-repository-check's heuristic.
 type InterfaceHandle interface {
 	IfIndex() int
 	LinkLocalSource() netip.Addr

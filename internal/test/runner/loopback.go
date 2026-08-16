@@ -8,10 +8,10 @@
 //
 // The runner does not add it, and this is measured rather than assumed:
 // SIOCAIFADDR_IN6 returns EPERM to an unprivileged process on darwin, and the
-// Linux equivalent needs CAP_NET_ADMIN, while `make ze-verify` runs as an
+// Linux equivalent needs CAP_NET_ADMIN, while `make ze-precommit-verify` runs as an
 // ordinary user on both (the merge gate runs it bare on ubuntu-latest,
 // .github/workflows/verify.yml). So the privilege moved to environment-setup
-// time, where the IPv4 aliases already live: `make ze-setup` adds the addresses
+// time, where the IPv4 aliases already live: `make ze-dev-setup` adds the addresses
 // (scripts/dev/dev-setup.py, loopback_status/apply_loopback_fix). This file only
 // REPORTS, and its error carries the exact command an operator can run instead.
 
@@ -186,7 +186,7 @@ func configTokens(config string) []string {
 
 // loopbackCandidate reports whether ip is an address this host is meant to
 // carry on its loopback interface, and so one whose absence an operator can act
-// on with `make ze-setup`.
+// on with `make ze-dev-setup`.
 //
 // A `.ci` declares two kinds of local address. One is a loopback address the
 // fixture needs the host to carry: 127.0.0.4 for a second IPv4 session end,
@@ -194,7 +194,7 @@ func configTokens(config string) []string {
 // is a routable address a config-validation fixture names and Ze never binds --
 // test/parse/graceful-restart-llgr.ci declares `local { ip 192.0.2.1 }` and the
 // daemon exits after parsing. Probing the second kind would fail a test that
-// passes today, with an error naming a fix that does not apply: `make ze-setup`
+// passes today, with an error naming a fix that does not apply: `make ze-dev-setup`
 // adds no address outside 127.0.0.0/8 and fc00::/7.
 func loopbackCandidate(ip net.IP) bool {
 	// The wildcard names no address (see ensurePeerBindAddresses).
@@ -226,11 +226,11 @@ func loopbackBindable(ip net.IP) bool {
 // loopbackMissing is the error returned when ip is not on the loopback
 // interface and this process cannot put it there.
 //
-// The text names both routes deliberately. `make ze-setup` is the supported one
+// The text names both routes deliberately. `make ze-dev-setup` is the supported one
 // and adds every address the suite needs; the raw command covers an address the
 // setup script does not know about, and tells a reader what setup would do.
 func loopbackMissing(ip net.IP) error {
 	return fmt.Errorf(
-		"ensureLoopbackAlias: %v is not on this host's loopback interface: run `make ze-setup`,"+
+		"ensureLoopbackAlias: %v is not on this host's loopback interface: run `make ze-dev-setup`,"+
 			" or add it by hand with `%s`", ip, loopbackIPv6AddCommand(ip))
 }

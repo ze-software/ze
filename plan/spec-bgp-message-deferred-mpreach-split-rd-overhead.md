@@ -120,7 +120,7 @@ query and a write can never come to different answers, for every SAFI.
 | A-1 | `(*MPReachNLRI).Len()` counts exactly the octets `WriteTo` writes | `internal/core/bgp/attribute/mpnlri.go`: `Len`, `nextHopLen`, `nextHopOctets` and `WriteTo` share `nextHopOctets` | the new overhead is wrong for some SAFI and chunks are mis-sized in the other direction | `TestSplitUpdate_VPNChunksFitMaxMessageSize` measures the ENCODED chunk, not a re-derived number | unvalidated |
 | A-2 | Each chunk carries the parent's AFI, SAFI and next hops, so one overhead figure is right for every chunk | `SplitMPReachNLRIWithAddPath` builds each chunk with `attribute.NewMPReachNLRI` from the parent's fields | one chunk could need more overhead than the budget allowed | the size assertion runs over EVERY chunk, not the first | unvalidated |
 | A-3 | The splitter is the only remaining site that derives an MP_REACH next-hop size from the address family | grep of `Is4()` over `internal/component/bgp` and `internal/core/bgp`: the one size derivation is the loop in `SplitMPReachNLRIWithAddPath` | the same defect stays live on another rail | re-run the grep at implementation time and record the hits in the commit message | unvalidated |
-| A-4 | No existing test pins a VPN chunk count that the smaller NLRI space changes | `TestSplitMPReachNLRI_VPN` asserts chunk count greater than one and NLRI preservation only | an existing test goes red and the fix looks like a regression | run `make ze-test-pkg PKG=./internal/component/bgp/message` before and after the edit | unvalidated |
+| A-4 | No existing test pins a VPN chunk count that the smaller NLRI space changes | `TestSplitMPReachNLRI_VPN` asserts chunk count greater than one and NLRI preservation only | an existing test goes red and the fix looks like a regression | run `make ze-unit-pkg-test PKG=./internal/component/bgp/message` before and after the edit | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -252,7 +252,7 @@ given. That gap is what makes the test discriminate.
 1. **Phase: Wiring (MANDATORY FIRST)** -- prove the entry point reaches the defect before changing it
    - Tests: `TestSplitUpdate_VPNChunksFitMaxMessageSize`, `TestSplitMPReachNLRI_VPNChunkFitsMaxAttrSize`
    - Files: `internal/component/bgp/message/update_split_test.go`
-   - Verify: run `make ze-test-pkg PKG=./internal/component/bgp/message`. Both tests MUST FAIL against the unchanged splitter, and the failure MUST be the size assertion: a chunk `Len()` above the `maxAttrSize` given (47 against 40 for the fixture in the TDD table), and an emitted `Update.Len(nil)` above 4096. Paste that output. A failure for any other reason (a parse error, a chunk count, a panic) means the fixture is wrong, not the code: fix the fixture and repeat
+   - Verify: run `make ze-unit-pkg-test PKG=./internal/component/bgp/message`. Both tests MUST FAIL against the unchanged splitter, and the failure MUST be the size assertion: a chunk `Len()` above the `maxAttrSize` given (47 against 40 for the fixture in the TDD table), and an emitted `Update.Len(nil)` above 4096. Paste that output. A failure for any other reason (a parse error, a chunk count, a panic) means the fixture is wrong, not the code: fix the fixture and repeat
 2. **Phase: Overhead derivation** -- one source for the encoded size
    - Tests: the two above, plus `TestSplitMPReachNLRI_VPNIPv6NextHopChunkFitsMaxAttrSize` and `TestSplitMPReachNLRI_VPNOverheadTooLargeCountsRD`
    - Files: `internal/component/bgp/message/update_split.go`
@@ -263,7 +263,7 @@ given. That gap is what makes the test discriminate.
    - Files: none. Revert the one-line change in the working tree, re-run the package, capture the red, restore the fix, re-run the package, capture the green
    - Verify: paste both outputs into the commit message. `ai/rules/interop-and-goal-validation.md` requires the reverted-red evidence, and a test that stays green with the fix reverted is worth nothing
 4. **Phase: Land it** -- gates, commit, stop
-   - Tests: `make ze-test-pkg PKG=./internal/component/bgp/message`, then `make ze-lint-changed`
+   - Tests: `make ze-unit-pkg-test PKG=./internal/component/bgp/message`, then `make ze-lint-changed`
    - Files: the two files above, plus this spec and the deferral shard row
    - Verify: prepare the commit with `scripts/dev/commit_helper.py create`, run the script it prints, then `make ze-tracked-build-check` because the commit carries Go. Set this spec's Status to `verification` in the same commit and STOP: `Handoff | verify` gives the close to a later Opus 5 session
 
@@ -281,7 +281,7 @@ given. That gap is what makes the test discriminate.
 | Deliverable | Verification method |
 |-------------|---------------------|
 | The family-derived loop is gone | `grep -n "Is4()" internal/component/bgp/message/update_split.go` returns nothing |
-| Four new tests exist and run | `make ze-test-pkg PKG=./internal/component/bgp/message` names each of them in a `-run` filter and passes |
+| Four new tests exist and run | `make ze-unit-pkg-test PKG=./internal/component/bgp/message` names each of them in a `-run` filter and passes |
 | The chunk-size property holds at the daemon's own entry point | `TestSplitUpdate_VPNChunksFitMaxMessageSize` asserts `Update.Len(nil)` at or below 4096 for EVERY emitted chunk |
 | Non-VPN behavior unchanged | The existing split tests pass unedited; no assertion in them is relaxed |
 | The VPN encode rail still interoperates | `make ze-interop-test INTEROP_SCENARIO=23-vpn-frr` passes |
@@ -334,7 +334,7 @@ Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code.
 - [ ] AC-1..AC-5 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-verify` passes, or the scoped gates plus an attribution are recorded per `ai/rules/git-safety.md` for a shared checkout
+- [ ] `make ze-precommit-verify` passes, or the scoped gates plus an attribution are recorded per `ai/rules/git-safety.md` for a shared checkout
 - [ ] Feature code integrated (`internal/*`), not test-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding

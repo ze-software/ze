@@ -2,28 +2,28 @@
 #
 # Quick reference:
 #   make ze-functional-test    All 24 gating suites (the all_suites list below)
-#   make ze-encode-test        Encoding only
-#   make ze-plugin-test        Plugin behavior only
-#   make ze-decode-test        Wire decoding only
-#   make ze-parse-test         Config parsing only
-#   make ze-reload-test        Config reload only
-#   make ze-ui-test            CLI/completion only
-#   make ze-editor-test        TUI editor (.et files)
-#   make ze-managed-test       Managed config only
-#   make ze-web-test           Web UI only
-#   make ze-l2tp-test          L2TP only
-#   make ze-firewall-test      Firewall only
-#   make ze-policy-test        Policy routing only
-#   make ze-appliance-test     Appliance CLI (build/iso/list/serial-login) only
-#   make ze-ospf-test          OSPF config/doctor tests
-#   make ze-vrrp-test          VRRP config/show/doctor tests
-#   make ze-static-test        Static routes (release evidence only)
-#   make ze-traffic-test       Traffic control (release evidence only)
-#   make ze-flow-export-test   Flow export sFlow/NetFlow/IPFIX (release evidence only)
-#   make ze-vpp-test           VPP stub (release evidence only)
-#   make ze-l2tp-wire-test     L2TP wire-level (release evidence only)
-#   make ze-isis-wire-test     IS-IS wire-level decode (release evidence only)
-#   make ze-ospf-wire-test     OSPFv2 wire-level decode (release evidence only)
+#   make ze-functional-encode-test        Encoding only
+#   make ze-functional-plugin-test        Plugin behavior only
+#   make ze-functional-decode-test        Wire decoding only
+#   make ze-functional-parse-test         Config parsing only
+#   make ze-functional-reload-test        Config reload only
+#   make ze-functional-ui-test            CLI/completion only
+#   make ze-functional-editor-test        TUI editor (.et files)
+#   make ze-functional-managed-test       Managed config only
+#   make ze-functional-web-test           Web UI only
+#   make ze-functional-l2tp-test          L2TP only
+#   make ze-functional-firewall-test      Firewall only
+#   make ze-functional-policy-test        Policy routing only
+#   make ze-functional-appliance-test     Appliance CLI (build/iso/list/serial-login) only
+#   make ze-functional-ospf-test          OSPF config/doctor tests
+#   make ze-functional-vrrp-test          VRRP config/show/doctor tests
+#   make ze-functional-static-test        Static routes (release evidence only)
+#   make ze-functional-traffic-test       Traffic control (release evidence only)
+#   make ze-functional-flow-export-test   Flow export sFlow/NetFlow/IPFIX (release evidence only)
+#   make ze-functional-vpp-test           VPP stub (release evidence only)
+#   make ze-functional-l2tp-wire-test     L2TP wire-level (release evidence only)
+#   make ze-functional-isis-wire-test     IS-IS wire-level decode (release evidence only)
+#   make ze-functional-ospf-wire-test     OSPFv2 wire-level decode (release evidence only)
 #
 # Every target here runs against an ISOLATED test binary set by default (built
 # under tmp/testbin-<suffix>/ and removed on exit), so a running suite never
@@ -32,13 +32,13 @@
 # See the isolated-binary block below.
 
 .PHONY: ze-functional-test
-.PHONY: ze-encode-test ze-plugin-test ze-decode-test ze-parse-test ze-reload-test
-.PHONY: ze-ui-test ze-editor-test ze-web-test ze-managed-test
-.PHONY: ze-l2tp-test ze-firewall-test ze-policy-test ze-appliance-test ze-runner-test
-.PHONY: ze-static-test ze-traffic-test ze-flow-export-test ze-vpp-test ze-l2tp-wire-test ze-isis-wire-test ze-ospf-wire-test ze-isis-test ze-ospf-test ze-ospfv3-test ze-vrrp-test
+.PHONY: ze-functional-encode-test ze-functional-plugin-test ze-functional-decode-test ze-functional-parse-test ze-functional-reload-test
+.PHONY: ze-functional-ui-test ze-functional-editor-test ze-functional-web-test ze-functional-managed-test
+.PHONY: ze-functional-l2tp-test ze-functional-firewall-test ze-functional-policy-test ze-functional-ipsec-test ze-functional-appliance-test ze-functional-runner-test
+.PHONY: ze-functional-static-test ze-functional-traffic-test ze-functional-flow-export-test ze-functional-vpp-test ze-functional-l2tp-wire-test ze-functional-isis-wire-test ze-functional-ospf-wire-test ze-functional-isis-test ze-functional-ospf-test ze-functional-ospfv3-test ze-functional-vrrp-test
 
 # Per-suite wall-clock cap. A stuck subprocess that holds an output pipe open
-# can make ze-test's own cmd.Wait() block indefinitely after SIGKILL; `timeout`
+# can make ze-standard-test's own cmd.Wait() block indefinitely after SIGKILL; `timeout`
 # runs the suite in its own process group and signals the whole group on
 # expiry, so leaked grandchildren (ze daemons, tacacs-mocks) die with it.
 # Exit code 124 from timeout is treated as a suite failure like any other.
@@ -65,7 +65,7 @@ SUITE_RUN = timeout --kill-after=$(ZE_SUITE_KILL_AFTER) $(ZE_SUITE_TIMEOUT)
 # In auto mode the dir is tmp/testbin-pid-<make-PID>-<target>/: unique per make
 # invocation AND per target, so chaining suites on one command line (even under
 # -j) never lets one target's cleanup delete another's binaries. The dir is
-# removed when the target exits (trap). ze-verify inherits this because it just
+# removed when the target exits (trap). ze-precommit-verify inherits this because it just
 # runs `make ze-functional-test`. Each target rebuilds all three binaries
 # (including the full ze), a deliberate cost for a uniform isolated set.
 #
@@ -88,7 +88,7 @@ ifeq ($(ZE_TEST_CANONICAL),)
   ifeq ($(ZE_SUFFIX),)
     # Auto: := fixes the PID once (stable within a run); $@ (recursive =) scopes
     # the dir per target so chaining suites on one command line
-    # (make ze-encode-test ze-plugin-test, even under -j) never lets one
+    # (make ze-functional-encode-test ze-functional-plugin-test, even under -j) never lets one
     # target's cleanup trap delete another target's binaries. Throwaway, rm on
     # exit.
     # $(ZE_SCRATCH_DIR) is tmp/ off-session and this session's own dated
@@ -179,8 +179,8 @@ ZE_CI_GO_TEST_PKGS = $(shell grep -rhoE 'exec=go test [^:]*' test/ --include='*.
 # No tags, deliberately: the `.ci` commands invoke bare `go test`, and the build
 # cache is keyed by tag set, so warming with tags would populate a different
 # cache entry and warm nothing.
-.PHONY: ze-functional-warm
-ze-functional-warm:
+.PHONY: ze-functional-test-warm
+ze-functional-test-warm:
 	@printf 'Warming build cache for %s .ci-invoked package(s)...\n' '$(words $(ZE_CI_GO_TEST_PKGS))'
 	@$(GO) test -run '^$$' -count=1 $(ZE_CI_GO_TEST_PKGS) >/dev/null
 
@@ -194,7 +194,7 @@ ze-functional-warm:
 # ZE_SKIP_SUITES: comma-separated list of suites to skip (e.g. firewall,web
 # for Docker environments without agent-browser or native process control).
 ZE_SKIP_SUITES ?=
-ze-functional-test: ze-functional-warm $(ZE_TEST_DEPS_ALL) $(ZE_WEB_CHAOS_DEP)
+ze-functional-test: ze-functional-test-warm $(ZE_TEST_DEPS_ALL) $(ZE_WEB_CHAOS_DEP)
 	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(ZE_ALT_CHAOS_BUILD) \
 	failed=0; failed_names=""; skipped_names=""; total=0; suite_index=0; \
 	all_suites="encode plugin parse decode reload ui editor managed l2tp firewall policy ipsec ldp rsvpte isis ospf ospfv3 web install appliance l2tp-wire isis-wire ospf-wire runner"; \
@@ -257,97 +257,97 @@ ze-functional-test: ze-functional-warm $(ZE_TEST_DEPS_ALL) $(ZE_WEB_CHAOS_DEP)
 # (see ZE_SUITE_TIMEOUT above) so a stuck suite invoked directly from the
 # CLI also gets process-group-killed instead of wedging indefinitely.
 
-ze-encode-test: $(ZE_TEST_DEPS)
+ze-functional-encode-test: $(ZE_TEST_DEPS)
 	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) bgp encode --all -p $(ZE_ENCODE_PARALLEL)
 
-ze-plugin-test: $(ZE_TEST_DEPS)
+ze-functional-plugin-test: $(ZE_TEST_DEPS)
 	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) bgp plugin --all -p $(ZE_PLUGIN_PARALLEL)
 
-ze-decode-test: $(ZE_TEST_DEPS)
+ze-functional-decode-test: $(ZE_TEST_DEPS)
 	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) bgp decode --all
 
-ze-parse-test: $(ZE_TEST_DEPS)
+ze-functional-parse-test: $(ZE_TEST_DEPS)
 	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) bgp parse --all
 
-ze-reload-test: $(ZE_TEST_DEPS)
+ze-functional-reload-test: $(ZE_TEST_DEPS)
 	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) bgp reload --all -p 1
 
-ze-ui-test: $(ZE_TEST_DEPS_STRIPPED)
+ze-functional-ui-test: $(ZE_TEST_DEPS_STRIPPED)
 	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) ui --all
 
-ze-editor-test: $(ZE_TEST_DEPS)
+ze-functional-editor-test: $(ZE_TEST_DEPS)
 	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) editor --all
 
-ze-web-test: $(ZE_TEST_DEPS_ZE) $(ZE_WEB_CHAOS_DEP)
+ze-functional-web-test: $(ZE_TEST_DEPS_ZE) $(ZE_WEB_CHAOS_DEP)
 	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(ZE_ALT_CHAOS_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) web --all
 
-ze-managed-test: $(ZE_TEST_DEPS)
+ze-functional-managed-test: $(ZE_TEST_DEPS)
 	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) managed --all -p 1
 
-ze-l2tp-test: $(ZE_TEST_DEPS)
+ze-functional-l2tp-test: $(ZE_TEST_DEPS)
 	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) l2tp --all
 
-ze-firewall-test: $(ZE_TEST_DEPS)
+ze-functional-firewall-test: $(ZE_TEST_DEPS)
 	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) firewall --all
 
-ze-policy-test: $(ZE_TEST_DEPS)
+ze-functional-policy-test: $(ZE_TEST_DEPS)
 	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) policy --all
 
 # IPsec/IKEv2 suite (test/ipsec/*.ci). It was listed in all_suites above but had
 # no run_suite line, so it counted toward the progress denominator and never ran.
 # ai/rules/testing.md derives a .ci tag's verify tier from all_suites, so every
 # tag in test/ipsec/ was credited a merge-gate tier it did not earn.
-ze-ipsec-test: $(ZE_TEST_DEPS)
+ze-functional-ipsec-test: $(ZE_TEST_DEPS)
 	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) ipsec --all
 
-ze-appliance-test: $(ZE_TEST_DEPS)
+ze-functional-appliance-test: $(ZE_TEST_DEPS)
 	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) appliance --all
 
 # Test-runner primitive suite (test/runner/*.ci). Host-safe: it spawns only
 # sh/tail helpers, no ze daemon or privileged tooling, so it stays in the gating
 # ze-functional-test run_suite list above.
-ze-runner-test: $(ZE_TEST_DEPS)
+ze-functional-runner-test: $(ZE_TEST_DEPS)
 	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) runner --all
 
 # ─── Non-gated functional test suites ───────────────────────────────────────
-# These suites are shipped but not in the default ze-verify gate. They require
+# These suites are shipped but not in the default ze-precommit-verify gate. They require
 # platform-specific tooling or separate fixture setup.
 
-ze-static-test: $(ZE_TEST_DEPS)
+ze-functional-static-test: $(ZE_TEST_DEPS)
 	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) static --all
 
-ze-traffic-test: $(ZE_TEST_DEPS)
+ze-functional-traffic-test: $(ZE_TEST_DEPS)
 	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) traffic --all
 
 # Flow export (sFlow v5 / NetFlow v9 / IPFIX). Like static and traffic, this
 # suite needs the Linux daemon and (for packet sampling) CAP_NET_ADMIN +
 # kernel psample, so it is release-evidence-only and not in the gating
 # ze-functional-test run_suite list above.
-ze-flow-export-test: $(ZE_TEST_DEPS)
+ze-functional-flow-export-test: $(ZE_TEST_DEPS)
 	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) flow-export --all
 
-ze-vpp-test: $(ZE_TEST_DEPS)
+ze-functional-vpp-test: $(ZE_TEST_DEPS)
 	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) vpp --all
 
-ze-l2tp-wire-test: $(ZE_TEST_DEPS)
+ze-functional-l2tp-wire-test: $(ZE_TEST_DEPS)
 	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) l2tp-wire --all
 
-ze-isis-wire-test: $(ZE_TEST_DEPS)
+ze-functional-isis-wire-test: $(ZE_TEST_DEPS)
 	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) isis-wire --all
 
-ze-ospf-wire-test: $(ZE_TEST_DEPS)
+ze-functional-ospf-wire-test: $(ZE_TEST_DEPS)
 	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) ospf-wire --all
 
-ze-isis-test: $(ZE_TEST_DEPS)
+ze-functional-isis-test: $(ZE_TEST_DEPS)
 	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) isis --all
 
-ze-ospf-test: ze-functional-warm $(ZE_TEST_DEPS)
+ze-functional-ospf-test: ze-functional-test-warm $(ZE_TEST_DEPS)
 	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) ospf --all
 
-ze-ospfv3-test: ze-functional-warm $(ZE_TEST_DEPS)
+ze-functional-ospfv3-test: ze-functional-test-warm $(ZE_TEST_DEPS)
 	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) ospfv3 --all
 
-ze-vrrp-test: $(ZE_TEST_DEPS)
+ze-functional-vrrp-test: $(ZE_TEST_DEPS)
 	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) vrrp --all
 
 # Fail-open call-site ratchet over this suite's own Python. `docker_exec_quiet`
@@ -371,7 +371,7 @@ ze-vrrp-test: $(ZE_TEST_DEPS)
 #
 # It lives here rather than in mk/inventory.mk because its whole population is
 # test/**/*.py, the functional harness this file owns.
-.PHONY: ze-docker-exec-check
-ze-docker-exec-check:
+.PHONY: ze-functional-docker-exec-check
+ze-functional-docker-exec-check:
 	@python3 scripts/dev/docker_exec_checked.py --selftest
 	@python3 scripts/dev/docker_exec_checked.py

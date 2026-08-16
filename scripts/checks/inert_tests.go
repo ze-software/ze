@@ -207,12 +207,12 @@ func enforce(res *result, base baseline) bool {
 		fmt.Fprintln(os.Stderr, "  Add the tag to a go test invocation, or delete the file.")
 	}
 	if !ok {
-		fmt.Fprintf(os.Stderr, "\n  Refresh the floors only when the count went DOWN: make ze-test-health\n")
+		fmt.Fprintf(os.Stderr, "\n  Refresh the floors only when the count went DOWN: make ze-test-health-update\n")
 		return false
 	}
 	if len(res.AssertNothing) < base.AssertNothing || len(res.TagOrphan) < base.TagOrphan {
 		fmt.Fprintf(os.Stderr,
-			"test-sensitivity: baseline is slack (assert-nothing %d<%d, tag-orphan %d<%d). Run `make ze-test-health` to tighten it.\n",
+			"test-sensitivity: baseline is slack (assert-nothing %d<%d, tag-orphan %d<%d). Run `make ze-test-health-update` to tighten it.\n",
 			len(res.AssertNothing), base.AssertNothing, len(res.TagOrphan), base.TagOrphan)
 	}
 	return true
@@ -222,7 +222,7 @@ func readBaseline(path string) (baseline, error) {
 	var b baseline
 	raw, err := os.ReadFile(path) //nolint:gosec // fixed in-repo path
 	if err != nil {
-		return b, fmt.Errorf("read baseline %s: %w (run `make ze-test-health` to create it)", path, err)
+		return b, fmt.Errorf("read baseline %s: %w (run `make ze-test-health-update` to create it)", path, err)
 	}
 	if err := json.Unmarshal(raw, &b); err != nil {
 		return b, fmt.Errorf("parse baseline %s: %w", path, err)
@@ -989,7 +989,7 @@ func expandTags(spec string, vars map[string]string, depth int) []string {
 // answer different questions:
 //
 //   - working tree (default): what you are about to commit. This is right for
-//     the ratchet -- an inert test must be caught by the `make ze-verify` run
+//     the ratchet -- an inert test must be caught by the `make ze-precommit-verify` run
 //     that precedes its commit, not by the next one, which would blame an
 //     unrelated change.
 //   - tracked only (--tracked-only): what a clean checkout contains. This is

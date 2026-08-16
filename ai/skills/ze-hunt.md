@@ -15,7 +15,7 @@ below maps to one recorded trap. When that file gains a new pattern, add a
 matching hunt here -- the document is the registry, this skill is the detector.
 
 See also: `/ze-review` and `/ze-review-deep` (diff review, not whole-tree),
-`/ze-find-alloc` (allocation audit), `make ze-mutation-changed` (grade the suite).
+`/ze-find-alloc` (allocation audit), `make ze-mutation-test-changed` (grade the suite).
 
 ## When to use
 
@@ -185,12 +185,12 @@ Name the cheapest mechanical gate that would retire the top class permanently
 
 Grep catches the recorded *shapes*. To find unknown bugs, escalate:
 
-- `make ze-mutation-pkg PKG=<dir>` -- surviving mutants reveal untested logic
+- `make ze-mutation-pkg-test PKG=<dir>` -- surviving mutants reveal untested logic
   (where bugs hide). Start with wire codec, FSM, RIB.
 - `make ze-fuzz-test` on wire/NLRI/attribute decoders, long duration, MRT-seeded
   corpus -- the highest-severity untrusted-input surface.
-- `test/interop/` + `ze-exabgp-test` -- differential testing vs FRR/BIRD/ExaBGP.
-- `make ze-race-reactor` + `ze-chaos` seed sweep -- concurrency.
+- `test/interop/` + `ze-functional-exabgp-test` -- differential testing vs FRR/BIRD/ExaBGP.
+- `make ze-unit-reactor-test-race` + `ze-chaos` seed sweep -- concurrency.
 
 For a large scope, run the independent hunts as parallel subagents (one per
 subsystem or per hunt) and have a second agent adversarially verify each

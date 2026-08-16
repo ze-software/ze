@@ -6,7 +6,7 @@
 //   - Registered handler with no YANG ze:command entry
 //
 // Usage: go run scripts/validate-commands.go [--json]
-// Called by: make ze-validate-commands
+// Called by: make ze-command-contract-check
 //
 //go:build ignore
 

@@ -611,7 +611,7 @@ def run_in_vm(
 def _selftest_scratch_share() -> list[str]:
     """Fixture tests for the second 9p share (scratch_share, virtfs_args).
 
-    A symlinked tmp/ is the migrated layout (`make ze-migrate-scratch`), and on
+    A symlinked tmp/ is the migrated layout (`make ze-scratch-migrate`), and on
     a checkout that has migrated, every session path -- the DUT binary at
     tmp/session/<YYYY-MM-DD>-<id>/bin/ze most of all -- lives behind that link.
     A share of the repo root alone leaves it dangling in the guest, and the

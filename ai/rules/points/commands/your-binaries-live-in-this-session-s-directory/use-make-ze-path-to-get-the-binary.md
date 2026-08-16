@@ -4,5 +4,5 @@ level:
 stage:
 ---
 ```
-$(make ze-path) show version          # <session-dir>/bin/ze, or bin/ze off-session
+$(make ze-session-binary-path) show version          # <session-dir>/bin/ze, or bin/ze off-session
 ```

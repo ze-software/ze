@@ -380,7 +380,7 @@ Each phase ends with a Self-Critical Review. Fix issues before proceeding.
    - Tests: `TestPerASNEntityScored`, `TestFreezeLearnASEntity`, `TestASIncidentReportOnly`
    - Files: `detector.go`, `event.go`, `show.go`
 5. **Functional test** -- `test/plugin/anomaly-as-cohort.ci` (gated on child 4/6 for AS-carrying flows).
-6. **Full verification** -- `make ze-verify`.
+6. **Full verification** -- `make ze-precommit-verify`.
 7. **Complete spec** -- fill audit tables; learned summary `plan/learned/NNN-anomaly-7-as-entities-cohorts.md`;
    two commits (code+spec+learned, then `git rm` spec).
 
@@ -547,7 +547,7 @@ Each phase ends with a Self-Critical Review. Fix issues before proceeding.
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete -- every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled -- 0 BLOCKER, 0 ISSUE)
-- [ ] `make ze-test` passes (lint + all ze tests)
+- [ ] `make ze-standard-test` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Integration completeness proven end-to-end
 - [ ] Documentation Update Checklist answered Yes/No with source evidence
