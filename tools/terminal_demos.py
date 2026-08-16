@@ -45,6 +45,13 @@ def _assert_generated_assets_untracked():
     )
     tracked = []
     for repository, path in checks:
+        worktree = subprocess.run(
+            ["git", "-C", str(repository), "rev-parse", "--is-inside-work-tree"],
+            capture_output=True,
+            text=True,
+        )
+        if worktree.returncode != 0:
+            continue
         result = subprocess.run(
             ["git", "-C", str(repository), "ls-files", "--", path],
             check=True,
@@ -90,7 +97,15 @@ def _load_catalog():
         demo_id = demo.get("id")
         if not isinstance(demo_id, str) or not demo_id:
             raise ValueError("terminal demo source entry is missing an id")
-        for field in ("title", "description", "page", "platform", "duration", "kind", "engine"):
+        for field in (
+            "title",
+            "description",
+            "page",
+            "platform",
+            "duration",
+            "kind",
+            "engine",
+        ):
             if not isinstance(demo.get(field), str) or not demo[field]:
                 raise ValueError(
                     "terminal demo %s source field %s is required" % (demo_id, field)
@@ -146,6 +161,7 @@ def _publish_assets(demo_id, artifact):
         published[kind] = source
     return published
 
+
 def _asset_url(root, demo_id, artifact, kind):
     metadata = artifact["assets"][kind]
     return "%sassets/demos/%s%s?v=%s" % (
@@ -183,15 +199,11 @@ def _render_html(demo_id, demo, artifact, renderer, root, transcript):
     kind_label = "Browser" if kind == "browser" else "Terminal"
     eyebrow = html.escape("Replayable Ze %s lab" % kind.lower())
     label = html.escape(demo["title"] + " demonstration", quote=True)
-    poster_url = html.escape(
-        _asset_url(root, demo_id, artifact, "poster"), quote=True
-    )
+    poster_url = html.escape(_asset_url(root, demo_id, artifact, "poster"), quote=True)
     transcript_url = html.escape(
         _asset_url(root, demo_id, artifact, "transcript"), quote=True
     )
-    video_url = html.escape(
-        _asset_url(root, demo_id, artifact, "video"), quote=True
-    )
+    video_url = html.escape(_asset_url(root, demo_id, artifact, "video"), quote=True)
     transcript_html = html.escape(transcript.rstrip())
     recording_name = html.escape(demo_id + "." + kind.lower())
 

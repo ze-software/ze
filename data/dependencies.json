@@ -1,7 +1,7 @@
 {
     "categories": [
         {
-            "name": "Terminal UI & SSH",
+            "name": "Terminal, Web & SSH Interfaces",
             "modules": [
                 {
                     "module": "charm.land/bubbletea/v2",
@@ -22,6 +22,10 @@
                 {
                     "module": "charm.land/ssh",
                     "why": "SSH session and public-key types that the wish server and the CLI's key-based auth build on."
+                },
+                {
+                    "module": "github.com/a-h/templ",
+                    "why": "Compiles the typed server-rendered components used by Ze's web configuration interface and BGP looking glass into Go."
                 },
                 {
                     "module": "github.com/charmbracelet/colorprofile",

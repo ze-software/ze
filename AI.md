@@ -1,33 +1,40 @@
 # gh-pages Branch
 
-Published site: landing page + talks. Deployed via GitHub Pages (branch mode, root `/`).
+Published site: landing page + talks. GitHub Actions builds an isolated Pages artifact whose contents are deployed at root `/`.
 
 ## Worktree
 
 Checked out as a worktree at `../gh-pages` (sibling of `main/`).
-Edit published content here, commit and push from this worktree.
+Edit website sources here, then commit and push from this worktree. Generated pages and bundles never belong in Git.
 
 ## Structure
 
 ```
 gh-pages/
-  .nojekyll
-  index.html                              -- project landing page
-  assets/                                 -- shared assets (logos)
-  presentations/
-    tools/                                -- shared presentation tooling
+  .nojekyll                              -- copied to the artifact root
+  CNAME                                  -- copied to the artifact root
+  assets/
+    css/                                 -- stylesheet sources
+    js/                                  -- JavaScript sources
+    *.svg, social-card.png               -- static public assets
+  data/                                  -- curated JSON inputs only
+  presentations/tools/                   -- shared presentation tooling
+  tools/                                 -- site generators, checks, and tests
   talks/
-    linx-2026-06/                         -- one directory per talk
-      index.html                          -- slide renderer (loads slides.md)
-      slides.md                           -- slide content (markdown)
-      zeledon.svg                         -- logo
-      screenshots/                        -- presentation screenshots (PNGs)
+    linx-2026-06/
+      index.html                         -- authored slide renderer
+      slides.md                          -- authored slide content
+      screenshots/                       -- frozen editorial assets
     netmcr-2026-04/
-      index.html                          -- self-contained presentation
-      screenshots/                        -- extracted images
+      index.html                         -- authored presentation
+      screenshots/                       -- frozen editorial assets
+  update-website.sh
 ```
 
-Each talk deck is self-contained: its `index.html` loads assets from its own directory.
+`./update-website.sh` stages these inputs into sibling `../_site`, runs the
+generators there, removes source-only files, validates the artifact, and leaves
+this worktree unchanged. The contents of `../_site`, including its root
+`index.html`, are uploaded as the GitHub Pages root.
 
 ## Site build tooling
 
@@ -58,11 +65,9 @@ gh-pages/
                                               cards have to stay on screen on a laptop viewport
     dependencies.json                     -- every direct Go dependency's "why", grouped by
                                               category, keyed to ../main/go.mod
-    plugin-registry.json                  -- every plugin's Registration{} fields + resolved YANG
-                                              module paths, extracted fresh from ../main/internal/
     command-equivalents.json              -- curated vendor equivalents keyed by Ze CLI paths;
-                                              render-command-equivalents.py joins it to live
-                                              data/cli-commands.json and emits unmapped rows
+                                              render-command-equivalents.py joins it to the generated
+                                              CLI catalog and emits unmapped rows
     page-links.json                       -- right-rail page navigation, external project quick links,
                                               and reader-intent related links used by sitelib.py
   tools/
@@ -116,9 +121,9 @@ gh-pages/
     render-index.py                       -- data/audience.json + data/whats-new.json + template
                                               -> index.html
     render-llms-txt.py                    -- data/nav.json + page_registry.py + Markdown + live counts -> llms.txt
-  update-website.sh                       -- thin wrapper at the repo root: `./update-website.sh`
-                                              regenerates everything, same as `tools/build.py`.
-                                              Forwards args, e.g. `./update-website.sh --only cli`
+  update-website.sh                       -- builds the complete isolated `../_site` artifact through
+                                              `tools/build-site.py`; forwards generator arguments,
+                                              e.g. `./update-website.sh --only cli`
 ```
 
 Pages with no dedicated generator (`zeledon/`, `labs/*/`, `talks/`,
@@ -127,15 +132,14 @@ Like generated pages, they contain only a stable shared-header mount. The `nav`
 step renders `assets/header.html` from `data/nav.json`, so menu changes update
 one fragment instead of rewriting every page.
 
-Run `./update-website.sh` (repo root) or `tools/build.py` directly, same
-thing, the script is just a short, obvious name to reach for. Pass `--only`
+Run `./update-website.sh` from the repository root. Do not run `tools/build.py`
+from this worktree: that lower-level generator intentionally writes into its
+own checkout and is executed only inside the staged artifact. Pass `--only`
 with comma-separated step names from `tools/build.py` (for example
-`config,plugins,search,seo`) to regenerate a subset. The `links` and
-`linkcheck` steps run in the default order. If omitted from `--only`,
-`tools/build.py` runs them after selected steps, with
-`tools/check-page-links.py --skip-network` after external link patching and
-before the automatic `llms.txt` refresh. Watch stderr for drift warnings and
-per-step failures.
+`config,plugins,search,seo`) to rebuild an existing artifact subset. A full
+build recreates `../_site` first. The `links`, `linkcheck`, search, SEO, and
+`llms.txt` guardrails run after selected steps. Watch stderr for drift warnings
+and per-step failures.
 
 ### Website architecture
 
@@ -496,6 +500,7 @@ this before considering the update done.
 6. **Link-check before calling it done.** Every `href`/`src` across the
    published site outside the frozen `talks/<slug>/` decks, and every link
    inside every generated `index.md`, should resolve to a real local file or an
-   external URL. Run `tools/build.py`, which includes the local page-link check.
+   external URL. `./update-website.sh` includes the local page-link check and
+   leaves the validated result in `../_site`.
 7. **Never edit `talks/<slug>/` content** as part of this checklist. Those decks
    are historic snapshots frozen at the time they were given.

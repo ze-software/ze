@@ -39,13 +39,25 @@ jobs:
           go-version-file: main/go.mod
           cache-dependency-path: main/go.sum
 
-      - name: Install VHS and ffmpeg
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Build website prerequisites
         run: |
+          make -C main ze
           make -C main ze-terminal-demo-tools
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Generate terminal media
-        run: make -C main ze-terminal-demos-release TERMINAL_DEMO_OUTPUT="$GITHUB_WORKSPACE/site/assets/demos"
+        run: make -C main ze-terminal-demos-release TERMINAL_DEMO_OUTPUT="$GITHUB_WORKSPACE/terminal-demos"
+
+      - name: Test website sources
+        run: uv run --with pytest python3 -m pytest -q site/tools/test_*.py
+
+      - name: Build Pages artifact
+        env:
+          ZE_TERMINAL_DEMO_SOURCE: ${{ github.workspace }}/terminal-demos
+        run: ./site/update-website.sh
 
 
       # The demo scenarios redirect ze's output into per-demo log files, so a
@@ -65,7 +77,7 @@ jobs:
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: site
+          path: _site
 
       - name: Deploy Pages
         id: deployment

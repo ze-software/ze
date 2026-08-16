@@ -101,6 +101,7 @@ class Options:
     excludes: tuple[str, ...]
     author: str | None
     compact: bool = False
+    today: dt.date | None = None
 
 
 @dataclass(frozen=True)
@@ -127,7 +128,9 @@ class GoStats:
     vendor_modules: int
 
 
-def run_git(repo: Path, args: list[str], check: bool = True) -> subprocess.CompletedProcess[str]:
+def run_git(
+    repo: Path, args: list[str], check: bool = True
+) -> subprocess.CompletedProcess[str]:
     cmd = ["git", "-c", "core.quotePath=false", "-C", str(repo), *args]
     result = subprocess.run(cmd, text=True, capture_output=True, check=False)
     if check and result.returncode != 0:
@@ -247,7 +250,10 @@ def first_commit_date(options: Options) -> dt.date | None:
     else:
         args.append(options.ref)
     args.append("--")
-    dates = [dt.date.fromisoformat(line) for line in run_git(options.repo, args).stdout.splitlines()]
+    dates = [
+        dt.date.fromisoformat(line)
+        for line in run_git(options.repo, args).stdout.splitlines()
+    ]
     if not dates:
         return None
     return min(dates)
@@ -283,7 +289,9 @@ def classify_go_line(line: str, in_block: bool) -> tuple[str, bool]:
 
 
 def empty_go_bucket() -> GoBucketStats:
-    return GoBucketStats(files=0, total_lines=0, code_lines=0, blank_lines=0, comment_lines=0)
+    return GoBucketStats(
+        files=0, total_lines=0, code_lines=0, blank_lines=0, comment_lines=0
+    )
 
 
 def add_go_file(bucket: GoBucketStats, path: Path) -> GoBucketStats:
@@ -371,7 +379,9 @@ def activity_thresholds(totals: dict[dt.date, int]) -> list[int]:
     if max_value == 1:
         return [0, 0, 0, 0]
     max_threshold = max_value - 1
-    return [min(max_threshold, max(1, (max_value * step + 4) // 5)) for step in range(1, 5)]
+    return [
+        min(max_threshold, max(1, (max_value * step + 4) // 5)) for step in range(1, 5)
+    ]
 
 
 def activity_level(value: int, thresholds: list[int]) -> int:
@@ -478,7 +488,9 @@ TOP_DAY_LIMIT = 14
 
 
 def render_top_days(totals: dict[dt.date, int], empty_text: str) -> str:
-    rows = sorted(totals.items(), key=lambda item: (item[1], item[0]), reverse=True)[:TOP_DAY_LIMIT]
+    rows = sorted(totals.items(), key=lambda item: (item[1], item[0]), reverse=True)[
+        :TOP_DAY_LIMIT
+    ]
     if not rows:
         return f'<tr><td colspan="2">{html.escape(empty_text)}</td></tr>'
     html_rows: list[str] = []
@@ -516,7 +528,11 @@ def render_go_bucket(title: str, stats: GoBucketStats, note: str) -> str:
 
 
 def render_vendor_bucket(stats: GoStats, compact: bool = False) -> str:
-    note_html = "" if compact else '<p class="note">Tracked vendored .go files under vendor/. Module count comes from vendor/modules.txt.</p>'
+    note_html = (
+        ""
+        if compact
+        else '<p class="note">Tracked vendored .go files under vendor/. Module count comes from vendor/modules.txt.</p>'
+    )
     return f"""<div class="go-bucket">
             <h3>Vendored Dependencies</h3>
             <div class="go-stats">
@@ -530,7 +546,9 @@ def render_vendor_bucket(stats: GoStats, compact: bool = False) -> str:
 def git_label(options: Options) -> str:
     if options.all_refs:
         return "all refs"
-    branch = run_git(options.repo, ["rev-parse", "--abbrev-ref", options.ref], check=False)
+    branch = run_git(
+        options.repo, ["rev-parse", "--abbrev-ref", options.ref], check=False
+    )
     commit = run_git(options.repo, ["rev-parse", "--short", options.ref], check=False)
     if branch.returncode == 0 and commit.returncode == 0:
         return f"{branch.stdout.strip()} @ {commit.stdout.strip()}"
@@ -538,7 +556,7 @@ def git_label(options: Options) -> str:
 
 
 def render_page(options: Options) -> str:
-    today = dt.date.today()
+    today = options.today or dt.date.today()
     start = today - dt.timedelta(days=options.days - 1)
     grid_start = sunday_before(start)
     grid_end = saturday_after(today)
@@ -550,8 +568,12 @@ def render_page(options: Options) -> str:
     addition_thresholds = activity_thresholds(additions)
     commit_thresholds = activity_thresholds(commits)
 
-    line_days = {day: value for day, value in additions.items() if start <= day <= today}
-    commit_days = {day: value for day, value in commits.items() if start <= day <= today}
+    line_days = {
+        day: value for day, value in additions.items() if start <= day <= today
+    }
+    commit_days = {
+        day: value for day, value in commits.items() if start <= day <= today
+    }
     total_lines = sum(line_days.values())
     total_commits = sum(commit_days.values())
     line_active_days = sum(1 for value in line_days.values() if value > 0)
@@ -562,14 +584,22 @@ def render_page(options: Options) -> str:
     commit_peak_day, commit_peak_value = max(
         commit_days.items(), key=lambda item: item[1], default=(today, 0)
     )
-    generated_at = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    generated_at = (
+        dt.datetime.combine(today, dt.time()).strftime("%Y-%m-%d %H:%M:%S")
+        if options.today
+        else dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    )
     filter_label = "all files" if options.all_files else "source files"
     author_label = options.author or "all authors"
     repo_label = html.escape(str(options.repo))
     ref_label = html.escape(git_label(options))
     title_range = f"{start.isoformat()} to {today.isoformat()}"
-    line_threshold_text = ", ".join(display_number(value) for value in addition_thresholds)
-    commit_threshold_text = ", ".join(display_number(value) for value in commit_thresholds)
+    line_threshold_text = ", ".join(
+        display_number(value) for value in addition_thresholds
+    )
+    commit_threshold_text = ", ".join(
+        display_number(value) for value in commit_thresholds
+    )
     week_count = len(weeks)
     go_stats = collect_go_stats(options)
     metric_summary = {
@@ -716,7 +746,9 @@ h1 {{
 }}
 .stats {{
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr)){" auto" if options.compact else ""};
+    grid-template-columns: repeat(4, minmax(0, 1fr)){
+        " auto" if options.compact else ""
+    };
     gap: 0.9rem;
     align-items: center;
 }}
@@ -940,7 +972,10 @@ td:last-child, th:last-child {{ text-align: right; }}
 </head>
 <body>
 <main>
-{"" if options.compact else f"""    <section class="hero">
+{
+        ""
+        if options.compact
+        else f'''    <section class="hero">
         <div>
             <div class="eyebrow">Git additions and commits</div>
             <h1>Source Line Activity</h1>
@@ -953,20 +988,33 @@ td:last-child, th:last-child {{ text-align: right; }}
             </div>
             <div class="pill">{html.escape(title_range)}</div>
         </div>
-    </section>"""}
+    </section>'''
+    }
 
     <section class="stats" aria-label="Summary">
-        <div class="stat"><span id="total-label">Total added lines</span><strong id="total-value">{display_number(total_lines)}</strong></div>
-        <div class="stat"><span id="active-label">Days with added lines</span><strong id="active-value">{display_number(line_active_days)}</strong></div>
-        <div class="stat"><span id="peak-label">Peak line day ({html.escape(line_peak_day.isoformat())})</span><strong id="peak-value">{display_number(line_peak_value)}</strong></div>
-        <div class="stat"><span>Days shown</span><strong>{display_number(options.days)}</strong></div>
-{f"""        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.4rem">
+        <div class="stat"><span id="total-label">Total added lines</span><strong id="total-value">{
+        display_number(total_lines)
+    }</strong></div>
+        <div class="stat"><span id="active-label">Days with added lines</span><strong id="active-value">{
+        display_number(line_active_days)
+    }</strong></div>
+        <div class="stat"><span id="peak-label">Peak line day ({
+        html.escape(line_peak_day.isoformat())
+    })</span><strong id="peak-value">{display_number(line_peak_value)}</strong></div>
+        <div class="stat"><span>Days shown</span><strong>{
+        display_number(options.days)
+    }</strong></div>
+{
+        f'''        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.4rem">
             <div class="metric-switch" aria-label="Activity metric">
                 <button type="button" data-metric="lines" aria-pressed="true">Added Lines</button>
                 <button type="button" data-metric="commits" aria-pressed="false">Commits</button>
             </div>
             <div class="pill">{html.escape(title_range)}</div>
-        </div>""" if options.compact else ""}
+        </div>'''
+        if options.compact
+        else ""
+    }
     </section>
 
     <div class="dashboard-grid">
@@ -979,8 +1027,21 @@ td:last-child, th:last-child {{ text-align: right; }}
                 </div>
                 <div class="chart-body">
                     <div class="weekday-labels" aria-hidden="true"><span></span><span>Mon</span><span></span><span>Wed</span><span></span><span>Fri</span><span></span></div>
-                    <div class="activity-grid" role="img" aria-label="Daily activity from {html.escape(title_range)}">
-{render_cells(weeks, additions, commits, addition_thresholds, commit_thresholds, start, today, repo_start)}
+                    <div class="activity-grid" role="img" aria-label="Daily activity from {
+        html.escape(title_range)
+    }">
+{
+        render_cells(
+            weeks,
+            additions,
+            commits,
+            addition_thresholds,
+            commit_thresholds,
+            start,
+            today,
+            repo_start,
+        )
+    }
                     </div>
                 </div>
             </div>
@@ -990,12 +1051,38 @@ td:last-child, th:last-child {{ text-align: right; }}
     <section class="panel go-panel" aria-label="Go code stats">
         <h2>Go Code Stats</h2>
         <div class="go-breakdown">
-{render_go_bucket("Total First-Party Go", go_stats.total, "" if options.compact else "Tracked .go files outside vendor/, including tests.")}
-{render_go_bucket("Production Go", go_stats.code, "" if options.compact else "Tracked .go files outside vendor/ and excluding _test.go files.")}
-{render_go_bucket("Test Go", go_stats.tests, "" if options.compact else "Tracked _test.go files outside vendor/.")}
+{
+        render_go_bucket(
+            "Total First-Party Go",
+            go_stats.total,
+            ""
+            if options.compact
+            else "Tracked .go files outside vendor/, including tests.",
+        )
+    }
+{
+        render_go_bucket(
+            "Production Go",
+            go_stats.code,
+            ""
+            if options.compact
+            else "Tracked .go files outside vendor/ and excluding _test.go files.",
+        )
+    }
+{
+        render_go_bucket(
+            "Test Go",
+            go_stats.tests,
+            "" if options.compact else "Tracked _test.go files outside vendor/.",
+        )
+    }
 {render_vendor_bucket(go_stats, compact=options.compact)}
         </div>
-{"" if options.compact else '        <p class="note">Comment lines are full-line <code>//</code> comments or block-comment lines; inline comments remain code lines.</p>'}
+{
+        ""
+        if options.compact
+        else '        <p class="note">Comment lines are full-line <code>//</code> comments or block-comment lines; inline comments remain code lines.</p>'
+    }
     </section>
     </div>
 
@@ -1016,7 +1103,10 @@ td:last-child, th:last-child {{ text-align: right; }}
                 </tbody>
             </table>
         </div>
-{"" if options.compact else f"""        <div class="panel meta">
+{
+        ""
+        if options.compact
+        else f'''        <div class="panel meta">
             <div><strong>Repository:</strong> <code>{repo_label}</code></div>
             <div><strong>Ref:</strong> <code>{ref_label}</code></div>
             <div><strong>Author filter:</strong> <code>{html.escape(author_label)}</code></div>
@@ -1024,7 +1114,8 @@ td:last-child, th:last-child {{ text-align: right; }}
             <div><strong id="threshold-label">Line thresholds</strong>: <code id="threshold-value">{html.escape(line_threshold_text)}</code></div>
             <div><strong>Generated:</strong> <code>{html.escape(generated_at)}</code></div>
             <p class="note">Source mode counts common source, test, template, config, and schema extensions, excluding vendor and tmp paths. Use <code>--all-files</code> to count every text file reported by git.</p>
-        </div>"""}
+        </div>'''
+    }
     </section>
     </div>
     </div>
@@ -1232,19 +1323,55 @@ notes:
   Default output is {DEFAULT_OUTPUT}; tmp/ is ignored by git in this repository.
 """,
     )
-    parser.add_argument("--repo", type=Path, default=default_repo(), help="git repository to scan, default: repo containing this script")
-    parser.add_argument("--days", type=int, default=365, help="number of calendar days to show, default: 365")
-    parser.add_argument("--output", type=Path, default=Path(DEFAULT_OUTPUT), help=f"static HTML file to write, default: {DEFAULT_OUTPUT}")
-    parser.add_argument("--ref", default=DEFAULT_REF, help=f"git ref to scan when --all is not used, default: {DEFAULT_REF}")
-    parser.add_argument("--all", action="store_true", help="scan all git refs instead of --ref")
-    parser.add_argument("--all-files", action="store_true", help="count additions from every file reported by git numstat")
+    parser.add_argument(
+        "--repo",
+        type=Path,
+        help="git repository to scan, default: repo containing this script",
+    )
+    parser.add_argument(
+        "--days",
+        type=int,
+        default=365,
+        help="number of calendar days to show, default: 365",
+    )
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=Path(DEFAULT_OUTPUT),
+        help=f"static HTML file to write, default: {DEFAULT_OUTPUT}",
+    )
+    parser.add_argument(
+        "--ref",
+        default=DEFAULT_REF,
+        help=f"git ref to scan when --all is not used, default: {DEFAULT_REF}",
+    )
+    parser.add_argument(
+        "--all", action="store_true", help="scan all git refs instead of --ref"
+    )
+    parser.add_argument(
+        "--all-files",
+        action="store_true",
+        help="count additions from every file reported by git numstat",
+    )
     parser.add_argument(
         "--extensions",
         default=",".join(sorted(CODE_EXTENSIONS)),
         help="comma-separated file extensions counted in source mode, default: built-in common source set",
     )
-    parser.add_argument("--exclude", action="append", default=[], help="fnmatch path pattern to ignore, repeatable")
-    parser.add_argument("--author", help="git --author regex filter for history metrics")
+    parser.add_argument(
+        "--exclude",
+        action="append",
+        default=[],
+        help="fnmatch path pattern to ignore, repeatable",
+    )
+    parser.add_argument(
+        "--author", help="git --author regex filter for history metrics"
+    )
+    parser.add_argument(
+        "--today",
+        type=dt.date.fromisoformat,
+        help="final date in YYYY-MM-DD form, for reproducible historical snapshots",
+    )
     parser.add_argument(
         "--serve",
         nargs="?",
@@ -1252,8 +1379,16 @@ notes:
         metavar="HOST:PORT",
         help=f"serve dynamically and recompute on each request, default address: {DEFAULT_SERVE}",
     )
-    parser.add_argument("--open", action="store_true", help="open the generated or served page in a browser")
-    parser.add_argument("--compact", action="store_true", help="compact output: heatmap and stats only, no Go stats or metadata")
+    parser.add_argument(
+        "--open",
+        action="store_true",
+        help="open the generated or served page in a browser",
+    )
+    parser.add_argument(
+        "--compact",
+        action="store_true",
+        help="compact output: heatmap and stats only, no Go stats or metadata",
+    )
     return parser
 
 
@@ -1263,7 +1398,7 @@ def main() -> None:
     if args.days <= 0:
         raise SystemExit("--days must be positive")
 
-    repo = find_repo_root(args.repo.resolve())
+    repo = find_repo_root((args.repo or default_repo()).resolve())
     output = args.output
     if not output.is_absolute():
         output = repo / output
@@ -1285,6 +1420,7 @@ def main() -> None:
         excludes=tuple(excludes),
         author=args.author,
         compact=args.compact,
+        today=args.today,
     )
 
     if args.serve:

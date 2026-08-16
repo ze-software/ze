@@ -769,12 +769,13 @@ def main():
 
     # These guardrails run at the end of every build in this fixed order,
     # whether or not --only names them. Redirects remove obsolete Markdown
-    # mirrors before search indexing. Navigation runs before link patching,
-    # link validation sees the final anchors, SEO sees canonical routes, and
-    # llms runs after every linked page has its index.md sibling. Running these
+    # mirrors before search indexing. Navigation supplies every Markdown mirror,
+    # search creates its clean-build route before link patching, link validation
+    # sees the final anchors, SEO sees canonical routes, and llms runs after
+    # every linked page has its index.md sibling. Running these
     # in the main loop as well would invert that order for partial builds, so
     # the loop skips them and runs them once here.
-    TAIL = ["redirects", "nav", "links", "linkcheck", "search", "seo", "llms"]
+    TAIL = ["redirects", "nav", "search", "links", "linkcheck", "seo", "llms"]
 
     for step in steps:
         if step in TAIL:
