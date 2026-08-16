@@ -74,6 +74,9 @@ endef
 # return empty before reading anything when the changed-file list is empty. So
 # those two checks are in the tree, are wired to a target, and run nowhere.
 ze-cadence-daily-run:
+	go clean -cache
+	# Unset the repository override so Go cleans the default user cache.
+	env -u GOCACHE go clean -cache
 	$(call ZE_CADENCE_RUN,ze-cadence-daily-run -- run this one every morning,\
 		run_check gate ze-repository-check $(MAKE) --no-print-directory ze-repository-check; \
 		run_check note ze-ste-check $(MAKE) --no-print-directory ze-ste-check; \
