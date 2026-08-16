@@ -115,6 +115,52 @@ carries a remote address, and `"group"` carries a listen-range group's name and 
 every session that group accepts inherits.
 <!-- source: internal/component/bgp/plugins/rpki/rpki.go -- buildDecisions per-peer resolution, statusCommand -->
 
+#### Blackhole exemption
+
+| Path | Type | Default | Description |
+|------|------|---------|-------------|
+| `peer / rpki / blackhole-exempt` | boolean | false | Keep a BLACKHOLE-tagged route whose only origin-validation fault is prefix length |
+
+The leaf resolves peer then group, and it has NO global level. RFC 7999 Section
+3.3 binds the blackhole agreement to one BGP session, so a daemon-wide exemption
+would reach sessions that agreed to nothing.
+
+A blackhole prefix is as long as possible, usually a /32 or a /128, while a ROA
+for the covering block carries its maxLength at the aggregate. RFC 6811 then
+makes the announcement Invalid on length alone, and a session running
+`action { invalid reject; }` drops it before anything can honor it. RFC 7999
+Section 3.3 states that an operator must make sure origin validation does not
+block a legitimate announcement carrying BLACKHOLE, and this leaf is that
+mechanism.
+
+```
+bgp {
+    peer transit-a {
+        rpki {
+            action { invalid reject; }
+            blackhole-exempt true;
+        }
+        blackhole {
+            communities blackhole;
+            prefixes    192.0.2.0/24;
+        }
+    }
+}
+```
+
+The exemption is narrow. It applies only when a covering VRP names the route's
+own origin AS and disagrees on nothing but length. A wrong origin AS stays
+Invalid, which is the hijack RFC 6811 exists to catch. A prefix with no covering
+VRP is NotFound rather than Invalid, so the exemption never reaches it.
+
+Set it on the same session that names a blackhole community. The exemption reads
+the communities THAT session agreed to, so a peer running RTBH on `65001:666`
+gets it for `65001:666`. On a session that names no community the leaf does
+nothing: it would accept a route it would have rejected and discard nothing. See
+[Blackhole Honoring](configuration.md#blackhole-honoring-rfc-7999) for the
+`blackhole` container itself.
+<!-- source: internal/component/bgp/plugins/rpki/yang/ze-rpki.yang -- blackhole-exempt; internal/component/bgp/plugins/rpki/blackhole.go -- invalidByLengthOnly, carriesAgreedBlackhole -->
+
 ### Plugin Bindings
 
 The rpki plugin must be bound to peers with `attach process rpki { receive [ update-received ]; }`. It validates what the peer announces, so it asks for one direction. The adj-rib-in plugin must also be bound with `attach process adj-rib-in { receive [ update-received state ]; }` -- it provides the validation gate that holds routes pending validation.
@@ -132,6 +178,12 @@ Each received route gets one of three states (RFC 6811):
 | Invalid | A VRP covers the prefix but origin AS or length doesn't match | Reject |
 | NotFound | No VRP covers the prefix | Accept |
 
+A prefix ze cannot parse gets Invalid and a warning, never NotFound. NotFound
+states that the VRP set was consulted and covers nothing, and the default
+`not-found accept` action accepts a route on that reading. A prefix that was
+never validated fails closed instead.
+<!-- source: internal/component/bgp/plugins/rpki/validate.go -- Validate -->
+
 ### Validation Flow
 
 1. Ze connects to configured RTR cache servers and downloads VRPs
@@ -147,6 +199,30 @@ If the rpki plugin does not respond within `validation-timeout` seconds (default
 
 If all RTR cache servers disconnect, the existing VRP cache is retained until the connection is re-established. Routes continue to be validated against the last known good cache.
 <!-- source: internal/component/bgp/plugins/rpki/ -- RPKI validation logic, RTR client, fail-open -->
+
+### Re-validation on VRP Change
+
+When the VRP set changes, ze re-validates every tracked route and applies the
+current action to each route whose state changed (RFC 6811 Section 4). The
+decision reaches routes that are already installed, not only routes still
+pending: an accept rewrites the state in place and keeps the route's sequence
+number, and a reject removes the route from the Adj-RIB-In. No session clear and
+no route refresh is needed to pick up a new ROA.
+
+This matters most when UPDATEs arrive before the first sync completes. Those
+routes validate NotFound against an empty VRP set, and the default
+`not-found accept` installs them. The re-validation after the sync is what turns
+an RPKI-Invalid one into a reject.
+<!-- source: internal/component/bgp/plugins/adj_rib_in/rib_validation.go -- applyToInstalled -->
+
+### RTR Poll Timing
+
+RFC 8210 Section 6 splits two intervals, and ze uses each for its own event. The
+Refresh Interval from the End Of Data PDU is the wait before the next poll, and
+its countdown starts when that PDU arrives. The Retry Interval is the wait after
+a query FAILED, and it also covers a session that has never completed a
+successful query.
+<!-- source: internal/component/bgp/plugins/rpki/rtr_session.go -- pollDelay -->
 
 ### AS_PATH Edge Cases
 

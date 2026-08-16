@@ -49,12 +49,26 @@ pppoe {
 
 See [configuration guide](configuration.md#pppoe-access) for all settings.
 
+The subsystem starts only when `enabled` is true and the block lists at least
+one `interface`. A `pppoe` block with no `interface` entry registers nothing and
+answers no PADI.
+
 ### Subscriber authentication
 
 `auth-method` is the PPP Auth-Protocol the access concentrator puts in its own
 LCP Configure-Request: `chap-md5` (the default), `pap`, `ms-chap-v2`, or `none`.
 `none` requires `allow-no-auth true` beside it, because an access concentrator
-that asks nobody who they are is a decision and not a default.
+that asks nobody who they are is a decision and not a default. That combination,
+and an `auth-method` value the PPP driver does not know, are both refused when
+the daemon starts, with `parse pppoe config: ...`.
+
+| Leaf | Default | Values | Description |
+|------|---------|--------|-------------|
+| `auth-method` | `chap-md5` | `none`, `pap`, `chap-md5`, `ms-chap-v2` | Auth-Protocol advertised in the AC's LCP Configure-Request (RFC 1661 Section 6.2) |
+| `allow-no-auth` | `false` | boolean | Admit a subscriber whose LCP ends with no Auth-Protocol negotiated |
+
+The default matches the L2TP LNS default, so an operator who configures a
+credential for one transport gets the same treatment on the other.
 
 The credential comes from the same auth plugins the L2TP LNS uses. Configure a
 local user, or a RADIUS server:
@@ -81,8 +95,26 @@ l2tp {
 The `l2tp` block here configures the shared BNG plugins, not an L2TP listener:
 `l2tp-auth-local` verifies the credential and `l2tp-pool` supplies the IPCP
 address. A PPPoE-only BNG needs neither `l2tp enabled` nor an L2TP server.
-RADIUS takes precedence over the local user list once a RADIUS server is
-configured.
+
+The PPP auth handler slot holds one handler, and configuration decides its
+owner: `l2tp-auth-radius` claims it when a RADIUS server is configured, and
+`l2tp-auth-local` keeps it otherwise. A box with local users and no RADIUS block
+therefore authenticates against those users, on PPPoE and on L2TP.
+<!-- source: internal/component/l2tp/plugins/authradius/register.go -- activateRadiusConfig claims the slot -->
+
+## Interoperability
+
+Two Docker lab scenarios run Ze in each PPPoE role. `make
+ze-deployment-pppoe-accel-docker-test` runs both.
+
+| Scenario | Ze role | Peer | Proves |
+|----------|---------|------|--------|
+| `01-pppoe-chap-ipv4` | client | accel-ppp | Discovery, LCP, CHAP-MD5, the IPCP address on a kernel `pppN` interface, a ping to the AC gateway through the session, and a clean teardown |
+| `02-ze-ac-pppd-client` | access concentrator | pppd 2.5.1 with the rp-pppoe plugin | Discovery, LCP demanding CHAP-MD5, the credential accepted, an IPCP pool address, ICMP across the session, and a wrong password refused before IPCP |
+
+`make ze-qemu-pppoe-accel-test` runs the client half in QEMU, and `make
+ze-qemu-pppoe-test` runs the access concentrator's own `test/pppoe/` suite on
+Ze's runtime kernel (stock Alpine has no `CONFIG_PPPOE`).
 
 ## CLI Commands
 

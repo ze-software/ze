@@ -126,6 +126,24 @@ Peers that negotiate the same ADD-PATH modes share an encoding context (`Context
 
 To withdraw a specific path, the withdrawal NLRI includes the same path ID used in the announcement. Withdrawing without a path ID removes all paths for that prefix.
 
+### Ze Generates Its Own Path Identifiers
+
+RFC 7911 Section 2 requires a speaker that re-advertises a route to generate its own Path Identifier, and to assign it so that (prefix, identifier) uniquely names a path advertised to a neighbor. Both forward rails do that instead of relaying the identifier the source chose.
+
+Each route-server client picks its identifiers alone. Two clients that both pick `1` for one prefix would reach a third client as one (prefix, identifier) pair, and RFC 7911 Section 5 makes the receiver treat the second as a replacement for the first, so one path is lost. A source that negotiated no ADD-PATH sends every path under identifier `0`, so without regeneration every path from every ordinary client reached an ADD-PATH client as (prefix, 0).
+
+| Property | Behavior |
+|----------|----------|
+| Key | The path at ingress: the source that sent it and the identifier that source used. Never the message, never the attributes |
+| Withdrawal | A withdrawn route carries no path attributes, so the ingress key is the only key that can be recomputed when the path leaves. The withdrawal names the identifier Ze advertised |
+| Re-announcement | A source that re-announces one path with changed attributes keeps the identifier it already has, so the destination sees a replacement rather than a duplicate |
+| Release | Identifiers are released at peer removal, not at session down. A reconnecting peer re-announces under the identifiers its destinations already hold |
+| Zero | Minted and accepted like any other value, which RFC 7911 Section 3 requires |
+
+Regeneration runs whenever either side of the forward frames identifiers. A session where neither side negotiated ADD-PATH keeps its zero-copy forward.
+<!-- source: internal/component/bgp/reactor/forward_path_id.go -- fwdPathIDs, fwdRegenerateRawPathIDs -->
+<!-- source: internal/component/bgp/reactor/forward_body.go -- fwdReencodeNLRIs -->
+
 ## Interaction with Route Reflection
 
 ADD-PATH fits the route server plugin (`bgp-rs`). Without ADD-PATH, the route server can only forward one path per prefix to each peer. With ADD-PATH, it forwards all received paths, and downstream routers make their own best-path decisions.

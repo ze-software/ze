@@ -178,6 +178,30 @@ observes whether the leaked traffic saturates that rate. If yes, the flood is
 still arriving and the rule is re-tightened with exponential backoff. If no, the
 attack is over and the rule is withdrawn.
 
+The probe reads the detector's `AttackOngoing` events, which carry the bandwidth
+measured behind the filter, so the probe compares a real observation against
+`probe-rate` rather than a synthetic tick. The responder ignores the detector's
+clear while it mitigates, because the probe holds the trustworthy signal.
+<!-- source: internal/plugins/ddos/flowspec/responder.go -- onOngoing feeds probeTick with AttackOngoing.CurrentBps -->
+
+**Withdraw paths.** A FlowSpec announce is withdrawn when any of these happens:
+
+| Trigger | What it means |
+|---------|---------------|
+| The leak-probe sees no leak at `probe-rate` | The flood has stopped |
+| `max-mitigation-duration` expires | The wall-clock cap fires even when the attack went quiet and `AttackOngoing` stopped arriving. Checked once a second; `0` means no cap |
+| Characterization carries the exemption decision | The traffic policy exempts this attack from the mitigation action, so a blackhole fallback installed on the fast signal is taken back |
+| Characterization reclassifies the victim as local | The box is mitigating it on-host, so the upstream rule must not stand for it |
+
+The last two follow the detector's contract: the characterized event is
+authoritative, so a responder withdraws whatever the fast `AttackDetected` path
+installed. The reclassification case is real rather than theoretical, because
+characterization re-derives direction from the narrowed victim: a /24 that looked
+remote can narrow to a box-owned /32 after the blackhole fallback is already
+announced.
+<!-- source: internal/plugins/ddos/flowspec/responder.go -- onCharacterized, enforceMaxDuration -->
+<!-- source: internal/plugins/ddos/detect/characterize.go -- direction re-classified from the narrowed victim -->
+
 ### Flowtriq cloud reporting
 
 ```
@@ -260,7 +284,7 @@ duration is not a factor.
 | Parameter | Default | Range | Description |
 |-----------|---------|-------|-------------|
 | `response-level` | `alert` | alert, enforce | `alert` logs only; `enforce` installs nft drop rules |
-| `max-mitigation-duration` | `3600` | 0-86400 s | Safety valve: force-remove rule after this many seconds (0 = no cap) |
+| `max-mitigation-duration` | `3600` | 0-86400 s | Parsed and range-checked, but the local responder does not act on it yet. An on-host drop is removed when the attack clears, not on a timer. The FlowSpec responder does enforce its own cap |
 | `confidence-min` | `0` | 0-100 | Minimum incident confidence to mitigate from a characterized attack (`0` = no gate). Note: the coarse drop on the fast `AttackDetected` carries no confidence, so this only gates the in-place narrowing on the characterized path |
 | `forward-mitigation` | `false` | bool | Also drop a remote (transit) victim's traffic on the netfilter FORWARD hook to protect a downstream host. Default guards only local (box-owned) victims on INPUT and leaves remote victims to flowspec (see [Direction](#direction-local-vs-remote)) |
 
@@ -276,7 +300,7 @@ duration is not a factor.
 | `probe-window` | `10` | 1-300 s | Seconds to observe leaked traffic during a probe |
 | `probe-rate` | `1000000` | 1+ bps | Bits per second to allow during a leak-probe |
 | `announce-rate-limit` | `10` | 1-600 /min | Maximum FlowSpec announcements per minute |
-| `max-mitigation-duration` | `3600` | 0-604800 s | Safety valve: force-withdraw after this many seconds |
+| `max-mitigation-duration` | `3600` | 0-604800 s | Force-withdraw the announce after this many seconds. Checked once a second; `0` means no cap |
 | `backoff-cap` | `3600` | 1-604800 s | Maximum hold-down after exponential backoff |
 | `blackhole-fallback` | `false` | bool | Engage an immediate upstream `discard` on a `critical` fast signal without waiting for characterization |
 | `confidence-min` | `0` | 0-100 | Minimum incident confidence to announce an upstream rule from a characterized attack (`0` = no gate). The blackhole-fallback fast path is never gated (it carries no confidence) |
@@ -413,6 +437,11 @@ holds the data, so a subcommand appears only while its plugin is loaded:
   the target vector it covers.
 - `show ddos flowspec` (`ddos-flowspec`): whether an upstream FlowSpec rule is
   announced, its target vector, and whether the leak-probe is running.
+
+`show ddos local` and `show ddos flowspec` read an immutable snapshot that the
+writer publishes under its own lock, so neither command waits on a netlink
+reconcile or on an RPC round trip to the BGP engine. A status command answers
+while mitigation is being applied.
 
 <!-- source: internal/plugins/ddos/observe/show.go -- handleShowDdos, handleShowDdosIncidents -->
 <!-- source: internal/plugins/ddos/local/show.go -- handleShowDdosLocal -->

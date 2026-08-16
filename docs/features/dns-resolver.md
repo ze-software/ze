@@ -7,6 +7,13 @@
 Built-in DNS resolver component providing cached DNS queries to all Ze components.
 Uses `github.com/miekg/dns` (the library CoreDNS is built on).
 
+This is the client side: Ze asking somebody else. Ze also answers queries, from
+two authoritative plugins that share one server harness
+(`internal/core/dnsserver`): `as112` (see
+[AS112 guide](../guide/as112.md#answer-policy) for the answer policy the harness
+enforces) and `geodns` (per-source-IP answers, `service { geodns { ... } }`).
+The two sides share no configuration and no cache.
+
 | Feature | Description |
 |---------|-------------|
 | Static name servers | `system { name-server [8.8.8.8 1.1.1.1]; }` sets upstream DNS servers |

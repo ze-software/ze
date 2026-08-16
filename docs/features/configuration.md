@@ -40,6 +40,18 @@ The `ze:required` and `ze:suggest` YANG extensions declare which fields must be 
 | `ze:required "path"` | Descendant field must have a value in each list entry after inheritance. Validated at `ze config validate`, editor commit, and daemon startup for any list (generic, not BGP-only). |
 | `ze:suggest` | Field shown in the web creation form with inherited defaults but not mandatory. |
 
+The registered `ze:validate` value validators run on the same bytes at
+`ze config validate`, at daemon start, and at SIGHUP reload. One walk serves the
+offline check and the daemon, so they cannot reach different verdicts. A value a
+validator refuses stops the daemon and fails a reload, with no override and no
+force flag, and the message names the section, the leaf, and the rule. A refusal
+declines rollback recovery, so an operator's typo cannot start the daemon on a
+config they never wrote. A missing mandatory field is graded a warning on both
+surfaces rather than a refusal.
+<!-- source: internal/component/config/validate_sections.go -- ValidateCustomSections, ErrCustomValidation -->
+<!-- source: internal/component/config/loader.go -- LoadConfig calls ValidateCustomSections -->
+<!-- source: cmd/ze/hub/main.go -- recoverableLoadError declines recovery for ErrCustomValidation -->
+
 Peer required fields: `connection/remote/ip`, `session/asn/local`, `session/asn/remote`. Suggested: `connection/local/ip`.
 
 Fields can be satisfied by inheritance: `session/asn/local` set at bgp level satisfies the requirement for all peers; `session/asn/remote` set at group level satisfies it for group members.
@@ -169,5 +181,22 @@ External processes receive BGP events and send commands:
 ## Dependency Graph
 
 `ze config graph <file>` exposes configuration groups, peers, plugin dependencies, and their relationships as machine-readable nodes and edges. Use it to identify which peers inherit a shared value before changing that group.
+
+Plugin dependency expansion keys on the REGISTERED plugin name, not on the
+operator's list label. `plugin { internal rs { use bgp-rs } }` names the instance
+`rs` and runs the registered plugin `bgp-rs`, and the dependencies `bgp-rs`
+declares are pulled in. Keying on the label made the resolver treat the plugin as
+external and skip expansion, so both hard and optional dependencies were dropped
+with no error: a route server configured that way ran with no `bgp-adj-rib-in`
+and therefore no peer-up Adj-RIB-In replay.
+<!-- source: internal/component/config/loader.go -- registryName, ExpandDependencies -->
+
+A config root that no plugin and no hub handler claims is stored and delivered to
+nobody, so it has no effect. `ze doctor` reports it as
+`doctor-config-root-unclaimed`, naming the path and the two causes: the owning
+plugin is not in this binary or did not load, or its config root is missing. The
+check fails closed and reports `doctor-config-claims-unavailable` when no plugin
+in the build declares a config root at all.
+<!-- source: internal/component/doctor/checks_config_claims.go -- checkConfigClaims, configClaimDiagnostics -->
 
 <!-- terminal-demo: config-graph -->

@@ -108,6 +108,26 @@ export ZE_LOG_PLUGIN_RELAY=disabled   # silence plugin output
 Default relay level: `warn`.
 <!-- source: internal/component/plugin/process/process.go -- stderrLogger -->
 
+The relay keeps the LAST line a plugin wrote. Ze attaches a parent-owned pipe to
+the child and drains it after reaping the process, with a bounded grace period,
+so a verdict written immediately before the plugin exits still reaches the log. A
+grandchild holding the descriptor open cannot hold the drain open forever.
+<!-- source: internal/component/plugin/process/process.go -- monitorCmd, parent-owned stderr pipe -->
+
+A quoted value in a relayed line arrives decoded. The parser reads the escapes
+the structured logger wrote, so a backslash no longer doubles at every relay hop.
+A value that ends in a backslash no longer runs the scan past its own closing
+quote and into the attributes after it.
+<!-- source: internal/core/slogutil/parse.go -- unquoteValue, findClosingQuote -->
+
+A fatal diagnostic from a dying process goes to the real stderr rather than to
+the crash-capture pipe. Crash capture redirects `os.Stderr` into a pipe whose
+reader goroutine dies with the process, so a fatal message written there existed,
+was written, and reached no one. The last thing a dying process says now reaches
+the terminal.
+<!-- source: internal/core/env/env.go -- fatalOut, SetFatalOutput -->
+<!-- source: internal/core/crashlog/crashlog.go -- SetFatalOutput called with the pre-redirect descriptor -->
+
 ## Naming Convention
 
 Subsystem names follow `<domain>.<component>[.<concern>]`:

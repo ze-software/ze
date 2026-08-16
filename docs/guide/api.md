@@ -86,6 +86,12 @@ but write commands, REST config sessions, and gRPC config sessions return 403.
 | `GET` | `/api/v1/execute/stream?command=...` | Stream a registered streaming command, for example `monitor event`, as Server-Sent Events. It uses the same handler registry, authorization, and accounting path as SSH monitor commands. |
 | `GET` | `/api/v1/complete?partial=...` | Tab completion (future) |
 
+A plugin command registered with `Hidden` true is absent from
+`/api/v1/commands`, as it is from completion, from help, and from the MCP tool
+list. `buildCommandMeta` is the one source those surfaces read, so the flag has
+one meaning everywhere.
+<!-- source: cmd/ze/hub/command_meta.go -- buildCommandMeta: the Hidden skip -->
+
 POST `/api/v1/execute` body:
 ```json
 {

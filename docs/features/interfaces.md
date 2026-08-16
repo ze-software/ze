@@ -19,7 +19,7 @@ JunOS-style two-layer model: physical interfaces with named logical units.
 | | Class-of-service named profiles (802.1p, interface-level inheritance) | have | |
 | | Loopback | have | |
 | | Bonding / LACP | missing | high |
-| | VXLAN | missing | medium |
+| | VXLAN (a `tunnel` encapsulation, netlink and VPP) | have | <!-- source: internal/plugins/iface/netlink/tunnel_linux.go -- buildVxlan --> |
 | | GRE / GRETAP / IPIP / SIT tunnels | have | |
 | | IP6GRE / IP6GRETAP / IP6TNL / IPIP6 tunnels | have | |
 | | ERSPAN | missing | lower |
@@ -342,7 +342,7 @@ interface {
 }
 ```
 
-The eight supported encapsulation kinds map to Linux netlink kinds:
+The nine supported encapsulation kinds map to Linux netlink kinds:
 
 | Kind | Linux netlink | Underlay | Layer | Notes |
 |------|--------------|----------|-------|-------|
@@ -354,6 +354,7 @@ The eight supported encapsulation kinds map to Linux netlink kinds:
 | `sit` | sit | IPv4 | L3 | 6in4 per RFC 4213 |
 | `ip6tnl` | ip6tnl | IPv6 | L3 | RFC 2473 with Proto=IPV6 |
 | `ipip6` | ip6tnl | IPv6 | L3 | RFC 2473 with Proto=IPIP |
+| `vxlan` | vxlan | IPv4 (UDP) | L2 (bridgeable) | RFC 7348. Mandatory `vni` 1..16777215, `port` default 4789 |
 
 `ipip6` shares the kernel `ip6tnl` netdev with a different inner protocol byte (4 vs 41).
 Both surface as distinct YANG cases so the schema and config are unambiguous.
@@ -364,6 +365,19 @@ kernel does not assign one).
 
 ERSPAN, GRE keepalives, VRF underlay/overlay leaves, and `ignore-df` on gretap are
 out of scope for v1; see `plan/deferrals/`.
+
+All nine kinds are creatable on the gokrazy appliance image. Nine kinds need six
+kernel symbols plus the GRE demux gate, and the appliance kernel builds all seven
+in: `NET_IPGRE_DEMUX`, `NET_IPGRE`, `IPV6_GRE`, `NET_IPIP`, `IPV6_TUNNEL`,
+`IPV6_SIT`, `VXLAN`. `runtime.require` pins the same seven and the required-symbol
+check accepts `=y` alone, so a Kconfig `default m` answer fails the image build
+rather than shipping a kind nobody can create. Earlier images carried two of the
+nine, so a config Ze accepted produced a device that never appeared. Measured cost
+of the seven: vmlinuz grew 98304 bytes, 0.60%.
+
+<!-- source: gokrazy/kernel/runtime.config -- the seven tunnel symbols set to =y -->
+<!-- source: gokrazy/kernel/runtime.require -- the same seven pinned -->
+<!-- source: test/plugin/iface-tunnel-kinds.ci -- every kind created on the appliance kernel -->
 
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- list tunnel, choice kind, tunnel-v4-endpoints / tunnel-v6-endpoints groupings -->
 <!-- source: internal/component/iface/tunnel.go -- TunnelKind enum, TunnelSpec struct -->

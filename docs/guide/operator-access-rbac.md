@@ -218,3 +218,19 @@ export XDG_RUNTIME_DIR=/run/ze
 ```
 
 Use `admin` to recover from a broken profile, then correct the config in zefs, validate it, and reload.
+
+## 8. Remove an operator
+
+Delete the user from `system.authentication.user` and reload. The removal takes
+effect at once on every credential surface: the web password, the web session
+cookie the browser still holds, the SSH password, the SSH public key, and
+`Bearer <user>:<pass>` over REST and gRPC. The daemon does not restart, and the
+24-hour web session TTL is a ceiling rather than the only test.
+
+Removal governs NEW connections. A session that is already open outlives it until
+the connection closes, because an operator may be editing their own account. A
+session a TACACS+ or RADIUS backend granted is not revoked by the local user
+list, which never authenticated it.
+<!-- source: cmd/ze/hub/main_servers.go -- liveLocalUsers -->
+<!-- source: internal/component/web/auth.go -- SessionStore.ValidateToken, WebSession.LocalAnchored -->
+<!-- source: internal/component/ssh/pubkey.go -- authenticatePublicKey -->

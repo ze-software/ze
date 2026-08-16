@@ -105,6 +105,30 @@ where nothing binds. On Linux the check also opens the namespace
 directory, and reports a namespace that is absent (LCP pair creation
 would fail at apply) separately from a probe that could not answer. Run
 `ze explain doctor-vpp-lcp-netns` for the detail.
+
+The accepted character set for the leaf is what VPP can carry through: printable,
+no whitespace, no path separator, under 256 characters. VPP's own parser reads the
+leaf with `unformat(line_input, "netns %s", &ns)`, and `%s` ends at a space, tab,
+newline, or carriage return rather than refusing the input. So `netns my ns` would
+reach VPP as `my`, VPP would build `/var/run/netns/my`, that namespace would not
+exist, and LCP pair creation would fail at apply on a config ze had accepted.
+Config verify refuses the value instead.
+<!-- source: internal/component/vpp/config.go -- validateNetns -->
+
+A second check covers the plugin rather than the namespace. Enabling `vpp.lcp`
+makes ze write a `startup.conf` that loads `linux_cp_plugin.so`. A VPP built
+without it accepts the config and then fails the WHOLE apply at the binary-API
+layer, with a raw VPP error that names the failing message rather than the missing
+plugin. `ze doctor` reports `doctor-vpp-lcp-plugin` first. The probe reads the
+RUNNING VPP with `vppctl show plugins`, not the filesystem: what matters is what
+the loaded VPP has, not whether a copy exists on disk. A probe that cannot answer
+degrades to a WARNING and never claims the plugin is missing, because `vppctl`
+exits non-zero identically for an absent binary, an absent socket, and a wedged
+VPP, and none of those is evidence about which plugins VPP loaded. An absent
+`enabled` leaf reads as on, matching the YANG default.
+<!-- source: internal/plugins/iface/vpp/doctor.go -- checkVPPLCPPlugin, lcpEnabled, lcpPluginSO -->
+<!-- source: internal/core/diagnostic/codes.go -- doctor-vpp-lcp-plugin -->
+
 <!-- source: internal/component/vpp/yang/ze-vpp-conf.yang -- lcp container netns default "dataplane" -->
 <!-- source: internal/core/network/network.go -- RealListenerFactory.Listen binds via net.ListenConfig, no netns awareness -->
 <!-- source: internal/component/vpp/startupconf.go -- linux-cp section: b.kv("default netns", s.LCP.Netns) -->
@@ -214,14 +238,14 @@ the stats poll interval only when the defaults do not fit the workload.
 | `vpp.stats.segment-size` | size string | `512M` | Stats segment shared memory size. |
 | `vpp.stats.socket-path` | string | `/run/vpp/stats.sock` | Stats Unix socket path. Separate from the API socket. |
 | `vpp.stats.poll-interval` | uint16 seconds, 1..3600 | `30` | How often ze reads the stats segment for Prometheus metrics. |
-| `vpp.lcp.enabled` | boolean | `true` | Whether ze asks VPP to load `linux_cp_plugin.so` and `linux_nl_plugin.so`. Leave on when BGP uses VPP-owned NICs. |
+| `vpp.lcp.enabled` | boolean | `true` | Whether ze asks VPP to load `linux_cp_plugin.so` and `linux_nl_plugin.so`. Leave on when BGP uses VPP-owned NICs. `ze doctor` reports `doctor-vpp-lcp-plugin` when this is on and the running VPP does not load the plugin. |
 | `vpp.lcp.sync` | boolean | `true` | Mirror VPP state changes (link, MTU, IP) into the Linux TAPs. |
 | `vpp.lcp.auto-subint` | boolean | `true` | Auto-create Linux TAPs for dot1q and QinQ sub-interfaces. |
-| `vpp.lcp.netns` | string | `dataplane` | Network namespace where LCP TAPs appear, also emitted as VPP's global `default netns`. Must not contain path separators. VPP resolves the value as a name under `/var/run/netns/`, so it must be a namespace that exists: `host` and `root` are not special to VPP and do **not** mean "the host namespace". Ze's BGP has no netns awareness and cannot bind on a TAP in this namespace unless ze itself runs there. An EMPTY value is the exception: it clears VPP's global `default netns` and the TAPs stay in VPP's own namespace. `ze doctor` reports `doctor-vpp-lcp-netns` for every other value. See ["How the two halves fit together"](#how-the-two-halves-fit-together). |
+| `vpp.lcp.netns` | string | `dataplane` | Network namespace where LCP TAPs appear, also emitted as VPP's global `default netns`. Must be printable, carry no whitespace and no path separator, and stay under 256 characters. VPP resolves the value as a name under `/var/run/netns/`, so it must be a namespace that exists: `host` and `root` are not special to VPP and do **not** mean "the host namespace". Ze's BGP has no netns awareness and cannot bind on a TAP in this namespace unless ze itself runs there. An EMPTY value is the exception: it clears VPP's global `default netns` and the TAPs stay in VPP's own namespace. `ze doctor` reports `doctor-vpp-lcp-netns` for every other value. See ["How the two halves fit together"](#how-the-two-halves-fit-together). |
 | `vpp.plugins.wireguard` | boolean | `false` | Load `wireguard_plugin.so` so the vpp interface backend can program WireGuard tunnels (`interface { backend vpp; wireguard ...; }`). `ze doctor` warns (`doctor-vpp-wireguard`) if a wireguard interface is configured under vpp with this off. |
 <!-- source: internal/component/vpp/yang/ze-vpp-conf.yang -- every leaf above -->
 <!-- source: internal/component/vpp/config.go -- defaults and validation -->
-<!-- source: internal/plugins/iface/vpp/doctor.go -- doctor-vpp-lcp-netns, doctor-vpp-wireguard -->
+<!-- source: internal/plugins/iface/vpp/doctor.go -- doctor-vpp-lcp-netns, doctor-vpp-lcp-plugin, doctor-vpp-wireguard -->
 
 ### Enabling FIB programming
 

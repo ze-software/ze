@@ -122,6 +122,16 @@ For CLI-entered commands (the common case), the authorization string is exactly
 what the user typed: `show bgp peer list`, `clear counters`,
 `configure`, etc.
 
+**Every command now starts with its verb, so profile entries must too.** The bare
+forms that once worked without a verb (`bgp summary`, `system memory`, `daemon
+reload`) were removed from the command tree. Prefix matching is anchored at the
+start of the typed string, so an entry whose `match` is `bgp` no longer covers
+`show bgp summary`. Review any denylist entry keyed on a bare form: it silently
+stops covering the command it was written for. Write `show bgp`, `show system`,
+and `request reload` instead.
+<!-- source: internal/component/cli/client/verb_tree.go -- BuildVerbCommandTree, verbContextPath -->
+<!-- source: internal/plugins/signal/main.go -- Commands table ExecCommand column -->
+
 ## Configuration
 
 ### Defining profiles

@@ -7,7 +7,9 @@ you out of the device.
 
 This is the operator/admin login path. It is separate from the L2TP
 **subscriber** RADIUS path (`l2tp.auth.radius`), which authenticates PPP
-sessions and lives under the `l2tp` config root.
+sessions and lives under the `l2tp` config root. That path also does subscriber
+accounting and CoA/DM; see [L2TP](l2tp.md#l2tp-auth-radius) for the attributes an
+Accounting-Request carries.
 
 ## What it does
 

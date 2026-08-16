@@ -121,6 +121,49 @@ insert filter import new-filter last
 | reject | Drop update, short-circuit chain |
 | modify | Change specific attributes (delta-only) |
 
+### Conditioning a modifier without dropping the rest
+
+A chain is a pipe in which a reject DROPS the route, so a match filter placed
+before a modifier can only express "modify these and discard everything else".
+When the routes the modifier does not touch must keep flowing, put the condition
+on the modifier itself with a `match` block. A route that meets none of the
+stated values returns accept and passes through unchanged.
+
+```
+bgp {
+    policy {
+        modify blackhole-to-discard {
+            match { community [ blackhole ]; }
+            set   { next-hop 192.0.2.1; }
+        }
+    }
+    peer customer {
+        filter { import [ blackhole-to-discard ]; }
+    }
+}
+```
+
+A definition with no `match` block applies to every route that reaches it. See
+`internal/component/bgp/plugins/filter_modify/yang/ze-filter-modify.yang` for the
+full leaf reference.
+<!-- source: internal/component/bgp/plugins/filter_modify/match.go -- matchCond -->
+<!-- source: internal/component/bgp/plugins/filter_modify/filter_modify.go -- handleFilterUpdate -->
+<!-- source: internal/component/bgp/filtertext/community.go -- HasCommunity -->
+
+### Filters Cannot Override the RFC 4271 Egress Rules
+
+Four Section 5 rules are asked after the export chain has run, so no filter can
+grant what the RFC refuses: LOCAL_PREF is removed toward an external peer
+(5.1.5), a relayed MULTI_EXIT_DISC is removed toward another neighboring AS
+(5.1.4), a route whose final next hop is the destination peer's own address is
+withheld (5.1.3), and an UPDATE advertising no reachable NLRI keeps no attribute
+a filter would have created on it (4.3 and 6.3). See
+[BGP protocol features](../features/bgp-protocol.md) for the full table.
+
+A modification that cannot be applied suppresses the route for that destination
+rather than forwarding it unmodified, and increments
+`ze_bgp_update_modify_failed_total{reason}`.
+
 ## Failure Handling
 
 Each filter declares its own failure mode at startup:

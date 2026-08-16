@@ -36,6 +36,39 @@ The editor starts an ephemeral ze instance in the background for live YANG valid
 | `exit` | Exit editor |
 <!-- source: internal/component/cli/editor_commands.go -- editor commands (set, delete, show, diff, commit, rollback) -->
 
+### Structural operations appear in the diff
+
+`show | changes` and `show | compare` include the draft's structural operations,
+not only its leaf values. A deleted list entry, a deleted container, a deleted
+list, a `rename`, an `insert` at a position, and a `deactivate` or `activate` are
+recorded in the per-user change file rather than in the value tree. On a
+blob-backed store these were invisible: the diff the operator reviewed read empty
+while the operation still applied at commit, so ze accepted an action and did
+something else. Both surfaces now read the same change file whichever backend
+holds it.
+<!-- source: internal/component/config/storage/blob.go -- resolveDirKey, blobStorage.List -->
+<!-- source: internal/component/cli/editor.go -- listChangeFiles, readChangeFileContent -->
+<!-- source: internal/component/config/change_file.go -- StructuralOp and its seven types -->
+
+### Secrets are masked on every display path
+
+One predicate answers whether a leaf holds a secret, and every display path reads
+it. A leaf the schema marks `ze:sensitive` or `ze:bcrypt` is masked in the tree
+view, the annotated view, the search results, the blame view, `ze config show`,
+`ze config dump`, and `ze config diff`. `ze config diff` masks the COMPUTED diff,
+so a rotated credential still reports as changed and neither value is shown. The
+text output and the JSON output agree.
+<!-- source: internal/component/config/mask.go -- LeafHoldsSecret, MaskSecrets, SecretKeys -->
+<!-- source: internal/component/config/cli/cmd_diff.go -- maskDiffSecrets -->
+
+### Commands run one at a time, in order
+
+The config commands of one session run serially, in the order the operator
+entered them. Pasting a block of `set` lines followed by `commit` over SSH lands
+every `set` before the `commit` reads the draft. Nothing is dropped and no
+command is refused for arriving while another is in flight.
+<!-- source: internal/component/cli/model_commands.go -- dispatchQueue -->
+
 ## Other Config Subcommands
 
 | Command | Description |

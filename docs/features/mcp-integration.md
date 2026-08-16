@@ -18,10 +18,19 @@ The MCP server exposes typed tools with structured parameters, so AI assistants 
 | `ze_show_bgp` | BGP peer state, ASN, uptime, and summary views (auto-generated from `show bgp ...`) |
 | `ze_request_peer` | Peer lifecycle: teardown, pause, resume, flush (auto-generated from `request peer ...`) |
 
-Additional tools are auto-generated from the command registry at runtime.
-Every registered YANG command and plugin command appears as a typed MCP tool
-with an `action` enum and optional `arguments` and `peer` parameters. New
-commands are exposed automatically without code changes.
+`ze_execute` and `ze_reference` are the two handcrafted tools. Every other tool
+is auto-generated from the command registry at runtime: a command prefix becomes
+a tool name (`show bgp rib` becomes `ze_show_bgp_rib`), with an `action` enum and
+optional `arguments` and `peer` parameters. New commands are exposed
+automatically without code changes.
+
+A plugin command registered with `Hidden` true reaches no tool list. The flag
+already removed the command from completion and from help, and `buildCommandMeta`
+is the one source both the MCP tool list and the API command list read, so the
+skip covers both surfaces.
+
+<!-- source: internal/component/mcp/tools.go -- toolName, generateTools -->
+<!-- source: cmd/ze/hub/command_meta.go -- buildCommandMeta: the Hidden skip -->
 
 The `ze_execute` tool is the key to full control: anything you can do in `ze cli` (interactive or `ze cli -c` for one-shot commands), an AI can do via MCP. This includes:
 
@@ -147,6 +156,23 @@ bundles Ze serves. A host without MCP Apps support gets the same tool list, the
 same tools and the same behavior, minus the panel metadata. Ze rejects nothing.
 
 <!-- source: internal/component/mcp/apps.go -- clientSupportsUIApps, gateUIMeta -->
+
+### Resources
+
+`resources/list` and `resources/read` serve every conformant caller, with no <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
+client-capability gate. `resources` is a member of `ServerCapabilities`, not of
+`ClientCapabilities`, whose complete member set in this revision is
+`experimental`, `roots`, `sampling`, `elicitation` and `extensions`. A conformant
+client therefore never declares `resources`, and a gate on it refused every
+conformant caller while `server/discover` advertised the capability and
+`tools/list` published `_meta.ui.resourceUri` pointing at those same assets. <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
+
+A `ui://` URI is validated before any read: the scheme must match, the cleaned
+path must equal the given path, and the depth is capped at 8 segments. A URI that
+fails validation gets `invalid uri`, and one that resolves to nothing gets
+`resource not found`.
+
+<!-- source: internal/component/mcp/resources.go -- resourcesList, resourcesRead, validateResourceURI -->
 
 ## Testing
 

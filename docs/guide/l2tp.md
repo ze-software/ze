@@ -92,6 +92,21 @@ xl2tpd in `test/l2tp-interop/scenarios/03-ze-lac-xl2tpd-lns`.
 <!-- source: internal/component/l2tp/yang/ze-l2tp-conf.yang -- remote/relay lists -->
 <!-- source: internal/component/l2tp/cmd/outgoing_call.go -- handleOutgoingCall -->
 
+## Rejecting a malformed SCCRQ
+
+RFC 2661 Section 4.4.3 makes the Assigned Tunnel ID "a 2 octet non-zero
+unsigned integer". An SCCRQ that carries zero is a protocol error, and ze
+answers it with a StopCCN that carries Result Code 2 (general error, see the
+Error Code) and Error Code 3 (a field value out of range). The reply goes out
+with Tunnel ID 0, because the peer supplied no tunnel id ze can address it by,
+and no tunnel entry is created for it.
+
+The reply is rate-bounded: one StopCCN per source-address slot per second, over
+a fixed 256-slot table. A spoofed SCCRQ flood therefore allocates nothing and
+draws at most 256 replies per second from the whole reactor. Every other
+malformed TunnelID=0 datagram keeps its silent drop.
+<!-- source: internal/component/l2tp/reactor.go -- answerZeroTunnelIDSCCRQ, sendUnassociatedStopCCN -->
+
 ## CLI commands
 
 ### Read commands
@@ -136,7 +151,12 @@ built-in read-only authz profile.
 
 `ze l2tp show ...` and the `ze l2tp tunnel|session {id <id>|all}` commands
 forward to the running daemon via SSH. Output is the same JSON the daemon
-handler returns. (Inside the daemon CLI these dispatch as
+handler returns. Each accepts `--user <name>` (short alias `-u`) to name the
+SSH login user; without it the login resolves to the zefs super-admin. The flag
+must come before the subcommand arguments (`ze l2tp show --user alice tunnels`),
+and one left in the positional tail is rejected rather than forwarded, so a
+misplaced `--user` never silently answers for the default user. Shell completion
+offers the flag on all three verbs. (Inside the daemon CLI these dispatch as
 `clear l2tp tunnel|session {id <id>|all} ...`; `clear` already means tear
 down, so no `teardown` token is needed.)
 `ze l2tp decode` is an offline wire-decode tool that does not require a
@@ -205,7 +225,11 @@ the no-auth accounting path. Set `allow-no-auth true` only for lab peers
 or explicit no-auth deployments; `auth-method none` is rejected unless
 that opt-in is present.
 
-Two auth handlers ship with ze:
+Two auth handlers ship with ze. The slot holds one handler, and configuration
+decides its owner: `l2tp-auth-radius` claims it when a RADIUS server is
+configured, and `l2tp-auth-local` keeps it otherwise. Both transports read that
+one slot, so the same rule governs a PPPoE subscriber.
+<!-- source: internal/component/l2tp/plugins/authradius/register.go -- activateRadiusConfig claims the slot -->
 
 ### l2tp-auth-local
 
@@ -237,6 +261,24 @@ RADIUS client plugin providing:
   reporting the subscriber address as Framed-IP-Address
 - **CoA/DM** -- Change of Authorization and Disconnect-Message listener
   (RFC 5176) for RADIUS-initiated session changes and disconnects
+
+Every Accounting-Request carries User-Name, Acct-Status-Type, Acct-Session-Id,
+Service-Type (Framed), Framed-Protocol (PPP), NAS-Port-Type (Virtual) and
+NAS-Port. NAS-IP-Address, NAS-Identifier and NAS-Port-Id are added when they are
+configured. Stop and Interim-Update add Acct-Session-Time, the input and output
+octet and packet counters, and the RFC 2869 gigaword counters when a counter
+passes 2^32.
+
+Framed-IP-Address carries the address the session was actually given, which RFC
+2866 Section 4.1 requires of the attribute. The value is the IPCP-negotiated
+peer address the reactor put on `pppN`. RFC 2865 Section 5.8 makes the attribute
+four octets, so a session with no address yet, or one whose only assignment is
+IPv6, sends no attribute rather than a wrong one.
+<!-- source: internal/component/l2tp/plugins/authradius/acct.go -- buildAcctPacket -->
+
+Three attributes an operator may look for are deliberately absent, because no
+runtime value exists for them: Framed-Interface-Id, Framed-IPv6-Prefix and
+Delegated-IPv6-Prefix.
 
 Configured under the `l2tp` config tree:
 
@@ -602,6 +644,10 @@ Remaining `ze.l2tp.*` env vars (not promoted to YANG config):
 - `ze.l2tp.metrics.poll-interval` (default: 30s) -- kernel stats polling interval
 - `ze.l2tp.cqm.echo-interval` -- echo probe interval for CQM RTT measurement
 - `ze.l2tp.skip-kernel-probe` (default: false) -- skip modprobe at Start (test-only)
+- `ze.l2tp.disable-kernel-dataplane` (default: false) -- build no kernel worker,
+  so a session establishes on the control plane and nothing is programmed into
+  the kernel (test-only). It is separate from `skip-kernel-probe`, which
+  bypasses only the modprobe and still needs the data plane.
 
 PPP authentication and NCP settings are now YANG config leaves under
 `l2tp { authentication { ... } }` and `l2tp { ncp { ... } }`.

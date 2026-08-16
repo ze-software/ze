@@ -16,6 +16,36 @@ IPv4 and IPv6) by default, and [RFC 3768](https://www.rfc-editor.org/rfc/rfc3768
 > proven in production. See
 > [RFC status](../features/rfc-status.md#first-hop-redundancy).
 
+The Docker interop lab runs the `vrrp-mastership-keepalived` scenario
+(`make ze-interop-test`). Ze at priority 200 and keepalived 2.3.1 at 100 contend
+for one virtual IP on a shared segment, VRID 10, VRRPv3 pinned on both sides
+(keepalived speaks v2 by default, and RFC 9568 Section 7.1 has a v3 router discard
+a v2 advertisement, so the two would never see each other). Every assertion reads
+which container owns the address with `ip -o -f inet addr` inside that container,
+never from ze's own output.
+
+| Phase | What it asserts |
+|-------|-----------------|
+| 1 | Ze holds the virtual IP alone, continuously, for longer than keepalived's Active_Down_Interval. Held over a window and not read at an instant: a build whose `SendAdvert` returned without sending passed the instantaneous form. |
+| 2 | Ze gets SIGTERM and keepalived takes the address over inside its own Active_Down_Interval (3 x 1s + Skew_Time = 3.61s at priority 100). Only ze's RFC 9568 Section 6.4.3 shutdown Priority 0 advertisement collapses that wait, so the bound is an assertion about ze rather than about a timeout. |
+| 3 | Ze returns, preempts, and keepalived releases. The election runs again rather than latching. |
+
+Split brain is its own assertion: two owners is what a scenario watching only its
+own side would call a pass.
+
+<!-- source: test/interop/scenarios/vrrp-mastership-keepalived/check.py -- the three mastership phases -->
+<!-- source: test/interop/interop.py -- keepalived.conf starts a keepalived on the run's .8 address -->
+
+The IPv6 unsolicited Neighbor Advertisement burst on promotion is resolved on the
+caller's goroutine, because netlink sockets are created in the calling thread's
+network namespace and a lazy resolution on the announcer worker saw the wrong one.
+A compile-time check pins that path: a type assertion cannot report a break, so the
+break is a build error instead.
+
+<!-- source: internal/plugins/vrrp/transport/transport.go -- AnnounceMaster, v6SourceWarmer -->
+<!-- source: internal/plugins/vrrp/transport/backend_linux.go -- warmV6Source, var _ v6SourceWarmer -->
+
+
 ## Configuration
 
 A VRRP group lives under the interface unit's address family, next to the

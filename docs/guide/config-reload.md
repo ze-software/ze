@@ -21,6 +21,9 @@ kill -HUP $(pidof ze)               # Direct signal
 | Static routes changed | New routes announced, old withdrawn |
 | Capability changes | Session restarted to renegotiate |
 | A user given a new `plaintext-password` | Ze hashes the leaf during the load, and the user logs in with the new password |
+| A user removed | The user stops authenticating at once on the web password, the web session cookie, the SSH password, the SSH public key, and `Bearer <user>:<pass>` over REST and gRPC |
+| An API token added, rotated, or removed | The running REST and gRPC servers rebuild their credentials without rebinding |
+| A web `certificate` reference changed | The listener serves the new chain on the next handshake with no rebind |
 
 The reload runs the same loader as daemon start, so it applies the password transform
 with no branch of its own. Every load that hashes a leaf warns that the file still
@@ -35,6 +38,15 @@ holds the plaintext. Refer to
 | BGP globals (`router-id`, `local { as }`) | Affects all peers, requires full restart |
 | Hub listen address/port | Listener cannot be changed at runtime |
 | SSH server settings | Server cannot be reconfigured live |
+| The web or MCP authentication MODE | Both choose it once, when they are built. A reload that asks for a different mode fails the whole commit before anything is applied |
+
+A user removal governs NEW connections. An open SSH session and an open SSE
+stream both survive it by design, because an operator may be editing their own
+user. A session a remote backend granted (RADIUS, TACACS+) is not revoked by the
+local user list, which never authenticated it.
+<!-- source: cmd/ze/hub/main_servers.go -- liveLocalUsers -->
+<!-- source: internal/component/web/auth.go -- SessionStore.ValidateToken, WebSession.LocalAnchored -->
+<!-- source: internal/component/ssh/pubkey.go -- authenticatePublicKey -->
 
 ## Error Handling
 
@@ -72,6 +84,18 @@ waits up to 3 seconds for the reload to report `sighup reload complete` or
 `reload error: ...`, so the answer to a SIGHUP is never lost with the process. A
 reload still running after those 3 seconds is left behind, and the daemon prints
 `shutdown: config reload still running after 3s, stopping without its result`.
+
+Shutdown also stands the config TRANSACTION down before it closes any plugin
+connection. A closed connection is indistinguishable from a crashed plugin, so
+closing first made the orchestrator elect a rollback and restart plugins the same
+shutdown was about to kill, printing a burst of WARN lines saying plugins had
+crashed when none had. The cancellation names shutdown as its cause, and a
+transaction cancelled for that cause emits no abort and no rollback: there is no
+running system left to restore. The wait is bounded at 3 seconds. Every other
+cancellation still rolls back, including a reload that exceeds its own 30-second
+deadline.
+<!-- source: internal/component/config/transaction/orchestrator.go -- ErrShutdown cause handling -->
+<!-- source: internal/component/plugin/server/reload.go -- stopTransaction before cleanup -->
 <!-- source: cmd/ze/hub/main_reload.go -- awaitReloadWorker, reloadShutdownGrace -->
 <!-- source: internal/component/bgp/reactor/signal.go -- SignalHandler, SIGUSR1 status dump -->
 

@@ -78,8 +78,55 @@ curl -k -u admin:password https://localhost:8443/show/bgp/?format=json
 
 ### Security Headers
 
-All authenticated responses include security headers: HSTS (`max-age=63072000`), Content-Security-Policy (`default-src 'self'`), X-Frame-Options `DENY`, X-Content-Type-Options `nosniff`, and `Cache-Control: no-store`.
-<!-- source: internal/component/web/auth.go -- addSecurityHeaders -->
+Every response carries `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'`, and HSTS (`max-age=63072000; includeSubDomains`). An authenticated response adds `Cache-Control: no-store` and `X-Ze-Version`.
+<!-- source: internal/component/web/auth.go -- setSecurityHeaders, addSecurityHeaders -->
+
+`script-src 'self'` refuses an inline script and refuses `Function()`. No page therefore carries an inline event handler, and no htmx attribute uses a bracketed trigger filter, because htmx compiles such a filter into source and calls `Function()` on it. A test refuses both in any `.templ` source.
+<!-- source: internal/component/web/markup_contract_test.go -- TestNoTriggerFilterNeedsEval, TestSelfReplacingControlsCarryAStableID -->
+
+### Secret Masking
+
+No render path prints a value the schema marks `ze:sensitive` or `ze:bcrypt`. One
+predicate, `config.LeafHoldsSecret`, answers whether a leaf holds a secret. The
+display mask and the write guard both read it, so the two halves cannot drift
+apart.
+
+| Surface | Behavior |
+|---------|----------|
+| The config tree, the diff, the compare view and the download | A secret leaf that holds a value reads as the placeholder. An unset secret stays empty, so the field still reads as unconfigured |
+| The commit diff | A rotated secret is named as a changed path. Neither the old value nor the new one is printed |
+| The web CLI bar and the terminal | `show` masks the same leaves. The verb needs no config authorization, so any authenticated session used to reach them |
+| Commit, load and upload | A tree carrying the placeholder in a secret leaf is refused. Restore the real value from the edit-authorized raw download, or set it through `plaintext-<name>` or `ze passwd` |
+
+<!-- source: internal/component/config/mask.go -- LeafHoldsSecret, MaskSecrets, ChangedSecretPaths, RejectMaskedSecretLeaves -->
+
+## Rendering
+
+Every page, panel, fragment and out-of-band swap is written in a `.templ` source
+and compiled to Go by [templ](https://templ.guide). No Go file in the package
+builds markup: the exemption table is empty and a test holds it at zero. A
+renamed view-model field is therefore a compile error, where `html/template`
+rendered a blank panel and answered 200.
+
+| Command | What it does |
+|---------|--------------|
+| `make generate` | Regenerates every `*_templ.go` from its `.templ` source. Run it after any `.templ` edit |
+| `make ze-templ-generate-check` | Refuses a `*_templ.go` that its source no longer produces. Writes nothing and deletes nothing |
+| `make ze-templ-orphan-check` | Reports a `*_templ.go` whose `.templ` source is gone, and a `.templ` outside the walk |
+
+The generator runs from `vendor/`, so `make generate` needs no network and
+nothing on `PATH`. Run `make generate`, not a bare `templ generate`: the walk
+root is written into the generated Go, so a bare run rewrites every file and
+reds the check.
+
+The browser assets are vendored in `third_party/web/` and copied to each
+consumer by the same `make generate` run. htmx 4.0.0-beta6 and its
+`hx-sse.min.js` extension serve the web interface, the looking glass and the
+chaos dashboard. `scripts/codegen/web_assets.go` derives each page's asset set
+from its component graph, so a page loads only what it reaches.
+
+<!-- source: internal/component/web/markup_check_test.go -- webMarkupExempt, TestNoGoFileBuildsMarkup -->
+<!-- source: third_party/web/MANIFEST.md -- vendored versions, consumers, sync targets -->
 
 ## Navigation
 
@@ -202,8 +249,12 @@ A refused action raises a toast carrying the status and the message the daemon w
 
 ### Input Auto-Save
 
-Text and number fields auto-save 1 second after the user stops typing, in addition to saving on blur and Enter. This prevents data loss when navigating away before a field loses focus.
-<!-- source: internal/component/web/input_text.templ -- hx-trigger with input changed delay:1s -->
+Text and number fields auto-save 1 second after the user stops typing, in addition to saving on blur and Enter. This prevents data loss when navigating away before a field loses focus. Enter commits inside the debounce, so three keystrokes and an Enter send one POST, not four.
+
+Enter arrives as `ze-enter`, a named event a delegated listener in `assets/cli.js` dispatches. The listener reads the element's own `hx-trigger`, lives in a file rather than in an attribute, and survives every swap. An inline editor replaces itself, so each input also carries a stable id derived from its leaf path: without one, htmx restored focus by looking up the empty string and the caret was lost on every save.
+<!-- source: internal/component/web/input_text.templ -- hx-trigger="blur changed, ze-enter, input changed delay:1s" -->
+<!-- source: internal/component/web/assets/cli.js -- initEnterSubmit -->
+<!-- source: internal/component/web/view.go -- fieldInputID, fieldInputIDEscaper -->
 
 ### Conflict Detection
 

@@ -1,5 +1,60 @@
 # CLI Commands
 
+### Every command starts with its verb
+
+`show`, `clear`, `monitor`, `request`, `set`, and `delete` are the six verbs. The
+words after the verb are the YANG path. A bare form with no verb is not in the
+command tree, and the dispatcher answers `unknown command` for it. `daemon
+reload` is now `request reload`, `daemon status` is `show status`, `daemon quit`
+is `request halt`, `daemon shutdown` is `request shutdown`, and `bgp summary` is
+`show bgp summary`.
+
+`stop`, `restart`, and `reboot` are the exception, and they keep their bare
+spelling. The SSH exec middleware intercepts those three lifecycle verbs before
+the dispatcher, which registers no key for them.
+<!-- source: internal/plugins/signal/main.go -- Commands table ExecCommand column -->
+<!-- source: internal/component/ssh/ssh.go -- execMiddleware lifecycle interception -->
+
+Every subcommand of `ze show`, `ze clear`, `ze monitor`, `ze request`, `ze set`,
+and `ze delete` resolves against the daemon's own registrations. The verb-relative
+tree is built from the same registration set the dispatcher is keyed on, so the
+client and the daemon cannot disagree about which words are a command.
+<!-- source: internal/component/cli/client/verb_tree.go -- BuildVerbCommandTree, AbsoluteVerbPath -->
+
+A local in-process handler is refused for any argv that reaches a declared
+command below it. `show interface` is registered at two words and takes an
+interface name, so `brief`, `scan`, `type`, `errors`, `rate`, and the two
+`name <name> ...` forms all go to the daemon rather than being read as interface
+names.
+<!-- source: internal/component/command/registry/registry.go -- LookupLocal prefix refusal -->
+
+### Peer selectors on a destructive command
+
+One resolver answers the peer selector for every peer-scoped command. It accepts
+a name, an address, an ASN (`as65001`), or a prefix, so a selector that works on
+one verb works on all of them.
+
+A command that acts on ONE peer refuses a wildcard (`*` or empty), refuses an
+exclusion selector (`!edge1`, `!as65001`, `!10.0.0.0/24`), and refuses a selector
+that matches more than one peer. It never guesses which peer was meant. An
+unresolvable selector is an error with the selector quoted, rather than a no-op
+reported as success. A `show` command that narrows a list still accepts an
+exclusion, because a complement is a good answer when the command filters rather
+than acts.
+<!-- source: internal/component/plugin/server/command.go -- ResolveSinglePeer, errExcludePeerSelector -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- handleTeardown, handleBgpPeerFlush -->
+
+### Positional arguments
+
+Every declared argument kind takes part in positional matching, typed kinds
+included, and mandatory definitions are offered a token before optional ones. A
+`uint16` port no longer skips its token and then fails with `required argument
+missing`, and an optional string can no longer starve a required argument of its
+value. One spare token becomes the peer selector when the command declares that
+it requires one, no selector arrived out of band, and exactly one token is spare,
+which is what makes `delete bgp peer 127.0.0.1` work.
+<!-- source: internal/component/plugin/server/command.go -- positionalDef, matchCommandTokens -->
+
 ### Protocol Tools
 
 | Command | Description |
@@ -58,7 +113,11 @@
 | `ze signal quit` | Send SIGQUIT, dump goroutines, and halt |
 | `ze status` | Check if daemon is running |
 
-<!-- source: internal/plugins/signal/main.go -- Commands registry -->
+Each `ze signal` subcommand sends one SSH exec command to the daemon. `reload`
+sends `request reload`, `status` sends `show status`, and `quit` sends `request
+halt`. `stop`, `restart`, and `reboot` keep their bare spelling because the SSH
+exec middleware intercepts them before the dispatcher.
+<!-- source: internal/plugins/signal/main.go -- Commands registry, ExecCommand column -->
 
 ### Runtime Interaction
 
@@ -82,8 +141,9 @@ ze cli -c "monitor traceroute 8.8.8.8 | log | resolve"
 <!-- source: internal/component/cli/model_ping_test.go -- parsePingMonitorArgs -->
 <!-- source: internal/component/cli/model_traceroute_test.go -- parseTracerouteMonitorArgs -->
 
-**Live peer dashboard:** `monitor bgp` in the interactive CLI opens a live dashboard showing router identity, a sortable colour-coded peer table with update rates, and a drill-down detail view. It refreshes every 2 seconds. Use j/k to move, s/S to sort, Enter for detail, and Esc to exit.
+**Live peer dashboard:** `monitor bgp` in the interactive CLI opens a live dashboard showing router identity, a sortable colour-coded peer table with update rates, and a drill-down detail view. It refreshes every 2 seconds. Use j/k to move, s/S to sort, Enter for detail, and Esc to exit. The state column renders green for `established`, yellow for the transitional states, and red for `stopped`, `idle`, and `idle-hold`. `idle-hold` is the state a prefix limit leaves a peer in when the family that overflowed asked for no reconnect, so it needs an operator and is coloured like the other down states.
 <!-- source: internal/component/cli/model_dashboard.go -- isDashboardCommand -->
+<!-- source: internal/component/cli/model_dashboard_render.go -- stateStyled -->
 
 <!-- terminal-demo: cli-dashboard -->
 

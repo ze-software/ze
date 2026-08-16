@@ -149,9 +149,24 @@ connects (or reconnects after a drop) is told everything again, in this order:
 1. Initiation
 2. Peer Up for every BGP peer that is currently established
 3. With `loc-rib true`: the Loc-RIB Peer Up, a full fresh table dump, and an
-   End-of-RIB marker closing each family the dump carried (RFC 4724 Section 2
-   form). A Loc-RIB with no best paths at all still gets its markers, so a
-   collector can tell an empty table from a dump still in flight.
+   End-of-RIB marker for every family the dump OWES (RFC 4724 Section 2 form),
+   which is IPv4 unicast and IPv6 unicast. A family the dump carried no route for
+   gets its marker too, so a table with IPv6 populated and IPv4 empty closes
+   both. RFC 4724 Section 4 requires the marker "including the case when there is
+   no update to send" for an address family, and RFC 7854 Section 5 imports that
+   definition for the BMP dump. A Loc-RIB with no best paths at all therefore
+   still gets both markers, so a collector can tell an empty table from a dump
+   still in flight.
+
+Each dump carries a correlation token, and the RIB echoes it back on every batch
+that dump produces. Ze closes a family only for a batch whose token matches, so
+two collectors that connect together each get a complete dump of their own, and
+neither is told that a dump it never requested has finished. A replay that
+another subsystem asks for (sysrib emits one on the same handle) still reaches
+every collector as Route Monitoring, because those routes are real, but it closes
+no family.
+
+<!-- source: internal/component/bgp/plugins/bmp/bmp_locrib.go -- emitReplayRequest, handleBestChange, dumpFamilies -->
 
 Reconnection is not immediate: after a connection ends, ze waits out its
 reconnect interval before redialing, so a flapping collector cannot drive a

@@ -2,7 +2,7 @@
 
 Use this when you want a read-only HTTP looking glass for BGP peers, route lookup, prefix search, and AS-path graphs.
 
-The service is public and has no authentication by design. Put it on an address where that is acceptable, or publish it through a reverse proxy that provides the access control you need.
+The service is read-only, and open by default because a looking glass is a public surface. Put it on an address where that is acceptable, or publish it through a reverse proxy that provides the access control you need. To gate it yourself, set `environment looking-glass token <secret>`: every `/api/` and `/lg/` route then needs `Authorization: Bearer <secret>`, and a request without it gets `401`.
 
 <!-- source: internal/component/lg/yang/ze-lg-conf.yang -- environment looking-glass config -->
 <!-- source: internal/component/lg/server.go -- looking glass HTTP routes -->

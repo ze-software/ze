@@ -9,7 +9,7 @@ A feature comparison of open-source BGP daemon implementations.
 > project's own documentation before making decisions. Corrections and updates are welcome
 > via the [issue tracker](https://github.com/ze-software/ze/issues).
 
-Last updated: 2026-08-14
+Last updated: 2026-08-16
 
 ## Overview
 
@@ -158,6 +158,25 @@ roles enforcement. Filters compose in ordered chains:
 <!-- source: internal/component/bgp/plugins/filter_community_match/ -- bgp-filter-community-match cmd-6 -->
 <!-- source: internal/component/bgp/plugins/filter_modify/ -- bgp-filter-modify cmd-7 -->
 
+Some community policy is config rather than a filter in a chain. The ingress
+community filter carries `scrub-own-ga` for the RFC 7454 Section 11
+own-Global-Administrator scrub, with a `scrub-keep-function` carve-out for the
+function numbers customers signal on, `relation-tag` for the RFC 8195 relation
+tag, and `blackhole-propagation` to bound how far a received BLACKHOLE route
+travels. A `modify` policy carries its own `match` container over standard, large
+and extended communities, so one policy changes only the routes that carry a
+stated value and passes the rest through unchanged. Its `set { med-remove }` leaf
+is the mechanism RFC 4271 Section 5.1.4 requires, and it works on import chains
+only.
+
+Blackhole honoring (RFC 7999) is per session and off by default. One
+`blackhole { communities; prefixes; }` container states both Section 3.3
+conditions, and the same list gates the send side, so `announce blackhole`
+reaches only the sessions that agreed. See
+[`docs/config-reference.md`](config-reference.md#blackhole-rfc-7999).
+<!-- source: internal/component/bgp/plugins/filter_community/yang/ze-filter-community.yang -- grouping community-filter-fields -->
+<!-- source: internal/component/bgp/plugins/rib/yang/ze-rib.yang -- grouping blackhole-honor-fields -->
+
 | Feature | Ze | BIRD 3 | BIRD 2 | FRR | OpenBGPd | GoBGP | bio-rd | ExaBGP | RustyBGP | rustbgpd | freeRtr |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Prefix matching (ge/le) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | No | Partial | Yes | Yes |
@@ -192,6 +211,31 @@ roles enforcement. Filters compose in ordered chains:
 | Privilege separation | No | No | No | No | Yes | No | No | No | No | No | No |
 | TACACS+ AAA (RFC 8907) | Yes | No | No | Yes | No | No | No | No | No | No | Yes |
 | Memory-safe language | Yes | No | No | No | No | Yes | Yes | Yes | Yes | Yes | Yes |
+| Boot-time management-plane exposure guard | Yes | Unclear | Unclear | Unclear | Unclear | Unclear | Unclear | Unclear | Unclear | Unclear | Unclear |
+
+**Boot-time management-plane exposure guard:** Ze refuses to start when a
+management service would bind a non-loopback address with no authentication. The
+check covers the web server in insecure mode, MCP, gNMI, and the API server that
+serves REST and gRPC. It runs once, after every address and credential is
+resolved and before anything binds, so a refusal leaves nothing bound and the
+process exits 1. A wildcard address, an empty address, a DNS name, and
+`localhost` all count as non-loopback, and a surface that declares itself
+unauthenticated with no resolved address is refused rather than passed. A reload
+re-runs the same check against the rebuilt authentication and rejects an unsafe
+migration.
+
+The web listener also serves a certificate named in the PKI store rather than a
+self-signed one. It sends the leaf certificate and every stored intermediate, it
+stops the server when the name does not resolve, and it rotates the material on
+reload through a per-handshake lookup with no rebind.
+
+The other ten daemons are marked `Unclear` because this claim was not checked
+against their source. Several of them expose no comparable management plane, so
+`Unclear` here says the comparison was not made, not that the guard is missing
+from something that needs one.
+<!-- source: cmd/ze/hub/mgmt_guard.go -- checkMgmtListeners, listenAddrIsNonLoopback -->
+<!-- source: cmd/ze/hub/main.go -- mgmtListeners declaration sites, exit on refusal -->
+<!-- source: internal/component/web/yang/ze-web-conf.yang -- leaf certificate -->
 
 ## Monitoring & Observability
 
@@ -268,6 +312,13 @@ without maintaining a second protocol stack to do it.
 `2026-07-28` as implemented in the inspected checkout. `No` in the other columns
 means no MCP server was found in the inspected scope of that project, not a
 claim that none exists anywhere.
+
+**The tool surface is two handcrafted tools plus one per command.** `ze_execute`
+dispatches a raw command, and `ze_reference` returns the machine-readable AI
+reference. Beside those, Ze generates one typed tool for every command in the
+registry, named from the command path (`show bgp rib` becomes `ze_show_bgp_rib`).
+A plugin that registers a command therefore adds its own tool with no MCP code.
+<!-- source: internal/component/mcp/tools.go -- handcraftedNames, toolName, generateTools -->
 
 **Ze's elicitation changed shape, and the row names the shape.** Ze shipped
 server-initiated `elicitation/create` under revision `2025-06-18`. Revision

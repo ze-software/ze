@@ -51,6 +51,8 @@ bgp {
 
 Long-Lived Graceful Restart extends the stale period and deprioritises stale routes. It is active only when both peers negotiate it. Routes carrying `NO_LLGR` are removed rather than retained.
 
+Load `bgp-gr` with `internal <name> { use bgp-gr }`, as the example above does. `run "ze plugin bgp-gr"` starts the plugin engine in a child process, and RFC 9494's egress filter in the daemon then reads no peer capability state. The filter fails closed for every peer. It withdraws stale routes from external peers, and it attaches `NO_EXPORT` with `LOCAL_PREF` 0 to the routes it sends to internal peers. `ze doctor` reports the arrangement as `doctor-bgp-gr-out-of-process`.
+
 See [Graceful Restart](graceful-restart.md) for timers, stale levels, communities, and failure handling.
 
 ## Restarting Ze

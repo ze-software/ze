@@ -339,7 +339,18 @@ As a helper (RFC 3623 §3), on receiving a Grace-LSA that passes every §3.1 che
 <!-- source: internal/plugins/ospf/gr.go -- grManager, registerGraceConsumer, grFamilyLabel -->
 <!-- source: internal/plugins/ospf/gr_restarter.go -- prepareRestart, enterRestart, exitRestart, resumeFromNVS -->
 <!-- source: internal/plugins/ospf/gr_helper.go -- onGraceReceived, helperEntryAllowed, helperExit, helperShouldExitOnChange -->
-<!-- source: internal/plugins/ospf/gr_nvs.go -- restartFact, writeRestartFact, readRestartFact -->
+**The non-volatile store needs a pinned config directory.** OSPF runs as its own
+process and opens the ZeFS store itself, so it writes the restart fact only when
+the operator pinned a directory with `ze.config.dir`. Unpinned, the path would be
+binary-relative and shared by every `ze` invocation on the host, and ZeFS locks
+in process, not across processes. So OSPF opens nothing: the restart fact is not
+persisted, and the RFC 7474 boot count falls back to a hashed clock seed instead
+of a stored counter. `doctor-ospf-graceful-restart-nvs` warns when the restarter
+is enabled in this state. Set `ze.config.dir` on any deployment that wants
+Graceful Restart to survive a restart. The appliance image already sets it to
+`/perm/ze`.
+<!-- source: internal/plugins/ospf/auth_keystore.go -- pinnedStateDir, openBootCountStore -->
+<!-- source: internal/plugins/ospf/gr_nvs.go -- restartFact, writeRestartFact, readRestartFact, openGRStore -->
 <!-- source: internal/plugins/ospf/gr_preserve.go -- capturePrefixLSIDs, restoreInterfaceIDs, v6OriginateGraceLSA -->
 <!-- source: internal/plugins/ospf/packet/grace_lsa.go -- GraceLSA, EncodeGraceLSA, DecodeGraceLSA -->
 <!-- source: internal/plugins/ospf/v3/packet/lsa_grace.go -- GraceLSA, decodeGraceLSA -->

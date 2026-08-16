@@ -14,6 +14,9 @@ the nft backend lowers them to nftables kernel expressions.
 | Backend | Platform | Default | Mechanism |
 |---------|----------|---------|-----------|
 | `nft` | Linux | yes | google/nftables netlink library |
+| `vpp` | Linux with VPP | no | GoVPP ACL classify pipeline and NAT44-ED |
+<!-- source: internal/plugins/firewall/nft/register.go -- RegisterBackend("nft") -->
+<!-- source: internal/plugins/firewall/vpp/register.go -- RegisterBackend("vpp") -->
 
 ```
 firewall {
@@ -48,6 +51,58 @@ governs every ze table producer that shares the backend -- the firewall
 component, `control-plane-protection`, `policy-routes`, and `ddos-local` -- and
 the firewall component performs the teardown as a single ordered actor so
 plugin table removal never races the backend close.
+
+### The reconcile deadline
+
+Ze serializes the whole firewall reconcile: a snapshot of every owner's tables
+followed by one `Backend.Apply`, under one process-wide lock. The owners are the
+firewall component, `control-plane-protection`, `policy-routes`, and `ddos-local`.
+A dataplane call that never returns therefore does not stall one owner, it stalls
+all of them.
+
+Each backend bounds one dataplane round-trip. Neither bound can be turned off. A
+value below the floor or above the ceiling clamps, and an unparseable value falls
+back to the default, because an unbounded call is the failure this guard exists to
+prevent. The ceiling is one shared constant, `firewall.MaxBackendDeadline`, which
+the latency histogram's last finite bucket is also derived from.
+
+| Backend | Bounds | Environment variable | Default | Range |
+|---------|--------|----------------------|---------|-------|
+| `nft` | One nftables netlink round-trip | `ze.firewall.nft.netlink-timeout` | 10s | 1s to 60s |
+| `vpp` | One VPP binary-API round-trip | `ze.firewall.vpp.reply-timeout` | 10s | 1s to 60s |
+
+The VPP backend previously ran with no bound at all. govpp's default reply timeout
+is 0, which govpp documents as disabling the timeout, and `Channel.ReceiveReply`
+has no context arm, so a wedged VPP held the process-wide reconcile lock
+indefinitely.
+
+<!-- source: internal/plugins/firewall/nft/deadline_linux.go -- netlinkTimeout, withNetlinkDeadline -->
+<!-- source: internal/plugins/firewall/vpp/timeout_linux.go -- vppReplyTimeout, newGovppOps -->
+<!-- source: internal/component/firewall/backend.go -- MaxBackendDeadline, ErrKernelTimeout -->
+
+When the deadline expires the apply fails, and ze logs an error saying the
+dataplane did not answer within the backend deadline and its ruleset is now behind
+the registry. That log sits outside the metrics path, so it is written whether or
+not telemetry is enabled.
+
+A dataplane that is ABSENT is a different condition and is deliberately not
+reported as a timeout: VPP not running, or a connect wait that ran out, means the
+reconcile failed for a reason with a different fix, and there is no ruleset to be
+behind.
+
+| Metric | Type | Labels | Meaning |
+|--------|------|--------|---------|
+| `ze_firewall_apply_duration_seconds` | histogram | `result` | Time spent in `Backend.Apply`. `result` is `ok`, `timeout`, `error`, or `panic`. |
+| `ze_firewall_apply_timeout_total` | counter | | Reconciles that failed because the dataplane did not answer within the backend deadline. |
+
+The `result` label is what separates a healthy-but-slow apply from one that gave
+up: a backend deadline of 10s and a 10s successful reconcile land in the same
+latency bucket, and only the label tells them apart. Both signals derive from one
+result value, so they cannot drift apart. A backend that panics is recorded as
+`panic` rather than lost or filed as healthy.
+
+<!-- source: internal/component/firewall/metrics.go -- observeApply, applyDurationBuckets -->
+<!-- source: internal/component/firewall/registry.go -- ApplyAll -->
 
 ## Tables and Chains
 

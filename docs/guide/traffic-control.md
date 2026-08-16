@@ -60,38 +60,46 @@ learn about incompatibilities before the config lands rather than after Apply.
 
 | qdisc type | vpp | Notes |
 |-----------|-----|-------|
-| `htb` with exactly 1 class | accepted | One policer: CIR = Rate kbps, EIR = Ceil kbps (2R3C RFC 2698), bound to interface egress via `PolicerOutput` |
+| `htb` with exactly 1 class | accepted | One policer: CIR = Rate kbps, EIR = Ceil kbps (2R3C RFC 2698), bound to interface egress via `PolicerOutput`. The one class may be unfiltered: that is the interface-wide rate limit |
 | `tbf` with exactly 1 class | accepted | One policer: CIR = EIR = Rate kbps (1R2C), bound to interface egress via `PolicerOutput` |
-| `htb` / `tbf` with 0 or >1 classes | rejected | Multi-class shaping needs filter-based classification (deferred). Without filters, every class's policer would stack on VPP's output feature arc in series; effective rate becomes `min(class_rates)` rather than per-class shaping. |
+| `htb` / `tbf` with more than 1 class | accepted when EVERY class carries a `protocol` or `dscp` steering filter | Each class steers its own traffic to its own policer through the classify pipeline. Two classes may not carry the same filter type and value: their classify sessions would collide on one match key and VPP would keep the last, silently killing a class's policing |
+| `htb` / `tbf` with more than 1 class, any class unfiltered | rejected | Two unfiltered classes both bind to the egress output arc and stack IN SERIES: the effective rate becomes `min(class_rates)` rather than per-class shaping |
+| `htb` / `tbf` with 0 classes | rejected | No rate to program |
 | `prio` | rejected | The class-index to DSCP-value mapping needs an explicit design (deferred) |
 | `hfsc` | rejected | Service-curve semantics have no VPP equivalent |
 | `fq` / `sfq` / `fq_codel` | rejected | Fair-queue disciplines not available in VPP |
 | `netem` | rejected | Network emulation not available in VPP |
 | `clsact` / `ingress` | rejected | Ingress policing semantics differ in VPP (deferred) |
 
-**`protocol` filters are supported; `dscp` and `mark` are rejected.** A
-single class may carry `match protocol <n>`: the backend then builds per-family
-(IPv4 + IPv6) classify tables, adds a session per protocol steering to the
-class policer (`ClassifyAddDelSession.HitNextIndex` = policer index, matching
-the packet at absolute frame offset 23 for IPv4 protocol / 20 for IPv6
-next-header), and binds the tables to the interface's `policer-classify`
-feature so only matching traffic is policed. The initial fw-7 attempt matched
+**`protocol` and `dscp` filters are supported; `mark` is rejected.** A class may
+carry `match protocol <n>` or `match dscp <n>`: the backend then builds per-family
+(IPv4 + IPv6) classify tables, adds a session steering the match to the
+class policer (`ClassifyAddDelSession.HitNextIndex` = policer index), and binds
+the tables to the interface's `policer-classify` feature so only matching traffic
+is policed. Protocol matches the packet at absolute frame offset 23 for IPv4
+protocol and 20 for IPv6 next-header. DSCP matches the DiffServ Code Point at its
+own absolute offset: IPv4 TOS byte 15 with mask 0xFC, IPv6 traffic-class bytes 14
+and 15 with masks 0x0F and 0xC0. The initial fw-7 attempt matched
 the wrong offset and never attached the table (silent no-op); the current
-pipeline is golden-vector tested and validated against real VPP v25.10. DSCP
-and mark stay rejected per `rules/exact-or-reject.md` until their pipelines
-land.
+pipeline is golden-vector tested and validated against real VPP v25.10.
+
+A DSCP filter polices DSCP-matched traffic. It is not a QoS remark: the
+record/map/mark pipeline cannot police, so it is not the mechanism here.
 
 | filter type | vpp | Notes |
 |------------|-----|----------|
-| `protocol` | accepted | Per-family classify tables bound to `policer-classify`; only matching traffic is policed (ingress). Values 0-255. |
-| `dscp` | rejected | Needs ingress `QosRecordEnableDisable` + egress map + mark pipeline. |
-| `mark` | rejected | VPP's classifier matches packet-header bytes, not Linux SKB metadata. |
+| `protocol` | accepted | Per-family classify tables bound to `policer-classify`; only matching traffic is policed. Values 0-255. |
+| `dscp` | accepted | Same pipeline, matching the DiffServ Code Point. Values 0-63. |
+| `mark` | rejected | VPP's classifier matches packet-header bytes, not Linux SKB metadata. `SET_METADATA` stores an opaque value for a downstream graph node, not a persistent packet mark. |
+<!-- source: internal/plugins/traffic/vpp/verify.go -- verifyFilter, errFilterMarkNotSupportedByBackend -->
 
 Rate limiting without filters is still useful for single-rate use:
 one HTB or TBF class with rate/ceil values becomes one VPP policer
-on interface egress that enforces the operator's rate. Multi-class
-shaping (steering specific traffic to distinct rate buckets) is not yet
-supported under the vpp backend.
+on interface egress that enforces the operator's rate. Multi-class steering is
+supported when EVERY class on the interface carries a `protocol` or `dscp`
+filter: the classes then share chained classify tables and each gets its own
+policer. A multi-class config with one unfiltered class is rejected.
+<!-- source: internal/plugins/traffic/vpp/verify.go -- verifyInterface, the multi-class steering rule -->
 
 Policer name length: the backend composes a VPP policer name as
 `ze/<iface>/<class>` and VPP caps names at 64 bytes. If that compound

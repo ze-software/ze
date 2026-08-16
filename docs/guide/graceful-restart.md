@@ -153,6 +153,21 @@ Ze uses a graduated stale level system for route prioritization:
 | 1 | GR-stale | Normal selection (not deprioritized) |
 | 2+ | LLGR-stale | Loses to any route with level < 2 |
 
+### Readvertising a Stale Route
+
+RFC 9494 Section 4.3 governs a stale route that ze forwards on to a neighbor from which the LLGR Capability was not received. The stale level on the ROUTE decides, not the restart state, so a route staled by `request bgp rib mark-stale` takes the same treatment as one staled by a peer restart.
+
+| Destination | Action |
+|-------------|--------|
+| LLGR was received from it | Advertise unchanged |
+| Internal, LLGR not received | Advertise with NO_EXPORT and LOCAL_PREF 0 (Section 4.6) |
+| External, LLGR not received | Withdraw the route (Section 4.3) |
+
+The filter fails closed. When it cannot read the peer capability state, it answers "LLGR was not received" for every destination. It raises one warning per process and then withdraws or depreferences. An unread state used to accept, which put a long-lived stale route into a neighbor that never agreed to hold one.
+<!-- source: internal/component/bgp/plugins/gr/gr_egress.go -- LLGREgressFilter, egressState -->
+
+The one arrangement that leaves the state permanently unread is `run "ze plugin bgp-gr"`. See [Keep the bgp-gr engine in the daemon process](#keep-the-bgp-gr-engine-in-the-daemon-process).
+
 ### Special Case: Skip GR
 
 If `restart-time` is 0 but `long-lived-stale-time` is nonzero, the GR period is skipped entirely. On session drop, LLGR begins immediately.

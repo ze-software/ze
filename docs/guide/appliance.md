@@ -68,6 +68,33 @@ After this, builds work offline.
 <!-- source: gokrazy/ze/builddir/github.com/rtr7/kernel/go.mod -- pinned kernel version -->
 <!-- source: gokrazy/ze/builddir/github.com/gokrazy/gokrazy/go.mod -- pinned gokrazy version -->
 
+## Runtime Kernel Requirements
+
+The runtime kernel is pinned by two manifests, `gokrazy/kernel/kernel.require`
+and `gokrazy/kernel/runtime.require`, holding 59 symbols between them. Each is
+checked against the resolved config after the build, and `enforce_required_symbols`
+accepts `=y` alone. A Kconfig answer of `m` therefore fails the BUILD rather than
+shipping an appliance where a feature Ze accepts in config cannot work. A module
+is unreachable in the QEMU test VM in any case: that VM boots this kernel beside
+Alpine's own modules, built for another version.
+
+Each symbol has a producer in Ze rather than a test that wanted it.
+
+| Group | Symbols | Producer in Ze |
+|-------|---------|----------------|
+| Subscriber | `PPP`, `PPPOL2TP`, `PPPOE`, `L2TP`, `L2TP_V3` | The L2TP LNS, and the PPPoE server and client |
+| Firewall | `NF_TABLES`, `NF_TABLES_INET`, `NF_TABLES_IPV4`, `NF_TABLES_IPV6`, `NF_CONNTRACK`, `NF_NAT`, `NFT_CT`, `NFT_NAT`, `NFT_MASQ`, `NFT_REDIR`, `NFT_LIMIT`, `NFT_LOG`, `NFT_REJECT` | The nftables backend, and `translatePolicy` (`internal/plugins/copp/translate.go`), which returns `FamilyInet` unconditionally. Without `NF_TABLES_INET` the kernel answers EOPNOTSUPP, `Apply`'s flush fails, the firewall plugin fails startup, and the daemon exits |
+| Tunnels | `NET_IPGRE_DEMUX`, `NET_IPGRE`, `IPV6_GRE`, `NET_IPIP`, `IPV6_TUNNEL`, `IPV6_SIT`, `VXLAN` | The nine tunnel kinds `ze-iface-conf.yang` models. Six symbols plus the GRE demux gate. Measured cost: vmlinuz 16352256 to 16450560 bytes, +0.60% |
+| Policy routing | `IP_MULTIPLE_TABLES`, `IPV6_MULTIPLE_TABLES`, `IP_ROUTE_MULTIPATH` | The policy-routing engine. Without `IPV6_MULTIPLE_TABLES` the kernel folds every table id into the main table and says nothing |
+| Traffic control | `NET_SCH_HTB`, `TBF`, `FQ_CODEL`, `HFSC`, `FQ`, `SFQ`, `NETEM`, `PRIO`, `INGRESS`, `NET_CLS_U32`, `NET_CLS_FW`, `NET_CLS_MATCHALL`, `NET_ACT_MIRRED` | Class of service, rate limiting, and mirroring |
+| Interfaces and VPN | `DUMMY`, `VETH`, `MACVLAN`, `VLAN_8021Q`, `INET_ESP`, `INET6_ESP`, `XFRM_STATISTICS`, `HUGETLBFS`, `BPF_SYSCALL`, `BPF_JIT` | Interface creation, IPsec, VPP hugepages, and the eBPF surfaces |
+
+`CONFIG_NET_UDP_TUNNEL`, `CONFIG_WIREGUARD` and `CONFIG_TUN` are `=y` in the
+config fragment and are not pinned in a manifest.
+<!-- source: gokrazy/kernel/runtime.require -- the runtime pin list -->
+<!-- source: gokrazy/kernel/kernel.require -- the base pin list -->
+<!-- source: tools/kernel-builder/build.py -- enforce_required_symbols -->
+
 ## L2TP Kernel Support
 
 Ze's L2TP LNS path needs kernel PPPoL2TP support in the appliance runtime

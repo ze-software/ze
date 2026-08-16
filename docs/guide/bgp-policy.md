@@ -95,6 +95,100 @@ Each suppression increments `ze_bgp_wellknown_community_suppressed_total` with t
 <!-- source: internal/component/bgp/wireu/wellknown.go — ScanWellKnown, WellKnown.AllowsEgressTo -->
 <!-- source: internal/component/bgp/reactor/forward_wellknown.go — wellKnownAllowsEgress -->
 
+## Ingress community rules
+
+The `bgp-filter-community` plugin adds three RFC-derived rules to the ingress
+direction, beside the named `tag` and `strip` sets. Each one is a leaf under
+`filter { ingress { community { } } }`, and the container is available at the
+`bgp`, group, group-peer, and standalone-peer levels.
+
+| Leaf | Type | Default | Meaning |
+|------|------|---------|---------|
+| `relation-tag` | boolean | `false` | Write the RFC 8195 Section 3.2 relation-to-origin large community on each route this peer sends. |
+| `relation-function` | uint32 | `3` | Function number of that large community. RFC 8195 leaves the number to each AS and gives 3 as its example. |
+| `scrub-own-ga` | boolean | `false` | Remove inbound communities whose Global Administrator is the local AS. RFC 7454 Section 11. |
+| `scrub-keep-function` | leaf-list (uint32) | empty | Function numbers a peer is allowed to send with the local AS as the Global Administrator. |
+| `blackhole-propagation` | enum | `none` | Add `no-export` or `no-advertise` to a route that carries BLACKHOLE. RFC 7999 Section 3.2. |
+
+```text
+bgp {
+    group customers {
+        filter {
+            ingress {
+                community {
+                    scrub-own-ga        true;
+                    scrub-keep-function [ 100 200 ];
+                    relation-tag        true;
+                    blackhole-propagation no-export;
+                }
+            }
+        }
+    }
+}
+```
+
+The four steps run in one fixed order on each received route: the named `strip`
+sets, then the scrub, then the blackhole guard, then the named `tag` sets. The
+order is load-bearing. The guard adds a well-known community, so a scrub running
+after it would delete what it just added.
+
+**The scrub is a keep-list, not a denylist.** RFC 7454 Section 11 asks an
+operator to scrub inbound communities carrying their own AS number and to allow
+only the ones customers and peers use for signaling. An empty
+`scrub-keep-function` list therefore keeps nothing. It does not mean "keep
+everything". The scrub covers standard and large communities, and it runs on
+eBGP sessions only: on an iBGP session an own-AS value is this network's own
+signal to itself. Well-known communities are never reached, so `NO_EXPORT`,
+`NO_ADVERTISE` and `BLACKHOLE` always survive. The `relation-function` number is
+never kept, whatever the list says, because a kept relation function would let a
+peer state its own relation to this AS.
+
+**The relation tag reads the resolved peer role.** The parameter says what the
+peer IS to this AS: 2 for a customer, 3 for a peer, 4 for a provider. It comes
+from the role the `bgp-role` plugin resolved, which prefers a Role capability the
+peer announced over the local configuration. A session whose role does not
+resolve gets no tag. An iBGP session gets none, because its sender is inside the
+local AS. A route-server or route-server-client session gets none, because RFC
+7947 requires transparency there. The value is a large community
+`<local-AS>:<function>:<parameter>`. Any own-AS large community already carrying
+that function number is removed first, so a peer cannot state its own relation to
+you.
+
+**The blackhole guard adds a community. It does not discard traffic.** RFC 7999
+Section 3.2 asks a receiver to stop a BLACKHOLE-tagged prefix propagating outside
+the local AS, and leaves the choice between `NO_EXPORT` and `NO_ADVERTISE` to the
+operator. Discarding the traffic is a different feature: see [blackhole
+honoring](configuration.md#blackhole-honoring-rfc-7999). RFC 7999 Section 3.1
+makes ignoring the community conformant, so `none` is a supported state.
+
+<!-- source: internal/component/bgp/plugins/filter_community/yang/ze-filter-community.yang -- community-filter-fields -->
+<!-- source: internal/component/bgp/plugins/filter_community/filter.go -- applyIngressFilter, applyRelationTag -->
+<!-- source: internal/component/bgp/plugins/filter_community/scrub.go -- scrubOwnGACommunities -->
+<!-- source: internal/component/bgp/plugins/filter_community/blackhole.go -- blackholePropagationGuard -->
+
+## Suppressing communities on egress
+
+`session { community { send ... } }` selects which community attribute types
+leave on a session. The list takes `standard`, `large`, `extended`, `all`, or
+`none`. Unset is `all`.
+
+```text
+bgp {
+    peer transit-a {
+        session { community { send [ standard ]; } }
+    }
+}
+```
+
+A type that is not selected is removed from every UPDATE sent to that peer, on
+both forward rails. Two attributes are the exception and they are refused out
+loud rather than silently: `OTC` (RFC 9234 Section 5) and `ORIGINATOR_ID` (RFC
+4456 Section 8) must be preserved unchanged once set, so a suppression of either
+is logged and not applied.
+
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- session/community/send -->
+<!-- source: internal/component/bgp/reactor/peer_forward_facts.go -- applyFactsSendCommunity -->
+
 ## Route-server control communities
 
 When ze runs as a route server, a client can steer its own routes by tagging them with communities the route server reads and then removes. A peer becomes a route-server client with `rs-client true` under its `session` block; the communities below are only interpreted for such peers.
@@ -104,11 +198,12 @@ When ze runs as a route server, a client can steer its own routes by tagging the
 | `0:<asn>` | Do not advertise this route to `<asn>`. |
 | `<rs-asn>:<asn>` | Advertise this route ONLY to the listed ASNs. |
 | `<rs-asn>:0` | Do not advertise this route to any client. |
-| `65535:666` | RFC 7999 blackhole. |
 
 A whitelist wins over a blacklist: if a route carries any `<rs-asn>:<asn>` tag, only the listed ASNs receive it and `0:<asn>` tags on the same route are not consulted.
 
-These are control tags, not attributes to pass on. The route server strips every one of them from the route before forwarding it, so a client never sees another client's steering instructions or the route server's own. Communities the route server does not recognise are forwarded untouched and in their original order, so a client's own tagging survives.
+These are control tags, not attributes to pass on. The route server strips every one of them from the route before forwarding it, so a client never sees another client's steering instructions or the route server's own. A route carrying several control communities has all of them removed, not the first one. Communities the route server does not recognise are forwarded untouched and in their original order, so a client's own tagging survives.
+
+`65535:666` is NOT one of these. RFC 7999 BLACKHOLE steers no route-server forwarding and is never stripped, so a client's blackhole request reaches the other clients as the client wrote it. Ze's own answer to a received BLACKHOLE is the per-session `blackhole` container and the ingress `blackhole-propagation` leaf, both above.
 
 ```
 # Client tags a route: keep it away from AS 64998, and let AS 65002 have it.
@@ -116,10 +211,17 @@ These are control tags, not attributes to pass on. The route server strips every
 community [ 0:64998 65000:65002 65001:100 ]
 ```
 
+A control community decides about a ROUTE, not about a MESSAGE. One UPDATE can carry withdrawn routes and an announcement together. The withdrawn routes carry no attribute and were tagged by nobody, so a client the announcement excludes still receives the withdrawals in that UPDATE. Without that, an excluded client would keep a prefix an earlier UPDATE did advertise to it, and ze could not take it back until the session reset.
+
 Two limits are worth knowing:
 
 - A standard community's high half is 16 bits (RFC 1997), so a route server with a 4-octet ASN matches `<rs-asn>:<asn>` on the low 16 bits of its ASN only. Use large communities where that is ambiguous.
 - Stripping is ze's own forwarding behaviour. RFC 7947 expects per-client import and export policy but prescribes no mechanism for it (Section 2.3.2.1 offers per-client RIBs as "the most portable method"), so a different route-server implementation may leave these tags in place.
+
+`ze_bgp_attr_mod_remove_buffer_refused_total{attribute}` counts removal buffers a
+handler refused because they were not a whole number of wire values. The refusal
+is silent on the wire, so a non-zero value is the one signal that a producer is
+violating the arity contract and that an attribute went out unchanged.
 
 <!-- source: internal/component/bgp/wireu/community.go — ParseCommunityPolicy, ShouldForwardTo, StripControlCommunities -->
 <!-- source: internal/component/bgp/reactor/reactor_api_forward.go — general forwarding rail; forward_rs.go — route-server fast path -->

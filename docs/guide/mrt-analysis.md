@@ -260,6 +260,44 @@ AS-path regex matches against space-separated ASNs (e.g. `"174 1916 52888"`).
 AS_SET segments are rendered as `{asn,asn}`. Community regex matches per-community
 strings: standard `high:low`, large `global:local1:local2`, extended `high:low`.
 
+## Damaged Input
+
+A dump from a public collector can carry a truncated or corrupt record. The tool
+reports the damage instead of printing a short result as fact.
+
+| What you get | Where |
+|--------------|-------|
+| `warning: N malformed MRT record(s) skipped or partially decoded; results are incomplete` | stderr, from `density`, `attributes`, `aspath`, `communities`, `count-attrs`, `mrt-dump`, `routes` and `show`. A report that scrolls prints it before the numbers it qualifies. A clean file prints nothing. |
+| `HH:MM:SS <peer> [unparseable: truncated] <error>` | `show`, for a record that decoded to nothing. The tag is `truncated`, `unsupported-afi`, or `damaged`. |
+| `A=3+` or `W=12+` | `show`, for a count that is partial. The `+` says "at least this many"; a count with no `+` is exact. A damaged record prints the field even at zero, so a missing count and a zero count stay distinct. |
+| `mrt: truncated record 41902 (type 13 subtype 2, timestamp 1780272000): unexpected EOF` | stderr, when the file itself stops early. The record ordinal is 1-based over the stream, so the failing record can be found in a multi-gigabyte dump. |
+
+Damage never discards what already decoded. A record with 500 good prefixes and
+one truncated prefix reports the 500 and counts one damaged record.
+
+<!-- source: internal/analyze/mrt.go -- malformedCounter, damageTag -->
+<!-- source: internal/mrt/reader.go -- readRecords -->
+<!-- source: internal/analyze/show.go -- mpReachCount, mpUnreachCount -->
+
+## AS Width and Add-Path
+
+Two properties of an MRT record decide how its BGP payload reads, and neither can
+be inferred from the payload bytes:
+
+- **AS width comes from the record type** (RFC 6396). TABLE_DUMP is 2-byte
+  (Section 4.2), TABLE_DUMP_V2 is 4-byte (Section 4.3.4), BGP4MP_MESSAGE is
+  2-byte (Section 4.4.2), and BGP4MP_MESSAGE_AS4 is 4-byte (Section 4.4.3). A
+  2-byte and a 4-byte AS_PATH can occupy the same number of octets, so a wrong
+  width yields fictitious ASNs rather than an error. Every subcommand derives the
+  width from the record it is reading.
+- **Add-path dumps are decoded.** The RFC 8050 TABLE_DUMP_V2 RIB subtypes 8 to 12
+  and the add-path BGP4MP subtypes 8 to 11 carry a Path Identifier before each
+  prefix. They are dispatched like the non-add-path subtypes, so an add-path dump
+  yields its routes.
+
+<!-- source: internal/mrt/bgp_attribute.go -- ASPathIsFourByte -->
+<!-- source: internal/mrt/types.go -- IsAddPathRIBSubtype, IsAddPathBGP4MPSubtype -->
+
 ## MRT File Formats
 
 The tool handles two MRT record types (RFC 6396):

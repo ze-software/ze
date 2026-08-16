@@ -124,7 +124,10 @@ The looking glass is designed for public IXP deployment. It is read-only, and op
 - Strict input validation on all query parameters (character allowlists, length limits).
 - `Content-Security-Policy`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff` headers.
 - SSE connection limit (100 concurrent clients).
-- All HTML output rendered via Go `html/template` (auto-escaped).
+- All HTML output rendered through templ, which escapes every interpolated value. The two SVG graph builders stay in Go and escape their labels with `template.HTMLEscapeString`.
+- The `Content-Security-Policy` is `default-src 'self'`, so no page carries an inline script or an inline event handler. A test refuses one in any `.templ` source of the package.
 - No direct RIB or plugin imports; all data accessed via command dispatcher.
+<!-- source: internal/component/lg/markup_check_test.go -- TestTemplatesAvoidInlineScriptAndStyle, lgMarkupExempt -->
+<!-- source: internal/component/lg/layout.go -- renderGraphSVG label escaping -->
 
 When TLS is enabled, the server uses TLS 1.2 minimum with the same certificate infrastructure as the web UI.

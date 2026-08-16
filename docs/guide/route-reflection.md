@@ -50,6 +50,45 @@ bgp {
 }
 ```
 
+### A Route Server Without Per-Peer Entries
+
+An IXP route server can accept its members from a dynamic peer group instead of a `peer` block for each one. The group opens its own listening socket, so a configuration that names no static peer still accepts members.
+
+```
+bgp {
+    group ix {
+        connection {
+            remote {
+                ip dynamic
+                connect false
+                range 198.51.100.0/24
+                max-peers 500
+            }
+            local {
+                ip 198.51.100.1
+                accept true
+            }
+        }
+        session {
+            asn { local 64500 }
+            router-id 198.51.100.1
+            family { ipv4/unicast { prefix { maximum 200000 } } }
+        }
+        role { import rs }
+
+        attach process rs {
+            receive [ update-received state open-received refresh ]
+            send [ update ]
+        }
+        attach process adj-rib-in {
+            receive [ update-received state ]
+        }
+    }
+}
+```
+
+A member inherits the group's whole settings, its `attach process` blocks and its per-peer plugin config included. A static peer whose address falls inside the range keeps its own session and its own settings. See [BGP peering](bgp-peering.md) for the group leaves and the reload rules.
+
 ## How It Works
 
 ### Forward-All Model

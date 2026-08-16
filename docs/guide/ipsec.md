@@ -88,7 +88,9 @@ Traffic selectors are not listed per tunnel. Route-based IPsec encrypts traffic 
 | DPD | Dead Peer Detection through INFORMATIONAL exchanges with configurable interval and timeout |
 | Rekeying | On-wire CREATE_CHILD_SA rekeying for IKE and Child SAs, make-before-break installation, and collision handling |
 | MOBIKE, RFC 4555 | Not implemented; an endpoint address change requires the SA to be re-established |
-| Virtual IP pool | Remote-access server assignment from a configured pool |
+| Denial-of-service | COOKIE challenge before a half-open slot is committed, and the INVALID_KE_PAYLOAD group retry |
+| Dataplane read-back | `show vpn ipsec dataplane` reads the kernel SAD and SPD, and a drift check compares them against the engine |
+| Virtual IP pool | Not wired. The `remote-access` container parses and no session reads it |
 
 ## IKEv2 responder role
 
@@ -166,6 +168,22 @@ not run a plugin's config verifier.
 <!-- source: internal/component/ike/ipsec/validate.go -- ValidatePKIRefs -->
 <!-- source: internal/component/ike/engine/config.go -- validateIPsecSections is the ike plugin's OnConfigVerify body -->
 <!-- source: internal/component/ike/engine/auth.go -- getRemoteCert -->
+
+## Pre-shared secret encoding
+
+`pre-shared-secret-encoding` reads the secret as `ascii`, the default, or as `hex`. RFC
+7296 Section 2.15 requires the management interface to accept both. Use `hex` for a secret
+that holds non-printable octets.
+
+The encoding is stated and is never guessed from the value. A secret such as
+`abcdef0123456789` is valid ASCII and valid hex. A daemon that read the value to decide
+would silently reinterpret a deployed secret. A `hex` value with an odd length or a
+non-hexadecimal character is refused at commit rather than read as ASCII.
+
+The at-rest `$9$` obfuscation is unwrapped first, so a hex secret can also be stored
+obfuscated.
+
+<!-- source: internal/component/ike/ipsec/config.go -- parsePreSharedSecret -->
 
 ## Remote identity
 
@@ -284,6 +302,23 @@ DNS-name matching.
 
 <!-- source: internal/component/ike/eap/peer.go -- verifyServerChain, startTLSClient -->
 
+## EAP-TLS with TLS 1.3
+
+RFC 9190 Section 2.5 requires an encrypted TLS record that carries application data
+`0x00`. The EAP-TLS 1.3 server sends it once it has processed the client Finished and sent
+its last handshake message. That record is the protected success result indication. Ze
+sends it in the flight that round already carries, so the exchange keeps its round count.
+
+The record is what makes a TLS 1.3 EAP-TLS client work. strongSwan derives no MSK without
+it, so the AUTH payload of RFC 7296 Section 2.16 cannot be computed and the SA never
+establishes. A TLS 1.2 exchange concludes with the bare EAP-Success it concluded with
+before, because the version test reads the negotiated version.
+
+Ze issues no TLS session ticket. It builds one TLS configuration for each EAP session, and
+Go keys ticket encryption on that instance. No other session can redeem a ticket minted in
+one. EAP-TLS session resumption is therefore not available.
+
+<!-- source: internal/component/ike/eap/eap_tls.go -- indicateSuccess, newTLSMethod -->
 
 ## Denial-of-service protection
 
@@ -353,6 +388,32 @@ Child SAs define traffic selectors and the ESP proposal. Ze programs XFRM polici
 | Connection | `connection-type initiate` starts the exchange; `connection-type respond` waits for the peer |
 | Replay protection | Anti-replay window, default 32 |
 | Lifetime | Time-based and byte-based rekeying thresholds |
+
+## Both ESP wire forms
+
+RFC 7296 Section 2.23 requires a device that supports NAT traversal to receive
+UDP-encapsulated ESP and bare ESP at any time. One Linux XFRM state serves one form. A
+state that carries the encapsulation template refuses bare ESP, and a state without one
+refuses encapsulated ESP. Ze serves the second form beside the kernel. A raw IPPROTO_ESP
+reader takes the datagram XFRM refused. It re-presents that datagram through port 4500,
+which carries UDP_ENCAP, so the kernel hands XFRM the form its template wants. One
+established Child SA therefore keeps carrying traffic when its peer changes ESP form
+mid-session, with no rekey and no delete.
+
+<!-- source: internal/component/ike/dataplane/xfrm_linux.go -- InstallSA, the AcceptBothESPForms branch -->
+<!-- source: internal/component/ike/engine/child.go -- inbound.AcceptBothESPForms -->
+
+The reader carries a per-socket inbound policy exemption. Linux applies the inbound IPsec
+policy check before it queues a packet to a raw socket. Ze's own Child SA policy refuses
+exactly the datagrams this reader exists to recover. The exemption reaches that one socket.
+XFRM still decrypts, still owns the replay window, and still applies the inbound policy to
+the re-presented datagram.
+
+<!-- source: internal/component/ike/dataplane/espform_linux.go -- espFormBypassInboundPolicy -->
+
+The second-form reader serves IPv4. An SA that asks for both forms over IPv6 is refused
+rather than installed with one form. The form Ze SENDS is a separate decision and follows
+the NAT verdict alone: Ze encapsulates when it detected a NAT.
 
 ## Traffic selectors and narrowing
 
@@ -470,16 +531,75 @@ Health monitoring reports certificate expiry as a warning at 30 days and an erro
 
 XFRM interfaces provide route-based IPsec. Traffic routed through the XFRM interface is encrypted, and incoming traffic is decrypted before it appears on the interface. The generated [configuration reference](https://ze-software.net/reference/configuration/#xfrm-interfaces) documents the interface surface.
 
+## Reading the kernel dataplane
+
+Every other IPsec command reports what the IKE engine believes it installed. The `show vpn
+ipsec dataplane` commands read the kernel instead. Three failures become visible: a state
+the kernel refused, a state it expired, and a policy that outlived its owner.
+
+| Command | What it reads |
+|---|---|
+| `show vpn ipsec dataplane sa [spi <spi>]` | The Security Association Database: SPI, addresses, if-id, mode, algorithms, replay window, byte and packet counters, and timestamps. `spi <spi>` selects one SA. SPI 0 is refused, because RFC 4303 Section 2.1 reserves it and a typo must not look like a full dump |
+| `show vpn ipsec dataplane policy` | The Security Policy Database: selector prefixes and ports, direction, priority, upper-layer protocol, if-id, tunnel endpoints, and the peer that installed each policy. A policy Ze did not install reports its owner as unknown |
+| `show vpn ipsec dataplane drift` | Each Child SA the engine counts as installed whose SPI the kernel does not hold. The command exits non-zero when it finds drift, so a script can test it |
+
+RFC 4301 Section 4.4 keeps the SPD and the SAD separate, and so does this command tree.
+
+A read that cannot happen is an error, never an empty table. No backend loaded, a backend
+that cannot enumerate, and a process without CAP_NET_ADMIN each get their own message. An
+empty table answers "is my tunnel programmed?" with "no", and that is the wrong answer when
+the truth is that nobody asked the kernel.
+
+<!-- source: internal/component/ike/cmd/show_dataplane.go -- handleShowVPNIPsecDataplaneSA, dataplaneReadError, activeDataplane -->
+
+Drift is compared in ONE direction. An SPI the kernel holds that the engine does not name
+is not drift. RFC 7296 Section 2.8 keeps the old and the new Child SA alive until the old
+one is deleted. A rekey window therefore holds two SPIs.
+
+`show vpn ipsec sa` and `show vpn ipsec peer name <name>` carry the kernel counters in each
+child SA object: `bytes-in`, `packets-in`, `bytes-out`, and `packets-out`. They come from
+the kernel because the IKE engine never sees ESP payload. Each is null rather than zero
+when Ze cannot read the SAD, and `counters-known` says which answer you hold. Null says
+nobody asked the kernel. Zero says the SA carried nothing.
+
+<!-- source: internal/component/ike/cmd/show_ipsec.go -- readSADCounters, addChildCounters -->
+
+The health registry folds the same comparison in. A peer whose Child SA the kernel does not
+hold reports `degraded` and names the peer. A dataplane that cannot be read is not drift,
+so it never turns the status green on a question nobody asked.
+
+<!-- source: internal/component/ike/engine/health_drift.go -- driftingPeers, driftDetail -->
+
+`ze doctor` reports `doctor-ipsec-xfrm-unavailable` as a warning when `vpn ipsec` is
+configured and the kernel XFRM dataplane does not answer. The two causes need different
+action: a kernel without CONFIG_XFRM_USER and CONFIG_INET_ESP, or a process without
+CAP_NET_ADMIN. `doctor-ipsec-udp-encap` is an error, and it covers a NAT-T socket that
+would not bind as well as one the kernel will not decapsulate through. Both leave a tunnel
+that establishes and carries no traffic.
+
+<!-- source: internal/component/ike/engine/doctor_xfrm.go -- checkXFRMReachable -->
+<!-- source: internal/component/ike/engine/udpencap.go -- checkIPsecUDPEncap, udpEncapReady -->
+
 ## CLI
 
 | Command | Description |
 |---|---|
 | `show vpn ipsec status` | Tunnel and peer status summary |
-| `show vpn ipsec sa` | Active IKE and Child SAs, including algorithms, byte counts, rekey timers, SPIs, NAT detection, and initiator role |
+| `show vpn ipsec sa` | Active IKE and Child SAs, including algorithms, kernel byte and packet counters, rekey timers, SPIs, NAT detection, and initiator role |
 | `show vpn ipsec peer name <name>` | Detail for one configured peer |
+| `show vpn ipsec dataplane sa [spi <spi>]` | The SAs the kernel holds. See Reading the kernel dataplane |
+| `show vpn ipsec dataplane policy` | The policies the kernel holds |
+| `show vpn ipsec dataplane drift` | Child SAs the engine expects that the kernel does not hold. Exits non-zero on drift |
 | `clear vpn ipsec sa [peer <name>]` | Tear down and re-establish SAs, optionally for one peer |
 | `monitor vpn ipsec` | Stream `sa-up`, `sa-down`, `child-up`, `child-down`, and `child-rekey` lifecycle events |
 | `show pki certificates` | List loaded certificates with expiry information |
+
+`show vpn ipsec sa` also reports `peer-window-size`, the number of outstanding requests
+the peer promised in its SET_WINDOW_SIZE notification. Zero means the peer sent none, which
+RFC 7296 Section 2.3 reads as a window of one. Ze holds one request outstanding and accepts
+exactly one request id.
+
+<!-- source: internal/component/ike/engine/msgid.go -- reserveRequestWindow, releaseRequestWindow -->
 
 `clear vpn ipsec sa` sends a best-effort encrypted IKE Delete before removing
 local state. Initiator peers then re-establish immediately. If the UDP Delete is
@@ -493,6 +613,11 @@ lost, the normal DPD path still removes the stale remote SA.
 The IPsec component registers with the health registry. It reports `healthy` when all configured tunnels are established, `degraded` when some are down, and `down` when critical tunnels fail.
 
 Prometheus exposes `ze_ipsec_sa_count`, `ze_ipsec_tunnel_up{peer}`, `ze_ipsec_tunnel_degraded{peer}`, and `ze_ipsec_rekey_total{peer}`.
+
+`ze_ipsec_error_notify_sent_total{type,protected}` counts error notifications Ze sent, by
+notify type and by whether the carrying message was encrypted.
+`ze_ipsec_error_notify_suppressed_total{reason}` counts the ones a guard stopped, by the
+name of that guard.
 
 Three more counters report the COOKIE challenge described under [Denial-of-service protection](#denial-of-service-protection). `ze_ipsec_cookie_challenges_total{peer}` counts the challenges Ze issues, `ze_ipsec_cookie_verify_failures_total{peer}` counts inbound cookies that did not verify, and `ze_ipsec_sa_init_retries_total{peer,cause}` counts the IKE_SA_INIT retries Ze sends, labeled `cookie` or `invalid-ke-payload`. A rising verify-failure count is either an attacker probing the half-open slot or a secret rotation catching an in-flight challenge. A rising retry count on the `cookie` cause is the signature of the forged-notify flood RFC 7296 Section 2.6 describes.
 
@@ -510,7 +635,27 @@ carries no encrypted traffic` when this happens.
 
 ## Interop testing
 
-The IKE implementation includes interop tests against strongSwan 5.9.14, the version in the Alpine 3.21 test image. The test infrastructure in `test/ipsec-interop/` drives strongSwan containers as remote IKE peers. Coverage includes PSK, X.509, EAP-MSCHAPv2, and EAP-TLS authentication; Ze as a PSK and EAP-MSCHAPv2 responder against a strongSwan initiator; Child SA rekeying with make-before-break; and IKE SA rekeying initiated by strongSwan.
+The IKE implementation includes interop tests against strongSwan, from the Alpine 3.21 test
+image. The infrastructure in `test/ipsec-interop/` drives strongSwan containers as remote
+IKE peers. Sixteen scenarios run today:
+
+| Area | Scenarios |
+|---|---|
+| Authentication | PSK, EAP-MSCHAPv2, EAP-TLS, and EAP-TLS over TLS 1.3 |
+| Ze as responder | PSK, EAP-MSCHAPv2, EAP-TLS over TLS 1.3, IKE SA rekey started by strongSwan, and a fresh IKE_SA_INIT accepted beside an established SA |
+| Rekey and teardown | Child SA rekey with make-before-break, `clear vpn ipsec sa` and re-establishment, and a Delete sent while the one request window is held |
+| Negotiation | The INVALID_KE_PAYLOAD retry and the COOKIE challenge |
+| Dataplane | A live Child SA whose peer changes ESP form mid-session, and BGP routes exchanged with FRR over the tunnel |
+
+There is no certificate-only (`mode x509`) scenario. The certificate paths are proven by
+unit tests and by the EAP-TLS scenarios, which authenticate both ends with certificates.
+
+<!-- source: test/ipsec-interop/scenarios -- the sixteen strongSwan scenarios -->
+
+Ze holds every gated MUST-level requirement extracted from RFC 7296 in
+`rfc/short/rfc7296.md`. That is 222 of the summary's 227 rows, each proven in both
+directions by `RFC requirement:` tagged tests. The remaining five rows are SHOULD-level and
+ungated.
 
 ## See also
 

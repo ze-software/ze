@@ -318,6 +318,32 @@ that is not in this binary or did not start; check with `ze plugin list`.
 
 <!-- source: internal/component/doctor/checks_config_claims.go -- checkConfigClaims -->
 
+### 13b. IPsec Peers Never Establish
+
+```
+ze doctor --json
+ze explain doctor-ipsec-iface
+```
+
+Three faults share this code and each one used to be silent.
+
+| State | What happens without the check |
+|-------|--------------------------------|
+| The `vpn ipsec` section does not parse | No layer reports it. The ipsec validation hangs off the SDK `OnConfigVerify`, which `VerifyPluginConfig` deliberately does not run for a live plugin, and the ike Registration declares no in-process verifier. `ze doctor` answered `"ready": true` and exit 0 over a section that cannot be used |
+| `interface` is set to the empty name | `ze config validate` accepts it and it resolves to `""` at runtime. Every peer without an explicit `local-address` then fails to establish, with one debug-level line about a missing IPv4 address |
+| `interface` names a device absent from the host | Same outcome as the empty name |
+
+An ABSENT `interface` leaf is not an error and stays silent. A parse failure is
+an error rather than a warning: `ParseIPsecConfig` fails from exactly one class
+of cause, a malformed `esp-group` or `ike-group`, which is a defect and not a
+benign partial config.
+
+The check reads `net.InterfaceByName`, while the code whose failure it predicts
+resolves through the iface resolver. It therefore does not honour `os-name` or
+`mac` selectors and is blind to VPP interfaces.
+
+<!-- source: internal/component/ike/engine/doctor.go -- checkIPsecInterface -->
+
 ### 14. Plugin Crash / Restart Loop
 
 ```

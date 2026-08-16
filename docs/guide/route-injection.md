@@ -110,9 +110,52 @@ Underscore variants (e.g., `no_export`, `graceful_shutdown`) and the shorthand
 `gshut` are also accepted. Tab completion in the config editor suggests all names.
 <!-- source: internal/core/bgp/attribute/text.go -- wellKnownCommunityNames map -->
 
+### Colon-Less FlowSpec Actions
+
+Most extended communities carry their value after a colon, so `extended-community`
+splits on the first one. Three FlowSpec traffic actions (RFC 8955 Section 7) carry
+their whole meaning in the name and have no colon. They are accepted as written,
+in `update text` and in config alike, from one keyword table both parsers read.
+
+| Keyword | Encoding | Meaning |
+|---------|----------|---------|
+| `discard` | type 0x80, subtype 0x06, traffic-rate 0 | Drop matching traffic |
+| `copy-to-nexthop` | type 0x08, subtype 0x00, value 1 | Copy and redirect to next hop |
+| `redirect-to-nexthop-draft` | type 0x08, subtype 0x00, value 0 | Redirect to next hop, pre-IETF draft |
+
+```bash
+ze cli -c "peer upstream update text \
+    origin igp nhop self \
+    extended-community [ discard ] \
+    nlri ipv4/flow add <flowspec-nlri>"
+```
+
+`copy-to-nexthop` and `redirect-to-nexthop-draft` differ in one bit of the last
+octet, which is the copy semantic. An unknown keyword is refused with an error
+naming the keywords Ze accepts, derived from the table.
+<!-- source: internal/core/bgp/attribute/flowspec_action.go -- FlowSpecActionKeyword, FlowSpecActionKeywords -->
+
 ### Next-Hop Self
 
 `nhop self` resolves to the local address of each destination peer at wire time.
+
+### A Peer Never Receives Its Own Address as Next Hop
+
+RFC 4271 Section 5.1.3: "A route originated by a BGP speaker SHALL NOT be
+advertised to a peer using an address of that peer as NEXT_HOP." Ze asks that
+question of the built body, after the export filter chain, on every rail that
+originates a next hop: configured static routes, default-originate, the RIB
+op-queue drain, the announce batch, and the RFC 9494 stale re-advertise.
+
+The route is withheld from that one peer, and the refusal logs the peer, the next
+hop and the section. Ze does not rewrite the address: rewriting would invent a
+next hop nobody configured. Other peers matched by the same selector still
+receive the route, and withdrawals in the same UPDATE still reach the withheld
+peer.
+
+The same question is asked of a relayed route, where the address arrives as the
+third-party next hop Section 5.1.3 case 2 permits.
+<!-- source: internal/component/bgp/reactor/forward_next_hop.go -- originatedNextHopIsPeerOwn, egressNextHopIsPeerOwn -->
 
 ### NLRI Operations
 
