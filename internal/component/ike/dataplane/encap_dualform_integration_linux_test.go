@@ -73,7 +73,7 @@ func encapOwnProcess(t *testing.T) bool {
 		return true
 	}
 
-	cmd := exec.Command(os.Args[0], "-test.run", "^"+t.Name()+"$", "-test.v")
+	cmd := exec.CommandContext(t.Context(), os.Args[0], "-test.run", "^"+t.Name()+"$", "-test.v")
 	cmd.Env = append(os.Environ(), encapChildEnv+"=1")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -113,7 +113,9 @@ func encapNetnsUsable(t *testing.T) {
 // without the ESP-in-UDP template. encapAddState is the loopback-to-loopback case that
 // fails the test on error. These probes must SEE the kernel's error rather than die on
 // it, and they must vary the addresses.
-func encapStateFor(spi int, withEncap bool, src, dst string) *netlink.XfrmState {
+func encapStateFor(spi int, withEncap bool, src string) *netlink.XfrmState {
+	// Every state these probes add is inbound to this host, so dst is fixed.
+	const dst = encapLoopbackAddr
 	state := &netlink.XfrmState{
 		Src:   net.ParseIP(src),
 		Dst:   net.ParseIP(dst),
@@ -171,8 +173,10 @@ func encapVerdictOf(t *testing.T, send func()) string {
 // the peer's source address when it re-injects. Route A would use exactly this
 // mechanism, so the probe uses it rather than a convenience socket that would pick its
 // own source address and prove nothing about the real case.
-func encapInjectBare(t *testing.T, src, dst string, esp []byte) {
+func encapInjectBare(t *testing.T, src string, esp []byte) {
 	t.Helper()
+	// Every injection targets this host, so dst is fixed.
+	const dst = encapLoopbackAddr
 	fd, err := unix.Socket(unix.AF_INET, unix.SOCK_RAW, unix.IPPROTO_RAW)
 	if err != nil {
 		t.Skipf("no raw socket (needs CAP_NET_RAW): %v", err)
@@ -221,7 +225,7 @@ func TestEncapTwoStatesOneSPI(t *testing.T) {
 	encapNetns(t)
 	encapNetnsUsable(t)
 
-	if err := netlink.XfrmStateAdd(encapStateFor(encapSPIDualForm, false, encapLoopbackAddr, encapLoopbackAddr)); err != nil {
+	if err := netlink.XfrmStateAdd(encapStateFor(encapSPIDualForm, false, encapLoopbackAddr)); err != nil {
 		t.Fatalf("add template-free state: %v", err)
 	}
 
@@ -229,15 +233,15 @@ func TestEncapTwoStatesOneSPI(t *testing.T) {
 	// source: __xfrm_state_lookup keys on destination, SPI, protocol, family and mark
 	// (xfrm_state.c:1184-1192), so the source is the only field left that could separate
 	// two states on one SPI.
-	sameAddrErr := netlink.XfrmStateAdd(encapStateFor(encapSPIDualForm, true, encapLoopbackAddr, encapLoopbackAddr))
+	sameAddrErr := netlink.XfrmStateAdd(encapStateFor(encapSPIDualForm, true, encapLoopbackAddr))
 	t.Logf("A-1: second state, same SPI, identical addresses: err=%v", sameAddrErr)
 
-	diffSrcErr := netlink.XfrmStateAdd(encapStateFor(encapSPIDualForm, true, encapLoopbackPeerAddr, encapLoopbackAddr))
+	diffSrcErr := netlink.XfrmStateAdd(encapStateFor(encapSPIDualForm, true, encapLoopbackPeerAddr))
 	t.Logf("A-1: second state, same SPI, differing source: err=%v", diffSrcErr)
 	t.Logf("A-1: a second state on one SPI was installed: %v", sameAddrErr == nil || diffSrcErr == nil)
 
 	bare := encapVerdictOf(t, func() {
-		encapInjectBare(t, encapLoopbackAddr, encapLoopbackAddr, encapESPBytes(encapSPIDualForm))
+		encapInjectBare(t, encapLoopbackAddr, encapESPBytes(encapSPIDualForm))
 	})
 	encapsulated := encapKernelVerdict(t, encapSPIDualForm, true)
 	t.Logf("A-1 verdicts: bare=%s encapsulated=%s", bare, encapsulated)
@@ -287,7 +291,7 @@ func TestEncapReinjectedBareESPAccepted(t *testing.T) {
 
 	// The state a route-A receive path would install: template-free, so the kernel takes
 	// bare ESP natively and userspace supplies the other form.
-	if err := netlink.XfrmStateAdd(encapStateFor(encapSPIReinjected, false, encapLoopbackPeerAddr, encapLoopbackAddr)); err != nil {
+	if err := netlink.XfrmStateAdd(encapStateFor(encapSPIReinjected, false, encapLoopbackPeerAddr)); err != nil {
 		t.Fatalf("add template-free state: %v", err)
 	}
 
@@ -327,7 +331,7 @@ func TestEncapReinjectedBareESPAccepted(t *testing.T) {
 	}
 
 	verdict := encapVerdictOf(t, func() {
-		encapInjectBare(t, from.IP.String(), encapLoopbackAddr, buf[:n])
+		encapInjectBare(t, from.IP.String(), buf[:n])
 	})
 	t.Logf("A-3 verdict: re-injected bare ESP raised %s", verdict)
 	if verdict != encapStatProtoError {
@@ -337,7 +341,7 @@ func TestEncapReinjectedBareESPAccepted(t *testing.T) {
 
 	// Discrimination control. Without it a counter that never moves would read as success.
 	if got := encapVerdictOf(t, func() {
-		encapInjectBare(t, encapLoopbackPeerAddr, encapLoopbackAddr, encapESPBytes(encapSPIReinjectNoSA))
+		encapInjectBare(t, encapLoopbackPeerAddr, encapESPBytes(encapSPIReinjectNoSA))
 	}); got != encapStatNoStates {
 		t.Errorf("an injected SPI with no state raised %s, want %s; the verdict above proves nothing",
 			got, encapStatNoStates)

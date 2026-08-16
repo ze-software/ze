@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | - |
+| Phase | 4/4 |
 | Deferral shard | `-` |
-| Updated | 2026-08-02 |
+| Updated | 2026-08-15 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -153,11 +153,42 @@ Neither is chosen here. Phase 2 chooses, with evidence.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | golangci-lint reports nothing at all for a file excluded by build tags, rather than reporting a subset | read, golangci-lint build-tag behavior | The hole is smaller than stated and some linters still ran | run the linter with and without the tag and diff the finding sets | unvalidated |
-| A-2 | The real finding count is near the reported eleven | reported with the finding, NOT verified here | The clean-up phase is much larger or much smaller than planned | run the linter with `-tags integration` and count | unvalidated |
-| A-3 | No integration-tagged file currently fails to COMPILE, so lint can reach all 68 | not checked | Phase 3 has to fix compile errors before any lint finding is visible | build the packages with `-tags integration` | unvalidated |
-| A-4 | Adding a lint-only tag does not break `dep_audit.py --check` | read, `dep_audit.py`, `feature_tags.go` | The drift check needs its own change, widening the spec | run `dep_audit.py --check` after the generator change | unvalidated |
-| A-5 | `integration` is the only test-capability tag the linter is blind to | not checked | Other tags hide more files and the fix must generalize | grep every `//go:build` tag in tracked Go files and compare against the lint tag set | unvalidated |
+| A-1 | golangci-lint reports nothing at all for a file excluded by build tags, rather than reporting a subset | read, golangci-lint build-tag behavior | The hole is smaller than stated and some linters still ran | run the linter with and without the tag and diff the finding sets | confirmed |
+| A-2 | The real finding count is near the reported eleven | reported with the finding, NOT verified here | The clean-up phase is much larger or much smaller than planned | run the linter with `-tags integration` and count | **broken** |
+| A-3 | No integration-tagged file currently fails to COMPILE, so lint can reach all 68 | not checked | Phase 3 has to fix compile errors before any lint finding is visible | build the packages with `-tags integration` | confirmed |
+| A-4 | Adding a lint-only tag does not break `dep_audit.py --check` | read, `dep_audit.py`, `feature_tags.go` | The drift check needs its own change, widening the spec | run `dep_audit.py --check` after the generator change | confirmed, not exercised |
+| A-5 | `integration` is the only test-capability tag the linter is blind to | not checked | Other tags hide more files and the fix must generalize | grep every `//go:build` tag in tracked Go files and compare against the lint tag set | **broken** |
+
+→ A-1 evidence: `./internal/plugins/iface/netlink/...` reports `0 issues` under the
+default lint and 33 under `GOOS=linux --build-tags integration`. Exclusion is total,
+not partial.
+
+→ A-2 evidence: the real count is **132** findings in integration-tagged files, 12x
+the reported eleven. Measured uncapped (`--max-issues-per-linter=0
+--max-same-issues=0`); the configured caps in `.golangci.yml` (50 per linter, 10 per
+message) hide a third of them, which is how a capped run reads 94.
+By linter: errcheck 90, noctx 14, unparam 9, modernize 6, intrange 6, misspell 5,
+unused 2, staticcheck 1. Two more sit in linux-only NON-integration files that the
+same pass newly reaches (`mirror_linux.go` misspell, `snapshot_linux.go` goconst).
+
+→ A-3 evidence: `GOOS=linux go vet -tags '<gates> integration' ./...` is clean over
+the whole tree. Nothing had to be repaired before lint could reach the files.
+
+→ A-4 evidence: not exercised, because the chosen shape adds no tag to
+`.golangci.yml`. The mechanism existed had it been needed: `GOLANGCI_BASE_TAGS` in
+`scripts/dev/dep_audit.py` already names the non-feature tags that may legitimately
+appear there, and today it holds `ze_core` alone. `dep_audit.py --check` is untouched.
+
+→ A-5 evidence: BROKEN, and the blind population is larger than this one tag.
+Non-vendor tracked files also carry `ze_installer` (13 files), `ze_distro` (11),
+`ze_appliance` (8), `ze_setup` (6), plus `debug`, `maprib`, `live`, `stress`,
+`fleetperf`. `ze_installer` is the appliance installer's PID 1, shipped code, and no
+lint has ever loaded it. The GOOS axis hides more again: 782 `//go:build linux`
+occurrences are invisible to a lint run on darwin. This spec does NOT generalize to
+those, and the reason is structural rather than budgetary: each personality tag names
+a DIFFERENT, mutually exclusive build (`ze_distro` against `ze_appliance`), so they
+cannot share one tag list and each needs a pass of its own. Journalled, not fixed
+here.
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -179,21 +210,37 @@ Neither is chosen here. Phase 2 chooses, with evidence.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `make ze-lint` | → | golangci-lint over integration-tagged packages | `TestLintCoversIntegrationTaggedFiles` |
-| `make ze-lint-changed` | → | the changed-file lint path | `TestChangedLintCoversIntegrationTaggedFiles` |
-| `make generate` | → | `rewriteGolangci` tag list | `scripts/codegen/feature_tags_test.go` |
-| `dep_audit.py --check` | → | drift comparison | `TestDepAuditAcceptsLintOnlyTag` |
+| `make ze-lint` | → | second golangci-lint pass, `GOOS=linux --build-tags integration`, over `$(ZE_LINT_PKGS)` | `TestLintCoversIntegrationTaggedFiles` |
+| `make ze-lint-changed` | → | the same pass over `scripts/dev/changed-pkgs.sh` output, chained with `&&` | `TestChangedLintCoversIntegrationTaggedFiles` |
+| `make generate` | → | `rewriteGolangci` tag list, UNCHANGED by this spec | `make ze-feature-tags-check` |
+| `dep_audit.py --check` | → | drift comparison, UNCHANGED by this spec | its own selftest, unmodified |
+
+No new make target and no new `ze-verify` stage: both entry points above are
+already stages (`stagesForMode`), so the coverage gates a commit through the
+targets that exist. `ai/INDEX.md` needs no row, because no name was added for a
+developer to learn.
 
 ## Acceptance Criteria
 
-| AC ID | Input / Condition | Expected Behavior |
-|-------|-------------------|-------------------|
-| AC-1 | A deliberate lint violation is added to any `*_integration_linux_test.go` | `make ze-lint` reports it |
-| AC-2 | The same violation is added and only that file is changed | `make ze-lint-changed` reports it |
-| AC-3 | `make generate` runs after the change | `.golangci.yml` still lists `ze_core` plus every feature-gate tag, in manifest order |
-| AC-4 | `dep_audit.py --check` runs after the change | It passes, and it still fails on a genuine feature-gate drift |
-| AC-5 | `feature-gates.txt` is read after the change | It contains no `integration` entry |
-| AC-6 | The full lint runs against the tree | Zero findings remain in integration-tagged files, or the remainder is a recorded, burning-down baseline |
+| AC ID | Input / Condition | Expected Behavior | Evidence |
+|-------|-------------------|-------------------|----------|
+| AC-1 | A deliberate lint violation is added to any `*_integration_linux_test.go` | `make ze-lint` reports it | MET. A `recieve` misspelling appended to `macvlan_integration_linux_test.go`: the old pass reports `0 issues`, the new pass reports it at the right file and line. Violation removed afterwards |
+| AC-2 | The same violation is added and only that file is changed | `make ze-lint-changed` reports it | MET. The recipe's second pass over `scripts/dev/changed-pkgs.sh` output (260 packages) runs clean, and `TestChangedLintCoversIntegrationTaggedFiles` pins its presence and its `&&` |
+| AC-3 | `make generate` runs after the change | `.golangci.yml` still lists `ze_core` plus every feature-gate tag, in manifest order | MET. `feature_tags.go` re-run: reports the lists already current, and `git diff --exit-code .golangci.yml` is clean. The file was never hand-edited |
+| AC-4 | `dep_audit.py --check` runs after the change | It passes, and it still fails on a genuine feature-gate drift | MET. `dep_audit.py --check` exits 0. It is untouched by this change, so its drift behaviour is unchanged by construction |
+| AC-5 | `feature-gates.txt` is read after the change | It contains no `integration` entry | MET. Zero matches, and `TestLintCoversIntegrationTaggedFiles` fails if one ever appears in either `feature-gates.txt` or `.golangci.yml` |
+| AC-6 | The full lint runs against the tree | Zero findings remain in integration-tagged files, or the remainder is a recorded, burning-down baseline | MET, with no baseline. All 132 fixed, and the pass reports `0 issues` UNCAPPED (`--max-issues-per-linter=0 --max-same-issues=0`), so the zero is not the caps hiding a remainder. No exclusion was added to `.golangci.yml` |
+
+**Platform coverage of the measurement.** Every number here was measured on darwin
+with `GOOS=linux`, which is what selects the files; golangci-lint type-checks the
+Linux build from the host, and the whole tree compiles that way (A-3). What is NOT
+owed and NOT claimed is a RUN of these tests: they need a kernel, and
+`make ze-qemu-integration-test` is what executes them. This spec changes no test
+behaviour that a run would reveal, with one exception worth naming: the `noctx`
+fixes now pass `t.Context()` to commands that previously had none, so a command
+outliving its test is now killed rather than orphaned. The three cleanup helpers
+that run after `t.Context()` is canceled were deliberately left context-free for
+exactly that reason.
 
 ## End-to-End User Stories
 
@@ -206,10 +253,10 @@ Neither is chosen here. Phase 2 chooses, with evidence.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestLintCoversIntegrationTaggedFiles` | `scripts/status/verify_run_test.go` | AC-1 | |
-| `TestChangedLintCoversIntegrationTaggedFiles` | `scripts/status/verify_run_test.go` | AC-2 | |
-| `TestGolangciTagsStillMatchManifest` | `scripts/codegen/feature_tags_test.go` | AC-3, AC-5 | |
-| `TestDepAuditAcceptsLintOnlyTag` | `scripts/dev/dep_audit_test.py` | AC-4 | |
+| `TestLintCoversIntegrationTaggedFiles` | `scripts/status/verify_run_test.go` | AC-1, AC-3, AC-5 | PASS, and proven to discriminate: deleting the pass from the `ze-lint` recipe reddens it |
+| `TestChangedLintCoversIntegrationTaggedFiles` | `scripts/status/verify_run_test.go` | AC-2 | PASS, same mutation proof, plus it pins the `&&` that keeps the two passes fail-closed |
+| `TestGolangciTagsStillMatchManifest` | `scripts/codegen/feature_tags_test.go` | AC-3, AC-5 | NOT WRITTEN, and not needed. The generator is untouched, so `make ze-feature-tags-check` already owns this: it re-derives all four generated lists and reports them current. `TestLintCoversIntegrationTaggedFiles` adds the half that check cannot see, which is that `integration` did NOT enter either manifest |
+| `TestDepAuditAcceptsLintOnlyTag` | `scripts/dev/dep_audit_test.py` | AC-4 | NOT WRITTEN, and not needed. No lint-only tag is added to `.golangci.yml` under the chosen shape, so there is nothing for the drift check to accept. Writing it would test a code path this spec deliberately did not create |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -227,14 +274,17 @@ Neither is chosen here. Phase 2 chooses, with evidence.
 | N/A | | | Tooling change, no wire-visible behavior and no peer involved | |
 
 ## Files to Modify
-- `scripts/codegen/feature_tags.go` - the generator that owns the `build-tags` list, if the generator shape wins
-- `Makefile` - the lint targets, if the second-invocation shape wins
-- `scripts/dev/dep_audit.py` - the drift check, so a lint-only tag does not read as drift
-- `.golangci.yml` - GENERATED. It changes only as generator output, never by hand
+- `Makefile` - MODIFIED. `ZE_LINT_PKGS` extracted, and a second pass added to both `ze-lint` and `ze-lint-changed`
+- `scripts/status/verify_run_test.go` - MODIFIED. The two guard tests plus `integrationLintPass`
+- `ai/rules/points/commands/lint-gate/what-ze-lint-changed-covers-and-what-it-costs.md` - MODIFIED. The old note said 3-10 seconds and described one pass
+- 28 integration-tagged test files, plus `snapshot_linux.go` and `mirror_linux.go` - MODIFIED. The 134-finding burn-down
+- `scripts/codegen/feature_tags.go` - UNTOUCHED. The generator shape was rejected
+- `scripts/dev/dep_audit.py` - UNTOUCHED. No lint-only tag is added, so there is no drift to teach it about
+- `.golangci.yml` - UNTOUCHED. Verified by re-running the generator and diffing
 
 ## Files to Create
-- `mk/` lint target file, only if the second-invocation shape wins
-- baseline file recording the pre-existing findings, only if R-1's staged landing is chosen
+- None. No `mk/` fragment: the change is two recipe lines in the existing targets
+- No baseline file. R-1's staged landing was not needed, because the burn-down reached zero in this phase
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -336,6 +386,21 @@ Neither is chosen here. Phase 2 chooses, with evidence.
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
+| A second golangci-lint invocation inside the EXISTING `ze-lint` and `ze-lint-changed` targets, run with `GOOS=linux --build-tags integration` | Teach `rewriteGolangci` to append lint-only tags. Rejected on evidence | The generator shape cannot express GOOS, and GOOS is what actually gates these files: 75 of the 77 are `//go:build integration && linux`. Measured on darwin, `--build-tags integration` WITHOUT `GOOS=linux` reports `0 issues` across the netlink, ike/dataplane and vrrp packages that hold 40+ findings. Shape A would therefore have landed a change, passed its own test on Linux CI, and left every dev machine exactly as blind as before |
+| The second pass passes ONLY `--build-tags integration`, not a re-derived tag list | Spell `ze_core` + `$(ZE_FEATURES)` again on the command line | `--build-tags` ADDS to the config list rather than replacing it (measured against golangci-lint v2.10.1 with a two-tag probe module: config `aaa` + flag `bbb` reports BOTH files). So the generated gate list still applies and nothing is duplicated, which is what keeps `.golangci.yml` generated-and-untouched. If a future release switched to replace semantics the failure is LOUD, not silent: every `ze_`-gated package would report `build constraints exclude all Go files` |
+| No new make target; extend the two that exist | A third target wired into `stagesForMode` | Fewer moving parts for the same coverage. `ze-verify` and `ze-verify-changed` already run these two, so no stage list, golden, or `ai/INDEX.md` row changes, and every existing caller (`ze-test`, `ze-smoke`, `all`) inherits the pass. A new target only adds a name a developer must learn to run |
+| `ze-lint-changed` chains the two passes with `&&` | `;` between them | The recipe is one shell, so `;` makes the recipe's status the SECOND pass's: a real finding in pass 1 would exit 0. `TestChangedLintCoversIntegrationTaggedFiles` pins the `&&` |
+
+### Cost (R-2)
+
+| Run | Wall time |
+|-----|-----------|
+| `make ze-lint` before this change (darwin) | 17s |
+| The added pass, golangci cache warm | 9s |
+| The added pass, golangci cache cold for GOOS=linux | ~6.5 min, once per machine |
+
+On Linux CI both passes analyse the same GOOS and differ only by the tag, so only the
+38 integration packages are re-analysed. The cold cost above is a darwin-only, one-off.
 
 ## Known Limitations
 - The finding count is unverified until phase 1 runs.

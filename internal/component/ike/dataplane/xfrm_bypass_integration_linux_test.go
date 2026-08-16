@@ -1,6 +1,6 @@
 // VALIDATES: that a real Linux XFRM stack accepts the IKE bypass beside a Child SA
 // policy whose selector covers the same flow, and RESOLVES the contest in the
-// bypass's favour. The unit tests assert the two priority NUMBERS; only the kernel
+// bypass's favor. The unit tests assert the two priority NUMBERS; only the kernel
 // can say which policy it actually applies, and the ordering rule (lowest number
 // wins, ties broken by insertion order) is kernel behavior that no amount of
 // reading proves.
@@ -95,7 +95,7 @@ func xfrmOutNoStates(t *testing.T) int {
 	if err != nil {
 		t.Fatalf("reading /proc/net/xfrm_stat: %v; it is the instrument this test measures with", err)
 	}
-	for _, line := range strings.Split(string(raw), "\n") {
+	for line := range strings.SplitSeq(string(raw), "\n") {
 		fields := strings.Fields(line)
 		if len(fields) == 2 && fields[0] == "XfrmOutNoStates" {
 			n, convErr := strconv.Atoi(fields[1])

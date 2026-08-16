@@ -89,7 +89,7 @@ func TestIntegrationMonitorLinkCreated(t *testing.T) {
 
 		createDummyForTest(t, "test0")
 
-		ev := waitForEvent(t, bus, "interface", ifaceevents.EventCreated, monitorEventTimeout)
+		ev := waitForEvent(t, bus, ifaceevents.EventCreated)
 		p := decodeMonitorPayload(t, ev)
 		if p.Name != "test0" {
 			t.Errorf("event name = %q, want %q", p.Name, "test0")
@@ -111,7 +111,7 @@ func TestIntegrationMonitorAddrAdded(t *testing.T) {
 
 		createDummyForTest(t, "test0")
 		// Wait for the created event first.
-		waitForEvent(t, bus, "interface", ifaceevents.EventCreated, monitorEventTimeout)
+		waitForEvent(t, bus, ifaceevents.EventCreated)
 
 		if err := AddAddress("test0", "10.77.0.1/24"); err != nil {
 			t.Fatalf("AddAddress: %v", err)
@@ -142,7 +142,7 @@ func TestIntegrationMonitorAddrRemoved(t *testing.T) {
 		time.Sleep(200 * time.Millisecond)
 
 		createDummyForTest(t, "test0")
-		waitForEvent(t, bus, "interface", ifaceevents.EventCreated, monitorEventTimeout)
+		waitForEvent(t, bus, ifaceevents.EventCreated)
 
 		if err := AddAddress("test0", "10.77.0.1/24"); err != nil {
 			t.Fatalf("AddAddress: %v", err)
@@ -179,7 +179,7 @@ func TestIntegrationMonitorLinkDeleted(t *testing.T) {
 		if err := CreateDummy("test0"); err != nil {
 			t.Fatalf("CreateDummy: %v", err)
 		}
-		waitForEvent(t, bus, "interface", ifaceevents.EventCreated, monitorEventTimeout)
+		waitForEvent(t, bus, ifaceevents.EventCreated)
 
 		if err := DeleteInterface("test0"); err != nil {
 			t.Fatalf("DeleteInterface: %v", err)
@@ -188,7 +188,7 @@ func TestIntegrationMonitorLinkDeleted(t *testing.T) {
 		// After migration the deletion event is (interface, down) because
 		// the stream registry has no separate "deleted" event type; down
 		// is the closest semantic match.
-		ev := waitForEvent(t, bus, "interface", ifaceevents.EventDown, monitorEventTimeout)
+		ev := waitForEvent(t, bus, ifaceevents.EventDown)
 		p := decodeMonitorPayload(t, ev)
 		if p.Name != "test0" {
 			t.Errorf("event name = %q, want %q", p.Name, "test0")
@@ -210,7 +210,7 @@ func TestIntegrationMonitorLinkUpDown(t *testing.T) {
 
 		createDummyForTest(t, "test0")
 		// CreateDummy brings the link UP, so we get a created event.
-		waitForEvent(t, bus, "interface", ifaceevents.EventCreated, monitorEventTimeout)
+		waitForEvent(t, bus, ifaceevents.EventCreated)
 
 		// Bring the link down.
 		link, err := netlink.LinkByName("test0")
@@ -221,13 +221,13 @@ func TestIntegrationMonitorLinkUpDown(t *testing.T) {
 			t.Fatalf("LinkSetDown: %v", err)
 		}
 
-		waitForEvent(t, bus, "interface", ifaceevents.EventDown, monitorEventTimeout)
+		waitForEvent(t, bus, ifaceevents.EventDown)
 
 		// Bring the link back up.
 		if err := netlink.LinkSetUp(link); err != nil {
 			t.Fatalf("LinkSetUp: %v", err)
 		}
 
-		waitForEvent(t, bus, "interface", ifaceevents.EventUp, monitorEventTimeout)
+		waitForEvent(t, bus, ifaceevents.EventUp)
 	})
 }

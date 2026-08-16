@@ -260,7 +260,7 @@ func TestEncapEstablishedSAServesAPeerFormChange(t *testing.T) {
 	// because the recovery runs on the receiver's goroutine.
 	mismatchBefore := encapStat(t, encapStatMismatch)
 	protoBefore := encapStat(t, encapStatProtoError)
-	encapInjectBare(t, encapLoopbackPeerAddr, encapLoopbackAddr, encapESPBytes(encapSPIFormChange))
+	encapInjectBare(t, encapLoopbackPeerAddr, encapESPBytes(encapSPIFormChange))
 
 	if _, ok := encapWaitForStat(t, encapStatProtoError, protoBefore); !ok {
 		t.Fatalf("AC-4: after the peer changed to bare ESP on the live SA, %s never rose within %v. The datagram never reached the crypto check, so the tunnel stops carrying traffic when the peer changes form",
@@ -294,7 +294,7 @@ func TestEncapEstablishedSAServesAPeerFormChange(t *testing.T) {
 	// state raises a THIRD counter, so the rows above are real readings and not a counter
 	// that moves for everything.
 	if got := encapVerdictOf(t, func() {
-		encapInjectBare(t, encapLoopbackPeerAddr, encapLoopbackAddr, encapESPBytes(encapSPIUnknown))
+		encapInjectBare(t, encapLoopbackPeerAddr, encapESPBytes(encapSPIUnknown))
 	}); got != encapStatNoStates {
 		t.Errorf("an SPI with no state raised %s, want %s; the rows above prove nothing",
 			got, encapStatNoStates)

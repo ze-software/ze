@@ -715,7 +715,7 @@ func TestBridgeIntegration_MultipleNLRI(t *testing.T) {
 
 	// Should receive 3 responses (one per NLRI)
 	var responses []string
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		responses = append(responses, h.ReadResponse(3*time.Second))
 	}
 

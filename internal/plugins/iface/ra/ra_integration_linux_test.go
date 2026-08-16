@@ -85,7 +85,7 @@ func withRAVeth(t *testing.T, router, host string, fn func()) {
 	nsName := raNSName(t.Name())
 	newNS, err := netns.NewNamed(nsName)
 	if err != nil {
-		origNS.Close()
+		origNS.Close() //nolint:errcheck // best-effort cleanup
 		unlock()
 		t.Skipf("requires CAP_NET_ADMIN: %v", err)
 	}
@@ -94,8 +94,8 @@ func withRAVeth(t *testing.T, router, host string, fn func()) {
 		if restoreErr := netns.Set(origNS); restoreErr != nil {
 			t.Errorf("restore namespace: %v", restoreErr)
 		}
-		origNS.Close()
-		newNS.Close()
+		origNS.Close()            //nolint:errcheck // best-effort cleanup
+		newNS.Close()             //nolint:errcheck // best-effort cleanup
 		netns.DeleteNamed(nsName) //nolint:errcheck // best-effort netns cleanup
 		unlock()
 	})
@@ -281,19 +281,19 @@ func openRACapture(t *testing.T, dev string) *raCapture {
 		t.Skipf("requires CAP_NET_RAW: %v", err)
 	}
 	if err := bindToDevice(conn, dev); err != nil {
-		conn.Close()
+		conn.Close() //nolint:errcheck // best-effort cleanup
 		t.Fatalf("bind capture socket to %s: %v", dev, err)
 	}
 	pc := ipv6.NewPacketConn(conn)
 	if err := pc.SetControlMessage(ipv6.FlagHopLimit, true); err != nil {
-		conn.Close()
+		conn.Close() //nolint:errcheck // best-effort cleanup
 		t.Fatalf("request received hop limit on %s: %v", dev, err)
 	}
 	var filter ipv6.ICMPFilter
 	filter.SetAll(true)
 	filter.Accept(ipv6.ICMPTypeRouterAdvertisement)
 	if err := pc.SetICMPFilter(&filter); err != nil {
-		conn.Close()
+		conn.Close() //nolint:errcheck // best-effort cleanup
 		t.Fatalf("set ICMP6_FILTER on %s: %v", dev, err)
 	}
 	c := &raCapture{conn: conn, pc: pc}

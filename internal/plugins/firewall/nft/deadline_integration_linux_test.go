@@ -21,7 +21,7 @@ import (
 // VALIDATES: fixit-firewall-concurrency-deadlock AC-10 -- a kernel that never
 // acks yields a timeout error within the deadline rather than blocking.
 //
-// PREVENTS: the shipped behaviour where firewall.ApplyAll held the
+// PREVENTS: the shipped behavior where firewall.ApplyAll held the
 // process-wide reconcileMu across an unbounded Flush, so one wedged kernel
 // stalled every firewall owner in the process, indefinitely.
 func TestNftApplyDeadlineSurfacesError(t *testing.T) {

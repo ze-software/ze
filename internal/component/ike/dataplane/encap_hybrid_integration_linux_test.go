@@ -117,7 +117,7 @@ func TestEncapOneStateAcceptsBothForms(t *testing.T) {
 	encapNetnsUsable(t)
 
 	// ONE state, templated, as an SA on port 4500 installs it.
-	if err := netlink.XfrmStateAdd(encapStateFor(encapSPIDualBoth, true, encapLoopbackPeerAddr, encapLoopbackAddr)); err != nil {
+	if err := netlink.XfrmStateAdd(encapStateFor(encapSPIDualBoth, true, encapLoopbackPeerAddr)); err != nil {
 		t.Fatalf("add templated state: %v", err)
 	}
 
@@ -158,7 +158,7 @@ func TestEncapOneStateAcceptsBothForms(t *testing.T) {
 		}
 	}()
 
-	reader, err := net.ListenPacket("ip4:esp", encapLoopbackAddr)
+	reader, err := (&net.ListenConfig{}).ListenPacket(t.Context(), "ip4:esp", encapLoopbackAddr)
 	if err != nil {
 		// test-relax: capability gate, not a relaxation. See encapInjectRaw above.
 		t.Skipf("no raw ESP socket (needs CAP_NET_RAW): %v", err)
@@ -181,7 +181,7 @@ func TestEncapOneStateAcceptsBothForms(t *testing.T) {
 
 	// Row 2: the UNEXPECTED form is refused by XFRM, exactly as the truth table records.
 	if got := encapVerdictOf(t, func() {
-		encapInjectBare(t, encapLoopbackPeerAddr, encapLoopbackAddr, encapESPBytes(encapSPIDualBoth))
+		encapInjectBare(t, encapLoopbackPeerAddr, encapESPBytes(encapSPIDualBoth))
 	}); got != encapStatMismatch {
 		t.Errorf("bare ESP against a templated state raised %s, want %s; this test is not measuring what it claims",
 			got, encapStatMismatch)
@@ -218,7 +218,7 @@ func TestEncapOneStateAcceptsBothForms(t *testing.T) {
 	// AC-3, the discrimination control, on the same goroutine and namespace. An SPI with
 	// no state raises a THIRD counter, so the three rows above are real readings.
 	if got := encapVerdictOf(t, func() {
-		encapInjectBare(t, encapLoopbackPeerAddr, encapLoopbackAddr, encapESPBytes(encapSPIUnknown))
+		encapInjectBare(t, encapLoopbackPeerAddr, encapESPBytes(encapSPIUnknown))
 	}); got != encapStatNoStates {
 		t.Errorf("AC-3: an SPI with no state raised %s, want %s; the rows above prove nothing",
 			got, encapStatNoStates)
@@ -246,11 +246,11 @@ func TestEncapBareESPVisibleToUserspaceWhenStateIsTemplated(t *testing.T) {
 
 	// The state the under-NAT case installs: templated, so the kernel serves the
 	// encapsulated form and bare ESP is the unexpected one.
-	if err := netlink.XfrmStateAdd(encapStateFor(encapSPIHybridTemplated, true, encapLoopbackPeerAddr, encapLoopbackAddr)); err != nil {
+	if err := netlink.XfrmStateAdd(encapStateFor(encapSPIHybridTemplated, true, encapLoopbackPeerAddr)); err != nil {
 		t.Fatalf("add templated state: %v", err)
 	}
 
-	reader, err := net.ListenPacket("ip4:esp", encapLoopbackAddr)
+	reader, err := (&net.ListenConfig{}).ListenPacket(t.Context(), "ip4:esp", encapLoopbackAddr)
 	if err != nil {
 		t.Skipf("no raw ESP socket (needs CAP_NET_RAW): %v", err)
 	}
@@ -261,7 +261,7 @@ func TestEncapBareESPVisibleToUserspaceWhenStateIsTemplated(t *testing.T) {
 	}()
 
 	verdict := encapVerdictOf(t, func() {
-		encapInjectBare(t, encapLoopbackPeerAddr, encapLoopbackAddr, encapESPBytes(encapSPIHybridTemplated))
+		encapInjectBare(t, encapLoopbackPeerAddr, encapESPBytes(encapSPIHybridTemplated))
 	})
 	t.Logf("M1 kernel verdict for bare ESP against a templated state: %s", verdict)
 
@@ -287,7 +287,7 @@ func TestEncapBareESPVisibleToUserspaceWhenStateIsTemplated(t *testing.T) {
 	// raises a THIRD counter, so the verdict above is a real reading and not a counter
 	// that never moves.
 	if got := encapVerdictOf(t, func() {
-		encapInjectBare(t, encapLoopbackPeerAddr, encapLoopbackAddr, encapESPBytes(encapSPIUnknown))
+		encapInjectBare(t, encapLoopbackPeerAddr, encapESPBytes(encapSPIUnknown))
 	}); got != encapStatNoStates {
 		t.Errorf("an injected SPI with no state raised %s, want %s; the verdict above proves nothing",
 			got, encapStatNoStates)
@@ -316,7 +316,7 @@ func TestEncapEncapsulatedESPHiddenFromUserspaceWhenSocketDecapsulates(t *testin
 
 	// The state the no-NAT case installs: template-free, so the kernel serves bare ESP and
 	// the encapsulated form is the unexpected one.
-	if err := netlink.XfrmStateAdd(encapStateFor(encapSPIHybridBare, false, encapLoopbackPeerAddr, encapLoopbackAddr)); err != nil {
+	if err := netlink.XfrmStateAdd(encapStateFor(encapSPIHybridBare, false, encapLoopbackPeerAddr)); err != nil {
 		t.Fatalf("add template-free state: %v", err)
 	}
 

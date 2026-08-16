@@ -775,7 +775,7 @@ func TestApplyAcceptsNoqueueOriginalRoot(t *testing.T) {
 
 	var replacedHTB bool
 	for _, q := range ops.replaced {
-		if q.Type() == "htb" {
+		if q.Type() == qdiscTypeHTB {
 			replacedHTB = true
 		}
 	}

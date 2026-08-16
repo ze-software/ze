@@ -56,7 +56,7 @@ func TestRateTracker_LoopbackFloodProducesNonZeroRate(t *testing.T) {
 	// sendto: a connected UDP socket to a closed loopback port surfaces the ICMP
 	// port-unreachable as ECONNREFUSED and stalls the flood; unconnected sends keep
 	// flowing, so lo's counters actually climb.
-	pc, err := net.ListenPacket("udp", "127.0.0.1:0")
+	pc, err := (&net.ListenConfig{}).ListenPacket(t.Context(), "udp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("listen udp: %v", err)
 	}
@@ -69,7 +69,7 @@ func TestRateTracker_LoopbackFloodProducesNonZeroRate(t *testing.T) {
 	payload := make([]byte, 1024)
 
 	flood := func(n int) {
-		for i := 0; i < n; i++ {
+		for range n {
 			_, werr := pc.WriteTo(payload, dst)
 			if werr != nil {
 				continue // drop (e.g. ENOBUFS); keep flooding

@@ -58,14 +58,18 @@ func frrISISBin(name string) string {
 func frrISISsh(t *testing.T, format string, args ...any) {
 	t.Helper()
 	cmd := fmt.Sprintf(format, args...)
-	out, err := exec.Command("sh", "-c", cmd).CombinedOutput() //nolint:gosec // test-controlled command
+	out, err := exec.CommandContext(t.Context(), "sh", "-c", cmd).CombinedOutput() //nolint:gosec // test-controlled command
 	require.NoErrorf(t, err, "cmd %q failed: %s", cmd, out)
 }
 
 // frrISISshSoft runs a shell command best-effort, returning combined output.
+//
+// It takes no context on purpose: the teardown callers run from t.Cleanup, and
+// the testing package cancels t.Context() BEFORE cleanup functions run, so a
+// CommandContext here would be killed before it could delete the namespace.
 func frrISISshSoft(format string, args ...any) string {
 	cmd := fmt.Sprintf(format, args...)
-	out, _ := exec.Command("sh", "-c", cmd).CombinedOutput() //nolint:gosec // test-controlled command
+	out, _ := exec.Command("sh", "-c", cmd).CombinedOutput() //nolint:gosec,noctx // test-controlled command, runs after t.Context() is canceled
 	return string(out)
 }
 

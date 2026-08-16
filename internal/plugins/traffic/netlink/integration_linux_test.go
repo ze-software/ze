@@ -35,7 +35,7 @@ func withTrafficNetNS(t *testing.T, fn func()) {
 	nsName := trafficNetNSName(t.Name())
 	newNS, err := netns.NewNamed(nsName)
 	if err != nil {
-		origNS.Close()
+		origNS.Close() //nolint:errcheck // best-effort cleanup
 		unlock()
 		t.Skipf("requires CAP_NET_ADMIN: cannot create namespace: %v", err)
 	}
@@ -44,8 +44,8 @@ func withTrafficNetNS(t *testing.T, fn func()) {
 		if restoreErr := netns.Set(origNS); restoreErr != nil {
 			t.Errorf("failed to restore original namespace: %v", restoreErr)
 		}
-		origNS.Close()
-		newNS.Close()
+		origNS.Close()            //nolint:errcheck // best-effort cleanup
+		newNS.Close()             //nolint:errcheck // best-effort cleanup
 		netns.DeleteNamed(nsName) //nolint:errcheck // best-effort cleanup
 		unlock()
 	})
@@ -110,21 +110,21 @@ func movePeerToNetNS(t *testing.T, peer string, addr *netlink.Addr) {
 	nsName := trafficNetNSName(t.Name()) + "_peer"
 	peerNS, err := netns.NewNamed(nsName)
 	if err != nil {
-		testNS.Close()
+		testNS.Close() //nolint:errcheck // best-effort cleanup
 		t.Skipf("requires CAP_NET_ADMIN: cannot create peer namespace: %v", err)
 	}
 	// NewNamed switches us into the new namespace; go back before touching the
 	// peer link, which is still in the original one.
 	if setErr := netns.Set(testNS); setErr != nil {
-		testNS.Close()
+		testNS.Close() //nolint:errcheck // best-effort cleanup
 		t.Fatalf("restore namespace after creating %s: %v", nsName, setErr)
 	}
 	t.Cleanup(func() {
 		if restoreErr := netns.Set(testNS); restoreErr != nil {
 			t.Errorf("restore namespace: %v", restoreErr)
 		}
-		testNS.Close()
-		peerNS.Close()
+		testNS.Close()            //nolint:errcheck // best-effort cleanup
+		peerNS.Close()            //nolint:errcheck // best-effort cleanup
 		netns.DeleteNamed(nsName) //nolint:errcheck // best-effort cleanup
 	})
 
@@ -220,7 +220,7 @@ func TestNetlinkIntegration_RestoreOriginalQdiscAfterRestart(t *testing.T) {
 		if err := b.Apply(context.Background(), desired); err != nil {
 			t.Fatalf("Apply: %v", err)
 		}
-		if got := rootQdiscTypeInKernel(t, ifaceName); got != "htb" {
+		if got := rootQdiscTypeInKernel(t, ifaceName); got != qdiscTypeHTB {
 			t.Fatalf("applied root qdisc = %q, want htb", got)
 		}
 		loaded, err := loadTCSnapshots()

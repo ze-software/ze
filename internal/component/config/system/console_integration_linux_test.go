@@ -20,8 +20,8 @@ func openPTY(t *testing.T) (slavePath string) {
 		t.Skipf("cannot open pty: %v", err)
 	}
 	t.Cleanup(func() {
-		master.Close()
-		slave.Close()
+		master.Close() //nolint:errcheck // best-effort cleanup
+		slave.Close()  //nolint:errcheck // best-effort cleanup
 	})
 	return slave.Name()
 }
@@ -34,7 +34,7 @@ func TestIntegrationApplyTermios_BaudRate(t *testing.T) {
 
 	fd, err := unix.Open(slavePath, unix.O_RDWR|unix.O_NOCTTY, 0)
 	require.NoError(t, err)
-	defer unix.Close(fd)
+	defer unix.Close(fd) //nolint:errcheck // best-effort cleanup
 
 	termios, err := unix.IoctlGetTermios(fd, unix.TCGETS)
 	require.NoError(t, err)
@@ -57,7 +57,7 @@ func TestIntegrationApplyTermios_RawMode(t *testing.T) {
 
 	fd, err := unix.Open(slavePath, unix.O_RDWR|unix.O_NOCTTY, 0)
 	require.NoError(t, err)
-	defer unix.Close(fd)
+	defer unix.Close(fd) //nolint:errcheck // best-effort cleanup
 
 	termios, err := unix.IoctlGetTermios(fd, unix.TCGETS)
 	require.NoError(t, err)
@@ -80,7 +80,7 @@ func TestIntegrationApplyTermios_SpeedChange(t *testing.T) {
 
 	fd, err := unix.Open(slavePath, unix.O_RDWR|unix.O_NOCTTY, 0)
 	require.NoError(t, err)
-	defer unix.Close(fd)
+	defer unix.Close(fd) //nolint:errcheck // best-effort cleanup
 
 	termios, err := unix.IoctlGetTermios(fd, unix.TCGETS)
 	require.NoError(t, err)

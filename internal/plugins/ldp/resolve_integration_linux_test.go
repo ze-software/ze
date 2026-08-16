@@ -59,15 +59,15 @@ func withLDPNetNS(t *testing.T, fn func()) {
 	}
 	ns, err := netns.NewNamed("zeldpdisc")
 	if err != nil {
-		orig.Close()
+		orig.Close() //nolint:errcheck // best-effort cleanup
 		t.Skipf("requires CAP_NET_ADMIN: %v", err)
 	}
 	t.Cleanup(func() {
 		if rerr := netns.Set(orig); rerr != nil {
 			t.Errorf("restore netns: %v", rerr)
 		}
-		orig.Close()
-		ns.Close()
+		orig.Close()                   //nolint:errcheck // best-effort cleanup
+		ns.Close()                     //nolint:errcheck // best-effort cleanup
 		netns.DeleteNamed("zeldpdisc") //nolint:errcheck // best-effort cleanup
 		runtime.UnlockOSThread()
 	})

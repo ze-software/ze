@@ -51,7 +51,7 @@ func withLabNetNS(t *testing.T, fn func()) {
 	nsName := labNSName(t.Name())
 	newNS, err := netns.NewNamed(nsName)
 	if err != nil {
-		origNS.Close()
+		origNS.Close() //nolint:errcheck // best-effort cleanup
 		unlock()
 		t.Skipf("requires CAP_NET_ADMIN: %v", err)
 	}
@@ -60,8 +60,8 @@ func withLabNetNS(t *testing.T, fn func()) {
 		if restoreErr := netns.Set(origNS); restoreErr != nil {
 			t.Errorf("restore namespace: %v", restoreErr)
 		}
-		origNS.Close()
-		newNS.Close()
+		origNS.Close()            //nolint:errcheck // best-effort cleanup
+		newNS.Close()             //nolint:errcheck // best-effort cleanup
 		netns.DeleteNamed(nsName) //nolint:errcheck // best-effort netns cleanup
 		unlock()
 	})
@@ -85,8 +85,11 @@ func withLabNetNS(t *testing.T, fn func()) {
 	fn()
 }
 
-func createLabVLAN(t *testing.T, parent string, vlanID int, ingressMap, egressMap map[uint32]uint32) {
+func createLabVLAN(t *testing.T, vlanID int, ingressMap, egressMap map[uint32]uint32) {
 	t.Helper()
+	// withLabNetNS builds exactly one veth pair, and ze0 is the end the VLAN
+	// always sits on.
+	const parent = "ze0"
 	b := &netlinkBackend{}
 	if err := b.CreateVLAN(iface.VLANSpec{
 		Parent:        parent,
@@ -154,7 +157,7 @@ func sendRawFrame(t *testing.T, ifName string, frame []byte) {
 	if err != nil {
 		t.Fatalf("AF_PACKET send socket: %v", err)
 	}
-	defer unix.Close(fd)
+	defer unix.Close(fd) //nolint:errcheck // best-effort cleanup
 	addr := &unix.SockaddrLinklayer{
 		Protocol: htons(unix.ETH_P_ALL),
 		Ifindex:  link.Attrs().Index,
@@ -200,7 +203,7 @@ func sendUDPWithPriority(t *testing.T, src, dst [4]byte, dstPort, priority int) 
 	if err != nil {
 		t.Fatalf("UDP socket: %v", err)
 	}
-	defer unix.Close(fd)
+	defer unix.Close(fd) //nolint:errcheck // best-effort cleanup
 	if err := unix.SetsockoptInt(fd, unix.SOL_SOCKET, unix.SO_PRIORITY, priority); err != nil {
 		t.Fatalf("SO_PRIORITY=%d: %v", priority, err)
 	}
@@ -220,7 +223,7 @@ func sendUDPWithTOS(t *testing.T, src, dst [4]byte, dstPort, tos int) {
 	if err != nil {
 		t.Fatalf("UDP socket: %v", err)
 	}
-	defer unix.Close(fd)
+	defer unix.Close(fd) //nolint:errcheck // best-effort cleanup
 	if err := unix.SetsockoptInt(fd, unix.IPPROTO_IP, unix.IP_TOS, tos); err != nil {
 		t.Fatalf("IP_TOS=0x%02x: %v", tos, err)
 	}
@@ -238,7 +241,7 @@ func sendUDPWithTOS(t *testing.T, src, dst [4]byte, dstPort, tos int) {
 
 func nftExec(t *testing.T, script string) {
 	t.Helper()
-	cmd := exec.Command("nft", "-f", "-")
+	cmd := exec.CommandContext(t.Context(), "nft", "-f", "-")
 	cmd.Stdin = strings.NewReader(script)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -246,23 +249,25 @@ func nftExec(t *testing.T, script string) {
 	}
 }
 
+// nftDelete takes no context on purpose: every caller runs it from t.Cleanup,
+// and the testing package cancels t.Context() BEFORE cleanup functions run, so
+// a CommandContext here would be killed before it could remove the table.
 func nftDelete(family, table string) {
-	exec.Command("nft", "delete", "table", family, table).Run() //nolint:errcheck // best-effort nft cleanup
+	exec.Command("nft", "delete", "table", family, table).Run() //nolint:errcheck,noctx // best-effort cleanup, runs after t.Context() is canceled
 }
 
 // nftCounterPackets reads the first "counter packets N" value from a table.
 func nftCounterPackets(t *testing.T, family, table string) uint64 {
 	t.Helper()
-	out, err := exec.Command("nft", "list", "table", family, table).CombinedOutput()
+	out, err := exec.CommandContext(t.Context(), "nft", "list", "table", family, table).CombinedOutput()
 	if err != nil {
 		t.Fatalf("nft list table %s %q: %v\n%s", family, table, err, out)
 	}
-	for _, line := range strings.Split(string(out), "\n") {
-		idx := strings.Index(line, "counter packets ")
-		if idx < 0 {
+	for line := range strings.SplitSeq(string(out), "\n") {
+		_, s, ok := strings.Cut(line, "counter packets ")
+		if !ok {
 			continue
 		}
-		s := line[idx+len("counter packets "):]
 		fields := strings.Fields(s)
 		if len(fields) == 0 {
 			continue
@@ -277,35 +282,11 @@ func nftCounterPackets(t *testing.T, family, table string) uint64 {
 	return 0
 }
 
-// nftCounterByLabel reads a counter from the line containing label.
-func nftCounterByLabel(t *testing.T, family, table, label string) uint64 {
-	t.Helper()
-	out, err := exec.Command("nft", "list", "table", family, table).CombinedOutput()
-	if err != nil {
-		t.Fatalf("nft list table %s %q: %v\n%s", family, table, err, out)
-	}
-	for _, line := range strings.Split(string(out), "\n") {
-		if !strings.Contains(line, label) {
-			continue
-		}
-		idx := strings.Index(line, "counter packets ")
-		if idx < 0 {
-			continue
-		}
-		s := line[idx+len("counter packets "):]
-		fields := strings.Fields(s)
-		if len(fields) == 0 {
-			continue
-		}
-		n, pErr := strconv.ParseUint(fields[0], 10, 64)
-		if pErr != nil {
-			t.Fatalf("parse counter from %q: %v", line, pErr)
-		}
-		return n
-	}
-	t.Fatalf("no counter with label %q in nft output:\n%s", label, out)
-	return 0
-}
+// nftCounterByLabel was removed here. It arrived with the file in 0553b05d2 and
+// no commit since gave it a caller, so nothing it checked ever ran. Every test
+// in this file builds a table with one counter and reads it with
+// nftCounterPackets above. None needs label matching. The record of the removal
+// is test/weakened.md, in the commit that made it.
 
 // ── tests ───────────────────────────────────────────────────────────────────
 
@@ -325,7 +306,7 @@ func TestVLANQoSEgressPCPOnWire(t *testing.T) {
 	}
 
 	withLabNetNS(t, func() {
-		createLabVLAN(t, "ze0", 100, nil, map[uint32]uint32{6: 6})
+		createLabVLAN(t, 100, nil, map[uint32]uint32{6: 6})
 		assignIP(t, "ze0.100", "10.0.0.1/24")
 		addStaticNeighbor(t, "ze0.100",
 			net.IPv4(10, 0, 0, 2),
@@ -392,7 +373,7 @@ func TestVLANQoSIngressClassification(t *testing.T) {
 		ze1MAC := linkMAC(t, "ze1")
 
 		// AC-3: VLAN with ingress-qos-map 6:6
-		createLabVLAN(t, "ze0", 100, map[uint32]uint32{6: 6}, nil)
+		createLabVLAN(t, 100, map[uint32]uint32{6: 6}, nil)
 		assignIP(t, "ze0.100", "10.0.0.1/24")
 
 		nftExec(t, `
@@ -415,7 +396,7 @@ table ip zelab {
 		}
 
 		// AC-4: VLAN without ingress map -- PCP 6 must NOT produce priority 6
-		createLabVLAN(t, "ze0", 200, nil, nil)
+		createLabVLAN(t, 200, nil, nil)
 		assignIP(t, "ze0.200", "10.0.1.1/24")
 
 		nftExec(t, `
@@ -455,7 +436,7 @@ func TestVLANQoSDSCPFullChain(t *testing.T) {
 	}
 
 	withLabNetNS(t, func() {
-		createLabVLAN(t, "ze0", 100, nil, map[uint32]uint32{6: 6})
+		createLabVLAN(t, 100, nil, map[uint32]uint32{6: 6})
 		assignIP(t, "ze0.100", "10.0.0.1/24")
 		addStaticNeighbor(t, "ze0.100",
 			net.IPv4(10, 0, 0, 2),

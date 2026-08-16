@@ -41,7 +41,7 @@ func TestIntegrationMigrateFullCycle(t *testing.T) {
 		if err != nil {
 			t.Fatalf("get test namespace: %v", err)
 		}
-		defer testNS.Close()
+		defer testNS.Close() //nolint:errcheck // best-effort cleanup
 		errCh := make(chan error, 1)
 		go func() {
 			runtime.LockOSThread()
@@ -51,7 +51,7 @@ func TestIntegrationMigrateFullCycle(t *testing.T) {
 				errCh <- err
 				return
 			}
-			defer origNS.Close()
+			defer origNS.Close() //nolint:errcheck // best-effort cleanup
 			defer func() { _ = netns.Set(origNS) }()
 			if err := netns.Set(testNS); err != nil {
 				errCh <- err

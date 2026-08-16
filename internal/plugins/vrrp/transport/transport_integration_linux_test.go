@@ -97,14 +97,14 @@ func setupLab(t *testing.T, family uint8) vrrpLab {
 	}
 	newNS, err := netns.New()
 	if err != nil {
-		orig.Close()
+		orig.Close() //nolint:errcheck // best-effort cleanup
 		runtime.UnlockOSThread()
 		t.Skipf("requires CAP_NET_ADMIN: create namespace: %v", err)
 	}
 	t.Cleanup(func() {
 		_ = netns.Set(orig)
-		orig.Close()
-		newNS.Close()
+		orig.Close()  //nolint:errcheck // best-effort cleanup
+		newNS.Close() //nolint:errcheck // best-effort cleanup
 		runtime.UnlockOSThread()
 	})
 
@@ -180,19 +180,21 @@ func openCapture(t *testing.T, ifindex int) int {
 	}
 	sa := &unix.SockaddrLinklayer{Protocol: htons(unix.ETH_P_ALL), Ifindex: ifindex}
 	if err := unix.Bind(fd, sa); err != nil {
-		unix.Close(fd)
+		unix.Close(fd) //nolint:errcheck // best-effort cleanup
 		t.Fatalf("capture bind: %v", err)
 	}
 	tv := unix.Timeval{Sec: 0, Usec: 100000}
 	_ = unix.SetsockoptTimeval(fd, unix.SOL_SOCKET, unix.SO_RCVTIMEO, &tv)
-	t.Cleanup(func() { unix.Close(fd) })
+	t.Cleanup(func() { unix.Close(fd) }) //nolint:errcheck // best-effort cleanup
 	return fd
 }
 
 // captureMatch reads captured Ethernet frames until match returns true or the
 // deadline passes (payload-predicate wait, R-6).
-func captureMatch(t *testing.T, fd int, match func(frame []byte) bool, timeout time.Duration) []byte {
+func captureMatch(t *testing.T, fd int, match func(frame []byte) bool) []byte {
 	t.Helper()
+	// One wait budget for every capture in this file.
+	const timeout = 3 * time.Second
 	buf := make([]byte, 2048)
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
@@ -338,7 +340,7 @@ func TestIntegrationAdvertOnPeerVeth(t *testing.T) {
 	}
 	frame := captureMatch(t, lab.captureFD, func(f []byte) bool {
 		return len(f) >= 38 && f[12] == 0x08 && f[13] == 0x00 && f[23] == packet.ProtoNumber
-	}, 3*time.Second)
+	})
 
 	if !bytes.Equal(frame[6:12], lab.vmac[:]) {
 		t.Fatalf("L2 src = % x, want virtual MAC % x", frame[6:12], lab.vmac)
@@ -385,7 +387,7 @@ func TestIntegrationAdvertV6OnWire(t *testing.T) {
 	}
 	frame := captureMatch(t, lab.captureFD, func(f []byte) bool {
 		return len(f) >= 54 && f[12] == 0x86 && f[13] == 0xdd && f[14]>>4 == 6 && f[20] == packet.ProtoNumber
-	}, 3*time.Second)
+	})
 	ip := frame[14:]
 	if ip[7] != 255 {
 		t.Fatalf("hop limit = %d, want 255", ip[7])
@@ -420,7 +422,7 @@ func TestIntegrationGARPOnWire(t *testing.T) {
 	n := BuildGARP(want[:], lab.vmac, vip.As4())
 	frame := captureMatch(t, lab.captureFD, func(f []byte) bool {
 		return len(f) >= n && f[12] == 0x08 && f[13] == 0x06
-	}, 3*time.Second)
+	})
 	if !bytes.Equal(frame[:n], want[:n]) {
 		t.Fatalf("GARP frame\n got % x\nwant % x", frame[:n], want[:n])
 	}
@@ -437,7 +439,7 @@ func TestIntegrationNAOnWire(t *testing.T) {
 
 	frame := captureMatch(t, lab.captureFD, func(f []byte) bool {
 		return len(f) >= 14+40+8 && f[12] == 0x86 && f[13] == 0xdd && f[20] == 58 && f[14+40] == 136
-	}, 3*time.Second)
+	})
 	ip := frame[14:]
 	if ip[7] != 255 {
 		t.Fatalf("NA hop limit = %d, want 255", ip[7])
@@ -474,7 +476,7 @@ func TestIntegrationRxDeliversFromPeer(t *testing.T) {
 	if err != nil {
 		t.Fatalf("peer tx socket: %v", err)
 	}
-	defer unix.Close(txFD)
+	defer unix.Close(txFD) //nolint:errcheck // best-effort cleanup
 	if err := unix.SetsockoptString(txFD, unix.SOL_SOCKET, unix.SO_BINDTODEVICE, lab.peer); err != nil {
 		t.Fatalf("bind peer tx: %v", err)
 	}

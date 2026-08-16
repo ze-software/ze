@@ -36,15 +36,15 @@ func withTunnelNetNS(t *testing.T, fn func(b iface.Backend)) {
 	nsName := sanitize(t.Name())
 	newNS, err := netns.NewNamed(nsName)
 	if err != nil {
-		origNS.Close()
+		origNS.Close() //nolint:errcheck // best-effort cleanup
 		t.Skipf("requires CAP_NET_ADMIN: %v", err)
 	}
 	t.Cleanup(func() {
 		if setErr := netns.Set(origNS); setErr != nil {
 			t.Errorf("restore ns: %v", setErr)
 		}
-		origNS.Close()
-		newNS.Close()
+		origNS.Close()            //nolint:errcheck // best-effort cleanup
+		newNS.Close()             //nolint:errcheck // best-effort cleanup
 		netns.DeleteNamed(nsName) //nolint:errcheck // best-effort cleanup
 		runtime.UnlockOSThread()
 	})

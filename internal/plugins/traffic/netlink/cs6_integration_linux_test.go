@@ -61,7 +61,7 @@ func TestCS6ClassifyNetns(t *testing.T) {
 			t.Fatalf("Apply: %v", err)
 		}
 
-		if got := rootQdiscTypeInKernel(t, ifaceName); got != "htb" {
+		if got := rootQdiscTypeInKernel(t, ifaceName); got != qdiscTypeHTB {
 			t.Fatalf("root qdisc = %q, want htb", got)
 		}
 
@@ -121,22 +121,27 @@ func TestCS6ClassifyNetns(t *testing.T) {
 		if err != nil {
 			t.Fatalf("dial: %v", err)
 		}
-		defer conn.Close()
+		defer conn.Close() //nolint:errcheck // best-effort cleanup
 
 		rawConn, err := conn.SyscallConn()
 		if err != nil {
 			t.Fatalf("SyscallConn: %v", err)
 		}
+		// Control's own error is not cleanup: when it fails the callback never
+		// runs, setErr stays nil, and the test would go on to assert a CS6 count
+		// for packets whose TOS was never set.
 		var setErr error
-		rawConn.Control(func(fd uintptr) {
+		if err := rawConn.Control(func(fd uintptr) {
 			setErr = setTOS(fd, 0xC0) // CS6 = DSCP 48, TOS = 0xC0
-		})
+		}); err != nil {
+			t.Fatalf("rawConn.Control: %v", err)
+		}
 		if setErr != nil {
 			t.Fatalf("setsockopt IP_TOS: %v", setErr)
 		}
 
 		payload := []byte("cs6test")
-		for i := 0; i < 50; i++ {
+		for range 50 {
 			conn.Write(payload) //nolint:errcheck // best-effort: some may fail (no listener)
 		}
 

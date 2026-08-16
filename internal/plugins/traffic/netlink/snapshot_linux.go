@@ -147,6 +147,11 @@ func (s tcInterfaceSnapshot) validateLink(link netlink.Link, bootID string) erro
 // is the state a QoS config is most often applied FROM, not an exotic corner.
 const qdiscTypeNoqueue = "noqueue"
 
+// qdiscTypeHTB is the kernel's name for the HTB root this package installs for
+// a class-based QoS config, and the name the integration tests read back out of
+// the kernel to confirm it landed.
+const qdiscTypeHTB = "htb"
+
 func newQdiscSnapshot(qdisc netlink.Qdisc) (tcQdiscSnapshot, error) {
 	if generic, ok := qdisc.(*netlink.GenericQdisc); ok {
 		// noqueue is exactly restorable even though it has no reconstructable
@@ -211,7 +216,7 @@ func (s tcQdiscSnapshot) toNetlink(linkIndex int) (netlink.Qdisc, error) {
 	case "prio":
 		var q netlink.Prio
 		return finishSnapshotQdisc(&q, s, linkIndex)
-	case "htb":
+	case qdiscTypeHTB:
 		var q netlink.Htb
 		return finishSnapshotQdisc(&q, s, linkIndex)
 	case "hfsc":

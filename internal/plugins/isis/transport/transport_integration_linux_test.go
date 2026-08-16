@@ -48,8 +48,11 @@ func nsName(testName string) string {
 // withVethPair creates a veth pair in a fresh network namespace and brings both
 // ends up, running fn inside that namespace. It skips when the required
 // capabilities are absent.
-func withVethPair(t *testing.T, mtuA, mtuB int, fn func()) {
+func withVethPair(t *testing.T, fn func()) {
 	t.Helper()
+	// Both ends run the standard Ethernet MTU. No test here varies it, and a
+	// parameter pair nobody varies only invites the two ends to disagree.
+	const mtuA, mtuB = 1500, 1500
 
 	runtime.LockOSThread()
 	unlocked := false
@@ -69,7 +72,7 @@ func withVethPair(t *testing.T, mtuA, mtuB int, fn func()) {
 	name := nsName(t.Name())
 	newNS, err := netns.NewNamed(name)
 	if err != nil {
-		origNS.Close()
+		origNS.Close() //nolint:errcheck // best-effort cleanup
 		unlock()
 		t.Skipf("requires CAP_NET_ADMIN: %v", err)
 	}
@@ -78,8 +81,8 @@ func withVethPair(t *testing.T, mtuA, mtuB int, fn func()) {
 		if rerr := netns.Set(origNS); rerr != nil {
 			t.Errorf("restore namespace: %v", rerr)
 		}
-		origNS.Close()
-		newNS.Close()
+		origNS.Close()          //nolint:errcheck // best-effort cleanup
+		newNS.Close()           //nolint:errcheck // best-effort cleanup
 		netns.DeleteNamed(name) //nolint:errcheck // best-effort cleanup
 		unlock()
 	})
@@ -117,7 +120,7 @@ func withVethPair(t *testing.T, mtuA, mtuB int, fn func()) {
 
 func TestISISTransportRawSocketCap(t *testing.T) {
 	// VALIDATES: A-5 -- raw-socket open succeeds under CAP_NET_RAW on a real veth.
-	withVethPair(t, 1500, 1500, func() {
+	withVethPair(t, func() {
 		be := NewBackend()
 		h, err := be.OpenCircuit(vethA)
 		if err != nil {
@@ -136,7 +139,7 @@ func TestISISTransportVethRoundTrip(t *testing.T) {
 	// VALIDATES: AC-1 / A-1 / A-2 -- a frame sent to the level multicast MAC on
 	// one veth end is received on the peer with the correct source ifindex, and
 	// the PDU arrives byte-for-byte (no padding/alteration by the transport).
-	withVethPair(t, 1500, 1500, func() {
+	withVethPair(t, func() {
 		be := NewBackend()
 
 		sender, err := be.OpenCircuit(vethA)
@@ -186,7 +189,7 @@ func TestISISTransportConcurrentSendNoTear(t *testing.T) {
 	// frame received on the peer is one of those PDUs byte-for-byte (a torn frame
 	// would be a splice of both, or fail ParseFrame). Run under -race
 	// (make ze-integration-test) the unsynchronized sendBuf access is also flagged.
-	withVethPair(t, 1500, 1500, func() {
+	withVethPair(t, func() {
 		be := NewBackend()
 
 		sender, err := be.OpenCircuit(vethA)
@@ -221,7 +224,7 @@ func TestISISTransportConcurrentSendNoTear(t *testing.T) {
 		// Hello-style sender (to AllL2ISs).
 		go func() {
 			defer wg.Done()
-			for i := 0; i < iterations; i++ {
+			for range iterations {
 				if serr := sender.Send(AllL2ISs, sender.HWAddr(), helloPDU); serr != nil {
 					t.Errorf("hello send: %v", serr)
 					return
@@ -231,7 +234,7 @@ func TestISISTransportConcurrentSendNoTear(t *testing.T) {
 		// Flood-style sender (also to AllL2ISs, same circuit, concurrent).
 		go func() {
 			defer wg.Done()
-			for i := 0; i < iterations; i++ {
+			for range iterations {
 				if serr := sender.Send(AllL2ISs, sender.HWAddr(), floodPDU); serr != nil {
 					t.Errorf("flood send: %v", serr)
 					return
@@ -285,7 +288,7 @@ func TestISISTransportConcurrentSendNoTear(t *testing.T) {
 func TestISISTransportMTUExpose(t *testing.T) {
 	// VALIDATES: A-4 -- the transport exposes the ioctl MTU; a smaller peer frame
 	// surfaces an inferred neighbor MTU and a mismatch (ISO/IEC 10589 sec 8.2.3).
-	withVethPair(t, 1500, 1500, func() {
+	withVethPair(t, func() {
 		tr := New(NewBackend())
 		tr.EnableInterface(vethA, Level2)
 		if err := tr.HandleLinkUp(vethA); err != nil {

@@ -39,7 +39,7 @@ func TestOSPFTransportVethMulticastRoundTrip(t *testing.T) {
 		if err != nil {
 			t.Fatalf("OpenInterface A: %v", err)
 		}
-		defer ha.Close()
+		defer ha.Close() //nolint:errcheck // best-effort cleanup
 		expectTransmitTTL(t, ha)
 
 		var hb InterfaceHandle
@@ -49,7 +49,7 @@ func TestOSPFTransportVethMulticastRoundTrip(t *testing.T) {
 		if err != nil {
 			t.Fatalf("OpenInterface B: %v", err)
 		}
-		defer hb.Close()
+		defer hb.Close() //nolint:errcheck // best-effort cleanup
 
 		payload := []byte{2, 1, 0, 24, 192, 0, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 		if err := ha.Send(AllSPFRouters, payload); err != nil {
@@ -75,7 +75,7 @@ func TestOSPFTransportAllDRoutersReceive(t *testing.T) {
 		if err != nil {
 			t.Fatalf("OpenInterface A: %v", err)
 		}
-		defer ha.Close()
+		defer ha.Close() //nolint:errcheck // best-effort cleanup
 
 		var hb InterfaceHandle
 		runInNS(t, lab.peerNS, func() {
@@ -84,7 +84,7 @@ func TestOSPFTransportAllDRoutersReceive(t *testing.T) {
 		if err != nil {
 			t.Fatalf("OpenInterface B: %v", err)
 		}
-		defer hb.Close()
+		defer hb.Close() //nolint:errcheck // best-effort cleanup
 
 		if err := hb.JoinAllDRouters(); err != nil {
 			t.Fatalf("JoinAllDRouters: %v", err)
@@ -163,13 +163,13 @@ func withVethPeerNamespace(t *testing.T, fn func(ospfVethLab)) {
 	nsName := ospfNSName(t.Name())
 	peerNS, err := netns.NewNamed(nsName)
 	if err != nil {
-		origNS.Close()
+		origNS.Close() //nolint:errcheck // best-effort cleanup
 		unlock()
 		t.Skipf("requires CAP_NET_ADMIN: cannot create namespace: %v", err)
 	}
 	if err := netns.Set(origNS); err != nil {
-		peerNS.Close()
-		origNS.Close()
+		peerNS.Close() //nolint:errcheck // best-effort cleanup
+		origNS.Close() //nolint:errcheck // best-effort cleanup
 		unlock()
 		t.Fatalf("restore original namespace after create %s: %v", nsName, err)
 	}
@@ -182,8 +182,8 @@ func withVethPeerNamespace(t *testing.T, fn func(ospfVethLab)) {
 		if link, lerr := netlink.LinkByName(nameA); lerr == nil {
 			_ = netlink.LinkDel(link)
 		}
-		origNS.Close()
-		peerNS.Close()
+		origNS.Close()            //nolint:errcheck // best-effort cleanup
+		peerNS.Close()            //nolint:errcheck // best-effort cleanup
 		netns.DeleteNamed(nsName) //nolint:errcheck // best-effort cleanup
 		unlock()
 	})
@@ -211,7 +211,7 @@ func runInNS(t *testing.T, target netns.NsHandle, fn func()) {
 	if err != nil {
 		t.Fatalf("get namespace: %v", err)
 	}
-	defer orig.Close()
+	defer orig.Close() //nolint:errcheck // best-effort cleanup
 	if err := netns.Set(target); err != nil {
 		t.Fatalf("set namespace: %v", err)
 	}

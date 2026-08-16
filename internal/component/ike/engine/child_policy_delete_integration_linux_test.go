@@ -70,7 +70,7 @@ func delOwnProcess(t *testing.T) bool {
 	if os.Getenv(delChildEnv) == "1" {
 		return true
 	}
-	cmd := exec.Command(os.Args[0], "-test.run", "^"+t.Name()+"$", "-test.v")
+	cmd := exec.CommandContext(t.Context(), os.Args[0], "-test.run", "^"+t.Name()+"$", "-test.v")
 	cmd.Env = append(os.Environ(), delChildEnv+"=1")
 	out, err := cmd.CombinedOutput()
 	if err != nil {

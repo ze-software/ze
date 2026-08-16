@@ -53,7 +53,7 @@ func withMirrorNetNS(t *testing.T, fn func()) {
 	nsName := mirrorNetNSName(t.Name())
 	newNS, err := netns.NewNamed(nsName)
 	if err != nil {
-		origNS.Close()
+		origNS.Close() //nolint:errcheck // best-effort cleanup
 		unlock()
 		t.Skipf("requires CAP_NET_ADMIN: cannot create namespace: %v", err)
 	}
@@ -62,8 +62,8 @@ func withMirrorNetNS(t *testing.T, fn func()) {
 		if restoreErr := netns.Set(origNS); restoreErr != nil {
 			t.Errorf("failed to restore original namespace: %v", restoreErr)
 		}
-		origNS.Close()
-		newNS.Close()
+		origNS.Close()            //nolint:errcheck // best-effort cleanup
+		newNS.Close()             //nolint:errcheck // best-effort cleanup
 		netns.DeleteNamed(nsName) //nolint:errcheck // best-effort cleanup
 		unlock()
 	})
@@ -131,8 +131,10 @@ func mirrorTestFilterCount(t *testing.T, link netlink.Link, parent uint32) int {
 // A count alone cannot tell "the mirror filter went and the foreign one stayed"
 // from the reverse, which is the defect these tests exist to refuse, so the
 // assertions below identify the survivor rather than counting it.
-func mirrorTestFilterAt(t *testing.T, link netlink.Link, parent uint32, priority uint16) netlink.Filter {
+func mirrorTestFilterAt(t *testing.T, link netlink.Link, priority uint16) netlink.Filter {
 	t.Helper()
+	// Mirror filters live on the ingress qdisc; no caller looks anywhere else.
+	parent := uint32(netlink.HANDLE_MIN_INGRESS)
 
 	filters, err := netlink.FilterList(link, parent)
 	if err != nil {
@@ -161,8 +163,10 @@ func mirrorTestMirredDst(f netlink.Filter) int {
 	return 0
 }
 
-func mirrorTestHasQdisc(t *testing.T, link netlink.Link, qdiscType string) bool {
+func mirrorTestHasQdisc(t *testing.T, link netlink.Link) bool {
 	t.Helper()
+	// clsact is the only qdisc mirroring installs.
+	const qdiscType = "clsact"
 
 	qdiscs, err := netlink.QdiscList(link)
 	if err != nil {
@@ -194,10 +198,10 @@ func TestIntegrationMirrorSetupRollbackKeepsForeignFilter(t *testing.T) {
 			t.Fatal("setupClsactMirror succeeded with a destination no device carries")
 		}
 
-		if !mirrorTestHasQdisc(t, src, "clsact") {
+		if !mirrorTestHasQdisc(t, src) {
 			t.Error("the rollback deleted a clsact qdisc the mirror did not create")
 		}
-		foreign := mirrorTestFilterAt(t, src, netlink.HANDLE_MIN_INGRESS, mirrorTestForeignPriority)
+		foreign := mirrorTestFilterAt(t, src, mirrorTestForeignPriority)
 		if foreign == nil {
 			t.Fatal("the rollback removed the foreign filter")
 		}
@@ -205,7 +209,7 @@ func TestIntegrationMirrorSetupRollbackKeepsForeignFilter(t *testing.T) {
 			t.Errorf("the surviving filter mirrors to ifindex %d, want %d: it is not the foreign one",
 				got, smp.Attrs().Index)
 		}
-		if mirrorTestFilterAt(t, src, netlink.HANDLE_MIN_INGRESS, mirrorFilterPriority) != nil {
+		if mirrorTestFilterAt(t, src, mirrorFilterPriority) != nil {
 			t.Error("the rollback left its own ingress filter behind")
 		}
 		if got := mirrorTestFilterCount(t, src, netlink.HANDLE_MIN_INGRESS); got != 1 {
@@ -228,7 +232,7 @@ func TestIntegrationMirrorSetupRollbackRemovesTheQdiscItCreated(t *testing.T) {
 			t.Fatal("setupClsactMirror succeeded with a destination no device carries")
 		}
 
-		if mirrorTestHasQdisc(t, src, "clsact") {
+		if mirrorTestHasQdisc(t, src) {
 			t.Error("the rollback left behind the clsact qdisc the failed setup created")
 		}
 	})
@@ -309,10 +313,10 @@ func TestIntegrationMirrorRemoveKeepsTheQdiscOfAnotherSubsystem(t *testing.T) {
 		if err := b.RemoveMirror("msrc0"); err != nil {
 			t.Fatalf("RemoveMirror with a foreign filter attached: %v", err)
 		}
-		if !mirrorTestHasQdisc(t, src, "clsact") {
+		if !mirrorTestHasQdisc(t, src) {
 			t.Fatal("the shared qdisc was deleted while a foreign filter was attached")
 		}
-		foreign := mirrorTestFilterAt(t, src, netlink.HANDLE_MIN_INGRESS, mirrorTestForeignPriority)
+		foreign := mirrorTestFilterAt(t, src, mirrorTestForeignPriority)
 		if foreign == nil {
 			t.Fatal("the foreign filter was removed with the mirror")
 		}
@@ -320,7 +324,7 @@ func TestIntegrationMirrorRemoveKeepsTheQdiscOfAnotherSubsystem(t *testing.T) {
 			t.Errorf("the surviving filter mirrors to ifindex %d, want %d: the wrong filter survived",
 				got, smp.Attrs().Index)
 		}
-		if mirrorTestFilterAt(t, src, netlink.HANDLE_MIN_INGRESS, mirrorFilterPriority) != nil {
+		if mirrorTestFilterAt(t, src, mirrorFilterPriority) != nil {
 			t.Error("the mirror's own ingress filter survived RemoveMirror")
 		}
 		if got := mirrorTestFilterCount(t, src, netlink.HANDLE_MIN_INGRESS); got != 1 {
@@ -350,7 +354,7 @@ func TestIntegrationMirrorRemoveKeepsTheQdiscOfAnotherSubsystem(t *testing.T) {
 		// test-relax: this asserted the qdisc was gone once its last user left.
 		// AC-3 was relaxed on 2026-08-14 and the assertion is inverted rather
 		// than dropped, so a teardown that starts deleting again reds here.
-		if !mirrorTestHasQdisc(t, src, "clsact") {
+		if !mirrorTestHasQdisc(t, src) {
 			t.Error("the last user's teardown deleted a qdisc it may not have created")
 		}
 		if got := mirrorTestFilterCount(t, src, netlink.HANDLE_MIN_INGRESS); got != 0 {

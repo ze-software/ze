@@ -12,6 +12,8 @@ import (
 
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
+
+	ifaceevents "github.com/ze-software/ze/internal/core/iface/events"
 )
 
 // ensureBackendForIntegration loads the netlink backend if not already loaded.
@@ -49,7 +51,7 @@ func withNetNS(t *testing.T, fn func()) {
 
 	newNS, err := netns.NewNamed(nsName)
 	if err != nil {
-		origNS.Close()
+		origNS.Close() //nolint:errcheck // best-effort cleanup
 		t.Skipf("requires CAP_NET_ADMIN: cannot create namespace: %v", err)
 	}
 
@@ -58,8 +60,8 @@ func withNetNS(t *testing.T, fn func()) {
 		if restoreErr := netns.Set(origNS); restoreErr != nil {
 			t.Errorf("failed to restore original namespace: %v", restoreErr)
 		}
-		origNS.Close()
-		newNS.Close()
+		origNS.Close() //nolint:errcheck // best-effort cleanup
+		newNS.Close()  //nolint:errcheck // best-effort cleanup
 		// Delete the named namespace.
 		netns.DeleteNamed(nsName) //nolint:errcheck // best-effort cleanup
 		runtime.UnlockOSThread()
@@ -123,11 +125,18 @@ func (b *collectingBus) snapshot() []collectedEvent {
 	return cp
 }
 
-// waitForEvent polls the collectingBus events list for an event matching
-// the given (namespace, eventType), with timeout. Returns the matching
-// event or fails.
-func waitForEvent(t *testing.T, bus *collectingBus, namespace, eventType string, timeout time.Duration) collectedEvent {
+// waitForEvent polls the collectingBus events list for an event of eventType in
+// the iface namespace. Returns the matching event, or fails once the wait budget
+// is spent.
+//
+// Neither the namespace nor the budget is a parameter. Every caller watches
+// ifaceevents.Namespace and waits monitorEventTimeout, so taking both from their
+// owners is what keeps this helper agreeing with the event producer and with the
+// rest of the file, rather than with values a caller retyped.
+func waitForEvent(t *testing.T, bus *collectingBus, eventType string) collectedEvent {
 	t.Helper()
+	const namespace = ifaceevents.Namespace
+	const timeout = monitorEventTimeout
 
 	deadline := time.Now().Add(timeout)
 	seen := 0
@@ -252,15 +261,4 @@ func requireNoAddress(t *testing.T, ifaceName, cidr string) {
 	if hasAddress(ifaceName, cidr) {
 		t.Errorf("address %q should not be on %q but is", cidr, ifaceName)
 	}
-}
-
-// uniqueName returns a short unique interface name suitable for Linux
-// (max 15 chars). The suffix ensures no collisions between tests in the
-// same namespace.
-func uniqueName(prefix string, idx int) string {
-	name := fmt.Sprintf("%s%d", prefix, idx)
-	if len(name) > 15 {
-		name = name[:15]
-	}
-	return name
 }

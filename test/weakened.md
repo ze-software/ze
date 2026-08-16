@@ -78,3 +78,6 @@ that row is where you say which of the two happened.
 
 | Test | Reason |
 |------|--------|
+| vlanqoslab_integration_linux_test | The file's assertion count falls by three, and all three are the `t.Fatalf` calls inside `nftCounterByLabel`, which the row below removes. No test in the file loses a check. |
+| nftCounterByLabel | The helper itself left the file. It arrived with the file in 0553b05d2, no commit since gave it a caller, and the `unused` linter reported it the first time the integration-tagged build was analysed. Nothing it checked ever ran, so no coverage goes with it. Every test in the file reads its one counter with `nftCounterPackets`. |
+| uniqueName | The helper itself left the file. It is an unexported helper with no caller anywhere in the tree, which is what the `unused` linter reported the moment the integration-tagged build was analysed for the first time. No assertion, case, or test goes with it: nothing called it, so no test ran it. |

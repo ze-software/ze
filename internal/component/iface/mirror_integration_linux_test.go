@@ -58,8 +58,14 @@ func mirredDst(f netlink.Filter) int {
 
 // addForeignFilter attaches a filter belonging to another subsystem to the
 // shared qdisc, at the priority flow-export sampling uses.
-func addForeignFilter(t *testing.T, srcName, dstName string, parent uint32) {
+func addForeignFilter(t *testing.T, srcName string) {
 	t.Helper()
+	// The foreign filter always contends for the ingress qdisc; that contention
+	// IS what these tests exercise.
+	parent := uint32(netlink.HANDLE_MIN_INGRESS)
+	// The mirror destination is fixed: every caller creates smp0 and redirects to
+	// it, so a parameter here only offered a way for the two to disagree.
+	const dstName = "smp0"
 	src, err := netlink.LinkByName(srcName)
 	if err != nil {
 		t.Fatalf("LinkByName(%q): %v", srcName, err)
@@ -314,7 +320,7 @@ func TestIntegrationMirrorRemoveKeepsForeignFilter(t *testing.T) {
 		if err := SetupMirror("src0", "dst0", true, true); err != nil {
 			t.Fatalf("SetupMirror(both): %v", err)
 		}
-		addForeignFilter(t, "src0", "smp0", netlink.HANDLE_MIN_INGRESS)
+		addForeignFilter(t, "src0")
 
 		if err := RemoveMirror("src0"); err != nil {
 			t.Fatalf("RemoveMirror: %v", err)
@@ -353,7 +359,7 @@ func TestIntegrationMirrorRemoveLeavesForeignQdiscUntouched(t *testing.T) {
 		createDummyForTest(t, "smp0")
 
 		addClsactQdisc(t, "src0")
-		addForeignFilter(t, "src0", "smp0", netlink.HANDLE_MIN_INGRESS)
+		addForeignFilter(t, "src0")
 
 		if err := RemoveMirror("src0"); err != nil {
 			t.Fatalf("RemoveMirror: %v", err)
@@ -379,7 +385,7 @@ func TestIntegrationMirrorSetupOnExistingClsact(t *testing.T) {
 		createDummyForTest(t, "smp0")
 
 		addClsactQdisc(t, "src0")
-		addForeignFilter(t, "src0", "smp0", netlink.HANDLE_MIN_INGRESS)
+		addForeignFilter(t, "src0")
 
 		if err := SetupMirror("src0", "dst0", true, true); err != nil {
 			t.Fatalf("SetupMirror on an existing clsact qdisc: %v", err)
@@ -417,7 +423,7 @@ func TestIntegrationMirrorSetupIsIdempotent(t *testing.T) {
 		createDummyForTest(t, "src0")
 		createDummyForTest(t, "dst0")
 
-		for i := 0; i < 2; i++ {
+		for i := range 2 {
 			if err := SetupMirror("src0", "dst0", true, true); err != nil {
 				t.Fatalf("SetupMirror pass %d: %v", i+1, err)
 			}
@@ -557,7 +563,7 @@ func TestIntegrationApplyConfigMirrorKeepsForeignFilterOnConfigDelete(t *testing
 		if errs := applyConfig(previous, nil, b); len(errs) > 0 {
 			t.Fatalf("apply previous config: %v", errs)
 		}
-		addForeignFilter(t, "mir0", "smp0", netlink.HANDLE_MIN_INGRESS)
+		addForeignFilter(t, "mir0")
 
 		current := &ifaceConfig{
 			Backend: "netlink",

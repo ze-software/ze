@@ -33,7 +33,7 @@ func withNetNS(t *testing.T, fn func()) {
 	nsName := sanitizeNSName(t.Name())
 	newNS, err := netns.NewNamed(nsName)
 	if err != nil {
-		origNS.Close()
+		origNS.Close() //nolint:errcheck // best-effort cleanup
 		t.Skipf("requires CAP_NET_ADMIN: %v", err)
 	}
 
@@ -41,8 +41,8 @@ func withNetNS(t *testing.T, fn func()) {
 		if restoreErr := netns.Set(origNS); restoreErr != nil {
 			t.Errorf("restore namespace: %v", restoreErr)
 		}
-		origNS.Close()
-		newNS.Close()
+		origNS.Close()            //nolint:errcheck // best-effort cleanup
+		newNS.Close()             //nolint:errcheck // best-effort cleanup
 		netns.DeleteNamed(nsName) //nolint:errcheck // best-effort cleanup in test teardown
 		runtime.UnlockOSThread()
 	})
@@ -241,9 +241,10 @@ func TestIntegration_RouteDelete(t *testing.T) {
 		var addCount, removeCount int
 		for _, ev := range events {
 			if ev.Prefix == netip.MustParsePrefix("10.99.0.0/24") {
-				if ev.Action == ActionAdd {
+				switch ev.Action {
+				case ActionAdd:
 					addCount++
-				} else if ev.Action == ActionRemove {
+				case ActionRemove:
 					removeCount++
 				}
 			}

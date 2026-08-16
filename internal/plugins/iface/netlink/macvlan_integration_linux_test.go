@@ -45,7 +45,7 @@ func withMacvlanNetNS(t *testing.T, fn func()) {
 	nsName := macvlanNetNSName(t.Name())
 	newNS, err := netns.NewNamed(nsName)
 	if err != nil {
-		origNS.Close()
+		origNS.Close() //nolint:errcheck // best-effort cleanup
 		unlock()
 		t.Skipf("requires CAP_NET_ADMIN: cannot create namespace: %v", err)
 	}
@@ -53,8 +53,8 @@ func withMacvlanNetNS(t *testing.T, fn func()) {
 		if restoreErr := netns.Set(origNS); restoreErr != nil {
 			t.Errorf("failed to restore original namespace: %v", restoreErr)
 		}
-		origNS.Close()
-		newNS.Close()
+		origNS.Close()            //nolint:errcheck // best-effort cleanup
+		newNS.Close()             //nolint:errcheck // best-effort cleanup
 		netns.DeleteNamed(nsName) //nolint:errcheck // best-effort cleanup
 		unlock()
 	})
@@ -182,7 +182,7 @@ func TestIntegrationMacvlanParentDown_DeviceSurvivesAndKeepsOperUp(t *testing.T)
 			t.Fatalf("set parent down: %v", err)
 		}
 		// test-relax: the removed assertion (macvlan oper-state goes not-up on
-		// parent-down) asserted a kernel behaviour that does not exist. Measured
+		// parent-down) asserted a kernel behavior that does not exist. Measured
 		// in the QEMU VM 2026-07-15 with `ip -d link show mv0`: after
 		// `ip link set p0 down` the macvlan reads
 		// `<BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN> ... state UP` -- the kernel
@@ -192,7 +192,7 @@ func TestIntegrationMacvlanParentDown_DeviceSurvivesAndKeepsOperUp(t *testing.T)
 		// can make the kernel report LOWERLAYERDOWN here. Coverage is REPLACED,
 		// not dropped: the inverted assertion below pins the real contract (so a
 		// future kernel that starts propagating fails this test loudly), and the
-		// behaviour the old assertion was proxying for -- VRRP noticing a dead
+		// behavior the old assertion was proxying for -- VRRP noticing a dead
 		// parent -- is covered where it actually lives, by spec-vrrp-5's
 		// parent-keyed readiness predicate and its engine tests.
 		//

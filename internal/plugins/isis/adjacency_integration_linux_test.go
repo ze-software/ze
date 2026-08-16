@@ -57,7 +57,7 @@ func withVethPair(t *testing.T, fn func()) {
 	}
 	newNS, err := netns.NewNamed("zeisisadj")
 	if err != nil {
-		origNS.Close()
+		origNS.Close() //nolint:errcheck // best-effort cleanup
 		unlock()
 		t.Skipf("requires CAP_NET_ADMIN: %v", err)
 	}
@@ -65,8 +65,8 @@ func withVethPair(t *testing.T, fn func()) {
 		if rerr := netns.Set(origNS); rerr != nil {
 			t.Errorf("restore namespace: %v", rerr)
 		}
-		origNS.Close()
-		newNS.Close()
+		origNS.Close()                 //nolint:errcheck // best-effort cleanup
+		newNS.Close()                  //nolint:errcheck // best-effort cleanup
 		netns.DeleteNamed("zeisisadj") //nolint:errcheck // best-effort cleanup
 		unlock()
 	})

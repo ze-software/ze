@@ -289,7 +289,12 @@ Before claiming any Go implementation work is done, run:
 make ze-lint-changed
 ```
 
-This lints all packages with uncommitted Go changes. Takes 3-10 seconds.
+This lints all packages with uncommitted Go changes, TWICE: once for the host
+build, then again under `GOOS=linux` with the `integration` build tag. The second
+pass is the only thing that reads a `//go:build integration` file, and on a
+non-Linux host it is the only thing that reads a `//go:build linux` file. Takes
+3-10 seconds once both caches are warm; the first run after a checkout pays a
+cold `GOOS=linux` analysis, which is minutes.
 
 Fix every issue it reports. Do not claim done with lint failures outstanding.
 

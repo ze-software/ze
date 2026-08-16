@@ -201,7 +201,7 @@ func removeMirrorFilters(linkIndex int) error {
 // left on either hook. It fails closed: when the remaining filters cannot be
 // listed, the qdisc stays. Leaving an empty qdisc costs a miniq on the device;
 // deleting a shared one costs another subsystem every filter it installed, so
-// the asymmetry decides every uncertain case in favour of leaving it.
+// the asymmetry decides every uncertain case in favor of leaving it.
 //
 // Only undoMirrorSetup calls this, and only when it created the qdisc itself.
 // The filter check is what stops a rollback taking a filter that arrived in
