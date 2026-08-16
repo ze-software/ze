@@ -35,13 +35,26 @@ crash signature. That part of the attempt is as sensitive as this tool gets.
 The spec named two conditions, and neither was run. Recording this is the whole
 point of the shard, so it is stated before the result is used.
 
-**`ZE_PLUGIN_PARALLEL` was never set.** The spec's Task named it directly as the
-setting to try. `run_once` (`scripts/dev/stress-repro.py`) builds the child
-environment with `ze.bin`, `ze.test.bin`, `ZE_TEST_NO_BUILD` and `GOTRACEBACK`
-only, so no invocation of this tool can set it. `--parallel` is a DIFFERENT
-knob: its own help calls it "concurrent invocations per round", and it is the
-`max_workers` of the `ThreadPoolExecutor` that launches whole `ze-test`
-processes. Plugin-level parallelism inside one daemon was never raised.
+**`ZE_PLUGIN_PARALLEL` was never raised, and the reason first recorded here was
+wrong.** `--parallel` is a DIFFERENT knob: its own help calls it "concurrent
+invocations per round", and it is the `max_workers` of the `ThreadPoolExecutor`
+that launches whole `ze-test` processes. Plugin-level parallelism inside one
+runner was never raised, which is what the spec's Task asked for.
+
+An earlier draft of this shard said `run_once` (`scripts/dev/stress-repro.py`)
+cannot set it, because that function builds the child environment with
+`ze.bin`, `ze.test.bin`, `ZE_TEST_NO_BUILD` and `GOTRACEBACK`. That reasoning
+does not hold: the same function opens with `env = dict(os.environ)`, so the
+variable is INHERITED from the caller. The real reason raising it changes
+nothing here is different and simpler. `ZE_PLUGIN_PARALLEL` is a make variable
+(`mk/test-functional.mk`) that becomes `-p N` on the runner's command line, and
+`-p` bounds how many `.ci` tests run CONCURRENTLY. With one test selected there
+is nothing to run it beside, so the knob is inert for a single-test stress run
+whatever its value.
+
+**So the spec's condition means the WHOLE suite at high `-p`**, where this test
+contends with the other 600, not this test alone under a raised number. That is
+a different run, and it is cheap.
 
 **It was never run alone.** Both captures used burners and concurrency. The
 Task asked for the isolated case first, and no run answers it.
