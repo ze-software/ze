@@ -52,21 +52,18 @@ one VM per test):
 No per-test wiring is needed for either: the suites are the same as the native
 runner, so the QEMU pass discovers `needs-linux` tests automatically.
 
-**Both targets boot ze's own runtime kernel, never the stock Alpine one
-(2026-08-07).** Each passes `--kernel tmp/kernel/vmlinuz` and refuses to start
+**Both targets boot ze's own runtime kernel, never the stock Alpine one.** Each
+passes `--kernel tmp/kernel/vmlinuz` and refuses to start
 without it, so `make ze-kernel-vmlinuz KERNEL_ARCH=<amd64|arm64>` is a
 precondition of each. That command costs a copy on a cache hit and only builds
 on a miss. `make ze-kernel` also satisfies it and additionally assembles the
 gokrazy kernel package, which needs the module cache `make ze-gokrazy-deps`
 downloads and a VM boot never reads.
 
-**A caller that runs one of these targets MUST supply the kernel itself
-(2026-08-11).** The guard denies before the VM, so a caller that cannot stage a
-kernel runs no test at all. `.github/workflows/qemu-nightly.yml` was that caller
-for four nights: it never staged one, and its job-level `continue-on-error`
-reported every failed run as `success`.
+**A caller that runs one of these targets MUST supply the kernel itself.** The
+guard denies before the VM, so a caller that cannot stage a kernel runs no test.
 `TestQemuKernelPreconditionIsMetInTheSameJob`
-(`scripts/dev/github_workflows_test.go`) now derives both sides from the make
+(`scripts/dev/github_workflows_test.go`) derives both sides from the make
 fragments. It fails when a workflow JOB runs a guarded target and no target in
 that same job stages a kernel.
 
@@ -88,15 +85,9 @@ still denies, but it names the wrong cause. `TestQemuTargetsGuardTheStagedKernel
 makefile rather than from a list, so a seventh target is checked the day it is
 written.
 
-**Why they moved.** The stock Alpine 6.12.13-0-virt kernel crashes on the nft
-set-element-timeout operations the firewall suite performs, so `firewall` sat in
-the default skip list and the suite proved nothing. ze also declares that kernel
-unsupported: `tools/kernel-builder/build.py` refuses anything below 7.0. On
-7.1.4 the same operations succeed and the VM survives them, so `firewall` left
-that list. **Two files carry the default and they MUST move together**:
+**Two files carry the default kernel behavior and they MUST move together:**
 `mk/test-integration.mk` and `scripts/evidence/qemu-all-tests.sh`. The script
-default wins whenever the script is invoked directly, so changing only the
-makefile leaves the old behavior in force.
+default wins when the script is invoked directly.
 
 Decision rule:
 
@@ -121,11 +112,9 @@ reason a test cannot run on macOS is a capability, you MUST declare the capabili
 unprivileged Linux host (CI runners, most dev boxes, any rootless container) a
 test that applies interface config does NOT fail cleanly. The interface plugin
 fails its stage-2 (configure) handshake with `operation not permitted` and the
-DAEMON does exit 1 (verified 2026-07-25 in QEMU as an unprivileged user), so you
-MUST NOT read this as the daemon hanging. The TEST hangs, to the suite timeout,
-because its check peer goes on waiting for a BGP session the exited daemon will
-never open. Seven `test/reload/` tests spent their life in exactly that state,
-mis-recorded as "load-sensitive". The gate reads `CapEff` from
+DAEMON exits 1, so you MUST NOT read this as the daemon hanging. The TEST hangs
+because its check peer waits for a BGP session the exited daemon will never
+open. The gate reads `CapEff` from
 `/proc/self/status` (`internal/test/runner/caps_linux.go`), not uid 0: a setcap'd
 binary holds the capability without being root, and a restricted container can be
 root without it.
@@ -272,18 +261,14 @@ The pattern (do all four in the same change):
 Step 3's custom kernel is conditional for a LAB, not automatic: use `--kernel`
 only when a `CONFIG_*` the lab needs is absent from the stock Alpine kernel.
 L2TP and PPPoE need it (`CONFIG_PPPOL2TP`, `CONFIG_PPPOE`); VRRP does not,
-because the stock Alpine 6.12.13-0-virt kernel already creates macvlan (bridge
-mode), bridge, veth and netns (probed 2026-07-15). Probe the stock kernel before
+because the stock Alpine kernel already creates macvlan (bridge
+mode), bridge, veth and netns. Probe the stock kernel before
 reaching for it, so a lab that gains nothing does not gain a precondition.
 
-**The cost that used to decide this is gone (2026-08-07).** `make ze-kernel`
-routes through the durable architecture- and config-keyed cache under
-`~/.cache/ze`, so it materializes in seconds on a hit and builds only on a miss
-or after a config fragment changes. The older advice, that `--kernel` "forces a
-~30-minute build on everyone who runs the lab", described a checkout where the
-kernel lived in `tmp/`. It now costs a copy. The two functional targets
-(`ze-qemu-all-test`, `ze-qemu-needs-linux-test`) use `--kernel` unconditionally
-for that reason.
+`make ze-kernel` routes through the durable architecture- and config-keyed cache
+under `~/.cache/ze`, so it materializes on a cache hit and builds only on a miss
+or after a config fragment changes. The two functional targets
+(`ze-qemu-all-test`, `ze-qemu-needs-linux-test`) use `--kernel` unconditionally.
 
 ## What the QEMU VM Provides
 
@@ -378,9 +363,9 @@ the job simply runs under `sudo` as root, which has those capabilities natively.
 It is advisory-first (`continue-on-error: true`): a red suite reports without
 marking the run failed, until a green baseline lets it flip to blocking.
 
-**`ze-qemu-integration-test` is still NOT automated:** its only caller is `make ze-release-evidence` (`mk/test-release.mk`), which a person runs before a release. The QEMU labs in the rows above ARE automated since 2026-08-12, so the old reason for this one -- that hosted runners do not reliably provide nested virt / KVM -- no longer holds: `.github/workflows/qemu-nightly.yml` measured a usable `/dev/kvm` on `ubuntu-latest` (run 30249183064, 2026-07-27) and falls back to TCG when it is absent. What keeps this target out is its own cost. You MUST NOT assume CI catches a broken Go `integration && linux` package for you.
+**`ze-qemu-integration-test` is NOT automated:** its only caller is `make ze-release-evidence` (`mk/test-release.mk`), which a person runs before a release. Its own cost keeps it out. You MUST NOT assume CI catches a broken Go `integration && linux` package for you.
 
-**Every `ze-qemu-*-test` and `ze-*-interop-test` target MUST have a caller that runs on its own** -- a workflow job, a script, or another make target. A `.PHONY` line, a `make help` entry and a paragraph in `docs/` are mentions, not callers. Seven of the ten QEMU targets sat with no caller at all until 2026-08-12: `ze-qemu-ldp-frr-test` drove a real FRR ldpd peer and ran nowhere, and `internal/plugins/ldp` was EXCLUDED from `ZE_QEMU_INTEGRATION_PKGS` in its favor, so the package stopped compiling under the `integration` tag and no gate could see it. `TestQemuAndInteropTargetsHaveACaller` (`scripts/dev/github_workflows_test.go`) derives the targets from `mk/*.mk` and the callers from actual invocation. **A target that is deliberately manual MUST be listed in that test's `manualQemuTargets` with the reason no pipeline runs it**; "expensive" describes every target in the class and is not a reason.
+**Every `ze-qemu-*-test` and `ze-*-interop-test` target MUST have a caller that runs on its own**: a workflow job, a script, or another make target. A `.PHONY` line, a `make help` entry, and a paragraph in `docs/` are mentions, not callers. `TestQemuAndInteropTargetsHaveACaller` (`scripts/dev/github_workflows_test.go`) derives the targets from `mk/*.mk` and the callers from actual invocation. **A target that is deliberately manual MUST be listed in that test's `manualQemuTargets` with the reason no pipeline runs it**. "Expensive" describes every target in the class and is not a reason.
 
 `scripts/dev/github_workflows_test.go` pins the workflow set: that the nightly is
 scheduled-only, runs fuzz AND integration by make-target name, is advisory, does
@@ -423,7 +408,7 @@ reintroduce `exec.Command` of an external tool.
 
 ### In-process replacements (no external client)
 
-The operations the old shell init shelled out to are now in-process Go:
+These init operations run in-process in Go:
 
 - **Bring a link up / apply address + route**: you MUST use `netlink`, not `ip`.
 - **DHCP lease**: you MUST use in-process `nclient4` (`internal/install/disk/dhcp_linux.go`), not `udhcpc` plus a lease script.
@@ -517,9 +502,9 @@ through the pins, and the version it built is not the version this repo chose:
 | `github.com/ze-software/ze@v0.0.0-<date>-<hash>` | ze was fetched from the proxy. The builddir replaces ze with the working tree, so a build that reaches the proxy for ze did not read the builddir, and it compiled a *pushed commit* rather than your tree |
 | A version of a builddir-pinned module that is not the pinned one | `gok` fell back to `go get` and took whatever upstream had. For `github.com/rtr7/kernel` that is the appliance's **kernel** |
 
-Both were live between 2026-07-18 and 2026-07-22: the derived (hugepage) parent
-handed `gok` an instance with no `builddir`, so every pin was discarded
-(against `vendor/github.com/gokrazy/tools/packer/gotool.go` `getPkg`/`getIncomplete`).
+A derived parent needs to pass its `builddir` to `gok`; an instance with no
+`builddir` discards every pin
+(`vendor/github.com/gokrazy/tools/packer/gotool.go`, `getPkg`/`getIncomplete`).
 
 That route is closed. **Every** image build now runs from a prepared copy of the
 instance under the project `tmp/`, carrying the full `builddir` with its
@@ -570,17 +555,12 @@ out of scope here. **Before the image is distributed to third parties, a source-
 
 ### Root-module pseudo-version pins (no upstream tags)
 
-Separate from the builddir concern: five **root** `go.mod` direct dependencies are
-pinned to pseudo-versions (`v0.0.0-<date>-<hash>`) rather than semver tags. This is
-**not a defect**. It was verified (2026-07-21, `spec-fixit-supply-chain-hardening`
-AC-4) that **none of these upstreams publish any semver tag**: `go list -m -versions`
-and `proxy.golang.org/<mod>/@v/list` return an empty version list for every one, and
-`@latest` resolves to a pseudo-version. There is nothing to move the pin to.
+Some root `go.mod` direct dependencies are pinned to pseudo-versions
+(`v0.0.0-<date>-<hash>`) because their upstreams publish no semver tag. Confirm
+with `go list -m -versions`, `proxy.golang.org/<mod>/@v/list`, and `@latest`
+before you classify a pseudo-version pin as a defect.
 
-The list was six until 2026-08-07. `github.com/charmbracelet/ssh` left it because
-upstream MOVED the module rather than tagging it: the same code now publishes as
-`charm.land/ssh`, which carries semver, and the root pin is `charm.land/ssh v0.4.2`.
-A module that disappears from this table has either been tagged or been moved. Find
+A module that disappears from this table has either been tagged or moved. Find
 out which before you re-add a row.
 
 | Root dep (root `go.mod`) | Pin form | Upstream semver tag? |

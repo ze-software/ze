@@ -278,7 +278,7 @@ The line threshold exists for **context economy**. Any task that touches a file 
 | < 1000 | Fine |
 | > 1000 | Check for a second concern. Split only when the separation is right |
 
-**You MUST judge file size against 1000 lines, the only threshold** (Thomas, 2026-08-01). A 600-line tier existed before. It fired on cohesive single-concern files. It is gone from this rule, from the post-edit hook, and from `scripts/lint/consistency.go`.
+**You MUST judge file size against 1000 lines, the only threshold** (Thomas, 2026-08-01).
 
 **Before creating a file, you MUST ask "one concern?" Before adding to one, you MUST ask "belongs to this file's concern?" Past 1000 lines, you MUST check for multiple concerns.**
 
@@ -454,7 +454,7 @@ A `map[string]V` with 1000 entries stores 1000 string headers the GC must scan o
 
 ### Reference (file modularity and cross-references)
 
-Learned: 363 (file modularity), and 221 before it (the first splitting round). Both were retired on 2026-08-01. Neither was carried into `plan/learned/DESIGN-HISTORY.md`, which records subsystem design and not agent workflow. The header of that file gives the git-recovery route for a retired summary.
+Recover retired workflow summaries through git. `plan/learned/DESIGN-HISTORY.md` records subsystem design, not agent workflow.
 
 ## Examples
 

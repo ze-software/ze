@@ -23,7 +23,7 @@ A rule is a DIRECTORY of points, and `ai/rules/<rule>.md` is generated from it. 
 | Field | Values | Meaning |
 |-------|--------|---------|
 | `kind` | `directive`, `table`, `note`, `heading`, `fence` | What the block IS. `heading` and `fence` are structural, so `make ze-rules-gate-map` excludes them from the gated and ungated counts |
-| `level` | `MUST`, `MUST NOT`, `SHOULD`, `MAY`, or empty | The strongest RFC 2119 level the body states. About 95% of the corpus states none, and empty is the normal value |
+| `level` | `MUST`, `MUST NOT`, `SHOULD`, `SHOULD NOT`, `MAY`, or empty | The strongest RFC 2119 level the body states. About 95% of the corpus states none, and empty is the normal value |
 | `stage` | empty | Reserved, and deliberately empty everywhere today. It is what will let a design-phase agent skip implementation directives. Leave it empty |
 | `rationale` | a repo-relative path, or the line absent | The record of WHY this instruction exists: a `plan/journal/<class>.md` class file, or an `ai/rationale/*.md` file. `make ze-rules-gate-map` fails when it names no file on disk |
 | `excepted-by` | one or more point ids, comma-separated, or the line absent | The point or points that carve an exception out of THIS one. Declared on the GENERAL point, because a reader who stops at the general statement is the one who is misled. `make ze-rules-gate-map` fails when it names no point, so deleting an exception can never be silent |
@@ -57,11 +57,11 @@ Required structure, in this exact order:
 
 - Every point whose `kind` is `directive` MUST state its obligation in RFC 2119 language, and its `level:` MUST name the strongest TIER the body states. A directive whose weight a reader infers from tone is a directive two readers weigh differently.
 - The tiers are MAY, then SHOULD with SHOULD NOT, then MUST with MUST NOT. RFC 2119 ranks obligation by STRENGTH and does not rank MUST against MUST NOT, so a point stating both MAY declare whichever its central clause carries. Ordering the two would force a point whose central clause is a prohibition to declare MUST, and the prohibition would go unrecorded.
-- Use MUST and MUST NOT for an obligation, SHOULD and SHOULD NOT for a strong default a reader MAY depart from with a stated reason, and MAY for a permission. SHALL, SHALL NOT, REQUIRED, RECOMMENDED, NOT RECOMMENDED and OPTIONAL are accepted and collapse onto the level they name, so `level:` carries one spelling per level.
+- Use MUST and MUST NOT for an obligation. Use SHOULD and SHOULD NOT for a strong default that a reader MAY depart from with a stated reason. Use MAY for a permission. The linter accepts SHALL, SHALL NOT, REQUIRED, RECOMMENDED, NOT RECOMMENDED and OPTIONAL. It maps each keyword to its level, so `level:` has one spelling per level.
 - The lowercase spellings `must`, `shall`, `should` and `may` MUST NOT appear in a directive body. They read as the obligation word and carry none of its force, and `ai/rules/writing.md` bans the hedging spelling outright. Capitalise the keyword, or rewrite the sentence so it carries no modal.
 - A block that states no obligation is `kind: note` or `kind: table`, never `kind: directive`. The gate is scoped to directives on purpose: a two-column lookup gains a word and no obligation from being made to say MUST.
-- Text inside a code span or a fenced block is quoted, never stated, so neither gate reads it. A shell snippet or a reproduced error message keeps its own spelling.
-- `.claude/hooks/pretool-writeedit.py` (`c_rule_point_rfc_language`) refuses the write, and `make ze-rules-lint` refuses the finished tree. A Write carries the whole point, so a missing keyword is refused there; an Edit carries a fragment, so only the lowercase modal it introduces is decidable at write time.
+- Text inside a code span, fenced block, or Markdown blockquote is quoted, never stated. Neither gate reads it. Quoted text keeps its own spelling.
+- `.claude/hooks/pretool-writeedit.py` (`c_rule_point_rfc_language`) refuses the write, and `make ze-rules-lint` refuses the finished tree. A Write carries the whole point, so a missing keyword is refused there. An Edit or MultiEdit carries fragments, so the hook refuses only lowercase modals in those fragments.
 
 ## The trigger is a routing key
 
@@ -143,11 +143,8 @@ A binding that names a point which does not exist is DANGLING and fails `make ze
 
 ## Rationale
 
-A digest can only route to a rule if a tool can mechanically separate that
-rule's directives from its explanation. Before this format, directives and
-rationale were interleaved and no extraction was reliable. `CONDENSED.md`, a
-third artifact holding every rule's directives, was deleted on 2026-08-03: it
-regenerated 5,182 lines on every rule edit and nothing loaded it.
+A digest can route to a rule only when a tool can mechanically separate that
+rule's directives from its explanation.
 
 Why the digest exists at all, and what eager loading cost before it, is in `docs/contributing/rule-authoring.md`.
 

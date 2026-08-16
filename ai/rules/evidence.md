@@ -73,9 +73,9 @@ ratio, and a ratio that is not the whole set changes what the work is.
 
 **When a claim's evidence is what a command printed, you MUST write the command or paste
 what it printed. You MUST NOT write a sentence describing the output.** "`git grep -n
-familiesSent -- '*.go'` returns nothing" is evidence: the reader runs it. "The
-grep returns only the guard's own literal" is a claim about a command, made from
-memory, and it was false twice over in one cell.
+familiesSent -- '*.go'` returns nothing" is evidence because the reader can run it.
+"The grep returns only the guard's own literal" is a claim about a command made
+from memory.
 
 This is the same discipline as reading the producing function, applied to your own
 terminal. A sentence about output you did not re-read is a recollection, and a
@@ -85,19 +85,15 @@ recollection presented in an evidence cell is indistinguishable from a measureme
 |--------------|---------|
 | "the suite passes" | the target's own verdict line, pasted |
 | "18 files match" | the command, so the count is re-derivable, and the date it was true |
-| "this block is the whole output" | say what was cut, or make no claim about completeness. An exhaustiveness claim over hand-edited text needs re-checking every time the text moves, and three review rounds each found another line kind it had missed |
+| "this block is the whole output" | say what was cut, or make no claim about completeness. An exhaustiveness claim over hand-edited text needs re-checking every time the text moves |
 | "the anchors are unaffected" | name each anchor and what it asserts |
 
 **A number you did not just compute is the highest-risk sentence in a closure
 record.** Counts drift as the work continues: a survey run before you added a file
 no longer describes the tree. Re-run it, or date it.
 
-Incident: session bgp-reconnect-flap (2026-06-27) claimed the peer reconnect loop
-amplified session flaps and recommended a spec, after reading `run()` (the error
-*consumer*) and assuming a clean session close returns `err == nil`. Reading
-`Session.Run` (the *producer*) showed it never returns nil, so the `err == nil`
-branch is dead and the claimed gap did not exist. Root cause: the keystone fact,
-what `Run` returns on session end, was inferred from the caller, never read.
+A producer's return semantics are not established by its caller. Read the
+producer before claiming that a caller branch is reachable.
 
 ### Citation
 
@@ -109,7 +105,7 @@ Verification and citation are two decisions, and this rule owns the first.
 
 **A citation into another project MUST name the file and the SYMBOL too, and a forge permalink's `#L` anchor is a line number wearing a URL.** You MUST link the file at a pinned tag and put the function in the link text: `[bgp_io.c \`bgp_write\`](https://.../bgp_io.c)`. `c_line_number_ref` in `.claude/hooks/pretool-writeedit.py` refuses a bare anchor.
 
-**A pinned tag MUST NOT be treated as making a line number safe. Measured 2026-08-03: four BIRD anchors in `docs/architecture/congestion-industry.md` pointed at unrelated code at the v3.2.0 tag they named, and a GoBGP anchor was off by six lines.** They were written against a different version and never re-read, so the citation was wrong from the day the dependency moved and nothing could detect it.
+**A pinned tag MUST NOT be treated as making a line number safe.** A citation can be written against a different version, and nothing detects when the dependency moves.
 
 **A line number in a document MUST NOT appear unless a GENERATOR maintains it (owner directive, 2026-08-03). Hand-typing one MUST NOT be done, because nothing refreshes it and nothing can tell it has gone wrong.** `rfc/requirements/rfc7606.md` is the working example: its `file.go:line` entries are derived from `RFC requirement:` tags on every `make ze-rfc-index`, so they move when the tests move. One such file exists per RFC, and `ai/RFC-REQUIREMENTS.md` is the index over them. A file earns this by declaring `GENERATED ... do not edit` in its first ten lines, and `c_line_number_ref` reads that declaration rather than a list of filenames.
 
@@ -120,8 +116,7 @@ Verification and citation are two decisions, and this rule owns the first.
 **You MUST name the symbol BEFORE removing a location, and MUST NOT do so after.** Two citations into one file collapse into the same link once their anchors go, and the distinction the anchor carried is lost with no way to recover it.
 
 A pasted line number proves nothing about what you read, and it goes stale at the
-next edit (`ai/rules/writing.md`). Line-number citations were stripped from
-the whole corpus on 2026-08-03, and `c_line_number_ref` in
+next edit (`ai/rules/writing.md`). The `c_line_number_ref` check in
 `.claude/hooks/pretool-writeedit.py` blocks new ones in `ai/`, `docs/`, `plan/`,
 and `.claude/` markdown.
 
@@ -150,7 +145,7 @@ Before claiming code behaves a certain way, or recommending work premised on it:
 | Guessing what the user meant and presenting the guess as a conclusion | Say you don't know, ask |
 | Inferring a function's return value or behavior from its caller | Read the producer of the value, not the consumer |
 | Citing a code comment as the project's design intent | A comment is its author's belief, not a decision record; read `plan/deferrals/`, `plan/journal/`, specs |
-| Citing a commit message, or a number in one, as the state of HEAD | It records the moment it was written. A measurement in a body is usually the PRE-fix figure, and a spec row can still read `NOT MET` after the fix landed: `1f28ecf3e` quotes 874-889 ms for a strip whose `newRemovalSet` is no longer quadratic at HEAD. Read the producer before writing that anything is fixed |
+| Citing a commit message, or a number in one, as the state of HEAD | It records the moment it was written. A measurement in a body is usually the PRE-fix figure, and a spec row can still read `NOT MET` after the fix landed. Read the producer before writing that anything is fixed |
 | Inferring a foreign system's semantics from a generated binding stub | The stub documents a field's existence, not what the system does with it; read that system's source (e.g. VPP's C, vendored at `third_party/vpp-linux-cp/`, not `binapi/*.ba.go`) |
 | Recommending work premised on an unverified behavioral claim | The premise is itself a claim; trace it to source first |
 | Treating a coherent narrative as verified | A self-consistent story is a hypothesis until the keystone fact is read |
@@ -173,11 +168,8 @@ language grounds nothing, so the gate refuses it.
 block is always to read a file the spec itself names.** `.go`, `.py`, `.sh`,
 `.yang`, the `Makefile` and `*.mk` each name one kind. The gate derives what a
 spec demands and `.claude/hooks/mark-source-read.sh` records what a Read
-supplies, and the two must accept the same set. When they did not, 11 open specs
-named `.py` subjects under `test/` and `tools/` and 2 named `.sh` subjects under
-`packaging/` that no Read could ever record, and the only sanctioned exit was
-reading an unrelated `scripts/*.py`. A gate whose sanctioned exit is reading an
-unrelated file manufactures the evidence it exists to demand.
+supplies. The two accept the same set. Reading an unrelated file manufactures
+the evidence that the gate exists to demand.
 
 **EVERY kind the list names must be read, and each on its own 30-minute clock.**
 A spec naming a reactor `.go` beside an `mk/*.mk` makes claims about both, so
@@ -191,20 +183,16 @@ LSP-only session does not ground a spec about Python, shell, YANG or the build.
 
 **A window of under 20 lines does not count as reading the producer.** A whole
 file counts whatever its length, because a 12-line file read entire IS the
-producer. `Read(file, limit=1)` is not, and it used to clear every spec of that
-kind for the next 30 minutes. The gate is strict about WHICH file was read, so
-it cannot be trivial about how much of it was shown.
+producer. The gate is strict about WHICH file was read, so it cannot be trivial
+about how much of it was shown.
 
 **A Read that showed NOTHING grounds nothing, and the whole-file rule above does
-not rescue it.** An empty file reports one line of one, so it used to read as a
-whole-file read and one Read of any zero-byte `.py` cleared every `py` spec in
-the session. A repeat Read the harness answers with `file_unchanged` shows the
-same nothing while renewing the clock, and a failed Read shows nothing at all.
-Each is measured as zero now. Only a response shape the writer does not
-recognise is still accepted unmeasured, so an unfamiliar payload cannot disable
-the evidence path for a whole session. Renew a stale marker with
-`Read(path, offset=N, limit>=20)`: the harness returns content for a window and
-`file_unchanged` for a second whole Read of the same file.
+not rescue it.** A failed Read, an empty file, or an unchanged empty payload is
+measured as zero. Only a response shape the writer does not recognise is
+accepted unmeasured, so an unfamiliar payload cannot disable the evidence path
+for a whole session.
+Renew a stale marker with `Read(path, offset=N, limit>=20)`: the harness returns
+content for a window and `file_unchanged` for a second whole Read of the same file.
 
 **A spec whose subject the gate cannot read is checked against the weaker
 any-source bar, and the gate SAYS so.** That is the one permissive path left in
@@ -405,9 +393,8 @@ assignment and no config users (`hasUsers == false`) it returns
 `BuiltinAdminProfile()`. An empty profile set is indistinguishable from "never
 seen", because `aaa.RecordLoginProfiles`
 (`internal/component/aaa/login_profiles.go`) early-returns on
-`len(profiles) == 0` and records nothing. The zero value meant ADMIN: two live
-privilege escalations, via TACACS+ and RADIUS. `docs/guide/radius.md` asserted
-the opposite as fact. Fixed in `ff87bf61a`.
+`len(profiles) == 0` and records nothing. The zero value means ADMIN, so an
+empty profile is not the same as no access.
 
 Every instance of this shape is recorded in `plan/journal/zero-value-as-valid-answer.md`.
 Read the rows before you write a guard: an empty address slice that bound an

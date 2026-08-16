@@ -5301,6 +5301,30 @@ def run_rfc_language(results: Results) -> None:
         repr((code, err)),
     )
 
+    code, err = _writeedit(
+        free,
+        tool="Write",
+        content=_point_body(
+            "directive", "", "- Run it.\n\n~~~~\nit MUST exist\n~~~~~"
+        ),
+    )
+    results.check(
+        "rfc-language-write-keyword-only-in-tilde-fence-refused",
+        code == 2 and "states no RFC 2119 level" in err,
+        repr((code, err)),
+    )
+
+    code, err = _writeedit(
+        free,
+        tool="Write",
+        content=_point_body("directive", "", "- The quote follows.\n\n> It MUST exist."),
+    )
+    results.check(
+        "rfc-language-write-keyword-only-in-blockquote-refused",
+        code == 2 and "states no RFC 2119 level" in err,
+        repr((code, err)),
+    )
+
     # --- Edit carries a FRAGMENT, so only the lowercase modal is decidable ----
     directive = _find_point("directive")
     note = _find_point("note")
@@ -5324,6 +5348,41 @@ def run_rfc_language(results: Results) -> None:
     )
     results.check(
         "rfc-language-edit-modal-in-code-span-allowed", code == 0, repr((code, err))
+    )
+
+    code, err = _writeedit(
+        directive,
+        tool="Edit",
+        content="- Preserve this example.\n\n~~~~\nit should exist\n~~~~~",
+    )
+    results.check(
+        "rfc-language-edit-modal-in-tilde-fence-allowed",
+        code == 0,
+        repr((code, err)),
+    )
+
+    code, err = _writeedit(
+        directive,
+        tool="Edit",
+        content="- Preserve this quotation.\n\n> It should exist.",
+    )
+    results.check(
+        "rfc-language-edit-modal-in-blockquote-allowed",
+        code == 0,
+        repr((code, err)),
+    )
+
+    code, err = _multiedit(
+        directive,
+        [
+            {"old_string": "a", "new_string": "- You MUST act.\n\n~~~~"},
+            {"old_string": "b", "new_string": "- You should also report.\n~~~~~"},
+        ],
+    )
+    results.check(
+        "rfc-language-multiedit-lowercase-modal-refused",
+        code == 2 and "lowercase obligation word" in err,
+        repr((code, err)),
     )
 
     # A fragment legitimately carries no keyword: the one that governs the point

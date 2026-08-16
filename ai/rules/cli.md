@@ -118,8 +118,8 @@ Decision test, in order:
    every child.
 4. A split namespace needs one owning module. If several components share the prefix,
    one module owns the container and the others augment it (as `trafficusage` augments
-   `traffic`). MUST NOT create a shared parent that multiple plugins reach up into: that is the
-   plugin-self-containment break the old `show ip` grouping caused.
+   `traffic`). A shared parent that multiple plugins reach into breaks plugin
+   self-containment, so it MUST NOT be created.
 
 | Incorrect | Correct | Why |
 |-----------|---------|-----|

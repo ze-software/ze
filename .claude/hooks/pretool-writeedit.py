@@ -67,10 +67,16 @@ _TEXTBUF_REF = (
 
 
 def std_content(ti):
-    """CONTENT = .tool_input.content // .tool_input.new_string (jq // = null-only)."""
+    """Return the text added by Write, Edit, or MultiEdit."""
     c = ti.get("content")
     if c is None:
         c = ti.get("new_string")
+    if c is None and isinstance(ti.get("edits"), list):
+        c = "\n".join(
+            edit.get("new_string") or ""
+            for edit in ti["edits"]
+            if isinstance(edit, dict)
+        )
     return c or ""
 
 
@@ -1489,13 +1495,49 @@ RFC_KEYWORD_RE = re.compile(
     r"|SHOULD|RECOMMENDED|MAY|OPTIONAL)\b"
 )
 LOWER_MODAL_RE = re.compile(r"(?<![\w-])(must|shall|should|may)\b(?![-\w])")
-POINT_FENCE_RE = re.compile(r"^```.*?^```", re.M | re.S)
+POINT_FENCE_OPEN_RE = re.compile(
+    r"^ {0,3}(?P<mark>`{3,}|~{3,})(?P<info>[^\n]*)$"
+)
+POINT_BLOCKQUOTE_RE = re.compile(r"^[ \t]{0,3}>.*$", re.MULTILINE)
 POINT_CODE_SPAN_RE = re.compile(r"`[^`]*`")
 
 
+def _strip_point_fences(text):
+    """Remove Markdown fenced blocks without joining unrelated fragments."""
+    output = []
+    fence_char = ""
+    fence_length = 0
+    for line in text.splitlines(keepends=True):
+        bare = line.rstrip("\r\n")
+        if fence_char:
+            candidate = bare.lstrip(" ")
+            indent = len(bare) - len(candidate)
+            marker = candidate.rstrip(" \t")
+            if (
+                indent <= 3
+                and len(marker) >= fence_length
+                and marker == fence_char * len(marker)
+            ):
+                fence_char = ""
+                fence_length = 0
+            continue
+        opened = POINT_FENCE_OPEN_RE.match(bare)
+        if opened:
+            mark = opened.group("mark")
+            if mark[0] != "`" or "`" not in opened.group("info"):
+                fence_char = mark[0]
+                fence_length = len(mark)
+                continue
+        output.append(line)
+    return "".join(output)
+
+
 def _point_visible(text):
-    """The words a point STATES: fenced blocks and code spans are quoted, not stated."""
-    return POINT_CODE_SPAN_RE.sub("", POINT_FENCE_RE.sub("", text))
+    """The words a point states, without quoted Markdown."""
+    text = _strip_point_fences(text)
+    text = POINT_BLOCKQUOTE_RE.sub("", text)
+    return POINT_CODE_SPAN_RE.sub("", text)
+
 
 
 # ze point: rule-format/every-directive-states-a-level/every-directive-states-its-rfc-2119-level
@@ -1513,10 +1555,10 @@ def c_rule_point_rfc_language(ctx):
     without adding an obligation.
 
     Two shapes, one refusal each. A Write carries the WHOLE point, so the missing
-    keyword is decidable and refused. An Edit carries a fragment, so the keyword
-    may legitimately sit in the untouched part of the file -- what is decidable
-    there is the lowercase modal being INTRODUCED, which is refused for both
-    tools. `make ze-rules-lint` reads the finished file and owns the rest.
+    keyword is decidable and refused. Edit and MultiEdit carry fragments, so the
+    keyword can legitimately sit in an untouched part of the file. Only a new
+    lowercase modal is decidable there. MultiEdit fragments are parsed separately,
+    because Markdown delimiters in separate edits do not form one quotation.
     """
     fp = ctx["fp"]
     content = ctx["content"]
@@ -1547,7 +1589,16 @@ def c_rule_point_rfc_language(ctx):
         return None
 
     rel = "/".join(tail)
-    visible = _point_visible(content)
+    if ctx["tool"] == "MultiEdit":
+        edits = ctx["ti"].get("edits")
+        fragments = edits if isinstance(edits, list) else []
+        visible = "\n".join(
+            _point_visible(str(edit.get("new_string") or ""))
+            for edit in fragments
+            if isinstance(edit, dict)
+        )
+    else:
+        visible = _point_visible(content)
     lower = sorted(set(LOWER_MODAL_RE.findall(visible)))
     if lower:
         words = ", ".join(repr(w) for w in lower)

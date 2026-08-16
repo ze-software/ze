@@ -22,10 +22,8 @@ add plan/deferrals/<source>.md` stages only your row. Known failures live one
 file per failure under `plan/known-failures/` (a `<make-target>-<test-name>.md`
 shard, with `RESOLVED.md` archiving the history and `README.md` holding the
 logging instructions), so `git add plan/known-failures/<make-target>-<test-name>.md`
-stages only your entry. The hazard was observed twice on 2026-07-15/16 (before
-either was sharded): one session's `deferrals.md` edits landed inside two
-unrelated VRRP commits, and three concurrent sessions (ping, ipc, lg) each had
-the single `deferrals.md` file in their own `--file` list at the same time.
+stages only your entry. A shared unsharded log lets concurrent sessions stage
+each other's entries.
 
 Consequences (they apply whenever two sessions touch the same tracked file, so
 keep each shard single-writer), in order of importance:
@@ -50,20 +48,16 @@ state to avoid staging unrelated, ignored, generated, or out-of-scope paths.
 after the script has run** (step 7). It judges the commit you just made, which no
 run before that commit could see.
 
-**Thomas ruled on this exemption on 2026-08-04: KEEP IT.** It was raised twice as
-a narrowing of the fast path, because it adds about 45 seconds to a commit that
-carried Go. It is settled, so you MUST NOT re-open it. The reasoning he accepted: the
-check is not a rerun, since its input is a commit that did not exist until the
-script ran, and it is the only thing that reads the population git holds. The
-failure it prevents is unbounded where its cost is bounded and one-shot. HEAD was
-unbuildable for 34 commits across more than a day (`eae57dfca`, 2026-08-03, to
-`7abe8a07e`) precisely because the break was only discoverable at a full verify
-that nobody in that window ran.
+**Thomas ruled on this exemption on 2026-08-04: KEEP IT.** It is settled, so you
+MUST NOT re-open it. The check is not a rerun because its input is a commit that
+did not exist until the script ran. It is not a check on the working tree
+because that tree can already hold the next change. The tracked build's cost is
+bounded and one-shot, while the failure it prevents is unbounded.
 If scope is ambiguous, ask one narrow question; otherwise proceed.
 
 **Commit workflow:**
 1. You MUST use `scripts/dev/commit_helper.py session` to create or reuse the 8-char session ID stored in `tmp/commit-session-id-<claude-session>` (keyed per Claude session so concurrent sessions never share a message or script namespace).
-2. You MUST use `scripts/dev/commit_helper.py create` to write one message file and one commit script. You MUST pass `--file` once per explicit file and `--remove` for tracked deletions. The path is the `script=` line it prints (`ai/INSTRUCTIONS.md`). Keying the script on the session was enough while a session was one agent. One session now runs many subagents that share the session id. On 2026-08-05 one session produced 53 message files against 18 scripts, each `--replace` overwriting a sibling's prepared commit. `--push` adds a push after the commits, on an owner instruction only (see "Pushing").
+2. You MUST use `scripts/dev/commit_helper.py create` to write one message file and one commit script. You MUST pass `--file` once per explicit file and `--remove` for tracked deletions. The path is the `script=` line it prints (`ai/INSTRUCTIONS.md`). One session can run many subagents that share the session id, so `--push` adds a push after the commits only on an owner instruction (see "Pushing").
    `--append` adds a later commit block to a script you already prepared. You MUST pass `--script` with the path that create printed. Without `--script` it resolves only when the session has exactly one script, and otherwise refuses with the list. `--replace` rewrites the script `--script` names. It is refused when that script was prepared for a file set sharing nothing with yours. To start over, prepare a new one: a `create` without `--script` always gets its own path.
 3. The helper writes executable scripts, uses `git commit -F <message-file>`, and rejects ignored/generated paths. It never writes over an existing script unless `--script` names it, with `--replace` or `--append`. It also **gates on verify-status**: `create` runs `verify-status.sh check` and refuses unless FRESH, or unless you pass `--unverified "<reason>"` (owner override, or a failure you tried and could not reproduce, logged in `plan/known-failures/`). This makes "verify before commit" enforced rather than honor-system.
    It further **gates on discovery-index freshness**: `create` refuses if a generated index (`ai/PACKAGE-MAP.md`, `ai/DOCS-TO-CODE.md`) is stale (run `make ze-regen`), or if the commit changes an index-feeding source (a `register.go`, a `.go` with a `// Package`/`// Design:` header) but omits the regenerated index. Override with `--stale-index-ok "<reason>"`. With no CI, this is the only place index freshness is enforced. `create` additionally **warns (non-blocking)** when HEAD's committed index does not match HEAD's committed sources, which catches a prior commit that bypassed the gate; it detects this by re-running the generators against a materialized copy of HEAD, so it works even when the working tree carries unrelated uncommitted changes.
@@ -154,11 +148,9 @@ commit now`, `want me to commit?`.
 
 ### Why the amendment, and what to do when a push goes wrong
 
-Thomas wrote the absolute push ban and amended it on 2026-08-05: a push is
-allowed, from the commit script only, and only when he has ordered that push.
-His reason for the original ban is what makes the exception safe. It stopped a
-partial `git add` landing while several agents shared one index, and one script
-bundling add, remove, commit and push leaves no such window open.
+Thomas amended the push ban on 2026-08-05: a push is allowed only from the
+commit script and only when he has ordered it. One script bundles add, remove,
+commit, and push so there is no partial-staging window.
 
 The hook's refusal of the bare command is deliberate, not an oversight: it is
 what forces every push through the script, where the mechanism stays visible to
@@ -188,11 +180,7 @@ Review fixes from a review pass = one commit.
 
 **A FAILED commit leaves the index STAGED, and the next session's commit inherits
 it. You MUST clear it before you walk away.** The script stages first and commits second, so
-a commit that fails has already staged everything. On 2026-08-03 a GPG passphrase
-prompt with no TTY failed the signing step, eleven files sat staged in the shared
-index for roughly forty minutes, and a concurrent session's 1467-file commit took
-ten of them. Nothing was lost and every file's content was intact, but the work
-landed under another commit's message.
+a failed commit can leave foreign files staged in the shared index.
 
 **The failure mode is invisible from the failed run.** It exits non-zero, prints
 `failed to write commit object`, and reads as "nothing happened". The staging IS
@@ -326,10 +314,8 @@ run your WORKING TREE, uncommitted and untracked files included. (One gate does
 read the commit: `commit_helper.py` judges discovery-index freshness against a
 materialized HEAD. It regenerates indexes; it compiles nothing.) So you MUST NOT
 commit a CONSUMER while its PRODUCER stays uncommitted: it is green for you and
-broken for everybody who builds what git holds. On 2026-08-04 four commits broke
-`make ze` at HEAD that way in one day (7abe8a07e, 025a74b72, aa1b7a4d4,
-fa372140b), with every gate green at the moment each was made. It is a blind
-spot, not four accidents.
+broken for everybody who builds what git holds. This is a structural blind
+spot.
 
 `make ze-tracked-build-check` (`scripts/checks/tracked_build.go`) is the one
 check that reads what git holds: it extracts the commit with `git archive` and
@@ -342,7 +328,7 @@ compiles six build flavors of the extracted tree. Three rules follow.
 | It goes red | Commit the producer. Never revert the consumer, and never park it: HEAD is broken for everyone until you do |
 
 `REV=<commit-ish>` judges any commit, so a break found later is bisectable:
-`make ze-tracked-build-check REV=7abe8a07e`. `ARGS=--keep` leaves the extracted
+`make ze-tracked-build-check REV=<commit-ish>`. `ARGS=--keep` leaves the extracted
 tree in place for inspection.
 
 **What it does NOT read: test files.** `go build` MUST NOT compile `_test.go`, so a
@@ -368,20 +354,14 @@ and every name in it must be a stage `stagesForMode` actually emits
 (`scripts/status/verify_run.go`) -- otherwise the entry matches nothing and gates
 nothing. `test_structural_gates_are_live_stages` (`scripts/dev/commit_helper_test.py`)
 and `TestStructuralGatesAreLiveStages` (`scripts/status/verify_run_test.go`) enforce
-that. `ze-cli-grammar-check` was listed here until 2026-07-20 and was exactly that
-dead entry: a real make target (`mk/inventory.mk`), but never a verify stage, so
-`structural_gate_reds` could never match it. Its underlying gate is not lost --
-`TestCLIGrammarGateStatic` (`scripts/checks/cli_grammar_test.go`) runs the real
-checker under the unit stage.
+that. Every named gate is a live verify stage. The underlying CLI grammar gate
+runs through `TestCLIGrammarGateStatic` (`scripts/checks/cli_grammar_test.go`).
 
 This is enforced, not honor-system: `scripts/dev/commit_helper.py create` reads
 `tmp/ze-verify-failures.json` (which `verify_run.go` rewrites after every run) and
 refuses to prepare a script while any structural gate is red, even with
 `--unverified` (`structural_gate_reds` / `STRUCTURAL_GATES`). A green verify
-rewrites the artifact, so a fixed-and-reverified gate clears automatically. This
-closed the hole that let a misplaced-tier gate (`routeinstall`) be logged as
-"pre-existing" and ship red on `main` for a week (see `plan/known-failures/RESOLVED.md`,
-2026-07-07).
+rewrites the artifact, so a fixed-and-reverified gate clears automatically.
 
 ### Thomas Owner Override: Commit Without Verify
 

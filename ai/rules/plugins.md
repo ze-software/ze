@@ -188,7 +188,7 @@ plugins in later phases are loaded.
 | `OnStarted(fn)` | Local setup only: start long-lived goroutines, register subscriptions, initialise per-plugin state. |
 | `OnAllPluginsReady(fn)` | Any `DispatchCommand` targeting another plugin's command at startup. The callback fires via the event loop once the dispatcher command registry is frozen, so cross-plugin dispatch is guaranteed to resolve. |
 
-`bgp-rpki` is the reference example: the `adj-rib-in enable-validation` dispatch lives in `OnAllPluginsReady` (`internal/component/bgp/plugins/rpki/rpki.go`). Putting it in `OnStarted` used to fail with "unknown command" whenever `bgp-adj-rib-in` loaded in Phase 2 while bgp-rpki auto-loaded in Phase 1.
+`bgp-rpki` is the reference example: the `adj-rib-in enable-validation` dispatch lives in `OnAllPluginsReady` (`internal/component/bgp/plugins/rpki/rpki.go`). `OnStarted` can run before `bgp-adj-rib-in` loads and fail with "unknown command".
 
 ## Exclusive Role Claims (BLOCKING for cross-plugin default overrides)
 
@@ -720,7 +720,7 @@ daemon's command/schema tree. The daemon registers streaming views generically
 client mirrors this with its own view registry and must not regress into
 per-feature hardcoding.
 
-Anti-pattern (removed 2026-07-19): each rich live view (dashboard, traceroute,
+Anti-pattern: each rich live view (dashboard, traceroute,
 ping, traffic) adding its own field + factory + state + dispatch to the core
 `cli.Model` (`internal/component/cli/model*.go`), wired one-by-one in
 `cmd/ze/hub/session_factory.go` and `internal/component/cli/client/main.go`. Every

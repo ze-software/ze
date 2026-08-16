@@ -11,10 +11,8 @@ against the ids git HEAD carried and requires every id that left to be covered
 by a line added to this file since HEAD. `make ze-rules-gate-map` and
 `make ze-doc-test` fail otherwise.
 
-Identity, never a count. A count is masked by an addition: the rule holds as
-many points as it did, so the arithmetic sees nothing while a specific
-instruction has left. Measured on 2026-08-09, 17 points were deleted and 6
-declared, and the count form reported ZERO rules.
+Identity, never a count. An addition can mask a removed point, so a count cannot
+prove that every instruction remains.
 
 Scope, never an allowlist: a line stops counting the moment it is committed,
 because HEAD moves with it. Nothing here pre-approves a future deletion.

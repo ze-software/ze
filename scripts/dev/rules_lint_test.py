@@ -100,6 +100,23 @@ class TestLowercaseModals(unittest.TestCase):
         )
         self.assertEqual(check(body, level="MUST"), [])
 
+    def test_a_modal_inside_a_tilde_fence_is_quoted_not_stated(self):
+        body = "- You MUST preserve this example.\n\n~~~~\nbar should run\n~~~~~"
+        self.assertEqual(check(body, level="MUST"), [])
+
+    def test_a_modal_inside_a_blockquote_is_quoted_not_stated(self):
+        body = "- You MUST preserve this quotation.\n\n> The agent should ask."
+        self.assertEqual(check(body, level="MUST"), [])
+
+    def test_a_keyword_only_inside_a_tilde_fence_does_not_set_the_level(self):
+        problems = check("- The example follows.\n\n~~~~\nbar MUST run\n~~~~~")
+        self.assertTrue(any("RFC 2119 language" in p for p in problems), problems)
+
+    def test_a_keyword_only_inside_a_blockquote_does_not_set_the_level(self):
+        problems = check("- The quotation follows.\n\n> The agent MUST ask.")
+        self.assertTrue(any("RFC 2119 language" in p for p in problems), problems)
+
+
     def test_a_hyphenated_word_is_not_a_modal(self):
         self.assertEqual(check("- A must-fix defect MUST be fixed.", level="MUST"), [])
 

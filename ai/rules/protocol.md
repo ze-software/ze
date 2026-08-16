@@ -76,7 +76,7 @@ A single-package protocol (root package + `yang/`) needs none of this: LDP and R
 - **BFD SHOULD be treated as the reference layout:** `packet` / `engine` / `session` / `transport` / `auth` / `cmd` / `api` / `yang`.
 <!-- source: internal/component/bfd -- subpackage layout -->
 
-### How existing protocols map (probe, 2026-07-08)
+### How existing protocols map
 
 | Protocol | Maps cleanly | Exceptions |
 |----------|--------------|------------|

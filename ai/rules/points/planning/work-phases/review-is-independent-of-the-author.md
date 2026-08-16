@@ -3,8 +3,7 @@ kind: directive
 level: MUST
 stage:
 ---
-**Review is independent of the author.** That was always the real guarantee, and
-the model split never delivered it: a different model is not a different
+**Review is independent of the author.** A different model is not a different
 context. A fresh session, a phase agent spawned after the
 implementing phase ended, or reviewer subagents MUST be used, and the context
 that wrote the code MUST NOT sit in judgment on it. Any one of the three

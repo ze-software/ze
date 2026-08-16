@@ -384,8 +384,8 @@ Agents read this text too. A controlled vocabulary and one name for each concept
 
 Detail feels like rigor, so it grows without anyone deciding to add it. The cost is invisible at the moment of writing and paid on every read after it.
 
-Two measurements, 2026-07-31. `CONDENSED.md` reached 99k tokens. `ai/INSTRUCTIONS.md` imports it into every session before any work starts. One table row in `repo-maintenance.md` reached 1,327 tokens. It narrates a hook's guard order, its exit codes, and its line offsets. The script and its 35 fixtures already state all three.
+Do not narrate a hook's guard order, exit codes, or line offsets in imported instructions. The script and its fixtures are the source.
 
-The drift was measurable in the old learned corpus too. Summaries averaged 27 lines in the first hundred and 93 lines in the last hundred, against a stated budget of 25 to 35. The corpus was replaced by `plan/journal/` (one file per problem class, one row per occurrence).
+Use `plan/journal/` for durable lessons: one file per problem class and one row per occurrence.
 
 The citation rule has a second cost. Nine rules mint the `file:line` demand independently. Seven `ze-*` skills repeat it for each claim. A line number pinned in prose goes stale on the next edit of the file it points into. This is why `/ze-rfc-audit` must tell a real verdict change from "a pure `file:line` refresh from someone else's un-regenerated test edit".

@@ -17,6 +17,4 @@ read the commit as that spec's CLOSURE and demand the Review Gate artifact. The
 obvious answer is to drop the rows "for now", and "for now" is the rest of the
 session. A rows-only commit that adds no learned summary and removes no spec
 closes nothing, and `--review-override` carries that reason: state in it what
-the commit does NOT do, so the escape stays auditable. Measured 2026-08-15:
-twelve class files, written across five review rounds, survived only because
-the owner asked whether the defects had been recorded.
+the commit does NOT do, so the escape stays auditable.

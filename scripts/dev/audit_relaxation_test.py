@@ -58,6 +58,26 @@ HEALTHY = (
 WEAKENED = (
     'package a\nfunc TestA(t *testing.T){ t.Skip("x"); require.Equal(t,1,f()) }\n'
 )
+TWO_HEALTHY = (
+    "package a\n"
+    "func TestA(t *testing.T){ require.True(t, first()) }\n"
+    "func TestB(t *testing.T){ require.True(t, second()) }\n"
+)
+ONLY_A_WEAKENED = (
+    "package a\n"
+    "func TestA(t *testing.T){ t.Skip() }\n"
+    "func TestB(t *testing.T){ require.True(t, second()) }\n"
+)
+BOTH_WEAKENED = (
+    "package a\n"
+    "func TestA(t *testing.T){ t.Skip() }\n"
+    "func TestB(t *testing.T){ t.Skip() }\n"
+)
+
+
+def _weakened_table(*names):
+    rows = "".join(f"| {name} | accepted for this fixture commit |\n" for name in names)
+    return f"| Test | Reason |\n|------|--------|\n{rows}"
 
 
 def _git(repo, *args, env=None):
@@ -74,7 +94,7 @@ class AuditFixture:
     against an earlier base (the stand-in for origin/main).
     """
 
-    def __init__(self, tmp):
+    def __init__(self, tmp, healthy=HEALTHY, weakened=WEAKENED, rows=()):
         self.repo = tmp
         self.env = dict(os.environ, GIT_EDITOR="true")
         p = Path(tmp)
@@ -95,17 +115,25 @@ class AuditFixture:
         _git(tmp, "config", "commit.gpgsign", "false", env=self.env)
 
         (p / "pkg").mkdir()
-        (p / "pkg" / "x_test.go").write_text(HEALTHY)
+        (p / "pkg" / "x_test.go").write_text(healthy)
         self._commit("baseline")
         self.base_sha = _git(tmp, "rev-parse", "HEAD", env=self.env).stdout.strip()
 
-        # The weakening is COMMITTED on main, exactly as it would be here.
-        (p / "pkg" / "x_test.go").write_text(WEAKENED)
+        # The weakening and its optional acceptance rows are committed together.
+        (p / "pkg" / "x_test.go").write_text(weakened)
+        if rows:
+            self.write_rows(*rows)
         self._commit("weaken TestA")
 
     def _commit(self, msg):
         _git(self.repo, "add", "-A", env=self.env)
         _git(self.repo, "commit", "-q", "-m", msg, env=self.env)
+
+
+    def write_rows(self, *names):
+        path = Path(self.repo, "test", "weakened.md")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(_weakened_table(*names))
 
     def audit(self, *args):
         """Run the real script from inside the fixture; return (code, output)."""
@@ -195,210 +223,136 @@ class TestRealComparisonsStillWork(unittest.TestCase):
             self.assertIn("clean", out.lower())
 
 
-class TestRelaxTokenInTheCarrierSyntax(unittest.TestCase):
-    """A relaxation written in the file's own comment syntax must be REPORTED.
-
-    `.ci` and `.et` scenarios comment with `#`, and this audit read `//` only, so a
-    reason written the natural way was invisible: the finding downgraded from RELAXED,
-    which prints the author's justification for the user to confirm, to WEAKENED, which
-    prints no reason at all. The form that must never stop working is the Go one, since
-    315 `.ci` files already carry `# // test-relax:`.
-
-    End-to-end through the entry point, per this file's contract. The three helper
-    assertions below it pin regex properties the exit code cannot isolate.
-    """
+class TestCommittedWeakenedRows(unittest.TestCase):
+    """Accepted rows come from each commit in the audited range."""
 
     CI = "cmd=ze show\nexpect=out:text=one\nexpect=out:text=two\n"
 
-    def _ci_fixture(self, tmp, body):
-        fx = AuditFixture(tmp)
-        Path(tmp, "test", "ui").mkdir(parents=True)
-        Path(tmp, "test", "ui", "relax.ci").write_text(body)
-        fx._commit("add the .ci")
-        return fx
-
-    def test_a_hash_reason_is_reported_as_a_relaxation(self):
-        # VALIDATES: the natural `# test-relax:` reaches the verdict AND its text is
-        # printed for the user to confirm.
-        # PREVENTS: silently downgrading a justified .ci reduction to WEAKENED, which
-        # tells the reviewer a test was weakened and nothing about why.
+    def test_a_row_in_the_range_explains_the_weakening(self):
+        # VALIDATES (AC-1): accepted rows make an explained weakening clean.
+        # PREVENTS: the branch audit ignoring the per-commit acceptance record.
         with tempfile.TemporaryDirectory() as tmp:
-            fx = self._ci_fixture(tmp, self.CI)
-            Path(tmp, "test", "ui", "relax.ci").write_text(
-                "# test-relax: the `two` command was removed\ncmd=ze show\n"
-                "expect=out:text=one\n"
-            )
-            code, out = fx.audit()
-            self.assertEqual(code, 1, out)
-            self.assertIn("RELAXED", out)
-            self.assertIn("the `two` command was removed", out)
-
-    def test_the_reason_reported_is_the_one_that_was_added(self):
-        # VALIDATES: run_audit's multiset difference names the token that was added,
-        # whatever its position in the file.
-        # PREVENTS: the regression a two-pattern union caused here -- Go matches were
-        # concatenated ahead of hash matches, so a file already carrying a hash reason
-        # that gained a Go one reported the OLD text as the addition.
-        with tempfile.TemporaryDirectory() as tmp:
-            fx = self._ci_fixture(tmp, "# test-relax: OLD reason\n" + self.CI)
-            Path(tmp, "test", "ui", "relax.ci").write_text(
-                "# test-relax: OLD reason\n# // test-relax: NEW reason\n"
-                "cmd=ze show\nexpect=out:text=one\n"
-            )
-            code, out = fx.audit()
-            self.assertEqual(code, 1, out)
-            self.assertIn("NEW reason", out)
-            self.assertNotIn("reason: OLD reason", out)
-
-    def test_a_token_inserted_at_the_top_is_the_one_reported(self):
-        # VALIDATES: run_audit reports the ADDED reason when it does not land last in
-        # file order.
-        # PREVENTS: the positional slice this replaced (`new_tokens[len(old):]`), which
-        # assumed an addition sorts last. A token inserted at the TOP of a file that
-        # already held two made the audit quote an OLD relaxation back at the reviewer
-        # and say nothing about the new one -- the reviewer then confirms a
-        # justification that belongs to a different change.
-        with tempfile.TemporaryDirectory() as tmp:
-            fx = self._ci_fixture(
-                tmp, "# test-relax: OLD-A\n# test-relax: OLD-B\n" + self.CI
-            )
-            Path(tmp, "test", "ui", "relax.ci").write_text(
-                "# test-relax: NEW-INSERTED-AT-TOP\n"
-                "# test-relax: OLD-A\n# test-relax: OLD-B\n"
-                "cmd=ze show\nexpect=out:text=one\n"
-            )
-            code, out = fx.audit()
-            self.assertEqual(code, 1, out)
-            self.assertIn("NEW-INSERTED-AT-TOP", out)
-            self.assertNotIn("reason: OLD-A", out)
-            self.assertNotIn("reason: OLD-B", out)
-
-    def test_deleting_one_token_and_adding_another_is_not_silent(self):
-        # VALIDATES: an edit whose token COUNT is unchanged still surfaces.
-        # PREVENTS: the positional slice going entirely blind. `new[len(old):]` is empty
-        # when one token is deleted and one added, so a fresh relaxation arrived with no
-        # finding at all.
-        with tempfile.TemporaryDirectory() as tmp:
-            fx = self._ci_fixture(
-                tmp, "# test-relax: OLD-A\n# test-relax: OLD-B\n" + self.CI
-            )
-            Path(tmp, "test", "ui", "relax.ci").write_text(
-                "# test-relax: OLD-A\n# test-relax: BRAND-NEW-REPLACING-OLD-B\n"
-                "cmd=ze show\nexpect=out:text=one\n"
-            )
-            code, out = fx.audit()
-            self.assertEqual(code, 1, out)
-            self.assertIn("BRAND-NEW-REPLACING-OLD-B", out)
-
-    def test_rewording_an_existing_token_does_not_buy_the_relaxed_downgrade(self):
-        # VALIDATES: a weakening that also disturbs an existing justification is
-        # WEAKENED, and BOTH the new wording and the vanished one are printed.
-        # PREVENTS: buying a severity downgrade with prose. /ze-review treats WEAKENED as
-        # a BLOCKER and RELAXED as "quote the reason and confirm", so if a reword counted
-        # as a plain addition, editing an old justification would launder a real
-        # weakening -- and the reason quoted back would be the old relaxation's.
-        with tempfile.TemporaryDirectory() as tmp:
-            fx = self._ci_fixture(tmp, "# test-relax: OLD wording\n" + self.CI)
-            Path(tmp, "test", "ui", "relax.ci").write_text(
-                "# test-relax: OLD wording, but said differently\n"
-                "cmd=ze show\nexpect=out:text=one\n"
-            )
-            code, out = fx.audit()
-            self.assertEqual(code, 1, out)
-            self.assertIn("WEAKENED", out)
-            self.assertIn("already here is GONE", out)
-            self.assertIn("said differently", out)
-            self.assertNotIn("RELAXED", out)
-
-    def test_draining_stale_tokens_is_not_reported_as_a_reword(self):
-        # VALIDATES: deleting several stale justifications while writing one real one is
-        # a RELAXED finding naming the new reason, not a BLOCKER-tier reword.
-        # PREVENTS: penalising the token drain the ceiling gate exists to encourage. A
-        # count-only test called this a REWORD, which is a false statement about the
-        # change, at the severity /ze-review escalates on.
-        with tempfile.TemporaryDirectory() as tmp:
-            fx = self._ci_fixture(
-                tmp,
-                "# test-relax: STALE-1\n# test-relax: STALE-2\n# test-relax: STALE-3\n"
-                + self.CI,
-            )
-            Path(tmp, "test", "ui", "relax.ci").write_text(
-                "# test-relax: BRAND-NEW-JUSTIFICATION\n"
-                "cmd=ze show\nexpect=out:text=one\nexpect=out:text=two\n"
-            )
-            code, out = fx.audit()
-            self.assertEqual(code, 1, out)
-            self.assertIn("RELAXED", out)
-            self.assertIn("BRAND-NEW-JUSTIFICATION", out)
+            fx = AuditFixture(tmp, rows=("TestA",))
+            code, out = fx.audit(fx.base_sha)
+            self.assertEqual(code, 0, out)
             self.assertNotIn("WEAKENED", out)
 
-    def test_a_go_test_still_ignores_the_hash_form(self):
-        # VALIDATES: `#` is not a Go comment, so a token written that way is no record
-        # in the file's own syntax and must not silence the audit.
-        # PREVENTS: a one-character escape from the weakening gate on every Go test.
+    def test_a_weakening_with_no_row_in_the_range_is_reported(self):
+        # VALIDATES (AC-2): an unexplained weakening names its test.
+        # PREVENTS: history support turning a missing row into a silent pass.
         with tempfile.TemporaryDirectory() as tmp:
             fx = AuditFixture(tmp)
-            Path(tmp, "pkg", "x_test.go").write_text(
-                "package a\n# test-relax: nope\nfunc TestA(t *testing.T){}\n"
-            )
-            code, out = fx.audit()
+            code, out = fx.audit(fx.base_sha)
             self.assertEqual(code, 1, out)
             self.assertIn("WEAKENED", out)
-            self.assertNotIn("RELAXED", out)
+            self.assertIn("TestA", out)
 
+    def test_the_audit_scans_no_token(self):
+        # VALIDATES (AC-3): the retired scanner and its verdict are absent.
+        # PREVENTS: history rows becoming a second path beside the old scanner.
+        src = SCRIPT.read_text()
+        self.assertNotIn("_RELAX_LINE", src)
+        self.assertNotIn("_RELAX_LINE_ANY", src)
+        self.assertNotIn("relax_reasons", src)
+        self.assertNotIn("test-relax:", src)
+        self.assertNotIn('"RELAXED"', src)
 
-class TestRelaxReasonRegexProperties(unittest.TestCase):
-    """The two properties an exit code cannot isolate, asserted on the helper."""
+    def test_rows_are_read_from_every_commit_in_the_range(self):
+        # VALIDATES (AC-1): an earlier row remains available after replacement.
+        # PREVENTS: reading only the last commit's version of test/weakened.md.
+        with tempfile.TemporaryDirectory() as tmp:
+            fx = AuditFixture(
+                tmp,
+                healthy=TWO_HEALTHY,
+                weakened=ONLY_A_WEAKENED,
+                rows=("TestA",),
+            )
+            Path(tmp, "pkg", "x_test.go").write_text(BOTH_WEAKENED)
+            fx.write_rows("TestB")
+            fx._commit("weaken TestB")
+            code, out = fx.audit(fx.base_sha)
+            self.assertEqual(code, 0, out)
+            self.assertNotIn("WEAKENED", out)
 
-    def setUp(self):
-        self.mod = _load_audit_module()
+    def test_a_row_for_another_test_does_not_explain_the_weakening(self):
+        # VALIDATES (AC-2): a row must match the weakened test name.
+        # PREVENTS: any row in the range suppressing every detector result.
+        with tempfile.TemporaryDirectory() as tmp:
+            fx = AuditFixture(tmp, rows=("TestOther",))
+            code, out = fx.audit(fx.base_sha)
+            self.assertEqual(code, 1, out)
+            self.assertIn("TestA", out)
 
-    def test_one_line_is_never_counted_twice(self):
-        # `# // test-relax:` must match at the `//` only: the `#` branch requires the
-        # token immediately after it. A double count reads as an ADDED relaxation and
-        # prints a phantom finding on a file nobody touched that way.
-        self.assertEqual(
-            self.mod.relax_reasons("# // test-relax: once\n", "a/b.ci"), ["once"]
-        )
+    def test_a_qualified_row_matches_its_package(self):
+        # VALIDATES (AC-1): package.TestName uses the shared row matcher.
+        # PREVENTS: the audit growing a name matcher that rejects valid rows.
+        with tempfile.TemporaryDirectory() as tmp:
+            fx = AuditFixture(tmp, rows=("pkg.TestA",))
+            code, out = fx.audit(fx.base_sha)
+            self.assertEqual(code, 0, out)
 
-    def test_indentation_and_tabs_do_not_defeat_the_match(self):
-        self.assertEqual(
-            self.mod.relax_reasons("\t #\ttest-relax:\tspaced out\n", "a/b.ci"),
-            ["spaced out"],
-        )
+    def test_a_wrong_qualifier_does_not_match(self):
+        # VALIDATES (AC-2): a qualified row matches only its package.
+        # PREVENTS: dropping the qualifier before row_matches sees the row.
+        with tempfile.TemporaryDirectory() as tmp:
+            fx = AuditFixture(tmp, rows=("other.TestA",))
+            code, out = fx.audit(fx.base_sha)
+            self.assertEqual(code, 1, out)
+            self.assertIn("TestA", out)
 
-    def test_reasons_come_back_in_file_order(self):
-        # VALIDATES: relax_reasons' documented ordering contract.
-        # PREVENTS: an unpinned promise. run_audit no longer depends on order (it
-        # compares multisets), so nothing downstream would go red if the order broke
-        # -- but `--list` and `--by-area` print this sequence to a human reading 751
-        # of them, and a scrambled list is a list nobody can check against the file.
-        text = (
-            "// test-relax: FIRST\n"
-            "func TestA(t *testing.T) {}\n"
-            "// test-relax: SECOND\n"
-            "// test-relax: THIRD\n"
-        )
-        self.assertEqual(
-            self.mod.relax_reasons(text, "a/b_test.go"), ["FIRST", "SECOND", "THIRD"]
-        )
+    def test_a_committed_row_accepts_a_ci_weakening_by_file_stem(self):
+        # VALIDATES (AC-1): a non-Go carrier uses its file stem as the test name.
+        # PREVENTS: history support working for Go functions only.
+        with tempfile.TemporaryDirectory() as tmp:
+            fx = AuditFixture(tmp, rows=("TestA",))
+            path = Path(tmp, "test", "ui", "relax.ci")
+            path.parent.mkdir(parents=True)
+            path.write_text(self.CI)
+            fx._commit("add ci baseline")
+            path.write_text("cmd=ze show\nexpect=out:text=one\n")
+            fx.write_rows("relax")
+            fx._commit("weaken ci test")
+            code, out = fx.audit(fx.base_sha)
+            self.assertEqual(code, 0, out)
 
-    def test_a_multi_line_reason_is_captured_whole(self):
-        # VALIDATES: the continuation walk, which is what makes a reason judgeable.
-        # PREVENTS: returning to a first-line-only capture. 62% of the corpus runs
-        # past one line, so a fragment is what the reviewer was being asked to confirm.
-        text = (
-            "// test-relax: TestNarrowTS covered narrowTS, a function with\n"
-            "// no non-test caller, deleted in this change.\n"
-            "func TestX(t *testing.T) {}\n"
-        )
-        self.assertEqual(
-            self.mod.relax_reasons(text, "a/b_test.go"),
-            [
-                "TestNarrowTS covered narrowTS, a function with no non-test caller, "
-                "deleted in this change."
-            ],
-        )
+    def test_an_uncommitted_row_does_not_explain_a_weakening(self):
+        # VALIDATES (AC-2): only rows in the resolved commit range are accepted.
+        # PREVENTS: a worktree row changing the verdict for committed history.
+        with tempfile.TemporaryDirectory() as tmp:
+            fx = AuditFixture(tmp)
+            fx.write_rows("TestA")
+            code, out = fx.audit(fx.base_sha)
+            self.assertEqual(code, 1, out)
+            self.assertIn("TestA", out)
+
+    def test_a_malformed_historical_table_fails_closed(self):
+        # VALIDATES (AC-2): unreadable history cannot produce a clean verdict.
+        # PREVENTS: parser errors becoming an empty accepted-row list.
+        with tempfile.TemporaryDirectory() as tmp:
+            fx = AuditFixture(tmp)
+            path = Path(tmp, "test", "weakened.md")
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("| Wrong | Header |\n|-------|--------|\n")
+            fx._commit("malformed acceptance table")
+            code, out = fx.audit(fx.base_sha)
+            self.assertEqual(code, 2, out)
+            self.assertIn("cannot read accepted rows", out.lower())
+
+    def test_rows_in_separate_commits_accept_a_deleted_file(self):
+        # VALIDATES (AC-1): rows can explain every test deleted by the range.
+        # PREVENTS: file deletion bypassing the shared test-name matcher.
+        with tempfile.TemporaryDirectory() as tmp:
+            fx = AuditFixture(
+                tmp,
+                healthy=TWO_HEALTHY,
+                weakened=ONLY_A_WEAKENED,
+                rows=("TestA",),
+            )
+            Path(tmp, "pkg", "x_test.go").unlink()
+            fx.write_rows("TestB")
+            fx._commit("delete tests")
+            code, out = fx.audit(fx.base_sha)
+            self.assertEqual(code, 0, out)
 
 
 class TestSelftest(unittest.TestCase):

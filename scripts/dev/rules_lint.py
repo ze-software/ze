@@ -351,17 +351,53 @@ LEVEL_RANK = ("MAY", "SHOULD NOT", "SHOULD", "MUST NOT", "MUST")
 # in it happened to be positive, which is the prohibition going unrecorded.
 LEVEL_TIERS = (("MAY",), ("SHOULD", "SHOULD NOT"), ("MUST", "MUST NOT"))
 
-# A lowercase obligation word inside a directive. Code spans and fenced blocks
-# are stripped first: `must` in a shell snippet or a quoted error string is text
-# the rule reproduces, not an obligation the rule states.
+# Lowercase obligation words inside directives. Quoted Markdown is removed first,
+# because a rule that reproduces another artifact does not state that artifact's
+# obligations.
 LOWER_MODAL = re.compile(r"(?<![\w-])(must|shall|should|may)\b(?![-\w])")
-POINT_FRONTMATTER = re.compile(r"\A---\n(?P<fm>.*?)\n---\n(?P<body>.*)\Z", re.S)
-FENCE = re.compile(r"^```.*?^```", re.M | re.S)
+POINT_FRONTMATTER = re.compile(
+    r"\A---\n(?P<fm>.*?)\n---\n(?P<body>.*)\Z", re.DOTALL
+)
+FENCE_OPEN = re.compile(r"^ {0,3}(?P<mark>`{3,}|~{3,})(?P<info>[^\n]*)$")
+BLOCKQUOTE = re.compile(r"^[ \t]{0,3}>.*$", re.MULTILINE)
+
+
+def strip_fences(text):
+    """Remove Markdown fenced blocks."""
+    output = []
+    fence_char = ""
+    fence_length = 0
+    for line in text.splitlines(keepends=True):
+        bare = line.rstrip("\r\n")
+        if fence_char:
+            candidate = bare.lstrip(" ")
+            indent = len(bare) - len(candidate)
+            marker = candidate.rstrip(" \t")
+            if (
+                indent <= 3
+                and len(marker) >= fence_length
+                and marker == fence_char * len(marker)
+            ):
+                fence_char = ""
+                fence_length = 0
+            continue
+        opened = FENCE_OPEN.match(bare)
+        if opened:
+            mark = opened.group("mark")
+            if mark[0] != "`" or "`" not in opened.group("info"):
+                fence_char = mark[0]
+                fence_length = len(mark)
+                continue
+        output.append(line)
+    return "".join(output)
 
 
 def strip_quoted(body):
-    """Drop fenced blocks and code spans: their words are quoted, not stated."""
-    return CODE_SPAN.sub("", FENCE.sub("", body))
+    """Drop quoted Markdown from the obligations that a point states."""
+    body = strip_fences(body)
+    body = BLOCKQUOTE.sub("", body)
+    return CODE_SPAN.sub("", body)
+
 
 
 def strongest_tier(body):

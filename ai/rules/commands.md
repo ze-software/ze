@@ -66,12 +66,9 @@ go test -tags "ze_core $(awk '$1 ~ /^ze_/ {print $1}' feature-gates.txt | sort -
 Same for `git archive HEAD` scratch-tree checks: a bare run there reproduces your
 own mistake and "confirms" a red that does not exist.
 
-**This has cost real time.** On 2026-07-15 two `plan/known-failures/` entries
-(7 tests) were disproven as pure tags artifacts. Both had been logged with a
-confident but wrong root cause (a "macOS socket-stack quirk"; a "broken
-listener-conflict validator"), and one was "re-confirmed" six days later by
-repeating the same flawed invocation. A phantom red is worse than a real one: it
-sends the next session hunting a bug that was never there.
+A bare `go test` omits feature tags and can produce a phantom red with a
+plausible but false root cause. Use the make target so the result describes the
+real build.
 
 Symptom: a test asserting on something registered by another feature
 (listeners, validators, plugin names, wire methods, schema) fails, and the
@@ -325,12 +322,8 @@ loops make it quadratic.
 
 ### Poll cost
 
-On 2026-08-02 a session left four `until ! pgrep ...; do sleep 5; done` loops
-running on a machine that was also running QEMU, Docker and a full
-`ze-verify`. The loops were started because a foreground `sleep` is refused, and
-they were never stopped when the thing they watched changed. The wake-ups were
-the contention that made the functional suites flaky for the rest of that
-session.
+An abandoned poll loop keeps taking CPU after its answer is no longer needed.
+That contention can make concurrent QEMU, Docker, and verification work fail.
 
 The harm is not the fork cost measured above. It is the wake and its lifetime: a
 poll loop keeps taking CPU on a loaded box long after anybody wants its answer.

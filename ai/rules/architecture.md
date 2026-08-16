@@ -593,15 +593,15 @@ Binary: update hex attr set 400101... nlri ipv4/unicast add 180a00
 - `ai/rules/plugins.md`: the delete-the-folder invariant.
 - `ai/rules/plugins.md`: registration patterns, Proximity Principle.
 - `scripts/dev/dep_audit.py`: the reverse-dependency report + the placement gate.
-- `spec-tiers-0-umbrella` (closed 2026-08-12, in git history): the taxonomy, the reorg plan, the hardening analysis.
+- `spec-tiers-0-umbrella` (in git history): the taxonomy, the reorganization plan, and the hardening analysis.
 
 ## Rationale
 
 ### Incidents behind Design Context
 
-Incident: session as-router (2026-04-13) made 7 wrong recommendations by starting to design before loading context.
+Design recommendations made before the relevant context is loaded are unreliable.
 
-Incident: session l2tp-8a-auth-pool (2026-04-21) proposed a new direct-call mechanism between core and plugins, not discovering that DirectBridge already provides typed function calls. Root cause: no document in the research path mentioned DirectBridge for request/response. Fixed by splitting the cross-plugin comm row into broadcast vs request/response and adding DirectBridge to the anti-pattern table.
+DirectBridge provides typed request/response calls between core and plugins. Use it instead of creating a second direct-call mechanism.
 
 ### Incident behind the Sibling Call-Site Audit
 

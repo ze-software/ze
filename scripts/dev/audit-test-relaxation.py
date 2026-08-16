@@ -3,9 +3,8 @@
 
 Backs the test-relaxation pass of /ze-review and /ze-review-deep. Where the
 PreToolUse hook (c_test_weakening) guards a single edit as it happens, this runs
-over a whole branch/working-tree diff so weakening that slipped past the hook
-(a relax token, an out-of-band commit, an expected-value tweak the hook cannot
-see) is still surfaced for human review.
+over a whole branch or working-tree diff. It reads the accepted weakening rows
+from each commit in the resolved range and reports only unexplained weakenings.
 
 The weakening detection is IMPORTED from .claude/hooks/pretool-writeedit.py
 (_test_weakening_errs) so the audit and the hook can never drift apart.
@@ -25,16 +24,14 @@ A base is only usable if it gives a real comparison. "Clean" must mean "I
 compared things and found nothing", never "I compared nothing"
 (ai/rules/evidence.md).
 
-Exit 0 = a comparison ran and found no test deletion/weakening/relaxation.
-Exit 1 = findings reported (review them).
+Exit 0 = a comparison ran and found no unexplained test deletion or weakening.
+Exit 1 = unexplained findings reported (review them).
 Exit 2 = audit could not run: detection logic not importable, or the base is
          unusable (nonexistent, unrelated, or an empty range auditing nothing).
 """
 
-import collections
 import importlib.util
 import os
-import re
 import subprocess
 import sys
 import tempfile
@@ -42,68 +39,9 @@ import textwrap
 from typing import NamedTuple
 
 RED = "\033[31m"
-YELLOW = "\033[33m"
 GREEN = "\033[32m"
 BOLD = "\033[1m"
 RESET = "\033[0m"
-
-_RELAX_LINE = re.compile(r"//[ \t]*test-relax:[ \t]*(\S.*)?$")
-# The `.ci` and `.et` carriers this audit examines comment with `#`, so a relaxation
-# written in their own syntax was invisible here and its reason went unreported. One
-# alternation rather than a union of two patterns: `# // test-relax:` matches at the
-# `//` only (the `#` branch requires the token immediately after it), so a line is
-# never counted twice.
-#
-# Only the two extensions `is_test_path` can yield. A `.py` arm would be unreachable
-# here, whatever the hook's own carrier list says.
-_RELAX_LINE_ANY = re.compile(r"(?://|#)[ \t]*test-relax:[ \t]*(\S.*)?$")
-# Named apart from the hook's `_HASH_COMMENT_CARRIERS` on purpose: this audit imports
-# the hook's DETECTORS but not its carrier list, and the two lists differ (the hook adds
-# `.py`, reachable there through `_carries_rfc_tag`). One name with two contents, in
-# files that already share code, is a trap for whoever greps it next.
-_AUDITED_HASH_CARRIERS = (".ci", ".et")
-
-_CONT_HASH = re.compile(r"^[ \t]*#[ \t]?(.*)$")
-_CONT_SLASH = re.compile(r"^[ \t]*//[ \t]?(.*)$")
-# A justification longer than this is quoted in full nowhere a reviewer will read it.
-# The cap truncates the QUOTE; it never changes which findings are reported.
-_REASON_MAX_LINES = 12
-
-
-def relax_reasons(text, path):
-    """Every relaxation justification in `text`, in file order, for `path`'s syntax.
-
-    A justification is its token line PLUS the comment lines under it. Capturing
-    only the first line was not a cosmetic limit: measured over the 751 tokens at
-    HEAD on 2026-08-10, 62% ran past one line, the median was 3 and the longest 21.
-    So `report()` showed a reviewer a fragment -- often one with no verb in it --
-    and asked them to confirm the relaxation was justified.
-
-    The walk stops at the first line that is not a comment, at the next token, and
-    at `_REASON_MAX_LINES`. It can absorb an unrelated comment paragraph that
-    happens to sit directly under a token. That trade is deliberate: this text is
-    read by a human deciding whether a relaxation is honest, and too much context
-    costs them a second, where too little cost them the decision.
-    """
-    hashed = path.endswith(_AUDITED_HASH_CARRIERS)
-    token = _RELAX_LINE_ANY if hashed else _RELAX_LINE
-    cont = _CONT_HASH if hashed else _CONT_SLASH
-    lines = text.split("\n")
-    out = []
-    for i, line in enumerate(lines):
-        m = token.search(line)
-        if not m:
-            continue
-        parts = [(m.group(1) or "").strip()]
-        for nxt in lines[i + 1 : i + _REASON_MAX_LINES]:
-            if token.search(nxt):
-                break
-            c = cont.match(nxt)
-            if not c or not c.group(1).strip():
-                break
-            parts.append(c.group(1).strip())
-        out.append(" ".join(p for p in parts if p))
-    return out
 
 
 def git(args, cwd):
@@ -128,6 +66,20 @@ def load_detector(repo_root):
     """Import _test_weakening_errs from the canonical hook so logic stays shared."""
     mod = load_hook_module(repo_root)
     return getattr(mod, "_test_weakening_errs", None) if mod else None
+
+_weakened_module = None
+
+
+def load_weakened_module():
+    """Import the shared weakened-row parser and matcher by path."""
+    global _weakened_module
+    if _weakened_module is None:
+        path = os.path.join(os.path.dirname(__file__), "check_weakened_tests.py")
+        spec = importlib.util.spec_from_file_location("ze_check_weakened_tests", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        _weakened_module = module
+    return _weakened_module
 
 
 def load_rfc_detector(repo_root):
@@ -242,17 +194,23 @@ def resolve_anchor(base, cwd):
     return anchor, None
 
 
-def changed_test_files(anchor, cwd):
-    """Return (rows, err) of (status, old_path, new_path) for changed test files.
+def changed_test_files(old_revision, cwd, new_revision=None):
+    """Return changed test files between two revisions or a revision and worktree.
 
-    A failed diff returns err, not []: an empty row list must only ever mean the
-    range genuinely contains no test-file changes.
+    The rows are (status, old_path, new_path). A failed diff returns err, not
+    []: an empty row list must only ever mean the comparison genuinely contains
+    no test-file changes.
     """
-    out = git(["diff", "--name-status", "-M", anchor, "--"], cwd)
+    args = ["diff", "--name-status", "-M", old_revision]
+    if new_revision is not None:
+        args.append(new_revision)
+    args.append("--")
+    out = git(args, cwd)
+    target = new_revision or "worktree"
     if out.returncode != 0:
         return None, (
-            f"git diff against {anchor[:12]} failed, so nothing was compared:\n"
-            f"  {out.stderr.strip()}"
+            f"git diff {old_revision[:12]}..{target[:12]} failed, so nothing "
+            f"was compared:\n  {out.stderr.strip()}"
         )
     rows = []
     for line in out.stdout.splitlines():
@@ -269,13 +227,52 @@ def changed_test_files(anchor, cwd):
     return rows, None
 
 
+def accepted_rows(commit, cwd, weakened):
+    """Return accepted rows from one commit's test/weakened.md, or an error."""
+    source = f"{commit}:test/weakened.md"
+    tree = git(["ls-tree", "--name-only", commit, "--", "test/weakened.md"], cwd)
+    if tree.returncode != 0:
+        return None, (
+            f"git ls-tree {commit[:12]} failed, so accepted rows cannot be read:\n"
+            f"  {tree.stderr.strip()}"
+        )
+    if not tree.stdout.strip():
+        return [], None
+    version = git(["show", source], cwd)
+    if version.returncode != 0:
+        return None, (
+            f"git show {source} failed, so accepted rows cannot be read:\n"
+            f"  {version.stderr.strip()}"
+        )
+    rows, problems = weakened.parse_weakened_file(version.stdout)
+    if problems:
+        return None, (
+            f"cannot read accepted rows from commit {commit[:12]}:\n  "
+            + "\n  ".join(problems)
+        )
+    return rows, None
+
+
 def read_worktree(path, cwd):
+    """Return a worktree file's text and a named error when it cannot be read."""
     full = os.path.join(cwd, path)
     try:
         with open(full, encoding="utf-8", errors="replace") as fh:
-            return fh.read()
-    except OSError:
-        return None
+            return fh.read(), None
+    except OSError as exc:
+        return None, f"cannot read worktree file {path}: {exc}"
+
+
+def read_revision(revision, path, cwd):
+    """Return one committed file version, failing closed on every git error."""
+    source = f"{revision}:{path}"
+    out = git(["show", source], cwd)
+    if out.returncode != 0:
+        return None, (
+            f"git show {source} failed, so the test change cannot be examined:\n"
+            f"  {out.stderr.strip()}"
+        )
+    return out.stdout, None
 
 
 class Audit(NamedTuple):
@@ -285,90 +282,131 @@ class Audit(NamedTuple):
     err: str  # why no comparison was possible, or "" when one ran
 
 
-def run_audit(base, cwd, detector, rfc_detector=None):
-    anchor, err = resolve_anchor(base, cwd)
+def audit_changes(
+    old_revision,
+    new_revision,
+    cwd,
+    detector,
+    rfc_detector,
+    weakened,
+    accepted,
+):
+    """Audit one committed diff, or HEAD against the worktree."""
+    rows, err = changed_test_files(old_revision, cwd, new_revision)
     if err:
-        return Audit("", [], 0, err)
-    rows, err = changed_test_files(anchor, cwd)
-    if err:
-        return Audit(anchor, [], 0, err)
-    findings = []  # (kind, path, details:list[str])
+        return [], 0, err
+
+    findings = []
     # Added files are counted but never inspected: a brand-new test cannot be a
     # weakening of anything. The verdict reports what it actually looked at.
-    examined = sum(1 for s, _, _ in rows if s != "A")
+    examined = sum(1 for status, _, _ in rows if status != "A")
     for status, old_p, new_p in rows:
         if status == "A":
             continue
+
+        path = old_p if status == "D" else new_p
+        old, err = read_revision(old_revision, old_p, cwd)
+        if err:
+            return [], 0, err
         if status == "D":
-            findings.append(("DELETED", old_p, []))
-            continue
-        old = git(["show", f"{anchor}:{old_p}"], cwd).stdout
-        new = read_worktree(new_p, cwd)
-        if new is None:
-            new = git(["show", f"HEAD:{new_p}"], cwd).stdout
-        # The detector returns (blocking, advisory). This audit reports BOTH: it reads
-        # a whole branch for a human reviewer rather than deciding one edit, and the
-        # advisory half is exactly the interesting half here. The hook stopped refusing
-        # on a falling count because a count cannot tell a deleted check from three
-        # consolidated into one, but a reviewer looking at a branch can, and wants to
-        # be shown the drop rather than have it withheld.
-        blocking, advisory = detector(old, new, new_p) if detector else ([], [])
-        details = list(blocking) + list(advisory)
-        # An RFC-tagged test is the proof behind a public compliance claim
-        # (docs/features/rfc-status.md), so ANY behavior change to one is reportable --
-        # not only the count-based weakening the heuristic above can see. Swapping an
-        # expected value keeps every count identical and would otherwise pass silently.
-        rfc_tags = rfc_detector(old, new, new_p) if rfc_detector else None
+            new = ""
+        elif new_revision is None:
+            new, err = read_worktree(new_p, cwd)
+            if err:
+                return [], 0, err
+        else:
+            new, err = read_revision(new_revision, new_p, cwd)
+            if err:
+                return [], 0, err
+
+        # Keep both detector halves. The hook blocks the first and advises on
+        # the second. A branch reviewer needs both to judge the complete range.
+        blocking, advisory = detector(old, new, path) if detector else ([], [])
+        file_details = list(blocking) + list(advisory)
+        units = weakened.weakened_units(path, old, new, detector)
+        if not units and file_details:
+            stem = os.path.splitext(os.path.basename(path))[0]
+            units = [(stem, file_details)]
+
+        unmatched = []
+        package = os.path.basename(os.path.dirname(path))
+        for name, details in units:
+            weak = weakened.Weakened(path, package, name, details)
+            if any(weakened.row_matches(row.name, weak) for row in accepted):
+                continue
+            unmatched.append((name, details))
+
+        # An RFC-tagged test is the proof behind a public compliance claim.
+        # Its separate approval mechanism remains mandatory even when a weakened
+        # row accepts a structural change.
+        rfc_tags = rfc_detector(old, new, path) if rfc_detector else None
+        rfc_details = []
         if rfc_tags:
-            details = details + [
+            rfc_details = [
                 "RFC-TAGGED test changed without an approval token: "
                 + ", ".join(rfc_tags),
                 "  the user must approve this; see rfc-test-change-approved:",
             ]
-        # A multiset difference, not a positional slice. The slice assumed an added
-        # token lands LAST in file order, so a token inserted at the top of a file
-        # that already had two made the audit quote the wrong reason back -- it
-        # named an old relaxation and stayed silent about the new one. It also went
-        # entirely blind when an edit deleted one token and added another, because
-        # the count was unchanged and the slice was therefore empty. Both are pinned
-        # by audit_relaxation_test.py: test_a_token_inserted_at_the_top_is_the_one
-        # _reported and test_deleting_one_token_and_adding_another_is_not_silent.
-        old_list = relax_reasons(old, new_p)
-        new_list = relax_reasons(new, new_p)
-        added_tokens = list(
-            (collections.Counter(new_list) - collections.Counter(old_list)).elements()
-        )
-        # What DISAPPEARED matters as much as what arrived, and a count comparison
-        # cannot tell one story from the other. Judging on the count alone called a
-        # token drain ("deleted 3 stale, wrote 1 real") a REWORD, which is false, and
-        # scored it at the BLOCKER tier -- penalising exactly the cleanup the ceiling
-        # gate exists to encourage. So state facts instead of inferring intent: the
-        # severity turns on whether this change ALSO disturbed justifications that
-        # were already there, and both lists are printed either way.
-        removed_tokens = list(
-            (collections.Counter(old_list) - collections.Counter(new_list)).elements()
-        )
-        label = "RENAMED " if status.startswith("R") else ""
-        quoted = [f"reason: {t.strip() or '(empty!)'}" for t in added_tokens]
-        if removed_tokens:
-            quoted += [
-                f"a justification that was already here is GONE: "
-                f"{t.strip() or '(empty!)'}"
-                for t in removed_tokens
-            ]
-        if added_tokens and not (details and removed_tokens):
+
+        kind = "DELETED" if status == "D" else "WEAKENED"
+        label = ["renamed file"] if status.startswith("R") else []
+        for index, (name, details) in enumerate(unmatched):
+            extra = rfc_details if index == 0 else []
             findings.append(
-                ("RELAXED", new_p, [label.strip()] * bool(label) + details + quoted)
+                (kind, path, label + [f"test: {name}"] + list(details) + extra)
             )
-        elif details or added_tokens:
-            # Weakened AND an existing justification disturbed. Two different changes
-            # wear that shape -- a reword laundering a relaxation, and an honest drain
-            # that retires a stale token while writing a real one -- and nothing here
-            # can tell them apart. So it reports both lists and escalates, leaving the
-            # judgement to the reader who can see which it is.
-            findings.append(
-                ("WEAKENED", new_p, [label.strip()] * bool(label) + details + quoted)
-            )
+        if not unmatched and rfc_details:
+            findings.append(("WEAKENED", path, label + rfc_details))
+
+    return findings, examined, ""
+
+
+def run_audit(base, cwd, detector, rfc_detector=None):
+    anchor, err = resolve_anchor(base, cwd)
+    if err:
+        return Audit("", [], 0, err)
+
+    commits = git(["rev-list", "--reverse", f"{anchor}..HEAD"], cwd)
+    if commits.returncode != 0:
+        return Audit(
+            anchor,
+            [],
+            0,
+            f"git rev-list for {anchor[:12]}..HEAD failed, so the branch "
+            f"history cannot be examined:\n  {commits.stderr.strip()}",
+        )
+
+    weakened = load_weakened_module()
+    findings = []
+    examined = 0
+    for commit in commits.stdout.splitlines():
+        accepted, err = accepted_rows(commit, cwd, weakened)
+        if err:
+            return Audit(anchor, [], 0, err)
+        commit_findings, commit_examined, err = audit_changes(
+            f"{commit}^",
+            commit,
+            cwd,
+            detector,
+            rfc_detector,
+            weakened,
+            accepted,
+        )
+        if err:
+            return Audit(anchor, [], 0, err)
+        findings.extend(commit_findings)
+        examined += commit_examined
+
+    # Rows committed at HEAD explain only HEAD's own diff. They cannot accept a
+    # later uncommitted weakening of the same named unit.
+    worktree_findings, worktree_examined, err = audit_changes(
+        "HEAD", None, cwd, detector, rfc_detector, weakened, []
+    )
+    if err:
+        return Audit(anchor, [], 0, err)
+    findings.extend(worktree_findings)
+    examined += worktree_examined
+
     return Audit(anchor, findings, examined, "")
 
 
@@ -379,7 +417,7 @@ def report(audit, base):
         # range and its file count is indistinguishable from a pass that
         # compared nothing, which is the bug this tool had.
         print(
-            f"{GREEN}Test-relaxation audit: clean (no tests deleted or weakened).{RESET}\n"
+            f"{GREEN}Test-relaxation audit: clean (no unexplained test weakening).{RESET}\n"
             f"  base {base}, range {anchor[:12]}..worktree, "
             f"{audit.examined} changed test file(s) examined."
         )
@@ -387,30 +425,28 @@ def report(audit, base):
     print(
         f"{BOLD}Test-relaxation audit{RESET} (base {base}, range {anchor[:12]}..worktree)\n"
     )
-    color = {"DELETED": RED, "WEAKENED": RED, "RELAXED": YELLOW}
+    color = {"DELETED": RED, "WEAKENED": RED}
     for kind, path, details in findings:
         print(f"  {color.get(kind, '')}[{kind}]{RESET} {path}")
         for d in details:
             if not d:
                 continue
-            # A reason is now the whole justification, not its first line, so it can
-            # run to a paragraph. Wrapped, because an unwrapped paragraph in a
-            # terminal is a reason nobody reads, which is how this corpus grew.
+            # Detector details can run to a paragraph. Wrap them so the
+            # reviewer can read the complete reason without terminal overflow.
             wrapped = textwrap.wrap(d, width=92) or [d]
             print(f"      - {wrapped[0]}")
             for more in wrapped[1:]:
                 print(f"        {more}")
     deleted = sum(1 for k, _, _ in findings if k == "DELETED")
     weakened = sum(1 for k, _, _ in findings if k == "WEAKENED")
-    relaxed = sum(1 for k, _, _ in findings if k == "RELAXED")
     print(
-        f"\n{len(findings)} finding(s): {deleted} deleted, {weakened} weakened "
-        f"(undocumented), {relaxed} relaxed (documented; verify the reason)."
+        f"\n{len(findings)} unexplained finding(s): {deleted} deleted, "
+        f"{weakened} weakened."
     )
     print(
-        "  Each is a candidate finding for the review: confirm the CODE was fixed,\n"
-        "  not the test. A documented relaxation is only valid for removed features\n"
-        "  or replaced coverage."
+        "  Each is a candidate finding for the review: confirm that the code was\n"
+        "  fixed instead of the test. An accepted weakening needs a matching row\n"
+        "  in test/weakened.md history."
     )
     return 1
 
@@ -464,26 +500,32 @@ def selftest():
         "package a\nfunc TestKeep(t *testing.T){ require.Equal(t,3,k()) }\n",
     )
     commit("baseline")
+    base_sha = git(["rev-parse", "HEAD"], work).stdout.strip()
 
-    # weaken A (skip + drop assertion), relax B (documented), delete C, leave keep untouched
+    # Weaken A, accept B with a committed row, delete C, and leave keep untouched.
     write(
         "pkg/a_test.go",
         'package a\nfunc TestA(t *testing.T){ t.Skip("x"); require.Equal(t,1,f()) }\n',
     )
     write(
-        "pkg/b_test.go",
-        "package a\n// test-relax: feature removed in spec-x\nfunc TestB(t *testing.T){ t.Skip() }\n",
+        "pkg/b_test.go", "package a\nfunc TestB(t *testing.T){ t.Skip() }\n"
+    )
+    write(
+        "test/weakened.md",
+        "| Test | Reason |\n"
+        "|------|--------|\n"
+        "| TestB | feature removed in spec-x |\n",
     )
     os.remove(os.path.join(work, "pkg/c_test.go"))
+    commit("weaken tests")
 
-    audit = run_audit("HEAD", work, detector, load_rfc_detector(repo_root))
+    audit = run_audit(base_sha, work, detector, load_rfc_detector(repo_root))
     if audit.err:
         print(f"SELFTEST FAIL: audit could not run: {audit.err}")
         return 2
     got = {path: kind for kind, path, _ in audit.findings}
     expect = {
         "pkg/a_test.go": "WEAKENED",
-        "pkg/b_test.go": "RELAXED",
         "pkg/c_test.go": "DELETED",
     }
     ok = got == expect

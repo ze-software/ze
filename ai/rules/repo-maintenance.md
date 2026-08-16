@@ -252,7 +252,7 @@ Blocks those tools until `ToolSearch query="select:LSP"` has run this session. B
 | `check_scratch_path` | `commands.md` | Bash | Blocks a redirect or `tee` that names a fixed file at the `tmp/` ROOT (`> tmp/out.log`), which is keyed per checkout and so is the same file for every session in it. A subdirectory passes (`tmp/s/<id>/`, `tmp/session/<YYYY-MM-DD>-<id>/`, any per-task folder), and so do the root names that are session-keyed or shared by design (`ze-verify*`, `commit-*`, `delete-*`, `mutation*`, `test-timings*`). Which paths those are is decided in `.claude/hooks/lib/scratch_path.py`, shared with `c_scratch_path_we` so a path this check refuses cannot land through the Write tool. Two shapes write nothing and pass. A heredoc body a NON-SHELL reads is data, so a document that quotes the banned shape can be written with `cat >> file <<'EOF'`; fed to `bash` it is a script and still blocks, and the redirect that opens the heredoc is judged on its own. And a QUOTED redirect opening a search command is a search argument (`grep -rn '> tmp/out.log' ai/rules`), which is what keeps the ban auditable from Bash; that shape needs both conditions, since `grep foo ai/rules > tmp/notes.txt` writes for real and `bash -c "... > tmp/x"` is run-shaped quoting (F22). BLOCKING. |
 | `check_test_deletion` | `testing.md` | Bash | Blocks `rm`/`git checkout` of test files. BLOCKING. |
 
-The five commit-time gates (spec-audit, deferral-in-diff, deferral-unassigned, wiring-at-commit, doc-drift) used to sit here but gated on the literal `git commit` string, which the sanctioned commit path never sends and `destructive-git` blocks when it does. They are now **creation-time gates in `scripts/dev/commit_helper.py`**. See "Commit-time gates" below.
+The five commit-time gates (spec-audit, deferral-in-diff, deferral-unassigned, wiring-at-commit, doc-drift) belong in **creation-time gates in `scripts/dev/commit_helper.py`** because the sanctioned commit path does not send the literal `git commit` string to this hook. See "Commit-time gates" below.
 
 `golangci-lint run` also runs standalone on `Bash(git commit:*)`.
 
@@ -310,16 +310,11 @@ The five commit-time gates (spec-audit, deferral-in-diff, deferral-unassigned, w
 | `c_require_test_first` | `testing.md` | new `.go` | Warns when creating impl without a test file. Advisory. |
 | `c_require_docs_read` | `.claude/rules/post-compaction.md` (no point) | new spec | Warns when writing a spec without session-state evidence. Advisory. |
 
-> **format-alloc is now live** (enabled 2026-07-09, spec-followup-hooks). It is
-> `c_format_alloc` in `.claude/hooks/pretool-writeedit.py`. The retired shell
-> version used bash-4 `declare -A`, which the macOS bash
-> 3.2 shebang could not run, so it exited 0 and never enforced anything. The
-> guarded list is now current (`bgp/attribute/text.go` removed with the attribute
-> package in `3e66070f8`; `bgp/format/json.go` added) and comment lines are exempt
-> like `sprintf-new`. Its incremental value over `sprintf-new` (which already bans
-> `fmt.Sprintf`/`Fprintf` + `strconv.Format*` everywhere) is the `strings.Join`/
-> `Builder`/`NewReplacer`/`ReplaceAll` bans. Covered by
-> `scripts/dev/hook-fixture-check.py` (`format-alloc-*`).
+> **format-alloc is live.** It is `c_format_alloc` in
+> `.claude/hooks/pretool-writeedit.py`. The guarded list is current, and comment
+> lines are exempt like `sprintf-new`. Its incremental value over `sprintf-new`
+> is the `strings.Join`, `Builder`, `NewReplacer`, and `ReplaceAll` bans.
+> Covered by `scripts/dev/hook-fixture-check.py` (`format-alloc-*`).
 
 #### Task/Agent (`pretool-agent-skill.py`)
 
@@ -346,16 +341,11 @@ The five commit-time gates (spec-audit, deferral-in-diff, deferral-unassigned, w
 | vague-names | `posttool-writeedit.py` | `architecture.md` | `.go` | Warns about `Data`/`Info`/`Result`/... names. Advisory. |
 | boundary-tests | `posttool-writeedit.py` | `testing.md` | `.go` | Warns about numeric validation without boundary tests. Advisory. |
 
-> **validate-spec.sh is fixed** (2026-07-09, spec-followup-hooks) and kept
-> standalone. It previously matched only the Unicode arrow `→` in the Wiring Test
-> table, so an ASCII `->` spec produced an empty `grep` pipeline that exited 1 and
-> `set -e` aborted the script before the output stage, swallowing every queued
-> error (a silent non-blocking exit 1). Both arrow conventions are now accepted
-> and the `WIRING_ROWS=` assignment is guarded with `|| true`, so the script
-> always reaches its verdict: exit 2 for a structurally invalid spec, exit 0
-> otherwise. A survey over all `plan/spec-*.md` (spec-followup-hooks AC-4)
-> confirmed zero crashes and zero arrow false-positives. It stays out of the
-> dispatcher (see spec Key Design Decisions). Covered by
+> **validate-spec.sh is standalone.** It accepts both `→` and `->` in the
+> Wiring Test table. The `WIRING_ROWS=` assignment is guarded with `|| true`, so
+> the script always reaches its verdict: exit 2 for a structurally invalid spec,
+> exit 0 otherwise.
+> It stays out of the dispatcher (see spec Key Design Decisions). Covered by
 > `scripts/dev/hook-fixture-check.py` (`validate-spec-*`).
 
 `make ze-verify` separately runs `ze-verify-wiring-docs` (wiring/doc-drift gate); that is a Make target, not a Claude hook.
@@ -377,12 +367,12 @@ Also Make targets, not Claude hooks. All are changed-file scoped: a session owns
 | Check | Enforces | Triggers on | What it does |
 |---|---|---|---|
 | `check_source_anchor_line_numbers` | `writing.md` | every `docs/**/*.md` | Rejects a `<!-- source: -->` anchor that carries a line number, because line numbers rot. Gated: `ze-validate-tree`. BLOCKING. |
-| `check_source_anchor_stale_paths` | `evidence.md` | every `docs/**/*.md` | Rejects a repo-relative anchor path that no file or directory answers. It resolves ANY root, which makes it the only gated check over the 74 anchors that point outside the nine `PATH_PREFIX` roots `scripts/dev/code_to_docs.py` walks (`docs/` 38, `tools/` 9, `gokrazy/` 9, `ai/` 8, `../` 7, `.github/` 2, `demos/` 1; all 74 resolve on 2026-08-09). Gated: `ze-validate-tree`. BLOCKING. |
+| `check_source_anchor_stale_paths` | `evidence.md` | every `docs/**/*.md` | Rejects a repo-relative anchor path that no file or directory answers. It resolves ANY root, including anchors outside the `PATH_PREFIX` roots that `scripts/dev/code_to_docs.py` walks. Gated: `ze-validate-tree`. BLOCKING. |
 | `check_spec_ac_completeness` | `completion.md`, `planning.md` | every `plan/spec-*.md` whose Status is `in-progress` | Rejects an acceptance-criterion row whose `Demonstrated By` cell is empty, so an in-flight spec cannot claim an AC with no named evidence. Gated: `ze-validate-tree`. BLOCKING. |
 | `check_cross_package_wiring` | `completion.md` | `git diff HEAD` plus untracked `.go` files under `internal/` or `cmd/` | Reports an exported symbol with no cross-package non-test caller. UNENFORCED: no gate runs it (owner decision, 2026-08-09). Run `make ze-validate` by hand. |
 | `check_cli_handler_coverage` | `testing.md` | the same changed-file list, `.go` files under the CLI paths only | Reports a newly registered command that no `.ci` test names. UNENFORCED: no gate runs it (owner decision, 2026-08-09). Run `make ze-validate` by hand. |
 
-The two changed-file checks take `changed_files` as their subject, which is `git diff HEAD` plus untracked files. Several sessions share this checkout, so that list is mostly other sessions' half-written work, and both checks demand a completeness (a cross-package caller, a `.ci` test) that a file in the middle of an edit cannot show. Measured in one working tree that nobody committed to in between: `check_cross_package_wiring` reported 0 findings on 2026-08-09 and 22 on 2026-08-10, every one of them in six files another session had modified and left uncommitted. In the gate those 22 are a red on a verify run whose author changed nothing they name. `ze-ste-check` stays out of `ze-doc-test` for the same reason (`mk/inventory.mk`), and the commit-time gates in `scripts/dev/commit_helper.py` are where a changed-file check belongs: they see the files of ONE commit.
+The two changed-file checks take `changed_files` as their subject, which is `git diff HEAD` plus untracked files. Several sessions share this checkout, so that list includes other sessions' half-written work. Both checks demand completeness that a file in the middle of an edit cannot show. They therefore stay out of the gate.
 
 ### Prose gate (ASD-STE100)
 
@@ -423,11 +413,11 @@ These are NOT Claude hooks. They run when `commit_helper.py create` generates th
 
 | Hook | Event | What it does |
 |---|---|---|
-| `session-start.sh` | SessionStart | Prints status summary. Creates session marker. Deletes NOTHING: the age sweeps over `tmp/` and `tmp/session/`, and the reap of dead sessions' directories, were removed on 2026-08-10 because each one removed the operator's own files unasked. `make ze-clean-tmp` and `make ze-clean-sessions BEFORE=<date>` are the operator's routes. |
+| `session-start.sh` | SessionStart | Prints status summary. Creates session marker. Deletes NOTHING. `make ze-clean-tmp` and `make ze-clean-sessions BEFORE=<date>` are the operator's cleanup routes. |
 | `compaction-reminder.sh` | UserPromptSubmit | Detects compaction; reminds to read `post-compaction.md`. Writes to **stderr**, so it costs no context tokens. |
 | `verify-claim-reminder.sh` | UserPromptSubmit | Emits one **stdout** line per turn. Verify a claim about code by reading the function that PRODUCES the behavior, not the caller. Label an unread claim unverified. Name the file and the symbol, and use a line number only when the line IS the fact. Report the conclusion, not the search. Enforces `ai/rules/evidence.md` and `ai/rules/writing.md`. A banner read once at session start does not survive to the turn that makes the claim, so this lands in fresh context. |
 | `delegation-reminder.sh` | UserPromptSubmit | Emits one **stdout** line per turn: subagent delegation needs no permission in this repository. The harness appends the guard "Do not call the AgentTool unless the user requested it" to the END of the system prompt, where it wins on position. `ai/INSTRUCTIONS.md` "STANDING REQUEST: delegate to subagents" IS the request that guard defers to, but it sits far earlier in the same prompt and loses. UserPromptSubmit stdout is the only harness position that lands after the whole system prompt, so the counter goes there. Unconditional by design: a conditional reminder adds a "did the condition fire" failure mode, and the reminder is correct on every turn. Enforces `ai/rules/planning.md`. Fixtures: `python3 scripts/dev/hook-fixture-check.py --only delegation-reminder`. |
-| `block-premature-stop.sh` | Stop (**first**, ahead of `session-end-summary.sh`) | **Live and BLOCKING** since 2026-07-31. Four gates run. All but the first need a session that CLAIMED a spec. (1) **Stop-phrase scan**, exit 2. `PHRASES` covers ownership-dodging, premature handoff and permission-seeking, and it always blocks. `COMPLETION_PHRASES` (`what next`, `what would you like`) blocks ONLY while a claimed spec is `in-progress`, because `.claude/rules/session-start.md` REQUIRES that question once the task is done. A phrase inside backticks or a closed fence is quoted, not used, and does not block. (2) **Spec-closure gate**, exit 2, when `spec-closure-check.py --spec` reports the spec completed but not closed. That check runs well inside the hook's 10s timeout, and a slower one would fail the gate open with no signal. Two escapes: run commit B, or write `tmp/session/.closure-ack-<stem>`. (3) **Spec still in-progress** warning, exit 1. (4) **Delegation nudge**, exit 1, when the session claimed a spec and spawned no agent. A harness retry (`stop_hook_active`) bounds the phrase scan ALONE, whose only escape is rewording. The other three stay armed, because each has an escape of its own. Gates 2 to 4 need the claim marker to outlive turn one, so no hook releases it: `scripts/dev/spec-session.sh release` does, from `/ze-close`. Behaviour is pinned by 36 fixtures: `python3 scripts/dev/hook-fixture-check.py --only delegation`. |
+| `block-premature-stop.sh` | Stop (**first**, ahead of `session-end-summary.sh`) | **Live and BLOCKING.** Four checks run. (1) The stop-phrase scan exits 2 on a match. `COMPLETION_PHRASES` joins the scan only while the claimed spec is `in-progress`. (2) For a claimed spec, `spec-closure-check.py` exit 3 means implemented but not closed, so the hook exits 2. (3) A claimed spec whose metadata is `in-progress` adds a state warning. (4) A missing `.agent-spawned-${SID}` marker adds a delegation warning. State warnings without a stop phrase exit 1 and do not block. There is no `verification` status branch. |
 | `session-end-summary.sh` | Stop | Writes session state snapshot. It does not release the spec claim, and no hook does: `spec-session.sh release` does, from `/ze-close`, so the claim survives the turn-by-turn `Stop` and every session end after it. There is no `SessionEnd` hook at all; the only work that event ever did here was deleting `tmp/session/`. |
 | `session-end-deferrals.sh` | Stop | Prints open deferral count. Advisory. |
 | `pre-compact-save.sh` | PreCompact | Saves session state before compaction. |
@@ -491,8 +481,8 @@ binaries of every package you touched, without running them.**
 - **SDK type aliases** (`pkg/plugin/sdk/sdk_types.go` re-exporting `rpc.*`) are intentional -- external plugins import only `sdk`. Not identity wrappers.
 - **No filtered/noexport route tracking** -- Ze does not store import-filtered or export-filtered routes (unlike BIRD's "import keep filtered on"): the RIB pipeline has scope keywords (sent/received/sent-received) and filter stages, but no "filtered" scope. The birdwatcher-compatible endpoints `/routes/filtered/{name}` and `/routes/noexport/{name}` return empty lists for compatibility; if filtered tracking ever lands, point them at the real store.
 - **Gokrazy appliance owns process lifecycle** -- ze deploys as a gokrazy appliance: no systemd, no init system, no package manager. Any external process ze depends on (VPP or future dependencies) MUST be exec'd, supervised, and cleaned up by ze itself; ze MUST NOT be designed around an OS-level process manager.
-- **Stress injector is in-memory Go** (decision 2026-04-16) -- the BGP UPDATE stream for stress scenarios 01-05 is generated in memory inside `ze-test peer --mode inject` and streamed over the TCP socket after the OPEN handshake; no file on disk, no bngblaster. Extend the Go injector for new scenarios (pool-friendly byte builder, single pre-allocated buffer, single TCP writer with keepalive goroutine). The standalone byte-level oracle and BNG Blaster have been removed now that the Go builder is trusted; `test/stress/` is the Python harness (`harness.py`/`run.py`/`scenarios/`).
-- **CLI dispatch discoverability gaps** (2026-03-30 live debugging; spec candidates): (1) no one-shot command against a RUNNING daemon (`ze cli -c "summary"` shape) -- `ze show`/`ze run` use SSH (`sshclient.ExecCommand`) internally but expose no shell one-liner; the offline-config half is covered by `ze config show <file> [path...]` (49f04ffd3). (2) `ze help --ai --api` prints YANG RPC names (`ze-bgp:summary`), not the dispatch strings users type. (3) No way to list the Dispatcher's match keys. `reactor.ExecuteCommand()` accepts strings undiscoverable without reading source; highest-value fix is the one-shot daemon command (SSH port 2222, credentials from the zefs database).
+- **Stress injector is in-memory Go**: the BGP UPDATE stream for stress scenarios 01-05 is generated inside `ze-test peer --mode inject` and streamed over the TCP socket after the OPEN handshake. Extend the Go injector for new scenarios with a pool-friendly byte builder, one pre-allocated buffer, one TCP writer, and a keepalive goroutine. `test/stress/` is the Python harness (`harness.py`, `run.py`, `scenarios/`).
+- **CLI dispatch discoverability gaps**: (1) no one-shot command against a RUNNING daemon (`ze cli -c "summary"` shape). `ze show` and `ze run` use SSH (`sshclient.ExecCommand`) internally but expose no shell one-liner. The offline-config half is covered by `ze config show <file> [path...]`. (2) `ze help --ai --api` prints YANG RPC names (`ze-bgp:summary`), not the dispatch strings users type. (3) No way to list the Dispatcher's match keys. `reactor.ExecuteCommand()` accepts strings undiscoverable without reading source. The highest-value fix is the one-shot daemon command (SSH port 2222, credentials from the zefs database).
 
 ### Mistake Log
 

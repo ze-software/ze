@@ -425,18 +425,12 @@ assert-nothing detector never sees it, and its name and `VALIDATES:` comment rea
 as coverage of the real thing. It is green against every implementation, the
 correct one and the broken one alike.
 
-Three of them stood in `internal/component/bgp/reactor/peer_test.go` until
-2026-08-09, each building a local `familiesSent` map for RFC 4724 End-of-RIB
-family tracking. `familiesSent` existed in no production code. One session read
-them and was about to escalate a conformance violation that does not exist.
-
 The tell is mechanical and it is the only one there is: **the test names a
 function it never calls.** Before writing a test, name the function under test
 and check the body calls it. When reviewing one, read what the assertion reads
 from -- a local the test itself filled is the defect, whatever the test is
-called. Widening the sensitivity ratchet to this class was tried and rejected:
-every table-driven test builds local fixtures, so the detector would fire on
-hundreds of correct tests, and a noisy detector gets switched off.
+called. A broad detector would also flag correct table-driven tests that build
+local fixtures, so this remains a review obligation.
 
 `make ze-test-sensitivity-check` (stage 10 of `make ze-verify`, both modes) counts
 them and enforces committed floors in `test/health/sensitivity-baseline.json`. The
@@ -590,15 +584,13 @@ and exit non-zero (never skip) when Linux, `sudo`, or `setcap` is missing.
 Details: `docs/functional-tests.md` "Netns launch mode".
 
 **SHOULD prefer a knob that skips the work over a target that supplies the privilege.**
-Five L2TP `test/plugin` tests used to sit in the second target; they now set
-`ze.l2tp.disable-kernel-dataplane=true`, build no kernel worker, and pass
-unprivileged. That was right because each asserts on the CLI surface and never on
-the kernel's view, so nothing was lost. It is the WRONG move whenever the
+Use `ze.l2tp.disable-kernel-dataplane=true` when a test asserts only on the CLI
+surface and never on the kernel's view. It is the WRONG move whenever the
 privileged behaviour is the behaviour under test -- `show system kernel-log`
 cannot be freed this way, and neither can
 `test/l2tp/session-stopccn-cascade.ci`, which sets `skip-kernel-probe` and still
-needs the data plane. Note those are two DIFFERENT knobs:
-`skip-kernel-probe` bypasses the modprobe only.
+needs the data plane. `skip-kernel-probe` is a different knob and bypasses only
+the modprobe.
 <!-- source: mk/test-integration.mk -- ze-netns-test, ze-netns-plugin-test -->
 
 **fakeOps pattern:** VPP backends MUST use a `vppOps` interface seam so the Apply
@@ -770,9 +762,8 @@ operator documentation.
 ## Testing Python Tooling (scripts/)
 
 There is no `pytest` and no `unittest discover` in this repo. A Python test that
-nothing invokes never runs, and reads as coverage while providing none. Eight
-`scripts/dev/*_test.py` files sat unexecuted this way until 2026-07-16. Use one of
-the two wired conventions, never a bare test file plus hope:
+nothing invokes never runs, and reads as coverage while providing none. Use one
+of the two wired conventions, never a bare test file plus hope:
 
 | Your tool | Convention | Runs because |
 |-----------|-----------|--------------|
@@ -1119,11 +1110,9 @@ the 5-stage plugin protocol and runtime assertions. Key functions:
 | `wait_rs_replayed(expected_peers, forward_prefix=None)` | The readiness half of `run_rs_observer`: block on the async event stream until N EORs (and optionally a route carrying `forward_prefix`) are sent. Returns bool |
 | `shutdown_fire_and_forget()` | Send `request shutdown` without blocking on its RPC response (ze may close the connection before replying under load) |
 
-**SHOULD prefer `run_rs_observer` for any route-server `.ci`.** The old copy-pasted
-`all_peers_eor_sent` poll drove synchronous `show bgp summary` dispatch RPCs whose
-30s TLS read could stall under load while the engine forwarded fine, stranding the
-shutdown until the outer timeout killed ze. `run_rs_observer` waits on pushed events
-instead (no request/response to stall on) and shuts down fire-and-forget.
+**SHOULD prefer `run_rs_observer` for any route-server `.ci`.** A synchronous
+`show bgp summary` dispatch can stall on a TLS read while the engine forwards.
+`run_rs_observer` waits on pushed events and shuts down fire-and-forget.
 
 `wait_until` / `dispatch_until` / `wait_for_event(predicate)` are the
 payload-predicate waits: prefer them over `time.sleep` + a single-shot assert so

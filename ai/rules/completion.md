@@ -17,7 +17,7 @@
 **Related means it shares the problem, not the diff.** The other call site of the function you corrected, the sibling path that carries the same defect, the test that asserts the behavior you just changed, the fixture that encodes the old shape: each one leaves the problem half-fixed if you leave it, so each one is in scope now.
 **Everything else you notice gets ONE journal row, for later analysis.** A defect or a missing feature that belongs to a different problem is recorded in `plan/journal/<class>.md` and nothing more: no spec, no deferral row, no question, no report paragraph ("A problem you FIND", below). Rows accumulate by class, and a class that collects rows earns a deliberate pass of its own.
 
-**A problem you FIND while working on something else gets a JOURNAL ROW, not a spec (owner directive, 2026-08-10, replacing the 2026-08-08 spec-first route).** You MUST append one row to `plan/journal/<class>.md`, close the work in hand, and stop. No spec, no deferral row, no question to Thomas, no report paragraph. Rows accumulate by problem class, and a class that collects rows is what earns a fix later, in a deliberate pass over the journal rather than by whoever tripped over it.
+**A problem you FIND while working on something else gets a JOURNAL ROW, not a spec (owner directive, 2026-08-10).** You MUST append one row to `plan/journal/<class>.md`, close the work in hand, and stop. No spec, no deferral row, no question to Thomas, no report paragraph. Rows accumulate by problem class, and a class that collects rows earns a fix later, in a deliberate pass over the journal rather than by whoever tripped over it.
 **Three finds are FIXED on the spot, and they are the only three.** A defect that stops a test or a gate from passing is fixed now. A test that is wrong about what it asserts is fixed now. Code related to the problem in hand is fixed now, edited or not, tests included ("The unit you fix is the PROBLEM", above). Everything else is one row.
 **Fix it anyway when the fix is small, and still write the row.** A five-line correction needs no spec to license it, and `simplicity.md` governs its shape. Opening a spec to authorise a small fix is the overhead this directive removes.
 **The cut is the goal, unchanged from `rule-precedence.md`: does the goal this work exists to achieve still hold if I leave this?** If it does not hold, the defect BLOCKS you and "Fix a defect that blocks your goal" (above) governs. If it holds, this point governs.
@@ -166,11 +166,7 @@ with items remaining, that is the signal to keep working, not to ship.
 **A hypothesis in a shard is not a finding.** If you record one, the next agent will
 read it as fact. Before acting on an existing shard's stated cause, you MUST verify it against
 source (`ai/rules/evidence.md`), and when it turns out to be wrong, you MUST say so in
-the shard. On 2026-07-23 a shard's "the plugin connection closes before verify is
-dispatched" hypothesis was disproved by the first real stress run: the signature
-appeared nowhere in the capture, and the true cause was a test-harness race
-(archived in `plan/known-failures/RESOLVED.md`, "fixed startup deadlines fail
-under CPU oversubscription").
+the shard.
 
 ## The failure this rule exists to stop
 
@@ -322,9 +318,7 @@ read the commit as that spec's CLOSURE and demand the Review Gate artifact. The
 obvious answer is to drop the rows "for now", and "for now" is the rest of the
 session. A rows-only commit that adds no learned summary and removes no spec
 closes nothing, and `--review-override` carries that reason: state in it what
-the commit does NOT do, so the escape stays auditable. Measured 2026-08-15:
-twelve class files, written across five review rounds, survived only because
-the owner asked whether the defects had been recorded.
+the commit does NOT do, so the escape stays auditable.
 
 ## Length is not evidence
 
@@ -668,9 +662,7 @@ This is a separate section in the spec (see `plan/TEMPLATE-CLOSURE.md`, appended
 **EVERY table MUST have at least one evidence row.** `pre_commit_verification_gaps`
 (`scripts/dev/commit_helper.py`) checks them one at a time and names the empty
 ones on the closure commit. Each table is a separate obligation: a row in
-`Files Exist` is not evidence for `AC Verified`. The old gate accepted a single
-row anywhere in the section, and ~73% of `AC Verified` and ~75% of
-`Wiring Verified` tables reached closure byte-identical to the template.
+`Files Exist` is not evidence for `AC Verified`.
 
 **The following MUST NOT be used as evidence:** "Already checked in audit", `should work`, empty cells.
 
@@ -706,9 +698,9 @@ Standing exceptions, where asking is MANDATORY and this rule does not apply:
 
 This rule is hook-enforced. Breaking it costs a blocked Stop, not a note.
 
-- `.claude/hooks/block-premature-stop.sh` scans the last assistant message against a phrase list and exits 2 on the first match. Exit 2 refuses the session an end and returns the turn to the model. The hook is live and first in the `Stop` array since 2026-07-31, after it sat on no event from 2026-06-29 (`41e5fa44f`).
+- `.claude/hooks/block-premature-stop.sh` scans the last assistant message against a phrase list and exits 2 on the first match. Exit 2 refuses the session an end and returns the turn to the model. The hook is live and first in the `Stop` array.
 - Two lists, and only one of them is unconditional. `PHRASES` covers ownership-dodging, premature handoff and permission-seeking, and it always blocks.
-- `COMPLETION_PHRASES` covers `what next`, `what would you like` and `what do you want to do`. These join the scan ONLY when work remains, which the hook reads as a claimed spec still `in-progress` (the `OPEN_WORK` flag). Asking what to do next is not the same failure as asking permission to do what was already requested. `.claude/rules/session-start.md` REQUIRES the question once the original task is done. The phrases were split rather than deleted, so the same words still block while a spec is open.
+- `COMPLETION_PHRASES` covers `what next`, `what would you like` and `what do you want to do`. These join the scan ONLY when work remains, which the hook reads as a claimed spec still `in-progress` (the `OPEN_WORK` flag). Asking what to do next is not the same failure as asking permission to do what was already requested. `.claude/rules/session-start.md` REQUIRES the question once the original task is done.
 - **The retry bound is scoped to this scan, and it disables nothing else.** When the harness sets `stop_hook_active`, the flag `STOP_RETRY` skips the scan loop alone. That bounds a refusal loop whose only escape is rewording. The spec-closure gate above it still blocks on a retry, because that gate has two escapes of its own: run commit B, or write `tmp/session/.closure-ack-<stem>`. You MUST NOT read a blocked stop as a licence to stop next turn. The hook also exits 0 on input it cannot parse.
 - A banned phrase inside backticks or a closed fence is treated as QUOTED, not used, and does not block. You MAY write about the phrases freely. Four guards keep that exemption from becoming a bypass. An unclosed fence is not a code block. A fence closes only on a run at least as long as the opener. The hook scans an all-markup message raw. Inline spans are stripped only on a line whose backticks balance, so one stray backtick cannot swallow a real request.
 - Neither list is exhaustive, so a green Stop is not proof you followed this rule. You MUST finish the work, then report.
@@ -723,7 +715,6 @@ fixes where the problem *shows up*, not where it *is*. The cure is to change the
 success criterion from "symptom gone" to "root cause named and fixed at the owning
 layer", and to produce the diagnosis BEFORE touching code.
 
-Both halves of "Fix, don't record" were paid for on 2026-07-26. A shard argued at
-length that a rotating failure set proved non-determinism, when a rotating set
-across teardown-shaped tests is the signature of one shared timing assumption. The
-diagnosis was sitting unread inside its own record.
+A rotating failure set across teardown-shaped tests signals one shared timing
+assumption. Diagnose that assumption instead of treating rotation as proof of
+non-determinism.

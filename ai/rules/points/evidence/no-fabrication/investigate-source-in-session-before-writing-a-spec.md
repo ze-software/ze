@@ -19,11 +19,8 @@ language grounds nothing, so the gate refuses it.
 block is always to read a file the spec itself names.** `.go`, `.py`, `.sh`,
 `.yang`, the `Makefile` and `*.mk` each name one kind. The gate derives what a
 spec demands and `.claude/hooks/mark-source-read.sh` records what a Read
-supplies, and the two must accept the same set. When they did not, 11 open specs
-named `.py` subjects under `test/` and `tools/` and 2 named `.sh` subjects under
-`packaging/` that no Read could ever record, and the only sanctioned exit was
-reading an unrelated `scripts/*.py`. A gate whose sanctioned exit is reading an
-unrelated file manufactures the evidence it exists to demand.
+supplies. The two accept the same set. Reading an unrelated file manufactures
+the evidence that the gate exists to demand.
 
 **EVERY kind the list names must be read, and each on its own 30-minute clock.**
 A spec naming a reactor `.go` beside an `mk/*.mk` makes claims about both, so
@@ -37,20 +34,16 @@ LSP-only session does not ground a spec about Python, shell, YANG or the build.
 
 **A window of under 20 lines does not count as reading the producer.** A whole
 file counts whatever its length, because a 12-line file read entire IS the
-producer. `Read(file, limit=1)` is not, and it used to clear every spec of that
-kind for the next 30 minutes. The gate is strict about WHICH file was read, so
-it cannot be trivial about how much of it was shown.
+producer. The gate is strict about WHICH file was read, so it cannot be trivial
+about how much of it was shown.
 
 **A Read that showed NOTHING grounds nothing, and the whole-file rule above does
-not rescue it.** An empty file reports one line of one, so it used to read as a
-whole-file read and one Read of any zero-byte `.py` cleared every `py` spec in
-the session. A repeat Read the harness answers with `file_unchanged` shows the
-same nothing while renewing the clock, and a failed Read shows nothing at all.
-Each is measured as zero now. Only a response shape the writer does not
-recognise is still accepted unmeasured, so an unfamiliar payload cannot disable
-the evidence path for a whole session. Renew a stale marker with
-`Read(path, offset=N, limit>=20)`: the harness returns content for a window and
-`file_unchanged` for a second whole Read of the same file.
+not rescue it.** A failed Read, an empty file, or an unchanged empty payload is
+measured as zero. Only a response shape the writer does not recognise is
+accepted unmeasured, so an unfamiliar payload cannot disable the evidence path
+for a whole session.
+Renew a stale marker with `Read(path, offset=N, limit>=20)`: the harness returns
+content for a window and `file_unchanged` for a second whole Read of the same file.
 
 **A spec whose subject the gate cannot read is checked against the weaker
 any-source bar, and the gate SAYS so.** That is the one permissive path left in

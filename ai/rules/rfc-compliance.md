@@ -104,7 +104,7 @@ REQUIRED has a checklist row. Fetch the source first if it is absent:
 claim of "verified against the RFC" is not reproducible when `rfc/full/` lacks
 the file.
 
-**The walk MUST be RECORDED, not asserted.** Since 2026-07-29 that record is a sign-off artifact a machine re-checks, `rfc/extraction/<stem>.json`, and it is a **precondition of a new enrolment** (`check_enrolment`).
+**The walk MUST be RECORDED, not asserted.** Its record is a sign-off artifact a machine re-checks, `rfc/extraction/<stem>.json`, and it is a **precondition of a new enrolment** (`check_enrolment`).
 
 | Step | Command / file |
 |------|----------------|
@@ -118,7 +118,7 @@ the file.
 
 - **Only dispositions are authored.** Sites, sections, quotes, the register and every published count are DERIVED from the source text at check time. A hand-typed "sites seen" is a claim, and claims are what this removes.
 - **A generated skeleton can never pass.** The writer emits only UNCLASSIFIED dispositions and an unclassified site fails the check, so mass-generating artifacts makes the gate redder rather than greener.
-- **The register is derived and a stronger claim is refused.** `rfc2119`, `prose`, or `manual-walk`. Measured over the 166 enrolled RFCs on 2026-07-29: 101 / 64 / 1. 23 have no capitalised MUST-level keyword SITE at all while declaring 172 gated MUSTs between them, so a keyword-only check would have been vacuously green for a large minority of the corpus.
+- **The register is derived and a stronger claim is refused.** `rfc2119`, `prose`, or `manual-walk`. A keyword-only check can be vacuously green when an RFC declares gated obligations without a capitalised MUST-level keyword site.
 - **The bound is over keyword-visible sites, not over obligations.** Recall can be near zero for an indicative-prose section (RFC 4271 §8.2.2: 35168 characters, one capitalised keyword). `unsourced-ids` records an obligation the extractor cannot see. This raises a floor from zero; it does not reach a ceiling.
 - **A FIRST sign-off is reviewed, not ratcheted.** `check_extraction_ratchet` compares a stem against its own HEAD row, so a stem signing off for the first time has no baseline and could exclude every site. The published per-RFC exclusion ratio is the control; read it before you approve one.
 
@@ -169,7 +169,7 @@ requirement rather than a HEAD comparison, because each is clean on the tree tod
 
 | Guard | Refuses |
 |-------|---------|
-| `check_summary_disposition` | a summary in `rfc/short/` that is in neither `rfc/enrolled.txt` nor `rfc/not-enrolled.txt`. Also a stem in BOTH, a disposition naming a summary that does not exist, and a disposition deleted while the stem never reaches `rfc/enrolled.txt`. Also a `non-normative` reason that judges what ZE owes rather than what the DOCUMENT states. Un-enrolment used to be the one state that carried no information at all. Nine summaries sat outside every check with no recorded reason. Nothing distinguished "the RFC imposes nothing" from "nobody extracted it" from "we do not even have the text" |
+| `check_summary_disposition` | a summary in `rfc/short/` that is in neither `rfc/enrolled.txt` nor `rfc/not-enrolled.txt`. Also a stem in BOTH, a disposition naming a summary that does not exist, and a disposition deleted while the stem never reaches `rfc/enrolled.txt`. Also a `non-normative` reason that judges what ZE owes rather than what the DOCUMENT states. Every summary needs a recorded disposition that distinguishes "the RFC imposes nothing", "nobody extracted it", and "we do not have the text" |
 | `check_unproven_support` | a support claim over a summary that declares ZERO gated requirements. A claim is any Status other than `Unsupported` or `Future`, an empty cell included. Two ledgers agreeing on NOTHING is not conformance. It is the cheapest way to look green. Two escapes exist and both are evidence rather than assertion. One is a `non-normative` disposition whose reason states a property of the text. The other is a VALID `manual-walk` extraction sign-off carrying a `register-reason`. The second lets an Informational RFC that invokes RFC 2119 nowhere enrol on an honest zero, and it needs no fabricated MUST |
 | `check_gap_count_agreement` | a Remaining cell whose spelled number, sitting immediately before MUST or SHALL, disagrees with the real `{gap}` count. The COUNT is the only fact on that page a machine can own. It says how many annotations exist. It never says their classifications are right, which matters because the paragraph above VOIDS every annotation as authority. A Remaining PROSE derived from those classifications would launder a void judgement into generated text |
 

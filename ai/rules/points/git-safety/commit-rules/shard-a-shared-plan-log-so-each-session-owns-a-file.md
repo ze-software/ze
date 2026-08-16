@@ -14,7 +14,5 @@ add plan/deferrals/<source>.md` stages only your row. Known failures live one
 file per failure under `plan/known-failures/` (a `<make-target>-<test-name>.md`
 shard, with `RESOLVED.md` archiving the history and `README.md` holding the
 logging instructions), so `git add plan/known-failures/<make-target>-<test-name>.md`
-stages only your entry. The hazard was observed twice on 2026-07-15/16 (before
-either was sharded): one session's `deferrals.md` edits landed inside two
-unrelated VRRP commits, and three concurrent sessions (ping, ipc, lg) each had
-the single `deferrals.md` file in their own `--file` list at the same time.
+stages only your entry. A shared unsharded log lets concurrent sessions stage
+each other's entries.

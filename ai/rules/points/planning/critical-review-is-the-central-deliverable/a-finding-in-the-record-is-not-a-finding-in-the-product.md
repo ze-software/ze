@@ -15,11 +15,8 @@ stage:
   none exists. Those are `ai/rules/evidence.md` false-safety-claim findings, they
   mislead the next reader about the code, and they keep their severity.
 - **A round whose findings are ALL record defects is the last round.** The loop
-  has stopped converging on the product: each prose fix is new prose, so the next
-  round has fresh text to audit and there is no state in which it stops. On
-  2026-08-09 a test-only change took seven passes this way. The code was clean
-  after pass 1; all eleven later findings were false statements in the spec's own
-  closure prose.
+  has stopped converging on the product: each prose fix creates fresh text to
+  audit, so another round cannot establish product quality.
 - **`scripts/dev/review_gate.py record` takes `--rounds N` and refuses more than
   three without `--rounds-reason`, which MUST name the PRODUCT defect a later
   round found.** The cap is not a ban: a genuinely defective implementation can
