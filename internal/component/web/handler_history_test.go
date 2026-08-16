@@ -1,4 +1,4 @@
-// Design: docs/architecture/web/README.md — the finder and what it pushes
+// Design: (none -- no architecture doc covers the finder's push-URL contract)
 // Related: test/web/history-full-page.wb — the browser half of AC-7
 
 package web
