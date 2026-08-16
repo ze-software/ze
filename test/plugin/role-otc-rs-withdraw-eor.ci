@@ -225,6 +225,16 @@ bgp {
 			import provider
 			export default
 		}
+		# rfc-test-change-approved: 2026-08-16 Thomas -- wiring, not an assertion. Since
+		# 06c95f65d a peer feeds a process only where it attaches it, and neither peer
+		# attached `rs`, so reconcileDelivery warned that no peer-scoped event reaches
+		# bgp-rs. Nothing asserted below changes: the RFC 8893 rows still read the same
+		# frames off the same peers. The grant matches what 06c95f65d gave the sibling
+		# fixtures it did repair (med-removal-export-refused.ci).
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
 		attach process test-rs-eor {
 			send [ update ]
 		}
@@ -255,6 +265,14 @@ bgp {
 		role {
 			import provider
 			export default
+		}
+		# rfc-test-change-approved: 2026-08-16 Thomas -- the same wiring grant as on
+		# source-peer above, for the same reason. dest-peer carried no attach block at
+		# all, so bgp-rs was fed nothing about the peer it must relay the OTC-stamped
+		# advertisement to.
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
 		}
 	}
 }
