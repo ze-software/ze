@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -13,6 +14,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"gopkg.in/yaml.v3"
 )
 
 type fakeStageRun struct {
@@ -503,6 +506,7 @@ var goldenStagesZeVerify = []string{
 	"ze-htmx-upgrade-check",
 	"ze-vet-evidence",
 	"ze-hook-test",
+	"ze-vulncheck",
 	"ze-unit-test-cached",
 	"ze-unit-test-race-changed",
 	"ze-alloc-gate",
@@ -533,6 +537,7 @@ var goldenStagesZeVerifyChanged = []string{
 	"ze-check-vendor-web",
 	"ze-htmx-upgrade-check",
 	"ze-hook-test",
+	"ze-vulncheck",
 	"ze-unit-test-changed",
 	"ze-functional-test",
 	"ze-exabgp-test",
@@ -1375,45 +1380,142 @@ func stripYAMLComments(s string) string {
 	return strings.Join(lines, "\n")
 }
 
-// TestGovulncheckScheduledWorkflow pins the shape of the scheduled SCA workflow
-// (spec-fixit-supply-chain-hardening AC-1, SCHEDULED default).
-//
-// VALIDATES: .github/workflows/govulncheck.yml is a SCHEDULED job (schedule/cron)
-// that invokes `make ze-vulncheck`, never triggers on push/pull_request, and that
-// govulncheck is deliberately NOT a stagesForMode entry -- so the inline
-// `make ze-verify` / merge loop is never blocked by a vuln-DB network fetch or a
-// transient advisory.
-// PREVENTS: (a) the SCA scan drifting onto the fast merge gate; (b) the scheduled
-// job losing its trigger and running nowhere; (c) a future edit wiring
-// ze-vulncheck into stagesForMode, re-coupling the scan to the pre-commit loop.
-func TestGovulncheckScheduledWorkflow(t *testing.T) {
-	body := stripYAMLComments(readFile(t, repoRootFromScriptsStatus(), ".github/workflows/govulncheck.yml"))
+// yamlMappingEntries returns exact direct string keys. It does not expand
+// aliases or YAML merge keys.
+func yamlMappingEntries(t *testing.T, node *yaml.Node, context string) map[string]*yaml.Node {
+	t.Helper()
+	if node.Kind != yaml.MappingNode || len(node.Content) == 0 || len(node.Content)%2 != 0 {
+		t.Fatalf("%s must be a non-empty YAML mapping", context)
+	}
+	entries := make(map[string]*yaml.Node, len(node.Content)/2)
+	for i := 0; i+1 < len(node.Content); i += 2 {
+		key := node.Content[i]
+		if key.Kind != yaml.ScalarNode || key.ShortTag() != "!!str" {
+			t.Fatalf("%s has a non-string or indirect key", context)
+		}
+		if _, duplicate := entries[key.Value]; duplicate {
+			t.Fatalf("%s has duplicate key %q", context, key.Value)
+		}
+		entries[key.Value] = node.Content[i+1]
+	}
+	return entries
+}
 
-	// Scheduled trigger present (also proves the file parsed to real content;
-	// non-vacuous).
-	for _, want := range []string{"schedule:", "cron"} {
-		if !strings.Contains(body, want) {
-			t.Errorf("govulncheck.yml must declare a %q trigger; body (comments stripped):\n%s", want, body)
+// topLevelYAMLMap returns the direct entries in one top-level YAML mapping.
+func topLevelYAMLMap(t *testing.T, body, key string) map[string]*yaml.Node {
+	t.Helper()
+	decoder := yaml.NewDecoder(strings.NewReader(body))
+	var document yaml.Node
+	if err := decoder.Decode(&document); err != nil {
+		t.Fatalf("parse workflow YAML: %v", err)
+	}
+	var trailing yaml.Node
+	switch err := decoder.Decode(&trailing); {
+	case err == nil:
+		t.Fatal("workflow must contain exactly one YAML document")
+	case errors.Is(err, io.EOF):
+	default:
+		t.Fatalf("parse trailing workflow YAML: %v", err)
+	}
+	if document.Kind != yaml.DocumentNode || len(document.Content) != 1 {
+		t.Fatal("workflow must contain one top-level YAML document")
+	}
+	root := yamlMappingEntries(t, document.Content[0], "workflow")
+	value, found := root[key]
+	if !found {
+		t.Fatalf("workflow has no top-level %q mapping", key)
+	}
+	return yamlMappingEntries(t, value, "workflow top-level "+key)
+}
+
+// TestGovulncheckScheduledWorkflow pins the dedicated SCA workflow's scheduled
+// and manual triggers while normal local verification also runs the scan.
+//
+// VALIDATES: .github/workflows/govulncheck.yml remains scheduled and manually
+// dispatchable, invokes `make ze-vulncheck`, never triggers on push/pull_request,
+// and both local verification modes contain the exact `ze-vulncheck` stage.
+// PREVENTS: (a) the dedicated scheduled or manual trigger disappearing; (b) the
+// dedicated workflow moving onto push/pull_request events; (c) either normal
+// verification mode silently omitting the mandatory vulnerability scan.
+func TestGovulncheckScheduledWorkflow(t *testing.T) {
+	raw := readFile(t, repoRootFromScriptsStatus(), ".github/workflows/govulncheck.yml")
+	body := stripYAMLComments(raw)
+	triggers := topLevelYAMLMap(t, raw, "on")
+
+	schedule, scheduled := triggers["schedule"]
+	if !scheduled {
+		t.Error("govulncheck.yml must declare a direct scheduled trigger")
+	} else {
+		if schedule.Kind != yaml.SequenceNode || len(schedule.Content) == 0 {
+			t.Error("govulncheck.yml scheduled trigger must be a non-empty cron list")
+		} else {
+			for i, item := range schedule.Content {
+				entry := yamlMappingEntries(t, item, "scheduled trigger entry")
+				cron, present := entry["cron"]
+				if !present {
+					t.Errorf("govulncheck.yml schedule entry %d has no direct cron key", i)
+					continue
+				}
+				if cron.Kind != yaml.ScalarNode ||
+					cron.ShortTag() != "!!str" ||
+					strings.TrimSpace(cron.Value) == "" {
+					t.Errorf("govulncheck.yml schedule entry %d must contain a non-empty string cron value", i)
+				}
+			}
+		}
+	}
+	if _, manual := triggers["workflow_dispatch"]; !manual {
+		t.Error("govulncheck.yml must declare a direct manual trigger")
+	}
+	for _, forbidden := range []string{"push", "pull_request"} {
+		if _, present := triggers[forbidden]; present {
+			t.Errorf("govulncheck.yml must NOT declare a direct %q trigger", forbidden)
 		}
 	}
 	// Invokes the single-source-of-truth make target.
 	if !strings.Contains(body, "make ze-vulncheck") {
 		t.Errorf("govulncheck.yml must run `make ze-vulncheck`; body (comments stripped):\n%s", body)
 	}
-	// Never a push/pull_request trigger -- the dev loop stays unblocked.
-	for _, forbidden := range []string{"push:", "pull_request:"} {
-		if strings.Contains(body, forbidden) {
-			t.Errorf("govulncheck.yml must NOT trigger on %q: the SCA scan is scheduled-only and must not gate the merge loop", forbidden)
-		}
-	}
-	// govulncheck is NOT a stagesForMode entry in EITHER mode, so neither
-	// `make ze-verify` nor `make ze-verify-changed` runs it inline.
+	// govulncheck is an exact stagesForMode entry in BOTH local verification
+	// modes, so neither path can silently skip the mandatory scan.
 	for _, mode := range []string{"ze-verify", "ze-verify-changed"} {
+		found := false
 		for _, st := range stagesForMode(mode, "make") {
-			if strings.Contains(st.Name, "vulncheck") {
-				t.Errorf("stagesForMode(%q) contains stage %q; govulncheck must stay a scheduled CI job, never an inline verify stage", mode, st.Name)
+			if st.Name == "ze-vulncheck" {
+				found = true
+				break
 			}
 		}
+		if !found {
+			t.Errorf("stagesForMode(%q) must contain the exact stage %q", mode, "ze-vulncheck")
+		}
+	}
+}
+
+// TestGovulncheckTargetUsesLinuxAMD64Analysis pins the platform boundary of the
+// local SCA target.
+//
+// VALIDATES: `ze-vulncheck` runs one host-native `$(GO) run` invocation whose
+// exec wrapper gives only the scanner process GOOS=linux and GOARCH=amd64.
+// PREVENTS: cross-compiling the govulncheck tool so it cannot run on a non-Linux
+// host, or silently analyzing a host-specific dependency graph instead of Linux.
+func TestGovulncheckTargetUsesLinuxAMD64Analysis(t *testing.T) {
+	_, body := recipeBody(t, makefileCorpus(t), "ze-vulncheck")
+
+	var invocations []string
+	for _, line := range body {
+		line = strings.TrimPrefix(strings.TrimSpace(line), "@")
+		if strings.Contains(line, "$(GO) run") {
+			invocations = append(invocations, line)
+		}
+	}
+	if len(invocations) != 1 {
+		t.Fatalf("ze-vulncheck must have exactly one host-native `$(GO) run` invocation, got %d. Recipe:\n%s", len(invocations), strings.Join(body, "\n"))
+	}
+
+	const wantInvocation = "$(GO) run -exec='env GOOS=linux GOARCH=amd64' golang.org/x/vuln/cmd/govulncheck@latest ./..."
+	if invocation := invocations[0]; invocation != wantInvocation {
+		t.Errorf("ze-vulncheck must use the exact host-native Linux/amd64 scanner invocation.\nWant: %q\nGot:  %q", wantInvocation, invocation)
 	}
 }
 

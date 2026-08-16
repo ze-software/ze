@@ -118,7 +118,7 @@ spec). The handoff commit is neither of them. Get the handoff SHA from
      - Information leakage (error messages exposing internals, sensitive data in logs)
      - Any OWASP Top 10 relevant to the code's context
    - Fix every issue found. If a fix requires design changes, present to user before proceeding.
-3. **Re-run verification:** `make ze-lint && make ze-unit-test && make ze-functional-test`
+3. **Re-run verification:** `make ze-verify`
 4. **Documentation review (BLOCKING):** Use the spec's **Documentation Update Checklist** table. For each row:
    - Answer Yes or No. Every Yes MUST name the file and describe the update needed.
    - Every No MUST be backed by source-aware evidence. At minimum, grep `docs/` for source anchors pointing at changed files and check the category does not apply.
@@ -140,7 +140,7 @@ spec). The handoff commit is neither of them. Get the handoff SHA from
    - **`--rounds` is required and more than three is refused without `--rounds-reason`.** The reason must name the PRODUCT defect a later round found. A false statement in the spec's own closure prose is not one: those are NOTEs, they are fixed in ONE edit, and they never earn another round (`ai/rules/planning.md`, "A finding in the record is not a finding in the product"). A round whose findings are all record defects is the last round.
    - Record every BLOCKER/ISSUE under `### Findings fixed` (Severity / Finding / Location / Fixed by). NOTEs do not block: record and proceed.
    - Fix every BLOCKER and ISSUE (anything above NOTE) per `ai/rules/completion.md`. Write the root cause traced to the producing function. Take the `[source]` fix and record it under `### Fixes applied`. NOTE-only findings do not block -- record them and proceed.
-   - Re-run `make ze-lint && make ze-unit-test && make ze-functional-test`.
+   - Re-run `make ze-verify`.
    - Re-run `/ze-review`; add a `### Run 2+` block. Loop until a run reports 0 BLOCKER and 0 ISSUE. No cap on re-runs -- each fix is new code that needs a fresh review. If the same finding survives 3 fix attempts (3-Fix Rule, `ai/rules/completion.md`), STOP and ask the user.
    - Paste the final clean run into the Review Gate section. The gate is satisfied only when the last run shows 0 BLOCKER, 0 ISSUE.
 6. **Close spec and commit (BLOCKING -- do ALL of this BEFORE running the commit script):**

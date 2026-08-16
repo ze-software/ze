@@ -579,20 +579,21 @@ ze-exabgp-test: $(ZEBIN_ZE) $(ZEBIN_TEST)
 # module's dependency graph against the Go vulnerability database (vuln.go.dev)
 # and reports only vulnerabilities reachable from ze's own call graph.
 #
-# Deliberately ON-DEMAND, NOT a stagesForMode entry and NOT wired into
-# `make ze-verify`: it needs a network fetch of the vuln DB, and a transient fetch
-# failure or a newly published advisory must never wedge the inline pre-commit /
-# merge loop (spec-fixit-supply-chain-hardening AC-1, SCHEDULED default). It runs
-# on a cron via .github/workflows/govulncheck.yml -- which calls THIS target, the
-# single source of truth for the invocation -- and stays runnable by hand.
+# Both normal verification modes run this target after hook tests and before unit
+# tests. The dedicated scheduled and manual workflow also runs it daily to catch
+# advisories published after a commit.
 #
-# `@latest` runs the tool from outside the main module, so there is no go.mod /
-# vendor churn: this repo vendors (vendor/), and adding x/vuln as a module `tool`
-# dependency would force vendoring govulncheck's large analysis tree (x/tools SSA,
-# callgraph, ...) into vendor/, a heavy and build-fragile change for a CI-only tool.
+# The `@latest` tool and vuln.go.dev database are live network inputs. The outer
+# `go run` stays host-native; `-exec` gives only the scanner process the
+# Linux/amd64 analysis environment.
+#
+# `@latest` runs the tool from outside the main module, so there is no go.mod or
+# vendor churn. This repo vendors dependencies, and adding x/vuln as a module
+# `tool` dependency would vendor its large analysis tree (x/tools SSA, callgraph,
+# and related packages).
 ze-vulncheck:
 	@echo "Running govulncheck (SCA: module deps vs vuln.go.dev)..."
-	$(GO) run golang.org/x/vuln/cmd/govulncheck@latest ./...
+	$(GO) run -exec='env GOOS=linux GOARCH=amd64' golang.org/x/vuln/cmd/govulncheck@latest ./...
 
 # ─── Scoped targets (parallel-safe) ────────────────────────────────────────
 
@@ -1187,8 +1188,8 @@ help:
 	@echo "    make ze-test-bgp          Unit tests for one component group (-race)"
 	@echo "                              Also: ze-test-core, ze-test-plugins, ze-test-config, ze-test-cli, ze-test-rest"
 	@echo "    make ze-encode-test       Single functional suite (encode, plugin, decode, parse, reload, ...)"
-	@echo "    make ze-verify            Pre-commit gate: lint + wiring/docs + unit + functional + exabgp (4-10 min)"
-	@echo "    make ze-verify-changed    Scoped verify: changed packages + wiring/docs, then full functional"
+	@echo "    make ze-verify            Pre-commit gate: lint + wiring/docs + SCA + unit + functional + exabgp (4-10 min)"
+	@echo "    make ze-verify-changed    Scoped verify: changed packages + wiring/docs + SCA, then full functional"
 	@echo ""
 	@echo "  Cadence -- the checks ze-verify and the nightly workflows do NOT run:"
 	@echo "    make ze-daily             Seconds. Run this one every morning"
@@ -1320,8 +1321,8 @@ help-test:
 	@echo ""
 	@echo "  Composite targets:"
 	@echo "    ze-smoke                  Lint + unit + build (~2 min)"
-	@echo "    ze-verify                 Pre-commit gate: lint + wiring/docs + unit (two-pass) + functional + exabgp"
-	@echo "    ze-verify-changed         Scoped: changed packages + wiring/docs + functional + exabgp"
+	@echo "    ze-verify                 Pre-commit gate: lint + wiring/docs + SCA + unit (two-pass) + functional + exabgp"
+	@echo "    ze-verify-changed         Scoped: changed packages + wiring/docs + SCA + functional + exabgp"
 	@echo "    ze-validate               All five checks: source anchors, wiring, spec completeness (~0.2s)"
 	@echo "    ze-validate-tree          The three tree-wide checks of ze-validate; runs inside ze-verify"
 	@echo "    ze-test                   All ze tests including fuzz"
@@ -1417,7 +1418,7 @@ help-dev:
 	@echo "    check                    Quick check (fmt + vet)"
 	@echo ""
 	@echo "  Supply chain (SCA):"
-	@echo "    ze-vulncheck             govulncheck: module deps vs vuln.go.dev (on-demand; scheduled in CI)"
+	@echo "    ze-vulncheck             govulncheck: live tool and vuln.go.dev DB; verification plus daily CI"
 	@echo ""
 	@echo "  Generated files:"
 	@echo "    ze-regen                 Regenerate all generated files"

@@ -522,8 +522,8 @@ All groups run with `-race`. Use the group matching your change during iteration
 
 | Target | Purpose |
 |--------|---------|
-| `make ze-verify` | Pre-commit gate: lint, changed-file wiring/doc/inventory, vet evidence, two-pass unit, functional, and ExaBGP |
-| `make ze-verify-changed` | Changed-package lint/test plus wiring/doc/inventory, functional, and ExaBGP |
+| `make ze-verify` | Pre-commit gate: lint, changed-file wiring/doc/inventory, vet evidence, Linux/amd64 SCA (`govulncheck`), two-pass unit, functional, and ExaBGP |
+| `make ze-verify-changed` | Changed-package lint/test plus wiring/doc/inventory, Linux/amd64 SCA (`govulncheck`), functional, and ExaBGP |
 | `make ze-verify-wiring-docs` | Changed-file-aware wiring, documentation, command, and inventory gate |
 | `make ze-unit-test` | All unit tests with `-race` under default-on feature tags, plus bare `ze_core` compile-out checks (~5 min) |
 | `make ze-functional-test` | All 13 functional test suites |

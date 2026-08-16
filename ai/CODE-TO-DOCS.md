@@ -7,7 +7,7 @@ Total: 2128 code paths referenced from docs/
 
 ## `Makefile/`
 
-- `Makefile` -> `docs/contributing/rfc-implementation-guide.md`, `docs/features.md`, `docs/functional-tests.md`, `docs/guide/docker.md`, `docs/guide/gnmi.md`, `docs/guide/netlab.md`, `docs/guide/quickstart.md`, `docs/guide/status.md`, `docs/guide/ubuntu-build-install.md`
+- `Makefile` -> `docs/DESIGN.md`, `docs/contributing/rfc-implementation-guide.md`, `docs/features.md`, `docs/functional-tests.md`, `docs/guide/docker.md`, `docs/guide/gnmi.md`, `docs/guide/netlab.md`, `docs/guide/quickstart.md`, `docs/guide/status.md`, `docs/guide/ubuntu-build-install.md`
 
 ## `cmd/`
 
@@ -4105,7 +4105,7 @@ Files: 12 | Docs: `docs/architecture/appliance/gokrazy-build-pins.md`, `docs/arc
 
 ## `scripts/status/`
 
-- `scripts/status/verify_run.go` -> `docs/architecture/iface/logical-name-resolution.md`, `docs/architecture/testing/test-health.md`, `docs/contributing/documentation-testing.md`, `docs/features.md`, `docs/functional-tests.md`
+- `scripts/status/verify_run.go` -> `docs/DESIGN.md`, `docs/architecture/iface/logical-name-resolution.md`, `docs/architecture/testing/test-health.md`, `docs/contributing/documentation-testing.md`, `docs/features.md`, `docs/functional-tests.md`
 
 ## `test/`
 

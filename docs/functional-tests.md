@@ -36,13 +36,15 @@ gone eight stages out of date, which is the same drift that killed the duplicate
 so any copy of the list here would rot the same way. Please do not re-add one.
 
 Broadly: `ze-verify` runs the static gates first (lint, module tier, plugin
-boundary, doc and generated-file freshness), then the test stages (unit,
-functional, ExaBGP), so a cheap red surfaces before the expensive stages run.
+boundary, doc and generated-file freshness), then the Linux/amd64
+`ze-vulncheck` SCA stage before the unit, functional, and ExaBGP test stages.
 `ze-verify-changed` swaps in the changed-only lint and unit stages and drops the
-three full-verify-only stages; `TestStagesForModeBranchesAgree`
-(`scripts/status/verify_run_test.go`) fails if any other gate lands in one mode
-but not the other, and `TestStagesForModeMatchesGolden` pins both lists. Both targets run under `scripts/dev/verify-lock.sh`, continue across
-top-level stage failures, and write:
+three full-verify-only stages. Both modes run the same vulnerability scan before
+their unit stage. The target needs network access to the live Go vulnerability
+database. `TestStagesForModeBranchesAgree` (`scripts/status/verify_run_test.go`)
+fails if any other gate lands in one mode but not the other, and
+`TestStagesForModeMatchesGolden` pins both lists. Both targets run under
+`scripts/dev/verify-lock.sh`, continue across top-level stage failures, and write:
 
 | Artifact | Purpose |
 |----------|---------|
@@ -60,7 +62,7 @@ web, install, appliance, l2tp-wire, isis-wire, ospf-wire, runner.
 implementation mistakes: stale source anchors, line-number anchors, unwired
 exported symbols, and incomplete spec AC tables. Run it after `ze-verify` passes,
 before presenting work as complete.
-<!-- source: Makefile -- ze-verify, ze-verify-changed, ze-exabgp-test -->
+<!-- source: Makefile -- ze-verify, ze-verify-changed, ze-vulncheck, ze-exabgp-test -->
 <!-- source: scripts/dev/validate.py -- post-verify validation checks -->
 <!-- source: scripts/status/verify_run.go -- artifact writing and grouped summaries -->
 <!-- source: scripts/dev/verify-lock.sh -- verify-class lock -->

@@ -1,28 +1,22 @@
 name: govulncheck
 
-# Scheduled software-composition analysis (SCA). Runs `make ze-vulncheck`, which
-# invokes govulncheck (golang.org/x/vuln) to scan the module's dependency graph
-# against the Go vulnerability database (vuln.go.dev) and report vulnerabilities
-# reachable from ze's own call graph.
+# Software-composition analysis (SCA). `make ze-vulncheck` is the shared
+# mandatory target used by both `make ze-verify` modes and this workflow. It
+# scans the module dependency graph against the Go vulnerability database and
+# reports vulnerabilities reachable from Ze's call graph.
 #
-# Scheduled-only by design (spec-fixit-supply-chain-hardening AC-1, SCHEDULED
-# default): the scan needs a network fetch of the vuln DB, and a transient fetch
-# failure or a newly published advisory must NOT wedge the fast merge gate. So it
-# is deliberately absent from `stagesForMode` (scripts/status/verify_run.go) and
-# never runs under `make ze-verify` / verify.yml. No always-run supply-chain guard
-# gates merges. The vendored-updater fix-marker test held that role until
-# 2026-08-05, when the local fork of `github.com/gokrazy/updater` was retired and
-# the vendored code returned to upstream. This scheduled scan is the only SCA.
+# The outer Go process stays host-native. Its exec wrapper starts the host-native
+# govulncheck process with `GOOS=linux GOARCH=amd64`, so the scanner loads the
+# Linux/amd64 package graph on both local Darwin/arm64 and CI hosts.
 #
-# It shares one source of truth for the invocation with the on-demand path: the
-# `ze-vulncheck` make target. No push/pull_request trigger -- the dev loop stays
-# unblocked. The cron lives IN this file, so merging it to the default branch
-# creates the schedule; GitHub disables scheduled workflows after 60 days of
-# repository inactivity, and `workflow_dispatch` is the manual re-trigger.
+# The daily schedule and `workflow_dispatch` remain here to detect advisories
+# published after a commit passed mandatory verification. The cron lives in this
+# file, so merging it to the default branch creates the schedule. GitHub
+# disables scheduled workflows after 60 days of repository inactivity, and
+# `workflow_dispatch` provides the manual trigger.
 #
-# scripts/status/verify_run_test.go:TestGovulncheckScheduledWorkflow pins this
-# shape (a schedule trigger, invokes `make ze-vulncheck`, never push/pull_request,
-# and no `ze-vulncheck` stage in stagesForMode).
+# scripts/status/verify_run_test.go pins the schedule, manual trigger, shared
+# make target, and absence of push and pull_request triggers.
 
 on:
   schedule:
@@ -45,9 +39,10 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: go.sum
 
-      # `make ze-vulncheck` runs `go run golang.org/x/vuln/cmd/govulncheck@latest
-      # ./...`. The @latest form resolves the tool outside the main module, so no
-      # go.mod / vendor change is needed; govulncheck then analyses this module's
-      # (vendored) dependency graph. A non-zero exit fails THIS scheduled job only.
+      # The shared target keeps the outer Go process host-native and starts
+      # govulncheck through its exec wrapper with a Linux/amd64 environment.
+      # This makes the scanner load the Linux/amd64 package graph. It resolves
+      # the current tool without changing go.mod or vendor. A non-zero exit
+      # fails this scheduled or manually triggered job.
       - name: govulncheck (SCA)
         run: make ze-vulncheck
