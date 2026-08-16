@@ -185,6 +185,87 @@ func TestInert(t *testing.T) {
 	}
 }
 
+// TestCrossPackageAssertHelperCredits drives the WHOLE gate over a fixture tree
+// whose test asserts only through a helper in another first-party package.
+//
+// The selftest cannot stand in for this. It calls the judging helper directly,
+// so it stays green even when scanTree forgets to hand canFail the file's
+// imports or the package index, which is the wiring that makes the follow reach
+// the live tree at all.
+//
+// VALIDATES: a shared assert helper (`markupcheck.AssertNoMarkup(t, ...)`,
+// `golden.AssertPortFidelity(t, ...)`) counts as the caller's assertion.
+// PREVENTS: the gate condemning nine live tests that do assert, which is what it
+// did until the follow crossed the package boundary.
+func TestCrossPackageAssertHelperCredits(t *testing.T) {
+	root := fixtureTree(t, `{"assert-nothing": 0, "tag-orphan": 0}`, map[string]string{
+		"go.mod": "module example.test\n\ngo 1.26\n",
+		"internal/check/check.go": `package check
+
+import "testing"
+
+func AssertIt(t *testing.T, got int) {
+	if got != 1 {
+		t.Fatalf("got %d", got)
+	}
+}
+`,
+		"internal/example/caller_test.go": `package example
+
+import (
+	"testing"
+
+	"example.test/internal/check"
+)
+
+func TestCaller(t *testing.T) {
+	check.AssertIt(t, 1)
+}
+`,
+	})
+	out, code := runGate(t, root, "--check")
+	if code != 0 {
+		t.Fatalf("a test asserting through a helper in another package was called inert:\n%s", out)
+	}
+}
+
+// TestCrossPackageHelperThatCannotFailIsNotCredited is the other half. Following
+// a helper must credit its BODY, never the mere fact that a *testing.T was
+// handed over: a fixture builder takes one and asserts nothing.
+//
+// VALIDATES: the follow narrows nothing the gate used to catch.
+// PREVENTS: `anything.Build(t)` becoming a blanket pardon.
+func TestCrossPackageHelperThatCannotFailIsNotCredited(t *testing.T) {
+	root := fixtureTree(t, `{"assert-nothing": 0, "tag-orphan": 0}`, map[string]string{
+		"go.mod": "module example.test\n\ngo 1.26\n",
+		"internal/check/build.go": `package check
+
+import "testing"
+
+func Build(t *testing.T) string { return t.TempDir() }
+`,
+		"internal/example/caller_test.go": `package example
+
+import (
+	"testing"
+
+	"example.test/internal/check"
+)
+
+func TestCaller(t *testing.T) {
+	_ = check.Build(t)
+}
+`,
+	})
+	out, code := runGate(t, root, "--check")
+	if code == 0 {
+		t.Fatalf("a test whose helper cannot fail was credited anyway:\n%s", out)
+	}
+	if !strings.Contains(out, "TestCaller") {
+		t.Errorf("the report does not name the test it condemned:\n%s", out)
+	}
+}
+
 // TestAssertNothingEscapeComment proves the documented annotation suppresses a
 // finding, so a genuine "must not panic" test is not forced to fake an assertion.
 //

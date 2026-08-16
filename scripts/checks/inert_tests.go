@@ -260,6 +260,10 @@ func scanTree(root string, trackedOnly bool) (*result, error) {
 		TagUniverse:   sortedKeys(universe),
 	}
 
+	// index resolves a helper that lives in another first-party package. It is
+	// built once for the whole scan so each helper package is parsed at most once.
+	index := newPkgIndex(root)
+
 	// Group by directory so a helper defined in a sibling test file resolves.
 	byDir := map[string][]string{}
 	for _, f := range files {
@@ -293,8 +297,12 @@ func scanTree(root string, trackedOnly bool) (*result, error) {
 		pkgFuncs := packageFuncs(parsed, byDir[dir])
 		for _, f := range byDir[dir] {
 			file := parsed[f]
-			helpers := pkgFuncs[pkgKey(file.Name.Name)]
-			aliases := assertAliases(file)
+			sc := scope{
+				pkgFuncs: pkgFuncs[pkgKey(file.Name.Name)],
+				aliases:  assertAliases(file),
+				imports:  fileImports(file),
+				index:    index,
+			}
 			for _, decl := range file.Decls {
 				fn, ok := decl.(*ast.FuncDecl)
 				if !ok || !isTestFunc(fn) {
@@ -304,7 +312,7 @@ func scanTree(root string, trackedOnly bool) (*result, error) {
 				if hasEscape(fn, file) {
 					continue
 				}
-				if canFail(fn.Body, helpers, aliases, testingIdents(fn), 1) {
+				if canFail(fn.Body, sc.withTesting(testingIdents(fn)), 1) {
 					continue
 				}
 				res.AssertNothing = append(res.AssertNothing, finding{
@@ -522,15 +530,161 @@ func isAssertionImport(path string) bool {
 	return false
 }
 
+// fileImports maps a file's local package names to the import paths behind them,
+// so a call written `markupcheck.AssertNoMarkup(t, ...)` can be resolved to the
+// package that declares it. An aliased import is keyed by its alias; a dot or
+// blank import is skipped, since neither produces a qualified call.
+func fileImports(file *ast.File) map[string]string {
+	out := map[string]string{}
+	for _, imp := range file.Imports {
+		path := strings.Trim(imp.Path.Value, `"`)
+		name := path
+		if idx := strings.LastIndex(path, "/"); idx >= 0 {
+			name = path[idx+1:]
+		}
+		if imp.Name != nil {
+			if imp.Name.Name == "_" || imp.Name.Name == "." {
+				continue
+			}
+			name = imp.Name.Name
+		}
+		out[name] = path
+	}
+	return out
+}
+
+// crossHelper is a function in another first-party package that canFail may
+// follow. Its file's assertion aliases travel with it: a helper imports its own
+// assertion library, and judging its body under the CALLER's aliases would
+// credit the wrong names.
+type crossHelper struct {
+	decl    *ast.FuncDecl
+	aliases map[string]bool
+}
+
+// pkgIndex resolves a first-party import path to the functions its non-test
+// files declare. Without it, a test whose only assertion is a call into a shared
+// assert helper (`markupcheck.AssertNoMarkup(t, ...)`,
+// `golden.AssertPortFidelity(t, ...)`) reads as asserting nothing: the helper
+// index canFail consults is built per DIRECTORY, so nothing outside the test's
+// own directory is ever followed. Nine live tests took that path.
+//
+// Parsing is lazy and cached, so only a package a test actually calls is read.
+type pkgIndex struct {
+	root   string
+	module string
+	cache  map[string]map[string]crossHelper
+}
+
+// newPkgIndex reads the module path from root's go.mod. A tree with no go.mod
+// yields an index that resolves nothing, which leaves the gate exactly as
+// conservative as it was before cross-package following existed.
+func newPkgIndex(root string) *pkgIndex {
+	idx := &pkgIndex{root: root, cache: map[string]map[string]crossHelper{}}
+	data, err := os.ReadFile(filepath.Join(root, "go.mod"))
+	if err != nil {
+		return idx
+	}
+	for line := range strings.SplitSeq(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if rest, found := strings.CutPrefix(line, "module "); found {
+			idx.module = strings.TrimSpace(rest)
+			break
+		}
+	}
+	return idx
+}
+
+// funcs returns the top-level functions importPath declares, or nil when the
+// path is not first-party. Only non-test files are read: a `_test.go` helper is
+// unreachable from another package.
+//
+// A directory that cannot be read or parsed yields an empty index rather than an
+// error. That is the fail-closed direction here: nothing gets credited, so the
+// caller stays on the assert-nothing list and the ratchet says so out loud.
+func (p *pkgIndex) funcs(importPath string) map[string]crossHelper {
+	if cached, seen := p.cache[importPath]; seen {
+		return cached
+	}
+	out := map[string]crossHelper{}
+	p.cache[importPath] = out
+
+	if p.module == "" {
+		return out
+	}
+	rel, first := "", strings.TrimPrefix(importPath, p.module)
+	switch {
+	case importPath == p.module:
+		rel = "."
+	case strings.HasPrefix(first, "/"):
+		rel = strings.TrimPrefix(first, "/")
+	default:
+		return out
+	}
+
+	dir := filepath.Join(p.root, filepath.FromSlash(rel))
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return out
+	}
+	fset := token.NewFileSet()
+	names := []string{}
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".go") || strings.HasSuffix(e.Name(), "_test.go") {
+			continue
+		}
+		names = append(names, e.Name())
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		file, perr := parser.ParseFile(fset, filepath.Join(dir, name), nil, parser.ParseComments)
+		if perr != nil {
+			continue
+		}
+		aliases := assertAliases(file)
+		for _, decl := range file.Decls {
+			fn, isFunc := decl.(*ast.FuncDecl)
+			if !isFunc || fn.Body == nil || fn.Recv != nil {
+				continue
+			}
+			if _, seen := out[fn.Name.Name]; !seen {
+				out[fn.Name.Name] = crossHelper{decl: fn, aliases: aliases}
+			}
+		}
+	}
+	return out
+}
+
+// scope is everything canFail needs to judge one function body: the helpers it
+// may follow by name inside its own package, the assertion-library aliases its
+// file imports, the packages its file imports (so a shared assert helper is
+// followed across the package boundary), the identifiers bound to a testing
+// value, and the lazily-parsed index those cross-package lookups read.
+type scope struct {
+	pkgFuncs map[string]*ast.FuncDecl
+	aliases  map[string]bool
+	imports  map[string]string
+	testing  map[string]bool
+	index    *pkgIndex
+}
+
+// withTesting returns a copy whose testing identifiers also hold extra, leaving
+// the receiver untouched so a sibling branch of the walk is unaffected.
+func (s scope) withTesting(extra map[string]bool) scope {
+	s.testing = union(s.testing, extra)
+	return s
+}
+
 // canFail reports whether the body contains a reachable call that can fail the
 // test. ast.Inspect descends into function literals, so subtests registered with
 // t.Run and callbacks passed to t.Cleanup are covered without special cases.
-// depth bounds helper following; 1 means "follow local helpers one level", which
-// is where the cost/benefit of this detector sits (see spec Known Limitations).
-// testing holds the identifiers bound to *testing.T/B/F in scope. It is passed
-// in rather than derived from body alone, because a test's own `t` parameter is
-// declared in the FuncDecl's signature, not inside its block.
-func canFail(body *ast.BlockStmt, pkgFuncs map[string]*ast.FuncDecl, aliases, testing map[string]bool, depth int) bool {
+// depth bounds helper following; 1 means "follow helpers one level", which is
+// where the cost/benefit of this detector sits (see spec Known Limitations).
+// sc.testing holds the identifiers bound to *testing.T/B/F in scope. It is
+// passed in rather than derived from body alone, because a test's own `t`
+// parameter is declared in the FuncDecl's signature, not inside its block.
+func canFail(body *ast.BlockStmt, sc scope, depth int) bool {
+	pkgFuncs, aliases, testing := sc.pkgFuncs, sc.aliases, sc.testing
 	if body == nil {
 		return false
 	}
@@ -579,9 +733,29 @@ func canFail(body *ast.BlockStmt, pkgFuncs map[string]*ast.FuncDecl, aliases, te
 			// real assertion site; follow it by name.
 			if depth > 0 {
 				if helper, known := pkgFuncs[fun.Sel.Name]; known &&
-					canFail(helper.Body, pkgFuncs, aliases, union(testing, testingIdents(helper)), depth-1) {
+					canFail(helper.Body, sc.withTesting(testingIdents(helper)), depth-1) {
 					failed = true
 					return false
+				}
+			}
+			// A call into another first-party package (`markupcheck.AssertNoMarkup(t, ...)`)
+			// is followed the same way, one level, into the package the file
+			// imports under that name. The helper is credited only when its own
+			// body can fail, so a fixture builder that merely takes a *testing.T
+			// still counts for nothing.
+			if depth > 0 && isIdent {
+				if path, imported := sc.imports[x.Name]; imported {
+					if helper, known := sc.index.funcs(path)[fun.Sel.Name]; known {
+						inner := scope{
+							aliases: helper.aliases,
+							testing: testingIdents(helper.decl),
+							index:   sc.index,
+						}
+						if canFail(helper.decl.Body, inner, depth-1) {
+							failed = true
+							return false
+						}
+					}
 				}
 			}
 		case *ast.Ident:
@@ -591,7 +765,7 @@ func canFail(body *ast.BlockStmt, pkgFuncs map[string]*ast.FuncDecl, aliases, te
 			}
 			if depth > 0 {
 				if helper, known := pkgFuncs[fun.Name]; known &&
-					canFail(helper.Body, pkgFuncs, aliases, union(testing, testingIdents(helper)), depth-1) {
+					canFail(helper.Body, sc.withTesting(testingIdents(helper)), depth-1) {
 					failed = true
 					return false
 				}
@@ -964,6 +1138,74 @@ func sortedKeys[V any](m map[string]V) []string {
 	return out
 }
 
+// selftestCrossPackage pins the one-level follow into another first-party
+// package. It needs real files, because that resolution reads a go.mod and a
+// package directory rather than one parsed source.
+//
+// Both directions are pinned. Crediting the caller of an asserting helper is the
+// false positive this follow removes; refusing to credit the caller of a helper
+// that cannot fail is what stops the follow from becoming a blanket pardon for
+// every function that happens to take a *testing.T.
+func selftestCrossPackage(countInert func(string, *pkgIndex) (int, bool)) bool {
+	dir, err := os.MkdirTemp("", "inert-xpkg")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "selftest cross-package: temp dir: %v\n", err)
+		return false
+	}
+	defer os.RemoveAll(dir)
+
+	write := func(rel, content string) bool {
+		full := filepath.Join(dir, rel)
+		if mkErr := os.MkdirAll(filepath.Dir(full), 0o750); mkErr != nil {
+			fmt.Fprintf(os.Stderr, "selftest cross-package: mkdir %s: %v\n", rel, mkErr)
+			return false
+		}
+		if wErr := os.WriteFile(full, []byte(content), 0o600); wErr != nil {
+			fmt.Fprintf(os.Stderr, "selftest cross-package: write %s: %v\n", rel, wErr)
+			return false
+		}
+		return true
+	}
+
+	ok := write("go.mod", "module example.test\n\ngo 1.26\n")
+	ok = ok && write("check/check.go", `package check
+import "testing"
+func AssertIt(t *testing.T, got int) { if got != 1 { t.Fatalf("ne") } }
+func Build(t *testing.T) string { return t.TempDir() }
+`)
+	if !ok {
+		return false
+	}
+
+	cases := []struct {
+		name string
+		src  string
+		want int
+	}{
+		{"a helper in another package that can fail credits the caller", `package p
+import ("testing"; "example.test/check")
+func TestA(t *testing.T) { check.AssertIt(t, 1) }`, 0},
+		{"a helper in another package that cannot fail credits nothing", `package p
+import ("testing"; "example.test/check")
+func TestA(t *testing.T) { _ = check.Build(t) }`, 1},
+		{"a package outside the module is never followed", `package p
+import ("testing"; "example.com/other/check")
+func TestA(t *testing.T) { check.AssertIt(t, 1) }`, 1},
+	}
+	for _, tc := range cases {
+		index := newPkgIndex(dir)
+		got, valid := countInert(tc.src, index)
+		if !valid {
+			return false
+		}
+		if got != tc.want {
+			fmt.Fprintf(os.Stderr, "selftest cross-package %q: got %d, want %d\n", tc.name, got, tc.want)
+			return false
+		}
+	}
+	return true
+}
+
 // selftest exercises both detectors against synthetic sources, so a broken
 // detector is caught before it judges the live tree. Every case states the
 // property it pins.
@@ -977,26 +1219,36 @@ func selftest() bool {
 		}
 		return file, fset
 	}
-	assertNothing := func(src string) (int, bool) {
+	// countInert judges src under index, which is nil for every single-file case
+	// and non-nil only for the cross-package ones below.
+	countInert := func(src string, index *pkgIndex) (int, bool) {
 		file, _ := parse(src)
 		if file == nil {
 			return 0, false
 		}
+		if index == nil {
+			index = &pkgIndex{cache: map[string]map[string]crossHelper{}}
+		}
 		parsed := map[string]*ast.File{"x_test.go": file}
-		funcs := packageFuncs(parsed, []string{"x_test.go"})[pkgKey(file.Name.Name)]
-		aliases := assertAliases(file)
+		sc := scope{
+			pkgFuncs: packageFuncs(parsed, []string{"x_test.go"})[pkgKey(file.Name.Name)],
+			aliases:  assertAliases(file),
+			imports:  fileImports(file),
+			index:    index,
+		}
 		n := 0
 		for _, decl := range file.Decls {
 			fn, ok := decl.(*ast.FuncDecl)
 			if !ok || !isTestFunc(fn) || hasEscape(fn, file) {
 				continue
 			}
-			if !canFail(fn.Body, funcs, aliases, testingIdents(fn), 1) {
+			if !canFail(fn.Body, sc.withTesting(testingIdents(fn)), 1) {
 				n++
 			}
 		}
 		return n, true
 	}
+	assertNothing := func(src string) (int, bool) { return countInert(src, nil) }
 
 	cases := []struct {
 		name string
@@ -1117,6 +1369,10 @@ func TestA(t *testing.T) { assert.Equal(t, 1, 1) }`, 0},
 			fmt.Fprintf(os.Stderr, "selftest assert-nothing %q: got %d, want %d\n", tc.name, got, tc.want)
 			return false
 		}
+	}
+
+	if !selftestCrossPackage(countInert) {
+		return false
 	}
 
 	universe := map[string]bool{"ze_core": true, "ze_web": true}
