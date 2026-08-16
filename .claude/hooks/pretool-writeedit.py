@@ -2828,9 +2828,20 @@ def _weakened_rows(mod):
 
     Read at CALL time under PROJECT_DIR, which CLAUDE_PROJECT_DIR can point at a
     fixture tree.
+
+    `errors="replace"` is what keeps this fail-CLOSED, and it is the same reader
+    the delegate uses (`_read_contract`, `scripts/dev/check_weakened_tests.py`).
+    The dispatcher catches an exception from a check and fails OPEN, so a
+    `UnicodeDecodeError` raised here would let the weakening edit through with no
+    row at all. Only OSError is a state this hook reports; a byte it cannot decode
+    is replaced and the row it sat in fails to match, which refuses.
     """
     try:
-        with open(os.path.join(PROJECT_DIR, mod.WEAKENED_PATH), encoding="utf-8") as fh:
+        with open(
+            os.path.join(PROJECT_DIR, mod.WEAKENED_PATH),
+            encoding="utf-8",
+            errors="replace",
+        ) as fh:
             text = fh.read()
     except OSError:
         return [], [f"{mod.WEAKENED_PATH} does not exist yet; write it, header first"]

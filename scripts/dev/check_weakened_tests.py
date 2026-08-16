@@ -91,11 +91,14 @@ PROJECT_DIR = os.path.abspath(os.path.join(_HERE, "..", ".."))
 def _load_by_path(name, filename):
     """Import a sibling in scripts/dev BY PATH, never through sys.path.
 
-    Two of the three siblings this module needs cannot be imported any other
-    way: `audit-test-relaxation.py` is not an identifier, and this module is
-    itself imported by path from `.claude/hooks/` and from `commit_helper.py`,
-    where `scripts/dev` is not on sys.path. `rfc_requirements.py` loads
-    `rfc_tagged_scope` the same way and for the same reason.
+    `audit-test-relaxation.py` cannot be imported any other way: the name is not
+    an identifier. `rfc_tagged_scope` is loaded the same way because this module
+    is itself loaded by path from `.claude/hooks/pretool-writeedit.py`, where
+    `scripts/dev` is not on sys.path and a plain import of either would fail.
+    `rfc_requirements.py` loads `rfc_tagged_scope` this way for the same reason.
+
+    `scripts/dev/commit_helper.py` needs none of that: it LIVES here, so running
+    it puts this directory on sys.path and it imports this module by name.
     """
     spec = importlib.util.spec_from_file_location(name, os.path.join(_HERE, filename))
     module = importlib.util.module_from_spec(spec)
