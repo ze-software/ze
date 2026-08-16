@@ -190,8 +190,8 @@ buffer, created on the inbound UPDATE path in `reactor_notify.go`.
 |----|------|--------------|----------------------|
 | R-1 | A pool-accounting test reds because the eviction path lost a real release. | `TestForwardPoolBalanceLocalASOverride` or `TestForwardRSTranscodePoolBalance` fails. | The release is removed because the buffer no longer exists. If a balance test reds, a live path WAS using the slot and A-1 is wrong: stop and report. |
 | R-2 | The `AllocCeilings` string key survives the delete and nothing local notices. | Nothing in `make ze-test-pkg PKG=./internal/perf` fails, while `make ze-alloc-gate` reports the benchmark absent. | Run `make ze-alloc-gate` explicitly. It is a `ze-verify` stage and is NOT in `ze-verify-changed`, so a scoped dev loop misses it. |
-| R-3 | `c_test_weakening` in `.claude/hooks/pretool-writeedit.py` refuses the edits with exit 2, and the session is stuck. | The hook names "deleting Test/Fuzz/Benchmark function" or "replacing test content with empty string". | Expected, not a defect. Write a `// test-relax: <reason>` in the SAME edit. The hatch reads only the replacement text of that edit, so a token already in the file buys nothing. |
-| R-4 | The relax-census ceiling is exceeded, reddening `make ze-relax-census` inside `ze-verify`. | Census output shows a HEAD count above the number in `test/relax-ceiling.txt`. | On 2026-08-11 HEAD is 748 against a ceiling of 752, so a small number of tokens fits. Keep the count minimal by editing each file once. If a raise is genuinely needed, edit the number AND add a `raised-for:` line in the same commit; the census refuses a bare raise. |
+| R-3 | `c_test_weakening` in `.claude/hooks/pretool-writeedit.py` refuses the edits with exit 2, and the session is stuck. | The hook names "deleting Test/Fuzz/Benchmark function" or "replacing test content with empty string". | Expected, not a defect. Add a row to `test/weakened.md` naming the test and why the deletion is correct, BEFORE the edit. The hook reads that file, so a row written afterwards buys nothing. |
+| R-4 | The commit is refused because a weakened test has no row, or because it does not carry `test/weakened.md`. | `scripts/dev/commit_helper.py create` names the test needing a row, or names the file to stage. | Add the row, and pass `--file test/weakened.md` beside the code. The file is replaced per commit and never accumulates, so there is no count to hold down and no ceiling to raise. |
 | R-5 | `rfc/requirements/rfc7911.md` goes stale because a tagged test in `forward_body_test.go` moved, reddening `make ze-rfc-check`. | `ze-rfc-check` reports a stale index or a stale per-RFC file. | Run `make ze-rfc-index` and commit BOTH `ai/RFC-REQUIREMENTS.md` and every changed file under `rfc/requirements/` in the same commit (`ai/rules/testing.md`). |
 | R-6 | The measured before-and-after numbers in `docs/architecture/perf-round-3.md` become unreproducible, since the baseline benchmark goes with the cache. | Nothing fails. The measurement is simply gone. | Intended. The optimization was correct and the traffic it was written for takes another route. Section 1 of that page is rewritten to record the outcome in the past tense rather than pointing at a benchmark that no longer exists. Recorded as a Known Limitation, not restored. |
 | R-7 | The docs pages naming the cache outlive it, because no gate reads them. | Nothing fails. `check_source_anchor_stale_paths` in `scripts/dev/validate.py` validates only that the anchored FILE exists, never that the named symbols do. | The Documentation Update Checklist below lists all five prose surfaces by path. Treat them as part of the delete, not as follow-up. |
@@ -352,11 +352,11 @@ deleting symbols under a live edit discards that session's work
 3. **Phase: retire the test callers whose subject is gone.**
    - Tests: `make ze-test-pkg PKG=./internal/component/bgp/reactor`
    - Files: `received_update_test.go`, six `TestReceivedUpdate_EBGPWire*` functions plus `extractFirstASN`, and both bench files in full
-   - Verify: `c_test_weakening` in `.claude/hooks/pretool-writeedit.py` WILL refuse these edits with exit 2. That is expected. Write a `// test-relax: <reason>` in the SAME edit, because the hatch reads only the replacement text of that edit and a token already in the file buys nothing. Keep the token count minimal by editing each file once. For the two bench files, reduce each to its `package reactor` line with one token, then let the commit remove them: `rm` and `git rm` on a `_test.go` are both blocked, so the working route is `scripts/dev/commit_helper.py create --remove <path>`, whose generated script does the `git rm`. Afterwards run `scripts/dev/relax-census.py` and confirm the HEAD count still sits under `test/relax-ceiling.txt`. If it does not, raise the number AND add a `raised-for:` line in the same commit, because the census refuses a bare raise
+   - Verify: `c_test_weakening` in `.claude/hooks/pretool-writeedit.py` WILL refuse these edits with exit 2. That is expected. Add a row to `test/weakened.md` naming the test and why the deletion is correct, BEFORE the edit: the hook reads that file, so a row written afterwards buys nothing. For the two bench files, reduce each to its `package reactor` line, then let the commit remove them: `rm` and `git rm` on a `_test.go` are both blocked, so the working route is `scripts/dev/commit_helper.py create --remove <path>`, whose generated script does the `git rm`. The commit MUST carry `test/weakened.md` itself (`--file test/weakened.md`), or `commit_helper.py` refuses it: a row left in the working tree puts the weakening in history with no reason beside it
 4. **Phase: rework the one test whose subject survives.**
    - Tests: `TestForwardDoesNotRetranscodeASN2RewrittenWire`
    - Files: `forward_body_test.go`
-   - Verify: every assertion is unchanged and the AS_PATH is still 65000 then 65001. Only the fixture construction changes, from `EBGPWire` to a direct `wireu.RewriteASPath` plus `wireu.NewWireUpdate` with `fwdContextIDWithASN4` and a false ASN4 flag. No assertion is removed, so no `test-relax:` token is needed and none should be written. Then run `make ze-rfc-index` and commit both its outputs, because `rfc/requirements/rfc7911.md` pins a tagged test that this edit moves
+   - Verify: every assertion is unchanged and the AS_PATH is still 65000 then 65001. Only the fixture construction changes, from `EBGPWire` to a direct `wireu.RewriteASPath` plus `wireu.NewWireUpdate` with `fwdContextIDWithASN4` and a false ASN4 flag. No assertion is removed, so this test needs no row in `test/weakened.md` and none should be written. Then run `make ze-rfc-index` and commit both its outputs, because `rfc/requirements/rfc7911.md` pins a tagged test that this edit moves
 5. **Phase: close the untyped reference and PROVE the discriminator.**
    - Tests: `TestAllocGateEnforce`, `TestParseAllocsPerOp`
    - Files: `internal/perf/allocgate.go`, `internal/perf/allocgate_test.go`
@@ -367,7 +367,7 @@ deleting symbols under a live edit discards that session's work
    - Verify: a grep for `EBGPWire` over `docs/` and `internal/` returns nothing (AC-1, AC-2). No gate reads these pages, so the grep IS the check
 7. **Phase: gates, then stop.**
    - Run `make ze-race-reactor`. This touches reactor state shared across goroutines, so `ai/rules/testing.md` requires it. Paste the output
-   - Run `make ze-test-pkg PKG=./internal/component/bgp/reactor`, `make ze-test-pkg PKG=./internal/perf`, `make ze-alloc-gate`, `make ze-rfc-check`, `make ze-doc-test`, `make ze-lint-changed`, `make ze-relax-census`
+   - Run `make ze-test-pkg PKG=./internal/component/bgp/reactor`, `make ze-test-pkg PKG=./internal/perf`, `make ze-alloc-gate`, `make ze-rfc-check`, `make ze-doc-test`, `make ze-lint-changed`, `make ze-weakened-check`
    - Run `make ze-verify` once, at the end, in the foreground. Never poll
    - Commit with `scripts/dev/commit_helper.py create`, passing `--remove` for the two deleted bench files. Run `make ze-tracked-build-check` immediately after the script, because the commit carries Go
    - **Handoff is `verify`: set Status to `verification` in this file, report, and STOP.** Do not append `plan/TEMPLATE-CLOSURE.md`, do not run `/ze-close`, do not `git rm` this spec. A later Opus 5 session reviews the commit and closes it
@@ -410,8 +410,8 @@ deleting symbols under a live edit discards that session's work
 | A non-test `EBGPWire` call site turns up in step 1 | STOP. A-1 is broken. Report the caller and do not delete |
 | Compilation error in the reactor package | Step 2 was split. Delete the fields and the four `recent_cache.go` reads in one edit |
 | A pool-balance test reds | R-1. A live path was using the slot, so A-1 is wrong. Stop and report, do not adjust the test |
-| `c_test_weakening` refuses an edit with exit 2 | Expected. Add a `// test-relax: <reason>` in the same edit's replacement text |
-| `make ze-relax-census` reds | R-4. Raise the ceiling AND add a `raised-for:` line in the same commit, or reduce the token count by editing each file once |
+| `c_test_weakening` refuses an edit with exit 2 | Expected. Add the test's row to `test/weakened.md` FIRST, then re-run the edit |
+| `commit_helper.py create` refuses the commit | R-4. Either a weakened test has no row, or the commit does not carry `test/weakened.md`. The message names which |
 | `make ze-alloc-gate` reds after the delete | The string key survived in `AllocCeilings`. That is the gate working |
 | `make ze-rfc-check` reports a stale index | R-5. Run `make ze-rfc-index` and commit both outputs |
 | Any `.ci` test needs editing to pass | STOP. Editing a functional test to accommodate a delete proves the delete changed behavior. Report it |
@@ -467,7 +467,7 @@ a polarity, so no ratchet fires.
 - [ ] `make ze-race-reactor` passes, output pasted
 - [ ] `make ze-alloc-gate` passes
 - [ ] `make ze-rfc-check` passes, with both `make ze-rfc-index` outputs committed
-- [ ] `make ze-relax-census` passes
+- [ ] `make ze-weakened-check` passes
 - [ ] Every deleted `Test` and `Benchmark` named in the report with its own reason
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
