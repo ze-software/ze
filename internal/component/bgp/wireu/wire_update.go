@@ -102,9 +102,12 @@ func (u *WireUpdate) Withdrawn() ([]byte, error) {
 // immutable afterwards, so this call FREEZES which attributes this UPDATE has.
 // Any code that rewrites the attribute bytes must therefore run BEFORE the first
 // Attrs call, or wrap its result in a new WireUpdate. On the receive path that
-// ordering is the reason enforceRFC7606 (reactor/session_validation.go) publishes
-// the base only after its RFC 7606 Section 3.g strip and its in-place
-// attribute-discard branch have both run.
+// ordering is the reason reactor.Session.publishBase (reactor/session_validation.go)
+// is the LAST step of enforceRFC7606: every rewrite runs ahead of it. There are
+// three, and the list is the ordering contract rather than an example -- the RFC
+// 7606 Section 3.g duplicate strip, the in-place attribute-discard branch, and
+// the RFC 4271 Section 9 Partial-bit stamp publishBase applies itself before it
+// calls this method.
 func (u *WireUpdate) Attrs() (*attribute.AttributesWire, error) {
 	u.attrsOnce.Do(func() {
 		u.ensureParsed()
