@@ -201,7 +201,10 @@ Three call sites, and the first covers every failure the other two miss:
 The suite has grown to over 100 scenario directories in `test/interop/scenarios/`. The table
 below lists the core BGP scenarios (01-37); beyond these, the suite also covers route
 reflection, policy import/export, RPKI origin validation, BMP monitoring, PATHS-LIMIT,
-max-prefix cease, GTSM, AS112, and full IS-IS (auth, convergence, dual-stack, LAN DIS,
+max-prefix cease, GTSM, AS112, ADD-PATH re-advertisement (`addpath-readvertise-collision-frr`
+proves a receiver keeps two paths whose sources both chose one Path Identifier, and
+`addpath-rail-agreement-speaker` proves the live forward and the peer-up replay emit the same
+bytes for one path), and full IS-IS (auth, convergence, dual-stack, LAN DIS,
 P2P, redistribution) and OSPFv2/OSPFv3 (auth, BFD, TE, LFA/TI-LFA, graceful restart,
 segment routing, opaque LSAs, stub/NSSA, virtual links, and more) interop families.
 
