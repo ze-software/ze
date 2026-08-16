@@ -3231,9 +3231,9 @@ def run_design_gate(results: Results) -> None:
     # MUST STILL FIRE: a daemon spec written with NOTHING investigated. This is the
     # refusal the gate exists for (inference-written specs, 2026-07-16).
     r = _design_case(
-        "- `internal/x/y.go` - the daemon",
-        (),  # <!-- doc-links: ignore (fixture literal in a hook test corpus, deliberately absent from the tree) -->
-    )  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
+        "- `internal/x/y.go` - the daemon",  # <!-- doc-links: ignore (fixture literal in a hook test corpus, deliberately absent from the tree) -->
+        (),
+    )
     results.check(
         "design-gate-daemon-spec-uninvestigated-blocked", _design_blocked(r), repr(r)
     )
@@ -3254,11 +3254,11 @@ def run_design_gate(results: Results) -> None:
 
     # ...and the control: the same spec with its own Go read is allowed.
     r = _design_case(
-        "- `internal/x/y.go` - the daemon",
+        "- `internal/x/y.go` - the daemon",  # <!-- doc-links: ignore (fixture literal in a hook test corpus, deliberately absent from the tree) -->
         (
             "/repo/internal/x/y.go",
-        ),  # <!-- doc-links: ignore (fixture literal in a hook test corpus, deliberately absent from the tree) -->
-    )  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
+        ),
+    )
     results.check(
         "design-gate-daemon-spec-reads-its-go", not _design_blocked(r), repr(r)
     )
@@ -3280,19 +3280,19 @@ def run_design_gate(results: Results) -> None:
     # A spec that states no source subject (docs, a `.ci`, a bare directory) keeps
     # the pre-scoping bar: any implementation source, and still not nothing.
     r = _design_case(
-        "- `docs/guide/x.md` - the page",
+        "- `docs/guide/x.md` - the page",  # <!-- doc-links: ignore (fixture literal in a hook test corpus, deliberately absent from the tree) -->
         (
             "/repo/scripts/dev/foo.py",
-        ),  # <!-- doc-links: ignore (fixture literal in a hook test corpus, deliberately absent from the tree) -->
-    )  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
+        ),
+    )
     results.check(
         "design-gate-subjectless-spec-any-source", not _design_blocked(r), repr(r)
     )
 
     r = _design_case(
-        "- `docs/guide/x.md` - the page",
-        (),  # <!-- doc-links: ignore (fixture literal in a hook test corpus, deliberately absent from the tree) -->
-    )  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
+        "- `docs/guide/x.md` - the page",  # <!-- doc-links: ignore (fixture literal in a hook test corpus, deliberately absent from the tree) -->
+        (),
+    )
     results.check(
         "design-gate-subjectless-spec-nothing-blocked", _design_blocked(r), repr(r)
     )
@@ -3394,11 +3394,11 @@ def run_design_gate(results: Results) -> None:
     # ISSUE 3: a subject the gate cannot read is the one permissive path left, so
     # it must SAY it degraded. Silence is what makes a weakened guard invisible.
     r = _design_case(
-        "- `docs/guide/x.md` - the page",
+        "- `docs/guide/x.md` - the page",  # <!-- doc-links: ignore (fixture literal in a hook test corpus, deliberately absent from the tree) -->
         (
             "/repo/scripts/dev/foo.py",
-        ),  # <!-- doc-links: ignore (fixture literal in a hook test corpus, deliberately absent from the tree) -->
-    )  # <!-- doc-links: ignore (fixture path in a hook case, deliberately absent) -->
+        ),
+    )
     results.check("design-gate-subjectless-write-warns", _design_degraded(r), repr(r))
 
     # ISSUE 3: an un-backticked path in a table row is a subject too. Reading only

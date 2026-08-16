@@ -8,8 +8,9 @@ So every case here drives the pair, never one side alone.
 
 The fixtures build a real git repository, because the checker reads HEAD through
 git and judges the paths the commit NAMES. A fixture that handed it two strings
-would not exercise that, and reading the working tree instead of HEAD is the
-defect the spec names (`plan/spec-weakened-per-commit.md`, Required Reading).
+would not exercise that. The durable contract says to judge the commit's named
+paths against HEAD, never the working tree
+(`docs/architecture/testing/test-health.md`, "The per-commit weakening record").
 """
 
 from __future__ import annotations

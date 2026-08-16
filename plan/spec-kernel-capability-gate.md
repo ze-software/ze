@@ -250,9 +250,9 @@ cannot-determine warns rather than refusing.
 
 | Entry Point | Feature Code | Test |
 |-------------|--------------|------|
-| `ze doctor` | capability registry → probe → diagnostic | `test/plugin/kernel-capability-doctor-reports.ci` |
-| `ze` daemon start | startup gate reads the registry, refuses on error | `test/plugin/kernel-capability-refuses-start.ci` |
-| `ze config validate` | same registry, same verdict | `test/plugin/kernel-capability-validate-fails.ci` |
+| `ze doctor` | capability registry → probe → diagnostic | `test/plugin/kernel-capability-doctor-reports.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| `ze` daemon start | startup gate reads the registry, refuses on error | `test/plugin/kernel-capability-refuses-start.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| `ze config validate` | same registry, same verdict | `test/plugin/kernel-capability-validate-fails.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
 
 ## Acceptance Criteria
 
@@ -278,8 +278,8 @@ cannot-determine warns rather than refusing.
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Configures IPsec on a kernel with no XFRM and starts ze | config → `ipsecInUse` → `NETLINK_XFRM` open → `EPROTONOSUPPORT` → `SeverityError` → `runYANGConfig` refuses | `test/plugin/kernel-capability-refuses-start.ci` |
-| 2 | Runs ze with no IPsec block on the same kernel | config → `ipsecInUse` false → nothing probed, nothing reported | `test/plugin/kernel-capability-unused-starts.ci` |
+| 1 | Configures IPsec on a kernel with no XFRM and starts ze | config → `ipsecInUse` → `NETLINK_XFRM` open → `EPROTONOSUPPORT` → `SeverityError` → `runYANGConfig` refuses | `test/plugin/kernel-capability-refuses-start.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| 2 | Runs ze with no IPsec block on the same kernel | config → `ipsecInUse` false → nothing probed, nothing reported | `test/plugin/kernel-capability-unused-starts.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
 | 3 | Runs `ze doctor` unprivileged on a host that has XFRM | doctor → probe opens the socket, needs no `CAP_NET_ADMIN` → present | `TestXFRMCapabilityUnprivilegedReportsPresence` |
 | 4 | Reloads into a config using a subsystem the host cannot support | SIGHUP → `runReload` → gate refuses before `ReloadConfig` → old config still serving | `TestReloadRefusalKeepsRunningConfig` |
 | 5 | Boots the appliance image with an MPLS config | image kernel carries `CONFIG_MPLS_ROUTING` → sysctl exists → ze writes `platform_labels` → labeled route installs | the appliance QEMU boot |
@@ -289,14 +289,14 @@ cannot-determine warns rather than refusing.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestMPLSCapabilityReadsBuiltInKernel` | `internal/component/doctor/capability_linux_test.go` | AC-8: a sysctl present with no loaded module reads as PRESENT | [ ] |
+| `TestMPLSCapabilityReadsBuiltInKernel` | `internal/component/doctor/capability_linux_test.go` | AC-8: a sysctl present with no loaded module reads as PRESENT | [ ] | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) -->
 | `TestMPLSCapabilityAbsentIsENOENT` | same | absence is `ENOENT`, distinct from a read error | [ ] |
 | `TestMPLSCapabilityUnreadableIsUnknown` | same | AC-6: any other read error is cannot-determine | [ ] |
-| `TestMPLSCapabilityNotGatedOnVPPBackend` | `internal/component/doctor/capability_test.go` | AC-7: `fib { kernel { } }` gates before `mplsInUse` | [ ] |
+| `TestMPLSCapabilityNotGatedOnVPPBackend` | `internal/component/doctor/capability_test.go` | AC-7: `fib { kernel { } }` gates before `mplsInUse` | [ ] | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) -->
 | `TestMPLSPlatformLabelsWritten` | `internal/plugins/fib/kernel/` | AC-10: ze writes a non-zero label space when MPLS is in use | [ ] |
-| `TestXFRMCapabilityUnprivilegedReportsPresence` | `internal/component/doctor/capability_linux_test.go` | AC-13: the probe needs no `CAP_NET_ADMIN` | [ ] |
+| `TestXFRMCapabilityUnprivilegedReportsPresence` | `internal/component/doctor/capability_linux_test.go` | AC-13: the probe needs no `CAP_NET_ADMIN` | [ ] | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) -->
 | `TestXFRMCapabilityAbsentIsEPROTONOSUPPORT` | same | absence is that errno, and `EPERM` is not absence | [ ] |
-| `TestIPsecNotInUseForEmptyBlock` | `internal/component/doctor/capability_test.go` | AC-11 and A-6 | [ ] |
+| `TestIPsecNotInUseForEmptyBlock` | `internal/component/doctor/capability_test.go` | AC-11 and A-6 | [ ] | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) -->
 | `TestIPsecInUseForOneSiteToSitePeer` | same | AC-12, the positive case (R-2) | [ ] |
 | `TestIPsecInUseForRemoteAccess` | same | the second positive shape | [ ] |
 | `TestCapabilityProbeExecsNoBinary` | same | AC-9, scoped to the enrolled probes | [ ] |
@@ -319,11 +319,11 @@ when the predicate is stubbed to return false.
 ### Functional Tests
 | Test | File | Validates |
 |------|------|-----------|
-| doctor reports a missing capability for a configured subsystem | `test/plugin/kernel-capability-doctor-reports.ci` | AC-2 |
-| ze refuses to start, non-zero exit | `test/plugin/kernel-capability-refuses-start.ci` | AC-3 |
-| config validate fails with the same message | `test/plugin/kernel-capability-validate-fails.ci` | AC-4 |
-| an unconfigured subsystem gates nothing | `test/plugin/kernel-capability-unused-starts.ci` | AC-5 |
-| cannot-determine warns and still starts | `test/plugin/kernel-capability-unknown-starts.ci` | AC-6 |
+| doctor reports a missing capability for a configured subsystem | `test/plugin/kernel-capability-doctor-reports.ci` | AC-2 | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) -->
+| ze refuses to start, non-zero exit | `test/plugin/kernel-capability-refuses-start.ci` | AC-3 | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) -->
+| config validate fails with the same message | `test/plugin/kernel-capability-validate-fails.ci` | AC-4 | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) -->
+| an unconfigured subsystem gates nothing | `test/plugin/kernel-capability-unused-starts.ci` | AC-5 | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) -->
+| cannot-determine warns and still starts | `test/plugin/kernel-capability-unknown-starts.ci` | AC-6 | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) -->
 
 ### Interop Tests (Scope: config)
 | Test | Peer | Validates |
@@ -359,9 +359,9 @@ when the predicate is stubbed to return false.
 
 | File | Purpose |
 |------|---------|
-| `internal/component/doctor/capability.go` | the enrolment: subsystem name, capability name, probe, `inUse` predicate, and the three-state result |
-| `internal/component/doctor/capability_linux.go` | the two native probes: the MPLS sysctl read and the `NETLINK_XFRM` open, each classifying its errno |
-| `internal/component/doctor/capability_other.go` | the non-Linux build, so the gate compiles on darwin |
+| `internal/component/doctor/capability.go` | the enrolment: subsystem name, capability name, probe, `inUse` predicate, and the three-state result | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) -->
+| `internal/component/doctor/capability_linux.go` | the two native probes: the MPLS sysctl read and the `NETLINK_XFRM` open, each classifying its errno | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) -->
+| `internal/component/doctor/capability_other.go` | the non-Linux build, so the gate compiles on darwin | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) -->
 | `test/plugin/kernel-capability-*.ci` | the five functional tests named in the Wiring Test table |
 
 ### Integration Checklist

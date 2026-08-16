@@ -2963,8 +2963,9 @@ def _contract(*rows: tuple[str, str]) -> str:
 class TestWeakenedTestsGate(unittest.TestCase):
     """test/weakened.md must cover every test weakening the commit carries.
 
-    VALIDATES: `plan/spec-weakened-per-commit.md` AC-3, AC-4 and AC-10, and
-    owner decision 5, which puts a missing row on the BLOCK tier. Driven through
+    VALIDATES: `docs/architecture/testing/test-health.md`, "The per-commit
+    weakening record": the commit gate refuses an unrecorded weakening or stale
+    row and requires the commit to carry `test/weakened.md`. Driven through
     commit_gate_problems and through `create` itself, never through
     check_weakened_tests alone: that module has its own suite, and what is
     unproven until here is that the commit path REACHES it
