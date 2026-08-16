@@ -73,7 +73,7 @@ def main():
     if r.get('status') != 'done':
         runtime_fail(f'inject recursive route failed: {r}')
 
-    # // test-relax: replaced the fixed 2.0s time.sleep + single-shot assert with
+    # // replaced the fixed 2.0s time.sleep + single-shot assert with
     # a dispatch_until payload-predicate poll (spec-payload-predicate-waits). The
     # AC-2 assertion (172.16.0.0/16 present in show rib) is unchanged and now
     # strictly stronger (it polls instead of hoping 2s was enough); the folded

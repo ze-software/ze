@@ -9,7 +9,7 @@
 # waits for the vpn-ipsec/sa-up event and asserts `show vpn ipsec sa` reports
 # the peer established -- control-plane proof through user entry points.
 #
-# // test-relax: the original (never-executed) revision asserted the kernel
+# // the original (never-executed) revision asserted the kernel
 # XFRM state too; XFRM install needs CAP_NET_ADMIN and cannot run natively
 # unprivileged. Kernel-state assertions stay with the strongSwan interop lab
 # (test/ipsec-interop/) and the QEMU pass; this test gates the IKEv2
@@ -158,7 +158,7 @@ cmd=foreground:seq=2:exec=ze -:stdin=config:timeout=35s
 # peer established -- proof that two unprivileged ze instances complete IKEv2
 # end to end (IKE_SA_INIT + IKE_AUTH over loopback, no CAP_NET_ADMIN).
 #
-# // test-relax: an earlier revision of THIS conversion also asserted the
+# // an earlier revision of THIS conversion also asserted the
 # sa-up EVENT via the executor (subscribe -> clear -> expect=event). That leg
 # is blocked on a real product gap, not test infra, so it is deferred to a
 # spec-test-coverage-gaps follow-up: the initial establishment fires before

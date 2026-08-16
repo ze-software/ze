@@ -2,7 +2,7 @@ package mcp
 
 import "testing"
 
-// test-relax: D-4 removes TaskInputRequired, so the rows naming it cannot
+// D-4 removes TaskInputRequired, so the rows naming it cannot
 // reference the constant. Every one of them is replaced by a NEGATIVE assertion
 // that the state is unreachable and its wire name is rejected.
 // TestTaskStateWireVocabulary below also pins the whole enumeration (AC-15).

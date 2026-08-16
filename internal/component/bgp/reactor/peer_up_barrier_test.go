@@ -166,7 +166,7 @@ func TestPeerUpBarrierTimeoutReleases(t *testing.T) {
 
 	require.Eventually(t, chanClosed(done), 2*time.Second, time.Millisecond,
 		"the timeout must release the end-of-rib rather than wedge establishment")
-	// test-relax: the Warn assertion this line replaces could never pass. The
+	// the Warn assertion this line replaces could never pass. The
 	// timeout branch logs to the bgp.routes subsystem logger, not slog.Default,
 	// so warnRecorder cannot observe it (see the doc comment above). Written, not
 	// weakened: the assertion below is on the branch actually taken.

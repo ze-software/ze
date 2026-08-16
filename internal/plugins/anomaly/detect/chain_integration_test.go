@@ -65,7 +65,7 @@ func publishSyntheticFlow(src, dst string, port uint16, nbytes float64) {
 // PREVENTS: a silent break anywhere in facts->judgment->response that per-layer
 // unit tests cannot catch (feed gate, feature vector, scoring, emit, arm).
 func TestChainFactsToResponse(t *testing.T) {
-	// test-relax: -short skip only. The verify gate runs `go test` WITHOUT -short
+	// -short skip only. The verify gate runs `go test` WITHOUT -short
 	// (Makefile GO_TEST), so this integration test still runs in CI; -short only
 	// lets local iteration skip its ~10s of real 1s ticks. No coverage is dropped.
 	if testing.Short() {

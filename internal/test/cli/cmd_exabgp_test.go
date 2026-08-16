@@ -79,7 +79,7 @@ func TestParseExaBGPCIRejectsMissingConfig(t *testing.T) {
 	}
 }
 
-// test-relax: the three TestResolveZeDaemonBinary* cases here tested a private
+// the three TestResolveZeDaemonBinary* cases here tested a private
 // resolver this package should never have had. Their subject (honor ZE_BIN,
 // find this session's binary, fail closed when there is none) is buildZe, which
 // already carries that coverage in build_test.go -- TestBuildZeNoBuild,

@@ -323,7 +323,7 @@ func snapshotTracked(t *testing.T, dir string) map[string]string {
 // not write to a tracked path, because in a checkout shared by concurrent
 // sessions that is a cross-commit hazard.
 //
-// test-relax: the single t.Skip is an ENVIRONMENT guard on a NEW test, not a
+// the single t.Skip is an ENVIRONMENT guard on a NEW test, not a
 // relaxation of existing coverage. It fires only outside a full checkout, where
 // there is no checked-in instance to prepare and nothing to compare.
 //

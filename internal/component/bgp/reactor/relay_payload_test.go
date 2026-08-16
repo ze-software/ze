@@ -217,7 +217,7 @@ func TestScanAttrBlockRejectsMalformed(t *testing.T) {
 // TestStoredHexDecodeRejectsMalformed verifies a malformed stored-route hex
 // field fails the route rather than being partially accepted.
 //
-// test-relax: the subject function decodeHexInto was REMOVED, so its two tests
+// the subject function decodeHexInto was REMOVED, so its two tests
 // cannot remain as written. Its justification was false and was disproved by
 // measurement: hex.Decode does not leak src, so hex.Decode(dst, []byte(s)) is
 // elided to a zero-copy conversion and allocates ZERO per call (AllocsPerRun and

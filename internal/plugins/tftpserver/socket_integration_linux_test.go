@@ -206,9 +206,6 @@ func TestTFTPServerBindsViaResolveWithoutBackend(t *testing.T) {
 
 	conn, err := listenTFTP(device)
 	if err != nil {
-		// test-relax: same root/port-69 prerequisite skip as the other two
-		// integration tests in this file; not a coverage drop. Under QEMU
-		// (ai/rules/platform-linux.md) the bind succeeds and the body runs.
 		t.Skipf("cannot bind %s:69 (needs root): %v", device, err)
 	}
 	defer func() { _ = conn.Close() }()

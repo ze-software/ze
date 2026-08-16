@@ -81,7 +81,7 @@ def main():
     # the peer's only expectation is unreachable by construction. PendingSync
     # stays set from establishment until after the EOR is sent and the
     # bgp-peer-sync quiescer blocks on exactly that, so this cannot return early.
-    # // test-relax: removes an establishment barrier added earlier in this same
+    # // removes an establishment barrier added earlier in this same
     # session, never present in the original test, and proven non-functional
     # below. Net coverage is still strictly stronger than the original, which
     # fell through to shutdown on a deadline whether or not anything was

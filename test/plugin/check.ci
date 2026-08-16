@@ -100,7 +100,7 @@ def main() -> None:
     else:
         # Timeout - send error signal route
         send('peer 127.0.0.1 update text nhop 255.255.255.255 nlri ipv4/unicast add 0.0.0.0/0')
-        wait_for_ack()  # // test-relax: blind 1.0s flush -> wait_for_ack outbound barrier
+        wait_for_ack()
         return
 
     # Wait for shutdown

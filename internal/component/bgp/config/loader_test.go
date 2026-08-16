@@ -1354,7 +1354,7 @@ bgp {
 	require.Len(t, r2.Peers(), 2, "reloaded config should have 2 peers")
 }
 
-// test-relax: TestResolveSSHStorage MOVED, not deleted -- ResolveSSHStorage now
+// TestResolveSSHStorage MOVED, not deleted -- ResolveSSHStorage now
 // lives in internal/component/config/infra (spec-feature-gate-10-bgp Bucket 2).
 // The test moved verbatim to internal/component/config/infra/ssh_test.go.
 
@@ -1495,7 +1495,7 @@ func TestCollectPrefixWarningsRuntime(t *testing.T) {
 	assert.Contains(t, warnings[0].Message, "exceeds warning threshold")
 }
 
-// test-relax: convertMVPNRoute/MVPNRouteConfig removed by spec-route-config-plugin-migration;
+// convertMVPNRoute/MVPNRouteConfig removed by spec-route-config-plugin-migration;
 // MVPN config parsing (incl originator-id/cluster-list) is now in plugins/nlri/mvpn/config.go,
 // verified byte-for-byte by test/encode/mvpn.ci.
 

@@ -2,7 +2,7 @@
 # VALIDATES: spec-config-require-reload AC-1,3,4,6 -- editing a stored config
 #            works with no flag (default no-notify), and the old --no-reload flag
 #            is rejected (exit 2) on both `set` and `deactivate`.
-# // test-relax: this .ci asserts only the exit code for the --no-reload
+# // this .ci asserts only the exit code for the --no-reload
 #   rejections, not the stderr text, and does not exercise `set --reload` at all.
 #   Two reasons: (1) `set --reload` reads the shared credential store and contacts
 #   the daemon, which is not isolated across the parallel suite; (2) the flag

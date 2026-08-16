@@ -47,8 +47,6 @@ action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0037020000001C40010
 # test's subject is the export policy on the forwarded route (conn=2:seq=2), and the
 # source's own EOR (conn=1) does not race a forward, so it stays. Measured: with the
 # conn=2 EOR rule flaky, without it 18/18. Same fix as bgp-rs-asn4-transcode.ci.
-# // test-relax: the conn=2 EOR rule is removed, not weakened -- RFC 4724 owes no
-# ordering vs post-initial-update routes; the forwarded-route assertion is unchanged.
 #
 # LOCAL_PREF: there is none, on either side, and that is the point.
 #
@@ -66,7 +64,7 @@ action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0037020000001C40010
 # message against 62. The load-bearing assertion is unchanged, byte for byte:
 # AS_SEQUENCE [65000 64496 64497], private 64512 stripped and local AS 65000 prepended.
 # Tombstone marker behavior is covered where it is the subject, not here.
-# // test-relax: the conn=2 EOR rule is removed (RFC 4724 4.1 owes no ordering vs a
+# // the conn=2 EOR rule is removed (RFC 4724 4.1 owes no ordering vs a
 # post-initial-update forward; see the ORDERING note above). The forwarded-route
 # assertion at conn=2:seq=2 -- this test's subject -- is unchanged.
 expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000

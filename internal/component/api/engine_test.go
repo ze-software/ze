@@ -116,7 +116,7 @@ func TestEngineExecuteDispatch(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, StatusDone, result.Status)
 
-	// test-relax: the engine no longer re-parses executor output into a
+	// the engine no longer re-parses executor output into a
 	// map[string]any (finding 3 removed that round trip). The map-field
 	// assertions are replaced by an equivalent whole-payload JSON check on the
 	// typed Data that now flows through unchanged.
@@ -133,9 +133,6 @@ func TestEngineExecuteStringOutput(t *testing.T) {
 	result, err := eng.Execute(t.Context(), &ExecuteRequest{Caller: CallerIdentity{Username: "admin"}, Command: "daemon reload"})
 	require.NoError(t, err)
 	assert.Equal(t, StatusDone, result.Status)
-	// test-relax: plain-text output now rides typed RawJSON Data (which marshals
-	// to a JSON string) instead of a bare Go string on the envelope; assert on
-	// the marshaled form.
 	data, mErr := json.Marshal(result.Data)
 	require.NoError(t, mErr)
 	assert.Equal(t, `"reload initiated"`, string(data))

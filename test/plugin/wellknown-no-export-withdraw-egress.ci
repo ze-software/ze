@@ -259,7 +259,7 @@ EOF_CONF
 # processes become ONE holding three connections, and the barrier is per accepted BATCH
 # (peer_connmap.go), so it cannot span processes: one process is the only shape in which
 # these RFC 1997 assertions are not a race.
-# test-relax: the cmd= count falls from four to two for that reason alone. NO assertion is
+# the cmd= count falls from four to two for that reason alone. NO assertion is
 # removed and none is weakened: every expect= and the reject= survive on conn=2 / conn=3 of
 # the one peer, byte for byte, and the file gains a barrier it was asserting without.
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer

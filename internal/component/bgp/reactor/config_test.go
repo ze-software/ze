@@ -767,9 +767,6 @@ func TestParsePeerProcessBindings(t *testing.T) {
 	assert.Equal(t, "my-rib", b.PluginName)
 	assert.Equal(t, "json", b.Encoding)
 	assert.Equal(t, "parsed", b.Format)
-	// test-relax: the per-type booleans became one map, so one equality now
-	// covers what six separate true/false assertions covered, and it covers
-	// more: a granted type this list does not name fails the comparison.
 	assert.Equal(t, map[string]events.Direction{
 		"update":       events.DirBoth,
 		"open":         events.DirBoth,
@@ -1102,9 +1099,6 @@ func TestParsePeerProcessBindingsExplicitAll(t *testing.T) {
 
 	require.Len(t, ps.ProcessBindings, 1)
 	b := ps.ProcessBindings[0]
-	// test-relax: the per-type booleans became one map. `sent` is retired: the
-	// direction now belongs to the type, so the list says `update-sent`, and
-	// naming update both plainly and sent-only still grants both.
 	assert.Equal(t, map[string]events.Direction{
 		"update":       events.DirBoth,
 		"open":         events.DirBoth,
@@ -1200,9 +1194,6 @@ func TestParseReceiveFlagsAcceptsRegistered(t *testing.T) {
 	var b ProcessBinding
 	err := parseReceiveFlags("update test-custom-event", &b)
 	require.NoError(t, err)
-	// test-relax: base and plugin-registered types share one map now, so both
-	// grants are read the same way. What tells them apart is auto-loading,
-	// which TestAutoLoadTypesSkipBaseTokens covers.
 	assert.Equal(t, events.DirBoth, b.Receive["update"], "base type should be granted")
 	assert.Equal(t, events.DirBoth, b.Receive["test-custom-event"], "custom type should be granted")
 }

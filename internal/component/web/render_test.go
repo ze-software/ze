@@ -142,7 +142,7 @@ func assertPackageParsesNoTemplate(t *testing.T) {
 // report green (AC-6 of spec-web-templ-migration). webTemplFileFloor is
 // what makes the pass mean something.
 //
-// test-relax: the three assertions and the floor moved to
+// the three assertions and the floor moved to
 // markupcheck.InlineFindings unchanged. The looking glass owes the same
 // property and carried no check at all. Its route_table.templ shipped two
 // onclick handlers that lg's own CSP refuses. Copying this body there would

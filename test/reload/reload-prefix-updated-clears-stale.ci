@@ -79,7 +79,7 @@ def stale_raised(api):
     return False
 
 def wait_for(api, want, what, attempts):
-    # test-relax: the hand-rolled deadline loop is REPLACED, not removed. Same
+    # the hand-rolled deadline loop is REPLACED, not removed. Same
     # predicate, same 0.1s interval, and api.wait_until owns the sleep, whose
     # internal time.sleep is exempt from the ci-sleep ratchet by design
     # (test/scripts/ze_api.py, wait_until). No assertion changed: the polling

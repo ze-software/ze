@@ -98,7 +98,7 @@ def main():
 
     # Wait for peer1's initial sync to reach the wire before injecting anything.
     #
-    # // test-relax: the `'established' in <detail json>` check removed here was
+    # // the `'established' in <detail json>` check removed here was
     # VACUOUS, not coverage: every peer row carries the KEY
     # `connections-established` (cmd/peer/peer.go:238), so the substring matched
     # on the FIRST poll -- before any session existed -- and the barrier returned
@@ -117,7 +117,6 @@ def main():
         runtime_fail(f'rib inject failed: {result}')
 
     # Query rib best reason, polling until the injected candidate is visible.
-    # // test-relax: blind 0.5s sleep after inject -> dispatch_until until 10.1.0.0/24 has >=2 candidates
     result = api.dispatch_until('show bgp rib best reason', reason_ready)
     if result.get('status') != 'done':
         runtime_fail(f'rib best reason failed: {result}')

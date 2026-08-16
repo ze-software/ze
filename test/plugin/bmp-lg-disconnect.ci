@@ -97,7 +97,6 @@ def main():
     # Verify route exists before disconnect. Poll show bmp rib until the injected
     # route lands: BMP ingest over the raw socket is async, so this replaces the
     # blind inter-send + settle sleeps with a deterministic payload poll.
-    # // test-relax: dropped 2x0.2 inter-send + 1.0 settle sleeps -> dispatch_until on adj-rib-in present
     result = api.dispatch_until(
         'show bmp rib',
         lambda r: bool(result_json_data(r, {}).get('adj-rib-in', {})),
@@ -115,7 +114,6 @@ def main():
     # Verify routes are withdrawn. Poll until adj-rib-in drains (the withdraw is
     # async on session teardown); the route was present just above, so this is not
     # vacuous. Replaces a blind sleep(2.0) settle.
-    # // test-relax: dropped 2.0 settle + 0.5 pre-shutdown pad -> dispatch_until on adj-rib-in empty
     result = api.dispatch_until(
         'show bmp rib',
         lambda r: not result_json_data(r, {}).get('adj-rib-in', {}),

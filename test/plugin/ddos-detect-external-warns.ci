@@ -24,7 +24,7 @@
 # darwin dev host, but confirmed PASSING under
 # `make ze-qemu-needs-linux-test` (real QEMU Linux VM).
 #
-# // test-relax: replaced the blind 4.0s sleep + wait.py hold with the
+# // replaced the blind 4.0s sleep + wait.py hold with the
 # await=stderr fence below. Coverage is REPLACED, not weakened: the
 # warn-message assertion (expect=stderr:contains=) is preserved byte-for-byte;
 # only the WHEN-to-tear-down changes from a fixed sleep to a deterministic wait
@@ -88,7 +88,7 @@ bgp {
 }
 EOF_CONF
 
-# // test-relax: the blind sleep + wait.py hold is replaced by the await=stderr
+# // the blind sleep + wait.py hold is replaced by the await=stderr
 # fence below (see header). The warn-message assertion is preserved byte-for-byte.
 cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=15s
 await=stderr:contains=will never receive a rate signal

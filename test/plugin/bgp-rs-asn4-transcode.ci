@@ -66,14 +66,14 @@ action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003A020000001F40010
 # if either is missing. conn=1's EOR does not race a forward (the source receives no
 # relayed route), so it stays as a direct wire assertion.
 #
-# // test-relax: the conn=2 EOR rule is removed, not weakened. RFC 4724 owes no
+# // the conn=2 EOR rule is removed, not weakened. RFC 4724 owes no
 # ordering vs post-initial-update routes (read the section above), and the
 # EOR-sent MUST is verified by the observer's expected_peers=2 gate.
 expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 
 # Receiver peer (conn=2): the transcoded UPDATE, asserted by FULL byte-equality.
 #
-# // test-relax: the three contains= rules at conn=2:seq=1 (NLRI 180A0000, AGGREGATOR
+# // the three contains= rules at conn=2:seq=1 (NLRI 180A0000, AGGREGATOR
 # C007065BA00A000001, AS4_AGGREGATOR C01208FA56EA000A000001) are REPLACED, not dropped,
 # by the single hex= below, which contains all three byte strings verbatim plus AS_PATH,
 # AS4_PATH, ORIGIN and NEXT_HOP -- coverage strictly increases. They could not remain as
@@ -104,7 +104,7 @@ EOF_PEER
 # Observer: shut down cleanly after forwarding completes.
 tmpfs=shutdown-after-up.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
-# // test-relax: the observer's synchronous `show bgp summary` eor-sent poll +
+# // the observer's synchronous `show bgp summary` eor-sent poll +
 # `request shutdown` is replaced by ze_api.run_rs_observer -- event-driven readiness
 # (subscribe + wait_for_event on the async channel) plus a fire-and-forget shutdown.
 # A more robust rewrite, not a relaxation: same "wait until BOTH RS clients are

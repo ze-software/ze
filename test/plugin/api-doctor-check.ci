@@ -72,7 +72,6 @@ def main():
     api.ready()
     api.wait_for_post_startup(timeout=5.0)
 
-    # // test-relax: hand-rolled range(20) status-poll -> dispatch_until on the doctor diagnostic itself
     result = api.dispatch_until(
         'show doctor',
         lambda r: any(

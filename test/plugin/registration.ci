@@ -74,7 +74,7 @@ def main() -> None:
     if not api.wait_peers_established(expected_peers=1):
         raise RuntimeError('peer never reached established')
     api.send('peer * update text nlri ipv4/unicast eor')
-    api.wait_for_ack(expected_count=1)  # // test-relax: dropped 2 redundant sleeps; wait_peers_established above is the barrier this send needs, and wait_for_ack is the outbound one
+    api.wait_for_ack(expected_count=1)
     api.wait_for_shutdown()
 
 if __name__ == '__main__':

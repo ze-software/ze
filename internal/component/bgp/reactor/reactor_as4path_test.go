@@ -92,7 +92,7 @@ func buildAnnounce(t *testing.T, batch bgptypes.NLRIBatch, isIBGP, asn4 bool) *m
 // testWriteASPath and testWriteAnnounceAS4Path compose the two production
 // decisions the announce rails now make separately, and encode the result.
 //
-// test-relax: the rail-local encoders these replace (writeASPath,
+// the rail-local encoders these replace (writeASPath,
 // writeAnnounceAS4Path) are gone. Both were byte writers that bundled the
 // DECISION (which ASNs, and whether an AS4_PATH is owed) with the ENCODING; the
 // decision now lives in announceASPathASNs and as4PathForASNs, which

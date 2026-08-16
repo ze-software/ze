@@ -10,7 +10,7 @@
 # `child-sa` block (inbound/outbound ESP SPIs) that the flat `show vpn ipsec sa`
 # table does not carry -- proof of the peer-detail surface through the CLI.
 #
-# // test-relax: the original (never-executed) revision asserted the sa-up EVENT
+# // the original (never-executed) revision asserted the sa-up EVENT
 # (expect=event:namespace=vpn-ipsec:name=sa-up) against a single non-establishing
 # daemon. The initial sa-up fires at startup before any runtime subscription can
 # be placed, and the only pre-establishment subscribe path is namespace-locked to

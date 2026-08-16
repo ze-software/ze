@@ -77,6 +77,6 @@ cmd=background:seq=1:exec=ze -:stdin=ze-bgp
 cmd=foreground:seq=2:exec=python3 wait.py:timeout=10s
 expect=exit:code=0
 expect=stderr:contains=not supported by backend vpp
-# // test-relax: removed a stray duplicate heredoc terminator (EOF_PY) typo from
+# // removed a stray duplicate heredoc terminator (EOF_PY) typo from
 # this newly-added file; both verify-reject assertions above are retained (no
 # coverage change). The leading # keeps the line a .ci comment.

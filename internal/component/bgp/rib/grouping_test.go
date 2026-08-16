@@ -9,7 +9,7 @@ import (
 	"github.com/ze-software/ze/internal/core/family"
 )
 
-// test-relax: the seven TestGroupByAttributes_* tests, TestRouteGroup_NLRIs and the
+// the seven TestGroupByAttributes_* tests, TestRouteGroup_NLRIs and the
 // testRouteWithAttrs helper drove groupByAttributes, the RouteGroup struct and
 // (*RouteGroup).NLRIs. All three were deleted because nothing outside these tests
 // reached them: the live path is GroupByAttributesTwoLevel (called from commit.go),

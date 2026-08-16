@@ -26,7 +26,7 @@ import (
 )
 
 func TestBuildTag_Protocols_AbsentBinaryDropsSymbols(t *testing.T) {
-	// test-relax: -short guard only; this test still runs in full (make ze-test
+	// -short guard only; this test still runs in full (make ze-test
 	// passes no -short). It builds and spawns the ze binary, so opt-in -short
 	// runs skip it for speed. No coverage is lost in the verify/CI suite.
 	if testing.Short() {

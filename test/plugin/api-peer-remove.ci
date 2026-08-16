@@ -48,7 +48,6 @@ def main():
             print(f'FAIL: remove status={result.get("status")}', file=sys.stderr)
             sys.exit(1)
 
-        # // test-relax: blind 0.5s sleep after delete -> poll peer list until 127.0.0.1 is gone
         result = api.dispatch_until(
             'show bgp peer list',
             lambda r: '127.0.0.1' not in result_json_data(r, {}).get('peers', {}),

@@ -97,7 +97,6 @@ def main():
 
     # Verify BMP route exists in show bmp rib. Poll until the injected route lands
     # (async BMP ingest); replaces blind inter-send + settle sleeps.
-    # // test-relax: dropped 2x0.2 inter-send + 1.0 settle sleeps -> dispatch_until on adj-rib-in present
     result = api.dispatch_until(
         'show bmp rib',
         lambda r: bool(result_json_data(r, {}).get('adj-rib-in', {})),
@@ -133,7 +132,6 @@ def main():
     print('PASS: BMP routes isolated from best-path selection', file=sys.stderr, flush=True)
     sock.close()
 
-    # // test-relax: dropped 0.5 pre-shutdown pad; shutdown dispatch is synchronous
     dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 

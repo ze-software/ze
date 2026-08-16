@@ -111,7 +111,7 @@ func TestAdjacencyInterfaceNoRace(t *testing.T) {
 	wg.Wait()
 }
 
-// test-relax: TestWaitForInterfaceFound moved to resolve_integration_linux_test.go
+// TestWaitForInterfaceFound moved to resolve_integration_linux_test.go
 // (TestWaitForInterfaceFoundResolves). waitForInterface now resolves through the
 // shared iface resolver, which needs the netlink backend (Linux-only), so the
 // "interface found" path is no longer host-testable; the integration test

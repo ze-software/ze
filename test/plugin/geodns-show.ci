@@ -6,8 +6,6 @@
 # The observer dispatches the FULL CLI path "show geodns" (NOT "geodns"): a bare
 # plugin-command name falls through to routeToProcess and blocks, so the observer
 # would never reach its assertions (a silent false pass). See learned 996.
-# Restoring the real test // test-relax: replaces experiment scaffolding added
-# while root-causing the dispatch hang; the genuine assertions are below.
 
 # ze-peer: accepts connection
 stdin=peer:terminator=EOF_PEER

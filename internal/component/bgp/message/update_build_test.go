@@ -18,7 +18,7 @@ import (
 // aliasing across a potential grow: sub-slices allocated before a grow reference
 // the OLD backing, ones allocated after reference the NEW backing. Passing both
 // to this helper covers the span.
-// test-relax: BuildMVPN / BuildGroupedMVPN / MVPNParams were removed by
+// BuildMVPN / BuildGroupedMVPN / MVPNParams were removed by
 // spec-route-config-plugin-migration. MVPN routes now build via BuildPlugin; NLRI
 // and grouping are tested byte-for-byte by test/encode/mvpn.ci and the mvpn plugin.
 
@@ -768,7 +768,7 @@ func TestUpdateBuilder_BuildVPN_ExtCommunity(t *testing.T) {
 	}
 }
 
-// test-relax: BuildVPLS/VPLSParams removed -- VPLS routes now build via the generic
+// BuildVPLS/VPLSParams removed -- VPLS routes now build via the generic
 // BuildPlugin path (spec-route-config-plugin-migration). Wire output (AFI=25,SAFI=65,
 // MP_REACH) is covered by test/encode/l2vpn.ci and the vpls plugin's config tests.
 
@@ -809,7 +809,7 @@ func TestUpdateBuilder_BuildFlowSpec_Basic(t *testing.T) {
 	}
 }
 
-// test-relax: BuildMUP/MUPParams removed -- MUP routes now build via the generic
+// BuildMUP/MUPParams removed -- MUP routes now build via the generic
 // BuildPlugin path (spec-route-config-plugin-migration). Wire output is covered
 // by test/encode/srv6-mup.ci and the mup plugin's config tests.
 
@@ -1162,7 +1162,7 @@ func TestBuildLabeledUnicast_ASN4Disabled(t *testing.T) {
 	}
 }
 
-// test-relax: BuildVPLS/VPLSParams removed -- VPLS now uses BuildPlugin, whose AS_PATH
+// BuildVPLS/VPLSParams removed -- VPLS now uses BuildPlugin, whose AS_PATH
 // ASN4 encoding is shared across families (covered by the unicast ASN4 tests and l2vpn.ci).
 
 // TestBuildFlowSpec_ASN4Disabled verifies 2-byte AS encoding for FlowSpec routes.
@@ -1188,7 +1188,7 @@ func TestBuildFlowSpec_ASN4Disabled(t *testing.T) {
 	}
 }
 
-// test-relax: BuildMUP/BuildMUPWithdraw removed -- MUP now uses BuildPlugin, whose
+// BuildMUP/BuildMUPWithdraw removed -- MUP now uses BuildPlugin, whose
 // AS_PATH ASN4 encoding is shared with all families and covered by the unicast
 // ASN4 tests above plus test/encode/srv6-mup.ci.
 
@@ -1285,9 +1285,6 @@ func TestBuildLabeledUnicast_Aggregator_ASN4Disabled(t *testing.T) {
 	}
 }
 
-// test-relax: BuildVPLS/VPLSParams removed -- VPLS now uses BuildPlugin (no aggregator
-// support, same as the old VPLSParams which had no HasAggregator field).
-
 // TestBuildGroupedUnicast_Aggregator_ASN4Disabled verifies 6-byte AGGREGATOR for grouped updates.
 //
 // VALIDATES: AGGREGATOR uses 6-byte format when ctx.ASN4=false in grouped updates.
@@ -1354,7 +1351,7 @@ func TestBuildFlowSpec_EncodesReflectorAttrs(t *testing.T) {
 	}
 }
 
-// test-relax: BuildMUP/MUPParams removed -- the reflector-attr (ORIGINATOR_ID/
+// BuildMUP/MUPParams removed -- the reflector-attr (ORIGINATOR_ID/
 // CLUSTER_LIST) capability tested here was never reachable from MUP config
 // (convertMUPRoute never set them); MUP config routes now build via BuildPlugin.
 
@@ -1575,7 +1572,7 @@ func TestBuildWithLimit_AttributesShared(t *testing.T) {
 // API Bounds Safety Tests (spec-api-bounds-safety.md)
 // =============================================================================
 
-// test-relax: BuildFlowSpecWithMaxSize removed by spec-route-config-plugin-migration.
+// BuildFlowSpecWithMaxSize removed by spec-route-config-plugin-migration.
 // FlowSpec config routes now build via BuildPlugin; the atomic max-message-size guard
 // moved to the reactor's generic send path (sendPluginRoutesVia + packNLRIs), covered by
 // reactor.TestPackNLRIs. The base FlowSpec size formula is unchanged.
@@ -1738,7 +1735,7 @@ func TestBuildLabeledUnicast_MaxSize_TooLarge(t *testing.T) {
 	}
 }
 
-// test-relax: BuildVPLSWithMaxSize/VPLSParams removed -- VPLS config routes now build
+// BuildVPLSWithMaxSize/VPLSParams removed -- VPLS config routes now build
 // via BuildPlugin; the plugin-route send path is the size-guard owner. Covered by l2vpn.ci.
 
 // TestBuildEVPN_MaxSize_Fits verifies EVPN within limit succeeds.
@@ -1791,7 +1788,7 @@ func TestBuildEVPN_MaxSize_TooLarge(t *testing.T) {
 	}
 }
 
-// test-relax: BuildMUPWithMaxSize/MUPParams removed -- MUP config routes now build
+// BuildMUPWithMaxSize/MUPParams removed -- MUP config routes now build
 // via BuildPlugin; the reactor's plugin-route send path applies the max-size guard
 // generically. Covered by test/encode/srv6-mup.ci.
 

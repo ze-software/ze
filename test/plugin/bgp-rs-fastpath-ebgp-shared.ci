@@ -71,8 +71,6 @@ action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0029020000000E40010
 # bgp-rs-reactor-fastpath.ci. That both EORs ARE sent (the RFC MUST) is still
 # enforced by run_rs_observer(expected_peers=2), which fails closed if either is
 # missing; conn=1's EOR (no forward races it) stays as a direct wire assertion.
-# // test-relax: the conn=2 EOR rule is removed, not weakened -- RFC 4724 owes no
-# ordering vs post-initial-update routes, and the EOR-sent MUST is verified by the observer.
 expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 expect=bgp:conn=2:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE840030401010101180A0000
 EOF_PEER
@@ -80,7 +78,7 @@ EOF_PEER
 # Observer: shut down cleanly after forwarding completes.
 tmpfs=shutdown-after-up.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
-# // test-relax: the observer's synchronous `show bgp summary` eor-sent poll +
+# // the observer's synchronous `show bgp summary` eor-sent poll +
 # `request shutdown` is replaced by ze_api.run_rs_observer -- event-driven readiness
 # (subscribe + wait_for_event on the async channel) plus a fire-and-forget shutdown.
 # A more robust rewrite, not a relaxation: same "wait until the RS replayed to every

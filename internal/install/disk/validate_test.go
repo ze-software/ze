@@ -251,7 +251,7 @@ func TestSHA256Boundary(t *testing.T) {
 	}
 }
 
-// test-relax: validateShellAuth was deleted, not weakened. It checked a 64-char
+// validateShellAuth was deleted, not weakened. It checked a 64-char
 // lowercase-hex sha256; the credential is now "<saltHex>:<digestHex>" behind
 // argon2id. Shape coverage (including the uppercase rejection this test carried,
 // and the legacy bare-sha256 form) lives in internal/core/rescueauth tests; this

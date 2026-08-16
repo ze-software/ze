@@ -1,4 +1,4 @@
-# // test-relax: earlier draft attempted a live enable->disable reload via
+# // earlier draft attempted a live enable->disable reload via
 # "request reload"; that needs a file-backed config directory (see
 # test/plugin/audit-persistence.ci's pattern), out of proportion to what this
 # functional test needs to add on top of existing unit coverage. The

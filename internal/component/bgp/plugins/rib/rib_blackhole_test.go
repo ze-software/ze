@@ -160,7 +160,7 @@ func TestBlackholeRouteTypeDecision(t *testing.T) {
 	}
 }
 
-// test-relax: TestCarriesBlackholeCommunity and its concat helper MOVED, they
+// TestCarriesBlackholeCommunity and its concat helper MOVED, they
 // were not dropped. carriesBlackholeCommunity no longer exists in this package:
 // the COMMUNITIES scan now lives in blackholecfg because origin validation and
 // the origination gate read the same bytes, and every one of its 13 cases is

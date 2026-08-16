@@ -458,7 +458,3 @@ func TestISISOriginatePurgeStripsBodyAndAuthenticates(t *testing.T) {
 		t.Fatalf("signed purge TLVs = %+v, want only TLV 10 (StripPurgeBody must run on the production path)", dec.LSP.TLVs)
 	}
 }
-
-// test-relax: removed an unused `var _ = time.Second` placeholder and its
-// `time` import; this file uses package duration constants, not the time
-// package directly. No test coverage changed.

@@ -98,7 +98,7 @@ func rtxExpectSilence(t *testing.T, peerTr, myTr *transport.UDPTransport, remote
 // response carries that flag too, so this one test also proves the refused request drew
 // no replay of it.
 //
-// test-relax: the Message ID comparison this helper carried for one revision was a FALSE
+// the Message ID comparison this helper carried for one revision was a FALSE
 // POSITIVE, and it never shipped. RFC 7296 Section 2.2 gives each direction its own
 // sequence. Ze's own next request id and the peer's refused request id are therefore
 // independent counters, and they CAN hold the same value. They do exactly that

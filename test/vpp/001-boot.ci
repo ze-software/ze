@@ -23,7 +23,7 @@ from ze_api import wait_until
 
 
 def _wait_for_socket(path):
-    # // test-relax: hand-rolled file-existence poll -> ze_api.wait_until (same
+    # // hand-rolled file-existence poll -> ze_api.wait_until (same
     # ~5s budget, ratchet-exempt internal sleep); paced file polling, not a race.
     return wait_until(lambda: os.path.exists(path), attempts=100, delay=0.05)
 
@@ -109,7 +109,7 @@ def main() -> int:
                             return True
                 return False
 
-            # // test-relax: hand-rolled JSONL-watch poll -> ze_api.wait_until (same
+            # // hand-rolled JSONL-watch poll -> ze_api.wait_until (same
             # ~5s budget, ratchet-exempt internal sleep); paced log polling, not a race.
             saw_create = wait_until(_saw_create, attempts=50, delay=0.1)
             ze_stderr = ""
@@ -121,8 +121,6 @@ def main() -> int:
                     break
                 line = ze.stderr.readline()
                 if not line:
-                    # // test-relax: blocking readline returns "" only at EOF (ze closed
-                    # stderr / exited), so break instead of a sleep-paced re-poll.
                     break
                 ze_stderr += line
                 sys.stderr.write(line)

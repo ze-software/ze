@@ -24,6 +24,6 @@ expect=stdout:contains=ze-show:
 cmd=foreground:seq=4:exec=ze --help:exit=0
 expect=exit:code=0
 expect=stderr:contains=help ai
-# // test-relax: dropped the seq=5 "ze --ai" self-correcting-hint assertion with
+# // dropped the seq=5 "ze --ai" self-correcting-hint assertion with
 # the aiSectionGuess feature it covered; the hint was reverted as redundant with
 # the usage signpost above (seq=4 still proves the leaf is discoverable).

@@ -303,12 +303,6 @@ func TestParseEngineRejects(t *testing.T) {
 	}
 }
 
-// // test-relax: an earlier revision matched delivered events by a
-// namespace/name envelope, but the plugin deliver-event wire carries the BARE
-// payload JSON only (internal/component/plugin/server/dispatch.go
-// payloadToJSON) -- there is nothing to match an envelope against. The
-// executor now scopes expect=event by EXCLUSIVE per-step subscription
-// (subscribe -> any delivery counts -> unsubscribe), tested below.
 func TestEngineEventBufferScrollbackAndPositions(t *testing.T) {
 	b := NewEngineEventBuffer()
 	if err := b.OnEvent(`{"peer-name":"peer-1"}`); err != nil {

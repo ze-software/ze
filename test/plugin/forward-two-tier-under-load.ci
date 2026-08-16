@@ -112,7 +112,7 @@ EOF_SOURCE
 stdin=dest:terminator=EOF_DEST
 option=tcp_connections:value=1
 option=timeout:value=20s
-# // test-relax: reframed seq=N:contains= (one NLRI per message) to seq=1:ordered=
+# // reframed seq=N:contains= (one NLRI per message) to seq=1:ordered=
 # (same 80 needles, strict in-order consumption across message boundaries).
 # The old framing asserted a property ze does not owe: the forward rail packs
 # same-attr NLRIs into one UPDATE (fwdBucketMerge), which is legal BGP UPDATE
@@ -198,7 +198,7 @@ expect=bgp:conn=1:seq=1:ordered=180A004C
 expect=bgp:conn=1:seq=1:ordered=180A004D
 expect=bgp:conn=1:seq=1:ordered=180A004E
 expect=bgp:conn=1:seq=1:ordered=180A004F
-# // test-relax: the removed End-of-RIB rule was unsatisfiable by construction, so
+# // the removed End-of-RIB rule was unsatisfiable by construction, so
 # it asserted nothing and only produced a red the runner used to mask. This peer's
 # EOR is emitted by its OWN initial sync the moment it establishes
 # (peer_initial_sync.go), which is BEFORE any route is forwarded to it from

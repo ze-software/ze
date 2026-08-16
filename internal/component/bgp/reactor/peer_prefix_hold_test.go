@@ -203,7 +203,7 @@ func TestHoldDownRefusesInboundAndEndsOnStop(t *testing.T) {
 
 	// A refused connection is a CLOSED connection: the read below returns an
 	// error once the hold loop has dropped it.
-	// test-relax: the polled form is REPLACED, not removed, and by a stricter
+	// the polled form is REPLACED, not removed, and by a stricter
 	// check -- two hard assertions (an error, and not a deadline) where there was
 	// one polled boolean. Coverage is identical: a held peer must close the
 	// inbound connection.

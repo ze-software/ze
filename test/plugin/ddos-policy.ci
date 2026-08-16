@@ -191,7 +191,7 @@ traffic {
 	}
 }
 
-# // test-relax: no firewall {} backend block here. An allow/mitigation policy exempts
+# // no firewall {} backend block here. An allow/mitigation policy exempts
 # the victim in the responder BEFORE any firewall call (applyMitigation returns at the
 # "policy exempts mitigation" branch), so no nft backend is needed. Adding one
 # deadlocked the daemon's command dispatch under the flood (firewall component + the

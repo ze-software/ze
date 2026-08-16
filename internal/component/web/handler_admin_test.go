@@ -280,7 +280,6 @@ func TestAdminContentNegotiation(t *testing.T) {
 	require.NoError(t, err, "response must be valid JSON")
 
 	assert.Equal(t, "peer 192.168.1.1 teardown", data["command"])
-	// test-relax: plain-text fake output now marshals to a quoted JSON string via the unified typed dispatcher
 	assert.Equal(t, `"executed: peer 192.168.1.1 teardown"`, data["output"])
 	assert.Equal(t, false, data["error"])
 }

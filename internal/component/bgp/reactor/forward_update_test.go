@@ -485,10 +485,6 @@ func TestForwardUpdate_ModsApplied(t *testing.T) {
 // VALIDATES: panic recovery, and the fail-closed decision at the forward rail.
 // PREVENTS: the panic crashing the reactor loop, and separately a recovered
 // panic leaking a route the policy was meant to change.
-//
-// test-relax: SUPERSEDES "original payload should be forwarded when handler
-// panics". Thomas ruled 2026-08-01 that correctness governs. Panic containment
-// is unchanged; the forward-anyway conclusion is reversed.
 func TestForwardUpdate_ModHandlerPanic(t *testing.T) {
 	ctx := bgpctx.EncodingContextForASN4(true)
 	ctxID, _ := bgpctx.Registry.Register(ctx)
@@ -587,10 +583,6 @@ func TestForwardUpdate_ModHandlerPanic(t *testing.T) {
 // VALIDATES: the handler == nil branch, and the fail-closed decision above it.
 // PREVENTS: a nil dereference, and separately emitting a route whose policy
 // never took effect -- for code 35 that is the RFC 9234 OTC attribute.
-//
-// test-relax: SUPERSEDES "original payload should be forwarded when mod handler
-// is missing", which is AC-18's conclusion. Thomas ruled 2026-08-01 that
-// correctness governs.
 func TestForwardUpdate_ModsNoHandler(t *testing.T) {
 	ctx := bgpctx.EncodingContextForASN4(true)
 	ctxID, _ := bgpctx.Registry.Register(ctx)
@@ -1384,9 +1376,6 @@ func TestFwdBodyCacheHoistsSupersede(t *testing.T) {
 	assert.NotZero(t, items[0].supersedeKey, "hoisted supersedeKey should be non-zero for rawBodies items")
 	assert.Equal(t, items[0].supersedeKey, items[1].supersedeKey,
 		"both destinations must observe the same supersedeKey (hoisted from cache)")
-	// test-relax: the second assertion compared the items' withdrawal flags. That
-	// field is deleted with the batch reorder it fed, so there is no longer a
-	// second hoisted value to compare.
 	assert.Same(t, &items[0].rawBodies[0][0], &items[1].rawBodies[0][0],
 		"both destinations must share the one cached body (zero-copy hoist)")
 }

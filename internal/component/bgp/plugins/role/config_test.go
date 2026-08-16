@@ -518,7 +518,7 @@ func TestExtractRoleCapabilities_StrictMode(t *testing.T) {
 	}
 }
 
-// test-relax: TestExtractRemoteIP removed -- it exercised role's local extractRemoteIP, which was
+// TestExtractRemoteIP removed -- it exercised role's local extractRemoteIP, which was
 // deleted. That reader used the stale flat remote/ip path and silently returned "" on real config
 // (peers are delivered keyed by name with the IP at connection>remote>ip). Remote-IP extraction now
 // lives in configjson.PeerRemoteIP, covered by configjson.TestPeerRemoteIP with the correct path.
@@ -571,7 +571,7 @@ func TestNameToIPResolution(t *testing.T) {
 	assert.Equal(t, roleCustomer, remoteRole, "remote role should be found by IP after name resolution")
 }
 
-// test-relax: TestExtractLocalASN removed -- the role plugin's extractLocalASN
+// TestExtractLocalASN removed -- the role plugin's extractLocalASN
 // reader was DELETED (removed feature, not weakened). Per
 // plan/spec-fixit-local-asn-config-key.md the local AS for OTC egress stamping
 // now comes from the reactor via filterapi.PeerFilterInfo.LocalAS, not from a
@@ -583,7 +583,7 @@ func TestNameToIPResolution(t *testing.T) {
 // config framework delivers: YANG leaf values arrive as JSON strings, because
 // Tree.values is map[string]string. strict "true" is coerced by parseBool.
 //
-// test-relax: the former extractLocalASN assertion here is dropped because that
+// the former extractLocalASN assertion here is dropped because that
 // reader was deleted (see the note above). The role/strict string-valued
 // delivery coverage below is preserved and still exercises the real JSON shape.
 func TestParseConfig_StringValuedDelivery(t *testing.T) {

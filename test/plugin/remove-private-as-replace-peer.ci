@@ -55,8 +55,6 @@ action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0037020000001C40010
 # route (conn=2:seq=2), and the source's own EOR (conn=1) does not race a forward, so
 # it stays. Measured: with the conn=2 EOR rule flaky, without it 18/18. Same fix as
 # bgp-rs-asn4-transcode.ci and bgp-rs-fastpath-ebgp-shared.ci.
-# // test-relax: the conn=2 EOR rule is removed, not weakened -- RFC 4724 owes no
-# ordering vs post-initial-update routes; the forwarded-route assertion is unchanged.
 expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 expect=bgp:conn=2:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003B02000000204001010040021202040000FDE80000FBF00000FDEA0000FBF140030401010101180A0000
 EOF_PEER

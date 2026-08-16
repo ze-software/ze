@@ -564,7 +564,7 @@ func declaredChildlessNode(t *testing.T) []string {
 // printed the list and exited 1, and the fallback lookup two lines above it
 // changed nothing.
 //
-// test-relax: the Valid / not-Declared / has-children assertions this test used
+// the Valid / not-Declared / has-children assertions this test used
 // to make against the hardcoded `show host` are not dropped. They are the
 // SELECTION PREDICATE of undeclaredGroupingContainer below, which fails the test
 // when no node in the live tree satisfies them. `show host` gained a ze:command

@@ -16,7 +16,7 @@ option=timeout:value=20s
 # ze-peer runs as a sink: only a dial target, asserts nothing. This test is about
 # `show l2tp statistics`; the BGP peer exists so ze has a session to configure.
 #
-# // test-relax: the ipv4/unicast EOR this block declared was unreachable BY
+# // the ipv4/unicast EOR this block declared was unreachable BY
 # CONSTRUCTION -- the run-script calls `request shutdown` at post-startup, so ze
 # closes during the OPEN handshake ("open recv / open sent / connection closed
 # before completion") and the EOR is never sent. It could not fail for a real
@@ -97,8 +97,6 @@ def main():
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind(("127.0.0.1", 0))
     sock.settimeout(0.25)
-    # // test-relax: dropped a redundant pre-handshake settle sleep; the SCCRQ
-    # retransmit loop below already tolerates ze's L2TP listener not being ready.
     sccrp = None
     for _ in range(40):
         try:
@@ -177,7 +175,6 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # // test-relax: hand-rolled for-loop + sleep(0.1) poll -> api.dispatch_until (ratchet-exempt internal sleep)
     def _has_tunnel_active(r):
         if r.get('status') != 'done':
             return False

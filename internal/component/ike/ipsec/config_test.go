@@ -185,7 +185,7 @@ type peerOpts struct {
 }
 
 func TestParseESPGroup(t *testing.T) {
-	// test-relax: proposal 10 dropped its hash. parseESPProposal now refuses a hash
+	// proposal 10 dropped its hash. parseESPProposal now refuses a hash
 	// beside an AEAD cipher, so the old fixture asserted a config shape that is no
 	// longer valid (TestParseESPProposalRejectsHashBesideAEAD proves the refusal). No
 	// assertion is removed or weakened: the two proposals, their numbers and the

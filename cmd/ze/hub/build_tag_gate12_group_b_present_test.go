@@ -4,7 +4,7 @@
 
 package hub
 
-// test-relax: the first version of this test asserted
+// the first version of this test asserted
 // cmdreg.HasRootHandler("tacacs"/"exabgp"), which can never be true in this
 // test binary: those root commands are registered by the ze binary's dispatch
 // composition root (cmd/ze package main, gated dispatch_tacacs.go /

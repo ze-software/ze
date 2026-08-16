@@ -180,7 +180,7 @@ func TestOSPFTEDecodeFunctional(t *testing.T) {
 }
 
 func TestOSPFTEWithdrawFunctional(t *testing.T) {
-	// test-relax: a MaxAge purge arriving within MinLSArrival of the install is throttled by
+	// a MaxAge purge arriving within MinLSArrival of the install is throttled by
 	// the LSDB (orthogonal, RFC 2328 behavior), so the withdraw is driven through the
 	// carrier's delivery seam after a full-wire install; same reception->TED withdraw path.
 	eng := teFnRegister(t, teCfgJSON)

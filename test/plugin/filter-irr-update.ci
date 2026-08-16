@@ -37,7 +37,7 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # // test-relax: removed two fixed sleeps. `update bgp irr all` is now
+    # // removed two fixed sleeps. `update bgp irr all` is now
     # synchronous and authoritative (refreshAllNow), so dispatch_until_done
     # retries past mock-IRR startup with no sleep, and the post-refresh sleep is
     # redundant once the command returns "done". Assertions are unchanged.
@@ -45,7 +45,7 @@ def main():
     result = api.dispatch_until_done('update bgp irr all')
     status = result.get('status', '')
     if status != 'done':
-        # // test-relax: replaced sys.exit(1) with runtime_fail -- the observer-exit
+        # // replaced sys.exit(1) with runtime_fail -- the observer-exit
         # antipattern (sys.exit(1)) is a silent false positive because the runner only
         # watches ze's exit code. runtime_fail emits the ZE-OBSERVER-FAIL sentinel.
         runtime_fail(f'update bgp irr all status={status}, expected done')
@@ -54,10 +54,9 @@ def main():
     result = dispatch(api, 'show bgp irr')
     status = result.get('status', '')
     if status != 'done':
-        # // test-relax: replaced sys.exit(1) with runtime_fail (same reason as above)
         runtime_fail(f'show bgp irr status={status}, expected done')
 
-    # // test-relax: replaced _call_engine('ze-show:irr-status') with dispatch
+    # // replaced _call_engine('ze-show:irr-status') with dispatch
     # path -- pluginserver.RegisterRPCs feeds the text dispatcher, not the
     # plugin-session inbound handler that _call_engine uses. The correct
     # verification is dispatch('show bgp irr') which routes through the text

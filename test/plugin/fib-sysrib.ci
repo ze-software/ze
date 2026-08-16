@@ -25,7 +25,6 @@ import json
 import sys
 
 from ze_api import API, result_text_data
-# // test-relax: removed unused 'import time'; blind sleeps replaced by dispatch_until_done / dispatch_until polls
 
 
 failures = 0
@@ -51,7 +50,6 @@ def check(label, result, expected_status):
 
 
 def wait_for_rib(api):
-    # // test-relax: hand-rolled range/status==done poll -> dispatch_until_done
     r = api.dispatch_until_done('show bgp rib status')
     return r.get('status') == 'done'
 

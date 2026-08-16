@@ -73,7 +73,7 @@ def wait_rules(predicate):
     Same shape as the daemon.pid/daemon.ready poll below: bounded, and it
     returns the moment the kernel actually holds the expected ruleset.
     """
-    # // test-relax: the hand-rolled poll body became ze_api.wait_for_output.
+    # // the hand-rolled poll body became ze_api.wait_for_output.
     # Same condition, same DEADLINE, same fall-through on exhaustion (the helper
     # returns the last output rather than raising, precisely so the assertions
     # below keep reporting their own phase message). The internal sleep is
@@ -99,7 +99,7 @@ def wait_rules(predicate):
 # an opaque test-level timeout.
 DEADLINE = time.monotonic() + 12.0
 
-# // test-relax: hand-rolled daemon-readiness for-loop -> ze_api.wait_for_daemon_ready
+# // hand-rolled daemon-readiness for-loop -> ze_api.wait_for_daemon_ready
 # (same 200x0.05s budget, ratchet-exempt internal sleep). It also folds in the
 # pid read, which closes a real race this driver had: daemon.pid is created
 # before it is written, so exists() could be followed by int("") and a traceback

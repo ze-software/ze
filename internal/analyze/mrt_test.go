@@ -399,7 +399,7 @@ func TestCountAttrs(t *testing.T) {
 	}
 }
 
-// test-relax: countPackedPrefixes, countMPReachNLRI and countMPUnreachNLRI were
+// countPackedPrefixes, countMPReachNLRI and countMPUnreachNLRI were
 // DELETED, not weakened. They were a second, laxer copy of the NLRI walk that
 // internal/mrt owns: no prefix-length ceiling and a silent stop on truncation.
 // Every input they covered is now a row in TestCountUpdateNLRIs above, which

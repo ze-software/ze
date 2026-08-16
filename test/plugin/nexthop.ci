@@ -4,7 +4,6 @@
 stdin=peer:terminator=EOF_PEER
 # Step 5: commands migrated to bgp peer prefix
 #
-# // test-relax: the seq-2 End-of-RIB rule was removed on Thomas's ruling:
 #
 #   "RFC 4724 S2 orders the EOR only against this speaker's own initial dump,
 #   never against routes learned afterwards. There is no ordering here for a

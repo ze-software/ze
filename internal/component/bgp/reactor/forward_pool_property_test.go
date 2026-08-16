@@ -29,7 +29,7 @@ import (
 func TestForwardPoolOrderingProperty(t *testing.T) {
 	t.Parallel()
 
-	// test-relax: property 1 tested fwdReorderWithdrawalsFirst, which is deleted.
+	// property 1 tested fwdReorderWithdrawalsFirst, which is deleted.
 	// It hoisted every withdrawal ahead of every announcement, which inverts an
 	// announce and a withdraw of ONE prefix and leaves the peer holding a route
 	// that was withdrawn. The property below replaces it with the invariant the
@@ -93,7 +93,7 @@ func TestForwardPoolOrderingProperty(t *testing.T) {
 	// (possibly truncated/malformed) wire bytes, and a successful parse never
 	// claims more bytes than the body holds.
 	//
-	// test-relax: this covered fwdIsWithdrawal, deleted with the batch reorder it
+	// this covered fwdIsWithdrawal, deleted with the batch reorder it
 	// classified for. parseBucketBody reads the same UPDATE-body shape and is the
 	// reader that survives on the batch path, so the invariant moves to it.
 	t.Run("body_parse_robust_to_garbage", func(t *testing.T) {

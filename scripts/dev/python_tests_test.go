@@ -85,7 +85,7 @@ var pythonTestRoots = []string{
 // to prevent.
 var pythonTestGlobs = []string{"*_test.py", "test_*.py"}
 
-// test-relax: removes a DUPLICATE repoRoot helper I had added here, which did not
+// removes a DUPLICATE repoRoot helper I had added here, which did not
 // compile -- the package already defines repoRoot(t) in verify_wiring_docs_test.go
 // and Go rejects the redeclaration. No test coverage is lost: the existing helper
 // carries the equivalent t.Fatalf, and every assertion in TestPythonUnitTests

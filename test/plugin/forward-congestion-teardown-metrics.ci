@@ -27,7 +27,6 @@ import json
 import sys
 
 from ze_api import API, result_text_data, runtime_fail
-# // test-relax: removed unused 'import time'; range/sleep metrics poll -> dispatch_until
 
 
 def dispatch(api, command):
@@ -56,7 +55,7 @@ def main():
     # complete and dispatch `request shutdown` in the window before the OPEN
     # handshake, closing the session under the peer.
     #
-    # // test-relax: the `'established' in <detail json>` check removed here was
+    # // the `'established' in <detail json>` check removed here was
     # VACUOUS, not coverage: every peer row carries the key
     # `connections-established` (cmd/peer/peer.go:238), so the substring matched
     # on the first poll and the barrier waited for nothing. Reproduced under
@@ -77,7 +76,6 @@ def main():
 
     # Poll for metrics -- under parallel load, BGP session establishment can
     # take longer than a fixed sleep allows.
-    # // test-relax: range/sleep(0.5) poll -> dispatch_until until metrics values are populated
     def has_metrics(res):
         if res.get('status') != 'done':
             return False

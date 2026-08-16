@@ -29,7 +29,7 @@ func TestISISNETValidator(t *testing.T) {
 		}
 	}
 
-	// test-relax: the prior "too short (7)" case used "49.0001.0000.0000.0001",
+	// the prior "too short (7)" case used "49.0001.0000.0000.0001",
 	// which is actually 9 octets (a VALID NET), so it tested the wrong thing. The
 	// genuine below-min case (7 octets) is now covered exactly in the length
 	// boundary table below via netOf(7).

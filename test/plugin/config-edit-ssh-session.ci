@@ -20,7 +20,7 @@ option=timeout:value=15s
 # ze-peer runs as a sink: only a dial target, asserts nothing. This test is about
 # the SSH editor session; the BGP peer exists so ze has a session to configure.
 #
-# // test-relax: the ipv4/unicast EOR this block declared RACED the run-script's
+# // the ipv4/unicast EOR this block declared RACED the run-script's
 # `request shutdown`, which fires at post-startup while ze is still in the OPEN
 # handshake. Observed both ways on a quiet tree: usually the peer logs "open recv /
 # open sent / connection closed before completion" and the EOR never arrives (red),

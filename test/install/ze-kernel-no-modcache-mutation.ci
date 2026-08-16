@@ -2,7 +2,7 @@
 # never mutates the pinned rtr7/kernel modcache in place nor creates a
 # .ze-pinned-kernel backup.
 #
-# // test-relax: spec-gokrazy-builddir-tmp (AC-7/AC-8) removed the tracked-go.mod
+# // spec-gokrazy-builddir-tmp (AC-7/AC-8) removed the tracked-go.mod
 # replace this test used to REQUIRE. ze-kernel now writes NO state at all: the
 # package is selected per build with `make ze-gokrazy KERNEL_PKG=...`, and
 # ze-gok injects the replace into its prepared COPY of the instance. The

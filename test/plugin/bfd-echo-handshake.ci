@@ -189,10 +189,8 @@ def main():
     api.ready()
 
     # Trigger Snapshot so metric gauges are populated.
-    # // test-relax: dropped blind 2.0s sleep; the metrics scrape poll below has its own retries
     dispatch(api, 'show bfd sessions')
 
-    # // test-relax: blind 0.25s retry loop -> wait_until poll for echo tx>0
     #
     # The poll waits for BOTH signals this test asserts on, not just TX. Waiting
     # on ze_bfd_echo_tx_packets_total alone and then asserting on

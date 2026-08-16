@@ -194,7 +194,7 @@ var webTemplGoldenSpec = golden.Spec{
 			{Name: "empty", Data: configFreeform(&ConfigViewData{CurrentPath: "system/banner"})},
 		},
 	}},
-	// test-relax: configFlex, cliBar, dashboardOverview, sidebar, sidebarSection,
+	// configFlex, cliBar, dashboardOverview, sidebar, sidebarSection,
 	// terminalPage and notificationBannerOOB are DELETED in phase 5 of
 	// spec-web-templ-migration. Their cases go with them. A capture of a
 	// component that no longer exists cannot compile, and the coverage is
@@ -262,7 +262,7 @@ var webTemplGoldenSpec = golden.Spec{
 		{Name: "notificationBanner", Fixture: "notification_banner_sse", Variants: []golden.Variant{
 			{Data: notificationBanner(webBannerData())},
 		}},
-		// test-relax: notificationBannerOOB and terminalPage are deleted, so
+		// notificationBannerOOB and terminalPage are deleted, so
 		// their cases cannot compile. Both were ports of a template file no
 		// renderer ever parsed, and the live markup they duplicated is
 		// cliNotificationOOB and terminalContent (component_cli_terminal.templ).
@@ -325,7 +325,7 @@ var webTemplGoldenSpec = golden.Spec{
 			{Name: "empty", Data: dashboardHealth(webDashboardHealth(false))},
 		},
 	}},
-	// test-relax: dashboardOverview is deleted, so its two cases cannot compile.
+	// dashboardOverview is deleted, so its two cases cannot compile.
 	// No page rendered it: the Finder shell reaches workbenchDashboard, whose
 	// cases below still cover the same dashboardData.
 	"component_detail.templ": {{
@@ -379,7 +379,7 @@ var webTemplGoldenSpec = golden.Spec{
 			{Data: notificationError(notificationErrorData{Message: webNotificationErrorText})},
 		},
 	}},
-	// test-relax: the errorFragment component is gone. The looking glass and the
+	// the errorFragment component is gone. The looking glass and the
 	// chaos dashboard needed the same fragment, so the markup moved to
 	// internal/core/errorfragment, whose own tests hold its shape and its
 	// escaping. No template capture can reach it from here, and this package
@@ -421,7 +421,7 @@ var webTemplGoldenSpec = golden.Spec{
 			{Name: "root", Data: pathBarInner(&FragmentData{})},
 		},
 	}},
-	// test-relax: sidebar and sidebarSection are deleted, so their six cases
+	// sidebar and sidebarSection are deleted, so their six cases
 	// cannot compile. No page rendered either one. FragmentData.Sidebar survives
 	// because detail (component_detail.templ) reads its LENGTH to pick an empty
 	// state, and that reader keeps its own cases below.

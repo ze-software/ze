@@ -20,7 +20,7 @@ tmpfs=driver.py:mode=755:terminator=EOF_PY
 import os, signal, subprocess, sys
 from ze_api import wait_for_daemon_ready, wait_for_output
 
-# // test-relax: two WAITS replaced, no assertion touched. The hand-rolled
+# // two WAITS replaced, no assertion touched. The hand-rolled
 # daemon-readiness for-loop became ze_api.wait_for_daemon_ready (same 200x0.05s
 # budget, ratchet-exempt internal sleep), and the blind post-apply settle became
 # ze_api.wait_for_output. Every expect= below is unchanged and still evaluated

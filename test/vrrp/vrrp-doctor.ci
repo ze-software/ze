@@ -1,6 +1,6 @@
 # Test: every VRRP doctor code is explainable (spec-vrrp-5 AC-10).
 #
-# // test-relax: this file shrank because its cases MOVED, not because coverage
+# // this file shrank because its cases MOVED, not because coverage
 # dropped -- the two FIRING cases are asserted in vrrp-doctor-fires.ci and the
 # healthy-config case in vrrp-doctor-quiet.ci, both harder than here (each
 # command now asserts its OWN exit code via cmd=...:exit=N). Two runner facts

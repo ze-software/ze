@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-// test-relax: every test here used to reach its function through a cloned
+// every test here used to reach its function through a cloned
 // html/template and an ExecuteTemplate call. The function was reachable only
 // as a lgFuncMap entry. templ calls plain Go functions, so the funcMap is gone
 // and each function is called directly. The assertion count per test drops

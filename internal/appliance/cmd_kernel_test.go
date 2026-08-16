@@ -18,7 +18,7 @@ import (
 	"github.com/ze-software/ze/internal/core/env"
 )
 
-// test-relax: kernel-build-consolidation collapsed Go-side builder selection
+// kernel-build-consolidation collapsed Go-side builder selection
 // (selectBuilder, defaultDockerBuild, defaultQEMUBuild, dockerPlatform, the
 // docker/qemu *CheckFn/*BuildFn seams) into the single tools/kernel-builder/run.py
 // driver. The tests that exercised that removed Go logic (TestSelectBuilder*,

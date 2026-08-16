@@ -483,8 +483,6 @@ func TestReceivedUpdate_EBGPWireErrorDoesNotPublish(t *testing.T) {
 		t.Fatal("expected error from EBGPWire with truncated payload")
 	}
 
-	// test-relax: ebgpWireASN4/ebgpPoolBuf4 fields replaced by atomic ebgpSlotASN4;
-	// a nil slot covers both assertions (wire==nil AND handle not stored).
 	if s := update.ebgpSlotASN4.Load(); s != nil {
 		t.Error("ebgpSlotASN4 should be nil after error (no wire cached, no handle stored)")
 	}

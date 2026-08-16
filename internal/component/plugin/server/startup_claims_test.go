@@ -98,7 +98,7 @@ func TestAdvertiseClaimsCoversUnstartedClaimant(t *testing.T) {
 // claims_test.go, bgp-adj-rib-in's TestReplayOwnerDedupe -- stays green through
 // that edit: each owns one link and none owned the join.
 //
-// test-relax: an earlier draft of this same test (uncommitted, this session)
+// an earlier draft of this same test (uncommitted, this session)
 // also asserted a sequence number recorded at the configure callback was lower
 // than one recorded in a mock reactor's SignalPluginStartupComplete. That
 // assertion could not fail: the test itself calls deliverConfigRPC before

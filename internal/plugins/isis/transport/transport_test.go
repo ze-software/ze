@@ -511,7 +511,7 @@ func TestISISTransportEventOpensAndCloses(t *testing.T) {
 	// an enabled interface. The resolver delivers events under the logical name.
 	// PREVENTS: regressing the circuit lifecycle when the event source moved from
 	// the raw EventBus to the logical-name-aware resolver.
-	// test-relax: the bus.Emit("interface","up"/"down") assertions are removed
+	// the bus.Emit("interface","up"/"down") assertions are removed
 	// because IS-IS no longer subscribes to the raw EventBus for link events; the
 	// open/close lifecycle they covered is now driven (and asserted) through the
 	// injected resolver subscription (fake.emit) below -- replaced coverage, same

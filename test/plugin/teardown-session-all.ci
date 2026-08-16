@@ -268,7 +268,6 @@ def main():
     # keeps sessions out of the `established` state. Fall back to the
     # total count (any state) as long as at least one session exists
     # so the teardown-all iteration still has something to act on.
-    # // test-relax: hand-rolled for-loop + sleep(0.1) poll -> api.dispatch_until (ratchet-exempt internal sleep)
     def _two_sessions(r):
         if r.get('status') != 'done':
             return False
@@ -297,7 +296,6 @@ def main():
 
     # After teardown-all, no session should be in the `established`
     # state (already-closed sessions are allowed to linger briefly).
-    # // test-relax: hand-rolled for-else + sleep(0.1) poll -> api.dispatch_until (ratchet-exempt internal sleep)
     def _none_established(r):
         if r.get('status') != 'done':
             return False

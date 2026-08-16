@@ -86,8 +86,6 @@ def main():
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind(("127.0.0.1", 0))
     sock.settimeout(0.25)
-    # // test-relax: dropped a redundant pre-handshake settle sleep; the SCCRQ
-    # retransmit loop below already tolerates ze's L2TP listener not being ready.
     sccrp = None
     for _ in range(40):
         try:
@@ -166,7 +164,6 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # // test-relax: hand-rolled for-loop + sleep(0.1) poll -> api.dispatch_until (ratchet-exempt internal sleep)
     def _has_tunnel(r):
         if r.get('status') != 'done':
             return False
@@ -202,7 +199,6 @@ def main():
     # StopCCN is emitted; the engine retains the closed tunnel briefly
     # for reliable-delivery cleanup. Accept either absence or a
     # non-established state (see tunnel.go: L2TPTunnelClosed).
-    # // test-relax: hand-rolled for-else + sleep(0.1) poll -> api.dispatch_until (ratchet-exempt internal sleep)
     def _tunnel_torn_down(r):
         if r.get('status') != 'done':
             return False

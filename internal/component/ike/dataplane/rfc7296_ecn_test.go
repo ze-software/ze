@@ -15,7 +15,7 @@ import (
 // stays here is the cross-platform half of the mode mapping those two rest on, untagged
 // because on its own it does not prove Section 2.24.
 //
-// test-relax: the two RFC7296-2.24 tests that lived here are REPLACED, not weakened. They
+// the two RFC7296-2.24 tests that lived here are REPLACED, not weakened. They
 // asserted over a type literal's field names; their replacements named above drive
 // production code and are mutation-verified. The assertion count fell here because the
 // assertions moved to those files.

@@ -91,7 +91,7 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-		# test-relax: the static `update { nlri { ipv4/flow add ... } }` block that
+		# the static `update { nlri { ipv4/flow add ... } }` block that
 		# stood here is DELETED, and coverage goes up rather than down. It produced
 		# the announce in the observer's place, so the observer's own rejected
 		# command changed no asserted byte and the test passed while proving

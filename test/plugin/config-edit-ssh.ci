@@ -19,7 +19,7 @@ option=timeout:value=15s
 # so ze has a session to configure, and the run-script calls `request shutdown` at
 # post-startup.
 #
-# // test-relax: the ipv4/unicast EOR this block declared was unreachable BY
+# // the ipv4/unicast EOR this block declared was unreachable BY
 # CONSTRUCTION, not merely flaky: `request shutdown` fires while ze is still in the
 # OPEN handshake, so the peer logs "open recv / open sent / connection closed before
 # completion" and the EOR is never sent. The assertion could not fail for a real
@@ -81,7 +81,7 @@ def main():
     print('OK: command dispatch works', file=sys.stderr)
 
     # Shutdown.
-    # // test-relax: synchronous `request shutdown` dispatch -> shutdown_fire_and_forget.
+    # // synchronous `request shutdown` dispatch -> shutdown_fire_and_forget.
     # No assertion changed; this is teardown only. A synchronous dispatch races ze's
     # own socket close: when the close wins (routine under load) _call_engine blocks
     # for its 30s TLS read timeout (ze_api.py:341) then raises "no response for

@@ -92,8 +92,6 @@ func TestMenuModel_Navigation(t *testing.T) {
 		t.Errorf("after wrap down: cursor = %d, want 0", m.cursor)
 	}
 
-	// test-relax: j/k removed as navigation keys; letters now build the type-ahead filter
-	// Replaced coverage: TestMenuModel_Filter tests the type-ahead behavior
 }
 
 func TestMenuModel_NavigationBoundaries(t *testing.T) {
@@ -244,8 +242,6 @@ func TestMenuModel_QuitFromAnywhere(t *testing.T) {
 	m := menuModel{stack: testLevels(), width: 80, height: 24}
 	m.stack = append(m.stack, sub)
 
-	// test-relax: 'q' now types into filter; Esc is the quit key
-	// Esc at sub-level goes back, then Esc at top quits.
 	m = updateMenu(t, m, tea.KeyPressMsg{Code: tea.KeyEscape})
 	if m.quitting {
 		t.Error("first esc should go back, not quit")

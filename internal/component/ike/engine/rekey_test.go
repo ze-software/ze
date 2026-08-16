@@ -11,7 +11,7 @@ import (
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
-// test-relax: TestChildSARekeyInitiator removed -- the local-roll rekeyChildSA it
+// TestChildSARekeyInitiator removed -- the local-roll rekeyChildSA it
 // exercised was replaced by the real CREATE_CHILD_SA wire exchange (spec-ipsec-13).
 // Coverage moved to rekey_wire_test.go: TestInitiateChildRekey (request build),
 // TestApplyChildRekeyResponse (key derive + install, replaces the SPI/key asserts),
@@ -232,7 +232,7 @@ func TestSALifetimeZero(t *testing.T) {
 	}
 }
 
-// test-relax: TestIKESARekey removed -- the local-roll rekeyIKESA it exercised
+// TestIKESARekey removed -- the local-roll rekeyIKESA it exercised
 // (self-DH, which never touched the wire and silently desynced the tunnel) was
 // replaced by the real CREATE_CHILD_SA IKE SA rekey exchange (spec-ipsec-13).
 // Coverage moved to rekey_wire_test.go: TestInitiateIKERekey (request build +

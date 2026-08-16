@@ -1483,7 +1483,7 @@ func TestConfigFormIgnoresEmptyUnconfiguredLeaves(t *testing.T) {
 // schema says nothing about, this would prove only that a test can hand a
 // component a string.
 //
-// test-relax: the render half built a WorkbenchFormData by hand over a plain
+// the render half built a WorkbenchFormData by hand over a plain
 // system leaf and asserted the component masked it. The component no longer
 // decides that, and the leaf was never a secret. Both halves now run over a
 // real sensitive leaf, through the page that renders it.

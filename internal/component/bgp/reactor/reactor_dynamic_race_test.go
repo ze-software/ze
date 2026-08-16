@@ -45,7 +45,7 @@ func TestDynamicPeerSettingsRace(t *testing.T) {
 	r := &Reactor{peers: make(map[netip.AddrPort]*Peer)}
 	r.peers[settings.PeerKey()] = peer
 
-	// test-relax: the "other peer key" argument existed only for checkRouterIDConflict's
+	// the "other peer key" argument existed only for checkRouterIDConflict's
 	// self-exclusion. That scan is gone: the RFC 6286 Section 2.1 check is now a claim keyed
 	// on the peer itself, so the reader below reads THIS peer's PeerAS -- the same field, the
 	// same cross-goroutine race, one fewer indirection. No assertion is dropped.

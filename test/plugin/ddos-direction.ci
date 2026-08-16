@@ -8,7 +8,7 @@
 # PREVENTS:  direction being unset/wrong (e.g. defaulting to remote) for a box-owned
 #            victim.
 #
-# // test-relax: this test asserts the direction CLASSIFICATION only, not the INPUT-hook
+# // this test asserts the direction CLASSIFICATION only, not the INPUT-hook
 # drop install. The on-host drop needs the firewall nft backend, and loading it
 # (firewall {} block) deadlocked the daemon's command dispatch under the flood (the
 # firewall component and the ddos-local responder drive nft concurrently). The

@@ -2,12 +2,12 @@
 # it into an OUT-OF-TREE package (tmp/kernel/pkg). The pinned rtr7/kernel modcache
 # is read, never mutated in place, and no tracked file is written.
 #
-# // test-relax: kernel-build-consolidation replaced the in-place modcache overlay
+# // kernel-build-consolidation replaced the in-place modcache overlay
 # + .ze-pinned-kernel backup/restore with out-of-tree consumption. The old
 # assertions (modcache vmlinuz overwritten, backup created/restored,
 # MODULES=yes/PATCHES_DIR in the docker env) no longer apply.
 #
-# // test-relax: spec-gokrazy-builddir-tmp (AC-7/AC-8) then removed the tracked
+# // spec-gokrazy-builddir-tmp (AC-7/AC-8) then removed the tracked
 # go.mod replace that this test REQUIRED to be present after `make ze-kernel`.
 # The replace is now written into ze-gok's prepared copy of the instance, per
 # build, selected by KERNEL_PKG. The assertion is inverted and STRENGTHENED: the

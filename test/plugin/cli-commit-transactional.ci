@@ -57,7 +57,7 @@ def run(cmd, **kwargs):
     return result
 
 def wait_for_daemon(env):
-    # // test-relax: replaced a hand-rolled daemon-readiness deadline loop with
+    # // replaced a hand-rolled daemon-readiness deadline loop with
     # ze_api.wait_until (same 50x0.2s budget, ratchet-exempt internal sleep); the
     # 0.2s poll delay here was pacing over `show version`, not race-hiding.
     last = ['']

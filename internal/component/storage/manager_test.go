@@ -347,7 +347,7 @@ func TestCheckHealthResetsAfterRecovery(t *testing.T) {
 	}
 }
 
-// test-relax: removed the waitReady helper (and the production-only `ready`
+// removed the waitReady helper (and the production-only `ready`
 // channel it read). Stop() already waits on m.done for goroutine exit, so the
 // Start/Reconfigure tests need no separate readiness signal; the channel only
 // existed for tests, which is the smell being removed.

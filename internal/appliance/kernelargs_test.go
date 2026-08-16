@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-// test-relax: coverage MOVED, not dropped. TestDerivedInstanceConfigPreservesFields,
+// coverage MOVED, not dropped. TestDerivedInstanceConfigPreservesFields,
 // TestDerivedInstanceConfigNoBaseArgs, TestMaterializeDerivedParent,
 // TestMaterializeDerivedParentIsolatesConcurrentBuilds,
 // TestCopyBuildDirFailsClosedWithoutModules and

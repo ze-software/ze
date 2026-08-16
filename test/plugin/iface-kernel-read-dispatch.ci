@@ -17,7 +17,7 @@ tmpfs=iface-kernel-read.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 """Assert show route/neighbor/arp dispatch (wiring) through the daemon."""
 
-# // test-relax: authored this session, never previously green. The first draft
+# // authored this session, never previously green. The first draft
 # asserted handler-level errors (unknown family, --limit, invalid limit) and
 # case-insensitivity; running it showed the YANG ArgDef dispatcher rejects bad
 # family/limit values upstream (case-sensitively) before these handlers, and

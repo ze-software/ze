@@ -459,7 +459,7 @@ func TestStreamPingRealClockReaperTeardown(t *testing.T) {
 	waitGoroutines(t, base)
 }
 
-// test-relax: the id/source/v6 filter tests were rewritten (not weakened) to
+// the id/source/v6 filter tests were rewritten (not weakened) to
 // remove a false-green found in review. The old versions injected a bad reply
 // then a good reply for the SAME seq with no clock advance, so accepting the bad
 // reply was observationally identical to rejecting it. The two-probe ordering

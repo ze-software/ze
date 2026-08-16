@@ -42,7 +42,7 @@ func TestHasSection(t *testing.T) {
 	}
 }
 
-// test-relax: TestAISectionGuess removed with the aiSectionGuess feature it
+// TestAISectionGuess removed with the aiSectionGuess feature it
 // covered. The self-correcting wrong-guess hint was reverted as redundant with
 // the usage signpost and wrong-altitude (a per-command special case instead of
 // the generic suggest.Command engine). No source defect; the feature is gone.

@@ -1,4 +1,4 @@
-// test-relax: four capability-gate tests are replaced, not dropped, because the
+// four capability-gate tests are replaced, not dropped, because the
 // gate they asserted was itself the defect. `resources` is a member of
 // *ServerCapabilities*. The five ClientCapabilities members in MCP 2026-07-28
 // are `experimental`, `roots`, `sampling`, `elicitation` and `extensions`. No

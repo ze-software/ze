@@ -10,7 +10,7 @@
 // (ai/rules/testing.md). The ruling supersedes spec Q-1 (2026-07-17),
 // which settled only the grace DURATION and predates the 2026-07-27 void date
 // in ai/rules/rfc-compliance.md.
-// test-relax: every assertion this file lost ("hold timer must still be armed
+// every assertion this file lost ("hold timer must still be armed
 // after a graced expiry", "first expiry should be graced") asserted the REMOVED
 // grace branch. Each is replaced by its opposite below.
 

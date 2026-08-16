@@ -12,8 +12,6 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
-# // test-relax: dropped two duplicate urllib imports (already imported above,
-# left by an earlier same-file import edit); no test behavior change
 from ze_api import wait_until
 
 BASE_URL = 'https://127.0.0.1:18443'
@@ -35,7 +33,7 @@ def request(method, path, data=None, content_type=None):
     return urllib.request.urlopen(req, timeout=5, context=CTX)
 
 def wait_for_show(timeout=10):
-    # // test-relax: replaced a hand-rolled HTTP-readiness deadline loop with
+    # // replaced a hand-rolled HTTP-readiness deadline loop with
     # ze_api.wait_until (same 20x0.5s budget, ratchet-exempt internal sleep); the
     # 0.5s poll delay was pacing over the show endpoint, not race-hiding.
     def ready():
@@ -47,7 +45,7 @@ def wait_for_show(timeout=10):
     return wait_until(ready, attempts=20, delay=0.5)
 
 def wait_for_rbac(timeout=10):
-    # // test-relax: replaced a hand-rolled RBAC-active deadline loop with
+    # // replaced a hand-rolled RBAC-active deadline loop with
     # ze_api.wait_until (same 20x0.5s budget, ratchet-exempt internal sleep); the
     # 0.5s poll delay was pacing until the 403 appears, not race-hiding.
     form = urllib.parse.urlencode({'leaf': 'bad/name', 'value': 'probe'}).encode()

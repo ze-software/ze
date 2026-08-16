@@ -151,7 +151,7 @@ func TestFwdPool_SupersedingDifferentKeys(t *testing.T) {
 
 // TestFwdBatchKeepsQueuedOrder pins the order the handler sees.
 //
-// test-relax: this replaces the five AC-25 tests of fwdIsWithdrawal and
+// this replaces the five AC-25 tests of fwdIsWithdrawal and
 // fwdReorderWithdrawalsFirst, both deleted. The reorder hoisted every
 // withdrawal ahead of every announcement, which inverts an announce and a
 // withdraw of ONE prefix and leaves the peer holding a route that was

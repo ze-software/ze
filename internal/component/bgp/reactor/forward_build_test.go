@@ -259,7 +259,7 @@ func TestProgressiveBuildMultiOps(t *testing.T) {
 // (OTC, code 35) a missing handler would send the route without the attribute
 // Section 5 requires, so skip-and-copy is an RFC violation, not a safe fallback.
 //
-// test-relax: SUPERSEDES AC-18 ("ops skipped, source copied"). Thomas ruled
+// SUPERSEDES AC-18 ("ops skipped, source copied"). Thomas ruled
 // 2026-08-01 that correctness governs and there is one correct way forward. The
 // panic half of AC-18's concern is still met by safeAttrModHandler's recover;
 // only its skip-and-forward conclusion is reversed. See modifyFailure.failed.
@@ -375,7 +375,7 @@ func TestProgressiveBuildAttrLenBackfill(t *testing.T) {
 // PREVENTS: a panic crashing the forward path, and separately, a recovered panic
 // silently forwarding a route whose modification never happened.
 //
-// test-relax: SUPERSEDES the previous "attrs unchanged after panic" expectation.
+// SUPERSEDES the previous "attrs unchanged after panic" expectation.
 // Recovery copies the source through, which produced a valid payload and a
 // success verdict, so the route went out unmodified. Thomas ruled 2026-08-01
 // that correctness governs. The panic-containment half is unchanged.
@@ -472,10 +472,6 @@ func TestProgressiveBuildMalformedPayload(t *testing.T) {
 // PREVENTS: the crash, and separately the RFC 9234 hole -- code 35 is OTC, so
 // forwarding after a failed add sends a route without the attribute Section 5
 // requires.
-//
-// test-relax: SUPERSEDES "only ORIGIN preserved after new-attr handler panic".
-// Thomas ruled 2026-08-01 that correctness governs. Panic containment is
-// unchanged; only the forward-anyway conclusion is reversed.
 func TestProgressiveBuildNewAttrHandlerPanic(t *testing.T) {
 	origin := makeAttr(0x40, 1, []byte{0x00})
 	payload := buildModTestPayload(origin, modTestNLRI)
@@ -540,7 +536,7 @@ func TestProgressiveBuildInvalidHandlerOffset(t *testing.T) {
 		var mods filterapi.ModAccumulator
 		mods.Op(5, filterapi.AttrModSet, []byte{0, 0, 0, 0})
 
-		// test-relax: SUPERSEDES "should fall back to source copy, not abandon".
+		// SUPERSEDES "should fall back to source copy, not abandon".
 		// An out-of-range offset means the handler's operations never landed, so
 		// the route must not go out. Thomas ruled 2026-08-01 that correctness
 		// governs.
@@ -568,7 +564,7 @@ func TestProgressiveBuildInvalidHandlerOffset(t *testing.T) {
 		var mods filterapi.ModAccumulator
 		mods.Op(5, filterapi.AttrModSet, []byte{0, 0, 0, 0})
 
-		// test-relax: SUPERSEDES "should fall back to source copy, not abandon".
+		// SUPERSEDES "should fall back to source copy, not abandon".
 		// An out-of-range offset means the handler's operations never landed, so
 		// the route must not go out. Thomas ruled 2026-08-01 that correctness
 		// governs.
@@ -590,9 +586,6 @@ func TestProgressiveBuildInvalidHandlerOffset(t *testing.T) {
 		var mods filterapi.ModAccumulator
 		mods.Op(35, filterapi.AttrModSet, []byte{0, 0, 0xFD, 0xE8})
 
-		// test-relax: same reversal -- the attribute the policy asked to add was
-		// never written, so forwarding emits a route missing it. For code 35
-		// that is the RFC 9234 OTC attribute.
 		result, _, fail := buildModifiedPayload(payload, &mods, map[uint8]filterapi.AttrModHandler{35: badHandler}, nil, nil)
 		assert.True(t, fail.failed(), "an invalid new-attr offset must suppress")
 		assert.Nil(t, result, "no payload is handed out")
@@ -604,7 +597,7 @@ func TestProgressiveBuildInvalidHandlerOffset(t *testing.T) {
 // PREVENTS: Panic or truncation when a handler expands an attribute past what a
 // message can carry.
 //
-// test-relax: the MECHANISM this test drives changed and the assertion did not.
+// the MECHANISM this test drives changed and the assertion did not.
 // "The handler filled the slack buffer and left no room for the next verbatim
 // copy" is no longer reachable: the buffer is sized from the plan, so it always
 // has exactly the room the plan needs. The surviving overflow is an expansion

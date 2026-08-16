@@ -53,7 +53,7 @@ def main():
     api.ready()
     api.wait_for_post_startup(timeout=5.0)
 
-    r = api.dispatch_until_done('show bfd sessions')  # // test-relax: hand-rolled status==done poll -> dispatch_until_done
+    r = api.dispatch_until_done('show bfd sessions')
     if r is None or r.get('status') != 'done':
         status = r.get('status') if r else 'nil'
         data = result_text_data(r) if r else ''

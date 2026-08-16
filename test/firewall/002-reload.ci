@@ -16,7 +16,6 @@ import os, shutil, signal, subprocess, sys
 
 from ze_api import wait_until
 
-# // test-relax: daemon-readiness for-loop -> ze_api.wait_until (ratchet-exempt sleep).
 if not wait_until(lambda: os.path.exists("daemon.pid") and os.path.exists("daemon.ready"),
                   attempts=200, delay=0.05):
     sys.exit("daemon readiness files missing")

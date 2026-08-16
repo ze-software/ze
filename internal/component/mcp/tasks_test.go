@@ -1,4 +1,4 @@
-// test-relax: TestTaskRegistry_CancelAllForSession,
+// TestTaskRegistry_CancelAllForSession,
 // TestTaskNotifications_StatusFrameShape and TestBuildTaskStatusNotification
 // are removed with their subjects. CancelAllForSession canceled a session's
 // tasks when the session expired, and MCP 2026-07-28 has no sessions to expire.
@@ -126,7 +126,7 @@ func TestTaskRegistry_IdentityScope(t *testing.T) {
 	if _, err := r.Get("bob", id); !errors.Is(err, errTaskNotFound) {
 		t.Errorf("cross-identity Get: got %v, want errTaskNotFound", err)
 	}
-	// test-relax: registry.Result and registry.List no longer exist. MCP
+	// registry.Result and registry.List no longer exist. MCP
 	// 2026-07-28 changelog Major change 6 removed the tasks/result and
 	// tasks/list methods that backed them. The two cross-identity assertions
 	// that named those methods therefore cannot be written. The scoping
@@ -380,7 +380,7 @@ func TestTasksCancelAcknowledgesWithAnEmptyResult(t *testing.T) {
 // folded into the low clamp -- 0 means "no TTL was configured", which must
 // yield the default, not the 1s floor.
 //
-// test-relax: the clamp moved from a registry METHOD on the per-create path to
+// the clamp moved from a registry METHOD on the per-create path to
 // a package function called once by newTaskRegistry. The client-requested TTL
 // branch died with params.task (D-1), so TaskRegistryConfig.TTL is the only TTL
 // input left and the bound belongs where it enters. Every case below is kept;
@@ -499,7 +499,7 @@ func TestTaskRegistry_TransitionAndResult(t *testing.T) {
 
 	id, _, _, _ := r.Create("alice")
 
-	// test-relax: registry.Result is gone with tasks/result (changelog Major
+	// registry.Result is gone with tasks/result (changelog Major
 	// change 6). The payload now rides on the Get snapshot. registry.Result
 	// proved that a task in the working state exposes no result. The assertions
 	// below prove that same property directly rather than through a removed
@@ -902,9 +902,6 @@ func TestTaskWorker_DispatchCompletesAndStores(t *testing.T) {
 	// Give the goroutine a moment to finish transition.
 	waitForState(t, r, id, TaskCompleted)
 
-	// test-relax: registry.Result is gone with tasks/result; the completed
-	// task's payload is read from the Get snapshot instead. Same assertion,
-	// surviving accessor.
 	info, err := r.Get("alice", id)
 	if err != nil {
 		t.Fatalf("Get: %v", err)

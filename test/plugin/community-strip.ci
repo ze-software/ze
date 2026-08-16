@@ -39,7 +39,7 @@ stdin=dest:terminator=EOF_DEST
 option=tcp_connections:value=1
 option=timeout:value=20s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FDE80000FDE940030401010101180A0000
-# // test-relax: the removed End-of-RIB rule was unsatisfiable by construction, so
+# // the removed End-of-RIB rule was unsatisfiable by construction, so
 # it asserted nothing and only produced a red that the runner used to mask. This
 # peer's EOR is emitted by its OWN initial sync the moment it establishes
 # (peer_initial_sync.go), which is BEFORE the source peer's route is forwarded to
@@ -59,7 +59,6 @@ tmpfs=test-strip.run:mode=755:terminator=EOF_RUN
 import json
 import sys
 from ze_api import API, runtime_fail, result_json_data, result_text_data
-# // test-relax: removed unused 'import time'; settle sleep replaced by dispatch_until + quiesce
 
 def dispatch(api, command):
     resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})

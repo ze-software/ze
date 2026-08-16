@@ -9,7 +9,7 @@
 # runs `clear vpn ipsec sa` and asserts it dispatches the clear-all action to the
 # engine -- the operator teardown command exercised against a live SA.
 #
-# // test-relax: the original revision asserted the sa-up EVENT before the clear
+# // the original revision asserted the sa-up EVENT before the clear
 # and a second sa-up after it (re-establishment). The event leg is dropped here:
 # the sa-up event path is namespace-locked to bgp (dispatch.go
 # registerSubscriptions), a product gap deferred to

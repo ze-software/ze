@@ -18,7 +18,7 @@ import os, signal, subprocess, sys
 
 from ze_api import wait_until
 
-# // test-relax: hand-rolled daemon-readiness for-loop -> ze_api.wait_until (same
+# // hand-rolled daemon-readiness for-loop -> ze_api.wait_until (same
 # 200x0.05s budget, ratchet-exempt internal sleep); paced marker polling, not a race.
 if not wait_until(lambda: os.path.exists("daemon.pid") and os.path.exists("daemon.ready"),
                   attempts=200, delay=0.05):

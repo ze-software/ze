@@ -833,7 +833,7 @@ func TestHasConfigLoader(t *testing.T) {
 	assert.True(t, s.HasConfigLoader(), "should be true after SetConfigLoader")
 }
 
-// test-relax: TestDiffMapsLocal removed — the private server-local map-diff helper it
+// TestDiffMapsLocal removed — the private server-local map-diff helper it
 // exercised is deleted; the surviving canonical config.DiffMaps is covered by the 12
 // tests in internal/component/config/diff_test.go (spec-unify-config-diff, R-2).
 

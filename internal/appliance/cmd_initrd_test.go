@@ -139,7 +139,7 @@ func TestInitrdFallsBackToLocalBuild(t *testing.T) {
 	}
 }
 
-// test-relax: the old "missing build tools" path tested cpio/gzip lookup failure.
+// the old "missing build tools" path tested cpio/gzip lookup failure.
 // The initrd build no longer uses external cpio/gzip (pure Go cpio+compress/gzip),
 // so that path is unreachable. This test verifies the build fails clearly when
 // the Go source is absent (e.g., running from a detached temp dir).
@@ -159,7 +159,7 @@ func TestInitrdFailsWhenBuildFails(t *testing.T) {
 	}
 }
 
-// test-relax: cache inputs changed from shell files (tools/installer-initrd/{init,Makefile})
+// cache inputs changed from shell files (tools/installer-initrd/{init,Makefile})
 // to Go sources (cmd/ze-installer/main.go, internal/install/disk/*_linux.go) because the
 // initrd build was rewritten from busybox+shell to a pure-Go binary. The old
 // TestInitrdInitScriptInvalidatesCache and TestInitrdMakefileInvalidatesCache are replaced

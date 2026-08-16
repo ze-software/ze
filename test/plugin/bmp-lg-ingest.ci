@@ -97,7 +97,6 @@ def main():
 
     # Poll show bmp rib until the injected 10.0.0.0/24 route lands (BMP ingest is
     # async over the raw socket); replaces blind inter-send + settle sleeps.
-    # // test-relax: dropped 2x0.2 inter-send + 1.0 settle sleeps -> dispatch_until on 10.0.0.0 present
     result = api.dispatch_until(
         'show bmp rib',
         lambda r: any(
@@ -123,7 +122,6 @@ def main():
     print('PASS: BMP route 10.0.0.0/24 found in show bmp rib', file=sys.stderr, flush=True)
     sock.close()
 
-    # // test-relax: dropped 0.5 pre-shutdown pad; shutdown dispatch is synchronous
     dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 

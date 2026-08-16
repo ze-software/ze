@@ -31,7 +31,6 @@ import os, signal, subprocess, sys
 
 from ze_api import wait_until
 
-# // test-relax: daemon-readiness for-loop -> ze_api.wait_until (ratchet-exempt sleep).
 if not wait_until(lambda: os.path.exists("daemon.pid") and os.path.exists("daemon.ready"),
                   attempts=200, delay=0.05):
     sys.exit("daemon readiness files missing")
@@ -39,9 +38,6 @@ if not wait_until(lambda: os.path.exists("daemon.pid") and os.path.exists("daemo
 with open("daemon.pid") as f:
     pid = int(f.read().strip())
 
-# // test-relax: `ze cli show static` needs SSH the static config does not declare;
-# verify the kernel FIB directly. Wait for the initial route to be programmed
-# before reloading.
 def _initial():
     out = subprocess.run(["ip", "route", "show", "table", "all"], capture_output=True, text=True).stdout
     return "10.0.0.0/8" in out
@@ -68,8 +64,6 @@ with open("ze-bgp.conf", "w") as f:
 
 os.kill(pid, signal.SIGHUP)
 
-# // test-relax: fixed post-SIGHUP sleep + SSH show -> poll the kernel FIB until
-# the newly added route appears.
 _out = {}
 def _reloaded():
     _out["s"] = subprocess.run(["ip", "route", "show", "table", "all"], capture_output=True, text=True).stdout

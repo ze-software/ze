@@ -48,7 +48,7 @@ func TestGokrazyAutoInitCreatesDB(t *testing.T) {
 }
 
 func TestGokrazyAutoInitReadOnlyFails(t *testing.T) {
-	// test-relax: skip as root rather than assert a condition root cannot be in.
+	// skip as root rather than assert a condition root cannot be in.
 	// The test provokes the failure with a permission BIT (0555), but root holds
 	// CAP_DAC_OVERRIDE and MkdirAll succeeds regardless, so gokrazyAutoInit
 	// correctly returns nil and the assertion is simply unprovokable here.

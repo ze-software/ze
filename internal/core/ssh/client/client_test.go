@@ -277,7 +277,7 @@ func TestReadCredentialsNoStoreFlagAndEnv(t *testing.T) {
 // owned by someone else, which is what a non-installing user actually hits.
 // PREVENTS: classifying permission-denied as fatal rather than "no store for me".
 func TestReadCredentialsUnreadableStoreFlagAndEnv(t *testing.T) {
-	// test-relax: chmod cannot deny access to root, so this permission-denied
+	// chmod cannot deny access to root, so this permission-denied
 	// condition is unobservable when the suite runs as root. The identical
 	// resolution path is covered unconditionally by TestReadCredentialsNoStoreFlagAndEnv
 	// (not-exist branch); only the errors.Is(fs.ErrPermission) classification is

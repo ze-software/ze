@@ -147,7 +147,7 @@ func listModules(t *testing.T, dir, modcache string) (string, error) {
 // pins from one that silently fetched newer versions; only comparing the
 // resolved graph does.
 //
-// test-relax: the two t.Skip calls below are ENVIRONMENT guards on a new test,
+// the two t.Skip calls below are ENVIRONMENT guards on a new test,
 // not a relaxation of existing coverage. They fire only outside a full checkout
 // or before `make ze-gokrazy-deps` has populated the cache, where no baseline
 // exists to compare against. The test cannot skip its way to a false pass: if
@@ -210,7 +210,7 @@ func TestPreparedModulesResolveIdenticallyToTracked(t *testing.T) {
 			// actionable: when every module lost its baseline the run ended at the
 			// zero-comparison Fatal below with no indication of WHY go could not
 			// resolve, which is exactly the state the QEMU unit phase reported.
-			// test-relax: a third ENVIRONMENT guard, in the same spirit as the two
+			// a third ENVIRONMENT guard, in the same spirit as the two
 			// documented on this test already, not a relaxed assertion. A missing Go
 			// TOOLCHAIN is a prerequisite rather than a cache gap, and it strips every
 			// module of its baseline at once -- so the zero-comparison Fatal below

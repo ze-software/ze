@@ -141,7 +141,7 @@ def find_metric_value(metrics_text, prefix):
 #     deadline, which asserts the conformant timing instead of the reprieve.
 # (2) `is None` on a bool-returning api.wait_until left the runtime_fail branch
 #     dead; `not` makes the OK: line a real assertion.
-# // test-relax: the graced-counter poll and its runtime_fail asserted a REMOVED
+# // the graced-counter poll and its runtime_fail asserted a REMOVED
 #     branch over a REMOVED metric, so neither can be inverted in place. The
 #     teardown assertion that replaces them is strictly stronger: it was
 #     unbounded (120 attempts, 30 s) and is now bounded to 5 s, which is under

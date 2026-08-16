@@ -39,7 +39,6 @@ def wait_for_rest(timeout=10):
             return True
         except (urllib.error.URLError, ConnectionRefusedError, OSError):
             return False
-    # // test-relax: hand-rolled REST retry loop -> wait_until(REST /commands reachable)
     if not wait_until(_ok, attempts=max(1, int(timeout / 0.2)), delay=0.2):
         raise RuntimeError('REST API did not respond')
 

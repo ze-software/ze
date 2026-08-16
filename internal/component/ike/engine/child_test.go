@@ -364,7 +364,7 @@ func TestChildSAReplayRequiresIntegrity(t *testing.T) {
 	}
 }
 
-// test-relax: TestNarrowTS tested narrowTS, a function with NO non-test caller, which
+// TestNarrowTS tested narrowTS, a function with NO non-test caller, which
 // this change deletes (ai/rules/no-layering.md: delete X before implementing Y). Its
 // RFC4301-4.4.2-1 tag claimed the narrowed result reached a Child SA install; no
 // production path ever called it, so the tag proved nothing. The obligation is re-bound

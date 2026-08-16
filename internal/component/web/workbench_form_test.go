@@ -166,7 +166,7 @@ func TestRenderWorkbenchForm_DisabledField(t *testing.T) {
 // where view-source, the disk cache and any proxy reading the document can read
 // it. type="password" masks the characters on screen and nothing else.
 //
-// test-relax: this drove workbenchForm with a hand-built password field. It
+// this drove workbenchForm with a hand-built password field. It
 // proved the component masked what a test handed it, which is not the property.
 // The page builds its own fields out of tree reads. A sensitive leaf typed as
 // text went out in the clear underneath a green bar here. The producer is

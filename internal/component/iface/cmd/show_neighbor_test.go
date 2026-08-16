@@ -42,7 +42,7 @@ func TestHandleShowNeighbor_UnknownFamilyRejects(t *testing.T) {
 	assert.Contains(t, resp.Error, "ipv6")
 }
 
-// test-relax: removed TestHandleShowNeighbor_FamilyCaseInsensitive -- the CLI is
+// removed TestHandleShowNeighbor_FamilyCaseInsensitive -- the CLI is
 // case-sensitive by design. The dispatcher validates the `family` enum against
 // the YANG leaf (lowercase) before this handler runs, so the handler never sees
 // an uppercase token; a case-insensitivity test asserted a non-feature.

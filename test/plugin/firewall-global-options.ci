@@ -30,7 +30,6 @@ import json
 import sys
 
 from ze_api import API, runtime_fail, result_json_data, result_text_data
-# // test-relax: removed unused 'import time'; lead-in sleep + range/sleep poll -> dispatch_until
 
 
 def dispatch(api, command):
@@ -69,7 +68,6 @@ def main():
         have = {e['key']: e for e in rows if isinstance(e, dict)}
         return all(k in have and have[k].get('value') == v for k, v in expected.items())
 
-    # // test-relax: dropped post-ready lead-in sleep(1.0) + range/sleep(0.25) poll -> dispatch_until until firewall-driven sysctl entries land
     r = api.dispatch_until('show sysctl', sysctl_ready, attempts=40)
     if r is None or r.get('status') != 'done':
         status = r.get('status') if r else 'nil'

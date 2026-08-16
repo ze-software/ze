@@ -202,7 +202,7 @@ func TestReconcileReattachesOnMaxEntriesChange(t *testing.T) {
 	}
 }
 
-// test-relax: onSnapshot no longer reads the snapshot slice -- the lifecycle is
+// onSnapshot no longer reads the snapshot slice -- the lifecycle is
 // now driven by re-resolving each configured name via the injected resolver
 // (iface.Resolve in production, honoring os-name/mac-match). The down/up/absent
 // coverage below is preserved, driven through a mutable stub resolver instead of

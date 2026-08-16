@@ -136,7 +136,7 @@ func TestWriterLimitIsHard(t *testing.T) {
 	if bounded.Len() != headerOnly {
 		t.Fatalf("refused write still emitted %d bytes", bounded.Len()-headerOnly)
 	}
-	// test-relax: Writer.Written() was removed as exported API with no non-test
+	// Writer.Written() was removed as exported API with no non-test
 	// caller (ai/rules/completion.md). The byte-level fact it asserted is the
 	// same one bounded.Len() asserts three lines above, against the sink the
 	// Writer actually wrote to, so no coverage is lost.

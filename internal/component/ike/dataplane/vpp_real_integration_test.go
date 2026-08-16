@@ -68,7 +68,7 @@ func TestVPPRealDataplaneInstalls(t *testing.T) {
 	if err := conn.Connect(ctx, 10, time.Second); err != nil {
 		t.Fatalf("connect to VPP at %s: %v", socket, err)
 	}
-	// test-relax: Connector.Close returns nothing (component/vpp/conn.go), so there is
+	// Connector.Close returns nothing (component/vpp/conn.go), so there is
 	// no error to assert here. The assertion below it, on the backend's own Close,
 	// stays.
 	defer conn.Close()
@@ -83,7 +83,7 @@ func TestVPPRealDataplaneInstalls(t *testing.T) {
 	realVPPCloseRemovesWhatItInstalled(t, conn, swIfIndex)
 
 	b := &vppBackend{conn: conn, ch: ch}
-	// test-relax: the deferred `b.Close()` assertion that stood here is MOVED, not
+	// the deferred `b.Close()` assertion that stood here is MOVED, not
 	// dropped. Close now DELETES the SAs and the SPD this backend installed, so
 	// closing here would leave the AC-7 assertions nothing to read: they run against
 	// VPP after this process exits. realVPPCloseRemovesWhatItInstalled above asserts

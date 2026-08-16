@@ -31,7 +31,7 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# // test-relax: the peer block moves OUT of the initial config and into
+# // the peer block moves OUT of the initial config and into
 # config2.conf below (it is not deleted -- see the identical block there). This
 # is the fix, not a relaxation: while the peer existed up-front, both
 # expectations were satisfiable PRE-reload, the check peer exited, and the
@@ -95,7 +95,7 @@ EOF_CONF2
 
 # Trigger: reload with interface + peer config as soon as the daemon is ready.
 #
-# // test-relax: the two `sleep 2` lines and the trailing `kill -TERM` are
+# // the two `sleep 2` lines and the trailing `kill -TERM` are
 # REMOVED, and an `expect=stderr` assertion is added in their place, so the
 # file's assertion count goes up, not down. The sleeps were the defect: the
 # first one let the check peer finish and the runner kill the daemon before the

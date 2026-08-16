@@ -86,7 +86,7 @@ def main():
     # quiesce drains the forward pool AND each peer's initial-sync opQueue, so
     # after it returns the dest has been either sent the route or refused it --
     # which is what makes the "still 0" assertion below mean something.
-    # // test-relax: dispatch_until(adj-rib-in total-routes>=1) is gone. It polled a
+    # // dispatch_until(adj-rib-in total-routes>=1) is gone. It polled a
     # // counter that only status()'s ribIn feeds, the non-lingering source had
     # // already been torn down by then, so it burned its full 5s budget every run;
     # // quiesce then burned the full 10s quiesceTimeout waiting on that dead peer's

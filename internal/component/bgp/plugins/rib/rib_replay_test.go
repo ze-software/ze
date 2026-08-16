@@ -172,7 +172,7 @@ func TestReplayHashIncludesAllCommunities(t *testing.T) {
 
 // TestReplayEmptyRibOut verifies an empty ribOut collects to an empty group set.
 //
-// test-relax: the previous body asserted nothing about ze. It declared a nil
+// the previous body asserted nothing about ze. It declared a nil
 // slice, ran `if len(groups) == 0 { commands = append(..., "plugin session ready") }`
 // INLINE in the test, and asserted on the result: a tautology over the Go
 // language that called no production function and stayed green for the entire

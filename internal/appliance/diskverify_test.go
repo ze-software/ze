@@ -1,6 +1,5 @@
 // VALIDATES: AC-1 (silent debugfs failure caught), AC-2 (content mismatch), AC-3 (e2fsck)
 // PREVENTS: bricked appliance from silently failed inject
-// test-relax: size/content mismatch tests replaced by bytes.Contains check (pure Go, no debugfs dump)
 
 package appliance
 

@@ -24,9 +24,6 @@ EOF_PEER
 # Python observer: emit fakeredist event for ipv6/unicast (rule covers ipv4/unicast only).
 tmpfs=filtered-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
-# // test-relax: `import time` removed because its only user, the blind
-# time.sleep(2.0) drain, is REPLACED by assert_peer_received_only_eor (a real
-# barrier plus a real absence assertion). No expectation is dropped.
 from ze_api import API, runtime_fail
 
 

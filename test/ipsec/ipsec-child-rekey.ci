@@ -18,7 +18,7 @@
 # end. (A colon-bearing needle: the engine-steps contains= parser keeps colons,
 # see engine_steps.go parseEngineExpectContains.)
 #
-# // test-relax: the original revision asserted the sa-up / child-up /
+# // the original revision asserted the sa-up / child-up /
 # child-rekey EVENTS. The event path is namespace-locked to bgp (dispatch.go
 # registerSubscriptions) -- a product gap deferred to
 # spec-fixit-plugin-event-subscription. Rekey completion is asserted here via the

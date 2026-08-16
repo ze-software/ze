@@ -139,7 +139,7 @@ option=await_eor:value=true
 # and exactly what an older speaker is allowed to send us.
 action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003A02000418AC1000001B4001010040020602010000FDE94003040101010140050400000064180A0000
 
-# // test-relax: NEITHER peer declares an End-of-RIB expectation, and that is deliberate
+# // NEITHER peer declares an End-of-RIB expectation, and that is deliberate
 # rather than an omission. Checker.check (internal/test/peer/checker.go:414-418) silently
 # accepts an unmatched KEEPALIVE or EOR, precisely because initial route sync races the read
 # loop. Declaring the EOR opts INTO that race instead of out of it: whichever of the EOR and
@@ -170,7 +170,7 @@ EOF_PEER
 # Observer: shut down cleanly after forwarding completes.
 tmpfs=shutdown-after-up.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
-# // test-relax: the observer's synchronous `show bgp summary` eor-sent poll +
+# // the observer's synchronous `show bgp summary` eor-sent poll +
 # `request shutdown` is replaced by ze_api.run_rs_observer -- event-driven readiness
 # (subscribe + wait_for_event on the async channel) plus a fire-and-forget shutdown.
 # A more robust rewrite, not a relaxation: same "wait until the RS replayed to every

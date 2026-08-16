@@ -75,7 +75,7 @@ def trigger_outgoing_call():
             return True
         except (urllib.error.URLError, ConnectionRefusedError, OSError):
             return False
-    # // test-relax: hand-rolled REST-readiness deadline loop -> ze_api.wait_until
+    # // hand-rolled REST-readiness deadline loop -> ze_api.wait_until
     # (same 40x0.3s budget, ratchet-exempt internal sleep); paced REST polling, not a race.
     wait_until(_rest_up, attempts=40, delay=0.3)
     payload = json.dumps(

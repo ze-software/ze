@@ -23,7 +23,6 @@ REST_URL = f'http://127.0.0.1:{REST_PORT}/api/v1/commands'
 
 def wait_for_rest(api, url, timeout=10):
     """Poll REST endpoint until it responds; return body bytes or None."""
-    # // test-relax: blind time.sleep poll -> api.wait_until(HTTP GET ok)
     captured = {}
     def _ok():
         try:
@@ -108,7 +107,7 @@ def main():
         # Also test execute endpoint. Assert on the PAYLOAD, not just the
         # status: the endpoint must actually answer the command it advertises.
         exec_url = f'http://127.0.0.1:{REST_PORT}/api/v1/execute'
-        # // test-relax: NO assertion removed -- the inline
+        # // NO assertion removed -- the inline
         # Request/urlopen/json.loads block moved into post_execute() above, which
         # is strictly STRONGER: urlopen raised on the failure this call exists to
         # catch, and the raise escaped to the excepthook only after ze had already

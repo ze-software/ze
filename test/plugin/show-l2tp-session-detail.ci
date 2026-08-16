@@ -26,7 +26,7 @@ option=timeout:value=20s
 # ze-peer runs as a sink: only a dial target, asserts nothing. This test is about
 # `show l2tp session detail`; the BGP peer exists so ze has a session to configure.
 #
-# // test-relax: the ipv4/unicast EOR this block declared was unreachable BY
+# // the ipv4/unicast EOR this block declared was unreachable BY
 # CONSTRUCTION -- the run-script calls `request shutdown` at post-startup, so ze
 # closes during the OPEN handshake ("open recv / open sent / connection closed
 # before completion") and the EOR is never sent. It could not fail for a real
@@ -231,7 +231,6 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # // test-relax: hand-rolled for-loop + sleep(0.1) poll -> api.dispatch_until (ratchet-exempt internal sleep)
     def _has_session(r):
         if r.get('status') != 'done':
             return False

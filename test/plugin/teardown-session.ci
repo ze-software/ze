@@ -261,7 +261,6 @@ def main():
     if not eor_on_wire(synced):
         runtime_fail('peer1 never sent its initial-sync End-of-RIB')
 
-    # // test-relax: hand-rolled for-loop + sleep(0.1) poll -> api.dispatch_until (ratchet-exempt internal sleep)
     def _has_session(r):
         if r.get('status') != 'done':
             return False
@@ -291,7 +290,6 @@ def main():
         runtime_fail(f'teardown payload session-id={payload.get("session-id")!r} want {local_sid}')
 
     # Accept absence or non-established state.
-    # // test-relax: hand-rolled for-else + sleep(0.1) poll -> api.dispatch_until (ratchet-exempt internal sleep)
     def _torn_down(r):
         if r.get('status') != 'done':
             return False

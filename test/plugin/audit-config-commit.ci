@@ -30,7 +30,6 @@ def wait_for_rest(url, timeout=10):
             return True
         except (urllib.error.URLError, ConnectionRefusedError, OSError):
             return False
-    # // test-relax: blind 0.5s backoff -> wait_until poll (ratchet-exempt internal sleep)
     return wait_until(ok, attempts=max(1, int(timeout / 0.5)), delay=0.5)
 
 def request(method, path, payload=None):
@@ -83,7 +82,6 @@ def main():
             sys.exit(1)
         print('OK: REST config commit succeeded', file=sys.stderr)
 
-        # // test-relax: blind 0.5s sleep -> poll show audit until the config-commit entry lands
         result = api.dispatch_until(
             'show audit action config-commit',
             lambda r: len(result_json_data(r, {}).get('entries', [])) > 0,

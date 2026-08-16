@@ -257,7 +257,7 @@ func TestProbeTickWithdraws(t *testing.T) {
 	}
 }
 
-// test-relax: TestAllowlistedTargetNotAnnounced reworked into
+// TestAllowlistedTargetNotAnnounced reworked into
 // TestSuppressMitigationNotAnnounced -- the allowlist moved to the detector policy;
 // the responder now honors the event's SuppressMitigation flag instead of a local list.
 func TestSuppressMitigationNotAnnounced(t *testing.T) {

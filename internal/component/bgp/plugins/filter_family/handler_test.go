@@ -52,8 +52,6 @@ func TestHandleRemoveMixedStrips(t *testing.T) {
 	require.Equal(t, sdk.FilterModify, out.Action)
 	require.NotEmpty(t, out.Raw)
 
-	// test-relax: out.Raw is now a raw []byte (rib-arch-2), not a hex string, so
-	// there is no decode step / decode-error to assert -- use the bytes directly.
 	body := out.Raw
 	hasMP := familyFromMPOnly(body)
 	assert.False(t, hasMP, "MP_REACH must be stripped")

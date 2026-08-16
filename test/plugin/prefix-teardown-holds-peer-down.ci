@@ -79,7 +79,7 @@ expect=stderr:contains=peer held down
 expect=stderr:contains=family=ipv4/unicast
 expect=stderr:contains=reconnect=never
 
-# // test-relax: a `reject=stderr:pattern=attempt=2` clause stood here, meant to
+# // a `reject=stderr:pattern=attempt=2` clause stood here, meant to
 # prove the peer never dialed again. It is removed before this test is ever
 # promoted, because it CANNOT fail: the reconnect floor is 5 seconds
 # (DefaultReconnectMin, peer.go) and the daemon is stopped about 2 seconds in,

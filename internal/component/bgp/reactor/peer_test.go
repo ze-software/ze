@@ -1279,7 +1279,7 @@ func TestPeerTeardownQueuesMessage(t *testing.T) {
 	peer.mu.RUnlock()
 }
 
-// test-relax: MVPNRoute / mvpnRouteGroupKey / groupMVPNRoutesByKey were removed by
+// MVPNRoute / mvpnRouteGroupKey / groupMVPNRoutesByKey were removed by
 // spec-route-config-plugin-migration. MVPN route grouping is now the reactor's generic
 // pluginRouteGroupKey (keyed on family + next-hop + AS_PATH + LOCAL_PREF + raw attrs,
 // which carry origin/MED/ext-comm/originator/cluster); grouping is verified byte-for-byte

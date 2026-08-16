@@ -108,8 +108,6 @@ def main():
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind(("127.0.0.1", 0))
     sock.settimeout(0.25)
-    # // test-relax: dropped a redundant pre-handshake settle sleep; the SCCRQ
-    # retransmit loop below already tolerates ze's L2TP listener not being ready.
 
     # --- Tunnel handshake ---
     sccrq = build_sccrq()
@@ -142,8 +140,6 @@ def main():
         pass
 
     # --- Session handshake ---
-    # // test-relax: dropped sleep(0.05); ze processes ICRQ (Ns=2) only after SCCCN
-    # (Ns=1) per L2TP reliable delivery, so the tunnel is up before ze answers ICRP.
     sock.settimeout(1.0)
     sock.sendto(build_icrq(local_tid, 2, 1), TARGET)
 

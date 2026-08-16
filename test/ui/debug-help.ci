@@ -1,6 +1,6 @@
 # Test: set debug module with no subsystem shows usage
 # VALIDATES: CLI usage output for the verb-first debug set grammar
-# test-relax: the `ze debug` root command was removed (spec-cli-verb-first-followup);
+# the `ze debug` root command was removed (spec-cli-verb-first-followup);
 # debug is now verb-first (set/delete/show/clear). The old toggle-usage assertions
 # no longer apply; this asserts the new `set debug module` usage instead.
 cmd=foreground:seq=1:exec=ze set debug module

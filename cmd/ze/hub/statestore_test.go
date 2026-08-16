@@ -87,7 +87,7 @@ func TestOpenStateOnlyStoreDoesNotMigrateConfig(t *testing.T) {
 // the tc backend is not a lost baseline but a refused qdisc program
 // (errSnapshotPersistUnavailable) that fails daemon startup outright.
 func TestOpenStateOnlyStoreIgnoresConfigBackendToggle(t *testing.T) {
-	// test-relax: the first draft of this test set ze.storage.blob via env.Set.
+	// the first draft of this test set ze.storage.blob via env.Set.
 	// That aborts the process -- the key is registered in package main
 	// (cmd/ze/ze_core_dispatch.go:82), not in package hub, so env.Get fatals with
 	// "unregistered key" from this test binary. The toggle is replaced by the

@@ -116,9 +116,6 @@ def main():
     sock.bind(("127.0.0.1", 0))
     sock.settimeout(0.25)
 
-    # // test-relax: dropped a redundant pre-handshake settle sleep; the SCCRQ
-    # retransmit loop below already tolerates ze's L2TP listener not being ready.
-    # Tunnel handshake.
     sccrp_avps = None
     for _ in range(40):
         try:
@@ -258,7 +255,6 @@ def main():
     if not eor_on_wire(synced):
         runtime_fail('peer1 never sent its initial-sync End-of-RIB')
 
-    # // test-relax: hand-rolled for-loop + sleep(0.1) poll -> api.dispatch_until (ratchet-exempt internal sleep)
     def _has_session(r):
         if r.get('status') != 'done':
             return False

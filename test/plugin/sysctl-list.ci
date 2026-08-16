@@ -11,7 +11,7 @@ option=timeout:value=15s
 # ze-peer runs as a sink: only a dial target, asserts nothing. This test is about
 # the sysctl plugin's command output; the BGP peer exists so ze has a session.
 #
-# // test-relax: the ipv4/unicast EOR this block declared was unreachable BY
+# // the ipv4/unicast EOR this block declared was unreachable BY
 # CONSTRUCTION -- the run-script calls `request shutdown` at post-startup, so ze
 # closes during the OPEN handshake ("open recv / open sent / connection closed
 # before completion") and the EOR is never sent. It could not fail for a real
@@ -49,7 +49,7 @@ def main():
     api.capability_done()
     api.wait_for_registry()
     api.ready()
-    r = api.dispatch_until_done('show sysctl keys')  # // test-relax: lead-in sleep + hand-rolled poll -> dispatch_until_done
+    r = api.dispatch_until_done('show sysctl keys')
     if r is None or r.get('status') != 'done':
         status = r.get('status') if r else 'nil'
         runtime_fail(f'sysctl list: status={status}')

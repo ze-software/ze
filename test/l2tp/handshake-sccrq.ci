@@ -15,8 +15,6 @@ if len(sys.argv) < 2:
 	sys.exit(2)
 TARGET = ("127.0.0.1", int(sys.argv[1]))
 PEER_TID = 0x0101
-# // test-relax: dropped the startup cushion sleep; the SCCRQ send+recv retry
-# loop below already rides out the ze process not being ready yet.
 
 
 def avp_uint16(mandatory, attr_type, value):

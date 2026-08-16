@@ -220,7 +220,7 @@ func TestRPCCapabilityToInjector(t *testing.T) {
 	assert.Equal(t, uint8(73), peerCaps[1].Code)
 }
 
-// test-relax: removed TestConnectionHandlerDeclaration and
+// removed TestConnectionHandlerDeclaration and
 // TestConnectionHandlerNoDeclaration along with the connection-handoff feature.
 // fd passing (SCM_RIGHTS) needs a unix-domain socket, but ze talks to plugins
 // over TLS, so handoff was unbuildable and had no consumer (plugins bind their

@@ -8,7 +8,7 @@
 # Verifies: show vpn ipsec status reports engine state and configured peers on
 # a live daemon, end to end through CLI dispatch.
 #
-# // test-relax: the original (never-executed) revision also expected
+# // the original (never-executed) revision also expected
 # expect=event:namespace=vpn-ipsec:name=sa-up, but this single-daemon test has
 # no IKE responder to negotiate with -- peer-1 initiates toward an address
 # nothing answers, so sa-up can never fire here. SA-lifecycle events are

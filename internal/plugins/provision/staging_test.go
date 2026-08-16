@@ -192,7 +192,7 @@ func TestProvisionConfigBootScriptURL(t *testing.T) {
 	}
 }
 
-// test-relax: shellAuthHash was deleted, not weakened. It hashed the ADMIN
+// shellAuthHash was deleted, not weakened. It hashed the ADMIN
 // PASSWORD with an unsalted sha256 and published the digest on an unauthenticated
 // PXE cmdline. Its replacement is a dedicated random rescue token behind salted
 // argon2id, covered by internal/core/rescueauth tests; the config-emission half

@@ -458,7 +458,7 @@ func newFakeTimers(hold time.Duration) (*Timers, *sim.FakeClock) {
 // Section 8.2.2 Event 10 conformance: the hold-timer grace is removed and the
 // FIRST expiry always tears the session down. This test previously asserted the
 // opposite (a graced expiry re-armed) and is inverted rather than deleted.
-// test-relax: the two assertions dropped here ("hold timer must still be armed
+// the two assertions dropped here ("hold timer must still be armed
 // after a graced expiry" and "session tears down on the NEXT expiry") assert a
 // REMOVED feature -- the grace re-arm and GraceRearmHoldTimer are both gone.
 // They are replaced by the stronger opposite: nothing re-arms after an expiry,
@@ -534,7 +534,7 @@ func TestHoldTimerGenerationGuard(t *testing.T) {
 
 	// rfc-test-change-approved: 2026-08-03 -- Thomas ruled the hold-timer grace
 	// removed for full RFC 4271 Section 8.2.2 Event 10 conformance.
-	// test-relax: this subtest asserted that GraceRearmHoldTimer LOSES a race
+	// this subtest asserted that GraceRearmHoldTimer LOSES a race
 	// with StopAll. That function is deleted, so the race it guarded cannot be
 	// expressed. The property that still matters -- an expiry callback cannot
 	// resurrect the timer -- is asserted directly below against the only re-arm
@@ -582,7 +582,7 @@ func TestResetHoldTimerStillNoOpsAfterStop(t *testing.T) {
 
 	// rfc-test-change-approved: 2026-08-03 -- Thomas ruled the hold-timer grace
 	// removed for full RFC 4271 Section 8.2.2 Event 10 conformance.
-	// test-relax: the GraceRearmHoldTimer assertion here covered a REMOVED
+	// the GraceRearmHoldTimer assertion here covered a REMOVED
 	// function. ResetHoldTimer above is now the only re-arm entry point and is
 	// already asserted to refuse; nothing else can re-arm a stopped timer.
 
@@ -608,7 +608,7 @@ func TestHoldTimeZeroStaysDisabled(t *testing.T) {
 
 	// rfc-test-change-approved: 2026-08-03 -- Thomas ruled the hold-timer grace
 	// removed for full RFC 4271 Section 8.2.2 Event 10 conformance.
-	// test-relax: the grace-re-arm-at-hold-time-0 assertion covered a REMOVED
+	// the grace-re-arm-at-hold-time-0 assertion covered a REMOVED
 	// function. ResetHoldTimer is now the only re-arm entry point; its own
 	// holdTime == 0 guard is asserted here instead, which is the clause RFC 4271
 	// Section 4.4 actually binds.
@@ -624,7 +624,7 @@ func TestHoldTimeZeroStaysDisabled(t *testing.T) {
 // previously pinned the grace window's clamp to holdTime; the window itself no
 // longer exists, so it is inverted to assert that dead-peer detection completes
 // in ONE hold time rather than being bounded at two.
-// test-relax: the clamp assertions covered a REMOVED function
+// the clamp assertions covered a REMOVED function
 // (GraceRearmHoldTimer). The boundary they protected -- worst-case dead-peer
 // detection -- is asserted directly here instead, and is now tighter.
 //

@@ -45,8 +45,6 @@ environment {
 }
 
 func TestBuildTag_REST_AbsentBinaryDropsRESTSymbols(t *testing.T) {
-	// test-relax: -short guard only; this test still runs in full (make ze-test
-	// passes no -short). It builds the ze binary, so opt-in -short runs skip it.
 	if testing.Short() {
 		t.Skip("builds the ze binary (slow); skipped under -short")
 	}

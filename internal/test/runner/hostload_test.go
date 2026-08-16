@@ -1,6 +1,6 @@
 package runner
 
-// test-relax: TestHostLoadContended / TestHostLoadString / TestSnapshotHostLoad
+// TestHostLoadContended / TestHostLoadString / TestSnapshotHostLoad
 // / TestParseDigitsStopsAtNonDigit moved to internal/core/hostload alongside the
 // extracted Load type + sampling. Only near-timeout classification, which is
 // runner-local (uses stateUnknown / FailType*), remains here.

@@ -57,7 +57,7 @@ expect=stdout:contains=probe status=405 code=none message=method not allowed
 # GET refused, POST still served, DELETE refused -- in that order.
 expect=stdout:pattern=(?s)status=405 code=none.*probe status=200 code=ok.*status=405 code=none
 reject=stdout:contains=Mcp-Session-Id
-# // test-relax: `reject=stdout:contains=text/event-stream` was removed, not
+# // `reject=stdout:contains=text/event-stream` was removed, not
 # weakened. It could never match: the string appears nowhere in the server, and
 # this client prints no response header, so no server behaviour could put it on
 # stdout. What it meant to guard -- "the GET was not answered with an SSE

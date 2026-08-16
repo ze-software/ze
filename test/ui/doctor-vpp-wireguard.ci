@@ -1,6 +1,6 @@
 # Test: ze doctor flags a wireguard interface under backend vpp when the
 #       VPP wireguard plugin toggle (vpp.plugins.wireguard) is not enabled.
-# // test-relax: dropping a stray "EOF" typo line from this brand-new,
+# // dropping a stray "EOF" typo line from this brand-new,
 #   never-committed test file; no assertion or coverage is removed.
 # VALIDATES: spec-followup-vpp-iface AC-5/AC-8 -- the owning plugin's doctor
 #            check surfaces the missing wireguard-plugin runtime dependency

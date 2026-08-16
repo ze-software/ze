@@ -146,7 +146,7 @@ func TestDelIKEDeleteDrawsAnEmptyResponse(t *testing.T) {
 	}
 }
 
-// test-relax: the two dropped assertions ("the outgoing SA is gone once the request is
+// the two dropped assertions ("the outgoing SA is gone once the request is
 // processed", "the incoming SA is still installed until the response") described a state no
 // production path reaches, and the code arms that produced it were unreachable and are now
 // removed. They are replaced, not weakened: the sequence below is the real one, and the

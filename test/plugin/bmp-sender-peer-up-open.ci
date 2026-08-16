@@ -26,7 +26,6 @@ import os
 from ze_api import API, runtime_fail
 
 
-# // test-relax: removed unused 'import time' + DEADLINE_SECONDS; wait_until owns the timing
 MARKER = '.collector-done'
 
 
@@ -53,7 +52,6 @@ def main():
     # session under the peer, which reports "connection closed before
     # completion". wait_peer_eor_sent is the product's own barrier for exactly
     # this -- see its docstring in test/scripts/ze_api.py, which names this shape.
-    # // test-relax: shutdown-on-marker -> marker AND the product eor-sent barrier
     if not api.wait_peer_eor_sent():
         runtime_fail('test-peer never sent its initial-sync End-of-RIB')
 

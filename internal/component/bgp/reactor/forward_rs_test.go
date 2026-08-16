@@ -522,7 +522,7 @@ func TestReactorForwardRSTransparent(t *testing.T) {
 		"RS-client forward must be byte-identical: no AS prepend, no NEXT_HOP rewrite, MED preserved")
 }
 
-// test-relax: a draft x-2-negative "next-hop rewrite" test was removed before commit. NEXT_HOP
+// a draft x-2-negative "next-hop rewrite" test was removed before commit. NEXT_HOP
 // transparency is not RS-specific (all forwarded routes preserve it by default), so there is no
 // "confined" negative comparable to the x-1 EBGP-prepend case; the only rewrite is an explicit
 // per-peer override, which tests the override feature, not the RS-transparency MUST-NOT. x-2 is

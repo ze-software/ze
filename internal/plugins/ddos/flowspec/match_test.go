@@ -39,7 +39,7 @@ func TestBuildMatchReflection(t *testing.T) {
 	}
 }
 
-// test-relax: TestAllowlistSubtraction / TestAllowlistNoOverlap removed -- the
+// TestAllowlistSubtraction / TestAllowlistNoOverlap removed -- the
 // per-responder allowlist (shouldAnnounce) was replaced by the detector's traffic
 // policy, delivered via the event's SuppressMitigation flag + Direction gating
 // (spec-ddos-direction-allowlist). Coverage moves to detect/policy_test.go and the

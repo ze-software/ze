@@ -410,7 +410,6 @@ func TestRunWords(t *testing.T) {
 }
 
 // VALIDATES: nushell script has correct structure.
-// test-relax: sub-extern checks removed because nushell was restructured to use a single extern with context-aware subargs completer to avoid duplicate completion entries
 func TestRunNushell(t *testing.T) {
 	var buf strings.Builder
 	code := generate("nushell", &buf)
@@ -449,7 +448,6 @@ func TestNushellGlobalFlags(t *testing.T) {
 }
 
 // VALIDATES: nushell subargs completer delegates to ze completion words dynamically.
-// test-relax: sub-extern and match-arm checks replaced by dynamic completer check after full registry-derived restructure
 func TestNushellContainsSubcommands(t *testing.T) {
 	var buf strings.Builder
 	generate("nushell", &buf)
@@ -594,7 +592,6 @@ func TestFishEnvBranch(t *testing.T) {
 }
 
 // VALIDATES: AC-4 — nushell script includes env with dynamic completion.
-// test-relax: env-specific match arm removed; nushell now uses one generic ze completion words $subcmd call for all commands including env
 func TestNushellEnvBranch(t *testing.T) {
 	var buf strings.Builder
 	generate("nushell", &buf)

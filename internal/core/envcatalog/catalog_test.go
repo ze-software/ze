@@ -17,7 +17,8 @@ func init() {
 
 // VALIDATES: AC-7 — shared env catalog hides Private entries.
 // PREVENTS: private env vars leaking into completion output.
-// test-relax: removed e.Private field check because Private was removed from CatalogEntry (always false; env.Entries() pre-filters)
+// Private was removed from CatalogEntry (it was always false), and env.Entries()
+// pre-filters, so there is no per-entry field left to check here.
 func TestVisibleEntriesExcludePrivate(t *testing.T) {
 	entries := VisibleEntries()
 

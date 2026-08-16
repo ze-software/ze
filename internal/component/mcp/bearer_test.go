@@ -201,7 +201,7 @@ func TestStreamable_BearerListIdentityOnEveryRequest(t *testing.T) {
 			{Name: "alice", Token: "alice-token", Scopes: []string{"mcp.read"}},
 			{Name: "bob", Token: "bob-token"},
 		},
-		// test-relax: the inline `demo cmd` literal is replaced by the shared
+		// the inline `demo cmd` literal is replaced by the shared
 		// taskCapableCommands fixture, not deleted. Its TaskSupport was
 		// optional, and under the server-directed model (D-1) no request shape
 		// can turn an optional command into a task. `task:{}` is gone. The

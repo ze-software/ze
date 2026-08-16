@@ -207,7 +207,7 @@ func TestRESTExecute(t *testing.T) {
 	r := do(t, srv, "POST", "/api/v1/execute", `{"command":"show bgp summary"}`)
 	assert.Equal(t, http.StatusOK, r.Status)
 
-	// test-relax: the envelope's Data is now the marker interface ResponseData
+	// the envelope's Data is now the marker interface ResponseData
 	// (marshal-only); json.Unmarshal cannot target it, so decode only the
 	// scalar status field the assertion checks.
 	var result struct {
@@ -343,7 +343,7 @@ func TestRESTPeersConvenience(t *testing.T) {
 	r := do(t, srv, "GET", "/api/v1/peers", "")
 	assert.Equal(t, http.StatusOK, r.Status)
 
-	// test-relax: the envelope's Data is now the marker interface ResponseData
+	// the envelope's Data is now the marker interface ResponseData
 	// (marshal-only); json.Unmarshal cannot target it, so decode only the
 	// scalar status field the assertion checks.
 	var result struct {

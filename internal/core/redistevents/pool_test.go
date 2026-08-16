@@ -43,7 +43,7 @@ func TestRouteChangeBatchPoolResetsOriginAS(t *testing.T) {
 		assert.Equal(t, uint32(0), backing[0].Metric, "release: ReleaseBatch zeroes the entry's Metric")
 	}
 
-	// test-relax: the previous exact-value assertion on the re-acquired slot
+	// the previous exact-value assertion on the re-acquired slot
 	// relied on sync.Pool returning the SAME recycled backing array, which is
 	// never guaranteed — under -race/GC Get() returns a fresh zeroed batch, and
 	// the debug poison makes the recycled value (0xDEADBEEF) differ from the fresh

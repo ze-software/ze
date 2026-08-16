@@ -26,7 +26,7 @@ package hub
 // in the bare-core pass. The binaries it builds get their tags from the table
 // below, independent of this file's own constraint.
 //
-// test-relax: TestBuildTag_Gate11_AbsentBinaryDropsSymbols is renamed to
+// TestBuildTag_Gate11_AbsentBinaryDropsSymbols is renamed to
 // TestBuildTag_Gate11_SymbolMatrix and strictly strengthened: both of the old
 // builds and all their absence needles are retained (rows "bare ze_core" and
 // "ze_bmp without ze_bgp"), and four builds plus presence assertions are added
@@ -56,7 +56,7 @@ func TestBuildTag_Gate11_SymbolMatrix(t *testing.T) {
 	// recognize a top-level t.Parallel() call that sits after an early
 	// t.Skip(), and flags the parent as non-parallel while its subtests are.
 	t.Parallel()
-	// test-relax: -short guard only; this test still runs in full (make ze-verify
+	// -short guard only; this test still runs in full (make ze-verify
 	// passes no -short). It builds and links six ze binaries, so opt-in -short
 	// runs skip it for speed. No coverage is lost in the verify/CI suite.
 	if testing.Short() {

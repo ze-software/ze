@@ -7,7 +7,7 @@
 //            (2) signaling a check peer, which would truncate the capture the
 //            per-peer verdict reads (peer_contract.go failedCheckPeers).
 //
-// test-relax: TestTerminateScaffoldPeersSkipsWaitedPeer is gone because its
+// TestTerminateScaffoldPeersSkipsWaitedPeer is gone because its
 // subject is gone: terminateScaffoldPeers no longer waits a peer, so it needs no
 // `waited` guard and there is no second Wait to skip. The test could not fail
 // either way -- a second Wait returns "Wait was already called" and Signal on a

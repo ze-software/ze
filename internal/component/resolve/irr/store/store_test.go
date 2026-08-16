@@ -155,7 +155,7 @@ func TestPrefixStoreGet(t *testing.T) {
 	}
 }
 
-// test-relax: TestPrefixStoreRefreshAll (AC-6) and TestPrefixStoreList (AC-11)
+// TestPrefixStoreRefreshAll (AC-6) and TestPrefixStoreList (AC-11)
 // removed. List and RefreshAll were descoped from this spec (no in-tree consumer
 // -- the BGP plugin uses Get/Refresh/Open and its own per-ASN refreshAllNow) and
 // moved to spec-firewall-irr, which will re-add them with their consumer and

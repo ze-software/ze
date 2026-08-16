@@ -70,7 +70,7 @@ def daemon_alive():
 with open("ddos-fake.clear", "w"):
     pass
 
-# // test-relax: removed dev-only dump_diag/marker scaffolding (used during
+# // removed dev-only dump_diag/marker scaffolding (used during
 # authoring to diagnose the Emit in-process-subscriber-count bug) after the test
 # went green; the assertions below are unchanged and coverage is unaffected.
 daemon_died = []

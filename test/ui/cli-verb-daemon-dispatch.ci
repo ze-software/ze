@@ -75,7 +75,7 @@ daemon_env['ZE_SSH_EPHEMERAL'] = os.path.abspath('ssh.addr')
 daemon_env['ZE_READY_FILE'] = os.path.abspath('ready')
 daemon_env['ZE_CONFIG_DIR'] = os.getcwd()
 daemon = subprocess.Popen(['ze', '-f', 'verb.conf'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=daemon_env)
-# test-relax: the hand-rolled readiness loop below moved into ze_api.wait_until.
+# the hand-rolled readiness loop below moved into ze_api.wait_until.
 # Nothing is dropped: the same two predicates (ssh.addr and ready both present,
 # daemon still alive) and the same 20s bound are kept, the early-exit diagnosis
 # is unchanged, and the timeout still raises. The loop's own 0.1s sleep is what
@@ -216,7 +216,7 @@ try:
     #     Every divergence between the two has shipped as `unknown command` for a
     #     line `ze cli -c` runs, so compare the two outputs directly.
     #
-    # test-relax: the verb-form run this check used to make of its own is gone,
+    # the verb-form run this check used to make of its own is gone,
     # and NO assertion goes with it. It re-ran the identical argv check 10 had
     # just run against the same daemon, so verb_out below is that run's output
     # and every comparison here is unchanged. What the second launch bought was

@@ -29,7 +29,6 @@ import os
 from ze_api import API
 
 
-# // test-relax: removed unused 'import time' + DEADLINE_SECONDS; wait_until owns the timing
 MARKER = '.collector-done'
 
 

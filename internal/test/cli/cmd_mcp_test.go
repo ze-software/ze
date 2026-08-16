@@ -1,6 +1,6 @@
 package cli
 
-// test-relax: TestStreamableGETviaZeTest and TestSSEExpectRequiresListen tested
+// TestStreamableGETviaZeTest and TestSSEExpectRequiresListen tested
 // the GET /mcp SSE stream (sse-listen / sse-expect), a mechanism MCP revision
 // 2026-07-28 removes outright ("Removal of the GET stream endpoint"). They are
 // replaced below by tests for the per-request transport that took its place.
@@ -124,7 +124,7 @@ func TestConformantRequestShape(t *testing.T) {
 // TestClientCapabilitiesPerRequest proves the capability flag reaches every
 // request's _meta rather than a one-off handshake.
 //
-// test-relax: the two --resources rows are removed with the flag itself, not
+// the two --resources rows are removed with the flag itself, not
 // weakened. `resources` is a member of *ServerCapabilities*. The five
 // ClientCapabilities members in MCP 2026-07-28 are `experimental`, `roots`,
 // `sampling`, `elicitation` and `extensions`. A client that declared

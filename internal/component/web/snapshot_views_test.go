@@ -100,7 +100,7 @@ func TestSSESnapshotNewlineSafety(t *testing.T) {
 	}
 
 	body := rec.Body.String()
-	// test-relax: the unified typed dispatcher flattens the snapshot via json.Marshal,
+	// the unified typed dispatcher flattens the snapshot via json.Marshal,
 	// which compacts insignificant whitespace, so the embedded newline is normalized away
 	// before the payload reaches the SSE writer. The frame therefore carries the compacted
 	// snapshot as a single intact `data:` line and stays one event rather than splitting.

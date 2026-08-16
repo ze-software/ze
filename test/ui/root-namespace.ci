@@ -2,7 +2,7 @@
 # VALIDATES: `ze traffic control`, `ze isis decode`, `ze ospf decode`, `ze update serve`
 #            route to their tools; bare `ze traffic|isis|ospf` are discoverable (AC-10);
 #            the five old hyphenated/mis-named roots are gone (AC-9).
-# // test-relax: STRENGTHENING. Per-command exit is now the inline `cmd=...:exit=N`
+# // STRENGTHENING. Per-command exit is now the inline `cmd=...:exit=N`
 # form (standalone `expect=exit:code` is FILE-level/last-wins and was dead for every
 # step but the last), and every `contains` needle is now UNIQUE to its command
 # ("usage: ze traffic <command>", "unknown command: <old-name>") so the runner's

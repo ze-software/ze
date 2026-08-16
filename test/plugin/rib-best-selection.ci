@@ -74,7 +74,6 @@ def find_best_for_prefix(best_paths, prefix):
 
 def wait_for_rib(api):
     """Wait for rib plugin to be ready."""
-    # // test-relax: hand-rolled status==done poll -> dispatch_until_done (deterministic rib readiness)
     return api.dispatch_until_done('show bgp rib status').get('status') == 'done'
 
 

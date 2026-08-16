@@ -1,7 +1,7 @@
 // VALIDATES: AC-7 (rescue-token auth), AC-7b (ungated ISO), AC-7c (30s reboot for network)
 // PREVENTS: wrong fatal branch selection; a rescue gate that accepts the wrong token
 
-// test-relax: the four TestRecoveryAuth* cases exercised checkPassword, which was
+// the four TestRecoveryAuth* cases exercised checkPassword, which was
 // DELETED along with the unsalted-sha256 credential it verified. Successor
 // coverage is in two places: internal/core/rescueauth's suite covers the
 // encoding and the comparison, and TestRescueGate* below drive THIS package's

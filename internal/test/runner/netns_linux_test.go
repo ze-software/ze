@@ -121,7 +121,7 @@ func TestNetnsLaunchChildInheritsNamespace(t *testing.T) {
 func TestProvisionNetnsLinksMakesNextHopRoutable(t *testing.T) {
 	restore, _, err := enterTestNetns("ze-provision-link")
 	if err != nil {
-		// test-relax: new test; capability guard mirrors the sibling
+		// new test; capability guard mirrors the sibling
 		// TestNetnsLaunchChildInheritsNamespace -- a netns cannot be created
 		// without CAP_SYS_ADMIN, so the test self-skips off-QEMU and runs for
 		// real in QEMU. Not a relaxation of existing coverage.

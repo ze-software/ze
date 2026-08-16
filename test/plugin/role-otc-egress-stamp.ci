@@ -31,7 +31,7 @@ option=timeout:value=20s
 option=open:value=drop-capability:code=9
 option=open:value=add-capability:code=9:hex=03
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003A020000001F4001010040020A02020000FDE80000FDE940030401010101C023040000FDE8180A0000
-# // test-relax: the removed End-of-RIB rule was unsatisfiable by construction, so
+# // the removed End-of-RIB rule was unsatisfiable by construction, so
 # it asserted nothing and only produced a red the runner used to mask. This peer's
 # EOR is emitted by its OWN initial sync the moment it establishes
 # (peer_initial_sync.go), which is BEFORE any route is forwarded to it from

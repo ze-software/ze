@@ -245,7 +245,7 @@ func TestCompactionPerShardValidHandles(t *testing.T) {
 // The interleaving is driven deterministically via same-package access to the
 // shard's compaction state and free list — no scheduler, no timing.
 func TestInternReuseDuringCompactionKeepsData(t *testing.T) {
-	// test-relax: this test exercises the release-only reuse-during-compaction
+	// this test exercises the release-only reuse-during-compaction
 	// path; debug builds disable slot reuse as the ABA guard
 	// (spec-unify-buffer-lifetime), so the precondition is deliberately absent
 	// there. It still runs and must pass in the default (release) build. See

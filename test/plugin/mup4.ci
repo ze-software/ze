@@ -12,7 +12,7 @@ stdin=peer:terminator=EOF_PEER
 # against sendInitialRoutes, and CI lost that race on 2026-08-14 (run
 # 31782226972: the marker arrived first and the withdraw was diffed against it).
 #
-# test-relax: the line deleted here is `cmd=api:seq=2:text=... eor`, the
+# the line deleted here is `cmd=api:seq=2:text=... eor`, the
 # ANNOTATION naming the command that produced the marker, and it named one no
 # plugin ever ran: this script's message list has carried the announce and the
 # withdraw only. It is deleted because it is false, not because the fixture

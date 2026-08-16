@@ -738,7 +738,7 @@ func TestISISAuthKeyIDBoundary(t *testing.T) {
 	}
 }
 
-// test-relax: TestISISAuthTypeCodes moved verbatim to auth_types_test.go as part
+// TestISISAuthTypeCodes moved verbatim to auth_types_test.go as part
 // of the auth_verify.go file split (replaced coverage, not removed); it tests
 // authTypeFor, which now lives in auth_types.go. No assertion was dropped.
 

@@ -70,7 +70,7 @@ func subnetMsg(qname string, qtype uint16, subnet string) *dns.Msg {
 	return m
 }
 
-// test-relax: TestClientIPSourceModes unit-tested the package-local clientIP
+// TestClientIPSourceModes unit-tested the package-local clientIP
 // function directly. The shared DNS harness moved that function to
 // dnsserver.ClientIP (docs/architecture/dns/server-harness.md) and the unit
 // test was ported with it: it now lives, verbatim in scenario coverage, as

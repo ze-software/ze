@@ -54,14 +54,12 @@ def main():
 
     # Trigger Snapshot so refreshSessionsGauge runs and sets the gauge
     # for at least one (state, mode, vrf) bucket.
-    # // test-relax: blind 0.5s sleep + single show -> dispatch_until_done priming poll
     r = api.dispatch_until_done('show bfd sessions')
     if r.get('status') != 'done':
         runtime_fail(f'priming: status={r.get("status")}')
 
     # Scrape the metrics endpoint. Retry briefly to absorb any late
     # registry rebinding done by the plugin's OnStarted hook.
-    # // test-relax: blind 0.25s retry loop -> wait_until poll for the metric family
     scrape = {'body': '', 'last': None}
     def scraped():
         try:

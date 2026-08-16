@@ -35,7 +35,7 @@ import sys
 import time
 
 
-# // test-relax: drop retired ExaBGP-compat `environment { tcp { attempts } }`
+# // drop retired ExaBGP-compat `environment { tcp { attempts } }`
 # block (removed schema surface, see test/parse/listener-tcp-port-removed.ci);
 # the daemon now uses default connection retry. Assertions unchanged.
 CONFIG_TEMPLATE = """environment {

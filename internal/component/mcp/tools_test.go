@@ -19,7 +19,7 @@ import (
 // instant cancel() lands, so only a broken build consumes the bound.
 const unwindFailureBound = 10 * time.Second
 
-// test-relax: TestToolProviderInterface and
+// TestToolProviderInterface and
 // TestLegacyHandlerBearerAuthFailureAuditRecord removed with the legacy
 // Handler/HandlerWithAudit/ZeProvider deletion (spec-followup-subsystem AC-9).
 // ToolProvider coverage now lives in provider_test.go against the Streamable
@@ -202,7 +202,6 @@ func TestDispatchGenerated(t *testing.T) {
 		t.Errorf("dispatched = %q, want %q", dispatched, "show bgp rib status")
 	}
 	content, _ := result["content"].([]map[string]any)
-	// test-relax: plain-text fake output now marshals to a quoted JSON string via the unified typed dispatcher
 	if len(content) == 0 || content[0]["text"] != `"ok"` {
 		t.Errorf("unexpected result: %v", result)
 	}
@@ -498,7 +497,7 @@ func TestZeReferenceTool(t *testing.T) {
 // headers and _meta -> dispatchGenerated -> dispatcher output framed as MCP
 // content.
 //
-// test-relax: the three tests below each lost a two-line `initialize` guard
+// the three tests below each lost a two-line `initialize` guard
 // (`if status != http.StatusOK || sid == ""`). Those guards asserted that the
 // handshake SETUP step succeeded, not any behavior under test. MCP 2026-07-28
 // removed the handshake, so there is no longer a setup step to guard. Each
@@ -849,7 +848,7 @@ func TestHandcraftedSkipPreventsDuplicates(t *testing.T) {
 	}
 }
 
-// test-relax: TestBearerTokenAuth and TestBearerTokenEmptyAllowsAll removed
+// TestBearerTokenAuth and TestBearerTokenEmptyAllowsAll removed
 // with the legacy Handler deletion (spec-followup-subsystem AC-9). The bearer
 // authenticator is covered by bearer_test.go
 // (TestBearerAuthenticator_ValidToken/MissingHeader/WrongToken) and the

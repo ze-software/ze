@@ -1,7 +1,7 @@
 # Kernel builder wiring: runtime and installer Makefiles must delegate to the
 # shared tools/kernel-builder/run.py driver without running an actual kernel build.
 #
-# // test-relax: kernel-build-consolidation moved the build invocation from inline
+# // kernel-build-consolidation moved the build invocation from inline
 # docker/qemu branches in each Makefile to the single run.py driver. The old
 # assertions on `docker run`, `--platform`, `-e SRC_DIR`/`PATCHES_DIR`, and the
 # Makefile choosing qemu-build.py no longer apply; this asserts the equivalent

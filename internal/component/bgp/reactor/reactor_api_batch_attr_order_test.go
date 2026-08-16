@@ -359,7 +359,7 @@ func TestAnnounceBatchRail_AS4PathOrderedAgainstLargeCommunity(t *testing.T) {
 // where the next attribute starts. A value longer than 255 octets takes the
 // 4-octet extended-length header.
 //
-// test-relax: this was TestInsertAttrOrdered_ExtendedLengthShift. insertAttrOrdered
+// this was TestInsertAttrOrdered_ExtendedLengthShift. insertAttrOrdered
 // shifted a byte block in place; the shared writer emits into a freshly sized
 // region instead, so the same property is asserted against announceAttrs.emit.
 // Same fixture, same two assertions.
@@ -453,7 +453,7 @@ func TestBatchBuild_EmitsNoUnwrittenBufferBytes(t *testing.T) {
 	}
 }
 
-// test-relax: TestAnnounceNLRIBatch_RejectsBatchTooLargeForBuildBuffer was MOVED,
+// TestAnnounceNLRIBatch_RejectsBatchTooLargeForBuildBuffer was MOVED,
 // not dropped -- it lives verbatim (with two extra boundary sub-tests) in
 // reactor_api_batch_capacity_test.go. It was added here by mistake: this file's
 // cases carry `RFC requirement: RFC4271-5-7` tags for attribute ordering, and a

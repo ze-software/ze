@@ -33,7 +33,7 @@
 #     (internal/component/config/storage/blob.go), destroying the very sequence
 #     this test asserts. ze is therefore never SIGKILLed on a passing path.
 #
-# // test-relax: the pre-migration assertion read a <session>.seq file; that file
+# // the pre-migration assertion read a <session>.seq file; that file
 # no longer exists (the sequence persists to database.zefs via statestore). The
 # load-bearing check is unchanged in intent -- the sequence must survive a restart
 # -- and is now observed through the engine's restored-sequence debug log.

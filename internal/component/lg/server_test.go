@@ -358,7 +358,7 @@ func TestHTMXFragmentVsFullPage(t *testing.T) {
 	fullBody, _ := io.ReadAll(resp.Body)
 	resp.Body.Close() //nolint:errcheck // test cleanup
 
-	// test-relax: the doctype is matched case-insensitively because templ
+	// the doctype is matched case-insensitively because templ
 	// lowercases it unconditionally (generateDocType, in the vendored
 	// generator). A doctype is case-insensitive in HTML, and the assertion is
 	// about a full page carrying one at all.

@@ -1,5 +1,5 @@
 # Test: wireguard is accepted under backend vpp
-# // test-relax: spec-followup-vpp-iface Phase 5 IMPLEMENTS wireguard on the
+# // spec-followup-vpp-iface Phase 5 IMPLEMENTS wireguard on the
 #   vpp backend (wireguard_interface_create + wireguard_peer_add via the
 #   wireguard plugin binary API), so the ze:backend annotation widened from
 #   "netlink" to "netlink vpp". The old assertion (reject wireguard under vpp)

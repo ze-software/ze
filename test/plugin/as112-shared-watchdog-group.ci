@@ -26,7 +26,7 @@
 # numbering is. So each connection's announce is matched on the one thing
 # guaranteed true for either peer landing there (the shared "no-export"
 # community), rather than pinning a specific NLRI to a specific conn number.
-# // test-relax: full-message hex per connection number replaced with
+# // full-message hex per connection number replaced with
 # contains: matching on the shared community substring -- not weakening
 # coverage, relocating it. Exact per-prefix wire bytes for BOTH AS112
 # covering prefixes (192.175.48.0/24, 192.31.196.0/24, plus both IPv6
@@ -74,7 +74,7 @@ expect=bgp:conn=1:seq=1:contains=C00804FFFFFF01
 # above fully completes (peer.go:234-285), by which time the shared probe
 # is already UP, so its session establishes straight into the watchdog's
 # peer-up replay (AnnouncedForPeer, watchdog/server.go:301-318).
-# // test-relax: no separate EOR-then-announce expectation for conn=2 --
+# // no separate EOR-then-announce expectation for conn=2 --
 # confirmed empirically that a bare EOR expectation here mismatched against
 # the actual first message received (the watchdog replay, not an EOR),
 # because this connection only forms after the broadcast announce already

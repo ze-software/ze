@@ -169,7 +169,7 @@ func TestStartWithContextReleasesEventSubscriptionsOnFailure(t *testing.T) {
 	// subscribed against a half-torn-down reactor (the Task/Security-Review
 	// promise that no event subscription may remain after a failed startup).
 	//
-	// test-relax: an earlier draft added a peer + emitted addr-added to assert no
+	// an earlier draft added a peer + emitted addr-added to assert no
 	// listener starts after abort, but a peer LocalAddress forces a per-peer bind
 	// on the privileged BGP port (179) that fails before the injected API error
 	// and is unrelated to subscription release. Listener-handler behavior is

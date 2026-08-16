@@ -88,7 +88,7 @@ func TestHealthCheckPassesWithoutFlap(t *testing.T) {
 
 	hr.timer.Reset(10 * time.Millisecond)
 
-	// test-relax: wait for onHealthy to close done rather than racing a fixed 2s
+	// wait for onHealthy to close done rather than racing a fixed 2s
 	// wall-clock bound, which flaked under full-verify contention. A genuine hang
 	// is caught by the go test framework timeout. Matches TestRevertFallsBackToSeedConfig.
 	hr.Wait()

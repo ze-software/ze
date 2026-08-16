@@ -252,7 +252,7 @@ bgp {
 }
 EOF_CONF
 
-# test-relax: three background ze-peer processes become ONE holding three connections, so
+# three background ze-peer processes become ONE holding three connections, so
 # the cmd= count drops from four to two. No assertion is removed: every expect= and the
 # reject= moved to conn=2 / conn=3 of that one peer, and the file gains the await_eor barrier
 # they need to be sound. The barrier is per accepted BATCH (peer_connmap.go), so it cannot

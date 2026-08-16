@@ -29,7 +29,7 @@ func midTemporaryFailure() []wire.PayloadEntry {
 	}
 }
 
-// test-relax: the unused helper midChildRekeyPending was removed here. No test called it, so
+// the unused helper midChildRekeyPending was removed here. No test called it, so
 // it carried no coverage. Its only failure path was a constructor guard on its own input.
 // `make ze-lint-changed` fails this package while it stands ("func midChildRekeyPending is
 // unused"). A later work package that needs the same fixture builds the one it needs.

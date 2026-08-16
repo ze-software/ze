@@ -34,7 +34,7 @@ func firstIPv4Interface(t *testing.T) (string, string) {
 			}
 		}
 	}
-	// test-relax: environmental guard, not a coverage drop -- interfaceIPv4Direct
+	// environmental guard, not a coverage drop -- interfaceIPv4Direct
 	// is a kernel-IPv4 lookup, so a host with zero IPv4 addresses cannot exercise
 	// it. Loopback (127.0.0.1) satisfies this on every normal host.
 	t.Skip("no interface with an IPv4 address on this host")

@@ -4,7 +4,7 @@
 # PREVENTS: resolveNextHop regression where all peers get the same NEXT_HOP
 #           regardless of their local session address.
 
-# // test-relax: the expect=json lines here are REPLACED by byte-exact expect=bgp
+# // the expect=json lines here are REPLACED by byte-exact expect=bgp
 # wire expectations, which strictly strengthens the fan-out assertion. An
 # expect=json in a block named peer1/peer2 was consumed by NOBODY: ze-peer drops
 # expect=json (peer/expect.go ConsumesLine) and the runner only parses the block
@@ -211,7 +211,7 @@ EOF_CONF
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer1
 cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --port $PORT:stdin=peer2
 cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=20s
-# // test-relax: expect=exit:code=0 removed -- this STRENGTHENS the test. Coverage
+# // expect=exit:code=0 removed -- this STRENGTHENS the test. Coverage
 # is replaced by the per-peer ze-peer wire expectations above, which now govern the
 # verdict. The exit-code line asserted nothing about BGP and, until 2026-07-16,
 # actively disabled the peer check (spec-fixit-redistribute-establishment-stall, D2).

@@ -84,8 +84,6 @@ def main():
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind(("127.0.0.1", 0))
     sock.settimeout(0.25)
-    # // test-relax: dropped a redundant pre-handshake settle sleep; the SCCRQ
-    # retransmit loop below already tolerates ze's L2TP listener not being ready.
 
     # --- Tunnel handshake (SCCRQ/SCCRP/SCCCN) ---
     sccrq_body = b""
@@ -123,8 +121,6 @@ def main():
     drain(sock)
 
     # --- Session 1: ICRQ -> ICRP -> ICCN ---
-    # // test-relax: dropped sleep(0.1); L2TP Ns/Nr reliable delivery orders ICRQ
-    # after the tunnel handshake, so no fixed pacing is needed.
     icrq1_body = b""
     icrq1_body += avp(True, 0, struct.pack("!H", 10))
     icrq1_body += avp(True, 14, struct.pack("!H", 500))
@@ -145,8 +141,6 @@ def main():
     drain(sock)
 
     # --- Session 2: ICRQ -> ICRP -> ICCN ---
-    # // test-relax: dropped sleep(0.1); L2TP Ns/Nr reliable delivery orders ICRQ
-    # after session 1, so no fixed pacing is needed.
     icrq2_body = b""
     icrq2_body += avp(True, 0, struct.pack("!H", 10))
     icrq2_body += avp(True, 14, struct.pack("!H", 501))
@@ -165,8 +159,6 @@ def main():
     iccn2_body += avp(True, 19, struct.pack("!I", 1))
     sock.sendto(l2tp_ctrl(local_tid, ze_sid2, 5, 3, iccn2_body), TARGET)
     drain(sock)
-    # // test-relax: dropped sleep(0.1); StopCCN (higher Ns) is processed after the
-    # session ICCNs per L2TP reliable delivery, so all sessions are up first.
 
     # --- StopCCN to tear down tunnel + all sessions ---
     stopccn_body = b""

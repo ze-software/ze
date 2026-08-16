@@ -453,7 +453,7 @@ func TestPrefixCountInstalledReachesZeroWhenPeerWithdrawsEverything(t *testing.T
 	// The peer withdraws all four: the two ze holds and the two ze refused.
 	checkOK(t, s, withdrawBody(t, 0, 4))
 	assert.Equal(t, int64(0), s.prefixCounts.counts[ipv4UKey])
-	// test-relax: the two prefixCounts.dropped assertions this test carried are
+	// the two prefixCounts.dropped assertions this test carried are
 	// gone with the field. The refused-announcement credit was the mechanism
 	// this file's four new tests measure as broken, and it is deleted rather
 	// than repaired (ai/rules/no-layering.md). The set below is the replacement
@@ -499,7 +499,7 @@ func TestPrefixCountInstalledReplacementUpdateIsNotAnOverflow(t *testing.T) {
 	body := []byte{0, 8, 24, 10, 0, 0, 24, 10, 0, 1, 0, 0, 24, 10, 0, 5, 24, 10, 0, 6}
 	checkOK(t, s, body)
 	assert.Equal(t, int64(2), s.prefixCounts.counts[ipv4UKey])
-	// test-relax: the prefixCounts.dropped assertion is gone with the field
+	// the prefixCounts.dropped assertion is gone with the field
 	// (see TestPrefixCountInstalledReachesZeroWhenPeerWithdrawsEverything). The
 	// set membership below is the replacement, and it says more: it names WHICH
 	// two prefixes the family now holds, which a credit balance of zero could
@@ -543,7 +543,7 @@ func TestPrefixCountInstalledNeedsNoLimitToCount(t *testing.T) {
 	assert.Equal(t, int64(3), s.prefixCounts.counts[ipv4UKey])
 	checkOK(t, s, withdrawBody(t, 0, 2))
 	assert.Equal(t, int64(1), s.prefixCounts.counts[ipv4UKey])
-	// test-relax: the prefixCounts.dropped assertion is gone with the field
+	// the prefixCounts.dropped assertion is gone with the field
 	// (see TestPrefixCountInstalledReachesZeroWhenPeerWithdrawsEverything).
 	// Nothing can be refused without a maximum, so the replacement assertion is
 	// that the count and the set agree, which is the mode's whole invariant.

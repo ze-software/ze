@@ -152,7 +152,7 @@ func TestMetricsScrape(t *testing.T) {
 	m.publishLocked(m.snapshotLocked(), time.Now())
 	m.mu.Unlock()
 
-	// test-relax: replaced the gated exporter Server.Start (and its start-error
+	// replaced the gated exporter Server.Start (and its start-error
 	// check) with httptest.NewServer(reg.Handler()) to drop this test's
 	// dependency on the compile-out-able ze_telemetry exporter package. Scraping
 	// the always-on registry handler proves the same thing (traffic-usage metrics

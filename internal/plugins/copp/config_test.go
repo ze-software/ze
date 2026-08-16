@@ -147,7 +147,7 @@ func TestCoppParseConfigBoundaryPort(t *testing.T) {
 	}
 }
 
-// test-relax: port 0 now rejected by ValidatePort instead of silently using default 179
+// ValidatePort rejects port 0 rather than silently substituting the default 179.
 func TestCoppParseConfigPortZeroRejected(t *testing.T) {
 	input := `{"control-plane-protection":{"bgp":{"rate":"10/second","protected-port":"0"}}}`
 	_, _, err := parseCoppConfig(input)

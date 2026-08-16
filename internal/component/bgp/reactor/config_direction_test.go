@@ -60,7 +60,7 @@ var noSentUpdates = map[string]string{
 // change that makes every document fail to parse, would leave the text scan as
 // the only reader and every violation check still green.
 //
-// test-relax: a second test held those three assertions and ran a SECOND full
+// a second test held those three assertions and ran a SECOND full
 // walk to reach them. No assertion is dropped -- the three moved here, and what
 // went with them is the duplicate walk, which re-read every config in the
 // repository and rebuilt the YANG schema once per document to reach numbers

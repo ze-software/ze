@@ -116,7 +116,7 @@ func TestEnforceRFC7606DuplicateRebuild(t *testing.T) {
 	// lets the attribute index (attribute.AttributesWire.ensureIndexLocked) build instead
 	// of erroring — the error that silently drops MP routes at the RIB
 	// (rib_structured.go MPReach/MPUnreach return nil on that error).
-	// test-relax: dropped an extra newWU.Attrs().Get() index-build assertion that needed a
+	// dropped an extra newWU.Attrs().Get() index-build assertion that needed a
 	// registered encoding context (unavailable to this bgpctx-free harness — it errored
 	// "unknown source context ID: 0", a harness limit, not the feature). count==1 already
 	// proves the deduplicated wire carries no duplicate for the index to reject.

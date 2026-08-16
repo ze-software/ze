@@ -39,7 +39,7 @@ func assertSnapshot(t *testing.T, label string, got, expected []string) {
 	}
 }
 
-// test-relax: the three registry snapshots below moved from hand-maintained
+// the three registry snapshots below moved from hand-maintained
 // `expected := []string{...}` literals to golden files in testdata/. The
 // assertSnapshot comparison is unchanged; only the source of `expected` moved,
 // and -update regenerates it from the live registry so it can never drift from

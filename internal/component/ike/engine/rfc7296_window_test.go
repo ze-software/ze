@@ -421,7 +421,7 @@ func winDeleteSPIs(t *testing.T, peer *SA, raw []byte) []uint32 {
 	return nil
 }
 
-// test-relax: TestWinDeferredDeleteWaitsForTheWindow was REMOVED here, together with the
+// TestWinDeferredDeleteWaitsForTheWindow was REMOVED here, together with the
 // deferral queue it exercised. It is a removed feature, not a relaxed assertion.
 // rfc-test-change-approved: 2026-08-04 -- Thomas standing authorisation for
 // correctness-only test edits. That test was written earlier in this same uncommitted

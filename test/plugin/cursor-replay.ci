@@ -70,8 +70,6 @@ def main():
     # while only bgp-rib ever signals, so waitForAPISync burns its full 2s
     # timeout and the EOR trails establishment (known-open design gap recorded
     # in 5c4421541). eor-sent is the observable that survives that gap.
-    # // test-relax: state=established poll -> strictly stronger eor-sent>=1 poll
-    # // (same dispatch_until mechanism, later and more specific wire condition)
     synced = api.dispatch_until(
         'show bgp peer peer1 detail', eor_on_wire, attempts=60,
     )
@@ -111,7 +109,7 @@ def main():
     # therefore already tearing down by this point, its opQueue can never drain,
     # and the barrier would only wedge for its full 10s bound before failing.
     # The EOR this test asserts is already on the wire before the replay starts.
-    # // test-relax: removes a pre-shutdown quiesce added earlier in this same
+    # // removes a pre-shutdown quiesce added earlier in this same
     # // session (never committed coverage); it is unreachable by construction
     # // against a check-mode peer that has already left. No original assertion
     # // is dropped: the seq=1 EOR expectation it was meant to serve now passes.

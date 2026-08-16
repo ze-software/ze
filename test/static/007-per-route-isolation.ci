@@ -37,7 +37,6 @@ import os, signal, subprocess, sys
 
 from ze_api import wait_until
 
-# // test-relax: daemon-readiness for-loop -> ze_api.wait_until (ratchet-exempt sleep).
 if not wait_until(lambda: os.path.exists("daemon.pid") and os.path.exists("daemon.ready"),
                   attempts=200, delay=0.05):
     sys.exit("daemon readiness files missing")
@@ -45,7 +44,7 @@ if not wait_until(lambda: os.path.exists("daemon.pid") and os.path.exists("daemo
 with open("daemon.pid") as f:
     pid = int(f.read().strip())
 
-# // test-relax: `ze cli show static` needs an SSH server + auth the static config
+# // `ze cli show static` needs an SSH server + auth the static config
 # does not declare. Verify the kernel FIB directly -- the daemon programs
 # proto=static routes via netlink, so `ip route` is the faithful source of truth.
 # The GOOD route (10.0.0.0/8) must appear; the BAD route (172.16.0.0/12, skipped)

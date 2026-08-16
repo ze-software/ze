@@ -19,7 +19,7 @@
 #   The multiplier is irrelevant here anyway: with a near-zero warmed baseline the
 #   bps-floor governs the threshold. Since the multiplier default equals the value
 #   the test would set, no coverage is lost by the omission.
-#   // test-relax: bps-threshold-multiplier omitted (decimal-2 unsettable via text
+#   // bps-threshold-multiplier omitted (decimal-2 unsettable via text
 #   config, schema.go); default 3.00 == intended value, floor governs the threshold.
 #
 # STATUS: option=needs-linux. It exercises the full daemon path (iface/trafficstat
@@ -103,7 +103,7 @@ def dispatch(api, command):
     return resp.get("result", {})
 
 
-# // test-relax: removed read_dbg()/show() diagnostic scaffolding used while
+# // removed read_dbg()/show() diagnostic scaffolding used while
 # root-causing the config-string-coercion bug (session 6503) -- it read a
 # /tmp/dbgdetect.log written by temporary detector instrumentation that no longer
 # exists. The load-bearing assertion (runtime_fail unless an incident opens) is

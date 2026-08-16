@@ -260,7 +260,7 @@ func commitReviewMarkup(t *testing.T, schema *config.Schema, renderer *Renderer)
 	t.Helper()
 
 	mgr := secretEditorManager(t, schema)
-	// test-relax: the ephemeral leaf is not set here. The editor parses against
+	// the ephemeral leaf is not set here. The editor parses against
 	// the shipped YANG schema, which holds no ephemeral leaf under this path, so
 	// the set would fail on the fixture rather than prove anything. The ephemeral
 	// leaf is covered by the render paths that take the fixture schema.
@@ -301,9 +301,6 @@ func renderComponentString(t *testing.T, c templ.Component) string {
 func addFormMarkup(t *testing.T, schema *config.Schema, renderer *Renderer) string {
 	t.Helper()
 
-	// test-relax: the file write and the two assertions moved into
-	// secretEditorManager unchanged, because three render paths now need the same
-	// editor session. Nothing was dropped. The helper asserts it for all of them.
 	mgr := secretEditorManager(t, schema)
 
 	req := httptest.NewRequest(http.MethodGet, "/config/add-form/environment/api-server/client/", http.NoBody)

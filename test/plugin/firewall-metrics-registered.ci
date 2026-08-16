@@ -85,7 +85,7 @@ def series_present():
 if not wait_until(fetch, attempts=200, delay=0.05):
     sys.exit(f"the Prometheus endpoint on 127.0.0.1:{PORT} never answered")
 
-# test-relax: the "some non-firewall family exists" count is REPLACED by the two
+# the "some non-firewall family exists" count is REPLACED by the two
 # named runtime families below, which is strictly stronger, not weaker. The count
 # could never deny: RegisterRuntimeCollectors (exporter.go) puts go_* and
 # process_* into any answering exposition, so it was true exactly when the wait
@@ -123,7 +123,7 @@ if not wait_until(series_present, attempts=200, delay=0.05):
 for name in WANT:
     print(f"OK: {name} is exposed", file=sys.stderr)
 
-# test-relax: the non-firewall-families control is MOVED, not dropped. It now
+# the non-firewall-families control is MOVED, not dropped. It now
 # runs above the series_present wait (see the comment there), where it can
 # actually deny; here it sat after a branch that exits first, so it could never
 # execute in the one case it exists for. Same assertion, same failure message,

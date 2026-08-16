@@ -85,8 +85,6 @@ def main():
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind(("127.0.0.1", 0))
     sock.settimeout(0.25)
-    # // test-relax: dropped a redundant pre-handshake settle sleep; the SCCRQ
-    # retransmit loop below already tolerates ze's L2TP listener not being ready.
     sccrp = None
     for _ in range(40):
         try:
@@ -180,7 +178,6 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # // test-relax: hand-rolled for-else + sleep(0.1) poll -> api.dispatch_until (ratchet-exempt internal sleep)
     def _two_established(r):
         if r.get('status') != 'done':
             return False
@@ -210,7 +207,6 @@ def main():
 
     # Accept "none established" (the engine may retain closed tunnels
     # briefly for reliable-delivery cleanup; see tunnel.go L2TPTunnelClosed).
-    # // test-relax: hand-rolled for-else + sleep(0.1) poll -> api.dispatch_until (ratchet-exempt internal sleep)
     def _none_established(r):
         if r.get('status') != 'done':
             return False

@@ -12,7 +12,7 @@
 # (ValidateGroupRefs, ValidatePKIRefs, ValidateRemoteAccess), which until this
 # change had no non-test caller anywhere in the repo.
 #
-# // test-relax: replaced the peer-driven `action=sigterm:conn=1:seq=2` with the
+# // replaced the peer-driven `action=sigterm:conn=1:seq=2` with the
 # await=stderr fence below. Coverage is REPLACED and STRENGTHENED, never weakened:
 # the assertion is unchanged, and WHEN the daemon is torn down changes from "one
 # scheduler tick after SIGHUP" to "once the rejection has actually been logged".
@@ -30,7 +30,7 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 action=rewrite:conn=1:seq=2:source=config2.conf:dest=ze-bgp.conf
 action=sighup:conn=1:seq=2
-# // test-relax: dropped `action=sigterm:conn=1:seq=2` in favor of the
+# // dropped `action=sigterm:conn=1:seq=2` in favor of the
 # await=stderr fence at the end of this file. The assertion is unchanged; only
 # the teardown trigger moves, from "one tick after SIGHUP" to "after the
 # rejection was actually logged". The old form raced: SIGHUP and SIGTERM went

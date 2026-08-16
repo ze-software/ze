@@ -86,7 +86,7 @@ func TestWebConcurrentEditStress(t *testing.T) {
 
 		require.Zero(t, commitErrs.Load(), "no hard commit error expected across the storm")
 
-		// test-relax: the earlier draft re-parsed the committed file with the
+		// the earlier draft re-parsed the committed file with the
 		// strict config.YANGSchema(), which rejects the web test fixture's
 		// `local { as 65000; }` and does not model the web candidate/reload path.
 		// The non-torn invariant is correctly proven by re-loading through the

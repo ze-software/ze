@@ -40,7 +40,7 @@
 # requirement. This test is the end-to-end proof that the fix, as112's health
 # command, and the watchdog/healthcheck composition all correctly compose.
 #
-# // test-relax: setup rework only, no assertion removed -- consolidating the
+# // setup rework only, no assertion removed -- consolidating the
 # two `export ZE_CONFIG_DIR=`/`export ZE_SSH_PASSWORD=` lines into an inline
 # per-command prefix (see rationale below) nets fewer non-comment lines than
 # the original broken draft, but every check (SSH-port wait, `ze init`, the
@@ -87,7 +87,7 @@ set -e
 
 touch daemon.ready
 
-# // test-relax: setup rework only (see header rationale above); consolidating
+# // setup rework only (see header rationale above); consolidating
 # the two `export ZE_CONFIG_DIR=`/`export ZE_SSH_PASSWORD=` daemon-env lines
 # into an inline per-command prefix nets fewer lines but removes no check.
 ADMIN_DIR=$(mktemp -d)
@@ -169,7 +169,7 @@ ZECONF
 
 export ze_test_bgp_port=$((10000 + ($$ % 50000)))
 
-# // test-relax: setup rework only (see header rationale); ADMIN_DIR was moved
+# // setup rework only (see header rationale); ADMIN_DIR was moved
 # above the heredoc and ZE_CONFIG_DIR/ZE_SSH_PASSWORD are no longer exported
 # into the daemon's own env -- no check removed, only where these lines live.
 # Daemon starts with a completely unmodified environment.

@@ -111,7 +111,7 @@ expect=stdout:contains=adj-rib-in
 # The terminal state is asserted by `task-wait $LAST completed` above: it errors
 # out if the task reaches any OTHER terminal state and times out if it reaches
 # none.
-# // test-relax: the two stdout needles here (`contains=code -32021` and
+# // the two stdout needles here (`contains=code -32021` and
 # `contains=code -32602`) were removed, not weakened. They could never match
 # whatever the server did: formatProbeResult prints `code=<n>` and the
 # space-separated spelling exists only in a client error string that goes to

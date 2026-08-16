@@ -178,7 +178,7 @@ func TestParseRequestMeta(t *testing.T) {
 	}
 }
 
-// test-relax: the `zero.Resources` assertion is replaced, not dropped. Its
+// the `zero.Resources` assertion is replaced, not dropped. Its
 // subject, the resources CLIENT-capability gate, was removed outright.
 // `resources` is a ServerCapabilities member and no conformant client can
 // declare it, so the gate refused every conformant caller. The replacement

@@ -4,8 +4,6 @@
 // and multipliers are rejected.
 // PREVENTS: a BFD block silently ignored on one family, a unit mix-up (ms vs us), or an
 // unusable session from a 0 timer/multiplier.
-// test-relax: consolidated rewrite of an uncommitted file created earlier this same session;
-// no committed coverage removed (the ACs above are still each asserted below).
 package ospf
 
 import (

@@ -628,8 +628,6 @@ func TestRedactURL_InvalidURL(t *testing.T) {
 // VALIDATES: AC-3 -- ValidateLocation error output sanitizes credentials.
 // PREVENTS: Password appearing in validation error message.
 func TestValidateLocation_RedactsCredentials(t *testing.T) {
-	// test-relax: unsupported-scheme error only includes the scheme name, not the full URL,
-	// so "xxxxx" never appears; the credential-free error is already safe by design.
 	err := archive.ValidateLocation("ftp://admin:s3cret@host.example.com/path")
 	require.Error(t, err)
 	assert.NotContains(t, err.Error(), "s3cret")

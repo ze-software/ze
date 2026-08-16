@@ -773,8 +773,6 @@ func TestHiddenCommandExcludedFromCompletion(t *testing.T) {
 	assert.True(t, cmd.Hidden)
 }
 
-// test-relax: VisibleCommands method removed (dead code -- CLI uses system command list instead)
-
 // TestHiddenCommandPreservedInAll verifies that All() still returns hidden
 // commands (needed by dispatch and system command list).
 //

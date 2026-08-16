@@ -18,9 +18,6 @@ func webFreeformData() *ConfigViewData {
 	}
 }
 
-// test-relax: webFlexChildren fed configFlex, which phase 5 deletes. No
-// producer ever built a configFlexData, so the component reached no page.
-
 func webCommandResult(failed bool) CommandResultData {
 	if failed {
 		return CommandResultData{
@@ -70,10 +67,6 @@ func webBreadcrumbOne() *FragmentData {
 func webBreadcrumbNone() *FragmentData {
 	return &FragmentData{ActiveUI: "finder"}
 }
-
-// test-relax: webSidebarRoot fed the sidebar component, which phase 5 deletes.
-// webSidebarSections survives: FragmentData.Sidebar still reaches detail, which
-// reads its length to pick an empty state.
 
 func webFragmentDataMonitor() *FragmentData {
 	data := webFragmentDataFields()

@@ -29,7 +29,7 @@ option=timeout:value=20s
 # ze-peer runs as a sink: only a dial target, asserts nothing. This test is about
 # `show l2tp tunnels`; the BGP peer exists so ze has a session to configure.
 #
-# // test-relax: the ipv4/unicast EOR this block declared RACED the run-script's
+# // the ipv4/unicast EOR this block declared RACED the run-script's
 # `request shutdown`, which fires at post-startup while ze is still in the OPEN
 # handshake. Observed both ways on a quiet tree: usually the peer logs "open recv /
 # open sent / connection closed before completion" and the EOR never arrives (red),
@@ -113,8 +113,6 @@ def main():
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind(("127.0.0.1", 0))
     sock.settimeout(0.25)
-    # // test-relax: dropped a redundant pre-handshake settle sleep; the SCCRQ
-    # retransmit loop below already tolerates ze's L2TP listener not being ready.
     sccrp = None
     for _ in range(40):
         try:
@@ -199,7 +197,6 @@ def main():
     # Poll show l2tp tunnels until the peer's handshake completes
     # and the tunnel is visible. Generous budget because SCCRQ/SCCCN
     # traverses the whole reliable-delivery stack.
-    # // test-relax: hand-rolled for-loop + sleep(0.1) poll -> api.dispatch_until (ratchet-exempt internal sleep)
     def _has_tunnel(r):
         if r.get('status') != 'done':
             return False

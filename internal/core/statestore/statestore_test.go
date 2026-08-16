@@ -1,6 +1,6 @@
 package statestore
 
-// test-relax: statestore's API changed from path-based (PutAt/GetAt/Path, one
+// statestore's API changed from path-based (PutAt/GetAt/Path, one
 // transient BlobStore per call) to the shared-instance API (SetStore/Put/Get)
 // after the adversarial review found the transient design let the config store's
 // flush drop state keys. The old path-injection assertions are replaced by the

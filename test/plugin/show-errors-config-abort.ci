@@ -42,7 +42,6 @@ def dispatch(api, command):
 
 def poll_for_match(api, match_fn, timeout=10.0):
     """Poll show errors until at least one entry matches or timeout."""
-    # // test-relax: hand-rolled while + sleep(0.1) poll -> api.dispatch_until (ratchet-exempt internal sleep)
     def _matched(r):
         if r.get('status') != 'done':
             return False

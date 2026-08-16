@@ -33,7 +33,6 @@ tmpfs=multipath-test.run:mode=755:terminator=EOF_RUN
 import json
 import sys
 from ze_api import API, runtime_fail, result_text_data, result_json_data
-# // test-relax: removed unused 'import time'; blind sleeps replaced by dispatch_until polls
 
 def dispatch(api, command):
     resp = api._call_engine(
@@ -84,7 +83,7 @@ def main():
 
     # Wait for peer1's initial sync to reach the wire before injecting anything.
     #
-    # // test-relax: the `'established' in <detail json>` check removed here was
+    # // the `'established' in <detail json>` check removed here was
     # VACUOUS, not coverage: every peer row carries the KEY
     # `connections-established` (cmd/peer/peer.go:238), so the substring matched
     # on the FIRST poll -- before any session existed -- and the barrier returned
@@ -97,7 +96,6 @@ def main():
     wait_eor_sent(api, 'peer1')
 
     # Inject a second equal-cost route from synthetic peer.
-    # // test-relax: dropped 'allow UPDATE processing' sleep (folded into the rib-best poll below)
     result = dispatch(api, 'request bgp rib inject 10.0.0.99 ipv4/unicast 10.1.0.0/24 origin igp aspath 65001 localpref 100')
     if result.get('status') != 'done':
         runtime_fail(f'rib inject failed: {result}')

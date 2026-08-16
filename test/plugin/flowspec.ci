@@ -7,7 +7,7 @@ stdin=peer:terminator=EOF_PEER
 cmd=api:conn=1:seq=1:text=peer * update text extended-community [copy-to-nexthop] nhop 1.2.3.4 nlri ipv4/flow add source-ipv4 10.0.0.2/32
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0043020000002C4001010040020040050400000064800E100001850401020304000602200A000002C010080800000000000001
 expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"origin":"igp","local-preference":100,"extended-community":[{"string":"0x0800:000000000001","value":576460752303423489}],"ipv4/flow":[{"action":"add","nlri":{"source":[["10.0.0.2/32/0"]],"next-hop":"1.2.3.4"}}]}
-# // test-relax: the End-of-RIB rule that stood here asserted an ordering the
+# // the End-of-RIB rule that stood here asserted an ordering the
 # product does not define, and named a producer that never ran. Nothing in this
 # test sends an EOR: the marker is peer1's OWN initial-sync one
 # (reactor/peer_initial_sync.go sendInitialRoutes, one per negotiated family), and
@@ -42,7 +42,6 @@ def main() -> None:
     # matches no expectation at that point. Without it, whether the route joins
     # the initial dump or follows it is decided by how promptly the host
     # scheduled the daemon.
-    # // test-relax: unordered EOR expectation -> product eor-sent barrier
     if not api.wait_peer_eor_sent():
         runtime_fail('peer1 never sent its initial-sync End-of-RIB')
 
@@ -104,7 +103,7 @@ bgp {
 		}
 
 
-		# // test-relax: the static `update { ... }` that stood here is REPLACED, not
+		# // the static `update { ... }` that stood here is REPLACED, not
 		# dropped. It was announcing the very route this test asserts, so the plugin
 		# send named in the header was never what the bytes proved -- and could not
 		# be, since that command was rejected twice over (missing add/del verb, and

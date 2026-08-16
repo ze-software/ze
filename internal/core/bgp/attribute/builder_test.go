@@ -296,7 +296,7 @@ func TestBuilderLen(t *testing.T) {
 	}
 }
 
-// test-relax: TestBuilderWriteTo and TestBuilderWriteToWire below were RETARGETED,
+// TestBuilderWriteTo and TestBuilderWriteToWire below were RETARGETED,
 // not weakened. Builder.WriteTo was the tree's second attribute encoder and is
 // gone (spec-wire-edit-4-api-origin); the property each test held is now held
 // against its replacement, with the same assertions. TestBuilderWriteTo becomes

@@ -52,7 +52,7 @@ def main():
     # here the script can shut ze down inside the OPEN handshake window and the
     # peer's EOR expectation becomes unreachable by construction.
     #
-    # // test-relax: the `'established' in <detail json>` check removed here was
+    # // the `'established' in <detail json>` check removed here was
     # doubly inert: it was VACUOUS (every peer row carries the KEY
     # `connections-established`, cmd/peer/peer.go:238, so the substring matched
     # on the FIRST poll before any session existed) AND its result was discarded

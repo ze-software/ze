@@ -153,7 +153,7 @@ EOF_CONF
 
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
-# // test-relax: expect=exit:code=0 removed -- this STRENGTHENS the test. Coverage
+# // expect=exit:code=0 removed -- this STRENGTHENS the test. Coverage
 # is replaced by the ze-peer wire expectations above, which now govern the verdict.
 # The exit-code line asserted nothing about BGP and, until 2026-07-16, actively
 # disabled the peer check and validateJSON (spec-fixit-redistribute-establishment-stall, D2).

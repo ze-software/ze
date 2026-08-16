@@ -89,7 +89,7 @@ def main():
     # observer waiting on the event stream races it (measured: "peer never
     # reached up" while the Cease was demonstrably already on the wire).
     # Polling the peer table is level-triggered and cannot miss the transition.
-    # // test-relax: the peer-state assertions here are REMOVED, not weakened,
+    # // the peer-state assertions here are REMOVED, not weakened,
     # and they never ran green. This file was authored in this same session, so
     # they were an authoring attempt rather than existing coverage. They are
     # racy by construction: the refused OPEN is injected the instant the session

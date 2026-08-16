@@ -23,5 +23,5 @@ func TestRegisterJSONFormatter(t *testing.T) {
 	assert.Equal(t, `"test-value"`, string(buf))
 }
 
-// test-relax: TestIPv6ExtCommunityJSONFormatter moved to filter_community/json_test.go
+// TestIPv6ExtCommunityJSONFormatter moved to filter_community/json_test.go
 // (formatter registration moved from attribute/register.go to the plugin that owns community codes)

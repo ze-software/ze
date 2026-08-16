@@ -72,7 +72,7 @@ func TestLocalTCPFlagsMatch(t *testing.T) {
 	}
 }
 
-// test-relax: TestAllowlistSubtraction / TestAllowlistNoOverlap removed -- the
+// TestAllowlistSubtraction / TestAllowlistNoOverlap removed -- the
 // per-responder allowlist (shouldMitigate) was replaced by the detector's traffic
 // policy, which decides exempt-vs-mitigate and delivers it via the event's
 // SuppressMitigation flag (spec-ddos-direction-allowlist). Coverage moves to the

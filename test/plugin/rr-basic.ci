@@ -79,7 +79,7 @@ def main():
 
     # Wait for peer-src's initial sync to reach the wire before asserting anything.
     #
-    # // test-relax: the `'established' in <detail json>` check removed here was
+    # // the `'established' in <detail json>` check removed here was
     # VACUOUS, not coverage: every peer row carries the KEY
     # `connections-established` (cmd/peer/peer.go:238), so the substring matched
     # on the FIRST poll -- before any session existed -- and the barrier returned
@@ -104,7 +104,6 @@ def main():
     # Verify RIB has the route (proves UPDATE was processed, not just config
     # accepted). Establishment precedes UPDATE processing, so poll the RIB until
     # the route lands rather than racing it with a single-shot query.
-    # // test-relax: single-shot show bgp rib best -> dispatch_until poll until 10.1.0.0/24 lands
     def _route_present(r):
         if r.get('status') != 'done':
             return False

@@ -44,7 +44,6 @@ def rest(method, path, payload=None):
 
 
 def wait_for_rest(api, timeout=15):
-    # // test-relax: blind time.sleep poll -> api.wait_until(REST GET /commands ok)
     def _ok():
         try:
             rest('GET', '/commands')
@@ -115,7 +114,6 @@ def get_peer_state(api, peer_ip):
 
 def wait_for_peer_state(api, peer_ip, timeout=12):
     """Wait for a peer to appear with a BGP state."""
-    # // test-relax: blind time.sleep poll -> api.wait_until(peer present)
     api.wait_until(
         lambda: get_peer_state(api, peer_ip) is not None,
         attempts=max(1, int(timeout / 0.5)), delay=0.5,
@@ -125,7 +123,6 @@ def wait_for_peer_state(api, peer_ip, timeout=12):
 
 def wait_for_peer_gone(api, peer_ip, timeout=12):
     """Wait for a peer to disappear from the BGP engine."""
-    # // test-relax: blind time.sleep poll -> api.wait_until(peer absent)
     return api.wait_until(
         lambda: get_peer_state(api, peer_ip) is None,
         attempts=max(1, int(timeout / 0.5)), delay=0.5,

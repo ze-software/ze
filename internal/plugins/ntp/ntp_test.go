@@ -35,7 +35,7 @@ func newTimeStore(t *testing.T) {
 	statestore.SetStore(bs)
 	t.Cleanup(func() {
 		statestore.SetStore(nil)
-		// test-relax: close now runs in t.Cleanup for the process-global store; a
+		// close now runs in t.Cleanup for the process-global store; a
 		// deferred cleanup reports with the non-fatal t.Errorf (Fatal is discouraged
 		// in cleanup), not the Fatalf the old path-returning helper used inline.
 		if err := bs.Close(); err != nil {
@@ -218,9 +218,6 @@ func TestTimePersistenceMissing(t *testing.T) {
 	_, err := loadTime()
 	assert.Error(t, err)
 
-	// test-relax: the old "absent store path" case is no longer expressible under
-	// the paramless API (no path argument); the no-store-registered case now lives
-	// in TestTimePersistenceNoStoreIsNoOp.
 }
 
 // TestTimePersistenceCorrupt verifies graceful handling of a corrupt blob.
@@ -752,7 +749,7 @@ func TestTimePersistenceNoStoreIsNoOp(t *testing.T) {
 	require.NoError(t, saveTime(now), "save with no store registered should be a best-effort no-op")
 
 	// Nothing was persisted, so loadTime reports not-found.
-	// test-relax: the old os.Stat "no loose file created" assertion is obsolete under
+	// the old os.Stat "no loose file created" assertion is obsolete under
 	// the paramless API -- saveTime takes no path and cannot write a loose file.
 	_, err := loadTime()
 	assert.Error(t, err)

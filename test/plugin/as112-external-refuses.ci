@@ -8,7 +8,7 @@
 # getting a plugin that "succeeds" at every config commit while silently
 # never landing its anycast addresses on any real kernel interface.
 #
-# // test-relax: replaced the blind 4.0s sleep + wait.py hold with the
+# // replaced the blind 4.0s sleep + wait.py hold with the
 # await=stderr fence below. Coverage is REPLACED and STRENGTHENED, not weakened:
 # the WHEN-to-tear-down changes from a fixed sleep to a deterministic wait, and
 # the refuse-message assertion is tightened to an as112-SPECIFIC substring (the

@@ -315,7 +315,7 @@ func TestOwnLSPPointsAtPseudoNode(t *testing.T) {
 		ownLSPNeighbors(t, a), pnSrc)
 }
 
-// test-relax: TestISISDISReElectOnPriority (an engine-level priority-driven role
+// TestISISDISReElectOnPriority (an engine-level priority-driven role
 // transfer via reconcile) is replaced by the two tests below. A runtime DIS-priority
 // change to a LIVE circuit is not re-advertised by isis-5's in-place reconcile (the
 // circuit keeps its build-time priority; reconcile only marks the param changed), so

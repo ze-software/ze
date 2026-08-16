@@ -22,7 +22,7 @@ import (
 	pluginreg "github.com/ze-software/ze/internal/component/plugin/registry"
 )
 
-// test-relax: the first version also asserted !cmdreg.HasRootHandler for
+// the first version also asserted !cmdreg.HasRootHandler for
 // "tacacs"/"exabgp", which passes VACUOUSLY here: those root commands are only
 // registered in the ze binary's dispatch composition root (cmd/ze package
 // main), which this test binary never links, so the assertions could not fail

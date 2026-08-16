@@ -8,7 +8,7 @@
 #            next-hop regardless of its session, or the route is only in the RIB
 #            and never re-encoded onto the wire.
 #
-# // test-relax: RFC-correct coverage replacement (spec-fixit-redistribute-establishment-stall
+# // RFC-correct coverage replacement (spec-fixit-redistribute-establishment-stall
 # F4, class A1). The committed IPv6 config asked ze to put an IPv4 next-hop in an
 # IPv6 MP_REACH; RFC 8950 (rfc/short/rfc8950.md) defines only the REVERSE (IPv4 NLRI
 # with an IPv6 next hop), so that combination is not a valid extended-next-hop tuple

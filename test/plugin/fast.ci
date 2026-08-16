@@ -27,7 +27,6 @@ the final expected routes.
 
 import sys
 from ze_api import flush, quiesce, ready, wait_for_shutdown
-# // test-relax: removed unused 'import time'; blind sleeps replaced by outbound quiesce barrier
 
 print("DEBUG: fast.run starting", file=sys.stderr)
 

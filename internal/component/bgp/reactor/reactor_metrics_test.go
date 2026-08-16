@@ -467,7 +467,7 @@ func TestMetricNames_MatchRegistration(t *testing.T) {
 		"ze_wire_write_errors_total",
 		"ze_bgp_prefix_maximum_exceeded_total",
 		"ze_bgp_prefix_teardown_total",
-		// test-relax: ze_bgp_hold_expiry_graced_total is REMOVED along with the
+		// ze_bgp_hold_expiry_graced_total is REMOVED along with the
 		// hold-timer grace branch that was its only producer (Thomas, 2026-08-03,
 		// full RFC 4271 Section 8.2.2 Event 10 conformance). With no reprieve to
 		// count it could only read zero, which an operator would misread as "no

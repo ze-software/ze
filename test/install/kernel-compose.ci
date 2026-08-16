@@ -88,7 +88,7 @@ for opt in \
 	require_enabled "$opt"
 done
 
-# test-relax: CONFIG_L2TP_NETLINK moved from require_enabled to require_absent.
+# CONFIG_L2TP_NETLINK moved from require_enabled to require_absent.
 # It was removed as a standalone Kconfig symbol in kernel 7.0 (netlink is always
 # built with L2TP; see gokrazy/kernel/runtime.config line 98), so requiring it
 # enabled is wrong for any post-7.0 target (the pinned version lives in
@@ -130,7 +130,7 @@ cat > "$scratch/tools/installer-kernel/compose-fixture.config" <<'EOF_CONFIG'
 CONFIG_COMPOSE_FIXTURE=y
 EOF_CONFIG
 printf 'CONFIG_COMPOSE_FIXTURE\n' > "$scratch/tools/installer-kernel/compose-fixture.require"
-# // test-relax: run.py passes the profile to build.py as `--profile <name>` rather
+# // run.py passes the profile to build.py as `--profile <name>` rather
 # than the old `-e PROFILE=<name>` docker env, so the fake docker detects it from
 # the --profile argument now.
 cat > "$work/fakebin/docker" <<'EOF_DOCKER'
@@ -166,7 +166,7 @@ EOF_CONFIG
 fi
 EOF_DOCKER
 chmod +x "$work/fakebin/docker"
-# test-relax: no assertion is changed, removed, or lowered in this file. The
+# no assertion is changed, removed, or lowered in this file. The
 # deleted lines are shared-state scaffolding, not coverage: `orig_image` and
 # `orig_config` saved and restored repo-root build/kernel/Image and
 # build/kernel/config around a build that now runs in the scratch root, and the
@@ -209,7 +209,7 @@ kmake() {
 	PATH="$work/fakebin:$PATH" make -C "$scratch/tools/installer-kernel" "$@"
 }
 
-# test-relax: the deleted block was `rm -f $scratch/build/kernel/Image` followed
+# the deleted block was `rm -f $scratch/build/kernel/Image` followed
 # by an `if make -q ...` that expected a non-zero exit. It could not fail for
 # ANY Makefile, not just this one. A missing target is always out of date, so
 # `make -q` reports work to do whatever the prerequisite list holds. The `rm -f`

@@ -144,7 +144,7 @@ func TestPolicyOwnerKeepsTheRecordWhenTheKernelRefusesTheDelete(t *testing.T) {
 		t.Fatalf("claim: %v", err)
 	}
 
-	// test-relax: the separate release-then-restore pair is gone because the production
+	// the separate release-then-restore pair is gone because the production
 	// sequence it drove is gone. deleteThenRelease never releases before the kernel
 	// answers, so there is no restore step left to assert on. The property this test
 	// exists for is unchanged and asserted below, and it is now stronger: the record is
@@ -180,7 +180,7 @@ func TestPolicyOwnerDropsTheRecordWhenTheKernelHasNoSuchPolicy(t *testing.T) {
 	if _, err := owners.claim(mine); err != nil {
 		t.Fatalf("claim: %v", err)
 	}
-	// test-relax: the release-then-restore pair is gone with the production sequence it
+	// the release-then-restore pair is gone with the production sequence it
 	// drove, as in the test above. The assertions it fed are unchanged, and the error
 	// expectation is tightened rather than loosened: nil is no longer accepted here.
 	if err := owners.deleteThenRelease(mine, func() error { return syscall.ENOENT }); !errors.Is(err, syscall.ENOENT) {

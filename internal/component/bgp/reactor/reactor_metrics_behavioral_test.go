@@ -205,7 +205,7 @@ func TestSessionReadIncrementsWireBytesCounter(t *testing.T) {
 
 // rfc-test-change-approved: 2026-08-03 -- Thomas ruled the hold-timer grace
 // removed for full RFC 4271 Section 8.2.2 Event 10 conformance.
-// test-relax: TestGracedHoldExpiryIncrementsCounter lived here and asserted
+// TestGracedHoldExpiryIncrementsCounter lived here and asserted
 // that ze_bgp_hold_expiry_graced_total advanced on a graced expiry. Both the
 // grace branch and the counter are REMOVED -- with no reprieve to count, the
 // counter could only ever read zero, so it was deleted rather than left as a

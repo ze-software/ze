@@ -110,7 +110,7 @@ reject=stdout:contains=taskId
 reject=stdout:pattern="resultType":"task"
 # And it was not refused instead of served: none of the rejection codes.
 #
-# // test-relax: the two stdout needles here (`contains=code -32021` and
+# // the two stdout needles here (`contains=code -32021` and
 # `contains=code -32602`) were removed, not weakened. They could never match
 # whatever the server did: formatProbeResult prints `code=<n>` and the
 # space-separated spelling exists only in a client error string that goes to

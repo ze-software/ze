@@ -186,7 +186,7 @@ func TestMonitorBackpressure(t *testing.T) {
 	assert.Len(t, mc.EventChan, 2)
 }
 
-// test-relax: TestMonitorDeliverLazyNoMonitors, TestMonitorDeliverLazyNoMatch and
+// TestMonitorDeliverLazyNoMonitors, TestMonitorDeliverLazyNoMatch and
 // TestMonitorDeliverLazyMatch were deleted with the deliverLazy method they drove.
 // This is the removed-functionality case, not a weakening: DeliverLazyTyped
 // superseded deliverLazy, deliverLazy had no non-test caller left anywhere in the

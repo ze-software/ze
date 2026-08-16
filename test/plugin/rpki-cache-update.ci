@@ -51,7 +51,6 @@ def main():
         # Verify route was accepted (VRP covers 10.0.1.0/24 from AS 65001).
         # Config loads bgp-adj-rib-in (not bgp-rib), so 'show bgp adj-rib-in' is the
         # served command that lists received routes.
-        # // test-relax: poll adj-rib-in until the validated route lands (was covered by the blind sleep)
         result = api.dispatch_until(
             'show bgp adj-rib-in',
             lambda r: '10.0.1.0/24' in result_text_data(r),

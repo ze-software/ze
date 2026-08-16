@@ -228,7 +228,7 @@ func TestEnsureSessionRefcount(t *testing.T) {
 // the runtime teardown path skipped CloseAuth on still-pinned sessions
 // and the persister's 500 ms ticker was the only flush mechanism.
 func TestLoopStopFlushesPinnedPersister(t *testing.T) {
-	// test-relax: the env.Set("ze.config.dir") assertion pointed the old
+	// the env.Set("ze.config.dir") assertion pointed the old
 	// statestore.Path() at this temp dir; statestore no longer resolves via
 	// a path, so registration replaces it. The store now stays open and is
 	// registered process-wide via statestore.SetStore, so the engine's
@@ -300,7 +300,7 @@ func TestLoopStopFlushesPinnedPersister(t *testing.T) {
 		t.Fatalf("loop.Stop: %v", err)
 	}
 
-	// test-relax: the removed os.ReadDir/os.ReadFile/ParseUint assertions
+	// the removed os.ReadDir/os.ReadFile/ParseUint assertions
 	// inspected a loose <session>.seq file, which no longer exists --
 	// persistence now routes to the shared zefs store. The reopen below
 	// replaces that coverage: it reads the sequence back through the store

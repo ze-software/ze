@@ -102,7 +102,7 @@ func (e *engine) hasCircuitStop(name string) bool {
 	return ok
 }
 
-// test-relax: this NEW test file (the whole isis component is uncommitted) was
+// this NEW test file (the whole isis component is uncommitted) was
 // iterated during development; the hook compares successive drafts. No prior
 // committed coverage is removed. Final design uses waitSend for worker LIVENESS
 // (initial Hello) and waitGoroutinesAtMost for LEAK detection (below), because a
@@ -168,7 +168,7 @@ func engineForCircuitLifecycle(t *testing.T) (*engine, *countingBackend) {
 // goroutine; a circuit down stops it. Before the fix the goroutine only exited
 // on engine shutdown, so it leaked past the circuit it served.
 func TestCircuitDownStopsGoroutine(t *testing.T) {
-	// test-relax: NEW, uncommitted test iterated during development (the hook
+	// NEW, uncommitted test iterated during development (the hook
 	// diffs drafts). No committed coverage removed. It pairs a send-count liveness
 	// check (worker started) with a goroutine-count leak check (worker exited on
 	// down); see waitGoroutinesAtMost for why the leak needs the goroutine count.
@@ -227,7 +227,7 @@ func TestCircuitDownStopsGoroutine(t *testing.T) {
 // guarantees exactly one stop channel, and a final down returns the goroutine
 // count to the pre-open baseline (a stacked leaked worker would keep it higher).
 func TestCircuitReopenNoSecondGoroutine(t *testing.T) {
-	// test-relax: NEW, uncommitted test iterated during development (the hook diffs
+	// NEW, uncommitted test iterated during development (the hook diffs
 	// drafts). No committed coverage removed. Asserts circuitStop==1 after reopen
 	// (no second stop channel) and that the full down+up+down cycle returns the
 	// goroutine count to baseline (no leaked first-generation worker remains).

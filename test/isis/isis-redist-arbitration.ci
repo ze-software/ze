@@ -22,7 +22,7 @@
 # AdminDistance 115 on the inserted locrib.Path) and TestISISSPFRoute. Live
 # multi-source arbitration is covered by the QEMU/FRR interop (isis-13).
 #
-# // test-relax: the `rib { admin-distance { isis N } }` config-validate
+# // the `rib { admin-distance { isis N } }` config-validate
 # assertions were dropped because `ze config validate` stringifies bare numeric
 # leaf values and the sysrib admin-distance parser rejects the string form -- a
 # PRE-EXISTING, protocol-agnostic quirk (it fails identically for ospf/bgp),

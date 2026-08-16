@@ -102,7 +102,7 @@ bgp {
 			group-updates disable
 		}
 
-		# // test-relax: the config-declared `update` block that briefly stood here
+		# // the config-declared `update` block that briefly stood here
 		# is replaced by the route-driver plugin above, not dropped. It was added
 		# during this fix and never shipped: it made ze announce, but through the
 		# OTHER encoder, which on an eBGP session omits LOCAL_PREF and emits a

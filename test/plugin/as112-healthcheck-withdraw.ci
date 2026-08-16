@@ -149,7 +149,7 @@ tmpfs=healthy:terminator=EOF_HEALTHY
 1
 EOF_HEALTHY
 
-# // test-relax: the removed lines are the `remove-healthy.run` helper (a
+# // the removed lines are the `remove-healthy.run` helper (a
 # `sleep 3; rm -f ./healthy` script) and its cmd=background launcher. NO
 # assertion is removed -- all nine expect=bgp lines are intact and unchanged.
 # The helper's job (make the second probe fail) now belongs to the probe command

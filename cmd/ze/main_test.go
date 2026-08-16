@@ -23,9 +23,9 @@ func TestAvailablePlugins(t *testing.T) {
 	assert.Equal(t, registry.Names(), got)
 }
 
-// test-relax: TestLooksLikeConfig removed with the looksLikeConfig helper it tested (spec-fixit-config-file-positional-grammar AC-2, Thomas-confirmed remove-the-sink). The free-form position-1 config-path sink was deleted from zeDispatch; config launch now goes through `ze start <config-file>`. AC-2/AC-6 are proven by test/ui/bare-config-no-autoload.ci.
+// TestLooksLikeConfig removed with the looksLikeConfig helper it tested (spec-fixit-config-file-positional-grammar AC-2, Thomas-confirmed remove-the-sink). The free-form position-1 config-path sink was deleted from zeDispatch; config launch now goes through `ze start <config-file>`. AC-2/AC-6 are proven by test/ui/bare-config-no-autoload.ci.
 
-// test-relax: TestDetectConfigType and TestDetectConfigTypeFileError removed with the detectConfigType helper both tested. ProbeConfigType no longer selects a runtime -- every config the YANG schema accepts boots on one daemon path (cmd/ze/hub/main.go Run) -- so the helper and the --web config-type gate it fed both went. The probe's own behavior is covered by TestProbeConfigType (internal/component/config/probe_test.go), the boot path by test/plugin/config-validate-agrees-with-boot.ci, and the unreadable-config case by the "error: read config" branch the daemon now reaches for every config.
+// TestDetectConfigType and TestDetectConfigTypeFileError removed with the detectConfigType helper both tested. ProbeConfigType no longer selects a runtime -- every config the YANG schema accepts boots on one daemon path (cmd/ze/hub/main.go Run) -- so the helper and the --web config-type gate it fed both went. The probe's own behavior is covered by TestProbeConfigType (internal/component/config/probe_test.go), the boot path by test/plugin/config-validate-agrees-with-boot.ci, and the unreadable-config case by the "error: read config" branch the daemon now reaches for every config.
 
 // TestIsLocalhostPprof verifies pprof address localhost validation.
 //

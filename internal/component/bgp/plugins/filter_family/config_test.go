@@ -101,7 +101,7 @@ func TestTearDownInExportRejected(t *testing.T) {
 func TestExportRefInstanceName(t *testing.T) {
 	assert.Equal(t, "Kill", exportRefInstanceName("bgp-filter-family:Kill"))
 	assert.Equal(t, "Kill", exportRefInstanceName("family-filter:Kill"))
-	// test-relax: the inactive: prefix tolerance was removed with the move to
+	// the inactive: prefix tolerance was removed with the move to
 	// out-of-band per-member deactivation -- refs now arrive clean via ToMap
 	// (active-only), so exportRefInstanceName never sees an inactive: prefix.
 	assert.Equal(t, "Kill", exportRefInstanceName("Kill")) // bare

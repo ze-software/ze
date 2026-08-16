@@ -679,8 +679,6 @@ func newHistoryStore(t *testing.T) {
 	statestore.SetStore(bs)
 	t.Cleanup(func() {
 		statestore.SetStore(nil)
-		// test-relax: Close moved into t.Cleanup where t.Fatalf is unsafe
-		// (Goexit in the cleanup goroutine); t.Errorf is the correct call.
 		if cerr := bs.Close(); cerr != nil {
 			t.Errorf("close store: %v", cerr)
 		}

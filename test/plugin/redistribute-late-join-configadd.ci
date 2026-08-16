@@ -27,7 +27,7 @@ EOF_PEER
 # Python observer: inject the route while there are NO peers, before the reload.
 tmpfs=late-join-configadd-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
-# // test-relax: removed the two blocking sleeps per the ci-sleep ratchet (baseline
+# // removed the two blocking sleeps per the ci-sleep ratchet (baseline
 # 448). This does NOT weaken coverage: the expect=bgp:hex assertion is unchanged;
 # the settle-delay is replaced by wait_for_config()+ready() (fakeredist records the
 # route in its store regardless) and the keep-alive by wait_for_shutdown().

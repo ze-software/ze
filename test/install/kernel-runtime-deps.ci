@@ -1,7 +1,7 @@
 # Test: gokrazy/kernel/Makefile notices shared builder and patch changes, and a
 # change of ARCH= or BUILDER=.
 #
-# // test-relax: the build output artifact is redirected to a per-test dir via
+# // the build output artifact is redirected to a per-test dir via
 # `make OUT=$work/out` instead of the shared tmp/kernel/build. The old shared
 # path raced with ze-kernel-overlay (which moves/removes tmp/kernel/build): a
 # TOCTOU on out.exists()/out.stat() below intermittently FAILed the full

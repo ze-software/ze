@@ -1,7 +1,7 @@
 # Test: ze pipe — pipe operators on stdin
 # VALIDATES: json, yaml, table, text, match, count, first, last, resolve operators;
 #            the removed `ze format` carrier name; root completion offers `pipe`.
-# // test-relax: STRENGTHENING, not weakening. The standalone `expect=exit:code=N`
+# // STRENGTHENING, not weakening. The standalone `expect=exit:code=N`
 # form is FILE-level (last-wins) so all but the last per-command exit assertion was
 # DEAD (verified: seq=1 set to code=99 still passed). Moved every exit check into the
 # working inline `cmd=...:exit=N` form, which fires per-command (verified it catches a

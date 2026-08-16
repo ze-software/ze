@@ -54,7 +54,7 @@ def main():
 
     print('OK: 15 routes injected', file=sys.stderr)
 
-    # // test-relax: the previous hand-rolled idle loop (a forever 10s-sleep
+    # // the previous hand-rolled idle loop (a forever 10s-sleep
     # cycle) never exited when the daemon shut down, so the orphaned
     # observer held ze's inherited output pipe open and the runner's
     # cmd.Wait() blocked forever (the pipe-hold hang documented in

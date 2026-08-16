@@ -14,7 +14,7 @@
 # so the daemon must be built with ze_ssh (see the make target); ze init lives
 # in ze_core.
 #
-# // test-relax: this rewrite replaces the previous no-SSH-setup version (which
+# // this rewrite replaces the previous no-SSH-setup version (which
 # never authenticated and used a non-existent `show firewall <table>` command)
 # with the full ze cli->SSH path and the real `show firewall ruleset <name>`
 # command. Behavioural assertions (fw10_004, allow-https, exit 0) are unchanged
@@ -93,7 +93,7 @@ for attempt in range(10):
         out = r.stdout
         break
     last = "attempt %d rc=%d: %s%s" % (attempt, r.returncode, r.stdout or "", r.stderr or "")
-    # // test-relax: retry interval -> ze_api.wait_until with a predicate that is
+    # // retry interval -> ze_api.wait_until with a predicate that is
     # never satisfied, used purely as the ratchet-exempt pacer for this loop. The
     # loop keeps its own 10-attempt bound and its own `last` diagnostic; only the
     # sleep call moved. Rewriting the whole loop as a wait_until would lose the

@@ -72,8 +72,6 @@ func TestApplySRConfigPopulatesStore(t *testing.T) {
 	router := types.RouterID{10, 0, 0, 1}
 	sections := []configSection{{Root: "ospf", Data: `{"ospf":{"segment-routing":{"enable":true,"srgb":{"lower-bound":16000,"upper-bound":23999}}}}`}}
 	cfg := ospfConfig{RouterID: router}
-	// test-relax: applySRConfig returns no error (it only populates the store); the
-	// store-population assertion below is the real coverage.
 	applySRConfig(sections, cfg)
 	got, ok := srWire.get(router)
 	if !ok || !got.Enabled || len(got.SRGB) != 1 || got.SRGB[0].Base != 16000 {
@@ -93,7 +91,6 @@ func TestApplySRConfigIPv6Block(t *testing.T) {
 	// Only the IPv6 address-family enables SR; the shared RI capabilities use it.
 	sections := []configSection{{Root: "ospf", Data: `{"ospf":{"address-family":{"ipv6":{"segment-routing":{"enable":true,"srgb":{"lower-bound":18000,"upper-bound":18099}}}}}}`}}
 	cfg := ospfConfig{RouterID: router}
-	// test-relax: applySRConfig returns no error; the store assertion below is the coverage.
 	applySRConfig(sections, cfg)
 	got, ok := srWire.get(router)
 	if !ok || !got.Enabled || got.SRGB[0].Base != 18000 {

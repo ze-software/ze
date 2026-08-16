@@ -37,7 +37,6 @@ def main():
     api = API()
 
     # Register two commands: one visible, one hidden.
-    # test-relax: using _commands directly because declare_command does not support description/hidden
     api._commands = [
         {'name': 'show test-completion visible', 'description': 'Visible command'},
         {'name': 'show test-completion hidden', 'description': 'Hidden command', 'hidden': True},
@@ -94,7 +93,7 @@ def main():
         runtime_fail('hidden plugin command not marked as hidden')
         return
 
-    # test-relax: self-dispatch of own commands causes callback re-entrancy deadlock in
+    # self-dispatch of own commands causes callback re-entrancy deadlock in
     # single-threaded Python plugin; command dispatch covered by unit tests and other .ci tests
     # Verify command count includes our 2 registered commands (among the ~290 builtins)
     if len(commands) < 100:

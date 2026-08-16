@@ -41,7 +41,7 @@ action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B40010
 # re-offered, so declaring the
 # forwarded UPDATE at seq=1 would make the EOR at seq=2 unmatchable.
 expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-# // test-relax: conn=2's End-of-RIB rule is removed because the ordering it
+# // conn=2's End-of-RIB rule is removed because the ordering it
 # depended on is NOT a guarantee, MEASURED: with the rule present this test fails
 # 4 runs in 6; with it removed, 0 in 6. The failing runs show the correctly
 # forwarded UPDATE (AS_PATH [65000,65001], ATTR_252 tombstone) arriving where the
@@ -93,7 +93,7 @@ EOF_PEER
 # Observer: shut down cleanly after forwarding completes.
 tmpfs=shutdown-after-up.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
-# // test-relax: the observer's synchronous `show bgp summary` eor-sent poll +
+# // the observer's synchronous `show bgp summary` eor-sent poll +
 # `request shutdown` is replaced by ze_api.run_rs_observer -- event-driven readiness
 # (subscribe + wait_for_event on the async channel) plus a fire-and-forget shutdown.
 # A more robust rewrite, not a relaxation: same "wait until the RS replayed to every

@@ -789,7 +789,7 @@ func TestRFC4271ConformantOpenSendsNoOpenError(t *testing.T) {
 // rfc-test-change-approved: 2026-08-03 -- Thomas ruled for full RFC 4271
 // Section 8.2.2 Event 10 conformance and ordered the hold-timer grace removed.
 // The helper's `graced` parameter selected a branch that no longer exists.
-// test-relax: the "a graced expiry re-arms and a fatal one does not"
+// the "a graced expiry re-arms and a fatal one does not"
 // precondition asserted the REMOVED grace branch. Its replacement is stronger:
 // every expiry must now leave the timer disarmed, which is asserted on the one
 // remaining path rather than on one of two.
@@ -862,7 +862,7 @@ func TestRFC4271HoldTimerExpirySendsNotification(t *testing.T) {
 // rather than deleted (ai/rules/testing.md): the negative polarity now
 // keys on an expiry that has not happened yet, which is the only condition
 // under which ze may stay silent.
-// test-relax: the graced-expiry assertion covered a REMOVED branch. The
+// the graced-expiry assertion covered a REMOVED branch. The
 // replacement is a strictly harder bar -- it fails if ze writes code 4 at any
 // point before the hold time is up, where the old one only checked one branch.
 //
@@ -912,7 +912,7 @@ func event10Established(t *testing.T, hold time.Duration) (*Session, <-chan erro
 	runResult := make(chan error, 1)
 	go func() { runResult <- session.Run(t.Context()) }()
 
-	// test-relax: the require.NotNil on session.Conn() written a moment ago in
+	// the require.NotNil on session.Conn() written a moment ago in
 	// this same un-run helper is replaced, not dropped -- the client end from
 	// establishedOpenSent is the correct handle for the peer side, and the
 	// Established assertion below is a strictly stronger precondition.

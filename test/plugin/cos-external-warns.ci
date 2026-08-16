@@ -16,7 +16,7 @@
 # PREVENTS: an operator running `plugin { external cos { ... } }` getting no
 # indication that dynamic QoS updates are disabled.
 #
-# // test-relax: replaced the blind 4.0s sleep + wait.py hold with the
+# // replaced the blind 4.0s sleep + wait.py hold with the
 # await=stderr fence below. Coverage is REPLACED, not weakened: the
 # warn-message assertion (expect=stderr:contains=) is preserved byte-for-byte;
 # only the WHEN-to-tear-down changes from a fixed sleep to a deterministic wait

@@ -101,9 +101,6 @@ func TestRouteTypeNamesAndRanks(t *testing.T) {
 		if got := tc.rt.String(); got != tc.name {
 			t.Fatalf("RouteType(%d).String() = %q, want %q", tc.rt, got, tc.name)
 		}
-		// test-relax: routeTypeName was an exact duplicate of RouteType.String()
-		// and was deleted (goconst de-dup); the String() assertion above already
-		// pins the same name-per-type mapping this asserted.
 		if got := routeTypeRank(tc.rt); got != tc.rank {
 			t.Fatalf("routeTypeRank(%d) = %d, want %d", tc.rt, got, tc.rank)
 		}

@@ -64,7 +64,6 @@ def main():
     api.ready()
 
     api.wait_for_post_startup(timeout=5.0)
-    # // test-relax: hand-rolled status==done poll -> dispatch_until_done (deterministic rib readiness)
     if api.dispatch_until_done('show bgp rib status').get('status') != 'done':
         print('FAIL: rib plugin did not become ready', file=sys.stderr)
         failures += 1

@@ -153,7 +153,7 @@ EOF_CONF
 option=env:var=ze.log.static:value=info
 option=env:var=ze.log.routing.table:value=info
 
-# // test-relax: the three `expect=stdout:contains=` substring checks are
+# // the three `expect=stdout:contains=` substring checks are
 # REPLACED, not dropped. They matched text the old driver echoed from
 # `ze cli -c "show static"` -- a path that could never run here (this config
 # declares no SSH server, and ze cli speaks SSH), so they never asserted

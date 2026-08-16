@@ -28,7 +28,7 @@ const lgComponentCount = 16
 // A named type is resolved through the package's own declarations, so
 // `type viewData map[string]any` is refused as the map it is.
 //
-// test-relax: the AST walk that used to sit here moved to
+// the AST walk that used to sit here moved to
 // internal/test/templcheck, which refuses strictly more than it did. The
 // assertions are in templcheck_test.go, where a fixture proves each escape is
 // refused by name. Coverage is replaced and widened, not dropped.

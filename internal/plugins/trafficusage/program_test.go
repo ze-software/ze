@@ -259,7 +259,7 @@ func TestProgram_TruncatedPass(t *testing.T) {
 		}
 	}
 	if ran == 0 {
-		// test-relax: replaced coverage. If BPF_PROG_TEST_RUN refuses every
+		// replaced coverage. If BPF_PROG_TEST_RUN refuses every
 		// sub-IPv4-header input on this kernel, the runtime no-write assertion
 		// cannot be exercised, but the program's OOB-safety on truncated frames
 		// is still proven by the verifier at load (TestProgram_Loads). This is an

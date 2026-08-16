@@ -87,7 +87,7 @@ func TestAnnounceNLRIBatch_RejectsBatchTooLargeForBuildBuffer(t *testing.T) {
 // boundary: the last attribute that fits is written, and one octet more is
 // refused rather than written past len.
 //
-// test-relax: this was TestInsertAttrOrdered_RefusesToExceedBuffer. insertAttrOrdered
+// this was TestInsertAttrOrdered_RefusesToExceedBuffer. insertAttrOrdered
 // is gone; the region bound it enforced is now announceAttrs.emit's size query
 // against the destination REGION, which is the same guard at the same boundary and
 // covers both announce rails instead of one. Same three cases, same assertions.
@@ -248,7 +248,7 @@ func TestBuildBatchAnnounce_InvalidNextHopWithOversizeAttrs(t *testing.T) {
 // TestAnnounceAttrRegion_RejectsBlockLargerThanBuffer pins the guard itself, on
 // each of the four shapes, at its boundary.
 //
-// test-relax: this was TestWriteMandatoryAttrs_RejectsBlockLargerThanBuffer, and it
+// this was TestWriteMandatoryAttrs_RejectsBlockLargerThanBuffer, and it
 // called writeMandatoryAttrs directly. That function is gone: the caller's block is
 // now the BASE of an edit set and the size query in announceAttrs.emit is the one
 // bound for every shape, so the four arms are driven through the real entry point

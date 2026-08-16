@@ -2,7 +2,7 @@
 # used to do. When docker is unavailable, the auto path selects qemu; when docker
 # is available, it selects docker.
 #
-# // test-relax: kernel-build-consolidation moved builder auto-selection out of Go
+# // kernel-build-consolidation moved builder auto-selection out of Go
 # (selectBuilder) into tools/kernel-builder/run.py. The old test faked Go's
 # docker/qemu *CheckFn; this asserts run.py's select_builder directly, which is
 # where the docker-first/qemu-fallback behaviour now lives.

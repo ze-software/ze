@@ -18,7 +18,6 @@ tmpfs=dispatch-decode-test.run:mode=755:terminator=EOF_RUN
 import json
 import sys
 from ze_api import API, result_text_data, runtime_fail
-# // test-relax: removed unused 'import time' after sleep->dispatch_until_done conversion
 
 def dispatch(api, command):
     resp = api._call_engine(

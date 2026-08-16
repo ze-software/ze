@@ -11,7 +11,7 @@ package hub
 // PREVENTS: a regression where the REST seam errors or builds a server when REST
 // is not enabled in config.
 //
-// test-relax: this file replaces the combined-ze_api TestAPISeamBuildsBoth (the
+// this file replaces the combined-ze_api TestAPISeamBuildsBoth (the
 // combined ze_api seam was reworked into per-transport ze_rest/ze_grpc seams at
 // user request). The combined test's coverage is replaced and broadened by
 // TestRESTBuildNotEnabled (here) + TestGRPCBuildNotEnabled (service_grpc_test.go)

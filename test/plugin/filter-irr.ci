@@ -14,7 +14,7 @@
 
 option=env:var=ze.log.bgp.filter.irr:value=info
 
-# // test-relax: the test uses per-prefix modify (one multi-NLRI UPDATE with one
+# // the test uses per-prefix modify (one multi-NLRI UPDATE with one
 # in-list and one out-of-list prefix) and asserts the modify decision via stderr
 # (irr filter modify, accepted=1, rejected=1, filter=65001). A RIB-level
 # adj-rib-in assertion is omitted: ze-peer intermittently disconnects after send,

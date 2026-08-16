@@ -22,7 +22,7 @@ vpp {
 }
 EOF_OFF
 
-# // test-relax: the per-command assertion changes 0 -> 1. No coverage is lost;
+# // the per-command assertion changes 0 -> 1. No coverage is lost;
 # the expectation was self-contradictory. "VPP enabled and no hugepages
 # reserved" is emitted at severity ERROR (evaluateVPPHugepages,
 # internal/component/vpp/doctor_linux.go), an error diagnostic makes the report

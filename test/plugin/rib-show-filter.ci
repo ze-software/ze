@@ -38,8 +38,6 @@ Empty RIB is expected — the test proves wiring, not filtering logic
 import json
 
 from ze_api import API, runtime_fail, result_text_data, result_json_data
-# // test-relax: dropped 'import sys'; the bare sys.exit(1) calls it served are now
-# runtime_fail (see check() below), so nothing in this observer uses sys.
 
 
 def dispatch(api, command):
@@ -86,7 +84,6 @@ def wait_eor_sent(api, selector):
 def check(label, result, expected_status, expect_error=False):
     """Assert result status matches expected, failing loudly on mismatch.
 
-    // test-relax: bare sys.exit(1) -> runtime_fail. A bare sys.exit(1) here is the
     silent no-op that runtime_fail's own docstring warns about: ze keeps running, so
     the observer's exit code never reaches the runner and the test dies by daemon
     timeout instead of by this assertion. It failed for the wrong reason and named

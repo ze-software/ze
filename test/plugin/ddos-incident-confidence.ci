@@ -101,7 +101,7 @@ def dispatch(api, command):
     return resp.get("result", {})
 
 
-# // test-relax: trimmed the if-rate/lo-counters/traffic-usage diagnostic probes
+# // trimmed the if-rate/lo-counters/traffic-usage diagnostic probes
 # used while root-causing the config-string-coercion bug (session 6503). The
 # load-bearing assertion (runtime_fail unless an incident reports non-zero
 # confidence) is unchanged; only the failure-message detail is trimmed.
