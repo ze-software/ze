@@ -553,9 +553,10 @@ Plugins subscribe to events using either:
    Safe but has a small window where events could be missed.
    <!-- source: pkg/plugin/sdk/sdk_engine.go -- SubscribeEvents -->
 
-Neither form widens what a peer grants. The one exception is the operator's own
-`request subscribe` at a running daemon, which overrides the config until the
-next config apply rebuilds the index from the document.
+Neither plugin subscription form nor the operator's `request subscribe` can
+widen what a peer grants. The operator command can add to the process's live
+capability within that grant, and the next config apply discards the addition.
+<!-- source: internal/component/plugin/server/delivery_graph.go -- (*Server).PeerScopedProcs, (*Server).DiscardRuntimeSubscriptions -->
 
 A session that reaches Established before a plugin registers its subscription
 raises its state event into an empty list, and nothing replays it. This is why

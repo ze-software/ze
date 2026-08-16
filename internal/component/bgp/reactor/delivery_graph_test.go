@@ -229,7 +229,7 @@ func TestReloadRepublishesDeliveryGraph(t *testing.T) {
 // that method is what makes this evidence: the discard used to hang off
 // UpdateDeliveryGraph, where every peer change canceled the subscription too,
 // and a test aimed at the plugin server's method alone cannot tell the two
-// wirings apart. The survival half is
+// wirings apart. The survival and confinement halves are
 // TestRuntimeSubscribeSurvivesAPublishThatIsNotAnApply
 // (plugin/server/delivery_filter_test.go).
 //
@@ -250,17 +250,17 @@ func TestConfigApplyDiscardsRuntimeSubscriptions(t *testing.T) {
 	ns := events.LookupNamespaceID(bgpevents.Namespace)
 	state := events.LookupEventTypeID(bgpevents.EventState)
 
-	// 192.0.2.2 attaches route-injector with a send permission and nothing else,
-	// so the config grants policy-engine nothing there and the override is the
-	// only reason this event is delivered at all.
-	engine := process.NewProcess(plugin.PluginConfig{Name: "policy-engine"})
+	// 192.0.2.1 grants looking-glass state, but the process below has no startup
+	// subscription. The live addition is therefore the only reason the event is
+	// delivered, while the configured grant remains the authorization.
+	engine := process.NewProcess(plugin.PluginConfig{Name: "looking-glass"})
 	srv.Subscriptions().Add(engine, &pluginserver.Subscription{
 		Namespace: ns, EventType: state, Direction: events.DirBoth,
-		PeerFilter: &pluginserver.PeerFilter{Selector: "192.0.2.2"}, Runtime: true,
+		PeerFilter: &pluginserver.PeerFilter{Selector: "192.0.2.1"}, Runtime: true,
 	})
-	live := srv.PeerScopedProcs(ns, state, events.DirUnspecified, "192.0.2.2", "second")
-	require.Len(t, live, 1, "the live override must be delivered where the config grants nothing")
-	require.Equal(t, "policy-engine", live[0].Name())
+	live := srv.PeerScopedProcs(ns, state, events.DirUnspecified, "192.0.2.1", "first")
+	require.Len(t, live, 1, "the permitted live capability addition must take effect")
+	require.Equal(t, "looking-glass", live[0].Name())
 
 	// The same document, applied again: the reload's job is to make the daemon
 	// match it, whether or not any peer changed.
@@ -268,6 +268,6 @@ func TestConfigApplyDiscardsRuntimeSubscriptions(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, (&reactorAPIAdapter{r: r}).reconcilePeers(newPeers, "test reload"))
 
-	assert.Empty(t, srv.PeerScopedProcs(ns, state, events.DirUnspecified, "192.0.2.2", "second"),
-		"a config apply restores the graph the config describes")
+	assert.Empty(t, srv.PeerScopedProcs(ns, state, events.DirUnspecified, "192.0.2.1", "first"),
+		"a config apply discards the live capability addition")
 }

@@ -254,12 +254,13 @@ mentions it, so no peer-scoped event reaches it. Loading a plugin does not
 attach it. A config path that starts one (`rs-client`, `route-reflector-client`,
 `watchdog { }`, a custom receive token) creates no delivery edge, so the peers
 it must serve MUST also name it.
-
-A `request subscribe` typed at a running daemon is a live override. It is
-delivered whether or not the peer's block grants the type, and the next config
-apply discards it: the config is durable truth and a reload rebuilds the index
-from the document.
 <!-- source: internal/component/plugin/server/delivery_reconcile.go -- deliveryDisagreements -->
+
+A `request subscribe` typed at a running daemon is a live capability override.
+It can add an event type the process did not declare at startup only when the
+peer's `attach process` block grants that type. It cannot widen the configured
+receive authorization, and the next config apply discards it.
+<!-- source: internal/component/plugin/server/delivery_graph.go -- (*Server).PeerScopedProcs, (*Server).DiscardRuntimeSubscriptions -->
 
 ### Encoding
 

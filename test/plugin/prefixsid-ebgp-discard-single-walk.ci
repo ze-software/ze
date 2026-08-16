@@ -111,6 +111,9 @@ plugin {
 	internal rs {
 		use bgp-rs
 	}
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
 	external shutdown-after-up {
 		run ./shutdown-after-up.run
 		encoder json
@@ -143,6 +146,9 @@ bgp {
 		behavior {
 			group-updates disable
 			rs-fast-path enable
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
 		}
 		attach process rs {
 			receive [ update-received state open-received refresh ]
@@ -178,6 +184,9 @@ bgp {
 		behavior {
 			group-updates disable
 			rs-fast-path enable
+		}
+		attach process adj-rib-in {
+			send [ update ]
 		}
 		attach process rs {
 			receive [ update-received state open-received refresh ]

@@ -1,6 +1,11 @@
 # med-removal-export-refused -- the same operator directive on an EXPORT chain does nothing to
 # the route, and says why.
 #
+# rfc-test-change-approved: 2026-08-16 Thomas approved adding the optional
+# bgp-adj-rib-in replay provider and its source/destination attachments. This
+# repairs route-server replay when the source UPDATE precedes receiver peer-up;
+# every RFC assertion and expected wire outcome below is unchanged.
+#
 # RFC requirement: RFC4271-5.1.4-2 negative -- "If a BGP speaker is configured to remove the
 # MULTI_EXIT_DISC attribute from a route, then this removal MUST be done prior to determining the
 # degree of preference of the route and prior to performing route selection (Decision Process
@@ -64,6 +69,9 @@ plugin {
 	internal rs {
 		use bgp-rs
 	}
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
 	external shutdown-after-up {
 		run ./shutdown-after-up.run
 		encoder json
@@ -105,6 +113,9 @@ bgp {
 		behavior {
 			group-updates disable
 		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+		}
 		attach process rs {
 			receive [ update-received state open-received refresh ]
 			send [ update ]
@@ -145,6 +156,9 @@ bgp {
 		# EXPORT, which is the direction the mechanism is not honored on.
 		filter {
 			export [ modify:DROP-MED ]
+		}
+		attach process adj-rib-in {
+			send [ update ]
 		}
 		attach process rs {
 			receive [ update-received state open-received refresh ]

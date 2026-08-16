@@ -304,7 +304,7 @@ func (s *Server) deliverEvent(emitter *process.Process, namespace, eventType, di
 	// built on; the peer NAME is empty on this path and is not needed, because
 	// PeerScopedProcs matches on the address.
 	//
-	// This path used to call GetMatching directly, so `attach process <name>
+	// This path used to call getMatching directly, so `attach process <name>
 	// { receive [ update-rpki ] }` decided nothing for the two bgp events that
 	// travel it, bgp/update-rpki from bgp-rpki-decorator and bgp/rpki from
 	// bgp-rpki. It was left unfiltered because the peer name is empty, which is
@@ -316,7 +316,7 @@ func (s *Server) deliverEvent(emitter *process.Process, namespace, eventType, di
 	// event has no peer" must never be the same answer (ai/rules/evidence.md).
 	var procs []*process.Process
 	if peerAddress == "" {
-		procs = s.subscriptions.GetMatching(nsID, etID, dirID, "", "")
+		procs = s.subscriptions.getMatching(nsID, etID, dirID, "", "")
 	} else {
 		procs = s.PeerScopedProcs(nsID, etID, dirID, peerAddress, "")
 	}

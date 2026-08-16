@@ -380,7 +380,7 @@ func TestSubscriptionManagerAddRemove(t *testing.T) {
 
 // TestSubscriptionManagerGetMatching verifies event routing.
 //
-// VALIDATES: GetMatching returns processes with matching subscriptions.
+// VALIDATES: getMatching returns processes with matching subscriptions.
 // PREVENTS: Events sent to wrong processes.
 func TestSubscriptionManagerGetMatching(t *testing.T) {
 	sm := newSubscriptionManager()
@@ -399,16 +399,16 @@ func TestSubscriptionManagerGetMatching(t *testing.T) {
 	sm.Add(proc3, &Subscription{Namespace: events.LookupNamespaceID(bgpevents.Namespace), EventType: events.LookupEventTypeID(bgpevents.EventUpdate), Direction: events.DirBoth, PeerFilter: &PeerFilter{Selector: "10.0.0.1"}})
 
 	// Update from 10.0.0.1 should match proc1 and proc3
-	matches := sm.GetMatching(events.LookupNamespaceID(bgpevents.Namespace), events.LookupEventTypeID("update"), events.DirReceived, "10.0.0.1", "")
+	matches := sm.getMatching(events.LookupNamespaceID(bgpevents.Namespace), events.LookupEventTypeID("update"), events.DirReceived, "10.0.0.1", "")
 	assert.Len(t, matches, 2)
 
 	// Update from 10.0.0.2 should only match proc1
-	matches = sm.GetMatching(events.LookupNamespaceID(bgpevents.Namespace), events.LookupEventTypeID("update"), events.DirReceived, "10.0.0.2", "")
+	matches = sm.getMatching(events.LookupNamespaceID(bgpevents.Namespace), events.LookupEventTypeID("update"), events.DirReceived, "10.0.0.2", "")
 	assert.Len(t, matches, 1)
 	assert.Equal(t, "proc1", matches[0].Name())
 
 	// State event should only match proc2
-	matches = sm.GetMatching(events.LookupNamespaceID(bgpevents.Namespace), events.LookupEventTypeID("state"), events.DirUnspecified, "10.0.0.1", "")
+	matches = sm.getMatching(events.LookupNamespaceID(bgpevents.Namespace), events.LookupEventTypeID("state"), events.DirUnspecified, "10.0.0.1", "")
 	assert.Len(t, matches, 1)
 	assert.Equal(t, "proc2", matches[0].Name())
 }
@@ -442,7 +442,7 @@ func TestSubscriptionManagerConcurrency(t *testing.T) {
 	for range goroutines {
 		wg.Go(func() {
 			for range iterations {
-				_ = sm.GetMatching(events.LookupNamespaceID(bgpevents.Namespace), events.LookupEventTypeID("update"), events.DirReceived, "10.0.0.1", "")
+				_ = sm.getMatching(events.LookupNamespaceID(bgpevents.Namespace), events.LookupEventTypeID("update"), events.DirReceived, "10.0.0.1", "")
 			}
 		})
 	}

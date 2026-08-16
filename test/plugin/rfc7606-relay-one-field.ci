@@ -1,5 +1,10 @@
 # rfc7606-relay-one-field -- a relayed UPDATE carries one NLRI-bearing field
 #
+#
+# rfc-test-change-approved: 2026-08-16 Thomas approved adding the optional
+# bgp-adj-rib-in replay provider and its source/destination attachments. This
+# repairs route-server replay when the source UPDATE precedes receiver peer-up;
+# every RFC assertion and expected wire outcome below is unchanged.
 # RFC requirement: RFC7606-5.1-2 positive -- a received UPDATE mixing Withdrawn Routes with
 # NLRI is SPLIT before being relayed, so every UPDATE this daemon puts on the wire carries at
 # most one NLRI-bearing field. The unit tests pin the two splitters; this is the whole-daemon
@@ -186,6 +191,9 @@ plugin {
 	internal rs {
 		use bgp-rs
 	}
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
 	external shutdown-after-up {
 		run ./shutdown-after-up.run
 		encoder json
@@ -217,6 +225,9 @@ bgp {
 		}
 		behavior {
 			group-updates disable
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
 		}
 		attach process rs {
 			receive [ update-received state open-received refresh ]
@@ -251,6 +262,9 @@ bgp {
 		}
 		behavior {
 			group-updates disable
+		}
+		attach process adj-rib-in {
+			send [ update ]
 		}
 		attach process rs {
 			receive [ update-received state open-received refresh ]

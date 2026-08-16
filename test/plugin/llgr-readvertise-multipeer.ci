@@ -162,6 +162,9 @@ plugin {
 	internal rs {
 		use bgp-rs
 	}
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
 	external observer {
 		run ./observer.run
 		encoder json
@@ -215,6 +218,9 @@ bgp {
 			receive [ update state refresh ]
 			send [ update ]
 		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+		}
 		attach process rs {
 			receive [ update-received state open-received refresh ]
 			send [ update ]
@@ -256,6 +262,9 @@ bgp {
 		}
 		attach process bgp-rib {
 			receive [ update state refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
 			send [ update ]
 		}
 		attach process rs {

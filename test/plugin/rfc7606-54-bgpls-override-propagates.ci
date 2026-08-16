@@ -1,5 +1,10 @@
 # rfc7606-54-bgpls-override-propagates -- the escape clause, through the relay.
 #
+#
+# rfc-test-change-approved: 2026-08-16 Thomas approved adding the optional
+# bgp-adj-rib-in replay provider and its source/destination attachments. This
+# repairs route-server replay when the source UPDATE precedes receiver peer-up;
+# every RFC assertion and expected wire outcome below is unchanged.
 # RFC requirement: RFC7606-5.4-1 negative -- a family whose own specification overrides
 # Section 5.4 keeps propagating its unknown NLRI types. RFC 9552 Section 5.2: "this document
 # deviates from the default handling behavior specified by Section 5.4 (paragraph 2) of
@@ -51,6 +56,9 @@ plugin {
 	internal rs {
 		use bgp-rs
 	}
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
 	external shutdown-after-up {
 		run ./shutdown-after-up.run
 		encoder json
@@ -83,6 +91,9 @@ bgp {
 		}
 		behavior {
 			group-updates disable
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
 		}
 		attach process rs {
 			receive [ update-received state open-received refresh ]
@@ -119,6 +130,9 @@ bgp {
 		}
 		behavior {
 			group-updates disable
+		}
+		attach process adj-rib-in {
+			send [ update ]
 		}
 		attach process rs {
 			receive [ update-received state open-received refresh ]

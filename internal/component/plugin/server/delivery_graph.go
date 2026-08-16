@@ -344,31 +344,28 @@ func (s *Server) DiscardRuntimeSubscriptions() {
 // fails closed on purpose: an index that cannot find a peer must never answer
 // "everything" (ai/rules/evidence.md).
 //
-// The one addition to the overlap is a RUNTIME override, which an operator
-// makes against a running daemon and which the next config apply discards.
+// Runtime overrides can add to the program's declared capability, but they
+// cannot widen the configured grant: the peer's attach block remains the
+// receive authorization for every subscription producer. The next config
+// apply discards the override.
 //
 // It allocates nothing: the graph hands back a stored slice, and the survivors
-// are compacted into the slice GetMatching already built for this call.
+// are compacted into the slice getMatching already built for this call.
 func (s *Server) PeerScopedProcs(ns events.NamespaceID, et events.EventTypeID, dir events.Direction, peerAddr, peerName string) []*process.Process {
 	if s.subscriptions == nil {
 		return nil
 	}
-	procs := s.subscriptions.GetMatching(ns, et, dir, peerAddr, peerName)
+	procs := s.subscriptions.getMatching(ns, et, dir, peerAddr, peerName)
 	if len(procs) == 0 {
 		return procs
 	}
 	granted := s.DeliveryGraph().Receivers(ns, et, dir, peerAddr)
-	overrides := s.subscriptions.hasRuntimeOverride()
-	if len(granted) == 0 && !overrides {
+	if len(granted) == 0 {
 		return nil
 	}
 	kept := procs[:0]
 	for _, proc := range procs {
-		takes := slices.Contains(granted, proc.Name())
-		if !takes && overrides {
-			takes = s.subscriptions.matchesRuntimeOverride(proc, ns, et, dir, peerAddr, peerName)
-		}
-		if takes {
+		if slices.Contains(granted, proc.Name()) {
 			kept = append(kept, proc)
 		}
 	}

@@ -43,14 +43,13 @@ type Subscription struct {
 	PeerFilter   *PeerFilter        // nil = all peers
 	PluginFilter string             // plugin name filter (empty = all)
 	// Runtime marks a subscription an operator made against a RUNNING daemon
-	// with `request subscribe`, rather than one a plugin declared at ready.
-	// It is a live override: it is delivered whether or not the peer's config
-	// grants the type, and the next config apply discards it
-	// (Server.DiscardRuntimeSubscriptions, which only a config apply calls -- a
+	// with `request subscribe`, rather than one a plugin declared at ready. It
+	// is a live capability addition inside the peer's configured receive grant;
+	// it never widens that grant. The next config apply discards it
+	// (Server.DiscardRuntimeSubscriptions, which only a config apply calls; a
 	// peer joining or leaving republishes the index and leaves this standing).
-	// The config is durable truth, so a runtime
-	// change must not survive a reload -- that would make the config document
-	// a lie about what the daemon does.
+	// The config is durable truth, so a runtime change must not survive a reload,
+	// which would make the config document a lie about what the daemon does.
 	Runtime bool
 }
 
@@ -114,9 +113,9 @@ func (s *Subscription) Equals(other *Subscription) bool {
 type SubscriptionManager struct {
 	mu            sync.RWMutex
 	subscriptions map[*process.Process][]*Subscription
-	// runtime counts the live overrides the map holds. The delivery path reads
-	// it once per event to decide whether the override scan is worth making,
-	// and it is zero on every daemon nobody has typed `request subscribe` at.
+	// runtime counts the live overrides the map holds, so a config apply can
+	// avoid locking and scanning the subscription map when there is nothing
+	// temporary to discard.
 	runtime atomic.Int64
 }
 
@@ -159,24 +158,10 @@ func (sm *SubscriptionManager) Remove(proc *process.Process, sub *Subscription) 
 	return false
 }
 
-// hasRuntimeOverride reports whether any live override exists. One atomic load,
-// so the delivery path pays nothing for a feature nobody is using.
+// hasRuntimeOverride reports whether any live override exists. One atomic load
+// keeps the usual config-apply path out of the subscription map.
 func (sm *SubscriptionManager) hasRuntimeOverride() bool {
 	return sm.runtime.Load() > 0
-}
-
-// matchesRuntimeOverride reports whether one process holds a runtime override
-// covering this event. Only reached when hasRuntimeOverride is true and the
-// config's own grant already said no.
-func (sm *SubscriptionManager) matchesRuntimeOverride(proc *process.Process, ns events.NamespaceID, et events.EventTypeID, dir events.Direction, peerAddr, peerName string) bool {
-	sm.mu.RLock()
-	defer sm.mu.RUnlock()
-	for _, sub := range sm.subscriptions[proc] {
-		if sub.Runtime && sub.Matches(ns, et, dir, peerAddr, peerName) {
-			return true
-		}
-	}
-	return false
 }
 
 // clearRuntimeOverrides drops every live override. A config apply rebuilds the
@@ -310,9 +295,9 @@ func (sm *SubscriptionManager) clearProcess(proc *process.Process) {
 	delete(sm.subscriptions, proc)
 }
 
-// GetMatching returns all processes with subscriptions matching the event.
+// getMatching returns all processes with subscriptions matching the event.
 // peerName is the configured peer name (may be empty for non-BGP events or emit-event RPCs).
-func (sm *SubscriptionManager) GetMatching(ns events.NamespaceID, et events.EventTypeID, dir events.Direction, peerAddr, peerName string) []*process.Process {
+func (sm *SubscriptionManager) getMatching(ns events.NamespaceID, et events.EventTypeID, dir events.Direction, peerAddr, peerName string) []*process.Process {
 	sm.mu.RLock()
 	defer sm.mu.RUnlock()
 

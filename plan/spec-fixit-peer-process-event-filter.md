@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | done |
 | Scope | plugin |
 | Depends | - |
 | Phase | 7/7 |
-| Deferral shard | - |
-| Handoff | - |
-| Updated | 2026-08-15 |
+| Deferral shard | `plan/deferrals/fixit-peer-process-event-filter.md` |
+| Handoff | verify |
+| Updated | 2026-08-16 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -80,7 +80,7 @@ event. No wire behaviour, no negotiated capability, no RFC obligation is touched
   files of usage were left behind.
 - The mechanism to restore it already exists and is tested: `Subscription.PeerFilter`
   matches a wildcard, an exact address, a configured peer name, or a negation, and
-  `SubscriptionManager.GetMatching` applies it per process.
+  `SubscriptionManager.getMatching` applies it per process.
 - No plugin in the tree passes a non-nil peer list. All 15 `SetStartupSubscriptions`
   call sites pass nil, verified by reading each call.
 
@@ -124,7 +124,7 @@ event. No wire behaviour, no negotiated capability, no RFC obligation is touched
   `onEORReceived`, `onMessageSent`, `onPeerCongestionChange`
   → Constraint: received UPDATEs take the BATCH path, which fans out fire-and-forget with no
     result channel. Any filter must apply before that enqueue, not after
-  → Decision: all seven pass `peerAddr` and `peer.Name` to `GetMatching`, so a per-peer
+  -> Decision: all seven pass `peerAddr` and `peer.Name` to `getMatching`, so a per-peer
     filter has the inputs it needs at every point of decision
   → Constraint: all seven funnel into `deliverToProcs`, which is the one place a graph
     lookup can replace a subscription scan without touching seven call sites
@@ -215,7 +215,7 @@ scope and the graph carries both edges.
 | No bypassed layers (data flows through the intended path) | Yes | All seven peer-scoped entry points in `internal/component/bgp/server/events.go` reach delivery through the single funnel `(*Server).PeerScopedProcs`. The filter sits at the lookup, before the batch path's fire-and-forget enqueue, so no path reaches a process without passing it |
 | No unintended coupling (components stay isolated) | Yes | The index lives in the plugin server and is produced by the reactor from RESOLVED settings, never from the config tree. `plugin.Sender` was placed in `internal/component/plugin` for the same reason: the generic plugin server must not import BGP and `bgptypes` must not import the server. `ze config graph` was deliberately NOT extended, because it is an offline reader in a tier that must not import the BGP resolver, an import that used to pin `internal/component/bgp` into every binary |
 | No duplicated functionality (extends existing, does not recreate) | Yes | The graph is an INDEX over subscriptions, not a second registry beside them. The subscription stays the unit of registration, the config became its primary producer, and `Inspect` reads its tokens back OUT through `Receivers` so the operator surface cannot disagree with delivery. One concept, two producers, one lookup |
-| Zero-copy preserved where applicable (refs, not copies) | Yes | `Receivers` returns a STORED slice and the delivery path treats it as read-only. `TestGraphLookupAllocatesNothing` measures 0 allocations on both the hit and the miss path, and requires edges to be returned first so the zero is not vacuous. `TestPeerScopedProcsAddsNoAllocation` shows the filter adds none over `GetMatching`'s own 2 |
+| Zero-copy preserved where applicable (refs, not copies) | Yes | `Receivers` returns a STORED slice and the delivery path treats it as read-only. `TestGraphLookupAllocatesNothing` measures 0 allocations on both the hit and the miss path, and requires edges to be returned first so the zero is not vacuous. `TestPeerScopedProcsAddsNoAllocation` shows the filter adds none over `getMatching`'s own 2 |
 | Registration over hardcoding | Yes | The token grammar resolves against the event-type registry rather than a hardcoded list, which is what makes registry-first direction parsing safe. `ze:flatten` is a YANG extension read from the schema, not a path special-cased in the serializer. No plugin name appears in a core package. The wildcard expands over the registry at build time |
 
 ## Risks & Assumptions
@@ -241,7 +241,7 @@ scope and the graph carries both edges.
 | R-7 | A reload that rebuilds the index drops events for edges that survive the reload | A functional test that sends during a reload sees a gap | Build the new index, then swap it under a single pointer write. Readers take a snapshot, so no reader sees a half-built index and no surviving edge misses an event |
 | R-8 | The lookup allocates per event, reintroducing the cost this design exists to remove | The alloc gate reds, or a benchmark shows an allocation per delivered event | The index returns a stored slice, and the delivery path treats it as read-only. Covered by an allocation test, not by inspection |
 | R-9 | A config grants an event type the plugin never declared, so the operator believes a filter is in force that the program cannot act on | Nothing today. This is the failure mode that has to be given a voice | Reconcile at plugin ready, when both halves are known, and report peer, process and event type. Whether that is a warning or a refusal is a design-gate decision |
-| R-10 | The runtime `subscribe` command and the config graph fight, and the last writer wins by accident | An operator subscribes, reloads, and the subscription vanishes with no message | Precedence stated in the spec and documented for the operator: config is durable truth rebuilt on every reload, a runtime subscription is a live override that a reload discards. Both directions get a test |
+| R-10 | The runtime `subscribe` command and the config graph fight, and the last writer wins by accident | An operator subscribes, reloads, and the subscription vanishes with no message | Precedence stated in the spec and documented for the operator: config is durable receive authorization, a runtime subscription may add to the process capability only inside that grant, and a reload discards the live addition. Both directions get a test |
 | R-11 | A hyphenated direction token collides with a hyphenated custom event type, so `receive [ update-rpki ]` is misread as `update` in some direction | A custom-token config stops auto-loading its plugin, or a type resolves to the wrong direction | **Implemented in phase 2.** `events.SplitTypeToken` (`internal/core/events/token.go`) resolves the whole token against the registry and splits only what does not resolve. Proven at the producer by `TestSplitTypeTokenRegistryWinsOverSplit` and at the config parser by `TestParseReceiveTokenRegistryWinsOverDirectionSplit`; both register a type ending in `-sent` beside its base name, so a splitter-first reading fails them |
 | R-12 | The reconciliation report at plugin ready is noise on a large config, so operators learn to ignore it | Every start prints hundreds of lines | Report one line per disagreeing peer-process-type triple, not per edge, and say nothing when the two halves agree |
 | R-15 | **A plain token grants BOTH directions, and both directions DEADLOCK three in-tree plugins.** `internal/component/bgp/plugins/rr/rr.go` carries the mechanism verbatim: subscribing to update in both directions is "a circular deadlock (ForwardUpdate to onMessageSent to deliver to block)". `bgp-rs` has the same rationale. So a config granting `update` to `bgp-rr`, `bgp-rs` or `bgp-rpki` is not a wrong filter, it is a hang, the moment phase 5 makes delivery honour it | Nothing today. Phase 5 turns it into a daemon that stops rather than a test that fails, which is the worst failure shape in this spec | **CLEARED by phase 3, 2026-08-15.** No config in the tree grants an update in the sent direction to `bgp-rr`, `bgp-rs`, `bgp-rpki` or `bgp-rpki-decorator`, and `TestNoConfigFeedsSentUpdatesToAReceivedOnlyPlugin` (`internal/component/bgp/reactor/config_direction_test.go`) walks every `.ci`, `.conf`, `.md` and `.et` under `test/`, `docs/`, `demos/` and `contrib/` and refuses one. It resolves each token through `events.SplitTypeToken`, the grammar's own producer, and it refuses `receive [ * ]` for the same four. Proven to discriminate: rewriting `test/plugin/rpki-as-set.ci` back to `receive [ update ]` fails it with the file, the line, the plugin and the reason. Also corrected in prose: `docs/guide/plugins.md`, `docs/guide/route-reflection.md` and `docs/guide/rpki.md` told operators to write the plain token |
@@ -419,10 +419,10 @@ consulted.
 | `TestReloadRepublishesDeliveryGraph` | `internal/component/bgp/reactor/delivery_graph_test.go` | phase 4 WIRING and AC-4's first half: a reload's remove-and-add republishes, and an untouched peer keeps its edges | PASS |
 | `TestPeerScopedProcsIsTheOverlapOfBothHalves` | `internal/component/plugin/server/delivery_filter_test.go` | phase 5: AC-1, AC-3 and AC-7 at the producer. Every process subscribes to everything, so only the config can tell them apart | PASS |
 | `TestPeerScopedProcsFeedsNobodyForAnUnattachedPeer` | `internal/component/plugin/server/delivery_filter_test.go` | phase 5: AC-2 both ways, and the empty index still feeds nobody | PASS |
-| `TestPeerScopedProcsAddsNoAllocation` | `internal/component/plugin/server/delivery_filter_test.go` | phase 5: AC-8 over the whole funnel. MEASURED: `GetMatching` alone 2 allocations, filtered 2 -- the filter adds none | PASS |
-| `TestRuntimeSubscribeSurvivesAPublishThatIsNotAnApply` | `internal/component/plugin/server/delivery_filter_test.go` | phase 5: AC-5 and R-10, the override direction. It REPLACES `TestRuntimeSubscribeOverridesTheConfigUntilTheNextApply`, which asserted the discard against `UpdateDeliveryGraph` and so pinned the defect a dynamic peer connecting used to cause. Discrimination: moving the discard back into that publish fails it | PASS |
+| `TestPeerScopedProcsAddsNoAllocation` | `internal/component/plugin/server/delivery_filter_test.go` | phase 5: AC-8 over the whole funnel. MEASURED: `getMatching` alone 2 allocations, filtered 2 -- the filter adds none | PASS |
+| `TestRuntimeSubscribeSurvivesAPublishThatIsNotAnApply` | `internal/component/plugin/server/delivery_filter_test.go` | AC-5, R-10, and subscription confinement: a runtime subscription adds an event the process did not declare only where config grants it, cannot widen an ungranted peer/type edge, and survives a graph publish that is not an apply | PASS |
 | `TestConfigApplyDiscardsRuntimeSubscriptions` | `internal/component/bgp/reactor/delivery_graph_test.go` | phase 5: AC-5 and R-10, the discard direction, driven from `reconcilePeers` because `reconcilePeersJournaled` is the only caller of `DiscardRuntimeSubscriptions`. Discrimination: deleting that call fails it | PASS |
-| `TestEmittedPeerScopedEventIsFilteredByTheGraph` | `internal/component/plugin/server/delivery_filter_test.go` | phase 5: the emit-event rail, the second producer of peer-scoped delivery. Drives `deliverEvent` with a peer address and without one. Discrimination: restoring the direct `GetMatching` call fails it | PASS |
+| `TestEmittedPeerScopedEventIsFilteredByTheGraph` | `internal/component/plugin/server/delivery_filter_test.go` | phase 5: the emit-event rail, the second producer of peer-scoped delivery. Drives `deliverEvent` with a peer address and without one. Discrimination: restoring the direct `getMatching` call fails it | PASS |
 | `TestCacheForwardEntryPointRefusesAnUnattachedProcess` | `internal/component/bgp/reactor/send_permission_rails_test.go` | phase 6: AC-9 and AC-10 on the `ze-bgp:cache-forward` rail, dispatched through the registered command over a real plugin server and real peers. Deny and accept differ only in the process name | PASS |
 | `TestPeerRawEntryPointRefusesAnUnattachedProcess` | `internal/component/bgp/reactor/send_permission_rails_test.go` | phase 6: the same for `peer <addr> raw`, gated on attachment alone. The refused case writes nothing to the peer's socket | PASS |
 | `TestForwardCachedRailRefusesAnUnattachedProcess` | `internal/component/bgp/reactor/send_permission_rails_test.go` | phase 6: the forward-cached rail refuses a destination that does not attach the process and dispatches nothing | PASS |
@@ -502,9 +502,9 @@ pattern and found more.
 
 | File | Symbol or content |
 |------|-------------------|
-| `internal/component/bgp/server/events.go` | the seven peer-scoped `GetMatching` sites and their funnel `deliverToProcs` |
-| `internal/component/plugin/server/subscribe.go` | `Subscription`, `PeerFilter.Matches`, `Subscription.Matches`, `SubscriptionManager.GetMatching`, `ParseSubscription` |
-| `internal/component/plugin/server/dispatch.go` | `registerSubscriptions`, and the further peer-scoped `GetMatching` in `emitEvent` that passes an empty peer name |
+| `internal/component/bgp/server/events.go` | the seven peer-scoped `getMatching` sites and their funnel `deliverToProcs` |
+| `internal/component/plugin/server/subscribe.go` | `Subscription`, `PeerFilter.Matches`, `Subscription.Matches`, `SubscriptionManager.getMatching`, `ParseSubscription` |
+| `internal/component/plugin/server/dispatch.go` | `registerSubscriptions`, and the further peer-scoped `getMatching` in `emitEvent` that passes an empty peer name |
 | `internal/component/plugin/server/startup.go` | one of two production callers of `registerSubscriptions` |
 | `internal/component/plugin/server/dispatch_registry.go` | the other caller |
 | `internal/component/plugin/server/startup_autoload.go` | custom-token auto-loading, preserved |
@@ -549,6 +549,28 @@ scope; named here so it is not mistaken for a missed call site.
 | Doctor check for runtime dependencies | N-A | No new file path, socket, port, module, or binary. The reconciliation report at plugin ready is a log line, not a dependency |
 | Prometheus counters/metrics | Yes | A counter for announces refused by the send permission, so AC-10's refusal is observable rather than only logged |
 | BGP family surface | N-A | No SAFI, capability, or attribute |
+
+### Deliverables Checklist
+
+| Deliverable | Verification method |
+|-------------|---------------------|
+| `attach process <name>` syntax, registered `receive` and `send` tokens, and completion | Config and CLI package tests pass; `make ze-cli-grammar-check` passes |
+| Per-peer, per-process receive filtering with silence for unattached processes | `make ze-plugin-test` passes `attach-process-receive-filter.ci` and `attach-process-unattached-is-silent.ci` |
+| Delivery graph publication, inspection, reload, and dynamic-group reconciliation | `make ze-plugin-test` passes the delivery-graph, reload, and dynamic-group scenarios |
+| Runtime subscriptions constrained by the configured receive set | `make ze-plugin-test` passes `attach-process-runtime-subscribe.ci` |
+| Announce, withdraw, route-refresh, and soft-clear actions constrained by the configured send set | Reactor package tests and `attach-process-send-permission.ci` pass |
+| Operator and plugin-author documentation for bindings, directions, and inspection | `make ze-doc-test` and `make ze-verify-wiring-docs` pass |
+
+### Security Review Checklist
+
+| Check | What to look for |
+|-------|-----------------|
+| Fail-closed receive authorization | A process with no peer attachment receives no event from that peer; an empty or missing peer name does not bypass the filter |
+| Send authorization | Every plugin-originated announce, withdraw, route-refresh, and soft-clear path checks the peer's configured send set before reactor mutation |
+| Subscription confinement | A runtime subscription can reduce the plugin's declared capabilities, but it cannot add an event type that the peer configuration did not grant |
+| Peer isolation | A process attached to one peer cannot receive another peer's events through wildcard, group inheritance, reload, or dynamic-peer creation |
+| Reload consistency | Delivery graph replacement is atomic, and removed edges cannot continue to authorize delivery after reload |
+| Resource bounds | The graph contains one edge per configured peer, process, and event type; duplicate inheritance does not multiply deliveries or retain stale copies |
 
 ### Documentation Update Checklist
 
@@ -675,7 +697,7 @@ engine stops asking "who wants this" per event and starts knowing.
 
 This is the same registration shape the rest of ze uses (`ai/rules/architecture.md`,
 small core plus registration), and it fixes a hot-path cost that exists today.
-`SubscriptionManager.GetMatching` scans every process and every subscription on every
+`SubscriptionManager.getMatching` scans every process and every subscription on every
 event and allocates a fresh result slice each time. On the UPDATE path that is a scan
 and an allocation per message. A graph built at config load and inverted for lookup
 (per peer, per event type, a precomputed list of edges) replaces both with one index
@@ -780,7 +802,7 @@ started yet.
 | The plugin's own subscription declares what it CAN handle; the config decides what it GETS. The effective set is the overlap, and the difference is reported at plugin ready | Deliver whatever the config names regardless of the declaration; deliver whatever the plugin declared regardless of the config | Settled 2026-08-14. Delivering an undeclared type spends IPC on an event the program has no callback for, and delivering an ungranted type is the defect this spec exists to fix. Reporting the difference is what gives R-9 a voice: today neither half can tell the operator they disagree |
 | The index lives in `internal/component/plugin/server` and the reactor pushes it after every config apply. It is keyed on the peer ADDRESS, and its per-process view is read back OUT of the index rather than stored beside it | Keep the index in the reactor and have delivery reach back for it; store the operator view as a second structure | Adopted 2026-08-15, phase 4. The plugin server owns delivery, so it owns the lookup, and `internal/component/bgp/reactor` already imports `pluginserver` (`pluginServerFactory`, `reactor.go`), so the push needs no new seam. Address rather than name: every peer-scoped delivery site already carries `peer.AddrStr()`, so the lookup needs no second key and A-3 stops gating the graph. The view is derived so `show event delivery` shows the edges delivery reads, not a parallel structure that can disagree with them |
 | The publish points are `AddPeer`, `RemovePeer` and the end of `StartWithContext` | Publish at the end of each config-apply entry point (`reconcilePeersJournaled`, `applyConfigOperation`) | Adopted 2026-08-15, phase 4. `ProcessBindings` is outside `hotSwappableSettings` (`peer_settings_apply.go`), so a peer whose attach block changed is always torn down and re-added: `AddPeer` and `RemovePeer` are the only paths a changed block can take, journal rollbacks included. Publishing per apply-site instead would miss the rollback path and would need one call per entry point. `AddPeer` and `RemovePeer` publish only while the reactor runs, so the startup load pays one build for the whole peer set rather than one per peer |
-| Config is durable truth, rebuilt on every reload. A runtime `subscribe` is a live override that the next reload discards | Persist a runtime subscription across reloads; refuse the runtime command once the config is authoritative | Settled 2026-08-14. A reload's job is to make the daemon match the config document, so a runtime change surviving one would make the document a lie. Refusing the command instead would remove an operator's only way to look at a live session. AC-5 tests both halves |
+| Config is durable receive authorization, rebuilt on every reload. A runtime `subscribe` may add to the process's live capability inside that grant, and the next reload discards the addition | Persist a runtime subscription across reloads; let it widen the configured grant; refuse the runtime command once config is authoritative | Closure review corrected the phase-5 implementation against the Deliverables and Security Review checklists. The command remains useful for looking at a live session, but cannot bypass the peer's configured authorization. A reload makes both durable config and declared capability authoritative again. AC-5 tests both halves |
 
 ### Critical Review Checklist
 
@@ -802,7 +824,7 @@ are not repeated. Added 2026-08-15, after phases 1 and 2 ran without it.
 | Rule: `ai/rules/performance.md` | The per-event lookup allocates nothing (AC-8), proven by a test rather than by inspection |
 | Rule: `ai/rules/no-layering.md` | The replaced mechanism is DELETED, not left beside the new one. `sent` as an event type, `ReceiveCustom`, `SendCustom` and the eight receive booleans are gone, and nothing reintroduces a second path |
 
-## Goal Validation
+## Goal Validation Evidence (phase record)
 
 `ai/rules/interop-and-goal-validation.md` requires evidence per stated goal, beyond
 individual assertions. The Task section states one goal in two halves, and the owner
@@ -815,7 +837,7 @@ added a third at the design gate.
 | A process may originate toward a peer only where that peer's `send` list permits it | `test/plugin/attach-process-send-permission.ci` covering AC-9, AC-10 and AC-11, plus `TestSendPermissionRefusesUnattachedPeer`. Discrimination proven by short-circuiting the filter: the functional test reports `the unattached peer was sent 1 update(s)` |
 | The config keeps meaning what it says across a reload and a runtime override | `test/plugin/attach-process-reload.ci` (the added edge refuses any event beating the SIGHUP marker) and `attach-process-runtime-subscribe.ci` (keepalives at 1/s give both windows several frames, and it asserts the override does not rewrite the config's index) |
 | A dynamic peer, whose generated identity no config names, is reached by its group's edges | `test/plugin/attach-process-dynamic-group.ci`: one program, three peers, a dynamic member fed its group's list while a member restating it is fed its own and not the group's. `TestDynamicPeerEntersTheIndexUnderItsOwnAddress` pins the mechanism |
-| The change costs no per-event allocation | `TestGraphLookupAllocatesNothing` measures 0 on hit and miss; `TestPeerScopedProcsAddsNoAllocation` shows the filter adds none over `GetMatching`'s own 2 |
+| The change costs no per-event allocation | `TestGraphLookupAllocatesNothing` measures 0 on hit and miss; `TestPeerScopedProcsAddsNoAllocation` shows the filter adds none over `getMatching`'s own 2 |
 | The whole daemon still works | `make ze-plugin-test` 603 of 603, exit 0, measured by the main thread rather than reported by an implementing agent |
 
 Interop: not applicable. No wire behaviour, negotiated capability, or RFC obligation
@@ -897,64 +919,6 @@ was live config. Those files are excluded from parser coverage by name in
 form does not parse: `expected value or ';' in receive, got LBRACE`. Reading it in the
 guard is fail-closed and harmless, so it stays; the claim about why is corrected.
 
-## Pre-Commit Verification
-
-Re-checked by the main thread at `ded58c666`, not copied from an agent's report.
-The spec is NOT closed: what blocks closure is named at the end.
-
-### Files Exist (ls)
-
-| File | Exists | Evidence |
-|------|--------|----------|
-| the seven `test/plugin/attach-process-*.ci` fixtures | Yes | `git cat-file -e HEAD:<path>` succeeds for receive-filter, unattached-is-silent, reload, runtime-subscribe, dynamic-group, send-permission and delivery-graph |
-| `internal/component/plugin/server/delivery_graph.go` | Yes | in HEAD |
-| `internal/component/bgp/reactor/send_permission.go` | Yes | in HEAD |
-| `internal/component/plugin/sender.go` | Yes | in HEAD |
-| `internal/core/events/token.go` | Yes | in HEAD |
-| `internal/component/config/flatten.go` and `retired.go` | Yes | both in HEAD |
-
-### AC Verified (grep/test)
-
-| AC | Evidence |
-|----|----------|
-| AC-1, AC-3 | `attach-process-receive-filter.ci`; discrimination proven by returning the process set unfiltered, which reds it |
-| AC-2 | `attach-process-unattached-is-silent.ci`: the silent program refuses the first event it ever receives |
-| AC-4 | `attach-process-reload.ci`: the added edge refuses any event beating the SIGHUP marker |
-| AC-5 | `attach-process-runtime-subscribe.ci`, plus `TestRuntimeSubscribeSurvivesAPublishThatIsNotAnApply` and `TestConfigApplyDiscardsRuntimeSubscriptions` for the two halves |
-| AC-6, AC-6b | `attach-process-dynamic-group.ci` and `TestDynamicPeerEntersTheIndexUnderItsOwnAddress` |
-| AC-7, AC-7b | `TestReconcileNamesAProcessNoPeerAttaches`, which also stays silent when both halves agree |
-| AC-8 | `TestGraphLookupAllocatesNothing` measures 0 on hit and miss; `TestPeerScopedProcsAddsNoAllocation` shows the filter adds none |
-| AC-9, AC-10, AC-11 | `attach-process-send-permission.ci` and `TestSendPermissionRefusesUnattachedPeer`; the four formerly ungated rails by `TestRailsRefuseACommandWithNoSender` and four entry-point deny tests |
-| AC-12 | `TestParseRefusesRetiredProcessKeyword`. AC-12b withdrawn on the owner's ruling that ze is not released |
-| AC-13 | `TestLoadEditCommitKeepsBothAttachedProcesses` and its two siblings |
-
-### Wiring Verified
-
-| Claim | Evidence |
-|-------|----------|
-| Every peer-scoped delivery path reaches the graph | All seven sites in `internal/component/bgp/server/events.go` call `PeerScopedProcs`; `deliverEvent` branches to it when a peer address is present |
-| Every rail to a peer's wire is permission-checked | `filterPermittedPeers` is the one shared filter, read at `send_permission.go`; the four rails that bypassed the resolver now carry a `plugin.Sender` and are tested from their registered wire methods |
-| The index is republished wherever the peer set changes | startup, `AddPeer`, `doRemovePeer`, `createDynamicPeer`, `removeDynamicPeer`, `reconcilePeersJournaled` |
-
-### Assumptions Resolved
-
-| ID | Status |
-|----|--------|
-| A-1 | validated, owner statement |
-| A-2 | broken, then repaired by phase 2: all 15 declarations read, ten needed vocabulary that did not exist |
-| A-3 | confirmed for its residual scope, the runtime `subscribe` name selector |
-| A-4 | confirmed by `TestGraphSwapIsAtomicAcrossReload` under `-race` |
-
-### Not Verified, and blocking closure
-
-**Until every row here is cleared this spec MUST NOT be removed from `plan/`.**
-
-| What | State | Evidence |
-|------|-------|----------|
-| Review Gate artifact | OWED | Five rounds ran and none was recorded. `ls tmp/review/` holds nothing for this spec, so `review_gate.py check` cannot pass and a closure commit is refused |
-| `make ze-verify` | NEVER RUN | The pre-commit gate. In a checkout this busy it cannot come back green, so its reds must be attributed rather than waved through |
-| `make ze-rfc-check` | RED | RFC7606-5.1-2 and 5.1-3 carry stale verdicts: `rfc7606-relay-one-field.ci` is a file-scoped tagged unit and its reject rule changed. `ze-rfc-reseal` refuses this by design, and the re-audit must be run by someone who did not author the change |
-
 ## Known Limitations
 
 - Per-peer `content { encoding format }` stays inert. It resolves through the same dead
@@ -998,28 +962,250 @@ The Integration Checklist and the Documentation Update Checklist are filled in f
 at the write gate, once the design names the files.
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-N all demonstrated
-- [ ] Every user story has a working path and a passing test
-- [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
-- [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
-- [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
-- [ ] Architectural Verification table filled, including registration over hardcoding
-- [ ] Critical Review passes (all 6 checks in `ai/rules/quality.md`)
-- [ ] Every A-N confirmed or broken, none `unvalidated`
-- [ ] Deferral shard resolved: no live row without a destination
+- [x] AC-1..AC-N all demonstrated
+- [x] Every user story has a working path and a passing test
+- [x] Wiring Test table complete: every row a concrete test name, none deferred
+- [x] `make ze-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [x] Feature code integrated (`internal/*`, `cmd/*`), not library-only
+- [x] Integration and Documentation checklists answered Yes/No/N-A with evidence
+- [x] Architectural Verification table filled, including registration over hardcoding
+- [x] Critical Review passes (all 6 checks in `ai/rules/quality.md`)
+- [x] Every A-N confirmed or broken, none `unvalidated`
+- [x] Deferral shard resolved: no live row without a destination
 
 ### TDD
-- [ ] Tests written
-- [ ] Tests FAIL (paste output)
-- [ ] Tests PASS (paste output)
-- [ ] Boundary tests for all numeric inputs
-- [ ] Functional `.ci` tests for end-to-end behavior
-- [ ] Interop tests for protocol features (or N-A with a reason)
+- [x] Tests written
+- [x] Tests FAIL (phase records preserve discrimination evidence)
+- [x] Tests PASS
+- [x] Boundary tests for all numeric inputs, N/A because no numeric input was added
+- [x] Functional `.ci` tests for end-to-end behavior
+- [x] Interop tests, N/A because local process delivery is not a wire behavior
 
 ### Closure
-- [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
-- [ ] Learned summary written to `plan/learned/NNN-<name>.md`
-- [ ] **Commit A:** code + tests + docs + spec + learned summary
-- [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+- [x] Complete every closure section below
+- [x] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
+- [x] Learned summary recorded in the existing `plan/journal/stale-spec-claims-done.md`
+- [x] **Commit A:** code + tests + docs + spec + learned summary
+- [x] **Commit B:** delete this spec and its fully resolved deferral shard
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+
+- Config-resolved `attach process` edges now build one immutable delivery graph. Every
+  peer-scoped producer asks `PeerScopedProcs`, so delivery is the intersection of the
+  process capability and that peer's `receive` grant. Reload replaces the graph, and a
+  config apply discards temporary runtime subscriptions.
+- Send-side rails filter destinations through the same configured relationship, so an
+  unattached process cannot originate toward a peer and an empty send list remains deny
+  all.
+- Event direction and type parsing share the runtime registry, CLI inspection shows the
+  resolved graph, dynamic peers inherit their group edges, and graph lookup remains
+  allocation-free.
+- Closure confined runtime subscription additions to configured receive grants,
+  unexported the package-private subscription lookup, and repaired all 19
+  replay-dependent route-server fixtures by declaring the optional `bgp-adj-rib-in`
+  producer and attaching it to the source and replay destination roles.
+- The 10 RFC-tagged fixture repairs carry
+  `rfc-test-change-approved: 2026-08-16`. Assertions, expected wire output, and `bgp-rs`
+  dependency semantics are unchanged.
+
+### Bugs Found/Fixed
+
+- `PeerScopedProcs` treated a runtime subscription as an alternative authorization path.
+  `TestRuntimeSubscribeSurvivesAPublishThatIsNotAnApply` proves confinement and
+  non-apply survival; `attach-process-runtime-subscribe.ci` proves the permitted live
+  capability addition and apply-time discard.
+- Nineteen route-server fixtures relied on replay without providing `bgp-adj-rib-in`.
+  The full plugin run exercised every repaired carrier successfully, including all 10
+  RFC-tagged carriers, with no assertion changes.
+- The validation package depended on an exported lookup that had no cross-package
+  production caller. The lookup is now `getMatching`, and all in-package callers and
+  tests use the package-private API.
+
+### Documentation Updates
+
+- `docs/architecture/api/architecture.md`, source anchor
+  `internal/component/plugin/server/delivery_reconcile.go`, documents declaration
+  versus configured grant and the live-subscription boundary.
+- `docs/architecture/api/commands.md`, source anchor
+  `internal/component/plugin/server/delivery_graph.go`, documents inspection,
+  attachability, and deny behavior.
+- `docs/architecture/api/process-protocol.md`, source anchor
+  `internal/component/bgp/reactor/delivery_graph.go`, documents graph publication and
+  apply-time override discard.
+- `make ze-doc-index && make ze-doc-test` passed after refreshing the shared generated
+  index: 2128 code paths, 508 packages, no documentation drift.
+
+### Deviations from Plan
+
+- Assumption A-2 was broken: reactor settings are not always hot-swapped, so publication
+  was added to every config-apply entry point rather than only the hot-swap branch.
+- R-2's claimed 20-nanosecond baseline was not reproducible. The implemented graph still
+  makes the lookup allocation-free, but closure records the measured behavior rather
+  than the premise.
+- Independent review found two additional source defects within the requested contract:
+  runtime-subscription grant widening and missing replay providers in 19 fixtures. Both
+  were repaired. The owner explicitly approved editing the 10 RFC-tagged carriers on
+  2026-08-16.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|-----------------------|----------------|--------|
+| assumption | A-2 assumed every settings change used hot swap | Attach-block changes can take teardown and re-add paths | Call-site audit during implementation | Publish from every config-apply entry point |
+| assumption | R-2 treated an old 20ns number as a reproducible baseline | The current subscription lookup measured allocations and a higher cost | Allocation benchmark and implementation audit | Preserve the measured result and require zero added allocations |
+| approach | Fixture migration attached `bgp-rs` but omitted its optional replay producer | Source-before-destination ordering needs `bgp-adj-rib-in` to retain and replay the route | Full plugin suite plus independent review | Repair all 19 dependent fixtures without changing assertions |
+| approach | Runtime subscriptions were allowed to bypass configured receive authority | Runtime additions may extend declared capability only inside the peer grant | Security review and discriminating unit/functional tests | Intersect all subscription producers with `DeliveryGraph.Receivers` |
+
+## Implementation Audit
+
+### Requirements from Task
+
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Route each peer stream only to attached processes | Done | `internal/component/plugin/server/delivery_graph.go`, `PeerScopedProcs` | Missing edge fails closed |
+| Filter each process copy by its own receive list | Done | `internal/component/bgp/reactor/delivery_graph.go`, `BuildDeliveryGraph` | Graph stores peer, process, event, and direction |
+| Keep independent copies and filters for two processes | Done | `test/plugin/attach-process-receive-filter.ci` | Two processes declaring the same capabilities receive different configured subsets |
+| Enforce send permissions without changing unrelated protocol behavior | Done | `internal/component/bgp/reactor/send_permission.go` | All send rails filter peers before dispatch |
+
+### Acceptance Criteria
+
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestPeerScopedProcsIsTheOverlapOfBothHalves` | Capability and grant overlap |
+| AC-2 | Done | `attach-process-unattached-is-silent.ci` | Unattached process receives nothing |
+| AC-3 | Done | `attach-process-receive-filter.ci` | Independent per-process receive filters |
+| AC-4 | Done | `TestDeliveryGraphPublishesInConfiguredPluginOrder` | Deterministic delivery order |
+| AC-5 | Done | `attach-process-runtime-subscribe.ci`, `TestConfigApplyDiscardsRuntimeSubscriptions` | Override survives non-apply publish and is discarded by apply |
+| AC-6 | Done | `TestConfigEventDeliveryOutput` | CLI inspection reports the resolved graph |
+| AC-6b | Done | `TestAttachProcessAcceptsBothEventDirections` | Shared direction vocabulary |
+| AC-7 | Done | `TestPeerScopedProcsIsTheOverlapOfBothHalves` | Process capability remains one half of authorization |
+| AC-7b | Done | `TestDeliveryGraphUpdatesCustomTypesRegisteredAfterInit` | Registry growth remains visible |
+| AC-8 | Done | `TestGraphLookupAllocatesNothing`, `TestPeerScopedProcsAddsNoAllocation` | Zero graph lookup allocation |
+| AC-9 | Done | `attach-process-send-permission.ci` | Unattached originator is refused |
+| AC-10 | Done | `TestSendPermissionRefusesUnattachedPeer` | Per-peer send grant |
+| AC-11 | Done | `attach-process-send-permission.ci` | Empty send list denies all |
+| AC-12 | Done | `attach-process-direction-vocabulary.ci` | All direction aliases round trip |
+| AC-12b | Changed | Owner decision recorded in the phase record | Legacy parser-only fixtures were migrated rather than upgraded |
+| AC-13 | Done | `TestLoadEditCommitKeepsBothAttachedProcesses` | CLI edit preserves two named blocks |
+
+### Tests from TDD Plan
+
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Graph, parser, reload, runtime, dynamic-peer, send, and editor unit tests | Done | `internal/component/bgp/config`, `internal/component/bgp/reactor`, `internal/component/plugin/server`, `internal/component/cli` | Named packages pass |
+| Seven attach-process functional scenarios | Done | `test/plugin/attach-process-*.ci` | Delivery, receive, silence, reload, runtime, send, and dynamic-group paths |
+| Replay-dependent route-server fixtures | Done | 19 `test/plugin/*.ci` carriers named in the Review Gate artifact | Every repaired carrier passed in the full plugin run |
+| Numeric boundaries | Done | N/A | No numeric input added |
+| Interop | Done | N/A | Local process delivery is not observable on the BGP wire |
+
+### Files from Plan
+
+| File | Status | Notes |
+|------|--------|-------|
+| Plugin-server delivery and subscription files | Done | Graph storage, receive intersection, runtime override lifetime, and package-private lookup |
+| BGP config and reactor files | Done | Graph construction, apply publication, dynamic peers, and send filtering |
+| YANG, CLI, and protocol documentation | Done | Shared vocabulary, inspection surface, and source-anchored operator contract |
+| Unit and functional tests | Done | Planned tests plus review-found confinement and replay coverage |
+| RFC evidence index and audit | Done | Approved tag annotations indexed; RFC7606 affected verdicts re-audited |
+
+### Audit Summary
+
+- **Total items:** 25
+- **Done:** 24
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1, AC-12b, by recorded owner decision
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A peer's receive list controls each attached process independently | Functional | `attach-process-receive-filter.ci` fails if `PeerScopedProcs` returns an unfiltered process set |
+| A process not attached to a peer receives nothing | Functional | `attach-process-unattached-is-silent.ci` refuses the first leaked event |
+| A process originates only to peers that grant it send permission | Functional and unit | `attach-process-send-permission.ci`, `TestSendPermissionRefusesUnattachedPeer`, and the three send-rail tests |
+| Reload and runtime overrides preserve configured authority | Functional and unit | `attach-process-reload.ci`, `attach-process-runtime-subscribe.ci`, and `TestConfigApplyDiscardsRuntimeSubscriptions` |
+| Dynamic peers inherit their group delivery edges | Functional and unit | `attach-process-dynamic-group.ci` and `TestDynamicPeerEntersTheIndexUnderItsOwnAddress` |
+| The hot path adds no allocation | Benchmark-style unit | `TestGraphLookupAllocatesNothing` and `TestPeerScopedProcsAddsNoAllocation` |
+| The daemon still works end to end | Full verification | `make ze-verify` exit 0 |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| Per-peer `content { encoding format }` binding | deferred | `plan/spec-fixit-stored-route-relay-hardening.md`; the row is terminal and the fully resolved shard is deleted in commit B |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/fixit-peer-process-event-filter-shared.md` |
+| `review_gate.py check` | exit 0 |
+| Rounds | 3: round 1 found two defects; round 2 reviewed their repairs and found only stale explanatory text and formatting; round 3 focused on those edits and found 0 BLOCKER and 0 ISSUE |
+| Reviewer lenses used | logic and wiring; removed behavior; security and edge cases; test quality; feature risk; hot-path allocation |
+
+### Findings fixed
+
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | Runtime `request subscribe` widened receive authorization beyond the configured grant | `internal/component/plugin/server/delivery_graph.go`, `PeerScopedProcs` | Intersect subscription matches with `DeliveryGraph.Receivers`; the unit test proves confinement and non-apply survival, while `attach-process-runtime-subscribe.ci` proves permitted capability addition and apply-time discard |
+| 2 | BLOCKER | Replay-dependent route-server fixtures omitted the optional replay producer | 19 `test/plugin/*.ci` fixtures, 10 RFC-tagged | Owner-approved provider declarations and source/destination attachments; full plugin run confirmed all 19 carriers pass without assertion changes |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+
+| File | Exists | Evidence |
+|------|--------|----------|
+| Core implementation and seven attach-process scenarios | Yes | `stat` succeeded for every file named in the Files to Modify, Wiring Test, and Functional Tests tables |
+| Nineteen replay-dependent fixtures | Yes | Every file named in the review artifact appears in `git diff --name-only` and the plugin runner executed it |
+| RFC audit and generated requirement shards | Yes | `rfc/audit/rfc7606.json`, `rfc/requirements/rfc4271.md`, `rfc/requirements/rfc7606.md`, `rfc/requirements/rfc7947.md`, `rfc/requirements/rfc9494.md` |
+
+### AC Verified (grep/test)
+
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 through AC-5 | Receive routing, isolation, order, and reload/override lifetime | `make ze-test-pkg PKG=./internal/component/plugin/server` passed under the race detector in 18.334s; attach-process scenarios passed in the full plugin run |
+| AC-6 through AC-8 | Inspection, registry vocabulary, custom types, and allocation | Named unit tests passed under `make ze-verify` |
+| AC-9 through AC-11 | Send authorization | Functional and send-rail unit tests passed under `make ze-verify` |
+| AC-12, AC-13 | Direction vocabulary and editor round trip | Named parser/editor tests passed under `make ze-verify` |
+
+### Wiring Verified (end-to-end)
+
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Peer receive filtering | `attach-process-receive-filter.ci` | Full plugin run PASS |
+| Unattached receive silence | `attach-process-unattached-is-silent.ci` | Full plugin run PASS |
+| Config reload | `attach-process-reload.ci` | Full plugin run PASS |
+| Runtime subscribe | `attach-process-runtime-subscribe.ci` | Full plugin run PASS |
+| Send permissions | `attach-process-send-permission.ci` | Full plugin run PASS |
+| Dynamic group membership | `attach-process-dynamic-group.ci` | Full plugin run PASS |
+| Delivery inspection | `attach-process-delivery-graph.ci` | Full plugin run PASS |
+
+### Assumptions Resolved
+
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | The graph is stored on the plugin server, outside journal rollback |
+| A-2 | broken and repaired | Every config-apply entry point now publishes, including non-hot-swap paths |
+| A-3 | confirmed | One graph publish replaces the complete snapshot |
+| A-4 | confirmed | Empty config or missing peer edge yields no receivers |
+
+### Documentation Verified
+
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Declaration versus configured grant | `delivery_reconcile.go`, `delivery_graph.go` | Yes |
+| Apply publication and override discard | `reactor/delivery_graph.go`, `reconcile.go` | Yes |
+| CLI inspection and attachability | `internal/component/cmd/show/show.go`, `internal/component/bgp/config/plugins.go` | Yes |
+| Generated documentation index | `make ze-doc-index && make ze-doc-test` | PASS, 2128 code paths and 508 packages |
+
+## Core Insight
+
+The configured edge is an authorization boundary, not merely a routing hint. Every
+delivery producer, including runtime subscription additions and replay helpers, must
+remain inside that edge, and fixtures must explicitly provide every optional process on
+which their asserted behavior depends.

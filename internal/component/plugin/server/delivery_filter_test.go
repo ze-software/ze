@@ -102,7 +102,7 @@ func TestPeerScopedProcsFeedsNobodyForAnUnattachedPeer(t *testing.T) {
 }
 
 // TestPeerScopedProcsAddsNoAllocation verifies the filter costs no allocation
-// beyond the one GetMatching already makes for its result.
+// beyond the one getMatching already makes for its result.
 //
 // VALIDATES: AC-8 and R-8 over the WHOLE funnel rather than over the index
 // alone: the graph lookup returns a stored slice and the survivors are
@@ -115,7 +115,7 @@ func TestPeerScopedProcsAddsNoAllocation(t *testing.T) {
 
 	var raw []*process.Process
 	baseline := testing.AllocsPerRun(100, func() {
-		raw = s.subscriptions.GetMatching(ns, update, events.DirReceived, "192.0.2.1", "first")
+		raw = s.subscriptions.getMatching(ns, update, events.DirReceived, "192.0.2.1", "first")
 	})
 	require.Len(t, raw, 2, "both processes subscribe; the config is what narrows them")
 
@@ -124,50 +124,49 @@ func TestPeerScopedProcsAddsNoAllocation(t *testing.T) {
 		kept = s.PeerScopedProcs(ns, update, events.DirReceived, "192.0.2.1", "first")
 	})
 	require.Len(t, kept, 1, "zero allocations would be vacuous if the lookup found nothing")
-	t.Logf("GetMatching alone: %v allocations; filtered: %v", baseline, filtered)
+	t.Logf("getMatching alone: %v allocations; filtered: %v", baseline, filtered)
 	assert.Equal(t, baseline, filtered, "the filter allocates")
 }
 
-// TestRuntimeSubscribeSurvivesAPublishThatIsNotAnApply verifies the live half of
-// the precedence rule: a runtime subscription is delivered where the config
-// grants nothing, and a republish that is not a config apply leaves it standing.
+// TestRuntimeSubscribeSurvivesAPublishThatIsNotAnApply verifies both halves of a
+// live override: it can add to the program's declared capability, but it cannot
+// add an event type the peer configuration did not authorize. A graph publish
+// that is not a config apply leaves the permitted override standing.
 //
-// UpdateDeliveryGraph is what every peer change calls -- AddPeer, doRemovePeer,
-// createDynamicPeer and removeDynamicPeer (bgp/reactor/delivery_graph.go) -- so a
-// route server accepting one inbound dynamic peer republishes the index. The
-// discard belongs to the apply alone (DiscardRuntimeSubscriptions), and the other
-// half of R-10 is proven where that apply happens, in
-// TestConfigApplyDiscardsRuntimeSubscriptions (bgp/reactor/delivery_graph_test.go).
-//
-// VALIDATES: AC-5 and R-10, the override direction.
-// PREVENTS: an operator's live `request subscribe` silently doing nothing once
-// the config is authoritative, and the discard moving back into this publish,
-// where a dynamic peer connecting would cancel the subscription an operator
-// typed to watch a live session, with no message.
+// VALIDATES: AC-5, R-10, and the Subscription confinement security check.
+// PREVENTS: `request subscribe` bypassing the configured receive set, or a
+// dynamic peer publish canceling a permitted live override.
 func TestRuntimeSubscribeSurvivesAPublishThatIsNotAnApply(t *testing.T) {
-	s, procs := filterServer(t, "policy-engine")
-	ns, _, state := graphIDs(t)
-	engine := procs["policy-engine"]
+	ns, update, state := graphIDs(t)
+	s := &Server{subscriptions: newSubscriptionManager()}
+	s.UpdateDeliveryGraph(graphNS, twoPeerInput())
 
-	// The config grants policy-engine update on 192.0.2.2 and no state.
-	require.Empty(t, s.PeerScopedProcs(ns, state, events.DirUnspecified, "192.0.2.2", "second"))
+	lookingGlass := process.NewProcess(plugin.PluginConfig{Name: "looking-glass"})
+	s.subscriptions.Add(lookingGlass, &Subscription{
+		Namespace: ns, EventType: update, Direction: events.DirBoth,
+	})
+	require.Empty(t, s.PeerScopedProcs(ns, state, events.DirUnspecified, "192.0.2.1", "first"),
+		"the config grant alone cannot add to the program's declared capability")
+	s.subscriptions.Add(lookingGlass, &Subscription{
+		Namespace: ns, EventType: state, Direction: events.DirBoth,
+		PeerFilter: &PeerFilter{Selector: "192.0.2.1"}, Runtime: true,
+	})
+	assert.Equal(t, []string{"looking-glass"},
+		procNames(s.PeerScopedProcs(ns, state, events.DirUnspecified, "192.0.2.1", "first")),
+		"a live override is delivered when the config grants the type")
 
-	s.subscriptions.Add(engine, &Subscription{
+	policyEngine := process.NewProcess(plugin.PluginConfig{Name: "policy-engine"})
+	s.subscriptions.Add(policyEngine, &Subscription{
 		Namespace: ns, EventType: state, Direction: events.DirBoth,
 		PeerFilter: &PeerFilter{Selector: "192.0.2.2"}, Runtime: true,
 	})
-	assert.Equal(t, []string{"policy-engine"},
-		procNames(s.PeerScopedProcs(ns, state, events.DirUnspecified, "192.0.2.2", "second")),
-		"a live override is delivered where the config grants nothing")
-	assert.Empty(t, s.PeerScopedProcs(ns, state, events.DirUnspecified, "192.0.2.1", "first"),
-		"the override names one peer and reaches no other")
+	assert.Empty(t, s.PeerScopedProcs(ns, state, events.DirUnspecified, "192.0.2.2", "second"),
+		"a live override cannot widen the configured grant")
 
-	// A peer joining republishes the index. It is not an apply, so the override
-	// is still delivered afterwards and is still counted as live.
 	s.UpdateDeliveryGraph(graphNS, twoPeerInput())
-	assert.Equal(t, []string{"policy-engine"},
-		procNames(s.PeerScopedProcs(ns, state, events.DirUnspecified, "192.0.2.2", "second")),
-		"a publish that is not a config apply must leave the override standing")
+	assert.Equal(t, []string{"looking-glass"},
+		procNames(s.PeerScopedProcs(ns, state, events.DirUnspecified, "192.0.2.1", "first")),
+		"a publish that is not a config apply leaves the permitted override standing")
 	assert.True(t, s.subscriptions.hasRuntimeOverride())
 }
 
@@ -179,7 +178,7 @@ func TestRuntimeSubscribeSurvivesAPublishThatIsNotAnApply(t *testing.T) {
 // peer-scoped and goes through the graph, an event that carries none is not and
 // keeps flowing to everything subscribed. Both in-tree emitters pass an address
 // today, so the second branch is not reachable from a plugin, but the first one
-// is the fix for a round-1 BLOCKER: this path used to call GetMatching directly,
+// is the fix for a round-1 BLOCKER: this path used to call getMatching directly,
 // and no attach block decided anything for the two bgp events that travel it.
 //
 // VALIDATES: an emitted peer-scoped event reaches only the processes that peer

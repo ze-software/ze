@@ -1,5 +1,5 @@
 {
-  "audited": "2026-08-04",
+  "audited": "2026-08-16",
   "reaudit_history": [
     "2026-07-22 re-stamp. Staleness was triggered by a mechanical package-qualifier rename across four of the tagged files, not by any change to what they assert: MessageType and the Type* codes moved from internal/component/bgp/message to the always-on leaf internal/core/bgp/msgtype, the route-action enum from internal/component/bgp/types to internal/core/bgp/routeaction, and internal/component/bgp/plugins/rib/events to internal/core/bgp/ribevents, so MRT/sysrib/FIB keep compiling when the BGP engine is compiled out (//go:build ze_bgp). Scope, measured rather than assumed: 20 files carry rfc7606 tags and only 4 changed in 254772452..HEAD -- plugins/adj_rib_in/rib_test.go, plugins/rib/rib_structured_test.go, reactor/session_rfc7606_structural_test.go, reactor/session_test.go. Every hunk in them is a requalification, an import line, or the 9-line rfc-test-change-approved header; normalizing the diff under the rename leaves ZERO unmatched assertion deletions (the unmatched ADDITIONS are that header and the imports -- an earlier version of this note wrongly claimed the add/delete multisets cancel outright, and wrongly said 18 files). The moved constants keep their values (msgtype.Type* 1..5 and routeaction 0..4 match the originals). No RFC-requirement tag was added, removed, moved to another function, or re-pointed anywhere in that range. No requirement TEXT changed: rfc/short/rfc7606.md and rfc/full/rfc7606.txt are byte-identical since the audit, and the requirement_sha of every verdict below is unchanged -- only the tagged-file fingerprints were refreshed, which stale on ANY edit because tagged_unit_shas hashes the whole enclosing file and keys on file:line (every key shifted exactly +9, the height of the inserted header). The verdicts still describe exactly what they judged. Independently re-derived by a second reviewer, 2026-07-22.",
     "2026-07-29 re-stamp, RFC7606-5.1-2 and RFC7606-5.1-3 only. Neither verdict was re-judged; both fingerprint maps were refreshed after proving what changed under them. (a) test/plugin/rfc7606-relay-one-field.ci: COMMENT-ONLY. Proven mechanically, not asserted -- the 20 directive lines (expect=/action=/reject=/option=/cmd=/stdin=/tmpfs= plus the terminators) are byte-identical to HEAD; the header gained three explanations (which buildFwdBody arm it actually drives, why the notification reject rule was silent, and that scenario 47 now carries a second 5.1-3 binding) and two em dashes became `--`. tagged_unit_shas hashes the whole enclosing file, so a comment stales a verdict about assertions the comment never touched. (b) A NEW key appeared under 5.1-3: test/interop/scenarios/47-rfc7606-relay-shape-frr/check.py:28. That is added evidence, which cannot invalidate a verdict about the evidence already there. The requirement text is byte-identical -- the re-stamp script refuses on a requirement_sha mismatch, so this is checked rather than claimed. No other verdict was touched.",
@@ -20,9 +20,10 @@
     "2026-08-14 re-stamp. Staleness was triggered by the ze-native config keyword rename in two tagged functional fixtures, not by any change to what they assert: spec-fixit-peer-process-event-filter phase 1 renames the peer block `process <name> { ... }` to `attach process <name> { ... }`, and test/plugin/rfc7606-reset.ci and test/plugin/rfc7606-withdraw.ci each carry one such line inside their `bgp { peer { ... } }` block. Both diffs are that single line. Every `RFC requirement:` tag, every `action=send` hex buffer and every `expect=bgp` assertion is byte-identical, so the recorded judgement still describes exactly what it judged.",
     "2026-08-15 re-stamp. Staleness was triggered by the peer process CONFIG in two tagged fixtures, not by any change to what they assert: spec-fixit-peer-process-event-filter phase 3 corrects every receive and send list in the tree to state what the attached program actually does. test/plugin/rfc7606-reset.ci loses its `attach process rfc7606-test { }` block, because rfc7606-reset.run completes the handshake and calls wait_for_shutdown: it reads no event and sends no command, so the peer feeds it nothing and it announces nothing. test/plugin/rfc7606-withdraw.ci gains `receive [ state ] send [ update ]`, because rfc7606-test.run calls api.subscribe(['state']) and then api.send('peer * update text ...'). Both diffs are confined to the bgp peer block. Measured rather than assumed: every `RFC requirement:` tag, `action=send` hex buffer, `expect=bgp` rule, `option=`, `cmd=`, `stdin=` and `tmpfs=` directive is byte-identical to HEAD in both files (12 directive lines each, compared line by line). No requirement text changed: rfc/short/rfc7606.md and rfc/full/rfc7606.txt are untouched. The four verdicts re-stamped are RFC7606-3.a-1, RFC7606-3.j-1 and RFC7606-5.3-6 (reset.ci) and RFC7606-7.1-1 (withdraw.ci).",
     "2026-08-15 re-stamp. Staleness was triggered by the peer process CONFIG of four tagged fixtures, not by any change to what they assert: spec-fixit-peer-process-event-filter phase 5 makes delivery consult the peer's attach blocks, so a fixture whose route server relays between two peers must now state that attachment. Each of the four files gained exactly two `attach process` blocks (14 added lines, one per peer for bgp-rs and for the observer) and lost nothing. Measured rather than asserted, per file: a difflib opcode walk of HEAD against the tree yields ZERO removed lines and every added line matches `attach process <name> {`, `receive [ ... ]`, `send [ ... ]` or `}`; the directive lines (expect=, reject=, action=, option=, cmd=, stdin=, tmpfs=, the EOF_ terminators and every `RFC requirement:` tag) are byte-identical, 22 in relay-one-field and 19, 20 and 20 in the three 5.4 files. No requirement text changed: rfc/short/rfc7606.md and rfc/full/rfc7606.txt are untouched and every requirement_sha below is unchanged. The verdicts re-stamped are RFC7606-5.1-2 and RFC7606-5.1-3 (relay-one-field.ci) and RFC7606-5.4-1 (the three 5.4 files).",
-    "Mechanical re-stamp by `make ze-rfc-reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+    "Mechanical re-stamp by `make ze-rfc-reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "2026-08-16 RE-AUDIT of RFC7606-5.1-2 and RFC7606-5.1-3 after 527714c81 stripped the `test-relax: ` prefix from two comment lines in test/plugin/rfc7606-relay-one-field.ci. The delta is comment-only: no expect=, reject=, action= or option= line moved, and the reject= rescope that this file's earlier 2026-08-16 entry judged was ded58c666, already sealed. A .ci's audited unit is its whole file, so the unit sha moved and ze-rfc-reseal correctly refused it, which is why the judgement was re-made rather than re-stamped. Both requirements, the RFC 7606 Section 5.1 source text, the .ci as it now stands, and the producing buildFwdBody, rfc7606SessionReset, sendNotificationWithin and logNotifyErr functions were read again. Both verdicts remain enforced."
   ],
-  "reaudit_note": "2026-08-16 RE-AUDIT of RFC7606-5.1-2 and RFC7606-5.1-3 after 527714c81 stripped the `test-relax: ` prefix from two comment lines in test/plugin/rfc7606-relay-one-field.ci. The delta is comment-only: no expect=, reject=, action= or option= line moved, and the reject= rescope that this file's earlier 2026-08-16 entry judged was ded58c666, already sealed. A .ci's audited unit is its whole file, so the unit sha moved and ze-rfc-reseal correctly refused it, which is why the judgement was re-made rather than re-stamped. Both requirements, the RFC 7606 Section 5.1 source text, the .ci as it now stands, and the producing buildFwdBody, rfc7606SessionReset, sendNotificationWithin and logNotifyErr functions were read again. Both verdicts remain enforced.",
+  "reaudit_note": "2026-08-16 RE-AUDIT of RFC7606-5.1-2, RFC7606-5.1-3 and RFC7606-5.4-1 after the owner-approved replay fixture repair for spec-fixit-peer-process-event-filter. RFC 7606 Sections 5.1 and 5.4, the three checklist lines, and all four changed tagged carriers were read again. Each carrier only adds an internal bgp-adj-rib-in provider, a source attachment granting received UPDATE/state events, destination attachments granting UPDATE send permission, and the approval annotation. Every RFC requirement tag, action=send input, expect= wire assertion and reject= outcome remains unchanged. The provider makes the route-server peer-up replay path available when the source UPDATE precedes destination establishment, so it removes a no-evidence ordering hole without changing the behavior each test proves. RFC7606-5.1-2 still fails if the relay emits a mixed NLRI-bearing UPDATE, RFC7606-5.1-3 still proves that such an older-speaker combination is accepted, and RFC7606-5.4-1 still distinguishes discarded unknown EVPN/MUP types from the BGP-LS family override. All three verdicts remain enforced.",
   "requirements": {
     "RFC7606-2-1": {
       "note": "TestSessionRFC7606TreatAsWithdrawDispatchesWithdrawal (session_test.go) sends a malformed-ORIGIN UPDATE announcing 10.0.0.0/8 and asserts the DISPATCHED body has withdrawn=={0x08,0x0a}, nlri empty, attrLen zero; the message-level TestSynthesizeWithdrawMovesNLRIToWithdrawn and ...ConvertsMPReachToMPUnreach pin the rewrite exactly. Positive TestSessionRFC7606ValidUpdateDispatchesAnnouncement requires a valid UPDATE to stay byte-for-byte an announcement. 2026-07-20 re-audit: coverage STRENGTHENED beyond message synthesis. TestRIBTreatAsWithdrawRemovesInstalledRoute (rib_structured_test.go) now proves the route actually LEAVES the RIB -- Adj-RIB-In Len()==0 and a best-change Withdraw for 10.0.0.0/8 published to the Loc-RIB -- and that a treat-as-withdraw for a never-installed prefix publishes no spurious event. TestRIBTreatAsWithdrawAddPathPreservesPathID proves exactly the re-advertised ADD-PATH path (ID 42) is withdrawn while its sibling (ID 43) for the same prefix survives. Section 2 says the routes MUST be withdrawn; until these, the evidence stopped at 'a withdrawal-shaped message was dispatched'. Assertions are exact and fail on the old suppression bug. 2026-07-22 re-stamp: the verdict went stale only because commit c4038def0 prepended an rfc-test-change-approved header and swapped package qualifiers (bgptypes.RouteAction*->routeaction.*, message.Type*->msgtype.Type*, rib/events->core/bgp/ribevents) in the tagged files; tagged_unit_shas fingerprints the whole enclosing file. Normalising the 254772452..HEAD diff under that rename cancels with ZERO unmatched assertion deletions, and rfc/short/rfc7606.md is byte-identical since the audit, so the judgement above still describes exactly what it judged.",
@@ -339,27 +340,27 @@
       "requirement_sha": "1bf7dcc3e53c0463",
       "tests": {
         "internal/component/bgp/message/rfc7606_shape_test.go::TestNLRIBearingFieldCountEveryCombination": "fa86c1039b6eb8a0",
-        "internal/component/bgp/message/rfc7606_shape_test.go::TestSplitCompliantPassesThroughCompliantUpdate": "fa86c1039b6eb8a0",
         "internal/component/bgp/message/rfc7606_shape_test.go::TestSplitCompliantSplitsMixedUpdateThatFits": "fa86c1039b6eb8a0",
+        "internal/component/bgp/message/rfc7606_shape_test.go::TestSplitCompliantPassesThroughCompliantUpdate": "fa86c1039b6eb8a0",
+        "internal/component/bgp/reactor/forward_body_rfc7606_test.go::TestForwardSplitsMixedShapeSameContextThatFits": "e60fa746ed3e61c5",
         "internal/component/bgp/reactor/forward_body_rfc7606_test.go::TestForwardCompliantShapeKeepsZeroCopy": "e60fa746ed3e61c5",
         "internal/component/bgp/reactor/forward_body_rfc7606_test.go::TestForwardSplitsMixedShapeAcrossContextsThatFits": "e60fa746ed3e61c5",
-        "internal/component/bgp/reactor/forward_body_rfc7606_test.go::TestForwardSplitsMixedShapeSameContextThatFits": "e60fa746ed3e61c5",
-        "internal/component/bgp/wireu/shape_rfc7606_test.go::TestSplitWireUpdateCompliantShapeUntouched": "416a192d23139e4d",
         "internal/component/bgp/wireu/shape_rfc7606_test.go::TestSplitWireUpdateSplitsMixedShapeThatFits": "416a192d23139e4d",
+        "internal/component/bgp/wireu/shape_rfc7606_test.go::TestSplitWireUpdateCompliantShapeUntouched": "416a192d23139e4d",
         "internal/component/bgp/wireu/split_eor_test.go::TestSplitWireUpdateDoesNotManufactureEoR": "af6e6610cb544b99",
-        "test/plugin/rfc7606-relay-one-field.ci": "6aeb6d892e1b00ca"
+        "test/plugin/rfc7606-relay-one-field.ci": "52b829a0ca1f801f"
       },
       "units": {
         "internal/component/bgp/message/rfc7606_shape_test.go::TestNLRIBearingFieldCountEveryCombination": "a996aeb7f3d8351d",
-        "internal/component/bgp/message/rfc7606_shape_test.go::TestSplitCompliantPassesThroughCompliantUpdate": "a32b8e5d09663120",
         "internal/component/bgp/message/rfc7606_shape_test.go::TestSplitCompliantSplitsMixedUpdateThatFits": "01ca44578293eec2",
+        "internal/component/bgp/message/rfc7606_shape_test.go::TestSplitCompliantPassesThroughCompliantUpdate": "a32b8e5d09663120",
+        "internal/component/bgp/reactor/forward_body_rfc7606_test.go::TestForwardSplitsMixedShapeSameContextThatFits": "6f63d3c0b046f19f",
         "internal/component/bgp/reactor/forward_body_rfc7606_test.go::TestForwardCompliantShapeKeepsZeroCopy": "2a1a75ded4359259",
         "internal/component/bgp/reactor/forward_body_rfc7606_test.go::TestForwardSplitsMixedShapeAcrossContextsThatFits": "8b7138f06700d139",
-        "internal/component/bgp/reactor/forward_body_rfc7606_test.go::TestForwardSplitsMixedShapeSameContextThatFits": "6f63d3c0b046f19f",
-        "internal/component/bgp/wireu/shape_rfc7606_test.go::TestSplitWireUpdateCompliantShapeUntouched": "23997f3825d6f88f",
         "internal/component/bgp/wireu/shape_rfc7606_test.go::TestSplitWireUpdateSplitsMixedShapeThatFits": "2c77d524af9a9afc",
+        "internal/component/bgp/wireu/shape_rfc7606_test.go::TestSplitWireUpdateCompliantShapeUntouched": "23997f3825d6f88f",
         "internal/component/bgp/wireu/split_eor_test.go::TestSplitWireUpdateDoesNotManufactureEoR": "7df1c7da3cd9f958",
-        "test/plugin/rfc7606-relay-one-field.ci": "6aeb6d892e1b00ca"
+        "test/plugin/rfc7606-relay-one-field.ci": "52b829a0ca1f801f"
       },
       "verdict": "enforced"
     },
@@ -369,12 +370,12 @@
       "tests": {
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachIPv4NextHopValid": "0b8739c630bb26fe",
         "test/interop/scenarios/47-rfc7606-relay-shape-frr/check.py": "57df538ba25f86d0",
-        "test/plugin/rfc7606-relay-one-field.ci": "6aeb6d892e1b00ca"
+        "test/plugin/rfc7606-relay-one-field.ci": "52b829a0ca1f801f"
       },
       "units": {
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachIPv4NextHopValid": "e8d83289676a1ed9",
         "test/interop/scenarios/47-rfc7606-relay-shape-frr/check.py": "57df538ba25f86d0",
-        "test/plugin/rfc7606-relay-one-field.ci": "6aeb6d892e1b00ca"
+        "test/plugin/rfc7606-relay-one-field.ci": "52b829a0ca1f801f"
       },
       "verdict": "enforced"
     },
@@ -492,16 +493,16 @@
         "internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go::TestRFC7606Section54FiltersWhenTheAttributeWalkIsAbandoned": "ddf20aa815d433a8",
         "internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go::TestRFC7606Section54ReadsTypedNLRIUnderAddPath": "ddf20aa815d433a8",
         "internal/component/bgp/reactor/session_validation_nlritype_test.go::TestRFC7606Section54DiscardsUnrecognizedEVPNType": "6068adcddd88d73c",
-        "internal/component/bgp/reactor/session_validation_nlritype_test.go::TestRFC7606Section54DropsMPUnreachOnlyUpdateRatherThanForgeEOR": "6068adcddd88d73c",
         "internal/component/bgp/reactor/session_validation_nlritype_test.go::TestRFC7606Section54PropagatesUnknownBGPLSType": "6068adcddd88d73c",
+        "internal/component/bgp/reactor/session_validation_nlritype_test.go::TestRFC7606Section54DropsMPUnreachOnlyUpdateRatherThanForgeEOR": "6068adcddd88d73c",
         "internal/component/bgp/reactor/session_validation_nlritype_test.go::TestRFC7606Section54SessionResetsUnparseableTypedNLRI": "6068adcddd88d73c",
-        "internal/component/bgp/reactor/session_validation_nlritype_typed_test.go::TestRFC7606Section54DiscardsUnrecognizedMUPType": "f93919c811918dd2",
         "internal/component/bgp/reactor/session_validation_nlritype_typed_test.go::TestRFC7606Section54DiscardsUnrecognizedMVPNType": "f93919c811918dd2",
+        "internal/component/bgp/reactor/session_validation_nlritype_typed_test.go::TestRFC7606Section54DiscardsUnrecognizedMUPType": "f93919c811918dd2",
         "internal/component/bgp/reactor/session_validation_nlritype_typed_test.go::TestRFC7606Section54FiltersTreatAsWithdrawSynthesis": "f93919c811918dd2",
         "test/interop/scenarios/53-rfc7606-54-typed-nlri-discard/check.py": "88c6d79fe6d05d71",
-        "test/plugin/rfc7606-54-bgpls-override-propagates.ci": "6c05a847236a0a3b",
-        "test/plugin/rfc7606-54-discard-unrecognized-mup-nlri.ci": "43934ae21af9a61b",
-        "test/plugin/rfc7606-54-discard-unrecognized-nlri.ci": "11744a1d14eafe6b"
+        "test/plugin/rfc7606-54-bgpls-override-propagates.ci": "9a1c3a26c6b7263b",
+        "test/plugin/rfc7606-54-discard-unrecognized-mup-nlri.ci": "e15ee875f5eb88c4",
+        "test/plugin/rfc7606-54-discard-unrecognized-nlri.ci": "2d11c5b36ea2a2e7"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/mup/rfc7606_test.go::TestRecognizeNLRIRejectsUnimplementedTypes": "e8e053327cfce6fc",
@@ -509,16 +510,16 @@
         "internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go::TestRFC7606Section54FiltersWhenTheAttributeWalkIsAbandoned": "08ab9f726126abad",
         "internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go::TestRFC7606Section54ReadsTypedNLRIUnderAddPath": "1e89a4919af9496b",
         "internal/component/bgp/reactor/session_validation_nlritype_test.go::TestRFC7606Section54DiscardsUnrecognizedEVPNType": "8724841c177bbac1",
-        "internal/component/bgp/reactor/session_validation_nlritype_test.go::TestRFC7606Section54DropsMPUnreachOnlyUpdateRatherThanForgeEOR": "46f92a75319b873f",
         "internal/component/bgp/reactor/session_validation_nlritype_test.go::TestRFC7606Section54PropagatesUnknownBGPLSType": "8a7103035f0581d7",
+        "internal/component/bgp/reactor/session_validation_nlritype_test.go::TestRFC7606Section54DropsMPUnreachOnlyUpdateRatherThanForgeEOR": "46f92a75319b873f",
         "internal/component/bgp/reactor/session_validation_nlritype_test.go::TestRFC7606Section54SessionResetsUnparseableTypedNLRI": "81e8736cd6b83252",
-        "internal/component/bgp/reactor/session_validation_nlritype_typed_test.go::TestRFC7606Section54DiscardsUnrecognizedMUPType": "5f1508f4aebe0dc4",
         "internal/component/bgp/reactor/session_validation_nlritype_typed_test.go::TestRFC7606Section54DiscardsUnrecognizedMVPNType": "48632ed613df2cc2",
+        "internal/component/bgp/reactor/session_validation_nlritype_typed_test.go::TestRFC7606Section54DiscardsUnrecognizedMUPType": "5f1508f4aebe0dc4",
         "internal/component/bgp/reactor/session_validation_nlritype_typed_test.go::TestRFC7606Section54FiltersTreatAsWithdrawSynthesis": "89a40615f8985adf",
         "test/interop/scenarios/53-rfc7606-54-typed-nlri-discard/check.py": "88c6d79fe6d05d71",
-        "test/plugin/rfc7606-54-bgpls-override-propagates.ci": "6c05a847236a0a3b",
-        "test/plugin/rfc7606-54-discard-unrecognized-mup-nlri.ci": "43934ae21af9a61b",
-        "test/plugin/rfc7606-54-discard-unrecognized-nlri.ci": "11744a1d14eafe6b"
+        "test/plugin/rfc7606-54-bgpls-override-propagates.ci": "9a1c3a26c6b7263b",
+        "test/plugin/rfc7606-54-discard-unrecognized-mup-nlri.ci": "e15ee875f5eb88c4",
+        "test/plugin/rfc7606-54-discard-unrecognized-nlri.ci": "2d11c5b36ea2a2e7"
       },
       "verdict": "enforced"
     },

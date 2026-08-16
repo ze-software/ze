@@ -330,11 +330,12 @@ request subscribe plugin <name> <namespace> event <type> [direction ...]
 request unsubscribe <namespace> event <type> [direction received|sent|both]
 ```
 
-**Precedence.** The configuration is durable truth and is rebuilt on every
-config apply. A `request subscribe` typed at a running daemon is a live
-override: it is delivered whether or not the peer's block grants the type, and
-the next config apply discards it. Use it to look at a live session; write the
-attach block to keep the change.
+**Precedence.** The configuration is durable receive authorization and is
+rebuilt on every config apply. A `request subscribe` typed at a running daemon
+is a live capability override: it can add a type the process did not declare at
+startup only where the peer's block grants that type. It cannot widen the
+configured grant, and the next config apply discards it.
+<!-- source: internal/component/plugin/server/delivery_graph.go -- (*Server).PeerScopedProcs, (*Server).DiscardRuntimeSubscriptions -->
 
 At plugin ready, and again after every apply, ze reports each peer, process and
 event type the two halves disagree about. Two lines an operator sees:

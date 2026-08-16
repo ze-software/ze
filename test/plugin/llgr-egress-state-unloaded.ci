@@ -1,5 +1,10 @@
 # Test: LLGR egress filter with the GR plugin engine in ANOTHER process.
 #
+# rfc-test-change-approved: 2026-08-16 Thomas approved adding the optional
+# bgp-adj-rib-in replay provider and its source/destination attachments. This
+# repairs route-server replay when the source UPDATE precedes receiver peer-up;
+# every RFC assertion and expected wire outcome below is unchanged.
+#
 # The daemon registers LLGREgressFilter from init() (bgp/plugins/gr/register.go),
 # so the filter is live in every ze_bgp build. The only writer of the state it
 # reads is setEgressState, called from RunGRPlugin's OnConfigure callback. This
@@ -198,6 +203,9 @@ plugin {
 	internal rs {
 		use bgp-rs
 	}
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
 	external observer {
 		run ./observer.run
 		encoder json
@@ -251,6 +259,9 @@ bgp {
 			receive [ update state refresh ]
 			send [ update ]
 		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+		}
 		attach process rs {
 			receive [ update-received state open-received refresh ]
 			send [ update ]
@@ -288,6 +299,9 @@ bgp {
 
 		attach process bgp-rib {
 			receive [ update state refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
 			send [ update ]
 		}
 		attach process rs {

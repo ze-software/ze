@@ -1,14 +1,15 @@
 # Test: the runtime `request subscribe` command takes effect at once, and the
 #       next config apply discards it.
 # Exercises: ze-bgp:subscribe -> Subscription.Runtime -> Server.PeerScopedProcs
-#            (the override branch), then SIGHUP -> publishDeliveryGraphLocked ->
-#            Server.UpdateDeliveryGraph -> clearRuntimeOverrides.
-# VALIDATES: AC-5 and R-10, both directions of the precedence rule: config is
-#            durable truth rebuilt on every apply, a runtime subscription is a
-#            live override that the apply discards.
-# PREVENTS: an operator's live subscribe silently doing nothing once the config
-#           is authoritative, and a runtime change outliving the document that
-#           is supposed to describe the daemon.
+#            (configured-grant intersection), then SIGHUP -> reconcilePeers ->
+#            Server.DiscardRuntimeSubscriptions -> clearRuntimeOverrides.
+# VALIDATES: AC-5 and R-10, both directions of the precedence rule: a runtime
+# subscription can add to the program's declared capability inside the durable
+# configured grant, and a config apply discards the live addition.
+# PREVENTS: an operator's permitted live subscribe silently doing nothing once
+# the config is authoritative, and a runtime change outliving the document that
+# describes the daemon. TestRuntimeSubscribeSurvivesAPublishThatIsNotAnApply
+# separately proves an override cannot widen the configured grant.
 #
 # The traffic under test is the session's own KEEPALIVE stream, at one per
 # second. It needs no route injection and no second peer: the daemon produces it
@@ -104,17 +105,18 @@ def main():
     api.wait_for_config()
     api.capability_done()
     api.wait_for_registry()
-    api.subscribe(["keepalive", "state"])
+    api.subscribe(["state"])
     api.ready()
 
     wait_up(api, "for the first session")
 
-    # The config grants state only. The keepalives are flowing at one per second
-    # and none of them belongs to this program.
+    # The config grants keepalive, but this program declared only state. The
+    # keepalives are flowing at one per second and none belongs to the program
+    # until the live capability addition below.
     if keepalive_within(api, 4.0):
-        runtime_fail("RUNTIME-SUB: fed a keepalive the config never granted")
+        runtime_fail("RUNTIME-SUB: fed a keepalive the program never declared")
         return
-    print("RUNTIME-SUB: the config grants state only", file=sys.stderr, flush=True)
+    print("RUNTIME-SUB: the program declares state only", file=sys.stderr, flush=True)
 
     # The operator's live override.
     resp = dispatch(api, f'request subscribe peer {PEER} event keepalive')
@@ -126,11 +128,11 @@ def main():
         return
     print("RUNTIME-SUB: the live subscribe takes effect at once", file=sys.stderr, flush=True)
 
-    # An override is a live addition, never an edit of the durable truth: the
-    # config's own index must still say what the document says.
+    # The live subscription adds to the program's capability. It does not edit
+    # the durable configured authorization, which already grants keepalive.
     granted = granted_receive(api)
-    if 'keepalive' in granted:
-        runtime_fail(f"RUNTIME-SUB: the override rewrote the config's index: {granted}")
+    if set(granted) != {'keepalive', 'state'}:
+        runtime_fail(f"RUNTIME-SUB: configured receive grant changed: {granted}")
         return
     print("RUNTIME-SUB: the config index is unchanged by the override", file=sys.stderr, flush=True)
 
@@ -210,14 +212,15 @@ bgp {
 			group-updates disable
 		}
 		attach process runtime-subscribe {
-			receive [ state ]
+			receive [ keepalive state ]
 		}
 	}
 }
 EOF_CONF
 
 # The reloaded document grants the same process one more type, so the apply is a
-# real one. It still grants no keepalive, which is what the override added.
+# real one. It keeps granting keepalive; only discarding the live capability
+# addition can stop those events.
 tmpfs=config2.conf:terminator=EOF_CONF2
 plugin {
 	external runtime-subscribe {
@@ -258,13 +261,13 @@ bgp {
 			group-updates disable
 		}
 		attach process runtime-subscribe {
-			receive [ state open-received ]
+			receive [ keepalive state open-received ]
 		}
 	}
 }
 EOF_CONF2
 
-expect=stderr:pattern=RUNTIME-SUB: the config grants state only
+expect=stderr:pattern=RUNTIME-SUB: the program declares state only
 expect=stderr:pattern=RUNTIME-SUB: the live subscribe takes effect at once
 expect=stderr:pattern=RUNTIME-SUB: the config index is unchanged by the override
 expect=stderr:pattern=RUNTIME-SUB: the config apply discards the override

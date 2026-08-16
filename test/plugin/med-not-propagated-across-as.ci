@@ -1,6 +1,11 @@
 # med-not-propagated-across-as -- a MULTI_EXIT_DISC learned from one neighboring
 # AS does not reach another, with its two confining negatives in the same run.
 #
+# rfc-test-change-approved: 2026-08-16 Thomas approved adding the optional
+# bgp-adj-rib-in replay provider and its source/destination attachments. This
+# repairs route-server replay when the source UPDATE precedes receiver peer-up;
+# every RFC assertion and expected wire outcome below is unchanged.
+#
 # RFC requirement: RFC4271-5.1.4-1 positive -- "The MULTI_EXIT_DISC attribute received from a
 # neighboring AS MUST NOT be propagated to other neighboring ASes" (Section 5.1.4). The plain
 # eBGP receiver in AS 65003 gets the route with ORIGIN, AS_PATH and NEXT_HOP only: attribute 4
@@ -75,6 +80,9 @@ plugin {
 	internal rs {
 		use bgp-rs
 	}
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
 	external shutdown-after-up {
 		run ./shutdown-after-up.run
 		encoder json
@@ -106,6 +114,9 @@ bgp {
 		}
 		behavior {
 			group-updates disable
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
 		}
 		attach process rs {
 			receive [ update-received state open-received refresh ]
@@ -146,6 +157,9 @@ bgp {
 		behavior {
 			group-updates disable
 		}
+		attach process adj-rib-in {
+			send [ update ]
+		}
 		attach process rs {
 			receive [ update-received state open-received refresh ]
 			send [ update ]
@@ -181,6 +195,9 @@ bgp {
 		}
 		behavior {
 			group-updates disable
+		}
+		attach process adj-rib-in {
+			send [ update ]
 		}
 		attach process rs {
 			receive [ update-received state open-received refresh ]
