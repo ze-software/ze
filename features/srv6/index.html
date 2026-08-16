@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>SRv6 (Segment Routing over IPv6) - Ze</title>
+        <meta name="description" content="Ze documentation: features/srv6.md" />
+        <meta property="og:title" content="SRv6 (Segment Routing over IPv6) - Ze" />
+        <meta property="og:description" content="Ze documentation: features/srv6.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="SRv6 (Segment Routing over IPv6) - Ze" />
+        <meta name="twitter:description" content="Ze documentation: features/srv6.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/features/srv6/" />
+        <meta property="og:url" content="https://ze-software.net/features/srv6/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-routing">
+<!-- source: internal/component/bgp/plugins/rib/pool/srv6sid.go -- SRv6 SID extraction and transposition -->
+<!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- SID lookup at best-path emission -->
+<!-- source: internal/component/sysrib/sysrib.go -- SID resolvability check and FIB emission -->
+<!-- source: internal/plugins/fib/kernel/nexthop_linux.go -- Linux SEG6 encap -->
+<!-- source: internal/plugins/fib/vpp/srv6.go -- VPP SR steer -->
+<!-- source: internal/component/bgp/message/rfc7606.go -- PrefixSID attribute validation -->
+<!-- source: internal/component/bgp/reactor/session_validation.go -- EBGP PrefixSID filtering -->
+<!-- rfc: rfc/short/rfc8669.md -- BGP Prefix-SID attribute (code 40) -->
+<!-- rfc: rfc/short/rfc9252.md -- SRv6 overlay services -->
+
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Feature</span>
+    <h1 id="srv6-segment-routing-over-ipv6">SRv6 (Segment Routing over IPv6)</h1>
+    <p>Ze receives BGP routes carrying SRv6 Prefix-SID attributes (RFC 8669, RFC 9252),
+extracts SRv6 SIDs, validates them, and programs encapsulation into the FIB.
+Operates as an ingress PE: consumes received SRv6 SIDs but does not originate them.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#configuration">Configuration</a></li>
+<li><a href="#data-flow">Data Flow</a></li>
+<li><a href="#transposition-vpnevpn">Transposition (VPN/EVPN)</a></li>
+<li><a href="#fib-backends">FIB Backends</a>
+<ol>
+<li><a href="#linux-kernel">Linux Kernel</a></li>
+<li><a href="#vpp">VPP</a></li>
+</ol></li>
+<li><a href="#rfc-compliance">RFC Compliance</a>
+<ol>
+<li><a href="#rfc-8669-prefix-sid-attribute">RFC 8669 (Prefix-SID Attribute)</a></li>
+<li><a href="#rfc-9252-srv6-overlay-services">RFC 9252 (SRv6 Overlay Services)</a></li>
+</ol></li>
+<li><a href="#limitations">Limitations</a></li>
+</ol></nav>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Attribute parsing</td>
+<td>PrefixSID (code 40) stored as opaque bytes; SRv6 SID extracted lazily at best-path time</td>
+</tr>
+<tr>
+<td>L3/L2 Service TLVs</td>
+<td>Types 5 (L3 Service) and 6 (L2 Service) per RFC 9252 Section 3.1</td>
+</tr>
+<tr>
+<td>SID extraction</td>
+<td>First SRv6 SID Information Sub-TLV (type 1) within the Service TLV</td>
+</tr>
+<tr>
+<td>Transposition</td>
+<td>SID Structure Sub-Sub-TLV reconstructs full SID from NLRI label bits (VPN/EVPN)</td>
+</tr>
+<tr>
+<td>Path ineligibility</td>
+<td>Route with SRv6 TLVs but no valid SID excluded from best-path selection</td>
+</tr>
+<tr>
+<td>SID resolvability</td>
+<td>SRv6 SID must have a covering route in Loc-RIB before FIB installation</td>
+</tr>
+<tr>
+<td>EBGP filtering</td>
+<td>PrefixSID from EBGP peers discarded unless <code>accept-srv6-prefix-sid</code> is set</td>
+</tr>
+<tr>
+<td>Validation</td>
+<td>Malformed SRv6 Service TLVs trigger treat-as-withdraw (RFC 9252 Section 3.4)</td>
+</tr>
+<tr>
+<td>Propagation</td>
+<td>PrefixSID preserved on zero-copy forward; stripped when next-hop changes</td>
+</tr>
+<tr>
+<td>Linux FIB</td>
+<td>SEG6 lwtunnel encap via netlink</td>
+</tr>
+<tr>
+<td>VPP FIB</td>
+<td>SR steering policy via GoVPP <code>sr_steering_add_del</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="configuration">Configuration</h2>
+<p>EBGP peers require explicit opt-in. IBGP peers accept PrefixSID by default.</p>
+<pre><code>bgp {
+    peer pe1 {
+        session {
+            accept-srv6-prefix-sid true
+        }
+    }
+}
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Location</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>accept-srv6-prefix-sid</code></td>
+<td><code>bgp/peer/session</code></td>
+<td><code>false</code></td>
+<td>Accept PrefixSID attribute from this EBGP peer (RFC 8669 Section 4)</td>
+</tr>
+</tbody>
+</table>
+<p>No additional configuration is needed for IBGP sessions or for FIB programming.
+When an SRv6 SID is present on a best-path route and the SID is resolvable,
+the FIB backend programs the encapsulation automatically.</p>
+<h2 id="data-flow">Data Flow</h2>
+<pre><code>BGP UPDATE with PrefixSID (attr 40)
+  |
+  v
+Wire parser: stores PrefixSID in OtherAttrs (opaque bytes)
+  |
+  v
+RFC 7606 validator: checks TLV structure, rejects malformed
+  |
+  v
+EBGP filter: discards attr 40 unless accept-srv6-prefix-sid is set
+  |
+  v
+RIB best-path: IsSRv6Ineligible() excludes routes with broken SRv6 TLVs
+  |
+  v
+Best-path emission: lookupSRv6SIDForBest() extracts SID from OtherAttrs
+  |  For VPN/EVPN: applies transposition (label bits -&gt; SID function)
+  |
+  v
+sysrib: stores srv6SID on protocolRoute, tracks SID for resolution
+  |  Suppresses FIB emission if SID has no covering route in Loc-RIB
+  |  Cascade re-evaluates when SID reachability changes
+  |
+  v
+FIB backend:
+  Linux: netlink.SEG6Encap{Mode: encap, Segments: [SID]}
+  VPP:   sr.SrSteeringAddDel{BsidAddr: SID, TrafficType: IPv4/IPv6}
+</code></pre>
+<h2 id="transposition-vpnevpn">Transposition (VPN/EVPN)</h2>
+<p>For SAFI 128 (VPN) and SAFI 70 (EVPN), RFC 9252 Section 3.2.1 specifies that
+part of the SRv6 SID function bits are encoded in the MPLS label field of the
+NLRI instead of in the SID Information Sub-TLV. Ze reconstructs the full SID:</p>
+<ol>
+<li>Extract partial SID from SID Information Sub-TLV</li>
+<li>Read transposition parameters from SID Structure Sub-Sub-TLV (offset, length)</li>
+<li>Read label from NLRI (stored as side-data in PeerRIB)</li>
+<li>OR label bits into SID at the specified bit offset</li>
+</ol>
+<p>When Transposition Length is 0, no reconstruction is needed (the full SID is
+in the Sub-TLV). This is the common case for IPv6 unicast.</p>
+<h2 id="fib-backends">FIB Backends</h2>
+<h3 id="linux-kernel">Linux Kernel</h3>
+<p>Routes with SRv6 SID are installed with SEG6 lightweight tunnel encapsulation:</p>
+<pre><code>ip route add &lt;prefix&gt; via &lt;nexthop&gt; encap seg6 mode encap segs &lt;SID&gt;
+</code></pre>
+<p>Implemented via <code>netlink.SEG6Encap</code> in <code>buildRichRoute</code>. MPLS labels take
+precedence: if both Labels and SRv6SID are present, MPLS encap is used.</p>
+<h3 id="vpp">VPP</h3>
+<p>Routes with SRv6 SID are steered via VPP's SR policy infrastructure:</p>
+<pre><code>sr_steering_add_del bsid=&lt;SID&gt; prefix=&lt;prefix&gt; traffic_type=IPv4|IPv6
+</code></pre>
+<p>Implemented via GoVPP <code>sr.SrSteeringAddDel</code>. Requires <code>go.fd.io/govpp/binapi/sr</code>
+(vendored). SRv6 steering takes precedence over both MPLS and plain routes in
+the VPP dispatch logic.</p>
+<h2 id="rfc-compliance">RFC Compliance</h2>
+<h3 id="rfc-8669-prefix-sid-attribute">RFC 8669 (Prefix-SID Attribute)</h3>
+<table>
+<thead>
+<tr>
+<th>Requirement</th>
+<th>Section</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Attribute code 40, optional transitive</td>
+<td>3</td>
+<td>Implemented</td>
+</tr>
+<tr>
+<td>TLV format: 1B type + 2B length</td>
+<td>3</td>
+<td>Implemented</td>
+</tr>
+<tr>
+<td>Unknown TLVs preserved on propagation</td>
+<td>3</td>
+<td>Implemented (opaque forwarding)</td>
+</tr>
+<tr>
+<td>EBGP: discard unless configured to accept</td>
+<td>4</td>
+<td>Implemented (<code>accept-srv6-prefix-sid</code>)</td>
+</tr>
+<tr>
+<td>Malformed attribute: attribute-discard</td>
+<td>6</td>
+<td>Implemented (RFC 7606 validator)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="rfc-9252-srv6-overlay-services">RFC 9252 (SRv6 Overlay Services)</h3>
+<table>
+<thead>
+<tr>
+<th>Requirement</th>
+<th>Section</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>L3 Service TLV (type 5)</td>
+<td>3.1</td>
+<td>Implemented</td>
+</tr>
+<tr>
+<td>L2 Service TLV (type 6)</td>
+<td>3.1</td>
+<td>Implemented</td>
+</tr>
+<tr>
+<td>SID Information Sub-TLV (type 1)</td>
+<td>3.2</td>
+<td>Implemented</td>
+</tr>
+<tr>
+<td>First SID Sub-TLV preferred</td>
+<td>3.2 SHOULD</td>
+<td>Implemented</td>
+</tr>
+<tr>
+<td>SID Structure Sub-Sub-TLV</td>
+<td>3.2.1</td>
+<td>Implemented</td>
+</tr>
+<tr>
+<td>Transposition reconstruction</td>
+<td>3.2.1</td>
+<td>Implemented (VPN/EVPN)</td>
+</tr>
+<tr>
+<td>LBL+LNL+FL+AL &lt;= 128 validation</td>
+<td>3.2.1</td>
+<td>Implemented (errata 7817)</td>
+</tr>
+<tr>
+<td>NH unchanged: preserve TLVs</td>
+<td>3.3</td>
+<td>Implemented (zero-copy forward)</td>
+</tr>
+<tr>
+<td>NH changed: strip PrefixSID</td>
+<td>3.3</td>
+<td>Implemented (AttrModSuppress)</td>
+</tr>
+<tr>
+<td>Malformed Service TLV: treat-as-withdraw</td>
+<td>3.4</td>
+<td>Implemented</td>
+</tr>
+<tr>
+<td>Path ineligibility (no valid SID)</td>
+<td>5</td>
+<td>Implemented</td>
+</tr>
+<tr>
+<td>SID resolvability check</td>
+<td>5</td>
+<td>Implemented (Loc-RIB LPM)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="limitations">Limitations</h2>
+<ul>
+<li><strong>Ingress PE only.</strong> Ze consumes SRv6 SIDs from received routes. It does not
+  allocate or advertise local SRv6 SIDs. When re-advertising with a changed
+  next-hop, PrefixSID is stripped.</li>
+<li><strong>No SRv6 capability negotiation.</strong> PrefixSID is optional-transitive, so it
+  propagates without negotiation. Ze does not signal SRv6 support via capabilities.</li>
+<li><strong>MPLS precedence.</strong> If a route carries both MPLS labels and an SRv6 SID,
+  MPLS encap is used (kernel backend). VPP dispatches SRv6 first.</li>
+<li><strong>No SRv6 policy.</strong> Ze programs single-SID encapsulation. SRv6 segment lists
+  (multi-hop SR paths) are not supported.</li>
+</ul>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Feature doc</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Related research</h2>
+                    <a class="page-sidebar-link" href="../../features/">
+                        <span class="page-sidebar-link-label">Feature catalog</span>
+                        <small>Return to the generated feature cards.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Browse by learning intent.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../compare/">
+                        <span class="page-sidebar-link-label">Comparisons</span>
+                        <small>Place the feature in external context.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../quality/">
+                        <span class="page-sidebar-link-label">Quality</span>
+                        <small>See the evidence behind the implementation.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

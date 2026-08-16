@@ -14,7 +14,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 - AI tools read **structured output**
 - Plugins expose **discoverable tools**
 
-[Learn more](https://ze-software.net/docs/features/ai-first/)
+[Learn more](https://ze-software.net/features/ai-first/)
 
 ### SSH CLI
 
@@ -24,7 +24,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 - **Profiles**, audit, and accounting
 - **commit**, rollback, diff, completion
 
-[Learn more](https://ze-software.net/docs/features/cli-commands/)
+[Learn more](https://ze-software.net/features/cli-commands/)
 
 ### YANG Configuration
 
@@ -34,7 +34,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 - **One model** feeds every surface
 - **Plugin** defined config and commands
 
-[Learn more](https://ze-software.net/docs/features/configuration/)
+[Learn more](https://ze-software.net/features/bgp-configuration/)
 
 ### Output Formatting
 
@@ -44,7 +44,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 - **match**, **count**, **first**/**last**
 - Offline via **ze format**
 
-[Learn more](https://ze-software.net/docs/features/formatting/)
+[Learn more](https://ze-software.net/features/formatting/)
 
 ### Web Workbench
 
@@ -54,7 +54,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 - Same **CLI grammar** in browser
 - **Live updates** via SSE
 
-[Learn more](https://ze-software.net/docs/features/web-interface/)
+[Learn more](https://ze-software.net/features/web-interface/)
 
 ### Looking Glass
 
@@ -64,7 +64,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 - **Topology** graph
 - SSE streaming for **live state**
 
-[Learn more](https://ze-software.net/docs/features/looking-glass/)
+[Learn more](https://ze-software.net/features/looking-glass/)
 
 ### System Readiness
 
@@ -74,7 +74,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 - Health, warnings, and **errors**
 - Structured **remediation** with `ze explain`
 
-[Learn more](https://ze-software.net/docs/guide/production-diagnostics/)
+[Learn more](https://ze-software.net/guides/production-diagnostics/)
 
 ### Native BGP Engine
 
@@ -84,7 +84,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 - **Lazy parsing**, buffer-first encoding
 - Negotiated **capabilities**
 
-[Learn more](https://ze-software.net/docs/features/bgp-protocol/)
+[Learn more](https://ze-software.net/features/bgp-protocol/)
 
 ### Static Routes
 
@@ -94,7 +94,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 - **BFD**-tracked failover
 - Multi-path **ECMP** groups
 
-[Learn more](https://ze-software.net/docs/guide/static-routes/)
+[Learn more](https://ze-software.net/guides/static-routes/)
 
 ### BFD
 
@@ -104,7 +104,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 - GTSM, jitter, **BGP** integration
 - SHA1/MD5 **auth**, echo mode
 
-[Learn more](https://ze-software.net/docs/features/bgp-protocol/)
+[Learn more](https://ze-software.net/features/bgp-protocol/)
 
 ### MRT Recording
 
@@ -114,7 +114,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 - **Strftime** file rotation
 - Show, inject, replay, **filter**
 
-[Learn more](https://ze-software.net/docs/guide/mrt-analysis/)
+[Learn more](https://ze-software.net/guides/mrt-analysis/)
 
 ### DNS Resolver
 
@@ -124,7 +124,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 - **| resolve** and **| origin** pipe operators
 - No external **daemon** needed
 
-[Learn more](https://ze-software.net/docs/features/dns-resolver/)
+[Learn more](https://ze-software.net/features/dns-resolver/)
 
 ### Plugin System
 
@@ -144,7 +144,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 - Shared engine for **identical output**
 - Automate from **any language**
 
-[Learn more](https://ze-software.net/docs/features/api-commands/)
+[Learn more](https://ze-software.net/features/api-commands/)
 
 ### AI-First Design
 
@@ -154,7 +154,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 - Every command is an **automation** surface
 - Structured **diagnostics** and repair plans
 
-[Learn more](https://ze-software.net/docs/features/ai-first/)
+[Learn more](https://ze-software.net/features/ai-first/)
 
 ### MCP Integration
 
@@ -164,7 +164,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 - Server-initiated **elicitation**, task-augmented tool calls
 - **MCP Apps UI** with embedded panels
 
-[Learn more](https://ze-software.net/docs/features/mcp-integration/)
+[Learn more](https://ze-software.net/features/mcp-integration/)
 
 ### ExaBGP Compatibility
 
@@ -174,7 +174,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 - **Plugin bridge** for existing workflows
 - Migration path for existing scripts
 
-[Learn more](https://ze-software.net/docs/features/exabgp-compatibility/)
+[Learn more](https://ze-software.net/features/exabgp-compatibility/)
 
 ### Evidence Over Claims
 
@@ -184,7 +184,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 - Performance **benchmarks**
 - **Interop** vs FRR, BIRD, GoBGP
 
-[Learn more](https://ze-software.net/docs/features/interoperability-testing/)
+[Learn more](https://ze-software.net/features/interoperability-testing/)
 
 ### Development Activity
 
@@ -204,7 +204,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 - **Netdata** naming, drop-in replacement
 - Existing **Grafana** dashboards keep working
 
-[Learn more](https://ze-software.net/docs/guide/monitoring/)
+[Learn more](https://ze-software.net/guides/monitoring/)
 
 ### Health Registry
 
@@ -214,7 +214,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 - Per-component **status** checks
 - BGP, FIB, IPsec, L2TP, **VPP**
 
-[Learn more](https://ze-software.net/docs/features/)
+[Learn more](https://ze-software.net/features/)
 
 ### Host Inventory
 
@@ -224,7 +224,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 - **SMART** disk health and self-tests
 - **JSON** output for pipelines
 
-[Learn more](https://ze-software.net/docs/features/)
+[Learn more](https://ze-software.net/features/)
 
 ### Crash Capture
 
@@ -234,7 +234,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 - Ring buffer **context** (last 64 entries)
 - **show crashes** CLI command
 
-[Learn more](https://ze-software.net/docs/features/)
+[Learn more](https://ze-software.net/features/)
 
 ### Tech-Support Bundle
 
@@ -244,7 +244,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 - Structured **JSON** per module
 - Privacy-by-default, **gokrazy**-safe
 
-[Learn more](https://ze-software.net/docs/features/)
+[Learn more](https://ze-software.net/features/)
 
 ### Production Diagnostics
 
@@ -254,7 +254,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 - **tcpdump**, traceroute, ping, mtr
 - All exposed via **MCP** for AI debugging
 
-[Learn more](https://ze-software.net/docs/guide/production-diagnostics/)
+[Learn more](https://ze-software.net/guides/production-diagnostics/)
 
 ### Secure by Default
 
@@ -274,7 +274,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 - Command **accounting** START/STOP
 - Server failover, **local** fallback
 
-[Learn more](https://ze-software.net/docs/guide/tacacs/)
+[Learn more](https://ze-software.net/guides/tacacs/)
 
 ### Audit Trail
 
@@ -284,7 +284,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 - Failed **auth** on every interface
 - Filter by action, actor, and **time**
 
-[Learn more](https://ze-software.net/docs/guide/audit/)
+[Learn more](https://ze-software.net/guides/audit/)
 
 ### PKI Store
 
@@ -294,7 +294,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 - Chain validation, **expiry** checks
 - Shared by IPsec, **TLS**, mutual auth
 
-[Learn more](https://ze-software.net/docs/features/)
+[Learn more](https://ze-software.net/features/)
 
 ### Minimal Appliance Mode
 
@@ -305,7 +305,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 - **ISO/PXE** bare-metal install
 - Linux server with **systemd**
 
-[Learn more](https://ze-software.net/docs/guide/appliance/)
+[Learn more](https://ze-software.net/guides/appliance/)
 
 ### Runs Itself
 
@@ -315,7 +315,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 - Built-in **readiness** checks
 - No **orchestrator** needed
 
-[Learn more](https://ze-software.net/docs/features/introspection/)
+[Learn more](https://ze-software.net/features/introspection/)
 
 ### Docker Support
 
@@ -325,7 +325,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 - **Compose** support included
 - Optional **build tags**
 
-[Learn more](https://ze-software.net/docs/features/)
+[Learn more](https://ze-software.net/features/)
 
 ### Feature Gates
 
@@ -335,7 +335,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 - Smaller binary, smaller **attack surface**
 - Config **fails closed** on blocks the build lacks
 
-[Learn more](https://ze-software.net/docs/guide/quickstart/)
+[Learn more](https://ze-software.net/guides/quickstart/)
 
 ## Experimental and growing.
 
@@ -351,7 +351,7 @@ Implemented and tested, still waiting for production evidence.
 - **NAT-T**, keepalive, XFRM interfaces
 - EAP-MSCHAPv2, **EAP-TLS**, road warrior
 
-[Learn more](https://ze-software.net/docs/features/)
+[Learn more](https://ze-software.net/features/)
 
 ### L2TPv2 BNG
 
@@ -361,7 +361,7 @@ Implemented and tested, still waiting for production evidence.
 - **RADIUS** auth, accounting, CoA
 - CQM monitoring, **shaping**, web UI
 
-[Learn more](https://ze-software.net/docs/guide/l2tp/)
+[Learn more](https://ze-software.net/guides/l2tp/)
 
 ### PPPoE Access
 
@@ -371,7 +371,7 @@ Implemented and tested, still waiting for production evidence.
 - Shared **PPP driver** with L2TP
 - HMAC-SHA256 **cookie**, rate limiting
 
-[Learn more](https://ze-software.net/docs/guide/pppoe/)
+[Learn more](https://ze-software.net/guides/pppoe/)
 
 ### Interface Management
 
@@ -381,7 +381,7 @@ Implemented and tested, still waiting for production evidence.
 - 8 tunnel kinds, **DHCP** client
 - NTP sync, **offload** tuning, mirroring
 
-[Learn more](https://ze-software.net/docs/features/interfaces/)
+[Learn more](https://ze-software.net/features/interfaces/)
 
 ### Firewall
 
@@ -391,7 +391,7 @@ Implemented and tested, still waiting for production evidence.
 - SNAT, DNAT, **masquerade**
 - FlowSpec-to-firewall **bridge**
 
-[Learn more](https://ze-software.net/docs/guide/firewall/)
+[Learn more](https://ze-software.net/guides/firewall/)
 
 ### Policy Routing
 
@@ -401,7 +401,7 @@ Implemented and tested, still waiting for production evidence.
 - Table steering, **next-hop** actions
 - TCP-MSS clamping, **interface** wildcards
 
-[Learn more](https://ze-software.net/docs/guide/policy-routing/)
+[Learn more](https://ze-software.net/guides/policy-routing/)
 
 ### VPP Data Plane
 
@@ -411,7 +411,7 @@ Implemented and tested, still waiting for production evidence.
 - MPLS **label** operations
 - Per-interface **Prometheus** metrics
 
-[Learn more](https://ze-software.net/docs/guide/vpp/)
+[Learn more](https://ze-software.net/guides/vpp/)
 
 ### MPLS / LDP / RSVP-TE
 
@@ -421,7 +421,7 @@ Implemented and tested, still waiting for production evidence.
 - LDP **discovery** and sessions
 - RSVP-TE **ERO**, bandwidth admission
 
-[Learn more](https://ze-software.net/docs/features/)
+[Learn more](https://ze-software.net/features/)
 
 ### OSPFv2 / OSPFv3
 
@@ -431,7 +431,7 @@ Implemented and tested, still waiting for production evidence.
 - SPF/ABR, **NSSA**, virtual links, NBMA/P2MP
 - Redistribution, **SR**, BFD, graceful restart
 
-[Learn more](https://ze-software.net/docs/guide/ospf/)
+[Learn more](https://ze-software.net/guides/ospf/)
 
 ### IS-IS
 
@@ -441,7 +441,7 @@ Implemented and tested, still waiting for production evidence.
 - RFC 5304/5310 **authentication**, key chains
 - Dual-stack **IPv6**, redistributes with BGP
 
-[Learn more](https://ze-software.net/docs/guide/isis/)
+[Learn more](https://ze-software.net/guides/isis/)
 
 ### VRRP
 
@@ -451,7 +451,7 @@ Implemented and tested, still waiting for production evidence.
 - Per-group **virtual-MAC** macvlan for L2 failover
 - **keepalived** interop, compile-out
 
-[Learn more](https://ze-software.net/docs/guide/vrrp/)
+[Learn more](https://ze-software.net/guides/vrrp/)
 
 ### Flow Export
 
@@ -461,7 +461,7 @@ Implemented and tested, still waiting for production evidence.
 - Packet sampling, **conntrack** flows
 - BGP **next-hop** enrichment
 
-[Learn more](https://ze-software.net/docs/guide/flow-export/)
+[Learn more](https://ze-software.net/guides/flow-export/)
 
 ### ISO and PXE Install
 
@@ -471,7 +471,7 @@ Implemented and tested, still waiting for production evidence.
 - Installer **ISO** media
 - Local **systemd** install and uninstall
 
-[Learn more](https://ze-software.net/docs/guide/ze-install/)
+[Learn more](https://ze-software.net/guides/ze-install/)
 
 ### Kernel Tunables
 
@@ -481,7 +481,7 @@ Implemented and tested, still waiting for production evidence.
 - Named **profiles** (DSR, router, hardened)
 - Originals **restored** on stop
 
-[Learn more](https://ze-software.net/docs/features/)
+[Learn more](https://ze-software.net/features/)
 
 ### AS112 Anycast DNS
 
@@ -491,7 +491,7 @@ Implemented and tested, still waiting for production evidence.
 - Conditional **BGP origination** via healthcheck-gated watchdog
 - Anycast IPs bound on **lo** automatically, never operator-typed
 
-[Learn more](https://ze-software.net/docs/guide/as112/)
+[Learn more](https://ze-software.net/guides/as112/)
 
 ### Segment Routing
 
@@ -511,7 +511,7 @@ Implemented and tested, still waiting for production evidence.
 - Cached config with **reconnect** and heartbeat
 - Version hashing and **two-phase** fetch
 
-[Learn more](https://ze-software.net/docs/guide/fleet-config/)
+[Learn more](https://ze-software.net/guides/fleet-config/)
 
 ### IRR Route Filtering
 
@@ -521,7 +521,7 @@ Implemented and tested, still waiting for production evidence.
 - Sourced from **PeeringDB** and **RADB**
 - Opt-in per peer, group or **global filter chain**
 
-[Learn more](https://ze-software.net/docs/guide/irr-filtering/)
+[Learn more](https://ze-software.net/guides/irr-filtering/)
 
 ## Specified, not built.
 

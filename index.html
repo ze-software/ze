@@ -157,7 +157,7 @@
                             >
                             <a
                                 class="hero-start-action"
-                                href="docs/guide/quickstart/"
+                                href="guides/quickstart/"
                                 ><strong>Quickstart</strong
                                 ><small
                                     >Bring up two BGP peers in under five
@@ -194,7 +194,7 @@
                             >
                             <a
                                 class="hero-start-action"
-                                href="docs/guide/ze-install/"
+                                href="guides/ze-install/"
                                 ><strong>Install Ze</strong
                                 ><small
                                     >Run it on Linux or as a bootable
@@ -207,10 +207,10 @@
             </section>
 
             <section class="outcome-strip reveal" aria-label="Ze product map">
-                <a href="docs/architecture/">Protocol-agnostic core</a>
+                <a href="architecture/">Protocol-agnostic core</a>
                 <a href="reference/configuration/">YANG per subsystem</a>
                 <a href="features/#routing">BGP, interfaces, FIB</a>
-                <a href="docs/features/ai-first/">CLI, SSH, web, API, MCP</a>
+                <a href="features/ai-first/">CLI, SSH, web, API, MCP</a>
                 <a href="reference/plugins/">Compiled or external plugins</a>
                 <a href="license/">AGPLv3 source</a>
             </section>
@@ -256,7 +256,7 @@
                 <div class="proof-strip" aria-label="Project evidence">
                     <a class="proof" href="quality/unit-fuzz-mutation/">
                         <strong
-                            >22,700+ <span class="label">unit tests</span></strong
+                            >23,000+ <span class="label">unit tests</span></strong
                         >
                         <ul>
                             <li>Wire encoding, parsing</li>
@@ -303,7 +303,7 @@
                     <a href="quality/qemu-interop-release/#docker-interop">FreeRtr</a>
                     <a href="quality/qemu-interop-release/#docker-interop">RustyBGP</a>
                     <a href="quality/qemu-interop-release/#docker-interop">rustbgpd</a>
-                    <a href="docs/features/exabgp-compatibility/">ExaBGP migration path</a>
+                    <a href="features/exabgp-compatibility/">ExaBGP migration path</a>
                 </div>
             </section>
 
@@ -314,7 +314,7 @@
                     </h2>
                     <p>
                         The same binary and configuration support each path,
-                        from a <a href="docs/guide/netlab/">netlab topology</a>
+                        from a <a href="labs/netlab/">netlab topology</a>
                         or BGP interop lab to spare hardware.
                     </p>
                 </div>
@@ -337,7 +337,7 @@
                     </article>
                     <article class="card audience-card cat-operate">
                         <span class="cat">Daemon</span>
-                        <h3><a href="docs/guide/quickstart/">Run as a daemon</a></h3>
+                        <h3><a href="guides/quickstart/">Run as a daemon</a></h3>
                         <p>
                             Ze runs on any existing Linux distro, managed by systemd or your chosen process manager. This is the easiest route when Ze has to fit into infrastructure you already run.
                         </p>
@@ -349,7 +349,7 @@
                     </article>
                     <article class="card audience-card cat-platform">
                         <span class="cat">Appliance</span>
-                        <h3><a href="docs/guide/ze-install/">Run as an appliance</a></h3>
+                        <h3><a href="guides/ze-install/">Run as an appliance</a></h3>
                         <p>
                             A bootable gokrazy image for appliance hardware: read-only root filesystem, no shell, no package manager, and automatic process supervision.
                         </p>
@@ -384,7 +384,7 @@
                     </article>
                     <article class="card usp-card cat-platform">
                         <span class="cat">Runtime</span>
-                        <h3><a href="docs/architecture/">Small core, registered subsystems</a></h3>
+                        <h3><a href="architecture/">Small core, registered subsystems</a></h3>
                         <p>
                             The core holds the supervisor, message bus, config
                             provider, and plugin manager. BGP and interface
@@ -393,7 +393,7 @@
                     </article>
                     <article class="card usp-card cat-routing">
                         <span class="cat">Routing</span>
-                        <h3><a href="docs/architecture/">Network OS built on the engine</a></h3>
+                        <h3><a href="architecture/">Network OS built on the engine</a></h3>
                         <p>
                             The shipped daemon speaks BGP, manages Linux
                             interfaces, programs the FIB, and serves its
@@ -478,19 +478,19 @@
                                 >BGP interop lab
                                 <span>FRR, BIRD, and GoBGP in Docker</span></a
                             >
-                            <a href="usage/exabgp-migration/"
+                            <a href="use-cases/exabgp-migration/"
                                 >ExaBGP migration
                                 <span>try an existing config and process script</span></a
                             >
-                            <a href="docs/guide/appliance/"
+                            <a href="guides/appliance/"
                                 >Appliance install
                                 <span>ISO media, PXE provisioning, spare hardware</span></a
                             >
-                            <a href="docs/guide/looking-glass-howto/"
+                            <a href="guides/public-looking-glass/"
                                 >Looking glass
                                 <span>publish read-only BGP visibility</span></a
                             >
-                            <a href="docs/features/ai-first/"
+                            <a href="features/ai-first/"
                                 >AI-assisted operations
                                 <span>MCP exposes Ze commands to tools</span></a
                             >
@@ -525,7 +525,7 @@
                 <div class="audience home-usecase-grid reveal">
                     <article class="card audience-card cat-routing">
                         <span class="cat">IXP</span>
-                        <h3><a href="usage/route-server/">Route server</a></h3>
+                        <h3><a href="use-cases/route-server/">Route server</a></h3>
                         <p>
                             IXP operators can run the route-server lab first and compare policy behaviour before touching members.
                         </p>
@@ -538,7 +538,7 @@
                     </article>
                     <article class="card audience-card cat-operate">
                         <span class="cat">Lab</span>
-                        <h3><a href="docs/guide/quickstart/">Lab router</a></h3>
+                        <h3><a href="guides/quickstart/">Lab router</a></h3>
                         <p>
                             Network builders can bring up two BGP peers, inspect routes, and check whether Ze&#x27;s operator tools fit their workflow.
                         </p>
@@ -550,7 +550,7 @@
                     </article>
                     <article class="card audience-card cat-automate">
                         <span class="cat">Migration</span>
-                        <h3><a href="usage/exabgp-migration/">ExaBGP replacement</a></h3>
+                        <h3><a href="use-cases/exabgp-migration/">ExaBGP replacement</a></h3>
                         <p>
                             ExaBGP users can try the migrator against an existing config and see which process scripts still translate cleanly.
                         </p>
@@ -562,7 +562,7 @@
                     </article>
                     <article class="card audience-card cat-platform">
                         <span class="cat">Appliance</span>
-                        <h3><a href="docs/guide/appliance/">White-box appliance</a></h3>
+                        <h3><a href="guides/appliance/">White-box appliance</a></h3>
                         <p>
                             People with spare x86 hardware can boot the appliance image and test the same configuration model without a general-purpose shell.
                         </p>
@@ -575,7 +575,7 @@
                     </article>
                     <article class="card audience-card cat-observe">
                         <span class="cat">Observe</span>
-                        <h3><a href="docs/guide/looking-glass-howto/">Looking glass</a></h3>
+                        <h3><a href="guides/public-looking-glass/">Looking glass</a></h3>
                         <p>
                             Operators who need read-only BGP visibility can publish a looking glass and inspect routes without giving shell access.
                         </p>
@@ -599,7 +599,7 @@
                     </article>
                     <article class="card audience-card cat-automate accent-pink">
                         <span class="cat">MCP</span>
-                        <h3><a href="docs/features/ai-first/">AI-assisted operations</a></h3>
+                        <h3><a href="features/ai-first/">AI-assisted operations</a></h3>
                         <p>
                             MCP exposes Ze commands and structured output to AI tools without a separate command set.
                         </p>
@@ -679,7 +679,7 @@
                         </p>
                         <div class="actions">
                             <a class="button primary" href="labs/bgp-interop/">Run a BGP lab</a>
-                            <a class="button" href="docs/guide/quickstart/">Read the quickstart</a>
+                            <a class="button" href="guides/quickstart/">Read the quickstart</a>
                         </div>
                     </div>
                     <div class="status-table" aria-label="Safe starting points">

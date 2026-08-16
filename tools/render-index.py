@@ -379,7 +379,7 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
                             >
                             <a
                                 class="hero-start-action"
-                                href="docs/guide/quickstart/"
+                                href="guides/quickstart/"
                                 ><strong>Quickstart</strong
                                 ><small
                                     >Bring up two BGP peers in under five
@@ -420,7 +420,7 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
                             >
                             <a
                                 class="hero-start-action"
-                                href="docs/guide/ze-install/"
+                                href="guides/ze-install/"
                                 ><strong>Install Ze</strong
                                 ><small
                                     >Run it on Linux or as a bootable
@@ -433,10 +433,10 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
             </section>
 
             <section class="outcome-strip reveal" aria-label="Ze product map">
-                <a href="docs/architecture/">Protocol-agnostic core</a>
+                <a href="architecture/">Protocol-agnostic core</a>
                 <a href="reference/configuration/">YANG per subsystem</a>
                 <a href="features/#routing">BGP, interfaces, FIB</a>
-                <a href="docs/features/ai-first/">CLI, SSH, web, API, MCP</a>
+                <a href="features/ai-first/">CLI, SSH, web, API, MCP</a>
                 <a href="reference/plugins/">Compiled or external plugins</a>
                 <a href="license/">AGPLv3 source</a>
             </section>
@@ -508,7 +508,7 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
                     <a href="quality/qemu-interop-release/#docker-interop">FreeRtr</a>
                     <a href="quality/qemu-interop-release/#docker-interop">RustyBGP</a>
                     <a href="quality/qemu-interop-release/#docker-interop">rustbgpd</a>
-                    <a href="docs/features/exabgp-compatibility/">ExaBGP migration path</a>
+                    <a href="features/exabgp-compatibility/">ExaBGP migration path</a>
                 </div>
             </section>
 
@@ -519,7 +519,7 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
                     </h2>
                     <p>
                         The same binary and configuration support each path,
-                        from a <a href="docs/guide/netlab/">netlab topology</a>
+                        from a <a href="labs/netlab/">netlab topology</a>
                         or BGP interop lab to spare hardware.
                     </p>
                 </div>
@@ -550,7 +550,7 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
                     </article>
                     <article class="card usp-card cat-platform">
                         <span class="cat">Runtime</span>
-                        <h3><a href="docs/architecture/">Small core, registered subsystems</a></h3>
+                        <h3><a href="architecture/">Small core, registered subsystems</a></h3>
                         <p>
                             The core holds the supervisor, message bus, config
                             provider, and plugin manager. BGP and interface
@@ -559,7 +559,7 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
                     </article>
                     <article class="card usp-card cat-routing">
                         <span class="cat">Routing</span>
-                        <h3><a href="docs/architecture/">Network OS built on the engine</a></h3>
+                        <h3><a href="architecture/">Network OS built on the engine</a></h3>
                         <p>
                             The shipped daemon speaks BGP, manages Linux
                             interfaces, programs the FIB, and serves its
@@ -638,19 +638,19 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
                                 >BGP interop lab
                                 <span>FRR, BIRD, and GoBGP in Docker</span></a
                             >
-                            <a href="usage/exabgp-migration/"
+                            <a href="use-cases/exabgp-migration/"
                                 >ExaBGP migration
                                 <span>try an existing config and process script</span></a
                             >
-                            <a href="docs/guide/appliance/"
+                            <a href="guides/appliance/"
                                 >Appliance install
                                 <span>ISO media, PXE provisioning, spare hardware</span></a
                             >
-                            <a href="docs/guide/looking-glass-howto/"
+                            <a href="guides/public-looking-glass/"
                                 >Looking glass
                                 <span>publish read-only BGP visibility</span></a
                             >
-                            <a href="docs/features/ai-first/"
+                            <a href="features/ai-first/"
                                 >AI-assisted operations
                                 <span>MCP exposes Ze commands to tools</span></a
                             >
@@ -713,7 +713,7 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
                         </p>
                         <div class="actions">
                             <a class="button primary" href="labs/bgp-interop/">Run a BGP lab</a>
-                            <a class="button" href="docs/guide/quickstart/">Read the quickstart</a>
+                            <a class="button" href="guides/quickstart/">Read the quickstart</a>
                         </div>
                     </div>
                     <div class="status-table" aria-label="Safe starting points">

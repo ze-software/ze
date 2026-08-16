@@ -1,0 +1,1138 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Monitoring - Ze</title>
+        <meta name="description" content="Ze documentation: guide/monitoring.md" />
+        <meta property="og:title" content="Monitoring - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/monitoring.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Monitoring - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/monitoring.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/guides/monitoring/" />
+        <meta property="og:url" content="https://ze-software.net/guides/monitoring/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-observe">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1 id="monitoring">Monitoring</h1>
+    <p>Ze provides real-time BGP event monitoring and a live peer dashboard through the CLI. Commands follow verb-first syntax: <code>monitor &lt;module&gt;</code>.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#live-peer-dashboard">Live Peer Dashboard</a></li>
+<li><a href="#event-streaming">Event Streaming</a>
+<ol>
+<li><a href="#filters">Filters</a></li>
+<li><a href="#event-types">Event Types</a></li>
+<li><a href="#output-formats">Output Formats</a></li>
+</ol></li>
+<li><a href="#json-event-format">JSON Event Format</a>
+<ol>
+<li><a href="#update-event">UPDATE Event</a></li>
+<li><a href="#state-event">State Event</a></li>
+</ol></li>
+<li><a href="#programmatic-access">Programmatic Access</a></li>
+<li><a href="#prometheus-metrics">Prometheus Metrics</a>
+<ol>
+<li><a href="#http-basic-authentication">HTTP Basic Authentication</a></li>
+<li><a href="#os-metrics-netdata-compatible">OS Metrics (Netdata-compatible)</a></li>
+<li><a href="#host-inventory-metrics">Host Inventory Metrics</a></li>
+<li><a href="#bgp-metrics">BGP Metrics</a>
+<ol>
+<li><a href="#instance">Instance</a></li>
+<li><a href="#per-peer">Per-Peer</a></li>
+<li><a href="#session-lifecycle">Session Lifecycle</a></li>
+<li><a href="#startup-and-connection-timing">Startup and Connection Timing</a></li>
+<li><a href="#forward-pool-congestion">Forward Pool / Congestion</a></li>
+<li><a href="#attribute-index">Attribute Index</a></li>
+<li><a href="#egress-modification-failures">Egress Modification Failures</a></li>
+<li><a href="#well-known-community-suppressions">Well-Known Community Suppressions</a></li>
+<li><a href="#announces-refused-for-size">Announces Refused For Size</a></li>
+<li><a href="#sends-refused-by-the-attach-permission">Sends Refused By The Attach Permission</a></li>
+<li><a href="#prefix-limits-rfc-4486">Prefix Limits (RFC 4486)</a></li>
+</ol></li>
+</ol></li>
+<li><a href="#single-command">Single Command</a></li>
+</ol></nav>
+<!-- source: internal/component/bgp/plugins/cmd/monitor/ -- monitor streaming RPCs -->
+
+<h2 id="live-peer-dashboard">Live Peer Dashboard</h2>
+<pre><code>ze cli -c &quot;monitor bgp&quot;
+</code></pre>
+<p>The dashboard refreshes every 2 seconds and shows router identity plus a sortable, colour-coded peer table with update rates. Keys: j/k moves, s/S sorts, Enter opens detail, and Esc exits.</p>
+<!-- source: internal/component/cli/model_dashboard.go -- isDashboardCommand -->
+
+<h2 id="event-streaming">Event Streaming</h2>
+<pre><code>ze cli -c &quot;monitor event&quot;
+</code></pre>
+<h3 id="filters">Filters</h3>
+<table>
+<thead>
+<tr>
+<th>Filter</th>
+<th>Example</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>peer</code></td>
+<td><code>peer upstream1</code></td>
+<td>Show events for one peer</td>
+</tr>
+<tr>
+<td><code>include</code></td>
+<td><code>include update,state</code></td>
+<td>Filter by event type (comma-separated)</td>
+</tr>
+<tr>
+<td><code>exclude</code></td>
+<td><code>exclude keepalive</code></td>
+<td>Exclude event types</td>
+</tr>
+<tr>
+<td><code>direction</code></td>
+<td><code>direction received</code></td>
+<td>Only received or sent events</td>
+</tr>
+</tbody>
+</table>
+<p>Combine filters:</p>
+<pre><code>ze cli -c &quot;monitor event peer upstream1 include update direction received&quot;
+</code></pre>
+<h3 id="event-types">Event Types</h3>
+<table>
+<thead>
+<tr>
+<th>Event</th>
+<th>Has Direction</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>update</code></td>
+<td class="cell-yes">✓</td>
+<td>Route announcements and withdrawals</td>
+</tr>
+<tr>
+<td><code>open</code></td>
+<td class="cell-yes">✓</td>
+<td>OPEN message exchange</td>
+</tr>
+<tr>
+<td><code>notification</code></td>
+<td class="cell-yes">✓</td>
+<td>Session error notifications</td>
+</tr>
+<tr>
+<td><code>keepalive</code></td>
+<td class="cell-yes">✓</td>
+<td>Keepalive exchanges</td>
+</tr>
+<tr>
+<td><code>refresh</code></td>
+<td class="cell-yes">✓</td>
+<td>Route refresh requests</td>
+</tr>
+<tr>
+<td><code>state</code></td>
+<td class="cell-no">✕</td>
+<td>Peer state changes (up/down)</td>
+</tr>
+<tr>
+<td><code>negotiated</code></td>
+<td class="cell-no">✕</td>
+<td>Capability negotiation results</td>
+</tr>
+<tr>
+<td><code>eor</code></td>
+<td class="cell-yes">✓</td>
+<td>End-of-RIB markers</td>
+</tr>
+<tr>
+<td><code>rpki</code></td>
+<td class="cell-yes">✓</td>
+<td>RPKI validation results</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/bgp/event.go -- event type definitions -->
+
+<h3 id="output-formats">Output Formats</h3>
+<p>Pipe the output through format operators:</p>
+<pre><code>ze cli -c &quot;monitor event | json&quot;      # Full JSON envelope
+ze cli -c &quot;monitor event | table&quot;     # Tabular format
+ze cli -c &quot;monitor event | match rx&quot;  # Regex filter on output
+</code></pre>
+<!-- source: internal/component/command/ -- ApplyJSON, ApplyTable pipe operators -->
+
+<h2 id="json-event-format">JSON Event Format</h2>
+<p>All events follow the ze-bgp JSON envelope:</p>
+<pre><code class="language-json">{
+  &quot;type&quot;: &quot;bgp&quot;,
+  &quot;bgp&quot;: {
+    &quot;peer&quot;: {
+      &quot;address&quot;: &quot;10.0.0.1&quot;,
+      &quot;local&quot;: {&quot;address&quot;: &quot;10.0.0.2&quot;, &quot;as&quot;: 65000},
+      &quot;remote&quot;: {&quot;address&quot;: &quot;10.0.0.1&quot;, &quot;as&quot;: 65001}
+    },
+    &quot;message&quot;: {
+      &quot;id&quot;: 42,
+      &quot;direction&quot;: &quot;received&quot;,
+      &quot;type&quot;: &quot;update&quot;
+    }
+  }
+}
+</code></pre>
+<h3 id="update-event">UPDATE Event</h3>
+<pre><code class="language-json">{
+  &quot;type&quot;: &quot;bgp&quot;,
+  &quot;bgp&quot;: {
+    &quot;peer&quot;: {&quot;address&quot;: &quot;10.0.0.1&quot;, &quot;local&quot;: {&quot;address&quot;: &quot;10.0.0.2&quot;, &quot;as&quot;: 65000}, &quot;remote&quot;: {&quot;address&quot;: &quot;10.0.0.1&quot;, &quot;as&quot;: 65001}},
+    &quot;message&quot;: {&quot;id&quot;: 1, &quot;direction&quot;: &quot;received&quot;, &quot;type&quot;: &quot;update&quot;},
+    &quot;update&quot;: {
+      &quot;ipv4/unicast&quot;: [
+        {
+          &quot;next-hop&quot;: &quot;10.0.0.1&quot;,
+          &quot;action&quot;: &quot;add&quot;,
+          &quot;nlri&quot;: [&quot;10.0.0.0/24&quot;, &quot;10.0.1.0/24&quot;]
+        }
+      ]
+    },
+    &quot;origin&quot;: &quot;igp&quot;,
+    &quot;as-path&quot;: [65001, 65002],
+    &quot;local-preference&quot;: 100
+  }
+}
+</code></pre>
+<h3 id="state-event">State Event</h3>
+<pre><code class="language-json">{
+  &quot;type&quot;: &quot;bgp&quot;,
+  &quot;bgp&quot;: {
+    &quot;peer&quot;: {&quot;address&quot;: &quot;10.0.0.1&quot;, &quot;local&quot;: {&quot;address&quot;: &quot;10.0.0.2&quot;, &quot;as&quot;: 65000}, &quot;remote&quot;: {&quot;address&quot;: &quot;10.0.0.1&quot;, &quot;as&quot;: 65001}},
+    &quot;message&quot;: {&quot;type&quot;: &quot;state&quot;},
+    &quot;state&quot;: &quot;up&quot;
+  }
+}
+</code></pre>
+<h2 id="programmatic-access">Programmatic Access</h2>
+<p>Plugins can subscribe to events via the SDK:</p>
+<pre><code>attach process my-plugin {
+    receive [ update state ]
+}
+</code></pre>
+<p>The plugin receives events through its <code>OnEvent</code> callback. See <a href="../plugins/">Plugins guide</a> for details.</p>
+<!-- source: internal/component/plugin/server/ -- event dispatch to plugins -->
+
+<h2 id="prometheus-metrics">Prometheus Metrics</h2>
+<p>Ze exposes Prometheus metrics when <code>telemetry { prometheus { ... } }</code> is configured. BGP metrics are refreshed every 10 seconds. By default the HTTP listener binds to <code>127.0.0.1:9273</code>; configure an explicit server address to expose it to remote scrapers.</p>
+<p>The <code>netdata</code> block only controls Netdata-compatible OS collector metrics. It does not rename Ze-native metrics such as <code>ze_bgp_*</code>, <code>ze_bfd_*</code>, or <code>ze_l2tp_*</code>.</p>
+<pre><code>telemetry {
+    prometheus {
+        enabled true;
+        server main {
+            ip 0.0.0.0;
+            port 9273;
+        }
+        path /metrics;
+        basic-auth {
+            enabled true;
+            username prometheus;
+            plaintext-password &quot;secret&quot;;
+        }
+        netdata {
+            enabled true;
+            prefix netdata;
+            interval 1;
+            collector diskspace {
+                enabled false;
+            }
+            collector snmp6 {
+                interval 10;
+            }
+        }
+    }
+}
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>enabled</code></td>
+<td>false</td>
+<td>Enable Prometheus HTTP endpoint</td>
+</tr>
+<tr>
+<td><code>server</code></td>
+<td><span class="ev-src"><span class="ev-ref"><code>127.0.0.1:9273</code></span></span></td>
+<td>Listener list. Explicit <code>0.0.0.0</code> binds all interfaces</td>
+</tr>
+<tr>
+<td><code>path</code></td>
+<td><code>/metrics</code></td>
+<td>HTTP metrics path</td>
+</tr>
+<tr>
+<td><code>basic-auth/enabled</code></td>
+<td>false</td>
+<td>Require HTTP Basic Authentication for metrics and health endpoints</td>
+</tr>
+<tr>
+<td><code>basic-auth/realm</code></td>
+<td><code>ze prometheus</code></td>
+<td>Basic Auth realm</td>
+</tr>
+<tr>
+<td><code>basic-auth/username</code></td>
+<td>unset</td>
+<td>Basic Auth username</td>
+</tr>
+<tr>
+<td><code>basic-auth/password</code></td>
+<td>unset</td>
+<td>Bcrypt-hashed Basic Auth password</td>
+</tr>
+<tr>
+<td><code>basic-auth/plaintext-password</code></td>
+<td>unset</td>
+<td>Write-only password input, hashed at commit and at load</td>
+</tr>
+<tr>
+<td><code>netdata/enabled</code></td>
+<td>true</td>
+<td>Enable Netdata-compatible OS collectors</td>
+</tr>
+<tr>
+<td><code>netdata/prefix</code></td>
+<td><code>netdata</code></td>
+<td>Prefix for Netdata-compatible OS collector metrics only</td>
+</tr>
+<tr>
+<td><code>netdata/interval</code></td>
+<td>1</td>
+<td>Netdata-compatible OS collector sampling interval (1-60s)</td>
+</tr>
+<tr>
+<td><code>netdata/collector</code></td>
+<td>--</td>
+<td>Per-Netdata-collector enable and interval overrides</td>
+</tr>
+</tbody>
+</table>
+<p>Deprecated compatibility aliases remain accepted: <code>prefix</code>, <code>interval</code>, and <code>collector</code> directly under <code>prometheus</code>. Prefer <code>netdata/prefix</code>, <code>netdata/interval</code>, and <code>netdata/collector</code> in new config.</p>
+<h3 id="http-basic-authentication">HTTP Basic Authentication</h3>
+<p>When <code>basic-auth/enabled</code> is true, Ze requires HTTP Basic Authentication for every handler on the Prometheus service, including both <code>/metrics</code> and <code>/health</code>. The password is stored as a bcrypt hash in the persisted config. Use <code>plaintext-password</code> when you edit the config and Ze replaces it with <code>password</code> at commit. If automation already has a hash from <code>ze passwd</code>, set <code>password</code> directly.</p>
+<p>A config file loaded at daemon start or at SIGHUP gets the same transform. Ze hashes the leaf in memory and leaves your file as you wrote it. It warns that the plaintext is still on disk.</p>
+<!-- source: internal/component/config/loader.go -- LoadConfig, warnPlaintextOnDisk -->
+
+<p>Prometheus scrape configuration:</p>
+<pre><code class="language-yaml">scrape_configs:
+  - job_name: ze
+    static_configs:
+      - targets: [&quot;router.example.net:9273&quot;]
+    basic_auth:
+      username: prometheus
+      password: secret
+</code></pre>
+<p>Basic Auth does not provide transport encryption. Keep the listener on loopback, use a trusted management network, or put TLS in front of the service if the scrape crosses an untrusted network.</p>
+<p>Per-collector overrides:</p>
+<pre><code>netdata {
+    collector diskspace { enabled false; }
+    collector snmp6 { interval 10; }
+}
+</code></pre>
+<!-- source: internal/component/bgp/reactor/reactor_metrics.go -- initReactorMetrics, metricsUpdateLoop -->
+<!-- source: internal/component/telemetry/exporter/yang/ze-telemetry-conf.yang -->
+
+<h3 id="os-metrics-netdata-compatible">OS Metrics (Netdata-compatible)</h3>
+<p>Ze exports 138 OS metrics matching Netdata's Prometheus format exactly (same names, labels, values), acting as a drop-in replacement for Netdata's <code>/api/v1/allmetrics?format=prometheus</code> endpoint. Existing Grafana dashboards built against Netdata continue to work unchanged.</p>
+<p>Metric name format: <code>{prefix}_{context}_{units}_average{chart="...",dimension="...",family="..."}</code>, where <code>{prefix}</code> is <code>telemetry.prometheus.netdata.prefix</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Collector</th>
+<th>/proc or /sys source</th>
+<th>Charts exposed</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CPU</td>
+<td>/proc/stat</td>
+<td><code>system.cpu</code>, <code>cpu.cpu&lt;N&gt;</code></td>
+</tr>
+<tr>
+<td>cpufreq</td>
+<td>/sys/devices/system/cpu/cpu*/cpufreq</td>
+<td><code>cpufreq.cpufreq</code>, <code>cpu.core_throttling</code></td>
+</tr>
+<tr>
+<td>cpuidle</td>
+<td>/sys/devices/system/cpu/cpu*/cpuidle</td>
+<td><code>cpuidle.cpu&lt;N&gt;_cpuidle</code></td>
+</tr>
+<tr>
+<td>Memory</td>
+<td>/proc/meminfo</td>
+<td><code>system.ram</code>, <code>system.swap</code>, <code>mem.available</code>, <code>mem.committed</code>, <code>mem.kernel</code>, <code>mem.slab</code>, <code>mem.thp</code>, <code>mem.writeback</code>, <code>mem.hugepages</code>, <code>mem.reclaiming</code>, <code>mem.swap_cached</code>, <code>mem.cma</code>, <code>mem.directmaps</code>, <code>mem.hwcorrupt</code>, <code>mem.zswap</code></td>
+</tr>
+<tr>
+<td>Load</td>
+<td>/proc/loadavg</td>
+<td><code>system.load</code></td>
+</tr>
+<tr>
+<td>Processes</td>
+<td>/proc/stat</td>
+<td><code>system.processes</code>, <code>system.forks</code>, <code>system.ctxt</code>, <code>system.intr</code></td>
+</tr>
+<tr>
+<td>Interrupts</td>
+<td>/proc/softirqs</td>
+<td><code>system.softirqs</code></td>
+</tr>
+<tr>
+<td>Pressure (PSI)</td>
+<td>/proc/pressure/*</td>
+<td><code>system.{cpu,memory,io}_{some,full}_pressure</code></td>
+</tr>
+<tr>
+<td>Network (per-iface)</td>
+<td>/proc/net/dev, /sys/class/net</td>
+<td><code>net.net</code>, <code>net.packets</code>, <code>net.errors</code>, <code>net.drops</code>, <code>net.fifo</code>, <code>net.compressed</code>, <code>net.events</code>, <code>net.speed</code>, <code>net.duplex</code>, <code>net.operstate</code>, <code>net.carrier</code>, <code>net.mtu</code></td>
+</tr>
+<tr>
+<td>Network (aggregate)</td>
+<td>/proc/net/dev, snmp, snmp6</td>
+<td><code>system.net</code>, <code>system.ipv4</code>, <code>system.ipv6</code></td>
+</tr>
+<tr>
+<td>IPv4</td>
+<td>/proc/net/snmp</td>
+<td><code>ipv4.packets</code>, <code>ipv4.errors</code>, <code>ipv4.tcppackets</code>, <code>ipv4.tcperrors</code>, <code>ipv4.tcphandshake</code>, <code>ipv4.tcpsock</code>, <code>ipv4.udppackets</code>, <code>ipv4.udperrors</code>, <code>ipv4.icmp</code>, <code>ipv4.icmpmsg</code>, <code>ipv4.fragsout</code>, <code>ipv4.fragsin</code></td>
+</tr>
+<tr>
+<td>IPv4 netstat</td>
+<td>/proc/net/netstat</td>
+<td><code>ipv4.mcast</code>, <code>ipv4.mcastpkts</code>, <code>ipv4.bcast</code>, <code>ipv4.bcastpkts</code>, <code>ipv4.ecnpkts</code>, <code>ip.tcpconnaborts</code>, <code>ip.tcpmemorypressures</code>, <code>ip.tcpreorders</code>, <code>ip.tcpofo</code></td>
+</tr>
+<tr>
+<td>IPv6</td>
+<td>/proc/net/snmp6</td>
+<td><code>ipv6.packets</code>, <code>ipv6.errors</code>, <code>ipv6.udppackets</code>, <code>ipv6.udperrors</code>, <code>ipv6.mcast</code>, <code>ipv6.fragsout</code>, <code>ipv6.fragsin</code></td>
+</tr>
+<tr>
+<td>Sockets</td>
+<td>/proc/net/sockstat, sockstat6</td>
+<td><code>ip.sockstat_sockets</code>, <code>ipv4.sockstat_tcp_sockets</code>, <code>ipv4.sockstat_tcp_mem</code>, <code>ipv4.sockstat_udp_sockets</code>, <code>ipv4.sockstat_udp_mem</code>, <code>ipv6.sockstat6_*</code></td>
+</tr>
+<tr>
+<td>Conntrack</td>
+<td>/proc/net/stat/nf_conntrack</td>
+<td><code>netfilter.conntrack_sockets</code>, <code>_new</code>, <code>_changes</code>, <code>_errors</code>, <code>_search</code>, <code>_expect</code></td>
+</tr>
+<tr>
+<td>Softnet</td>
+<td>/proc/net/softnet_stat</td>
+<td><code>system.softnet_stat</code>, <code>cpu.cpu&lt;N&gt;_softnet_stat</code></td>
+</tr>
+<tr>
+<td>Disk I/O</td>
+<td>/proc/diskstats</td>
+<td><code>disk.io</code>, <code>disk.ops</code>, <code>disk.mops</code>, <code>disk.iotime</code>, <code>disk.busy</code>, <code>disk.backlog</code>, <code>disk.await</code>, <code>disk.svctm</code>, <code>disk.avgsz</code>, <code>disk.qops</code>, <code>system.io</code></td>
+</tr>
+<tr>
+<td>Disk space</td>
+<td>/proc/mounts + statfs</td>
+<td><code>disk_space.&lt;mount&gt;</code></td>
+</tr>
+<tr>
+<td>mdstat</td>
+<td>/proc/mdstat</td>
+<td><code>md.health</code>, <code>md.disks</code>, <code>md.mismatch_cnt</code></td>
+</tr>
+<tr>
+<td>ZFS</td>
+<td>/proc/spl/kstat/zfs/arcstats</td>
+<td><code>zfs.arc_size</code>, <code>zfs.reads</code>, <code>zfs.hits</code>, <code>zfs.hits_rate</code>, <code>zfs.l2_size</code>, <code>zfs.l2_hits_rate</code>, <code>zfs.memory_ops</code></td>
+</tr>
+<tr>
+<td>btrfs</td>
+<td>/sys/fs/btrfs/*/allocation</td>
+<td><code>btrfs.disk</code>, <code>btrfs.data</code>, <code>btrfs.metadata</code>, <code>btrfs.system</code></td>
+</tr>
+<tr>
+<td>VMstat</td>
+<td>/proc/vmstat</td>
+<td><code>mem.pgfaults</code>, <code>system.pgpgio</code>, <code>mem.swapio</code>, <code>mem.oom_kill</code>, <code>mem.numa</code>, <code>mem.balloon</code>, <code>mem.zswapio</code>, <code>mem.ksm_cow</code>, <code>mem.thp_faults</code>, <code>mem.thp_collapse</code></td>
+</tr>
+<tr>
+<td>SCTP</td>
+<td>/proc/net/sctp/snmp</td>
+<td><code>sctp.snmp</code></td>
+</tr>
+<tr>
+<td>IPVS</td>
+<td>/proc/net/ip_vs_stats</td>
+<td><code>ipvs.net</code></td>
+</tr>
+<tr>
+<td>Wireless</td>
+<td>/proc/net/wireless</td>
+<td><code>net_wireless.*</code></td>
+</tr>
+<tr>
+<td>Other</td>
+<td>/proc/uptime, /proc/sys/kernel/random/entropy_avail, /proc/sys/fs/file-nr</td>
+<td><code>system.uptime</code>, <code>system.entropy</code>, <code>system.file_nr_used</code></td>
+</tr>
+</tbody>
+</table>
+<p>Collectors whose data sources are absent (no ZFS loaded, no btrfs mounts, no wireless NICs, etc.) skip silently.</p>
+<p>Side-by-side validation against Netdata:</p>
+<pre><code>curl -s http://localhost:9273/api/v1/allmetrics?format=prometheus | grep &quot;^netdata_&quot; | sed 's/ .*//' | sort -u &gt; nd.txt
+curl -s http://localhost:9274/metrics | grep &quot;^netdata_&quot; | sed 's/ .*//' | sort -u &gt; ze.txt
+diff nd.txt ze.txt
+</code></pre>
+<!-- source: internal/component/telemetry/collector/ -- Netdata-compatible OS collectors -->
+
+<h3 id="host-inventory-metrics">Host Inventory Metrics</h3>
+<!-- source: internal/component/host/metrics.go -- RegisterMetrics, collectFrom -->
+
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Type</th>
+<th>Labels</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze_host_memory_total_bytes</code></td>
+<td>gauge</td>
+<td>-</td>
+<td>Total physical memory in bytes</td>
+</tr>
+<tr>
+<td><code>ze_host_memory_available_bytes</code></td>
+<td>gauge</td>
+<td>-</td>
+<td>Available physical memory in bytes</td>
+</tr>
+<tr>
+<td><code>ze_host_cpu_logical_count</code></td>
+<td>gauge</td>
+<td>-</td>
+<td>Number of logical CPUs</td>
+</tr>
+<tr>
+<td><code>ze_host_cpu_physical_cores</code></td>
+<td>gauge</td>
+<td>-</td>
+<td>Number of physical CPU cores</td>
+</tr>
+<tr>
+<td><code>ze_host_uptime_seconds</code></td>
+<td>gauge</td>
+<td>-</td>
+<td>Host uptime in seconds</td>
+</tr>
+<tr>
+<td><code>ze_host_ecc_correctable_errors_total</code></td>
+<td>gauge</td>
+<td>-</td>
+<td>ECC correctable error count</td>
+</tr>
+<tr>
+<td><code>ze_host_ecc_uncorrectable_errors_total</code></td>
+<td>gauge</td>
+<td>-</td>
+<td>ECC uncorrectable error count</td>
+</tr>
+<tr>
+<td><code>ze_host_nic_link_speed_mbps</code></td>
+<td>gauge</td>
+<td><code>name</code></td>
+<td>NIC link speed in Mbps</td>
+</tr>
+<tr>
+<td><code>ze_host_nic_carrier</code></td>
+<td>gauge</td>
+<td><code>name</code></td>
+<td>NIC carrier state (1=up, 0=down)</td>
+</tr>
+<tr>
+<td><code>ze_host_storage_size_bytes</code></td>
+<td>gauge</td>
+<td><code>name</code></td>
+<td>Block device size in bytes</td>
+</tr>
+<tr>
+<td><code>ze_host_thermal_temp_mc</code></td>
+<td>gauge</td>
+<td><code>name</code>, <code>device</code></td>
+<td>Thermal sensor reading in millicelsius</td>
+</tr>
+</tbody>
+</table>
+<p>Host metrics are refreshed on a configurable interval (default 60 seconds). Linux only; on other platforms no host metrics are registered.</p>
+<h3 id="bgp-metrics">BGP Metrics</h3>
+<!-- source: internal/component/bgp/reactor/reactor_metrics.go -- initReactorMetrics -->
+
+<h4 id="instance">Instance</h4>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze_info</code></td>
+<td>gauge</td>
+<td>Instance info (labels: <code>version</code>, <code>router_id</code>, <code>local_as</code>)</td>
+</tr>
+<tr>
+<td><code>ze_uptime_seconds</code></td>
+<td>gauge</td>
+<td>Seconds since reactor started</td>
+</tr>
+<tr>
+<td><code>ze_peers_configured</code></td>
+<td>gauge</td>
+<td>Number of configured peers</td>
+</tr>
+<tr>
+<td><code>ze_cache_entries</code></td>
+<td>gauge</td>
+<td>UPDATE cache entry count</td>
+</tr>
+</tbody>
+</table>
+<h4 id="per-peer">Per-Peer</h4>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Type</th>
+<th>Labels</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze_peer_state</code></td>
+<td>gauge</td>
+<td><code>peer</code></td>
+<td>FSM state (0=stopped, 1=connecting, 2=active, 3=established)</td>
+</tr>
+<tr>
+<td><code>ze_peer_messages_received_total</code></td>
+<td>counter</td>
+<td><code>peer</code>, <code>type</code></td>
+<td>Messages received (type: update, keepalive, open, notification, refresh, eor)</td>
+</tr>
+<tr>
+<td><code>ze_peer_messages_sent_total</code></td>
+<td>counter</td>
+<td><code>peer</code>, <code>type</code></td>
+<td>Messages sent (type: update, keepalive, open, notification, refresh, eor)</td>
+</tr>
+</tbody>
+</table>
+<h4 id="session-lifecycle">Session Lifecycle</h4>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Type</th>
+<th>Labels</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze_peer_sessions_established_total</code></td>
+<td>counter</td>
+<td><code>peer</code></td>
+<td>Times the session reached Established</td>
+</tr>
+<tr>
+<td><code>ze_peer_session_flaps_total</code></td>
+<td>counter</td>
+<td><code>peer</code></td>
+<td>Sessions dropped from Established</td>
+</tr>
+<tr>
+<td><code>ze_peer_state_transitions_total</code></td>
+<td>counter</td>
+<td><code>peer</code>, <code>from</code>, <code>to</code></td>
+<td>Peer FSM state transitions</td>
+</tr>
+<tr>
+<td><code>ze_peer_notifications_sent_total</code></td>
+<td>counter</td>
+<td><code>peer</code>, <code>code</code>, <code>subcode</code></td>
+<td>NOTIFICATION messages sent</td>
+</tr>
+<tr>
+<td><code>ze_peer_notifications_received_total</code></td>
+<td>counter</td>
+<td><code>peer</code>, <code>code</code>, <code>subcode</code></td>
+<td>NOTIFICATION messages received</td>
+</tr>
+<tr>
+<td><code>ze_peer_session_duration_seconds</code></td>
+<td>gauge</td>
+<td><code>peer</code></td>
+<td>Seconds since the session established</td>
+</tr>
+<tr>
+<td><code>ze_bgp_open_in_established_total</code></td>
+<td>counter</td>
+<td><code>peer</code></td>
+<td>OPEN messages refused because the connection was already in Established or OpenConfirm</td>
+</tr>
+<tr>
+<td><code>ze_bgp_connect_retry_counter</code></td>
+<td>gauge</td>
+<td><code>peer</code></td>
+<td>RFC 4271 ConnectRetryCounter: times this peer has tried to establish a session since the last operator start or stop</td>
+</tr>
+</tbody>
+</table>
+<p>A non-zero <code>ze_bgp_open_in_established_total</code> names a peer that tried to
+re-negotiate mid-session. Ze answers it with a Cease and closes the connection.</p>
+<p><code>ze_bgp_connect_retry_counter</code> is RFC 4271 Section 8.1.1 mandatory session
+attribute 2, "the number of times a BGP peer has tried to establish a peer
+session". The BGP FSM raises it by one on each teardown RFC 4271 Section 8.2.2
+gives an increment clause: a hold-timer expiry, a header or OPEN error, a
+NOTIFICATION, an UPDATE error, a mid-session TCP failure, and any event the
+state does not expect. Two events set it back to zero, and only these two: the
+operator starts the peer, and the operator stops it. A reconnect does not,
+which is what makes the value a history rather than a flag.</p>
+<p>It is a GAUGE, not a counter. Those operator resets make the value go down, and
+a Prometheus counter that goes down reads as a counter reset to <code>rate()</code>. Use
+the value directly, not a rate: it already IS a count.</p>
+<p>Read the same number per peer with <code>show bgp peer &lt;address&gt; detail</code>, field
+<code>connect-retry-counter</code>.</p>
+<!-- source: internal/component/bgp/reactor/reactor_metrics.go -- initReactorMetrics -->
+<!-- source: internal/component/bgp/reactor/session_handlers.go -- handleOpen -->
+<!-- source: internal/component/bgp/fsm/connect_retry_counter.go -- ConnectRetryCounter -->
+
+<h4 id="startup-and-connection-timing">Startup and Connection Timing</h4>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Type</th>
+<th>Labels</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze_plugin_startup_seconds</code></td>
+<td>histogram</td>
+<td>-</td>
+<td>WaitForPluginStartupComplete duration</td>
+</tr>
+<tr>
+<td><code>ze_api_ready_seconds</code></td>
+<td>histogram</td>
+<td>-</td>
+<td>WaitForAPIReady duration</td>
+</tr>
+<tr>
+<td><code>ze_peer_dial_seconds</code></td>
+<td>histogram</td>
+<td><code>peer</code>, <code>result</code></td>
+<td>TCP dial duration (result: ok, fail)</td>
+</tr>
+<tr>
+<td><code>ze_peer_connect_attempt_seconds</code></td>
+<td>histogram</td>
+<td><code>peer</code></td>
+<td>Full connection attempt (runOnce) duration</td>
+</tr>
+<tr>
+<td><code>ze_peer_connect_attempts_total</code></td>
+<td>counter</td>
+<td><code>peer</code></td>
+<td>Connection attempts</td>
+</tr>
+<tr>
+<td><code>ze_peer_backoff_seconds</code></td>
+<td>histogram</td>
+<td><code>peer</code></td>
+<td>Backoff wait duration before retry</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/bgp/reactor/reactor_metrics.go -- initReactorMetrics -->
+
+<h4 id="forward-pool-congestion">Forward Pool / Congestion</h4>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Type</th>
+<th>Labels</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze_forward_workers_active</code></td>
+<td>gauge</td>
+<td>-</td>
+<td>Active forward pool workers</td>
+</tr>
+<tr>
+<td><code>ze_bgp_pool_used_ratio</code></td>
+<td>gauge</td>
+<td>-</td>
+<td>Global overflow pool utilization (0.0 = empty, 1.0 = full)</td>
+</tr>
+<tr>
+<td><code>ze_bgp_overflow_items</code></td>
+<td>gauge</td>
+<td><code>peer</code></td>
+<td>Items in per-destination overflow buffer</td>
+</tr>
+<tr>
+<td><code>ze_bgp_overflow_ratio</code></td>
+<td>gauge</td>
+<td><code>source</code></td>
+<td>Per-source overflow ratio: overflowed / (forwarded + overflowed)</td>
+</tr>
+</tbody>
+</table>
+<h4 id="attribute-index">Attribute Index</h4>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Type</th>
+<th>Labels</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze_bgp_update_span_spill_total</code></td>
+<td>counter</td>
+<td><code>peer</code></td>
+<td>Received UPDATEs whose attribute count exceeded the inline span capacity</td>
+</tr>
+</tbody>
+</table>
+<p>Ze indexes the path attributes of every received UPDATE once, on the receive
+goroutine, and holds the first 8 spans inline. A 9th attribute puts the remainder
+on the heap and increments this counter. A public-internet corpus of 112M routes
+has a maximum of 10 attributes and 99.9% at 8 or fewer, so a steady rate here
+means either an unusual peer or an attribute set worth raising the inline size
+for.</p>
+<!-- source: internal/core/bgp/attribute/span.go -- SpanInline -->
+<!-- source: internal/component/bgp/reactor/session_validation.go -- publishBase -->
+
+<h4 id="egress-modification-failures">Egress Modification Failures</h4>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Type</th>
+<th>Labels</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze_bgp_update_modify_failed_total</code></td>
+<td>counter</td>
+<td><code>reason</code></td>
+<td>An egress modification could not be applied to a route</td>
+</tr>
+</tbody>
+</table>
+<p>A non-zero value means a configured modification (a next-hop rewrite, a community
+strip, a private-ASN removal) did not fit the route it applied to. The <code>reason</code>
+label set is closed: <code>malformed</code>, <code>overflow</code>, <code>attr-length-range</code>,
+<code>withdrawn-size</code>. Two further values exist and both indicate a defect rather than
+peer input: <code>no-failure</code> must never be emitted, and <code>unclassified</code> means a reason
+reached the counter that no constant produced.</p>
+<!-- source: internal/component/bgp/reactor/forward_modify_failure.go -- modifyFailure -->
+
+<p>Treat any increment as a policy that did not take effect. Ze counts the failure
+at the point the modification is built, on all five paths that build one: the
+forward rail, the route-server rail, the ingress and egress policy chains, and
+the RFC 9494 stale re-advertise rail.</p>
+<!-- source: internal/component/bgp/reactor/forward_build.go -- buildModifiedPayload -->
+
+<h4 id="well-known-community-suppressions">Well-Known Community Suppressions</h4>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Type</th>
+<th>Labels</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze_bgp_wellknown_community_suppressed_total</code></td>
+<td>counter</td>
+<td><code>community</code></td>
+<td>A route was withheld from one destination peer by an RFC 1997 well-known community</td>
+</tr>
+</tbody>
+</table>
+<p>An increment means a route ze received carrying NO_EXPORT, NO_ADVERTISE or
+NO_EXPORT_SUBCONFED was not advertised to a peer that community forbids. One
+observation is one destination, so a route withheld from 20 peers counts 20. The
+suppression is not configurable and is never logged per route, so this counter is
+the only place an operator sees it.</p>
+<!-- source: internal/component/bgp/reactor/forward_wellknown.go -- wellKnownAllowsEgress -->
+
+<p>The <code>community</code> label set is closed and holds three values: <code>no-advertise</code>,
+<code>no-export-subconfed</code>, <code>no-export</code>. A route carrying more than one is counted
+under the strictest, so one suppressed route is always one observation.</p>
+<!-- source: internal/component/bgp/wireu/wellknown.go -- WellKnown.BlockingName -->
+
+<p>The counter says nothing about withdrawals. RFC 1997 forbids ADVERTISING such a
+route, so a suppressed destination still receives the withdrawals of the same
+UPDATE and keeps no route ze cannot take back.</p>
+<h4 id="announces-refused-for-size">Announces Refused For Size</h4>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Type</th>
+<th>Labels</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze_bgp_announce_dropped_oversize_total</code></td>
+<td>counter</td>
+<td><code>rail</code>, <code>stage</code></td>
+<td>An announce did not fit its build buffer and was not sent to that peer</td>
+</tr>
+</tbody>
+</table>
+<p>An increment means a route never reached one peer. Ze queries the encoded size
+before it writes, so no truncated UPDATE goes out: the announce is abandoned
+whole. Nothing else reports this to the operator, because the peer is not
+notified and the session is not disturbed.</p>
+<!-- source: internal/component/bgp/reactor/announce_metrics.go -- recordAnnounceDroppedOversize -->
+
+<p>Both label sets are closed. <code>rail</code> is <code>batch</code> for an announce built from the API
+and <code>queued</code> for one built from the RIB. <code>stage</code> is <code>nlri</code> when the prefix block
+did not fit and <code>attributes</code> when the path-attribute block did not.</p>
+<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- logAnnounceTooLarge -->
+<!-- source: internal/component/bgp/reactor/peer_rib_routes.go -- logRIBRouteTooLarge -->
+
+<p>A <code>batch</code> increment also reaches the caller: <code>AnnounceNLRIBatch</code> returns
+<code>errAnnounceTooLarge</code>, which the dispatcher turns into a <code>StatusError</code> response,
+so a plugin sees its own announce refused. A <code>queued</code> increment has no such
+channel and the counter is the only signal besides the log line. Act on either by
+sending fewer prefixes per announce, or by reducing the attributes on the route.</p>
+<h4 id="sends-refused-by-the-attach-permission">Sends Refused By The Attach Permission</h4>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Type</th>
+<th>Labels</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze_bgp_send_refused_total</code></td>
+<td>counter</td>
+<td><code>process</code>, <code>type</code></td>
+<td>A process asked to generate a message toward a peer whose config does not attach it with that send type. Nothing reached the peer</td>
+</tr>
+</tbody>
+</table>
+<p>A peer feeds and is fed by the processes its <code>attach process &lt;name&gt;</code> blocks
+name, and the <code>send</code> list inside a block is the permission to originate toward
+that peer. An increment means a program addressed a peer it was never attached
+to: the peer was dropped from that command and nothing went on its wire. <code>type</code>
+is <code>update</code> for a route, a withdrawal or an End-of-RIB marker, and <code>refresh</code> for
+a route refresh or a soft clear.</p>
+<p>A steady non-zero rate with no config change is usually a program that widened
+its selector to <code>peer *</code> and is now reaching for peers the operator never linked
+it to. A step at reload is usually the opposite: an attach block was removed
+while the program kept announcing. The WARN line beside each increment names the
+peer, which this counter deliberately does not (an error path should not carry
+peer-driven cardinality), and it prints the exact block to add.</p>
+<p>An operator at the CLI, over SSH or through the REST API never appears here:
+their authority is checked by AAA, and <code>send</code> grants authority to a program.</p>
+<!-- source: internal/component/bgp/reactor/send_permission.go -- recordSendRefused, sendPermissionDenied -->
+<!-- source: internal/component/bgp/reactor/reactor_api.go -- getMatchingPeersSel -->
+
+<h4 id="prefix-limits-rfc-4486">Prefix Limits (RFC 4486)</h4>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Type</th>
+<th>Labels</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze_bgp_prefix_count</code></td>
+<td>gauge</td>
+<td><code>peer</code>, <code>family</code></td>
+<td>Current prefix count</td>
+</tr>
+<tr>
+<td><code>ze_bgp_prefix_maximum</code></td>
+<td>gauge</td>
+<td><code>peer</code>, <code>family</code></td>
+<td>Configured hard maximum</td>
+</tr>
+<tr>
+<td><code>ze_bgp_prefix_warning</code></td>
+<td>gauge</td>
+<td><code>peer</code>, <code>family</code></td>
+<td>Warning threshold</td>
+</tr>
+<tr>
+<td><code>ze_bgp_prefix_warning_exceeded</code></td>
+<td>gauge</td>
+<td><code>peer</code>, <code>family</code></td>
+<td>1 if count &gt;= warning</td>
+</tr>
+<tr>
+<td><code>ze_bgp_prefix_ratio</code></td>
+<td>gauge</td>
+<td><code>peer</code>, <code>family</code></td>
+<td>count / maximum (0.0 to 1.0+)</td>
+</tr>
+<tr>
+<td><code>ze_bgp_prefix_maximum_exceeded_total</code></td>
+<td>counter</td>
+<td><code>peer</code>, <code>family</code></td>
+<td>Times maximum exceeded</td>
+</tr>
+<tr>
+<td><code>ze_bgp_prefix_teardown_total</code></td>
+<td>counter</td>
+<td><code>peer</code></td>
+<td>Sessions torn down for prefix limit</td>
+</tr>
+<tr>
+<td><code>ze_bgp_prefix_stale</code></td>
+<td>gauge</td>
+<td><code>peer</code></td>
+<td>1 if prefix data older than 6 months</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="single-command">Single Command</h2>
+<p>For scripting, use <code>-c</code> to execute a single command and exit:</p>
+<pre><code>ze cli -c &quot;show bgp summary&quot;
+ze cli -c &quot;show bgp rib received&quot;
+ze cli -c &quot;show bgp rpki status&quot;
+</code></pre>
+<!-- source: internal/component/cli/client/main.go -- Run, Execute, StreamMonitor -->
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/quickstart/">
+                        <span class="page-sidebar-link-label">Quickstart</span>
+                        <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create zefs, and start SSH.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../reference/command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

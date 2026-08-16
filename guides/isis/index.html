@@ -1,0 +1,484 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>IS-IS - Ze</title>
+        <meta name="description" content="Ze documentation: guide/isis.md" />
+        <meta property="og:title" content="IS-IS - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/isis.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="IS-IS - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/isis.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/guides/isis/" />
+        <meta property="og:url" content="https://ze-software.net/guides/isis/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-routing">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1 id="is-is">IS-IS</h1>
+    <p>Ze implements IS-IS (Intermediate System to Intermediate System, ISO/IEC 10589 as
+updated by RFC 1195 / RFC 5305 / RFC 5308 / ...) as a native link-state interior
+gateway protocol that runs directly over Layer 2. This guide collects the
+user-facing behaviour; the wire format is documented in
+<a href="https://github.com/ze-software/ze/blob/main/docs/architecture/wire/isis.md" target="_blank" rel="noopener"><code>docs/architecture/wire/isis.md</code></a>.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#the-dynamic-hostname">The dynamic hostname</a></li>
+<li><a href="#broadcast-lans-dis-election-and-pseudo-nodes">Broadcast LANs: DIS election and pseudo-nodes</a></li>
+<li><a href="#authentication">Authentication</a></li>
+<li><a href="#redistribution-mesh-with-bgp">Redistribution (mesh with BGP)</a></li>
+<li><a href="#dual-stack-ipv6">Dual-stack IPv6</a></li>
+<li><a href="#observing-and-clearing-is-is">Observing and clearing IS-IS</a>
+<ol>
+<li><a href="#which-lsps-are-this-nodes-own">Which LSPs are this node&#x27;s own</a></li>
+<li><a href="#web-views">Web views</a></li>
+<li><a href="#metrics">Metrics</a></li>
+<li><a href="#readiness-checks">Readiness checks</a></li>
+</ol></li>
+</ol></nav>
+<!-- This page is the shared IS-IS user guide. Each child spec adds its section;
+     keep sections in feature order. -->
+
+<blockquote>
+<p><strong>Interface names are logical.</strong> <code>interface &lt;name&gt;</code> in an <code>isis { }</code> block refers to
+the Ze <em>logical</em> interface name, not necessarily the kernel device name. By default
+the logical name equals the kernel device, but an interface configured with an
+<code>os-name</code> selector binds a logical name to a different kernel device; IS-IS resolves
+the name to its kernel device through the shared iface resolver. See
+<a href="../configuration-model/#logical-name-and-the-os-name-selector">Logical Name and the <code>os-name</code> Selector</a>.</p>
+</blockquote>
+<!-- source: internal/plugins/isis/circuits.go -- interfaceIPv4/interfaceIPv6LinkLocal via iface.Addresses -->
+<!-- source: internal/plugins/isis/transport/backend_linux.go -- resolveInterface via iface.Resolve -->
+
+<h2 id="the-dynamic-hostname">The dynamic hostname</h2>
+<p><code>hostname</code> names this router in the IS-IS network. Ze floods it in the Dynamic
+Hostname TLV 137, and a peer renders it wherever it would otherwise print a
+6-octet system ID.</p>
+<pre><code>isis {
+  net 49.0001.0000.0000.0001.00
+  hostname core-1.example.net
+}
+</code></pre>
+<p><strong>Accepted shape.</strong> RFC 5301 section 3 encodes the value in 7-bit ASCII and calls
+its content a domain name. Ze enforces both at the config boundary:</p>
+<table>
+<thead>
+<tr>
+<th>Rule</th>
+<th>Limit</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Character set</td>
+<td>Printable ASCII only, from space (0x20) to tilde (0x7e)</td>
+</tr>
+<tr>
+<td>One label</td>
+<td>1 to 63 octets (RFC 2181 section 11)</td>
+</tr>
+<tr>
+<td>The whole name</td>
+<td>1 to 255 octets, separators included</td>
+</tr>
+<tr>
+<td>Trailing dot</td>
+<td>One is permitted, and it marks the root</td>
+</tr>
+</tbody>
+</table>
+<p>The character rule bounds octets, not vocabulary. RFC 2181 section 11 forbids
+restricting WHICH characters a label carries. RFC 5301 section 3 says the value
+can be any string an operator wants. So <code>core_1</code> and a name with spaces are both
+accepted.</p>
+<p><strong>A name outside that shape is REFUSED, not repaired.</strong> <code>ze config validate</code> and
+a commit both fail, and the error names the offending octet or label:</p>
+<pre><code>isis: isis/hostname: &quot;café.example&quot; is not a valid IS-IS hostname for isis/hostname:
+octet 4 is 0xc3. RFC 5301 section 3 encodes the value in 7-bit ASCII, so each
+character must be a printable ASCII character from space (0x20) to tilde (0x7e)
+</code></pre>
+<p>Ze does not apply the IDNA ToASCII algorithm to a Unicode name. Converting it
+would put <code>xn--caf-dma.example</code> on the wire while the config file still read
+<code>café.example</code>. A name a peer sees must be the name an operator wrote. Use the
+ASCII form directly if that is the name you want advertised.</p>
+<p>A hostname a PEER advertises is treated as untrusted. It is accepted whatever its
+octets, and it is only filtered for display. RFC 5301 section 4 permits that.
+Rejecting a peer's LSP over its hostname would hand any neighbor a way to break
+this router.</p>
+<!-- source: internal/component/config/validators.go -- ISISHostnameValidator -->
+<!-- source: internal/plugins/isis/lsdb/encode.go -- hostnameTLV -->
+<!-- source: internal/plugins/isis/show.go -- sanitizeHostname -->
+
+<h2 id="broadcast-lans-dis-election-and-pseudo-nodes">Broadcast LANs: DIS election and pseudo-nodes</h2>
+<p>On a broadcast (Ethernet, multi-access) circuit, IS-IS does not form a full mesh
+of adjacencies. Instead one router per level is elected the <strong>Designated IS</strong>
+(DIS), and the LAN is represented as a single virtual node, the <strong>pseudo-node</strong>.</p>
+<p><strong>Election.</strong> Every router advertises a DIS <strong>priority</strong> (0..127, default 64) in
+its LAN Hello. The router with the highest priority wins; an equal priority is
+broken by the higher interface MAC address. Priority 0 is allowed (it only lowers
+preference; it does not stop a router winning on the MAC tiebreak). Set the
+priority per interface (and optionally per level) to steer which router becomes the
+DIS:</p>
+<pre><code>isis {
+  interfaces {
+    interface eth0 {
+      circuit-type broadcast
+      priority 100        # prefer this router as the LAN DIS
+    }
+  }
+}
+</code></pre>
+<p>Election runs <strong>independently for Level 1 and Level 2</strong>, so one router can be the
+L1 DIS and another the L2 DIS on the same segment.</p>
+<p><strong>Pseudo-node.</strong> The elected DIS originates a pseudo-node LSP that lists every
+router on the segment as a neighbour at metric 0. Every router (the DIS and the
+others) then advertises the LAN as a single link to the pseudo-node rather than a
+link to each peer, so a LAN with N routers appears in the topology as one node with
+N spokes instead of an N*(N-1) mesh. This is automatic; there is nothing to
+configure beyond the priority.</p>
+<p><strong>Re-election.</strong> If the DIS leaves the segment (its Hellos stop and the adjacency
+times out), the remaining routers elect a new DIS, which originates a fresh
+pseudo-node. A router that loses the DIS role while still present withdraws
+(purges) its pseudo-node before yielding, so the topology never shows a stale LAN
+node. Election is damped so a brief flap on the segment does not churn the
+pseudo-node.</p>
+<p><strong>Observability.</strong> Two Prometheus metrics track LAN DIS behaviour:
+<code>ze_isis_dis_elections_total{level}</code> (DIS elections that changed the elected DIS)
+and <code>ze_isis_pseudonode_lsps{level}</code> (pseudo-node LSPs this node currently
+originates as the DIS). The elected DIS and pseudo-node also appear in the
+link-state database (<code>show isis database</code>) as an LSP whose ID carries a non-zero
+pseudo-node number, e.g. <code>0000.0000.0001.07-00</code>.</p>
+<h2 id="authentication">Authentication</h2>
+<p>IS-IS PDUs can be authenticated so a router accepts adjacencies and link-state
+information only from peers that share a key. Ze supports three authentication
+types, all carried in the IS-IS Authentication TLV (type 10):</p>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Wire code</th>
+<th>Standard</th>
+<th>Use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cleartext</code></td>
+<td>1</td>
+<td>ISO/IEC 10589</td>
+<td>Basic sanity check only. The password rides the wire in clear; it is not a security mechanism.</td>
+</tr>
+<tr>
+<td><code>hmac-md5</code></td>
+<td>54</td>
+<td>RFC 5304</td>
+<td>HMAC-MD5 integrity protection.</td>
+</tr>
+<tr>
+<td><code>hmac-sha-256</code> (and <code>hmac-sha-1</code>/<code>224</code>/<code>384</code>/<code>512</code>)</td>
+<td>3</td>
+<td>RFC 5310</td>
+<td>Generic cryptographic authentication, HMAC-SHA family; SHA-256 recommended.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Key chains.</strong> Keys are configured as named <code>key-chains</code>, not bare strings. A
+chain holds one or more keys, each with a <code>key-id</code>, an <code>algorithm</code>, a <code>$9$</code>-encoded
+<code>secret</code>, and optional <code>send-lifetime</code> / <code>accept-lifetime</code> windows for hitless
+rotation. The secret is stored with the same reversible <code>$9$</code> encoding that PPPoE
+and WireGuard keys use, so it never appears as plaintext in <code>show configuration</code>,
+logs, or backups.</p>
+<pre><code>isis {
+  key-chains area-key {
+    key 1 {
+      algorithm hmac-sha-256
+      secret $9$....               # entered plaintext, stored $9$-encoded on commit
+    }
+  }
+  key-chains iih-key {
+    key 1 { algorithm hmac-sha-256  secret ... }
+  }
+  level-1 { auth-key-chain area-key }     # L1 LSP/CSNP/PSNP: the area key
+  level-2 { auth-key-chain domain-key }   # L2 LSP/CSNP/PSNP: the domain key
+  interfaces {
+    interface eth0 {
+      level-1 { auth-key-chain iih-key }    # IIH (Hellos) on this circuit, per level
+      level-2 { auth-key-chain iih-key }
+    }
+  }
+}
+</code></pre>
+<p><strong>Per-PDU-class keys.</strong> Hellos (IIH) authenticate with the <strong>per-interface</strong> chain
+referenced under <code>interfaces/interface/&lt;name&gt;/level-N/auth-key-chain</code> (the Link Level
+Authentication string); LSPs and the CSNP/PSNP sequence-number PDUs authenticate
+with the <strong>per-level</strong> chain: the <em>area</em> key for Level 1 and the <em>domain</em> key for
+Level 2. The two are independent, so an IIH key never accepts an LSP and vice
+versa.</p>
+<p><strong>Hitless rotation.</strong> A chain may hold several keys. The active <strong>signing</strong> key is
+the first whose <code>send-lifetime</code> is current; on receive, every key whose
+<code>accept-lifetime</code> is current is tried. Configuring an overlap window (a new key
+accepted before it becomes the signing key, the old key accepted for a while after)
+lets you roll a key without dropping adjacencies.</p>
+<p><strong>Enforcement.</strong> When a chain is configured for a PDU class, a PDU that arrives
+with no Authentication TLV, with the TLV not first, or with a digest no current key
+matches is <strong>rejected</strong> before it can form an adjacency, enter the database, or
+satisfy synchronisation, and <code>ze_isis_auth_failures_total{level,interface}</code> is
+incremented. Authenticated <strong>purges</strong> are enforced per RFC 5304: a zero-lifetime
+LSP that is unauthenticated, or that carries any TLV other than the Authentication
+TLV, is rejected, so a router without the key cannot spoof a purge by zeroing a
+captured LSP's lifetime and re-flooding it.</p>
+<h2 id="redistribution-mesh-with-bgp">Redistribution (mesh with BGP)</h2>
+<p>IS-IS plugs into Ze's protocol-agnostic redistribution framework in both
+directions, using the same <code>redistribute { ... }</code> block as every other protocol.</p>
+<p><strong>Export IS-IS into BGP.</strong> IS-IS registers a single redistribution source named
+<code>isis</code>. Importing it into BGP advertises the IS-IS SPF routes (both L1 and L2) as
+BGP routes:</p>
+<pre><code>redistribute {
+  destination bgp {
+    import isis
+  }
+}
+</code></pre>
+<p>There is one source name <code>isis</code> (not per-level <code>isis-l1</code>/<code>isis-l2</code>): both levels
+are exported under it, and the single name is what makes IS-IS self-import
+auto-rejected by loop prevention. Per-level redistribution selection is future
+work.</p>
+<p><strong>Import other protocols into IS-IS.</strong> An <code>isis</code> consumer turns connected, static,
+and BGP routes into Extended IP Reachability (TLV 135) entries in the node's own
+LSPs, which flood to peers like any other prefix:</p>
+<pre><code>redistribute {
+  destination isis {
+    import connected
+    import static
+    import bgp
+  }
+}
+</code></pre>
+<p>Each redistributed prefix is advertised with a fixed default metric. TLV 135 (IPv4)
+carries <strong>no external bit</strong>. A redistributed route is an ordinary reachability
+entry; the only wire flag is the up/down bit (RFC 5305 sec 4), which IS-IS sets only
+when leaking a prefix to a lower level (RFC 2966), never to mark external origin.
+<code>destination isis { import isis }</code> is accepted by the schema but is a no-op:
+loop prevention rejects redistributing IS-IS into IS-IS.</p>
+<p><strong>Connected and passive interfaces.</strong> IS-IS also advertises its own enabled and
+<strong>passive</strong> interface prefixes as internal reachability in its LSPs. A passive
+interface forms no adjacency but its prefix is still advertised, so loopbacks and
+edge networks are reachable without running the protocol on them.</p>
+<p><strong>Counters.</strong> <code>ze_isis_redist_injected_total{source,afi}</code> and
+<code>ze_isis_redist_withdrawn_total{source,afi}</code> track imported routes;
+<code>ze_isis_redist_inject_failures_total{source}</code> counts failed re-originations; and
+<code>ze_isis_lsp_reoriginations_total{level}</code> counts the LSP re-originations
+redistribution drives.</p>
+<p>Redistribution feeds the redistribute orchestrator only; the kernel FIB install of
+IS-IS SPF routes is the separate Loc-RIB path (<code>AdminDistance</code> 115). IPv6
+redistribution (TLV 236) works the same way (see below).</p>
+<h2 id="dual-stack-ipv6">Dual-stack IPv6</h2>
+<p>Ze runs IPv6 over the same IS-IS instance as IPv4 (RFC 5308). Enable the IPv6
+address family per interface; both families then ride a <strong>single shared
+shortest-path tree</strong> (single-topology), so one adjacency carries both IPv4 and
+IPv6 reachability:</p>
+<pre><code>isis {
+  net 49.0001.0000.0000.0001.00
+  level l1-l2
+  interfaces {
+    interface eth0 {
+      address-family ipv4-unicast { }
+      address-family ipv6-unicast { }   # enable IPv6 on this circuit
+    }
+  }
+}
+</code></pre>
+<p>With <code>ipv6-unicast</code> enabled on at least one circuit, the node:</p>
+<ul>
+<li>advertises the IPv6 NLPID <strong>0x8E</strong> in the Protocols Supported TLV (129) next to
+  IPv4's 0xCC;</li>
+<li>carries its IPv6 <strong>link-local</strong> address in the Hello (IIH) IPv6 Interface
+  Address TLV (232), and its <strong>non-link-local</strong> addresses in the LSP TLV 232
+  (RFC 5308 sec 3 scope rules), so a dual-stack neighbour learns the IPv6
+  next-hop (a link-local <code>fe80::</code> address with the egress interface);</li>
+<li>advertises its IPv6 prefixes as IPv6 Reachability (TLV 236) in its own LSP;
+  <strong>link-local prefixes are never advertised</strong> in TLV 236 (RFC 5308 sec 2);</li>
+<li>runs an IPv6 route-extraction pass over the <strong>same</strong> Dijkstra tree (no second
+  SPF), resolves the IPv6 next-hop, and installs IPv6 routes into the kernel FIB
+  through the same Loc-RIB path as IPv4 (<code>AdminDistance</code> 115, tagged
+  <code>RTPROT_ze</code>).</li>
+</ul>
+<p>Inspect the installed IPv6 routes with <code>show isis route ipv6</code>.</p>
+<p><strong>Wide metrics only.</strong> The TLV 236 prefix metric is a full 32-bit value. A prefix
+advertised with a metric greater than <code>MAX_V6_PATH_METRIC</code> (<code>0xFE000000</code>) is
+decoded but excluded from normal SPF (RFC 5308 sec 2), so it never enters the
+IPv6 routing table.</p>
+<p><strong>IPv6 redistribution</strong> works in both directions exactly like IPv4, under the same
+single <code>isis</code> source/consumer: <code>redistribute { destination bgp { import isis } }</code>
+exports IS-IS IPv6 routes to BGP IPv6 unicast, and <code>redistribute { destination
+isis { import connected/static/bgp } }</code> imports IPv6 prefixes as TLV 236 entries
+(with the external bit set, RFC 5308 sec 2). The redistribution counters carry an
+<code>afi=ipv6</code> label.</p>
+<p><strong>Single-topology caveat.</strong> Because IPv6 rides the IPv4 SPF tree, Ze assumes the
+IPv4 and IPv6 topologies are <strong>congruent</strong> when every link that carries IPv4 also
+carries IPv6 with the same metric ordering. On a <strong>non-congruent</strong> topology, meaning a
+link that is IPv4-only or IPv6-only, or with per-family metric differences, an
+IPv6 route may be computed with a next-hop that has no IPv6 reachability,
+blackholing that traffic. The correct fix for non-congruent deployments is RFC
+5120 Multi-Topology (a separate per-topology SPF), which Ze does not implement.
+For the common congruent dual-stack deployment, single-topology is correct and
+simpler.</p>
+<h2 id="observing-and-clearing-is-is">Observing and clearing IS-IS</h2>
+<p>The IS-IS engine exposes its state through <code>show isis &lt;noun&gt;</code>, and two runtime
+actions reset operational state without touching the configuration.</p>
+<pre><code>show isis neighbor            # adjacencies: system-id, interface, level, state, hold time
+show isis database            # LSDB summary (one row per LSP)
+show isis database detail     # LSDB with each LSP's TLVs decoded
+show isis route               # IS-IS-computed IPv4 routes
+show isis route ipv6          # IS-IS-computed IPv6 routes
+show isis interface           # circuits: type, metric, hello/hold, passive, DIS, adjacency count
+show isis hostname            # system-id -&gt; dynamic hostname (TLV 137, RFC 5301)
+show isis spf-log             # recent SPF runs: time, level, trigger, duration, node count
+
+clear isis adjacency          # tear down all adjacencies; they re-form from the next Hello
+clear isis counters           # reset the SPF-run log
+</code></pre>
+<h3 id="which-lsps-are-this-nodes-own">Which LSPs are this node's own</h3>
+<p>Every row of <code>show isis database</code> and <code>show isis database detail</code> carries an
+<code>own</code> field. It is <code>true</code> on the LSPs this node originated and <code>false</code> on the
+LSPs it learned from a neighbour. The field is named <code>own</code> in the text column and
+in the JSON key, so the two forms of the output use one word for it.</p>
+<p>Some other implementations mark the same fact with a character beside the LSP ID.
+Ze keeps it in a field of its own, because <code>*</code> is an input token in ze (the
+selector wildcard for "all") and because a marker glued to an identifier does not
+survive <code>| json</code> or a downstream match on the ID. The <code>lsp-id</code> column holds the
+LSP ID and nothing else.</p>
+<p>Two diagnoses start with this field:</p>
+<table>
+<thead>
+<tr>
+<th>What you see</th>
+<th>What it means</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>An <code>own</code> LSP whose <code>lifetime</code> falls toward 0</td>
+<td>The refresh timer is not re-stamping it. At 0 the node disappears from every neighbour's database.</td>
+</tr>
+<tr>
+<td>An <code>own</code> LSP with <code>purged</code> set</td>
+<td>A neighbour withdrew this node's advertisement, or the refresh failed and the LSP aged out. The daemon logs <code>isis: own LSP purged</code> at warn level for the same event.</td>
+</tr>
+</tbody>
+</table>
+<p>Every <code>show isis ...</code> command routes its JSON through the pipe machinery, so you
+can append <code>| json</code>, <code>| table</code>, <code>| text</code>, <code>| count</code>, <code>| match &lt;pat&gt;</code>,
+<code>| resolve</code>, or <code>| origin</code>. <code>clear isis adjacency</code> forces a full re-learn (LSP
+re-origination + SPF re-run) without closing the circuit; <code>clear isis counters</code>
+clears only the observational SPF-run history (the Prometheus series are
+monotonic process counters and are intentionally not reset).</p>
+<h3 id="web-views">Web views</h3>
+<p>The neighbour and database views are also available in the web UI at <code>/isis</code> and
+<code>/isis/database</code>. Each page renders the current snapshot and refreshes live over
+Server-Sent Events as adjacencies and the LSDB change.</p>
+<h3 id="metrics">Metrics</h3>
+<p>Every IS-IS subsystem exports Prometheus series under the <code>ze_isis_*</code> prefix:
+adjacency gauges (<code>ze_isis_adjacencies_up{level,interface}</code>,
+<code>ze_isis_adjacencies_total{level}</code>), LSDB gauges/counters (<code>ze_isis_lsps</code>,
+<code>ze_isis_lsp_originations_total</code>, <code>ze_isis_purges_total</code>, ...), flooding/SNP
+counters (<code>ze_isis_lsps_received_total</code>, <code>ze_isis_csnp_sent_total</code>, ...), DIS
+(<code>ze_isis_dis_elections_total</code>, <code>ze_isis_pseudonode_lsps</code>), SPF
+(<code>ze_isis_spf_runs_total</code>, <code>ze_isis_spf_duration_seconds</code>,
+<code>ze_isis_routes_installed{level,afi}</code>), authentication
+(<code>ze_isis_auth_failures_total{level,interface}</code>), redistribution
+(<code>ze_isis_redist_injected_total{source,afi}</code>, ...), and the raw L2 transport
+(<code>ze_isis_frames_sent_total{interface}</code>, <code>ze_isis_sockets_open</code>). The full set
+with labels is listed in <code>docs/plugin-development/metrics.md</code>.</p>
+<h3 id="readiness-checks">Readiness checks</h3>
+<p><code>ze doctor</code> reports IS-IS readiness problems before the engine starts:</p>
+<ul>
+<li><code>doctor-isis-raw-socket</code>: IS-IS is configured but a raw <code>AF_PACKET</code> socket
+  cannot be opened (needs <code>CAP_NET_RAW</code>); IS-IS forms no adjacencies without it.</li>
+<li><code>doctor-isis-net-missing</code>: the <code>isis</code> block is present but no <code>net</code> is set;
+  IS-IS cannot derive a System ID or originate LSPs.</li>
+<li><code>doctor-isis-system-id-mismatch</code>: an explicit <code>system-id</code> disagrees with the
+  System ID embedded in the first NET.</li>
+</ul>
+<p>Each code is explainable with <code>ze explain &lt;code&gt;</code>.</p>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/quickstart/">
+                        <span class="page-sidebar-link-label">Quickstart</span>
+                        <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create zefs, and start SSH.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../reference/command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

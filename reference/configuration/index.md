@@ -1,6 +1,6 @@
 # Configuration Reference
 
-The complete Ze configuration as one tree: 36 top-level sections (27 provided by plugins, the rest core), generated live from the YANG schema with `ze yang tree`. This is about the structure of the configuration -- every section, searchable and inspectable. See [the Configuration guide](https://ze-software.net/docs/features/configuration/) for a narrative walkthrough of BGP peer config specifically.
+The complete Ze configuration as one tree: 36 top-level sections (27 provided by plugins, the rest core), generated live from the YANG schema with `ze yang tree`. This is about the structure of the configuration -- every section, searchable and inspectable. See [the Configuration guide](https://ze-software.net/reference/feature-status/configuration/) for a narrative walkthrough of BGP peer config specifically.
 
 ## anomaly
 

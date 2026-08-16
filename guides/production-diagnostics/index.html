@@ -1,0 +1,450 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Production Diagnostics Guide - Ze</title>
+        <meta name="description" content="Ze documentation: guide/production-diagnostics.md" />
+        <meta property="og:title" content="Production Diagnostics Guide - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/production-diagnostics.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Production Diagnostics Guide - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/production-diagnostics.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/guides/production-diagnostics/" />
+        <meta property="og:url" content="https://ze-software.net/guides/production-diagnostics/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-observe">
+<!-- Design: plan/spec-diag-core.md -- symptom-based diagnostic guide -->
+
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1 id="production-diagnostics-guide">Production Diagnostics Guide</h1>
+    <p>Symptom-based troubleshooting using Ze's built-in diagnostic commands. <code>ze doctor</code>, health checks, warning/error reports, support bundles, crash capture, and runtime probes are part of the product, so operators can start from evidence before reaching for external Linux tools. The commands below also work on gokrazy appliances without a host shell toolbox.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#quick-reference">Quick Reference</a></li>
+<li><a href="#failure-categories">Failure Categories</a>
+<ol>
+<li><a href="#1-bgp-session-wont-establish">1. BGP Session Won&#x27;t Establish</a></li>
+<li><a href="#2-bgp-session-flapping">2. BGP Session Flapping</a></li>
+<li><a href="#3-bgp-routes-not-received">3. BGP Routes Not Received</a></li>
+<li><a href="#4-bgp-routes-not-advertised">4. BGP Routes Not Advertised</a></li>
+<li><a href="#5-high-cpu-usage">5. High CPU Usage</a></li>
+<li><a href="#6-memory-leak-high-memory">6. Memory Leak / High Memory</a></li>
+<li><a href="#7-file-descriptor-exhaustion">7. File Descriptor Exhaustion</a></li>
+<li><a href="#8-goroutine-leak">8. Goroutine Leak</a></li>
+<li><a href="#9-process-killed-oom-signal">9. Process Killed (OOM / Signal)</a></li>
+<li><a href="#10-interface-down-link-flap">10. Interface Down / Link Flap</a></li>
+<li><a href="#11-kernel-route-missing">11. Kernel Route Missing</a></li>
+<li><a href="#12-dns-resolution-failure">12. DNS Resolution Failure</a></li>
+<li><a href="#13-config-commit-failure">13. Config Commit Failure</a></li>
+<li><a href="#13a-config-accepted-but-the-feature-does-nothing">13a. Config Accepted But The Feature Does Nothing</a></li>
+<li><a href="#14-plugin-crash-restart-loop">14. Plugin Crash / Restart Loop</a></li>
+<li><a href="#15-cli-ssh-unresponsive">15. CLI / SSH Unresponsive</a></li>
+<li><a href="#16-web-ui-unreachable">16. Web UI Unreachable</a></li>
+<li><a href="#17-telemetry-metrics-gaps">17. Telemetry / Metrics Gaps</a></li>
+<li><a href="#18-latency-and-reachability">18. Latency and Reachability</a></li>
+</ol></li>
+<li><a href="#profiling-workflow">Profiling Workflow</a>
+<ol>
+<li><a href="#cpu-profile">CPU Profile</a></li>
+<li><a href="#heap-profile">Heap Profile</a></li>
+<li><a href="#concurrent-profiling">Concurrent Profiling</a></li>
+</ol></li>
+<li><a href="#platform-detection">Platform Detection</a></li>
+<li><a href="#platform-notes">Platform Notes</a></li>
+</ol></nav>
+<h2 id="quick-reference">Quick Reference</h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>First Command</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>BGP session won't establish</td>
+<td><code>show tcp-check &lt;peer-ip&gt; 179</code></td>
+</tr>
+<tr>
+<td>Path/routing issue</td>
+<td><code>show traceroute &lt;dest&gt;</code> or <code>monitor traceroute &lt;dest&gt;</code></td>
+</tr>
+<tr>
+<td>BGP session flapping</td>
+<td><code>show system kernel-log level warning count 50</code></td>
+</tr>
+<tr>
+<td>High CPU</td>
+<td><code>show system profile cpu duration 10s</code></td>
+</tr>
+<tr>
+<td>Memory leak</td>
+<td><code>show system profile heap</code></td>
+</tr>
+<tr>
+<td>FD exhaustion</td>
+<td><code>show system file-descriptors summary</code></td>
+</tr>
+<tr>
+<td>Goroutine leak</td>
+<td><code>show system goroutines summary</code></td>
+</tr>
+<tr>
+<td>DNS failure</td>
+<td><code>show dns lookup &lt;name&gt; type A</code></td>
+</tr>
+<tr>
+<td>Latency/reachability</td>
+<td><code>monitor ping &lt;target&gt;</code></td>
+</tr>
+<tr>
+<td>Process killed</td>
+<td><code>show system kernel-log level err</code></td>
+</tr>
+<tr>
+<td>Route/link/addr changes</td>
+<td><code>monitor system netlink all</code></td>
+</tr>
+<tr>
+<td>Packet-level debugging</td>
+<td><code>show capture interface eth0 tcp port 179 count 10 format text</code></td>
+</tr>
+<tr>
+<td>Config commits but does nothing</td>
+<td><code>ze doctor --json</code> (look for <code>doctor-config-root-unclaimed</code>)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="failure-categories">Failure Categories</h2>
+<h3 id="1-bgp-session-wont-establish">1. BGP Session Won't Establish</h3>
+<p><strong>Verify TCP connectivity:</strong></p>
+<pre><code>show tcp-check &lt;peer-ip&gt; 179
+</code></pre>
+<p>If "refused": peer is not listening. If "timeout": firewall or routing issue.</p>
+<p><strong>Trace the path to the peer:</strong></p>
+<pre><code>show traceroute &lt;peer-ip&gt;
+</code></pre>
+<p>If hops stop before the peer, there is a routing or firewall issue at that hop.</p>
+<p><strong>Check sockets for existing connections:</strong></p>
+<pre><code>show system sockets tcp state ESTABLISHED port 179
+</code></pre>
+<p><strong>Check DNS resolution of peer hostname:</strong></p>
+<pre><code>show dns lookup &lt;peer-hostname&gt;
+</code></pre>
+<p><strong>Inspect raw BGP messages:</strong></p>
+<pre><code>show capture raw start bgp
+# Wait for connection attempt, then:
+show capture raw dump bgp
+</code></pre>
+<h3 id="2-bgp-session-flapping">2. BGP Session Flapping</h3>
+<p><strong>Check kernel log for link events:</strong></p>
+<pre><code>show system kernel-log level warning count 50
+</code></pre>
+<p><strong>Stream live link/route events to correlate with flaps:</strong></p>
+<pre><code>monitor system netlink all
+</code></pre>
+<p><strong>Check socket state churn:</strong></p>
+<pre><code>show system sockets tcp port 179
+</code></pre>
+<p><strong>Inspect raw packets during flap:</strong></p>
+<pre><code>show capture raw start bgp
+show capture raw dump bgp pcap
+</code></pre>
+<p><strong>Live packet capture on the interface (replaces tcpdump):</strong></p>
+<pre><code>show capture interface eth0 tcp port 179 count 20 format text
+show capture interface eth0 tcp port 179 duration 10s format pcap
+</code></pre>
+<h3 id="3-bgp-routes-not-received">3. BGP Routes Not Received</h3>
+<pre><code>show bgp peer &lt;selector&gt; detail
+show capture raw start bgp
+</code></pre>
+<p>Check UPDATE messages in the capture for the expected NLRI.</p>
+<h3 id="4-bgp-routes-not-advertised">4. BGP Routes Not Advertised</h3>
+<pre><code>show bgp peer &lt;selector&gt; detail
+</code></pre>
+<p>Check advertised route counts, filter configuration, and export policy.</p>
+<h3 id="5-high-cpu-usage">5. High CPU Usage</h3>
+<p><strong>Capture CPU profile:</strong></p>
+<pre><code>show system profile cpu duration 10s
+</code></pre>
+<p>Decode the base64 output with <code>go tool pprof</code>.</p>
+<p><strong>Check goroutine distribution:</strong></p>
+<pre><code>show system goroutines summary
+</code></pre>
+<p>A large count in one state (e.g., "running") suggests a hot loop.</p>
+<p><strong>Check system metrics:</strong></p>
+<pre><code>show system cpu
+</code></pre>
+<h3 id="6-memory-leak-high-memory">6. Memory Leak / High Memory</h3>
+<p><strong>Capture heap profile:</strong></p>
+<pre><code>show system profile heap
+</code></pre>
+<p><strong>Check process memory from the kernel's perspective:</strong></p>
+<pre><code>show system memory
+</code></pre>
+<p>Compare VmRSS with Go's heap-in-use from <code>show runtime memory</code>:</p>
+<pre><code>show runtime memory
+</code></pre>
+<p>If VmRSS is much larger than heap-in-use, memory is held outside Go's heap (cgo, mmap).</p>
+<p><strong>Check goroutines for leaks:</strong></p>
+<pre><code>show system goroutines summary
+show system goroutines blocked
+</code></pre>
+<h3 id="7-file-descriptor-exhaustion">7. File Descriptor Exhaustion</h3>
+<p><strong>Check FD usage and limits:</strong></p>
+<pre><code>show system file-descriptors summary
+</code></pre>
+<p>If total is close to soft-limit, the process is near exhaustion.</p>
+<p><strong>Inspect individual FDs:</strong></p>
+<pre><code>show system file-descriptors detail
+</code></pre>
+<p>Look for unexpected socket or pipe accumulation.</p>
+<p><strong>Cross-reference with sockets:</strong></p>
+<pre><code>show system sockets
+</code></pre>
+<h3 id="8-goroutine-leak">8. Goroutine Leak</h3>
+<p><strong>Get current count and distribution:</strong></p>
+<pre><code>show system goroutines summary
+</code></pre>
+<p>Normal count depends on configuration. A steadily increasing count indicates a leak.</p>
+<p><strong>Find blocked goroutines:</strong></p>
+<pre><code>show system goroutines blocked
+</code></pre>
+<p>Large numbers stuck in "chan receive" or "select" with the same stack suggest leaked goroutines.</p>
+<p><strong>Full stack dump for analysis:</strong></p>
+<pre><code>show system goroutines full
+</code></pre>
+<h3 id="9-process-killed-oom-signal">9. Process Killed (OOM / Signal)</h3>
+<p><strong>Check kernel log for OOM killer or signal events:</strong></p>
+<pre><code>show system kernel-log level err
+</code></pre>
+<p>Look for "Out of memory" or "Killed process" messages.</p>
+<p><strong>Check current memory state:</strong></p>
+<pre><code>show system memory
+</code></pre>
+<p><strong>Review warnings and errors:</strong></p>
+<pre><code>show warnings
+show errors
+</code></pre>
+<h3 id="10-interface-down-link-flap">10. Interface Down / Link Flap</h3>
+<pre><code>show interface
+show system kernel-log level warning
+monitor system netlink link
+</code></pre>
+<p><code>monitor system netlink link</code> streams live link state changes (up/down/create/delete). Press Esc to stop.</p>
+<h3 id="11-kernel-route-missing">11. Kernel Route Missing</h3>
+<pre><code>show route
+show system sockets
+monitor system netlink route
+</code></pre>
+<p><code>monitor system netlink route</code> streams live kernel route changes to observe additions and deletions in real time.</p>
+<h3 id="12-dns-resolution-failure">12. DNS Resolution Failure</h3>
+<p><strong>Test resolution directly:</strong></p>
+<pre><code>show dns lookup &lt;hostname&gt; type A
+</code></pre>
+<p><strong>Check cache state:</strong></p>
+<pre><code>show dns cache stats
+show dns cache list
+</code></pre>
+<p>High miss rate with low hit rate suggests upstream resolver issues. <code>list</code>
+shows all cached entries with remaining TTL, useful for spotting stale or
+unexpectedly short-lived records.</p>
+<p><strong>Inspect a specific cached name:</strong></p>
+<pre><code>show dns cache record &lt;hostname&gt;
+</code></pre>
+<p><strong>Flush and start fresh:</strong></p>
+<pre><code>clear dns cache
+</code></pre>
+<p><strong>Verify socket connectivity to resolver:</strong></p>
+<pre><code>show tcp-check &lt;dns-server&gt; 53
+</code></pre>
+<h3 id="13-config-commit-failure">13. Config Commit Failure</h3>
+<pre><code>show errors
+show config diff
+</code></pre>
+<h3 id="13a-config-accepted-but-the-feature-does-nothing">13a. Config Accepted But The Feature Does Nothing</h3>
+<p>A config block that commits cleanly and changes no behavior usually reaches
+nobody. Ze picks the plugins for a config change by matching the changed path
+against the config roots each plugin declares. A path that matches nothing is
+stored and delivered to no one.</p>
+<pre><code>ze doctor --json
+ze explain doctor-config-root-unclaimed
+</code></pre>
+<p><code>doctor-config-root-unclaimed</code> names the subtree. The usual cause is a plugin
+that is not in this binary or did not start; check with <code>ze plugin list</code>.</p>
+<!-- source: internal/component/doctor/checks_config_claims.go -- checkConfigClaims -->
+
+<h3 id="14-plugin-crash-restart-loop">14. Plugin Crash / Restart Loop</h3>
+<pre><code>show errors count 20
+show warnings
+show system goroutines summary
+show system kernel-log level err count 20
+</code></pre>
+<h3 id="15-cli-ssh-unresponsive">15. CLI / SSH Unresponsive</h3>
+<p><strong>If the daemon is reachable via another path (web, MCP):</strong></p>
+<pre><code>show system goroutines blocked
+show system sockets
+show system file-descriptors summary
+</code></pre>
+<p>Look for goroutines stuck in "semacquire" or "IO wait".</p>
+<h3 id="16-web-ui-unreachable">16. Web UI Unreachable</h3>
+<pre><code>show tcp-check &lt;router-ip&gt; 3443
+show system sockets tcp port 3443
+show system goroutines summary
+show errors
+</code></pre>
+<h3 id="17-telemetry-metrics-gaps">17. Telemetry / Metrics Gaps</h3>
+<pre><code>show metrics name ze_peer_state
+show system sockets
+show system profile cpu duration 5s
+</code></pre>
+<h3 id="18-latency-and-reachability">18. Latency and Reachability</h3>
+<p><strong>Continuous ping to measure latency and loss:</strong></p>
+<pre><code>monitor ping &lt;target&gt;
+monitor ping &lt;target&gt; interval 500ms
+</code></pre>
+<p>Shows live stats: Sent, Recv, Loss%, Last, Min, Avg, Max, StDev. Use <code>| log</code> for scrollback output suitable for correlation with other events.</p>
+<p><strong>Continuous traceroute to observe path changes:</strong></p>
+<pre><code>monitor traceroute &lt;target&gt;
+monitor traceroute &lt;target&gt; | log | origin
+</code></pre>
+<p>mtr-style display with per-hop loss and latency statistics. <code>| log | origin</code>
+appends one line per round and annotates hops with ASN names, useful for
+identifying which network a path change occurs in. <code>| log | resolve</code> adds
+reverse DNS hostnames instead.</p>
+<figure class="terminal-demo" data-terminal-demo="traceroute">
+  <div class="terminal-demo__intro">
+    <div>
+      <span class="terminal-demo__eyebrow">Replayable Ze terminal lab</span>
+      <h3>Trace a live path without external services</h3>
+      <p>Run Ze&#x27;s live traceroute through a deterministic Linux network-namespace lab.</p>
+    </div>
+    <span class="terminal-demo__status"><i aria-hidden="true"></i> Reproducible</span>
+  </div>
+  <div class="terminal-demo__frame">
+    <div class="terminal-demo__bar" aria-hidden="true">
+      <span class="terminal-demo__dots"><i></i><i></i><i></i></span>
+      <span>traceroute.terminal</span>
+      <span>WEBM</span>
+    </div>
+    <video controls playsinline preload="metadata" poster="../../assets/demos/traceroute.png?v=ebcd3e247b" aria-label="Trace a live path without external services demonstration">
+      <source src="../../assets/demos/traceroute.webm?v=bda9d06121" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../assets/demos/traceroute.webm?v=bda9d06121">Download the recording</a>.
+    </video>
+  </div>
+  <figcaption>
+    <span>Ze 26.07.18</span><span>1 minute 2 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>VHS 0.11.0</span>
+    <a href="../../assets/demos/traceroute.txt?v=2b9d95cc69">Plain-text transcript</a>
+  </figcaption>
+  <details class="terminal-demo__transcript">
+    <summary>Read the demonstration transcript</summary>
+    <pre><code>$ ssh ze-demo
+ze# run show traceroute 192.0.2.53
+ze# run monitor traceroute 192.0.2.53
+
+The destination and router live in an isolated Linux network-namespace lab. Ze sends real ICMP probes, then shows the same path as a one-shot trace and as a continuously refreshed loss and latency table. No public DNS or Internet route is used.</code></pre>
+  </details>
+</figure>
+
+<h2 id="profiling-workflow">Profiling Workflow</h2>
+<h3 id="cpu-profile">CPU Profile</h3>
+<pre><code>show system profile cpu duration 10s
+</code></pre>
+<p>Save the base64 output, decode, and analyze:</p>
+<pre><code class="language-bash">echo '&lt;base64-data&gt;' | base64 -d &gt; cpu.pprof
+go tool pprof cpu.pprof
+</code></pre>
+<h3 id="heap-profile">Heap Profile</h3>
+<pre><code>show system profile heap
+</code></pre>
+<p>Same workflow: decode base64, analyze with <code>go tool pprof</code>.</p>
+<h3 id="concurrent-profiling">Concurrent Profiling</h3>
+<p>CPU profiling is mutex-protected. A second concurrent request returns an error. This prevents resource contention from overlapping profiles.</p>
+<h2 id="platform-detection">Platform Detection</h2>
+<p><code>show system platform</code> reports the runtime platform type and capability flags:</p>
+<pre><code>show system platform
+show system platform | json
+</code></pre>
+<p>Detected platforms: <strong>gokrazy</strong>, <strong>systemd</strong>, <strong>container</strong>, <strong>plain-linux</strong>, <strong>darwin</strong>.</p>
+<p>Capability flags: <code>read-only-root</code>, <code>perm-available</code>, <code>systemd-available</code>, <code>gokrazy-update-socket</code>, <code>gokrazy-ui-available</code>, <code>reboot-allowed</code>, <code>persistent-storage-writable</code>, <code>fd-limit-soft-current</code>, <code>fd-limit-hard-max</code>, <code>fd-limit-raisable</code>.</p>
+<p>Platform information is also included in <code>ze doctor</code> checks (e.g. gokrazy /perm writability) and <code>ze support</code> archives (as the <code>platform</code> module).</p>
+<h2 id="platform-notes">Platform Notes</h2>
+<p>Commands that read <code>/proc</code> (sockets, kernel-log, file-descriptors, memory-map) are Linux-only. On other platforms they return "not available on this platform". The remaining commands (tcp-check, traceroute, goroutines, dns, profile) work on all platforms but traceroute requires CAP_NET_RAW.</p>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/quickstart/">
+                        <span class="page-sidebar-link-label">Quickstart</span>
+                        <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create zefs, and start SSH.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../reference/command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

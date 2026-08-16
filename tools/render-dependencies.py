@@ -28,7 +28,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 GH_PAGES = HERE.parent
 GO_MOD = GH_PAGES.parent / "main" / "go.mod"
 DATA = GH_PAGES / "data" / "dependencies.json"
-DEST = GH_PAGES / "dependencies" / "index.html"
+DEST = GH_PAGES / "reference" / "dependencies" / "index.html"
 
 REQUIRE_BLOCK_RE = re.compile(r"require \(\n(.*?)\n\)", re.DOTALL)
 REQUIRE_LINE_RE = re.compile(r"^\s*(\S+)\s+(\S+)(\s*//\s*indirect)?\s*$")
@@ -131,7 +131,7 @@ def render_markdown(versions, data, total):
 
 
 def render(versions, data):
-    root = "../"
+    root = "../../"
     total = sum(len(cat["modules"]) for cat in data["categories"])
     title = "Dependencies - Ze"
     desc = (
@@ -140,7 +140,12 @@ def render(versions, data):
     )
     out = [
         sitelib.page_head(
-            title, desc, root, og_title=title, og_desc=desc, page_key="dependencies/"
+            title,
+            desc,
+            root,
+            og_title=title,
+            og_desc=desc,
+            page_key="reference/dependencies/",
         )
     ]
     out.append(

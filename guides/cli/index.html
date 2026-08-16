@@ -1,0 +1,432 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>CLI Reference (Guide) - Ze</title>
+        <meta name="description" content="Ze documentation: guide/cli.md" />
+        <meta property="og:title" content="CLI Reference (Guide) - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/cli.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="CLI Reference (Guide) - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/cli.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/guides/cli/" />
+        <meta property="og:url" content="https://ze-software.net/guides/cli/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-operate">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1 id="cli-reference">CLI Reference</h1>
+    <p>Ze provides an interactive CLI and single-command execution for runtime queries and control. All CLI access goes through the daemon's SSH server.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#usage">Usage</a>
+<ol>
+<li><a href="#modes">Modes</a></li>
+</ol></li>
+<li><a href="#peer-commands">Peer Commands</a></li>
+<li><a href="#route-commands">Route Commands</a></li>
+<li><a href="#cache-commands">Cache Commands</a></li>
+<li><a href="#event-subscription">Event Subscription</a></li>
+<li><a href="#commit-workflow">Commit Workflow</a></li>
+<li><a href="#rpki-commands">RPKI Commands</a></li>
+<li><a href="#daemon-control">Daemon Control</a></li>
+<li><a href="#signals">Signals</a></li>
+<li><a href="#interactive-features">Interactive Features</a></li>
+</ol></nav>
+<!-- source: internal/component/cli/client/main.go -- Run -->
+
+<h2 id="usage">Usage</h2>
+<pre><code class="language-bash">ze cli                              # Interactive CLI with tab completion
+ze cli -c &quot;show bgp peer list&quot;              # Execute single command and exit
+ze show bgp peer upstream1 detail           # Read-only query (safe for scripts)
+ze cli -c &quot;request peer upstream1 teardown 2&quot; # One-shot command (full access)
+</code></pre>
+<h3 id="modes">Modes</h3>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Access</th>
+<th>Use Case</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze cli</code></td>
+<td>Interactive, full</td>
+<td>Exploring, monitoring, operating</td>
+</tr>
+<tr>
+<td><code>ze show &lt;cmd&gt;</code></td>
+<td>Read-only</td>
+<td>Scripting, monitoring dashboards</td>
+</tr>
+<tr>
+<td><code>ze cli -c &lt;cmd&gt;</code></td>
+<td>Full</td>
+<td>Automation, route injection</td>
+</tr>
+</tbody>
+</table>
+<h2 id="peer-commands">Peer Commands</h2>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>show bgp peer list</code></td>
+<td>List all peers (brief)</td>
+</tr>
+<tr>
+<td><code>show bgp peer &lt;sel&gt; detail</code></td>
+<td>Show peer details and statistics</td>
+</tr>
+<tr>
+<td><code>request peer &lt;sel&gt; teardown &lt;code&gt;</code></td>
+<td>Graceful session closure with NOTIFICATION</td>
+</tr>
+<tr>
+<td><code>delete bgp peer &lt;name&gt;</code></td>
+<td>Remove peer</td>
+</tr>
+<tr>
+<td><code>request peer &lt;sel&gt; pause</code></td>
+<td>Pause reading from peer (flow control)</td>
+</tr>
+<tr>
+<td><code>request peer &lt;sel&gt; resume</code></td>
+<td>Resume reading from peer</td>
+</tr>
+<tr>
+<td><code>show bgp peer &lt;sel&gt; capabilities</code></td>
+<td>Show negotiated capabilities</td>
+</tr>
+<tr>
+<td><code>show bgp summary</code></td>
+<td>BGP summary table</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Peer selector:</strong> <code>*</code> (all), exact IP, glob patterns (<code>192.168.*.*</code>), exclusion (<code>!addr</code>), or peer name.</p>
+<!-- source: internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang -- module ze-peer-cmd -->
+
+<h2 id="route-commands">Route Commands</h2>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>peer &lt;sel&gt; update text &lt;attrs&gt; nlri &lt;family&gt; &lt;op&gt; &lt;prefix&gt;</code></td>
+<td>Text-format UPDATE</td>
+</tr>
+<tr>
+<td><code>peer &lt;sel&gt; update hex &lt;hex&gt;</code></td>
+<td>Hex-format UPDATE</td>
+</tr>
+<tr>
+<td><code>show bgp rib received [peer &lt;selector&gt;] [family &lt;family&gt;]</code></td>
+<td>Show Adj-RIB-In</td>
+</tr>
+<tr>
+<td><code>show bgp rib advertised [peer &lt;selector&gt;] [family &lt;family&gt;]</code></td>
+<td>Show Adj-RIB-Out</td>
+</tr>
+<tr>
+<td><code>clear bgp rib in [peer]</code></td>
+<td>Clear Adj-RIB-In</td>
+</tr>
+<tr>
+<td><code>clear bgp rib out [peer]</code></td>
+<td>Clear Adj-RIB-Out</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/bgp/plugins/cmd/rib/yang/ze-rib-cmd.yang -- show/bgp/rib, clear/bgp/rib; internal/component/bgp/plugins/cmd/rib/rib.go -- route filters -->
+
+<p>See <a href="../route-injection/">Route Injection guide</a> for UPDATE syntax details.</p>
+<h2 id="cache-commands">Cache Commands</h2>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>show cache</code></td>
+<td>List cached messages</td>
+</tr>
+<tr>
+<td><code>request cache retain &lt;id&gt;</code></td>
+<td>Prevent cache eviction</td>
+</tr>
+<tr>
+<td><code>request cache release &lt;id&gt;</code></td>
+<td>Release a cached message</td>
+</tr>
+<tr>
+<td><code>request cache expire &lt;id&gt;</code></td>
+<td>Remove a cached message immediately</td>
+</tr>
+<tr>
+<td><code>request cache forward &lt;id&gt; &lt;peer&gt;</code></td>
+<td>Forward a cached message to a peer</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/bgp/plugins/cmd/cache/yang/ze-cli-cache-cmd.yang -- module ze-cli-cache-cmd -->
+
+<h2 id="event-subscription">Event Subscription</h2>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>monitor bgp</code></td>
+<td>Show the live peer dashboard (see <a href="../monitoring/">Monitoring guide</a>)</td>
+</tr>
+<tr>
+<td><code>monitor event peer &lt;addr&gt; include &lt;type&gt; direction &lt;dir&gt;</code></td>
+<td>Stream filtered events</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/bgp/plugins/cmd/monitor/yang/ze-monitor-cmd.yang -- module ze-monitor-cmd; internal/plugins/meta/yang/ze-command-monitor-cmd.yang -- module ze-command-monitor-cmd; internal/component/plugin/server/event_monitor.go -- ParseEventMonitorArgs -->
+
+<h2 id="commit-workflow">Commit Workflow</h2>
+<p>Named update windows for atomic route changes:</p>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>request commit start &lt;name&gt;</code></td>
+<td>Begin named update window</td>
+</tr>
+<tr>
+<td><code>request commit end &lt;name&gt;</code></td>
+<td>End window and send updates</td>
+</tr>
+<tr>
+<td><code>request commit eor &lt;name&gt;</code></td>
+<td>Send End-of-RIB for window</td>
+</tr>
+<tr>
+<td><code>request commit rollback &lt;name&gt;</code></td>
+<td>Discard changes</td>
+</tr>
+<tr>
+<td><code>request commit show &lt;name&gt;</code></td>
+<td>Show commit status</td>
+</tr>
+<tr>
+<td><code>request commit list</code></td>
+<td>List named commits</td>
+</tr>
+</tbody>
+</table>
+<h2 id="rpki-commands">RPKI Commands</h2>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>show bgp rpki status</code></td>
+<td>RTR session count and VRP counts</td>
+</tr>
+<tr>
+<td><code>show bgp rpki cache</code></td>
+<td>Cache server connection details</td>
+</tr>
+<tr>
+<td><code>show bgp rpki roa</code></td>
+<td>ROA table summary</td>
+</tr>
+<tr>
+<td><code>show bgp rpki summary</code></td>
+<td>Validation statistics</td>
+</tr>
+</tbody>
+</table>
+<h2 id="daemon-control">Daemon Control</h2>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>request shutdown</code></td>
+<td>Graceful shutdown</td>
+</tr>
+<tr>
+<td><code>request peer &lt;selector&gt; refresh &lt;family&gt;</code></td>
+<td>Send a route refresh request</td>
+</tr>
+<tr>
+<td><code>help</code></td>
+<td>List all commands</td>
+</tr>
+<tr>
+<td><code>show command list</code></td>
+<td>All commands with descriptions</td>
+</tr>
+<tr>
+<td><code>show command help &lt;name&gt;</code></td>
+<td>Detailed help for a command</td>
+</tr>
+<tr>
+<td><code>show event list</code></td>
+<td>List available event types</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/bgp/plugins/route_refresh/yang/ze-refresh-cmd.yang -- module ze-refresh-cmd; internal/component/bgp/plugins/route_refresh/handler/refresh.go -- handleRefreshMarker -->
+<!-- source: internal/plugins/meta/yang/ze-command-meta-cmd.yang -- module ze-command-meta-cmd -->
+
+<h2 id="signals">Signals</h2>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze signal reload</code></td>
+<td>Reload configuration</td>
+</tr>
+<tr>
+<td><code>ze signal stop</code></td>
+<td>Graceful shutdown (no GR marker)</td>
+</tr>
+<tr>
+<td><code>ze signal restart</code></td>
+<td>Graceful restart (with GR marker)</td>
+</tr>
+<tr>
+<td><code>ze signal quit</code></td>
+<td>Goroutine dump and exit</td>
+</tr>
+<tr>
+<td><code>ze status</code></td>
+<td>Check if daemon is running</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/plugins/signal/main.go -- Run, RunStatus -->
+
+<h2 id="interactive-features">Interactive Features</h2>
+<p>In <code>ze cli</code> interactive mode:</p>
+<ul>
+<li><strong>Tab completion</strong> for commands, peer names, address families, and log levels</li>
+<li><strong>Pipe operators:</strong> <code>| json</code>, <code>| table</code>, <code>| match &lt;regex&gt;</code>, <code>| count</code>, <code>| no-more</code></li>
+<li><strong>History</strong> persisted across sessions</li>
+<li><strong>Ctrl-C</strong> cancels current command, <strong>Ctrl-D</strong> exits</li>
+</ul>
+<!-- source: internal/component/cli/client/main.go -- pipe operators, bubbletea model, history -->
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/quickstart/">
+                        <span class="page-sidebar-link-label">Quickstart</span>
+                        <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create zefs, and start SSH.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../reference/command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

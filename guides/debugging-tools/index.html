@@ -1,0 +1,564 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>ZeBGP Debugging Tools - Ze</title>
+        <meta name="description" content="Ze documentation: guide/debugging-tools.md" />
+        <meta property="og:title" content="ZeBGP Debugging Tools - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/debugging-tools.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="ZeBGP Debugging Tools - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/debugging-tools.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/guides/debugging-tools/" />
+        <meta property="og:url" content="https://ze-software.net/guides/debugging-tools/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-observe">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1 id="zebgp-debugging-tools">ZeBGP Debugging Tools</h1>
+    <p>This document describes the debugging tools available in ZeBGP for troubleshooting config parsing, BGP message encoding, and session issues.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#quick-reference">Quick Reference</a></li>
+<li><a href="#1-config-dump-command">1. Config Dump Command</a>
+<ol>
+<li><a href="#usage">Usage</a></li>
+<li><a href="#example-output">Example Output</a></li>
+<li><a href="#when-to-use">When to Use</a></li>
+</ol></li>
+<li><a href="#2-bgp-message-decoder">2. BGP Message Decoder</a>
+<ol>
+<li><a href="#usage_1">Usage</a></li>
+<li><a href="#example-output_1">Example Output</a></li>
+<li><a href="#decoded-attributes">Decoded Attributes</a></li>
+</ol></li>
+<li><a href="#3-test-failure-diff">3. Test Failure Diff</a>
+<ol>
+<li><a href="#example-output_2">Example Output</a></li>
+<li><a href="#diff-symbols">Diff Symbols</a></li>
+</ol></li>
+<li><a href="#4-per-subsystem-logging-zelog">4. Per-Subsystem Logging (ze.log.*)</a>
+<ol>
+<li><a href="#usage_2">Usage</a></li>
+<li><a href="#subsystems">Subsystems</a></li>
+<li><a href="#example-output_3">Example Output</a></li>
+<li><a href="#hierarchical-priority">Hierarchical Priority</a></li>
+<li><a href="#logging-locations">Logging Locations</a></li>
+</ol></li>
+<li><a href="#5-parser-warnings">5. Parser Warnings</a>
+<ol>
+<li><a href="#warning-types">Warning Types</a></li>
+<li><a href="#viewing-warnings">Viewing Warnings</a></li>
+</ol></li>
+<li><a href="#5-granular-debug-runtime">5. Granular Debug (runtime)</a></li>
+<li><a href="#debugging-workflow">Debugging Workflow</a>
+<ol>
+<li><a href="#1-config-issues">1. Config Issues</a></li>
+<li><a href="#2-route-not-being-sent">2. Route Not Being Sent</a></li>
+<li><a href="#3-session-issues">3. Session Issues</a></li>
+<li><a href="#4-test-failures">4. Test Failures</a></li>
+<li><a href="#5-interactive-functional-test-debugging">5. Interactive Functional Test Debugging</a></li>
+</ol></li>
+<li><a href="#adding-new-logging">Adding New Logging</a></li>
+<li><a href="#file-locations">File Locations</a></li>
+</ol></nav>
+<h2 id="quick-reference">Quick Reference</h2>
+<table>
+<thead>
+<tr>
+<th>Tool</th>
+<th>Purpose</th>
+<th>Usage</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze config dump</code></td>
+<td>Inspect parsed config</td>
+<td><code>ze config dump [--json] config.conf</code></td>
+</tr>
+<tr>
+<td><code>ze-peer --decode</code></td>
+<td>Decode BGP messages</td>
+<td><code>ze-peer --decode --sink</code></td>
+</tr>
+<tr>
+<td><code>ze.log.*</code></td>
+<td>Per-subsystem logging</td>
+<td><code>ze.log.bgp.routes=debug ze bgp server config.conf</code></td>
+</tr>
+<tr>
+<td>Functional test diff</td>
+<td>Test failure analysis</td>
+<td>Automatic on message mismatch</td>
+</tr>
+<tr>
+<td><code>--server N</code> / <code>--client N</code></td>
+<td>Interactive test debugging</td>
+<td><code>ze-test bgp encode --server 1</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="1-config-dump-command">1. Config Dump Command</h2>
+<p><strong>Location:</strong> <code>internal/component/config/cli/cmd_dump.go</code></p>
+<!-- source: internal/component/config/cli/cmd_dump.go -- config dump command -->
+
+<p>Parses a config file and displays the interpreted values. Useful for verifying that config parsing works correctly.</p>
+<h3 id="usage">Usage</h3>
+<pre><code class="language-bash"># Human-readable output
+ze config dump config.conf
+
+# JSON output (for scripting)
+ze config dump --json config.conf
+</code></pre>
+<h3 id="example-output">Example Output</h3>
+<pre><code>Warnings:
+  line 5: freeform 'flow' contains nested block 'route match' - data may be lost
+
+router-id: 1.2.3.4
+local-as: 65000
+
+peer 10.0.0.1:
+  local-as: 65000
+  peer-as: 65001
+  static-routes:
+    - prefix: 192.168.0.0/24
+      next-hop: 10.0.0.254
+      local-preference: 100
+</code></pre>
+<h3 id="when-to-use">When to Use</h3>
+<ul>
+<li>Config not being parsed correctly</li>
+<li>Static routes not appearing</li>
+<li>Verifying attribute values after parsing</li>
+<li>Checking for parser warnings about data loss</li>
+</ul>
+<hr />
+<h2 id="2-bgp-message-decoder">2. BGP Message Decoder</h2>
+<!-- source: internal/test/runner/decode.go -- BGP message decoding -->
+<!-- source: internal/test/runner/decoding.go -- decoding helpers -->
+
+<p>Decodes raw BGP messages (hex) into human-readable format. Used automatically by functional tests and available via <code>--decode</code> flag.</p>
+<h3 id="usage_1">Usage</h3>
+<pre><code class="language-bash"># In ze-peer, show decoded messages
+ze-peer --decode --sink --port 1790
+</code></pre>
+<h3 id="example-output_1">Example Output</h3>
+<pre><code>msg  recv   FFFFFFFF...:0030:02:00000014400101004002060201000000014003040A000001...
+             UPDATE (len=48)
+               ORIGIN: IGP
+               AS_PATH: [1]
+               NEXT_HOP: 10.0.0.1
+               NLRI: 192.168.0.0/24
+</code></pre>
+<h3 id="decoded-attributes">Decoded Attributes</h3>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Name</th>
+<th>Decoded Format</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>ORIGIN</td>
+<td>IGP, EGP, INCOMPLETE</td>
+</tr>
+<tr>
+<td>2</td>
+<td>AS_PATH</td>
+<td>[1 2 3] or [{1 2}] for AS_SET</td>
+</tr>
+<tr>
+<td>3</td>
+<td>NEXT_HOP</td>
+<td>IP address</td>
+</tr>
+<tr>
+<td>4</td>
+<td>MED</td>
+<td>Integer</td>
+</tr>
+<tr>
+<td>5</td>
+<td>LOCAL_PREF</td>
+<td>Integer</td>
+</tr>
+<tr>
+<td>8</td>
+<td>COMMUNITIES</td>
+<td>high:low format</td>
+</tr>
+<tr>
+<td>16</td>
+<td>EXT_COMMUNITIES</td>
+<td>Hex (0x...)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="3-test-failure-diff">3. Test Failure Diff</h2>
+<!-- source: internal/test/peer/peer.go -- test peer with message validation -->
+<!-- source: internal/test/runner/diff.go -- test failure diff -->
+
+<p>When a functional test fails with "message mismatch", the output now includes a decoded diff showing exactly what differed.</p>
+<h3 id="example-output_2">Example Output</h3>
+<pre><code>failed: message mismatch
+--- Expected vs Received ---
+Expected: UPDATE (len=64)
+  ORIGIN: IGP
+  AS_PATH: []
+  NEXT_HOP: 10.0.0.1
+  LOCAL_PREF: 100
+  NLRI: 193.0.2.1/32
+
+Received: KEEPALIVE (len=19)
+
+Differences:
+  - ORIGIN: IGP (missing)
+  - AS_PATH: [] (missing)
+  - NEXT_HOP: 10.0.0.1 (missing)
+  - LOCAL_PREF: 100 (missing)
+  ~ NLRI: expected=193.0.2.1/32, got=
+</code></pre>
+<h3 id="diff-symbols">Diff Symbols</h3>
+<ul>
+<li><code>-</code> Missing attribute (expected but not received)</li>
+<li><code>+</code> Unexpected attribute (received but not expected)</li>
+<li><code>~</code> Different value (both present but values differ)</li>
+</ul>
+<hr />
+<h2 id="4-per-subsystem-logging-zelog">4. Per-Subsystem Logging (ze.log.*)</h2>
+<!-- source: internal/core/slogutil/slogutil.go -- Logger() function and hierarchical subsystem logging -->
+
+<p>Environment variables that enable structured logging at key points in the pipeline.</p>
+<h3 id="usage_2">Usage</h3>
+<pre><code class="language-bash"># Enable all subsystems at debug level
+ze.log=debug ze bgp server config.conf
+
+# Enable specific subsystems
+ze.log.bgp.config=debug ze.log.bgp.routes=debug ze bgp server config.conf
+</code></pre>
+<h3 id="subsystems">Subsystems</h3>
+<p>Names follow <code>&lt;domain&gt;.&lt;component&gt;</code> convention. Run <code>ze env</code> for the full list.</p>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>What it logs</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze.log</code></td>
+<td>Base level for ALL subsystems</td>
+</tr>
+<tr>
+<td><code>ze.log.bgp.config</code></td>
+<td>Config parsing and loading</td>
+</tr>
+<tr>
+<td><code>ze.log.bgp.routes</code></td>
+<td>Static route handling, UPDATE sending</td>
+</tr>
+<tr>
+<td><code>ze.log.bgp.reactor.session</code></td>
+<td>BGP session handling</td>
+</tr>
+<tr>
+<td><code>ze.log.bgp.reactor.peer</code></td>
+<td>Peer FSM transitions, session events</td>
+</tr>
+<tr>
+<td><code>ze.log.bgp.reactor</code></td>
+<td>Reactor operations (reload, etc.)</td>
+</tr>
+<tr>
+<td><code>ze.log.plugin.server</code></td>
+<td>Plugin RPC server</td>
+</tr>
+<tr>
+<td><code>ze.log.plugin.relay</code></td>
+<td>Plugin stderr relay</td>
+</tr>
+</tbody>
+</table>
+<p>Levels: <code>disabled</code>, <code>debug</code>, <code>info</code>, <code>warn</code>, <code>err</code> (case-insensitive)</p>
+<h3 id="example-output_3">Example Output</h3>
+<pre><code>time=2024-01-15T13:53:41.182Z level=DEBUG msg=&quot;config parsed&quot; subsystem=bgp.config warnings=0
+time=2024-01-15T13:53:41.183Z level=DEBUG msg=&quot;config loaded&quot; subsystem=bgp.config peers=1
+time=2024-01-15T13:53:41.183Z level=DEBUG msg=&quot;peer routes configured&quot; subsystem=bgp.config peer=127.0.0.1 routes=2
+time=2024-01-15T13:53:41.184Z level=DEBUG msg=&quot;FSM transition&quot; subsystem=bgp.reactor.peer peer=127.0.0.1 from=OPENSENT to=OPENCONFIRM
+time=2024-01-15T13:53:41.184Z level=INFO msg=&quot;session established&quot; subsystem=bgp.reactor.peer peer=127.0.0.1 localAS=1 peerAS=1
+time=2024-01-15T13:53:41.184Z level=DEBUG msg=&quot;route sent&quot; subsystem=bgp.routes peer=127.0.0.1 prefix=193.0.2.1/32 nextHop=10.0.0.1
+</code></pre>
+<h3 id="hierarchical-priority">Hierarchical Priority</h3>
+<p>Most specific wins:
+1. <code>ze.log.bgp.reactor.peer=warn</code> - Peer logging at WARN
+2. <code>ze.log.bgp.reactor=debug</code> - All reactor.<em> at DEBUG
+3. <code>ze.log.bgp=info</code> - All bgp.</em> at INFO
+4. <code>ze.log=debug</code> - All subsystems at DEBUG</p>
+<p>Shell-compatible: <code>ze_log_bgp_routes=debug</code> also works (dot→underscore)</p>
+<h3 id="logging-locations">Logging Locations</h3>
+<p>Currently instrumented:
+- <code>internal/component/config/loader.go</code>: Config parsing, peer routes (configLogger)
+- <code>internal/component/bgp/reactor/peer.go</code>: FSM, session, route operations (peerLogger, routesLogger)
+- <code>internal/component/bgp/reactor/session.go</code>: RFC 7606 handling (sessionLogger)
+- <code>internal/component/bgp/reactor/reactor.go</code>: Reload, route operations (reactorLogger, routesLogger)</p>
+<!-- source: internal/component/bgp/reactor/peer.go -- peerLogger, routesLogger -->
+<!-- source: internal/component/bgp/reactor/session.go -- sessionLogger -->
+<!-- source: internal/component/bgp/reactor/reactor.go -- reactorLogger -->
+
+<hr />
+<h2 id="5-parser-warnings">5. Parser Warnings</h2>
+<!-- source: internal/component/config/parser.go -- Parser.Warnings() -->
+
+<p>The parser now collects warnings for potentially problematic patterns, accessible via <code>Parser.Warnings()</code>.</p>
+<h3 id="warning-types">Warning Types</h3>
+<table>
+<thead>
+<tr>
+<th>Pattern</th>
+<th>Warning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Nested block in Freeform</td>
+<td><code>freeform 'X' contains nested block 'Y' - data may be lost</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="viewing-warnings">Viewing Warnings</h3>
+<pre><code class="language-bash"># config-dump shows warnings
+ze config dump config.conf
+# Output:
+# Warnings:
+#   line 5: freeform 'flow' contains nested block 'route match' - data may be lost
+
+# Also visible with debug logging
+ze.log.config=debug ze bgp server config.conf
+</code></pre>
+<hr />
+<h2 id="5-granular-debug-runtime">5. Granular Debug (runtime)</h2>
+<p>Set debug per-module with filters and named profiles (verb-first, VyOS-style):</p>
+<pre><code class="language-bash">ze set debug module bgp.reactor                        # Enable debug
+ze set debug module bgp.reactor flag update            # Add a flag filter
+ze set debug module bgp.reactor scope neighbor 192.0.2.1  # Add a scope filter
+ze delete debug module bgp.reactor                     # Disable debug
+ze show debug profile name default                     # Show stored profile (offline)
+show debug                                              # Show live daemon state (YANG RPC)
+ze set debug profile name deep-trace                   # Save named profile
+ze set debug active name deep-trace                    # Apply a saved profile after restart
+</code></pre>
+<p><code>show debug profile name &lt;name&gt;</code> reads from <code>debug.zefs</code> (works offline). <code>show debug</code>
+queries the running daemon's actual slogutil state (requires daemon).</p>
+<!-- source: internal/plugins/debug/debug.go -- runSetModule, runDeleteModule -->
+<!-- source: internal/plugins/debug/cmd/handlers.go -- show debug live state RPC -->
+
+<hr />
+<h2 id="debugging-workflow">Debugging Workflow</h2>
+<h3 id="1-config-issues">1. Config Issues</h3>
+<pre><code class="language-bash"># Step 1: Check parsed config
+ze config dump config.conf
+
+# Step 2: Look for warnings
+ze config dump config.conf 2&gt;&amp;1 | grep -i warning
+
+# Step 3: Check JSON for exact values
+ze config dump --json config.conf | jq '.Neighbors[0].StaticRoutes'
+</code></pre>
+<h3 id="2-route-not-being-sent">2. Route Not Being Sent</h3>
+<pre><code class="language-bash"># Step 1: Enable route logging
+ze.log.bgp.routes=debug ze.log.bgp.config=debug ze bgp server config.conf
+
+# Expected output when working:
+# level=DEBUG msg=&quot;peer routes configured&quot; subsystem=bgp.config peer=X routes=2
+# level=DEBUG msg=&quot;route sent&quot; subsystem=bgp.routes peer=X prefix=10.0.0.0/24 nextHop=192.168.0.1
+</code></pre>
+<h3 id="3-session-issues">3. Session Issues</h3>
+<pre><code class="language-bash"># Step 1: Enable session + peer logging
+ze.log.bgp.reactor.peer=debug ze.log.bgp.reactor.session=debug ze bgp server config.conf
+
+# Look for FSM transitions and session establishment
+</code></pre>
+<h3 id="4-test-failures">4. Test Failures</h3>
+<pre><code class="language-bash"># Run single test
+ze-test bgp encode 1
+
+# Output now includes decoded diff automatically
+# Look at &quot;Differences:&quot; section to see what's wrong
+</code></pre>
+<h3 id="5-interactive-functional-test-debugging">5. Interactive Functional Test Debugging</h3>
+<p>Run server and client separately to see live output:</p>
+<pre><code class="language-bash"># Terminal 1: Start test server (ze-peer)
+ze-test bgp encode --server 1
+
+# Terminal 2: Start test client (zebgp)
+ze-test bgp encode --client 1
+</code></pre>
+<p><strong>Behavior:</strong>
+- Server waits for client, prints messages received, exits when test completes
+- Client connects, sends configured messages, exits when server disconnects</p>
+<p>Press Ctrl+C in the client terminal once the server has finished validating: the runner sends SIGTERM to ze for a graceful shutdown.</p>
+<!-- source: internal/test/cli/cmd_bgp.go -- zeTestRunClientOnly, clientCmd.Cancel -->
+
+<p><strong>Use <code>--port</code> to avoid conflicts:</strong></p>
+<pre><code class="language-bash">ze-test bgp encode --server 1 --port 11790
+ze-test bgp encode --client 1 --port 11790
+</code></pre>
+<hr />
+<h2 id="adding-new-logging">Adding New Logging</h2>
+<p>To add logging to new code:</p>
+<pre><code class="language-go">import &quot;github.com/ze-software/ze/internal/core/slogutil&quot;
+
+// Create a subsystem logger (once per package)
+var myLogger = slogutil.Logger(&quot;my.subsystem&quot;)
+
+// Log with structured key-value pairs
+myLogger.Debug(&quot;operation completed&quot;, &quot;peer&quot;, addr, &quot;count&quot;, n)
+myLogger.Info(&quot;session established&quot;, &quot;peer&quot;, addr, &quot;localAS&quot;, localAS)
+myLogger.Warn(&quot;unexpected state&quot;, &quot;state&quot;, state, &quot;expected&quot;, expected)
+</code></pre>
+<p>Subsystem naming convention: <code>ze.log.</code> + simplified package path (e.g., <code>bgp.reactor.peer</code>).</p>
+<hr />
+<h2 id="file-locations">File Locations</h2>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/test/runner/decode.go</code></span></span></td>
+<td>BGP message decoder</td>
+</tr>
+<tr>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/test/peer/peer.go</code></span></span></td>
+<td>Test peer with decode support</td>
+</tr>
+<tr>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/core/slogutil/slogutil.go</code></span></span></td>
+<td>Logging infrastructure</td>
+</tr>
+<tr>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/component/config/cli/cmd_dump.go</code></span></span></td>
+<td>config dump command</td>
+</tr>
+<tr>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/test/cli/cmd_peer.go</code></span></span></td>
+<td>--decode flag</td>
+</tr>
+<tr>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/component/config/parser.go</code></span></span></td>
+<td>Parser warnings</td>
+</tr>
+<tr>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/component/bgp/config/loader.go</code></span></span></td>
+<td>Config logging (configLogger)</td>
+</tr>
+<tr>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/component/bgp/reactor/peer.go</code></span></span></td>
+<td>Peer/route logging (peerLogger, routesLogger)</td>
+</tr>
+<tr>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/component/bgp/reactor/session.go</code></span></span></td>
+<td>Session logging (sessionLogger)</td>
+</tr>
+<tr>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/component/bgp/reactor/reactor.go</code></span></span></td>
+<td>Reactor logging (reactorLogger, routesLogger)</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/core/slogutil/slogutil.go -- logging infrastructure -->
+<!-- source: internal/test/peer/peer.go -- test peer -->
+<!-- source: internal/test/runner/decode.go -- BGP message decoder -->
+<!-- source: internal/component/config/cli/cmd_dump.go -- config-dump command -->
+<!-- source: internal/test/cli/cmd_peer.go -- ze-test peer subcommand -->
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/quickstart/">
+                        <span class="page-sidebar-link-label">Quickstart</span>
+                        <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create zefs, and start SSH.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../reference/command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Fleet Configuration - Ze</title>
+        <meta name="description" content="Ze documentation: guide/fleet-config.md" />
+        <meta property="og:title" content="Fleet Configuration - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/fleet-config.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Fleet Configuration - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/fleet-config.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/guides/fleet-config/" />
+        <meta property="og:url" content="https://ze-software.net/guides/fleet-config/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-automate">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1 id="fleet-configuration">Fleet Configuration</h1>
+    <p>Ze supports centralized configuration management for multi-node deployments. A central hub serves configuration to remote ze instances over TLS.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#architecture">Architecture</a></li>
+<li><a href="#bootstrap">Bootstrap</a>
+<ol>
+<li><a href="#non-interactive">Non-Interactive</a></li>
+</ol></li>
+<li><a href="#hub-configuration">Hub Configuration</a></li>
+<li><a href="#client-configuration">Client Configuration</a></li>
+<li><a href="#config-management">Config Management</a></li>
+<li><a href="#resilience">Resilience</a></li>
+<li><a href="#cli-overrides">CLI Overrides</a></li>
+</ol></nav>
+<!-- source: cmd/ze/hub/managed_server.go -- fleet hub server; internal/component/managed/ -- managed client and fleet protocol -->
+
+<blockquote>
+<p><strong>Status:</strong> Implemented. Named hub blocks, per-client auth, managed client lifecycle (fetch, reconnect, heartbeat), and <code>ze start</code> managed mode are functional.</p>
+</blockquote>
+<h2 id="architecture">Architecture</h2>
+<pre><code>    Central Hub                        Remote Nodes
+    ┌──────────┐                  ┌──────────┐
+    │  ze hub  │ ◄── TLS ────── │ ze edge-01│
+    │          │                  └──────────┘
+    │ configs/ │ ◄── TLS ────── ┌──────────┐
+    │ edge-01  │                  │ ze edge-02│
+    │ edge-02  │                  └──────────┘
+    └──────────┘
+</code></pre>
+<p>The hub stores per-client configurations. Each remote node connects, authenticates, and receives its configuration.</p>
+<h2 id="bootstrap">Bootstrap</h2>
+<p>Initialize a new ze instance:</p>
+<pre><code class="language-bash">ze init                             # Interactive setup
+ze init --managed                   # Managed client (connects to hub)
+ze init --force                     # Replace existing database
+</code></pre>
+<!-- source: internal/plugins/init/main.go -- managedFlag, forceFlag -->
+
+<p><code>ze init</code> prompts for:
+- SSH username and password
+- Host and port for the SSH server
+- Instance name (e.g., <code>edge-01</code>)</p>
+<h3 id="non-interactive">Non-Interactive</h3>
+<pre><code class="language-bash">echo -e &quot;admin\nsecret\n10.0.0.1\n2222\nedge-01&quot; | ze init --managed
+</code></pre>
+<h2 id="hub-configuration">Hub Configuration</h2>
+<p>The hub declares which clients can connect:</p>
+<pre><code>plugin {
+    hub {
+        server local {
+            ip 127.0.0.1;
+            port 1790;
+            secret &quot;local-plugin-secret&quot;;
+        }
+        server central {
+            ip 0.0.0.0;
+            port 1791;
+            secret &quot;remote-plugin-secret&quot;;
+            client edge-01 { secret &quot;client-1-token&quot;; }
+            client edge-02 { secret &quot;client-2-token&quot;; }
+        }
+    }
+}
+</code></pre>
+<p>Each client authenticates with its unique secret token.</p>
+<h2 id="client-configuration">Client Configuration</h2>
+<p>A managed client specifies its hub connection:</p>
+<pre><code>plugin {
+    hub {
+        server local {
+            ip 127.0.0.1;
+            port 1790;
+            secret &quot;local-secret&quot;;
+        }
+        client edge-01 {
+            host 10.0.0.1;
+            port 1791;
+            secret &quot;client-1-token&quot;;
+        }
+    }
+}
+</code></pre>
+<h2 id="config-management">Config Management</h2>
+<p>On the hub, manage client configurations through the config editor:</p>
+<pre><code class="language-bash">ze config edit edge-01.conf         # Edit config for edge-01
+ze config archive backup edge-01.conf  # Archive to named destination
+ze config history edge-01.conf      # View rollback history
+</code></pre>
+<!-- source: internal/component/config/cli/cmd_edit.go -- config edit command -->
+<!-- source: internal/component/config/cli/cmd_history.go -- config history command -->
+<!-- source: internal/component/config/cli/cmd_archive.go -- config archive command -->
+
+<h2 id="resilience">Resilience</h2>
+<ul>
+<li><strong>Partition tolerance:</strong> Clients cache their last known config locally</li>
+<li><strong>Fallback:</strong> If the hub is unreachable, the client starts with cached config</li>
+<li><strong>Reconnect:</strong> Clients automatically reconnect and receive updated config</li>
+</ul>
+<h2 id="cli-overrides">CLI Overrides</h2>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--server &lt;addr&gt;</code></td>
+<td>Override hub address</td>
+</tr>
+<tr>
+<td><code>--name &lt;name&gt;</code></td>
+<td>Override instance name</td>
+</tr>
+<tr>
+<td><code>--token &lt;secret&gt;</code></td>
+<td>Override auth token</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/managed/ -- fleet TLS and client auth -->
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/quickstart/">
+                        <span class="page-sidebar-link-label">Quickstart</span>
+                        <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create zefs, and start SSH.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../reference/command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

@@ -1,31 +1,18 @@
 #!/usr/bin/env bash
 #
-# Gather project stats from the current git repository.
+# Gather project stats from the main Ze source worktree.
 #
 # Outputs stats to stderr and key=value pairs to stdout so the calling
 # deck script can source them for its own replacements.
 #
-# Usage: eval "$(presentations/tools/update-stats.sh)"
+# Usage: eval "$(<gh-pages>/presentations/tools/update-stats.sh)"
 # The caller then has COMMITS, COAUTHORED, GO_SRC, etc. as shell variables.
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-REPO="$(git rev-parse --show-toplevel 2>/dev/null || true)"
-if [ -z "$REPO" ]; then
-    echo "error: not inside a git repository" >&2
-    exit 1
-fi
-
-# If running from a worktree (gh-pages), find the main worktree
-COMMON="$(git rev-parse --git-common-dir 2>/dev/null || true)"
-if [ -n "$COMMON" ] && [ -f "$COMMON/HEAD" ]; then
-    MAIN="$(cd "$COMMON/.." && pwd)"
-    if [ "$MAIN" != "$REPO" ] && [ -d "$MAIN/internal" ]; then
-        REPO="$MAIN"
-    fi
-fi
+REPO="$("$SCRIPT_DIR/project-root.sh")"
 
 echo "=== Gathering stats from $REPO ===" >&2
 
@@ -43,7 +30,7 @@ YANG_NODES=$(grep -rh 'leaf \|leaf-list \|container \|list ' --include='*.yang' 
 PLUGINS=$(find "$REPO/internal/plugins" -maxdepth 1 -mindepth 1 -type d | wc -l | tr -d ' ')
 RATIONALE=$(find "$REPO/ai/rationale" -name '*.md' 2>/dev/null | wc -l | tr -d ' ')
 LEARNED=$(find "$REPO/plan/learned" -name '*.md' 2>/dev/null | wc -l | tr -d ' ')
-INTEROP=$(ls "$REPO/test/interop/scenarios/" 2>/dev/null | wc -l | tr -d ' ')
+INTEROP=$(find "$REPO/test/interop/scenarios" -mindepth 1 -maxdepth 1 2>/dev/null | wc -l | tr -d ' ')
 GO_SIZE_KB=$((GO_ALL_LINES / 1000))
 VENDOR_SIZE=$(du -sh "$REPO/vendor" 2>/dev/null | cut -f1 | tr -d ' ')
 

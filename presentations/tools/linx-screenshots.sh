@@ -5,16 +5,17 @@
 # then captures CLI output and browser screenshots.
 #
 # Requirements: bin/ze, bin/ze-test, bin/ze-chaos, agent-browser
-# Output: pages/presentations/linx-2026-06/screenshots/
+# Output: gh-pages/talks/linx-2026-06/screenshots/
 #
-# Usage: cd <project-root> && pages/presentations/linx-2026-06/screenshots.sh
+# Usage: <gh-pages>/presentations/tools/linx-screenshots.sh
 
 set -euo pipefail
 
-DECK_DIR="$(cd "$(dirname "$0")" && pwd)"
-PROJECT_DIR="$(cd "$DECK_DIR/../../.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+DECK_DIR="$(cd "$SCRIPT_DIR/../../talks/linx-2026-06" && pwd)"
+PROJECT_DIR="$("$SCRIPT_DIR/project-root.sh")"
 OUT="$DECK_DIR/screenshots"
-CONF="$DECK_DIR/ze-demo.conf"
+CONF="$(mktemp "${TMPDIR:-/tmp}/ze-linx-presentation.XXXXXX.conf")"
 ZE_PID=""
 PEER_PID=""
 CHAOS_PID=""
@@ -31,6 +32,7 @@ cleanup() {
     [ -n "$PEER_PID" ] && kill "$PEER_PID" 2>/dev/null || true
     [ -n "$ZE_PID" ] && kill "$ZE_PID" 2>/dev/null || true
     wait 2>/dev/null || true
+    rm -f "$CONF"
 }
 trap cleanup EXIT
 
@@ -137,7 +139,7 @@ capture_cli() {
     local name="$1"
     shift
     echo "\$ $*" > "$OUT/cli-${name}.txt"
-    "$PROJECT_DIR/bin/ze" "$@" 2>&1 >> "$OUT/cli-${name}.txt" || true
+    "$PROJECT_DIR/bin/ze" "$@" >> "$OUT/cli-${name}.txt" 2>&1 || true
 }
 
 capture_cli "help-ai" help --ai

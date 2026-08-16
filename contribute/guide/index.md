@@ -35,7 +35,7 @@ bin/ze init         # set up local credentials
 bin/ze cli          # connect to the CLI
 ```
 
-The [quickstart](../../docs/guide/quickstart/) takes this further and gets two
+The [quickstart](../../guides/quickstart/) takes this further and gets two
 BGP peers talking. For the full developer setup, including the test
 dependencies, see
 [developer-setup.md](https://github.com/ze-software/ze/blob/main/docs/guide/developer-setup.md)
@@ -58,7 +58,7 @@ in the repository.
 
 There is no formal "good first issue" label yet. The most useful things an
 outside contributor can do right now are the ones that need real routing
-experience: run a lab peer, migrate an [ExaBGP config](../../usage/exabgp-migration/),
+experience: run a lab peer, migrate an [ExaBGP config](../../use-cases/exabgp-migration/),
 stand up a looking glass, or run the [interop labs](../../labs/) and report
 what does not match. Come and ask on [Discord](https://discord.gg/T8s7CjPDne)
 where help is most valuable at the moment.

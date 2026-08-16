@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>RADIUS admin AAA - Ze</title>
+        <meta name="description" content="Ze documentation: guide/radius.md" />
+        <meta property="og:title" content="RADIUS admin AAA - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/radius.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="RADIUS admin AAA - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/radius.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/guides/radius/" />
+        <meta property="og:url" content="https://ze-software.net/guides/radius/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-secure">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1 id="radius-admin-aaa">RADIUS admin AAA</h1>
+    <p>Ze authenticates operator logins (SSH, web, MCP) against RADIUS servers
+(RFC 2865) when the <code>system.authentication.radius</code> block is present. Local
+bcrypt users keep working as the fallback so an unreachable server cannot lock
+you out of the device.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#what-it-does">What it does</a></li>
+<li><a href="#minimal-config">Minimal config</a></li>
+<li><a href="#authentication-flow">Authentication flow</a></li>
+<li><a href="#profile-mapping">Profile mapping</a></li>
+<li><a href="#chain-order-with-tacacs-and-local">Chain order with TACACS+ and local</a></li>
+<li><a href="#readiness-check">Readiness check</a></li>
+<li><a href="#verification">Verification</a></li>
+<li><a href="#operational-notes">Operational notes</a></li>
+<li><a href="#rfc-reference">RFC reference</a></li>
+</ol></nav>
+<p>This is the operator/admin login path. It is separate from the L2TP
+<strong>subscriber</strong> RADIUS path (<code>l2tp.auth.radius</code>), which authenticates PPP
+sessions and lives under the <code>l2tp</code> config root.</p>
+<h2 id="what-it-does">What it does</h2>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Status</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Authentication</td>
+<td>Production</td>
+<td>PAP (RFC 2865 User-Password, hidden per §5.2 with the shared secret).</td>
+</tr>
+<tr>
+<td>Authorization</td>
+<td>Via profiles</td>
+<td>An Access-Accept reply attribute (default Filter-Id) maps the user to local RBAC profiles.</td>
+</tr>
+<tr>
+<td>Accounting</td>
+<td>Not in MVP</td>
+<td>Admin-session accounting is deferred; subscriber accounting stays in the L2TP path.</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/radius/authenticator.go -- radiusAuthenticator.Authenticate -->
+<!-- source: internal/component/radius/aaa.go -- radiusBackend.Build -->
+
+<h2 id="minimal-config">Minimal config</h2>
+<pre><code>system {
+    authentication {
+        radius {
+            server 10.0.0.1 { port 1812; key &quot;$9$encrypted-key&quot;; }
+            server 10.0.0.2 { port 1812; key &quot;$9$encrypted-key&quot;; }
+            timeout 3
+            retries 3
+            profile-attribute filter-id
+            default-profile read-only
+        }
+    }
+    authorization {
+        profile admin     { run { default-action allow; } edit { default-action allow; } }
+        profile read-only { run { default-action allow; } edit { default-action deny;  } }
+    }
+}
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Leaf</th>
+<th>Type</th>
+<th>Default</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>radius.server &lt;ip&gt;</code></td>
+<td>list, ordered-by-user</td>
+<td>-</td>
+<td>IPv4 only (shared udp4 client); tried in declaration order on failure</td>
+</tr>
+<tr>
+<td><code>radius.server &lt;ip&gt;.port</code></td>
+<td>uint16 (1-65535)</td>
+<td>1812</td>
+<td>UDP authentication port</td>
+</tr>
+<tr>
+<td><code>radius.server &lt;ip&gt;.key</code></td>
+<td>string (<code>ze:sensitive</code>)</td>
+<td>required</td>
+<td>Shared secret, stored as <code>$9$</code> ciphertext</td>
+</tr>
+<tr>
+<td><code>radius.timeout</code></td>
+<td>uint16 (1-60)</td>
+<td>3</td>
+<td>Per-server request timeout in seconds</td>
+</tr>
+<tr>
+<td><code>radius.retries</code></td>
+<td>uint8 (0-10)</td>
+<td>3</td>
+<td>Transmit attempts per server before failover</td>
+</tr>
+<tr>
+<td><code>radius.source-address</code></td>
+<td>ip-address</td>
+<td>none</td>
+<td>Local source IP for outbound RADIUS UDP</td>
+</tr>
+<tr>
+<td><code>radius.profile-attribute</code></td>
+<td>enum <code>filter-id</code> | <code>class</code></td>
+<td><code>filter-id</code></td>
+<td>Access-Accept reply attribute carrying profile name(s)</td>
+</tr>
+<tr>
+<td><code>radius.default-profile</code></td>
+<td>leaf-list</td>
+<td>none</td>
+<td>Profiles applied when the Access-Accept carries no <code>profile-attribute</code></td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/radius/yang/ze-radius-conf.yang -- system.authentication.radius -->
+<!-- source: internal/component/radius/config.go -- ExtractConfig -->
+
+<h2 id="authentication-flow">Authentication flow</h2>
+<ol>
+<li>SSH/web/MCP client connects with username + password.</li>
+<li>The daemon's AAA chain calls the RADIUS backend first (priority 50; TACACS+
+   is priority 100, local bcrypt is priority 200).</li>
+<li>The backend builds an Access-Request with User-Name, the hidden
+   User-Password, Service-Type=Login, NAS-Identifier (hostname), and (when a
+   source-address is set) NAS-IP-Address. It sends to the first configured
+   server, retransmitting with exponential backoff and failing over to the next
+   server (RFC 2865 §2.5).</li>
+<li><strong>Access-Accept</strong> -- the login succeeds. Profiles come from the configured
+   reply attribute (see below); the session is tagged <code>source=radius</code>.</li>
+<li><strong>Access-Reject</strong> -- explicit rejection. The chain stops here; local bcrypt
+   is NOT tried. This prevents a wrong password against RADIUS from succeeding
+   via a stale local hash.</li>
+<li><strong>Timeout / all servers unreachable</strong> -- treated as an infrastructure error,
+   so the chain falls through to the next backend (local bcrypt). An
+   unreachable RADIUS server never locks the operator out.</li>
+</ol>
+<p>The total time one login spends talking to RADIUS is bounded, so a slow or
+unreachable server falls through to local rather than hanging the login.</p>
+<!-- source: internal/component/aaa/aaa.go -- ChainAuthenticator, ErrAuthRejected -->
+<!-- source: internal/component/radius/authenticator.go -- Accept/Reject/error mapping, authBudget -->
+
+<h2 id="profile-mapping">Profile mapping</h2>
+<p>Ze's authorization model is name-based, so a RADIUS-accepted user must be
+mapped to one or more locally-defined <code>system.authorization.profile</code> entries.</p>
+<ul>
+<li>The backend reads the configured <code>profile-attribute</code> from the Access-Accept.
+  With the default <code>filter-id</code>, each Filter-Id attribute (RFC 2865 §5.11)
+  supplies one profile name; multiple Filter-Id attributes yield multiple
+  profiles. <code>class</code> reads the Class attribute (§5.25) the same way.</li>
+<li>When the Access-Accept carries no such attribute, the <code>default-profile</code>
+  leaf-list applies.</li>
+<li>When neither is present the login resolves to no profile and is <strong>rejected</strong>,
+  with a <code>RADIUS admin auth rejected: no profiles resolved</code> warning naming the
+  user. Ze never authorizes a user it cannot attach a profile to: an
+  authenticated login always carries at least one profile name. The rejection
+  stops the chain, exactly as an Access-Reject does, because the server did
+  answer -- this is not the unreachable-server case that falls through to local.</li>
+</ul>
+<p>Configure your RADIUS server to return <code>Filter-Id = admin</code> (or your profile
+name) for operators, and define a matching <code>system.authorization.profile</code>. If
+your server does not send a profile attribute, set <code>default-profile</code> instead;
+otherwise no RADIUS user can log in.</p>
+<!-- source: internal/component/radius/authenticator.go -- mapProfiles, Authenticate Access-Accept branch -->
+
+<h2 id="chain-order-with-tacacs-and-local">Chain order with TACACS+ and local</h2>
+<p>When RADIUS, TACACS+, and local users are all configured, the chain is tried in
+priority order: RADIUS (50), then TACACS+ (100), then local bcrypt (200). A
+reject from any backend stops the chain; an infrastructure error falls through
+to the next.</p>
+<!-- source: internal/component/radius/aaa.go -- aaaPriority -->
+<!-- source: internal/component/tacacs/register.go -- Priority 100 -->
+
+<h2 id="readiness-check">Readiness check</h2>
+<p><code>ze doctor</code> probes every configured RADIUS admin server with an Access-Request
+before the daemon starts. When none answers a verifiable response it emits
+<code>doctor-radius-admin-unreachable</code> (a warning: local fallback still works). A
+missing or wrong shared key counts as unreachable.</p>
+<pre><code>ze doctor --json router.conf
+ze explain doctor-radius-admin-unreachable
+</code></pre>
+<!-- source: internal/component/radius/doctor.go -- checkRadiusAdminServers -->
+
+<h2 id="verification">Verification</h2>
+<p>The <code>.ci</code> tests in <code>test/plugin/</code> cover the main behaviours:</p>
+<table>
+<thead>
+<tr>
+<th>Test</th>
+<th>Asserts</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>aaa-radius-admin.ci</code></td>
+<td>Access-Accept + Filter-Id -&gt; admin profile, log shows <code>source=radius</code>, no local fallback consulted</td>
+</tr>
+<tr>
+<td><code>aaa-radius-fallback.ci</code></td>
+<td>Server unreachable -&gt; local bcrypt accepted, log shows <code>source=local</code>, RADIUS did not silently succeed</td>
+</tr>
+</tbody>
+</table>
+<p>Unit coverage lives in <code>internal/component/radius/{config,authenticator,aaa,doctor}_test.go</code>.</p>
+<p>For ad-hoc verification, point the daemon at a real RADIUS server and run any
+command via <code>ze cli -c "show bgp summary"</code> -- the daemon log tags the satisfying
+backend on every login, e.g.:</p>
+<pre><code>INFO SSH auth success subsystem=ssh username=alice remote=10.0.0.1:51408 source=radius
+</code></pre>
+<p><code>source=radius</code> confirms the chain consulted RADIUS and returned Access-Accept.
+<code>source=local</code> means RADIUS was unreachable (or unconfigured) and the local
+bcrypt user accepted the credentials.</p>
+<!-- source: internal/test/mock/radius/radius.go -- ze-test radius-mock for .ci tests -->
+
+<h2 id="operational-notes">Operational notes</h2>
+<ul>
+<li><strong>Shared secrets</strong> are stored as <code>$9$</code>-encoded ciphertext, never as
+  plaintext. The CLI never echoes them; <code>ze config dump --strip-private</code>
+  replaces them with <code>/* SECRET-DATA */</code>.</li>
+<li><strong>PAP only</strong> in the MVP. CHAP and EAP admin auth are follow-up work; the
+  L2TP subscriber path already handles CHAP/MS-CHAPv2 for PPP sessions.</li>
+<li><strong>Same client</strong> as the L2TP subscriber path (<code>internal/component/radius</code>),
+  so retransmit, failover, and Response-Authenticator verification behave
+  identically. That client is <code>udp4</code>, so RADIUS admin servers must be IPv4.</li>
+<li><strong>Fail-open on misconfig.</strong> If the RADIUS client cannot start (for example an
+  unbindable <code>source-address</code>), the backend contributes nothing and logs an
+  error rather than failing the whole AAA bundle, so local (and TACACS+) still
+  authenticate and you are never locked out.</li>
+</ul>
+<h2 id="rfc-reference">RFC reference</h2>
+<ul>
+<li>RFC 2865 -- Remote Authentication Dial In User Service (RADIUS).
+  Local summary: <code>rfc/short/rfc2865.md</code>.</li>
+</ul>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/quickstart/">
+                        <span class="page-sidebar-link-label">Quickstart</span>
+                        <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create zefs, and start SSH.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../reference/command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

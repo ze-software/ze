@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Logging - Ze</title>
+        <meta name="description" content="Ze documentation: guide/logging.md" />
+        <meta property="og:title" content="Logging - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/logging.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Logging - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/logging.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/guides/logging/" />
+        <meta property="og:url" content="https://ze-software.net/guides/logging/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-observe">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1 id="logging">Logging</h1>
+    <p>Ze uses hierarchical, structured logging with runtime-configurable levels per subsystem.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#log-levels">Log Levels</a></li>
+<li><a href="#configuration">Configuration</a>
+<ol>
+<li><a href="#config-file">Config File</a></li>
+<li><a href="#environment-variables">Environment Variables</a></li>
+<li><a href="#cli-flag">CLI Flag</a></li>
+<li><a href="#runtime-change">Runtime Change</a></li>
+</ol></li>
+<li><a href="#priority-order">Priority Order</a></li>
+<li><a href="#backends">Backends</a></li>
+<li><a href="#plugin-stderr-relay">Plugin Stderr Relay</a></li>
+<li><a href="#naming-convention">Naming Convention</a></li>
+<li><a href="#subsystems">Subsystems</a></li>
+<li><a href="#inspecting-current-configuration">Inspecting Current Configuration</a></li>
+</ol></nav>
+<!-- source: internal/core/slogutil/slogutil.go -- Logger, PluginLogger, level definitions -->
+
+<h2 id="log-levels">Log Levels</h2>
+<table>
+<thead>
+<tr>
+<th>Level</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>disabled</code></td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td><code>debug</code></td>
+<td>Detailed diagnostics (FSM transitions, wire events, plugin IPC)</td>
+</tr>
+<tr>
+<td><code>info</code></td>
+<td>Informational messages (peer up/down, config reload)</td>
+</tr>
+<tr>
+<td><code>warn</code></td>
+<td>Warnings and errors (default)</td>
+</tr>
+<tr>
+<td><code>err</code></td>
+<td>Errors only</td>
+</tr>
+</tbody>
+</table>
+<h2 id="configuration">Configuration</h2>
+<h3 id="config-file">Config File</h3>
+<pre><code>environment {
+    log {
+        level warn              # base level for all subsystems
+        backend stderr          # output destination
+        bgp.reactor debug      # subsystem-specific override
+        bgp.routes info        # another override
+        plugin.relay warn      # plugin stderr relay level
+    }
+}
+</code></pre>
+<!-- source: internal/component/hub/yang/ze-hub-conf.yang -- environment log config block -->
+
+<h3 id="environment-variables">Environment Variables</h3>
+<p>Environment variables take precedence over the config file:</p>
+<pre><code class="language-bash"># Set base level
+export ZE_LOG=debug
+
+# Set per-subsystem level
+export ZE_LOG_BGP_FSM=debug
+export ZE_LOG_PLUGIN=info
+
+# All notation forms are equivalent:
+ze.log.bgp.fsm    ZE_LOG_BGP_FSM    ze_log_bgp_fsm
+</code></pre>
+<!-- source: internal/core/slogutil/slogutil.go -- ze.log, ze.log.<subsystem> env var registration -->
+
+<h3 id="cli-flag">CLI Flag</h3>
+<pre><code class="language-bash">ze -d example.conf             # shorthand for ze.log=debug + ze.log.relay=debug
+</code></pre>
+<h3 id="runtime-change">Runtime Change</h3>
+<p>Change log levels on a running daemon without restart:</p>
+<pre><code class="language-bash">ze cli -c &quot;bgp log set bgp.fsm debug&quot;
+ze cli -c &quot;bgp log set bgp.reactor info&quot;
+ze cli -c &quot;bgp log levels&quot;         # show current levels
+</code></pre>
+<!-- source: internal/plugins/log/cmd/handlers.go -- log show/set RPCs -->
+
+<h2 id="priority-order">Priority Order</h2>
+<p>Most specific wins, environment beats config:</p>
+<ol>
+<li>Environment variable <code>ZE_LOG_BGP_FSM</code> (most specific)</li>
+<li>Environment variable <code>ZE_LOG_BGP</code> (parent)</li>
+<li>Environment variable <code>ZE_LOG</code> (base)</li>
+<li>Config file <code>bgp.fsm debug</code> (most specific)</li>
+<li>Config file <code>level warn</code> (base)</li>
+<li>Default: <code>warn</code></li>
+</ol>
+<h2 id="backends">Backends</h2>
+<table>
+<thead>
+<tr>
+<th>Backend</th>
+<th>Config</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>stderr</code></td>
+<td><code>backend stderr</code></td>
+<td>Standard error (default). Color auto-detected on TTY.</td>
+</tr>
+<tr>
+<td><code>stdout</code></td>
+<td><code>backend stdout</code></td>
+<td>Standard output. Color auto-detected on TTY.</td>
+</tr>
+<tr>
+<td><code>syslog</code></td>
+<td><code>backend syslog</code></td>
+<td>Remote syslog. Set address with <code>destination</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>Syslog example:</p>
+<pre><code>environment {
+    log {
+        level info
+        backend syslog
+        destination 10.0.0.100:514
+    }
+}
+</code></pre>
+<h2 id="plugin-stderr-relay">Plugin Stderr Relay</h2>
+<p>External plugins (forked processes) write to stderr. Ze captures this output and relays it through the logging system tagged with subsystem <code>plugin.relay</code>.</p>
+<pre><code class="language-bash">export ZE_LOG_PLUGIN_RELAY=debug      # see all plugin stderr
+export ZE_LOG_PLUGIN_RELAY=disabled   # silence plugin output
+</code></pre>
+<p>Default relay level: <code>warn</code>.</p>
+<!-- source: internal/component/plugin/process/process.go -- stderrLogger -->
+
+<h2 id="naming-convention">Naming Convention</h2>
+<p>Subsystem names follow <code>&lt;domain&gt;.&lt;component&gt;[.&lt;concern&gt;]</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Domain</th>
+<th>Covers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>bgp</code></td>
+<td>BGP protocol (config, filter, reactor, routes, server)</td>
+</tr>
+<tr>
+<td><code>chaos</code></td>
+<td>Chaos fault injection</td>
+</tr>
+<tr>
+<td><code>cli</code></td>
+<td>CLI and editor</td>
+</tr>
+<tr>
+<td><code>hub</code></td>
+<td>Hub process management</td>
+</tr>
+<tr>
+<td><code>plugin</code></td>
+<td>Plugin infrastructure</td>
+</tr>
+<tr>
+<td><code>web</code></td>
+<td>Web UI</td>
+</tr>
+</tbody>
+</table>
+<p>Setting a parent level applies to all children. <code>ze.log.bgp=debug</code> enables debug for every <code>bgp.*</code> subsystem. <code>ze.log.plugin=info</code> enables info for every <code>plugin.*</code> subsystem.</p>
+<!-- source: internal/core/slogutil/slogutil.go -- getLogEnv hierarchical lookup -->
+
+<h2 id="subsystems">Subsystems</h2>
+<p>Run <code>ze env</code> to see the full list with descriptions. Below is the complete inventory:</p>
+<table>
+<thead>
+<tr>
+<th>Subsystem</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>bgp.config</code></td>
+<td>Configuration parsing and loading</td>
+</tr>
+<tr>
+<td><code>bgp.filter</code></td>
+<td>Route filtering (AS loop, originator-ID)</td>
+</tr>
+<tr>
+<td><code>bgp.filter.community</code></td>
+<td>Community-based route filtering plugin</td>
+</tr>
+<tr>
+<td><code>bgp.gr</code></td>
+<td>Graceful restart marker handling</td>
+</tr>
+<tr>
+<td><code>bgp.reactor</code></td>
+<td>Reactor event loop and peer management</td>
+</tr>
+<tr>
+<td><code>bgp.reactor.cache</code></td>
+<td>UPDATE cache gap-based eviction</td>
+</tr>
+<tr>
+<td><code>bgp.reactor.forward</code></td>
+<td>Per-peer forward worker pool</td>
+</tr>
+<tr>
+<td><code>bgp.reactor.peer</code></td>
+<td>Peer lifecycle and FSM transitions</td>
+</tr>
+<tr>
+<td><code>bgp.reactor.session</code></td>
+<td>Session wire protocol handling</td>
+</tr>
+<tr>
+<td><code>bgp.routes</code></td>
+<td>Route processing and announcements</td>
+</tr>
+<tr>
+<td><code>bgp.server</code></td>
+<td>TCP server and connection handling</td>
+</tr>
+<tr>
+<td><code>bgp.watchdog</code></td>
+<td>Watchdog timer plugin</td>
+</tr>
+<tr>
+<td><code>chaos</code></td>
+<td>Chaos fault injection orchestration</td>
+</tr>
+<tr>
+<td><code>chaos.peer</code></td>
+<td>Chaos testing simulated peers</td>
+</tr>
+<tr>
+<td><code>cli.editor.draft</code></td>
+<td>Config editor draft persistence</td>
+</tr>
+<tr>
+<td><code>hub.managed</code></td>
+<td>Managed mode client connection</td>
+</tr>
+<tr>
+<td><code>hub.reload</code></td>
+<td>Configuration reload handling</td>
+</tr>
+<tr>
+<td><code>plugin</code></td>
+<td>Plugin process lifecycle and event delivery</td>
+</tr>
+<tr>
+<td><code>plugin.coordinator</code></td>
+<td>Plugin startup stage coordination</td>
+</tr>
+<tr>
+<td><code>plugin.manager</code></td>
+<td>Multi-plugin coordination and respawn</td>
+</tr>
+<tr>
+<td><code>plugin.relay</code></td>
+<td>Plugin stderr relay to engine log</td>
+</tr>
+<tr>
+<td><code>plugin.server</code></td>
+<td>Plugin RPC server and stage protocol</td>
+</tr>
+<tr>
+<td><code>web.auth</code></td>
+<td>Web UI authentication</td>
+</tr>
+<tr>
+<td><code>web.server</code></td>
+<td>Web UI HTTP server</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/core/slogutil/slogutil.go -- subsystemDescriptions map -->
+
+<h2 id="inspecting-current-configuration">Inspecting Current Configuration</h2>
+<pre><code class="language-bash">ze env list -v                 # show all env vars with current values
+ze env get ze.log              # show specific var details
+ze cli -c &quot;bgp log levels&quot;  # show runtime log levels
+</code></pre>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/quickstart/">
+                        <span class="page-sidebar-link-label">Quickstart</span>
+                        <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create zefs, and start SSH.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../reference/command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

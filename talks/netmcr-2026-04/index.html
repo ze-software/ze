@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Ze: Redoing and improving on ExaBGP - Net Manchester slides</title>
+    <meta name="description" content="Interactive Net Manchester slides about Ze, the ExaBGP lineage, BGP tooling, and the open programmable network OS for Linux.">
+    <link rel="canonical" href="https://ze-software.net/talks/netmcr-2026-04/">
+    <meta property="og:title" content="Ze: Redoing and improving on ExaBGP - Net Manchester slides">
+    <meta property="og:description" content="Interactive Net Manchester slides about Ze, the ExaBGP lineage, BGP tooling, and the open programmable network OS for Linux.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://ze-software.net/talks/netmcr-2026-04/">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --purple: #312783;
+            --cyan: #009FE3;
+            --teal: #2ED9B9;
+        }
+        body {
+            font-family: "Lato", sans-serif;
+            background: #000;
+            color: #fff;
+            overflow: hidden;
+        }
+        .slide {
+            display: none;
+            width: 90vw;
+            max-width: 1400px;
+            height: 80vh;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border-radius: 20px;
+            padding: clamp(20px, 2.3vw, 35px) clamp(30px, 5vw, 80px) clamp(30px, 5vw, 80px);
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            overflow-y: auto;
+        }
+        .slide.active { display: block; }
+        h1 { font-family: "Poppins", sans-serif; font-size: clamp(28px, 3.5vw, 56px); margin-bottom: clamp(15px, 2vw, 30px); }
+        h2 { font-family: "Poppins", sans-serif; font-size: clamp(22px, 2.6vw, 40px); color: var(--cyan); margin: 0 0 clamp(8px, 1vw, 15px); }
+        h3 { font-family: "Poppins", sans-serif; font-size: clamp(16px, 1.9vw, 30px); color: var(--teal); margin: clamp(12px, 1.6vw, 25px) 0 clamp(8px, 1vw, 15px); }
+        p, li { font-size: clamp(13px, 1.4vw, 22px); line-height: 1.6; margin-bottom: clamp(6px, 1vw, 15px); }
+        ul { list-style: none; }
+        li { padding-left: clamp(16px, 2vw, 30px); position: relative; }
+        li:before { content: "\2192"; position: absolute; left: 0; color: var(--cyan); }
+        .em { color: var(--cyan); font-weight: 600; }
+        .note { font-style: italic; opacity: 0.8; font-size: clamp(11px, 1.2vw, 18px); }
+        .box { background: rgba(49, 39, 131, 0.3); border: 2px solid var(--purple); padding: clamp(10px, 1.2vw, 18px) clamp(12px, 1.3vw, 20px) clamp(12px, 1.4vw, 22px); border-radius: 12px; margin: clamp(8px, 1vw, 15px) 0; }
+        .box > :last-child, .box ul > :last-child { margin-bottom: 0; }
+        .progress { position: fixed; top: 0; left: 0; height: 4px; background: linear-gradient(90deg, var(--purple) 0%, var(--cyan) 100%); transition: width 0.3s; }
+        .nav { position: fixed; bottom: 20px; right: 40px; z-index: 1001; }
+        .footer { position: fixed; bottom: 20px; left: 40px; font-size: clamp(10px, 0.9vw, 14px); opacity: 0.5; z-index: 1001; }
+        .nav button { background: rgba(0, 159, 227, 0.2); border: 2px solid var(--cyan); color: #fff; padding: clamp(6px, 0.8vw, 12px) clamp(12px, 1.5vw, 24px); margin: 0 5px; border-radius: 30px; cursor: pointer; font-size: clamp(11px, 1vw, 16px); font-weight: 600; }
+        .nav button:hover { background: var(--cyan); }
+        .counter { position: fixed; top: 30px; right: 120px; color: var(--cyan); font-size: clamp(12px, 1.2vw, 18px); }
+        .logo { position: fixed; top: 30px; left: 40px; height: clamp(20px, 2.3vw, 35px); z-index: 1000; }
+        .logo-right { position: fixed; top: 20px; right: 40px; height: clamp(30px, 3.5vw, 55px); z-index: 1000; }
+        .arch-box { background: rgba(0, 159, 227, 0.08); border: 1px solid rgba(0, 159, 227, 0.3); padding: clamp(8px, 1vw, 15px) clamp(12px, 1.3vw, 20px); border-radius: 10px; margin: clamp(8px, 1vw, 15px) 0; font-family: "Courier New", monospace; font-size: clamp(10px, 0.9vw, 14px); line-height: 1.5; white-space: pre; }
+        table { width: 100%; border-collapse: collapse; margin: clamp(8px, 1vw, 15px) 0; }
+        th { text-align: left; padding: clamp(5px, 0.7vw, 10px) clamp(8px, 0.9vw, 14px); color: var(--cyan); border-bottom: 2px solid var(--purple); font-size: clamp(12px, 1.2vw, 18px); }
+        td { padding: clamp(4px, 0.5vw, 8px) clamp(8px, 0.9vw, 14px); border-bottom: 1px solid rgba(255,255,255,0.1); font-size: clamp(12px, 1.2vw, 18px); }
+        tr:hover td { background: rgba(49, 39, 131, 0.2); }
+        code { color: var(--teal); background: rgba(46, 217, 185, 0.1); padding: 2px 6px; border-radius: 4px; font-size: 0.9em; }
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(20px, 2.5vw, 40px); }
+    </style>
+</head>
+<body>
+    <div class="progress" id="progress"></div>
+    <div class="counter" id="counter"></div>
+
+    <!-- Exa Networks Logo -->
+    <svg class="logo" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="101.969" height="40" viewBox="0 0 101.969 40">
+        <defs>
+            <linearGradient id="linear-gradient" x1="-0.012" y1="0.767" x2="0.823" y2="0.155" gradientUnits="objectBoundingBox">
+                <stop offset="0.621" stop-color="#312782"></stop>
+                <stop offset="0.929" stop-color="#0069b3"></stop>
+            </linearGradient>
+            <linearGradient id="linear-gradient-2" x1="1.032" y1="0.975" x2="-0.023" y2="0.027" gradientUnits="objectBoundingBox">
+                <stop offset="0" stop-color="#312782"></stop>
+                <stop offset="0.4" stop-color="#0069b4"></stop>
+                <stop offset="0.52" stop-color="#0069b4"></stop>
+                <stop offset="1" stop-color="#009ee2"></stop>
+            </linearGradient>
+            <linearGradient id="linear-gradient-3" x1="-0.032" y1="0.025" x2="1.022" y2="0.974" gradientUnits="objectBoundingBox">
+                <stop offset="0" stop-color="#009ee2"></stop>
+                <stop offset="0.4" stop-color="#0069b4"></stop>
+                <stop offset="0.52" stop-color="#0069b4"></stop>
+                <stop offset="1" stop-color="#312782"></stop>
+            </linearGradient>
+            <linearGradient id="linear-gradient-4" x1="1.012" y1="0.233" x2="0.177" y2="0.845" gradientUnits="objectBoundingBox">
+                <stop offset="0.62" stop-color="#009ee2"></stop>
+                <stop offset="0.92" stop-color="#0069b4"></stop>
+            </linearGradient>
+        </defs>
+        <g id="EXALogo" transform="translate(-155.7 -389.819)">
+            <path id="Path_488" data-name="Path 488" d="M204.256,408.975c-9.985,7.25-24.284,16.371-36.035,15.11-4.674-.5-7.143-2.788-5.669-9.414,31.295,5.537,37.018-31.414,11.14-23.82-8.6,2.523-8.71-7.289-16.278,16.955-5.338,17.141,2.616,22.213,12.614,22,12.348-.266,26.993-9.281,36.526-16.743C206.566,413.065,205.49,408.073,204.256,408.975Zm-20.633-12.229c3.054,4.01-2.921,15.641-20.208,12.282C166.3,396.2,180.582,392.737,183.623,396.747Z" transform="translate(0)" fill="url(#linear-gradient)"></path>
+            <path id="Path_489" data-name="Path 489" d="M422.632,411.632h0c-5.762-11.83-12.229-17.128-16.145-19.266a.6.6,0,0,0-.81.836,40.323,40.323,0,0,1,2.722,4.767c.279.664,1.62.717,2.6,1.009s7.117,8.909,9.613,13.875c4.7,8.5,12.547,15.017,16.53,17.062V429.9C429.629,424.909,425.991,418.35,422.632,411.632Z" transform="translate(-216.703 -2.138)" fill="url(#linear-gradient-2)"></path>
+            <path id="Path_490" data-name="Path 490" d="M467.568,441.812a40.331,40.331,0,0,1-2.722-4.767c-.279-.664-1.62-.717-2.6-1.009s-7.117-8.909-9.613-13.875c-4.7-8.5-12.069-14.18-16.53-17.062v.013c7.515,5.006,11.153,11.565,14.512,18.283h0c5.762,11.83,12.229,17.128,16.145,19.266A.605.605,0,0,0,467.568,441.812Z" transform="translate(-243.17 -13.252)" fill="url(#linear-gradient-3)"></path>
+            <path id="Path_491" data-name="Path 491" d="M577.126,389.859c-12.348.266-26.993,9.281-36.526,16.743,0,0,1.076,4.979,2.31,4.089,9.985-7.25,24.271-16.371,36.035-15.11,4.674.5,7.143,2.788,5.669,9.414-31.295-5.537-37.018,31.414-11.14,23.82,8.6-2.523,8.71,7.289,16.278-16.955C595.091,394.718,587.124,389.646,577.126,389.859Zm-13.583,33.061c-3.054-4.01,2.921-15.641,20.208-12.282C580.87,423.464,566.584,426.929,563.543,422.919Z" transform="translate(-333.795 -0.029)" fill="url(#linear-gradient-4)"></path>
+        </g>
+    </svg>
+
+    <!-- Ze Logo -->
+    <svg class="logo-right" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 169 175" preserveAspectRatio="xMidYMid meet">
+        <defs>
+            <linearGradient id="ze-grad-1" x1="0" y1="0" x2="1" y2="1" gradientUnits="objectBoundingBox">
+                <stop offset="0" stop-color="#312782"/>
+                <stop offset="0.5" stop-color="#0069b4"/>
+                <stop offset="1" stop-color="#009ee2"/>
+            </linearGradient>
+            <linearGradient id="ze-grad-2" x1="1" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
+                <stop offset="0" stop-color="#009ee2"/>
+                <stop offset="0.5" stop-color="#0069b4"/>
+                <stop offset="1" stop-color="#312782"/>
+            </linearGradient>
+        </defs>
+        <g transform="translate(0,175) scale(0.1,-0.1)" stroke="none">
+            <path fill="url(#ze-grad-1)" d="M1070 1550 c-106 -23 -447 -111 -600 -155 -270 -78 -260 -75 -260 -95 0 -75 223 -165 313 -126 18 7 52 21 77 31 25 10 83 35 128 57 128 58 337 98 524 98 31 0 58 5 60 10 2 7 26 6 71 -3 77 -17 80 -12 33 46 -18 23 -41 56 -50 74 -41 82 -124 100 -296 63z"/>
+            <path fill="url(#ze-grad-2)" d="M904 1066 c-17 -8 -150 -26 -295 -40 -228 -24 -371 -44 -417 -61 -13 -5 17 -34 122 -119 51 -41 63 -46 90 -40 35 8 187 7 195 -1 3 -3 -34 -45 -81 -93 -132 -134 -278 -311 -278 -336 0 -3 12 -6 28 -8 24 -3 28 -8 32 -48 4 -35 9 -46 25 -49 11 -2 41 -23 67 -47 26 -24 53 -44 60 -44 23 0 111 28 205 64 144 56 280 81 357 65 49 -9 89 -9 183 0 204 19 232 14 333 -57 21 -14 20 -11 -9 27 -19 24 -52 56 -73 71 -20 15 -54 47 -74 71 -88 107 -212 116 -568 45 -127 -26 -236 -45 -245 -44 -18 4 206 231 305 310 97 77 188 124 257 132 86 11 85 28 -12 130 -83 87 -133 104 -207 72z"/>
+        </g>
+    </svg>
+
+    <!-- Slide 1: Title -->
+    <div class="slide active">
+        <h1 style="background: linear-gradient(90deg, var(--purple) 0%, var(--cyan) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+            Ze: Redoing and improving on ExaBGP
+        </h1>
+        <div style="display: flex; align-items: center; gap: clamp(15px, 2vw, 30px); margin-bottom: 50px;">
+            <img src="screenshots/zeledon.svg" alt="Zeledon" style="height: clamp(80px, 10vw, 150px);">
+            <p style="font-size: 28px; color: var(--teal); margin: 0;">An extensible, plugin-driven, network software</p>
+        </div>
+        <p style="font-size: 20px;"><strong style="color: var(--cyan);">Thomas Mangin</strong> &middot; Chief Madness Officer, Exa Networks</p>
+        <p style="font-size: 16px; opacity: 0.6;">(with HTML skillz from Claude)</p>
+        <div style="padding:40px"></div>
+        <p class="note">Network engineers who know ExaBGP: thanks! welcome! you will feel at home</p>
+        <p class="note">Network engineers who don't: this was the "first" popular programmable BGP toolkit</p>
+        <p class="note">Happy to answer quick questions as we go, keep big ones for the end</p>
+    </div>
+
+    <!-- Slide 2: What is Ze? -->
+    <div class="slide">
+        <h2>What is Ze?</h2>
+        <h3>The project</h3>
+        <ul>
+            <li><span class="em">Ze</span> = "The" with a French accent</li>
+            <li>Successor to ExaBGP, written in Go</li>
+            <li>Same philosophy: <span class="em">BGP as a programmable tool</span></li>
+        </ul>
+        <h3>Design</h3>
+        <ul>
+            <li>Modular: everything is a plugin, the engine is minimal</li>
+            <li>Easy to integrate with: Plugin SDK (Go, Python) or JSON/text protocol (any language)</li>
+            <li>Modern: supports RPKI origin validation</li>
+            <li>AI-ready: self-describing CLI, MCP transport, <code>ze help --ai</code></li>
+        </ul>
+        <h3>License</h3>
+        <ul>
+            <li>AGPL-3.0, hosted on Codeberg</li>
+        </ul>
+    </div>
+
+    <!-- Slide 3: VyOS -->
+    <div class="slide">
+        <h2>The Story: VyOS (early 2020)</h2>
+        <ul>
+            <h3>VyOS</h3>
+            <li>Just before UK lockdown: 3 months as a VyOS contributor helping with their Perl to Python migration</li>
+            <li>Got familiar with some of their good design ideas: <span class="em">verify, generate, apply</span> pattern</li>
+            <h3>But...</h3>
+            <li>Did not agree with it all: my French ego had opinions</li>
+            <li>Ego said: you can do better</li>
+            <li>But that would require a lot of time</li>
+            <h3>A better foundation</h3>
+            <li>VyOS picked Python. Go provides most of the advantages and none of the disadvantages</li>
+            <li>Their design did not allow easy plugins</li>
+            <li>Go: concurrency (goroutines), great tooling and libraries, cross-compilation</li>
+            <li>Single binary: like the ExaBGP zipapp nobody uses, but this time it's the default.<br>Copy one file, run it. No Python, no pip...</li>
+        </ul>
+    </div>
+
+    <!-- Slide 4: Experimentation -->
+    <div class="slide">
+        <h2>The Story: Experimentation</h2>
+        <h3>Personal prototyping</h3>
+        <ul>
+            <li>Gave me the will to try: made prototypes in <span class="em">Zig</span> and <span class="em">V</span></li>
+        </ul>
+        <h3>Not only a hobby</h3>
+        <ul>
+            <li>We presented our router</li>
+            <li>We want control of our infrastructure</li>
+            <li><span class="em">Ze is part of that effort.</span></li>
+        </ul>
+        <h3>AI collaboration</h3>
+        <ul>
+            <li>The latest ExaBGP release got many features added (and mypy type checking) by Claude</li>
+            <li>Learned a lot: lots went wrong (Sonnet struggled with type issues)</li>
+            <li>Then Claude 4.5 came out: from fighting the AI to pleasant collaboration</li>
+            <li>Claude 4.6 has a <span class="em">1M token context window</span>: game changer.<br>A single feature often needs 350-500k tokens of context</li>
+        </ul>
+    </div>
+
+    <!-- Slide 5: December 2025 -->
+    <div class="slide">
+        <h2>The Story ... so far (100+ days)</h2>
+        <div class="two-col">
+            <div>
+                <ul>
+                    <li>Liane and Lou 👋 took over managing R&amp;D and infrastructure, freeing up my time</li>
+                    <li>Like during COVID, it gave me time to invest in R&amp;D</li>
+		    <li>A good occasion to explore how AI would change our business</li>
+		    <li>My biggest convert is my co-director who now uses AI daily for SalesForce reporting</li>
+                </ul>
+            </div>
+            <div>
+                <table>
+                    <tr><th>What</th><th>Count</th></tr>
+                    <tr><td>Commits</td><td>1,891</td></tr>
+                    <tr><td>Go source files</td><td>3,090 (948k lines)</td></tr>
+                    <tr><td>Go test files</td><td>611 (236k lines)</td></tr>
+                    <tr><td>Functional tests (.ci)</td><td>492</td></tr>
+                    <tr><td>Editor tests (.et)</td><td>144</td></tr>
+                    <tr><td>YANG modules</td><td>64</td></tr>
+                </table>
+            </div>
+        </div>
+        <img src="screenshots/cli-ze-review.png" alt="Codeberg activity graph showing Dec 2025 - Mar 2026 burst" style="width: 100%; border-radius: 10px; margin-top: 10px;">
+    </div>
+
+    <!-- Slide 6: AI Is Not Magic -->
+    <div class="slide">
+        <h2>AI Is Not Magic</h2>
+        <h3>The good</h3>
+        <ul>
+            <li>This work would <span class="em">not have been possible</span> without AI</li>
+        </ul>
+        <h3>The bad</h3>
+        <ul>
+            <li>Hard to get it to work as you want until you have patterns emerging</li>
+            <li><span class="em">Knowledge without wisdom</span>: knows every RFC but is trained on monolithic code</li>
+            <li>Does not realise when it hits conflicting information: It will write "something"</li>
+            <li>Claude claims "all done." but the feature is <span class="em">not wired in, not tested, not documented</span><br>The leaked Claude Code source code confirms Anthropic knows this is a problem.</li>
+        </ul>
+        <h3>I went too quick, too fast. Learned to tame the beast as I went</h3>
+        <div class="box" style="margin-top: 5px; margin-bottom: 5px;">
+            <p>So much for Vibe coding, read the code!</p>
+            <p>Always ask is there is remaining or defered work</p>
+        </div>
+    </div>
+
+    <!-- Slide 7: AI Won't Always Do What You Ask -->
+    <div class="slide">
+        <h2>AI Won't Always Do What You Ask</h2>
+        <h3>Agrees, then silently substitutes</h3>
+        <ul>
+            <li>You describe a design. Claude says <span class="em">"I'm fine with it"</span></li>
+            <li>Then implements <span class="em">something different</span> without telling you</li>
+            <li>I found this issue after asking Claude to perform <span class="em">two extensive reviews</span> of the code against the spec</li>
+        </ul>
+        <div class="box" style="margin: 15px 0;">
+            <p style="font-size: 16px; font-family: 'Courier New', monospace; margin: 0; opacity: 0.9;">
+                The spec says:<br>
+                "Each 64K block can serve one Extended Message peer's<br>
+                &nbsp;overflow item, OR be subdivided into 16 x 4K slices<br>
+                &nbsp;for standard peers.<span class="em">This avoids maintaining two separate pools.</span>"
+            </p>
+        </div>
+	<p>What Claude built: <span class="em">two separate pools with a shared counter</span></p>
+        <div class="box" style="margin: 15px 0;">
+            <p style="font-size: 16px; font-family: 'Courier New', monospace; margin: 0; opacity: 0.9;">
+                You're right. I apologize. You described this design, I said I was fine with it,<br>
+		and then implemented something  different. That's <span class="em">exactly the kind of failure</span><br>
+		the project rules warn about &mdash; agreeing then silently substituting.
+            </p>
+        </div>
+        <ul>
+            <li>It <span class="em">drifts</span> toward patterns from training data</li>
+            <li>Verbal agreement ≠ implementation. <span class="em">Always verify the diff</span></li>
+        </ul>
+    </div>
+
+    <!-- Slide 8: AI Development Results -->
+    <div class="slide">
+        <h2>Developing with AI</h2>
+        <div class="two-col">
+            <div>
+                <h3>What Worked</h3>
+                <ul>
+                    <li>Test Driven Development</li>
+                    <li><span class="em">3,470 co-authored commits</span></li>
+                    <li>~100 days from zero to a "basic" NOS</li>
+                    <li>RFC (very well defined) implementation</li>
+                    <li>Test generation, refactoring across files</li>
+                </ul>
+            </div>
+            <div>
+                <h3>What Doesn't</h3>
+                <ul>
+                    <li>Trusting the generated code</li>
+                    <li>Without tests, many non-obvious bugs</li>
+                    <li><code>/deep-review</code> <span class="em">always</span> finds issues, every single time</li>
+                    <li>Hoping an AI can design innovative software</li>
+                    <li>You can outsource development, not design</li>
+                </ul>
+            </div>
+        </div>
+        <h3>How to work with it</h3>
+        <ul>
+            <li>Telling Claude he has OCD during reviews makes him <span class="em">stricter and better</span></li>
+            <li>Be ready to stop and argue: like with a Junior Dev</li>
+            <li>He will give you advice having not read the full code</li>
+            <li>He can write tools to fix things well: <span class="em">let him!</span></li>
+            <li>He can decide to edit all files "by hand" when <code>sed</code> would have done it</li>
+            <li><span class="em">PATIENCE</span>: you need patience, for when it is not consistent</li>
+        </ul>
+    </div>
+
+
+    <!-- Slide 9: .claude System Deeper Look -->
+    <div class="slide">
+        <h2>The .claude System</h2>
+        <p>Those problems don't go away. You build systems to catch them.</p>
+        <h3>Rules with reasons</h3>
+        <ul>
+            <li>35 rationale files explaining <span class="em">why</span> each rule exists: so the AI reasons, not just follows</li>
+            <li>Anti-rationalization rules: "the answer is always no"</li>
+        </ul>
+        <div class="box" style="margin: 15px 0;">
+            <p style="font-size: 18px; margin: 0 0 5px;"><strong>"Too simple to need a test"</strong> &rarr; Test it</p>
+            <p style="font-size: 18px; margin: 0 0 5px;"><strong>"Pre-existing issue"</strong> &rarr; Always report. Investigate. Ask the user.</p>
+            <p style="font-size: 18px; margin: 0;"><strong>"Should work"</strong> &rarr; Run it, paste output</p>
+        </div>
+	<p>It still does what it was trained to do (once the context exceeds 250k tokens)</p>
+        <h3>Enforcement</h3>
+        <ul>
+            <li>Hook says no? Code doesn't land. No negotiation. No override.</li>
+            <li>487 learned summaries: decisions and gotchas extracted at session end</li>
+            <li>Learned summaries preserve decisions across sessions: institutional memory</li>
+        </ul>
+    </div>
+
+    <!-- Slide 10: .claude System Deeper Look -->
+    <div class="slide">
+        <h2>The .claude System</h2>
+        <h3>The process</h3>
+        <ul>
+            <li>TDD enforced: tests must exist and fail before implementation. No exceptions.</li>
+            <li>Spec-driven: research, design spec, approval, implement, audit</li>
+            <li>Every feature starts as a spec with acceptance criteria, not as code</li>
+            <li>50 RFC summaries so the AI can implement from condensed protocol specs</li>
+            <li><span class="em">The .claude system is transferable: not Ze-specific. Works for any project.</span></li>
+        </ul>
+        <div class="box">
+            <p style="margin: 0;"><span class="em">The system is as much a deliverable as the code itself</span></p>
+        </div>
+    </div>
+
+    <!-- Slide 11: Deep Review Example -->
+    <div class="slide">
+        <h2>"simple" review</h2>
+        <img src="screenshots/cli-session.png" alt="Critical Review Summary showing 7 issues found and fixed" style="width: 100%; max-height: 60vh; object-fit: contain; object-position: top left; border-radius: 10px;">
+    </div>
+
+    <!-- Slide 12: ExaBGP Compatibility -->
+    <div class="slide">
+        <h2>ExaBGP Compatibility: Your Scripts Still Work</h2>
+        <h3>Migration tools</h3>
+        <ul>
+            <li><code>ze config migrate</code> converts ExaBGP configs to ze format automatically</li>
+            <li><code>ze exabgp plugin</code> runs existing ExaBGP processes with ze as the engine</li>
+            <li>Bidirectional translation: ze JSON to ExaBGP JSON, ExaBGP commands to ze commands</li>
+        </ul>
+        <h3>The promise</h3>
+        <ul>
+            <li>Your existing scripts keep working: <span class="em">upgrade the engine, not your tooling</span></li>
+        </ul>
+        <div class="box">
+            <p style="font-size: 20px; margin: 0;"><span class="em">The code should not even be called alpha: very untested, run at your own risk.</span><br>
+            But: all ExaBGP compatibility tests pass and you can play with it.</p>
+        </div>
+    </div>
+
+    <!-- Slide 13: AI-First Design -->
+    <div class="slide">
+        <h2>AI-First Design: Ze Goes Further</h2>
+        <h3>One interface</h3>
+        <ul>
+            <li>ExaBGP was HTTP+CGI for BGP</li>
+            <li><span class="em">Ze is a BGP controller for modern times.</span></li>
+            <li>Every CLI command is automatically available to AI and programs</li>
+            <li>No separate API to learn: one interface for humans and machines</li>
+        </ul>
+        <h3>Machine integration</h3>
+        <ul>
+            <li><code>ze help --ai</code> generates a machine-readable command reference from the live binary</li>
+            <li>MCP transport: any AI assistant connects and gets full daemon control</li>
+            <li>Typed tools: <code>ze_announce</code>, <code>ze_withdraw</code>, <code>ze_peers</code>, <code>ze_peer_control</code></li>
+        </ul>
+        <h3>Human interface</h3>
+        <ul>
+            <li>Not forgetting humans: the same interface works via CLI, SSH, and web UI</li>
+        </ul>
+    </div>
+
+    <!-- Slide 14: Plugin Architecture -->
+    <div class="slide">
+        <h2>The Plugin Architecture</h2>
+        <h3>Minimal engine</h3>
+        <ul>
+            <li>Ze Core is a content-agnostic event bus: components connect to it</li>
+            <li>BGP is a component (FSM, wire parsing, reactor event loop)</li>
+            <li>Everything else is a plugin: RIB, route reflection, GR, RPKI, FlowSpec, EVPN...</li>
+        </ul>
+        <h3>Self-contained plugins</h3>
+        <ul>
+            <li><span class="em">25 plugins</span> today, each self-contained with YANG schemas</li>
+            <li>Plugins register via <code>init()</code>: blank import enables, removing it disables</li>
+        </ul>
+        <div class="arch-box">Ze Engine Core (event bus for components and plugins)
+  |-- BGP Component (FSM, wire, reactor)
+  |-- &lt;future components&gt;
+  |-- Plugin Infrastructure (registry, process manager, hub)
+       |-- bgp-rib        (route storage + best-path)
+       |-- bgp-rs         (route server, RFC 7947)
+       |-- bgp-gr         (graceful restart, RFC 4724/9494)
+       |-- bgp-rpki       (origin validation, RFC 6811)
+       |-- bgp-nlri-evpn  (L2VPN EVPN, RFC 7432)
+       |-- bgp-nlri-flowspec (RFC 8955/8956)
+       |-- filter-community (tag/strip communities)
+       |-- ... 18 more</div>
+    </div>
+
+    <!-- Slide 15: YANG Config -->
+    <div class="slide">
+        <h2>YANG-Modeled Configuration</h2>
+        <h3>Schema-driven</h3>
+        <ul>
+            <li><span class="em">52 YANG modules</span> define the entire config surface</li>
+            <li>Typo? Ze rejects unknown keys and suggests the closest match</li>
+            <li>No version numbers: machine-transformable schema evolution</li>
+        </ul>
+        <h3>Runtime</h3>
+        <ul>
+            <li>Validation at every layer</li>
+            <li>Hot reconfiguration via SIGHUP with automatic reconciliation</li>
+        </ul>
+        <h3>One YANG schema drives</h3>
+        <ul>
+            <li>CLI tab completion</li>
+            <li>Web UI forms and navigation</li>
+            <li>Config validation</li>
+            <li>Schema discovery</li>
+        </ul>
+    </div>
+
+    <!-- Slide 16: CLI, SSH, ZeFS -->
+    <div class="slide">
+        <h2>CLI, SSH, and ZeFS</h2>
+        <h3>ZeFS: config as a blob store</h3>
+        <ul>
+            <li>Ze stores config in <span class="em">ZeFS</span>: a blob store that tracks revisions, not a flat text file</li>
+            <li>This is what makes Ze behave like a <span class="em">network OS</span>, not a Unix daemon:</li>
+        </ul>
+        <h3>Network OS workflow (via built-in SSH server)</h3>
+        <ul>
+            <li>CLI connects internally over SSH (same interface local or remote)</li>
+        </ul>
+        <table style="margin: 10px 0;">
+            <tr><td><code>ze config edit</code></td><td>Opens interactive editor session</td></tr>
+            <tr><td><code>set bgp peer 10.0.0.1 as 65001</code></td><td>Modify config in draft</td></tr>
+            <tr><td><code>diff</code></td><td>Review pending changes</td></tr>
+            <tr><td><code>commit</code> / <code>commit confirmed 5</code></td><td>Apply (with optional auto-revert in N minutes)</td></tr>
+            <tr><td><code>rollback 1</code></td><td>Restore previous revision</td></tr>
+        </table>
+        <h3>Extras</h3>
+        <ul>
+            <li>Per-user command history persisted across restarts</li>
+            <li>Tab completion driven by YANG schemas</li>
+            <li>Every command supports <code>--json</code>: machine-parseable output for scripting</li>
+        </ul>
+    </div>
+    <!-- Slide 17: CLI Screenshot -->
+    <div class="slide">
+        <h2>CLI</h2>
+        <img src="screenshots/web-config-editor.png" alt="Ze CLI with tab completion and config editing" style="max-width: 95%; max-height: 80vh; border-radius: 8px;">
+    </div>
+
+
+    <!-- Slide 18: Web Interface -->
+    <div class="slide">
+        <h2>Web Interface</h2>
+        <h3>YANG-driven UI</h3>
+        <ul>
+            <li>HTTPS server with <span class="em">macOS Finder-style column navigation</span></li>
+            <li>Every UI element generated from YANG schemas: zero hardcoded forms</li>
+        </ul>
+        <h3>Collaboration</h3>
+        <ul>
+            <li>Per-user draft sessions with inline diff review and conflict detection</li>
+            <li>Tab completion, live SSE updates when another user commits</li>
+        </ul>
+        <h3>Extras</h3>
+        <ul>
+            <li>CLI bar at the bottom: same grammar as SSH CLI</li>
+            <li>YANG decorators: AS numbers annotated with org names via Team Cymru DNS</li>
+        </ul>
+    </div>
+
+    <!-- Slide 19: Web UI Screenshot -->
+    <div class="slide">
+        <h2>Web Interface</h2>
+        <img src="screenshots/web-show-bgp-peer.png" alt="Ze web UI" style="width: 100%; max-height: calc(80vh - 120px); object-fit: contain; border-radius: 8px;">
+    </div>
+
+    <!-- Slide 20: Plugin Modes and Performance -->
+    <div class="slide">
+        <h2>Plugin Modes and Performance</h2>
+        <h3>No performance compromise</h3>
+        <ul>
+            <li>Internal plugins: goroutines with zero-copy structured event delivery (DirectBridge)</li>
+            <li>External plugins: connect over TLS</li>
+        </ul>
+        <h3>Four invocation modes</h3>
+        <table style="margin-top: 10px;">
+            <tr><th>Mode</th><th>How it works</th></tr>
+            <tr><td>In-process goroutine</td><td>Zero-copy, DirectBridge hot path</td></tr>
+            <tr><td>Forked subprocess</td><td>TLS connect-back, per-plugin token</td></tr>
+            <tr><td>Direct call</td><td>Sync in-process</td></tr>
+            <tr><td>Remote</td><td>External binary over TLS</td></tr>
+        </table>
+        <p style="margin-top: 20px;">Plugin SDKs for <span class="em">Go</span> and <span class="em">Python</span>. Any language via JSON/text over stdin/stdout.</p>
+    </div>
+
+    <!-- Slide 21: Plugin Filters -->
+    <div class="slide">
+        <h2>Plugin Filters and Developer Tools</h2>
+        <h3>Route filters</h3>
+        <ul>
+            <li>External route filters on import/export via <code>redistribution { import [...] export [...] }</code></li>
+            <li>Filters chain as piped transforms with delta-only attribute changes</li>
+        </ul>
+        <h3>Three filter categories (always applied in order)</h3>
+        <table style="margin-top: 10px;">
+            <tr><th>Category</th><th>Who controls it</th><th>Example</th></tr>
+            <tr><td>Mandatory</td><td>RFC compliance, always runs</td><td>RFC 9234 OTC</td></tr>
+            <tr><td>Default</td><td>Engine, can be overridden</td><td>Loop prevention</td></tr>
+            <tr><td>User</td><td>Operator chooses</td><td><code>rpki:validate</code></td></tr>
+        </table>
+        <h3>Developer tools</h3>
+        <ul>
+            <li><code>ze bgp plugin cli</code>: plugin debug shell over SSH against a live daemon</li>
+        </ul>
+        <div class="box">
+            <p class="note" style="margin: 0;">Not everything is AI-centric. You too can be a <span class="em">human-powered BGP route filter</span>.</p>
+        </div>
+    </div>
+
+    <!-- Slide 22: Protocol Coverage -->
+    <div class="slide">
+        <h2>Protocol Coverage</h2>
+        <h3>21 Address Families</h3>
+        <table>
+            <tr><th>AFI</th><th>Families</th></tr>
+            <tr><td>IPv4 / IPv6</td><td>unicast, multicast, VPN, FlowSpec, MPLS, MUP, MVPN</td></tr>
+            <tr><td>IPv4 only</td><td>RTC</td></tr>
+            <tr><td>L2VPN</td><td>EVPN, VPLS</td></tr>
+            <tr><td>BGP-LS</td><td>BGP-LS, BGP-LS-VPN (40 TLVs)</td></tr>
+        </table>
+        <h3>13 Capabilities</h3>
+        <table>
+            <tr><th>Category</th><th>Capabilities</th></tr>
+            <tr><td>Core</td><td>4-byte ASN, Extended Messages, Route Refresh, Enhanced Route Refresh</td></tr>
+            <tr><td>Routing</td><td>Add-Path, Extended Next-Hop, GR, Long-Lived GR</td></tr>
+            <tr><td>Operations</td><td>BGP Roles, RPKI, Software Version, Hostname, Link-Local NH</td></tr>
+        </table>
+        <div class="box">
+            <p style="font-size: 20px; margin: 0;"><span class="em">Full RFC 4271 best-path selection.</span> All families registered by plugins at startup: adding a new family means writing a plugin, no engine changes needed.</p>
+        </div>
+    </div>
+
+    <!-- Slide 23: RPKI -->
+    <div class="slide">
+        <h2>RPKI Integration</h2>
+        <h3>Protocol</h3>
+        <ul>
+            <li>RTR protocol client (RFC 6810/8210)</li>
+            <li>Origin validation integrated into best-path selection</li>
+            <li>Valid / Invalid / NotFound status on routes</li>
+        </ul>
+        <h3>Design choice</h3>
+        <ul>
+            <li>Consumers can subscribe to RPKI events separately, or get merged <code>update-rpki</code> events</li>
+            <li>Each UPDATE arrives pre-correlated with its validation status</li>
+        </ul>
+        <h3>Testing</h3>
+        <ul>
+            <li><code>ze-test rpki</code>: deterministic mock RPKI server (validation result derived from IP)</li>
+            <li><code>ze-test rtr-mock</code>: mock RTR cache server with explicit VRPs (prefix/ASN/max-length entries)</li>
+            <li>Full lab testing: Ze connects to mock RTR, receives VRPs, validates live routes</li>
+        </ul>
+    </div>
+
+    <!-- Slide 24: Looking Glass -->
+    <div class="slide">
+        <h2>Looking Glass</h2>
+        <h3>Public view</h3>
+        <ul>
+            <li>Built-in public looking glass (separate HTTP server, no auth, read-only)</li>
+            <li>Peer dashboard with live SSE updates</li>
+            <li>Route lookup, AS path search, community search</li>
+        </ul>
+        <h3>Visualization</h3>
+        <ul>
+            <li><span class="em">AS path topology graph:</span> server-side SVG, Sugiyama layout, pure Go (no GraphViz, no JS)</li>
+            <li>Birdwatcher-compatible REST API: plugs directly into Alice-LG</li>
+        </ul>
+    </div>
+
+    <!-- Slide 25: Looking Glass Screenshot -->
+    <div class="slide">
+        <h2>Looking Glass</h2>
+        <img src="screenshots/lg-peers.png" style="width: 100%; max-width: 1400px; border-radius: 8px; margin-top: 10px; display: block; margin-left: auto; margin-right: auto;">
+    </div>
+    </div>
+
+
+    <!-- Slide 24b: Looking Glass Route Search Screenshot -->
+    <div class="slide">
+        <h2>Looking Glass - Route Search</h2>
+        <img src="screenshots/lg-routes.png" style="width: 100%; max-width: 1400px; border-radius: 8px; margin-top: 10px; display: block; margin-left: auto; margin-right: auto;">
+    </div>
+
+    <!-- Slide 26: Operational Intelligence -->
+    <div class="slide">
+        <h2>Operational Intelligence</h2>
+        <h3>Team Cymru DNS</h3>
+        <p>AS numbers annotated with organization names throughout the system: web UI, looking glass, AS path graphs. Live DNS lookups with caching.</p>
+        <h3>PeeringDB</h3>
+        <p><code>ze update bgp peer * prefix</code> queries PeeringDB and auto-sets prefix maximums. Configurable margin and staleness warnings.</p>
+        <h3>The Decorator Framework</h3>
+        <div class="box">
+            <p style="font-size: 20px; margin: 0;">Add <code>ze:decorate</code> to any YANG leaf and the system automatically enriches it using a decoration function. Team Cymru and PeeringDB are just two decorators that ship by default. <span class="em">Easy to add your own.</span></p>
+        </div>
+        <p>Prometheus metrics, structured JSON logging, streaming route events</p>
+    </div>
+
+    <!-- Slide 27: Fleet Management -->
+    <div class="slide">
+        <h2>Fleet Management</h2>
+        <p class="note" style="margin-bottom: 20px;">(highly experimental and untested)</p>
+        <h3>Distribution</h3>
+        <ul>
+            <li>Centralized config distribution over TLS</li>
+            <li>Hub/client model with per-client secrets</li>
+            <li>Version-hashed config fetch (only download on change)</li>
+        </ul>
+        <h3>Resilience</h3>
+        <ul>
+            <li>Two-phase config change: hub notifies, client fetches when ready</li>
+            <li><span class="em">Partition resilient:</span> clients cache config locally, start from cache when hub is unreachable</li>
+        </ul>
+    </div>
+
+    <!-- Slide 28: Tools - Binaries -->
+    <div class="slide">
+        <h2>What Ships</h2>
+        <h3>Binaries</h3>
+        <table>
+            <tr><th>Tool</th><th>Purpose</th></tr>
+            <tr><td><code>ze</code></td><td>Daemon, CLI, config editor, SSH server, web UI, looking glass</td></tr>
+            <tr><td><code>ze-test</code></td><td>Test runner and mock servers (13 subcommands)</td></tr>
+            <tr><td><code>ze-perf</code></td><td>Cross-implementation propagation latency benchmark</td></tr>
+            <tr><td><code>ze-chaos</code></td><td>Chaos testing orchestrator with web dashboard</td></tr>
+            <tr><td><code>ze-analyse</code></td><td>MRT dump analysis: attribute stats, community density, route counts</td></tr>
+        </table>
+    </div>
+
+    <!-- Slide 29: Tools - ze-test -->
+    <div class="slide">
+        <h2>What Ships: ze-test</h2>
+        <h3>ze-test subcommands</h3>
+        <table>
+            <tr><th>Subcommand</th><th>Purpose</th></tr>
+            <tr><td><code>bgp</code></td><td>Functional tests: encode, plugin, decode, parse, reload, chaos-web</td></tr>
+            <tr><td><code>editor</code></td><td>Editor TUI tests (.et files)</td></tr>
+            <tr><td><code>ui</code></td><td>UI functional tests (completion, CLI)</td></tr>
+            <tr><td><code>mcp</code></td><td>MCP client (send commands to daemon via MCP)</td></tr>
+            <tr><td><code>managed</code></td><td>Managed config tests (hub, auth, fleet)</td></tr>
+            <tr><td><code>web</code></td><td>Web browser functional tests (.wb files)</td></tr>
+            <tr><td><code>peer</code></td><td>BGP test peer (sink/echo/check modes)</td></tr>
+            <tr><td><code>rtr-mock</code></td><td>Mock RTR cache server (explicit VRPs)</td></tr>
+            <tr><td><code>rpki</code></td><td>Deterministic RPKI mock server (IP modulo)</td></tr>
+            <tr><td><code>peeringdb</code></td><td>Deterministic PeeringDB mock server (ASN-derived)</td></tr>
+            <tr><td><code>syslog</code></td><td>Syslog server for testing</td></tr>
+            <tr><td><code>text-plugin</code></td><td>Minimal text-mode plugin (for .ci tests)</td></tr>
+        </table>
+    </div>
+
+    <!-- Slide 30: Tools - ze-analyse -->
+    <div class="slide">
+        <h2>What Ships: ze-analyse</h2>
+        <h3>Learn from real Internet BGP data (RIPE RIS, RouteViews)</h3>
+        <table>
+            <tr><th>Command</th><th>What we learned</th></tr>
+            <tr><td><code>density</code></td><td>72% of UPDATE messages carry a single prefix<br>Measures burst rates to size per-peer buffers</td></tr>
+            <tr><td><code>attributes</code></td><td>55M routes: 789 unique NEXT_HOP<br>344K unique COMMUNITY<br>7M unique AS_PATH<br>Bundle dedup without AS_PATH: 97% hit rate</td></tr>
+            <tr><td><code>communities</code></td><td>Finds communities attached to 95%+ of an ASN's routes<br>Calculates per-ASN wire byte savings</td></tr>
+            <tr><td><code>count-attrs</code></td><td>90% of routes carry 3 to 5 attributes<br>No route in the full table has more than 10</td></tr>
+            <tr><td><code>download</code></td><td>Fetches RIPE RIS and RouteViews data<br>RIB snapshots and live update streams</td></tr>
+        </table>
+        <div class="box">
+            <table style="margin: 0; width: auto;">
+                <tr><th>AS_PATH</th><th>Unique bundles</th><th>Dedup rate</th></tr>
+                <tr><td>With</td><td>9M / 55M</td><td><span class="em">84%</span></td></tr>
+                <tr><td>Without</td><td>1.7M / 55M</td><td><span class="em">97%</span></td></tr>
+            </table>
+            <p style="margin: 8px 0 0;">Still need to investigate how AS_PATH is handled</p>
+        </div>
+    </div>
+
+    <!-- Slide 31: Performance -->
+    <div class="slide">
+        <h2>Performance</h2>
+        <h3>Two use cases pull in opposite directions</h3>
+        <ul>
+            <li><strong>Route announcement</strong> (ExaBGP use case): optimise for zero-copy generation and sending</li>
+            <li><strong>Router</strong> (route server, RIB, filtering): need to parse for filtering, need backpressure</li>
+        </ul>
+        <h3>Zero-copy architecture</h3>
+        <ul>
+            <li>Lazy-parsed WireUpdate</li>
+            <li>ContextID forwarding (same encoding context = forward raw bytes)</li>
+            <li>Automatic update groups</li>
+            <li>Per-attribute-type pools with dedup</li>
+            <li>Buffer-first encoding into pooled bounded buffers</li>
+        </ul>
+    </div>
+
+    <!-- Slide 32: ze-perf Benchmarks 
+    <div class="slide">
+        <h2>ze-perf: Benchmarking Ourselves</h2>
+        <div class="box">
+            <p class="note" style="margin: 0;">There are three kinds of lies: lies, damned lies, and <span class="em">benchmarks</span>.</p>
+        </div>
+        <h3>100,000 routes, IPv4/unicast, 3 iterations</h3>
+        <table>
+            <tr><th>DUT</th><th>Convergence</th><th>Throughput (r/s)</th><th>p99 Latency</th></tr>
+            <tr><td>RustyBGP</td><td>1,265ms</td><td>79,051</td><td>2ms</td></tr>
+            <tr><td>BIRD</td><td>1,369ms</td><td>73,046</td><td>4ms</td></tr>
+            <tr style="color: var(--cyan); font-weight: 600;"><td>Ze</td><td>1,568ms</td><td>63,775</td><td>568ms</td></tr>
+            <tr><td>GoBGP</td><td>2,146ms</td><td>46,598</td><td>963ms</td></tr>
+        </table>
+    </div>
+    -->
+
+    <!-- Slide 33: Everything Is Registered -->
+    <div class="slide">
+        <h2>Everything Is Registered, Everything Is Discoverable</h2>
+        <h3>Registration</h3>
+        <ul>
+            <li>Every plugin registers: name, families, capabilities, YANG schema, dependencies, event types</li>
+            <li>Every env var registered via <code>env.MustRegister()</code>: unregistered access aborts</li>
+            <li>Every RPC defined in YANG: no command exists without a schema</li>
+        </ul>
+        <h3>Auto-generated</h3>
+        <ul>
+            <li>Every CLI command auto-generated from registrations: no hand-wired dispatch</li>
+            <li><span class="em">The binary tells you what it can do.</span> If a plugin adds a new env var or RPC, it appears in CLI introspection automatically.</li>
+        </ul>
+        <h3>Verification tools</h3>
+        <table>
+            <tr><th>Command</th><th>What it checks</th></tr>
+            <tr><td><code>make ze-spec-status</code></td><td>Spec inventory with progress tracking</td></tr>
+            <tr><td><code>make ze-inventory</code></td><td>Plugins, families, RPCs, YANG modules, tests, packages</td></tr>
+            <tr><td><code>make ze-validate-commands</code></td><td>Every CLI command matches its YANG schema</td></tr>
+            <tr><td><code>make ze-doc-drift</code></td><td>Documentation matches reality</td></tr>
+        </table>
+    </div>
+
+    <!-- Slide 34: Testing Infrastructure -->
+    <div class="slide">
+        <h2>Testing Infrastructure</h2>
+        <h3>Coverage</h3>
+        <ul>
+            <li><span class="em">490 functional tests</span> (.ci): real config, real daemon, real wire output</li>
+            <li>32 interop scenarios against FRR, BIRD, GoBGP in Docker (not mock peers)</li>
+            <li>Fuzz testing on all wire parsers</li>
+        </ul>
+        <h3>Specialized testing</h3>
+        <ul>
+            <li>Chaos testing framework with web dashboard (convergence tracking, property verification)</li>
+            <li>Editor tests (.et) for headless TUI simulation</li>
+            <li>ExaBGP compatibility test suite</li>
+        </ul>
+        <h3>Gate</h3>
+        <ul>
+            <li><code>make ze-verify</code>: 26 linters + unit + functional + ExaBGP before any commit</li>
+        </ul>
+    </div>
+
+
+    <!-- Slide 35: Ze Chaos Dashboard -->
+    <div class="slide">
+        <h2>Ze Chaos</h2>
+        <div style="position: relative; margin-top: 10px;">
+            <img src="screenshots/chaos-dashboard.png" alt="Ze Chaos dashboard - Families view" style="width: 100%; max-height: 60vh; object-fit: contain; object-position: top left; border-radius: 10px;">
+            <img src="screenshots/chaos-peers.png" alt="Ze Chaos dashboard - Convergence histogram" style="position: absolute; bottom: 0; right: 0; width: 48%; border-radius: 10px; border: 2px solid rgba(0, 159, 227, 0.5); box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
+        </div>
+    </div>
+
+    <!-- Slide 36: What's Next -->
+    <div class="slide">
+        <h2>What's Next</h2>
+        <h3>Status</h3>
+        <ul>
+            <li><span class="em">Pre-release:</span> looking for early adopters and feedback</li>
+        </ul>
+        <h3>Roadmap</h3>
+        <ul>
+            <li>IP filter auto-update</li>
+            <li>BMP (RFC 7854)</li>
+            <li>BFD integration</li>
+            <li>Docker images</li>
+            <li>Community and documentation</li>
+        </ul>
+        <div class="box" style="margin-top: 30px;">
+            <p style="margin: 0;">Until release, development is at:</p>
+            <p style="font-size: 22px; margin: 5px 0 0;"><span class="em">codeberg.org/thomas-mangin/ze</span></p>
+        </div>
+    </div>
+
+    <!-- Slide 37: Thank You / Q&A -->
+    <div class="slide">
+        <h2 style="font-size: 56px; text-align: center; margin-top: 100px;">Questions?</h2>
+        <div style="text-align: center; margin-top: 60px;">
+            <img src="screenshots/ze-architecture.png" alt="Codeberg repo" style="width: 80%; border-radius: 8px;">
+            <p style="font-size: 24px; margin-top: 30px;">Only <span class="em">40MB</span> of code ATM</p>
+            <p style="font-size: 24px;">Only <span class="em">20MB</span> of vendoring code</p>
+            <p style="font-size: 24px;">(and no RSI! 😊)</p>
+        </div>
+        <div style="text-align: center; margin-top: 40px;">
+            <p style="font-size: 20px; margin-bottom: 8px;">Release will be at: <span class="em">github.com/ze-software/ze</span></p>
+            <p style="font-size: 28px; opacity: 0.9; margin-top: 20px;">Thank you</p>
+        </div>
+    </div>
+
+    <div class="footer">net:manchester &middot; April 2026</div>
+    <div class="nav">
+        <button onclick="changeSlide(-1)" id="prev">&larr; Prev</button>
+        <button onclick="changeSlide(1)" id="next">Next &rarr;</button>
+    </div>
+
+    <script>
+        let current = 0;
+        const slides = document.querySelectorAll('.slide');
+        const total = slides.length;
+
+        function showSlide(n) {
+            slides[current].classList.remove('active');
+            current = (n + total) % total;
+            slides[current].classList.add('active');
+            document.getElementById('progress').style.width = ((current + 1) / total * 100) + '%';
+            document.getElementById('counter').textContent = `${current + 1} / ${total}`;
+            document.getElementById('prev').disabled = current === 0;
+            document.getElementById('next').disabled = current === total - 1;
+        }
+
+        function changeSlide(dir) { showSlide(current + dir); }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') changeSlide(-1);
+            if (e.key === 'ArrowRight') changeSlide(1);
+        });
+
+        showSlide(0);
+    </script>
+</body>
+</html>

@@ -5,7 +5,7 @@ Usage:
     tools/render-talks.py
 
 Every talk card is data (data/talks.json), not hand-authored HTML -- add a
-talk there (plus its presentations/<slug>/ directory, built separately via
+talk there (plus its talks/<slug>/ directory, built separately via
 presentations/tools/bundle-html.py) and re-run this to publish it.
 """
 
@@ -27,12 +27,12 @@ def display_date(iso_date):
 
 def render_talk(talk):
     return """                    <article class="audience-card">
-                        <a href="../presentations/{slug}/index.html" class="talk-link">
+                        <a href="{slug}/" class="talk-link">
                             <h3>{venue}</h3>
                             <p>{title}</p>
                             <p class="talk-date">{date}</p>
                         </a>
-                        <p class="talk-alt"><a href="../presentations/{slug}/index-inlined.html" download>Download standalone HTML deck</a></p>
+                        <p class="talk-alt"><a href="{slug}/index-inlined.html" download>Download standalone HTML deck</a></p>
                     </article>""".format(
         slug=talk["slug"],
         venue=talk["venue"],
@@ -71,11 +71,9 @@ def render(talks):
         md_parts.append("")
         md_parts.append("%s -- %s" % (talk["title"], display_date(talk["date"])))
         md_parts.append("")
+        md_parts.append("[Watch](%stalks/%s/)" % (sitelib.SITE_BASE, talk["slug"]))
         md_parts.append(
-            "[Watch](%spresentations/%s/index.html)" % (sitelib.SITE_BASE, talk["slug"])
-        )
-        md_parts.append(
-            "[Download standalone HTML deck](%spresentations/%s/index-inlined.html)"
+            "[Download standalone HTML deck](%stalks/%s/index-inlined.html)"
             % (sitelib.SITE_BASE, talk["slug"])
         )
         md_parts.append("")

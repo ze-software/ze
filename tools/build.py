@@ -10,7 +10,7 @@ Steps (default order, also the --only vocabulary):
               (tools/render-css.py)
     js        assets/js/site.js -> assets/site.js, minified (tools/render-js.py)
     docs      main/docs/*.md -> docs/** or IA namespace (tools/page_registry.py DOCS_MANIFEST)
-    usage    usage/*.md -> usage/**/index.html      (tools/render-doc.py)
+    use-cases use-cases/*.md -> use-cases/**/index.html (tools/render-doc.py)
     blog      blog/posts/*.md (editorial articles) -> blog/**/index.html
               (tools/render-blog.py) -- empty until articles are added
     changes   changes/posts/*.md (weekly updates) -> changes/<week>/index.html
@@ -20,7 +20,7 @@ Steps (default order, also the --only vocabulary):
     compare   compare/*.md -> compare/**/index.html      (tools/render-doc.py)
     features  data/features.json -> features/index.html  (tools/render-features.py)
     cli       `ze help command --json` -> reference/cli/index.html  (tools/render-cli-catalog.py)
-    deps      ../main/go.mod -> dependencies/index.html    (tools/render-dependencies.py)
+    deps      ../main/go.mod -> reference/dependencies/index.html (tools/render-dependencies.py)
     quality   quality/*.md -> quality/**/index.html      (tools/render-doc.py)
     config    live YANG + ../main/internal/**/register.go -> reference/configuration/index.html
               (tools/extract-yang-config-tree.py, tools/extract-plugin-registry.py,
@@ -39,6 +39,7 @@ Steps (default order, also the --only vocabulary):
     talks     data/talks.json -> talks/index.html          (tools/render-talks.py)
     index     data/audience.json -> index.html            (tools/render-index.py)
     timeline  data/milestones.json -> milestones/index.html (tools/render-timeline.py)
+    hubs      curated collection landing pages -> */index.html (tools/render-doc.py)
     nav       patch <div class="nav-links"> and <footer> in the remaining
               hand-authored pages (zeledon, labs/*, style-guide,
               performance) so they stay in sync with data/nav.json /
@@ -46,6 +47,7 @@ Steps (default order, also the --only vocabulary):
               each one's index.md sibling from its own <main> content
               (sitelib.extract_main + sitelib.html_to_markdown), since these
               pages have no Markdown source of their own to publish as-is
+    redirects legacy public URLs -> noindex fallback pages (tools/render-redirects.py)
     links     patch generated external links so they use target="_blank" and
               rel="noopener" consistently; always runs after selected steps
     linkcheck validate page-links data and generated external-anchor policy
@@ -80,14 +82,15 @@ HERE = pathlib.Path(__file__).resolve().parent
 GH_PAGES = HERE.parent
 
 sys.path.insert(0, str(HERE))
-import sitelib  # noqa: E402
 import page_registry  # noqa: E402
+import sitelib  # noqa: E402
 
 STEPS = [
     "css",
     "js",
     "docs",
-    "usage",
+    "use-cases",
+    "hubs",
     "labdetails",
     "blog",
     "activity",
@@ -115,6 +118,7 @@ STEPS = [
     "security",
     "timeline",
     "nav",
+    "redirects",
     "links",
     "linkcheck",
     "search",
@@ -177,16 +181,29 @@ def step_docs():
     return render_docs.main()
 
 
-def step_usage():
+def step_use_cases():
     render_doc = load_module("render-doc")
-    for page in page_registry.USAGE_PAGES:
+    for page in page_registry.USE_CASE_PAGES:
         render_doc.render(
-            GH_PAGES / "usage" / page.source,
+            GH_PAGES / "use-cases" / page.source,
             GH_PAGES / page.dest,
             page_registry.page_root_for_dest(page.dest),
             page.desc,
             cat=page.cat,
-            journey_label="Usage",
+            journey_label="Use case",
+        )
+    return 0
+
+
+def step_hubs():
+    render_doc = load_module("render-doc")
+    for page in page_registry.HUB_PAGES:
+        render_doc.render(
+            GH_PAGES / page.source,
+            GH_PAGES / page.dest,
+            page_registry.page_root_for_dest(page.dest),
+            page.desc,
+            cat=page.cat,
         )
     return 0
 
@@ -447,7 +464,7 @@ def step_nav():
     patched = 0
     for path in sorted(GH_PAGES.rglob("*.html")):
         rel = path.relative_to(GH_PAGES)
-        if rel.parts and rel.parts[0] == "presentations":
+        if page_registry.is_frozen_talk_path(rel):
             continue
         rel_text = rel.as_posix()
         if path == sitelib.SHARED_HEADER_PATH:
@@ -486,19 +503,45 @@ def step_nav():
 
 
 def step_links():
-    patched = 0
+    html_patched = 0
+    markdown_patched = 0
+    redirects = page_registry.url_redirects()
+    redirect_files = page_registry.file_redirects()
     for path in GH_PAGES.rglob("*.html"):
         rel = path.relative_to(GH_PAGES)
-        if rel.parts and rel.parts[0] == "presentations":
+        if page_registry.is_frozen_talk_path(rel):
             continue
         text = path.read_text()
-        updated = sitelib.patch_external_link_targets(text)
+        updated = page_registry.rewrite_legacy_public_urls(
+            text, sitelib.SITE_BASE, redirects
+        )
+        updated = sitelib.patch_external_link_targets(updated)
         updated = sitelib.patch_asset_versions(updated)
-        updated = sitelib.patch_canonical(updated, rel.as_posix())
+        if (
+            rel.parent.as_posix() not in redirects
+            and rel.as_posix() not in redirect_files
+        ):
+            updated = sitelib.patch_canonical(updated, rel.as_posix())
         if updated != text:
             path.write_text(updated)
-            patched += 1
-    print("patched external links, asset versions, canonical -> %d html files" % patched)
+            html_patched += 1
+
+    for path in GH_PAGES.rglob("index.md"):
+        rel = path.relative_to(GH_PAGES)
+        if page_registry.is_frozen_talk_path(rel):
+            continue
+        text = path.read_text()
+        updated = page_registry.rewrite_legacy_public_urls(
+            text, sitelib.SITE_BASE, redirects
+        )
+        if updated != text:
+            path.write_text(updated)
+            markdown_patched += 1
+
+    print(
+        "patched internal routes, external links, asset versions, canonical "
+        "-> %d html files, %d Markdown files" % (html_patched, markdown_patched)
+    )
     return 0
 
 
@@ -507,11 +550,17 @@ def step_linkcheck():
     return check_page_links.main(["--skip-network"])
 
 
+def step_redirects():
+    render_redirects = load_module("render-redirects")
+    return render_redirects.main()
+
+
 STEP_FUNCS = {
     "css": step_css,
     "js": step_js,
     "docs": step_docs,
-    "usage": step_usage,
+    "use-cases": step_use_cases,
+    "hubs": step_hubs,
     "labdetails": step_labdetails,
     "blog": step_blog,
     "activity": step_activity,
@@ -544,6 +593,7 @@ STEP_FUNCS = {
     "linkcheck": step_linkcheck,
     "search": step_search,
     "seo": step_seo,
+    "redirects": step_redirects,
 }
 
 
@@ -587,7 +637,7 @@ def check_markdown_mirrors():
     """Fail the build when an index.md still contains site-layout HTML."""
     for md_path in GH_PAGES.rglob("index.md"):
         rel = md_path.relative_to(GH_PAGES)
-        if rel.parts and rel.parts[0] == "presentations":
+        if page_registry.is_frozen_talk_path(rel):
             continue
         if sitelib.contains_block_html(md_path.read_text()):
             sitelib.warn(
@@ -697,7 +747,6 @@ def main():
         return 1
 
     check_performance_stat_drift()
-    check_llms_md_siblings()
 
     failures = []
 
@@ -717,14 +766,14 @@ def main():
         if rc:
             failures.append(step)
 
-    # These guardrails run at the very end of every build in this fixed order,
-    # whether or not --only names them, so the documented invariants hold for
-    # partial builds too: nav before links (external-link patching sees the
-    # final markup), links before linkcheck (validation sees patched anchors),
-    # and llms last (every page it links to already has its index.md sibling on
-    # disk). Running them in the main loop as well would invert this order for
-    # e.g. `--only llms`, so the loop skips them and they run once here.
-    TAIL = ["nav", "links", "linkcheck", "llms"]
+    # These guardrails run at the end of every build in this fixed order,
+    # whether or not --only names them. Redirects remove obsolete Markdown
+    # mirrors before search indexing. Navigation runs before link patching,
+    # link validation sees the final anchors, SEO sees canonical routes, and
+    # llms runs after every linked page has its index.md sibling. Running these
+    # in the main loop as well would invert that order for partial builds, so
+    # the loop skips them and runs them once here.
+    TAIL = ["redirects", "nav", "links", "linkcheck", "search", "seo", "llms"]
 
     for step in steps:
         if step in TAIL:
@@ -741,6 +790,7 @@ def main():
         run_step(step, always=step not in steps)
 
     check_markdown_mirrors()
+    check_llms_md_siblings()
     # Runs after the steps so it validates the freshly rendered homepage (and
     # freshly written site-facts) rather than the pre-build copy -- a full
     # build that corrects the number must not still fail on the stale one, and

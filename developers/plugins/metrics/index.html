@@ -1,0 +1,1132 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Plugin Metrics - Ze</title>
+        <meta name="description" content="Ze documentation: plugin-development/metrics.md" />
+        <meta property="og:title" content="Plugin Metrics - Ze" />
+        <meta property="og:description" content="Ze documentation: plugin-development/metrics.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Plugin Metrics - Ze" />
+        <meta name="twitter:description" content="Ze documentation: plugin-development/metrics.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/developers/plugins/metrics/" />
+        <meta property="og:url" content="https://ze-software.net/developers/plugins/metrics/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../roadmap/">Roadmap</a>
+                    <a href="../../../changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" tabindex="-1">
+            <section class="md-content reveal cat-observe">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Documentation</span>
+    <h1 id="plugin-metrics">Plugin Metrics</h1>
+    <p>Plugins that have observable runtime state register their own Prometheus metrics
+via the existing <code>ConfigureMetrics</code> callback in the <code>Registration</code> struct.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#implementation-pattern">Implementation Pattern</a></li>
+<li><a href="#naming-policy">Naming Policy</a>
+<ol>
+<li><a href="#type-specific-rules">Type-Specific Rules</a></li>
+<li><a href="#subject-rules">Subject Rules</a></li>
+<li><a href="#detail-rules">Detail Rules</a></li>
+<li><a href="#label-rules">Label Rules</a></li>
+<li><a href="#scope-to-prefix-mapping">Scope-to-Prefix Mapping</a></li>
+<li><a href="#full-inventory">Full Inventory</a></li>
+</ol></li>
+<li><a href="#when-configuremetrics-runs">When ConfigureMetrics Runs</a></li>
+<li><a href="#nopregistry-fallback">NopRegistry Fallback</a></li>
+<li><a href="#which-plugins-need-metrics">Which Plugins Need Metrics</a></li>
+<li><a href="#reference-implementation">Reference Implementation</a></li>
+</ol></nav>
+<!-- source: internal/component/plugin/registry/registry.go -- Registration.ConfigureMetrics -->
+
+<h2 id="implementation-pattern">Implementation Pattern</h2>
+<p>Each plugin follows the same three-step pattern used by bgp-rib and bgp-gr:</p>
+<ol>
+<li>
+<p><strong>Registration:</strong> Set <code>ConfigureMetrics</code> in the <code>Registration</code> struct inside
+   <code>init()</code>. The callback receives a typed <code>metrics.Registry</code>; no assertion is
+   needed.</p>
+</li>
+<li>
+<p><strong>Storage:</strong> Declare a package-level <code>atomic.Pointer</code> holding a metrics struct.
+   The struct contains the counters and gauges created from the registry.</p>
+</li>
+<li>
+<p><strong>Usage:</strong> At metric update points, load the pointer. If nil (metrics disabled),
+   skip. Otherwise update the metric.</p>
+</li>
+</ol>
+<!-- source: internal/component/bgp/plugins/rib/register.go -- ConfigureMetrics callback -->
+<!-- source: internal/component/bgp/plugins/rib/rib.go -- ribMetrics struct, metricsPtr, SetMetricsRegistry -->
+
+<h2 id="naming-policy">Naming Policy</h2>
+<p>Every metric name is built from four parts in fixed order:</p>
+<pre><code>ze_{scope}_{subject}_{detail}
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Part</th>
+<th>Rule</th>
+<th>Examples</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze</code></td>
+<td>Always. Global prefix for all ze metrics.</td>
+<td></td>
+</tr>
+<tr>
+<td>scope</td>
+<td>Plugin name, hyphens stripped, lowercase. Reactor uses functional area.</td>
+<td><code>rib</code>, <code>gr</code>, <code>fibkernel</code>, <code>systemrib</code>, <code>rpki</code>, <code>persist</code>, <code>watchdog</code></td>
+</tr>
+<tr>
+<td>subject</td>
+<td>Singular noun: the type of thing being measured.</td>
+<td><code>route</code>, <code>peer</code>, <code>timer</code>, <code>session</code>, <code>vrp</code></td>
+</tr>
+<tr>
+<td>detail</td>
+<td>What aspect. Depends on metric type (see below).</td>
+<td><code>inserts</code>, <code>active</code>, <code>expired</code></td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/bgp/plugins/rib/rib.go -- ze_rib_* metric names -->
+<!-- source: internal/component/bgp/plugins/gr/gr.go -- ze_gr_* metric names -->
+<!-- source: internal/component/bgp/reactor/reactor_metrics.go -- ze_peer_* metric names -->
+<!-- source: internal/component/bgp/filterapi/metrics.go -- ze_bgp_attr_mod_* metric names -->
+
+<h3 id="type-specific-rules">Type-Specific Rules</h3>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Pattern</th>
+<th>Suffix</th>
+<th>Examples</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Counter</td>
+<td><code>ze_{scope}_{subject}_{event}_total</code></td>
+<td>Always <code>_total</code></td>
+<td><code>ze_rib_route_inserts_total</code>, <code>ze_gr_timer_expired_total</code></td>
+</tr>
+<tr>
+<td>Gauge</td>
+<td><code>ze_{scope}_{subject}_{qualifier}</code></td>
+<td>Never <code>_total</code></td>
+<td><code>ze_gr_active_peers</code>, <code>ze_fibkernel_routes_installed</code></td>
+</tr>
+<tr>
+<td>Histogram</td>
+<td><code>ze_{scope}_{subject}_{action}_seconds</code></td>
+<td>Always unit suffix</td>
+<td><code>ze_peer_dial_seconds</code></td>
+</tr>
+<tr>
+<td>CounterVec</td>
+<td>Same as Counter, labels for dimensions</td>
+<td><code>_total</code></td>
+<td><code>ze_rpki_validation_outcomes_total</code> with <code>{result}</code> label</td>
+</tr>
+<tr>
+<td>GaugeVec</td>
+<td>Same as Gauge, labels for dimensions</td>
+<td class="cell-no">✕</td>
+<td><code>ze_rib_routes_in</code> with <code>{peer}</code> label</td>
+</tr>
+</tbody>
+</table>
+<h3 id="subject-rules">Subject Rules</h3>
+<p>The subject is always a <strong>singular noun</strong> describing the category of thing measured.
+When the metric counts a quantity of that noun, the grammatical plural appears
+naturally in the detail.</p>
+<table>
+<thead>
+<tr>
+<th>Subject (singular)</th>
+<th>Gauge (current count)</th>
+<th>Counter (cumulative events)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>route</td>
+<td><code>routes_installed</code></td>
+<td><code>route_installs_total</code></td>
+</tr>
+<tr>
+<td>peer</td>
+<td><code>peers_up</code></td>
+<td><code>peer_flaps_total</code></td>
+</tr>
+<tr>
+<td>vrp</td>
+<td><code>vrps_cached</code></td>
+<td></td>
+</tr>
+<tr>
+<td>session</td>
+<td><code>sessions_active</code></td>
+<td><code>session_teardowns_total</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="detail-rules">Detail Rules</h3>
+<p>For <strong>counters</strong>, the detail is the event that happened, as a noun or past participle:
+<code>inserts</code>, <code>withdrawals</code>, <code>expired</code>, <code>installs</code>, <code>removals</code>, <code>errors</code>.</p>
+<p>For <strong>gauges</strong>, the detail is a qualifier distinguishing this gauge from others
+in the same scope: <code>installed</code>, <code>active</code>, <code>up</code>, <code>cached</code>, <code>in</code>, <code>out</code>.</p>
+<h3 id="label-rules">Label Rules</h3>
+<p>Use labels for runtime dimensions. Never encode variable data in metric names.</p>
+<table>
+<thead>
+<tr>
+<th>Label</th>
+<th>When to use</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>peer</code></td>
+<td>Per-peer breakdown</td>
+<td><code>ze_rib_routes_in{peer="10.0.0.1"}</code></td>
+</tr>
+<tr>
+<td><code>family</code></td>
+<td>Per-address-family breakdown</td>
+<td><code>ze_rib_route_inserts_total{family="ipv4/unicast"}</code></td>
+</tr>
+<tr>
+<td><code>operation</code></td>
+<td>Error categorization</td>
+<td><code>ze_fibkernel_errors_total{operation="add"}</code></td>
+</tr>
+<tr>
+<td><code>result</code></td>
+<td>Outcome categorization</td>
+<td><code>ze_rpki_validation_outcomes_total{result="valid"}</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="scope-to-prefix-mapping">Scope-to-Prefix Mapping</h3>
+<table>
+<thead>
+<tr>
+<th>Plugin (Registration Name)</th>
+<th>Metric scope</th>
+<th>Rationale</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>bgp-rib</code></td>
+<td><code>rib</code></td>
+<td>Established; <code>bgp</code> prefix would be redundant</td>
+</tr>
+<tr>
+<td><code>bgp-gr</code></td>
+<td><code>gr</code></td>
+<td>Established</td>
+</tr>
+<tr>
+<td><code>fib-kernel</code></td>
+<td><code>fibkernel</code></td>
+<td>Hyphen stripped</td>
+</tr>
+<tr>
+<td><code>rib</code> (sysrib)</td>
+<td><code>systemrib</code></td>
+<td>Registration name is <code>rib</code> but <code>ze_rib_</code> is taken by bgp-rib; <code>systemrib</code> reads naturally</td>
+</tr>
+<tr>
+<td><code>bgp-watchdog</code></td>
+<td><code>watchdog</code></td>
+<td><code>bgp</code> prefix redundant</td>
+</tr>
+<tr>
+<td><code>bgp-rpki</code></td>
+<td><code>rpki</code></td>
+<td><code>bgp</code> prefix redundant</td>
+</tr>
+<tr>
+<td><code>bgp-persist</code></td>
+<td><code>persist</code></td>
+<td><code>bgp</code> prefix redundant</td>
+</tr>
+<tr>
+<td><code>bgp-role</code></td>
+<td><code>role</code></td>
+<td><code>bgp</code> prefix redundant</td>
+</tr>
+</tbody>
+</table>
+<h3 id="full-inventory">Full Inventory</h3>
+<table>
+<thead>
+<tr>
+<th>Metric Name</th>
+<th>Type</th>
+<th>Labels</th>
+<th>Owner</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze_rib_routes_in_total</code></td>
+<td>Gauge</td>
+<td></td>
+<td>bgp-rib</td>
+</tr>
+<tr>
+<td><code>ze_rib_routes_out_total</code></td>
+<td>Gauge</td>
+<td></td>
+<td>bgp-rib</td>
+</tr>
+<tr>
+<td><code>ze_rib_routes_in</code></td>
+<td>GaugeVec</td>
+<td>peer</td>
+<td>bgp-rib</td>
+</tr>
+<tr>
+<td><code>ze_rib_routes_out</code></td>
+<td>GaugeVec</td>
+<td>peer</td>
+<td>bgp-rib</td>
+</tr>
+<tr>
+<td><code>ze_rib_route_inserts_total</code></td>
+<td>CounterVec</td>
+<td>peer, family</td>
+<td>bgp-rib</td>
+</tr>
+<tr>
+<td><code>ze_rib_route_withdrawals_total</code></td>
+<td>CounterVec</td>
+<td>peer, family</td>
+<td>bgp-rib</td>
+</tr>
+<tr>
+<td><code>ze_attr_pool_intern_total</code></td>
+<td>GaugeVec</td>
+<td>pool</td>
+<td>bgp-rib</td>
+</tr>
+<tr>
+<td><code>ze_attr_pool_dedup_hits_total</code></td>
+<td>GaugeVec</td>
+<td>pool</td>
+<td>bgp-rib</td>
+</tr>
+<tr>
+<td><code>ze_attr_pool_slots_used</code></td>
+<td>GaugeVec</td>
+<td>pool</td>
+<td>bgp-rib</td>
+</tr>
+<tr>
+<td><code>ze_bgp_attr_mod_remove_buffer_refused_total</code></td>
+<td>CounterVec</td>
+<td>attribute</td>
+<td>bgp reactor (filterapi)</td>
+</tr>
+<tr>
+<td><code>ze_gr_active_peers</code></td>
+<td>Gauge</td>
+<td></td>
+<td>bgp-gr</td>
+</tr>
+<tr>
+<td><code>ze_gr_stale_routes</code></td>
+<td>GaugeVec</td>
+<td>peer</td>
+<td>bgp-gr</td>
+</tr>
+<tr>
+<td><code>ze_gr_timer_expired_total</code></td>
+<td>CounterVec</td>
+<td>peer</td>
+<td>bgp-gr</td>
+</tr>
+<tr>
+<td><code>ze_fibkernel_routes_installed</code></td>
+<td>Gauge</td>
+<td></td>
+<td>fib-kernel</td>
+</tr>
+<tr>
+<td><code>ze_fibkernel_route_installs_total</code></td>
+<td>Counter</td>
+<td></td>
+<td>fib-kernel</td>
+</tr>
+<tr>
+<td><code>ze_fibkernel_route_updates_total</code></td>
+<td>Counter</td>
+<td></td>
+<td>fib-kernel</td>
+</tr>
+<tr>
+<td><code>ze_fibkernel_route_removals_total</code></td>
+<td>Counter</td>
+<td></td>
+<td>fib-kernel</td>
+</tr>
+<tr>
+<td><code>ze_fibkernel_errors_total</code></td>
+<td>CounterVec</td>
+<td>operation</td>
+<td>fib-kernel</td>
+</tr>
+<tr>
+<td><code>ze_systemrib_routes_best</code></td>
+<td>Gauge</td>
+<td></td>
+<td>rib (sysrib)</td>
+</tr>
+<tr>
+<td><code>ze_systemrib_route_changes_total</code></td>
+<td>CounterVec</td>
+<td>action</td>
+<td>rib (sysrib)</td>
+</tr>
+<tr>
+<td><code>ze_systemrib_events_received_total</code></td>
+<td>Counter</td>
+<td></td>
+<td>rib (sysrib)</td>
+</tr>
+<tr>
+<td><code>ze_watchdog_peers_up</code></td>
+<td>Gauge</td>
+<td></td>
+<td>bgp-watchdog</td>
+</tr>
+<tr>
+<td><code>ze_watchdog_route_announcements_total</code></td>
+<td>Counter</td>
+<td></td>
+<td>bgp-watchdog</td>
+</tr>
+<tr>
+<td><code>ze_watchdog_route_withdrawals_total</code></td>
+<td>Counter</td>
+<td></td>
+<td>bgp-watchdog</td>
+</tr>
+<tr>
+<td><code>ze_rpki_vrps_cached</code></td>
+<td>Gauge</td>
+<td></td>
+<td>bgp-rpki</td>
+</tr>
+<tr>
+<td><code>ze_rpki_sessions_active</code></td>
+<td>Gauge</td>
+<td></td>
+<td>bgp-rpki</td>
+</tr>
+<tr>
+<td><code>ze_rpki_validation_outcomes_total</code></td>
+<td>CounterVec</td>
+<td>result</td>
+<td>bgp-rpki</td>
+</tr>
+<tr>
+<td><code>ze_role_route_rejects_total</code></td>
+<td>CounterVec</td>
+<td>reason</td>
+<td>bgp-role</td>
+</tr>
+<tr>
+<td><code>ze_role_route_suppressions_total</code></td>
+<td>CounterVec</td>
+<td>reason</td>
+<td>bgp-role</td>
+</tr>
+<tr>
+<td><code>ze_persist_routes_stored</code></td>
+<td>Gauge</td>
+<td></td>
+<td>bgp-persist</td>
+</tr>
+<tr>
+<td><code>ze_persist_peers_tracked</code></td>
+<td>Gauge</td>
+<td></td>
+<td>bgp-persist</td>
+</tr>
+<tr>
+<td><code>ze_persist_route_replays_total</code></td>
+<td>Counter</td>
+<td></td>
+<td>bgp-persist</td>
+</tr>
+<tr>
+<td><code>ze_isis_adjacencies_up</code></td>
+<td>GaugeVec</td>
+<td>level, interface</td>
+<td>isis</td>
+</tr>
+<tr>
+<td><code>ze_isis_adjacencies_total</code></td>
+<td>GaugeVec</td>
+<td>level</td>
+<td>isis</td>
+</tr>
+<tr>
+<td><code>ze_isis_lsps</code></td>
+<td>GaugeVec</td>
+<td>level</td>
+<td>isis (lsdb)</td>
+</tr>
+<tr>
+<td><code>ze_isis_lsp_fragments</code></td>
+<td>GaugeVec</td>
+<td>level</td>
+<td>isis (lsdb)</td>
+</tr>
+<tr>
+<td><code>ze_isis_lsp_originations_total</code></td>
+<td>CounterVec</td>
+<td>level</td>
+<td>isis (lsdb)</td>
+</tr>
+<tr>
+<td><code>ze_isis_sequence_wraps_total</code></td>
+<td>CounterVec</td>
+<td>level</td>
+<td>isis (lsdb)</td>
+</tr>
+<tr>
+<td><code>ze_isis_purges_total</code></td>
+<td>CounterVec</td>
+<td>level</td>
+<td>isis (lsdb)</td>
+</tr>
+<tr>
+<td><code>ze_isis_lsps_received_total</code></td>
+<td>CounterVec</td>
+<td>level</td>
+<td>isis (flooding)</td>
+</tr>
+<tr>
+<td><code>ze_isis_lsps_transmitted_total</code></td>
+<td>CounterVec</td>
+<td>level</td>
+<td>isis (flooding)</td>
+</tr>
+<tr>
+<td><code>ze_isis_csnp_sent_total</code></td>
+<td>CounterVec</td>
+<td>level</td>
+<td>isis (flooding)</td>
+</tr>
+<tr>
+<td><code>ze_isis_csnp_received_total</code></td>
+<td>CounterVec</td>
+<td>level</td>
+<td>isis (flooding)</td>
+</tr>
+<tr>
+<td><code>ze_isis_psnp_sent_total</code></td>
+<td>CounterVec</td>
+<td>level</td>
+<td>isis (flooding)</td>
+</tr>
+<tr>
+<td><code>ze_isis_psnp_received_total</code></td>
+<td>CounterVec</td>
+<td>level</td>
+<td>isis (flooding)</td>
+</tr>
+<tr>
+<td><code>ze_isis_srm_resends_total</code></td>
+<td>CounterVec</td>
+<td>level</td>
+<td>isis (flooding)</td>
+</tr>
+<tr>
+<td><code>ze_isis_lsps_dropped_total</code></td>
+<td>CounterVec</td>
+<td>level, reason</td>
+<td>isis (flooding)</td>
+</tr>
+<tr>
+<td><code>ze_isis_dis_elections_total</code></td>
+<td>CounterVec</td>
+<td>level</td>
+<td>isis (dis)</td>
+</tr>
+<tr>
+<td><code>ze_isis_pseudonode_lsps</code></td>
+<td>GaugeVec</td>
+<td>level</td>
+<td>isis (dis)</td>
+</tr>
+<tr>
+<td><code>ze_isis_auth_failures_total</code></td>
+<td>CounterVec</td>
+<td>level, interface</td>
+<td>isis (auth)</td>
+</tr>
+<tr>
+<td><code>ze_isis_redist_injected_total</code></td>
+<td>CounterVec</td>
+<td>source, afi</td>
+<td>isis (redistribute)</td>
+</tr>
+<tr>
+<td><code>ze_isis_redist_withdrawn_total</code></td>
+<td>CounterVec</td>
+<td>source, afi</td>
+<td>isis (redistribute)</td>
+</tr>
+<tr>
+<td><code>ze_isis_redist_inject_failures_total</code></td>
+<td>CounterVec</td>
+<td>source</td>
+<td>isis (redistribute)</td>
+</tr>
+<tr>
+<td><code>ze_isis_lsp_reoriginations_total</code></td>
+<td>CounterVec</td>
+<td>level</td>
+<td>isis (redistribute)</td>
+</tr>
+<tr>
+<td><code>ze_isis_spf_runs_total</code></td>
+<td>CounterVec</td>
+<td>level</td>
+<td>isis (spf)</td>
+</tr>
+<tr>
+<td><code>ze_isis_spf_duration_seconds</code></td>
+<td>HistogramVec</td>
+<td>level</td>
+<td>isis (spf)</td>
+</tr>
+<tr>
+<td><code>ze_isis_spf_nodes</code></td>
+<td>GaugeVec</td>
+<td>level</td>
+<td>isis (spf)</td>
+</tr>
+<tr>
+<td><code>ze_isis_routes_installed</code></td>
+<td>GaugeVec</td>
+<td>level, afi</td>
+<td>isis (spf)</td>
+</tr>
+<tr>
+<td><code>ze_isis_frames_sent_total</code></td>
+<td>CounterVec</td>
+<td>interface</td>
+<td>isis (transport)</td>
+</tr>
+<tr>
+<td><code>ze_isis_frames_received_total</code></td>
+<td>CounterVec</td>
+<td>interface</td>
+<td>isis (transport)</td>
+</tr>
+<tr>
+<td><code>ze_isis_frames_dropped_total</code></td>
+<td>CounterVec</td>
+<td>interface, reason</td>
+<td>isis (transport)</td>
+</tr>
+<tr>
+<td><code>ze_isis_sockets_open</code></td>
+<td>Gauge</td>
+<td></td>
+<td>isis (transport)</td>
+</tr>
+<tr>
+<td><code>ze_ospf_packets_sent_total</code></td>
+<td>CounterVec</td>
+<td>interface, type</td>
+<td>ospf, ospfv3 (transport)</td>
+</tr>
+<tr>
+<td><code>ze_ospf_packets_received_total</code></td>
+<td>CounterVec</td>
+<td>interface, type</td>
+<td>ospf, ospfv3 (transport)</td>
+</tr>
+<tr>
+<td><code>ze_ospf_packets_dropped_total</code></td>
+<td>CounterVec</td>
+<td>interface, reason</td>
+<td>ospf, ospfv3 (transport)</td>
+</tr>
+<tr>
+<td><code>ze_ospf_sockets_open</code></td>
+<td>Gauge</td>
+<td></td>
+<td>ospf, ospfv3 (transport)</td>
+</tr>
+<tr>
+<td><code>ze_ospf_interface_up</code></td>
+<td>GaugeVec</td>
+<td>area, interface</td>
+<td>ospf (iface)</td>
+</tr>
+<tr>
+<td><code>ze_ospf_dr_elections_total</code></td>
+<td>CounterVec</td>
+<td>interface</td>
+<td>ospf (iface)</td>
+</tr>
+<tr>
+<td><code>ze_ospf_neighbors</code></td>
+<td>GaugeVec</td>
+<td>area, interface, state</td>
+<td>ospf (neighbor)</td>
+</tr>
+<tr>
+<td><code>ze_ospf_adjacencies_full</code></td>
+<td>GaugeVec</td>
+<td>area</td>
+<td>ospf (neighbor)</td>
+</tr>
+<tr>
+<td><code>ze_ospf_nsm_events_total</code></td>
+<td>CounterVec</td>
+<td>event</td>
+<td>ospf (neighbor)</td>
+</tr>
+<tr>
+<td><code>ze_ospf_lsdb_lsas</code></td>
+<td>GaugeVec</td>
+<td>area, type</td>
+<td>ospf (lsdb)</td>
+</tr>
+<tr>
+<td><code>ze_ospf_lsa_originations_total</code></td>
+<td>CounterVec</td>
+<td>type</td>
+<td>ospf (lsdb)</td>
+</tr>
+<tr>
+<td><code>ze_ospf_lsa_refreshes_total</code></td>
+<td>CounterVec</td>
+<td>type</td>
+<td>ospf (lsdb)</td>
+</tr>
+<tr>
+<td><code>ze_ospf_lsa_purges_total</code></td>
+<td>CounterVec</td>
+<td>type</td>
+<td>ospf (lsdb)</td>
+</tr>
+<tr>
+<td><code>ze_ospf_lsupdates_sent_total</code></td>
+<td>CounterVec</td>
+<td>interface</td>
+<td>ospf (lsdb)</td>
+</tr>
+<tr>
+<td><code>ze_ospf_lsupdates_received_total</code></td>
+<td>CounterVec</td>
+<td>interface</td>
+<td>ospf (lsdb)</td>
+</tr>
+<tr>
+<td><code>ze_ospf_lsacks_sent_total</code></td>
+<td>CounterVec</td>
+<td>interface</td>
+<td>ospf (lsdb)</td>
+</tr>
+<tr>
+<td><code>ze_ospf_retransmissions_total</code></td>
+<td>CounterVec</td>
+<td>area</td>
+<td>ospf (lsdb)</td>
+</tr>
+<tr>
+<td><code>ze_ospf_spf_runs_total</code></td>
+<td>CounterVec</td>
+<td>area</td>
+<td>ospf (spf)</td>
+</tr>
+<tr>
+<td><code>ze_ospf_spf_duration_seconds</code></td>
+<td>HistogramVec</td>
+<td>area</td>
+<td>ospf (spf)</td>
+</tr>
+<tr>
+<td><code>ze_ospf_routes_installed</code></td>
+<td>GaugeVec</td>
+<td>type, af</td>
+<td>ospf (spf)</td>
+</tr>
+<tr>
+<td><code>ze_ospf_abr</code></td>
+<td>Gauge</td>
+<td></td>
+<td>ospf (spf)</td>
+</tr>
+<tr>
+<td><code>ze_ospf_summary_lsas</code></td>
+<td>GaugeVec</td>
+<td>area</td>
+<td>ospf (spf)</td>
+</tr>
+<tr>
+<td><code>ze_ospf_asbr</code></td>
+<td>Gauge</td>
+<td></td>
+<td>ospf (engine)</td>
+</tr>
+<tr>
+<td><code>ze_ospf_external_lsas</code></td>
+<td>Gauge</td>
+<td></td>
+<td>ospf (engine)</td>
+</tr>
+<tr>
+<td><code>ze_ospf_redist_injected_total</code></td>
+<td>CounterVec</td>
+<td>source</td>
+<td>ospf (redistribute)</td>
+</tr>
+<tr>
+<td><code>ze_ospf_redist_withdrawn_total</code></td>
+<td>CounterVec</td>
+<td>source</td>
+<td>ospf (redistribute)</td>
+</tr>
+<tr>
+<td><code>ze_ospf_nssa_translations_total</code></td>
+<td>CounterVec</td>
+<td>area</td>
+<td>ospf (engine)</td>
+</tr>
+<tr>
+<td><code>ze_ospf_auth_failures_total</code></td>
+<td>CounterVec</td>
+<td>interface, reason</td>
+<td>ospf (engine)</td>
+</tr>
+<tr>
+<td><code>ze_ospf_af_instances</code></td>
+<td>GaugeVec</td>
+<td>af</td>
+<td>ospf (RFC 5838 multi-AF)</td>
+</tr>
+<tr>
+<td><code>ze_ospf_af_bit_mismatch_total</code></td>
+<td>CounterVec</td>
+<td>af</td>
+<td>ospf (RFC 5838 multi-AF)</td>
+</tr>
+<tr>
+<td><code>ze_traffic_usage_ingress_port_bytes_total</code></td>
+<td>GaugeVec</td>
+<td>interface, dst_port, protocol</td>
+<td>traffic-usage</td>
+</tr>
+<tr>
+<td><code>ze_traffic_usage_egress_port_bytes_total</code></td>
+<td>GaugeVec</td>
+<td>interface, src_port, protocol</td>
+<td>traffic-usage</td>
+</tr>
+<tr>
+<td><code>ze_traffic_usage_ingress_bytes_total</code></td>
+<td>GaugeVec</td>
+<td>interface, src_ip</td>
+<td>traffic-usage (track-ip)</td>
+</tr>
+<tr>
+<td><code>ze_traffic_usage_egress_bytes_total</code></td>
+<td>GaugeVec</td>
+<td>interface, dst_ip</td>
+<td>traffic-usage (track-ip)</td>
+</tr>
+<tr>
+<td><code>ze_traffic_usage_map_entries</code></td>
+<td>GaugeVec</td>
+<td>interface, map</td>
+<td>traffic-usage</td>
+</tr>
+<tr>
+<td><code>ze_managed_clients_connected</code></td>
+<td>Gauge</td>
+<td></td>
+<td>managed (hub server)</td>
+</tr>
+<tr>
+<td><code>ze_managed_config_fetch_total</code></td>
+<td>CounterVec</td>
+<td>result</td>
+<td>managed (hub server)</td>
+</tr>
+<tr>
+<td><code>ze_managed_config_changed_pushed_total</code></td>
+<td>Counter</td>
+<td></td>
+<td>managed (hub server)</td>
+</tr>
+<tr>
+<td><code>ze_plugin_write_watchdog_total</code></td>
+<td>CounterVec</td>
+<td>transport</td>
+<td>plugin (server)</td>
+</tr>
+<tr>
+<td><code>ze_iface_owned_devices</code></td>
+<td>GaugeVec</td>
+<td>owner</td>
+<td>iface (owned-device registry)</td>
+</tr>
+<tr>
+<td><code>ze_iface_ra_sent_total</code></td>
+<td>CounterVec</td>
+<td>interface</td>
+<td>iface-ra</td>
+</tr>
+<tr>
+<td><code>ze_iface_ra_solicited_total</code></td>
+<td>CounterVec</td>
+<td>interface</td>
+<td>iface-ra</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/iface/rate.go -- ownedDevices gauge registration -->
+<!-- source: internal/component/iface/device_owner.go -- updateOwnedDeviceGauge -->
+<!-- source: internal/plugins/iface/ra/ifacera.go -- SetMetricsRegistry, incSent, incSolicited -->
+<!-- source: internal/component/plugin/server/managed_serve.go -- NewManagedServer metric registration -->
+<!-- source: internal/component/plugin/server/server.go -- NewServer write-watchdog hook -->
+<!-- source: pkg/plugin/rpc/conn.go -- fireWatchdog, SetWriteWatchdogHook -->
+
+<p>The two <code>iface-ra</code> counters carry one <code>interface</code> label each.
+<code>ze_iface_ra_sent_total</code> counts every Router Advertisement put on the wire.
+<code>ze_iface_ra_solicited_total</code> counts the subset that answered a Router
+Solicitation, and each of those increments both counters, so the first one stays
+the total. A rise in the solicited counter with a flat send rate means that
+hosts join the link.</p>
+<!-- source: internal/plugins/iface/ra/ifacera.go -- incSent, incSolicited -->
+<!-- source: internal/plugins/iface/ra/sender_linux.go -- send call sites -->
+
+<p><code>ze_plugin_write_watchdog_total</code> increments when a plugin RPC write on a
+transport that does not support <code>SetWriteDeadline</code> (SSH channels, <code>io.Pipe</code>)
+stalls past the write-watchdog window (default 30s); the connection is then
+closed (fail-fast). Deadline-capable transports (<code>net.Conn</code>) use write
+deadlines instead and never contribute to this counter. The <code>transport</code> label
+is a low-cardinality bucket (<code>stream</code>, <code>pipe</code>, <code>file</code>).</p>
+<!-- source: internal/plugins/trafficusage/metrics.go -- BindMetrics -->
+
+<!-- source: internal/plugins/ospf/spf/computer.go -- SetMetrics -->
+<!-- source: internal/plugins/ospf/spf/install.go -- SetMetrics and publishCounts -->
+
+<p><code>ze_ospf_packets_dropped_total</code> counts transport drops before packet dispatch or
+after a failed send. The Linux receive path currently emits reason
+<code>malformed-ipv4</code> when a raw datagram is too short for an IPv4 header or its IHL
+overruns the received bytes; <code>SendPacket</code> emits reason <code>send-error</code> when the
+backend transmit call fails.</p>
+<!-- source: internal/plugins/ospf/transport/backend_linux.go -- deliverDatagram -->
+<!-- source: internal/plugins/ospf/transport/transport.go -- SendPacket -->
+
+<p>The two <code>ospf (iface)</code> series track the OSPFv2 Interface State Machine:
+<code>ze_ospf_interface_up{area,interface}</code> is 1 for active point-to-point or
+broadcast interfaces and 0 for Down, passive, or loopback records;
+<code>ze_ospf_dr_elections_total{interface}</code> increments when a broadcast interface's
+elected DR or BDR changes. The three <code>ospf (neighbor)</code> series track the Neighbor
+State Machine: <code>ze_ospf_neighbors{area,interface,state}</code> gauges neighbours by
+NSM state, <code>ze_ospf_adjacencies_full{area}</code> gauges Full adjacencies, and
+<code>ze_ospf_nsm_events_total{event}</code> counts state-machine events.</p>
+<p>The eight <code>ospf (lsdb)</code> series track the RFC 2328 Section 13 flooding and
+Section 14 aging machinery: <code>ze_ospf_lsdb_lsas{area,type}</code> gauges current LSDB
+entries, <code>ze_ospf_lsa_originations_total{type}</code>,
+<code>ze_ospf_lsa_refreshes_total{type}</code>, and <code>ze_ospf_lsa_purges_total{type}</code> count
+self-LSA lifecycle events, <code>ze_ospf_lsupdates_sent_total{interface}</code> and
+<code>ze_ospf_lsupdates_received_total{interface}</code> count flooding packets,
+<code>ze_ospf_lsacks_sent_total{interface}</code> counts explicit acknowledgements, and
+<code>ze_ospf_retransmissions_total{area}</code> counts retransmit-list resends.</p>
+<!-- source: internal/plugins/ospf/lsdb/lsdb.go -- SetMetrics -->
+<!-- source: internal/plugins/ospf/lsdb/flooding.go -- ReceiveUpdate, RetransmitTick, sendAck -->
+<!-- source: internal/plugins/ospf/instance.go -- setMetrics -->
+<!-- source: internal/plugins/ospf/iface/iface.go -- setUpLocked, runElectionLocked -->
+<!-- source: internal/plugins/ospf/neighbor/table.go -- setStateLocked, recordEventLocked -->
+
+<p>The five <code>ospf (spf)</code> series track route computation and install state:
+<code>ze_ospf_spf_runs_total{area}</code> and <code>ze_ospf_spf_duration_seconds{area}</code> report
+SPF scheduling and runtime, <code>ze_ospf_routes_installed{type,af}</code> reports the current
+Loc-RIB-owned route count by OSPF path type and address family (RFC 5838), <code>ze_ospf_abr</code> is 1 only while this
+router has an active backbone attachment and at least one other active area, and
+<code>ze_ospf_summary_lsas{area}</code> reports current self-originated Summary-LSA count by
+area.</p>
+<!-- source: internal/plugins/ospf/spf/computer.go -- SetMetrics and Run -->
+<!-- source: internal/plugins/ospf/spf/install.go -- SetMetrics and publishCounts -->
+
+<p>The two <code>isis (dis)</code> series are the Designated IS / pseudo-node metrics (broadcast
+LANs): <code>ze_isis_dis_elections_total</code> counts DIS elections that changed the elected
+DIS per level, and <code>ze_isis_pseudonode_lsps</code> gauges the pseudo-node LSPs this node
+currently originates as the elected DIS per level.</p>
+<p>The <code>isis (auth)</code> series <code>ze_isis_auth_failures_total</code> counts IS-IS PDUs rejected
+because authentication verification failed, by level and receiving interface. It
+is incremented at the receive verify site (a PDU with no, wrong, or misordered
+authentication TLV under configured auth) and is the operator's signal for a
+key mismatch, a downgrade attempt, or a spoofed purge.</p>
+<p>The four <code>isis (redistribute)</code> series track redistribution into IS-IS:
+<code>ze_isis_redist_injected_total{source,afi}</code> and
+<code>ze_isis_redist_withdrawn_total{source,afi}</code> count routes imported into IS-IS LSPs
+(as TLV 135 IPv4 reachability or TLV 236 IPv6 reachability) and withdrawn, by
+originating source (<code>connected</code>, <code>static</code>, <code>bgp</code>) and address family
+(<code>afi=ipv4</code>|<code>ipv6</code>); <code>ze_isis_redist_inject_failures_total{source}</code> counts
+injections whose LSP re-origination failed; and
+<code>ze_isis_lsp_reoriginations_total{level}</code> counts the own-LSP re-originations that
+redistribution drove, by level. Exporting IS-IS routes <em>out</em> to BGP uses the
+generic <code>redistribute-orchestrator</code> counters, not an IS-IS-specific series.</p>
+<p>The four <code>isis (spf)</code> series track the shortest-path computation and its Loc-RIB
+install: <code>ze_isis_spf_runs_total{level}</code> counts Dijkstra runs per level,
+<code>ze_isis_spf_duration_seconds{level}</code> is a histogram of each run's wall-clock
+duration (buckets span 50us..500ms), <code>ze_isis_spf_nodes{level}</code> gauges the node
+count of the last run's graph, and <code>ze_isis_routes_installed{level,afi}</code> gauges
+the prefixes currently installed into the shared Loc-RIB by level and address
+family (<code>afi=ipv4</code>|<code>ipv6</code>). The IPv6 install pass runs over the same shared SPF
+tree, so the gauge is the only SPF series carrying an <code>afi</code> label.</p>
+<p>The four <code>isis (transport)</code> series track the raw Layer-2 socket I/O:
+<code>ze_isis_frames_sent_total{interface}</code> and
+<code>ze_isis_frames_received_total{interface}</code> count frames transmitted and received
+per circuit, <code>ze_isis_frames_dropped_total{interface,reason}</code> counts frames
+dropped on receive by reason, and <code>ze_isis_sockets_open</code> gauges the number of
+open IS-IS raw L2 sockets process-wide (unlabelled, a single process-level gauge).</p>
+<p>The four <code>ospf (transport)</code> series track raw IPv4 protocol 89 socket I/O:
+<code>ze_ospf_packets_sent_total{interface,type}</code> and
+<code>ze_ospf_packets_received_total{interface,type}</code> count OSPF packets transmitted
+and received per interface, <code>ze_ospf_packets_dropped_total{interface,reason}</code>
+counts receive rejects and send failures, and <code>ze_ospf_sockets_open</code> gauges open
+OSPF raw sockets process-wide. The <code>ospf (iface)</code> and <code>ospf (neighbor)</code> series
+track interface state, DR/BDR election changes, NSM states, Full adjacencies,
+and NSM events.</p>
+<p>Dual-stack IPv6 (RFC 5308) adds <strong>no new IS-IS series</strong>: it sets <code>afi=ipv6</code> on the
+labelled series above and on the SPF route-install gauge
+<code>ze_isis_routes_installed{level,afi}</code>. IPv4 uses <code>afi=ipv4</code>; the IPv6 install pass
+runs over the same shared SPF tree.</p>
+<h2 id="when-configuremetrics-runs">When ConfigureMetrics Runs</h2>
+<p>The hook does <strong>not</strong> fire while the plugin is being spawned. <code>runPluginPhase</code>
+starts every process of a startup phase before it runs the tier-ordered
+handshake, and the Prometheus registry is not created until the bgp plugin's
+stage-2 <code>OnConfigure</code> builds the reactor, so at spawn time there is usually no
+registry yet. <code>registry.InjectPluginMetrics</code> therefore defers the hook and
+<code>registry.SetMetricsRegistry</code> drains the deferred set the moment a registry
+exists; whichever of the two happens second performs the injection, exactly once
+per plugin.</p>
+<!-- source: internal/component/plugin/registry/registry.go -- InjectPluginMetrics, SetMetricsRegistry -->
+<!-- source: internal/component/plugin/server/startup.go -- runPluginPhase spawns before the tier handshake -->
+
+<p>Two consequences for a plugin author:</p>
+<ul>
+<li>Do not read your metrics struct during <code>init()</code> or at the top of <code>RunEngine</code>;
+  load the atomic pointer at each metric update point, as step 3 above says.</li>
+<li>Declaring a <code>Dependency</code> on <code>bgp</code> does not order the injection. Dependencies
+  order the 5-stage handshake, not the spawn the hook used to be bound to.</li>
+</ul>
+<h2 id="nopregistry-fallback">NopRegistry Fallback</h2>
+<p>When telemetry is disabled in config, plugins receive a <code>NopRegistry</code> that returns
+no-op metric implementations. The nil-check on the atomic pointer handles the case
+where <code>ConfigureMetrics</code> is never called at all (plugin loaded without a metrics
+registry).</p>
+<!-- source: internal/core/metrics/nop.go -- NopRegistry -->
+
+<h2 id="which-plugins-need-metrics">Which Plugins Need Metrics</h2>
+<p>Not every plugin needs metrics. NLRI codec plugins (flowspec, evpn, labeled, etc.)
+are stateless encoders/decoders with no runtime state to observe. Only plugins
+with state machines, caches, or I/O operations benefit from metrics.</p>
+<table>
+<thead>
+<tr>
+<th>Has metrics</th>
+<th>No metrics needed</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Plugins with route state (rib, sysrib, persist)</td>
+<td>NLRI codecs (bgp-nlri-*)</td>
+</tr>
+<tr>
+<td>Plugins with external I/O (fib-kernel, rpki)</td>
+<td>Pure capability-only plugins</td>
+</tr>
+<tr>
+<td>Plugins with timers/state machines (gr, watchdog)</td>
+<td>Format/encoding plugins</td>
+</tr>
+<tr>
+<td>Plugins that drop or withhold routes (bgp-role)</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>A plugin that can refuse a route needs metrics even if it holds no state: a
+suppression is invisible to the operator otherwise. <code>bgp-role</code> was once listed
+as capability-only, but it filters every UPDATE on ingress and egress, so each
+of its refusal paths carries a reason-labeled counter.</p>
+<!-- source: internal/component/bgp/plugins/role/metrics.go -- recordDrop -->
+<!-- source: internal/component/bgp/plugins/role/otc.go -- OTCIngressFilter, OTCEgressFilter -->
+
+<h2 id="reference-implementation">Reference Implementation</h2>
+<p>The bgp-rib plugin (<code>internal/component/bgp/plugins/rib/</code>) is the reference
+implementation. It demonstrates all aspects: registration callback, metrics struct,
+atomic pointer, periodic update loop, and per-peer label cleanup.</p>
+            </section>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

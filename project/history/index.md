@@ -21,7 +21,7 @@ The ExaBGP migration path preserves two useful ideas:
 - Existing ExaBGP configuration can be converted into Ze's configuration model.
 - Existing process scripts can continue through the compatibility bridge before being ported to the native plugin SDK.
 
-This allows a routing-engine migration and an application rewrite to happen separately. The [ExaBGP migration example](https://ze-software.net/usage/exabgp-migration/) documents that path.
+This allows a routing-engine migration and an application rewrite to happen separately. The [ExaBGP migration example](https://ze-software.net/use-cases/exabgp-migration/) documents that path.
 
 ## Why the architecture changed
 

@@ -45,12 +45,13 @@ SLUG_RE = re.compile(r"[^a-z0-9]+")
 def slugify(prefix, text):
     return prefix + SLUG_RE.sub("-", text.lower()).strip("-")
 
+
 def usage_syntax(description):
     marker = "Usage:"
     idx = description.find(marker)
     if idx == -1:
         return ""
-    usage = description[idx + len(marker):].strip().splitlines()[0].strip()
+    usage = description[idx + len(marker) :].strip().splitlines()[0].strip()
     if "." in usage:
         usage = usage.split(".", 1)[0].strip()
     return usage.rstrip(".").strip()
@@ -176,9 +177,7 @@ def group_commands(commands):
             label = "%s %s" % (verb, subject) if subject else verb
             groups.append((label, sorted(bucket, key=lambda c: c["path"])))
         if other:
-            groups.append(
-                ("%s (other)" % verb, sorted(other, key=lambda c: c["path"]))
-            )
+            groups.append(("%s (other)" % verb, sorted(other, key=lambda c: c["path"])))
     return groups
 
 
@@ -190,7 +189,13 @@ def render_row(c):
         '<tr id="%s"><td><code>%s</code></td>'
         '<td><span class="cli-mode cli-mode-%s">%s</span></td>'
         "<td>%s</td></tr>"
-    ) % (slugify("cmd-", c["path"]), html.escape(c.get("syntax") or c["path"]), mode, mode_label, desc_html)
+    ) % (
+        slugify("cmd-", c["path"]),
+        html.escape(c.get("syntax") or c["path"]),
+        mode,
+        mode_label,
+        desc_html,
+    )
 
 
 def render_group(label, entries):
@@ -259,7 +264,7 @@ def render(commands, groups):
                 "<code>ze help command --json</code> -- the same live command registry the "
                 "binary itself uses, so this page cannot drift from what the binary actually "
                 "supports the way a hand-maintained list can. Full machine-readable list: "
-                '<a href="../data/cli-commands.json">data/cli-commands.json</a>.'
+                '<a href="../../data/cli-commands.json">data/cli-commands.json</a>.'
                 % (len(commands), len(groups))
             ),
             "Reference",

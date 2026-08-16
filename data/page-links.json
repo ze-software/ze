@@ -164,7 +164,7 @@
           "title": "Reader paths",
           "links": [
             {
-              "href": "docs/features/bgp-protocol/",
+              "href": "features/bgp-protocol/",
               "label": "BGP feature guide",
               "desc": "Use when researching Ze protocol coverage."
             },
@@ -174,7 +174,7 @@
               "desc": "Use when checking behaviour against real peers."
             },
             {
-              "href": "usage/exabgp-migration/",
+              "href": "use-cases/exabgp-migration/",
               "label": "ExaBGP migration",
               "desc": "Use when comparing automation workflows."
             },
@@ -251,7 +251,7 @@
               "desc": "Use when comparing operational syntax with vendors."
             },
             {
-              "href": "docs/architecture/",
+              "href": "architecture/",
               "label": "Architecture",
               "desc": "Use when evaluating implementation model and boundaries."
             },
@@ -444,7 +444,7 @@
               "desc": "Verification gates behind the activity."
             },
             {
-              "href": "dependencies/",
+              "href": "reference/dependencies/",
               "label": "Dependencies",
               "desc": "What the project relies on."
             }
@@ -464,17 +464,17 @@
               "desc": "Feature context for the measured daemon."
             },
             {
-              "href": "docs/guide/benchmarking/",
+              "href": "guides/benchmarking/",
               "label": "Benchmarking guide",
               "desc": "How to run ze-perf and read JSON output."
             },
             {
-              "href": "docs/performance/",
+              "href": "performance/bgp/",
               "label": "Performance docs",
               "desc": "Longer notes on performance design."
             },
             {
-              "href": "usage/bgp-performance/",
+              "href": "use-cases/bgp-performance/",
               "label": "BGP performance testing with Ze",
               "desc": "Use ze-perf to recreate route-server performance tests with sender, DUT, receiver, and JSON."
             },
@@ -569,32 +569,32 @@
           "title": "Common reader paths",
           "links": [
             {
-              "href": "docs/guide/quickstart/",
+              "href": "guides/quickstart/",
               "label": "Quickstart",
               "desc": "Start two BGP peers quickly."
             },
             {
-              "href": "docs/guide/ubuntu-build-install/",
+              "href": "guides/ubuntu-build-install/",
               "label": "Build on Ubuntu",
               "desc": "Compile, install, create zefs, and enable SSH."
             },
             {
-              "href": "docs/guide/production-diagnostics/",
+              "href": "guides/production-diagnostics/",
               "label": "Production diagnostics",
               "desc": "Start from symptoms and debug safely."
             },
             {
-              "href": "docs/guide/operator-access-rbac/",
+              "href": "guides/operator-access-rbac/",
               "label": "SSH and RBAC",
               "desc": "Configure users, profiles, and operator access."
             },
             {
-              "href": "docs/guide/command-reference/",
+              "href": "guides/command-reference/",
               "label": "Command reference guide",
               "desc": "Understand command reference generation."
             },
             {
-              "href": "docs/architecture/",
+              "href": "architecture/",
               "label": "Architecture",
               "desc": "Understand how Ze is assembled."
             }
@@ -619,7 +619,7 @@
               "desc": "Generated config tree owned by plugins."
             },
             {
-              "href": "docs/features/configuration/",
+              "href": "features/bgp-configuration/",
               "label": "Configuration guide",
               "desc": "How plugin config is modelled and applied."
             }
@@ -639,12 +639,12 @@
               "desc": "Generated Ze command catalogue."
             },
             {
-              "href": "docs/guide/command-reference/",
+              "href": "guides/command-reference/",
               "label": "Command reference guide",
               "desc": "How command docs are generated."
             },
             {
-              "href": "docs/features/cli-commands/",
+              "href": "features/cli-commands/",
               "label": "CLI commands",
               "desc": "CLI design and behaviour."
             }
@@ -716,7 +716,7 @@
               "desc": "Return to the lab index."
             },
             {
-              "href": "docs/guide/l2tp/",
+              "href": "guides/l2tp/",
               "label": "L2TP guide",
               "desc": "Configuration and operator behaviour."
             }
@@ -741,7 +741,7 @@
               "desc": "The paired access-protocol lab."
             },
             {
-              "href": "docs/guide/l2tp/",
+              "href": "guides/l2tp/",
               "label": "L2TP guide",
               "desc": "Configuration and operator behaviour."
             }
@@ -766,7 +766,7 @@
               "desc": "Return to the lab index."
             },
             {
-              "href": "docs/guide/pppoe/",
+              "href": "guides/pppoe/",
               "label": "PPPoE guide",
               "desc": "Configuration and operator behaviour."
             }
@@ -791,7 +791,7 @@
               "desc": "The paired access-protocol lab."
             },
             {
-              "href": "docs/guide/pppoe/",
+              "href": "guides/pppoe/",
               "label": "PPPoE guide",
               "desc": "Configuration and operator behaviour."
             }
@@ -799,49 +799,49 @@
         }
       ]
     },
-    "usage/": {
-      "eyebrow": "Usage",
+    "use-cases/": {
+      "eyebrow": "Use cases",
       "groups": [
         {
           "title": "Examples",
           "links": [
             {
-              "href": "usage/as112/",
+              "href": "use-cases/as112/",
               "label": "AS112 anycast DNS",
               "desc": "Ze config, peer configs, and lab evidence together."
             },
             {
-              "href": "usage/exabgp-migration/",
+              "href": "use-cases/exabgp-migration/",
               "label": "ExaBGP migration",
               "desc": "Convert configs and bridge existing process scripts."
             },
             {
-              "href": "usage/bgp-performance/",
+              "href": "use-cases/bgp-performance/",
               "label": "BGP performance testing with Ze",
               "desc": "Use Ze as the tester for route-server performance runs inspired by bgperf."
             }
             ,{
-              "href": "usage/route-server/",
+              "href": "use-cases/route-server/",
               "label": "IXP route server",
               "desc": "Member policy, validation, and operational checks."
             },
             {
-              "href": "usage/transit-edge-rpki/",
+              "href": "use-cases/transit-edge-rpki/",
               "label": "Transit edge with RPKI",
               "desc": "Dual-transit routing policy and tested failover."
             },
             {
-              "href": "usage/flowspec-injection/",
+              "href": "use-cases/flowspec-injection/",
               "label": "FlowSpec injection",
               "desc": "Authorised, atomic, and reversible mitigation routes."
             },
             {
-              "href": "usage/chaos-tested-peering/",
+              "href": "use-cases/chaos-tested-peering/",
               "label": "Chaos-tested peering",
               "desc": "Deterministic faults, replay, shrink, and recovery."
             },
             {
-              "href": "usage/as-path-topology/",
+              "href": "use-cases/as-path-topology/",
               "label": "AS-path topology",
               "desc": "Investigate route visibility in the Looking Glass."
             }
@@ -851,12 +851,12 @@
           "title": "Reference nearby",
           "links": [
             {
-              "href": "docs/guide/as112/",
+              "href": "guides/as112/",
               "label": "AS112 feature guide",
               "desc": "Config leaves, commands, and RFC notes."
             },
             {
-              "href": "docs/features/bgp-protocol/",
+              "href": "features/bgp-protocol/",
               "label": "BGP feature guide",
               "desc": "Protocol behaviour behind the peer examples."
             },
@@ -869,8 +869,8 @@
         }
       ]
     },
-    "usage/bgp-performance/": {
-      "eyebrow": "Usage example",
+    "use-cases/bgp-performance/": {
+      "eyebrow": "Use case",
       "groups": [
         {
           "title": "Run the test",
@@ -881,12 +881,12 @@
               "desc": "Current public benchmark summary."
             },
             {
-              "href": "docs/guide/benchmarking/",
+              "href": "guides/benchmarking/",
               "label": "Benchmarking guide",
               "desc": "How to run ze-perf and read JSON output."
             },
             {
-              "href": "docs/performance/",
+              "href": "performance/bgp/",
               "label": "Performance results",
               "desc": "Generated benchmark tables and methodology."
             }
@@ -917,12 +917,12 @@
               "desc": "Map Ze syntax to Junos, IOS XR, SR OS, and VyOS."
             },
             {
-              "href": "docs/features/cli-commands/",
+              "href": "features/cli-commands/",
               "label": "CLI commands",
               "desc": "CLI behaviour, modes, and generated command registration."
             },
             {
-              "href": "docs/guide/command-reference/",
+              "href": "guides/command-reference/",
               "label": "Command reference guide",
               "desc": "How this generated catalog is produced."
             },
@@ -942,7 +942,7 @@
           "title": "Use the config tree",
           "links": [
             {
-              "href": "docs/features/configuration/",
+              "href": "features/bgp-configuration/",
               "label": "Configuration guide",
               "desc": "Understand the model behind the generated tree."
             },
@@ -952,7 +952,7 @@
               "desc": "Find which plugins own config roots."
             },
             {
-              "href": "docs/guide/quickstart/",
+              "href": "guides/quickstart/",
               "label": "Quickstart",
               "desc": "Apply a minimal working BGP config."
             },
@@ -965,7 +965,7 @@
         }
       ]
     },
-    "dependencies/": {
+    "reference/dependencies/": {
       "eyebrow": "Research",
       "groups": [
         {
@@ -977,7 +977,7 @@
               "desc": "How dependencies fit into the verification story."
             },
             {
-              "href": "docs/architecture/",
+              "href": "architecture/",
               "label": "Architecture",
               "desc": "Where dependencies sit in the design."
             },
@@ -1097,7 +1097,7 @@
               "desc": "Return to the lab index."
             },
             {
-              "href": "docs/guide/netlab/",
+              "href": "labs/netlab/",
               "label": "netlab topology",
               "desc": "Build reusable Ze topologies under containerlab."
             },
@@ -1107,7 +1107,7 @@
               "desc": "How lab runs feed release checks."
             },
             {
-              "href": "docs/guide/production-diagnostics/",
+              "href": "guides/production-diagnostics/",
               "label": "Production diagnostics",
               "desc": "Use lab findings to debug systems."
             }
@@ -1172,7 +1172,7 @@
               "desc": "How failed checks route to evidence."
             },
             {
-              "href": "docs/guide/production-diagnostics/",
+              "href": "guides/production-diagnostics/",
               "label": "Production diagnostics",
               "desc": "Symptom-led debugging for running systems."
             }
@@ -1201,7 +1201,7 @@
               "desc": "Open the generated Ze command catalogue."
             },
             {
-              "href": "docs/features/cli-commands/",
+              "href": "features/cli-commands/",
               "label": "CLI commands",
               "desc": "Understand CLI behaviour and design."
             }
@@ -1247,7 +1247,7 @@
               "desc": "Find generated config owned by plugins."
             },
             {
-              "href": "docs/features/configuration/",
+              "href": "features/bgp-configuration/",
               "label": "Configuration guide",
               "desc": "How verify and apply handlers fit together."
             }
@@ -1276,7 +1276,7 @@
               "desc": "How lab runs feed release checks."
             },
             {
-              "href": "docs/guide/production-diagnostics/",
+              "href": "guides/production-diagnostics/",
               "label": "Production diagnostics",
               "desc": "Use lab findings to debug systems."
             }
@@ -1285,17 +1285,17 @@
       ]
     },
     {
-      "prefix": "usage/",
+      "prefix": "use-cases/",
       "exclude": [
-        "usage/"
+        "use-cases/"
       ],
-      "eyebrow": "Usage example",
+      "eyebrow": "Use case",
       "groups": [
         {
           "title": "Related usage",
           "links": [
             {
-              "href": "usage/",
+              "href": "use-cases/",
               "label": "All usage examples",
               "desc": "Return to the deployment shapes."
             },
@@ -1305,7 +1305,7 @@
               "desc": "Return to guides and references."
             },
             {
-              "href": "docs/features/bgp-protocol/",
+              "href": "features/bgp-protocol/",
               "label": "BGP protocol",
               "desc": "Behaviour used by the route examples."
             },
@@ -1319,7 +1319,7 @@
       ]
     },
     {
-      "prefix": "docs/guide/",
+      "prefix": "guides/",
       "eyebrow": "Guide",
       "groups": [
         {
@@ -1331,22 +1331,22 @@
               "desc": "Return to the guide map."
             },
             {
-              "href": "docs/guide/quickstart/",
+              "href": "guides/quickstart/",
               "label": "Quickstart",
               "desc": "Start from a minimal working setup."
             },
             {
-              "href": "docs/guide/ubuntu-build-install/",
+              "href": "guides/ubuntu-build-install/",
               "label": "Build on Ubuntu",
               "desc": "Install Ze, create zefs, and start SSH."
             },
             {
-              "href": "docs/guide/production-diagnostics/",
+              "href": "guides/production-diagnostics/",
               "label": "Production diagnostics",
               "desc": "Debug by symptom when something is wrong."
             },
             {
-              "href": "docs/guide/operator-access-rbac/",
+              "href": "guides/operator-access-rbac/",
               "label": "SSH and RBAC",
               "desc": "Set up operator accounts and profiles."
             },
@@ -1360,7 +1360,7 @@
       ]
     },
     {
-      "prefix": "docs/features/",
+      "prefix": "features/",
       "eyebrow": "Feature doc",
       "groups": [
         {

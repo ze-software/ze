@@ -297,6 +297,25 @@ class SiteChromeTest(unittest.TestCase):
         self.assertIn("Docs", fragment)
         self.assertIn(sitelib.SHARED_HEADER_ROOT_TOKEN + "docs/", fragment)
 
+    def test_navigation_stays_scannable_with_one_owner_per_destination(self):
+        data = json.loads((HERE.parent / "data" / "nav.json").read_text())
+        owners = {}
+
+        for dropdown in data["dropdowns"]:
+            columns = dropdown["columns"]
+            self.assertLessEqual(len(columns), 2, dropdown["label"])
+            links = [entry for column in columns for entry in column if "href" in entry]
+            self.assertLessEqual(len(links), 12, dropdown["label"])
+            for entry in links:
+                href = entry["href"]
+                self.assertNotIn(
+                    href,
+                    owners,
+                    "%s appears in both %s and %s"
+                    % (href, owners.get(href), dropdown["label"]),
+                )
+                owners[href] = dropdown["label"]
+
     def test_star_fetch_failure_keeps_last_published_value(self):
         original_path = sitefacts.FACTS_PATH
         original_cache = sitefacts._github_stars_cache

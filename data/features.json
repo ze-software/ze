@@ -10,7 +10,7 @@
           "category": "automate",
           "status": null,
           "title": "AI Tool Interfaces",
-          "href": "docs/features/ai-first/",
+          "href": "features/ai-first/",
           "external": false,
           "chips": [
             {
@@ -36,7 +36,7 @@
           "category": "operate",
           "status": null,
           "title": "SSH CLI",
-          "href": "docs/features/cli-commands/",
+          "href": "features/cli-commands/",
           "external": false,
           "chips": [
             {
@@ -58,7 +58,7 @@
           "category": "operate",
           "status": null,
           "title": "YANG Configuration",
-          "href": "docs/features/configuration/",
+          "href": "features/bgp-configuration/",
           "external": false,
           "chips": [
             {
@@ -80,7 +80,7 @@
           "category": "operate",
           "status": null,
           "title": "Output Formatting",
-          "href": "docs/features/formatting/",
+          "href": "features/formatting/",
           "external": false,
           "chips": [
             {
@@ -102,7 +102,7 @@
           "category": "operate",
           "status": null,
           "title": "Web Workbench",
-          "href": "docs/features/web-interface/",
+          "href": "features/web-interface/",
           "external": false,
           "chips": [
             {
@@ -124,7 +124,7 @@
           "category": "operate",
           "status": null,
           "title": "Looking Glass",
-          "href": "docs/features/looking-glass/",
+          "href": "features/looking-glass/",
           "external": false,
           "chips": [
             {
@@ -150,7 +150,7 @@
           "category": "operate",
           "status": null,
           "title": "System Readiness",
-          "href": "docs/guide/production-diagnostics/",
+          "href": "guides/production-diagnostics/",
           "external": false,
           "chips": [
             {
@@ -172,7 +172,7 @@
           "category": "routing",
           "status": null,
           "title": "Native BGP Engine",
-          "href": "docs/features/bgp-protocol/",
+          "href": "features/bgp-protocol/",
           "external": false,
           "chips": [
             {
@@ -198,7 +198,7 @@
           "category": "routing",
           "status": null,
           "title": "Static Routes",
-          "href": "docs/guide/static-routes/",
+          "href": "guides/static-routes/",
           "external": false,
           "chips": [
             {
@@ -224,7 +224,7 @@
           "category": "routing",
           "status": null,
           "title": "BFD",
-          "href": "docs/features/bgp-protocol/",
+          "href": "features/bgp-protocol/",
           "external": false,
           "chips": [
             {
@@ -246,7 +246,7 @@
           "category": "routing",
           "status": null,
           "title": "MRT Recording",
-          "href": "docs/guide/mrt-analysis/",
+          "href": "guides/mrt-analysis/",
           "external": false,
           "chips": [
             {
@@ -268,7 +268,7 @@
           "category": "services",
           "status": null,
           "title": "DNS Resolver",
-          "href": "docs/features/dns-resolver/",
+          "href": "features/dns-resolver/",
           "external": false,
           "chips": [
             {
@@ -316,7 +316,7 @@
           "category": "automate",
           "status": null,
           "title": "Programmable",
-          "href": "docs/features/api-commands/",
+          "href": "features/api-commands/",
           "external": false,
           "chips": [
             {
@@ -342,7 +342,7 @@
           "category": "automate",
           "status": null,
           "title": "AI-First Design",
-          "href": "docs/features/ai-first/",
+          "href": "features/ai-first/",
           "external": false,
           "chips": [
             {
@@ -364,7 +364,7 @@
           "category": "automate",
           "status": null,
           "title": "MCP Integration",
-          "href": "docs/features/mcp-integration/",
+          "href": "features/mcp-integration/",
           "external": false,
           "chips": [
             {
@@ -386,7 +386,7 @@
           "category": "automate",
           "status": null,
           "title": "ExaBGP Compatibility",
-          "href": "docs/features/exabgp-compatibility/",
+          "href": "features/exabgp-compatibility/",
           "external": false,
           "chips": [
             {
@@ -408,7 +408,7 @@
           "category": "observe",
           "status": null,
           "title": "Evidence Over Claims",
-          "href": "docs/features/interoperability-testing/",
+          "href": "features/interoperability-testing/",
           "external": false,
           "chips": [
             {
@@ -456,7 +456,7 @@
           "category": "observe",
           "status": null,
           "title": "Prometheus Telemetry",
-          "href": "docs/guide/monitoring/",
+          "href": "guides/monitoring/",
           "external": false,
           "chips": [
             {
@@ -478,7 +478,7 @@
           "category": "observe",
           "status": null,
           "title": "Health Registry",
-          "href": "docs/features/",
+          "href": "features/",
           "external": false,
           "chips": [
             {
@@ -500,7 +500,7 @@
           "category": "observe",
           "status": null,
           "title": "Host Inventory",
-          "href": "docs/features/",
+          "href": "features/",
           "external": false,
           "chips": [
             {
@@ -526,7 +526,7 @@
           "category": "observe",
           "status": null,
           "title": "Crash Capture",
-          "href": "docs/features/",
+          "href": "features/",
           "external": false,
           "chips": [
             {
@@ -548,7 +548,7 @@
           "category": "observe",
           "status": null,
           "title": "Tech-Support Bundle",
-          "href": "docs/features/",
+          "href": "features/",
           "external": false,
           "chips": [
             {
@@ -570,7 +570,7 @@
           "category": "observe",
           "status": null,
           "title": "Production Diagnostics",
-          "href": "docs/guide/production-diagnostics/",
+          "href": "guides/production-diagnostics/",
           "external": false,
           "chips": [
             {
@@ -622,7 +622,7 @@
           "category": "secure",
           "status": null,
           "title": "TACACS+ AAA",
-          "href": "docs/guide/tacacs/",
+          "href": "guides/tacacs/",
           "external": false,
           "chips": [
             {
@@ -644,7 +644,7 @@
           "category": "secure",
           "status": null,
           "title": "Audit Trail",
-          "href": "docs/guide/audit/",
+          "href": "guides/audit/",
           "external": false,
           "chips": [
             {
@@ -666,7 +666,7 @@
           "category": "secure",
           "status": null,
           "title": "PKI Store",
-          "href": "docs/features/",
+          "href": "features/",
           "external": false,
           "chips": [
             {
@@ -688,7 +688,7 @@
           "category": "platform",
           "status": null,
           "title": "Minimal Appliance Mode",
-          "href": "docs/guide/appliance/",
+          "href": "guides/appliance/",
           "external": false,
           "chips": [
             {
@@ -711,7 +711,7 @@
           "category": "platform",
           "status": null,
           "title": "Runs Itself",
-          "href": "docs/features/introspection/",
+          "href": "features/introspection/",
           "external": false,
           "chips": [
             {
@@ -733,7 +733,7 @@
           "category": "platform",
           "status": null,
           "title": "Docker Support",
-          "href": "docs/features/",
+          "href": "features/",
           "external": false,
           "chips": [
             {
@@ -759,7 +759,7 @@
           "category": "platform",
           "status": null,
           "title": "Feature Gates",
-          "href": "docs/guide/quickstart/",
+          "href": "guides/quickstart/",
           "external": false,
           "chips": [
             {
@@ -789,7 +789,7 @@
           "category": "services",
           "status": "experimental",
           "title": "IPsec VPN",
-          "href": "docs/features/",
+          "href": "features/",
           "external": false,
           "chips": [
             {
@@ -815,7 +815,7 @@
           "category": "services",
           "status": "experimental",
           "title": "L2TPv2 BNG",
-          "href": "docs/guide/l2tp/",
+          "href": "guides/l2tp/",
           "external": false,
           "chips": [
             {
@@ -841,7 +841,7 @@
           "category": "services",
           "status": "experimental",
           "title": "PPPoE Access",
-          "href": "docs/guide/pppoe/",
+          "href": "guides/pppoe/",
           "external": false,
           "chips": [
             {
@@ -863,7 +863,7 @@
           "category": "services",
           "status": "experimental",
           "title": "Interface Management",
-          "href": "docs/features/interfaces/",
+          "href": "features/interfaces/",
           "external": false,
           "chips": [
             {
@@ -885,7 +885,7 @@
           "category": "services",
           "status": "experimental",
           "title": "Firewall",
-          "href": "docs/guide/firewall/",
+          "href": "guides/firewall/",
           "external": false,
           "chips": [
             {
@@ -907,7 +907,7 @@
           "category": "services",
           "status": "experimental",
           "title": "Policy Routing",
-          "href": "docs/guide/policy-routing/",
+          "href": "guides/policy-routing/",
           "external": false,
           "chips": [
             {
@@ -929,7 +929,7 @@
           "category": "services",
           "status": "experimental",
           "title": "VPP Data Plane",
-          "href": "docs/guide/vpp/",
+          "href": "guides/vpp/",
           "external": false,
           "chips": [
             {
@@ -951,7 +951,7 @@
           "category": "routing",
           "status": "experimental",
           "title": "MPLS / LDP / RSVP-TE",
-          "href": "docs/features/",
+          "href": "features/",
           "external": false,
           "chips": [
             {
@@ -973,7 +973,7 @@
           "category": "routing",
           "status": "experimental",
           "title": "OSPFv2 / OSPFv3",
-          "href": "docs/guide/ospf/",
+          "href": "guides/ospf/",
           "external": false,
           "chips": [
             {
@@ -999,7 +999,7 @@
           "category": "routing",
           "status": "experimental",
           "title": "IS-IS",
-          "href": "docs/guide/isis/",
+          "href": "guides/isis/",
           "external": false,
           "chips": [
             {
@@ -1021,7 +1021,7 @@
           "category": "routing",
           "status": "experimental",
           "title": "VRRP",
-          "href": "docs/guide/vrrp/",
+          "href": "guides/vrrp/",
           "external": false,
           "chips": [
             {
@@ -1047,7 +1047,7 @@
           "category": "observe",
           "status": "experimental",
           "title": "Flow Export",
-          "href": "docs/guide/flow-export/",
+          "href": "guides/flow-export/",
           "external": false,
           "chips": [
             {
@@ -1073,7 +1073,7 @@
           "category": "platform",
           "status": "experimental",
           "title": "ISO and PXE Install",
-          "href": "docs/guide/ze-install/",
+          "href": "guides/ze-install/",
           "external": false,
           "chips": [
             {
@@ -1095,7 +1095,7 @@
           "category": "platform",
           "status": "experimental",
           "title": "Kernel Tunables",
-          "href": "docs/features/",
+          "href": "features/",
           "external": false,
           "chips": [
             {
@@ -1117,7 +1117,7 @@
           "category": "services",
           "status": "experimental",
           "title": "AS112 Anycast DNS",
-          "href": "docs/guide/as112/",
+          "href": "guides/as112/",
           "external": false,
           "chips": [
             {
@@ -1161,7 +1161,7 @@
           "category": "automate",
           "status": "experimental",
           "title": "Fleet Management",
-          "href": "docs/guide/fleet-config/",
+          "href": "guides/fleet-config/",
           "external": false,
           "chips": [
             {
@@ -1183,7 +1183,7 @@
           "category": "secure",
           "status": "experimental",
           "title": "IRR Route Filtering",
-          "href": "docs/guide/irr-filtering/",
+          "href": "guides/irr-filtering/",
           "external": false,
           "chips": [
             {

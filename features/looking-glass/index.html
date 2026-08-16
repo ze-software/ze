@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Looking Glass - Ze</title>
+        <meta name="description" content="Ze documentation: features/looking-glass.md" />
+        <meta property="og:title" content="Looking Glass - Ze" />
+        <meta property="og:description" content="Ze documentation: features/looking-glass.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Looking Glass - Ze" />
+        <meta name="twitter:description" content="Ze documentation: features/looking-glass.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/features/looking-glass/" />
+        <meta property="og:url" content="https://ze-software.net/features/looking-glass/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-operate">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Feature</span>
+    <h1 id="looking-glass">Looking Glass</h1>
+    <p>Ze includes a built-in looking glass that exposes BGP session state and route information via both an HTMX web UI and a birdwatcher-compatible REST API. The looking glass runs as a separate HTTP server on its own port (default 8443). It is read-only and open by default, because a looking glass is a public surface. It serves TLS by default, and an optional bearer <code>token</code> gates every route when you set one.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#as-path-topology-graph">AS Path Topology Graph</a></li>
+</ol></nav>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Peer dashboard</td>
+<td>Live peer table with state, ASN, route counts, SSE updates</td>
+</tr>
+<tr>
+<td>Route lookup</td>
+<td>Prefix and IP containment search with full attribute display</td>
+</tr>
+<tr>
+<td>AS path search</td>
+<td>Pattern-based AS path filtering</td>
+</tr>
+<tr>
+<td>Community search</td>
+<td>Standard and large community filtering</td>
+</tr>
+<tr>
+<td>AS path topology graph</td>
+<td>Server-side SVG visualization of AS path DAGs</td>
+</tr>
+<tr>
+<td>Birdwatcher REST API</td>
+<td>Alice-LG compatible JSON endpoints under. <span class="ev-src"><span class="ev-ref"><code>/api/looking-glass/</code></span></span></td>
+</tr>
+<tr>
+<td>HTMX web UI</td>
+<td>Server-rendered HTML pages under with fragment updates. <span class="ev-src"><span class="ev-ref"><code>/lg/</code></span></span></td>
+</tr>
+<tr>
+<td>YANG configuration</td>
+<td><code>environment/looking-glass</code> block with enabled, server (ip, port), tls (default true), and token settings</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/lg/server.go -- LGServer, HTTP lifecycle -->
+<!-- source: internal/component/lg/handler_api.go -- Birdwatcher REST API handlers -->
+<!-- source: internal/component/lg/handler_ui.go -- HTMX UI handlers -->
+<!-- source: internal/component/lg/handler_graph.go -- AS path graph handler -->
+<!-- source: internal/component/lg/graph.go -- Graph data model -->
+<!-- source: internal/component/lg/layout.go -- Layout algorithm and SVG rendering -->
+
+<p>See <a href="../../guides/looking-glass/">Looking Glass Guide</a> for configuration and usage.</p>
+<h3 id="as-path-topology-graph">AS Path Topology Graph</h3>
+<p>The looking glass includes a server-side SVG graph that visualizes AS path topology for any prefix. When looking up a route, clicking "Show topology" renders a directed acyclic graph where nodes represent autonomous systems and edges represent peering links.</p>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Server-side SVG</td>
+<td>Rendered entirely in Go, no external dependencies (no GraphViz, no WASM, no JS graph library)</td>
+</tr>
+<tr>
+<td>Layered layout</td>
+<td>Sugiyama-inspired left-to-right layout with source ASes on the left, origin on the right</td>
+</tr>
+<tr>
+<td>AS prepending</td>
+<td>Consecutive duplicate ASNs collapsed to a single node</td>
+</tr>
+<tr>
+<td>Multi-path</td>
+<td>Multiple AS paths to the same prefix shown as a branching DAG</td>
+</tr>
+<tr>
+<td>ASN labels</td>
+<td>Each node shows AS number and organization name (when decorator is available)</td>
+</tr>
+<tr>
+<td>Node cap</td>
+<td>Graphs limited to 100 nodes to prevent resource exhaustion</td>
+</tr>
+<tr>
+<td>HTMX integration</td>
+<td>Loaded as an inline SVG fragment via <code>GET /lg/graph?prefix=X</code></td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/lg/graph.go -- buildGraph, extractASPath -->
+<!-- source: internal/graph/graph.go -- BuildGraphFromPaths, DeduplicateASPath -->
+<!-- source: internal/component/lg/layout.go -- computeLayout, renderGraphSVG -->
+<!-- source: internal/component/lg/handler_graph.go -- handleGraph endpoint -->
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Feature doc</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Related research</h2>
+                    <a class="page-sidebar-link" href="../../features/">
+                        <span class="page-sidebar-link-label">Feature catalog</span>
+                        <small>Return to the generated feature cards.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Browse by learning intent.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../compare/">
+                        <span class="page-sidebar-link-label">Comparisons</span>
+                        <small>Place the feature in external context.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../quality/">
+                        <span class="page-sidebar-link-label">Quality</span>
+                        <small>See the evidence behind the implementation.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

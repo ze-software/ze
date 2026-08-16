@@ -5,10 +5,10 @@ Usage:
     tools/render-docs.py
 
 Reads tools/page_registry.py DOCS_MANIFEST, renders each registered
-../main/docs/<path>.md to the destination selected by
+../main/docs/<path>.md to the public destination selected by
 page_registry.docs_dest_rel_for(), and computes the relative --root depth from
-that destination automatically. Most pages mirror the source below docs/;
-lookup pages can use DOCS_DEST_OVERRIDES to live under reference/<type>/.
+that destination automatically. Public destinations follow the website's
+information architecture rather than mirroring source directories.
 Re-run this batch when a registered source changes upstream, or use
 render-doc.py to render one file.
 

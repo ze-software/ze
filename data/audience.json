@@ -14,7 +14,7 @@
             "category": "operate",
             "chips": ["Existing Linux", "systemd-ready"],
             "body": "Ze runs on any existing Linux distro, managed by systemd or your chosen process manager. This is the easiest route when Ze has to fit into infrastructure you already run.",
-            "link": {"href": "docs/guide/quickstart/", "label": "Quickstart", "sublabel": "two BGP peers"}
+            "link": {"href": "guides/quickstart/", "label": "Quickstart", "sublabel": "two BGP peers"}
         },
         {
             "title": "Run as an appliance",
@@ -22,7 +22,7 @@
             "category": "platform",
             "chips": ["gokrazy image", "Read-only root filesystem"],
             "body": "A bootable gokrazy image for appliance hardware: read-only root filesystem, no shell, no package manager, and automatic process supervision.",
-            "link": {"href": "docs/guide/ze-install/", "label": "Install guide", "sublabel": "PXE, ISO, or Ventoy"}
+            "link": {"href": "guides/ze-install/", "label": "Install guide", "sublabel": "PXE, ISO, or Ventoy"}
         }
     ],
     "who": [
@@ -32,7 +32,7 @@
             "category": "routing",
             "chips": ["Peering", "Policy", "Replay"],
             "body": "IXP operators can run the route-server lab first and compare policy behaviour before touching members.",
-            "link": {"href": "usage/route-server/", "label": "Route server", "sublabel": "policy and replay"}
+            "link": {"href": "use-cases/route-server/", "label": "Route server", "sublabel": "policy and replay"}
         },
         {
             "title": "Lab router",
@@ -40,7 +40,7 @@
             "category": "operate",
             "chips": ["Quickstart", "BGP peers"],
             "body": "Network builders can bring up two BGP peers, inspect routes, and check whether Ze's operator tools fit their workflow.",
-            "link": {"href": "docs/guide/quickstart/", "label": "Quickstart", "sublabel": "two peer lab"}
+            "link": {"href": "guides/quickstart/", "label": "Quickstart", "sublabel": "two peer lab"}
         },
         {
             "title": "ExaBGP replacement",
@@ -48,7 +48,7 @@
             "category": "automate",
             "chips": ["Migration", "Plugins"],
             "body": "ExaBGP users can try the migrator against an existing config and see which process scripts still translate cleanly.",
-            "link": {"href": "usage/exabgp-migration/", "label": "Migration path", "sublabel": "config and process scripts"}
+            "link": {"href": "use-cases/exabgp-migration/", "label": "Migration path", "sublabel": "config and process scripts"}
         },
         {
             "title": "White-box appliance",
@@ -56,7 +56,7 @@
             "category": "platform",
             "chips": ["ISO", "PXE", "gokrazy"],
             "body": "People with spare x86 hardware can boot the appliance image and test the same configuration model without a general-purpose shell.",
-            "link": {"href": "docs/guide/appliance/", "label": "Appliance guide", "sublabel": "spare hardware"}
+            "link": {"href": "guides/appliance/", "label": "Appliance guide", "sublabel": "spare hardware"}
         },
         {
             "title": "Looking glass",
@@ -64,7 +64,7 @@
             "category": "observe",
             "chips": ["Read-only", "BGP visibility"],
             "body": "Operators who need read-only BGP visibility can publish a looking glass and inspect routes without giving shell access.",
-            "link": {"href": "docs/guide/looking-glass-howto/", "label": "Looking glass", "sublabel": "read-only BGP"}
+            "link": {"href": "guides/public-looking-glass/", "label": "Looking glass", "sublabel": "read-only BGP"}
         },
         {
             "title": "Protocol testbed",
@@ -81,7 +81,7 @@
             "accent": "pink",
             "chips": ["MCP", "CLI catalogue"],
             "body": "MCP exposes Ze commands and structured output to AI tools without a separate command set.",
-            "link": {"href": "docs/features/ai-first/", "label": "AI via MCP", "sublabel": "same command catalogue"}
+            "link": {"href": "features/ai-first/", "label": "AI via MCP", "sublabel": "same command catalogue"}
         }
     ]
 }

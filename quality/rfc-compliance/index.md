@@ -10,7 +10,7 @@ rfc-requirements OK: 2965 gated MUST-level requirement(s) across 171 enrolled RF
 
 | Metric | Value |
 |---|---:|
-| Gate issues | 4 |
+| Gate issues | 2 |
 | Gated MUST-level requirements | 2,965 |
 | Enrolled RFCs | 171 |
 | Resolved test tags | 3,539 |
@@ -88,4 +88,4 @@ rfc-requirements OK: 2965 gated MUST-level requirement(s) across 171 enrolled RF
 | Requirement coverage | 0 |
 | Public claim agreement | 0 |
 | Semantic audit freshness | 2 |
-| Generated ledger freshness | 2 |
+| Generated ledger freshness | 0 |

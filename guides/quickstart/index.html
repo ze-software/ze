@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Quick Start - Ze</title>
+        <meta name="description" content="Ze documentation: guide/quickstart.md" />
+        <meta property="og:title" content="Quick Start - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/quickstart.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Quick Start - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/quickstart.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/guides/quickstart/" />
+        <meta property="og:url" content="https://ze-software.net/guides/quickstart/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-operate">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1 id="quick-start">Quick Start</h1>
+    <p>Get Ze running with two BGP peers in under 5 minutes.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#build">Build</a>
+<ol>
+<li><a href="#or-go-install">Or: go install</a></li>
+</ol></li>
+<li><a href="#initialize">Initialize</a></li>
+<li><a href="#minimal-config">Minimal Config</a></li>
+<li><a href="#validate">Validate</a></li>
+<li><a href="#start">Start</a></li>
+<li><a href="#verify">Verify</a></li>
+<li><a href="#test-without-a-real-peer">Test Without a Real Peer</a></li>
+<li><a href="#stop">Stop</a></li>
+<li><a href="#next-steps">Next Steps</a></li>
+</ol></nav>
+<h2 id="build">Build</h2>
+<pre><code class="language-bash">git clone https://github.com/ze-software/ze.git
+cd ze
+make build    # produces bin/ze, bin/ze-test, bin/ze-chaos
+</code></pre>
+<p>Requires <strong>Go 1.26+</strong> on a macOS or Linux development host. Windows is not a supported development platform.</p>
+<h3 id="or-go-install">Or: go install</h3>
+<p>To just get a <code>ze</code> binary without cloning the repo, <code>go install</code> with the same
+build tags <code>make build</code> uses:</p>
+<!-- source: Makefile -- build target, "ze_core ze_distro $(ZE_FEATURES) $(ZE_TAGS)" -->
+
+<pre><code class="language-bash">go install -tags 'ze_core ze_distro ze_anomaly ze_as112 ze_bfd ze_bgp ze_bmp ze_copp ze_cos ze_ddos ze_dhcpserver ze_exabgp ze_flowexport ze_geodns ze_gnmi ze_grpc ze_ike ze_isis ze_l2tp ze_ldp ze_lg ze_mcp ze_mpls ze_mrt ze_ntp ze_ospf ze_policyroute ze_pxe ze_radius ze_rest ze_rsvpte ze_ssh ze_tacacs ze_telemetry ze_trafficusage ze_vpp ze_vrrp ze_web' github.com/ze-software/ze/cmd/ze@latest
+</code></pre>
+<p>This tracks the module's default branch (development version), not a
+tagged release -- there are no tagged releases yet.</p>
+<h2 id="initialize">Initialize</h2>
+<p>Ze runs an SSH server on localhost for CLI access (<code>ze cli</code>, <code>ze show</code>, <code>ze signal</code>). This keeps the control plane authenticated even in multi-user environments. Set up credentials once:</p>
+<pre><code class="language-bash">bin/ze init
+</code></pre>
+<p>This prompts for username, password, SSH host (default <code>127.0.0.1</code>), port (default <code>2222</code>), and node name (default: hostname). Credentials are stored locally with bcrypt-hashed passwords. For scripting (later fields fall back to their defaults):</p>
+<!-- source: internal/plugins/init/main.go -- Run, defaultHost, defaultPort, bcrypt hashing -->
+
+<pre><code class="language-bash">echo -e &quot;admin\nsecret&quot; | bin/ze init
+</code></pre>
+<p>Running <code>ze init</code> a second time will refuse with <code>error: database already exists</code>. To reinitialize, use <code>--force</code> -- this backs up the old database as <code>database.zefs.replaced-&lt;date&gt;</code> before creating a new one:</p>
+<pre><code class="language-bash">bin/ze signal stop             # stop daemon first
+bin/ze init --force            # prompts for confirmation, then backs up and reinitializes
+</code></pre>
+<!-- source: internal/plugins/init/main.go -- forceFlag -->
+
+<figure class="terminal-demo" data-terminal-demo="zefs-config">
+  <div class="terminal-demo__intro">
+    <div>
+      <span class="terminal-demo__eyebrow">Replayable Ze terminal lab</span>
+      <h3>Create ZeFS and commit over SSH</h3>
+      <p>Create the ZeFS database, edit the active configuration through Ze&#x27;s SSH management plane, and verify the committed setting.</p>
+    </div>
+    <span class="terminal-demo__status"><i aria-hidden="true"></i> Reproducible</span>
+  </div>
+  <div class="terminal-demo__frame">
+    <div class="terminal-demo__bar" aria-hidden="true">
+      <span class="terminal-demo__dots"><i></i><i></i><i></i></span>
+      <span>zefs-config.terminal</span>
+      <span>WEBM</span>
+    </div>
+    <video controls playsinline preload="metadata" poster="../../assets/demos/zefs-config.png?v=26fc4f1939" aria-label="Create ZeFS and commit over SSH demonstration">
+      <source src="../../assets/demos/zefs-config.webm?v=644b96eda1" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../assets/demos/zefs-config.webm?v=644b96eda1">Download the recording</a>.
+    </video>
+  </div>
+  <figcaption>
+    <span>Ze 26.07.18</span><span>1 minute 55 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
+    <a href="../../assets/demos/zefs-config.txt?v=4253c65985">Plain-text transcript</a>
+  </figcaption>
+  <details class="terminal-demo__transcript">
+    <summary>Read the demonstration transcript</summary>
+    <pre><code>$ ze init &lt; &quot;$ZE_INIT_INPUT&quot;
+$ ze config ls
+ze.conf
+$ ze data check
+
+$ ssh ze-demo
+ze# run show bgp summary
+ze# set environment cli format default table
+ze# show | compare
+ze# commit
+Session committed
+ze# run show bgp summary
+
+`ze init` creates `database.zefs`. The first BGP summary uses the default text format. The SSH editor commits the table-format setting back to ZeFS, not to a second flat file, and the same operational command immediately renders as a box-drawing table.</code></pre>
+  </details>
+</figure>
+
+<h2 id="minimal-config">Minimal Config</h2>
+<p>Save as <code>example.conf</code>:</p>
+<pre><code>static {
+    table default {
+        route 172.16.0.0/24 {
+            next {
+                hop 10.0.0.1 {
+                }
+            }
+        }
+    }
+}
+
+redistribute {
+    destination bgp {
+        import static
+    }
+}
+
+bgp {
+    router-id 10.0.0.1
+    session {
+        asn {
+            local 65000
+        }
+    }
+
+    peer test-peer {
+        connection {
+            remote {
+                ip 10.0.0.2
+            }
+            local {
+                ip 10.0.0.1
+            }
+        }
+
+        session {
+            asn {
+                local 65000
+                remote 65001
+            }
+            family {
+                ipv4/unicast {
+                    prefix {
+                        maximum 1000000
+                    }
+                }
+            }
+        }
+
+        update {
+            attribute {
+                origin igp
+                next-hop 10.0.0.1
+            }
+            nlri {
+                ipv4/unicast add 192.168.1.0/24
+            }
+        }
+    }
+}
+</code></pre>
+<p>This advertises two prefixes to <code>test-peer</code>, one by each of the routes Ze gives you to get
+a prefix into BGP:</p>
+<ul>
+<li>
+<p><strong>Redistribution</strong> (<code>172.16.0.0/24</code>): a <code>static</code> route pulled into BGP by the top-level
+  <code>redistribute { destination bgp { import static } }</code> block. Every source protocol
+  (<code>static</code>, <code>connected</code>, <code>kernel</code>, <code>ospf</code>, <code>isis</code>, ...) redistributes into any destination
+  the same way -- this is how interface and interior-gateway routes reach your peers.
+  <!-- source: internal/plugins/static/register.go -- registerStaticSources; internal/component/config/loader_redistribute.go -- ExtractRedistributeRules --></p>
+</li>
+<li>
+<p><strong>Direct announcement</strong> (<code>192.168.1.0/24</code>): a prefix declared inline on the peer in its
+  <code>update {}</code> block, sent as soon as the session establishes.
+  <!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- sendInitialRoutes -->
+</p>
+</li>
+</ul>
+<blockquote>
+<p>Advanced: a <code>process</code> binding attaches a plugin or your own external program to a peer (the
+ExaBGP-style event API), including making a peer RIB-backed so it stores and re-advertises
+received routes. It is not needed for the config above; see <a href="../plugins/">Plugins</a>.</p>
+</blockquote>
+<h2 id="validate">Validate</h2>
+<pre><code class="language-bash">bin/ze config validate example.conf
+</code></pre>
+<!-- source: internal/component/config/cli/cmd_validate.go -- cmdValidate -->
+
+<p>Expected output:</p>
+<pre><code>configuration valid: example.conf
+</code></pre>
+<h2 id="start">Start</h2>
+<pre><code class="language-bash">bin/ze start example.conf
+</code></pre>
+<!-- source: cmd/ze/ze_core_dispatch.go -- registerLocalCommands, "start" root handler; cmd/ze/ze_core_start.go -- cmdStart, startConfigPath -->
+
+<p>The config path goes behind the <code>start</code> keyword. A bare <code>bin/ze example.conf</code> is rejected with <code>unknown command: example.conf</code> (exit 1); global flags such as <code>-d</code> are consumed before the keyword, so they stay ahead of it.</p>
+<p>Ze logs to stderr. You should see something like:</p>
+<pre><code>level=INFO  msg=&quot;hub ready&quot; subsystem=hub plugins=1 peers=1 listen=&quot;:179&quot;
+level=INFO  msg=&quot;peer connecting&quot; subsystem=bgp.reactor peer=test-peer address=10.0.0.2
+</code></pre>
+<p>Silence means the default log level (<code>warn</code>) has nothing to report -- that's normal. To see all activity:</p>
+<pre><code class="language-bash">bin/ze -d start example.conf  # debug logging
+</code></pre>
+<!-- source: cmd/ze/main.go -- "-d" debug flag sets ze.log=debug -->
+
+<h2 id="verify">Verify</h2>
+<p>In another terminal:</p>
+<pre><code class="language-bash"># Check daemon is running
+bin/ze status
+
+# List peers
+bin/ze cli -c &quot;show bgp peer list&quot;
+
+# Show peer details
+bin/ze cli -c &quot;show bgp peer test-peer detail&quot;
+
+# Watch live events (streams until Ctrl-C)
+bin/ze cli -c &quot;monitor event&quot;
+</code></pre>
+<!-- source: internal/component/cli/client/main.go -- Execute, StreamMonitor -->
+
+<h2 id="test-without-a-real-peer">Test Without a Real Peer</h2>
+<p>Use the built-in test peer to accept any BGP session:</p>
+<pre><code class="language-bash"># Terminal 1: start a sink peer (accepts sessions, replies keepalive)
+bin/ze-test peer --mode sink --port 1179 --asn 65001
+
+# Terminal 2: start ze with config pointing to localhost:1179
+bin/ze start example-local.conf
+</code></pre>
+<!-- source: internal/test/cli/cmd_peer.go -- ze-test peer command -->
+
+<p>Where <code>example-local.conf</code> is the config above with the peer's <code>connection</code>
+block pointed at the local sink, so ze dials <code>127.0.0.1:1179</code> instead of
+<code>10.0.0.2</code>:</p>
+<pre><code>        connection {
+            remote {
+                ip 127.0.0.1
+                port 1179
+            }
+            local {
+                ip 127.0.0.2
+            }
+        }
+</code></pre>
+<p>The sink's <code>--asn 65001</code> matches the peer's <code>session { asn { remote 65001 } }</code>.</p>
+<p><strong>The two ends carry different addresses on purpose, even here.</strong> One machine can
+hold both, so a loopback demo is the one place a session can be written with one
+address at each end, and BGP does not work that way: <code>next-hop self</code> then puts the
+peer's OWN address on the wire, and Ze refuses to advertise that, because RFC 4271
+Section 5.1.3 forbids telling a peer to reach a destination through itself. The
+session still establishes, so the symptom is routes that never arrive rather than
+an error. On Linux the whole 127.0.0.0/8 range is available; on macOS add the
+alias once with <code>sudo ifconfig lo0 alias 127.0.0.2</code>, which <code>make ze-setup</code> also
+does. The refusal is <code>originatedNextHopIsPeerOwn</code>
+(<code>internal/component/bgp/reactor/forward_next_hop.go</code>), and <code>precomputeNextHop</code>
+(<code>internal/component/bgp/reactor/peer_forward_facts.go</code>) is what resolves
+<code>next-hop self</code> to the local address.</p>
+<p>The sink accepts whatever it is sent, so this demo works either way until you
+announce a route; the address split is what keeps it working when you do.</p>
+<h2 id="stop">Stop</h2>
+<pre><code class="language-bash">bin/ze signal stop             # graceful shutdown
+bin/ze signal restart          # graceful restart (preserves routes via GR)
+</code></pre>
+<!-- source: internal/plugins/signal/main.go -- Run -->
+
+<h2 id="next-steps">Next Steps</h2>
+<ul>
+<li><a href="../configuration-model/">Configuration</a> -- peer groups, capabilities, static routes</li>
+<li><a href="../plugins/">Plugins</a> -- RIB, route server, RPKI, graceful restart</li>
+<li><a href="../cli/">CLI Reference</a> -- interactive CLI, route injection, monitoring</li>
+<li><a href="../logging/">Logging</a> -- log levels, backends, per-subsystem tuning</li>
+<li><a href="../operations/">Operations</a> -- SSH setup, signals, health checks, troubleshooting</li>
+</ul>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create zefs, and start SSH.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../reference/command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

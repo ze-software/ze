@@ -1,0 +1,490 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Configuration Editor - Ze</title>
+        <meta name="description" content="Ze documentation: guide/config-editor.md" />
+        <meta property="og:title" content="Configuration Editor - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/config-editor.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Configuration Editor - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/config-editor.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/guides/config-editor/" />
+        <meta property="og:url" content="https://ze-software.net/guides/config-editor/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-operate">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1 id="configuration-editor">Configuration Editor</h1>
+    <p>Ze includes an interactive configuration editor with YANG-driven tab completion, rollback history, and live validation.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#usage">Usage</a></li>
+<li><a href="#editor-commands">Editor Commands</a></li>
+<li><a href="#other-config-subcommands">Other Config Subcommands</a></li>
+<li><a href="#editing-modes">Editing Modes</a></li>
+<li><a href="#yang-completion">YANG Completion</a></li>
+<li><a href="#commit-confirmed">Commit Confirmed</a></li>
+<li><a href="#rollback">Rollback</a></li>
+<li><a href="#exit-codes">Exit Codes</a></li>
+<li><a href="#example-workflow">Example Workflow</a></li>
+</ol></nav>
+<!-- source: internal/component/config/cli/cmd_edit.go -- cmdEditWithStorage; internal/component/cli/ -- editor model -->
+
+<h2 id="usage">Usage</h2>
+<pre><code class="language-bash">ze config edit                      # Edit default config
+ze config edit myconfig.conf        # Edit specific file
+</code></pre>
+<p>The editor starts an ephemeral ze instance in the background for live YANG validation and completion suggestions.</p>
+<h2 id="editor-commands">Editor Commands</h2>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>set &lt;path&gt; &lt;value&gt;</code></td>
+<td>Set a configuration value</td>
+</tr>
+<tr>
+<td><code>delete &lt;path&gt;</code></td>
+<td>Delete a configuration value or section</td>
+</tr>
+<tr>
+<td><code>show</code></td>
+<td>Display current configuration</td>
+</tr>
+<tr>
+<td><code>show &lt;path&gt;</code></td>
+<td>Display a specific section</td>
+</tr>
+<tr>
+<td><code>show \| blame</code></td>
+<td>Annotate with authorship</td>
+</tr>
+<tr>
+<td><code>show \| changes [all]</code></td>
+<td>Pending changes (session or all)</td>
+</tr>
+<tr>
+<td><code>show \| compare</code></td>
+<td>Diff against committed config; shows only the parts that differ</td>
+</tr>
+<tr>
+<td><code>show \| errors</code></td>
+<td>Validation issues</td>
+</tr>
+<tr>
+<td><code>show \| history</code></td>
+<td>List rollback revisions</td>
+</tr>
+<tr>
+<td><code>commit</code></td>
+<td>Save changes and notify daemon</td>
+</tr>
+<tr>
+<td><code>commit confirmed &lt;N&gt;</code></td>
+<td>Commit with N-second auto-revert window (1-3600)</td>
+</tr>
+<tr>
+<td><code>confirm</code></td>
+<td>Make a pending confirmed commit permanent</td>
+</tr>
+<tr>
+<td><code>confirm abort</code></td>
+<td>Roll back a pending confirmed commit immediately</td>
+</tr>
+<tr>
+<td><code>rollback &lt;N&gt;</code></td>
+<td>Restore revision N</td>
+</tr>
+<tr>
+<td><code>top</code></td>
+<td>Navigate to config root</td>
+</tr>
+<tr>
+<td><code>up</code></td>
+<td>Navigate up one level</td>
+</tr>
+<tr>
+<td><code>edit &lt;path&gt;</code></td>
+<td>Navigate into a section</td>
+</tr>
+<tr>
+<td><code>exit</code></td>
+<td>Exit editor</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/cli/editor_commands.go -- editor commands (set, delete, show, diff, commit, rollback) -->
+
+<h2 id="other-config-subcommands">Other Config Subcommands</h2>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze config validate &lt;file&gt;</code></td>
+<td>Validate configuration file</td>
+</tr>
+<tr>
+<td><code>ze config migrate &lt;file&gt;</code></td>
+<td>Convert ExaBGP config to ze format</td>
+</tr>
+<tr>
+<td><code>ze config fmt &lt;file&gt;</code></td>
+<td>Normalize formatting (output to stdout)</td>
+</tr>
+<tr>
+<td><code>ze config dump &lt;file&gt;</code></td>
+<td>Dump parsed config as JSON tree</td>
+</tr>
+<tr>
+<td><code>ze config diff &lt;a&gt; &lt;b&gt;</code></td>
+<td>Compare two config files</td>
+</tr>
+<tr>
+<td><code>ze config diff &lt;N&gt; &lt;file&gt;</code></td>
+<td>Compare rollback revision N against current</td>
+</tr>
+<tr>
+<td><code>ze config set &lt;file&gt; &lt;path&gt; &lt;value&gt;</code></td>
+<td>Set a single value programmatically</td>
+</tr>
+<tr>
+<td><code>ze config history &lt;file&gt;</code></td>
+<td>List available rollback revisions</td>
+</tr>
+<tr>
+<td><code>ze config rollback &lt;N&gt; &lt;file&gt;</code></td>
+<td>Restore revision N</td>
+</tr>
+<tr>
+<td><code>ze config archive &lt;name&gt; &lt;file&gt;</code></td>
+<td>Archive config to named destination (<a href="../config-archive/">details</a>)</td>
+</tr>
+<tr>
+<td><code>ze config completion &lt;file&gt;</code></td>
+<td>Query YANG completion engine (debugging)</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/config/cli/main.go -- subcommandHandlers, storageHandlers -->
+
+<p>Every <code>&lt;file&gt;</code> above accepts <code>-</code> for <strong>stdin</strong>. The read-modify commands
+<code>ze config set</code>, <code>ze config deactivate</code>, and <code>ze config activate</code> become
+pipeline stages when given <code>-</code>: they read the config from stdin, apply the
+change, and emit the modified config to <strong>stdout</strong> instead of writing back, so
+they compose (<code>ze config show - | ze config set - bgp session asn local 65001</code>).
+<code>ze config edit -</code>, <code>ze config rollback &lt;N&gt; -</code>, and <code>ze config history -</code> are
+rejected with a clear error: an interactive editor needs a TTY, and rollback/history
+need on-disk revision history that a piped config does not have.</p>
+<!-- source: internal/component/config/cli/editor_stdin.go -- openEditableConfig -->
+<!-- source: internal/component/cli/editor.go -- NewEditorFromContent, SetStdoutSink -->
+
+<h2 id="editing-modes">Editing Modes</h2>
+<p>The editor operates in one of two modes depending on the storage backend.</p>
+<!-- source: internal/component/config/cli/cmd_edit.go -- runEditor, storage.IsBlobStorage -->
+
+<p><strong>File mode</strong> (<code>ze config edit -f</code> or when no zefs database exists): the editor works directly on a config file. <code>commit</code> writes the full configuration tree to disk. All operations (set, delete, load) modify the in-memory tree and the commit serializes the result. This is the simplest path: no change tracking, no conflict detection, no draft files.</p>
+<p><strong>Session mode</strong> (zefs blob store): each editing session gets an identity (<code>user@origin%timestamp</code>) and a per-user change file that records every edit with metadata (who, when, previous value). <code>commit</code> applies only the current session's tracked changes to the committed config, enabling concurrent multi-user editing with conflict detection, blame, and crash recovery. See the <a href="https://github.com/ze-software/ze/blob/main/docs/research/comparison/freertr/23-concurrent-editing.md" target="_blank" rel="noopener">concurrent editing</a> reference for the full protocol.</p>
+<p>Some commands are not yet supported in session mode because they replace the tree wholesale and cannot be expressed as tracked change entries. These return an error when attempted:</p>
+<!-- source: internal/component/cli/editor_commands.go -- errLoadNotSupportedInSessionMode, errCopyNotSupportedInSessionMode, errDeactivateNotSupportedInSessionMode, errActivateNotSupportedInSessionMode -->
+<!-- source: internal/component/cli/model_commands.go -- errCommitConfirmedNotYetSupportedIn -->
+<!-- source: internal/component/cli/model_commands_commit.go -- errCommitForceNotYetSupportedIn -->
+
+<table>
+<thead>
+<tr>
+<th>Blocked command</th>
+<th>Reason</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>load</code></td>
+<td>Replaces tree without generating per-leaf change entries</td>
+</tr>
+<tr>
+<td><code>copy</code></td>
+<td>Creates structure without write-through</td>
+</tr>
+<tr>
+<td><code>deactivate</code> on a leaf or a path</td>
+<td>Requires metadata write-through</td>
+</tr>
+<tr>
+<td><code>activate</code> on a leaf or a path</td>
+<td>Requires metadata write-through</td>
+</tr>
+<tr>
+<td><code>commit confirmed</code></td>
+<td>Needs session-aware rollback</td>
+</tr>
+<tr>
+<td><code>commit force</code></td>
+<td>Needs session-aware rollback</td>
+</tr>
+</tbody>
+</table>
+<p><code>insert</code> is supported in session mode: <code>InsertLeafListValue</code> routes through
+<code>writeThroughMemberOp</code>, and so do <code>deactivate</code> and <code>activate</code> when they name a
+leaf-list member rather than a leaf or a path.</p>
+<!-- source: internal/component/cli/editor_commands.go -- InsertLeafListValue, DeactivateLeafListValue, ActivateLeafListValue -->
+<!-- source: internal/component/cli/editor_leaflist.go -- writeThroughMemberOp -->
+
+<p>Use file mode (<code>ze config edit -f</code>) for these operations.</p>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>File mode</th>
+<th>Session mode (zefs)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Commit</td>
+<td>Writes full tree</td>
+<td>Applies tracked changes</td>
+</tr>
+<tr>
+<td>Multi-user</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+</tr>
+<tr>
+<td>Conflict detection</td>
+<td class="cell-no">✕</td>
+<td>Live and stale</td>
+</tr>
+<tr>
+<td>Blame / authorship</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+</tr>
+<tr>
+<td>Crash recovery</td>
+<td><code>.edit</code> file</td>
+<td>Change files + draft</td>
+</tr>
+<tr>
+<td>Draft / discard path</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+</tr>
+</tbody>
+</table>
+<h2 id="yang-completion">YANG Completion</h2>
+<p>Tab completion is driven by registered YANG schemas. The editor suggests:
+- Valid config keys at the current level
+- Enum values for leaf nodes
+- Address family names from registered plugins</p>
+<h2 id="commit-confirmed">Commit Confirmed</h2>
+<p><code>commit confirmed &lt;seconds&gt;</code> writes the configuration and notifies the daemon, but starts a countdown timer. If <code>confirm</code> is not issued before the timer expires, the configuration automatically reverts to the previous version. This prevents lockouts when making changes remotely -- if a bad config breaks connectivity, the auto-revert restores access.</p>
+<!-- source: internal/component/cli/model_load.go -- cmdCommitConfirmed, handleConfirmCountdown, rollbackConfirmed -->
+
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>What happens</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>commit confirmed 60</code></td>
+<td>Config saved, daemon notified, 60-second timer starts</td>
+</tr>
+<tr>
+<td>Verify the change works</td>
+<td>BGP sessions come up, routes propagate, etc.</td>
+</tr>
+<tr>
+<td><code>confirm</code></td>
+<td>Timer stops, config is permanent</td>
+</tr>
+<tr>
+<td><em>or</em> <code>confirm abort</code></td>
+<td>Config reverts immediately</td>
+</tr>
+<tr>
+<td><em>or</em> timer expires</td>
+<td>Config reverts automatically</td>
+</tr>
+</tbody>
+</table>
+<p>The seconds parameter accepts values from 1 to 3600 (one hour).</p>
+<figure class="terminal-demo" data-terminal-demo="commit-confirmed">
+  <div class="terminal-demo__intro">
+    <div>
+      <span class="terminal-demo__eyebrow">Replayable Ze terminal lab</span>
+      <h3>Watch an unconfirmed change roll back</h3>
+      <p>Commit a hostname change in the interactive editor, leave the confirmation window unanswered, and verify Ze restores the previous configuration.</p>
+    </div>
+    <span class="terminal-demo__status"><i aria-hidden="true"></i> Reproducible</span>
+  </div>
+  <div class="terminal-demo__frame">
+    <div class="terminal-demo__bar" aria-hidden="true">
+      <span class="terminal-demo__dots"><i></i><i></i><i></i></span>
+      <span>commit-confirmed.terminal</span>
+      <span>WEBM</span>
+    </div>
+    <video controls playsinline preload="metadata" poster="../../assets/demos/commit-confirmed.png?v=4e03c49d64" aria-label="Watch an unconfirmed change roll back demonstration">
+      <source src="../../assets/demos/commit-confirmed.webm?v=21514fce6f" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../assets/demos/commit-confirmed.webm?v=21514fce6f">Download the recording</a>.
+    </video>
+  </div>
+  <figcaption>
+    <span>Ze 26.07.18</span><span>1 minute 31 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
+    <a href="../../assets/demos/commit-confirmed.txt?v=7dcd8dbbc1">Plain-text transcript</a>
+  </figcaption>
+  <details class="terminal-demo__transcript">
+    <summary>Read the demonstration transcript</summary>
+    <pre><code>$ ze config edit -f ze.conf
+ze# show system host
+host edge-original
+ze# set system host edge-trial
+ze# show | compare
+ze# commit confirmed 8
+Committed. Confirm within 8s or auto-revert. Use &#x27;confirm&#x27; or &#x27;confirm abort&#x27;.
+ze# show system host
+host edge-trial
+Timeout: configuration automatically rolled back.
+ze# show system host
+host edge-original
+
+ze# set system host edge-confirmed
+ze# commit confirmed 8
+Committed. Confirm within 8s or auto-revert. Use &#x27;confirm&#x27; or &#x27;confirm abort&#x27;.
+ze# confirm
+Configuration confirmed and saved permanently.
+ze# show system host
+host edge-confirmed
+
+The first change is left unconfirmed and rolls back. The second receives `confirm`; after waiting beyond the same deadline, the editor still reports edge-confirmed.</code></pre>
+  </details>
+</figure>
+
+<h2 id="rollback">Rollback</h2>
+<p>The editor automatically saves a rollback revision before each commit. Inside the editor, use <code>show | history</code> to list revisions and <code>rollback &lt;N&gt;</code> to restore. From the shell: <code>ze config history &lt;file&gt;</code> and <code>ze config rollback &lt;N&gt; &lt;file&gt;</code>.</p>
+<h2 id="exit-codes">Exit Codes</h2>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>Success</td>
+</tr>
+<tr>
+<td>1</td>
+<td>Configuration has errors (from <code>validate</code> command)</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Error (file not found, parse failure)</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/config/cli/main.go -- exitOK, exitError -->
+
+<h2 id="example-workflow">Example Workflow</h2>
+<pre><code class="language-bash">ze config validate config.conf      # Pre-flight validation
+ze config edit config.conf          # Interactive editing
+ze config diff 3 config.conf       # Compare with revision 3
+ze config rollback 3 config.conf   # Restore revision 3
+ze config archive prod config.conf # Archive to named destination
+</code></pre>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/quickstart/">
+                        <span class="page-sidebar-link-label">Quickstart</span>
+                        <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create zefs, and start SSH.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../reference/command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

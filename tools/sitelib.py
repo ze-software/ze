@@ -325,7 +325,7 @@ def number_tokens():
     """Display strings for the ``{{ze:...}}`` prose number tokens, sourced from
     the live counts in data/site-facts.json (computed from ../main each build).
 
-    Website-owned page sources (compare/, usage/, faq/, ...) embed these tokens
+    Website-owned page sources (compare/, use-cases/, faq/, ...) embed these
     instead of hardcoding a count, so published prose can never silently drift
     from the facts snapshot -- the class of bug where one page said "13,700+
     unit tests" while the homepage said "19,900+". Imported ../main/docs pages

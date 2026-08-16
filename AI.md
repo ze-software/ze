@@ -1,6 +1,6 @@
 # gh-pages Branch
 
-Published site: landing page + presentations. Deployed via GitHub Pages (branch mode, root `/`).
+Published site: landing page + talks. Deployed via GitHub Pages (branch mode, root `/`).
 
 ## Worktree
 
@@ -16,6 +16,7 @@ gh-pages/
   assets/                                 -- shared assets (logos)
   presentations/
     tools/                                -- shared presentation tooling
+  talks/
     linx-2026-06/                         -- one directory per talk
       index.html                          -- slide renderer (loads slides.md)
       slides.md                           -- slide content (markdown)
@@ -26,12 +27,12 @@ gh-pages/
       screenshots/                        -- extracted images
 ```
 
-Each presentation is self-contained: its `index.html` loads assets from its own directory.
+Each talk deck is self-contained: its `index.html` loads assets from its own directory.
 
 ## Site build tooling
 
-The published site (everything except `presentations/`) is generated from
-data and Markdown, not hand-edited HTML. Structure:
+The site shell and every page outside `talks/<slug>/` are generated from data
+and Markdown, not hand-edited HTML. Structure:
 
 ```
 gh-pages/
@@ -102,7 +103,7 @@ gh-pages/
     render-cli-catalog.py                 -- `ze help command --json` -> reference/cli/index.html,
                                               with a live search box that jumps to a matching command's
                                               anchor (id="cmd-<slug>") in its group
-    render-dependencies.py                -- ../main/go.mod + data/dependencies.json -> dependencies/index.html
+    render-dependencies.py                -- ../main/go.mod + data/dependencies.json -> reference/dependencies/index.html
     extract-plugin-registry.py            -- ../main/internal/**/register.go + YANG imports ->
                                               data/plugin-registry.json
     render-plugin-catalog.py             -- data/plugin-registry.json -> reference/plugins/
@@ -140,25 +141,26 @@ per-step failures.
 
 - **Data sources.** Published pages come from structured data and Markdown:
   `data/nav.json` owns top navigation and the curated `llms.txt` page order,
-  `tools/page_registry.py` owns the complete published docs and usage page map,
+  `tools/page_registry.py` owns the complete published docs and use-case page map,
   `data/features.json`, `data/audience.json`, `data/whats-new.json`,
   `data/milestones.json`,
   `data/dependencies.json`, and `data/command-equivalents.json` own their
   matching generated pages, and `data/plugin-registry.json` is generated from
   `../main/internal/**/register.go` plus local `PLUGIN.md` metadata. Markdown
-  sources live either in this worktree (`usage/`, `compare/`, `quality/`,
+  sources live either in this worktree (`use-cases/`, `compare/`, `quality/`,
   `contribute/`, `faq/`, `roadmap/`, `license/`, `docs/docs.md`) or in
   `../main/docs/` for product documentation and lab architecture detail.
   Top navigation dropdown entries in `data/nav.json` must use an emoji glyph
   for `icon`, not a text abbreviation or label.
 - **Page registry.** `tools/page_registry.py` centralizes the small lists that
   decide which Markdown files are rendered by generic document renderers:
-  the main docs manifest, usage pages, lab detail pages, compare pages,
+  the main docs manifest, use-case pages, lab detail pages, compare pages,
   quality pages, and hand-authored pages whose nav, footer, asset versions,
-  sidebar, and Markdown sibling are patched by the `nav` step. It stores
-  site-relative destination paths, not hand-written root strings. Builders call
-  `page_registry.page_root_for_dest(dest)` so a moved page gets the correct
-  `../` depth from its destination path.
+  sidebar, and Markdown sibling are patched by the `nav` step. It maps source
+  files to public information-architecture destinations such as `guides/`,
+  `features/`, `reference/`, and `developers/`, rather than exposing repository
+  directories. Builders call `page_registry.page_root_for_dest(dest)` so a
+  moved page gets the correct `../` depth from its destination path.
 - **Renderers.** `tools/build.py` is the orchestrator. It loads hyphenated
   renderer scripts by file path, preserves the documented `--only` step names,
   and collects failures instead of stopping at the first broken page. Generic
@@ -168,7 +170,7 @@ per-step failures.
   content is computed from data, live Ze output, git history, Go module data,
   or extracted plugin and YANG facts.
 - **Generated assets.** Renderers write `index.html` plus an AI-readable
-  `index.md` sibling for every published page outside `presentations/`.
+  `index.md` sibling for every generated page outside `talks/<slug>/`.
   `tools/render-search-index.py` writes search data, `tools/render-seo.py`
   writes SEO artifacts, `tools/render-llms-txt.py` writes `llms.txt`, and
   feed or catalog renderers write their derived XML, JSON, or detail pages.
@@ -217,9 +219,9 @@ per-step failures.
   `dependencies`, `features`, `changes`) that `tools/render-doc.py` resolves
   from `data/site-facts.json` at render time, so counts can never silently
   drift from the live facts. Use tokens only where the source path differs from
-  its published path (compare pages qualify; `usage/*/index.md`, whose source
-  is its own publish target, and imported `../main/docs/*.md`, which render raw
-  on the code host, must use literal numbers).
+  its published path (compare pages qualify; `use-cases/*/index.md`, whose
+  source is its own publish target, and imported `../main/docs/*.md`, which
+  render raw on the code host, must use literal numbers).
 - **Verification commands.** Use targeted commands, not a project-wide build,
   while editing architecture scripts:
   `python3 -m py_compile tools/page_registry.py tools/build.py tools/render-docs.py tools/check-page-links.py`,
@@ -324,7 +326,7 @@ page is already built:
 
 `tools/build.py` runs the page renderers before `llms`, so every registered
 documentation page already has its `index.md` on disk. `llms.txt` combines
-the curated `data/nav.json` order with the complete docs and usage lists from
+the curated `data/nav.json` order with the complete docs and use-case lists from
 `tools/page_registry.py`.
 
 
@@ -405,29 +407,38 @@ hardcoded list to the renderer.
 
 ## Presentation tooling
 
-Tools live at `presentations/tools/`.
+Tools live at `presentations/tools/`; published decks live at `talks/<slug>/`.
 
 | Tool | Purpose |
 |------|---------|
-| `bundle-html.py` | Inlines local images, slides.md, and embeds into a self-contained HTML file. Output: `<name>-inlined.html`. Accepts multiple files. |
-| `presentation-screenshots.sh` | Starts ze with a demo config, captures CLI and browser screenshots. Uses project root `tmp/`. |
-| `linx-screenshots.sh` | Captures screenshots specific to the LINX presentation. |
-| `loc_activity.py` | GitHub-style activity heatmap from git history. `python3 loc_activity.py [--serve] [--output <path>] [--days N]` |
-
-Screenshot capture scripts also exist per-deck (e.g., `linx-2026-06/update.sh`).
+| `bundle-html.py` | Inlines local images, `slides.md`, and embeds into `<name>-inlined.html`. |
+| `project-root.sh` | Resolves the main Ze source worktree through Git, independent of the caller's directory. |
+| `update-stats.sh` | Reads current project statistics from the resolved source worktree. |
+| `presentation-screenshots.sh` | Starts Ze with a demo config and writes captures under the source worktree's `tmp/`. |
+| `linx-screenshots.sh` | Captures screenshots into `talks/linx-2026-06/screenshots/`. |
+| `loc_activity.py` | Generates the activity heatmap from the main source worktree. |
 
 ## Adding a new presentation
 
-1. Create a new directory under `presentations/`
-2. Add `index.html` (self-contained or markdown-renderer + `slides.md`)
+1. Create a new directory under `talks/`
+2. Add `index.html` (self-contained or Markdown renderer + `slides.md`)
 3. Add `screenshots/` with extracted images (not base64-embedded)
-4. Add a card linking to it in `index.html` (Talks section)
-5. Generate inlined version: `python3 presentations/tools/bundle-html.py <path>/index.html`
+4. Add a record to `data/talks.json`
+5. Add a path-independent `update.sh` beside the deck to regenerate its inlined file.
 
 ## Updating presentations
 
-Edit here, commit and push from this worktree.
-Do not edit presentation content on main.
+The per-deck update scripts resolve their tools and source worktree from their
+own location, so they can be called from any directory:
+
+```sh
+<gh-pages>/talks/linx-2026-06/update.sh
+<gh-pages>/talks/linx-2026-06/update.sh --bundle-only
+<gh-pages>/talks/netmcr-2026-04/update.sh
+```
+
+The first LINX command refreshes its project statistics and activity page. The
+other two commands only regenerate the standalone HTML deck.
 
 ## Weekly Update Checklist
 
@@ -475,18 +486,16 @@ this before considering the update done.
    editorial blog index, the activity heatmap from fresh git history,
    `compare/index.html` from `compare/comparison.md`, `features/index.html`
    from `data/features.json`, `index.html` from `data/audience.json`, every
-   `../main/docs/*.md` -> `docs/**/index.html`, the nav block on every
-   hand-authored page (labs, talks, style guide, performance, zeledon), and
-   every page's `index.md` sibling (see "Markdown mirrors" above) --
-   including the hand-authored pages', which need no manual step since the
-   `nav` step re-derives them from the HTML every run. Watch stderr for the
+   imported `../main/docs/*.md` at their registered public destinations, the
+   nav block on every hand-authored page (labs, talks index, style guide,
+   performance, Zeledon), and every applicable page's `index.md` sibling. The
+   `nav` step re-derives Markdown mirrors for hand-authored shell pages from
+   their HTML. Watch stderr for the
    feature-count drift warning, the missing-`index.md` warning, and any
    per-step failures.
 6. **Link-check before calling it done.** Every `href`/`src` across the
-   published site (excluding `presentations/`), and every link inside every
-   `index.md`, should resolve to a real local file or an external URL.
-   Write a quick script that walks all `*.html`/`*.md` files and resolves
-   relative links via `pathlib`, or reuse one from a prior session if still
-   on disk.
-7. **Never edit `presentations/*/` content** as part of this checklist --
-   those decks are historic snapshots frozen at the time they were given.
+   published site outside the frozen `talks/<slug>/` decks, and every link
+   inside every generated `index.md`, should resolve to a real local file or an
+   external URL. Run `tools/build.py`, which includes the local page-link check.
+7. **Never edit `talks/<slug>/` content** as part of this checklist. Those decks
+   are historic snapshots frozen at the time they were given.

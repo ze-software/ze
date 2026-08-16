@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Behavioural Anomaly Detection - Ze</title>
+        <meta name="description" content="Ze documentation: guide/anomaly.md" />
+        <meta property="og:title" content="Behavioural Anomaly Detection - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/anomaly.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Behavioural Anomaly Detection - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/anomaly.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/guides/anomaly/" />
+        <meta property="og:url" content="https://ze-software.net/guides/anomaly/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-secure">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1 id="behavioural-anomaly-detection">Behavioural Anomaly Detection</h1>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#traffic-feature-facts-layer">Traffic-feature facts layer</a></li>
+<li><a href="#how-detection-scores-a-source">How detection scores a source</a>
+<ol>
+<li><a href="#correlation-into-one-incident">Correlation into one incident</a></li>
+<li><a href="#confirm-and-clear-lifecycle">Confirm and clear lifecycle</a></li>
+</ol></li>
+<li><a href="#poisoning-and-false-positive-guards">Poisoning and false-positive guards</a></li>
+<li><a href="#viewing-anomaly-incidents">Viewing anomaly incidents</a></li>
+<li><a href="#shadow-first-responder">Shadow-first responder</a></li>
+<li><a href="#configuration-reference">Configuration reference</a>
+<ol>
+<li><a href="#anomaly-detect">anomaly detect</a></li>
+<li><a href="#anomaly-shape">anomaly shape</a></li>
+</ol></li>
+<li><a href="#see-also">See also</a></li>
+</ol></nav>
+<blockquote>
+<p><strong>Pre-Alpha.</strong> This page describes behaviour that may change.</p>
+</blockquote>
+<p>Ze includes a report-only behavioural anomaly detector. It builds a per-source behavioural baseline, scores how far each source deviates from its own history and from its peers, and correlates weak signals into a single incident. It is separate from the volumetric DDoS subsystem, which reacts to raw packet and bandwidth rates. DDoS detects interface floods. Anomaly detection detects sources behaving unlike themselves and unlike their neighbours.</p>
+<p>For the volumetric subsystem, see <a href="../ddos-mitigation/">DDoS detection and mitigation</a>.</p>
+<h2 id="traffic-feature-facts-layer">Traffic-feature facts layer</h2>
+<p>Both detectors read from a neutral facts layer. <code>trafficfeature</code> is a second, independent consumer of the observation feed that derives domain-neutral per-source feature signals. These are measurable facts rather than verdicts. Detection plugins apply judgement on top, and this layer never decides that traffic is an attack.</p>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>fan-out</td>
+<td>Count of distinct destinations a source talked to in the window, used as a scanning or spread signal</td>
+</tr>
+<tr>
+<td>out-in-ratio</td>
+<td>Outbound bytes divided by inbound bytes for the source, used as an exfiltration signal; a pure sender with no inbound bytes is surfaced as <code>inf</code></td>
+</tr>
+<tr>
+<td>port-entropy</td>
+<td>Shannon entropy, in bits, of the source's destination-port byte distribution; near 0 for a single port, higher for a scan</td>
+</tr>
+<tr>
+<td>new-peer</td>
+<td>The source was first observed within the recent new-peer window</td>
+</tr>
+<tr>
+<td>rare-port</td>
+<td>The source's dominant destination port is outside the well-known allowlist</td>
+</tr>
+<tr>
+<td>beaconing</td>
+<td>Interval-regularity score in [0,1] over the source's flow arrival times; higher is more clock-like and can indicate a C2 beacon</td>
+</tr>
+</tbody>
+</table>
+<p>The service is lazy and consumer-refcounted, so it costs nothing until a consumer attaches. It aggregates on a one-second tick and bounds memory with per-source cardinality and idle-eviction caps. Operators can read it directly:</p>
+<pre><code class="language-text">show traffic feature
+show traffic feature 203.0.113.7   // one source
+</code></pre>
+<p>The output lists the top source IPs by activity with their feature vector and a <code>degraded</code> flag when no data has arrived yet.</p>
+<h2 id="how-detection-scores-a-source">How detection scores a source</h2>
+<p>Each tick, the detector folds one traffic-feature snapshot into per-source, per-feature baselines and scores every source in two ways:</p>
+<ul>
+<li><strong>Self-deviation.</strong> A z-score of the current value above the source's own running mean, in units of standard deviation, from an EWMA baseline. Below-baseline values score zero because only excess is anomalous. Each feature has a standard-deviation floor so a near-constant feature does not produce a divide-by-tiny-variance spike.</li>
+<li><strong>Cohort rarity.</strong> How far the value sits above the source's cohort, other sources in the same source-prefix bucket. It is computed leave-one-out so an outlier is never compared against a baseline it dominates. Rarity is scored only once the cohort has at least <code>min-cohort-size</code> other members.</li>
+</ul>
+<p>A continuous feature fires at the larger of its self-deviation and cohort-rarity score when that reaches <code>deviation-threshold</code>. The binary features, new-peer and rare-port, each contribute exactly one unit of evidence, enough to satisfy the correlation gate without dominating a continuous signal.</p>
+<h3 id="correlation-into-one-incident">Correlation into one incident</h3>
+<p>A source is anomalous for a tick only when at least <code>min-features-to-correlate</code> features fire together. The fired z-scores are fused into one incident score: the strongest at full weight plus a discounted sum of the rest through <code>corroboration-weight</code>. The score is capped so a benign multi-feature move cannot saturate into a critical incident. The incident carries a graded severity derived from the score.</p>
+<h3 id="confirm-and-clear-lifecycle">Confirm and clear lifecycle</h3>
+<p>An incident is confirmed only after <code>confirm-duration</code> consecutive anomalous ticks and cleared only after <code>clear-consecutive</code> consecutive normal ticks. This drives an <code>AnomalyDetected</code>, <code>AnomalyOngoing</code>, and <code>AnomalyCleared</code> event stream plus a bounded recent-incident ring.</p>
+<h2 id="poisoning-and-false-positive-guards">Poisoning and false-positive guards</h2>
+<p><strong>Freeze-learn.</strong> The per-source baseline is updated with the current tick only when the source is not anomalous, or while it is still warming up. A sustained attack cannot drift the source's baseline upward until it looks normal again.</p>
+<p><strong>No first-sight false positive.</strong> A newly seen source has no baseline to deviate from. Self-deviation is suppressed until the baseline has accumulated a short warmup of samples. Early values seed the baseline before the detector can flag the source.</p>
+<h2 id="viewing-anomaly-incidents">Viewing anomaly incidents</h2>
+<pre><code class="language-text">show anomaly detect
+</code></pre>
+<p>The command reports whether the detector is enabled and lists the recent-incident ring. Each incident includes the entity, cohort, fused score and severity, timestamp, and fired features with their z-scores.</p>
+<h2 id="shadow-first-responder">Shadow-first responder</h2>
+<p>The <code>anomaly-shape</code> responder can act on confirmed incidents. It defaults to shadow mode, where it logs the action it would take and installs nothing. Set it explicitly to <code>armed</code> before it can alter traffic.</p>
+<pre><code class="language-text">anomaly {
+    shape {
+        mode shadow;        // default; armed installs live per-source rules
+        action limit;       // rate-limit (default) or drop
+        limit-rate 1000;
+        limit-unit second;
+        auto-revert-ttl 300;
+        blast-radius-cap 16;
+        allowlist [ 192.0.2.0/24 ];
+    }
+}
+</code></pre>
+<p>When armed, it installs a per-source firewall rule, a rate limit by default or a drop, for the anomalous source. Its safety properties are:</p>
+<ul>
+<li><strong>Per-entity arming.</strong> Each source is armed independently as a whole owner set. Re-arming an already armed source refreshes its timer without reinstalling or double-counting.</li>
+<li><strong>Timed auto-revert.</strong> Every armed rule carries an <code>auto-revert-ttl</code>. The rule is withdrawn when the TTL elapses regardless of any clear event, and an ongoing incident extends the deadline. A cleared incident withdraws the rule early.</li>
+<li><strong>Blast-radius cap.</strong> At most <code>blast-radius-cap</code> sources are armed at once. Beyond the cap, arming is refused and logged.</li>
+<li><strong>Kill switch.</strong> Engaging the kill switch reverts every armed rule and forces the responder back to shadow.</li>
+<li><strong>Allowlist.</strong> Sources in the allowlist are never armed.</li>
+</ul>
+<p>Inspect the responder state with:</p>
+<pre><code class="language-text">show anomaly shape
+</code></pre>
+<p>The output reports the mode, configured action, kill-switch state, armed count, and armed sources.</p>
+<h2 id="configuration-reference">Configuration reference</h2>
+<h3 id="anomaly-detect">anomaly detect</h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Default</th>
+<th>Range</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>enabled</code></td>
+<td><code>false</code></td>
+<td>bool</td>
+<td>Enable the detector</td>
+</tr>
+<tr>
+<td><code>deviation-threshold</code></td>
+<td><code>3.0</code></td>
+<td>1.0-100.0</td>
+<td>Sigma at or above which a feature fires</td>
+</tr>
+<tr>
+<td><code>min-features-to-correlate</code></td>
+<td><code>2</code></td>
+<td>1-6</td>
+<td>Features that must fire together to form an incident</td>
+</tr>
+<tr>
+<td><code>min-cohort-size</code></td>
+<td><code>4</code></td>
+<td>2-1024</td>
+<td>Minimum other cohort members before rarity is scored</td>
+</tr>
+<tr>
+<td><code>corroboration-weight</code></td>
+<td><code>0.5</code></td>
+<td>0.0-1.0</td>
+<td>Discount applied to corroborating features in the fused score</td>
+</tr>
+<tr>
+<td><code>confirm-duration</code></td>
+<td><code>3</code></td>
+<td>1-3600</td>
+<td>Consecutive anomalous ticks required to confirm an incident</td>
+</tr>
+<tr>
+<td><code>clear-consecutive</code></td>
+<td><code>10</code></td>
+<td>1-100</td>
+<td>Consecutive normal ticks required to clear an incident</td>
+</tr>
+<tr>
+<td><code>baseline-window</code></td>
+<td><code>300</code></td>
+<td>10-86400</td>
+<td>Baseline horizon in ticks, used to derive the EWMA alpha</td>
+</tr>
+<tr>
+<td><code>cohort-prefix-len-v4</code></td>
+<td><code>24</code></td>
+<td>8-32</td>
+<td>Source-prefix bucket length for IPv4 cohorts</td>
+</tr>
+<tr>
+<td><code>cohort-prefix-len-v6</code></td>
+<td><code>48</code></td>
+<td>16-64</td>
+<td>Source-prefix bucket length for IPv6 cohorts</td>
+</tr>
+</tbody>
+</table>
+<h3 id="anomaly-shape">anomaly shape</h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Default</th>
+<th>Range</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mode</code></td>
+<td><code>shadow</code></td>
+<td>shadow, armed</td>
+<td><code>shadow</code> logs the would-be action; <code>armed</code> installs live rules</td>
+</tr>
+<tr>
+<td><code>action</code></td>
+<td><code>limit</code></td>
+<td>limit, drop</td>
+<td><code>limit</code> rate-limits the armed source; <code>drop</code> drops it</td>
+</tr>
+<tr>
+<td><code>limit-rate</code></td>
+<td><code>1000</code></td>
+<td>1+</td>
+<td>Rate for the limit action</td>
+</tr>
+<tr>
+<td><code>limit-unit</code></td>
+<td><code>second</code></td>
+<td>second, minute, hour, day</td>
+<td>Rate unit</td>
+</tr>
+<tr>
+<td><code>limit-burst</code></td>
+<td><code>0</code></td>
+<td>uint</td>
+<td>Burst allowance</td>
+</tr>
+<tr>
+<td><code>auto-revert-ttl</code></td>
+<td><code>300</code></td>
+<td>5-3600 s</td>
+<td>Safety ceiling; a rule is reverted this long after the last signal</td>
+</tr>
+<tr>
+<td><code>blast-radius-cap</code></td>
+<td><code>16</code></td>
+<td>1-1024</td>
+<td>Maximum number of concurrent live actions</td>
+</tr>
+<tr>
+<td><code>kill-switch</code></td>
+<td><code>false</code></td>
+<td>bool</td>
+<td>Revert all armed rules and force shadow mode</td>
+</tr>
+<tr>
+<td><code>allowlist</code></td>
+<td>none</td>
+<td>list of prefixes</td>
+<td>Protected sources that are never armed</td>
+</tr>
+</tbody>
+</table>
+<h2 id="see-also">See also</h2>
+<ul>
+<li><a href="../ddos-mitigation/">DDoS detection and mitigation</a> covers the volumetric subsystem that shares the traffic-feature facts layer.</li>
+<li><a href="../firewall/">Firewall</a> covers the nftables backend used by the responder.</li>
+<li><a href="../monitoring/">Monitoring</a> covers Ze health, metrics, and operational visibility.</li>
+</ul>
+<!-- source: internal/component/trafficfeature/feature.go -- per-source facts and bounded snapshots -->
+<!-- source: internal/plugins/anomaly/detect/detector.go -- scoring, confirmation, and freeze-learn lifecycle -->
+<!-- source: internal/plugins/anomaly/shape/responder.go -- shadow-first response and safety controls -->
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/quickstart/">
+                        <span class="page-sidebar-link-label">Quickstart</span>
+                        <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create zefs, and start SSH.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../reference/command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

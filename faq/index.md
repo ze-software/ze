@@ -32,7 +32,7 @@ OSPFv2, OSPFv3, IS-IS, and MPLS are in the core. Around that sit a firewall, VPN
 
 That is one of the paths Ze is built for. Ze aims for an easy migration from ExaBGP rather than perfect compatibility.
 
-There is a config converter (`ze config migrate`) and a compatibility bridge that lets existing ExaBGP process scripts run with Ze as the engine while you port them over. The [ExaBGP migration usage example](https://ze-software.net/usage/exabgp-migration/) walks through the conversion, the known differences, and when it is worth rewriting a plugin against the native Ze SDK.
+There is a config converter (`ze config migrate`) and a compatibility bridge that lets existing ExaBGP process scripts run with Ze as the engine while you port them over. The [ExaBGP migration usage example](https://ze-software.net/use-cases/exabgp-migration/) walks through the conversion, the known differences, and when it is worth rewriting a plugin against the native Ze SDK.
 
 **What license is Ze under, and what does that mean for me?**
 

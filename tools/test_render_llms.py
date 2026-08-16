@@ -10,7 +10,9 @@ from unittest import mock
 
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-SPEC = importlib.util.spec_from_file_location("render_llms_txt", HERE / "render-llms-txt.py")
+SPEC = importlib.util.spec_from_file_location(
+    "render_llms_txt", HERE / "render-llms-txt.py"
+)
 render_llms = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(render_llms)
 import page_registry  # noqa: E402
@@ -65,25 +67,25 @@ class PublishedDocumentationTest(unittest.TestCase):
             summary,
         )
 
-    def test_complete_index_includes_registered_docs_and_usage(self):
+    def test_complete_index_includes_registered_docs_and_use_cases(self):
         with tempfile.TemporaryDirectory() as raw_root:
             root = pathlib.Path(raw_root)
             gh_pages = root / "gh-pages"
             main_docs = root / "main" / "docs" / "guide"
-            usage = gh_pages / "usage" / "example"
+            use_case = gh_pages / "use-cases" / "example"
             main_docs.mkdir(parents=True)
-            usage.mkdir(parents=True)
+            use_case.mkdir(parents=True)
             (main_docs / "new-guide.md").write_text(
                 "# New Guide\n\nOperator workflow from the canonical docs source.\n"
             )
-            (usage / "index.md").write_text(
+            (use_case / "index.md").write_text(
                 "# Worked Example\n\nA complete deployment example.\n"
             )
 
-            usage_pages = [
+            use_case_pages = [
                 page_registry.MarkdownPage(
                     "example/index.md",
-                    "usage/example/index.html",
+                    "use-cases/example/index.html",
                     "registered description",
                     "routing",
                 )
@@ -95,17 +97,17 @@ class PublishedDocumentationTest(unittest.TestCase):
                     "DOCS_MANIFEST",
                     {"guide/new-guide.md": "routing"},
                 ),
-                mock.patch.object(page_registry, "USAGE_PAGES", usage_pages),
+                mock.patch.object(page_registry, "USE_CASE_PAGES", use_case_pages),
             ):
                 text = render_llms.render_published_documentation()
 
             self.assertIn(
-                "[New Guide](https://ze-software.net/docs/guide/new-guide/index.md)",
+                "[New Guide](https://ze-software.net/guides/new-guide/index.md)",
                 text,
             )
             self.assertIn("Operator workflow from the canonical docs source.", text)
             self.assertIn(
-                "[Worked Example](https://ze-software.net/usage/example/index.md)",
+                "[Worked Example](https://ze-software.net/use-cases/example/index.md)",
                 text,
             )
             self.assertIn("A complete deployment example.", text)

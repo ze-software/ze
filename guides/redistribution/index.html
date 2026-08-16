@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Route Filters - Ze</title>
+        <meta name="description" content="Ze documentation: guide/redistribution.md" />
+        <meta property="og:title" content="Route Filters - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/redistribution.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Route Filters - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/redistribution.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/guides/redistribution/" />
+        <meta property="og:url" content="https://ze-software.net/guides/redistribution/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-routing">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1 id="route-filters">Route Filters</h1>
+    <p>Route filters let plugins act as route filters on import (ingress) and export
+(egress). Filters are configured per peer, group, or globally using named
+references in a <code>filter {}</code> config block. Named filter types are defined under
+<code>bgp { policy { } }</code>.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#quick-start">Quick Start</a></li>
+<li><a href="#filter-types">Filter Types</a>
+<ol>
+<li><a href="#built-in-loop-detection">Built-in: loop-detection</a></li>
+<li><a href="#external-plugin-filters">External plugin filters</a></li>
+</ol></li>
+<li><a href="#how-it-works">How It Works</a></li>
+<li><a href="#deactivating-filters">Deactivating Filters</a></li>
+<li><a href="#chain-order">Chain Order</a></li>
+<li><a href="#filter-responses">Filter Responses</a></li>
+<li><a href="#failure-handling">Failure Handling</a></li>
+<li><a href="#writing-a-filter-plugin">Writing a Filter Plugin</a></li>
+</ol></nav>
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter container -->
+
+<h2 id="quick-start">Quick Start</h2>
+<pre><code>bgp {
+    policy {
+        loop-detection no-self-as {
+            allow-own-as 0;
+        }
+    }
+    filter {
+        import [ no-self-as rpki:validate ];
+    }
+    group customers {
+        filter {
+            import [ community:scrub ];
+            export [ aspath:prepend ];
+        }
+    }
+}
+</code></pre>
+<!-- source: internal/component/bgp/reactor/filter/yang/ze-loop-detection.yang -- loop-detection type -->
+
+<h2 id="filter-types">Filter Types</h2>
+<p>Filter types are YANG lists under <code>bgp/policy</code>, each marked with <code>ze:filter</code>.
+Plugins add new filter types via YANG <code>augment</code>. Each list entry is a named
+filter instance referenced by name in peer <code>filter { import/export }</code> chains.</p>
+<h3 id="built-in-loop-detection">Built-in: loop-detection</h3>
+<p>Facade over the in-process <code>LoopIngress</code> wire-bytes filter. Configures AS loop
+detection (RFC 4271 Section 9) and cluster-list loop detection (RFC 4456 Section 8).</p>
+<table>
+<thead>
+<tr>
+<th>Leaf</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>allow-own-as</td>
+<td>uint8 (0-10)</td>
+<td>0</td>
+<td>Own-AS occurrences to tolerate before rejecting</td>
+</tr>
+<tr>
+<td>cluster-id</td>
+<td>ipv4-address</td>
+<td>(router-id)</td>
+<td>Override Router ID for CLUSTER_LIST loop check</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/bgp/reactor/filter/loop.go -- LoopIngress -->
+
+<h3 id="external-plugin-filters">External plugin filters</h3>
+<p>External plugins declare filters at startup using <code>&lt;plugin&gt;:&lt;filter&gt;</code> names.
+Example: <code>rpki:validate</code>, <code>community:scrub</code>.</p>
+<h2 id="how-it-works">How It Works</h2>
+<ol>
+<li>Filter types are defined in <code>bgp { policy { } }</code> as named instances.</li>
+<li>Per-peer <code>filter { import/export [ names ] }</code> references filter instances.</li>
+<li>Default filters (e.g., loop-detection) auto-populate in every peer's import chain.</li>
+<li>On each received UPDATE, the engine runs the import filter chain.</li>
+<li>On each forwarded UPDATE, the engine runs the export chain per destination peer.</li>
+<li>Each filter responds accept, reject, or modify (delta-only).</li>
+</ol>
+<!-- source: internal/component/bgp/config/peers.go -- prependDefaultFilters, extractFilterChain -->
+
+<h2 id="deactivating-filters">Deactivating Filters</h2>
+<p>Default filters can be deactivated per-peer using the inline <code>inactive:</code> prefix:</p>
+<pre><code>bgp {
+    peer special {
+        filter {
+            import [ inactive:no-self-as ];
+        }
+    }
+}
+</code></pre>
+<p>The <code>inactive:</code> prefix is an input shorthand: it is normalized at parse time into
+an out-of-band per-member deactivation marker (the stored filter name stays
+clean), so on serialize it round-trips to the canonical <code>inactive: import
+no-self-as</code> statement form. The deactivated ref stays in the chain but is
+skipped at runtime.</p>
+<p>In the CLI editor, use <code>deactivate</code> and <code>activate</code>:</p>
+<pre><code>deactivate bgp peer special filter import no-self-as
+activate bgp peer special filter import no-self-as
+</code></pre>
+<!-- source: internal/component/config/parser_list.go -- stripInactiveMemberPrefix (inline inactive: normalization) -->
+<!-- source: internal/component/bgp/config/redistribution.go -- extractFilterChain builds []FilterRef with Inactive -->
+<!-- source: internal/component/bgp/reactor/filter_chain.go -- PolicyFilterChain skips FilterRef.Inactive -->
+
+<h2 id="chain-order">Chain Order</h2>
+<p>Chains are cumulative across config levels:</p>
+<table>
+<thead>
+<tr>
+<th>Level</th>
+<th>Merge rule</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Default</td>
+<td>Auto-populated first (loop-detection)</td>
+</tr>
+<tr>
+<td>bgp</td>
+<td>Base user chain</td>
+</tr>
+<tr>
+<td>group</td>
+<td>Appended to bgp chain</td>
+</tr>
+<tr>
+<td>peer</td>
+<td>Appended to group chain</td>
+</tr>
+</tbody>
+</table>
+<p>Use the <code>insert</code> command in the CLI editor to control position:</p>
+<pre><code>insert filter import reject-bogons before no-self-as
+insert filter import new-filter last
+</code></pre>
+<h2 id="filter-responses">Filter Responses</h2>
+<table>
+<thead>
+<tr>
+<th>Response</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>accept</td>
+<td>Pass update through unchanged</td>
+</tr>
+<tr>
+<td>reject</td>
+<td>Drop update, short-circuit chain</td>
+</tr>
+<tr>
+<td>modify</td>
+<td>Change specific attributes (delta-only)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="failure-handling">Failure Handling</h2>
+<p>Each filter declares its own failure mode at startup:</p>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>Behavior on IPC error/timeout</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>reject</code></td>
+<td>Fail-closed: drop the update</td>
+</tr>
+<tr>
+<td><code>accept</code></td>
+<td>Fail-open: pass the update through</td>
+</tr>
+</tbody>
+</table>
+<h2 id="writing-a-filter-plugin">Writing a Filter Plugin</h2>
+<p>A filter plugin is a normal ze plugin that includes <code>filters</code> in its stage 1
+<code>declare-registration</code>. See <a href="../plugins/">Plugin Guide</a> for general plugin
+development and <code>docs/architecture/api/process-protocol.md</code> for the wire protocol.</p>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/quickstart/">
+                        <span class="page-sidebar-link-label">Quickstart</span>
+                        <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create zefs, and start SSH.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../reference/command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

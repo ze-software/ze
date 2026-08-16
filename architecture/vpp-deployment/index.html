@@ -1,0 +1,764 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>VPP Deployment Reference - Ze</title>
+        <meta name="description" content="Ze documentation: research/vpp-deployment-reference.md" />
+        <meta property="og:title" content="VPP Deployment Reference - Ze" />
+        <meta property="og:description" content="Ze documentation: research/vpp-deployment-reference.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="VPP Deployment Reference - Ze" />
+        <meta name="twitter:description" content="Ze documentation: research/vpp-deployment-reference.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/architecture/vpp-deployment/" />
+        <meta property="og:url" content="https://ze-software.net/architecture/vpp-deployment/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" tabindex="-1">
+            <section class="md-content reveal cat-services">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Research</span>
+    <h1 id="vpp-deployment-reference">VPP Deployment Reference</h1>
+    <p>Source: 83 blog articles from ipng.ch (Pim van Pelt / IPng Networks, AS8298 / AS50869),
+VyOS VPP integration, and GoVPP documentation.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#production-architecture-ipng-as8298">Production Architecture (IPng AS8298)</a></li>
+<li><a href="#startupconf-reference">startup.conf Reference</a>
+<ol>
+<li><a href="#production-values-supermicro-sys-5018d-fn8t-xeon-d1518-4c">Production Values (Supermicro SYS-5018D-FN8T, Xeon D1518 4C)</a></li>
+<li><a href="#startupconf-syntax">startup.conf Syntax</a></li>
+</ol></li>
+<li><a href="#system-prerequisites">System Prerequisites</a>
+<ol>
+<li><a href="#hugepage-sizing">Hugepage Sizing</a></li>
+</ol></li>
+<li><a href="#nic-support-and-driver-binding">NIC Support and Driver Binding</a>
+<ol>
+<li><a href="#driver-matrix">Driver Matrix</a></li>
+<li><a href="#dpdk-bind-sequence-vfio-pci">DPDK Bind Sequence (vfio-pci)</a></li>
+<li><a href="#mellanox-rdma-exception">Mellanox RDMA Exception</a></li>
+<li><a href="#nic-specific-quirks">NIC-Specific Quirks</a></li>
+</ol></li>
+<li><a href="#lcp-linux-control-plane-plugin">LCP (Linux Control Plane) Plugin</a>
+<ol>
+<li><a href="#architecture">Architecture</a></li>
+<li><a href="#lcpng-vs-upstream-lcp">lcpng vs Upstream LCP</a></li>
+<li><a href="#tap-interface-naming">TAP Interface Naming</a></li>
+<li><a href="#network-namespace">Network Namespace</a></li>
+</ol></li>
+<li><a href="#govpp-connection">GoVPP Connection</a>
+<ol>
+<li><a href="#socket-transport">Socket Transport</a></li>
+<li><a href="#api-clients">API Clients</a></li>
+<li><a href="#stats-client-separate-from-binary-api">Stats Client (separate from binary API)</a></li>
+</ol></li>
+<li><a href="#performance-reference">Performance Reference</a>
+<ol>
+<li><a href="#efficiency-under-load">Efficiency Under Load</a></li>
+</ol></li>
+<li><a href="#hardware-reference">Hardware Reference</a></li>
+<li><a href="#what-vpp-does-not-provide">What VPP Does NOT Provide</a></li>
+</ol></nav>
+<p>Full article archive: <code>~/Code/site/ipng.ch/articles/</code> (external, not checked in)
+Consolidated notes: <code>docs/research/vpp-deployment-notes.md</code>
+Feasibility analysis: <code>docs/research/ze-vpp-analysis.md</code></p>
+<h2 id="production-architecture-ipng-as8298">Production Architecture (IPng AS8298)</h2>
+<p>IPng Networks runs VPP as the production forwarding plane on all 12 backbone routers across
+Europe and US. VPP replaces Linux kernel routing, achieving 8-35x forwarding performance.</p>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Technology</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Forwarding</td>
+<td>VPP (custom .deb packages from source)</td>
+</tr>
+<tr>
+<td>Control plane</td>
+<td>Bird2 (custom-built)</td>
+</tr>
+<tr>
+<td>Config tool</td>
+<td>vppcfg (Python, YAML-based declarative config)</td>
+</tr>
+<tr>
+<td>OS</td>
+<td>Debian 12 Bookworm</td>
+</tr>
+<tr>
+<td>Monitoring</td>
+<td>SNMP AgentX (Python) + Prometheus exporter (C)</td>
+</tr>
+<tr>
+<td>Network namespace</td>
+<td><code>dataplane</code> (SSH, SNMP, Bird, all run inside it)</td>
+</tr>
+<tr>
+<td>LCP plugin</td>
+<td>Custom <code>lcpng</code> fork with MPLS, sFlow, sub-interface improvements</td>
+</tr>
+</tbody>
+</table>
+<h2 id="startupconf-reference">startup.conf Reference</h2>
+<h3 id="production-values-supermicro-sys-5018d-fn8t-xeon-d1518-4c">Production Values (Supermicro SYS-5018D-FN8T, Xeon D1518 4C)</h3>
+<table>
+<thead>
+<tr>
+<th>Section</th>
+<th>Key</th>
+<th>Value</th>
+<th>Rationale</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>unix</td>
+<td>nodaemon</td>
+<td>(flag)</td>
+<td>VPP runs in foreground under process supervisor</td>
+</tr>
+<tr>
+<td>unix</td>
+<td>cli-listen</td>
+<td>/run/vpp/cli.sock</td>
+<td>vppctl debugging socket</td>
+</tr>
+<tr>
+<td>unix</td>
+<td>log</td>
+<td>/var/log/vpp/vpp.log</td>
+<td>Process log</td>
+</tr>
+<tr>
+<td>unix</td>
+<td>full-coredump</td>
+<td>(flag)</td>
+<td>Crash debugging</td>
+</tr>
+<tr>
+<td>cpu</td>
+<td>main-core</td>
+<td>0</td>
+<td>Core 0 for VPP main thread (HT sibling core 4 for Linux)</td>
+</tr>
+<tr>
+<td>cpu</td>
+<td>corelist-workers</td>
+<td>1-3</td>
+<td>Cores 1-3 for VPP workers. <code>isolcpus=1,2,3,5,6,7</code> keeps Linux off.</td>
+</tr>
+<tr>
+<td>buffers</td>
+<td>buffers-per-numa</td>
+<td>128000</td>
+<td>128K buffers. Formula: expected_packets_in_flight * 2. Proven for full DFZ at 10G.</td>
+</tr>
+<tr>
+<td>buffers</td>
+<td>default-data-size</td>
+<td>2048</td>
+<td>Standard. Use 9216 for jumbo frames (9000B MTU + headers).</td>
+</tr>
+<tr>
+<td>buffers</td>
+<td>page-size</td>
+<td>default-hugepage-size</td>
+<td>Match hugepage size. 2M for most deployments.</td>
+</tr>
+<tr>
+<td>heapsize</td>
+<td>main-heap-size</td>
+<td>1536M (1.5G)</td>
+<td>Enough for ~958K IPv4 + ~198K IPv6 full DFZ FIB.</td>
+</tr>
+<tr>
+<td>statseg</td>
+<td>size</td>
+<td>1G</td>
+<td>Stats segment shared memory for per-interface/node counters.</td>
+</tr>
+<tr>
+<td>statseg</td>
+<td>page-size</td>
+<td>default-hugepage-size</td>
+<td>Match hugepage size.</td>
+</tr>
+<tr>
+<td>dpdk</td>
+<td>dev <pci> { name, num-rx-queues, num-tx-queues }</td>
+<td>Per-NIC</td>
+<td>See NIC table below.</td>
+</tr>
+<tr>
+<td>plugins</td>
+<td>plugin default { disable }</td>
+<td>(block)</td>
+<td>Disable all, enable specific.</td>
+</tr>
+<tr>
+<td>plugins</td>
+<td>plugin dpdk_plugin.so { enable }</td>
+<td>(line)</td>
+<td>NIC driver. Always enabled.</td>
+</tr>
+<tr>
+<td>plugins</td>
+<td>plugin linux_cp_plugin.so { enable }</td>
+<td>(line)</td>
+<td>LCP. Enable when control-plane connectivity needed.</td>
+</tr>
+<tr>
+<td>plugins</td>
+<td>plugin linux_nl_plugin.so { enable }</td>
+<td>(line)</td>
+<td>Netlink listener. Enable with LCP.</td>
+</tr>
+<tr>
+<td>linux-cp</td>
+<td>lcp-sync</td>
+<td>(flag)</td>
+<td>VPP state changes propagate to Linux TAP mirrors.</td>
+</tr>
+<tr>
+<td>linux-cp</td>
+<td>lcp-auto-subint</td>
+<td>(flag)</td>
+<td>Auto-create sub-TAPs for dot1q/QinQ sub-interfaces.</td>
+</tr>
+<tr>
+<td>linux-cp</td>
+<td>default netns</td>
+<td>dataplane</td>
+<td>LCP TAPs created in <code>dataplane</code> netns. Routing daemons run there.</td>
+</tr>
+<tr>
+<td>linux-nl</td>
+<td>rx-buffer-size</td>
+<td>67108864</td>
+<td>64MB netlink buffer. Required for full DFZ route injection without overflow.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="startupconf-syntax">startup.conf Syntax</h3>
+<p>VPP's startup.conf uses a custom format (not INI, not YAML):</p>
+<pre><code>section-name {
+  key value
+  key value value
+  flag-without-value
+  nested-section {
+    key value
+  }
+}
+</code></pre>
+<p>String values are unquoted. Multi-word values use spaces. Booleans are bare flags (present = true).
+Dev entries use PCI address as the key with a nested block for per-device options.</p>
+<h2 id="system-prerequisites">System Prerequisites</h2>
+<table>
+<thead>
+<tr>
+<th>Requirement</th>
+<th>Value</th>
+<th>How to set</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Hugepages</td>
+<td>3072 x 2MB (6GB)</td>
+<td><code>echo 3072 &gt; /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages</code></td>
+</tr>
+<tr>
+<td>IOMMU</td>
+<td>Enabled</td>
+<td>BIOS: enable VT-d/AMD-Vi. Kernel: <code>intel_iommu=on iommu=pt</code></td>
+</tr>
+<tr>
+<td>CPU isolation</td>
+<td>Worker cores</td>
+<td><code>isolcpus=&lt;worker-cores&gt;</code> kernel param (prevents Linux scheduler interference)</td>
+</tr>
+<tr>
+<td>Netlink buffer</td>
+<td>64MB</td>
+<td><code>sysctl net.core.rmem_default=67108864</code></td>
+</tr>
+<tr>
+<td>Min hardware</td>
+<td>4 cores, 8GB RAM</td>
+<td>1 main + N workers + hugepage memory</td>
+</tr>
+</tbody>
+</table>
+<h3 id="hugepage-sizing">Hugepage Sizing</h3>
+<table>
+<thead>
+<tr>
+<th>Use case</th>
+<th>Hugepage count (2MB)</th>
+<th>Total memory</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Lab/small</td>
+<td>1024</td>
+<td>2GB</td>
+</tr>
+<tr>
+<td>Production 10G</td>
+<td>3072</td>
+<td>6GB</td>
+</tr>
+<tr>
+<td>Full DFZ + large buffers</td>
+<td>4096</td>
+<td>8GB</td>
+</tr>
+</tbody>
+</table>
+<p>Formula: <code>main_heap + buffers * data_size + statseg + overhead</code>. Round up generously.</p>
+<h2 id="nic-support-and-driver-binding">NIC Support and Driver Binding</h2>
+<h3 id="driver-matrix">Driver Matrix</h3>
+<table>
+<thead>
+<tr>
+<th>NIC</th>
+<th>Chip</th>
+<th>Speed</th>
+<th>Driver</th>
+<th>Binding method</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Intel X710/XL710</td>
+<td>i40e</td>
+<td>10G/40G</td>
+<td>vfio-pci</td>
+<td>Standard DPDK bind</td>
+</tr>
+<tr>
+<td>Intel E810</td>
+<td>ice</td>
+<td>25G/100G</td>
+<td>vfio-pci</td>
+<td>Standard DPDK bind</td>
+</tr>
+<tr>
+<td>Intel X520/X540</td>
+<td>ixgbe</td>
+<td>10G</td>
+<td>vfio-pci</td>
+<td>Standard DPDK bind</td>
+</tr>
+<tr>
+<td>Intel i350</td>
+<td>igb</td>
+<td>1G</td>
+<td>vfio-pci</td>
+<td>Standard DPDK bind</td>
+</tr>
+<tr>
+<td>Intel i210</td>
+<td>igb</td>
+<td>1G</td>
+<td>vfio-pci</td>
+<td>Standard DPDK bind</td>
+</tr>
+<tr>
+<td>Mellanox ConnectX-5+</td>
+<td>mlx5</td>
+<td>25G/100G</td>
+<td>RDMA (bifurcated)</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>VirtIO</td>
+<td>virtio</td>
+<td>Variable</td>
+<td>VPP native</td>
+<td class="cell-no">✕</td>
+</tr>
+</tbody>
+</table>
+<h3 id="dpdk-bind-sequence-vfio-pci">DPDK Bind Sequence (vfio-pci)</h3>
+<p>Per configured PCI address:</p>
+<ol>
+<li>Read current driver: <code>/sys/bus/pci/devices/&lt;addr&gt;/driver</code> symlink basename</li>
+<li>Save original driver to persistent state</li>
+<li>Load kernel modules: <code>vfio</code>, <code>vfio_pci</code>, <code>vfio_iommu_type1</code></li>
+<li>Unbind from current driver: write PCI address to <code>/sys/bus/pci/devices/&lt;addr&gt;/driver/unbind</code></li>
+<li>Bind to vfio-pci: write <code>vendor:device</code> to <code>/sys/bus/pci/drivers/vfio-pci/new_id</code></li>
+</ol>
+<p>Reverse on teardown: unbind vfio-pci, PCI rescan (<code>/sys/bus/pci/rescan</code>), rebind original driver.</p>
+<p>Source: VyOS <code>control_host.py</code> (Python, ported to Go for ze).</p>
+<h3 id="mellanox-rdma-exception">Mellanox RDMA Exception</h3>
+<p>mlx5 NICs use bifurcated driver mode. The kernel <code>mlx5_core</code> driver stays loaded. VPP creates
+the interface via <code>create interface rdma host-if &lt;pci-addr&gt;</code> instead of a DPDK dev entry.</p>
+<p>This means:
+- No vfio binding step
+- No driver save/restore
+- DPDK section in startup.conf does NOT include mlx5 devices
+- Interface creation uses GoVPP <code>RdmaCreate</code> API instead of DPDK auto-discovery
+- Performance is equivalent to DPDK for mlx5</p>
+<p>This describes VPP's general Mellanox handling. Ze's own VPP integration does not yet
+implement RDMA/mlx5 interface creation (there is no <code>RdmaCreate</code> call in the codebase);
+this section is background for a future deployment path.</p>
+<h3 id="nic-specific-quirks">NIC-Specific Quirks</h3>
+<table>
+<thead>
+<tr>
+<th>NIC</th>
+<th>Issue</th>
+<th>Workaround</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Intel X710 (early VPP 21.06)</td>
+<td>DPDK driver failures with vfio-pci and igb_uio</td>
+<td>Upgrade VPP. Fixed in later releases.</td>
+</tr>
+<tr>
+<td>Intel i40e (some firmware)</td>
+<td>RSS problems with flow-director enabled</td>
+<td>Disable flow-director in DPDK dev config.</td>
+</tr>
+<tr>
+<td>Any NIC with jumbo frames</td>
+<td>Default buffer size (2048) too small</td>
+<td>Set <code>default-data-size 9216</code> in buffers section.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="lcp-linux-control-plane-plugin">LCP (Linux Control Plane) Plugin</h2>
+<h3 id="architecture">Architecture</h3>
+<p>LCP creates TAP mirrors in Linux for every VPP interface. Routing daemons (ze's BGP) run in
+Linux and see TAP devices. VPP's netlink plugin syncs kernel route changes to VPP's FIB.</p>
+<pre><code>VPP interface (TenGigabitEthernet3/0/0) &lt;---&gt; Linux TAP (in dataplane netns)
+                                                  |
+                                              ze BGP reactor (TCP bind on TAP)
+</code></pre>
+<h3 id="lcpng-vs-upstream-lcp">lcpng vs Upstream LCP</h3>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Upstream LCP (VPP 25.02+)</th>
+<th>lcpng (IPng fork)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Basic TAP mirroring</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+</tr>
+<tr>
+<td>lcp-sync (VPP to Linux)</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+</tr>
+<tr>
+<td>lcp-auto-subint</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+</tr>
+<tr>
+<td>MPLS interface enable</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+</tr>
+<tr>
+<td>MPLS route sync</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+</tr>
+<tr>
+<td>sFlow hooks</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+</tr>
+<tr>
+<td>Sub-interface fixes</td>
+<td class="cell-partial">∿</td>
+<td>Full</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Recommendation for ze:</strong> Start with upstream LCP. Evaluate lcpng when vpp-3 (MPLS) needs
+LCP MPLS support.</p>
+<h3 id="tap-interface-naming">TAP Interface Naming</h3>
+<p>LCP creates TAPs with VPP's interface name, truncated to Linux's 15-char limit.
+<code>TenGigabitEthernet3/0/0</code> becomes a truncated name. vppcfg uses short names. Ze's
+naming module (vpp-4 spec) handles bidirectional mapping.</p>
+<h3 id="network-namespace">Network Namespace</h3>
+<p>All LCP TAPs are created in the <code>dataplane</code> netns. This isolates the forwarding plane
+from the management plane. Ze's BGP reactor, SSH, web UI all run in this netns.</p>
+<h2 id="govpp-connection">GoVPP Connection</h2>
+<h3 id="socket-transport">Socket Transport</h3>
+<p>GoVPP connects via Unix socket at <code>/run/vpp/api.sock</code>. Pure Go, no CGo.</p>
+<p>AsyncConnect pattern:
+- 10 connection attempts, 1 second interval (initial connect only)
+- Returns event channel for connection state changes (Connected, Disconnected)
+- Ze consumes the first state event and returns an error on any non-Connected state; there is no automatic reconnect-with-backoff loop after an established session drops (reconnection is the caller's responsibility)</p>
+<h3 id="api-clients">API Clients</h3>
+<p>GoVPP provides typed RPC service clients generated from VPP's <code>.api.json</code> files:</p>
+<table>
+<thead>
+<tr>
+<th>Client</th>
+<th>Purpose</th>
+<th>Key APIs</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ip.RPCService</td>
+<td>IPv4/IPv6 routes</td>
+<td>IPRouteAddDel, IPRouteDump</td>
+</tr>
+<tr>
+<td>mpls.RPCService</td>
+<td>MPLS labels</td>
+<td>MplsRouteAddDel, MplsInterfaceEnableDisable</td>
+</tr>
+<tr>
+<td>interfaces.RPCService</td>
+<td>Interface mgmt</td>
+<td>SwInterfaceSetFlags, SwInterfaceAddDelAddress, SwInterfaceDump</td>
+</tr>
+<tr>
+<td>vxlan.RPCService</td>
+<td>VXLAN tunnels</td>
+<td>VxlanAddDelTunnelV3</td>
+</tr>
+<tr>
+<td>lcp.RPCService</td>
+<td>LCP pairs</td>
+<td>LcpItfPairAddDelV3, LcpItfPairGet</td>
+</tr>
+<tr>
+<td>acl.RPCService</td>
+<td>ACLs</td>
+<td>AclAddReplace, AclInterfaceSetAclList</td>
+</tr>
+<tr>
+<td>policer.RPCService</td>
+<td>Policers</td>
+<td>PolicerAddDel</td>
+</tr>
+<tr>
+<td>sflow.RPCService</td>
+<td>sFlow</td>
+<td>SflowEnableDisable, SflowSamplingRateSet</td>
+</tr>
+</tbody>
+</table>
+<h3 id="stats-client-separate-from-binary-api">Stats Client (separate from binary API)</h3>
+<p>Stats use shared memory, not the binary API socket. Separate connection:</p>
+<table>
+<thead>
+<tr>
+<th>Stat type</th>
+<th>Method</th>
+<th>Data</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>InterfaceStats</td>
+<td>GetInterfaceStats</td>
+<td>rx/tx packets/bytes, drops, errors per interface</td>
+</tr>
+<tr>
+<td>NodeStats</td>
+<td>GetNodeStats</td>
+<td>clocks/packet, vectors/call per graph node</td>
+</tr>
+<tr>
+<td>SystemStats</td>
+<td>GetSystemStats</td>
+<td>vector rate, input rate</td>
+</tr>
+</tbody>
+</table>
+<p>Stats socket default: <code>/run/vpp/stats.sock</code></p>
+<h2 id="performance-reference">Performance Reference</h2>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Value</th>
+<th>Hardware</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>IPv4/IPv6 forwarding</td>
+<td>~35 Mpps total</td>
+<td>Xeon D1518 4C, 3 workers, 6x10G</td>
+<td>IPng production</td>
+</tr>
+<tr>
+<td>MPLS forwarding</td>
+<td>18-20 Mpps/thread</td>
+<td>Same</td>
+<td>IPng MPLS series</td>
+</tr>
+<tr>
+<td>L2 cross-connect</td>
+<td>&gt;14.88 Mpps/thread</td>
+<td>Same</td>
+<td>IPng VLL benchmark</td>
+</tr>
+<tr>
+<td>VXLAN (IPv4 underlay)</td>
+<td>~14 Mpps/thread</td>
+<td>Same</td>
+<td>IPng VLL benchmark</td>
+</tr>
+<tr>
+<td>Clocks/packet (1 Mpps)</td>
+<td>~660</td>
+<td>Same</td>
+<td>IPng monitoring</td>
+</tr>
+<tr>
+<td>Route loading (netlink)</td>
+<td>~175K routes/sec</td>
+<td>Same</td>
+<td>IPng LCP Part 5</td>
+</tr>
+<tr>
+<td>Route loading (binary API)</td>
+<td>~250K calls/sec</td>
+<td>GoVPP estimated</td>
+<td>Benchmark needed</td>
+</tr>
+<tr>
+<td>sFlow overhead</td>
+<td>11 CPU cycles/packet</td>
+<td>VPP 25.02</td>
+<td>IPng sFlow Part 2</td>
+</tr>
+<tr>
+<td>Power consumption</td>
+<td>~45W fully loaded</td>
+<td>Supermicro SYS-5018D-FN8T</td>
+<td>IPng hardware review</td>
+</tr>
+</tbody>
+</table>
+<h3 id="efficiency-under-load">Efficiency Under Load</h3>
+<p>VPP gets more efficient as load increases due to instruction/data cache reuse in the
+vector processing model. <code>vectors_per_call</code> metric shows this: 1.00 = idle (one packet
+at a time), 256 = saturated (processing full vectors). Production typically 4-16.</p>
+<h2 id="hardware-reference">Hardware Reference</h2>
+<table>
+<thead>
+<tr>
+<th>Device</th>
+<th>CPU</th>
+<th>NICs</th>
+<th>VPP Perf (64B)</th>
+<th>Power</th>
+<th>Price</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Supermicro 5018D-FN8T</td>
+<td>Xeon D1518 4C 2.2GHz</td>
+<td>2x10G + 6x1G + add-in</td>
+<td>~35 Mpps</td>
+<td>~45W</td>
+<td>~$800</td>
+</tr>
+<tr>
+<td>Netgate 6100</td>
+<td>Atom C-3558 4C 2.2GHz</td>
+<td>2x10G + 4x2.5G + 2x1G</td>
+<td>5 Mpps (1 worker)</td>
+<td>19W</td>
+<td>$699</td>
+</tr>
+<tr>
+<td>GoWin R86S</td>
+<td>Pentium N6005 4C 2GHz</td>
+<td>OCP + 3x2.5G</td>
+<td>13.4 Mpps</td>
+<td>17-20W</td>
+<td>~$314</td>
+</tr>
+<tr>
+<td>Gowin 1U N305</td>
+<td>i3-N305 8C 3GHz</td>
+<td>OCP 2x25G + 2x2.5G + 3x1G</td>
+<td>18.34 Mpps</td>
+<td>47.5W</td>
+<td>-</td>
+</tr>
+</tbody>
+</table>
+<h2 id="what-vpp-does-not-provide">What VPP Does NOT Provide</h2>
+<ul>
+<li>No routing protocols (BGP, OSPF, IS-IS). Ze's job.</li>
+<li>No firewall (nftables/iptables bypassed). VPP ACLs are basic match/action.</li>
+<li>No hierarchical QoS. VPP policers are flat token buckets, not HTB/HFSC.</li>
+<li>No kernel features on fast path (tc, XDP, conntrack, eBPF).</li>
+<li>DPDK/RDMA NIC drivers only (not all hardware supported).</li>
+<li>Minimum 4 physical CPU cores, 8 GB RAM.</li>
+</ul>
+            </section>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

@@ -1,0 +1,632 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Operations - Ze</title>
+        <meta name="description" content="Ze documentation: guide/operations.md" />
+        <meta property="og:title" content="Operations - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/operations.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Operations - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/operations.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/guides/operations/" />
+        <meta property="og:url" content="https://ze-software.net/guides/operations/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-operate">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1 id="operations">Operations</h1>
+    <p>Running Ze in production: SSH access, signals, health checks, environment variables, and troubleshooting.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#ssh-server">SSH Server</a>
+<ol>
+<li><a href="#setup">Setup</a></li>
+<li><a href="#reinitializing">Reinitializing</a></li>
+<li><a href="#connection">Connection</a></li>
+<li><a href="#override-hostport">Override Host/Port</a></li>
+</ol></li>
+<li><a href="#signals">Signals</a>
+<ol>
+<li><a href="#via-ssh-preferred">Via SSH (preferred)</a></li>
+<li><a href="#via-unix-signals">Via Unix Signals</a></li>
+<li><a href="#exit-codes-signal-command">Exit Codes (signal command)</a></li>
+</ol></li>
+<li><a href="#health-checks">Health Checks</a>
+<ol>
+<li><a href="#liveness">Liveness</a></li>
+<li><a href="#scripting">Scripting</a></li>
+<li><a href="#peer-health">Peer Health</a></li>
+</ol></li>
+<li><a href="#environment-variables">Environment Variables</a>
+<ol>
+<li><a href="#key-variables">Key Variables</a></li>
+</ol></li>
+<li><a href="#cli-flags">CLI Flags</a></li>
+<li><a href="#systemd">systemd</a></li>
+<li><a href="#troubleshooting">Troubleshooting</a>
+<ol>
+<li><a href="#peer-wont-connect">Peer Won&#x27;t Connect</a></li>
+<li><a href="#peer-drops-after-open">Peer Drops After OPEN</a></li>
+<li><a href="#daemon-wont-start">Daemon Won&#x27;t Start</a></li>
+<li><a href="#plugin-not-working">Plugin Not Working</a></li>
+<li><a href="#no-routes-in-rib">No Routes in RIB</a></li>
+<li><a href="#crash-capture">Crash Capture</a></li>
+<li><a href="#collecting-debug-information">Collecting Debug Information</a></li>
+</ol></li>
+</ol></nav>
+<h2 id="ssh-server">SSH Server</h2>
+<p>Ze exposes its CLI over SSH. <code>ze cli</code>, <code>ze cli -c</code>, and <code>ze signal</code> commands connect to this server. Most <code>ze show</code> subcommands do too, except local ones (version, bgp decode/encode, env, schema, yang, completion) which run in-process.</p>
+<h3 id="setup">Setup</h3>
+<pre><code class="language-bash">ze init                        # interactive: prompts for username, password, host, port
+</code></pre>
+<p>Defaults: <code>127.0.0.1:2222</code>, ED25519 host key auto-generated.</p>
+<p>Credentials are stored in the ze database (<code>database.zefs</code>) with bcrypt-hashed passwords.</p>
+<!-- source: internal/plugins/init/main.go -- keyUsername/keyPassword/keyHost/keyPort, defaultHost, defaultPort -->
+
+<h3 id="reinitializing">Reinitializing</h3>
+<p>Running <code>ze init</code> a second time fails with <code>error: database already exists</code>. This is intentional -- it prevents accidental credential loss.</p>
+<p>To reinitialize:</p>
+<pre><code class="language-bash">ze signal stop                 # daemon must be stopped first
+ze init --force                # prompts for confirmation interactively
+</code></pre>
+<p><code>--force</code> moves the old database to <code>database.zefs.replaced-&lt;date&gt;</code> as a backup before creating a new one. The backup contains your previous SSH credentials and any stored configs. Non-interactive use (piped stdin) is rejected for safety -- <code>--force</code> requires interactive confirmation.</p>
+<!-- source: internal/plugins/init/main.go -- forceFlag -->
+
+<h3 id="connection">Connection</h3>
+<pre><code class="language-bash">ze cli                         # interactive CLI
+ze cli -c &quot;show bgp peer list&quot;  # single command
+ze show bgp peer list                # read-only shorthand
+ze cli -c &quot;request peer transit teardown 2&quot; # one-shot command
+</code></pre>
+<!-- source: internal/component/cli/client/main.go -- Run -->
+
+<h3 id="override-hostport">Override Host/Port</h3>
+<pre><code class="language-bash"># Environment variables
+export ZE_SSH_HOST=10.0.0.1
+export ZE_SSH_PORT=2222
+
+# Per-command flags
+ze signal reload --host 10.0.0.1 --port 2222
+</code></pre>
+<!-- source: internal/core/ssh/client/client.go -- ze.ssh.host, ze.ssh.port env vars -->
+
+<h2 id="signals">Signals</h2>
+<h3 id="via-ssh-preferred">Via SSH (preferred)</h3>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze signal reload</code></td>
+<td>Transactionally reload configuration (add/remove/update peers)</td>
+</tr>
+<tr>
+<td><code>ze signal stop</code></td>
+<td>Graceful shutdown (no GR marker)</td>
+</tr>
+<tr>
+<td><code>ze signal restart</code></td>
+<td>Graceful restart (writes GR marker for RFC 4724)</td>
+</tr>
+<tr>
+<td><code>ze signal status</code></td>
+<td>Dump process status</td>
+</tr>
+<tr>
+<td><code>ze signal quit</code></td>
+<td>Goroutine dump to stderr, then exit</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/plugins/signal/main.go -- Commands registry -->
+
+<h3 id="via-unix-signals">Via Unix Signals</h3>
+<table>
+<thead>
+<tr>
+<th>Signal</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SIGHUP</code></td>
+<td>Transactionally reload configuration</td>
+</tr>
+<tr>
+<td><code>SIGTERM</code> / <code>SIGINT</code></td>
+<td>Graceful shutdown (NOTIFICATION Cease to all peers)</td>
+</tr>
+<tr>
+<td><code>SIGUSR1</code></td>
+<td>Dump status to stderr</td>
+</tr>
+</tbody>
+</table>
+<!-- source: cmd/ze/hub/main.go -- signal.Notify, SIGHUP/SIGTERM/SIGINT handling -->
+
+<p>Reload writes the edited config as a candidate version. The active pointer moves
+only after verification, apply, and subsystem reload succeed. A failed reload
+clears the candidate and keeps the previous active config.</p>
+<h3 id="exit-codes-signal-command">Exit Codes (signal command)</h3>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>Success</td>
+</tr>
+<tr>
+<td>1</td>
+<td>Daemon not running</td>
+</tr>
+<tr>
+<td>2</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Signal delivery failed</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/plugins/signal/main.go -- ExitSuccess/ExitNotRunning/ExitNoCredentials/ExitSignalFailed -->
+
+<h2 id="health-checks">Health Checks</h2>
+<h3 id="liveness">Liveness</h3>
+<pre><code class="language-bash">ze status                      # exit 0 = running, exit 1 = not running
+</code></pre>
+<p>This dials the SSH port without completing a handshake. Suitable for systemd watchdog or load balancer TCP check.</p>
+<!-- source: internal/plugins/signal/main.go -- RunStatus, net.Dialer -->
+
+<h3 id="scripting">Scripting</h3>
+<pre><code class="language-bash">if ze status --host 127.0.0.1 --port 2222; then
+    echo &quot;ze is running&quot;
+else
+    echo &quot;ze is down&quot;
+fi
+</code></pre>
+<h3 id="peer-health">Peer Health</h3>
+<pre><code class="language-bash">ze cli -c &quot;show bgp peer list&quot;  # brief peer list with state
+ze cli -c &quot;show bgp summary&quot;   # summary table with uptime and prefix counts
+</code></pre>
+<h2 id="environment-variables">Environment Variables</h2>
+<p>Ze environment variables use dot notation (<code>ze.log.bgp</code>) and are case-insensitive. All forms are equivalent: <code>ze.log.bgp</code>, <code>ZE_LOG_BGP</code>, <code>ze_log_bgp</code>.</p>
+<p>List all registered variables:</p>
+<pre><code class="language-bash">ze env list                    # all vars with types and defaults
+ze env list -v                 # include current values
+ze env get ze.log              # details for one var
+</code></pre>
+<h3 id="key-variables">Key Variables</h3>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Default</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze.log</code></td>
+<td><code>warn</code></td>
+<td>Base log level</td>
+</tr>
+<tr>
+<td><code>ze.log.&lt;subsystem&gt;</code></td>
+<td>--</td>
+<td>Per-subsystem log level</td>
+</tr>
+<tr>
+<td><code>ze.log.backend</code></td>
+<td><code>stderr</code></td>
+<td>Log output: stderr, stdout, syslog</td>
+</tr>
+<tr>
+<td><code>ze.log.destination</code></td>
+<td>--</td>
+<td>Syslog address (when backend=syslog)</td>
+</tr>
+<tr>
+<td><code>ze.log.relay</code></td>
+<td><code>warn</code></td>
+<td>Plugin stderr relay threshold</td>
+</tr>
+<tr>
+<td><code>ze.ssh.host</code></td>
+<td>--</td>
+<td>Override SSH host for CLI commands</td>
+</tr>
+<tr>
+<td><code>ze.ssh.port</code></td>
+<td>--</td>
+<td>Override SSH port for CLI commands</td>
+</tr>
+<tr>
+<td><code>ze.config.dir</code></td>
+<td>--</td>
+<td>Override config directory</td>
+</tr>
+<tr>
+<td><code>ze.storage.blob</code></td>
+<td><code>true</code></td>
+<td>Use blob storage (false = filesystem)</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/core/slogutil/slogutil.go -- ze.log registration -->
+<!-- source: internal/core/ssh/client/client.go -- ze.ssh.host/port -->
+<!-- source: cmd/ze/ze_core_dispatch.go -- ze.storage.blob registration -->
+<!-- source: internal/core/resolve/resolve.go -- ze.storage.blob lookup -->
+<!-- source: internal/core/paths/paths.go -- ze.config.dir -->
+
+<h2 id="cli-flags">CLI Flags</h2>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-d</code>, <code>--debug</code></td>
+<td>Enable debug logging (sets <code>ze.log=debug</code>)</td>
+</tr>
+<tr>
+<td><code>-f &lt;file&gt;</code></td>
+<td>Use filesystem storage (bypass blob database)</td>
+</tr>
+<tr>
+<td><code>--plugin &lt;name&gt;</code></td>
+<td>Load additional plugin for YANG/native configs (repeatable). Hub/orchestrator configs reject this; use <code>plugin { internal ... }</code> or <code>plugin { external ... }</code> in the config instead.</td>
+</tr>
+<tr>
+<td><code>--pprof &lt;addr:port&gt;</code></td>
+<td>Start pprof HTTP server for profiling</td>
+</tr>
+<tr>
+<td><code>--chaos-seed &lt;N&gt;</code></td>
+<td>Chaos testing seed (0=off, -1=time-based)</td>
+</tr>
+<tr>
+<td><code>--chaos-rate &lt;0-1&gt;</code></td>
+<td>Chaos fault probability</td>
+</tr>
+<tr>
+<td><code>-V</code>, <code>--version</code></td>
+<td>Show version</td>
+</tr>
+<tr>
+<td><code>--plugins</code></td>
+<td>List registered plugins (with optional <code>--json</code>)</td>
+</tr>
+</tbody>
+</table>
+<!-- source: cmd/ze/main.go -- global flag parsing -->
+
+<h2 id="systemd">systemd</h2>
+<p>Use <code>ze install systemd</code> on standard Linux hosts:</p>
+<pre><code class="language-bash">sudo ze init
+sudo ze install systemd --start
+</code></pre>
+<p>This writes <code>/etc/systemd/system/ze.service</code>, creates the <code>ze</code> user/group if
+missing, assigns ownership of the config directory and <code>database.zefs</code>, reloads
+systemd, enables the service, and starts it when <code>--start</code> is present.</p>
+<p>Inspect the generated unit without writing anything:</p>
+<pre><code class="language-bash">ze install systemd --dry-run --config /etc/ze
+</code></pre>
+<p>Run doctor after installation to verify the service account and binary path:</p>
+<pre><code class="language-bash">ze doctor
+</code></pre>
+<p>When <code>/etc/systemd/system/ze.service</code> exists, doctor checks that the unit's
+<code>ExecStart</code> binary exists and is executable, and that the configured <code>User</code> and
+<code>Group</code> exist on the host.</p>
+<p>The service runs with <code>XDG_RUNTIME_DIR=/run/ze</code>, so the daemon socket is
+<code>/run/ze/ze.socket</code>. Configure the same socket in ze config or export
+<code>XDG_RUNTIME_DIR=/run/ze</code> before running local operator CLI commands.</p>
+<p>Remove only the service unit:</p>
+<pre><code class="language-bash">sudo ze uninstall systemd
+</code></pre>
+<p>Generated unit shape:</p>
+<pre><code class="language-ini">[Unit]
+Description=Ze Network OS
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ze
+Group=ze
+ExecStart=/usr/local/bin/ze start
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=65536
+WorkingDirectory=/etc/ze
+Environment=ZE_CONFIG_DIR=/etc/ze
+Environment=XDG_RUNTIME_DIR=/run/ze
+AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE
+NoNewPrivileges=true
+ProtectHome=true
+RuntimeDirectory=ze
+
+[Install]
+WantedBy=multi-user.target
+</code></pre>
+<!-- source: internal/plugins/systemd/cmd_install.go -- cmdInstall -->
+<!-- source: internal/plugins/systemd/unit.go -- buildUnitFile -->
+
+<h2 id="troubleshooting">Troubleshooting</h2>
+<h3 id="peer-wont-connect">Peer Won't Connect</h3>
+<pre><code>Symptom: peer stays in Connect/Active state
+</code></pre>
+<ol>
+<li>
+<p><strong>Check connectivity:</strong> Can you reach the peer IP on port 179?
+   <code>bash
+   nc -zv 10.0.0.2 179</code></p>
+</li>
+<li>
+<p><strong>Check config:</strong> Validate before debugging network issues
+   <code>bash
+   ze config validate config.conf</code></p>
+</li>
+<li>
+<p><strong>Enable debug logging:</strong>
+   <code>bash
+   ze cli -c "request log level bgp.fsm debug"
+   ze cli -c "bgp monitor event state"</code></p>
+</li>
+<li>
+<p><strong>Common causes:</strong>
+   - Firewall blocking TCP 179
+   - Peer not configured for your address
+   - AS number mismatch (check <code>local { as }</code> and <code>remote { as }</code>)
+   - Hold time rejected (must be 0 or &gt;= 3)</p>
+</li>
+</ol>
+<h3 id="peer-drops-after-open">Peer Drops After OPEN</h3>
+<pre><code>Symptom: session establishes briefly then NOTIFICATION received
+</code></pre>
+<ol>
+<li>Check the NOTIFICATION code in monitor output:</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Subcode</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2</td>
+<td>2</td>
+<td>Bad Peer AS -- AS number mismatch</td>
+</tr>
+<tr>
+<td>2</td>
+<td>3</td>
+<td>Bad BGP Identifier -- duplicate router-id</td>
+</tr>
+<tr>
+<td>2</td>
+<td>6</td>
+<td>Unacceptable Hold Time</td>
+</tr>
+<tr>
+<td>2</td>
+<td>11</td>
+<td>Role Mismatch (RFC 9234)</td>
+</tr>
+<tr>
+<td>6</td>
+<td>2</td>
+<td>Administrative Shutdown</td>
+</tr>
+<tr>
+<td>6</td>
+<td>5</td>
+<td>Connection Rejected</td>
+</tr>
+</tbody>
+</table>
+<ol start="2">
+<li>
+<p><strong>Role mismatch:</strong> If using <code>role { import customer; strict true; }</code>, both peers must advertise compatible roles.</p>
+</li>
+<li>
+<p><strong>Capability issues:</strong> Enable debug to see negotiated vs offered capabilities:
+   <code>bash
+   ze cli -c "request log level bgp.reactor debug"</code></p>
+</li>
+</ol>
+<h3 id="daemon-wont-start">Daemon Won't Start</h3>
+<ol>
+<li><strong>Config parse error:</strong> Run <code>ze config validate config.conf</code> first</li>
+<li><strong>Port in use:</strong> Check if another ze instance or BGP daemon holds port 179</li>
+<li><strong>SSH port conflict:</strong> Default SSH is 2222. Check with <code>netstat -tlnp | grep 2222</code></li>
+<li><strong>Missing credentials:</strong> Run <code>ze init</code> before starting</li>
+</ol>
+<!-- source: internal/component/config/cli/cmd_validate.go -- cmdValidate; internal/component/ssh/ -- SSH server -->
+
+<h3 id="plugin-not-working">Plugin Not Working</h3>
+<ol>
+<li>
+<p><strong>Check plugin is loaded:</strong>
+   <code>bash
+   ze --plugins                  # list compiled-in plugins</code></p>
+</li>
+<li>
+<p><strong>Check plugin is bound to peer:</strong> Config must have <code>attach process &lt;name&gt; { receive [...] }</code> on the peer</p>
+</li>
+<li>
+<p><strong>Check plugin logs:</strong> Set <code>ZE_LOG_PLUGIN_RELAY=debug</code> to see plugin stderr output</p>
+</li>
+<li>
+<p><strong>Plugin not reaching Ready state:</strong> Enable <code>ZE_LOG_PLUGIN=debug</code> and look for startup stage failures</p>
+</li>
+</ol>
+<!-- source: internal/component/plugin/server/server.go -- plugin stage timeout; internal/component/plugin/registry/registry.go -- plugin registration -->
+
+<h3 id="no-routes-in-rib">No Routes in RIB</h3>
+<ol>
+<li>
+<p><strong>Check RIB plugin is loaded and bound:</strong>
+   <code>bash
+   ze cli -c "show bgp rib status"</code></p>
+</li>
+<li>
+<p><strong>Check peer is sending updates:</strong>
+   <code>bash
+   ze cli -c "bgp monitor peer transit-a event update direction received"</code></p>
+</li>
+<li>
+<p><strong>Check RPKI validation:</strong> If bgp-rpki is loaded, routes may be pending validation. Check:
+   <code>bash
+   ze cli -c "show bgp rpki status"</code></p>
+</li>
+</ol>
+<h3 id="crash-capture">Crash Capture</h3>
+<p>Ze automatically captures panic stack traces and forwards them to syslog. On
+restart after a crash, <code>show crashes</code> displays saved crash reports with ring
+buffer context (the last 64 log entries before the panic).</p>
+<p><strong>Configuration (environment variables):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze.crash.dir</code></td>
+<td>autodetect</td>
+<td>Override crash file directory</td>
+</tr>
+<tr>
+<td><code>ze.crash.keep</code></td>
+<td><code>5</code></td>
+<td>Number of crash files to retain (1-100)</td>
+</tr>
+</tbody>
+</table>
+<p>Crash dir autodetection probes in order: <code>/perm/ze/crash/</code> (gokrazy),
+<code>&lt;config-dir&gt;/crash/</code>, <code>/var/lib/ze/crash/</code>, <code>/tmp/ze-crash/</code>. The resolved
+path is printed at startup.</p>
+<p>Syslog forwarding uses <code>ze.log.destination</code> (no separate config). Crash
+messages use <code>LOG_CRIT</code> facility for filtering.</p>
+<p><strong>CLI (online, daemon running):</strong></p>
+<pre><code>show crashes           # list crash files with timestamps
+show crashes latest    # display most recent crash report
+</code></pre>
+<p><strong>CLI (works with or without a daemon; falls back to in-process read when the daemon is down):</strong></p>
+<pre><code>ze show crashes          # list crash files (JSON)
+ze show crashes latest   # display most recent crash report
+</code></pre>
+<h3 id="collecting-debug-information">Collecting Debug Information</h3>
+<p>For bug reports, collect:</p>
+<pre><code class="language-bash">ze --version                   # ze version
+ze config validate config.conf        # config validity
+ze status                      # daemon state
+ze cli -c &quot;show bgp peer list&quot;  # peer states
+ze cli -c &quot;show bgp summary&quot;   # session summary
+ze env list -v                 # effective configuration
+ze signal quit                 # goroutine dump (kills daemon!)
+</code></pre>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/quickstart/">
+                        <span class="page-sidebar-link-label">Quickstart</span>
+                        <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create zefs, and start SSH.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../reference/command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

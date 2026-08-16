@@ -48,7 +48,7 @@ The questions people tend to ask before they spend time on Ze. If yours is not h
     <summary>I run ExaBGP. Can I move to Ze?</summary>
     <div>
       <p>That is one of the paths Ze is built for. Ze aims for an easy migration from ExaBGP rather than perfect compatibility.</p>
-      <p>There is a config converter (<code>ze config migrate</code>) and a compatibility bridge that lets existing ExaBGP process scripts run with Ze as the engine while you port them over. The <a href="../usage/exabgp-migration/">ExaBGP migration usage example</a> walks through the conversion, the known differences, and when it is worth rewriting a plugin against the native Ze SDK.</p>
+      <p>There is a config converter (<code>ze config migrate</code>) and a compatibility bridge that lets existing ExaBGP process scripts run with Ze as the engine while you port them over. The <a href="../use-cases/exabgp-migration/">ExaBGP migration usage example</a> walks through the conversion, the known differences, and when it is worth rewriting a plugin against the native Ze SDK.</p>
     </div>
   </details>
 

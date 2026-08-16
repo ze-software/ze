@@ -72,7 +72,7 @@
 <li>Existing ExaBGP configuration can be converted into Ze's configuration model.</li>
 <li>Existing process scripts can continue through the compatibility bridge before being ported to the native plugin SDK.</li>
 </ul>
-<p>This allows a routing-engine migration and an application rewrite to happen separately. The <a href="https://ze-software.net/usage/exabgp-migration/">ExaBGP migration example</a> documents that path.</p>
+<p>This allows a routing-engine migration and an application rewrite to happen separately. The <a href="https://ze-software.net/use-cases/exabgp-migration/">ExaBGP migration example</a> documents that path.</p>
 <h2 id="why-the-architecture-changed">Why the architecture changed</h2>
 <p>Ze needs to support both a small programmable speaker and a more complete Linux network system. Plugins provide that boundary. BGP, policy, RIB storage, interfaces, FIB backends, routing protocols, services, and operator features register what they own. A deployment loads only the components selected by configuration and build tags.</p>
 <p>The shared registration model also keeps operator surfaces aligned. A command registered by a component can be discovered and dispatched through the CLI, web interface, REST, gRPC, and MCP without each surface building a separate implementation.</p>

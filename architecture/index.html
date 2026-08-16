@@ -1,0 +1,432 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Ze Architecture - Ze</title>
+        <meta name="description" content="Ze documentation: architecture.md" />
+        <meta property="og:title" content="Ze Architecture - Ze" />
+        <meta property="og:description" content="Ze documentation: architecture.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Ze Architecture - Ze" />
+        <meta name="twitter:description" content="Ze documentation: architecture.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/architecture/" />
+        <meta property="og:url" content="https://ze-software.net/architecture/" />
+        <link rel="stylesheet" href="../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../assets/header.html" data-site-root="../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../#top">Ze</a>
+                    <a href="../#top">Home</a>
+                    <a href="../docs/">Docs</a>
+                    <a href="../features/">Features</a>
+                    <a href="../compare/">Compare</a>
+                    <a href="../roadmap/">Roadmap</a>
+                    <a href="../changes/">Changes</a>
+                    <a href="../faq/">FAQ</a>
+                    <a href="../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" tabindex="-1">
+            <section class="md-content reveal">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Architecture</span>
+    <h1 id="ze-architecture">Ze Architecture</h1>
+    <p>A one-page guide to how Ze is structured. For the full design document with
+rationale, wire format details, and performance analysis, see
+<a href="https://github.com/ze-software/ze/blob/main/docs/DESIGN.md" target="_blank" rel="noopener">DESIGN.md</a>. For the canonical architecture reference, see
+<a href="https://github.com/ze-software/ze/blob/main/docs/architecture/core-design.md" target="_blank" rel="noopener">architecture/core-design.md</a>.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#what-ze-is">What Ze Is</a></li>
+<li><a href="#component-map">Component Map</a></li>
+<li><a href="#key-design-choices">Key Design Choices</a></li>
+<li><a href="#key-wire-abstractions">Key Wire Abstractions</a></li>
+<li><a href="#plugin-server-eventbus">Plugin Server / EventBus</a></li>
+<li><a href="#bgp-subsystem">BGP Subsystem</a></li>
+<li><a href="#configuration">Configuration</a></li>
+<li><a href="#plugin-architecture">Plugin Architecture</a></li>
+<li><a href="#data-flow">Data Flow</a></li>
+<li><a href="#fib-pipeline">FIB Pipeline</a></li>
+<li><a href="#programs">Programs</a></li>
+<li><a href="#source-layout">Source Layout</a></li>
+<li><a href="#deeper-reading">Deeper Reading</a></li>
+</ol></nav>
+<h2 id="what-ze-is">What Ze Is</h2>
+<p>Ze is an open-source configuration and protocol engine. The network operating
+system built on it speaks BGP, manages Linux network interfaces, programs the
+FIB, and serves configuration over SSH and the web UI.</p>
+<p>None of that is in the core. The core is a supervisor which holds a typed
+message bus, a config provider, and a plugin manager. BGP, interface management
+and the rest register as subsystems and plugins. Each one brings its own YANG
+and augments the configuration tree where it belongs.</p>
+<!-- source: internal/component/engine/engine.go -- Engine supervisor -->
+<!-- source: cmd/ze/hub/main.go -- primary YANG runtime composition -->
+
+<h2 id="component-map">Component Map</h2>
+<figure class="doc-diagram">
+  <a href="https://ze-software.net/assets/ze-components.svg">
+    <img
+      src="/assets/ze-components.svg"
+      alt="Ze component architecture. Operator surfaces share one command and configuration contract. The protocol-agnostic Engine composes a ConfigProvider, Plugin Server and EventBus, and PluginManager. Registry-loaded routing and system plugins feed route selection and the FIB. An internal Dataplane group contains Netfilter, VPP, ARP, ND, and DHCP; Netfilter and VPP point to external Linux and VPP targets."
+      width="1440"
+      height="1000"
+      loading="lazy"
+      decoding="async"
+    />
+  </a>
+  <figcaption>Ze components and their runtime relationships. Dashed outlines mark configured, build-dependent, or optional paths. Open the diagram for a full-size view; the text map below preserves the same structure for text readers.</figcaption>
+</figure>
+
+<pre><code>ze daemon (registry-driven YANG runtime)
+  |
+  +-- Engine (protocol-agnostic lifecycle supervisor)
+  |     +-- ConfigProvider (YANG tree and transactions)
+  |     +-- PluginManager / ProcessManager
+  |     +-- Configured subsystems (PPPoE and L2TP)
+  |
+  +-- Plugin Server (shared runtime backbone)
+  |     +-- Typed EventBus, subscriptions, and event history
+  |     +-- YANG command / RPC dispatcher
+  |     +-- Registry discovery and five-stage plugin startup
+  |     +-- BGP reactor and feature plugins (RIB, RS/RR, policy, RPKI, ASPA, BMP)
+  |     +-- OSPF
+  |     +-- IS-IS
+  |     +-- BFD
+  |     +-- Loc-RIB -&gt; sysrib -&gt; FIB
+  |     +-- Dataplane: Netfilter -&gt; Linux; VPP -&gt; VPP; ARP; ND; DHCP
+  |     +-- Interface, firewall, traffic, and other ConfigRoot plugins
+  |     +-- Internal plugins (goroutines, DirectBridge runtime path)
+  |     +-- External plugins (managed processes, five-stage control over authenticated TLS)
+  |
+  +-- Northbound listeners
+        +-- SSH CLI/editor, Web UI, and Looking Glass
+        +-- REST, gRPC, gNMI, and MCP
+        +-- Prometheus metrics and BMP routing telemetry
+</code></pre>
+<!-- source: cmd/ze/hub/main.go -- hub wiring, component startup order -->
+
+<h2 id="key-design-choices">Key Design Choices</h2>
+<table>
+<thead>
+<tr>
+<th>Principle</th>
+<th>What it means</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Wire-first</td>
+<td>BGP messages are byte buffers, not parsed structs. Parsing is lazy via offset iterators.</td>
+</tr>
+<tr>
+<td>Buffer-first encoding</td>
+<td>All wire writes go into pooled, bounded buffers via <code>WriteTo(buf, off) int</code>. No <code>append()</code> in encoding.</td>
+</tr>
+<tr>
+<td>Zero-copy forwarding</td>
+<td>When source and destination peers share the same <code>ContextID</code> (negotiated capabilities hash), UPDATE bytes are forwarded unchanged.</td>
+</tr>
+<tr>
+<td>Pool-based dedup</td>
+<td>Per-attribute-type memory pools with refcounted handles. ORIGIN has 3 values; dedup saves memory at scale.</td>
+</tr>
+<tr>
+<td>Registration pattern</td>
+<td>Components and plugins register at startup via <code>init()</code>. Core discovers through registries, never imports directly.</td>
+</tr>
+<tr>
+<td>YANG-modeled everything</td>
+<td>Config schemas, CLI dispatch, plugin registration, and RPC discovery all flow from YANG modules.</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/bgp/wireu/wire_update.go -- WireUpdate lazy-parsed byte buffer -->
+<!-- source: internal/component/bgp/attrpool/pool.go -- per-attribute-type dedup pools -->
+<!-- source: internal/core/bgp/context/registry.go -- ContextID for zero-copy decisions -->
+<!-- source: internal/component/config/yang/loader.go -- YANG-based config schema loading -->
+
+<h2 id="key-wire-abstractions">Key Wire Abstractions</h2>
+<table>
+<thead>
+<tr>
+<th>Abstraction</th>
+<th>Purpose</th>
+<th>Location</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>WireUpdate</code></td>
+<td>Lazy-parsed BGP UPDATE: iterators over wire bytes, no intermediate structs</td>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/component/bgp/wireu/</code></span></span></td>
+</tr>
+<tr>
+<td><code>EncodingContext</code></td>
+<td>Negotiated capabilities that determine encoding (ASN4, ADD-PATH, extended next hop)</td>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/core/bgp/context/</code></span></span></td>
+</tr>
+<tr>
+<td><code>ContextID</code></td>
+<td>uint16 hash of capabilities. Same ID = forward wire bytes unchanged.</td>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/core/bgp/context/</code></span></span></td>
+</tr>
+<tr>
+<td><code>Pool</code> / <code>Handle</code></td>
+<td>Per-attribute-type pools with refcounted handles and incremental compaction</td>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/component/bgp/attrpool/</code></span></span></td>
+</tr>
+<tr>
+<td><code>DirectBridge</code></td>
+<td>Bypasses IPC serialization for internal plugins (direct function calls)</td>
+<td><span class="ev-src"><span class="ev-ref"><code>pkg/plugin/rpc/</code></span></span></td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/bgp/wireu/wire_update.go -- WireUpdate -->
+<!-- source: internal/core/bgp/context/context.go -- EncodingContext -->
+<!-- source: internal/component/bgp/attrpool/handle.go -- Handle -->
+<!-- source: pkg/plugin/rpc/bridge.go -- DirectBridge -->
+
+<h2 id="plugin-server-eventbus">Plugin Server / EventBus</h2>
+<p>The Plugin Server is Ze's central runtime junction. It implements <code>ze.EventBus</code>
+for typed publishers and subscribers, owns the YANG-derived command and RPC
+dispatchers, coordinates plugin startup, and maintains subscription and event
+history state. In-process subscribers receive typed values directly; plugin
+process subscribers receive lazily encoded messages through the same fan-out.
+There is no separate standalone bus in the primary YANG runtime.</p>
+<!-- source: internal/component/plugin/server/server.go -- shared command, subscription, and startup server -->
+<!-- source: internal/component/plugin/server/engine_event.go -- typed EventBus fan-out -->
+<!-- source: cmd/ze/hub/main.go -- Plugin Server supplied to Engine as EventBus -->
+
+<p>Components avoid importing each other's implementation packages. Internal
+plugins bootstrap through <code>net.Pipe</code> and use <code>DirectBridge</code> for runtime calls;
+external plugins connect back over authenticated TLS. Route-producing plugins
+write selected paths into the shared Loc-RIB. <code>sysrib</code> performs system-wide
+arbitration, then publishes typed best-change events to FIB consumers.</p>
+<!-- source: internal/component/plugin/process/process.go -- internal and external plugin transports -->
+<!-- source: internal/component/sysrib/sysrib.go -- Loc-RIB arbitration and best-change publication -->
+<!-- source: internal/plugins/fib/kernel/fibkernel.go -- FIB event consumer -->
+
+<h2 id="bgp-subsystem">BGP Subsystem</h2>
+<p>The BGP subsystem owns the protocol: TCP connections, FSM state machines, wire
+parsing, capability negotiation, and the reactor event loop. It produces
+structured events and consumes commands. It never imports plugin code.</p>
+<p>For a walk-through of the BGP state machine, see <a href="https://github.com/ze-software/ze/blob/main/docs/bgp-fsm.md" target="_blank" rel="noopener">bgp-fsm.md</a>.</p>
+<!-- source: internal/component/bgp/reactor/reactor.go -- Reactor event loop -->
+<!-- source: internal/component/bgp/fsm/fsm.go -- FSM state machine -->
+
+<h2 id="configuration">Configuration</h2>
+<p>JUNOS-like hierarchical syntax: <code>{}</code> blocks, <code>;</code> terminators, <code>#</code> comments.
+YANG-driven parsing. Three-level inheritance: BGP globals, group defaults, peer
+overrides. Configuration is stored in ZeFS (a blob store with commit/rollback)
+and managed through an interactive editor accessible over SSH.</p>
+<p>For the full config syntax reference, see <a href="https://github.com/ze-software/ze/blob/main/docs/config-reference.md" target="_blank" rel="noopener">config-reference.md</a>.</p>
+<!-- source: internal/component/config/tokenizer.go -- tokenizer for JUNOS-like syntax -->
+<!-- source: pkg/zefs/store.go -- ZeFS blob store -->
+
+<h2 id="plugin-architecture">Plugin Architecture</h2>
+<p>Most protocol and system features are registry-loaded plugins: RIB storage,
+route reflection, graceful restart, RPKI validation, NLRI encoding, FIB
+programming, firewall, traffic control, and more. PPPoE and L2TP are
+Engine-managed subsystems. Internal plugins start as goroutines, bootstrap over
+<code>net.Pipe</code>, and then use <code>DirectBridge</code> for structured runtime calls without
+serialization. External plugins are managed child processes controlled through
+the same five-stage protocol and runtime RPC over authenticated TLS.</p>
+<p>For the plugin architecture overview, see <a href="https://github.com/ze-software/ze/blob/main/docs/plugin-overview.md" target="_blank" rel="noopener">plugin-overview.md</a>.
+For writing plugins, see <a href="https://github.com/ze-software/ze/tree/main/docs/plugin-development" target="_blank" rel="noopener">plugin-development/</a>.</p>
+<!-- source: internal/component/plugin/registry/registry.go -- plugin registry -->
+<!-- source: internal/component/plugin/process/process.go -- plugin execution modes -->
+<!-- source: cmd/ze/hub/main.go -- configured subsystem registration -->
+
+<h2 id="data-flow">Data Flow</h2>
+<pre><code>Receive:  Network -&gt; WireUpdate -&gt; Reactor -&gt; EventDispatcher -&gt; Plugins
+Announce: Text command -&gt; ParseUpdate() -&gt; WireUpdate -&gt; Peer
+Forward:  Cache lookup -&gt; Egress filters -&gt; Wire (zero-copy when ContextID matches)
+</code></pre>
+<!-- source: internal/component/bgp/reactor/reactor_notify.go -- receive path -->
+<!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- forward path -->
+
+<p>The reactor fires a single <code>StructuredEvent</code> per received UPDATE. Forwarders
+(route server, route reflector) and state trackers (RIB plugin) both subscribe
+to the same dispatch but consume it differently: forwarders make per-peer
+forwarding decisions, state trackers update best-path state.</p>
+<!-- source: internal/component/bgp/reactor/forward_pool.go -- per-destination forward workers -->
+
+<h2 id="fib-pipeline">FIB Pipeline</h2>
+<p>Selected routes move through a shared route-decision pipeline:</p>
+<ol>
+<li><strong>Protocol route producers</strong> insert BGP best paths and OSPF or IS-IS SPF paths into the shared Loc-RIB</li>
+<li><strong>System RIB</strong> observes Loc-RIB changes and selects system-wide routes by administrative distance and recursive next-hop resolution</li>
+<li><strong>FIB consumers</strong> receive typed <code>system-rib/best-change</code> events from the Plugin Server/EventBus</li>
+<li><strong>Kernel FIB</strong> programs OS routes through netlink or route sockets; optional VPP FIB uses the GoVPP API</li>
+</ol>
+<!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- BGP paths into Loc-RIB -->
+<!-- source: internal/plugins/ospf/spf/install.go -- OSPF paths into Loc-RIB -->
+<!-- source: internal/plugins/isis/spf/install.go -- IS-IS paths into Loc-RIB -->
+<!-- source: internal/component/sysrib/sysrib.go -- system route arbitration -->
+<!-- source: internal/plugins/fib/kernel/fibkernel.go -- kernel FIB consumer -->
+<!-- source: internal/plugins/fib/vpp/fibvpp.go -- optional VPP FIB consumer -->
+
+<h2 id="programs">Programs</h2>
+<table>
+<thead>
+<tr>
+<th>Binary</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze</code></td>
+<td>Network OS: BGP, CLI, config, hub, interface, ExaBGP migration, plugin, schema, signal, completion</td>
+</tr>
+<tr>
+<td><code>ze-chaos</code></td>
+<td>Chaos testing orchestrator: fault injection, scheduling</td>
+</tr>
+<tr>
+<td><code>ze-perf</code></td>
+<td>Performance benchmarking: UPDATE throughput tracking</td>
+</tr>
+<tr>
+<td><code>ze-analyze</code></td>
+<td>MRT/RIB analysis: attributes, communities, density, dump</td>
+</tr>
+<tr>
+<td><code>ze-test</code></td>
+<td>Functional test runner: BGP, editor, peer, MCP, web, RPKI, managed</td>
+</tr>
+</tbody>
+</table>
+<!-- source: cmd/ze/main.go -- ze binary entry point -->
+
+<h2 id="source-layout">Source Layout</h2>
+<table>
+<thead>
+<tr>
+<th>Area</th>
+<th>Location</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Components</td>
+<td>(api, bgp, cli, config, firewall, gnmi, iface, ike, l2tp, lg, mcp, pki, resolve, ssh, storage, telemetry, traffic, vpp, web. ). <span class="ev-src"><span class="ev-ref"><code>internal/component/</code></span></span></td>
+</tr>
+<tr>
+<td>BGP engine</td>
+<td>(reactor, FSM, wire, message, capability). <span class="ev-src"><span class="ev-ref"><code>internal/component/bgp/</code></span></span></td>
+</tr>
+<tr>
+<td>Plugin implementations</td>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/plugins/</code></span><span class="ev-ref"><code>internal/component/bgp/plugins/</code></span></span></td>
+</tr>
+<tr>
+<td>Plugin infrastructure</td>
+<td>(registry, process, hub, SDK). <span class="ev-src"><span class="ev-ref"><code>internal/component/plugin/</code></span></span></td>
+</tr>
+<tr>
+<td>Programs</td>
+<td>(build tags: <code>ze_core</code>, <code>ze_test</code>, <code>ze_chaos</code>, <code>ze_perf</code>, <code>ze_analyze</code>). <span class="ev-src"><span class="ev-ref"><code>cmd/ze/</code></span></span></td>
+</tr>
+<tr>
+<td>Public SDKs</td>
+<td><span class="ev-src"><span class="ev-ref"><code>pkg/plugin/sdk/</code></span><span class="ev-ref"><code>pkg/plugin/rpc/</code></span><span class="ev-ref"><code>pkg/zefs/</code></span></span></td>
+</tr>
+<tr>
+<td>Tests</td>
+<td><code>test/</code> (.ci files), <code>*_test.go</code></td>
+</tr>
+</tbody>
+</table>
+<!-- source: cmd/ -- program binaries -->
+
+<h2 id="deeper-reading">Deeper Reading</h2>
+<table>
+<thead>
+<tr>
+<th>Topic</th>
+<th>Document</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Full design document</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/docs/DESIGN.md" target="_blank" rel="noopener">DESIGN.md</a></td>
+</tr>
+<tr>
+<td>Canonical architecture reference</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/docs/architecture/core-design.md" target="_blank" rel="noopener">architecture/core-design.md</a></td>
+</tr>
+<tr>
+<td>System architecture (hub mode)</td>
+<td><a href="system-architecture/">architecture/system-architecture.md</a></td>
+</tr>
+<tr>
+<td>Buffer-first architecture</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/docs/architecture/buffer-architecture.md" target="_blank" rel="noopener">architecture/buffer-architecture.md</a></td>
+</tr>
+<tr>
+<td>Pool architecture</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/docs/architecture/pool-architecture.md" target="_blank" rel="noopener">architecture/pool-architecture.md</a></td>
+</tr>
+<tr>
+<td>Wire format details</td>
+<td><a href="https://github.com/ze-software/ze/tree/main/docs/architecture/wire" target="_blank" rel="noopener">architecture/wire/</a></td>
+</tr>
+<tr>
+<td>Hub architecture</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/docs/architecture/hub-architecture.md" target="_blank" rel="noopener">architecture/hub-architecture.md</a></td>
+</tr>
+<tr>
+<td>Config syntax</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/docs/config-reference.md" target="_blank" rel="noopener">config-reference.md</a></td>
+</tr>
+<tr>
+<td>BGP FSM</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/docs/bgp-fsm.md" target="_blank" rel="noopener">bgp-fsm.md</a></td>
+</tr>
+<tr>
+<td>Plugin architecture</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/docs/plugin-overview.md" target="_blank" rel="noopener">plugin-overview.md</a></td>
+</tr>
+<tr>
+<td>Feature inventory</td>
+<td><a href="../reference/feature-status/">features.md</a></td>
+</tr>
+</tbody>
+</table>
+            </section>
+        </main>
+
+        <script src="../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

@@ -10,7 +10,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PROJECT_DIR="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+PROJECT_DIR="$("$SCRIPT_DIR/project-root.sh")"
 OUT="$PROJECT_DIR/tmp/presentation-screenshots"
 CONF="$PROJECT_DIR/tmp/presentation-screenshots/demo.conf"
 ZE_PID=""
@@ -130,7 +130,7 @@ capture_cli() {
     local name="$1"
     shift
     echo "\$ $*" > "$OUT/cli-${name}.txt"
-    "$PROJECT_DIR/bin/ze" "$@" 2>&1 >> "$OUT/cli-${name}.txt" || true
+    "$PROJECT_DIR/bin/ze" "$@" >> "$OUT/cli-${name}.txt" 2>&1 || true
 }
 
 capture_cli "summary" summary

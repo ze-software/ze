@@ -10,7 +10,7 @@ Use the Ze interop harness for protocol assertions, or netlab for reusable multi
 
 **Ze harness**
 
-### [Protocol interop scenarios](https://ze-software.net/docs/architecture/testing/interop/)
+### [Protocol interop scenarios](https://ze-software.net/architecture/testing/interop/)
 
 Run 68 curated scenarios against FRR, BIRD, and GoBGP. The harness starts only the required daemons and checks behavior through each peer's own CLI.
 
@@ -18,7 +18,7 @@ Run 68 curated scenarios against FRR, BIRD, and GoBGP. The harness starts only t
 
 **netlab**
 
-### [Reusable topology lab](https://ze-software.net/docs/guide/netlab/)
+### [Reusable topology lab](https://ze-software.net/labs/netlab/)
 
 Describe a three-node topology in YAML. netlab renders Ze configuration and starts each daemon node under containerlab.
 
@@ -31,7 +31,7 @@ A Docker orchestrator launches Ze and one or more peer daemons on an isolated ne
 - **Proves:** Real BGP sessions against production daemon implementations, not mocks
 - **Peers:** Real FRR, BIRD, and GoBGP, in Docker containers
 - **Requires:** Docker, Python 3, ~1.5 GB disk for daemon images
-- **Source:** [docs/architecture/testing/interop.md](https://ze-software.net/docs/architecture/testing/interop/)
+- **Source:** [docs/architecture/testing/interop.md](https://ze-software.net/architecture/testing/interop/)
 
 ```
 # all 68 scenarios

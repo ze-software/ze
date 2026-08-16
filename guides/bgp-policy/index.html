@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>BGP Policy - Ze</title>
+        <meta name="description" content="Ze documentation: guide/bgp-policy.md" />
+        <meta property="og:title" content="BGP Policy - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/bgp-policy.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="BGP Policy - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/bgp-policy.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/guides/bgp-policy/" />
+        <meta property="og:url" content="https://ze-software.net/guides/bgp-policy/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-routing">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1 id="bgp-policy">BGP Policy</h1>
+    <p>Ze applies ordered import and export filter chains to BGP updates. Define named policy objects once, attach them globally, to a group, or to one peer, then verify both accepted routes and the routes sent onward.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#policy-model">Policy model</a></li>
+<li><a href="#filter-outcomes">Filter outcomes</a></li>
+<li><a href="#common-policy-building-blocks">Common policy building blocks</a></li>
+<li><a href="#irr-and-rpki">IRR and RPKI</a></li>
+<li><a href="#attribute-changes">Attribute changes</a></li>
+<li><a href="#well-known-communities-rfc-1997">Well-known communities (RFC 1997)</a></li>
+<li><a href="#route-server-control-communities">Route-server control communities</a></li>
+<li><a href="#redistribution">Redistribution</a></li>
+<li><a href="#verify-policy">Verify policy</a></li>
+<li><a href="#related-guides">Related guides</a></li>
+</ol></nav>
+<h2 id="policy-model">Policy model</h2>
+<p>Policy has two parts:</p>
+<ol>
+<li>Named filter instances under <code>bgp { policy { ... } }</code>.</li>
+<li>Ordered references under <code>filter { import [...] export [...] }</code>.</li>
+</ol>
+<pre><code class="language-text">bgp {
+    policy {
+        loop-detection no-self-as {
+            allow-own-as 0
+        }
+    }
+
+    filter {
+        import [ no-self-as rpki:validate ]
+    }
+
+    group customers {
+        filter {
+            import [ community:scrub ]
+            export [ prefix:customer-export ]
+        }
+    }
+}
+</code></pre>
+<p>The effective chain is cumulative: automatic safety filters run first, followed by global, group, and peer references. Use <code>insert</code> in the editor when order matters.</p>
+<h2 id="filter-outcomes">Filter outcomes</h2>
+<p>A filter can:</p>
+<ul>
+<li>accept the update unchanged;</li>
+<li>reject it and stop the chain;</li>
+<li>modify selected attributes and pass the changed update onward.</li>
+</ul>
+<p>Each plugin declares whether an internal error fails open or closed. Security filters should normally reject on failure. Operational policy should make that choice explicit rather than depending on an unavailable external service.</p>
+<h2 id="common-policy-building-blocks">Common policy building blocks</h2>
+<p>Ze ships filters for:</p>
+<ul>
+<li>AS path matching and length;</li>
+<li>prefix lists;</li>
+<li>standard, large, and extended communities;</li>
+<li>route attribute modification;</li>
+<li>private AS removal;</li>
+<li>address-family filtering;</li>
+<li>RPKI and IRR validation;</li>
+<li>RFC 4271 AS loop and RFC 4456 cluster-list loop detection.</li>
+</ul>
+<p>The <a href="../plugins/">plugin guide</a> documents the registered filter types and their current configuration. The generated <a href="https://ze-software.net/reference/plugins/">plugin catalogue</a> shows which plugin owns each filter.</p>
+<h2 id="irr-and-rpki">IRR and RPKI</h2>
+<p>IRR filters build allowed prefix sets from routing registry data. RPKI validates route origin against ROAs. They answer different questions and can be used together:</p>
+<ul>
+<li>IRR: is this prefix documented for this network or AS-SET?</li>
+<li>RPKI: is the origin AS authorised by a cryptographically validated ROA?</li>
+</ul>
+<p>Use the <a href="../irr-filtering/">IRR filtering</a> and <a href="../rpki/">RPKI</a> guides for cache configuration, refresh, failure behaviour, and operator commands.</p>
+<h2 id="attribute-changes">Attribute changes</h2>
+<p>Attribute modification belongs in an explicit export or import chain. Keep each named modifier narrow, then compose it with other filters. Typical operations include setting local preference or MED, changing next hop, and adding or removing communities.</p>
+<p>Inspect the live plugin documentation before using increment or decrement operations. Attribute ranges and missing-attribute behaviour are validated by the owning plugin.</p>
+<h2 id="well-known-communities-rfc-1997">Well-known communities (RFC 1997)</h2>
+<p>Ze honors three community values on egress with no configuration, for every peer and every deployment:</p>
+<table>
+<thead>
+<tr>
+<th>Community</th>
+<th>Value</th>
+<th>Ze sends the route to</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>NO_EXPORT</code></td>
+<td>0xFFFFFF01</td>
+<td>internal peers only</td>
+</tr>
+<tr>
+<td><code>NO_ADVERTISE</code></td>
+<td>0xFFFFFF02</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td><code>NO_EXPORT_SUBCONFED</code></td>
+<td>0xFFFFFF03</td>
+<td>internal peers only</td>
+</tr>
+</tbody>
+</table>
+<p>The rule applies to a route ze RECEIVED from a peer. A route ze originates and tags itself is still advertised, because tagging your own route is how the community is meant to be used.</p>
+<p>Two properties are worth knowing before you write policy around this.</p>
+<p><strong>The check reads the received route, so an egress policy that strips these values does not restore advertisement.</strong> The value ze reads is the one the route arrived with. Removing <code>NO_EXPORT</code> in an export chain changes the bytes on the wire. It does not change what the peer asked for, and RFC 1997 states the prohibition as a MUST NOT. FRR and BIRD apply the route-map first, so a strip there does restore advertisement. Ze diverges from both, deliberately: an operator policy cannot grant what the RFC refuses. If a route must leave the AS, ask the peer to stop tagging it.</p>
+<p><strong>Withdrawals are not affected.</strong> All three clauses forbid ADVERTISING the route. One UPDATE can carry withdrawn routes and an announcement together. A peer refused the announcement still receives the withdrawals, so it never keeps a prefix ze can no longer take back.</p>
+<p>Each suppression increments <code>ze_bgp_wellknown_community_suppressed_total</code> with the community as its label. Nothing else reports it: there is no per-route log line and no configuration switch, because a switch here would be a switch to violate the RFC.</p>
+<!-- source: internal/component/bgp/wireu/wellknown.go — ScanWellKnown, WellKnown.AllowsEgressTo -->
+<!-- source: internal/component/bgp/reactor/forward_wellknown.go — wellKnownAllowsEgress -->
+
+<h2 id="route-server-control-communities">Route-server control communities</h2>
+<p>When ze runs as a route server, a client can steer its own routes by tagging them with communities the route server reads and then removes. A peer becomes a route-server client with <code>rs-client true</code> under its <code>session</code> block; the communities below are only interpreted for such peers.</p>
+<table>
+<thead>
+<tr>
+<th>Community</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>0:&lt;asn&gt;</code></td>
+<td>Do not advertise this route to <code>&lt;asn&gt;</code>.</td>
+</tr>
+<tr>
+<td><code>&lt;rs-asn&gt;:&lt;asn&gt;</code></td>
+<td>Advertise this route ONLY to the listed ASNs.</td>
+</tr>
+<tr>
+<td><code>&lt;rs-asn&gt;:0</code></td>
+<td>Do not advertise this route to any client.</td>
+</tr>
+<tr>
+<td><span class="ev-src"><span class="ev-ref"><code>65535:666</code></span></span></td>
+<td>RFC 7999 blackhole.</td>
+</tr>
+</tbody>
+</table>
+<p>A whitelist wins over a blacklist: if a route carries any <code>&lt;rs-asn&gt;:&lt;asn&gt;</code> tag, only the listed ASNs receive it and <code>0:&lt;asn&gt;</code> tags on the same route are not consulted.</p>
+<p>These are control tags, not attributes to pass on. The route server strips every one of them from the route before forwarding it, so a client never sees another client's steering instructions or the route server's own. Communities the route server does not recognise are forwarded untouched and in their original order, so a client's own tagging survives.</p>
+<pre><code># Client tags a route: keep it away from AS 64998, and let AS 65002 have it.
+# The route server removes both tags; 65001:100 reaches AS 65002 unchanged.
+community [ 0:64998 65000:65002 65001:100 ]
+</code></pre>
+<p>Two limits are worth knowing:</p>
+<ul>
+<li>A standard community's high half is 16 bits (RFC 1997), so a route server with a 4-octet ASN matches <code>&lt;rs-asn&gt;:&lt;asn&gt;</code> on the low 16 bits of its ASN only. Use large communities where that is ambiguous.</li>
+<li>Stripping is ze's own forwarding behaviour. RFC 7947 expects per-client import and export policy but prescribes no mechanism for it (Section 2.3.2.1 offers per-client RIBs as "the most portable method"), so a different route-server implementation may leave these tags in place.</li>
+</ul>
+<!-- source: internal/component/bgp/wireu/community.go — ParseCommunityPolicy, ShouldForwardTo, StripControlCommunities -->
+<!-- source: internal/component/bgp/reactor/reactor_api_forward.go — general forwarding rail; forward_rs.go — route-server fast path -->
+
+<h2 id="redistribution">Redistribution</h2>
+<p>The top-level <code>redistribute</code> block moves selected routes between protocol RIBs. Redistribution is separate from ordinary per-peer BGP filtering, but the resulting routes still pass through the destination protocol's policy and loop-prevention rules.</p>
+<p>Use named destinations and specify the source protocols deliberately. Avoid broad two-way redistribution unless the topology and loop controls have been proven. Connected, static, kernel, OSPF, IS-IS, and BGP route sources have different ownership and withdrawal behaviour.</p>
+<p>See <a href="../redistribution/">Route filters and redistribution</a> for the current chain rules and configuration syntax.</p>
+<h2 id="verify-policy">Verify policy</h2>
+<p>Use the same route at each boundary:</p>
+<pre><code class="language-console">ze cli -c &quot;show bgp rib peer transit-a&quot;
+ze cli -c &quot;show bgp rib best&quot;
+ze cli -c &quot;show bgp irr check peer transit-a prefix 192.0.2.0/24&quot;
+ze cli -c &quot;show bgp peer transit-b rib&quot;
+</code></pre>
+<p>Confirm:</p>
+<ol>
+<li>The route is present or absent at the expected import boundary.</li>
+<li>The best-path result carries the intended local attributes.</li>
+<li>Exported attributes match the destination peer's policy.</li>
+<li>A rejected route does not reappear through redistribution.</li>
+<li>A policy reload completes without warnings or partial application.</li>
+</ol>
+<h2 id="related-guides">Related guides</h2>
+<ul>
+<li><a href="../bgp-peering/">BGP peering</a></li>
+<li><a href="../bgp-resilience/">BGP resilience</a></li>
+<li><a href="../irr-filtering/">IRR filtering</a></li>
+<li><a href="../rpki/">RPKI origin validation</a></li>
+<li><a href="../route-injection/">Route injection</a></li>
+</ul>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/quickstart/">
+                        <span class="page-sidebar-link-label">Quickstart</span>
+                        <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create zefs, and start SSH.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../reference/command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

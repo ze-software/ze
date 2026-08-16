@@ -143,14 +143,40 @@ DOCS_MANIFEST = {
     "why-ze.md": None,
 }
 
-# Lookup-oriented docs and menu outliers whose public URL follows site IA.
-DOCS_DEST_OVERRIDES = {
+# Public URLs follow the site's information architecture, never the source
+# repository layout. Exact entries handle pages whose public role differs from
+# their source family; prefix entries cover coherent content collections. There
+# is deliberately no "docs/<source>" fallback: a new source family must make an
+# explicit public-URL decision before it can be published.
+DOCS_DEST_EXACT = {
+    "architecture.md": "architecture",
     "architecture/config/deprecated-options.md": "reference/deprecations",
     "contributing/testing.md": "contribute/testing",
+    "features.md": "reference/feature-status",
+    "features/configuration.md": "features/bgp-configuration",
     "features/rfc-status.md": "reference/rfcs",
     "glossary.md": "reference/glossary",
+    "guide/developer-setup.md": "contribute/developer-setup",
+    "guide/configuration.md": "guides/configuration-model",
+    "guide/health-checks.md": "guides/system-readiness",
+    "guide/healthcheck.md": "guides/bgp-healthcheck",
+    "guide/looking-glass-howto.md": "guides/public-looking-glass",
+    "guide/netlab.md": "labs/netlab",
+    "guide/terminal-demonstrations.md": "demos/terminal",
     "history.md": "project/history",
+    "performance.md": "performance/bgp",
+    "plugin-development.md": "developers/plugins",
+    "research/vpp-deployment-reference.md": "architecture/vpp-deployment",
+    "why-ze.md": "project/why-ze",
 }
+
+DOCS_DEST_PREFIXES = (
+    ("architecture/", "architecture/"),
+    ("contributing/", "contribute/"),
+    ("features/", "features/"),
+    ("guide/", "guides/"),
+    ("plugin-development/", "developers/plugins/"),
+)
 
 NAV_PATCH_TARGETS = [
     "zeledon/index.html",
@@ -167,16 +193,47 @@ NAV_PATCH_TARGETS = [
     "labs/vpp-dataplane/index.html",
 ]
 
-USAGE_DESC = (
+HUB_PAGES = [
+    MarkdownPage(
+        "guides/index.md",
+        "guides/index.html",
+        "Task-oriented installation, configuration, operation, and troubleshooting guides.",
+        "operate",
+    ),
+    MarkdownPage(
+        "reference/index.md",
+        "reference/index.html",
+        "Generated and lookup-oriented command, configuration, plugin, standards, and feature data.",
+    ),
+    MarkdownPage(
+        "project/index.md",
+        "project/index.html",
+        "Ze roadmap, milestones, changes, history, talks, and contribution paths.",
+    ),
+    MarkdownPage(
+        "developers/index.md",
+        "developers/index.html",
+        "Plugin SDK documentation and contributor development workflows.",
+        "automate",
+    ),
+    MarkdownPage(
+        "demos/index.md",
+        "demos/index.html",
+        "Recorded workflows, runnable labs, netlab topologies, and deployment examples.",
+        "observe",
+    ),
+]
+
+USE_CASE_DESC = (
     "Deployment examples for using Ze in a real network, with adjacent router "
     "configs and the lab evidence behind each setup."
 )
 
-USAGE_PAGES = [
-    MarkdownPage("index.md", "usage/index.html", USAGE_DESC),
+USE_CASE_PAGES = [
+    MarkdownPage("index.md", "use-cases/index.html", USE_CASE_DESC),
     MarkdownPage(
         "as112/index.md",
-        "usage/as112/index.html",
+        "use-cases/as112/index.html",
         (
             "Use Ze as an AS112 anycast DNS node inside a network, with peer "
             "configs for FRR, BIRD, VyOS, Junos, and Cisco IOS XR."
@@ -185,43 +242,43 @@ USAGE_PAGES = [
     ),
     MarkdownPage(
         "exabgp-migration/index.md",
-        "usage/exabgp-migration/index.html",
+        "use-cases/exabgp-migration/index.html",
         "Convert an ExaBGP config and run existing process scripts with Ze.",
         "automate",
     ),
     MarkdownPage(
         "bgp-performance/index.md",
-        "usage/bgp-performance/index.html",
+        "use-cases/bgp-performance/index.html",
         "Route-server performance tests with ze-perf sender, receiver, and JSON reports.",
         "automate",
     ),
     MarkdownPage(
         "route-server/index.md",
-        "usage/route-server/index.html",
+        "use-cases/route-server/index.html",
         "Deploy Ze as an IXP route server with member policy, validation, and checks.",
         "routing",
     ),
     MarkdownPage(
         "transit-edge-rpki/index.md",
-        "usage/transit-edge-rpki/index.html",
+        "use-cases/transit-edge-rpki/index.html",
         "Build a dual-transit Internet edge with RPKI origin validation and tested failover.",
         "routing",
     ),
     MarkdownPage(
         "flowspec-injection/index.md",
-        "usage/flowspec-injection/index.html",
+        "use-cases/flowspec-injection/index.html",
         "Inject and withdraw FlowSpec rules through an authorised workflow with visible state and logs.",
         "secure",
     ),
     MarkdownPage(
         "chaos-tested-peering/index.md",
-        "usage/chaos-tested-peering/index.html",
+        "use-cases/chaos-tested-peering/index.html",
         "Check BGP convergence and recovery with deterministic chaos scenarios.",
         "observe",
     ),
     MarkdownPage(
         "as-path-topology/index.md",
-        "usage/as-path-topology/index.html",
+        "use-cases/as-path-topology/index.html",
         "Use the Looking Glass AS-path graph to investigate routing visibility and changes.",
         "observe",
     ),
@@ -307,7 +364,13 @@ def doc_stem(doc_path):
 
 
 def docs_dest_rel_dir_for(doc_path):
-    return DOCS_DEST_OVERRIDES.get(doc_path, "docs/%s" % doc_stem(doc_path))
+    if doc_path in DOCS_DEST_EXACT:
+        return DOCS_DEST_EXACT[doc_path]
+    stem = doc_stem(doc_path)
+    for source_prefix, public_prefix in DOCS_DEST_PREFIXES:
+        if stem.startswith(source_prefix):
+            return public_prefix + stem.removeprefix(source_prefix)
+    raise KeyError("no public destination for %s" % doc_path)
 
 
 def docs_dest_rel_for(doc_path):
@@ -316,6 +379,82 @@ def docs_dest_rel_for(doc_path):
 
 def docs_link_manifest():
     return {doc_path: docs_dest_rel_dir_for(doc_path) for doc_path in DOCS_MANIFEST}
+
+
+LEGACY_DOCS_DEST_OVERRIDES = {
+    "architecture/config/deprecated-options.md": "reference/deprecations",
+    "contributing/testing.md": "contribute/testing",
+    "features/rfc-status.md": "reference/rfcs",
+    "glossary.md": "reference/glossary",
+    "history.md": "project/history",
+}
+
+
+def legacy_docs_dest_rel_dir_for(doc_path):
+    return LEGACY_DOCS_DEST_OVERRIDES.get(doc_path, "docs/%s" % doc_stem(doc_path))
+
+
+def url_redirects():
+    """Legacy site-relative directory -> canonical site-relative directory."""
+    redirects = {}
+    for doc_path in DOCS_MANIFEST:
+        new = docs_dest_rel_dir_for(doc_path)
+        old_routes = (
+            "docs/%s" % doc_stem(doc_path),
+            legacy_docs_dest_rel_dir_for(doc_path),
+        )
+        for old in old_routes:
+            if old != new:
+                redirects[old] = new
+
+    for page in USE_CASE_PAGES:
+        new = page.dest.removesuffix("/index.html")
+        old = "usage" if new == "use-cases" else new.replace("use-cases/", "usage/", 1)
+        redirects[old] = new
+
+    redirects.update(
+        {
+            "cli": "reference/cli",
+            "command-equivalents": "reference/command-equivalents",
+            "config-reference": "reference/configuration",
+            "dependencies": "reference/dependencies",
+            "docs/architecture/testing/l2tp-interop": "labs/l2tp-interop/architecture",
+            "docs/architecture/testing/pppoe-interop": "labs/pppoe-interop/architecture",
+            "docs/features/plugins": "reference/plugins",
+            "docs/guide/exabgp-migration": "use-cases/exabgp-migration",
+            "guides/configuration": "guides/configuration-model",
+            "presentations/linx-2026-06": "talks/linx-2026-06",
+            "presentations/netmcr-2026-04": "talks/netmcr-2026-04",
+            "why-ze": "project/why-ze",
+        }
+    )
+    return redirects
+
+
+def file_redirects():
+    return {
+        "presentations/linx-2026-06/index-inlined.html": (
+            "talks/linx-2026-06/index-inlined.html"
+        ),
+        "presentations/netmcr-2026-04/index-inlined.html": (
+            "talks/netmcr-2026-04/index-inlined.html"
+        ),
+    }
+
+
+def rewrite_legacy_public_urls(text, site_base, redirects=None):
+    base = site_base.rstrip("/") + "/"
+    routes = url_redirects() if redirects is None else redirects
+    for source, target in routes.items():
+        text = text.replace(base + source + "/", base + target + "/")
+    for source, target in file_redirects().items():
+        text = text.replace(base + source, base + target)
+    return text
+
+
+def is_frozen_talk_path(path):
+    parts = pathlib.PurePosixPath(str(path)).parts
+    return len(parts) > 1 and parts[0] == "talks" and parts[1] != "index.html"
 
 
 def page_root_for_dest(dest_rel):

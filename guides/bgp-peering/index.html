@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>BGP Peering - Ze</title>
+        <meta name="description" content="Ze documentation: guide/bgp-peering.md" />
+        <meta property="og:title" content="BGP Peering - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/bgp-peering.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="BGP Peering - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/bgp-peering.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/guides/bgp-peering/" />
+        <meta property="og:url" content="https://ze-software.net/guides/bgp-peering/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-routing">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1 id="bgp-peering">BGP Peering</h1>
+    <p>Use this guide after the quick start when a peer needs groups, multiple address families, capabilities, prefix limits, or an explicit relationship role.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#minimal-peer">Minimal peer</a></li>
+<li><a href="#groups-and-inheritance">Groups and inheritance</a></li>
+<li><a href="#address-families">Address families</a></li>
+<li><a href="#add-path">ADD-PATH</a></li>
+<li><a href="#bgp-role">BGP Role</a></li>
+<li><a href="#verify-the-session">Verify the session</a></li>
+<li><a href="#related-guides">Related guides</a></li>
+</ol></nav>
+<h2 id="minimal-peer">Minimal peer</h2>
+<p>A peer needs local and remote addresses, AS numbers, a router ID, and at least one address family:</p>
+<pre><code class="language-text">bgp {
+    router-id 192.0.2.10
+
+    peer transit-a {
+        connection {
+            local { ip 192.0.2.10 }
+            remote { ip 192.0.2.1 }
+        }
+        session {
+            asn { local 64500; remote 64496 }
+            family {
+                ipv4/unicast {
+                    prefix { maximum 1000000 }
+                }
+            }
+        }
+    }
+}
+</code></pre>
+<p>Validate before starting or reloading:</p>
+<pre><code class="language-console">ze config validate ze.conf
+ze doctor
+</code></pre>
+<p>Use the generated <a href="https://ze-software.net/reference/configuration/">configuration reference</a> for the current leaf names and constraints.</p>
+<h2 id="groups-and-inheritance">Groups and inheritance</h2>
+<p>Put shared settings in a group and override only what differs on each peer:</p>
+<pre><code class="language-text">bgp {
+    router-id 192.0.2.10
+
+    group transit {
+        session {
+            asn { local 64500 }
+            family {
+                ipv4/unicast { prefix { maximum 1000000 } }
+                ipv6/unicast { prefix { maximum 250000 } }
+            }
+        }
+        timer { receive-hold-time 90 }
+
+        peer transit-a {
+            connection {
+                local { ip 192.0.2.10 }
+                remote { ip 192.0.2.1 }
+            }
+            session { asn { remote 64496 } }
+        }
+
+        peer transit-b {
+            connection {
+                local { ip 2001:db8::10 }
+                remote { ip 2001:db8::1 }
+            }
+            session { asn { remote 64497 } }
+        }
+    }
+}
+</code></pre>
+<p>Peer values override group values. Group values override the global BGP block. Inspect the resolved result with <code>show config dump</code> rather than reasoning about inheritance from the source file alone.</p>
+<h2 id="address-families">Address families</h2>
+<p>The engine provides IPv4 and IPv6 unicast and multicast. Plugins register VPN, EVPN, FlowSpec, labeled-unicast, BGP-LS, MVPN, RTC, MUP, VPLS, and SR Policy families. The current encode, decode, and route-configuration status is maintained on the <a href="../../features/bgp-protocol/">BGP protocol page</a>.</p>
+<p>Each enabled family requires an explicit prefix limit. Set it from expected operational volume rather than accepting a migration default. A full-table peer and a customer announcing one aggregate should not share the same limit.</p>
+<h2 id="add-path">ADD-PATH</h2>
+<p>ADD-PATH is configured per family. The peers must negotiate compatible send and receive modes before additional paths can be exchanged. See the <a href="../add-path/">ADD-PATH guide</a> for the mode matrix, path limits, and verification commands.</p>
+<h2 id="bgp-role">BGP Role</h2>
+<p>RFC 9234 roles describe the business relationship between peers and let Ze enforce valid pairings and OTC handling. Configure roles deliberately on eBGP sessions. See the <a href="../bgp-role/">BGP Role guide</a> for valid peer pairs and policy effects.</p>
+<h2 id="verify-the-session">Verify the session</h2>
+<pre><code class="language-console">ze cli -c &quot;show bgp summary&quot;
+ze cli -c &quot;show bgp peer transit-a detail&quot;
+ze cli -c &quot;show bgp peer transit-a capabilities&quot;
+ze cli -c &quot;show bgp rib status&quot;
+</code></pre>
+<p>Check that:</p>
+<ol>
+<li>The session is Established.</li>
+<li>The negotiated families match the intended configuration.</li>
+<li>Prefix counts remain below the configured limits.</li>
+<li>Capabilities such as ADD-PATH, Graceful Restart, and BGP Role were negotiated rather than merely configured locally.</li>
+<li><code>show warnings</code> and <code>show errors</code> are clean.</li>
+</ol>
+<h2 id="related-guides">Related guides</h2>
+<ul>
+<li><a href="../configuration-model/">Configuration</a> covers syntax and the full configuration model.</li>
+<li><a href="../bgp-policy/">BGP policy</a> covers import, export, and redistribution.</li>
+<li><a href="../bgp-resilience/">BGP resilience</a> covers route refresh, restart, persistence, and reflection.</li>
+<li><a href="../route-injection/">Route injection</a> covers on-demand announcements.</li>
+</ul>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/quickstart/">
+                        <span class="page-sidebar-link-label">Quickstart</span>
+                        <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create zefs, and start SSH.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../reference/command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

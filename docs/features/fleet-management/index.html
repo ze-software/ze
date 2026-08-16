@@ -1,108 +1,14 @@
 <!doctype html>
 <html lang="en">
-    <head>
-        <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>Fleet Management - Ze</title>
-        <meta name="description" content="Ze documentation: features/fleet-management.md" />
-        <meta property="og:title" content="Fleet Management - Ze" />
-        <meta property="og:description" content="Ze documentation: features/fleet-management.md" />
-        <meta property="og:type" content="website" />
-        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
-        <meta property="og:image:width" content="1200" />
-        <meta property="og:image:height" content="630" />
-        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="Fleet Management - Ze" />
-        <meta name="twitter:description" content="Ze documentation: features/fleet-management.md" />
-        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
-        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-        <link
-            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
-            rel="stylesheet"
-        />
-        <link rel="canonical" href="https://ze-software.net/docs/features/fleet-management/" />
-        <meta property="og:url" content="https://ze-software.net/docs/features/fleet-management/" />
-        <link rel="stylesheet" href="../../../assets/site.css" />
-        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
-    </head>
-    <body>
-        <a class="skip-link" href="#top">Skip to main content</a>
-        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
-            <noscript>
-                <nav class="site-header-fallback" aria-label="Site navigation">
-                    <a class="brand" href="../../../#top">Ze</a>
-                    <a href="../../../#top">Home</a>
-                    <a href="../../../docs/">Docs</a>
-                    <a href="../../../features/">Features</a>
-                    <a href="../../../compare/">Compare</a>
-                    <a href="../../../roadmap/">Roadmap</a>
-                    <a href="../../../changes/">Changes</a>
-                    <a href="../../../faq/">FAQ</a>
-                    <a href="../../../contribute/">Contribute</a>
-                </nav>
-            </noscript>
-        </div>
-
-        <main id="top" class="has-page-sidebar" tabindex="-1">
-            <section class="md-content reveal cat-automate">
-<div class="journey-hero reveal">
-    <span class="journey-eyebrow">Feature</span>
-    <h1 id="fleet-management">Fleet Management</h1>
-    <p>Ze supports centralized configuration for multi-node deployments. A central hub
-serves configuration to remote ze instances over TLS.</p>
-</div>
-<ul>
-<li>Named hub blocks: <code>server &lt;name&gt; { ip; port; secret; }</code> for listeners, <code>client &lt;name&gt; { host; port; secret; }</code> for outbound</li>
-<li>Per-client secrets: each managed client authenticates with its own token</li>
-<li>Config fetch with version hashing: clients only download when config changes</li>
-<li>Two-phase config change: hub notifies, client fetches when ready</li>
-<li>Partition resilience: clients cache config locally and start from cache when hub is unreachable</li>
-<li>Exponential backoff reconnect with jitter (1s to 60s cap)</li>
-<li>Heartbeat liveness detection (30s interval, 90s timeout)</li>
-<li>CLI overrides: <code>--server</code>, <code>--name</code>, <code>--token</code> flags for troubleshooting</li>
-<li>Managed mode toggle: <code>meta/instance/managed</code> blob flag controls hub connection</li>
-</ul>
-<!-- source: internal/component/managed/client.go -- RunManagedClient lifecycle -->
-<!-- source: internal/component/plugin/server/managed.go -- hub-side config handlers -->
-<!-- source: pkg/fleet/ -- version hash and RPC envelope types -->
-            </section>
-            <aside class="page-sidebar" aria-label="Related page links">
-                <p class="page-sidebar-eyebrow">Feature doc</p>
-                <nav class="page-sidebar-nav" aria-label="Related links">
-                <section class="page-sidebar-group">
-                    <h2>Related research</h2>
-                    <a class="page-sidebar-link" href="../../../features/">
-                        <span class="page-sidebar-link-label">Feature catalog</span>
-                        <small>Return to the generated feature cards.</small>
-                    </a>
-                    <a class="page-sidebar-link" href="../../../docs/">
-                        <span class="page-sidebar-link-label">Documentation hub</span>
-                        <small>Browse by learning intent.</small>
-                    </a>
-                    <a class="page-sidebar-link" href="../../../compare/">
-                        <span class="page-sidebar-link-label">Comparisons</span>
-                        <small>Place the feature in external context.</small>
-                    </a>
-                    <a class="page-sidebar-link" href="../../../quality/">
-                        <span class="page-sidebar-link-label">Quality</span>
-                        <small>See the evidence behind the implementation.</small>
-                    </a>
-                </section>
-                </nav>
-            </aside>
-        </main>
-
-        <script src="../../../assets/site.js" defer></script>
-
-        <footer>
-            <div class="footer-inner">
-                <div class="footer-bottom">
-                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                </div>
-            </div>
-        </footer>
-    </body>
+<head>
+    <meta charset="utf-8">
+    <meta name="robots" content="noindex">
+    <meta http-equiv="refresh" content="0; url=/features/fleet-management/">
+    <link rel="canonical" href="https://ze-software.net/features/fleet-management/">
+    <title>Page moved - Ze</title>
+    <script>location.replace("/features/fleet-management/" + location.search + location.hash);</script>
+</head>
+<body>
+    <p>This page moved to <a href="https://ze-software.net/features/fleet-management/">https://ze-software.net/features/fleet-management/</a>.</p>
+</body>
 </html>

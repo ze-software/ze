@@ -63,7 +63,7 @@ LIVE_DESC_OVERRIDES = {
     "reference/cli/": lambda: (
         "%s commands, generated from the live binary" % live_counts()["cli_commands"]
     ),
-    "dependencies/": lambda: (
+    "reference/dependencies/": lambda: (
         "%s direct packages, generated from go.mod" % live_counts()["dependencies"]
     ),
     "changes/": lambda: "%s weekly updates, newest first" % live_counts()["changes"],
@@ -166,7 +166,7 @@ def render_intro():
             "",
             "> Ze is an open-source configuration and protocol engine. The network operating system built on it speaks BGP, manages Linux interfaces, programs the FIB, and serves the same YANG-modeled configuration through CLI, SSH, web, API, and MCP. Its core holds the supervisor, message bus, config provider, and plugin manager; protocols and services arrive as subsystems or plugins.",
             "",
-            "Pre-release: no tagged versions yet, built continuously from the main branch. AGPLv3 open source. See ExaBGP [migration path](usage/exabgp-migration/index.md).",
+            "Pre-release: no tagged versions yet, built continuously from the main branch. AGPLv3 open source. See the ExaBGP [migration path](use-cases/exabgp-migration/index.md).",
             "",
             "This file is intentionally denormalized for AI use. It includes the high-signal product inventory and then the normal page map, so common questions should not require fetching many separate pages. Page links still point at Markdown `index.md` files first, with rendered web URLs beside them for humans.",
             "",
@@ -505,7 +505,7 @@ def markdown_title_and_summary(path: pathlib.Path) -> tuple[str, str]:
 
 
 def render_published_documentation():
-    """List every hand-authored docs and usage page registered for publication."""
+    """List every hand-authored docs and use-case page registered for publication."""
     lines = ["## Complete documentation index", ""]
     main_docs = GH_PAGES.parent / "main" / "docs"
     for source in page_registry.DOCS_MANIFEST:
@@ -515,8 +515,8 @@ def render_published_documentation():
             "- [%s](%s): %s (web: %s)"
             % (title, local_md_url(href), desc, local_web_url(href))
         )
-    for page in page_registry.USAGE_PAGES:
-        title, desc = markdown_title_and_summary(GH_PAGES / "usage" / page.source)
+    for page in page_registry.USE_CASE_PAGES:
+        title, desc = markdown_title_and_summary(GH_PAGES / "use-cases" / page.source)
         href = page.dest.removesuffix("index.html")
         lines.append(
             "- [%s](%s): %s (web: %s)"

@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Static Routes - Ze</title>
+        <meta name="description" content="Ze documentation: guide/static-routes.md" />
+        <meta property="og:title" content="Static Routes - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/static-routes.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Static Routes - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/static-routes.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/guides/static-routes/" />
+        <meta property="og:url" content="https://ze-software.net/guides/static-routes/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-routing">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1 id="static-routes">Static Routes</h1>
+    <p>Ze supports static routes with ECMP, weighted load balancing, BFD-tracked
+failover, blackhole, and reject. Routes are programmed directly to the
+kernel via netlink (or VPP when available). Routes are grouped under
+named tables for policy-based routing support.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#configuration">Configuration</a>
+<ol>
+<li><a href="#named-routing-tables">Named routing tables</a></li>
+<li><a href="#interface-only-next-hops">Interface-only next-hops</a></li>
+<li><a href="#mixed-ecmp">Mixed ECMP</a></li>
+<li><a href="#multiple-next-hops-ecmp">Multiple next-hops (ECMP)</a></li>
+<li><a href="#weighted-ecmp">Weighted ECMP</a></li>
+<li><a href="#bfd-failover">BFD failover</a></li>
+<li><a href="#blackhole-and-reject">Blackhole and reject</a></li>
+<li><a href="#ipv6">IPv6</a></li>
+<li><a href="#route-attributes">Route attributes</a></li>
+</ol></li>
+<li><a href="#cli">CLI</a></li>
+<li><a href="#route-programming">Route programming</a></li>
+<li><a href="#redistribute">Redistribute</a></li>
+</ol></nav>
+<h2 id="configuration">Configuration</h2>
+<p>All routes live under a named table. Use <code>default</code> for the main
+routing table:</p>
+<pre><code>static {
+    table default {
+        route 0.0.0.0/0 {
+            next { hop 10.0.0.1 { } }
+        }
+    }
+}
+</code></pre>
+<h3 id="named-routing-tables">Named routing tables</h3>
+<p>Define named tables via the <code>routing-table</code> config block, then
+reference them in <code>static</code>:</p>
+<pre><code>routing-table {
+    table lns {
+        id 100
+    }
+}
+
+static {
+    table lns {
+        route 0.0.0.0/0 {
+            next { interface tun100 { } }
+        }
+    }
+}
+</code></pre>
+<p>The same prefix can appear in different tables independently.
+Routes in non-default tables are not redistributed into BGP.</p>
+<p>Reserved table IDs (0, 253-255) are rejected. A 32-bit build additionally
+rejects a table ID or route metric above 2147483647, because the netlink
+bindings carry both in a machine int and would otherwise install the route in
+the main table at the kernel's default metric without reporting anything.
+Ze's released targets are 64-bit, where the full uint32 range is available.</p>
+<!-- source: internal/core/routingtable/registry.go — validateTableID, maxEncodableTableID -->
+<!-- source: internal/plugins/static/config.go — validateRouteMetric, maxNetlinkInt -->
+
+<h3 id="interface-only-next-hops">Interface-only next-hops</h3>
+<p>For point-to-point links (PPPoE, GRE tunnels) where the next-hop is
+the interface itself:</p>
+<pre><code>static {
+    table default {
+        route 0.0.0.0/0 {
+            next { interface pppoe0 { } }
+        }
+    }
+}
+</code></pre>
+<p>Interface-only next-hops do not support BFD profiles (BFD requires a
+peer address). Weight is supported for ECMP:</p>
+<pre><code>static {
+    table default {
+        route 0.0.0.0/0 {
+            next {
+                interface pppoe0 { weight 3; }
+                interface pppoe1 { weight 1; }
+            }
+        }
+    }
+}
+</code></pre>
+<h3 id="mixed-ecmp">Mixed ECMP</h3>
+<p>Gateway and interface-only next-hops can coexist in the same route:</p>
+<pre><code>static {
+    table default {
+        route 0.0.0.0/0 {
+            next {
+                hop 10.0.0.1 { weight 3; }
+                interface pppoe0 { weight 1; }
+            }
+        }
+    }
+}
+</code></pre>
+<h3 id="multiple-next-hops-ecmp">Multiple next-hops (ECMP)</h3>
+<p>All next-hops are installed simultaneously as a multipath route:</p>
+<pre><code>static {
+    table default {
+        route 10.0.0.0/8 {
+            next {
+                hop 192.168.1.1 { }
+                hop 192.168.1.2 { }
+                hop 192.168.1.3 { }
+            }
+        }
+    }
+}
+</code></pre>
+<h3 id="weighted-ecmp">Weighted ECMP</h3>
+<p>The <code>weight</code> field controls traffic distribution. Higher weight means
+more traffic. Default is 1 (equal distribution).</p>
+<pre><code>static {
+    table default {
+        route 0.0.0.0/0 {
+            next {
+                hop 10.0.0.1 {
+                    weight 3
+                }
+                hop 10.0.0.2 {
+                    weight 1
+                }
+            }
+        }
+    }
+}
+</code></pre>
+<p>This sends 75% of traffic via 10.0.0.1 and 25% via 10.0.0.2.</p>
+<h3 id="bfd-failover">BFD failover</h3>
+<p>Reference a BFD profile on each next-hop. When the BFD session goes
+down, that next-hop is removed from the ECMP group and the route is
+reprogrammed with the remaining active next-hops. When the session
+recovers, the next-hop is re-added.</p>
+<pre><code>bfd {
+    profile wan-fast {
+        detect-multiplier 3
+        desired-min-tx-us 100000
+        required-min-rx-us 100000
+    }
+}
+
+static {
+    table default {
+        route 0.0.0.0/0 {
+            next {
+                hop 10.0.0.1 {
+                    weight 3
+                    bfd-profile wan-fast
+                }
+                hop 10.0.0.2 {
+                    weight 1
+                    bfd-profile wan-fast
+                }
+            }
+        }
+    }
+}
+</code></pre>
+<p>If all BFD-tracked next-hops go down, the route is withdrawn entirely.</p>
+<h3 id="blackhole-and-reject">Blackhole and reject</h3>
+<p>Blackhole silently discards matching packets. Reject discards and sends
+an ICMP unreachable reply.</p>
+<pre><code>static {
+    table default {
+        route 192.0.2.0/24 {
+            blackhole { }
+        }
+        route 198.51.100.0/24 {
+            reject { }
+        }
+    }
+}
+</code></pre>
+<h3 id="ipv6">IPv6</h3>
+<p>IPv6 routes work the same way. For link-local next-hops, specify the
+outgoing interface:</p>
+<pre><code>static {
+    table default {
+        route 2001:db8::/32 {
+            next { hop 2001:db8::1 { } }
+        }
+        route 2001:db8:1::/48 {
+            next {
+                hop fe80::1 {
+                    interface eth0
+                }
+            }
+        }
+    }
+}
+</code></pre>
+<h3 id="route-attributes">Route attributes</h3>
+<pre><code>static {
+    table default {
+        route 172.16.0.0/12 {
+            description &quot;internal networks&quot;
+            metric 100
+            tag 42
+            next { hop 10.0.0.1 { } }
+        }
+    }
+}
+</code></pre>
+<ul>
+<li><code>description</code>: operator note (not programmed to kernel)</li>
+<li><code>metric</code>: kernel route priority (lower is preferred)</li>
+<li><code>tag</code>: opaque value for route policy matching in redistribute</li>
+</ul>
+<h2 id="cli">CLI</h2>
+<pre><code>ze&gt; show static
+</code></pre>
+<p>Shows all configured static routes with their prefixes, next-hops,
+weights, and BFD status in JSON format.</p>
+<h2 id="route-programming">Route programming</h2>
+<p>Static routes are programmed with <code>RTPROT_ZE</code> (protocol 251), a
+Ze-specific identifier distinct from the FIB kernel plugin (protocol 250).
+On config reload, the plugin
+computes the diff between old and new routes and applies only the
+changes.</p>
+<p>Kernel ECMP uses <code>RTA_MULTIPATH</code> with per-next-hop weight mapped from
+the <code>weight</code> field (kernel weight = weight - 1).</p>
+<h2 id="redistribute">Redistribute</h2>
+<p>Static routes register as protocol "static" in the redistribute
+framework. BGP redistribute can import static routes:</p>
+<pre><code>redistribute {
+    destination bgp {
+        import static
+    }
+}
+</code></pre>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/quickstart/">
+                        <span class="page-sidebar-link-label">Quickstart</span>
+                        <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create zefs, and start SSH.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../reference/command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

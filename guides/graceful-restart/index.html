@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Graceful Restart - Ze</title>
+        <meta name="description" content="Ze documentation: guide/graceful-restart.md" />
+        <meta property="og:title" content="Graceful Restart - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/graceful-restart.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Graceful Restart - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/graceful-restart.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/guides/graceful-restart/" />
+        <meta property="og:url" content="https://ze-software.net/guides/graceful-restart/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-routing">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1 id="graceful-restart">Graceful Restart</h1>
+    <p>Graceful Restart (RFC 4724) preserves forwarding state across BGP session restarts. When a peer goes down and comes back, routes are held during the restart window instead of being immediately withdrawn, preventing traffic black-holes.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#configuration">Configuration</a>
+<ol>
+<li><a href="#config-reference">Config Reference</a></li>
+</ol></li>
+<li><a href="#how-it-works">How It Works</a>
+<ol>
+<li><a href="#normal-session">Normal Session</a></li>
+<li><a href="#peer-restarts">Peer Restarts</a></li>
+<li><a href="#restart-timer-expiry">Restart Timer Expiry</a></li>
+<li><a href="#fail-safe">Fail-Safe</a></li>
+</ol></li>
+<li><a href="#plugin-bindings">Plugin Bindings</a>
+<ol>
+<li><a href="#keep-the-bgp-gr-engine-in-the-daemon-process">Keep the bgp-gr engine in the daemon process</a></li>
+</ol></li>
+<li><a href="#cli">CLI</a></li>
+<li><a href="#long-lived-graceful-restart-rfc-9494">Long-Lived Graceful Restart (RFC 9494)</a>
+<ol>
+<li><a href="#configuration_1">Configuration</a></li>
+<li><a href="#how-it-works_1">How It Works</a></li>
+<li><a href="#stale-levels">Stale Levels</a></li>
+<li><a href="#special-case-skip-gr">Special Case: Skip GR</a></li>
+<li><a href="#well-known-communities">Well-Known Communities</a></li>
+<li><a href="#cli_1">CLI</a></li>
+</ol></li>
+<li><a href="#without-graceful-restart">Without Graceful Restart</a></li>
+</ol></nav>
+<!-- source: internal/component/bgp/plugins/gr/register.go -- bgp-gr registration, RFCs 4724/9494 -->
+
+<h2 id="configuration">Configuration</h2>
+<pre><code>plugin {
+    internal gr {
+        use bgp-gr
+    }
+    internal rib {
+        use bgp-rib
+    }
+}
+
+bgp {
+    peer upstream1 {
+        remote { ip 10.0.0.1; as 65001; }
+        ...
+        capability {
+            graceful-restart {
+                restart-time 120;
+            }
+        }
+
+        attach process gr {
+            receive [ open-received state eor ]
+            send [ update ]
+        }
+        attach process rib {
+            receive [ update state refresh ]
+            send [ update ]
+        }
+    }
+}
+</code></pre>
+<h3 id="config-reference">Config Reference</h3>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>graceful-restart / restart-time</code></td>
+<td>uint16</td>
+<td>120</td>
+<td>Seconds to hold stale routes during restart (0-4095)</td>
+</tr>
+<tr>
+<td><code>graceful-restart / mode</code></td>
+<td>enum</td>
+<td>--</td>
+<td><code>require</code>: reject peers without GR capability</td>
+</tr>
+<tr>
+<td><code>graceful-restart / disable</code></td>
+<td>presence</td>
+<td>--</td>
+<td>Disable GR for this peer</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/bgp/plugins/gr/yang/ -- ze-graceful-restart YANG schema -->
+
+<h2 id="how-it-works">How It Works</h2>
+<h3 id="normal-session">Normal Session</h3>
+<ol>
+<li>Peer session establishes, GR capability negotiated in OPEN</li>
+<li>Routes received and installed in RIB normally</li>
+</ol>
+<h3 id="peer-restarts">Peer Restarts</h3>
+<ol>
+<li><strong>Peer goes down</strong> -- GR plugin sends <code>retain-routes</code> to RIB</li>
+<li><strong>RIB marks routes as stale</strong> -- routes kept in forwarding but flagged</li>
+<li><strong>Restart timer starts</strong> -- countdown from <code>restart-time</code> seconds</li>
+<li><strong>Peer reconnects</strong> -- new session established, fresh routes received</li>
+<li><strong>Fresh routes replace stale</strong> -- each new route implicitly clears its stale flag</li>
+<li><strong>End-of-RIB received</strong> -- GR plugin sends <code>purge-stale</code> to RIB</li>
+<li><strong>Remaining stale routes removed</strong> -- any route not refreshed is withdrawn</li>
+</ol>
+<h3 id="restart-timer-expiry">Restart Timer Expiry</h3>
+<p>If the peer does not reconnect within <code>restart-time</code> seconds, all stale routes are purged. A safety margin of 5 seconds is added to account for processing delays.</p>
+<h3 id="fail-safe">Fail-Safe</h3>
+<p>If the GR plugin crashes or fails to issue <code>purge-stale</code>, the RIB automatically expires stale routes after <code>restart-time + 5s</code>.</p>
+<!-- source: internal/component/bgp/plugins/gr/ -- GR state machine, retain-routes/purge-stale commands -->
+
+<h2 id="plugin-bindings">Plugin Bindings</h2>
+<p>The GR plugin requires:
+- <code>receive [ open-received state eor ]</code> -- needs the peer's OPEN, its up/down events, and End-of-RIB markers
+- The RIB plugin must also be loaded with <code>receive [ update state refresh ]</code> and <code>send [ update ]</code></p>
+<p>The GR plugin depends on <code>bgp-rib</code> (declared in its registration). The engine ensures bgp-rib starts first.</p>
+<!-- source: internal/component/bgp/plugins/gr/register.go -- Dependencies: bgp-rib -->
+
+<h3 id="keep-the-bgp-gr-engine-in-the-daemon-process">Keep the bgp-gr engine in the daemon process</h3>
+<p>Load the plugin with <code>internal &lt;name&gt; { use bgp-gr; }</code>, as every example on this
+page does. <code>run "ze plugin bgp-gr"</code> starts the plugin engine in a child process,
+and that arrangement changes what the daemon sends to every peer.</p>
+<p>The RFC 9494 egress filter runs in the daemon. The peer capability state it reads
+is written by the plugin engine, so with <code>run</code> that state stays empty for the life
+of the daemon process. The filter then treats every neighbor as a neighbor from
+which the LLGR Capability was never received: it withdraws stale routes from
+external peers (Section 4.3) and attaches NO_EXPORT with LOCAL_PREF 0 to the
+routes it sends to internal peers (Section 4.6). Peers that negotiated LLGR with
+the child engine get that same treatment.</p>
+<p><code>ze doctor</code> reports the arrangement as <code>doctor-bgp-gr-out-of-process</code>. Run
+<code>ze explain doctor-bgp-gr-out-of-process</code> for the full text.</p>
+<!-- source: internal/component/bgp/plugins/gr/doctor.go -- checkGRInProcess, doctor-bgp-gr-out-of-process -->
+<!-- source: internal/component/bgp/plugins/gr/gr_egress.go -- LLGREgressFilter reads egressState -->
+
+<h2 id="cli">CLI</h2>
+<pre><code> $ ze cli -c &quot;show bgp rib received&quot;
+# Shows routes with stale flag when applicable
+</code></pre>
+<h2 id="long-lived-graceful-restart-rfc-9494">Long-Lived Graceful Restart (RFC 9494)</h2>
+<p>LLGR extends standard GR with a second, much longer stale period. When the GR restart-time expires without the peer reconnecting, instead of purging all stale routes, LLGR keeps them for up to ~194 days (per-family configurable) with reduced priority.</p>
+<h3 id="configuration_1">Configuration</h3>
+<p>Add <code>long-lived-stale-time</code> under the <code>graceful-restart</code> block:</p>
+<pre><code>capability {
+    graceful-restart {
+        restart-time 120;
+        long-lived-stale-time 3600;    # LLGR period in seconds (0-16777215)
+    }
+}
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>graceful-restart / long-lived-stale-time</code></td>
+<td>uint32</td>
+<td>--</td>
+<td>Seconds to hold LLGR-stale routes per family (0-16777215, 24-bit)</td>
+</tr>
+</tbody>
+</table>
+<p>LLGR is only active when both peers negotiate it. Ze advertises LLGR capability (code 71) in OPEN when <code>long-lived-stale-time</code> is configured. LLGR requires GR capability (code 64) to also be present -- LLGR without GR is ignored per RFC 9494.</p>
+<!-- source: internal/component/bgp/plugins/gr/register.go -- CapabilityCodes: 64, 71 -->
+
+<h3 id="how-it-works_1">How It Works</h3>
+<ol>
+<li><strong>GR period expires</strong> -- peer has not reconnected within <code>restart-time</code> seconds</li>
+<li><strong>LLGR begins</strong> -- for each family with <code>long-lived-stale-time &gt; 0</code>:
+   - Routes carrying the NO_LLGR community (0xFFFF0007) are deleted
+   - LLGR_STALE community (0xFFFF0006) is attached to remaining stale routes
+   - Routes are marked as stale level 2 (deprioritized in best-path selection)
+   - Per-family LLST timer starts</li>
+<li><strong>During LLGR</strong> -- LLGR-stale routes lose to any non-stale route in best-path selection. Between two LLGR-stale routes, normal tiebreaking applies.</li>
+<li><strong>LLST timer expires</strong> -- stale routes for that family are purged</li>
+<li><strong>Peer reconnects during LLGR</strong> -- standard RFC 4724 procedures apply; families with F-bit=0 or missing from the new OPEN are purged</li>
+</ol>
+<h3 id="stale-levels">Stale Levels</h3>
+<p>Ze uses a graduated stale level system for route prioritization:</p>
+<table>
+<thead>
+<tr>
+<th>Level</th>
+<th>Meaning</th>
+<th>Best-path behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>Fresh</td>
+<td>Normal selection</td>
+</tr>
+<tr>
+<td>1</td>
+<td>GR-stale</td>
+<td>Normal selection (not deprioritized)</td>
+</tr>
+<tr>
+<td>2+</td>
+<td>LLGR-stale</td>
+<td>Loses to any route with level &lt; 2</td>
+</tr>
+</tbody>
+</table>
+<h3 id="special-case-skip-gr">Special Case: Skip GR</h3>
+<p>If <code>restart-time</code> is 0 but <code>long-lived-stale-time</code> is nonzero, the GR period is skipped entirely. On session drop, LLGR begins immediately.</p>
+<table>
+<thead>
+<tr>
+<th>restart-time</th>
+<th>long-lived-stale-time</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>nonzero</td>
+<td>Skip GR, enter LLGR immediately</td>
+</tr>
+<tr>
+<td>nonzero</td>
+<td>0</td>
+<td>GR only, no LLGR</td>
+</tr>
+<tr>
+<td>0</td>
+<td>0</td>
+<td>Neither GR nor LLGR</td>
+</tr>
+<tr>
+<td>nonzero</td>
+<td>nonzero</td>
+<td>GR then LLGR (serial)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="well-known-communities">Well-Known Communities</h3>
+<table>
+<thead>
+<tr>
+<th>Community</th>
+<th>Value</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LLGR_STALE</td>
+<td>0xFFFF0006</td>
+<td>Attached to stale routes during LLGR period</td>
+</tr>
+<tr>
+<td>NO_LLGR</td>
+<td>0xFFFF0007</td>
+<td>Routes with this community are deleted on LLGR entry</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/bgp/plugins/gr/register.go -- CommunityLLGRStale, CommunityNoLLGR -->
+
+<h3 id="cli_1">CLI</h3>
+<p>Decode LLGR capability from hex:</p>
+<pre><code>$ ze plugin bgp-gr --capa 00010180000e10
+</code></pre>
+<p>Shows per-family LLST values and F-bit flags.</p>
+<h2 id="without-graceful-restart">Without Graceful Restart</h2>
+<p>When GR is not configured or the peer does not advertise the GR capability, routes are withdrawn immediately on session down. No stale state, no restart timer.</p>
+<!-- source: internal/component/bgp/plugins/gr/ -- GR plugin implementation -->
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/quickstart/">
+                        <span class="page-sidebar-link-label">Quickstart</span>
+                        <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create zefs, and start SSH.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../reference/command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

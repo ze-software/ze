@@ -15,7 +15,7 @@ Go carries an estimated 10-15% CPU overhead against C/Rust implementations. That
 - **Convergence:** 55ms to propagate 100,000 routes (2026-08-01 run)
 - **Throughput:** 1,818,181 routes/sec sustained during propagation
 - **Withdrawal:** 547ms from withdrawal sent to receiver idle
-- **Full results:** [All DUTs, all runs, full methodology](https://ze-software.net/docs/performance/)
+- **Full results:** [All DUTs, all runs, full methodology](https://ze-software.net/performance/bgp/)
 
 ```
 # build ze-perf and all DUT images, then run
@@ -32,8 +32,8 @@ $ bin/ze-perf report --doc test/perf/results/*.json
 
 Docker (Colima on macOS). `ze-perf` works against any BGP implementation, not just Ze -- point it at your own DUT.
 
-- [Benchmarking guide architecture, flags, JSON output](https://ze-software.net/docs/guide/benchmarking/)
-- [BGP performance tests with Ze sender, receiver, DUT, JSON](https://ze-software.net/usage/bgp-performance/)
+- [Benchmarking guide architecture, flags, JSON output](https://ze-software.net/guides/benchmarking/)
+- [BGP performance tests with Ze sender, receiver, DUT, JSON](https://ze-software.net/use-cases/bgp-performance/)
 
 ## Performance evidence in the labs.
 

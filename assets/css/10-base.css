@@ -500,22 +500,6 @@ a {
     display: flex;
 }
 
-#nav-panel-docs,
-#nav-panel-examples {
-    position: fixed;
-    top: 3.25rem;
-    left: 50%;
-    width: min(60rem, calc(100vw - 1.5rem));
-    max-width: none;
-    gap: 1.2rem;
-    transform: translateX(-50%);
-    overflow-x: auto;
-}
-
-#nav-panel-examples .nav-dropdown-col {
-    flex: 1 1 0;
-    min-width: 0;
-}
 
 .nav-dropdown-col {
     display: flex;
@@ -3075,16 +3059,6 @@ footer {
         box-shadow: none;
     }
 
-    #nav-panel-docs,
-    #nav-panel-examples {
-        position: static;
-        top: auto;
-        left: auto;
-        width: 100%;
-        max-width: none;
-        gap: 0.5rem;
-        overflow-x: visible;
-    }
 
     .nav-dropdown:hover .nav-dropdown-panel {
         display: none;
