@@ -14,9 +14,10 @@
 // via applyFilterDelta (text overlay) and textDeltaToModOps ->
 // buildModifiedPayload (wire-level rewriting).
 //
-// The modifier always returns "modify" -- it unconditionally sets declared
-// attributes on every route that reaches it. For conditional modification,
-// compose with match filters earlier in the chain.
+// A definition CAN state its own condition in a match container. A route that
+// meets it gets action "modify"; a route that does not gets "accept" and passes
+// through unchanged. A definition that states no condition matches every route,
+// which is what every definition written before the match container did.
 //
 // The plugin declares ZERO filters at Stage 1: modifier names come from
 // config (Stage 2).

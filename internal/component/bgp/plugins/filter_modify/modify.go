@@ -12,9 +12,10 @@
 // Community operations (community-add, community-remove) emit dedicated
 // text directives that textDeltaToModOps maps to AttrModAdd/AttrModRemove.
 //
-// The plugin always returns "modify" action (it unconditionally applies the
-// declared operations). For conditional modification, compose with match
-// filters earlier in the chain: "filter import prefix-list:X modify:Y".
+// The plugin returns "modify" for a route that meets the definition's match
+// condition, and "accept" for one that does not. See filter_modify.go,
+// handleFilterUpdate. An earlier match filter in the chain stays available:
+// "filter import prefix-list:X modify:Y".
 package filter_modify
 
 import (
