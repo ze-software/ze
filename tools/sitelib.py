@@ -101,6 +101,11 @@ CATEGORIES = [
     "platform",
 ]
 
+# Color-only variation must use a tone class, never a topic category. Keeping
+# this palette beside CATEGORIES lets renderers choose explicitly between
+# content semantics and presentation.
+PRESENTATION_TONES = list(models.PRESENTATION_TONES)
+
 
 def feature_counts_by_category():
     """Card count per category, core + experimental sections only (matches
@@ -222,6 +227,23 @@ def _nav_search_badge(root):
         '                        <span class="nav-badge-count nav-badge-search-label">Search <span class="search-shortcut-hint" aria-hidden="true"><kbd>⌘K</kbd><span>/</span></span></span>\n'
         "                    </a>\n"
     ) % (html.escape(root, quote=True), html.escape(SEARCH_ICON_PATH, quote=True))
+
+
+def _nav_theme_toggle():
+    return """                    <button
+                        class="theme-toggle"
+                        type="button"
+                        data-theme-toggle
+                        aria-label="Use dark theme"
+                        aria-pressed="false"
+                        title="Use dark theme"
+                    >
+                        <span class="theme-toggle-icon" aria-hidden="true">
+                            <svg class="theme-icon-moon" viewBox="0 0 24 24" fill="none"><path d="M20.2 15.1A8.5 8.5 0 0 1 8.9 3.8 8.5 8.5 0 1 0 20.2 15.1Z" fill="currentColor"/></svg>
+                            <svg class="theme-icon-sun" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4" fill="currentColor"/><path d="M12 2V5M12 19V22M2 12H5M19 12H22M4.9 4.9L7 7M17 17L19.1 19.1M19.1 4.9L17 7M7 17L4.9 19.1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                        </span>
+                    </button>
+"""
 
 
 def build_nav_badges(root=""):
@@ -653,6 +675,7 @@ def build_navblock(root):
             )
         )
     out.append(build_nav_badges(root))
+    out.append(_nav_theme_toggle())
     out.append("                </div>")
     return "".join(out)
 
@@ -1043,11 +1066,37 @@ def patch_social_meta(html_text):
     return html_text.replace("    </head>\n", _SOCIAL_META + "    </head>\n", 1)
 
 
+THEME_BOOTSTRAP = """        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+"""
+_THEME_BOOTSTRAP_RE = re.compile(
+    r'[ \t]*<script id="theme-bootstrap">.*?</script>\n?', re.DOTALL
+)
+_VIEWPORT_META_RE = re.compile(
+    r'([ \t]*<meta name="viewport"[^>]*/?>\n?)', re.IGNORECASE
+)
+
+
+def patch_theme_bootstrap(html_text):
+    """Install the pre-paint theme selector on pages that use the site shell."""
+    html_text = _THEME_BOOTSTRAP_RE.sub("", html_text)
+    if "assets/site.css" not in html_text:
+        return html_text
+    updated, count = _VIEWPORT_META_RE.subn(
+        lambda match: match.group(1) + THEME_BOOTSTRAP,
+        html_text,
+        count=1,
+    )
+    if count:
+        return updated
+    return html_text.replace("<head>\n", "<head>\n" + THEME_BOOTSTRAP, 1)
+
+
 PAGE_HEAD = """<!doctype html>
 <html lang="en">
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+{theme_bootstrap}
         <title>{title}</title>
         <meta name="description" content="{desc}" />
         <meta property="og:title" content="{og_title}" />
@@ -1108,6 +1157,7 @@ def page_head(
         og_title=html.escape(social_title, quote=True),
         og_desc=html.escape(social_desc, quote=True),
         og_image=html.escape(og_image, quote=True),
+        theme_bootstrap=THEME_BOOTSTRAP.rstrip(),
         root=root,
         site_css=asset_url(root, "assets/site.css"),
         font_css=FONT_CSS_URL_HTML,

@@ -522,7 +522,7 @@ def render(tree, owner_map):
         )
     ]
     out.append(
-        '            <section aria-labelledby="config-ref-title" class="md-content reveal cat-platform">'
+        '            <section aria-labelledby="config-ref-title" class="md-content reveal cat-operate">'
     )
     out.append(
         sitelib.page_hero(

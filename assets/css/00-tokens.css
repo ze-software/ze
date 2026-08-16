@@ -30,4 +30,271 @@
         --hero-cta-muted: rgba(255, 250, 252, 0.9);
         --control-surface: rgba(255, 255, 255, 0.72);
         --control-border: rgba(255, 255, 255, 0.92);
+        --glass-surface: rgba(255, 255, 255, 0.72);
+        --glass-surface-strong: rgba(255, 255, 255, 0.9);
+        --glass-border: rgba(255, 255, 255, 0.92);
+        --glass-highlight: rgba(255, 255, 255, 0.9);
+        /* Colored surfaces keep the same semantic hues in every theme. */
+        --hero-panel-surface: linear-gradient(
+            135deg,
+            var(--sky-tint),
+            var(--mint-tint) 55%,
+            var(--teal-tint)
+        );
+        --primary-action-surface: linear-gradient(
+            105deg,
+            var(--sky-tint),
+            var(--grape-tint) 58%,
+            var(--sky-tint)
+        );
+        --primary-action-text: #173653;
+        --primary-action-muted: rgba(23, 54, 83, 0.72);
+        --outcome-surface: linear-gradient(
+            135deg,
+            var(--sky-tint),
+            var(--mint-tint) 54%,
+            var(--teal-tint)
+        );
+        --soft-panel-surface: linear-gradient(
+            135deg,
+            rgba(255, 255, 255, 0.72),
+            rgba(247, 252, 250, 0.58)
+        );
+        --accent-solid-foreground: #fff;
+    }
+
+    :root[data-theme="light"] {
+        color-scheme: light;
+    }
+
+    :root[data-theme="dark"] {
+        color-scheme: dark;
+        --pink-base: #ff83bb;
+        --pink-mid: #ff9fca;
+        --pink-deep: #ffc3de;
+        --pink-chip: #54283f;
+        --pink-tint: #36202d;
+        --pink-glow: rgba(255, 131, 187, 0.24);
+        --tangerine-base: #ff8a61;
+        --tangerine-mid: #ff9f7d;
+        --tangerine-deep: #ffc4ad;
+        --tangerine-chip: #583024;
+        --tangerine-tint: #38241f;
+        --tangerine-glow: rgba(255, 138, 97, 0.22);
+        --lemon-base: #f58fa2;
+        --lemon-mid: #f7a4b3;
+        --lemon-deep: #ffd0d8;
+        --lemon-chip: #542d38;
+        --lemon-tint: #38232b;
+        --lemon-glow: rgba(245, 143, 162, 0.22);
+        --mint-base: #9fe1e8;
+        --mint-mid: #85d6df;
+        --mint-deep: #c3f0f4;
+        --mint-chip: #28474c;
+        --mint-tint: #1e3035;
+        --mint-glow: rgba(133, 214, 223, 0.2);
+        --teal-base: #42d8bd;
+        --teal-mid: #69e4ce;
+        --teal-deep: #acf4e6;
+        --teal-chip: #204942;
+        --teal-tint: #1c342f;
+        --teal-glow: rgba(66, 216, 189, 0.22);
+        --sky-base: #5bc4f0;
+        --sky-mid: #80cff3;
+        --sky-deep: #b9e7fa;
+        --sky-chip: #263f58;
+        --sky-tint: #1d2f40;
+        --sky-glow: rgba(91, 196, 240, 0.22);
+        --grape-base: #b990ff;
+        --grape-mid: #c9aaff;
+        --grape-deep: #e3d3ff;
+        --grape-chip: #402f5d;
+        --grape-tint: #2d2540;
+        --grape-glow: rgba(185, 144, 255, 0.24);
+        --gold-base: #ffda63;
+        --gold-mid: #ffe087;
+        --gold-deep: #ffedb0;
+        --gold-chip: #534521;
+        --gold-tint: #37301d;
+        --gold-glow: rgba(255, 218, 99, 0.2);
+        --purple: #c9aaff;
+        --cyan: #75ddd7;
+        --teal: #75ddd7;
+        --blue: #80cff3;
+        --green: #73ddb0;
+        --amber: #ffe087;
+        --coral: #ff9f7d;
+        --lavender: #c9aaff;
+        --sky: #80cff3;
+        --lime: #73ddb0;
+        --pink: #ff9fca;
+        --gold: #ffe087;
+        --danger-deep: #ff9da8;
+        --bg: #17121f;
+        --bg-soft: #211927;
+        --panel: #241b2c;
+        --panel-strong: #2c2135;
+        --line: rgba(218, 177, 235, 0.2);
+        --line-strong: rgba(218, 177, 235, 0.38);
+        --text: #f8effb;
+        --muted: #cebdd6;
+        --dim: #b5a3bf;
+        --shadow: rgba(4, 2, 8, 0.48);
+        --term-bg: #120e19;
+        --term-text: #eee4f4;
+        --term-prompt: #69e4ce;
+        --term-cmd: #80cff3;
+        --term-comment: #ad99b8;
+        --grid-color: rgba(216, 169, 242, 0.055);
+        --header-bg: rgba(31, 23, 39, 0.9);
+        --header-border: rgba(230, 199, 243, 0.16);
+        --card-hover-border: rgba(241, 218, 250, 0.38);
+        --card-hover-shadow: rgba(185, 144, 255, 0.2);
+        --bird-label-bg: rgba(41, 31, 49, 0.9);
+        --proof-bg: rgba(50, 32, 51, 0.88);
+        --status-table-bg: #302333;
+        --link-bg: rgba(48, 36, 57, 0.9);
+        --audience-bg: rgba(45, 32, 51, 0.9);
+        --btn-bg: rgba(49, 37, 58, 0.92);
+        --body-bg-1: #17121f;
+        --body-bg-2: #271d31;
+        --clay: inset 0 1px 0 rgba(255, 255, 255, 0.12),
+            0 1px 2px rgba(0, 0, 0, 0.3),
+            0 0.5rem 1rem rgba(4, 2, 8, 0.34);
+        --shadow-lifted: 0 0.8rem 1.4rem rgba(4, 2, 8, 0.3);
+        --shadow-panel: 0 1.5rem 3rem rgba(4, 2, 8, 0.32);
+        --hero-cta-gradient: linear-gradient(105deg, #68419a, #8b3f70 55%, #914b36);
+        --hero-cta-foreground: #fff8fc;
+        --hero-cta-muted: rgba(255, 241, 249, 0.88);
+        --control-surface: rgba(64, 48, 75, 0.88);
+        --control-border: rgba(241, 218, 250, 0.18);
+        --glass-surface: rgba(57, 43, 67, 0.76);
+        --glass-surface-strong: rgba(65, 49, 76, 0.92);
+        --glass-border: rgba(241, 218, 250, 0.18);
+        --glass-highlight: rgba(255, 255, 255, 0.12);
+        --primary-action-text: #eaf5ff;
+        --primary-action-muted: rgba(224, 239, 249, 0.76);
+        --soft-panel-surface: linear-gradient(
+            135deg,
+            rgba(57, 43, 67, 0.78),
+            rgba(42, 50, 51, 0.68)
+        );
+        --accent-solid-foreground: #25172d;
+    }
+
+    @media (prefers-color-scheme: dark) {
+        :root:not([data-theme]) {
+            color-scheme: dark;
+            --pink-base: #ff83bb;
+            --pink-mid: #ff9fca;
+            --pink-deep: #ffc3de;
+            --pink-chip: #54283f;
+            --pink-tint: #36202d;
+            --pink-glow: rgba(255, 131, 187, 0.24);
+            --tangerine-base: #ff8a61;
+            --tangerine-mid: #ff9f7d;
+            --tangerine-deep: #ffc4ad;
+            --tangerine-chip: #583024;
+            --tangerine-tint: #38241f;
+            --tangerine-glow: rgba(255, 138, 97, 0.22);
+            --lemon-base: #f58fa2;
+            --lemon-mid: #f7a4b3;
+            --lemon-deep: #ffd0d8;
+            --lemon-chip: #542d38;
+            --lemon-tint: #38232b;
+            --lemon-glow: rgba(245, 143, 162, 0.22);
+            --mint-base: #9fe1e8;
+            --mint-mid: #85d6df;
+            --mint-deep: #c3f0f4;
+            --mint-chip: #28474c;
+            --mint-tint: #1e3035;
+            --mint-glow: rgba(133, 214, 223, 0.2);
+            --teal-base: #42d8bd;
+            --teal-mid: #69e4ce;
+            --teal-deep: #acf4e6;
+            --teal-chip: #204942;
+            --teal-tint: #1c342f;
+            --teal-glow: rgba(66, 216, 189, 0.22);
+            --sky-base: #5bc4f0;
+            --sky-mid: #80cff3;
+            --sky-deep: #b9e7fa;
+            --sky-chip: #263f58;
+            --sky-tint: #1d2f40;
+            --sky-glow: rgba(91, 196, 240, 0.22);
+            --grape-base: #b990ff;
+            --grape-mid: #c9aaff;
+            --grape-deep: #e3d3ff;
+            --grape-chip: #402f5d;
+            --grape-tint: #2d2540;
+            --grape-glow: rgba(185, 144, 255, 0.24);
+            --gold-base: #ffda63;
+            --gold-mid: #ffe087;
+            --gold-deep: #ffedb0;
+            --gold-chip: #534521;
+            --gold-tint: #37301d;
+            --gold-glow: rgba(255, 218, 99, 0.2);
+            --purple: #c9aaff;
+            --cyan: #75ddd7;
+            --teal: #75ddd7;
+            --blue: #80cff3;
+            --green: #73ddb0;
+            --amber: #ffe087;
+            --coral: #ff9f7d;
+            --lavender: #c9aaff;
+            --sky: #80cff3;
+            --lime: #73ddb0;
+            --pink: #ff9fca;
+            --gold: #ffe087;
+            --danger-deep: #ff9da8;
+            --bg: #17121f;
+            --bg-soft: #211927;
+            --panel: #241b2c;
+            --panel-strong: #2c2135;
+            --line: rgba(218, 177, 235, 0.2);
+            --line-strong: rgba(218, 177, 235, 0.38);
+            --text: #f8effb;
+            --muted: #cebdd6;
+            --dim: #b5a3bf;
+            --shadow: rgba(4, 2, 8, 0.48);
+            --term-bg: #120e19;
+            --term-text: #eee4f4;
+            --term-prompt: #69e4ce;
+            --term-cmd: #80cff3;
+            --term-comment: #ad99b8;
+            --grid-color: rgba(216, 169, 242, 0.055);
+            --header-bg: rgba(31, 23, 39, 0.9);
+            --header-border: rgba(230, 199, 243, 0.16);
+            --card-hover-border: rgba(241, 218, 250, 0.38);
+            --card-hover-shadow: rgba(185, 144, 255, 0.2);
+            --bird-label-bg: rgba(41, 31, 49, 0.9);
+            --proof-bg: rgba(50, 32, 51, 0.88);
+            --status-table-bg: #302333;
+            --link-bg: rgba(48, 36, 57, 0.9);
+            --audience-bg: rgba(45, 32, 51, 0.9);
+            --btn-bg: rgba(49, 37, 58, 0.92);
+            --body-bg-1: #17121f;
+            --body-bg-2: #271d31;
+            --clay: inset 0 1px 0 rgba(255, 255, 255, 0.12),
+                0 1px 2px rgba(0, 0, 0, 0.3),
+                0 0.5rem 1rem rgba(4, 2, 8, 0.34);
+            --shadow-lifted: 0 0.8rem 1.4rem rgba(4, 2, 8, 0.3);
+            --shadow-panel: 0 1.5rem 3rem rgba(4, 2, 8, 0.32);
+            --hero-cta-gradient: linear-gradient(105deg, #68419a, #8b3f70 55%, #914b36);
+            --hero-cta-foreground: #fff8fc;
+            --hero-cta-muted: rgba(255, 241, 249, 0.88);
+            --control-surface: rgba(64, 48, 75, 0.88);
+            --control-border: rgba(241, 218, 250, 0.18);
+            --glass-surface: rgba(57, 43, 67, 0.76);
+            --glass-surface-strong: rgba(65, 49, 76, 0.92);
+            --glass-border: rgba(241, 218, 250, 0.18);
+            --glass-highlight: rgba(255, 255, 255, 0.12);
+            --primary-action-text: #eaf5ff;
+            --primary-action-muted: rgba(224, 239, 249, 0.76);
+            --soft-panel-surface: linear-gradient(
+                135deg,
+                rgba(57, 43, 67, 0.78),
+                rgba(42, 50, 51, 0.68)
+            );
+            --accent-solid-foreground: #25172d;
+        }
     }

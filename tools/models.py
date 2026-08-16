@@ -21,6 +21,16 @@ CATEGORIES = {
     "meta",
 }
 
+PRESENTATION_TONES = (
+    "sky",
+    "lemon",
+    "grape",
+    "mint",
+    "pink",
+    "gold",
+    "teal",
+)
+
 FEATURE_STATUSES = {None, "experimental", "aspiration"}
 
 REL_URL_RE = re.compile(r"^(?:[A-Za-z0-9_.@/+:-]+)(?:#[A-Za-z0-9_.@:-]+)?/?$")
@@ -111,6 +121,12 @@ def validate_audience(data):
             category = require_text(card.get("category"), path + ".category")
             if category not in CATEGORIES:
                 raise ModelError(_ctx(path + ".category", "unknown category %r" % category))
+            if "tone" in card:
+                tone = require_text(card["tone"], path + ".tone")
+                if tone not in PRESENTATION_TONES:
+                    raise ModelError(
+                        _ctx(path + ".tone", "unknown presentation tone %r" % tone)
+                    )
             for chip_index, chip in enumerate(require_list(card.get("chips"), path + ".chips")):
                 require_text(chip, path + ".chips[%d]" % chip_index)
             require_text(card.get("body"), path + ".body")
@@ -134,10 +150,10 @@ def validate_whats_new(data):
     if note is not None:
         note = require_mapping(note, "whats-new.note")
         require_text(note.get("label"), "whats-new.note.label")
-        category = require_text(note.get("category"), "whats-new.note.category")
-        if category not in CATEGORIES:
+        tone = require_text(note.get("tone"), "whats-new.note.tone")
+        if tone not in PRESENTATION_TONES:
             raise ModelError(
-                _ctx("whats-new.note.category", "unknown category %r" % category)
+                _ctx("whats-new.note.tone", "unknown presentation tone %r" % tone)
             )
         require_text(note.get("title"), "whats-new.note.title")
         require_text(note.get("body"), "whats-new.note.body")

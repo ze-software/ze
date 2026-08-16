@@ -123,9 +123,12 @@ def render_index(articles):
     )
     if articles:
         parts.append('                <div class="cards reveal">')
-        cats = ["cat-operate", "cat-routing", "cat-automate", "cat-observe", "cat-secure", "cat-services", "cat-platform"]
+        tones = sitelib.PRESENTATION_TONES
         for i, a in enumerate(articles):
-            parts.append('                    <article class="card card-post %s">' % cats[i % 7])
+            parts.append(
+                '                    <article class="card card-post tone-%s">'
+                % tones[i % len(tones)]
+            )
             parts.append('                        <h3><a href="%s/">%s</a></h3>' % (a["slug"], html.escape(a["title"])))
             if a["date"]:
                 parts.append('                        <span class="chip">%s</span>' % html.escape(a["date"]))

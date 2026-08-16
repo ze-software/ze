@@ -3,6 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>Ze - Configuration and Protocol Engine for Internet Infrastructure</title>
         <meta name="description" content="Ze is an open-source configuration and protocol engine. The network operating system built on it speaks BGP, manages Linux interfaces, programs the FIB, and serves config over SSH, web, API, and MCP." />
         <meta property="og:title" content="Ze - Configuration and Protocol Engine for Internet Infrastructure" />
@@ -220,17 +221,17 @@
                     <h2 id="whats-new-title">Latest news</h2>
                     <a href="changes/">All updates</a>
                 </div>
-                <article class="whats-new-item cat-automate">
+                <article class="whats-new-item tone-grape">
                     <span class="whats-new-label">Engineering note</span>
                     <h3><a href="blog/ai-coding-has-not-had-its-rails-moment/">AI coding has not had its Rails moment</a></h3>
                     <p>Harnesses and models improve every few weeks, and the repositories they work in still explain nothing about…</p>
                 </article>
-                <article class="whats-new-item cat-operate">
+                <article class="whats-new-item tone-sky">
                     <span class="whats-new-label">Recently shipped</span>
                     <h3><a href="changes/2026-08-03/">Week of 2026-08-03</a></h3>
                     <p>Ze is being checked against the RFCs it implements, one MUST at a time, and that is where most of this…</p>
                 </article>
-                <article class="whats-new-item cat-meta">
+                <article class="whats-new-item tone-pink">
                     <span class="whats-new-label">RFC compliance progress</span>
                     <h3><a href="quality/rfc-compliance/">Every MUST requirement tied to a test</a></h3>
                     <p>Ze checks 2,950 MUST-level requirements across 168 RFCs. A requirement counts only when its test would fail…</p>
@@ -308,7 +309,7 @@
             </section>
 
             <section class="home-section-panel home-section-panel-run" aria-labelledby="run-title">
-                <div class="section-head reveal cat-platform">
+                <div class="section-head reveal tone-teal">
                     <h2 id="run-title">
                         Run it as a lab,<br />daemon, or appliance.
                     </h2>
@@ -363,7 +364,7 @@
             </section>
 
             <section id="why-ze" class="home-section-panel home-section-panel-why" aria-labelledby="why-title">
-                <div class="section-head reveal cat-operate">
+                <div class="section-head reveal tone-sky">
                     <h2 id="why-title">Why Ze.</h2>
                     <p>
                         Ze keeps the core protocol-agnostic. Subsystems bring
@@ -373,7 +374,7 @@
                     </p>
                 </div>
                 <div class="cards usp-grid reveal" aria-label="Ze architectural arguments">
-                    <article class="card usp-card cat-observe">
+                    <article class="card usp-card tone-mint">
                         <span class="cat">Model</span>
                         <h3><a href="reference/configuration/">One model feeds every interface</a></h3>
                         <p>
@@ -400,7 +401,7 @@
                             configuration through SSH and the web UI.
                         </p>
                     </article>
-                    <article class="card usp-card cat-secure">
+                    <article class="card usp-card tone-pink">
                         <span class="cat">Honest</span>
                         <h3><a href="reference/plugins/">Plugins keep their own contract</a></h3>
                         <p>
@@ -439,7 +440,7 @@
             </section>
 
             <section id="try" class="home-section-panel home-section-panel-try" aria-labelledby="try-title">
-                <div class="section-head reveal cat-automate">
+                <div class="section-head reveal tone-grape">
                     <h2 id="try-title">First paths for routing feedback.</h2>
                     <p>The BGP lab, ExaBGP migration, and appliance install are good starting points.</p>
                 </div>
@@ -585,7 +586,7 @@
                         </div>
                         <span class="audience-card-cta">Looking glass <small>read-only BGP</small></span>
                     </article>
-                    <article class="card audience-card cat-services">
+                    <article class="card audience-card cat-routing">
                         <span class="cat">Interop</span>
                         <h3><a href="labs/bgp-interop/">Protocol testbed</a></h3>
                         <p>
@@ -597,7 +598,7 @@
                         </div>
                         <span class="audience-card-cta">Interop lab <small>real peer daemons</small></span>
                     </article>
-                    <article class="card audience-card cat-automate accent-pink">
+                    <article class="card audience-card cat-automate tone-pink">
                         <span class="cat">MCP</span>
                         <h3><a href="features/ai-first/">AI-assisted operations</a></h3>
                         <p>
@@ -621,7 +622,7 @@
                     </p>
                 </div>
                 <div class="cards reveal">
-                    <article class="card card-post home-update-card cat-operate">
+                    <article class="card card-post home-update-card tone-sky">
                         <div class="home-update-head">
                             <span class="cat">Update</span>
                             <span class="home-update-number">01</span>
@@ -635,7 +636,7 @@
                             <span class="home-update-tag cat-platform">Interfaces</span>
                         </div>
                     </article>
-                    <article class="card card-post home-update-card cat-secure">
+                    <article class="card card-post home-update-card tone-pink">
                         <div class="home-update-head">
                             <span class="cat">Update</span>
                             <span class="home-update-number">02</span>
@@ -649,7 +650,7 @@
                             <span class="home-update-tag cat-observe">MRT</span>
                         </div>
                     </article>
-                    <article class="card card-post home-update-card cat-automate">
+                    <article class="card card-post home-update-card tone-grape">
                         <div class="home-update-head">
                             <span class="cat">Update</span>
                             <span class="home-update-number">03</span>

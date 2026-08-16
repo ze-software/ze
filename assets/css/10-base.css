@@ -488,10 +488,10 @@ a {
     transform: translateX(-50%);
     border: 1px solid var(--header-border);
     border-radius: 0.75rem;
-    background: #fffefe;
+    background: var(--panel-strong);
     box-shadow:
         0 1px 2px rgba(40, 20, 55, 0.06),
-        0 1.2rem 2.6rem rgba(40, 20, 55, 0.16);
+        0 1.2rem 2.6rem var(--shadow);
 }
 
 .nav-dropdown:hover .nav-dropdown-panel,
@@ -640,13 +640,13 @@ a {
     padding: 0.08rem 0.32rem 0.12rem;
     border: 1px solid var(--header-border);
     border-radius: var(--radius-sm);
-    background: rgba(255, 255, 255, 0.78);
+    background: var(--glass-surface);
     color: var(--text);
     font: inherit;
     font-size: 0.72rem;
     line-height: 1;
     text-align: center;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    box-shadow: inset 0 1px 0 var(--glass-highlight);
 }
 
 @media (max-width: 900px) {
@@ -694,7 +694,7 @@ main.has-page-sidebar > :not(.page-sidebar) {
     border: 1px solid var(--line);
     border-radius: 1rem;
     background:
-        linear-gradient(145deg, rgba(255, 255, 255, 0.92), rgba(255, 246, 252, 0.86)),
+        linear-gradient(145deg, var(--glass-surface-strong), var(--glass-surface)),
         var(--panel);
     box-shadow: var(--clay);
 }
@@ -737,7 +737,7 @@ main.has-page-sidebar > :not(.page-sidebar) {
     border: 1px solid rgba(190, 120, 210, 0.2);
     border-radius: 0.78rem;
     color: var(--text);
-    background: rgba(255, 255, 255, 0.72);
+    background: var(--glass-surface);
     text-decoration: none;
     transition:
         border-color 160ms ease,
@@ -1083,7 +1083,7 @@ main.has-page-sidebar > :not(.page-sidebar) {
     padding: 0.42rem 0.75rem;
     border: 2px solid rgba(255, 255, 255, 0.9);
     border-radius: 999px;
-    color: #fff;
+    color: var(--accent-solid-foreground);
     background: linear-gradient(
         105deg,
         var(--grape-base),
@@ -1180,13 +1180,13 @@ h2 {
 }
 
 /*
- * Project and category page titles use the same hue vocabulary as the cards,
- * but with a candy gradient and a soft underline so top-level pages do not
- * read as flat single-color headings.
+ * Topic categories and presentation tones share the same hue vocabulary.
+ * Category classes describe the content. Tone classes are reserved for
+ * composition-only color choices.
  */
 #features-title,
 #perf-title,
-.section-head[class*="cat-"] :is(h1, h2),
+:is(.section-head[class*="cat-"], .section-head[class*="tone-"]) :is(h1, h2),
 .md-content[class*="cat-"] > h1:first-child {
     display: inline-block;
     width: fit-content;
@@ -1204,7 +1204,7 @@ h2 {
 }
 
 #hero-title {
-    color: #111;
+    color: var(--text);
 }
 
 /*
@@ -1278,10 +1278,10 @@ a.hl:hover {
     justify-content: center;
     min-height: 3rem;
     padding: 0 1.3rem;
-    border: 2px solid rgba(255, 255, 255, 0.9);
+    border: 2px solid var(--glass-border);
     border-radius: 0.6rem;
     color: var(--text);
-    background: #fffafc;
+    background: var(--panel-strong);
     box-shadow: var(--clay);
     font-weight: 750;
     text-decoration: none;
@@ -1293,26 +1293,16 @@ a.hl:hover {
 }
 
 .button.primary {
-    border-color: rgba(255, 255, 255, 0.9);
-    background: linear-gradient(
-        105deg,
-        var(--grape-base),
-        var(--pink-base) 55%,
-        var(--tangerine-base)
-    );
-    color: #fff;
+    border-color: var(--glass-border);
+    background: var(--hero-cta-gradient);
+    color: var(--hero-cta-foreground);
     box-shadow: var(--clay), 0 0.6rem 1.4rem -0.4rem var(--grape-glow);
 }
 
 .button:hover {
-    border-color: #fff;
-    background: linear-gradient(
-        105deg,
-        var(--sky-base),
-        var(--teal-base) 55%,
-        var(--mint-base)
-    );
-    color: #fff;
+    border-color: var(--glass-border);
+    background: var(--hero-cta-gradient);
+    color: var(--hero-cta-foreground);
     box-shadow: var(--clay);
 }
 
@@ -1402,12 +1392,12 @@ a.hl:hover {
     overflow: hidden;
     min-height: 12rem;
     padding: 1.25rem 1.15rem 1.05rem;
-    border: 2px solid rgba(255, 255, 255, 0.94);
+    border: 2px solid var(--glass-border);
     border-top: 0;
     border-radius: 1rem;
     background:
         radial-gradient(circle at 100% 100%, var(--acc-chip), transparent 32%),
-        linear-gradient(180deg, var(--acc-tint), rgba(255, 255, 255, 0.96) 38%, #fffafc);
+        linear-gradient(180deg, var(--acc-tint), var(--glass-surface-strong) 38%, var(--panel));
     box-shadow:
         var(--clay),
         0 1.1rem 2.3rem -1.25rem var(--acc-glow);
@@ -1485,7 +1475,7 @@ a.hl:hover {
 .proof strong .label {
     display: block;
     margin-top: 0.28rem;
-    color: #111;
+    color: var(--text);
     font-size: 0.94rem;
     font-weight: 800;
     letter-spacing: -0.01em;
@@ -1588,13 +1578,13 @@ section[aria-labelledby="blog-teaser-title"] {
     display: block;
     overflow: hidden;
     margin-bottom: clamp(1.2rem, 3vw, 2rem);
-    border: 2px solid rgba(255, 255, 255, 0.92);
+    border: 2px solid var(--glass-border);
     border-radius: clamp(1.1rem, 2.5vw, 1.55rem);
     padding: clamp(1.15rem, 2.4vw, 1.65rem);
     background:
         radial-gradient(circle at 86% 38%, rgba(157, 100, 245, 0.18), transparent 14rem),
         radial-gradient(circle at 20% 18%, rgba(26, 188, 156, 0.14), transparent 16rem),
-        linear-gradient(135deg, rgba(255, 254, 254, 0.96), rgba(233, 245, 255, 0.84));
+        var(--glass-surface-strong);
     box-shadow: var(--clay), 0 1.7rem 4rem -2.2rem var(--shadow);
     color: var(--text);
 }
@@ -1900,15 +1890,15 @@ section[aria-labelledby="blog-teaser-title"] {
     --acc: var(--grape-base);
     --acc-deep: var(--grape-deep);
     --acc-chip: var(--grape-chip);
-    --acc-tint: #fdf6f8;
+    --acc-tint: var(--grape-tint);
     --acc-glow: rgba(160, 110, 220, 0.25);
     position: relative;
     min-height: 12rem;
     padding: 1.25rem 1.25rem 1.15rem;
-    border: 2px solid rgba(255, 255, 255, 0.9);
-    border-top: 4px solid rgba(255, 255, 255, 0.9);
+    border: 2px solid var(--glass-border);
+    border-top: 4px solid var(--glass-border);
     border-radius: 0.75rem;
-    background: #fffafc;
+    background: var(--panel);
     box-shadow: var(--clay), 0 1rem 2.2rem -1rem var(--acc-glow);
     transition:
         border-color 200ms ease,
@@ -1916,17 +1906,17 @@ section[aria-labelledby="blog-teaser-title"] {
         box-shadow 220ms ease;
 }
 
-.card[class*="cat-"] {
+:is(.card[class*="cat-"], .card[class*="tone-"]) {
     overflow: visible;
     padding-top: 1.75rem;
-    border-color: rgba(255, 255, 255, 0.92);
+    border-color: var(--glass-border);
     border-top-color: transparent;
     background:
         radial-gradient(circle at 88% 0%, var(--acc-tint), transparent 42%),
-        linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(255, 250, 252, 0.94));
+        linear-gradient(var(--glass-surface-strong), var(--panel));
 }
 
-.card[class*="cat-"]::before {
+:is(.card[class*="cat-"], .card[class*="tone-"])::before {
     content: none;
 }
 
@@ -1942,7 +1932,7 @@ section[aria-labelledby="blog-teaser-title"] {
     border-color: var(--card-hover-border);
 }
 
-.card[class*="cat-"]:hover {
+:is(.card[class*="cat-"], .card[class*="tone-"]):hover {
     border-color: var(--acc);
 }
 
@@ -1964,7 +1954,7 @@ section[aria-labelledby="blog-teaser-title"] {
     display: flex;
     flex-direction: column;
     border-top-color: var(--acc);
-    background: #fffafc;
+    background: var(--panel);
     overflow: hidden;
 }
 
@@ -1976,7 +1966,7 @@ section[aria-labelledby="blog-teaser-title"] {
 .card-post h3 {
     margin: 0 -1.25rem 0.95rem;
     padding: 0.8rem 1.25rem;
-    background: linear-gradient(180deg, var(--acc-tint), #fff);
+    background: linear-gradient(180deg, var(--acc-tint), var(--panel-strong));
     border-bottom: 2px solid var(--acc);
 }
 
@@ -2038,13 +2028,13 @@ section[aria-labelledby="blog-teaser-title"] {
 .card.home-update-card {
     min-height: 14.25rem;
     padding: 1.55rem 1.25rem 1.2rem;
-    border: 2px solid rgba(255, 255, 255, 0.94);
+    border: 2px solid var(--glass-border);
     border-top: 0;
     border-radius: 1rem;
     overflow: hidden;
     background:
         radial-gradient(circle at 98% 96%, var(--acc-chip), transparent 30%),
-        linear-gradient(180deg, var(--acc-tint), rgba(255, 255, 255, 0.96) 36%, #fffafc);
+        linear-gradient(180deg, var(--acc-tint), var(--glass-surface-strong) 36%, var(--panel));
     box-shadow:
         var(--clay),
         0 1.1rem 2.4rem -1.25rem var(--acc-glow);
@@ -2115,7 +2105,7 @@ section[aria-labelledby="blog-teaser-title"] {
     padding: 0.2rem 0.46rem;
     border: 1px solid var(--acc-chip);
     border-radius: 0.44rem;
-    background: rgba(255, 255, 255, 0.58);
+    background: var(--glass-surface);
     color: var(--acc-deep);
     font-family:
         ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
@@ -2136,7 +2126,7 @@ section[aria-labelledby="blog-teaser-title"] {
 }
 
 .card.home-update-card h3 a {
-    color: #111;
+    color: var(--text);
 }
 
 .card.home-update-card h3 a::after {
@@ -2166,10 +2156,12 @@ section[aria-labelledby="blog-teaser-title"] {
 
 
 /*
- * Category hues. Generic classes: they set the accent custom
- * properties on any element (cards, legend buttons).
+ * Topic categories set accents only when the element's content belongs to
+ * that category. Presentation tones provide the same palette without making
+ * a semantic claim.
  */
-.cat-operate {
+.cat-operate,
+.tone-sky {
     --acc: var(--sky-base);
     --acc-mid: var(--sky-mid);
     --acc-deep: var(--sky-deep);
@@ -2177,7 +2169,8 @@ section[aria-labelledby="blog-teaser-title"] {
     --acc-tint: var(--sky-tint);
     --acc-glow: var(--sky-glow);
 }
-.cat-routing {
+.cat-routing,
+.tone-lemon {
     --acc: var(--lemon-base);
     --acc-mid: var(--lemon-mid);
     --acc-deep: var(--lemon-deep);
@@ -2185,7 +2178,8 @@ section[aria-labelledby="blog-teaser-title"] {
     --acc-tint: var(--lemon-tint);
     --acc-glow: var(--lemon-glow);
 }
-.cat-automate {
+.cat-automate,
+.tone-grape {
     --acc: var(--grape-base);
     --acc-mid: var(--grape-mid);
     --acc-deep: var(--grape-deep);
@@ -2193,7 +2187,8 @@ section[aria-labelledby="blog-teaser-title"] {
     --acc-tint: var(--grape-tint);
     --acc-glow: var(--grape-glow);
 }
-.cat-observe {
+.cat-observe,
+.tone-mint {
     --acc: var(--mint-base);
     --acc-mid: var(--mint-mid);
     --acc-deep: var(--mint-deep);
@@ -2202,7 +2197,7 @@ section[aria-labelledby="blog-teaser-title"] {
     --acc-glow: var(--mint-glow);
 }
 .cat-secure,
-.accent-pink {
+.tone-pink {
     --acc: var(--pink-base);
     --acc-mid: var(--pink-mid);
     --acc-deep: var(--pink-deep);
@@ -2210,7 +2205,8 @@ section[aria-labelledby="blog-teaser-title"] {
     --acc-tint: var(--pink-tint);
     --acc-glow: var(--pink-glow);
 }
-.cat-services {
+.cat-services,
+.tone-gold {
     --acc: var(--gold-base);
     --acc-mid: var(--gold-mid);
     --acc-deep: var(--gold-deep);
@@ -2218,7 +2214,8 @@ section[aria-labelledby="blog-teaser-title"] {
     --acc-tint: var(--gold-tint);
     --acc-glow: var(--gold-glow);
 }
-.cat-platform {
+.cat-platform,
+.tone-teal {
     --acc: var(--teal-base);
     --acc-mid: var(--teal-mid);
     --acc-deep: var(--teal-deep);
@@ -2239,7 +2236,7 @@ section[aria-labelledby="blog-teaser-title"] {
     padding: 0.3rem 0.65rem;
     border-radius: 0.6rem;
     background: var(--acc-deep);
-    color: #fff;
+    color: var(--accent-solid-foreground);
     font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
     font-size: 0.66rem;
     font-weight: 800;
@@ -2261,7 +2258,7 @@ section[aria-labelledby="blog-teaser-title"] {
     content: "";
 }
 
-.card[class*="cat-"] .cat {
+:is(.card[class*="cat-"], .card[class*="tone-"]) .cat {
     position: absolute;
     top: -0.78rem;
     left: 1.1rem;
@@ -2270,7 +2267,7 @@ section[aria-labelledby="blog-teaser-title"] {
     padding: 0.34rem 0.9rem;
     border-radius: 999px;
     background: var(--acc-deep);
-    color: #fff;
+    color: var(--accent-solid-foreground);
     box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 0.42),
         0 0.65rem 1.1rem -0.7rem var(--acc-glow);
@@ -2279,16 +2276,16 @@ section[aria-labelledby="blog-teaser-title"] {
     transition: transform 160ms ease, box-shadow 160ms ease;
 }
 
-.card.cat-services .cat {
+:is(.card.cat-services, .card.tone-gold) .cat {
     background: var(--gold-base);
     color: #3a2600;
 }
 
-.card[class*="cat-"]:hover .cat {
+:is(.card[class*="cat-"], .card[class*="tone-"]):hover .cat {
     transform: translateY(-1px);
 }
 
-.card[class*="cat-"] .cat::before {
+:is(.card[class*="cat-"], .card[class*="tone-"]) .cat::before {
     display: none;
 }
 
@@ -2305,9 +2302,9 @@ section[aria-labelledby="blog-teaser-title"] {
     border: 1px solid var(--acc-chip);
     border-radius: 0.65rem;
     background:
-        linear-gradient(180deg, var(--acc-tint), rgba(255, 255, 255, 0.76));
+        linear-gradient(180deg, var(--acc-tint), var(--glass-surface-strong));
     box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.9),
+        inset 0 1px 0 var(--glass-highlight),
         0 0.45rem 1rem -0.8rem var(--acc-glow);
 }
 
@@ -2319,7 +2316,7 @@ section[aria-labelledby="blog-teaser-title"] {
 .chip {
     padding: 0.24rem 0.55rem;
     border-radius: 0.4rem;
-    background: rgba(255, 255, 255, 0.75);
+    background: var(--glass-surface);
     color: var(--acc-deep);
     font-family:
         ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
@@ -2333,7 +2330,7 @@ section[aria-labelledby="blog-teaser-title"] {
 
 .chip.mode {
     background: var(--acc-deep);
-    color: #fff;
+    color: var(--accent-solid-foreground);
     box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 0.25),
         inset 0 -2px 4px rgba(0, 0, 0, 0.2);
@@ -2458,7 +2455,7 @@ section[aria-labelledby="blog-teaser-title"] {
 }
 
 .card-label.blue {
-    color: #fff;
+    color: var(--accent-solid-foreground);
     background: var(--sky-deep);
 }
 .card-label.coral {
@@ -2466,19 +2463,19 @@ section[aria-labelledby="blog-teaser-title"] {
     background: #a83a14;
 }
 .card-label.green {
-    color: #fff;
+    color: var(--accent-solid-foreground);
     background: var(--mint-deep);
 }
 .card-label.purple {
-    color: #fff;
+    color: var(--accent-solid-foreground);
     background: var(--grape-deep);
 }
 .card-label.teal {
-    color: #fff;
+    color: var(--accent-solid-foreground);
     background: var(--teal-deep);
 }
 .card-label.gold {
-    color: #fff;
+    color: var(--accent-solid-foreground);
     background: var(--lemon-deep);
 }
 
@@ -2511,7 +2508,7 @@ section[aria-labelledby="blog-teaser-title"] {
     border: 1px solid var(--acc-mid);
     border-radius: 999px;
     background-color: var(--acc-tint);
-    background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.64));
+    background-image: linear-gradient(180deg, var(--glass-surface-strong), var(--glass-surface));
     color: var(--acc-deep);
     font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
     font-size: 0.72rem;
@@ -2521,7 +2518,7 @@ section[aria-labelledby="blog-teaser-title"] {
     text-decoration: none;
     box-shadow:
         0 0.7rem 1.4rem -1rem var(--acc-glow),
-        inset 0 0 0 1px rgba(255, 255, 255, 0.72);
+        inset 0 0 0 1px var(--glass-highlight);
     cursor: pointer;
     transition:
         transform 180ms ease,
@@ -2560,7 +2557,7 @@ section[aria-labelledby="blog-teaser-title"] {
     border-color: var(--acc-deep);
     background-color: var(--acc);
     background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(0, 0, 0, 0.08));
-    color: #fff;
+    color: var(--accent-solid-foreground);
     box-shadow:
         0 0 0 2px rgba(255, 255, 255, 0.95),
         0 0.75rem 1.7rem -0.7rem var(--acc-glow);
@@ -2578,14 +2575,14 @@ section[aria-labelledby="blog-teaser-title"] {
     min-width: 1.35rem;
     padding: 0.08rem 0.32rem;
     border-radius: var(--radius-pill);
-    background: rgba(255, 255, 255, 0.72);
+    background: var(--glass-surface);
     color: var(--acc-deep);
     font-size: var(--type-micro);
     line-height: 1.2;
 }
 
 .legend button[aria-pressed="true"] .legend-count {
-    background: rgba(255, 255, 255, 0.9);
+    background: var(--glass-surface-strong);
     color: var(--acc-deep);
 }
 
@@ -2722,10 +2719,10 @@ pre {
     justify-content: space-between;
     gap: 1rem;
     padding: 0.88rem 1rem;
-    border: 2px solid rgba(255, 255, 255, 0.9);
+    border: 2px solid var(--glass-border);
     border-radius: 0.55rem;
     color: var(--text);
-    background: #fffafc;
+    background: var(--panel);
     box-shadow: var(--clay);
     text-decoration: none;
     transition:
@@ -2808,10 +2805,10 @@ pre {
 
 .audience-card:not(.card) {
     padding: 1.25rem;
-    border: 2px solid rgba(255, 255, 255, 0.9);
+    border: 2px solid var(--glass-border);
     border-left: 6px solid var(--lemon-mid);
     border-radius: 0.75rem;
-    background: #fffafc;
+    background: var(--panel);
     box-shadow: var(--clay);
     transition:
         border-color 200ms ease,
@@ -2862,10 +2859,10 @@ pre {
 .card.audience-card .cat {
     border: 1px solid var(--acc-chip);
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.9), var(--acc-tint));
+        linear-gradient(180deg, var(--glass-surface-strong), var(--acc-tint));
     color: var(--acc-deep);
     box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.82),
+        inset 0 1px 0 var(--glass-highlight),
         0 0.55rem 1.1rem -0.9rem var(--acc-glow);
 }
 
@@ -3204,10 +3201,10 @@ footer {
 .quality-route,
 .quality-command,
 .quality-panel {
-    border: 2px solid rgba(255, 255, 255, 0.9);
+    border: 2px solid var(--glass-border);
     border-radius: 0.95rem;
     background:
-        linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(255, 250, 252, 0.84)),
+        linear-gradient(135deg, var(--glass-surface-strong), var(--glass-surface)),
         var(--panel);
     box-shadow: var(--clay);
 }
@@ -3266,7 +3263,7 @@ footer {
     align-items: center;
     padding: 0.75rem;
     border-radius: 0.7rem;
-    background: rgba(255, 255, 255, 0.62);
+    background: var(--glass-surface);
 }
 
 .quality-meter-row strong {
@@ -3301,7 +3298,7 @@ footer {
     height: 2rem;
     margin-bottom: 0.85rem;
     border-radius: 999px;
-    color: #fff;
+    color: var(--accent-solid-foreground);
     background: linear-gradient(135deg, var(--sky-base), var(--grape-base));
     font-weight: 800;
 }
@@ -3338,7 +3335,7 @@ footer {
     margin: 1.2rem 0 2rem;
     border-color: rgba(116, 87, 255, 0.18);
     background:
-        linear-gradient(135deg, rgba(241, 248, 255, 0.86), rgba(255, 250, 252, 0.92)),
+        linear-gradient(135deg, var(--glass-surface), var(--glass-surface-strong)),
         var(--panel);
 }
 
@@ -3368,9 +3365,9 @@ footer {
 
 .blog-block {
     padding: 1.1rem 1.25rem;
-    border: 2px solid rgba(255, 255, 255, 0.9);
+    border: 2px solid var(--glass-border);
     border-radius: 0.75rem;
-    background: #fffafc;
+    background: var(--panel);
     box-shadow: var(--clay);
 }
 
@@ -3569,9 +3566,9 @@ footer {
 
 .contribute-contract aside {
     padding: 1rem;
-    border: 1px solid rgba(255, 255, 255, 0.88);
+    border: 1px solid var(--glass-border);
     border-radius: 0.85rem;
-    background: rgba(255, 255, 255, 0.62);
+    background: var(--glass-surface);
 }
 
 .contribute-contract aside strong {
@@ -3793,7 +3790,7 @@ footer {
 }
 
 .md-content th {
-    color: #fff;
+    color: var(--accent-solid-foreground);
     background: var(--sky-deep);
     font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
     font-weight: 700;
@@ -3801,7 +3798,7 @@ footer {
 }
 
 .md-content td {
-    background: #fffafc;
+    background: var(--panel);
     color: var(--muted);
     overflow-wrap: break-word;
 }
@@ -3846,7 +3843,7 @@ footer {
 
 .md-content th:first-child {
     background: var(--sky-deep);
-    color: #fff;
+    color: var(--accent-solid-foreground);
 }
 
 @media (min-width: 900px) {
@@ -3886,15 +3883,15 @@ footer {
 
 .compare-dispatch .card {
     isolation: isolate;
-    border-color: rgba(255, 255, 255, 0.94);
+    border-color: var(--glass-border);
     background:
-        radial-gradient(circle at 18% 8%, rgba(255, 255, 255, 0.98) 0 12%, transparent 33%),
+        radial-gradient(circle at 18% 8%, var(--glass-surface-strong) 0 12%, transparent 33%),
         radial-gradient(circle at 88% 4%, transparent 0 20%, var(--dispatch-line-soft) 21%, transparent 22% 34%, var(--dispatch-line) 35%, transparent 36%),
         linear-gradient(145deg, var(--dispatch-top), var(--dispatch-bottom));
     box-shadow:
         var(--clay),
         0 1.4rem 2.8rem -1rem var(--dispatch-glow),
-        inset 0 1px 0 rgba(255, 255, 255, 0.82);
+        inset 0 1px 0 var(--glass-highlight);
 }
 
 .compare-dispatch > a.card {
@@ -3944,31 +3941,31 @@ footer {
 }
 
 .compare-card-bgp {
-    --dispatch-top: #fff0fb;
-    --dispatch-bottom: #f5ebff;
-    --dispatch-line: rgba(122, 43, 208, 0.28);
-    --dispatch-line-soft: rgba(255, 130, 194, 0.2);
-    --dispatch-glow: rgba(196, 82, 200, 0.34);
-    --acc: #ff82c2;
-    --acc-mid: #cf73ff;
-    --acc-deep: #7a2bd0;
-    --acc-chip: #ffd4ec;
-    --acc-tint: #fff0fb;
-    --acc-glow: rgba(196, 82, 200, 0.38);
+    --dispatch-top: var(--pink-tint);
+    --dispatch-bottom: var(--grape-tint);
+    --dispatch-line: var(--grape-chip);
+    --dispatch-line-soft: var(--pink-chip);
+    --dispatch-glow: var(--pink-glow);
+    --acc: var(--pink-base);
+    --acc-mid: var(--grape-mid);
+    --acc-deep: var(--grape-deep);
+    --acc-chip: var(--pink-chip);
+    --acc-tint: var(--pink-tint);
+    --acc-glow: var(--pink-glow);
 }
 
 .compare-card-nos {
-    --dispatch-top: #ecfffb;
-    --dispatch-bottom: #eaf4ff;
-    --dispatch-line: rgba(0, 126, 151, 0.26);
-    --dispatch-line-soft: rgba(82, 184, 255, 0.2);
-    --dispatch-glow: rgba(44, 176, 198, 0.3);
-    --acc: #5bd6d0;
-    --acc-mid: #52b8ff;
-    --acc-deep: #007e97;
-    --acc-chip: #cafff8;
-    --acc-tint: #ecfffb;
-    --acc-glow: rgba(44, 176, 198, 0.34);
+    --dispatch-top: var(--mint-tint);
+    --dispatch-bottom: var(--sky-tint);
+    --dispatch-line: var(--sky-chip);
+    --dispatch-line-soft: var(--mint-chip);
+    --dispatch-glow: var(--mint-glow);
+    --acc: var(--mint-base);
+    --acc-mid: var(--sky-mid);
+    --acc-deep: var(--sky-deep);
+    --acc-chip: var(--mint-chip);
+    --acc-tint: var(--mint-tint);
+    --acc-glow: var(--mint-glow);
 }
 
 .md-content .compare-dispatch .card h3 {
@@ -4075,7 +4072,7 @@ footer {
     border: 1px solid var(--header-border);
     border-radius: 0.8rem;
     background:
-        linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(255, 250, 252, 0.86)),
+        linear-gradient(135deg, var(--glass-surface-strong), var(--glass-surface)),
         var(--panel);
     box-shadow: var(--clay);
 }
@@ -4089,7 +4086,7 @@ footer {
     padding: 0.75rem;
     border: 1px solid var(--line);
     border-radius: 0.7rem;
-    background: rgba(255, 255, 255, 0.62);
+    background: var(--glass-surface);
 }
 
 .column-selector-fieldset legend {
@@ -4310,7 +4307,7 @@ footer {
     padding: 0.85rem 1.1rem;
     border: 1px solid var(--line-strong);
     border-radius: 0.6rem;
-    background: rgba(255, 255, 255, 0.75);
+    background: var(--control-surface);
     color: var(--text);
     font-family: inherit;
     font-size: 1.05rem;
@@ -4605,9 +4602,9 @@ body.search-open {
 
 .cmd-eq-coverage-grid article {
     padding: 0.75rem;
-    border: 1px solid rgba(255, 255, 255, 0.8);
+    border: 1px solid var(--glass-border);
     border-radius: 0.8rem;
-    background: rgba(255, 255, 255, 0.68);
+    background: var(--glass-surface);
 }
 
 .cmd-eq-coverage-grid span,
@@ -5046,7 +5043,7 @@ body.search-open {
     padding: 0.85rem 1rem;
     border: 1px solid var(--line-strong);
     border-radius: 0.7rem;
-    background: rgba(255, 255, 255, 0.84);
+    background: var(--control-surface);
     color: var(--text);
     font-family: inherit;
     font-size: 1rem;
@@ -5079,7 +5076,7 @@ body.search-open {
     padding: 0.65rem 0.75rem;
     border: 1px solid var(--line-strong);
     border-radius: 0.65rem;
-    background: rgba(255, 255, 255, 0.86);
+    background: var(--control-surface);
     color: var(--text);
     font-family: inherit;
     font-size: 0.95rem;
@@ -5223,7 +5220,7 @@ body.search-open {
 
 .card.feature-card.aspiration {
     border: 2px dashed var(--acc);
-    background: rgba(255, 255, 255, 0.4);
+    background: var(--glass-surface);
     box-shadow: none;
 }
 
@@ -5232,7 +5229,7 @@ body.search-open {
     top: -0.78rem;
     right: 1rem;
     margin: 0;
-    background: rgba(255, 255, 255, 0.78);
+    background: var(--glass-surface-strong);
 }
 
 .plugin-meta {

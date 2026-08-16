@@ -475,6 +475,7 @@ def step_nav():
 
         root = page_registry.page_root_for_dest(rel_text)
         updated = sitelib.patch_shared_header(text, root)
+        updated = sitelib.patch_theme_bootstrap(updated)
         if rel_text in rich_targets:
             updated = sitelib.patch_page_sidebar(
                 updated, root, sitelib.page_key_for_path(rel_text)

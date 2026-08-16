@@ -1,5 +1,5 @@
 {
-  "_comment": "The homepage 'What's new in Ze' band, rendered by tools/render-index.py directly above the proof strip. The article and weekly-update slots are generated (newest blog/posts/*.md and newest changes/posts/*.md), so only the freeform note below is edited by hand. Keep title and body short: the band sits above the fold and the KPI cards under it must stay visible on a laptop screen. `category` picks the accent color from the eight site categories. Drop the whole `note` object to render the band with two slots.",
+  "_comment": "The homepage 'What's new in Ze' band, rendered by tools/render-index.py directly above the proof strip. The article and weekly-update slots are generated (newest blog/posts/*.md and newest changes/posts/*.md), so only the freeform note below is edited by hand. Keep title and body short: the band sits above the fold and the KPI cards under it must stay visible on a laptop screen. `tone` picks a presentation color without claiming the note belongs to a feature category. Drop the whole `note` object to render the band with two slots.",
   "title": "Latest news",
   "link": {
     "href": "changes/",
@@ -7,7 +7,7 @@
   },
   "note": {
     "label": "RFC compliance progress",
-    "category": "meta",
+    "tone": "pink",
     "title": "Every MUST requirement tied to a test",
     "body": "Ze checks 2,950 MUST-level requirements across 168 RFCs. A requirement counts only when its test would fail without it.",
     "link": {

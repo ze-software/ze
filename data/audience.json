@@ -69,7 +69,7 @@
         {
             "title": "Protocol testbed",
             "label": "Interop",
-            "category": "services",
+            "category": "routing",
             "chips": ["Interop", "Docker"],
             "body": "Protocol implementers can run Docker interop scenarios against FRR, BIRD, and GoBGP, then turn a failure into a test case.",
             "link": {"href": "labs/bgp-interop/", "label": "Interop lab", "sublabel": "real peer daemons"}
@@ -78,7 +78,7 @@
             "title": "AI-assisted operations",
             "label": "MCP",
             "category": "automate",
-            "accent": "pink",
+            "tone": "pink",
             "chips": ["MCP", "CLI catalogue"],
             "body": "MCP exposes Ze commands and structured output to AI tools without a separate command set.",
             "link": {"href": "features/ai-first/", "label": "AI via MCP", "sublabel": "same command catalogue"}

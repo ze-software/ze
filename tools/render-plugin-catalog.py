@@ -29,7 +29,7 @@ DETAIL_DIR = DEST.parent
 TEST_DIR_PREFIX = "internal/test/"
 CATALOG_ROOT = "../../"
 DETAIL_ROOT = "../../../"
-COLOR_CLASSES = sitelib.CATEGORIES
+PRESENTATION_TONES = sitelib.PRESENTATION_TONES
 
 # Presentation only: labels keep common network acronyms readable while the
 # actual grouping still comes from config roots and source paths.
@@ -154,9 +154,9 @@ def source_group(plugin):
     return slug_base(plugin["name"]).split("-", 1)[0]
 
 
-def color_for(group_id):
-    idx = sum(ord(ch) for ch in group_id) % len(COLOR_CLASSES)
-    return COLOR_CLASSES[idx]
+def tone_for(group_id):
+    idx = sum(ord(ch) for ch in group_id) % len(PRESENTATION_TONES)
+    return PRESENTATION_TONES[idx]
 
 
 def title_word(token):
@@ -266,7 +266,7 @@ def build_groups(plugins):
                 "id": group_id,
                 "label": plugin_doc(plugin).get("area") or label_for(group_id),
                 "short": short_for(plugin_doc(plugin).get("area") or group_id),
-                "cat": color_for(group_id),
+                "tone": tone_for(group_id),
                 "plugins": [],
                 "roots": set(),
                 "sources": set(),
@@ -405,7 +405,7 @@ def render_card(plugin, group):
     is_test = plugin["source_dir"].startswith(TEST_DIR_PREFIX)
     test_attr = ' data-test="true"' if is_test else ""
     return """
-                    <article class="card plugin-card cat-{cat}" id="plugin-{anchor}" data-plugin-card data-family="{group_id}" data-category="{filter_category}" data-search="{search}"{test_attr}>
+                    <article class="card plugin-card tone-{tone}" id="plugin-{anchor}" data-plugin-card data-family="{group_id}" data-category="{filter_category}" data-search="{search}"{test_attr}>
                         <span class="cat">{short}</span>
                         <h3><a href="{href}"><code>{name}</code></a></h3>
                         <p class="plugin-desc">{desc}</p>
@@ -414,7 +414,7 @@ def render_card(plugin, group):
                         </div>
                         {meta}
                     </article>""".format(
-        cat=group["cat"],
+        tone=group["tone"],
         anchor=esc(plugin["slug"]),
         group_id=esc(group["id"]),
         filter_category=esc(group["filter_category"]),
@@ -433,7 +433,7 @@ def render_group(group):
     cards = "\n".join(render_card(plugin, group) for plugin in group["plugins"])
     return """
                 <section class="plugin-group" data-plugin-group data-family="{group_id}" data-category="{filter_category}" aria-labelledby="plugin-group-{group_id}">
-                    <div class="plugin-group-head cat-{cat}">
+                    <div class="plugin-group-head tone-{tone}">
                         <h2 id="plugin-group-{group_id}">{label}</h2>
                         <span>{count} plugin{plural}</span>
                     </div>
@@ -444,7 +444,7 @@ def render_group(group):
                 </section>""".format(
         group_id=esc(group["id"]),
         filter_category=esc(group["filter_category"]),
-        cat=group["cat"],
+        tone=group["tone"],
         label=esc(group["label"]),
         count=len(group["plugins"]),
         plural="" if len(group["plugins"]) == 1 else "s",
@@ -678,7 +678,7 @@ def render_detail_html(plugin, group, by_name, dependents):
             page_key="reference/plugins/%s/" % plugin["slug"],
         )
     ]
-    out.append('            <section class="md-content reveal cat-%s plugin-detail" aria-labelledby="plugin-detail-title">' % group["cat"])
+    out.append('            <section class="md-content reveal cat-automate plugin-detail" aria-labelledby="plugin-detail-title">')
     out.append(
         sitelib.page_hero(
             "<code>%s</code>" % esc(plugin["name"]),
@@ -687,7 +687,7 @@ def render_detail_html(plugin, group, by_name, dependents):
             h1_id="plugin-detail-title",
             title_html=True,
             lead_html=True,
-            classes="journey-hero reveal cat-%s" % group["cat"],
+            classes="journey-hero reveal cat-automate",
         )
     )
     out.append('                <div class="plugin-detail-grid">')

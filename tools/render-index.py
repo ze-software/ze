@@ -75,7 +75,7 @@ def render_chip_row(card):
 
 def render_audience_card(card):
     category = card.get("category", "platform")
-    accent = card.get("accent")
+    tone = card.get("tone")
     label = card.get("label", category.capitalize())
     link = card.get("link")
     title = esc(card["title"])
@@ -89,7 +89,7 @@ def render_audience_card(card):
     else:
         cta = ""
 
-    return """                    <article class="card audience-card cat-{category}{accent_class}">
+    return """                    <article class="card audience-card cat-{category}{tone_class}">
                         <span class="cat">{label}</span>
                         <h3>{title}</h3>
                         <p>
@@ -97,7 +97,7 @@ def render_audience_card(card):
                         </p>
 {chips}{cta}                    </article>""".format(
         category=esc(category),
-        accent_class=(" accent-%s" % esc(accent)) if accent else "",
+        tone_class=(" tone-%s" % esc(tone)) if tone else "",
         label=esc(label),
         title=title,
         body=esc(card["body"]),
@@ -106,10 +106,10 @@ def render_audience_card(card):
     )
 
 
-BLOG_TEASER_CATEGORIES = [
-    "cat-operate",
-    "cat-secure",
-    "cat-automate",
+BLOG_TEASER_TONES = [
+    "sky",
+    "pink",
+    "grape",
 ]
 
 
@@ -153,10 +153,10 @@ def change_topics_by_slug():
 
 
 def render_blog_teaser_card(post, i, topics):
-    cat = BLOG_TEASER_CATEGORIES[i % len(BLOG_TEASER_CATEGORIES)]
+    tone = BLOG_TEASER_TONES[i % len(BLOG_TEASER_TONES)]
     parts = [
-        '                    <article class="card card-post home-update-card %s">'
-        % cat
+        '                    <article class="card card-post home-update-card tone-%s">'
+        % tone
     ]
     parts.append('                        <div class="home-update-head">')
     parts.append('                            <span class="cat">Update</span>')
@@ -192,13 +192,13 @@ def clip(text, limit=WHATS_NEW_SUMMARY_CHARS):
     return text[:limit].rsplit(" ", 1)[0].rstrip(",.;:") + "…"
 
 
-def render_whats_new_item(label, category, href, title, summary):
-    return """                <article class="whats-new-item cat-{category}">
+def render_whats_new_item(label, tone, href, title, summary):
+    return """                <article class="whats-new-item tone-{tone}">
                     <span class="whats-new-label">{label}</span>
                     <h3><a href="{href}">{title}</a></h3>
                     <p>{summary}</p>
                 </article>""".format(
-        category=esc(category),
+        tone=esc(tone),
         label=esc(label),
         href=esc(href),
         title=esc(title),
@@ -218,7 +218,7 @@ def render_whats_new(data):
         items.append(
             render_whats_new_item(
                 "Engineering note",
-                "automate",
+                "grape",
                 "blog/%s/" % article["slug"],
                 article["title"],
                 clip(article["description"]),
@@ -231,7 +231,7 @@ def render_whats_new(data):
         items.append(
             render_whats_new_item(
                 "Recently shipped",
-                "operate",
+                "sky",
                 "changes/%s/" % week["slug"],
                 "Week of %s" % week["slug"],
                 clip(week["intro"] or "What shipped that week."),
@@ -244,7 +244,7 @@ def render_whats_new(data):
         items.append(
             render_whats_new_item(
                 note["label"],
-                note.get("category", "meta"),
+                note.get("tone", "sky"),
                 link["href"] if link else data["link"]["href"],
                 note["title"],
                 clip(note["body"]),
@@ -513,7 +513,7 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
             </section>
 
             <section class="home-section-panel home-section-panel-run" aria-labelledby="run-title">
-                <div class="section-head reveal cat-platform">
+                <div class="section-head reveal tone-teal">
                     <h2 id="run-title">
                         Run it as a lab,<br />daemon, or appliance.
                     </h2>
@@ -529,7 +529,7 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
             </section>
 
             <section id="why-ze" class="home-section-panel home-section-panel-why" aria-labelledby="why-title">
-                <div class="section-head reveal cat-operate">
+                <div class="section-head reveal tone-sky">
                     <h2 id="why-title">Why Ze.</h2>
                     <p>
                         Ze keeps the core protocol-agnostic. Subsystems bring
@@ -539,7 +539,7 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
                     </p>
                 </div>
                 <div class="cards usp-grid reveal" aria-label="Ze architectural arguments">
-                    <article class="card usp-card cat-observe">
+                    <article class="card usp-card tone-mint">
                         <span class="cat">Model</span>
                         <h3><a href="reference/configuration/">One model feeds every interface</a></h3>
                         <p>
@@ -566,7 +566,7 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
                             configuration through SSH and the web UI.
                         </p>
                     </article>
-                    <article class="card usp-card cat-secure">
+                    <article class="card usp-card tone-pink">
                         <span class="cat">Honest</span>
                         <h3><a href="reference/plugins/">Plugins keep their own contract</a></h3>
                         <p>
@@ -599,7 +599,7 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
             </section>
 
             <section id="try" class="home-section-panel home-section-panel-try" aria-labelledby="try-title">
-                <div class="section-head reveal cat-automate">
+                <div class="section-head reveal tone-grape">
                     <h2 id="try-title">First paths for routing feedback.</h2>
                     <p>The BGP lab, ExaBGP migration, and appliance install are good starting points.</p>
                 </div>
