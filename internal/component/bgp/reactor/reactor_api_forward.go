@@ -306,13 +306,30 @@ func (a *reactorAPIAdapter) sendRouteRefresh(sel *selector.Selector, afi uint16,
 // entry the caller took delivery of, which is the rule ForwardUpdatesDirect
 // states for its own refusals.
 //
-// RFC 4271 §9.1.2 compliance: For EBGP peers, the local AS is prepended to
-// AS_PATH in the wire bytes before forwarding. IBGP peers receive the original
-// bytes unchanged. EBGP wire versions are lazily cached per ASN4/ASN2 variant.
+// Every per-destination change is recorded as INTENT into one edit set, and a
+// destination that collected no intent is sent the bytes it was handed. So the
+// question "what does this peer receive" is answered by which edits its facts
+// record, never by its session type alone.
 //
-// Zero-copy optimization: When source and destination encoding contexts match
-// (same ASN4, ADD-PATH capabilities), the raw UPDATE bytes are forwarded
-// directly without re-encoding.
+// RFC 4271 Section 9.1.2: the AS_PATH edit is recorded only for an EBGP
+// destination. The local AS prepends, and a configured secondary AS prepends
+// under it so the override ends up outermost (RFC 7705 Section 3.3). An RS
+// client is the exception inside that exception: RFC 7947 Section 2.2.2 forbids
+// modifying its AS_PATH, so nothing prepends and the edit transcodes the width
+// only, which RFC 6793 Section 4.2.2 still requires when the two ends differ.
+//
+// An IBGP destination is NOT byte-transparent, and reading it that way is what
+// this paragraph exists to prevent. It records no AS_PATH edit, and it still
+// records the LOCAL_PREF and MED decisions (RFC 4271 Sections 5.1.5 and 5.1.4,
+// applyFactsLocalPref and applyFactsMED), and a policy chain can replace its
+// payload outright, at which point peerBaseWire is no longer the source and
+// every question above is re-asked over the bytes this destination is sent.
+//
+// Zero-copy: the source bytes reach the wire only when mods.HasModifications()
+// is false. Any recorded edit rebuilds into the destination's own buffer. The
+// rebuild is skipped when an earlier destination in the SAME fan-out already
+// produced these exact bytes, and the reuse is a copy into this destination's
+// buffer rather than a shared one.
 //
 // RFC 8654 compliance: If the UPDATE exceeds a peer's max message size
 // (4096 without Extended Message, 65535 with), it is split into multiple
