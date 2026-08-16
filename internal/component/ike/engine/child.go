@@ -58,7 +58,7 @@ const (
 	modeTransport = dataplane.ModeTransport
 	defaultReqID  = 1
 	// RFC 4303 Section 3.4.3 prefers a 64-packet anti-replay window and says
-	// it SHOULD be the default when 32-bit sequence numbers are employed.
+	// it SHOULD be the default.
 	replayWindow = 64
 )
 

@@ -308,13 +308,13 @@ func TestChildSANATTEncapPorts(t *testing.T) {
 // RFC requirement: RFC4303-3.4.3-4 positive -- the production IKE Child SA path uses
 // the preferred 64-packet default from RFC 4303 Section 3.4.3.
 //
-// rfc-test-change-approved: 2026-08-16 -- the negative tag for RFC4303-3.4.3-4 is
-// removed here. It read "does not fall back to the minimum 32-packet window", which
-// is the complement of the one assertion below rather than a second one: no input is
-// refused and no different outcome is produced, so the ledger recorded a binding
-// nothing drives. A default value has no conforming negative, which is why the
-// sibling rows -3.4.3-1 and -3.4.3-2 are annotated {single-polarity: positive}, and
-// -3.4.3-4 now carries the same annotation. No assertion was touched.
+// rfc-test-change-approved: 2026-08-16 -- approved changes: rename
+// TestChildSAReplayWindowMinimum to TestChildSAReplayWindowDefault; change the exact
+// ReplayWin assertion from 32 to 64 for both inbound and outbound production-path
+// SAs; and remove the vacuous RFC4303-3.4.3-4 negative tag in favor of
+// {single-polarity: positive}. Coverage remains because the same production path,
+// fixtures, inbound and outbound directions, and exact-equality assertion all
+// remain.
 func TestChildSAReplayWindowDefault(t *testing.T) {
 	sa := testSA()
 	dp := &mockDP{}
