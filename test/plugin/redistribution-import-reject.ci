@@ -15,7 +15,7 @@ tmpfs=filter-reject-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import json
 import sys
-from ze_api import API
+from ze_api import API, runtime_fail
 # // test-relax: dropped 'import time'; blind sleep -> wait_for_ack() barrier
 
 rejected_count = 0
@@ -34,6 +34,21 @@ def dispatch(api, command):
         return {'status': 'error', 'data': 'None'}
     return resp.get('result', {})
 
+def serve_until(api, predicate, attempts=100):
+    """Answer plugin callbacks until predicate() holds, or attempts run out.
+
+    ze asks for a filter decision over the callback connection, and only
+    api.read_line() answers it. An observer parked in a dispatch RPC leaves that
+    request unanswered until the reactor's IPC deadline expires, and on-error
+    then decides the route instead of the filter. read_line blocks in select for
+    its timeout, so this loop costs no CPU and adds no sleep.
+    """
+    for _ in range(attempts):
+        if predicate():
+            return True
+        api.read_line(timeout=0.1)
+    return predicate()
+
 def main():
     api = API()
     api.declare_filter(
@@ -49,16 +64,22 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # Deterministic replacement for blind sleep(2.0): quiesce drains each
-    # peer's initial-sync (EOR on the wire) and the forward pool, so the inbound
-    # route has been filtered and the peer EOR sent before shutdown.
-    # // test-relax: blind sleep(2.0) -> wait_for_ack() quiesce barrier
+    # Three barriers, in this order.
+    # 1. serve_until answers the filter callback for the route ze-peer sends.
+    # 2. wait_peer_eor_sent blocks until ze has put its initial-sync EOR on the
+    #    wire, which is the frame the ze-peer block asserts. quiesce alone
+    #    returns instantly while the session is still opening.
+    # 3. wait_for_ack drains the forward pool before the daemon stops.
+    # // test-relax: blind sleep(2.0) -> callback pump + EOR barrier + quiesce barrier
+    serve_until(api, lambda: rejected_count > 0)
+    if not api.wait_peer_eor_sent():
+        runtime_fail('ze sent no end-of-rib to peer1 before shutdown')
     api.wait_for_ack()
 
-    if rejected_count > 0:
-        print(f'OK: filter rejected {rejected_count} route(s)', file=sys.stderr)
-    else:
-        print('INFO: filter not called (route may not have triggered filter)', file=sys.stderr)
+    # The filter must have been called: ze-peer sends 10.0.0.0/24 on establishment.
+    if rejected_count == 0:
+        runtime_fail('import filter never called for the route ze-peer sent')
+    print(f'OK: filter rejected {rejected_count} route(s)', file=sys.stderr)
 
     dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
@@ -100,11 +121,15 @@ bgp {
                 local 65000
                 remote 65001
             }
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
         }
     }
 }
 EOF_CONF
 
 # Run ze with the test plugin
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
 expect=exit:code=0

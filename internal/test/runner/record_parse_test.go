@@ -82,9 +82,17 @@ EOF_PEER
 }
 
 // TestParseAndAdd_OptionTimeoutInsidePeerBlockPasses verifies that
-// option=timeout inside the peer block is still accepted — it is
-// consumed by ze-peer from its stdin, not by the runner, and must
-// continue to pass through unchanged.
+// option=timeout inside the peer block is still accepted. Two corrections to
+// what this comment used to claim: ze-peer does NOT consume it (parseOptionConfig
+// answers "handled by test runner"), and it does not "pass through unchanged"
+// either -- the runner parses it to prove it is not a typo and then discards the
+// value, because the timeout's scope is the whole test and not one peer
+// (validateOnePeerBlock, peer_contract.go).
+//
+// The fixture's option=open and option=update values must be REAL ones. It
+// carried option=update:value=inspect-update-message, a value no branch of
+// ze-peer has ever had, and asserted that a peer block accepts it -- the very
+// silent drop the peer-block guard exists to close, pinned by a test.
 //
 // VALIDATES: AC-5 — non-env option directives inside peer blocks
 // are not rejected by the hardening check.
@@ -101,7 +109,7 @@ func TestParseAndAdd_OptionTimeoutInsidePeerBlockPasses(t *testing.T) {
 stdin=peer:terminator=EOF_PEER
 option=timeout:value=10s
 option=open:value=inspect-open-message
-option=update:value=inspect-update-message
+option=update:value=send-default-route
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
 EOF_PEER
 `

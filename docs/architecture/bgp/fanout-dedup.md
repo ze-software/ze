@@ -55,6 +55,32 @@ measured and left.
 The route-server rail's four-slot cache, which stopped caching beyond four
 bodies without saying so, is gone. No cap is left to be silent about.
 
+## The negative half is expressible now
+
+AC-1 and AC-2 of this work are negatives: one destination's bytes must never
+reach another. They were recorded at closure as inexpressible in the `.ci`
+harness. The only wire assertion was `expect=bgp`, which says what a peer DID
+receive. The nearest thing written is `test/draft/plugin/wire-edit-fanout-dedup.ci`,
+which pins each peer's exact frames. It is a DRAFT, so no gate runs it
+(`test/draft/README.md`), and its only negatives are two `reject=stderr` crash
+guards rather than a wire negative. The statement "peer C never got peer A's
+wire" had nowhere to go.
+
+`reject=bgp:conn=N:pattern=<hex>` is that statement
+(`docs/architecture/testing/ci-format.md`). Every frame the peer's message loop
+reads is checked against it and it is never consumed. The block carrying it must
+also deliver something on the same connection, so the rejection can discriminate.
+Its own proof is `internal/test/peer/reject_test.go`, plus the nine
+RFC-behaviour tests that carry one. `test/plugin/wellknown-no-advertise-egress.ci`
+is among them, and each was shown red by breaking the suppression it names.
+
+The AC-1/AC-2 negatives are therefore EXPRESSIBLE now. They are not yet
+EXPRESSED. Promoting the draft to a live fixture that carries the rejections is
+separate work. Until that happens the fan-out negatives rest on the draft's
+pinned frames rather than on a gate.
+
+<!-- source: internal/test/peer/reject.go -- the wire rejection -->
+
 ## Traps
 
 **A guard field that no test exercises is decorative.** `fwdDedupTable.begin`

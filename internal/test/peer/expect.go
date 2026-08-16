@@ -21,6 +21,16 @@ import (
 // optTrue is the spelling a .ci boolean option must use to enable itself.
 const optTrue = "true"
 
+// The four .ci actions a ze-peer stdin block can carry, left of the '=' in
+// `action=type:key=value`.
+const (
+	actionOption = "option"
+	actionExpect = "expect"
+	actionAction = "action"
+	actionReject = "reject"
+	actionCmd    = "cmd"
+)
+
 // Consumes reports whether ze-peer consumes the directive `action=lineType`,
 // i.e. whether LoadExpectFile forwards such a line into Config.Expect.
 //
@@ -36,10 +46,14 @@ const optTrue = "true"
 // decision, and a divergence reintroduces the silent-vacuous-test defect.
 func consumes(action, lineType string) bool {
 	switch action {
-	case "expect":
+	case actionExpect:
 		// json/stderr/syslog are handled by the test runner, not ze-peer.
 		return lineType == "bgp"
-	case "action":
+	case actionReject:
+		// stderr/syslog/stdout are handled by the test runner, not ze-peer.
+		// Only ze-peer sees the wire, so only ze-peer can refuse wire bytes.
+		return lineType == "bgp"
+	case actionAction:
 		switch lineType {
 		case "notification", "send", "rewrite", actionClose, actionSighup, actionSigterm:
 			return true
@@ -49,8 +63,8 @@ func consumes(action, lineType string) bool {
 }
 
 // ConsumesLine reports whether ze-peer consumes the given .ci line. Blank lines,
-// comments, and runner-only directives (expect=json, option=env, cmd=, reject=)
-// return false. See consumes for why this is exported.
+// comments, and runner-only directives (expect=json, option=env, cmd=,
+// reject=stderr) return false. See consumes for why this is exported.
 func ConsumesLine(line string) bool {
 	line = strings.TrimSpace(line)
 	if line == "" || strings.HasPrefix(line, "#") {
@@ -62,6 +76,87 @@ func ConsumesLine(line string) bool {
 		return false
 	}
 	return consumes(action, lineType)
+}
+
+// Claim says who acts on a .ci line that sits inside a ze-peer stdin block.
+//
+// A stdin block is handed to ze-peer verbatim, so ze-peer's parser is the first
+// reader of every line in it. Its answer decides what the test runner owes the
+// line, and the runner's peer-block guard reads that answer rather than a second
+// list of directive names (internal/test/runner/peer_contract.go).
+type Claim int
+
+const (
+	// ClaimNone: ze-peer has no branch for the line's action. Nothing in the
+	// peer reads it, so the runner must be able to parse it where it stands.
+	ClaimNone Claim = iota
+	// ClaimPeer: ze-peer acts on the line itself.
+	ClaimPeer
+	// ClaimRunner: ze-peer reads the line and hands it to the test runner, so
+	// the runner must parse it where it stands or the line changes nothing.
+	ClaimRunner
+	// ClaimNarration: ze-peer records the line as documentation of what
+	// produced the expected bytes. Nothing acts on it and nothing is lost.
+	ClaimNarration
+)
+
+// ClaimLine reports what ze-peer does with one line of a stdin block, and the
+// error its own parser raises for that line.
+//
+// Every branch below is the branch LoadExpectFile takes for the same line, so
+// the runner's guard cannot drift from what ze-peer really does. A blank line or
+// a comment claims nothing and raises nothing.
+func ClaimLine(line string) (Claim, error) {
+	line = strings.TrimSpace(line)
+	if line == "" || strings.HasPrefix(line, "#") {
+		return ClaimNarration, nil
+	}
+	parts := strings.Split(line, ":")
+	action, lineType, ok := strings.Cut(parts[0], "=")
+	if !ok {
+		return ClaimNone, nil
+	}
+	switch action {
+	case actionOption:
+		claimed, err := parseOptionConfig(&Config{}, lineType, ci.ParseKVPairs(parts[1:]))
+		if err != nil {
+			return ClaimNone, err
+		}
+		if claimed {
+			return ClaimPeer, nil
+		}
+		return ClaimRunner, nil
+	case actionReject:
+		if !consumes(action, lineType) {
+			return ClaimRunner, nil
+		}
+		// Validated HERE, with the parser ze-peer itself uses, so a malformed
+		// needle fails the file at parse time. Left to run time it would fail
+		// inside peer.New, before the listener binds, and the runner would
+		// report a bind timeout instead of the typo (peerBindFailure).
+		//
+		// isReject false means the line said `reject=bgp` and stopped, with no
+		// key=value tail at all. consumes() has already answered true for it, so
+		// LoadExpectFile would forward it and parseExpectRule would fail on it
+		// inside the peer -- the same bind timeout by a longer route.
+		_, _, isReject, err := ParseRejectRule(line)
+		if err != nil {
+			return ClaimNone, err
+		}
+		if !isReject {
+			return ClaimNone, fmt.Errorf(
+				"%q carries no conn= or pattern=; write reject=bgp:conn=N:pattern=<hex>", line)
+		}
+		return ClaimPeer, nil
+	case actionExpect, actionAction:
+		if consumes(action, lineType) {
+			return ClaimPeer, nil
+		}
+		return ClaimRunner, nil
+	case actionCmd:
+		return ClaimNarration, nil
+	}
+	return ClaimNone, nil
 }
 
 // LoadExpectFile loads expected messages from a file.
@@ -102,25 +197,24 @@ func LoadExpectFile(path string) ([]string, *Config, error) {
 		kv := ci.ParseKVPairs(parts[1:])
 
 		switch action {
-		case "option":
-			if err := parseOptionConfig(config, lineType, kv); err != nil {
+		case actionOption:
+			if _, err := parseOptionConfig(config, lineType, kv); err != nil {
 				return nil, nil, fmt.Errorf("line %d: %w", lineNum, err)
 			}
 
-		case "expect", "action":
+		case actionExpect, actionAction, actionReject:
 			// Pass through the ze-peer-consumed directives only:
 			//   expect=bgp:conn=N:seq=N:hex=...
+			//   reject=bgp:conn=N:pattern=...
 			//   action=notification|send|rewrite|close|sighup|sigterm:conn=N:seq=N:...
-			// expect=json/stderr/syslog are handled by the test runner.
+			// expect=json/stderr/syslog and reject=stderr/syslog/stdout are
+			// handled by the test runner.
 			if consumes(action, lineType) {
 				expect = append(expect, line)
 			}
 
-		case "cmd":
+		case actionCmd:
 			// Ignore - documentation only
-
-		case "reject":
-			// Ignore - handled by test runner
 		}
 	}
 
@@ -129,18 +223,30 @@ func LoadExpectFile(path string) ([]string, *Config, error) {
 
 // parseOptionConfig parses option lines into Config.
 //
-// It returns an error only for a directive whose misreading would make a test
-// assert against an input it never sent. Most options still fail soft, which is
-// the long-standing behavior of this parser and is not changed here.
-func parseOptionConfig(config *Config, optType string, kv map[string]string) error {
+// It returns an error for a directive whose misreading would make a test assert
+// against an input it never sent: a non-numeric asn or tcp_connections, and an
+// open= or update= value ze-peer has no branch for. Each of those used to fail
+// soft, which put a typo in the same class as the dropped directive this
+// parser's Claim answer exists to close: the line is written, nothing reads it,
+// and the test passes.
+//
+// claimed reports whether ze-peer acted on the option. It is false both for an
+// option the test runner owns (file, timeout, env) and for one no parser knows,
+// because ze-peer treats them alike: it reads neither. ClaimLine turns that into
+// the runner's obligation to parse the line where it stands, and the runner's
+// own "unknown option type" error is what separates the two cases.
+func parseOptionConfig(config *Config, optType string, kv map[string]string) (claimed bool, err error) {
 	switch optType {
 	case "file":
 		// Ignored - handled by test runner
+		return false, nil
 
 	case "asn":
-		if v, err := strconv.Atoi(kv["value"]); err == nil {
-			config.ASN = v
+		v, cerr := strconv.Atoi(kv["value"])
+		if cerr != nil {
+			return false, fmt.Errorf("option=asn:value=%q is not a number, so ze-peer would open with AS 0", kv["value"])
 		}
+		config.ASN = v
 
 	case "bind":
 		v := kv["value"]
@@ -163,9 +269,11 @@ func parseOptionConfig(config *Config, optType string, kv map[string]string) err
 		config.Silent = kv["value"] == optTrue
 
 	case "tcp_connections":
-		if v, err := strconv.Atoi(kv["value"]); err == nil {
-			config.TCPConnections = v
+		v, cerr := strconv.Atoi(kv["value"])
+		if cerr != nil {
+			return false, fmt.Errorf("option=tcp_connections:value=%q is not a number, so ze-peer would accept one connection", kv["value"])
 		}
+		config.TCPConnections = v
 
 	case "open":
 		switch kv["value"] {
@@ -203,6 +311,14 @@ func parseOptionConfig(config *Config, optType string, kv map[string]string) err
 					})
 				}
 			}
+
+		default:
+			// The option exists and its value does not. Answering "claimed"
+			// here would make ClaimLine report ClaimPeer, the runner would
+			// leave the line to ze-peer, and ze-peer would ignore it: a typo
+			// in the value is the same silent drop this parser's guard exists
+			// to close.
+			return false, fmt.Errorf("option=open:value=%q is not a value ze-peer knows", kv["value"])
 		}
 
 	case "update":
@@ -256,15 +372,24 @@ func parseOptionConfig(config *Config, optType string, kv map[string]string) err
 		case "send-bulk":
 			spec, err := parseBulkSpec(kv)
 			if err != nil {
-				return err
+				return false, err
 			}
 			config.SendBulk = append(config.SendBulk, spec)
+
+		default:
+			return false, fmt.Errorf("option=update:value=%q is not a value ze-peer knows", kv["value"])
 		}
 
 	case "timeout", "env":
 		// Ignored - handled by test runner
+		return false, nil
+
+	default:
+		// No branch here, so ze-peer reads nothing. The runner decides whether
+		// the option exists at all.
+		return false, nil
 	}
-	return nil
+	return true, nil
 }
 
 // parseBulkSpec reads option=update:value=send-bulk into an InjectSpec.

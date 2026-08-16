@@ -14,7 +14,7 @@ EOF_PEER
 tmpfs=filter-declare-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import sys
-from ze_api import API
+from ze_api import API, runtime_fail
 
 def main():
     api = API()
@@ -35,6 +35,12 @@ def main():
 
     # If we get here, startup succeeded -- filter declaration was accepted
     print('OK: filter declaration accepted, startup complete', file=sys.stderr)
+
+    # ze-peer asserts ze's initial-sync End-of-RIB. Block until that frame is on
+    # the wire, or this shutdown closes the session inside the establishment
+    # window and the peer reports the NOTIFICATION instead.
+    if not api.wait_peer_eor_sent():
+        runtime_fail('ze sent no end-of-rib to peer1 before shutdown')
 
     # Dispatch shutdown
     api._call_engine('ze-plugin-engine:dispatch-command', {'command': 'request shutdown'})
@@ -77,11 +83,15 @@ bgp {
                 local 65000
                 remote 65001
             }
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
         }
     }
 }
 EOF_CONF
 
 # Run ze with the test plugin
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
 expect=exit:code=0

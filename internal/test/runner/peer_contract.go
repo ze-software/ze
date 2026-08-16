@@ -20,6 +20,8 @@ package runner
 
 import (
 	"fmt"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -225,6 +227,267 @@ func peerBlockHasConsumedDirective(block string) bool {
 		}
 	}
 	return false
+}
+
+// peerBlockNames returns the stdin blocks a .ci file hands to a ze-peer.
+//
+// Every peer block is named on a `cmd=...:exec=ze-peer ...:stdin=<name>` line.
+// The block named "peer" is included unconditionally, because this loop is what
+// puts a block's expect= lines on Record.Expects, and the non-orchestrated path
+// (a .ci with no cmd= lines: 43 tracked files, 42 of them under
+// test/exabgp-compat/encoding) then feeds them to ze-peer through
+// writeExpectFile (runner_output.go). Validating it is not the
+// same as it being READ verbatim: see blockPeerMode.
+//
+// KNOWN HOLE, not closed here. A .ci that HAS cmd= lines and a "peer" block that
+// no ze-peer command names starts no peer at all, so its option= lines never
+// reach Record.Options and its expect= lines are checked by nobody. Seven
+// committed files are in that state, all test/plugin/redistribution-*.ci
+// (redistribution-import-reject.ci among them, whose only cmd= is seq=2, the
+// ze-peer at seq=1 having been deleted). None carries a reject=, and a reject=
+// there is refused by validatePeerBlockRejects, so this spec's own directive is
+// covered. Refusing the rest is correct and costs seven tests their authoring,
+// which is why it is journalled (plan/journal/silent-fall-through.md) rather than
+// folded into this closure. Their option=timeout does reach Record.Extra through
+// the adopt-when-empty branch below, and each file's cmd=foreground timeout
+// supersedes it (resolveOrchestratedTimeout, runner_exec_util.go).
+// The list is sorted: a file with two bad blocks must name the same one on
+// every run, or its error text is not something a fixture or a reader can rely
+// on.
+func peerBlockNames(r *Record) []string {
+	seen := map[string]bool{"peer": true}
+	for _, cmd := range r.RunCommands {
+		if isZePeerExec(cmd.Exec) && cmd.Stdin != "" {
+			seen[cmd.Stdin] = true
+		}
+	}
+	names := make([]string, 0, len(seen))
+	for name := range seen {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
+// blockPeerMode is the --mode of the ze-peer a block is handed to, and whether
+// any ze-peer READS the block at all.
+//
+// read is true ONLY when a `cmd=...:exec=ze-peer ...:stdin=<name>` line names
+// the block. That is the only path on which ze-peer receives the block's text.
+//
+// A file with NO cmd= lines takes the non-orchestrated path, and read is false
+// there too. ze-peer's input on that path is built by writeExpectFile
+// (runner_output.go) from Record.Options and Record.Expects, which this guard's
+// ClaimPeer arm fills from `expect=` and `action=` lines only. A `reject=bgp` is
+// ClaimPeer and matches neither prefix, so on that path it would reach nothing:
+// the same silent drop this file exists to close. No committed .ci is affected:
+// of the 43 tracked files with no cmd= line, the only one carrying any stdin
+// block at all is test/parse/config-secret-roundtrip.ci, whose block is named
+// `config`.
+func blockPeerMode(r *Record, name string) (mode peer.Mode, read bool) {
+	for _, cmd := range r.RunCommands {
+		if isZePeerExec(cmd.Exec) && cmd.Stdin == name {
+			return zePeerExecMode(cmd.Exec), true
+		}
+	}
+	return peer.ModeCheck, false
+}
+
+// validatePeerBlockDirectives is the guard against a directive that reads as an
+// assertion and asserts nothing.
+//
+// A stdin block is handed to ze-peer verbatim, so every line in it is read first
+// by ze-peer's parser. peer.ClaimLine reports what that parser did with the line,
+// and this function makes each answer an obligation:
+//
+//	ClaimPeer      ze-peer acts on it. The runner parses expect=/action= too, for
+//	               its progress and failure reporting only, so a parse error there
+//	               stays a debug log.
+//	ClaimNarration ze-peer records it as documentation (cmd=). Nothing acts on it
+//	               and nothing is lost.
+//	otherwise      ze-peer read nothing, so the RUNNER must be able to parse the
+//	               line where it stands. A parse error is the file's error.
+//
+// The last arm is the whole point. Before it existed the loop forwarded only
+// expect= and action= lines and dropped the rest in silence: a reject= inside a
+// peer block reached no parser at all, and a test carrying one read as if it
+// checked a negative it never checked. Deriving the accepted set from the two
+// parsers rather than from a third list is what stops the next directive being
+// dropped the same way (ai/rules/evidence.md).
+func (et *EncodingTests) validatePeerBlockDirectives(r *Record, ciFile string) error {
+	for _, name := range peerBlockNames(r) {
+		block, ok := r.StdinBlocks[name]
+		if !ok {
+			continue
+		}
+		mode, read := blockPeerMode(r, name)
+		if err := et.validateOnePeerBlock(r, ciFile, name, string(block), mode, read); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (et *EncodingTests) validateOnePeerBlock(r *Record, ciFile, name, block string, mode peer.Mode, read bool) error {
+	blockLine := 0
+	for line := range strings.SplitSeq(block, "\n") {
+		blockLine++
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		// option=env is stricter than the claim rule below, and deliberately so.
+		// It seeds the environment of every process the test starts, ze
+		// included, so a reader who takes the block for a scope reads the whole
+		// test wrong. It is refused rather than applied where it stands, which
+		// is the decision this repository already made and tested
+		// (record_parse_test.go, TestParseAndAdd_EnvVarInsidePeerBlockRejected).
+		if strings.HasPrefix(trimmed, "option=env:") {
+			return fmt.Errorf("stdin=%s block line %d: %q sets the environment of every process "+
+				"the test starts, not of this peer, so it must not be written inside a peer block. "+
+				"Move it outside (above) the stdin=%s:terminator=... header",
+				name, blockLine, trimmed, name)
+		}
+		claim, err := peer.ClaimLine(trimmed)
+		if err != nil {
+			return fmt.Errorf("stdin=%s block line %d: %q is rejected by ze-peer: %w",
+				name, blockLine, trimmed, err)
+		}
+		switch claim {
+		case peer.ClaimPeer:
+			// ze-peer owns it. The runner parses expect= and action= as well, so
+			// its progress output names the message a peer is waiting for; that
+			// copy is reporting only and its errors stay a debug log.
+			if strings.HasPrefix(trimmed, "expect=") || strings.HasPrefix(trimmed, "action=") {
+				if err := et.parseLine(r, ciFile, trimmed); err != nil {
+					recordLogger().Debug("parsing peer block line", "line", trimmed, "error", err)
+				}
+			}
+		case peer.ClaimNarration:
+			// Documentation of the command that produced the expected bytes.
+		case peer.ClaimRunner:
+			// The runner owns it, so it takes effect where it stands. That is
+			// what makes a reject=stderr inside a peer block a live assertion
+			// (test/plugin/logging-level-filter.ci).
+			//
+			// option=timeout is the exception. Its scope is the whole test, not
+			// this peer, so a block MUST NOT overrule a file-level one: 450
+			// committed blocks carry a timeout, and two of them disagree with
+			// their own file-level value (test/plugin/authz-rpc-identity.ci
+			// 20s vs 15s, test/plugin/bgp-capture-replay.ci 60s vs 55s).
+			// It is parsed into a scratch record and adopted only when the file
+			// declares none, which is the state of most of those 450. Parsing it
+			// either way proves it is not a typo, which is what this guard is for.
+			target := r
+			timeoutLine := strings.HasPrefix(trimmed, "option=timeout:")
+			if timeoutLine {
+				target = &Record{Extra: map[string]string{}}
+			}
+			if err := et.parseLine(target, ciFile, trimmed); err != nil {
+				return fmt.Errorf("stdin=%s block line %d: %q is a test-runner directive the runner "+
+					"cannot parse: %w", name, blockLine, trimmed, err)
+			}
+			if timeoutLine && r.Extra["timeout"] == "" {
+				r.Extra["timeout"] = target.Extra["timeout"]
+			}
+		default:
+			if err := et.parseLine(r, ciFile, trimmed); err != nil {
+				return fmt.Errorf("stdin=%s block line %d: %q is consumed by neither ze-peer nor the "+
+					"test runner, so placing it in a stdin=%s block silently drops it: %w",
+					name, blockLine, trimmed, name, err)
+			}
+		}
+	}
+	return validatePeerBlockRejects(name, block, mode, read)
+}
+
+// validatePeerBlockRejects refuses a wire rejection with no delivery to make it
+// fire.
+//
+// A check peer stops reading a connection when that connection's expectations
+// are complete, so a `reject=bgp:conn=N` on a connection that never carries an
+// `expect=bgp:conn=N` is a negative assertion nothing can reach: it passes
+// whether the daemon suppressed the route or never got as far as sending it.
+//
+// A delivery is NECESSARY and it is not sufficient. It bounds how long the
+// rejection is checked. It cannot say whether the forbidden bytes would have
+// arrived inside that window.
+//
+// The author owes the second half, and the contract is written down. Send the
+// delivery LAST on that connection, so a leak of the governed route arrives
+// ahead of it. Or hold the session open with `option=linger:value=true`.
+// See docs/architecture/testing/ci-format.md, "reject=bgp", and
+// ai/rules/interop-and-goal-validation.md, "Prove the test discriminates".
+//
+// Both halves of the line are read with peer.ParseRejectRule, the parser ze-peer
+// itself uses. A malformed rule has already failed in ClaimLine, which
+// validateOnePeerBlock runs on every line first, so the error branch below is
+// the belt to that brace. The reason to call the shared parser HERE is the
+// conn= value: the one this guard measures against is the one ze-peer enforces.
+func validatePeerBlockRejects(name, block string, mode peer.Mode, read bool) error {
+	delivered := make(map[int]bool)
+	type rejectSite struct {
+		conn int
+		line int
+	}
+	var rejects []rejectSite
+	blockLine := 0
+	for line := range strings.SplitSeq(block, "\n") {
+		blockLine++
+		trimmed := strings.TrimSpace(line)
+		if after, ok := strings.CutPrefix(trimmed, "expect=bgp:"); ok {
+			delivered[connOfExpect(after)] = true
+			continue
+		}
+		conn, _, isReject, err := peer.ParseRejectRule(trimmed)
+		if err != nil {
+			return fmt.Errorf("stdin=%s block line %d: %q: %w", name, blockLine, trimmed, err)
+		}
+		if isReject {
+			rejects = append(rejects, rejectSite{conn: conn, line: blockLine})
+		}
+	}
+	if len(rejects) > 0 && !read {
+		return fmt.Errorf("stdin=%s block line %d: reject=bgp is read by ze-peer, and no "+
+			"cmd= line in this file launches a ze-peer against stdin=%s, so the block reaches "+
+			"nothing. Add cmd=background:seq=N:exec=ze-peer ...:stdin=%s, or move the rejection "+
+			"to the block of a peer that runs", name, rejects[0].line, name, name)
+	}
+	if len(rejects) > 0 && mode != peer.ModeCheck {
+		return fmt.Errorf("stdin=%s block line %d: reject=bgp is enforced only by a check-mode "+
+			"ze-peer, and this block is handed to a %s peer. A non-check peer reads its "+
+			"connections concurrently against one checker, so a rejection could not be "+
+			"attributed to the connection its conn= names", name, rejects[0].line, mode)
+	}
+	for _, site := range rejects {
+		if delivered[site.conn] {
+			continue
+		}
+		return fmt.Errorf("stdin=%s block line %d: reject=bgp:conn=%d declares bytes that must never "+
+			"arrive, and the block declares no expect=bgp:conn=%d to deliver anything on that "+
+			"connection. The peer would finish before the forbidden bytes could arrive and the "+
+			"rejection would pass without discriminating. Add the delivery that the suppressed "+
+			"route is measured against, and send it LAST on that connection",
+			name, site.line, site.conn, site.conn)
+	}
+	return nil
+}
+
+// connOfExpect reads the conn= number out of an `expect=bgp:` tail, answering 0
+// when the directive names none. Expectations default to connection 1 nowhere in
+// this file: an `expect=bgp:` with no conn= delivers on no numbered connection,
+// so it satisfies no rejection.
+func connOfExpect(tail string) int {
+	for part := range strings.SplitSeq(tail, ":") {
+		if after, ok := strings.CutPrefix(part, "conn="); ok {
+			n, err := strconv.Atoi(after)
+			if err != nil {
+				return 0
+			}
+			return n
+		}
+	}
+	return 0
 }
 
 // isZePeerExec reports whether a cmd= exec value launches ze-peer. It matches the

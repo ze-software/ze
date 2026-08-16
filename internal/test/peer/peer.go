@@ -248,6 +248,19 @@ func New(config *Config) (*Peer, error) {
 	if err != nil {
 		return nil, fmt.Errorf("invalid expect rules: %w", err)
 	}
+	// A rejection is keyed by connection number, and only check mode reads one
+	// connection at a time (processConnBatch, peer_connmap.go). Sink and echo
+	// run every accepted connection concurrently against one Checker, so the
+	// connection a frame arrived on is not the connection the checker is
+	// matching: reject=bgp:conn=2 could never fire and conn=1 would fire on any
+	// connection's frames. Refused here rather than enforced on the wrong
+	// connection, because a rejection that fires on the wrong session is worse
+	// than one that does not exist.
+	if config.Mode != ModeCheck && checker.hasRejections() {
+		return nil, fmt.Errorf("reject=bgp is enforced only in check mode, not %q: "+
+			"a non-check peer reads its connections concurrently, so the rejection could "+
+			"not be attributed to the connection its conn= names", config.Mode)
+	}
 	return &Peer{
 		config:  config,
 		checker: checker,
@@ -411,38 +424,6 @@ func (p *Peer) Run(ctx context.Context) Result {
 				return Result{Success: true}
 			}
 			return Result{Success: false, Error: errContextCanceled}
-		}
-	}
-}
-
-// completed is returned at every check-mode completion site. Without linger it
-// simply reports success (the connection closes when the caller returns). With
-// linger it announces success on the peer's output NOW -- teardown is a kill,
-// so the post-Run "successful" print may never happen -- and then holds the
-// session open until the test ends or the remote closes.
-func (p *Peer) completed(ctx context.Context, conn net.Conn) Result {
-	if !p.config.Linger {
-		return Result{Success: true}
-	}
-	p.printf("\nsuccessful\n")
-	p.printf("lingering: holding the session open until teardown (option=linger)\n")
-	for {
-		select {
-		case <-ctx.Done():
-			return Result{Success: true}
-		default:
-		}
-		_ = conn.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
-		if _, _, err := ReadMessage(conn); err != nil {
-			if isTimeout(err) {
-				continue
-			}
-			// EOF/reset after completion: the exchange already validated.
-			return Result{Success: true}
-		}
-		if _, err := conn.Write(KeepaliveMsg()); err != nil {
-			// Remote closed after completion: the exchange already validated.
-			return Result{Success: true}
 		}
 	}
 }
@@ -676,6 +657,12 @@ func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn) Result {
 		}
 
 		msg := &Message{Header: header, Body: body}
+
+		// Refused in every mode, at the first frame that carries the needle and
+		// before any expectation is consumed (reject.go).
+		if res, rejected := p.rejected(msg); rejected {
+			return res
+		}
 
 		// For sink/echo modes, handle all messages
 		if p.config.Mode == ModeSink {

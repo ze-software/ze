@@ -2,32 +2,63 @@
 # VALIDATES: AC-9 -- Export filter rejects, UPDATE not sent to that peer
 # PREVENTS: Export filter not consulted during forwarding
 
-# ze-peer sends a route to ze
+# peer1 (127.0.0.1) sends two routes on one TCP stream, in this order:
+#   10.0.0.0/24  the subject route, which the export filter rejects
+#   10.9.0.0/24  the fence, which the export filter passes
+# The fence carries a different NEXT_HOP on purpose. Two routes with one
+# attribute set are packed into ONE forwarded UPDATE, which the filter then
+# accepts or rejects as a unit, and the fence would share the subject's verdict.
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=15s
 option=update:value=send-route:prefix=10.0.0.0/24:next-hop=10.0.0.1:origin-as=65001
+option=update:value=send-route:prefix=10.9.0.0/24:next-hop=10.0.0.2:origin-as=65001
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python test plugin: declares an export filter that rejects all forwards
+# peer2 (127.0.0.2) is the forward target and carries the export filter.
+#
+# THE FENCE IS WHAT MAKES THE REJECTION DISCRIMINATE. A rejection is only
+# evidence if the forbidden bytes had their chance to arrive before the peer
+# publishes its verdict. Both forwards cross ONE TCP stream in the order peer1
+# sent them, so the fence (seq=2) cannot arrive before the subject route would
+# have. option=linger is NOT that mechanism: Peer.completed
+# (internal/test/peer/reject.go) prints the success token BEFORE it enters the
+# linger loop, and failedCheckPeers (internal/test/runner/peer_contract.go) reads
+# that token, so a rejection the linger loop finds is detected and cannot fail
+# the test.
+stdin=peer2:terminator=EOF_PEER2
+option=tcp_connections:value=1
+option=timeout:value=15s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=2:contains=180A0900
+reject=bgp:conn=1:pattern=180A0000
+EOF_PEER2
+
+# Python test plugin: declares an export filter that rejects the subject route
+# and passes the fence
 tmpfs=filter-export-reject-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import sys
-from ze_api import API
+from ze_api import API, runtime_fail
 # // test-relax: dropped 'import time'; blind sleep -> wait_for_ack() barrier
 
-export_reject_count = 0
+export_rejected = []
+export_passed = []
 
 def filter_handler(params):
-    """Reject all exports."""
-    global export_reject_count
+    """Reject the export of 10.0.0.0/24, pass the fence route 10.9.0.0/24."""
     direction = params.get('direction', '')
-    if direction == 'export':
-        export_reject_count += 1
-        print(f'filter-update EXPORT REJECT: filter={params.get("filter")} peer={params.get("peer")}', file=sys.stderr)
+    update = params.get('update', '')
+    if direction != 'export':
+        # Accept imports
+        return {'action': 'accept'}
+    if '10.0.0.0/24' in update:
+        export_rejected.append(update)
+        print(f'filter-update EXPORT REJECT: peer={params.get("peer")} update={update!r}', file=sys.stderr)
         return {'action': 'reject'}
-    # Accept imports
+    export_passed.append(update)
+    print(f'filter-update EXPORT PASS (fence): peer={params.get("peer")} update={update!r}', file=sys.stderr)
     return {'action': 'accept'}
 
 def dispatch(api, command):
@@ -36,6 +67,21 @@ def dispatch(api, command):
     if resp is None:
         return {'status': 'error', 'data': 'None'}
     return resp.get('result', {})
+
+def serve_until(api, predicate, attempts=100):
+    """Answer plugin callbacks until predicate() holds, or attempts run out.
+
+    ze asks for a filter decision over the callback connection, and only
+    api.read_line() answers it. An observer parked in a dispatch RPC leaves that
+    request unanswered until the reactor's IPC deadline expires, and on-error
+    then decides the route instead of the filter. read_line blocks in select for
+    its timeout, so this loop costs no CPU and adds no sleep.
+    """
+    for _ in range(attempts):
+        if predicate():
+            return True
+        api.read_line(timeout=0.1)
+    return predicate()
 
 def main():
     api = API()
@@ -52,16 +98,44 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # Deterministic replacement for blind sleep(2.0): quiesce drains each
-    # peer's initial-sync (EOR on the wire) and the forward pool, so the inbound
-    # route has been filtered and the export forward completed before shutdown.
-    # // test-relax: blind sleep(2.0) -> wait_for_ack() quiesce barrier
-    api.wait_for_ack()
+    # Two barriers, in this order.
+    # 1. serve_until answers the filter callback for each forward ze makes, and
+    #    returns once both verdicts have been given. A poll cannot come first:
+    #    it parks this observer in a dispatch RPC, and ze's initial-sync drain
+    #    is waiting for the verdict only read_line can deliver.
+    # 2. updates-sent on peer2 reaches 2 when the fence UPDATE has been written
+    #    to peer2's socket (IncrUpdatesSent, reactor/reactor_notify.go), so the
+    #    shutdown below cannot beat the frame peer2 asserts. The threshold is 2
+    #    and not 1 because the initial-sync End-of-RIB is itself an UPDATE and
+    #    this counter cannot tell it apart: the sent branch of onMessageReceived
+    #    (reactor/reactor_notify.go) increments on msgtype.TypeUPDATE, and
+    #    wireUpdate is nil for a sent message, so no IsEOR test is possible
+    #    there. A threshold of 1 is therefore satisfied by establishment alone
+    #    and waits for nothing. peer2 receives exactly two frames on this
+    #    session: its EOR, and the one forward the export filter passes.
+    #
+    # Neither wait_peer_eor_sent nor quiesce is used here. Both peers assert ze's
+    # End-of-RIB as their own seq=1 expectation, so ze-peer already proves the
+    # marker on the wire, and each barrier costs 10s of a 15s budget waiting on
+    # an initial-sync drain that this observer is itself holding up.
+    # // test-relax: blind sleep(2.0) -> callback pump + updates-sent barrier
+    serve_until(api, lambda: export_rejected and export_passed)
+    # attempts=40 (10s) rather than the 60 (15s) default. The break this error
+    # text names is "the verdict was given and the frame was never written": the
+    # line above has already returned, so 10s leaves room inside the test's 15s
+    # budget for this message to be printed rather than for the runner to report
+    # its own timeout. A daemon that forwards NOTHING gives no verdict either, so
+    # serve_until spends its own 10s first and that break stays a timeout.
+    if not api.wait_peer_counter('updates-sent', 2, peer='127.0.0.2', attempts=40):
+        runtime_fail('ze never wrote the fence UPDATE to peer2')
 
-    if export_reject_count > 0:
-        print(f'OK: export filter rejected {export_reject_count} forward(s)', file=sys.stderr)
-    else:
-        print('INFO: export filter not called (no forward triggered)', file=sys.stderr)
+    # peer2 is the only forward target for the routes peer1 sends, so the export
+    # filter must have been consulted for both of them.
+    if not export_rejected:
+        runtime_fail('export filter never saw the forward of 10.0.0.0/24 to peer2')
+    if not export_passed:
+        runtime_fail('export filter never saw the fence forward of 10.9.0.0/24 to peer2')
+    print(f'OK: export filter rejected {len(export_rejected)} forward(s), passed {len(export_passed)}', file=sys.stderr)
 
     dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
@@ -70,9 +144,20 @@ if __name__ == '__main__':
     main()
 EOF_RUN
 
-# ze bgp configuration: export filter on peer
+# ze bgp configuration: the export filter sits on peer2, the peer ze forwards TO.
+# On peer1 it would never be consulted: the route arrives from peer1 and ze does
+# not send it back to its source.
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
+    # Ze forwards a route between peers only when the route-server plugin is
+    # attached to both. Without it nothing reaches the egress path, and the
+    # export filter under test is never consulted.
+    internal adj-rib-in {
+        use bgp-adj-rib-in;
+    }
+    internal rs {
+        use bgp-rs;
+    }
     external filter-export-reject-test {
         run ./filter-export-reject-test.run;
         encoder json;
@@ -90,8 +175,11 @@ bgp {
             remote {
                 ip 127.0.0.1
             }
+            # Ze's own address on this session. Deliberately not the peer's
+            # 127.0.0.1: RFC 4271 Section 5.1.3 forbids a peer's own address as
+            # NEXT_HOP.
             local {
-                ip auto
+                ip 127.0.0.4
                 accept false
             }
         }
@@ -100,6 +188,51 @@ bgp {
                 local 65000
                 remote 65001
             }
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+        }
+        behavior {
+            group-updates disable
+        }
+        attach process rs {
+            receive [ update-received state open-received refresh ];
+            send [ update ];
+        }
+        attach process adj-rib-in {
+            receive [ update-received state ];
+            send [ update ];
+        }
+    }
+    peer peer2 {
+        connection {
+            remote {
+                ip 127.0.0.2
+            }
+            local {
+                ip 127.0.0.5
+                accept false
+            }
+        }
+        session {
+            asn {
+                local 65000
+                remote 65002
+            }
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+        }
+        behavior {
+            group-updates disable
+        }
+        attach process rs {
+            receive [ update-received state open-received refresh ];
+            send [ update ];
+        }
+        attach process adj-rib-in {
+            receive [ update-received state ];
+            send [ update ];
         }
         filter {
             export [ filter-export-reject-test:block-export ];
@@ -108,5 +241,7 @@ bgp {
 }
 EOF_CONF
 
-cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --port $PORT:stdin=peer2
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=15s
 expect=exit:code=0

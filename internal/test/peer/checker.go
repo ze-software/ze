@@ -39,19 +39,29 @@ type Checker struct {
 	// happened rather than only where a later frame fails.
 	misorder        []string
 	misorderPending string
-	mu              sync.Mutex
+	// rejects holds the byte-aligned hex needles a connection must never
+	// carry, keyed by the connection number of `reject=bgp:conn=N:pattern=`.
+	// Unlike an expectation it is never consumed: it is re-checked against
+	// every frame the peer reads, for as long as that connection lives.
+	rejects map[int][]string
+	mu      sync.Mutex
 }
 
 // newChecker creates a new checker from expected messages.
 // Returns error if any expected rule is invalid.
 func newChecker(expected []string) (*Checker, error) {
 	c := &Checker{}
-	sequences, connIDs, err := c.groupMessages(expected)
+	rules, rejects, err := splitRejectRules(expected)
+	if err != nil {
+		return nil, err
+	}
+	sequences, connIDs, err := c.groupMessages(rules)
 	if err != nil {
 		return nil, err
 	}
 	c.sequences = sequences
 	c.connectionIDs = connIDs
+	c.rejects = rejects
 	return c, nil
 }
 

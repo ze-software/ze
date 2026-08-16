@@ -152,43 +152,6 @@ func (et *EncodingTests) parseAndAdd(ciFile string) (*Record, error) {
 			recordLogger().Debug("stdin block loaded", "name", name, "size", len(content), "preview", string(content[:min(100, len(content))]))
 		}
 
-		// Also parse "peer" stdin block for expectations (for reporting purposes).
-		// The peer block content is passed to ze-peer which parses it, but the
-		// test runner also needs to know about expectations for progress/failure reporting.
-		//
-		// The block also contains ze-peer-consumed directives like
-		// option=timeout, option=open, option=update, option=tcp_connections —
-		// those are pass-through and must NOT be rejected here.
-		//
-		// option=env, however, is consumed by the test runner (it seeds proc.Env
-		// when spawning ze/ze-peer/helpers), NOT by ze-peer. Placing it inside
-		// the peer block means it is silently dropped and the target process
-		// never sees it, and the test passes while proving nothing.
-		// Reject it with a hard error naming the directive so the author can
-		// move it outside the block.
-		if peerBlock, ok := v.StdinBlocks["peer"]; ok {
-			blockLine := 0
-			for line := range strings.SplitSeq(string(peerBlock), "\n") {
-				blockLine++
-				trimmed := strings.TrimSpace(line)
-				if trimmed == "" || strings.HasPrefix(trimmed, "#") {
-					continue
-				}
-				if strings.HasPrefix(trimmed, "option=env:") {
-					return r, fmt.Errorf("stdin=peer block line %d: %q is consumed by the test runner, not ze-peer, "+
-						"so placing it inside a stdin=peer block silently drops it. "+
-						"Move it outside (above) the stdin=peer:terminator=... header",
-						blockLine, trimmed)
-				}
-				// Parse expect= and action= lines for reporting purposes
-				if strings.HasPrefix(trimmed, "expect=") || strings.HasPrefix(trimmed, "action=") {
-					if err := et.parseLine(r, ciFile, trimmed); err != nil {
-						// Log but don't fail - these are primarily for ze-peer
-						recordLogger().Debug("parsing peer block line", "line", trimmed, "error", err)
-					}
-				}
-			}
-		}
 	}
 
 	// Parse the non-Tmpfs lines (option:, expect:, cmd:, run=, etc.)
@@ -196,6 +159,14 @@ func (et *EncodingTests) parseAndAdd(ciFile string) (*Record, error) {
 		if err := et.parseLine(r, ciFile, line); err != nil {
 			return r, fmt.Errorf("line %d: %w", lineNum+1, err)
 		}
+	}
+
+	// Every line of every ze-peer stdin block is now claimed by ze-peer or
+	// parsed by the runner, and a line neither reads fails the file. Runs after
+	// the cmd= lines because the set of blocks that reach a ze-peer is derived
+	// from them. See peer_contract.go.
+	if err := et.validatePeerBlockDirectives(r, ciFile); err != nil {
+		return r, err
 	}
 
 	// Reject a check-mode ze-peer that has nothing to check: it exits before
@@ -740,6 +711,14 @@ func (et *EncodingTests) parseReject(r *Record, rejType string, kv map[string]st
 		if contains := kv["contains"]; contains != "" {
 			r.ExpectStdoutNotMatch = append(r.ExpectStdoutNotMatch, contains)
 		}
+
+	case "bgp":
+		// Only ze-peer sees the wire, so reject=bgp is the one reject type the
+		// runner cannot answer. Named here rather than left to the default arm:
+		// the directive is real, and "unknown reject type" would send its author
+		// looking for a typo instead of for the peer block it belongs in.
+		return errors.New("reject=bgp:conn=N:pattern=<hex> is read by ze-peer, " +
+			"so it belongs inside that peer's stdin block, beside its expect=bgp lines")
 
 	default:
 		return fmt.Errorf("unknown reject type %q", rejType)

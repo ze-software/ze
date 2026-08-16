@@ -136,6 +136,25 @@ option=file:path=test.conf
 option=asn:value=65533
 ```
 
+### An observer plugin answers callbacks before it polls
+
+Ze asks a filter plugin for its verdict over the callback connection, and only
+`api.read_line()` answers that request. An observer parked in a dispatch RPC,
+which is what every `wait_*` poll does, leaves the request unanswered until the
+reactor's IPC deadline expires. The filter's `on-error` setting then decides the
+route, and the filter under test never runs. Pump the callbacks first, then poll.
+`test/plugin/redistribution-import-accept.ci` carries the loop.
+
+Two more rules travel with a barrier in an observer.
+
+| Rule | Why |
+|------|-----|
+| A per-peer counter is a LIFETIME total, so wait for `base + N`, or for a threshold that accounts for what establishment already counted | `updates-sent` counts the initial-sync End-of-RIB as well, because the sent branch of `onMessageReceived` (`internal/component/bgp/reactor/reactor_notify.go`) sees only `msgtype.TypeUPDATE`. A threshold of 1 is reached before any route is sent |
+| `quiesce()` and `wait_for_ack()` are barriers for routes AFTER establishment, never for establishment itself | The quiescer skips a peer that has not started its initial sync, so it returns at once while the session is still opening. Use `wait_peer_eor_sent()` for that window |
+
+<!-- source: test/scripts/ze_api.py -- read_line, wait_peer_counter, wait_peer_eor_sent -->
+<!-- source: internal/component/bgp/reactor/reactor_notify.go -- IncrUpdatesSent on the sent branch -->
+
 ## Minimal CLI Test Template
 
 ```
@@ -182,6 +201,11 @@ expect=json:json=<expected-json>
 | `expect=stderr:pattern=<regex>` | Stderr regex match |
 | `expect=syslog:pattern=<regex>` | Syslog regex match |
 | `reject=stderr:pattern=<regex>` | Fail if stderr matches |
+| `reject=bgp:conn=N:pattern=<hex>` | Fail if connection N of a check-mode ze-peer receives these wire bytes. Goes in the peer block, and needs an `expect=bgp:conn=N` in the same block to deliver something the rejection is measured against. That delivery is necessary and not sufficient. Send it LAST on that connection, or add `option=linger:value=true`. Otherwise the peer stops reading before a leak can arrive |
+
+A line in a ze-peer stdin block that neither ze-peer nor the runner acts on
+fails the file at parse time (`docs/architecture/testing/ci-format.md`, "What a
+ze-peer block may carry"). `option=env` is refused there and belongs outside.
 
 ### HTTP Checks
 

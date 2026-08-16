@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Scope | tooling |
-| Depends | `plan/spec-fixit-ci-peer-block-silent-directives.md` |
-| Phase | - |
+| Depends | `spec-fixit-ci-peer-block-silent-directives` |
+| Phase | 1/1 |
 | Deferral shard | `plan/deferrals/ad-hoc-2026-08-02-wire-edit-tail.md` |
-| Updated | 2026-08-02 |
+| Updated | 2026-08-15 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -29,7 +29,7 @@ marker survives the same gate. It proves neither.
 |---------|--------|
 | The injections are inert | Both route injections are `cmd=api:` lines placed inside the `stdin=peer` block. `cmd=` is documentation-only to ze-peer, so nothing is ever announced |
 | No plugin drives the API | The file has no `tmpfs` plugin script, so nothing else injects either |
-| The rejection assertion is dead | `reject=bgp:conn=1:pattern=01180A010003` is dropped, for both reasons in `plan/spec-fixit-ci-peer-block-silent-directives.md` |
+| The rejection assertion is dead | `reject=bgp:conn=1:pattern=01180A010003` is dropped, for both reasons in `spec-fixit-ci-peer-block-silent-directives` |
 | The one live assertion proves nothing about the filter | `expect=bgp:conn=1:seq=1:hex=...900F0003000185` is an MP_UNREACH_NLRI (type 15) with AFI 1 and SAFI 133 and no NLRI, which is the `ipv4/flow` End-of-RIB. Ze sends that at initial sync for every configured family, filter or no filter |
 
 So the test passes on a daemon that has no export filter at all. The FlowSpec
@@ -50,7 +50,7 @@ then places a runner-consumed `reject=stderr:` inside the block.
 
 ### Sequencing
 
-**Test 2 shares its root cause with `plan/spec-fixit-ci-peer-block-silent-directives.md`
+**Test 2 shares its root cause with `spec-fixit-ci-peer-block-silent-directives`
 and must be sequenced AFTER it.** That spec adds a runner guard that hard-errors
 on `reject=` inside a peer block. Once the guard fires, this test goes red on its
 own and the fix is forced rather than remembered. Fixing the line here first
@@ -112,7 +112,7 @@ A `.ci` file read by the functional-test runner, which splits it into a peer blo
 | Test author ↔ harness | a directive with no acknowledgement path | Yes, this is the defect |
 
 ### Integration Points
-- `plan/spec-fixit-ci-peer-block-silent-directives.md` - supplies the guard that makes test 2 fail honestly. This spec depends on it.
+- `spec-fixit-ci-peer-block-silent-directives` - supplies the guard that makes test 2 fail honestly. This spec depends on it.
 - `internal/component/bgp/plugins/filter_family/` - the subject of test 1.
 
 ### Architectural Verification
@@ -129,9 +129,9 @@ A `.ci` file read by the functional-test runner, which splits it into a peer blo
 ### Assumptions
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|-----------|-------|----------|--------------|--------|
-| A-1 | The export-direction family filter actually works, and only its test is broken. | Nothing has proven it either way; the test that claimed to has been vacuous since it was written. | A real defect exists in the export gate and is in scope here (`ai/rules/completion.md`). | make the assertion live and observe | unvalidated |
-| A-2 | The `ipv4/flow` EoR is sent at initial sync regardless of export policy. | The hex asserted decodes to an MP_UNREACH with AFI 1, SAFI 133 and no NLRI, which is the EoR for that family. | The current assertion is not vacuous after all, and only the injection half of test 1 is broken. | remove the export filter from the config and re-run: if the test still passes, the assertion is vacuous | unvalidated |
-| A-3 | A `tmpfs` plugin script is the right way to drive a live injection. | Other `.ci` tests in `test/plugin/` use one for API-driven scenarios. | Use whatever the corpus's working injection tests use. | read a working API-injection `.ci` first | unvalidated |
+| A-1 | The export-direction family filter actually works, and only its test is broken. | Nothing has proven it either way; the test that claimed to has been vacuous since it was written. | A real defect exists in the export gate and is in scope here (`ai/rules/completion.md`). | make the assertion live and observe | confirmed -- with the filter present the route never reaches the filtered peer; with it removed the peer receives it. No production defect found |
+| A-2 | The `ipv4/flow` EoR is sent at initial sync regardless of export policy. | The hex asserted decodes to an MP_UNREACH with AFI 1, SAFI 133 and no NLRI, which is the EoR for that family. | The current assertion is not vacuous after all, and only the injection half of test 1 is broken. | remove the export filter from the config and re-run: if the test still passes, the assertion is vacuous | confirmed -- the marker survives because `writeUpdateGated` (`internal/component/bgp/reactor/session_write.go`) exempts it through `IsEndOfRIBAnyFamily`. Forcing that predicate false suppresses the marker, so the EoR assertion is load-bearing about the EXEMPTION, not about the filter |
+| A-3 | A `tmpfs` plugin script is the right way to drive a live injection. | Other `.ci` tests in `test/plugin/` use one for API-driven scenarios. | Use whatever the corpus's working injection tests use. | read a working API-injection `.ci` first | confirmed -- `test/plugin/flowspec.ci` and `test/plugin/originated-nexthop-peer-own.ci` both drive the API from a `tmpfs=*.run` observer, and the rewrite follows that shape |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -166,6 +166,18 @@ A `.ci` file read by the functional-test runner, which splits it into a peer blo
 | AC-4 | The `.ci` corpus | Every other test carrying `cmd=` or `reject=` inside a peer block is listed, with a verdict per site |
 | AC-5 | Any production defect uncovered by AC-1 or AC-2 | Fixed in this spec, not deferred |
 
+### AC-4: the corpus audit, with a verdict per class
+
+Measured over every `.ci` whose block is named on a `cmd=...:exec=ze-peer ...:stdin=<name>` line.
+
+| Class | Sites | Verdict |
+|-------|-------|---------|
+| `reject=bgp:` inside a peer block | 11, in 9 files | Correctly homed. It is a real per-connection ze-peer directive (`internal/test/peer/reject.go`), and `validatePeerBlockRejects` (`internal/test/runner/peer_contract.go`) now refuses one whose connection carries no `expect=bgp` delivery |
+| `reject=stderr:` inside a peer block | 1, `test/plugin/logging-level-filter.ci` | Live. The `default` arm of `validateOnePeerBlock` hands a line ze-peer does not claim to the runner's own parser, so it is read where it stands |
+| Any other `reject=` inside a peer block | 0 | None remain, and a new one cannot be added silently: an unclaimed, unparseable line now fails the file at parse time |
+| `cmd=` inside a peer block | 233, in 78 files | Narration. ze-peer records it as documentation and nobody executes it. 75 of the 78 files carry a live producer as well (a config `update { }`, a `tmpfs` observer, or an `action=`), so the narration is a comment beside a real injection |
+| `cmd=api:` with NO live producer anywhere in the file | 3: `test/encode/bgpls.ci`, `test/encode/unknowncap.ci`, `test/plugin/text-handshake.ci` | Each names a producer that never runs, so each `cmd=api:` line is a wrong comment. None is vacuous: all three assert the initial-sync End-of-RIB for a configured family, which discriminates on the subject each states (BGP-LS capability negotiation, an ignored unknown capability, a completed text-mode plugin handshake). The assertions stand; the three narration lines misattribute their producer |
+
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
@@ -176,8 +188,8 @@ A `.ci` file read by the functional-test runner, which splits it into a peer blo
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `filter-family-export-flowspec.ci` | `test/plugin/filter-family-export-flowspec.ci` | an operator's export family-filter suppresses a FlowSpec route while graceful-restart signalling survives | |
-| `logging-level-filter.ci` | `test/plugin/logging-level-filter.ci` | an operator sets a subsystem log level and DEBUG output stops | |
+| `filter-family-export-flowspec.ci` | `test/plugin/filter-family-export-flowspec.ci` | an operator's export family-filter suppresses a FlowSpec route while graceful-restart signalling survives | rewritten and green (3/3 isolated, PASS in the full plugin suite); both claims proven to fail under a reverted mechanism |
+| `logging-level-filter.ci` | `test/plugin/logging-level-filter.ci` | an operator sets a subsystem log level and DEBUG output stops | green; the runner now reads the in-block `reject=stderr` line through `validateOnePeerBlock` (`internal/test/runner/peer_contract.go`) |
 
 ## Files to Modify
 - `test/plugin/filter-family-export-flowspec.ci` - make the injection live and the suppression assertion able to fail
@@ -189,7 +201,7 @@ A `.ci` file read by the functional-test runner, which splits it into a peer blo
 
 ## Implementation Steps
 
-1. Wait for `plan/spec-fixit-ci-peer-block-silent-directives.md` to land its guard. Confirm test 2 is red.
+1. Wait for `spec-fixit-ci-peer-block-silent-directives` to land its guard. Confirm test 2 is red.
 2. Validate A-2 by removing the export filter from test 1's config and re-running. Record the result before changing anything.
 3. Draft the rewrite of test 1 under `test/draft/plugin/`. Prove it fails with the filter removed.
 4. Fix test 2 by moving the rejection assertion to runner scope. Prove it fails at debug level.
