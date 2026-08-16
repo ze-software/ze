@@ -57,7 +57,9 @@ const (
 	modeTunnel    = dataplane.ModeTunnel
 	modeTransport = dataplane.ModeTransport
 	defaultReqID  = 1
-	replayWindow  = 32
+	// RFC 4303 Section 3.4.3 prefers a 64-packet anti-replay window and says
+	// it SHOULD be the default when 32-bit sequence numbers are employed.
+	replayWindow = 64
 )
 
 // ChildSA holds the state for one ESP Child SA pair (inbound + outbound).

@@ -302,11 +302,20 @@ func TestChildSANATTEncapPorts(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC4303-3.4.3-1 positive -- the anti-replay window an IKE-keyed Child SA
-// projects into the dataplane is 32 packets: createFirstChildSA installs both the inbound and the
-// outbound ESP SA with SAParams.ReplayWin == replayWindow (child.go:42 const replayWindow = 32,
-// applied at :226 and :255), meeting the RFC 4303 S3.4.3 minimum supported window of 32.
-func TestChildSAReplayWindowMinimum(t *testing.T) {
+// RFC requirement: RFC4303-3.4.3-1 positive -- the production IKE Child SA path
+// installs both inbound and outbound ESP SAs with a 64-packet anti-replay window,
+// which exceeds the RFC 4303 Section 3.4.3 minimum supported window of 32 packets.
+// RFC requirement: RFC4303-3.4.3-4 positive -- the production IKE Child SA path uses
+// the preferred 64-packet default from RFC 4303 Section 3.4.3.
+//
+// rfc-test-change-approved: 2026-08-16 -- the negative tag for RFC4303-3.4.3-4 is
+// removed here. It read "does not fall back to the minimum 32-packet window", which
+// is the complement of the one assertion below rather than a second one: no input is
+// refused and no different outcome is produced, so the ledger recorded a binding
+// nothing drives. A default value has no conforming negative, which is why the
+// sibling rows -3.4.3-1 and -3.4.3-2 are annotated {single-polarity: positive}, and
+// -3.4.3-4 now carries the same annotation. No assertion was touched.
+func TestChildSAReplayWindowDefault(t *testing.T) {
 	sa := testSA()
 	dp := &mockDP{}
 	log := slogutil.DiscardLogger()
@@ -321,17 +330,16 @@ func TestChildSAReplayWindowMinimum(t *testing.T) {
 		label string
 		p     dataplane.SAParams
 	}{{"inbound", dp.sas[0]}, {"outbound", dp.sas[1]}} {
-		if s.p.ReplayWin != 32 {
-			t.Errorf("%s SA ReplayWin = %d, want 32 (RFC 4303 S3.4.3 minimum anti-replay window)", s.label, s.p.ReplayWin)
+		if s.p.ReplayWin != 64 {
+			t.Errorf("%s SA ReplayWin = %d, want 64 (RFC 4303 Section 3.4.3 preferred default; minimum 32)", s.label, s.p.ReplayWin)
 		}
 	}
 }
 
-// RFC requirement: RFC4303-3.4.3-2 positive -- anti-replay is never enabled on an integrity-less
-// ESP SA in the IKE keying path: every Child SA createFirstChildSA installs with a non-zero
-// ReplayWin (child.go:226,:255) also carries an ESP integrity transform on the SAME SAParams --
-// AuthAlgo + AuthKey for a separate-algorithm SA, or an AEAD transform -- so the replay window is
-// only ever set on an SA that also has ESP integrity (RFC 4303 S3.4.3).
+// RFC requirement: RFC4303-3.4.3-2 positive -- installChildSA sets ReplayWin on
+// the same SAParams that carries either AuthAlgo and AuthKey or an AEAD transform.
+// Thus, each replay-protected IKE Child SA also has ESP integrity, as required by
+// RFC 4303 Section 3.4.3.
 func TestChildSAReplayRequiresIntegrity(t *testing.T) {
 	sa := testSA()
 	dp := &mockDP{}
