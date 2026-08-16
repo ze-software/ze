@@ -1940,6 +1940,18 @@ def run_rfc_test_guard(results: Results) -> None:
     """
     print("rfc-test-guard:")
     mod = _load_pretool_writeedit()
+    # The weakening hatch reads `test/weakened.md` under PROJECT_DIR. Point it at a
+    # directory that holds none, so every case here judges an EMPTY hatch: a real
+    # row naming a test called `TestX` would otherwise open it and flip a fixture
+    # that has nothing to do with the row. `run_weakened_hatch` owns the file.
+    mod.PROJECT_DIR = tempfile.mkdtemp(prefix="ze-no-weakened-", dir=_fixture_root())
+    try:
+        _run_rfc_test_guard(results, mod)
+    finally:
+        shutil.rmtree(mod.PROJECT_DIR, ignore_errors=True)
+
+
+def _run_rfc_test_guard(results: Results, mod) -> None:
     cw = mod.c_test_weakening
     fp = "/repo/internal/component/bgp/message/rfc7606_test.go"
 
@@ -1961,18 +1973,6 @@ def run_rfc_test_guard(results: Results) -> None:
         "rfc-guard-blocks-expectation-swap", r is not None and r[0] == 2, repr(r)
     )
 
-    # test-relax is SELF-SERVICE. It must not buy a pass here: an agent writing its own
-    # justification is not the user's approval. This is the loophole the guard closes.
-    r = edit(
-        tagged,
-        tagged.replace(
-            "\trequire.Equal", "\t// test-relax: no longer applies\n\trequire.NotEqual"
-        ),
-    )
-    results.check(
-        "rfc-guard-relax-token-insufficient", r is not None and r[0] == 2, repr(r)
-    )
-
     # Deleting the assertion entirely.
     r = edit(
         tagged,
@@ -1981,38 +1981,6 @@ def run_rfc_test_guard(results: Results) -> None:
     results.check(
         "rfc-guard-blocks-assertion-delete", r is not None and r[0] == 2, repr(r)
     )
-
-    # The hash form must NOT buy a pass on a .go test: `#` is not a Go comment, so a
-    # token written that way is not in the file's own syntax and cannot be the record
-    # this hatch exists to leave behind.
-    #
-    # The weakening is a t.Skip, not a dropped assertion, and it has to be. A count
-    # falling now only REPORTS (`soft` in `_test_weakening_errs`), so a fixture that
-    # weakened by deleting an assertion would return 0 whether the hatch opened or
-    # not, and would pass while proving nothing. A skip is one-directional, so the
-    # refusal here is attributable to the token being rejected.
-    r = edit(
-        tagged.replace(
-            "// RFC requirement: RFC7606-7.1-1 negative - ORIGIN len != 1 withdraws.\n",
-            "",
-        ),
-        'func TestX(t *testing.T) {\n\t# test-relax: nope\n\tt.Skip("nope")\n}\n',
-    )
-    results.check(
-        "relax-hash-token-rejected-on-go",
-        r is not None and r[0] == 2 and "adding t.Skip" in r[1],
-        repr(r),
-    )
-    # The same edit with the token in the file's OWN syntax opens the hatch, which is
-    # what makes the case above a statement about the `#` and not about the skip.
-    r = edit(
-        tagged.replace(
-            "// RFC requirement: RFC7606-7.1-1 negative - ORIGIN len != 1 withdraws.\n",
-            "",
-        ),
-        'func TestX(t *testing.T) {\n\t// test-relax: nope\n\tt.Skip("nope")\n}\n',
-    )
-    results.check("relax-slash-token-accepted-on-go", r is None, repr(r))
 
     # Must NOT over-block ordinary maintenance, or the hook gets disabled and protects
     # nothing (spec risk R-8).
@@ -2300,12 +2268,7 @@ def _rfc_guard_scope_cases(results: Results, cw, tmp: str) -> None:
     )
     results.check("rfc-guard-ci-on-disk-covers-whole-file", blocked_on_rfc(r), repr(r))
 
-    # The escape hatch has to exist in the syntax the carrier actually uses. This guard
-    # has judged `/test/` `.ci` files since it was written, a `.ci` comments with `#`,
-    # and the token pattern read `//` only: 313 `.ci` files carry `# // test-relax:`, an
-    # alien Go comment nested in a hash comment to match it, and 8 wrote the natural form
-    # and got a justification that bought nothing. Each case below drops an `expect=`,
-    # which `_test_weakening_errs` reports on a `.ci` without refusing it.
+    # A `.ci` drops an `expect=`, which `_test_weakening_errs` reports without refusing.
     os.makedirs(os.path.join(tmp, "test", "ui"), exist_ok=True)
     relax_ci = os.path.join(tmp, "test", "ui", "relax-form.ci")
     ci_old = "cmd=ze show\nexpect=out:text=one\nexpect=out:text=two\n"
@@ -2316,23 +2279,14 @@ def _rfc_guard_scope_cases(results: Results, cw, tmp: str) -> None:
     # A count falling REPORTS and lets the edit through (`soft` in
     # `_test_weakening_errs`): a count cannot tell a deleted expectation from two
     # consolidated into one, and refusing on it is what built 780 `test-relax:`
-    # tokens. What these fixtures still pin is that the arm SEES the drop, which
-    # is why each asserts the notice names it rather than only asserting a 0.
+    # tokens. What this fixture still pins is that the arm SEES the drop, which
+    # is why it asserts the notice names it rather than only asserting a 0.
     r = edit(ci_old, ci_new, relax_ci)
     results.check(
-        "relax-ci-shrink-reported-without-a-token",
+        "weakening-ci-shrink-reported-not-refused",
         r is not None and r[0] == 0 and "removing expectations" in r[1],
         repr(r),
     )
-
-    reason = "the `two` line tested a command that was removed\n"
-    r = edit(ci_old, "# test-relax: " + reason + ci_new, relax_ci)
-    results.check("relax-ci-hash-token-accepted", r is None, repr(r))
-
-    # ...and the Go form keeps working on a .ci, or the 315 files already carrying
-    # `# // test-relax:` would start being refused by the fix meant to help them.
-    r = edit(ci_old, "# // test-relax: " + reason + ci_new, relax_ci)
-    results.check("relax-ci-legacy-slash-token-still-accepted", r is None, repr(r))
 
     # ---- what the guard is allowed to be WRONG about (2026-08-10) ----------------
     #
@@ -2381,120 +2335,6 @@ def _rfc_guard_scope_cases(results: Results, cw, tmp: str) -> None:
     results.check(
         "relax-go-tautology-swap-blocked", r is not None and r[0] == 2, repr(r)
     )
-
-    # ---- the token is per-relaxation, never per-file (2026-08-10) ----------------
-    #
-    # `_has_relax_token` read the whole of `new`. On a Write that is the whole
-    # replacement file, so one token written months earlier exempted every later
-    # overwrite: 468 test files, about a tenth of the suite, were unguarded that way.
-    sticky = os.path.join(tmp, "internal", "x", "sticky_test.go")
-    sticky_old = (
-        "// test-relax: an OLD relaxation, justified at the time\n"
-        "func TestA(t *testing.T) {\n"
-        "\trequire.Equal(t, 1, f())\n"
-        "\trequire.NoError(t, err)\n"
-        "}\n"
-    )
-    with open(sticky, "w", encoding="utf-8") as fh:
-        fh.write(sticky_old)
-    gutted = (
-        "// test-relax: an OLD relaxation, justified at the time\n"
-        "func TestA(t *testing.T) {\n"
-        '\tt.Skip("x")\n'
-        "}\n"
-    )
-    r = cw({"tool": "Write", "ti": {"content": gutted}, "fp": sticky})
-    results.check(
-        "relax-token-does-not-persist-across-a-write",
-        r is not None and r[0] == 2,
-        repr(r),
-    )
-
-    # The hatch still opens for a relaxation justified in THIS edit.
-    r = cw(
-        {
-            "tool": "Write",
-            "ti": {
-                "content": gutted.replace(
-                    "func TestA",
-                    "// test-relax: f() was deleted with its only caller\nfunc TestA",
-                )
-            },
-            "fp": sticky,
-        }
-    )
-    results.check("relax-token-written-in-this-edit-accepted", r is None, repr(r))
-
-    # An Edit whose hunk merely CONTAINS an old token line is the same hole, narrower.
-    r = edit(
-        "// test-relax: an OLD relaxation, justified at the time\n\trequire.Equal(t, 1, f())\n",
-        '// test-relax: an OLD relaxation, justified at the time\n\tt.Skip("x")\n',
-        sticky,
-    )
-    results.check(
-        "relax-token-carried-through-a-hunk-does-not-exempt",
-        r is not None and r[0] == 2,
-        repr(r),
-    )
-
-    # The DRAIN must stay open, or the gate makes hoarding dead justifications the
-    # only route through and grows the corpus it exists to shrink. Deleting a stale
-    # token while writing a real one for the change in hand is the shape the ceiling
-    # ratchet wants; `run_audit` already calls it a drain, and the two halves must
-    # not disagree. What the drain REMOVED is reported by the audit, which is where
-    # a reviewer can judge the trade.
-    r = edit(
-        sticky_old,
-        "// test-relax: f() was deleted with its only caller\n"
-        'func TestA(t *testing.T) {\n\tt.Skip("x")\n}\n',
-        sticky,
-    )
-    results.check("relax-token-drain-then-justify-allowed", r is None, repr(r))
-
-    # One wording must be able to serve two relaxations in one file. Subtracting the
-    # whole on-disk file closed the copy-an-existing-token hole and cost more than it
-    # saved: 10 files at HEAD repeat a justification, up to five times, so refusing
-    # the second one is the false positive that produced this corpus in the first
-    # place. The copy route stays open and stays VISIBLE, in the diff audit and in
-    # the census.
-    r = edit(
-        "func TestB(t *testing.T) { require.Equal(t, 1, f()) }\n",
-        "// test-relax: an OLD relaxation, justified at the time\n"
-        'func TestB(t *testing.T) { t.Skip("x") }\n',
-        sticky,
-    )
-    results.check(
-        "relax-token-same-wording-twice-in-a-file-allowed", r is None, repr(r)
-    )
-
-    # ...and whitespace is not a justification. Keying the hatch on raw LINES made a
-    # months-old token re-indented by two columns read as newly written, so the whole
-    # weakening check went away for that edit while no new prose existed anywhere.
-    # `_relax_reasons` normalizes, so the key is the SENTENCE.
-    # A COSMETIC edit to an existing justification is not a new one. Text equality
-    # alone let a zero-width space -- invisible in every diff -- turn a months-old
-    # justification into a fresh one and buy a whole-file gutting, so the key is the
-    # sentence's letters and digits (`_reason_key`).
-    #
-    # Writing something genuinely DIFFERENT is a new justification and is allowed:
-    # see relax-token-drain-then-justify-allowed below. An earlier version of this
-    # gate refused that too, by demanding one MORE token than before, which left
-    # keeping dead justifications as the only way through -- the corpus growth the
-    # whole gate exists to stop.
-    for label, tok in (
-        ("reindented", "  // test-relax: an OLD relaxation, justified at the time"),
-        ("trailing-space", "// test-relax: an OLD relaxation, justified at the time  "),
-        ("zero-width-space", "// test-relax: an OLD relaxation, justified at the time​"),
-        ("repunctuated", "// test-relax: An OLD relaxation; justified, at the time!"),
-    ):
-        r = edit(
-            sticky_old, tok + '\nfunc TestA(t *testing.T) {\n\tt.Skip("x")\n}\n', sticky
-        )
-        results.check(
-            f"relax-token-{label}-is-not-a-new-justification",
-            r is not None and r[0] == 2,
-            repr(r),
-        )
 
     # ---- the .et carrier (2026-08-10) -------------------------------------------
     #
@@ -2567,18 +2407,20 @@ def _rfc_guard_scope_cases(results: Results, cw, tmp: str) -> None:
     # needle, and genuinely emptying one was allowed, because both sides looked
     # equally empty once the `#` and everything after it was cut.
     # The gate must not refuse its own cleanup. `_ASSERT_PAT` matches `require.` in
-    # PROSE, so a `test-relax:` reason that mentions an assertion counted as one, and
-    # deleting that reason read as deleting the assertion. The corpus this gate
-    # produced is full of such prose, so the sweep that drains it would have needed a
-    # fresh token for every token it removed.
+    # PROSE, so a comment that mentions an assertion counted as one, and deleting
+    # that comment read as deleting the assertion. The `test-relax:` corpus this
+    # gate produced was full of such prose, so the sweep that drained it would have
+    # needed a fresh justification for every one it removed.
     r = edit(
-        "// test-relax: dropped the require.Equal on port\n"
+        "// dropped the require.Equal on port when the flag went\n"
         "func TestA(t *testing.T) { require.NoError(t, err) }\n",
         "func TestA(t *testing.T) { require.NoError(t, err) }\n",
         taut_go,
     )
     results.check(
-        "relax-removing-a-token-whose-prose-names-an-assertion", r is None, repr(r)
+        "weakening-removing-a-comment-whose-prose-names-an-assertion",
+        r is None,
+        repr(r),
     )
 
     # ...while prose must not PAY for one either, in the other direction.
@@ -2718,6 +2560,177 @@ def _rfc_guard_scope_cases(results: Results, cw, tmp: str) -> None:
         fh.write("package message\n\nfunc TestPlain(t *testing.T) {\n" + other + "}\n")
     r = edit(other, other.replace("require.Equal", "require.NotEqual"), plain)
     results.check("rfc-guard-untagged-file-unaffected", r is None, repr(r))
+
+
+# --------------------------------------------------------------------------- #
+# The weakening hatch: test/weakened.md (plan/spec-weakened-per-commit.md)
+# --------------------------------------------------------------------------- #
+
+
+def run_weakened_hatch(results: Results) -> None:
+    """The hatch opens on a row in `test/weakened.md` naming the test THIS edit weakens.
+
+    The justification used to be a `test-relax:` comment written in the same edit.
+    It stayed in the test file forever, explaining a diff its later readers could
+    not see, and 601 of them piled up across 413 files. The record now lives in one
+    file the commit carries and replaces.
+
+    The hook reads that file from disk, so the row is written BEFORE the edit. That
+    ordering is a real workflow change, and the first two cases below are the same
+    edit against two states of the file: only the row changes the verdict.
+
+    PROJECT_DIR is redirected at a fixture tree, which is where the hook looks for
+    the file (`_weakened_hatch`).
+    """
+    print("weakened-hatch:")
+    mod = _load_pretool_writeedit()
+    work = tempfile.mkdtemp(prefix="ze-weakened-", dir=_fixture_root())
+    mod.PROJECT_DIR = work
+    try:
+        _weakened_hatch_cases(results, mod, work)
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
+def _weakened_hatch_cases(results: Results, mod, work: str) -> None:
+    cw = mod.c_test_weakening
+    os.makedirs(os.path.join(work, "test"), exist_ok=True)
+    pkg = os.path.join(work, "internal", "component", "rib")
+    os.makedirs(pkg, exist_ok=True)
+
+    fp = os.path.join(pkg, "rib_test.go")
+    body = "\trequire.Equal(t, 1, f())\n"
+    other = "\trequire.NoError(t, err)\n"
+    source = (
+        "package rib\n"
+        "\n"
+        "func TestRibHolds(t *testing.T) {\n" + body + "}\n"
+        "\n"
+        "func TestRibDrops(t *testing.T) {\n" + other + "}\n"
+    )
+    with open(fp, "w", encoding="utf-8") as fh:
+        fh.write(source)
+
+    def contract(*rows: str) -> None:
+        with open(
+            os.path.join(work, "test", "weakened.md"), "w", encoding="utf-8"
+        ) as fh:
+            fh.write(
+                "# Tests this commit weakens\n"
+                "\n"
+                "| Test | Reason |\n"
+                "|------|--------|\n" + "".join(rows)
+            )
+
+    def edit(old: str, new: str, path: str = fp):
+        return cw(
+            {"tool": "Edit", "ti": {"old_string": old, "new_string": new}, "fp": path}
+        )
+
+    skip = '\tt.Skip("flaky")\n'
+    accepted = "| TestRibHolds | f() went with its only caller |\n"
+
+    # The hunk is the assertion alone: it carries no `func` line, so the name of the
+    # weakened test can only come from the file. The commit gate compares whole
+    # files and asks for that name, so a hook that named the FILE here would demand
+    # a different row from the one the commit needs.
+    contract()
+    r = edit(body, skip)
+    results.check(
+        "weakened-missing-row-refuses-the-edit",
+        r is not None
+        and r[0] == 2
+        and "| TestRibHolds |" in r[1]
+        and "test/weakened.md" in r[1]
+        and "WRITE THE ROW FIRST" in r[1],
+        repr(r),
+    )
+
+    # The same edit, with the row written first.
+    contract(accepted)
+    r = edit(body, skip)
+    results.check("weakened-row-opens-the-hatch", r is None, repr(r))
+
+    # Per weakening, never per file: a row for the test next door accepts nothing,
+    # or one row would buy every later weakening in the file it sits beside.
+    contract("| TestRibDrops | a different test entirely |\n")
+    r = edit(body, skip)
+    results.check(
+        "weakened-row-for-another-test-buys-nothing",
+        r is not None and r[0] == 2 and "| TestRibHolds |" in r[1],
+        repr(r),
+    )
+
+    # `package.TestName` is the spelling `test/weakened.md` publishes for a name two
+    # packages share, and the commit gate pairs on it. The hook must accept the same
+    # row, or an author writing the qualified form is refused at edit time and
+    # accepted at commit time.
+    contract("| rib.TestRibHolds | f() went with its only caller |\n")
+    r = edit(body, skip)
+    results.check("weakened-qualified-row-opens-the-hatch", r is None, repr(r))
+
+    # ...and the qualifier is checked rather than skipped.
+    contract("| web.TestRibHolds | the same name in another package |\n")
+    r = edit(body, skip)
+    results.check(
+        "weakened-wrong-package-qualifier-buys-nothing",
+        r is not None and r[0] == 2,
+        repr(r),
+    )
+
+    # A Write overwrite is judged the same way. The old hatch read the whole
+    # replacement text, so one justification written months earlier sat in the file
+    # and exempted every later overwrite of it: 468 test files, about a tenth of the
+    # suite, were unguarded that way.
+    gutted = source.replace(body, skip)
+    contract()
+    r = cw({"tool": "Write", "ti": {"content": gutted}, "fp": fp})
+    results.check(
+        "weakened-write-overwrite-needs-a-row",
+        r is not None and r[0] == 2 and "| TestRibHolds |" in r[1],
+        repr(r),
+    )
+    contract(accepted)
+    r = cw({"tool": "Write", "ti": {"content": gutted}, "fp": fp})
+    results.check("weakened-write-overwrite-row-opens-the-hatch", r is None, repr(r))
+
+    # A row is SELF-SERVICE, so it must not reach an RFC-tagged test: that gate asks
+    # for the USER's approval, and the two must not be confusable.
+    tagged = os.path.join(pkg, "rfc7606_test.go")
+    tag = "// RFC requirement: RFC7606-7.1-1 negative - ORIGIN len != 1 withdraws.\n"
+    tagged_body = "\trequire.Equal(t, RFC7606ActionTreatAsWithdraw, result.Action)\n"
+    with open(tagged, "w", encoding="utf-8") as fh:
+        fh.write(
+            "package rib\n\n"
+            + tag
+            + "func TestTagged(t *testing.T) {\n"
+            + tagged_body
+            + "}\n"
+        )
+    contract("| TestTagged | the withdraw path moved to the codec |\n")
+    r = edit(tagged_body, skip, tagged)
+    results.check(
+        "weakened-row-does-not-authorize-an-rfc-tagged-test",
+        r is not None and r[0] == 2 and "RFC-tagged test" in r[1],
+        repr(r),
+    )
+
+    # A count falling still reports at code 0 and still asks for no row: a count
+    # cannot tell a deleted check from three consolidated into one, and refusing on
+    # it is what produced the corpus this file replaces. The notice names the commit
+    # gate, which does record every kind.
+    counts = os.path.join(pkg, "counts_test.go")
+    with open(counts, "w", encoding="utf-8") as fh:
+        fh.write(
+            "package rib\n\nfunc TestCounts(t *testing.T) {\n" + body + other + "}\n"
+        )
+    contract()
+    r = edit(body + other, other, counts)
+    results.check(
+        "weakened-count-drop-still-only-notices",
+        r is not None and r[0] == 0 and "removing assertions" in r[1],
+        repr(r),
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -5359,6 +5372,7 @@ SECTIONS = {
     "commit-gate": run_commit_gate,
     "session-id": run_session_id,
     "rfc-test-guard": run_rfc_test_guard,
+    "weakened-hatch": run_weakened_hatch,
     "draft-incubator": run_draft_incubator,
     "mark-source-read": run_mark_source_read,
     "design-gate": run_design_gate,

@@ -311,7 +311,10 @@ class TestDeferralDestination(unittest.TestCase):
     def test_nested_plan_path_destination_passes(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = self._repo(
-                tmp, self._row("`plan/learned/1127-rib-arch-2.md`")  # <!-- doc-links: ignore (fixture path, created in a temporary repository) -->
+                tmp,
+                self._row(
+                    "`plan/learned/1127-rib-arch-2.md`"  # <!-- doc-links: ignore (fixture path, created in a temporary repository) -->
+                ),
             )
             (root / "plan" / "learned").mkdir(parents=True, exist_ok=True)
             (root / "plan" / "learned" / "1127-rib-arch-2.md").write_text("# L\n")
@@ -2915,6 +2918,216 @@ class TestAPushAuthorisationSurvivesTheAppendThatReadsItBack(
             self.assertEqual(rc, 2, out2)
             self.assertIn("not UTF-8", err)
             self.assertIn(script, err)
+
+
+# A healthy Go test file. The gofmt shape matters: rfc_tagged_scope.go_func_scopes
+# finds a top-level func by `^func` and its end by `^}` at column 0.
+_HEALTHY_GO = """package a
+
+import "testing"
+
+func TestOne(t *testing.T) {
+\trequire.Equal(t, 1, f())
+\trequire.NoError(t, err)
+}
+
+func TestTwo(t *testing.T) {
+\trequire.True(t, g())
+}
+"""
+
+# TestOne stops running. `adding t.Skip` is a blocking arm of the shared
+# detector, so this file weakens exactly one named test.
+_SKIPPED_GO = _HEALTHY_GO.replace(
+    "func TestOne(t *testing.T) {\n",
+    'func TestOne(t *testing.T) {\n\tt.Skip("flaky")\n',
+)
+
+# One more assertion, and nothing lost. The detector has no arm for this, so a
+# commit carrying it weakens nothing.
+_STRONGER_GO = _HEALTHY_GO.replace(
+    "\trequire.NoError(t, err)\n",
+    "\trequire.NoError(t, err)\n\trequire.Positive(t, f())\n",
+)
+
+
+def _contract(*rows: tuple[str, str]) -> str:
+    """test/weakened.md holding the given rows, in the shape that file publishes."""
+    body = "".join(f"| {name} | {reason} |\n" for name, reason in rows)
+    return (
+        "# Tests this commit weakens\n\nEach row accepts one weakening.\n\n"
+        "| Test | Reason |\n|------|--------|\n" + body
+    )
+
+
+class TestWeakenedTestsGate(unittest.TestCase):
+    """test/weakened.md must cover every test weakening the commit carries.
+
+    VALIDATES: `plan/spec-weakened-per-commit.md` AC-3, AC-4 and AC-10, and
+    owner decision 5, which puts a missing row on the BLOCK tier. Driven through
+    commit_gate_problems and through `create` itself, never through
+    check_weakened_tests alone: that module has its own suite, and what is
+    unproven until here is that the commit path REACHES it
+    (`ai/rules/evidence.md`, drive a guard from its entry point).
+    PREVENTS: a weakening that lands with no accepted reason, and a row left
+    over from the last commit that silently accepts the next one.
+    """
+
+    TEST_PATH = "internal/a/a_test.go"
+    FILE_PATH = "test/weakened.md"
+
+    def _repo(self, tmp: str) -> Path:
+        root = Path(tmp)
+        _git(root, "init", "-q")
+        _git(root, "config", "user.email", "t@example.com")
+        _git(root, "config", "user.name", "t")
+        _git(root, "config", "commit.gpgsign", "false")
+        (root / "internal" / "a").mkdir(parents=True)
+        (root / self.TEST_PATH).write_text(_HEALTHY_GO)
+        (root / "test").mkdir()
+        (root / self.FILE_PATH).write_text(_contract())
+        (root / "docs").mkdir()
+        (root / "docs" / "x.md").write_text("one line of prose\n")
+        _git(root, "add", "-A")
+        _git(root, "commit", "-qm", "init")
+        return root
+
+    def _weaken(self, root: Path, *rows: tuple[str, str]) -> None:
+        (root / self.TEST_PATH).write_text(_SKIPPED_GO)
+        (root / self.FILE_PATH).write_text(_contract(*rows))
+
+    def test_a_weakening_with_no_row_is_refused(self) -> None:
+        # AC-3.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            self._weaken(root)
+            problems = ch.commit_gate_problems(root, (self.TEST_PATH,), ())
+            self.assertTrue(problems, "a weakening with no row must block")
+            joined = "\n".join(problems)
+            self.assertIn("test/weakened.md", joined)
+            self.assertIn("TestOne", joined)
+            self.assertIn("adding t.Skip", joined)
+            self.assertIn("| TestOne |", joined, "the message must give the row")
+
+    def test_the_row_is_what_lets_the_commit_through(self) -> None:
+        # The case above passes on a gate that refuses everything. The commit
+        # carries test/weakened.md, which AC-10 requires and which makes this the
+        # discriminator for the staging case below as well.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            self._weaken(root, ("TestOne", "the case moved to the fuzz corpus"))
+            self.assertEqual(
+                ch.commit_gate_problems(root, (self.TEST_PATH, self.FILE_PATH), ()),
+                [],
+                "a row naming the weakened test accepts it",
+            )
+
+    def test_the_row_must_be_in_the_commit_not_only_in_the_tree(self) -> None:
+        # AC-10. The row is written and correct, so the pairing gate is silent.
+        # The commit does not carry the file, so the reason would reach no
+        # reader of git history and the weakening would land alone.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            self._weaken(root, ("TestOne", "the case moved to the fuzz corpus"))
+            problems = ch.commit_gate_problems(root, (self.TEST_PATH,), ())
+            self.assertTrue(problems, "an unstaged record is no record")
+            joined = "\n".join(problems)
+            self.assertIn(f"--file {self.FILE_PATH}", joined)
+            self.assertNotIn(
+                "has no row for it",
+                joined,
+                "the row exists, so the pairing gate must not be what refused",
+            )
+
+    def test_a_row_for_a_test_this_commit_does_not_weaken_is_refused(self) -> None:
+        # AC-4. The commit weakens TestOne and names TestGone as well, so the
+        # stale row is the only thing wrong with it.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            self._weaken(
+                root,
+                ("TestOne", "the case moved to the fuzz corpus"),
+                ("TestGone", "left over from the last commit"),
+            )
+            problems = ch.commit_gate_problems(root, (self.TEST_PATH,), ())
+            self.assertTrue(problems, "a stale row must block")
+            joined = "\n".join(problems)
+            self.assertIn("TestGone", joined)
+            self.assertIn("test/weakened.md", joined)
+
+    def test_a_commit_that_weakens_nothing_ignores_the_file(self) -> None:
+        # AC-5. Rows that match nothing are inert while nothing is weakened, so
+        # a docs commit is never asked to clean up after the last one. The
+        # commit does not name test/weakened.md either, which is what AC-10
+        # leaves alone: the file is owed by a weakening, never by a test path.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            (root / "docs" / "x.md").write_text("one line of prose, edited\n")
+            (root / self.TEST_PATH).write_text(_STRONGER_GO)
+            (root / "test" / "weakened.md").write_text(
+                _contract(("TestGone", "left over from the last commit"))
+            )
+            self.assertEqual(
+                ch.commit_gate_problems(root, ("docs/x.md", self.TEST_PATH), ()),
+                [],
+                "no weakening means no row is owed and none is read",
+            )
+
+    def test_deleting_a_test_file_needs_a_row(self) -> None:
+        # The remove list is judged too. Without it, `git rm` of a test file is
+        # the cheapest route past the whole gate.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            (root / self.TEST_PATH).unlink()
+            problems = ch.commit_gate_problems(root, (), (self.TEST_PATH,))
+            self.assertTrue(problems, "deleting a test weakens the suite")
+            joined = "\n".join(problems)
+            self.assertIn("TestOne", joined)
+            self.assertIn("TestTwo", joined)
+
+    def test_a_weakening_the_commit_does_not_name_is_invisible(self) -> None:
+        # The BLOCK tier is safe only because the gate reads the commit's own
+        # paths. Several sessions share this checkout, and a tree-wide read would
+        # refuse this commit for a colleague's in-flight edit
+        # (`ai/rules/git-safety.md`, why deferral_unassigned_problems is a warn).
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            self._weaken(root)
+            (root / "docs" / "x.md").write_text("one line of prose, edited\n")
+            self.assertEqual(
+                ch.commit_gate_problems(root, ("docs/x.md",), ()),
+                [],
+                "a path this commit does not name is not this commit's problem",
+            )
+            self.assertTrue(
+                ch.commit_gate_problems(root, ("docs/x.md", self.TEST_PATH), ()),
+                "naming the same file refuses it, so the case above is not vacuous",
+            )
+
+    def test_create_itself_refuses_and_names_the_row_to_write(self) -> None:
+        # The whole path an agent meets: `commit_helper.py create` exits 2 and
+        # the message carries the file and the row.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            self._weaken(root)
+            out, err = io.StringIO(), io.StringIO()
+            with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                rc = ch.main(
+                    [
+                        "--repo",
+                        str(root),
+                        "create",
+                        "--session",
+                        "abcd1234",
+                        "--subject",
+                        "test(a): weaken TestOne",
+                        "--file",
+                        self.TEST_PATH,
+                    ]
+                )
+            self.assertEqual(rc, 2, out.getvalue())
+            self.assertIn("test/weakened.md", err.getvalue())
+            self.assertIn("TestOne", err.getvalue())
 
 
 if __name__ == "__main__":

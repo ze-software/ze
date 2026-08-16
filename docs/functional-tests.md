@@ -250,6 +250,22 @@ validation. Full contract and workflow: `test/draft/README.md`, or the
 <!-- source: internal/test/runner/draft_dir.go -- SuiteDir, IsDraftPath, DraftDirName -->
 <!-- source: internal/test/runner/draft_dir_test.go -- TestDraftDirIsInvisibleToRepoGates ratchet -->
 
+### Changing a live test that already passes
+
+An edit to a `.ci` or `.et` under `test/` that removes an `expect=`, empties a
+needle, or inverts a `reject=` is a WEAKENING, and `c_test_weakening`
+(`.claude/hooks/pretool-writeedit.py`) refuses it. A whole `.ci` file is one
+test, so the name it asks for is the file stem.
+
+Write the row in `test/weakened.md` BEFORE the edit, then make the edit, then
+name `test/weakened.md` in the commit. The file is replaced per commit and never
+accumulates. The full route, and what a reason has to say, is in
+`docs/contributing/testing.md`, "When a test must be weakened".
+
+An RFC-tagged test is stricter still: any behavior change to it needs the user's
+own approval, and no row in `test/weakened.md` satisfies that. See
+"RFC Requirement Tags" below.
+
 ---
 ## Functional Suite Inventory
 

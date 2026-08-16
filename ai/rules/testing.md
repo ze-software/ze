@@ -166,8 +166,8 @@ one-directional: no innocent edit produces it.
 - introducing an assertion that cannot fail
 - replacing a test's content with nothing
 
-Reported and allowed through (exit 0, a notice, and NO `test-relax:` token is
-wanted for it). Each is a COUNT falling, and a count cannot tell a deleted check
+Reported and allowed through at EDIT time (exit 0, a notice, and the hook asks
+for no row). Each is a COUNT falling, and a count cannot tell a deleted check
 from three consolidated into one:
 
 - removing assertions (any net drop)
@@ -175,13 +175,11 @@ from three consolidated into one:
 - removing `t.Run` cases or table rows
 - removing `.ci` `expect=` / `reject=` / `cmd=` lines
 
-**The reported set MUST still be judged by the agent making the edit.** The hook
-refused on these until 2026-08-16, and that is where the `test-relax:` corpus
-came from: 780 tokens, of which reading the 402 nobody had triaged found 146
-saying the coverage still existed and 19 recording a real loss. Three in four
-excused an improvement, because consolidating cases and replacing a poll loop
-with a barrier both lower a count exactly as deleting a check does. A gate whose
-output nobody can read is not a gate.
+**The reported set MUST still be judged by the agent making the edit, and the
+COMMIT that carries it MUST carry a row for it.** `weakened_problems`
+(`scripts/dev/commit_helper.py`) records every weakening kind, count drops
+included, so the commit asks for a row the hook did not. Say in the row which
+happened: the coverage moved, or it went.
 
 **Not detected (by design, to avoid false positives):** changing an expected
 value in place while the assertion structure stays (e.g. `Equal(t, 1, x)` ->
@@ -212,32 +210,40 @@ MUST verify that every assertion the diff replaces still has coverage elsewhere.
 When reviewing a test edit that changes WHAT is asserted (not just adding new
 assertions), ask: "is the old behavior still tested?"
 
-**A `// test-relax:` token MUST be written for the ONE relaxation in hand, and
-the stock MUST stay under the ceiling in `test/relax-ceiling.txt`
-(`make ze-relax-census`).** The token is self-service: the agent that weakened
-the test writes its own justification, so the only thing that ever made it safe
-was a human reading it. 751 accumulated unread by 2026-08-10
-(`TEST-RELAX-AUDIT.md`), and a token never expires -- three `.ci` tests carried
-one whose claim had been refuted in-place four months earlier. Raising the
-ceiling MUST happen in the same commit as the token that needs it.
+**A row in `test/weakened.md` MUST be written for the ONE weakening in hand, and
+the commit MUST carry that file.** The row is self-service: the agent that
+weakened the test writes its own justification, so the only thing that makes it
+safe is a human reading it. The file is replaced per commit: it holds the rows of
+one change, and git history holds the rest.
 
 ### Escape hatch (auditable)
 
-When relaxation IS legitimate, document the reason on or above the changed line:
+When a weakening IS legitimate, write its row in `test/weakened.md` BEFORE you
+make the edit. `c_test_weakening` reads that file from disk, so a row written
+after the refusal buys nothing until you retry the edit. The row names the test
+this edit weakens, and a row naming another test opens nothing.
 
-In the comment syntax the file itself uses: `//` in a `.go` test, `#` in a `.ci` or
-`.et` scenario. Both are accepted on a `#` carrier, so the `# // test-relax:` already
-in 315 scenarios keeps working.
+Two columns, under the exact header the parser anchors on:
 
 ```
-// test-relax: <why this test/assertion no longer applies>
-# test-relax: <why this test/assertion no longer applies>
+| Test | Reason |
+|------|--------|
+| TestName | <what left the suite, and why the commit is correct without it> |
 ```
 
-The token unblocks the edit and leaves an audit trail. Review all relaxations with:
-`git grep -n 'test-relax:' -- '*_test.go' '*.ci' '*.et'`. It must be `git grep`: plain
-`grep` reads those globs as filenames after `--` and reports nothing, which looks
-exactly like no relaxations. Using the token without a real reason is a violation.
+The name is the enclosing top-level `func TestXxx` for Go, and the file stem for
+a `.ci`, a `.et`, or a Go weakening sitting outside every func.
+`scripts/dev/rfc_tagged_scope.py` resolves each one, so the edit-time hook and
+the commit gate name the same unit. A bare name is accepted when it resolves to
+exactly one weakened test in the commit. Write `package.TestName` when it does
+not.
+
+The row unblocks the edit and leaves an audit trail. `test/weakened.md` is
+replaced per commit and never accumulates, so the trail lives in git history:
+`git log -p -- test/weakened.md` shows the rows of any commit beside the change
+they accepted. `scripts/dev/commit_helper.py` refuses a commit that weakens a
+test and does not carry the file, so no row is left behind in the working tree.
+Writing a row without a real reason is a violation.
 
 ## Functional Test Gate
 
@@ -384,9 +390,9 @@ that proof. Editing it to match the code retires the evidence while the claim st
 - **Non-unit evidence is monotonic, per requirement and per tier.** Replacing a `.ci` binding with a unit tag, or with a nightly interop tag, fails `make ze-rfc-check`, and no annotation satisfies it.
 - A `check.py` is TOKENIZED, not line-scanned: a `#` inside a docstring or string literal is not a comment and is not a tag, and an untokenizable `check.py` fails the scan closed.
 
-`// test-relax:` does **not** authorize changing a tagged test: it is your own
+A row in `test/weakened.md` does **not** authorize changing a tagged test: it is your own
 justification, not the user's approval. Enforced by the `rfc-tagged-test` hook, which runs
-before `test-weakening` precisely so the relax token cannot pre-empt it
+before `test-weakening` precisely so the weakening record cannot pre-empt it
 (`ai/rules/repo-maintenance.md`). Once the USER approves, record what they approved:
 `// rfc-test-change-approved: <date> <what and why>`.
 
@@ -539,7 +545,7 @@ All groups run with `-race`. Use the group matching your change during iteration
 | `make ze-mutation-changed` | Incremental mutation testing on changed files only (advisory, fast) |
 | `make ze-mutation-report` | Mutation testing with HTML report to `tmp/mutation-report.html` |
 | `make ze-test-sensitivity-check` | Assert-nothing and tag-orphan ratchets (in `ze-verify`, both modes) |
-| `make ze-relax-census` | `test-relax:` token ratchet against `test/relax-ceiling.txt`, counted at HEAD (in `ze-verify`, both modes) |
+| `make ze-weakened-check` | Selftests `scripts/dev/check_weakened_tests.py`, then checks that `test/weakened.md` parses (in `ze-verify`, both modes) |
 | `make ze-test-health` | Regenerate `docs/features/test-health.md` + `test/health/latest.json` |
 | `make ze-test-health-record` | Append one KPI sample to `test/health/history.ndjson` |
 

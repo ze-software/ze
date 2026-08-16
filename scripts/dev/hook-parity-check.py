@@ -392,7 +392,7 @@ WEAKEN_CASES = [
         "edit",
     ),
     (
-        "skip added with relax token",
+        "skip added with a retired relax token",
         "pkg/s/b_test.go",
         "func TestX(t *testing.T){ require.Equal(t, 1, f()) }",
         'func TestX(t *testing.T){ t.Skip("x") // test-relax: feature removed per spec-foo\n require.Equal(t, 1, f()) }',
@@ -808,7 +808,11 @@ WE_GOLDEN = {
 }
 WEAKEN_GOLDEN = {
     "skip added": 2,
-    "skip added with relax token": 0,
+    # 2, and it was 0 until 2026-08-16. The hatch is `test/weakened.md`, a row
+    # naming the test this edit weakens, and the corpus this fixture root holds
+    # no such file. A `test-relax:` comment is now an ordinary comment: it opens
+    # nothing, which is what this case pins (plan/spec-weakened-per-commit.md).
+    "skip added with a retired relax token": 2,
     # These two are COUNT drops, and a count cannot tell a deleted check from
     # three checks consolidated into one. They report and let the edit through
     # (`soft` in `_test_weakening_errs`); refusing here is what produced 780

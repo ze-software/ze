@@ -66,8 +66,7 @@ endef
 # writing rule "is a GUIDELINE, not a law and not a gate. The checker reports and
 # lets the work through." It also measures a changed file against HEAD, so in a
 # checkout five sessions share it reports on their half-finished prose as readily
-# as on yours -- and a gate that reds on somebody else's work gets switched off,
-# which is the reasoning test/relax-ceiling.txt already records for the census.
+# as on yours -- and a gate that reds on somebody else's work gets switched off.
 #
 # ze-validate is here because it is the cheapest unrun gate in the repository:
 # ze-verify runs ze-validate-tree, which passes `--changed-file ''`, and both

@@ -4,7 +4,7 @@
 .PHONY: ze-test ze-verify ze-verify-changed ze-verify-list ze-validate ze-validate-tree ze-smoke ze-ci ze-all ze-all-test
 .PHONY: ze-lint-changed ze-unit-test-changed ze-clean-tmp ze-clean-sessions ze-hook-test
 .PHONY: ze-tier-check ze-iface-resolution-check ze-plugin-boundary-check ze-config-coercion-check ze-fs-persistence-check ze-dash-stdio-check ze-port-defaults-check ze-yang-leaf-mentions ze-platform-vet ze-ci-dispatch-check
-.PHONY: ze-test-sensitivity-check ze-test-health ze-test-health-check ze-test-health-record ze-relax-census
+.PHONY: ze-test-sensitivity-check ze-test-health ze-test-health-check ze-test-health-record ze-weakened-check
 .PHONY: ze-tracked-build-check
 .PHONY: ze-iso ze-iso-init ze-iso-build ze-iso-check ze-pxe
 .PHONY: ze-sync-vendor-web ze-check-vendor-web ze-check-vendor-web-updates ze-htmx-upgrade-check ze-htmx-upgrade-report ze-ai-sync ze-ai-instructions
@@ -811,18 +811,19 @@ ze-test-sensitivity-check:
 	@$(GO) run scripts/checks/inert_tests.go --selftest
 	@$(GO) run scripts/checks/inert_tests.go --check
 
-# test-relax census (TEST-RELAX-AUDIT.md): a `test-relax:` token buys one edit a
-# pass from c_test_weakening, and the agent that weakened the test writes its own
-# justification. That was only ever safe because a human was expected to read
-# them. Nothing counted them until 2026-08-10, by which time 751 had accumulated
-# across 466 files at HEAD and reading them was no longer possible. The ceiling is in
-# test/relax-ceiling.txt and may only be raised by an explicit, reviewed line in
-# the same commit as the token that needs it (the sensitivity-baseline
-# convention). --selftest first proves the counter and the ceiling reader fire on
-# a fixture tree whose answer is known.
-ze-relax-census:
-	@python3 scripts/dev/relax-census.py --selftest
-	@python3 scripts/dev/relax-census.py
+# Weakened-test record (plan/spec-weakened-per-commit.md): a commit that weakens a
+# test carries the reason in test/weakened.md, and scripts/dev/commit_helper.py
+# refuses the commit when a weakening has no row. Whether a commit is covered is a
+# question about THAT commit's paths, and a verify stage has none, so this stage
+# checks the one thing that is true for every session in a shared checkout: the
+# file the commit gate depends on still parses. A header that drifted would leave
+# the gate reading no rows.
+# --selftest first proves the checker still refuses a weakening with no row, and
+# accepts the same weakening once a row names it, on a fixture repository whose
+# answer is known.
+ze-weakened-check:
+	@python3 scripts/dev/check_weakened_tests.py --selftest
+	@python3 scripts/dev/check_weakened_tests.py
 
 # Tracked-build gate (docs/architecture/testing/tracked-build-gate.md): compile
 # the tree GIT HOLDS, which is the one population no other check compiles. Every
@@ -1315,7 +1316,7 @@ help-test:
 	@echo "    ze-test-health-check      Fail if a structural fact drifted (in ze-verify)"
 	@echo "    ze-test-health-record     Append one KPI sample to the committed history"
 	@echo "    ze-test-sensitivity-check Ratchet: tests that cannot fail, files no target runs"
-	@echo "    ze-relax-census           Ratchet: test-relax: tokens, against test/relax-ceiling.txt"
+	@echo "    ze-weakened-check         Check test/weakened.md parses for the commit gate"
 	@echo ""
 	@echo "  Composite targets:"
 	@echo "    ze-smoke                  Lint + unit + build (~2 min)"

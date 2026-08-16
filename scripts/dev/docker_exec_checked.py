@@ -37,7 +37,7 @@ ESCAPE HATCH
     `# fail-open-ok: <reason>` on the call line or the line above it. The reason
     is required: a bare marker does not count, so an exemption is a decision on
     the record rather than a quiet skip. Auditable with one grep, the same shape
-    as `// test-relax:` and `rfc-test-change-approved:`.
+    as `rfc-test-change-approved:` and `test-asserts-nothing:`.
 
 TURNING IT ON
     A committed floor in test/health/docker-exec-baseline.json that may only go

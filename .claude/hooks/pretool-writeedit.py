@@ -13,7 +13,6 @@ Exit codes: 0 allow, 1 non-blocking warning, 2 block. Most severe wins when
 several checks fire. Fails OPEN (exit 0) on an unexpected internal error.
 """
 
-import collections
 import datetime
 import glob
 import importlib.util
@@ -2305,97 +2304,13 @@ def c_scratch_path_we(ctx):
 # gets neutered instead of the code being fixed: adding t.Skip, dropping *some*
 # assertions, downgrading require->assert, commenting assertions out, build-tag
 # 'ignore', and the same via Write/MultiEdit overwrite. Rule: ai/rules/testing.md
-_RELAX_REASON = re.compile(r"//[ \t]*test-relax:[ \t]*(\S.*)$", re.MULTILINE)
-# The same token on a carrier that comments with `#`. `c_test_weakening` has judged
-# `/test/` `.ci` files since it was written, and a `.ci` comments with `#`, so the
-# escape hatch it offers was unreachable in the syntax those files use: 313 files
-# carry `# // test-relax:`, an alien Go comment nested inside a hash comment purely
-# to match the Go pattern, and 8 wrote the natural `# test-relax:` and got a token
-# that matched nothing (measured at HEAD, 2026-08-10).
 #
-# The alternation is what keeps `# // test-relax:` a SINGLE token: `#` matches first,
-# then `test-relax:` is required immediately, `//` is there instead, and the scan moves
-# on to match at the `//`. A two-pattern union would count that line twice.
-#
-# `.py` earns its place through `_carries_rfc_tag`, not through `is_test`: a tagged
-# interop `check.py` reaches this check when `_rfc_tagged_change_err` declines. `.et`
-# is here for the same reason. Neither is the broad parity `_behavior_bytes` has, which
-# runs on every carrier it names.
-_RELAX_REASON_ANY = re.compile(r"(?://|#)[ \t]*test-relax:[ \t]*(\S.*)$", re.MULTILINE)
+# The carriers that comment with `#` rather than `//`. `.py` earns its place through
+# `_carries_rfc_tag`, not through `is_test`: a tagged interop `check.py` reaches this
+# check when `_rfc_tagged_change_err` declines. `.et` is here for the same reason.
+# Neither is the broad parity `_behavior_bytes` has, which runs on every carrier it
+# names.
 _HASH_COMMENT_CARRIERS = (".ci", ".et", ".py")
-
-
-_REASON_KEY_NOISE = re.compile(r"[^a-z0-9]+")
-
-
-def _reason_key(reason):
-    """The identity of a justification: its letters and digits, lowercased.
-
-    Everything else is noise a reviewer would not call a different reason:
-    whitespace, punctuation, capitalisation, and a zero-width space. Keying on the
-    raw line was the first attempt and one space beat it; keying on the
-    whitespace-normalized sentence was the second and a zero-width space beat that.
-
-    It does NOT defeat a homoglyph: a Cyrillic `\u041e` is dropped rather than folded to
-    `o`, so the key changes. That is not a hole to plug here, because a REWORD is
-    allowed by design (see `_writes_new_relax_reason`) and a homoglyph edit is a
-    reword nobody can see. What catches it is the diff audit reporting that a
-    justification which was already there is gone.
-    """
-    return _REASON_KEY_NOISE.sub("", reason.lower())
-
-
-def _relax_reasons(text, fp):
-    """Multiset of the relaxation justifications written in `text`, by reason key."""
-    pattern = (
-        _RELAX_REASON_ANY if fp.endswith(_HASH_COMMENT_CARRIERS) else _RELAX_REASON
-    )
-    return collections.Counter(
-        _reason_key(r) for r in pattern.findall(text) if _reason_key(r)
-    )
-
-
-def _writes_new_relax_reason(old, new, fp):
-    """Whether this edit WRITES a justification that did not exist before.
-
-    The hatch must be per-relaxation. It read the whole of `new`, and on a Write
-    that is the whole replacement file, so a token written months ago sat in it
-    and returned the entire weakening check to None: any later overwrite of that
-    file could delete every assertion and pass. 468 test files carried a token
-    when this was measured on 2026-08-10, about a tenth of the suite, and each was
-    exempt for as long as the token stayed in it. On an Edit the same hole was
-    narrower and just as real: a hunk that merely CONTAINED an old token line
-    bought the edit a pass.
-
-    KNOWN BOUND, Edit: `old` is the replaced hunk, so copying the file's OWN existing
-    justification into the replacement text reads as writing one. Subtracting the
-    whole on-disk file closes that and costs more than it saves: one wording then
-    cannot serve two relaxations in a file. Measured with `_relax_reasons` at HEAD,
-    10 tracked `_test.go`/`.ci`/`.et` files already repeat a justification, up to five
-    times. A false positive here is what produced the corpus, so the false negative is
-    the better trade -- and it is not silent, since the extra token shows in the diff
-    audit and in the census.
-
-    A multiset difference over `_reason_key`, so a token that only MOVED opens
-    nothing, and neither does a cosmetic edit to an existing one.
-
-    NOT a count comparison, which is what this did first. Requiring one MORE
-    justification than before refused the honest drain -- deleting a stale token
-    while writing a real one for the change in hand -- and left keeping dead
-    justifications as the only way through. That is the corpus growth this whole
-    gate exists to stop, and `run_audit` calls the same shape a drain, so the two
-    halves disagreed. A rewritten justification is a justification; what it
-    REPLACED is reported by the audit ("a justification that was already here is
-    GONE"), which is the surface where a reviewer can judge the trade.
-
-    KNOWN BOUND, MultiEdit: `c_test_weakening` joins every hunk's strings before
-    calling this, so a justification written in hunk 1 covers a weakening in hunk
-    2. Per-hunk evaluation would refuse an assertion MOVED between hunks, and a
-    false positive is the failure mode that produced 755 unread tokens in the
-    first place. The residual is bounded: the justification is newly written, so
-    the diff audit and the census both see it.
-    """
-    return bool(_relax_reasons(new, fp) - _relax_reasons(old, fp))
 
 
 _ASSERT_PAT = r"(?:t\.(?:Error|Errorf|Fatal|Fatalf|Fail|FailNow)|assert\.|require\.)"
@@ -2786,8 +2701,9 @@ def _rfc_tagged_change_err(old, new, fp, tag_scope=None):
     spurious block costs one question, a missed one ships an unproven compliance claim.
     Renaming a test that carries a standards obligation is worth a beat of thought anyway.
 
-    NOT satisfied by `// test-relax:`: that token is self-service, and an agent writing its
-    own justification is not user approval. It is exactly the loophole this closes.
+    NOT satisfied by a row in `test/weakened.md`: that row is self-service, and an agent
+    writing its own justification is not user approval. It is exactly the loophole this
+    closes.
     """
     scope = old if tag_scope is None else tag_scope
     if not _RFC_TAG.search(scope):
@@ -2796,7 +2712,7 @@ def _rfc_tagged_change_err(old, new, fp, tag_scope=None):
         return None
     # Removing the TAG is checked before anything else, because a tag is a comment and the
     # behavior comparison below would wave it through as "comments only" -- after which the
-    # test is unguarded and `// test-relax:` alone buys any later weakening. Deleting the
+    # test is unguarded and a `test/weakened.md` row buys any later weakening. Deleting the
     # proof marker is the cheapest way to retire a compliance claim, so it is not a
     # comment edit; it is the edit this guard exists for.
     dropped = sorted(set(_RFC_TAG.findall(old)) - set(_RFC_TAG.findall(new)))
@@ -2857,6 +2773,151 @@ def _is_draft(fp):
     return norm.startswith(DRAFT_SEGMENT) or "/" + DRAFT_SEGMENT in norm
 
 
+# --------------------------------------------------------------------------- #
+# The weakening hatch: test/weakened.md
+#
+# The justification for a weakened test lives in ONE file the commit carries, not
+# in a comment beside the test. A comment stayed in the test file forever and
+# explained a diff its later readers could no longer see: 601 of them piled up
+# across 413 files, nobody could read them, so writing one cost nothing
+# (plan/spec-weakened-per-commit.md).
+#
+# The same module answers at commit time (scripts/dev/commit_helper.py), so a test
+# name and a row are resolved once rather than twice.
+# --------------------------------------------------------------------------- #
+
+_WEAKENED_MODULE_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    "..",
+    "..",
+    "scripts",
+    "dev",
+    "check_weakened_tests.py",
+)
+
+_UNLOADED = object()
+_weakened_mod = _UNLOADED
+
+
+def _weakened_module():
+    """`scripts/dev/check_weakened_tests.py`, loaded on first use and kept, or None.
+
+    Lazy, and only a refusal asks for it: this hook runs on every Edit, and that
+    module executes a second one when it loads.
+
+    A hook that raises on import blocks every edit in the repository, so this
+    cannot be a bare import. The caller's None branch fails CLOSED: without the
+    module the hatch cannot be read, and an unreadable hatch is not an open one.
+    """
+    global _weakened_mod
+    if _weakened_mod is _UNLOADED:
+        try:
+            spec = importlib.util.spec_from_file_location(
+                "ze_check_weakened_tests", _WEAKENED_MODULE_PATH
+            )
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            _weakened_mod = mod
+        except Exception:
+            _weakened_mod = None
+    return _weakened_mod
+
+
+def _weakened_rows(mod):
+    """(rows, problems) -- what `test/weakened.md` accepts, and what stops it being read.
+
+    Read at CALL time under PROJECT_DIR, which CLAUDE_PROJECT_DIR can point at a
+    fixture tree.
+    """
+    try:
+        with open(os.path.join(PROJECT_DIR, mod.WEAKENED_PATH), encoding="utf-8") as fh:
+            text = fh.read()
+    except OSError:
+        return [], [f"{mod.WEAKENED_PATH} does not exist yet; write it, header first"]
+    return mod.parse_weakened_file(text)
+
+
+def _edited_file_pair(fp, tool, ti, old, new):
+    """(old, new) as WHOLE FILES, so a weakening carries the name of its test.
+
+    A weakening is named after the top-level func that holds it, and an Edit hunk
+    is usually the assertion alone: it carries no `func` line, so the hunk on its
+    own names the FILE. The commit gate compares whole files and asks for the func
+    name, so this hook reconstructs what the edit will leave on disk. Without that
+    the two gates would ask for two different rows for one weakening.
+
+    The hunk pair comes back when the file cannot be read, or when a hunk is not
+    in it: each means the reconstruction would be a guess, and a hunk still names
+    the test whenever it carries the declaration.
+    """
+    if tool == "Write":
+        return old, new  # `old` is already the file on disk
+    try:
+        with open(fp, encoding="utf-8", errors="replace") as fh:
+            text = fh.read()
+    except OSError:
+        return old, new
+    edits = (ti.get("edits") or []) if tool == "MultiEdit" else [ti]
+    after = text
+    for e in edits:
+        hunk = e.get("old_string", "")
+        if not hunk or hunk not in after:
+            return old, new
+        after = after.replace(
+            hunk, e.get("new_string", ""), -1 if e.get("replace_all") else 1
+        )
+    return text, after
+
+
+def _weakened_names(mod, fp, file_old, file_new):
+    """The tests this edit weakens, named the way `test/weakened.md` names them.
+
+    `weakened_units` is the shared namer, and it is given the SAME detector the
+    commit gate gives it, count arms included. The count arms do not refuse here
+    (see the notice in `c_test_weakening`), and they are still named, because the
+    commit gate asks for a row for every kind it finds.
+    """
+    names = []
+    for name, _ in mod.weakened_units(fp, file_old, file_new, _test_weakening_errs):
+        if name not in names:
+            names.append(name)
+    return names or [os.path.splitext(os.path.basename(fp))[0]]
+
+
+def _weakened_hatch(fp, tool, ti, old, new):
+    """(names with no row, why the file could not be read, the file's path).
+
+    An empty pair of lists opens the hatch: every test this edit weakens is named
+    in `test/weakened.md`, with a reason.
+    """
+    mod = _weakened_module()
+    if mod is None:
+        # No name to ask a row for, because the module that resolves one is the
+        # module that did not load. The refusal stands: an unreadable hatch is not
+        # an open one, and the checkout is what needs fixing.
+        return (
+            [],
+            [
+                "scripts/dev/check_weakened_tests.py did not import, so the hatch "
+                "could not be read"
+            ],
+            "test/weakened.md",
+        )
+    rows, problems = _weakened_rows(mod)
+    file_old, file_new = _edited_file_pair(fp, tool, ti, old, new)
+    package = os.path.basename(os.path.dirname(fp))
+    missing = []
+    for name in _weakened_names(mod, fp, file_old, file_new):
+        # `row_matches` is the ONE definition of "this row names that test", the
+        # `package.TestName` qualifier included. A copy here would let the hook
+        # accept a row the commit gate refuses. It is public for that reason:
+        # the hook is a real caller, not a module poking at its neighbour.
+        weak = mod.Weakened(fp, package, name, [])
+        if not any(mod.row_matches(row.name, weak) for row in rows):
+            missing.append(name)
+    return missing, problems, mod.WEAKENED_PATH
+
+
 # ze point: testing/directives/write-the-test-first-and-never-weaken-it
 # ze point: testing/fix-code-not-tests/fix-the-code-when-a-test-fails-not-the-test
 def c_test_weakening(ctx):
@@ -2902,8 +2963,8 @@ def c_test_weakening(ctx):
         new = ctx["ti"].get("content", "") or ""
     else:
         return None
-    # RFC-tagged tests are checked FIRST, before the test-relax escape hatch below, and
-    # deliberately: test-relax is self-service, and an agent writing its own justification
+    # RFC-tagged tests are checked FIRST, before the `test/weakened.md` hatch below, and
+    # deliberately: a row there is self-service, and an agent writing its own justification
     # is not user approval. Letting it run first would leave the loophole open.
     tags = _rfc_tagged_change_err(
         old, new, fp, tag_scope=_enclosing_tagged_scope(fp, hunks)
@@ -2920,8 +2981,8 @@ def c_test_weakening(ctx):
             "  proven while still being advertised.\n"
             "  Fix the CODE. If you believe the test is genuinely wrong, STOP and show the\n"
             "  user the RFC text next to the test -- do not edit first and explain after.\n"
-            "  `// test-relax:` does NOT authorize this: it is your own justification, not\n"
-            "  the user's approval.\n"
+            "  A row in test/weakened.md does NOT authorize this: it is your own\n"
+            "  justification, not the user's approval.\n"
             "  Once the USER has approved, record what they approved on the changed test:\n"
             "    // rfc-test-change-approved: <date> <what the user approved and why>\n"
             "  PUT IT IN THE LINES YOU ARE WRITING. This check reads only the replacement\n"
@@ -2933,13 +2994,11 @@ def c_test_weakening(ctx):
             "  one from a rewrite -- approve it the same way.",
         )
     # Documented, auditable escape hatch. Forces a written reason instead of a
-    # silent edit. Audit every relaxation: `make ze-relax-census`.
-    # It reads the justifications this edit WRITES. A token already in the file buys
-    # nothing, or the hatch would be per-file and permanent rather than
-    # per-relaxation (see _writes_new_relax_reason).
+    # silent edit. It reads `test/weakened.md`, which the commit carries and which
+    # the commit gate reads again, and it opens only on a row naming the test THIS
+    # edit weakens. A row for another test buys nothing, or the hatch would be
+    # per-file rather than per-weakening (see `_weakened_hatch`).
     errs, soft = _test_weakening_errs(old, new, fp)
-    if _writes_new_relax_reason(old, new, fp):
-        return None
     if not errs:
         if not soft:
             return None
@@ -2957,33 +3016,50 @@ def c_test_weakening(ctx):
             0,
             f"{YELLOW}notice: this edit lowers a test count{RESET}\n"
             f"  In {os.path.basename(fp)}:\n{notice}\n"
-            "  Allowed, and no `test-relax:` token is wanted for it. A count falling is\n"
-            "  what consolidating cases or replacing a poll loop with a barrier looks\n"
+            "  Allowed, and this hook asks for no row. A count falling is what\n"
+            "  consolidating cases or replacing a poll loop with a barrier looks\n"
             "  like, and it reads the same as deleting a check, so it cannot be the\n"
             "  refusal on its own.\n"
-            "  Check yourself that the coverage moved rather than went. If it genuinely\n"
-            "  went, say where in an ordinary comment, which a later reader can use.",
+            "  Check yourself that the coverage moved rather than went. The commit\n"
+            "  gate records every weakening kind, count drops included, so the commit\n"
+            "  carrying this edit still needs a row in test/weakened.md naming this\n"
+            "  test. Say there which of the two happened.",
         )
+    missing, unreadable, weakened_path = _weakened_hatch(fp, tool, ctx["ti"], old, new)
+    if not missing and not unreadable:
+        return None
     # The soft findings ride along on a refusal. They are not the reason for it,
     # but an author reading "commenting out assertions" is better served knowing
     # the count moved too than having that fact withheld because it no longer
     # blocks on its own.
     detail = "\n".join(f"  - {e}" for e in errs + soft)
+    blocked = "".join(f"\n  {p}" for p in unreadable)
+    rows_to_write = "\n".join(
+        f"    | {name} | <what left the suite, and why this is correct without it> |"
+        for name in missing
+    )
+    advice = (
+        (
+            f"\n  If the coverage is genuinely gone, accept it in {weakened_path}:\n"
+            f"{rows_to_write}\n"
+            "  Two columns, under the header `| Test | Reason |`: the test this edit\n"
+            "  weakens, and the reason a reviewer can act on.\n"
+            "  WRITE THE ROW FIRST, then make this edit again. This hook reads the\n"
+            "  file from disk, so a row you have not written yet buys nothing, and\n"
+            "  neither does a row naming another test.\n"
+            "  The file is replaced per commit. Delete the rows of the last commit,\n"
+            "  write the rows of this one, and commit it with the change."
+        )
+        if missing
+        else ""
+    )
     return (
         2,
         f"{YELLOW}{BOLD}❓ Test weakening blocked - fix the code, not the test{RESET}\n"
         f"  Detected in {os.path.basename(fp)}:\n{detail}\n"
         "  A red test means the CODE is wrong by default. Diagnose the failure and\n"
-        "  fix the source. Only relax a test for a removed feature or replaced coverage.\n"
-        "  If genuinely obsolete, document why on/above the changed line:\n"
-        f"    {'#' if fp.endswith(_HASH_COMMENT_CARRIERS) else '//'}"
-        " test-relax: <why this test/assertion no longer applies>\n"
-        "  WRITE IT IN THIS EDIT. The hatch opens on a justification this edit adds, so\n"
-        "  that it names the relaxation it excuses. Re-indenting or re-punctuating one\n"
-        "  already in your replacement text buys nothing. Retiring a stale token and\n"
-        "  writing a real one for the change in hand is fine and expected.\n"
-        "  The stock is counted and capped (make ze-relax-census); read them with\n"
-        "  scripts/dev/relax-census.py --list",
+        "  fix the source. Only weaken a test for a removed feature or for coverage\n"
+        f"  that moved somewhere else.{blocked}{advice}",
     )
 
 

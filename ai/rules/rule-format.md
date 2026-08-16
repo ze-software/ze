@@ -84,7 +84,12 @@ check enforces a rule", "reasoning about where a component sits".
 
 The lint caps the trigger line. Nothing caps the body, which is why every long
 rule in the corpus is format-legal. `ai/rules/writing.md` sets the standard,
-and these four points are the ones a rule author breaks first.
+and these five points are the ones a rule author breaks first.
+
+The last one is the one an author breaks while feeling most useful. A rule
+written just after a mechanism changed reads as an explanation, and the
+explanation is what the author has in mind. The reader who arrives a month later
+needs the instruction and pays for the explanation in every session.
 
 | Requirement | Why |
 |-------------|-----|
@@ -92,6 +97,7 @@ and these four points are the ones a rule author breaks first.
 | An ambiguous directive gets both readings and a statement of which governs, never a third example | Examples hide an ambiguity. Named readings end it |
 | One table per distinction. Delete the paragraph that repeats the table | Two statements of one cut drift apart, and then the reader must decide which is current |
 | State the obligation and name the gate. Never narrate the gate's implementation | Flags, exit codes, guard order, and line offsets live in the script and its fixtures. A rule that copies them holds a stale second copy |
+| A point says what to DO next. It carries no history: no date a mechanism changed, no post-mortem count, no account of why the old way failed. Route those to `plan/learned/`, `plan/journal/` or the spec | A rule enters EVERY session's context and costs its tokens in all of them, forever. "The hook refused on these until <date>" and "780 of them, 146 saying the coverage still existed" change no future action. What a reader must do is the only thing that earns a permanent seat; the story of how it got this way is read on demand or not at all |
 
 A rule over about 150 lines is carrying reference material. Move the tables to
 `docs/` and link to them, or split the rule at its real seam.

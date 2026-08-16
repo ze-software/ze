@@ -3,6 +3,10 @@
 Date: 2026-08-10. Scope: every `test-relax:` token in `*_test.go`, `*.ci` and
 `*.et`, excluding `vendor/`.
 
+**This page audits a mechanism that retired on 2026-08-16.** Read "The mechanism
+moved" at the foot of the page first. Everything above it describes the state of
+the tree on the date each section names.
+
 **Status: sessions 1 and 2 of the recommendation are DONE (2026-08-10). The
 sweep, session 3, is not started.** What landed:
 
@@ -13,11 +17,11 @@ sweep, session 3, is not started.** What landed:
 | D-3 an assertion that cannot fail is now refused | `_TAUTOLOGY` (same file) |
 | D-4 added tokens found by multiset difference, not a positional slice | `run_audit` (`scripts/dev/audit-test-relaxation.py`) |
 | D-5 the whole multi-line justification is captured and wrapped | `relax_reasons`, `report` (same file) |
-| The stock is counted and held down | `scripts/dev/relax-census.py`, `test/relax-ceiling.txt`, `make ze-relax-census`, in `ze-verify` both modes |
+| The stock is counted and held down | a census script and a ceiling file, run by `make ze-relax-census` in `ze-verify` both modes. All three retired on 2026-08-16 |
 | The three refuted l2tp justifications removed | `test/plugin/redistribute-l2tp-{announce,withdraw,multi-peer-nexthop}.ci` |
 
 Tests: 28 relax fixtures in `scripts/dev/hook-fixture-check.py` (394/394 pass),
-26 cases in `scripts/dev/relax_census_test.py`, 19 in `audit_relaxation_test.py`.
+26 cases in the census script's own test file, 19 in `audit_relaxation_test.py`.
 Four rounds of independent review, seven lenses in all, found 6 BLOCKERs and 26
 ISSUEs in successive cuts of these fixes; all are closed, and what they found is
 recorded in "What the review changed" below.
@@ -95,8 +99,9 @@ only from `/ze-review` and `/ze-review-deep`, and it sees only new tokens. The
 755 already in the tree are invisible to every gate in the repository. They have
 never been reviewed, and no current mechanism can review them.
 
-*(As audited. `make ze-relax-census` now reads the stock and holds it under
-`test/relax-ceiling.txt`, in `ze-verify` both modes.)*
+*(As audited. A census target then read the stock and held it under a ceiling
+file, in `ze-verify` both modes. Both retired on 2026-08-16: see "The mechanism
+moved" at the foot of this page.)*
 
 ---
 
@@ -287,7 +292,7 @@ runs it:
   an assertion, and the sweep would have needed a fresh token for every token it
   deleted. Session 1 fixed it: `_test_weakening_errs` now counts comment-stripped
   text on both carriers. Pinned by
-  `relax-removing-a-token-whose-prose-names-an-assertion`.
+  `weakening-removing-a-comment-whose-prose-names-an-assertion`.
 
 For buckets D and F, do not delete. The fact is worth keeping and the token
 spelling is not. Rewrite as a plain comment that names the removed symbol and the
@@ -387,9 +392,9 @@ corpus, never as a count to verify against.
 
 **A committed classifier replaced it on 2026-08-16**, because six days passed with
 the sweep unstarted and the reason was always the same: nobody could tell which
-token sat in which bucket. It is `classify` in `scripts/dev/relax-census.py`,
-reached by `--classify`, and it works from the census rows so it can never
-disagree with the count about what a token is.
+token sat in which bucket. It was `classify` in the census script, reached by
+`--classify`, and it worked from the census rows so it could not disagree with
+the count about what a token is. It retired with the census the same day.
 
 It does NOT reproduce the figures above, by design. A reason that carries a
 mechanical signal AND a coverage signal is counted as a KEEP, because deleting
@@ -406,3 +411,35 @@ what a sweep can remove, not an estimate of it:
 
 200 of 780 classify as deletable, which would leave 580 against a ceiling of 761.
 Read one bucket with `--list --bucket A`.
+
+---
+
+## The mechanism moved (2026-08-16)
+
+This page audits a mechanism that no longer exists. The justification for a
+weakened test is now one row in `test/weakened.md`, and that file is REPLACED per
+commit: it holds the rows of the change in hand, and git history holds every
+past row beside the change it accepted.
+
+| Was | Is |
+|-----|----|
+| a `test-relax:` comment in the test file, permanent | a row in `test/weakened.md`, replaced per commit |
+| a ceiling file plus a census target counting HEAD | nothing to count, because a per-commit file cannot accumulate |
+| `c_test_weakening` opens on a token the edit writes | `c_test_weakening` opens on a row naming the test the edit weakens |
+| no commit-time check | `weakened_problems` (`scripts/dev/commit_helper.py`) recomputes the weakenings of the paths the commit names, and refuses a commit that does not carry `test/weakened.md` |
+| `make ze-relax-census` | `make ze-weakened-check` |
+
+`scripts/dev/check_weakened_tests.py` is the one implementation both gates call.
+`docs/architecture/testing/test-health.md` describes the live mechanism.
+
+**The root cause this audit found was STORAGE, not detection.** A justification
+explains one diff. It is written at edit time and read at review time, and after
+the commit lands it explains a change the reader of the test file can no longer
+see. Storing an ephemeral record permanently is what let 601 tokens and 2,660
+lines of prose accumulate across 413 test files.
+
+Session 3, the sweep, never ran. 28 legacy tokens are left in 18 test files.
+Neither gate reads them: `c_test_weakening` opens on a row, and
+`weakened_problems` asks a row for every weakening it finds. One reader is left,
+`relax_reasons` in `scripts/dev/audit-test-relaxation.py`, which still quotes a
+token at review time and does not yet read `test/weakened.md`.

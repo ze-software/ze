@@ -917,41 +917,42 @@ forward-ref block still fires by design.
 
 ## `c_test_weakening`
 
-**Trigger.** `Edit`, `Write` or `MultiEdit` on a test file whose
-non-comment non-empty line count decreases (plus the assertion-removal,
-`t.Skip`, `require`->`assert` and `ignore`-build-tag checks).
+**Trigger.** `Edit`, `Write` or `MultiEdit` on a test file that loses a
+one-directional signal: a deleted `Test`/`Fuzz`/`Benchmark` func, an added
+`t.Skip`, commented-out assertions, an `ignore` build tag, content
+replaced with nothing, and on a `.ci`/`.et` an emptied needle, an
+inverted `reject=`, or an assertion that cannot fail.
 
-**Blocks.** Any line-count reduction on a `.ci` file, including
-removing redundant fixture content or debug prints — **and a
-strengthening that happens to be shorter than what it replaces.**
+**Blocks.** Those only. A falling COUNT (removed assertions,
+`require`->`assert`, dropped `t.Run` cases, dropped `expect=`/`cmd=`
+lines) is REPORTED at exit 0 and lands.
 
-**Workaround (verified in 7 specs).** One of:
-1. Keep the line count equal. Wrapping a long call across two lines is
-   ordinary formatting and is enough:
-   `runtime_fail(\n    f'...')` in place of `print(...)` + `sys.exit(1)`.
-2. Add a substitute line of equivalent weight to preserve the count
-   (e.g. a comment that documents what was removed).
-3. `// test-relax: <reason>` when the change genuinely IS a relaxation.
-   Do **not** reach for it to get a strengthening past the line count:
-   the escape hatch is what a reviewer greps, so a false one is worse
-   than the block.
+**Workaround.** Write the row in `test/weakened.md` FIRST, then repeat
+the edit, then name `test/weakened.md` in the commit. The refusal
+message prints the exact row. The hook reads that file from disk, so a
+row written after the refusal buys nothing until you retry, and a row
+naming another test buys nothing at all.
 
 **Do NOT use `Write` to route around it.** The catalog said so for a
 long time and it is now wrong: the check runs on `Write` and
 `MultiEdit` as well as `Edit` (`ai/rules/repo-maintenance.md`). A session
 following the old advice loses the time twice.
 
-**Never.** Do not attempt to collapse 4 lines to 1 — the hook will
-reject it as a 3-line deletion.
-
-**The shape that recurs.** Replacing the banned observer-exit
+**The shape that used to recur, and no longer does.** Until 2026-08-10 the
+`.ci` arm counted non-comment lines, so replacing the banned observer-exit
 antipattern (`print('FAIL: ...'); sys.exit(1)`, two lines) with
-`runtime_fail('...')` (one line) is a strict improvement — the old form
-cannot reach the runner at all — and the hook reads four such
-replacements as a 4-line deletion. 1290 hit exactly this while fixing a
-test that had been silently red on every run since it was written.
+`runtime_fail('...')` (one line) read as a deletion. That arm now counts
+what can fail a run, and the count arms report rather than refuse, so a
+strictly shorter improvement lands. Three of every four `test-relax:`
+tokens in the retired corpus excused exactly this shape.
 
-**Evidence.** 545, 550, 558, 559, 560, 622, 1290.
+**The commit still records a count drop.** `weakened_problems`
+(`scripts/dev/commit_helper.py`) records every weakening kind, so an edit
+the hook waved through with a notice still needs a row in the commit. Say
+in the row which happened: the coverage moved, or it went.
+
+**Evidence.** 545, 550, 558, 559, 560, 622, 1290 (all against the retired
+line counter).
 
 ---
 

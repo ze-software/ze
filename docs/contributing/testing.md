@@ -168,6 +168,40 @@ make ze-live-rpki-test            # real RPKI data (needs internet)
 
 See `make help-test` for the full list.
 
+## When a test must be weakened
+
+A red test means the CODE is wrong by default. Fix the code. When the coverage is
+genuinely gone, because the feature it proved was removed or another test now
+proves it, the removal is recorded rather than silent.
+
+The record is `test/weakened.md`. It holds one row per weakened test, `| Test |
+Reason |`, and it is REPLACED per commit. Delete the rows of the last commit,
+write the rows of this one, and commit the file with the change. Git history
+holds every past row beside the change it accepted, so
+`git log -p -- test/weakened.md` is how you read them.
+
+The route, in order:
+
+1. Write the row FIRST. `c_test_weakening` (`.claude/hooks/pretool-writeedit.py`)
+   reads the file from disk, so a row written after the edit buys nothing until
+   you retry. The refusal message prints the exact row to write.
+2. Make the edit.
+3. Name `test/weakened.md` in the commit. `scripts/dev/commit_helper.py` refuses
+   a commit that weakens a test and leaves the row in the working tree.
+
+The test name is the enclosing top-level `func TestXxx` for Go, and the file stem
+for a `.ci` or a `.et`. Write `package.TestName` when the bare name matches two
+weakened tests in one commit.
+
+An edit that only lowers a COUNT lands with a notice and no row: consolidating
+three cases into one table lowers a count exactly as deleting a check does. The
+COMMIT still needs a row for it, and that row is where you say which of the two
+happened.
+
+`make ze-weakened-check` runs the checker over the file and is a stage of
+`ze-verify` in both modes. The rule is `ai/rules/testing.md`, and the design is
+`docs/architecture/testing/test-health.md`.
+
 ## How `ze-verify` works
 
 `ze-verify` is the pre-commit gate. It uses a two-pass strategy to stay fast:

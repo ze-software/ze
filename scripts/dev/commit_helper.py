@@ -20,6 +20,12 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
+# The weakened-test gate. `make ze-weakened-check` and the edit-time hook run the
+# same module, and this file imports it rather than judging a diff itself: two
+# spellings of "what does this change weaken" give two gates two answers about
+# one edit, which is the drift scripts/dev/rfc_tagged_scope.py records.
+import check_weakened_tests
+
 # Discovery-index generators/outputs and the source-trigger predicate are shared
 # with the changed-file router (verify_wiring_docs.py) via discovery_sources.py,
 # so the commit gate here and the router cannot drift apart.
@@ -2310,6 +2316,57 @@ def spec_audit_problems(
     return []
 
 
+def weakened_problems(
+    repo: Path, add_paths: tuple[str, ...], remove_paths: tuple[str, ...]
+) -> list[str]:
+    """BLOCK a commit whose test weakenings test/weakened.md does not cover.
+
+    The judgement is delegated whole to scripts/dev/check_weakened_tests.py: what
+    a diff weakens, what name the enclosing test carries, and how a row pairs
+    with it. This function contributes the commit's own paths and nothing else.
+
+    Those paths are the reason the gate can BLOCK. Several sessions share this
+    checkout, so a check that read the working tree at large would refuse a
+    commit for a colleague's in-flight weakening. That false positive is what
+    demoted deferral_unassigned_problems to warn (ai/rules/git-safety.md).
+    Keying on the --file and --remove lists makes the BLOCK tier safe by
+    construction (owner decision 5, plan/spec-weakened-per-commit.md).
+
+    The test paths are also what keeps the cost off every other commit: the
+    delegate imports the hook to borrow its detector, and a commit that names no
+    test file needs no detector and gets no import.
+
+    One question the delegate cannot answer is added here, because it is about
+    the COMMIT and not about the change set: test/weakened.md must be one of the
+    committed paths. A row that stays in the working tree records nothing, and
+    the mechanism exists so the reason sits in history beside the weakening it
+    accepts (owner, 2026-08-16; AC-10). The delegate is asked for the weakenings
+    first and for the row judgement second, so a commit that weakens nothing
+    still runs one comparison and reads no file.
+    """
+    tests = tuple(p for p in add_paths if check_weakened_tests.is_test_path(p))
+    removed = tuple(p for p in remove_paths if check_weakened_tests.is_test_path(p))
+    if not tests and not removed:
+        return []
+    weakened, errors = check_weakened_tests.weakened_tests(
+        str(repo), tests, removed=removed
+    )
+    if errors:
+        return errors  # the comparison did not happen, so nothing is accepted
+    if not weakened:
+        return []  # AC-5: no weakening, so no row is owed and none is read
+    problems = check_weakened_tests.weakened_problems(str(repo), tests, removed=removed)
+    if check_weakened_tests.WEAKENED_PATH not in add_paths:
+        problems.append(
+            f"this commit weakens {len(weakened)} test(s) and does not carry "
+            f"{check_weakened_tests.WEAKENED_PATH}. The row is in the working "
+            f"tree only, so git history would hold the weakening with no reason "
+            f"beside it. Name the file too:\n"
+            f"    --file {check_weakened_tests.WEAKENED_PATH}"
+        )
+    return problems
+
+
 def commit_gate_problems(
     repo: Path, add_paths: tuple[str, ...], remove_paths: tuple[str, ...]
 ) -> list[str]:
@@ -2320,6 +2377,7 @@ def commit_gate_problems(
     problems += journal_row_problems(repo, add_paths, remove_paths)
     problems += spec_audit_problems(repo, add_paths, claimed_spec(repo), remove_paths)
     problems += ste_problems(repo, add_paths)
+    problems += weakened_problems(repo, add_paths, remove_paths)
     return problems
 
 
@@ -2847,7 +2905,8 @@ def _create(args: argparse.Namespace, repo: Path, session: str, tag: str) -> int
                 "\n".join(problems)
                 + '\n  ... or pass --stale-index-ok "<reason>" to commit anyway.'
             )
-    # Commit-time repo-state BLOCK gates (deferral log + spec closure audit).
+    # Commit-time repo-state BLOCK gates (deferral log, journal rows, spec
+    # closure audit, test weakenings).
     gate_problems = commit_gate_problems(repo, add_paths, remove_paths)
     if gate_problems:
         raise UsageError("\n\n".join(gate_problems))
