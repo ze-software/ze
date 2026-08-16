@@ -2472,6 +2472,8 @@ _CI_EMPTY_NEEDLE = re.compile(
     r"|^[ \t]*(?:expect|reject)=.*:[A-Za-z_][\w-]*=[ \t]*$",
     re.MULTILINE,
 )
+
+
 def _strip_comments(text, hashed):
     """`text` with its comments removed, quote-aware. Never touches the file on disk.
 
@@ -2539,6 +2541,7 @@ def _strip_line(line, marker):
         return line if first < 0 else line[:first]
     return line if cut < 0 else line[:cut]
 
+
 # An assertion that cannot fail. Introducing one is the in-place gutting that no
 # count-based heuristic sees: `assert 'established' in resp` -> `assert True` keeps
 # every line and every assertion count identical. Deliberately narrow. A real test
@@ -2555,7 +2558,30 @@ _TAUTOLOGY = re.compile(
 
 
 def _test_weakening_errs(old, new, fp):
-    """Describe every way `new` weakens the test in `old`. Empty list = no weakening.
+    """(blocking, advisory) -- the ways `new` weakens the test in `old`.
+
+    The split is the whole design, and it is answering a measured failure. The
+    arms fall into two kinds:
+
+      blocking  something BAD APPEARED. A test function is gone, a skip was
+                added, a needle now matches anything, an assertion cannot fail.
+                Each is one-directional: there is no innocent edit that produces
+                it, so refusing is right and the noise is near zero.
+
+      advisory  a COUNT WENT DOWN. Fewer `t.Run` cases, fewer table rows, fewer
+                assertions, fewer `.ci` expectations.
+
+    A count cannot tell "I deleted a check" from "I replaced three checks with one
+    better check", and the second is what ordinary refactoring IS. So the counting
+    arms fired on good work, constantly, and every firing cost the author a
+    `test-relax:` token. That is where 780 of them came from: reading all 402 that
+    no one had triaged, 146 say in their own words that the coverage still exists
+    and only 19 record a real loss. Three of every four tokens in the corpus
+    excuse an improvement.
+
+    So a count drop now REPORTS and lets the work through; only the blocking arms
+    refuse. Nothing that catches real damage was given up, because a count falling
+    was never evidence of damage on its own.
 
     The counting arms read COMMENT-STRIPPED text. `_ASSERT_PAT` matches `require.`
     and `assert.` wherever they appear, prose included, so a comment that MENTIONS
@@ -2569,6 +2595,7 @@ def _test_weakening_errs(old, new, fp):
     `.ci` needle that may legitimately begin with `#`.
     """
     errs = []
+    soft = []
     hashed = fp.endswith(_HASH_COMMENT_CARRIERS)
     old_s = _strip_comments(old, hashed)
     new_s = _strip_comments(new, hashed)
@@ -2579,21 +2606,21 @@ def _test_weakening_errs(old, new, fp):
     ):
         errs.append("deleting Test/Fuzz/Benchmark function")
     if old_s.count("t.Run(") > new_s.count("t.Run("):
-        errs.append(
+        soft.append(
             f"removing t.Run cases ({old_s.count('t.Run(')} -> {new_s.count('t.Run(')})"
         )
     old_tbl = len(re.findall(r"\{[ \t]*(?:name|Name)[ \t]*:", old_s))
     new_tbl = len(re.findall(r"\{[ \t]*(?:name|Name)[ \t]*:", new_s))
     if old_tbl > new_tbl:
-        errs.append(f"removing table-driven cases ({old_tbl} -> {new_tbl})")
+        soft.append(f"removing table-driven cases ({old_tbl} -> {new_tbl})")
     old_as = len(re.findall(_ASSERT_PAT, old_s))
     new_as = len(re.findall(_ASSERT_PAT, new_s))
     if old_as > new_as and new.strip():
-        errs.append(f"removing assertions ({old_as} -> {new_as})")
+        soft.append(f"removing assertions ({old_as} -> {new_as})")
     old_fatal = len(re.findall(_FATAL_PAT, old_s))
     new_fatal = len(re.findall(_FATAL_PAT, new_s))
     if old_fatal > new_fatal and new_as >= old_as:
-        errs.append(
+        soft.append(
             f"downgrading fatal assertions to non-fatal ({old_fatal} -> {new_fatal} require/Fatal)"
         )
     old_skip = len(re.findall(_SKIP_PAT, old_s))
@@ -2610,13 +2637,13 @@ def _test_weakening_errs(old, new, fp):
         old_ci = len(_CI_COVERAGE.findall(old_s))
         new_ci = len(_CI_COVERAGE.findall(new_s))
         if old_ci > new_ci:
-            errs.append(
+            soft.append(
                 f"removing expectations ({old_ci} -> {new_ci} expect=/reject=/cmd=/assert/fail)"
             )
         old_rej = len(_CI_REJECT.findall(old_s))
         new_rej = len(_CI_REJECT.findall(new_s))
         if old_rej > new_rej:
-            errs.append(
+            soft.append(
                 f"removing negative expectations ({old_rej} -> {new_rej} reject=)"
             )
         # On the RAW text, never the comment-stripped one. A needle may legitimately
@@ -2638,7 +2665,7 @@ def _test_weakening_errs(old, new, fp):
         errs.append(
             f"introducing an assertion that cannot fail ({old_taut} -> {new_taut})"
         )
-    return errs
+    return errs, soft
 
 
 _RFC_TAG = re.compile(r"RFC requirement:\s*[A-Za-z0-9][A-Za-z0-9.\-]*-\d+")
@@ -2910,12 +2937,38 @@ def c_test_weakening(ctx):
     # It reads the justifications this edit WRITES. A token already in the file buys
     # nothing, or the hatch would be per-file and permanent rather than
     # per-relaxation (see _writes_new_relax_reason).
+    errs, soft = _test_weakening_errs(old, new, fp)
     if _writes_new_relax_reason(old, new, fp):
         return None
-    errs = _test_weakening_errs(old, new, fp)
     if not errs:
-        return None
-    detail = "\n".join(f"  - {e}" for e in errs)
+        if not soft:
+            return None
+        # A count fell and nothing one-directional happened. Say so and let the
+        # edit through: code 0 leaves the dispatcher's verdict alone (it takes the
+        # max), so this is a notice and not an obligation.
+        #
+        # It used to refuse here, and refusing is what built the corpus. Three of
+        # every four `test-relax:` tokens excuse an edit that made a test BETTER,
+        # because consolidating three assertions into one table, or three blind
+        # sleeps into one barrier, lowers a count exactly as deleting a check does.
+        # The token then cost a reviewed line and bought nothing a reader could use.
+        notice = "\n".join(f"  - {s}" for s in soft)
+        return (
+            0,
+            f"{YELLOW}notice: this edit lowers a test count{RESET}\n"
+            f"  In {os.path.basename(fp)}:\n{notice}\n"
+            "  Allowed, and no `test-relax:` token is wanted for it. A count falling is\n"
+            "  what consolidating cases or replacing a poll loop with a barrier looks\n"
+            "  like, and it reads the same as deleting a check, so it cannot be the\n"
+            "  refusal on its own.\n"
+            "  Check yourself that the coverage moved rather than went. If it genuinely\n"
+            "  went, say where in an ordinary comment, which a later reader can use.",
+        )
+    # The soft findings ride along on a refusal. They are not the reason for it,
+    # but an author reading "commenting out assertions" is better served knowing
+    # the count moved too than having that fact withheld because it no longer
+    # blocks on its own.
+    detail = "\n".join(f"  - {e}" for e in errs + soft)
     return (
         2,
         f"{YELLOW}{BOLD}❓ Test weakening blocked - fix the code, not the test{RESET}\n"

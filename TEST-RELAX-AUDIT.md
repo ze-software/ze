@@ -40,6 +40,19 @@ could not alter behaviour.
 
 ## Verdict
 
+**Closed on 2026-08-16 at the source.** The six COUNT-based arms of
+`_test_weakening_errs` no longer refuse; they report and let the edit through,
+and no token is asked for. The seven one-directional arms (a skip added, a test
+function deleted, an assertion commented out, a needle emptied, a tautology
+introduced) still refuse, so nothing that catches real damage was given up.
+
+That is the root cause this audit described but did not name: a count cannot
+tell a deleted check from three consolidated into one, and consolidation is what
+refactoring IS. Reading all 402 tokens this audit left unclassified, 146 say the
+coverage still exists and 19 record a real loss. The sweep below is still worth
+doing on the stock that accumulated, but it is cleaning the floor. The tap is
+now closed.
+
 **The stock is not 755 relaxed tests. It is about 60 relaxed tests and about 690
 receipts for a gate that fired on the wrong thing.**
 

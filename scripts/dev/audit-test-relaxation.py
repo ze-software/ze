@@ -306,7 +306,14 @@ def run_audit(base, cwd, detector, rfc_detector=None):
         new = read_worktree(new_p, cwd)
         if new is None:
             new = git(["show", f"HEAD:{new_p}"], cwd).stdout
-        details = detector(old, new, new_p) if detector else []
+        # The detector returns (blocking, advisory). This audit reports BOTH: it reads
+        # a whole branch for a human reviewer rather than deciding one edit, and the
+        # advisory half is exactly the interesting half here. The hook stopped refusing
+        # on a falling count because a count cannot tell a deleted check from three
+        # consolidated into one, but a reviewer looking at a branch can, and wants to
+        # be shown the drop rather than have it withheld.
+        blocking, advisory = detector(old, new, new_p) if detector else ([], [])
+        details = list(blocking) + list(advisory)
         # An RFC-tagged test is the proof behind a public compliance claim
         # (docs/features/rfc-status.md), so ANY behavior change to one is reportable --
         # not only the count-based weakening the heuristic above can see. Swapping an

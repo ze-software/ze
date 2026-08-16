@@ -1985,16 +1985,34 @@ def run_rfc_test_guard(results: Results) -> None:
     # The hash form must NOT buy a pass on a .go test: `#` is not a Go comment, so a
     # token written that way is not in the file's own syntax and cannot be the record
     # this hatch exists to leave behind.
+    #
+    # The weakening is a t.Skip, not a dropped assertion, and it has to be. A count
+    # falling now only REPORTS (`soft` in `_test_weakening_errs`), so a fixture that
+    # weakened by deleting an assertion would return 0 whether the hatch opened or
+    # not, and would pass while proving nothing. A skip is one-directional, so the
+    # refusal here is attributable to the token being rejected.
     r = edit(
         tagged.replace(
             "// RFC requirement: RFC7606-7.1-1 negative - ORIGIN len != 1 withdraws.\n",
             "",
         ),
-        "func TestX(t *testing.T) {\n\t# test-relax: nope\n}\n",
+        'func TestX(t *testing.T) {\n\t# test-relax: nope\n\tt.Skip("nope")\n}\n',
     )
     results.check(
-        "relax-hash-token-rejected-on-go", r is not None and r[0] == 2, repr(r)
+        "relax-hash-token-rejected-on-go",
+        r is not None and r[0] == 2 and "adding t.Skip" in r[1],
+        repr(r),
     )
+    # The same edit with the token in the file's OWN syntax opens the hatch, which is
+    # what makes the case above a statement about the `#` and not about the skip.
+    r = edit(
+        tagged.replace(
+            "// RFC requirement: RFC7606-7.1-1 negative - ORIGIN len != 1 withdraws.\n",
+            "",
+        ),
+        'func TestX(t *testing.T) {\n\t// test-relax: nope\n\tt.Skip("nope")\n}\n',
+    )
+    results.check("relax-slash-token-accepted-on-go", r is None, repr(r))
 
     # Must NOT over-block ordinary maintenance, or the hook gets disabled and protects
     # nothing (spec risk R-8).
@@ -2287,7 +2305,7 @@ def _rfc_guard_scope_cases(results: Results, cw, tmp: str) -> None:
     # and the token pattern read `//` only: 313 `.ci` files carry `# // test-relax:`, an
     # alien Go comment nested in a hash comment to match it, and 8 wrote the natural form
     # and got a justification that bought nothing. Each case below drops an `expect=`,
-    # which is what `_test_weakening_errs` blocks on a `.ci`.
+    # which `_test_weakening_errs` reports on a `.ci` without refusing it.
     os.makedirs(os.path.join(tmp, "test", "ui"), exist_ok=True)
     relax_ci = os.path.join(tmp, "test", "ui", "relax-form.ci")
     ci_old = "cmd=ze show\nexpect=out:text=one\nexpect=out:text=two\n"
@@ -2295,9 +2313,16 @@ def _rfc_guard_scope_cases(results: Results, cw, tmp: str) -> None:
     with open(relax_ci, "w", encoding="utf-8") as fh:
         fh.write(ci_old)
 
+    # A count falling REPORTS and lets the edit through (`soft` in
+    # `_test_weakening_errs`): a count cannot tell a deleted expectation from two
+    # consolidated into one, and refusing on it is what built 780 `test-relax:`
+    # tokens. What these fixtures still pin is that the arm SEES the drop, which
+    # is why each asserts the notice names it rather than only asserting a 0.
     r = edit(ci_old, ci_new, relax_ci)
     results.check(
-        "relax-ci-shrink-blocked-without-a-token", r is not None and r[0] == 2, repr(r)
+        "relax-ci-shrink-reported-without-a-token",
+        r is not None and r[0] == 0 and "removing expectations" in r[1],
+        repr(r),
     )
 
     reason = "the `two` line tested a command that was removed\n"
@@ -2334,7 +2359,9 @@ def _rfc_guard_scope_cases(results: Results, cw, tmp: str) -> None:
         relax_ci,
     )
     results.check(
-        "relax-ci-barrier-removal-blocked", r is not None and r[0] == 2, repr(r)
+        "relax-ci-barrier-removal-reported",
+        r is not None and r[0] == 0 and "removing expectations" in r[1],
+        repr(r),
     )
 
     # The case the line counter could never see: same shape, same counts, no verdict
@@ -2483,7 +2510,9 @@ def _rfc_guard_scope_cases(results: Results, cw, tmp: str) -> None:
         et,
     )
     results.check(
-        "relax-et-expectation-removal-blocked", r is not None and r[0] == 2, repr(r)
+        "relax-et-expectation-removal-reported",
+        r is not None and r[0] == 0 and "removing expectations" in r[1],
+        repr(r),
     )
 
     # ---- what the .ci counter must not be fooled by (2026-08-10) ----------------
@@ -2499,7 +2528,7 @@ def _rfc_guard_scope_cases(results: Results, cw, tmp: str) -> None:
         r = edit("expect=out:text=one\nexpect=out:text=two\n", replacement, relax_ci)
         results.check(
             f"relax-ci-{label}-does-not-offset-a-deleted-expectation",
-            r is not None and r[0] == 2,
+            r is not None and r[0] == 0 and "removing expectations (2 -> 1" in r[1],
             repr(r),
         )
 
@@ -2510,13 +2539,19 @@ def _rfc_guard_scope_cases(results: Results, cw, tmp: str) -> None:
         "cmd=ze show bgp\nexpect=out:text=one\n",
         relax_ci,
     )
-    results.check("relax-ci-cmd-removal-blocked", r is not None and r[0] == 2, repr(r))
+    results.check(
+        "relax-ci-cmd-removal-reported",
+        r is not None and r[0] == 0 and "removing expectations" in r[1],
+        repr(r),
+    )
 
     # Inverting a negative expectation keeps the combined count identical: the run now
     # DEMANDS the error it used to refuse. Only a separate reject= tally sees it.
     r = edit("reject=out:text=error\n", "expect=out:text=error\n", relax_ci)
     results.check(
-        "relax-ci-reject-to-expect-blocked", r is not None and r[0] == 2, repr(r)
+        "relax-ci-reject-to-expect-reported",
+        r is not None and r[0] == 0 and "removing negative expectations" in r[1],
+        repr(r),
     )
 
     # An emptied needle stops being checked at all (`validateFileContent` guards on
@@ -2574,7 +2609,7 @@ def _rfc_guard_scope_cases(results: Results, cw, tmp: str) -> None:
     )
     results.check(
         "relax-go-comment-inside-a-string-literal-is-not-stripped",
-        r is not None and r[0] == 2,
+        r is not None and r[0] == 0 and "removing assertions" in r[1],
         repr(r),
     )
 
@@ -2587,7 +2622,7 @@ def _rfc_guard_scope_cases(results: Results, cw, tmp: str) -> None:
     )
     results.check(
         "relax-ci-trailing-comment-does-not-pay-for-a-deleted-expectation",
-        r is not None and r[0] == 2,
+        r is not None and r[0] == 0 and "removing expectations" in r[1],
         repr(r),
     )
     r = edit(
@@ -2597,7 +2632,7 @@ def _rfc_guard_scope_cases(results: Results, cw, tmp: str) -> None:
     )
     results.check(
         "relax-go-trailing-comment-does-not-pay-for-a-deleted-subtest",
-        r is not None and r[0] == 2,
+        r is not None and r[0] == 0 and "removing t.Run cases" in r[1],
         repr(r),
     )
 

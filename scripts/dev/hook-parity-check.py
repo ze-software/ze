@@ -809,8 +809,12 @@ WE_GOLDEN = {
 WEAKEN_GOLDEN = {
     "skip added": 2,
     "skip added with relax token": 0,
-    "partial assertion removal": 2,
-    "fatal to nonfatal downgrade": 2,
+    # These two are COUNT drops, and a count cannot tell a deleted check from
+    # three checks consolidated into one. They report and let the edit through
+    # (`soft` in `_test_weakening_errs`); refusing here is what produced 780
+    # `test-relax:` tokens, three in four of which excuse an improvement.
+    "partial assertion removal": 0,
+    "fatal to nonfatal downgrade": 0,
     "commented out assertion": 2,
     "build tag ignore added": 2,
     "delete test func": 2,
