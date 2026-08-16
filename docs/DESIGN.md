@@ -497,7 +497,7 @@ graph LR
 
 `LoadConfig` runs three whole-tree passes between the parse and
 `ExtractPluginsFromTree`, in this order. The registered value validators judge the
-tree the operator wrote. Then `RejectMaskedBcryptLeaves` refuses a `ze:bcrypt` leaf
+tree the operator wrote. Then `RejectMaskedSecretLeaves` refuses a secret leaf
 holding the display placeholder. Then `ApplyPasswordHashing` bcrypt-hashes the
 `plaintext-<name>` sibling of every such leaf, so a credential is canonical before
 any consumer reads it.
@@ -510,8 +510,8 @@ calls `ValidateCustomSections`, and the one other caller of that function is
 
 <!-- source: internal/component/bgp/config/resolve.go -- ResolveBGPTree() -->
 <!-- source: internal/component/bgp/reactor/config.go -- PeersFromTree() -->
-<!-- source: internal/component/config/loader.go -- LoadConfig, refuseInvalidCustomSections, RejectMaskedBcryptLeaves, ApplyPasswordHashing, ExtractPluginsFromTree -->
-<!-- source: internal/component/config/mask.go -- RejectMaskedBcryptLeaves -->
+<!-- source: internal/component/config/loader.go -- LoadConfig, refuseInvalidCustomSections, RejectMaskedSecretLeaves, ApplyPasswordHashing, ExtractPluginsFromTree -->
+<!-- source: internal/component/config/mask.go -- RejectMaskedSecretLeaves -->
 <!-- source: internal/component/config/password_hash.go -- ApplyPasswordHashing -->
 <!-- source: internal/component/config/validate_sections.go -- refuseInvalidCustomSections, ValidateCustomSections -->
 <!-- source: internal/component/config/cli/cmd_validate.go -- ValidateCustomSections -->

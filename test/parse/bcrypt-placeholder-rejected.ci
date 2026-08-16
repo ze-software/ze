@@ -22,3 +22,10 @@ cmd=foreground:seq=1:exec=ze config validate -:stdin=config
 expect=exit:code=1
 expect=stdout:contains=placeholder
 expect=stdout:contains=password
+# The diagnostic code is a contract surface: `ze explain <code>` reads it and an
+# agent keys on it. The guard covers every secret leaf, not the bcrypt half it
+# started with, so the code names a secret. It is registered in
+# internal/core/diagnostic/codes.go.
+cmd=foreground:seq=2:exec=ze config validate --json -:stdin=config
+expect=exit:code=1
+expect=stdout:contains=config-secret-masked

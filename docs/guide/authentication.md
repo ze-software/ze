@@ -172,7 +172,7 @@ raw download (`GET /config/download`, gated behind edit permission) keeps the re
 hash so a download → edit → upload round-trip is byte-exact; a masked value pasted
 back into a commit or upload is rejected with a clear error.
 
-<!-- source: internal/component/config/mask.go -- MaskBcrypt, RejectMaskedBcryptLeaves -->
+<!-- source: internal/component/config/mask.go -- MaskBcrypt, RejectMaskedSecretLeaves -->
 <!-- source: cmd/ze/hub/service_web.go -- GET /config/download editWrap gate -->
 
 ### Remote management listener guard

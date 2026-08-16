@@ -183,7 +183,7 @@ func TestValidateContentReturnsAggregatedError(t *testing.T) {
 // ze-ssh-conf.yang), which registers into the package-global YANG module list
 // and polluted the schema for unrelated tests in this package (listener-conflict
 // and fix-plan diagnostics). The guard itself is unit-tested in
-// internal/component/config: config.TestRejectMaskedBcryptLeaves.
+// internal/component/config: config.TestRejectMaskedSecretLeaves.
 
 // TestValidateRunsPluginConfigVerifier verifies `ze config validate` rejects
 // errors from registered side-effect-free plugin verify hooks.

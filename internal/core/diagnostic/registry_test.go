@@ -65,6 +65,7 @@ func TestRegistryBuiltinCodesIncludeExpected(t *testing.T) {
 		"config-bgp-resolve",
 		"config-bgp-peer",
 		"config-listener-conflict",
+		"config-secret-masked",
 		"config-warning",
 	}
 

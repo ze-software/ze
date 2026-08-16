@@ -142,7 +142,7 @@ func TestLoadConfigLeavesHashedPasswordAlone(t *testing.T) {
 
 // TestLoadConfigRefusesMaskedBcryptLeaf: the load path takes BOTH halves of the pair.
 //
-// VALIDATES: LoadConfig runs RejectMaskedBcryptLeaves before ApplyPasswordHashing,
+// VALIDATES: LoadConfig runs RejectMaskedSecretLeaves before ApplyPasswordHashing,
 // which is the order both editor commit sites use
 // (internal/component/cli/editor_commit.go, editor_commands.go).
 //
