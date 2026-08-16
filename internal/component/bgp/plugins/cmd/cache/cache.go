@@ -202,7 +202,7 @@ func handleBgpCacheForward(ctx *pluginserver.CommandContext, id uint64, args []s
 	if len(args) < 1 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Error:  "usage: cache forward <id> <selector>",
+			Error:  "usage: request cache forward <id> <selector>",
 		}, errMissingSelector
 	}
 
