@@ -1359,10 +1359,27 @@ document.addEventListener("DOMContentLoaded", function () {
                 });
             });
             tables.forEach(function (table) {
+                for (var rowIndex = 0; rowIndex < table.rows.length; rowIndex += 1) {
+                    var row = table.rows[rowIndex];
+                    var firstVisible = null;
+                    var lastVisible = null;
+                    for (var cellIndex = 0; cellIndex < row.cells.length; cellIndex += 1) {
+                        var cell = row.cells[cellIndex];
+                        cell.classList.remove("column-selector-first-visible", "column-selector-last-visible");
+                        if (cell.hidden) continue;
+                        if (!firstVisible) firstVisible = cell;
+                        lastVisible = cell;
+                    }
+                    if (firstVisible) firstVisible.classList.add("column-selector-first-visible");
+                    if (lastVisible) lastVisible.classList.add("column-selector-last-visible");
+                }
                 table.classList.add("column-selector-active");
                 table.style.setProperty("--visible-column-count", String(visible.length));
                 table.setAttribute("data-visible-column-count", String(visible.length));
             });
+            if (config.summaryStatus) {
+                config.summaryStatus.textContent = visible.length + "/" + order.length + " visible";
+            }
             syncControls();
             if (config.updateStatus && config.status) {
                 var kind = config.kind || "columns";
@@ -1500,11 +1517,20 @@ document.addEventListener("DOMContentLoaded", function () {
                 : table.rows[0];
             if (!header || header.cells.length < 2) return;
 
-            var host = document.createElement("div");
+            var host = document.createElement("details");
             host.className = "column-selector table-column-selector";
             host.setAttribute("data-auto-column-selector", "true");
+            var summary = document.createElement("summary");
+            summary.className = "table-column-selector-summary";
+            var summaryLabel = document.createElement("span");
+            summaryLabel.textContent = "Columns";
+            var summaryStatus = document.createElement("span");
+            summaryStatus.className = "table-column-selector-summary-status";
+            summary.appendChild(summaryLabel);
+            summary.appendChild(summaryStatus);
+            host.appendChild(summary);
             var status = document.createElement("p");
-            status.className = "column-selector-status";
+            status.className = "column-selector-status sr-only";
             status.setAttribute("aria-live", "polite");
             host.appendChild(status);
             table.parentNode.insertBefore(host, table);
@@ -1517,6 +1543,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 kind: "columns",
                 actions: true,
                 status: status,
+                summaryStatus: summaryStatus,
                 insertBefore: status,
                 minColumns: 2,
                 updateStatus: true,
@@ -1525,6 +1552,8 @@ document.addEventListener("DOMContentLoaded", function () {
                 host.parentNode.removeChild(host);
                 return;
             }
+            var legend = selector.fieldset.querySelector("legend");
+            if (legend) legend.classList.add("sr-only");
             table.setAttribute("data-auto-column-selector", "true");
         });
     }
