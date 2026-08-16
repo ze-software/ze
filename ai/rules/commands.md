@@ -46,6 +46,10 @@ mutation: revert the change, watch one named test go red, restore. That is one
 A suite count proves the tree, never the fix. It is also the part that does not
 survive contention.
 
+- A known failing test MUST stay at the narrowest runnable scope until it passes. For Go tests, run `make ze-unit-pkg-test PKG=./path/to/package RUN='^TestName$' RACE=0`.
+- Use `RACE=0` only for non-race iteration. A race or concurrency failure MUST keep race detection enabled.
+- Run the required aggregate target, `make ze-precommit-verify` or `make ze-precommit-verify-changed`, only once. Run it after focused tests pass and all edits are complete. You MUST NOT use either aggregate target to rerun one known failure.
+
 ## Bare `go test` Lies -- Always Pass The Feature Tags
 
 `go test ./...` is **NOT** equivalent to `make ze-unit-test`. Ze compiles features
