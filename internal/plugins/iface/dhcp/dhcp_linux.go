@@ -20,6 +20,17 @@ import (
 	"github.com/ze-software/ze/pkg/ze"
 )
 
+// dHCPConfig holds optional DHCP client parameters parsed from config.
+type dHCPConfig struct {
+	Hostname             string // DHCPv4 option 12
+	ClientID             string // DHCPv4 option 61
+	PDLength             int    // DHCPv6 requested prefix delegation length (0 = server decides)
+	DUID                 string // DHCPv6 DUID override
+	ResolvConfPath       string // path for DNS resolv.conf (empty = disabled)
+	HasStaticNameServers bool   // when true, DHCP does not write resolv.conf (static servers take priority)
+	RouteMetric          int    // metric for DHCP-installed default routes (0 = kernel default)
+}
+
 // DHCPClient manages DHCP on a single interface unit.
 //
 // Start MUST be called to begin DHCP negotiation. Stop MUST be called
