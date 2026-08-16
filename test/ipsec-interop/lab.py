@@ -282,8 +282,21 @@ class StrongSwan:
         return docker_exec_quiet(self.container, ["swanctl"] + args)
 
     def list_sas(self):
-        """Return raw swanctl --list-sas output."""
-        return self._swanctl(["--list-sas"])
+        """Return raw swanctl --list-sas output. Raises when swanctl failed.
+
+        `_swanctl` answers "" for a swanctl that could not run and for a charon
+        that holds no SA at all. Two scenarios read this to assert the ABSENCE
+        of an SA (`if "ESTABLISHED" not in swan.list_sas(): break`, in
+        08-responder-eap-mschapv2 and 09-responder-ike-rekey), so a failed read
+        would end their wait at once and let the next phase run against an SA
+        that never went away. `sa_count` has the same shape with 0.
+
+        Empty output is a real answer here, because swanctl prints nothing when
+        charon holds no SA, so the fault is read from the EXIT STATUS.
+        `Scenario.setup` has already proven swanctl answers (`_wait_charon_ready`),
+        so a later failure is a fault rather than a start-up race.
+        """
+        return docker_exec(self.container, ["swanctl", "--list-sas"])
 
     def wait_sa_established(self, conn_name=None, timeout=None):
         """Poll until an IKE SA is established in strongSwan."""

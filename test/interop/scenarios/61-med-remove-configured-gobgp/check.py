@@ -172,6 +172,7 @@ def check():
     except Exception:
         gobgp = GoBGP()
         print("--- GoBGP rib ---")
+        # fail-open-ok: diagnostic print, the bare `raise` below is unconditional
         print(gobgp._gobgp_quiet(["global", "rib", "-a", "ipv4"]))
         print(docker_logs(INJECT_CONTAINER, 40))
         print(docker_logs(ZE_CONTAINER, 60))

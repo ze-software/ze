@@ -181,17 +181,23 @@ def check():
     try:
         _check()
     except Exception:
+        # Every read below runs inside the handler of an exception that is
+        # re-raised at the end, so each one is printed and none is asserted on.
         frr = FRR()
         gobgp = GoBGP()
         print("--- GoBGP rib ---")
+        # fail-open-ok: diagnostic print, the bare `raise` below is unconditional
         print(gobgp._gobgp_quiet(["global", "rib", "-a", "ipv4"]))
         print("--- FRR bgp table ---")
+        # fail-open-ok: diagnostic print, the bare `raise` below is unconditional
         print(frr._vtysh_quiet("show bgp ipv4 unicast"))
         for prefix in RELAYED + (ORIGINATED,):
             print("--- FRR %s ---" % prefix)
+            # fail-open-ok: diagnostic print, the bare `raise` below is unconditional
             print(frr._vtysh_quiet("show bgp ipv4 unicast %s" % prefix))
         print("--- FRR log ---")
         print(
+            # fail-open-ok: diagnostic print, the bare `raise` below is unconditional
             docker_exec_quiet(
                 FRR_CONTAINER, ["sh", "-c", "tail -60 /var/log/frr-med.log"]
             )

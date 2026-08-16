@@ -723,6 +723,29 @@ class FRR:
         """Run a vtysh command, return stdout or empty string on failure."""
         return docker_exec_quiet(self.container, ["vtysh", "-c", command])
 
+    def _vtysh(self, command):
+        """Run a vtysh command, return stdout, raise when it could not be run.
+
+        The counterpart of `_vtysh_quiet`, for every read whose value leaves the
+        helper as a FACT about the peer. `_vtysh_quiet` answers "" for a vtysh
+        that could not run and for a vtysh that ran and printed nothing, so
+        `"Full" in out` is False for a dead container exactly as it is for a
+        peer that is really down. A caller that asserts ABSENCE then passes on
+        the harness fault: `ospf-convergence-frr` reads `adjacency_down()` to
+        prove the dead interval expired, and a failed read proves it in 0s.
+
+        Empty output stays a real answer here, because `show ip route ospf`
+        prints nothing when no OSPF route exists. The fault is therefore read
+        from the EXIT STATUS, which is what `docker_exec` raises on.
+        `wait_containers_healthy` has already proven `vtysh -c "show version"`
+        exits 0 in this container before any scenario runs, so a non-zero exit
+        later is a fault rather than a start-up race.
+
+        A POLL LOOP keeps `_vtysh_quiet`: it waits for a sentinel that "" can
+        never match, and its own deadline raises.
+        """
+        return docker_exec(self.container, ["vtysh", "-c", command])
+
     def wait_session(self, neighbor, timeout=None):
         """Poll until BGP session with neighbor reaches Established."""
         if timeout is None:
@@ -732,6 +755,7 @@ class FRR:
         )
         deadline = time.time() + timeout
         while time.time() < deadline:
+            # fail-open-ok: poll loop, "" never matches the sentinel and the deadline below raises
             output = self._vtysh_quiet("show bgp neighbor %s" % neighbor)
             if "BGP state = Established" in output:
                 log_pass("FRR session with %s is Established" % neighbor)
@@ -741,6 +765,7 @@ class FRR:
             "FRR session with %s did not reach Established within %ds"
             % (neighbor, timeout)
         )
+        # fail-open-ok: diagnostic dump, the AssertionError below is unconditional
         output = self._vtysh_quiet("show bgp neighbor %s" % neighbor)
         for line in output.splitlines()[:10]:
             print("  %s" % line)
@@ -748,8 +773,13 @@ class FRR:
         raise AssertionError("FRR session with %s not Established" % neighbor)
 
     def route(self, prefix, family="ipv4 unicast"):
-        """Get route info as parsed JSON from vtysh."""
-        output = self._vtysh_quiet("show bgp %s %s json" % (family, prefix))
+        """Get route info as parsed JSON from vtysh. Raises when vtysh failed.
+
+        `route_absent` and `wait_route_absent` assert the ABSENCE of a route
+        through `has_route`, so a failed read answering {} would prove the
+        withdrawal that the scenario is testing for. `_vtysh` raises instead.
+        """
+        output = self._vtysh("show bgp %s %s json" % (family, prefix))
         if not output.strip():
             return {}
         try:
@@ -803,8 +833,15 @@ class FRR:
         raise AssertionError("FRR route %s still present" % prefix)
 
     def route_count(self, neighbor):
-        """Get prefix count from JSON summary for a specific neighbor."""
-        output = self._vtysh_quiet("show bgp ipv4 unicast summary json")
+        """Get prefix count from JSON summary for a specific neighbor.
+
+        Raises when vtysh could not be run: 0 is a legitimate prefix count and a
+        failed query is not, which is `Ze.rib_count`'s rule applied to the peer
+        side. The text fallback below is the site the docker-exec gate was
+        written for -- `"".splitlines()` yields no lines, so the loop found no
+        neighbor and the helper answered 0 for a vtysh that never ran.
+        """
+        output = self._vtysh("show bgp ipv4 unicast summary json")
         if not output.strip():
             return 0
         try:
@@ -814,7 +851,7 @@ class FRR:
             return peer.get("pfxSnt", peer.get("pfxRcd", 0))
         except (json.JSONDecodeError, AttributeError):
             log_debug("JSON summary parse failed, falling back to text")
-            output = self._vtysh_quiet("show bgp ipv4 unicast summary")
+            output = self._vtysh("show bgp ipv4 unicast summary")
             for line in output.splitlines():
                 if neighbor in line:
                     parts = line.split()
@@ -835,6 +872,7 @@ class FRR:
 
     def check_route_community(self, prefix, community):
         """Assert route has community string (standard, extended, or large)."""
+        # fail-open-ok: "" matches no community, so a failed read raises below, never passes
         output = self._vtysh_quiet("show bgp ipv4 unicast %s" % prefix)
         # FRR displays large communities with commas in parens: (65001,0,1)
         comma_form = community.replace(":", ",")
@@ -873,8 +911,16 @@ class FRR:
         log_pass("FRR route %s AS_PATH does not contain AS %s" % (prefix, asn))
 
     def session_established(self, neighbor):
-        """Check if session is currently Established."""
-        output = self._vtysh_quiet("show bgp neighbor %s" % neighbor)
+        """Check if session is currently Established. Raises when vtysh failed.
+
+        Three scenarios read this NEGATIVELY to prove a session went down:
+        `45-max-prefix-cease-frr` waits for the cease teardown, `33-bfd-frr`
+        times the BFD-driven failover, and `46-max-prefix-per-family-frr` holds
+        the session up. A "" from a failed read is not Established, so the first
+        two would call the teardown proven the moment the read broke, and the
+        second would report a drop that never happened.
+        """
+        output = self._vtysh("show bgp neighbor %s" % neighbor)
         return "BGP state = Established" in output
 
     def wait_bfd_up(self, peer, timeout=None):
@@ -891,12 +937,14 @@ class FRR:
         )
         deadline = time.time() + timeout
         while time.time() < deadline:
+            # fail-open-ok: poll loop, "" never matches the sentinel and the deadline below raises
             output = self._vtysh_quiet("show bfd peers")
             if peer in output and "Status: up" in output:
                 log_pass("FRR BFD peer %s is Up" % peer)
                 return
             time.sleep(2)
         log_fail("FRR BFD peer %s did not reach Up within %ds" % (peer, timeout))
+        # fail-open-ok: diagnostic dump, the AssertionError below is unconditional
         output = self._vtysh_quiet("show bfd peers")
         for line in output.splitlines()[:20]:
             print("  %s" % line)
@@ -964,9 +1012,22 @@ class FRRISIS:
         """Run a vtysh command, return stdout or empty string on failure."""
         return docker_exec_quiet(self.container, ["vtysh", "-c", command])
 
+    def _vtysh(self, command):
+        """Run a vtysh command, return stdout, raise when it could not be run.
+
+        `FRR._vtysh` carries the reasoning; every predicate below uses this one
+        so that a vtysh fault cannot be reported as an answer about IS-IS.
+        """
+        return docker_exec(self.container, ["vtysh", "-c", command])
+
     def adjacency_up(self):
-        """Report whether FRR has at least one IS-IS adjacency in the Up state."""
-        out = self._vtysh_quiet("show isis neighbor")
+        """Report whether FRR has at least one IS-IS adjacency in the Up state.
+
+        Raises when vtysh failed: `isis-convergence-frr` reads this negatively
+        to prove the hold timer expired after a link cut, and "" holds no Up
+        line, so a failed read would prove the reconvergence instantly.
+        """
+        out = self._vtysh("show isis neighbor")
         # FRR prints a per-neighbor table; an Up adjacency shows state "Up".
         for line in out.splitlines():
             if "Up" in line.split():
@@ -985,28 +1046,29 @@ class FRRISIS:
                 return
             time.sleep(2)
         log_fail("FRR IS-IS adjacency did not reach Up within %ds" % timeout)
+        # fail-open-ok: diagnostic print, the AssertionError below is unconditional
         print(self._vtysh_quiet("show isis neighbor")[:500])
         print(docker_logs(ZE_CONTAINER, 30))
         raise AssertionError("FRR IS-IS adjacency not Up")
 
     def is_dis(self):
         """Report whether FRR shows a Designated IS elected on any circuit (LAN)."""
-        out = self._vtysh_quiet("show isis interface detail")
+        out = self._vtysh("show isis interface detail")
         return "DIS" in out or "Designated" in out
 
     def has_isis_route(self, prefix):
         """Check FRR's kernel/zebra RIB for an IS-IS-learned IPv4 route."""
-        out = self._vtysh_quiet("show ip route isis")
+        out = self._vtysh("show ip route isis")
         return prefix in out
 
     def has_isis_route_v6(self, prefix):
         """Check FRR's kernel/zebra RIB for an IS-IS-learned IPv6 route."""
-        out = self._vtysh_quiet("show ipv6 route isis")
+        out = self._vtysh("show ipv6 route isis")
         return prefix in out
 
     def has_database_lsp(self, fragment):
         """Check FRR's IS-IS LSDB for an LSP whose ID contains fragment."""
-        out = self._vtysh_quiet("show isis database")
+        out = self._vtysh("show isis database")
         return fragment in out
 
     def has_pseudonode_lsp(self):
@@ -1015,7 +1077,7 @@ class FRRISIS:
         A pseudo-node LSP ID has a non-zero pseudo-node octet, e.g. the
         ".XX-00" segment is non-zero (FRR renders e.g. hostname.01-00).
         """
-        out = self._vtysh_quiet("show isis database")
+        out = self._vtysh("show isis database")
         for line in out.splitlines():
             # LSP IDs look like "<sysid-or-host>.<pn>-<frag>"; a pseudo-node has
             # a non-zero <pn> field.
@@ -1042,6 +1104,7 @@ class FRRISIS:
         log_fail(
             "FRR IS-IS %s route %s not present after %ds" % (family, prefix, timeout)
         )
+        # fail-open-ok: diagnostic print, the AssertionError below is unconditional
         print(self._vtysh_quiet("show ip route isis")[:500])
         print(docker_logs(ZE_CONTAINER, 30))
         raise AssertionError("FRR missing IS-IS %s route %s" % (family, prefix))
@@ -1052,7 +1115,7 @@ class FRRISIS:
         Used by the redistribution scenario: an IS-IS route Ze redistributed to
         BGP must land in FRR's BGP RIB. We look for any non-local BGP path.
         """
-        out = self._vtysh_quiet("show bgp ipv4 unicast")
+        out = self._vtysh("show bgp ipv4 unicast")
         # A received BGP route shows a next-hop that is the Ze peer address.
         return ZE_IP in out
 
@@ -1081,9 +1144,23 @@ class FRROSPF:
         """Run a vtysh command, return stdout or empty string on failure."""
         return docker_exec_quiet(self.container, ["vtysh", "-c", command])
 
+    def _vtysh(self, command):
+        """Run a vtysh command, return stdout, raise when it could not be run.
+
+        `FRR._vtysh` carries the reasoning; every predicate below uses this one
+        so that a vtysh fault cannot be reported as an answer about OSPF.
+        """
+        return docker_exec(self.container, ["vtysh", "-c", command])
+
     def adjacency_full(self):
-        """Report whether FRR has at least one OSPF neighbor in the Full state."""
-        out = self._vtysh_quiet("show ip ospf neighbor")
+        """Report whether FRR has at least one OSPF neighbor in the Full state.
+
+        Raises when vtysh failed. `adjacency_down` below is its negation, and
+        `ospf-bfd-frr` and `ospf-convergence-frr` both read that to prove the
+        adjacency dropped after a link cut. "" holds no "Full", so a failed read
+        would report a drop in 0s and pass the BFD detection budget with it.
+        """
+        out = self._vtysh("show ip ospf neighbor")
         # FRR prints a per-neighbor table; a full adjacency shows "Full/DR",
         # "Full/BDR", "Full/DROther", or "Full/-" (point-to-point).
         return "Full" in out
@@ -1100,6 +1177,7 @@ class FRROSPF:
                 return
             time.sleep(2)
         log_fail("FRR OSPF adjacency did not reach Full within %ds" % timeout)
+        # fail-open-ok: diagnostic print, the AssertionError below is unconditional
         print(self._vtysh_quiet("show ip ospf neighbor")[:500])
         print(docker_logs(ZE_CONTAINER, 30))
         raise AssertionError("FRR OSPF adjacency not Full")
@@ -1110,17 +1188,17 @@ class FRROSPF:
 
     def has_dr_bdr(self):
         """Report whether FRR elected a DR/BDR on a broadcast segment (AC-16)."""
-        out = self._vtysh_quiet("show ip ospf neighbor")
+        out = self._vtysh("show ip ospf neighbor")
         return "Full/DR" in out or "Full/BDR" in out or "DROther" in out
 
     def has_network_lsa(self):
         """Report whether FRR's LSDB carries a Network-LSA (Type 2, broadcast DR)."""
-        out = self._vtysh_quiet("show ip ospf database network")
+        out = self._vtysh("show ip ospf database network")
         return "Net Link States" in out or "Network Link States" in out
 
     def has_summary_lsa(self, prefix=None):
         """Report whether FRR's LSDB carries a Summary-LSA (Type 3, inter-area)."""
-        out = self._vtysh_quiet("show ip ospf database summary")
+        out = self._vtysh("show ip ospf database summary")
         if prefix:
             return prefix in out
         return "Summary Link States" in out
@@ -1131,15 +1209,24 @@ class FRROSPF:
         `show ip ospf database external` always prints the "AS External Link States"
         section header even when empty, so match a real LSA entry ("LS age:") -- or the
         given prefix -- not the header.
+
+        Raises when vtysh failed: `ospf-stub-nssa-frr` proves a stub area carries
+        no Type-5 LSA by asserting this is False, and "" would prove it.
         """
-        out = self._vtysh_quiet("show ip ospf database external")
+        out = self._vtysh("show ip ospf database external")
         if prefix:
             return prefix in out
         return "LS age" in out
 
     def has_ospf_route(self, prefix):
-        """Check FRR's kernel/zebra RIB for an OSPF-learned IPv4 route."""
-        out = self._vtysh_quiet("show ip route ospf")
+        """Check FRR's kernel/zebra RIB for an OSPF-learned IPv4 route.
+
+        Raises when vtysh failed: `wait_route_withdrawn` below polls for this to
+        become False, and `show ip route ospf` prints nothing when the RIB holds
+        no OSPF route, so only the exit status separates the withdrawal from a
+        vtysh that never ran.
+        """
+        out = self._vtysh("show ip route ospf")
         return prefix in out
 
     def wait_ospf_route(self, prefix, timeout=60):
@@ -1150,6 +1237,7 @@ class FRROSPF:
                 return
             time.sleep(2)
         log_fail("FRR OSPF route %s not present after %ds" % (prefix, timeout))
+        # fail-open-ok: diagnostic print, the AssertionError below is unconditional
         print(self._vtysh_quiet("show ip route ospf")[:500])
         print(docker_logs(ZE_CONTAINER, 30))
         raise AssertionError("FRR missing OSPF route %s" % prefix)
@@ -1162,6 +1250,7 @@ class FRROSPF:
                 return
             time.sleep(2)
         log_fail("FRR OSPF route %s still present after %ds" % (prefix, timeout))
+        # fail-open-ok: diagnostic print, the AssertionError below is unconditional
         print(self._vtysh_quiet("show ip route ospf")[:500])
         raise AssertionError("FRR did not withdraw OSPF route %s" % prefix)
 
@@ -1188,9 +1277,22 @@ class FRROSPF6:
         """Run a vtysh command, return stdout or empty string on failure."""
         return docker_exec_quiet(self.container, ["vtysh", "-c", command])
 
+    def _vtysh(self, command):
+        """Run a vtysh command, return stdout, raise when it could not be run.
+
+        `FRR._vtysh` carries the reasoning; every predicate below uses this one
+        so that a vtysh fault cannot be reported as an answer about OSPFv3.
+        """
+        return docker_exec(self.container, ["vtysh", "-c", command])
+
     def adjacency_full(self):
-        """Report whether FRR has at least one OSPFv3 neighbor in the Full state."""
-        out = self._vtysh_quiet("show ipv6 ospf6 neighbor")
+        """Report whether FRR has at least one OSPFv3 neighbor in the Full state.
+
+        Raises when vtysh failed: `ospfv3-bfd-frr` reads this negatively to time
+        the BFD-driven drop after a link cut, and "" holds no "Full", so a failed
+        read would report the drop instantly and pass the detection budget.
+        """
+        out = self._vtysh("show ipv6 ospf6 neighbor")
         # ospf6d prints a per-neighbor table; a full adjacency shows the neighbor
         # state column as "Full" (e.g. "Full/PointToPoint" or "Full/DR").
         return "Full" in out
@@ -1207,12 +1309,13 @@ class FRROSPF6:
                 return
             time.sleep(2)
         log_fail("FRR OSPFv3 adjacency did not reach Full within %ds" % timeout)
+        # fail-open-ok: diagnostic print, the AssertionError below is unconditional
         print(self._vtysh_quiet("show ipv6 ospf6 neighbor")[:500])
         print(docker_logs(ZE_CONTAINER, 30))
         raise AssertionError("FRR OSPFv3 adjacency not Full")
 
     def _database_has_adv_router(self, command, lsa_types, adv_router):
-        out = self._vtysh_quiet(command)
+        out = self._vtysh(command)
         for line in out.splitlines():
             fields = line.split()
             if len(fields) >= 3 and fields[0] in lsa_types and fields[2] == adv_router:
@@ -1235,7 +1338,7 @@ class FRROSPF6:
         OSPFv3 ospf6d prints the neighbor's role in the State/IfState column as
         "Full/DR" or "Full/BDR" (vs "Full/PointToPoint" on a p2p link).
         """
-        out = self._vtysh_quiet("show ipv6 ospf6 neighbor")
+        out = self._vtysh("show ipv6 ospf6 neighbor")
         return "/DR" in out or "/BDR" in out or "/Backup" in out
 
     def has_network_lsa(self, adv_router=None):
@@ -1248,7 +1351,7 @@ class FRROSPF6:
             return self._database_has_adv_router(
                 "show ipv6 ospf6 database network", ("Net", "Network"), adv_router
             )
-        out = self._vtysh_quiet("show ipv6 ospf6 database network")
+        out = self._vtysh("show ipv6 ospf6 database network")
         return any(
             line.split() and line.split()[0] in ("Net", "Network")
             for line in out.splitlines()
@@ -1262,7 +1365,7 @@ class FRROSPF6:
         advertising-router id only appears in the AdvRouter column of `database link`, so a
         whole-token match is robust across FRR's per-version type-abbreviation differences.
         """
-        out = self._vtysh_quiet("show ipv6 ospf6 database link")
+        out = self._vtysh("show ipv6 ospf6 database link")
         if adv_router:
             return any(adv_router in line.split() for line in out.splitlines())
         return any(
@@ -1281,7 +1384,7 @@ class FRROSPF6:
         summarised another area's prefixes into this one. The advertising-router id appears as a
         whole token, robust across FRR's per-version type abbreviations.
         """
-        out = self._vtysh_quiet("show ipv6 ospf6 database inter-prefix")
+        out = self._vtysh("show ipv6 ospf6 database inter-prefix")
         if adv_router:
             return any(adv_router in line.split() for line in out.splitlines())
         return any(
@@ -1299,8 +1402,12 @@ class FRROSPF6:
         Used to prove a v6 stub area is clean: a stub must never receive Type-5 LSAs. The
         whole-token type match (against FRR's per-version abbreviations) never matches the
         database header lines, so an empty as-external LSDB reports False.
+
+        That is why it raises when vtysh failed: `ospf-v6-stub-frr` asserts this
+        is False, and a failed read reports False for a reason the stub area had
+        nothing to do with.
         """
-        out = self._vtysh_quiet("show ipv6 ospf6 database as-external")
+        out = self._vtysh("show ipv6 ospf6 database as-external")
         return any(
             fields
             and fields[0] in ("ASE", "Type-5", "AS-External", "External", "Extern")
@@ -1309,7 +1416,7 @@ class FRROSPF6:
 
     def has_ospf6_route(self, prefix):
         """Check FRR's kernel/zebra RIB for an OSPFv3-learned IPv6 route."""
-        out = self._vtysh_quiet("show ipv6 route ospf6")
+        out = self._vtysh("show ipv6 route ospf6")
         return prefix in out
 
     def wait_ospf6_route(self, prefix, timeout=60):
@@ -1320,6 +1427,7 @@ class FRROSPF6:
                 return
             time.sleep(2)
         log_fail("FRR OSPFv3 route %s not present after %ds" % (prefix, timeout))
+        # fail-open-ok: diagnostic print, the AssertionError below is unconditional
         print(self._vtysh_quiet("show ipv6 route ospf6")[:500])
         print(docker_logs(ZE_CONTAINER, 30))
         raise AssertionError("FRR missing OSPFv3 route %s" % prefix)
@@ -1343,6 +1451,16 @@ class BIRD:
         """Run a birdc command, return stdout or empty string on failure."""
         return docker_exec_quiet(self.container, ["birdc", command])
 
+    def _birdc(self, command):
+        """Run a birdc command, return stdout, raise when it could not be run.
+
+        `FRR._vtysh` carries the reasoning. birdc answers a valid command with
+        exit 0 and its own banner even when the table is empty, so a non-zero
+        exit means birdc could not be run at all, and an empty answer means the
+        route is absent. Only the exit status separates the two.
+        """
+        return docker_exec(self.container, ["birdc", command])
+
     def wait_session(self, protocol, timeout=None):
         """Poll until protocol reaches Established."""
         if timeout is None:
@@ -1350,6 +1468,7 @@ class BIRD:
         log_info("waiting for BIRD protocol %s (timeout %ds)..." % (protocol, timeout))
         deadline = time.time() + timeout
         while time.time() < deadline:
+            # fail-open-ok: poll loop, "" never matches the sentinel and the deadline below raises
             output = self._birdc_quiet("show protocols")
             for line in output.splitlines():
                 if protocol in line and "Established" in line:
@@ -1360,14 +1479,19 @@ class BIRD:
             "BIRD protocol %s did not reach Established within %ds"
             % (protocol, timeout)
         )
+        # fail-open-ok: diagnostic dump, the AssertionError below is unconditional
         output = self._birdc_quiet("show protocols all")
         print(output)
         print(docker_logs(ZE_CONTAINER, 20))
         raise AssertionError("BIRD protocol %s not Established" % protocol)
 
     def has_route(self, prefix):
-        """Check if prefix in routing table."""
-        output = self._birdc_quiet("show route for %s" % prefix)
+        """Check if prefix in routing table. Raises when birdc failed.
+
+        `39-policy-import-export-frr` asserts this is False to prove the export
+        prefix-list denied a route, so a failed read would prove the deny.
+        """
+        output = self._birdc("show route for %s" % prefix)
         return prefix in output
 
     def wait_route(self, prefix, timeout=30):
@@ -1390,7 +1514,7 @@ class BIRD:
 
     def check_route_no_as(self, prefix, asn):
         """Assert AS not in route's AS_PATH."""
-        output = self._birdc_quiet("show route for %s all" % prefix)
+        output = self._birdc("show route for %s all" % prefix)
         found_aspath = False
         for line in output.splitlines():
             if "BGP.as_path" in line:
@@ -1406,8 +1530,12 @@ class BIRD:
         log_pass("BIRD route %s AS_PATH does not contain AS %s" % (prefix, asn))
 
     def exported_count(self, protocol):
-        """Get exported route count from protocol details."""
-        output = self._birdc_quiet("show protocols all %s" % protocol)
+        """Get exported route count from protocol details. Raises when birdc failed.
+
+        0 is a legitimate export count and a failed query is not, which is
+        `Ze.rib_count`'s rule applied to BIRD.
+        """
+        output = self._birdc("show protocols all %s" % protocol)
         for line in output.splitlines():
             if "Routes:" in line:
                 m = re.search(r"(\d+)\s+exported", line)
@@ -1416,8 +1544,8 @@ class BIRD:
         return 0
 
     def session_established(self, protocol):
-        """Check if protocol is Established."""
-        output = self._birdc_quiet("show protocols")
+        """Check if protocol is Established. Raises when birdc failed."""
+        output = self._birdc("show protocols")
         for line in output.splitlines():
             if protocol in line and "Established" in line:
                 return True
@@ -1457,6 +1585,7 @@ class GoBGP:
         )
         deadline = time.time() + timeout
         while time.time() < deadline:
+            # fail-open-ok: poll loop, "" never matches the sentinel and the deadline below raises
             output = self._gobgp_quiet(["neighbor", neighbor])
             if "established" in output.lower():
                 log_pass("GoBGP session with %s is Established" % neighbor)
@@ -1466,6 +1595,7 @@ class GoBGP:
             "GoBGP session with %s did not reach Established within %ds"
             % (neighbor, timeout)
         )
+        # fail-open-ok: diagnostic dump, the AssertionError below is unconditional
         output = self._gobgp_quiet(["neighbor"])
         print("  %s" % output[:500])
         print(docker_logs(ZE_CONTAINER, 20))
