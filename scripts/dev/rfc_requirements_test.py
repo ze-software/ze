@@ -2593,6 +2593,28 @@ class TestBaselineReaders(unittest.TestCase):
         with _patched(subprocess=_FakeSubprocess(returncode=1, stdout="")):
             self.assertEqual(R._git_baseline_tag_polarities(), {})
 
+    def test_id_baseline_reads_summaries_in_one_batch(self):
+        """The ID ratchet must not start one git process per committed summary."""
+        paths = ["rfc/short/rfc1.md", "rfc/short/rfc2.md"]
+        blobs = {
+            paths[0]: "- [ ] [RFC1-1-1] [MUST] first requirement (§1)\n",
+            paths[1]: "- [ ] [RFC2-2-1] [MUST NOT] second requirement (§2)\n",
+        }
+        requested = []
+
+        def cat_blobs(got):
+            requested.extend(got)
+            return blobs
+
+        with _patched(
+            subprocess=_FakeSubprocess(returncode=0, stdout="\0".join(paths) + "\0"),
+            _git_cat_blobs=cat_blobs,
+        ):
+            got = R._git_baseline_ids()
+
+        self.assertEqual(requested, paths)
+        self.assertEqual(got, {"RFC1-1-1", "RFC2-2-1"})
+
     def test_cat_blobs_parses_a_batch(self):
         """The batch reader replaces one `git show` per file (350 forks). Its framing is
         hand-parsed, so pin it: two blobs and one missing path."""

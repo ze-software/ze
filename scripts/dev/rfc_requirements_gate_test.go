@@ -16,11 +16,22 @@ import (
 	"time"
 )
 
+// rfcGateTimeout bounds one run of the script. The slowest call measured on this
+// tree is --check at about 72s and --selftest at about 41s, so this is roughly
+// four times the worst case and still well inside the package's own -timeout.
+const rfcGateTimeout = 300 * time.Second
+
 // runRFCGate runs `python3 rfc_requirements.py <args...>` from the package directory
 // (scripts/dev); the script resolves the repo root from its own location.
+//
+// The context has two parents on purpose. t.Context() ends the child when the test
+// ends, which is what stops an orphaned python outliving a canceled run. It cannot
+// bound the call itself: it is canceled just before the Cleanup functions run, and
+// by then CombinedOutput has already returned. The timeout is what kills a hung
+// script, so both are needed and neither replaces the other.
 func runRFCGate(t *testing.T, args ...string) (int, string) {
 	t.Helper()
-	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), rfcGateTimeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "python3", append([]string{"rfc_requirements.py"}, args...)...)
 	out, err := cmd.CombinedOutput()

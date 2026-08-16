@@ -1796,26 +1796,22 @@ def _git_baseline_ids() -> Set[str]:
         return set()
     if listing.returncode != 0:
         return set()
+    paths = [
+        path.strip()
+        for path in listing.stdout.split("\0")
+        if path.strip().endswith(".md")
+    ]
+    if not paths:
+        return set()
+
+    blobs = _git_cat_blobs(paths)
     ids: Set[str] = set()
-    for path in listing.stdout.split("\0"):
-        path = path.strip()
-        if not path.endswith(".md"):
+    for path in paths:
+        if path not in blobs:
             continue
         stem = os.path.basename(path)[: -len(".md")]
         try:
-            show = subprocess.run(
-                ["git", "show", "HEAD:" + path],
-                cwd=PROJECT_DIR,
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-        except OSError:
-            continue
-        if show.returncode != 0:
-            continue
-        try:
-            for req in parse_summary_text(show.stdout, stem, source=path):
+            for req in parse_summary_text(blobs[path], stem, source=path):
                 ids.add(req.rid)
         except ParseError:
             # A committed summary that no longer parses contributes no baseline ids for its
@@ -7399,7 +7395,9 @@ def run_check() -> int:
         # opposite polarity takes the None itself.
         baseline_enrolled = _git_baseline_enrolment()
         base_enrolled = baseline_enrolled if baseline_enrolled is not None else set()
-        baseline_ids = _git_baseline_ids()  # read once: it costs a git show per summary
+        baseline_ids = (
+            _git_baseline_ids()
+        )  # read once: it costs one git cat-file --batch
 
         # Read once and shared by three consumers below. None means git could not answer.
         baseline_stems = _git_baseline_summary_stems()
