@@ -152,6 +152,44 @@ def run_format_alloc(results: Results) -> None:
     results.check("format-alloc-test-file-skip", r is None, repr(r))
 
 
+def run_design_ref(results: Results) -> None:
+    """c_require_design_ref asks for a `// Design:` line, and vendored code has no
+    ze design document to name. The check refused every edit under vendor/, which
+    made the vendor patch this tree carries deliberately (scripts/dev/patches/,
+    pinned by TestNetlinkXFRMPatchApplied) unrepairable with Write or Edit."""
+    print("design-ref:")
+    mod = _load_pretool_writeedit()
+    crd = mod.c_require_design_ref
+    body = "package netlink\n\nfunc f() {}\n"
+
+    def call(fp: str, content: str = body):
+        return crd({"tool": "Write", "ti": {"content": content}, "fp": fp})
+
+    r = call("/repo/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go")
+    results.check("design-ref-vendor-exempt", r is None, repr(r))
+
+    r = call("vendor/github.com/vishvananda/netlink/nl/xfrm_state_linux.go")
+    results.check("design-ref-vendor-relative-exempt", r is None, repr(r))
+
+    # The exemption is a PATH COMPONENT, not a substring: a ze package whose name
+    # merely starts with the word keeps the obligation.
+    r = call("/repo/internal/component/vendored/thing.go")
+    results.check(
+        "design-ref-vendor-substring-still-blocked",
+        r is not None and r[0] == 2,
+        repr(r),
+    )
+
+    r = call("/repo/internal/component/bgp/reactor/peer.go")
+    results.check("design-ref-ze-file-blocked", r is not None and r[0] == 2, repr(r))
+
+    r = call(
+        "/repo/internal/component/bgp/reactor/peer.go",
+        "// Design: docs/architecture/bgp/reactor.md -- FSM\n" + body,
+    )
+    results.check("design-ref-ze-file-with-line", r is None, repr(r))
+
+
 # --------------------------------------------------------------------------- #
 # rendered-rule: ai/rules/<rule>.md is generated, ai/rules/points/** is not
 # --------------------------------------------------------------------------- #
@@ -3255,9 +3293,7 @@ def run_design_gate(results: Results) -> None:
     # ...and the control: the same spec with its own Go read is allowed.
     r = _design_case(
         "- `internal/x/y.go` - the daemon",  # <!-- doc-links: ignore (fixture literal in a hook test corpus, deliberately absent from the tree) -->
-        (
-            "/repo/internal/x/y.go",
-        ),
+        ("/repo/internal/x/y.go",),
     )
     results.check(
         "design-gate-daemon-spec-reads-its-go", not _design_blocked(r), repr(r)
@@ -3281,9 +3317,7 @@ def run_design_gate(results: Results) -> None:
     # the pre-scoping bar: any implementation source, and still not nothing.
     r = _design_case(
         "- `docs/guide/x.md` - the page",  # <!-- doc-links: ignore (fixture literal in a hook test corpus, deliberately absent from the tree) -->
-        (
-            "/repo/scripts/dev/foo.py",
-        ),
+        ("/repo/scripts/dev/foo.py",),
     )
     results.check(
         "design-gate-subjectless-spec-any-source", not _design_blocked(r), repr(r)
@@ -3395,9 +3429,7 @@ def run_design_gate(results: Results) -> None:
     # it must SAY it degraded. Silence is what makes a weakened guard invisible.
     r = _design_case(
         "- `docs/guide/x.md` - the page",  # <!-- doc-links: ignore (fixture literal in a hook test corpus, deliberately absent from the tree) -->
-        (
-            "/repo/scripts/dev/foo.py",
-        ),
+        ("/repo/scripts/dev/foo.py",),
     )
     results.check("design-gate-subjectless-write-warns", _design_degraded(r), repr(r))
 
@@ -5304,9 +5336,7 @@ def run_rfc_language(results: Results) -> None:
     code, err = _writeedit(
         free,
         tool="Write",
-        content=_point_body(
-            "directive", "", "- Run it.\n\n~~~~\nit MUST exist\n~~~~~"
-        ),
+        content=_point_body("directive", "", "- Run it.\n\n~~~~\nit MUST exist\n~~~~~"),
     )
     results.check(
         "rfc-language-write-keyword-only-in-tilde-fence-refused",
@@ -5317,7 +5347,9 @@ def run_rfc_language(results: Results) -> None:
     code, err = _writeedit(
         free,
         tool="Write",
-        content=_point_body("directive", "", "- The quote follows.\n\n> It MUST exist."),
+        content=_point_body(
+            "directive", "", "- The quote follows.\n\n> It MUST exist."
+        ),
     )
     results.check(
         "rfc-language-write-keyword-only-in-blockquote-refused",
@@ -5425,6 +5457,7 @@ def run_rfc_language(results: Results) -> None:
 
 SECTIONS = {
     "format-alloc": run_format_alloc,
+    "design-ref": run_design_ref,
     "rendered-rule": run_rendered_rule,
     "rfc-language": run_rfc_language,
     "validate-spec": run_validate_spec,

@@ -1495,9 +1495,7 @@ RFC_KEYWORD_RE = re.compile(
     r"|SHOULD|RECOMMENDED|MAY|OPTIONAL)\b"
 )
 LOWER_MODAL_RE = re.compile(r"(?<![\w-])(must|shall|should|may)\b(?![-\w])")
-POINT_FENCE_OPEN_RE = re.compile(
-    r"^ {0,3}(?P<mark>`{3,}|~{3,})(?P<info>[^\n]*)$"
-)
+POINT_FENCE_OPEN_RE = re.compile(r"^ {0,3}(?P<mark>`{3,}|~{3,})(?P<info>[^\n]*)$")
 POINT_BLOCKQUOTE_RE = re.compile(r"^[ \t]{0,3}>.*$", re.MULTILINE)
 POINT_CODE_SPAN_RE = re.compile(r"`[^`]*`")
 
@@ -1537,7 +1535,6 @@ def _point_visible(text):
     text = _strip_point_fences(text)
     text = POINT_BLOCKQUOTE_RE.sub("", text)
     return POINT_CODE_SPAN_RE.sub("", text)
-
 
 
 # ze point: rule-format/every-directive-states-a-level/every-directive-states-its-rfc-2119-level
@@ -2121,6 +2118,13 @@ def c_require_design_ref(ctx):
         or re.search(r"_gen\.go$", base)
         or base in ("register.go", "embed.go", "doc.go")
     ):
+        return None
+    # Vendored third-party code. A `// Design:` line points at a ze design
+    # document, and an upstream file has none to point at, so the check has
+    # nothing to ask of this population. Refusing the edit blocked the repair of
+    # a vendor patch this tree carries deliberately (scripts/dev/patches/,
+    # pinned by TestNetlinkXFRMPatchApplied).
+    if re.search(r"(^|/)vendor/", fp):
         return None
     if ctx["tool"] == "Write":
         content = ctx["ti"].get("content") or ""
