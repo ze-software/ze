@@ -431,7 +431,7 @@ Ze Engine Core (event bus for components and plugins)
 
 ### Gate
 
-- `make ze-verify`: 28 linters + unit + functional + ExaBGP tests
+- `make ze-precommit-verify`: 28 linters + unit + functional + ExaBGP tests
 - Full gate takes over 15 minutes, so day-to-day work uses targeted checks first
 
 ---

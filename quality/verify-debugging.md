@@ -1,6 +1,6 @@
 # Verify and Debugging Workflow
 
-Use this page when `make ze-verify` fails, when a test needs to be rerun narrowly, or when debug logging should be enabled without turning the whole run into noise.
+Use this page when `make ze-precommit-verify` fails, when a test needs to be rerun narrowly, or when debug logging should be enabled without turning the whole run into noise.
 
 <!-- source: ../main/Makefile -- verify entry points -->
 <!-- source: ../main/scripts/status/verify_run.go -- staged verify runner -->
@@ -9,11 +9,11 @@ Use this page when `make ze-verify` fails, when a test needs to be rerun narrowl
 <!-- source: ../main/internal/test/trace/trace.go -- per-step trace output -->
 <!-- source: ../main/docs/guide/debugging-tools.md -- debugging tools -->
 
-`make ze-verify` is the normal pre-handoff gate. It is staged, locked, and designed to tell a developer where to rerun. The changed-only command is useful during development, but a finished change should pass the shared gate that would catch cross-package and functional regressions.
+`make ze-precommit-verify` is the normal pre-handoff gate. It is staged, locked, and designed to tell a developer where to rerun. The changed-only command is useful during development, but a finished change should pass the shared gate that would catch cross-package and functional regressions.
 
 ```bash
-make ze-verify-changed
-make ze-verify
+make ze-precommit-verify-changed
+make ze-precommit-verify
 ```
 
 ## What verify does

@@ -17,12 +17,12 @@ A `.ci` file is an executable transcript. The runner reads key-value directives,
 <table>
 <thead><tr><th>Behavior</th><th>Files</th><th>Narrow run</th><th>Make target</th></tr></thead>
 <tbody>
-<tr><td>BGP encode and route output</td><td><code>test/encode/*.ci</code></td><td><code>bin/ze-test bgp encode NAME -v</code></td><td><code>make ze-encode-test</code></td></tr>
-<tr><td>BGP plugin behavior</td><td><code>test/plugin/*.ci</code></td><td><code>bin/ze-test bgp plugin NAME -v</code></td><td><code>make ze-plugin-test</code></td></tr>
-<tr><td>Config parsing</td><td><code>test/parse/*.ci</code></td><td><code>bin/ze-test bgp parse NAME -v</code></td><td><code>make ze-parse-test</code></td></tr>
-<tr><td>Decode command output</td><td><code>test/decode/*.ci</code></td><td><code>bin/ze-test bgp decode NAME -v</code></td><td><code>make ze-decode-test</code></td></tr>
-<tr><td>Reload behavior</td><td><code>test/reload/*.ci</code></td><td><code>bin/ze-test bgp reload NAME -v</code></td><td><code>make ze-reload-test</code></td></tr>
-<tr><td>CLI output</td><td><code>test/ui/*.ci</code></td><td><code>bin/ze-test ui NAME -v</code></td><td><code>make ze-ui-test</code></td></tr>
+<tr><td>BGP encode and route output</td><td><code>test/encode/*.ci</code></td><td><code>bin/ze-test bgp encode NAME -v</code></td><td><code>make ze-functional-encode-test</code></td></tr>
+<tr><td>BGP plugin behavior</td><td><code>test/plugin/*.ci</code></td><td><code>bin/ze-test bgp plugin NAME -v</code></td><td><code>make ze-functional-plugin-test</code></td></tr>
+<tr><td>Config parsing</td><td><code>test/parse/*.ci</code></td><td><code>bin/ze-test bgp parse NAME -v</code></td><td><code>make ze-functional-parse-test</code></td></tr>
+<tr><td>Decode command output</td><td><code>test/decode/*.ci</code></td><td><code>bin/ze-test bgp decode NAME -v</code></td><td><code>make ze-functional-decode-test</code></td></tr>
+<tr><td>Reload behavior</td><td><code>test/reload/*.ci</code></td><td><code>bin/ze-test bgp reload NAME -v</code></td><td><code>make ze-functional-reload-test</code></td></tr>
+<tr><td>CLI output</td><td><code>test/ui/*.ci</code></td><td><code>bin/ze-test ui NAME -v</code></td><td><code>make ze-functional-ui-test</code></td></tr>
 <tr><td>L2TP, firewall, policy, LDP, RSVP-TE, IS-IS, OSPF, OSPFv3, static, traffic, VPP, and install flows</td><td><code>test/&lt;suite&gt;/*.ci</code></td><td><code>bin/ze-test &lt;suite&gt; NAME -v</code></td><td>Suite-specific target in <code>mk/test-functional.mk</code></td></tr>
 </tbody>
 </table>

@@ -148,7 +148,7 @@ def inventory_counts():
             )
     elif MAIN_REPO.exists():
         sitelib.warn(
-            "sitefacts: %s missing; counting locally. Run `make ze-test-health` in "
+            "sitefacts: %s missing; counting locally. Run `make ze-test-health-update` in "
             "../main so the site and the repository publish the same figures." % facts
         )
     return None

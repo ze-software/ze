@@ -93,16 +93,16 @@ Ze's quality work has one rule: when something fails, the output should show wha
     <h3>Edit loop</h3>
     <p>Use one focused command while changing code.</p>
     <pre><code>go test -race -run TestName ./internal/component/config/...
-make ze-fuzz-one FUZZ=FuzzParseNLRI PKG=./internal/component/bgp/wire/ TIME=30s
-make ze-mutation-changed
+make ze-fuzz-one-test FUZZ=FuzzParseNLRI PKG=./internal/component/bgp/wire/ TIME=30s
+make ze-mutation-test-changed
 bin/ze-test bgp plugin 42 -v</code></pre>
   </article>
   <article class="quality-command">
     <h3>Handoff gate</h3>
     <p>Use the shared gate before handing over normal work.</p>
-    <pre><code>make ze-verify
-make ze-verify-changed
-make ze-validate</code></pre>
+    <pre><code>make ze-precommit-verify
+make ze-precommit-verify-changed
+make ze-repository-check</code></pre>
   </article>
   <article class="quality-command">
     <h3>Linux and release</h3>
@@ -110,13 +110,13 @@ make ze-validate</code></pre>
     <pre><code>make ze-qemu-needs-linux-test
 make ze-qemu-debug RUN='...'
 make ze-interop-test
-make ze-release-evidence</code></pre>
+make ze-release-evidence-verify</code></pre>
   </article>
 </div>
 
 ## How a failure becomes useful
 
-`make ze-verify` is more than a command wrapper. It takes a lock so two heavy runs do not corrupt each other, writes per-stage logs under `tmp/`, groups related failures, and prints the rerun commands. The functional runner adds per-step traces for `.ci`, `.wb`, and `.et` files. BGP expectations decode wire messages before showing differences, so a failed UPDATE is reported as protocol structure instead of a long hex string.
+`make ze-precommit-verify` is more than a command wrapper. It takes a lock so two heavy runs do not corrupt each other, writes per-stage logs under `tmp/`, groups related failures, and prints the rerun commands. The functional runner adds per-step traces for `.ci`, `.wb`, and `.et` files. BGP expectations decode wire messages before showing differences, so a failed UPDATE is reported as protocol structure instead of a long hex string.
 
 <div class="quality-panel">
   <h3>The rule</h3>

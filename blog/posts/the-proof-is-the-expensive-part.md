@@ -99,7 +99,7 @@ RFC-tagged tests are one example. They are part of a public compliance claim. If
 
 The failure it prevents is common with generated code. The model sees a failing test, changes the test to match the bug, gets a green run, and presents that as progress. For normal code this is already bad. For a public RFC claim it is much worse.
 
-The generated ledger is protected too. `ai/RFC-REQUIREMENTS.md` is built by `make ze-rfc-index`. It maps requirements back to tests, annotations, evidence type and audit state. If the ledger is stale, `make ze-rfc-check` says so. The fix is to regenerate it from source, not edit the table by hand.
+The generated ledger is protected too. `ai/RFC-REQUIREMENTS.md` is built by `make ze-rfc-index-update`. It maps requirements back to tests, annotations, evidence type and audit state. If the ledger is stale, `make ze-rfc-check` says so. The fix is to regenerate it from source, not edit the table by hand.
 
 Again, this is for the AI as much as for the human. The model gets concrete failure messages: missing bad-packet test, unknown requirement id, tag in a file that no pipeline runs, gap missing from the public status page, stale audit verdict, stale generated ledger. Those messages are much better prompts than "make the quality better".
 

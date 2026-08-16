@@ -45,11 +45,11 @@ jobs:
       - name: Build website prerequisites
         run: |
           make -C main ze
-          make -C main ze-terminal-demo-tools
+          make -C main ze-terminal-demo-tools-install
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Generate terminal media
-        run: make -C main ze-terminal-demos-release TERMINAL_DEMO_OUTPUT="$GITHUB_WORKSPACE/terminal-demos"
+        run: make -C main ze-terminal-demos-release-render TERMINAL_DEMO_OUTPUT="$GITHUB_WORKSPACE/terminal-demos"
 
       - name: Test website sources
         run: uv run --with pytest --with markdown python3 -m pytest -q site/tools/test_*.py

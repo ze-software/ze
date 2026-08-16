@@ -775,8 +775,8 @@
             <tr><th>Command</th><th>What it checks</th></tr>
             <tr><td><code>make ze-spec-status</code></td><td>Spec inventory with progress tracking</td></tr>
             <tr><td><code>make ze-inventory</code></td><td>Plugins, families, RPCs, YANG modules, tests, packages</td></tr>
-            <tr><td><code>make ze-validate-commands</code></td><td>Every CLI command matches its YANG schema</td></tr>
-            <tr><td><code>make ze-doc-drift</code></td><td>Documentation matches reality</td></tr>
+            <tr><td><code>make ze-command-contract-check</code></td><td>Every CLI command matches its YANG schema</td></tr>
+            <tr><td><code>make ze-doc-drift-check</code></td><td>Documentation matches reality</td></tr>
         </table>
     </div>
 
@@ -797,7 +797,7 @@
         </ul>
         <h3>Gate</h3>
         <ul>
-            <li><code>make ze-verify</code>: 26 linters + unit + functional + ExaBGP before any commit</li>
+            <li><code>make ze-precommit-verify</code>: 26 linters + unit + functional + ExaBGP before any commit</li>
         </ul>
     </div>
 

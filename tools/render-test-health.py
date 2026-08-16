@@ -7,7 +7,7 @@ This renderer computes NOTHING itself. Every number comes from
 ../main/scripts/dev/testing_health.py: at build time it runs that generator
 read-only (`--json` for the metrics, `--emit-page` for the page Markdown) against
 the main tree being built, so the published numbers reflect the tree, not
-whatever was committed at the last `make ze-test-health`. When the generator
+whatever was committed at the last `make ze-test-health-update`. When the generator
 cannot run but the main tree is present, it falls back to the committed
 ../main/test/health/latest.json (+ history.ndjson) and
 ../main/docs/features/test-health.md. (Those live under ../main too, so a
@@ -48,7 +48,7 @@ DEST = GH_PAGES / "quality" / "health" / "index.html"
 # The single generator in the main repository. The website REGENERATES the
 # numbers from it at build time (read-only: --json and --emit-page write no file
 # and touch no ratchet baseline) so the published page reflects the tree being
-# built, not whatever was committed at the last `make ze-test-health`. The
+# built, not whatever was committed at the last `make ze-test-health-update`. The
 # committed test/health/latest.json + docs/features/test-health.md remain the
 # fallback for when the generator cannot run against a present main tree.
 GENERATOR = MAIN / "scripts" / "dev" / "testing_health.py"
@@ -164,7 +164,7 @@ def load():
     # generator that could not run -- both already warned).
     if not LATEST.exists():
         sitelib.warn(
-            "test-health: %s missing -- run `make ze-test-health` in ../main" % LATEST
+            "test-health: %s missing -- run `make ze-test-health-update` in ../main" % LATEST
         )
         return None, []
     parsed = _parse_record(LATEST.read_text(), str(LATEST))
@@ -417,7 +417,7 @@ def page_markdown():
         return fresh
     if not PAGE_MD.exists():
         sitelib.warn(
-            "test-health: %s missing -- run `make ze-test-health` in ../main" % PAGE_MD
+            "test-health: %s missing -- run `make ze-test-health-update` in ../main" % PAGE_MD
         )
         return None
     return PAGE_MD.read_text()

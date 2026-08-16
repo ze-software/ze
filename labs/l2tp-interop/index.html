@@ -107,7 +107,7 @@
                         </div>
                         <div class="terminal-body">
                             <pre><span class="term-comment"># Docker lab, all scenarios</span>
-<span class="term-prompt">$</span> <span class="term-cmd">make</span> ze-deployment-l2tp-ppp-docker-test
+<span class="term-prompt">$</span> <span class="term-cmd">make</span> ze-deployment-docker-l2tp-ppp-test
 
 <span class="term-comment"># single scenario, verbose</span>
 <span class="term-prompt">$</span> <span class="term-cmd">python3</span> test/l2tp-interop/run.py 01-ppp-ipv4
@@ -120,7 +120,7 @@
                         <span class="tag">Prerequisites</span>
                         <p>
                             Docker for the primary path. The QEMU path needs a
-                            staged kernel (<code>make ze-kernel
+                            staged kernel (<code>make ze-kernel-build
                             GOKRAZY_ARCH=arm64</code>) and works where Docker
                             Desktop's VM lacks the PPPoL2TP kernel module.
                         </p>

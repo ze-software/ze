@@ -235,10 +235,10 @@ def render_quality_snapshot():
             "- QEMU: runs Linux-only behavior from macOS or CI where netlink, nftables, eBPF, PPP, network namespaces, and kernel modules exist.",
             "- Interop: %s scenarios against %s target implementations, including FRR, BIRD, GoBGP, RustyBGP, OpenBGPD, ExaBGP, and other real daemons where applicable."
             % (interop["scenarios"], interop["target_display"]),
-            "- Verify workflow: `make ze-verify` takes a shared lock, writes stage logs under `tmp/`, groups related failures, and prints narrow rerun commands. `make ze-verify-changed` and `make ze-validate` are narrower handoff gates.",
+            "- Verify workflow: `make ze-precommit-verify` takes a shared lock, writes stage logs under `tmp/`, groups related failures, and prints narrow rerun commands. `make ze-precommit-verify-changed` and `make ze-repository-check` are narrower handoff gates.",
             "- Rule for regressions: do not hide a failure with a skip or loose assertion. Move the proof to the layer that can see the real behavior, add the narrow test, rerun it, then rerun the gate that should have caught it.",
             "",
-            "Useful commands: `go test -race -run TestName ./internal/...`, `make ze-fuzz-one FUZZ=FuzzName PKG=./path TIME=30s`, `make ze-mutation-changed`, `bin/ze-test bgp plugin 42 -v`, `make ze-qemu-needs-linux-test`, `make ze-interop-test`, `make ze-release-evidence`.",
+            "Useful commands: `go test -race -run TestName ./internal/...`, `make ze-fuzz-one-test FUZZ=FuzzName PKG=./path TIME=30s`, `make ze-mutation-test-changed`, `bin/ze-test bgp plugin 42 -v`, `make ze-qemu-needs-linux-test`, `make ze-interop-test`, `make ze-release-evidence-verify`.",
             "",
         ]
     )
