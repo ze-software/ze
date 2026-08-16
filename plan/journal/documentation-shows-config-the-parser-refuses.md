@@ -4,6 +4,12 @@ An operator copies what a guide prints. A guide that prints config `ze config
 validate` rejects has published a defect, and nothing in this repository parses
 a config example, so it survives until a reader tries it.
 
+The second reader of a refused example is not an operator, it is a review. A
+review lens cited invalid guide lines as evidence that a config shape was live
+in the tree, and those lines had never parsed. Inside this repository a refused
+example is false evidence about the product, and whoever reasons quickly quotes
+it as a producer.
+
 | Date | Spec | Surface | Symptom | Fix |
 |------|------|---------|---------|-----|
 | 2026-08-15 | fixit-peer-process-event-filter | docs/guide/plugins.md | attach and plugin examples written as one-line blocks without the closing semicolon, which the parser refuses (automatic semicolon insertion fires at a newline); one example also named peers by IP address, which the peer name validator refuses | rewritten multi-line and verified with a built `ze config validate` |

@@ -1,6 +1,6 @@
 # Writing
 
-**When:** writing or reviewing any prose in this repository: docs, code comments, error messages, CLI output, YANG descriptions, specs, commit messages, agent reports, or a product comparison
+**When:** writing or reviewing any prose in this repository: docs, code comments, error messages, CLI output, YANG descriptions, specs, commit messages, or a product comparison
 **Severity:** blocking
 **Related:** cli, evidence, rule-format, repo-maintenance, completion
 
@@ -9,9 +9,9 @@
 Project text is US English AND Simplified Technical English (ASD-STE100 Issue 9). Write what changes the reader's next action, and write nothing else.
 
 - **The project language is US English.** Every artifact that is part of Ze, code, docs, and user-facing text, uses US English spelling, wording, and date/number conventions. The single exception is prose authored in Thomas's own voice, which uses UK (British) English.
-- **Ze writes in ASD-STE100 Simplified Technical English, Issue 9 (2025-01-15). This is rule one of the repository.** The working guide is `docs/contributing/writing-style.md`, which is committed and complete on its own.
+- **Ze writes in ASD-STE100 Simplified Technical English, Issue 9 (2025-01-15). This is rule one of the repository.** The six habits apply to all project text.
 - **STE itself is a GUIDELINE. It is not a law, and it is not a gate.** The English variant, the documentation obligations, and the source anchors in this file are enforced. The STE checker reports and lets the work through.
-- **Every feature change MUST update the specific documentation it affects.** Name the file, name the section, describe the change.
+- **A change MUST update documentation when it changes user or agent behavior, changes an architecture contract, invariant, or documented data flow, makes existing documentation stale, or adds a surface users or agents MUST discover.** A private implementation change that meets none of these triggers requires no prose.
 - **Every factual claim in `docs/` MUST be verified against actual code before you write it.** Read the source first, then add the anchor.
 - **A product comparison is advice, not marketing.** Every claim MUST help the reader choose the right tool, and MUST NOT make Ze look better.
 
@@ -150,7 +150,7 @@ text clearer for a reader. Owner directive, 2026-07-31.
 
 ### Where to read the detail
 
-- **You MUST read `docs/contributing/writing-style.md` first, and expect to need nothing else.** It is committed, and it is Ze's own text.
+- **You MUST read `docs/contributing/writing-style.md` before documentation work, a deep prose review, or resolving an STE finding.** For all other project text, apply US English and the six habits. Do not open the full guide.
 - That page carries every operative point. It covers the six habits with Ze examples, the sentence and paragraph limits, and verbs and voice. It also covers conditions, warnings, punctuation, the word-count convention, and the per-surface notes.
 - The published standard stays the authority for a question that page does not answer. ASD gives Issue 9 at no cost: `https://www.asd-ste100.org`. The direct file is `https://www.asd-ste100.org/assets/files/ASD-STE100_ISSUE9.pdf`.
 - Issue 9 has 53 writing rules in 9 sections, approximately 900 approved words, and approximately 1200 unapproved words with their alternatives.
@@ -191,23 +191,6 @@ You MUST answer these questions of each sentence:
 5. Is the sentence shorter than 20 words in a procedure, or 25 words in a description? (habit 5)
 6. Is each verb a single word? (habit 6)
 
-## Reporting to the Owner
-
-### Reporting to the Owner
-
-- **A report to the owner MUST open with three things and nothing before them: what is blocked, why it matters, and what you need from him.** Everything else is detail he can ask for.
-- **You MUST assume he will read the first ten lines and stop.** Put the decision there or it does not exist.
-- **A decision you need MUST be a table, one row per decision**, with the choice, what it unblocks, and what it costs him to answer. He picks a row; he does not parse a paragraph to find the question.
-- **You MUST NOT lead with narrative.** What you did, in what order, and what each agent found is the story of your work, not his input to it. It goes last or it goes unsaid.
-- **You MUST NOT pre-empt questions he has not asked.** Caveats, alternatives considered, and evidence chains are answers waiting for a question. Hold them.
-- **Status that changes no decision MUST be one line or absent.** A count, a pass, a green gate: one line. A reader who wants the breakdown will ask.
-
-- **An agent's report is written for the agent that commissioned it. The owner's report is written for a person. You MUST NOT relay the first as the second.** A subagent report is a working artifact: exhaustive, hedged, full of file paths and gate names, because its reader has to verify it. Passing that register on to the owner is the failure this section exists to prevent, and it happens most often when a phase agent's findings are good and the temptation is to forward them intact.
-- **You MUST re-write, never forward.** Take the conclusion, drop the derivation, and say it in the words a colleague would use at a desk.
-- **Formatting carries the message and you MUST use it.** A table for choices, a short list for state, bold for the single thing that matters. A wall of paragraphs is unreadable to a person however correct each sentence is.
-- **You MUST NOT pad a report to show effort.** Length reads as thoroughness to a machine and as noise to a person. The owner measures the work by what changed, never by how much you wrote about it.
-- **The tell is a reader who has to hunt for the ask.** A question that is not findable in one glance means the report has failed, whatever else it got right.
-
 ## Detail Budget
 
 Write what changes the reader's next action. Write nothing else.
@@ -242,7 +225,6 @@ A record earns its length from what the reader must DO. Over budget means cut, n
 
 | Artifact | Contains | Budget |
 |----------|----------|--------|
-| Reply to the user | what changed, what proves it, what is not done | under 15 lines, tables before prose |
 | Subagent report to the main thread | the conclusion, the evidence that would overturn it, open questions | under 40 lines |
 | Review finding | the claim, where it lives, how it fails | 3 lines |
 | Commit subject | what changed, imperative | one line |
@@ -267,7 +249,8 @@ No gate measures these yet. They are the standard a review applies, and the numb
 
 ## Documentation
 
-Every feature change MUST update the specific documentation it affects.
+- **Documentation MUST be updated when a change changes user or agent behavior, changes an architecture contract, invariant, or documented data flow, makes existing documentation stale, or adds a surface users or agents MUST discover.**
+- **A private implementation change that meets none of these triggers requires no prose.**
 
 ### Principle
 
@@ -333,15 +316,7 @@ These are invisible in rendered markdown but let future sessions verify accuracy
 **The one-line form is also a syntax error unless the last statement carries its semicolon.** Automatic semicolon insertion fires at a newline, so a closing brace on the same line as the statement it closes ends the block before the statement ends. Measured with a built `ze config validate`: `attach process bgp-rr { receive [ update ] }` is refused with "expected ';' after receive, got RBRACE", while `attach process bgp-rr { receive [ update ]; }` is accepted. An operator copies what a guide shows, so a guide MUST NOT show the refused form.
 **An inline mention inside a sentence or a table cell MAY stay on one line, and MUST then carry the semicolon** (`internal rib { use bgp-rib; }`). Reflowing a phrase into a block would break the sentence around it.
 
-**Every config example in `docs/` MUST parse, and an excerpt MUST parse inside the smallest complete config that carries it.** Build the binary and run `ze config validate` over that config before you publish the example. The one-line form above is one way an example is refused; a retired keyword, a leaf that moved, and a peer named by address are the others.
-
-**Nothing in this repository parses a config example, so a refused one survives until a reader tries it.** `docs/guide/rpki.md` opens with a peer written `peer peer1 { remote { ... } local { ... } }`, and `remote` is not a peer field: `ze-bgp-conf.yang` models it under `container connection` in `grouping peer-fields`, so the parser answers `unknown field in peer: remote`. That example has never parsed, at `origin/main` too, and `route-reflection.md` and `graceful-restart.md` carry the same retired shape.
-
-The second reader of a refused example is not an operator, it is a review. A review lens cited invalid guide lines as evidence that a config shape was live in the tree, and those lines had never parsed. A document that shows config the parser refuses is not only a bad instruction to an operator: inside this repository it is false evidence about the product, and it is quoted as a producer by whoever is reasoning quickly.
-
-**No gate reads a config example today, and the gate that lands here MUST gate what ze's own parser recognizes as a config attempt, with an opt-OUT that states its reason on the block.** Gating every fenced block in `docs/` would fire mostly on deliberate excerpts, an estimated four in five, because they start mid-tree or carry a placeholder. An opt-IN marker inverts the failure: every example already refused stays unmarked and uncaught, which is the `rpki.md` case exactly.
-
-**MUST state that cost when proposing it, rather than sell the gate.** Somebody annotates the excerpts once, and each new excerpt pays one line. `ai/rules/repo-maintenance.md` owns registering the gate and its row in the hook mapping. `plan/spec-ze-config-fmt.md` owns how an example is RENDERED, so cross-reference it: a formatter decides the shape, and this decides whether the shape parses.
+**Every config example in `docs/` MUST parse, and an excerpt MUST parse inside the smallest complete config that carries it.** Build the binary and run `ze config validate` over that config before you publish the example.
 
 ### Validation
 
@@ -401,7 +376,7 @@ Before publishing or handing off a comparison:
 
 ## Rationale
 
-Code without matching docs is incomplete. "Update the docs" is not actionable.
+Code that meets a documentation trigger is incomplete until its docs change. "Update the docs" is not actionable.
 
 Ze speaks to network operators in many countries, and English is a second language for many of them. A router that a reader misunderstands is a router that a reader misconfigures. The aerospace industry measured that cost in maintenance errors. It then removed the ambiguity from the language, instead of asking readers to work harder.
 

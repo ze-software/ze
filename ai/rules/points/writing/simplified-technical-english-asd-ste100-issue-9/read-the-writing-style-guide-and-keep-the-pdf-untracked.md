@@ -3,7 +3,7 @@ kind: directive
 level: MUST
 stage:
 ---
-- **You MUST read `docs/contributing/writing-style.md` first, and expect to need nothing else.** It is committed, and it is Ze's own text.
+- **You MUST read `docs/contributing/writing-style.md` before documentation work, a deep prose review, or resolving an STE finding.** For all other project text, apply US English and the six habits. Do not open the full guide.
 - That page carries every operative point. It covers the six habits with Ze examples, the sentence and paragraph limits, and verbs and voice. It also covers conditions, warnings, punctuation, the word-count convention, and the per-surface notes.
 - The published standard stays the authority for a question that page does not answer. ASD gives Issue 9 at no cost: `https://www.asd-ste100.org`. The direct file is `https://www.asd-ste100.org/assets/files/ASD-STE100_ISSUE9.pdf`.
 - Issue 9 has 53 writing rules in 9 sections, approximately 900 approved words, and approximately 1200 unapproved words with their alternatives.

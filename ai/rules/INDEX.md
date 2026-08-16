@@ -37,4 +37,4 @@ Total: 28 rules
 | No Code in Specs | writing or editing a spec | blocking | `ai/rules/spec-no-code.md` |
 | Stale Comments | when changing code behavior | blocking | `ai/rules/stale-comments.md` |
 | Testing | writing, changing, or deleting any test, and before writing implementation code for new behavior | blocking | `ai/rules/testing.md` |
-| Writing | writing or reviewing any prose in this repository: docs, code comments, error messages, CLI output, YANG descriptions, specs, commit messages, agent reports, or a product comparison | blocking | `ai/rules/writing.md` |
+| Writing | writing or reviewing any prose in this repository: docs, code comments, error messages, CLI output, YANG descriptions, specs, commit messages, or a product comparison | blocking | `ai/rules/writing.md` |

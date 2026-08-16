@@ -39,4 +39,4 @@ Rules: 28 (28 blocking, 0 advisory). Always-on: 7.
 | `ai/rules/spec-no-code.md` | blocking | writing or editing a spec |
 | `ai/rules/stale-comments.md` | blocking, always-on | when changing code behavior |
 | `ai/rules/testing.md` | blocking | writing, changing, or deleting any test, and before writing implementation code for new behavior |
-| `ai/rules/writing.md` | blocking | writing or reviewing any prose in this repository: docs, code comments, error messages, CLI output, YANG descriptions, specs, commit messages, agent reports... |
+| `ai/rules/writing.md` | blocking | writing or reviewing any prose in this repository: docs, code comments, error messages, CLI output, YANG descriptions, specs, commit messages, or a product... |

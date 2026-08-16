@@ -3,4 +3,4 @@ kind: note
 level:
 stage:
 ---
-Code without matching docs is incomplete. "Update the docs" is not actionable.
+Code that meets a documentation trigger is incomplete until its docs change. "Update the docs" is not actionable.

@@ -6,7 +6,11 @@
 
 ## Directives
 
-- **A change that adds or changes something future agents need to use, verify, document, or avoid MUST update the discovery path in the same work.**
+- **A change that adds or changes a surface future agents use, verify, document, or avoid MUST update the discovery path in the same work.** A private implementation change requires no prose only when it meets none of these triggers:
+  - it changes user or agent behavior
+  - it changes an architecture contract, an invariant, or a documented data flow
+  - it makes existing documentation stale
+  - it adds a discoverable surface, or sets a pattern future work MUST follow
 - **Every feature that adds a new runtime dependency MUST register a `ze doctor` check so agents can verify readiness before starting the daemon.**
 - **A generated file MUST NOT be edited. Edit the canonical source, then sync.**
 - **Project behavior rules MUST belong in `ai/rules/` and project startup guidance MUST belong in `ai/INSTRUCTIONS.md`, so Claude, Codex, and other agents all discover the same rule through generated tool-specific files.**
@@ -21,15 +25,17 @@ Apply this rule when adding or changing any of these:
 
 | Change | Why agents need it |
 |--------|--------------------|
-| User-facing feature | Agents must know the feature exists and where users configure or invoke it |
+| Changed user-facing or agent-facing behavior | Agents must know the behavior exists and where users or agents configure or invoke it |
 | CLI command, RPC, MCP tool, YANG command, or API contract | Agents must discover the command shape, JSON contract, and wiring |
+| Architecture contract, invariant, or documented data flow | Agents must find the current contract before changing or relying on it |
 | Developer tool, script, make target, generator, or inventory command | Agents must know the tool exists before reimplementing it |
 | Self-check, verification gate, hook, lint, or doc validator | Agents must run the right check and understand failures |
 | Test runner, test format, fixture pattern, or required test category | Agents must place tests in the right suite and run the right target |
 | Runtime dependency or readiness condition | Agents must verify the host with `ze doctor` before starting Ze |
-| Structural decision, repeated gotcha, or workflow change | Agents must find it through the learned index or a rule before repeating the mistake |
+| Recurring trap | Agents must find its journal record first, then any rule or gate that prevents it |
 | New BGP family, SAFI, or capability | Agents must update migration schema, route converter, bridge, and compat tests (`ai/patterns/bgp-family.md`) |
 | RFC-level protocol behavior added, changed, or newly proven | The standards ledger drives user and design decisions; a stale RFC status misleads both |
+| Existing documentation made stale by the change | Agents must not discover an obsolete claim |
 
 **Private refactors with no new surface still trigger this rule when they change a pattern future work MUST follow.**
 
@@ -39,9 +45,10 @@ Update every row that applies:
 
 | What changed | Required update |
 |--------------|-----------------|
-| User-facing behavior | Specific file under `docs/`, with source anchors per `ai/rules/writing.md` |
+| Changed user-facing behavior | Specific file under `docs/`, with source anchors per `ai/rules/writing.md` |
 | RFC support status (protocol behavior implemented, changed, or newly proven) | The matching `docs/features/rfc-status.md` row (Status, Implemented coverage, Remaining) with a source anchor to the producing `file:line`; reconcile `docs/comparison.md` and `docs/features.md` when the support level changes |
-| Agent-facing command or contract | `docs/features/ai-first.md`, `docs/guide/mcp/overview.md` if MCP-visible, and `ai/rules/cli.md` if workflow changes |
+| Changed agent-facing command or contract | `docs/features/ai-first.md`, `docs/guide/mcp/overview.md` if MCP-visible, and `ai/rules/cli.md` if workflow changes |
+| Architecture contract, invariant, or documented data flow | The owning `docs/architecture/` page or flow digest, with source anchors per `ai/rules/writing.md` |
 | CLI command grammar or command availability | `ai/rules/cli.md` or `ai/rules/cli.md`, plus command validation docs if needed |
 | New tool or make target | `ai/INDEX.md` Dev Tools or keyword map, plus the owning `docs/contributing/` or `docs/architecture/testing/` page |
 | New verification gate or hook | The "Hook-to-Rule Mapping" section below, the rule enforced by the hook, and the relevant make-target documentation |
@@ -49,8 +56,10 @@ Update every row that applies:
 | New test runner or format | `ai/rules/testing.md`, `ai/patterns/functional-test.md` if `.ci`, and the relevant `docs/architecture/testing/` page |
 | New runtime dependency | The "Doctor Checks" section below, diagnostic code registration, and a `ze doctor` unit plus functional test |
 | New registration or generated inventory | `ai/rules/evidence.md`, `ai/patterns/registration.md`, and registry-backed inventory checks |
+| Existing documentation made stale by the change | Repair the stale claim in its current file and keep its source anchor valid |
 | Recurring trap | `plan/journal/<class>.md` -- one row per occurrence; recurrence is the row count |
 | New task category or search keyword | `ai/INDEX.md` (task navigation + keyword map) |
+| Private implementation change that meets no trigger above and sets no pattern future work MUST follow | No prose update |
 
 **An isolated rule or doc page that no existing navigation path links to MUST NOT be created. A rule that agents cannot discover is not a rule.**
 
@@ -59,11 +68,11 @@ Update every row that applies:
 Before implementation is complete, answer these in the spec, review notes, or handoff:
 
 1. **Where would an agent look first?** The `ai/INDEX.md` keyword row, the `ai/INDEX.md` task row, or both MUST be added or updated.
-2. **What rule prevents regression?** The narrowest existing rule MUST be updated. A new `ai/rules/*.md` MAY be created only when no existing rule owns the behavior.
+2. **What rule or gate prevents regression?** Name the current rule or gate when one covers the behavior. Update it when this change makes it wrong. A NEW `ai/rules/*.md` MUST wait for a recurrence that exposes a missing instruction no current rule or gate gives.
 3. **What source of truth prevents drift?** A registry, generated inventory, YANG schema, or live binary output MUST be used. A static list MUST NOT be copied.
 4. **What verification proves it?** The make target, unit test, functional test, hook, or doc validator that catches drift MUST be named.
 5. **What docs explain usage?** The exact file and section MUST be named. Source anchors MUST be added for factual `docs/` claims.
-6. **What journal record preserves the decision?** A row MUST be appended to the matching `plan/journal/<class>.md` when a recurring trap was hit.
+6. **What journal record preserves the decision?** A row MUST first be appended to the matching `plan/journal/<class>.md` when a recurring trap is hit. The row is the record, never the fix: a blocking or related defect MUST still be fixed (`ai/rules/completion.md`).
 
 ### Current Discovery Surfaces
 
@@ -563,7 +572,8 @@ Proposed fix: [specific ai/rules, ai/INDEX, plan/journal, docs, or hook change]
 - The pattern MUST be reported as soon as you can describe it. You MUST NOT wait until the end of the session.
 - **Reporting in chat is not filing.** Chat scrolls away and the next session never sees it, so hook and tooling friction is not reported until it is written to `plan/learned/HOOK-FRICTION.md` in the Format above; a finding you only pass to the next agent in a handoff is folklore, not a record.
 - If the user task is still in progress, work MUST continue after reporting unless blocked or the rule change would alter scope.
-- If the pattern changes a project workflow, the narrowest rule MUST be added or updated, or a `plan/journal/<class>.md` row MUST be appended, before claiming completion.
+- **When a pattern recurs, a row MUST first be appended to the matching `plan/journal/<class>.md`.** A rule MUST be added or updated only when the recurrence exposes a missing actionable instruction and no current rule or gate covers it.
+- Blocking and related defects MUST still be fixed. This recording order changes no defect-fix obligation.
 
 ### Do Not Report
 

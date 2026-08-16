@@ -5,7 +5,6 @@ stage:
 ---
 | Artifact | Contains | Budget |
 |----------|----------|--------|
-| Reply to the user | what changed, what proves it, what is not done | under 15 lines, tables before prose |
 | Subagent report to the main thread | the conclusion, the evidence that would overturn it, open questions | under 40 lines |
 | Review finding | the claim, where it lives, how it fails | 3 lines |
 | Commit subject | what changed, imperative | one line |

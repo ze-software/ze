@@ -1,6 +1,6 @@
 ---
 title: Writing
-when: writing or reviewing any prose in this repository: docs, code comments, error messages, CLI output, YANG descriptions, specs, commit messages, agent reports, or a product comparison
+when: writing or reviewing any prose in this repository: docs, code comments, error messages, CLI output, YANG descriptions, specs, commit messages, or a product comparison
 severity: blocking
 related: cli, evidence, rule-format, repo-maintenance, completion
 ---
@@ -41,10 +41,6 @@ simplified-technical-english-asd-ste100-issue-9 ## Simplified Technical English 
   mechanical-check-ste
   check-each-sentence-before-you-publish
   the-questions-to-ask-of-each-sentence
-owner-report ## Reporting to the Owner
-  owner-report
-  lead-with-what-blocks-and-what-you-need
-  the-owner-is-not-an-agent
 detail-budget ## Detail Budget
   write-what-changes-the-next-action-and-nothing-else
   write-only-what-changes-the-next-action
@@ -75,8 +71,6 @@ documentation ## Documentation
   before-writing-any-documentation-read-the-actual-source
   write-every-config-example-on-several-lines
   every-config-example-must-parse
-  a-refused-example-becomes-false-evidence-in-a-review
-  the-gate-this-owes-and-what-its-scope-costs
   validation
   run-make-ze-doc-test-after-editing-any-file-under-docs
   ze-doc-test-runs-on-demand-not-inside-ze-verify
