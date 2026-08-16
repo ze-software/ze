@@ -194,8 +194,8 @@ ze-functional-warm:
 # ZE_SKIP_SUITES: comma-separated list of suites to skip (e.g. firewall,web
 # for Docker environments without agent-browser or native process control).
 ZE_SKIP_SUITES ?=
-ze-functional-test: ze-functional-warm $(ZE_TEST_DEPS_ALL)
-	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) \
+ze-functional-test: ze-functional-warm $(ZE_TEST_DEPS_ALL) $(ZE_WEB_CHAOS_DEP)
+	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(ZE_ALT_CHAOS_BUILD) \
 	failed=0; failed_names=""; skipped_names=""; total=0; suite_index=0; \
 	all_suites="encode plugin parse decode reload ui editor managed l2tp firewall policy ipsec ldp rsvpte isis ospf ospfv3 web install appliance l2tp-wire isis-wire ospf-wire runner"; \
 	suite_total=0; \
