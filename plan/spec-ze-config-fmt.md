@@ -43,8 +43,8 @@ this one.
 
 ### Why this spec exists
 
-`plan/spec-fixit-peer-process-event-filter.md` renamed a config keyword across
-about 500 files. Its review surfaced two facts.
+`spec-fixit-peer-process-event-filter` renamed a config keyword across about
+500 files. Its review surfaced two facts.
 
 **1. Operator guides show config ze refuses.** The main thread verified with a
 freshly built binary that a one-line attach block is invalid, both without and
@@ -222,7 +222,7 @@ Each row is a decision for Thomas. None is settled here.
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | `ze config fmt -w` deletes an operator's comments today, and the command is already shipped and documented | `docs/guide/command-reference.md` teaches `-w` | Decide Q-5 before arming any gate that tells a reader to run `-w`. A gate that recommends a lossy command is worse than no gate |
-| R-2 | Formatting the whole `.conf` corpus is a very large diff that collides with every session working this checkout | The rename in `plan/spec-fixit-peer-process-event-filter.md` touched about 500 files and is still in flight | Sequence the sweep, and never run it while another config-touching spec is open |
+| R-2 | Formatting the whole `.conf` corpus is a very large diff that collides with every session working this checkout | The completed `spec-fixit-peer-process-event-filter` rename touched about 500 files | Sequence the sweep, and never run it while another config-touching spec is open |
 | R-3 | Changing the canonical form moves `ze config show`, the editor, and the `zefs` diff path at once | Golden files and `.ci` expectations across `test/` | Treat the printed form as a published interface. Any change to it is its own phase with its own evidence |
 | R-4 | A gate over doc examples fires on intentional fragments and gets weakened until it proves nothing | Q-8. The first exclusion added for an ellipsis is the signal | Decide up front how a fragment declares itself, and never let the gate learn shapes by pattern. The four-round patching described in the Task is what that failure looks like |
 | R-5 | Deleting the migration serializer changes `ze exabgp migrate` output | Migration golden files | Compare both printers over the migration corpus before deleting either |
@@ -234,7 +234,7 @@ Each row is a decision for Thomas. None is settled here.
 |----------|--------|
 | What breaks if this is wrong? | An operator runs `ze config fmt -w` and loses the comments in a production config. A corpus-wide reformat lands a diff over hundreds of files. A canonical-form change moves every surface that prints config |
 | How is it reverted? | The gate and the command changes revert as one commit. A corpus-wide reformat does not revert cleanly once other sessions have edited the reformatted files |
-| Who else touches this path? | `plan/spec-fixit-peer-process-event-filter.md` is live in this checkout, editing the BGP YANG and the guides. Do not touch that spec or its files |
+| Who else touches this path? | `spec-fixit-peer-process-event-filter` completed the BGP YANG and guide rename. No active work on that closed spec remains |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
