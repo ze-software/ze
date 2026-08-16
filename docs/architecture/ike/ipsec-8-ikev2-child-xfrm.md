@@ -39,6 +39,33 @@ engine runs as a plugin subprocess and has no access to the interface backend.
 module is not in the vendored dependency, so the backend compiles against local
 types. It has the right structure and cannot run until that module is vendored.
 
+## Vendored netlink patch
+
+The pinned `github.com/vishvananda/netlink` release lacks three XFRM
+corrections. Ze records them in
+`scripts/dev/patches/netlink-xfrm-fixes.patch`:
+
+- The state reader decodes `XFRMA_REPLAY_ESN_VAL`, restores the replay window,
+  and reports the `XFRM_STATE_ESN` flag.
+- The state writer uses `XFRMA_REPLAY_ESN_VAL` for replay windows of more than 32. It
+  sets `XFRM_STATE_ESN` only when the SA uses extended sequence numbers.
+- The policy writer copies the selector family into any template that carries no
+  destination, which in ze is every transport-mode template. An explicit
+  destination still determines the template family.
+
+Keep the patch and its drift test outside `vendor/` because `go mod vendor`
+replaces that directory. Run this command from the repository root after every
+vendor refresh:
+
+```sh
+git apply scripts/dev/patches/netlink-xfrm-fixes.patch
+```
+
+`TestNetlinkXFRMPatchApplied` uses `git apply --reverse --check` to require the
+exact corrections, with their context lines. It runs in `./scripts/dev`, which
+`ZE_PACKAGES` covers, so `make ze-unit-test` runs it as a `ze-verify` stage.
+`make ze-test-pkg PKG=./scripts/dev` is the narrow way to run it alone.
+
 ## Traps this code exists to avoid
 
 **A nil dataplane looks like working code.** `Get()` returns nil when `Load()`

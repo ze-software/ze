@@ -437,8 +437,8 @@ func (b *xfrmBackend) ListSAs(ifID uint32) ([]SAInfo, error) {
 // saInfoFromState maps one kernel SAD record onto SAInfo.
 //
 // Every field below comes from the DUMP. netlink fills Statistics, Limits, Mode,
-// Reqid and ReplayWindow in xfrmStateFromXfrmUsersaInfo while parsing the dump
-// message, so no per-SA XFRM_MSG_GETSA round trip is needed.
+// Reqid and ReplayWindow from the base message or its extended replay attribute,
+// so no per-SA XFRM_MSG_GETSA round trip is needed.
 //
 // The algorithm arms carry Name and key LENGTH and never Key. netlink.XfrmState
 // holds the live encryption and integrity keys, and this is the boundary where

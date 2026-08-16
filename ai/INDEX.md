@@ -215,6 +215,7 @@ artifact type. Check them whenever your work touches the described concern.
 | `make ze-proto-gen` | `Makefile` | Regenerate `api/proto/*.pb.go` from `api/proto/ze.proto` using the vendored `protoc-gen-go` / `protoc-gen-go-grpc` (versions pinned by `go.mod`; needs `protoc` on PATH). Required after a module-path rename. |
 | `bundle-html.py` | `gh-pages: presentations/tools/` | Inline local images, slides.md, and embeds into HTML as a self-contained file. Output: `<name>-inlined.html`. Accepts multiple files. |
 | `make ze-verify-wiring-docs` | `mk/inventory.mk` | Changed-file-aware wiring, documentation, command, and inventory gate used by `make ze-verify`. |
+| `make ze-vulncheck` | `Makefile` | Mandatory SCA stage in both `ze-verify` modes. Keeps the outer Go process host-native and launches govulncheck with a Linux/amd64 environment, so the scanner loads that package graph. Requires the live Go vulnerability database. |
 | `go run ./scripts/status/verify_run.go ze-verify` | `scripts/status/verify_run.go` | Verify protocol runner used by `make ze-verify`. Writes `tmp/ze-verify.log`, per-stage logs, compact failure indexes, and `tmp/ze-verify.status`. |
 | `verify-status.sh` | `scripts/dev/` | Checks whether the current tree is byte-identical to the last passing `ze-verify` run. Commit preparation must treat FRESH as authoritative and skip rerunning verify. |
 | `make ze-doc-test` | `mk/inventory.mk` | Documentation drift, YANG command handler contracts, stale source anchors, the symbols those anchors name (`check_anchor_symbols` in `scripts/dev/code_to_docs.py`, which resolves each token after an anchor's `--` against the anchored file's own top-level declarations), the six rule-corpus gates, the discovery indexes, the problem journal, and the `ai/digests/` anchors. It does NOT run `check_doc_links.py`: that is `make ze-doc-links`, its own `ze-verify` stage. |
@@ -448,7 +449,7 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | SSH, authentication, user, public-key | `internal/component/ssh/`, `ze-ssh-conf.yang` |
 | IPsec, IKE, IKEv2, SA, child SA | `ai/digests/ipsec-ike.md`, `internal/component/ike/` |
 | EAP, NAT-T, MOBIKE | `ai/digests/ipsec-ike.md`, `internal/component/ike/` |
-| XFRM, xfrm interface, VTI | `ai/digests/ipsec-ike.md`, `internal/component/ike/` |
+| XFRM, xfrm interface, VTI, netlink, go mod vendor | `ai/digests/ipsec-ike.md`, `internal/component/ike/`, `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md` (vendored netlink patch, recovery command, and owning gate), `scripts/dev/patches/netlink-xfrm-fixes.patch` |
 | subscriber, session, PPPoE, L2TP | `ai/digests/subscriber.md`, `internal/component/l2tp/pppoe/` |
 | editor, TUI, completion, headless | `internal/component/cli/`, `test/editor/`, `ai/rules/testing.md` (Editor Tests section) |
 | diagnostic, doctor, health, readiness | `docs/architecture/doctor-and-health-checks.md`, `docs/architecture/diagnostics/production-diagnostics.md`, `ai/rules/repo-maintenance.md` |
