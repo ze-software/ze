@@ -186,7 +186,7 @@ body {
         "Segoe UI",
         sans-serif;
     color: var(--text);
-    background: var(--bg);
+    background: var(--body-background, var(--bg));
 }
 
 body::before {

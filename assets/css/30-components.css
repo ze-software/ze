@@ -945,10 +945,10 @@
     }
 
     :root[data-theme="dark"] .theme-toggle {
-        background:
-            radial-gradient(circle at 70% 20%, var(--gold-chip), transparent 58%),
-            var(--panel-strong);
-        color: var(--gold-deep);
+        border-color: var(--line);
+        background: var(--control-surface);
+        color: var(--muted);
+        box-shadow: none;
     }
 
     :root[data-theme="dark"] .theme-icon-moon {
@@ -987,16 +987,21 @@
     :root[data-theme="dark"] .milestone-card {
         border-color: var(--glass-border);
         background-color: var(--panel);
+        box-shadow: var(--clay);
     }
 
     :root[data-theme="dark"] .card {
-        background:
-            radial-gradient(circle at 88% 0%, var(--acc-tint), transparent 42%),
-            linear-gradient(180deg, var(--glass-surface-strong), var(--panel));
+        background: linear-gradient(180deg, var(--glass-surface-strong), var(--panel));
+    }
+
+    :root[data-theme="dark"] .card:has(a):hover {
+        box-shadow:
+            var(--clay),
+            0 1.25rem 2.5rem -1.4rem oklch(0% 0 0 / 0.65);
     }
 
     :root[data-theme="dark"] .card-header {
-        background: linear-gradient(180deg, var(--acc-tint), var(--panel-strong));
+        background: linear-gradient(180deg, var(--glass-surface-strong), var(--panel));
     }
 
     :root[data-theme="dark"] .card code,
@@ -1004,6 +1009,27 @@
     :root[data-theme="dark"] .legend-count,
     :root[data-theme="dark"] .roadmap-chip {
         background-color: var(--glass-surface);
+    }
+
+    :root[data-theme="dark"] .hero-start-panel {
+        background:
+            radial-gradient(circle at 100% 0, oklch(81% 0.14 200 / 0.08), transparent 17rem),
+            radial-gradient(circle at 0 100%, oklch(70% 0.24 340 / 0.06), transparent 18rem),
+            var(--hero-panel-surface);
+        box-shadow: var(--shadow-panel);
+    }
+
+    :root[data-theme="dark"] .hero-start-panel::after {
+        border-color: oklch(81% 0.14 200 / 0.09);
+    }
+
+    :root[data-theme="dark"] .outcome-strip {
+        background: var(--outcome-surface);
+        box-shadow: var(--clay);
+    }
+
+    :root[data-theme="dark"] .home-proof-block {
+        box-shadow: var(--clay);
     }
 
     :root[data-theme="dark"] .card-label,

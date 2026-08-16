@@ -61,7 +61,7 @@ document.addEventListener("DOMContentLoaded", function () {
             themeColor.setAttribute("name", "theme-color");
             document.head.appendChild(themeColor);
         }
-        themeColor.setAttribute("content", theme === "dark" ? "#17121f" : "#fffbfb");
+        themeColor.setAttribute("content", theme === "dark" ? "#0b0910" : "#fffbfb");
         if (persist) {
             try {
                 window.localStorage.setItem(THEME_STORAGE_KEY, theme);
