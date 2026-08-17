@@ -22,7 +22,7 @@ require (
 	github.com/charmbracelet/colorprofile v0.4.3
 	github.com/gaissmai/bart v0.29.0
 	github.com/google/nftables v0.3.0
-	github.com/insomniacslk/dhcp v0.0.0-20260326115832-991c7910cf36
+	github.com/insomniacslk/dhcp v0.0.0-20260719225207-c76316d4aa82
 	github.com/miekg/dns v1.1.72
 	github.com/muesli/reflow v0.3.0
 	github.com/openconfig/goyang v1.6.3
