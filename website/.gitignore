@@ -1,0 +1,6 @@
+.DS_Store
+__pycache__
+.ruff_cache/
+tmp/
+website-analysis-report.md
+/assets/demos/

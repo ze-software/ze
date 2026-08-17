@@ -40,14 +40,12 @@ Hide
 Type "clear"
 Enter
 Show
+Type "sshpass -e ssh ze-demo show bgp summary"
+Enter
+Wait+Screen /router-id/
+Sleep 7s
 Type "sshpass -e ssh ze-demo"
 Enter
-Wait+Screen /ze#/
-Sleep 3s
-Type "run show bgp summary"
-Enter
-Sleep 7s
-Escape
 Wait+Screen /ze#/
 Sleep 3s
 Type "set environment cli format default table"
@@ -59,18 +57,21 @@ Sleep 6s
 Type "commit"
 Enter
 Wait+Screen /Session committed/
-Sleep 5s
-Type "run show bgp summary"
+Sleep 3s
+Type "exit"
 Enter
+Wait+Screen /operational\]/
+Sleep 3s
+Type "exit"
+Enter
+Sleep 3s
+Type "clear"
+Enter
+Type "ze cli -c 'show bgp summary'"
+Enter
+Wait+Screen /router-id/
 Sleep 7s
 Screenshot artifacts/zefs-config.png
-Sleep 3s
-Escape
-Sleep 3s
-Escape
-Sleep 3s
-Escape
-Sleep 3s
 
 Hide
 Type "/src/demos/terminal/zefs-config/run.sh stop"

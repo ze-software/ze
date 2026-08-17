@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>BGP Protocol Interop - Ze</title>
+        <meta name="description" content="Ze's BGP engine against real FRR, BIRD, and GoBGP in Docker, across 68 protocol scenarios." />
+        <meta property="og:title" content="BGP Protocol Interop - Ze" />
+        <meta property="og:description" content="Ze's BGP engine against real FRR, BIRD, and GoBGP in Docker, across 68 protocol scenarios." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/labs/bgp-interop/" />
+        <meta property="og:url" content="https://ze-software.net/labs/bgp-interop/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar">
+            <section aria-labelledby="lab-title">
+                <div class="section-head journey-hero reveal cat-routing">
+                    <span class="journey-eyebrow">Protocol lab</span>
+                    <h1 id="lab-title">BGP Protocol Interop</h1>
+                    <p>
+                        Ze's BGP engine against real FRR, BIRD, and GoBGP,
+                        scenario by scenario.
+                    </p>
+                </div>
+                <section class="lab-methods" aria-labelledby="lab-methods-title">
+                    <div class="section-head reveal">
+                        <h2 id="lab-methods-title">Two ways to test Ze.</h2>
+                        <p>
+                            Use the Ze interop harness for protocol assertions,
+                            or netlab for reusable multi-node topologies.
+                        </p>
+                    </div>
+                    <div class="cards lab-method-grid reveal">
+                        <article class="card audience-card cat-operate">
+                            <span class="cat">Ze harness</span>
+                            <h3>
+                                <a href="../../architecture/testing/interop/"
+                                    >Protocol interop scenarios</a
+                                >
+                            </h3>
+                            <p>
+                                Run 68 curated scenarios against FRR, BIRD, and
+                                GoBGP. The harness starts only the required
+                                daemons and checks behavior through each peer's
+                                own CLI.
+                            </p>
+                            <div class="chips">
+                                <span class="chip">68 scenarios</span>
+                                <span class="chip">FRR</span>
+                                <span class="chip">BIRD</span>
+                                <span class="chip">GoBGP</span>
+                            </div>
+                            <span class="audience-card-cta"
+                                >Use the Ze harness
+                                <small>scenario assertions</small></span
+                            >
+                        </article>
+                        <article class="card audience-card cat-platform">
+                            <span class="cat">netlab</span>
+                            <h3>
+                                <a href="../../labs/netlab/"
+                                    >Reusable topology lab</a
+                                >
+                            </h3>
+                            <p>
+                                Describe a three-node topology in YAML. netlab
+                                renders Ze configuration and starts each daemon
+                                node under containerlab.
+                            </p>
+                            <div class="chips">
+                                <span class="chip">YAML</span>
+                                <span class="chip">containerlab</span>
+                                <span class="chip">BGP</span>
+                                <span class="chip">OSPF</span>
+                                <span class="chip">IS-IS</span>
+                                <span class="chip">BFD</span>
+                            </div>
+                            <span class="audience-card-cta"
+                                >Use netlab
+                                <small>three-node topology</small></span
+                            >
+                        </article>
+                    </div>
+                </section>
+                <div class="status-panel reveal">
+                    <div class="status-copy">
+                        <span class="tag">Daemon</span>
+                        <p>
+                            A Docker orchestrator launches Ze and one or more
+                            peer daemons on an isolated network, establishes
+                            real BGP sessions, and asserts correct behavior
+                            through each daemon's own CLI (<code>vtysh</code>,
+                            <code>birdc</code>, <code>gobgp</code>). Daemons
+                            start conditionally per scenario, so each run
+                            only spins up what it needs.
+                        </p>
+                        <p>
+                            68 scenarios: eBGP/iBGP, 4-byte ASN, IPv6, Add-Path,
+                            Route Refresh, Graceful Restart, Route Server,
+                            standard and extended communities, MD5 auth, BGP
+                            Roles, EVPN, VPN, FlowSpec, multihop, BFD, ECMP,
+                            SRv6, RPKI, BMP, max-prefix, GTSM, AS112, and
+                            OSPF/IS-IS interop with FRR.
+                        </p>
+                    </div>
+                    <div class="status-table" aria-label="Lab facts">
+                        <div class="status-row">
+                            <strong>Proves</strong>
+                            <span>Real BGP sessions against production daemon implementations, not mocks</span>
+                        </div>
+                        <div class="status-row">
+                            <strong>Peers</strong>
+                            <span>Real FRR, BIRD, and GoBGP, in Docker containers</span>
+                        </div>
+                        <div class="status-row">
+                            <strong>Requires</strong>
+                            <span>Docker, Python 3, ~1.5 GB disk for daemon images</span>
+                        </div>
+                        <div class="status-row">
+                            <strong>Source</strong>
+                            <span
+                                ><a href="../../architecture/testing/interop/"
+                                    >docs/architecture/testing/interop.md</a
+                                ></span
+                            >
+                        </div>
+                    </div>
+                </div>
+                <div class="terminal-panel reveal">
+                    <div class="terminal" aria-label="Run commands">
+                        <div class="terminal-dots">
+                            <span></span><span></span><span></span>
+                            <span class="terminal-title">bgp-interop</span>
+                        </div>
+                        <div class="terminal-body">
+                            <pre><span class="term-comment"># all 68 scenarios</span>
+<span class="term-prompt">$</span> <span class="term-cmd">make</span> ze-interop-test
+
+<span class="term-comment"># single scenario, verbose</span>
+<span class="term-prompt">$</span> <span class="term-cmd">python3</span> test/interop/run.py 01-ebgp-ipv4-frr</pre>
+                        </div>
+                    </div>
+                    <div class="terminal-note">
+                        <span class="tag">Prerequisites</span>
+                        <p>
+                            Docker only, no QEMU path. Set <code>FRR_IMAGE</code>
+                            to pin a different FRR version, or
+                            <code>NO_BUILD=1</code> to skip rebuilding images
+                            on repeat runs.
+                        </p>
+                        <div class="link-list">
+                            <a
+                                href="https://github.com/ze-software/ze/tree/main/test/interop" target="_blank" rel="noopener"
+                                >test/interop/
+                                <span>lab source</span></a
+                            >
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Lab evidence</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Related lab work</h2>
+                    <a class="page-sidebar-link" href="../../labs/">
+                        <span class="page-sidebar-link-label">All labs</span>
+                        <small>Return to the lab index.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../labs/netlab/">
+                        <span class="page-sidebar-link-label">netlab topology</span>
+                        <small>Build reusable Ze topologies under containerlab.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../quality/qemu-interop-release/">
+                        <span class="page-sidebar-link-label">Release evidence</span>
+                        <small>How lab runs feed release checks.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Use lab findings to debug systems.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+<script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

@@ -1,0 +1,407 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1000" viewBox="0 0 1440 1000" role="img" aria-labelledby="title description">
+  <title id="title">Ze component architecture</title>
+  <desc id="description">A registry-driven Ze daemon with compact component boxes and clear connector gutters. Operator surfaces use one shared command and configuration contract. The Plugin Server provides the typed EventBus and command dispatcher. BGP includes RPKI origin validation and ASPA path verification. External five-stage plugins are controlled over authenticated TLS. Config-selected routing and subscriber components feed route selection and the FIB. An internal Dataplane group contains Netfilter, VPP, ARP, ND, and DHCP; Netfilter and VPP connect to their external Linux and VPP targets.</desc>
+  <defs>
+    <linearGradient id="brand" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5b17bd"/>
+      <stop offset="0.52" stop-color="#0071b2"/>
+      <stop offset="1" stop-color="#0a6b58"/>
+    </linearGradient>
+    <linearGradient id="panelWash" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fffefe"/>
+      <stop offset="0.58" stop-color="#f9f5fd"/>
+      <stop offset="1" stop-color="#effbfc"/>
+    </linearGradient>
+    <linearGradient id="surfaceWash" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.98"/>
+      <stop offset="1" stop-color="#f7f2fa" stop-opacity="0.94"/>
+    </linearGradient>
+    <pattern id="grid" width="36" height="36" patternUnits="userSpaceOnUse">
+      <path d="M 36 0 L 0 0 0 36" fill="none" stroke="#c86edc" stroke-opacity="0.07" stroke-width="1"/>
+    </pattern>
+    <filter id="panelShadow" x="-12%" y="-12%" width="124%" height="136%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#281437" flood-opacity="0.08"/>
+      <feDropShadow dx="0" dy="12" stdDeviation="15" flood-color="#281437" flood-opacity="0.12"/>
+    </filter>
+    <filter id="nodeShadow" x="-16%" y="-20%" width="132%" height="150%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="1" stdDeviation="1" flood-color="#281437" flood-opacity="0.08"/>
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#281437" flood-opacity="0.1"/>
+    </filter>
+
+    <marker id="arrow-plum" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#5e426f"/>
+    </marker>
+    <marker id="arrow-sky" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0071b2"/>
+    </marker>
+    <marker id="arrow-routing" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#c2410c"/>
+    </marker>
+    <marker id="arrow-service" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#b76a00"/>
+    </marker>
+    <marker id="arrow-automate" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#5b17bd"/>
+    </marker>
+    <marker id="arrow-observe" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#2f8ca0"/>
+    </marker>
+    <marker id="arrow-platform" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0a6b58"/>
+    </marker>
+
+    <style>
+      text { font-family: Lato, "Avenir Next", ui-sans-serif, sans-serif; fill: #331f40; }
+      .display { font-family: Poppins, "Avenir Next", ui-sans-serif, sans-serif; font-weight: 800; }
+      .eyebrow { font-family: Poppins, "Avenir Next", ui-sans-serif, sans-serif; font-size: 14px; font-weight: 800; letter-spacing: 1.8px; }
+      .headline { font-family: Poppins, "Avenir Next", ui-sans-serif, sans-serif; font-size: 27px; font-weight: 800; }
+      .subhead { font-size: 16px; font-weight: 700; fill: #6a4478; }
+      .group-label { font-family: Poppins, "Avenir Next", ui-sans-serif, sans-serif; font-size: 13px; font-weight: 800; letter-spacing: 1.3px; fill: #6a4478; }
+      .node-title { font-family: Poppins, "Avenir Next", ui-sans-serif, sans-serif; font-size: 17px; font-weight: 800; }
+      .node-copy { font-size: 12.5px; font-weight: 700; fill: #6a4478; }
+      .surface-title { font-family: Poppins, "Avenir Next", ui-sans-serif, sans-serif; font-size: 14px; font-weight: 800; }
+      .surface-copy { font-size: 10.5px; font-weight: 700; fill: #6a4478; }
+      .chip-text { font-size: 12px; font-weight: 800; }
+      .external-title { font-family: Poppins, "Avenir Next", ui-sans-serif, sans-serif; font-size: 15px; font-weight: 800; }
+      .external-copy { font-size: 12px; font-weight: 700; fill: #6a4478; }
+      .node { stroke-width: 2.5; filter: url(#nodeShadow); }
+      .optional { stroke-width: 3; stroke-dasharray: 8 5; }
+      .flow { fill: none; stroke: #5e426f; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; marker-end: url(#arrow-plum); }
+      .flow-both { fill: none; stroke: #5e426f; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; marker-start: url(#arrow-plum); marker-end: url(#arrow-plum); }
+      .flow-sky { fill: none; stroke: #0071b2; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; marker-end: url(#arrow-sky); }
+      .flow-routing { fill: none; stroke: #c2410c; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; marker-end: url(#arrow-routing); }
+      .flow-routing-both { fill: none; stroke: #c2410c; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; marker-start: url(#arrow-routing); marker-end: url(#arrow-routing); }
+      .flow-service { fill: none; stroke: #b76a00; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; marker-end: url(#arrow-service); }
+      .flow-service-both { fill: none; stroke: #b76a00; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; marker-start: url(#arrow-service); marker-end: url(#arrow-service); }
+      .flow-automate { fill: none; stroke: #5b17bd; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; marker-end: url(#arrow-automate); }
+      .flow-automate-both { fill: none; stroke: #5b17bd; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; marker-start: url(#arrow-automate); marker-end: url(#arrow-automate); }
+      .flow-observe { fill: none; stroke: #2f8ca0; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; marker-end: url(#arrow-observe); }
+      .flow-platform { fill: none; stroke: #0a6b58; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; marker-end: url(#arrow-platform); }
+      .flow-platform-both { fill: none; stroke: #0a6b58; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; marker-start: url(#arrow-platform); marker-end: url(#arrow-platform); }
+      .flow-config { fill: none; stroke: #5b17bd; stroke-width: 2.5; stroke-dasharray: 8 7; stroke-linecap: round; stroke-linejoin: round; marker-end: url(#arrow-automate); }
+      .label-bg { fill: #fffefe; stroke: #e7dce9; stroke-width: 1; }
+      .flow-label { font-size: 12px; font-weight: 800; fill: #5e426f; }
+    </style>
+  </defs>
+
+  <rect x="12" y="12" width="1416" height="976" rx="38" fill="url(#panelWash)" stroke="#ffffff" stroke-width="4" filter="url(#panelShadow)"/>
+  <rect x="16" y="16" width="1408" height="968" rx="34" fill="url(#grid)"/>
+  <g fill="none" stroke="#9d64f5" stroke-opacity="0.15" stroke-width="2">
+    <circle cx="1318" cy="66" r="112"/>
+    <circle cx="1318" cy="66" r="84"/>
+    <circle cx="1318" cy="66" r="56"/>
+  </g>
+  <g fill="none" stroke="#1abc9c" stroke-opacity="0.12" stroke-width="2">
+    <circle cx="86" cy="938" r="92"/>
+    <circle cx="86" cy="938" r="64"/>
+  </g>
+
+  <g aria-label="Diagram heading">
+    <rect x="44" y="38" width="244" height="38" rx="19" fill="#e0cdfc" stroke="#ffffff" stroke-width="2"/>
+    <text x="166" y="63" text-anchor="middle" class="eyebrow" fill="#5b17bd">ZE / COMPONENT MAP</text>
+    <text x="44" y="111" class="headline">One runtime. Shared contracts. Pluggable systems.</text>
+    <text x="44" y="136" class="subhead">Compact components leave dedicated gutters for every relationship</text>
+  </g>
+
+  <g aria-label="Category and connector legend">
+    <g transform="translate(660 40)">
+      <rect width="98" height="30" rx="15" fill="#e9f5ff" stroke="#009fe3" stroke-width="1.5"/>
+      <text x="49" y="20" text-anchor="middle" class="chip-text" fill="#0071b2">Operate</text>
+    </g>
+    <g transform="translate(768 40)">
+      <rect width="98" height="30" rx="15" fill="#fff1eb" stroke="#ff5a1f" stroke-width="1.5"/>
+      <text x="49" y="20" text-anchor="middle" class="chip-text" fill="#c2410c">Routing</text>
+    </g>
+    <g transform="translate(876 40)">
+      <rect width="98" height="30" rx="15" fill="#fff9d7" stroke="#ffd43b" stroke-width="1.5"/>
+      <text x="49" y="20" text-anchor="middle" class="chip-text" fill="#b76a00">Services</text>
+    </g>
+    <g transform="translate(984 40)">
+      <rect width="98" height="30" rx="15" fill="#f3edfe" stroke="#9d64f5" stroke-width="1.5"/>
+      <text x="49" y="20" text-anchor="middle" class="chip-text" fill="#5b17bd">Automate</text>
+    </g>
+    <g transform="translate(1092 40)">
+      <rect width="98" height="30" rx="15" fill="#effbfc" stroke="#68bec9" stroke-width="1.5"/>
+      <text x="49" y="20" text-anchor="middle" class="chip-text" fill="#2f8ca0">Observe</text>
+    </g>
+    <g transform="translate(1200 40)">
+      <rect width="150" height="30" rx="15" fill="#fffefe" stroke="#9878a4" stroke-width="1.5" stroke-dasharray="6 5"/>
+      <text x="75" y="20" text-anchor="middle" class="chip-text" fill="#6a4478">Configured / optional</text>
+    </g>
+    <g transform="translate(1008 86)">
+      <path d="M 0 10 H 44" class="flow"/>
+      <text x="56" y="14" class="chip-text" fill="#5e426f">events / data</text>
+    </g>
+    <g transform="translate(1168 86)">
+      <path d="M 0 10 H 44" class="flow-config"/>
+      <text x="56" y="14" class="chip-text" fill="#5b17bd">config / lifecycle</text>
+    </g>
+  </g>
+
+  <rect x="190" y="160" width="1060" height="740" rx="32" fill="#fffefe" fill-opacity="0.77" stroke="#9d64f5" stroke-width="3" stroke-dasharray="12 9"/>
+  <rect x="1028" y="141" width="182" height="38" rx="19" fill="url(#brand)" stroke="#ffffff" stroke-width="3" filter="url(#nodeShadow)"/>
+  <text x="1119" y="166" text-anchor="middle" class="eyebrow" fill="#ffffff">ZE DAEMON</text>
+
+  <!-- Connectors use the open space between compact rows. -->
+  <g aria-label="Component relationships">
+    <path class="flow-sky" d="M 155 233 H 219"/>
+    <path class="flow-observe" d="M 1190 241 H 1279"/>
+
+
+
+    <path class="flow-automate" d="M 835 400 V 414"/>
+    <path class="flow-config" d="M 1105 400 V 414"/>
+    <path class="flow" d="M 720 496 V 514"/>
+
+    <path class="flow" d="M 720 554 V 560"/>
+
+    <path class="flow-routing-both" d="M 161 637 H 209"/>
+
+    <path class="flow-service-both" d="M 1211 637 H 1279"/>
+    <path class="flow-service-both" d="M 1279 768 H 1220 V 676 H 1211"/>
+
+    <path class="flow-routing" d="M 530 676 V 694"/>
+    <path class="flow-routing" d="M 735 676 V 694"/>
+    <path class="flow-routing" d="M 885 676 V 694"/>
+    <path class="flow-service" d="M 1075 676 V 694"/>
+
+    <path class="flow-automate-both" d="M 1279 468 H 1201"/>
+
+    <path class="flow-platform-both" d="M 486 750 H 504"/>
+  </g>
+
+  <g aria-label="Northbound management surfaces">
+    <rect x="225" y="190" width="990" height="86" rx="21" fill="url(#surfaceWash)" stroke="#d9c8e1" stroke-width="1.5"/>
+    <text x="245" y="211" class="group-label">NORTHBOUND SURFACES · SHARED COMMAND AND CONFIG CONTRACT</text>
+
+    <g transform="translate(245 220)">
+      <rect class="node optional" width="128" height="42" rx="12" fill="#e9f5ff" stroke="#009fe3"/>
+      <text x="64" y="20" text-anchor="middle" class="surface-title" fill="#0071b2">SSH CLI</text>
+      <text x="64" y="34" text-anchor="middle" class="surface-copy">editor + shell</text>
+    </g>
+    <g transform="translate(383 220)">
+      <rect class="node optional" width="128" height="42" rx="12" fill="#e9f5ff" stroke="#009fe3"/>
+      <text x="64" y="20" text-anchor="middle" class="surface-title" fill="#0071b2">Web UI</text>
+      <text x="64" y="34" text-anchor="middle" class="surface-copy">HTMX + SSE</text>
+    </g>
+    <g transform="translate(521 220)">
+      <rect class="node optional" width="150" height="42" rx="12" fill="#e9f5ff" stroke="#009fe3"/>
+      <text x="75" y="20" text-anchor="middle" class="surface-title" fill="#0071b2">Looking Glass</text>
+      <text x="75" y="34" text-anchor="middle" class="surface-copy">read-only HTTP(S)</text>
+    </g>
+    <g transform="translate(681 220)">
+      <rect class="node optional" width="180" height="42" rx="12" fill="#f3edfe" stroke="#9d64f5"/>
+      <text x="90" y="20" text-anchor="middle" class="surface-title" fill="#5b17bd">REST · gRPC · gNMI</text>
+      <text x="90" y="34" text-anchor="middle" class="surface-copy">API + config sessions</text>
+    </g>
+    <g transform="translate(871 220)">
+      <rect class="node optional" width="125" height="42" rx="12" fill="#f3edfe" stroke="#9d64f5"/>
+      <text x="62.5" y="20" text-anchor="middle" class="surface-title" fill="#5b17bd">MCP</text>
+      <text x="62.5" y="34" text-anchor="middle" class="surface-copy">HTTP + SSE</text>
+    </g>
+    <g transform="translate(1006 220)">
+      <rect class="node optional" width="184" height="42" rx="12" fill="#effbfc" stroke="#68bec9"/>
+      <text x="92" y="20" text-anchor="middle" class="surface-title" fill="#2f8ca0">Telemetry</text>
+      <text x="92" y="34" text-anchor="middle" class="surface-copy">Prometheus + BMP</text>
+    </g>
+  </g>
+
+  <g aria-label="Runtime core">
+    <rect x="225" y="294" width="990" height="112" rx="20" fill="url(#surfaceWash)" stroke="#d9c8e1" stroke-width="1.5"/>
+    <text x="245" y="314" class="group-label">RUNTIME CORE</text>
+    <path class="flow-automate-both" d="M 835 276 V 320"/>
+    <path class="flow-config" d="M 660 363 H 674"/>
+
+    <g transform="translate(240 326)">
+      <rect class="node" width="210" height="74" rx="16" fill="url(#brand)" stroke="#ffffff"/>
+      <text x="105" y="31" text-anchor="middle" class="node-title" fill="#ffffff">Engine</text>
+      <text x="105" y="51" text-anchor="middle" class="node-copy" fill="#f8f2ff">lifecycle supervisor</text>
+      <text x="105" y="66" text-anchor="middle" class="surface-copy" fill="#f8f2ff">protocol-agnostic</text>
+    </g>
+
+    <g transform="translate(470 326)">
+      <rect class="node" width="190" height="74" rx="16" fill="#e9f5ff" stroke="#009fe3"/>
+      <text x="95" y="31" text-anchor="middle" class="node-title" fill="#0071b2">ConfigProvider</text>
+      <text x="95" y="52" text-anchor="middle" class="node-copy">YANG tree + ZeFS</text>
+    </g>
+
+    <g transform="translate(680 326)">
+      <rect class="node" width="310" height="74" rx="16" fill="#e9f5ff" stroke="#009fe3"/>
+      <text x="155" y="27" text-anchor="middle" class="node-title" fill="#0071b2">Plugin Server</text>
+      <text x="155" y="48" text-anchor="middle" class="node-copy">command + RPC dispatcher</text>
+      <text x="155" y="65" text-anchor="middle" class="surface-copy">subscriptions · 5-stage plugin startup</text>
+    </g>
+
+    <g transform="translate(1010 326)">
+      <rect class="node" width="190" height="74" rx="16" fill="#e2faf8" stroke="#1abc9c"/>
+      <text x="95" y="31" text-anchor="middle" class="node-title" fill="#0a6b58">PluginManager</text>
+      <text x="95" y="52" text-anchor="middle" class="node-copy">discovery + processes</text>
+    </g>
+  </g>
+
+  <g aria-label="Plugin execution modes">
+    <rect x="225" y="420" width="990" height="76" rx="20" fill="url(#surfaceWash)" stroke="#d9c8e1" stroke-width="1.5"/>
+    <text x="245" y="440" class="group-label">PLUGIN EXECUTION · CONTROLLED BY THE PLUGIN SERVER</text>
+
+    <g transform="translate(245 452)">
+      <rect class="node" width="430" height="32" rx="12" fill="#f3edfe" stroke="#9d64f5"/>
+      <text x="125" y="21" text-anchor="middle" class="surface-title" fill="#5b17bd">In-process plugins</text>
+      <text x="292" y="21" text-anchor="middle" class="surface-copy">goroutines · DirectBridge</text>
+    </g>
+
+    <g transform="translate(695 452)">
+      <rect class="node" width="500" height="32" rx="12" fill="#f3edfe" stroke="#9d64f5"/>
+      <text x="155" y="21" text-anchor="middle" class="surface-title" fill="#5b17bd">External 5-stage plugins</text>
+      <text x="362" y="21" text-anchor="middle" class="surface-copy">managed process · authenticated TLS control</text>
+    </g>
+  </g>
+
+  <g aria-label="Plugin Server message bus">
+    <rect class="node" x="240" y="520" width="960" height="34" rx="17" fill="#f3edfe" stroke="#9d64f5"/>
+    <text x="720" y="542" text-anchor="middle" class="surface-title" fill="#5b17bd">SHARED MESSAGE BUS · PLUGIN SERVER EVENTBUS · TYPED MESSAGES + SUBSCRIPTIONS</text>
+  </g>
+
+  <g aria-label="Configured protocols and systems">
+    <rect x="215" y="566" width="990" height="116" rx="20" fill="url(#surfaceWash)" stroke="#d9c8e1" stroke-width="1.5"/>
+    <text x="235" y="586" class="group-label">CONFIG-SELECTED PROTOCOLS AND SYSTEMS</text>
+    <g transform="translate(405 598)">
+      <rect class="node optional" width="250" height="78" rx="16" fill="#fff1eb" stroke="#ff5a1f"/>
+      <text x="125" y="28" text-anchor="middle" class="node-title" fill="#c2410c">BGP</text>
+      <text x="125" y="49" text-anchor="middle" class="node-copy">TCP · FSM · wire cache · RIB</text>
+      <text x="125" y="65" text-anchor="middle" class="surface-copy">RS/RR · RPKI · ASPA · BMP</text>
+    </g>
+
+    <g transform="translate(665 598)">
+      <rect class="node optional" width="140" height="78" rx="16" fill="#fff1eb" stroke="#ff5a1f"/>
+      <text x="70" y="28" text-anchor="middle" class="node-title" fill="#c2410c">OSPF</text>
+      <text x="70" y="49" text-anchor="middle" class="node-copy">SPF · protocol 89</text>
+      <text x="70" y="65" text-anchor="middle" class="surface-copy">Loc-RIB paths</text>
+    </g>
+
+    <g transform="translate(815 598)">
+      <rect class="node optional" width="140" height="78" rx="16" fill="#fff1eb" stroke="#ff5a1f"/>
+      <text x="70" y="28" text-anchor="middle" class="node-title" fill="#c2410c">IS-IS</text>
+      <text x="70" y="49" text-anchor="middle" class="node-copy">Layer 2 · SPF</text>
+      <text x="70" y="65" text-anchor="middle" class="surface-copy">Loc-RIB paths</text>
+    </g>
+
+    <g transform="translate(230 598)">
+      <rect class="node optional" width="120" height="78" rx="16" fill="#fff1eb" stroke="#ff5a1f"/>
+      <text x="60" y="28" text-anchor="middle" class="node-title" fill="#c2410c">BFD</text>
+      <text x="60" y="49" text-anchor="middle" class="node-copy">session liveness</text>
+      <text x="60" y="65" text-anchor="middle" class="surface-copy">fast failure</text>
+    </g>
+
+    <g transform="translate(960 598)">
+      <rect class="node optional" width="230" height="78" rx="16" fill="#fff9d7" stroke="#ffd43b"/>
+      <text x="115" y="28" text-anchor="middle" class="node-title" fill="#b76a00">Subscriber access</text>
+      <text x="115" y="49" text-anchor="middle" class="node-copy">PPPoE · L2TP · RADIUS</text>
+      <text x="115" y="65" text-anchor="middle" class="surface-copy">shared subscriber sessions</text>
+    </g>
+  </g>
+
+  <g aria-label="Route decision and dataplane">
+    <rect class="node optional" x="230" y="700" width="250" height="100" rx="18" fill="#e2faf8" stroke="#1abc9c"/>
+    <text x="355" y="730" text-anchor="middle" class="node-title" fill="#0a6b58">FIB</text>
+    <text x="355" y="754" text-anchor="middle" class="node-copy">selected system routes</text>
+    <text x="355" y="778" text-anchor="middle" class="node-copy">backend programming</text>
+
+    <rect class="node optional" x="510" y="700" width="580" height="100" rx="18" fill="#e2faf8" stroke="#1abc9c"/>
+    <text x="800" y="730" text-anchor="middle" class="node-title" fill="#0a6b58">Route selection</text>
+    <text x="800" y="754" text-anchor="middle" class="node-copy">Shared Loc-RIB → sysrib</text>
+    <text x="800" y="778" text-anchor="middle" class="node-copy">admin distance · recursive next hop</text>
+
+    <g aria-label="Dataplane">
+      <rect x="215" y="816" width="990" height="76" rx="20" fill="url(#surfaceWash)" stroke="#d9c8e1" stroke-width="1.5"/>
+      <text x="235" y="836" class="group-label">DATAPLANE</text>
+
+      <path class="flow-platform" d="M 353 800 V 838"/>
+      <path class="flow-platform" d="M 355 800 V 808 H 603 V 838"/>
+      <path class="flow-platform" d="M 353 880 V 908"/>
+      <path class="flow-platform" d="M 603 880 V 908"/>
+
+      <g transform="translate(235 844)">
+        <rect class="node optional" width="235" height="36" rx="11" fill="#e2faf8" stroke="#1abc9c"/>
+        <text x="117.5" y="16" text-anchor="middle" class="surface-title" fill="#0a6b58">Netfilter</text>
+        <text x="117.5" y="29" text-anchor="middle" class="surface-copy">nftables · tc</text>
+      </g>
+
+      <g transform="translate(485 844)">
+        <rect class="node optional" width="235" height="36" rx="11" fill="#e2faf8" stroke="#1abc9c"/>
+        <text x="117.5" y="16" text-anchor="middle" class="surface-title" fill="#0a6b58">VPP</text>
+        <text x="117.5" y="29" text-anchor="middle" class="surface-copy">GoVPP backend</text>
+      </g>
+
+      <g transform="translate(735 844)">
+        <rect class="node optional" width="130" height="36" rx="11" fill="#e2faf8" stroke="#1abc9c"/>
+        <text x="65" y="23" text-anchor="middle" class="surface-title" fill="#0a6b58">ARP</text>
+      </g>
+
+      <g transform="translate(880 844)">
+        <rect class="node optional" width="130" height="36" rx="11" fill="#e2faf8" stroke="#1abc9c"/>
+        <text x="65" y="23" text-anchor="middle" class="surface-title" fill="#0a6b58">ND</text>
+      </g>
+
+      <g transform="translate(1025 844)">
+        <rect class="node optional" width="160" height="36" rx="11" fill="#e2faf8" stroke="#1abc9c"/>
+        <text x="80" y="23" text-anchor="middle" class="surface-title" fill="#0a6b58">DHCP</text>
+      </g>
+    </g>
+  </g>
+
+  <g aria-label="External systems">
+    <g transform="translate(25 200)">
+      <rect class="node" width="130" height="66" rx="16" fill="#e9f5ff" stroke="#009fe3"/>
+      <text x="65" y="27" text-anchor="middle" class="external-title" fill="#0071b2">Operators</text>
+      <text x="65" y="47" text-anchor="middle" class="external-copy">automation + tools</text>
+    </g>
+
+    <g transform="translate(25 598)">
+      <rect class="node" width="130" height="78" rx="16" fill="#fff1eb" stroke="#ff5a1f"/>
+      <text x="65" y="28" text-anchor="middle" class="external-title" fill="#c2410c">Routing peers</text>
+      <text x="65" y="49" text-anchor="middle" class="external-copy">BGP · OSPF</text>
+      <text x="65" y="65" text-anchor="middle" class="external-copy">IS-IS · BFD</text>
+    </g>
+
+    <g transform="translate(1285 208)">
+      <rect class="node" width="130" height="66" rx="16" fill="#effbfc" stroke="#68bec9"/>
+      <text x="65" y="27" text-anchor="middle" class="external-title" fill="#2f8ca0">Observability</text>
+      <text x="65" y="47" text-anchor="middle" class="external-copy">Prometheus · BMP</text>
+    </g>
+
+    <g transform="translate(1285 605)">
+      <rect class="node" width="130" height="64" rx="16" fill="#fff9d7" stroke="#ffd43b"/>
+      <text x="65" y="27" text-anchor="middle" class="external-title" fill="#b76a00">RADIUS</text>
+      <text x="65" y="47" text-anchor="middle" class="external-copy">AAA · CoA rate / CoS</text>
+    </g>
+
+    <g transform="translate(1285 730)">
+      <rect class="node" width="130" height="76" rx="16" fill="#fff9d7" stroke="#ffd43b"/>
+      <text x="65" y="27" text-anchor="middle" class="external-title" fill="#b76a00">Access edge</text>
+      <text x="65" y="48" text-anchor="middle" class="external-copy">PPPoE subscribers</text>
+      <text x="65" y="65" text-anchor="middle" class="external-copy">L2TP peers / LNS</text>
+    </g>
+
+    <g transform="translate(1285 432)">
+      <rect class="node" width="130" height="72" rx="16" fill="#f3edfe" stroke="#9d64f5"/>
+      <text x="65" y="27" text-anchor="middle" class="external-title" fill="#5b17bd">External plugins</text>
+      <text x="65" y="47" text-anchor="middle" class="external-copy">5-stage protocol</text>
+      <text x="65" y="64" text-anchor="middle" class="external-copy">any language</text>
+    </g>
+
+    <g transform="translate(235 914)">
+      <rect class="node" width="235" height="64" rx="16" fill="#e2faf8" stroke="#1abc9c"/>
+      <text x="117.5" y="27" text-anchor="middle" class="node-title" fill="#0a6b58">Linux</text>
+      <text x="117.5" y="48" text-anchor="middle" class="node-copy">kernel · netlink sockets</text>
+    </g>
+
+    <g transform="translate(485 914)">
+      <rect class="node optional" width="235" height="64" rx="16" fill="#e2faf8" stroke="#1abc9c"/>
+      <text x="117.5" y="27" text-anchor="middle" class="node-title" fill="#0a6b58">VPP</text>
+      <text x="117.5" y="48" text-anchor="middle" class="node-copy">VPP API target</text>
+    </g>
+  </g>
+
+  <text x="1394" y="982" text-anchor="end" class="eyebrow" fill="#9878a4">ZE-SOFTWARE.NET</text>
+</svg>

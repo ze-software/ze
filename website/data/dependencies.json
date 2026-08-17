@@ -1,0 +1,212 @@
+{
+    "categories": [
+        {
+            "name": "Terminal, Web & SSH Interfaces",
+            "modules": [
+                {
+                    "module": "charm.land/bubbletea/v2",
+                    "why": "The Elm-style TUI framework driving Ze's interactive CLI: config editor, dashboard, monitor, ping and traceroute views, run per SSH session."
+                },
+                {
+                    "module": "charm.land/bubbles/v2",
+                    "why": "Pre-built TUI widgets (text input, viewport) for the CLI's interactive screens."
+                },
+                {
+                    "module": "charm.land/lipgloss/v2",
+                    "why": "Styling and layout for the CLI's colors, borders, and widths."
+                },
+                {
+                    "module": "charm.land/wish/v2",
+                    "why": "SSH server middleware that wires each incoming session to run the CLI's Bubbletea program."
+                },
+                {
+                    "module": "charm.land/ssh",
+                    "why": "SSH session and public-key types that the wish server and the CLI's key-based auth build on."
+                },
+                {
+                    "module": "github.com/a-h/templ",
+                    "why": "Compiles the typed server-rendered components used by Ze's web configuration interface and BGP looking glass into Go."
+                },
+                {
+                    "module": "github.com/charmbracelet/colorprofile",
+                    "why": "Forces a deterministic color profile in render tests, so CLI screenshot/layout tests don't depend on the terminal running them."
+                },
+                {
+                    "module": "github.com/muesli/reflow",
+                    "why": "ANSI-aware text width calculation, so the CLI's prompt and status bar line up correctly despite embedded color codes."
+                },
+                {
+                    "module": "github.com/creack/pty",
+                    "why": "Opens a pseudo-terminal in a Linux integration test that exercises serial console handling."
+                }
+            ]
+        },
+        {
+            "name": "Networking & Protocols",
+            "modules": [
+                {
+                    "module": "github.com/miekg/dns",
+                    "why": "DNS message parsing and serving underneath Ze's DNS server engine, the AS112 blackhole plugin, and GeoDNS. It's the library underpinning CoreDNS."
+                },
+                {
+                    "module": "github.com/insomniacslk/dhcp",
+                    "why": "DHCPv4/DHCPv6 client used for interface lease handling and the installer's disk-provisioning DHCP client."
+                },
+                {
+                    "module": "github.com/beevik/ntp",
+                    "why": "NTP client queries used by the ntp plugin."
+                },
+                {
+                    "module": "golang.zx2c4.com/wireguard/wgctrl",
+                    "why": "Creates and configures WireGuard interfaces and peers from the interface netlink backend."
+                },
+                {
+                    "module": "github.com/mdlayher/packet",
+                    "why": "Raw AF_PACKET sockets behind the `diag capture` CLI command."
+                },
+                {
+                    "module": "github.com/packetcap/go-pcap",
+                    "why": "Only its filter subpackage: parses tcpdump/BPF-style filter expressions for `diag capture`. Packet capture itself goes through mdlayher/packet instead."
+                }
+            ]
+        },
+        {
+            "name": "Linux Kernel Interfaces",
+            "modules": [
+                {
+                    "module": "github.com/vishvananda/netlink",
+                    "why": "The main library for configuring the Linux network stack: links, addresses, routes, neighbors, bridges, VLANs, tunnels, IPsec, QoS. Used across interfaces, traffic, FIB, OSPF, ISIS, and MPLS."
+                },
+                {
+                    "module": "github.com/vishvananda/netns",
+                    "why": "Linux network-namespace handles, used alongside netlink for namespace-scoped route watching."
+                },
+                {
+                    "module": "github.com/google/nftables",
+                    "why": "Programs the kernel's nftables firewall (tables, chains, rules, sets) over netlink."
+                },
+                {
+                    "module": "github.com/mdlayher/netlink",
+                    "why": "Low-level generic netlink sockets, used to flush conntrack flow entries for flow export."
+                },
+                {
+                    "module": "github.com/mdlayher/genetlink",
+                    "why": "Generic netlink family dialing, used to attach to the kernel's psample subsystem for sampled flow export."
+                },
+                {
+                    "module": "github.com/cilium/ebpf",
+                    "why": "Assembles and attaches eBPF programs in pure Go, no clang or libbpf needed, to count traffic for the trafficusage plugin."
+                }
+            ]
+        },
+        {
+            "name": "Routing & Dataplane",
+            "modules": [
+                {
+                    "module": "github.com/gaissmai/bart",
+                    "why": "Balanced Adaptive Radix Trie: the longest-prefix-match structure underneath Ze's RIB store."
+                },
+                {
+                    "module": "go.fd.io/govpp",
+                    "why": "Binary-API client for FD.io VPP, used by the optional VPP dataplane backends for interfaces, firewall, traffic, FIB, and IKE."
+                }
+            ]
+        },
+        {
+            "name": "Config, RPC & Telemetry",
+            "modules": [
+                {
+                    "module": "github.com/openconfig/goyang",
+                    "why": "Parses and validates the YANG module definitions behind Ze's config schema, CLI completion, and validation engine."
+                },
+                {
+                    "module": "github.com/openconfig/gnmi",
+                    "why": "Generated gNMI protobuf/gRPC types that Ze's gNMI server implements for Get/Set/Subscribe/Capabilities."
+                },
+                {
+                    "module": "google.golang.org/grpc",
+                    "why": "Backs Ze's gRPC servers: gNMI and Ze's own management API."
+                },
+                {
+                    "module": "google.golang.org/protobuf",
+                    "why": "Runtime support for the generated protobuf message types behind Ze's gRPC API."
+                },
+                {
+                    "module": "google.golang.org/grpc/cmd/protoc-gen-go-grpc",
+                    "why": "Build-time only: the protoc plugin used to regenerate the gRPC API's Go bindings from ze.proto."
+                }
+            ]
+        },
+        {
+            "name": "Observability",
+            "modules": [
+                {
+                    "module": "github.com/prometheus/client_golang",
+                    "why": "Ze's internal metrics backend: counters, gauges, and histograms against a private registry."
+                },
+                {
+                    "module": "github.com/prometheus/procfs",
+                    "why": "Parses Linux /proc for the telemetry collector: CPU, memory, network device and socket stats, conntrack, softnet."
+                },
+                {
+                    "module": "github.com/sirupsen/logrus",
+                    "why": "Only to satisfy GoVPP's logging interface, bridged into Ze's own slog logger via a hook. Not used as Ze's own logger."
+                }
+            ]
+        },
+        {
+            "name": "Standard Library Extensions (golang.org/x)",
+            "modules": [
+                {
+                    "module": "golang.org/x/crypto",
+                    "why": "SSH protocol primitives and certificate signing for the SSH server, plus password hashing."
+                },
+                {
+                    "module": "golang.org/x/mod",
+                    "why": "Parses and rewrites go.mod files when the appliance build prepares an isolated instance of the tree, so an image is never built from the tracked working copy."
+                },
+                {
+                    "module": "golang.org/x/net",
+                    "why": "Raw ICMP packet connections for the traceroute plugin, and hostname normalization for MCP's auth."
+                },
+                {
+                    "module": "golang.org/x/sys",
+                    "why": "Low-level Linux syscalls: disk sync and reboot in the installer, used throughout the Linux-specific components."
+                },
+                {
+                    "module": "golang.org/x/term",
+                    "why": "Reads passwords without echo and detects an interactive terminal during CLI login."
+                },
+                {
+                    "module": "golang.org/x/tools",
+                    "why": "Build-time only: goimports, pinned via a tools.go tracking file, never compiled into Ze's binaries."
+                }
+            ]
+        },
+        {
+            "name": "Testing & Build Tooling",
+            "modules": [
+                {
+                    "module": "github.com/stretchr/testify",
+                    "why": "Assertion and require helpers used across the Go unit test suite."
+                },
+                {
+                    "module": "github.com/gokrazy/tools",
+                    "why": "Drives gokrazy appliance image builds from Ze's appliance build tooling."
+                },
+                {
+                    "module": "github.com/gokrazy/updater",
+                    "why": "Referenced only in a regression test against Ze's own vendored update-push logic, written locally after a bug was found upstream. Not used in production."
+                },
+                {
+                    "module": "github.com/sivchari/gomu",
+                    "why": "Mutation-testing tool, run via the Makefile to advisory-score how well the test suite actually exercises the code. Not a build or CI gate."
+                },
+                {
+                    "module": "gopkg.in/yaml.v3",
+                    "why": "Parses GitHub Actions workflow YAML in verification tests so aliases, duplicate keys, and malformed trigger structures fail closed."
+                }
+            ]
+        }
+    ]
+}

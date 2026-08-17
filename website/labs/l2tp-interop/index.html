@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>L2TP PPP/NCP Interop - Ze</title>
+        <meta name="description" content="Ze as LNS against real xl2tpd, with FRR proving BGP redistribution from a live PPP session." />
+        <meta property="og:title" content="L2TP PPP/NCP Interop - Ze" />
+        <meta property="og:description" content="Ze as LNS against real xl2tpd, with FRR proving BGP redistribution from a live PPP session." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/labs/l2tp-interop/" />
+        <meta property="og:url" content="https://ze-software.net/labs/l2tp-interop/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar">
+            <section aria-labelledby="lab-title">
+                <div class="section-head journey-hero reveal cat-services">
+                    <span class="journey-eyebrow">Protocol lab</span>
+                    <h1 id="lab-title">L2TP PPP/NCP Interop</h1>
+                    <p>
+                        Ze as an LNS against a real <code>xl2tpd</code>/<code>pppd</code>
+                        LAC, with FRR proving that a subscriber route makes it
+                        all the way into BGP.
+                    </p>
+                </div>
+                <div class="status-panel reveal">
+                    <div class="status-copy">
+                        <span class="tag">Daemon</span>
+                        <p>
+                            A peer-isolated Docker lab runs Ze as an LNS, a real
+                            <code>xl2tpd</code>/<code>pppd</code> LAC, and FRR
+                            as a BGP peer in separate privileged containers on
+                            an isolated bridge network. It proves the complete
+                            path from L2TP control tunnel through PPP LCP/IPCP,
+                            kernel <code>pppN</code> interface creation,
+                            dataplane connectivity, and BGP route
+                            redistribution from a live PPP session.
+                        </p>
+                        <p>
+                            Two scenarios: full PPP/IPv4 dataplane proof with
+                            cleanup verification, and a subscriber /32 BGP
+                            redistribution scenario -- advertised to FRR when
+                            the session comes up, withdrawn on teardown.
+                        </p>
+                    </div>
+                    <div class="status-table" aria-label="Lab facts">
+                        <div class="status-row">
+                            <strong>Proves</strong>
+                            <span>Full L2TP control tunnel, PPP LCP/IPCP negotiation, kernel pppN creation, BGP redistribution</span>
+                        </div>
+                        <div class="status-row">
+                            <strong>Peer</strong>
+                            <span>Real xl2tpd/pppd (LAC), optionally FRR as BGP peer</span>
+                        </div>
+                        <div class="status-row">
+                            <strong>Requires</strong>
+                            <span>Docker and a host kernel with PPPoL2TP support (Docker Desktop on macOS typically lacks this -- use the QEMU path instead)</span>
+                        </div>
+                        <div class="status-row">
+                            <strong>Source</strong>
+                            <span
+                                ><a
+                                    href="https://github.com/ze-software/ze/blob/main/docs/labs/l2tp-interop.md" target="_blank" rel="noopener"
+                                    >docs/labs/l2tp-interop.md</a
+                                ></span
+                            >
+                        </div>
+                    </div>
+                </div>
+                <div class="terminal-panel reveal">
+                    <div class="terminal" aria-label="Run commands">
+                        <div class="terminal-dots">
+                            <span></span><span></span><span></span>
+                            <span class="terminal-title">l2tp-interop</span>
+                        </div>
+                        <div class="terminal-body">
+                            <pre><span class="term-comment"># Docker lab, all scenarios</span>
+<span class="term-prompt">$</span> <span class="term-cmd">make</span> ze-deployment-docker-l2tp-ppp-test
+
+<span class="term-comment"># single scenario, verbose</span>
+<span class="term-prompt">$</span> <span class="term-cmd">python3</span> test/l2tp-interop/run.py 01-ppp-ipv4
+
+<span class="term-comment"># QEMU path instead of Docker (needs tmp/kernel/vmlinuz)</span>
+<span class="term-prompt">$</span> <span class="term-cmd">make</span> ze-qemu-l2tp-ppp-test</pre>
+                        </div>
+                    </div>
+                    <div class="terminal-note">
+                        <span class="tag">Prerequisites</span>
+                        <p>
+                            Docker for the primary path. The QEMU path needs a
+                            staged kernel (<code>make ze-kernel-build
+                            GOKRAZY_ARCH=arm64</code>) and works where Docker
+                            Desktop's VM lacks the PPPoL2TP kernel module.
+                        </p>
+                        <div class="link-list">
+                            <a
+                                href="https://github.com/ze-software/ze/tree/main/test/l2tp-interop" target="_blank" rel="noopener"
+                                >test/l2tp-interop/
+                                <span>lab source</span></a
+                            >
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">L2TP lab</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Lab detail</h2>
+                    <a class="page-sidebar-link" href="../../labs/l2tp-interop/architecture/">
+                        <span class="page-sidebar-link-label">L2TP lab architecture</span>
+                        <small>Docker topology, prerequisites, scenarios, and runner layout.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../labs/">
+                        <span class="page-sidebar-link-label">All labs</span>
+                        <small>Return to the lab index.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/l2tp/">
+                        <span class="page-sidebar-link-label">L2TP guide</span>
+                        <small>Configuration and operator behaviour.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+<script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

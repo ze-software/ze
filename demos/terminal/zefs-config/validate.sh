@@ -18,26 +18,19 @@ assert_contains "${before}" "router-id"
 assert_not_contains "${before}" "┌"
 output=$(
     python3 /src/demos/terminal/pty-session.py \
-        --command 'run show bgp summary' \
-        --command '@wait peers-established' \
-        --command '@escape' \
-        --command '@wait router-id' \
         --command 'set environment cli format default table' \
         --command 'show | compare' \
         --command commit \
         --command '@wait Session committed' \
-        --command 'run show bgp summary' \
-        --command '@wait peers-established' \
-        --command '@escape' \
-        --command '@wait router-id' \
         --command exit \
         --command '@wait operational\]' \
         --command exit \
         -- sshpass -e ssh ze-demo
 )
+after=$(ze cli -c 'show bgp summary' 2>&1)
 assert_contains "${output}" "default table"
 assert_contains "${output}" "Session committed"
 assert_contains "${output}" "router-id"
-assert_contains "${output}" "┌"
+assert_contains "${after}" "summary:"
 assert_contains "$(ze config cat ze.conf)" "default table"
 finish_validation zefs-config

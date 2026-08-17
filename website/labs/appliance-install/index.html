@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>Appliance Installer Evidence - Ze</title>
+        <meta name="description" content="The Ze appliance installer booting and completing for real in QEMU." />
+        <meta property="og:title" content="Appliance Installer Evidence - Ze" />
+        <meta property="og:description" content="The Ze appliance installer booting and completing for real in QEMU." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/labs/appliance-install/" />
+        <meta property="og:url" content="https://ze-software.net/labs/appliance-install/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar">
+            <section aria-labelledby="lab-title">
+                <div class="section-head journey-hero reveal cat-platform">
+                    <span class="journey-eyebrow">Appliance lab</span>
+                    <h1 id="lab-title">Appliance Installer Evidence</h1>
+                    <p>
+                        The installer boots and completes for real in QEMU
+                        across HTTP/PXE, ISO, and Ventoy-on-FAT paths, plus
+                        failure-path and rescue scenarios.
+                    </p>
+                </div>
+                <div class="status-panel reveal">
+                    <div class="status-copy">
+                        <span class="tag">Appliance</span>
+                        <p>
+                            Four QEMU evidence scripts cover the installer end
+                            to end: the PXE/HTTP chain boots the installer
+                            kernel and initrd, serves the image over HTTP, and
+                            asserts serial success markers before rebooting
+                            into the written disk and logging in over SSH. The
+                            ISO path wraps the same image in a bootable ISO
+                            and also verifies GPT layout and
+                            power-off-not-reboot behaviour. The Ventoy path
+                            proves the installer finds the appliance ISO as a
+                            <em>file</em> on a FAT/exFAT data partition rather
+                            than as burned boot media. The scenarios script
+                            covers what the other three do not: a forced
+                            mid-init panic recovering cleanly, MAC-based
+                            install pinning on multi-homed boxes, and rescue
+                            console access.
+                        </p>
+                        <p>
+                            The installer kernel is operator-supplied by
+                            design; Ze neither ships nor builds it. Point
+                            any script at one with <code>ZE_INSTALL_KERNEL</code>.
+                        </p>
+                    </div>
+                    <div class="status-table" aria-label="Lab facts">
+                        <div class="status-row">
+                            <strong>Proves</strong>
+                            <span>Installer boots and completes for real across HTTP/PXE, ISO, and Ventoy paths, plus fault, pinning, and rescue scenarios</span>
+                        </div>
+                        <div class="status-row">
+                            <strong>Environment</strong>
+                            <span>QEMU only, no Docker (the installer initrd is pure Go, no BusyBox)</span>
+                        </div>
+                        <div class="status-row">
+                            <strong>Requires</strong>
+                            <span>An operator-supplied installer kernel with IP_PNP_DHCP, VIRTIO_NET, VIRTIO_BLK, EXT4 built in</span>
+                        </div>
+                        <div class="status-row">
+                            <strong>Source</strong>
+                            <span
+                                ><a
+                                    href="https://github.com/ze-software/ze/blob/main/docs/guide/ze-install.md" target="_blank" rel="noopener"
+                                    >docs/guide/ze-install.md</a
+                                ></span
+                            >
+                        </div>
+                    </div>
+                </div>
+                <div class="terminal-panel reveal">
+                    <div class="terminal" aria-label="Run commands">
+                        <div class="terminal-dots">
+                            <span></span><span></span><span></span>
+                            <span class="terminal-title">appliance-install</span>
+                        </div>
+                        <div class="terminal-body">
+                            <pre><span class="term-comment"># HTTP/PXE install chain</span>
+<span class="term-prompt">$</span> <span class="term-cmd">make</span> ze-qemu-install-test
+
+<span class="term-comment"># bootable ISO chain</span>
+<span class="term-prompt">$</span> <span class="term-cmd">make</span> ze-qemu-install-iso-test
+
+<span class="term-comment"># Ventoy ISO-on-FAT path</span>
+<span class="term-prompt">$</span> <span class="term-cmd">make</span> ze-qemu-install-ventoy-test
+
+<span class="term-comment"># fault/pin/rescue scenarios</span>
+<span class="term-prompt">$</span> <span class="term-cmd">make</span> ze-qemu-install-scenarios-test</pre>
+                        </div>
+                    </div>
+                    <div class="terminal-note">
+                        <span class="tag">Prerequisites</span>
+                        <p>
+                            QEMU and an operator-supplied installer kernel
+                            (<code>ZE_INSTALL_KERNEL=/path/to/vmlinuz</code>);
+                            each script self-skips with a clear message if
+                            none is usable.
+                        </p>
+                        <div class="link-list">
+                            <a
+                                href="https://github.com/ze-software/ze/tree/main/scripts/evidence" target="_blank" rel="noopener"
+                                >scripts/evidence/effective-install-*.py
+                                <span>evidence scripts</span></a
+                            >
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Lab evidence</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Related lab work</h2>
+                    <a class="page-sidebar-link" href="../../labs/">
+                        <span class="page-sidebar-link-label">All labs</span>
+                        <small>Return to the lab index.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../quality/qemu-interop-release/">
+                        <span class="page-sidebar-link-label">Release evidence</span>
+                        <small>How lab runs feed release checks.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Use lab findings to debug systems.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+<script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

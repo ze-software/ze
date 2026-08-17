@@ -1,0 +1,1394 @@
+{
+  "external": {
+    "ze": {
+      "label": "Ze project",
+      "url": "https://ze-software.net/",
+      "desc": "Home page, docs, and generated references."
+    },
+    "vyos": {
+      "label": "VyOS",
+      "url": "https://vyos.io/",
+      "desc": "Open source network OS referenced by the NOS comparison."
+    },
+    "vyos-docs": {
+      "label": "VyOS docs",
+      "url": "https://docs.vyos.io/",
+      "desc": "Current VyOS documentation and feature references."
+    },
+    "freertr": {
+      "label": "freeRtr",
+      "url": "http://www.freertr.org/",
+      "desc": "Open source routing platform referenced by the comparisons."
+    },
+    "rare-freertr": {
+      "label": "RARE/freeRtr docs",
+      "url": "https://docs.rare.geant.org/",
+      "desc": "GÉANT RARE documentation for freeRtr deployments."
+    },
+    "frr": {
+      "label": "FRRouting",
+      "url": "https://frrouting.org/",
+      "desc": "FRR project site for the BGP and NOS comparisons."
+    },
+    "frr-docs": {
+      "label": "FRR docs",
+      "url": "https://docs.frrouting.org/en/latest/",
+      "desc": "FRR command and protocol documentation."
+    },
+    "bird": {
+      "label": "BIRD",
+      "url": "https://bird.nic.cz/",
+      "desc": "BIRD Internet Routing Daemon project site."
+    },
+    "openbgpd": {
+      "label": "OpenBGPD",
+      "url": "https://openbgpd.org/",
+      "desc": "OpenBSD BGP implementation project site."
+    },
+    "gobgp": {
+      "label": "GoBGP",
+      "url": "https://osrg.github.io/gobgp/",
+      "desc": "GoBGP project and documentation site."
+    },
+    "exabgp": {
+      "label": "ExaBGP",
+      "url": "https://github.com/Exa-Networks/exabgp",
+      "desc": "Programmable BGP speaker used as a migration reference."
+    },
+    "amsix-route-server-test": {
+      "label": "AMS-IX route-server test",
+      "url": "https://ripe64.ripe.net/presentations/49-Follow_Up_AMS-IX_route-server_test_Euro-IX_20th_RIPE64.pdf",
+      "desc": "RIPE64 route-server performance slides using ExaBGP as a testing tool."
+    },
+    "bgp-performance": {
+      "label": "bgp-performance",
+      "url": "https://github.com/job/bgp-performance",
+      "desc": "Job Snijders' bgperf2-based BGP performance analysis suite."
+    },
+    "bio-rd": {
+      "label": "bio-rd",
+      "url": "https://github.com/bio-routing/bio-rd",
+      "desc": "Bio-Routing daemon referenced by the BGP comparison."
+    },
+    "rustybgp": {
+      "label": "RustyBGP",
+      "url": "https://github.com/osrg/rustybgp",
+      "desc": "Rust BGP implementation from OSRG."
+    },
+    "rustbgpd": {
+      "label": "rustbgpd",
+      "url": "https://github.com/lance0/rustbgpd",
+      "desc": "API-first Rust BGP daemon."
+    },
+    "vpp": {
+      "label": "FD.io VPP",
+      "url": "https://fd.io/",
+      "desc": "Vector Packet Processing dataplane referenced by Ze and VyOS pages."
+    },
+    "junos": {
+      "label": "Juniper Junos",
+      "url": "https://www.juniper.net/documentation/",
+      "desc": "Vendor documentation used by command equivalents."
+    },
+    "iosxr": {
+      "label": "Cisco IOS XR",
+      "url": "https://www.cisco.com/c/en/us/support/ios-nx-os-software/ios-xr-software/series.html",
+      "desc": "Vendor documentation used by command equivalents."
+    },
+    "sros": {
+      "label": "Nokia SR OS",
+      "url": "https://documentation.nokia.com/sr/",
+      "desc": "Vendor documentation used by command equivalents."
+    }
+  },
+  "pages": {
+    "compare/": {
+      "eyebrow": "Comparison",
+      "groups": [
+        {
+          "title": "Choose a lens",
+          "links": [
+            {
+              "href": "compare/bgp/",
+              "label": "BGP daemon comparison",
+              "desc": "Protocol capability checks and implementation gaps."
+            },
+            {
+              "href": "compare/nos/",
+              "label": "Network OS comparison",
+              "desc": "Router OS breadth across routing, services, APIs, and operations."
+            }
+          ]
+        },
+        {
+          "title": "Evidence nearby",
+          "links": [
+            {
+              "href": "performance/",
+              "label": "Performance",
+              "desc": "Measured BGP convergence and throughput evidence."
+            },
+            {
+              "href": "quality/",
+              "label": "Quality",
+              "desc": "Tests, QEMU, fuzzing, mutation checks, and release gates."
+            },
+            {
+              "href": "features/",
+              "label": "Features",
+              "desc": "What Ze already exposes as generated feature cards."
+            }
+          ]
+        }
+      ]
+    },
+    "compare/bgp/": {
+      "eyebrow": "BGP comparison",
+      "groups": [
+        {
+          "title": "More comparisons",
+          "links": [
+            {
+              "href": "compare/",
+              "label": "Comparison choices",
+              "desc": "Pick another comparison lens."
+            },
+            {
+              "href": "compare/nos/",
+              "label": "Network OS comparison",
+              "desc": "Ze, VyOS, and freeRtr as router operating systems."
+            }
+          ]
+        },
+        {
+          "title": "Reader paths",
+          "links": [
+            {
+              "href": "features/bgp-protocol/",
+              "label": "BGP feature guide",
+              "desc": "Use when researching Ze protocol coverage."
+            },
+            {
+              "href": "labs/bgp-interop/",
+              "label": "BGP interop lab",
+              "desc": "Use when checking behaviour against real peers."
+            },
+            {
+              "href": "use-cases/exabgp-migration/",
+              "label": "ExaBGP migration",
+              "desc": "Use when comparing automation workflows."
+            },
+            {
+              "href": "performance/",
+              "label": "Performance",
+              "desc": "Use when throughput or convergence is the question."
+            }
+          ]
+        },
+        {
+          "title": "Referenced projects",
+          "links": [
+            {
+              "external": "bird"
+            },
+            {
+              "external": "frr"
+            },
+            {
+              "external": "openbgpd"
+            },
+            {
+              "external": "gobgp"
+            },
+            {
+              "external": "exabgp"
+            },
+            {
+              "external": "bio-rd"
+            },
+            {
+              "external": "rustybgp"
+            },
+            {
+              "external": "rustbgpd"
+            },
+            {
+              "external": "freertr"
+            }
+          ]
+        }
+      ]
+    },
+    "compare/nos/": {
+      "eyebrow": "NOS comparison",
+      "groups": [
+        {
+          "title": "More comparisons",
+          "links": [
+            {
+              "href": "compare/",
+              "label": "Comparison choices",
+              "desc": "Return to the comparison hub."
+            },
+            {
+              "href": "compare/bgp/",
+              "label": "BGP daemon comparison",
+              "desc": "Protocol-only comparison across BGP implementations."
+            }
+          ]
+        },
+        {
+          "title": "Reader paths",
+          "links": [
+            {
+              "href": "features/",
+              "label": "Ze features",
+              "desc": "Use when checking what Ze exposes today."
+            },
+            {
+              "href": "reference/command-equivalents/",
+              "label": "Command equivalents",
+              "desc": "Use when comparing operational syntax with vendors."
+            },
+            {
+              "href": "architecture/",
+              "label": "Architecture",
+              "desc": "Use when evaluating implementation model and boundaries."
+            },
+            {
+              "href": "quality/",
+              "label": "Quality evidence",
+              "desc": "Use when deciding whether the implementation can be trusted."
+            }
+          ]
+        },
+        {
+          "title": "Referenced projects",
+          "links": [
+            {
+              "external": "vyos"
+            },
+            {
+              "external": "vyos-docs"
+            },
+            {
+              "external": "freertr"
+            },
+            {
+              "external": "rare-freertr"
+            },
+            {
+              "external": "frr"
+            },
+            {
+              "external": "vpp"
+            }
+          ]
+        }
+      ]
+    },
+    "roadmap/": {
+      "eyebrow": "Journey",
+      "groups": [
+        {
+          "title": "Follow the work",
+          "links": [
+            {
+              "href": "milestones/",
+              "label": "Milestones",
+              "desc": "Delivered capabilities in chronological order."
+            },
+            {
+              "href": "changes/",
+              "label": "Changes",
+              "desc": "Weekly development notes, newest first."
+            },
+            {
+              "href": "activity/",
+              "label": "Activity",
+              "desc": "Commit and line-change history over the year."
+            }
+          ]
+        },
+        {
+          "title": "Evaluate the plan",
+          "links": [
+            {
+              "href": "features/",
+              "label": "Current features",
+              "desc": "What is already visible as product surface."
+            },
+            {
+              "href": "compare/",
+              "label": "Comparisons",
+              "desc": "Where Ze stands against other projects."
+            },
+            {
+              "href": "quality/",
+              "label": "Quality evidence",
+              "desc": "How release confidence is built."
+            }
+          ]
+        }
+      ]
+    },
+    "milestones/": {
+      "eyebrow": "Journey",
+      "groups": [
+        {
+          "title": "Timeline context",
+          "links": [
+            {
+              "href": "roadmap/",
+              "label": "Roadmap",
+              "desc": "What remains before a first release."
+            },
+            {
+              "href": "changes/",
+              "label": "Changes",
+              "desc": "Weekly detail behind the milestones."
+            },
+            {
+              "href": "activity/",
+              "label": "Activity",
+              "desc": "Development cadence and volume."
+            }
+          ]
+        },
+        {
+          "title": "Research next",
+          "links": [
+            {
+              "href": "features/",
+              "label": "Features",
+              "desc": "Browse the generated feature catalog."
+            },
+            {
+              "href": "docs/",
+              "label": "Documentation",
+              "desc": "Move from history to how to use it."
+            }
+          ]
+        }
+      ]
+    },
+    "changes/": {
+      "eyebrow": "Journey",
+      "groups": [
+        {
+          "title": "Project journey",
+          "links": [
+            {
+              "href": "roadmap/",
+              "label": "Roadmap",
+              "desc": "What the work is leading toward."
+            },
+            {
+              "href": "milestones/",
+              "label": "Milestones",
+              "desc": "Landmark capabilities only."
+            },
+            {
+              "href": "activity/",
+              "label": "Activity",
+              "desc": "Commit-level development view."
+            }
+          ]
+        },
+        {
+          "title": "Find a detail",
+          "links": [
+            {
+              "href": "search/",
+              "label": "Site search",
+              "desc": "Search all generated pages and weekly notes."
+            },
+            {
+              "href": "docs/",
+              "label": "Documentation",
+              "desc": "Turn a change note into usage guidance."
+            }
+          ]
+        }
+      ]
+    },
+    "activity/": {
+      "eyebrow": "Journey",
+      "groups": [
+        {
+          "title": "Explain the graph",
+          "links": [
+            {
+              "href": "changes/",
+              "label": "Changes",
+              "desc": "Narrative for the commits shown here."
+            },
+            {
+              "href": "milestones/",
+              "label": "Milestones",
+              "desc": "Major outcomes of the work."
+            },
+            {
+              "href": "roadmap/",
+              "label": "Roadmap",
+              "desc": "Where the cadence is heading."
+            }
+          ]
+        },
+        {
+          "title": "Trust checks",
+          "links": [
+            {
+              "href": "quality/",
+              "label": "Quality",
+              "desc": "Verification gates behind the activity."
+            },
+            {
+              "href": "reference/dependencies/",
+              "label": "Dependencies",
+              "desc": "What the project relies on."
+            }
+          ]
+        }
+      ]
+    },
+    "performance/": {
+      "eyebrow": "Evidence",
+      "groups": [
+        {
+          "title": "Related evidence",
+          "links": [
+            {
+              "href": "compare/bgp/",
+              "label": "BGP comparison",
+              "desc": "Feature context for the measured daemon."
+            },
+            {
+              "href": "guides/benchmarking/",
+              "label": "Benchmarking guide",
+              "desc": "How to run ze-perf and read JSON output."
+            },
+            {
+              "href": "performance/bgp/",
+              "label": "Performance docs",
+              "desc": "Longer notes on performance design."
+            },
+            {
+              "href": "use-cases/bgp-performance/",
+              "label": "BGP performance testing with Ze",
+              "desc": "Use ze-perf to recreate route-server performance tests with sender, DUT, receiver, and JSON."
+            },
+            {
+              "href": "quality/qemu-interop-release/",
+              "label": "Release evidence",
+              "desc": "Where performance fits in verification."
+            }
+          ]
+        }
+      ]
+    },
+    "features/": {
+      "eyebrow": "Research",
+      "groups": [
+        {
+          "title": "Use the catalogue",
+          "links": [
+            {
+              "href": "docs/",
+              "label": "Documentation",
+              "desc": "Learn how to use the features."
+            },
+            {
+              "href": "reference/plugins/",
+              "label": "Plugin catalogue",
+              "desc": "Runtime plugins behind feature areas."
+            },
+            {
+              "href": "compare/",
+              "label": "Comparisons",
+              "desc": "Check how coverage compares externally."
+            },
+            {
+              "href": "roadmap/",
+              "label": "Roadmap",
+              "desc": "See what is still planned."
+            }
+          ]
+        }
+      ]
+    },
+    "quality/": {
+      "eyebrow": "Debugging",
+      "groups": [
+        {
+          "title": "Pick a proof path",
+          "links": [
+            {
+              "href": "quality/health/",
+              "label": "Testing health",
+              "desc": "Measured state: what would actually catch a regression."
+            },
+            {
+              "href": "quality/rfc-compliance/",
+              "label": "RFC compliance gate",
+              "desc": "Generated RFC requirements, tests, gaps, and AI guard state."
+            },
+            {
+              "href": "quality/functional-ci/",
+              "label": "Functional CI",
+              "desc": "Scenario tests and failure artifacts."
+            },
+            {
+              "href": "quality/browser-editor/",
+              "label": "Browser and editor tests",
+              "desc": "Web UI and editor verification."
+            },
+            {
+              "href": "quality/unit-fuzz-mutation/",
+              "label": "Unit, fuzz, mutation",
+              "desc": "Code-level correctness checks."
+            },
+            {
+              "href": "quality/qemu-interop-release/",
+              "label": "QEMU, interop, release",
+              "desc": "System evidence before release."
+            },
+            {
+              "href": "quality/verify-debugging/",
+              "label": "Verify debugging",
+              "desc": "How failures are routed and investigated."
+            }
+          ]
+        }
+      ]
+    },
+    "docs/": {
+      "eyebrow": "Docs",
+      "groups": [
+        {
+          "title": "Common reader paths",
+          "links": [
+            {
+              "href": "guides/quickstart/",
+              "label": "Quickstart",
+              "desc": "Start two BGP peers quickly."
+            },
+            {
+              "href": "guides/ubuntu-build-install/",
+              "label": "Build on Ubuntu",
+              "desc": "Compile, install, create zefs, and enable SSH."
+            },
+            {
+              "href": "guides/production-diagnostics/",
+              "label": "Production diagnostics",
+              "desc": "Start from symptoms and debug safely."
+            },
+            {
+              "href": "guides/operator-access-rbac/",
+              "label": "SSH and RBAC",
+              "desc": "Configure users, profiles, and operator access."
+            },
+            {
+              "href": "guides/command-reference/",
+              "label": "Command reference guide",
+              "desc": "Understand command reference generation."
+            },
+            {
+              "href": "architecture/",
+              "label": "Architecture",
+              "desc": "Understand how Ze is assembled."
+            }
+          ]
+        }
+      ]
+    },
+    "reference/plugins/": {
+      "eyebrow": "Plugins",
+      "groups": [
+        {
+          "title": "Use the catalogue",
+          "links": [
+            {
+              "href": "features/",
+              "label": "Feature catalogue",
+              "desc": "Feature view grouped by operator outcome."
+            },
+            {
+              "href": "reference/configuration/",
+              "label": "Configuration reference",
+              "desc": "Generated config tree owned by plugins."
+            },
+            {
+              "href": "features/bgp-configuration/",
+              "label": "Configuration guide",
+              "desc": "How plugin config is modelled and applied."
+            }
+          ]
+        }
+      ]
+    },
+    "reference/command-equivalents/": {
+      "eyebrow": "Operations",
+      "groups": [
+        {
+          "title": "Use this map",
+          "links": [
+            {
+              "href": "reference/cli/",
+              "label": "CLI reference",
+              "desc": "Generated Ze command catalogue."
+            },
+            {
+              "href": "guides/command-reference/",
+              "label": "Command reference guide",
+              "desc": "How command docs are generated."
+            },
+            {
+              "href": "features/cli-commands/",
+              "label": "CLI commands",
+              "desc": "CLI design and behaviour."
+            }
+          ]
+        },
+        {
+          "title": "Referenced vendors",
+          "links": [
+            {
+              "external": "junos"
+            },
+            {
+              "external": "iosxr"
+            },
+            {
+              "external": "sros"
+            },
+            {
+              "external": "vyos-docs"
+            }
+          ]
+        }
+      ]
+    },
+    "labs/": {
+      "eyebrow": "Labs",
+      "groups": [
+        {
+          "title": "Choose a lab",
+          "links": [
+            {
+              "href": "labs/bgp-interop/",
+              "label": "BGP interop",
+              "desc": "Test BGP behaviour with real daemons."
+            },
+            {
+              "href": "labs/vpp-dataplane/",
+              "label": "VPP dataplane",
+              "desc": "Trace forwarding through real VPP."
+            },
+            {
+              "href": "labs/appliance-install/",
+              "label": "Appliance install",
+              "desc": "Check boot, install, and provisioning paths."
+            },
+            {
+              "href": "quality/qemu-interop-release/",
+              "label": "Release evidence",
+              "desc": "How labs feed release confidence."
+            }
+          ]
+        }
+      ]
+    },
+    "labs/l2tp-interop/": {
+      "eyebrow": "L2TP lab",
+      "groups": [
+        {
+          "title": "Lab detail",
+          "links": [
+            {
+              "href": "labs/l2tp-interop/architecture/",
+              "label": "L2TP lab architecture",
+              "desc": "Docker topology, prerequisites, scenarios, and runner layout."
+            },
+            {
+              "href": "labs/",
+              "label": "All labs",
+              "desc": "Return to the lab index."
+            },
+            {
+              "href": "guides/l2tp/",
+              "label": "L2TP guide",
+              "desc": "Configuration and operator behaviour."
+            }
+          ]
+        }
+      ]
+    },
+    "labs/l2tp-interop/architecture/": {
+      "eyebrow": "L2TP lab",
+      "groups": [
+        {
+          "title": "Nearby",
+          "links": [
+            {
+              "href": "labs/l2tp-interop/",
+              "label": "L2TP access lab",
+              "desc": "Return to the published lab page."
+            },
+            {
+              "href": "labs/pppoe-interop/architecture/",
+              "label": "PPPoE lab architecture",
+              "desc": "The paired access-protocol lab."
+            },
+            {
+              "href": "guides/l2tp/",
+              "label": "L2TP guide",
+              "desc": "Configuration and operator behaviour."
+            }
+          ]
+        }
+      ]
+    },
+    "labs/pppoe-interop/": {
+      "eyebrow": "PPPoE lab",
+      "groups": [
+        {
+          "title": "Lab detail",
+          "links": [
+            {
+              "href": "labs/pppoe-interop/architecture/",
+              "label": "PPPoE lab architecture",
+              "desc": "Docker topology, prerequisites, scenarios, and runner layout."
+            },
+            {
+              "href": "labs/",
+              "label": "All labs",
+              "desc": "Return to the lab index."
+            },
+            {
+              "href": "guides/pppoe/",
+              "label": "PPPoE guide",
+              "desc": "Configuration and operator behaviour."
+            }
+          ]
+        }
+      ]
+    },
+    "labs/pppoe-interop/architecture/": {
+      "eyebrow": "PPPoE lab",
+      "groups": [
+        {
+          "title": "Nearby",
+          "links": [
+            {
+              "href": "labs/pppoe-interop/",
+              "label": "PPPoE access lab",
+              "desc": "Return to the published lab page."
+            },
+            {
+              "href": "labs/l2tp-interop/architecture/",
+              "label": "L2TP lab architecture",
+              "desc": "The paired access-protocol lab."
+            },
+            {
+              "href": "guides/pppoe/",
+              "label": "PPPoE guide",
+              "desc": "Configuration and operator behaviour."
+            }
+          ]
+        }
+      ]
+    },
+    "use-cases/": {
+      "eyebrow": "Use cases",
+      "groups": [
+        {
+          "title": "Examples",
+          "links": [
+            {
+              "href": "use-cases/as112/",
+              "label": "AS112 anycast DNS",
+              "desc": "Ze config, peer configs, and lab evidence together."
+            },
+            {
+              "href": "use-cases/exabgp-migration/",
+              "label": "ExaBGP migration",
+              "desc": "Convert configs and bridge existing process scripts."
+            },
+            {
+              "href": "use-cases/bgp-performance/",
+              "label": "BGP performance testing with Ze",
+              "desc": "Use Ze as the tester for route-server performance runs inspired by bgperf."
+            }
+            ,{
+              "href": "use-cases/route-server/",
+              "label": "IXP route server",
+              "desc": "Member policy, validation, and operational checks."
+            },
+            {
+              "href": "use-cases/transit-edge-rpki/",
+              "label": "Transit edge with RPKI",
+              "desc": "Dual-transit routing policy and tested failover."
+            },
+            {
+              "href": "use-cases/flowspec-injection/",
+              "label": "FlowSpec injection",
+              "desc": "Authorised, atomic, and reversible mitigation routes."
+            },
+            {
+              "href": "use-cases/chaos-tested-peering/",
+              "label": "Chaos-tested peering",
+              "desc": "Deterministic faults, replay, shrink, and recovery."
+            },
+            {
+              "href": "use-cases/as-path-topology/",
+              "label": "AS-path topology",
+              "desc": "Investigate route visibility in the Looking Glass."
+            }
+          ]
+        },
+        {
+          "title": "Reference nearby",
+          "links": [
+            {
+              "href": "guides/as112/",
+              "label": "AS112 feature guide",
+              "desc": "Config leaves, commands, and RFC notes."
+            },
+            {
+              "href": "features/bgp-protocol/",
+              "label": "BGP feature guide",
+              "desc": "Protocol behaviour behind the peer examples."
+            },
+            {
+              "href": "labs/",
+              "label": "Lab evidence",
+              "desc": "Interop evidence from real daemons."
+            }
+          ]
+        }
+      ]
+    },
+    "use-cases/bgp-performance/": {
+      "eyebrow": "Use case",
+      "groups": [
+        {
+          "title": "Run the test",
+          "links": [
+            {
+              "href": "performance/",
+              "label": "Performance",
+              "desc": "Current public benchmark summary."
+            },
+            {
+              "href": "guides/benchmarking/",
+              "label": "Benchmarking guide",
+              "desc": "How to run ze-perf and read JSON output."
+            },
+            {
+              "href": "performance/bgp/",
+              "label": "Performance results",
+              "desc": "Generated benchmark tables and methodology."
+            }
+          ]
+        },
+        {
+          "title": "Prior art",
+          "links": [
+            {
+              "external": "amsix-route-server-test"
+            },
+            {
+              "external": "bgp-performance"
+            }
+          ]
+        }
+      ]
+    },
+    "reference/cli/": {
+      "eyebrow": "Operations",
+      "groups": [
+        {
+          "title": "Use the CLI",
+          "links": [
+            {
+              "href": "reference/command-equivalents/",
+              "label": "Command equivalents",
+              "desc": "Map Ze syntax to Junos, IOS XR, SR OS, and VyOS."
+            },
+            {
+              "href": "features/cli-commands/",
+              "label": "CLI commands",
+              "desc": "CLI behaviour, modes, and generated command registration."
+            },
+            {
+              "href": "guides/command-reference/",
+              "label": "Command reference guide",
+              "desc": "How this generated catalog is produced."
+            },
+            {
+              "href": "search/",
+              "label": "Search",
+              "desc": "Find a command, guide, or weekly note by keyword."
+            }
+          ]
+        }
+      ]
+    },
+    "reference/configuration/": {
+      "eyebrow": "Reference",
+      "groups": [
+        {
+          "title": "Use the config tree",
+          "links": [
+            {
+              "href": "features/bgp-configuration/",
+              "label": "Configuration guide",
+              "desc": "Understand the model behind the generated tree."
+            },
+            {
+              "href": "reference/plugins/",
+              "label": "Plugin catalog",
+              "desc": "Find which plugins own config roots."
+            },
+            {
+              "href": "guides/quickstart/",
+              "label": "Quickstart",
+              "desc": "Apply a minimal working BGP config."
+            },
+            {
+              "href": "quality/verify-debugging/",
+              "label": "Verify debugging",
+              "desc": "Debug validation and apply failures."
+            }
+          ]
+        }
+      ]
+    },
+    "reference/dependencies/": {
+      "eyebrow": "Research",
+      "groups": [
+        {
+          "title": "Trust context",
+          "links": [
+            {
+              "href": "quality/",
+              "label": "Quality evidence",
+              "desc": "How dependencies fit into the verification story."
+            },
+            {
+              "href": "architecture/",
+              "label": "Architecture",
+              "desc": "Where dependencies sit in the design."
+            },
+            {
+              "href": "security/",
+              "label": "Security",
+              "desc": "How to report vulnerabilities and what is in scope."
+            },
+            {
+              "href": "activity/",
+              "label": "Activity",
+              "desc": "Project movement around dependency changes."
+            }
+          ]
+        }
+      ]
+    },
+    "search/": {
+      "eyebrow": "Find",
+      "groups": [
+        {
+          "title": "Browse instead",
+          "links": [
+            {
+              "href": "docs/",
+              "label": "Documentation",
+              "desc": "Start from reader intent."
+            },
+            {
+              "href": "features/",
+              "label": "Features",
+              "desc": "Browse product surface by category."
+            },
+            {
+              "href": "reference/command-equivalents/",
+              "label": "Command equivalents",
+              "desc": "Find operational syntax quickly."
+            },
+            {
+              "href": "changes/",
+              "label": "Changes",
+              "desc": "Scan recent work by week."
+            }
+          ]
+        }
+      ]
+    },
+    "quality/health/": {
+      "eyebrow": "Debugging",
+      "groups": [
+        {
+          "title": "How the proof is produced",
+          "links": [
+            {
+              "href": "quality/",
+              "label": "Quality overview",
+              "desc": "The four layers Ze tests in."
+            },
+            {
+              "href": "quality/rfc-compliance/",
+              "label": "RFC compliance gate",
+              "desc": "How RFC proof, public gaps, and agent guards fit together."
+            },
+            {
+              "href": "quality/unit-fuzz-mutation/",
+              "label": "Unit, fuzz, mutation",
+              "desc": "Where these numbers come from."
+            },
+            {
+              "href": "quality/verify-debugging/",
+              "label": "Verify debugging",
+              "desc": "How a red is routed to its cause."
+            }
+          ]
+        }
+      ]
+    },
+    "quality/rfc-compliance/": {
+      "eyebrow": "Quality",
+      "groups": [
+        {
+          "title": "Read with it",
+          "links": [
+            {
+              "href": "quality/",
+              "label": "Quality overview",
+              "desc": "The wider verification map."
+            },
+            {
+              "href": "quality/health/",
+              "label": "Testing health",
+              "desc": "Proof-density and sensitivity metrics."
+            },
+            {
+              "href": "reference/rfcs/",
+              "label": "RFC status",
+              "desc": "Public implementation and remaining-gap ledger."
+            },
+            {
+              "href": "quality/verify-debugging/",
+              "label": "Verify debugging",
+              "desc": "How failed gates route to evidence."
+            }
+          ]
+        }
+      ]
+    },
+    "labs/bgp-interop/": {
+      "eyebrow": "Lab evidence",
+      "groups": [
+        {
+          "title": "Related lab work",
+          "links": [
+            {
+              "href": "labs/",
+              "label": "All labs",
+              "desc": "Return to the lab index."
+            },
+            {
+              "href": "labs/netlab/",
+              "label": "netlab topology",
+              "desc": "Build reusable Ze topologies under containerlab."
+            },
+            {
+              "href": "quality/qemu-interop-release/",
+              "label": "Release evidence",
+              "desc": "How lab runs feed release checks."
+            },
+            {
+              "href": "guides/production-diagnostics/",
+              "label": "Production diagnostics",
+              "desc": "Use lab findings to debug systems."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "patterns": [
+    {
+      "prefix": "changes/",
+      "exclude": [
+        "changes/"
+      ],
+      "eyebrow": "Change note",
+      "groups": [
+        {
+          "title": "More context",
+          "links": [
+            {
+              "href": "changes/",
+              "label": "All changes",
+              "desc": "Return to the weekly update index."
+            },
+            {
+              "href": "milestones/",
+              "label": "Milestones",
+              "desc": "See which changes became landmarks."
+            },
+            {
+              "href": "roadmap/",
+              "label": "Roadmap",
+              "desc": "Map this week to the release plan."
+            },
+            {
+              "href": "activity/",
+              "label": "Activity",
+              "desc": "View commit cadence around this week."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "prefix": "quality/",
+      "exclude": [
+        "quality/"
+      ],
+      "eyebrow": "Debugging",
+      "groups": [
+        {
+          "title": "Quality hub",
+          "links": [
+            {
+              "href": "quality/",
+              "label": "Quality overview",
+              "desc": "Return to the verification map."
+            },
+            {
+              "href": "quality/verify-debugging/",
+              "label": "Verify debugging",
+              "desc": "How failed checks route to evidence."
+            },
+            {
+              "href": "guides/production-diagnostics/",
+              "label": "Production diagnostics",
+              "desc": "Symptom-led debugging for running systems."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "prefix": "reference/command-equivalents/",
+      "exclude": [
+        "reference/command-equivalents/"
+      ],
+      "eyebrow": "Command detail",
+      "groups": [
+        {
+          "title": "More commands",
+          "links": [
+            {
+              "href": "reference/command-equivalents/",
+              "label": "Command equivalents",
+              "desc": "Return to the side-by-side vendor map."
+            },
+            {
+              "href": "reference/cli/",
+              "label": "CLI reference",
+              "desc": "Open the generated Ze command catalogue."
+            },
+            {
+              "href": "features/cli-commands/",
+              "label": "CLI commands",
+              "desc": "Understand CLI behaviour and design."
+            }
+          ]
+        },
+        {
+          "title": "Referenced vendors",
+          "links": [
+            {
+              "external": "junos"
+            },
+            {
+              "external": "iosxr"
+            },
+            {
+              "external": "sros"
+            },
+            {
+              "external": "vyos-docs"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "prefix": "reference/plugins/",
+      "exclude": [
+        "reference/plugins/"
+      ],
+      "eyebrow": "Plugin detail",
+      "groups": [
+        {
+          "title": "Plugin context",
+          "links": [
+            {
+              "href": "reference/plugins/",
+              "label": "Plugin catalog",
+              "desc": "Return to every runtime plugin."
+            },
+            {
+              "href": "reference/configuration/",
+              "label": "Configuration reference",
+              "desc": "Find generated config owned by plugins."
+            },
+            {
+              "href": "features/bgp-configuration/",
+              "label": "Configuration guide",
+              "desc": "How verify and apply handlers fit together."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "prefix": "labs/",
+      "exclude": [
+        "labs/"
+      ],
+      "eyebrow": "Lab evidence",
+      "groups": [
+        {
+          "title": "Related lab work",
+          "links": [
+            {
+              "href": "labs/",
+              "label": "All labs",
+              "desc": "Return to the lab index."
+            },
+            {
+              "href": "quality/qemu-interop-release/",
+              "label": "Release evidence",
+              "desc": "How lab runs feed release checks."
+            },
+            {
+              "href": "guides/production-diagnostics/",
+              "label": "Production diagnostics",
+              "desc": "Use lab findings to debug systems."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "prefix": "use-cases/",
+      "exclude": [
+        "use-cases/"
+      ],
+      "eyebrow": "Use case",
+      "groups": [
+        {
+          "title": "Related usage",
+          "links": [
+            {
+              "href": "use-cases/",
+              "label": "All usage examples",
+              "desc": "Return to the deployment shapes."
+            },
+            {
+              "href": "docs/",
+              "label": "Documentation hub",
+              "desc": "Return to guides and references."
+            },
+            {
+              "href": "features/bgp-protocol/",
+              "label": "BGP protocol",
+              "desc": "Behaviour used by the route examples."
+            },
+            {
+              "href": "labs/",
+              "label": "Lab evidence",
+              "desc": "Real-daemon interop evidence."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "prefix": "guides/",
+      "eyebrow": "Guide",
+      "groups": [
+        {
+          "title": "Reader paths",
+          "links": [
+            {
+              "href": "docs/",
+              "label": "Documentation hub",
+              "desc": "Return to the guide map."
+            },
+            {
+              "href": "guides/quickstart/",
+              "label": "Quickstart",
+              "desc": "Start from a minimal working setup."
+            },
+            {
+              "href": "guides/ubuntu-build-install/",
+              "label": "Build on Ubuntu",
+              "desc": "Install Ze, create zefs, and start SSH."
+            },
+            {
+              "href": "guides/production-diagnostics/",
+              "label": "Production diagnostics",
+              "desc": "Debug by symptom when something is wrong."
+            },
+            {
+              "href": "guides/operator-access-rbac/",
+              "label": "SSH and RBAC",
+              "desc": "Set up operator accounts and profiles."
+            },
+            {
+              "href": "reference/command-equivalents/",
+              "label": "Command equivalents",
+              "desc": "Compare Ze commands with familiar NOS syntax."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "prefix": "features/",
+      "eyebrow": "Feature doc",
+      "groups": [
+        {
+          "title": "Related research",
+          "links": [
+            {
+              "href": "features/",
+              "label": "Feature catalog",
+              "desc": "Return to the generated feature cards."
+            },
+            {
+              "href": "docs/",
+              "label": "Documentation hub",
+              "desc": "Browse by learning intent."
+            },
+            {
+              "href": "compare/",
+              "label": "Comparisons",
+              "desc": "Place the feature in external context."
+            },
+            {
+              "href": "quality/",
+              "label": "Quality",
+              "desc": "See the evidence behind the implementation."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

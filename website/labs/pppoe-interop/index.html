@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>PPPoE Interop - Ze</title>
+        <meta name="description" content="Ze PPPoE client against real accel-ppp, the dominant open-source access concentrator." />
+        <meta property="og:title" content="PPPoE Interop - Ze" />
+        <meta property="og:description" content="Ze PPPoE client against real accel-ppp, the dominant open-source access concentrator." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/labs/pppoe-interop/" />
+        <meta property="og:url" content="https://ze-software.net/labs/pppoe-interop/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar">
+            <section aria-labelledby="lab-title">
+                <div class="section-head journey-hero reveal cat-services">
+                    <span class="journey-eyebrow">Protocol lab</span>
+                    <h1 id="lab-title">PPPoE Interop</h1>
+                    <p>
+                        Ze's PPPoE client against real
+                        <code>accel-ppp</code>, the dominant open-source
+                        BRAS/access concentrator.
+                    </p>
+                </div>
+                <div class="status-panel reveal">
+                    <div class="status-copy">
+                        <span class="tag">Daemon</span>
+                        <p>
+                            An L2TP interop test against accel-ppp isn't
+                            buildable: an L2TP tunnel needs exactly one LAC
+                            (initiator) and one LNS (responder), and both Ze
+                            and accel-ppp are LNS-only. PPPoE is where the two
+                            have complementary roles instead --
+                            accel-ppp's first-class role is the PPPoE server
+                            (access concentrator), and Ze has a full RFC 2516
+                            PPPoE client. This lab exercises exactly that
+                            pairing.
+                        </p>
+                        <p>
+                            A peer-isolated Docker lab proves Ze's PPPoE
+                            client discovers, negotiates PPP, and establishes
+                            a session against a real accel-ppp AC.
+                        </p>
+                    </div>
+                    <div class="status-table" aria-label="Lab facts">
+                        <div class="status-row">
+                            <strong>Proves</strong>
+                            <span>RFC 2516 PPPoE discovery + PPP negotiation against a real access concentrator, not a stub</span>
+                        </div>
+                        <div class="status-row">
+                            <strong>Peer</strong>
+                            <span>Real accel-ppp access concentrator</span>
+                        </div>
+                        <div class="status-row">
+                            <strong>Requires</strong>
+                            <span>Docker, or the QEMU path with a staged kernel</span>
+                        </div>
+                        <div class="status-row">
+                            <strong>Source</strong>
+                            <span
+                                ><a
+                                    href="https://github.com/ze-software/ze/blob/main/docs/labs/pppoe-interop.md" target="_blank" rel="noopener"
+                                    >docs/labs/pppoe-interop.md</a
+                                ></span
+                            >
+                        </div>
+                    </div>
+                </div>
+                <div class="terminal-panel reveal">
+                    <div class="terminal" aria-label="Run commands">
+                        <div class="terminal-dots">
+                            <span></span><span></span><span></span>
+                            <span class="terminal-title">pppoe-interop</span>
+                        </div>
+                        <div class="terminal-body">
+                            <pre><span class="term-comment"># Docker lab</span>
+<span class="term-prompt">$</span> <span class="term-cmd">make</span> ze-deployment-docker-pppoe-accel-test
+
+<span class="term-comment"># QEMU path (needs tmp/kernel/vmlinuz)</span>
+<span class="term-prompt">$</span> <span class="term-cmd">make</span> ze-qemu-pppoe-accel-test</pre>
+                        </div>
+                    </div>
+                    <div class="terminal-note">
+                        <span class="tag">Prerequisites</span>
+                        <p>
+                            Docker for the primary path. The QEMU runner is
+                            the one to use where Docker Desktop's VM lacks the
+                            needed kernel modules.
+                        </p>
+                        <div class="link-list">
+                            <a
+                                href="https://github.com/ze-software/ze/tree/main/test/pppoe-interop" target="_blank" rel="noopener"
+                                >test/pppoe-interop/
+                                <span>lab source</span></a
+                            >
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">PPPoE lab</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Lab detail</h2>
+                    <a class="page-sidebar-link" href="../../labs/pppoe-interop/architecture/">
+                        <span class="page-sidebar-link-label">PPPoE lab architecture</span>
+                        <small>Docker topology, prerequisites, scenarios, and runner layout.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../labs/">
+                        <span class="page-sidebar-link-label">All labs</span>
+                        <small>Return to the lab index.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/pppoe/">
+                        <span class="page-sidebar-link-label">PPPoE guide</span>
+                        <small>Configuration and operator behaviour.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+<script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

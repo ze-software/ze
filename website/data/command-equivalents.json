@@ -1,0 +1,1199 @@
+{
+  "schema-version": 1,
+  "updated": "2026-07-04",
+  "title": "Command equivalents",
+  "summary": "Curated vendor command equivalents joined with the live Ze command catalog generated from ze help command --json. Ze paths are exact join keys; vendor commands are migration hints with provenance and confidence.",
+  "vendors": {
+    "junos-mx": {
+      "label": "Juniper Junos MX",
+      "short-label": "Junos MX",
+      "rooting-model": "object-rooted",
+      "documentation": [
+        {
+          "id": "junos-bgp-summary",
+          "label": "show bgp summary",
+          "url": "https://www.juniper.net/documentation/us/en/software/junos/cli-reference/topics/ref/command/show-bgp-summary.html"
+        },
+        {
+          "id": "junos-clear-bgp",
+          "label": "clear bgp neighbor",
+          "url": "https://www.juniper.net/documentation/us/en/software/junos/cli-reference/topics/ref/command/clear-bgp-neighbor.html"
+        },
+        {
+          "id": "junos-route",
+          "label": "show route family",
+          "url": "https://www.juniper.net/documentation/us/en/software/junos/cli-reference/topics/ref/command/show-route.html"
+        }
+      ]
+    },
+    "cisco-ios-xr": {
+      "label": "Cisco IOS XR",
+      "short-label": "IOS XR",
+      "rooting-model": "family-rooted-for-routing",
+      "documentation": [
+        {
+          "id": "iosxr-bgp-commands",
+          "label": "BGP commands",
+          "url": "https://www.cisco.com/c/en/us/td/docs/ios_xr_sw/iosxr_r3-7/routing/command/reference/rr37bgp.html"
+        },
+        {
+          "id": "iosxr-bgp-guide",
+          "label": "BGP configuration guide",
+          "url": "https://www.cisco.com/c/en/us/td/docs/iosxr/cisco8000/bgp/72x/b-bgp-cg-8k-72x/implementing-bgp.html"
+        }
+      ]
+    },
+    "nokia-sros": {
+      "label": "Nokia SR OS",
+      "short-label": "SR OS",
+      "rooting-model": "instance-rooted",
+      "documentation": [
+        {
+          "id": "nokia-mdcli",
+          "label": "MD-CLI user guide",
+          "url": "https://infocenter.nokia.com/public/7750SR195R1A/topic/com.sr.mdcli/html/using_mdcli.html"
+        },
+        {
+          "id": "nokia-bgp-show",
+          "label": "BGP show commands",
+          "url": "https://infocenter.nokia.com/public/7750SR140R1/topic/com.sr.unicast/html/bgp-cli-show-cli.html"
+        }
+      ]
+    },
+    "vyos": {
+      "label": "VyOS",
+      "short-label": "VyOS",
+      "rooting-model": "family-rooted-for-routing",
+      "documentation": [
+        {
+          "id": "vyos-cli",
+          "label": "Command Line Interface",
+          "url": "https://docs.vyos.io/en/1.4/cli.html"
+        },
+        {
+          "id": "vyos-bgp",
+          "label": "BGP",
+          "url": "https://docs.vyos.io/en/1.4/configuration/protocols/bgp.html"
+        }
+      ]
+    }
+  },
+  "entries": [
+    {
+      "id": "bgp-summary",
+      "category": "BGP",
+      "intent": "BGP session summary",
+      "ze": [
+        "show bgp summary"
+      ],
+      "vendors": {
+        "junos-mx": [
+          {
+            "command": "show bgp summary",
+            "mode": "operational",
+            "confidence": "verified",
+            "source-refs": [
+              "junos-bgp-summary"
+            ]
+          }
+        ],
+        "cisco-ios-xr": [
+          {
+            "command": "show bgp summary",
+            "mode": "operational",
+            "confidence": "verified",
+            "source-refs": [
+              "iosxr-bgp-commands"
+            ]
+          },
+          {
+            "command": "show bgp ipv4 unicast summary",
+            "mode": "operational",
+            "confidence": "verified",
+            "source-refs": [
+              "iosxr-bgp-commands"
+            ]
+          }
+        ],
+        "nokia-sros": [
+          {
+            "command": "show router bgp summary",
+            "mode": "operational",
+            "confidence": "verified",
+            "source-refs": [
+              "nokia-bgp-show"
+            ]
+          }
+        ],
+        "vyos": [
+          {
+            "command": "show bgp ipv4 summary",
+            "mode": "operational",
+            "confidence": "verified",
+            "source-refs": [
+              "vyos-bgp"
+            ]
+          },
+          {
+            "command": "show ip bgp summary",
+            "mode": "operational",
+            "confidence": "legacy",
+            "source-refs": [
+              "vyos-bgp"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "bgp-peer-list",
+      "category": "BGP",
+      "intent": "BGP peer list",
+      "ze": [
+        "show bgp peer list"
+      ],
+      "vendors": {
+        "junos-mx": [],
+        "cisco-ios-xr": [],
+        "nokia-sros": [],
+        "vyos": []
+      }
+    },
+    {
+      "id": "bgp-peer-detail",
+      "category": "BGP",
+      "intent": "Detailed BGP peer state",
+      "ze": [
+        "show bgp peer detail"
+      ],
+      "vendors": {
+        "junos-mx": [],
+        "cisco-ios-xr": [],
+        "nokia-sros": [],
+        "vyos": []
+      }
+    },
+    {
+      "id": "bgp-peer-capabilities",
+      "category": "BGP",
+      "intent": "Negotiated BGP capabilities for a peer",
+      "ze": [
+        "show bgp peer capabilities"
+      ],
+      "vendors": {
+        "junos-mx": [],
+        "cisco-ios-xr": [],
+        "nokia-sros": [],
+        "vyos": []
+      }
+    },
+    {
+      "id": "bgp-rib-in",
+      "category": "BGP",
+      "intent": "Routes received from one BGP peer",
+      "ze": [
+        "show bgp peer rib"
+      ],
+      "vendors": {
+        "junos-mx": [
+          {
+            "command": "show route receive-protocol bgp <peer>",
+            "mode": "operational",
+            "confidence": "verified",
+            "source-refs": [
+              "junos-route"
+            ]
+          }
+        ],
+        "cisco-ios-xr": [],
+        "nokia-sros": [],
+        "vyos": []
+      }
+    },
+    {
+      "id": "bgp-rib-out",
+      "category": "BGP",
+      "intent": "Routes advertised to one BGP peer",
+      "ze": [
+        "show bgp peer rib"
+      ],
+      "vendors": {
+        "junos-mx": [
+          {
+            "command": "show route advertising-protocol bgp <peer>",
+            "mode": "operational",
+            "confidence": "verified",
+            "source-refs": [
+              "junos-route"
+            ]
+          }
+        ],
+        "cisco-ios-xr": [],
+        "nokia-sros": [],
+        "vyos": []
+      },
+      "notes": "Ze uses pipe filters on the peer RIB command for received and advertised views."
+    },
+    {
+      "id": "bgp-best-rib",
+      "category": "BGP",
+      "intent": "Best BGP routes",
+      "ze": [
+        "show bgp rib best"
+      ],
+      "vendors": {
+        "junos-mx": [
+          {
+            "command": "show route protocol bgp",
+            "mode": "operational",
+            "confidence": "verified",
+            "source-refs": [
+              "junos-route"
+            ]
+          }
+        ],
+        "cisco-ios-xr": [
+          {
+            "command": "show bgp ipv4 unicast",
+            "mode": "operational",
+            "confidence": "verified",
+            "source-refs": [
+              "iosxr-bgp-commands"
+            ]
+          }
+        ],
+        "nokia-sros": [],
+        "vyos": []
+      }
+    },
+    {
+      "id": "bgp-route-prefix",
+      "category": "BGP",
+      "intent": "BGP route for a prefix",
+      "ze": [
+        "show bgp rib best"
+      ],
+      "vendors": {
+        "junos-mx": [
+          {
+            "command": "show route <prefix> protocol bgp",
+            "mode": "operational",
+            "confidence": "verified",
+            "source-refs": [
+              "junos-route"
+            ]
+          }
+        ],
+        "cisco-ios-xr": [
+          {
+            "command": "show bgp ipv4 unicast <prefix>",
+            "mode": "operational",
+            "confidence": "verified",
+            "source-refs": [
+              "iosxr-bgp-commands"
+            ]
+          }
+        ],
+        "nokia-sros": [],
+        "vyos": [
+          {
+            "command": "show ip bgp <prefix>",
+            "mode": "operational",
+            "confidence": "legacy",
+            "source-refs": [
+              "vyos-bgp"
+            ]
+          }
+        ]
+      },
+      "notes": "Ze narrows the best RIB with command-specific pipe filters."
+    },
+    {
+      "id": "bgp-route-refresh",
+      "category": "BGP",
+      "intent": "Refresh BGP routes without a hard reset",
+      "ze": [
+        "request peer refresh"
+      ],
+      "vendors": {
+        "junos-mx": [
+          {
+            "command": "clear bgp neighbor <peer> soft-inbound",
+            "mode": "operational",
+            "confidence": "verified",
+            "source-refs": [
+              "junos-clear-bgp"
+            ]
+          }
+        ],
+        "cisco-ios-xr": [
+          {
+            "command": "clear bgp ipv4 unicast <peer> soft in",
+            "mode": "operational",
+            "confidence": "verified",
+            "source-refs": [
+              "iosxr-bgp-commands"
+            ]
+          }
+        ],
+        "nokia-sros": [],
+        "vyos": [
+          {
+            "command": "reset bgp <peer> soft in",
+            "mode": "operational",
+            "confidence": "verified",
+            "source-refs": [
+              "vyos-cli"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "bgp-hard-reset",
+      "category": "BGP",
+      "intent": "Hard reset one BGP peer",
+      "ze": [
+        "request peer teardown"
+      ],
+      "vendors": {
+        "junos-mx": [
+          {
+            "command": "clear bgp neighbor <peer>",
+            "mode": "operational",
+            "confidence": "verified",
+            "source-refs": [
+              "junos-clear-bgp"
+            ]
+          }
+        ],
+        "cisco-ios-xr": [
+          {
+            "command": "clear bgp ipv4 unicast <peer>",
+            "mode": "operational",
+            "confidence": "verified",
+            "source-refs": [
+              "iosxr-bgp-commands"
+            ]
+          }
+        ],
+        "nokia-sros": [],
+        "vyos": [
+          {
+            "command": "reset bgp <peer>",
+            "mode": "operational",
+            "confidence": "verified",
+            "source-refs": [
+              "vyos-cli"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "bgp-peer-flow-control",
+      "category": "BGP",
+      "intent": "Pause or resume a BGP peer without deleting configuration",
+      "ze": [
+        "request peer pause",
+        "request peer resume"
+      ],
+      "vendors": {
+        "junos-mx": [],
+        "cisco-ios-xr": [],
+        "nokia-sros": [],
+        "vyos": []
+      },
+      "notes": "Ze exposes explicit runtime flow control; most vendors use config disable or administrative tools."
+    },
+    {
+      "id": "bgp-live-monitor",
+      "category": "BGP",
+      "intent": "Stream live BGP events or updates",
+      "ze": [
+        "monitor bgp"
+      ],
+      "vendors": {
+        "junos-mx": [],
+        "cisco-ios-xr": [],
+        "nokia-sros": [],
+        "vyos": []
+      }
+    },
+    {
+      "id": "bmp-status",
+      "category": "BGP",
+      "intent": "BMP collector, peer, and session visibility",
+      "ze": [
+        "show bmp sessions",
+        "show bmp peers",
+        "show bmp collectors",
+        "show bmp rib"
+      ],
+      "vendors": {
+        "junos-mx": [],
+        "cisco-ios-xr": [],
+        "nokia-sros": [],
+        "vyos": []
+      }
+    },
+    {
+      "id": "rpki-cache",
+      "category": "BGP",
+      "intent": "RPKI cache and validation session state",
+      "ze": [
+        "show bgp irr",
+        "show bgp irr check",
+        "show bgp irr prefix"
+      ],
+      "vendors": {
+        "junos-mx": [],
+        "cisco-ios-xr": [],
+        "nokia-sros": [],
+        "vyos": []
+      },
+      "notes": "Current Ze commands are IRR-focused. RPKI-specific show paths can be added to this entry when present in the live command catalog."
+    },
+    {
+      "id": "route-table",
+      "category": "Routing",
+      "intent": "Routing table",
+      "ze": [
+        "show route"
+      ],
+      "vendors": {
+        "junos-mx": [
+          {
+            "command": "show route",
+            "mode": "operational",
+            "confidence": "verified",
+            "source-refs": [
+              "junos-route"
+            ]
+          }
+        ],
+        "cisco-ios-xr": [],
+        "nokia-sros": [],
+        "vyos": [
+          {
+            "command": "show ip route",
+            "mode": "operational",
+            "confidence": "verified",
+            "source-refs": [
+              "vyos-cli"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "route-lookup",
+      "category": "Routing",
+      "intent": "Route lookup for a prefix or address",
+      "ze": [
+        "show route lookup"
+      ],
+      "vendors": {
+        "junos-mx": [
+          {
+            "command": "show route <prefix>",
+            "mode": "operational",
+            "confidence": "verified",
+            "source-refs": [
+              "junos-route"
+            ]
+          }
+        ],
+        "cisco-ios-xr": [],
+        "nokia-sros": [],
+        "vyos": [
+          {
+            "command": "show ip route <prefix>",
+            "mode": "operational",
+            "confidence": "verified",
+            "source-refs": [
+              "vyos-cli"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "static-routes",
+      "category": "Routing",
+      "intent": "Static route configuration or state",
+      "ze": [
+        "show static"
+      ],
+      "vendors": {
+        "junos-mx": [],
+        "cisco-ios-xr": [],
+        "nokia-sros": [],
+        "vyos": []
+      }
+    },
+    {
+      "id": "interface-list",
+      "category": "Interfaces",
+      "intent": "Interface list and brief status",
+      "ze": [
+        "show interface brief"
+      ],
+      "vendors": {
+        "junos-mx": [],
+        "cisco-ios-xr": [],
+        "nokia-sros": [],
+        "vyos": [
+          {
+            "command": "show interfaces",
+            "mode": "operational",
+            "confidence": "verified",
+            "source-refs": [
+              "vyos-cli"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "interface-detail",
+      "category": "Interfaces",
+      "intent": "Detailed interface state",
+      "ze": [
+        "show interface name detail"
+      ],
+      "vendors": {
+        "junos-mx": [],
+        "cisco-ios-xr": [],
+        "nokia-sros": [],
+        "vyos": [
+          {
+            "command": "show interfaces <name>",
+            "mode": "operational",
+            "confidence": "verified",
+            "source-refs": [
+              "vyos-cli"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "interface-counters",
+      "category": "Interfaces",
+      "intent": "Interface counters and error counters",
+      "ze": [
+        "show interface name counters",
+        "show interface errors"
+      ],
+      "vendors": {
+        "junos-mx": [],
+        "cisco-ios-xr": [],
+        "nokia-sros": [],
+        "vyos": []
+      }
+    },
+    {
+      "id": "interface-clear-counters",
+      "category": "Interfaces",
+      "intent": "Clear interface counters",
+      "ze": [
+        "clear interface counters",
+        "clear interface name counters"
+      ],
+      "vendors": {
+        "junos-mx": [],
+        "cisco-ios-xr": [],
+        "nokia-sros": [],
+        "vyos": [
+          {
+            "command": "clear interfaces ethernet <name> counters",
+            "mode": "operational",
+            "confidence": "verified",
+            "source-refs": [
+              "vyos-cli"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "arp-neighbor",
+      "category": "Neighbors",
+      "intent": "ARP and neighbor cache",
+      "ze": [
+        "show arp",
+        "show neighbor"
+      ],
+      "vendors": {
+        "junos-mx": [],
+        "cisco-ios-xr": [],
+        "nokia-sros": [],
+        "vyos": [
+          {
+            "command": "show arp",
+            "mode": "operational",
+            "confidence": "verified",
+            "source-refs": [
+              "vyos-cli"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "firewall-ruleset",
+      "category": "Firewall",
+      "intent": "Firewall ruleset and counters",
+      "ze": [
+        "show firewall ruleset"
+      ],
+      "vendors": {
+        "junos-mx": [],
+        "cisco-ios-xr": [],
+        "nokia-sros": [],
+        "vyos": []
+      }
+    },
+    {
+      "id": "firewall-groups",
+      "category": "Firewall",
+      "intent": "Firewall address, network, and port groups",
+      "ze": [
+        "show firewall group"
+      ],
+      "vendors": {
+        "junos-mx": [],
+        "cisco-ios-xr": [],
+        "nokia-sros": [],
+        "vyos": []
+      }
+    },
+    {
+      "id": "policy-routes",
+      "category": "Firewall",
+      "intent": "Policy-based routing rules",
+      "ze": [
+        "show policy routes"
+      ],
+      "vendors": {
+        "junos-mx": [],
+        "cisco-ios-xr": [],
+        "nokia-sros": [],
+        "vyos": []
+      }
+    },
+    {
+      "id": "ipsec-sa",
+      "category": "VPN and access",
+      "intent": "IPsec security associations",
+      "ze": [
+        "show vpn ipsec sa",
+        "show vpn ipsec status"
+      ],
+      "vendors": {
+        "junos-mx": [],
+        "cisco-ios-xr": [],
+        "nokia-sros": [],
+        "vyos": []
+      }
+    },
+    {
+      "id": "l2tp-sessions",
+      "category": "VPN and access",
+      "intent": "L2TP tunnel and session state",
+      "ze": [
+        "show l2tp tunnels",
+        "show l2tp sessions",
+        "clear l2tp tunnel id",
+        "clear l2tp session id"
+      ],
+      "vendors": {
+        "junos-mx": [],
+        "cisco-ios-xr": [],
+        "nokia-sros": [],
+        "vyos": []
+      }
+    },
+    {
+      "id": "pppoe-sessions",
+      "category": "VPN and access",
+      "intent": "PPPoE subscriber sessions",
+      "ze": [
+        "show pppoe sessions",
+        "show pppoe statistics"
+      ],
+      "vendors": {
+        "junos-mx": [],
+        "cisco-ios-xr": [],
+        "nokia-sros": [],
+        "vyos": []
+      }
+    },
+    {
+      "id": "ospf-overview",
+      "category": "Routing protocols",
+      "intent": "OSPF overview",
+      "ze": [
+        "show ospf",
+        "show ospf ipv6"
+      ],
+      "vendors": {
+        "junos-mx": [],
+        "cisco-ios-xr": [],
+        "nokia-sros": [],
+        "vyos": []
+      },
+      "notes": "Ze keeps OSPFv2 and OSPFv3 under one object-rooted OSPF command tree; IPv6 is a family selector."
+    },
+    {
+      "id": "ospf-neighbor",
+      "category": "Routing protocols",
+      "intent": "OSPF neighbor state",
+      "ze": [
+        "show ospf neighbor",
+        "show ospf ipv6 neighbor"
+      ],
+      "vendors": {
+        "junos-mx": [],
+        "cisco-ios-xr": [],
+        "nokia-sros": [],
+        "vyos": []
+      }
+    },
+    {
+      "id": "ospf-database",
+      "category": "Routing protocols",
+      "intent": "OSPF link-state database",
+      "ze": [
+        "show ospf database",
+        "show ospf ipv6 database"
+      ],
+      "vendors": {
+        "junos-mx": [],
+        "cisco-ios-xr": [],
+        "nokia-sros": [],
+        "vyos": []
+      }
+    },
+    {
+      "id": "ospf-clear",
+      "category": "Routing protocols",
+      "intent": "Clear OSPF process, counters, or neighbor state",
+      "ze": [
+        "clear ospf process",
+        "clear ospf counters",
+        "clear ospf neighbor"
+      ],
+      "vendors": {
+        "junos-mx": [],
+        "cisco-ios-xr": [],
+        "nokia-sros": [],
+        "vyos": []
+      }
+    },
+    {
+      "id": "isis-overview",
+      "category": "Routing protocols",
+      "intent": "IS-IS neighbors, database, routes, and interfaces",
+      "ze": [
+        "show isis neighbor",
+        "show isis database",
+        "show isis route",
+        "show isis interface"
+      ],
+      "vendors": {
+        "junos-mx": [],
+        "cisco-ios-xr": [],
+        "nokia-sros": [],
+        "vyos": []
+      }
+    },
+    {
+      "id": "mpls-ldp-rsvp",
+      "category": "Routing protocols",
+      "intent": "MPLS, LDP, and RSVP-TE state",
+      "ze": [
+        "show ldp neighbor",
+        "show ldp binding",
+        "show mpls forwarding",
+        "show rsvp-te lsp",
+        "show rsvp-te tunnel"
+      ],
+      "vendors": {
+        "junos-mx": [],
+        "cisco-ios-xr": [],
+        "nokia-sros": [],
+        "vyos": []
+      }
+    },
+    {
+      "id": "bfd-sessions",
+      "category": "Routing protocols",
+      "intent": "BFD session state",
+      "ze": [
+        "show bfd sessions",
+        "show bfd session address"
+      ],
+      "vendors": {
+        "junos-mx": [],
+        "cisco-ios-xr": [],
+        "nokia-sros": [],
+        "vyos": []
+      }
+    },
+    {
+      "id": "system-version",
+      "category": "System",
+      "intent": "Software version and uptime",
+      "ze": [
+        "show version",
+        "show uptime"
+      ],
+      "vendors": {
+        "junos-mx": [],
+        "cisco-ios-xr": [],
+        "nokia-sros": [],
+        "vyos": [
+          {
+            "command": "show system uptime",
+            "mode": "operational",
+            "confidence": "verified",
+            "source-refs": [
+              "vyos-cli"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "system-resources",
+      "category": "System",
+      "intent": "CPU, memory, platform, and host health",
+      "ze": [
+        "show system cpu",
+        "show system memory",
+        "show system platform",
+        "show health",
+        "show doctor"
+      ],
+      "vendors": {
+        "junos-mx": [],
+        "cisco-ios-xr": [],
+        "nokia-sros": [],
+        "vyos": [
+          {
+            "command": "show hardware cpu",
+            "mode": "operational",
+            "confidence": "verified",
+            "source-refs": [
+              "vyos-cli"
+            ]
+          },
+          {
+            "command": "show system memory",
+            "mode": "operational",
+            "confidence": "verified",
+            "source-refs": [
+              "vyos-cli"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "system-time-ntp",
+      "category": "System",
+      "intent": "System time and NTP state",
+      "ze": [
+        "show system date",
+        "show system ntp",
+        "show system ntp peers"
+      ],
+      "vendors": {
+        "junos-mx": [],
+        "cisco-ios-xr": [],
+        "nokia-sros": [],
+        "vyos": [
+          {
+            "command": "show date",
+            "mode": "operational",
+            "confidence": "verified",
+            "source-refs": [
+              "vyos-cli"
+            ]
+          },
+          {
+            "command": "show ntp",
+            "mode": "operational",
+            "confidence": "verified",
+            "source-refs": [
+              "vyos-cli"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "logging-reports",
+      "category": "Operations",
+      "intent": "Logs, warnings, and errors",
+      "ze": [
+        "show log recent",
+        "show warnings",
+        "show errors"
+      ],
+      "vendors": {
+        "junos-mx": [],
+        "cisco-ios-xr": [],
+        "nokia-sros": [],
+        "vyos": [
+          {
+            "command": "show log",
+            "mode": "operational",
+            "confidence": "verified",
+            "source-refs": [
+              "vyos-cli"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "metrics",
+      "category": "Operations",
+      "intent": "Metrics inventory and values",
+      "ze": [
+        "show metrics list",
+        "show metrics values",
+        "show metrics name"
+      ],
+      "vendors": {
+        "junos-mx": [],
+        "cisco-ios-xr": [],
+        "nokia-sros": [],
+        "vyos": []
+      },
+      "notes": "Ze exposes Prometheus-style metric names and values directly; vendor telemetry is usually a separate subsystem."
+    },
+    {
+      "id": "diagnostic-ping-trace",
+      "category": "Diagnostics",
+      "intent": "Ping and traceroute diagnostics",
+      "ze": [
+        "show ping",
+        "show traceroute",
+        "resolve ping",
+        "resolve traceroute"
+      ],
+      "vendors": {
+        "junos-mx": [],
+        "cisco-ios-xr": [],
+        "nokia-sros": [
+          {
+            "command": "ping <target>",
+            "mode": "operational",
+            "confidence": "verified",
+            "source-refs": [
+              "nokia-mdcli"
+            ]
+          }
+        ],
+        "vyos": [
+          {
+            "command": "ping <target>",
+            "mode": "operational",
+            "confidence": "verified",
+            "source-refs": [
+              "vyos-cli"
+            ]
+          },
+          {
+            "command": "traceroute <target>",
+            "mode": "operational",
+            "confidence": "verified",
+            "source-refs": [
+              "vyos-cli"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "dns-resolve",
+      "category": "Diagnostics",
+      "intent": "DNS lookup and cache inspection",
+      "ze": [
+        "show dns cache list",
+        "show dns cache record",
+        "show dns cache stats",
+        "show dns lookup",
+        "resolve dns a",
+        "resolve dns aaaa",
+        "resolve dns ptr"
+      ],
+      "vendors": {
+        "junos-mx": [],
+        "cisco-ios-xr": [],
+        "nokia-sros": [],
+        "vyos": [
+          {
+            "command": "show dns",
+            "mode": "operational",
+            "confidence": "verified",
+            "source-refs": [
+              "vyos-cli"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "config-show-diff",
+      "category": "Configuration",
+      "intent": "Show running, candidate, and diffed configuration",
+      "ze": [
+        "show config dump",
+        "show config diff",
+        "show config history",
+        "show config fmt"
+      ],
+      "vendors": {
+        "junos-mx": [],
+        "cisco-ios-xr": [],
+        "nokia-sros": [],
+        "vyos": [
+          {
+            "command": "show configuration",
+            "mode": "operational",
+            "confidence": "verified",
+            "source-refs": [
+              "vyos-cli"
+            ]
+          },
+          {
+            "command": "compare",
+            "mode": "configuration",
+            "confidence": "verified",
+            "source-refs": [
+              "vyos-cli"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "config-validate-commit",
+      "category": "Configuration",
+      "intent": "Validate and commit configuration",
+      "ze": [
+        "validate config",
+        "request commit"
+      ],
+      "vendors": {
+        "junos-mx": [],
+        "cisco-ios-xr": [],
+        "nokia-sros": [],
+        "vyos": [
+          {
+            "command": "commit",
+            "mode": "configuration",
+            "confidence": "verified",
+            "source-refs": [
+              "vyos-cli"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "lifecycle-reload",
+      "category": "Lifecycle",
+      "intent": "Reload, reboot, halt, or shut down",
+      "ze": [
+        "request reload",
+        "request reboot",
+        "request halt",
+        "request shutdown"
+      ],
+      "vendors": {
+        "junos-mx": [],
+        "cisco-ios-xr": [],
+        "nokia-sros": [],
+        "vyos": [
+          {
+            "command": "reboot",
+            "mode": "operational",
+            "confidence": "verified",
+            "source-refs": [
+              "vyos-cli"
+            ]
+          },
+          {
+            "command": "poweroff",
+            "mode": "operational",
+            "confidence": "verified",
+            "source-refs": [
+              "vyos-cli"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "pki-certificates",
+      "category": "Security",
+      "intent": "Certificate inventory",
+      "ze": [
+        "show pki certificates",
+        "show pki certificate name"
+      ],
+      "vendors": {
+        "junos-mx": [],
+        "cisco-ios-xr": [],
+        "nokia-sros": [],
+        "vyos": []
+      }
+    },
+    {
+      "id": "wireguard-keypair",
+      "category": "Security",
+      "intent": "Generate a WireGuard keypair",
+      "ze": [
+        "generate wireguard keypair"
+      ],
+      "vendors": {
+        "junos-mx": [],
+        "cisco-ios-xr": [],
+        "nokia-sros": [],
+        "vyos": []
+      }
+    },
+    {
+      "id": "lldp-neighbors",
+      "category": "Vendor-only gaps",
+      "intent": "LLDP neighbor discovery",
+      "ze": [],
+      "vendors": {
+        "junos-mx": [],
+        "cisco-ios-xr": [],
+        "nokia-sros": [],
+        "vyos": []
+      },
+      "notes": "No Ze LLDP subsystem is present in the live command catalog."
+    },
+    {
+      "id": "nat-translations",
+      "category": "Vendor-only gaps",
+      "intent": "NAT translations and pools",
+      "ze": [],
+      "vendors": {
+        "junos-mx": [],
+        "cisco-ios-xr": [],
+        "nokia-sros": [],
+        "vyos": []
+      },
+      "notes": "No Ze NAT command is present in the live command catalog."
+    }
+  ]
+}

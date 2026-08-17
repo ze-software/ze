@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>Labs - Ze</title>
+        <meta name="description" content="Real interop and QEMU proof labs you can run yourself." />
+        <meta property="og:title" content="Labs - Ze" />
+        <meta property="og:description" content="Real interop and QEMU proof labs you can run yourself." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/labs/" />
+        <meta property="og:url" content="https://ze-software.net/labs/" />
+        <link rel="stylesheet" href="../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <div id="site-header-mount" data-header-src="../assets/header.html" data-site-root="../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../#top">Ze</a>
+                    <a href="../#top">Home</a>
+                    <a href="../docs/">Docs</a>
+                    <a href="../features/">Features</a>
+                    <a href="../compare/">Compare</a>
+                    <a href="../roadmap/">Roadmap</a>
+                    <a href="../changes/">Changes</a>
+                    <a href="../faq/">FAQ</a>
+                    <a href="../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar">
+            <section aria-labelledby="labs-title">
+                <div class="section-head journey-hero reveal">
+                    <span class="journey-eyebrow">Testing labs</span>
+                    <h1 id="labs-title">Testing labs.</h1>
+                    <p>
+                        These aren't browser demos. Each lab runs Ze for
+                        real, on your own machine.
+                    </p>
+                </div>
+                <div class="section-note reveal">
+                    <p>
+                        Labs run against real third-party daemons (xl2tpd,
+                        accel-ppp, strongSwan), or boot Ze in a VM using
+                        Docker or QEMU. Some need Docker with host-kernel
+                        features Docker Desktop on macOS doesn't provide; a
+                        QEMU path is noted where one exists. This is what
+                        "evidence over claims" means in practice. For speed
+                        rather than correctness, see
+                        <a href="../performance/">Performance</a>.
+                    </p>
+                </div>
+                <div class="cards reveal">
+                    <article class="card">
+                        <h3><a href="bgp-interop/">BGP Protocol Interop</a></h3>
+                        <span class="card-label blue">Daemon</span>
+                        <span class="card-label green">Docker</span>
+                        <ul>
+                            <li>Real <strong class="hl blue">FRR, BIRD, and GoBGP</strong> sessions, not mocks</li>
+                            <li>68 scenarios across core protocol and <strong class="hl blue">extensions</strong></li>
+                        </ul>
+                    </article>
+                    <article class="card">
+                        <h3><a href="l2tp-interop/">L2TP PPP/NCP Interop</a></h3>
+                        <span class="card-label blue">Daemon</span>
+                        <span class="card-label green">Docker</span>
+                        <span class="card-label purple">QEMU</span>
+                        <ul>
+                            <li>Ze as LNS vs real <strong class="hl coral">xl2tpd</strong>/pppd LAC</li>
+                            <li>FRR proves <strong class="hl coral">BGP redistribution</strong> from a live PPP session</li>
+                        </ul>
+                    </article>
+                    <article class="card">
+                        <h3><a href="pppoe-interop/">PPPoE Interop</a></h3>
+                        <span class="card-label blue">Daemon</span>
+                        <span class="card-label green">Docker</span>
+                        <span class="card-label purple">QEMU</span>
+                        <ul>
+                            <li>Ze's PPPoE client vs real <strong class="hl blue">accel-ppp</strong> access concentrator</li>
+                            <li>The dominant <strong class="hl blue">open-source BRAS/AC</strong>, not a stub</li>
+                        </ul>
+                    </article>
+                    <article class="card">
+                        <h3><a href="ipsec-interop/">IPsec / IKEv2 Interop</a></h3>
+                        <span class="card-label blue">Daemon</span>
+                        <span class="card-label green">Docker</span>
+                        <ul>
+                            <li>Ze as IKE initiator vs real <strong class="hl green">strongSwan</strong>/charon</li>
+                            <li>FRR <strong class="hl green">redistribute</strong> scenarios over the tunnel</li>
+                        </ul>
+                    </article>
+                    <article class="card">
+                        <h3><a href="vlan-qos/">VLAN QoS Wire-Level Proof</a></h3>
+                        <span class="card-label blue">Daemon</span>
+                        <span class="card-label teal">AF_PACKET</span>
+                        <ul>
+                            <li>802.1p <strong class="hl purple">PCP tagging</strong> actually on the wire</li>
+                            <li>Not just kernel-state <strong class="hl purple">acceptance</strong></li>
+                        </ul>
+                    </article>
+                    <article class="card">
+                        <h3><a href="looking-glass-graph/">Looking Glass Graph Demo</a></h3>
+                        <span class="card-label blue">Daemon</span>
+                        <span class="card-label gold">Browsable</span>
+                        <ul>
+                            <li>Realistic UK topology, real external <strong class="hl coral">ASNs</strong></li>
+                            <li>The one lab that's actually <strong class="hl coral">visual</strong> today</li>
+                        </ul>
+                    </article>
+                    <article class="card">
+                        <h3><a href="appliance-install/">Appliance Installer Evidence</a></h3>
+                        <span class="card-label coral">Appliance</span>
+                        <span class="card-label purple">QEMU</span>
+                        <ul>
+                            <li>Installer boots and completes for real: <strong class="hl blue">HTTP/PXE, ISO, Ventoy</strong></li>
+                            <li>Plus failure-path, fault, pin, and <strong class="hl blue">rescue</strong> scenarios</li>
+                        </ul>
+                    </article>
+                    <article class="card">
+                        <h3><a href="vpp-dataplane/">VPP Dataplane Evidence</a></h3>
+                        <span class="card-label blue">Daemon</span>
+                        <span class="card-label green">Docker</span>
+                        <ul>
+                            <li>Ze programs <strong class="hl green">FIB, traffic, and firewall</strong> into a real VPP daemon</li>
+                            <li>Backs the production numbers in the <strong class="hl green">VPP guide</strong></li>
+                        </ul>
+                    </article>
+                </div>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Labs</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Choose a lab</h2>
+                    <a class="page-sidebar-link" href="../labs/bgp-interop/">
+                        <span class="page-sidebar-link-label">BGP interop</span>
+                        <small>Test BGP behaviour with real daemons.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../labs/vpp-dataplane/">
+                        <span class="page-sidebar-link-label">VPP dataplane</span>
+                        <small>Trace forwarding through real VPP.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../labs/appliance-install/">
+                        <span class="page-sidebar-link-label">Appliance install</span>
+                        <small>Check boot, install, and provisioning paths.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../quality/qemu-interop-release/">
+                        <span class="page-sidebar-link-label">Release evidence</span>
+                        <small>How labs feed release confidence.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+<script src="../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

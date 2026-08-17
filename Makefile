@@ -9,7 +9,7 @@
 .PHONY: ze-iso-build-full ze-iso-initialize ze-iso-build ze-iso-check ze-pxe-build
 .PHONY: ze-vendor-web-sync ze-vendor-web-check ze-vendor-web-update-report ze-htmx-upgrade-check ze-htmx-upgrade-report ze-ai-skills-sync ze-ai-instructions-generate ze-ai-sync-check
 .PHONY: ze-proto-generate ze-plugin-snapshot-update ze-plugin-imports-check ze-fuzz-targets-check ze-yang-glue-check ze-feature-tags-check ze-web-assets-check ze-templ-orphan-check ze-templ-output-check ze-generated-files-update ze-generated-files-reconcile ze-generated-files-check ze-arch-map-update ze-arch-map-check
-.PHONY: ze-web-golden-check ze-web-golden-update ze-templ-port-check ze-chaos-golden-update ze-doc-links-check
+.PHONY: ze-web-golden-check ze-web-golden-update ze-templ-port-check ze-chaos-golden-update ze-doc-links-check ze-site-generate
 .PHONY: check ze-dev-setup
 .PHONY: help-test help-deploy help-dev
 .PHONY: ze-rfc-check ze-rfc-index-update ze-rfc-reseal ze-rfc-extraction-create ze-rfc-extraction-status
@@ -405,6 +405,17 @@ ze-plugin-snapshot-update:
 
 build: generate $(ZEBIN_ZE) $(ZEBIN_APPLIANCE) $(ZEBIN_SETUP) $(ZEBIN_STRIPPED) $(ZEBIN_TEST) $(ZEBIN_CHAOS) $(ZEBIN_PERF) $(ZEBIN_ANALYZE)
 	@echo "All binaries built"
+ZE_SITE_OUTPUT ?= $(CURDIR)/../gh-pages
+ZE_SITE_DEMO_OUTPUT ?= $(ZE_SITE_OUTPUT)/assets/demos
+
+ze-site-generate: TERMINAL_DEMO_OUTPUT=$(ZE_SITE_DEMO_OUTPUT)
+ze-site-generate: $(ZEBIN_ZE)
+	@test -e "$(ZE_SITE_OUTPUT)/.git" || { echo "error: ZE_SITE_OUTPUT must be a git worktree: $(ZE_SITE_OUTPUT)"; exit 1; }
+	@ZE_TERMINAL_DEMO_OUTPUT="$(ZE_SITE_DEMO_OUTPUT)" python3 demos/terminal/render.py --all --stamp-definition-hashes || true
+	@ZE_TERMINAL_DEMO_OUTPUT="$(ZE_SITE_DEMO_OUTPUT)" python3 demos/terminal/render.py --all --check-definition || $(MAKE) ze-terminal-demo-release-render-all TERMINAL_DEMO_OUTPUT="$(ZE_SITE_DEMO_OUTPUT)"
+	uv run --with pytest --with markdown python3 -m pytest -q website/tools/test_*.py
+	ZE_SITE_OUTPUT="$(ZE_SITE_OUTPUT)" ZE_TERMINAL_DEMO_SOURCE="$(ZE_SITE_DEMO_OUTPUT)" website/update-website.sh
+
 
 ze-build:
 	@mkdir -p $(ZE_BIN_DIR)
@@ -1437,6 +1448,7 @@ help-dev:
 	@echo "    ze-plugin-imports-check                    Verify generated plugin blank imports are current"
 	@echo "    ze-templ-output-check                      Verify templ outputs without rewriting them"
 	@echo "    ze-web-assets-check                        Gate: each page's generated asset set matches its markup"
+	@echo "    ze-site-generate                           Generate the public website into ../gh-pages"
 	@echo "    ze-ai-instructions-generate                Generate CLAUDE.md and AGENTS.md"
 	@echo "    ze-ai-skills-sync                          Sync canonical skills to tool directories"
 	@echo "    ze-ai-sync-check                           Check generated agent files match canonical sources"

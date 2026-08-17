@@ -1,0 +1,16 @@
+{
+  "talks": [
+    {
+      "slug": "linx-2026-06",
+      "venue": "LINX 126",
+      "title": "From ExaBGP to a Network OS with AI",
+      "date": "2026-06-11"
+    },
+    {
+      "slug": "netmcr-2026-04",
+      "venue": "Net Manchester",
+      "title": "Ze: Redoing and improving on ExaBGP",
+      "date": "2026-04-09"
+    }
+  ]
+}

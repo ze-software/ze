@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>VLAN QoS Wire-Level Proof - Ze</title>
+        <meta name="description" content="Proving 802.1p PCP tagging actually happens on the wire, not just in kernel state." />
+        <meta property="og:title" content="VLAN QoS Wire-Level Proof - Ze" />
+        <meta property="og:description" content="Proving 802.1p PCP tagging actually happens on the wire, not just in kernel state." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/labs/vlan-qos/" />
+        <meta property="og:url" content="https://ze-software.net/labs/vlan-qos/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar">
+            <section aria-labelledby="lab-title">
+                <div class="section-head journey-hero reveal cat-services">
+                    <span class="journey-eyebrow">Wire lab</span>
+                    <h1 id="lab-title">VLAN QoS Wire-Level Proof</h1>
+                    <p>
+                        Proves that VLAN 802.1p QoS maps work on the wire, not
+                        just in kernel state.
+                    </p>
+                </div>
+                <div class="status-panel reveal">
+                    <div class="status-copy">
+                        <span class="tag">Daemon</span>
+                        <p>
+                            Two network namespaces joined by a veth pair. One
+                            side has a VLAN sub-interface with egress/ingress
+                            QoS maps; the other is a raw capture/inject
+                            endpoint. Egress: send UDP with a given
+                            <code>SO_PRIORITY</code>, the egress map stamps
+                            the matching PCP bit in the 802.1Q header, and a
+                            capture on the peer side confirms it. Ingress: a
+                            raw 802.1Q frame with a given PCP arrives, the
+                            8021q module strips the tag, and the ingress map
+                            translates PCP back to <code>skb-&gt;priority</code>,
+                            verified with an nftables counter.
+                        </p>
+                        <p>
+                            <strong>Limitations, stated by the lab itself:</strong>
+                            proves behavior on veth pairs (software), not
+                            physical NICs with hardware VLAN offload. Single-tag
+                            802.1Q only -- QinQ is out of scope. No throughput
+                            or latency assertions; this proves marking
+                            correctness, not QoS scheduling behavior.
+                        </p>
+                    </div>
+                    <div class="status-table" aria-label="Lab facts">
+                        <div class="status-row">
+                            <strong>Proves</strong>
+                            <span>802.1p PCP tagging/classification actually on the wire (AF_PACKET capture + nftables counters)</span>
+                        </div>
+                        <div class="status-row">
+                            <strong>Scenarios</strong>
+                            <span>Egress (PCP on the wire), Ingress (PCP classification), Full chain (DSCP to PCP)</span>
+                        </div>
+                        <div class="status-row">
+                            <strong>Requires</strong>
+                            <span>Linux with network namespace support, root (CAP_NET_ADMIN), iproute2, tcpdump, python3</span>
+                        </div>
+                        <div class="status-row">
+                            <strong>Source</strong>
+                            <span
+                                ><a
+                                    href="https://github.com/ze-software/ze/tree/main/test/vlan-qos-lab" target="_blank" rel="noopener"
+                                    >test/vlan-qos-lab/</a
+                                ></span
+                            >
+                        </div>
+                    </div>
+                </div>
+                <div class="terminal-panel reveal">
+                    <div class="terminal" aria-label="Run commands">
+                        <div class="terminal-dots">
+                            <span></span><span></span><span></span>
+                            <span class="terminal-title">vlan-qos</span>
+                        </div>
+                        <div class="terminal-body">
+                            <pre><span class="term-comment"># interactive (requires Linux root)</span>
+<span class="term-prompt">$</span> <span class="term-cmd">sudo</span> ./test/vlan-qos-lab/run.sh
+
+<span class="term-comment"># CI-style smoke test, exits 0 on success</span>
+<span class="term-prompt">$</span> <span class="term-cmd">sudo</span> ./test/vlan-qos-lab/run.sh --selftest</pre>
+                        </div>
+                    </div>
+                    <div class="terminal-note">
+                        <span class="tag">Prerequisites</span>
+                        <p>
+                            Linux with network namespace support and root
+                            (CAP_NET_ADMIN). No Docker, no QEMU needed.
+                        </p>
+                        <div class="link-list">
+                            <a
+                                href="https://github.com/ze-software/ze/blob/main/test/vlan-qos-lab/README.md" target="_blank" rel="noopener"
+                                >test/vlan-qos-lab/README.md
+                                <span>full lab documentation</span></a
+                            >
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Lab evidence</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Related lab work</h2>
+                    <a class="page-sidebar-link" href="../../labs/">
+                        <span class="page-sidebar-link-label">All labs</span>
+                        <small>Return to the lab index.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../quality/qemu-interop-release/">
+                        <span class="page-sidebar-link-label">Release evidence</span>
+                        <small>How lab runs feed release checks.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Use lab findings to debug systems.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+<script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

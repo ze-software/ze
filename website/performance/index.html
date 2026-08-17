@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>Performance - Ze</title>
+        <meta
+            name="description"
+            content="Ze's BGP convergence and throughput measured against BIRD, FRR, GoBGP, RustyBGP, freeRtr, rustbgpd, and OpenBGPd -- plus every lab with performance evidence."
+        />
+        <meta property="og:title" content="Performance - Ze" />
+        <meta
+            property="og:description"
+            content="Ze's BGP convergence and throughput measured against BIRD, FRR, GoBGP, RustyBGP, freeRtr, rustbgpd, and OpenBGPd -- plus every lab with performance evidence."
+        />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/performance/" />
+        <meta property="og:url" content="https://ze-software.net/performance/" />
+        <link rel="stylesheet" href="../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <div id="site-header-mount" data-header-src="../assets/header.html" data-site-root="../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../#top">Ze</a>
+                    <a href="../#top">Home</a>
+                    <a href="../docs/">Docs</a>
+                    <a href="../features/">Features</a>
+                    <a href="../compare/">Compare</a>
+                    <a href="../roadmap/">Roadmap</a>
+                    <a href="../changes/">Changes</a>
+                    <a href="../faq/">FAQ</a>
+                    <a href="../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar">
+            <section aria-labelledby="perf-title">
+                <div class="section-head journey-hero reveal cat-observe">
+                    <span class="journey-eyebrow">Benchmarks</span>
+                    <h1 id="perf-title">Performance.</h1>
+                    <p>Measured, not claimed.</p>
+                </div>
+                <div class="section-note reveal">
+                    <p>
+                        Benchmark numbers need context: these numbers measure
+                        one scenario, on one machine, under artificial
+                        conditions. They show relative differences between
+                        implementations, not absolute performance. If it
+                        matters to you, run <code>ze-perf</code> on your own
+                        hardware with your own workload.
+                    </p>
+                </div>
+                <div class="status-panel reveal">
+                    <div class="status-copy">
+                        <span class="tag">BGP benchmark</span>
+                        <p>
+                            <code>ze-perf</code> establishes two BGP sessions
+                            with a device under test: a sender injects
+                            100,000 routes, a receiver times their arrival.
+                            The same harness runs unmodified against BIRD,
+                            FRR, GoBGP, RustyBGP, freeRtr, rustbgpd, and
+                            OpenBGPd, all in Docker on the same host.
+                        </p>
+                        <p>
+                            Go carries an estimated 10-15% CPU overhead
+                            against C/Rust implementations. That number comes
+                            from code-path analysis, not a measured
+                            benchmark -- Ze has not been benchmarked at DFZ
+                            scale (1M+ prefixes).
+                        </p>
+                    </div>
+                    <div class="status-table" aria-label="Latest benchmark run">
+                        <div class="status-row">
+                            <strong>Convergence</strong>
+                            <span>55ms to propagate 100,000 routes (2026-08-01 run)</span>
+                        </div>
+                        <div class="status-row">
+                            <strong>Throughput</strong>
+                            <span>1,818,181 routes/sec sustained during propagation</span>
+                        </div>
+                        <div class="status-row">
+                            <strong>Withdrawal</strong>
+                            <span>547ms from withdrawal sent to receiver idle</span>
+                        </div>
+                        <div class="status-row">
+                            <strong>Full results</strong>
+                            <span
+                                ><a href="../performance/bgp/"
+                                    >All DUTs, all runs, full methodology</a
+                                ></span
+                            >
+                        </div>
+                    </div>
+                </div>
+                <div class="terminal-panel reveal">
+                    <div class="terminal" aria-label="Run commands">
+                        <div class="terminal-dots">
+                            <span></span><span></span><span></span>
+                            <span class="terminal-title">ze-perf</span>
+                        </div>
+                        <div class="terminal-body">
+                            <pre><span class="term-comment"># build ze-perf and all DUT images, then run</span>
+<span class="term-prompt">$</span> <span class="term-cmd">python3</span> test/perf/run.py --build --test
+
+<span class="term-comment"># test specific DUTs only</span>
+<span class="term-prompt">$</span> <span class="term-cmd">python3</span> test/perf/run.py --build --test ze bird
+
+<span class="term-comment"># regenerate docs/performance.md from results</span>
+<span class="term-prompt">$</span> <span class="term-cmd">bin/ze-perf</span> report --doc test/perf/results/*.json</pre>
+                        </div>
+                    </div>
+                    <div class="terminal-note">
+                        <span class="tag">Prerequisites</span>
+                        <p>
+                            Docker (Colima on macOS). <code>ze-perf</code>
+                            works against any BGP implementation, not just
+                            Ze -- point it at your own DUT.
+                        </p>
+                        <div class="link-list">
+                            <a href="../guides/benchmarking/"
+                                >Benchmarking guide
+                                <span>architecture, flags, JSON output</span></a
+                            >
+                            <a href="../use-cases/bgp-performance/"
+                                >BGP performance tests with Ze
+                                <span>sender, receiver, DUT, JSON</span></a
+                            >
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section aria-labelledby="perf-labs-title">
+                <div class="section-head reveal">
+                    <h2 id="perf-labs-title">Performance evidence in the labs.</h2>
+                    <p>Where else the numbers show up.</p>
+                </div>
+                <div class="cards reveal">
+                    <article class="card cat-routing" data-cat="routing">
+                        <h3><a href="../labs/bgp-interop/">BGP Protocol Interop</a></h3>
+                        <span class="card-label blue">Daemon</span>
+                        <span class="card-label green">Docker</span>
+                        <ul>
+                            <li>Same DUTs as the benchmark: <strong class="hl blue">FRR, BIRD, GoBGP</strong></li>
+                            <li>Correctness first; the perf numbers above measure the same sessions</li>
+                        </ul>
+                    </article>
+                    <article class="card cat-services" data-cat="services">
+                        <h3><a href="../labs/vpp-dataplane/">VPP Dataplane Evidence</a></h3>
+                        <span class="card-label blue">Daemon</span>
+                        <span class="card-label purple">Docker</span>
+                        <ul>
+                            <li>Ze programs <strong class="hl green">FIB, traffic, and firewall</strong> into a real VPP daemon</li>
+                            <li>Dataplane throughput backs the numbers in the VPP guide</li>
+                        </ul>
+                    </article>
+                    <article class="card cat-services" data-cat="services">
+                        <h3><a href="../labs/vlan-qos/">VLAN QoS Wire-Level Proof</a></h3>
+                        <span class="card-label blue">Daemon</span>
+                        <span class="card-label coral">AF_PACKET</span>
+                        <ul>
+                            <li>802.1p <strong class="hl purple">PCP tagging</strong> verified on the wire</li>
+                            <li>Not just kernel-state acceptance -- captured packets</li>
+                        </ul>
+                    </article>
+                </div>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Evidence</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Related evidence</h2>
+                    <a class="page-sidebar-link" href="../compare/bgp/">
+                        <span class="page-sidebar-link-label">BGP comparison</span>
+                        <small>Feature context for the measured daemon.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../guides/benchmarking/">
+                        <span class="page-sidebar-link-label">Benchmarking guide</span>
+                        <small>How to run ze-perf and read JSON output.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../performance/bgp/">
+                        <span class="page-sidebar-link-label">Performance docs</span>
+                        <small>Longer notes on performance design.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../use-cases/bgp-performance/">
+                        <span class="page-sidebar-link-label">BGP performance testing with Ze</span>
+                        <small>Use ze-perf to recreate route-server performance tests with sender, DUT, receiver, and JSON.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../quality/qemu-interop-release/">
+                        <span class="page-sidebar-link-label">Release evidence</span>
+                        <small>Where performance fits in verification.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+<script src="../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

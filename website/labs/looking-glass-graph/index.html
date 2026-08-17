@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>Looking Glass Graph Demo - Ze</title>
+        <meta name="description" content="A realistic UK topology with real external ASNs, populating the Looking Glass graph." />
+        <meta property="og:title" content="Looking Glass Graph Demo - Ze" />
+        <meta property="og:description" content="A realistic UK topology with real external ASNs, populating the Looking Glass graph." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/labs/looking-glass-graph/" />
+        <meta property="og:url" content="https://ze-software.net/labs/looking-glass-graph/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar">
+            <section aria-labelledby="lab-title">
+                <div class="section-head journey-hero reveal cat-operate">
+                    <span class="journey-eyebrow">Demo lab</span>
+                    <h1 id="lab-title">Looking Glass Graph Demo</h1>
+                    <p>
+                        A realistic UK topology with real external ASNs
+                        populates the Looking Glass topology graph. This is
+                        the one lab that is browsable today.
+                    </p>
+                </div>
+                <div class="status-panel reveal">
+                    <div class="status-copy">
+                        <span class="tag">Daemon</span>
+                        <p>
+                            Injects 36 routes into a running Ze instance that
+                            describes a small but realistic network: a core
+                            ring (Telehouse, Leeds, Manchester, Birmingham)
+                            with edge sites (Slough, Bradford), peered with
+                            real external ASNs: NTT (transit), Cogent
+                            (transit), Cloudflare (peering), and Akamai
+                            (peering), all under AS65000.
+                        </p>
+                        <p>
+                            Unlike the interop labs, this one starts a real
+                            Looking Glass on localhost and prints a URL. Open
+                            it in a browser and the topology graph and route
+                            views are populated with this data.
+                        </p>
+                    </div>
+                    <div class="status-table" aria-label="Lab facts">
+                        <div class="status-row">
+                            <strong>Proves</strong>
+                            <span>The Looking Glass topology graph and route views render correctly against a realistic multi-site, multi-peer network</span>
+                        </div>
+                        <div class="status-row">
+                            <strong>Topology</strong>
+                            <span>AS65000 core ring + edge sites, external peers NTT/Cogent/Cloudflare/Akamai</span>
+                        </div>
+                        <div class="status-row">
+                            <strong>Requires</strong>
+                            <span>Go toolchain to build ze if not already built -- nothing else</span>
+                        </div>
+                        <div class="status-row">
+                            <strong>Source</strong>
+                            <span
+                                ><a
+                                    href="https://github.com/ze-software/ze/tree/main/test/plugin/lg-graph-lab" target="_blank" rel="noopener"
+                                    >test/plugin/lg-graph-lab/</a
+                                ></span
+                            >
+                        </div>
+                    </div>
+                </div>
+                <div class="terminal-panel reveal">
+                    <div class="terminal" aria-label="Run commands">
+                        <div class="terminal-dots">
+                            <span></span><span></span><span></span>
+                            <span class="terminal-title">looking-glass-graph</span>
+                        </div>
+                        <div class="terminal-body">
+                            <pre><span class="term-comment"># builds ze if needed, injects routes, starts the looking glass</span>
+<span class="term-prompt">$</span> <span class="term-cmd">./test/plugin/lg-graph-lab/run.sh</span> [lg-port]
+
+<span class="term-comment"># then browse to the printed URL (default port 8443)</span>
+<span class="term-comment"># Ctrl+C to stop</span></pre>
+                        </div>
+                    </div>
+                    <div class="terminal-note">
+                        <span class="tag">Good first lab</span>
+                        <p>
+                            No Docker, no QEMU, no root. If you want to see
+                            what Ze's operator surfaces actually look like
+                            before running anything else, start here.
+                        </p>
+                        <div class="link-list">
+                            <a
+                                href="https://github.com/ze-software/ze/blob/main/docs/features/looking-glass.md" target="_blank" rel="noopener"
+                                >Looking Glass docs
+                                <span>peer and route viewer</span></a
+                            >
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Lab evidence</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Related lab work</h2>
+                    <a class="page-sidebar-link" href="../../labs/">
+                        <span class="page-sidebar-link-label">All labs</span>
+                        <small>Return to the lab index.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../quality/qemu-interop-release/">
+                        <span class="page-sidebar-link-label">Release evidence</span>
+                        <small>How lab runs feed release checks.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Use lab findings to debug systems.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+<script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

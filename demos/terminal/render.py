@@ -169,6 +169,26 @@ def source_digest(demo: dict[str, Any]) -> str:
         digest.update(b"\0")
     return digest.hexdigest()
 
+def definition_digest(demo: dict[str, Any]) -> str:
+    """Hash the VHS files that decide whether demo media must be re-rendered."""
+    files = [DEMO_ROOT / "common.tape", DEMO_ROOT / demo["source"]]
+    digest = hashlib.sha256()
+    render_contract = {
+        "kind": demo["kind"],
+        "privileged": demo.get("privileged", False),
+        "realtime": demo.get("realtime", False),
+        "source": demo["source"],
+    }
+    digest.update(json.dumps(render_contract, sort_keys=True).encode())
+    digest.update(b"\0")
+    for path in sorted(files):
+        digest.update(path.relative_to(ROOT).as_posix().encode())
+        digest.update(b"\0")
+        digest.update(path.read_bytes())
+        digest.update(b"\0")
+    return digest.hexdigest()
+
+
 
 @contextlib.contextmanager
 def demo_lock() -> Any:
@@ -470,6 +490,7 @@ def _render_demo(
         "release": release,
         "binary_sha256": sha256(BINARY_PATH),
         "source_sha256": source_digest(demo),
+        "definition_sha256": definition_digest(demo),
         "assets": assets,
     }
 
@@ -497,6 +518,8 @@ def verify_assets(
     indexed: dict[str, dict[str, Any]],
     selected: list[str],
     release: str | None,
+    *,
+    definition_only: bool = False,
 ) -> None:
     generated = load_json(ARTIFACT_MANIFEST_PATH)
     if generated.get("schema") != 2:
@@ -515,8 +538,15 @@ def verify_assets(
             raise ValueError(
                 f"{demo_id}: rendered for {entry.get('release')!r}, expected {release!r}"
             )
-        if entry.get("source_sha256") != source_digest(indexed[demo_id]):
-            raise ValueError(f"{demo_id}: source changed since the last render")
+        digest_key = "definition_sha256" if definition_only else "source_sha256"
+        expected_digest = (
+            definition_digest(indexed[demo_id])
+            if definition_only
+            else source_digest(indexed[demo_id])
+        )
+        if entry.get(digest_key) != expected_digest:
+            stale = "definition" if definition_only else "source"
+            raise ValueError(f"{demo_id}: {stale} changed since the last render")
         assets = entry.get("assets")
         if not isinstance(assets, dict):
             raise ValueError(f"{demo_id}: assets are missing")
@@ -532,6 +562,28 @@ def verify_assets(
             ):
                 raise ValueError(f"{demo_id}: {name} digest mismatch")
     print("Ze demo artifacts verified: " + ", ".join(selected))
+
+def stamp_definition_hashes(
+    manifest: dict[str, Any],
+    indexed: dict[str, dict[str, Any]],
+    selected: list[str],
+) -> None:
+    generated = load_json(ARTIFACT_MANIFEST_PATH)
+    if generated.get("schema") != 2:
+        raise ValueError("generated manifest: unsupported schema")
+    if generated.get("renderer") != manifest.get("renderer"):
+        raise ValueError("generated manifest: renderer contract is stale")
+    generated_demos = generated.get("demos")
+    if not isinstance(generated_demos, dict):
+        raise ValueError("generated manifest: demos must be an object")
+    for demo_id in selected:
+        entry = generated_demos.get(demo_id)
+        if not isinstance(entry, dict):
+            raise ValueError(f"generated manifest: missing {demo_id}")
+        entry["definition_sha256"] = definition_digest(indexed[demo_id])
+    write_artifact_manifest(generated)
+    verify_assets(manifest, indexed, selected, None, definition_only=True)
+
 
 
 def render_selected(
@@ -574,6 +626,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--validate", action="store_true", help="run scenario output validators only"
     )
+    parser.add_argument(
+        "--check-definition",
+        action="store_true",
+        help="verify existing artifacts against VHS definitions only",
+    )
+    parser.add_argument(
+        "--stamp-definition-hashes",
+        action="store_true",
+        help="write VHS definition hashes into the existing artifact manifest",
+    )
     return parser.parse_args()
 
 
@@ -585,12 +647,31 @@ def main() -> int:
     unknown = [demo_id for demo_id in selected if demo_id not in indexed]
     if unknown:
         raise ValueError("unknown demo id(s): " + ", ".join(unknown))
-
-    if args.check and args.validate:
-        raise ValueError("--check and --validate cannot be combined")
-    if args.check:
+    if sum(
+        bool(flag)
+        for flag in (
+            args.check,
+            args.validate,
+            args.check_definition,
+            args.stamp_definition_hashes,
+        )
+    ) > 1:
+        raise ValueError(
+            "--check, --validate, --check-definition, and --stamp-definition-hashes cannot be combined"
+        )
+    if args.check or args.check_definition:
         with demo_lock():
-            verify_assets(manifest, indexed, selected, args.release)
+            verify_assets(
+                manifest,
+                indexed,
+                selected,
+                args.release if args.check else None,
+                definition_only=args.check_definition,
+            )
+        return 0
+    if args.stamp_definition_hashes:
+        with demo_lock():
+            stamp_definition_hashes(manifest, indexed, selected)
         return 0
     if not BINARY_PATH.is_file():
         raise ValueError(f"missing demo binary: {BINARY_PATH.relative_to(ROOT)}")
