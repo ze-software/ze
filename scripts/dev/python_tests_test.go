@@ -85,6 +85,14 @@ var pythonTestRoots = []string{
 // to prevent.
 var pythonTestGlobs = []string{"*_test.py", "test_*.py"}
 
+// pythonProcessCleanupMargin lets CommandContext kill and reap the Python child
+// before Go's package timeout alarm exits.
+const pythonProcessCleanupMargin = time.Second
+
+func pythonCommand(ctx context.Context, args ...string) *exec.Cmd {
+	return exec.CommandContext(ctx, "python3", args...)
+}
+
 // removes a DUPLICATE repoRoot helper I had added here, which did not
 // compile -- the package already defines repoRoot(t) in verify_wiring_docs_test.go
 // and Go rejects the redeclaration. No test coverage is lost: the existing helper
@@ -138,9 +146,19 @@ func TestPythonUnitTests(t *testing.T) {
 				name = script
 			}
 			t.Run(name, func(t *testing.T) {
-				ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
+				var ctx context.Context
+				var cancel context.CancelFunc
+				if deadline, ok := t.Deadline(); ok {
+					ctx, cancel = context.WithDeadline(
+						context.Background(),
+						deadline.Add(-pythonProcessCleanupMargin),
+					)
+				} else {
+					ctx, cancel = context.WithCancel(context.Background())
+				}
 				defer cancel()
-				cmd := exec.CommandContext(ctx, "python3", filepath.Base(script))
+
+				cmd := pythonCommand(ctx, filepath.Base(script))
 				// Run from the script's own directory so a test can import the
 				// module it covers as a sibling, the way an observer does.
 				cmd.Dir = filepath.Dir(script)
@@ -161,5 +179,26 @@ func TestPythonUnitTests(t *testing.T) {
 
 	if total == 0 {
 		t.Fatal("no Python unit tests collected at all")
+	}
+}
+
+// TestPythonCommandStopsWhenContextEnds verifies that the command constructor
+// binds the Python child lifetime to its caller's context.
+//
+// VALIDATES: a Python subprocess stops when its context ends, even when the
+// Python program would otherwise keep running.
+// PREVENTS: exec.Command leaving a Python child alive after the package test
+// deadline, because a test timeout panic does not unwind the running subtest.
+func TestPythonCommandStopsWhenContextEnds(t *testing.T) {
+	ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
+	defer cancel()
+
+	cmd := pythonCommand(ctx, "-c", "import time; time.sleep(2)")
+	err := cmd.Run()
+	if !errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		t.Fatalf("Python command ended before context cancellation: %v", err)
+	}
+	if err == nil {
+		t.Fatal("Python command survived context cancellation and exited successfully")
 	}
 }
