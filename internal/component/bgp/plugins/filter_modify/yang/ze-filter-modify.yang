@@ -7,20 +7,20 @@ module ze-filter-modify {
     import ze-types { prefix zt; }
 
     description "Route attribute modifier for the BGP policy framework.
-                 Named modifier definitions with attribute setters.
-                 A modifier sets the declared attributes on every route that
-                 reaches it, or, when it states a match condition, only on the
+                 Named modifier definitions with attribute operations.
+                 A modifier applies the declared operations to every route that
+                 reaches it or, when it states a match condition, only to the
                  routes that meet it. Routes that do not meet the condition pass
                  through unchanged.
                  Referenced from peer filter chains as modify:NAME.";
 
     revision 2026-08-15 {
         description
-          "Add set med-remove. RFC 4271 Section 5.1.4 requires a speaker to
+          "Add del med. RFC 4271 Section 5.1.4 requires a speaker to
            implement a mechanism, based on local configuration, that allows
-           MULTI_EXIT_DISC to be removed from a route. Nothing here could
-           express a removal: med was a set target only, and the removal verbs
-           reached the three community attributes alone.";
+           MULTI_EXIT_DISC to be removed from a route. Previously, med was a
+           set target only, while removal was available only for the three
+           community attributes.";
     }
 
     revision 2026-08-13 {
@@ -45,7 +45,7 @@ module ze-filter-modify {
             description "Named route attribute modifier instance.
                          Only declared leaves are modified; undeclared
                          attributes are preserved unchanged. Multiple
-                         attributes can be set in a single modifier.";
+                         attributes can be changed in a single modifier.";
 
             leaf name {
                 type string;
@@ -110,32 +110,6 @@ module ze-filter-modify {
                     description "Set MULTI_EXIT_DISC attribute (RFC 4271 type 4).";
                 }
 
-                leaf med-remove {
-                    type boolean;
-                    default "false";
-                    description "Remove the MULTI_EXIT_DISC attribute (RFC 4271
-                                 type 4) from the route.
-                                 RFC 4271 Section 5.1.4 requires a mechanism,
-                                 based on local configuration, that removes
-                                 MULTI_EXIT_DISC from a route, and requires the
-                                 removal to happen before the route reaches
-                                 Decision Process phases 1 and 2. This leaf is
-                                 that mechanism, so it applies on an IMPORT
-                                 chain only: the route enters the decision
-                                 process with no metric. On an export chain it
-                                 is refused with a log line, because Section
-                                 9.1.2.2 states that a comparison on
-                                 MULTI_EXIT_DISC followed by advertisement
-                                 without it causes route loops.
-                                 Mutually exclusive with set med, increment med
-                                 and decrement med.
-                                 A metric received from one neighboring AS is
-                                 already kept off another one without any
-                                 configuration (RFC 4271 Section 5.1.4), so this
-                                 leaf is for the operator who wants the metric
-                                 gone from the route itself.";
-                }
-
                 leaf origin {
                     type enumeration {
                         enum igp {
@@ -195,6 +169,36 @@ module ze-filter-modify {
                 leaf-list extended-community-remove {
                     type string;
                     description "Extended community values to remove (target:ASN:NN or hex).";
+                }
+            }
+
+            container del {
+                description "Attributes to delete from matching routes.
+                             Only present leaves are applied.";
+
+                leaf med {
+                    type empty;
+                    description "Remove the MULTI_EXIT_DISC attribute (RFC 4271
+                                 type 4) from the route.
+                                 RFC 4271 Section 5.1.4 requires a mechanism,
+                                 based on local configuration, that removes
+                                 MULTI_EXIT_DISC from a route, and requires the
+                                 removal to happen before the route reaches
+                                 Decision Process phases 1 and 2. The del med
+                                 operation is that mechanism, so it applies on
+                                 an IMPORT chain only: the route enters the
+                                 decision process with no metric. On an export
+                                 chain it is refused with a log line, because
+                                 Section 9.1.2.2 states that a comparison on
+                                 MULTI_EXIT_DISC followed by advertisement
+                                 without it causes route loops.
+                                 Mutually exclusive with set med, increment med
+                                 and decrement med.
+                                 A metric received from one neighboring AS is
+                                 already kept off another one without any
+                                 configuration (RFC 4271 Section 5.1.4), so del
+                                 med is for the operator who wants the metric
+                                 gone from the route itself.";
                 }
             }
 

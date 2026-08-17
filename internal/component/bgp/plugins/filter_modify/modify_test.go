@@ -540,53 +540,75 @@ func TestExtractUint32Attr(t *testing.T) {
 	}
 }
 
-// VALIDATES: spec-rfc4271-med-across-as AC-5 -- the operator surface for RFC
-// 4271 Section 5.1.4's configured removal parses, and refuses to be combined
-// with the opposite instruction about the same attribute.
+// rfc-test-change-approved: 2026-08-17 Thomas approved replacing tests of the
+// removed, unreleased set { med-remove true; } syntax with del { med; }.
+//
+// VALIDATES: spec-rfc4271-med-across-as AC-5 -- the public del { med; }
+// configuration for RFC 4271 Section 5.1.4's configured removal parses, and
+// refuses to be combined with the opposite instruction about the same
+// attribute.
 //
 // RFC requirement: RFC4271-5.1.4-4 positive -- "A BGP speaker MUST implement a
 // mechanism (based on local configuration) that allows the MULTI_EXIT_DISC
 // attribute to be removed from a route" (Section 5.1.4). The configuration is
-// bgp { policy { modify NAME { set { med-remove true; } } } }, and a definition
-// that states nothing else is a complete definition.
-// RFC requirement: RFC4271-5.1.4-4 negative -- the mechanism is opt-in. A set
-// block that does not name med-remove leaves the metric alone, and false is the
-// same as absent.
+// bgp { policy { modify NAME { del { med; } } } }, and a definition that states
+// nothing else is a complete definition.
+// RFC requirement: RFC4271-5.1.4-4 negative -- the mechanism is opt-in. A
+// definition without del leaves the metric alone.
 func TestParseModifyDefsMEDRemove(t *testing.T) {
-	def := func(t *testing.T, set map[string]any) *modifyDef {
-		t.Helper()
+	parseDef := func(defMap map[string]any) (*modifyDef, error) {
 		defs, err := parseModifyDefs(map[string]any{
-			"policy": map[string]any{"modify": map[string]any{"DROP-MED": map[string]any{"set": set}}},
+			"policy": map[string]any{"modify": map[string]any{"DROP-MED": defMap}},
 		})
 		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
+			return nil, err
 		}
-		return defs["DROP-MED"]
+		return defs["DROP-MED"], nil
 	}
 
-	if got := def(t, map[string]any{"med-remove": true}); !got.medRemove {
-		t.Error("med-remove true must set the removal")
+	got, err := parseDef(map[string]any{"del": map[string]any{"med": true}})
+	if err != nil {
+		t.Fatalf("del med: unexpected error: %v", err)
 	}
-	if got := def(t, map[string]any{"med-remove": "true"}); !got.medRemove {
-		t.Error("the text form the config parser can hand over must set the removal too")
+	if !got.medRemove {
+		t.Error("del med must set the removal")
 	}
-	if got := def(t, map[string]any{"med-remove": false, "local-preference": float64(200)}); got.medRemove {
-		t.Error("med-remove false must not remove anything")
+
+	got, err = parseDef(map[string]any{"set": map[string]any{"local-preference": float64(200)}})
+	if err != nil {
+		t.Fatalf("definition without del: unexpected error: %v", err)
 	}
-	if got := def(t, map[string]any{"local-preference": float64(200)}); got.medRemove {
-		t.Error("a set block that never names med-remove must not remove anything")
+	if got.medRemove {
+		t.Error("a definition without del must not remove MED")
+	}
+
+	for _, invalid := range []struct {
+		name string
+		key  string
+		def  map[string]any
+	}{
+		{"legacy_set_key", "med-remove", map[string]any{"set": map[string]any{"med-remove": true}}},
+		{"unknown_del_key", "origin", map[string]any{"del": map[string]any{"origin": true}}},
+	} {
+		t.Run(invalid.name, func(t *testing.T) {
+			_, err := parseDef(invalid.def)
+			if err == nil {
+				t.Fatalf("expected %s to be rejected", invalid.name)
+			}
+			if !strings.Contains(err.Error(), "unknown key") || !strings.Contains(err.Error(), invalid.key) {
+				t.Errorf("error %q does not identify unknown key %q", err.Error(), invalid.key)
+			}
+		})
 	}
 
 	// Removing the attribute and writing one are opposite instructions, and the
 	// delta text records neither's precedence over the other.
 	for _, conflict := range []map[string]any{
-		{"set": map[string]any{"med-remove": true, "med": float64(50)}},
-		{"set": map[string]any{"med-remove": true}, "increment": map[string]any{"med": float64(10)}},
-		{"set": map[string]any{"med-remove": true}, "decrement": map[string]any{"med": float64(10)}},
+		{"del": map[string]any{"med": true}, "set": map[string]any{"med": float64(50)}},
+		{"del": map[string]any{"med": true}, "increment": map[string]any{"med": float64(10)}},
+		{"del": map[string]any{"med": true}, "decrement": map[string]any{"med": float64(10)}},
 	} {
-		_, err := parseModifyDefs(map[string]any{
-			"policy": map[string]any{"modify": map[string]any{"BAD": conflict}},
-		})
+		_, err := parseDef(conflict)
 		if err == nil {
 			t.Fatalf("expected a conflict error for %v", conflict)
 		}

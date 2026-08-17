@@ -454,10 +454,10 @@ func rsTransparencyBody() []byte {
 // the forwarded AS_PATH equals the received AS_PATH.
 // RFC requirement: RFC7947-x-2 positive -- the route server MUST NOT rewrite NEXT_HOP for an RS
 // client under the default (transparent) next-hop mode; the forwarded NEXT_HOP is unchanged.
-// RFC requirement: RFC7947-x-3 positive -- the route server SHOULD preserve MULTI_EXIT_DISC
-// (RFC 7947 Section 2.2.3 states it as a recommendation, and Ze's automatic RFC 4271 Section
-// 5.1.4 strip never fires toward an RS client; an operator's own med-remove policy still
-// removes the metric upstream); the forwarded MED is carried across unchanged.
+// RFC requirement: RFC7947-x-3 positive -- the route server SHOULD preserve MULTI_EXIT_DISC.
+// RFC 7947 Section 2.2.3 states this as a recommendation. Ze's automatic RFC 4271
+// Section 5.1.4 strip never fires toward an RS client. An operator's own `del { med; }`
+// policy still removes the metric upstream. The forwarded MED is carried across unchanged.
 func TestReactorForwardRSTransparent(t *testing.T) {
 	ctx := bgpctx.EncodingContextForASN4(true)
 	ctxID, _ := bgpctx.Registry.Register(ctx)

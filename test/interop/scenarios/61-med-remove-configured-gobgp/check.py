@@ -4,8 +4,8 @@
 A raw injector EXTERNAL to Ze (65005 against Ze's 65001) announces two prefixes,
 both carrying ORIGIN, AS_PATH [65005], NEXT_HOP 172.30.0.9 and MULTI_EXIT_DISC
 100. Only 10.61.0.0/24 also carries COMMUNITY 65005:1. Ze's import chain on that
-session runs `modify DROP-MED`, whose set block is `med-remove true` and whose
-match container names that community. Ze relays both routes to GoBGP, which is
+session runs `modify DROP-MED`, whose `del` block is `del { med; }` and whose
+match container names that community. Ze relays both routes to GoBGP. GoBGP is
 an INTERNAL peer.
 
 THE DESTINATION IS INTERNAL BECAUSE THAT IS WHAT MAKES THE ABSENCE MEAN

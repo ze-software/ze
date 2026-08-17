@@ -139,11 +139,9 @@ func extractUint32Attr(updateText, attrName string) uint32 {
 	return uint32(v) //nolint:gosec // G115: bounded by ParseUint 32-bit
 }
 
-// readBool coerces a config value to a boolean. The config parser hands a YANG
-// boolean leaf over as a Go bool, and a hand-written or migrated tree can carry
-// it as the text the operator typed, so "true" is read in both forms. A YANG
-// boolean has no other spelling, so nothing else is accepted: a leaf nobody set
-// must not remove an attribute.
+// readBool coerces a config presence value to a boolean. Config delivery uses
+// a Go bool, while a hand-written or migrated tree can carry the text "true".
+// Nothing else is accepted: a leaf nobody set must not remove an attribute.
 func readBool(v any) bool {
 	switch b := v.(type) {
 	case bool:

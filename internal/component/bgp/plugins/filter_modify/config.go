@@ -9,6 +9,7 @@
 //	bgp { policy { modify NAME { set { local-preference 200; } } } }
 //	bgp { policy { modify NAME { increment { local-preference 50; } } } }
 //	bgp { policy { modify NAME { set { community-add [ 65000:200 ]; } } } }
+//	bgp { policy { modify NAME { del { med; } } } }
 //
 // Static set operations produce pre-built delta strings.
 // Increment/decrement operations are computed at runtime from current values.
@@ -31,7 +32,6 @@ const (
 var setBlockAllowedKeys = map[string]bool{
 	"local-preference":          true,
 	"med":                       true,
-	"med-remove":                true,
 	"origin":                    true,
 	"next-hop":                  true,
 	"as-path-prepend":           true,
@@ -74,7 +74,7 @@ func parseModifyDefs(bgpCfg map[string]any) (map[string]*modifyDef, error) {
 
 		for key := range defMap {
 			switch key {
-			case "match", "set", "increment", "decrement":
+			case "match", "set", "del", "increment", "decrement":
 			default:
 				return nil, fmt.Errorf("modify %q: unknown key %q", name, key)
 			}
@@ -98,7 +98,15 @@ func parseModifyDefs(bgpCfg map[string]any) (map[string]*modifyDef, error) {
 			if err := parseCommOps(setBlock, def); err != nil {
 				return nil, fmt.Errorf("modify %q: %w", name, err)
 			}
-			def.medRemove = readBool(setBlock["med-remove"])
+		}
+
+		if delBlock, ok := defMap["del"].(map[string]any); ok {
+			for key := range delBlock {
+				if key != "med" {
+					return nil, fmt.Errorf("modify %q: del: unknown key %q", name, key)
+				}
+			}
+			def.medRemove = readBool(delBlock["med"])
 		}
 
 		if incBlock, ok := defMap["increment"].(map[string]any); ok {
@@ -278,20 +286,20 @@ func joinValues(values []string) string {
 	return textbuf.Join(values, " ")
 }
 
-// validateNoConflict checks that set and increment/decrement don't target the same attribute.
+// validateNoConflict checks that set, del, and increment/decrement don't target
+// the same attribute.
 func validateNoConflict(def *modifyDef) error {
-	// Removing MULTI_EXIT_DISC and writing one are opposite instructions about
-	// the same attribute, and nothing in the delta text records which the
-	// operator meant. Refuse the pair rather than let the order of two map reads
+	// Deleting MULTI_EXIT_DISC and writing one are opposite instructions about
+	// the same attribute. Refuse the pair rather than let their processing order
 	// decide what reaches the wire.
 	if def.medRemove {
 		if containsAttrName(def.delta, "med") {
-			return fmt.Errorf("set med-remove conflicts with set med (mutually exclusive)")
+			return fmt.Errorf("del med conflicts with set med (mutually exclusive)")
 		}
 		for _, ops := range [][]incdec{def.increments, def.decrements} {
 			for _, op := range ops {
 				if op.attr == "med" {
-					return fmt.Errorf("set med-remove conflicts with increment/decrement med (mutually exclusive)")
+					return fmt.Errorf("del med conflicts with increment/decrement med (mutually exclusive)")
 				}
 			}
 		}

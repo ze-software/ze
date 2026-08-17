@@ -62,11 +62,11 @@ SECTION rather than the payload bytes, so a prefix holding the byte 0x04 or
 
 RFC 4271 Section 5.1.4 asks for one more thing: "A BGP speaker MUST implement a
 mechanism (based on local configuration) that allows the MULTI_EXIT_DISC
-attribute to be removed from a route." That mechanism is the `med-remove`
-directive of a modify policy (`docs/guide/plugins.md`), and it emits the SAME
-`filterapi.AttrModSuppress` on attribute 4 that `applyFactsMED` emits. One
-suppression, two reasons to trigger it: a rule ze derives, and a removal an
-operator asked for.
+attribute to be removed from a route." Public `del { med; }` in a modify policy
+(`docs/guide/plugins.md`) requests this removal. The plugin converts it to the
+private `med-remove` runtime delta token. The reactor converts that token to the
+same `filterapi.AttrModSuppress` on attribute 4 that `applyFactsMED` emits. One
+suppression has two triggers: a rule ze derives, and a removal an operator requests.
 
 It does not run on this rail. `ExtractMEDRemoveOps`
 (`internal/component/bgp/reactor/filter_delta.go`) is called from the INGRESS

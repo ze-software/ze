@@ -1201,7 +1201,8 @@ bgp {
 
 ### Route Attribute Modifier
 
-Named modifier definitions live under `bgp { policy { modify NAME { set { ... } } } }`.
+Named modifier definitions live under `bgp { policy { modify NAME { ... } } }`.
+Operations use `set`, `del`, `increment`, or `decrement` containers.
 Only present leaves are applied; undeclared attributes pass through unchanged.
 A definition applies to every route that reaches it. A definition that states a
 `match` container applies its operations only to the routes that meet the
@@ -1237,21 +1238,21 @@ bgp {
 |------|------|-------|---------|
 | `local-preference` | uint32 | 0-4294967295 | Set LOCAL_PREF |
 | `med` | uint32 | 0-4294967295 | Set MED |
-| `med-remove` | boolean | true, false | Remove MULTI_EXIT_DISC from the route |
+| `del/med` | empty | present | Remove MULTI_EXIT_DISC from the route |
 | `origin` | enum | igp, egp, incomplete | Set ORIGIN |
 | `next-hop` | IP address | IPv4 | Set NEXT_HOP |
 | `as-path-prepend` | uint8 | 1-32 | Prepend local AS N times |
 
-`med-remove` is the mechanism RFC 4271 Section 5.1.4 requires a speaker to
-implement, so it takes effect on an `import` chain only. That section requires
-the removal to happen before Decision Process phases 1 and 2, and the import
-chain is the only chain that runs there. On an `export` chain the directive is
-refused and logged. It is mutually exclusive with `med`, `increment med` and
-`decrement med`, and the configuration is refused when both are stated.
+`del { med; }` is the mechanism RFC 4271 Section 5.1.4 requires a speaker to
+implement. It takes effect on an `import` chain only. That section requires the
+removal before Decision Process phases 1 and 2, and the import chain is the only
+chain that runs there. On an `export` chain, the directive is refused and logged.
+It is mutually exclusive with `set med`, `increment med`, and `decrement med`.
+The configuration is refused when removal and one of these operations are both stated.
 
 A metric received from one neighboring AS is already kept off a session toward
 another with no configuration at all, which is the same section's propagation
-rule. `med-remove` is for the operator who wants the metric gone from the route
+rule. `del { med; }` is for the operator who wants the metric gone from the route
 itself.
 
 The `match` container holds three leaf-lists, `community`, `large-community` and

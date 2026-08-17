@@ -5,6 +5,8 @@
 # bgp-adj-rib-in replay provider and its source/destination attachments. This
 # repairs route-server replay when the source UPDATE precedes receiver peer-up;
 # every RFC assertion and expected wire outcome below is unchanged.
+# rfc-test-change-approved: 2026-08-17 Thomas approved replacing tests of the
+# removed, unreleased set { med-remove true; } syntax with del { med; }.
 #
 # RFC requirement: RFC4271-5.1.4-2 negative -- "If a BGP speaker is configured to remove the
 # MULTI_EXIT_DISC attribute from a route, then this removal MUST be done prior to determining the
@@ -79,10 +81,11 @@ plugin {
 }
 bgp {
 	policy {
-		# The same definition med-removal-configured.ci attaches to an import chain.
+		# The same del { med; } definition that med-removal-configured.ci
+		# attaches to an import chain.
 		modify DROP-MED {
-			set {
-				med-remove true
+			del {
+				med
 			}
 		}
 	}

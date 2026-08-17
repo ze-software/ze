@@ -1,7 +1,8 @@
-# Test: ze config validate accepts modify filter config
-# VALIDATES: YANG modify schema parses correctly
+# Test: ze config validate accepts del { med; } and rejects the removed syntax
+# VALIDATES: YANG modify schema parses del { med; } correctly
 # VALIDATES: Filter chain reference modify:NAME resolves
 # PREVENTS: YANG schema or augment regression breaking modify parsing
+# PREVENTS: Removed set { med-remove true; } syntax remains accepted
 stdin=config:terminator=EOF_CONF
 bgp {
 	policy {
@@ -29,12 +30,11 @@ bgp {
 			}
 		}
 		# RFC 4271 Section 5.1.4's configured MULTI_EXIT_DISC removal. A
-		# definition whose only operation is the removal is complete: the leaf
-		# is a boolean, and the schema must accept it beside the med SETTER it
-		# is mutually exclusive with.
+		# definition whose only operation is del { med; } is complete. The
+		# schema must accept it beside the MED setter that it conflicts with.
 		modify DROP-MED {
-			set {
-				med-remove true
+			del {
+				med
 			}
 		}
 	}
@@ -61,6 +61,22 @@ bgp {
 }
 EOF_CONF
 
+stdin=legacy:terminator=EOF_LEGACY
+bgp {
+	policy {
+		modify DROP-MED {
+			set {
+				med-remove true
+			}
+		}
+	}
+}
+EOF_LEGACY
+
 cmd=foreground:seq=1:exec=ze config validate -:stdin=config
 expect=exit:code=0
 expect=stdout:contains=configuration valid
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=legacy:exit=1
+expect=exit:code=1
+expect=stdout:contains=med-remove

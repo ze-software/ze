@@ -321,7 +321,7 @@ bgp {
                 large-community    [ 65001:100:200 ];
                 extended-community [ target:65000:100 ];
             }
-            set { med-remove true; }
+            del { med; }
         }
     }
 }
@@ -332,15 +332,15 @@ bgp {
 | `match/community` | leaf-list of string | (none) | Match the COMMUNITIES attribute (RFC 1997) |
 | `match/large-community` | leaf-list of string | (none) | Match the Large Communities attribute (RFC 8092) |
 | `match/extended-community` | leaf-list of string | (none) | Match the Extended Communities attribute (RFC 4360) |
-| `set/med-remove` | boolean | `false` | Remove the MULTI_EXIT_DISC attribute (RFC 4271 type 4) from the route |
+| `del/med` | empty | (none) | Remove the MULTI_EXIT_DISC attribute (RFC 4271 type 4) from the route |
 
-`med-remove` is the mechanism RFC 4271 Section 5.1.4 requires. It works on an
-import chain only. An export chain refuses it and logs why, because RFC 4271
+`del { med; }` is the mechanism RFC 4271 Section 5.1.4 requires. It works on
+an import chain only. An export chain refuses it and logs why, because RFC 4271
 Section 9.1.2.2 makes MULTI_EXIT_DISC part of the decision process.
 
-The `set { }` container also holds `local-preference`, `med`, `origin`,
-`next-hop`, `as-path-prepend`, and the community add and remove leaf-lists, and
-the `increment { }` and `decrement { }` containers are unchanged.
+The `set { }` container holds `local-preference`, `med`, `origin`, `next-hop`,
+`as-path-prepend`, and the community add and remove leaf-lists. The `del { }`
+container holds `med`. The `increment { }` and `decrement { }` containers are unchanged.
 <!-- source: internal/component/bgp/plugins/filter_modify/yang/ze-filter-modify.yang -- list modify -->
 
 ## Protocol Event Capture

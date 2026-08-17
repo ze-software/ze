@@ -22,12 +22,12 @@ option=tcp_connections:value=1
 option=bind:value=0.0.0.0
 option=timeout:value=300s
 
-# NOTHING IS ANNOUNCED UNTIL THE DESTINATION IS UP. The forward rail skips a
-# destination that is not established yet (forwardUpdateCore,
-# reactor/reactor_api_forward.go), so a prefix announced early either never
-# arrives or arrives on the replay rail instead. Ze sends a KEEPALIVE every 5 s
-# at the 15 s hold ze.conf sets, so four of them is a 20 s wait, and check.py
-# waits on the session besides.
+# THE WAIT FAVORS LIVE FORWARDING, BUT DOES NOT CLAIM THAT THE DESTINATION IS
+# UP. The runner starts GoBGP after Ze, so four KEEPALIVEs give the ordinary
+# forwarding path time to become ready. Correctness does not depend on that
+# elapsed time: Adj-RIB-In stores the post-import UPDATE and bgp-rs replays it
+# after the GoBGP peer-up state arrives if live forwarding had no destination.
+# Ze's 15 s hold sends the KEEPALIVEs below every 5 s.
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
 expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
 expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304

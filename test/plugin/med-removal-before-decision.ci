@@ -1,6 +1,9 @@
 # med-removal-before-decision -- the configured removal happens BEFORE the route is weighed,
 # observed in the store the decision process reads rather than argued from the code path.
 #
+# rfc-test-change-approved: 2026-08-17 Thomas approved replacing tests of the
+# removed, unreleased set { med-remove true; } syntax with del { med; }.
+#
 # RFC requirement: RFC4271-5.1.4-2 positive -- "If a BGP speaker is configured to remove the
 # MULTI_EXIT_DISC attribute from a route, then this removal MUST be done prior to determining the
 # degree of preference of the route and prior to performing route selection (Decision Process
@@ -124,12 +127,12 @@ plugin {
 }
 bgp {
 	policy {
-		# RFC 4271 Section 5.1.4's configured removal, on the IMPORT chain: that section
-		# requires the removal to precede Decision Process phases 1 and 2, and the import
-		# chain is the only chain that runs there.
+		# RFC 4271 Section 5.1.4's configured del { med; } removal is on the
+		# import chain. The section requires the removal to precede Decision
+		# Process phases 1 and 2, and only the import chain runs there.
 		modify DROP-MED {
-			set {
-				med-remove true
+			del {
+				med
 			}
 		}
 	}

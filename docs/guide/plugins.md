@@ -621,7 +621,7 @@ work as match values because the filter text format renders them as names.
 
 `bgp-filter-modify` applies declared operations to every route that reaches it
 in the filter chain. A definition that states a `match` container applies them
-only to the routes that meet it. Three operation types are supported:
+only to the routes that meet it. The operations are:
 
 **Set** (absolute value): `set { local-preference 200; med 50; origin igp;
 next-hop 10.0.0.1; as-path-prepend 3; }`. Only present leaves are applied.
@@ -636,18 +636,19 @@ Set and increment/decrement for the same attribute are mutually exclusive.
 individual community values (standard, large, extended) without replacing the
 entire attribute. The engine maps these to AttrModAdd/AttrModRemove operations.
 
-**MED removal**: `set { med-remove true; }`. Removes MULTI_EXIT_DISC (RFC 4271
-type 4) from the route. This is the mechanism RFC 4271 Section 5.1.4 requires a
-speaker to implement, so it is honored on an **import** chain only: that section
-also requires the removal to happen before the route reaches Decision Process
-phases 1 and 2, and the import chain is the only chain that runs there. On an
-export chain the directive is refused and logged, because RFC 4271 Section
+**MED removal**: `del { med; }`. This directive removes MULTI_EXIT_DISC (RFC
+4271 type 4) from the route. It is the mechanism RFC 4271 Section 5.1.4 requires
+a speaker to implement. It is honored on an **import** chain only, because that
+section also requires the removal before Decision Process phases 1 and 2. The
+import chain is the only chain that runs there.
+
+On an export chain, the directive is refused and logged. RFC 4271 Section
 9.1.2.2 states that comparing on a MULTI_EXIT_DISC and then advertising the
-route without it causes route loops. Mutually exclusive with `set med`,
-`increment med` and `decrement med`. A metric received from one neighboring AS
-is already kept off a session toward another with no configuration at all
-(Section 5.1.4); this leaf is for the operator who wants the metric gone from
-the route itself.
+route without it causes route loops. The directive is mutually exclusive with
+`set med`, `increment med`, and `decrement med`. A metric received from one
+neighboring AS is already kept off a session toward another with no
+configuration at all (Section 5.1.4). This directive is for the operator who
+wants the metric gone from the route itself.
 
 **Match** (the condition the operations apply under): `match { community [
 65535:666 ]; large-community [ 65001:100:200 ]; extended-community [

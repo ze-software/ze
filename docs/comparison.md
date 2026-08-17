@@ -165,7 +165,7 @@ function numbers customers signal on, `relation-tag` for the RFC 8195 relation
 tag, and `blackhole-propagation` to bound how far a received BLACKHOLE route
 travels. A `modify` policy carries its own `match` container over standard, large
 and extended communities, so one policy changes only the routes that carry a
-stated value and passes the rest through unchanged. Its `set { med-remove }` leaf
+stated value and passes the rest through unchanged. Its `del { med; }` directive
 is the mechanism RFC 4271 Section 5.1.4 requires, and it works on import chains
 only.
 
