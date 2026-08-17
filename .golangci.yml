@@ -74,6 +74,12 @@ linters:
       # slog.Handler interface requires slog.Record by value — cannot use pointer
       - path: "internal/core/slogutil/color\\.go"
         text: "hugeParam"
+      # IANA service names copied verbatim from the registry: "commonspace",
+      # "composit-server", "extensis", "fyre-messanger". They are the strings the
+      # lookup must return, so "correcting" one breaks the table.
+      - path: "internal/core/portname/services_table\\.go"
+        linters:
+          - misspell
 
   enable:
     # Core linters

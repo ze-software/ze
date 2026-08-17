@@ -870,4 +870,3 @@ func captureStderr(t *testing.T, fn func()) string {
 	}
 	return string(data)
 }
-
