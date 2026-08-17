@@ -10,7 +10,7 @@ option=asn:value=65001
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=show-warnings-filter-test.run:mode=755:terminator=EOF_RUN
+tmpfs=warnings-filter-show-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import json
 import sys
@@ -85,8 +85,8 @@ EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
-	external show-warnings-filter-test {
-		run ./show-warnings-filter-test.run
+	external warnings-filter-show-test {
+		run ./warnings-filter-show-test.run
 		encoder json
 	}
 }

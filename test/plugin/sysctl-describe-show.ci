@@ -24,7 +24,7 @@ option=timeout:value=15s
 # would test BGP rather than sysctl.
 EOF_PEER
 
-tmpfs=sysctl-show-describe.run:mode=755:terminator=EOF_RUN
+tmpfs=sysctl-describe-show.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 """Dispatch `sysctl show` and `sysctl describe` and verify output."""
 
@@ -106,8 +106,8 @@ EOF_RUN
 
 stdin=ze-sysctl:terminator=EOF_CONF
 plugin {
-	external sysctl-show-describe-test {
-		run ./sysctl-show-describe.run
+	external sysctl-describe-show-test {
+		run ./sysctl-describe-show.run
 		encoder json
 	}
 }

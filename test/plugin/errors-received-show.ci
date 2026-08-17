@@ -14,7 +14,7 @@ EOF_PEER
 
 # Python test plugin: poll "show errors" until the entry appears, then assert
 # the exact field values (subject, code, subcode, direction) and exact count.
-tmpfs=show-errors-received-test.run:mode=755:terminator=EOF_RUN
+tmpfs=errors-received-show-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import json
 import sys
@@ -58,7 +58,7 @@ def main():
     api.wait_for_registry()
     api.ready()
     if not api.wait_for_post_startup(timeout=10.0):
-        runtime_fail('show-errors-received: post-startup callback not received')
+        runtime_fail('errors-received-show: post-startup callback not received')
 
     try:
         # Poll for the notification-received entry instead of a fixed sleep.
@@ -132,8 +132,8 @@ EOF_RUN
 # ze bgp configuration: peer1 connects to ze-peer, which sends NOTIFICATION.
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
-	external show-errors-received-test {
-		run ./show-errors-received-test.run
+	external errors-received-show-test {
+		run ./errors-received-show-test.run
 		encoder json
 	}
 }

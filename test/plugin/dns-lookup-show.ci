@@ -10,7 +10,7 @@ option=asn:value=65001
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=show-dns-lookup-test.run:mode=755:terminator=EOF_RUN
+tmpfs=dns-lookup-show-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import json
 import sys
@@ -64,8 +64,8 @@ EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
-	external show-dns-lookup-test {
-		run ./show-dns-lookup-test.run
+	external dns-lookup-show-test {
+		run ./dns-lookup-show-test.run
 		encoder json
 	}
 }

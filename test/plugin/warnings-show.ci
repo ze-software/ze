@@ -11,7 +11,7 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
 # Python test plugin: issues "show bgp warnings" and checks the response
-tmpfs=show-warnings-test.run:mode=755:terminator=EOF_RUN
+tmpfs=warnings-show-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import json
 import sys
@@ -80,8 +80,8 @@ EOF_RUN
 # ze bgp configuration: peer1 has stale prefix data (2024-01-01)
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
-	external show-warnings-test {
-		run ./show-warnings-test.run
+	external warnings-show-test {
+		run ./warnings-show-test.run
 		encoder json
 	}
 }

@@ -11,7 +11,7 @@ option=asn:value=65001
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=show-interface-rate-test.run:mode=755:terminator=EOF_RUN
+tmpfs=interface-rate-show-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import sys
 from ze_api import API, dispatch, runtime_fail, result_text_data
@@ -76,8 +76,8 @@ EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
-	external show-interface-rate-test {
-		run ./show-interface-rate-test.run
+	external interface-rate-show-test {
+		run ./interface-rate-show-test.run
 		encoder json
 	}
 }

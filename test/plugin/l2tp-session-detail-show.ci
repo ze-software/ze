@@ -206,7 +206,7 @@ if __name__ == "__main__":
     sys.exit(main())
 EOF_PY
 
-tmpfs=show-l2tp-session-detail.run:mode=755:terminator=EOF_RUN
+tmpfs=l2tp-session-detail-show.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 """Fetch the session's local-sid, dispatch the detail form, assert fields."""
 import json
@@ -293,8 +293,8 @@ EOF_RUN
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
-	external show-l2tp-session-detail-test {
-		run ./show-l2tp-session-detail.run
+	external l2tp-session-detail-show-test {
+		run ./l2tp-session-detail-show.run
 		encoder json
 	}
 }

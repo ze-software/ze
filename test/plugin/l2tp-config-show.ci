@@ -21,7 +21,7 @@ option=timeout:value=15s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=show-l2tp-config.run:mode=755:terminator=EOF_RUN
+tmpfs=l2tp-config-show.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 """Dispatch `show l2tp config` and assert non-default values round-trip."""
 
@@ -89,8 +89,8 @@ EOF_RUN
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
-	external show-l2tp-config-test {
-		run ./show-l2tp-config.run
+	external l2tp-config-show-test {
+		run ./l2tp-config-show.run
 		encoder json
 	}
 }

@@ -13,7 +13,7 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002A0306041441646D69
 EOF_PEER
 
 # Python test plugin: trigger teardown, then poll "show errors".
-tmpfs=show-errors-sent-test.run:mode=755:terminator=EOF_RUN
+tmpfs=errors-sent-show-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import json
 import sys
@@ -121,8 +121,8 @@ EOF_RUN
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
-	external show-errors-sent-test {
-		run ./show-errors-sent-test.run
+	external errors-sent-show-test {
+		run ./errors-sent-show-test.run
 		encoder json
 	}
 }

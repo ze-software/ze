@@ -9,7 +9,7 @@ option=asn:value=65001
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=show-system-update-backend.run:mode=755:terminator=EOF_RUN
+tmpfs=system-update-backend-show.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import json
 from ze_api import API, runtime_fail, result_text_data
@@ -52,8 +52,8 @@ EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
-	external show-system-update-backend {
-		run ./show-system-update-backend.run
+	external system-update-backend-show {
+		run ./system-update-backend-show.run
 		encoder json
 	}
 }

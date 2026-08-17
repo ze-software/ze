@@ -21,7 +21,7 @@ option=asn:value=65001
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=show-interface-errors-test.run:mode=755:terminator=EOF_RUN
+tmpfs=interface-errors-show-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 """Assert `show interface errors` equals the error rows of `show interface`."""
 
@@ -122,8 +122,8 @@ EOF_RUN
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
-	external show-interface-errors-test {
-		run ./show-interface-errors-test.run
+	external interface-errors-show-test {
+		run ./interface-errors-show-test.run
 		encoder json
 	}
 }

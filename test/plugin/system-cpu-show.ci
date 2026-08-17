@@ -15,7 +15,7 @@ option=asn:value=65001
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=show-system-cpu-test.run:mode=755:terminator=EOF_RUN
+tmpfs=system-cpu-show-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 """Assert `show system cpu` produces real runtime and hardware values."""
 
@@ -107,8 +107,8 @@ EOF_RUN
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
-	external show-system-cpu-test {
-		run ./show-system-cpu-test.run
+	external system-cpu-show-test {
+		run ./system-cpu-show-test.run
 		encoder json
 	}
 }

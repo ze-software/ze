@@ -21,7 +21,7 @@ plugin {
 }
 EOF_DOCTOR_CONF
 
-tmpfs=show-doctor-owner-check.run:mode=755:terminator=EOF_RUN
+tmpfs=doctor-owner-check-show.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 """Dispatch `show doctor` and assert owner-registered checks are included."""
 
@@ -75,8 +75,8 @@ EOF_RUN
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
-    external show-doctor-owner-check {
-        run ./show-doctor-owner-check.run
+    external doctor-owner-check-show {
+        run ./doctor-owner-check-show.run
         encoder json
     }
 }

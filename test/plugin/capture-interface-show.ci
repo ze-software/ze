@@ -9,7 +9,7 @@ option=asn:value=65001
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=show-capture-interface-test.run:mode=755:terminator=EOF_RUN
+tmpfs=capture-interface-show-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import sys
 from ze_api import API, runtime_fail, result_text_data
@@ -61,8 +61,8 @@ EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
-	external show-capture-interface-test {
-		run ./show-capture-interface-test.run
+	external capture-interface-show-test {
+		run ./capture-interface-show-test.run
 		encoder json
 	}
 }

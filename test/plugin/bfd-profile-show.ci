@@ -24,7 +24,7 @@ option=timeout:value=15s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=bfd-show-profile.run:mode=755:terminator=EOF_RUN
+tmpfs=bfd-profile-show.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 """Exercise `show bfd profile` for the full list and a specific name."""
 
@@ -93,8 +93,8 @@ EOF_RUN
 
 stdin=ze-bfd:terminator=EOF_CONF
 plugin {
-	external bfd-show-profile-test {
-		run ./bfd-show-profile.run
+	external bfd-profile-show-test {
+		run ./bfd-profile-show.run
 		encoder json
 	}
 }

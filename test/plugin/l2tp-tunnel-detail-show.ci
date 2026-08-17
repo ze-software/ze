@@ -139,7 +139,7 @@ if __name__ == "__main__":
     sys.exit(main())
 EOF_PY
 
-tmpfs=show-l2tp-tunnel-detail.run:mode=755:terminator=EOF_RUN
+tmpfs=l2tp-tunnel-detail-show.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 """Fetch the tunnel's local-tid, dispatch the detail form, assert fields."""
 import json
@@ -245,8 +245,8 @@ EOF_RUN
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
-	external show-l2tp-tunnel-detail-test {
-		run ./show-l2tp-tunnel-detail.run
+	external l2tp-tunnel-detail-show-test {
+		run ./l2tp-tunnel-detail-show.run
 		encoder json
 	}
 }

@@ -150,7 +150,7 @@ if __name__ == "__main__":
     sys.exit(main())
 EOF_PY
 
-tmpfs=show-l2tp-statistics.run:mode=755:terminator=EOF_RUN
+tmpfs=l2tp-statistics-show.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 """Dispatch show l2tp statistics, assert active tunnel count >= 1."""
 import json
@@ -215,8 +215,8 @@ EOF_RUN
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
-	external show-l2tp-statistics-test {
-		run ./show-l2tp-statistics.run
+	external l2tp-statistics-show-test {
+		run ./l2tp-statistics-show.run
 		encoder json
 	}
 }

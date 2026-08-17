@@ -168,7 +168,7 @@ if __name__ == "__main__":
     sys.exit(main())
 EOF_PY
 
-tmpfs=show-l2tp-tunnels.run:mode=755:terminator=EOF_RUN
+tmpfs=l2tp-tunnels-show.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 """Dispatch show l2tp tunnels after the peer has brought up a tunnel."""
 import json
@@ -243,8 +243,8 @@ EOF_RUN
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
-	external show-l2tp-tunnels-test {
-		run ./show-l2tp-tunnels.run
+	external l2tp-tunnels-show-test {
+		run ./l2tp-tunnels-show.run
 		encoder json
 	}
 }

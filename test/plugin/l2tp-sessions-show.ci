@@ -199,7 +199,7 @@ if __name__ == "__main__":
     sys.exit(main())
 EOF_PY
 
-tmpfs=show-l2tp-sessions.run:mode=755:terminator=EOF_RUN
+tmpfs=l2tp-sessions-show.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 """Poll `show l2tp sessions` until the session appears."""
 import json
@@ -292,8 +292,8 @@ EOF_RUN
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
-	external show-l2tp-sessions-test {
-		run ./show-l2tp-sessions.run
+	external l2tp-sessions-show-test {
+		run ./l2tp-sessions-show.run
 		encoder json
 	}
 }

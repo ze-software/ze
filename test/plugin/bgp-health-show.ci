@@ -11,7 +11,7 @@ option=asn:value=65001
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=show-bgp-health-test.run:mode=755:terminator=EOF_RUN
+tmpfs=bgp-health-show-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import json
 import sys
@@ -56,8 +56,8 @@ EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
-	external show-bgp-health-test {
-		run ./show-bgp-health-test.run
+	external bgp-health-show-test {
+		run ./bgp-health-show-test.run
 		encoder json
 	}
 }

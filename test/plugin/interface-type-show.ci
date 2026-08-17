@@ -17,7 +17,7 @@ option=asn:value=65001
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=show-interface-type-test.run:mode=755:terminator=EOF_RUN
+tmpfs=interface-type-show-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 """Assert `show interface type` filters by type and rejects an unknown one."""
 
@@ -115,8 +115,8 @@ EOF_RUN
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
-	external show-interface-type-test {
-		run ./show-interface-type-test.run
+	external interface-type-show-test {
+		run ./interface-type-show-test.run
 		encoder json
 	}
 }

@@ -12,7 +12,7 @@ option=timeout:value=15s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=show-subscriber-enricher-wiring.run:mode=755:terminator=EOF_RUN
+tmpfs=subscriber-enricher-wiring-show.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 """Verify show subscriber + show class-of-service with enrichers registered."""
 
@@ -101,8 +101,8 @@ class-of-service {
 }
 
 plugin {
-	external show-subscriber-enricher-wiring-test {
-		run ./show-subscriber-enricher-wiring.run
+	external subscriber-enricher-wiring-show-test {
+		run ./subscriber-enricher-wiring-show.run
 		encoder json
 	}
 }

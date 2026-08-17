@@ -13,7 +13,7 @@ option=asn:value=65001
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=show-system-date-test.run:mode=755:terminator=EOF_RUN
+tmpfs=system-date-show-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 """Assert `show system date` produces a self-consistent, current timestamp."""
 
@@ -121,8 +121,8 @@ EOF_RUN
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
-	external show-system-date-test {
-		run ./show-system-date-test.run
+	external system-date-show-test {
+		run ./system-date-show-test.run
 		encoder json
 	}
 }

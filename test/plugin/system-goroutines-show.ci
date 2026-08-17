@@ -10,7 +10,7 @@ option=asn:value=65001
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=show-system-goroutines-test.run:mode=755:terminator=EOF_RUN
+tmpfs=system-goroutines-show-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import json
 import sys
@@ -62,8 +62,8 @@ EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
-	external show-system-goroutines-test {
-		run ./show-system-goroutines-test.run
+	external system-goroutines-show-test {
+		run ./system-goroutines-show-test.run
 		encoder json
 	}
 }

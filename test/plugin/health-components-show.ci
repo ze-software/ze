@@ -10,7 +10,7 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
 # Python test plugin: issues "show health" and checks components
-tmpfs=show-health-test.run:mode=755:terminator=EOF_RUN
+tmpfs=health-show-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import json
 import sys
@@ -69,8 +69,8 @@ EOF_RUN
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
-	external show-health-test {
-		run ./show-health-test.run
+	external health-show-test {
+		run ./health-show-test.run
 		encoder json
 	}
 }

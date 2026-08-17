@@ -17,7 +17,7 @@ EOF_PEER
 
 # Test plugin: enable the fast path early, then confirm the peer's announced
 # route was read through the Change.Forward handle (forwarded > 0).
-tmpfs=rs-fastpath.run:mode=755:terminator=EOF_RUN
+tmpfs=bgp-rs-fastpath.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import re
 import sys
@@ -87,8 +87,8 @@ EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
-	external rs-fastpath {
-		run ./rs-fastpath.run
+	external bgp-rs-fastpath {
+		run ./bgp-rs-fastpath.run
 		encoder json
 	}
 	internal bgp-rib {

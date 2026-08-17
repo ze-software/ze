@@ -25,7 +25,7 @@ option=timeout:value=15s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=bfd-show-sessions.run:mode=755:terminator=EOF_RUN
+tmpfs=bfd-sessions-show.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 """Run `show bfd sessions` against a ze daemon with two pinned sessions."""
 
@@ -89,8 +89,8 @@ EOF_RUN
 
 stdin=ze-bfd:terminator=EOF_CONF
 plugin {
-	external bfd-show-sessions-test {
-		run ./bfd-show-sessions.run
+	external bfd-sessions-show-test {
+		run ./bfd-sessions-show.run
 		encoder json
 	}
 }

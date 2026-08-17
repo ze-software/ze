@@ -24,7 +24,7 @@ EOF_PEER
 
 # Python test plugin: declares wants-config, rejects verify, polls the
 # report bus via `show errors` for the commit-aborted entry.
-tmpfs=show-errors-config-abort-test.run:mode=755:terminator=EOF_RUN
+tmpfs=errors-config-abort-show-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import json
 import sys
@@ -139,8 +139,8 @@ EOF_RUN
 # Initial ze config: plugin + BGP peer. router-id 1.2.3.4.
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
-	external show-errors-config-abort-test {
-		run ./show-errors-config-abort-test.run
+	external errors-config-abort-show-test {
+		run ./errors-config-abort-show-test.run
 		encoder json
 	}
 }
@@ -185,8 +185,8 @@ EOF_CONF
 # unchanged so the transaction participant list matches the active set.
 tmpfs=config2.conf:terminator=EOF_CONF2
 plugin {
-	external show-errors-config-abort-test {
-		run ./show-errors-config-abort-test.run
+	external errors-config-abort-show-test {
+		run ./errors-config-abort-show-test.run
 		encoder json
 	}
 }

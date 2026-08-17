@@ -17,7 +17,7 @@
 option=env:var=ze.log.flow.export:value=info
 option=timeout:value=20s
 
-tmpfs=show-flow-export.run:mode=755:terminator=EOF_RUN
+tmpfs=flow-export-show.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 """Dispatch show flow export and assert the configured collector is present."""
 import json
@@ -77,8 +77,8 @@ EOF_RUN
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
-	external show-flow-export-test {
-		run ./show-flow-export.run
+	external flow-export-show-test {
+		run ./flow-export-show.run
 		encoder json
 	}
 }

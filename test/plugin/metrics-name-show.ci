@@ -14,7 +14,7 @@ option=asn:value=65001
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=show-metrics-name-test.run:mode=755:terminator=EOF_RUN
+tmpfs=metrics-name-show-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import json
 import sys
@@ -68,8 +68,8 @@ EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
-	external show-metrics-name-test {
-		run ./show-metrics-name-test.run
+	external metrics-name-show-test {
+		run ./metrics-name-show-test.run
 		encoder json
 	}
 }
