@@ -522,6 +522,8 @@ unreachable by construction. You MUST NOT wait for one and you MUST NOT re-run f
 
 **Owner directive, 2026-08-17: a commit carrying `.go`, `go.mod`, `go.sum` or `vendor/` MUST be preceded by a full `make ze-precommit-verify` whose run STARTED after your last Go edit. You MUST NOT reach such a commit on scoped gates alone, and you MUST NOT re-run the gate to watch somebody else's red clear.** What the commit owes is the run's COVERAGE, never its exit code: the exit code is read through the attribution table below. `commit_helper.py create` enforces the coverage and names the owner-only escape when no such run exists.
 
+**One full run covers EVERY commit prepared from it. You MUST NOT re-run the gate between back-to-back commits of the same code.** The debt is incurred by an EDIT, never by a commit: one body of work split into three commits owes one run, not three, and the same run answers for all of them. What owes a fresh run is a Go file written again after that run started, and nothing else does.
+
 | The failing path | Whose red | What you do |
 |------------------|-----------|-------------|
 | In this commit's `--file` list | Yours | Fix it. A red you caused is never attributed away |

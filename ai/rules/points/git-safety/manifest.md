@@ -79,6 +79,7 @@ before-any-commit ## Before Any Commit
   a-shared-checkout-never-gives-a-clean-ze-verify-blocking
   a-clean-full-verify-is-unreachable-in-a-shared-tree
   run-the-full-gate-before-any-commit-carrying-go
+  one-run-covers-every-commit-until-the-next-go-edit
   who-owns-each-red-a-full-run-reports
   take-another-sessions-red-as-working-code
   a-full-gate-run-reddens-other-sessions

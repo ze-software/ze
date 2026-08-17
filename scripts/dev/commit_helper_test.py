@@ -3296,6 +3296,28 @@ class TestFullVerifyCoverage(unittest.TestCase):
             self.assertEqual(rc, 0, err)
             self.assertIn("Owner override", err)
 
+    def test_one_run_covers_back_to_back_commits_of_the_same_code(self) -> None:
+        # The debt is incurred by an EDIT, never by a commit: one body of work
+        # split into several commits owes one run. Without this the gate would
+        # demand 25 minutes between two halves of the same change.
+        with tempfile.TemporaryDirectory() as tmp:
+            root, path = self._git_repo_with_runner(tmp)
+            (root / "docs").mkdir()
+            (root / "docs" / "x.md").write_text("one line of prose\n")
+            edited = (root / path).stat().st_mtime
+            started = ch.datetime.datetime.fromtimestamp(
+                edited + 60, ch.datetime.timezone.utc
+            )
+            self._record(root, started.isoformat().replace("+00:00", "Z"))
+
+            rc, _, err = self._create(root, "--subject", "feat(a): x", "--file", path)
+            self.assertEqual(rc, 0, err)
+            # Second commit, same run, nothing edited in between.
+            rc, _, err = self._create(
+                root, "--subject", "docs: x", "--file", "docs/x.md", "--file", path
+            )
+            self.assertEqual(rc, 0, err)
+
     def test_a_go_deletion_is_gated_too(self) -> None:
         # Deleting a .go file changes what the tree builds, so a commit that
         # only removes Go owes the same run as one that adds it.
