@@ -3,16 +3,39 @@ package ssh
 import (
 	"context"
 	"net"
+	"sync"
 	"time"
 )
 
 type serverConn struct {
 	net.Conn
 
-	idleTimeout       time.Duration
+	idleTimeout   time.Duration
+	maxDeadline   time.Time
+	closeCanceler context.CancelFunc
+
+	// handshakeDeadline is cleared once the handshake completes, which happens
+	// after gossh.NewServerConn has started goroutines that read it via
+	// updateDeadline. Access it only through the accessors below.
+	mu                sync.Mutex
 	handshakeDeadline time.Time
-	maxDeadline       time.Time
-	closeCanceler     context.CancelFunc
+}
+
+// setHandshakeDeadline bounds how long the handshake may take.
+func (c *serverConn) setHandshakeDeadline(t time.Time) {
+	c.mu.Lock()
+	c.handshakeDeadline = t
+	c.mu.Unlock()
+	c.updateDeadline()
+}
+
+// clearHandshakeDeadline drops the handshake deadline once the handshake has
+// completed, leaving the idle and max deadlines to govern the connection.
+func (c *serverConn) clearHandshakeDeadline() {
+	c.mu.Lock()
+	c.handshakeDeadline = time.Time{}
+	c.mu.Unlock()
+	c.updateDeadline()
 }
 
 func (c *serverConn) Write(p []byte) (n int, err error) {
@@ -46,10 +69,16 @@ func (c *serverConn) Close() (err error) {
 }
 
 func (c *serverConn) updateDeadline() {
+	c.mu.Lock()
+	handshakeDeadline := c.handshakeDeadline
+	c.mu.Unlock()
+
+	// idleTimeout and maxDeadline are set before the handshake starts and never
+	// mutated afterwards, so they need no locking.
 	deadline := c.maxDeadline
 
-	if !c.handshakeDeadline.IsZero() && (deadline.IsZero() || c.handshakeDeadline.Before(deadline)) {
-		deadline = c.handshakeDeadline
+	if !handshakeDeadline.IsZero() && (deadline.IsZero() || handshakeDeadline.Before(deadline)) {
+		deadline = handshakeDeadline
 	}
 
 	if c.idleTimeout > 0 {

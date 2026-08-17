@@ -8,13 +8,13 @@ charm.land/bubbles/v2/viewport
 # charm.land/bubbletea/v2 v2.0.8
 ## explicit; go 1.25.0
 charm.land/bubbletea/v2
-# charm.land/lipgloss/v2 v2.0.5
+# charm.land/lipgloss/v2 v2.0.6
 ## explicit; go 1.25.0
 charm.land/lipgloss/v2
 # charm.land/log/v2 v2.0.0
 ## explicit; go 1.25.8
 charm.land/log/v2
-# charm.land/ssh v0.4.2
+# charm.land/ssh v0.4.3
 ## explicit; go 1.25.0
 charm.land/ssh
 # charm.land/wish/v2 v2.0.3
@@ -93,10 +93,10 @@ github.com/charmbracelet/colorprofile
 # github.com/charmbracelet/keygen v0.5.4
 ## explicit; go 1.24.0
 github.com/charmbracelet/keygen
-# github.com/charmbracelet/ultraviolet v0.0.0-20260703014108-f5a850f9c2b7
+# github.com/charmbracelet/ultraviolet v0.0.0-20260811164956-006e29f97886
 ## explicit; go 1.25.0
 github.com/charmbracelet/ultraviolet
-# github.com/charmbracelet/x/ansi v0.11.7
+# github.com/charmbracelet/x/ansi v0.11.8
 ## explicit; go 1.24.2
 github.com/charmbracelet/x/ansi
 github.com/charmbracelet/x/ansi/kitty
@@ -258,7 +258,7 @@ github.com/klauspost/compress/internal/le
 github.com/klauspost/compress/internal/snapref
 github.com/klauspost/compress/zstd
 github.com/klauspost/compress/zstd/internal/xxhash
-# github.com/lucasb-eyer/go-colorful v1.4.0
+# github.com/lucasb-eyer/go-colorful v1.4.1
 ## explicit; go 1.12
 github.com/lucasb-eyer/go-colorful
 # github.com/lunixbochs/struc v0.0.0-20200521075829-a4cb8d33dbbe
@@ -428,7 +428,7 @@ go.fd.io/govpp/binapi/wireguard
 go.fd.io/govpp/codec
 go.fd.io/govpp/core
 go.fd.io/govpp/core/genericpool
-# golang.org/x/crypto v0.54.0
+# golang.org/x/crypto v0.55.0
 ## explicit; go 1.25.0
 golang.org/x/crypto/argon2
 golang.org/x/crypto/bcrypt
@@ -454,13 +454,13 @@ golang.org/x/exp/slices
 golang.org/x/exp/slog
 golang.org/x/exp/slog/internal
 golang.org/x/exp/slog/internal/buffer
-# golang.org/x/mod v0.38.0
+# golang.org/x/mod v0.39.0
 ## explicit; go 1.25.0
 golang.org/x/mod/internal/lazyregexp
 golang.org/x/mod/modfile
 golang.org/x/mod/module
 golang.org/x/mod/semver
-# golang.org/x/net v0.57.0
+# golang.org/x/net v0.58.0
 ## explicit; go 1.25.0
 golang.org/x/net/bpf
 golang.org/x/net/html
@@ -499,7 +499,7 @@ golang.org/x/telemetry/internal/telemetry
 # golang.org/x/term v0.45.0
 ## explicit; go 1.25.0
 golang.org/x/term
-# golang.org/x/text v0.40.0
+# golang.org/x/text v0.41.0
 ## explicit; go 1.25.0
 golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
@@ -625,7 +625,7 @@ google.golang.org/grpc/tap
 # google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.6.2
 ## explicit; go 1.25.0
 google.golang.org/grpc/cmd/protoc-gen-go-grpc
-# google.golang.org/protobuf v1.36.11
+# google.golang.org/protobuf v1.36.12
 ## explicit; go 1.23
 google.golang.org/protobuf/cmd/protoc-gen-go
 google.golang.org/protobuf/cmd/protoc-gen-go/internal_gengo
