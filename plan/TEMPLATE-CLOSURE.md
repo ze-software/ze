@@ -118,7 +118,7 @@
 |-------|-------|
 | Artifact | [path printed by `review_gate.py record`] |
 | `review_gate.py check` | [clean / not run] |
-| Rounds | [N, and for N>3 the product defect that earned each extra round] |
+| Rounds | [N, and for N>5 the product defect that earned each extra round] |
 | Reviewer lenses used | [e.g. logic+wiring, security+edge-cases, feature risk area] |
 
 ### Findings fixed
