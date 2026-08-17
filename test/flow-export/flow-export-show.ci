@@ -20,7 +20,6 @@ option=timeout:value=20s
 tmpfs=flow-export-show.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 """Dispatch show flow export and assert the configured collector is present."""
-import json
 import time
 
 from ze_api import API, runtime_fail
@@ -46,10 +45,13 @@ def main():
     for _ in range(100):
         r = dispatch(api, 'show flow export')
         if r.get('status') == 'done':
-            try:
-                data = json.loads(r.get('data', '') or 'null')
-            except json.JSONDecodeError:
-                data = None
+            # The engine decodes the reply (the plugin block below declares
+            # `encoder json`), so data arrives already parsed, which is why
+            # every other observer in test/ reads result['data'] directly.
+            # Running it through json.loads handed a list to a str-only API and
+            # raised TypeError -- a type the JSONDecodeError arm cannot catch --
+            # so the observer died before reaching a single assertion below.
+            data = r.get('data')
             # not-configured is a dict; configured collectors are a list.
             if isinstance(data, list) and len(data) >= 1:
                 collectors = data
