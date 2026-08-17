@@ -188,17 +188,23 @@ class ReviewGateCase(unittest.TestCase):
         self.assertIn("no independent-review artifact", rb.stderr)
 
     def test_session_id_falls_back_on_unsafe_env(self):
-        # An unset or unsafe CLAUDE_CODE_SESSION_ID (including a trailing newline,
-        # which a plain `$`-anchored match would admit) must fall back to "shared"
-        # rather than leak into the artifact filename.
+        # A human/off-session invocation with an unset or unsafe
+        # CLAUDE_CODE_SESSION_ID (including a trailing newline, which a plain
+        # `$`-anchored match would admit) must fall back to "shared" rather than
+        # leak into the artifact filename. Clear the environment so a test run
+        # from a live fork does not exercise the fork-only resolver path.
         sys.path.insert(0, str(HERE))
         import review_gate as rg
         from unittest import mock
 
         for bad in ("", "a b", "a/b", "abc\n"):
-            with mock.patch.dict(os.environ, {"CLAUDE_CODE_SESSION_ID": bad}):
+            with mock.patch.dict(
+                os.environ, {"CLAUDE_CODE_SESSION_ID": bad}, clear=True
+            ):
                 self.assertEqual(rg.session_id(), "shared", f"{bad!r} should fall back")
-        with mock.patch.dict(os.environ, {"CLAUDE_CODE_SESSION_ID": "uuid-12ab"}):
+        with mock.patch.dict(
+            os.environ, {"CLAUDE_CODE_SESSION_ID": "uuid-12ab"}, clear=True
+        ):
             self.assertEqual(rg.session_id(), "uuid-12ab")
 
 

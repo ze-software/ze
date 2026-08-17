@@ -21,6 +21,7 @@ see: it would attribute work to the wrong phase and block the right one.
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import sys
@@ -29,6 +30,21 @@ import sys
 TAIL_BYTES = 1_048_576
 
 REVIEW_TIER = ("opus-5",)
+
+_SID_MODULE_PATH = os.path.abspath(
+    os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "..",
+        "..",
+        ".claude",
+        "hooks",
+        "lib",
+        "session_id.py",
+    )
+)
+_sid_spec = importlib.util.spec_from_file_location("ze_session_id", _SID_MODULE_PATH)
+_ze_session_id = importlib.util.module_from_spec(_sid_spec)
+_sid_spec.loader.exec_module(_ze_session_id)
 
 
 def transcript_dir() -> str:
@@ -44,22 +60,23 @@ def transcript_dir() -> str:
 def transcript_path() -> str:
     """This session's transcript, or '' when it cannot be identified.
 
-    When a session id is exported, its file is the ONLY acceptable answer. If
-    that file is missing (a new, resumed, or compacted session) the answer is "".
-    Falling through to "most recently written" would hand back a NEIGHBOUR
-    session's model: this project directory routinely holds three live
-    transcripts, and the mtime winner changes from second to second. A wrong
-    model is worse than no model, because it confidently blocks correct work and
-    confidently passes an off-model review.
-
-    The mtime fallback survives only for the case it is actually right for: no
-    session id at all, which means a single interactive session.
+    A safe direct session id names the only acceptable transcript. A fork with no
+    safe direct id uses the canonical resolver and never selects a neighbor by
+    modification time. The modification-time fallback remains only for a human
+    invocation with no session identity.
     """
-    sid = os.environ.get("CLAUDE_CODE_SESSION_ID", "").strip()
+    raw_sid = os.environ.get("CLAUDE_CODE_SESSION_ID")
+    sid = _ze_session_id._sid_safe(raw_sid)
     d = transcript_dir()
     if sid:
         p = os.path.join(d, f"{sid}.jsonl")
         return p if os.path.isfile(p) else ""
+    if os.environ.get("CLAUDE_CODE_FORK_SUBAGENT"):
+        sid = _ze_session_id.session_id()
+        p = os.path.join(d, f"{sid}.jsonl")
+        return p if os.path.isfile(p) else ""
+    if raw_sid is not None:
+        return ""
     try:
         entries = [os.path.join(d, n) for n in os.listdir(d) if n.endswith(".jsonl")]
     except Exception:
