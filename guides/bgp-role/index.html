@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>BGP Role (RFC 9234) - Ze</title>
+        <meta name="description" content="Ze documentation: guide/bgp-role.md" />
+        <meta property="og:title" content="BGP Role (RFC 9234) - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/bgp-role.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="BGP Role (RFC 9234) - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/bgp-role.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/guides/bgp-role/" />
+        <meta property="og:url" content="https://ze-software.net/guides/bgp-role/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-routing">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1 id="bgp-role-rfc-9234">BGP Role (RFC 9234)</h1>
+    <p>BGP Role enables route leak prevention by declaring the relationship between peers. When configured, ze adds the Only To Customer (OTC) path attribute to enforce proper route propagation based on the business relationship.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#configuration">Configuration</a>
+<ol>
+<li><a href="#config-reference">Config Reference</a></li>
+</ol></li>
+<li><a href="#role-values">Role Values</a>
+<ol>
+<li><a href="#valid-peer-pairs">Valid Peer Pairs</a></li>
+</ol></li>
+<li><a href="#otc-filtering">OTC Filtering</a>
+<ol>
+<li><a href="#what-role-the-procedures-use">What role the procedures use</a></li>
+<li><a href="#on-receipt">On Receipt</a></li>
+<li><a href="#on-send">On Send</a></li>
+<li><a href="#scope">Scope</a></li>
+</ol></li>
+<li><a href="#export-set">Export Set</a></li>
+<li><a href="#groups-and-dynamic-groups">Groups and Dynamic Groups</a></li>
+<li><a href="#config-that-cannot-be-reached">Config That Cannot Be Reached</a></li>
+<li><a href="#strict-mode">Strict Mode</a></li>
+<li><a href="#without-role">Without Role</a></li>
+</ol></nav>
+<!-- source: internal/component/bgp/plugins/role/register.go -- role registration, RFC 9234, OTC attribute -->
+
+<h2 id="configuration">Configuration</h2>
+<pre><code>bgp {
+    peer upstream {
+        remote { ip 10.0.0.1; as 65001; }
+        local { ip 10.0.0.2; as 65000; }
+        router-id 10.0.0.2
+
+        role {
+            import customer
+            strict true
+        }
+
+        family { ipv4/unicast; }
+    }
+}
+</code></pre>
+<h3 id="config-reference">Config Reference</h3>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>role / import</code></td>
+<td>enum</td>
+<td>--</td>
+<td>Declares local role and enables RFC 9234 ingress rules: <code>provider</code>, <code>customer</code>, <code>rs</code>, <code>rs-client</code>, <code>peer</code></td>
+</tr>
+<tr>
+<td><code>role / export</code></td>
+<td>list</td>
+<td>--</td>
+<td>Destination roles that may receive routes: <code>default</code>, <code>unknown</code>, or explicit role names. See <a href="#export-set">Export set</a></td>
+</tr>
+<tr>
+<td><code>role / strict</code></td>
+<td>bool</td>
+<td>false</td>
+<td>Reject peers that don't advertise the Role capability</td>
+</tr>
+</tbody>
+</table>
+<p>Role can be set at the group level and overridden per peer.</p>
+<!-- source: internal/component/bgp/plugins/role/yang/ -- ze-role YANG schema -->
+
+<h2 id="role-values">Role Values</h2>
+<table>
+<thead>
+<tr>
+<th>Role</th>
+<th>Code</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>provider</code></td>
+<td>0</td>
+<td>Sells transit to customers</td>
+</tr>
+<tr>
+<td><code>rs</code></td>
+<td>1</td>
+<td>Route server at an IXP</td>
+</tr>
+<tr>
+<td><code>rs-client</code></td>
+<td>2</td>
+<td>Client of a route server</td>
+</tr>
+<tr>
+<td><code>customer</code></td>
+<td>3</td>
+<td>Buys transit from providers</td>
+</tr>
+<tr>
+<td><code>peer</code></td>
+<td>4</td>
+<td>Settlement-free peering</td>
+</tr>
+</tbody>
+</table>
+<h3 id="valid-peer-pairs">Valid Peer Pairs</h3>
+<p>The local and remote roles must form a valid pair:</p>
+<table>
+<thead>
+<tr>
+<th>Local</th>
+<th>Remote</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>provider</td>
+<td>customer</td>
+</tr>
+<tr>
+<td>customer</td>
+<td>provider</td>
+</tr>
+<tr>
+<td>rs</td>
+<td>rs-client</td>
+</tr>
+<tr>
+<td>rs-client</td>
+<td>rs</td>
+</tr>
+<tr>
+<td>peer</td>
+<td>peer</td>
+</tr>
+</tbody>
+</table>
+<p>Mismatched roles cause a Role Mismatch NOTIFICATION (error 2, subcode 11).</p>
+<h2 id="otc-filtering">OTC Filtering</h2>
+<p>The OTC (Only To Customer) attribute (type 35) prevents route leaks:</p>
+<!-- source: internal/component/bgp/plugins/role/register.go -- OTCIngressFilter, OTCEgressFilter, otcAttrCode -->
+
+<h3 id="what-role-the-procedures-use">What role the procedures use</h3>
+<p>The Section 5 procedures act on what the PEER is to ze, not on what ze is to the peer. Ze resolves that value in one place, for the source peer on ingress and for the destination peer on egress.</p>
+<table>
+<thead>
+<tr>
+<th>Source</th>
+<th>When it is used</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>The Role capability in the peer's OPEN</td>
+<td>Whenever the peer sent one</td>
+</tr>
+<tr>
+<td>The complement of the local <code>import</code> role</td>
+<td>When the peer sent no Role capability</td>
+</tr>
+</tbody>
+</table>
+<p>RFC 9234 Section 4.2 settles the second row: "The locally configured BGP Role is used for the procedures described in Section 5." Section 8 names the non-compliant remote as the case the local AS must still stamp for. The complement is the pair table read the other way: <code>customer</code> means the peer IS a Provider, <code>provider</code> means the peer IS a Customer, <code>rs-client</code> means the peer IS an RS, <code>rs</code> means the peer IS an RS-Client, and <code>peer</code> means the peer IS a Peer.</p>
+<p>The complement feeds the RFC MUST gates only. The <code>export</code> set below still reads the capability, because <code>unknown</code> there is an operator-selected target and not a missing answer.</p>
+<!-- source: internal/component/bgp/plugins/role/otc.go -- resolvePeerRole, peerRoleComplement -->
+
+<h3 id="on-receipt">On Receipt</h3>
+<table>
+<thead>
+<tr>
+<th>Condition</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>OTC is malformed</td>
+<td>Treat-as-withdraw (RFC 7606)</td>
+</tr>
+<tr>
+<td>OTC present, peer is Customer or RS-Client</td>
+<td>Route leak, mark ineligible</td>
+</tr>
+<tr>
+<td>OTC present, peer is Peer, OTC value is not the peer's AS</td>
+<td>Route leak, mark ineligible</td>
+</tr>
+<tr>
+<td>OTC absent, peer is Provider, Peer, or RS</td>
+<td>Add OTC with the peer's AS</td>
+</tr>
+</tbody>
+</table>
+<h3 id="on-send">On Send</h3>
+<p>Four checks run in order. The first one that fires decides.</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Check</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>The route carries OTC and the destination is a Provider, Peer, or RS</td>
+<td>Suppress (RFC 9234 Section 5, no source config needed)</td>
+</tr>
+<tr>
+<td>2</td>
+<td>The destination is a Provider, Peer, or RS, and ze's role toward the SOURCE is customer, peer, or rs-client</td>
+<td>Suppress. This is the Gao-Rexford check</td>
+</tr>
+<tr>
+<td>3</td>
+<td>The source states <code>export</code> and the destination's capability role is outside that set</td>
+<td>Suppress. Operator policy, not an RFC gate</td>
+</tr>
+<tr>
+<td>4</td>
+<td>The destination is a Customer, Peer, or RS-Client, the UPDATE advertises a route, and OTC is absent</td>
+<td>Add OTC with ze's local AS for this session</td>
+</tr>
+</tbody>
+</table>
+<p>Check 2 reads the ingress metadata when the route came through the ingress filter, and falls back to the source peer's own <code>import</code> role when it did not. A stored-route replay carries no ingress metadata, and a missing value used to select the permissive branch.</p>
+<p>Check 4 does not depend on the source. A route from an iBGP peer, a route reflector client, a locally originated route, or an API-injected route reaches a Customer with OTC, because the RFC conditions that rule on the destination only.</p>
+<h3 id="scope">Scope</h3>
+<p>Both tables act on a <em>route</em>, so OTC processing is bounded twice:</p>
+<table>
+<thead>
+<tr>
+<th>Bound</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Address family</td>
+<td>Only AFI 1 (IPv4) and AFI 2 (IPv6) with SAFI 1 (unicast). The family comes from MP_REACH_NLRI, or from MP_UNREACH_NLRI when the UPDATE only withdraws, so a VPN, EVPN, flowspec or multicast <strong>withdrawal</strong> is excluded exactly as its announcement is, per RFC 9234 Section 5's "MUST NOT be applied to other address families by default"</td>
+</tr>
+<tr>
+<td>Reachable NLRI</td>
+<td>OTC is added only to an UPDATE that advertises a route. A withdraw-only UPDATE, an MP_UNREACH-only UPDATE and an End-of-RIB marker are forwarded untouched. Adding an attribute to them would produce a message RFC 4271 Section 4.3 says must not carry path attributes, which RFC 7606 Section 5.2 lets a conforming peer escalate to a session reset</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/bgp/plugins/role/otc.go -- isPayloadUnicast, payloadAdvertisesNLRI -->
+
+<p>Suppression is not bounded by the second rule: a route that already carries OTC
+is withheld from a Provider, Peer, or RS whether or not this particular UPDATE
+advertises it.</p>
+<h2 id="export-set">Export Set</h2>
+<p><code>role { export [ ... ] }</code> names the destination roles that can receive routes from this peer. It is operator policy on top of the RFC gates, and it applies only when the SOURCE peer states it.</p>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>default</code></td>
+<td>The RFC 9234 Section 5 defaults for the local role. See the table below</td>
+</tr>
+<tr>
+<td><code>unknown</code></td>
+<td>Also send to a peer whose role ze does not know</td>
+</tr>
+<tr>
+<td>An explicit role name</td>
+<td><code>provider</code>, <code>customer</code>, <code>peer</code>, <code>rs</code>, <code>rs-client</code></td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>Local <code>import</code></th>
+<th><code>default</code> expands to</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>provider</code></td>
+<td><code>customer</code>, <code>rs-client</code></td>
+</tr>
+<tr>
+<td><code>customer</code></td>
+<td><code>provider</code>, <code>rs</code>, <code>peer</code></td>
+</tr>
+<tr>
+<td><code>rs</code></td>
+<td><code>rs-client</code></td>
+</tr>
+<tr>
+<td><code>rs-client</code></td>
+<td><code>rs</code>, <code>provider</code></td>
+</tr>
+<tr>
+<td><code>peer</code></td>
+<td><code>customer</code>, <code>rs-client</code></td>
+</tr>
+</tbody>
+</table>
+<p>An unrecognized token is logged as a warning and kept as written, so it matches no destination.</p>
+<p><code>unknown</code> matches two states of a destination: a peer whose OPEN declared no role, and a peer whose OPEN was never recorded. The two suppress identically and are counted apart, so the drop reason tells an operator which one to look at. An unrecorded role points at validate-open, not at the export policy.</p>
+<h2 id="groups-and-dynamic-groups">Groups and Dynamic Groups</h2>
+<p>A role stated on a group reaches every member. A configured peer already carries its group's role, merged at parse time. A member of a dynamic group has no entry in the configuration document, so ze resolves its role through its group.</p>
+<p>Resolution is by address first and by group second, so a member that states its own role keeps it. Three decisions take that route: the Section 5 OTC gates, the Section 4.2 OPEN pair check with its strict mode, and the Role capability ze advertises to the member.</p>
+<p>A learned role survives a configuration reload while the configuration still names the peer, or names the group a dynamic member belongs to. An established session sends no second OPEN, so a dropped learned role could not be written back.</p>
+<h2 id="config-that-cannot-be-reached">Config That Cannot Be Reached</h2>
+<p>The runtime resolves role config by peer ADDRESS. A peer with no <code>connection &gt; remote &gt; ip</code>, and a name that is not an address, is logged as a warning and its role config is dropped. The group placeholder <code>dynamic</code> on a peer is refused the same way. Both used to be stored under a key nothing could look up, so the role was inert and silent.</p>
+<p>Every drop is counted, and the first one of each reason raises a warning that names the peer. Later drops are counted only, with per-route detail at debug level.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Reason labels</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze_role_route_rejects_total</code></td>
+<td><code>leak</code>, <code>malformed-otc</code></td>
+</tr>
+<tr>
+<td><code>ze_role_route_suppressions_total</code></td>
+<td><code>otc-present</code>, <code>source-role</code>, <code>export-set</code>, <code>role-unrecorded</code></td>
+</tr>
+</tbody>
+</table>
+<p>The label set is bounded at six series per metric. Peer identity is in the log line, never in a label.</p>
+<!-- source: internal/component/bgp/plugins/role/metrics.go -- recordDrop, dropReasonLabels -->
+
+<p><code>role-unrecorded</code> and <code>export-set</code> both mean the destination was outside the export set. They are counted apart because they call for opposite actions: <code>export-set</code> points at the policy, and <code>role-unrecorded</code> points at validate-open.</p>
+<h2 id="strict-mode">Strict Mode</h2>
+<p>When <code>strict true</code> is set, ze requires the peer to advertise the Role capability in its OPEN message. If the peer does not, ze sends a Role Mismatch NOTIFICATION and rejects the session.</p>
+<p>When strict mode is off (default), ze proceeds even if the peer does not advertise Role. OTC filtering is applied based on the locally configured role.</p>
+<h2 id="without-role">Without Role</h2>
+<p>When role is not configured for a peer, no OTC processing occurs. Routes are forwarded without role-based filtering.</p>
+<!-- source: internal/component/bgp/plugins/role/ -- role plugin implementation -->
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/quickstart/">
+                        <span class="page-sidebar-link-label">Quickstart</span>
+                        <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create zefs, and start SSH.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../reference/command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>PPPoE Access Concentrator - Ze</title>
+        <meta name="description" content="Ze documentation: guide/pppoe.md" />
+        <meta property="og:title" content="PPPoE Access Concentrator - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/pppoe.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="PPPoE Access Concentrator - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/pppoe.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/guides/pppoe/" />
+        <meta property="og:url" content="https://ze-software.net/guides/pppoe/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-services">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1 id="pppoe-access-concentrator">PPPoE Access Concentrator</h1>
+    <p>Ze implements an RFC 2516 PPPoE access concentrator for direct-attach
+subscriber access. PPPoE is the alternative to L2TP: subscribers connect
+over Ethernet to the BNG without an intermediate LAC/LNS tunnel.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#architecture">Architecture</a></li>
+<li><a href="#configuration">Configuration</a>
+<ol>
+<li><a href="#subscriber-authentication">Subscriber authentication</a></li>
+</ol></li>
+<li><a href="#interoperability">Interoperability</a></li>
+<li><a href="#cli-commands">CLI Commands</a></li>
+<li><a href="#security">Security</a></li>
+<li><a href="#concurrent-operation">Concurrent Operation</a></li>
+</ol></nav>
+<h2 id="architecture">Architecture</h2>
+<p>PPPoE uses the same transport-agnostic PPP Driver as L2TP. The PPPoE
+component handles discovery (PADI/PADO/PADR/PADS/PADT) and creates
+kernel PPPoE sessions via AF_PPPOX. The resulting /dev/ppp file
+descriptors feed into the PPP Driver, which runs LCP, authentication,
+and IPCP/IPv6CP identically to L2TP sessions.</p>
+<pre><code>Subscriber CPE
+    |
+    | Ethernet (ethertype 0x8863 discovery, 0x8864 session)
+    v
+PPPoE Subsystem (internal/component/l2tp/pppoe/)
+    |
+    | StartSession{ChanFD, UnitFD, AccessInterface, SubscriberMAC, ...}
+    v
+PPP Driver (internal/component/l2tp/ppp/)
+    |
+    v
+Auth/Pool/Shaper plugins (shared with L2TP)
+</code></pre>
+<h2 id="configuration">Configuration</h2>
+<pre><code>pppoe {
+    enabled true
+    ac-name &quot;my-bng&quot;
+    service-name &quot;internet&quot;
+    auth-method chap-md5
+    cookie-timeout 5
+    max-sessions 65535
+    padi-rate-limit 100
+    interface eth0 {
+    }
+    interface eth0.100 {
+        service-name &quot;vlan100&quot;
+        max-sessions 1000
+    }
+}
+</code></pre>
+<p>See <a href="../configuration-model/#pppoe-access">configuration guide</a> for all settings.</p>
+<p>The subsystem starts only when <code>enabled</code> is true and the block lists at least
+one <code>interface</code>. A <code>pppoe</code> block with no <code>interface</code> entry registers nothing and
+answers no PADI.</p>
+<h3 id="subscriber-authentication">Subscriber authentication</h3>
+<p><code>auth-method</code> is the PPP Auth-Protocol the access concentrator puts in its own
+LCP Configure-Request: <code>chap-md5</code> (the default), <code>pap</code>, <code>ms-chap-v2</code>, or <code>none</code>.
+<code>none</code> requires <code>allow-no-auth true</code> beside it, because an access concentrator
+that asks nobody who they are is a decision and not a default. That combination,
+and an <code>auth-method</code> value the PPP driver does not know, are both refused when
+the daemon starts, with <code>parse pppoe config: ...</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Leaf</th>
+<th>Default</th>
+<th>Values</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>auth-method</code></td>
+<td><code>chap-md5</code></td>
+<td><code>none</code>, <code>pap</code>, <code>chap-md5</code>, <code>ms-chap-v2</code></td>
+<td>Auth-Protocol advertised in the AC's LCP Configure-Request (RFC 1661 Section 6.2)</td>
+</tr>
+<tr>
+<td><code>allow-no-auth</code></td>
+<td><code>false</code></td>
+<td>boolean</td>
+<td>Admit a subscriber whose LCP ends with no Auth-Protocol negotiated</td>
+</tr>
+</tbody>
+</table>
+<p>The default matches the L2TP LNS default, so an operator who configures a
+credential for one transport gets the same treatment on the other.</p>
+<p>The credential comes from the same auth plugins the L2TP LNS uses. Configure a
+local user, or a RADIUS server:</p>
+<pre><code>l2tp {
+    auth {
+        local {
+            user alice {
+                password &quot;s3cr3t&quot;
+            }
+        }
+    }
+    pool {
+        ipv4 {
+            gateway 10.20.0.1
+            start 10.20.0.2
+            end 10.20.0.254
+        }
+    }
+}
+</code></pre>
+<p>The <code>l2tp</code> block here configures the shared BNG plugins, not an L2TP listener:
+<code>l2tp-auth-local</code> verifies the credential and <code>l2tp-pool</code> supplies the IPCP
+address. A PPPoE-only BNG needs neither <code>l2tp enabled</code> nor an L2TP server.</p>
+<p>The PPP auth handler slot holds one handler, and configuration decides its
+owner: <code>l2tp-auth-radius</code> claims it when a RADIUS server is configured, and
+<code>l2tp-auth-local</code> keeps it otherwise. A box with local users and no RADIUS block
+therefore authenticates against those users, on PPPoE and on L2TP.</p>
+<!-- source: internal/component/l2tp/plugins/authradius/register.go -- activateRadiusConfig claims the slot -->
+
+<h2 id="interoperability">Interoperability</h2>
+<p>Two Docker lab scenarios run Ze in each PPPoE role. <code>make
+ze-deployment-docker-pppoe-accel-test</code> runs both.</p>
+<table>
+<thead>
+<tr>
+<th>Scenario</th>
+<th>Ze role</th>
+<th>Peer</th>
+<th>Proves</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>01-pppoe-chap-ipv4</code></td>
+<td>client</td>
+<td>accel-ppp</td>
+<td>Discovery, LCP, CHAP-MD5, the IPCP address on a kernel <code>pppN</code> interface, a ping to the AC gateway through the session, and a clean teardown</td>
+</tr>
+<tr>
+<td><code>02-ze-ac-pppd-client</code></td>
+<td>access concentrator</td>
+<td>pppd 2.5.1 with the rp-pppoe plugin</td>
+<td>Discovery, LCP demanding CHAP-MD5, the credential accepted, an IPCP pool address, ICMP across the session, and a wrong password refused before IPCP</td>
+</tr>
+</tbody>
+</table>
+<p><code>make ze-qemu-pppoe-accel-test</code> runs the client half in QEMU, and <code>make
+ze-qemu-pppoe-test</code> runs the access concentrator's own <code>test/pppoe/</code> suite on
+Ze's runtime kernel (stock Alpine has no <code>CONFIG_PPPOE</code>).</p>
+<h2 id="cli-commands">CLI Commands</h2>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>show pppoe</code></td>
+<td>Subsystem summary</td>
+</tr>
+<tr>
+<td><code>show pppoe sessions</code></td>
+<td>List active sessions</td>
+</tr>
+<tr>
+<td><code>show pppoe session &lt;sid&gt;</code></td>
+<td>Show one session</td>
+</tr>
+<tr>
+<td><code>show pppoe statistics</code></td>
+<td>Per-interface counters</td>
+</tr>
+<tr>
+<td><code>show pppoe interfaces</code></td>
+<td>Configured access interfaces</td>
+</tr>
+</tbody>
+</table>
+<h2 id="security">Security</h2>
+<ul>
+<li><strong>AC-Cookie</strong>: HMAC-SHA256 cookie in PADO/PADR prevents PADR flooding.
+  Cookies expire after <code>cookie-timeout</code> seconds (default 5).</li>
+<li><strong>PADI rate limiting</strong>: Per-source-MAC rate limit prevents discovery
+  flooding. Configurable via <code>padi-rate-limit</code> (default 100/s).</li>
+<li><strong>Service-Name filtering</strong>: Only PADIs matching configured service names
+  are accepted. Empty list means accept any.</li>
+<li><strong>MAC binding</strong>: Sessions are bound to the subscriber MAC from PADR.
+  PADTs from other MACs are rejected.</li>
+</ul>
+<h2 id="concurrent-operation">Concurrent Operation</h2>
+<p>PPPoE and L2TP run concurrently on the same daemon. Both share the same
+PPP Driver, auth handlers, IP pools, and shaper plugins. The PPP
+component distinguishes sessions by TunnelID (ifindex for PPPoE, tunnel
+ID for L2TP) and SessionID.</p>
+<!-- source: internal/component/l2tp/pppoe/subsystem.go -->
+<!-- source: internal/component/l2tp/pppoe/server.go -->
+<!-- source: internal/component/l2tp/pppoe/discovery.go -->
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/quickstart/">
+                        <span class="page-sidebar-link-label">Quickstart</span>
+                        <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create zefs, and start SSH.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../reference/command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

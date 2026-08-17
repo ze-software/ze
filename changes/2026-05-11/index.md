@@ -1,0 +1,39 @@
+# Week of 2026-05-11
+
+CPE features round out, interface config gets restructured, and RPKI gains ASPA path verification.
+
+## 🏠 CPE / edge router
+
+Several pieces needed for Ze to run as a customer-premises router landed together:
+
+- A DHCP server plugin (RFC 2131/2132) with lease tracking, static MAC-to-IP mappings, and multi-subnet dispatch
+- A PPPoE client interface kind, dialling an access concentrator and negotiating LCP/CHAP/PAP/IPCP for a routable PPP session
+- Declarative conntrack management (helper modules, table sizing, per-protocol timeouts)
+- Serial console configuration for headless boxes, working on both gokrazy and standard Linux
+- A firmware update checker plus a `ze update-serve` command for hosting update manifests and binaries
+
+## 🔌 Interfaces
+
+Interface config got more structured: rp-filter's integer setting is now a `strict`/`loose`/`disable` enum, addresses moved into per-family `ipv4`/`ipv6` containers (Junos/Nokia-style), interface units are now named by string label instead of numeric ID, and per-interface offload/steering (GRO, GSO, TSO, LRO, RPS, RFS, hw-tc-offload) is configurable.
+
+## 🛰️ Routing
+
+- Static routes gained named routing tables for policy-based routing, plus interface-only next-hops for point-to-point links
+- Kernel-installed routes (from DHCP, PPP, or manual `ip route add`) can now redistribute into BGP
+- Connected prefixes and L2TP RADIUS framed routes redistribute the same way
+- Redistribution rules can now scope by destination protocol
+- BGP keepalive timer is configurable independently of hold-time
+- MPLS labels from BGP labeled unicast now flow through the RIB into the VPP FIB
+- A new `bgp rib rpf` command does LPM-based reverse-path lookups for external multicast daemons
+
+## 🔒 Security
+
+RPKI gained ASPA path verification against RFC 9582 provider authorization records over RTR v2. It ships opt-in, off by default, after an initial default-on release flagged every route as "unknown" wherever no ASPA infrastructure was deployed.
+
+## 📊 Observability
+
+BMP-received routes now live in their own RIB slot and show up in the looking glass under a dedicated "BMP Monitored Peers" section, kept separate from BGP best-path selection. Host hardware (CPU, NIC, memory, storage, thermal) is now live in the web UI, storage inventory picks up SMART health data, and a new hardware tuning engine (CPU governor, IRQ affinity, ethtool ring buffers) applies at startup and on config reload. NIC flaps, ECC error growth, and CPU throttling now surface in `show warnings`/`show errors`.
+
+## 🛠️ Under the hood
+
+Config archiving was redesigned around named blocks with triggers (commit, manual, daily, hourly) and change detection, and config history/rollback got a proper date-based version API. RIB attribute storage was reworked for better cache density, alongside a broader pass removing allocations from BGP's hot paths. The MCP server picked up the latest protocol additions: embedded UI resources and background task-augmented tool calls.

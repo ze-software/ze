@@ -1,0 +1,32 @@
+# `show as112`
+
+## Ze command
+
+- Syntax: `show as112`
+- Registry path: `show as112`
+- Mode: Read-only
+- Wire method: `ze-show:as112`
+- Global pipes: yes
+
+AS112 node status: enabled, address-family, hostname/ facility/location, allow-from count, served zone count, and the current SOA serial.
+
+## Mapping intents
+
+No vendor equivalent has been curated yet for this Ze command.
+## Vendor equivalents
+
+### Junos MX
+
+No equivalent listed.
+
+### IOS XR
+
+No equivalent listed.
+
+### SR OS
+
+No equivalent listed.
+
+### VyOS
+
+No equivalent listed.

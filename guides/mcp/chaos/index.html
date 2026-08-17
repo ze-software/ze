@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>Chaos MCP Server - Ze</title>
+        <meta name="description" content="Ze documentation: guide/mcp/chaos.md" />
+        <meta property="og:title" content="Chaos MCP Server - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/mcp/chaos.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Chaos MCP Server - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/mcp/chaos.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/guides/mcp/chaos/" />
+        <meta property="og:url" content="https://ze-software.net/guides/mcp/chaos/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../roadmap/">Roadmap</a>
+                    <a href="../../../changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-observe">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1 id="chaos-mcp-server">Chaos MCP Server</h1>
+    <p>ze-chaos includes an MCP (Model Context Protocol) server that lets AI assistants
+query chaos test state, detect problems, and control the chaos scheduler.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#starting">Starting</a></li>
+<li><a href="#ze-mcp-injection">Ze MCP Injection</a></li>
+<li><a href="#tools">Tools</a>
+<ol>
+<li><a href="#chaos_status">chaos_status</a></li>
+<li><a href="#chaos_problems">chaos_problems</a></li>
+<li><a href="#chaos_peers">chaos_peers</a></li>
+<li><a href="#chaos_scenario">chaos_scenario</a></li>
+<li><a href="#chaos_control">chaos_control</a></li>
+<li><a href="#chaos_execute">chaos_execute</a></li>
+</ol></li>
+<li><a href="#watchdog">Watchdog</a>
+<ol>
+<li><a href="#stateful-anomalies-tracked-over-time">Stateful anomalies (tracked over time)</a></li>
+<li><a href="#instant-anomalies-single-event">Instant anomalies (single event)</a></li>
+</ol></li>
+<li><a href="#protocol">Protocol</a></li>
+</ol></nav>
+<h2 id="starting">Starting</h2>
+<pre><code class="language-bash">ze-chaos --mcp :8001 --web :8000 --peers 4 --routes 1000
+</code></pre>
+<p>The <code>--mcp</code> flag starts an HTTP MCP server on the given address. The <code>--web</code>
+flag is required because the MCP server reads from the web dashboard's shared
+state.</p>
+<p>Use <code>--ai-help</code> to print the tool definitions as JSON (for configuring AI
+clients):</p>
+<pre><code class="language-bash">ze-chaos --ai-help
+</code></pre>
+<h2 id="ze-mcp-injection">Ze MCP Injection</h2>
+<p>To inject an MCP server into the Ze daemon started by ze-chaos:</p>
+<pre><code class="language-bash">ze-chaos --ze-mcp 9718 ...
+</code></pre>
+<p>This adds <code>environment { mcp { port 9718; } }</code> to the generated Ze config.</p>
+<h2 id="tools">Tools</h2>
+<h3 id="chaos_status">chaos_status</h3>
+<p>Full snapshot of the chaos test state: peer counts, route counts, convergence
+statistics (min/avg/max/p50/p90/p99 with histogram), per-family convergence,
+throughput, property results.</p>
+<h3 id="chaos_problems">chaos_problems</h3>
+<p>Filtered list of actionable issues. Returns an empty JSON array when healthy.
+Problem types: missing-routes, peer-stuck-down, route-plateau, slow-convergence,
+dropped-events, property-violation.</p>
+<h3 id="chaos_peers">chaos_peers</h3>
+<p>Per-peer detail. Omit the <code>peer</code> argument for a summary of all peers. Provide
+a peer index for full detail including recent chaos history (last 5 actions).</p>
+<h3 id="chaos_scenario">chaos_scenario</h3>
+<p>Static scenario metadata: seed, peer count.</p>
+<h3 id="chaos_control">chaos_control</h3>
+<p>Control chaos scheduling. Actions: pause, resume, trigger, rate, stop.
+The description steers AI to check status before changing anything.</p>
+<h3 id="chaos_execute">chaos_execute</h3>
+<p>Escape hatch for arbitrary orchestrator commands. Prefer the specific tools
+when possible.</p>
+<h2 id="watchdog">Watchdog</h2>
+<p>The Watchdog is a report consumer that prints structured <code>PROBLEM:</code> lines to
+stderr for real-time anomaly detection. It runs regardless of whether the MCP
+server is enabled.</p>
+<h3 id="stateful-anomalies-tracked-over-time">Stateful anomalies (tracked over time)</h3>
+<table>
+<thead>
+<tr>
+<th>Anomaly</th>
+<th>Detection</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Peer not reconnecting</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>Route count plateau</td>
+<td>recv &lt; sent AND no change for 10s</td>
+</tr>
+<tr>
+<td>Route regression</td>
+<td>recv decreased without chaos withdrawal</td>
+</tr>
+<tr>
+<td>Convergence stall</td>
+<td class="cell-no">✕</td>
+</tr>
+</tbody>
+</table>
+<h3 id="instant-anomalies-single-event">Instant anomalies (single event)</h3>
+<table>
+<thead>
+<tr>
+<th>Anomaly</th>
+<th>Trigger</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Error</td>
+<td>EventError</td>
+</tr>
+<tr>
+<td>Dropped events</td>
+<td>EventDroppedEvents</td>
+</tr>
+<tr>
+<td>Property violation</td>
+<td>Property transitions pass to fail</td>
+</tr>
+</tbody>
+</table>
+<p>All problems are rate-limited: the same (anomaly-type, peer-index) pair prints
+at most once per 10 seconds.</p>
+<h2 id="protocol">Protocol</h2>
+<p>The chaos MCP server speaks JSON-RPC 2.0 over the MCP 2026-07-28 Streamable
+HTTP transport at the <code>/mcp</code> endpoint. This server uses the same implementation
+as the ze daemon's MCP server: <code>NewStreamable</code> with the chaos <code>ToolProvider</code>.</p>
+<!-- source: internal/chaos/orchestrator/run.go -- NewStreamable(Provider) mount -->
+
+<p>The transport is stateless, so every request stands alone: no handshake, no
+session id to thread. Provider mode changes only which tools the server offers.
+Provider mode does not change how the server validates a request. A chaos
+request therefore carries the same standard headers and the same
+<code>params._meta</code> block as any other MCP request.</p>
+<!-- source: internal/component/mcp/streamable.go -- StreamableConfig.Provider, handlePOST -->
+
+<p><code>ze-chaos</code> configures no token and no auth mode, which infers <code>auth-mode none</code>:
+an authenticator that accepts every caller as an anonymous identity. There is
+no unauthenticated code path, only an accept-all authenticator.</p>
+<!-- source: internal/component/mcp/bearer.go -- noneAuthenticator.Authenticate -->
+
+<pre><code class="language-bash">curl -s http://127.0.0.1:8001/mcp \
+  -H 'Content-Type: application/json' \
+  -H 'MCP-Protocol-Version: 2026-07-28' \
+  -H 'Mcp-Method: tools/call' \
+  -H 'Mcp-Name: chaos_status' \
+  -d '{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:1,&quot;method&quot;:&quot;tools/call&quot;,&quot;params&quot;:{
+        &quot;name&quot;:&quot;chaos_status&quot;,&quot;arguments&quot;:{},
+        &quot;_meta&quot;:{&quot;io.modelcontextprotocol/protocolVersion&quot;:&quot;2026-07-28&quot;,
+                 &quot;io.modelcontextprotocol/clientCapabilities&quot;:{}}}}'
+</code></pre>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/quickstart/">
+                        <span class="page-sidebar-link-label">Quickstart</span>
+                        <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create zefs, and start SSH.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../reference/command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

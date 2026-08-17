@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>MCP Remote Access - Ze</title>
+        <meta name="description" content="Ze documentation: guide/mcp/remote-access.md" />
+        <meta property="og:title" content="MCP Remote Access - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/mcp/remote-access.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="MCP Remote Access - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/mcp/remote-access.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/guides/mcp/remote-access/" />
+        <meta property="og:url" content="https://ze-software.net/guides/mcp/remote-access/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../roadmap/">Roadmap</a>
+                    <a href="../../../changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-secure">
+<!-- source: internal/component/mcp/yang/ze-mcp-conf.yang -- bind-remote, auth-mode, oauth, tls -->
+<!-- source: internal/component/config/loader_extract.go -- MCPListenConfig.Validate -->
+
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1 id="mcp-remote-access">MCP Remote Access</h1>
+    <p>Ze's MCP server defaults to loopback binding (<code>127.0.0.1</code>). Two patterns make
+it reachable from other machines:</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#option-1-tunnel-based-loopback-binding">Option 1: Tunnel-based (loopback binding)</a></li>
+<li><a href="#starting-the-mcp-server">Starting the MCP Server</a></li>
+<li><a href="#ssh-port-forwarding">SSH Port Forwarding</a>
+<ol>
+<li><a href="#forward-a-remote-mcp-port-to-your-local-machine">Forward a Remote MCP Port to Your Local Machine</a></li>
+<li><a href="#let-a-remote-machine-reach-your-local-mcp">Let a Remote Machine Reach Your Local MCP</a></li>
+<li><a href="#running-in-the-background">Running in the Background</a></li>
+<li><a href="#multiple-mcp-servers">Multiple MCP Servers</a></li>
+</ol></li>
+<li><a href="#wireguard-tunnel">WireGuard Tunnel</a>
+<ol>
+<li><a href="#setup-overview">Setup Overview</a></li>
+<li><a href="#router-side-where-ze-runs">Router Side (where Ze runs)</a></li>
+<li><a href="#laptop-side">Laptop Side</a></li>
+<li><a href="#generating-wireguard-keys">Generating WireGuard Keys</a></li>
+</ol></li>
+<li><a href="#which-approach-to-use">Which Approach to Use</a></li>
+<li><a href="#option-2-native-remote-binding">Option 2: Native remote binding</a>
+<ol>
+<li><a href="#config-verify-rejects-unsafe-combinations">Config verify rejects unsafe combinations</a></li>
+</ol></li>
+<li><a href="#security-notes">Security Notes</a></li>
+</ol></nav>
+<ol>
+<li><strong>Tunnel-based</strong> (recommended for dev): keep MCP on loopback, use SSH or
+   WireGuard as the encrypted transport. Operator does not have to manage
+   TLS certs.</li>
+<li><strong>Native remote</strong>: bind MCP to a non-loopback address with authentication
+   and TLS. Operator-managed certificate; client-side discovery via RFC 9728.</li>
+</ol>
+<h2 id="option-1-tunnel-based-loopback-binding">Option 1: Tunnel-based (loopback binding)</h2>
+<p>This is the Phase 1 posture. MCP binds <code>127.0.0.1</code>, you tunnel from your
+client host. Ze's config verifier accepts <code>auth-mode none</code> on loopback, so no
+token is required. Add <code>auth-mode bearer</code> if the loopback is shared by
+untrusted local users (e.g., multi-tenant hosts).</p>
+<h2 id="starting-the-mcp-server">Starting the MCP Server</h2>
+<pre><code class="language-bash">ze start --mcp 8080 bgp.conf
+</code></pre>
+<p>This listens on <code>127.0.0.1:8080</code>. Only local connections are accepted.</p>
+<h2 id="ssh-port-forwarding">SSH Port Forwarding</h2>
+<p>SSH forwards a port on the remote machine's loopback to your local machine (or
+vice versa). The traffic is encrypted inside the SSH session.</p>
+<h3 id="forward-a-remote-mcp-port-to-your-local-machine">Forward a Remote MCP Port to Your Local Machine</h3>
+<p>You have Ze running on <code>router.example.com</code> with <code>--mcp 8080</code>. You want to
+reach it from your laptop.</p>
+<pre><code class="language-bash"># On your laptop:
+ssh -L 8080:127.0.0.1:8080 user@router.example.com
+</code></pre>
+<p>This binds <code>127.0.0.1:8080</code> on your laptop. Requests to <code>localhost:8080</code> travel
+through the SSH tunnel and arrive at <code>127.0.0.1:8080</code> on the router.</p>
+<pre><code class="language-bash"># Test from your laptop:
+curl -s http://localhost:8080/ -X POST \
+  -d '{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:1,&quot;method&quot;:&quot;tools/list&quot;}'
+</code></pre>
+<h3 id="let-a-remote-machine-reach-your-local-mcp">Let a Remote Machine Reach Your Local MCP</h3>
+<p>You have Ze running locally with <code>--mcp 8080</code>. You want a remote machine to
+reach it.</p>
+<pre><code class="language-bash"># On your local machine:
+ssh -R 8080:127.0.0.1:8080 user@remote.example.com
+</code></pre>
+<p>This binds <code>127.0.0.1:8080</code> on the remote machine. Programs there can connect
+to <code>localhost:8080</code> and the traffic tunnels back to your local Ze.</p>
+<blockquote>
+<p><strong>Note:</strong> By default, SSH remote forwards bind to <code>127.0.0.1</code> on the remote
+side. This is correct -- do not set <code>GatewayPorts yes</code> in <code>sshd_config</code>, as
+that would expose the port on all interfaces.</p>
+</blockquote>
+<h3 id="running-in-the-background">Running in the Background</h3>
+<p>Add <code>-f -N</code> to run the tunnel without an interactive shell:</p>
+<pre><code class="language-bash">ssh -f -N -L 8080:127.0.0.1:8080 user@router.example.com
+</code></pre>
+<p><code>-f</code> backgrounds after authentication. <code>-N</code> skips shell execution.</p>
+<p>To make it persistent across reboots, use <code>autossh</code> or a systemd unit:</p>
+<pre><code class="language-ini"># /etc/systemd/system/ze-mcp-tunnel.service
+[Unit]
+Description=SSH tunnel to Ze MCP
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/bin/ssh -N -L 8080:127.0.0.1:8080 user@router.example.com
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+</code></pre>
+<p>Use key-based authentication (no passphrase, or with <code>ssh-agent</code>) for unattended
+tunnels.</p>
+<h3 id="multiple-mcp-servers">Multiple MCP Servers</h3>
+<p>Forward different remote MCP ports to different local ports:</p>
+<pre><code class="language-bash">ssh -L 8081:127.0.0.1:8080 user@router-a.example.com &amp;
+ssh -L 8082:127.0.0.1:8080 user@router-b.example.com &amp;
+</code></pre>
+<p><code>localhost:8081</code> reaches router-a, <code>localhost:8082</code> reaches router-b.</p>
+<h2 id="wireguard-tunnel">WireGuard Tunnel</h2>
+<p>WireGuard creates a persistent encrypted tunnel between two machines. Each peer
+gets an IP address on the tunnel interface. Ze's MCP server still binds to
+<code>127.0.0.1</code>, so you combine WireGuard with a local port forward using <code>socat</code>
+or SSH.</p>
+<h3 id="setup-overview">Setup Overview</h3>
+<pre><code>[laptop wg0: 10.0.0.2] ---WireGuard--- [router wg0: 10.0.0.1]
+                                           |
+                                     127.0.0.1:8080 (ze --mcp 8080)
+</code></pre>
+<h3 id="router-side-where-ze-runs">Router Side (where Ze runs)</h3>
+<pre><code class="language-ini"># /etc/wireguard/wg0.conf
+[Interface]
+Address = 10.0.0.1/24
+ListenPort = 51820
+PrivateKey = &lt;router-private-key&gt;
+
+[Peer]
+PublicKey = &lt;laptop-public-key&gt;
+AllowedIPs = 10.0.0.2/32
+</code></pre>
+<p>Ze binds MCP to <code>127.0.0.1:8080</code>. The WireGuard interface alone does not expose
+it -- you need a local relay.</p>
+<p><strong>Option A: socat relay (lightweight)</strong></p>
+<pre><code class="language-bash">socat TCP-LISTEN:8080,bind=10.0.0.1,fork TCP:127.0.0.1:8080
+</code></pre>
+<p>This listens on the WireGuard IP (<code>10.0.0.1:8080</code>) and forwards to Ze's
+loopback port. Only WireGuard peers can reach <code>10.0.0.1</code>.</p>
+<p><strong>Option B: SSH over WireGuard (no relay needed)</strong></p>
+<p>Skip socat entirely. From the laptop, SSH to the router's WireGuard IP and
+forward the port:</p>
+<pre><code class="language-bash">ssh -L 8080:127.0.0.1:8080 user@10.0.0.1
+</code></pre>
+<p>This is the cleanest approach: WireGuard encrypts the outer transport, SSH
+forwards the port, and Ze never leaves loopback.</p>
+<h3 id="laptop-side">Laptop Side</h3>
+<pre><code class="language-ini"># /etc/wireguard/wg0.conf
+[Interface]
+Address = 10.0.0.2/24
+PrivateKey = &lt;laptop-private-key&gt;
+
+[Peer]
+PublicKey = &lt;router-public-key&gt;
+Endpoint = router.example.com:51820
+AllowedIPs = 10.0.0.1/32
+PersistentKeepalive = 25
+</code></pre>
+<p>If using socat on the router:</p>
+<pre><code class="language-bash">curl -s http://10.0.0.1:8080/ -X POST \
+  -d '{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:1,&quot;method&quot;:&quot;tools/list&quot;}'
+</code></pre>
+<p>If using SSH over WireGuard:</p>
+<pre><code class="language-bash">curl -s http://localhost:8080/ -X POST \
+  -d '{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:1,&quot;method&quot;:&quot;tools/list&quot;}'
+</code></pre>
+<h3 id="generating-wireguard-keys">Generating WireGuard Keys</h3>
+<pre><code class="language-bash">wg genkey | tee privatekey | wg pubkey &gt; publickey
+</code></pre>
+<p>Run on both machines. Exchange public keys. Keep private keys secret.</p>
+<h2 id="which-approach-to-use">Which Approach to Use</h2>
+<table>
+<thead>
+<tr>
+<th>Criteria</th>
+<th>SSH Forwarding</th>
+<th>WireGuard + socat</th>
+<th>WireGuard + SSH</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Setup effort</td>
+<td>Minimal</td>
+<td>Moderate</td>
+<td>Moderate</td>
+</tr>
+<tr>
+<td>Persistent</td>
+<td>With systemd/autossh</td>
+<td class="cell-yes">✓</td>
+<td>With systemd/autossh</td>
+</tr>
+<tr>
+<td>Multi-service</td>
+<td>One tunnel per port</td>
+<td>One tunnel, many ports</td>
+<td>One tunnel + SSH forward</td>
+</tr>
+<tr>
+<td>MCP stays on loopback</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+</tr>
+<tr>
+<td>Extra software</td>
+<td>None (SSH is standard)</td>
+<td>WireGuard + socat</td>
+<td>WireGuard + SSH</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Recommendation:</strong> SSH forwarding for ad-hoc access. WireGuard + SSH for
+permanent infrastructure where you already run WireGuard between sites.</p>
+<h2 id="option-2-native-remote-binding">Option 2: Native remote binding</h2>
+<p>When tunnelling is impractical (many clients, unattended fleets, OAuth-managed
+identities), bind MCP directly to a non-loopback address with TLS and
+authentication:</p>
+<pre><code>environment {
+    mcp {
+        enabled true;
+        bind-remote true;
+        auth-mode oauth;
+        oauth {
+            authorization-server https://auth.example/;
+            audience             https://mcp.example/;
+            required-scopes      [ mcp.admin ];
+        }
+        tls {
+            cert /etc/ze/mcp.pem;
+            key  /etc/ze/mcp.key;
+        }
+        server public {
+            ip 0.0.0.0;
+            port 443;
+        }
+    }
+}
+</code></pre>
+<p>Alternatively for smaller deployments, use <code>auth-mode bearer-list</code> with
+per-identity tokens:</p>
+<pre><code>environment {
+    mcp {
+        enabled true;
+        bind-remote true;
+        auth-mode bearer-list;
+        identity alice { token &lt;long-random-string&gt;; scope [ mcp.read mcp.write ]; }
+        identity bob   { token &lt;long-random-string&gt;; scope [ mcp.read ]; }
+        tls {
+            cert /etc/ze/mcp.pem;
+            key  /etc/ze/mcp.key;
+        }
+        server public {
+            ip 0.0.0.0;
+            port 443;
+        }
+    }
+}
+</code></pre>
+<h3 id="config-verify-rejects-unsafe-combinations">Config verify rejects unsafe combinations</h3>
+<p><code>ze config validate</code> rejects at verify time:</p>
+<table>
+<thead>
+<tr>
+<th>Configuration</th>
+<th>Rejection</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>bind-remote true</code> + <code>auth-mode none</code></td>
+<td><code>bind-remote requires auth-mode != none</code></td>
+</tr>
+<tr>
+<td><code>auth-mode oauth</code> without <code>oauth.authorization-server</code></td>
+<td><code>auth-mode=oauth requires oauth.authorization-server</code></td>
+</tr>
+<tr>
+<td><code>auth-mode oauth</code> without <code>oauth.audience</code></td>
+<td><code>auth-mode=oauth requires oauth.audience</code></td>
+</tr>
+<tr>
+<td><code>auth-mode oauth</code> + non-loopback listener without TLS</td>
+<td><code>auth-mode=oauth requires tls.cert and tls.key on non-loopback listeners</code></td>
+</tr>
+<tr>
+<td><code>auth-mode bearer-list</code> without any <code>identity</code> entries</td>
+<td><code>auth-mode=bearer-list requires at least one identity</code></td>
+</tr>
+</tbody>
+</table>
+<p>These are exact-or-reject gates (<code>rules/exact-or-reject.md</code>): a misconfigured
+remote endpoint fails the verifier, never silently accepts.</p>
+<h2 id="security-notes">Security Notes</h2>
+<ul>
+<li>With <code>bind-remote false</code> (default), every server entry is force-rewritten
+  to <code>127.0.0.1</code> at config extraction time, preserving the Phase 1 loopback
+  clamp even if the operator mistakenly types <code>0.0.0.0</code>.</li>
+<li>For tunnel-based deployments, use key-based SSH authentication for
+  unattended tunnels. Disable password authentication on routers exposed
+  to the internet.</li>
+<li>With WireGuard + socat, only peers in <code>AllowedIPs</code> can reach the socat
+  listener. This is your access control boundary.</li>
+<li>Rotate WireGuard keys periodically. Revoke a peer by removing its <code>[Peer]</code>
+  block and reloading (<code>wg syncconf wg0 &lt;(wg-quick strip wg0)</code>).</li>
+<li>For native remote deployments, rotate the TLS cert before it expires.
+  Hot-reload is not yet supported; restart the daemon after cert rotation.</li>
+<li>OAuth access tokens are never logged. <code>Authorization</code> headers are scrubbed
+  from debug logs. Token audience is validated on every request (RFC 8707).</li>
+<li>JWKS refresh is rate-limited to 30 s minimum interval; an unknown-kid
+  spray cannot trigger a JWKS-fetch flood against the AS.</li>
+</ul>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/quickstart/">
+                        <span class="page-sidebar-link-label">Quickstart</span>
+                        <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create zefs, and start SSH.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../reference/command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

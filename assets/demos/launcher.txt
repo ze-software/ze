@@ -1,0 +1,6 @@
+$ ze
+
+Type "show" to filter the command launcher, then press Enter to open the show command tree.
+Type "traceroute" to find the path diagnostic command.
+Press Escape and Left to return, then type "doctor" to find the readiness checker.
+Press Escape to move back through the menu and return to the shell.

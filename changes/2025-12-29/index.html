@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>Week of 2025-12-29 - Ze</title>
+        <meta name="description" content="Route-family coverage rounded out (labeled-unicast, MPLS VPN, MUP, route reflection), a batch of protocol-correctness fixes, and a security-relevant change to how Ze listens for BGP sessions." />
+        <meta property="og:title" content="Week of 2025-12-29 - Ze" />
+        <meta property="og:description" content="Route-family coverage rounded out (labeled-unicast, MPLS VPN, MUP, route reflection), a batch of protocol-correctness fixes, and a security-relevant change to how Ze listens for BGP sessions." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Week of 2025-12-29 - Ze" />
+        <meta name="twitter:description" content="Route-family coverage rounded out (labeled-unicast, MPLS VPN, MUP, route reflection), a batch of protocol-correctness fixes, and a security-relevant change to how Ze listens for BGP sessions." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/changes/2025-12-29/" />
+        <meta property="og:url" content="https://ze-software.net/changes/2025-12-29/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <link rel="alternate" type="application/rss+xml" title="Ze weekly updates" href="../feed.xml" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="blog-post" aria-labelledby="post-title">
+                <div class="journey-hero reveal">
+                    <span class="journey-eyebrow">Weekly update</span>
+                    <h1 id="post-title">Week of 2025-12-29</h1>
+                    <p>Route-family coverage rounded out (labeled-unicast, MPLS VPN, MUP, route reflection), a batch of protocol-correctness fixes, and a security-relevant change to how Ze listens for BGP sessions.</p>
+                </div>
+                <p class="post-back"><a href="../">&larr; All weekly updates</a></p>
+            </section>
+            <section class="blog-post reveal">
+                <div class="blog-grid">
+                    <div class="blog-block" aria-label="🔒 Session hardening">
+                        <div class="md-content">
+                            <h2>🔒 Session hardening</h2>
+                            <p>Ze no longer binds one global BGP listener. Listeners are now derived automatically from each peer's configured local address, so BGP is only exposed on interfaces that actually have a peer configured. This is a breaking change: the old TCP.Bind environment variable is gone, and every peer needs a local address set.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🛰️ Route families">
+                        <div class="md-content">
+                            <h2>🛰️ Route families</h2>
+                            <ul>
+<li>Labeled-unicast (SAFI 4) routes, including BGP Prefix-SID, now round-trip through the API with full Adj-RIB-Out support.</li>
+<li>MPLS VPN (L3VPN) routes can be announced directly from config announce blocks, and the split /N syntax already used for plain routes now works for VPN routes too.</li>
+<li>MUP (SAFI 85) routes can be announced and withdrawn via the API.</li>
+<li>Route reflector attributes (ORIGINATOR_ID, CLUSTER_LIST) are now attached consistently across MVPN, FlowSpec, and MUP routes, not just plain unicast.</li>
+<li>A standalone route reflector API server (<code>zebgp api rr</code>) exposes peer and RIB state over its own endpoint.</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🔧 Protocol correctness">
+                        <div class="md-content">
+                            <h2>🔧 Protocol correctness</h2>
+                            <ul>
+<li>AS_PATH and AGGREGATOR now encode correctly under 4-octet ASN negotiation (RFC 6793).</li>
+<li>Path attributes are emitted in RFC 4271 Appendix F.3 order.</li>
+<li>FlowSpec VPN routes now carry their Route Distinguisher in the NLRI, as RFC 8955 requires.</li>
+<li>IPv6 unicast routes can carry an IPv4-mapped next-hop (RFC 8950).</li>
+<li>Routes redistributed through the RIB keep their original path attributes and LOCAL_PREF instead of losing them in transit.</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🧰 CLI &amp; config">
+                        <div class="md-content">
+                            <h2>🧰 CLI &amp; config</h2>
+                            <ul>
+<li>New <code>zebgp decode</code> command turns raw hex BGP messages into JSON.</li>
+<li>New <code>zebgp encode</code> command does the reverse: turns a route command into wire-format hex, with round-trip verification across every supported family.</li>
+<li>Config gained an <code>environment</code> block.</li>
+<li>Community values in config now accept bare integers and hex, not just the named forms.</li>
+<li>API attribute and NLRI filters let external processes subscribe to a narrower slice of updates instead of the full stream.</li>
+<li>The config editor moved from <code>zebgp edit</code> to <code>zebgp config edit</code>.</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🛠️ Reliability">
+                        <div class="md-content">
+                            <h2>🛠️ Reliability</h2>
+                            <ul>
+<li>Session teardown and reconnect handling is more reliable.</li>
+<li>A data race in process shutdown is fixed, and processes now receive a shutdown signal before termination instead of being killed outright.</li>
+<li>Peer up/down transitions are now pushed to attached API processes as state notifications.</li>
+</ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Change note</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>More context</h2>
+                    <a class="page-sidebar-link" href="../../changes/">
+                        <span class="page-sidebar-link-label">All changes</span>
+                        <small>Return to the weekly update index.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../milestones/">
+                        <span class="page-sidebar-link-label">Milestones</span>
+                        <small>See which changes became landmarks.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../roadmap/">
+                        <span class="page-sidebar-link-label">Roadmap</span>
+                        <small>Map this week to the release plan.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../activity/">
+                        <span class="page-sidebar-link-label">Activity</span>
+                        <small>View commit cadence around this week.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

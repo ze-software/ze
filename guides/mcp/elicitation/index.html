@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>MCP Elicitation - Ze</title>
+        <meta name="description" content="Ze documentation: guide/mcp/elicitation.md" />
+        <meta property="og:title" content="MCP Elicitation - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/mcp/elicitation.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="MCP Elicitation - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/mcp/elicitation.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/guides/mcp/elicitation/" />
+        <meta property="og:url" content="https://ze-software.net/guides/mcp/elicitation/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../roadmap/">Roadmap</a>
+                    <a href="../../../changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-automate">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1 id="mcp-elicitation">MCP Elicitation</h1>
+    <p>Ze can ask an MCP client for a value it needs but was not given. Under protocol
+revision <code>2026-07-28</code> it does so through
+<a href="https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr" target="_blank" rel="noopener">Multi Round-Trip Requests</a>
+(MRTR): the server does not send the client a request, it <strong>returns</strong> one.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#the-round-trip">The round trip</a></li>
+<li><a href="#declaring-the-capability">Declaring the capability</a></li>
+<li><a href="#what-ze-returns">What Ze returns</a></li>
+<li><a href="#what-the-client-sends-back">What the client sends back</a></li>
+<li><a href="#ze-issues-no-requeststate">Ze issues no requestState</a></li>
+<li><a href="#limits">Limits</a></li>
+<li><a href="#trying-it">Trying it</a></li>
+<li><a href="#related">Related</a></li>
+</ol></nav>
+<p>The single place this happens is the <code>ze_execute</code> tool called without a
+<code>command</code> argument.</p>
+<!-- source: internal/component/mcp/mrtr.go -- newInputRequiredResult, inputRequiredForMissingCommand -->
+<!-- source: internal/component/mcp/tools.go -- ze_execute handler -->
+
+<h2 id="the-round-trip">The round trip</h2>
+<p>A server that needs more input answers the original request with
+<code>resultType: "input_required"</code> and an <code>inputRequests</code> map, which <strong>ends</strong>
+that request. The client gathers the input and retries the original request,
+under a different JSON-RPC id, carrying <code>inputResponses</code>.</p>
+<pre><code class="language-mermaid">sequenceDiagram
+    participant C as Client
+    participant Z as Ze
+    C-&gt;&gt;Z: POST tools/call (id 1) ze_execute, no command
+    Z--&gt;&gt;C: result: input_required + inputRequests
+    Note over Z: nothing is retained
+    C-&gt;&gt;C: ask the user
+    C-&gt;&gt;Z: POST tools/call (id 2) same params + inputResponses
+    Z--&gt;&gt;C: result: complete + command output
+</code></pre>
+<p>There is no server-initiated message anywhere in that exchange. The transport
+is explicit that there cannot be: "The server <strong>MUST NOT</strong> send independent
+JSON-RPC <em>requests</em> on this stream. Server-to-client interactions (sampling,
+elicitation, list-roots) are embedded as input requests inside an
+<code>InputRequiredResult</code>."</p>
+<!-- source: internal/component/mcp/streamable_tools.go -- runMethod, ok -->
+
+<h2 id="declaring-the-capability">Declaring the capability</h2>
+<p>The elicitation capability is <strong>mode-structured</strong>, and a client declares it on
+<strong>every</strong> request in <code>params._meta</code>, not once at a handshake (there is no
+handshake in this revision).</p>
+<pre><code class="language-json">{
+  &quot;_meta&quot;: {
+    &quot;io.modelcontextprotocol/clientCapabilities&quot;: {
+      &quot;elicitation&quot;: { &quot;form&quot;: {} }
+    }
+  }
+}
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Declared value</th>
+<th>Form mode supported?</th>
+<th>Ze prompts?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>capability absent</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td><code>{}</code></td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+</tr>
+<tr>
+<td><code>{"form":{}}</code></td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+</tr>
+<tr>
+<td><code>{"form":{},"url":{}}</code></td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+</tr>
+<tr>
+<td><code>{"url":{}}</code></td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+</tr>
+</tbody>
+</table>
+<p>The gate is form-mode <strong>support</strong>, not the presence of the <code>elicitation</code> key:</p>
+<blockquote>
+<p>Servers <strong>MUST NOT</strong> send elicitation requests with modes that are not
+supported by the client.</p>
+</blockquote>
+<p>A client that declares only <code>url</code> supports elicitation, and it does not support
+the one mode Ze emits. Ze therefore treats that client exactly like a client
+that declared nothing.</p>
+<!-- source: internal/component/mcp/mrtr.go -- elicitationFormSupported -->
+<!-- source: internal/component/mcp/meta.go -- parseClientCapabilities, clientCapabilities.ElicitForm -->
+
+<p>The same capability shapes the tool descriptor, so a client does not have to
+know this page to find the round trip. Declare form mode, and the <code>ze_execute</code>
+entry in <code>tools/list</code> omits <code>command</code> from its <code>inputSchema.required</code>. That <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
+omission tells a schema-validating host that the argument-less call is legal.
+Declare nothing, or <code>url</code> only, and <code>required</code> names <code>command</code>, which is honest:
+that client will get an error rather than a prompt.</p>
+<!-- source: internal/component/mcp/mrtr.go -- gateExecuteCommandRequired -->
+<!-- source: internal/component/mcp/streamable_tools.go -- allTools -->
+
+<h2 id="what-ze-returns">What Ze returns</h2>
+<pre><code class="language-json">{
+  &quot;jsonrpc&quot;: &quot;2.0&quot;,
+  &quot;id&quot;: 1,
+  &quot;result&quot;: {
+    &quot;resultType&quot;: &quot;input_required&quot;,
+    &quot;inputRequests&quot;: {
+      &quot;ze_execute_command&quot;: {
+        &quot;method&quot;: &quot;elicitation/create&quot;,
+        &quot;params&quot;: {
+          &quot;mode&quot;: &quot;form&quot;,
+          &quot;message&quot;: &quot;Which ze command should be run? For example: show bgp summary&quot;,
+          &quot;requestedSchema&quot;: {
+            &quot;type&quot;: &quot;object&quot;,
+            &quot;properties&quot;: {
+              &quot;command&quot;: {
+                &quot;type&quot;: &quot;string&quot;,
+                &quot;title&quot;: &quot;ze command&quot;,
+                &quot;description&quot;: &quot;The ze command to execute, for example 'show bgp peer list'.&quot;
+              }
+            },
+            &quot;required&quot;: [&quot;command&quot;]
+          }
+        }
+      }
+    }
+  }
+}
+</code></pre>
+<p><code>ze_execute_command</code> is the server-assigned key the retry must echo. <code>mode</code> is
+stated explicitly even though form is the default, so the absence of url-mode
+support is visible at the emission point rather than implied.</p>
+<!-- source: internal/component/mcp/mrtr.go -- inputKeyExecuteCommand, elicitPromptCommand -->
+<!-- source: internal/component/mcp/elicit.go -- newElicitRequest, elicitModeForm -->
+
+<h2 id="what-the-client-sends-back">What the client sends back</h2>
+<p>The retry is the original request plus <code>inputResponses</code>, under a new id.</p>
+<pre><code class="language-json">{
+  &quot;jsonrpc&quot;: &quot;2.0&quot;,
+  &quot;id&quot;: 2,
+  &quot;method&quot;: &quot;tools/call&quot;,
+  &quot;params&quot;: {
+    &quot;name&quot;: &quot;ze_execute&quot;,
+    &quot;arguments&quot;: {},
+    &quot;inputResponses&quot;: {
+      &quot;ze_execute_command&quot;: {
+        &quot;action&quot;: &quot;accept&quot;,
+        &quot;content&quot;: { &quot;command&quot;: &quot;show bgp summary&quot; }
+      }
+    },
+    &quot;_meta&quot;: { &quot;...&quot;: &quot;the same required per-request fields&quot; }
+  }
+}
+</code></pre>
+<table>
+<thead>
+<tr>
+<th><code>action</code></th>
+<th>Ze's response</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>accept</code> with a non-empty <code>command</code></td>
+<td>the command is dispatched. <code>resultType: "complete"</code></td>
+</tr>
+<tr>
+<td><code>accept</code> with an empty or absent <code>command</code></td>
+<td>a <strong>new</strong> <code>input_required</code>: an empty answer is an omission, not a refusal</td>
+</tr>
+<tr>
+<td><code>decline</code></td>
+<td>a terminal tool error naming the refusal. Ze does not ask again</td>
+</tr>
+<tr>
+<td><code>cancel</code></td>
+<td>a terminal tool error naming the cancellation. Ze does not ask again</td>
+</tr>
+<tr>
+<td>key absent entirely</td>
+<td>a <strong>new</strong> <code>input_required</code></td>
+</tr>
+<tr>
+<td>keys Ze did not ask for</td>
+<td>ignored. The request proceeds on the keys it did ask for</td>
+</tr>
+</tbody>
+</table>
+<p>Ze distinguishes an omission from a refusal. That distinction stops a repeated
+prompt to a user who has said no. And a repeated prompt after an omission is
+explicitly permitted:</p>
+<blockquote>
+<p>Servers <strong>MAY</strong> choose to return an <code>InputRequiredResult</code> on multiple attempts
+at the same request.</p>
+</blockquote>
+<!-- source: internal/component/mcp/mrtr.go -- resolveElicitedValue, inputOutcome -->
+<!-- source: internal/component/mcp/mrtr.go -- resolveExecuteCommand, askForCommand -->
+
+<h2 id="ze-issues-no-requeststate">Ze issues no <code>requestState</code></h2>
+<p>MRTR lets a server attach an opaque <code>requestState</code> blob to an
+<code>InputRequiredResult</code> and have the client echo it on the retry. <strong>Ze never
+does.</strong> Ze's one elicitation suspends nothing. The value it asks for is a tool
+argument that the retry carries anyway, so there is no continuation state to
+encode. Requirement 6's "at least one of <code>inputRequests</code> or <code>requestState</code>" is
+satisfied by <code>inputRequests</code> alone, and requirement 3 makes <code>requestState</code> a
+MAY. The omission is therefore conformant, not a gap.</p>
+<p>That omission is also a security property. A retry is a
+self-contained, independently authenticated request. No carried authority exists
+for another principal to replay, and none survives a daemon restart to go stale.</p>
+<p>The consequence for clients: because the result carries no <code>requestState</code>, "the
+client <strong>MUST NOT</strong> include one in the retry." Ze enforces that. A request that
+carries a <code>requestState</code> on any method is refused before dispatch, with JSON-RPC
+<code>-32602</code> and HTTP 400. The rejection names the field, and it does not echo the
+supplied value.</p>
+<pre><code>probe status=400 code=-32602 message=invalid params: params.requestState is not
+accepted; this server issues no requestState, so a retry must not carry one
+</code></pre>
+<!-- source: internal/component/mcp/mrtr.go -- rejectUnsolicitedRequestState, errUnsolicitedRequestState -->
+<!-- source: internal/component/mcp/streamable.go -- handlePOST requestState guard -->
+
+<h2 id="limits">Limits</h2>
+<ul>
+<li><strong>Form mode only.</strong> URL-mode elicitation is not implemented. Ze asks for a
+  <code>ze</code> CLI command, which is not a credential, so form mode is the correct mode
+  here. The revision says: "Servers <strong>MUST NOT</strong> use form mode elicitation to
+  request sensitive information such as passwords, API keys, access tokens, or
+  payment credentials." Ze's request builder refuses a schema whose property
+  name looks like a credential, so Ze enforces that prohibition rather than
+  merely observes it.</li>
+<li><strong>One request per result.</strong> <code>ze_execute</code> asks for one value, so exactly one
+  <code>inputRequests</code> entry is ever emitted.</li>
+<li><strong>Sampling and roots are never requested.</strong> An <code>inputRequests</code> value can be an
+  <code>ElicitRequest</code>, a <code>CreateMessageRequest</code> or a <code>ListRootsRequest</code>. Ze emits
+  only the first. The other two are deprecated in this revision and Ze
+  implements neither.</li>
+<li><strong>Narrower schema subset than the revision permits.</strong> <code>2026-07-28</code> also allows
+  <code>oneOf</code>-titled enums and array multi-select enums in a requested schema. Ze's
+  validator accepts only flat primitive properties, and it emits only a single
+  string. Ze uses fewer optional schema forms than the specification offers,
+  which is conformant.</li>
+<li><strong>Tasks do not elicit.</strong> A task worker runs long after its <code>tools/call</code> has <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
+  returned, so an <code>input_required</code> result produced there would be stored as the
+  task's result and delivered on a later <code>tasks/get</code>. Ze prevents that at the
+  source. The worker gets a zero capability set, so a handler that would
+  otherwise elicit reads form-mode support as undeclared. That handler takes the
+  missing-argument path instead. No Ze task can raise <code>inputRequests</code>, and none
+  can reach the <code>input_required</code> state.</li>
+</ul>
+<!-- source: internal/component/mcp/elicit.go -- validateElicitSchema, elicitFieldIsSecret -->
+<!-- source: internal/component/mcp/streamable_tools.go -- createTask worker runner -->
+
+<h2 id="trying-it">Trying it</h2>
+<p>The functional-test client speaks the client half of the loop:</p>
+<pre><code>ze-test mcp --port 8080 --elicit form
+</code></pre>
+<p>with stdin directives:</p>
+<pre><code>elicit-answer accept show bgp peer list
+@ze_execute {}
+</code></pre>
+<p><code>--elicit</code> takes <code>form</code>, <code>url</code>, <code>form,url</code>, or <code>empty</code> for the <code>{}</code> shape.
+<code>elicit-answer</code> also accepts <code>decline</code>, <code>cancel</code>, and <code>omit</code> (retry with an
+empty <code>inputResponses</code>, which drives the re-ask path).</p>
+<!-- source: internal/test/cli/cmd_mcp_mrtr.go -- send retry loop, elicitDirective -->
+<!-- source: internal/test/cli/cmd_mcp.go -- --elicit flag -->
+
+<h2 id="related">Related</h2>
+<ul>
+<li><a href="../overview/">MCP Overview</a> -- tools, transport and configuration</li>
+<li><a href="https://github.com/ze-software/ze/blob/main/docs/architecture/mcp/overview.md" target="_blank" rel="noopener">MCP Architecture</a> -- internals</li>
+<li><a href="https://github.com/ze-software/ze/blob/main/docs/architecture/api/commands.md#mcp-methods" target="_blank" rel="noopener">MCP API Methods</a> -- the method table</li>
+</ul>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/quickstart/">
+                        <span class="page-sidebar-link-label">Quickstart</span>
+                        <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create zefs, and start SSH.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../reference/command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

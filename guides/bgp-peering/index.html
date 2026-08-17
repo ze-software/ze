@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>BGP Peering - Ze</title>
+        <meta name="description" content="Ze documentation: guide/bgp-peering.md" />
+        <meta property="og:title" content="BGP Peering - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/bgp-peering.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="BGP Peering - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/bgp-peering.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/guides/bgp-peering/" />
+        <meta property="og:url" content="https://ze-software.net/guides/bgp-peering/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-routing">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1 id="bgp-peering">BGP Peering</h1>
+    <p>Use this guide after the quick start when a peer needs groups, multiple address families, capabilities, prefix limits, or an explicit relationship role.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#minimal-peer">Minimal peer</a></li>
+<li><a href="#groups-and-inheritance">Groups and inheritance</a></li>
+<li><a href="#dynamic-peer-groups">Dynamic peer groups</a></li>
+<li><a href="#address-families">Address families</a></li>
+<li><a href="#prefix-limits-are-per-family">Prefix limits are per family</a></li>
+<li><a href="#attached-programs">Attached programs</a></li>
+<li><a href="#add-path">ADD-PATH</a></li>
+<li><a href="#bgp-role">BGP Role</a></li>
+<li><a href="#session-lifecycle">Session lifecycle</a>
+<ol>
+<li><a href="#hold-timer-expiry">Hold timer expiry</a></li>
+<li><a href="#a-second-open-is-refused">A second OPEN is refused</a></li>
+<li><a href="#the-session-always-ends-when-the-read-loop-ends">The session always ends when the read loop ends</a></li>
+<li><a href="#bgp-identifier-validation-rfc-6286">BGP Identifier validation (RFC 6286)</a></li>
+</ol></li>
+<li><a href="#verify-the-session">Verify the session</a></li>
+<li><a href="#related-guides">Related guides</a></li>
+</ol></nav>
+<h2 id="minimal-peer">Minimal peer</h2>
+<p>A peer needs local and remote addresses, AS numbers, a router ID, and at least one address family:</p>
+<pre><code class="language-text">bgp {
+    router-id 192.0.2.10
+
+    peer transit-a {
+        connection {
+            local { ip 192.0.2.10 }
+            remote { ip 192.0.2.1 }
+        }
+        session {
+            asn { local 64500; remote 64496 }
+            family {
+                ipv4/unicast {
+                    prefix { maximum 1000000 }
+                }
+            }
+        }
+    }
+}
+</code></pre>
+<p>Validate before starting or reloading:</p>
+<pre><code class="language-console">ze config validate ze.conf
+ze doctor
+</code></pre>
+<p>Use the generated <a href="https://ze-software.net/reference/configuration/">configuration reference</a> for the current leaf names and constraints.</p>
+<h2 id="groups-and-inheritance">Groups and inheritance</h2>
+<p>Put shared settings in a group and override only what differs on each peer:</p>
+<pre><code class="language-text">bgp {
+    router-id 192.0.2.10
+
+    group transit {
+        session {
+            asn { local 64500 }
+            family {
+                ipv4/unicast { prefix { maximum 1000000 } }
+                ipv6/unicast { prefix { maximum 250000 } }
+            }
+        }
+        timer { receive-hold-time 90 }
+
+        peer transit-a {
+            connection {
+                local { ip 192.0.2.10 }
+                remote { ip 192.0.2.1 }
+            }
+            session { asn { remote 64496 } }
+        }
+
+        peer transit-b {
+            connection {
+                local { ip 2001:db8::10 }
+                remote { ip 2001:db8::1 }
+            }
+            session { asn { remote 64497 } }
+        }
+    }
+}
+</code></pre>
+<p>Peer values override group values. Group values override the global BGP block. Inspect the resolved result with <code>show config dump</code> rather than reasoning about inheritance from the source file alone.</p>
+<h2 id="dynamic-peer-groups">Dynamic peer groups</h2>
+<p>A group with <code>connection { remote { ip dynamic } }</code> accepts a session from any address in its ranges. Use it for an IXP route server or any fabric where the members are not known when you write the configuration.</p>
+<pre><code class="language-text">bgp {
+    group ix {
+        connection {
+            remote {
+                ip dynamic
+                connect false
+                range 198.51.100.0/24
+                range 2001:db8:1::/64
+                max-peers 500
+            }
+            local {
+                ip 198.51.100.1
+                accept true
+            }
+        }
+        session {
+            asn { local 64500 }
+            router-id 198.51.100.1
+            family {
+                ipv4/unicast { prefix { maximum 200000 } }
+            }
+        }
+        role { import rs }
+        attach process rs {
+            receive [ update-received state open-received refresh ]
+            send [ update ]
+        }
+    }
+}
+</code></pre>
+<p><code>ip dynamic</code> is valid at group level only. A peer that states it is refused. Two more statements are required, and the configuration is refused without them: at least one <code>range</code>, and an explicit <code>connect false</code>. Ze only accepts on a dynamic group and never dials one, so an absent <code>connect</code> leaf, which YANG defaults to true, is refused rather than corrected.</p>
+<table>
+<thead>
+<tr>
+<th>Leaf</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>connection / remote / ip</code></td>
+<td><code>dynamic</code></td>
+<td>--</td>
+<td>Marks the group as a dynamic peer group.</td>
+</tr>
+<tr>
+<td><code>connection / remote / range</code></td>
+<td>leaf-list of prefixes</td>
+<td>--</td>
+<td>The addresses that can open a session. Overlapping ranges take the longest match.</td>
+</tr>
+<tr>
+<td><code>connection / remote / max-peers</code></td>
+<td>uint32</td>
+<td>1000</td>
+<td>Maximum number of members of this group.</td>
+</tr>
+</tbody>
+</table>
+<p>A member is built from the group's own resolved settings, so it inherits every leaf the group states. That covers:</p>
+<ul>
+<li>address families and their prefix limits</li>
+<li>ADD-PATH require and refuse sets</li>
+<li>import and export filter chains</li>
+<li>static routes</li>
+<li>MD5, BFD and capture</li>
+<li><code>attach process</code> blocks</li>
+<li>community send, AS override, route reflector client and cluster ID</li>
+<li>the local-AS options</li>
+</ul>
+<p>Seven values diverge, and only these seven.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value on a member</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Name</td>
+<td><code>dyn-&lt;address&gt;</code></td>
+</tr>
+<tr>
+<td>Group name</td>
+<td>The group's name</td>
+</tr>
+<tr>
+<td>Address</td>
+<td>The address the connection arrived from</td>
+</tr>
+<tr>
+<td>Port</td>
+<td>The canonical BGP port</td>
+</tr>
+<tr>
+<td>Remote AS</td>
+<td>Learned from the peer's OPEN (RFC 4271 Section 4.2)</td>
+</tr>
+<tr>
+<td>Connection mode</td>
+<td>Passive</td>
+</tr>
+<tr>
+<td>Dynamic flag</td>
+<td>Set</td>
+</tr>
+</tbody>
+</table>
+<p>A dynamic group is held to the same rules as a static peer. A family with no prefix maximum is refused (RFC 4486). A hold time RFC 4271 Section 4.2 refuses is refused here too.</p>
+<p>The group opens its own listening socket on <code>connection/local/ip</code> and the group's listen port. A configuration that names no static peer is enough to accept members. When a static peer and a dynamic group share one socket, Ze attributes each connection by remote address, so a static peer inside the group's range keeps its own session and its own settings.</p>
+<p>A per-peer plugin config that a group states reaches its members. RFC 9234 role checks, the RPKI action, the blackhole block, and the community policy all resolve through the group when the member has no entry of its own. See the <a href="../bgp-role/">BGP Role guide</a>.</p>
+<p>A configuration reload keeps a member's session up when its settings did not change. Ze removes a member in three cases only: its group is gone, its address left every range, or the group template would now build different settings for that address. A wider range or a raised <code>max-peers</code> changes no member and bounces no session.</p>
+<h2 id="address-families">Address families</h2>
+<p>The engine provides IPv4 and IPv6 unicast and multicast. Plugins register VPN, EVPN, FlowSpec, labeled-unicast, BGP-LS, MVPN, RTC, MUP, VPLS, and SR Policy families. The current encode, decode, and route-configuration status is maintained on the <a href="../../features/bgp-protocol/">BGP protocol page</a>.</p>
+<p>Each enabled family requires an explicit prefix limit. Set it from expected operational volume rather than accepting a migration default. A full-table peer and a customer announcing one aggregate should not share the same limit.</p>
+<h2 id="prefix-limits-are-per-family">Prefix limits are per family</h2>
+<p>Every leaf in the <code>prefix</code> container belongs to the family that holds it. The family that exceeded its maximum decides what happens next. Another family's value never applies.</p>
+<pre><code class="language-text">session {
+    family {
+        ipv4/unicast {
+            prefix {
+                maximum      1000000
+                warning       900000
+                teardown         true
+                idle-timeout      300
+                reconnect       timer
+            }
+        }
+        ipv6/unicast {
+            prefix {
+                maximum       250000
+                teardown        false
+            }
+        }
+    }
+}
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Leaf</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>maximum</code></td>
+<td>uint32</td>
+<td>required</td>
+<td>Hard cap. Exceeding it stops the session with NOTIFICATION Cease / Maximum Number of Prefixes Reached.</td>
+</tr>
+<tr>
+<td><code>warning</code></td>
+<td>uint32</td>
+<td>90% of <code>maximum</code></td>
+<td>Warning threshold. Logged and exported as a metric.</td>
+</tr>
+<tr>
+<td><code>teardown</code></td>
+<td>boolean</td>
+<td><code>true</code></td>
+<td>Stop the session on exceed. <code>false</code> warns and drops further NLRI of that family.</td>
+</tr>
+<tr>
+<td><code>count</code></td>
+<td>enum</td>
+<td><code>offered</code></td>
+<td><code>offered</code> counts each announcement on the wire. <code>installed</code> counts the prefix set this family holds.</td>
+</tr>
+<tr>
+<td><code>idle-timeout</code></td>
+<td>uint16</td>
+<td><code>0</code></td>
+<td>Seconds to wait before reconnect. The wait doubles on each repeat teardown, up to one hour.</td>
+</tr>
+<tr>
+<td><code>reconnect</code></td>
+<td>enum</td>
+<td>see below</td>
+<td><code>never</code>, <code>backoff</code>, or <code>timer</code>.</td>
+</tr>
+</tbody>
+</table>
+<p><code>reconnect</code> with no value means <code>timer</code> when <code>idle-timeout</code> is above zero, and <code>never</code> when it is zero. A family that configured nothing therefore stays down after a teardown, and the peer state reads <code>idle-hold</code> until an operator restarts it. <code>ze show warnings</code> carries the prefix-hold warning for the whole hold.</p>
+<p>The teardown NOTIFICATION and the log line name the family that exceeded its maximum.</p>
+<h2 id="attached-programs">Attached programs</h2>
+<p><code>attach process &lt;name&gt;</code> states which events a peer feeds a program, and which message types that program can originate toward the peer. Ze reads both halves at delivery.</p>
+<pre><code class="language-text">peer transit-a {
+    attach process rib {
+        receive [ update-received state refresh ]
+        send [ update ]
+    }
+}
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Half</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>receive</code></td>
+<td>The event types this peer feeds the program.</td>
+</tr>
+<tr>
+<td><code>send</code></td>
+<td>The message types the program can send toward this peer.</td>
+</tr>
+</tbody>
+</table>
+<p>A peer that attaches no program feeds it no peer-scoped event, and that program cannot announce to the peer. An event that carries no peer address is not peer-scoped, so an attach block describes none of them, and every subscriber still receives them.</p>
+<p>The BGP namespace registers <code>update</code>, <code>open</code>, <code>notification</code>, <code>keepalive</code>, <code>refresh</code>, <code>state</code>, <code>negotiated</code>, <code>eor</code>, <code>congested</code>, <code>resumed</code>, <code>rpki</code>, <code>listener-ready</code>, and <code>update-notification</code>. Plugins register more, such as <code>update-rpki</code>.</p>
+<p>An event type carries the direction it is fed in. <code>update</code> means both directions. <code>update-received</code> and <code>update-sent</code> mean one. A type a plugin registers keeps its whole name, so a plugin type that ends in <code>-sent</code> is never read as a direction. <code>*</code> feeds every type in both directions. <code>all</code> is not accepted, and a bare <code>sent</code> or <code>received</code> is refused with a message that names the token to write instead.</p>
+<p>Both directions of <code>update</code> deadlock <code>bgp-rs</code> and <code>bgp-rr</code>, because forwarding an UPDATE raises the sent event the forward is waiting on. Give those programs <code>update-received</code>.</p>
+<p>Ze logs a warning when the two halves disagree: a grant the plugin never declared, a declaration no peer grants, a direction mismatch, and a plugin no peer attaches at all.</p>
+<p>An operator command is not gated by <code>send</code>. The <code>send</code> list grants authority to a program, and AAA already checks the operator.</p>
+<h2 id="add-path">ADD-PATH</h2>
+<p>ADD-PATH is configured per family. The peers must negotiate compatible send and receive modes before additional paths can be exchanged. See the <a href="../add-path/">ADD-PATH guide</a> for the mode matrix, path limits, and verification commands.</p>
+<h2 id="bgp-role">BGP Role</h2>
+<p>RFC 9234 roles describe the business relationship between peers and let Ze enforce valid pairings and OTC handling. Configure roles deliberately on eBGP sessions. See the <a href="../bgp-role/">BGP Role guide</a> for valid peer pairs and policy effects.</p>
+<h2 id="session-lifecycle">Session lifecycle</h2>
+<h3 id="hold-timer-expiry">Hold timer expiry</h3>
+<p>When the hold timer expires, Ze runs the full RFC 4271 Section 8.2.2 Event 10 action list. It sends NOTIFICATION Hold Timer Expired (error 4), releases the session resources, moves the FSM to Idle, and increases the ConnectRetryCounter.</p>
+<p>Ze granted one reprieve on a hold expiry until 2026-08-03. That grace is removed. Event 10 does not permit it, and worst-case dead-peer detection falls from two hold times to one. A daemon whose CPU is saturated now drops sessions that the grace used to keep.</p>
+<p>ConnectRetryCounter is RFC 4271 Section 8.1.1 mandatory session attribute 2. Read it as <code>connect-retry-counter</code> in <code>show bgp peer &lt;name&gt; detail</code>, or as the <code>ze_bgp_connect_retry_counter</code> gauge. It is a gauge and not a counter, because the RFC resets it to zero on an operator start and on an operator stop.</p>
+<h3 id="a-second-open-is-refused">A second OPEN is refused</h3>
+<p>An OPEN that arrives while the connection is already in Established or OpenConfirm is refused with NOTIFICATION Cease (error 6). Ze does not process it, so a peer cannot rewrite the negotiated capability set of a live session. The <code>ze_bgp_open_in_established_total</code> counter names the peer that tried.</p>
+<h3 id="the-session-always-ends-when-the-read-loop-ends">The session always ends when the read loop ends</h3>
+<p>Every exit from the read loop ends the session and closes the connection. An import policy teardown, an OPEN that fails to unpack, an OPEN the validator rejects, and a local capability parse error each close the socket and mark the peer down. A peer marked up with a dead socket cannot happen through these paths.</p>
+<h3 id="bgp-identifier-validation-rfc-6286">BGP Identifier validation (RFC 6286)</h3>
+<p>Ze answers an OPEN with Bad BGP Identifier when the identifier is zero, and when the identifier equals its own and the peer is internal. The same identifier from an external peer is accepted, which is what Section 2.2 requires.</p>
+<p>Both checks now run for a dynamic peer. A dynamic peer has no configured remote AS when the OPEN arrives, so Ze reads the AS the peer advertises in its 4-octet AS capability (RFC 6793). A peer that advertises no such capability is judged on its My AS field.</p>
+<p>The AS-wide uniqueness claim of Section 2.1 reads the same value. A 4-byte-AS speaker sends AS_TRANS (23456) in My AS, so every such peer used to claim in one shared bucket, and two peers in genuinely different 4-byte ASes that share an identifier collided. Section 2.1 scopes uniqueness per AS and licenses no such rejection.</p>
+<h2 id="verify-the-session">Verify the session</h2>
+<pre><code class="language-console">ze cli -c &quot;show bgp summary&quot;
+ze cli -c &quot;show bgp peer transit-a detail&quot;
+ze cli -c &quot;show bgp peer transit-a capabilities&quot;
+ze cli -c &quot;show bgp rib status&quot;
+</code></pre>
+<p>Check that:</p>
+<ol>
+<li>The session is Established.</li>
+<li>The negotiated families match the intended configuration.</li>
+<li>Prefix counts remain below the configured limits.</li>
+<li>Capabilities such as ADD-PATH, Graceful Restart, and BGP Role were negotiated rather than merely configured locally.</li>
+<li><code>show warnings</code> and <code>show errors</code> are clean.</li>
+</ol>
+<h2 id="related-guides">Related guides</h2>
+<ul>
+<li><a href="../configuration-model/">Configuration</a> covers syntax and the full configuration model.</li>
+<li><a href="../bgp-policy/">BGP policy</a> covers import, export, and redistribution.</li>
+<li><a href="../bgp-resilience/">BGP resilience</a> covers route refresh, restart, persistence, and reflection.</li>
+<li><a href="../route-injection/">Route injection</a> covers on-demand announcements.</li>
+</ul>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/quickstart/">
+                        <span class="page-sidebar-link-label">Quickstart</span>
+                        <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create zefs, and start SSH.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../reference/command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

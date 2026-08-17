@@ -1,0 +1,1414 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>Plugins - Ze</title>
+        <meta name="description" content="Ze documentation: guide/plugins.md" />
+        <meta property="og:title" content="Plugins - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/plugins.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Plugins - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/plugins.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/guides/plugins/" />
+        <meta property="og:url" content="https://ze-software.net/guides/plugins/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-automate">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1 id="plugins">Plugins</h1>
+    <p>Ze uses a plugin architecture for all features beyond core BGP session management. Plugins handle RIB storage, route reflection, graceful restart, RPKI validation, NLRI encoding, and more.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#choosing-plugins">Choosing plugins</a></li>
+<li><a href="#config-driven-loading">Config-Driven Loading</a></li>
+<li><a href="#loading-plugins">Loading Plugins</a>
+<ol>
+<li><a href="#plugin-block-settings">Plugin Block Settings</a></li>
+</ol></li>
+<li><a href="#binding-plugins-to-peers">Binding Plugins to Peers</a>
+<ol>
+<li><a href="#event-types">Event Types</a></li>
+<li><a href="#runtime-subscriptions">Runtime subscriptions</a></li>
+<li><a href="#directions">Directions</a></li>
+<li><a href="#groups-and-dynamic-peers">Groups and dynamic peers</a></li>
+<li><a href="#the-send-permission">The send permission</a></li>
+<li><a href="#reading-the-delivery-graph">Reading the delivery graph</a></li>
+</ol></li>
+<li><a href="#invocation-modes">Invocation Modes</a></li>
+<li><a href="#built-in-plugins">Built-In Plugins</a>
+<ol>
+<li><a href="#storage-and-policy">Storage and Policy</a></li>
+<li><a href="#protocol">Protocol</a></li>
+<li><a href="#infrastructure">Infrastructure</a></li>
+<li><a href="#l2tp">L2TP</a></li>
+<li><a href="#route-filters">Route Filters</a></li>
+<li><a href="#cross-protocol-redistribute-redistribute-orchestrator">Cross-Protocol Redistribute (redistribute-orchestrator)</a></li>
+<li><a href="#prefix-list-filter-bgp-filter-prefix">Prefix-List Filter (bgp-filter-prefix)</a></li>
+<li><a href="#as-path-filter-bgp-filter-aspath">AS-Path Filter (bgp-filter-aspath)</a></li>
+<li><a href="#community-match-filter-bgp-filter-community-match">Community Match Filter (bgp-filter-community-match)</a></li>
+<li><a href="#route-attribute-modifier-bgp-filter-modify">Route Attribute Modifier (bgp-filter-modify)</a></li>
+<li><a href="#as-path-length-filter-bgp-filter-aspath-length">AS-Path Length Filter (bgp-filter-aspath-length)</a></li>
+<li><a href="#remove-private-as-bgp-filter-remove-private-as">Remove Private AS (bgp-filter-remove-private-as)</a></li>
+<li><a href="#nlri-encodersdecoders">NLRI Encoders/Decoders</a></li>
+</ol></li>
+<li><a href="#hub-configuration">Hub Configuration</a></li>
+<li><a href="#writing-external-plugins">Writing External Plugins</a></li>
+<li><a href="#dependencies">Dependencies</a></li>
+<li><a href="#exclusive-roles">Exclusive Roles</a></li>
+<li><a href="#peer-up-barrier">Peer-Up Barrier</a></li>
+<li><a href="#startup-timing">Startup Timing</a></li>
+<li><a href="#debugging-plugins">Debugging Plugins</a></li>
+</ol></nav>
+<!-- source: internal/component/plugin/registry/registry.go -- plugin registry; internal/component/plugin/all/ -- blank imports -->
+
+<h2 id="choosing-plugins">Choosing plugins</h2>
+<table>
+<thead>
+<tr>
+<th>Use case</th>
+<th>Plugins</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Announce routes to upstream</td>
+<td><code>bgp-rib</code></td>
+<td>Stores routes and sends them to peers</td>
+</tr>
+<tr>
+<td>Route server (IXP)</td>
+<td><code>bgp-rib</code> + <code>bgp-rs</code> + <code>bgp-adj-rib-in</code></td>
+<td>Forward routes between clients, replay on reconnect</td>
+</tr>
+<tr>
+<td>With RPKI validation</td>
+<td>Add <code>bgp-rpki</code> + <code>bgp-adj-rib-in</code></td>
+<td>Validate origin AS against ROA cache</td>
+</tr>
+<tr>
+<td>With merged RPKI events</td>
+<td>Add <code>bgp-rpki-decorator</code> (+ above)</td>
+<td>Receive UPDATE events pre-merged with RPKI state</td>
+</tr>
+<tr>
+<td>With graceful restart</td>
+<td>Add <code>bgp-gr</code></td>
+<td>Hold routes across restarts (RFC 4724)</td>
+</tr>
+<tr>
+<td>Service healthcheck</td>
+<td><code>bgp-healthcheck</code> + <code>bgp-watchdog</code></td>
+<td>Monitor services, control route announcement via MED or withdraw. <a href="../bgp-healthcheck/">Guide</a></td>
+</tr>
+<tr>
+<td>Monitor only (no RIB)</td>
+<td>None</td>
+<td>Ze runs without plugins -- peers connect, events fire, no routes stored</td>
+</tr>
+<tr>
+<td>Interface-aware BGP</td>
+<td><code>iface</code> + <code>bgp-rib</code></td>
+<td>React to OS interface changes -- start/stop BGP listeners when addresses appear/disappear</td>
+</tr>
+<tr>
+<td>Static routes</td>
+<td>(auto-loaded)</td>
+<td>Config-driven static routes with ECMP, weighted load balancing, BFD failover. <a href="../static-routes/">Guide</a></td>
+</tr>
+<tr>
+<td>OSPFv2 edge plugin</td>
+<td>(auto-loaded)</td>
+<td><code>ospf {}</code> starts the native OSPFv2 edge plugin, validates router-id/area/interface config, opens raw IPv4 sockets for active links, runs the Interface and Neighbor State Machines, and handles LSDB flooding</td>
+</tr>
+</tbody>
+</table>
+<p>NLRI family plugins (bgp-nlri-evpn, bgp-nlri-vpn, etc.) are loaded automatically when you configure the corresponding address family. You don't need to declare them.</p>
+<!-- source: internal/component/bgp/plugins/nlri/ -- NLRI plugin registrations with Families field -->
+
+<h2 id="config-driven-loading">Config-Driven Loading</h2>
+<p>BGP itself is a config-driven plugin. If your config has a <code>bgp { }</code> section, BGP loads automatically. If it doesn't, ze starts without BGP (useful for interface-only or FIB-only deployments). Native OSPFv2 follows the same pattern: an <code>ospf { }</code> section auto-loads the <code>ospf</code> edge plugin through <code>ConfigRoots ["ospf"]</code>.</p>
+<!-- source: internal/component/plugin/server/startup_autoload.go -- getConfigPathPlugins, autoLoadForNewConfigPaths -->
+<!-- source: internal/plugins/ospf/register.go -- registerOSPF ConfigRoots -->
+<!-- source: internal/plugins/ospf/neighbor/table.go -- Table, Hello -->
+<!-- source: internal/plugins/ospf/neighbor/dd.go -- HandleDBDesc -->
+<!-- source: internal/plugins/ospf/lsdb/lsdb.go -- LSDB -->
+
+<h2 id="loading-plugins">Loading Plugins</h2>
+<p>Plugins are declared in the <code>plugin { }</code> block. Built-in plugins use <code>internal</code>, external processes use <code>external</code>:</p>
+<pre><code>plugin {
+    internal rib {
+        use bgp-rib
+    }
+    internal adj-rib-in {
+        use bgp-adj-rib-in
+    }
+    internal gr {
+        use bgp-gr
+    }
+}
+</code></pre>
+<p>For external processes (scripts, custom binaries):</p>
+<pre><code>plugin {
+    external collector {
+        run ./collector.py
+        encoder json
+    }
+}
+</code></pre>
+<h3 id="plugin-block-settings">Plugin Block Settings</h3>
+<table>
+<thead>
+<tr>
+<th>List</th>
+<th>Setting</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>internal</code></td>
+<td><code>use</code></td>
+<td>Name of a built-in plugin to run in-process</td>
+</tr>
+<tr>
+<td><code>external</code></td>
+<td><code>run</code></td>
+<td>Command to start an external plugin process</td>
+</tr>
+<tr>
+<td><code>external</code></td>
+<td><code>encoder</code></td>
+<td>Wire encoding: <code>json</code> (default) or <code>text</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="binding-plugins-to-peers">Binding Plugins to Peers</h2>
+<p>Each peer declares which plugins receive its events, in <code>attach process</code> blocks.
+The process name must match the plugin's <code>internal</code> or <code>external</code> name in the
+<code>plugin { }</code> block:</p>
+<pre><code>plugin {
+    internal rib { ... }       # &lt;-- this name
+}
+peer transit-a {
+    attach process rib { ... }        # &lt;-- must match
+}
+</code></pre>
+<p>Plugins receive BGP events through the attach blocks on each peer:</p>
+<pre><code>peer transit-a {
+    ...
+    attach process rib {
+        receive [ update state refresh ]
+        send [ update ]
+    }
+    attach process adj-rib-in {
+        receive [ update-received state ]
+    }
+}
+</code></pre>
+<p><strong>A peer that attaches nothing feeds nothing.</strong> The block is the whole
+statement of the relationship: a plugin that no peer attaches runs and is fed
+no peer event, and a peer that attaches one plugin feeds that plugin and no
+other. Loading a plugin and attaching it are two separate acts, and the second
+is the one that moves data.</p>
+<h3 id="event-types">Event Types</h3>
+<table>
+<thead>
+<tr>
+<th>Event</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>update</code></td>
+<td>Route announcements and withdrawals</td>
+</tr>
+<tr>
+<td><code>open</code></td>
+<td>OPEN message</td>
+</tr>
+<tr>
+<td><code>notification</code></td>
+<td>NOTIFICATION message</td>
+</tr>
+<tr>
+<td><code>keepalive</code></td>
+<td>KEEPALIVE message</td>
+</tr>
+<tr>
+<td><code>refresh</code></td>
+<td>Route refresh request</td>
+</tr>
+<tr>
+<td><code>state</code></td>
+<td>Peer state changes (up/down)</td>
+</tr>
+<tr>
+<td><code>negotiated</code></td>
+<td>Capability negotiation results</td>
+</tr>
+<tr>
+<td><code>eor</code></td>
+<td>End-of-RIB marker</td>
+</tr>
+<tr>
+<td><code>rpki</code></td>
+<td>RPKI validation results</td>
+</tr>
+<tr>
+<td><code>update-rpki</code></td>
+<td>Merged UPDATE + RPKI validation (from bgp-rpki-decorator)</td>
+</tr>
+</tbody>
+</table>
+<p>Plugins can register custom event types via the <code>EventTypes</code> field in their registration.
+These become valid in <code>receive</code> config directives and <code>subscribe-events</code> RPCs.</p>
+<!-- source: internal/component/plugin/registry/registry.go -- Registration.EventTypes -->
+
+<h3 id="runtime-subscriptions">Runtime subscriptions</h3>
+<p>The Go SDK can subscribe at startup with <code>SetStartupSubscriptions</code> or after
+startup with <code>SubscribeEvents</code>. Each subscription carries its own namespace,
+event list, peer selector, format, and envelope preference. An empty namespace
+uses the protocol component's default namespace, normally <code>bgp</code>.</p>
+<p>The event name <code>"*"</code> expands at registration time to every event type currently
+registered in that namespace. This avoids a wildcard check on every delivered
+event. Events registered later require a new subscription.</p>
+<p>By default, <code>OnEvent</code> receives the original payload string. Call
+<code>SetEnvelope(true)</code> before startup when one handler needs to distinguish events
+from several namespaces or event types. Delivery then wraps the payload:</p>
+<pre><code class="language-json">{
+  &quot;namespace&quot;: &quot;vpn-ipsec&quot;,
+  &quot;event&quot;: &quot;sa-up&quot;,
+  &quot;payload&quot;: {
+    &quot;peer&quot;: &quot;branch-a&quot;
+  }
+}
+</code></pre>
+<p>The envelope sits inside the existing event string, so single-event and batch
+delivery use the same callback. Subscribers that do not opt in remain
+byte-compatible with earlier releases.</p>
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- SetStartupSubscriptions, SetEnvelope -->
+<!-- source: pkg/plugin/rpc/types.go -- SubscribeEventsInput, EventEnvelope -->
+<!-- source: internal/component/plugin/server/dispatch.go -- wildcard expansion and enveloped delivery -->
+
+<h3 id="directions">Directions</h3>
+<pre><code>attach process my-plugin {
+    receive [ update-received ]   # UPDATEs the peer sends to ze
+    send [ update ]               # permission to announce toward the peer
+}
+</code></pre>
+<p><code>receive</code> names an event type and the direction it is fed in. A plain type means
+both directions, so <code>receive [ update ]</code> feeds the program the UPDATEs ze sends
+as well as the ones it gets. <code>send</code> carries no direction, because every send type
+is sent.</p>
+<p>The two lists are independent. A program with <code>send</code> and no <code>receive</code> announces
+to the peer and is told nothing by it. A program with <code>receive</code> and no <code>send</code>
+watches the peer and may not answer it.</p>
+<h3 id="groups-and-dynamic-peers">Groups and dynamic peers</h3>
+<p>Write the block once on a group and every peer that group produces carries it.
+A member that restates the block REPLACES the group's list for itself, and the
+other members keep the group's.</p>
+<pre><code>plugin {
+    external looking-glass {
+        run ./looking-glass.py
+        encoder json
+    }
+}
+
+bgp {
+    group transit {
+        attach process looking-glass {
+            receive [ update-received state ]
+        }
+
+        peer transit-a { }                    # updates and state
+        peer transit-b { }                    # updates and state
+        peer transit-c {
+            attach process looking-glass {
+                receive [ state ]             # state ONLY
+            }
+        }
+    }
+}
+</code></pre>
+<p><code>transit-c</code> is fed state and no update. Its own list stands in for the group's
+rather than adding to it, which is how every leaf-list in a group merges. To
+widen one member, restate the whole list you want it to have.</p>
+<p>A peer a DYNAMIC group creates carries the group's blocks too. Such a peer is
+named by no config: ze generates <code>dyn-&lt;address&gt;</code> when it accepts the
+connection. Nothing needs to name it, because ze reads each peer's blocks after
+the group merge, not from the text of the config file.</p>
+<pre><code>bgp {
+    group ix {
+        connection {
+            remote {
+                ip dynamic
+                connect false
+                range 198.51.100.0/24
+            }
+            local {
+                ip 198.51.100.1
+                accept true
+            }
+        }
+        attach process looking-glass {
+            receive [ update-received state ]
+        }
+    }
+}
+</code></pre>
+<p>Every member that connects from <code>198.51.100.0/24</code> feeds <code>looking-glass</code> its
+received UPDATEs and its session state. <code>show event delivery</code> lists them by the
+address each one connected from.</p>
+<!-- source: internal/component/bgp/config/resolve.go -- ResolveBGPTree -->
+<!-- source: internal/component/bgp/reactor/reactor_dynamic.go -- buildDynamicPeerSettings -->
+
+<h3 id="the-send-permission">The send permission</h3>
+<p><code>send</code> is a permission, and ze enforces it on the peers a command resolves to.
+A program that issues <code>peer * update ...</code> reaches the peers that attach it with
+<code>send [ update ]</code>, and no others. A peer the program is not attached to is
+dropped from the command, and ze writes one WARN naming the peer, the process
+and the message type. When the selector names ONLY peers that refuse it, the
+whole command fails and the program is told why.</p>
+<p>The two BASE message types are separate permissions. A plugin registers more,
+and naming one auto-loads the plugin that enables it, <code>enhanced-refresh</code> from
+bgp-route-refresh among them:</p>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Permits</th>
+<th>Commands</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>update</code></td>
+<td>originating routes toward the peer</td>
+<td><code>update text ... add</code>, <code>update text ... del</code>, an End-of-RIB marker, a named commit</td>
+</tr>
+<tr>
+<td><code>refresh</code></td>
+<td>asking the peer to re-advertise</td>
+<td><code>peer &lt;sel&gt; refresh</code>, <code>borr</code>, <code>eorr</code>, <code>clear soft</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>send [ * ]</code> grants both, and every send type registered later.</p>
+<p>An operator at the CLI, over SSH or through the REST API is not a process and is
+not gated by this: their authority is the one AAA already checked.</p>
+<p>Counter: <code>ze_bgp_send_refused_total{process,type}</code> counts messages the permission
+refused. A non-zero value with no config change means a program is asking for a
+peer it was never attached to.</p>
+<!-- source: internal/component/bgp/reactor/send_permission.go -- Peer.maySend, sendPermissionDenied, ze_bgp_send_refused_total -->
+<!-- source: internal/component/bgp/reactor/reactor_api.go -- getMatchingPeersSel -->
+
+<h3 id="reading-the-delivery-graph">Reading the delivery graph</h3>
+<p><code>show event delivery</code> prints the peer-to-process edges the running config
+produces: one block per peer, one row per <code>attach process</code> block on it, with the
+event types that process is fed and the message types it may send toward that
+peer. A peer with no <code>attach process</code> block shows no process.</p>
+<p>The daemon builds this from the RESOLVED settings of each peer, so a block a
+peer inherits from its group is shown on the peer. A token the event registry
+does not know is listed under <code>unresolved</code> and carries no edge, which is what an
+operator sees when a custom event type names a plugin that did not load.</p>
+<p>These edges DECIDE delivery. A peer hands a program an event when the peer's
+block grants the type and the program subscribed to it; a peer that attaches no
+block for a program feeds it nothing, whatever the program asked for at startup.
+That holds for ze's own plugins as well: a config that loads <code>bgp-rib</code> and
+attaches it to no peer stores no route. When the two halves disagree, the daemon
+names each peer, process and event type in the log rather than dropping the
+event in silence.</p>
+<p>The name in <code>attach process &lt;name&gt;</code> is the name the program runs under: the one
+in its <code>plugin { external &lt;name&gt; }</code> or <code>plugin { internal &lt;name&gt; }</code> block, or the
+registry name of a plugin loaded with <code>--plugin</code>.</p>
+<!-- source: internal/component/plugin/server/delivery_graph.go -- DeliveryGraph, Inspect, PeerScopedProcs -->
+<!-- source: internal/component/cmd/show/show.go -- handleShowEventDelivery -->
+<!-- source: internal/component/bgp/reactor/delivery_graph.go -- DeliveryPeersFromSettings -->
+
+<h2 id="invocation-modes">Invocation Modes</h2>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>Config Syntax</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Internal</td>
+<td><code>internal rib { use bgp-rib; }</code></td>
+<td>Compiled-in plugin using <code>net.Pipe</code> for startup and DirectBridge for hot paths</td>
+</tr>
+<tr>
+<td>External</td>
+<td><code>external feed { run "/usr/local/bin/my-plugin"; }</code></td>
+<td>External binary or script using TLS connect-back</td>
+</tr>
+</tbody>
+</table>
+<p>Internal mode (<code>use pluginname</code>) runs a compiled-in plugin as a goroutine within the ze process. Startup still uses the same YANG RPC handshake as external plugins, then DirectBridge bypasses socket I/O for supported hot paths. External mode starts a separate process; that process connects back to the plugin hub over TLS and authenticates with its per-plugin token.</p>
+<!-- source: internal/component/plugin/server/ -- plugin invocation modes; internal/component/plugin/cli/cli.go -- RunPlugin -->
+
+<h2 id="built-in-plugins">Built-In Plugins</h2>
+<p>List available plugins:</p>
+<pre><code>ze --plugins
+</code></pre>
+<h3 id="storage-and-policy">Storage and Policy</h3>
+<table>
+<thead>
+<tr>
+<th>Plugin</th>
+<th>Purpose</th>
+<th>Typical Binding</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>bgp-rib</code></td>
+<td>Route Information Base</td>
+<td><code>receive [ update state refresh ] send [ update refresh ]</code></td>
+</tr>
+<tr>
+<td><code>bgp-adj-rib-in</code></td>
+<td>Adj-RIB-In (raw hex replay, auto-replays on peer-up)</td>
+<td><code>receive [ update-received state ]</code></td>
+</tr>
+<tr>
+<td><code>bgp-persist</code></td>
+<td>Route persistence across restarts</td>
+<td><code>receive [ update-sent state open-received ] send [ update ]</code></td>
+</tr>
+<tr>
+<td><code>bgp-rs</code></td>
+<td>Route server (forward-all)</td>
+<td><code>receive [ update-received state open-received refresh ] send [ update ]</code></td>
+</tr>
+<tr>
+<td><code>bgp-rr</code></td>
+<td>Route reflector (RFC 4456)</td>
+<td><code>receive [ update-received state open-received ]</code></td>
+</tr>
+<tr>
+<td><code>bgp-watchdog</code></td>
+<td>Deferred route announcement</td>
+<td><code>receive [ state ] send [ update ]</code></td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/bgp/plugins/rib/register.go -- bgp-rib registration -->
+<!-- source: internal/component/bgp/plugins/adj_rib_in/register.go -- bgp-adj-rib-in registration -->
+<!-- source: internal/component/bgp/plugins/persist/register.go -- bgp-persist registration -->
+<!-- source: internal/component/bgp/plugins/rs/register.go -- bgp-rs registration -->
+<!-- source: internal/component/bgp/plugins/rr/register.go -- bgp-rr registration -->
+<!-- source: internal/component/bgp/plugins/watchdog/register.go -- bgp-watchdog registration -->
+
+<h3 id="protocol">Protocol</h3>
+<table>
+<thead>
+<tr>
+<th>Plugin</th>
+<th>Purpose</th>
+<th>Typical Binding</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>bgp-gr</code></td>
+<td>Graceful Restart (RFC 4724) and Long-Lived GR (RFC 9494)</td>
+<td><code>receive [ open-received state eor ] send [ update ]</code></td>
+</tr>
+<tr>
+<td><code>bgp-rpki</code></td>
+<td>RPKI origin validation (RFC 6811)</td>
+<td><code>receive [ update-received ]</code></td>
+</tr>
+<tr>
+<td><code>bgp-rpki-decorator</code></td>
+<td>Merged UPDATE+RPKI events</td>
+<td><code>receive [ update-received rpki ]</code></td>
+</tr>
+<tr>
+<td><code>bgp-route-refresh</code></td>
+<td>Route Refresh (RFC 2918)</td>
+<td><code>send [ refresh ]</code></td>
+</tr>
+<tr>
+<td><code>bgp-role</code></td>
+<td>BGP Role (RFC 9234)</td>
+<td>--</td>
+</tr>
+<tr>
+<td><code>bgp-hostname</code></td>
+<td>FQDN capability</td>
+<td>--</td>
+</tr>
+<tr>
+<td><code>bgp-softver</code></td>
+<td>Software version capability</td>
+<td>--</td>
+</tr>
+<tr>
+<td><code>bgp-llnh</code></td>
+<td>Link-local next-hop (RFC 2545)</td>
+<td>--</td>
+</tr>
+<tr>
+<td><code>bgp-bmp</code></td>
+<td>BMP receiver + sender (RFC 7854)</td>
+<td><code>receive [ state update open notification keepalive refresh ]</code></td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/bgp/plugins/gr/register.go -- bgp-gr registration -->
+<!-- source: internal/component/bgp/plugins/rpki/register.go -- bgp-rpki registration -->
+<!-- source: internal/component/bgp/plugins/rpki_decorator/register.go -- bgp-rpki-decorator registration -->
+<!-- source: internal/component/bgp/plugins/route_refresh/register.go -- bgp-route-refresh registration -->
+<!-- source: internal/component/bgp/plugins/role/register.go -- bgp-role registration -->
+<!-- source: internal/component/bgp/plugins/hostname/register.go -- bgp-hostname registration -->
+<!-- source: internal/component/bgp/plugins/softver/register.go -- bgp-softver registration -->
+<!-- source: internal/component/bgp/plugins/llnh/register.go -- bgp-llnh registration -->
+<!-- source: internal/component/bgp/plugins/bmp/register.go -- bgp-bmp registration -->
+
+<h3 id="infrastructure">Infrastructure</h3>
+<table>
+<thead>
+<tr>
+<th>Plugin</th>
+<th>Description</th>
+<th>Process Binding</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>iface</code></td>
+<td>OS interface orchestration: loads backend, dispatches operations</td>
+<td>-- (Bus events, no peer binding)</td>
+</tr>
+<tr>
+<td><code>iface-netlink</code></td>
+<td>Netlink backend for iface: manage, monitor, bridge, sysctl, mirror</td>
+<td>-- (registered as iface backend)</td>
+</tr>
+<tr>
+<td><code>iface-dhcp</code></td>
+<td>DHCP client: DHCPv4/DHCPv6 lease acquisition and renewal</td>
+<td>-- (Bus events)</td>
+</tr>
+<tr>
+<td><code>iface-ra</code></td>
+<td>IPv6 Router Advertisement sender (RFC 4861): advertises prefixes, flags, and RDNSS resolvers (RFC 8106) on a LAN unit. Hosts autoconfigure addresses, learn a default router, and learn resolvers. Linux and netlink only. <a href="../configuration-model/#ipv6-router-advertisements">Guide</a></td>
+<td>-- (Config-driven, raw ICMPv6 socket per unit)</td>
+</tr>
+<tr>
+<td><code>rib</code></td>
+<td>System RIB: selects best route across protocols by admin distance</td>
+<td>-- (Bus events, no peer binding)</td>
+</tr>
+<tr>
+<td><code>fib-kernel</code></td>
+<td>FIB kernel: programs OS routes from system RIB via netlink</td>
+<td>-- (Bus events, no peer binding)</td>
+</tr>
+<tr>
+<td><code>fib-p4</code></td>
+<td>FIB P4: programs P4 switch from system RIB via gRPC/P4Runtime (noop backend)</td>
+<td>-- (Bus events, no peer binding)</td>
+</tr>
+<tr>
+<td><code>fib-vpp</code></td>
+<td>FIB VPP: programs VPP FIB from system RIB via GoVPP. MPLS label push (IPRouteAddDel with LabelStack), swap/pop (MplsRouteAddDel), interface enable (SwInterfaceSetMplsEnable).</td>
+<td>-- (Bus events, no peer binding)</td>
+</tr>
+<tr>
+<td><code>firewall-vpp</code></td>
+<td>VPP ACL backend for firewall: translates ze Match/Action types to VPP ACL rules, read-merge-write bindings preserving foreign ACLs</td>
+<td>-- (registered as firewall backend)</td>
+</tr>
+<tr>
+<td><code>policy-routes</code></td>
+<td>Policy-based routing via nftables packet marking and kernel ip rules. Steers traffic to alternate routing tables or next-hops based on L3/L4 match criteria. <a href="../policy-routing/">Guide</a></td>
+<td>-- (Config-driven, depends on firewall)</td>
+</tr>
+<tr>
+<td><code>sysctl</code></td>
+<td>Kernel tunable management: three-layer precedence (config &gt; transient &gt; default), restore on stop. Named profiles (dsr, router, hardened, multihomed, proxy) for interface units. User-defined profiles.</td>
+<td>-- (Bus events, CLI commands)</td>
+</tr>
+<tr>
+<td><code>dhcpserver</code></td>
+<td>DHCP server (RFC 2131/2132) with PXE boot support (RFC 4578): pool management, lease tracking, static mappings, PXE option injection (options 43/60/66/67/93) for BIOS/UEFI bootfile selection</td>
+<td>-- (Config-driven, UDP listener)</td>
+</tr>
+<tr>
+<td><code>tftpserver</code></td>
+<td>Read-only TFTP server (RFC 1350): serves bootloader files for PXE provisioning in 512-byte blocks with stop-and-wait ACK, concurrent transfer limiting, path traversal protection</td>
+<td>-- (Config-driven, UDP listener on port 69)</td>
+</tr>
+<tr>
+<td><code>imageserver</code></td>
+<td>HTTP image server for PXE provisioning: serves gokrazy disk images, installer boot files, and pre-provisioned zefs databases with SSH credentials. Own HTTP listener, path traversal protection, Range request support</td>
+<td>-- (Config-driven, HTTP listener)</td>
+</tr>
+<tr>
+<td><code>geodns</code></td>
+<td>GeoDNS server (RFC 1035): DNS answers selected by client source IP. Client IP from EDNS0 client-subnet (RFC 7871) or packet source; CIDR longest-prefix selects a named host-set (A/AAAA/SRV records); synthesizes SOA/NS/glue. <code>show geodns</code>, <code>ze_geodns_*</code> metrics, UDP+TCP listeners (default 127.0.0.1:5300); compile-out-able with the <code>ze_geodns</code> build tag <!-- source: feature-gates.txt -- ze_geodns --></td>
+<td>-- (Config-driven, UDP+TCP listeners)</td>
+</tr>
+<tr>
+<td><code>as112</code></td>
+<td>AS112 anycast DNS node (RFC 7534, RFC 7535): authoritative-only sink for misdirected RFC 1918 / link-local reverse-DNS queries plus the EMPTY.AS112.ARPA DNAME-redirection zone. Four fixed anycast host addresses (never operator-typed) registered via the iface address-ownership registry, <code>IP_FREEBIND</code> listeners, optional <code>allow-from</code> client-source access list (loopback always permitted). <code>show as112</code>, <code>as112 health</code> (one-shot query for the healthcheck probe), <code>ze_as112_*</code> metrics, UDP+TCP listeners on port 53. Now also a BGP redistribute source: <code>redistribute { destination bgp { import as112 } }</code> originates the four covering prefixes into BGP, with <code>asn</code> (origin AS, default 112), <code>community</code>, and a <code>watchdog</code> health-gate under <code>service { as112 }</code>. <!-- source: internal/plugins/as112/redistribute.go -- registerAS112Sources --></td>
+<td>-- (Config-driven, UDP+TCP listeners)</td>
+</tr>
+<tr>
+<td><code>traffic-usage</code></td>
+<td>eBPF TCX per-(port, protocol) and opt-in per-IP byte accounting (IPv4, monitoring only). Pure-Go assembled eBPF (cilium/ebpf asm.Instructions, no C/clang). Prometheus <code>ze_traffic_usage_*</code> metrics, <code>show traffic usage [name &lt;interface&gt;]</code>. Linux &gt;= 6.6. <a href="../traffic-usage/">Guide</a></td>
+<td>-- (Config-driven, Bus events)</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/plugins/trafficusage/register.go -- traffic-usage registration -->
+<!-- source: internal/plugins/policyroute/register.go -- policy-routes registration -->
+<!-- source: internal/component/sysctl/register.go -- sysctl registration -->
+<!-- source: internal/plugins/dhcpserver/register.go -- dhcpserver registration -->
+<!-- source: internal/plugins/tftpserver/register.go -- tftpserver registration -->
+<!-- source: internal/plugins/geodns/register.go -- geodns registration -->
+<!-- source: internal/plugins/as112/register.go -- as112 registration -->
+<!-- source: internal/component/iface/register.go -- iface registration -->
+<!-- source: internal/plugins/iface/netlink/register.go -- iface-netlink backend registration -->
+<!-- source: internal/plugins/iface/dhcp/register.go -- iface-dhcp registration -->
+<!-- source: internal/plugins/iface/ra/register.go -- iface-ra registration -->
+<!-- source: internal/component/sysrib/register.go -- rib plugin registration -->
+<!-- source: internal/plugins/fib/p4/register.go -- fib-p4 registration -->
+<!-- source: internal/plugins/fib/kernel/register.go -- fib-kernel registration -->
+<!-- source: internal/plugins/firewall/vpp/register.go -- firewall-vpp backend registration -->
+
+<h3 id="l2tp">L2TP</h3>
+<table>
+<thead>
+<tr>
+<th>Plugin</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>l2tp-auth-local</code></td>
+<td>Static user/password authentication for L2TP PPP sessions (PAP/CHAP-MD5/MS-CHAPv2)</td>
+</tr>
+<tr>
+<td><code>l2tp-auth-radius</code></td>
+<td>RADIUS authentication (Access-Request), accounting (Start/Stop/Interim-Update), CoA/DM listener, and Access-Accept attribute extraction (Framed-IP-Address, Framed-Pool, Session-Timeout, Idle-Timeout, Filter-Id, Acct-Interim-Interval)</td>
+</tr>
+<tr>
+<td><code>l2tp-pool</code></td>
+<td>Bitmap-backed IPv4 address pool with default and named pools; Framed-IP-Address bypasses pool (direct RADIUS IP assignment), Framed-Pool selects a named pool</td>
+</tr>
+<tr>
+<td><code>l2tp-shaper</code></td>
+<td>TC traffic shaping (TBF/HTB) on pppN interfaces with configured default rates, RADIUS CoA rate updates, and initial rate from Filter-Id at session establishment</td>
+</tr>
+</tbody>
+</table>
+<p>These plugins register via the L2TP handler registry (<code>RegisterAuthHandler</code>,
+<code>RegisterPoolHandler</code>) at init time. Only one auth handler is active at a
+time (last registered wins). The pool and shaper plugins subscribe to
+session lifecycle events via the EventBus.</p>
+<p>See <a href="../l2tp/">L2TP guide</a> for configuration details.</p>
+<!-- source: internal/component/l2tp/plugins/authlocal/register.go -->
+<!-- source: internal/component/l2tp/plugins/authradius/register.go -->
+<!-- source: internal/component/l2tp/plugins/pool/register.go -->
+<!-- source: internal/component/l2tp/plugins/shaper/register.go -->
+
+<p>The <code>iface</code> plugin defines a <code>Backend</code> interface and loads a backend by name (YANG
+<code>backend</code> leaf, default <code>netlink</code>). The <code>iface-netlink</code> backend handles all Linux
+interface operations. <code>iface-dhcp</code> is a separate plugin for DHCP client lifecycle.
+BGP reacts to address events by starting/stopping listeners. Uses a JunOS-style
+two-layer model: physical interfaces + logical units (VLANs).</p>
+<p>Bus topics published:</p>
+<table>
+<thead>
+<tr>
+<th>Topic</th>
+<th>When</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>interface/created</code></td>
+<td>Interface appeared</td>
+</tr>
+<tr>
+<td><code>interface/deleted</code></td>
+<td>Interface removed</td>
+</tr>
+<tr>
+<td><code>interface/up</code></td>
+<td>Link state to up</td>
+</tr>
+<tr>
+<td><code>interface/down</code></td>
+<td>Link state to down</td>
+</tr>
+<tr>
+<td><code>interface/addr/added</code></td>
+<td>IP assigned</td>
+</tr>
+<tr>
+<td><code>interface/addr/removed</code></td>
+<td>IP removed</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/iface/iface.go -- topic constants and payload types -->
+
+<p>The <code>rib</code> plugin aggregates best routes from all protocol RIBs and selects
+the system-wide best per prefix by administrative distance (lower wins).
+Subscribes to <code>bgp-rib/best-change/</code> Bus topic prefix, publishes <code>system-rib/best-change</code>.</p>
+<!-- source: internal/component/sysrib/sysrib.go -- system-rib topic, protocolRoute, admin distance selection -->
+
+<p>The <code>fib-kernel</code> plugin programs OS routes from the system RIB into the kernel
+via netlink (Linux). Uses a custom rtm_protocol ID (RTPROT_ZE=250) to identify
+ze-installed routes. Crash recovery marks existing ze routes as stale at startup
+and sweeps them after reconvergence. A kernel route monitor detects external
+changes and re-asserts ze routes when overwritten.</p>
+<!-- source: internal/plugins/fib/kernel/fibkernel.go -- fibKernel, startupSweep, sweepStale -->
+<!-- source: internal/plugins/fib/kernel/monitor_linux.go -- kernel route monitor -->
+
+<p>Bus topics in the FIB pipeline:</p>
+<table>
+<thead>
+<tr>
+<th>Topic</th>
+<th>Publisher</th>
+<th>Subscriber</th>
+<th>Payload</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>bgp-rib/best-change/bgp</code></td>
+<td><code>bgp-rib</code></td>
+<td><code>rib</code></td>
+<td>Batch of per-prefix best-path changes</td>
+</tr>
+<tr>
+<td><code>system-rib/best-change</code></td>
+<td><code>rib</code></td>
+<td><code>fib-kernel</code>, <code>fib-p4</code></td>
+<td>Batch of system-wide best route changes</td>
+</tr>
+<tr>
+<td><code>fib/external-change</code></td>
+<td><code>fib-kernel</code></td>
+<td>monitoring</td>
+<td>External route change on ze-managed prefix</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- bestChangeEntry, bestChangeBatch -->
+<!-- source: internal/component/sysrib/sysrib.go -- system-rib topic -->
+<!-- source: internal/plugins/fib/kernel/monitor.go -- externalChangeEvent, publishExternalChange -->
+<!-- source: internal/plugins/fib/kernel/fibkernel.go -- system-rib/best-change subscription -->
+
+<p>Bus topics in the sysctl pipeline:</p>
+<table>
+<thead>
+<tr>
+<th>Topic</th>
+<th>Publisher</th>
+<th>Subscriber</th>
+<th>Payload</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sysctl/default</code></td>
+<td><code>fib-kernel</code>, <code>iface</code></td>
+<td><code>sysctl</code></td>
+<td>Plugin-required kernel default (key, value, source)</td>
+</tr>
+<tr>
+<td><code>sysctl/set</code></td>
+<td>CLI</td>
+<td><code>sysctl</code></td>
+<td>Transient value from user (key, value)</td>
+</tr>
+<tr>
+<td><code>sysctl/applied</code></td>
+<td><code>sysctl</code></td>
+<td>any</td>
+<td>Notification after kernel write (key, value, source)</td>
+</tr>
+<tr>
+<td><code>sysctl/show-request</code></td>
+<td>CLI</td>
+<td><code>sysctl</code></td>
+<td>Request active keys table (request-id)</td>
+</tr>
+<tr>
+<td><code>sysctl/show-result</code></td>
+<td><code>sysctl</code></td>
+<td>requester</td>
+<td>Active keys JSON (request-id, entries)</td>
+</tr>
+<tr>
+<td><code>sysctl/list-request</code></td>
+<td>CLI</td>
+<td><code>sysctl</code></td>
+<td>Request known keys table (request-id)</td>
+</tr>
+<tr>
+<td><code>sysctl/list-result</code></td>
+<td><code>sysctl</code></td>
+<td>requester</td>
+<td>Known keys JSON (request-id, entries)</td>
+</tr>
+<tr>
+<td><code>sysctl/clear-profile-defaults</code></td>
+<td><code>iface</code></td>
+<td><code>sysctl</code></td>
+<td>Clear stale profile defaults for an interface before re-emission (interface)</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/sysctl/events/events.go -- Namespace, EventDefault, EventSet, EventApplied -->
+<!-- source: internal/component/sysctl/register.go -- EventBus subscribe/emit -->
+
+<h3 id="route-filters">Route Filters</h3>
+<p>Plugins can declare named filters at stage 1 for import and/or export filtering.
+Each filter specifies which attributes it needs, and the engine sends only those
+attributes as text for each UPDATE. Filters respond accept, reject, or modify
+(delta-only). See <a href="../redistribution/">Route Filters</a> for configuration.</p>
+<p>A single plugin can offer multiple named filters. Config references them as
+<code>&lt;plugin&gt;:&lt;filter&gt;</code> (e.g., <code>rpki:validate</code>, <code>community:scrub</code>).</p>
+<table>
+<thead>
+<tr>
+<th>Category</th>
+<th>Behaviour</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Mandatory</td>
+<td>Always on, cannot be overridden</td>
+<td><code>rfc:otc</code></td>
+</tr>
+<tr>
+<td>Default</td>
+<td>On by default, overridable per-peer</td>
+<td><code>rfc:no-self-as</code></td>
+</tr>
+<tr>
+<td>User</td>
+<td>Explicit in <code>filter {}</code> config</td>
+<td><code>rpki:validate</code></td>
+</tr>
+</tbody>
+</table>
+<p>Filters can declare <code>overrides</code> to remove default filters from the chain
+(e.g., <code>allow-own-as:relaxed</code> overrides <code>rfc:no-self-as</code> for a specific peer).</p>
+<!-- source: internal/component/bgp/config/redistribution.go -- extractFilterChain and canonicalizeFilterRefs -->
+
+<h3 id="cross-protocol-redistribute-redistribute-orchestrator">Cross-Protocol Redistribute (<code>redistribute-orchestrator</code>)</h3>
+<p><code>redistribute-orchestrator</code> is the single subscriber that dispatches non-consumer
+protocol route-change events to registered <code>RedistConsumer</code> implementations.
+Unlike the route filter chain above (which gates intra-BGP traffic),
+the orchestrator lets operators redistribute locally-originated routes from
+other protocols (L2TP sessions, connected interface prefixes, static routes,
+future OSPF / ISIS) into destination protocols (BGP, future OSPF/ISIS).</p>
+<p>Config:</p>
+<pre><code>redistribute {
+    destination bgp {
+        import connected;
+        import static;
+        import l2tp { family [ ipv4/unicast ipv6/unicast ]; }
+    }
+}
+</code></pre>
+<p>Each <code>destination &lt;protocol&gt;</code> names a registered consumer. Under it,
+<code>import &lt;source&gt;</code> enables one non-consumer protocol. The import rule's
+<code>source</code> is the protocol's canonical name registered via
+<code>redistribute.RegisterSource</code>. Per-source <code>family</code> lists narrow which
+address families are redistributed; an empty list means "all families".
+An import is scoped to its enclosing <code>destination</code>: an <code>import</code> under
+<code>destination bgp</code> feeds only BGP, not OSPF/IS-IS.</p>
+<p>The orchestrator <strong>auto-loads</strong> when <code>redistribute {}</code> appears in the
+config. No <code>plugin { internal redistribute-orchestrator { use redistribute-orchestrator; } }</code>
+block is required.</p>
+<p>Reactor per-peer NEXT_HOP substitution applies: when the producer leaves
+<code>NextHop</code> zero, the reactor stamps each peer's local session address as the
+NEXT_HOP. Producers that have an explicit address pass it through verbatim.</p>
+<p><strong>Late-join replay:</strong> a route injected by a source into <code>destination bgp</code> also
+reaches a BGP peer that establishes AFTER the injection. On a peer's down-&gt;up
+edge the orchestrator emits a <code>redistevents.ReplayRequest</code> carrying an opaque
+<code>ReplayID</code> token; each producer re-emits its current set with the token echoed,
+and the orchestrator targets only the newly-established peer. Producers stay
+peer-agnostic; the orchestrator holds the <code>ReplayID -&gt; peer</code> mapping. Out-of-process
+producers re-emit asynchronously, so the mapping is held for a TTL. This closes the
+gap for dynamic/inbound peers not present in the reactor map at injection time.</p>
+<p>Counters: <code>ze_bgp_redistribute_events_received</code>, <code>_announcements</code>,
+<code>_withdrawals</code>, <code>_filtered_protocol_total</code>, <code>_filtered_rule_total</code>,
+<code>ze_bgp_redistribute_replay_total{source}</code> (routes replayed to a newly-established peer).</p>
+<!-- source: internal/component/bgp/plugins/redistribute_egress/redistribute.go -- consumer plugin -->
+<!-- source: internal/component/bgp/plugins/redistribute_egress/replay.go -- late-join replay-on-peer-up -->
+<!-- source: internal/core/redistevents/registry.go -- ProtocolID + producer registration -->
+
+<h3 id="prefix-list-filter-bgp-filter-prefix">Prefix-List Filter (<code>bgp-filter-prefix</code>)</h3>
+<p><code>bgp-filter-prefix</code> is a built-in filter plugin that matches IPv4 and IPv6
+routes against ordered prefix lists defined in <code>bgp { policy { prefix-list
+NAME { ... } } }</code>. Each list is a sequence of <code>entry &lt;CIDR&gt;</code> blocks with
+optional <code>ge</code> / <code>le</code> bounds and an <code>action</code> of <code>accept</code> or <code>reject</code>; the
+first matching entry wins and no match is an implicit deny.</p>
+<p>Filter chain references use the standard <code>&lt;plugin&gt;:&lt;filter&gt;</code> form:
+<code>bgp-filter-prefix:CUSTOMERS</code>. The shorter form <code>prefix-list:CUSTOMERS</code> also
+resolves to the same plugin via the filter-type registration, and a bare
+<code>CUSTOMERS</code> resolves if no other filter plugin claims a filter of that name.</p>
+<table>
+<thead>
+<tr>
+<th>UPDATE content</th>
+<th>Filter action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Single prefix, accepted</td>
+<td><code>accept</code> (passes through)</td>
+</tr>
+<tr>
+<td>Single prefix, denied</td>
+<td><code>reject</code> (update dropped)</td>
+</tr>
+<tr>
+<td>Multi-prefix, all accepted</td>
+<td><code>accept</code> (passes through)</td>
+</tr>
+<tr>
+<td>Multi-prefix, all denied</td>
+<td><code>reject</code> (update dropped)</td>
+</tr>
+<tr>
+<td>Multi-prefix, mixed</td>
+<td><code>modify</code> -- rewrites the UPDATE NLRI section to carry only the accepted prefixes, denied prefixes are silently removed. cmd-4 phase 2.</td>
+</tr>
+</tbody>
+</table>
+<p>The mixed case supports only IPv4 unicast legacy NLRI in v1. For
+multiprotocol families (MP_REACH_NLRI), the plugin falls back to whole-
+update accept when any prefix passes -- implementing per-NLRI rewriting for
+MP_REACH requires declaring <code>raw=true</code> on the filter registration and
+rewriting the attribute value directly.</p>
+<!-- source: internal/component/bgp/plugins/filter_prefix/filter_prefix.go -- handleFilterUpdate, cmd-4 phase 1 & 2 -->
+<!-- source: internal/component/bgp/plugins/filter_prefix/match.go -- partitionUpdate -->
+<!-- source: internal/component/bgp/reactor/filter_delta.go -- extractLegacyNLRIOverride -->
+
+<h3 id="as-path-filter-bgp-filter-aspath">AS-Path Filter (<code>bgp-filter-aspath</code>)</h3>
+<p><code>bgp-filter-aspath</code> matches the UPDATE's AS-path against ordered regex
+entries defined in <code>bgp { policy { as-path-list NAME { entry REGEX { action
+accept|reject; } } } }</code>. The AS-path is converted to a space-separated
+decimal string (e.g., <code>"65001 65002 65003"</code>) and each entry's regex is
+matched using Go's RE2 engine (linear time, inherently ReDoS-safe). First
+match wins; no match is implicit deny.</p>
+<p>Chain references: <code>bgp-filter-aspath:NAME</code>, <code>as-path-list:NAME</code>, or bare
+<code>NAME</code>. Config authors should use <code>[0-9]</code> instead of <code>\d</code> in regex strings
+because ze's config parser interprets backslash as an escape character.</p>
+<!-- source: internal/component/bgp/plugins/filter_aspath/filter_aspath.go -- handleFilterUpdate -->
+<!-- source: internal/component/bgp/plugins/filter_aspath/match.go -- evaluateASPath, extractASPathField -->
+
+<h3 id="community-match-filter-bgp-filter-community-match">Community Match Filter (<code>bgp-filter-community-match</code>)</h3>
+<p><code>bgp-filter-community-match</code> checks for presence of a specific community
+value in the route's standard, large, or extended community attributes.
+Defined in <code>bgp { policy { community-match NAME { entry COMMUNITY { type
+standard|large|extended; action accept|reject; } } } }</code>. First match wins;
+no match is implicit deny.</p>
+<p>Separate from the tag/strip community plugin (<code>bgp-filter-community</code>) because
+intent differs: this plugin filters (accept/reject), that one modifies
+(tag/strip). They can coexist in the same deployment.</p>
+<p>Chain references: <code>bgp-filter-community-match:NAME</code> or <code>community-match:NAME</code>.</p>
+<p>Well-known community names (<code>no-export</code>, <code>no-advertise</code>, <code>blackhole</code>, etc.)
+work as match values because the filter text format renders them as names.</p>
+<!-- source: internal/component/bgp/plugins/filter_community_match/filter_community_match.go -- handleFilterUpdate -->
+<!-- source: internal/component/bgp/plugins/filter_community_match/match.go -- evaluateCommunities -->
+
+<h3 id="route-attribute-modifier-bgp-filter-modify">Route Attribute Modifier (<code>bgp-filter-modify</code>)</h3>
+<p><code>bgp-filter-modify</code> applies declared operations to every route that reaches it
+in the filter chain. A definition that states a <code>match</code> container applies them
+only to the routes that meet it. The operations are:</p>
+<p><strong>Set</strong> (absolute value): <code>set { local-preference 200; med 50; origin igp;
+next-hop 10.0.0.1; as-path-prepend 3; }</code>. Only present leaves are applied.</p>
+<p><strong>Increment/Decrement</strong> (relative adjustment): <code>increment { local-preference 50; }</code>
+or <code>decrement { med 30; }</code>. Supported attributes: local-preference, med, aigp.
+Increment saturates at uint32 max (4294967295). Decrement floors at 0.
+Set and increment/decrement for the same attribute are mutually exclusive.</p>
+<p><strong>Community Add/Remove</strong>: <code>set { community-add [ 65000:200 ]; community-remove
+[ 65000:100 ]; large-community-add [ 65000:100:200 ]; }</code>. Adds or removes
+individual community values (standard, large, extended) without replacing the
+entire attribute. The engine maps these to AttrModAdd/AttrModRemove operations.</p>
+<p><strong>MED removal</strong>: <code>del { med; }</code>. This directive removes MULTI_EXIT_DISC (RFC
+4271 type 4) from the route. It is the mechanism RFC 4271 Section 5.1.4 requires
+a speaker to implement. It is honored on an <strong>import</strong> chain only, because that
+section also requires the removal before Decision Process phases 1 and 2. The
+import chain is the only chain that runs there.</p>
+<p>On an export chain, the directive is refused and logged. RFC 4271 Section
+9.1.2.2 states that comparing on a MULTI_EXIT_DISC and then advertising the
+route without it causes route loops. The directive is mutually exclusive with
+<code>set med</code>, <code>increment med</code>, and <code>decrement med</code>. A metric received from one
+neighboring AS is already kept off a session toward another with no
+configuration at all (Section 5.1.4). This directive is for the operator who
+wants the metric gone from the route itself.</p>
+<p><strong>Match</strong> (the condition the operations apply under): <code>match { community [
+65535:666 ]; large-community [ 65001:100:200 ]; extended-community [
+target:65001:1 ]; }</code>. The three leaf-lists hold alternatives, so any one value
+present in the route satisfies the condition. A route that matches none passes
+through UNCHANGED rather than rejected. An absent <code>match</code> container applies the
+operations to every route, which is what every definition written before this
+container did.</p>
+<p>A <code>match</code> container and an earlier match filter answer different questions. A
+filter chain is a pipe in which a reject DROPS the route. A match filter placed
+earlier therefore expresses "modify these and discard everything else", and the
+route that must keep flowing untouched has nowhere to go. Use an earlier filter
+when you want the rest dropped:
+<code>filter import [ prefix-list:CUSTOMERS modify:PREFER-LOCAL ]</code>.</p>
+<p>Chain references: <code>bgp-filter-modify:NAME</code> or <code>modify:NAME</code>.</p>
+<!-- source: internal/component/bgp/plugins/filter_modify/match.go -- matchCond, matches -->
+<!-- source: internal/component/bgp/plugins/filter_modify/filter_modify.go -- handleFilterUpdate -->
+<!-- source: internal/component/bgp/plugins/filter_modify/modify.go -- buildDynamicDelta -->
+<!-- source: internal/component/bgp/plugins/filter_modify/modify.go -- buildDelta, buildDynamicDelta -->
+<!-- source: internal/component/bgp/plugins/filter_modify/filter_modify.go -- appendMEDRemove -->
+<!-- source: internal/component/bgp/reactor/filter_delta.go -- ExtractASPathPrependOps, communityDirectives -->
+<!-- source: internal/component/bgp/reactor/filter_delta.go -- ExtractMEDRemoveOps -->
+
+<h3 id="as-path-length-filter-bgp-filter-aspath-length">AS-Path Length Filter (<code>bgp-filter-aspath-length</code>)</h3>
+<p><code>bgp-filter-aspath-length</code> accepts or rejects routes based on AS_PATH hop count.
+Configure named filters with min and/or max bounds:
+<code>bgp { policy { as-path-length REJECT-LONG { max 30; } } }</code>.
+Routes outside the configured range are rejected. At least one of max or min
+is required. Path length counts AS_SEQUENCE entries individually and AS_SET as 1,
+following RFC 4271 Section 9.1.2.2.</p>
+<p>Chain references: <code>bgp-filter-aspath-length:NAME</code> or <code>as-path-length:NAME</code>.</p>
+<!-- source: internal/component/bgp/plugins/filter_aspath_length/filter_aspath_length.go -- handleFilterUpdate -->
+<!-- source: internal/component/bgp/plugins/filter_aspath_length/aspath_length.go -- evaluateASPathLength, countASPathHops -->
+
+<h3 id="remove-private-as-bgp-filter-remove-private-as">Remove Private AS (<code>bgp-filter-remove-private-as</code>)</h3>
+<p><code>bgp-filter-remove-private-as</code> removes RFC 6996 Private Use ASNs from AS path
+attributes in an import or export policy chain. Define named actions in
+<code>bgp { policy { remove-private-as NAME { ... } } }</code> and reference them from a
+peer, group, or global filter chain by their unique name.</p>
+<p>Default mode strips private ASNs from <code>AS_PATH</code> and <code>AS4_PATH</code>. The optional
+<code>replace-with peer-as</code> mode replaces each private ASN with the destination peer
+AS on export, or the source peer AS on import.</p>
+<pre><code>bgp {
+    policy {
+        remove-private-as STRIP {
+        }
+        remove-private-as REPLACE {
+            replace-with peer-as
+        }
+    }
+    peer transit-a {
+        filter {
+            export [ STRIP ]
+        }
+    }
+}
+</code></pre>
+<p>Filter instance names are globally unique under <code>bgp policy</code>. When a name is
+unique, reference it directly (e.g. <code>STRIP</code>). The prefixed forms
+<code>remove-private-as:STRIP</code> and <code>bgp-filter-remove-private-as:STRIP</code> remain
+accepted for disambiguation or advanced use.</p>
+<p>The plugin emits policy intent only. The reactor performs the wire rewrite so
+AS_SEQUENCE, AS_SET, and confederation segment structure is preserved. On export
+to EBGP peers, private-AS removal runs before the normal local-AS prepend.</p>
+<!-- source: internal/component/bgp/plugins/filter_remove_private_as/filter_remove_private_as.go -- handleFilterUpdate -->
+<!-- source: internal/component/bgp/reactor/filter_delta.go -- ExtractRemovePrivateASOps -->
+<!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- export policy before EBGP prepend -->
+
+<p>To test what a filter would do without sending traffic, use <code>show policy test</code>:</p>
+<pre><code>ze show policy test peer upstream1 export filter STRIP update &lt;BGP-UPDATE-HEX&gt;
+</code></pre>
+<p>This returns per-filter trace output showing accept/reject/modify decisions and
+changed attributes. See the <a href="../command-reference/">command reference</a> for full syntax.</p>
+<!-- source: internal/component/bgp/plugins/cmd/policy/handler.go -- handleShowPolicyTest -->
+
+<h3 id="nlri-encodersdecoders">NLRI Encoders/Decoders</h3>
+<p>NLRI plugins register address family support at init time via <code>family.MustRegister(afi, safi, afiStr, safiStr)</code>. The four base families (<code>ipv4/unicast</code>, <code>ipv6/unicast</code>, <code>ipv4/multicast</code>, <code>ipv6/multicast</code>) live in <code>internal/core/family/registry.go</code> itself; everything else is owned by its plugin's <code>types.go</code>. Plugins are loaded automatically when the corresponding family is configured.</p>
+<table>
+<thead>
+<tr>
+<th>Plugin</th>
+<th>Families</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>bgp-nlri-vpn</code></td>
+<td>ipv4/mpls-vpn, ipv6/mpls-vpn</td>
+</tr>
+<tr>
+<td><code>bgp-nlri-evpn</code></td>
+<td>l2vpn/evpn</td>
+</tr>
+<tr>
+<td><code>bgp-nlri-vpls</code></td>
+<td>l2vpn/vpls</td>
+</tr>
+<tr>
+<td><code>bgp-nlri-flowspec</code></td>
+<td>ipv4/flow, ipv6/flow, ipv4/flow-vpn, ipv6/flow-vpn</td>
+</tr>
+<tr>
+<td><code>bgp-nlri-labeled</code></td>
+<td>ipv4/mpls-label, ipv6/mpls-label</td>
+</tr>
+<tr>
+<td><code>bgp-nlri-mup</code></td>
+<td>ipv4/mup, ipv6/mup</td>
+</tr>
+<tr>
+<td><code>bgp-nlri-mvpn</code></td>
+<td>ipv4/mvpn, ipv6/mvpn</td>
+</tr>
+<tr>
+<td><code>bgp-nlri-rtc</code></td>
+<td>ipv4/rtc</td>
+</tr>
+<tr>
+<td><code>bgp-nlri-ls</code></td>
+<td>bgp-ls/bgp-ls, bgp-ls/bgp-ls-vpn</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/bgp/plugins/nlri/vpn/types.go -- VPN family types -->
+<!-- source: internal/component/bgp/plugins/nlri/evpn/types.go -- EVPN family types -->
+<!-- source: internal/component/bgp/plugins/nlri/vpls/types.go -- VPLS family types -->
+<!-- source: internal/component/bgp/plugins/nlri/flowspec/types.go -- FlowSpec family types -->
+<!-- source: internal/component/bgp/plugins/nlri/labeled/types.go -- labeled unicast family types -->
+<!-- source: internal/component/bgp/plugins/nlri/mup/types.go -- MUP family types -->
+<!-- source: internal/component/bgp/plugins/nlri/mvpn/types.go -- MVPN family types -->
+<!-- source: internal/component/bgp/plugins/nlri/rtc/types.go -- RTC family types -->
+<!-- source: internal/component/bgp/plugins/nlri/ls/types.go -- BGP-LS family types -->
+<!-- source: internal/core/family/registry.go -- family registry -->
+
+<h2 id="hub-configuration">Hub Configuration</h2>
+<p>For external plugins that connect over TLS (non-internal mode), configure the hub:</p>
+<pre><code>plugin {
+    hub {
+        server local {
+            host 127.0.0.1;
+            port 0;                               # auto-assign port
+            secret change-this-token-to-at-least-32-chars;  # TLS auth token
+        }
+    }
+}
+</code></pre>
+<!-- source: internal/component/hub/yang/ -- hub config YANG schema; pkg/plugin/sdk/ -- TLS auth -->
+
+<h2 id="writing-external-plugins">Writing External Plugins</h2>
+<p>External plugins communicate with ze using the same newline-framed YANG RPC protocol as internal plugins: <code>#&lt;id&gt; &lt;verb&gt; [json]</code>. External processes connect back to the plugin hub over TLS using the <code>ZE_PLUGIN_HUB_*</code> environment variables set by the engine. The Go SDK in <code>pkg/plugin/sdk</code> is the reference implementation; the functional-test helper <code>test/scripts/ze_api.py</code> shows the Python shape:</p>
+<pre><code class="language-python">from ze_api import API
+
+api = API()
+api.declare_done()
+api.wait_for_config()
+api.capability_done()
+api.wait_for_registry()
+api.subscribe(['update direction received'])
+api.ready()
+
+# Event loop
+while True:
+    event = api.read_line(timeout=1.0)
+    if event:
+        # process event JSON
+        pass
+</code></pre>
+<p>See <a href="../../developers/plugins/protocol/">plugin-development/protocol.md</a> for the full protocol reference.</p>
+<!-- source: pkg/plugin/sdk/sdk.go -- NewFromTLSEnv, Run -->
+<!-- source: test/scripts/ze_api.py -- API YANG RPC client -->
+
+<h2 id="dependencies">Dependencies</h2>
+<p>Plugins can declare dependencies on other plugins. The engine starts plugins in dependency order and delivers state/EOR events to dependents first.</p>
+<pre><code># bgp-gr depends on bgp-rib
+# bgp-rpki depends on bgp-adj-rib-in
+# bgp-rs optionally uses bgp-adj-rib-in
+</code></pre>
+<p>Dependencies are declared in the plugin's registration, not in config. The engine resolves them automatically. Two kinds:</p>
+<table>
+<thead>
+<tr>
+<th>Kind</th>
+<th>Field</th>
+<th>Behaviour if missing</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Hard</td>
+<td><code>Dependencies</code></td>
+<td>Startup fails with <code>ErrMissingDependency</code>.</td>
+</tr>
+<tr>
+<td>Optional</td>
+<td><code>OptionalDependencies</code></td>
+<td>Silently skipped. Plugin owner handles runtime absence (typically a one-shot WARN + feature disabled).</td>
+</tr>
+</tbody>
+</table>
+<p><code>bgp-rs</code> uses <code>bgp-adj-rib-in</code> optionally: when both are loaded, replay-on-peer-up works; when <code>bgp-adj-rib-in</code> is absent, forwarding still works and a single WARN log announces that replay is disabled. <code>bgp-rs</code> forwards via the typed <code>Plugin.ForwardCached</code> / <code>ReleaseCached</code> fast path (rs-fastpath-3) instead of the legacy text-RPC <code>bgp cache forward &lt;id&gt; &lt;sel&gt;</code> pipeline. See <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/api/commands.md#fast-path-typed-sdk-rs-fastpath-3" target="_blank" rel="noopener">architecture/api/commands</a> for the full SDK surface.</p>
+<!-- source: internal/component/plugin/registry/registry.go -- Registration.Dependencies + Registration.OptionalDependencies -->
+<!-- source: internal/component/bgp/plugins/rs/server_forward.go -- flushBatch via Plugin.ForwardCached -->
+
+<h2 id="exclusive-roles">Exclusive Roles</h2>
+<p>When two plugins both implement a behaviour but only one should run it, the plugin that takes over declares the role in its static registration (<code>Claims</code>), and the other stands down. The engine unions the claims of every plugin in the startup set and delivers the union on each plugin's Stage-2 configure callback; the standing-down plugin reads it with <code>sdk.Plugin.ClaimActive(role)</code> from its <code>OnConfigure</code> handler.</p>
+<p>Stage 2 is part of the sequential handshake, so the decision is recorded before any plugin sends Stage-5 ready and therefore before the engine starts peers. A handler reading it during a runtime event always sees the final answer.</p>
+<p><code>bgp-rs</code> claims <code>bgp-peer-up-replay</code>; <code>bgp-adj-rib-in</code> stands its own replay down when that claim is active. The decision must not be re-derived from <code>OnAllPluginsReady</code>: that callback is fanned out on detached goroutines that race session establishment, and when the ownership decision was taken there both plugins replayed, so a peer received a byte-identical duplicate UPDATE. An unclaimed or unresolvable role reads <code>false</code>, which is the fail-closed direction: nobody promised to do this, so keep doing it yourself.</p>
+<!-- source: internal/component/plugin/registry/registry.go -- Registration.Claims -->
+<!-- source: pkg/plugin/sdk/sdk.go -- Plugin.ClaimActive -->
+
+<h2 id="peer-up-barrier">Peer-Up Barrier</h2>
+<p>A plugin that decides on the peer-up event whether a peer may receive traffic declares <code>PeerUpBarrier: true</code>. The engine then holds that peer's initial-sync End-of-RIB until every barrier-declaring plugin subscribed to state events has taken delivery of the peer-up event, so "End-of-RIB sent" means "every barrier plugin has registered this peer".</p>
+<p><code>bgp-rs</code> declares it: it registers the peer as a forward target on that event, and an UPDATE arriving before that is forwarded nowhere. The wait is bounded and never blocks establishment. A plugin that does not acknowledge only delays the End-of-RIB to the timeout, which logs a WARN naming the peer and the shortfall. The expected count is taken over the plugins the event is actually delivered to, so declaring the field without subscribing to state events does not stall anything. It is a separate counter from the API-sync wait, which counts plugins that send routes: merging them would let a route sender's signal satisfy a registrar's obligation.</p>
+<!-- source: internal/component/plugin/registry/registry.go -- Registration.PeerUpBarrier -->
+<!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- waitPeerUpBarrier before End-of-RIB -->
+
+<h2 id="startup-timing">Startup Timing</h2>
+<p>Each handshake stage is bounded by progress, not by wall clock. A stage fails only when the whole startup tier goes <code>ze.plugin.stage.timeout</code> (default 5s) without any plugin completing a stage; every completion re-arms the window. A BGP config puts twenty or more plugins in one tier (<code>bgp</code>, <code>bgp-bmp</code>, <code>bgp-rpki</code>, every <code>bgp-filter-*</code>), and a flat per-tier budget meant a CPU-starved or slow-disk host could lose all of them at once and come up with its BGP plugins missing.</p>
+<p>The wait stays bounded three ways: a repeated stage completion is ignored, so a looping plugin cannot hold the window open; a wedged tier trips within one timeout of the last progress; and shutdown ends the wait. Worst case is <code>(plugins + 1) x timeout</code> per stage.</p>
+<!-- source: internal/component/plugin/startup_coordinator.go -- WaitForStageProgress -->
+<!-- source: internal/component/plugin/server/server.go -- ze.plugin.stage.timeout -->
+
+<h2 id="debugging-plugins">Debugging Plugins</h2>
+<p>The plugin debug shell lets you manually interact with the engine using the plugin protocol. This is useful when debugging plugin code -- you can send individual commands and inspect responses.</p>
+<pre><code>ze bgp plugin cli
+</code></pre>
+<p>The debug shell:</p>
+<ol>
+<li>Asks about handshake parameters (plugin name, families) with defaults -- hit Enter to accept</li>
+<li>Connects to the daemon via SSH</li>
+<li>Runs the 5-stage plugin handshake over the SSH channel</li>
+<li>Enters interactive command mode</li>
+</ol>
+<p>Available post-handshake commands:</p>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>dispatch-command &lt;cmd&gt;</code></td>
+<td>Dispatch an engine command</td>
+</tr>
+<tr>
+<td><code>subscribe-events &lt;events&gt;</code></td>
+<td>Subscribe to events</td>
+</tr>
+<tr>
+<td><code>unsubscribe-events</code></td>
+<td>Unsubscribe from events</td>
+</tr>
+<tr>
+<td><code>decode-nlri &lt;family&gt; &lt;hex&gt;</code></td>
+<td>Decode NLRI from hex</td>
+</tr>
+<tr>
+<td><code>encode-nlri &lt;family&gt; &lt;args&gt;</code></td>
+<td>Encode NLRI</td>
+</tr>
+<tr>
+<td><code>bye</code></td>
+<td>Disconnect</td>
+</tr>
+</tbody>
+</table>
+<p>Use <code>--name &lt;name&gt;</code> to set a custom plugin name for the session.</p>
+<!-- source: internal/component/bgp/cli/cmd_plugin.go -- cmdPluginCLI -->
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/quickstart/">
+                        <span class="page-sidebar-link-label">Quickstart</span>
+                        <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create zefs, and start SSH.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../reference/command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

@@ -1,0 +1,99 @@
+# Week of 2026-07-20
+
+Ze has left Codeberg for GitHub. Beyond the move: protocol correctness, a security triage over the code-scanning backlog, and build-time feature gates that let a deployment ship only the code it runs.
+
+## 🏠 Ze has moved to GitHub
+
+Development has left Codeberg entirely and now happens at **github.com/ze-software/ze**. Codeberg's LLM policy, published on 23 July, makes hosting Ze's development there untenable. What changes for anyone using Ze:
+
+- The clone URL is `https://github.com/ze-software/ze.git`, and the Go module path is now `github.com/ze-software/ze`, so `go install` needs the new path.
+- Issues and the wiki live on GitHub.
+- Validation moved off Woodpecker onto GitHub Actions: the full suite on every push and pull request, plus scheduled fuzz, kernel-integration and performance runs. The nightly gained kernel integration coverage that the previous runner could not grant the privileges for.
+
+## 🧩 Build only the features you run
+
+Twenty-three more subsystems compile out behind build tags, taking the total to thirty-six. All are on by default, so the shipped binary is unchanged.
+
+- BGP itself is now gated, along with BMP and MRT. Dropping BGP from a full build takes the binary from about 70 MB to 60 MB, and that build still runs OSPF, IS-IS, static routes, the FIB, MRT and flow export.
+- Also new this week: BFD, IKE/IPsec, L2TP, RADIUS, TACACS+, DHCP, PXE, AS112 and GeoDNS, NTP, VPP, flow export, DDoS and anomaly detection, CoS, CoPP, MPLS, policy routing, traffic usage, and the ExaBGP bridge. OSPF, IS-IS, LDP, RSVP-TE, VRRP and the management surfaces were already gated.
+- The config loader fails closed on a config carrying blocks the running build has no code for. A stripped build used to boot a full build's config with the missing blocks pruned without reporting it, which could reduce TACACS+ or RADIUS authentication to local-only.
+
+## 🔒 Security
+
+A triage of every open code-scanning alert closed six real issues:
+
+- The installer's rescue shell published an unsalted SHA-256 of the admin password on the kernel command line, inside a boot script served unauthenticated over plain HTTP and readable from `/proc/cmdline`. It now commits to a dedicated random token behind salted argon2id, minted by `ze plugin provision` and printed once. A malformed token reboots rather than opening a shell or prompting forever.
+- Appliance config push accepted any SSH host key. It verifies against `known_hosts` and fails closed, naming the host and the `ssh-keyscan` line.
+- An open redirect in the web UI, plus two truncations that should have been rejections: an ASN above the 32-bit range became AS 0, and a bare-seconds announce duration overflowed into a negative delay.
+
+Elsewhere:
+
+- Any host able to open a colliding TCP connection to a configured peer address could crash the BGP reactor before capability negotiation, because that path read an OPEN using the raw wire length with no upper bound. Auditing it found the connection winning collision resolution ran no OPEN validator at all, so role and router-id checks were bypassable there.
+- Authorization fails closed. A login resolving to no profile is denied instead of falling through to built-in admin, and reserved identities are dropped on ingress from RADIUS and TACACS+.
+- EAP-TLS performs certificate path validation on both sides, as RFC 5216 requires. A peer or responder with no usable trust anchor refuses the session instead of completing an unauthenticated handshake. The IPsec config validators now run at commit, so a peer naming an absent IKE group, ESP group or certificate is rejected there.
+- Routing-table IDs are bounded before reaching netlink. An out-of-range value used to drop the attribute silently and send the rule to the default table.
+- `govulncheck` and CodeQL across the shipped build-tag combinations run on a schedule, and the dependency pins carry documented reasons.
+
+## 🛰️ BGP correctness
+
+Forwarding and replay:
+
+- Peer-up replay and live forwarding were two unsynchronised writers to one session, so a route arriving during establishment went out twice. Replay carries announcements only, so a replayed announcement landing after a live withdrawal resurrected a withdrawn route permanently. Replay and live forwarding now meet at one cut-over point.
+- The delta replay re-sent its boundary route on every iteration, and a peer's first session replayed its own sends back to it.
+- A route reflector forwarded updates whose source peer could not be resolved, which suppressed the reflection checks and ORIGINATOR_ID and CLUSTER_LIST injection that RFC 4456 provides for loop prevention. Such forwarding is now refused.
+- A peer could receive the same End-of-RIB twice for one family in one session.
+
+Wire output:
+
+- An as-path supplied through the API went out verbatim to every peer. RFC 7947 grants that transparency to route-server clients; a plain eBGP peer now gets the local AS prepended, as RFC 4271 requires, so the receiver's loop detection can see the path.
+- One route could encode to two different byte strings depending on when it was sent, because one of three builders wrote MP_REACH_NLRI out of type-code order.
+- A re-encoded route carried NEXT_HOP twice, which a strict receiver such as FRR treats as a withdrawal.
+- Splitting an oversized UPDATE that carried both an MP attribute and the legacy IPv4 fields dropped the IPv4 half entirely, with no error and a success return. A dropped withdrawal leaves a stale route installed on the peer.
+- RFC 6286 is implemented: an OPEN whose BGP Identifier is zero, or which matches this speaker's identifier on an internal peer, is rejected, and the identifier is claimed AS-wide during OPEN validation.
+- Stale routes readvertised by the operator or the graceful-restart timer now carry NO_EXPORT and LOCAL_PREF 0 toward internal peers, and are withdrawn from eBGP peers, per RFC 9494.
+- An unrecognized BGP-LS NLRI type no longer erases every NLRI after it. EVPN rejects a malformed IP address length, and the route types Ze relays without recognising are encoded byte-exact.
+- Five disclosed RFC 7606 gaps are implemented: attribute codes 24, 25 and 128 are length-validated, ATTR_SET is checked against all three RFC 6368 conditions, treat-as-withdraw covers two families and skips non-negotiated ones, and the attribute tombstone uses a single wire code point.
+- Four reactor concurrency races, and a buffer leak on the forwarding path that eventually failed every read daemon-wide.
+
+## 🛰️ OSPF, L2TP and BMP
+
+- OSPFv3 sent a zero, invalid IPv6 checksum on every packet. A conforming peer that sets `IPV6_CHECKSUM` on its raw socket discards those, which plausibly made OSPFv3 non-interoperable. The OSPFv2 authentication signer was being installed on OSPFv3 engines, and the transport reads a signer as a statement that an authentication trailer owns integrity.
+- One interface that could not be opened took down every OSPF instance and address family. The engine now warns and leaves that interface to the rescan.
+- An OSPFv3 interface opened while its link-local address was still in duplicate address detection could never send, and never recovered once detection finished.
+- A config with OSPF and an external plugin but no BGP was routed to the plugin-hub path, so OSPF was skipped and the plugin was killed for want of a TLS acceptor.
+- L2TP went deaf to a peer's control plane once that tunnel's first session reached the kernel data plane: no second call, no CDN, no HELLO, no StopCCN. The kernel prefers the connected socket when demuxing, and control frames landing there were never read.
+- Session ids were lost through the L2TP reorder queue, so every reordered session message was dropped as unknown.
+- BMP shared one unsynchronised scratch buffer between the plugin's delivery loop and the RFC 9069 Loc-RIB path, so a message could go out whose header length did not describe its content and desynchronise the collector's framing. The Initiation message is now guaranteed first on the wire.
+
+## 💿 Interfaces, QoS and firewall
+
+- Renumbering an interface inside its own subnet lost the address. The netlink monitor never seeded its interface cache, so address events for exactly the configured interfaces were dropped and every reload changing an address timed out and rolled back. Underneath, make-before-break reconcile makes the incoming address a secondary, which the kernel flushes with the primary unless `promote_secondaries` is set.
+- Traffic control refused any interface whose root queueing discipline was `noqueue`, the default on veth, dummy and bridge devices, so container and VM deployments could not apply QoS at all.
+- Mixing an IPv4 and an IPv6 DSCP match on one interface was unapplicable, since both filters were built at the same priority and the kernel keeps one protocol per priority.
+- Per-element timeouts in firewall sets never reached the kernel.
+- The policy-routing plugin built a chain type nftables accepts only on OUTPUT, so the kernel refused it and took the plugin down at startup.
+- A DDoS mitigation for an unresolvable victim installed an unconditional drop of all forwarded traffic while logging that a drop rule was installed. It now refuses and logs at error, leaving any prior narrow rule intact.
+- One unresolvable static route no longer fails the whole `static` section: what resolves is applied, the rest is reported through `show static skipped` and a doctor check, and retried next apply.
+
+## 🛠️ Configuration and operations
+
+- `ze start <config>` is how a config file is launched now. A bare path was resolved after commands, so a config named like a command was dispatched as that command and never loaded.
+- `ze config set`, `activate` and `deactivate` no longer notify a running daemon by default. Editing a stored config offline is the common case, and `--reload` opts in.
+- A reload verified a participant and then never applied it whenever another participant supplied operations, so a change was dropped while the reload reported success. Plugins declaring a nested config root could never be reconfigured by SIGHUP at all, which affected eight of them.
+- A successful SIGHUP now announces completion, so an operator can tell a finished reload from a stuck one.
+- AS_PATH prepends and MPLS label stacks survive a config round trip. A leaf-list deduplication was collapsing repeated members of ordered sequences where the duplicates are load-bearing.
+- Runtime state persists when the config lives on a filesystem backend. BFD authentication sequence numbers, DDoS baselines and NTP last-sync were lost across every restart, and traffic control refuses to program a qdisc without persistence.
+- The IRR filter plugin enrolled every peer with a remote ASN, so any config with a `bgp` block made live PeeringDB and RADB requests at startup. Enrolment now requires asking for IRR filtering.
+- Plugin startup waits on progress rather than a flat five seconds shared by a whole tier, so a CPU-starved or slow-disk box no longer comes up with its BGP plugins missing. A plugin that fails startup now reports the underlying cause alongside the stage it failed at.
+- Two config backups taken within the same millisecond no longer overwrite each other.
+
+## 📊 Standards ledger and docs
+
+- Thirty more RFC summaries joined the compliance gate, bringing it to 166: BGP-4 itself, 4-octet AS, graceful restart and long-lived graceful restart, BGP Identifier, BGP-LS, EVPN, FlowSpec, SR Policy and Prefix-SID, tunnel encapsulation, MPLS labels, OSPFv2, OSPFv3 and its IPsec, PE-CE and segment-routing extensions, LDP, BFD, PPP, DHCP, DNSSEC, VRRPv2 and VRRPv3, and both revisions of RPKI-RTR.
+- Enrolling an RFC means every MUST-level requirement is either bound to a passing test or published as a gap with its reason and a source anchor. Enrolling RFC 4271 disclosed 21 of them on the status page. The OSPFv3 checksum bug and the EVPN decoder hole were both found doing this. The gate also ratchets now: a requirement that was proven cannot quietly stop being proven, and it cannot be deleted from a summary to make the gate green.
+- A minimal independent BGP speaker joined the interoperability suite. It reads what Ze actually puts on the wire rather than the bytes a test was told to expect, and it is what caught the duplicate NEXT_HOP above.
+- New guides published: BGP peering, BGP policy, BGP resilience, configuration lifecycle, plugin development, a glossary, and a short project history.
+
+## 🔭 Coming up
+
+More of the same before anything new. The next stretch goes on clearing open issues and known bugs, and feature work waits until that queue is down. Correctness on the paths that already exist is worth more than another protocol.

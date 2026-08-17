@@ -1,0 +1,1045 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>VM Appliance - Ze</title>
+        <meta name="description" content="Ze documentation: guide/appliance.md" />
+        <meta property="og:title" content="VM Appliance - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/appliance.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="VM Appliance - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/appliance.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/guides/appliance/" />
+        <meta property="og:url" content="https://ze-software.net/guides/appliance/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-platform">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1 id="vm-appliance">VM Appliance</h1>
+    <p>Build a bootable VM image with Ze baked in using <a href="https://gokrazy.org/" target="_blank" rel="noopener">gokrazy</a>. The default target is x86_64. The legacy Make workflow uses <code>GOKRAZY_ARCH=arm64</code> for native Apple Silicon QEMU images; the structured <code>ze appliance build</code> workflow uses <code>image.arch</code> in <code>appliance.json</code>. At runtime, the appliance is minimal: Linux kernel, gokrazy init, and Ze as the only application, with no package manager, no general shell (except authenticated emergency serial console), no unused distro daemons, and automatic process supervision.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#whats-in-the-image">What&#x27;s in the image</a></li>
+<li><a href="#prerequisites">Prerequisites</a></li>
+<li><a href="#first-time-setup">First-time setup</a></li>
+<li><a href="#runtime-kernel-requirements">Runtime Kernel Requirements</a></li>
+<li><a href="#l2tp-kernel-support">L2TP Kernel Support</a></li>
+<li><a href="#build-an-image">Build an image</a></li>
+<li><a href="#test-in-qemu">Test in QEMU</a></li>
+<li><a href="#deploy-to-hardware">Deploy to hardware</a></li>
+<li><a href="#configuration">Configuration</a>
+<ol>
+<li><a href="#seed-config">Seed config</a></li>
+<li><a href="#runtime-config">Runtime config</a></li>
+<li><a href="#environment-variables">Environment variables</a></li>
+</ol></li>
+<li><a href="#updating">Updating</a></li>
+<li><a href="#architecture-notes">Architecture notes</a>
+<ol>
+<li><a href="#internal-plugins-only">Internal plugins only</a></li>
+<li><a href="#process-supervision">Process supervision</a></li>
+<li><a href="#persistent-storage">Persistent storage</a></li>
+</ol></li>
+<li><a href="#repo-layout">Repo layout</a>
+<ol>
+<li><a href="#builds-never-run-from-this-directory">Builds never run from this directory</a></li>
+</ol></li>
+<li><a href="#ze-setup-binary">ze-setup binary</a></li>
+<li><a href="#building-and-installing-an-appliance-end-to-end">Building and installing an appliance (end to end)</a>
+<ol>
+<li><a href="#from-a-json-config-recommended">From a JSON config (recommended)</a>
+<ol>
+<li><a href="#reserving-hugepages-for-vpp">Reserving hugepages for VPP</a></li>
+</ol></li>
+<li><a href="#manual-steps">Manual steps</a></li>
+</ol></li>
+<li><a href="#ze-appliance-structured-workflow">ze appliance (structured workflow)</a>
+<ol>
+<li><a href="#quick-start">Quick start</a></li>
+<li><a href="#appliance-directory">Appliance directory</a></li>
+<li><a href="#encryption">Encryption</a></li>
+<li><a href="#day-2-operations">Day-2 operations</a></li>
+<li><a href="#config-layering">Config layering</a></li>
+<li><a href="#commands-reference">Commands reference</a></li>
+<li><a href="#iso-prerequisites">ISO prerequisites</a></li>
+<li><a href="#iso-installer-media">ISO installer media</a></li>
+<li><a href="#remote-operations-push-config-push">Remote operations (push, config-push)</a></li>
+<li><a href="#device-side-config-behavior">Device-side config behavior</a></li>
+<li><a href="#batch-init">Batch init</a></li>
+<li><a href="#disaster-recovery-exportimport">Disaster recovery (export/import)</a></li>
+</ol></li>
+</ol></nav>
+<p>Suitable for N100-class mini PCs, Proxmox VMs, or QEMU testing.</p>
+<!-- source: gokrazy/ze/config.json -- Packages, KernelPackage, Environment -->
+
+<h2 id="whats-in-the-image">What's in the image</h2>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Linux kernel</td>
+<td>Boot and hardware drivers</td>
+</tr>
+<tr>
+<td><a href="https://gokrazy.org/" target="_blank" rel="noopener">gokrazy</a> init</td>
+<td>Starts Ze, supervises it, seeds entropy, sends watchdog heartbeat</td>
+</tr>
+<tr>
+<td>Ze</td>
+<td>BGP daemon with DHCP client and all internal plugins</td>
+</tr>
+<tr>
+<td>ze-serial-shell</td>
+<td>Authenticated emergency shell on serial console (login required)</td>
+</tr>
+</tbody>
+</table>
+<p>Ze owns network configuration in the appliance. The gokrazy default DHCP and
+NTP packages are excluded from the image; the shipped Ze seed template enables
+interface DHCP auto-discovery with <code>set interface dhcp-auto true</code> and leaves Ze
+NTP disabled (<code>set environment ntp enabled false</code>) until the operator enables it
+in Ze config.</p>
+<p>The root filesystem is read-only (SquashFS). Persistent data lives on a separate ext4 partition mounted at <code>/perm</code>.</p>
+<h2 id="prerequisites">Prerequisites</h2>
+<p>Install once on the build machine.</p>
+<p>macOS:</p>
+<pre><code class="language-bash">brew install e2fsprogs    # ext4 filesystem tools
+brew install qemu         # VM runtime (testing only)
+</code></pre>
+<p>Linux:</p>
+<pre><code class="language-bash">sudo apt-get install -y e2fsprogs qemu-system-x86   # Debian, Ubuntu
+sudo dnf install -y e2fsprogs qemu-system-x86       # Fedora
+</code></pre>
+<p>The build needs BOTH <code>mkfs.ext4</code> and <code>debugfs</code> from e2fsprogs: it formats
+<code>/perm</code> with the first and injects the seed database with the second. The build
+finds them by itself, in <code>/usr/sbin</code>, <code>/sbin</code>, <code>/usr/local/sbin</code>, then the
+homebrew Cellar, and it takes the first directory holding both. Pass
+<code>make ze-gokrazy-build E2FS=/path/to/sbin</code> to name the directory instead. An empty
+<code>E2FS=</code> is not an override and does not resume the search.</p>
+<!-- source: mk/gokrazy.mk -- E2FS autodetect and the ze-gokrazy-build e2fsprogs guard -->
+
+<p>For appliance ISO creation, install <code>grub-mkstandalone</code> (or <code>grub2-mkstandalone</code>)
+plus <code>xorriso</code>.
+<code>ze appliance iso</code> checks those tools before it stages an ISO.</p>
+<!-- source: internal/appliance/cmd_iso.go -- resolveISOBuilder -->
+
+<p>The gokrazy build tool (<code>gok</code>) is vendored in the repo at <code>vendor/github.com/gokrazy/</code> and built automatically by Make. No separate install needed.</p>
+<!-- source: cmd/ze-gok/main.go -- vendored gok tool -->
+
+<h2 id="first-time-setup">First-time setup</h2>
+<p>After cloning the repo, download gokrazy system packages (Linux kernel, init, serial console) into the Go module cache. This is a one-time ~42MB download. The exact versions are pinned in <code>gokrazy/ze/builddir/*/go.mod</code> (tracked in git, verified by go.sum).</p>
+<pre><code class="language-bash">make ze-gokrazy-deps-download
+</code></pre>
+<p>After this, builds work offline.</p>
+<!-- source: gokrazy/ze/builddir/github.com/rtr7/kernel/go.mod -- pinned kernel version -->
+<!-- source: gokrazy/ze/builddir/github.com/gokrazy/gokrazy/go.mod -- pinned gokrazy version -->
+
+<h2 id="runtime-kernel-requirements">Runtime Kernel Requirements</h2>
+<p>The runtime kernel is pinned by two manifests, <code>gokrazy/kernel/kernel.require</code>
+and <code>gokrazy/kernel/runtime.require</code>, holding 59 symbols between them. Each is
+checked against the resolved config after the build, and <code>enforce_required_symbols</code>
+accepts <code>=y</code> alone. A Kconfig answer of <code>m</code> therefore fails the BUILD rather than
+shipping an appliance where a feature Ze accepts in config cannot work. A module
+is unreachable in the QEMU test VM in any case: that VM boots this kernel beside
+Alpine's own modules, built for another version.</p>
+<p>Each symbol has a producer in Ze rather than a test that wanted it.</p>
+<table>
+<thead>
+<tr>
+<th>Group</th>
+<th>Symbols</th>
+<th>Producer in Ze</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Subscriber</td>
+<td><code>PPP</code>, <code>PPPOL2TP</code>, <code>PPPOE</code>, <code>L2TP</code>, <code>L2TP_V3</code></td>
+<td>The L2TP LNS, and the PPPoE server and client</td>
+</tr>
+<tr>
+<td>Firewall</td>
+<td><code>NF_TABLES</code>, <code>NF_TABLES_INET</code>, <code>NF_TABLES_IPV4</code>, <code>NF_TABLES_IPV6</code>, <code>NF_CONNTRACK</code>, <code>NF_NAT</code>, <code>NFT_CT</code>, <code>NFT_NAT</code>, <code>NFT_MASQ</code>, <code>NFT_REDIR</code>, <code>NFT_LIMIT</code>, <code>NFT_LOG</code>, <code>NFT_REJECT</code></td>
+<td>The nftables backend, and <code>translatePolicy</code>, which returns <code>FamilyInet</code> unconditionally. Without <code>NF_TABLES_INET</code> the kernel answers EOPNOTSUPP, <code>Apply</code>'s flush fails, the firewall plugin fails startup, and the daemon exits. <span class="ev-src"><span class="ev-ref"><code>internal/plugins/copp/translate.go</code></span></span></td>
+</tr>
+<tr>
+<td>Tunnels</td>
+<td><code>NET_IPGRE_DEMUX</code>, <code>NET_IPGRE</code>, <code>IPV6_GRE</code>, <code>NET_IPIP</code>, <code>IPV6_TUNNEL</code>, <code>IPV6_SIT</code>, <code>VXLAN</code></td>
+<td>The nine tunnel kinds <code>ze-iface-conf.yang</code> models. Six symbols plus the GRE demux gate. Measured cost: vmlinuz 16352256 to 16450560 bytes, +0.60%</td>
+</tr>
+<tr>
+<td>Policy routing</td>
+<td><code>IP_MULTIPLE_TABLES</code>, <code>IPV6_MULTIPLE_TABLES</code>, <code>IP_ROUTE_MULTIPATH</code></td>
+<td>The policy-routing engine. Without <code>IPV6_MULTIPLE_TABLES</code> the kernel folds every table id into the main table and says nothing</td>
+</tr>
+<tr>
+<td>Traffic control</td>
+<td><code>NET_SCH_HTB</code>, <code>TBF</code>, <code>FQ_CODEL</code>, <code>HFSC</code>, <code>FQ</code>, <code>SFQ</code>, <code>NETEM</code>, <code>PRIO</code>, <code>INGRESS</code>, <code>NET_CLS_U32</code>, <code>NET_CLS_FW</code>, <code>NET_CLS_MATCHALL</code>, <code>NET_ACT_MIRRED</code></td>
+<td>Class of service, rate limiting, and mirroring</td>
+</tr>
+<tr>
+<td>Interfaces and VPN</td>
+<td><code>DUMMY</code>, <code>VETH</code>, <code>MACVLAN</code>, <code>VLAN_8021Q</code>, <code>INET_ESP</code>, <code>INET6_ESP</code>, <code>XFRM_STATISTICS</code>, <code>HUGETLBFS</code>, <code>BPF_SYSCALL</code>, <code>BPF_JIT</code></td>
+<td>Interface creation, IPsec, VPP hugepages, and the eBPF surfaces</td>
+</tr>
+</tbody>
+</table>
+<p><code>CONFIG_NET_UDP_TUNNEL</code>, <code>CONFIG_WIREGUARD</code> and <code>CONFIG_TUN</code> are <code>=y</code> in the
+config fragment and are not pinned in a manifest.</p>
+<!-- source: gokrazy/kernel/runtime.require -- the runtime pin list -->
+<!-- source: gokrazy/kernel/kernel.require -- the base pin list -->
+<!-- source: tools/kernel-builder/build.py -- enforce_required_symbols -->
+
+<h2 id="l2tp-kernel-support">L2TP Kernel Support</h2>
+<p>Ze's L2TP LNS path needs kernel PPPoL2TP support in the appliance runtime
+kernel: <code>CONFIG_PPP</code>, <code>CONFIG_PPPOL2TP</code>, <code>CONFIG_L2TP</code>, and
+<code>CONFIG_L2TP_V3</code>. The shared runtime proof kernel also keeps <code>CONFIG_PPPOE</code>
+built in for PPPoE evidence. The pinned upstream gokrazy kernel is not assumed
+to provide these options.
+Build the repo-local kernel before building an appliance intended to terminate
+L2TP subscribers:</p>
+<pre><code class="language-bash">make ze-kernel-build                                   # default runtime build: docker, amd64
+make ze-kernel-build KERNEL_BUILDER=qemu               # force the shared QEMU backend
+make ze-kernel-build KERNEL_ARCH=arm64                 # runtime arm64 kernel
+make ze-kernel-build KERNEL_ARCH=arm64 KERNEL_BUILDER=qemu
+make ze-gokrazy-build USER=admin PASS=secret
+</code></pre>
+<p>On Apple Silicon, use a native arm64 VM image to avoid x86_64 emulation while
+still building the kernel with the same L2TP/PPP options:</p>
+<pre><code class="language-bash">make ze-kernel-build KERNEL_ARCH=arm64                 # default builder is docker
+make ze-kernel-build KERNEL_ARCH=arm64 KERNEL_BUILDER=qemu
+make ze-gokrazy-build GOKRAZY_ARCH=arm64 USER=admin PASS=secret
+make ze-gokrazy-run GOKRAZY_ARCH=arm64 GOKRAZY_QEMU_ACCEL=hvf
+</code></pre>
+<p><code>make ze-kernel-build</code> delegates to <code>gokrazy/kernel/Makefile</code>, which calls the single
+shared driver <code>tools/kernel-builder/run.py</code>. The driver reads the kernel version
+from <code>internal/appliance/kernel.version</code>, selects the Docker backend by default
+(or the QEMU backend with <code>KERNEL_BUILDER=qemu</code>), resolves the tracked
+<code>gokrazy/kernel/kernel.config</code> + <code>runtime.config</code> fragments (plus the shared
+<code># ze-include: efi-console</code> console fragment) and matching <code>.require</code> manifests,
+and emits <code>vmlinuz</code>, <code>lib/modules/</code>, and DTBs. <code>make ze-kernel-build</code> then assembles
+those into an out-of-tree kernel package (<code>tmp/kernel/pkg</code>, a copy of the pinned
+<code>rtr7/kernel</code> module with our artifacts overlaid) and points <code>gok</code> at it via a
+<code>go.mod</code> <code>replace</code>. The pinned module cache is never mutated in place and there
+is no backup to restore; <code>make ze-kernel-clean</code> drops the <code>replace</code> and removes
+<code>tmp/kernel</code>.</p>
+<!-- source: mk/gokrazy.mk -- ze-kernel-build -->
+<!-- source: gokrazy/kernel/Makefile -- all -->
+<!-- source: tools/kernel-builder/run.py -- main -->
+
+<p>On a Linux runner with QEMU, <code>xl2tpd</code>, <code>pppd</code>, <code>/dev/ppp</code>, and PPPoL2TP kernel
+support, the deployment proof target builds an L2TP-enabled appliance image and
+drives a real LAC against it:</p>
+<pre><code class="language-bash">make ze-deployment-gokrazy-l2tp-ppp-test
+</code></pre>
+<p>The proof image is built from a temporary gokrazy instance config so the normal
+appliance config is left unchanged. It disables IPv6CP in that proof image
+because the current static L2TP pool is IPv4-only. Set
+<code>ZE_GOKRAZY_SKIP_BUILD=1</code> to run against an existing <code>tmp/gokrazy/ze.img</code> that
+was already built with the L2TP proof template, the proof runtime environment,
+and an L2TP-capable kernel: skip-build bypasses the proof's own kernel
+resolution, and an image on the pinned rtr7 kernel (which has no l2tp support)
+crash-loops at first boot instead of serving.</p>
+<!-- source: gokrazy/kernel/runtime.config -- Ze L2TP/PPP kernel config -->
+<!-- source: mk/gokrazy.mk -- ze-kernel-build -->
+<!-- source: scripts/evidence/effective-gokrazy-l2tp-ppp.py -- appliance L2TP proof -->
+
+<h2 id="build-an-image">Build an image</h2>
+<p>First build (creates SSH credentials and a TLS certificate):</p>
+<pre><code class="language-bash">make ze-gokrazy-build USER=admin PASS=secret
+</code></pre>
+<p>Subsequent rebuilds reuse the existing database (same credentials, same TLS cert):</p>
+<pre><code class="language-bash">make ze-gokrazy-build
+</code></pre>
+<p>To use a database from a running instance or another machine:</p>
+<pre><code class="language-bash">make ze-gokrazy-build ZEFS=/path/to/database.zefs
+</code></pre>
+<p>To build with a different first-boot template without editing
+<code>gokrazy/ze/ze.conf</code>:</p>
+<pre><code class="language-bash">make ze-gokrazy-build USER=admin PASS=secret GOKRAZY_TEMPLATE=tmp/my-ze.conf
+</code></pre>
+<p>The legacy Make first build:</p>
+<ol>
+<li>Builds <code>bin/ze</code> for the host</li>
+<li>Runs <code>ze init --seed</code> with credentials and generates a self-signed TLS certificate. <code>--seed</code> skips baking the build host's discovered interfaces into the active config; otherwise that active config would hold the wrong host's NICs and shadow the seed template, leaving the appliance without web/L2TP. The appliance instead builds its active config at first boot from the template merged with its own on-device discovery.</li>
+<li>Cross-compiles Ze for linux/<code>GOKRAZY_ARCH</code> and builds a 2GB disk image</li>
+<li>Formats the persistent <code>/perm</code> partition</li>
+<li>Injects <code>database.zefs</code> (credentials + TLS cert) into <code>/perm/ze/</code></li>
+</ol>
+<p>The database is kept at <code>tmp/gokrazy/init/database.zefs</code> between builds. Browsers
+that trust the certificate on first use will not prompt again after image
+rebuilds. Structured <code>ze appliance build</code> also writes a build manifest into
+<code>/perm/ze/build.json</code>; the legacy <code>make ze-gokrazy-build</code> flow does not.</p>
+<p>The image lands at <code>tmp/gokrazy/ze.img</code>.</p>
+<!-- source: mk/gokrazy.mk -- ze-gokrazy-build -->
+
+<h2 id="test-in-qemu">Test in QEMU</h2>
+<pre><code class="language-bash">make ze-gokrazy-run
+</code></pre>
+<p>This boots the image with these legacy Make forwards:</p>
+<table>
+<thead>
+<tr>
+<th>Host URL / command</th>
+<th>Guest service</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="ev-src"><span class="ev-ref"><code>https://localhost:28080/</code></span></span></td>
+<td>Ze web UI (8080)</td>
+</tr>
+<tr>
+<td><span class="ev-src"><span class="ev-ref"><code>https://localhost:28080/gokrazy/</code></span></span></td>
+<td>Gokrazy management UI proxied by Ze</td>
+</tr>
+<tr>
+<td><code>ssh -p 2222 admin@localhost</code></td>
+<td>Ze SSH CLI (22)</td>
+</tr>
+</tbody>
+</table>
+<p>Quit QEMU with <strong>Ctrl-A X</strong>.</p>
+<p>The Gokrazy management UI shows process status, stdout/stderr ring buffers, and
+resource usage. In appliance mode it is exposed under Ze's authenticated web UI
+at <code>/gokrazy/</code>; the proxy reads Gokrazy's password from the same password-file
+locations Gokrazy uses when it needs to inject upstream Basic Auth.</p>
+<!-- source: mk/gokrazy.mk -- ze-gokrazy-run -->
+<!-- source: internal/component/web/register_gokrazy.go -- /gokrazy route -->
+<!-- source: internal/core/gokrazyutil/gokrazyutil.go -- ReadPassword -->
+
+<h2 id="deploy-to-hardware">Deploy to hardware</h2>
+<p>Write the image to a USB drive or internal disk on your N100 machine:</p>
+<pre><code class="language-bash"># Linux
+sudo dd if=tmp/gokrazy/ze.img of=/dev/sdX bs=4M status=progress
+
+# macOS
+sudo dd if=tmp/gokrazy/ze.img of=/dev/rdiskN bs=4m
+</code></pre>
+<p>Or import into Proxmox:</p>
+<pre><code class="language-bash">qm importdisk &lt;vmid&gt; tmp/gokrazy/ze.img &lt;storage&gt;
+</code></pre>
+<p>The machine boots to a serial console (115200 baud). Ze starts automatically, gets a DHCP address, and loads its active configuration from <code>/perm/ze/database.zefs</code> (bootstrapped from the seed template on first boot). The serial console requires authentication with the local admin credentials before granting shell access. If the credentials database is missing or unreadable, access is granted without authentication for emergency recovery. When <code>admin-enabled: false</code> is set in the appliance config, the serial console denies the built-in admin (fail-closed) and prints "local admin login disabled".</p>
+<!-- source: cmd/ze/login.go -- loginMain, fail-open path, admin-disabled check -->
+
+<h2 id="configuration">Configuration</h2>
+<h3 id="seed-config">Seed config</h3>
+<p>The initial Ze config is stored as the seed template in <code>gokrazy/ze/ze.conf</code>.
+Legacy Make writes that file into <code>file/template/ze.conf</code> in ZeFS during
+<code>make ze-gokrazy-build</code>; structured <code>ze appliance assemble</code> uses the same default when
+no base or per-appliance overlay config is present. Because <code>make ze-gokrazy-build</code>
+runs <code>ze init --seed</code>, the seed DB has no <code>file/active/ze.conf</code> to shadow the
+template, so the template becomes the effective config on first boot (<code>ze
+appliance assemble</code> never wrote an active config, so it was already correct).</p>
+<!-- source: gokrazy/ze/ze.conf -- seed template -->
+<!-- source: mk/gokrazy.mk -- GOKRAZY_TEMPLATE write, ze init --seed -->
+<!-- source: internal/plugins/init/main.go -- runInit seed skips file/active write -->
+<!-- source: internal/appliance/cmd_assemble.go -- resolveSeedConfig -->
+
+<pre><code class="language-bash">set environment log level info
+set environment web enabled true
+set environment web server default ip 0.0.0.0
+set environment web server default port 8080
+set environment ssh enabled true
+set environment ssh server default ip 0.0.0.0
+set environment ssh server default port 22
+set environment ntp enabled false
+set interface dhcp-auto true
+</code></pre>
+<p>To change the seed config, edit <code>gokrazy/ze/ze.conf</code>, pass
+<code>GOKRAZY_TEMPLATE=/path/to/ze.conf</code> to the legacy Make workflow, or use the
+structured workflow's <code>config-base</code> and per-appliance <code>ze.conf</code> files.</p>
+<h3 id="runtime-config">Runtime config</h3>
+<p>Once booted, use <code>ze config edit</code> over SSH to modify the running configuration. Changes are stored in <code>/perm/ze/database.zefs</code> and persist across reboots and image updates.</p>
+<h3 id="environment-variables">Environment variables</h3>
+<p>Ze's environment is set in <code>gokrazy/ze/config.json</code> under <code>PackageConfig</code>:</p>
+<!-- source: gokrazy/ze/config.json -- Environment array -->
+
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Value</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze.config.dir</code></td>
+<td><code>/perm/ze</code></td>
+<td>Persistent storage for database.zefs</td>
+</tr>
+<tr>
+<td><code>ze.bgp.api.socketpath</code></td>
+<td><span class="ev-src"><span class="ev-ref"><code>/tmp/ze.socket</code></span></span></td>
+<td>API socket location</td>
+</tr>
+<tr>
+<td><code>ze.bgp.daemon.drop</code></td>
+<td><code>false</code></td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td><code>ze.log</code></td>
+<td><code>info</code></td>
+<td>Log level</td>
+</tr>
+<tr>
+<td><code>ze.log.backend</code></td>
+<td><code>kmsg,stderr</code></td>
+<td>Logs go to kmsg and gokrazy ring buffers</td>
+</tr>
+<tr>
+<td><code>ze.gokrazy.enabled</code></td>
+<td><code>true</code></td>
+<td>Enables appliance auto-init fallback and the. <span class="ev-src"><span class="ev-ref"><code>/gokrazy/</code></span></span></td>
+</tr>
+</tbody>
+</table>
+<h2 id="updating">Updating</h2>
+<p>Gokrazy supports atomic A/B partition updates over the network:</p>
+<pre><code class="language-bash">bin/ze-setup appliance push &lt;name&gt;
+</code></pre>
+<p>This pushes the most recent image to the device. The system reboots into the new version. If the update fails mid-flight, the previous root partition is still intact.</p>
+<p>For full image rebuilds (when you also want to update the kernel or partition layout), use <code>ze appliance build &lt;name&gt;</code> again and re-flash.</p>
+<h2 id="architecture-notes">Architecture notes</h2>
+<h3 id="internal-plugins-only">Internal plugins only</h3>
+<p>Gokrazy has no shell and no PATH. Ze's external plugin mechanism (which uses <code>/bin/sh -c</code> to fork processes) does not work. All Ze plugins (bgp-rib, bgp-gr, bgp-adj-rib-in, etc.) are compiled into the ze binary as internal plugins and run as goroutines. This is the default and covers all standard BGP functionality.</p>
+<!-- source: internal/component/plugin/process/process.go -- startExternal uses /bin/sh -->
+
+<h3 id="process-supervision">Process supervision</h3>
+<p>Gokrazy's init restarts Ze if it exits with a non-zero status (except 125, which means "don't restart"). Ze handles SIGTERM for graceful shutdown. Logs (stdout/stderr) are captured in ring buffers visible through the gokrazy web UI.</p>
+<h3 id="persistent-storage">Persistent storage</h3>
+<p>The <code>/perm</code> partition (ext4) survives image updates. Ze stores its database (<code>database.zefs</code>), TLS certificates, and config state there via the <code>ze.config.dir=/perm/ze</code> environment variable.</p>
+<h2 id="repo-layout">Repo layout</h2>
+<pre><code>gokrazy/
+  .gitignore              # excludes *.img
+  ze/
+    config.json           # gokrazy instance config (what to build, how to start)
+    builddir/
+      github.com/ze-software/ze/
+        go.mod            # ze dependency pins + relative replace directive
+        go.sum
+      github.com/rtr7/kernel/
+        go.mod, go.sum    # linux kernel version pin
+      github.com/gokrazy/gokrazy/
+        go.mod, go.sum    # gokrazy init system version pin
+        cmd/dhcp/         # DHCP client
+        cmd/ntp/          # NTP client
+        cmd/heartbeat/    # watchdog heartbeat
+        cmd/randomd/      # entropy seeder
+cmd/ze-serial-shell/        # serial console login gate (replaces serial-busybox)
+  main.go                   # gokrazy wrapper: symlink + DontStartOnBoot
+  _gokrazy/                 # renamed busybox extrafiles per arch
+cmd/ze-gok/
+  main.go                   # gok wrapper (built by make bin/gok)
+</code></pre>
+<p>The gok build tool source is vendored in the main <code>vendor/github.com/gokrazy/</code> directory. The <code>builddir/</code> files are small text (go.mod + go.sum, ~27KB). System packages (kernel, init) live in the Go module cache after <code>make ze-gokrazy-deps-download</code>.</p>
+<h3 id="builds-never-run-from-this-directory">Builds never run from this directory</h3>
+<p>The tree above is the build <em>input</em>; no build runs inside it. Every image build
+first copies <code>gokrazy/ze</code> to a fresh directory under the project <code>tmp/</code>,
+including the whole <code>builddir</code>, rewriting each filesystem-path <code>replace</code> to an
+absolute path so it still resolves from the new depth. gok is then pointed at the
+copy, and the copy is deleted afterwards.</p>
+<!-- source: internal/appliance/instance/prepare.go -- Prepare, copyBuildDir, absolutizeReplaces -->
+
+<p>Both entry points do this: <code>ze appliance build</code> through <code>resolveBuildParentDir</code>,
+and <code>make ze-gokrazy-build</code> through <code>bin/gok</code>, which rewrites <code>--parent_dir</code> before gok
+sees it. As a result a build leaves the working tree unchanged, two builds in one
+checkout use isolated prepared instances, and a build that would have to resolve
+packages over the network fails instead of silently using unpinned versions. The
+one shared mutable path left is <code>tmp/kernel/pkg</code>: every <code>make ze-kernel-build</code> rewrites
+it (starting with a delete), so concurrent kernel materializations for different
+architectures do collide there. The L2TP boot proof therefore consumes a per-run
+copy of the package, never the shared path.</p>
+<!-- source: internal/appliance/kernelargs.go -- resolveBuildParentDir -->
+<!-- source: cmd/ze-gok/main.go -- prepareArgs -->
+
+<p>To build against a locally built kernel, pass it per build:</p>
+<pre><code>make ze-kernel-build                                   # builds tmp/kernel/pkg
+make ze-gokrazy-build KERNEL_PKG=tmp/kernel/pkg USER=admin PASS=secret
+</code></pre>
+<p>The <code>replace</code> is written into the prepared copy only, so nothing needs reverting
+afterwards and a later build without <code>KERNEL_PKG</code> uses the pinned kernel.</p>
+<!-- source: mk/gokrazy.mk -- KERNEL_PKG, ze-kernel-build -->
+<!-- source: internal/appliance/instance/prepare.go -- replaceKernel -->
+
+<h2 id="ze-setup-binary">ze-setup binary</h2>
+<p>Appliance build commands (<code>ze appliance</code>) and PXE provisioning (<code>ze install
+remote</code>) are part of the <code>ze-setup</code> binary. This keeps build-host tooling out
+of the on-device <code>ze</code> binary.</p>
+<p>Build ze-setup from the repo root:</p>
+<pre><code class="language-bash">make bin/ze-setup          # produces bin/ze-setup
+</code></pre>
+<h2 id="building-and-installing-an-appliance-end-to-end">Building and installing an appliance (end to end)</h2>
+<h3 id="from-a-json-config-recommended">From a JSON config (recommended)</h3>
+<p>Write an appliance config file (arch, kernel profile, credentials, networking):</p>
+<pre><code class="language-json">{
+    &quot;credentials&quot;: { &quot;username&quot;: &quot;exa&quot;, &quot;admin-enabled&quot;: true },
+    &quot;ssh&quot;:   { &quot;host&quot;: &quot;0.0.0.0&quot;, &quot;port&quot;: &quot;2222&quot; },
+    &quot;web&quot;:   { &quot;enabled&quot;: true, &quot;host&quot;: &quot;0.0.0.0&quot;, &quot;port&quot;: &quot;8080&quot; },
+    &quot;tls&quot;:   { &quot;cert-name&quot;: &quot;router.local&quot;, &quot;validity-years&quot;: 10 },
+    &quot;identity&quot;: { &quot;hostname&quot;: &quot;ze-prod&quot; },
+    &quot;device&quot;: { &quot;address&quot;: &quot;10.12.104.10&quot;, &quot;update-port&quot;: 443 },
+    &quot;image&quot;: { &quot;arch&quot;: &quot;amd64&quot;, &quot;size-bytes&quot;: 2147483648, &quot;kernel-profile&quot;: &quot;hardware-kms&quot; }
+}
+</code></pre>
+<h4 id="reserving-hugepages-for-vpp">Reserving hugepages for VPP</h4>
+<p>When the appliance runs VPP, reserve hugepages at boot by adding <code>image.hugepages</code>
+to the config. <code>ze appliance build</code> bakes <code>default_hugepagesz</code>/<code>hugepagesz</code>/<code>hugepages</code>
+into the boot cmdline (via a derived gokrazy instance config; the checked-in
+<code>gokrazy/ze/config.json</code> is never modified). Declare <code>image.memory</code> so the build
+rejects a reservation over 50% of target RAM and <code>ze appliance run</code> sizes QEMU's
+<code>-m</code> to match. Sizes are byte-size strings (<code>10b</code>, <code>512mb</code>, <code>1gb</code>, <code>1tb</code>;
+case-insensitive, 1024-based):</p>
+<pre><code class="language-json">&quot;image&quot;: {
+    &quot;arch&quot;: &quot;amd64&quot;,
+    &quot;size-bytes&quot;: 2147483648,
+    &quot;memory&quot;: &quot;8gb&quot;,
+    &quot;hugepages&quot;: { &quot;size&quot;: &quot;1gb&quot;, &quot;page-size&quot;: &quot;2mb&quot; }
+}
+</code></pre>
+<p><code>hugepages.size</code> is the total reservation and <code>page-size</code> is <code>2mb</code> or <code>1gb</code>; the
+page count is <code>size / page-size</code> (so <code>size</code> must be a whole multiple of
+<code>page-size</code>). The reservation is bounded to 512 GiB and, when <code>memory</code> is set, to
+50% of it. 1gb pages need CPU <code>pdpe1gb</code> support and <code>CONFIG_HUGETLBFS</code> in the
+kernel profile (both surfaced by <code>ze doctor</code>).</p>
+<!-- source: internal/appliance/config.go -- ImageConfig.Hugepages, validateImageMemory -->
+
+<p>Build the full ISO in one command:</p>
+<pre><code class="language-bash">make ze-iso-build-full CONFIG=prod.json SSH_PASSWORD='choose-a-strong-one'
+</code></pre>
+<p>This runs the entire pipeline: init, kernel build, initrd, disk image, and ISO.
+The appliance name is derived from the config filename (<code>prod.json</code> creates
+appliance <code>prod</code>). Subsequent builds with the same config reinitialize from
+scratch.</p>
+<p>Rebuild after code changes (appliance config unchanged):</p>
+<pre><code class="language-bash">make ze-iso-build NAME=prod
+</code></pre>
+<p>Set up PXE boot (optional, after the ISO build):</p>
+<pre><code class="language-bash">make ze-pxe-build NAME=prod
+</code></pre>
+<p>See <code>make help-deploy</code> for all variables (<code>APPLIANCE_BUILDER</code>, <code>PXE_DIR</code>, etc.).</p>
+<!-- source: mk/appliance.mk -- ze-iso-build-full, ze-iso-build, ze-pxe-build -->
+
+<h3 id="manual-steps">Manual steps</h3>
+<p>The Makefile targets call these <code>ze-setup</code> commands under the hood. Run them
+individually when you need finer control:</p>
+<pre><code class="language-bash"># 1. Build bin/ze-setup
+make bin/ze-setup
+
+# 2. Create an appliance with its config and secrets
+env ze.appliance.ssh.password='choose-a-strong-one' \
+  bin/ze-setup appliance init --config prod.json prod
+
+# 3. Optional readiness check for ISO prerequisites
+bin/ze-setup appliance iso --check
+
+# 4. Prepare ISO prerequisites
+bin/ze-setup appliance kernel prod                # download or build the installer kernel
+bin/ze-setup appliance initrd                    # download or build the installer initrd
+
+# 5. Build the full disk image (gokrazy + ZeFS credentials)
+bin/ze-setup appliance build prod
+
+# 6. Build the bootable installer ISO
+bin/ze-setup appliance iso prod
+
+# 7. Install: either boot the ISO on the target machine, or PXE provision
+#    Option A: copy the ISO to a USB stick or mount in a VM
+#    Option B: serve over the network with PXE
+bin/ze-setup install remote \
+  --interface eth0 \
+  --network 10.0.0.0/24 \
+  --image ~/.config/ze/appliances/prod/ze-*.img \
+  --ssh-username admin \
+  --ssh-password 'choose-a-strong-one'
+</code></pre>
+<p>The <code>kernel</code> and <code>initrd</code> commands first check the XDG cache. If
+<code>ze.appliance.kernel.url</code> or <code>ze.appliance.initrd.url</code> is set, the matching
+command then tries that configured prebuilt-artifact URL; otherwise it builds
+locally. Kernel local builds use the shared Docker-or-QEMU builder selection, and
+initrd local builds compile and pack <code>cmd/ze-installer</code>. Once cached, subsequent
+runs are instant. See "ISO prerequisites" below for details.</p>
+<h2 id="ze-appliance-structured-workflow">ze appliance (structured workflow)</h2>
+<p>The <code>ze appliance</code> command provides structured appliance management. Each
+appliance has its own directory with a JSON config, secrets that are optionally
+encrypted at rest, and a TLS certificate.</p>
+<!-- source: internal/appliance/resolve.go -- ResolveDir, ConfigPath, SecretsDir -->
+<!-- source: internal/appliance/cmd_init.go -- runInit, WriteSecret -->
+<!-- source: internal/appliance/crypto.go -- WriteSecret, Encrypt -->
+
+<h3 id="quick-start">Quick start</h3>
+<pre><code class="language-bash">bin/ze-setup appliance init lab                  # interactive wizard
+bin/ze-setup appliance build lab                 # full image (assemble + gok + ext4)
+bin/ze-setup appliance kernel lab                 # download or build installer kernel
+bin/ze-setup appliance initrd                    # download or build installer initrd
+bin/ze-setup appliance iso lab                   # bootable installer ISO from latest image
+bin/ze-setup appliance list                      # show all appliances
+bin/ze-setup appliance show lab                  # config summary + cert expiry
+</code></pre>
+<h3 id="appliance-directory">Appliance directory</h3>
+<p>By default, appliances live in <code>~/.config/ze/appliances/</code>. Override with <code>--dir</code> or <code>ZE_APPLIANCE_DIR</code>.</p>
+<pre><code>~/.config/ze/appliances/
+  _shared/
+    ze.conf                    # optional base config for all appliances
+  lab/
+    appliance.json             # config (no credentials)
+    ze.conf                    # per-device config overrides
+    secrets/                   # 0700 permissions
+      .encrypted               # marker (present = secrets encrypted)
+      tls/
+        cert.pem               # public certificate (plaintext)
+        key.pem                # private key (encrypted if passphrase set)
+      password.hash            # bcrypt hash (encrypted if passphrase set)
+      update.token             # gokrazy OTA token (encrypted if passphrase set)
+      authorized_keys          # SSH public keys (plaintext)
+</code></pre>
+<h3 id="encryption">Encryption</h3>
+<p>Secrets are encrypted at rest with Argon2id + XChaCha20-Poly1305 when an encryption passphrase is set during <code>ze appliance init</code>. The passphrase is never stored on disk. For fleet operations, <code>ze appliance unlock</code> starts a passphrase agent (like ssh-agent) that holds the derived key in memory.</p>
+<!-- source: internal/appliance/crypto.go -- Encrypt, WriteSecret, ResolvePassphrase -->
+<!-- source: internal/appliance/agent.go -- passphrase agent -->
+
+<pre><code class="language-bash">bin/ze-setup appliance unlock                    # start agent (prompts for passphrase)
+bin/ze-setup appliance unlock --duration 15m     # auto-expire after 15 minutes
+bin/ze-setup appliance unlock --stop             # stop agent
+</code></pre>
+<h3 id="day-2-operations">Day-2 operations</h3>
+<pre><code class="language-bash">bin/ze-setup appliance passwd lab                # rotate SSH password
+bin/ze-setup appliance replace-cert lab          # regenerate self-signed cert
+bin/ze-setup appliance replace-cert lab --cert ca.pem --key ca.key   # use CA-signed cert
+bin/ze-setup appliance rekey lab                 # change encryption passphrase
+bin/ze-setup appliance clone lab lab2            # copy config (not secrets)
+</code></pre>
+<h3 id="config-layering">Config layering</h3>
+<p>Set <code>config-base</code> in <code>appliance.json</code> to share a base config across appliances:</p>
+<pre><code class="language-json">{
+  &quot;config-base&quot;: &quot;../_shared/ze.conf&quot;
+}
+</code></pre>
+<p>The base config is read first, then per-appliance <code>ze.conf</code> is appended. Later <code>set</code> commands override earlier ones; <code>delete</code> commands remove settings from the base.</p>
+<!-- source: internal/appliance/cmd_assemble.go -- resolveSeedConfig -->
+
+<h3 id="commands-reference">Commands reference</h3>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>init &lt;name&gt;</code></td>
+<td>Create appliance with config + secrets (encrypted when a passphrase is set)</td>
+</tr>
+<tr>
+<td><code>assemble [--keep] &lt;name&gt;</code></td>
+<td>Build ZeFS database only (auto-deletes; use <code>--keep</code> to retain)</td>
+</tr>
+<tr>
+<td><code>build &lt;name&gt;</code></td>
+<td>Full image: assemble + gok + ext4 inject + checksum + manifest</td>
+</tr>
+<tr>
+<td><code>build --all</code></td>
+<td>Build all appliances</td>
+</tr>
+<tr>
+<td><code>kernel [--target] [--arch] [--profile] [--builder] [--version] [&lt;name&gt;]</code></td>
+<td>Download or build an installer or runtime kernel; with <code>&lt;name&gt;</code>, reads arch/profile from appliance config</td>
+</tr>
+<tr>
+<td><code>initrd</code></td>
+<td>Download or build the installer initrd</td>
+</tr>
+<tr>
+<td><code>iso [--image] [--output] [--kernel] [--initrd] [--target] [--builder] [&lt;name&gt;]</code></td>
+<td>Bootable installer ISO from an existing image</td>
+</tr>
+<tr>
+<td><code>iso --check</code></td>
+<td>Check ISO prerequisites without building</td>
+</tr>
+<tr>
+<td><code>passwd &lt;name&gt;</code></td>
+<td>Change SSH password</td>
+</tr>
+<tr>
+<td><code>replace-cert &lt;name&gt;</code></td>
+<td>Replace TLS cert (regenerate or <code>--cert</code>/<code>--key</code> for CA)</td>
+</tr>
+<tr>
+<td><code>rekey &lt;name&gt;</code></td>
+<td>Change encryption passphrase</td>
+</tr>
+<tr>
+<td><code>clone &lt;src&gt; &lt;dst&gt;</code></td>
+<td>Copy config, not secrets</td>
+</tr>
+<tr>
+<td><code>list</code></td>
+<td>List appliances with hostname and arch</td>
+</tr>
+<tr>
+<td><code>show &lt;name&gt;</code></td>
+<td>Show config, cert expiry, managed status</td>
+</tr>
+<tr>
+<td><code>run &lt;name&gt;</code></td>
+<td>Boot in QEMU with port forwarding</td>
+</tr>
+<tr>
+<td><code>unlock</code></td>
+<td>Start passphrase agent</td>
+</tr>
+<tr>
+<td><code>push [--image] [--testboot] [--no-reboot] &lt;name&gt;</code></td>
+<td>Push image to device via gokrazy OTA update</td>
+</tr>
+<tr>
+<td><code>push --all [--parallel N]</code></td>
+<td>Push to all appliances with device.address</td>
+</tr>
+<tr>
+<td><code>config &lt;name&gt; --merged</code></td>
+<td>Show effective config (base + overlay)</td>
+</tr>
+<tr>
+<td><code>config-push &lt;name&gt;</code></td>
+<td>Push config to running device via SSH</td>
+</tr>
+<tr>
+<td><code>config-push --all [--parallel N]</code></td>
+<td>Push config to all addressed devices</td>
+</tr>
+<tr>
+<td><code>init --batch &lt;manifest&gt;</code></td>
+<td>Batch init from JSON manifest</td>
+</tr>
+<tr>
+<td><code>export &lt;name&gt;</code></td>
+<td>Export appliance to encrypted archive (.ze.enc)</td>
+</tr>
+<tr>
+<td><code>export --all</code></td>
+<td>Export all appliances to single encrypted archive</td>
+</tr>
+<tr>
+<td><code>import [--force] [--dir &lt;path&gt;] &lt;archive&gt;</code></td>
+<td>Import appliance from encrypted archive</td>
+</tr>
+</tbody>
+</table>
+<h3 id="iso-prerequisites">ISO prerequisites</h3>
+<p>The ISO build requires an installer kernel, an initrd, <code>grub-mkstandalone</code>, and
+<code>xorriso</code>. Use <code>ze appliance iso --check</code> to see what is ready and what is
+missing. The <code>kernel</code> and <code>initrd</code> commands handle downloading or building these
+artifacts automatically:</p>
+<pre><code>bin/ze-setup appliance iso --check               # report readiness
+bin/ze-setup appliance kernel lab                 # reads arch/profile from appliance config
+bin/ze-setup appliance kernel --profile hardware lab   # explicit hardware profile
+bin/ze-setup appliance kernel --builder qemu --arch arm64 lab
+bin/ze-setup appliance kernel --target runtime    # build the verified runtime kernel tree
+bin/ze-setup appliance initrd                    # download or build initrd
+bin/ze-setup appliance iso lab                   # build ISO
+</code></pre>
+<p><code>ze appliance kernel</code> defaults to <code>--target installer</code> (the monolithic PXE
+<code>Image</code>); <code>--target runtime</code> builds the gokrazy runtime kernel tree (modules +
+<code>vmlinuz</code>) from <code>gokrazy/kernel/</code> with the runtime requirement floor enforced.
+The command reports the target it built (<code>kernel ready: ... (target=installer,
+profile=qemu, version=7.1.4)</code>). The installer target tries cache first, then a
+configured prebuilt-artifact URL if <code>ze.appliance.kernel.url</code> is set, then local
+build. Every local build runs through the shared driver
+<code>tools/kernel-builder/run.py</code>, which selects Docker when available and falls back
+to QEMU; use <code>--builder docker</code> or <code>--builder qemu</code> to force one path. Resolved
+installer artifacts are cached under <code>$XDG_CACHE_HOME/ze/</code> (default
+<code>~/.cache/ze/</code>) and copied to <code>build/kernel/</code> when appropriate.</p>
+<!-- source: internal/appliance/cmd_kernel.go -- runKernel, kernelTargetFor -->
+<!-- source: tools/kernel-builder/run.py -- main -->
+
+<p><code>ze appliance initrd</code> uses the same cache, optional configured URL, then local
+build pattern for the initrd artifact. The download URL has no built-in release
+server default; set <code>ze.appliance.kernel.url</code> or <code>ze.appliance.initrd.url</code> to use
+prebuilt artifacts.</p>
+<!-- source: internal/appliance/cmd_initrd.go -- resolveInitrd -->
+
+<p><code>ze doctor</code> includes checks for kernel, initrd, grub, xorriso, and e2fsprogs
+availability, reporting warnings with actionable hints when prerequisites are
+missing.</p>
+<!-- source: internal/appliance/doctor_checks.go -- applianceDoctorChecks -->
+
+<h3 id="iso-installer-media">ISO installer media</h3>
+<p>Create an installer ISO from an image already produced by <code>ze appliance
+build</code>. By default the command selects the latest <code>ze-*.img</code> in the appliance
+directory, verifies its <code>.sha256</code> sidecar, and writes <code>ze-*.iso</code> next to the
+image. Use <code>--image</code> to select a specific image filename and <code>--output</code> to write
+the ISO elsewhere. The output path must not overwrite the selected <code>.img</code>, and
+the image filename must stay within <code>[A-Za-z0-9._-]</code> so the initrd can pass it
+on the kernel command line. By default, <code>ze appliance iso</code> resolves a matching
+installer kernel from the cache, or from <code>build/kernel/Image</code> only when its
+variant metadata matches the appliance arch/profile/version. <code>ze appliance
+kernel</code> and <code>make -C tools/installer-kernel</code> both delegate to
+<code>tools/kernel-builder/</code>; pass <code>--kernel</code> to keep multiple kernels side by side.</p>
+<p>The <code>make -C tools/installer-kernel</code> build is incremental. It rebuilds when a
+config fragment, a builder file, the Makefile, or
+<code>internal/appliance/kernel.version</code> is newer than <code>build/kernel/Image</code>. It also
+rebuilds when the requested arch, profile, or builder is different from the last
+build, which it records in <code>build/kernel/.request</code>. A repeated build with the
+same request does no work. <code>make -C gokrazy/kernel</code> carries the same record for
+the runtime kernel, where an amd64 <code>vmlinuz</code> and an arm64 one live at one path.</p>
+<p><code>ze appliance kernel</code> is keyed on the cache instead. It deletes both records the
+Makefile writes, <code>.request</code> and <code>.variant</code>, on every run. The next <code>make</code>
+therefore rebuilds rather than trust a record it did not write. <code>ze appliance
+iso</code> does not read the replaced image as the profile the old record named.</p>
+<!-- source: internal/appliance/cmd_iso.go -- runIso, resolveISOInput, readRequiredImageChecksum -->
+<!-- source: tools/installer-kernel/Makefile -- all -->
+
+<pre><code>bin/ze-setup appliance build lab
+bin/ze-setup appliance kernel --builder docker --profile hardware lab
+bin/ze-setup appliance iso lab
+bin/ze-setup appliance iso --image ze-20260601-120000.img lab
+bin/ze-setup appliance iso --output /path/to/lab.iso lab
+bin/ze-setup appliance iso --kernel build/kernel/Image lab
+</code></pre>
+<p>The ISO is an installer envelope around the existing raw gokrazy image. The image
+is gzip-compressed inside the ISO to reduce media size (a 2 GiB image with ~100
+MiB of content compresses to roughly 100 MiB). The installer initrd decompresses
+the image during installation. The ISO does not rebuild the appliance, regenerate
+credentials, fetch a separate ZeFS database, or mutate <code>/perm</code> after writing the
+disk image. The installed disk receives the selected image bytes, including the
+<code>/perm/ze/database.zefs</code> and <code>/perm/ze/build.json</code> manifest that <code>build</code> already
+injected.</p>
+<!-- source: internal/appliance/cmd_iso.go -- stageISO -->
+<!-- source: internal/install/disk/run.go -- runISO -->
+<!-- source: internal/appliance/cmd_build.go -- injectZeFS -->
+
+<p>The ISO boot path accepts an optional explicit target disk. If no target is set,
+the installer writes only when exactly one non-removable candidate disk remains
+after excluding the ISO source media. The initrd also matches the booted ISO by
+a builder-generated <code>ze.media-id</code> token before it trusts a mounted installer
+volume, so identical image filenames on multiple attached installer media do not
+confuse the source selection. With multiple fixed disks, pass a whole disk path
+such as <code>/dev/vda</code> at ISO creation time:</p>
+<!-- source: internal/install/disk/detect.go -- findTargetDisk; internal/install/disk/iso.go -- media-id match -->
+
+<pre><code>bin/ze-setup appliance iso --target /dev/vda lab
+</code></pre>
+<p>After the installer writes the disk in ISO mode, it powers off instead of
+rebooting. Remove the installer media, then power the target back on so the
+firmware boots from the written disk.</p>
+<!-- source: internal/install/disk/run.go -- runISO -->
+
+<p>The ISO contains the full provisioned appliance image, including the embedded
+ZeFS database. Handle the ISO with the same care as the <code>.img</code> file.</p>
+<!-- source: internal/appliance/cmd_iso.go -- stageISO -->
+
+<p><strong>USB write method:</strong> the ISO can be written with <code>dd</code>, Etcher, or Rufus in DD
+mode. Ventoy is also supported when the installer kernel includes loop device
+and FAT/exFAT filesystem support (the <code>hardware</code> kernel profile has this). The
+initrd detects the ISO file on the Ventoy data partition, loop-mounts it, and
+proceeds with the installation. When using the <code>qemu</code> kernel profile, Ventoy
+is not supported.</p>
+<!-- source: internal/install/disk/run.go -- runISO Ventoy fallback -->
+<!-- source: internal/install/disk/iso.go -- tryVentoyISO -->
+<!-- source: tools/installer-kernel/hardware.config -- Ventoy-capable profile -->
+
+<h3 id="remote-operations-push-config-push">Remote operations (push, config-push)</h3>
+<p>Push a built image to a running gokrazy device via its HTTPS update endpoint:</p>
+<pre><code>bin/ze-setup appliance push lab
+bin/ze-setup appliance push --image ze-20260427-143022.img lab   # rollback to older image
+bin/ze-setup appliance push --all                                # all devices with address
+bin/ze-setup appliance push --all --parallel 4                   # 4 concurrent uploads
+</code></pre>
+<p>Push uses the update token (from <code>secrets/update.token</code>) for HTTP basic auth, and verifies the device TLS certificate against the stored <code>cert.pem</code>. No system CA pool is consulted.</p>
+<!-- source: internal/appliance/cmd_push.go -- loadDeviceTLS, authTransport -->
+
+<p>When <code>--image</code> is set, the file name must resolve to a regular file inside the
+appliance directory. Path traversal and symlinks escaping that directory are
+rejected after the local update token is read, but before TLS setup or any
+network request starts.</p>
+<!-- source: internal/appliance/cmd_push.go -- resolveImagePath -->
+
+<p>Preview the effective configuration (base + overlay merged) without building:</p>
+<pre><code>bin/ze-setup appliance config lab --merged
+</code></pre>
+<p>Push a config change to a running device without rebuilding the image:</p>
+<pre><code>bin/ze-setup appliance config-push lab
+bin/ze-setup appliance config-push --dry-run lab    # preview only, no SSH connection
+bin/ze-setup appliance config-push --all            # all addressed devices
+bin/ze-setup appliance config-push --all --parallel 4
+</code></pre>
+<p>Config-push uses SSH (operator's key via ssh-agent) to upload the merged config to the device, which validates and applies it. No secrets are transmitted over SSH.</p>
+<!-- source: internal/appliance/cmd_config_push.go -- configPushOne -->
+
+<h3 id="device-side-config-behavior">Device-side config behavior</h3>
+<p>At boot, unmanaged devices resolve the active config in ZeFS. If no active
+config exists, Ze bootstraps one from the seed template or interface discovery.
+If <code>/perm/ze/config-pushed.conf</code> exists and parses as Ze config, Ze writes it
+over the active config. If the pushed config fails validation, Ze deletes that
+pushed file and continues with the existing active config.</p>
+<table>
+<thead>
+<tr>
+<th>Stage</th>
+<th>Source</th>
+<th>Location</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Existing or bootstrapped active config</td>
+<td><span class="ev-src"><span class="ev-ref"><code>file/active/ze.conf</code></span></span></td>
+</tr>
+<tr>
+<td>2</td>
+<td>Seed template, only when active config is missing</td>
+<td><span class="ev-src"><span class="ev-ref"><code>file/template/ze.conf</code></span></span></td>
+</tr>
+<tr>
+<td>3</td>
+<td>Valid pushed config, applied over active config</td>
+<td><span class="ev-src"><span class="ev-ref"><code>/perm/ze/config-pushed.conf</code></span></span></td>
+</tr>
+</tbody>
+</table>
+<p>After loading the effective config, the device writes its SHA-256 hash to
+<code>/perm/ze/config-active-hash</code> for fleet drift detection.</p>
+<!-- source: cmd/ze/ze_core_start.go -- cmdStart config bootstrap order -->
+<!-- source: cmd/ze/pushed_config.go -- checkPushedConfig, writeConfigActiveHash -->
+
+<p><strong>Last-known-good hash:</strong> at build time, <code>ze appliance build</code> writes the SHA-256
+of the assembled seed config to <code>meta/config/last-known-good</code> in ZeFS. This
+serves as the build-time integrity baseline.</p>
+<!-- source: internal/appliance/cmd_assemble.go -- assembleZeFS last-known-good -->
+
+<p><strong>Config push and health monitor:</strong> <code>config-push</code> connects over SSH, stages the
+merged config, validates it, and applies it on the device. The source-backed
+health monitor is armed when a pushed config file is consumed at boot; it watches
+BGP peer close events for 30 seconds. If a peer closes during that window, the
+device reverts to the previous config, or to the seed config if no previous
+config was saved. If the window completes, the active config hash is written to
+<code>/perm/ze/last-known-good-pushed</code>.</p>
+<!-- source: internal/appliance/cmd_config_push.go -- configPushOne -->
+<!-- source: cmd/ze/health_revert.go -- HealthRevert -->
+
+<h3 id="batch-init">Batch init</h3>
+<p>Initialize multiple appliances from a JSON manifest:</p>
+<pre><code>bin/ze-setup appliance init --batch manifest.json
+</code></pre>
+<p>Manifest format (array of entries):</p>
+<pre><code class="language-json">[
+  {&quot;name&quot;: &quot;edge-01&quot;, &quot;hostname&quot;: &quot;edge-01.lab&quot;, &quot;password&quot;: &quot;secret1&quot;, &quot;device.address&quot;: &quot;10.0.0.1&quot;},
+  {&quot;name&quot;: &quot;edge-02&quot;, &quot;hostname&quot;: &quot;edge-02.lab&quot;, &quot;password&quot;: &quot;generate&quot;}
+]
+</code></pre>
+<p>Use <code>"password": "generate"</code> for per-device random passwords (printed to stdout once, never stored in plaintext). When an encryption passphrase is set, each encrypted secret write receives a fresh random salt and nonce.</p>
+<h3 id="disaster-recovery-exportimport">Disaster recovery (export/import)</h3>
+<p>Export creates an encrypted archive of an appliance directory for offsite backup or bastion migration. Archives include config, secrets, and build metadata, but exclude images and ZeFS databases (both are rebuildable).</p>
+<!-- source: internal/appliance/cmd_export.go -- tarApplianceInto, shouldExcludeFromExport -->
+
+<p>Export a single appliance:</p>
+<pre><code>bin/ze-setup appliance export lab
+# creates lab.ze.enc in the current directory
+</code></pre>
+<p>Export all appliances:</p>
+<pre><code>bin/ze-setup appliance export --all
+# creates appliances-YYYYMMDD-HHMMSS.ze.enc
+</code></pre>
+<p>Import restores from an archive:</p>
+<pre><code>bin/ze-setup appliance import lab.ze.enc
+</code></pre>
+<p>Import to a different bastion (migration):</p>
+<pre><code>bin/ze-setup appliance import lab.ze.enc --dir /path/to/new/bastion
+</code></pre>
+<p>Archives are always encrypted using the same Argon2id + XChaCha20-Poly1305 scheme as secrets at rest. The archive passphrase can differ when provided separately from the secrets passphrase. <code>import --force</code> overwrites files present in the archive, but it does not delete extra files already present in existing appliance directories.</p>
+<!-- source: internal/appliance/crypto.go -- Encrypt, Decrypt -->
+<!-- source: internal/appliance/cmd_import.go -- importArchive, extractTar -->
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/quickstart/">
+                        <span class="page-sidebar-link-label">Quickstart</span>
+                        <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create zefs, and start SSH.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../reference/command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

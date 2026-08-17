@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>Chaos Testing - Ze</title>
+        <meta name="description" content="Ze documentation: guide/chaos-testing.md" />
+        <meta property="og:title" content="Chaos Testing - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/chaos-testing.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Chaos Testing - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/chaos-testing.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/guides/chaos-testing/" />
+        <meta property="og:url" content="https://ze-software.net/guides/chaos-testing/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-observe">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1 id="chaos-testing">Chaos Testing</h1>
+    <p>Ze includes a chaos testing mode that injects faults during operation to verify the daemon handles failures correctly. This is useful for validating configuration changes, testing plugin resilience, and finding edge cases before production.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#quick-start">Quick Start</a></li>
+<li><a href="#flags">Flags</a></li>
+<li><a href="#ze-chaos-tool">ze-chaos Tool</a>
+<ol>
+<li><a href="#multi-daemon-testing-frr-bird">Multi-Daemon Testing (FRR, BIRD)</a>
+<ol>
+<li><a href="#running-via-docker">Running via Docker</a></li>
+<li><a href="#config-validation-no-live-session">Config Validation (no live session)</a></li>
+</ol></li>
+<li><a href="#event-logging-and-replay">Event Logging and Replay</a></li>
+<li><a href="#property-validation">Property Validation</a></li>
+</ol></li>
+<li><a href="#fault-types">Fault Types</a></li>
+<li><a href="#deterministic-replay">Deterministic Replay</a></li>
+<li><a href="#make-targets">Make Targets</a></li>
+<li><a href="#when-to-use">When to Use</a></li>
+</ol></nav>
+<h2 id="quick-start">Quick Start</h2>
+<pre><code class="language-bash"># Run all chaos tests
+make ze-chaos-test
+
+# Start ze with chaos mode enabled
+ze --chaos-seed 42 --chaos-rate 0.1 config.conf
+</code></pre>
+<h2 id="flags">Flags</h2>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--chaos-seed &lt;N&gt;</code></td>
+<td>PRNG seed for reproducible faults. <code>-1</code> = time-based. <code>0</code> = disabled.</td>
+<td>0 (off)</td>
+</tr>
+<tr>
+<td><code>--chaos-rate &lt;f&gt;</code></td>
+<td>Probability of fault per operation (0.0 to 1.0)</td>
+<td>0.1</td>
+</tr>
+</tbody>
+</table>
+<!-- source: cmd/ze/ze_core_dispatch.go -- chaosSeed, chaosRate global flags -->
+<!-- source: internal/component/bgp/config/loader.go -- injectChaos -->
+<!-- source: internal/component/bgp/config/loader_create.go -- chaosRateFromEnv, ze.bgp.chaos.seed/rate -->
+
+<h2 id="ze-chaos-tool">ze-chaos Tool</h2>
+<p>The <code>ze-chaos</code> tool is a chaos simulator that runs multiple BGP peers against a ze route server, validates route propagation, and injects faults.</p>
+<p><img alt="ze-chaos dashboard" src="img/ze-chaos-dashboard.png" /></p>
+<p>The web dashboard shows real-time peer status, per-family route propagation, convergence progress, and fault triggers. Color coding indicates propagation state: green = complete, orange = partial, red = zero.</p>
+<pre><code class="language-bash"># Fork mode (default): ze-chaos starts ze as a child process
+ze-chaos --seed 42 --peers 8 --duration 60s
+
+# Specify ze binary path
+ze-chaos --binary ./bin/ze --seed 42 --peers 8 --duration 60s
+
+# Pipeline mode: config on stdout, diagnostics on stderr
+ze-chaos --pipe --seed 42 --peers 8 --duration 60s | ./bin/ze -
+
+# Write config to file
+ze-chaos --config-out chaos.conf --seed 42 --peers 8
+ze start chaos.conf
+
+# In-process mode: mock network + virtual clock (fully deterministic)
+ze-chaos --in-process --seed 42 --duration 30s
+
+# In-process with chaos and route dynamics
+ze-chaos --in-process --seed 42 --duration 60s --chaos-rate 0.1 --route-rate 0.05
+
+# Multi-family
+ze-chaos --families ipv4/unicast,ipv6/unicast --chaos-rate 0.2 --pipe | ./bin/ze -
+</code></pre>
+<h3 id="multi-daemon-testing-frr-bird">Multi-Daemon Testing (FRR, BIRD)</h3>
+<p>ze-chaos can generate configs for and fork FRR (bgpd) or BIRD, so the same
+chaos scenario runs against different BGP implementations.</p>
+<pre><code class="language-bash"># Generate FRR config to inspect
+ze-chaos --config-only --application frr --seed 42 --peers 4
+
+# Generate BIRD config to inspect
+ze-chaos --config-only --application bird --seed 42 --peers 4
+
+# Fork FRR bgpd (auto-discovers bgpd in PATH)
+ze-chaos --application frr --seed 42 --peers 4 --duration 60s
+
+# Fork BIRD with explicit binary path
+ze-chaos --application bird --binary /usr/sbin/bird --seed 42 --peers 4 --duration 60s
+
+# Write config to file, start daemon manually
+ze-chaos --config-only --application frr --config-out chaos-frr.conf
+bgpd -f chaos-frr.conf -p 1850 -l 127.0.0.1 -P 0 -n -Z -S
+</code></pre>
+<p>FRR and BIRD use a single BGP port with peers identified by source IP address
+(127.0.0.x), unlike Ze's per-peer port model. On Linux, the 127.0.0.0/8 range
+is routed to loopback by default. On macOS, loopback aliases are needed:</p>
+<pre><code class="language-bash"># macOS only: create loopback aliases for each peer
+for i in $(seq 2 $((peers+1))); do
+  sudo ifconfig lo0 alias 127.0.0.$i
+done
+</code></pre>
+<p><code>make ze-dev-setup</code> adds 127.0.0.2 through 127.0.0.5 (and the IPv6 address the
+functional suite binds), so the loop above is needed only for a run with more
+than four peers. <code>make ze-dev-setup CHECK=1</code> reports which addresses are missing.
+Neither route survives a reboot; re-run <code>make ze-dev-setup</code> after one.</p>
+<!-- source: scripts/dev/dev-setup.py -- LOOPBACK_IPV4_DARWIN, apply_loopback_fix -->
+
+<h4 id="running-via-docker">Running via Docker</h4>
+<p>When FRR or BIRD is not installed locally, use Docker. The <code>--network host</code>
+flag shares the host network so ze-chaos simulators can connect directly
+(Linux only; macOS Docker Desktop does not support host networking).</p>
+<pre><code class="language-bash"># Start FRR in Docker, ze-chaos on the host
+ze-chaos --config-only --application frr --seed 42 --peers 4 \
+  --config-out chaos-frr.conf
+docker run --rm --network host \
+  -v ./chaos-frr.conf:/etc/frr/bgpd.conf:ro \
+  quay.io/frrouting/frr:10.3.1 \
+  /usr/lib/frr/bgpd -f /etc/frr/bgpd.conf -p 1850 -l 127.0.0.1 -P 0 -n -Z -S
+
+# In another terminal: run ze-chaos against the FRR instance
+ze-chaos --application frr --seed 42 --peers 4 --duration 60s \
+  --config-out /dev/null
+
+# Same pattern for BIRD
+ze-chaos --config-only --application bird --seed 42 --peers 4 \
+  --config-out chaos-bird.conf
+docker run --rm --network host \
+  -v ./chaos-bird.conf:/etc/bird.conf:ro \
+  --entrypoint bird bird-interop:latest \
+  -f -c /etc/bird.conf -s /tmp/bird.ctl
+</code></pre>
+<h4 id="config-validation-no-live-session">Config Validation (no live session)</h4>
+<p>Validate generated configs without running a full session:</p>
+<pre><code class="language-bash"># FRR: -C flag checks config and exits
+ze-chaos --config-only --application frr &gt; frr.conf
+docker run --rm -v ./frr.conf:/etc/frr/bgpd.conf:ro \
+  quay.io/frrouting/frr:10.3.1 \
+  /usr/lib/frr/bgpd -C -f /etc/frr/bgpd.conf -n -Z -S -p 0 -P 0
+
+# BIRD: -p flag parses config and exits
+ze-chaos --config-only --application bird &gt; bird.conf
+docker run --rm -v ./bird.conf:/etc/bird.conf:ro \
+  --entrypoint sh bird-interop:latest \
+  -c 'bird -p -c /etc/bird.conf'
+</code></pre>
+<!-- source: internal/chaos/orchestrator/cli.go -- --application, --binary flags; internal/chaos/scenario/config_frr.go, config_bird.go -->
+
+<h3 id="event-logging-and-replay">Event Logging and Replay</h3>
+<pre><code class="language-bash"># Record events
+ze-chaos --event-log run.ndjson --seed 42 | ./bin/ze -
+
+# Replay a recorded failure
+ze-chaos --replay run.ndjson
+
+# Shrink to minimal reproduction
+ze-chaos --shrink run.ndjson
+</code></pre>
+<!-- source: internal/chaos/orchestrator/subcommand.go -- event logging, replay, shrink modes -->
+
+<h3 id="property-validation">Property Validation</h3>
+<pre><code class="language-bash">ze-chaos --properties all --convergence-deadline 5s | ./bin/ze -
+ze-chaos --properties list    # Show available properties
+</code></pre>
+<p>Properties validated:
+- <strong>Convergence:</strong> All routes reach all peers despite faults
+- <strong>State consistency:</strong> RIB matches peer state after recovery
+- <strong>No data loss:</strong> Updates eventually delivered
+- <strong>Graceful degradation:</strong> Sessions restart on critical faults</p>
+<h2 id="fault-types">Fault Types</h2>
+<table>
+<thead>
+<tr>
+<th>Category</th>
+<th>Examples</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Network I/O</td>
+<td>Connection failures, partial writes, read timeouts</td>
+</tr>
+<tr>
+<td>Wire parsing</td>
+<td>Malformed messages, truncated packets</td>
+</tr>
+<tr>
+<td>FSM</td>
+<td>State machine violations, invalid transitions</td>
+</tr>
+<tr>
+<td>Route processing</td>
+<td>Dropped updates, corrupted NLRI</td>
+</tr>
+<tr>
+<td>Event delivery</td>
+<td>Lost messages, out-of-order events</td>
+</tr>
+</tbody>
+</table>
+<h2 id="deterministic-replay">Deterministic Replay</h2>
+<p>With a fixed seed, chaos testing is fully reproducible:</p>
+<pre><code class="language-bash"># These two runs produce identical fault sequences
+ze --chaos-seed 42 --chaos-rate 0.1 config.conf
+ze --chaos-seed 42 --chaos-rate 0.1 config.conf
+</code></pre>
+<p>Seed <code>0</code> disables chaos entirely (zero overhead). Seed <code>-1</code> uses the current time (non-reproducible).</p>
+<!-- source: cmd/ze/main.go -- chaosSeed handling -->
+
+<h2 id="make-targets">Make Targets</h2>
+<table>
+<thead>
+<tr>
+<th>Target</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>make ze-chaos-test</code></td>
+<td>Run chaos unit + functional tests</td>
+</tr>
+<tr>
+<td><code>make ze-chaos-build</code></td>
+<td>Build ze-chaos binary</td>
+</tr>
+</tbody>
+</table>
+<h2 id="when-to-use">When to Use</h2>
+<ul>
+<li><strong>Before deployment:</strong> Validate your config handles peer failures</li>
+<li><strong>CI pipeline:</strong> Catch race conditions and edge cases</li>
+<li><strong>Debugging:</strong> Reproduce intermittent failures with a fixed seed</li>
+<li><strong>Benchmarking:</strong> Measure convergence time under fault conditions</li>
+</ul>
+<!-- source: internal/chaos/orchestrator/cli.go -- ze-chaos tool; test/ -- chaos functional tests -->
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/quickstart/">
+                        <span class="page-sidebar-link-label">Quickstart</span>
+                        <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create zefs, and start SSH.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../reference/command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

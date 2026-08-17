@@ -1,0 +1,517 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>Flow Export - Ze</title>
+        <meta name="description" content="Ze documentation: guide/flow-export.md" />
+        <meta property="og:title" content="Flow Export - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/flow-export.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Flow Export - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/flow-export.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/guides/flow-export/" />
+        <meta property="og:url" content="https://ze-software.net/guides/flow-export/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-observe">
+<!-- source: internal/plugins/flowexport/exporter.go -- newExporter, collectorState, ProtocolEncoder, per-collector senders -->
+<!-- source: internal/plugins/flowexport/yang/ze-flowexport-conf.yang -- YANG config -->
+<!-- source: internal/plugins/flowexport/cmd_show.go -- ze-show:flow-export RPC -->
+<!-- source: internal/plugins/flowexport/metrics.go -- ze_flowexport_* Prometheus metrics -->
+
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1 id="flow-export">Flow Export</h1>
+    <p>Ze exports interface counters and per-flow records to external collectors over
+UDP. The <code>flowexport</code> component is a registered component: it loads only when a
+<code>flow-export { }</code> section is present in the config. Counter polling is driven by
+the interface rate tracker's snapshot callback; per-flow records come from
+packet sampling and from periodic conntrack table dumps.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#configuration">Configuration</a>
+<ol>
+<li><a href="#collectors">Collectors</a></li>
+<li><a href="#sampling">Sampling</a></li>
+<li><a href="#conntrack">Conntrack</a></li>
+<li><a href="#enrichment">Enrichment</a></li>
+</ol></li>
+<li><a href="#operational-command">Operational Command</a></li>
+<li><a href="#prometheus-metrics">Prometheus Metrics</a></li>
+<li><a href="#limitations">Limitations</a></li>
+<li><a href="#scale-conntrack-vs-sampling">Scale: conntrack vs sampling</a></li>
+<li><a href="#security">Security</a></li>
+</ol></nav>
+<p>Because counter export consumes the interface rate tracker, configuring
+<code>flow-export { }</code> automatically pulls in the interface plugin (a registered
+dependency). You do not need to add a separate <code>interface { }</code> section just to
+get counter datagrams flowing.</p>
+<p>Three export protocols are supported, selected per collector:</p>
+<table>
+<thead>
+<tr>
+<th>Protocol</th>
+<th>Reference</th>
+<th>Carries</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sflow</code></td>
+<td>sFlow v5</td>
+<td>Interface counters, packet samples (flow samples)</td>
+</tr>
+<tr>
+<td><code>netflow9</code></td>
+<td>NetFlow v9 (RFC 3954)</td>
+<td>Interface counters, per-flow records (template-based)</td>
+</tr>
+<tr>
+<td><code>ipfix</code></td>
+<td>IPFIX (RFC 7011)</td>
+<td>Interface counters, per-flow records (template-based)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="configuration">Configuration</h2>
+<p>All flow export configuration lives under a single <code>flow-export { }</code> section.</p>
+<h3 id="collectors">Collectors</h3>
+<p>A collector is an export endpoint. Each collector names one protocol; you may
+configure several collectors at once (for example one sFlow and one IPFIX).</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code></td>
+<td>-</td>
+<td>Collector name (list key)</td>
+</tr>
+<tr>
+<td><code>address</code></td>
+<td>-</td>
+<td>Collector IP address (mandatory)</td>
+</tr>
+<tr>
+<td><code>port</code></td>
+<td>6343</td>
+<td>Collector UDP port</td>
+</tr>
+<tr>
+<td><code>protocol</code></td>
+<td>-</td>
+<td><code>sflow</code>, <code>netflow9</code>, or <code>ipfix</code> (mandatory)</td>
+</tr>
+<tr>
+<td><code>polling-interval</code></td>
+<td>20</td>
+<td>Counter polling interval in seconds (1-3600)</td>
+</tr>
+<tr>
+<td><code>template-refresh</code></td>
+<td>600</td>
+<td>Template refresh interval in seconds, NetFlow v9 / IPFIX (1-86400)</td>
+</tr>
+<tr>
+<td><code>sub-agent-id</code></td>
+<td>0</td>
+<td>sFlow sub-agent identifier</td>
+</tr>
+<tr>
+<td><code>observation-domain</code></td>
+<td>0</td>
+<td>IPFIX / NetFlow v9 observation domain ID</td>
+</tr>
+<tr>
+<td><code>agent-address</code></td>
+<td>-</td>
+<td>sFlow agent address (the device's own stable IP, for example a loopback)</td>
+</tr>
+</tbody>
+</table>
+<p>An sFlow counter collector:</p>
+<pre><code>flow-export {
+    collector edge-sflow {
+        address 192.0.2.10;
+        port 6343;
+        protocol sflow;
+        polling-interval 20;
+        sub-agent-id 0;
+        agent-address 198.51.100.1;
+    }
+}
+</code></pre>
+<p>A NetFlow v9 collector plus an IPFIX collector on the same device:</p>
+<pre><code>flow-export {
+    collector nf9 {
+        address 192.0.2.20;
+        port 2055;
+        protocol netflow9;
+        polling-interval 30;
+        template-refresh 600;
+        observation-domain 1;
+    }
+    collector ipfix {
+        address 192.0.2.21;
+        port 4739;
+        protocol ipfix;
+        polling-interval 30;
+        template-refresh 600;
+        observation-domain 1;
+    }
+}
+</code></pre>
+<h3 id="sampling">Sampling</h3>
+<p>Packet sampling uses the Linux <code>tc sample</code> action plus the kernel <code>psample</code>
+module and exports sampled packet headers as sFlow flow samples.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code></td>
+<td>-</td>
+<td>Interface to sample (list key)</td>
+</tr>
+<tr>
+<td><code>rate</code></td>
+<td>-</td>
+<td>Sampling rate, 1-in-N packets (1-1000000)</td>
+</tr>
+<tr>
+<td><code>trunc-size</code></td>
+<td>128</td>
+<td>Bytes of each sampled packet header to capture (64-1500)</td>
+</tr>
+<tr>
+<td><code>group</code></td>
+<td>1</td>
+<td>psample group ID (1-2147483647)</td>
+</tr>
+</tbody>
+</table>
+<pre><code>flow-export {
+    sampling {
+        interface eth0 {
+            rate 1024;
+            trunc-size 128;
+            group 1;
+        }
+    }
+}
+</code></pre>
+<h3 id="conntrack">Conntrack</h3>
+<p>Conntrack-based per-flow records are exported via NetFlow v9 and IPFIX. The
+exporter walks the conntrack table on a fixed interval and emits one record per
+tracked flow.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>enabled</code></td>
+<td>false</td>
+<td>Export per-flow records from the conntrack table</td>
+</tr>
+<tr>
+<td><code>active-timeout</code></td>
+<td>60</td>
+<td>Seconds between conntrack table dumps (1-3600)</td>
+</tr>
+</tbody>
+</table>
+<pre><code>flow-export {
+    conntrack {
+        enabled true;
+        active-timeout 60;
+    }
+}
+</code></pre>
+<h3 id="enrichment">Enrichment</h3>
+<p>Flow records can be enriched from the BGP RIB. With <code>bgp true</code>, the exporter
+consumes the RIB best-change event and attaches the next-hop for each flow's
+destination prefix.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>bgp</code></td>
+<td>false</td>
+<td>Enrich flow records with the BGP next-hop</td>
+</tr>
+</tbody>
+</table>
+<pre><code>flow-export {
+    enrichment {
+        bgp true;
+    }
+}
+</code></pre>
+<h2 id="operational-command">Operational Command</h2>
+<p><code>show flow export [name &lt;collector&gt;]</code> reports per-collector export statistics.
+With no argument it lists every collector; with <code>name &lt;collector&gt;</code> it returns
+that one collector, or an error if the name is not configured. When no <code>flow-export</code>
+section is configured the command returns <code>{"status": "not-configured"}</code>.</p>
+<pre><code>ze cli -c 'show flow export'
+</code></pre>
+<pre><code class="language-json">[
+  {
+    &quot;name&quot;: &quot;edge-sflow&quot;,
+    &quot;address&quot;: &quot;192.0.2.10&quot;,
+    &quot;port&quot;: 6343,
+    &quot;protocol&quot;: &quot;sflow&quot;,
+    &quot;datagrams-sent&quot;: 1842,
+    &quot;bytes-sent&quot;: 1325760,
+    &quot;errors&quot;: 0,
+    &quot;sequence&quot;: 1842,
+    &quot;last-export-time&quot;: 1748430000
+  }
+]
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code></td>
+<td>Collector name</td>
+</tr>
+<tr>
+<td><code>address</code></td>
+<td>Collector IP address</td>
+</tr>
+<tr>
+<td><code>port</code></td>
+<td>Collector UDP port</td>
+</tr>
+<tr>
+<td><code>protocol</code></td>
+<td>Export protocol</td>
+</tr>
+<tr>
+<td><code>datagrams-sent</code></td>
+<td>UDP datagrams sent to this collector</td>
+</tr>
+<tr>
+<td><code>bytes-sent</code></td>
+<td>Total bytes sent to this collector</td>
+</tr>
+<tr>
+<td><code>errors</code></td>
+<td>Send errors</td>
+</tr>
+<tr>
+<td><code>sequence</code></td>
+<td>Current export sequence number</td>
+</tr>
+<tr>
+<td><code>last-export-time</code></td>
+<td>Unix timestamp of the most recent poll (omitted before the first poll)</td>
+</tr>
+</tbody>
+</table>
+<p>The command produces JSON by default and supports the full set of pipe
+operators.</p>
+<h2 id="prometheus-metrics">Prometheus Metrics</h2>
+<p>The component registers the following metrics:</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Type</th>
+<th>Labels</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze_flowexport_datagrams_total</code></td>
+<td>counter</td>
+<td>collector, protocol</td>
+<td>Flow export datagrams sent</td>
+</tr>
+<tr>
+<td><code>ze_flowexport_bytes_total</code></td>
+<td>counter</td>
+<td>collector, protocol</td>
+<td>Flow export bytes sent</td>
+</tr>
+<tr>
+<td><code>ze_flowexport_errors_total</code></td>
+<td>counter</td>
+<td>collector, protocol</td>
+<td>Flow export send errors</td>
+</tr>
+<tr>
+<td><code>ze_flowexport_samples_total</code></td>
+<td>counter</td>
+<td>interface</td>
+<td>Packet samples received and exported</td>
+</tr>
+<tr>
+<td><code>ze_flowexport_flows_total</code></td>
+<td>counter</td>
+<td>collector</td>
+<td>Per-flow records exported</td>
+</tr>
+<tr>
+<td><code>ze_flowexport_flows_active</code></td>
+<td>gauge</td>
+<td>-</td>
+<td>Conntrack flows currently tracked for export</td>
+</tr>
+</tbody>
+</table>
+<h2 id="limitations">Limitations</h2>
+<ul>
+<li><strong>BGP enrichment</strong> attaches next-hop, origin AS, and the AS path from the RIB
+  best-change event to flow records. Full-table replay events omit the AS data
+  (the stored best-path record does not keep the AS-path handle); those entries
+  are corrected by the next incremental best-path change.</li>
+<li><strong>Extended sFlow <code>if_counters</code>.</strong> ifType, ifIndex, status, octet/packet/
+  error/discard counters, promiscuous mode, ifSpeed, ifDirection (duplex), and
+  inbound multicast packets are populated. ifSpeed and ifDirection come from
+  sysfs (<code>/sys/class/net/&lt;if&gt;/speed</code> and <code>/duplex</code>) and read zero / unknown for
+  virtual or down links, where the kernel does not report them. Outbound
+  multicast and both inbound and outbound broadcast packet counts are left zero:
+  <code>rtnl_link_stats64</code> exposes only an inbound multicast counter, with no
+  transmit-multicast and no broadcast counters at all.</li>
+<li><strong>Conntrack export combines periodic dumps with destroy events.</strong> Records
+  are emitted on each table dump (<code>active-timeout</code>), and a
+  <code>NFNLGRP_CONNTRACK_DESTROY</code> netlink listener exports each torn-down flow's
+  residual counters immediately, so flows that begin and end between two dumps
+  are not lost. The destroy listener needs <code>CAP_NET_ADMIN</code> and the
+  <code>nf_conntrack_netlink</code> module; without them the worker logs that it is
+  running in dump-only mode and continues with the periodic path alone.</li>
+<li><strong>Sampling requires Linux with <code>CAP_NET_ADMIN</code> and the kernel <code>psample</code>
+  module.</strong> On platforms without these, the sampling worker degrades and no
+  flow samples are produced.</li>
+</ul>
+<h2 id="scale-conntrack-vs-sampling">Scale: conntrack vs sampling</h2>
+<p>Conntrack per-flow export gives <strong>exact</strong> per-flow accounting and suits edge /
+moderate scale (up to low-thousands of new flows per second). Its cost scales
+with flow <strong>churn</strong>: the delta tracker holds one entry per recently-seen flow,
+the kernel table dump serialises every tracked flow over netlink each
+<code>active-timeout</code>, and the destroy-event socket must keep up with the teardown
+rate. A torn-down flow's tracking state is reclaimed within a few seconds of its
+destroy event (or at <code>2 × active-timeout</code> if the event is missed), so memory is
+bounded by <code>churn × residency</code>. Raising <code>active-timeout</code> on a busy device
+lengthens residency for any flow whose destroy event is missed, so keep it
+modest under high churn.</p>
+<p>For <strong>high-rate</strong> links (100G internet mix, tens of thousands to millions of new
+flows per second), do <strong>not</strong> rely on conntrack per-flow export: the table dump,
+the destroy-event rate, and the export bandwidth all become bottlenecks. Use
+<strong>packet sampling</strong> instead (<code>sampling { }</code>, sFlow flow samples), whose cost is
+independent of flow rate because it processes only 1-in-N packets. Sampling is
+the scalable mechanism for line-rate flow visibility; conntrack export is for
+exact accounting where flow rates are modest.</p>
+<h2 id="security">Security</h2>
+<p>The export protocols (sFlow, NetFlow v9, IPFIX) are unencrypted UDP and carry
+no authentication. Run flow export over a dedicated management VLAN, and keep
+the collector endpoints off any untrusted path.</p>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/quickstart/">
+                        <span class="page-sidebar-link-label">Quickstart</span>
+                        <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create zefs, and start SSH.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../reference/command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

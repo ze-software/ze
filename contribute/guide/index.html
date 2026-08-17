@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>Contributor guide - Ze</title>
+        <meta name="description" content="The practical side of contributing to Ze: how work gets in, how to build, and what a good change looks like." />
+        <meta property="og:title" content="Contributor guide - Ze" />
+        <meta property="og:description" content="The practical side of contributing to Ze: how work gets in, how to build, and what a good change looks like." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Contributor guide - Ze" />
+        <meta name="twitter:description" content="The practical side of contributing to Ze: how work gets in, how to build, and what a good change looks like." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/contribute/guide/" />
+        <meta property="og:url" content="https://ze-software.net/contribute/guide/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" tabindex="-1">
+            <section class="md-content reveal">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Community</span>
+    <h1 id="contributor-guide">Contributor guide</h1>
+    <p>This is the practical side of contributing to Ze: how work gets in, how to
+set up a build, and what the project expects of a change. The
+<a href="../">contribute page</a> covers the why, the funding, and the Contributor
+License Agreement. Read that first, then come back here.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#how-work-gets-in">How work gets in</a></li>
+<li><a href="#setting-up-a-build">Setting up a build</a></li>
+<li><a href="#what-a-good-change-looks-like">What a good change looks like</a></li>
+<li><a href="#good-first-paths">Good first paths</a></li>
+</ol></nav>
+<p>Everyone taking part is expected to follow the
+<a href="../../code-of-conduct/">Code of Conduct</a>.</p>
+<h2 id="how-work-gets-in">How work gets in</h2>
+<p>Ze is built spec by spec, and that shapes how contributions flow:</p>
+<ol>
+<li><strong>Open an issue</strong> describing what you want to change or fix, on the
+   <a href="https://github.com/ze-software/ze/issues" target="_blank" rel="noopener">tracker</a>. Start here even for
+   a fix, so the work is visible and nobody doubles up.</li>
+<li><strong>Agree on a spec.</strong> For anything beyond a small fix, the maintainer turns
+   the issue into a spec that says what the change should do and how it will
+   be tested. Specs keep the project coherent and stop work drifting.</li>
+<li><strong>Implement the spec</strong>, with tests written alongside the code, not after.</li>
+<li><strong>Sign your commits</strong> with <code>git commit -s</code>. That sign-off certifies you
+   accept the <a href="../">CLA</a>. No signed-off commit, no merge: this is the one hard
+   requirement.</li>
+<li><strong>Open a pull request.</strong> The maintainer reviews it, often with AI
+   assistance, the same way the rest of the project is built.</li>
+</ol>
+<h2 id="setting-up-a-build">Setting up a build</h2>
+<pre><code class="language-bash">git clone https://github.com/ze-software/ze.git
+cd ze
+make build          # builds bin/ze
+bin/ze init         # set up local credentials
+bin/ze cli          # connect to the CLI
+</code></pre>
+<p>The <a href="../../guides/quickstart/">quickstart</a> takes this further and gets two
+BGP peers talking. For the full developer setup, including the test
+dependencies, see
+<a href="https://github.com/ze-software/ze/blob/main/docs/guide/developer-setup.md" target="_blank" rel="noopener">developer-setup.md</a>
+in the repository.</p>
+<h2 id="what-a-good-change-looks-like">What a good change looks like</h2>
+<ul>
+<li><strong>Tests come with it.</strong> Ze is test-driven; a change without tests is not
+  finished.</li>
+<li><strong><code>make ze-precommit-verify</code> passes.</strong> That is the gate the maintainer runs, so run it
+  yourself before you submit.</li>
+<li><strong>It arrives in one piece.</strong> Code, tests, and documentation together, not a
+  code change now with the docs to follow.</li>
+<li><strong>It respects the project's standards.</strong> The coding, testing, and workflow
+  rules the project follows live in
+  <a href="https://github.com/ze-software/ze/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">the repository</a>
+  and apply to every contribution, whether written by hand or with AI help.</li>
+</ul>
+<h2 id="good-first-paths">Good first paths</h2>
+<p>There is no formal "good first issue" label yet. The most useful things an
+outside contributor can do right now are the ones that need real routing
+experience: run a lab peer, migrate an <a href="../../use-cases/exabgp-migration/">ExaBGP config</a>,
+stand up a looking glass, or run the <a href="../../labs/">interop labs</a> and report
+what does not match. Come and ask on <a href="https://discord.gg/T8s7CjPDne" target="_blank" rel="noopener">Discord</a>
+where help is most valuable at the moment.</p>
+            </section>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

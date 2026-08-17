@@ -1,0 +1,25 @@
+$ ze config show router.conf bgp peer transit-a
+connection {
+    local ip 192.0.2.1
+    remote ip 192.0.2.2
+}
+session {
+    asn { local 65000; remote 65001; }
+    family ipv4/unicast { prefix maximum 1000000; }
+}
+$ ze config migrate --format set router.conf | ze pipe match 'bgp peer transit-a'
+set bgp peer transit-a connection local ip 192.0.2.1
+set bgp peer transit-a connection remote ip 192.0.2.2
+set bgp peer transit-a session asn local 65000
+set bgp peer transit-a session asn remote 65001
+...
+$ cmp -s router.set roundtrip.set && echo 'canonical output: identical'
+canonical output: identical
+$ ze --plugins | ze pipe match flowspec
+bgp-nlri-flowspec
+flowspec-firewall
+...
+$ ze --plugins | ze pipe match flowspec | ze pipe count
+{"count":3,"pipe":{"count":true}}
+
+Hierarchical and set syntax are alternate presentations of the same parsed configuration. Converting to set syntax and back produces identical canonical set commands. The standalone formatter composes the same match and count operators for shell pipelines.

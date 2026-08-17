@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>Week of 2026-02-23 - Ze</title>
+        <meta name="description" content="A route-server-focused week: reliability fixes for BGP Route Server under load, a new external plugin protocol option, and systematic config validation." />
+        <meta property="og:title" content="Week of 2026-02-23 - Ze" />
+        <meta property="og:description" content="A route-server-focused week: reliability fixes for BGP Route Server under load, a new external plugin protocol option, and systematic config validation." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Week of 2026-02-23 - Ze" />
+        <meta name="twitter:description" content="A route-server-focused week: reliability fixes for BGP Route Server under load, a new external plugin protocol option, and systematic config validation." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/changes/2026-02-23/" />
+        <meta property="og:url" content="https://ze-software.net/changes/2026-02-23/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <link rel="alternate" type="application/rss+xml" title="Ze weekly updates" href="../feed.xml" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="blog-post" aria-labelledby="post-title">
+                <div class="journey-hero reveal">
+                    <span class="journey-eyebrow">Weekly update</span>
+                    <h1 id="post-title">Week of 2026-02-23</h1>
+                    <p>A route-server-focused week: reliability fixes for BGP Route Server under load, a new external plugin protocol option, and systematic config validation.</p>
+                </div>
+                <p class="post-back"><a href="../">&larr; All weekly updates</a></p>
+            </section>
+            <section class="blog-post reveal">
+                <div class="blog-grid">
+                    <div class="blog-block" aria-label="🛰️ Route Server (RFC 7947)">
+                        <div class="md-content">
+                            <h2>🛰️ Route Server (RFC 7947)</h2>
+                            <p>The route-server plugin is renamed from <code>bgp-rr</code> to <code>bgp-rs</code> to match forward-all Route Server semantics rather than Route Reflector client/non-client selection. <code>rs status</code> and <code>rs peers</code> commands replace the old <code>rr</code> names.</p>
+<ul>
+<li>Reconnecting peers now get a targeted replay of just their own routes from a dedicated adj-rib-in plugin, instead of triggering a full ROUTE-REFRESH storm across every peer and family</li>
+<li>Fixed several route-loss bugs under backpressure: an overflow buffer stops silent drops when a peer can't keep up, and per-entry cache acknowledgment prevents cumulative eviction from losing routes</li>
+<li>Plugins can now declare dependencies on each other (route-server on adj-rib-in, for example), auto-loaded and validated at startup</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🔌 Plugin protocol">
+                        <div class="md-content">
+                            <h2>🔌 Plugin protocol</h2>
+                            <p>External plugins can now speak a simple line-based text protocol instead of JSON-RPC for their startup handshake and event delivery, an easier path for writing plugins in languages other than Go.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🧩 Config validation">
+                        <div class="md-content">
+                            <h2>🧩 Config validation</h2>
+                            <p>YANG config trees are now validated recursively against schema (enums, ranges, patterns, mandatory fields), with an extensible <code>ze:validate</code> mechanism for custom runtime checks.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🛠️ Under the hood">
+                        <div class="md-content">
+                            <h2>🛠️ Under the hood</h2>
+                            <p>Event delivery, IPC framing, and TCP session reads got a round of allocation and syscall reduction: zero-alloc text formatting, batched IPC delivery, buffered TCP reads, and RPC calls without a goroutine per request.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="📊 ze-chaos">
+                        <div class="md-content">
+                            <h2>📊 ze-chaos</h2>
+                            <p>The chaos-testing dashboard got a UX pass: live convergence charts, a peer health view, and clearer sync-state visibility (peers now show Established → Syncing → Up instead of jumping straight to Up).</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Change note</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>More context</h2>
+                    <a class="page-sidebar-link" href="../../changes/">
+                        <span class="page-sidebar-link-label">All changes</span>
+                        <small>Return to the weekly update index.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../milestones/">
+                        <span class="page-sidebar-link-label">Milestones</span>
+                        <small>See which changes became landmarks.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../roadmap/">
+                        <span class="page-sidebar-link-label">Roadmap</span>
+                        <small>Map this week to the release plan.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../activity/">
+                        <span class="page-sidebar-link-label">Activity</span>
+                        <small>View commit cadence around this week.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

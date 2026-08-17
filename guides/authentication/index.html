@@ -1,0 +1,660 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>Authentication - Ze</title>
+        <meta name="description" content="Ze documentation: guide/authentication.md" />
+        <meta property="og:title" content="Authentication - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/authentication.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Authentication - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/authentication.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/guides/authentication/" />
+        <meta property="og:url" content="https://ze-software.net/guides/authentication/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-secure">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1 id="authentication">Authentication</h1>
+    <p>Ze supports local operator users defined in the daemon configuration, in
+addition to the bootstrap super-admin written to <code>database.zefs</code> by <code>ze init</code>.
+This guide covers adding configured users, hashing their passwords, and
+connecting with the <code>ze</code> CLI.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#two-sources-of-users">Two sources of users</a>
+<ol>
+<li><a href="#disabling-the-super-admin">Disabling the super-admin</a></li>
+</ol></li>
+<li><a href="#adding-a-user">Adding a user</a>
+<ol>
+<li><a href="#step-1-hash-a-password">Step 1: hash a password</a></li>
+<li><a href="#step-2-declare-the-user-in-yang">Step 2: declare the user in YANG</a></li>
+<li><a href="#passwords-in-a-config-file">Passwords in a config file</a></li>
+<li><a href="#step-3-reload">Step 3: reload</a></li>
+</ol></li>
+<li><a href="#logging-in-as-a-yang-user">Logging in as a YANG user</a>
+<ol>
+<li><a href="#the-stored-hash-is-a-credential-only-over-a-local-connection">The stored hash is a credential only over a local connection</a></li>
+<li><a href="#remote-management-listener-guard">Remote management listener guard</a>
+<ol>
+<li><a href="#upgrading-from-a-release-without-the-guard">Upgrading from a release without the guard</a></li>
+</ol></li>
+<li><a href="#authentication-on-reload">Authentication on reload</a></li>
+<li><a href="#tab-completion-ze-completion">Tab completion (ze completion)</a></li>
+</ol></li>
+<li><a href="#ssh-public-key-authentication">SSH public key authentication</a>
+<ol>
+<li><a href="#adding-a-public-key">Adding a public key</a></li>
+<li><a href="#supported-key-types">Supported key types</a></li>
+<li><a href="#connecting-with-a-key">Connecting with a key</a></li>
+<li><a href="#password-and-key-coexistence">Password and key coexistence</a></li>
+<li><a href="#scope">Scope</a></li>
+</ol></li>
+<li><a href="#why-two-leaves-instead-of-auto-detecting-the-format">Why two leaves instead of auto-detecting the format</a></li>
+<li><a href="#notes-on-plaintext-lifetime">Notes on plaintext lifetime</a></li>
+<li><a href="#things-that-do-not-work">Things that do NOT work</a></li>
+<li><a href="#reference">Reference</a></li>
+</ol></nav>
+<h2 id="two-sources-of-users">Two sources of users</h2>
+<table>
+<thead>
+<tr>
+<th>Source</th>
+<th>Where stored</th>
+<th>Created by</th>
+<th>Used for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>zefs super-admin</td>
+<td><code>database.zefs</code> (<code>meta/auth/local/{username,password}</code>)</td>
+<td><code>ze init</code></td>
+<td>Bootstrap and recovery -- the operator who set the box up</td>
+</tr>
+<tr>
+<td>YANG users</td>
+<td><code>system.authentication.user &lt;name&gt;</code></td>
+<td>Config edit</td>
+<td>Day-to-day operators, auditors, scripts</td>
+</tr>
+</tbody>
+</table>
+<p>At boot, the daemon resolves both sources and publishes the merged users with
+their authorization policy as one accepted generation. SSH, web, REST, and
+gRPC read that live generation. During reload, the old generation remains
+active through every fallible step; a failed candidate is never published.</p>
+<p>When a YANG user has the same name as the zefs super-admin, the YANG entry
+takes precedence and the zefs entry is dropped. This lets operators override
+the bootstrap password via configuration without a stale zefs hash remaining
+as a backdoor.</p>
+<h3 id="disabling-the-super-admin">Disabling the super-admin</h3>
+<p>Setting <code>meta/instance/admin-disabled</code> to <code>"true"</code> in the zefs database
+(via <code>admin-enabled: false</code> in the appliance config) disables the super-admin
+on all surfaces: SSH, web, API, and serial console. The serial console
+returns "local admin login disabled" and denies access (fail-closed), unlike
+the missing-database case which grants access for emergency recovery.</p>
+<!-- source: cmd/ze/hub/main_servers.go -- liveLocalUsers candidate assembly -->
+<!-- source: cmd/ze/hub/aaa_lifecycle.go -- publishAcceptedLocalIdentity, liveAcceptedLocalUsers -->
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig boot publication -->
+<!-- source: cmd/ze/hub/main_reload.go -- runReloadContext reload publication -->
+
+<h2 id="adding-a-user">Adding a user</h2>
+<h3 id="step-1-hash-a-password">Step 1: hash a password</h3>
+<p><code>ze passwd</code> takes plaintext on stdin or via interactive prompt and prints
+a bcrypt hash to stdout. The hash uses cost 10 (the same as <code>ze init</code>).</p>
+<pre><code>$ echo &quot;secret&quot; | ze passwd
+$2a$10$abcdefghijklmnopqrstuABCDEFGHIJKLMNOPQRSTUVWXYZ012345678
+</code></pre>
+<p>Interactive use prompts twice for confirmation.</p>
+<!-- source: internal/plugins/passwd/main.go -- runImpl -->
+
+<h3 id="step-2-declare-the-user-in-yang">Step 2: declare the user in YANG</h3>
+<p>Two equivalent ways to set the password:</p>
+<table>
+<thead>
+<tr>
+<th>Form</th>
+<th>When to use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>password "$2a$10$..."</code></td>
+<td>You already have a hash (from <code>ze passwd</code>, fleet automation, or a backup)</td>
+</tr>
+<tr>
+<td><code>plaintext-password "secret"</code></td>
+<td>You want to type the plaintext and let Ze hash it (Junos style)</td>
+</tr>
+</tbody>
+</table>
+<p>Example using the plaintext form:</p>
+<pre><code>system {
+    authentication {
+        user alice {
+            plaintext-password &quot;secret&quot;
+        }
+    }
+}
+</code></pre>
+<p>After <code>commit</code> (or <code>ze config set</code>), the persisted file contains
+only the bcrypt hash; the <code>plaintext-password</code> leaf is removed and never
+written to disk. This matches Junos's <code>plain-text-password</code> behavior.</p>
+<!-- source: internal/component/authz/yang/ze-authz-conf.yang -- system.authentication.user -->
+<!-- source: internal/component/config/password_hash.go -- ApplyPasswordHashing -->
+<!-- source: internal/component/cli/editor_commit.go -- commit path caller -->
+
+<h3 id="passwords-in-a-config-file">Passwords in a config file</h3>
+<p>An operator, a template, or a lab tool can also write <code>plaintext-password</code> straight
+into a config file. Ze hashes that leaf when it loads the file, at daemon start and at
+every SIGHUP reload. The running tree then holds the bcrypt hash and no
+<code>plaintext-password</code> leaf, which is the same tree the editor produces. The user
+authenticates with the password as written.</p>
+<!-- source: internal/component/config/loader.go -- LoadConfig calls ApplyPasswordHashing -->
+
+<p><strong>The load path does not rewrite your file.</strong> <code>LoadConfig</code> writes nothing, so the secret
+stays readable on disk exactly as you typed it. The daemon says so once per load, naming
+the file:</p>
+<pre><code>plaintext password in /etc/ze/ze.conf: ze hashed it at load, and the file still holds the secret
+</code></pre>
+<p>The warning names the leaf paths in a log attribute and never the password. Replace the
+plaintext with a hash from <code>ze passwd</code>, or protect the file, or accept the risk if the
+file is a throwaway lab render (see <a href="../../labs/netlab/">netlab</a>).</p>
+<!-- source: internal/component/config/loader.go -- warnPlaintextOnDisk -->
+
+<p>Two later steps DO rewrite that file, and both replace the plaintext with the hash. A
+schema evolution makes <code>applyEvolutions</code> serialize the loaded tree back to the config
+path, and a rollback makes <code>RecoverConfig</code> do the same. <code>applyEvolutions</code> archives the
+current file first, so the archived version keeps the plaintext.</p>
+<!-- source: cmd/ze/hub/main_evolve.go -- applyEvolutions -->
+<!-- source: internal/component/config/stamp.go -- RecoverConfig -->
+
+<h3 id="step-3-reload">Step 3: reload</h3>
+<p>The daemon picks up the new user on the next config reload. A session
+already open for a user the reload KEEPS is not interrupted.</p>
+<p>Removal is the same reload, in the other direction. A user the reload
+deletes stops authenticating at once on every credential surface:</p>
+<ul>
+<li>the web password</li>
+<li>the web session cookie the browser still holds</li>
+<li>the SSH password</li>
+<li>the SSH public key</li>
+<li><code>Bearer &lt;user&gt;:&lt;pass&gt;</code> over REST and gRPC</li>
+</ul>
+<p>The daemon does not restart. The 24h session TTL is a ceiling, never the
+only test. A connection already open outlives the removal until it closes.</p>
+<!-- source: cmd/ze/hub/aaa_lifecycle.go -- liveAcceptedLocalUsers -->
+<!-- source: internal/component/web/auth.go -- SessionStore.validateToken -->
+<!-- source: internal/component/ssh/pubkey.go -- authenticatePublicKeyResult -->
+
+<h2 id="logging-in-as-a-yang-user">Logging in as a YANG user</h2>
+<p>Any <code>ze</code> CLI tool accepts a <code>--user</code>/<code>-u</code> flag to override the zefs
+super-admin username. The password is read from <code>ze.ssh.password</code> (env
+var) or, if stdin is a terminal, prompted interactively.</p>
+<pre><code># As super-admin (default)
+ze cli
+
+# As alice, password from env (CI / scripts)
+ZE_SSH_PASSWORD=secret ze cli --user alice
+
+# As alice, password prompted (interactive)
+ze cli -u alice
+
+# Single command, then exit
+ze cli -u alice -c &quot;show version&quot;
+</code></pre>
+<!-- source: internal/core/ssh/client/client.go -- ReadCredentialsWithFlags -->
+
+<p>The same flag works on <code>ze bgp plugin cli</code>, <code>ze signal</code>, <code>ze config set</code>,
+<code>ze config edit</code>, and <code>ze interface migrate</code>.</p>
+<h3 id="the-stored-hash-is-a-credential-only-over-a-local-connection">The stored hash is a credential only over a local connection</h3>
+<p>The zefs-stored super-admin bcrypt hash may be presented directly as the SSH
+password (the on-box <code>ze</code> CLI does this), but <strong>only over a local transport</strong>: a
+loopback TCP peer (<code>127.0.0.1</code>/<code>::1</code>, the default <code>ze</code> dial) or a unix-socket
+peer. Over any remote transport (non-loopback SSH, all web logins, the REST/gRPC
+bearer path) the hash is <strong>rejected</strong> as a credential, so a leaked config backup
+or zefs copy cannot be replayed as a password from another machine. Remote
+logins must supply the real plaintext password (via <code>ze.ssh.password</code> or an
+interactive prompt); plaintext works from anywhere.</p>
+<!-- source: internal/component/ssh/passwordauth.go -- isLocalTransport, authenticatePasswordResult -->
+<!-- source: internal/component/authz/auth.go -- CheckPassword allowHashToken gate -->
+
+<p>The stored bcrypt hash is also <strong>masked</strong> in every config display: <code>show config</code>,
+the web config views, <code>ze config dump</code>, and CLI search show <code>ze:bcrypt</code> leaves as
+<code>/* SECRET-DATA */</code>, never the hash and never <code>$9$</code>-encoded. The edit-authorized
+raw download (<code>GET /config/download</code>, gated behind edit permission) keeps the real
+hash so a download → edit → upload round-trip is byte-exact; a masked value pasted
+back into a commit or upload is rejected with a clear error.</p>
+<!-- source: internal/component/config/mask.go -- MaskBcrypt, RejectMaskedSecretLeaves -->
+<!-- source: cmd/ze/hub/service_web.go -- GET /config/download editWrap gate -->
+
+<h3 id="remote-management-listener-guard">Remote management listener guard</h3>
+<p>Ze refuses to start an unauthenticated management service on a non-loopback
+listener. The guard runs before any covered listener binds:</p>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Authentication that permits a remote listener</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Web in insecure mode</td>
+<td>Disable insecure mode and configure users</td>
+</tr>
+<tr>
+<td>MCP</td>
+<td>Configure a bearer token or another authenticated <code>auth-mode</code></td>
+</tr>
+<tr>
+<td>gNMI</td>
+<td>Configure <code>ze.gnmi.token</code> or <code>environment.gnmi token</code></td>
+</tr>
+<tr>
+<td>REST and gRPC API</td>
+<td>Configure an API token, initialize zefs, or configure a <code>system.authentication.user</code></td>
+</tr>
+</tbody>
+</table>
+<p>Literal addresses in <code>127.0.0.0/8</code> and <code>::1</code> count as loopback. Wildcard
+addresses (<code>0.0.0.0</code>, <code>::</code>, or <code>:port</code>), empty addresses, DNS names, and even
+the name <code>localhost</code> are treated as non-loopback because the guard fails closed
+when it cannot prove an address is local.</p>
+<p>An unsafe web, MCP, REST, or gRPC listener migration on reload is rejected
+before any listener changes; the service keeps its previous addresses. The
+public Looking Glass is a separate, intentionally unauthenticated read-only
+service. Its deployment guidance is in <a href="../public-looking-glass/">Public looking glass</a>;
+it serves TLS by default and takes an optional bearer token.</p>
+<p><code>ze doctor --json</code> and <code>ze config validate</code> report the same exposure offline,
+so you find it before you deploy. A gNMI listener that is non-loopback with no
+token gives <code>config-gnmi-invalid</code>, and an MCP block that asks for a remote bind
+with no authentication gives <code>config-mcp-invalid</code>. Neither command can read
+another process's environment, so a listener published only by an environment
+variable is caught at startup rather than by these checks.</p>
+<!-- source: internal/component/config/validate_semantic.go -- ValidateSemantics gNMI and MCP entries -->
+<!-- source: internal/component/config/loader_extract.go -- GNMIListenConfig.Validate -->
+
+<!-- source: cmd/ze/hub/mgmt_guard.go -- checkMgmtListeners, listenAddrIsNonLoopback -->
+<!-- source: cmd/ze/hub/main.go -- management listener declarations and remedies -->
+<!-- source: cmd/ze/hub/listener_migrate.go -- reload refusal -->
+
+<h4 id="upgrading-from-a-release-without-the-guard">Upgrading from a release without the guard</h4>
+<p>The guard is a boot refusal, so a config that started a daemon yesterday can
+stop one today. Three changes break an upgrade. Read them before you upgrade.</p>
+<p><strong>A remote unauthenticated management listener now refuses to boot.</strong> ze exits
+with status 1 and prints one line for each offending listener. The line names
+the service, the address, and the remedy. Nothing binds, so the daemon does not
+half-start. The message looks like this:</p>
+<pre><code>error: refusing to start gNMI on non-loopback listener &quot;0.0.0.0:9339&quot; without authentication
+  set ze.gnmi.token (or environment.gnmi token), or bind to 127.0.0.1/::1 only
+</code></pre>
+<p>Apply the remedy from the table above, or bind the service to <code>127.0.0.1</code>.</p>
+<p><strong>The looking glass serves TLS by default.</strong> A <code>looking-glass</code> block with no
+<code>tls</code> leaf now serves <code>https://</code>, so a plaintext client fails the handshake.
+Write <code>tls false</code> in the block, or set <code>ze.looking-glass.tls=false</code>, to keep
+plaintext. One case still serves plaintext on its own: a box with no blob
+storage that only inherited the default gets a warning naming <code>ze init</code> instead
+of a failure, because a hardening default must not remove a working looking
+glass. An explicit <code>tls true</code> on such a box is an error.</p>
+<p><strong>A listener an env var starts now binds the address its block names.</strong> An
+<code>environment</code> block without <code>enabled true</code> supplies the address, the token and
+the TLS settings of a service that <code>ze.web.enabled</code>, <code>ze.gnmi.enabled</code>,
+<code>ze.looking-glass.enabled</code>, or <code>ze.api-server.rest.enabled</code> starts. Such a
+listener bound <code>0.0.0.0</code> yesterday and binds the address the block names today,
+so a service you reached from off-box through the wildcard default now answers
+only where the block says. Delete the <code>server</code> entry, or name the address you
+want, to publish on every interface again.</p>
+<p><code>environment.web insecure</code> is the one exclusion, because it removes
+authentication. The block decides web authentication only when the block also
+starts the server and names the listen address. In every other case the daemon
+keeps authentication on and logs a WARN that names the leaf. Set
+<code>ze.web.insecure=1</code> to remove web authentication from the environment.</p>
+<p>Run <code>ze config validate</code> or <code>ze doctor --json</code> over the config first. Both
+report the same exposure offline. Neither reads the daemon's environment, so
+check <code>ze.gnmi.listen</code>, <code>ze.mcp.listen</code>, and <code>ze.web.insecure</code> by hand.</p>
+<!-- source: cmd/ze/hub/mgmt_guard.go -- checkMgmtListeners refusal message -->
+<!-- source: cmd/ze/hub/api_infra.go -- resolveAPIListeners settings/listener split -->
+<!-- source: cmd/ze/hub/service_lg.go -- buildLGService TLS default, explicit-vs-inherited fallback -->
+<!-- source: cmd/ze/hub/main.go -- ExtractWebSettings branch, insecure exclusion and its WARN -->
+
+<h3 id="authentication-on-reload">Authentication on reload</h3>
+<p>A config reload rebuilds the credentials of the running REST and gRPC servers.
+Add a token, rotate it, remove it, or edit the user list, and the change takes
+effect on the next reload. The daemon does not restart and the listeners do not
+rebind, so open connections keep working.</p>
+<p>The web and MCP servers choose their authentication once, when they are built.
+A reload that asks either of them for a different mode fails the whole commit:</p>
+<pre><code>&lt;service&gt; cannot change its authentication while running: it is serving
+&lt;mode&gt; and the config asks for &lt;mode&gt;; restart ze to apply it
+</code></pre>
+<p>The reload is refused before anything is applied. No listener moves and no
+credential changes. Restart ze to apply that edit.</p>
+<p>A transport the config does not enable is never built, and a server that does
+not run cannot refuse a reload. An <code>api-server</code> block that enables REST alone
+reloads on the REST server, and says nothing about gRPC.</p>
+<p>The listener guard runs again over the pair each service holds once the reload
+applies, and it reads the rebuilt authentication rather than the mode the server
+started with. A reload that removes the API credentials and moves the same
+listener off loopback is refused for that reason. The refusal restores the
+credentials the reload had already installed, so the daemon keeps serving the
+config it rolled back to.</p>
+<!-- source: cmd/ze/hub/mgmt_auth_reload.go -- markMgmtAuth, registerMgmtAuthReloaders -->
+<!-- source: cmd/ze/hub/listener_migrate.go -- (*ListenerMigrator).checkAuthRebuildable, (*ListenerMigrator).applyAuthIntents, (*ListenerMigrator).checkReloadExposure -->
+<!-- source: internal/component/api/rest/auth.go -- RESTServer.Authenticated -->
+<!-- source: internal/component/api/grpc/server.go -- GRPCServer.Authenticated -->
+
+<h3 id="tab-completion-ze-completion">Tab completion (<code>ze completion</code>)</h3>
+<p>Tab completion runs silently in the shell and does not accept flags. To
+have completions resolve as a non-super-admin user, set the env vars in
+your shell profile:</p>
+<pre><code>export ZE_SSH_USERNAME=alice
+export ZE_SSH_PASSWORD=...
+</code></pre>
+<p>Set <strong>both</strong>, or neither. Completion never prompts for a password: it runs while
+you are typing, so a prompt would block the shell instead of asking a question
+you could answer. With a username but no password there is no usable credential,
+so completion stays silent and returns no peer completions. Other completion
+still works; only dynamic peer names are missing.</p>
+<p>If you would rather not keep a password in the environment, leave both unset and
+completion resolves as the zefs super-admin, which needs no password.</p>
+<!-- source: internal/core/ssh/client/client.go -- LoadCredentialsNoPrompt -->
+
+<h2 id="ssh-public-key-authentication">SSH public key authentication</h2>
+<p>Users can authenticate to the SSH server with public keys instead of (or in
+addition to) passwords. Each user can have multiple named keys.</p>
+<h3 id="adding-a-public-key">Adding a public key</h3>
+<p>Extract the base64 key data from an existing SSH public key file. Given a
+key file like:</p>
+<pre><code>ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGtK... alice@laptop
+</code></pre>
+<p>The three parts are: type, base64 data, comment. Configure the type and
+base64 data in the user's <code>public-keys</code> block:</p>
+<pre><code>system {
+    authentication {
+        user alice {
+            password &quot;$2a$10$...&quot;
+            profile admin
+            public-keys laptop {
+                type ssh-ed25519
+                key AAAAC3NzaC1lZDI1NTE5AAAAIGtK...
+            }
+            public-keys workstation {
+                type ssh-rsa
+                key AAAAB3NzaC1yc2EAAAADAQABAAAB...
+            }
+        }
+    }
+}
+</code></pre>
+<p>The key name (<code>laptop</code>, <code>workstation</code>) is an identifier only. It appears in
+no protocol exchange but helps distinguish multiple keys for the same user.</p>
+<h3 id="supported-key-types">Supported key types</h3>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Algorithm</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ssh-ed25519</code></td>
+<td>Ed25519 (recommended)</td>
+</tr>
+<tr>
+<td><code>ssh-rsa</code></td>
+<td>RSA</td>
+</tr>
+<tr>
+<td><code>ecdsa-sha2-nistp256</code></td>
+<td>ECDSA P-256</td>
+</tr>
+<tr>
+<td><code>ecdsa-sha2-nistp384</code></td>
+<td>ECDSA P-384</td>
+</tr>
+<tr>
+<td><code>ecdsa-sha2-nistp521</code></td>
+<td>ECDSA P-521</td>
+</tr>
+</tbody>
+</table>
+<h3 id="connecting-with-a-key">Connecting with a key</h3>
+<p>Standard SSH clients work directly:</p>
+<pre><code>ssh -i ~/.ssh/id_ed25519 -p 2222 alice@router
+</code></pre>
+<h3 id="password-and-key-coexistence">Password and key coexistence</h3>
+<p>A user can have both a password and public keys. The SSH server tries public
+key authentication first; if no key matches, it falls back to password
+authentication. The web UI uses passwords only; public keys are
+SSH-specific.</p>
+<h3 id="scope">Scope</h3>
+<p>Public key configuration applies to YANG-configured users only. The zefs
+super-admin (created by <code>ze init</code>) authenticates with a password.</p>
+<!-- source: internal/component/ssh/pubkey.go -- matchPublicKey -->
+<!-- source: internal/component/ssh/ssh.go -- wish.WithPublicKeyAuth -->
+
+<h2 id="why-two-leaves-instead-of-auto-detecting-the-format">Why two leaves instead of auto-detecting the format</h2>
+<p>The canonical <code>password</code> leaf is marked <code>ze:bcrypt</code> -- the parser stores
+the value verbatim and never tries to apply the <code>$9$</code> reversible
+obfuscation used for other sensitive fields. Bcrypt is one-way; mixing
+it with <code>$9$</code> would let an operator recover the password from the file.</p>
+<p>If you write a literal plaintext directly on <code>password</code>:</p>
+<pre><code>user alice {
+    password &quot;secret&quot;     # WRONG -- not a bcrypt hash
+}
+</code></pre>
+<p>then <code>ze config validate</code> emits a warning, the daemon logs a warning at
+load, and the user cannot authenticate (bcrypt compare fails). Use
+<code>plaintext-password</code> (auto-hashed) or <code>ze passwd</code> (manual) instead.</p>
+<!-- source: internal/component/config/password_hash.go -- CheckBcryptLeaves -->
+
+<h2 id="notes-on-plaintext-lifetime">Notes on plaintext lifetime</h2>
+<p>While an interactive <code>ze config edit</code> session is open, the plaintext value
+of <code>plaintext-password</code> is held in-memory by the editor and persisted to a
+zefs draft blob (mode 0o600) by <code>SaveDraft</code>. The plaintext is converted to
+the bcrypt hash and the ephemeral leaf is removed at commit; the draft is
+deleted afterward. Plaintext never appears in the canonical config file
+nor in commit metadata, but does briefly live in the local zefs database
+during the editing session.</p>
+<p>A config file you write yourself is the other path. Ze hashes it at load and leaves
+your file as you wrote it, so the plaintext stays on disk until you replace it. Refer
+to <a href="#passwords-in-a-config-file">Passwords in a config file</a>.</p>
+<!-- source: internal/component/config/loader.go -- LoadConfig, warnPlaintextOnDisk -->
+
+<p>bcrypt takes 72 bytes at most. The vendored library refuses a longer input with
+<code>ErrPasswordTooLong</code> and hashes nothing, so no path stores a hash that matches
+only a prefix. Every path reports the refusal as an error, and none of them warns
+and continues.</p>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>What an oversize password does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze passwd</code></td>
+<td>Prints <code>error: password too long (&lt;n&gt; bytes; bcrypt limit is 72)</code> and exits 1</td>
+</tr>
+<tr>
+<td><code>ze config edit</code>, at commit</td>
+<td><code>hashPlaintextSibling</code> returns <code>&lt;leaf&gt;: password too long (&lt;n&gt; bytes; bcrypt limit is 72)</code>. The commit wraps it as <code>hash password: ...</code> and fails. The config file is not rewritten</td>
+</tr>
+<tr>
+<td><code>plaintext-password</code> in a config file</td>
+<td><code>LoadConfig</code> wraps the same error as <code>hash password: ...</code>. The daemon refuses to start, unless the config stamp is newer than the binary: that error is recoverable, so <code>RecoverConfig</code> can start the daemon on a rollback version instead. A SIGHUP reload fails with <code>reload: parse config: hash password: ...</code> and the running configuration stays in place</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/config/password_hash.go -- hashPlaintextSibling -->
+<!-- source: internal/component/config/loader.go -- LoadConfig -->
+<!-- source: internal/component/cli/editor_commit.go -- CommitSession, ApplyPasswordHashing -->
+<!-- source: internal/plugins/passwd/main.go -- runImpl -->
+<!-- source: cmd/ze/hub/main_reload.go -- runReload -->
+
+<h2 id="things-that-do-not-work">Things that do NOT work</h2>
+<table>
+<thead>
+<tr>
+<th>Attempt</th>
+<th>Why it fails</th>
+<th>Use this instead</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze cli --user alice</code> from a non-TTY script with no <code>ZE_SSH_PASSWORD</code></td>
+<td class="cell-no">✕</td>
+<td>Set <code>ZE_SSH_PASSWORD</code> in CI</td>
+</tr>
+<tr>
+<td><code>--password</code> flag on <code>ze cli</code></td>
+<td>Not implemented -- passwords in argv leak to <code>ps</code> and shell history</td>
+<td>Env var or interactive prompt</td>
+</tr>
+<tr>
+<td>Reading the YANG bcrypt hash and passing it as <code>ZE_SSH_PASSWORD</code></td>
+<td>The daemon's <code>CheckPassword</code> does plaintext-bcrypt comparison and timing-safe equality with the SAME hash; it works for the super-admin only because zefs stores the same bytes the daemon stores</td>
+<td>Use the plaintext password; the daemon hashes on receive</td>
+</tr>
+<tr>
+<td>Forgetting to add the user, then trying to log in as them</td>
+<td>Daemon authenticator has no entry, returns <code>SSH auth failure source=local</code></td>
+<td>Add user, reload config</td>
+</tr>
+</tbody>
+</table>
+<h2 id="reference">Reference</h2>
+<table>
+<thead>
+<tr>
+<th>Symbol</th>
+<th>Location</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Base user and authorization YANG</td>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/component/authz/yang/ze-authz-conf.yang</code></span></span></td>
+</tr>
+<tr>
+<td>SSH listener and public-key augmentation YANG</td>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/component/ssh/yang/ze-ssh-conf.yang</code></span></span></td>
+</tr>
+<tr>
+<td>Public key matching</td>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/component/ssh/pubkey.go</code></span></span></td>
+</tr>
+<tr>
+<td>Commit-time hashing helper</td>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/component/config/password_hash.go</code></span></span></td>
+</tr>
+<tr>
+<td>Validator</td>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/component/cli/validator.go</code></span></span></td>
+</tr>
+<tr>
+<td>SSH server password handler</td>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/component/ssh/ssh.go</code></span></span></td>
+</tr>
+<tr>
+<td>Local authenticator</td>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/component/authz/auth.go</code></span></span></td>
+</tr>
+<tr>
+<td>Client credential resolver</td>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/core/ssh/client/client.go</code></span></span></td>
+</tr>
+<tr>
+<td><code>ze passwd</code></td>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/plugins/passwd/main.go</code></span></span></td>
+</tr>
+</tbody>
+</table>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/quickstart/">
+                        <span class="page-sidebar-link-label">Quickstart</span>
+                        <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create zefs, and start SSH.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../reference/command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

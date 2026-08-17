@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>Functional `.ci` Tests - Ze</title>
+        <meta name="description" content="How to write and run Ze functional .ci tests." />
+        <meta property="og:title" content="Functional `.ci` Tests - Ze" />
+        <meta property="og:description" content="How to write and run Ze functional .ci tests." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Functional `.ci` Tests - Ze" />
+        <meta name="twitter:description" content="How to write and run Ze functional .ci tests." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/quality/functional-ci/" />
+        <meta property="og:url" content="https://ze-software.net/quality/functional-ci/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-observe">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Quality</span>
+    <h1 id="functional-ci-tests">Functional <code>.ci</code> Tests</h1>
+    <p><code>.ci</code> is Ze's process and protocol test format. Use it when correctness is visible through a real command, daemon, socket, HTTP request, syslog line, file artifact, process exit, or BGP wire message.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#where-it-belongs">Where it belongs</a></li>
+<li><a href="#execution-model">Execution model</a></li>
+<li><a href="#minimal-shape">Minimal shape</a></li>
+<li><a href="#expectations">Expectations</a></li>
+<li><a href="#linux-behavior">Linux behavior</a></li>
+<li><a href="#failure-reading">Failure reading</a></li>
+</ol></nav>
+<!-- source: ../main/docs/architecture/testing/ci-format.md -- format reference -->
+<!-- source: ../main/internal/test/runner/record_parse.go -- parser -->
+<!-- source: ../main/internal/test/runner/runner_exec.go -- process orchestration -->
+<!-- source: ../main/internal/test/runner/runner_validate.go -- expectations -->
+<!-- source: ../main/internal/test/peer/peer.go -- BGP test peer -->
+<!-- source: ../main/internal/test/cli/ci_runner.go -- shared suite runner -->
+<!-- source: ../main/internal/test/cli/cmd_bgp.go -- BGP suite routing -->
+
+<p>A <code>.ci</code> file is an executable transcript. The runner reads key-value directives, creates a temporary workspace, writes embedded files, allocates ports, starts foreground and background commands, waits for readiness, and checks the observable result. That makes the test close to the debugging session a developer would run by hand, but repeatable enough for the verify gate.</p>
+<h2 id="where-it-belongs">Where it belongs</h2>
+<table>
+<thead><tr><th>Behavior</th><th>Files</th><th>Narrow run</th><th>Make target</th></tr></thead>
+<tbody>
+<tr><td>BGP encode and route output</td><td><span class="ev-src"><span class="ev-ref"><code>test/encode/*.ci</code></span></span></td><td><code>bin/ze-test bgp encode NAME -v</code></td><td><code>make ze-functional-encode-test</code></td></tr>
+<tr><td>BGP plugin behavior</td><td><span class="ev-src"><span class="ev-ref"><code>test/plugin/*.ci</code></span></span></td><td><code>bin/ze-test bgp plugin NAME -v</code></td><td><code>make ze-functional-plugin-test</code></td></tr>
+<tr><td>Config parsing</td><td><span class="ev-src"><span class="ev-ref"><code>test/parse/*.ci</code></span></span></td><td><code>bin/ze-test bgp parse NAME -v</code></td><td><code>make ze-functional-parse-test</code></td></tr>
+<tr><td>Decode command output</td><td><span class="ev-src"><span class="ev-ref"><code>test/decode/*.ci</code></span></span></td><td><code>bin/ze-test bgp decode NAME -v</code></td><td><code>make ze-functional-decode-test</code></td></tr>
+<tr><td>Reload behavior</td><td><span class="ev-src"><span class="ev-ref"><code>test/reload/*.ci</code></span></span></td><td><code>bin/ze-test bgp reload NAME -v</code></td><td><code>make ze-functional-reload-test</code></td></tr>
+<tr><td>CLI output</td><td><span class="ev-src"><span class="ev-ref"><code>test/ui/*.ci</code></span></span></td><td><code>bin/ze-test ui NAME -v</code></td><td><code>make ze-functional-ui-test</code></td></tr>
+<tr><td>L2TP, firewall, policy, LDP, RSVP-TE, IS-IS, OSPF, OSPFv3, static, traffic, VPP, and install flows</td><td><code>test/&lt;suite&gt;/*.ci</code></td><td><code>bin/ze-test &lt;suite&gt; NAME -v</code></td><td>Suite-specific target in. <span class="ev-src"><span class="ev-ref"><code>mk/test-functional.mk</code></span></span></td></tr>
+</tbody>
+</table>
+
+<p>Run <code>bin/ze-test bgp plugin --list</code> or the equivalent suite command before picking an id. The list output gives the exact test name, id, status, and rerun shape.</p>
+<h2 id="execution-model">Execution model</h2>
+<p>The runner has five stages. It parses the file into records, materializes embedded files in a temporary directory, starts background processes, waits for readiness, and then executes foreground commands and expectations in order. Each test owns its temporary directory and ports, so parallel runs do not share mutable state.</p>
+<p>Background commands are for daemons and peers. Foreground commands are for assertions that should complete, such as <code>ze cli</code>, <code>ze config</code>, <code>curl</code>, helper scripts, or packet checks. A foreground process can assert stdout, stderr, exit code, files, JSON, HTTP, and BGP messages without adding a second test harness.</p>
+<h2 id="minimal-shape">Minimal shape</h2>
+<pre><code class="language-text">file=config.conf&lt;&lt;EOF
+router bgp 65000
+  neighbor 127.0.0.1 remote-as 65001
+EOF
+
+cmd=background:ze:bin/ze config.conf
+cmd=background:peer:bin/ze-peer --as 65001 --listen 127.0.0.1:$PORT1
+cmd=foreground:show:bin/ze cli -c &quot;show bgp peer list&quot;
+expect=stdout:show:contains=Established
+</code></pre>
+<p>Use embedded files for configs, fixtures, plugin payloads, and helper scripts. Use variables such as <code>$TMP</code>, <code>$PORT1</code>, and <code>$ZE</code> rather than hard-coded paths and ports. That keeps the test parallel-safe and portable.</p>
+<h2 id="expectations">Expectations</h2>
+<table>
+<thead><tr><th>Expectation</th><th>Use it for</th><th>Example</th></tr></thead>
+<tbody>
+<tr><td><code>expect=stdout</code> and <code>reject=stdout</code></td><td>CLI-visible text</td><td><code>contains=Established</code></td></tr>
+<tr><td><code>expect=stderr</code></td><td>Warnings and validation errors</td><td><code>contains=invalid prefix</code></td></tr>
+<tr><td><code>expect=exit</code></td><td>Process status</td><td><code>code=1</code></td></tr>
+<tr><td><code>expect=file</code></td><td>Generated files and state dumps</td><td><code>path=$TMP/out.json contains=neighbor</code></td></tr>
+<tr><td><code>expect=json</code></td><td>Decoded JSON with volatile fields normalized</td><td><code>json={...}</code></td></tr>
+<tr><td><code>expect=http</code></td><td>HTTP readiness and body checks</td><td><code>url=http://127.0.0.1:$PORT1/health code=200</code></td></tr>
+<tr><td><code>expect=bgp</code></td><td>Exact BGP messages</td><td><code>seq=1 hex=...</code></td></tr>
+</tbody>
+</table>
+
+<p>Prefer the narrowest expectation that expresses the contract. For BGP, assert the decoded protocol behavior or the exact wire message. For JSON, remove known volatile fields instead of asserting a loose substring. For CLI output, assert the user-visible line that would catch a regression.</p>
+<h2 id="linux-behavior">Linux behavior</h2>
+<p>A <code>.ci</code> file that needs netlink, nftables, eBPF, PPP, L2TP, namespaces, kernel routing, or Linux-only sockets should say so directly:</p>
+<pre><code class="language-text">option=needs-linux
+</code></pre>
+<p>On macOS that test reports SKIP. Inside QEMU the option is inert and the same file runs for real. Use <code>make ze-qemu-needs-linux-test</code> to run only those functional files in one VM boot, or use <code>make ze-qemu-debug RUN='...'</code> when the failing command needs interactive Linux context.</p>
+<h2 id="failure-reading">Failure reading</h2>
+<p>A good <code>.ci</code> failure tells you the file, step, line, assertion, process output, temporary directory, and rerun command. With <code>-v</code>, the runner keeps enough detail to see command stdout and stderr. BGP mismatches are decoded before display, which turns a wire failure into protocol fields.</p>
+<pre><code class="language-bash">bin/ze-test bgp plugin 42 -v
+ZE_TEST_KEEP_TMP=1 bin/ze-test bgp plugin 42 -v
+ze.log.bgp.reactor.peer=debug bin/ze-test bgp plugin 42 -v
+</code></pre>
+<p>If the failure only reproduces under Linux, rerun the same test through the QEMU debug target rather than adding sleeps or Darwin-only skips.</p>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Debugging</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Quality hub</h2>
+                    <a class="page-sidebar-link" href="../../quality/">
+                        <span class="page-sidebar-link-label">Quality overview</span>
+                        <small>Return to the verification map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../quality/verify-debugging/">
+                        <span class="page-sidebar-link-label">Verify debugging</span>
+                        <small>How failed checks route to evidence.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Symptom-led debugging for running systems.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

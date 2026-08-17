@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>Web Interface - Ze</title>
+        <meta name="description" content="Ze documentation: features/web-interface.md" />
+        <meta property="og:title" content="Web Interface - Ze" />
+        <meta property="og:description" content="Ze documentation: features/web-interface.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Web Interface - Ze" />
+        <meta name="twitter:description" content="Ze documentation: features/web-interface.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/features/web-interface/" />
+        <meta property="og:url" content="https://ze-software.net/features/web-interface/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-operate">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Feature</span>
+    <h1 id="web-interface">Web Interface</h1>
+    <p>Ze includes an HTTPS web interface for configuration viewing, editing, and runtime command execution through a browser.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#browser-configuration-workflow">Browser Configuration Workflow</a></li>
+</ol></nav>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>YANG-driven UI</td>
+<td>Config tree navigation generated from YANG schemas</td>
+</tr>
+<tr>
+<td>Finder navigation</td>
+<td>macOS-style column browser; named containers above unnamed with separator</td>
+</tr>
+<tr>
+<td>List table view</td>
+<td>Lists with YANG <code>unique</code> constraints shown as interactive tables with inline editing</td>
+</tr>
+<tr>
+<td>Config viewing</td>
+<td>Browse the config tree with breadcrumb navigation</td>
+</tr>
+<tr>
+<td>Config editing</td>
+<td>Set and delete leaf values with per-user draft sessions</td>
+</tr>
+<tr>
+<td>Inline diff</td>
+<td>Review pending changes before committing</td>
+</tr>
+<tr>
+<td>Session authentication</td>
+<td>Login page with session cookies; same user database as SSH</td>
+</tr>
+<tr>
+<td>JSON API</td>
+<td>Content negotiation via <code>Accept</code> header or <code>?format=json</code> query parameter; Basic Auth for API clients</td>
+</tr>
+<tr>
+<td>CLI bar</td>
+<td>Integrated command bar with the same grammar as the SSH CLI (edit, set, delete, show, commit, discard)</td>
+</tr>
+<tr>
+<td>Terminal mode</td>
+<td>Full terminal mode in the browser with scrollback and prompt</td>
+</tr>
+<tr>
+<td>Tab completion</td>
+<td>Autocomplete candidates served via JSON endpoint</td>
+</tr>
+<tr>
+<td>Live updates</td>
+<td>SSE notifications when another user commits config changes</td>
+</tr>
+<tr>
+<td>HTTPS only</td>
+<td>TLS 1.2 minimum; auto-generated ECDSA P-256 self-signed certificate when no cert is provided</td>
+</tr>
+<tr>
+<td>PKI certificate</td>
+<td><code>environment.web.certificate</code> names a <code>pki {}</code> store entry to serve instead, sending the leaf and every stored intermediate. A configured name that does not resolve stops the listener; ze never falls back to self-signed for it. Rotates on reload without rebinding, so open SSE streams survive. See <a href="../../guides/configuration-model/#tls-certificates-from-the-pki-store">TLS Certificates From the PKI Store</a></td>
+</tr>
+<tr>
+<td>Security headers</td>
+<td>HSTS, CSP, X-Frame-Options DENY, no-store cache on all authenticated responses</td>
+</tr>
+<tr>
+<td>YANG decorators</td>
+<td>Leaves with <code>ze:decorate</code> extension show enriched display text (e.g., ASN numbers annotated with organization name via Team Cymru DNS)</td>
+</tr>
+<tr>
+<td>Workbench UI (default)</td>
+<td>RouterOS-style operator workbench (default since Phase 2); row-level related-tool buttons declared via <code>ze:related</code> YANG extension dispatch through the standard CommandDispatcher; CLI available as separate <code>/cli</code> tab</td>
+</tr>
+<tr>
+<td>templ rendering</td>
+<td>Every page, panel, fragment and out-of-band swap is written in a <code>.templ</code> source and compiled to Go. No Go file in the package builds markup, so a renamed view-model field is a compile error instead of a blank panel</td>
+</tr>
+<tr>
+<td>htmx 4</td>
+<td>htmx 4.0.0-beta6 is embedded, with <code>hx-sse.min.js</code> for the streams. Each page loads only the assets its component graph reaches</td>
+</tr>
+<tr>
+<td>Secret masking</td>
+<td class="cell-no">✕</td>
+</tr>
+</tbody>
+</table>
+<h2 id="browser-configuration-workflow">Browser Configuration Workflow</h2>
+<p>The recording below signs in to a local Ze instance, edits a YANG-backed value,
+reviews the generated diff, commits the browser session's draft, and verifies
+the active value. The daemon and browser run locally during generation.</p>
+<figure class="terminal-demo" data-terminal-demo="web-config">
+  <div class="terminal-demo__intro">
+    <div>
+      <span class="terminal-demo__eyebrow">Replayable Ze browser lab</span>
+      <h3>Edit and commit configuration in the browser</h3>
+      <p>Change a YANG-backed setting, review the generated diff, commit the draft, and verify the active value.</p>
+    </div>
+    <span class="terminal-demo__status"><i aria-hidden="true"></i> Reproducible</span>
+  </div>
+  <div class="terminal-demo__frame">
+    <div class="terminal-demo__bar" aria-hidden="true">
+      <span class="terminal-demo__dots"><i></i><i></i><i></i></span>
+      <span>web-config.browser</span>
+      <span>WEBM</span>
+    </div>
+    <video controls playsinline preload="metadata" poster="../../assets/demos/web-config.png?v=3ec85c3acd" aria-label="Edit and commit configuration in the browser demonstration">
+      <source src="../../assets/demos/web-config.webm?v=27c8c574fd" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../assets/demos/web-config.webm?v=27c8c574fd">Download the recording</a>.
+    </video>
+  </div>
+  <figcaption>
+    <span>Ze 26.07.18</span><span>47 seconds</span><span>macOS and Linux</span><span>Browser</span><span>Playwright 1.55.0</span>
+    <a href="../../assets/demos/web-config.txt?v=a614767cf2">Plain-text transcript</a>
+  </figcaption>
+  <details class="terminal-demo__transcript">
+    <summary>Read the demonstration transcript</summary>
+    <pre><code>Ze web configuration demo
+
+1. Open the local Ze HTTPS interface.
+2. Sign in as the local administrator.
+3. Open System / Identity in configuration mode.
+4. Change the hostname from ze-demo to edge-demo.
+5. Save the draft and open Review &amp; Commit.
+6. Verify the diff contains `host edge-demo`.
+7. Confirm the commit.
+8. Reload the setting and verify the active hostname is edge-demo.
+
+Expected result: Ze commits the browser user&#x27;s isolated draft and the active YANG-backed hostname reads `edge-demo`.</code></pre>
+  </details>
+</figure>
+
+<!-- source: internal/component/web/server.go -- WebServer, TLS config, cert generation, UpdateTLSCertificate -->
+<!-- source: cmd/ze/hub/service_web.go -- webTLSMaterial: PKI store or self-signed, fail closed -->
+<!-- source: internal/component/web/decorator.go -- Decorator registry and interface -->
+<!-- source: internal/component/web/decorator_asn.go -- ASN name decorator via Team Cymru DNS -->
+<!-- source: internal/component/web/auth.go -- SessionStore, authMiddleware, loginHandler -->
+<!-- source: internal/component/web/handler.go -- URL routing, content negotiation, three-tier scheme -->
+<!-- source: internal/component/web/handler_config.go -- Config view and edit handlers -->
+<!-- source: internal/component/web/handler_admin.go -- Admin command handlers -->
+<!-- source: internal/component/web/cli.go -- CLI bar and terminal mode -->
+<!-- source: internal/component/web/sse.go -- EventBroker SSE broadcast -->
+<!-- source: internal/component/web/editor.go -- EditorManager per-user sessions -->
+<!-- source: internal/component/web/render.go -- Renderer, renderComponent, AssetHandler -->
+<!-- source: internal/component/web/markup_check_test.go -- webMarkupExempt: the empty exemption table -->
+<!-- source: internal/component/config/mask.go -- LeafHoldsSecret, MaskSecrets, RejectMaskedSecretLeaves -->
+
+<p>See <a href="../../guides/web-interface/">Web Interface Guide</a> for usage instructions.</p>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Feature doc</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Related research</h2>
+                    <a class="page-sidebar-link" href="../../features/">
+                        <span class="page-sidebar-link-label">Feature catalog</span>
+                        <small>Return to the generated feature cards.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Browse by learning intent.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../compare/">
+                        <span class="page-sidebar-link-label">Comparisons</span>
+                        <small>Place the feature in external context.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../quality/">
+                        <span class="page-sidebar-link-label">Quality</span>
+                        <small>See the evidence behind the implementation.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

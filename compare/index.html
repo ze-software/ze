@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>How Ze compares - Ze</title>
+        <meta name="description" content="Comparisons between Ze, BGP daemons, and router network operating systems." />
+        <meta property="og:title" content="How Ze compares - Ze" />
+        <meta property="og:description" content="Comparisons between Ze, BGP daemons, and router network operating systems." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="How Ze compares - Ze" />
+        <meta name="twitter:description" content="Comparisons between Ze, BGP daemons, and router network operating systems." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/compare/" />
+        <meta property="og:url" content="https://ze-software.net/compare/" />
+        <link rel="stylesheet" href="../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../assets/header.html" data-site-root="../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../#top">Ze</a>
+                    <a href="../#top">Home</a>
+                    <a href="../docs/">Docs</a>
+                    <a href="../features/">Features</a>
+                    <a href="../compare/">Compare</a>
+                    <a href="../roadmap/">Roadmap</a>
+                    <a href="../changes/">Changes</a>
+                    <a href="../faq/">FAQ</a>
+                    <a href="../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-routing">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Compare</span>
+    <h1 id="how-ze-compares">How Ze compares</h1>
+    <p>Choose the comparison lens before jumping into the tables. The BGP page compares Ze with BGP daemon implementations. The Network OS page compares Ze with VyOS and freeRtr as full router operating systems.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#reading-the-pages">Reading the pages</a></li>
+<li><a href="#evidence-and-fairness-policy">Evidence and fairness policy</a></li>
+</ol></nav>
+<div class="cards compare-dispatch">
+  <a class="card cat-routing compare-card-bgp" href="bgp/">
+    <span class="cat">BGP</span>
+    <h3>BGP daemon comparison</h3>
+    <p>Ze against BIRD, FRR, OpenBGPd, GoBGP, bio-rd, ExaBGP, RustyBGP, rustbgpd, and freeRtr across AFI/SAFI, core protocol, policy, security, observability, APIs, operations, and best-path behavior.</p>
+    <ul>
+      <li>Best for protocol capability checks.</li>
+      <li>Includes where Ze is behind today.</li>
+      <li>Table filter can narrow by feature or implementation.</li>
+    </ul>
+  </a>
+  <a class="card cat-platform compare-card-nos" href="nos/">
+    <span class="cat">NOS</span>
+    <h3>Open Source Network OS comparison</h3>
+    <p>Ze against VyOS and freeRtr across routing, interfaces, firewall, NAT, VPN, AAA, services, management APIs, automation, packaging, observability, tests, and implementation model.</p>
+    <ul>
+      <li>Best for router/NOS product decisions.</li>
+      <li>Source-grounded from the local checkouts inspected for this comparison.</li>
+      <li>Table filter can limit long evidence rows by section and keyword.</li>
+    </ul>
+  </a>
+</div>
+
+<h2 id="reading-the-pages">Reading the pages</h2>
+<p>Each comparison is intentionally scoped. A <code>Not found</code> or <code>No</code> entry means the feature was not found in the inspected source roots or comparison source, not that no upstream branch or external daemon can ever provide it. The search box filters rows and sections locally in the browser, and wide matrices add product toggles so readers can hide columns they are not comparing.</p>
+<h2 id="evidence-and-fairness-policy">Evidence and fairness policy</h2>
+<p>Comparisons are advice, not marketing. Capability claims should cite upstream code, official feature documentation, or the integration layer that provides the behavior. For integrated systems such as VyOS, that may mean citing VyOS config/templates and FRR, nftables, Linux, or another integrated project when it owns the runtime feature. <code>Unclear</code>, <code>Partial</code>, and <code>Not found</code> are intentional outcomes when the evidence does not support a stronger claim.</p>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Comparison</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Choose a lens</h2>
+                    <a class="page-sidebar-link" href="../compare/bgp/">
+                        <span class="page-sidebar-link-label">BGP daemon comparison</span>
+                        <small>Protocol capability checks and implementation gaps.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../compare/nos/">
+                        <span class="page-sidebar-link-label">Network OS comparison</span>
+                        <small>Router OS breadth across routing, services, APIs, and operations.</small>
+                    </a>
+                </section>
+                <section class="page-sidebar-group">
+                    <h2>Evidence nearby</h2>
+                    <a class="page-sidebar-link" href="../performance/">
+                        <span class="page-sidebar-link-label">Performance</span>
+                        <small>Measured BGP convergence and throughput evidence.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../quality/">
+                        <span class="page-sidebar-link-label">Quality</span>
+                        <small>Tests, QEMU, fuzzing, mutation checks, and release gates.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../features/">
+                        <span class="page-sidebar-link-label">Features</span>
+                        <small>What Ze already exposes as generated feature cards.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

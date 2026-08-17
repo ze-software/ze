@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>Developer Setup - Ze</title>
+        <meta name="description" content="Ze documentation: guide/developer-setup.md" />
+        <meta property="og:title" content="Developer Setup - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/developer-setup.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Developer Setup - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/developer-setup.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/contribute/developer-setup/" />
+        <meta property="og:url" content="https://ze-software.net/contribute/developer-setup/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" tabindex="-1">
+            <section class="md-content reveal cat-platform">
+<!-- source: scripts/dev/dev-setup.py -- REQUIRED_TOOLS, detect_os -->
+
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1 id="developer-setup">Developer Setup</h1>
+    <p>Set up a Ze development environment with all build, lint, and test dependencies.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#quick-start">Quick Start</a></li>
+<li><a href="#check-mode">Check Mode</a></li>
+<li><a href="#what-it-installs">What It Installs</a>
+<ol>
+<li><a href="#build-and-lint">Build and Lint</a></li>
+<li><a href="#appliance-and-evidence">Appliance and Evidence</a></li>
+<li><a href="#optional">Optional</a></li>
+</ol></li>
+<li><a href="#platform-notes">Platform Notes</a>
+<ol>
+<li><a href="#macos">macOS</a></li>
+<li><a href="#linux">Linux</a></li>
+</ol></li>
+<li><a href="#after-setup">After Setup</a></li>
+<li><a href="#drift-guard">Drift Guard</a></li>
+</ol></nav>
+<h2 id="quick-start">Quick Start</h2>
+<pre><code class="language-bash">git clone &lt;repo-url&gt; &amp;&amp; cd ze
+make ze-dev-setup
+</code></pre>
+<p>This detects your OS (macOS with Homebrew or Debian/Ubuntu with apt), installs
+missing tools, vendors Go dependencies, and reports what it did.</p>
+<h2 id="check-mode">Check Mode</h2>
+<p>Probe the current host without installing anything:</p>
+<pre><code class="language-bash">make ze-dev-setup CHECK=1
+</code></pre>
+<p>Exits 0 if all required tools are present, nonzero if any are missing.
+Useful as a CI preflight check.</p>
+<p>Two of the rows are behaviour, not binaries: <code>gopls-answers</code> and
+<code>pyright-answers</code> run each language server and check that it replies. A server
+on PATH that does not answer fails this check, because every LSP call against
+it fails the same silent way.</p>
+<h2 id="what-it-installs">What It Installs</h2>
+<h3 id="build-and-lint">Build and Lint</h3>
+<table>
+<thead>
+<tr>
+<th>Tool</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>go</code></td>
+<td>Go toolchain</td>
+</tr>
+<tr>
+<td><code>git</code></td>
+<td>Version control</td>
+</tr>
+<tr>
+<td><code>protobuf</code> (<code>protoc</code>)</td>
+<td>Protocol buffer compiler</td>
+</tr>
+<tr>
+<td><code>jq</code></td>
+<td>JSON processing</td>
+</tr>
+<tr>
+<td><code>golangci-lint</code></td>
+<td>Go linter (via <code>go install</code>)</td>
+</tr>
+<tr>
+<td><code>staticcheck</code></td>
+<td>Feature-tag structural type checker, pinned to 2026.1 (via <code>go install</code>)</td>
+</tr>
+<tr>
+<td><code>goimports</code></td>
+<td>Go import formatter (via <code>go install</code>)</td>
+</tr>
+<tr>
+<td><code>gopls</code></td>
+<td>Go language server behind the agent LSP tool (via <code>go install</code>)</td>
+</tr>
+<tr>
+<td><code>python3</code></td>
+<td>Runs evidence and dev scripts</td>
+</tr>
+<tr>
+<td><code>pipx</code></td>
+<td>Python tool installer</td>
+</tr>
+<tr>
+<td><code>ruff</code></td>
+<td>Python linter (via <code>pipx</code>)</td>
+</tr>
+<tr>
+<td><code>pyright</code></td>
+<td>Python language server behind the agent LSP tool (via <code>pipx</code>)</td>
+</tr>
+</tbody>
+</table>
+<p>Run the installed checker through the repository gate:</p>
+<pre><code class="language-bash">make ze-staticcheck-feature-matrix-check
+</code></pre>
+<p>The target and its checked feature population are documented in
+<code>docs/contributing/testing.md</code>.</p>
+<h3 id="appliance-and-evidence">Appliance and Evidence</h3>
+<table>
+<thead>
+<tr>
+<th>Tool</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>uv</code></td>
+<td>Python package runner for SSH probe (<code>uv run --with paramiko</code>, via <code>pipx</code>)</td>
+</tr>
+<tr>
+<td><code>qemu</code></td>
+<td>QEMU functional and install gate tests</td>
+</tr>
+<tr>
+<td><code>e2fsprogs</code></td>
+<td><code>mkfs.ext4</code> and <code>debugfs</code> for appliance builds</td>
+</tr>
+<tr>
+<td><code>xorriso</code></td>
+<td>ISO image creation</td>
+</tr>
+<tr>
+<td><code>grub</code></td>
+<td>GRUB EFI tooling for ISO builds (Linux only)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="optional">Optional</h3>
+<table>
+<thead>
+<tr>
+<th>Tool</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sshpass</code></td>
+<td>SSH probe fallback (uv+paramiko is primary)</td>
+</tr>
+<tr>
+<td><code>docker</code> / <code>colima</code></td>
+<td>Container appliance and kernel builds</td>
+</tr>
+</tbody>
+</table>
+<h2 id="platform-notes">Platform Notes</h2>
+<h3 id="macos">macOS</h3>
+<ul>
+<li><strong>The Homebrew prefix is resolved, never assumed.</strong> It is <code>/opt/homebrew</code> on
+  Apple Silicon and <code>/usr/local</code> on Intel, so a hardcoded path is absent on half
+  the Macs. Every consumer asks in the same order: <code>HOMEBREW_PREFIX</code> when
+  <code>brew shellenv</code> has exported it, then the <code>brew</code> binary's own location
+  (<code>&lt;prefix&gt;/bin/brew</code>), then the two documented defaults. The <code>brew</code> link is
+  not followed: on Intel it points into <code>&lt;prefix&gt;/Homebrew</code>, which would answer
+  with the wrong prefix.</li>
+<li><strong>e2fsprogs</strong> is keg-only on Homebrew, so none of it is linked onto <code>PATH</code> and
+  <code>which</code> finds nothing however well it is installed. It is looked for under
+  <code>&lt;prefix&gt;/opt/e2fsprogs/sbin</code>, the link kept at the current version, and under
+  <code>&lt;prefix&gt;/Cellar/e2fsprogs/&lt;version&gt;/sbin</code>, where an interrupted upgrade
+  leaves it with no link. No PATH modification is needed after
+  <code>brew install e2fsprogs</code>.</li>
+<li><strong>grub</strong> has no first-party Homebrew formula. ISO builds require Linux or
+  a container (colima/docker). The setup script skips grub on macOS.</li>
+</ul>
+<!-- source: internal/appliance/homebrew.go -- brewPrefixes, brewKegDirs -->
+<!-- source: scripts/evidence/homebrew.py -- brew_prefixes, brew_keg_dirs -->
+
+<h3 id="linux">Linux</h3>
+<p><code>make ze-dev-setup</code> installs the apt packages itself, the same way it installs the
+Homebrew ones on macOS. Each command is echoed before it runs. It takes
+<code>apt-get update</code> once per run, because a container image ships no package
+lists, and it sets <code>DEBIAN_FRONTEND=noninteractive</code> so a package with a debconf
+prompt cannot stop the run.</p>
+<p><strong>How it reaches root.</strong> The answer is decided before any command runs, and
+<code>sudo</code> is always given <code>-n</code>, so no path can stop at a password prompt:</p>
+<table>
+<thead>
+<tr>
+<th>State</th>
+<th>What setup does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>You are root (a container build)</td>
+<td>Runs the command directly. <code>sudo</code> need not be installed</td>
+</tr>
+<tr>
+<td><code>sudo</code> acts with no password</td>
+<td>Runs <code>sudo -n &lt;command&gt;</code></td>
+</tr>
+<tr>
+<td><code>sudo</code> wants a password, a terminal is attached</td>
+<td>Asks once with <code>sudo -v</code>, then runs <code>sudo -n &lt;command&gt;</code></td>
+</tr>
+<tr>
+<td><code>sudo</code> wants a password, no terminal (CI, an agent session)</td>
+<td>Prints the command, installs nothing, exits nonzero</td>
+</tr>
+</tbody>
+</table>
+<!-- source: scripts/dev/dev-setup.py -- privilege_mode, run_privileged, apt_install -->
+
+<p><strong>uv</strong> is not in the Debian or Ubuntu repositories, so it installs through
+<code>pipx</code> on both platforms. One route is one thing to fix, and it keeps
+<code>curl | sh</code> off every dev machine.</p>
+<p><strong>GRUB follows your host architecture.</strong> Debian packages one module set per
+architecture: an amd64 host takes <code>grub-efi-amd64-bin</code>, an arm64 host takes
+<code>grub-efi-arm64-bin</code>. Asking an arm64 host for the amd64 package installs
+nothing at all, <code>grub-mkstandalone</code> included. <code>ze appliance iso</code> picks its GRUB
+target from the architecture of the image it packs, so building an ISO for the
+OTHER architecture needs that architecture's set too, through
+<code>dpkg --add-architecture</code>.</p>
+<!-- source: scripts/dev/dev-setup.py -- grub_apt_package -->
+<!-- source: internal/appliance/cmd_iso.go -- isoGRUBTarget -->
+
+<p><strong>Unprivileged user namespaces.</strong> Ubuntu 23.10+ ships
+<code>kernel.apparmor_restrict_unprivileged_userns=1</code>, which blocks the sandbox
+Chrome relies on and makes the <code>agent-browser</code> web functional tests fail to
+launch Chrome (<code>No usable sandbox!</code>). Setup checks this tunable as
+<code>userns-unrestricted</code>. When it is restricted, <code>make ze-dev-setup</code> (install mode)
+echoes and then runs these commands via <code>sudo</code> to lift it globally:</p>
+<pre><code class="language-bash">echo &quot;kernel.apparmor_restrict_unprivileged_userns = 0&quot; | sudo tee /etc/sysctl.d/60-ze-userns.conf
+sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+</code></pre>
+<p>The <code>/etc/sysctl.d</code> drop-in makes the change survive reboots. It goes through
+the same root route as the package installs, so on a root run the echoed lines
+carry no <code>sudo</code>, and when root is out of reach it prints the commands to run by
+hand instead. <code>make ze-dev-setup CHECK=1</code> only reports the state, never changes it.</p>
+<p><strong>KVM device access.</strong> <code>/dev/kvm</code> is <code>root:kvm</code> mode 0660, so QEMU-backed
+evidence (the appliance boot proofs and every <code>ze-qemu-*</code> target) needs your
+user in the <code>kvm</code> group. Without it QEMU does not quietly fall back to
+emulation: it refuses to start with <code>Could not access KVM kernel module:
+Permission denied</code>, and the calling script reports a timeout instead. Setup
+checks this as <code>kvm-access</code> and, in install mode, runs:</p>
+<pre><code class="language-bash">sudo usermod -aG kvm $USER
+</code></pre>
+<!-- source: scripts/dev/dev-setup.py -- kvm_status, apply_kvm_fix -->
+
+<p>Group membership is fixed at login, so an existing shell keeps the old groups
+even after the command succeeds. Log out and back in, or run one command with
+the new group:</p>
+<pre><code class="language-bash">sg kvm -c 'make ze-qemu-vpp-hugepages-test'
+</code></pre>
+<p>Setup distinguishes the two states: <code>kvm-access</code> reports <code>pending</code> when the
+group database lists you but the running session predates it, and <code>missing</code>
+when the group is not granted at all. A host with no <code>/dev/kvm</code> (no hardware
+virtualisation, or a VM without nested virt) reports <code>n/a</code>: QEMU runs under
+<code>tcg</code> there, only slower. macOS has no <code>/dev/kvm</code> and needs no group; the
+evidence scripts select the Apple hypervisor (<code>hvf</code>) by platform.</p>
+<!-- source: scripts/evidence/effective-vpp-hugepages-qemu.py -- QEMU_ACCEL per-OS selection -->
+
+<p><strong>Loopback addresses.</strong> The functional fixtures give each end of a BGP session
+its own address: RFC 4271 Section 5.1.3 forbids a peer its own address as
+NEXT_HOP, so a session whose two ends share one address has every originated
+route withheld. IPv4 spends 127.0.0.0/8, which Linux already routes to <code>lo</code> and
+macOS does not, so setup adds 127.0.0.2 through 127.0.0.5 there. IPv6 gives a
+host exactly <code>::1</code> on every platform, so setup adds <code>fd00::2</code> on both. That
+address is unique-local (RFC 4193) and never globally routable, so a fixture
+cannot leak a packet toward a real destination. Setup checks this as
+<code>loopback-addresses</code> and, in install mode, runs:</p>
+<pre><code class="language-bash">sudo ifconfig lo0 inet6 fd00::2/128 alias      # macOS
+sudo ip -6 addr add fd00::2/128 dev lo         # Linux
+</code></pre>
+<!-- source: scripts/dev/dev-setup.py -- loopback_addresses, apply_loopback_fix -->
+
+<p>Presence is decided by binding a socket to the address, which is the same
+question a fixture asks and a stronger one than reading the interface list: an
+IPv6 address is listed while duplicate-address detection still refuses it. The
+test runner cannot add either family itself (the ioctl returns EPERM
+unprivileged, and the Linux route needs CAP_NET_ADMIN), so a test that binds a
+missing address fails at once naming the command above.</p>
+<!-- source: internal/test/runner/loopback.go -- the runner's probe and its error -->
+
+<p>Neither addition survives a reboot. Re-run <code>make ze-dev-setup</code> after one;
+<code>make ze-dev-setup CHECK=1</code> says when it is needed. The merge gate adds the IPv6
+address the same way, as its own workflow step (<code>.github/workflows/verify.yml</code>).</p>
+<p>These three, and the apt installs above, are every place setup reaches for root.
+All of them go through one helper, so the table of states earlier in this
+section governs each of them.</p>
+<h2 id="after-setup">After Setup</h2>
+<p>Verify everything works:</p>
+<pre><code class="language-bash">make ze-smoke-verify    # lint + unit tests + build (~2 min)
+</code></pre>
+<p>Check that appliance tools are detected:</p>
+<pre><code class="language-bash">bin/ze-setup appliance iso --check
+</code></pre>
+<h2 id="drift-guard">Drift Guard</h2>
+<p>The dev setup script and <code>ze doctor</code> appliance checks share the same tool
+list. A Go test (<code>TestDevSetupMatchesDoctor</code> in
+<code>internal/appliance/dev_setup_drift_test.go</code>) fails if they disagree,
+preventing the lists from drifting apart.</p>
+            </section>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

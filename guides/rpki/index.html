@@ -1,0 +1,762 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>RPKI Origin Validation - Ze</title>
+        <meta name="description" content="Ze documentation: guide/rpki.md" />
+        <meta property="og:title" content="RPKI Origin Validation - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/rpki.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="RPKI Origin Validation - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/rpki.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/guides/rpki/" />
+        <meta property="og:url" content="https://ze-software.net/guides/rpki/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-routing">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1 id="rpki-origin-validation">RPKI Origin Validation</h1>
+    <p>Ze validates received BGP routes against RPKI ROA data. Invalid routes are rejected before entering the RIB. The feature connects to RTR cache servers (RFC 8210), downloads Validated ROA Payloads (VRPs), and applies the RFC 6811 origin validation algorithm to each received prefix.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#configuration">Configuration</a>
+<ol>
+<li><a href="#config-reference">Config Reference</a>
+<ol>
+<li><a href="#per-peer-and-per-group-actions">Per-peer and per-group actions</a></li>
+<li><a href="#blackhole-exemption">Blackhole exemption</a></li>
+</ol></li>
+<li><a href="#plugin-bindings">Plugin Bindings</a></li>
+</ol></li>
+<li><a href="#how-it-works">How It Works</a>
+<ol>
+<li><a href="#validation-states">Validation States</a></li>
+<li><a href="#validation-flow">Validation Flow</a></li>
+<li><a href="#fail-open-safety">Fail-Open Safety</a></li>
+<li><a href="#re-validation-on-vrp-change">Re-validation on VRP Change</a></li>
+<li><a href="#rtr-poll-timing">RTR Poll Timing</a></li>
+<li><a href="#as_path-edge-cases">AS_PATH Edge Cases</a></li>
+</ol></li>
+<li><a href="#cli-commands">CLI Commands</a></li>
+<li><a href="#rpki-validation-events">RPKI Validation Events</a></li>
+<li><a href="#merged-events-bgp-rpki-decorator">Merged Events (bgp-rpki-decorator)</a></li>
+<li><a href="#aspa-path-verification">ASPA Path Verification</a>
+<ol>
+<li><a href="#configuration_1">Configuration</a></li>
+<li><a href="#aspa-policy-actions">ASPA Policy Actions</a></li>
+<li><a href="#aspa-validation-states">ASPA Validation States</a></li>
+<li><a href="#how-it-works_1">How It Works</a></li>
+<li><a href="#aspa-event-format">ASPA Event Format</a></li>
+<li><a href="#re-validation-on-cache-change">Re-validation on Cache Change</a></li>
+<li><a href="#testing-aspa">Testing ASPA</a></li>
+</ol></li>
+<li><a href="#testing-rpki-locally">Testing RPKI Locally</a></li>
+<li><a href="#without-rpki">Without RPKI</a></li>
+<li><a href="#troubleshooting">Troubleshooting</a></li>
+</ol></nav>
+<!-- source: internal/component/bgp/plugins/rpki/register.go -- bgp-rpki registration, RFCs 6811/8210 -->
+
+<h2 id="configuration">Configuration</h2>
+<p>Add the <code>bgp-rpki</code> and <code>bgp-adj-rib-in</code> plugins, then configure one or more RTR cache servers under <code>bgp { rpki { ... } }</code>.</p>
+<pre><code>plugin {
+    internal rpki {
+        use bgp-rpki
+    }
+    internal adj-rib-in {
+        use bgp-adj-rib-in
+    }
+}
+
+bgp {
+    rpki {
+        cache-server 192.0.2.1 {
+            port 323
+        }
+    }
+
+    peer peer1 {
+        connection {
+            remote {
+                ip 10.0.0.1
+            }
+            local {
+                ip 10.0.0.2
+            }
+        }
+        session {
+            asn {
+                local 65000
+                remote 65001
+            }
+            router-id 10.0.0.2
+            family {
+                ipv4/unicast {
+                    prefix {
+                        maximum 1000000
+                    }
+                }
+            }
+        }
+
+        attach process rpki {
+            receive [ update-received ]
+        }
+        attach process adj-rib-in {
+            receive [ update-received state ]
+        }
+    }
+}
+</code></pre>
+<h3 id="config-reference">Config Reference</h3>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>rpki / cache-server &lt;addr&gt;</code></td>
+<td>list</td>
+<td>--</td>
+<td>RTR cache server (keyed by IP/hostname)</td>
+</tr>
+<tr>
+<td><code>rpki / cache-server / port</code></td>
+<td>uint16</td>
+<td>323</td>
+<td>RTR TCP port</td>
+</tr>
+<tr>
+<td><code>rpki / cache-server / preference</code></td>
+<td>uint8</td>
+<td>100</td>
+<td>Server preference (lower preferred)</td>
+</tr>
+<tr>
+<td><code>rpki / validation-timeout</code></td>
+<td>uint16</td>
+<td>30</td>
+<td>Seconds before fail-open on pending routes</td>
+</tr>
+<tr>
+<td><code>rpki / action / invalid</code></td>
+<td>enum</td>
+<td>reject</td>
+<td>Action for Invalid routes: reject, log-only, accept</td>
+</tr>
+<tr>
+<td><code>rpki / action / not-found</code></td>
+<td>enum</td>
+<td>accept</td>
+<td>Action for NotFound routes: accept, reject, log-only</td>
+</tr>
+<tr>
+<td><code>rpki / aspa / validation</code></td>
+<td>boolean</td>
+<td>false</td>
+<td>Enable ASPA path verification using RTR v2 ASPA records</td>
+</tr>
+<tr>
+<td><code>rpki / aspa / action / invalid</code></td>
+<td>enum</td>
+<td>log-only</td>
+<td>Action for ASPA Invalid routes: reject, log-only, accept</td>
+</tr>
+<tr>
+<td><code>rpki / aspa / action / unknown</code></td>
+<td>enum</td>
+<td>accept</td>
+<td>Action for ASPA Unknown routes: accept, reject, log-only</td>
+</tr>
+</tbody>
+</table>
+<p>Multiple cache servers are supported for redundancy. VRP tables from all servers are merged (union).</p>
+<!-- source: internal/component/bgp/plugins/rpki/yang/ -- ze-rpki YANG schema -->
+
+<h4 id="per-peer-and-per-group-actions">Per-peer and per-group actions</h4>
+<p>The <code>action</code> block (both the origin <code>action</code> and the ASPA <code>action</code>) can also be set under a
+<code>peer</code> or a <code>group</code>, overriding the global <code>rpki / action</code> for routes learned from that peer.
+Only the action blocks are per-peer; <code>cache-server</code>, <code>validation-timeout</code>, and <code>aspa / validation</code>
+remain global. Resolution is <strong>peer &gt; group &gt; global, per leaf</strong>: a leaf left unset on the peer
+inherits the group's value, then the global value.</p>
+<p>A listen-range group states the actions for every session it accepts. Such a session is
+created from the group's template when the connection arrives, so it has no <code>peer</code> block of
+its own, and it inherits what the group states. A NAMED peer that gives no
+<code>connection / remote / ip</code> of its own is different: ze never builds it from the template, so
+it has no address at all and it uses the global actions. It is reported at startup with
+<code>rpki: per-peer action override ignored: no static remote ip</code>.</p>
+<pre><code>bgp {
+    rpki {                                  /* global: caches + baseline actions */
+        cache-server 192.0.2.1 { port 323; }
+        action { invalid reject; not-found accept; }
+    }
+    group transit {
+        rpki { action { invalid reject; } }        /* group default for members */
+        peer customer-a {
+            rpki { action { invalid log-only; } }  /* per-peer override; not-found inherits global */
+        }
+    }
+    group ix {                                     /* listen range: no peer blocks */
+        connection { remote { ip dynamic; range 192.0.2.0/24; } }
+        rpki { action { invalid reject; } }         /* every session this group accepts */
+    }
+}
+</code></pre>
+<p><code>show bgp rpki status</code> reports the effective global actions (<code>actions</code>) and the resolved per-peer
+overrides with the source of each leaf (<code>peer-actions</code>). An entry names what it is: <code>"peer"</code>
+carries a remote address, and <code>"group"</code> carries a listen-range group's name and states what
+every session that group accepts inherits.</p>
+<!-- source: internal/component/bgp/plugins/rpki/rpki.go -- buildDecisions per-peer resolution, statusCommand -->
+
+<h4 id="blackhole-exemption">Blackhole exemption</h4>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>peer / rpki / blackhole-exempt</code></td>
+<td>boolean</td>
+<td>false</td>
+<td>Keep a BLACKHOLE-tagged route whose only origin-validation fault is prefix length</td>
+</tr>
+</tbody>
+</table>
+<p>The leaf resolves peer then group, and it has NO global level. RFC 7999 Section
+3.3 binds the blackhole agreement to one BGP session, so a daemon-wide exemption
+would reach sessions that agreed to nothing.</p>
+<p>A blackhole prefix is as long as possible, usually a /32 or a /128, while a ROA
+for the covering block carries its maxLength at the aggregate. RFC 6811 then
+makes the announcement Invalid on length alone, and a session running
+<code>action { invalid reject; }</code> drops it before anything can honor it. RFC 7999
+Section 3.3 states that an operator must make sure origin validation does not
+block a legitimate announcement carrying BLACKHOLE, and this leaf is that
+mechanism.</p>
+<pre><code>bgp {
+    peer transit-a {
+        rpki {
+            action { invalid reject; }
+            blackhole-exempt true;
+        }
+        blackhole {
+            communities blackhole;
+            prefixes    192.0.2.0/24;
+        }
+    }
+}
+</code></pre>
+<p>The exemption is narrow. It applies only when a covering VRP names the route's
+own origin AS and disagrees on nothing but length. A wrong origin AS stays
+Invalid, which is the hijack RFC 6811 exists to catch. A prefix with no covering
+VRP is NotFound rather than Invalid, so the exemption never reaches it.</p>
+<p>Set it on the same session that names a blackhole community. The exemption reads
+the communities THAT session agreed to, so a peer running RTBH on <code>65001:666</code>
+gets it for <code>65001:666</code>. On a session that names no community the leaf does
+nothing: it would accept a route it would have rejected and discard nothing. See
+<a href="../configuration-model/#blackhole-honoring-rfc-7999">Blackhole Honoring</a> for the
+<code>blackhole</code> container itself.</p>
+<!-- source: internal/component/bgp/plugins/rpki/yang/ze-rpki.yang -- blackhole-exempt; internal/component/bgp/plugins/rpki/blackhole.go -- invalidByLengthOnly, carriesAgreedBlackhole -->
+
+<h3 id="plugin-bindings">Plugin Bindings</h3>
+<p>The rpki plugin must be bound to peers with <code>attach process rpki { receive [ update-received ]; }</code>. It validates what the peer announces, so it asks for one direction. The adj-rib-in plugin must also be bound with <code>attach process adj-rib-in { receive [ update-received state ]; }</code> -- it provides the validation gate that holds routes pending validation.</p>
+<!-- source: internal/component/bgp/plugins/rpki/register.go -- Dependencies: bgp-adj-rib-in -->
+
+<h2 id="how-it-works">How It Works</h2>
+<h3 id="validation-states">Validation States</h3>
+<p>Each received route gets one of three states (RFC 6811):</p>
+<table>
+<thead>
+<tr>
+<th>State</th>
+<th>Meaning</th>
+<th>Default Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Valid</td>
+<td>Origin AS and prefix length match a VRP</td>
+<td>Accept</td>
+</tr>
+<tr>
+<td>Invalid</td>
+<td>A VRP covers the prefix but origin AS or length doesn't match</td>
+<td>Reject</td>
+</tr>
+<tr>
+<td>NotFound</td>
+<td class="cell-no">✕</td>
+<td>Accept</td>
+</tr>
+</tbody>
+</table>
+<p>A prefix ze cannot parse gets Invalid and a warning, never NotFound. NotFound
+states that the VRP set was consulted and covers nothing, and the default
+<code>not-found accept</code> action accepts a route on that reading. A prefix that was
+never validated fails closed instead.</p>
+<!-- source: internal/component/bgp/plugins/rpki/validate.go -- Validate -->
+
+<h3 id="validation-flow">Validation Flow</h3>
+<ol>
+<li>Ze connects to configured RTR cache servers and downloads VRPs</li>
+<li>A BGP UPDATE arrives from a peer</li>
+<li>The adj-rib-in plugin stores the route as "pending"</li>
+<li>The rpki plugin extracts the origin AS (rightmost AS in final AS_SEQUENCE segment)</li>
+<li>For each NLRI prefix, the rpki plugin looks up covering VRPs and computes the validation state</li>
+<li>Valid/NotFound routes are promoted to installed; Invalid routes are discarded</li>
+</ol>
+<h3 id="fail-open-safety">Fail-Open Safety</h3>
+<p>If the rpki plugin does not respond within <code>validation-timeout</code> seconds (default: 30), pending routes are automatically promoted to installed. This prevents route black-holing if the RPKI infrastructure is unavailable.</p>
+<p>If all RTR cache servers disconnect, the existing VRP cache is retained until the connection is re-established. Routes continue to be validated against the last known good cache.</p>
+<!-- source: internal/component/bgp/plugins/rpki/ -- RPKI validation logic, RTR client, fail-open -->
+
+<h3 id="re-validation-on-vrp-change">Re-validation on VRP Change</h3>
+<p>When the VRP set changes, ze re-validates every tracked route and applies the
+current action to each route whose state changed (RFC 6811 Section 4). The
+decision reaches routes that are already installed, not only routes still
+pending: an accept rewrites the state in place and keeps the route's sequence
+number, and a reject removes the route from the Adj-RIB-In. No session clear and
+no route refresh is needed to pick up a new ROA.</p>
+<p>This matters most when UPDATEs arrive before the first sync completes. Those
+routes validate NotFound against an empty VRP set, and the default
+<code>not-found accept</code> installs them. The re-validation after the sync is what turns
+an RPKI-Invalid one into a reject.</p>
+<!-- source: internal/component/bgp/plugins/adj_rib_in/rib_validation.go -- applyToInstalled -->
+
+<h3 id="rtr-poll-timing">RTR Poll Timing</h3>
+<p>RFC 8210 Section 6 splits two intervals, and ze uses each for its own event. The
+Refresh Interval from the End Of Data PDU is the wait before the next poll, and
+its countdown starts when that PDU arrives. The Retry Interval is the wait after
+a query FAILED, and it also covers a session that has never completed a
+successful query.</p>
+<!-- source: internal/component/bgp/plugins/rpki/rtr_session.go -- pollDelay -->
+
+<h3 id="as_path-edge-cases">AS_PATH Edge Cases</h3>
+<table>
+<thead>
+<tr>
+<th>AS_PATH</th>
+<th>Origin AS</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Normal sequence <code>[65000 65001]</code></td>
+<td>65001 (rightmost)</td>
+<td>Normal validation</td>
+</tr>
+<tr>
+<td>Ends with AS_SET <code>{65001 65002}</code></td>
+<td>None</td>
+<td>Always Invalid if covered by VRP</td>
+</tr>
+<tr>
+<td>Empty (iBGP, no AS prepend)</td>
+<td>None</td>
+<td>NotFound (no origin to match)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="cli-commands">CLI Commands</h2>
+<p>Query RPKI status through the ze CLI:</p>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>show bgp rpki status</code></td>
+<td>Show RTR session count, sync state, and VRP counts</td>
+</tr>
+<tr>
+<td><code>show bgp rpki cache</code></td>
+<td>Show cache server connection details</td>
+</tr>
+<tr>
+<td><code>show bgp rpki roa</code></td>
+<td>Show ROA table summary</td>
+</tr>
+<tr>
+<td><code>show bgp rpki summary</code></td>
+<td>Show validation statistics</td>
+</tr>
+</tbody>
+</table>
+<p>Example:</p>
+<pre><code>$ ze cli -c &quot;show bgp rpki status&quot;
+{&quot;running&quot;:true,&quot;vrp-count-ipv4&quot;:3,&quot;vrp-count-ipv6&quot;:0,&quot;sessions&quot;:1,&quot;sessions-synced&quot;:1,&quot;synced&quot;:true,&quot;aspa-enabled&quot;:false,&quot;aspa-records&quot;:0,&quot;cache-servers&quot;:[{&quot;address&quot;:&quot;192.0.2.1&quot;,&quot;port&quot;:3323,&quot;state&quot;:&quot;idle&quot;,&quot;synced&quot;:true,&quot;version&quot;:2}],&quot;actions&quot;:{&quot;invalid&quot;:&quot;reject&quot;,&quot;not-found&quot;:&quot;accept&quot;,&quot;aspa-invalid&quot;:&quot;log-only&quot;,&quot;aspa-unknown&quot;:&quot;accept&quot;},&quot;peer-actions&quot;:[]}
+</code></pre>
+<p><code>running</code> says that a cache server is configured. <code>synced</code> says that a cache
+server completed a sync and gave ze a VRP set. The two are different states:
+while <code>synced</code> is false, ze holds no VRP set, so every prefix reads <code>not-found</code>
+and the default <code>not-found accept</code> action accepts it. <code>sessions-synced</code> counts
+the cache servers that delivered data, and each entry in <code>cache-servers</code> carries
+its own <code>synced</code>. <code>state</code> is the RTR connection state, which returns to <code>idle</code>
+between polls even after a successful sync.</p>
+<!-- source: internal/component/bgp/plugins/rpki/ -- RPKI CLI commands (status, cache, roa, summary) -->
+
+<h2 id="rpki-validation-events">RPKI Validation Events</h2>
+<p>When the rpki plugin is loaded, it emits validation events that other plugins can subscribe to. A plugin subscribing to <code>rpki direction received</code> receives a JSON event for each validated UPDATE:</p>
+<pre><code class="language-json">{
+  &quot;type&quot;: &quot;bgp&quot;,
+  &quot;bgp&quot;: {
+    &quot;peer&quot;: {&quot;address&quot;: &quot;10.0.0.1&quot;, &quot;local&quot;: {&quot;address&quot;: &quot;10.0.0.2&quot;, &quot;as&quot;: 65000}, &quot;remote&quot;: {&quot;address&quot;: &quot;10.0.0.1&quot;, &quot;as&quot;: 65001}},
+    &quot;message&quot;: {&quot;id&quot;: 42, &quot;type&quot;: &quot;rpki&quot;},
+    &quot;rpki&quot;: {
+      &quot;ipv4/unicast&quot;: {
+        &quot;10.0.1.0/24&quot;: &quot;valid&quot;,
+        &quot;10.0.2.0/24&quot;: &quot;invalid&quot;
+      }
+    }
+  }
+}
+</code></pre>
+<p>When the ROA cache is empty: <code>"rpki": {"status": "unavailable"}</code>.</p>
+<!-- source: internal/component/bgp/plugins/rpki/ -- RPKI event emission -->
+
+<h2 id="merged-events-bgp-rpki-decorator">Merged Events (bgp-rpki-decorator)</h2>
+<p>Instead of receiving separate UPDATE and rpki events, you can use the <code>bgp-rpki-decorator</code> plugin to get a single <code>update-rpki</code> event containing both the UPDATE data and the RPKI validation state:</p>
+<pre><code>plugin {
+    internal rpki-decorator {
+        use bgp-rpki-decorator
+    }
+}
+
+bgp {
+    peer peer1 {
+        attach process my-consumer {
+            receive [ update-rpki ]
+        }
+        attach process rpki {
+            receive [ update-received ]
+        }
+        attach process rpki-decorator {
+            receive [ update-received rpki ]
+        }
+        attach process adj-rib-in {
+            receive [ update-received state ]
+        }
+    }
+}
+</code></pre>
+<p>The merged event contains the full UPDATE JSON with an <code>rpki</code> section injected:</p>
+<pre><code class="language-json">{
+  &quot;type&quot;: &quot;bgp&quot;,
+  &quot;bgp&quot;: {
+    &quot;peer&quot;: {&quot;address&quot;: &quot;10.0.0.1&quot;, &quot;local&quot;: {&quot;address&quot;: &quot;10.0.0.2&quot;, &quot;as&quot;: 65000}, &quot;remote&quot;: {&quot;address&quot;: &quot;10.0.0.1&quot;, &quot;as&quot;: 65001}},
+    &quot;message&quot;: {&quot;id&quot;: 42, &quot;type&quot;: &quot;update-rpki&quot;},
+    &quot;update&quot;: {&quot;attr&quot;: {&quot;origin&quot;: &quot;igp&quot;}, ...},
+    &quot;rpki&quot;: {&quot;ipv4/unicast&quot;: {&quot;10.0.1.0/24&quot;: &quot;valid&quot;}}
+  }
+}
+</code></pre>
+<p>If the RPKI validation does not arrive within the timeout (2 seconds), the event is emitted without the <code>rpki</code> section (graceful degradation).</p>
+<!-- source: internal/component/bgp/plugins/rpki_decorator/register.go -- bgp-rpki-decorator registration -->
+
+<h2 id="aspa-path-verification">ASPA Path Verification</h2>
+<p>ASPA (Autonomous System Provider Authorization) verifies that AS_PATH hops are authorized by provider-customer relationships. ASPA records are distributed via RTR v2 (RFC 9582) alongside VRPs. Ze implements the verification algorithm from draft-ietf-sidrops-aspa-verification Section 6.</p>
+<p>ASPA is opt-in. Enable it under the <code>rpki { aspa { ... } }</code> block. By default ASPA results are informational (included in the RPKI event JSON as <code>"aspa-state"</code>). Configure policy actions in the same block to enforce ASPA verification by rejecting routes with Invalid or Unknown paths.</p>
+<h3 id="configuration_1">Configuration</h3>
+<pre><code>bgp {
+    rpki {
+        cache-server 192.0.2.1 {
+            port 323;
+        }
+        aspa {
+            validation true;
+            action {
+                invalid reject;
+            }
+        }
+    }
+}
+</code></pre>
+<h3 id="aspa-policy-actions">ASPA Policy Actions</h3>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Values</th>
+<th>Default</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>aspa / action / invalid</code></td>
+<td>reject, log-only, accept</td>
+<td>log-only</td>
+<td>Action when a route's AS_PATH fails ASPA verification</td>
+</tr>
+<tr>
+<td><code>aspa / action / unknown</code></td>
+<td>accept, reject, log-only</td>
+<td>accept</td>
+<td>Action when ASPA records are missing for some ASes in the path</td>
+</tr>
+</tbody>
+</table>
+<p>The default for <code>invalid</code> is <code>log-only</code> (conservative) rather than <code>reject</code> because ASPA deployment is incomplete and missing ASPA records can cause false Invalid results. Set to <code>reject</code> once your upstream providers have published ASPA records.</p>
+<p>ASPA policy overrides origin validation: a route that is ROA Valid but ASPA Invalid will be rejected when <code>invalid</code> is set to <code>reject</code>.</p>
+<h3 id="aspa-validation-states">ASPA Validation States</h3>
+<p>Each route receives one of three ASPA states:</p>
+<table>
+<thead>
+<tr>
+<th>State</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Valid</td>
+<td>Every hop pair in the AS_PATH is authorized by an ASPA record</td>
+</tr>
+<tr>
+<td>Invalid</td>
+<td>At least one hop pair has an ASPA record that does not list the provider candidate</td>
+</tr>
+<tr>
+<td>Unknown</td>
+<td class="cell-no">✕</td>
+</tr>
+</tbody>
+</table>
+<h3 id="how-it-works_1">How It Works</h3>
+<ol>
+<li>The RTR session negotiates v2 (with v1 fallback on error code 4)</li>
+<li>The cache server sends ASPA PDUs (type 11) alongside VRPs</li>
+<li>For each received UPDATE, the plugin normalizes the AS_PATH: removes consecutive duplicate ASNs (prepend artifacts), strips AS_CONFED_SEQUENCE segments, and flags AS_SET or AS_CONFED_SET as unverifiable</li>
+<li>Each adjacent pair (provider candidate, customer) is checked against the ASPA cache</li>
+<li>The result is included as <code>"aspa-state"</code> in the RPKI event JSON</li>
+</ol>
+<h3 id="aspa-event-format">ASPA Event Format</h3>
+<p>The <code>"aspa-state"</code> field is included alongside per-prefix origin validation results:</p>
+<pre><code class="language-json">{
+  &quot;type&quot;: &quot;bgp&quot;,
+  &quot;bgp&quot;: {
+    &quot;peer&quot;: {&quot;address&quot;: &quot;10.0.0.1&quot;, &quot;local&quot;: {&quot;address&quot;: &quot;10.0.0.2&quot;, &quot;as&quot;: 65000}, &quot;name&quot;: &quot;upstream&quot;, &quot;remote&quot;: {&quot;address&quot;: &quot;10.0.0.1&quot;, &quot;as&quot;: 65001}},
+    &quot;message&quot;: {&quot;id&quot;: 42, &quot;type&quot;: &quot;rpki&quot;},
+    &quot;rpki&quot;: {
+      &quot;ipv4/unicast&quot;: {
+        &quot;10.0.1.0/24&quot;: &quot;valid&quot;
+      },
+      &quot;aspa-state&quot;: &quot;valid&quot;
+    }
+  }
+}
+</code></pre>
+<p>When ASPA validation is disabled or the cache has no ASPA records, the <code>"aspa-state"</code> field is omitted.</p>
+<h3 id="re-validation-on-cache-change">Re-validation on Cache Change</h3>
+<p>Routes are tracked with their normalized AS_PATH. When ASPA cache data changes (new records from the RTR server), affected routes are automatically re-validated and updated events are emitted for any route whose ASPA state changed. If policy is set to <code>reject</code> and a route's state changes to Invalid or Unknown, the route is withdrawn from the RIB.</p>
+<h3 id="testing-aspa">Testing ASPA</h3>
+<p>The <code>ze-test rtr-mock</code> command supports ASPA records with the <code>--aspa</code> flag:</p>
+<pre><code>ze-test rtr-mock --port 3323 \
+    --vrp 10.0.0.0/8,24,65001 \
+    --aspa 64502:64501 \
+    --aspa 64501:64500
+</code></pre>
+<p>The format is <code>customer:provider1,provider2,...</code> (repeatable). When ASPA records are present, the mock server uses RTR v2. Seven functional tests cover ASPA: <code>rpki-aspa-valid.ci</code>, <code>rpki-aspa-invalid.ci</code>, <code>rpki-aspa-unknown.ci</code>, <code>rpki-aspa-disabled.ci</code> for verification states, and <code>rpki-aspa-policy-reject.ci</code>, <code>rpki-aspa-policy-logonly.ci</code>, <code>rpki-aspa-policy-unknown-reject.ci</code> for policy enforcement.</p>
+<h2 id="testing-rpki-locally">Testing RPKI Locally</h2>
+<p>The <code>ze-test rpki</code> command starts a deterministic mock RTR server that auto-generates VRPs based on the first octet of each /8 prefix:</p>
+<pre><code>ze-test rpki --port 3323
+</code></pre>
+<p>Validation states are predictable (for routes from AS 65001 with default flags):</p>
+<table>
+<thead>
+<tr>
+<th>First octet</th>
+<th>Modulo</th>
+<th>State</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0, 3, 6, 9...</td>
+<td>%3 == 0</td>
+<td>Valid</td>
+<td>9.0.1.0/24</td>
+</tr>
+<tr>
+<td>1, 4, 7, 10...</td>
+<td>%3 == 1</td>
+<td>Invalid</td>
+<td>10.0.1.0/24</td>
+</tr>
+<tr>
+<td>2, 5, 8, 11...</td>
+<td>%3 == 2</td>
+<td>NotFound</td>
+<td>11.0.1.0/24</td>
+</tr>
+</tbody>
+</table>
+<figure class="terminal-demo" data-terminal-demo="rpki">
+  <div class="terminal-demo__intro">
+    <div>
+      <span class="terminal-demo__eyebrow">Replayable Ze terminal lab</span>
+      <h3>Accept valid routes and reject RPKI-invalid ones</h3>
+      <p>Feed three local routes through a deterministic RTR cache, then show Valid and NotFound routes installed while the Invalid route is absent.</p>
+    </div>
+    <span class="terminal-demo__status"><i aria-hidden="true"></i> Reproducible</span>
+  </div>
+  <div class="terminal-demo__frame">
+    <div class="terminal-demo__bar" aria-hidden="true">
+      <span class="terminal-demo__dots"><i></i><i></i><i></i></span>
+      <span>rpki.terminal</span>
+      <span>WEBM</span>
+    </div>
+    <video controls playsinline preload="metadata" poster="../../assets/demos/rpki.png?v=ee521ed133" aria-label="Accept valid routes and reject RPKI-invalid ones demonstration">
+      <source src="../../assets/demos/rpki.webm?v=d07469afde" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../assets/demos/rpki.webm?v=d07469afde">Download the recording</a>.
+    </video>
+  </div>
+  <figcaption>
+    <span>Ze 26.07.18</span><span>46 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
+    <a href="../../assets/demos/rpki.txt?v=bf49f52038">Plain-text transcript</a>
+  </figcaption>
+  <details class="terminal-demo__transcript">
+    <summary>Read the demonstration transcript</summary>
+    <pre><code>$ ze cli -c &#x27;show bgp rpki status | no-more&#x27;
+sessions: 1
+vrp-count-ipv4: 171
+$ ze cli -c &#x27;show bgp adj-rib-in | no-more&#x27;
+9.43.0.0/24   validation-state: 1
+11.43.0.0/24  validation-state: 2
+
+The local RTR cache classifies 9.43.0.0/24 as Valid, 10.43.0.0/24 as Invalid, and 11.43.0.0/24 as NotFound. Policy accepts Valid and NotFound. The Invalid prefix is absent from Adj-RIB-In because Ze rejects it before installation.</code></pre>
+  </details>
+</figure>
+
+<h2 id="without-rpki">Without RPKI</h2>
+<p>When the rpki plugin is not loaded, routes flow directly into the adj-rib-in with zero overhead. No pending state, no validation delay. The validation gate is only activated when the rpki plugin sends <code>request bgp adj-rib-in enable-validation</code> during startup.</p>
+<!-- source: internal/component/bgp/plugins/adj_rib_in/ -- adj-rib-in validation gate -->
+
+<h2 id="troubleshooting">Troubleshooting</h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Cause</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Routes delayed 30s then accepted</td>
+<td>RTR cache server unreachable</td>
+<td>Check connectivity to cache server, verify port</td>
+</tr>
+<tr>
+<td>All routes Invalid</td>
+<td>Wrong cache server data, or origin AS mismatch</td>
+<td>Check <code>show bgp rpki roa</code> output, verify VRP coverage</td>
+</tr>
+<tr>
+<td class="cell-no">✕</td>
+<td>RTR session not established</td>
+<td>Check <code>show bgp rpki status</code>, verify cache server is running</td>
+</tr>
+<tr>
+<td>Routes accepted without validation</td>
+<td>rpki plugin not bound to peer</td>
+<td>Add <code>attach process rpki { receive [ update-received ]; }</code> to peer config</td>
+</tr>
+</tbody>
+</table>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/quickstart/">
+                        <span class="page-sidebar-link-label">Quickstart</span>
+                        <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create zefs, and start SSH.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../reference/command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

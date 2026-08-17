@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>Week of 2026-01-26 - Ze</title>
+        <meta name="description" content="Config work, the ExaBGP migration path, and correctness fixes across the wire." />
+        <meta property="og:title" content="Week of 2026-01-26 - Ze" />
+        <meta property="og:description" content="Config work, the ExaBGP migration path, and correctness fixes across the wire." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Week of 2026-01-26 - Ze" />
+        <meta name="twitter:description" content="Config work, the ExaBGP migration path, and correctness fixes across the wire." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/changes/2026-01-26/" />
+        <meta property="og:url" content="https://ze-software.net/changes/2026-01-26/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <link rel="alternate" type="application/rss+xml" title="Ze weekly updates" href="../feed.xml" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="blog-post" aria-labelledby="post-title">
+                <div class="journey-hero reveal">
+                    <span class="journey-eyebrow">Weekly update</span>
+                    <h1 id="post-title">Week of 2026-01-26</h1>
+                    <p>Config work, the ExaBGP migration path, and correctness fixes across the wire.</p>
+                </div>
+                <p class="post-back"><a href="../">&larr; All weekly updates</a></p>
+            </section>
+            <section class="blog-post reveal">
+                <div class="blog-grid">
+                    <div class="blog-block" aria-label="🧩 Family plugins">
+                        <div class="md-content">
+                            <h2>🧩 Family plugins</h2>
+                            <p>BGP-LS, VPN, EVPN and FlowSpec are now standalone family plugins with their own CLI decode/encode mode, human-readable output by default, and JSON or text input. A two-phase startup (explicit plugins first, then auto-load by family) avoids conflicts when more than one plugin could claim the same NLRI type. Capability decoding is plugin-driven too: unknown capabilities now show as <code>code=N</code> with raw hex instead of being opaque, and a new hostname (FQDN) capability plugin injects per-peer hostname/domain into the OPEN message.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🔄 ExaBGP migration">
+                        <div class="md-content">
+                            <h2>🔄 ExaBGP migration</h2>
+                            <p>The ExaBGP config migration tool now converts <code>announce</code>/<code>static</code> blocks to Ze's native <code>update {}</code> syntax across all 38 test configs (up from 2). Legacy ExaBGP config syntax (<code>announce</code>/<code>static</code>/<code>flow</code>/<code>l2vpn</code>) has been removed from Ze entirely; route announcements now go exclusively through native <code>update { attribute {} nlri {} }</code> blocks, which also gained watchdog support for route withdrawal control.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🐛 Correctness fixes">
+                        <div class="md-content">
+                            <h2>🐛 Correctness fixes</h2>
+                            <ul>
+<li>AS_PATH prepending is now RFC 4271 compliant: Ze no longer double-prepends the local AS when the configured path already starts with it</li>
+<li>Connection collision resolution (RFC 4271 §6.8) no longer risks a panic under load; it uses proper channel synchronization for session teardown instead of a timed sleep</li>
+<li>An explicit <code>hold-time 0</code> (disable keepalives, RFC 4271) is preserved instead of being silently reset to the 90s default</li>
+<li>Route Distinguisher is now parsed inline with the NLRI (as RFC 8955/4364 define it) instead of as a path attribute, consistent across API, config, and VPN families</li>
+<li>FlowSpec's OR-of-AND filter encoding now round-trips correctly</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🧰 Config editor and CLI">
+                        <div class="md-content">
+                            <h2>🧰 Config editor and CLI</h2>
+                            <p>The editor gained mandatory peer-as validation with template inheritance, a prompt to resume pending edits left from a previous session, and a new <code>ze config edit</code> command. <code>config check</code>, <code>dump</code>, <code>migrate</code>, <code>validate</code> and <code>schema</code> all accept input on stdin now, useful for scripting.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🛠️ Under the hood">
+                        <div class="md-content">
+                            <h2>🛠️ Under the hood</h2>
+                            <p>RIB storage moved to per-attribute deduplication, cutting memory use for peers carrying large overlapping route sets.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Change note</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>More context</h2>
+                    <a class="page-sidebar-link" href="../../changes/">
+                        <span class="page-sidebar-link-label">All changes</span>
+                        <small>Return to the weekly update index.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../milestones/">
+                        <span class="page-sidebar-link-label">Milestones</span>
+                        <small>See which changes became landmarks.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../roadmap/">
+                        <span class="page-sidebar-link-label">Roadmap</span>
+                        <small>Map this week to the release plan.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../activity/">
+                        <span class="page-sidebar-link-label">Activity</span>
+                        <small>View commit cadence around this week.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

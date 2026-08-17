@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>Browser `.wb` and Editor `.et` Tests - Ze</title>
+        <meta name="description" content="How to write and run Ze browser .wb tests and editor .et tests." />
+        <meta property="og:title" content="Browser `.wb` and Editor `.et` Tests - Ze" />
+        <meta property="og:description" content="How to write and run Ze browser .wb tests and editor .et tests." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Browser `.wb` and Editor `.et` Tests - Ze" />
+        <meta name="twitter:description" content="How to write and run Ze browser .wb tests and editor .et tests." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/quality/browser-editor/" />
+        <meta property="og:url" content="https://ze-software.net/quality/browser-editor/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-observe">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Quality</span>
+    <h1 id="browser-wb-and-editor-et-tests">Browser <code>.wb</code> and Editor <code>.et</code> Tests</h1>
+    <p>Ze has two UI functional formats. <code>.wb</code> drives the web interface through a real browser session. <code>.et</code> drives the interactive configuration editor through the CLI testing harness. Use them when the contract is what a person sees or types, not a helper function hidden under that interface.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#browser-tests">Browser tests</a>
+<ol>
+<li><a href="#browser-syntax">Browser syntax</a></li>
+</ol></li>
+<li><a href="#editor-tests">Editor tests</a>
+<ol>
+<li><a href="#editor-syntax">Editor syntax</a></li>
+</ol></li>
+<li><a href="#failure-reading">Failure reading</a></li>
+</ol></nav>
+<!-- source: ../main/docs/architecture/testing/runner-architecture.md -- web runner architecture -->
+<!-- source: ../main/internal/component/web/testing/parser.go -- web parser -->
+<!-- source: ../main/internal/component/web/testing/runner.go -- web runner -->
+<!-- source: ../main/internal/component/web/testing/expect.go -- web expectations -->
+<!-- source: ../main/internal/test/cli/cmd_web.go -- web test CLI -->
+<!-- source: ../main/internal/component/cli/testing/parser.go -- editor parser -->
+<!-- source: ../main/internal/component/cli/testing/expect.go -- editor expectations -->
+<!-- source: ../main/internal/test/cli/cmd_editor.go -- editor test CLI -->
+
+<p>There is no <code>.wt</code> parser in the current tree. Web tests use <code>.wb</code>; editor tests use <code>.et</code>.</p>
+<h2 id="browser-tests">Browser tests</h2>
+<p>A <code>.wb</code> file is a short browser script. The runner starts Ze, opens an isolated <code>agent-browser</code> session, runs actions, waits for browser activity to settle, and evaluates expectations against the rendered page. The point is to test the behavior after templates, HTMX, handlers, and client-visible state have all interacted.</p>
+<p>Use <code>.wb</code> when navigation, form behavior, HTMX replacement, visible copy, page title, URL, or accessibility-visible elements are the contract. Use a Go unit test for pure handler logic and use <code>.ci</code> for simple HTTP status checks.</p>
+<pre><code class="language-bash">bin/ze-test web --list
+bin/ze-test web -p config -v
+make ze-functional-web-test
+</code></pre>
+<h3 id="browser-syntax">Browser syntax</h3>
+<table>
+<thead><tr><th>Line</th><th>Meaning</th><th>Example</th></tr></thead>
+<tbody>
+<tr><td><code>action=open</code></td><td>Navigate to a path</td><td><code>action=open:path=/config</code></td></tr>
+<tr><td><code>action=click</code></td><td>Click by visible text or id</td><td><code>action=click:text=Save</code></td></tr>
+<tr><td><code>action=fill</code></td><td>Fill an input selected by label, text, or id</td><td><code>action=fill:text=Hostname:value=router1</code></td></tr>
+<tr><td><code>action=press</code></td><td>Press a key after optional focus</td><td><code>action=press:text=Search:key=Enter</code></td></tr>
+<tr><td><code>action=wait</code></td><td>Wait for a small explicit condition when auto-waiting is not enough</td><td><code>action=wait:ms=100</code></td></tr>
+<tr><td><code>expect=element</code></td><td>Assert visible text in the accessibility snapshot</td><td><code>expect=element:text=Routes</code></td></tr>
+<tr><td><code>expect=url</code></td><td>Assert current browser URL</td><td><code>expect=url:contains=/config</code></td></tr>
+<tr><td><code>expect=html</code></td><td>Assert markup when markup itself is the contract</td><td><code>expect=html:contains=hx-get</code></td></tr>
+</tbody>
+</table>
+
+<p>Prefer <code>id=</code> for stable controls and <code>text=</code> when the visible label is the contract. A <code>.wb</code> test should assert after state-changing actions so the failure points at the first broken transition. Avoid fixed sleeps except for behavior that genuinely has no observable readiness signal.</p>
+<h2 id="editor-tests">Editor tests</h2>
+<p>An <code>.et</code> file is a replay script for the interactive configuration editor. The runner creates a temporary config root, starts the editor model, sends key and text input, and checks the prompt, context, completions, dirty state, validation messages, and persisted files. It is headless, which makes it fast, but it still exercises the editor input model rather than a single parser function.</p>
+<pre><code class="language-bash">bin/ze-test editor --list
+bin/ze-test editor -p completion -v
+make ze-functional-editor-test
+</code></pre>
+<h3 id="editor-syntax">Editor syntax</h3>
+<table>
+<thead><tr><th>Line</th><th>Meaning</th><th>Example</th></tr></thead>
+<tbody>
+<tr><td><code>session=</code></td><td>Create or reuse a named editor session</td><td><code>session=main</code></td></tr>
+<tr><td><code>input=type</code></td><td>Type text into the editor</td><td><code>input=type:text=set interfaces</code></td></tr>
+<tr><td><code>input=key</code></td><td>Send a named key</td><td><code>input=key:name=tab</code></td></tr>
+<tr><td><code>input=enter</code></td><td>Submit the current line</td><td><code>input=enter</code></td></tr>
+<tr><td><code>expect=prompt</code></td><td>Assert the prompt or context</td><td><code>expect=prompt:contains=interfaces</code></td></tr>
+<tr><td><code>expect=completion</code></td><td>Assert completion candidates</td><td><code>expect=completion:contains=neighbor</code></td></tr>
+<tr><td><code>expect=dirty</code></td><td>Assert whether pending changes exist</td><td><code>expect=dirty:value=true</code></td></tr>
+<tr><td><code>expect=file</code></td><td>Assert saved config content</td><td><code>expect=file:path=config.conf contains=router bgp</code></td></tr>
+<tr><td><code>restart=</code></td><td>Restart the editor and reopen persisted state</td><td><code>restart=session=main</code></td></tr>
+</tbody>
+</table>
+
+<p>Use editor tests for completion, validation, path context, commit and discard behavior, session persistence, and lifecycle bugs. Use <code>.ci</code> when the behavior is already visible through a non-interactive command.</p>
+<h2 id="failure-reading">Failure reading</h2>
+<p>Both runners emit per-step trace records. The human output shows action and expectation lines with source locations. The machine output emits <code>VERIFY STEP</code> JSON so <code>make ze-precommit-verify</code> can group failures without scraping prose.</p>
+<pre><code class="language-bash">bin/ze-test web config-menu -v
+bin/ze-test editor completion-basic -v
+ZE_TEST_KEEP_TMP=1 bin/ze-test editor completion-basic -v
+</code></pre>
+<p>For web failures, read the snapshot before changing selectors. For editor failures, read the prompt, context, and buffered text before changing parser code. Most flaky UI tests come from checking too early; prefer an observable wait such as URL, element text, validation state, or command completion.</p>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Debugging</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Quality hub</h2>
+                    <a class="page-sidebar-link" href="../../quality/">
+                        <span class="page-sidebar-link-label">Quality overview</span>
+                        <small>Return to the verification map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../quality/verify-debugging/">
+                        <span class="page-sidebar-link-label">Verify debugging</span>
+                        <small>How failed checks route to evidence.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Symptom-led debugging for running systems.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

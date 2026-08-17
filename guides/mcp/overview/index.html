@@ -1,0 +1,807 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>MCP Integration (Guide) - Ze</title>
+        <meta name="description" content="Ze documentation: guide/mcp/overview.md" />
+        <meta property="og:title" content="MCP Integration (Guide) - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/mcp/overview.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="MCP Integration (Guide) - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/mcp/overview.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/guides/mcp/overview/" />
+        <meta property="og:url" content="https://ze-software.net/guides/mcp/overview/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../roadmap/">Roadmap</a>
+                    <a href="../../../changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-automate">
+<!-- source: internal/component/mcp/tools.go -- MCP tool dispatch primitives -->
+<!-- source: cmd/ze/help_ai.go -- ze help ai output -->
+
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1 id="mcp-integration">MCP Integration</h1>
+    <p>Ze includes an MCP (Model Context Protocol) server that lets AI assistants
+control BGP operations. The server runs inside the daemon and wraps the
+same command dispatcher used by the CLI and web interface.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#starting-the-mcp-server">Starting the MCP Server</a></li>
+<li><a href="#authentication">Authentication</a>
+<ol>
+<li><a href="#bearer-legacy-single-token">bearer (legacy single token)</a></li>
+<li><a href="#bearer-list-per-identity-tokens">bearer-list (per-identity tokens)</a></li>
+<li><a href="#oauth-oauth-21-resource-server">oauth (OAuth 2.1 resource server)</a></li>
+<li><a href="#constant-time-comparison">Constant-time comparison</a></li>
+</ol></li>
+<li><a href="#protocol">Protocol</a>
+<ol>
+<li><a href="#errors">Errors</a></li>
+<li><a href="#serverdiscover">server/discover</a></li>
+<li><a href="#result-caching">Result caching</a>
+<ol>
+<li><a href="#known-limitation-a-reload-takes-up-to-60-seconds-to-reach-clients">Known limitation: a reload takes up to 60 seconds to reach clients</a></li>
+</ol></li>
+</ol></li>
+<li><a href="#tools">Tools</a>
+<ol>
+<li><a href="#ze_execute">ze_execute</a></li>
+<li><a href="#ze_reference">ze_reference</a></li>
+</ol></li>
+<li><a href="#ai-help-reference">AI Help Reference</a></li>
+<li><a href="#agent-tooling">Agent Tooling</a></li>
+<li><a href="#testing">Testing</a></li>
+</ol></nav>
+<h2 id="starting-the-mcp-server">Starting the MCP Server</h2>
+<p><strong>CLI flag:</strong></p>
+<pre><code class="language-bash">ze start --mcp 9718
+ze --mcp 9718 config.conf
+</code></pre>
+<p><strong>Config file:</strong></p>
+<pre><code>environment {
+    mcp {
+        enabled true;
+        server main {
+            ip 127.0.0.1;
+            port 9718;
+        }
+    }
+}
+</code></pre>
+<p><strong>Environment variable:</strong></p>
+<pre><code class="language-bash">export ze_mcp_listen=127.0.0.1:9718
+# or simply:
+export ze_mcp_enabled=true  # defaults to 127.0.0.1:8080
+</code></pre>
+<p>Precedence: CLI &gt; environment variable &gt; config file.</p>
+<p>The MCP server binds to <code>127.0.0.1</code> only. See
+<a href="../remote-access/">remote-access.md</a> for accessing it from other machines.</p>
+<h2 id="authentication">Authentication</h2>
+<!-- source: internal/component/mcp/auth.go -- AuthMode enum + Identity -->
+<!-- source: internal/component/mcp/bearer.go -- bearer / bearer-list strategies -->
+<!-- source: internal/component/mcp/oauth.go -- OAuth 2.1 resource-server strategy -->
+
+<p>MCP supports four authentication modes selected by <code>environment.mcp.auth-mode</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>Use case</th>
+<th>Config</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>none</code></td>
+<td>Loopback dev / tunnel-only deployments</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td><code>bearer</code></td>
+<td>Single shared secret, one trusted caller</td>
+<td><code>token</code> leaf</td>
+</tr>
+<tr>
+<td><code>bearer-list</code></td>
+<td>Per-identity tokens, many callers, per-identity scopes</td>
+<td><code>identity[]</code> list</td>
+</tr>
+<tr>
+<td><code>oauth</code></td>
+<td>OAuth 2.1 resource server, external AS manages identities</td>
+<td><code>oauth</code> container + TLS</td>
+</tr>
+</tbody>
+</table>
+<p>Identity is established per request: every POST presents its own credential and
+every POST is checked. There is no session and no session id, so a revoked token
+stops working on the very next request. And no long-lived identifier exists that
+would act as a bearer credential in its own right.</p>
+<!-- source: internal/component/mcp/streamable.go -- authenticate, called from handlePOST -->
+
+<p><code>auth-mode none</code> is not a bypass. It is an authenticator that accepts every
+caller as an anonymous identity, so even an unauthenticated deployment runs the
+same uniform code path.</p>
+<!-- source: internal/component/mcp/bearer.go -- noneAuthenticator.Authenticate -->
+
+<h3 id="bearer-legacy-single-token">bearer (legacy single token)</h3>
+<pre><code>environment {
+    mcp {
+        enabled true;
+        auth-mode bearer;
+        token my-secret-token;
+        server main { ip 127.0.0.1; port 9718; }
+    }
+}
+</code></pre>
+<p>Env var <code>ze.mcp.token</code> and CLI flag <code>--mcp-token</code> still work. The token leaf
+is <code>ze:sensitive</code> -- masked in <code>show config</code> output. A token set without an
+explicit <code>auth-mode</code> infers <code>bearer</code> for operators upgrading from pre-Phase-2
+configs.</p>
+<h3 id="bearer-list-per-identity-tokens">bearer-list (per-identity tokens)</h3>
+<pre><code>environment {
+    mcp {
+        enabled true;
+        auth-mode bearer-list;
+        identity alice { token alice-token; scope [ mcp.read mcp.write ]; }
+        identity bob   { token bob-token;   scope [ mcp.read ]; }
+        server main { ip 127.0.0.1; port 9718; }
+    }
+}
+</code></pre>
+<p>Each identity's token is compared constant-time. The matching entry's name and
+scopes become the authenticated identity for that one request. Add, remove, or
+rotate identities independently. A rotation takes effect on the next request.</p>
+<h3 id="oauth-oauth-21-resource-server">oauth (OAuth 2.1 resource server)</h3>
+<pre><code>environment {
+    mcp {
+        enabled true;
+        bind-remote true;
+        auth-mode oauth;
+        oauth {
+            authorization-server https://auth.example/;
+            audience             https://mcp.example/;
+            required-scopes      [ mcp.admin ];
+        }
+        tls {
+            cert /etc/ze/mcp.pem;
+            key  /etc/ze/mcp.key;
+        }
+        server main { ip 0.0.0.0; port 443; }
+    }
+}
+</code></pre>
+<p>Tokens are validated locally: RS256 / RS384 / RS512 / ES256 / ES384 signatures
+are verified against JWKS fetched from the authorization server's RFC 8414
+metadata document. HS* (HMAC) and <code>alg: none</code> are always rejected.
+<code>iss</code> / <code>aud</code> / <code>exp</code> / <code>nbf</code> / scope claims are validated with 60 s leeway.</p>
+<p><code>ze config validate</code> rejects internally inconsistent configurations (oauth
+without TLS on a remote bind, oauth without authorization-server, bind-remote
+without auth, etc.) before the daemon starts. See
+<a href="https://github.com/ze-software/ze/blob/main/docs/../ai/rules/protocol.md" target="_blank" rel="noopener"><code>rules/exact-or-reject.md</code></a> for the
+contract.</p>
+<p>RFC 9728 metadata: when <code>auth-mode oauth</code>, the server publishes
+<code>/.well-known/oauth-protected-resource</code> listing the authorization server(s)
+and supported scopes. Clients discover the AS through this URL when they hit
+a 401.</p>
+<h3 id="constant-time-comparison">Constant-time comparison</h3>
+<p>Bearer tokens (both <code>bearer</code> and <code>bearer-list</code>) use <code>subtle.ConstantTimeCompare</code>
+so response timing does not reveal which entry matched (or whether any did).
+The bearer-list scan visits every entry regardless of early match.</p>
+<h2 id="protocol">Protocol</h2>
+<!-- source: internal/component/mcp/streamable.go -- ProtocolVersion, Endpoint, ServeHTTP, handlePOST -->
+<!-- source: internal/component/mcp/meta.go -- parseRequestMeta and the reserved _meta keys -->
+<!-- source: internal/component/mcp/headers.go -- validateStandardHeaders -->
+
+<p>The MCP server speaks JSON-RPC 2.0 over HTTP at protocol revision
+<code>2026-07-28</code>, and accepts no other revision. Each message is its own HTTP POST
+to <code>/mcp</code>. The profile is stateless: there is no <code>initialize</code> handshake, no
+session, no <code>Mcp-Session-Id</code>, no GET stream, and no server-initiated request.</p>
+<p>A typical exchange is:</p>
+<ol>
+<li>(Optional) <code>server/discover</code> to learn the supported versions and capabilities</li>
+<li><code>tools/list</code> to discover available tools <!-- doc-links: ignore (JSON-RPC method name, not a path) --></li>
+<li><code>tools/call</code> with a tool name and arguments <!-- doc-links: ignore (JSON-RPC method name, not a path) --></li>
+</ol>
+<p>Every POST carries three standard headers plus a <code>_meta</code> block <strong>inside
+<code>params</code></strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Header</th>
+<th>Required</th>
+<th>Must equal</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>MCP-Protocol-Version</code></td>
+<td>Always</td>
+<td><span class="ev-src"><span class="ev-ref"><code>params._meta["io.modelcontextprotocol/protocolVersion"]</code></span></span></td>
+</tr>
+<tr>
+<td><code>Mcp-Method</code></td>
+<td>Always</td>
+<td>the body's <code>method</code></td>
+</tr>
+<tr>
+<td><code>Mcp-Name</code></td>
+<td><code>tools/call</code>, <code>resources/read</code>, <code>prompts/get</code></td>
+<td><code>params.name</code> (<code>tools/call</code>, <code>prompts/get</code>) or <code>params.uri</code> (<code>resources/read</code>)</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th><code>params._meta</code> key</th>
+<th>Required</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="ev-src"><span class="ev-ref"><code>io.modelcontextprotocol/protocolVersion</code></span></span></td>
+<td class="cell-yes">✓</td>
+<td>The revision this request speaks</td>
+</tr>
+<tr>
+<td><span class="ev-src"><span class="ev-ref"><code>io.modelcontextprotocol/clientCapabilities</code></span></span></td>
+<td class="cell-yes">✓</td>
+<td>What the client supports. Send <code>{}</code> for none</td>
+</tr>
+<tr>
+<td><span class="ev-src"><span class="ev-ref"><code>io.modelcontextprotocol/clientInfo</code></span></span></td>
+<td class="cell-no">✕</td>
+<td>Client name and version, for logs and display only</td>
+</tr>
+</tbody>
+</table>
+<p>A minimal conformant request:</p>
+<pre><code class="language-bash">curl -s http://127.0.0.1:9718/mcp \
+  -H 'Content-Type: application/json' \
+  -H 'MCP-Protocol-Version: 2026-07-28' \
+  -H 'Mcp-Method: tools/list' \
+  -d '{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:1,&quot;method&quot;:&quot;tools/list&quot;,&quot;params&quot;:{&quot;_meta&quot;:{
+        &quot;io.modelcontextprotocol/protocolVersion&quot;:&quot;2026-07-28&quot;,
+        &quot;io.modelcontextprotocol/clientCapabilities&quot;:{}}}}'
+</code></pre>
+<p>Capabilities are declared per request, not once per session. A client declares
+task support with the <code>io.modelcontextprotocol/tasks</code> identifier under
+<code>clientCapabilities.extensions</code>, and only there. The bare <code>tasks</code> member that
+MCP 2025-11-25 used is no longer accepted. That spelling opted into a model
+where the client asked for each task individually.</p>
+<p>The declaration does two things. It gates the three <code>tasks/*</code> methods, which are
+refused with <code>-32021</code> without it. And it governs whether the server can return a
+task handle at all. A client that has not declared the extension still gets its
+answer, synchronously, as an ordinary <code>resultType: "complete"</code> result. That is
+the only gate. <code>resources/list</code> and <code>resources/read</code> are served to everyone,
+because <code>resources</code> is a <em>server</em> capability and a conformant client has no way
+to declare it.</p>
+<!-- source: internal/component/mcp/meta.go -- parseClientCapabilities -->
+<!-- source: internal/component/mcp/streamable_tools.go -- callTool, failMissingTasksCapability -->
+
+<p>Every successful result carries <code>resultType: "complete"</code> and
+<code>_meta["io.modelcontextprotocol/serverInfo"]</code>.</p>
+<!-- source: internal/component/mcp/streamable_tools.go -- ok, resultMeta -->
+
+<h3 id="errors">Errors</h3>
+<!-- source: internal/component/mcp/streamable_tools.go -- rpc* codes, failUnsupportedVersion, failMissingTasksCapability -->
+<!-- source: internal/component/mcp/streamable.go -- httpStatusForDispatch -->
+
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>HTTP</th>
+<th>When</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-32020</code></td>
+<td>400</td>
+<td>A required header is missing, or disagrees with the body</td>
+</tr>
+<tr>
+<td><code>-32021</code></td>
+<td>400</td>
+<td>The request needs a capability its <code>_meta</code> did not declare. <code>data.requiredCapabilities</code> names it</td>
+</tr>
+<tr>
+<td><code>-32022</code></td>
+<td>400</td>
+<td>The declared version is not one this server implements. <code>data.supported</code> lists what is</td>
+</tr>
+<tr>
+<td><code>-32602</code></td>
+<td>400</td>
+<td>A required <code>params._meta</code> field is missing or malformed</td>
+</tr>
+<tr>
+<td><code>-32601</code></td>
+<td>404</td>
+<td>Unknown method. The 404 lets a client tell a modern server from a legacy one that does not host the endpoint</td>
+</tr>
+<tr>
+<td class="cell-na">n/a</td>
+<td>405</td>
+<td>GET or DELETE to <code>/mcp</code></td>
+</tr>
+</tbody>
+</table>
+<p>Only <code>-32601</code> and <code>-32021</code> carry a mandated HTTP status at dispatch time, plus
+the three pre-dispatch rejections above (<code>-32020</code>, <code>-32022</code>, and a malformed
+<code>_meta</code>) which are all 400. Every other JSON-RPC error, including a <code>-32602</code> for
+an unknown tool or a bad <code>taskId</code>, rides a 200 as JSON-RPC intends.</p>
+<p>A legacy client that POSTs <code>initialize</code> receives a <code>-32020</code>, which names the
+protocol version this server does speak. Header validation runs before dispatch,
+and the legacy request carries none of the required headers.</p>
+<!-- source: internal/component/mcp/headers.go -- initializeEraError -->
+
+<h3 id="serverdiscover">server/discover</h3>
+<!-- source: internal/component/mcp/discover.go -- serverDiscover, serverCapabilities, instructions -->
+
+<p><code>server/discover</code> is the one call a client can make to learn what the server
+speaks, before it commits to anything else. It returns <code>supportedVersions</code>,
+<code>capabilities</code>, and an <code>instructions</code> string, with <code>serverInfo</code> in the result's
+<code>_meta</code>.</p>
+<p><code>capabilities.extensions</code> names two extensions, each with an empty settings
+object: <code>io.modelcontextprotocol/ui</code>, the MCP Apps extension, and
+<code>io.modelcontextprotocol/tasks</code>, the Tasks extension. Advertising the second is
+not bookkeeping. A client is entitled to reject a <code>resultType</code> it does not
+recognize, and it recognizes <code>task</code> only because this map says the extension is
+supported.</p>
+<h3 id="result-caching">Result caching</h3>
+<!-- source: internal/component/mcp/caching.go -- cacheTTLByMethod, cacheScopePrivate -->
+
+<p>Four methods return caching hints, so a client can hold a result instead of
+re-fetching it every turn:</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th><code>ttlMs</code></th>
+<th><code>cacheScope</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tools/list</code></td>
+<td><code>60000</code> (60 s)</td>
+<td><code>private</code></td>
+</tr>
+<tr>
+<td><code>server/discover</code></td>
+<td><code>60000</code> (60 s)</td>
+<td><code>private</code></td>
+</tr>
+<tr>
+<td><code>resources/list</code></td>
+<td><code>3600000</code> (1 h)</td>
+<td><code>private</code></td>
+</tr>
+<tr>
+<td><code>resources/read</code></td>
+<td><code>3600000</code> (1 h)</td>
+<td><code>private</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>tools/call</code> and the three <code>tasks/*</code> methods (<code>tasks/get</code>, <code>tasks/update</code>, <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
+<code>tasks/cancel</code>) carry no hints. Their results are not cacheable.</p>
+<p>There is nothing to configure. The two lifetimes match how the underlying data
+changes. Ze rebuilds the tool list from the command registry on every call, and
+the UI assets are compiled into the binary. <code>cacheScope</code> is always <code>private</code>,
+which tells shared gateways and caching proxies never to serve one caller's
+response to another.</p>
+<h4 id="known-limitation-a-reload-takes-up-to-60-seconds-to-reach-clients">Known limitation: a reload takes up to 60 seconds to reach clients</h4>
+<p>Ze has no push invalidation for the tool list, so <code>ttlMs</code> is the only signal a
+client gets. <strong>For up to 60 seconds after a config reload, a client can still
+offer a command that the reload removed.</strong></p>
+<p>That window is a supported mode, not a defect. The protocol explicitly allows a
+server to provide <code>ttlMs</code> without a promise of change notifications. The client
+then relies on TTL freshness alone.</p>
+<p>The window is also self-correcting. A call to a command that no longer exists
+returns an error. The protocol names such an error as a reason to re-fetch
+early. The stale entry is therefore usually gone after one failed call, not
+after the full minute.</p>
+<p>If you need a removed command to disappear from a client immediately, restart
+the client's MCP connection after the reload.</p>
+<h2 id="tools">Tools</h2>
+<!-- source: internal/component/mcp/tools.go -- auto-generated tools from command registry -->
+
+<p>All MCP tools are <strong>auto-generated</strong> from the YANG command registry at
+<code>tools/list</code> time. Each command group (e.g. <code>rib</code>, <code>show config</code>, <code>metrics</code>) <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
+becomes a tool with an <code>action</code> enum listing its subcommands. When a new
+YANG command is registered, it appears as an MCP tool automatically without
+code changes.</p>
+<p>Run <code>tools/list</code> against a live daemon to see the current tool inventory. <!-- doc-links: ignore (JSON-RPC method name, not a path) --></p>
+<p>Two handcrafted tools (<code>ze_execute</code>, <code>ze_reference</code>) provide escape-hatch and
+discovery capabilities alongside the generated tools.</p>
+<!-- source: internal/component/mcp/tools.go -- handcraftedTools, toolHandlers -->
+
+<h3 id="ze_execute">ze_execute</h3>
+<p>Run any command the CLI supports. Use <code>ze_reference</code> to discover available commands.</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>command</code></td>
+<td>string</td>
+<td>Conditional: yes, unless the request declared <strong>form-mode</strong> elicitation</td>
+<td>Full command string</td>
+</tr>
+</tbody>
+</table>
+<p>The published <code>inputSchema</code> says the same thing, and says it per request. The
+<code>required</code> array names <code>command</code> for a client that declared no form-mode
+elicitation. The array is absent for a client that did declare it.</p>
+<p>Ze cannot advertise a single answer here, because the two clients get different
+behaviour. A schema-validating host would otherwise refuse to make the very call
+that reaches the prompt.</p>
+<!-- source: internal/component/mcp/mrtr.go -- gateExecuteCommandRequired -->
+<!-- source: internal/component/mcp/streamable_tools.go -- allTools -->
+
+<p>So a call that omits <code>command</code> is not always an error. When the request declared
+<strong>form-mode</strong> elicitation, Ze answers with the Multi Round-Trip interim result
+and asks for one:</p>
+<pre><code class="language-json">{
+  &quot;resultType&quot;: &quot;input_required&quot;,
+  &quot;inputRequests&quot;: {
+    &quot;ze_execute_command&quot;: {
+      &quot;method&quot;: &quot;elicitation/create&quot;,
+      &quot;params&quot;: { &quot;mode&quot;: &quot;form&quot;, &quot;message&quot;: &quot;Which ze command should be run? ...&quot; }
+    }
+  }
+}
+</code></pre>
+<p>The client then retries the same <code>tools/call</code>, under a new id, with <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
+<code>params.inputResponses</code> carrying the answer. A client that declared no
+elicitation capability is never prompted. The same is true of a client that
+declared <code>url</code> mode only, which Ze does not implement. Both get a tool error
+naming the missing argument. See <a href="../elicitation/">MCP Elicitation</a>.</p>
+<!-- source: internal/component/mcp/tools.go -- ze_execute handler -->
+<!-- source: internal/component/mcp/mrtr.go -- askForCommand, resolveExecuteCommand -->
+
+<h3 id="ze_reference">ze_reference</h3>
+<p>No parameters. Returns the full machine-readable reference for this daemon
+(CLI commands, daemon API endpoints with dispatch keys, plugins, address
+families, config services) as JSON. This is the same data as <code>ze help ai --json</code>,
+assembled from <code>internal/component/aihelp</code> so the CLI and MCP never diverge.
+An MCP client sees this tool in <code>tools/list</code> on connect, so it can discover the <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
+instance's capabilities without out-of-band documentation.</p>
+<!-- source: internal/component/mcp/tools.go -- ze_reference handcrafted tool -->
+<!-- source: internal/component/aihelp/aihelp.go -- Build assembles the reference -->
+
+<h2 id="ai-help-reference">AI Help Reference</h2>
+<p><code>ze help ai</code> generates a machine-readable reference from the running binary.
+All data comes from the plugin registry, YANG schemas, and RPC registrations,
+so it is never out of date.</p>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Content</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze help ai</code></td>
+<td>Summary with counts and quick start</td>
+</tr>
+<tr>
+<td><code>ze help ai --json</code></td>
+<td>Machine-readable JSON with commands, RPCs, plugins, families, services</td>
+</tr>
+<tr>
+<td><code>ze help ai cli</code></td>
+<td>CLI subcommands (ze bgp, ze config, ...)</td>
+</tr>
+<tr>
+<td><code>ze help ai api</code></td>
+<td>Daemon API commands with parameters (YANG RPCs)</td>
+</tr>
+<tr>
+<td><code>ze help ai mcp</code></td>
+<td>MCP tools with parameters and examples</td>
+</tr>
+<tr>
+<td><code>ze help ai dispatch</code></td>
+<td>Dispatch keys for daemon commands</td>
+</tr>
+<tr>
+<td><code>ze help ai all</code></td>
+<td>Everything</td>
+</tr>
+</tbody>
+</table>
+<p>The legacy flag form (<code>ze help --ai --api</code>) is still accepted as a hidden alias.</p>
+<h2 id="agent-tooling">Agent Tooling</h2>
+<p>Offline commands for agent-driven config validation and repair:</p>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze config validate --json &lt;file&gt;</code></td>
+<td>Structured diagnostics with stable codes</td>
+</tr>
+<tr>
+<td><code>ze explain [--json] &lt;code&gt;</code></td>
+<td>Explain a diagnostic code</td>
+</tr>
+<tr>
+<td><code>ze config fix --plan --json &lt;file&gt;</code></td>
+<td>Plan-only repair candidates</td>
+</tr>
+<tr>
+<td><code>ze skills list [--json]</code></td>
+<td>List bundled agent skills</td>
+</tr>
+<tr>
+<td><code>ze skills get &lt;name&gt; [--full]</code></td>
+<td>Load version-matched skill content</td>
+</tr>
+</tbody>
+</table>
+<p>These commands do not require a running daemon. Agents use them to validate
+and fix config before committing.</p>
+<h2 id="testing">Testing</h2>
+<!-- source: internal/test/cli/cmd_mcp.go -- MCP test client -->
+<!-- source: test/plugin/mcp-announce.ci -- MCP functional test -->
+
+<p><code>ze-test mcp</code> is an MCP client for functional tests. It reads commands from
+stdin and sends them to the MCP endpoint.</p>
+<pre><code class="language-bash"># Start daemon with MCP
+ze --mcp 8080 config.conf &amp;
+
+# Send commands
+echo 'wait-established
+peer * update text origin igp next-hop 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24' | ze-test mcp --port 8080
+</code></pre>
+<p>Every message it sends is its own POST to <code>/mcp</code>, with the required headers and
+<code>_meta</code> block. There is no handshake to complete and no session to create.</p>
+<p>Flags:</p>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--port &lt;port&gt;</code></td>
+<td>MCP server port (required)</td>
+</tr>
+<tr>
+<td><code>--token &lt;token&gt;</code></td>
+<td>Bearer token, sent on every request</td>
+</tr>
+<tr>
+<td><code>--timeout &lt;duration&gt;</code></td>
+<td>Connection timeout (default 10s)</td>
+</tr>
+<tr>
+<td><code>--tasks</code></td>
+<td>Declare the extension in every request's <code>_meta.clientCapabilities</code>. <span class="ev-src"><span class="ev-ref"><code>io.modelcontextprotocol/tasks</code></span></span></td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/test/cli/cmd_mcp.go — cmdMcp flag set -->
+
+<p>There is no <code>--resources</code> flag. <code>resources</code> is a <code>ServerCapabilities</code> member,
+not one of the five <code>ClientCapabilities</code> members. A conformant client therefore
+never declares <code>resources</code>, and the server serves resources to every caller.</p>
+<!-- source: internal/component/mcp/resources.go — resourcesList, resourcesRead -->
+
+<p>Special stdin directives:</p>
+<table>
+<thead>
+<tr>
+<th>Directive</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code># comment</code></td>
+<td>Ignored</td>
+</tr>
+<tr>
+<td><code>&lt;command&gt;</code></td>
+<td>Run via <code>ze_execute</code></td>
+</tr>
+<tr>
+<td><code>@tool_name {json}</code></td>
+<td>Call a specific MCP tool with JSON arguments</td>
+</tr>
+<tr>
+<td><code>wait &lt;duration&gt;</code></td>
+<td>Pause (for example, <code>wait 2s</code>)</td>
+</tr>
+<tr>
+<td><code>wait-established</code></td>
+<td>Poll until a BGP peer is Established</td>
+</tr>
+<tr>
+<td><code>wait-peers</code></td>
+<td>Poll until at least one peer exists</td>
+</tr>
+<tr>
+<td><code>wait-tool &lt;name&gt;</code></td>
+<td>Poll <code>tools/list</code> until the named tool appears</td>
+</tr>
+<tr>
+<td><code>task-call &lt;tool&gt; [&lt;json&gt;]</code></td>
+<td>Ordinary <code>tools/call</code> the server must answer with <code>resultType: "task"</code>. Prints the taskId. There is no client-side opt-in: the server decides from <code>ze:task-support</code></td>
+</tr>
+<tr>
+<td><code>call-sync &lt;tool&gt; [&lt;json&gt;]</code></td>
+<td>Ordinary <code>tools/call</code> the server must answer synchronously (<code>resultType: "complete"</code>, no taskId). Prints the result text</td>
+</tr>
+<tr>
+<td><code>task-get &lt;id&gt;</code></td>
+<td>Get task status</td>
+</tr>
+<tr>
+<td><code>task-result &lt;id&gt;</code></td>
+<td>Print the result a terminal task carries. Reads it off <code>tasks/get</code>, since <code>tasks/result</code> no longer exists</td>
+</tr>
+<tr>
+<td><code>task-update &lt;id&gt; [&lt;json&gt;]</code></td>
+<td>Call <code>tasks/update</code> with optional <code>inputResponses</code>. Requires an empty acknowledgement</td>
+</tr>
+<tr>
+<td><code>task-cancel &lt;id&gt;</code></td>
+<td>Cancel a task. Requires an empty acknowledgement</td>
+</tr>
+<tr>
+<td><code>task-wait &lt;id&gt; &lt;state&gt;</code></td>
+<td>Poll until task reaches state</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/test/cli/cmd_mcp.go -- taskDirective -->
+
+<p>Deliberately-malformed requests, for conformance tests. Each <code>probe-*</code> directive
+queues one deviation. The next <code>probe</code> applies every queued deviation, prints
+one result line, then clears the queue. A <code>probe</code> with nothing queued sends a
+fully conformant request, which is how a test asserts the success shape.</p>
+<table>
+<thead>
+<tr>
+<th>Directive</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>probe-header &lt;name&gt; &lt;value\|-&gt;</code></td>
+<td>Set a request header verbatim, with no sentinel encoding. <code>-</code> omits it</td>
+</tr>
+<tr>
+<td><code>probe-meta &lt;key&gt; &lt;value\|-&gt;</code></td>
+<td>Set a <code>params._meta</code> field. <code>-</code> omits it. The short keys <code>protocolVersion</code>, <code>clientInfo</code> and <code>clientCapabilities</code> expand to their. <span class="ev-src"><span class="ev-ref"><code>io.modelcontextprotocol/</code></span></span></td>
+</tr>
+<tr>
+<td><code>probe-method &lt;verb&gt;</code></td>
+<td>HTTP verb for the next probe (default POST), for asserting the 405 on GET and DELETE</td>
+</tr>
+<tr>
+<td><code>probe-body &lt;json\|-&gt;</code></td>
+<td>Send this exact request body. <code>-</code> sends an empty body</td>
+</tr>
+<tr>
+<td><code>probe &lt;method&gt; [&lt;json params&gt;]</code></td>
+<td>Send one request and print <code>probe status=&lt;http&gt; code=&lt;jsonrpc\|ok\|none&gt; [data=&lt;json&gt;] [result=&lt;json&gt;] message=&lt;text&gt;</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>MCP-Protocol-Version</code> is derived from the <code>_meta</code> protocolVersion value.
+<code>probe-meta protocolVersion 2025-06-18</code> therefore sends a consistent pair, which
+tests version rejection (<code>-32022</code>). <code>probe-header MCP-Protocol-Version
+2025-06-18</code> sends a header/body mismatch, which tests <code>-32020</code>.</p>
+<p><code>$LAST</code> substitutes the most recent directive output (for example, the taskId
+from <code>task-call</code>). <code>task-update</code> and <code>task-cancel</code> deliberately do not update
+it. Both return an empty acknowledgement rather than an identifier, so <code>$LAST</code>
+keeps naming the taskId that <code>task-call</code> produced.</p>
+<!-- source: internal/test/cli/cmd_mcp.go -- taskDirective -->
+
+<p>Example using typed tools:</p>
+<pre><code>wait-established
+@ze_announce {&quot;family&quot;:&quot;ipv4/unicast&quot;,&quot;origin&quot;:&quot;igp&quot;,&quot;next-hop&quot;:&quot;1.1.1.1&quot;,&quot;prefixes&quot;:[&quot;10.0.0.0/24&quot;]}
+@ze_peers {}
+</code></pre>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/quickstart/">
+                        <span class="page-sidebar-link-label">Quickstart</span>
+                        <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create zefs, and start SSH.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../reference/command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

@@ -1,0 +1,32 @@
+# `show schema events`
+
+## Ze command
+
+- Syntax: `show schema events`
+- Registry path: `show schema events`
+- Mode: Read-only
+- Wire method: `ze-show:schema-events`
+- Global pipes: yes
+
+List all notification types defined in YANG API modules. Shows which events a plugin can subscribe to.
+
+## Mapping intents
+
+No vendor equivalent has been curated yet for this Ze command.
+## Vendor equivalents
+
+### Junos MX
+
+No equivalent listed.
+
+### IOS XR
+
+No equivalent listed.
+
+### SR OS
+
+No equivalent listed.
+
+### VyOS
+
+No equivalent listed.

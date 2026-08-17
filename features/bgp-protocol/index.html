@@ -1,0 +1,713 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>BGP Protocol - Ze</title>
+        <meta name="description" content="Ze documentation: features/bgp-protocol.md" />
+        <meta property="og:title" content="BGP Protocol - Ze" />
+        <meta property="og:description" content="Ze documentation: features/bgp-protocol.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="BGP Protocol - Ze" />
+        <meta name="twitter:description" content="Ze documentation: features/bgp-protocol.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/features/bgp-protocol/" />
+        <meta property="og:url" content="https://ze-software.net/features/bgp-protocol/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-routing">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Feature</span>
+    <h1 id="bgp-protocol">BGP Protocol</h1>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#address-families">Address Families</a></li>
+<li><a href="#capabilities">Capabilities</a></li>
+<li><a href="#multipath-installation">Multipath installation</a></li>
+<li><a href="#long-lived-graceful-restart-readvertisement">Long-Lived Graceful Restart readvertisement</a></li>
+<li><a href="#egress-attribute-rules">Egress attribute rules</a></li>
+<li><a href="#unrecognized-nlri-types-in-a-typed-family">Unrecognized NLRI types in a typed family</a></li>
+<li><a href="#rfc-7911-path-identifier-regeneration">RFC 7911 Path Identifier regeneration</a></li>
+<li><a href="#protocol-event-capture-and-replay">Protocol event capture and replay</a></li>
+<li><a href="#path-attributes">Path Attributes</a></li>
+</ol></nav>
+<h3 id="address-families">Address Families</h3>
+<table>
+<thead>
+<tr>
+<th>Family</th>
+<th>Config Name</th>
+<th>AFI/SAFI</th>
+<th>Encode</th>
+<th>Decode</th>
+<th>Route Config</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>IPv4 Unicast</td>
+<td><code>ipv4/unicast</code></td>
+<td>1/1</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+</tr>
+<tr>
+<td>IPv6 Unicast</td>
+<td><code>ipv6/unicast</code></td>
+<td>2/1</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+</tr>
+<tr>
+<td>IPv4 Multicast</td>
+<td><code>ipv4/multicast</code></td>
+<td>1/2</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+</tr>
+<tr>
+<td>IPv6 Multicast</td>
+<td><code>ipv6/multicast</code></td>
+<td>2/2</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+</tr>
+<tr>
+<td>IPv4 VPN</td>
+<td><code>ipv4/mpls-vpn</code></td>
+<td>1/128</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+</tr>
+<tr>
+<td>IPv6 VPN</td>
+<td><code>ipv6/mpls-vpn</code></td>
+<td>2/128</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+</tr>
+<tr>
+<td>IPv4 FlowSpec</td>
+<td><code>ipv4/flow</code></td>
+<td>1/133</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+</tr>
+<tr>
+<td>IPv6 FlowSpec</td>
+<td><code>ipv6/flow</code></td>
+<td>2/133</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+</tr>
+<tr>
+<td>IPv4 FlowSpec VPN</td>
+<td><code>ipv4/flow-vpn</code></td>
+<td>1/134</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+</tr>
+<tr>
+<td>IPv6 FlowSpec VPN</td>
+<td><code>ipv6/flow-vpn</code></td>
+<td>2/134</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+</tr>
+<tr>
+<td>IPv4 MPLS Label</td>
+<td><code>ipv4/mpls-label</code></td>
+<td>1/4</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+</tr>
+<tr>
+<td>IPv6 MPLS Label</td>
+<td><code>ipv6/mpls-label</code></td>
+<td>2/4</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+</tr>
+<tr>
+<td>L2VPN EVPN</td>
+<td><code>l2vpn/evpn</code></td>
+<td>25/70</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+</tr>
+<tr>
+<td>L2VPN VPLS</td>
+<td><code>l2vpn/vpls</code></td>
+<td>25/65</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+</tr>
+<tr>
+<td>BGP-LS</td>
+<td><code>bgp-ls/bgp-ls</code></td>
+<td>16388/71</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>BGP-LS VPN</td>
+<td><code>bgp-ls/bgp-ls-vpn</code></td>
+<td>16388/72</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>IPv4 MVPN</td>
+<td><code>ipv4/mvpn</code></td>
+<td>1/5</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-partial">∿</td>
+</tr>
+<tr>
+<td>IPv6 MVPN</td>
+<td><code>ipv6/mvpn</code></td>
+<td>2/5</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-partial">∿</td>
+</tr>
+<tr>
+<td>IPv4 RTC</td>
+<td><code>ipv4/rtc</code></td>
+<td>1/132</td>
+<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>IPv4 MUP</td>
+<td><code>ipv4/mup</code></td>
+<td>1/85</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+</tr>
+<tr>
+<td>IPv6 MUP</td>
+<td><code>ipv6/mup</code></td>
+<td>2/85</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+</tr>
+<tr>
+<td>IPv4 SR-Policy</td>
+<td><code>ipv4/sr-policy</code></td>
+<td>1/73</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+</tr>
+<tr>
+<td>IPv6 SR-Policy</td>
+<td><code>ipv6/sr-policy</code></td>
+<td>2/73</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/bgp/plugins/nlri/evpn/register.go -- EVPN family registration -->
+<!-- source: internal/component/bgp/plugins/nlri/srpolicy/register.go -- SR-Policy family registration -->
+<!-- source: internal/component/bgp/plugins/nlri/flowspec/register.go -- FlowSpec family registration -->
+<!-- source: internal/component/bgp/plugins/nlri/vpn/register.go -- VPN family registration -->
+<!-- source: internal/component/bgp/plugins/nlri/mup/register.go -- MUP family registration -->
+<!-- source: internal/component/bgp/plugins/nlri/ls/register.go -- BGP-LS family registration -->
+<!-- source: internal/component/bgp/plugins/nlri/labeled/register.go -- MPLS label family registration -->
+<!-- source: internal/component/bgp/plugins/nlri/vpls/register.go -- VPLS family registration -->
+<!-- source: internal/component/bgp/plugins/nlri/mvpn/register.go -- MVPN family registration -->
+<!-- source: internal/component/bgp/plugins/nlri/rtc/register.go -- RTC family registration -->
+
+<h3 id="capabilities">Capabilities</h3>
+<table>
+<thead>
+<tr>
+<th>Capability</th>
+<th>Code</th>
+<th>RFC</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Multiprotocol Extensions</td>
+<td>1</td>
+<td>RFC 4760</td>
+<td>Multi-protocol BGP (AFI/SAFI negotiation)</td>
+</tr>
+<tr>
+<td>4-byte ASN</td>
+<td>65</td>
+<td>RFC 6793</td>
+<td>32-bit AS numbers</td>
+</tr>
+<tr>
+<td>Route Refresh</td>
+<td>2</td>
+<td>RFC 2918</td>
+<td>Request full route re-advertisement</td>
+</tr>
+<tr>
+<td>Enhanced Route Refresh</td>
+<td>70</td>
+<td>RFC 7313</td>
+<td>Bounded clear and re-send</td>
+</tr>
+<tr>
+<td>ADD-PATH</td>
+<td>69</td>
+<td>RFC 7911</td>
+<td>Multiple paths per prefix</td>
+</tr>
+<tr>
+<td>Extended Message</td>
+<td>6</td>
+<td>RFC 8654</td>
+<td>65535-byte messages</td>
+</tr>
+<tr>
+<td>Extended Next Hop</td>
+<td>5</td>
+<td>RFC 8950</td>
+<td>IPv6 next-hop for IPv4 NLRI</td>
+</tr>
+<tr>
+<td>Graceful Restart</td>
+<td>64</td>
+<td>RFC 4724</td>
+<td>Session preservation across restarts (Restarting Speaker: R-bit via zefs marker on <code>ze signal restart</code>)</td>
+</tr>
+<tr>
+<td>Long-Lived GR</td>
+<td>71</td>
+<td>RFC 9494</td>
+<td>Extended stale route retention with LLGR_STALE community and depreference</td>
+</tr>
+<tr>
+<td>BGP Role</td>
+<td>9</td>
+<td>RFC 9234</td>
+<td>Peer relationship role</td>
+</tr>
+<tr>
+<td>Hostname</td>
+<td>73</td>
+<td>RFC 8516</td>
+<td>FQDN capability</td>
+</tr>
+<tr>
+<td>Software Version</td>
+<td>75</td>
+<td>draft</td>
+<td>Software version advertisement</td>
+</tr>
+<tr>
+<td>Link-Local Next Hop</td>
+<td>77</td>
+<td>RFC 2545 + draft</td>
+<td>IPv6 link-local as next-hop</td>
+</tr>
+<tr>
+<td>PATHS-LIMIT</td>
+<td>76</td>
+<td>draft-abraitis-idr-addpath-paths-limit</td>
+<td>Per-family path count limit for ADD-PATH</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/core/bgp/capability/capability.go -- capability code constants -->
+<!-- source: internal/core/bgp/capability/encoding.go -- EncodingCaps fields ASN4, ExtendedMessage, AddPathMode, ExtendedNextHop, PathsLimitSend, PathsLimitRecv -->
+<!-- source: internal/core/bgp/capability/session.go -- SessionCaps fields RouteRefresh, EnhancedRouteRefresh, GracefulRestart -->
+<!-- source: internal/component/bgp/plugins/role/register.go -- BGP Role capability plugin -->
+<!-- source: internal/component/bgp/plugins/hostname/register.go -- Hostname capability plugin -->
+<!-- source: internal/component/bgp/plugins/softver/register.go -- Software Version capability plugin -->
+<!-- source: internal/component/bgp/plugins/llnh/register.go -- Link-Local NH capability plugin -->
+
+<h3 id="multipath-installation">Multipath installation</h3>
+<p>When several BGP candidates tie under multipath selection, Ze carries the
+winner and its equal-cost sibling next hops into the shared Loc-RIB. The system
+RIB then emits one ECMP group to the active FIB backend. Membership-only
+changes, such as one equal-cost peer disappearing, update the installed group
+without requiring the winning peer to change.</p>
+<p><code>show rib</code> reports the primary <code>next-hop</code> and the additional <code>ecmp-paths</code>.
+Together they are the complete installed next-hop set.</p>
+<!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- SelectMultipath, mirrorToLocRIB -->
+<!-- source: internal/core/rib/locrib/candidate.go -- Path.ECMP -->
+<!-- source: internal/core/rib/locrib/manager.go -- siblingNextHops -->
+
+<h3 id="long-lived-graceful-restart-readvertisement">Long-Lived Graceful Restart readvertisement</h3>
+<p>RFC 9494 stale-route handling is applied per destination on both normal
+forwarding and RIB readvertisement. An LLGR-capable peer receives the stale
+route unchanged. A non-LLGR eBGP peer receives a withdrawal. A non-LLGR iBGP
+peer receives the route with <code>NO_EXPORT</code> and <code>LOCAL_PREF=0</code>, allowing partial
+deployments to retain reachability without preferring stale information.</p>
+<p>Only the LLGR filter runs during stale readvertisement. Other export policy has
+already run on the original announcement and is not applied twice.</p>
+<!-- source: internal/component/bgp/plugins/gr/gr_egress.go -- LLGREgressFilter -->
+<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- sendStaleReadvertise -->
+
+<h3 id="egress-attribute-rules">Egress attribute rules</h3>
+<p>Several rails write an UPDATE: the announce rails that encode a route Ze
+produced, the forward rail that relays another speaker's UPDATE, and the
+route-server rail. Each rule below is answered at one site that every rail asks,
+rather than re-derived per rail. The rails that re-derived a rule disagreed about
+it: the announce rail stripped LOCAL_PREF toward an external peer and the forward
+rail did not.</p>
+<table>
+<thead>
+<tr>
+<th>Rule</th>
+<th>RFC</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LOCAL_PREF off an external session</td>
+<td>4271 Section 5.1.5</td>
+<td>Removed from every UPDATE toward an external peer, relayed UPDATEs included. Recorded after the export filter pass, so a filter that sets LOCAL_PREF does not override the prohibition. A session is internal when <code>LocalAS == PeerAS</code>. Ze names no confederation member-AS, so the RFC 3065 exception is never active.</td>
+</tr>
+<tr>
+<td>A received MULTI_EXIT_DISC is not relayed</td>
+<td>4271 Section 5.1.4</td>
+<td>Removed when the value about to be written is the value that arrived. A metric an announce rail or an export filter sets is kept, because that is Ze originating one. A route-server client keeps the received metric (RFC 7947 Section 2.2.3).</td>
+</tr>
+<tr>
+<td>Configured MULTI_EXIT_DISC removal</td>
+<td>4271 Section 5.1.4</td>
+<td><code>bgp/policy/modify/&lt;name&gt;/del/med</code>, on an import chain only. An export chain refuses the directive and logs why (Section 9.1.2.2).</td>
+</tr>
+<tr>
+<td class="cell-no">✕</td>
+<td>4271 Section 5.1.3</td>
+<td>Asked of the built body, after the export chain, for a relayed route and for an originated one. The route is withheld from that peer and logged; it is never rewritten, which keeps RFC 7947 Section 2.2.2 transparency. Withdrawals in the same UPDATE still reach the peer.</td>
+</tr>
+<tr>
+<td>A route naming this speaker is not installed</td>
+<td>4271 Section 5.1.3</td>
+<td>Excluded from best-path candidacy rather than refused at install, so a sound alternative wins. "Itself" is the set of session-local addresses.</td>
+</tr>
+<tr>
+<td class="cell-partial">∿</td>
+<td>4271 Sections 5 and 9</td>
+<td>Stamped at ingest. Recognition comes from Ze's own attribute registry, so removing a plugin makes that plugin's attribute unrecognized again. Session-reset and treat-as-withdraw skip the stamp, since they propagate nothing.</td>
+</tr>
+<tr>
+<td>Withdrawals before announces</td>
+<td>4271 Section 4.3</td>
+<td>All withdrawals run before all announces, in the legacy sections and the multiprotocol ones, so one UPDATE naming a prefix in both leaves it reachable.</td>
+</tr>
+<tr>
+<td>A relayed withdrawal carries no path attributes</td>
+<td>4271 Sections 4.3 and 6.3</td>
+<td>An UPDATE advertising no reachable NLRI gets no attribute created on it: no next-hop rewrite, no RFC 4456 reflection stamp, no community tag, no policy delta, no AS_PATH prepend. Rewriting an attribute the source already carries stays allowed, which keeps the RFC 6793 Section 4.2.2 width transcode.</td>
+</tr>
+<tr>
+<td>One attribute order for every builder</td>
+<td>4271 Section 5</td>
+<td>Path attributes are inserted by type code in ascending order on every rail. MP_UNREACH_NLRI stays first, out of type-code order, so a withdrawal precedes an announcement in one message.</td>
+</tr>
+<tr>
+<td>The next-hop wire form matches its length octet</td>
+<td>4760, 2545 Section 3</td>
+<td>The MP_REACH Next Hop length and the bytes written derive from one value. The IPv6 link-local address is appended after the global one only when this speaker shares a locally connected subnet with the peer and with the entity the global next hop names. The <code>link-local</code> leaf supplies the address; it does not decide that the address is sent.</td>
+</tr>
+<tr>
+<td>A modification that cannot be applied suppresses the route</td>
+<td>none</td>
+<td>The route is withheld from that destination rather than forwarded unmodified. Counted on <code>ze_bgp_update_modify_failed_total{reason}</code>.</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/bgp/reactor/forward_local_pref.go -- localPrefAllowedTo, applyFactsLocalPref -->
+<!-- source: internal/component/bgp/reactor/forward_med.go -- medPropagationAllowedTo, applyFactsMED -->
+<!-- source: internal/component/bgp/reactor/forward_next_hop.go -- egressNextHopIsPeerOwn, originatedNextHopIsPeerOwn -->
+<!-- source: internal/component/bgp/plugins/rib/rib_self_nexthop.go -- refreshSelfNextHopsLocked, isSelfNextHop -->
+<!-- source: internal/component/bgp/reactor/forward_build.go -- planAttr, buildModifiedPayload -->
+<!-- source: internal/component/bgp/reactor/forward_modify_failure.go -- modifyFailure -->
+<!-- source: internal/component/bgp/plugins/filter_modify/filter_modify.go -- appendMEDRemove -->
+
+<h3 id="unrecognized-nlri-types-in-a-typed-family">Unrecognized NLRI types in a typed family</h3>
+<p>RFC 7606 Section 5.4 requires a speaker advertising a typed address family to
+discard routes carrying an NLRI type it does not implement, "unless the relevant
+specification for that address family specifies otherwise". The ruling is
+registered per family by the plugin that owns the family, so compiling that
+plugin out removes both the advertisement and the obligation.</p>
+<table>
+<thead>
+<tr>
+<th>Family</th>
+<th>Ruling</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>l2vpn/evpn</code></td>
+<td>Discard an unrecognized route type</td>
+</tr>
+<tr>
+<td><code>ipv4/mvpn</code>, <code>ipv6/mvpn</code></td>
+<td>Discard an unrecognized route type (RFC 6514 Section 4 framing)</td>
+</tr>
+<tr>
+<td><code>ipv4/mup</code>, <code>ipv6/mup</code></td>
+<td>Discard an unrecognized route type (draft-ietf-bess-mup-safi Section 3.1 framing)</td>
+</tr>
+<tr>
+<td><code>bgp-ls/bgp-ls</code>, <code>bgp-ls/bgp-ls-vpn</code></td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>Every other family</td>
+<td class="cell-no">✕</td>
+</tr>
+</tbody>
+</table>
+<p>The recognizer answers about the route TYPE only. A well-typed but malformed
+NLRI is a Section 5.3 concern, handled before this. When the length fields do
+not agree with the section the NLRI boundaries are unknowable, so no discard
+decision is made rather than one being guessed.</p>
+<!-- source: internal/core/bgp/nlri/nlritype/nlritype.go -- Register, Retain -->
+<!-- source: internal/component/bgp/plugins/nlri/evpn/register.go -- EVPN recognizer -->
+<!-- source: internal/component/bgp/plugins/nlri/mvpn/register.go -- MCAST-VPN recognizer -->
+<!-- source: internal/component/bgp/plugins/nlri/mup/register.go -- MUP recognizer -->
+
+<h3 id="rfc-7911-path-identifier-regeneration">RFC 7911 Path Identifier regeneration</h3>
+<p>RFC 7911 Section 2 requires a speaker that re-advertises a route to generate its
+own Path Identifier, assigned so that (prefix, identifier) uniquely names a path
+advertised to a neighbor. Both forward rails do that instead of relaying the
+identifier the source chose.</p>
+<p>The key is the path at ingress: the source that sent it and the identifier that
+source used. A withdrawn route carries no path attributes, so an
+attribute-derived identifier could not be recomputed when the path leaves; the
+ingress key can. The same key makes a re-announcement with changed attributes
+replace rather than duplicate. Identifiers are released at peer removal, not at
+session down, so a reconnecting peer re-announces under the identifiers its
+destinations already hold. Zero is minted and accepted like any other value
+(RFC 7911 Section 3).</p>
+<p>Regeneration runs whenever either side of the forward frames identifiers. A
+session where neither side negotiated ADD-PATH keeps its zero-copy forward.</p>
+<!-- source: internal/component/bgp/reactor/forward_path_id.go -- fwdPathIDs -->
+
+<h3 id="protocol-event-capture-and-replay">Protocol event capture and replay</h3>
+<p>A peer writes every message it receives to a bounded JSONL file, together with
+the config operations applied while the capture runs. <code>ze-test replay &lt;file&gt;</code>
+feeds the file back through the same read path with an injected clock.</p>
+<p>The tee sits on the complete wire message in both read paths, before message
+processing. RFC 7606 enforcement rewrites attributes and synthesizes
+withdrawals, and the family and prefix-limit checks can return before anything
+is dispatched, so the plugin message-observer hook cannot see what a bug capture
+needs.</p>
+<p>Off by default. The tee costs one nil comparison and no allocation per received
+message. Config payloads pass a redactor, and TCP-MD5 keys never appear on the
+wire, so the file holds routing data and no local secret. <code>ze doctor</code> reports
+whether an enabled peer's capture directory is usable
+(<code>doctor-bgp-capture-directory</code>).</p>
+<pre><code class="language-bash">ze-test replay [--json] [--local-as N] [--peer-as N] [--router-id N] &lt;capture-file|-&gt;
+</code></pre>
+<!-- source: internal/core/capture/capture.go -- the bounded JSONL writer -->
+<!-- source: internal/component/bgp/reactor/capture_replay.go -- the session tee and the replay driver -->
+<!-- source: internal/test/cli/cmd_replay.go -- cmdReplay -->
+<!-- source: internal/component/doctor/checks_bgp_capture.go -- capture directory readiness -->
+
+<h3 id="path-attributes">Path Attributes</h3>
+<table>
+<thead>
+<tr>
+<th>Attribute</th>
+<th>Code</th>
+<th>JSON Key</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ORIGIN</td>
+<td>1</td>
+<td><code>origin</code></td>
+<td>igp / egp / incomplete</td>
+</tr>
+<tr>
+<td>AS_PATH</td>
+<td>2</td>
+<td><code>as-path</code></td>
+<td>AS path segments</td>
+</tr>
+<tr>
+<td>NEXT_HOP</td>
+<td>3</td>
+<td><code>next-hop</code></td>
+<td>Next hop IP address</td>
+</tr>
+<tr>
+<td>MED</td>
+<td>4</td>
+<td><code>med</code></td>
+<td>Multi-Exit Discriminator</td>
+</tr>
+<tr>
+<td>LOCAL_PREF</td>
+<td>5</td>
+<td><code>local-preference</code></td>
+<td>Local preference</td>
+</tr>
+<tr>
+<td>ATOMIC_AGGREGATE</td>
+<td>6</td>
+<td><code>atomic-aggregate</code></td>
+<td>Atomic aggregate flag</td>
+</tr>
+<tr>
+<td>AGGREGATOR</td>
+<td>7</td>
+<td><code>aggregator</code></td>
+<td>Aggregator ASN:IP</td>
+</tr>
+<tr>
+<td>COMMUNITY</td>
+<td>8</td>
+<td><code>community</code></td>
+<td>Standard communities</td>
+</tr>
+<tr>
+<td>ORIGINATOR_ID</td>
+<td>9</td>
+<td><code>originator-id</code></td>
+<td>Route reflector originator</td>
+</tr>
+<tr>
+<td>CLUSTER_LIST</td>
+<td>10</td>
+<td><code>cluster-list</code></td>
+<td>Route reflector cluster list</td>
+</tr>
+<tr>
+<td>MP_REACH_NLRI</td>
+<td>14</td>
+<td>none</td>
+<td>Multiprotocol reachable NLRI</td>
+</tr>
+<tr>
+<td>MP_UNREACH_NLRI</td>
+<td>15</td>
+<td>none</td>
+<td>Multiprotocol unreachable NLRI</td>
+</tr>
+<tr>
+<td>EXTENDED_COMMUNITY</td>
+<td>16</td>
+<td><code>extended-community</code></td>
+<td>Extended communities</td>
+</tr>
+<tr>
+<td>LARGE_COMMUNITY</td>
+<td>32</td>
+<td><code>large-community</code></td>
+<td>Large communities (RFC 8092)</td>
+</tr>
+<tr>
+<td>PREFIX_SID</td>
+<td>40</td>
+<td><code>prefix-sid</code></td>
+<td>Segment Routing prefix SID</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/core/bgp/attribute/attribute.go -- attribute code constants -->
+<!-- source: internal/core/bgp/attribute/origin.go -- ORIGIN -->
+<!-- source: internal/core/bgp/attribute/aspath.go -- AS_PATH -->
+<!-- source: internal/core/bgp/attribute/community.go -- Communities, ExtendedCommunities, LargeCommunities -->
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Feature doc</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Related research</h2>
+                    <a class="page-sidebar-link" href="../../features/">
+                        <span class="page-sidebar-link-label">Feature catalog</span>
+                        <small>Return to the generated feature cards.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Browse by learning intent.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../compare/">
+                        <span class="page-sidebar-link-label">Comparisons</span>
+                        <small>Place the feature in external context.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../quality/">
+                        <span class="page-sidebar-link-label">Quality</span>
+                        <small>See the evidence behind the implementation.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

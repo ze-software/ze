@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>AS-Path Topology - Ze</title>
+        <meta name="description" content="Use the Looking Glass AS-path graph to investigate routing visibility and changes." />
+        <meta property="og:title" content="AS-Path Topology - Ze" />
+        <meta property="og:description" content="Use the Looking Glass AS-path graph to investigate routing visibility and changes." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="AS-Path Topology - Ze" />
+        <meta name="twitter:description" content="Use the Looking Glass AS-path graph to investigate routing visibility and changes." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/use-cases/as-path-topology/" />
+        <meta property="og:url" content="https://ze-software.net/use-cases/as-path-topology/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-observe">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Use case</span>
+    <h1 id="as-path-topology">AS-Path Topology</h1>
+    <p>Use the built-in Looking Glass to turn the AS paths for a prefix into a topology view. The graph is an operational aid for comparing what different peers advertise, not a complete map of the Internet.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#what-the-graph-shows">What the graph shows</a></li>
+<li><a href="#deploy-a-complete-lab">Deploy a complete lab</a></li>
+<li><a href="#interpret-the-result">Interpret the result</a></li>
+<li><a href="#operator-uses">Operator uses</a>
+<ol>
+<li><a href="#investigate-a-path-change">Investigate a path change</a></li>
+<li><a href="#explain-multi-homing">Explain multi-homing</a></li>
+<li><a href="#check-a-suspected-leak">Check a suspected leak</a></li>
+<li><a href="#validate-route-server-visibility">Validate route-server visibility</a></li>
+</ol></li>
+<li><a href="#limits">Limits</a></li>
+</ol></nav>
+<h2 id="what-the-graph-shows">What the graph shows</h2>
+<p>For one prefix, Ze collects eligible paths visible through the Looking Glass and builds a directed AS graph. Nodes are AS numbers and edges are observed AS-path adjacencies. Multiple peers may contribute the same edge or different paths to the same origin.</p>
+<p>The graph helps answer:</p>
+<ul>
+<li>Which origins are visible for this prefix?</li>
+<li>Which transit sequence did each peer advertise?</li>
+<li>Are several peers showing the same upstream path?</li>
+<li>Did a route leak or unexpected prepend change the shape?</li>
+<li>Does the selected best path match the available alternatives?</li>
+</ul>
+<h2 id="deploy-a-complete-lab">Deploy a complete lab</h2>
+<p>The graph reads routes through the command dispatcher, so load <code>bgp-rib</code> and
+enable the read-only Looking Glass. Save this configuration as
+<code>as-path-lab.conf</code>:</p>
+<pre><code class="language-text">plugin {
+    internal rib { use bgp-rib; }
+}
+
+environment {
+    looking-glass {
+        enabled true;
+        server main { ip 127.0.0.1; port 8443; }
+    }
+}
+
+bgp {
+    router-id 192.0.2.10;
+    session { asn { local 64500; } }
+
+    peer transit-a {
+        connection {
+            local { ip 192.0.2.10; }
+            remote { ip 192.0.2.1; }
+        }
+        session {
+            asn { remote 64496; }
+            family {
+                ipv4/unicast { prefix { maximum 1000000; } }
+            }
+        }
+    }
+
+    peer transit-b {
+        connection {
+            local { ip 198.51.100.10; }
+            remote { ip 198.51.100.1; }
+        }
+        session {
+            asn { remote 64497; }
+            family {
+                ipv4/unicast { prefix { maximum 1000000; } }
+            }
+        }
+    }
+}
+</code></pre>
+<p>Validate and start it, then announce <code>203.0.113.0/24</code> from both lab peers with
+different AS paths:</p>
+<pre><code class="language-console">ze config validate as-path-lab.conf
+ze start as-path-lab.conf
+ze cli -c &quot;show bgp rib best prefix 203.0.113.0/24&quot;
+curl -fsS &quot;http://127.0.0.1:8443/api/looking-glass/routes/search?prefix=203.0.113.0%2F24&quot;
+curl -fsS &quot;http://127.0.0.1:8443/lg/graph?prefix=203.0.113.0%2F24&quot; -o as-path.svg
+</code></pre>
+<p>Open <code>http://127.0.0.1:8443/lg/search?prefix=203.0.113.0%2F24</code> for the route
+details and inline graph. The graph endpoint returns SVG without a client-side
+graph engine or external topology service.</p>
+<h2 id="interpret-the-result">Interpret the result</h2>
+<p>Read paths from the observing peer toward the origin. Repeated AS numbers may be intentional prepending. Private ASNs, confederation segments, and path sanitisation can change what the graph can display.</p>
+<p>Compare the graph with route detail. A graph shows adjacency and path alternatives, while route detail carries local preference, MED, communities, validation state, next hop, and the reason one path won.</p>
+<h2 id="operator-uses">Operator uses</h2>
+<h3 id="investigate-a-path-change">Investigate a path change</h3>
+<p>Capture the graph before and after a best-path change. Compare which peer introduced or removed an edge, then inspect that route's attributes and recent BGP events.</p>
+<h3 id="explain-multi-homing">Explain multi-homing</h3>
+<p>Use the graph to show how two transits reach the same origin. This is often clearer than comparing raw AS-path strings one at a time.</p>
+<h3 id="check-a-suspected-leak">Check a suspected leak</h3>
+<p>Look for an unexpected customer or peer appearing between a known transit and origin. Confirm with the raw route, RPKI state, and the announcing peer before treating the drawing as proof.</p>
+<h3 id="validate-route-server-visibility">Validate route-server visibility</h3>
+<p>At an IXP, compare paths received from members and confirm the route server has not rewritten the member next hop or AS path.</p>
+<h2 id="limits">Limits</h2>
+<ul>
+<li>The graph contains only routes visible to this Ze instance.</li>
+<li>Import-rejected routes are absent unless another retained source exposes them.</li>
+<li>AS-path adjacency does not prove a commercial relationship.</li>
+<li>Aggregation and path hiding can remove intermediate detail.</li>
+<li>A public graph can expose routing information the operator considers sensitive.</li>
+</ul>
+<p>Apply the same exposure policy and rate limits as the rest of the public Looking Glass.</p>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Use case</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Related usage</h2>
+                    <a class="page-sidebar-link" href="../../use-cases/">
+                        <span class="page-sidebar-link-label">All usage examples</span>
+                        <small>Return to the deployment shapes.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to guides and references.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../features/bgp-protocol/">
+                        <span class="page-sidebar-link-label">BGP protocol</span>
+                        <small>Behaviour used by the route examples.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../labs/">
+                        <span class="page-sidebar-link-label">Lab evidence</span>
+                        <small>Real-daemon interop evidence.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

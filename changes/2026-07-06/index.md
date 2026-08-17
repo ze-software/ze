@@ -1,0 +1,68 @@
+# Week of 2026-07-06
+
+A dense week across VPN, DNS, subscriber access, the VPP data plane, the web UI, and observability.
+
+## 🔐 IPsec / IKEv2
+
+Ze can now sit on the answering side of an IPsec tunnel, not just dial one:
+
+- Full IKEv2 responder role: it accepts an unsolicited IKE_SA_INIT, authenticates with PSK, X.509, or EAP (acting as the EAP-MSCHAPv2 / EAP-TLS server), and brings up the first Child SA.
+- Rekeying is now an on-the-wire CREATE_CHILD_SA exchange for both Child and IKE SAs, with make-before-break, instead of a local key roll that desynced live tunnels without reporting it. Interop verified against strongSwan 5.9.14.
+
+## 🌐 Encrypted and validated DNS
+
+- The AS112 and GeoDNS servers gained DNS-over-TLS (RFC 7858) and DNS-over-HTTPS (RFC 8484) listeners, answering with the same authoritative policy as cleartext.
+- The stub resolver added DNSSEC validation modes (off, permissive, strict): strict fails closed on a broken chain, permissive fails open and logs. Exposed via `ze resolve dns --dnssec`.
+
+## 📡 L2TP as initiator, PPPoE relay
+
+L2TP previously only answered; it can now originate:
+
+- The initiator half of the L2TPv2 control channel: dial a tunnel, drive the SCCRP handshake with mutual CHAP, and place calls.
+- A PPPoE subscriber can be relayed straight into an L2TP tunnel (the LAC role) via a kernel channel bridge, instead of terminating PPP on the box. Interop verified against xl2tpd.
+
+## 🛡️ DDoS mitigation
+
+- Mitigation is now direction-aware: a victim is classified as box-local (dropped at INPUT) or transit (FORWARD drop or FlowSpec upstream), and a single allow/deny traffic policy with longest-prefix rules replaces the old per-responder allowlists.
+- A bandwidth (bits-per-second) trigger now catches low-packet, high-volume amplification (NTP, memcached, CLDAP) that a packet-rate trigger misses. Detection baselines persist across restarts, and each incident carries a confidence score shown in `show ddos incidents`.
+- FlowSpec origination is wired end to end with an `announce flowspec` verb (a rule with no next-hop was previously dropped before reaching any peer).
+
+## 🔌 VPP data plane
+
+The VPP backend gained a lot of parity with the kernel path:
+
+- Tunnels: GRE, GRETAP, IPIP, and VXLAN.
+- Port mirroring (SPAN), WireGuard, and Linux Control Plane pairs that shadow a VPP NIC into a Linux TAP so kernel networking (the BGP listener) can still bind to it.
+- Traffic policing by DSCP and multi-class classification steering.
+- Static routes now program into VPP when the VPP data plane is active.
+- Host tuning for appliance deployments: a poll-sleep control and hugepage reservation, with doctor checks.
+
+## 🖥️ Web UI and operator auth
+
+- Web login now runs through the AAA chain, so RADIUS and TACACS+ admins can sign in, with local users as fallback. A new RADIUS PAP backend (RFC 2865) also covers SSH and MCP operator logins.
+- Role-based access control: read-only sessions are blocked from the admin console and config editor (page and mutation enforced by the same authorizer), and edit controls are hidden from them.
+- Config can be downloaded and uploaded from the web UI, with uploads validated exactly like a commit and rolled back on failure.
+- A French locale (with English fallback) and a small-screen layout down to 390px.
+- New display decorators annotate an IP with its reverse-DNS name and a standard community with its well-known RFC name.
+- Looking Glass route lists can be paginated with limit and offset.
+
+## 📊 Observability fixes
+
+- Two long-standing bugs fixed: telemetry memory gauges under-reported by 1024x (kilobytes read as bytes), and MRT dumps had never activated in production because their config was never applied. Both are now correct, with tests pinning them.
+- The `/metrics` endpoint now exposes Go runtime and process stats (goroutines, GC, CPU, memory, file descriptors), plus new counters for AS_PATH loop rejects and ASPA validation outcomes.
+
+## 💿 Appliance and resilience
+
+- The gokrazy init was bumped to clear CVE-2026-25680.
+- Unreachable external services (NTP, a RADIUS CoA server, the managed hub) can no longer stall boot or a config commit.
+- A missing physical interface is now skipped instead of aborting the whole config apply.
+
+## 🛠️ Under the hood
+
+- Twelve config parsers that compared YANG values as if already typed now coerce the string form correctly, so valid config is no longer silently defaulted.
+- MCP consolidated onto the Streamable HTTP transport and the legacy handler was removed; the ExaBGP bridge is now an internal, config-delivered plugin; and the managed hub finally serves fleet clients that used to be dropped after authenticating.
+- A large internal consolidation pass unified RPC dispatch, filter ordering, config diff, the redistribution loop guard, and route, replay, and startup handling behind single shared paths.
+
+## 🔭 Coming up
+
+Design work has started on a RIB architecture refresh (long-lived graceful restart, RFC 5549 next-hops, real-time ECMP in the FIB) and on advanced graceful restart (RFC 8538 Hard Reset and notification-aware route retention). A DHCPv6 server remains on the drawing board.

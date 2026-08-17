@@ -1,0 +1,43 @@
+# Week of 2026-06-08
+
+A week of operator-facing polish: the Web Workbench UI, SR-Policy and IRR-based filtering in BGP, per-subscriber CoS, and a talk at LINX.
+
+## 🛰️ BGP
+
+- SR-Policy NLRI (SAFI 73) and Tunnel Encap decode, with an ExaBGP bridge
+- IRR-based prefix filtering, with ASN fallback and a configurable PeeringDB URL
+- The ATTR_TOMBSTONE mechanism (see the `draft-mangin-idr-attr-tombstone-00`
+  write-up from a few weeks back) now also covers ASN transcoding: a
+  malformed AGGREGATOR hit while rewriting between 2-byte and 4-byte ASN
+  encodings gets tombstoned in place instead of forwarding corrupt bytes
+  downstream
+
+## 🖥️ Web Workbench
+
+The web UI is now the default operator surface (the old bottom CLI bar is gone):
+
+- Live BGP summary and a streaming log view
+- Health status and system resource reporting
+- Peer detail, navigation, and Add Peer form fixes
+
+## 🧩 CLI
+
+21 plugin commands renamed for consistency, with autocomplete driven straight from the command registry. A new `ze format` command formats config for offline pipelines.
+
+## 📶 Class of Service
+
+Dynamic per-subscriber CoS driven by RADIUS, including vendor-specific attribute extraction, plus VLAN 802.1p QoS maps on both the kernel and VPP paths.
+
+## 💿 Installer
+
+Ventoy compatibility for ISO installs, server-reachability diagnostics before accepting a PXE lease, and faster kernel builds (multi-threaded, cached).
+
+## 🛠️ Under the hood
+
+Ping now uses an internal ICMP engine instead of shelling out to the OS `ping` binary, and there's a live `show debug` RPC for inspecting daemon state.
+
+## 📣 Presentation: LINX 126
+
+Presented "From ExaBGP to a Network OS with AI" at LINX 126 this week,
+covering the move from a BGP daemon to a full network OS. Glad to have had
+the chance to bring that to the LINX community in person.

@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>Week of 2026-06-08 - Ze</title>
+        <meta name="description" content="A week of operator-facing polish: the Web Workbench UI, SR-Policy and IRR-based filtering in BGP, per-subscriber CoS, and a talk at LINX." />
+        <meta property="og:title" content="Week of 2026-06-08 - Ze" />
+        <meta property="og:description" content="A week of operator-facing polish: the Web Workbench UI, SR-Policy and IRR-based filtering in BGP, per-subscriber CoS, and a talk at LINX." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Week of 2026-06-08 - Ze" />
+        <meta name="twitter:description" content="A week of operator-facing polish: the Web Workbench UI, SR-Policy and IRR-based filtering in BGP, per-subscriber CoS, and a talk at LINX." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/changes/2026-06-08/" />
+        <meta property="og:url" content="https://ze-software.net/changes/2026-06-08/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <link rel="alternate" type="application/rss+xml" title="Ze weekly updates" href="../feed.xml" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="blog-post" aria-labelledby="post-title">
+                <div class="journey-hero reveal">
+                    <span class="journey-eyebrow">Weekly update</span>
+                    <h1 id="post-title">Week of 2026-06-08</h1>
+                    <p>A week of operator-facing polish: the Web Workbench UI, SR-Policy and IRR-based filtering in BGP, per-subscriber CoS, and a talk at LINX.</p>
+                </div>
+                <p class="post-back"><a href="../">&larr; All weekly updates</a></p>
+            </section>
+            <section class="blog-post reveal">
+                <div class="blog-grid">
+                    <div class="blog-block" aria-label="🛰️ BGP">
+                        <div class="md-content">
+                            <h2>🛰️ BGP</h2>
+                            <ul>
+<li>SR-Policy NLRI (SAFI 73) and Tunnel Encap decode, with an ExaBGP bridge</li>
+<li>IRR-based prefix filtering, with ASN fallback and a configurable PeeringDB URL</li>
+<li>The ATTR_TOMBSTONE mechanism (see the <code>draft-mangin-idr-attr-tombstone-00</code>
+  write-up from a few weeks back) now also covers ASN transcoding: a
+  malformed AGGREGATOR hit while rewriting between 2-byte and 4-byte ASN
+  encodings gets tombstoned in place instead of forwarding corrupt bytes
+  downstream</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🖥️ Web Workbench">
+                        <div class="md-content">
+                            <h2>🖥️ Web Workbench</h2>
+                            <p>The web UI is now the default operator surface (the old bottom CLI bar is gone):</p>
+<ul>
+<li>Live BGP summary and a streaming log view</li>
+<li>Health status and system resource reporting</li>
+<li>Peer detail, navigation, and Add Peer form fixes</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🧩 CLI">
+                        <div class="md-content">
+                            <h2>🧩 CLI</h2>
+                            <p>21 plugin commands renamed for consistency, with autocomplete driven straight from the command registry. A new <code>ze format</code> command formats config for offline pipelines.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="📶 Class of Service">
+                        <div class="md-content">
+                            <h2>📶 Class of Service</h2>
+                            <p>Dynamic per-subscriber CoS driven by RADIUS, including vendor-specific attribute extraction, plus VLAN 802.1p QoS maps on both the kernel and VPP paths.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="💿 Installer">
+                        <div class="md-content">
+                            <h2>💿 Installer</h2>
+                            <p>Ventoy compatibility for ISO installs, server-reachability diagnostics before accepting a PXE lease, and faster kernel builds (multi-threaded, cached).</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🛠️ Under the hood">
+                        <div class="md-content">
+                            <h2>🛠️ Under the hood</h2>
+                            <p>Ping now uses an internal ICMP engine instead of shelling out to the OS <code>ping</code> binary, and there's a live <code>show debug</code> RPC for inspecting daemon state.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="📣 Presentation: LINX 126">
+                        <div class="md-content">
+                            <h2>📣 Presentation: LINX 126</h2>
+                            <p>Presented "From ExaBGP to a Network OS with AI" at LINX 126 this week,
+covering the move from a BGP daemon to a full network OS. Glad to have had
+the chance to bring that to the LINX community in person.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Change note</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>More context</h2>
+                    <a class="page-sidebar-link" href="../../changes/">
+                        <span class="page-sidebar-link-label">All changes</span>
+                        <small>Return to the weekly update index.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../milestones/">
+                        <span class="page-sidebar-link-label">Milestones</span>
+                        <small>See which changes became landmarks.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../roadmap/">
+                        <span class="page-sidebar-link-label">Roadmap</span>
+                        <small>Map this week to the release plan.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../activity/">
+                        <span class="page-sidebar-link-label">Activity</span>
+                        <small>View commit cadence around this week.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

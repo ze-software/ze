@@ -1,0 +1,35 @@
+$ ze config cat ze.conf | grep -q bgp-filter-irr || echo 'IRR filtering is not configured'
+IRR filtering is not configured
+$ ze config set ze.conf plugin internal bgp-filter-irr use bgp-filter-irr
+set plugin internal bgp-filter-irr use bgp-filter-irr
+$ ze config set ze.conf bgp policy irr server 127.0.0.1:4343
+set bgp policy irr server 127.0.0.1:4343
+$ ze config set ze.conf bgp policy irr refresh-interval 3600
+set bgp policy irr refresh-interval 3600
+$ ze config set ze.conf bgp peer customer-a session irr as-set AS-TEST
+set bgp peer customer-a session irr as-set AS-TEST
+$ ze config set ze.conf bgp peer customer-a filter import bgp-filter-irr:65001
+set bgp peer customer-a filter import bgp-filter-irr:65001
+
+$ ze cli -c 'show bgp irr | no-more'
+asn: 65001
+as-set: AS-TEST
+status: ok
+ipv4-count: 3
+ipv6-count: 1
+$ ze cli -c 'show bgp irr prefix customer-a | no-more'
+10.0.0.0/24
+10.0.1.0/24
+172.16.0.0/16
+2001:db8::/32
+$ ze cli -c 'show bgp irr check customer-a 10.0.0.0/24 | no-more'
+accepted: true
+matched-entry: 10.0.0.0/24
+$ ze cli -c 'show bgp irr check customer-a 192.168.0.0/24 | no-more'
+accepted: false
+$ ze cli -c 'show bgp adj-rib-in | no-more'
+10.0.0.0/24
+
+The deterministic AS-TEST registry contains 10.0.0.0/24 but not 192.168.0.0/24. Ze builds the import prefix-list, accepts the registered route, rejects the unregistered route, and installs only 10.0.0.0/24 in Adj-RIB-In.
+
+The operational commands use Ze's default text format. Its key/value layout resembles YAML, but YAML is only selected explicitly with `| yaml`.

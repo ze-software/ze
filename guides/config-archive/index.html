@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>Config Archive - Ze</title>
+        <meta name="description" content="Ze documentation: guide/config-archive.md" />
+        <meta property="og:title" content="Config Archive - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/config-archive.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Config Archive - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/config-archive.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/guides/config-archive/" />
+        <meta property="og:url" content="https://ze-software.net/guides/config-archive/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-operate">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1 id="config-archive">Config Archive</h1>
+    <p>Ze archives configuration files to local or remote destinations. Archives can be triggered manually from the CLI, automatically on every editor commit, or on a schedule.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#configuration">Configuration</a>
+<ol>
+<li><a href="#fields">Fields</a></li>
+<li><a href="#location-schemes">Location Schemes</a></li>
+<li><a href="#triggers">Triggers</a></li>
+<li><a href="#filename-tokens">Filename Tokens</a></li>
+</ol></li>
+<li><a href="#system-identity">System Identity</a></li>
+<li><a href="#cli-usage">CLI Usage</a>
+<ol>
+<li><a href="#exit-codes">Exit Codes</a></li>
+</ol></li>
+<li><a href="#editor-integration">Editor Integration</a></li>
+<li><a href="#fan-out-behavior">Fan-Out Behavior</a></li>
+<li><a href="#change-detection">Change Detection</a></li>
+<li><a href="#examples">Examples</a>
+<ol>
+<li><a href="#local-backup-on-every-commit">Local backup on every commit</a></li>
+<li><a href="#daily-offsite-with-change-detection">Daily offsite with change detection</a></li>
+<li><a href="#multiple-destinations">Multiple destinations</a></li>
+<li><a href="#http-receiver">HTTP receiver</a></li>
+</ol></li>
+</ol></nav>
+<!-- source: internal/component/config/archive/archive.go -- archive core logic -->
+<!-- source: internal/component/config/system/yang/ze-system-conf.yang -- system and archive YANG schema -->
+
+<h2 id="configuration">Configuration</h2>
+<p>Archive destinations are named blocks under <code>system { archive { } }</code>. Each block defines one destination with its own trigger, filename format, and timeout.</p>
+<pre><code>system {
+    host router1;
+    domain dc1.example.com;
+
+    archive local-backup {
+        location file:///var/backups/ze;
+        trigger commit;
+    }
+
+    archive offsite {
+        location https://archive.example.com/configs;
+        trigger daily;
+        on-change true;
+        timeout 10s;
+        filename &quot;{host}-{date}-{time}&quot;;
+    }
+}
+</code></pre>
+<!-- source: internal/component/config/system/yang/ze-system-conf.yang -- archive list definition -->
+
+<h3 id="fields">Fields</h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>location</code></td>
+<td>string</td>
+<td>(required)</td>
+<td>Destination URL</td>
+</tr>
+<tr>
+<td><code>trigger</code></td>
+<td>enum</td>
+<td><code>manual</code></td>
+<td>When to archive: <code>commit</code>, <code>manual</code>, <code>daily</code>, <code>hourly</code></td>
+</tr>
+<tr>
+<td><code>filename</code></td>
+<td>string</td>
+<td><code>{name}-{host}-{date}-{time}</code></td>
+<td>Filename format with token substitution</td>
+</tr>
+<tr>
+<td><code>timeout</code></td>
+<td>duration</td>
+<td><code>30s</code></td>
+<td>HTTP upload timeout</td>
+</tr>
+<tr>
+<td><code>on-change</code></td>
+<td>boolean</td>
+<td><code>false</code></td>
+<td>Time-based triggers only: skip if config is unchanged since last archive</td>
+</tr>
+</tbody>
+</table>
+<h3 id="location-schemes">Location Schemes</h3>
+<table>
+<thead>
+<tr>
+<th>Scheme</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>file:///path</code></td>
+<td>Writes to local filesystem. Creates parent directories if needed. Files written with <code>0600</code> permissions.</td>
+</tr>
+<tr>
+<td><code>http://host/path</code></td>
+<td>HTTP POST with <code>text/plain</code> content type. Filename sent in <code>X-Archive-Filename</code> header.</td>
+</tr>
+<tr>
+<td><code>https://host/path</code></td>
+<td>Same as HTTP with TLS.</td>
+</tr>
+</tbody>
+</table>
+<p>Use absolute paths for <code>file://</code> locations. <code>file://./relative</code> does not work correctly in Go's URL parser.</p>
+<!-- source: internal/component/config/archive/archive.go -- ToFile, ToHTTP, ValidateLocation -->
+
+<h3 id="triggers">Triggers</h3>
+<table>
+<thead>
+<tr>
+<th>Trigger</th>
+<th>When it fires</th>
+<th>Fires on boot</th>
+<th>Respects <code>on-change</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>commit</code></td>
+<td>After every editor commit</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td><code>manual</code></td>
+<td><code>ze config archive &lt;name&gt;</code> CLI command</td>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td><code>daily</code></td>
+<td>Every 24 hours from daemon start</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+</tr>
+<tr>
+<td><code>hourly</code></td>
+<td>Every hour from daemon start</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+</tr>
+</tbody>
+</table>
+<p>Time-based triggers (<code>daily</code>, <code>hourly</code>) always fire once on daemon boot regardless of <code>on-change</code>, establishing a baseline. Subsequent ticks respect the <code>on-change</code> flag.</p>
+<!-- source: internal/component/config/archive/archive.go -- TriggerCommit, TriggerManual, TriggerDaily, TriggerHourly -->
+
+<h3 id="filename-tokens">Filename Tokens</h3>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>Value</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>{name}</code></td>
+<td>Config file basename without extension</td>
+<td><code>router</code></td>
+</tr>
+<tr>
+<td><code>{host}</code></td>
+<td><code>system.host</code> value</td>
+<td><code>router1</code></td>
+</tr>
+<tr>
+<td><code>{domain}</code></td>
+<td><code>system.domain</code> value</td>
+<td><code>dc1.example.com</code></td>
+</tr>
+<tr>
+<td><code>{date}</code></td>
+<td>Date as <code>YYYYMMDD</code></td>
+<td><code>20260329</code></td>
+</tr>
+<tr>
+<td><code>{time}</code></td>
+<td>Time as <code>HHMMSS</code></td>
+<td><code>143045</code></td>
+</tr>
+<tr>
+<td><code>{archive}</code></td>
+<td>Archive block name</td>
+<td><code>local-backup</code></td>
+</tr>
+</tbody>
+</table>
+<p>The <code>.conf</code> extension is always appended. With the default format <code>{name}-{host}-{date}-{time}</code>, a file named <code>router.conf</code> on host <code>router1</code> produces <code>router-router1-20260329-143045.conf</code>.</p>
+<!-- source: internal/component/config/archive/archive.go -- FormatFilename, DefaultFilenameFormat -->
+
+<h2 id="system-identity">System Identity</h2>
+<p>The <code>system</code> block provides hostname and domain values used in archive filenames and elsewhere.</p>
+<pre><code>system {
+    host router1;
+    domain dc1.example.com;
+}
+</code></pre>
+<p>Both <code>host</code> and <code>domain</code> support <code>$ENV</code> variable expansion. If the value starts with <code>$</code>, the remainder is looked up as an OS environment variable:</p>
+<pre><code>system {
+    host $HOSTNAME;
+    domain $DOMAIN;
+}
+</code></pre>
+<p>If the environment variable is empty or unset, the literal string is kept (e.g., <code>$HOSTNAME</code> stays as-is). When <code>host</code> is not configured, it defaults to <code>unknown</code>. No <code>os.Hostname()</code> fallback is used.</p>
+<!-- source: internal/component/config/system/system.go -- ExpandEnvValue, ExtractSystemConfig -->
+
+<h2 id="cli-usage">CLI Usage</h2>
+<p>Archive a configuration to a named destination:</p>
+<pre><code class="language-bash">ze config archive &lt;name&gt; &lt;config-file&gt;
+</code></pre>
+<p>The <code>&lt;name&gt;</code> must match a named block under <code>system { archive { } }</code> in the config file. The command parses the config, extracts the named block's settings, and uploads.</p>
+<pre><code class="language-bash">ze config archive local-backup router.conf
+ze config archive offsite router.conf
+</code></pre>
+<p>Reading from stdin is supported with <code>-</code> as the config file:</p>
+<pre><code class="language-bash">cat router.conf | ze config archive local-backup -
+</code></pre>
+<p>If the named block does not exist, the command prints the available archive names and exits with code 1.</p>
+<!-- source: internal/component/config/cli/cmd_archive.go -- cmdArchiveImpl -->
+
+<h3 id="exit-codes">Exit Codes</h3>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>Archive succeeded</td>
+</tr>
+<tr>
+<td>1</td>
+<td>Error (missing arguments, block not found, parse failure, upload failure)</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/config/cli/cmd_archive.go -- exitOK, exitError -->
+
+<h2 id="editor-integration">Editor Integration</h2>
+<p>When the editor starts, it reads archive blocks from the config. Blocks with <code>trigger commit</code> are wired into the editor's commit path. After every successful <code>commit</code>, the editor archives the current config content to all <code>trigger commit</code> destinations.</p>
+<p>Archive errors during commit are non-fatal. The commit succeeds and the editor reports the number of archive failures in the status line. Other trigger types (<code>manual</code>, <code>daily</code>, <code>hourly</code>) are not fired by the editor.</p>
+<!-- source: internal/component/config/cli/cmd_edit.go -- Wire archive notifier -->
+<!-- source: internal/component/cli/model_commands.go -- cmdCommit archive dispatch -->
+
+<p>Archive locations are read from the config at editor startup. Adding an <code>archive</code> block during an editing session requires restarting the editor for it to take effect.</p>
+<h2 id="fan-out-behavior">Fan-Out Behavior</h2>
+<p>All configured destinations are attempted regardless of individual failures. Errors are collected per destination. A failure uploading to one location does not prevent archiving to other locations.</p>
+<!-- source: internal/component/config/archive/archive.go -- NewNotifier -->
+
+<h2 id="change-detection">Change Detection</h2>
+<p>For time-based triggers with <code>on-change true</code>, ze tracks config changes using SHA-256 hashes in memory. Each named archive block has its own hash. The first check after daemon start always reports "changed" (no baseline yet), so the boot archive fires unconditionally. Subsequent checks compare the current config hash against the last archived hash and skip the archive if unchanged.</p>
+<p>The tracker resets on daemon restart since hashes are in-memory only.</p>
+<!-- source: internal/component/config/archive/archive.go -- ChangeTracker, HasChanged -->
+
+<h2 id="examples">Examples</h2>
+<h3 id="local-backup-on-every-commit">Local backup on every commit</h3>
+<pre><code>system {
+    host $HOSTNAME;
+    archive local {
+        location file:///var/backups/ze;
+        trigger commit;
+    }
+}
+</code></pre>
+<p>Every editor <code>commit</code> writes a timestamped copy to <code>/var/backups/ze/</code>.</p>
+<h3 id="daily-offsite-with-change-detection">Daily offsite with change detection</h3>
+<pre><code>system {
+    host router1;
+    domain dc1.example.com;
+    archive offsite {
+        location https://archive.example.com/upload;
+        trigger daily;
+        on-change true;
+        timeout 10s;
+        filename &quot;{host}-{domain}-{date}&quot;;
+    }
+}
+</code></pre>
+<p>On daemon boot, archives immediately. Every 24 hours, archives again only if the config has changed. Filename: <code>router1-dc1.example.com-20260329.conf</code>.</p>
+<h3 id="multiple-destinations">Multiple destinations</h3>
+<pre><code>system {
+    host edge-01;
+    archive local {
+        location file:///var/backups/ze;
+        trigger commit;
+    }
+    archive central {
+        location https://hub.example.com/configs;
+        trigger hourly;
+        on-change true;
+    }
+}
+</code></pre>
+<p>Local backup on every commit. Central server receives a copy hourly (skipped if unchanged). Manual archive to either destination via <code>ze config archive local edge-01.conf</code> or <code>ze config archive central edge-01.conf</code>.</p>
+<h3 id="http-receiver">HTTP receiver</h3>
+<p>The HTTP endpoint receives a POST with:</p>
+<table>
+<thead>
+<tr>
+<th>Header</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Content-Type</code></td>
+<td><code>text/plain</code></td>
+</tr>
+<tr>
+<td><code>X-Archive-Filename</code></td>
+<td>Generated filename (e.g., <code>edge-01-router1-20260329-143045.conf</code>)</td>
+</tr>
+</tbody>
+</table>
+<p>The body is the raw config file content. Any HTTP 2xx response is treated as success.</p>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/quickstart/">
+                        <span class="page-sidebar-link-label">Quickstart</span>
+                        <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create zefs, and start SSH.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../reference/command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

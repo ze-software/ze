@@ -1,0 +1,227 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+    <channel>
+        <title>Ze weekly updates</title>
+        <link>https://ze-software.net/changes/</link>
+        <description>What shipped in Ze each week, in Zeledon's voice, mined from git history.</description>
+        <language>en</language>
+        <lastBuildDate>Mon, 10 Aug 2026 00:00:00 +0000</lastBuildDate>
+        <item>
+            <title>Week of 2026-08-10</title>
+            <link>https://ze-software.net/changes/2026-08-10/</link>
+            <guid isPermaLink="true">https://ze-software.net/changes/2026-08-10/</guid>
+            <pubDate>Mon, 10 Aug 2026 00:00:00 +0000</pubDate>
+            <description>Web and Looking Glass rewrites, remote-triggered blackholing, dynamic BGP peer repairs, authenticated PPPoE and another standards pass shaped the week.</description>
+        </item>        <item>
+            <title>Week of 2026-08-03</title>
+            <link>https://ze-software.net/changes/2026-08-03/</link>
+            <guid isPermaLink="true">https://ze-software.net/changes/2026-08-03/</guid>
+            <pubDate>Mon, 03 Aug 2026 00:00:00 +0000</pubDate>
+            <description>Ze is being checked against the RFCs it implements, one MUST at a time, and that is where most of this week's work came from. BGP took the largest share. IS-IS learned to answer a purge of its own LSP, gNMI stopped serving unauthenticated writes, and web and DNS listeners can now carry an operator's own certificate.</description>
+        </item>        <item>
+            <title>Week of 2026-07-27</title>
+            <link>https://ze-software.net/changes/2026-07-27/</link>
+            <guid isPermaLink="true">https://ze-software.net/changes/2026-07-27/</guid>
+            <pubDate>Mon, 27 Jul 2026 00:00:00 +0000</pubDate>
+            <description>IPsec was the centre of the week. Ze ran against strongSwan and twenty defects came out. EAP-TLS worked with another implementation for the first time. The BGP announce path went from two encoders to one. OSPF, BMP, MRT and the MCP server each took correctness work.</description>
+        </item>        <item>
+            <title>Week of 2026-07-20</title>
+            <link>https://ze-software.net/changes/2026-07-20/</link>
+            <guid isPermaLink="true">https://ze-software.net/changes/2026-07-20/</guid>
+            <pubDate>Mon, 20 Jul 2026 00:00:00 +0000</pubDate>
+            <description>Ze has left Codeberg for GitHub. Beyond the move: protocol correctness, a security triage over the code-scanning backlog, and build-time feature gates that let a deployment ship only the code it runs.</description>
+        </item>        <item>
+            <title>Week of 2026-07-13</title>
+            <link>https://ze-software.net/changes/2026-07-13/</link>
+            <guid isPermaLink="true">https://ze-software.net/changes/2026-07-13/</guid>
+            <pubDate>Mon, 13 Jul 2026 00:00:00 +0000</pubDate>
+            <description>A busy routing week brought VRRP, BGP multipath in the FIB, BMP Loc-RIB monitoring, tighter RPKI policy, and several management-plane security fixes.</description>
+        </item>        <item>
+            <title>Week of 2026-07-06</title>
+            <link>https://ze-software.net/changes/2026-07-06/</link>
+            <guid isPermaLink="true">https://ze-software.net/changes/2026-07-06/</guid>
+            <pubDate>Mon, 06 Jul 2026 00:00:00 +0000</pubDate>
+            <description>A dense week across VPN, DNS, subscriber access, the VPP data plane, the web UI, and observability.</description>
+        </item>        <item>
+            <title>Week of 2026-07-01</title>
+            <link>https://ze-software.net/changes/2026-07-01/</link>
+            <guid isPermaLink="true">https://ze-software.net/changes/2026-07-01/</guid>
+            <pubDate>Wed, 01 Jul 2026 00:00:00 +0000</pubDate>
+            <description>Work landed across DNS, traffic security, routing, and the CLI this week.</description>
+        </item>        <item>
+            <title>Week of 2026-06-25</title>
+            <link>https://ze-software.net/changes/2026-06-25/</link>
+            <guid isPermaLink="true">https://ze-software.net/changes/2026-06-25/</guid>
+            <pubDate>Thu, 25 Jun 2026 00:00:00 +0000</pubDate>
+            <description>Shipped across security, the appliance, routing, and observability this week.</description>
+        </item>        <item>
+            <title>Week of 2026-06-22</title>
+            <link>https://ze-software.net/changes/2026-06-22/</link>
+            <guid isPermaLink="true">https://ze-software.net/changes/2026-06-22/</guid>
+            <pubDate>Mon, 22 Jun 2026 00:00:00 +0000</pubDate>
+            <description>Focused on trimming attack surface and rounding out OSPF.</description>
+        </item>        <item>
+            <title>Week of 2026-06-15</title>
+            <link>https://ze-software.net/changes/2026-06-15/</link>
+            <guid isPermaLink="true">https://ze-software.net/changes/2026-06-15/</guid>
+            <pubDate>Mon, 15 Jun 2026 00:00:00 +0000</pubDate>
+            <description>Native IS-IS landed, MPLS gained fast reroute, and firewall rules can now pull straight from the IRR.</description>
+        </item>        <item>
+            <title>Week of 2026-06-08</title>
+            <link>https://ze-software.net/changes/2026-06-08/</link>
+            <guid isPermaLink="true">https://ze-software.net/changes/2026-06-08/</guid>
+            <pubDate>Mon, 08 Jun 2026 00:00:00 +0000</pubDate>
+            <description>A week of operator-facing polish: the Web Workbench UI, SR-Policy and IRR-based filtering in BGP, per-subscriber CoS, and a talk at LINX.</description>
+        </item>        <item>
+            <title>Week of 2026-06-01</title>
+            <link>https://ze-software.net/changes/2026-06-01/</link>
+            <guid isPermaLink="true">https://ze-software.net/changes/2026-06-01/</guid>
+            <pubDate>Mon, 01 Jun 2026 00:00:00 +0000</pubDate>
+            <description>The CLI grammar rollout finished, MRT tooling arrived, and a handful of quiet-but-important reliability bugs got fixed.</description>
+        </item>        <item>
+            <title>Week of 2026-05-25</title>
+            <link>https://ze-software.net/changes/2026-05-25/</link>
+            <guid isPermaLink="true">https://ze-software.net/changes/2026-05-25/</guid>
+            <pubDate>Mon, 25 May 2026 00:00:00 +0000</pubDate>
+            <description>MPLS grew a full label-switching stack, flow export and gNMI landed, and config commits became transactional.</description>
+        </item>        <item>
+            <title>Week of 2026-05-18</title>
+            <link>https://ze-software.net/changes/2026-05-18/</link>
+            <guid isPermaLink="true">https://ze-software.net/changes/2026-05-18/</guid>
+            <pubDate>Mon, 18 May 2026 00:00:00 +0000</pubDate>
+            <description>A full native IPsec/IKEv2 VPN stack, a route server for IXPs, and a big allocation-hunting pass across the BGP hot path.</description>
+        </item>        <item>
+            <title>Week of 2026-05-11</title>
+            <link>https://ze-software.net/changes/2026-05-11/</link>
+            <guid isPermaLink="true">https://ze-software.net/changes/2026-05-11/</guid>
+            <pubDate>Mon, 11 May 2026 00:00:00 +0000</pubDate>
+            <description>CPE features round out, interface config gets restructured, and RPKI gains ASPA path verification.</description>
+        </item>        <item>
+            <title>Week of 2026-05-04</title>
+            <link>https://ze-software.net/changes/2026-05-04/</link>
+            <guid isPermaLink="true">https://ze-software.net/changes/2026-05-04/</guid>
+            <pubDate>Mon, 04 May 2026 00:00:00 +0000</pubDate>
+            <description>Two major subsystems landed this week: a fleet management tool for appliances, and a PPPoE access concentrator alongside VPP-backed NAT and ACLs.</description>
+        </item>        <item>
+            <title>Week of 2026-04-27</title>
+            <link>https://ze-software.net/changes/2026-04-27/</link>
+            <guid isPermaLink="true">https://ze-software.net/changes/2026-04-27/</guid>
+            <pubDate>Mon, 27 Apr 2026 00:00:00 +0000</pubDate>
+            <description>Interface configuration now rolls back cleanly on failure, the web UI got a dedicated CLI page, and traffic-control state survives more edge cases.</description>
+        </item>        <item>
+            <title>Week of 2026-04-20</title>
+            <link>https://ze-software.net/changes/2026-04-20/</link>
+            <guid isPermaLink="true">https://ze-software.net/changes/2026-04-20/</guid>
+            <pubDate>Mon, 20 Apr 2026 00:00:00 +0000</pubDate>
+            <description>Security hardening, a new diagnostics subsystem, and a redesigned operator web UI headline this week.</description>
+        </item>        <item>
+            <title>Week of 2026-04-13</title>
+            <link>https://ze-software.net/changes/2026-04-13/</link>
+            <guid isPermaLink="true">https://ze-software.net/changes/2026-04-13/</guid>
+            <pubDate>Mon, 13 Apr 2026 00:00:00 +0000</pubDate>
+            <description>A complete L2TP/PPP access stack, TACACS+ and pluggable AAA, a VPP dataplane, and new nftables/tc firewall backends.</description>
+        </item>        <item>
+            <title>Week of 2026-04-06</title>
+            <link>https://ze-software.net/changes/2026-04-06/</link>
+            <guid isPermaLink="true">https://ze-software.net/changes/2026-04-06/</guid>
+            <pubDate>Mon, 06 Apr 2026 00:00:00 +0000</pubDate>
+            <description>A full BFD engine, BGP route reflection and policy filters, a REST/gRPC config editor, WireGuard support, and a talk at Net Manchester.</description>
+        </item>        <item>
+            <title>Week of 2026-03-30</title>
+            <link>https://ze-software.net/changes/2026-03-30/</link>
+            <guid isPermaLink="true">https://ze-software.net/changes/2026-03-30/</guid>
+            <pubDate>Mon, 30 Mar 2026 00:00:00 +0000</pubDate>
+            <description>A full interface management subsystem, offline DNS/RIR resolution tooling, config-driven plugin loading, BGP healthcheck and long-lived graceful restart support, and a Looking Glass overhaul.</description>
+        </item>        <item>
+            <title>Week of 2026-03-23</title>
+            <link>https://ze-software.net/changes/2026-03-23/</link>
+            <guid isPermaLink="true">https://ze-software.net/changes/2026-03-23/</guid>
+            <pubDate>Mon, 23 Mar 2026 00:00:00 +0000</pubDate>
+            <description>A full web interface, fleet management, redistribution filtering, and a stack of routing-protocol correctness work all landed together.</description>
+        </item>        <item>
+            <title>Week of 2026-03-16</title>
+            <link>https://ze-software.net/changes/2026-03-16/</link>
+            <guid isPermaLink="true">https://ze-software.net/changes/2026-03-16/</guid>
+            <pubDate>Mon, 16 Mar 2026 00:00:00 +0000</pubDate>
+            <description>RPKI route origin validation landed in full, alongside a wave of BGP RFC compliance work, CLI polish, and daemon security hardening.</description>
+        </item>        <item>
+            <title>Week of 2026-03-09</title>
+            <link>https://ze-software.net/changes/2026-03-09/</link>
+            <guid isPermaLink="true">https://ze-software.net/changes/2026-03-09/</guid>
+            <pubDate>Mon, 09 Mar 2026 00:00:00 +0000</pubDate>
+            <description>A big week for access, config safety, and BGP session security.</description>
+        </item>        <item>
+            <title>Week of 2026-03-02</title>
+            <link>https://ze-software.net/changes/2026-03-02/</link>
+            <guid isPermaLink="true">https://ze-software.net/changes/2026-03-02/</guid>
+            <pubDate>Mon, 02 Mar 2026 00:00:00 +0000</pubDate>
+            <description>Best-path selection landed, along with outbound route tracking and a round of CLI/editor polish.</description>
+        </item>        <item>
+            <title>Week of 2026-02-23</title>
+            <link>https://ze-software.net/changes/2026-02-23/</link>
+            <guid isPermaLink="true">https://ze-software.net/changes/2026-02-23/</guid>
+            <pubDate>Mon, 23 Feb 2026 00:00:00 +0000</pubDate>
+            <description>A route-server-focused week: reliability fixes for BGP Route Server under load, a new external plugin protocol option, and systematic config validation.</description>
+        </item>        <item>
+            <title>Week of 2026-02-16</title>
+            <link>https://ze-software.net/changes/2026-02-16/</link>
+            <guid isPermaLink="true">https://ze-software.net/changes/2026-02-16/</guid>
+            <pubDate>Mon, 16 Feb 2026 00:00:00 +0000</pubDate>
+            <description>A hard round of route reflector hardening, a live web dashboard for the chaos tool, and a batch of BGP protocol and config improvements.</description>
+        </item>        <item>
+            <title>Week of 2026-02-09</title>
+            <link>https://ze-software.net/changes/2026-02-09/</link>
+            <guid isPermaLink="true">https://ze-software.net/changes/2026-02-09/</guid>
+            <pubDate>Mon, 09 Feb 2026 00:00:00 +0000</pubDate>
+            <description>A new chaos-testing tool, matured config reload, RFC 7606 enforcement, and a hot-path allocation cleanup.</description>
+        </item>        <item>
+            <title>Week of 2026-02-02</title>
+            <link>https://ze-software.net/changes/2026-02-02/</link>
+            <guid isPermaLink="true">https://ze-software.net/changes/2026-02-02/</guid>
+            <pubDate>Mon, 02 Feb 2026 00:00:00 +0000</pubDate>
+            <description>Mostly spent on the config editor, a new capability, and a round of decode/RIB bug fixes.</description>
+        </item>        <item>
+            <title>Week of 2026-01-26</title>
+            <link>https://ze-software.net/changes/2026-01-26/</link>
+            <guid isPermaLink="true">https://ze-software.net/changes/2026-01-26/</guid>
+            <pubDate>Mon, 26 Jan 2026 00:00:00 +0000</pubDate>
+            <description>Config work, the ExaBGP migration path, and correctness fixes across the wire.</description>
+        </item>        <item>
+            <title>Week of 2026-01-19</title>
+            <link>https://ze-software.net/changes/2026-01-19/</link>
+            <guid isPermaLink="true">https://ze-software.net/changes/2026-01-19/</guid>
+            <pubDate>Mon, 19 Jan 2026 00:00:00 +0000</pubDate>
+            <description>A big architecture week: Ze split into a hub process and a BGP child process, gained live config reload, and got a documented plugin SDK.</description>
+        </item>        <item>
+            <title>Week of 2026-01-12</title>
+            <link>https://ze-software.net/changes/2026-01-12/</link>
+            <guid isPermaLink="true">https://ze-software.net/changes/2026-01-12/</guid>
+            <pubDate>Mon, 12 Jan 2026 00:00:00 +0000</pubDate>
+            <description>A week focused on Graceful Restart, ExaBGP migration tooling, and logging.</description>
+        </item>        <item>
+            <title>Week of 2026-01-05</title>
+            <link>https://ze-software.net/changes/2026-01-05/</link>
+            <guid isPermaLink="true">https://ze-software.net/changes/2026-01-05/</guid>
+            <pubDate>Mon, 05 Jan 2026 00:00:00 +0000</pubDate>
+            <description>This week rounded out route-refresh, ADD-PATH and VPN/labeled-unicast support in the plugin API, alongside a batch of BGP correctness fixes.</description>
+        </item>        <item>
+            <title>Week of 2025-12-29</title>
+            <link>https://ze-software.net/changes/2025-12-29/</link>
+            <guid isPermaLink="true">https://ze-software.net/changes/2025-12-29/</guid>
+            <pubDate>Mon, 29 Dec 2025 00:00:00 +0000</pubDate>
+            <description>Route-family coverage rounded out (labeled-unicast, MPLS VPN, MUP, route reflection), a batch of protocol-correctness fixes, and a security-relevant change to how Ze listens for BGP sessions.</description>
+        </item>        <item>
+            <title>Week of 2025-12-22</title>
+            <link>https://ze-software.net/changes/2025-12-22/</link>
+            <guid isPermaLink="true">https://ze-software.net/changes/2025-12-22/</guid>
+            <pubDate>Mon, 22 Dec 2025 00:00:00 +0000</pubDate>
+            <description>Work on the BGP engine itself: route encoding correctness, session robustness, and a first real API surface for driving peers programmatically.</description>
+        </item>        <item>
+            <title>Week of 2025-12-15</title>
+            <link>https://ze-software.net/changes/2025-12-15/</link>
+            <guid isPermaLink="true">https://ze-software.net/changes/2025-12-15/</guid>
+            <pubDate>Mon, 15 Dec 2025 00:00:00 +0000</pubDate>
+            <description>The first tracked week of development on Ze. In seven days the BGP engine went from nothing to a config-driven daemon that speaks the wire protocol, holds a RIB, and tests itself against ExaBGP.</description>
+        </item>
+    </channel>
+</rss>

@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>Policy Routing - Ze</title>
+        <meta name="description" content="Ze documentation: guide/policy-routing.md" />
+        <meta property="og:title" content="Policy Routing - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/policy-routing.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Policy Routing - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/policy-routing.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/guides/policy-routing/" />
+        <meta property="og:url" content="https://ze-software.net/guides/policy-routing/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-services">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1 id="policy-routing">Policy Routing</h1>
+    <p>Ze supports policy-based routing (PBR) to steer traffic through alternate
+routing tables or next-hops based on L3/L4 match criteria. This is used
+for content filtering (Surfprotect), split tunneling, and traffic
+engineering scenarios where destination-based routing is insufficient.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#configuration">Configuration</a></li>
+<li><a href="#interface-binding">Interface binding</a></li>
+<li><a href="#match-criteria-from-block">Match criteria (from block)</a></li>
+<li><a href="#actions-then-block">Actions (then block)</a>
+<ol>
+<li><a href="#table-action">table action</a></li>
+<li><a href="#next-hop-action">next-hop action</a></li>
+</ol></li>
+<li><a href="#rule-ordering">Rule ordering</a></li>
+<li><a href="#reserved-ranges">Reserved ranges</a></li>
+<li><a href="#cli">CLI</a></li>
+<li><a href="#nftables-internals">nftables internals</a></li>
+<li><a href="#dependencies">Dependencies</a></li>
+</ol></nav>
+<p>Under the hood, ze uses nftables packet marking with kernel ip rules.
+Each matching packet gets an fwmark; a kernel ip rule maps that mark to
+the target routing table.</p>
+<h2 id="configuration">Configuration</h2>
+<p>Set references (<code>@DstBypass</code>, <code>@SrcBypass</code>) must be defined in the
+<code>firewall</code> config section. See <a href="../firewall/">Firewall Guide</a> for set
+syntax.</p>
+<pre><code>policy {
+    route surfprotect {
+        interface &quot;l2tp*&quot;;
+
+        rule bypass-dst {
+            from {
+                destination-address @DstBypass;
+                destination-port 80,443;
+                protocol tcp;
+            }
+            then {
+                accept;
+            }
+        }
+        rule bypass-src {
+            from {
+                destination-port 80,443;
+                protocol tcp;
+                source-address @SrcBypass;
+            }
+            then {
+                accept;
+            }
+        }
+        rule block-quic {
+            order 20;
+            from {
+                destination-address 0.0.0.0/0;
+                destination-port 80,443;
+                protocol udp;
+            }
+            then {
+                drop;
+            }
+        }
+        rule surfprotect-syn {
+            order 30;
+            from {
+                destination-address 0.0.0.0/0;
+                destination-port 80,443;
+                protocol tcp;
+                tcp-flags syn;
+            }
+            then {
+                table 100;
+                tcp-mss 1436;
+            }
+        }
+        rule surfprotect-tcp {
+            order 40;
+            from {
+                destination-address 0.0.0.0/0;
+                destination-port 80,443;
+                protocol tcp;
+            }
+            then {
+                table 100;
+            }
+        }
+    }
+}
+</code></pre>
+<p>Table 100 must be populated separately via static routes. Static routes
+reference tables by name, so define a named routing table mapping to kernel
+table ID 100 and add the route under it:</p>
+<pre><code>routing-table {
+    table pbr {
+        id 100
+    }
+}
+
+static {
+    table pbr {
+        route 0.0.0.0/0 {
+            next { interface tun100 { } }
+        }
+    }
+}
+</code></pre>
+<h2 id="interface-binding">Interface binding</h2>
+<p>Each policy route binds to one or more ingress interfaces. A trailing
+<code>*</code> enables wildcard matching (e.g., <code>l2tp*</code> matches all L2TP
+interfaces). The interface match is prepended to every rule in the
+policy.</p>
+<pre><code>policy {
+    route example {
+        interface &quot;l2tp*&quot;;
+        interface eth1;
+        ...
+    }
+}
+</code></pre>
+<h2 id="match-criteria-from-block">Match criteria (from block)</h2>
+<table>
+<thead>
+<tr>
+<th>Keyword</th>
+<th>Description</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>source-address</code></td>
+<td>Source IP prefix or <code>@set</code> reference</td>
+<td><code>@AllowedSrc</code>. <span class="ev-src"><span class="ev-ref"><code>10.0.0.0/8</code></span></span></td>
+</tr>
+<tr>
+<td><code>destination-address</code></td>
+<td>Destination IP prefix or <code>@set</code> reference</td>
+<td><code>@DstBypass</code>. <span class="ev-src"><span class="ev-ref"><code>0.0.0.0/0</code></span></span></td>
+</tr>
+<tr>
+<td><code>source-port</code></td>
+<td>Source port or port range</td>
+<td><code>1024-65535</code></td>
+</tr>
+<tr>
+<td><code>destination-port</code></td>
+<td>Destination port, range, or list</td>
+<td><code>80,443</code></td>
+</tr>
+<tr>
+<td><code>protocol</code></td>
+<td>L4 protocol</td>
+<td><code>tcp</code>, <code>udp</code>, <code>icmp</code></td>
+</tr>
+<tr>
+<td><code>tcp-flags</code></td>
+<td>Comma-separated TCP flags</td>
+<td><code>syn</code>, <code>syn,ack</code></td>
+</tr>
+</tbody>
+</table>
+<p>Set references (<code>@name</code>) resolve against firewall sets defined in the
+firewall config section.</p>
+<p>TCP flag names: <code>fin</code>, <code>syn</code>, <code>rst</code>, <code>psh</code>, <code>ack</code>, <code>urg</code>.</p>
+<h2 id="actions-then-block">Actions (then block)</h2>
+<table>
+<thead>
+<tr>
+<th>Keyword</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>accept</code></td>
+<td>Skip this policy, packet routes normally</td>
+</tr>
+<tr>
+<td><code>drop</code></td>
+<td>Drop the packet</td>
+</tr>
+<tr>
+<td><code>table N</code></td>
+<td>Route via kernel table N (user must populate the table)</td>
+</tr>
+<tr>
+<td><code>next-hop IP</code></td>
+<td>Route via the specified next-hop (table auto-managed)</td>
+</tr>
+<tr>
+<td><code>tcp-mss N</code></td>
+<td>Clamp TCP MSS to N bytes (combinable with <code>table</code> or <code>next-hop</code>)</td>
+</tr>
+</tbody>
+</table>
+<p>Only one terminal action (<code>accept</code>, <code>drop</code>, <code>table</code>, or <code>next-hop</code>) is
+allowed per rule. <code>tcp-mss</code> is a modifier and can be combined with a
+terminal action.</p>
+<h3 id="table-action">table action</h3>
+<p><code>then { table 100; }</code> internally allocates an fwmark from the reserved
+range 0x50000-0x5FFFF, adds a SetMark action to the nftables rule, and
+creates a kernel ip rule mapping that fwmark to table 100. The user
+must populate table 100 (e.g., via static routes).</p>
+<h3 id="next-hop-action">next-hop action</h3>
+<p><code>then { next-hop 10.0.0.1; }</code> works like <code>table</code> but also auto-manages
+the kernel routing table. Ze allocates a table from range 2000-2999,
+adds a default route via the specified next-hop, and creates the fwmark
+and ip rule. Multiple rules targeting the same next-hop share a single
+auto-allocated table. The table and routes are cleaned up on config
+reload or shutdown.</p>
+<h2 id="rule-ordering">Rule ordering</h2>
+<p>Rules are evaluated in <code>order</code> value order (lower first). Rules with
+equal order are sorted alphabetically by name. If <code>order</code> is omitted,
+it defaults to 0.</p>
+<pre><code>rule first  { order 10; ... }
+rule second { order 20; ... }
+rule third  { order 30; ... }
+</code></pre>
+<h2 id="reserved-ranges">Reserved ranges</h2>
+<p>Ze reserves these ranges to prevent collisions:</p>
+<table>
+<thead>
+<tr>
+<th>Range</th>
+<th>Owner</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Tables 1-999</td>
+<td>user</td>
+<td>Explicit table IDs in config</td>
+</tr>
+<tr>
+<td>Tables 253-255</td>
+<td>kernel</td>
+<td>default (253), main (254), local (255)</td>
+</tr>
+<tr>
+<td>Tables 1000-1999</td>
+<td>ze VRF</td>
+<td>Auto-allocated VRF tables</td>
+</tr>
+<tr>
+<td>Tables 2000-2999</td>
+<td>ze policy-routing</td>
+<td>Auto-allocated next-hop tables</td>
+</tr>
+<tr>
+<td>Tables 3000 and above</td>
+<td>user</td>
+<td>Explicit table IDs in config</td>
+</tr>
+<tr>
+<td>fwmarks 0x50000-0x5FFFF</td>
+<td>ze policy-routing</td>
+<td>Packet marks for table steering</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/plugins/policyroute/yang/ze-policyroute-conf.yang — leaf table range "1..999|3000..max" -->
+<!-- source: internal/plugins/policyroute/marks.go — autoTableBase/autoTableMax 2000-2999 -->
+
+<p>User-specified table IDs in the 1000-2999 range are rejected at config
+validation time, as are 0 and the kernel tables 253-255.</p>
+<p>The upper bound is the kernel's own: table IDs run to 4294967295. A 32-bit
+build cannot program an ID above 2147483647 (the netlink bindings carry a
+table ID in a machine int), and rejects it at config validation rather than
+installing a rule that would silently select no table. Ze's released targets
+are 64-bit, where the whole range is available.</p>
+<!-- source: internal/plugins/policyroute/config.go — validateActionTable, maxEncodableTable -->
+<!-- source: internal/core/routingtable/registry.go — validateTableID, maxEncodableTableID -->
+
+<h2 id="cli">CLI</h2>
+<pre><code>ze&gt; show policy routes
+</code></pre>
+<p>Returns JSON with all configured policy routes, their interface
+bindings, rules, and actions.</p>
+<h2 id="nftables-internals">nftables internals</h2>
+<p>All policy routes are merged into a single nftables table <code>ze_pr</code> with
+family <code>inet</code>, chain type <code>route</code>, hook <code>prerouting</code>, and priority -150.
+Term names follow the pattern <code>policyname-rulename</code>. The table is
+managed through the firewall backend, sharing the same Apply
+reconciliation used by the firewall component.</p>
+<h2 id="dependencies">Dependencies</h2>
+<p>The policy-routes plugin depends on the firewall plugin. Both must be
+available for policy routing to function. The firewall backend (nft) is
+loaded by the firewall plugin; policy routing registers its tables with
+the shared firewall table registry.</p>
+<p>Auto-managed routes use protocol <code>ze-policy-route</code> (RTPROT 252).</p>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/quickstart/">
+                        <span class="page-sidebar-link-label">Quickstart</span>
+                        <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create zefs, and start SSH.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../reference/command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

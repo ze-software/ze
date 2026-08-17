@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>Guides - Ze</title>
+        <meta name="description" content="Task-oriented installation, configuration, operation, and troubleshooting guides." />
+        <meta property="og:title" content="Guides - Ze" />
+        <meta property="og:description" content="Task-oriented installation, configuration, operation, and troubleshooting guides." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Guides - Ze" />
+        <meta name="twitter:description" content="Task-oriented installation, configuration, operation, and troubleshooting guides." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/guides/" />
+        <meta property="og:url" content="https://ze-software.net/guides/" />
+        <link rel="stylesheet" href="../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../assets/header.html" data-site-root="../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../#top">Ze</a>
+                    <a href="../#top">Home</a>
+                    <a href="../docs/">Docs</a>
+                    <a href="../features/">Features</a>
+                    <a href="../compare/">Compare</a>
+                    <a href="../roadmap/">Roadmap</a>
+                    <a href="../changes/">Changes</a>
+                    <a href="../faq/">FAQ</a>
+                    <a href="../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-operate">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guides</span>
+    <h1 id="guides">Guides</h1>
+    <p>Use these pages to install Ze, configure a network role, operate the system, and diagnose problems. Feature pages explain what Ze can do. Guides explain how to do it.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#start-and-install">Start and install</a></li>
+<li><a href="#routing">Routing</a></li>
+<li><a href="#services-and-security">Services and security</a></li>
+<li><a href="#interfaces-and-automation">Interfaces and automation</a></li>
+<li><a href="#diagnose-and-recover">Diagnose and recover</a></li>
+</ol></nav>
+<h2 id="start-and-install">Start and install</h2>
+<ul>
+<li><a href="quickstart/">Quickstart</a>: bring up two BGP peers quickly.</li>
+<li><a href="ze-install/">Install Ze</a>: install the daemon or provision an appliance.</li>
+<li><a href="ubuntu-build-install/">Build and install on Ubuntu</a>: compile, install, create zefs, and start SSH.</li>
+<li><a href="cli/">CLI tour</a>: use interactive, one-shot, pipe, and runtime commands.</li>
+<li><a href="configuration-model/">Configuration</a>: understand the hierarchical configuration format.</li>
+<li><a href="lifecycle/">Lifecycle and rollback</a>: reload, restart, archive, update, and recover.</li>
+</ul>
+<h2 id="routing">Routing</h2>
+<ul>
+<li><a href="bgp-peering/">BGP peering</a>: configure peers, groups, families, and capabilities.</li>
+<li><a href="bgp-policy/">BGP policy</a>: build import, export, validation, and redistribution policy.</li>
+<li><a href="bgp-resilience/">BGP resilience</a>: configure refresh, graceful restart, persistence, reflection, and multipath.</li>
+<li><a href="ospf/">OSPF</a>, <a href="isis/">IS-IS</a>, and <a href="static-routes/">static routes</a>: bring routing protocols online.</li>
+<li><a href="bfd/">BFD</a>: configure fast failure detection.</li>
+<li><a href="mpls/">MPLS</a> and <a href="rsvp-te/">RSVP-TE</a>: configure label switching and traffic engineering.</li>
+</ul>
+<h2 id="services-and-security">Services and security</h2>
+<ul>
+<li><a href="firewall/">Firewall and policy routing</a>: protect and steer traffic.</li>
+<li><a href="flowspec-protected-router/">FlowSpec protected router</a>: translate FlowSpec into local protection.</li>
+<li><a href="ddos-mitigation/">DDoS mitigation</a>: detect floods and respond locally or upstream.</li>
+<li><a href="pppoe/">PPPoE</a>, <a href="l2tp/">L2TP</a>, and <a href="ipsec/">IPsec</a>: configure access and tunnel services.</li>
+<li><a href="authentication/">Authentication</a>, <a href="authorization/">authorization</a>, <a href="radius/">RADIUS</a>, and <a href="tacacs/">TACACS+</a>: secure operator access.</li>
+</ul>
+<h2 id="interfaces-and-automation">Interfaces and automation</h2>
+<ul>
+<li><a href="api/">REST and gRPC</a>: use authenticated management APIs.</li>
+<li><a href="gnmi/">gNMI</a>: use Capabilities, Get, Set, and Subscribe.</li>
+<li><a href="web-interface/">Web interface</a>: edit configuration and run commands in the browser.</li>
+<li><a href="mcp/overview/">MCP</a>: connect tools, resources, and remote clients.</li>
+<li><a href="fleet-config/">Fleet configuration</a>: distribute configuration to managed nodes.</li>
+</ul>
+<h2 id="diagnose-and-recover">Diagnose and recover</h2>
+<ul>
+<li><a href="system-readiness/">System readiness</a>: run offline doctor checks and inspect runtime health.</li>
+<li><a href="production-diagnostics/">Production diagnostics</a>: start from symptoms and debug safely.</li>
+<li><a href="monitoring/">Monitoring</a>: configure flow export, MRT, and operational checks.</li>
+<li><a href="debugging-tools/">Debugging tools</a>: trace netlink, capture packets, and inspect state.</li>
+<li><a href="logging/">Logging</a> and <a href="audit/">audit</a>: inspect operational and security history.</li>
+</ul>
+<p>Use <a href="../search/">site search</a> for a specific protocol, command, or configuration leaf.</p>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../guides/quickstart/">
+                        <span class="page-sidebar-link-label">Quickstart</span>
+                        <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../guides/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create zefs, and start SSH.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../guides/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../reference/command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

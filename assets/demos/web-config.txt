@@ -1,0 +1,12 @@
+Ze web configuration demo
+
+1. Open the local Ze HTTPS interface.
+2. Sign in as the local administrator.
+3. Open System / Identity in configuration mode.
+4. Change the hostname from ze-demo to edge-demo.
+5. Save the draft and open Review & Commit.
+6. Verify the diff contains `host edge-demo`.
+7. Confirm the commit.
+8. Reload the setting and verify the active hostname is edge-demo.
+
+Expected result: Ze commits the browser user's isolated draft and the active YANG-backed hostname reads `edge-demo`.

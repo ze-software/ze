@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <channel>
+        <title>Ze blog</title>
+        <link>https://ze-software.net/blog/</link>
+        <description>Editorial articles on Ze.</description>
+        <language>en</language>
+        <lastBuildDate>Mon, 10 Aug 2026 00:00:00 +0000</lastBuildDate>
+        <item>
+            <title>AI coding has not had its Rails moment</title>
+            <link>https://ze-software.net/blog/ai-coding-has-not-had-its-rails-moment/</link>
+            <guid isPermaLink="true">https://ze-software.net/blog/ai-coding-has-not-had-its-rails-moment/</guid>
+            <pubDate>Mon, 10 Aug 2026 00:00:00 +0000</pubDate>
+            <dc:creator>Thomas Mangin</dc:creator>
+            <description>Harnesses and models improve every few weeks, and the repositories they work in still explain nothing about themselves. Rails solved that once for people, and nothing equivalent has arrived for agents.</description>
+        </item>        <item>
+            <title>The repository is half the AI harness</title>
+            <link>https://ze-software.net/blog/the-repository-is-the-ai-harness/</link>
+            <guid isPermaLink="true">https://ze-software.net/blog/the-repository-is-the-ai-harness/</guid>
+            <pubDate>Sun, 09 Aug 2026 00:00:00 +0000</pubDate>
+            <dc:creator>Thomas Mangin</dc:creator>
+            <description>AI coding needs more than a capable model. The repository must carry its architecture, relationships, tests and checks in a form the agent can discover and the project can enforce.</description>
+        </item>        <item>
+            <title>The proof is the expensive part</title>
+            <link>https://ze-software.net/blog/the-proof-is-the-expensive-part/</link>
+            <guid isPermaLink="true">https://ze-software.net/blog/the-proof-is-the-expensive-part/</guid>
+            <pubDate>Thu, 06 Aug 2026 00:00:00 +0000</pubDate>
+            <dc:creator>Thomas Mangin</dc:creator>
+            <description>Ze uses AI to write code, but an RFC claim only counts after the standard, the tests, the public gap list and the commit process all agree.</description>
+        </item>        <item>
+            <title>How Ze keeps BGP traffic away from the garbage collector</title>
+            <link>https://ze-software.net/blog/how-ze-manages-memory/</link>
+            <guid isPermaLink="true">https://ze-software.net/blog/how-ze-manages-memory/</guid>
+            <pubDate>Tue, 04 Aug 2026 00:00:00 +0000</pubDate>
+            <dc:creator>Thomas Mangin</dc:creator>
+            <description>How Ze reuses buffers, borrows wire data and limits copies so repeated routing work creates little garbage.</description>
+        </item>        <item>
+            <title>One BGP UPDATE, many peers</title>
+            <link>https://ze-software.net/blog/one-bgp-update-many-peers/</link>
+            <guid isPermaLink="true">https://ze-software.net/blog/one-bgp-update-many-peers/</guid>
+            <pubDate>Tue, 04 Aug 2026 00:00:00 +0000</pubDate>
+            <dc:creator>Thomas Mangin</dc:creator>
+            <description>How Ze completes each peer's policy decision before encoding its UPDATE, then reuses an earlier encoding when the complete result matches.</description>
+        </item>        <item>
+            <title>AI slop is the wrong test</title>
+            <link>https://ze-software.net/blog/ai-slop-is-the-wrong-test/</link>
+            <guid isPermaLink="true">https://ze-software.net/blog/ai-slop-is-the-wrong-test/</guid>
+            <pubDate>Mon, 03 Aug 2026 00:00:00 +0000</pubDate>
+            <dc:creator>Thomas Mangin</dc:creator>
+            <description>Ze is an AI-written NOS. The useful question is whether the code is constrained, reviewed, tested and measured.</description>
+        </item>
+    </channel>
+</rss>

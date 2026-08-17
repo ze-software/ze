@@ -1,0 +1,947 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>Ze System Architecture - Ze</title>
+        <meta name="description" content="Ze documentation: architecture/system-architecture.md" />
+        <meta property="og:title" content="Ze System Architecture - Ze" />
+        <meta property="og:description" content="Ze documentation: architecture/system-architecture.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Ze System Architecture - Ze" />
+        <meta name="twitter:description" content="Ze documentation: architecture/system-architecture.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/architecture/system-architecture/" />
+        <meta property="og:url" content="https://ze-software.net/architecture/system-architecture/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" tabindex="-1">
+            <section class="md-content reveal cat-platform">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Architecture</span>
+    <h1 id="ze-system-architecture">Ze System Architecture</h1>
+    <p><strong>Status:</strong> Superseded / legacy design note (kept for background only)
+<strong>Last Updated:</strong> 2026-01-30
+<strong>Purpose:</strong> Describes Ze's hub/orchestrator mode with separate plugin processes</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#overview">Overview</a>
+<ol>
+<li><a href="#request-metadata-ownership">Request Metadata Ownership</a></li>
+</ol></li>
+<li><a href="#running-ze">Running Ze</a>
+<ol>
+<li><a href="#basic-usage">Basic Usage</a></li>
+<li><a href="#process-hierarchy">Process Hierarchy</a></li>
+</ol></li>
+<li><a href="#configuration-file">Configuration File</a>
+<ol>
+<li><a href="#section-1-environment">Section 1: Environment</a></li>
+<li><a href="#section-2-plugin-declarations">Section 2: Plugin Declarations</a></li>
+<li><a href="#section-3-plugin-configuration">Section 3: Plugin Configuration</a></li>
+</ol></li>
+<li><a href="#plugin-types">Plugin Types</a>
+<ol>
+<li><a href="#built-in-plugins">Built-in Plugins</a></li>
+<li><a href="#third-party-plugins">Third-Party Plugins</a></li>
+<li><a href="#augmenting-plugins">Augmenting Plugins</a></li>
+<li><a href="#gr-plugin-coordination">GR Plugin Coordination</a></li>
+</ol></li>
+<li><a href="#cli-commands">CLI Commands</a>
+<ol>
+<li><a href="#command-routing">Command Routing</a></li>
+<li><a href="#how-cli-works">How CLI Works</a></li>
+<li><a href="#system-commands">System Commands</a></li>
+</ol></li>
+<li><a href="#event-flow">Event Flow</a>
+<ol>
+<li><a href="#event-subscription">Event Subscription</a></li>
+<li><a href="#event-publishing">Event Publishing</a></li>
+<li><a href="#event-routing">Event Routing</a></li>
+</ol></li>
+<li><a href="#startup-sequence">Startup Sequence</a>
+<ol>
+<li><a href="#10-step-protocol">10-Step Protocol</a></li>
+<li><a href="#5-stage-protocol-per-plugin">5-Stage Protocol (Per Plugin)</a></li>
+</ol></li>
+<li><a href="#config-notification-to-plugins">Config Notification to Plugins</a>
+<ol>
+<li><a href="#pull-model-hub-never-pushes">Pull Model (Hub Never Pushes)</a></li>
+<li><a href="#on-demand-query">On-Demand Query</a></li>
+</ol></li>
+<li><a href="#liveedit-configuration-vyos-style">Live/Edit Configuration (VyOS-style)</a>
+<ol>
+<li><a href="#commit-workflow">Commit Workflow</a></li>
+<li><a href="#plugin-diff-responsibility">Plugin Diff Responsibility</a></li>
+<li><a href="#shared-diff-library">Shared Diff Library</a></li>
+</ol></li>
+<li><a href="#yang-schema">YANG Schema</a>
+<ol>
+<li><a href="#what-yang-provides">What YANG Provides</a></li>
+<li><a href="#schema-registration">Schema Registration</a></li>
+<li><a href="#existing-yang-modules">Existing YANG Modules</a></li>
+<li><a href="#yang-augment-merging">YANG Augment Merging</a></li>
+</ol></li>
+<li><a href="#package-structure">Package Structure</a></li>
+<li><a href="#signals">Signals</a>
+<ol>
+<li><a href="#config-reload-sighup">Config Reload (SIGHUP)</a></li>
+</ol></li>
+<li><a href="#benefits-of-this-architecture">Benefits of This Architecture</a></li>
+<li><a href="#security-model">Security Model</a>
+<ol>
+<li><a href="#privilege-dropping-exabgp-pattern">Privilege Dropping (ExaBGP Pattern)</a></li>
+<li><a href="#plugin-tls-transport">Plugin TLS Transport</a></li>
+<li><a href="#plugin-process-isolation">Plugin Process Isolation</a></li>
+</ol></li>
+<li><a href="#example-session">Example Session</a></li>
+<li><a href="#related-documents">Related Documents</a></li>
+</ol></nav>
+<hr />
+<blockquote>
+<p><strong>Legacy document.</strong> The hub/orchestrator concepts below are still broadly
+accurate, but several concrete details have changed and its examples no longer
+match the shipping system:</p>
+<ul>
+<li>The daemon is started with <code>ze start &lt;config-file&gt;</code>. The bare <code>ze &lt;config-file&gt;</code>
+  launch form was removed from the CLI; the examples below have been corrected to
+  the surviving form.</li>
+<li>The <code>local-as</code> / <code>peer-as</code> / <code>peer-group</code> config grammar shown here has been
+  removed; local AS is now <code>session { asn { local ... } }</code> and peer groups are
+  <code>group</code> blocks (see <a href="../../reference/deprecations/">configuration syntax changes</a>
+  and <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/config/syntax.md" target="_blank" rel="noopener">config syntax</a>).</li>
+<li>Shipped plugins (bgp, rib, gr) run in-process today rather than being forked
+  as separate <code>external ... { run "ze bgp" }</code> processes; the <code>external</code> block
+  is for third-party out-of-process plugins.</li>
+<li>The source tree is organised under <code>internal/core</code>, <code>internal/component</code>, and
+  <code>internal/plugins</code>; there is no <code>internal/bgp/...</code> layout as sketched below.</li>
+</ul>
+<p>For the current architecture see <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/core-design.md" target="_blank" rel="noopener">Core Design</a> (canonical) and
+<a href="https://github.com/ze-software/ze/blob/main/docs/architecture/hub-architecture.md" target="_blank" rel="noopener">Hub Architecture</a>.</p>
+</blockquote>
+<hr />
+<h2 id="overview">Overview</h2>
+<p>Ze supports two operating modes:</p>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>Trigger</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>In-process</strong></td>
+<td><code>bgp { }</code> block in config</td>
+<td>BGP daemon with in-process plugins (simpler, default)</td>
+</tr>
+<tr>
+<td><strong>Hub mode</strong></td>
+<td><code>plugin { external ... }</code> block</td>
+<td>Hub orchestrates separate plugin processes (this doc)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>This document describes Hub mode.</strong></p>
+<p>In hub mode, Ze runs as a <strong>hub process</strong> (<code>ze</code>) that orchestrates separate <strong>plugin processes</strong> communicating via pipes. This architecture enables:</p>
+<!-- source: internal/component/plugin/server/ -- plugin server orchestration -->
+
+<ul>
+<li>Language freedom (plugins can be Go, Python, Rust, etc.)</li>
+<li>Crash isolation (BGP crash doesn't kill RIB)</li>
+<li>Independent development and testing</li>
+<li>Third-party extensibility</li>
+</ul>
+<h3 id="request-metadata-ownership">Request Metadata Ownership</h3>
+<p>Request-scoped metadata is owned by the transport wiring, not by command
+payloads. REST, gRPC, SSH exec, and SSH interactive sessions extract trusted
+caller information (<code>username</code>, <code>remoteAddr</code>, request cancellation context)
+at the edge, then pass it through the shared API engine or dispatcher.</p>
+<p>The hub composition root converts that metadata into
+<code>pluginserver.CommandContext</code>; builtin handlers, subsystem dispatch, and plugin
+RPC routing derive child contexts from it. Plugin JSON payloads and command
+strings do not carry or override identity metadata.</p>
+<pre><code>                           ┌─────────────────────┐
+                           │ ze start config.conf│
+                           │      (hub)          │
+                           └──────────┬──────────┘
+                                      │
+           ┌──────────────────────────┼──────────────────────────┐
+           │                          │                          │
+           ▼                          ▼                          ▼
+    ┌─────────────┐           ┌─────────────┐           ┌─────────────┐
+    │   ze bgp    │           │   ze rib    │           │  ze gr      │
+    │  (process)  │           │  (process)  │           │  (process)  │
+    └─────────────┘           └─────────────┘           └─────────────┘
+</code></pre>
+<hr />
+<h2 id="running-ze">Running Ze</h2>
+<h3 id="basic-usage">Basic Usage</h3>
+<pre><code class="language-bash"># Start Ze with a config file
+ze start config.conf
+
+# The hub process:
+# 1. Parses the config file
+# 2. Forks plugin processes (ze bgp, ze rib, etc.)
+# 3. Routes config to each plugin
+# 4. Coordinates startup via 5-stage protocol
+# 5. Routes commands and events between plugins
+</code></pre>
+<h3 id="process-hierarchy">Process Hierarchy</h3>
+<p>When running, you'll see these processes:</p>
+<pre><code>$ ps aux | grep ze
+user  1234  ze start config.conf    # Hub process
+user  1235  ze bgp                  # BGP protocol handler
+user  1236  ze rib                  # Adj-RIB tracking
+user  1237  ze gr                   # Graceful Restart
+user  1238  /opt/acme/plugin        # Third-party plugin
+</code></pre>
+<hr />
+<h2 id="configuration-file">Configuration File</h2>
+<p>The hub parses the entire config file (like VyOS):
+1. Parse config syntax
+2. Validate against combined YANG schema (all plugins)
+3. Convert to internal map-of-maps structure
+4. Route JSON subtrees to plugins based on handler registration</p>
+<p>The config file has three sections, parsed in order:</p>
+<h3 id="section-1-environment">Section 1: Environment</h3>
+<p>Global settings applied before forking processes. The block is <code>environment</code>,
+modeled in <code>ze-hub-conf.yang</code> like every other top-level block.</p>
+<pre><code>environment {
+    log {
+        level debug
+    }
+    daemon {
+        pid /var/run/ze.pid
+    }
+}
+</code></pre>
+<p>An older <code>env { }</code> block existed for a second runtime that parsed the config
+itself. That runtime is deleted, and <code>env { }</code> is not a top-level keyword: it
+fails <code>ze config validate</code> and it fails at boot, with the same message.</p>
+<h3 id="section-2-plugin-declarations">Section 2: Plugin Declarations</h3>
+<p>Which processes to fork. Uses YANG schema from <code>ze-plugin-conf.yang</code>.</p>
+<pre><code>plugin {
+    # Built-in plugins (shipped with ze)
+    external bgp {
+        run &quot;ze bgp&quot;;
+    }
+    external rib {
+        run &quot;ze rib&quot;;
+    }
+    external gr {
+        run &quot;ze gr&quot;;
+    }
+
+    # Third-party plugins
+    external acme {
+        run &quot;/opt/acme/monitor-plugin&quot;;
+        respawn true;           # Restart if crashes
+        timeout 60;             # Startup timeout
+    }
+}
+</code></pre>
+<h3 id="section-3-plugin-configuration">Section 3: Plugin Configuration</h3>
+<p>Configuration for each plugin. Routed by the hub to the appropriate process.</p>
+<pre><code># Routed to ze bgp (handles &quot;bgp&quot; container per ze-bgp-conf.yang)
+bgp {
+    local-as 65001;
+    router-id 1.1.1.1;
+
+    peer transit-a {
+        remote {
+            ip 192.0.2.1;
+            as 65002;
+        }
+        passive;
+
+        capability {
+            # GR plugin handles this path (augments BGP schema)
+            graceful-restart {
+                enabled true;
+                restart-time 120;
+            }
+        }
+    }
+
+    peer-group upstream {
+        peer-as 65000;
+    }
+}
+
+# Routed to ze rib (handles &quot;rib&quot; container per ze-rib.yang)
+rib {
+    # RIB-specific settings
+}
+
+# Routed to /opt/acme/plugin (handles &quot;acme&quot; container per acme.yang)
+acme {
+    endpoint &quot;https://monitor.example.com&quot;;
+    interval 30;
+}
+</code></pre>
+<hr />
+<h2 id="plugin-types">Plugin Types</h2>
+<h3 id="built-in-plugins">Built-in Plugins</h3>
+<p>Shipped with Ze, same binary:</p>
+<table>
+<thead>
+<tr>
+<th>Plugin</th>
+<th>Binary</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>bgp</code></td>
+<td><code>ze bgp</code></td>
+<td>BGP protocol, sessions, FSM, peer-to-peer routing</td>
+</tr>
+<tr>
+<td><code>rib</code></td>
+<td><code>ze rib</code></td>
+<td>Adj-RIB-Out tracking, sent-route replay on reconnect</td>
+</tr>
+<tr>
+<td><code>adj-rib-in</code></td>
+<td><code>ze adj-rib-in</code></td>
+<td>Adj-RIB-In storage (raw hex), received-route replay</td>
+</tr>
+<tr>
+<td><code>gr</code></td>
+<td><code>ze gr</code></td>
+<td>Graceful Restart capability injection</td>
+</tr>
+</tbody>
+</table>
+<h3 id="third-party-plugins">Third-Party Plugins</h3>
+<p>Any executable that speaks the plugin protocol:</p>
+<pre><code>plugin {
+    external my-plugin {
+        run &quot;/path/to/plugin&quot;;
+        respawn true;
+    }
+}
+
+my-plugin {
+    # Config routed here based on plugin's YANG schema
+}
+</code></pre>
+<h3 id="augmenting-plugins">Augmenting Plugins</h3>
+<p>Some plugins (like GR) don't have their own root config block. They <strong>augment</strong> another plugin's schema:</p>
+<pre><code class="language-yang">// ze-gr.yang
+augment &quot;/bgp:bgp/bgp:peer/bgp:capability&quot; {
+    container graceful-restart {
+        leaf enabled { type boolean; }
+        leaf restart-time { type uint16; }
+    }
+}
+</code></pre>
+<p>Config for augmenting plugins appears nested within the augmented schema:</p>
+<pre><code>bgp {
+    peer transit-a {
+        remote {
+            ip 192.0.2.1;
+            as 65002;
+        }
+        capability {
+            graceful-restart {      # Handled by ze gr, not ze bgp
+                enabled true;
+            }
+        }
+    }
+}
+</code></pre>
+<p><strong>How augmenting plugins work:</strong></p>
+<p>GR registers handler for <code>bgp.peer.capability.graceful-restart</code>. Hub sends just that JSON subtree to GR:</p>
+<pre><code class="language-json">{&quot;enabled&quot;: true, &quot;restart-time&quot;: 120}
+</code></pre>
+<p>GR then uses the capability API to inject the capability:</p>
+<pre><code># GR sends command:
+capability hex 64 0078 peer 192.168.1.1
+               │    │        └─ target peer
+               │    └─ restart-time (120) in 12-bit format
+               └─ capability code 64 (graceful restart, RFC 4724)
+</code></pre>
+<p>BGP stores registered capabilities and includes them in OPEN messages to peers.</p>
+<h3 id="gr-plugin-coordination">GR Plugin Coordination</h3>
+<p>GR plugin coordinates with BGP and RIB via commands and events:</p>
+<pre><code>ze gr                         ze (hub)                      ze bgp
+   │                             │                             │
+   │◄── config (JSON subtree) ───│                             │
+   │                             │                             │
+   │── capability hex 64 ... ───►│─── (routes to BGP) ────────►│
+   │   peer 192.168.1.1          │      (BGP stores for OPEN)  │
+   │                             │                             │
+   │── request subscribe bgp.peer.*►│                             │
+   │                             │                             │
+   │                             │◄── event bgp.peer.restart ──│
+   │◄── event bgp.peer.restart ──│                             │
+   │                             │                             │
+   │── rib defer peer X ────────►│─────────────────────────────│──► ze rib
+   │                             │                             │
+</code></pre>
+<p><strong>Key points:</strong>
+- GR uses <code>capability hex &lt;code&gt; &lt;value&gt; peer &lt;addr&gt;</code> format
+- Hub routes capability commands to BGP
+- GR subscribes to peer events (restart, up, down)
+- GR coordinates with RIB for route deferral during restart</p>
+<hr />
+<h2 id="cli-commands">CLI Commands</h2>
+<p>See <a href="../command-ownership/">Command Ownership</a> for the plugin self-containment
+pattern: how each component owns its CLI commands, YANG schema, and tests.</p>
+<h3 id="command-routing">Command Routing</h3>
+<p>CLI commands are routed to plugins by prefix:</p>
+<pre><code class="language-bash"># Routed to ze bgp
+ze bgp peer list
+ze bgp peer upstream1 show
+ze bgp peer upstream1 update ...
+
+# Routed to ze rib
+ze rib show
+ze rib replay upstream1
+
+# Routed to hub (system commands)
+ze system schema list
+ze system process list
+ze config reload
+</code></pre>
+<h3 id="how-cli-works">How CLI Works</h3>
+<pre><code>┌─────────────────────────────────────────────────────────────────────┐
+│ $ ze bgp peer list                                                  │
+│                                                                     │
+│  1. CLI connects to daemon via SSH (127.0.0.1:2222)                 │
+│  2. CLI sends: bgp peer list                                        │
+│  3. Daemon looks up &quot;bgp&quot; in handler map → ze bgp process           │
+│  4. Daemon forwards command via stdin to ze bgp                     │
+│  5. ze bgp executes, sends response via stdout                      │
+│  6. Daemon returns response to CLI via SSH session                  │
+│  7. CLI displays result                                             │
+└─────────────────────────────────────────────────────────────────────┘
+</code></pre>
+<p><strong>Same binary, two modes:</strong>
+- <code>ze start config.conf</code> → starts as daemon, listens on SSH port
+- <code>ze bgp peer list</code> → connects to running daemon as SSH client</p>
+<p>SSH target configurable via env vars <code>ze_ssh_host</code> and <code>ze_ssh_port</code></p>
+<h3 id="system-commands">System Commands</h3>
+<p>Commands handled directly by the hub:</p>
+<pre><code class="language-bash"># List registered schemas
+ze system schema list
+ze-bgp: bgp, bgp.peer, bgp.peer-group
+ze-rib: rib
+ze-gr: bgp.peer.capability.graceful-restart
+
+# Show a schema
+ze system schema show ze-bgp
+
+# List running processes
+ze system process list
+bgp: pid=1235 state=ready
+rib: pid=1236 state=ready
+gr:  pid=1237 state=ready
+
+# Reload configuration
+ze config reload
+</code></pre>
+<hr />
+<h2 id="event-flow">Event Flow</h2>
+<p>Plugins communicate via events routed through the hub.</p>
+<h3 id="event-subscription">Event Subscription</h3>
+<p>Plugins subscribe to events during startup:</p>
+<pre><code># ze rib subscribes to BGP events
+request subscribe bgp.event.*
+</code></pre>
+<h3 id="event-publishing">Event Publishing</h3>
+<p>When something happens, plugins publish events:</p>
+<pre><code># ze bgp publishes peer state change
+event bgp.peer.up peer=192.0.2.1 asn=65002
+</code></pre>
+<h3 id="event-routing">Event Routing</h3>
+<p>Hub routes events to subscribers:</p>
+<pre><code>ze bgp                        ze (hub)                      ze rib
+   │                             │                             │
+   │ (peer establishes)          │                             │
+   │── event bgp.peer.up ───────&gt;│                             │
+   │   peer=192.0.2.1            │                             │
+   │                             │── event bgp.peer.up ───────&gt;│
+   │                             │   peer=192.0.2.1            │
+   │                             │                             │
+   │ (UPDATE received)           │                             │
+   │── event bgp.update ────────&gt;│                             │
+   │   {...}                     │── event bgp.update ────────&gt;│
+   │                             │   {...}                     │
+</code></pre>
+<hr />
+<h2 id="startup-sequence">Startup Sequence</h2>
+<h3 id="10-step-protocol">10-Step Protocol</h3>
+<pre><code>1. Hub parses environment { }      → Set global settings (api-socket, log level, etc.)
+2. Hub parses plugin { } block     → Build process list from ze-plugin-conf.yang
+3. Hub forks each plugin           → ze bgp, ze rib, ze gr, third-party, ...
+4. Each plugin: Stage 1            → Declare YANG module + handlers
+5. Hub registers schemas           → Build handler routing table (SchemaRegistry)
+6. Hub parses remaining config     → Full parse, validate against combined YANG
+7. Hub converts to JSON            → Map-of-maps structure
+8. Hub routes JSON to plugins      → Each plugin gets its subtree (Stage 2)
+9. Plugins: Stage 3-4              → Capability declarations, registry sharing
+10. Plugins: Stage 5               → Ready, start operating
+</code></pre>
+<p>After startup, GR and other plugins use commands to configure BGP:
+- <code>capability hex &lt;code&gt; &lt;value&gt; peer &lt;addr&gt;</code> → inject capabilities
+- Plugins subscribe to events for runtime coordination</p>
+<h3 id="5-stage-protocol-per-plugin">5-Stage Protocol (Per Plugin)</h3>
+<p>Each plugin follows this protocol with the hub:</p>
+<table>
+<thead>
+<tr>
+<th>Stage</th>
+<th>Direction</th>
+<th>Content</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Plugin → Hub</td>
+<td><code>declare schema yang &lt;module&gt;</code>, <code>declare schema handler &lt;path&gt;</code>, <code>declare priority &lt;num&gt;</code>, <code>declare cmd &lt;name&gt;</code>, <code>declare done</code></td>
+</tr>
+<tr>
+<td>2</td>
+<td>Hub → Plugin</td>
+<td>Initial commit: <code>config verify</code> → plugin queries live/edit → <code>config apply</code> → <code>config done</code></td>
+</tr>
+<tr>
+<td>3</td>
+<td>Plugin → Hub</td>
+<td><code>capability hex ...</code>, <code>capability done</code></td>
+</tr>
+<tr>
+<td>4</td>
+<td>Hub → Plugin</td>
+<td><code>registry cmd ...</code>, <code>registry done</code></td>
+</tr>
+<tr>
+<td>5</td>
+<td>Plugin → Hub</td>
+<td><code>ready</code></td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/plugin/registration.go -- 5-stage protocol parsing -->
+<!-- source: internal/component/plugin/startup_coordinator.go -- startup coordination -->
+
+<p><strong>Priority:</strong> Determines verify/apply order. Lower = first. Example: BGP=100, RIB=200, GR=300.</p>
+<hr />
+<h2 id="config-notification-to-plugins">Config Notification to Plugins</h2>
+<h3 id="pull-model-hub-never-pushes">Pull Model (Hub Never Pushes)</h3>
+<p><strong>Hub notifies plugins of config changes, plugins query for config data.</strong></p>
+<p>On commit (startup, SIGHUP, or <code>ze config commit</code>), hub sends <code>config verify</code> / <code>config apply</code> notifications. Plugins query hub for config.</p>
+<p>Based on handler registration, plugins query for their JSON config:</p>
+<table>
+<thead>
+<tr>
+<th>Handler</th>
+<th>Plugin receives</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>bgp</code> (root)</td>
+<td>Entire <code>bgp { }</code> block as JSON</td>
+</tr>
+<tr>
+<td><code>bgp.peer.capability.graceful-restart</code> (sub-root)</td>
+<td>Just that subtree as JSON</td>
+</tr>
+</tbody>
+</table>
+<h3 id="on-demand-query">On-Demand Query</h3>
+<p>Plugins query hub for specific config paths using text protocol:</p>
+<pre><code># Query live (running) config:
+#1 query config live path &quot;bgp.peer[address=192.0.2.1]&quot;
+@1 done data '{&quot;address&quot;: &quot;192.0.2.1&quot;, &quot;peer-as&quot;: 65002, &quot;timers&quot;: {...}}'
+
+# Query edit (candidate) config:
+#2 query config edit path &quot;bgp.peer[address=192.0.2.1]&quot;
+@2 done data '{&quot;address&quot;: &quot;192.0.2.1&quot;, &quot;peer-as&quot;: 65003, &quot;timers&quot;: {...}}'
+</code></pre>
+<p>Hub stores config as map-of-maps internally, provides JSON in <code>data</code> field.</p>
+<hr />
+<h2 id="liveedit-configuration-vyos-style">Live/Edit Configuration (VyOS-style)</h2>
+<p>Hub maintains two configuration states:</p>
+<table>
+<thead>
+<tr>
+<th>State</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Live</strong></td>
+<td>Running configuration (what plugins are currently using)</td>
+</tr>
+<tr>
+<td><strong>Edit</strong></td>
+<td>Candidate configuration (being modified, not yet applied)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="commit-workflow">Commit Workflow</h3>
+<pre><code>1. User modifies edit config (via CLI or file)
+2. User requests commit
+3. For each plugin (by priority, lower first):
+   a. Hub sends: config verify
+   b. Plugin queries hub for live and edit config (its section)
+   c. Plugin computes diff using shared library
+   d. Plugin validates changes are acceptable
+   e. Plugin responds: done or error
+4. If all plugins verify ok:
+   a. For each plugin (by priority):
+      - Hub sends: config apply
+      - Plugin applies changes
+      - Plugin responds: done
+   b. Edit becomes new live
+5. If any verify fails:
+   a. Hub aborts commit
+   b. Edit unchanged, live unchanged
+</code></pre>
+<p><strong>Priority examples:</strong> BGP=100 (first), RIB=200, GR=300 (last).</p>
+<h3 id="plugin-diff-responsibility">Plugin Diff Responsibility</h3>
+<p><strong>Hub provides:</strong> Raw config states (live and edit) on request.</p>
+<p><strong>Plugin is responsible for:</strong>
+1. Query the config sections it needs
+2. Compute diff using shared library code
+3. Validate and apply changes</p>
+<h3 id="shared-diff-library">Shared Diff Library</h3>
+<p>Plugins use shared library code (not reimplemented per plugin) to compute differences:</p>
+<pre><code>Location: internal/component/config/diff/
+
+Usage (Go):
+  // Send query, receive JSON in data field
+  live := sendQuery(&quot;query config live path \&quot;bgp.peer\&quot;&quot;)
+  edit := sendQuery(&quot;query config edit path \&quot;bgp.peer\&quot;&quot;)
+  changes := diff.Compare(live, edit)
+  // changes = []Change{{Action: &quot;create&quot;, Path: &quot;bgp.peer[addr=X]&quot;, Data: {...}}, ...}
+</code></pre>
+<p>This library is part of the Ze codebase, available to all plugins.</p>
+<hr />
+<h2 id="yang-schema">YANG Schema</h2>
+<p>See <a href="../command-ownership/">Command Ownership</a> for how command YANG schemas use
+container merge to live in their owning component rather than a central verb
+package.</p>
+<h3 id="what-yang-provides">What YANG Provides</h3>
+<ul>
+<li>Type validation (ranges, patterns, enums)</li>
+<li>Cross-reference validation (leafref)</li>
+<li>Schema-driven config routing</li>
+</ul>
+<h3 id="schema-registration">Schema Registration</h3>
+<p>During Stage 1, plugins declare their YANG schema:</p>
+<pre><code>declare schema yang ze-bgp
+declare schema handler bgp
+declare schema handler bgp.peer
+declare done
+</code></pre>
+<h3 id="existing-yang-modules">Existing YANG Modules</h3>
+<table>
+<thead>
+<tr>
+<th>Module</th>
+<th>Location</th>
+<th>Defines</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze-types</code></td>
+<td><span class="ev-src"><span class="ev-ref"><code>yang/ze-types.yang</code></span></span></td>
+<td>Common types (asn, ip-address, etc.)</td>
+</tr>
+<tr>
+<td><code>ze-bgp-conf</code></td>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/component/bgp/yang/ze-bgp-conf.yang</code></span></span></td>
+<td><code>container bgp</code> with peers, families</td>
+</tr>
+<tr>
+<td><code>ze-plugin-conf</code></td>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/component/plugin/yang/</code></span></span></td>
+<td><code>container plugin</code> for process declarations</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/bgp/yang/ -- BGP YANG schemas -->
+<!-- source: internal/component/plugin/yang/ -- plugin YANG schemas -->
+<p>| <code>ze-rib</code> | <code>internal/component/bgp/plugins/rib/yang/ze-rib.yang</code> | Augments <code>ze-bgp-conf</code> with <code>container rib</code> |
+| <code>ze-graceful-restart</code> | <code>internal/component/bgp/plugins/gr/yang/ze-graceful-restart.yang</code> | Augments <code>ze-bgp-conf</code> for graceful-restart |
+| <code>ze-hostname</code> | <code>internal/component/bgp/plugins/hostname/yang/ze-hostname.yang</code> | Augments <code>ze-bgp-conf</code> for FQDN capability |</p>
+<p><strong>Note:</strong> Plugin YANG schemas augment <code>ze-bgp-conf</code> to extend the configuration tree. Each plugin owns its YANG in a <code>schema/</code> subdirectory.</p>
+<h3 id="yang-augment-merging">YANG Augment Merging</h3>
+<p>Plugins can augment other plugins' YANG schemas. Hub merges all YANG modules into a single consistent view:</p>
+<ol>
+<li>Each plugin declares its YANG module in Stage 1</li>
+<li>Hub collects all modules</li>
+<li>Hub merges augments into base modules</li>
+<li>Hub validates combined schema is consistent</li>
+</ol>
+<p><strong>Conflict handling:</strong> If two plugins define conflicting augments (same path, different definitions), hub refuses to start. The plugins are incompatible.</p>
+<hr />
+<h2 id="package-structure">Package Structure</h2>
+<p><strong>Planned (aspirational).</strong> This is the target package structure, not the current layout. See <code>docs/architecture/overview.md</code> for the actual directory structure.</p>
+<pre><code>internal/
+├── hub/                    # Hub/orchestrator (protocol-agnostic)
+│   ├── hub.go              # Core hub
+│   ├── process.go          # Fork and manage child processes
+│   ├── router.go           # Route commands/events
+│   └── config.go           # Parse env and plugin blocks
+│
+├── plugin/
+│   ├── bgp/                # BGP plugin (moved from internal/bgp/)
+│   │   ├── message/        # BGP wire format
+│   │   ├── attribute/      # Path attributes
+│   │   ├── nlri/           # NLRI types
+│   │   ├── capability/     # BGP capabilities
+│   │   ├── fsm/            # State machine
+│   │   ├── rib/            # Peer-to-peer routing (moved from internal/rib/)
+│   │   └── reactor/        # BGP-specific reactor (moved from internal/reactor/)
+│   │
+│   ├── rib/                # Adj-RIB tracking plugin
+│   │   ├── rib.go
+│   │   └── storage/
+│   │
+│   ├── gr/                 # Graceful Restart plugin
+│   │
+│   ├── server.go           # Plugin server (reused by hub)
+│   ├── handler.go          # Command/event dispatch
+│   ├── schema.go           # SchemaRegistry
+│   └── subsystem.go        # 5-stage protocol
+│
+├── yang/                   # YANG loader and validator
+│   ├── loader.go
+│   └── validator.go
+│
+└── config/                 # Config parsing (shared)
+</code></pre>
+<hr />
+<h2 id="signals">Signals</h2>
+<table>
+<thead>
+<tr>
+<th>Signal</th>
+<th>Handler</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SIGHUP</code></td>
+<td>Hub</td>
+<td>Reload configuration</td>
+</tr>
+<tr>
+<td><code>SIGTERM</code></td>
+<td>Hub</td>
+<td>Graceful shutdown (notify all plugins)</td>
+</tr>
+<tr>
+<td><code>SIGINT</code></td>
+<td>Hub</td>
+<td>Graceful shutdown</td>
+</tr>
+<tr>
+<td><code>SIGUSR1</code></td>
+<td>Hub</td>
+<td>Dump state/metrics</td>
+</tr>
+</tbody>
+</table>
+<h3 id="config-reload-sighup">Config Reload (SIGHUP)</h3>
+<pre><code>1. Hub receives SIGHUP
+2. Hub re-parses config file
+3. Hub diffs current vs new config
+4. Hub sends verify/apply for changes to affected plugins
+5. Plugins apply changes (add/remove peers, etc.)
+</code></pre>
+<hr />
+<h2 id="benefits-of-this-architecture">Benefits of This Architecture</h2>
+<table>
+<thead>
+<tr>
+<th>Benefit</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Crash Isolation</strong></td>
+<td>BGP crash doesn't affect RIB; processes restart independently</td>
+</tr>
+<tr>
+<td><strong>Language Freedom</strong></td>
+<td>Plugins can be written in any language</td>
+</tr>
+<tr>
+<td><strong>Independent Development</strong></td>
+<td>Test and develop plugins separately</td>
+</tr>
+<tr>
+<td><strong>Third-Party Extensibility</strong></td>
+<td>Anyone can write plugins</td>
+</tr>
+<tr>
+<td><strong>Resource Limits</strong></td>
+<td>Each process can have memory/CPU limits</td>
+</tr>
+<tr>
+<td><strong>Debugging</strong></td>
+<td>Attach debugger to single process</td>
+</tr>
+<tr>
+<td><strong>Hot Reload</strong></td>
+<td>Replace plugin binary without full restart (future)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="security-model">Security Model</h2>
+<h3 id="privilege-dropping-exabgp-pattern">Privilege Dropping (ExaBGP Pattern)</h3>
+<p>Ze follows the standard Unix daemon privilege separation model:</p>
+<ol>
+<li>Start as root (or with <code>CAP_NET_BIND_SERVICE</code>) to bind port 179</li>
+<li>Bind the BGP listening socket</li>
+<li>Drop privileges to the configured user/group</li>
+<li>All subsequent work -- including plugin spawning -- runs as the unprivileged user</li>
+</ol>
+<p>The target user/group is configured via environment variables:</p>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Underscore form</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze.user</code></td>
+<td><code>ze_user</code></td>
+<td>User to switch to after port binding</td>
+</tr>
+<tr>
+<td><code>ze.group</code></td>
+<td><code>ze_group</code></td>
+<td>Group to switch to (default: primary group of user)</td>
+</tr>
+</tbody>
+</table>
+<p>When <code>ze.user</code> is not set, no privilege dropping occurs.</p>
+<p>Implementation: <code>internal/core/privilege/</code> -- calls <code>setgid</code> then <code>setuid</code> after <code>reactor.Start()</code> binds port 179.</p>
+<!-- source: internal/core/privilege/ -- privilege dropping -->
+
+<h3 id="plugin-tls-transport">Plugin TLS Transport</h3>
+<p>External plugins connect back to the engine via TLS. The engine binds TLS listeners (configured via <code>plugin { hub { server &lt;name&gt; { ip ...; port ...; secret ...; } } }</code>), forks child processes with <code>ZE_PLUGIN_HUB_HOST</code>/<code>ZE_PLUGIN_HUB_PORT</code>/<code>ZE_PLUGIN_HUB_TOKEN</code> env vars, and waits for authenticated connect-back. Each plugin uses a single bidirectional TLS connection with MuxConn for concurrent RPCs.</p>
+<!-- source: internal/component/plugin/acceptor.go -- hub TLS listener -->
+<!-- source: pkg/plugin/rpc/ -- MuxConn for concurrent RPCs -->
+
+<h3 id="plugin-process-isolation">Plugin Process Isolation</h3>
+<p>Each external plugin runs in its own process group (<code>Setpgid</code>) for clean signal handling and inherits the daemon's (already-dropped) uid/gid. All plugins run as the same unprivileged user.</p>
+<!-- source: internal/component/plugin/process/ -- process isolation -->
+
+<hr />
+<h2 id="example-session">Example Session</h2>
+<pre><code class="language-bash"># Start Ze
+$ ze start /etc/ze/config.conf
+[hub] Starting with config /etc/ze/config.conf
+[hub] Forking ze bgp (pid 1235)
+[hub] Forking ze rib (pid 1236)
+[hub] Forking ze gr (pid 1237)
+[hub] All plugins ready
+
+# Check status
+$ ze system process list
+bgp: pid=1235 state=ready uptime=5m
+rib: pid=1236 state=ready uptime=5m
+gr:  pid=1237 state=ready uptime=5m
+
+# List BGP peers
+$ ze bgp peer list
+192.0.2.1  AS65002  Established  5m
+192.0.2.2  AS65003  Active       -
+
+# Show routes
+$ ze rib show
+Prefix          Next-Hop      AS-Path        Peer
+10.0.0.0/24     192.0.2.1     65002          192.0.2.1
+10.0.1.0/24     192.0.2.1     65002 65004    192.0.2.1
+
+# Reload config
+$ ze config reload
+[hub] Reloading configuration
+[hub] Added peer 192.0.2.3
+[hub] Reload complete
+
+# Graceful shutdown
+$ kill -TERM $(pgrep -f &quot;ze start config.conf&quot;)
+[hub] Received SIGTERM, shutting down
+[hub] Notifying plugins...
+[bgp] Sending NOTIFICATION to peers
+[hub] All plugins stopped
+</code></pre>
+<hr />
+<h2 id="related-documents">Related Documents</h2>
+<ul>
+<li><a href="https://github.com/ze-software/ze/blob/main/docs/architecture/core-design.md" target="_blank" rel="noopener">Core Design</a> - Canonical architecture (describes in-process mode)</li>
+<li><a href="https://github.com/ze-software/ze/blob/main/docs/architecture/hub-architecture.md" target="_blank" rel="noopener">Hub Architecture</a> - Hub mode internal design details</li>
+<li><a href="https://github.com/ze-software/ze/blob/main/docs/architecture/api/process-protocol.md" target="_blank" rel="noopener">Process Protocol</a> - 5-stage protocol specification</li>
+<li><a href="https://github.com/ze-software/ze/blob/main/docs/architecture/config/yang-config-design.md" target="_blank" rel="noopener">YANG Config Design</a> - Schema design</li>
+<li>Config Dispatch - mode selection by config content (completed). This was summary 189, retired on 2026-08-01 and not carried into <a href="https://github.com/ze-software/ze/blob/main/docs/../plan/learned/DESIGN-HISTORY.md" target="_blank" rel="noopener">Design History</a>, whose header gives the git-recovery route</li>
+</ul>
+<hr />
+<p><strong>Last Updated:</strong> 2026-01-30</p>
+            </section>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

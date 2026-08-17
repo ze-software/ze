@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>MRT Analysis - Ze</title>
+        <meta name="description" content="Ze documentation: guide/mrt-analysis.md" />
+        <meta property="og:title" content="MRT Analysis - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/mrt-analysis.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="MRT Analysis - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/mrt-analysis.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/guides/mrt-analysis/" />
+        <meta property="og:url" content="https://ze-software.net/guides/mrt-analysis/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-observe">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1 id="mrt-analysis">MRT Analysis</h1>
+    <p>Ze includes <code>ze-analyze</code>, a standalone tool for analysing real-world BGP data
+from public route collectors (RIPE RIS, RouteViews). It processes MRT dump files
+to extract statistics that inform ze's internal buffer sizing, caching strategies,
+and congestion handling.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#building">Building</a></li>
+<li><a href="#quick-start">Quick Start</a></li>
+<li><a href="#data-sources">Data Sources</a></li>
+<li><a href="#commands">Commands</a>
+<ol>
+<li><a href="#density">density</a></li>
+<li><a href="#attributes">attributes</a></li>
+<li><a href="#communities">communities</a></li>
+<li><a href="#count-attrs">count-attrs</a></li>
+<li><a href="#mrt-dump">mrt-dump</a></li>
+<li><a href="#show">show</a></li>
+<li><a href="#routes">routes</a></li>
+<li><a href="#inject">inject</a></li>
+<li><a href="#replay">replay</a></li>
+<li><a href="#convert">convert</a></li>
+<li><a href="#export">export</a></li>
+<li><a href="#record">record</a></li>
+<li><a href="#serve">serve</a></li>
+<li><a href="#statistics">statistics</a></li>
+<li><a href="#filter">filter</a></li>
+</ol></li>
+<li><a href="#damaged-input">Damaged Input</a></li>
+<li><a href="#as-width-and-add-path">AS Width and Add-Path</a></li>
+<li><a href="#mrt-file-formats">MRT File Formats</a></li>
+<li><a href="#daemon-mrt-recording">Daemon MRT Recording</a></li>
+<li><a href="#related">Related</a></li>
+</ol></nav>
+<!-- source: internal/analyze/register.go -- ze-analyze CLI entry point -->
+
+<h2 id="building">Building</h2>
+<pre><code>make ze-analyze-build
+</code></pre>
+<p>This produces <code>bin/ze-analyze</code>.</p>
+<h2 id="quick-start">Quick Start</h2>
+<p>Download BGP data from public collectors and run an analysis:</p>
+<pre><code>bin/ze-analyze download                                    # fetch latest data
+bin/ze-analyze density test/internet/ripe-updates.*.gz     # UPDATE density + burst patterns
+bin/ze-analyze attributes test/internet/latest-bview.gz    # attribute repetition analysis
+</code></pre>
+<h2 id="data-sources">Data Sources</h2>
+<p><code>ze-analyze download</code> fetches MRT files from two public BGP collectors:</p>
+<table>
+<thead>
+<tr>
+<th>Source</th>
+<th>Type</th>
+<th>Interval</th>
+<th>Size</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RIPE RIS rrc00 (Amsterdam)</td>
+<td>BGP4MP updates</td>
+<td>5 min</td>
+<td>~5 MB per file</td>
+</tr>
+<tr>
+<td>RIPE RIS rrc00</td>
+<td>TABLE_DUMP_V2 RIB</td>
+<td>Latest</td>
+<td>~400 MB</td>
+</tr>
+<tr>
+<td>RouteViews route-views2</td>
+<td>BGP4MP updates</td>
+<td>15 min</td>
+<td>~2 MB per file</td>
+</tr>
+<tr>
+<td>RouteViews route-views2</td>
+<td>TABLE_DUMP_V2 RIB</td>
+<td>2-hour intervals</td>
+<td>~100 MB</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/analyze/download.go -- download URLs and conversion -->
+
+<p>Files are saved to <code>test/internet/</code> (gitignored). RouteViews bz2 files are
+converted to gzip on download for Go stdlib compatibility.</p>
+<pre><code>bin/ze-analyze download                     # today's data at 00:00 UTC
+bin/ze-analyze download 20260324            # specific date
+bin/ze-analyze download 20260324 1200       # specific date and time
+bin/ze-analyze download -o /tmp/mrt         # custom output directory
+</code></pre>
+<h2 id="commands">Commands</h2>
+<h3 id="density">density</h3>
+<p>Measures how many NLRIs each UPDATE carries and how many UPDATEs arrive per
+second. Separates traffic into setup (table dumps, convergence) and maintenance
+(steady-state churn) using per-source-peer burst detection.</p>
+<!-- source: internal/analyze/density.go -- NLRI counting and burst detection -->
+
+<pre><code>bin/ze-analyze density test/internet/ripe-updates.*.gz
+</code></pre>
+<p><strong>Output sections:</strong>
+- NLRIs per UPDATE distribution (announced, withdrawn, total)
+- UPDATEs per active second distribution
+- Setup vs maintenance classification per source peer
+- Per-peer maintenance rate distribution
+- Channel sizing recommendation with empirical P50/P95/P99</p>
+<p><strong>Used for:</strong> per-peer forward pool channel sizing. Results documented in
+<a href="https://github.com/ze-software/ze/blob/main/docs/architecture/update-density-analysis.md" target="_blank" rel="noopener">Update Density Analysis</a>.</p>
+<h3 id="attributes">attributes</h3>
+<p>Analyses attribute repetition across routes to guide caching decisions. Measures
+per-attribute cache hit rates, bundle deduplication effectiveness, and temporal
+locality (consecutive identical bundles).</p>
+<!-- source: internal/analyze/attributes.go -- bundle hashing and community extraction -->
+
+<pre><code>bin/ze-analyze attributes test/internet/latest-bview.gz 2&gt;/dev/null | jq .   # JSON
+bin/ze-analyze attributes test/internet/latest-bview.gz &gt;/dev/null           # summary
+</code></pre>
+<p><strong>Output:</strong> JSON to stdout, human summary to stderr.</p>
+<p><strong>Used for:</strong> attribute pool sizing, cache strategy decisions. Results documented
+in <a href="https://github.com/ze-software/ze/blob/main/docs/research/mrt-attribute-caching.md" target="_blank" rel="noopener">mrt-attribute-caching.md</a>.</p>
+<h3 id="communities">communities</h3>
+<p>Identifies per-ASN community defaults: communities that appear in nearly every
+route from a given ASN. These defaults can be assumed present in a cache,
+encoding only exceptions (absent defaults) to save wire bytes.</p>
+<!-- source: internal/analyze/communities.go -- per-ASN frequency analysis -->
+
+<pre><code>bin/ze-analyze communities test/internet/latest-bview.gz
+bin/ze-analyze communities --threshold 0.90 --format json test/internet/latest-bview.gz
+bin/ze-analyze communities --post-policy test/internet/latest-bview.gz
+</code></pre>
+<p><strong>Options:</strong>
+- <code>--threshold</code> (default 0.95): minimum frequency to be considered a default
+- <code>--min-routes</code> (default 1000): minimum routes from an ASN to generate defaults
+- <code>--format</code> (yaml or json)
+- <code>--post-policy</code>: strip action communities (simulates route server post-policy view)</p>
+<h3 id="count-attrs">count-attrs</h3>
+<p>Counts how many path attributes each route carries. Produces a distribution
+table showing the typical attribute set size.</p>
+<pre><code>bin/ze-analyze count-attrs test/internet/latest-bview.gz
+</code></pre>
+<h3 id="mrt-dump">mrt-dump</h3>
+<p>Dumps MRT records as BGP UPDATE hex, one per line. Useful for piping into
+<code>ze bgp decode</code> or other tools.</p>
+<pre><code>bin/ze-analyze mrt-dump test/internet/ripe-updates.*.gz | head -5
+bin/ze-analyze mrt-dump test/internet/latest-bview.gz | bin/ze bgp decode -
+</code></pre>
+<h3 id="show">show</h3>
+<p>Human-readable MRT dump (like bgpdump). Displays record headers, peer info, and
+decoded BGP message contents including attributes, AS paths, and prefixes.</p>
+<!-- source: internal/analyze/show.go -- human-readable MRT dump -->
+
+<pre><code>bin/ze-analyze show test/internet/ripe-updates.*.gz | head -50
+bin/ze-analyze show test/internet/latest-bview.gz
+</code></pre>
+<h3 id="routes">routes</h3>
+<p>Extracts a prefix table from TABLE_DUMP_V2 files as JSON. Each entry includes
+prefix, next-hop, AS path, origin, local-pref, MED, and communities.</p>
+<!-- source: internal/analyze/routes.go -- prefix table extraction -->
+
+<pre><code>bin/ze-analyze routes test/internet/latest-bview.gz | jq '.[] | select(.prefix == &quot;1.0.0.0/24&quot;)'
+</code></pre>
+<h3 id="inject">inject</h3>
+<p>Opens a BGP session to a remote peer and sends routes from an MRT file.
+Supports both TABLE_DUMP_V2 (RIB entries) and BGP4MP (UPDATE messages).</p>
+<!-- source: internal/analyze/inject.go -- BGP session injection -->
+
+<pre><code>bin/ze-analyze inject --local-as 65000 test/internet/latest-bview.gz 10.0.0.1:179
+</code></pre>
+<h3 id="replay">replay</h3>
+<p>Replays BGP4MP messages over a BGP session preserving original inter-message
+timing. Configurable speed multiplier.</p>
+<!-- source: internal/analyze/replay.go -- timed BGP4MP replay -->
+
+<pre><code>bin/ze-analyze replay --local-as 65000 --speed 10 test/internet/ripe-updates.*.gz 10.0.0.1:179
+</code></pre>
+<h3 id="convert">convert</h3>
+<p>Converts MRT records to other formats.</p>
+<!-- source: internal/analyze/convert.go -- format conversion -->
+
+<pre><code>bin/ze-analyze convert pcap test/internet/ripe-updates.*.gz output.pcap      # BGP4MP to pcap (IPv4 only)
+bin/ze-analyze convert json test/internet/ripe-updates.*.gz | jq .           # record headers as JSON
+</code></pre>
+<h3 id="export">export</h3>
+<p>Send MRT data to network targets.</p>
+<!-- source: internal/analyze/export_bmp.go -- MRT to BMP export -->
+
+<pre><code>bin/ze-analyze export bmp --target 10.0.0.1:4321 test/internet/ripe-updates.*.gz
+bin/ze-analyze export bmp --target collector:4321 --peer-ip 10.0.0.1 test/internet/ripe-updates.*.gz
+</code></pre>
+<p>Connects to a BMP collector and sends each BGP4MP message as a BMP Route
+Monitoring message. Optional <code>--peer-ip</code> filters to a single peer.</p>
+<h3 id="record">record</h3>
+<p>Record incoming protocol streams to MRT files.</p>
+<!-- source: internal/analyze/record_bmp.go -- BMP to MRT recording -->
+
+<pre><code>bin/ze-analyze record bmp --listen :4321 output.mrt
+</code></pre>
+<p>Listens for incoming BMP (RFC 7854) connections. Received Route Monitoring
+messages are written as BGP4MP_MESSAGE_AS4 MRT records. Peer Up/Down
+notifications are written as BGP4MP_STATE_CHANGE_AS4. Multiple concurrent
+BMP connections are supported (writes are serialized).</p>
+<h3 id="serve">serve</h3>
+<p>Passive BGP server that sends MRT file contents to any peer that connects.
+Useful for IXP traffic replay testing: blast an entire routing table at a
+router and observe its behavior.</p>
+<!-- source: internal/analyze/serve.go -- MRT-to-BGP server -->
+
+<pre><code>bin/ze-analyze serve --local-as 65000 --listen :1179 test/internet/latest-bview.gz
+bin/ze-analyze serve --local-as 65000 --per-peer test/internet/ripe-updates.*.gz
+</code></pre>
+<p>With <code>--per-peer</code>, only records matching the connecting peer's ASN are sent.
+Multiple MRT files can be specified; all are sent sequentially.</p>
+<h3 id="statistics">statistics</h3>
+<p>Per-type/subtype counts, AFI breakdown, peer summary, timestamp range, and
+BGP message type distribution.</p>
+<!-- source: internal/analyze/statistics.go -- MRT statistics -->
+
+<pre><code>bin/ze-analyze statistics test/internet/ripe-updates.*.gz
+</code></pre>
+<h3 id="filter">filter</h3>
+<p>Select records by peer IP, peer ASN, prefix, AS-path regex, community regex,
+MRT type, or timestamp range. Writes matching records verbatim (no re-encoding)
+to a new MRT file. Multiple filters are AND-composed.</p>
+<!-- source: internal/analyze/filter.go -- MRT record filtering -->
+
+<pre><code>bin/ze-analyze filter --peer-asn 13335 test/internet/latest-bview.gz cloudflare.mrt
+bin/ze-analyze filter --prefix 1.0.0.0/24 --after 1780272000 test/internet/ripe-updates.*.gz filtered.mrt
+bin/ze-analyze filter --as-path &quot;174 .* 13335&quot; test/internet/latest-bview.gz transit.mrt
+bin/ze-analyze filter --community &quot;13335:&quot; test/internet/latest-bview.gz tagged.mrt
+</code></pre>
+<p>AS-path regex matches against space-separated ASNs (e.g. <code>"174 1916 52888"</code>).
+AS_SET segments are rendered as <code>{asn,asn}</code>. Community regex matches per-community
+strings: standard <code>high:low</code>, large <code>global:local1:local2</code>, extended <code>high:low</code>.</p>
+<h2 id="damaged-input">Damaged Input</h2>
+<p>A dump from a public collector can carry a truncated or corrupt record. The tool
+reports the damage instead of printing a short result as fact.</p>
+<table>
+<thead>
+<tr>
+<th>What you get</th>
+<th>Where</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>warning: N malformed MRT record(s) skipped or partially decoded; results are incomplete</code></td>
+<td>stderr, from <code>density</code>, <code>attributes</code>, <code>aspath</code>, <code>communities</code>, <code>count-attrs</code>, <code>mrt-dump</code>, <code>routes</code> and <code>show</code>. A report that scrolls prints it before the numbers it qualifies. A clean file prints nothing.</td>
+</tr>
+<tr>
+<td><code>HH:MM:SS &lt;peer&gt; [unparseable: truncated] &lt;error&gt;</code></td>
+<td><code>show</code>, for a record that decoded to nothing. The tag is <code>truncated</code>, <code>unsupported-afi</code>, or <code>damaged</code>.</td>
+</tr>
+<tr>
+<td><code>A=3+</code> or <code>W=12+</code></td>
+<td><code>show</code>, for a count that is partial. The <code>+</code> says "at least this many"; a count with no <code>+</code> is exact. A damaged record prints the field even at zero, so a missing count and a zero count stay distinct.</td>
+</tr>
+<tr>
+<td><code>mrt: truncated record 41902 (type 13 subtype 2, timestamp 1780272000): unexpected EOF</code></td>
+<td>stderr, when the file itself stops early. The record ordinal is 1-based over the stream, so the failing record can be found in a multi-gigabyte dump.</td>
+</tr>
+</tbody>
+</table>
+<p>Damage never discards what already decoded. A record with 500 good prefixes and
+one truncated prefix reports the 500 and counts one damaged record.</p>
+<!-- source: internal/analyze/mrt.go -- malformedCounter, damageTag -->
+<!-- source: internal/mrt/reader.go -- readRecords -->
+<!-- source: internal/analyze/show.go -- mpReachCount, mpUnreachCount -->
+
+<h2 id="as-width-and-add-path">AS Width and Add-Path</h2>
+<p>Two properties of an MRT record decide how its BGP payload reads, and neither can
+be inferred from the payload bytes:</p>
+<ul>
+<li><strong>AS width comes from the record type</strong> (RFC 6396). TABLE_DUMP is 2-byte
+  (Section 4.2), TABLE_DUMP_V2 is 4-byte (Section 4.3.4), BGP4MP_MESSAGE is
+  2-byte (Section 4.4.2), and BGP4MP_MESSAGE_AS4 is 4-byte (Section 4.4.3). A
+  2-byte and a 4-byte AS_PATH can occupy the same number of octets, so a wrong
+  width yields fictitious ASNs rather than an error. Every subcommand derives the
+  width from the record it is reading.</li>
+<li><strong>Add-path dumps are decoded.</strong> The RFC 8050 TABLE_DUMP_V2 RIB subtypes 8 to 12
+  and the add-path BGP4MP subtypes 8 to 11 carry a Path Identifier before each
+  prefix. They are dispatched like the non-add-path subtypes, so an add-path dump
+  yields its routes.</li>
+</ul>
+<!-- source: internal/mrt/bgp_attribute.go -- ASPathIsFourByte -->
+<!-- source: internal/mrt/types.go -- IsAddPathRIBSubtype, IsAddPathBGP4MPSubtype -->
+
+<h2 id="mrt-file-formats">MRT File Formats</h2>
+<p>The tool handles two MRT record types (RFC 6396):</p>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Records</th>
+<th>Used By</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>TABLE_DUMP_V2</td>
+<td>RIB snapshots (one entry per route per peer)</td>
+<td>attributes, communities, count-attrs, mrt-dump, show, routes, inject, filter</td>
+</tr>
+<tr>
+<td>BGP4MP</td>
+<td>Live UPDATE messages with timestamps</td>
+<td>density, attributes, communities, mrt-dump, show, inject, replay, convert, filter</td>
+</tr>
+</tbody>
+</table>
+<p>Both <code>.gz</code> and <code>.bz2</code> compressed files are supported. HTTP and HTTPS URLs are
+accepted anywhere a file path is expected; compression is auto-detected from
+the URL suffix.</p>
+<pre><code>bin/ze-analyze statistics https://data.ris.ripe.net/rrc00/2026.06/updates.20260607.0000.gz
+</code></pre>
+<h2 id="daemon-mrt-recording">Daemon MRT Recording</h2>
+<p>Ze produces MRT dumps from live BGP sessions via the <code>mrt</code> component. Configure
+under <code>mrt {}</code> in the YANG config:</p>
+<!-- source: internal/plugins/mrt/yang/ze-mrt-conf.yang -- YANG config schema -->
+<!-- source: internal/plugins/mrt/component.go -- daemon MRT component -->
+
+<p>Three independent streams (following FRR's model):
+1. <strong>Updates</strong> -- BGP4MP records for UPDATE messages only
+2. <strong>All</strong> -- BGP4MP records for all BGP messages + state changes
+3. <strong>Routes</strong> -- periodic TABLE_DUMP_V2 RIB snapshots</p>
+<p>Features: per-peer filtering, direction filtering (received/sent), extended
+timestamps (BGP4MP_ET), add-path aware, on-demand CLI dump via
+<code>request mrt dump-rib</code>, strftime filename rotation, async non-blocking writes.</p>
+<h2 id="related">Related</h2>
+<ul>
+<li><a href="https://github.com/ze-software/ze/blob/main/docs/architecture/mrt.md" target="_blank" rel="noopener">MRT Architecture</a> -- package structure and design</li>
+<li><a href="https://github.com/ze-software/ze/blob/main/docs/research/mrt-implementation-comparison.md" target="_blank" rel="noopener">MRT Implementation Comparison</a> -- feature
+  comparison across BGP implementations</li>
+<li><a href="https://github.com/ze-software/ze/blob/main/docs/architecture/update-density-analysis.md" target="_blank" rel="noopener">Update Density Analysis</a> -- empirical
+  findings that inform forward pool channel sizing</li>
+<li><a href="https://github.com/ze-software/ze/blob/main/docs/architecture/forward-congestion-pool.md" target="_blank" rel="noopener">Forward Congestion Pool</a> -- the design
+  that consumes these measurements</li>
+<li><a href="https://github.com/ze-software/ze/blob/main/docs/architecture/congestion-industry.md" target="_blank" rel="noopener">Congestion Industry Survey</a> -- how other
+  BGP implementations handle similar problems</li>
+</ul>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/quickstart/">
+                        <span class="page-sidebar-link-label">Quickstart</span>
+                        <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create zefs, and start SSH.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../reference/command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

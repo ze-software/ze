@@ -1,0 +1,612 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>AS112 - Ze</title>
+        <meta name="description" content="Ze documentation: guide/as112.md" />
+        <meta property="og:title" content="AS112 - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/as112.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="AS112 - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/as112.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/guides/as112/" />
+        <meta property="og:url" content="https://ze-software.net/guides/as112/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-services">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1 id="as112">AS112</h1>
+    <p>Ze's <code>as112</code> plugin runs an AS112 anycast DNS node: an authoritative sink for misdirected RFC 1918 and link-local reverse-DNS queries (RFC 7534), plus the EMPTY.AS112.ARPA DNAME-redirection sink (RFC 7535). It answers on four fixed anycast host addresses, so the plugin config never needs an operator-supplied service IP.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#quick-start">Quick Start</a></li>
+<li><a href="#configuration-reference">Configuration Reference</a></li>
+<li><a href="#answer-policy">Answer Policy</a>
+<ol>
+<li><a href="#reply-shape-and-size">Reply shape and size</a></li>
+</ol></li>
+<li><a href="#cli-commands">CLI Commands</a></li>
+<li><a href="#bgp-integration-conditional-origination">BGP Integration (Conditional Origination)</a>
+<ol>
+<li><a href="#redistribute-origination-same-settings-for-every-peer">Redistribute origination (same settings for every peer)</a></li>
+<li><a href="#hand-authored-origination-per-peer-settings">Hand-authored origination (per-peer settings)</a></li>
+<li><a href="#worked-example">Worked example</a></li>
+<li><a href="#probe-credentials">Probe credentials</a></li>
+<li><a href="#shared-watchdog-groups">Shared watchdog groups</a></li>
+</ol></li>
+<li><a href="#rfc-compliance-mapping">RFC Compliance Mapping</a></li>
+<li><a href="#known-limitations">Known Limitations</a></li>
+</ol></nav>
+<!-- source: internal/plugins/as112/register.go -- as112 registration -->
+
+<h2 id="quick-start">Quick Start</h2>
+<pre><code>service {
+    as112 {
+        enabled true
+        hostname &quot;node1.example.net&quot;
+    }
+}
+</code></pre>
+<p>This is the full config for the DNS node. The four canonical addresses (192.175.48.1, 192.31.196.1, 2620:4f:8000::1, 2001:4:112::1) are Go constants, registered against the interface address-ownership registry and bound on <code>lo</code> automatically, so they are not typed into config.</p>
+<p><code>as112</code> must run as an <strong>internal</strong> plugin (the default auto-load path, or an explicit <code>plugin { internal as112 { use as112; } }</code>). It must not run as <code>plugin { external as112 { ... } }</code>. The address-ownership registration is a same-process call into the <code>iface</code> engine; as a forked subprocess, it would register against its own copy of that state and never reach the kernel. <code>as112</code> refuses to start and logs an error if it detects it is not running in-process.</p>
+<h2 id="configuration-reference">Configuration Reference</h2>
+<p>All leaves go under <code>service { as112 { ... } }</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Leaf</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>enabled</code></td>
+<td>boolean</td>
+<td>false</td>
+<td>Enable the AS112 anycast DNS node.</td>
+</tr>
+<tr>
+<td><code>address-family</code></td>
+<td>enumeration</td>
+<td><code>both</code></td>
+<td><code>both</code>, <code>ipv4-only</code>, or <code>ipv6-only</code>. Restricts the service to one address family (RFC 7534 §3.4 / RFC 7535 §3.1 single-stack option).</td>
+</tr>
+<tr>
+<td><code>hostname</code></td>
+<td>string (0-63)</td>
+<td>(empty)</td>
+<td>Node-identification string surfaced in HOSTNAME.AS112.NET/ARPA TXT answers, so operators can tell which anycast instance answered a query. Empty omits the TXT string.</td>
+</tr>
+<tr>
+<td><code>facility</code></td>
+<td>string (0-100)</td>
+<td>(empty)</td>
+<td>Facility/site name surfaced alongside <code>location</code> in the HOSTNAME TXT answer.</td>
+</tr>
+<tr>
+<td><code>location</code></td>
+<td>string (0-100)</td>
+<td>(empty)</td>
+<td>City/country surfaced alongside <code>facility</code>.</td>
+</tr>
+<tr>
+<td><code>allow-from</code></td>
+<td>leaf-list (ip-prefix)</td>
+<td>(empty = answer all)</td>
+<td>Optional client-source access list. When non-empty, only queries from a listed prefix are answered; the rest are silently dropped. Loopback/on-box sources are always permitted, so <code>request as112 healthcheck</code> is never blocked. Setting this makes the node non-public, which is correct for a local-use mirror and wrong for a globally-reachable AS112 contributor.</td>
+</tr>
+<tr>
+<td><code>asn</code></td>
+<td>asn (1-4294967295)</td>
+<td>112</td>
+<td>Origin AS the covering prefixes carry when redistributed into BGP (<code>import as112</code>). Defaults to the well-known AS112 number 112, since the source models an AS112 virtual router. Set an operator or RFC 6996 private ASN to originate under a coordinated or local-use AS. Ignored unless <code>import as112</code> is configured.</td>
+</tr>
+<tr>
+<td><code>community</code></td>
+<td>leaf-list (string)</td>
+<td>(empty)</td>
+<td>Optional BGP communities on the redistributed covering prefixes. Accepts AA:NN and well-known names (<code>no-export</code>, <code>nopeer</code>; RFC 1997/3765), the values RFC 7534 §3.4 recommends for restricting AS112 route propagation. Ignored unless <code>import as112</code> is configured.</td>
+</tr>
+<tr>
+<td><code>watchdog</code></td>
+<td>boolean</td>
+<td>true</td>
+<td>Health-gate the BGP announcement on DNS serving state (RFC 7534 §3.3). true (default) announces only while the node is serving and withdraws on serving loss, <code>enabled false</code>, or shutdown; false announces as soon as enabled and imported. Ignored unless <code>import as112</code> is configured.</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/plugins/as112/yang/ze-as112-conf.yang -- YANG leaves -->
+
+<p>The combined <code>hostname</code>+<code>facility</code>+<code>location</code> TXT payload is bounded so the assembled HOSTNAME.AS112.* response always fits 512 octets with TC=0, even at every field's maximum length (RFC 7534 §3.5).</p>
+<p><code>allow-from</code> is the recommended way to restrict a local-use mirror to known client ranges. Set it directly in <code>service { as112 { ... } }</code> rather than hand-authoring <code>firewall</code> section rules matching UDP/TCP port 53 across all four anycast addresses (two per family). Keeping access control in the plugin avoids splitting one policy decision across two subsystems, and the loopback/on-box carve-out is never blocked, which a hand-authored firewall rule would have to replicate correctly.</p>
+<p>The on-box carve-out recognises both loopback and the node's own four anycast addresses as sources. The healthcheck probe deliberately queries the real anycast address rather than loopback; see <a href="#bgp-integration-conditional-origination">BGP Integration</a>. Unlike loopback, the anycast addresses are ordinary public IPs that a remote sender could forge as a UDP source, so a query claiming to originate from the node's own address bypasses <code>allow-from</code>. This does not enable data exfiltration because replies go to the real address rather than the spoofed one, but <code>allow-from</code> should not be the only access control against a source willing to spoof the node's own addresses.</p>
+<h2 id="answer-policy">Answer Policy</h2>
+<p>Every AS112 zone holds its records at the apex and nothing below it (RFC 7534
+§3.5), so where the query name sits decides the response code.</p>
+<table>
+<thead>
+<tr>
+<th>Query</th>
+<th>RCODE</th>
+<th>AA</th>
+<th>Authority section</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Opcode other than a standard query (inverse query, server status, notify, update)</td>
+<td>4 Not Implemented (RFC 1035 §6.4)</td>
+<td>set</td>
+<td>empty</td>
+</tr>
+<tr>
+<td>Name under no served zone</td>
+<td>5 Refused (RFC 1035 §4.1.1)</td>
+<td>clear</td>
+<td>empty</td>
+</tr>
+<tr>
+<td>Name inside a served zone, below its apex</td>
+<td>3 Name Error (RFC 1035 §4.1.1)</td>
+<td>set</td>
+<td>zone SOA</td>
+</tr>
+<tr>
+<td>Zone apex, query type the zone holds no record for</td>
+<td>0 No Error, empty Answer</td>
+<td>set</td>
+<td>zone SOA</td>
+</tr>
+</tbody>
+</table>
+<p>Sinking the reverse-DNS query for a private address is exactly the statement
+that the name does not exist, which is what RFC 7534 §3.5 has these empty zones
+make. A Refused reply carries no authority, because the node holds no zone for
+that namespace. The SOA in the Authority section is what RFC 2308 §3 requires so
+a resolver can cache the negative answer for the 1W the SOA MINIMUM field gives
+it, which is the point of an AS112 node.</p>
+<p>The non-query opcode is refused before any zone lookup, so an opcode ze does not
+serve costs one header.</p>
+<!-- source: internal/plugins/as112/zones.go -- answerQuestions -->
+<!-- source: internal/core/dnsserver/handler.go -- Authoritative, shapeAuthoritative -->
+
+<h3 id="reply-shape-and-size">Reply shape and size</h3>
+<p>The shared authoritative harness owns the reply shape for as112 and geodns
+alike. Recursion is never advertised (RA clear), the reserved Z field and the AD
+bit go out zero (RFC 1035 §4.1.1, RFC 4035 §3.1.6), and no answer path can
+change them.</p>
+<p>A reply on a datagram transport is bounded and gets TC when it is shortened. The
+bound is 512 octets (RFC 1035 §2.3.4) or the larger reassembly buffer the
+requestor advertised in an OPT record (RFC 6891 §6.2.3). An advertisement below
+512 does not lower the bound. A reply on TCP, DoT or DoH is written whole and
+never carries TC: RFC 1035 §4.2.1 bounds UDP only, and §4.2.2 puts no length
+ceiling on a stream.</p>
+<!-- source: internal/core/dnsserver/handler.go -- send, udpReplyLimit, isDatagram -->
+
+<h2 id="cli-commands">CLI Commands</h2>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>show as112</code></td>
+<td>Node status: enabled, address-family, hostname/facility/location, allow-from count, served zone count, current SOA serial, and the address-registry's health (<code>address-registry-ok</code>; when false, <code>address-registry-error</code>/<code>address-registry-error-at</code> explain the most recent failure to apply the anycast addresses to a kernel interface).</td>
+</tr>
+<tr>
+<td><code>request as112 healthcheck [target &lt;ip&gt;]</code></td>
+<td>One-shot authoritative query against an anycast service address (or the given target; defaults to the address-family-appropriate loopback). Exit 0 when the expected AS112 answer comes back. This is the tool a healthcheck probe or monitoring script calls, since <code>dig</code> is not on the gokrazy appliance and <code>ze resolve dns</code> cannot target a specific server.</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/plugins/as112/health.go -- handleAS112Health -->
+<!-- source: internal/plugins/as112/show.go -- handleShowAS112 -->
+
+<h2 id="bgp-integration-conditional-origination">BGP Integration (Conditional Origination)</h2>
+<p>AS112 covering prefixes (the /24s and /48s per RFC 7534 §3.4 / RFC 7535 §3.1, NOT the /32,/128 host addresses bound on <code>lo</code>) can be originated into BGP two ways. Both preserve the layering rule: <code>as112</code> never reads <code>bgp {}</code> config and BGP hardcodes no AS112 knowledge.</p>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>When to use</th>
+<th>Origin-AS / community control</th>
+<th>Health gate</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Redistribute</strong></td>
+<td>Use when the same ASN, community, and service-state gate should apply to every BGP peer. One <code>import as112</code> line plus source-level <code>asn</code>/<code>community</code> in the <code>as112</code> block.</td>
+<td>Source-level (<code>asn</code>, <code>community</code> leaves), identical on every peer.</td>
+<td>Process serving-state (<code>watchdog</code> leaf, default true): announce while the DNS node serves.</td>
+</tr>
+<tr>
+<td><strong>Hand-authored</strong></td>
+<td>Use when per-peer origin-AS/community, dedicated peer-group policy, or end-to-end anycast-path liveness matters.</td>
+<td>Per-peer, per-<code>update</code>-block (<code>as-path</code>, <code>community</code>, <code>replace-as</code>).</td>
+<td><code>healthcheck</code> probe gating a <code>watchdog</code> <code>update</code> block, which can probe the real anycast path as well as loopback.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="redistribute-origination-same-settings-for-every-peer">Redistribute origination (same settings for every peer)</h3>
+<p>Model the AS112 node as a virtual router with its own ASN and let the four covering prefixes enter the BGP RIB like <code>static</code>/<code>connected</code> redistribution, triggered by one <code>import as112</code> line. The routes are announced only while the DNS node is serving (<code>watchdog</code> default true, RFC 7534 §3.3) and withdrawn on serving loss, <code>enabled false</code>, or shutdown.</p>
+<pre><code>service {
+    as112 {
+        enabled true
+        asn 112              # origin AS on the wire (default 112); an operator/private ASN overrides
+        community [ nopeer ] # optional; RFC 7534 §3.4 propagation restriction (RFC 1997/3765)
+        # watchdog true      # default: announce only while serving
+    }
+}
+redistribute {
+    destination bgp {
+        import as112         # the trigger; without this line nothing is announced
+    }
+}
+bgp {
+    # ordinary peer/group config. The covering prefixes are announced to all BGP
+    # peers (including a peer that establishes later). Use egress community/prefix
+    # filters, or the hand-authored path below, for per-peer scope.
+}
+</code></pre>
+<p>To an iBGP peer the AS_PATH is <code>[asn]</code> (e.g. <code>[112]</code>); to an eBGP peer the local AS is prepended, giving <code>[localAS, asn]</code>. <code>ze doctor</code> warns (<code>doctor-as112-redistribute-origin-uncoordinated</code>) when <code>asn 112</code> reaches an eBGP session to a public ASN, an uncoordinated global AS112 origin (RFC 7534 §3.2/§5): coordinate first, restrict with an egress filter, or set a private/operator <code>asn</code>.</p>
+<p>Choose the hand-authored path when these redistribute limits matter: the covering prefixes go to <em>all</em> BGP peers because the redistribute block has no dedicated peer-group restriction, the same <code>asn</code>/<code>community</code> applies to every peer, and the <code>watchdog</code> gate checks process serving state rather than the full anycast path.</p>
+<!-- source: internal/plugins/as112/redistribute.go -- as112 redistribute producer -->
+<!-- source: internal/component/bgp/redistribute/consumer.go -- origin-ASN/community wire emission -->
+
+<h3 id="hand-authored-origination-per-peer-settings">Hand-authored origination (per-peer settings)</h3>
+<p>The <code>healthcheck</code> probe plus <code>watchdog</code>-controlled <code>update</code> block remains available for per-peer origin-AS/community, dedicated peer-group policy, or anycast-path liveness. No AS112-specific BGP code exists; it composes existing mechanisms (see <code>docs/guide/healthcheck.md</code>).</p>
+<h3 id="worked-example">Worked example</h3>
+<pre><code>service {
+    as112 {
+        enabled true
+    }
+}
+
+bgp {
+    healthcheck {
+        probe as112-anycast {
+            # H1: query an ANYCAST SERVICE ADDRESS, never loopback. A
+            # loopback probe reports UP even when the anycast path itself is
+            # unreachable (IP_FREEBIND lets the server bind before the
+            # address lands on the interface) -- exactly the false positive
+            # RFC 7534 Section 3.3/3.5 forbids.
+            #
+            # This shells out to `ze cli -c &quot;...&quot;`, which dispatches back
+            # into THIS SAME running daemon over SSH. The daemon process
+            # itself must be started with ZE_CONFIG_DIR/ZE_SSH_PASSWORD (or
+            # an equivalent credential) set in its OWN environment, since the
+            # probe subprocess inherits it -- see &quot;Probe credentials&quot; below.
+            command &quot;ze cli -c \&quot;request as112 healthcheck target 192.175.48.1\&quot;&quot;
+            group as112-anycast
+            interval 10
+            rise 2
+            fall 2
+            withdraw-on-down true
+        }
+    }
+
+    # Two DEDICATED peer-groups for AS112 routes only (RFC 7534 Section 3.4's
+    # prefix/AS-PATH-filter SHOULD): never reuse a general-purpose/transit
+    # peer-group for either update block. `session` is a single container per
+    # peer (not a list) -- AS_PATH origin override and &quot;no override&quot; are two
+    # SEPARATE peer blocks, both referencing the SAME watchdog group below, so
+    # one shared healthcheck probe gates both (see &quot;Shared watchdog groups&quot;).
+    # Splitting into per-address-family update blocks (rather than one mixed
+    # block) is required because next-hop is family-specific.
+    #
+    # `connection`/`family` blocks are omitted below for brevity -- fill in
+    # the usual peer connectivity settings as for any other BGP peer-group.
+    # This example (verified with `ze config validate`) focuses only on the
+    # AS112-specific composition: the healthcheck-gated watchdog update block.
+    peer as112-ix-peer {
+        session {
+            asn {
+                local 65000
+                remote 65001
+            }
+        }
+        update {
+            attribute {
+                origin igp
+                next-hop self
+                # RFC 7534's recommended community for routes sent to
+                # bilateral peers is NOPEER; NO_EXPORT is the other common
+                # choice for a local-use mirror. Pick one.
+                community [ nopeer ]
+            }
+            nlri {
+                # RFC 7534 Section 3.4 / RFC 7535 Section 2: the covering
+                # /24 prefixes -- NOT the /32 host addresses bound on lo
+                # (finding H3).
+                ipv4/unicast add 192.175.48.0/24
+                ipv4/unicast add 192.31.196.0/24
+            }
+            watchdog {
+                name as112-anycast
+                # H2: the withdraw marker is MANDATORY. Its absence defaults
+                # the route to already-announced (no real YANG default
+                # exists despite the misleading description), which would
+                # announce the AS112 prefixes before the DNS service is
+                # confirmed healthy. `ze doctor` also flags an update block
+                # carrying an AS112 covering prefix without this marker
+                # (doctor-as112-watchdog-missing-withdraw).
+                withdraw true
+            }
+        }
+    }
+
+    # Bilateral peer with an AS112-origin override: asn.local + replace-as
+    # overrides AS_PATH origin to 112 for THIS peer-group's routes only. The
+    # peer-group above has no such override, so it announces with ze's real
+    # local AS instead -- both are controlled independently even though they
+    # share the same watchdog group (&quot;as112-anycast&quot;).
+    #
+    # HARD WARNING: replace-as 112 on a group with eBGP sessions to
+    # non-private/public ASNs makes this an uncoordinated global AS112 node.
+    # Only do this after RFC 7534 Section 3.2/Section 5 coordination (see the
+    # umbrella's RFC Compliance Mapping). For a local-use mirror (bilateral/
+    # internal peers only), this is safe -- and it is why this example's
+    # remote (65002) is a private-use ASN (RFC 6996). `ze doctor` flags
+    # asn.local 112 + replace-as against a non-private remote ASN
+    # (doctor-as112-global-origin-uncoordinated).
+    peer as112-bilateral-peer {
+        session {
+            asn {
+                local 112
+                local-options [ replace-as ]
+                remote 65002
+            }
+        }
+        update {
+            attribute {
+                origin igp
+                next-hop self
+                community [ nopeer ]
+            }
+            nlri {
+                ipv6/unicast add 2620:4f:8000::/48
+                ipv6/unicast add 2001:4:112::/48
+            }
+            watchdog {
+                name as112-anycast
+                withdraw true
+            }
+        }
+    }
+}
+</code></pre>
+<h3 id="probe-credentials">Probe credentials</h3>
+<p>The healthcheck probe's <code>command</code> is a plain shell command (<code>/bin/sh -c "..."</code>), executed as a child of the <code>ze</code> daemon process and inheriting its environment. For <code>ze cli -c "request as112 healthcheck target ..."</code> to authenticate back into the same daemon over SSH:</p>
+<ol>
+<li>Start the daemon with <code>ZE_CONFIG_DIR</code> and <code>ZE_SSH_PASSWORD</code> (or the super-admin credential of your choice) set in its own environment.</li>
+<li>Ensure <code>environment { ssh { enabled true; ... } }</code> is configured, and a <code>bgp { ... }</code> block is present (SSH command dispatch for a healthcheck probe requires the BGP-wired executor path; a bare <code>ssh {}</code>-only config with no <code>bgp {}</code> block routes through a different, standalone SSH path that does not carry this wiring).</li>
+<li>Run <code>ze init</code> once against that same <code>ZE_CONFIG_DIR</code> after the daemon starts, so the client-side credential lookup succeeds on the probe's first tick.</li>
+</ol>
+<h3 id="shared-watchdog-groups">Shared watchdog groups</h3>
+<p>A single watchdog group name can be referenced by <code>update</code> blocks under multiple distinct peer-groups at the same time. Announce/withdraw state is shared, so sending AS112 routes to two peer-groups needs one <code>healthcheck</code> probe and one <code>group</code> name, not one per peer-group.</p>
+<h2 id="rfc-compliance-mapping">RFC Compliance Mapping</h2>
+<p>Every SHOULD/MUST from RFC 7534 (AS112 Nameserver Operations) and RFC 7535 (AS112 Redirection Using DNAME) this feature touches, with an explicit verdict.</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Source</th>
+<th>Requirement</th>
+<th>Verdict</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>RFC 7534 §3.5</td>
+<td>MUST answer authoritatively for each delegated zone</td>
+<td>Met. SOA parameters (refresh 1W, retry 1M, expire 1W, min-TTL 1W) and canonical NS/MNAME names are RFC-pinned and tested</td>
+</tr>
+<tr>
+<td>2</td>
+<td>RFC 7534 §3.5</td>
+<td>MUST NOT include records beyond SOA/NS in Direct Delegation zones</td>
+<td>Met</td>
+</tr>
+<tr>
+<td>3</td>
+<td>RFC 7534 §3.5</td>
+<td>MUST NOT host the site's own RFC 1918 records on the AS112 nameserver</td>
+<td>Met by design: the plugin only ever serves the fixed static empty-zone data</td>
+</tr>
+<tr>
+<td>4</td>
+<td>RFC 7534 §3.3</td>
+<td>SHOULD support cloned loopback / multiple loopback addresses</td>
+<td>Met (existing <code>iface</code> capability)</td>
+</tr>
+<tr>
+<td>5</td>
+<td>RFC 7534 §3.3</td>
+<td>SHOULD dedicate the host to AS112 purpose</td>
+<td><strong>Not met.</strong> Not software-enforceable; deployment recommendation only</td>
+</tr>
+<tr>
+<td>6</td>
+<td>RFC 7534 §3.3</td>
+<td>SHOULD order startup: loopback to DNS to routing</td>
+<td>Met, conditional on two things: (a) the <code>update</code> block includes the <code>watchdog</code> <code>withdraw</code> marker so the route starts withdrawn (its absence defaults to <em>announced</em>); (b) the healthcheck probe queries an anycast service address, not loopback</td>
+</tr>
+<tr>
+<td>7</td>
+<td>RFC 7534 §3.3</td>
+<td>SHOULD NOT advertise the service prefix while addresses are unconfigured or DNS is not running</td>
+<td>Met (healthcheck → watchdog), same two conditions as #6</td>
+</tr>
+<tr>
+<td>8</td>
+<td>RFC 7534 §3.4</td>
+<td>SHOULD restrict outbound advertisement to a prefix filter permitting only the service prefixes + an AS_PATH filter matching only locally-originated routes</td>
+<td>Conditionally met: true if the operator dedicates the target peer-group to AS112 only (recommended above); not enforceable if a general-purpose/transit peer-group is reused</td>
+</tr>
+<tr>
+<td>9</td>
+<td>RFC 7534 §3.5</td>
+<td>SHOULD run authoritative-only (recursion disabled)</td>
+<td>Met by design</td>
+</tr>
+<tr>
+<td>10</td>
+<td>RFC 7534 §3.5</td>
+<td>SHOULD keep HOSTNAME.AS112.{NET,ARPA} TXT answers within 512 octets without EDNS0</td>
+<td>Met. The assembled UDP response (all TXT strings + NS + SOA) is boundary-tested, not any single field in isolation</td>
+</tr>
+<tr>
+<td>11</td>
+<td>RFC 7534 §4.1</td>
+<td>SHOULD monitor the node as a production service</td>
+<td>Met (Prometheus metrics + <code>show as112</code>)</td>
+</tr>
+<tr>
+<td>12</td>
+<td>RFC 7534 §4.2</td>
+<td>SHOULD withdraw the service prefix before planned downtime</td>
+<td>Met (manual <code>watchdog withdraw</code>, or automatic via healthcheck)</td>
+</tr>
+<tr>
+<td>13</td>
+<td>RFC 7534 §4.3</td>
+<td>SHOULD measure usage for trend/anomaly tracking</td>
+<td>Met (Prometheus counters)</td>
+</tr>
+<tr>
+<td>14</td>
+<td>RFC 7534 §3.2/§5</td>
+<td>SHOULD notify the local community before installing; coordinate with other AS112 operators for globally-reachable nodes</td>
+<td><strong>Not met.</strong> Not software-enforceable; process/organisational step</td>
+</tr>
+<tr>
+<td>15</td>
+<td>RFC 7534 §3.4</td>
+<td>MAY configure only the relevant address family for single-stack nodes</td>
+<td>Met. <code>address-family</code> toggle</td>
+</tr>
+<tr>
+<td>16</td>
+<td>RFC 7535 §6</td>
+<td>MUST NOT require DNAME support on the AS112 node itself</td>
+<td>Met. The plugin only answers EMPTY.AS112.ARPA directly, never processes a DNAME</td>
+</tr>
+<tr>
+<td>17</td>
+<td>RFC 7535 §3.1</td>
+<td>SHOULD configure 192.31.196.1/2001:4:112::1 and announce covering routes, and host EMPTY.AS112.ARPA</td>
+<td>Met</td>
+</tr>
+<tr>
+<td>18</td>
+<td>RFC 7535 §3.1</td>
+<td>SHOULD configure only the relevant address for single-stack nodes</td>
+<td>Met. Same toggle as #15</td>
+</tr>
+<tr>
+<td>19</td>
+<td>RFC 7535 §4</td>
+<td>SHOULD leave existing Direct Delegation delegation/continuity unchanged</td>
+<td>N/A for local-use deployment (routes never reach the global anycast cloud unless the operator explicitly applies the AS112-origin override on a publicly-peered group, which is then their own coordination responsibility)</td>
+</tr>
+</tbody>
+</table>
+<p>Items #5 and #14 are deployment/process recommendations about how the operator runs and announces the service to the human AS112 community, which Ze cannot verify or enforce in software. They are recorded here, not silently dropped, and repeated below.</p>
+<h2 id="known-limitations">Known Limitations</h2>
+<ul>
+<li>NSID (RFC 5001) is not implemented; the <code>hostname</code> TXT mechanism is the v1 node-identification approach.</li>
+<li>Only one address per service per family (4 total); BLACKHOLE-1/2 secondary IANA addresses are out of scope.</li>
+<li>Requires in-process deployment because it depends on the iface address-ownership registry's Go-level API, not available to out-of-process/forked plugins.</li>
+<li><code>allow-from</code> drops out-of-range queries silently (no REFUSED response). On-box/loopback is always permitted, so <code>allow-from</code> cannot be used to firewall the node from its own healthcheck.</li>
+<li>This plugin ships no executable BGP integration code. Operators hand-author the <code>healthcheck</code>/<code>update</code> composition from the worked example above; there is no single turnkey <code>as112 { bgp { ... } }</code> config block.</li>
+<li>Two RFC 7534 SHOULDs cannot be enforced in software (RFC Compliance Mapping #5 and #14 above): dedicating the host to AS112 purpose, and community notification before installing a globally-reachable node. These are deployment/process responsibilities, documented here rather than coded.</li>
+</ul>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/quickstart/">
+                        <span class="page-sidebar-link-label">Quickstart</span>
+                        <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create zefs, and start SSH.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../reference/command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

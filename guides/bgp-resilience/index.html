@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>BGP Resilience - Ze</title>
+        <meta name="description" content="Ze documentation: guide/bgp-resilience.md" />
+        <meta property="og:title" content="BGP Resilience - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/bgp-resilience.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="BGP Resilience - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/bgp-resilience.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/guides/bgp-resilience/" />
+        <meta property="og:url" content="https://ze-software.net/guides/bgp-resilience/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-routing">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1 id="bgp-resilience">BGP Resilience</h1>
+    <p>BGP resilience is a set of separate mechanisms. Route Refresh reapplies policy without dropping the session. Graceful Restart retains forwarding during a restart. RIB persistence retains outbound state. Route reflection distributes iBGP routes without a full mesh. Use only the mechanisms the topology requires.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#route-refresh">Route Refresh</a></li>
+<li><a href="#graceful-restart">Graceful Restart</a></li>
+<li><a href="#restarting-ze">Restarting Ze</a></li>
+<li><a href="#rib-persistence">RIB persistence</a></li>
+<li><a href="#route-reflection">Route reflection</a></li>
+<li><a href="#add-path-and-multipath">ADD-PATH and multipath</a></li>
+<li><a href="#failure-checklist">Failure checklist</a></li>
+<li><a href="#related-guides">Related guides</a></li>
+</ol></nav>
+<h2 id="route-refresh">Route Refresh</h2>
+<p>When both peers negotiate Route Refresh, request a new advertisement without tearing down TCP:</p>
+<pre><code class="language-console">ze cli -c &quot;request peer transit-a refresh ipv4/unicast&quot;
+ze cli -c &quot;request peer transit-a clear soft&quot;
+</code></pre>
+<p>Enhanced Route Refresh adds Begin-of-RR and End-of-RR markers so stale routes can be removed after the replacement stream completes. Verify the negotiated capability with <code>show bgp peer transit-a capabilities</code> before relying on it.</p>
+<h2 id="graceful-restart">Graceful Restart</h2>
+<p>Graceful Restart requires the <code>bgp-gr</code> and <code>bgp-rib</code> plugins. The restarting speaker advertises the capability, while the receiving speaker retains stale routes until End-of-RIB or timer expiry.</p>
+<pre><code class="language-text">plugin {
+    internal rib {
+        use bgp-rib
+    }
+    internal gr {
+        use bgp-gr
+    }
+}
+
+bgp {
+    peer upstream1 {
+        session {
+            capability {
+                graceful-restart {
+                    restart-time 120
+                    long-lived-stale-time 3600
+                }
+            }
+        }
+        attach process gr {
+            receive [ open-received state eor ]
+            send [ update ]
+        }
+        attach process rib {
+            receive [ update state refresh ]
+            send [ update ]
+        }
+    }
+}
+</code></pre>
+<p>Long-Lived Graceful Restart extends the stale period and deprioritises stale routes. It is active only when both peers negotiate it. Routes carrying <code>NO_LLGR</code> are removed rather than retained.</p>
+<p>Load <code>bgp-gr</code> with <code>internal &lt;name&gt; { use bgp-gr }</code>, as the example above does. <code>run "ze plugin bgp-gr"</code> starts the plugin engine in a child process, and RFC 9494's egress filter in the daemon then reads no peer capability state. The filter fails closed for every peer. It withdraws stale routes from external peers, and it attaches <code>NO_EXPORT</code> with <code>LOCAL_PREF</code> 0 to the routes it sends to internal peers. <code>ze doctor</code> reports the arrangement as <code>doctor-bgp-gr-out-of-process</code>.</p>
+<p>See <a href="../graceful-restart/">Graceful Restart</a> for timers, stale levels, communities, and failure handling.</p>
+<h2 id="restarting-ze">Restarting Ze</h2>
+<p>Use the restart path when peers should see a planned Graceful Restart:</p>
+<pre><code class="language-console">ze signal restart
+</code></pre>
+<p>A normal stop does not claim that forwarding state will survive:</p>
+<pre><code class="language-console">ze signal stop
+</code></pre>
+<p>After restart, confirm that peers negotiated GR, stale routes were retained only for the intended families, fresh routes replaced them, and no stale entries remain after End-of-RIB.</p>
+<h2 id="rib-persistence">RIB persistence</h2>
+<p>The <code>bgp-persist</code> plugin tracks outbound routes and can replay them after reconnect. It complements Graceful Restart but does not replace policy or best-path calculation. Persisted state must still be reconciled with the live configuration and destination peer.</p>
+<p>Use <code>show bgp rib status</code>, the peer RIB commands, and warning reports to confirm that replay completed. A reconnect should not trigger repeated full-table floods to unrelated peers.</p>
+<h2 id="route-reflection">Route reflection</h2>
+<p>Route reflection replaces an iBGP full mesh with client and non-client relationships. Ze applies ORIGINATOR_ID and CLUSTER_LIST loop protection and retains ordinary import and export policy per destination.</p>
+<p>Design points:</p>
+<ul>
+<li>Give each reflector a stable router ID and cluster identity.</li>
+<li>Mark clients explicitly.</li>
+<li>Use at least two reflectors for a production cluster.</li>
+<li>Keep client export policy separate from eBGP policy.</li>
+<li>Verify that a route learned from one client reaches other clients and eligible non-clients, but does not return to its originator.</li>
+</ul>
+<p>For a task-oriented example, see the <a href="../flowspec-route-reflector/">FlowSpec route-reflector guide</a>. The same reflection topology applies to other negotiated families, subject to their plugin support.</p>
+<h2 id="add-path-and-multipath">ADD-PATH and multipath</h2>
+<p>ADD-PATH advertises more than one path for a prefix. Multipath installs equal-cost next hops in the local RIB and FIB. These are independent:</p>
+<ul>
+<li>ADD-PATH changes what paths cross a BGP session.</li>
+<li>Multipath changes what equal candidates are installed locally.</li>
+</ul>
+<p>Verify send and receive modes, path identifiers, best-path state, and installed ECMP next hops separately. See <a href="../add-path/">ADD-PATH</a> and the <a href="../../features/bgp-protocol/">BGP protocol page</a> for current support.</p>
+<h2 id="failure-checklist">Failure checklist</h2>
+<p>During a maintenance test:</p>
+<ol>
+<li>Record peer state and RIB counts.</li>
+<li>Trigger the intended refresh, session restart, or process restart.</li>
+<li>Watch peer state and recent events.</li>
+<li>Confirm forwarding remains valid where GR or LLGR promises it.</li>
+<li>Confirm stale routes disappear after refresh completion or timer expiry.</li>
+<li>Confirm every peer receives one coherent replacement stream.</li>
+<li>Check <code>show warnings</code>, <code>show errors</code>, and <code>show health</code>.</li>
+</ol>
+<h2 id="related-guides">Related guides</h2>
+<ul>
+<li><a href="../bgp-peering/">BGP peering</a></li>
+<li><a href="../bgp-policy/">BGP policy</a></li>
+<li><a href="../graceful-restart/">Graceful Restart</a></li>
+<li><a href="../add-path/">ADD-PATH</a></li>
+<li><a href="../lifecycle/">Lifecycle and rollback</a></li>
+</ul>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/quickstart/">
+                        <span class="page-sidebar-link-label">Quickstart</span>
+                        <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create zefs, and start SSH.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../reference/command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

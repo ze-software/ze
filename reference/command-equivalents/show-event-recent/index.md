@@ -1,0 +1,32 @@
+# `show event recent`
+
+## Ze command
+
+- Syntax: `show event recent`
+- Registry path: `show event recent`
+- Mode: Read-only
+- Wire method: `ze-show:event-recent`
+- Global pipes: yes
+
+Show recent events, newest first. Each event includes timestamp, namespace, and type. Filter with namespace <name> to focus on one area, count <N> to limit output. Useful for reconstructing what happened before an incident.
+
+## Mapping intents
+
+No vendor equivalent has been curated yet for this Ze command.
+## Vendor equivalents
+
+### Junos MX
+
+No equivalent listed.
+
+### IOS XR
+
+No equivalent listed.
+
+### SR OS
+
+No equivalent listed.
+
+### VyOS
+
+No equivalent listed.

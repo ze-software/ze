@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>Operator access with SSH and RBAC - Ze</title>
+        <meta name="description" content="Ze documentation: guide/operator-access-rbac.md" />
+        <meta property="og:title" content="Operator access with SSH and RBAC - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/operator-access-rbac.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Operator access with SSH and RBAC - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/operator-access-rbac.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/guides/operator-access-rbac/" />
+        <meta property="og:url" content="https://ze-software.net/guides/operator-access-rbac/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-secure">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1 id="operator-access-with-ssh-and-rbac">Operator access with SSH and RBAC</h1>
+    <p>Use this when the box already has Ze installed and <code>database.zefs</code> created, and you want real operator accounts instead of a single bootstrap admin.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#1-start-from-the-ubuntu-install-page">1. Start from the Ubuntu install page</a></li>
+<li><a href="#2-decide-the-profiles">2. Decide the profiles</a></li>
+<li><a href="#3-build-and-load-a-set-format-update">3. Build and load a set-format update</a></li>
+<li><a href="#4-test-each-account">4. Test each account</a>
+<ol>
+<li><a href="#how-authorization-decides">How authorization decides</a></li>
+<li><a href="#the-recovery-account">The recovery account</a></li>
+</ol></li>
+<li><a href="#5-add-ssh-public-keys">5. Add SSH public keys</a></li>
+<li><a href="#6-add-tacacs-later">6. Add TACACS+ later</a></li>
+<li><a href="#7-operational-checks">7. Operational checks</a></li>
+<li><a href="#8-remove-an-operator">8. Remove an operator</a></li>
+</ol></nav>
+<p>The example keeps <code>admin</code> as a recovery account, adds a read-only NOC user, adds an operator user, enables SSH on TCP/2222, and applies profile-based command authorization.</p>
+<p>Ze SSH is an application management plane. The daemon terminates SSH itself and
+starts a Ze command session, so a successful login grants access to Ze commands
+and the config editor rather than to a Unix shell. Local users, TACACS+, and
+RADIUS all map back to Ze authorization profiles, audit, and accounting.</p>
+<!-- source: internal/component/authz/yang/ze-authz-conf.yang -- system.authentication.user base fields and system.authorization.profile -->
+<!-- source: internal/component/ssh/yang/ze-ssh-conf.yang -- environment.ssh and public-keys augmentation -->
+<!-- source: internal/component/authz/authz.go -- built-in profile behavior and fail-closed assignments -->
+<!-- source: internal/component/config/password_hash.go -- ApplyPasswordHashing, at commit and at config load -->
+<!-- source: docs/guide/tacacs.md -- TACACS+ fallback and profile mapping -->
+
+<h2 id="1-start-from-the-ubuntu-install-page">1. Start from the Ubuntu install page</h2>
+<p>Follow <a href="../ubuntu-build-install/">Build and install Ze on Ubuntu</a> through <code>database.zefs</code> creation. The commands below assume:</p>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Ze binary</td>
+<td><code>/usr/local/bin/ze</code></td>
+</tr>
+<tr>
+<td>Config directory</td>
+<td><code>/etc/ze</code></td>
+</tr>
+<tr>
+<td>Instance name</td>
+<td><code>edge-01</code></td>
+</tr>
+<tr>
+<td>Active config</td>
+<td><code>edge-01.conf</code></td>
+</tr>
+<tr>
+<td>Runtime socket</td>
+<td><span class="ev-src"><span class="ev-ref"><code>/run/ze/ze.socket</code></span></span></td>
+</tr>
+</tbody>
+</table>
+<p>If your instance name is different, change every <code>edge-01.conf</code> command to match it.</p>
+<h2 id="2-decide-the-profiles">2. Decide the profiles</h2>
+<p>This page uses three local profiles.</p>
+<table>
+<thead>
+<tr>
+<th>Profile</th>
+<th>Run commands</th>
+<th>Edit commands</th>
+<th>Intended user</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>admin</code></td>
+<td>allow all</td>
+<td>allow all</td>
+<td>recovery and senior operators</td>
+</tr>
+<tr>
+<td><code>read-only</code></td>
+<td>allow normal <code>show</code>, <code>monitor</code>, <code>resolve</code>, and help commands</td>
+<td>deny all</td>
+<td>NOC screens and audit users</td>
+</tr>
+<tr>
+<td><code>operator</code></td>
+<td>allow run commands</td>
+<td>allow config workflow only</td>
+<td>operators allowed to change config through the editor</td>
+</tr>
+</tbody>
+</table>
+<p>The entries use prefix matching. <code>match "debug"</code> matches <code>debug ospf ...</code>, but not <code>show debug ...</code>.</p>
+<h2 id="3-build-and-load-a-set-format-update">3. Build and load a set-format update</h2>
+<p>Use <code>ze passwd</code> before writing stored config values. This keeps plaintext out of shell history, process arguments, and the zefs command history.</p>
+<p>The commands below read the current active config from zefs, convert it to set format, append the SSH and RBAC changes, render the import file, validate the result, then load it back into zefs with one <code>ze config import</code> command. Unrelated existing config sections stay in the candidate because they came from <code>ze config cat</code>.</p>
+<pre><code class="language-bash">set -euo pipefail
+
+ADMIN_HASH=&quot;$(printf '%s\n' 'CHANGE_ME_BOOTSTRAP' | /usr/local/bin/ze passwd)&quot;
+NOC_HASH=&quot;$(printf '%s\n' 'CHANGE_ME_NOC' | /usr/local/bin/ze passwd)&quot;
+OPERATOR_HASH=&quot;$(printf '%s\n' 'CHANGE_ME_OPERATOR' | /usr/local/bin/ze passwd)&quot;
+
+umask 077
+CONFIG_SET=&quot;$(mktemp)&quot;
+CONFIG_IMPORT=&quot;$(mktemp)&quot;
+trap 'rm -f &quot;$CONFIG_SET&quot; &quot;$CONFIG_IMPORT&quot;' EXIT
+
+sudo /usr/local/bin/ze config cat edge-01.conf | /usr/local/bin/ze config migrate -o &quot;$CONFIG_SET&quot; -
+
+cat &gt;&gt;&quot;$CONFIG_SET&quot; &lt;&lt;EOF
+set environment ssh enabled enable
+set environment ssh server main ip 0.0.0.0
+set environment ssh server main port 2222
+set environment ssh idle-timeout 600
+set environment ssh max-sessions 32
+
+set system authentication user admin password &quot;$ADMIN_HASH&quot;
+set system authentication user admin profile admin
+set system authentication user noc password &quot;$NOC_HASH&quot;
+set system authentication user noc profile read-only
+set system authentication user operator password &quot;$OPERATOR_HASH&quot;
+set system authentication user operator profile operator
+
+set system authorization profile admin run default-action allow
+set system authorization profile admin edit default-action allow
+
+set system authorization profile read-only run default-action allow
+set system authorization profile read-only run entry 10 action deny
+set system authorization profile read-only run entry 10 match debug
+set system authorization profile read-only run entry 20 action deny
+set system authorization profile read-only run entry 20 match clear
+set system authorization profile read-only edit default-action deny
+
+set system authorization profile operator run default-action allow
+set system authorization profile operator edit default-action deny
+set system authorization profile operator edit entry 10 action allow
+set system authorization profile operator edit entry 10 match configure
+set system authorization profile operator edit entry 20 action allow
+set system authorization profile operator edit entry 20 match commit
+EOF
+
+/usr/local/bin/ze config migrate --format hierarchical -o &quot;$CONFIG_IMPORT&quot; &quot;$CONFIG_SET&quot;
+/usr/local/bin/ze config validate &quot;$CONFIG_IMPORT&quot;
+sudo /usr/local/bin/ze config import --name edge-01.conf &quot;$CONFIG_IMPORT&quot;
+sudo systemctl reload ze.service
+</code></pre>
+<p>If Ze is not managed by systemd yet, start it after importing:</p>
+<pre><code class="language-bash">sudo /usr/local/bin/ze start
+</code></pre>
+<h2 id="4-test-each-account">4. Test each account</h2>
+<pre><code class="language-bash">export XDG_RUNTIME_DIR=/run/ze
+
+ZE_SSH_PASSWORD='CHANGE_ME_BOOTSTRAP' \
+  /usr/local/bin/ze cli --user admin -c &quot;help&quot;
+
+ZE_SSH_PASSWORD='CHANGE_ME_NOC' \
+  /usr/local/bin/ze cli --user noc -c &quot;help&quot;
+
+ZE_SSH_PASSWORD='CHANGE_ME_OPERATOR' \
+  /usr/local/bin/ze cli --user operator -c &quot;help&quot;
+</code></pre>
+<p>Test that NOC is refused a command its profile denies. The <code>read-only</code> profile above denies the <code>clear</code> prefix:</p>
+<pre><code class="language-bash">ZE_SSH_PASSWORD='CHANGE_ME_NOC' \
+  /usr/local/bin/ze cli --user noc -c &quot;clear interface counters&quot;
+</code></pre>
+<p>Authorization refuses it, and says so:</p>
+<pre><code>error: command restricted by access control
+</code></pre>
+<p>Check the daemon logs if it succeeds instead:</p>
+<pre><code class="language-bash">journalctl -u ze.service -n 100 --no-pager
+</code></pre>
+<p>Pick a real command the profile denies when you write your own check. A command Ze does not have reports <code>unknown command</code> and exits non-zero for everyone, authorized or not, so testing with one proves nothing about your profiles: the check would pass even with authorization disabled. <code>configure</code> is one of these. It is a mode switch inside the interactive CLI, not a daemon command, so <code>ze cli -c "configure"</code> is never an authorization test. To check the edit path, run a command that writes, such as <code>set system ...</code>, or log in and try <code>configure</code> interactively.</p>
+<h3 id="how-authorization-decides">How authorization decides</h3>
+<p>Once you define any <code>system.authorization</code> profile, authorization is in use and it fails closed:</p>
+<ul>
+<li>A user who authenticates but resolves <strong>no applicable profile</strong> is <strong>denied every command</strong>, not granted access. Assign every account a profile. A profile reaches an account either through <code>system.authentication.user &lt;name&gt; profile ...</code> (local users) or through the TACACS+/RADIUS priv-level mapping (remote users).</li>
+<li>A box that defines <strong>no</strong> <code>system.authorization</code> profile at all stays fully permissive: with authorization unconfigured there is nothing to enforce.</li>
+</ul>
+<p>The daemon log states which rule decided, so you can tell "denied by profile" from "denied because no profile applied":</p>
+<pre><code class="language-bash">journalctl -u ze.service -n 100 --no-pager | grep -i authorize
+</code></pre>
+<h3 id="the-recovery-account">The recovery account</h3>
+<p>The <code>admin</code> account created by <code>ze init</code> is the break-glass identity. It always keeps a path to the box, <strong>even on a box that has authorization profiles configured but no <code>admin</code> user of its own</strong> (for example one where the profiles were staged before the operator accounts, or a TACACS+/RADIUS-only box). Two independent recovery paths exist:</p>
+<ul>
+<li>The <code>ze init</code> bootstrap admin carries an internal, reserved recovery profile, so it is never locked out by a strict authorization default.</li>
+<li>Defining <code>set system authentication user admin profile admin</code> (as this guide does) makes <code>admin</code> a normal config account with an explicit profile.</li>
+</ul>
+<p>If you never want the bootstrap admin to authenticate, disable it explicitly with <code>meta/instance/admin-disabled</code>; accept that you then depend entirely on your configured accounts for access.</p>
+<figure class="terminal-demo" data-terminal-demo="rbac">
+  <div class="terminal-demo__intro">
+    <div>
+      <span class="terminal-demo__eyebrow">Replayable Ze terminal lab</span>
+      <h3>Prove read-only RBAC enforcement</h3>
+      <p>Run an allowed NOC command, then show Ze explicitly refuse a known state-changing command.</p>
+    </div>
+    <span class="terminal-demo__status"><i aria-hidden="true"></i> Reproducible</span>
+  </div>
+  <div class="terminal-demo__frame">
+    <div class="terminal-demo__bar" aria-hidden="true">
+      <span class="terminal-demo__dots"><i></i><i></i><i></i></span>
+      <span>rbac.terminal</span>
+      <span>WEBM</span>
+    </div>
+    <video controls playsinline preload="metadata" poster="../../assets/demos/rbac.png?v=3a7f101f5d" aria-label="Prove read-only RBAC enforcement demonstration">
+      <source src="../../assets/demos/rbac.webm?v=aaa447ec07" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../assets/demos/rbac.webm?v=aaa447ec07">Download the recording</a>.
+    </video>
+  </div>
+  <figcaption>
+    <span>Ze 26.07.18</span><span>1 minute 30 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
+    <a href="../../assets/demos/rbac.txt?v=939addc51a">Plain-text transcript</a>
+  </figcaption>
+  <details class="terminal-demo__transcript">
+    <summary>Read the demonstration transcript</summary>
+    <pre><code>$ ze config show rbac.conf system authorization profile read-only
+default-action allow
+entry 20 {
+   action deny
+   match clear
+}
+
+$ ze config show rbac.conf system authentication user noc profile
+profile read-only
+
+$ ze cli --user noc -c &#x27;show version&#x27;
+version: ze 26.07.18
+
+$ ze cli --user noc -c &#x27;clear interface counters&#x27;
+error: command restricted by access control
+
+The recording displays the command restriction and the NOC user&#x27;s profile binding before exercising both paths. The daemon allows `show version`, then rejects the matching `clear` command before execution.</code></pre>
+  </details>
+</figure>
+
+<h2 id="5-add-ssh-public-keys">5. Add SSH public keys</h2>
+<p>Each public key has a local name, a key type, and the base64 body of the SSH public key. The key value is the middle field of a line from <code>~/.ssh/id_ed25519.pub</code>.</p>
+<pre><code class="language-bash">set -euo pipefail
+
+ALICE_KEY=&quot;$(cut -d' ' -f2 /home/alice/.ssh/id_ed25519.pub)&quot;
+
+umask 077
+CONFIG_SET=&quot;$(mktemp)&quot;
+CONFIG_IMPORT=&quot;$(mktemp)&quot;
+trap 'rm -f &quot;$CONFIG_SET&quot; &quot;$CONFIG_IMPORT&quot;' EXIT
+
+sudo /usr/local/bin/ze config cat edge-01.conf | /usr/local/bin/ze config migrate -o &quot;$CONFIG_SET&quot; -
+
+cat &gt;&gt;&quot;$CONFIG_SET&quot; &lt;&lt;EOF
+set system authentication user operator public-keys alice-laptop type ssh-ed25519
+set system authentication user operator public-keys alice-laptop key &quot;$ALICE_KEY&quot;
+EOF
+
+/usr/local/bin/ze config migrate --format hierarchical -o &quot;$CONFIG_IMPORT&quot; &quot;$CONFIG_SET&quot;
+/usr/local/bin/ze config validate &quot;$CONFIG_IMPORT&quot;
+sudo /usr/local/bin/ze config import --name edge-01.conf &quot;$CONFIG_IMPORT&quot;
+sudo systemctl reload ze.service
+</code></pre>
+<h2 id="6-add-tacacs-later">6. Add TACACS+ later</h2>
+<p>Local users stay useful as break-glass accounts. TACACS+ can be added under <code>system.authentication.tacacs</code> and mapped back to the same local authorization profiles. Use the same zefs update pattern as above and append these set-format lines:</p>
+<pre><code class="language-text">set system authentication tacacs server 10.0.0.1 port 49
+set system authentication tacacs server 10.0.0.1 key SHARED_SECRET
+set system authentication tacacs timeout 5
+set system authentication tacacs authorization enable
+set system authentication tacacs accounting enable
+set system authentication tacacs-profile 15 profile admin
+set system authentication tacacs-profile 1 profile read-only
+</code></pre>
+<p>TACACS+ authentication is tried before local bcrypt. A server rejection stops the chain. A server outage falls back to local authentication, so break-glass local users can still log in. <code>strict-fallback true</code> does not block that login; it makes command <em>authorization</em> fail closed (deny) during a TACACS outage instead of falling back to the local RBAC profiles.</p>
+<h2 id="7-operational-checks">7. Operational checks</h2>
+<pre><code class="language-bash">export XDG_RUNTIME_DIR=/run/ze
+/usr/local/bin/ze show audit
+/usr/local/bin/ze show aaa accounting
+/usr/local/bin/ze show warnings
+</code></pre>
+<p>Use <code>admin</code> to recover from a broken profile, then correct the config in zefs, validate it, and reload.</p>
+<h2 id="8-remove-an-operator">8. Remove an operator</h2>
+<p>Delete the user from <code>system.authentication.user</code> and reload. The removal takes
+effect at once on every credential surface: the web password, the web session
+cookie the browser still holds, the SSH password, the SSH public key, and
+<code>Bearer &lt;user&gt;:&lt;pass&gt;</code> over REST and gRPC. The daemon does not restart, and the
+24-hour web session TTL is a ceiling rather than the only test.</p>
+<p>Removal governs NEW connections. A session that is already open outlives it until
+the connection closes, because an operator may be editing their own account. A
+session a TACACS+ or RADIUS backend granted is not revoked by the local user
+list, which never authenticated it.</p>
+<!-- source: cmd/ze/hub/aaa_lifecycle.go -- liveAcceptedLocalUsers -->
+<!-- source: internal/component/web/auth.go -- SessionStore.validateToken, webSession -->
+<!-- source: internal/component/ssh/pubkey.go -- authenticatePublicKeyResult -->
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/quickstart/">
+                        <span class="page-sidebar-link-label">Quickstart</span>
+                        <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create zefs, and start SSH.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../reference/command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

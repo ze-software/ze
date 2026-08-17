@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>ADD-PATH and PATHS-LIMIT - Ze</title>
+        <meta name="description" content="Ze documentation: guide/add-path.md" />
+        <meta property="og:title" content="ADD-PATH and PATHS-LIMIT - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/add-path.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="ADD-PATH and PATHS-LIMIT - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/add-path.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/guides/add-path/" />
+        <meta property="og:url" content="https://ze-software.net/guides/add-path/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-routing">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1 id="add-path-and-paths-limit">ADD-PATH and PATHS-LIMIT</h1>
+    <p>ADD-PATH (RFC 7911) allows multiple paths per prefix by including a Path Identifier with each NLRI. Route servers use it to forward all available paths rather than one best path.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#configuration">Configuration</a>
+<ol>
+<li><a href="#default-direction-and-limit">Default Direction and Limit</a></li>
+<li><a href="#per-family-override">Per-Family Override</a></li>
+<li><a href="#full-example">Full Example</a></li>
+</ol></li>
+<li><a href="#direction-and-mode">Direction and Mode</a></li>
+<li><a href="#paths-limit">PATHS-LIMIT</a></li>
+<li><a href="#how-it-works">How It Works</a>
+<ol>
+<li><a href="#wire-format">Wire Format</a></li>
+<li><a href="#encoding-context">Encoding Context</a></li>
+<li><a href="#route-withdrawal">Route Withdrawal</a></li>
+<li><a href="#ze-generates-its-own-path-identifiers">Ze Generates Its Own Path Identifiers</a></li>
+</ol></li>
+<li><a href="#interaction-with-route-reflection">Interaction with Route Reflection</a></li>
+</ol></nav>
+<p>PATHS-LIMIT (draft-abraitis-idr-addpath-paths-limit) lets a receiver advertise the maximum number of paths it wants per prefix per family, preventing uncontrolled path proliferation.</p>
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- add-path capability config -->
+
+<h2 id="configuration">Configuration</h2>
+<p>All ADD-PATH and PATHS-LIMIT config lives under <code>session &gt; capability &gt; add-path</code>.</p>
+<h3 id="default-direction-and-limit">Default Direction and Limit</h3>
+<p>Enable ADD-PATH for all negotiated families, with an optional default path count limit:</p>
+<pre><code>capability {
+    add-path {
+        direction send/receive;
+        limit 10;
+    }
+}
+</code></pre>
+<p>The <code>limit</code> on the container is inherited by all families. Per-family entries can override it.</p>
+<h3 id="per-family-override">Per-Family Override</h3>
+<p>Override direction, set path count limits, or set negotiation mode per family:</p>
+<pre><code>capability {
+    add-path {
+        direction send;
+        family {
+            ipv4/unicast {
+                direction send/receive;
+                limit 10;
+            }
+            ipv6/unicast {
+                direction receive;
+                mode require;
+            }
+        }
+    }
+}
+</code></pre>
+<h3 id="full-example">Full Example</h3>
+<pre><code>bgp {
+    peer transit-a {
+        connection {
+            remote { ip 10.0.0.1; }
+            local { ip 10.0.0.2; }
+        }
+        session {
+            asn { local 65000; remote 65001; }
+            capability {
+                add-path {
+                    direction send/receive;
+                    family {
+                        ipv4/unicast { limit 10; }
+                    }
+                }
+            }
+            family {
+                ipv4/unicast
+                ipv6/unicast
+            }
+        }
+    }
+}
+</code></pre>
+<h2 id="direction-and-mode">Direction and Mode</h2>
+<table>
+<thead>
+<tr>
+<th>Direction</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>send</code></td>
+<td>Advertise multiple paths to peer</td>
+</tr>
+<tr>
+<td><code>receive</code></td>
+<td>Accept multiple paths from peer</td>
+</tr>
+<tr>
+<td><code>send/receive</code></td>
+<td>Both directions</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>enable</code> (default)</td>
+<td>Negotiate ADD-PATH if peer supports it</td>
+</tr>
+<tr>
+<td><code>require</code></td>
+<td>Reject peer if it does not support ADD-PATH</td>
+</tr>
+<tr>
+<td><code>refuse</code></td>
+<td>Reject peer if it advertises ADD-PATH</td>
+</tr>
+<tr>
+<td><code>disable</code></td>
+<td>Do not negotiate ADD-PATH for this family</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- add-path direction/mode config -->
+
+<h2 id="paths-limit">PATHS-LIMIT</h2>
+<p>The <code>limit</code> leaf on a per-family entry advertises a PATHS-LIMIT capability (code 76) for that family. The value (1-65535) is the maximum number of paths per prefix the receiver wants.</p>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="cell-no">✕</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td><code>limit 10</code></td>
+<td>Peer will send at most 10 paths per prefix</td>
+</tr>
+<tr>
+<td><code>limit 1</code></td>
+<td>Effectively single-path behaviour</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/core/bgp/capability/capability.go -- PathsLimit struct -->
+
+<h2 id="how-it-works">How It Works</h2>
+<p>When ADD-PATH is negotiated, each NLRI is prefixed with a 4-byte Path Identifier. This allows the same prefix (e.g., <code>10.0.0.0/24</code>) to appear multiple times with different path IDs, each carrying different attributes.</p>
+<h3 id="wire-format">Wire Format</h3>
+<p>Without ADD-PATH:</p>
+<pre><code>[prefix-length][prefix-bytes]
+</code></pre>
+<p>With ADD-PATH:</p>
+<pre><code>[4-byte path-id][prefix-length][prefix-bytes]
+</code></pre>
+<h3 id="encoding-context">Encoding Context</h3>
+<p>Peers that negotiate the same ADD-PATH modes share an encoding context (<code>ContextID</code>). The route server can forward wire bytes unchanged between peers with matching contexts, avoiding re-encoding.</p>
+<!-- source: internal/component/bgp/reactor/session.go -- ContextID; internal/component/bgp/reactor/reactor_api_forward.go -- zero-copy forwarding -->
+
+<h3 id="route-withdrawal">Route Withdrawal</h3>
+<p>To withdraw a specific path, the withdrawal NLRI includes the same path ID used in the announcement. Withdrawing without a path ID removes all paths for that prefix.</p>
+<h3 id="ze-generates-its-own-path-identifiers">Ze Generates Its Own Path Identifiers</h3>
+<p>RFC 7911 Section 2 requires a speaker that re-advertises a route to generate its own Path Identifier, and to assign it so that (prefix, identifier) uniquely names a path advertised to a neighbor. Both forward rails do that instead of relaying the identifier the source chose.</p>
+<p>Each route-server client picks its identifiers alone. Two clients that both pick <code>1</code> for one prefix would reach a third client as one (prefix, identifier) pair, and RFC 7911 Section 5 makes the receiver treat the second as a replacement for the first, so one path is lost. A source that negotiated no ADD-PATH sends every path under identifier <code>0</code>, so without regeneration every path from every ordinary client reached an ADD-PATH client as (prefix, 0).</p>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Key</td>
+<td>The path at ingress: the source that sent it and the identifier that source used. Never the message, never the attributes</td>
+</tr>
+<tr>
+<td>Withdrawal</td>
+<td>A withdrawn route carries no path attributes, so the ingress key is the only key that can be recomputed when the path leaves. The withdrawal names the identifier Ze advertised</td>
+</tr>
+<tr>
+<td>Re-announcement</td>
+<td>A source that re-announces one path with changed attributes keeps the identifier it already has, so the destination sees a replacement rather than a duplicate</td>
+</tr>
+<tr>
+<td>Release</td>
+<td>Identifiers are released at peer removal, not at session down. A reconnecting peer re-announces under the identifiers its destinations already hold</td>
+</tr>
+<tr>
+<td>Zero</td>
+<td>Minted and accepted like any other value, which RFC 7911 Section 3 requires</td>
+</tr>
+</tbody>
+</table>
+<p>Regeneration runs whenever either side of the forward frames identifiers. A session where neither side negotiated ADD-PATH keeps its zero-copy forward.</p>
+<!-- source: internal/component/bgp/reactor/forward_path_id.go -- fwdPathIDs, fwdRegenerateRawPathIDs -->
+<!-- source: internal/component/bgp/reactor/forward_body.go -- fwdReencodeNLRIs -->
+
+<h2 id="interaction-with-route-reflection">Interaction with Route Reflection</h2>
+<p>ADD-PATH fits the route server plugin (<code>bgp-rs</code>). Without ADD-PATH, the route server can only forward one path per prefix to each peer. With ADD-PATH, it forwards all received paths, and downstream routers make their own best-path decisions.</p>
+<!-- source: internal/component/bgp/plugins/rs/ -- route server ADD-PATH forwarding -->
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/quickstart/">
+                        <span class="page-sidebar-link-label">Quickstart</span>
+                        <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create zefs, and start SSH.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../reference/command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

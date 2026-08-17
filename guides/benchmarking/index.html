@@ -1,0 +1,534 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>Benchmarking - Ze</title>
+        <meta name="description" content="Ze documentation: guide/benchmarking.md" />
+        <meta property="og:title" content="Benchmarking - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/benchmarking.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Benchmarking - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/benchmarking.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/guides/benchmarking/" />
+        <meta property="og:url" content="https://ze-software.net/guides/benchmarking/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-observe">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1 id="benchmarking">Benchmarking</h1>
+    <p>Ze includes <code>ze-perf</code>, a standalone tool for measuring BGP route propagation
+latency through a device under test (DUT). It works with any BGP implementation,
+including Ze.</p>
+</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#architecture">Architecture</a></li>
+<li><a href="#quick-start">Quick Start</a></li>
+<li><a href="#running-benchmarks">Running Benchmarks</a>
+<ol>
+<li><a href="#encoding-modes">Encoding Modes</a></li>
+<li><a href="#multi-iteration">Multi-Iteration</a></li>
+<li><a href="#timing">Timing</a></li>
+</ol></li>
+<li><a href="#cross-implementation-comparison">Cross-Implementation Comparison</a>
+<ol>
+<li><a href="#automated-docker-runner">Automated Docker Runner</a></li>
+<li><a href="#manual-reports">Manual Reports</a></li>
+</ol></li>
+<li><a href="#tracking-performance-over-time">Tracking Performance Over Time</a>
+<ol>
+<li><a href="#ndjson-history">NDJSON History</a></li>
+<li><a href="#trend-reports">Trend Reports</a></li>
+<li><a href="#regression-detection">Regression Detection</a></li>
+</ol></li>
+<li><a href="#understanding-results">Understanding Results</a>
+<ol>
+<li><a href="#json-output-fields">JSON Output Fields</a></li>
+<li><a href="#interpreting-results">Interpreting Results</a></li>
+</ol></li>
+</ol></nav>
+<!-- source: internal/perf/cli/register.go -- ze-perf CLI entry point -->
+
+<h2 id="architecture">Architecture</h2>
+<pre><code>                  +-----------+
+  ze-perf         |           |         ze-perf
+  (sender)  ----&gt; |    DUT    | ----&gt;  (receiver)
+  AS 65001        |  AS 65000 |         AS 65002
+                  +-----------+
+</code></pre>
+<p>The sender establishes a BGP session with the DUT, injects routes, and the
+receiver measures when those routes arrive. Both sessions are managed by
+<code>ze-perf</code> in a single process. Timing starts when the sender writes the first
+UPDATE and stops when the receiver has collected all expected prefixes.</p>
+<!-- source: internal/perf/sender.go -- sender UPDATE construction -->
+<!-- source: internal/perf/receiver.go -- receiver prefix extraction -->
+
+<h2 id="quick-start">Quick Start</h2>
+<p>Run a benchmark against Ze on localhost:</p>
+<pre><code class="language-bash"># Start ze with a config that accepts peers from 127.0.0.1 and 127.0.0.2
+ze start test-config.conf &amp;
+
+# Run the benchmark
+ze-perf run --dut-addr 127.0.0.1 --dut-asn 65000 --dut-name ze --routes 1000
+</code></pre>
+<p>With JSON output saved to a file:</p>
+<pre><code class="language-bash">ze-perf run --dut-addr 127.0.0.1 --dut-asn 65000 --dut-name ze \
+  --routes 1000 --output result-ze.json
+</code></pre>
+<h2 id="running-benchmarks">Running Benchmarks</h2>
+<p>For a complete flag reference, see <a href="../command-reference/#ze-perf-run">ze-perf run</a>.</p>
+<h3 id="encoding-modes">Encoding Modes</h3>
+<p>Three encoding modes measure different code paths through the DUT:</p>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>Flag</th>
+<th>What It Tests</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>IPv4 inline NLRI</td>
+<td><code>--family ipv4/unicast</code> (default)</td>
+<td>Standard IPv4 unicast path with NLRI at the end of the UPDATE</td>
+</tr>
+<tr>
+<td>IPv4 force-MP</td>
+<td><code>--family ipv4/unicast --force-mp</code></td>
+<td>IPv4 encoded via MP_REACH_NLRI attribute (exercises multiprotocol path)</td>
+</tr>
+<tr>
+<td>IPv6 MP</td>
+<td><code>--family ipv6/unicast</code></td>
+<td>IPv6 unicast via MP_REACH_NLRI (standard for non-IPv4 families)</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/perf/cli/cmd_run.go -- family and force-mp validation -->
+
+<h3 id="multi-iteration">Multi-Iteration</h3>
+<p>By default, <code>ze-perf run</code> executes 5 iterations with 1 warmup run. The warmup
+run is discarded, and outliers beyond 2 standard deviations from the median
+convergence time are removed (minimum 3 iterations kept). Final results report
+median and standard deviation across the kept iterations.</p>
+<!-- source: internal/perf/metrics.go -- RemoveOutliers and Aggregate -->
+
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Default</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--repeat</code></td>
+<td><code>5</code></td>
+<td>Total iterations (including warmup)</td>
+</tr>
+<tr>
+<td><code>--warmup-runs</code></td>
+<td><code>1</code></td>
+<td>Warmup iterations discarded from results</td>
+</tr>
+<tr>
+<td><code>--iter-delay</code></td>
+<td><code>3s</code></td>
+<td>Pause between iterations for clean separation</td>
+</tr>
+</tbody>
+</table>
+<p>More iterations improve statistical confidence. For reliable results, use at
+least <code>--repeat 10</code>:</p>
+<pre><code class="language-bash">ze-perf run --dut-addr 172.31.0.2 --dut-asn 65000 --repeat 10 --warmup-runs 2
+</code></pre>
+<h3 id="timing">Timing</h3>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Default</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--warmup</code></td>
+<td><code>2s</code></td>
+<td>Delay after session establishment before injecting routes</td>
+</tr>
+<tr>
+<td><code>--connect-timeout</code></td>
+<td><code>10s</code></td>
+<td>TCP connection timeout</td>
+</tr>
+<tr>
+<td><code>--duration</code></td>
+<td><code>60s</code></td>
+<td>Maximum wait time for convergence per iteration</td>
+</tr>
+<tr>
+<td><code>--iter-delay</code></td>
+<td><code>3s</code></td>
+<td>Delay between iterations</td>
+</tr>
+</tbody>
+</table>
+<p>The <code>--iter-delay</code> flag controls whether iterations run back-to-back or with
+a pause. Longer delays give the DUT time to settle between measurements.</p>
+<h2 id="cross-implementation-comparison">Cross-Implementation Comparison</h2>
+<h3 id="automated-docker-runner">Automated Docker Runner</h3>
+<p>The included test runner benchmarks all eight supported implementations in Docker:</p>
+<table>
+<thead>
+<tr>
+<th>DUT</th>
+<th>Image</th>
+<th>Config</th>
+<th>Forwarding mechanism</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Ze</td>
+<td>ze-interop (built)</td>
+<td><span class="ev-src"><span class="ev-ref"><code>test/perf/configs/ze.conf</code></span></span></td>
+<td>bgp-rs plugin</td>
+</tr>
+<tr>
+<td>FRR</td>
+<td>quay.io/frrouting/frr:10.3.1</td>
+<td><span class="ev-src"><span class="ev-ref"><code>test/perf/configs/frr.conf</code></span></span></td>
+<td>route-map PERMIT</td>
+</tr>
+<tr>
+<td>BIRD</td>
+<td>bird-interop (built)</td>
+<td><span class="ev-src"><span class="ev-ref"><code>test/perf/configs/bird.conf</code></span></span></td>
+<td>import/export all</td>
+</tr>
+<tr>
+<td>GoBGP</td>
+<td>gobgp-interop (built)</td>
+<td><span class="ev-src"><span class="ev-ref"><code>test/perf/configs/gobgp.toml</code></span></span></td>
+<td>default accept policy</td>
+</tr>
+<tr>
+<td>rustbgpd</td>
+<td>rustbgpd-interop (built from source)</td>
+<td><span class="ev-src"><span class="ev-ref"><code>test/perf/configs/rustbgpd.toml</code></span></span></td>
+<td>route_server_client</td>
+</tr>
+<tr>
+<td>rustybgp</td>
+<td>rustybgp-interop (built)</td>
+<td><span class="ev-src"><span class="ev-ref"><code>test/perf/configs/rustybgp.toml</code></span></span></td>
+<td>default accept policy</td>
+</tr>
+<tr>
+<td>FreeRtr</td>
+<td>freertr-interop (built)</td>
+<td><span class="ev-src"><span class="ev-ref"><code>test/perf/configs/freertr-sw.txt</code></span></span></td>
+<td>eBGP + redistribute connected</td>
+</tr>
+<tr>
+<td>OpenBGPD</td>
+<td>openbgpd-interop (built)</td>
+<td><span class="ev-src"><span class="ev-ref"><code>test/perf/configs/openbgpd.conf</code></span></span></td>
+<td>allow from/to any</td>
+</tr>
+</tbody>
+</table>
+<!-- source: test/perf/run.py -- Docker benchmark runner -->
+<!-- source: test/interop/Dockerfile.rustbgpd -- rustbgpd Docker image -->
+
+<pre><code class="language-bash"># All DUTs
+python3 test/perf/run.py
+
+# Specific DUTs
+python3 test/perf/run.py ze bird rustbgpd
+
+# Override defaults
+DUT_ROUTES=10000 DUT_REPEAT=5 python3 test/perf/run.py
+
+# Via Make
+make ze-perf-bench
+make ze-perf-bench PERF_DUT=ze
+</code></pre>
+<p>Results are written to <code>test/perf/results/</code> as JSON files. An HTML comparison report is generated automatically.</p>
+<h3 id="manual-reports">Manual Reports</h3>
+<p>After running benchmarks, generate reports from the result files:</p>
+<pre><code class="language-bash"># Markdown report (default)
+ze-perf report result-ze.json result-gobgp.json result-rustbgpd.json
+
+# HTML report
+ze-perf report --html result-ze.json result-gobgp.json &gt; comparison.html
+</code></pre>
+<!-- source: internal/perf/cli/cmd_report.go -- report subcommand -->
+<!-- source: internal/perf/report/markdown.go -- Markdown report generation -->
+<!-- source: internal/perf/report/html.go -- HTML report generation -->
+
+<p>For the full flag reference, see <a href="../command-reference/#ze-perf-report">ze-perf report</a>.</p>
+<h2 id="tracking-performance-over-time">Tracking Performance Over Time</h2>
+<h3 id="ndjson-history">NDJSON History</h3>
+<p>Each <code>ze-perf run --json</code> invocation produces a single JSON object. Append
+results to an NDJSON (newline-delimited JSON) file to build a history:</p>
+<pre><code class="language-bash">ze-perf run --dut-addr 127.0.0.1 --dut-asn 65000 --json &gt;&gt; history.ndjson
+</code></pre>
+<!-- source: internal/perf/result.go -- ReadNDJSON and WriteNDJSON -->
+
+<h3 id="trend-reports">Trend Reports</h3>
+<p>Generate a trend report from a history file:</p>
+<pre><code class="language-bash">ze-perf track history.ndjson
+ze-perf track --html history.ndjson &gt; trend.html
+</code></pre>
+<!-- source: internal/perf/cli/cmd_track.go -- track subcommand -->
+<!-- source: internal/perf/report/trend.go -- trend report generation -->
+
+<h3 id="regression-detection">Regression Detection</h3>
+<p>Use <code>--check</code> in CI to detect performance regressions. The tool compares the
+most recent entry against the previous one using stddev-aware thresholds:</p>
+<pre><code class="language-bash">ze-perf track --check history.ndjson
+</code></pre>
+<!-- source: internal/perf/regression.go -- CheckRegression and CheckHistory -->
+
+<p>Exit code 0 means no regression. Exit code 1 means a regression was detected.</p>
+<p>Regressions are flagged when a metric exceeds its threshold percentage AND the
+delta exceeds the combined standard deviation of the two measurements. This
+prevents false positives from noisy measurements.</p>
+<p>Default thresholds:</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Default Threshold</th>
+<th>Direction</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Convergence time</td>
+<td>20%</td>
+<td>Higher is worse</td>
+</tr>
+<tr>
+<td>Throughput (avg)</td>
+<td>20%</td>
+<td>Lower is worse</td>
+</tr>
+<tr>
+<td>P99 latency</td>
+<td>30%</td>
+<td>Higher is worse</td>
+</tr>
+<tr>
+<td>Routes lost</td>
+<td>Any loss</td>
+<td>Always flagged</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/perf/regression.go -- DefaultThresholds -->
+
+<p>Custom thresholds:</p>
+<pre><code class="language-bash">ze-perf track --check --threshold-convergence 15 --threshold-throughput 10 --threshold-p99 25 history.ndjson
+</code></pre>
+<p>Limit the comparison window to the last N entries with <code>--last</code>:</p>
+<pre><code class="language-bash">ze-perf track --check --last 5 history.ndjson
+</code></pre>
+<p>For the full flag reference, see <a href="../command-reference/#ze-perf-history-record">ze-perf track</a>.</p>
+<h2 id="understanding-results">Understanding Results</h2>
+<h3 id="json-output-fields">JSON Output Fields</h3>
+<p>The JSON result object contains these key fields:</p>
+<!-- source: internal/perf/result.go -- Result struct -->
+
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Unit</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>convergence-ms</code></td>
+<td>ms</td>
+<td>Time from first UPDATE sent to last route received (median)</td>
+</tr>
+<tr>
+<td><code>convergence-stddev-ms</code></td>
+<td>ms</td>
+<td>Standard deviation of convergence across iterations</td>
+</tr>
+<tr>
+<td><code>first-route-ms</code></td>
+<td>ms</td>
+<td>Time to first route arrival</td>
+</tr>
+<tr>
+<td><code>throughput-avg</code></td>
+<td>routes/s</td>
+<td>Average route propagation rate</td>
+</tr>
+<tr>
+<td><code>throughput-avg-stddev</code></td>
+<td>routes/s</td>
+<td>Standard deviation of throughput</td>
+</tr>
+<tr>
+<td><code>throughput-peak</code></td>
+<td>routes/s</td>
+<td>Peak routes/s in any 1-second window</td>
+</tr>
+<tr>
+<td><code>latency-p50-ms</code></td>
+<td>ms</td>
+<td>50th percentile per-route latency</td>
+</tr>
+<tr>
+<td><code>latency-p90-ms</code></td>
+<td>ms</td>
+<td>90th percentile per-route latency</td>
+</tr>
+<tr>
+<td><code>latency-p99-ms</code></td>
+<td>ms</td>
+<td>99th percentile per-route latency</td>
+</tr>
+<tr>
+<td><code>latency-p99-stddev-ms</code></td>
+<td>ms</td>
+<td>Standard deviation of P99 across iterations</td>
+</tr>
+<tr>
+<td><code>latency-max-ms</code></td>
+<td>ms</td>
+<td>Maximum per-route latency</td>
+</tr>
+<tr>
+<td><code>routes-sent</code></td>
+<td>count</td>
+<td>Routes injected by sender</td>
+</tr>
+<tr>
+<td><code>routes-received</code></td>
+<td>count</td>
+<td>Routes received by receiver</td>
+</tr>
+<tr>
+<td><code>routes-lost</code></td>
+<td>count</td>
+<td>Difference between sent and received</td>
+</tr>
+<tr>
+<td><code>repeat</code></td>
+<td>count</td>
+<td>Total iterations run</td>
+</tr>
+<tr>
+<td><code>repeat-kept</code></td>
+<td>count</td>
+<td>Iterations kept after outlier removal</td>
+</tr>
+</tbody>
+</table>
+<h3 id="interpreting-results">Interpreting Results</h3>
+<p><strong>Convergence time</strong> is the primary metric. It measures how long the DUT takes
+to forward all injected routes from sender to receiver. Lower is better.</p>
+<p><strong>Standard deviation</strong> indicates measurement stability. A high stddev relative
+to the median suggests noisy measurements. Increase <code>--repeat</code> and
+<code>--iter-delay</code> for more stable results.</p>
+<p><strong>Throughput</strong> shows sustained forwarding rate. The average is computed over the
+full convergence window. The peak shows the maximum 1-second burst rate.</p>
+<!-- source: internal/perf/metrics.go -- CalculateThroughput -->
+
+<p><strong>Latency percentiles</strong> show per-route propagation time distribution. P50 is
+the typical latency, P99 captures tail latency, and max shows the worst case.</p>
+<!-- source: internal/perf/metrics.go -- CalculateLatencies -->
+
+<p><strong>Routes lost</strong> should always be zero. Any loss indicates the DUT dropped
+routes, which the regression checker always flags.</p>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/quickstart/">
+                        <span class="page-sidebar-link-label">Quickstart</span>
+                        <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create zefs, and start SSH.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../reference/command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>
