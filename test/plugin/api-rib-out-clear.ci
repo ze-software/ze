@@ -10,7 +10,7 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
 # Python test plugin: exercises dispatch-command for rib clear out
-tmpfs=rib-clear-out-test.run:mode=755:terminator=EOF_RUN
+tmpfs=rib-out-clear-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import sys
 import time
@@ -74,8 +74,8 @@ EOF_RUN
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
-	external rib-clear-out-test {
-		run ./rib-clear-out-test.run
+	external rib-out-clear-test {
+		run ./rib-out-clear-test.run
 		encoder json
 	}
 	internal bgp-rib {

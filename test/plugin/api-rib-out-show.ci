@@ -1,6 +1,6 @@
-# Test: rib clear in clears Adj-RIB-In routes
-# VALIDATES: rib clear in dispatches through engine to bgp-rib plugin
-# PREVENTS: rib clear-in proxy handler broken or not reaching plugin
+# Test: show bgp rib sent queries Adj-RIB-Out
+# VALIDATES: show bgp rib sent dispatches through engine to bgp-rib plugin
+# PREVENTS: rib show-out proxy handler broken or bgp-rib plugin unreachable
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
@@ -9,8 +9,8 @@ option=timeout:value=15s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python test plugin: exercises dispatch-command for rib clear in
-tmpfs=rib-clear-in-test.run:mode=755:terminator=EOF_RUN
+# Python test plugin: exercises dispatch-command for show bgp rib sent
+tmpfs=rib-out-show-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import sys
 import time
@@ -58,11 +58,11 @@ def main():
     api.quiesce()
 
     try:
-        result = dispatch(api, 'clear bgp rib in')
+        result = dispatch(api, 'show bgp rib sent')
         if result.get('status') != 'done':
-            print(f'FAIL: rib clear-in status={result.get("status")} data={result.get("data")}', file=sys.stderr)
+            print(f'FAIL: rib show-out status={result.get("status")} data={result.get("data")}', file=sys.stderr)
             sys.exit(1)
-        print('OK: rib clear in dispatched', file=sys.stderr)
+        print('OK: show bgp rib sent dispatched', file=sys.stderr)
     finally:
         dispatch(api, 'request shutdown')
         api.wait_for_shutdown()
@@ -74,8 +74,8 @@ EOF_RUN
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
-	external rib-clear-in-test {
-		run ./rib-clear-in-test.run
+	external rib-out-show-test {
+		run ./rib-out-show-test.run
 		encoder json
 	}
 	internal bgp-rib {
