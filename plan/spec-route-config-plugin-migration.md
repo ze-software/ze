@@ -61,7 +61,7 @@ code for any of these four families.
 - [ ] `internal/component/bgp/config/loader_routes.go` - 4 hardcoded converters (convertMVPNRoute, convertVPLSRoute, convertFlowSpecRoute, convertMUPRoute) + generic convertPluginRoute
 - [ ] `internal/component/bgp/config/peers.go` - patchRoutes() with 4 per-family loops + 4 legacy extract calls (lines 434-509)
 - [ ] `internal/component/bgp/config/routeattr_community.go` - FlowSpec/MUP extended community parsing embedded in generic code
-- [ ] `internal/component/bgp/reactor/peersettings.go` - 4 hardcoded route structs (MVPNRoute, VPLSRoute, FlowSpecRoute, MUPRoute) + 4 per-family slice fields on PeerSettings + generic PluginRoute/PluginRoutes
+- [ ] `internal/component/bgp/reactor/peer_settings.go` - 4 hardcoded route structs (MVPNRoute, VPLSRoute, FlowSpecRoute, MUPRoute) + 4 per-family slice fields on PeerSettings + generic PluginRoute/PluginRoutes
 - [ ] `internal/component/bgp/reactor/peer_initial_sync.go` - 4 hardcoded send functions (sendMVPNRoutesVia, sendVPLSRoutesVia, sendFlowSpecRoutesVia, sendMUPRoutesVia) + generic sendPluginRoutesVia
 - [ ] `internal/component/bgp/reactor/peer_static_routes.go` - 4 hardcoded param converters (toVPLSParams, toFlowSpecParams, toMUPParams, toMVPNParams)
 - [ ] `internal/component/bgp/message/update_build_flowspec.go` - FlowSpecParams + BuildFlowSpec
@@ -172,7 +172,7 @@ code for any of these four families.
 | `extractFlowSpecRoutes` call | peers.go | hardcoded legacy |
 | `extractMUPRoutes` call | peers.go | hardcoded legacy |
 
-### Layer 4: Reactor Types (`bgp/reactor/peersettings.go`)
+### Layer 4: Reactor Types (`bgp/reactor/peer_settings.go`)
 | Type/Field | Lines | Status |
 |------------|-------|--------|
 | `MVPNRoute` struct | 163-180 | hardcoded |
@@ -313,7 +313,7 @@ code for any of these four families.
 - `internal/component/bgp/config/loader_routes.go` - remove convertMVPNRoute, convertVPLSRoute, convertFlowSpecRoute, convertMUPRoute, mupRouteConfigToArgs
 - `internal/component/bgp/config/peers.go` - simplify patchRoutes to single generic loop, remove legacy extract calls
 - `internal/component/bgp/config/routeattr_community.go` - extract FlowSpec/MUP community parsers to their plugins
-- `internal/component/bgp/reactor/peersettings.go` - remove MVPNRoute, VPLSRoute, FlowSpecRoute, MUPRoute structs and per-family slice fields
+- `internal/component/bgp/reactor/peer_settings.go` - remove MVPNRoute, VPLSRoute, FlowSpecRoute, MUPRoute structs and per-family slice fields
 - `internal/component/bgp/reactor/peer_initial_sync.go` - remove sendMVPNRoutesVia, sendVPLSRoutesVia, sendFlowSpecRoutesVia, sendMUPRoutesVia
 - `internal/component/bgp/reactor/peer_static_routes.go` - remove toVPLSParams, toFlowSpecParams, toMUPParams, toMVPNParams
 - `internal/component/bgp/message/update_build_flowspec.go` - DELETE
@@ -399,7 +399,7 @@ Migrate one family at a time. Each family is an independently mergeable unit. Or
 
 7. **Phase: Central cleanup** -- remove all remaining per-family code
    - Tests: TestNoHardcodedFamilySwitchInRoutes, AC-1 through AC-4 removal tests
-   - Files: remove per-family structs/fields/functions from bgp_routes.go, peers.go, loader_routes.go, peersettings.go, peer_initial_sync.go, peer_static_routes.go
+   - Files: remove per-family structs/fields/functions from bgp_routes.go, peers.go, loader_routes.go, peer_settings.go, peer_initial_sync.go, peer_static_routes.go
    - Verify: delete-folder test passes for each family
 
 8. **Phase: Dead code removal** -- delete message builders

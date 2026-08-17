@@ -144,7 +144,7 @@ ever touches `ImportFilters`. **The export chain is 100% user config today; noth
 auto-added to it.** This design is `prependDefaultFilters`' mirror image, and should look
 like it.
 
-`PeerSettings.IsEBGP()` (`reactor/peersettings.go`, `LocalAS != PeerAS`) is
+`PeerSettings.IsEBGP()` (`reactor/peer_settings.go`, `LocalAS != PeerAS`) is
 available at exactly the config-time point where `prependDefaultFilters` runs
 (`config/peers.go`, which receives `map[string]*reactor.PeerSettings`), so an
 EBGP-gated auto-append is directly expressible.
@@ -282,7 +282,7 @@ designing; that disagreement may be the actual bug.
 - [ ] `internal/component/bgp/config/peers.go` - `:143-168` `ExportFilters = concatFilters(bgpExport, groupExport, peerExport)` (cumulative bgp+group+peer); `:184-191` `ValidateFilterNames`; `:200-203` `canonicalizeFilterRefs` (`<plugin>:<filter>`); `:643-673` `prependDefaultFilters` (import-only precedent)
 - [ ] `internal/component/bgp/reactor/filter_ordered.go` - `:52-58` `orderedEgressStep`; `:66-69` `egressStepResult{accept, wireOverride}`; `:102-125` `buildOrderedEgressSteps`; `:195-203` / `:221-260` the chain bodies
 - [ ] `internal/component/bgp/reactor/egress_inject_filter.go` - `:56` calls `runEgressPolicyChainASN4` directly, bypassing `orderedEgressSteps`
-- [ ] `internal/component/bgp/reactor/peersettings.go` - `:392-394` `ExportFilters []filterapi.FilterRef` (frozen per-peer chain); `:536-543` `IsIBGP`/`IsEBGP`
+- [ ] `internal/component/bgp/reactor/peer_settings.go` - `:392-394` `ExportFilters []filterapi.FilterRef` (frozen per-peer chain); `:536-543` `IsIBGP`/`IsEBGP`
 
 **Behavior to preserve:**
 - `remove-private-as-export.ci`'s assertion that strip precedes prepend, and its AS_PATH `[65000 64496 64497]` byte-exact.
@@ -397,11 +397,11 @@ preferred.
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- Config parse: a peer's `ExportFilters` are assembled from bgp + group + peer (`config/peers.go`), validated, canonicalized to `<plugin>:<filter>`. **This is where the auto entries are appended**, mirroring `prependDefaultFilters`, gated on `ps.IsEBGP()` (`peersettings.go`)
+- Config parse: a peer's `ExportFilters` are assembled from bgp + group + peer (`config/peers.go`), validated, canonicalized to `<plugin>:<filter>`. **This is where the auto entries are appended**, mirroring `prependDefaultFilters`, gated on `ps.IsEBGP()` (`peer_settings.go`)
 - Runtime: a route reaches the peer's egress, forwarded or originated
 
 ### Transformation Path
-1. Chain frozen onto the peer: `PeerSettings.ExportFilters []filterapi.FilterRef` (`peersettings.go`)
+1. Chain frozen onto the peer: `PeerSettings.ExportFilters []filterapi.FilterRef` (`peer_settings.go`)
 2. Both egress paths converge on the one shared body `runEgressPolicyChainASN4` (`filter_ordered.go`) -- the forwarded path via `reactor_api_forward.go`, the originated path via `egress_inject_filter.go`
 3. Inside that body, in order: `PolicyFilterChain` -> Reject -> raw override -> text-delta -> `textDeltaToModOps` -> `ExtractRemovePrivateASOps` -> `ExtractASPathPrependOps` -> `buildModifiedPayload`
 4. The auto entries emit ops in the existing vocabulary: `AttrModPrepend` on AS_PATH, `AttrModSuppress` on LOCAL_PREF (`filterapi/filterapi.go`, `:220-224`)

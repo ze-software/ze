@@ -21,7 +21,7 @@ first release.
 ### Why this belongs in `plan/future/` rather than `plan/`
 
 `plan/future/README.md` refuses defects, and this is not one. Ze implements TCP MD5
-(RFC 2385) today: `internal/component/bgp/reactor/{config,peersettings,reactor_peers}.go`
+(RFC 2385) today: `internal/component/bgp/reactor/{config,peer_settings,reactor_peers}.go`
 carry the setting and `internal/component/doctor/checks_config.go` checks it. A session
 authenticates. **Nothing Ze does is wrong; a stronger mechanism is absent.**
 

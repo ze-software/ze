@@ -9,7 +9,7 @@
 
 Anchor refresh (2026-07-22 plan review, design unchanged, feature not
 landed; citations below updated in-body): `BFDSettings` struct now
-`peersettings.go` (`MultiHop` at `:199`). `peer_bfd.go` is still a
+`peer_settings.go` (`MultiHop` at `:199`). `peer_bfd.go` is still a
 pure failure detector with no `Strict`/`HoldTime`.
 
 ## Post-Compaction Recovery
@@ -18,7 +18,7 @@ pure failure detector with no `Strict`/`HoldTime`.
 1. This spec file
 2. `.claude/rules/planning.md`
 3. `internal/component/bgp/reactor/peer_bfd.go` - current BFD/BGP integration
-4. `internal/component/bgp/reactor/peersettings.go` - `BFDSettings`
+4. `internal/component/bgp/reactor/peer_settings.go` - `BFDSettings`
 5. `internal/component/bfd/` - BFD plugin session API
 
 ## Task
@@ -57,7 +57,7 @@ held down) until the BFD session to that neighbour is Up, optionally bounded by 
 
 **Source files read:**
 - [ ] `internal/component/bgp/reactor/peer_bfd.go` - `startBFDClient` is "Called from the FSM callback on StateEstablished" (peer_bfd.go); `runBFDSubscriber` acts only on Down/AdminDown and explicitly ignores Up/Init: "BFD is a failure detector, not a session driver" (peer_bfd.go). Down triggers `Teardown` with `NotifyCeaseBFDDown` (peer_bfd.go).
-- [ ] `internal/component/bgp/reactor/peersettings.go` - `BFDSettings` has only `Enabled`, `MultiHop`, `Profile`, `MinTTL`, `Interface` (peersettings.go, `MultiHop` at :199); no `Strict`/`HoldTime`.
+- [ ] `internal/component/bgp/reactor/peer_settings.go` - `BFDSettings` has only `Enabled`, `MultiHop`, `Profile`, `MinTTL`, `Interface` (peer_settings.go, `MultiHop` at :199); no `Strict`/`HoldTime`.
 - [ ] `internal/component/bfd/` - session API surfaced via `api.GetService()`, `EnsureSession`, `Subscribe` (used at peer_bfd.go).
 
 **Behavior to preserve:**
@@ -91,7 +91,7 @@ held down) until the BFD session to that neighbour is Up, optionally bounded by 
 ### Integration Points
 - `startBFDClient` (`peer_bfd.go`) - split so the session can be opened pre-Established in strict mode.
 - `runBFDSubscriber` (`peer_bfd.go`) - handle Up/Init in strict mode.
-- `BFDSettings` (`peersettings.go`) - add `Strict`, `HoldTime`.
+- `BFDSettings` (`peer_settings.go`) - add `Strict`, `HoldTime`.
 - FSM Established gate - consult BFD-up state for strict peers.
 
 ### Architectural Verification
@@ -171,7 +171,7 @@ held down) until the BFD session to that neighbour is Up, optionally bounded by 
 
 ## Files to Modify
 - `internal/component/bgp/reactor/peer_bfd.go` - open BFD early in strict mode; handle Up
-- `internal/component/bgp/reactor/peersettings.go` - add `Strict`, `HoldTime` to `BFDSettings`
+- `internal/component/bgp/reactor/peer_settings.go` - add `Strict`, `HoldTime` to `BFDSettings`
 - `internal/component/bgp/reactor/` - FSM Established gate consulting BFD-up state
 - BGP config resolution (`internal/component/bgp/config/`) - parse `bfd strict [hold-time]`
 

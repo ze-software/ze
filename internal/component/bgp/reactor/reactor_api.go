@@ -861,7 +861,7 @@ func peerSettingsEqual(a, b *PeerSettings) bool {
 	ac.Capabilities, bc.Capabilities = nil, nil
 
 	// PrefixUpdated is NOT excluded. It holds the per-family ISO dates the prefix
-	// maximums were last refreshed from PeeringDB (peersettings.go), and it drives
+	// maximums were last refreshed from PeeringDB (peer_settings.go), and it drives
 	// the prefix-stale warning and the ze_bgp_prefix_stale gauge. It was excluded
 	// here until 2026-08-07 to stop a dates-only edit bouncing the session, which
 	// also stopped the dates ever reaching a running peer: the alarm a PeeringDB

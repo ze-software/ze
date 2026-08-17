@@ -33,7 +33,7 @@ Tier 2 boundary untouched.
 ## Verify these overrides before closing (BLOCKING)
 
 Every commit above asserts the red gates belong to other sessions:
-`internal/component/bgp/plugins/rib/rib_rfc4271_mixed_update_test.go` (untracked,
+`internal/component/bgp/plugins/rib/rfc4271_rib_mixed_update_test.go` (untracked,
 does not compile) and the IKE session's `ai/RFC-REQUIREMENTS.md` work. **Re-check
 that both have cleared before you close.** If they have, run a clean
 `make ze-precommit-verify` and record it. If a red turns out to be ours, it is ours.

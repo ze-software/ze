@@ -26,7 +26,7 @@ four gated MUSTs for this section, and each is currently unmet or met by acciden
 | `RFC7705-4.2-1` | configurable per neighbour or per neighbour group | No leaf exists. The `local`, `remote` and `local-options` leaves sit inside a `container asn` at `internal/component/bgp/yang/ze-bgp-conf.yang`, with nothing for an alternate ASN |
 | `RFC7705-4.2-2` | MUST accept an OPEN whose My AS is either the global or the local ASN | Accidentally satisfied, for the wrong reason: nothing validates the advertised AS at all, so any ASN is accepted |
 | `RFC7705-4.2-3` | MUST send its own OPEN using either ASN | Not implemented. `myAS` is taken from `s.settings.LocalAS` and nothing else (`internal/component/bgp/reactor/session_negotiate.go`) |
-| `RFC7705-4.2-4` | MUST treat UPDATEs on such a session as native iBGP | Not implemented. iBGP is decided by a single equality, `n.LocalAS != n.PeerAS` (`internal/component/bgp/reactor/peersettings.go`), which has no notion of an alternate ASN |
+| `RFC7705-4.2-4` | MUST treat UPDATEs on such a session as native iBGP | Not implemented. iBGP is decided by a single equality, `n.LocalAS != n.PeerAS` (`internal/component/bgp/reactor/peer_settings.go`), which has no notion of an alternate ASN |
 
 `RFC7705-4.2-2` deserves care. `NotifyOpenBadPeerAS` is defined at
 `internal/component/bgp/message/notification.go` and decoded for display at
@@ -94,7 +94,7 @@ and writes the enrolment row that admits all nine in the same change.
 
 **Key insights:** (minimal context to resume after compaction)
 - Ze has no Bad Peer AS enforcement at all. That is why `RFC7705-4.2-2` looks satisfied and is not provable: there is no negative polarity to test.
-- iBGP is one equality in one method, `internal/component/bgp/reactor/peersettings.go`, mirrored on the peer object at `internal/component/bgp/reactor/peer.go` and re-derived inline at `internal/component/bgp/reactor/session_validation.go`. Three sites, one rule. An alternate ASN has to change the rule in one place and reach all three.
+- iBGP is one equality in one method, `internal/component/bgp/reactor/peer_settings.go`, mirrored on the peer object at `internal/component/bgp/reactor/peer.go` and re-derived inline at `internal/component/bgp/reactor/session_validation.go`. Three sites, one rule. An alternate ASN has to change the rule in one place and reach all three.
 - The OPEN this speaker sends carries `MyAS` at `internal/component/bgp/reactor/session_negotiate.go`, taking `myAS` from `s.settings.LocalAS` at `internal/component/bgp/reactor/session_negotiate.go`, and the ASN4 capability from the same field at `capability.ASN4` (`internal/component/bgp/reactor/session_negotiate.go`). Both must move together or the OPEN contradicts itself.
 - `RFC7705-4.2-5`'s fallback needs a retry that changes the ASN between connection attempts, which touches the FSM's connect-retry path, not just the OPEN builder.
 - Enrolment is the exit condition, and it needs `plan/spec-bgp-local-as-options.md` landed first, because a row admits an RFC only when every gated MUST is classified.
@@ -112,7 +112,7 @@ and writes the enrolment row that admits all nine in the same change.
 - [ ] `internal/component/bgp/reactor/session_open_validation.go` - `runOpenValidator`: the per-peer plugin OPEN validator, shared by both OPEN rails so the collision-winner path cannot bypass policy. A new AS check belongs on the same shared rail.
 - [ ] `internal/component/bgp/reactor/peer.go` - `openAdvertisedAS`: reads the ASN4 capability first and falls back to `remote.MyAS` at `internal/component/bgp/reactor/peer.go`, so a four-octet peer is judged on its real ASN rather than AS_TRANS. This is the correct comparison primitive and already exists.
 - [ ] `internal/component/bgp/message/notification.go` - the `NotifyOpenBadPeerAS` constant: defined here, rendered by `case NotifyOpenBadPeerAS:` at `internal/component/bgp/message/notification.go` and by `case message.NotifyOpenBadPeerAS:` at `internal/component/bgp/format/decode.go`, and originated nowhere.
-- [ ] `internal/component/bgp/reactor/peersettings.go` - `IsEBGP`: `return n.LocalAS != n.PeerAS`, the single rule.
+- [ ] `internal/component/bgp/reactor/peer_settings.go` - `IsEBGP`: `return n.LocalAS != n.PeerAS`, the single rule.
 - [ ] `internal/component/bgp/reactor/peer.go` - the same rule on the peer object, under the peer lock.
 - [ ] `internal/component/bgp/reactor/session_validation.go` - `isIBGP := s.settings.LocalAS == s.settings.PeerAS`, the rule re-derived inline on the RFC 7606 path.
 - [ ] `internal/component/bgp/reactor/peer_forward_facts.go` - the precomputed `s.IsEBGP()` fact that gates the eBGP AS_PATH prepend and therefore every wire difference between iBGP and eBGP.
@@ -147,7 +147,7 @@ and writes the enrolment row that admits all nine in the same change.
 3. Inbound: the OPEN is validated. **Proposed:** a Bad Peer AS check runs on the shared rail beside `validateOpenIdentifier` (`internal/component/bgp/reactor/session_open_validation.go`), comparing `openAdvertisedAS` against the configured `PeerAS` and, when configured, the alternate ASN.
 4. On a mismatch the session sends OPEN subcode 2, the `NotifyOpenBadPeerAS` constant at `internal/component/bgp/message/notification.go`, and closes, the same shape `validateOpenIdentifier` already uses for Bad BGP Identifier.
 5. **Proposed:** on receiving Bad Peer AS as the initiator, the connect-retry path retries with the alternate ASN, satisfying `RFC7705-4.2-5`.
-6. Once established, the iBGP determination (`internal/component/bgp/reactor/peersettings.go`) resolves the session as internal, so the RFC 7606 path (`internal/component/bgp/reactor/session_validation.go`), the forward facts (`internal/component/bgp/reactor/peer_forward_facts.go`) and the RFC 4456 reflection rules all take the iBGP branch.
+6. Once established, the iBGP determination (`internal/component/bgp/reactor/peer_settings.go`) resolves the session as internal, so the RFC 7606 path (`internal/component/bgp/reactor/session_validation.go`), the forward facts (`internal/component/bgp/reactor/peer_forward_facts.go`) and the RFC 4456 reflection rules all take the iBGP branch.
 7. UPDATEs are exchanged with no eBGP AS_PATH prepend, which is the observable that `RFC7705-4.2-4` is about.
 
 ### Boundaries Crossed
@@ -163,7 +163,7 @@ and writes the enrolment row that admits all nine in the same change.
 ### Integration Points
 - `openAdvertisedAS` (`internal/component/bgp/reactor/peer.go`) is the existing, correct primitive for reading a peer's real ASN; the new check uses it rather than a second implementation.
 - `validateOpenIdentifier` (`internal/component/bgp/reactor/session_open_validation.go`) and `runOpenValidator` (`internal/component/bgp/reactor/session_open_validation.go`) define the shape a shared OPEN check takes, including logging, the FSM error event and the connection close.
-- The `PeerSettings` `IsEBGP` rule (`internal/component/bgp/reactor/peersettings.go`) is the one the alternate ASN must extend; the `Peer` copy at `internal/component/bgp/reactor/peer.go` and the inline `isIBGP` derivation at `internal/component/bgp/reactor/session_validation.go` must be routed through it rather than each growing their own condition.
+- The `PeerSettings` `IsEBGP` rule (`internal/component/bgp/reactor/peer_settings.go`) is the one the alternate ASN must extend; the `Peer` copy at `internal/component/bgp/reactor/peer.go` and the inline `isIBGP` derivation at `internal/component/bgp/reactor/session_validation.go` must be routed through it rather than each growing their own condition.
 - The parked summary at `rfc/pending/rfc7705.md` supplies the requirement IDs and returns to `rfc/short/` in phase 8; `rfc/enrolled.txt` and `ai/RFC-REQUIREMENTS.md` are the ledger this spec closes.
 
 ### Architectural Verification
@@ -181,7 +181,7 @@ and writes the enrolment row that admits all nine in the same change.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | Nothing in the tree currently rejects an OPEN on an AS mismatch, so introducing the check is a genuine behaviour change and not a duplicate. | `NotifyOpenBadPeerAS` (`internal/component/bgp/message/notification.go`) is originated nowhere, and `validateOpenIdentifier` (`internal/component/bgp/reactor/session_open_validation.go`) reads the AS only for the RFC 6286 determination. | The check already exists somewhere and this spec must extend it rather than add one. | Tree-wide grep for `NotifyOpenBadPeerAS` and for any comparison against `settings.PeerAS`, as the first implementation action. | unvalidated |
-| A-2 | The three iBGP determination sites can be routed through one rule without changing any existing verdict. | They are textually identical today: `internal/component/bgp/reactor/peersettings.go`, `internal/component/bgp/reactor/peer.go`, `internal/component/bgp/reactor/session_validation.go`. | A site has a subtly different meaning and consolidating it changes behaviour for sessions that do not use the feature. | A refactor-only commit that unifies the three with no behaviour change, proven by the existing suites passing untouched. | unvalidated |
+| A-2 | The three iBGP determination sites can be routed through one rule without changing any existing verdict. | They are textually identical today: `internal/component/bgp/reactor/peer_settings.go`, `internal/component/bgp/reactor/peer.go`, `internal/component/bgp/reactor/session_validation.go`. | A site has a subtly different meaning and consolidating it changes behaviour for sessions that do not use the feature. | A refactor-only commit that unifies the three with no behaviour change, proven by the existing suites passing untouched. | unvalidated |
 | A-3 | Introducing the Bad Peer AS check breaks no existing test or deployment, because a correctly configured peer advertises the AS it is configured with. | The configured `PeerAS` is what every session already assumes when deciding iBGP versus eBGP. | Sessions that work today start failing. That is a real operational risk and the reason the check lands in its own phase with its own `.ci`. | Running the full functional and interop suites after the check lands, before anything else in this spec. | unvalidated |
 | A-4 | A dynamic peer, whose `PeerAS` is 0 until establishment, must be exempt from the new check. | `validateOpenIdentifier` documents exactly this: the comment at `buildDynamicPeerSettings` (`internal/component/bgp/reactor/session_open_validation.go`) records that it sets `PeerAS` to 0 and that `resolveDynamicPeerSettings` fills it only at establishment. | Every dynamic peer is rejected at OPEN, which would be a severe regression. | A dedicated dynamic-peer test asserting the check is skipped when `PeerAS` is 0. | unvalidated |
 | A-5 | `RFC7705-4.2-5`'s fallback can be implemented within the existing connect-retry path without a new FSM state. | The retry already exists as a timer-driven reconnect; the change is which ASN the next OPEN carries. | The SHOULD is deferred with an explicit annotation rather than silently skipped, and that deferral is a compliance decision for Thomas. | A design spike on the connect-retry path before phase 5 starts. | unvalidated |
@@ -253,10 +253,10 @@ and writes the enrolment row that admits all nine in the same change.
 | `TestMigrationAcceptsGlobalASN` | `internal/component/bgp/reactor/session_open_validation_test.go` | AC-4, tagged `RFC requirement: RFC7705-4.2-2 positive` | |
 | `TestMigrationAcceptsAlternateASN` | `internal/component/bgp/reactor/session_open_validation_test.go` | AC-5, tagged `RFC requirement: RFC7705-4.2-2 negative` for the unconfigured-ASN case | |
 | `TestMigrationOpenCarriesResolvedASN` | `internal/component/bgp/reactor/session_negotiate_test.go` | AC-6, AC-9, R-4, tagged `RFC requirement: RFC7705-4.2-3`, both polarities; header and capability agree | |
-| `TestMigrationSessionIsIBGP` | `internal/component/bgp/reactor/peersettings_test.go` | AC-7, tagged `RFC requirement: RFC7705-4.2-4`, both polarities | |
+| `TestMigrationSessionIsIBGP` | `internal/component/bgp/reactor/peer_settings_test.go` | AC-7, tagged `RFC requirement: RFC7705-4.2-4`, both polarities | |
 | `TestMigrationNoEBGPPrepend` | `internal/component/bgp/reactor/peer_forward_facts_test.go` | AC-7: the observable, not the flag | |
 | `TestMigrationLeafPerNeighborGroup` | `internal/component/bgp/reactor/config_test.go` | AC-8, tagged `RFC requirement: RFC7705-4.2-1`, both polarities | |
-| `TestIBGPVerdictSingleRule` | `internal/component/bgp/reactor/peersettings_test.go` | A-2: the three sites agree for every combination | |
+| `TestIBGPVerdictSingleRule` | `internal/component/bgp/reactor/peer_settings_test.go` | A-2: the three sites agree for every combination | |
 | `TestMigrationFallbackOnBadPeerAS` | `internal/component/bgp/reactor/session_negotiate_test.go` | AC-10, `RFC7705-4.2-5`, only if A-5 resolves to implementing it | |
 | `TestNoMigrationConfigUnchanged` | `internal/component/bgp/reactor/session_negotiate_test.go` | AC-11: the OPEN is byte-identical without the leaf | |
 
@@ -288,7 +288,7 @@ and writes the enrolment row that admits all nine in the same change.
 ## Files to Modify
 - `internal/component/bgp/yang/ze-bgp-conf.yang` - the `asn` container gains the alternate iBGP ASN leaf beside `local` and `remote`
 - `internal/component/bgp/reactor/config.go` - parse the new leaf into `PeerSettings`
-- `internal/component/bgp/reactor/peersettings.go` - `IsEBGP` becomes the single rule that accounts for the alternate ASN
+- `internal/component/bgp/reactor/peer_settings.go` - `IsEBGP` becomes the single rule that accounts for the alternate ASN
 - `internal/component/bgp/reactor/peer.go` - the peer-object copy of the rule routes through the settings rule
 - `internal/component/bgp/reactor/session_validation.go` - the inline iBGP derivation routes through the same rule
 - `internal/component/bgp/reactor/session_open_validation.go` - the Bad Peer AS check, on the shared rail
@@ -341,18 +341,18 @@ and writes the enrolment row that admits all nine in the same change.
 | 13 | Route metadata keys added/changed? | No | |
 | 14 | Prometheus counters added/changed? | Yes | `docs/plugin-development/metrics.md` for the rejection counter |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes | Grep `docs/` for anchors naming `session_negotiate.go`, `session_open_validation.go`, `peersettings.go` and `ze-bgp-conf.yang` and correct each stale claim |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | Grep `docs/` for anchors naming `session_negotiate.go`, `session_open_validation.go`, `peer_settings.go` and `ze-bgp-conf.yang` and correct each stale claim |
 | 17 | Existing docs show config/CLI/API examples for this area? | Yes | Any `session > asn` example must show the new leaf where relevant |
 
 ## Implementation Steps
 
 1. **Phase: Wiring (MANDATORY FIRST)** -- prove the current state before changing it
    - Tests: `TestIBGPVerdictSingleRule` and a test asserting no OPEN is currently rejected on an AS mismatch, both written against current behaviour
-   - Files: `internal/component/bgp/reactor/peersettings_test.go`, `internal/component/bgp/reactor/session_open_validation_test.go`
+   - Files: `internal/component/bgp/reactor/peer_settings_test.go`, `internal/component/bgp/reactor/session_open_validation_test.go`
    - Verify: A-1 and A-2 resolved by grep and test; the absence of the check is now recorded, not assumed
 2. **Phase: unify the iBGP rule** -- refactor only, no behaviour change
    - Tests: the existing suites, untouched
-   - Files: `internal/component/bgp/reactor/peersettings.go`, `internal/component/bgp/reactor/peer.go`, `internal/component/bgp/reactor/session_validation.go`
+   - Files: `internal/component/bgp/reactor/peer_settings.go`, `internal/component/bgp/reactor/peer.go`, `internal/component/bgp/reactor/session_validation.go`
    - Verify: three sites route through one rule; every existing test passes with no edit
 3. **Phase: the Bad Peer AS check** -- lands alone, so a regression is attributable
    - Tests: `TestOpenRejectedOnBadPeerAS`, `TestOpenAcceptedOnMatchingAS`, `TestOpenCheckSkippedForDynamicPeer`, `test/plugin/bgp-open-bad-peer-as.ci`
@@ -368,7 +368,7 @@ and writes the enrolment row that admits all nine in the same change.
    - Verify: AC-4, AC-5, AC-6, AC-9, AC-11 pass; R-4 closed by the header-and-capability agreement test
 6. **Phase: native iBGP treatment**
    - Tests: `TestMigrationSessionIsIBGP`, `TestMigrationNoEBGPPrepend`, `test/plugin/bgp-as-migration-ibgp-treatment.ci`
-   - Files: `internal/component/bgp/reactor/peersettings.go`
+   - Files: `internal/component/bgp/reactor/peer_settings.go`
    - Verify: AC-7 passes as an observable on the wire, not as an internal flag
 7. **Phase: the deadlock fallback** -- `RFC7705-4.2-5`, a SHOULD
    - Tests: `TestMigrationFallbackOnBadPeerAS`
@@ -436,7 +436,7 @@ and writes the enrolment row that admits all nine in the same change.
 
 - The most surprising finding is not that Section 4.2 is missing, it is that `RFC7705-4.2-2` currently passes for the wrong reason. Ze accepts an OPEN from any AS because it never checks, so "accept either ASN" is true and meaningless. Implementing the requirement honestly means first implementing the rule it is an exception to.
 - That inverts the natural build order. The tightening lands before the feature, alone, because it is the change most likely to break a working deployment and the one whose blast radius is hardest to predict from the code.
-- The iBGP verdict is one equality repeated in three places (`internal/component/bgp/reactor/peersettings.go`, `internal/component/bgp/reactor/peer.go`, `internal/component/bgp/reactor/session_validation.go`). Any feature that complicates it must unify it first, or the third site silently keeps the old rule and a migration session is iBGP for the forward path and eBGP for RFC 7606.
+- The iBGP verdict is one equality repeated in three places (`internal/component/bgp/reactor/peer_settings.go`, `internal/component/bgp/reactor/peer.go`, `internal/component/bgp/reactor/session_validation.go`). Any feature that complicates it must unify it first, or the third site silently keeps the old rule and a migration session is iBGP for the forward path and eBGP for RFC 7606.
 - `openAdvertisedAS` (`internal/component/bgp/reactor/peer.go`) already does the hard part of the comparison, reading the ASN4 capability so a four-octet peer is judged on its real ASN rather than AS_TRANS. The primitive this spec needs already exists and is already correct.
 
 ## Key Design Decisions
@@ -467,7 +467,7 @@ Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code.
 | 7705 | 4.2 | the mechanism MUST be configurable per neighbour or per neighbour group | `internal/component/bgp/reactor/config.go` |
 | 7705 | 4.2 | MUST accept an OPEN whose My AS is either the global or the local ASN | `internal/component/bgp/reactor/session_open_validation.go` |
 | 7705 | 4.2 | MUST send its own OPEN using either ASN | `internal/component/bgp/reactor/session_negotiate.go` |
-| 7705 | 4.2 | MUST treat UPDATEs on such a session as native iBGP | `internal/component/bgp/reactor/peersettings.go` |
+| 7705 | 4.2 | MUST treat UPDATEs on such a session as native iBGP | `internal/component/bgp/reactor/peer_settings.go` |
 | 7705 | 4.2 | SHOULD send the global ASN first and fall back on Bad Peer AS | the connect-retry path, per A-5 |
 | 4271 | 6.2 | OPEN Message Error, Bad Peer AS is subcode 2 | `internal/component/bgp/message/notification.go`, originated for the first time |
 | 6793 | 4.2.2 | My AS carries AS_TRANS above 65535, the real value rides in the ASN4 capability | `internal/component/bgp/reactor/session_negotiate.go` |

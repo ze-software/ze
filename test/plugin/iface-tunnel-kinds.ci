@@ -26,7 +26,7 @@
 # The pairs must also be unique ACROSS tests, not only within this one. The
 # kernel answers EEXIST on a duplicate local/remote whatever the device is
 # named, and the suites share one VM: this file first shipped on 192.0.2.1-.5 /
-# 198.51.100.1-.5, which test/reload/test-tx-iface-tunnel-create.ci already uses
+# 198.51.100.1-.5, which test/reload/tx-iface-tunnel-create.ci already uses
 # for the same encapsulation kinds. This test ran first, left its links behind,
 # and the reload test then failed its whole config transaction on
 # `create tunnel "tgretap" (kind gretap): file exists` -- a name it had never

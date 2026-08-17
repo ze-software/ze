@@ -2,7 +2,7 @@
 // optional CIDR parsed into a netip.Prefix, a malformed address is rejected at
 // parse time on every platform, and a name-only spec leaves a zero (invalid)
 // address meaning "link, no address".
-// PREVENTS: the test/policy 005-next-hop regression where a policy next-hop had
+// PREVENTS: the test/policy policy-next-hop regression where a policy next-hop had
 // no connected route to resolve its gateway. The fix provisions an interface in
 // the per-test netns from this option; a parse that silently dropped the option
 // or accepted a bad address would leave the interface unprovisioned and the
@@ -121,7 +121,7 @@ func TestNetnsLinkRejectsBadPeerAndVLAN(t *testing.T) {
 // parseNetnsLinkFile drives the REAL entry point (parseAndAdd, which applies the
 // post-parse gates) over a .ci file declaring a netns-link, optionally preceded
 // by the needs-linux marker the eleven ospf/ospfv3 tests and
-// test/policy/005-next-hop carry.
+// test/policy/policy-next-hop carry.
 //
 // withNeedsLinux is a parameter, not a constant, because needs-linux skips on
 // any non-Linux host: baking it in would make the "runs under netns mode"
@@ -156,7 +156,7 @@ func parseNetnsLinkFile(t *testing.T, netnsOn, withNeedsLinux bool) *Record {
 // not set ZE_TEST_NETNS, so provisionNetnsLinks never ran, the daemon was asked
 // to open interfaces (eth1/nbma0/ptmp0) that did not exist, the OSPF engine
 // exited 1, plugin startup timed out, and all 8 ospf + 3 ospfv3 + policy
-// 005-next-hop tests failed with an unrelated-looking observer TLS timeout.
+// policy-next-hop tests failed with an unrelated-looking observer TLS timeout.
 func TestNetnsLinkSkipsWithoutNetnsMode(t *testing.T) {
 	// withNeedsLinux=true mirrors the twelve real files, and proves the netns
 	// reason REPLACES the weaker needs-linux one: the targets it names are the

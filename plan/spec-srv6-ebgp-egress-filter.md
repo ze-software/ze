@@ -9,7 +9,7 @@
 
 Anchor refresh (2026-07-22 plan review, design unchanged and implementable;
 all citations below updated in-body to the verified current lines --
-`AcceptSRv6PrefixSID` `peersettings.go`, egress insertion points
+`AcceptSRv6PrefixSID` `peer_settings.go`, egress insertion points
 `reactor_api_forward.go` and `forward_rs.go`,
 `ze-bgp-conf.yang`; `config.go` unchanged. These reactor files are
 churny: re-verify by symbol at implementation start). (Re-verified
@@ -65,7 +65,7 @@ AS boundaries.
 - `internal/component/bgp/reactor/peer_forward_facts.go` - egress fact precomputation (pattern to follow)
 - `internal/component/bgp/reactor/reactor_api_forward.go` - egress pipeline insertion point
 - `internal/component/bgp/reactor/forward_rs.go` - RS egress pipeline insertion point
-- `internal/component/bgp/reactor/peersettings.go` - `AcceptSRv6PrefixSID` (ingress counterpart)
+- `internal/component/bgp/reactor/peer_settings.go` - `AcceptSRv6PrefixSID` (ingress counterpart)
 - `internal/component/bgp/reactor/config.go` - config resolution for ingress counterpart
 - `internal/component/bgp/yang/ze-bgp-conf.yang` - YANG leaf for ingress counterpart
 
@@ -103,7 +103,7 @@ AS boundaries.
   -> Constraint: insertion point for new applyFactsPrefixSID is after line 517
 - [ ] `internal/component/bgp/reactor/forward_rs.go` - same pattern in RS path
   -> Constraint: must add call in both paths
-- [ ] `internal/component/bgp/reactor/peersettings.go` - AcceptSRv6PrefixSID bool field
+- [ ] `internal/component/bgp/reactor/peer_settings.go` - AcceptSRv6PrefixSID bool field
 - [ ] `internal/component/bgp/reactor/config.go` - mapBool(sessionMap, "accept-srv6-prefix-sid")
 - [ ] `internal/component/bgp/reactor/session_validation.go` - ingress EBGP filter via DiscardEntries
 - [ ] `internal/component/bgp/yang/ze-bgp-conf.yang` - YANG leaf accept-srv6-prefix-sid
@@ -215,7 +215,7 @@ AS boundaries.
 
 ## Files to Modify
 - `internal/component/bgp/yang/ze-bgp-conf.yang` - add `leaf propagate-srv6-prefix-sid` after `accept-srv6-prefix-sid`
-- `internal/component/bgp/reactor/peersettings.go` - add `PropagateSRv6PrefixSID bool` after `AcceptSRv6PrefixSID`
+- `internal/component/bgp/reactor/peer_settings.go` - add `PropagateSRv6PrefixSID bool` after `AcceptSRv6PrefixSID`
 - `internal/component/bgp/reactor/config.go` - add `mapBool(sessionMap, "propagate-srv6-prefix-sid")` resolution
 - `internal/component/bgp/reactor/peer_forward_facts.go` - add `suppressPrefixSID bool` field, `precomputePrefixSIDSuppression()`, `applyFactsPrefixSID()`
 - `internal/component/bgp/reactor/reactor_api_forward.go` - call `applyFactsPrefixSID()` after `applyFactsSendCommunity()`
@@ -289,7 +289,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 
 1. **Phase: Wiring** -- YANG leaf + PeerSettings field + config resolution
    - Tests: `TestPrecomputePrefixSIDSuppression` (fails: field exists but not precomputed)
-   - Files: `ze-bgp-conf.yang`, `peersettings.go`, `config.go`
+   - Files: `ze-bgp-conf.yang`, `peer_settings.go`, `config.go`
    - Verify: config parses new leaf; test fails because precomputation not yet implemented
 
 2. **Phase: Precomputation** -- `suppressPrefixSID` field + `precomputePrefixSIDSuppression()`
@@ -331,7 +331,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Deliverable | Verification method |
 |-------------|---------------------|
 | YANG leaf `propagate-srv6-prefix-sid` | `grep 'propagate-srv6-prefix-sid' internal/component/bgp/yang/ze-bgp-conf.yang` |
-| `PropagateSRv6PrefixSID` field in PeerSettings | `grep 'PropagateSRv6PrefixSID' internal/component/bgp/reactor/peersettings.go` |
+| `PropagateSRv6PrefixSID` field in PeerSettings | `grep 'PropagateSRv6PrefixSID' internal/component/bgp/reactor/peer_settings.go` |
 | Config resolution | `grep 'propagate-srv6-prefix-sid' internal/component/bgp/reactor/config.go` |
 | `suppressPrefixSID` field in peerForwardFacts | `grep 'suppressPrefixSID' internal/component/bgp/reactor/peer_forward_facts.go` |
 | `applyFactsPrefixSID` function | `grep 'applyFactsPrefixSID' internal/component/bgp/reactor/peer_forward_facts.go` |

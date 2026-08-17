@@ -109,7 +109,7 @@ func TestNetnsLaunchChildInheritsNamespace(t *testing.T) {
 }
 
 // TestProvisionNetnsLinksMakesNextHopRoutable is the direct regression test for
-// test/policy 005-next-hop: enterTestNetns brings up only loopback, so a policy
+// test/policy policy-next-hop: enterTestNetns brings up only loopback, so a policy
 // next-hop's auto-route (`default via 10.0.0.1`) fails "network is unreachable"
 // with no connected interface. provisionNetnsLinks (fed by option=netns-link)
 // creates the interface with a same-subnet address so the gateway resolves.

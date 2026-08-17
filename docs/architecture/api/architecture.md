@@ -1306,7 +1306,7 @@ process-wide (see "Encoding" above), and `attribute` reaches no field of
 `ProcessBinding` at all. Do not write an attachment expecting one peer's events
 to be rendered differently from another's.
 <!-- source: internal/component/bgp/types/contentconfig.go -- ContentConfig -->
-<!-- source: internal/component/bgp/reactor/peersettings.go -- ProcessBinding -->
+<!-- source: internal/component/bgp/reactor/peer_settings.go -- ProcessBinding -->
 
 ### RFC 9234 Role Tagging (Planned)
 

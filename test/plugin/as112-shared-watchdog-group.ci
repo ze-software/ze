@@ -124,7 +124,7 @@ bgp {
 		# peer loses the initial accept race may have its first dial attempt
 		# abandoned while the other's sequence is still in flight (waiting on
 		# the healthcheck probe). Without this, ze falls back to the 120s
-		# default connect-retry (peersettings.go DefaultConnectRetry), which
+		# default connect-retry (peer_settings.go DefaultConnectRetry), which
 		# exceeds the test timeout.
 		timer { connect-retry 2; }
 

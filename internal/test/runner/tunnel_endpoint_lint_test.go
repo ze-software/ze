@@ -5,7 +5,7 @@ package runner
 //   tunnel of the same driver on a local/remote pair that is already taken,
 //   whatever the new device is named.
 // PREVENTS: the failure of 2026-08-11, where test/plugin/iface-tunnel-kinds.ci
-//   took the endpoint pairs of test/reload/test-tx-iface-tunnel-create.ci, ran
+//   took the endpoint pairs of test/reload/tx-iface-tunnel-create.ci, ran
 //   first, and left its links behind. Three reload tests then failed on
 //   `file exists` for device names they had never created, and the failure was
 //   first diagnosed as a product defect in the reload path.
@@ -61,9 +61,9 @@ func tunnelUniquenessDomain(kind string) string {
 //
 // The key is part of the claim because the ip_tunnel and ip6_gre drivers
 // compare it alongside the addresses. The evidence is this repository's own
-// corpus rather than a kernel read: test-tx-iface-tunnel-create.ci (key 42),
-// test-tx-iface-tunnel-modify-key.ci (keys 1 and 2) and
-// test-tx-iface-tunnel-remove.ci (no key) all create a gre tunnel on
+// corpus rather than a kernel read: tx-iface-tunnel-create.ci (key 42),
+// tx-iface-tunnel-modify-key.ci (keys 1 and 2) and
+// tx-iface-tunnel-remove.ci (no key) all create a gre tunnel on
 // 192.0.2.1 -> 198.51.100.1 in the same VM and all three pass, while
 // iface-tunnel-kinds.ci taking that pair with no key collided with the third.
 // Kinds that carry no key leaf simply claim the empty one.
@@ -116,7 +116,7 @@ func tunnelEndpointClaims(raw string) []tunnelEndpointClaim {
 //
 // A holder is one interface name in one file, counted once however many stanzas
 // name it. One file naming one interface twice on one claim is the reload and
-// restart shape: test/reload/test-tx-iface-tunnel-modify-key.ci carries the same
+// restart shape: test/reload/tx-iface-tunnel-modify-key.ci carries the same
 // tunnel in its boot config and in the config it reloads, and a restart test
 // runs one config twice. The kernel holds ONE device for it, so there is nothing
 // to collide with. Two DIFFERENT names on one claim inside one file is a real

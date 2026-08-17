@@ -636,7 +636,7 @@ func tunnelTestConfigOfKind(kind TunnelKind, remote string) *ifaceConfig {
 //
 // It is NOT the QEMU failure first recorded here. That one was a collision
 // between two tests: test/plugin/iface-tunnel-kinds.ci used the endpoint pairs
-// of test/reload/test-tx-iface-tunnel-create.ci, ran first in the shared VM,
+// of test/reload/tx-iface-tunnel-create.ci, ran first in the shared VM,
 // and left its links behind. The kernel answers EEXIST on a duplicate
 // local/remote pair whatever the device is named, so moving the endpoints made
 // all three tests pass with no product change.

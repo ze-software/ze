@@ -140,7 +140,7 @@ Each peer has a `connection` setting:
 | `active` | Dial out only |
 | `passive` | Accept inbound only (RFC 4271 S8.1.1 PassiveTcpEstablishment) |
 | `both` (default) | Both dial and accept. Collision detection resolves races. |
-<!-- source: internal/component/bgp/reactor/peersettings.go -- ConnectionMode -->
+<!-- source: internal/component/bgp/reactor/peer_settings.go -- ConnectionMode -->
 
 ## Ze Implementation
 

@@ -312,7 +312,7 @@ are not verifiable locally.** Cite this section, not that doc.
 
 ## Files to Modify
 - `internal/component/bgp/reactor/reactor_notify.go` - the gate: Option B counter; mark-and-dispatch when retention is on.
-- `internal/component/bgp/reactor/peersettings.go` - a `KeepFiltered` field (+ the sibling spec's reload guard must cover it, A-5).
+- `internal/component/bgp/reactor/peer_settings.go` - a `KeepFiltered` field (+ the sibling spec's reload guard must cover it, A-5).
 - `internal/component/bgp/reactor/config.go` - parse the leaf (hand-written `mapBool`, `:879-885`; the resolved tree is stringly-typed).
 - `internal/component/bgp/plugins/rib/rib_structured.go` - store the marked route in the filtered state.
 - `internal/component/bgp/plugins/rib/rib_commands.go` - count the filtered state in `status()`; isolate from `gatherCandidatesLocked` if D-9 picks the flag model.
@@ -375,7 +375,7 @@ are not verifiable locally.** Cite this section, not that doc.
    - Verify: AC-4, AC-7. `routes_filtered` still 0.
 3. **Phase: Wiring** - the `keep-filtered` YANG leaf + `PeerSettings` field + parse, plus a failing `.ci`.
    - Tests: `bgp-filtered-route-default-zero.ci` (passes), `bgp-filtered-route-storage.ci` (fails - stub)
-   - Files: plugin `yang/`, `peersettings.go`, `config.go`
+   - Files: plugin `yang/`, `peer_settings.go`, `config.go`
    - Verify: AC-2 holds; default path unchanged; the retention `.ci` fails for the right reason.
 4. **Phase: Retain + isolate** - mark-and-dispatch at the gate; store in the filtered state; isolate from selection; count.
    - Tests: `TestFilteredRouteNeverSelectedAsBest`, `TestFilteredCountPerPeerFamily`, `TestRetentionOffDoesNotAllocate`, `bgp-filtered-route-storage.ci`

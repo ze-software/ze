@@ -57,7 +57,7 @@ func TestShouldDeleteTableScopesToDesiredOrApplied(t *testing.T) {
 // NFTA_SET_ELEM_TIMEOUT only when the parent set has HasTimeout
 // (vendor/github.com/google/nftables/set.go SetAddElements), so a set
 // without the flag silently drops every element timeout.
-// PREVENTS: regression of the firewall 009-set-element-timeout failure where
+// PREVENTS: regression of the firewall firewall-set-element-timeout failure where
 // applySet never set HasTimeout and elements were programmed timeout-less.
 func TestLowerSetTimeoutFlagAndElementTimeouts(t *testing.T) {
 	table := &nftables.Table{Name: "ze_t", Family: nftables.TableFamilyINet}

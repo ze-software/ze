@@ -1613,7 +1613,7 @@ the hook blocks the recovery step of a documented procedure.
 
 ## Filed 2026-08-01 (bgp-update-withdraw-order): `_rfc_tagged_change_err` blocks ADDING a test to a file whose tags you just wrote
 
-**What happened.** I created `rib_rfc4271_mixed_update_test.go` with two tagged
+**What happened.** I created `rfc4271_rib_mixed_update_test.go` with two tagged
 tests, then appended two more covering the sibling code paths. The append needed
 three new imports. The guard refused the import edit, naming the very tags I had
 added minutes earlier.

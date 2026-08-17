@@ -96,7 +96,7 @@ func TestHandlerPeerListNilReactor(t *testing.T) {
 
 // TestDefaultReceiveHoldTimeMatchesReactor verifies the local defaultReceiveHoldTime constant
 // matches the reactor's DefaultReceiveHoldTime (90s per RFC 4271 Section 10).
-// Source: internal/component/bgp/reactor/peersettings.go
+// Source: internal/component/bgp/reactor/peer_settings.go
 //
 // VALIDATES: defaultReceiveHoldTime is consistent with reactor.DefaultReceiveHoldTime.
 // PREVENTS: Silent divergence between command handler and reactor defaults.

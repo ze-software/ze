@@ -28,9 +28,9 @@ The one obligation in the sentence binds the INITIATOR, and Ze already meets it.
 
 `RFC7296-2.21.2-2` is committed at `rfc/short/rfc7296.md`. It is gated in both
 polarities by `TestErrInitiatorSurvivesPiggybackedErrorNotify`
-(`internal/component/ike/engine/rfc7296_errornotify_test.go`), recorded at
+(`internal/component/ike/engine/rfc7296_notify_error_test.go`), recorded at
 `ai/RFC-REQUIREMENTS.md` with its positive tag at
-`internal/component/ike/engine/rfc7296_errornotify_test.go` and its negative tag at
+`internal/component/ike/engine/rfc7296_notify_error_test.go` and its negative tag at
 `:406`. Both are unit tier, so `make ze-precommit-verify` runs them on every push.
 
 The value of this spec is operational, and not a compliance gain. A peer whose Child SA
@@ -334,7 +334,7 @@ the design phase closes.
 | `TestInitiatorInstallsNoChildSAWhenNoneAccepted` | `internal/component/ike/engine/rfc7296_piggyback_test.go` | AC-13 and AC-14 | |
 
 `TestErrInitiatorSurvivesPiggybackedErrorNotify`
-(`internal/component/ike/engine/rfc7296_errornotify_test.go`) already proves AC-12
+(`internal/component/ike/engine/rfc7296_notify_error_test.go`) already proves AC-12
 and the surviving half of AC-14. Extend it rather than writing a second test, and keep
 both `RFC7296-2.21.2-2` tags in place. A behavior change to that function needs the
 owner's approval, because the RFC-tagged-test hook blocks it.
@@ -383,7 +383,7 @@ reach 18, so 22 and 23 are free. Confirm the numbering at landing time.
 - `internal/component/ike/engine/child.go` - the attachment entry to `createFirstChildSA`
   (`:154`)
 - `internal/component/ike/cmd/show_ipsec.go` - the Child-SA-free display
-- `internal/component/ike/engine/rfc7296_errornotify_test.go` - the extended initiator
+- `internal/component/ike/engine/rfc7296_notify_error_test.go` - the extended initiator
   test, with both `RFC7296-2.21.2-2` tags kept
 - `internal/component/ike/ipsec/yang/ze-ipsec-conf.yang` - the bounded lifetime leaf, if
   the design phase makes it configurable

@@ -80,7 +80,7 @@ func ensurePeerBindAddresses(cmds []RunCommand) error {
 			}
 			// The wildcard (0.0.0.0, ::) names no address, so there is nothing
 			// to put on an interface: it binds every address the host has, and
-			// always succeeds. test/reload/test-config-apply-ordering-swap.ci
+			// always succeeds. test/reload/config-apply-ordering-swap.ci
 			// and its rotation sibling use it.
 			if ip.IsUnspecified() {
 				continue

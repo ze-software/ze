@@ -1,25 +1,26 @@
-# Test: a SIGHUP reload that removes traffic-control tears the HTB qdisc back
-# out of the Linux kernel.
-# VALIDATES: spec followup-test-infra AC-2 -- the CAP_NET_ADMIN kernel-state
-#            check that 002 deferred: `tc qdisc show dev eth0` shows the HTB
-#            qdisc before the reload and no longer shows it after the reload
-#            removes the traffic-control section, proving OnConfigApply's empty
-#            desired state reached the kernel.
-# PREVENTS: a regression where reload logs "reloaded" but the stale qdisc stays
-#           installed in the kernel.
+# Test: Traffic plugin reactor re-applies on SIGHUP reload.
+# VALIDATES: spec-fw-9 AC-2 -- OnConfigVerify accepts a changed config and
+#            OnConfigApply calls backend.Apply with the new desired state.
+#            The reactor emits "traffic-control config reloaded" when the
+#            journal records the apply successfully.
+# PREVENTS: regression where a SIGHUP that mutates the traffic-control block
+#           leaves the reactor silent (verify/apply/journal never wired).
 #
-# Gated option=needs-linux: SKIPs on non-Linux (macOS dev box) and runs as root
-# in the QEMU VM via `make ze-qemu-needs-linux-test`.
-option=needs-linux
+# Scope note: this test asserts the reactor's log line and runs unprivileged in
+# every environment. The real tc kernel-state check on reload (`tc qdisc show`
+# before/after) is now covered by the needs-linux companion
+# traffic-reload-qdisc-tc.ci, which runs as root in the QEMU VM via
+# `make ze-qemu-needs-linux-test` (spec followup-test-infra AC-2). The reload
+# semantic under test here is "remove the traffic-control section": a deletion
+# the reactor handles by applying an empty desired state.
 
 tmpfs=reload.py:mode=755:terminator=EOF_PY
 #!/usr/bin/env python3
-"""Wait for ze, snapshot the qdisc, reload to remove traffic-control, snapshot
-again, then SIGTERM for a clean exit."""
+"""Wait for ze to be ready, rewrite the config to remove traffic-control,
+send SIGHUP, then SIGTERM for a clean exit."""
 import os
 import shutil
 import signal
-import subprocess
 import sys
 import time
 
@@ -36,18 +37,12 @@ with open("daemon.pid") as f:
     pid = int(f.read().strip())
 
 # blind settle: let the initial apply finish before the reload; this standalone driver has no post-apply signal to poll
-time.sleep(0.5)
-with open("tc-before.txt", "w") as out:
-    subprocess.run(["tc", "qdisc", "show", "dev", "eth0"], stdout=out, check=False)
-
+time.sleep(0.3)
 shutil.copy("config2.conf", "ze-bgp.conf")
 os.kill(pid, signal.SIGHUP)
 
 # blind hold: SIGHUP reload exposes no completion signal to this standalone driver; hold for the reactor to re-apply and emit the asserted log, then SIGTERM
 time.sleep(2.0)
-with open("tc-after.txt", "w") as out:
-    subprocess.run(["tc", "qdisc", "show", "dev", "eth0"], stdout=out, check=False)
-
 os.kill(pid, signal.SIGTERM)
 EOF_PY
 
@@ -85,17 +80,6 @@ bgp {
 traffic {
 	control {
 		backend tc
-		interface eth0 {
-			qdisc {
-				type htb
-				default-class default
-				class default {
-					rate 90mbit
-					ceil 100mbit
-					priority 1
-				}
-			}
-		}
 	}
 }
 EOF_CONF
@@ -138,17 +122,8 @@ traffic {
 EOF_CONF2
 
 option=env:var=ze.log.traffic:value=debug
-# See 022-boot-qdisc-tc.ci: the tc backend refuses to replace a root qdisc with no
-# runtime-state store registered (errSnapshotPersistUnavailable), and ze only opens
-# a state-only database.zefs when a config dir is pinned. Pin it at the per-test
-# tmpfs dir. This must NOT be done by enabling blob config storage: that migrates
-# ze-bgp.conf into the blob, and the SIGHUP reload below would then re-read the
-# stale migrated copy instead of the config2.conf this test writes over it.
-option=env:var=ze.config.dir:value=.
 
 cmd=background:seq=1:exec=python3 reload.py
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
 expect=exit:code=0
 expect=stderr:contains=traffic-control config reloaded
-expect=file:path=tc-before.txt:contains=htb
-expect=file:path=tc-after.txt:not-contains=htb

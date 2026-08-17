@@ -149,7 +149,7 @@ func allZero(b []byte) bool {
 // below exercise ComputeAuthFromMSK, the PRIMITIVE. A mutation keying computeEAPAuth (the
 // producer of the AUTH payloads of messages 7 and 8) from a constant instead of sa.EAPMSK
 // left all three PASSING, while three untagged tests caught it. The tags now sit on
-// rfc7296_eapauth_producer_test.go, which drives computeEAPAuth and the real EAP handshake.
+// rfc7296_eap_auth_producer_test.go, which drives computeEAPAuth and the real EAP handshake.
 // These tests keep their value as primitive coverage and stay, untagged.
 
 // VALIDATES: the AUTH primitive is derived from the EAP MSK, and an AUTH derived from a

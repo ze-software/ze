@@ -137,7 +137,7 @@ const skipReasonNetnsLink = "option=netns-link (needs the per-test netns launch 
 //     completes, and each test dies on its observer's unrelated-looking TLS
 //     connect timeout. Teaching OSPF to tolerate a missing active link is
 //     explicitly NOT the fix.
-//   - test/policy/005-next-hop's next-hop then has no connected route, so
+//   - test/policy/policy-next-hop's next-hop then has no connected route, so
 //     RouteAdd returns "network is unreachable" and takes policy-routes down.
 //
 // Provisioning the links outside netns mode is NOT the alternative: they are

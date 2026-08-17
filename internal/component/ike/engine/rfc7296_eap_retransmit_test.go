@@ -21,7 +21,7 @@ import (
 // RFC 7296 Section 2.1 makes that retransmission bitwise identical to the original.
 // Delivering the same slice twice is therefore the real event and not a stand-in for it.
 //
-// It follows eapHandshakeShapes (rfc7296_eapauth_producer_test.go) and stops one delivery
+// It follows eapHandshakeShapes (rfc7296_eap_auth_producer_test.go) and stops one delivery
 // earlier, because the defect it serves lives in the window the EAP exchange holds open.
 func eaprtxResponderMidExchange(t *testing.T) (resp *SA, ps *PeerSession, authReq []byte) {
 	t.Helper()

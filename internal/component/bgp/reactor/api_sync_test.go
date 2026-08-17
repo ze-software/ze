@@ -377,7 +377,7 @@ func chanClosed(ch <-chan struct{}) func() bool {
 // VALIDATES: SignalPeerAPIReady routes "peer <bare-ip> plugin session ready" to a
 // peer whose map key is <ip>:1179. parsePeerAddrToKey must assume DefaultBGPPort
 // for a bare IP (reactor_peers.go:28), and PeerSettings.PeerKey uses the real port
-// (peersettings.go:521), so the direct r.peers[key] read misses for every non-179
+// (peer_settings.go:521), so the direct r.peers[key] read misses for every non-179
 // peer. Emitters do send a bare IP: bgp-rib dispatches "request peer <addr> plugin
 // session ready" with StructuredEvent.PeerAddress (rib.go:1079), which is
 // peer.AddrStr() (bgp/server/events.go:83) = settings.Address.String() (peer.go:303).

@@ -114,11 +114,11 @@ family-specific path attributes, which flow through `reactor.PluginRoute` →
 `Build*()` in the message package for these families (see plugin-self-containment).
 
 **Files involved:**
-- `internal/component/bgp/reactor/peersettings.go` - Domain objects (PluginRoute, StaticRoute, etc.)
+- `internal/component/bgp/reactor/peer_settings.go` - Domain objects (PluginRoute, StaticRoute, etc.)
 - `internal/component/bgp/reactor/peer_static_routes.go` - Conversion functions (toPluginParams, etc.)
 - `internal/component/bgp/message/update_build.go` - UpdateBuilder, *Params structs, Build*() methods
 - `internal/component/bgp/message/update_build_plugin.go` - BuildPlugin + PluginParams (generic exotic-family path)
-<!-- source: internal/component/bgp/reactor/peersettings.go -- PluginRoute, StaticRoute -->
+<!-- source: internal/component/bgp/reactor/peer_settings.go -- PluginRoute, StaticRoute -->
 <!-- source: internal/component/bgp/reactor/peer_static_routes.go -- toPluginParams -->
 <!-- source: internal/component/bgp/message/update_build_plugin.go -- BuildPlugin, PluginParams -->
 

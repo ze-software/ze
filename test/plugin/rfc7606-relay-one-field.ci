@@ -46,7 +46,7 @@
 # Verified by mutation, not by reading: disabling wireu.WireUpdate.MixesNLRIFields leaves this
 # file GREEN, disabling message.Update.MixesNLRIFields turns it RED. The zero-copy arm at :60 is
 # never reached here; it is covered by the unit test TestForwardSplitsMixedShapeSameContextThatFits
-# (reactor/forward_body_rfc7606_test.go:53), which builds a same-context WireUpdate directly and
+# (reactor/rfc7606_forward_body_test.go:53), which builds a same-context WireUpdate directly and
 # carries the same RFC7606-5.1-2 tag. Read "whole-daemon proof" above as "of the parsed arm".
 #
 # THE 5.1-2 BINDING IS .ci-ONLY. Interop scenario 47 drives the same §5.1 shape through a real

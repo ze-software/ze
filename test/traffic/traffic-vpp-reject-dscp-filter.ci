@@ -1,6 +1,6 @@
 # Test: VPP backend REJECTS an out-of-range dscp filter value at verify time.
 # VALIDATES: spec-followup-vpp-traffic AC-2/AC-6 boundary -- with dscp now
-#            ACCEPTED as police-by-dscp (see 020-vpp-accept-dscp-filter.ci), a
+#            ACCEPTED as police-by-dscp (see traffic-vpp-accept-dscp-filter.ci), a
 #            dscp VALUE above the 6-bit range (0-63) is still rejected at verify
 #            with "out of range". The classify TOS/TC mask covers exactly the
 #            6-bit DSCP field, so 64 has no representation.
@@ -9,7 +9,7 @@
 #
 # Replaced coverage note: this file previously asserted a blanket dscp
 # REJECTION. Per the 2026-07-10 USER decision (police-by-dscp), dscp is now
-# accepted; the acceptance is pinned by 020-vpp-accept-dscp-filter.ci and the
+# accepted; the acceptance is pinned by traffic-vpp-accept-dscp-filter.ci and the
 # fakeOps unit tests, and this file now pins the value bound instead.
 #
 # Scope note: the Verifier runs at daemon config-verify time; this boots ze with

@@ -221,7 +221,7 @@ tmpfs=iface-tunnel-restart-wait.sh:terminator=EOF_WAIT
 # Poll, do not spin. `[` is a builtin, so a busy loop would fork nothing, and it
 # would still starve the daemon it waits for on the two-vCPU QEMU VM this test
 # runs in. `sleep 0.1` under /bin/sh is what the other needs-linux barrier in
-# that VM uses (test/reload/test-tx-iface-tunnel-create.ci).
+# that VM uses (test/reload/tx-iface-tunnel-create.ci).
 #
 # The test is `-s`, non-empty: the observer creates the file and then writes the
 # index into it, so an empty file means the write has not landed yet.

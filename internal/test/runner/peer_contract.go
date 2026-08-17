@@ -243,7 +243,7 @@ func peerBlockHasConsumedDirective(block string) bool {
 // no ze-peer command names starts no peer at all, so its option= lines never
 // reach Record.Options and its expect= lines are checked by nobody. Seven
 // committed files are in that state, all test/plugin/redistribution-*.ci
-// (redistribution-import-reject.ci among them, whose only cmd= is seq=2, the
+// (redistribute-import-reject.ci among them, whose only cmd= is seq=2, the
 // ze-peer at seq=1 having been deleted). None carries a reject=, and a reject=
 // there is refused by validatePeerBlockRejects, so this spec's own directive is
 // covered. Refusing the rest is correct and costs seven tests their authoring,

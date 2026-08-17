@@ -120,7 +120,7 @@ Defect 1 is untouched by this correction.
 - The host-safety check (nft table set compared before/after) and the
   `setcap -r` teardown.
 - One netns per test, `-p 1` (the `test/policy` suite shares global kernel
-  objects; `test/policy/001-boot-apply.ci` records why raising parallelism
+  objects; `test/policy/policy-boot-apply.ci` records why raising parallelism
   broke all six on 2026-07-25).
 
 **Behavior to change:**
@@ -170,8 +170,8 @@ Defect 1 is untouched by this correction.
 | Test | Location | Scenario | Status |
 |------|----------|----------|--------|
 | `test/firewall/ddos-local-withdraw.ci` | `test/firewall/` | the zetest-gated case: passes under `make ze-netns-test` with NO change to the .ci file (it already passes in 653ms against a correctly-tagged DUT) | |
-| `test/firewall/001-boot-apply.ci` | `test/firewall/` | a production-path control: must stay green under the retagged DUT, proving A-2 (zetest only adds surface) | |
-| `test/policy/001-boot-apply.ci` | `test/policy/` | second suite, second netns, same DUT: the target's other suites are unaffected by the retag | |
+| `test/firewall/firewall-boot-apply.ci` | `test/firewall/` | a production-path control: must stay green under the retagged DUT, proving A-2 (zetest only adds surface) | |
+| `test/policy/policy-boot-apply.ci` | `test/policy/` | second suite, second netns, same DUT: the target's other suites are unaffected by the retag | |
 | `test/ospf/*.ci` (full suite) | `test/ospf/` | 97 tests, the largest netns suite: no regression from the DUT change | |
 
 ## Files to Modify

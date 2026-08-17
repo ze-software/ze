@@ -7,15 +7,15 @@
 #            no VPP running in the .ci environment -- logs "vpp not connected"
 #            after its 5s WaitConnected timeout. That log line is the acceptance
 #            signal: a REJECTED config would instead log "not supported by
-#            backend vpp" and never reach Apply (see 025-vpp-reject-mark.ci).
+#            backend vpp" and never reach Apply (see traffic-vpp-reject-mark.ci).
 # PREVENTS: regression to the old dscp REJECTION (this file replaced
-#           020-vpp-reject-dscp-filter.ci per AC-6). Real-VPP programming is
+#           traffic-vpp-reject-dscp-filter.ci per AC-6). Real-VPP programming is
 #           proven by scripts/evidence/effective-vpp.py run_traffic_dscp_evidence
 #           + fakeOps unit tests (apply-tier .ci is blocked on A-6 stub work in
 #           plan/spec-finish-vpp-stub.md).
 #
 # Scope note: the Verifier runs at daemon config-verify time. Runtime waits ~6s
-# for the 5s WaitConnected timeout + margin (same as 012-vpp-not-connected.ci).
+# for the 5s WaitConnected timeout + margin (same as traffic-vpp-not-connected.ci).
 
 tmpfs=wait.py:mode=755:terminator=EOF_PY
 #!/usr/bin/env python3

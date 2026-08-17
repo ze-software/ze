@@ -81,7 +81,7 @@ sys.stdout.write(out)
 # internal/plugins/firewall/nft/lower_linux.go:148). A bare
 # `expect=stdout:contains=accept` therefore matched the chain policy and could
 # never fail -- it passed whether or not the accept rule was ever programmed.
-# The same trap made test/policy/006-reload unpassable in the opposite direction.
+# The same trap made test/policy/policy-reload unpassable in the opposite direction.
 # Matching "RULE ...accept" is also independent of WHERE nft renders the verdict
 # on the line, which a line-anchored regex would not be.
 #

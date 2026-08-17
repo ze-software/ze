@@ -89,9 +89,9 @@ sleeps remain. Skeleton written 2026-07-15 alongside `spec-fixit-sleeps-cli-harn
 - [ ] `internal/test/runner/record.go` - the `NeedsLinux` field doc (:203-207, was :179-183): set by `option=needs-linux` so the `ZE_QEMU_LINUX_ONLY` filter can run ONLY those tests.
 - [ ] `scripts/dev/verify_wiring_docs.py` - `check_ci_sleep_ratchet` (:196) reads `test/.ci-sleep-baseline`; `check_ci_sleep_justification` (:258) is scoped to CHANGED `.ci` files (:268).
 - [ ] `test/.ci-sleep-baseline` - was `132` (:1, then a single integer); now sums to `125` (2026-07-22, composable-delta format: the ceiling is the sum of the signed-integer lines); up from the 126 measured 2026-07-15 as sibling specs landed (re-measure the tree count at Phase 2).
-- [ ] `test/traffic/001-boot-apply.ci`, `test/traffic/011-vpp-reject-hfsc.ci`, `test/traffic/020-vpp-reject-dscp-filter.ci`, `test/traffic/022-boot-qdisc-tc.ci`, `test/traffic/024-vpp-reject-prio.ci` - the ZE_READY_FILE blind-hold shape, annotated "blind hold: a backgrounded ze gets no ZE_READY_FILE marker to poll; hold until OnConfigure emits the asserted log line, left un-converted (no readiness signal for a background daemon)".
-- [ ] `test/traffic/012-vpp-not-connected.ci,14,22,26` and `test/traffic/026-vpp-accept-multiclass.ci,24` - the deliberate-timer shape: "blind hold: the internal 5s vpp WaitConnected timeout IS the behavior under test". 012's header states it VALIDATES that `WaitConnected` returns an error after the 5s timeout.
-- [ ] `test/traffic/002-reload-apply.ci,44`, `test/traffic/023-reload-qdisc-tc.ci,46`, `test/policy/006-reload.ci,46` - the reload shape: a "blind settle" before SIGHUP ("let the initial apply finish before the reload; this standalone driver has no post-apply signal to poll") plus a "blind hold" after ("SIGHUP reload exposes no completion signal to this standalone driver; hold for the reactor to re-apply and emit the asserted log").
+- [ ] `test/traffic/traffic-boot-apply.ci`, `test/traffic/traffic-vpp-reject-hfsc.ci`, `test/traffic/traffic-vpp-reject-dscp-filter.ci`, `test/traffic/traffic-boot-qdisc-tc.ci`, `test/traffic/traffic-vpp-reject-prio.ci` - the ZE_READY_FILE blind-hold shape, annotated "blind hold: a backgrounded ze gets no ZE_READY_FILE marker to poll; hold until OnConfigure emits the asserted log line, left un-converted (no readiness signal for a background daemon)".
+- [ ] `test/traffic/traffic-vpp-not-connected.ci,14,22,26` and `test/traffic/traffic-vpp-accept-multiclass.ci,24` - the deliberate-timer shape: "blind hold: the internal 5s vpp WaitConnected timeout IS the behavior under test". 012's header states it VALIDATES that `WaitConnected` returns an error after the 5s timeout.
+- [ ] `test/traffic/traffic-reload-apply.ci,44`, `test/traffic/traffic-reload-qdisc-tc.ci,46`, `test/policy/policy-reload.ci,46` - the reload shape: a "blind settle" before SIGHUP ("let the initial apply finish before the reload; this standalone driver has no post-apply signal to poll") plus a "blind hold" after ("SIGHUP reload exposes no completion signal to this standalone driver; hold for the reactor to re-apply and emit the asserted log").
 
 **Behavior to preserve:**
 - Every converted test keeps its exact `expect=`/`reject=`/fatal assertions. Only the WAIT mechanism changes (umbrella "Behavior to preserve").
@@ -125,8 +125,8 @@ Gate taxonomy across ALL files containing sleeps (blind = raw minus bounded poll
 Group A files (raw/blind): `install/dhcp-zero-listener.ci` 1/1, `install/tftp-zero-listener.ci` 1/1,
 `plugin/ddos-detect-characterize.ci` 3/1, `plugin/ddos-detect-external-warns.ci` 1/1,
 `plugin/ddos-detect-mitigate.ci` 2/0, `plugin/flowexport-external-refuses.ci` 1/1,
-`plugin/trafficusage-external-refuses.ci` 1/1, `traffic/022-boot-qdisc-tc.ci` 1/1,
-`traffic/023-reload-qdisc-tc.ci` 3/2.
+`plugin/trafficusage-external-refuses.ci` 1/1, `traffic/traffic-boot-qdisc-tc.ci` 1/1,
+`traffic/traffic-reload-qdisc-tc.ci` 3/2.
 
 Per-directory raw vs blind (the brief's numbers are the raw column):
 
@@ -155,7 +155,7 @@ Per-directory raw vs blind (the brief's numbers are the raw column):
 - Whether the group B / group C classification reflects intent or drift (a test may be missing an `option=needs-linux` it deserves).
 - The umbrella's "~150 QEMU-gated" figure. The measured linux-gated blind population (groups A+B) is 21, an order of magnitude smaller. The umbrella figure appears to count raw sleeps at an earlier baseline (246), before the conversions it records.
 
-**Scope update (2026-07-16, sibling hand-offs):** R-5 hands the 3 external-warn group A files (`ddos-detect-external-warns.ci`, `flowexport-external-refuses.ci`, `trafficusage-external-refuses.ci`) to `plan/spec-fixit-reject-fence-observability.md`; R-8 hands the ddos-detect-mitigate files to `plan/spec-fixit-ddos-test-infra.md`, which now carry 0 blind annotations, so this spec has nothing to convert there. After both hand-offs the cleanly-owned convertible sleeps shrink to about 5: `traffic/022-boot-qdisc-tc.ci`, `traffic/023-reload-qdisc-tc.ci` (2 sleeps), `install/dhcp-zero-listener.ci`, `install/tftp-zero-listener.ci`. At Phase 2 the residual population must be re-measured to confirm a standalone spec is still justified, versus folding the QEMU-verification of these ~5 sleeps into the sibling specs. <!-- doc-links: ignore (spec closed and removed) -->
+**Scope update (2026-07-16, sibling hand-offs):** R-5 hands the 3 external-warn group A files (`ddos-detect-external-warns.ci`, `flowexport-external-refuses.ci`, `trafficusage-external-refuses.ci`) to `plan/spec-fixit-reject-fence-observability.md`; R-8 hands the ddos-detect-mitigate files to `plan/spec-fixit-ddos-test-infra.md`, which now carry 0 blind annotations, so this spec has nothing to convert there. After both hand-offs the cleanly-owned convertible sleeps shrink to about 5: `traffic/traffic-boot-qdisc-tc.ci`, `traffic/traffic-reload-qdisc-tc.ci` (2 sleeps), `install/dhcp-zero-listener.ci`, `install/tftp-zero-listener.ci`. At Phase 2 the residual population must be re-measured to confirm a standalone spec is still justified, versus folding the QEMU-verification of these ~5 sleeps into the sibling specs. <!-- doc-links: ignore (spec closed and removed) -->
 
 ## Data Flow (MANDATORY)
 
@@ -192,9 +192,9 @@ Per-directory raw vs blind (the brief's numbers are the raw column):
 
 | Entry Point | -> | Feature Code | Test |
 |-------------|----|--------------|------|
-| backgrounded ze reaches OnConfigure | -> | readiness signal pollable by the driver (runner-level or marker-based) | `test/traffic/022-boot-qdisc-tc.ci` (QEMU) |
-| driver sends SIGHUP for reload | -> | reload-completion signal the driver can poll | `test/traffic/023-reload-qdisc-tc.ci`, `test/policy/006-reload.ci` (QEMU) |
-| tc qdisc programmed by OnConfigure | -> | tc readback poll replacing the blind hold | `test/traffic/022-boot-qdisc-tc.ci` (QEMU) |
+| backgrounded ze reaches OnConfigure | -> | readiness signal pollable by the driver (runner-level or marker-based) | `test/traffic/traffic-boot-qdisc-tc.ci` (QEMU) |
+| driver sends SIGHUP for reload | -> | reload-completion signal the driver can poll | `test/traffic/traffic-reload-qdisc-tc.ci`, `test/policy/policy-reload.ci` (QEMU) |
+| tc qdisc programmed by OnConfigure | -> | tc readback poll replacing the blind hold | `test/traffic/traffic-boot-qdisc-tc.ci` (QEMU) |
 | dhcp/tftp zero-listener path | -> | deterministic wait on the asserted listener state | `test/install/dhcp-zero-listener.ci`, `test/install/tftp-zero-listener.ci` (QEMU) |
 | ddos characterize pipeline | -> | deterministic wait on the characterization result | `test/plugin/ddos-detect-characterize.ci` (QEMU) |
 | a sleep is removed from any `.ci` | -> | `check_ci_sleep_ratchet` (`scripts/dev/verify_wiring_docs.py`) | `test/.ci-sleep-baseline` lowered; `make ze-precommit-verify-changed` green |
@@ -256,12 +256,12 @@ assertions. Unit tests apply only if research adds runner/production infrastruct
 ### Functional Tests
 | Test | Location | Scenario | Status |
 |------|----------|----------|--------|
-| `022-boot-qdisc-tc.ci` | `test/traffic/` | tc qdisc programmed at boot; blind hold -> deterministic wait | pending (QEMU) |
-| `023-reload-qdisc-tc.ci` | `test/traffic/` | SIGHUP reload re-applies tc; settle + hold converted | pending (QEMU) |
-| `006-reload.ci` | `test/policy/` | SIGHUP reload re-applies nft policy routes | pending (QEMU, group B) |
+| `traffic-boot-qdisc-tc.ci` | `test/traffic/` | tc qdisc programmed at boot; blind hold -> deterministic wait | pending (QEMU) |
+| `traffic-reload-qdisc-tc.ci` | `test/traffic/` | SIGHUP reload re-applies tc; settle + hold converted | pending (QEMU) |
+| `policy-reload.ci` | `test/policy/` | SIGHUP reload re-applies nft policy routes | pending (QEMU, group B) |
 | `dhcp-zero-listener.ci`, `tftp-zero-listener.ci` | `test/install/` | zero-listener path | pending (QEMU) |
 | `ddos-detect-characterize.ci` | `test/plugin/` | ddos characterization | pending (QEMU) |
-| `012-vpp-not-connected.ci`, `026-vpp-accept-multiclass.ci` | `test/traffic/` | deliberate 5s `WaitConnected` timer: unchanged, kept as control that AC-6 was honored | keep |
+| `traffic-vpp-not-connected.ci`, `traffic-vpp-accept-multiclass.ci` | `test/traffic/` | deliberate 5s `WaitConnected` timer: unchanged, kept as control that AC-6 was honored | keep |
 
 ### Interop Tests (MANDATORY for protocol features)
 | Scenario | Notes |
@@ -279,7 +279,7 @@ assertions. Unit tests apply only if research adds runner/production infrastruct
 - `docs/architecture/testing/ci-format.md` - document any new wait surface or gate convention introduced by research (candidate, pending research).
 - `internal/test/runner/record_parse.go` - only if the backgrounded-ze readiness gap (A-2) or a regating decision (A-4) lands at the runner (candidate, pending research; UNVERIFIED that a change is needed here).
 - `ai/rules/platform-linux.md` - only if the group A/B target-reachability distinction deserves recording as a rule (candidate).
-- The converted `.ci` files: `test/traffic/022-boot-qdisc-tc.ci`, `test/traffic/023-reload-qdisc-tc.ci`, `test/install/dhcp-zero-listener.ci`, `test/install/tftp-zero-listener.ci`, `test/plugin/ddos-detect-characterize.ci`, plus the group B set (`test/policy/*.ci`, `test/firewall/*.ci`, `test/ospf/*.ci`, `test/pppoe/*.ci`) if AC-8 resolves in favour of including them.
+- The converted `.ci` files: `test/traffic/traffic-boot-qdisc-tc.ci`, `test/traffic/traffic-reload-qdisc-tc.ci`, `test/install/dhcp-zero-listener.ci`, `test/install/tftp-zero-listener.ci`, `test/plugin/ddos-detect-characterize.ci`, plus the group B set (`test/policy/*.ci`, `test/firewall/*.ci`, `test/ospf/*.ci`, `test/pppoe/*.ci`) if AC-8 resolves in favour of including them.
 
 ### Integration Checklist
 | Integration Point | Needed? | File |

@@ -521,7 +521,7 @@ def check_ci_log_subsystem_keys(root: Path, changed: Iterable[str]) -> int:
     mode and it keeps the check free of false positives: a hyphenated subsystem is
     legitimate only when it is declared literally in Go source (e.g.
     `slogutil.LazyLogger("bgp.filter.aspath-length")`), so an absent literal is
-    proof the key is inert. Comment lines are skipped: 001-boot-apply.ci documents
+    proof the key is inert. Comment lines are skipped: policy-boot-apply.ci documents
     the wrong form on purpose.
 
     Scoped to changed .ci files like the sleep gates, but the scan is tree-wide so

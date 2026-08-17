@@ -6,7 +6,7 @@
 # private-key, listen-port, fwmark, and a peer carrying all optional
 # fields (endpoint, allowed-ips, persistent-keepalive, preshared-key).
 #
-# Like test-tx-iface-tunnel-create.ci, this validates wiring (parser,
+# Like tx-iface-tunnel-create.ci, this validates wiring (parser,
 # dispatch, backend method invocation). The actual netlink LinkAdd and
 # wgctrl ConfigureDevice calls may succeed or fail depending on test
 # runner privileges (CAP_NET_ADMIN) and whether the wireguard kernel

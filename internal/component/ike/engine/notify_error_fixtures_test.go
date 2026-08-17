@@ -9,7 +9,7 @@ import (
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
-// Fixtures for rfc7296_errornotify_test.go. They live apart from the tagged tests so a
+// Fixtures for rfc7296_notify_error_test.go. They live apart from the tagged tests so a
 // fixture edit is never mistaken for a change to an RFC obligation.
 
 // errPair holds an established initiator and responder plus the loopback sockets that

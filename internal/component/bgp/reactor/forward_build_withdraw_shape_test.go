@@ -203,7 +203,7 @@ func TestRelayCreatesNoAttributeOnABodyAdvertisingNothing(t *testing.T) {
 // `narrowed` and asserts those exact bytes return, so the producer of that
 // obligation (ASPathEdit.recordTranscode, wireu/aspath_slot.go) never runs and
 // the assertion is a tautology with respect to the requirement. The real positive
-// lives in as4_rfc6793_test.go. Removing a false claim strengthens the ledger.
+// lives in rfc6793_as4_test.go. Removing a false claim strengthens the ledger.
 //
 // NO `RFC requirement:` TAG. What this proves is the gate's create-versus-modify
 // boundary, which no checklist row states.
@@ -483,7 +483,7 @@ func TestForwardReflectionLeavesAWithdrawalUntouched(t *testing.T) {
 			RouteReflectorClient: true,
 			// rfc-test-change-approved: 2026-08-04 -- Thomas standing authorisation
 			// for correctness-only test edits. PeerSettings.ClusterID is a uint32
-			// (peersettings.go); the netip.Addr this line first carried did not
+			// (peer_settings.go); the netip.Addr this line first carried did not
 			// compile. Same value, 10.0.0.1, no assertion touched.
 			ClusterID: 0x0A000001,
 		}

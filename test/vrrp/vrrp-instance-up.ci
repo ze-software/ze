@@ -147,7 +147,7 @@ def main():
 
     # AC-13: remove the group and reload. The daemon's config file is ze-bgp.conf
     # (the runner materializes the first `ze -` stdin block there; SIGHUP reloads
-    # from it -- see test/static/002-reload-add.ci).
+    # from it -- see test/static/static-reload-add.ci).
     with open("ze-bgp.conf", "w") as f:
         f.write("""interface {
     backend netlink;

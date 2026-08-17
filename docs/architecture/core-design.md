@@ -863,7 +863,7 @@ Forward pool batch writes set a TCP write deadline (default: 30 seconds, configu
 ## 12. Connection Modes
 
 Each peer has a `connection` setting controlling TCP establishment:
-<!-- source: internal/component/bgp/reactor/peersettings.go -- ConnectionMode -->
+<!-- source: internal/component/bgp/reactor/peer_settings.go -- ConnectionMode -->
 
 | Mode | Behavior |
 |------|----------|

@@ -247,7 +247,7 @@ running `ZE_BIN=... ZE_TEST_BIN=... ze-test install --all` -> `pass 37/37`
 puts a bare-name shim dir on PATH, so `dirname(command -v ze)/..` is a temp dir
 in EVERY layout, not just the isolated one.
 
-### ~~`static` functional suite `004-show` -- obsolete config syntax + darwin daemon boot~~ -- RESOLVED 2026-07-25: rewritten, plus 4 sibling defects found and fixed
+### ~~`static` functional suite `static-show` -- obsolete config syntax + darwin daemon boot~~ -- RESOLVED 2026-07-25: rewritten, plus 4 sibling defects found and fixed
 
 Both shard claims confirmed and fixed, and running the suite under QEMU surfaced
 three more:
@@ -829,7 +829,7 @@ Two consequences, and the second is what disguised this as flakiness:
 Fix: `reloadComplete()` prints the stable phrase `reload complete` after a
 successful reload (direct and queued-SIGHUP paths), and `commit-transactional.ci`
 fences on it with `await=stderr:contains=reload complete`.
-`test-tx-ipsec-eap-tls-requires-ca.ci` got the same treatment for its own
+`tx-ipsec-eap-tls-requires-ca.ci` got the same treatment for its own
 rejection message, replacing a back-to-back SIGHUP/SIGTERM pair no daemon could
 win under load.
 

@@ -13,7 +13,7 @@
 -11
 -12
 -1
-# test/policy/006-reload.ci: the 0.5s post-boot "settle" and the 1.5s post-SIGHUP
+# test/policy/policy-reload.ci: the 0.5s post-boot "settle" and the 1.5s post-SIGHUP
 # "hold" became wait_rules(), a bounded poll on the nft ruleset. Net -1, not -2:
 # the helper keeps one poll-interval sleep, which is a granularity knob on a real
 # condition wait rather than a guessed duration.
@@ -37,11 +37,11 @@
 -12
 # test/firewall/*.ci: the whole suite, 8 -> 0 (spec-fixit-migrate-sleeps-infra
 # P1+P3), same two helpers.
-#   004-cli-show: the blind hold before connecting to the SSH CLI became a wait
+#   firewall-cli-show: the blind hold before connecting to the SSH CLI became a wait
 #     on 127.0.0.1:2222 actually accepting. daemon.ready does NOT cover that
 #     listener -- it binds separately from OnConfigure -- so this one could not
 #     be deleted, only pointed at the right signal.
-#   009-set-element-timeout: the post-apply settle became a poll on the set's
+#   firewall-set-element-timeout: the post-apply settle became a poll on the set's
 #     ELEMENTS, not on the set existing; nft prints an empty `elements = { }`
 #     body for a declared-but-unpopulated set, which an existence check would
 #     have accepted while both assertions still failed.

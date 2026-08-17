@@ -4,7 +4,7 @@
 // Overview: reactor.go — BGP reactor event loop and peer management
 // Detail: config_capabilities.go — BGP capability parsing from config tree
 // Detail: config_nexthop_form.go — the local-address, link-local and next-hop leaves
-// Related: peersettings.go — PeerSettings type produced by config parsing
+// Related: peer_settings.go — PeerSettings type produced by config parsing
 
 package reactor
 

@@ -15,7 +15,7 @@
 #   * The peer is never held down, and never takes the idle-timeout timer path.
 #
 # Mutation-verified 2026-08-03 against a daemon built through a tmp/ overlay whose
-# PrefixReconnectFor (peersettings.go) returns PrefixReconnectNever for every
+# PrefixReconnectFor (peer_settings.go) returns PrefixReconnectNever for every
 # family, which is the daemon before the opt-in existed:
 #   * the connection-2 clause goes RED. ze-peer waits on an accept that never
 #     comes and the run ends TIME on this test.

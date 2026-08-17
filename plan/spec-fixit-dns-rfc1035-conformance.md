@@ -177,7 +177,7 @@ someone else's. It is settled, and the ledger has no word for settled.
 → Decision: nothing was annotated, and `RFC1035-3.3.13-1` stays the unproven row
 it was before this work. Nothing false is published, because rfc1035 is not
 enrolled. The absence of the floor is held by a test instead
-(`TestRFC2308_NoZoneWideTTLFloor`, `internal/plugins/geodns/server_rfc1035_test.go`).
+(`TestRFC2308_NoZoneWideTTLFloor`, `internal/plugins/geodns/rfc1035_server_test.go`).
 
 → Constraint: adding a `superseded` kind is its own work with its own owner
 decision. It would need the superseding RFC's stem and section as required
@@ -573,23 +573,23 @@ Record the outcome in the table below. Escalate only what survives.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestUDPReplyTruncatedAt512` | `internal/core/dnsserver/handler_rfc1035_test.go` | AC-1. A UDP reply of more than 512 octets is bounded and carries TC | |
-| `TestUDPReplyUnder512NotTruncated` | `internal/core/dnsserver/handler_rfc1035_test.go` | AC-2, the negative polarity | |
-| `TestStreamTransportNotTruncated` | `internal/core/dnsserver/handler_rfc1035_test.go` | AC-3. TCP, DoT, and DoH stay complete | |
-| `TestTruncationKeepsSOAInNegativeAnswer` | `internal/core/dnsserver/handler_rfc1035_test.go` | AC-4, and R-6 | |
-| `TestTruncationEmitsNoPartialRecord` | `internal/core/dnsserver/handler_rfc1035_test.go` | AC-4 | |
-| `TestUnsupportedOpcodeReturnsNotImplemented` | `internal/core/dnsserver/handler_rfc1035_test.go` | AC-9 | |
-| `TestQueryOpcodeAnsweredNormally` | `internal/core/dnsserver/handler_rfc1035_test.go` | AC-10, the negative polarity | |
-| `TestWriteFailureLoggedAndCounted` | `internal/core/dnsserver/handler_rfc1035_test.go` | AC-18. The discarded error at `handler.go` | |
-| `TestReplyZBitZeroAndAASet` | `internal/core/dnsserver/handler_rfc1035_test.go` | AC-19 | |
-| `TestReplyRoundTripsThroughPacker` | `internal/core/dnsserver/handler_rfc1035_test.go` | AC-20. The route-A library-boundary assertion | |
-| `TestInboundCompressionPointerUnderstood` | `internal/core/dnsserver/handler_rfc1035_test.go` | AC-21 | |
+| `TestUDPReplyTruncatedAt512` | `internal/core/dnsserver/rfc1035_handler_test.go` | AC-1. A UDP reply of more than 512 octets is bounded and carries TC | |
+| `TestUDPReplyUnder512NotTruncated` | `internal/core/dnsserver/rfc1035_handler_test.go` | AC-2, the negative polarity | |
+| `TestStreamTransportNotTruncated` | `internal/core/dnsserver/rfc1035_handler_test.go` | AC-3. TCP, DoT, and DoH stay complete | |
+| `TestTruncationKeepsSOAInNegativeAnswer` | `internal/core/dnsserver/rfc1035_handler_test.go` | AC-4, and R-6 | |
+| `TestTruncationEmitsNoPartialRecord` | `internal/core/dnsserver/rfc1035_handler_test.go` | AC-4 | |
+| `TestUnsupportedOpcodeReturnsNotImplemented` | `internal/core/dnsserver/rfc1035_handler_test.go` | AC-9 | |
+| `TestQueryOpcodeAnsweredNormally` | `internal/core/dnsserver/rfc1035_handler_test.go` | AC-10, the negative polarity | |
+| `TestWriteFailureLoggedAndCounted` | `internal/core/dnsserver/rfc1035_handler_test.go` | AC-18. The discarded error at `handler.go` | |
+| `TestReplyZBitZeroAndAASet` | `internal/core/dnsserver/rfc1035_handler_test.go` | AC-19 | |
+| `TestReplyRoundTripsThroughPacker` | `internal/core/dnsserver/rfc1035_handler_test.go` | AC-20. The route-A library-boundary assertion | |
+| `TestInboundCompressionPointerUnderstood` | `internal/core/dnsserver/rfc1035_handler_test.go` | AC-21 | |
 | `TestListenersBindPort53WithTCPLengthPrefix` | `internal/core/dnsserver/manager_rfc1035_test.go` | AC-22 | |
-| `TestRecordTTLRaisedToSOAMinimum` | `internal/plugins/geodns/server_rfc1035_test.go` | AC-5 | |
-| `TestRecordTTLAboveMinimumUnchanged` | `internal/plugins/geodns/server_rfc1035_test.go` | AC-6, the negative polarity | |
-| `TestGlueAndNSTTLRaisedToSOAMinimum` | `internal/plugins/geodns/server_rfc1035_test.go` | AC-5 for the `appendNS` path | |
-| `TestZoneAndHostMatchFoldsCase` | `internal/plugins/geodns/server_rfc1035_test.go` | AC-15 | |
-| `TestNonAlphabeticOctetsMatchExactly` | `internal/plugins/geodns/server_rfc1035_test.go` | AC-15, the exact-match half | |
+| `TestRecordTTLRaisedToSOAMinimum` | `internal/plugins/geodns/rfc1035_server_test.go` | AC-5 | |
+| `TestRecordTTLAboveMinimumUnchanged` | `internal/plugins/geodns/rfc1035_server_test.go` | AC-6, the negative polarity | |
+| `TestGlueAndNSTTLRaisedToSOAMinimum` | `internal/plugins/geodns/rfc1035_server_test.go` | AC-5 for the `appendNS` path | |
+| `TestZoneAndHostMatchFoldsCase` | `internal/plugins/geodns/rfc1035_server_test.go` | AC-15 | |
+| `TestNonAlphabeticOctetsMatchExactly` | `internal/plugins/geodns/rfc1035_server_test.go` | AC-15, the exact-match half | |
 | `TestConfigRejectsNameOverWireLimit` | `internal/plugins/geodns/config_rfc1035_test.go` | AC-16. Includes the synthesized glue name | |
 | `TestConfigAcceptsNameAtWireLimit` | `internal/plugins/geodns/config_rfc1035_test.go` | AC-16, the boundary negative | |
 | `TestConfigRejectsLabelOver63` | `internal/plugins/geodns/config_rfc1035_test.go` | AC-17 | |
@@ -659,10 +659,10 @@ transfer Ze believes it served but BIND rejects has failed at its only job.
 
 ## Files to Create
 - `internal/core/dnsserver/transfer.go` - the AXFR and IXFR handler, the authoriser seam, and the response stream
-- `internal/core/dnsserver/handler_rfc1035_test.go` - harness-level tagged tests
+- `internal/core/dnsserver/rfc1035_handler_test.go` - harness-level tagged tests
 - `internal/core/dnsserver/manager_rfc1035_test.go` - listener and framing tagged tests
 - `internal/core/dnsserver/transfer_test.go` - transfer tagged tests
-- `internal/plugins/geodns/server_rfc1035_test.go` - answer-policy tagged tests
+- `internal/plugins/geodns/rfc1035_server_test.go` - answer-policy tagged tests
 - `internal/plugins/geodns/config_rfc1035_test.go` - config-validation tagged tests
 - `internal/plugins/as112/zones_rfc1035_test.go` - the AS112 SOA MINIMUM regression test
 - `rfc/full/rfc6891.txt` and its `rfc6891.md` summary under `rfc/short/` - EDNS0, needed by WP-1

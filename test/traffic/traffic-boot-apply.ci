@@ -9,7 +9,7 @@
 # Scope note: this test validates the wiring via the log line emitted by
 # register.go and runs unprivileged in every environment. The real tc qdisc
 # kernel-state check (`tc qdisc show`) is now covered by the needs-linux
-# companion 022-boot-qdisc-tc.ci, which runs as root in the QEMU VM via
+# companion traffic-boot-qdisc-tc.ci, which runs as root in the QEMU VM via
 # `make ze-qemu-needs-linux-test` (spec followup-test-infra AC-2). The
 # trafficnetlink backend's netlink Apply also has direct Go coverage in
 # internal/plugins/trafficnetlink/*_linux_test.go.

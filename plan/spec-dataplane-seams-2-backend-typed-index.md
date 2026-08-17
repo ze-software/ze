@@ -212,9 +212,9 @@ evidence rather than assuming it.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `005-table-interface` (existing, must not regress) | `test/static/005-table-interface.ci` | An interface-named next-hop still programs | |
-| `006-interface-nexthop-no-backend` (existing, must not regress) | `test/static/006-interface-nexthop-no-backend.ci` | The no-backend case still fails with an actionable error | |
-| `006-iface-create`, `002-fib-route` (existing, must not regress) | `test/vpp/006-iface-create.ci`, `test/vpp/002-fib-route.ci` | Interface and route programming still work on VPP | |
+| `static-table-interface` (existing, must not regress) | `test/static/static-table-interface.ci` | An interface-named next-hop still programs | |
+| `static-interface-nexthop-no-backend` (existing, must not regress) | `test/static/static-interface-nexthop-no-backend.ci` | The no-backend case still fails with an actionable error | |
+| `vpp-iface-create`, `vpp-fib-route` (existing, must not regress) | `test/vpp/vpp-iface-create.ci`, `test/vpp/vpp-fib-route.ci` | Interface and route programming still work on VPP | |
 | new: backend mismatch is refused | `test/static/*.ci` | Asking for a VPP index under a kernel backend fails with a message naming both, and programs nothing | |
 
 ## Files to Modify

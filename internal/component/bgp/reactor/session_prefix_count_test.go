@@ -1,5 +1,5 @@
 // Overview: session_prefix.go — checkPrefixLimits and applyInstalledPrefixDeltas
-// Related: peersettings.go — PrefixCountMode, the per-family `count` leaf
+// Related: peer_settings.go — PrefixCountMode, the per-family `count` leaf
 // Related: config_prefix.go — parsePrefixCount reads the leaf
 
 package reactor

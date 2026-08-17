@@ -206,9 +206,9 @@ other four.
      the ones each child extends or must not regress. -->
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `002-fib-route` (existing, must not regress) | `test/vpp/002-fib-route.ci` | Routes still program on VPP after child 1 renumbers `RouteType` and child 3 adds a field | |
-| `007-fib-route-lookup` (existing, must not regress) | `test/vpp/007-fib-route-lookup.ci` | Route lookup still resolves on VPP | |
-| `005-table-interface`, `006-interface-nexthop-no-backend` (existing, must not regress) | `test/static/005-table-interface.ci`, `test/static/006-interface-nexthop-no-backend.ci` | An interface-named next-hop still programs on both dataplanes, and still fails with an actionable error when no backend is loaded, after child 2 moves the guard into an accessor | |
+| `vpp-fib-route` (existing, must not regress) | `test/vpp/vpp-fib-route.ci` | Routes still program on VPP after child 1 renumbers `RouteType` and child 3 adds a field | |
+| `vpp-fib-route-lookup` (existing, must not regress) | `test/vpp/vpp-fib-route-lookup.ci` | Route lookup still resolves on VPP | |
+| `static-table-interface`, `static-interface-nexthop-no-backend` (existing, must not regress) | `test/static/static-table-interface.ci`, `test/static/static-interface-nexthop-no-backend.ci` | An interface-named next-hop still programs on both dataplanes, and still fails with an actionable error when no backend is loaded, after child 2 moves the guard into an accessor | |
 | `isis-route-install`, `ospf-route-install` (existing, must not regress) | `test/isis/isis-route-install.ci`, `test/ospf/ospf-route-install.ci` | IGP routes still reach the FIB after the route payload changes | |
 | new: route type over the plugin process protocol | `test/plugin/*.ci` (child 1) | An external FIB plugin process receives the documented route type value, not a Linux constant | |
 | new: interface-scoped route | `test/static/*.ci` (child 3) | A route that names an egress interface reaches the FIB with that interface attached | |

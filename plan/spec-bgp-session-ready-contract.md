@@ -151,7 +151,7 @@ plugin names.
 ### Integration Points
 - `registry.Registration` (`internal/component/plugin/registry/`) - where a declaration would live under Option A/D.
 - `pkg/plugin/sdk/` - external plugins would need the same declaration path (stage 1 `declare-registration`) under Option A/D.
-- `ProcessBinding` (`reactor/peersettings.go`) - the field the counter reads.
+- `ProcessBinding` (`reactor/peer_settings.go`) - the field the counter reads.
 - `internal/component/bgp/config/peers.go` - the validator that creates the forced binding.
 
 ### Architectural Verification
@@ -262,7 +262,7 @@ D does not have.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | `bgp-rib` is the ONLY production emitter of the ready signal. | Grep of the literal `plugin session ready` across `internal/`, `pkg/`, `cmd/`, `test/`, `docs/`. Only non-test hits that DISPATCH are `rib_replay.go` and `:283`. | Every count in the Blast Radius table is wrong. | Re-grep at implementation start; also grep the external SDK and python plugins for the RPC name `session-peer-ready`. | unvalidated |
-| A-2 | The counted set is decided by per-peer CONFIG, not by any plugin declaration. | `peer_run.go` reads `p.settings.ProcessBindings`; `reactor/config.go` builds them solely from the peer tree's `process` map. | Option A/D may already have a partial home. | Read `peersettings.go` and confirm no registry field feeds `SendUpdate`. | unvalidated |
+| A-2 | The counted set is decided by per-peer CONFIG, not by any plugin declaration. | `peer_run.go` reads `p.settings.ProcessBindings`; `reactor/config.go` builds them solely from the peer tree's `process` map. | Option A/D may already have a partial home. | Read `peer_settings.go` and confirm no registry field feeds `SendUpdate`. | unvalidated |
 | A-3 | A peer with `[bgp-gr, bgp-rib]` burns the full 2s despite `5c4421541`, because `count >= expected` (`peer.go`) needs 2 signals and only 1 arrives. | `peer.go` read; no bgp-gr signaller found by grep. | The blast radius shrinks by 10 peers and the "not fixed by 5c4421541" claim is false. | Run `test/plugin/gr-mark-stale.ci` with `option=env:var=ze.log.bgp.routes:value=debug` and read the log for `waiting for API sync expected=2` followed by `API sync timeout` rather than `API sync complete`. **NOT run for this skeleton.** | unvalidated |
 | A-4 | `bgp-route-refresh` cannot send a route, so `send [ update ]` on it is vacuous. | `register.go` (capa/decoder registration), `route_refresh.go` (`RunRouteRefreshPlugin`, no-op `OnConfigure`, no send path). | Q4's premise collapses and the validator is fine as written. | Grep the package for any reactor send/announce call. | unvalidated |
 | A-5 | RFC 4724 sets no EOR deadline, so no option here is an RFC violation on the latency axis. | `rfc/short/rfc4724.md`, `:415` ([RECOMMENDED], Section 2). | Option B/D's latency is a conformance issue, not just a cost. | Re-read `rfc/short/rfc4724.md` Sections 2 and 4. | unvalidated |

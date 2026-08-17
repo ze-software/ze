@@ -1,6 +1,6 @@
 // Design: docs/architecture/core-design.md — config tree parsing (PeersFromTree)
 // Overview: config.go — parseFamiliesFromTree calls this once per family
-// Related: peersettings.go — the per-family prefix maps this writes
+// Related: peer_settings.go — the per-family prefix maps this writes
 // Related: session_prefix.go — reads the maps to enforce the limits
 
 package reactor
@@ -89,7 +89,7 @@ func parsePrefixLimitFromFamily(familyKey string, entryMap map[string]any, ps *P
 // prefixes the count compared against `maximum` holds.
 //
 // An absent or empty value leaves the map alone, and PrefixCountFor
-// (peersettings.go) reads that as `offered`. The YANG default is `offered` too,
+// (peer_settings.go) reads that as `offered`. The YANG default is `offered` too,
 // so a config that states nothing arrives here carrying it and gets the same
 // answer either way.
 func parsePrefixCount(familyKey string, prefixMap map[string]any, ps *PeerSettings) error {

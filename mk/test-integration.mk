@@ -639,7 +639,7 @@ ze-qemu-netns-test:
 	# can import a feature-gated module (fakeddos/yang imports ze-ddos-detect-conf,
 	# owned by ze_ddos), and a hand-picked minimal build then fails EVERY config
 	# load with "no such module: ze-ddos-detect-conf". $(ZE_FEATURES) also carries
-	# ze_ssh (for 004-cli-show's SSH path), so no feature needs listing by hand.
+	# ze_ssh (for firewall-cli-show's SSH path), so no feature needs listing by hand.
 	$(ze-qemu-crossbuild)
 	@echo "Running netns launch-mode evidence in QEMU Linux VM (host-safe firewall subset)..."
 	python3 scripts/evidence/qemu-run.py \

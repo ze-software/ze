@@ -16,7 +16,7 @@
 # half", on the reasoning that a peer present only in the RELOADED config cannot
 # be satisfied before the SIGHUP. That reasoning belongs to the BACKGROUND-trigger
 # shape, where the runner tears the daemon down as soon as the peer is satisfied
-# (the trap documented in test-tx-iface-tunnel-remove.ci). This test drives the
+# (the trap documented in tx-iface-tunnel-remove.ci). This test drives the
 # reload from a FOREGROUND driver, so the runner waits for the driver and there is
 # no early teardown to defend against -- and the peer actively broke it: the
 # driver SIGTERMs the daemon the moment the renumber lands, which is before the
@@ -24,7 +24,7 @@
 # done its job. The driver is the strictly stronger fence (it waits for the OLD
 # address to be applied, triggers the reload itself, then polls for the NEW one),
 # and daemon liveness is covered by expect=exit:code=0. Shape copied from
-# test/static/007-per-route-isolation.ci, which is green in QEMU.
+# test/static/static-per-route-isolation.ci, which is green in QEMU.
 
 # needs-linux: the address reconcile only reaches a kernel on Linux, and
 # creating a dummy device plus assigning addresses needs CAP_NET_ADMIN.
@@ -101,7 +101,7 @@ interface {
 EOF_CONF2
 
 # The driver runs in the FOREGROUND and the daemon in the background, which is
-# the shape test/static/007-per-route-isolation.ci uses. It matters here: as a
+# the shape test/static/static-per-route-isolation.ci uses. It matters here: as a
 # BACKGROUND script this raced its own teardown -- the runner began tearing
 # everything down ~50ms after the SIGHUP, before a 0.1s poll loop had run even
 # once, and addr-after.txt was never written ("read failed: ... no such file").

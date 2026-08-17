@@ -143,7 +143,7 @@ Ze asks a filter plugin for its verdict over the callback connection, and only
 which is what every `wait_*` poll does, leaves the request unanswered until the
 reactor's IPC deadline expires. The filter's `on-error` setting then decides the
 route, and the filter under test never runs. Pump the callbacks first, then poll.
-`test/plugin/redistribution-import-accept.ci` carries the loop.
+`test/plugin/redistribute-import-accept.ci` carries the loop.
 
 Two more rules travel with a barrier in an observer.
 

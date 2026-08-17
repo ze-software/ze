@@ -204,7 +204,7 @@ func TestTranslateHTBUsesKernelDefaults(t *testing.T) {
 	}
 }
 
-// desiredFiltered is the shape of test/traffic/022-boot-qdisc-tc.ci: an HTB
+// desiredFiltered is the shape of test/traffic/traffic-boot-qdisc-tc.ci: an HTB
 // root with a filtered "control" class and an unfiltered "default" class.
 func desiredFiltered(iface string, filters ...traffic.TrafficFilter) traffic.InterfaceQoS {
 	return traffic.InterfaceQoS{
@@ -222,7 +222,7 @@ func desiredFiltered(iface string, filters ...traffic.TrafficFilter) traffic.Int
 
 // VALIDATES: Apply installs BOTH halves of a DSCP match (IPv4 + IPv6) on one
 // HTB parent without the kernel rejecting the second. This is the exact
-// test/traffic/022-boot-qdisc-tc.ci config that failed in QEMU with
+// test/traffic/traffic-boot-qdisc-tc.ci config that failed in QEMU with
 // `class "control" filter add: invalid argument`.
 // PREVENTS: regression to a constant tc filter priority, which binds the
 // IPv6 half to the priority already owned by the IPv4 half and makes

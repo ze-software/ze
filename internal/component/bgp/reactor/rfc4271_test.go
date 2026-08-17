@@ -269,7 +269,7 @@ func TestRFC4271PerPeerFSMDoesNotShareTimers(t *testing.T) {
 //
 // RFC requirement: RFC4271-10-1 positive -- ReceiveHoldTime lives on PeerSettings and is
 // installed into that peer's own timers, so each peer carries its own HoldTimer value
-// (internal/component/bgp/reactor/peersettings.go:251, session.go:416-417).
+// (internal/component/bgp/reactor/peer_settings.go:251, session.go:416-417).
 func TestRFC4271HoldTimeConfigurablePerPeer(t *testing.T) {
 	def := NewPeerSettings(netip.MustParseAddr("192.0.2.9"), 65001, 65002, 0x01020301)
 	assert.Equal(t, DefaultReceiveHoldTime, def.ReceiveHoldTime, "RFC 4271 suggested default")
@@ -314,7 +314,7 @@ func TestRFC4271PerPeerHoldTimeSurvivesNegotiation(t *testing.T) {
 //
 // RFC requirement: RFC4271-8.2.1-2 positive -- DefaultBGPPort is 179 and is what a peer
 // with no configured port uses for its connect/listen key
-// (internal/component/bgp/reactor/peersettings.go:33).
+// (internal/component/bgp/reactor/peer_settings.go:33).
 func TestRFC4271DefaultBGPPortIs179(t *testing.T) {
 	assert.Equal(t, 179, DefaultBGPPort)
 	ps := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65001, 65002, 0x01020301)
@@ -331,7 +331,7 @@ func TestRFC4271DefaultBGPPortIs179(t *testing.T) {
 // RFC requirement: RFC4271-8.2.1-2 negative -- the port is read from the peer's settings,
 // so an explicitly configured non-179 port is used; 179 is the default value of that
 // setting, not an unconditional constant
-// (internal/component/bgp/reactor/peersettings.go:31-33,232).
+// (internal/component/bgp/reactor/peer_settings.go:31-33,232).
 func TestRFC4271ExplicitPortOverridesDefault(t *testing.T) {
 	ps := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65001, 65002, 0x01020301)
 	ps.Port = 1179

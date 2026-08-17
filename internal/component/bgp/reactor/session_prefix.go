@@ -259,7 +259,7 @@ func (pc *prefixCounts) setFor(fk uint32) map[string]struct{} {
 func installedPrefixFamilies(settings *PeerSettings) map[uint32]bool {
 	var out map[uint32]bool
 	// The map is walked for its KEYS and read through the accessor, which is the
-	// contract on the field (peersettings.go): an absent or zero value is the
+	// contract on the field (peer_settings.go): an absent or zero value is the
 	// offered mode, and no site decides that twice.
 	for fam := range settings.PrefixCount {
 		if settings.PrefixCountFor(fam) != PrefixCountInstalled {

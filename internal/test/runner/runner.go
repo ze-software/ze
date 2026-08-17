@@ -269,7 +269,7 @@ func (r *Runner) Cleanup() {
 //   - Driving the QEMU VM from a darwin host, one directory holds BOTH
 //     architectures (ze is darwin, ze-linux-arm64 is the VM's). The VM picked
 //     up the darwin one and died with "OSError: [Errno 8] Exec format error:
-//     'ze'" (test/static/005-table-interface.ci). The same hazard is called out
+//     'ze'" (test/static/static-table-interface.ci). The same hazard is called out
 //     at internal/component/plugin/process/process.go:540.
 //
 // Symlinks rather than copies so this stays cheap on a slow 9p mount, and
