@@ -2964,9 +2964,15 @@ footer {
 
 .footer-bottom {
     display: flex;
+    flex-wrap: wrap;
     justify-content: center;
+    gap: 0.6rem;
     padding-top: 1rem;
     border-top: 1px solid var(--header-border);
+}
+
+.footer-published {
+    color: var(--dim);
 }
 
 .footer-bottom a {

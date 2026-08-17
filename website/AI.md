@@ -348,9 +348,9 @@ style guide in the same change.
 Navigation is part of the design system. `data/nav.json` owns the top
 mega-menu and curated `llms.txt` sections; `tools/page_registry.py` supplies <!-- doc-links: ignore (path is relative to website/ in this architecture note) -->
 the complete published docs index. The `nav` step publishes the menu once as
-`assets/header.html`. The footer is a
-single license line from `sitelib.footer_html`, not a sitemap or second
-call-to-action block. Group the top menu by reader job: Start, Evaluate, Docs,
+`assets/header.html`. The footer is the
+license line and the publication stamp from `sitelib.footer_html`, not a
+sitemap or second call-to-action block. Group the top menu by reader job: Start, Evaluate, Docs,
 Examples, Reference, Project. Every multi-column dropdown must show a label at
 the top of each column. Use short labels and one-line descriptions. Do not let
 dropdown panels clip outside the viewport.

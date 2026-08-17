@@ -74,6 +74,7 @@ from the single data/nav.json, so there is nothing left to go stale.
 
 import argparse
 import importlib.util
+import os
 import pathlib
 import sys
 
@@ -82,6 +83,7 @@ GH_PAGES = HERE.parent
 
 sys.path.insert(0, str(HERE))
 import page_registry  # noqa: E402
+import sitefacts  # noqa: E402
 import sitelib  # noqa: E402
 import sitepaths  # noqa: E402
 
@@ -695,6 +697,7 @@ def check_performance_stat_drift():
     so a new perf run doesn't silently leave the page quoting a stale one."""
     import json
     import re
+
     result_path = (MAIN_REPO / "test" / "perf" / "results" / "ze.json").resolve()
     page_path = GH_PAGES / "performance" / "index.html"
     if not result_path.exists() or not page_path.exists():
@@ -735,6 +738,13 @@ def main():
         help="comma-separated subset of: %s (default: all)" % ",".join(STEPS),
     )
     args = parser.parse_args()
+
+    # One build publishes one time. Stamped before the first step so every
+    # renderer agrees, subprocesses included -- they inherit it. Reading the
+    # clock per renderer split one build across two minutes; reading it from
+    # data/site-facts.json is worse, because the `facts` step runs after most
+    # page renderers and would give them the PREVIOUS build's time.
+    os.environ.setdefault(sitefacts.PUBLISHED_AT_ENV, sitefacts.published_at())
 
     steps = args.only.split(",") if args.only else STEPS
     unknown = set(steps) - set(STEPS)

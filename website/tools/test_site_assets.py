@@ -11,6 +11,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
 import page_registry  # noqa: E402
+import sitefacts  # noqa: E402
 import sitelib  # noqa: E402
 
 SEO_SPEC = importlib.util.spec_from_file_location("render_seo", HERE / "render-seo.py")
@@ -221,3 +222,73 @@ def test_sitemap_uses_clean_canonical_routes_and_excludes_redirects():
         == sitelib.SITE_BASE + "talks/linx-2026-06/"
     )
     assert "Sitemap: %ssitemap.xml" % sitelib.SITE_BASE in render_seo.robots_txt()
+
+
+# --- footer publication stamp ----------------------------------------------
+
+
+def _fixed_published(monkeypatch, iso):
+    monkeypatch.setattr(sitefacts, "_published_at_cache", None)
+    monkeypatch.setenv(sitefacts.PUBLISHED_AT_ENV, iso)
+
+
+def test_published_display_renders_the_stamp_in_utc(monkeypatch):
+    _fixed_published(monkeypatch, "2026-08-17T14:32:05+00:00")
+    assert sitefacts.published_display() == "17 August 2026 14:32 UTC"
+
+
+def test_published_display_converts_an_offset_stamp_to_utc(monkeypatch):
+    # The footer prints the word UTC, so an offset stamp must be converted, not
+    # relabelled. British Summer Time is +01:00, the offset a local clock gives.
+    _fixed_published(monkeypatch, "2026-08-17T00:32:05+01:00")
+    assert sitefacts.published_display() == "16 August 2026 23:32 UTC"
+
+
+def test_published_at_takes_the_build_stamp_over_any_facts_snapshot(monkeypatch):
+    # The page renderers run as subprocesses and the `facts` step runs after
+    # most of them, so a stamp read from the snapshot gives the pages built
+    # before that step the PREVIOUS build's time. The env stamp is the source.
+    _fixed_published(monkeypatch, "2026-08-17T14:32:05+00:00")
+    monkeypatch.setattr(
+        sitefacts, "load_facts", lambda: {"published_at": "1999-01-01T00:00:00+00:00"}
+    )
+    assert sitefacts.published_at() == "2026-08-17T14:32:05+00:00"
+
+
+def test_published_at_without_a_build_stamp_reads_the_clock_once(monkeypatch):
+    # A renderer run by hand has no env stamp. It must still hand every page it
+    # writes one value, not one clock reading per call.
+    monkeypatch.setattr(sitefacts, "_published_at_cache", None)
+    monkeypatch.delenv(sitefacts.PUBLISHED_AT_ENV, raising=False)
+    assert sitefacts.published_at() == sitefacts.published_at()
+
+
+def test_footer_carries_the_license_line_and_the_stamp(monkeypatch):
+    _fixed_published(monkeypatch, "2026-08-17T14:32:05+00:00")
+    footer = sitelib.footer_html("../../")
+    assert '<a href="../../license/">Ze is AGPLv3 open source.</a>' in footer
+    assert (
+        '<span class="footer-published">Published 17 August 2026 14:32 UTC</span>'
+        in footer
+    )
+
+
+def test_patch_footer_stamps_an_already_authored_page(monkeypatch):
+    _fixed_published(monkeypatch, "2026-08-17T14:32:05+00:00")
+    before = (
+        "<body>\n"
+        "        <footer>\n"
+        '            <div class="footer-inner">\n'
+        '                <div class="footer-bottom">\n'
+        '                    <a href="../license/">Ze is AGPLv3 open source.</a>\n'
+        "                </div>\n"
+        "            </div>\n"
+        "        </footer>\n"
+        "</body>"
+    )
+    patched = sitelib.patch_footer(before, "../")
+    assert "Published 17 August 2026 14:32 UTC" in patched
+    assert patched.count("<footer>") == 1
+    assert patched.startswith("<body>\n") and patched.endswith("\n</body>")
+    # Re-running the nav step must not stack a second stamp.
+    assert sitelib.patch_footer(patched, "../") == patched

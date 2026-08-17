@@ -790,16 +790,20 @@ def patch_shared_header(html_text, root):
 
 
 def footer_html(root):
-    """Full <footer> markup: just the licensing line. The footer is not a
-    sitemap and not a second call-to-action block."""
+    """Full <footer> markup: the licensing line and the publication stamp. The
+    footer is not a sitemap and not a second call-to-action block."""
     return (
         "        <footer>\n"
         '            <div class="footer-inner">\n'
         '                <div class="footer-bottom">\n'
         '                    <a href="%s">Ze is AGPLv3 open source.</a>\n'
+        '                    <span class="footer-published">Published %s</span>\n'
         "                </div>\n"
         "            </div>\n"
-        "        </footer>" % html.escape(rooted_href(root, "license/"), quote=True)
+        "        </footer>"
+    ) % (
+        html.escape(rooted_href(root, "license/"), quote=True),
+        html.escape(sitefacts.published_display()),
     )
 
 

@@ -2,11 +2,12 @@
 """Build and load shared public facts for the Ze website."""
 
 import json
+import os
 import pathlib
 import re
 import sys
 import urllib.request
-from datetime import date
+from datetime import date, datetime, timezone
 
 import sitelib
 import sitepaths
@@ -260,6 +261,7 @@ def build_facts():
     targets = count_interop_targets()
     facts = {
         "generated_at": date.today().isoformat(),
+        "published_at": published_at(),
         "github_stars": github_stars(),
         "features": count_features(),
         "cli_commands": count_cli_commands(),
@@ -304,3 +306,42 @@ def load_facts():
     if FACTS_PATH.exists():
         return json.loads(FACTS_PATH.read_text())
     return build_facts()
+
+
+PUBLISHED_AT_ENV = "ZE_SITE_PUBLISHED_AT"
+
+_published_at_cache = None
+
+
+def published_at():
+    """The one publication timestamp for this build, ISO-8601 in UTC.
+
+    `tools/build.py` stamps ZE_SITE_PUBLISHED_AT once, before the first step,
+    and the page renderers it starts as subprocesses inherit it. That is what
+    makes one build publish ONE time.
+
+    Reading the stamp out of data/site-facts.json instead does not work, and
+    the failure is silent: the `facts` step runs after most page renderers, so
+    the pages built before it would carry the PREVIOUS build's timestamp and
+    the pages built after it the current one. A build with the env unset (a
+    renderer run by hand) falls back to this process's clock, read once."""
+    global _published_at_cache
+    if _published_at_cache is None:
+        _published_at_cache = os.environ.get(PUBLISHED_AT_ENV) or (
+            datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+        )
+    return _published_at_cache
+
+
+def published_display(raw=None):
+    """The publication stamp the site footer carries, formatted for a reader.
+
+    The site is generated and pushed in one run, so the build timestamp IS the
+    publication time. The footer names a time rather than a revision because
+    the publishing commit's own hash cannot appear in the pages that commit
+    contains."""
+    stamp = datetime.fromisoformat(raw or published_at())
+    # The footer prints "UTC", so convert rather than trust the offset the
+    # stamp carries: a page that says UTC over a local-time clock reading is a
+    # wrong published fact.
+    return stamp.astimezone(timezone.utc).strftime("%-d %B %Y %H:%M UTC")
