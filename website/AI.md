@@ -123,7 +123,7 @@ website/
                                               -> index.html
     render-llms-txt.py                    -- data/nav.json + page_registry.py + Markdown + live counts -> llms.txt
   update-website.sh                       -- builds the complete `../gh-pages` artifact through
-                                              `tools/build-site.py`; forwards generator arguments,
+                                              `tools/build-site.py`; forwards generator arguments, <!-- doc-links: ignore (path is relative to website/ in this architecture note) -->
                                               e.g. `./update-website.sh --only cli`
 ```
 
@@ -133,10 +133,10 @@ Like generated pages, they contain only a stable shared-header mount. The `nav`
 step renders `assets/header.html` from `data/nav.json`, so menu changes update
 one fragment instead of rewriting every page.
 
-Run `make ze-site-generate` from the repository root. Do not run `tools/build.py`
+Run `make ze-site-generate` from the repository root. Do not run `tools/build.py` <!-- doc-links: ignore (path is relative to website/ in this architecture note) -->
 from `website/`: that lower-level generator intentionally writes into its
 own checkout and is executed only inside the staged artifact. Pass `--only`
-with comma-separated step names from `tools/build.py` (for example
+with comma-separated step names from `tools/build.py` (for example <!-- doc-links: ignore (path is relative to website/ in this architecture note) -->
 `config,plugins,search,seo`) to rebuild an existing artifact subset. A full
 build recreates `../gh-pages` first. The `links`, `linkcheck`, search, SEO, and
 `llms.txt` guardrails run after selected steps. Watch stderr for drift warnings
@@ -146,18 +146,18 @@ and per-step failures.
 
 - **Data sources.** Published pages come from structured data and Markdown:
   `data/nav.json` owns top navigation and the curated `llms.txt` page order,
-  `tools/page_registry.py` owns the complete published docs and use-case page map,
+  `tools/page_registry.py` owns the complete published docs and use-case page map, <!-- doc-links: ignore (path is relative to website/ in this architecture note) -->
   `data/features.json`, `data/audience.json`, `data/whats-new.json`,
   `data/milestones.json`,
   `data/dependencies.json`, and `data/command-equivalents.json` own their
   matching generated pages, and `data/plugin-registry.json` is generated from
   `../internal/**/register.go` plus local `PLUGIN.md` metadata. Markdown
   sources live either in `website/` (`use-cases/`, `compare/`, `quality/`,
-  `contribute/`, `faq/`, `roadmap/`, `license/`, `docs/docs.md`) or in
+  `contribute/`, `faq/`, `roadmap/`, `license/`, `docs/docs.md`) or in <!-- doc-links: ignore (path is relative to website/ in this architecture note) -->
   `../docs/` for product documentation and lab architecture detail.
   Top navigation dropdown entries in `data/nav.json` must use an emoji glyph
   for `icon`, not a text abbreviation or label.
-- **Page registry.** `tools/page_registry.py` centralizes the small lists that
+- **Page registry.** `tools/page_registry.py` centralizes the small lists that <!-- doc-links: ignore (path is relative to website/ in this architecture note) -->
   decide which Markdown files are rendered by generic document renderers:
   the main docs manifest, use-case pages, lab detail pages, compare pages,
   quality pages, and hand-authored pages whose nav, footer, asset versions,
@@ -166,38 +166,38 @@ and per-step failures.
   `features/`, `reference/`, and `developers/`, rather than exposing repository
   directories. Builders call `page_registry.page_root_for_dest(dest)` so a
   moved page gets the correct `../` depth from its destination path.
-- **Renderers.** `tools/build.py` is the orchestrator. It loads hyphenated
+- **Renderers.** `tools/build.py` is the orchestrator. It loads hyphenated <!-- doc-links: ignore (path is relative to website/ in this architecture note) -->
   renderer scripts by file path, preserves the documented `--only` step names,
   and collects failures instead of stopping at the first broken page. Generic
-  Markdown pages go through `tools/render-doc.py`; the main repo docs batch
-  goes through `tools/render-docs.py` using `page_registry.DOCS_MANIFEST` and a
+  Markdown pages go through `tools/render-doc.py`; the main repo docs batch <!-- doc-links: ignore (path is relative to website/ in this architecture note) -->
+  goes through `tools/render-docs.py` using `page_registry.DOCS_MANIFEST` and a <!-- doc-links: ignore (path is relative to website/ in this architecture note) -->
   temporary cross-doc link manifest. Specialized renderers own pages whose
   content is computed from data, live Ze output, git history, Go module data,
   or extracted plugin and YANG facts.
 - **Generated assets.** Renderers write `index.html` plus an AI-readable
   `index.md` sibling for every generated page outside `talks/<slug>/`.
-  `tools/render-search-index.py` writes search data, `tools/render-seo.py`
-  writes SEO artifacts, `tools/render-llms-txt.py` writes `llms.txt`, and
+  `tools/render-search-index.py` writes search data, `tools/render-seo.py` <!-- doc-links: ignore (path is relative to website/ in this architecture note) -->
+  writes SEO artifacts, `tools/render-llms-txt.py` writes `llms.txt`, and <!-- doc-links: ignore (path is relative to website/ in this architecture note) -->
   feed or catalog renderers write their derived XML, JSON, or detail pages.
   Do not edit generated HTML directly when a Markdown source, JSON data file,
   extractor, or renderer produced it.
-- **Validation gates.** `tools/build.py` runs drift warning hooks before page
+- **Validation gates.** `tools/build.py` runs drift warning hooks before page <!-- doc-links: ignore (path is relative to website/ in this architecture note) -->
   generation, records per-step failures, always patches generated external
-  links, then always runs `tools/check-page-links.py --skip-network`.
+  links, then always runs `tools/check-page-links.py --skip-network`. <!-- doc-links: ignore (path is relative to website/ in this architecture note) -->
   That gate validates `data/page-links.json`, duplicate external page usage,
   and generated external anchor policy without touching the network. Network
   reachability stays opt-in with
-  `tools/check-page-links.py --check-network` or
-  `tools/check-page-links.py --check-network --all-html`.
+  `tools/check-page-links.py --check-network` or <!-- doc-links: ignore (path is relative to website/ in this architecture note) -->
+  `tools/check-page-links.py --check-network --all-html`. <!-- doc-links: ignore (path is relative to website/ in this architecture note) -->
 - **CSS source layers.** `assets/site.css` is generated (and minified) from
-  `assets/css/site.css` by `tools/render-css.py`. The source manifest imports
+  `assets/css/site.css` by `tools/render-css.py`. The source manifest imports <!-- doc-links: ignore (path is relative to website/ in this architecture note) -->
   `10-base.css`, the legacy bulk stylesheet, followed by smaller extracted
   files for tokens, shared components, and responsive fixes. Keep new CSS in
   the smallest source file that matches the concern, then run the `css` build
   step. Edit only the source files under `assets/css/`, never the minified
   `assets/site.css`.
 - **JS behavior model.** The editable script is `assets/js/site.js`; the `js`
-  build step (`tools/render-js.py`) minifies it into the published
+  build step (`tools/render-js.py`) minifies it into the published <!-- doc-links: ignore (path is relative to website/ in this architecture note) -->
   `assets/site.js`. It loads `assets/header.html` into each page's stable
   mount, then provides navigation interactions and progressive enhancement for
   reveal effects, search-like controls, and generated page explorers.
@@ -221,7 +221,7 @@ and per-step failures.
 - **Prose number tokens.** Website-owned page sources (e.g. `compare/*.md`) may
   embed `{{ze:<name>}}` tokens (`unit-tests`, `e2e-tests`, `fuzz-targets`,
   `interop-targets`, `interop-scenarios`, `cli-commands`, `config-sections`,
-  `dependencies`, `features`, `changes`) that `tools/render-doc.py` resolves
+  `dependencies`, `features`, `changes`) that `tools/render-doc.py` resolves <!-- doc-links: ignore (path is relative to website/ in this architecture note) -->
   from `data/site-facts.json` at render time, so counts can never silently
   drift from the live facts. Use tokens only where the source path differs from
   its published path (compare pages qualify; `use-cases/*/index.md`, whose
@@ -232,12 +232,12 @@ and per-step failures.
   `python3 -m py_compile tools/page_registry.py tools/build.py tools/render-docs.py tools/check-page-links.py`,
   `python3 tools/check-page-links.py --skip-network`, and, when you need to
   prove the build wiring rather than regenerate every page,
-  `tools/build.py --only links`. Use `tools/check-page-links.py --check-network`
+  `tools/build.py --only links`. Use `tools/check-page-links.py --check-network` <!-- doc-links: ignore (path is relative to website/ in this architecture note) -->
   only when external reachability is the thing being verified.
 
 ### Markdown to HTML contract
 
-Ordinary Markdown pages use `tools/render-doc.py`. Do not add a renderer for a
+Ordinary Markdown pages use `tools/render-doc.py`. Do not add a renderer for a <!-- doc-links: ignore (path is relative to website/ in this architecture note) -->
 page whose body is already Markdown. A dedicated renderer is justified only
 when the HTML is computed from structured data, live command output, source
 extraction, or another input that needs its own transformation.
@@ -320,7 +320,7 @@ page is already built:
   `render_markdown()` next to its `render()`, both reading the same data,
   so the two can't disagree.
 - **Hand-authored HTML, no source of either kind** (`labs/*/`, `talks/`,
-  `style-guide/`, `performance/`, `zeledon/`): `tools/build.py`'s `nav`
+  `style-guide/`, `performance/`, `zeledon/`): `tools/build.py`'s `nav` <!-- doc-links: ignore (path is relative to website/ in this architecture note) -->
   step extracts the `<main id="top">...</main>` content
   (`sitelib.extract_main`) and converts it with `sitelib.html_to_markdown`
   -- a small HTML->Markdown converter written against exactly the tags and
@@ -329,10 +329,10 @@ page is already built:
   Re-derived from the HTML on every build, so it can't drift from the page
   the way a hand-maintained companion file would.
 
-`tools/build.py` runs the page renderers before `llms`, so every registered
+`tools/build.py` runs the page renderers before `llms`, so every registered <!-- doc-links: ignore (path is relative to website/ in this architecture note) -->
 documentation page already has its `index.md` on disk. `llms.txt` combines
 the curated `data/nav.json` order with the complete docs and use-case lists from
-`tools/page_registry.py`.
+`tools/page_registry.py`. <!-- doc-links: ignore (path is relative to website/ in this architecture note) -->
 
 
 ### Site design and content rules
@@ -346,7 +346,7 @@ opaque blobs, unrelated palettes, or custom components without updating the
 style guide in the same change.
 
 Navigation is part of the design system. `data/nav.json` owns the top
-mega-menu and curated `llms.txt` sections; `tools/page_registry.py` supplies
+mega-menu and curated `llms.txt` sections; `tools/page_registry.py` supplies <!-- doc-links: ignore (path is relative to website/ in this architecture note) -->
 the complete published docs index. The `nav` step publishes the menu once as
 `assets/header.html`. The footer is a
 single license line from `sitelib.footer_html`, not a sitemap or second
@@ -373,25 +373,25 @@ output. Extend a renderer or extractor before you hardcode a catalog in HTML.
 Every published page needs an AI-readable `index.md` sibling. Generate it from
 the same Markdown or structured data as the HTML; only hand-authored HTML pages
 may rely on the `nav` step's HTML-to-Markdown extraction. `llms.txt` must remain
-generated from `data/nav.json`, `tools/page_registry.py`, page Markdown, and live
+generated from `data/nav.json`, `tools/page_registry.py`, page Markdown, and live <!-- doc-links: ignore (path is relative to website/ in this architecture note) -->
 counts. It must link each page's `index.md` first and include the human web URL
 as the secondary link.
 
 To add, remove, or re-categorize a feature card: edit `data/features.json`,
-then run `tools/build.py --only features` (or the full build). Same for
+then run `tools/build.py --only features` (or the full build). Same for <!-- doc-links: ignore (path is relative to website/ in this architecture note) -->
 `data/audience.json` and `data/whats-new.json` with `--only index`. For
 navigation, edit `data/nav.json`
-and run `tools/build.py --only nav`; only `assets/header.html` should change
+and run `tools/build.py --only nav`; only `assets/header.html` should change <!-- doc-links: ignore (path is relative to website/ in this architecture note) -->
 after the one-time migration to shared mounts.
 
 Command equivalence maintenance: Ze command paths come from the live CLI
 catalog, not the JSON mapping. Add vendor equivalents to
 `data/command-equivalents.json`, keep every `ze` path exact, build the session
 `ze` binary with `make ze-build` (not a `zetest` binary), then run
-`tools/build.py --only cli,command-equivalents,search,seo,llms` after command-tree
+`tools/build.py --only cli,command-equivalents,search,seo,llms` after command-tree <!-- doc-links: ignore (path is relative to website/ in this architecture note) -->
 changes so `data/cli-commands.json`, the page, search index, metadata, and
 `llms.txt` stay aligned. For mapping-only edits where the CLI catalog is already
-fresh, `tools/build.py --only command-equivalents,search,seo,llms` is enough.
+fresh, `tools/build.py --only command-equivalents,search,seo,llms` is enough. <!-- doc-links: ignore (path is relative to website/ in this architecture note) -->
 
 ### Plugin catalog
 
@@ -458,7 +458,7 @@ this before considering the update done.
    fixes, and the `meta` family (`Presentation: <venue>`, `IETF Draft: <name>`,
    `Interop`) for non-subsystem work. The category is the broad area (it picks
    the chip color), so the tag is always the specific thing -- `Routing` is
-   never a tag. `tools/build.py` fails on any tag not in `data/topics.json`; if
+   never a tag. `tools/build.py` fails on any tag not in `data/topics.json`; if <!-- doc-links: ignore (path is relative to website/ in this architecture note) -->
    the week did something genuinely new, add the tag to the vocabulary (with
    its category) rather than forcing a near-miss.
 

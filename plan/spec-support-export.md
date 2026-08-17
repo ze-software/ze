@@ -186,9 +186,9 @@ Ze config/data directory, streamed to syslog, or copied by SSH.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `ze pipe save file path <relative-path>` with stdin | → | save sink writes local bytes under Ze config/data directory | `TestRunPipeSaveFileWritesInput` and `test/ui/pipe-save-file.ci` |
-| interactive command with `| save file path <relative-path>` | → | CLI pipe parser and sink run through command execution | `test/ui/pipe-save-command-output.ci` |
-| support archive command with `| save file path <relative-path>` | → | support archive metadata reaches save sink | `test/ui/support-save-file.ci` |
+| `ze pipe save file path <relative-path>` with stdin | → | save sink writes local bytes under Ze config/data directory | `TestRunPipeSaveFileWritesInput` and `test/ui/pipe-save-file.ci` | <!-- doc-links: ignore (planned by this spec, written when implemented) -->
+| interactive command with `| save file path <relative-path>` | → | CLI pipe parser and sink run through command execution | `test/ui/pipe-save-command-output.ci` | <!-- doc-links: ignore (planned by this spec, written when implemented) -->
+| support archive command with `| save file path <relative-path>` | → | support archive metadata reaches save sink | `test/ui/support-save-file.ci` | <!-- doc-links: ignore (planned by this spec, written when implemented) -->
 | config with a named SSH destination | → | destination resolver loads config and referenced credential name | `TestSupportExportSSHConfiguredDestinationResolves` |
 | config with a named syslog destination | → | destination resolver loads config and syslog endpoint | `TestSupportExportSyslogConfiguredDestinationResolves` |
 
@@ -214,10 +214,10 @@ Ze config/data directory, streamed to syslog, or copied by SSH.
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Saves support archive locally during an incident | CLI command -> support collector -> artifact metadata -> save file sink | `test/ui/support-save-file.ci` |
-| 2 | Sends show output to configured syslog | CLI command -> pipe parser -> destination resolver -> syslog writer | `test/ui/pipe-save-syslog.ci` or unit-backed functional substitute if syslog capture is unavailable |
-| 3 | Sends support archive to configured SSH destination | CLI command -> support collector -> destination resolver -> SSH credential loader -> SSH writer | `test/ui/support-save-ssh.ci` or fake SSH integration test if a daemon fixture exists |
-| 4 | Admin stores a remote support destination in config | YANG parse -> validator -> doctor check -> completion/help | `test/parse/support-export-destination.ci` |
+| 1 | Saves support archive locally during an incident | CLI command -> support collector -> artifact metadata -> save file sink | `test/ui/support-save-file.ci` | <!-- doc-links: ignore (planned by this spec, written when implemented) -->
+| 2 | Sends show output to configured syslog | CLI command -> pipe parser -> destination resolver -> syslog writer | `test/ui/pipe-save-syslog.ci` or unit-backed functional substitute if syslog capture is unavailable | <!-- doc-links: ignore (planned by this spec, written when implemented) -->
+| 3 | Sends support archive to configured SSH destination | CLI command -> support collector -> destination resolver -> SSH credential loader -> SSH writer | `test/ui/support-save-ssh.ci` or fake SSH integration test if a daemon fixture exists | <!-- doc-links: ignore (planned by this spec, written when implemented) -->
+| 4 | Admin stores a remote support destination in config | YANG parse -> validator -> doctor check -> completion/help | `test/parse/support-export-destination.ci` | <!-- doc-links: ignore (planned by this spec, written when implemented) -->
 
 ## 🧪 TDD Test Plan
 
@@ -247,13 +247,13 @@ Ze config/data directory, streamed to syslog, or copied by SSH.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `pipe-save-file` | `test/ui/pipe-save-file.ci` | User pipes JSON stdin through `ze pipe save file path <tmp>` and file contains original data | planned |
-| `pipe-save-command-output` | `test/ui/pipe-save-command-output.ci` | User saves a simple command output through CLI pipe | planned |
-| `support-save-file` | `test/ui/support-save-file.ci` | User saves support archive through save pipe and archive exists with expected manifest entry | planned |
-| `support-export-destination` | `test/parse/support-export-destination.ci` | Config with named SSH and syslog destinations parses and rejects malformed values | planned |
-| `pipe-save-completion` | `test/ui/pipe-save-completion.ci` | Completion or help advertises `save` and destination subcommands | planned |
-| `support-save-ssh` | `test/ui/support-save-ssh.ci` or `test/integration/support-save-ssh.ci` | User sends output to a fake or local SSH destination using stored credentials | planned |
-| `pipe-save-syslog` | `test/ui/pipe-save-syslog.ci` or unit-backed integration fixture | User sends output to configured syslog destination and receiver observes it | planned |
+| `pipe-save-file` | `test/ui/pipe-save-file.ci` | User pipes JSON stdin through `ze pipe save file path <tmp>` and file contains original data | planned | <!-- doc-links: ignore (planned by this spec, written when implemented) -->
+| `pipe-save-command-output` | `test/ui/pipe-save-command-output.ci` | User saves a simple command output through CLI pipe | planned | <!-- doc-links: ignore (planned by this spec, written when implemented) -->
+| `support-save-file` | `test/ui/support-save-file.ci` | User saves support archive through save pipe and archive exists with expected manifest entry | planned | <!-- doc-links: ignore (planned by this spec, written when implemented) -->
+| `support-export-destination` | `test/parse/support-export-destination.ci` | Config with named SSH and syslog destinations parses and rejects malformed values | planned | <!-- doc-links: ignore (planned by this spec, written when implemented) -->
+| `pipe-save-completion` | `test/ui/pipe-save-completion.ci` | Completion or help advertises `save` and destination subcommands | planned | <!-- doc-links: ignore (planned by this spec, written when implemented) -->
+| `support-save-ssh` | `test/ui/support-save-ssh.ci` or `test/integration/support-save-ssh.ci` | User sends output to a fake or local SSH destination using stored credentials | planned | <!-- doc-links: ignore (planned by this spec, written when implemented) -->
+| `pipe-save-syslog` | `test/ui/pipe-save-syslog.ci` or unit-backed integration fixture | User sends output to configured syslog destination and receiver observes it | planned | <!-- doc-links: ignore (planned by this spec, written when implemented) -->
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -272,7 +272,7 @@ Ze config/data directory, streamed to syslog, or copied by SSH.
 - `internal/component/support/support.go` - expose archive metadata for save.
 - `internal/component/support/modules.go` - preserve module registry and module list behavior.
 - `internal/plugins/support/register.go` - help text and command metadata.
-- `internal/component/config/yang` or `internal/component/support/yang` - support export destination schema.
+- `internal/component/config/yang` or `internal/component/support/yang` - support export destination schema. <!-- doc-links: ignore (planned by this spec, written when implemented) -->
 - `internal/component/config/validators.go` or owning validator file - destination validation if native YANG rules are insufficient.
 - `internal/component/doctor` - destination and credential checks.
 - `internal/core/ssh/client/client.go` - streaming or non-interactive write helper if existing functions cannot write a file without executing an unsafe shell.
@@ -282,14 +282,14 @@ Ze config/data directory, streamed to syslog, or copied by SSH.
 - `docs/guide/command-catalogue.md` - replace planned tech-support row with shipped Ze syntax.
 
 ## Files to Create
-- `internal/component/command/save.go` or owning package equivalent - save sink implementation if keeping it in `pipe.go` would mix parsing and I/O.
-- `internal/component/command/save_test.go` or owning package equivalent - sink unit tests.
-- `internal/component/support/yang/ze-support-conf.yang` or config-owned YANG module - named support export destinations if no existing support config root exists.
-- `test/ui/pipe-save-file.ci` - local file save functional test.
-- `test/ui/pipe-save-command-output.ci` - command output save functional test.
-- `test/ui/support-save-file.ci` - support archive save functional test.
-- `test/parse/support-export-destination.ci` - config syntax test.
-- `test/ui/pipe-save-completion.ci` - help or completion test.
+- `internal/component/command/save.go` or owning package equivalent - save sink implementation if keeping it in `pipe.go` would mix parsing and I/O. <!-- doc-links: ignore (planned by this spec, written when implemented) -->
+- `internal/component/command/save_test.go` or owning package equivalent - sink unit tests. <!-- doc-links: ignore (planned by this spec, written when implemented) -->
+- `internal/component/support/yang/ze-support-conf.yang` or config-owned YANG module - named support export destinations if no existing support config root exists. <!-- doc-links: ignore (planned by this spec, written when implemented) -->
+- `test/ui/pipe-save-file.ci` - local file save functional test. <!-- doc-links: ignore (planned by this spec, written when implemented) -->
+- `test/ui/pipe-save-command-output.ci` - command output save functional test. <!-- doc-links: ignore (planned by this spec, written when implemented) -->
+- `test/ui/support-save-file.ci` - support archive save functional test. <!-- doc-links: ignore (planned by this spec, written when implemented) -->
+- `test/parse/support-export-destination.ci` - config syntax test. <!-- doc-links: ignore (planned by this spec, written when implemented) -->
+- `test/ui/pipe-save-completion.ci` - help or completion test. <!-- doc-links: ignore (planned by this spec, written when implemented) -->
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -331,7 +331,7 @@ Ze config/data directory, streamed to syslog, or copied by SSH.
 ## Implementation Steps
 
 1. **Phase: Wiring (MANDATORY FIRST)** - add failing tests for pipe syntax, local file save, support artifact save, and config destination parsing.
-   - Tests: `TestParsePipeSaveFile`, `TestRunPipeSaveFileWritesInput`, `test/ui/support-save-file.ci`, `test/parse/support-export-destination.ci`
+   - Tests: `TestParsePipeSaveFile`, `TestRunPipeSaveFileWritesInput`, `test/ui/support-save-file.ci`, `test/parse/support-export-destination.ci` <!-- doc-links: ignore (planned by this spec, written when implemented) -->
    - Files: `internal/component/command/pipe_test.go`, `cmd/ze/ze_core_pipe.go`, support config test files
    - Verify: tests fail because `save` is unknown or artifact metadata is absent.
 2. **Phase: Destination model** - add YANG schema, typed resolver, validation, and doctor checks for named SSH and syslog destinations.

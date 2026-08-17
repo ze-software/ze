@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/go-standards.md`.
 
-Total: 262 design docs, 3415 files
+Total: 262 design docs, 3417 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -3485,6 +3485,8 @@ Total: 262 design docs, 3415 files
 
 ## `docs/architecture/testing/tracked-build-gate.md`
 
+- `scripts/checks/staticcheck_feature_matrix.go` -- feature-tag type-check boundary
+- `scripts/checks/staticcheck_feature_matrix_test.go` -- feature-tag type-check boundary
 - `scripts/checks/tracked_build.go` -- compile what git holds
 
 ## `docs/architecture/traffic/cos-dynamic.md`
