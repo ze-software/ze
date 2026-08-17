@@ -16,92 +16,92 @@ import (
 
 var errNoConfigPathSpecified = errors.New("no config path specified")
 
-// SchemaInfo holds schema information for handler routing.
-type SchemaInfo struct {
-	Module    string   // YANG module name
-	Namespace string   // YANG namespace URI (optional)
-	Handlers  []string // Handler paths this schema provides
-	Yang      string   // YANG content (optional)
+// schemaInfo holds schema information for handler routing.
+type schemaInfo struct {
+	module    string   // YANG module name
+	namespace string   // YANG namespace URI (optional)
+	handlers  []string // Handler paths this schema provides
+	yang      string   // YANG content (optional)
 }
 
-// BlockEntry represents a parsed config block stored by the reader.
-type BlockEntry struct {
-	Handler string // Handler path (e.g., "bgp/peer")
-	Key     string // List key (e.g., "192.0.2.1" for peer address)
-	Path    string // Full path with key (e.g., "bgp/peer[key=192.0.2.1]")
-	Data    string // JSON data
+// blockEntry represents a parsed config block stored by the reader.
+type blockEntry struct {
+	handler string // Handler path (e.g., "bgp/peer")
+	key     string // List key (e.g., "192.0.2.1" for peer address)
+	path    string // Full path with key (e.g., "bgp/peer[key=192.0.2.1]")
+	data    string // JSON data
 }
 
-// BlockState stores the current configuration as handler → key → data.
-type BlockState struct {
-	blocks map[string]map[string]*BlockEntry // handler → key → block
+// blockState stores the current configuration as handler → key → data.
+type blockState struct {
+	blocks map[string]map[string]*blockEntry // handler → key → block
 }
 
-// NewBlockState creates an empty block state.
-func NewBlockState() *BlockState {
-	return &BlockState{
-		blocks: make(map[string]map[string]*BlockEntry),
+// newBlockState creates an empty block state.
+func newBlockState() *blockState {
+	return &blockState{
+		blocks: make(map[string]map[string]*blockEntry),
 	}
 }
 
-// Set adds or updates a block.
-func (bs *BlockState) Set(block *BlockEntry) {
-	if bs.blocks[block.Handler] == nil {
-		bs.blocks[block.Handler] = make(map[string]*BlockEntry)
+// set adds or updates a block.
+func (bs *blockState) set(block *blockEntry) {
+	if bs.blocks[block.handler] == nil {
+		bs.blocks[block.handler] = make(map[string]*blockEntry)
 	}
-	bs.blocks[block.Handler][block.Key] = block
+	bs.blocks[block.handler][block.key] = block
 }
 
-// Get returns a block by handler and key.
-func (bs *BlockState) Get(handler, key string) *BlockEntry {
+// get returns a block by handler and key.
+func (bs *blockState) get(handler, key string) *blockEntry {
 	if bs.blocks[handler] == nil {
 		return nil
 	}
 	return bs.blocks[handler][key]
 }
 
-// BlockChange represents a change between old and new config.
-type BlockChange struct {
-	Action  string // "create", "modify", "delete"
-	Handler string // Handler path
-	Path    string // Full path with key
-	OldData string // Previous data (for modify/delete)
-	NewData string // New data (for create/modify)
+// blockChange represents a change between old and new config.
+type blockChange struct {
+	action  string // "create", "modify", "delete"
+	handler string // Handler path
+	path    string // Full path with key
+	oldData string // Previous data (for modify/delete)
+	newData string // New data (for create/modify)
 }
 
-// ConfigValidator validates config data against a schema.
-type ConfigValidator interface {
+// configValidator validates config data against a schema.
+type configValidator interface {
 	ValidateContainer(path string, data map[string]any) error
 }
 
-// ConfigFrontend parses raw config content into a nested map.
+// configFrontend parses raw config content into a nested map.
 // Both frontends (tokenizer and set-parser) produce the same structural form:
 // a nested map[string]any with containers as sub-maps and lists as
 // maps of key → sub-map.
-type ConfigFrontend interface {
-	ParseConfig(content string) (map[string]any, error)
+type configFrontend interface {
+	parseConfigContent(content string) (map[string]any, error)
 }
 
-// TokenizerFrontend parses Ze/Junos-style config into a nested map.
-type TokenizerFrontend struct{}
+// tokenizerFrontend parses Ze/Junos-style config into a nested map.
+type tokenizerFrontend struct{}
 
-// ParseConfig tokenizes the content and produces a nested map.
-func (f *TokenizerFrontend) ParseConfig(content string) (map[string]any, error) {
-	tokenizer := NewTokenizer(content)
-	tokens := tokenizer.All()
+// parseConfigContent tokenizes the content and produces a nested map.
+func (f *tokenizerFrontend) parseConfigContent(content string) (map[string]any, error) {
+	tokenizer := newTokenizer(content)
+	tokens := tokenizer.all()
 	return tokensToNestedMap(tokens), nil
 }
 
-// SetParserFrontend parses set-style config into a nested map.
-type SetParserFrontend struct {
-	Schema *Schema
+// setParserFrontend parses set-style config into a nested map.
+type setParserFrontend struct {
+	schema *Schema
 }
 
-// ParseConfig parses set commands into a Tree and converts to a map.
+// parseConfigContent parses set commands into a Tree and converts to a map.
 // String leaf values are converted to typed values (int64, float64, bool)
 // using parseConfigValue so both frontends produce compatible maps.
-func (f *SetParserFrontend) ParseConfig(content string) (map[string]any, error) {
-	parser := NewSetParser(f.Schema)
+func (f *setParserFrontend) parseConfigContent(content string) (map[string]any, error) {
+	parser := NewSetParser(f.schema)
 	tree, err := parser.Parse(content)
 	if err != nil {
 		return nil, err
@@ -126,29 +126,29 @@ func convertStringValues(m map[string]any) {
 
 // tokensToNestedMap converts tokens into a nested map.
 // Handles flat key-value pairs, containers, and list entries.
-func tokensToNestedMap(tokens []Token) map[string]any {
+func tokensToNestedMap(tokens []token) map[string]any {
 	result := make(map[string]any)
 	i := 0
 	for i < len(tokens) {
-		if tokens[i].Type != TokenWord {
+		if tokens[i].kind != tokenWord {
 			i++
 			continue
 		}
 
-		key := tokens[i].Value
+		key := tokens[i].value
 		i++
 		if i >= len(tokens) {
 			break
 		}
 
 		//nolint:exhaustive // structural tokens (RBrace, brackets, parens, EOF) at value position are skipped
-		switch tokens[i].Type {
-		case TokenWord, TokenString:
+		switch tokens[i].kind {
+		case tokenWord, tokenString:
 			// Could be "key value ;" or "key listkey { ... }"
-			value := tokens[i].Value
+			value := tokens[i].value
 			i++
 
-			if i < len(tokens) && tokens[i].Type == TokenLBrace {
+			if i < len(tokens) && tokens[i].kind == tokenLBrace {
 				// List entry: key listkey { ... }
 				i++ // skip {
 				innerTokens := extractBraceContent(tokens, &i)
@@ -165,7 +165,7 @@ func tokensToNestedMap(tokens []Token) map[string]any {
 				result[key] = parseConfigValue(value)
 			}
 
-		case TokenLBrace:
+		case tokenLBrace:
 			// Container: key { ... }
 			i++ // skip {
 			innerTokens := extractBraceContent(tokens, &i)
@@ -179,19 +179,19 @@ func tokensToNestedMap(tokens []Token) map[string]any {
 				result[key] = innerMap
 			}
 
-		case TokenSemicolon:
+		case tokenSemicolon:
 			// Flag: key;
 			result[key] = true
 			i++
 			continue // already consumed semicolon
 
-		case TokenRBrace, TokenEOF, TokenLBracket, TokenRBracket, TokenLParen, TokenRParen:
+		case tokenRBrace, tokenEOF, tokenLBracket, tokenRBracket, tokenLParen, tokenRParen:
 			// Structural tokens at value position — not a key-value pair, skip.
 			i++
 		}
 
 		// Skip trailing semicolon.
-		if i < len(tokens) && tokens[i].Type == TokenSemicolon {
+		if i < len(tokens) && tokens[i].kind == tokenSemicolon {
 			i++
 		}
 	}
@@ -201,15 +201,15 @@ func tokensToNestedMap(tokens []Token) map[string]any {
 // extractBraceContent returns tokens between matching braces.
 // On entry, tokens[*pos] is the first token after the opening brace.
 // On exit, *pos points past the closing brace.
-func extractBraceContent(tokens []Token, pos *int) []Token {
+func extractBraceContent(tokens []token, pos *int) []token {
 	start := *pos
 	depth := 1
 	for *pos < len(tokens) && depth > 0 {
 		//nolint:exhaustive // only counting braces
-		switch tokens[*pos].Type {
-		case TokenLBrace:
+		switch tokens[*pos].kind {
+		case tokenLBrace:
 			depth++
-		case TokenRBrace:
+		case tokenRBrace:
 			depth--
 		}
 		(*pos)++
@@ -220,40 +220,40 @@ func extractBraceContent(tokens []Token, pos *int) []Token {
 	return nil
 }
 
-// Reader parses config files and maps blocks to handlers.
-type Reader struct {
+// reader parses config files and maps blocks to handlers.
+type reader struct {
 	configPath string
-	handlerMap map[string]*SchemaInfo
-	current    *BlockState
-	validator  ConfigValidator
-	frontend   ConfigFrontend
+	handlerMap map[string]*schemaInfo
+	current    *blockState
+	validator  configValidator
+	frontend   configFrontend
 }
 
-// NewReader creates a new config reader with the given schemas, config path,
+// newReader creates a new config reader with the given schemas, config path,
 // optional YANG validator, and optional frontend parser.
 // If validator is nil, validation is skipped.
-// If frontend is nil, TokenizerFrontend is used.
-func NewReader(schemas []SchemaInfo, configPath string, validator ConfigValidator, frontend ConfigFrontend) *Reader {
+// If frontend is nil, tokenizerFrontend is used.
+func newReader(schemas []schemaInfo, configPath string, validator configValidator, frontend configFrontend) *reader {
 	if frontend == nil {
-		frontend = &TokenizerFrontend{}
+		frontend = &tokenizerFrontend{}
 	}
-	r := &Reader{
+	r := &reader{
 		configPath: configPath,
-		handlerMap: make(map[string]*SchemaInfo),
-		current:    NewBlockState(),
+		handlerMap: make(map[string]*schemaInfo),
+		current:    newBlockState(),
 		validator:  validator,
 		frontend:   frontend,
 	}
 	for i := range schemas {
-		for _, h := range schemas[i].Handlers {
+		for _, h := range schemas[i].handlers {
 			r.handlerMap[h] = &schemas[i]
 		}
 	}
 	return r
 }
 
-// Load parses the config file and returns the initial state.
-func (r *Reader) Load() (*BlockState, error) {
+// load parses the config file and returns the initial state.
+func (r *reader) load() (*blockState, error) {
 	state, err := r.parseConfig()
 	if err != nil {
 		return nil, err
@@ -262,20 +262,20 @@ func (r *Reader) Load() (*BlockState, error) {
 	return state, nil
 }
 
-// Reload re-parses the config file, diffs against the current state,
+// reload re-parses the config file, diffs against the current state,
 // and returns the list of changes. Updates the internal state on success.
-func (r *Reader) Reload() ([]BlockChange, error) {
+func (r *reader) reload() ([]blockChange, error) {
 	newState, err := r.parseConfig()
 	if err != nil {
 		return nil, err
 	}
-	changes := DiffBlocks(r.current, newState)
+	changes := diffBlocks(r.current, newState)
 	r.current = newState
 	return changes, nil
 }
 
-// parseConfig parses the config file into a BlockState using the frontend.
-func (r *Reader) parseConfig() (*BlockState, error) {
+// parseConfig parses the config file into a blockState using the frontend.
+func (r *reader) parseConfig() (*blockState, error) {
 	if r.configPath == "" {
 		return nil, errNoConfigPathSpecified
 	}
@@ -285,12 +285,12 @@ func (r *Reader) parseConfig() (*BlockState, error) {
 		return nil, fmt.Errorf("read config: %w", err)
 	}
 
-	data, err := r.frontend.ParseConfig(string(content))
+	data, err := r.frontend.parseConfigContent(string(content))
 	if err != nil {
 		return nil, fmt.Errorf("parse config: %w", err)
 	}
 
-	state := NewBlockState()
+	state := newBlockState()
 	if err := r.walkMap(data, "", state); err != nil {
 		return nil, err
 	}
@@ -300,8 +300,8 @@ func (r *Reader) parseConfig() (*BlockState, error) {
 
 // walkMap recursively walks a nested config map, routing blocks to handlers
 // and applying YANG validation. For each handler match, flat fields (non-map
-// values) are extracted, validated, and stored as a BlockEntry.
-func (r *Reader) walkMap(data map[string]any, pathPrefix string, state *BlockState) error {
+// values) are extracted, validated, and stored as a blockEntry.
+func (r *reader) walkMap(data map[string]any, pathPrefix string, state *blockState) error {
 	for blockName, blockValue := range data {
 		subMap, ok := blockValue.(map[string]any)
 		if !ok {
@@ -331,13 +331,13 @@ func (r *Reader) walkMap(data map[string]any, pathPrefix string, state *BlockSta
 				}
 			}
 
-			// Store as BlockEntry.
+			// Store as blockEntry.
 			jsonData, _ := json.Marshal(flatData)
-			state.Set(&BlockEntry{
-				Handler: handler,
-				Key:     "_default",
-				Path:    handler,
-				Data:    string(jsonData),
+			state.set(&blockEntry{
+				handler: handler,
+				key:     "_default",
+				path:    handler,
+				data:    string(jsonData),
 			})
 
 			// Process nested sub-maps (lists and containers).
@@ -387,7 +387,7 @@ func (r *Reader) walkMap(data map[string]any, pathPrefix string, state *BlockSta
 }
 
 // walkListEntries processes list entries where each key maps to a sub-map.
-func (r *Reader) walkListEntries(handler string, entries map[string]any, state *BlockState) error {
+func (r *reader) walkListEntries(handler string, entries map[string]any, state *blockState) error {
 	for listKey, entryValue := range entries {
 		entryMap, ok := entryValue.(map[string]any)
 		if !ok {
@@ -413,11 +413,11 @@ func (r *Reader) walkListEntries(handler string, entries map[string]any, state *
 
 		// Store.
 		jsonData, _ := json.Marshal(flatEntry)
-		state.Set(&BlockEntry{
-			Handler: handler,
-			Key:     listKey,
-			Path:    entryPath,
-			Data:    string(jsonData),
+		state.set(&blockEntry{
+			handler: handler,
+			key:     listKey,
+			path:    entryPath,
+			data:    string(jsonData),
 		})
 
 		// Recurse into list entry for deeper handlers.
@@ -430,7 +430,7 @@ func (r *Reader) walkListEntries(handler string, entries map[string]any, state *
 }
 
 // findHandler finds the handler for a given path using longest prefix match.
-func (r *Reader) findHandler(path string) *SchemaInfo {
+func (r *reader) findHandler(path string) *schemaInfo {
 	// Try exact match.
 	if schema, ok := r.handlerMap[path]; ok {
 		return schema
@@ -476,10 +476,10 @@ func parseConfigValue(s string) any {
 	return s
 }
 
-// DiffBlocks compares old and new block states, returning changes.
+// diffBlocks compares old and new block states, returning changes.
 // Changes are sorted deterministically by handler then key.
-func DiffBlocks(oldState, newState *BlockState) []BlockChange {
-	var changes []BlockChange
+func diffBlocks(oldState, newState *blockState) []blockChange {
+	var changes []blockChange
 
 	// Collect all handlers from both states.
 	handlers := make(map[string]bool)
@@ -502,10 +502,10 @@ func DiffBlocks(oldState, newState *BlockState) []BlockChange {
 		newBlocks := newState.blocks[handler]
 
 		if oldBlocks == nil {
-			oldBlocks = make(map[string]*BlockEntry)
+			oldBlocks = make(map[string]*blockEntry)
 		}
 		if newBlocks == nil {
-			newBlocks = make(map[string]*BlockEntry)
+			newBlocks = make(map[string]*blockEntry)
 		}
 
 		// Collect all keys.
@@ -530,26 +530,26 @@ func DiffBlocks(oldState, newState *BlockState) []BlockChange {
 
 			switch {
 			case oldBlock == nil && newBlock != nil:
-				changes = append(changes, BlockChange{
-					Action:  "create",
-					Handler: handler,
-					Path:    newBlock.Path,
-					NewData: newBlock.Data,
+				changes = append(changes, blockChange{
+					action:  "create",
+					handler: handler,
+					path:    newBlock.path,
+					newData: newBlock.data,
 				})
 			case oldBlock != nil && newBlock == nil:
-				changes = append(changes, BlockChange{
-					Action:  "delete",
-					Handler: handler,
-					Path:    oldBlock.Path,
-					OldData: oldBlock.Data,
+				changes = append(changes, blockChange{
+					action:  "delete",
+					handler: handler,
+					path:    oldBlock.path,
+					oldData: oldBlock.data,
 				})
-			case oldBlock != nil && newBlock != nil && oldBlock.Data != newBlock.Data:
-				changes = append(changes, BlockChange{
-					Action:  "modify",
-					Handler: handler,
-					Path:    newBlock.Path,
-					OldData: oldBlock.Data,
-					NewData: newBlock.Data,
+			case oldBlock != nil && newBlock != nil && oldBlock.data != newBlock.data:
+				changes = append(changes, blockChange{
+					action:  "modify",
+					handler: handler,
+					path:    newBlock.path,
+					oldData: oldBlock.data,
+					newData: newBlock.data,
 				})
 			}
 		}

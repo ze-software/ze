@@ -830,7 +830,7 @@ func TestWebServerReconfigureBindFails(t *testing.T) {
 // outside it carried none while every sibling page carried all four.
 //
 // It drives the real entry point: NewWebServer builds the handler chain, and a
-// test over SecurityHeaders alone would pass with the server still unwrapped.
+// test over securityHeaders alone would pass with the server still unwrapped.
 func TestWebServerSetsSecurityHeadersOnEveryRoute(t *testing.T) {
 	certPEM, keyPEM, err := selfcert.GenerateWebCertWithAddr("")
 	require.NoError(t, err)

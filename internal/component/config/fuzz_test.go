@@ -65,9 +65,9 @@ func FuzzConfigParser(f *testing.F) {
 
 // FuzzTokenizer tests config tokenizer robustness.
 //
-// VALIDATES: Tokenizer handles arbitrary strings without crashing.
+// VALIDATES: tokenizer handles arbitrary strings without crashing.
 // PREVENTS: Panic on unterminated strings, binary content, edge-case delimiters.
-// SECURITY: Tokenizer processes user-supplied config files.
+// SECURITY: tokenizer processes user-supplied config files.
 func FuzzTokenizer(f *testing.F) {
 	f.Add("word1 word2 word3")
 	f.Add("\"quoted string\"")
@@ -81,11 +81,11 @@ func FuzzTokenizer(f *testing.F) {
 	f.Add(";;; {{{")
 
 	f.Fuzz(func(t *testing.T, input string) {
-		tok := NewTokenizer(input)
+		tok := newTokenizer(input)
 		// Exhaust all tokens — MUST NOT panic or infinite loop
 		for {
-			token := tok.Next()
-			if token.Type == TokenEOF {
+			token := tok.next()
+			if token.kind == tokenEOF {
 				break
 			}
 		}

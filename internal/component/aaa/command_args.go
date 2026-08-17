@@ -1,3 +1,5 @@
+// Design: docs/architecture/aaa-tacacs.md -- typed command authorization contract
+
 package aaa
 
 import (

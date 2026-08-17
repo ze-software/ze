@@ -175,7 +175,7 @@ func TestSkipMarkedMalformedCIStillFailsThroughParallelRunner(t *testing.T) {
 
 	// Mirror the production wiring at runner.go: the .ci Runner owns its Records
 	// and hands the scheduler an explicit Display (addRecord does not lazy-init
-	// one, unlike AddTest).
+	// one, unlike addTestWithoutNick).
 	colors := NewColorsWithOverride(false)
 	tests := NewTests()
 	display := NewDisplay(tests, colors)

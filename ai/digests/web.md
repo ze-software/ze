@@ -33,7 +33,7 @@ unmarshal it back into a `map[string]any` for template rendering.
    (`cmd/ze/hub/main_servers.go`), which calls `d.Dispatch(ctx, input)`, the
    identical `Dispatcher.Dispatch` documented in `ai/digests/cli-editor.md`
    (`internal/component/plugin/server/command.go`). It flows into
-   `ServiceDeps.Dispatch` (`cmd/ze/hub/main.go`); `buildLGService` wraps it
+   `serviceDeps.Dispatch` (`cmd/ze/hub/main.go`); `buildLGService` wraps it
    again as `func(cmd string) (string, error)` (`cmd/ze/hub/service_lg.go`).
    Only the audit `Surface` differs between web/SSH/MCP/CLI callers.
 3. **Route table + transport.** `startWebServer`
@@ -192,7 +192,7 @@ unmarshal it back into a `map[string]any` for template rendering.
 ## Key files
 | File | Role |
 |------|------|
-| `cmd/ze/hub/service_registry.go` | Build-tag construction registry: `ServiceFactory`, `buildServices`, `ServiceDeps` |
+| `cmd/ze/hub/service_registry.go` | Build-tag construction registry: `serviceFactory`, `buildServices`, `serviceDeps` |
 | `cmd/ze/hub/register_web.go`, `register_lg.go` | `//go:build ze_web`/`ze_lg` `init()` registering each factory |
 | `cmd/ze/hub/service_web.go` | `buildWebService`, `startWebServer`: builds every web handler and route |
 | `cmd/ze/hub/service_lg.go` | `buildLGService`: wraps the shared dispatcher for `lg.LGConfig.Dispatch` |

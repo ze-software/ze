@@ -226,7 +226,7 @@ func acceptOnlyUnannotated(repoRoot string) (paths []string, parseFailures []acc
 		// test/draft/ holds tests under development and is invisible to every
 		// gate, this one included (test/draft/README.md). Pruned at the directory
 		// so no draft file is read at all.
-		if d.IsDir() && IsDraftPath(testDir, p) {
+		if d.IsDir() && isDraftPath(testDir, p) {
 			return filepath.SkipDir
 		}
 		if d.IsDir() || !strings.HasSuffix(p, ".ci") {

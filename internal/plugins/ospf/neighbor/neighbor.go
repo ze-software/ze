@@ -244,7 +244,7 @@ type Snapshot struct {
 	// OpaqueCapable reports whether the neighbor advertised the RFC 5250 O-bit in its DD.
 	OpaqueCapable bool   `json:"opaque-capable"`
 	Area          string `json:"area"`
-	RouterID      string `json:"router_id"`
+	RouterID      string `json:"router-id"`
 	State         string `json:"state"`
 	Address       string `json:"address,omitempty"`
 	Priority      uint8  `json:"priority"`
@@ -254,10 +254,10 @@ type Snapshot struct {
 	BFD          string `json:"bfd,omitempty"`
 	DR           string `json:"dr"`
 	BDR          string `json:"bdr"`
-	DeadTime     int64  `json:"dead_time"`
+	DeadTime     int64  `json:"dead-time"`
 	Master       bool   `json:"master"`
-	DDSequence   uint32 `json:"dd_sequence"`
-	RequestCount int    `json:"request_count"`
+	DDSequence   uint32 `json:"dd-sequence"`
+	RequestCount int    `json:"request-count"`
 }
 
 // FloodNeighbor is a value snapshot of a neighbor that participates in flooding.

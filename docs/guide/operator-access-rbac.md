@@ -232,5 +232,5 @@ the connection closes, because an operator may be editing their own account. A
 session a TACACS+ or RADIUS backend granted is not revoked by the local user
 list, which never authenticated it.
 <!-- source: cmd/ze/hub/main_servers.go -- liveLocalUsers -->
-<!-- source: internal/component/web/auth.go -- SessionStore.ValidateToken, WebSession.LocalAnchored -->
+<!-- source: internal/component/web/auth.go -- SessionStore.validateToken, webSession -->
 <!-- source: internal/component/ssh/pubkey.go -- authenticatePublicKey -->

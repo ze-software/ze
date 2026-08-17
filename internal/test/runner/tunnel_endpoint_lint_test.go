@@ -173,7 +173,7 @@ func TestCITunnelEndpointsAreUniqueAcrossTests(t *testing.T) {
 			return err
 		}
 		// test/draft/ is invisible to every gate (test/draft/README.md).
-		if d.IsDir() && IsDraftPath(testDir, p) {
+		if d.IsDir() && isDraftPath(testDir, p) {
 			return filepath.SkipDir
 		}
 		if d.IsDir() || !strings.HasSuffix(p, ".ci") {

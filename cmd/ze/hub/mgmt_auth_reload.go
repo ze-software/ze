@@ -1,6 +1,6 @@
 // Design: ai/rules/evidence.md -- the exposure guard, re-run on every reload
 // Related: mgmt_guard.go -- the boot-time classifier these reloaders re-answer for
-// Related: listener_migrate.go -- authReloader, AuthUpdatable, ReloadListeners
+// Related: listener_migrate.go -- authReloader, AuthUpdatable, reloadListeners
 //
 // How each management surface's authentication is resolved from a RELOADED
 // config tree. The boot guard (mgmt_guard.go) answers the same question once,
@@ -20,12 +20,10 @@ import (
 
 	"github.com/ze-software/ze/internal/component/authz"
 	zeconfig "github.com/ze-software/ze/internal/component/config"
-	"github.com/ze-software/ze/internal/component/config/infra"
 )
 
-// mgmtAuthInputs carries the boot answers a reload cannot re-derive: what a
-// command-line flag or an environment variable decided, and what the daemon
-// could read when it started.
+// mgmtAuthInputs carries the boot precedence answers a reload cannot re-derive
+// and the live credential source that follows the running ConfigProvider.
 type mgmtAuthInputs struct {
 	// webFollowsConfig is true when the config file's `insecure` leaf decided
 	// the web authentication switch at boot. It is false when a flag or an
@@ -41,17 +39,11 @@ type mgmtAuthInputs struct {
 	// as it does at boot.
 	apiTokenEnv string
 
-	// apiZefsUsersOK is true when the zefs power-user credentials were readable
-	// at boot. A daemon that had them and can no longer read them fails the
-	// reload closed rather than rebuilding the API servers without them; a
-	// daemon that never had them keeps reloading normally.
-	apiZefsUsersOK bool
-
 	// apiUsersLive returns the credentials valid right now (liveLocalUsers in
-	// main.go). The rebuilt API authenticator answers from it, exactly as the
-	// boot one does, so a reload that changes a listener cannot put the API
-	// back on a snapshot and revive a deleted account (AC-13,
-	// spec-fixit-web-auth-deleted-user-survives-reload).
+	// main.go). runReload installs the candidate tree in ConfigProvider before
+	// invoking listener reloaders, so this call resolves the candidate users.
+	// The rebuilt authenticator keeps the same closure for request-time reads,
+	// so later user removals cannot revive a stale account.
 	apiUsersLive func() ([]authz.UserConfig, error)
 }
 
@@ -77,14 +69,14 @@ type mgmtAuthInputs struct {
 // authentication without a handle, and an operator removing the API token was
 // told "grpc cannot change its authentication while running" by a daemon
 // running no gRPC server at all.
-func markMgmtAuth(lm *ListenerMigrator, classified map[string]bool) {
+func markMgmtAuth(lm *listenerMigrator, classified map[string]bool) {
 	// Map order is irrelevant: each name writes its own key.
 	for name, authenticated := range classified {
 		if authenticated {
 			lm.markAuthenticated(name)
 			continue
 		}
-		lm.MarkUnauthenticated(name)
+		lm.markUnauthenticated(name)
 	}
 }
 
@@ -95,7 +87,7 @@ func markMgmtAuth(lm *ListenerMigrator, classified map[string]bool) {
 // surface that the boot guard never declares (internal/component/lg/server.go),
 // so the reload guard has no record of it and leaves it alone, which is the
 // same answer boot gives.
-func registerMgmtAuthReloaders(lm *ListenerMigrator, in mgmtAuthInputs) {
+func registerMgmtAuthReloaders(lm *listenerMigrator, in mgmtAuthInputs) {
 	lm.setAuthReloader(svcWeb, webAuthReloader(in))
 	lm.setAuthReloader(svcMCP, mcpAuthReloader(in))
 
@@ -153,25 +145,18 @@ func apiAuthReloader(in mgmtAuthInputs) authReloader {
 			return authIntent{}, false, nil
 		}
 
+		if in.apiUsersLive == nil {
+			return authIntent{}, false, fmt.Errorf("resolve live API users: %w", errNoLiveConfigProvider)
+		}
+		users, err := in.apiUsersLive()
+		if err != nil {
+			return authIntent{}, false, fmt.Errorf("resolve live API users: %w", err)
+		}
+
 		token := cfg.Token
 		if token == "" {
 			token = in.apiTokenEnv
 		}
-
-		zefsUsers, err := loadZefsUsers()
-		if err != nil {
-			if in.apiZefsUsersOK {
-				// These credentials authenticated API callers when the daemon
-				// started. Rebuilding without them would silently drop every
-				// power user, so the reload fails closed instead.
-				return authIntent{}, false, fmt.Errorf("power-user credentials are no longer readable: %w", err)
-			}
-			zefsUsers = nil
-		}
-
-		// Config-file users authenticate alongside the power user, the same
-		// merge the boot path performs.
-		users := mergeAuthUsers(zefsUsers, infra.ExtractSSHConfig(tree).Users)
 		return authIntent{
 			authenticated: len(users) > 0 || token != "",
 			token:         token,

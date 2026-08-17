@@ -3,11 +3,11 @@
 // tracked_build COMPILES the repository as git holds it, which is the one
 // population no other check in this repository compiles.
 //
-// `make ze`, `make ze-precommit-verify`, `make ze-lint-changed` and the test targets all
+// `make ze-build`, `make ze-precommit-verify`, `make ze-lint-changed` and the test targets all
 // build and run the WORKING TREE, so they see uncommitted and untracked files.
 // A commit that lands a CONSUMER while its PRODUCER stays uncommitted is
 // therefore green for the session that wrote it and broken for anybody who
-// builds what git contains. On 2026-08-04 four commits broke `make ze` at HEAD
+// builds what git contains. On 2026-08-04 four commits broke `make ze-build` at HEAD
 // that way in one day (7abe8a07e, 025a74b72, aa1b7a4d4, fa372140b), each with
 // every gate green at the moment it was made.
 //
@@ -22,7 +22,7 @@
 // Usage:   CGO_ENABLED=0 go run scripts/checks/tracked_build.go [--rev=REV] [--repo=DIR]
 //                                                 [--keep] [--json] [--matrix]
 //                                                 [--selftest] [--package-floor=N] [--deadline=D]
-// Called by: make ze-tracked-build-check, and `make ze-precommit-verify` via
+// Called by: make ze-repository-tracked-build-check, and `make ze-precommit-verify` via
 //            stagesForMode() in scripts/status/verify_run.go.
 //
 //go:build ignore
@@ -98,7 +98,7 @@ var buildMatrix = []tagSet{
 		Features:    true,
 		Anchor:      "./cmd/ze",
 		AnchorFiles: []string{"ze_core_dispatch.go", "setup_features_distro.go"},
-		Why:         "bin/ze, the daemon `make ze` builds. All four 2026-08-04 breaks were here",
+		Why:         "bin/ze, the daemon `make ze-build` builds. All four 2026-08-04 breaks were here",
 	},
 	{
 		Name:        "test-runner",
@@ -402,7 +402,7 @@ func resolveRev(ctx context.Context, repo, rev string) (string, error) {
 
 // scratchTree returns an EMPTY directory to extract into, under this session's
 // scratch dir (scripts/dev/session-scratch.sh) so two concurrent sessions never
-// share one and `make ze-sessions-clean BEFORE=<date>` reclaims it with the rest
+// share one and `make ze-session-clean BEFORE=<date>` reclaims it with the rest
 // of that session. Nothing under tmp/session/ is removed automatically. Never
 // /tmp: a hook refuses it, and this repository keeps its scratch inside the
 // checkout on purpose.
@@ -833,7 +833,7 @@ func tagWhy(name string) string {
 func runSelftest() error {
 	// Under tmp/, never the system temp dir: this repository keeps its scratch
 	// inside the checkout so it is visible to the operator and covered by
-	// `make ze-tmp-clean`. No session sweep reclaims it; nothing is removed
+	// `make ze-scratch-clean`. No session sweep reclaims it; nothing is removed
 	// automatically any more.
 	if err := os.MkdirAll("tmp", 0o750); err != nil {
 		return fmt.Errorf("create tmp/: %w", err)

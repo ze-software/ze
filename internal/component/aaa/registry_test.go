@@ -26,7 +26,7 @@ func (s *stubBackend) Build(_ BuildParams) (Contribution, error) {
 // VALIDATES: AC-10 — duplicate registration is rejected.
 // PREVENTS: two backends claiming the same name and silently overwriting.
 func TestRegisterDuplicateName(t *testing.T) {
-	r := NewBackendRegistry()
+	r := NewBackendRegistryForTest()
 	require.NoError(t, r.Register(&stubBackend{name: "local"}))
 	err := r.Register(&stubBackend{name: "local"})
 	assert.Error(t, err, "duplicate name must be rejected")
@@ -36,7 +36,7 @@ func TestRegisterDuplicateName(t *testing.T) {
 // VALIDATES: empty backend name is rejected at Register.
 // PREVENTS: anonymous backends.
 func TestRegisterEmptyName(t *testing.T) {
-	r := NewBackendRegistry()
+	r := NewBackendRegistryForTest()
 	err := r.Register(&stubBackend{name: ""})
 	assert.Error(t, err)
 }
@@ -44,7 +44,7 @@ func TestRegisterEmptyName(t *testing.T) {
 // VALIDATES: Registry freezes after Build and refuses later Register calls.
 // PREVENTS: late registration bypassing the composed chain.
 func TestRegisterFrozenAfterBuild(t *testing.T) {
-	r := NewBackendRegistry()
+	r := NewBackendRegistryForTest()
 	require.NoError(t, r.Register(&stubBackend{name: "first", contrib: Contribution{Authenticator: &fakeBackend{}}}))
 
 	_, err := r.Build(BuildParams{})
@@ -58,7 +58,7 @@ func TestRegisterFrozenAfterBuild(t *testing.T) {
 // VALIDATES: priority ordering determines chain order.
 // PREVENTS: alphabetical ordering putting "local" before "tacacs".
 func TestRegistryPriorityOrder(t *testing.T) {
-	r := NewBackendRegistry()
+	r := NewBackendRegistryForTest()
 	// Register in reverse order; priority must win.
 	require.NoError(t, r.Register(&stubBackend{name: "local", priority: 200, contrib: Contribution{Authenticator: &fakeBackend{}}}))
 	require.NoError(t, r.Register(&stubBackend{name: "tacacs", priority: 100, contrib: Contribution{Authenticator: &fakeBackend{}}}))

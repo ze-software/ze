@@ -76,8 +76,8 @@ type toolOverlayData struct {
 
 // HandleRelatedToolRun returns the POST handler for /tools/related/run.
 // Callers wrap it in the same authentication middleware as the rest of the
-// workbench routes; the handler reads the username from the request
-// context (set by AuthMiddleware) and rejects requests without one.
+// workbench routes. The handler reads the username from the request context
+// and rejects requests without one.
 //
 // `tree` is the committed working tree used as a fallback. `mgr` provides
 // the per-user editor session tree when available; pass nil in tests that
@@ -255,9 +255,9 @@ func renderToolOverlay(w http.ResponseWriter, renderer *Renderer, data toolOverl
 }
 
 // RequireSameOrigin rejects authenticated mutating requests whose Origin or
-// Referer does not match the request host. It is intended to sit inside
-// AuthMiddleware so GetUsernameFromRequest is already populated; requests that
-// have not reached authentication yet are left to the next handler.
+// Referer does not match the request host. It is intended to sit inside the
+// authentication middleware so GetUsernameFromRequest is already populated.
+// Requests that have not reached authentication yet are left to the next handler.
 func RequireSameOrigin(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		username := GetUsernameFromRequest(r)

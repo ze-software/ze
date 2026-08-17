@@ -1,3 +1,5 @@
+// Design: docs/architecture/api/commands.md -- shared command dispatch contract
+
 // Unified command-result envelope and dispatcher.
 //
 // This file holds the single, shared command surface every user-facing entry

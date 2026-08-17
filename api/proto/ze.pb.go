@@ -7,12 +7,11 @@
 package zepb
 
 import (
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
-
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
 
 const (
@@ -269,7 +268,7 @@ type CommandInfo struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	Description   string                 `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
-	ReadOnly      bool                   `protobuf:"varint,3,opt,name=read_only,json=readOnly,proto3" json:"read_only,omitempty"`
+	ReadOnly      bool                   `protobuf:"varint,3,opt,name=read_only,json=read-only,proto3" json:"read-only,omitempty"`
 	Params        []*ParamInfo           `protobuf:"bytes,4,rep,name=params,proto3" json:"params,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -630,7 +629,7 @@ func (x *ConfigResponse) GetConfig() string {
 // SessionResponse carries a new session ID.
 type SessionResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=session-id,proto3" json:"session-id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -675,7 +674,7 @@ func (x *SessionResponse) GetSessionId() string {
 // ConfigSetRequest modifies a config path.
 type ConfigSetRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=session-id,proto3" json:"session-id,omitempty"`
 	Path          string                 `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
 	Value         string                 `protobuf:"bytes,3,opt,name=value,proto3" json:"value,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -789,7 +788,7 @@ func (x *ConfigSetResponse) GetMessage() string {
 // ConfigDeleteRequest removes a config path.
 type ConfigDeleteRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=session-id,proto3" json:"session-id,omitempty"`
 	Path          string                 `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -895,7 +894,7 @@ func (x *ConfigDeleteResponse) GetMessage() string {
 // SessionRequest identifies a session.
 type SessionRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=session-id,proto3" json:"session-id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -985,8 +984,8 @@ func (x *DiffResponse) GetDiff() string {
 // CommitRequest applies changes with an optional message.
 type CommitRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
-	CommitMsg     string                 `protobuf:"bytes,2,opt,name=commit_msg,json=commitMsg,proto3" json:"commit_msg,omitempty"`
+	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=session-id,proto3" json:"session-id,omitempty"`
+	CommitMsg     string                 `protobuf:"bytes,2,opt,name=commit_msg,json=commit-msg,proto3" json:"commit-msg,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1152,11 +1151,11 @@ const file_api_proto_ze_proto_rawDesc = "" +
 	"\x13ListCommandsRequest\x12\x16\n" +
 	"\x06prefix\x18\x01 \x01(\tR\x06prefix\"J\n" +
 	"\x14ListCommandsResponse\x122\n" +
-	"\bcommands\x18\x01 \x03(\v2\x16.ze.api.v1.CommandInfoR\bcommands\"\x8e\x01\n" +
+	"\bcommands\x18\x01 \x03(\v2\x16.ze.api.v1.CommandInfoR\bcommands\"\x8f\x01\n" +
 	"\vCommandInfo\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
-	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x1b\n" +
-	"\tread_only\x18\x03 \x01(\bR\breadOnly\x12,\n" +
+	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x1c\n" +
+	"\tread_only\x18\x03 \x01(\bR\tread-only\x12,\n" +
 	"\x06params\x18\x04 \x03(\v2\x14.ze.api.v1.ParamInfoR\x06params\"q\n" +
 	"\tParamInfo\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
@@ -1172,35 +1171,41 @@ const file_api_proto_ze_proto_rawDesc = "" +
 	"\x10CompleteResponse\x12 \n" +
 	"\vcompletions\x18\x01 \x03(\tR\vcompletions\"(\n" +
 	"\x0eConfigResponse\x12\x16\n" +
-	"\x06config\x18\x01 \x01(\tR\x06config\"0\n" +
-	"\x0fSessionResponse\x12\x1d\n" +
+	"\x06config\x18\x01 \x01(\tR\x06config\"1\n" +
+	"\x0fSessionResponse\x12\x1e\n" +
 	"\n" +
-	"session_id\x18\x01 \x01(\tR\tsessionId\"[\n" +
-	"\x10ConfigSetRequest\x12\x1d\n" +
+	"session_id\x18\x01 \x01(\tR\n" +
+	"session-id\"\\\n" +
+	"\x10ConfigSetRequest\x12\x1e\n" +
 	"\n" +
-	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x12\n" +
+	"session_id\x18\x01 \x01(\tR\n" +
+	"session-id\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\x12\x14\n" +
 	"\x05value\x18\x03 \x01(\tR\x05value\"G\n" +
 	"\x11ConfigSetResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage\"H\n" +
-	"\x13ConfigDeleteRequest\x12\x1d\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"I\n" +
+	"\x13ConfigDeleteRequest\x12\x1e\n" +
 	"\n" +
-	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x12\n" +
+	"session_id\x18\x01 \x01(\tR\n" +
+	"session-id\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\"J\n" +
 	"\x14ConfigDeleteResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage\"/\n" +
-	"\x0eSessionRequest\x12\x1d\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"0\n" +
+	"\x0eSessionRequest\x12\x1e\n" +
 	"\n" +
-	"session_id\x18\x01 \x01(\tR\tsessionId\"\"\n" +
+	"session_id\x18\x01 \x01(\tR\n" +
+	"session-id\"\"\n" +
 	"\fDiffResponse\x12\x12\n" +
-	"\x04diff\x18\x01 \x01(\tR\x04diff\"M\n" +
-	"\rCommitRequest\x12\x1d\n" +
+	"\x04diff\x18\x01 \x01(\tR\x04diff\"O\n" +
+	"\rCommitRequest\x12\x1e\n" +
 	"\n" +
-	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x1d\n" +
+	"session_id\x18\x01 \x01(\tR\n" +
+	"session-id\x12\x1e\n" +
 	"\n" +
-	"commit_msg\x18\x02 \x01(\tR\tcommitMsg\"D\n" +
+	"commit_msg\x18\x02 \x01(\tR\n" +
+	"commit-msg\"D\n" +
 	"\x0eCommitResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\"+\n" +

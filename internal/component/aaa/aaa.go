@@ -1,5 +1,5 @@
 // Design: ai/patterns/registration.md -- AAA registry (VFS-like)
-// Detail: types.go -- value types (AuthResult, Bundle, Contribution, ...) and BackendRegistry
+// Detail: types.go -- value types (AuthResult, Bundle, Contribution, ...) and the backend registry
 
 // Package aaa defines the pluggable AAA (Authentication, Authorization,
 // Accounting) backend layer. Backends self-register via init() and are

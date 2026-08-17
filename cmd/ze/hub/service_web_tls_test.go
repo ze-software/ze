@@ -239,11 +239,11 @@ func TestListenerMigratorUpdateWebCertificate(t *testing.T) {
 
 	t.Run("rotates the configured certificate", func(t *testing.T) {
 		fake := &fakeTLSUpdatable{}
-		lm := &ListenerMigrator{}
-		lm.SetWebTLS(fake)
+		lm := &listenerMigrator{}
+		lm.setWebTLS(fake)
 
-		if err := lm.UpdateWebCertificate("web-cert"); err != nil {
-			t.Fatalf("UpdateWebCertificate: %v", err)
+		if err := lm.updateWebCertificate("web-cert"); err != nil {
+			t.Fatalf("updateWebCertificate: %v", err)
 		}
 		if fake.calls != 1 {
 			t.Fatalf("seam called %d times, want 1", fake.calls)
@@ -255,10 +255,10 @@ func TestListenerMigratorUpdateWebCertificate(t *testing.T) {
 
 	t.Run("a broken reference is an error and rotates nothing", func(t *testing.T) {
 		fake := &fakeTLSUpdatable{}
-		lm := &ListenerMigrator{}
-		lm.SetWebTLS(fake)
+		lm := &listenerMigrator{}
+		lm.setWebTLS(fake)
 
-		if err := lm.UpdateWebCertificate("typo-cert"); err == nil {
+		if err := lm.updateWebCertificate("typo-cert"); err == nil {
 			t.Fatal("expected an error for an unresolvable reference")
 		}
 		if fake.calls != 0 {
@@ -268,11 +268,11 @@ func TestListenerMigratorUpdateWebCertificate(t *testing.T) {
 
 	t.Run("no certificate configured leaves the self-signed cert alone", func(t *testing.T) {
 		fake := &fakeTLSUpdatable{}
-		lm := &ListenerMigrator{}
-		lm.SetWebTLS(fake)
+		lm := &listenerMigrator{}
+		lm.setWebTLS(fake)
 
-		if err := lm.UpdateWebCertificate(""); err != nil {
-			t.Fatalf("UpdateWebCertificate: %v", err)
+		if err := lm.updateWebCertificate(""); err != nil {
+			t.Fatalf("updateWebCertificate: %v", err)
 		}
 		if fake.calls != 0 {
 			t.Fatal("an unset reference must not touch the served certificate")
@@ -280,18 +280,18 @@ func TestListenerMigratorUpdateWebCertificate(t *testing.T) {
 	})
 
 	t.Run("no web server running is not an error", func(t *testing.T) {
-		lm := &ListenerMigrator{}
-		if err := lm.UpdateWebCertificate("web-cert"); err != nil {
-			t.Fatalf("UpdateWebCertificate with no web server: %v", err)
+		lm := &listenerMigrator{}
+		if err := lm.updateWebCertificate("web-cert"); err != nil {
+			t.Fatalf("updateWebCertificate with no web server: %v", err)
 		}
 	})
 
 	t.Run("a refused rotation surfaces", func(t *testing.T) {
 		fake := &fakeTLSUpdatable{err: errors.New("refused")}
-		lm := &ListenerMigrator{}
-		lm.SetWebTLS(fake)
+		lm := &listenerMigrator{}
+		lm.setWebTLS(fake)
 
-		if err := lm.UpdateWebCertificate("web-cert"); err == nil {
+		if err := lm.updateWebCertificate("web-cert"); err == nil {
 			t.Fatal("a refused rotation must surface to the reload")
 		}
 	})

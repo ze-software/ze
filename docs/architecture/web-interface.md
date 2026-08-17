@@ -31,7 +31,7 @@ All source files in `internal/component/web/` reference this document via `// De
 | `related_resolver.go` | Placeholder substitution for `ze:related` command templates against the user's working tree |
 
 <!-- source: internal/component/web/server.go -- WebServer struct -->
-<!-- source: internal/component/web/auth.go -- SessionStore, AuthMiddleware -->
+<!-- source: internal/component/web/auth.go -- SessionStore, authMiddleware -->
 <!-- source: internal/component/web/fragment.go -- HandleFragment, FragmentData -->
 <!-- source: internal/component/web/editor.go -- EditorManager -->
 
@@ -61,7 +61,7 @@ A name ending in `_*` above is a family: every file carrying that prefix
 belongs to the line it sits on. Each other name is one file.
 
 `make generate` compiles each `.templ` into a `*_templ.go` beside it, and
-`make ze-templ-generate-check` refuses a source whose generated file is stale.
+`make ze-templ-output-check` refuses a source whose generated file is stale.
 
 Each input type is one file. `fieldInputFor` (`field_input.go`) reads the `fieldInputs` registry, which maps a YANG field type onto the component that edits it. A type nobody registered reaches the text editor by a named rule. No if/else chain in the markup.
 
@@ -100,13 +100,13 @@ Reuses SSH user database (`[]ssh.UserConfig`). Two mechanisms:
 | Session cookie (`ze-session`) | Browser access | Yes (on login) |
 | HTTP Basic Auth | JSON API requests | No |
 
-<!-- source: internal/component/web/auth.go -- AuthMiddleware, parseBasicAuth -->
+<!-- source: internal/component/web/auth.go -- authMiddleware, parseBasicAuth -->
 
 Session tokens: 32 bytes from `crypto/rand`, hex-encoded. Cookie: `Secure`, `HttpOnly`, `SameSite=Strict`. One session per user, 24h TTL.
 
-A session also ends when the running configuration stops declaring its user. The session records which backend authenticated it (`AuthResult.Source`), and `ValidateToken` re-checks a session the LOCAL backend granted against the credentials the running configuration declares right now, on every request. An operator removed by a reload loses an open browser tab at once, with no restart and no wait for the TTL. A session a remote backend granted (RADIUS, TACACS+) is not checked against the local list, because that list never granted it.
+A session also ends when the running configuration stops declaring its user. The session records which backend authenticated it (`AuthResult.Source`), and `validateToken` re-checks a session the LOCAL backend granted against the credentials the running configuration declares right now, on every request. An operator removed by a reload loses an open browser tab at once, with no restart and no wait for the TTL. A session a remote backend granted (RADIUS, TACACS+) is not checked against the local list, because that list never granted it.
 
-<!-- source: internal/component/web/auth.go -- SessionStore.ValidateToken, WebSession.LocalAnchored -->
+<!-- source: internal/component/web/auth.go -- SessionStore.validateToken, webSession -->
 <!-- source: cmd/ze/hub/main_servers.go -- liveLocalUsers, liveConfigUsers -->
 
 An SSE stream that is already open survives the removal until the client disconnects: it authenticates at connect and then blocks for the life of the connection, so no later request exists to refuse. Every mutation route is a fresh request and is refused.

@@ -74,7 +74,7 @@ BLOCKING only when the commit could plausibly affect build, tests, or generated 
 The pre-commit checklist's "write its spec, finish this commit, ask" branch, and its `plan/known-failures/` shard, are for **non-deterministic** failures only.
 **The general escape is owner-only: `--structural-red-ok "<reason>"`** (the
 ### Your Working Tree Is Not What You Committed (BLOCKING)
-**Nothing else in this repository COMPILES what git holds.** `make ze-build`,
+**Nothing else in this repository COMPILES what git holds.** `make ze`,
 `ze-precommit-verify`, `ze-lint-changed`, `ze-rfc-check` and every test target build and run your WORKING TREE, uncommitted and untracked files included.
 | Situation | Do |
 |-----------|-----|
@@ -139,7 +139,7 @@ time, when the work is finished and you are about to prepare the commit script.*
 | A `.ci` or `.et` test | its suite target: `make ze-functional-plugin-test`, `ze-functional-parse-test`, `ze-functional-encode-test`, `ze-functional-editor-test`, `ze-functional-web-test`. Draft first in `test/draft/` |
 | Linux-only code (`//go:build linux`) | `make ze-qemu-integration-test`, or `make ze-qemu-needs-linux-test` for a `needs-linux` `.ci` (`ai/rules/platform-linux.md`) |
 | `rfc/short/*.md`, an `RFC requirement:` tag, `rfc/extraction/*` | `make ze-rfc-check` |
-| `docs/**`, `ai/**`, `plan/**` | `make ze-doc-verify`, and `make ze-doc-wiring-check` for the changed-file gates |
+| `docs/**`, `ai/**`, `plan/**` | `make ze-doc-verify`, and `make ze-wiring-docs-check` for the changed-file gates |
 | `ai/rules/*.md` | `make ze-rules-condensed-update` then `make ze-rules-lint`, and commit all three digests with the rule |
 | A `*.yang` file or a `ze:command` | `make ze-doc-verify`, `make ze-cli-grammar-check` |
 | A plugin `register.go`, or anything generated | `make generate`, `make ze-plugin-imports-check` |

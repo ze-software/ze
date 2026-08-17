@@ -1,3 +1,5 @@
+// Design: docs/architecture/pki/tls-listeners.md -- hub PKI configuration parsing
+
 package hub
 
 import (

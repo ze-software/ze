@@ -3,72 +3,72 @@
 
 package config
 
-// TokenType represents the type of token.
-type TokenType int
+// tokenType represents the type of token.
+type tokenType int
 
 const (
-	TokenEOF TokenType = iota
-	TokenWord
-	TokenString
-	TokenLBrace
-	TokenRBrace
-	TokenLBracket
-	TokenRBracket
-	TokenLParen
-	TokenRParen
-	TokenSemicolon
+	tokenEOF tokenType = iota
+	tokenWord
+	tokenString
+	tokenLBrace
+	tokenRBrace
+	tokenLBracket
+	tokenRBracket
+	tokenLParen
+	tokenRParen
+	tokenSemicolon
 )
 
-func (t TokenType) String() string {
+func (t tokenType) String() string {
 	switch t {
-	case TokenEOF:
+	case tokenEOF:
 		return "EOF"
-	case TokenWord:
+	case tokenWord:
 		return "WORD"
-	case TokenString:
+	case tokenString:
 		return "STRING"
-	case TokenLBrace:
+	case tokenLBrace:
 		return "LBRACE"
-	case TokenRBrace:
+	case tokenRBrace:
 		return "RBRACE"
-	case TokenLBracket:
+	case tokenLBracket:
 		return "LBRACKET"
-	case TokenRBracket:
+	case tokenRBracket:
 		return "RBRACKET"
-	case TokenLParen:
+	case tokenLParen:
 		return "LPAREN"
-	case TokenRParen:
+	case tokenRParen:
 		return "RPAREN"
-	case TokenSemicolon:
+	case tokenSemicolon:
 		return "SEMICOLON"
 	default:
 		return "UNKNOWN"
 	}
 }
 
-// Token represents a lexical token.
-type Token struct {
-	Type  TokenType
-	Value string
-	Line  int
-	Col   int
+// token represents a lexical token.
+type token struct {
+	kind  tokenType
+	value string
+	line  int
+	col   int
 }
 
-// Tokenizer breaks input into tokens.
+// tokenizer breaks input into tokens.
 // Automatic semicolon insertion adds a synthetic semicolon at a newline or EOF,
 // or before a closing brace, after a value token (word, string, ], or )).
-type Tokenizer struct {
+type tokenizer struct {
 	input      string
 	pos        int
 	line       int
 	col        int
-	peeked     *Token
+	peeked     *token
 	insertSemi bool // next newline, EOF, or closing brace should produce a semicolon
 }
 
-// NewTokenizer creates a new tokenizer for the given input.
-func NewTokenizer(input string) *Tokenizer {
-	return &Tokenizer{
+// newTokenizer creates a new tokenizer for the given input.
+func newTokenizer(input string) *tokenizer {
+	return &tokenizer{
 		input: input,
 		pos:   0,
 		line:  1,
@@ -76,44 +76,44 @@ func NewTokenizer(input string) *Tokenizer {
 	}
 }
 
-// Peek returns the next token without consuming it.
-func (t *Tokenizer) Peek() Token {
+// peek returns the next token without consuming it.
+func (t *tokenizer) peek() token {
 	if t.peeked != nil {
 		return *t.peeked
 	}
-	tok := t.Next()
+	tok := t.next()
 	t.peeked = &tok
 	return tok
 }
 
-// Next returns the next token and advances the tokenizer.
-func (t *Tokenizer) Next() Token {
-	var tok Token
+// next returns the next token and advances the tokenizer.
+func (t *tokenizer) next() token {
+	var tok token
 	if t.peeked != nil {
 		tok = *t.peeked
 		t.peeked = nil
 	} else {
 		tok = t.scan()
 	}
-	// Automatic semicolon insertion: value tokens cause the next newline, EOF, or closing brace to produce a semicolon.
-	t.insertSemi = tok.Type == TokenWord || tok.Type == TokenString ||
-		tok.Type == TokenRBracket || tok.Type == TokenRParen
+	// Automatic semicolon insertion is armed only by value tokens.
+	t.insertSemi = tok.kind == tokenWord || tok.kind == tokenString ||
+		tok.kind == tokenRBracket || tok.kind == tokenRParen
 	return tok
 }
 
 // scan produces the next raw token, including synthetic semicolons.
-func (t *Tokenizer) scan() Token {
+func (t *tokenizer) scan() token {
 	semiLine, semiCol := t.line, t.col
 	newlineSeen := t.skipWhitespaceAndComments()
 
 	if t.insertSemi && (newlineSeen ||
 		t.pos >= len(t.input) ||
 		(t.pos < len(t.input) && t.input[t.pos] == '}')) {
-		return Token{Type: TokenSemicolon, Value: ";", Line: semiLine, Col: semiCol}
+		return token{kind: tokenSemicolon, value: ";", line: semiLine, col: semiCol}
 	}
 
 	if t.pos >= len(t.input) {
-		return Token{Type: TokenEOF, Line: t.line, Col: t.col}
+		return token{kind: tokenEOF, line: t.line, col: t.col}
 	}
 
 	ch := t.input[t.pos]
@@ -122,38 +122,38 @@ func (t *Tokenizer) scan() Token {
 	switch ch {
 	case '{':
 		t.advance()
-		return Token{Type: TokenLBrace, Value: "{", Line: startLine, Col: startCol}
+		return token{kind: tokenLBrace, value: "{", line: startLine, col: startCol}
 	case '}':
 		t.advance()
-		return Token{Type: TokenRBrace, Value: "}", Line: startLine, Col: startCol}
+		return token{kind: tokenRBrace, value: "}", line: startLine, col: startCol}
 	case '[':
 		t.advance()
-		return Token{Type: TokenLBracket, Value: "[", Line: startLine, Col: startCol}
+		return token{kind: tokenLBracket, value: "[", line: startLine, col: startCol}
 	case ']':
 		t.advance()
-		return Token{Type: TokenRBracket, Value: "]", Line: startLine, Col: startCol}
+		return token{kind: tokenRBracket, value: "]", line: startLine, col: startCol}
 	case '(':
 		t.advance()
-		return Token{Type: TokenLParen, Value: "(", Line: startLine, Col: startCol}
+		return token{kind: tokenLParen, value: "(", line: startLine, col: startCol}
 	case ')':
 		t.advance()
-		return Token{Type: TokenRParen, Value: ")", Line: startLine, Col: startCol}
+		return token{kind: tokenRParen, value: ")", line: startLine, col: startCol}
 	case ';':
 		t.advance()
-		return Token{Type: TokenSemicolon, Value: ";", Line: startLine, Col: startCol}
+		return token{kind: tokenSemicolon, value: ";", line: startLine, col: startCol}
 	case '"', '\'':
 		return t.readString(ch, startLine, startCol)
 	}
 	return t.readWord(startLine, startCol)
 }
 
-// All returns all tokens.
-func (t *Tokenizer) All() []Token {
-	var tokens []Token
+// all returns all tokens.
+func (t *tokenizer) all() []token {
+	var tokens []token
 	for {
-		tok := t.Next()
+		tok := t.next()
 		tokens = append(tokens, tok)
-		if tok.Type == TokenEOF {
+		if tok.kind == tokenEOF {
 			break
 		}
 	}
@@ -161,7 +161,7 @@ func (t *Tokenizer) All() []Token {
 }
 
 // advance moves to the next character.
-func (t *Tokenizer) advance() {
+func (t *tokenizer) advance() {
 	if t.pos < len(t.input) {
 		if t.input[t.pos] == '\n' {
 			t.line++
@@ -175,7 +175,7 @@ func (t *Tokenizer) advance() {
 
 // skipWhitespaceAndComments skips whitespace and # comments.
 // Returns true if a newline was crossed (used for auto-semicolon insertion).
-func (t *Tokenizer) skipWhitespaceAndComments() bool {
+func (t *tokenizer) skipWhitespaceAndComments() bool {
 	newlineSeen := false
 	for t.pos < len(t.input) {
 		ch := t.input[t.pos]
@@ -205,7 +205,7 @@ func (t *Tokenizer) skipWhitespaceAndComments() bool {
 }
 
 // readString reads a quoted string.
-func (t *Tokenizer) readString(quote byte, startLine, startCol int) Token {
+func (t *tokenizer) readString(quote byte, startLine, startCol int) token {
 	t.advance() // skip opening quote
 
 	var value []byte
@@ -240,11 +240,11 @@ func (t *Tokenizer) readString(quote byte, startLine, startCol int) Token {
 		t.advance()
 	}
 
-	return Token{Type: TokenString, Value: string(value), Line: startLine, Col: startCol}
+	return token{kind: tokenString, value: string(value), line: startLine, col: startCol}
 }
 
 // readWord reads an unquoted word.
-func (t *Tokenizer) readWord(startLine, startCol int) Token {
+func (t *tokenizer) readWord(startLine, startCol int) token {
 	start := t.pos
 
 	for t.pos < len(t.input) {
@@ -257,5 +257,5 @@ func (t *Tokenizer) readWord(startLine, startCol int) Token {
 		t.advance()
 	}
 
-	return Token{Type: TokenWord, Value: t.input[start:t.pos], Line: startLine, Col: startCol}
+	return token{kind: tokenWord, value: t.input[start:t.pos], line: startLine, col: startCol}
 }

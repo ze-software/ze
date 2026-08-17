@@ -5,7 +5,7 @@
 # unauthenticated GET is served. The reloaded config adds a token and changes no
 # listen address, which is the case the old code could not see at all: the
 # change set was built from addresses alone, an auth-only edit produced no
-# change, and ReloadListeners returned nil having logged nothing.
+# change, and reloadListeners returned nil having logged nothing.
 # PREVENTS: an operator turning authentication on, seeing a clean reload, and
 # being served by a listener that still gates nothing until the daemon restarts.
 #

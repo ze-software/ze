@@ -20,7 +20,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-# The weakened-test gate. `make ze-weakened-check` and the edit-time hook run the
+# The weakened-test gate. `make ze-test-weakened-check` and the edit-time hook run the
 # same module, and this file imports it rather than judging a diff itself: two
 # spellings of "what does this change weaken" give two gates two answers about
 # one edit, which is the drift scripts/dev/rfc_tagged_scope.py records.
@@ -965,7 +965,7 @@ def verify_status(repo: Path) -> tuple[str, str]:
 # the tree is structurally broken -- a module-tier misplacement, a lint or vet
 # violation, a broken plugin boundary, an unresolved iface, a failed feature-tag
 # type-check, a stale generated file, a stale wiring index, or a HEAD that does
-# not compile (ze-tracked-build-check). They are therefore NOT eligible to be parked
+# not compile (ze-repository-tracked-build-check). They are therefore NOT eligible to be parked
 # in plan/known-failures/
 # or waved through with --unverified. Every name here MUST be a stage that
 # stagesForMode actually emits, or it matches nothing and gates nothing;
@@ -974,7 +974,7 @@ def verify_status(repo: Path) -> tuple[str, str]:
 # See ai/rules/git-safety.md.
 # The stage whose red is cleared BY a commit rather than before one, because it
 # judges what git already holds. See the escape in create().
-TRACKED_BUILD_GATE = "ze-tracked-build-check"
+TRACKED_BUILD_GATE = "ze-repository-tracked-build-check"
 
 STRUCTURAL_GATES = frozenset(
     {
@@ -984,7 +984,7 @@ STRUCTURAL_GATES = frozenset(
         "ze-iface-resolution-check",
         "ze-plugin-boundary-check",
         "ze-generated-files-check",
-        "ze-wiring-docs-check",
+        "ze-doc-wiring-check",
         "ze-evidence-vet",
         "ze-staticcheck-feature-matrix-check",
         TRACKED_BUILD_GATE,
@@ -1247,7 +1247,7 @@ def _sweep_stale_commit_views(repo: Path) -> None:
     these directories also collects them, with no harness required. No session
     hook could do it anyway: nothing under tmp/session/ is ever swept, and these
     trees are not under it -- they sit at the tmp/ root, which only the
-    operator's own `make ze-tmp-clean` reaps.
+    operator's own `make ze-scratch-clean` reaps.
 
     One day old, so a concurrent session's LIVE view (which lasts seconds) can
     never be in scope.
@@ -2791,7 +2791,7 @@ def _create(args: argparse.Namespace, repo: Path, session: str, tag: str) -> int
         # misplaced-tier gate (routeinstall) be parked as "pre-existing" and
         # shipped red on main. See ai/rules/git-safety.md.
         gate_reds = structural_gate_reds(repo)
-        # ze-tracked-build-check is the one structural gate whose red lives in
+        # ze-repository-tracked-build-check is the one structural gate whose red lives in
         # HEAD rather than in the working tree, so it is NOT cleared before the
         # next commit -- it is cleared BY it, by landing the producer that was
         # left behind. Refusing every commit until it goes green is a deadlock:
@@ -2807,7 +2807,7 @@ def _create(args: argparse.Namespace, repo: Path, session: str, tag: str) -> int
                 + TRACKED_BUILD_GATE
                 + " is red).\n  This commit is declared to be the fix: "
                 + args.broken_head_fix.strip()
-                + "\n  Run `make ze-tracked-build-check` after the script and confirm it is"
+                + "\n  Run `make ze-repository-tracked-build-check` after the script and confirm it is"
                 " green.\n  If it is not, HEAD is still broken for everybody who builds it.",
                 file=sys.stderr,
             )
@@ -3073,7 +3073,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     create_cmd.add_argument(
         "--broken-head-fix",
-        help="reason to allow a commit while ze-tracked-build-check is red, i.e. "
+        help="reason to allow a commit while ze-repository-tracked-build-check is red, i.e. "
         "HEAD itself does not compile. Use when THIS commit lands the producer a "
         "previous commit left behind. Accepted only when tracked-build is the ONLY "
         "structural red, so it can never wave through a lint, tier or wiring failure. "

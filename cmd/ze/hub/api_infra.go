@@ -152,7 +152,7 @@ type apiShared struct {
 }
 
 // apiServerHandle is one built transport: the running server as Reconfigurable
-// (so the always-on ListenerMigrator drives it without naming a server type)
+// (so the always-on listenerMigrator drives it without naming a server type)
 // plus its shutdown. A zero handle (nil Server) means the transport was not
 // enabled in config.
 type apiServerHandle struct {

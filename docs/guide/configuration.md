@@ -14,9 +14,9 @@ Ze uses a JUNOS-like hierarchical configuration format.
 | Comments | `#` to end of line | `# this is a comment` |
 | Lists | `[ item1 item2 ]` | `receive [ update state ]` |
 | Strings | Unquoted or `"double quoted"` | `run "/usr/bin/my-plugin"` |
-| Terminators | `;` or automatic after a value token at a newline, EOF, or before `}`. Both `edit { default-action deny }` and `edit { default-action deny;}` work. |
-<!-- source: internal/component/config/tokenizer.go -- Tokenizer.scan -->
+| Terminators | `;`, or automatic after a value token at a newline, EOF, or before `}` | Both `edit { default-action deny }` and `edit { default-action deny;}` work |
 | Inline blocks | `name { key value; key value; }` | `remote { ip 10.0.0.1; as 65001; }` |
+<!-- source: internal/component/config/tokenizer.go -- tokenizer.scan -->
 
 Indentation is not significant. Unknown keys are rejected with a suggestion for the closest valid key.
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- BGP config YANG schema; internal/component/bgp/config/resolve.go -- ResolveBGPTree -->
@@ -2569,7 +2569,7 @@ An external geodns plugin process cannot read the in-process store: a
 
 <!-- source: internal/component/pki/tls.go -- ServerTLSMaterial, CheckCertReference -->
 <!-- source: cmd/ze/hub/service_web.go -- webTLSMaterial (fail-closed selection) -->
-<!-- source: cmd/ze/hub/listener_migrate.go -- UpdateWebCertificate (rotation seam) -->
+<!-- source: cmd/ze/hub/listener_migrate.go -- updateWebCertificate (rotation seam) -->
 <!-- source: internal/core/dnsserver/secure.go -- SecureConfig.Certificate, buildSecureTLS resolver branch -->
 
 ### Named Listeners

@@ -46,7 +46,7 @@ const featureGatesFile = "feature-gates.txt"
 // the provision plugin (install remote) and appliance tooling. zetest adds
 // test-only plugins on top. The default-on per-feature compile-out tags
 // (ze_lg, ze_ssh, ze_web, ...) are read from feature-gates.txt so the
-// functional-test ze binary exercises the same feature set as `make ze`
+// functional-test ze binary exercises the same feature set as `make ze-build`
 // (ZE_FEATURES) without a hand-maintained list. See plan/spec-feature-gate-0-umbrella.md.
 func TestBuildTags() string {
 	tags := zeTagsFromEnv()
@@ -55,7 +55,7 @@ func TestBuildTags() string {
 	return textbuf.Join(tags, ",")
 }
 
-// TestHelperBuildTags returns the tags for the ze-test helper binary, mirroring
+// testHelperBuildTags returns the tags for the ze-test helper binary, mirroring
 // the Makefile's `ze_test $(ZE_FEATURES) $(ZE_TAGS)`.
 //
 // The feature-gate tags are NOT optional decoration here. ze-test links the
@@ -70,7 +70,7 @@ func TestBuildTags() string {
 // flowexport-external-refuses waited out their await=stderr fence for a refusal
 // that no process was ever alive to emit. Two build recipes for one binary is
 // what drifted; both now derive their feature set from feature-gates.txt.
-func TestHelperBuildTags() string {
+func testHelperBuildTags() string {
 	tags := append([]string{"ze_test"}, featureGateTags()...)
 	tags = append(tags, zeTagsFromEnv()...)
 	return textbuf.Join(tags, ",")
@@ -181,7 +181,7 @@ func NewRunner(tests *EncodingTests, baseDir string) (*Runner, error) {
 	// are attributable and go with that session's directory when the operator
 	// removes it, instead of accumulating as unowned $TMPDIR/ze-functional-*
 	// dirs. They do not "die with the session": nothing under tmp/session/ is
-	// removed automatically, and `make ze-sessions-clean BEFORE=<YYYY-MM-DD>` is
+	// removed automatically, and `make ze-session-clean BEFORE=<YYYY-MM-DD>` is
 	// the route. EnsureScratchRoot returns "" when no
 	// session is active, which is exactly what MkdirTemp reads as "use the
 	// system temp dir" -- so a human or CI run is unchanged.
@@ -342,7 +342,7 @@ func (r *Runner) Build(ctx context.Context) error {
 	}
 
 	// Build ze-test (provides peer subcommand, and plugin-external's registry)
-	cmd = exec.CommandContext(ctx, "go", "build", "-tags", TestHelperBuildTags(), "-o", r.testPath, "./cmd/ze") //nolint:gosec // paths from internal runner
+	cmd = exec.CommandContext(ctx, "go", "build", "-tags", testHelperBuildTags(), "-o", r.testPath, "./cmd/ze") //nolint:gosec // paths from internal runner
 	cmd.Dir = r.baseDir
 	cmd.Env = childEnv("CGO_ENABLED=0")
 	if output, err := cmd.CombinedOutput(); err != nil {
@@ -386,7 +386,7 @@ func (r *Runner) verifyPrebuilt() error {
 	// Session scoping exists to stop one session's BUILD overwriting another's
 	// binary; reading a binary someone already built clobbers nothing. So when
 	// the session's own bin/ holds nothing, accept a pre-built set from the
-	// shared bin/ -- that is where `make ze` off-session and every cross-compile
+	// shared bin/ -- that is where `make ze-build` off-session and every cross-compile
 	// put it, and reporting it "missing" would break ZE_TEST_NO_BUILD for anyone
 	// who did exactly what the flag asks.
 	//

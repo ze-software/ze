@@ -35,7 +35,7 @@ func TestParallelRunnerFailureLinesAppearWithoutVerboseWhenVerifyMode(t *testing
 			t.Fatalf("unexpected callback error: %v", err)
 		}
 	})
-	r.AddTest("broken-test", "fixture", func(context.Context, string) (bool, error) {
+	r.addTestWithoutNick("broken-test", "fixture", func(context.Context, string) (bool, error) {
 		return false, errors.New("broken")
 	})
 	if r.Run(context.Background()) {
@@ -77,7 +77,7 @@ func TestParallelRunnerHonorsConfiguredConcurrency(t *testing.T) {
 
 	for i := range totalTests {
 		name := fmt.Sprintf("test-%d", i)
-		r.AddTest(name, name, func(_ context.Context, _ string) (bool, error) {
+		r.addTestWithoutNick(name, name, func(_ context.Context, _ string) (bool, error) {
 			mu.Lock()
 			current++
 			if current > peak {
@@ -126,7 +126,7 @@ func TestParallelRunnerDefaultConcurrency(t *testing.T) {
 	r.SetQuiet(true)
 
 	ran := false
-	r.AddTest("single", "x", func(_ context.Context, _ string) (bool, error) {
+	r.addTestWithoutNick("single", "x", func(_ context.Context, _ string) (bool, error) {
 		ran = true
 		return true, nil
 	})
@@ -242,7 +242,7 @@ func TestParallelRunnerSetStatusInterval(t *testing.T) {
 	r.SetLabel("interval")
 	r.SetQuiet(true)
 
-	r.AddTest("fast", "x", func(_ context.Context, _ string) (bool, error) {
+	r.addTestWithoutNick("fast", "x", func(_ context.Context, _ string) (bool, error) {
 		return true, nil
 	})
 	if !r.Run(context.Background()) {
@@ -263,7 +263,7 @@ func TestParallelRunnerOnReportCalledOnFailure(t *testing.T) {
 	r.setDisplay(display)
 	r.SetLabel("report-hook")
 
-	r.AddTest("failing", "data", func(_ context.Context, _ string) (bool, error) {
+	r.addTestWithoutNick("failing", "data", func(_ context.Context, _ string) (bool, error) {
 		return false, errors.New("boom")
 	})
 
@@ -293,7 +293,7 @@ func TestParallelRunnerOnReportNotCalledOnSuccess(t *testing.T) {
 	r.SetLabel("report-ok")
 	r.SetQuiet(true)
 
-	r.AddTest("passing", "data", func(_ context.Context, _ string) (bool, error) {
+	r.addTestWithoutNick("passing", "data", func(_ context.Context, _ string) (bool, error) {
 		return true, nil
 	})
 
@@ -328,7 +328,7 @@ func TestParallelRunnerVerifyModeEmitsBothGroupsAndReport(t *testing.T) {
 	display.SetQuiet(true)
 	r.setDisplay(display)
 
-	r.AddTest("broken", "fixture", func(context.Context, string) (bool, error) {
+	r.addTestWithoutNick("broken", "fixture", func(context.Context, string) (bool, error) {
 		return false, errors.New("broken")
 	})
 
@@ -370,7 +370,7 @@ func TestParallelRunnerQuietSuppressesReports(t *testing.T) {
 	display.SetQuiet(true)
 	r.setDisplay(display)
 
-	r.AddTest("broken", "fixture", func(context.Context, string) (bool, error) {
+	r.addTestWithoutNick("broken", "fixture", func(context.Context, string) (bool, error) {
 		return false, errors.New("broken")
 	})
 
@@ -439,7 +439,7 @@ func TestParallelRunnerExclusiveGroupNeverOverlaps(t *testing.T) {
 
 	for i := range members {
 		name := fmt.Sprintf("excl-%d", i)
-		rec := r.AddTest(name, name, func(_ context.Context, _ string) (bool, error) {
+		rec := r.addTestWithoutNick(name, name, func(_ context.Context, _ string) (bool, error) {
 			select {
 			case inside <- struct{}{}:
 			default:
@@ -490,7 +490,7 @@ func TestParallelRunnerExclusiveGroupDoesNotSerializeOthers(t *testing.T) {
 	outsiderIn := make(chan struct{})
 	const rendezvous = 10 * time.Second
 
-	rec := r.AddTest("member", "member", func(_ context.Context, _ string) (bool, error) {
+	rec := r.addTestWithoutNick("member", "member", func(_ context.Context, _ string) (bool, error) {
 		close(memberIn)
 		select {
 		case <-outsiderIn:
@@ -501,7 +501,7 @@ func TestParallelRunnerExclusiveGroupDoesNotSerializeOthers(t *testing.T) {
 	})
 	rec.ExclusiveGroup = "flood"
 
-	r.AddTest("outsider", "outsider", func(_ context.Context, _ string) (bool, error) {
+	r.addTestWithoutNick("outsider", "outsider", func(_ context.Context, _ string) (bool, error) {
 		select {
 		case <-memberIn:
 			close(outsiderIn)

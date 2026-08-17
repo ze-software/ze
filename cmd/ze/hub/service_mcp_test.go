@@ -26,14 +26,14 @@ import (
 )
 
 // TestServiceRegistry_BuildsMCP proves the hub builds MCP via the construction
-// registry's factory (buildMCPService) from generic ServiceDeps -- the server
+// registry's factory (buildMCPService) from generic serviceDeps -- the server
 // binds and reports an "mcp"-named, Reconfigurable service, with no direct
 // startMCPServer call from always-on code.
 func TestServiceRegistry_BuildsMCP(t *testing.T) {
 	port := allocEphemeralPorts(t, 1)[0]
 	addr := fmt.Sprintf("127.0.0.1:%d", port)
 
-	svc, err := buildMCPService(ServiceDeps{
+	svc, err := buildMCPService(serviceDeps{
 		MCP: &mcpServiceDeps{
 			Addrs: []string{addr},
 			Dispatch: func(_ context.Context, _ plugin.CallerIdentity, _ string) (*plugin.Response, error) {
@@ -60,12 +60,12 @@ func TestServiceRegistry_BuildsMCP(t *testing.T) {
 // config as a skip (nil service, nil error), not a failure.
 func TestBuildMCPService_NotConfigured(t *testing.T) {
 	// Nil MCP deps -> skip.
-	svc, err := buildMCPService(ServiceDeps{})
+	svc, err := buildMCPService(serviceDeps{})
 	require.NoError(t, err)
 	require.Nil(t, svc, "nil MCP deps must skip")
 
 	// No listen addresses -> skip.
-	svc, err = buildMCPService(ServiceDeps{MCP: &mcpServiceDeps{
+	svc, err = buildMCPService(serviceDeps{MCP: &mcpServiceDeps{
 		Dispatch: func(context.Context, plugin.CallerIdentity, string) (*plugin.Response, error) {
 			return plugin.NewResponse(plugin.StatusDone, nil), nil
 		},

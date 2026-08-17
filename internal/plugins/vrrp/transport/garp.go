@@ -18,9 +18,9 @@ const GARPFrameLen = 42
 // broadcastMAC is the Ethernet broadcast destination for a gratuitous ARP.
 var broadcastMAC = [6]byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
 
-// BuildGARP writes the 42-byte gratuitous-ARP request that announces vip owned by
+// buildGARP writes the 42-byte gratuitous-ARP request that announces vip owned by
 // virtualMAC into buf and returns the number of bytes written (GARPFrameLen). The
-// caller MUST provide a buffer of at least GARPFrameLen bytes; BuildGARP indexes
+// caller MUST provide a buffer of at least GARPFrameLen bytes; buildGARP indexes
 // directly (buffer-first). Both the Ethernet source and the ARP sha/tha carry the
 // Virtual Router MAC:
 //
@@ -29,7 +29,7 @@ var broadcastMAC = [6]byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
 //	RFC 9568 errata 7947/7949: the gratuitous ARP carries the virtual IPv4 address,
 //	with the Virtual Router MAC as the Target Link-Layer address (sha == tha ==
 //	virtual MAC; supersedes the earlier zero-tha reading, orchestrator D-E).
-func BuildGARP(buf []byte, virtualMAC [6]byte, vip [4]byte) int {
+func buildGARP(buf []byte, virtualMAC [6]byte, vip [4]byte) int {
 	// Ethernet header: broadcast destination, virtual-MAC source, EtherType ARP
 	// (0x0806, RFC 7042 Section 2.3.1).
 	copy(buf[0:6], broadcastMAC[:])

@@ -1,4 +1,4 @@
-// Code generated from /etc/services; DO NOT EDIT.
+// Design: docs/architecture/core-design.md -- IANA service-name lookup table
 
 package portname
 
@@ -9,7 +9,7 @@ type serviceKey struct {
 }
 
 // services maps (port, proto) to the IANA service name.
-// Generated from /etc/services. For ports where TCP and UDP share
+// Derived from /etc/services. For ports where TCP and UDP share
 // the same name, both entries are present.
 var services = map[serviceKey]string{
 	{1, 6}:      "tcpmux",

@@ -113,20 +113,23 @@ type Process struct {
 	eventClosed bool
 	eventMu     sync.RWMutex
 
-	ctx         context.Context
-	cancel      context.CancelFunc
-	wg          sync.WaitGroup
-	mu          sync.Mutex
-	cleanupOnce sync.Once // ensures connection cleanup runs exactly once
+	ctx                context.Context
+	cancel             context.CancelFunc
+	wg                 sync.WaitGroup
+	mu                 sync.Mutex
+	cleanupOnce        sync.Once // ensures connection cleanup runs exactly once
+	runtimeCleanupOnce sync.Once // ensures server runtime cleanup runs exactly once
+	runtimeCleanupDone chan struct{}
 }
 
 // NewProcess creates a new process with the given configuration.
 func NewProcess(config plugin.PluginConfig) *Process {
 	return &Process{
-		config:       config,
-		registration: &plugin.PluginRegistration{},
-		capabilities: &plugin.PluginCapabilities{},
-		stageCh:      make(chan struct{}),
+		config:             config,
+		registration:       &plugin.PluginRegistration{},
+		capabilities:       &plugin.PluginCapabilities{},
+		stageCh:            make(chan struct{}),
+		runtimeCleanupDone: make(chan struct{}),
 	}
 }
 
@@ -279,9 +282,9 @@ func (p *Process) InitConns() error {
 	return nil
 }
 
-// SyncEnabled returns true if sync mode is enabled for this process.
+// isSyncEnabled returns true if sync mode is enabled for this process.
 // When enabled, announce/withdraw waits for wire transmission before ACK.
-func (p *Process) SyncEnabled() bool {
+func (p *Process) isSyncEnabled() bool {
 	return p.syncEnabled.Load()
 }
 
@@ -301,30 +304,30 @@ func (p *Process) SetCacheConsumer(enabled bool) {
 	p.cacheConsumer.Store(enabled)
 }
 
-// WireEncodingIn returns the inbound wire encoding (events ze→Process).
-func (p *Process) WireEncodingIn() plugin.WireEncoding {
+// inboundWireEncoding returns the inbound wire encoding (events ze→Process).
+func (p *Process) inboundWireEncoding() plugin.WireEncoding {
 	// Safe: only values 0-3 are ever stored (WireEncodingHex..WireEncodingText).
 	return plugin.WireEncoding(p.wireEncodingIn.Load()) //nolint:gosec // Bounded to 0-3
 }
 
-// WireEncodingOut returns the outbound wire encoding (commands Process→ze).
-func (p *Process) WireEncodingOut() plugin.WireEncoding {
+// outboundWireEncoding returns the outbound wire encoding (commands Process→ze).
+func (p *Process) outboundWireEncoding() plugin.WireEncoding {
 	// Safe: only values 0-3 are ever stored (WireEncodingHex..WireEncodingText).
 	return plugin.WireEncoding(p.wireEncodingOut.Load()) //nolint:gosec // Bounded to 0-3
 }
 
-// SetWireEncodingIn sets the inbound wire encoding.
-func (p *Process) SetWireEncodingIn(enc plugin.WireEncoding) {
+// setWireEncodingIn sets the inbound wire encoding.
+func (p *Process) setWireEncodingIn(enc plugin.WireEncoding) {
 	p.wireEncodingIn.Store(uint32(enc))
 }
 
-// SetWireEncodingOut sets the outbound wire encoding.
-func (p *Process) SetWireEncodingOut(enc plugin.WireEncoding) {
+// setWireEncodingOut sets the outbound wire encoding.
+func (p *Process) setWireEncodingOut(enc plugin.WireEncoding) {
 	p.wireEncodingOut.Store(uint32(enc))
 }
 
-// SetWireEncoding sets both inbound and outbound wire encoding.
-func (p *Process) SetWireEncoding(enc plugin.WireEncoding) {
+// setWireEncoding sets both inbound and outbound wire encoding.
+func (p *Process) setWireEncoding(enc plugin.WireEncoding) {
 	p.wireEncodingIn.Store(uint32(enc))
 	p.wireEncodingOut.Store(uint32(enc))
 }
@@ -401,15 +404,15 @@ func (p *Process) recomputeFormatCacheKey() {
 	p.formatCacheKey.Store(p.Format() + "+" + p.Encoding())
 }
 
-// AddRegisteredCommand tracks a command registered by this process.
-func (p *Process) AddRegisteredCommand(name string) {
+// addRegisteredCommand tracks a command registered by this process.
+func (p *Process) addRegisteredCommand(name string) {
 	p.registeredMu.Lock()
 	defer p.registeredMu.Unlock()
 	p.registeredCommands = append(p.registeredCommands, name)
 }
 
-// RemoveRegisteredCommand removes a command from tracking.
-func (p *Process) RemoveRegisteredCommand(name string) {
+// removeRegisteredCommand removes a command from tracking.
+func (p *Process) removeRegisteredCommand(name string) {
 	p.registeredMu.Lock()
 	defer p.registeredMu.Unlock()
 	for i, cmd := range p.registeredCommands {
@@ -477,8 +480,34 @@ func (p *Process) SetRunning(running bool) {
 	p.running.Store(running)
 }
 
-// CloseConn closes and nils the RPC connection under the mutex.
-func (p *Process) CloseConn() {
+// Done closes when Stop cancels this process.
+// It returns nil before Start initializes the process context.
+func (p *Process) Done() <-chan struct{} {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.ctx == nil {
+		return nil
+	}
+	return p.ctx.Done()
+}
+
+// RunRuntimeCleanupOnce runs cleanup at most once for this process generation.
+// It is safe for concurrent use.
+func (p *Process) RunRuntimeCleanupOnce(cleanup func()) {
+	p.runtimeCleanupOnce.Do(func() {
+		defer close(p.runtimeCleanupDone)
+		cleanup()
+	})
+}
+
+// WaitRuntimeCleanup waits until server runtime cleanup completes.
+// Caller MUST stop a running process before it calls WaitRuntimeCleanup.
+func (p *Process) WaitRuntimeCleanup() {
+	<-p.runtimeCleanupDone
+}
+
+// CloseConnForTest closes and nils the RPC connection under the mutex.
+func (p *Process) CloseConnForTest() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if p.conn != nil {
@@ -487,9 +516,9 @@ func (p *Process) CloseConn() {
 	}
 }
 
-// ClearConn nils the connection pointer without closing the underlying connection.
+// ClearConnForTest nils the connection pointer without closing the underlying connection.
 // Used in tests to simulate a process dying between verify and apply phases.
-func (p *Process) ClearConn() {
+func (p *Process) ClearConnForTest() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.conn = nil
@@ -853,6 +882,9 @@ func isPanicStart(line string) bool {
 // For internal plugins, closing RPC connections unblocks the plugin's reads and causes it to exit.
 // Callers MUST call Wait after Stop to ensure all goroutines have exited.
 func (p *Process) Stop() {
+	if p.bridge != nil {
+		p.bridge.StopDispatch()
+	}
 	if p.cancel != nil {
 		p.cancel()
 	}

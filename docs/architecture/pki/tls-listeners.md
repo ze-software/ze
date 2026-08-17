@@ -40,12 +40,12 @@ restored on failure.
 
 ## Decision: rotation does not rebind the listener
 
-`UpdateWebCertificate` re-resolves the name in the new store and installs the
+`updateWebCertificate` re-resolves the name in the new store and installs the
 chain on the running server through `UpdateTLSCertificate`, which stores the
 parsed pair in an atomic pointer the handshake reads. The listeners keep their
 sockets, and the next handshake serves the new chain.
 
-<!-- source: cmd/ze/hub/listener_migrate.go -- UpdateWebCertificate -->
+<!-- source: cmd/ze/hub/listener_migrate.go -- updateWebCertificate -->
 <!-- source: internal/component/web/server.go -- UpdateTLSCertificate -->
 
 ## Decision: dnsserver takes an injected resolver

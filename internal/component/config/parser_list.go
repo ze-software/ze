@@ -21,23 +21,23 @@ import (
 // Disambiguation when seeing `name {`: if the first word inside is a known
 // child field → anonymous entry; otherwise → block of inline entries.
 func (p *Parser) parseList(tree *Tree, name string, node *ListNode) error {
-	tok := p.tok.Peek()
+	tok := p.tok.peek()
 
 	// Direct `{` — either anonymous entry or block of inline entries
-	if tok.Type == TokenLBrace {
-		p.tok.Next() // consume {
+	if tok.kind == tokenLBrace {
+		p.tok.next() // consume {
 
 		// Peek at first word to decide
-		inner := p.tok.Peek()
-		if inner.Type == TokenRBrace {
+		inner := p.tok.peek()
+		if inner.kind == tokenRBrace {
 			// Empty block — anonymous entry
-			p.tok.Next()
-			return p.addParsedListEntry(tree, name, node, KeyDefault, NewTree(), tok.Line)
+			p.tok.next()
+			return p.addParsedListEntry(tree, name, node, KeyDefault, NewTree(), tok.line)
 		}
 
 		// If the first word is a known child field → anonymous entry
-		if (inner.Type == TokenWord || inner.Type == TokenString) && node.Get(inner.Value) != nil {
-			return p.parseListFieldBlock(tree, name, node, KeyDefault, inner.Line)
+		if (inner.kind == tokenWord || inner.kind == tokenString) && node.Get(inner.value) != nil {
+			return p.parseListFieldBlock(tree, name, node, KeyDefault, inner.line)
 		}
 
 		// Otherwise → block of inline entries (each line = key [positional values...] ;)
@@ -45,27 +45,27 @@ func (p *Parser) parseList(tree *Tree, name string, node *ListNode) error {
 	}
 
 	// Word — this is the key
-	if tok.Type == TokenWord || tok.Type == TokenString {
-		key := tok.Value
-		p.tok.Next()
+	if tok.kind == tokenWord || tok.kind == tokenString {
+		key := tok.value
+		p.tok.next()
 
 		if err := ValidateListKey(node, key); err != nil {
 			return p.invalidListKeyError(tok, name, err)
 		}
 
-		tok = p.tok.Peek()
+		tok = p.tok.peek()
 
 		// key { ... } — named block entry with child fields
-		if tok.Type == TokenLBrace {
-			p.tok.Next() // consume {
-			return p.parseListFieldBlock(tree, name, node, key, tok.Line)
+		if tok.kind == tokenLBrace {
+			p.tok.next() // consume {
+			return p.parseListFieldBlock(tree, name, node, key, tok.line)
 		}
 
 		// key [values...] ; — single inline entry with positional values
 		return p.parseListInlineEntry(tree, name, node, key)
 	}
 
-	return p.errorf(tok, "expected key or '{' for %s, got %s", name, tok.Type)
+	return p.errorf(tok, "expected key or '{' for %s, got %s", name, tok.kind)
 }
 
 // parseListFieldBlock parses the inside of { ... } as named fields for a single list entry.
@@ -74,40 +74,40 @@ func (p *Parser) parseListFieldBlock(tree *Tree, name string, node *ListNode, ke
 	entry := NewTree()
 
 	for {
-		tok := p.tok.Peek()
-		if tok.Type == TokenRBrace {
-			p.tok.Next()
+		tok := p.tok.peek()
+		if tok.kind == tokenRBrace {
+			p.tok.next()
 			break
 		}
-		if tok.Type == TokenEOF {
+		if tok.kind == tokenEOF {
 			return p.errorf(tok, "unexpected EOF in %s block", name)
 		}
-		if tok.Type != TokenWord {
-			return p.errorf(tok, "expected keyword in %s block, got %s", name, tok.Type)
+		if tok.kind != tokenWord {
+			return p.errorf(tok, "expected keyword in %s block, got %s", name, tok.kind)
 		}
 
-		fieldName := tok.Value
-		p.tok.Next()
+		fieldName := tok.value
+		p.tok.next()
 
 		// Handle "inactive: <field> { ... }" sugar (same as in parseContainer).
 		markInactive := false
 		if fieldName == InactiveLeafName+":" {
 			markInactive = true
-			tok = p.tok.Peek()
-			if tok.Type != TokenWord {
-				return p.errorf(tok, "expected field name after inactive:, got %s", tok.Type)
+			tok = p.tok.peek()
+			if tok.kind != tokenWord {
+				return p.errorf(tok, "expected field name after inactive:, got %s", tok.kind)
 			}
-			fieldName = tok.Value
-			p.tok.Next()
+			fieldName = tok.value
+			p.tok.next()
 		}
 
 		fieldNode := node.Get(fieldName)
 		if fieldNode == nil {
-			return p.errorf(tok, "unknown field in %s: %s%s (line %d)", name, fieldName, RetiredKeywordHint(fieldName), tok.Line)
+			return p.errorf(tok, "unknown field in %s: %s%s (line %d)", name, fieldName, RetiredKeywordHint(fieldName), tok.line)
 		}
 
 		if markInactive {
-			if err := p.parseNodeInactive(entry, fieldName, fieldNode, tok.Line); err != nil {
+			if err := p.parseNodeInactive(entry, fieldName, fieldNode, tok.line); err != nil {
 				return err
 			}
 			continue
@@ -126,29 +126,29 @@ func (p *Parser) parseListFieldBlock(tree *Tree, name string, node *ListNode, ke
 // The opening { has already been consumed.
 func (p *Parser) parseListInlineBlock(tree *Tree, name string, node *ListNode) error {
 	for {
-		tok := p.tok.Peek()
-		if tok.Type == TokenRBrace {
-			p.tok.Next()
+		tok := p.tok.peek()
+		if tok.kind == tokenRBrace {
+			p.tok.next()
 			return nil
 		}
-		if tok.Type == TokenEOF {
+		if tok.kind == tokenEOF {
 			return p.errorf(tok, "unexpected EOF in %s block", name)
 		}
-		if tok.Type != TokenWord && tok.Type != TokenString {
-			return p.errorf(tok, "expected entry key in %s, got %s", name, tok.Type)
+		if tok.kind != tokenWord && tok.kind != tokenString {
+			return p.errorf(tok, "expected entry key in %s, got %s", name, tok.kind)
 		}
 
-		key := tok.Value
-		p.tok.Next()
+		key := tok.value
+		p.tok.next()
 
 		if err := ValidateListKey(node, key); err != nil {
 			return p.invalidListKeyError(tok, name, err)
 		}
 
 		// Disambiguate: key { ... } = named block entry, key [values] ; = inline entry.
-		if p.tok.Peek().Type == TokenLBrace {
-			p.tok.Next() // consume {
-			if err := p.parseListFieldBlock(tree, name, node, key, tok.Line); err != nil {
+		if p.tok.peek().kind == tokenLBrace {
+			p.tok.next() // consume {
+			if err := p.parseListFieldBlock(tree, name, node, key, tok.line); err != nil {
 				return err
 			}
 			continue
@@ -176,14 +176,14 @@ func (p *Parser) parseListInlineEntry(tree *Tree, name string, node *ListNode, k
 	var lastParts []string
 
 	for {
-		tok := p.tok.Peek()
-		if tok.Type == TokenSemicolon {
-			p.tok.Next()
+		tok := p.tok.peek()
+		if tok.kind == tokenSemicolon {
+			p.tok.next()
 			break
 		}
 
 		// Handle bracket content: [ val1 val2 ... ]
-		if tok.Type == TokenLBracket {
+		if tok.kind == tokenLBracket {
 			arrayVals, err := p.collectArray()
 			if err != nil {
 				return err
@@ -199,21 +199,21 @@ func (p *Parser) parseListInlineEntry(tree *Tree, name string, node *ListNode, k
 			continue
 		}
 
-		if tok.Type == TokenWord || tok.Type == TokenString {
+		if tok.kind == tokenWord || tok.kind == tokenString {
 			if childIdx < lastIdx {
 				// Positional assignment for children before the last
-				if err := validateInlineListChildValue(node, children[childIdx], tok.Value); err != nil {
+				if err := validateInlineListChildValue(node, children[childIdx], tok.value); err != nil {
 					return p.errorf(tok, "invalid value for %s.%s: %v", name, children[childIdx], err)
 				}
-				entry.Set(children[childIdx], tok.Value)
+				entry.Set(children[childIdx], tok.value)
 				childIdx++
 			} else if lastIdx >= 0 {
 				// Collect into last child
-				lastParts = append(lastParts, tok.Value)
+				lastParts = append(lastParts, tok.value)
 			}
-			p.tok.Next()
+			p.tok.next()
 		} else {
-			return p.errorf(tok, "expected value or ';' in %s entry, got %s", name, tok.Type)
+			return p.errorf(tok, "expected value or ';' in %s entry, got %s", name, tok.kind)
 		}
 	}
 
@@ -221,7 +221,7 @@ func (p *Parser) parseListInlineEntry(tree *Tree, name string, node *ListNode, k
 	if lastIdx >= 0 && len(lastParts) > 0 {
 		value := textbuf.Join(lastParts, " ")
 		if err := validateInlineListChildValue(node, children[lastIdx], value); err != nil {
-			return p.errorf(Token{Line: p.tok.line}, "invalid value for %s.%s: %v", name, children[lastIdx], err)
+			return p.errorf(token{line: p.tok.line}, "invalid value for %s.%s: %v", name, children[lastIdx], err)
 		}
 		entry.Set(children[lastIdx], value)
 	}
@@ -240,7 +240,7 @@ func (p *Parser) addParsedListEntry(tree *Tree, name string, node *ListNode, key
 			if allowDuplicate || incomingInactive || existing.IsInactive() {
 				continue
 			}
-			return p.errorf(Token{Line: line}, "duplicate list key for %s: %s", name, key)
+			return p.errorf(token{line: line}, "duplicate list key for %s: %s", name, key)
 		}
 	}
 	tree.AddListEntry(name, key, entry)
@@ -262,7 +262,7 @@ func allowsDuplicateParsedListEntries(node *ListNode, key string) bool {
 	return ok
 }
 
-func (p *Parser) invalidListKeyError(tok Token, name string, err error) error {
+func (p *Parser) invalidListKeyError(tok token, name string, err error) error {
 	if name == "peer" {
 		return p.errorf(tok, "invalid peer name: %v", err)
 	}
@@ -274,22 +274,22 @@ func (p *Parser) parseMultiLeaf(tree *Tree, name string, node *MultiLeafNode) er
 	var words []string
 
 	for {
-		tok := p.tok.Peek()
-		if tok.Type == TokenSemicolon {
-			p.tok.Next()
+		tok := p.tok.peek()
+		if tok.kind == tokenSemicolon {
+			p.tok.next()
 			break
 		}
-		if tok.Type == TokenWord || tok.Type == TokenString {
-			words = append(words, tok.Value)
-			p.tok.Next()
+		if tok.kind == tokenWord || tok.kind == tokenString {
+			words = append(words, tok.value)
+			p.tok.next()
 		} else {
-			return p.errorf(tok, "expected value or ';' for %s, got %s", name, tok.Type)
+			return p.errorf(tok, "expected value or ';' for %s, got %s", name, tok.kind)
 		}
 	}
 
 	joined := textbuf.Join(words, " ")
 	if err := validateValuePatterns(node.Type, node.Patterns, joined); err != nil {
-		return p.errorf(Token{Line: p.tok.line}, "invalid value for %s: %v", name, err)
+		return p.errorf(token{line: p.tok.line}, "invalid value for %s: %v", name, err)
 	}
 	tree.Set(name, joined)
 	return nil
@@ -297,34 +297,34 @@ func (p *Parser) parseMultiLeaf(tree *Tree, name string, node *MultiLeafNode) er
 
 // parseBracketLeafList parses a bracketed leaf-list: `name [ item item ... ];`.
 func (p *Parser) parseBracketLeafList(tree *Tree, name string, node *BracketLeafListNode) error {
-	tok := p.tok.Peek()
-	if tok.Type != TokenLBracket {
-		return p.errorf(tok, "expected '[' after %s, got %s", name, tok.Type)
+	tok := p.tok.peek()
+	if tok.kind != tokenLBracket {
+		return p.errorf(tok, "expected '[' after %s, got %s", name, tok.kind)
 	}
-	p.tok.Next() // consume [
+	p.tok.next() // consume [
 
 	var items []string
 
 	for {
-		tok = p.tok.Peek()
-		if tok.Type == TokenRBracket {
-			p.tok.Next() // consume ]
+		tok = p.tok.peek()
+		if tok.kind == tokenRBracket {
+			p.tok.next() // consume ]
 			break
 		}
-		if tok.Type == TokenWord || tok.Type == TokenString {
-			items = append(items, tok.Value)
-			p.tok.Next()
+		if tok.kind == tokenWord || tok.kind == tokenString {
+			items = append(items, tok.value)
+			p.tok.next()
 		} else {
-			return p.errorf(tok, "expected item or ']' in array %s, got %s", name, tok.Type)
+			return p.errorf(tok, "expected item or ']' in array %s, got %s", name, tok.kind)
 		}
 	}
 
 	// Expect semicolon
-	tok = p.tok.Peek()
-	if tok.Type != TokenSemicolon {
-		return p.errorf(tok, "expected ';' after %s array, got %s", name, tok.Type)
+	tok = p.tok.peek()
+	if tok.kind != tokenSemicolon {
+		return p.errorf(tok, "expected ';' after %s array, got %s", name, tok.kind)
 	}
-	p.tok.Next()
+	p.tok.next()
 
 	for _, item := range items {
 		if err := validateValuePatterns(node.Type, node.Patterns, item); err != nil {
@@ -365,47 +365,47 @@ func (p *Parser) parseValueOrArray(tree *Tree, name string, node *ValueOrArrayNo
 // statement: "value;", "value value ...;" or "[ item item ... ];".
 // Returns the raw items, whether the bracket form was used, and the
 // terminating token (for error positions).
-func (p *Parser) collectValueOrArrayItems(name string) (items []string, bracket bool, tok Token, err error) {
-	tok = p.tok.Peek()
+func (p *Parser) collectValueOrArrayItems(name string) (items []string, bracket bool, tok token, err error) {
+	tok = p.tok.peek()
 
 	// Check if it's an array (starts with [)
-	if tok.Type == TokenLBracket {
+	if tok.kind == tokenLBracket {
 		bracket = true
-		p.tok.Next() // consume [
+		p.tok.next() // consume [
 
 		for {
-			tok = p.tok.Peek()
-			if tok.Type == TokenRBracket {
-				p.tok.Next() // consume ]
+			tok = p.tok.peek()
+			if tok.kind == tokenRBracket {
+				p.tok.next() // consume ]
 				break
 			}
-			if tok.Type == TokenWord || tok.Type == TokenString {
-				items = append(items, tok.Value)
-				p.tok.Next()
+			if tok.kind == tokenWord || tok.kind == tokenString {
+				items = append(items, tok.value)
+				p.tok.next()
 			} else {
-				return nil, bracket, tok, p.errorf(tok, "expected item or ']' in %s, got %s", name, tok.Type)
+				return nil, bracket, tok, p.errorf(tok, "expected item or ']' in %s, got %s", name, tok.kind)
 			}
 		}
 
 		// Expect semicolon
-		tok = p.tok.Peek()
-		if tok.Type != TokenSemicolon {
-			return nil, bracket, tok, p.errorf(tok, "expected ';' after %s, got %s", name, tok.Type)
+		tok = p.tok.peek()
+		if tok.kind != tokenSemicolon {
+			return nil, bracket, tok, p.errorf(tok, "expected ';' after %s, got %s", name, tok.kind)
 		}
-		p.tok.Next()
+		p.tok.next()
 	} else {
 		// Parse as single value or multiple space-separated values
 		for {
-			tok = p.tok.Peek()
-			if tok.Type == TokenSemicolon {
-				p.tok.Next() // consume ;
+			tok = p.tok.peek()
+			if tok.kind == tokenSemicolon {
+				p.tok.next() // consume ;
 				break
 			}
-			if tok.Type == TokenWord || tok.Type == TokenString {
-				items = append(items, tok.Value)
-				p.tok.Next()
+			if tok.kind == tokenWord || tok.kind == tokenString {
+				items = append(items, tok.value)
+				p.tok.next()
 			} else {
-				return nil, bracket, tok, p.errorf(tok, "expected value or ';' in %s, got %s", name, tok.Type)
+				return nil, bracket, tok, p.errorf(tok, "expected value or ';' in %s, got %s", name, tok.kind)
 			}
 		}
 	}
@@ -418,7 +418,7 @@ func (p *Parser) collectValueOrArrayItems(name string) (items []string, bracket 
 // directly in a bracket list, e.g. `import [ inactive:no-self-as ... ]`) is
 // normalized here into the out-of-band per-member marker: the stored member
 // value is clean and validated clean, so no value ever carries the prefix.
-func (p *Parser) storeValueOrArray(tree *Tree, name string, node *ValueOrArrayNode, items []string, tok Token) error {
+func (p *Parser) storeValueOrArray(tree *Tree, name string, node *ValueOrArrayNode, items []string, tok token) error {
 	clean, deactivated := stripInactiveMemberPrefix(items)
 
 	// Validate enum values if the schema defines valid values

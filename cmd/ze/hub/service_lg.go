@@ -41,7 +41,7 @@ func (lgService) Name() string { return "looking-glass" }
 // start -- preserving the prior best-effort, non-fatal behavior of
 // startLGServer. Every entry in deps.LGAddrs becomes a bound listener; Shutdown
 // closes all of them.
-func buildLGService(deps ServiceDeps) (Service, error) {
+func buildLGService(deps serviceDeps) (Service, error) {
 	if len(deps.LGAddrs) == 0 || deps.Dispatch == nil {
 		// Not configured: a skip, not a failure. buildServices treats a nil
 		// service as "feature absent" and moves on.

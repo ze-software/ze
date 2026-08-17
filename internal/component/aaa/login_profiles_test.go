@@ -14,10 +14,10 @@ import (
 //
 //	which authorized every TACACS+ user as admin.
 func TestProfileRecordingAuthenticatorRecordsOnSuccess(t *testing.T) {
-	t.Cleanup(func() { ForgetLoginProfiles("noc") })
+	t.Cleanup(func() { ForgetLoginProfilesForTest("noc") })
 
 	inner := &fakeBackend{result: AuthResult{Authenticated: true, Source: "tacacs", Profiles: []string{"read-only"}}}
-	auth := profileRecordingAuthenticator{next: inner}
+	auth := WithProfileRecording(inner)
 
 	result, err := auth.Authenticate(AuthRequest{Username: "noc", Password: "pw"})
 	assert.NoError(t, err)
@@ -31,13 +31,13 @@ func TestProfileRecordingAuthenticatorRecordsOnSuccess(t *testing.T) {
 // VALIDATES: a failed authentication publishes nothing.
 // PREVENTS: a rejected login granting profiles to that username.
 func TestProfileRecordingAuthenticatorIgnoresFailure(t *testing.T) {
-	t.Cleanup(func() { ForgetLoginProfiles("intruder") })
+	t.Cleanup(func() { ForgetLoginProfilesForTest("intruder") })
 
 	inner := &fakeBackend{
 		result: AuthResult{Authenticated: false, Profiles: []string{"admin"}},
 		err:    ErrAuthRejected,
 	}
-	auth := profileRecordingAuthenticator{next: inner}
+	auth := WithProfileRecording(inner)
 
 	_, err := auth.Authenticate(AuthRequest{Username: "intruder", Password: "wrong"})
 	assert.Error(t, err)
@@ -54,7 +54,7 @@ func TestProfileRecordingAuthenticatorIgnoresFailure(t *testing.T) {
 //
 //	to the admin fallthrough in authz.Store.Authorize.
 func TestRecordLoginProfilesEmptyDoesNotErase(t *testing.T) {
-	t.Cleanup(func() { ForgetLoginProfiles("noc") })
+	t.Cleanup(func() { ForgetLoginProfilesForTest("noc") })
 
 	RecordLoginProfiles("noc", []string{"read-only"})
 	RecordLoginProfiles("noc", nil)
@@ -67,7 +67,7 @@ func TestRecordLoginProfilesEmptyDoesNotErase(t *testing.T) {
 // VALIDATES: the recorded slice is independent of the caller's AuthResult.
 // PREVENTS: a backend reusing its slice and mutating a live authorization input.
 func TestRecordLoginProfilesCopies(t *testing.T) {
-	t.Cleanup(func() { ForgetLoginProfiles("noc") })
+	t.Cleanup(func() { ForgetLoginProfilesForTest("noc") })
 
 	profiles := []string{"read-only"}
 	RecordLoginProfiles("noc", profiles)
@@ -83,9 +83,9 @@ func TestRecordLoginProfilesCopies(t *testing.T) {
 //
 //	recording lived at one call site instead of the composition point.
 func TestBuildWrapsAuthenticatorWithProfileRecording(t *testing.T) {
-	t.Cleanup(func() { ForgetLoginProfiles("built") })
+	t.Cleanup(func() { ForgetLoginProfilesForTest("built") })
 
-	r := NewBackendRegistry()
+	r := NewBackendRegistryForTest()
 	err := r.Register(&fakeAuthBackend{
 		name:   "probe",
 		result: AuthResult{Authenticated: true, Source: "probe", Profiles: []string{"read-only"}},
@@ -107,22 +107,23 @@ func TestBuildWrapsAuthenticatorWithProfileRecording(t *testing.T) {
 // ingress guard (spec-fixit-authz-admin-fallthrough review finding 2): an
 // externally-supplied username bearing the reserved prefix must be rejected at the
 // authentication choke point, before any backend sees it, so it can never become
-// Authenticated and reach authz.Store.Authorize (which trusts the reserved prefix
-// and would return allow-all). Server-injected internal identities never pass
+// Authenticated and reach authz.Store.Authorize, which trusts server-injected
+// internal and shared-API identities. Server-injected identities never pass
 // through authentication and are unaffected.
 //
 // VALIDATES: reserved-name usernames are rejected at AAA ingress.
 // PREVENTS: a RADIUS/TACACS+ server (or any surface) letting a client spoof a
 //
-//	reserved internal/recovery identity via the username.
+//	reserved internal, shared-API, or recovery name via the username.
 func TestProfileRecordingAuthenticatorRejectsReservedUsername(t *testing.T) {
 	inner := &fakeBackend{result: AuthResult{Authenticated: true, Source: "fake", Profiles: []string{"admin"}}}
-	auth := profileRecordingAuthenticator{next: inner}
+	auth := WithProfileRecording(inner)
 
 	reserved := []string{
 		ReservedInternalPrefix + "rpc",
 		ReservedInternalPrefix + "plugin:evil",
 		ReservedRecoveryProfile,
+		ReservedSharedAPIUsername,
 	}
 	for _, name := range reserved {
 		res, err := auth.Authenticate(AuthRequest{Username: name, Password: "x"})
@@ -130,13 +131,13 @@ func TestProfileRecordingAuthenticatorRejectsReservedUsername(t *testing.T) {
 		assert.False(t, res.Authenticated, "reserved username %q must not authenticate", name)
 		if _, ok := LoginProfiles(name); ok {
 			t.Errorf("reserved username %q must not record login profiles", name)
-			ForgetLoginProfiles(name)
+			ForgetLoginProfilesForTest(name)
 		}
 	}
 	assert.False(t, inner.called, "backend must not be consulted for a reserved username")
 
 	// Sanity: a normal username still authenticates through the wrapper.
-	t.Cleanup(func() { ForgetLoginProfiles("alice") })
+	t.Cleanup(func() { ForgetLoginProfilesForTest("alice") })
 	res, err := auth.Authenticate(AuthRequest{Username: "alice", Password: "x"})
 	assert.NoError(t, err)
 	assert.True(t, res.Authenticated)

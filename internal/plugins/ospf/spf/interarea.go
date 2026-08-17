@@ -49,11 +49,11 @@ type BorderRouterEntry struct {
 
 // BorderRouterSnapshotEntry is one `show ospf border-routers` row.
 type BorderRouterSnapshotEntry struct {
-	RouterID string             `json:"router_id"`
+	RouterID string             `json:"router-id"`
 	Area     string             `json:"area"`
 	Kind     string             `json:"kind"`
 	Metric   uint64             `json:"metric"`
-	NextHops []RouteSnapshotHop `json:"next_hops"`
+	NextHops []RouteSnapshotHop `json:"next-hops"`
 }
 
 // RFC 2328 Section 3.3: an area border router is attached to multiple areas and

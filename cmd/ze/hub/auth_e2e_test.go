@@ -139,13 +139,18 @@ func TestLiveAAABundleAuthorizerHonorsConfiguredProfiles(t *testing.T) {
 	resetAAABundleForTest(t)
 
 	store := authz.NewStore()
-	store.AddProfile(authz.BuiltinReadOnlyProfile())
+	store.AddProfile(authz.Profile{
+		Name: "read-only",
+		Run:  authz.Section{Default: authz.Allow},
+		Edit: authz.Section{Default: authz.Deny},
+	})
 	store.AssignProfiles("operator", []string{"read-only"})
 	users := []authz.UserConfig{{Name: "operator", Hash: bcryptHash(t, "operator-secret")}}
 
 	// nil liveUsers: this test asserts authorization, not credential freshness,
 	// so the backend keeps the snapshot behavior.
-	bundle, err := buildAAABundle(nil, users, nil, store, nil)
+	swapLocalAuthzStore(store)
+	bundle, err := buildAAABundle(nil, users, nil, nil)
 	if err != nil {
 		t.Fatalf("buildAAABundle: %v", err)
 	}

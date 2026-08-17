@@ -44,7 +44,7 @@ func TestIsDraftPath(t *testing.T) {
 		{filepath.Join(root, "drafting", "x.ci"), false},
 		{filepath.Join("repo", "docs", "draft", "x.ci"), false},
 	} {
-		require.Equalf(t, tc.want, IsDraftPath(root, tc.path), "IsDraftPath(%q)", tc.path)
+		require.Equalf(t, tc.want, isDraftPath(root, tc.path), "isDraftPath(%q)", tc.path)
 	}
 }
 
@@ -85,8 +85,8 @@ func TestDraftDirIsInvisibleToRepoGates(t *testing.T) {
 		needle string
 		gate   string
 	}{
-		{"internal/test/runner/accept_only.go", "IsDraftPath(testDir, p)", "accept-only lint"},
-		{"internal/test/runner/ci_fixture_test.go", "IsDraftPath(root, path)", "BGP frame-length fixtures"},
+		{"internal/test/runner/accept_only.go", "isDraftPath(testDir, p)", "accept-only lint"},
+		{"internal/test/runner/ci_fixture_test.go", "isDraftPath(root, path)", "BGP frame-length fixtures"},
 		{"scripts/checks/ci_dispatch_commands.go", "draftTestDir", "dispatch-command check"},
 		{"scripts/dev/verify_wiring_docs.py", "real_ci_files(root)", "ci-sleep ratchet"},
 		{"scripts/dev/ci_observer_recover_check.py", `!= ("draft",)`, "observer-recover check"},

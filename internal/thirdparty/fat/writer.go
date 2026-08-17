@@ -1,3 +1,5 @@
+// Design: docs/architecture/appliance/iso-installer.md -- FAT16B appliance image support
+
 package fat
 
 import (
@@ -58,10 +60,10 @@ func (pw *paddingWriter) Flush() error {
 type entry interface {
 	Name() [8]byte
 	Ext() [3]byte
-	FullName() string
+	fullName() string
 	Attr() uint8
 	Size() uint32
-	FirstCluster() uint16
+	firstClusterNumber() uint16
 	Date() uint16
 	Time() uint16
 }
@@ -76,7 +78,7 @@ type common struct {
 
 var empty = [8]byte{' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '}
 
-func (c *common) FullName() string {
+func (c *common) fullName() string {
 	if c.ext != "" {
 		return c.name + "." + c.ext
 	}
@@ -101,7 +103,7 @@ func (c *common) Size() uint32 {
 	return c.size
 }
 
-func (c *common) FirstCluster() uint16 {
+func (c *common) firstClusterNumber() uint16 {
 	return c.firstCluster
 }
 
@@ -325,7 +327,7 @@ func dirEntryCount(d *directory) int {
 	count := 1 // volume label
 	for _, e := range d.entries {
 		count++                                // short file name entry
-		count += (len(e.FullName()) + 12) / 13 // long file name entries
+		count += (len(e.fullName()) + 12) / 13 // long file name entries
 	}
 	return count
 }
@@ -488,7 +490,7 @@ func (fw *Writer) writeDirEntries(w io.Writer, d *directory) error {
 	seen := make(map[string]bool)
 	for _, entry := range allEntries {
 		// Long Directory Entry
-		name := entry.FullName()
+		name := entry.fullName()
 		chunks := (len(name) + 12) / 13                    // rounded up to 13 bytes
 		buf := bytes.Repeat([]byte{0xFF, 0xFF}, chunks*13) // padded with 0xFFFF
 		padded := []rune(name)
@@ -539,7 +541,7 @@ func (fw *Writer) writeDirEntries(w io.Writer, d *directory) error {
 			[10]byte{}, // reserved
 			entry.Time(),
 			entry.Date(),
-			entry.FirstCluster(),
+			entry.firstClusterNumber(),
 			entry.Size(), // file size in bytes
 		} {
 			if err := binary.Write(w, binary.LittleEndian, v); err != nil {
@@ -580,7 +582,7 @@ func (fw *Writer) writeDir1(d *directory) error {
 		}
 		subdir, ok := e.(*directory)
 		if !ok {
-			return fmt.Errorf("directory entry %q has non-directory type", e.FullName())
+			return fmt.Errorf("directory entry %q has non-directory type", e.fullName())
 		}
 		if err := fw.writeDir1(subdir); err != nil {
 			return err
@@ -640,7 +642,7 @@ func (fw *Writer) Flush() error {
 		}
 		subdir, ok := e.(*directory)
 		if !ok {
-			return fmt.Errorf("directory entry %q has non-directory type", e.FullName())
+			return fmt.Errorf("directory entry %q has non-directory type", e.fullName())
 		}
 		if err := fw.writeDir(subdir); err != nil {
 			return err

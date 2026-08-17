@@ -49,11 +49,11 @@ func TestServiceRegistry_BuildsRegisteredFactory(t *testing.T) {
 	withCleanRegistry(t)
 
 	want := &fakeService{name: "fake", addrs: []string{"127.0.0.1:1"}}
-	registerService("fake", func(ServiceDeps) (Service, error) { return want, nil }, nil)
+	registerService("fake", func(serviceDeps) (Service, error) { return want, nil }, nil)
 	// A factory that returns (nil, nil) means "not configured" and is skipped.
-	registerService("unconfigured", func(ServiceDeps) (Service, error) { return nil, nil }, nil) //nolint:nilnil // models the not-configured skip path
+	registerService("unconfigured", func(serviceDeps) (Service, error) { return nil, nil }, nil) //nolint:nilnil // models the not-configured skip path
 
-	got := buildServices(ServiceDeps{})
+	got := buildServices(serviceDeps{})
 	if len(got) != 1 {
 		t.Fatalf("buildServices: want 1 built service, got %d", len(got))
 	}
@@ -64,18 +64,18 @@ func TestServiceRegistry_BuildsRegisteredFactory(t *testing.T) {
 
 func TestServiceRegistry_AbsentFeatureNoOp(t *testing.T) {
 	withCleanRegistry(t)
-	if got := buildServices(ServiceDeps{}); len(got) != 0 {
+	if got := buildServices(serviceDeps{}); len(got) != 0 {
 		t.Fatalf("empty registry: want 0 services, got %d", len(got))
 	}
 }
 
 func TestServiceRegistry_BuildErrorSkipped(t *testing.T) {
 	withCleanRegistry(t)
-	registerService("boom", func(ServiceDeps) (Service, error) { return nil, errors.New("boom") }, nil)
+	registerService("boom", func(serviceDeps) (Service, error) { return nil, errors.New("boom") }, nil)
 	ok := &fakeService{name: "ok"}
-	registerService("ok", func(ServiceDeps) (Service, error) { return ok, nil }, nil)
+	registerService("ok", func(serviceDeps) (Service, error) { return ok, nil }, nil)
 
-	got := buildServices(ServiceDeps{})
+	got := buildServices(serviceDeps{})
 	if len(got) != 1 || got[0].Name() != "ok" {
 		t.Fatalf("build error should be skipped, surviving the rest: got %d services", len(got))
 	}
@@ -85,11 +85,11 @@ func TestRegisterBuiltService_UsesRegisteredMigratorHook(t *testing.T) {
 	withCleanRegistry(t)
 	lm := newListenerMigrator()
 	want := &fakeService{name: "fake", addrs: []string{"0.0.0.0:8443"}}
-	registerService("fake", func(ServiceDeps) (Service, error) { return want, nil }, func(lm *ListenerMigrator, svc Service) {
-		lm.SetLG(svc)
+	registerService("fake", func(serviceDeps) (Service, error) { return want, nil }, func(lm *listenerMigrator, svc Service) {
+		lm.setLG(svc)
 	})
 
-	built := buildServices(ServiceDeps{})
+	built := buildServices(serviceDeps{})
 	if len(built) != 1 {
 		t.Fatalf("buildServices: want 1 built service, got %d", len(built))
 	}

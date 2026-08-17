@@ -401,12 +401,12 @@ type RouteSnapshotEntry struct {
 	Metric   uint64             `json:"metric"`
 	Type     string             `json:"type"`
 	Origin   string             `json:"origin"`
-	NextHops []RouteSnapshotHop `json:"next_hops"`
+	NextHops []RouteSnapshotHop `json:"next-hops"`
 }
 
 // RouteSnapshotHop is one next-hop in a route snapshot.
 type RouteSnapshotHop struct {
-	NextHop   string `json:"next_hop"`
+	NextHop   string `json:"next-hop"`
 	Interface string `json:"interface,omitempty"`
 }
 

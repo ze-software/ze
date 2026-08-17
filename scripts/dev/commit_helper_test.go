@@ -310,11 +310,11 @@ func TestCommitHelperStructuralGateNotBypassable(t *testing.T) {
 	// A structural gate (ze-tier-check) red must block even with --unverified.
 	writeFixture(t, root, "tmp/ze-verify-failures.json", `{
   "mode": "ze-precommit-verify",
-  "exit_code": 2,
-  "combined_log": "tmp/ze-verify.log",
-  "generated_at": "2026-07-07T00:00:00Z",
+  "exit-code": 2,
+  "combined-log": "tmp/ze-verify.log",
+  "generated-at": "2026-07-07T00:00:00Z",
   "stages": [
-    {"stage": "ze-tier-check", "exit_code": 2, "detail-log": "tmp/verify/02-ze-tier-check.log"}
+    {"stage": "ze-tier-check", "exit-code": 2, "detail-log": "tmp/verify/02-ze-tier-check.log"}
   ]
 }
 `)
@@ -332,11 +332,11 @@ func TestCommitHelperStructuralGateNotBypassable(t *testing.T) {
 	// Control: a flaky TEST-stage red (ze-functional-test) stays bypassable.
 	writeFixture(t, root, "tmp/ze-verify-failures.json", `{
   "mode": "ze-precommit-verify",
-  "exit_code": 1,
-  "combined_log": "tmp/ze-verify.log",
-  "generated_at": "2026-07-07T00:00:00Z",
+  "exit-code": 1,
+  "combined-log": "tmp/ze-verify.log",
+  "generated-at": "2026-07-07T00:00:00Z",
   "stages": [
-    {"stage": "ze-functional-test", "exit_code": 1, "detail-log": "tmp/verify/09-ze-functional-test.log"}
+    {"stage": "ze-functional-test", "exit-code": 1, "detail-log": "tmp/verify/09-ze-functional-test.log"}
   ]
 }
 `)

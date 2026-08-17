@@ -192,7 +192,7 @@ back to. The real flow: SSH login -> `aaa.Bundle.Authenticator` -> profiles -> s
   tacacs(100) < local(200). Local is deliberately last so it is the fallback
   when a remote AAA server is unreachable, not the primary check.
 - **`aaa.Default` freezes after the first `Build`** (`aaa/types.go`).
-  Tests must construct their own `NewBackendRegistry`, never call
+  Tests must construct their own `NewBackendRegistryForTest`, never call
   `aaa.Default.Build` and expect to register more backends afterward.
 - **Two disjoint local-admin key namespaces.** `meta/auth/local/*` (bootstrap
   super-admin, consumed only by `usersFromZefsDB`) is intentionally separate

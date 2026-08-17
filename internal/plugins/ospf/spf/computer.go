@@ -668,11 +668,11 @@ func (c *Computer) Stop() {
 // spfSnapshotEntry is one `show ospf spf` row.
 type spfSnapshotEntry struct {
 	Area            string  `json:"area"`
-	LastRun         string  `json:"last_run,omitempty"`
-	DurationSeconds float64 `json:"duration_seconds"`
-	NodeCount       int     `json:"node_count"`
+	LastRun         string  `json:"last-run,omitempty"`
+	DurationSeconds float64 `json:"duration-seconds"`
+	NodeCount       int     `json:"node-count"`
 	Pending         bool    `json:"pending"`
-	CurrentDelayMS  int64   `json:"current_delay_ms"`
+	CurrentDelayMS  int64   `json:"current-delay-ms"`
 }
 
 // spfSnapshot renders run states as stable value rows.

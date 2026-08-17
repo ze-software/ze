@@ -28,9 +28,9 @@ func TestBuildGARPFrameGolden(t *testing.T) {
 
 	buf := make([]byte, 64)
 	vmac := packet.VirtualMAC(packet.V4, 10)
-	n := BuildGARP(buf, vmac, netip.MustParseAddr("192.0.2.1").As4())
+	n := buildGARP(buf, vmac, netip.MustParseAddr("192.0.2.1").As4())
 	if n != GARPFrameLen {
-		t.Fatalf("BuildGARP returned %d, want %d", n, GARPFrameLen)
+		t.Fatalf("buildGARP returned %d, want %d", n, GARPFrameLen)
 	}
 	if !bytes.Equal(buf[:n], want) {
 		t.Fatalf("GARP frame\n got % x\nwant % x", buf[:n], want)
@@ -48,7 +48,7 @@ func TestBuildGARPFramePerVIP(t *testing.T) {
 	var frames [][]byte
 	buf := make([]byte, 64)
 	for _, vip := range vips {
-		n := BuildGARP(buf, vmac, vip.As4())
+		n := buildGARP(buf, vmac, vip.As4())
 		frames = append(frames, append([]byte(nil), buf[:n]...))
 	}
 	if len(frames) != 2 {
@@ -64,7 +64,7 @@ func TestBuildGARPFramePerVIP(t *testing.T) {
 	// Zero VIPs -> zero frames.
 	var none [][]byte
 	for _, vip := range []netip.Addr(nil) {
-		n := BuildGARP(buf, vmac, vip.As4())
+		n := buildGARP(buf, vmac, vip.As4())
 		none = append(none, append([]byte(nil), buf[:n]...))
 	}
 	if len(none) != 0 {

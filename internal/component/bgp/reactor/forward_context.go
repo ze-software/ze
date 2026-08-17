@@ -1,3 +1,5 @@
+// Design: docs/architecture/core-design.md -- egress BGP context derivation
+
 package reactor
 
 import (

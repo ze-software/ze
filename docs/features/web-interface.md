@@ -37,7 +37,7 @@ the active value. The daemon and browser run locally during generation.
 <!-- source: cmd/ze/hub/service_web.go -- webTLSMaterial: PKI store or self-signed, fail closed -->
 <!-- source: internal/component/web/decorator.go -- Decorator registry and interface -->
 <!-- source: internal/component/web/decorator_asn.go -- ASN name decorator via Team Cymru DNS -->
-<!-- source: internal/component/web/auth.go -- SessionStore, AuthMiddleware, LoginHandler -->
+<!-- source: internal/component/web/auth.go -- SessionStore, authMiddleware, loginHandler -->
 <!-- source: internal/component/web/handler.go -- URL routing, content negotiation, three-tier scheme -->
 <!-- source: internal/component/web/handler_config.go -- Config view and edit handlers -->
 <!-- source: internal/component/web/handler_admin.go -- Admin command handlers -->

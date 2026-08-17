@@ -530,7 +530,7 @@ func (inst *instance) frameBuilder() frameBuilder {
 		if !vip.Is4() {
 			return 0, false
 		}
-		return BuildGARP(buf, vmac, vip.As4()), true
+		return buildGARP(buf, vmac, vip.As4()), true
 	}
 }
 

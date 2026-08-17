@@ -36,7 +36,7 @@ ok  	github.com/ze-software/ze/internal/component/bgp/reactor	0.081s
 // TestAllocGateCeiling verifies AC-1: benchmark output within every registered
 // ceiling produces no violations.
 func TestAllocGateCeiling(t *testing.T) {
-	viol := CheckAllocCeilings(sampleBenchOutput, AllocCeilings)
+	viol := checkAllocCeilings(sampleBenchOutput, AllocCeilings)
 	if len(viol) != 0 {
 		t.Fatalf("expected no violations for in-ceiling output, got %d: %+v", len(viol), viol)
 	}
@@ -49,7 +49,7 @@ func TestAllocGateRegressionFails(t *testing.T) {
 	regressed := "BenchmarkFwdPoolTryDispatch-4  1000  200 ns/op  64 B/op  3 allocs/op\n"
 	full := sampleBenchOutput + regressed
 
-	viol := CheckAllocCeilings(full, AllocCeilings)
+	viol := checkAllocCeilings(full, AllocCeilings)
 	if len(viol) != 1 {
 		t.Fatalf("expected exactly 1 violation, got %d: %+v", len(viol), viol)
 	}
@@ -74,12 +74,12 @@ func TestAllocGateBoundary(t *testing.T) {
 	ceilings := map[string]int{"BenchmarkForwardDirect": 5}
 
 	atCeiling := "BenchmarkForwardDirect-4  100  4000 ns/op  400 B/op  5 allocs/op\n"
-	if viol := CheckAllocCeilings(atCeiling, ceilings); len(viol) != 0 {
+	if viol := checkAllocCeilings(atCeiling, ceilings); len(viol) != 0 {
 		t.Errorf("allocs == ceiling must pass, got violations: %+v", viol)
 	}
 
 	overCeiling := "BenchmarkForwardDirect-4  100  4000 ns/op  400 B/op  6 allocs/op\n"
-	viol := CheckAllocCeilings(overCeiling, ceilings)
+	viol := checkAllocCeilings(overCeiling, ceilings)
 	if len(viol) != 1 {
 		t.Fatalf("allocs == ceiling+1 must fail, got %d violations", len(viol))
 	}
@@ -94,7 +94,7 @@ func TestAllocGateBoundary(t *testing.T) {
 func TestAllocGateMissingFailsClosed(t *testing.T) {
 	// Build-failure-like output: no Benchmark lines at all.
 	buildFailure := "# github.com/ze-software/ze/internal/component/bgp/reactor\n./x.go:1:1: undefined: foo\nFAIL\n"
-	viol := CheckAllocCeilings(buildFailure, AllocCeilings)
+	viol := checkAllocCeilings(buildFailure, AllocCeilings)
 	if len(viol) != len(AllocCeilings) {
 		t.Fatalf("expected all %d registered benchmarks flagged missing, got %d: %+v", len(AllocCeilings), len(viol), viol)
 	}
@@ -139,7 +139,7 @@ func TestAllocGateWorstSample(t *testing.T) {
 	ceilings := map[string]int{"BenchmarkBufMuxGetReturn": 0}
 	repeated := "BenchmarkBufMuxGetReturn-4  1  1 ns/op  0 B/op  0 allocs/op\n" +
 		"BenchmarkBufMuxGetReturn-4  1  1 ns/op  8 B/op  1 allocs/op\n"
-	viol := CheckAllocCeilings(repeated, ceilings)
+	viol := checkAllocCeilings(repeated, ceilings)
 	if len(viol) != 1 {
 		t.Fatalf("worst-of-repeats should trip ceiling 0, got %d violations", len(viol))
 	}
@@ -161,7 +161,7 @@ func TestAllocGateEnforce(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read benchmark output %s: %v", path, err)
 	}
-	for _, v := range CheckAllocCeilings(string(data), AllocCeilings) {
+	for _, v := range checkAllocCeilings(string(data), AllocCeilings) {
 		t.Errorf("alloc gate: %s", v.Message)
 	}
 }

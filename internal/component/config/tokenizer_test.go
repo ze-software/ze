@@ -8,24 +8,24 @@ import (
 
 // TestTokenizerSimple verifies basic token extraction.
 //
-// VALIDATES: Tokenizer extracts words, braces, semicolons.
+// VALIDATES: tokenizer extracts words, braces, semicolons.
 //
 // PREVENTS: Lost or corrupted tokens.
 func TestTokenizerSimple(t *testing.T) {
 	input := `neighbor 192.0.2.1 { local-as 65000; }`
 
-	tok := NewTokenizer(input)
-	tokens := tok.All()
+	tok := newTokenizer(input)
+	tokens := tok.all()
 
-	require.Equal(t, []Token{
-		{Type: TokenWord, Value: "neighbor", Line: 1, Col: 1},
-		{Type: TokenWord, Value: "192.0.2.1", Line: 1, Col: 10},
-		{Type: TokenLBrace, Value: "{", Line: 1, Col: 20},
-		{Type: TokenWord, Value: "local-as", Line: 1, Col: 22},
-		{Type: TokenWord, Value: "65000", Line: 1, Col: 31},
-		{Type: TokenSemicolon, Value: ";", Line: 1, Col: 36},
-		{Type: TokenRBrace, Value: "}", Line: 1, Col: 38},
-		{Type: TokenEOF, Value: "", Line: 1, Col: 39},
+	require.Equal(t, []token{
+		{kind: tokenWord, value: "neighbor", line: 1, col: 1},
+		{kind: tokenWord, value: "192.0.2.1", line: 1, col: 10},
+		{kind: tokenLBrace, value: "{", line: 1, col: 20},
+		{kind: tokenWord, value: "local-as", line: 1, col: 22},
+		{kind: tokenWord, value: "65000", line: 1, col: 31},
+		{kind: tokenSemicolon, value: ";", line: 1, col: 36},
+		{kind: tokenRBrace, value: "}", line: 1, col: 38},
+		{kind: tokenEOF, value: "", line: 1, col: 39},
 	}, tokens)
 }
 
@@ -40,15 +40,15 @@ func TestTokenizerMultiline(t *testing.T) {
     peer-as 65001;
 }`
 
-	tok := NewTokenizer(input)
-	tokens := tok.All()
+	tok := newTokenizer(input)
+	tokens := tok.all()
 
 	// Check line numbers
-	require.Equal(t, 1, tokens[0].Line) // neighbor
-	require.Equal(t, 1, tokens[2].Line) // {
-	require.Equal(t, 2, tokens[3].Line) // local-as
-	require.Equal(t, 3, tokens[6].Line) // peer-as
-	require.Equal(t, 4, tokens[9].Line) // }
+	require.Equal(t, 1, tokens[0].line) // neighbor
+	require.Equal(t, 1, tokens[2].line) // {
+	require.Equal(t, 2, tokens[3].line) // local-as
+	require.Equal(t, 3, tokens[6].line) // peer-as
+	require.Equal(t, 4, tokens[9].line) // }
 }
 
 // TestTokenizerQuotedStrings verifies quoted string handling.
@@ -59,14 +59,14 @@ func TestTokenizerMultiline(t *testing.T) {
 func TestTokenizerQuotedStrings(t *testing.T) {
 	input := `description "My BGP peer";`
 
-	tok := NewTokenizer(input)
-	tokens := tok.All()
+	tok := newTokenizer(input)
+	tokens := tok.all()
 
-	require.Equal(t, TokenWord, tokens[0].Type)
-	require.Equal(t, "description", tokens[0].Value)
-	require.Equal(t, TokenString, tokens[1].Type)
-	require.Equal(t, "My BGP peer", tokens[1].Value)
-	require.Equal(t, TokenSemicolon, tokens[2].Type)
+	require.Equal(t, tokenWord, tokens[0].kind)
+	require.Equal(t, "description", tokens[0].value)
+	require.Equal(t, tokenString, tokens[1].kind)
+	require.Equal(t, "My BGP peer", tokens[1].value)
+	require.Equal(t, tokenSemicolon, tokens[2].kind)
 }
 
 // TestTokenizerSingleQuotes verifies single-quoted strings.
@@ -77,13 +77,13 @@ func TestTokenizerQuotedStrings(t *testing.T) {
 func TestTokenizerSingleQuotes(t *testing.T) {
 	input := `run '/usr/bin/exabgp-api';`
 
-	tok := NewTokenizer(input)
-	tokens := tok.All()
+	tok := newTokenizer(input)
+	tokens := tok.all()
 
-	require.Equal(t, TokenWord, tokens[0].Type)
-	require.Equal(t, "run", tokens[0].Value)
-	require.Equal(t, TokenString, tokens[1].Type)
-	require.Equal(t, "/usr/bin/exabgp-api", tokens[1].Value)
+	require.Equal(t, tokenWord, tokens[0].kind)
+	require.Equal(t, "run", tokens[0].value)
+	require.Equal(t, tokenString, tokens[1].kind)
+	require.Equal(t, "/usr/bin/exabgp-api", tokens[1].value)
 }
 
 // TestTokenizerComments verifies comment handling.
@@ -98,12 +98,12 @@ neighbor 192.0.2.1 {
     local-as 65000;
 }`
 
-	tok := NewTokenizer(input)
-	tokens := tok.All()
+	tok := newTokenizer(input)
+	tokens := tok.all()
 
 	// Comments should be skipped
-	require.Equal(t, "neighbor", tokens[0].Value)
-	require.Equal(t, 2, tokens[0].Line) // Line 2, after comment
+	require.Equal(t, "neighbor", tokens[0].value)
+	require.Equal(t, 2, tokens[0].line) // Line 2, after comment
 }
 
 // TestTokenizerNestedBraces verifies nested structure.
@@ -118,15 +118,15 @@ func TestTokenizerNestedBraces(t *testing.T) {
     }
 }`
 
-	tok := NewTokenizer(input)
-	tokens := tok.All()
+	tok := newTokenizer(input)
+	tokens := tok.all()
 
 	braceCount := 0
 	for _, tok := range tokens {
-		switch tok.Type { //nolint:exhaustive // Only tracking braces
-		case TokenLBrace:
+		switch tok.kind { //nolint:exhaustive // Only tracking braces
+		case tokenLBrace:
 			braceCount++
-		case TokenRBrace:
+		case tokenRBrace:
 			braceCount--
 		}
 	}
@@ -141,25 +141,25 @@ func TestTokenizerNestedBraces(t *testing.T) {
 func TestTokenizerNext(t *testing.T) {
 	input := `foo bar;`
 
-	tok := NewTokenizer(input)
+	tok := newTokenizer(input)
 
-	token := tok.Next()
-	require.Equal(t, TokenWord, token.Type)
-	require.Equal(t, "foo", token.Value)
+	token := tok.next()
+	require.Equal(t, tokenWord, token.kind)
+	require.Equal(t, "foo", token.value)
 
-	token = tok.Next()
-	require.Equal(t, TokenWord, token.Type)
-	require.Equal(t, "bar", token.Value)
+	token = tok.next()
+	require.Equal(t, tokenWord, token.kind)
+	require.Equal(t, "bar", token.value)
 
-	token = tok.Next()
-	require.Equal(t, TokenSemicolon, token.Type)
+	token = tok.next()
+	require.Equal(t, tokenSemicolon, token.kind)
 
-	token = tok.Next()
-	require.Equal(t, TokenEOF, token.Type)
+	token = tok.next()
+	require.Equal(t, tokenEOF, token.kind)
 
 	// EOF should be repeatable
-	token = tok.Next()
-	require.Equal(t, TokenEOF, token.Type)
+	token = tok.next()
+	require.Equal(t, tokenEOF, token.kind)
 }
 
 // TestTokenizerPeek verifies lookahead.
@@ -170,22 +170,22 @@ func TestTokenizerNext(t *testing.T) {
 func TestTokenizerPeek(t *testing.T) {
 	input := `foo bar`
 
-	tok := NewTokenizer(input)
+	tok := newTokenizer(input)
 
 	// Peek should not consume
-	token := tok.Peek()
-	require.Equal(t, "foo", token.Value)
+	token := tok.peek()
+	require.Equal(t, "foo", token.value)
 
-	token = tok.Peek()
-	require.Equal(t, "foo", token.Value)
+	token = tok.peek()
+	require.Equal(t, "foo", token.value)
 
 	// Next should return same token
-	token = tok.Next()
-	require.Equal(t, "foo", token.Value)
+	token = tok.next()
+	require.Equal(t, "foo", token.value)
 
 	// Now peek should return next
-	token = tok.Peek()
-	require.Equal(t, "bar", token.Value)
+	token = tok.peek()
+	require.Equal(t, "bar", token.value)
 }
 
 // TestTokenizerEmpty verifies empty input.
@@ -194,9 +194,9 @@ func TestTokenizerPeek(t *testing.T) {
 //
 // PREVENTS: Panics on empty config.
 func TestTokenizerEmpty(t *testing.T) {
-	tok := NewTokenizer("")
-	token := tok.Next()
-	require.Equal(t, TokenEOF, token.Type)
+	tok := newTokenizer("")
+	token := tok.next()
+	require.Equal(t, tokenEOF, token.kind)
 }
 
 // TestTokenizerWhitespaceOnly verifies whitespace handling.
@@ -205,9 +205,9 @@ func TestTokenizerEmpty(t *testing.T) {
 //
 // PREVENTS: Phantom tokens from whitespace.
 func TestTokenizerWhitespaceOnly(t *testing.T) {
-	tok := NewTokenizer("   \n\t\n   ")
-	token := tok.Next()
-	require.Equal(t, TokenEOF, token.Type)
+	tok := newTokenizer("   \n\t\n   ")
+	token := tok.next()
+	require.Equal(t, tokenEOF, token.kind)
 }
 
 // TestTokenizerArray verifies array bracket tokenization.
@@ -218,20 +218,20 @@ func TestTokenizerWhitespaceOnly(t *testing.T) {
 func TestTokenizerArray(t *testing.T) {
 	input := `processes [ foo bar ];`
 
-	tok := NewTokenizer(input)
-	tokens := tok.All()
+	tok := newTokenizer(input)
+	tokens := tok.all()
 
-	require.Equal(t, TokenWord, tokens[0].Type)
-	require.Equal(t, "processes", tokens[0].Value)
-	require.Equal(t, TokenLBracket, tokens[1].Type)
-	require.Equal(t, "[", tokens[1].Value)
-	require.Equal(t, TokenWord, tokens[2].Type)
-	require.Equal(t, "foo", tokens[2].Value)
-	require.Equal(t, TokenWord, tokens[3].Type)
-	require.Equal(t, "bar", tokens[3].Value)
-	require.Equal(t, TokenRBracket, tokens[4].Type)
-	require.Equal(t, "]", tokens[4].Value)
-	require.Equal(t, TokenSemicolon, tokens[5].Type)
+	require.Equal(t, tokenWord, tokens[0].kind)
+	require.Equal(t, "processes", tokens[0].value)
+	require.Equal(t, tokenLBracket, tokens[1].kind)
+	require.Equal(t, "[", tokens[1].value)
+	require.Equal(t, tokenWord, tokens[2].kind)
+	require.Equal(t, "foo", tokens[2].value)
+	require.Equal(t, tokenWord, tokens[3].kind)
+	require.Equal(t, "bar", tokens[3].value)
+	require.Equal(t, tokenRBracket, tokens[4].kind)
+	require.Equal(t, "]", tokens[4].value)
+	require.Equal(t, tokenSemicolon, tokens[5].kind)
 }
 
 // TestTokenizerAutoSemicolon verifies newlines act as implicit semicolons.
@@ -243,74 +243,74 @@ func TestTokenizerAutoSemicolon(t *testing.T) {
 	tests := []struct {
 		name   string
 		input  string
-		types  []TokenType
+		types  []tokenType
 		values []string
 	}{
 		{
 			name:   "newline after word",
 			input:  "local-as 65000\npeer-as 65001\n",
-			types:  []TokenType{TokenWord, TokenWord, TokenSemicolon, TokenWord, TokenWord, TokenSemicolon, TokenEOF},
+			types:  []tokenType{tokenWord, tokenWord, tokenSemicolon, tokenWord, tokenWord, tokenSemicolon, tokenEOF},
 			values: []string{"local-as", "65000", ";", "peer-as", "65001", ";", ""},
-		},
-		{
-			name:   "auto-semi before closing brace on same line",
-			input:  "edit { default-action deny }",
-			types:  []TokenType{TokenWord, TokenLBrace, TokenWord, TokenWord, TokenSemicolon, TokenRBrace, TokenEOF},
-			values: []string{"edit", "{", "default-action", "deny", ";", "}", ""},
 		},
 		{
 			name:   "EOF without newline",
 			input:  "local-as 65000",
-			types:  []TokenType{TokenWord, TokenWord, TokenSemicolon, TokenEOF},
+			types:  []tokenType{tokenWord, tokenWord, tokenSemicolon, tokenEOF},
 			values: []string{"local-as", "65000", ";", ""},
 		},
 		{
 			name:   "no auto-semi after open brace",
 			input:  "bgp {\nlocal-as 1\n}",
-			types:  []TokenType{TokenWord, TokenLBrace, TokenWord, TokenWord, TokenSemicolon, TokenRBrace, TokenEOF},
+			types:  []tokenType{tokenWord, tokenLBrace, tokenWord, tokenWord, tokenSemicolon, tokenRBrace, tokenEOF},
 			values: []string{"bgp", "{", "local-as", "1", ";", "}", ""},
+		},
+		{
+			name:   "auto-semi before closing brace on same line",
+			input:  "edit { default-action deny }",
+			types:  []tokenType{tokenWord, tokenLBrace, tokenWord, tokenWord, tokenSemicolon, tokenRBrace, tokenEOF},
+			values: []string{"edit", "{", "default-action", "deny", ";", "}", ""},
 		},
 		{
 			name:   "explicit semicolons still work",
 			input:  "local-as 65000;\npeer-as 65001;\n",
-			types:  []TokenType{TokenWord, TokenWord, TokenSemicolon, TokenWord, TokenWord, TokenSemicolon, TokenEOF},
+			types:  []tokenType{tokenWord, tokenWord, tokenSemicolon, tokenWord, tokenWord, tokenSemicolon, tokenEOF},
 			values: []string{"local-as", "65000", ";", "peer-as", "65001", ";", ""},
 		},
 		{
 			name:   "auto-semi after closing bracket",
 			input:  "processes [ foo bar ]\n",
-			types:  []TokenType{TokenWord, TokenLBracket, TokenWord, TokenWord, TokenRBracket, TokenSemicolon, TokenEOF},
+			types:  []tokenType{tokenWord, tokenLBracket, tokenWord, tokenWord, tokenRBracket, tokenSemicolon, tokenEOF},
 			values: []string{"processes", "[", "foo", "bar", "]", ";", ""},
 		},
 		{
 			name:   "auto-semi after closing paren",
 			input:  "name ( content )\n",
-			types:  []TokenType{TokenWord, TokenLParen, TokenWord, TokenRParen, TokenSemicolon, TokenEOF},
+			types:  []tokenType{tokenWord, tokenLParen, tokenWord, tokenRParen, tokenSemicolon, tokenEOF},
 			values: []string{"name", "(", "content", ")", ";", ""},
 		},
 		{
 			name:   "auto-semi after quoted string",
 			input:  "description \"hello world\"\n",
-			types:  []TokenType{TokenWord, TokenString, TokenSemicolon, TokenEOF},
+			types:  []tokenType{tokenWord, tokenString, tokenSemicolon, tokenEOF},
 			values: []string{"description", "hello world", ";", ""},
 		},
 		{
 			name:   "comment ends line like newline",
 			input:  "local-as 65000 # comment\npeer-as 1\n",
-			types:  []TokenType{TokenWord, TokenWord, TokenSemicolon, TokenWord, TokenWord, TokenSemicolon, TokenEOF},
+			types:  []tokenType{tokenWord, tokenWord, tokenSemicolon, tokenWord, tokenWord, tokenSemicolon, tokenEOF},
 			values: []string{"local-as", "65000", ";", "peer-as", "1", ";", ""},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tok := NewTokenizer(tt.input)
-			tokens := tok.All()
+			tok := newTokenizer(tt.input)
+			tokens := tok.all()
 
 			require.Equal(t, len(tt.types), len(tokens), "token count")
 			for i, token := range tokens {
-				require.Equal(t, tt.types[i], token.Type, "token %d type", i)
-				require.Equal(t, tt.values[i], token.Value, "token %d value", i)
+				require.Equal(t, tt.types[i], token.kind, "token %d type", i)
+				require.Equal(t, tt.values[i], token.value, "token %d value", i)
 			}
 		})
 	}

@@ -1,3 +1,5 @@
+// Design: docs/architecture/appliance/self-update.md -- self-update configuration validation
+
 package system
 
 import (

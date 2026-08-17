@@ -97,7 +97,7 @@ non-Linux workstation, use `make ze-unit-linux-test`; it runs the default Linux-
 unit package set in Docker and can be narrowed or expanded with
 `ZE_LINUX_TEST_PACKAGES="./pkg/a ./pkg/b"`.
 
-Clean release-candidate evidence can be run with `make ze-release-check`.
+Clean release-candidate evidence can be run with `make ze-evidence-release-candidate-check`.
 The target refuses a dirty worktree, clones the repository into an ephemeral
 Docker container, mirrors the CI dependency setup, and runs
 `make ze-precommit-verify` there.
@@ -408,7 +408,7 @@ benchmark opts in by adding one entry to `perf.AllocCeilings`
 is absent from the output. The machine-dependent timing regression check
 (convergence / throughput / p99) is NOT in this gate: it runs scheduled-only via
 `.github/workflows/perf-nightly.yml` (`bin/ze-perf track --check`, scheduled), and
-the heavy Docker throughput/p99 DUT matrix stays in `make ze-perf-evidence-update-check`.
+the heavy Docker throughput/p99 DUT matrix stays in `make ze-evidence-perf-record`.
 <!-- source: internal/perf/allocgate.go -- AllocCeilings, checkAllocCeilings -->
 <!-- source: mk/alloc-gate.mk -- ze-alloc-check target -->
 <!-- source: scripts/status/verify_run.go -- stagesForMode ze-precommit-verify includes ze-alloc-check -->
@@ -647,12 +647,12 @@ and development never touch each other's binaries:
 ```bash
 make ze-functional-parse-test        # builds ze/ze-test/ze-stripped in tmp/testbin-<id>/bin/,
                           # runs frozen against them, removes the dir on exit
-make ze                   # meanwhile: rebuild bin/ze as much as you like --
+make ze-build                   # meanwhile: rebuild bin/ze as much as you like --
                           # the running suite never sees it
 ```
 
 The legacy behavior recompiled `ze` and `ze-test` **into `bin/`** on every run
-(`internal/test/runner` `Build`), so editing source or running `make ze` while a
+(`internal/test/runner` `Build`), so editing source or running `make ze-build` while a
 long suite ran overwrote your dev `bin/ze` and leaked the half-edited tree into
 later tests. Now each target instead, at the start of its recipe:
 
@@ -686,8 +686,8 @@ the throwaway root is that session's own directory,
 isolation protects is `$(make ze-session-binary-path)` rather than `bin/ze`.
 
 An interrupted run (SIGKILL) can leave its `testbin-*` directory behind.
-Off-session `make ze-tmp-clean` sweeps directories older than 24h; on-session
-nothing is removed automatically, and `make ze-sessions-clean BEFORE=<YYYY-MM-DD>`
+Off-session `make ze-scratch-clean` sweeps directories older than 24h; on-session
+nothing is removed automatically, and `make ze-session-clean BEFORE=<YYYY-MM-DD>`
 takes the whole session directory when the operator asks for it.
 <!-- source: mk/test-functional.mk -- isolated-binary block, inline ZE_ALT_BUILD, per-recipe trap -->
 <!-- source: internal/test/runner/runner.go -- ze.bin/ze.test.bin/ze.test.no.build env, Build/verifyPrebuilt -->
@@ -2346,7 +2346,7 @@ target). A new fuzzer is included by existing, not by editing the makefile;
 
 ```bash
 make ze-fuzz-test                                    # All fuzz targets, 10s each
-make ze-fuzz-one-test FUZZ=FuzzParseUpdate TIME=30s       # Single target, custom duration
+make ze-fuzz-test-one FUZZ=FuzzParseUpdate TIME=30s       # Single target, custom duration
 ```
 <!-- source: mk/test-fuzz.mk -- ze-fuzz-test -->
 
@@ -2495,7 +2495,7 @@ required `CONFIG_BPF_SYSCALL`, `CONFIG_BPF_JIT`, and `CONFIG_VETH`.
 
 ```bash
 make ze-deployment-preflight       # Strict tool check for complete deployment evidence
-make ze-release-check              # Run clean Docker ze-precommit-verify release evidence
+make ze-evidence-release-candidate-check              # Run clean Docker ze-precommit-verify release evidence
 make ze-deployment-vpp-test        # Run real VPP daemon FIB, traffic, MPLS and IPsec evidence
 make ze-deployment-l2tp-test       # Run real xl2tpd LAC control/session evidence
 make ze-deployment-l2tp-ppp-test   # Run real xl2tpd/pppd PPP/NCP evidence on Linux

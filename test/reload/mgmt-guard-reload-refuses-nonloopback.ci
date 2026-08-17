@@ -1,7 +1,7 @@
 # Test: SIGHUP cannot migrate an unauthenticated listener to a routable address
 # VALIDATES: spec-fixit-mgmt-listener-auth-guard AC-7 -- the boot guard alone
 # fails open. A service's auth mode is fixed when it is built, and
-# ListenerMigrator.ReloadListeners moves listen addresses on SIGHUP with no auth
+# listenerMigrator.reloadListeners moves listen addresses on SIGHUP with no auth
 # re-check, so a config swap could publish on 0.0.0.0 exactly what the boot
 # guard refused to publish. MCP starts here from ze.mcp.listen on loopback with
 # no token, so it is built unauthenticated; the reloaded config then asks for

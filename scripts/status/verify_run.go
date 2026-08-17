@@ -243,10 +243,11 @@ func stagesForMode(mode, makeCmd string) []stage {
 			mk("ze-port-defaults-check"),
 			mk("ze-config-claims-check"),
 			mk("ze-test-sensitivity-check"),
-			mk("ze-weakened-check"),
-			mk("ze-tracked-build-check"),
+			mk("ze-test-weakened-check"),
+			mk("ze-staticcheck-feature-matrix-check"),
+			mk("ze-repository-tracked-build-check"),
 			mk("ze-platform-vet"),
-			mk("ze-wiring-docs-check"),
+			mk("ze-doc-wiring-check"),
 			mk("ze-doc-verify"),
 			mk("ze-doc-links-check"),
 			mk("ze-repository-tree-check"),
@@ -272,10 +273,11 @@ func stagesForMode(mode, makeCmd string) []stage {
 			mk("ze-port-defaults-check"),
 			mk("ze-config-claims-check"),
 			mk("ze-test-sensitivity-check"),
-			mk("ze-weakened-check"),
-			mk("ze-tracked-build-check"),
+			mk("ze-test-weakened-check"),
+			mk("ze-staticcheck-feature-matrix-check"),
+			mk("ze-repository-tracked-build-check"),
 			mk("ze-platform-vet"),
-			mk("ze-wiring-docs-check"),
+			mk("ze-doc-wiring-check"),
 			mk("ze-doc-verify"),
 			mk("ze-doc-links-check"),
 			mk("ze-repository-tree-check"),
@@ -513,7 +515,7 @@ func classifyStage(st stage, detailLog, text string) []failureGroup {
 		groups = classifyLint(st, detailLog, text)
 	case "ze-evidence-vet", "ze-platform-vet":
 		groups = classifyVet(st, detailLog, text)
-	case "ze-wiring-docs-check":
+	case "ze-doc-wiring-check":
 		groups = classifyWiringDocs(st, detailLog, text)
 	case "ze-functional-test":
 		groups = classifyFunctional(detailLog, text)

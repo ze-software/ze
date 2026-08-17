@@ -184,8 +184,8 @@ func (r *parallelRunner[T]) addRecord(rec *Record, test T, runFn func(ctx contex
 	})
 }
 
-// AddTest adds a test to the runner.
-func (r *parallelRunner[T]) AddTest(name string, test T, runFn func(ctx context.Context, t T) (bool, error)) *Record {
+// addTestWithoutNick adds a test to the runner.
+func (r *parallelRunner[T]) addTestWithoutNick(name string, test T, runFn func(ctx context.Context, t T) (bool, error)) *Record {
 	return r.addTest(name, "", test, runFn)
 }
 
@@ -196,7 +196,7 @@ func (r *parallelRunner[T]) AddTestWithNick(name, nick string, test T, runFn fun
 
 func (r *parallelRunner[T]) addTest(name, nick string, test T, runFn func(ctx context.Context, t T) (bool, error)) *Record {
 	if r.display == nil {
-		// Lazy init - create Tests container and Display on first AddTest
+		// Lazy init - create Tests container and Display on first addTest
 		tests := NewTests()
 		r.display = NewDisplay(tests, r.colors)
 		r.display.SetQuiet(r.quiet)

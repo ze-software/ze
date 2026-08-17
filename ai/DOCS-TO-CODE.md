@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/go-standards.md`.
 
-Total: 262 design docs, 3333 files
+Total: 262 design docs, 3414 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -192,7 +192,7 @@ Total: 262 design docs, 3333 files
 | `internal/plugins/diag/cmd/capture_raw_l2tp_off.go` | ze_l2tp-off raw-capture stub |
 | `internal/plugins/static/backend_vpp_off_linux.go` | ze_vpp-off static backend stub |
 | `scripts/checks/plugin_process_boundary.go` | process-boundary guard |
-| `scripts/codegen/feature_tags.go` | the three static consumers are GENERATED, not hand-maintained |
+| `scripts/codegen/feature_tags.go` | static consumers are GENERATED, not hand-maintained |
 
 ## `ai/rules/repo-maintenance.md`
 
@@ -212,6 +212,7 @@ Total: 262 design docs, 3333 files
 
 ## `docs/architecture/aaa-tacacs.md`
 
+- `internal/component/aaa/command_args.go` -- typed command authorization contract
 - `internal/component/tacacs/cli/main.go` -- TACACS+ AAA operational CLI
 
 ## `docs/architecture/anomaly/anomaly-1-detect.md`
@@ -379,6 +380,7 @@ Total: 262 design docs, 3333 files
 | `internal/component/ping/cmd/monitor.go` | monitor ping command handler |
 | `internal/component/ping/cmd/stream.go` | streaming ping session |
 | `internal/component/plugin/cli/register.go` | plugin command ownership |
+| `internal/component/plugin/dispatch.go` | shared command dispatch contract |
 | `internal/component/plugin/server/quiesce.go` | quiesce barrier (test synchronization) |
 | `internal/component/plugin/server/reload_generation.go` | show reload-status observability surface |
 | `internal/component/resolve/cli/register.go` | resolve command ownership |
@@ -611,6 +613,8 @@ Total: 262 design docs, 3333 files
 ## `docs/architecture/appliance/iso-installer.md`
 
 - `internal/appliance/cmd_iso.go` -- bootable appliance ISO installer
+- `internal/thirdparty/fat/reader.go` -- FAT16B appliance image support
+- `internal/thirdparty/fat/writer.go` -- FAT16B appliance image support
 
 ## `docs/architecture/appliance/kernel-profiles.md`
 
@@ -651,6 +655,8 @@ Total: 262 design docs, 3333 files
 |------|-------|
 | `cmd/ze/update_serve.go` | standalone update server with enhanced manifest |
 | `internal/component/config/system/selfupdate.go` | download, verify, stage, restart logic |
+| `internal/component/config/system/selfupdate_shared.go` | self-update configuration and status |
+| `internal/component/config/system/selfupdate_validate.go` | self-update configuration validation |
 | `internal/plugins/update-cmd/cmd/firmware.go` | update system firmware CLI handlers |
 | `internal/plugins/update-cmd/cmd/show.go` | show system update CLI handler (extended) |
 
@@ -817,6 +823,7 @@ Total: 262 design docs, 3333 files
 | `internal/chaos/web/control.go` | web dashboard UI |
 | `internal/chaos/web/dashboard.go` | web dashboard UI |
 | `internal/chaos/web/handlers.go` | web dashboard UI |
+| `internal/chaos/web/page_assets.go` | chaos dashboard web asset sets |
 | `internal/chaos/web/render.go` | web dashboard UI |
 | `internal/chaos/web/render_test.go` | the Freeze control |
 | `internal/chaos/web/route_mux.go` | web dashboard UI |
@@ -1261,6 +1268,7 @@ Total: 262 design docs, 3333 files
 | `internal/component/bgp/reactor/filter_delta_test.go` | policy filter wire-level dirty tracking tests |
 | `internal/component/bgp/reactor/filter_format.go` | policy filter chain |
 | `internal/component/bgp/reactor/forward_build.go` | exactly-sized one-pass rebuild for egress attribute modification |
+| `internal/component/bgp/reactor/forward_context.go` | egress BGP context derivation |
 | `internal/component/bgp/reactor/forward_initial_sync_order_test.go` | BGP reactor event loop |
 | `internal/component/bgp/reactor/forward_local_pref.go` | egress attribute modification on the forward rails |
 | `internal/component/bgp/reactor/forward_modify_failure.go` | progressive build for egress attribute modification |
@@ -1448,6 +1456,7 @@ Total: 262 design docs, 3333 files
 | `internal/core/network/md5_freebsd.go` | TCP MD5 authentication (RFC 2385) |
 | `internal/core/network/md5_linux.go` | TCP MD5 authentication (RFC 2385) |
 | `internal/core/network/md5_other.go` | TCP MD5 authentication (RFC 2385) |
+| `internal/core/portname/services_table.go` | IANA service-name lookup table |
 | `internal/core/redistevents/events.go` | cross-protocol route-change events |
 | `internal/core/redistevents/pool.go` | pooled batch payload |
 | `internal/core/redistevents/registry.go` | ProtocolID registry for redistribute |
@@ -2978,6 +2987,7 @@ Total: 262 design docs, 3333 files
 
 | File | Topic |
 |------|-------|
+| `cmd/ze/hub/main_pki.go` | hub PKI configuration parsing |
 | `cmd/ze/hub/main_reload_pki_test.go` | reload ordering (AC-10) and rollback (R-3) |
 | `cmd/ze/hub/service_web_tls_test.go` | hub web TLS material selection tests |
 | `internal/component/pki/tls_test.go` | server TLS material tests |
@@ -3161,6 +3171,7 @@ Total: 262 design docs, 3333 files
 | `internal/component/resolve/cli/resolve_test.go` | end-to-end tests for resolve CLI |
 | `internal/component/resolve/cmd/resolve.go` | resolve command handlers for dispatcher |
 | `internal/component/resolve/cymru/cymru.go` | Team Cymru ASN name resolution |
+| `internal/component/resolve/irr/rir_table.go` | compiled RIR delegation seed |
 | `internal/component/resolve/irr/store/store.go` | shared IRR prefix resolution + persistence |
 | `internal/component/resolve/peeringdb/client.go` | PeeringDB client for prefix update |
 | `internal/component/resolve/resolvers.go` | Resolution component container |
@@ -3450,6 +3461,7 @@ Total: 262 design docs, 3333 files
 | `internal/test/runner/runner_exec_util.go` | test execution utilities |
 | `internal/test/runner/runner_output.go` | output capture, saving, and parsing |
 | `internal/test/runner/runner_validate.go` | result validation (JSON, logging, HTTP) |
+| `internal/test/runner/selection.go` | common ze-test selection contract |
 | `internal/test/runner/stress.go` | test runner framework |
 | `internal/test/runner/timing.go` | test timing baseline |
 | `internal/test/syslog/testsyslog.go` | syslog test helpers |
@@ -3667,19 +3679,75 @@ Total: 262 design docs, 3333 files
 | `cmd/ze/hub/listener_migrate.go` | Graceful listener migration on config reload |
 | `internal/component/lg/auth.go` | optional looking-glass bearer gate |
 | `internal/component/lg/embed.go` | LG embedded assets |
+| `internal/component/lg/error_templ.go` | looking glass error component |
 | `internal/component/lg/graph.go` | AS path topology graph data model |
+| `internal/component/lg/graph_empty_templ.go` | looking glass graph component |
 | `internal/component/lg/graph_nexthop.go` | Next-hop forwarding topology graph |
 | `internal/component/lg/handler_api.go` | Birdwatcher REST API handlers |
 | `internal/component/lg/handler_graph.go` | Topology graph handler |
 | `internal/component/lg/handler_ui.go` | HTMX looking glass UI handlers |
+| `internal/component/lg/help_templ.go` | looking glass help page |
 | `internal/component/lg/layout.go` | Layered graph layout algorithm |
 | `internal/component/lg/layout_nexthop.go` | Next-hop graph layout and SVG rendering |
+| `internal/component/lg/layout_templ.go` | looking glass page shell |
+| `internal/component/lg/page_assets.go` | looking glass web asset sets |
+| `internal/component/lg/peer_routes_templ.go` | looking glass peer routes |
+| `internal/component/lg/peers_templ.go` | looking glass peer dashboard |
 | `internal/component/lg/render.go` | LG template rendering |
+| `internal/component/lg/route_detail_templ.go` | looking glass route detail |
+| `internal/component/lg/route_table_templ.go` | looking glass route table |
+| `internal/component/lg/search_templ.go` | looking glass route search |
 | `internal/component/lg/server.go` | Looking glass HTTP server |
 | `internal/component/lg/view.go` | LG view models |
 | `internal/component/web/auth.go` | Authentication and session management |
 | `internal/component/web/cli.go` | CLI bar and command handlers |
 | `internal/component/web/cli_terminal.go` | CLI terminal mode and rendering helpers |
+| `internal/component/web/component_add_form_overlay_templ.go` | web interface component |
+| `internal/component/web/component_breadcrumb_templ.go` | web interface component |
+| `internal/component/web/component_cli_terminal_templ.go` | web interface component |
+| `internal/component/web/component_command_form_templ.go` | web interface component |
+| `internal/component/web/component_command_result_templ.go` | web interface component |
+| `internal/component/web/component_commit_bar_templ.go` | web interface component |
+| `internal/component/web/component_dashboard_events_templ.go` | web interface component |
+| `internal/component/web/component_dashboard_health_templ.go` | web interface component |
+| `internal/component/web/component_detail_kv_templ.go` | web interface component |
+| `internal/component/web/component_detail_templ.go` | web interface component |
+| `internal/component/web/component_diff_modal_templ.go` | web interface component |
+| `internal/component/web/component_error_panel_templ.go` | web interface component |
+| `internal/component/web/component_finder_templ.go` | web interface component |
+| `internal/component/web/component_iface_detail_templ.go` | web interface component |
+| `internal/component/web/component_list_table_templ.go` | web interface component |
+| `internal/component/web/component_log_live_templ.go` | web interface component |
+| `internal/component/web/component_log_table_templ.go` | web interface component |
+| `internal/component/web/component_notification_error_templ.go` | web interface component |
+| `internal/component/web/component_oob_error_templ.go` | web interface component |
+| `internal/component/web/component_oob_response_templ.go` | web interface component |
+| `internal/component/web/component_oob_save_templ.go` | web interface component |
+| `internal/component/web/component_page_shells_templ.go` | web interface component |
+| `internal/component/web/component_path_bar_templ.go` | web interface component |
+| `internal/component/web/component_peer_detail_templ.go` | web interface component |
+| `internal/component/web/component_system_panels_templ.go` | web interface component |
+| `internal/component/web/component_tool_bgp_decode_templ.go` | web interface component |
+| `internal/component/web/component_tool_capture_templ.go` | web interface component |
+| `internal/component/web/component_tool_metrics_templ.go` | web interface component |
+| `internal/component/web/component_tool_overlay_templ.go` | web interface component |
+| `internal/component/web/component_tool_ping_templ.go` | web interface component |
+| `internal/component/web/component_workbench_dashboard_templ.go` | web interface component |
+| `internal/component/web/component_workbench_detail_templ.go` | web interface component |
+| `internal/component/web/component_workbench_form_templ.go` | web interface component |
+| `internal/component/web/component_workbench_nav_templ.go` | web interface component |
+| `internal/component/web/component_workbench_table_templ.go` | web interface component |
+| `internal/component/web/component_workbench_topbar_templ.go` | web interface component |
+| `internal/component/web/config_breadcrumb_templ.go` | web configuration component |
+| `internal/component/web/config_command_form_templ.go` | web configuration component |
+| `internal/component/web/config_command_templ.go` | web configuration component |
+| `internal/component/web/config_commit_templ.go` | web configuration component |
+| `internal/component/web/config_container_templ.go` | web configuration component |
+| `internal/component/web/config_freeform_templ.go` | web configuration component |
+| `internal/component/web/config_inline_list_templ.go` | web configuration component |
+| `internal/component/web/config_leaf_input_templ.go` | web configuration component |
+| `internal/component/web/config_list_templ.go` | web configuration component |
+| `internal/component/web/config_notification_templ.go` | web configuration component |
 | `internal/component/web/decorator.go` | Display-time value decoration |
 | `internal/component/web/decorator_asn.go` | ASN name resolution via Team Cymru DNS |
 | `internal/component/web/decorator_community.go` | well-known BGP community name resolution |
@@ -3700,6 +3768,19 @@ Total: 262 design docs, 3333 files
 | `internal/component/web/handler_tools.go` | workbench related-tool execution |
 | `internal/component/web/handler_workbench.go` | workbench shell handler |
 | `internal/component/web/i18n.go` | web UI internationalization |
+| `internal/component/web/input_bool_templ.go` | web configuration input component |
+| `internal/component/web/input_enum_templ.go` | web configuration input component |
+| `internal/component/web/input_number_templ.go` | web configuration input component |
+| `internal/component/web/input_text_templ.go` | web configuration input component |
+| `internal/component/web/input_wrapper_templ.go` | web configuration input component |
+| `internal/component/web/l2tp_detail_templ.go` | L2TP web interface |
+| `internal/component/web/l2tp_list_templ.go` | L2TP web interface |
+| `internal/component/web/notification_banner_templ.go` | web interface notification |
+| `internal/component/web/page_assets.go` | per-page web asset sets |
+| `internal/component/web/page_layout_templ.go` | web interface page shell |
+| `internal/component/web/page_login_templ.go` | web interface login page |
+| `internal/component/web/page_snapshot_templ.go` | protocol snapshot page |
+| `internal/component/web/page_workbench_templ.go` | operator workbench page |
 | `internal/component/web/rbac.go` | role-based access control |
 | `internal/component/web/related_resolver.go` | workbench related-tool resolver |
 | `internal/component/web/render.go` | Template rendering |

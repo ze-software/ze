@@ -44,15 +44,15 @@ func TestFeatureGateTagsFromManifest(t *testing.T) {
 // as112-external-refuses / flowexport-external-refuses wait out their
 // await=stderr fence against a process that already died.
 func TestHelperBuildTagsCarryFeatureGates(t *testing.T) {
-	built := strings.Split(TestHelperBuildTags(), ",")
+	built := strings.Split(testHelperBuildTags(), ",")
 
 	// ze_test selects the helper's own CLI surface (the peer / plugin-external
 	// subcommands); without it there is no helper at all.
-	assert.Contains(t, built, "ze_test", "TestHelperBuildTags missing ze_test")
+	assert.Contains(t, built, "ze_test", "testHelperBuildTags missing ze_test")
 
 	// Every gate the daemon gets, the helper gets: plugin-external hands the
 	// connection to the registry entry the DAEMON expects to be there.
 	for _, want := range featureGateTags() {
-		assert.Contains(t, built, want, "TestHelperBuildTags missing gate %q", want)
+		assert.Contains(t, built, want, "testHelperBuildTags missing gate %q", want)
 	}
 }

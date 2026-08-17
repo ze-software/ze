@@ -478,7 +478,7 @@ func appendViolation(out []string, at, plugin, reason, tok string) []string {
 // Every name is captured with its quotes and unquoted by unquoteName, and
 // targetToken skips an opening quote for the same reason: a list key is a word
 // OR a quoted string (config/parser_list.go, parseList takes the key from
-// TokenWord and from TokenString alike), so `process "bgp-rr" { }` is the same
+// tokenWord and tokenString alike), so `process "bgp-rr" { }` is the same
 // block as the bare spelling.
 var (
 	attachOpen   = regexp.MustCompile(`attach\s+process\s+(\S+)\s*\{(.*)$`)

@@ -5,7 +5,7 @@ title: Web Interface (Guide)
 
 Ze provides an HTTPS web interface for browsing configuration, editing values, and running commands through a browser. The web UI uses the same YANG schemas, user database, and command grammar as the SSH CLI.
 <!-- source: internal/component/web/handler.go -- URL routing, three-tier scheme -->
-<!-- source: internal/component/web/auth.go -- AuthMiddleware uses ssh.AuthenticateUser -->
+<!-- source: internal/component/web/auth.go -- authMiddleware uses ssh.AuthenticateUser -->
 
 ## Starting the Web Server
 
@@ -56,7 +56,7 @@ environment {
 ## Authentication
 
 The web interface uses the same user database as the SSH server. Users log in through a browser login page or authenticate API requests with HTTP Basic Auth.
-<!-- source: internal/component/web/auth.go -- AuthMiddleware, LoginHandler, parseBasicAuth -->
+<!-- source: internal/component/web/auth.go -- authMiddleware, loginHandler, parseBasicAuth -->
 
 ### Browser Sessions
 
@@ -111,7 +111,7 @@ rendered a blank panel and answered 200.
 | Command | What it does |
 |---------|--------------|
 | `make generate` | Regenerates every `*_templ.go` from its `.templ` source. Run it after any `.templ` edit |
-| `make ze-templ-generate-check` | Refuses a `*_templ.go` that its source no longer produces. Writes nothing and deletes nothing |
+| `make ze-templ-output-check` | Refuses a `*_templ.go` that its source no longer produces. Writes nothing and deletes nothing |
 | `make ze-templ-orphan-check` | Reports a `*_templ.go` whose `.templ` source is gone, and a `.templ` outside the walk |
 
 The generator runs from `vendor/`, so `make generate` needs no network and

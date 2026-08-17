@@ -11,6 +11,7 @@ import (
 	"time"
 
 	zeconfig "github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/infra"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/engine"
 	zepki "github.com/ze-software/ze/internal/component/pki"
@@ -81,7 +82,7 @@ func diskConfigLoaders(store storage.Storage, configPath string, plugins []strin
 // It closes done when reloadCh is closed and the reload it was running has
 // reported. Shutdown waits on that (awaitReloadWorker), so a SIGTERM racing a
 // SIGHUP does not take the verdict with it.
-func handleSIGHUPReload(reloadCh <-chan os.Signal, done chan<- struct{}, s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider, store storage.Storage, configPath string, load func() (map[string]any, *zeconfig.Tree, error), lm *ListenerMigrator, recorder audit.Recorder) {
+func handleSIGHUPReload(reloadCh <-chan os.Signal, done chan<- struct{}, s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider, store storage.Storage, configPath string, load func() (map[string]any, *zeconfig.Tree, error), lm *listenerMigrator, recorder audit.Recorder) {
 	defer close(done)
 
 	for range reloadCh {
@@ -220,8 +221,12 @@ func recordDaemonReloadAudit(recorder audit.Recorder, actor, remoteAddr, surface
 // ErrReloadInProgress is deliberately NOT marked: that reload never ran: it is
 // queued and replayed by handleSIGHUPReload, and the replay marks it. Marking
 // it here would fence an observer on a reload that had not been processed.
-func doReload(s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider, store storage.Storage, configPath string, load func() (map[string]any, *zeconfig.Tree, error), lm *ListenerMigrator) error {
-	err := runReload(s, eng, cp, store, configPath, load, lm)
+func doReload(s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider, store storage.Storage, configPath string, load func() (map[string]any, *zeconfig.Tree, error), lm *listenerMigrator) error {
+	return doReloadContext(context.Background(), s, eng, cp, store, configPath, load, lm)
+}
+
+func doReloadContext(ctx context.Context, s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider, store storage.Storage, configPath string, load func() (map[string]any, *zeconfig.Tree, error), lm *listenerMigrator) error {
+	err := runReloadContext(ctx, s, eng, cp, store, configPath, load, lm)
 	if s != nil && !errors.Is(err, pluginserver.ErrReloadInProgress) {
 		s.MarkReloadProcessed(err == nil)
 	}
@@ -250,8 +255,12 @@ func doReload(s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider,
 // avoids redundant I/O + YANG parse on every SIGHUP.
 //
 // Callers go through doReload, which wraps this to record the reload fence.
-func runReload(s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider, store storage.Storage, configPath string, load func() (map[string]any, *zeconfig.Tree, error), lm *ListenerMigrator) error {
-	reloadCtx, reloadCancel := context.WithTimeout(context.Background(), 30*time.Second)
+func runReload(s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider, store storage.Storage, configPath string, load func() (map[string]any, *zeconfig.Tree, error), lm *listenerMigrator) error {
+	return runReloadContext(context.Background(), s, eng, cp, store, configPath, load, lm)
+}
+
+func runReloadContext(ctx context.Context, s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider, store storage.Storage, configPath string, load func() (map[string]any, *zeconfig.Tree, error), lm *listenerMigrator) error {
+	reloadCtx, reloadCancel := context.WithTimeout(ctx, 30*time.Second)
 	defer reloadCancel()
 	candidateSet := false
 	if store != nil && configPath != "" && configPath != "-" {
@@ -372,7 +381,7 @@ func runReload(s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider
 		}
 	}
 
-	// Undo the credentials ReloadListeners installs on the running management
+	// Undo the credentials reloadListeners installs on the running management
 	// servers, unless this reload reaches its end. The operator is told a failed
 	// reload was rejected and the config is rolled back, so a listener left
 	// authenticating against the rejected config is a divergence nothing else
@@ -391,7 +400,7 @@ func runReload(s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider
 		}
 	}()
 	if lm != nil && parsedTree != nil {
-		undo, err := lm.ReloadListeners(reloadCtx, parsedTree)
+		undo, err := lm.reloadListeners(reloadCtx, parsedTree)
 		restoreAuth = undo
 		if err != nil {
 			if rollbackErr := rollbackReload(reloadCtx, s, eng, cp, priorProvider, priorPKI); rollbackErr != nil {
@@ -411,7 +420,7 @@ func runReload(s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider
 	// onto the running web listener, which serves it from the next handshake
 	// with no rebind, so open SSE streams survive the rotation (AC-9).
 	if lm != nil {
-		if err := lm.UpdateWebCertificate(webCertName); err != nil {
+		if err := lm.updateWebCertificate(webCertName); err != nil {
 			if rollbackErr := rollbackReload(reloadCtx, s, eng, cp, priorProvider, priorPKI); rollbackErr != nil {
 				if clearErr := clearCandidate(); clearErr != nil {
 					return fmt.Errorf("reload: %w (rollback failed: %w; candidate cleanup failed: %w)", err, rollbackErr, clearErr)
@@ -439,6 +448,14 @@ func runReload(s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider
 		}
 	}
 
+	// Authorization changes become live only after every fallible reload step,
+	// including candidate promotion, has succeeded. The stable local AAA
+	// authorizer dereferences this store on its next decision.
+	if parsedTree == nil {
+		swapLocalAuthzStore(nil)
+	} else {
+		swapLocalAuthzStore(infra.ExtractAuthzStore(parsedTree))
+	}
 	reloadApplied = true
 	return nil
 }

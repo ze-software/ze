@@ -29,11 +29,11 @@ import (
 type contextKey struct{ name string }
 
 // ctxKeyUsername is the context key used to store the authenticated username.
-// Set by AuthMiddleware, read by GetUsernameFromRequest.
+// Set by the authentication middleware, read by GetUsernameFromRequest.
 var ctxKeyUsername = &contextKey{"username"}
 
 // ctxKeyProfiles is the context key used to store the authenticated user's
-// authz profile names. Set by AuthMiddleware, read by GetProfilesFromRequest.
+// authz profile names. Set by the authentication middleware, read by getProfilesFromRequest.
 var ctxKeyProfiles = &contextKey{"profiles"}
 
 // withUsername returns a derived context carrying the authenticated username.
@@ -49,7 +49,7 @@ func withProfiles(ctx context.Context, profiles []string) context.Context {
 
 // GetUsernameFromRequest extracts the authenticated username from the request
 // context. Returns an empty string if the context does not carry a username
-// (e.g., the request was not processed by AuthMiddleware).
+// (e.g., the request was not processed by the authentication middleware).
 func GetUsernameFromRequest(r *http.Request) string {
 	if v, ok := r.Context().Value(ctxKeyUsername).(string); ok {
 		return v
@@ -82,8 +82,8 @@ var logger = slogutil.Logger("web.auth")
 // re-authenticated. Expired sessions are invalidated on next validation.
 const sessionTTL = 24 * time.Hour
 
-// WebSession represents an authenticated user session.
-type WebSession struct {
+// webSession represents an authenticated user session.
+type webSession struct {
 	Username  string
 	Token     string
 	CreatedAt time.Time
@@ -94,7 +94,7 @@ type WebSession struct {
 	// LocalAnchored reports that the LOCAL backend granted this session, and
 	// therefore that removing the user from the local list MUST end it (AC-10).
 	// It is the authenticator's own answer, carried on AuthResult.Source and
-	// recorded verbatim at CreateSession.
+	// recorded verbatim at createSession.
 	//
 	// It is not re-derived from the user list. A list read taken after the
 	// authenticator has answered is a second question asked at a later instant:
@@ -111,15 +111,15 @@ type WebSession struct {
 }
 
 // SessionStore manages active user sessions. It maps session tokens to
-// WebSession objects and enforces one session per user by tracking the current
+// webSession objects and enforces one session per user by tracking the current
 // token for each username.
 //
-// NOT safe for concurrent use without the internal mutex -- all exported methods
-// acquire the lock, but callers MUST NOT hold references to WebSession fields
-// across concurrent operations without their own synchronization.
+// SessionStore serializes access to its mutable maps with an internal mutex.
+// Callers MUST NOT hold references to webSession fields across concurrent
+// operations without their own synchronization.
 type SessionStore struct {
 	mu       sync.RWMutex
-	sessions map[string]*WebSession // token -> session
+	sessions map[string]*webSession // token -> session
 	users    map[string]string      // username -> token
 
 	// localUsers returns the local credentials that are valid RIGHT NOW. The
@@ -153,7 +153,7 @@ var errNoLocalUserSource = errors.New("no live local user source")
 // pass it.
 func NewSessionStore(localUsers func() ([]authz.UserConfig, error)) *SessionStore {
 	return &SessionStore{
-		sessions:   make(map[string]*WebSession),
+		sessions:   make(map[string]*webSession),
 		users:      make(map[string]string),
 		localUsers: localUsers,
 	}
@@ -166,7 +166,7 @@ func NewSessionStore(localUsers func() ([]authz.UserConfig, error)) *SessionStor
 // alive (ai/rules/evidence.md, "a guard fails closed or says something").
 //
 // COST: this runs on every request that carries an anchored session, not only
-// at login. ValidateToken calls it, so each `/fragment/*` and `/show/` request
+// at login. validateToken calls it, so each `/fragment/*` and `/show/` request
 // pays the hub's liveLocalUsers chain: one RLock and a shallow copy of the
 // `system` root (config.Provider.Root), a walk of `authentication/user` that
 // allocates one UserConfig slice plus a key slice per user
@@ -195,7 +195,7 @@ func (s *SessionStore) localUserDeclared(username string) (bool, error) {
 	return false, nil
 }
 
-// CreateSession generates a new session for the given username from the result
+// createSession generates a new session for the given username from the result
 // the authenticator returned. If the user already has an active session, the
 // previous session is invalidated first. The session token is 32 bytes from
 // crypto/rand, hex-encoded to 64 characters.
@@ -206,8 +206,8 @@ func (s *SessionStore) localUserDeclared(username string) (bool, error) {
 // result rather than re-reading the user list is what makes the anchor the
 // authenticator's answer instead of a guess about it: the store cannot observe
 // the instant the authenticator answered, and a reload landing after it made
-// the guess wrong in both directions (WebSession.LocalAnchored).
-func (s *SessionStore) CreateSession(username string, result authz.AuthResult) (*WebSession, error) {
+// the guess wrong in both directions (webSession.LocalAnchored).
+func (s *SessionStore) createSession(username string, result authz.AuthResult) (*webSession, error) {
 	token, err := generateToken()
 	if err != nil {
 		return nil, fmt.Errorf("generating session token: %w", err)
@@ -222,7 +222,7 @@ func (s *SessionStore) CreateSession(username string, result authz.AuthResult) (
 		logger.Debug("invalidated previous session", "username", username)
 	}
 
-	session := &WebSession{
+	session := &webSession{
 		Username:      username,
 		Token:         token,
 		CreatedAt:     time.Now(),
@@ -237,7 +237,7 @@ func (s *SessionStore) CreateSession(username string, result authz.AuthResult) (
 	return session, nil
 }
 
-// ValidateToken returns the session associated with the given token, or nil
+// validateToken returns the session associated with the given token, or nil
 // if the token is not valid, has expired (older than sessionTTL), or belongs to
 // a user the running configuration no longer declares. A session that fails any
 // of these is invalidated automatically.
@@ -249,7 +249,7 @@ func (s *SessionStore) CreateSession(username string, result authz.AuthResult) (
 // It is read per request from the same live list the local authenticator
 // answers from, so the cookie path and the password path cannot disagree about
 // who exists.
-func (s *SessionStore) ValidateToken(token string) *WebSession {
+func (s *SessionStore) validateToken(token string) *webSession {
 	s.mu.RLock()
 	session := s.sessions[token]
 	s.mu.RUnlock()
@@ -294,9 +294,9 @@ func (s *SessionStore) ValidateToken(token string) *WebSession {
 // request still carrying a revoked cookie arrives after the operator has
 // re-added the user and that user has logged in again, and a username-scoped
 // delete then kills the new session on behalf of the old one. The store already
-// drops the previous token in CreateSession, so a session that is no longer
+// drops the previous token in createSession, so a session that is no longer
 // s.users[username] has nothing left to remove.
-func (s *SessionStore) invalidateSession(session *WebSession) {
+func (s *SessionStore) invalidateSession(session *webSession) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -310,19 +310,19 @@ func (s *SessionStore) invalidateSession(session *WebSession) {
 	logger.Info("session invalidated", "username", session.Username)
 }
 
-// AuthMiddleware returns an http.Handler that wraps next with authentication.
+// authMiddleware returns an http.Handler that wraps next with authentication.
 // It checks for a valid session cookie first, then falls back to Basic Auth
 // for JSON API requests (no session is created for Basic Auth). Unauthenticated
 // requests receive a 401 response rendered by loginRenderer.
 //
-// The cookie is not a bypass of the user list: store.ValidateToken re-checks
+// The cookie is not a bypass of the user list: store.validateToken re-checks
 // the session against the credentials the running configuration declares right
 // now, so a cookie issued before a reload that removed its user is refused here
 // like any other bad credential.
 //
 // HTMX requests (HX-Request header) with expired sessions receive a 401 with
 // a login overlay instead of a full page, enabling in-place session recovery.
-func AuthMiddleware(store *SessionStore, authenticator authz.Authenticator, loginRenderer func(w http.ResponseWriter, r *http.Request), next http.Handler) http.Handler {
+func authMiddleware(store *SessionStore, authenticator authz.Authenticator, loginRenderer func(w http.ResponseWriter, r *http.Request), next http.Handler) http.Handler {
 	return AuthMiddlewareWithAudit(store, authenticator, loginRenderer, next, nil)
 }
 
@@ -331,7 +331,7 @@ func AuthMiddlewareWithAudit(store *SessionStore, authenticator authz.Authentica
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Check session cookie first.
 		if cookie, err := r.Cookie("ze-session"); err == nil {
-			if session := store.ValidateToken(cookie.Value); session != nil {
+			if session := store.validateToken(cookie.Value); session != nil {
 				addSecurityHeaders(w)
 				ctx := withProfiles(withUsername(r.Context(), session.Username), session.Profiles)
 				next.ServeHTTP(w, r.WithContext(ctx))
@@ -366,10 +366,10 @@ func AuthMiddlewareWithAudit(store *SessionStore, authenticator authz.Authentica
 	})
 }
 
-// LoginHandler returns an http.HandlerFunc that processes POST login requests.
+// loginHandler returns an http.HandlerFunc that processes POST login requests.
 // On successful authentication, it creates a session, sets the ze-session cookie,
 // and redirects to "/". On failure, it returns 401 with the login page.
-func LoginHandler(store *SessionStore, authenticator authz.Authenticator, loginRenderer func(w http.ResponseWriter, r *http.Request)) http.HandlerFunc {
+func loginHandler(store *SessionStore, authenticator authz.Authenticator, loginRenderer func(w http.ResponseWriter, r *http.Request)) http.HandlerFunc {
 	return LoginHandlerWithAudit(store, authenticator, loginRenderer, nil)
 }
 
@@ -402,7 +402,7 @@ func LoginHandlerWithAudit(store *SessionStore, authenticator authz.Authenticato
 			return
 		}
 
-		session, err := store.CreateSession(username, result)
+		session, err := store.createSession(username, result)
 		if err != nil {
 			logger.Error("failed to create session", "username", username, "error", err)
 			http.Error(w, "internal server error", http.StatusInternalServerError)
@@ -486,7 +486,7 @@ func addSecurityHeaders(w http.ResponseWriter) {
 }
 
 // setSecurityHeaders sets the four headers every response owes the browser,
-// authenticated or not. SecurityHeaders applies them to the whole mux and
+// authenticated or not. securityHeaders applies them to the whole mux and
 // addSecurityHeaders adds the two that belong to an authenticated page.
 func setSecurityHeaders(w http.ResponseWriter) {
 	w.Header().Set("X-Frame-Options", "DENY")
@@ -495,7 +495,7 @@ func setSecurityHeaders(w http.ResponseWriter) {
 	w.Header().Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains")
 }
 
-// SecurityHeaders wraps next so every response carries the security headers,
+// securityHeaders wraps next so every response carries the security headers,
 // whatever route served it.
 //
 // The headers used to be set per handler, inside the authentication
@@ -507,7 +507,7 @@ func setSecurityHeaders(w http.ResponseWriter) {
 // Cache-Control and the version header stay with addSecurityHeaders. A static
 // asset is cacheable, and no-store over it would refetch the stylesheet and the
 // scripts on every page load.
-func SecurityHeaders(next http.Handler) http.Handler {
+func securityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		setSecurityHeaders(w)
 		next.ServeHTTP(w, r)
@@ -525,7 +525,7 @@ func SecurityHeaders(next http.Handler) http.Handler {
 // its server here (server.go) and the captures live beside it. An exported name
 // with no cross-package caller is what `make ze-repository-check` refuses.
 func serverHandler(mux http.Handler) http.Handler {
-	return SecurityHeaders(errorfragment.Middleware(mux))
+	return securityHeaders(errorfragment.Middleware(mux))
 }
 
 // generateToken creates a cryptographically random 32-byte token, hex-encoded

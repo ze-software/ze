@@ -1,3 +1,5 @@
+// Design: docs/architecture/appliance/iso-installer.md -- FAT16B appliance image support
+
 package fat
 
 import (

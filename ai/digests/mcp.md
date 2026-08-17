@@ -25,7 +25,7 @@ package.
    then builds the MCP-surface command dispatcher
    `mcpDispatch := serverDispatcher(apiServer, audit.MCP)` (`main.go`) and the neutral
    command-metadata closure `commandMetaSource(apiServer)` (`main.go`, defined
-   `command_meta.go`). Both flow into `ServiceDeps.MCP` (`main.go`, `mcpServiceDeps`
+   `command_meta.go`). Both flow into `serviceDeps.MCP` (`main.go`, `mcpServiceDeps`
    type at `service_registry.go`).
 2. **Gated factory builds and mounts the server.** `buildMCPService` (`service_mcp.go`)
    converts the neutral deps. `mcpCommandLister` (`service_mcp.go`) maps each `commandMeta`
@@ -277,7 +277,7 @@ package.
 | `cmd/ze/hub/service_mcp.go` | Gated (`ze_mcp`) mount point: `buildMCPService`, `startMCPServer`, multi-listener bind/shutdown/`Reconfigure`, TLS loading |
 | `cmd/ze/hub/command_meta.go` | Neutral, always-on `commandMeta` source shared by the API and MCP command listers |
 | `cmd/ze/hub/main_servers.go` | `serverDispatcher`: adapts `pluginserver.Dispatcher` to the generic `CommandDispatcher` closure signature, tagging the audit surface |
-| `cmd/ze/hub/service_registry.go` | `ServiceDeps`/`mcpServiceDeps`: the generic-typed boundary that keeps `internal/component/mcp` out of always-on builds |
+| `cmd/ze/hub/service_registry.go` | `serviceDeps`/`mcpServiceDeps`: the generic-typed boundary that keeps `internal/component/mcp` out of always-on builds |
 
 ## Invariants & gotchas
 - **Compile-out boundary.** `service_mcp.go` and `register_mcp.go` are the ONLY

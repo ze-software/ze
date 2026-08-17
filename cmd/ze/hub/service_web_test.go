@@ -25,7 +25,7 @@ func TestServiceRegistry_BuildsWeb(t *testing.T) {
 		t.Fatalf("blob storage: %v", err)
 	}
 
-	services := buildServices(ServiceDeps{
+	services := buildServices(serviceDeps{
 		Store:      store,
 		ConfigPath: "config.conf",
 		Dispatch: func(context.Context, plugin.CallerIdentity, string) (*plugin.Response, error) {

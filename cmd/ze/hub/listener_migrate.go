@@ -1,5 +1,5 @@
 // Design: docs/architecture/web-interface.md -- Graceful listener migration on config reload
-// Related: main_reload.go -- doReload calls ListenerMigrator.ReloadListeners
+// Related: main_reload.go -- doReload calls listenerMigrator.reloadListeners
 
 package hub
 
@@ -33,18 +33,18 @@ type Reconfigurable interface {
 	Reconfigure(ctx context.Context, newAddrs []string) error
 }
 
-// TLSUpdatable is implemented by any server that can replace its serving
+// tlsUpdatable is implemented by any server that can replace its serving
 // certificate without rebinding. Declared here, alongside Reconfigurable and for
 // the same reason: always-on hub code must be able to rotate the web server's
 // certificate without importing the compile-out-able web package
 // (//go:build ze_web).
-type TLSUpdatable interface {
+type tlsUpdatable interface {
 	UpdateTLSCertificate(certPEM, keyPEM []byte) error
 }
 
 // AuthUpdatable is implemented by any management server that can replace the
 // credentials gating its requests without rebinding its listeners. Declared
-// here for the same reason as TLSUpdatable: always-on hub code must rebuild a
+// here for the same reason as tlsUpdatable: always-on hub code must rebuild a
 // server's authentication on reload without importing the compile-out-able
 // package that constructs it.
 //
@@ -52,7 +52,7 @@ type TLSUpdatable interface {
 // what lets the reload guard classify what a server serves rather than the mode
 // it was built with. A server that does not implement it keeps the
 // authentication it was constructed with until the daemon restarts, and
-// ReloadListeners refuses that service's listener change instead of applying an
+// reloadListeners refuses that service's listener change instead of applying an
 // address under authentication the reloaded config no longer describes.
 type AuthUpdatable interface {
 	// Authenticated reports whether every request is gated right now.
@@ -95,12 +95,12 @@ type serviceChange struct {
 	remove  []string
 }
 
-// ListenerMigrator coordinates listener reconfiguration across services on
+// listenerMigrator coordinates listener reconfiguration across services on
 // config reload. It detects cross-service address conflicts and sequences
 // migrations to minimize downtime.
-type ListenerMigrator struct {
+type listenerMigrator struct {
 	web    Reconfigurable
-	webTLS TLSUpdatable
+	webTLS tlsUpdatable
 	lg     Reconfigurable
 	mcp    Reconfigurable
 	rest   Reconfigurable
@@ -131,14 +131,14 @@ type ListenerMigrator struct {
 // gating every request. Recording the positive matters as much as the negative:
 // a service the reload guard has no record for is outside the guard's scope,
 // not inside it and authenticated.
-func (m *ListenerMigrator) markAuthenticated(name string) { m.markAuth(name, true) }
+func (m *listenerMigrator) markAuthenticated(name string) { m.markAuth(name, true) }
 
-// MarkUnauthenticated records that the named service was built without
-// authentication, so ReloadListeners refuses any migration that would move it
+// markUnauthenticated records that the named service was built without
+// authentication, so reloadListeners refuses any migration that would move it
 // to a non-loopback address (AC-7 of the management-listener guard).
-func (m *ListenerMigrator) MarkUnauthenticated(name string) { m.markAuth(name, false) }
+func (m *listenerMigrator) markUnauthenticated(name string) { m.markAuth(name, false) }
 
-func (m *ListenerMigrator) markAuth(name string, authenticated bool) {
+func (m *listenerMigrator) markAuth(name string, authenticated bool) {
 	if m.authAtBoot == nil {
 		m.authAtBoot = make(map[string]bool)
 	}
@@ -150,7 +150,7 @@ func (m *ListenerMigrator) markAuth(name string, authenticated bool) {
 // handle is a server the daemon never started, and producing an intent for it
 // makes checkAuthRebuildable refuse a whole reload over a config edit no
 // running server has to follow.
-func (m *ListenerMigrator) hasService(name string) bool {
+func (m *listenerMigrator) hasService(name string) bool {
 	switch name {
 	case svcWeb:
 		return m.web != nil
@@ -169,7 +169,7 @@ func (m *ListenerMigrator) hasService(name string) bool {
 
 // setAuthReloader registers how the named service's configured authentication
 // is resolved from a reloaded config tree.
-func (m *ListenerMigrator) setAuthReloader(name string, r authReloader) {
+func (m *listenerMigrator) setAuthReloader(name string, r authReloader) {
 	if m.authReloaders == nil {
 		m.authReloaders = make(map[string]authReloader)
 	}
@@ -178,10 +178,10 @@ func (m *ListenerMigrator) setAuthReloader(name string, r authReloader) {
 
 // registerAuthUpdater records a server that can rebuild its authentication in
 // place. A server that does not implement AuthUpdatable is deliberately not
-// recorded: ReloadListeners then reads the boot guard's classification for it,
+// recorded: reloadListeners then reads the boot guard's classification for it,
 // which stays correct precisely because such a server's authentication cannot
 // change while it runs.
-func (m *ListenerMigrator) registerAuthUpdater(name string, srv Reconfigurable) {
+func (m *listenerMigrator) registerAuthUpdater(name string, srv Reconfigurable) {
 	au, ok := srv.(AuthUpdatable)
 	if !ok {
 		delete(m.authUpdaters, name)
@@ -202,7 +202,7 @@ func (m *ListenerMigrator) registerAuthUpdater(name string, srv Reconfigurable) 
 // that it is unauthenticated. The looking glass is the case: it is an
 // intentionally public surface that the boot guard never declares, and the
 // reload guard must not start refusing its migrations.
-func (m *ListenerMigrator) runningAuth(name string) (authenticated, known bool) {
+func (m *listenerMigrator) runningAuth(name string) (authenticated, known bool) {
 	if au, ok := m.authUpdaters[name]; ok && au != nil {
 		return au.Authenticated(), true
 	}
@@ -211,30 +211,30 @@ func (m *ListenerMigrator) runningAuth(name string) (authenticated, known bool) 
 }
 
 // newListenerMigrator creates a migrator with no services attached. Each service
-// registers itself later through its Set* method as it starts.
+// registers itself later through its setter method as it starts.
 //
-// It takes no web argument on purpose. SetWeb both assigns the reference AND
+// It takes no web argument on purpose. setWeb both assigns the reference AND
 // calls registerAuthUpdater, so a web server installed here instead would reach
 // the reload guard with no auth updater registered and runningAuth would fall
 // back to the boot snapshot for it.
-func newListenerMigrator() *ListenerMigrator {
-	return &ListenerMigrator{
+func newListenerMigrator() *listenerMigrator {
+	return &listenerMigrator{
 		logger: slogutil.Logger("hub.listener"),
 	}
 }
 
-// SetWeb updates the web server reference.
-func (m *ListenerMigrator) SetWeb(web Reconfigurable) {
+// setWeb updates the web server reference.
+func (m *listenerMigrator) setWeb(web Reconfigurable) {
 	m.web = web
 	m.registerAuthUpdater(svcWeb, web)
 }
 
-// SetWebTLS updates the web server's certificate-rotation reference. Takes
-// TLSUpdatable (not *web.WebServer) so always-on code never imports the web
-// package, the same reason SetLG takes Reconfigurable.
-func (m *ListenerMigrator) SetWebTLS(s TLSUpdatable) { m.webTLS = s }
+// setWebTLS updates the web server's certificate-rotation reference. Takes
+// tlsUpdatable (not *web.WebServer) so always-on code never imports the web
+// package, the same reason setLG takes Reconfigurable.
+func (m *listenerMigrator) setWebTLS(s tlsUpdatable) { m.webTLS = s }
 
-// UpdateWebCertificate re-resolves certName in the PKI store and installs the
+// updateWebCertificate re-resolves certName in the PKI store and installs the
 // resulting chain on the running web server, without rebinding its listeners.
 // Called on reload AFTER the new store is installed, so a commit that rotates
 // the certificate's material takes effect on the next handshake (AC-9).
@@ -243,7 +243,7 @@ func (m *ListenerMigrator) SetWebTLS(s TLSUpdatable) { m.webTLS = s }
 // certificate keeps serving and nothing is touched. A non-empty name that no
 // longer resolves is an ERROR that fails the reload, never a silent downgrade to
 // the self-signed certificate the listener may still be holding (R-5).
-func (m *ListenerMigrator) UpdateWebCertificate(certName string) error {
+func (m *listenerMigrator) updateWebCertificate(certName string) error {
 	if m.webTLS == nil || certName == "" {
 		return nil
 	}
@@ -257,7 +257,7 @@ func (m *ListenerMigrator) UpdateWebCertificate(certName string) error {
 	return nil
 }
 
-// SetLG updates the looking glass server reference. Takes Reconfigurable (not
+// setLG updates the looking glass server reference. Takes Reconfigurable (not
 // *lg.LGServer) so always-on code never imports the lg package: lg is built
 // through the construction registry and may be compiled out (//go:build ze_lg).
 //
@@ -269,31 +269,31 @@ func (m *ListenerMigrator) UpdateWebCertificate(certName string) error {
 // server, and a looking glass with no token starts having its non-loopback
 // migrations REFUSED -- the opposite of the intentionally public posture.
 // Whoever implements AuthUpdatable on lg owns that decision here.
-func (m *ListenerMigrator) SetLG(s Reconfigurable) {
+func (m *listenerMigrator) setLG(s Reconfigurable) {
 	m.lg = s
 	m.registerAuthUpdater(svcLG, s)
 }
 
-// SetMCP updates the MCP server reference. Takes Reconfigurable (not
+// setMCP updates the MCP server reference. Takes Reconfigurable (not
 // *mcpServerHandle) so always-on code never imports the mcp package: mcp is
 // built through the construction registry and may be compiled out
 // (//go:build ze_mcp).
-func (m *ListenerMigrator) SetMCP(s Reconfigurable) {
+func (m *listenerMigrator) setMCP(s Reconfigurable) {
 	m.mcp = s
 	m.registerAuthUpdater(svcMCP, s)
 }
 
-// SetREST updates the REST API server reference. Takes Reconfigurable (not
+// setREST updates the REST API server reference. Takes Reconfigurable (not
 // *rest.RESTServer) so always-on code never imports the api/rest package: the
 // API servers are built through the ze_api seam and may be compiled out.
-func (m *ListenerMigrator) SetREST(s Reconfigurable) {
+func (m *listenerMigrator) setREST(s Reconfigurable) {
 	m.rest = s
 	m.registerAuthUpdater(svcREST, s)
 }
 
-// SetGRPC updates the gRPC API server reference. Takes Reconfigurable (see
-// SetREST) so always-on code never imports the api/grpc package.
-func (m *ListenerMigrator) SetGRPC(s Reconfigurable) {
+// setGRPC updates the gRPC API server reference. Takes Reconfigurable (see
+// setREST) so always-on code never imports the api/grpc package.
+func (m *listenerMigrator) setGRPC(s Reconfigurable) {
 	m.grpc = s
 	m.registerAuthUpdater(svcGRPC, s)
 }
@@ -308,7 +308,8 @@ type resolvedAuth struct {
 	intent authIntent
 }
 
-// ReloadListeners applies a reloaded config to the running management services:
+// reloadListeners applies a reloaded config to the running management
+// services:
 // it rebuilds the authentication of every server that can take a new one,
 // re-runs the exposure guard over the (address, authentication) pair the reload
 // produces, and then migrates listen addresses.
@@ -317,7 +318,7 @@ type resolvedAuth struct {
 // undo if any LATER step of the reload fails, because a reload the operator is
 // told failed must not leave a listener authenticated differently from the
 // config the daemon rolled back to (runReload, main_reload.go). On its own
-// error paths ReloadListeners has already undone everything itself, and the
+// error paths reloadListeners has already undone everything itself, and the
 // returned undo does nothing.
 //
 // Order matters, and refusals come first. A service that must change its
@@ -326,7 +327,7 @@ type resolvedAuth struct {
 // then rebuilt BEFORE any address moves, so the exposure guard classifies the
 // pair the reload produces rather than the one the servers were constructed
 // with.
-func (m *ListenerMigrator) ReloadListeners(ctx context.Context, tree *zeconfig.Tree) (func(), error) {
+func (m *listenerMigrator) reloadListeners(ctx context.Context, tree *zeconfig.Tree) (func(), error) {
 	changes := m.buildChanges(tree)
 
 	intents, err := m.resolveAuthIntents(tree)
@@ -364,10 +365,9 @@ func (m *ListenerMigrator) ReloadListeners(ctx context.Context, tree *zeconfig.T
 // classified, are both skipped, and their reloaders are never CALLED. That is
 // the load-bearing half: registerMgmtAuthReloaders registers web, mcp, rest and
 // grpc unconditionally, so on a binary built without one of them a reloader
-// that fails -- apiAuthReloader refuses when the power-user credentials stop
-// being readable -- would fail every reload over a service that is not in the
-// binary. Skipping the CHECK alone would not prevent that; skipping the call
-// does.
+// that fails because the live API users cannot be resolved would fail every
+// reload over a service that is not in the binary. Skipping the CHECK alone
+// would not prevent that; skipping the call does.
 //
 // The handle test is also what lets markMgmtAuth classify every surface at boot
 // rather than only the built ones. One `api-server` block answers for REST and
@@ -387,7 +387,7 @@ func (m *ListenerMigrator) ReloadListeners(ctx context.Context, tree *zeconfig.T
 // branch live again. It then skips that name, which keeps a surface outside the
 // exposure guard's scope from producing an intent checkAuthRebuildable could
 // refuse a whole reload over.
-func (m *ListenerMigrator) resolveAuthIntents(tree *zeconfig.Tree) ([]resolvedAuth, error) {
+func (m *listenerMigrator) resolveAuthIntents(tree *zeconfig.Tree) ([]resolvedAuth, error) {
 	names := make([]string, 0, len(m.authReloaders))
 	for name := range m.authReloaders {
 		names = append(names, name)
@@ -437,7 +437,7 @@ func (m *ListenerMigrator) resolveAuthIntents(tree *zeconfig.Tree) ([]resolvedAu
 // It tests no handle of its own: resolveAuthIntents produces an intent only for
 // a service that has one, so a surface the daemon never built never reaches
 // here (AC-5).
-func (m *ListenerMigrator) checkAuthRebuildable(intents []resolvedAuth) error {
+func (m *listenerMigrator) checkAuthRebuildable(intents []resolvedAuth) error {
 	for _, ra := range intents {
 		if au, ok := m.authUpdaters[ra.name]; ok && au != nil {
 			continue
@@ -462,7 +462,7 @@ func authWord(authenticated bool) string {
 
 // applyAuthIntents installs each resolved intent on the server that can take
 // it, and returns a function restoring every server it changed.
-func (m *ListenerMigrator) applyAuthIntents(intents []resolvedAuth) (func(), error) {
+func (m *listenerMigrator) applyAuthIntents(intents []resolvedAuth) (func(), error) {
 	var restores []func()
 	restoreAll := func() {
 		for i := len(restores) - 1; i >= 0; i-- {
@@ -523,7 +523,7 @@ func (m *ListenerMigrator) applyAuthIntents(intents []resolvedAuth) (func(), err
 // (internal/component/api/grpc/server.go); and web and MCP implement no
 // AuthUpdatable, so checkAuthRebuildable refuses the whole reload. The next
 // surface to gain UpdateAuth without an address rule of its own reopens it.
-func (m *ListenerMigrator) checkReloadExposure(changes []serviceChange) error {
+func (m *listenerMigrator) checkReloadExposure(changes []serviceChange) error {
 	for i := range changes {
 		authenticated, known := m.runningAuth(changes[i].name)
 		if !known || authenticated {
@@ -540,7 +540,7 @@ func (m *ListenerMigrator) checkReloadExposure(changes []serviceChange) error {
 
 // buildChanges collects the per-service listen-address change set the reloaded
 // tree asks for. A service the tree does not describe keeps its listeners.
-func (m *ListenerMigrator) buildChanges(tree *zeconfig.Tree) []serviceChange {
+func (m *listenerMigrator) buildChanges(tree *zeconfig.Tree) []serviceChange {
 	var changes []serviceChange
 
 	if m.web != nil {
@@ -589,7 +589,7 @@ func (m *ListenerMigrator) buildChanges(tree *zeconfig.Tree) []serviceChange {
 // the authentication every server started the reload with; it runs on any
 // failure, alongside the address rollback, so a reload that fails part-way
 // leaves neither the addresses nor the authentication half-applied.
-func (m *ListenerMigrator) migrateListeners(ctx context.Context, changes []serviceChange, restoreAuth func()) error {
+func (m *listenerMigrator) migrateListeners(ctx context.Context, changes []serviceChange, restoreAuth func()) error {
 	conflicts := detectConflicts(changes)
 
 	ordered := make([]serviceChange, 0, len(changes))
@@ -631,7 +631,7 @@ func (m *ListenerMigrator) migrateListeners(ctx context.Context, changes []servi
 	return nil
 }
 
-func (m *ListenerMigrator) rollbackAppliedListeners(ctx context.Context, applied []serviceChange) error {
+func (m *listenerMigrator) rollbackAppliedListeners(ctx context.Context, applied []serviceChange) error {
 	var rollbackErrs []error
 	for i := len(applied) - 1; i >= 0; i-- {
 		change := applied[i]
@@ -643,7 +643,7 @@ func (m *ListenerMigrator) rollbackAppliedListeners(ctx context.Context, applied
 	return errors.Join(rollbackErrs...)
 }
 
-func (m *ListenerMigrator) buildChange(name string, srv Reconfigurable, newAddrs []string) (serviceChange, bool) {
+func (m *listenerMigrator) buildChange(name string, srv Reconfigurable, newAddrs []string) (serviceChange, bool) {
 	oldAddrs := srv.Addresses()
 	_, add, remove := listenerDiff(oldAddrs, newAddrs)
 	if len(add) == 0 && len(remove) == 0 {

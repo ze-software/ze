@@ -21,7 +21,7 @@ const KeyDefault = "default"
 // Parser parses ExaBGP-style configuration.
 type Parser struct {
 	schema   *Schema
-	tok      *Tokenizer
+	tok      *tokenizer
 	warnings []string
 }
 
@@ -32,7 +32,7 @@ func NewParser(schema *Schema) *Parser {
 
 // Parse parses the input string into a config tree.
 func (p *Parser) Parse(input string) (*Tree, error) {
-	p.tok = NewTokenizer(input)
+	p.tok = newTokenizer(input)
 	p.warnings = nil
 	return p.parseRoot()
 }
@@ -53,17 +53,17 @@ func (p *Parser) parseRoot() (*Tree, error) {
 	tree := NewTree()
 
 	for {
-		tok := p.tok.Peek()
-		if tok.Type == TokenEOF {
+		tok := p.tok.peek()
+		if tok.kind == tokenEOF {
 			break
 		}
 
-		if tok.Type != TokenWord {
-			return nil, p.errorf(tok, "expected keyword, got %s", tok.Type)
+		if tok.kind != tokenWord {
+			return nil, p.errorf(tok, "expected keyword, got %s", tok.kind)
 		}
 
-		name := tok.Value
-		p.tok.Next() // consume name
+		name := tok.value
+		p.tok.next() // consume name
 
 		// Handle "inactive: <name> ..." sugar at the top level. Mirrors
 		// the same sugar inside container blocks (parseContainer) and list
@@ -72,12 +72,12 @@ func (p *Parser) parseRoot() (*Tree, error) {
 		markInactive := false
 		if name == InactiveLeafName+":" {
 			markInactive = true
-			tok = p.tok.Peek()
-			if tok.Type != TokenWord {
-				return nil, p.errorf(tok, "expected name after inactive:, got %s", tok.Type)
+			tok = p.tok.peek()
+			if tok.kind != tokenWord {
+				return nil, p.errorf(tok, "expected name after inactive:, got %s", tok.kind)
 			}
-			name = tok.Value
-			p.tok.Next()
+			name = tok.value
+			p.tok.next()
 		}
 
 		node := p.schema.Get(name)
@@ -86,7 +86,7 @@ func (p *Parser) parseRoot() (*Tree, error) {
 		}
 
 		if markInactive {
-			if err := p.parseNodeInactive(tree, name, node, tok.Line); err != nil {
+			if err := p.parseNodeInactive(tree, name, node, tok.line); err != nil {
 				return nil, err
 			}
 			continue
@@ -227,27 +227,27 @@ func (p *Parser) parseLeaf(tree *Tree, name string, node *LeafNode) error {
 	// also accepted so serialized value-form output round-trips and the
 	// pre-TypeEmpty value form stays valid. Presence always records true.
 	if node.Type == TypeEmpty {
-		tok := p.tok.Peek()
-		if tok.Type == TokenWord || tok.Type == TokenString {
-			p.tok.Next() // consume and ignore the explicit presence value
-			tok = p.tok.Peek()
+		tok := p.tok.peek()
+		if tok.kind == tokenWord || tok.kind == tokenString {
+			p.tok.next() // consume and ignore the explicit presence value
+			tok = p.tok.peek()
 		}
-		if tok.Type != TokenSemicolon {
-			return p.errorf(tok, "expected ';' after %s, got %s", name, tok.Type)
+		if tok.kind != tokenSemicolon {
+			return p.errorf(tok, "expected ';' after %s, got %s", name, tok.kind)
 		}
-		p.tok.Next()
+		p.tok.next()
 		tree.Set(name, configTrue)
 		return nil
 	}
 
-	tok := p.tok.Peek()
+	tok := p.tok.peek()
 
 	var value string
-	if tok.Type == TokenWord || tok.Type == TokenString {
-		value = tok.Value
-		p.tok.Next()
+	if tok.kind == tokenWord || tok.kind == tokenString {
+		value = tok.value
+		p.tok.next()
 	} else {
-		return p.errorf(tok, "expected value for %s, got %s", name, tok.Type)
+		return p.errorf(tok, "expected value for %s, got %s", name, tok.kind)
 	}
 
 	// Decode $9$-encoded values on sensitive leaves.
@@ -273,11 +273,11 @@ func (p *Parser) parseLeaf(tree *Tree, name string, node *LeafNode) error {
 	}
 
 	// Expect semicolon
-	tok = p.tok.Peek()
-	if tok.Type != TokenSemicolon {
-		return p.errorf(tok, "expected ';' after %s value, got %s", name, tok.Type)
+	tok = p.tok.peek()
+	if tok.kind != tokenSemicolon {
+		return p.errorf(tok, "expected ';' after %s value, got %s", name, tok.kind)
 	}
-	p.tok.Next()
+	p.tok.next()
 
 	tree.Set(name, value)
 	return nil
@@ -287,42 +287,42 @@ func (p *Parser) parseLeaf(tree *Tree, name string, node *LeafNode) error {
 // YANG presence containers also accept: flag `name;`, value `name word;`,
 // and parenthesized `name ( ... );` forms.
 func (p *Parser) parseContainer(tree *Tree, name string, node *ContainerNode) error {
-	tok := p.tok.Peek()
+	tok := p.tok.peek()
 
 	// YANG presence containers accept flag (;), value (word;), paren (...), and block ({})
-	if node.Presence && tok.Type == TokenSemicolon {
+	if node.Presence && tok.kind == tokenSemicolon {
 		// Flag mode: "route-refresh;" → true
-		p.tok.Next()
+		p.tok.next()
 		tree.Set(name, configTrue)
 		return nil
 	}
-	if node.Presence && (tok.Type == TokenWord || tok.Type == TokenString) {
+	if node.Presence && (tok.kind == tokenWord || tok.kind == tokenString) {
 		// Value mode: "route-refresh true;" → store value
-		value := tok.Value
-		p.tok.Next()
-		tok = p.tok.Peek()
-		if tok.Type != TokenSemicolon {
-			return p.errorf(tok, "expected ';' after %s value, got %s", name, tok.Type)
+		value := tok.value
+		p.tok.next()
+		tok = p.tok.peek()
+		if tok.kind != tokenSemicolon {
+			return p.errorf(tok, "expected ';' after %s value, got %s", name, tok.kind)
 		}
-		p.tok.Next()
+		p.tok.next()
 		tree.Set(name, value)
 		return nil
 	}
-	if node.Presence && tok.Type == TokenLParen {
+	if node.Presence && tok.kind == tokenLParen {
 		// Parenthesized mode: "bgp-prefix-sid-srv6 ( l3-service 2001:1:: );"
 		return p.parsePresenceParenthesized(tree, name)
 	}
 
-	if tok.Type != TokenLBrace {
+	if tok.kind != tokenLBrace {
 		if node.Presence {
-			return p.errorf(tok, "expected ';', value, or '{' after %s, got %s", name, tok.Type)
+			return p.errorf(tok, "expected ';', value, or '{' after %s, got %s", name, tok.kind)
 		}
 		// Automatic brace insertion (ABI): if the next token is a known child name,
 		// parse it inline without braces -- same principle as the tokenizer's ASI.
-		if tok.Type == TokenWord {
-			if childNode := node.Get(tok.Value); childNode != nil {
-				childName := tok.Value
-				p.tok.Next() // consume child name
+		if tok.kind == tokenWord {
+			if childNode := node.Get(tok.value); childNode != nil {
+				childName := tok.value
+				p.tok.next() // consume child name
 				child := NewTree()
 				if err := p.parseNode(child, childName, childNode); err != nil {
 					return err
@@ -331,27 +331,27 @@ func (p *Parser) parseContainer(tree *Tree, name string, node *ContainerNode) er
 				return nil
 			}
 		}
-		return p.errorf(tok, "expected '{' after %s, got %s", name, tok.Type)
+		return p.errorf(tok, "expected '{' after %s, got %s", name, tok.kind)
 	}
-	p.tok.Next()
+	p.tok.next()
 
 	child := NewTree()
 
 	for {
-		tok = p.tok.Peek()
-		if tok.Type == TokenRBrace {
-			p.tok.Next()
+		tok = p.tok.peek()
+		if tok.kind == tokenRBrace {
+			p.tok.next()
 			break
 		}
-		if tok.Type == TokenEOF {
+		if tok.kind == tokenEOF {
 			return p.errorf(tok, "unexpected EOF in %s block", name)
 		}
-		if tok.Type != TokenWord {
-			return p.errorf(tok, "expected keyword in %s block, got %s", name, tok.Type)
+		if tok.kind != tokenWord {
+			return p.errorf(tok, "expected keyword in %s block, got %s", name, tok.kind)
 		}
 
-		fieldName := tok.Value
-		p.tok.Next()
+		fieldName := tok.value
+		p.tok.next()
 
 		// Handle "inactive: <field> { ... }" sugar.
 		// The tokenizer reads "inactive:" as a single word.
@@ -359,12 +359,12 @@ func (p *Parser) parseContainer(tree *Tree, name string, node *ContainerNode) er
 		if fieldName == InactiveLeafName+":" {
 			markInactive = true
 			// The real field name is the next token.
-			tok = p.tok.Peek()
-			if tok.Type != TokenWord {
-				return p.errorf(tok, "expected field name after inactive:, got %s", tok.Type)
+			tok = p.tok.peek()
+			if tok.kind != tokenWord {
+				return p.errorf(tok, "expected field name after inactive:, got %s", tok.kind)
 			}
-			fieldName = tok.Value
-			p.tok.Next()
+			fieldName = tok.value
+			p.tok.next()
 		}
 
 		fieldNode := node.Get(fieldName)
@@ -377,11 +377,11 @@ func (p *Parser) parseContainer(tree *Tree, name string, node *ContainerNode) er
 				}
 				continue
 			}
-			return p.errorf(tok, "unknown field in %s: %s%s (line %d)", name, fieldName, RetiredKeywordHint(fieldName), tok.Line)
+			return p.errorf(tok, "unknown field in %s: %s%s (line %d)", name, fieldName, RetiredKeywordHint(fieldName), tok.line)
 		}
 
 		if markInactive {
-			if err := p.parseNodeInactive(child, fieldName, fieldNode, tok.Line); err != nil {
+			if err := p.parseNodeInactive(child, fieldName, fieldNode, tok.line); err != nil {
 				return err
 			}
 			continue
@@ -400,21 +400,21 @@ func (p *Parser) parseContainer(tree *Tree, name string, node *ContainerNode) er
 // Used for containers with ze:allow-unknown-fields extension.
 // Syntax: "key value;" where value is the next word/string token.
 func (p *Parser) parseUnknownField(tree *Tree, name string) error {
-	tok := p.tok.Peek()
+	tok := p.tok.peek()
 
 	// Expect a value (word or string)
-	if tok.Type != TokenWord && tok.Type != TokenString {
-		return p.errorf(tok, "expected value for %s, got %s", name, tok.Type)
+	if tok.kind != tokenWord && tok.kind != tokenString {
+		return p.errorf(tok, "expected value for %s, got %s", name, tok.kind)
 	}
-	value := tok.Value
-	p.tok.Next()
+	value := tok.value
+	p.tok.next()
 
 	// Expect semicolon
-	tok = p.tok.Peek()
-	if tok.Type != TokenSemicolon {
-		return p.errorf(tok, "expected ';' after %s value, got %s", name, tok.Type)
+	tok = p.tok.peek()
+	if tok.kind != tokenSemicolon {
+		return p.errorf(tok, "expected ';' after %s value, got %s", name, tok.kind)
 	}
-	p.tok.Next()
+	p.tok.next()
 
 	tree.Set(name, value)
 	return nil
@@ -428,9 +428,9 @@ func (p *Parser) parsePresenceParenthesized(tree *Tree, name string) error {
 		return err
 	}
 	// Optional semicolon after parenthesized content
-	tok := p.tok.Peek()
-	if tok.Type == TokenSemicolon {
-		p.tok.Next()
+	tok := p.tok.peek()
+	if tok.kind == tokenSemicolon {
+		p.tok.next()
 	}
 
 	tree.Set(name, textbuf.Join(parenVals, " "))
@@ -438,7 +438,7 @@ func (p *Parser) parsePresenceParenthesized(tree *Tree, name string) error {
 }
 
 // errorf creates a formatted error with line info.
-func (p *Parser) errorf(tok Token, format string, args ...any) error {
+func (p *Parser) errorf(tok token, format string, args ...any) error {
 	msg := fmt.Sprintf(format, args...)
-	return fmt.Errorf("line %d: %s", tok.Line, msg)
+	return fmt.Errorf("line %d: %s", tok.line, msg)
 }

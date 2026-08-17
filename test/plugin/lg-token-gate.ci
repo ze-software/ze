@@ -1,7 +1,7 @@
 # Test: the configured looking-glass token gates the running daemon's routes
 # VALIDATES: spec-fixit-mgmt-listener-auth-guard AC-5 -- the optional bearer
 # token reaches the server through the whole daemon path (YANG leaf or
-# ze.looking-glass.token -> hub resolution -> ServiceDeps.LGToken ->
+# ze.looking-glass.token -> hub resolution -> serviceDeps.LGToken ->
 # lg.LGConfig.Token -> the middleware). A unit test that builds LGConfig
 # directly proves the middleware; only this proves the wiring that feeds it.
 # It also pins the settings/listener split: the token is read from a block that

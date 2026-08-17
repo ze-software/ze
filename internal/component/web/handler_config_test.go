@@ -571,14 +571,14 @@ func postConfigRequest(t *testing.T, urlPath string, formData url.Values, userna
 
 func readOnlyWebAuthorizer() authz.StoreAuthorizer {
 	store := authz.NewStore()
-	store.AddProfile(authz.BuiltinReadOnlyProfile())
+	store.AddProfile(testReadOnlyProfile())
 	store.AssignProfiles("alice", []string{"read-only"})
 	return authz.StoreAuthorizer{Store: store}
 }
 
 func adminWebAuthorizer() authz.StoreAuthorizer {
 	store := authz.NewStore()
-	store.AddProfile(authz.BuiltinAdminProfile())
+	store.AddProfile(testAdminProfile())
 	store.AssignProfiles("alice", []string{"admin"})
 	return authz.StoreAuthorizer{Store: store}
 }

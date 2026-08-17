@@ -52,7 +52,7 @@ type liveUserList struct {
 	reads    int
 
 	// beforeRead runs on every read, before the list is taken and outside this
-	// list's own mutex, so a test can hold a reader inside ValidateToken while
+	// list's own mutex, so a test can hold a reader inside validateToken while
 	// something else reaches the store.
 	beforeRead func()
 }
@@ -163,8 +163,8 @@ func TestSessionCookieFollowsTheRunningConfig(t *testing.T) {
 	authenticator := &authz.LocalAuthenticator{UsersFunc: live.read}
 	store := NewSessionStore(live.read)
 
-	login := LoginHandler(store, authenticator, noopRenderer)
-	protected := AuthMiddleware(store, authenticator, noopRenderer, okHandler())
+	login := loginHandler(store, authenticator, noopRenderer)
+	protected := authMiddleware(store, authenticator, noopRenderer, okHandler())
 
 	aliceToken := loginForCookie(t, login, "alice", "testpass")
 	bobToken := loginForCookie(t, login, "bob", "testpass")
@@ -184,9 +184,9 @@ func TestSessionCookieFollowsTheRunningConfig(t *testing.T) {
 
 	// The refusal is a decision, not a coincidence: the store dropped the
 	// session, so a replay of the same cookie stays refused.
-	assert.Nil(t, store.ValidateToken(aliceToken),
+	assert.Nil(t, store.validateToken(aliceToken),
 		"the refused session must be invalidated, not merely denied once")
-	assert.NotNil(t, store.ValidateToken(bobToken),
+	assert.NotNil(t, store.validateToken(bobToken),
 		"the kept user's session must survive intact")
 }
 
@@ -203,7 +203,7 @@ func TestSessionOfRemoteBackendUserSurvivesLocalRemoval(t *testing.T) {
 
 	// radiususer is authenticated by a remote backend and is absent from the
 	// local list, exactly as a RADIUS admin is.
-	session, err := store.CreateSession("radiususer", authz.AuthResult{
+	session, err := store.createSession("radiususer", authz.AuthResult{
 		Authenticated: true,
 		Profiles:      []string{"admin"},
 		Source:        "radius",
@@ -214,7 +214,7 @@ func TestSessionOfRemoteBackendUserSurvivesLocalRemoval(t *testing.T) {
 
 	live.set()
 
-	got := store.ValidateToken(session.Token)
+	got := store.validateToken(session.Token)
 	require.NotNil(t, got, "the local list cannot revoke a session it never granted")
 	assert.Equal(t, "radiususer", got.Username)
 }
@@ -228,20 +228,20 @@ func TestSessionRefusedWhenLiveUserListUnreadable(t *testing.T) {
 	live := &liveUserList{users: revocationUsers(t)}
 	store := NewSessionStore(live.read)
 
-	session, err := store.CreateSession("alice", localGrant())
+	session, err := store.createSession("alice", localGrant())
 	require.NoError(t, err)
 	require.True(t, session.LocalAnchored)
-	require.NotNil(t, store.ValidateToken(session.Token))
+	require.NotNil(t, store.validateToken(session.Token))
 
 	live.setFailRead(true)
 
-	assert.Nil(t, store.ValidateToken(session.Token),
+	assert.Nil(t, store.validateToken(session.Token),
 		"a session granted by the local user list must not be renewed against a list that cannot be read")
 }
 
 // TestSessionAnchoredWhenAReloadLandsDuringLogin is the case the old design
 // could not pass. It recorded the anchor by RE-READING the live list inside
-// CreateSession, which is a second question asked after the authenticator had
+// createSession, which is a second question asked after the authenticator had
 // already answered. A reload landing in that window answered "the config does
 // not declare alice", so a session the local backend had just granted was
 // recorded as un-revocable and survived the full 24h TTL -- the guard failing
@@ -258,14 +258,14 @@ func TestSessionAnchoredWhenAReloadLandsDuringLogin(t *testing.T) {
 	// been checked and before her session exists.
 	racing := reloadDuringLogin{inner: local, live: live, after: revocationUsers(t)[1:]}
 
-	login := LoginHandler(store, racing, noopRenderer)
-	protected := AuthMiddleware(store, local, noopRenderer, okHandler())
+	login := loginHandler(store, racing, noopRenderer)
+	protected := authMiddleware(store, local, noopRenderer, okHandler())
 
 	token := loginForCookie(t, login, "alice", "testpass")
 
 	assert.Equal(t, http.StatusUnauthorized, getWithCookie(protected, token),
 		"a session the local backend granted must stay revocable when the removal lands during login")
-	assert.Nil(t, store.ValidateToken(token),
+	assert.Nil(t, store.validateToken(token),
 		"the session must be invalidated, not merely denied once")
 }
 
@@ -286,8 +286,8 @@ func TestSessionOfRemoteBackendUserSurvivesWhenTheLocalListDeclaresThemToo(t *te
 		result: authz.AuthResult{Authenticated: true, Source: "tacacs"},
 	}
 
-	login := LoginHandler(store, remote, noopRenderer)
-	protected := AuthMiddleware(store, remote, noopRenderer, okHandler())
+	login := loginHandler(store, remote, noopRenderer)
+	protected := authMiddleware(store, remote, noopRenderer, okHandler())
 
 	token := loginForCookie(t, login, "alice", "irrelevant")
 
@@ -307,17 +307,17 @@ func TestSessionOfRemoteBackendUserSurvivesWhenTheLocalListDeclaresThemToo(t *te
 func TestSessionStoreWithoutLiveSourceRefusesALocalSession(t *testing.T) {
 	store := NewSessionStore(nil)
 
-	session, err := store.CreateSession("alice", localGrant())
+	session, err := store.createSession("alice", localGrant())
 	require.NoError(t, err)
 	require.True(t, session.LocalAnchored,
 		"the grant is the authenticator's answer and does not depend on the store having a list")
 
-	assert.Nil(t, store.ValidateToken(session.Token),
+	assert.Nil(t, store.validateToken(session.Token),
 		"a store with no live user list must refuse a session only that list could renew")
 }
 
 // TestValidateTokenRefusalLeavesANewerSessionAlone covers the replay window.
-// A tab still polling with a revoked cookie reaches ValidateToken after the
+// A tab still polling with a revoked cookie reaches validateToken after the
 // operator has re-added the user and that user has logged in again. Deleting by
 // USERNAME then destroyed the new session on behalf of the old one.
 // VALIDATES: invalidation is scoped to the token that failed.
@@ -326,13 +326,13 @@ func TestValidateTokenRefusalLeavesANewerSessionAlone(t *testing.T) {
 	live := &liveUserList{users: revocationUsers(t)}
 	store := NewSessionStore(live.read)
 
-	stale, err := store.CreateSession("alice", localGrant())
+	stale, err := store.createSession("alice", localGrant())
 	require.NoError(t, err)
 
 	// alice is removed, so the stale cookie is about to be refused.
 	live.set(revocationUsers(t)[1])
 
-	// Hold that refusal inside ValidateToken, after it has read the session and
+	// Hold that refusal inside validateToken, after it has read the session and
 	// before it invalidates anything. The list read runs without the store's
 	// lock on purpose (it reaches out of this package), so this is the daemon's
 	// own interleaving rather than an invented one.
@@ -346,19 +346,19 @@ func TestValidateTokenRefusalLeavesANewerSessionAlone(t *testing.T) {
 		})
 	})
 
-	refused := make(chan *WebSession, 1)
-	go func() { refused <- store.ValidateToken(stale.Token) }()
+	refused := make(chan *webSession, 1)
+	go func() { refused <- store.validateToken(stale.Token) }()
 
 	<-reached
 
 	// alice logs in again while the old request is in flight, through a remote
 	// backend the local removal does not govern.
-	fresh, err := store.CreateSession("alice", authz.AuthResult{Authenticated: true, Source: "tacacs"})
+	fresh, err := store.createSession("alice", authz.AuthResult{Authenticated: true, Source: "tacacs"})
 	require.NoError(t, err)
 	close(release)
 
 	assert.Nil(t, <-refused, "the stale cookie must still be refused")
-	assert.NotNil(t, store.ValidateToken(fresh.Token),
+	assert.NotNil(t, store.validateToken(fresh.Token),
 		"a refused cookie must not invalidate the session created after it")
 }
 
@@ -370,12 +370,12 @@ func TestValidateTokenReadsTheListPerRequest(t *testing.T) {
 	live := &liveUserList{users: revocationUsers(t)}
 	store := NewSessionStore(live.read)
 
-	session, err := store.CreateSession("alice", localGrant())
+	session, err := store.createSession("alice", localGrant())
 	require.NoError(t, err)
 
 	before := live.reads
 	for range 3 {
-		require.NotNil(t, store.ValidateToken(session.Token))
+		require.NotNil(t, store.validateToken(session.Token))
 	}
 	assert.Equal(t, before+3, live.reads,
 		"every request must ask the live list, so a reload lands without a restart")

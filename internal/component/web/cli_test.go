@@ -545,7 +545,7 @@ func TestCLIBarRBACDeny(t *testing.T) {
 	mgr, renderer := setupCLITest(t)
 	schema, _ := buildTestSchemaAndTree()
 	store := authz.NewStore()
-	store.AddProfile(authz.BuiltinReadOnlyProfile())
+	store.AddProfile(testReadOnlyProfile())
 	store.AssignProfiles("testuser", []string{"read-only"})
 	authorizer := authz.StoreAuthorizer{Store: store}
 	handler := HandleCLICommandWithAuthorizer(mgr, schema, renderer, authorizer)
@@ -566,7 +566,7 @@ func TestCLIBarRBACDeny(t *testing.T) {
 func TestTerminalModeRBACDeny(t *testing.T) {
 	mgr, schema, tree, _ := setupCLITerminalYANGTest(t)
 	store := authz.NewStore()
-	store.AddProfile(authz.BuiltinReadOnlyProfile())
+	store.AddProfile(testReadOnlyProfile())
 	store.AssignProfiles("testuser", []string{"read-only"})
 	authorizer := authz.StoreAuthorizer{Store: store}
 	handler := HandleCLITerminalWithDispatchAuthorizerAndAudit(mgr, schema, tree, nil, authorizer, nil)

@@ -9,7 +9,7 @@
 package hub
 
 func init() {
-	registerService("mcp", buildMCPService, func(lm *ListenerMigrator, svc Service) {
-		lm.SetMCP(svc)
+	registerService("mcp", buildMCPService, func(lm *listenerMigrator, svc Service) {
+		lm.setMCP(svc)
 	})
 }

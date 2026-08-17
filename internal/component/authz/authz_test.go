@@ -641,18 +641,18 @@ func TestStoreWalkEntries(t *testing.T) {
 
 func TestStoreHasUserAssignments(t *testing.T) {
 	s := NewStore()
-	if s.HasUserAssignments() {
+	if s.hasUserAssignments() {
 		t.Error("empty store should report no user assignments")
 	}
 	s.AssignProfiles("user1", []string{"admin"})
-	if !s.HasUserAssignments() {
+	if !s.hasUserAssignments() {
 		t.Error("store with assignment should report has user assignments")
 	}
 }
 
 func TestBuiltinAdminProfile(t *testing.T) {
 	// VALIDATES: built-in admin profile allows everything
-	admin := BuiltinAdminProfile()
+	admin := builtinAdminProfile()
 	if got := admin.Authorize("restart", true); got != Allow {
 		t.Errorf("admin run: expected Allow, got %v", got)
 	}
@@ -663,7 +663,7 @@ func TestBuiltinAdminProfile(t *testing.T) {
 
 func TestBuiltinReadOnlyProfile(t *testing.T) {
 	// VALIDATES: built-in read-only profile denies dangerous run commands and all edit
-	ro := BuiltinReadOnlyProfile()
+	ro := builtinReadOnlyProfile()
 	tests := []struct {
 		name     string
 		command  string
@@ -706,7 +706,7 @@ func TestInjectDeniedReadOnly(t *testing.T) {
 		v4 = "debug ip ospf inject opaque scope area id 1 hex 00"
 		v6 = "debug ipv6 ospf inject lsa scope area type 0x2009 id 1 hex 00"
 	)
-	ro := BuiltinReadOnlyProfile()
+	ro := builtinReadOnlyProfile()
 	// Original assertion: the Run-section `deny "debug"` rule (isReadOnly=true path).
 	if got := ro.Authorize(v4, true); got != Deny {
 		t.Fatalf("IPv4 inject Authorize(readOnly=true) = %v, want Deny", got)
@@ -723,7 +723,7 @@ func TestInjectDeniedReadOnly(t *testing.T) {
 	// Guard the ACTUAL production path: a user under the read-only profile is denied inject on
 	// the isReadOnly=false (Edit) path for both address families.
 	s := NewStore()
-	s.AddProfile(BuiltinReadOnlyProfile())
+	s.AddProfile(builtinReadOnlyProfile())
 	s.AssignProfiles("ro-user", []string{"read-only"})
 	if got := s.Authorize("ro-user", v4, false); got != Deny {
 		t.Fatalf("Store.Authorize(v4 inject, isReadOnly=false) = %v, want Deny", got)
@@ -735,7 +735,7 @@ func TestInjectDeniedReadOnly(t *testing.T) {
 
 func TestV3InjectDeniedReadOnly(t *testing.T) {
 	const v6 = "debug ipv6 ospf inject lsa scope area type 0x2009 id 1 hex 00"
-	ro := BuiltinReadOnlyProfile()
+	ro := builtinReadOnlyProfile()
 	// Original assertion: the Run-section `deny "debug"` rule (isReadOnly=true path).
 	if got := ro.Authorize(v6, true); got != Deny {
 		t.Fatalf("IPv6 inject Authorize(readOnly=true) = %v, want Deny", got)
@@ -746,7 +746,7 @@ func TestV3InjectDeniedReadOnly(t *testing.T) {
 		t.Fatalf("IsReadOnlyPath(%q) = true, want false (inject dispatches with isReadOnly=false)", v6)
 	}
 	s := NewStore()
-	s.AddProfile(BuiltinReadOnlyProfile())
+	s.AddProfile(builtinReadOnlyProfile())
 	s.AssignProfiles("ro-user", []string{"read-only"})
 	if got := s.Authorize("ro-user", v6, false); got != Deny {
 		t.Fatalf("Store.Authorize(v6 inject, isReadOnly=false) = %v, want Deny", got)
@@ -842,7 +842,7 @@ func TestRegexInvalidPatternInMatches(t *testing.T) {
 // PREVENTS: regression to every TACACS+-authenticated user being authorized as
 //
 //	admin because the store found no config assignment and fell through to
-//	BuiltinAdminProfile -- the mapping logged at login and then ignored.
+//	the built-in admin profile -- the mapping logged at login and then ignored.
 func TestStoreAuthorizeUsesLoginResolvedProfiles(t *testing.T) {
 	s := NewStore()
 	s.AddProfile(Profile{
@@ -853,7 +853,7 @@ func TestStoreAuthorizeUsesLoginResolvedProfiles(t *testing.T) {
 
 	// Deliberately no AssignProfiles for this user: that is the TACACS+ shape.
 	aaa.RecordLoginProfiles("tacacs-noc", []string{"read-only"})
-	t.Cleanup(func() { aaa.ForgetLoginProfiles("tacacs-noc") })
+	t.Cleanup(func() { aaa.ForgetLoginProfilesForTest("tacacs-noc") })
 
 	if got := s.Authorize("tacacs-noc", "show bgp summary", true); got != Allow {
 		t.Errorf("run section defaults to allow: expected Allow, got %v", got)
@@ -878,7 +878,7 @@ func TestStoreAuthorizeConfigAssignmentWinsOverLogin(t *testing.T) {
 	s.AssignProfiles("dual", []string{"read-only"})
 
 	aaa.RecordLoginProfiles("dual", []string{"admin-like"})
-	t.Cleanup(func() { aaa.ForgetLoginProfiles("dual") })
+	t.Cleanup(func() { aaa.ForgetLoginProfilesForTest("dual") })
 
 	if got := s.Authorize("dual", "request quiesce", false); got != Deny {
 		t.Errorf("config assignment must win: expected Deny, got %v", got)
@@ -896,7 +896,7 @@ func TestStoreAuthorizeLoginProfilesDoNotLeakAcrossUsers(t *testing.T) {
 	s.AssignProfiles("known", []string{"read-only"})
 
 	aaa.RecordLoginProfiles("known", []string{"read-only"})
-	t.Cleanup(func() { aaa.ForgetLoginProfiles("known") })
+	t.Cleanup(func() { aaa.ForgetLoginProfilesForTest("known") })
 
 	// "other" never authenticated: no assignment, no login profiles. A non-nil
 	// store means authorization is in use, so it fails closed regardless of whether
@@ -928,7 +928,7 @@ func TestStoreAuthorizeIgnoresUnresolvableLoginProfiles(t *testing.T) {
 	s.AssignProfiles("local-admin", []string{"read-only"})
 
 	aaa.RecordLoginProfiles("tacacs-typo", []string{"does-not-exist"})
-	t.Cleanup(func() { aaa.ForgetLoginProfiles("tacacs-typo") })
+	t.Cleanup(func() { aaa.ForgetLoginProfilesForTest("tacacs-typo") })
 
 	if got := s.Authorize("tacacs-typo", "request quiesce", false); got != Deny {
 		t.Errorf("unresolvable profile name must not authorize as admin: got %v", got)
@@ -948,7 +948,7 @@ func TestStoreAuthorizeKeepsResolvableLoginProfiles(t *testing.T) {
 	s.AddProfile(Profile{Name: "read-only", Run: Section{Default: Allow}, Edit: Section{Default: Deny}})
 
 	aaa.RecordLoginProfiles("mixed", []string{"does-not-exist", "read-only"})
-	t.Cleanup(func() { aaa.ForgetLoginProfiles("mixed") })
+	t.Cleanup(func() { aaa.ForgetLoginProfilesForTest("mixed") })
 
 	if got := s.Authorize("mixed", "show bgp summary", true); got != Allow {
 		t.Errorf("resolvable name must still apply: got %v", got)
@@ -964,8 +964,9 @@ func TestStoreAuthorizeKeepsResolvableLoginProfiles(t *testing.T) {
 // test. A TACACS/RADIUS-only box has system.authorization profiles configured but
 // NO system.authentication.user assignments (assignments come only from local
 // users). Before the fix, hasUsers was false and any authenticated user whose
-// profiles did not resolve fell through to BuiltinAdminProfile (allow-all). The
-// store existing IS the "authorization is in use" signal, so this must deny.
+// profiles did not resolve fell through to the built-in admin profile
+// (allow-all). The store existing IS the "authorization is in use" signal,
+// so this must deny.
 //
 // VALIDATES: AC-1 -- authenticated user, profiles configured, no assignment, no
 //
@@ -1001,7 +1002,7 @@ func TestStoreAuthorizeTacacsUnresolvedLoginDeniesNotAdmin(t *testing.T) {
 	s.AddProfile(Profile{Name: "read-only", Run: Section{Default: Allow}, Edit: Section{Default: Deny}})
 
 	aaa.RecordLoginProfiles("tacacs-priv15", []string{"does-not-exist"})
-	t.Cleanup(func() { aaa.ForgetLoginProfiles("tacacs-priv15") })
+	t.Cleanup(func() { aaa.ForgetLoginProfilesForTest("tacacs-priv15") })
 
 	if got := s.Authorize("tacacs-priv15", "restart", true); got != Deny {
 		t.Errorf("expected Deny (fail closed), got %v (admin fallthrough?)", got)
@@ -1046,6 +1047,37 @@ func TestStoreAuthorizeReservedInternalIdentity(t *testing.T) {
 	}
 }
 
+// VALIDATES: AC-7 and AC-8, the server-injected shared API identity crosses a
+// strict authorization store for both read and write commands.
+// PREVENTS: token and loopback no-auth callers being denied as an unassigned
+// printable user after authorization profiles are configured.
+func TestStoreAuthorizeReservedSharedAPIIdentity(t *testing.T) {
+	s := NewStore()
+	s.AddProfile(Profile{
+		Name: "unrelated",
+		Run:  Section{Default: Deny},
+		Edit: Section{Default: Deny},
+	})
+
+	if got := s.Authorize(aaa.ReservedSharedAPIUsername, "show version", true); got != Allow {
+		t.Errorf("shared API read: expected Allow, got %v", got)
+	}
+	if got := s.Authorize(aaa.ReservedSharedAPIUsername, "request reload", false); got != Allow {
+		t.Errorf("shared API write: expected Allow, got %v", got)
+	}
+	for _, username := range []string{
+		aaa.ReservedSharedAPIUsername + ":other",
+		"shared-api",
+		"api",
+		"ordinary-config-user",
+		"",
+	} {
+		if got := s.Authorize(username, "request reload", false); got != Deny {
+			t.Errorf("non-shared identity %q: expected Deny, got %v", username, got)
+		}
+	}
+}
+
 // TestStoreAuthorizeRecoveryProfile pins O-3': the ze init bootstrap admin reaches
 // a strict box via the reserved recovery profile, delivered through login-resolved
 // profiles (never a config assignment). It is honored regardless of what the store
@@ -1059,7 +1091,7 @@ func TestStoreAuthorizeRecoveryProfile(t *testing.T) {
 	s.AddProfile(Profile{Name: "read-only", Run: Section{Default: Allow}, Edit: Section{Default: Deny}})
 
 	aaa.RecordLoginProfiles("admin", []string{aaa.ReservedRecoveryProfile})
-	t.Cleanup(func() { aaa.ForgetLoginProfiles("admin") })
+	t.Cleanup(func() { aaa.ForgetLoginProfilesForTest("admin") })
 
 	if got := s.Authorize("admin", "restart", true); got != Allow {
 		t.Errorf("recovery run: expected Allow, got %v", got)
@@ -1096,6 +1128,9 @@ func TestIsReservedAuthzName(t *testing.T) {
 	}
 	if !aaa.IsReservedName(aaa.ReservedInternalPrefix + "plugin:x") {
 		t.Errorf("internal identity must be reserved")
+	}
+	if !aaa.IsReservedName(aaa.ReservedSharedAPIUsername) {
+		t.Errorf("shared API identity must be reserved")
 	}
 	for _, name := range []string{"admin", "read-only", "operator", "plugin:ospf", ""} {
 		if aaa.IsReservedName(name) {

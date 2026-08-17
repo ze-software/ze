@@ -448,8 +448,8 @@ profile "test" run: entry 10: invalid regex "[broken": error parsing regexp: mis
 | Canonical command builder | `internal/component/aaa/command_args.go` |
 | Read-only verb classification | `internal/component/plugin/server/command.go` (`IsReadOnlyPath`) |
 | Dispatcher authorization check | `internal/component/plugin/server/command.go` (`isAuthorized`, `isAuthorizedCommandArgs`) |
-| Built-in admin profile | `internal/component/authz/authz.go` (`BuiltinAdminProfile`) |
-| Built-in read-only profile | `internal/component/authz/authz.go` (`BuiltinReadOnlyProfile`) |
+| Built-in admin profile | `internal/component/authz/authz.go` (`builtinAdminProfile`) |
+| Built-in read-only profile | `internal/component/authz/authz.go` (`builtinReadOnlyProfile`) |
 
 <!-- source: internal/component/authz/authz.go -- Entry.matches, Section.evaluate -->
 <!-- source: internal/component/authz/register.go -- StoreAuthorizer -->

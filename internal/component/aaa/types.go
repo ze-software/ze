@@ -84,9 +84,9 @@ type Bundle struct {
 	closeErr      error // set by the first Close call, returned by all calls
 }
 
-// BackendRegistry holds registered backends. It freezes after the first Build
+// backendRegistry holds registered backends. It freezes after the first Build
 // call so late registrations cannot bypass the composed chain.
-type BackendRegistry struct {
+type backendRegistry struct {
 	mu       sync.Mutex
 	backends []Backend
 	names    map[string]struct{}
@@ -202,11 +202,10 @@ func (b *Bundle) Close() error {
 	return b.closeErr
 }
 
-// NewBackendRegistry constructs an empty BackendRegistry. Intended for tests
-// and specialized callers that need an isolated registry; production code
-// uses the package-level Default registry.
-func NewBackendRegistry() *BackendRegistry {
-	return &BackendRegistry{names: make(map[string]struct{})}
+// NewBackendRegistryForTest constructs an empty isolated registry for tests.
+// Production code uses the package-level Default registry.
+func NewBackendRegistryForTest() *backendRegistry {
+	return &backendRegistry{names: make(map[string]struct{})}
 }
 
 // Default is the registry used by init()-time self-registrations. Backends
@@ -216,12 +215,12 @@ func NewBackendRegistry() *BackendRegistry {
 // and any subsequent Register (including from other test binaries' init
 // paths if they happen to run in the same process) is rejected. Tests that
 // need a composed Bundle should construct their own registry via
-// NewBackendRegistry and register their fakes onto it.
-var Default = NewBackendRegistry()
+// NewBackendRegistryForTest and register their fakes onto it.
+var Default = &backendRegistry{names: make(map[string]struct{})}
 
 // Register adds a backend to this registry. Duplicate names are rejected.
 // Registration after Build is rejected (frozen).
-func (r *BackendRegistry) Register(b Backend) error {
+func (r *backendRegistry) Register(b Backend) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.frozen {
@@ -240,7 +239,7 @@ func (r *BackendRegistry) Register(b Backend) error {
 }
 
 // orderedBackends returns backends sorted by Priority (ascending, stable).
-func (r *BackendRegistry) orderedBackends() []Backend {
+func (r *backendRegistry) orderedBackends() []Backend {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	sorted := make([]Backend, len(r.backends))
@@ -253,7 +252,7 @@ func (r *BackendRegistry) orderedBackends() []Backend {
 
 // Build composes the Bundle from all registered backends. After Build, the
 // registry is frozen and further Register calls are rejected.
-func (r *BackendRegistry) Build(params BuildParams) (*Bundle, error) {
+func (r *backendRegistry) Build(params BuildParams) (*Bundle, error) {
 	backends := r.orderedBackends()
 
 	// Freeze AFTER snapshotting so a late Register during a Build race loses.
@@ -298,14 +297,14 @@ func (r *BackendRegistry) Build(params BuildParams) (*Bundle, error) {
 	if len(authChain) == 0 {
 		return nil, errNoAuthenticationBackendConfigured
 	}
-	// Wrap the chain so a successful authentication publishes the profiles it
-	// resolved (see login_profiles.go). Authorization runs on a later call that
-	// carries only a username, so this is the one place the login-time answer can
-	// be captured for every surface at once.
+	// Use the shared wrapper so successful authentication publishes the
+	// profiles it resolved and reserved usernames are rejected. Authorization
+	// later receives only a username; WithProfileRecording is the common choke
+	// point for both registry-built surfaces and direct local API authentication.
 	if len(authChain) == 1 {
-		bundle.Authenticator = profileRecordingAuthenticator{next: authChain[0]}
+		bundle.Authenticator = WithProfileRecording(authChain[0])
 		return bundle, nil
 	}
-	bundle.Authenticator = profileRecordingAuthenticator{next: &ChainAuthenticator{Backends: authChain}}
+	bundle.Authenticator = WithProfileRecording(&ChainAuthenticator{Backends: authChain})
 	return bundle, nil
 }

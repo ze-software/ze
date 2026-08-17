@@ -2,13 +2,15 @@ package hub
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/bcrypt"
 
+	"github.com/ze-software/ze/internal/component/authz"
 	zeconfig "github.com/ze-software/ze/internal/component/config"
-	"github.com/ze-software/ze/internal/core/env"
 )
 
 // webTreeWithInsecure builds a config tree whose web block carries the given
@@ -96,8 +98,9 @@ func mcpSettingsTree(authMode string) *zeconfig.Tree {
 // to build it, leaving the rebuild with nothing to apply.
 func TestAPIAuthReloaderResolvesConfiguredToken(t *testing.T) {
 	migrator := newListenerMigrator()
-	registerMgmtAuthReloaders(migrator, mgmtAuthInputs{})
-
+	registerMgmtAuthReloaders(migrator, mgmtAuthInputs{
+		apiUsersLive: func() ([]authz.UserConfig, error) { return nil, nil },
+	})
 	intent, ok, err := migrator.authReloaders["rest"](apiTokenTree("reloaded-token"))
 	require.NoError(t, err)
 	require.True(t, ok)
@@ -115,57 +118,178 @@ func TestAPIAuthReloaderResolvesConfiguredToken(t *testing.T) {
 // PREVENTS: deleting a config block silently stripping authentication off a
 // server that is still listening.
 func TestAPIAuthReloaderSilentWithoutBlock(t *testing.T) {
+	calls := 0
 	migrator := newListenerMigrator()
-	registerMgmtAuthReloaders(migrator, mgmtAuthInputs{})
+	registerMgmtAuthReloaders(migrator, mgmtAuthInputs{
+		apiUsersLive: func() ([]authz.UserConfig, error) {
+			calls++
+			return nil, nil
+		},
+	})
 
 	_, ok, err := migrator.authReloaders["rest"](zeconfig.NewTree())
 	require.NoError(t, err)
 	assert.False(t, ok)
+	assert.Zero(t, calls, "removing api-server must not consult or replace the running credentials")
+
+	rest := &recordingAuthServer{token: "running-token"}
+	migrator.setREST(rest)
+	migrator.markAuthenticated(svcREST)
+	_, err = migrator.reloadListeners(context.Background(), zeconfig.NewTree())
+	require.NoError(t, err)
+	assert.Equal(t, "running-token", rest.token)
+	assert.Empty(t, rest.updates, "removing api-server must leave running credentials untouched")
 }
 
-// setAPIConfigDir points zefs at a directory holding no database, so
-// loadZefsUsers fails the way it does when the credentials become unreadable.
-func setAPIConfigDir(t *testing.T, dir string) {
+func apiReloadUser(t *testing.T, name, password string) authz.UserConfig {
 	t.Helper()
-	orig := env.Get("ze.config.dir")
-	t.Cleanup(func() { _ = env.Set("ze.config.dir", orig) })
-	require.NoError(t, env.Set("ze.config.dir", dir))
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.MinCost)
+	require.NoError(t, err)
+	return authz.UserConfig{Name: name, Hash: string(hash)}
 }
 
-// VALIDATES: a daemon that COULD read its power-user credentials at boot and
-// cannot read them now fails the reload rather than rebuilding the API servers
-// without them.
-// PREVENTS: the most security-relevant branch in this file being an untested
-// claim. Rebuilding on an empty user set silently drops every power user, which
-// is the fail-open shape ai/rules/evidence.md names.
-func TestAPIAuthReloaderFailsClosedWhenCredentialsBecomeUnreadable(t *testing.T) {
-	setAPIConfigDir(t, t.TempDir())
-
-	migrator := newListenerMigrator()
-	registerMgmtAuthReloaders(migrator, mgmtAuthInputs{apiZefsUsersOK: true})
-
-	intent, ok, err := migrator.authReloaders["rest"](apiTokenTree(""))
-	require.Error(t, err, "credentials that authenticated callers at boot must not vanish silently")
-	assert.Contains(t, err.Error(), "no longer readable")
-	assert.False(t, ok)
-	assert.False(t, intent.authenticated)
+func apiReloadSystemRoot(users ...authz.UserConfig) map[string]any {
+	entries := make(map[string]any, len(users))
+	for _, user := range users {
+		entries[user.Name] = map[string]any{"password": user.Hash, "profile": "admin"}
+	}
+	return map[string]any{"authentication": map[string]any{"user": entries}}
 }
 
-// VALIDATES: a daemon that never had those credentials keeps reloading; the
-// fail-closed branch is keyed on losing them, not on their absence.
-// PREVENTS: over-refusing on every box without zefs initialized, which would
-// make the guard's first real failure indistinguishable from routine noise.
-func TestAPIAuthReloaderProceedsWhenCredentialsNeverExisted(t *testing.T) {
-	setAPIConfigDir(t, t.TempDir())
+// VALIDATES: AC-9 and AC-12, runReload installs the candidate provider before
+// apiAuthReloader resolves its live users. A no-SSH config user produces
+// working per-user material, and that material follows later user changes.
+// PREVENTS: resolving from the previous provider tree or rebuilding from a
+// separate snapshot parsed directly from the candidate tree.
+func TestAPIAuthReloaderUsesLiveUsersWithoutSSHBlock(t *testing.T) {
+	alice := apiReloadUser(t, "alice", "alice-pass")
+	bob := apiReloadUser(t, "bob", "bob-pass")
+	candidate := apiTokenTree("").ToMap()
+	candidate["system"] = apiReloadSystemRoot(alice)
+	parsedCandidate := treeFromMap(candidate)
 
+	server, provider := reloadDriver(t, candidate)
+	calls := 0
+	usersLive := func() ([]authz.UserConfig, error) {
+		calls++
+		return liveConfigUsers(provider)
+	}
+	rest := &recordingAuthServer{
+		recordingReconfigurable: recordingReconfigurable{},
+		token:                   "boot-token",
+	}
 	migrator := newListenerMigrator()
-	registerMgmtAuthReloaders(migrator, mgmtAuthInputs{apiZefsUsersOK: false})
+	migrator.setREST(rest)
+	migrator.markAuthenticated(svcREST)
+	registerMgmtAuthReloaders(migrator, mgmtAuthInputs{apiUsersLive: usersLive})
+
+	load := func() (map[string]any, *zeconfig.Tree, error) {
+		return candidate, parsedCandidate, nil
+	}
+	require.NoError(t, runReload(server, nil, provider, nil, "", load, migrator))
+	require.NotNil(t, rest.authenticator)
+	assert.Equal(t, 1, calls, "runReload must refresh the provider before resolving API mode once")
+	assert.Empty(t, rest.token, "per-user mode must replace the previous shared token")
+	assert.Equal(t, []string{""}, rest.updates, "the candidate authenticator must be installed")
+
+	user, authenticated := rest.authenticator("Bearer alice:alice-pass")
+	require.True(t, authenticated, "the installed material must authenticate, not only report a boolean mode")
+	assert.Equal(t, "alice", user)
+	_, authenticated = rest.authenticator("Bearer alice:wrong")
+	assert.False(t, authenticated)
+
+	provider.SetRoot("system", apiReloadSystemRoot(bob))
+	_, authenticated = rest.authenticator("Bearer alice:alice-pass")
+	assert.False(t, authenticated, "a user removed from the live source must stop authenticating")
+	user, authenticated = rest.authenticator("Bearer bob:bob-pass")
+	require.True(t, authenticated, "a user added to the live source must authenticate without restart")
+	assert.Equal(t, "bob", user)
+}
+
+// VALIDATES: AC-10, an unreadable live API user source rejects the reload and
+// yields no installable intent.
+// PREVENTS: a failed source read becoming a valid token-only or anonymous mode.
+func TestAPIAuthReloaderFailsClosedWhenLiveUsersUnreadable(t *testing.T) {
+	sourceErr := errors.New("provider user read failed")
+	migrator := newListenerMigrator()
+	registerMgmtAuthReloaders(migrator, mgmtAuthInputs{
+		apiUsersLive: func() ([]authz.UserConfig, error) {
+			return nil, sourceErr
+		},
+	})
 
 	intent, ok, err := migrator.authReloaders["rest"](apiTokenTree("configured-token"))
-	require.NoError(t, err)
-	require.True(t, ok)
-	assert.Equal(t, "configured-token", intent.token)
-	assert.True(t, intent.authenticated)
+	require.ErrorIs(t, err, sourceErr)
+	assert.Contains(t, err.Error(), "resolve live API users", "the reload refusal must name the failed source")
+	assert.False(t, ok)
+	assert.False(t, intent.authenticated)
+	assert.Nil(t, intent.authenticator)
+
+	rest := &recordingAuthServer{token: "running-token"}
+	migrator.setREST(rest)
+	migrator.markAuthenticated(svcREST)
+	_, reloadErr := migrator.reloadListeners(context.Background(), apiTokenTree("configured-token"))
+	require.ErrorIs(t, reloadErr, sourceErr)
+	assert.Equal(t, "running-token", rest.token, "a failed source read must preserve running credentials")
+	assert.Empty(t, rest.updates, "a failed source read must install no new intent")
+}
+
+// VALIDATES: AC-7 and per-user precedence, a successful empty live read keeps
+// token or no-auth mode, while a non-empty live read installs per-user
+// authentication that rejects the shared token as a user credential.
+// PREVENTS: confusing an empty list with a source error, or letting a token
+// bypass a configured user's password after reload.
+func TestAPIAuthReloaderProceedsWithTokenAndNoUsers(t *testing.T) {
+	t.Run("empty live source keeps token mode", func(t *testing.T) {
+		calls := 0
+		migrator := newListenerMigrator()
+		registerMgmtAuthReloaders(migrator, mgmtAuthInputs{
+			apiUsersLive: func() ([]authz.UserConfig, error) {
+				calls++
+				return nil, nil
+			},
+		})
+		intent, ok, err := migrator.authReloaders["rest"](apiTokenTree("configured-token"))
+		require.NoError(t, err)
+		require.True(t, ok)
+		assert.True(t, intent.authenticated)
+		assert.Equal(t, "configured-token", intent.token)
+		assert.Nil(t, intent.authenticator)
+		assert.Equal(t, 1, calls)
+	})
+
+	t.Run("empty live source keeps no-auth mode", func(t *testing.T) {
+		migrator := newListenerMigrator()
+		registerMgmtAuthReloaders(migrator, mgmtAuthInputs{
+			apiUsersLive: func() ([]authz.UserConfig, error) {
+				return []authz.UserConfig{}, nil
+			},
+		})
+		intent, ok, err := migrator.authReloaders["rest"](apiTokenTree(""))
+		require.NoError(t, err)
+		require.True(t, ok)
+		assert.False(t, intent.authenticated)
+		assert.Empty(t, intent.token)
+		assert.Nil(t, intent.authenticator)
+	})
+
+	t.Run("per-user mode takes precedence over token", func(t *testing.T) {
+		alice := apiReloadUser(t, "alice", "alice-pass")
+		migrator := newListenerMigrator()
+		registerMgmtAuthReloaders(migrator, mgmtAuthInputs{
+			apiUsersLive: func() ([]authz.UserConfig, error) {
+				return []authz.UserConfig{alice}, nil
+			},
+		})
+		intent, ok, err := migrator.authReloaders["rest"](apiTokenTree("configured-token"))
+		require.NoError(t, err)
+		require.True(t, ok)
+		require.NotNil(t, intent.authenticator)
+		_, authenticated := intent.authenticator("Bearer configured-token")
+		assert.False(t, authenticated, "the shared token is not a per-user credential")
+		_, authenticated = intent.authenticator("Bearer alice:alice-pass")
+		assert.True(t, authenticated)
+	})
 }
 
 func apiTokenTree(token string) *zeconfig.Tree {
@@ -204,9 +328,9 @@ func TestMarkMgmtAuthClassifiesBeforeAnyHandleExists(t *testing.T) {
 	}
 
 	web := &recordingReconfigurable{addrs: []string{"127.0.0.1:3443"}}
-	migrator.SetWeb(web)
+	migrator.setWeb(web)
 
-	_, err := migrator.ReloadListeners(context.Background(), webOnlyTree(nonLoopbackServiceTree("3444")))
+	_, err := migrator.reloadListeners(context.Background(), webOnlyTree(nonLoopbackServiceTree("3444")))
 	require.Error(t, err, "an unauthenticated web server must not migrate to a public address")
 	assert.Contains(t, err.Error(), "0.0.0.0:3444")
 	assert.Empty(t, web.calls, "the refusal comes before anything is rebound")
@@ -218,14 +342,13 @@ func TestMarkMgmtAuthClassifiesBeforeAnyHandleExists(t *testing.T) {
 // A config that enables REST alone classifies gRPC too; gRPC has no handle to
 // rebuild, so without this an operator removing the API token was told "grpc
 // cannot change its authentication while running" by a daemon running no gRPC
-// server. It also stops a reloader that FAILS -- apiAuthReloader refuses when
-// the power-user credentials stop being readable -- failing a reload over a
-// server that does not exist.
+// server. It also stops an unresolved live API user source from failing a
+// reload over a server that does not exist.
 func TestUnbuiltSurfaceResolvesNoAuthIntent(t *testing.T) {
 	rest := &recordingAuthServer{recordingReconfigurable: recordingReconfigurable{addrs: []string{"127.0.0.1:8081"}}}
 	migrator := newListenerMigrator()
 	markMgmtAuth(migrator, map[string]bool{svcREST: true, svcGRPC: true})
-	migrator.SetREST(rest)
+	migrator.setREST(rest)
 
 	called := map[string]int{}
 	migrator.setAuthReloader(svcREST, func(*zeconfig.Tree) (authIntent, bool, error) {
@@ -246,13 +369,13 @@ func TestUnbuiltSurfaceResolvesNoAuthIntent(t *testing.T) {
 }
 
 // VALIDATES: an unbuilt transport does not refuse the reload when the API's
-// authentication changes, end to end through ReloadListeners (AC-5).
+// authentication changes, end to end through reloadListeners (AC-5).
 // PREVENTS: the operator-facing symptom the marking fix removes -- a token
 // removal failing the whole commit over a server that does not exist.
 func TestReloadListenersProceedsWhenSiblingTransportWasNeverBuilt(t *testing.T) {
 	rest := &recordingAuthServer{recordingReconfigurable: recordingReconfigurable{addrs: []string{"127.0.0.1:8081"}}, token: "boot-token"}
 	migrator := newListenerMigrator()
-	migrator.SetREST(rest)
+	migrator.setREST(rest)
 	markMgmtAuth(migrator, map[string]bool{"rest": true, "grpc": true})
 
 	// One api-server block answers for both transports, so both reloaders read
@@ -260,7 +383,7 @@ func TestReloadListenersProceedsWhenSiblingTransportWasNeverBuilt(t *testing.T) 
 	migrator.setAuthReloader("rest", staticAuth(false, ""))
 	migrator.setAuthReloader("grpc", staticAuth(false, ""))
 
-	_, err := migrator.ReloadListeners(context.Background(), restOnlyTree("127.0.0.1", "8081"))
+	_, err := migrator.reloadListeners(context.Background(), restOnlyTree("127.0.0.1", "8081"))
 	require.NoError(t, err, "a transport that was never built cannot refuse a reload")
 	assert.Equal(t, []string{""}, rest.updates, "the running transport still rebuilds its authentication")
 	assert.Empty(t, rest.token, "the removed token is removed from the running server")

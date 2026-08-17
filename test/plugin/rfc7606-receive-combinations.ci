@@ -1,0 +1,126 @@
+# rfc7606-receive-combinations -- accept older-speaker Section 5.1 shapes
+#
+# RFC requirement: RFC7606-5.1-3 positive -- the daemon accepts and relays MP_UNREACH_NLRI
+# outside first position, MP_REACH_NLRI with MP_UNREACH_NLRI, and each MP attribute with
+# legacy NLRI. Distinct receiver expectations require every mixed input to be split before
+# relay, while any receive-side rejection prevents those expectations and fails the test.
+#
+# VALIDATES: RFC 7606 Section 5.1 requires a receiver to accept the four NLRI-bearing fields
+# in any position or combination when an older speaker sends them.
+# PREVENTS: applying the sender-side position or one-field restriction to received UPDATEs.
+#
+# The source sends four valid but sender-nonconforming shapes after both peers receive Ze's
+# End-of-RIB. IPv6 prefixes identify MP components and IPv4 prefixes identify legacy NLRI.
+# Receiver rules for each mixed input share one sequence number, so component order is free,
+# but one unsplit frame cannot consume both rules.
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=2
+option=timeout:value=20s
+option=bind:value=0.0.0.0
+option=conn_map:value=remote-ip
+option=await_eor:value=true
+
+# MP_UNREACH_NLRI follows ORIGIN and AS_PATH instead of occupying the first attribute slot.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0033020000001C4001010040020602010000FDE9800F0C0002014020010DB800100000
+expect=bgp:conn=2:seq=1:contains=4020010DB800100000
+
+# One UPDATE carries distinct MP_REACH_NLRI and MP_UNREACH_NLRI attributes.
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0054020000003D4001010040020602010000FDE9800E1E0002011020010DB8000000000000000000000001004020010DB800200000800F0C0002014020010DB800210000
+expect=bgp:conn=2:seq=2:contains=4020010DB800200000
+expect=bgp:conn=2:seq=2:contains=4020010DB800210000
+
+# MP_REACH_NLRI and legacy IPv4 NLRI coexist in one received UPDATE.
+action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF005002000000354001010040020602010000FDE940030401010101800E1E0002011020010DB8000000000000000000000001004020010DB800300000180A1E00
+expect=bgp:conn=2:seq=3:contains=4020010DB800300000
+expect=bgp:conn=2:seq=3:contains=180A1E00
+
+# MP_UNREACH_NLRI and legacy IPv4 NLRI coexist in one received UPDATE.
+action=send:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E02000000234001010040020602010000FDE940030401010101800F0C0002014020010DB800400000180A2800
+expect=bgp:conn=2:seq=4:contains=4020010DB800400000
+expect=bgp:conn=2:seq=4:contains=180A2800
+EOF_PEER
+
+# Stop only after the final legacy route reaches the route-server output path.
+tmpfs=shutdown-after-forward.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+from ze_api import API
+
+API().run_rs_observer(expected_peers=2, forward_prefix="10.40.0.0/24")
+EOF_RUN
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal rs {
+		use bgp-rs
+	}
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
+	external shutdown-after-forward {
+		run ./shutdown-after-forward.run
+		encoder json
+	}
+}
+bgp {
+	peer source-peer {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+				ipv6/unicast { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+		attach process adj-rib-in {
+			receive [ update-received state ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process shutdown-after-forward {
+			receive [ update ]
+		}
+	}
+	peer receiver-peer {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.2; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65002; }
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+				ipv6/unicast { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+		attach process adj-rib-in {
+			send [ update ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process shutdown-after-forward {
+			receive [ update ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+expect=exit:code=0
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=notification (sent|send failed).*code="[^"]*Error"

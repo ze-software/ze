@@ -1,7 +1,7 @@
 // Design: ai/rules/plugins.md -- compile-out-able services (feature-gate)
 //
 // Construction registry for optional, compile-out-able daemon services. A
-// feature registers a ServiceFactory from an init() guarded by its
+// feature registers a serviceFactory from an init() guarded by its
 // //go:build ze_<feature> tag; the hub iterates the registry at startup and
 // never imports the service package directly from always-on code. With a
 // feature's tag off, its registration file is not compiled, the factory is not
@@ -31,7 +31,7 @@ import (
 
 // Service is one optional daemon service built through the construction
 // registry. It reuses the existing Reconfigurable listener-migration contract
-// (so the ListenerMigrator can drive it unchanged) and adds a name (for routing
+// (so the listenerMigrator can drive it unchanged) and adds a name (for routing
 // to the right migrator slot) and shutdown.
 type Service interface {
 	Reconfigurable // Addresses() []string; Reconfigure(ctx, []string) error
@@ -39,12 +39,12 @@ type Service interface {
 	Shutdown(ctx context.Context) error
 }
 
-// ServiceDeps carries the generic runtime dependencies a factory may need. No
+// serviceDeps carries the generic runtime dependencies a factory may need. No
 // field is service-specific in TYPE; per-service resolved bindings (e.g. the
 // looking-glass listen addresses) are plain values resolved by the always-on
 // hub and handed in. The struct grows as services are converted; it never
 // imports a service package.
-type ServiceDeps struct {
+type serviceDeps struct {
 	Store      storage.Storage
 	ConfigPath string
 	Resolvers  *resolve.Resolvers
@@ -114,7 +114,7 @@ type ServiceDeps struct {
 	// MCP resolved bindings + command source (all generic types). Consumed only
 	// by the ze_mcp-gated factory (service_mcp.go); populated always-on so a
 	// no-mcp build neither names a zemcp type nor leaves an unused local. A
-	// pointer so ServiceDeps stays small (the by-value struct trips hugeParam,
+	// pointer so serviceDeps stays small (the by-value struct trips hugeParam,
 	// learned 981); a nil MCP is the not-configured skip.
 	MCP *mcpServiceDeps
 }
@@ -134,16 +134,16 @@ type mcpServiceDeps struct {
 	Recorder audit.Recorder
 }
 
-// ServiceFactory builds (and starts) one service from deps. It returns a nil
+// serviceFactory builds (and starts) one service from deps. It returns a nil
 // Service when the service is not configured/enabled -- that is NOT an error.
 // A non-nil error means the build failed unexpectedly; the hub logs and skips.
-type ServiceFactory func(deps ServiceDeps) (Service, error)
+type serviceFactory func(deps serviceDeps) (Service, error)
 
-type serviceMigratorWire func(*ListenerMigrator, Service)
+type serviceMigratorWire func(*listenerMigrator, Service)
 
 type namedFactory struct {
 	name         string
-	factory      ServiceFactory
+	factory      serviceFactory
 	wireMigrator serviceMigratorWire
 }
 
@@ -160,14 +160,14 @@ var serviceFactories []namedFactory
 // //go:build ze_<feature> init(); absent that tag, the call is not compiled.
 // The registration owns any listener-migrator wiring, so the always-on registry
 // does not grow a switch over every optional service.
-func registerService(name string, f ServiceFactory, wireMigrator serviceMigratorWire) {
+func registerService(name string, f serviceFactory, wireMigrator serviceMigratorWire) {
 	serviceFactories = append(serviceFactories, namedFactory{name: name, factory: f, wireMigrator: wireMigrator})
 }
 
 // buildServices builds every registered service. Factories returning a nil
 // Service (not configured) are skipped; build errors are logged and skipped,
 // matching the prior best-effort service startup.
-func buildServices(deps ServiceDeps) []builtService {
+func buildServices(deps serviceDeps) []builtService {
 	logger := slogutil.Logger("hub.services")
 	var built []builtService
 	for _, nf := range serviceFactories {
@@ -184,9 +184,9 @@ func buildServices(deps ServiceDeps) []builtService {
 	return built
 }
 
-// registerBuiltService wires a built service into the ListenerMigrator through
+// registerBuiltService wires a built service into the listenerMigrator through
 // the hook supplied by that service's build-tag-gated registration.
-func registerBuiltService(lm *ListenerMigrator, svc builtService) {
+func registerBuiltService(lm *listenerMigrator, svc builtService) {
 	if svc.wireMigrator != nil {
 		svc.wireMigrator(lm, svc.Service)
 	}

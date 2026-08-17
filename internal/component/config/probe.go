@@ -29,22 +29,22 @@ func ProbeConfigType(content string) ConfigType {
 	}
 
 	// Hierarchical format: look for a top-level bgp { } block.
-	tok := NewTokenizer(content)
+	tok := newTokenizer(content)
 	depth := 0
 
 	for {
-		t := tok.Next()
-		if t.Type == TokenEOF {
+		t := tok.next()
+		if t.kind == tokenEOF {
 			break
 		}
 
-		switch t.Type { //nolint:exhaustive // Only care about braces and words
-		case TokenLBrace:
+		switch t.kind { //nolint:exhaustive // Only care about braces and words
+		case tokenLBrace:
 			depth++
-		case TokenRBrace:
+		case tokenRBrace:
 			depth--
-		case TokenWord:
-			if depth == 0 && t.Value == string(ConfigTypeBGP) && tok.Peek().Type == TokenLBrace {
+		case tokenWord:
+			if depth == 0 && t.value == string(ConfigTypeBGP) && tok.peek().kind == tokenLBrace {
 				return ConfigTypeBGP
 			}
 		}

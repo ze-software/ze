@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/aaa"
+	"github.com/ze-software/ze/internal/component/authz"
 )
 
 // stubBackendForSwap is a Backend whose Build returns a contribution with a
@@ -40,28 +41,25 @@ func buildStubBundle(t *testing.T, closedFlag *bool) *aaa.Bundle {
 	t.Helper()
 	// Throw-away registry per bundle so nothing leaks into aaa.Default and
 	// each test's close-tracking flag stays isolated.
-	r := aaa.NewBackendRegistry()
+	r := aaa.NewBackendRegistryForTest()
 	require.NoError(t, r.Register(&stubBackendForSwap{name: "stub", closed: closedFlag}))
 	built, err := r.Build(aaa.BuildParams{})
 	require.NoError(t, err)
 	return built
 }
 
-// resetAAABundleForTest snapshots the pre-test aaaBundle, clears the slot
-// for the test body, and on cleanup: (1) closes whatever bundle the test
-// installed, surfacing any Close error to t.Log so failures are visible;
-// (2) restores the pre-test bundle so later tests see the prior state
-// instead of a cleared slot.
-//
-// If a pre-existing bundle is found, that means an earlier test installed
-// a bundle and never cleaned up (likely crashed or skipped this helper).
-// We log a warning so the leak is visible -- the bad state would otherwise
-// propagate silently to every subsequent test in the binary.
+// resetAAABundleForTest snapshots and clears both live AAA slots for the test
+// body. Cleanup closes the test bundle and restores the prior bundle and local
+// authorization store so package-global state cannot leak between tests.
 func resetAAABundleForTest(t *testing.T) {
 	t.Helper()
 	pre := aaaBundle.Swap(nil)
+	preStore := liveLocalAuthzStore.Swap(nil)
 	if pre != nil {
 		t.Logf("aaa bundle leak: pre-test slot was non-nil; an earlier test did not clean up")
+	}
+	if preStore != nil {
+		t.Logf("local authz store leak: pre-test slot was non-nil; an earlier test did not clean up")
 	}
 	t.Cleanup(func() {
 		if testBundle := aaaBundle.Swap(pre); testBundle != nil {
@@ -69,7 +67,70 @@ func resetAAABundleForTest(t *testing.T) {
 				t.Logf("aaa bundle close error during cleanup: %v", err)
 			}
 		}
+		liveLocalAuthzStore.Store(preStore)
 	})
+}
+
+func localAuthzStoreForTest(username string, action authz.Action) *authz.Store {
+	store := authz.NewStore()
+	store.AddProfile(authz.Profile{
+		Name: "operator",
+		Run:  authz.Section{Default: action},
+		Edit: authz.Section{Default: action},
+	})
+	store.AssignProfiles(username, []string{"operator"})
+	return store
+}
+
+// VALIDATES: the local contribution in a newly built AAA bundle consults the
+// boot authorization store installed by runYANGConfig.
+func TestBuildAAABundleUsesInitialLiveLocalAuthorization(t *testing.T) {
+	resetAAABundleForTest(t)
+	swapLocalAuthzStore(localAuthzStoreForTest("alice", authz.Allow))
+
+	bundle, err := buildAAABundle(nil, nil, nil, nil)
+	require.NoError(t, err)
+	swapAAABundle(bundle, nil)
+	require.NotNil(t, bundle.Authorizer)
+	assert.True(t, bundle.Authorizer.Authorize("alice", "", "show version", true))
+	assert.False(t, bundle.Authorizer.Authorize("unassigned", "", "show version", true))
+}
+
+// VALIDATES: an already-installed local AAA authorizer dereferences the live
+// store on every decision instead of retaining its startup *authz.Store.
+func TestLiveLocalAuthorizerFollowsStoreSwap(t *testing.T) {
+	resetAAABundleForTest(t)
+	swapLocalAuthzStore(localAuthzStoreForTest("alice", authz.Allow))
+
+	bundle, err := buildAAABundle(nil, nil, nil, nil)
+	require.NoError(t, err)
+	swapAAABundle(bundle, nil)
+	require.True(t, bundle.Authorizer.Authorize("alice", "", "show version", true))
+
+	swapLocalAuthzStore(localAuthzStoreForTest("alice", authz.Deny))
+	assert.False(t, bundle.Authorizer.Authorize("alice", "", "show version", true))
+}
+
+// VALIDATES: no system.authorization store retains the existing permissive
+// post-authentication behavior.
+func TestLiveLocalAuthorizerNilStoreAllows(t *testing.T) {
+	resetAAABundleForTest(t)
+	swapLocalAuthzStore(nil)
+
+	authorizer := liveLocalAuthorizer{}
+	assert.True(t, authorizer.Authorize("alice", "", "show version", true))
+	assert.True(t, authorizer.AuthorizeCommandArgs("alice", "", "show bgp rib", nil, "192.0.2.1", true))
+}
+
+// VALIDATES: daemon shutdown clears local policy state along with the bundle,
+// isolating the next daemon or test run.
+func TestCloseAAABundleClearsLiveLocalAuthorization(t *testing.T) {
+	resetAAABundleForTest(t)
+	swapLocalAuthzStore(localAuthzStoreForTest("alice", authz.Deny))
+	require.False(t, (liveLocalAuthorizer{}).Authorize("alice", "", "show version", true))
+
+	closeAAABundle(nil)
+	assert.True(t, (liveLocalAuthorizer{}).Authorize("alice", "", "show version", true))
 }
 
 // VALIDATES: swapAAABundle closes the previously installed bundle.

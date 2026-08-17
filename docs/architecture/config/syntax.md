@@ -23,7 +23,7 @@
 ## Overview
 
 Ze configuration uses a JUNOS-like hierarchy of sections, keywords, and values. A value statement can use an explicit semicolon. The tokenizer automatically inserts a semicolon after a value-ending token at a newline, at end of file (EOF), or before `}`.
-<!-- source: internal/component/config/tokenizer.go -- Tokenizer.scan -->
+<!-- source: internal/component/config/tokenizer.go -- tokenizer.scan -->
 
 The parser is YANG-driven: each config node's type (leaf, leaf-list, container, list) determines how it is parsed. No custom `ze:syntax` annotations are used in ze-native config.
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- module ze-bgp-conf structure -->

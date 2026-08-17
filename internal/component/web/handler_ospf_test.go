@@ -35,7 +35,7 @@ func fakeOSPFDispatch(payload string, gotCmd *string) CommandDispatcher {
 
 func TestOSPFNeighborsJSON(t *testing.T) {
 	var got string
-	h := &OSPFHandlers{Dispatch: fakeOSPFDispatch(`[{"router_id":"10.0.0.2","state":"Full"}]`, &got)}
+	h := &OSPFHandlers{Dispatch: fakeOSPFDispatch(`[{"router-id":"10.0.0.2","state":"Full"}]`, &got)}
 	req := httptest.NewRequest("GET", "/ospf?format=json", http.NoBody)
 	rec := httptest.NewRecorder()
 	h.HandleOSPFNeighbors()(rec, req)
@@ -92,7 +92,7 @@ func TestOSPFNoDispatch(t *testing.T) {
 }
 
 func TestOSPFSSEEmitsAndCloses(t *testing.T) {
-	h := &OSPFHandlers{Dispatch: fakeOSPFDispatch(`[{"router_id":"10.0.0.3"}]`, nil)}
+	h := &OSPFHandlers{Dispatch: fakeOSPFDispatch(`[{"router-id":"10.0.0.3"}]`, nil)}
 	ctx, cancel := context.WithCancel(context.Background())
 	req := httptest.NewRequest("GET", "/ospf/neighbors/stream", http.NoBody).WithContext(ctx)
 	rec := httptest.NewRecorder()

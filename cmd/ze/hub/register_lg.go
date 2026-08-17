@@ -9,7 +9,7 @@
 package hub
 
 func init() {
-	registerService("looking-glass", buildLGService, func(lm *ListenerMigrator, svc Service) {
-		lm.SetLG(svc)
+	registerService("looking-glass", buildLGService, func(lm *listenerMigrator, svc Service) {
+		lm.setLG(svc)
 	})
 }

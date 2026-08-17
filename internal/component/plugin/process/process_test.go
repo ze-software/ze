@@ -205,15 +205,15 @@ func TestProcessSyncState(t *testing.T) {
 	})
 
 	// Default should be disabled
-	assert.False(t, proc.SyncEnabled(), "sync should be disabled by default")
+	assert.False(t, proc.isSyncEnabled(), "sync should be disabled by default")
 
 	// Enable sync
 	proc.SetSync(true)
-	assert.True(t, proc.SyncEnabled(), "sync should be enabled after SetSync(true)")
+	assert.True(t, proc.isSyncEnabled(), "sync should be enabled after SetSync(true)")
 
 	// Disable sync
 	proc.SetSync(false)
-	assert.False(t, proc.SyncEnabled(), "sync should be disabled after SetSync(false)")
+	assert.False(t, proc.isSyncEnabled(), "sync should be disabled after SetSync(false)")
 }
 
 // TestProcessManagerRespawnLimit verifies process disabled after too many respawns.

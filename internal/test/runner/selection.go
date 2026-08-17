@@ -1,3 +1,5 @@
+// Design: docs/architecture/testing/ci-format.md -- common ze-test selection contract
+
 package runner
 
 import (
@@ -91,8 +93,8 @@ func recordMatches(rec *Record, pattern string) bool {
 	return strings.Contains(rec.Nick, pattern) || strings.Contains(rec.Name, pattern) || strings.Contains(rec.CIFile, pattern)
 }
 
-// DisableAll deactivates every generic test.
-func (ts *TestSet[T]) DisableAll() {
+// disableAll deactivates every generic test.
+func (ts *TestSet[T]) disableAll() {
 	for _, test := range ts.tests {
 		test.SetActive(false)
 	}
@@ -100,7 +102,7 @@ func (ts *TestSet[T]) DisableAll() {
 
 // Select activates generic tests matching the common ze-test selection contract.
 func (ts *TestSet[T]) Select(sel Selection) (int, error) {
-	ts.DisableAll()
+	ts.disableAll()
 	if !sel.requestsRun() {
 		return 0, nil
 	}

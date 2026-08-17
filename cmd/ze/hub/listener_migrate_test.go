@@ -82,7 +82,7 @@ func TestReloadListenersRollsBackAppliedServiceOnLaterFailure(t *testing.T) {
 
 	// VALIDATES: listener migration is all-or-revert inside a rejected reload.
 	// PREVENTS: one service staying on the rejected address after a later service fails.
-	_, err := migrator.ReloadListeners(context.Background(), listenerMigrationTree())
+	_, err := migrator.reloadListeners(context.Background(), listenerMigrationTree())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "lg refused")
 
@@ -129,18 +129,18 @@ func staticAuth(authenticated bool, token string) authReloader {
 // VALIDATES: AC-1 -- a reload that turns authentication ON rebuilds it on the
 // running server, even though no listen address changed.
 // PREVENTS: the silent no-op this whole path replaces. Before the rebuild
-// existed, an unchanged address produced an empty change set, ReloadListeners
+// existed, an unchanged address produced an empty change set, reloadListeners
 // returned nil without logging, and the listener kept serving unauthenticated
 // while the operator believed the reload had taken effect.
 func TestReloadListenersRebuildsAuthenticationOn(t *testing.T) {
 	rest := &recordingAuthServer{recordingReconfigurable: recordingReconfigurable{addrs: []string{"127.0.0.1:8081"}}}
 	migrator := newListenerMigrator()
-	migrator.SetREST(rest)
-	migrator.MarkUnauthenticated("rest")
+	migrator.setREST(rest)
+	migrator.markUnauthenticated("rest")
 	migrator.setAuthReloader("rest", staticAuth(true, "secret"))
 
 	require.False(t, rest.Authenticated())
-	_, reloadErr := migrator.ReloadListeners(context.Background(), zeconfig.NewTree())
+	_, reloadErr := migrator.reloadListeners(context.Background(), zeconfig.NewTree())
 	require.NoError(t, reloadErr)
 
 	assert.True(t, rest.Authenticated(), "the running server must demand authentication after the reload")
@@ -155,12 +155,12 @@ func TestReloadListenersRebuildsAuthenticationOn(t *testing.T) {
 func TestReloadListenersRebuildsAuthenticationOff(t *testing.T) {
 	rest := &recordingAuthServer{recordingReconfigurable: recordingReconfigurable{addrs: []string{"127.0.0.1:8081"}}, token: "secret"}
 	migrator := newListenerMigrator()
-	migrator.SetREST(rest)
+	migrator.setREST(rest)
 	migrator.markAuthenticated("rest")
 	migrator.setAuthReloader("rest", staticAuth(false, ""))
 
 	require.True(t, rest.Authenticated())
-	_, reloadErr := migrator.ReloadListeners(context.Background(), zeconfig.NewTree())
+	_, reloadErr := migrator.reloadListeners(context.Background(), zeconfig.NewTree())
 	require.NoError(t, reloadErr)
 
 	assert.False(t, rest.Authenticated(), "the reloaded config no longer asks for credentials")
@@ -174,12 +174,12 @@ func TestReloadListenersRestoresAuthenticationWhenMigrationFails(t *testing.T) {
 	rest := &recordingAuthServer{recordingReconfigurable: recordingReconfigurable{addrs: []string{"127.0.0.1:8081"}}, token: "original"}
 	lg := &recordingReconfigurable{addrs: []string{"127.0.0.1:8443"}, fail: fmt.Errorf("lg refused")}
 	migrator := newListenerMigrator()
-	migrator.SetREST(rest)
-	migrator.SetLG(lg)
+	migrator.setREST(rest)
+	migrator.setLG(lg)
 	migrator.markAuthenticated("rest")
 	migrator.setAuthReloader("rest", staticAuth(false, ""))
 
-	_, err := migrator.ReloadListeners(context.Background(), listenerMigrationTree())
+	_, err := migrator.reloadListeners(context.Background(), listenerMigrationTree())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "lg refused")
 
@@ -201,11 +201,11 @@ func TestReloadListenersRestoresAuthenticationWhenMigrationFails(t *testing.T) {
 func TestReloadListenersRefusesRebuiltUnauthenticatedNonLoopback(t *testing.T) {
 	web := &recordingAuthServer{recordingReconfigurable: recordingReconfigurable{addrs: []string{"127.0.0.1:3443"}}, token: "secret"}
 	migrator := newListenerMigrator()
-	migrator.SetWeb(web)
+	migrator.setWeb(web)
 	migrator.markAuthenticated("web")
 	migrator.setAuthReloader("web", staticAuth(false, ""))
 
-	_, err := migrator.ReloadListeners(context.Background(), webOnlyTree(nonLoopbackServiceTree("3443")))
+	_, err := migrator.reloadListeners(context.Background(), webOnlyTree(nonLoopbackServiceTree("3443")))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "web")
 	assert.Contains(t, err.Error(), "0.0.0.0:3443")
@@ -227,12 +227,12 @@ func TestReloadListenersFailsWhenAuthCannotBeRebuilt(t *testing.T) {
 	web := &recordingReconfigurable{addrs: []string{"127.0.0.1:3443"}}
 	lg := &recordingReconfigurable{addrs: []string{"127.0.0.1:8443"}}
 	migrator := newListenerMigrator()
-	migrator.SetWeb(web)
-	migrator.SetLG(lg)
-	migrator.MarkUnauthenticated("web")
+	migrator.setWeb(web)
+	migrator.setLG(lg)
+	migrator.markUnauthenticated("web")
 	migrator.setAuthReloader("web", staticAuth(true, ""))
 
-	_, err := migrator.ReloadListeners(context.Background(), listenerMigrationTree())
+	_, err := migrator.reloadListeners(context.Background(), listenerMigrationTree())
 	require.Error(t, err, "a reload that cannot apply the operator's auth change must not report success")
 	assert.Contains(t, err.Error(), "web")
 	assert.Contains(t, err.Error(), "restart")
@@ -253,12 +253,12 @@ func TestReloadListenersFailsWhenAuthCannotBeRebuilt(t *testing.T) {
 func TestReloadListenersIgnoresUnclassifiedService(t *testing.T) {
 	lg := &recordingReconfigurable{addrs: []string{"127.0.0.1:8443"}}
 	migrator := newListenerMigrator()
-	migrator.SetLG(lg)
-	// No MarkAuthenticated / MarkUnauthenticated for web: the boot guard never
+	migrator.setLG(lg)
+	// No markAuthenticated / markUnauthenticated for web: the boot guard never
 	// declared it, which is what a compiled-out surface looks like here.
 	migrator.setAuthReloader("web", staticAuth(true, ""))
 
-	_, err := migrator.ReloadListeners(context.Background(), listenerMigrationTree())
+	_, err := migrator.reloadListeners(context.Background(), listenerMigrationTree())
 	require.NoError(t, err, "an unclassified surface must not fail the reload")
 	assert.Equal(t, [][]string{{"127.0.0.1:8444"}}, lg.calls, "the running service still migrates")
 }
@@ -272,15 +272,15 @@ func TestReloadListenersIgnoresUnclassifiedService(t *testing.T) {
 func TestReloadListenersNeverConsultsUnclassifiedService(t *testing.T) {
 	lg := &recordingReconfigurable{addrs: []string{"127.0.0.1:8443"}}
 	migrator := newListenerMigrator()
-	migrator.SetLG(lg)
+	migrator.setLG(lg)
 
 	called := false
 	migrator.setAuthReloader("rest", func(*zeconfig.Tree) (authIntent, bool, error) {
 		called = true
-		return authIntent{}, false, fmt.Errorf("power-user credentials are no longer readable")
+		return authIntent{}, false, fmt.Errorf("live API users are no longer readable")
 	})
 
-	_, err := migrator.ReloadListeners(context.Background(), listenerMigrationTree())
+	_, err := migrator.reloadListeners(context.Background(), listenerMigrationTree())
 	require.NoError(t, err, "a service the boot guard never classified must not fail the reload")
 	assert.False(t, called, "the reloader of a service that is not running must not be consulted")
 	assert.Equal(t, [][]string{{"127.0.0.1:8444"}}, lg.calls)
@@ -295,16 +295,16 @@ func TestReloadListenersRestoresEarlierServiceWhenLaterResolveFails(t *testing.T
 	grpc := &recordingAuthServer{recordingReconfigurable: recordingReconfigurable{addrs: []string{"127.0.0.1:50051"}}, token: "grpc-original"}
 	rest := &recordingAuthServer{recordingReconfigurable: recordingReconfigurable{addrs: []string{"127.0.0.1:8081"}}, token: "rest-original"}
 	migrator := newListenerMigrator()
-	migrator.SetGRPC(grpc)
-	migrator.SetREST(rest)
+	migrator.setGRPC(grpc)
+	migrator.setREST(rest)
 	migrator.markAuthenticated("grpc")
 	migrator.markAuthenticated("rest")
 	migrator.setAuthReloader("grpc", staticAuth(false, ""))
 	migrator.setAuthReloader("rest", func(*zeconfig.Tree) (authIntent, bool, error) {
-		return authIntent{}, false, fmt.Errorf("zefs unreadable")
+		return authIntent{}, false, fmt.Errorf("live API users unreadable")
 	})
 
-	_, err := migrator.ReloadListeners(context.Background(), zeconfig.NewTree())
+	_, err := migrator.reloadListeners(context.Background(), zeconfig.NewTree())
 	require.Error(t, err)
 
 	// Resolution happens for every service before anything is applied, so this
@@ -326,14 +326,14 @@ func TestReloadListenersRestoresEarlierServiceWhenLaterRebuildFails(t *testing.T
 		updateErr:               fmt.Errorf("server has been shut down"),
 	}
 	migrator := newListenerMigrator()
-	migrator.SetGRPC(grpc)
-	migrator.SetREST(rest)
+	migrator.setGRPC(grpc)
+	migrator.setREST(rest)
 	migrator.markAuthenticated("grpc")
 	migrator.markAuthenticated("rest")
 	migrator.setAuthReloader("grpc", staticAuth(false, ""))
 	migrator.setAuthReloader("rest", staticAuth(false, ""))
 
-	_, err := migrator.ReloadListeners(context.Background(), zeconfig.NewTree())
+	_, err := migrator.reloadListeners(context.Background(), zeconfig.NewTree())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "rest")
 
@@ -344,19 +344,19 @@ func TestReloadListenersRestoresEarlierServiceWhenLaterRebuildFails(t *testing.T
 	assert.True(t, grpc.Authenticated())
 }
 
-// VALIDATES: the undo ReloadListeners returns reverts the credentials it
+// VALIDATES: the undo reloadListeners returns reverts the credentials it
 // installed, so runReload can unwind a reload that fails at a later step.
 // PREVENTS: a reload the operator is told FAILED leaving REST and gRPC
 // authenticating against the config the daemon rolled back
-// (UpdateWebCertificate and PromoteCandidate both run after ReloadListeners).
+// (updateWebCertificate and PromoteCandidate both run after reloadListeners).
 func TestReloadListenersUndoRevertsInstalledCredentials(t *testing.T) {
 	rest := &recordingAuthServer{recordingReconfigurable: recordingReconfigurable{addrs: []string{"127.0.0.1:8081"}}, token: "original"}
 	migrator := newListenerMigrator()
-	migrator.SetREST(rest)
+	migrator.setREST(rest)
 	migrator.markAuthenticated("rest")
 	migrator.setAuthReloader("rest", staticAuth(false, ""))
 
-	undo, err := migrator.ReloadListeners(context.Background(), zeconfig.NewTree())
+	undo, err := migrator.reloadListeners(context.Background(), zeconfig.NewTree())
 	require.NoError(t, err)
 	require.NotNil(t, undo)
 	require.False(t, rest.Authenticated(), "the reload applied the new mode")
@@ -375,16 +375,16 @@ func TestReloadListenersFailsClosedWhenAuthCannotBeResolved(t *testing.T) {
 	rest := &recordingAuthServer{recordingReconfigurable: recordingReconfigurable{addrs: []string{"127.0.0.1:8081"}}, token: "secret"}
 	web := &recordingReconfigurable{addrs: []string{"127.0.0.1:3443"}}
 	migrator := newListenerMigrator()
-	migrator.SetREST(rest)
-	migrator.SetWeb(web)
+	migrator.setREST(rest)
+	migrator.setWeb(web)
 	migrator.markAuthenticated("rest")
 	migrator.setAuthReloader("rest", func(*zeconfig.Tree) (authIntent, bool, error) {
-		return authIntent{}, false, fmt.Errorf("zefs unreadable")
+		return authIntent{}, false, fmt.Errorf("live API users unreadable")
 	})
 
-	_, err := migrator.ReloadListeners(context.Background(), listenerMigrationTree())
+	_, err := migrator.reloadListeners(context.Background(), listenerMigrationTree())
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "zefs unreadable")
+	assert.Contains(t, err.Error(), "live API users unreadable")
 
 	assert.True(t, rest.Authenticated(), "an unresolvable mode must never remove credentials")
 	assert.Empty(t, web.calls, "no service may migrate while one service's authentication is unknown")
@@ -397,13 +397,13 @@ func TestReloadListenersFailsClosedWhenAuthCannotBeResolved(t *testing.T) {
 func TestReloadListenersLeavesAuthAloneWhenConfigIsSilent(t *testing.T) {
 	rest := &recordingAuthServer{recordingReconfigurable: recordingReconfigurable{addrs: []string{"127.0.0.1:8081"}}, token: "secret"}
 	migrator := newListenerMigrator()
-	migrator.SetREST(rest)
+	migrator.setREST(rest)
 	migrator.markAuthenticated("rest")
 	migrator.setAuthReloader("rest", func(*zeconfig.Tree) (authIntent, bool, error) {
 		return authIntent{}, false, nil
 	})
 
-	_, reloadErr := migrator.ReloadListeners(context.Background(), zeconfig.NewTree())
+	_, reloadErr := migrator.reloadListeners(context.Background(), zeconfig.NewTree())
 	require.NoError(t, reloadErr)
 
 	assert.True(t, rest.Authenticated())
@@ -421,11 +421,11 @@ func TestReloadListenersFailsClosedWhenServerRefusesRebuild(t *testing.T) {
 		updateErr:               fmt.Errorf("server has been shut down"),
 	}
 	migrator := newListenerMigrator()
-	migrator.SetREST(rest)
+	migrator.setREST(rest)
 	migrator.markAuthenticated("rest")
 	migrator.setAuthReloader("rest", staticAuth(false, ""))
 
-	_, err := migrator.ReloadListeners(context.Background(), listenerMigrationTree())
+	_, err := migrator.reloadListeners(context.Background(), listenerMigrationTree())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "server has been shut down")
 	assert.True(t, rest.Authenticated())
@@ -457,14 +457,14 @@ func listenerServiceTree(port string) *zeconfig.Tree {
 // migrates addresses without ever calling UpdateAuth leaves the listener
 // serving the credentials it booted with, and nothing downstream says so: the
 // operator is told the reload completed. Asserted at this seam rather than
-// through ReloadListeners because this is the one call that changes what the
+// through reloadListeners because this is the one call that changes what the
 // running server demands.
 func TestApplyAuthIntentsInstallsAndRestoresCredentials(t *testing.T) {
 	rest := &recordingAuthServer{recordingReconfigurable: recordingReconfigurable{addrs: []string{"127.0.0.1:8081"}}, token: "boot-token"}
 	grpc := &recordingAuthServer{recordingReconfigurable: recordingReconfigurable{addrs: []string{"127.0.0.1:50051"}}, token: "boot-token"}
 	migrator := newListenerMigrator()
-	migrator.SetREST(rest)
-	migrator.SetGRPC(grpc)
+	migrator.setREST(rest)
+	migrator.setGRPC(grpc)
 
 	restore, err := migrator.applyAuthIntents([]resolvedAuth{
 		{name: svcREST, intent: authIntent{authenticated: true, token: "rotated-token"}},

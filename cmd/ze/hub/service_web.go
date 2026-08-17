@@ -53,7 +53,7 @@ func (s webService) Shutdown(ctx context.Context) error {
 	return s.WebServer.Shutdown(ctx)
 }
 
-func buildWebService(deps ServiceDeps) (Service, error) {
+func buildWebService(deps serviceDeps) (Service, error) {
 	if !deps.WebEnabled {
 		return nil, nil //nolint:nilnil // not-configured is an intentional skip
 	}

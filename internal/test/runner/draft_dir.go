@@ -40,18 +40,18 @@ func SuiteDir(baseDir, suite string, draft bool) string {
 	return filepath.Join(baseDir, "test", suite)
 }
 
-// IsDraftPath reports whether path is the draft tree, or anything inside it,
+// isDraftPath reports whether path is the draft tree, or anything inside it,
 // relative to a walk rooted at testRoot (normally <repo>/test).
 //
 // Callers walking test/ recursively use it to prune:
 //
-//	if d.IsDir() && runner.IsDraftPath(testRoot, p) {
+//	if d.IsDir() && isDraftPath(testRoot, p) {
 //	    return filepath.SkipDir
 //	}
 //
 // Pruning at the DIRECTORY is deliberate: a per-file check re-reads and re-tests
 // every draft file for nothing, and misses a draft's non-.ci companions.
-func IsDraftPath(testRoot, path string) bool {
+func isDraftPath(testRoot, path string) bool {
 	rel, err := filepath.Rel(testRoot, path)
 	if err != nil {
 		return false

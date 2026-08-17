@@ -23,6 +23,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config/infra"
 
+	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/authz"
 	zecli "github.com/ze-software/ze/internal/component/cli/client"
 	showCmd "github.com/ze-software/ze/internal/component/cmd/show"
@@ -263,8 +264,8 @@ func logStartupFailure(stage string, err error) {
 	slogutil.Logger("hub").Error("startup failed", "stage", stage, "err", err)
 }
 
-// bootPowerUsers reads the zefs break-glass accounts once, and says so when it
-// cannot. The read is not fatal: config users can still authenticate.
+// bootPowerUsers reads the zefs break-glass accounts once. The read is not
+// fatal: config users can still authenticate.
 //
 // Two outcomes arrive here with no power user and they are not the same event.
 // errAdminDisabledInZefs is the operator's own declaration, written when the
@@ -316,9 +317,9 @@ func recoverableLoadError(err error) bool {
 }
 
 func runYANGConfig(store storage.Storage, configPath string, data []byte, plugins []string, chaosSeed int64, chaosRate float64, stdinOpen, webEnabled bool, webListenAddr string, insecureWeb bool, mcpAddr, mcpToken string, cliAttach bool, managedClient *managed.ClientConfig) int { //nolint:cyclop // startup orchestration
-	// Close the AAA bundle on every exit path so TACACS+ accounting and other
-	// backend workers drain before the process terminates. swapAAABundle is
-	// called by infraSetup on config load; closeAAABundle here matches it.
+	// Close the AAA bundle and clear its live local authorization store on every
+	// exit path so backend workers drain and no daemon or test run inherits
+	// policy state.
 	defer closeAAABundle(slogutil.Logger("hub.aaa"))
 
 	// Phase 1: Parse config and resolve plugins.
@@ -347,6 +348,9 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	}
 	loadResult.Tree = outcome.tree
 	data = outcome.data
+	// Install local authorization before the engine can create BGP infra and
+	// before the no-BGP bundle or any management dispatcher can be built.
+	swapLocalAuthzStore(infra.ExtractAuthzStore(loadResult.Tree))
 
 	if configPath != "" && configPath != "-" {
 		if _, _, activeErr := storage.EnsureActiveVersion(store, configPath, data, time.Now()); activeErr != nil {
@@ -623,12 +627,19 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		return (*fn)()
 	}
 	// The AAA chain's local backend answers from the running config, not from
-	// the tree the reactor was built with. The zefs power users are read once
-	// here: they live in the blob store, so no reload can change them, and a
-	// failure to read them is not fatal while config users exist.
+	// the tree the reactor was built with. Zefs users are a boot snapshot
+	// because reload cannot change the blob store. Resolve the merged boot list
+	// exactly once, after ConfigProvider population, so AAA, API, and standalone
+	// SSH make their startup decisions from the same users.
 	zefsAuthUsers := bootPowerUsers(slogutil.Logger("hub.aaa"))
 	configUsersLive := func() ([]authz.UserConfig, error) { return liveConfigUsers(configProvider) }
 	localUsers := liveLocalUsers(zefsAuthUsers, configUsersLive, slogutil.Logger("hub.aaa"))
+	bootUsers, bootUsersErr := resolveBootUsers(localUsers)
+	if bootUsersErr != nil {
+		fmt.Fprintf(os.Stderr, "error: resolve boot users: %v\n", bootUsersErr)
+		logStartupFailure("resolve boot users", bootUsersErr)
+		return 1
+	}
 	setupInfraHook(auditLog, sessionReload, localUsers)
 	coordinator := zePlugin.NewCoordinator(configTree)
 
@@ -819,13 +830,13 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	defer stopArchiveScheduler()
 
 	lm := newListenerMigrator()
-	reloadAfterCommit := func() error {
-		startupCtx, startupCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	reloadAfterCommitContext := func(ctx context.Context) error {
+		startupCtx, startupCancel := context.WithTimeout(ctx, 30*time.Second)
 		defer startupCancel()
 		if err := apiServer.WaitForStartupComplete(startupCtx); err != nil {
 			return fmt.Errorf("wait for plugin startup: %w", err)
 		}
-		if err := doReload(apiServer, eng, configProvider, store, configPath, loadBoth, lm); err != nil {
+		if err := doReloadContext(ctx, apiServer, eng, configProvider, store, configPath, loadBoth, lm); err != nil {
 			return err
 		}
 		if gnmiReloadNotify != nil {
@@ -833,18 +844,38 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		}
 		return nil
 	}
+	reloadAfterCommit := func() error {
+		return reloadAfterCommitContext(context.Background())
+	}
 	// Publish the reload for SSH session editors created by the infra hook
 	// (registered before this closure could exist).
 	sessionReloadHolder.Store(&reloadAfterCommit)
 
-	// Start SSH server directly when config has ssh {} block AND no bgp {} block.
-	// When bgp {} is present, the BGP plugin's infra hook owns SSH startup so it
-	// can wire the command executor factory in the reactor's post-start callback.
-	// Starting SSH here in that case produces a second listener with no executor
-	// factory -- clients connecting to it see "command executor not ready".
-	// Without bgp {}, SSH must start here (e.g., gokrazy appliance with only
-	// environment {}).
+	// Without BGP, main owns the AAA bundle for every management surface. Build
+	// and install it before standalone SSH, MCP, REST, or gRPC can bind. The BGP
+	// path remains owned by infraSetup through the reactor hook.
 	_, hasBGPBlock := configTree["bgp"]
+	var noBGPAuthenticator aaa.Authenticator
+	if !hasBGPBlock {
+		aaaLog := slogutil.Logger("hub.aaa")
+		aaaBundle, aaaErr := buildAAABundle(loadResult.Tree, bootUsers, localUsers, aaaLog)
+		if aaaErr != nil {
+			aaaLog.Warn("AAA backend build failed", "error", aaaErr)
+			aaaBundle = nil
+		}
+		registerAAAAccountingProvider(aaaBundle)
+		swapAAABundle(aaaBundle, aaaLog)
+		if aaaBundle != nil {
+			noBGPAuthenticator = aaaBundle.Authenticator
+		}
+
+		// Resolve the bundle per dispatch so later swaps take effect without
+		// rewiring. This belongs to no-BGP startup, not to optional SSH.
+		if d := apiServer.Dispatcher(); d != nil {
+			d.SetAuthorizer(liveAAABundleAuthorizer{})
+			aaaLog.Info("authorization configured", "source", "live aaa bundle", "path", "no-bgp")
+		}
+	}
 
 	if _, hasTelemetry := configTree["telemetry"]; hasTelemetry && !hasBGPBlock {
 		if st := startStandaloneTelemetry(loadResult.Tree); st != nil {
@@ -852,6 +883,9 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		}
 	}
 
+	// Start SSH directly when configured without BGP. The shared boot snapshot
+	// and already-installed no-BGP AAA authenticator cross the compile-out seam;
+	// SSH does not own either producer.
 	sshCfg := infra.ExtractSSHConfig(loadResult.Tree)
 	ephemeralFile := env.Get("ze.ssh.ephemeral")
 	if !sshCfg.HasConfig && !hasBGPBlock && ephemeralFile != "" {
@@ -860,23 +894,16 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 			HasConfig: true,
 		}
 	}
-	// Start ssh through the compile-out seam (ssh_infra.go). The AAA bundle is
-	// built always-on (it may also serve MCP/API); only the resolved
-	// authenticator crosses the seam. When ssh is compiled out (ze_ssh off)
-	// sshBuildStandalone is nil and ssh is skipped.
 	if sshCfg.HasConfig && !hasBGPBlock && sshBuildStandalone != nil {
-		users := sshCfg.Users
-		if zefsUsers, err := loadZefsUsers(); err == nil {
-			users = mergeAuthUsers(zefsUsers, users)
-		}
 		configDir := loadResult.ConfigDir
 		if configDir == "" {
 			configDir = env.Get("ze.config.dir")
 		}
 		inputs := &sshStandaloneInputs{
 			Config:        sshCfg,
-			Users:         users,
+			Users:         bootUsers,
 			UsersFunc:     localUsers,
+			Authenticator: noBGPAuthenticator,
 			Recorder:      auditLog,
 			ConfigDir:     configDir,
 			Storage:       infra.ResolveSSHStorage(store, configDir),
@@ -886,39 +913,6 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 			ReloadFn:      reloadAfterCommit,
 			Log:           slogutil.Logger("hub.ssh"),
 		}
-
-		// Build the AAA bundle via the registry (local + any enabled remote
-		// backends). swapAAABundle installs it as the live bundle so
-		// closeAAABundle (deferred at the top of runYANGConfig) drains backend
-		// workers on process exit.
-		aaaLog := slogutil.Logger("hub.aaa")
-		aaaBundle, aaaErr := buildAAABundle(loadResult.Tree, users, localUsers, infra.ExtractAuthzStore(loadResult.Tree), aaaLog)
-		if aaaErr != nil {
-			aaaLog.Warn("AAA backend build failed; SSH authenticator not set", "error", aaaErr)
-			registerAAAAccountingProvider(nil)
-		} else {
-			registerAAAAccountingProvider(aaaBundle)
-			inputs.Authenticator = aaaBundle.Authenticator
-			swapAAABundle(aaaBundle, aaaLog)
-		}
-
-		// Authorization must be wired here, not only in infra_setup.go. That
-		// hook runs from the reactor's post-start callback, which only exists
-		// when the config has a bgp{} block; on this path it never runs, so
-		// without this the dispatcher's authorizer stays nil and
-		// Dispatcher.isAuthorized allows every command. An ssh-only box (the
-		// gokrazy appliance, environment{}-only configs) would then accept
-		// system.authorization profiles and silently enforce none of them --
-		// authentication would pass and RBAC would not apply at all.
-		//
-		// liveAAABundleAuthorizer resolves the bundle per call rather than
-		// pinning the one built above, so a reload that changes profiles takes
-		// effect without re-wiring.
-		if d := apiServer.Dispatcher(); d != nil {
-			d.SetAuthorizer(liveAAABundleAuthorizer{})
-			aaaLog.Info("authorization configured", "source", "live aaa bundle", "path", "ssh-standalone")
-		}
-
 		if stop := sshBuildStandalone(inputs); stop != nil {
 			defer stop()
 		}
@@ -927,7 +921,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// Resolve REST/gRPC API listen config (env > config file) up front so the
 	// boot-time management-listener guard below sees every management surface's
 	// (address, auth) pair before anything binds. The API build path further
-	// down reuses apiCfg / apiCfgOK / apiUsers.
+	// down reuses apiCfg, apiCfgOK, and the shared boot snapshot.
 	apiCfg, apiCfgOK, apiResolveErr := resolveAPIListeners(loadResult.Tree)
 	if apiResolveErr != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", apiResolveErr)
@@ -939,26 +933,12 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		apiCfg.Token = apiTokenEnv
 	}
 
-	var apiUsers []authz.UserConfig
-	// Whether the zefs power user was readable at boot. A reload that suddenly
-	// cannot read it must fail closed rather than rebuild the API servers
-	// without those credentials; a reload on a daemon that never had them keeps
-	// working (mgmt_auth_reload.go).
-	apiZefsUsersOK := false
 	if apiCfgOK {
-		if u, uErr := loadZefsUsers(); uErr != nil {
-			fmt.Fprintf(os.Stderr, "warning: API power-user auth unavailable: %v\n", uErr)
-		} else {
-			apiUsers = u
-			apiZefsUsersOK = true
-		}
-		// Config-file users authenticate alongside the always-on power user.
-		apiUsers = mergeAuthUsers(apiUsers, sshCfg.Users)
 
 		// Report active auth mode to make silent degradation visible.
 		switch {
-		case len(apiUsers) > 0:
-			fmt.Fprintf(os.Stderr, "API auth mode: per-user (%d users)\n", len(apiUsers))
+		case len(bootUsers) > 0:
+			fmt.Fprintf(os.Stderr, "API auth mode: per-user (%d users)\n", len(bootUsers))
 		case apiCfg.Token != "":
 			fmt.Fprintln(os.Stderr, "API auth mode: single-token (shared bearer)")
 		default:
@@ -980,7 +960,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// even with a token set, so a token alone does NOT authenticate.
 	webAuthed := !insecureWeb
 	mcpAuthed := mcpListenerAuthenticated(mcpCfgOK, mcpCfg.AuthMode, mcpToken)
-	apiAuthed := len(apiUsers) > 0 || apiCfg.Token != ""
+	apiAuthed := len(bootUsers) > 0 || apiCfg.Token != ""
 
 	// Apply the web default BEFORE declaring, so the guard evaluates the address
 	// that will actually be bound rather than an empty slice it iterates zero
@@ -1070,7 +1050,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// resolveAuthIntents, which needs no startup ordering to be correct.
 	//
 	// gNMI is deliberately absent from this map though checkMgmtListeners
-	// classifies it above. It has no ListenerMigrator slot, so buildChanges can
+	// classifies it above. It has no listenerMigrator slot, so buildChanges can
 	// never move its listener and there is no migration for the guard to judge.
 	markMgmtAuth(lm, map[string]bool{
 		svcWeb:  webAuthed,
@@ -1086,7 +1066,6 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		webFollowsConfig: webAuthFollowsConfig,
 		mcpTokenBase:     mcpTokenBase,
 		apiTokenEnv:      apiTokenEnv,
-		apiZefsUsersOK:   apiZefsUsersOK,
 		apiUsersLive:     localUsers,
 	})
 
@@ -1094,7 +1073,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// registry. With a feature's ze_<feature> tag off, its factory is not
 	// registered and the service is silently skipped. Looking-glass (ze_lg) is
 	// the pilot; its listen binding (lgAddrs/lgTLS) is resolved above.
-	builtServices := buildServices(ServiceDeps{
+	builtServices := buildServices(serviceDeps{
 		Store:          store,
 		ConfigPath:     configPath,
 		Resolvers:      resolvers,
@@ -1117,13 +1096,11 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		// through the chain, and then revoke their session on the next request
 		// for not being declared.
 		PowerUsers: zefsAuthUsers,
-		// The power users merged with the config users, read from the shared
+		// The power users merged with config users, read from the shared
 		// ConfigProvider at each login instead of pinned here. Every applied
 		// reload refreshes that provider, so a deleted user stops authenticating
-		// without a restart. It answers the serve-or-not question too, which
-		// used to come from sshCfg.Users: that list is empty when the config
-		// declares users but no `environment { ssh { } }` block, so a web server
-		// with users to admit could refuse to start.
+		// without a restart. The web service therefore uses the same
+		// authentication source as AAA and the API transports.
 		LocalUsersLive:    localUsers,
 		EventRing:         apiServer.EventRing(),
 		WebPortalServices: webPortalServices,
@@ -1166,18 +1143,16 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	}
 
 	// REST/gRPC API listen config and users were resolved above (before the
-	// management-listener guard); apiCfg / apiCfgOK / apiUsers are reused here.
+	// management-listener guard); apiCfg, apiCfgOK, and bootUsers are reused here.
 	var apiShutdowns []func(context.Context)
-	apiServer.SetFullReloadFunc(func(context.Context) error {
-		return reloadAfterCommit()
-	})
+	apiServer.SetFullReloadFunc(reloadAfterCommitContext)
 	managedCtx, managedCancel := context.WithCancel(context.Background())
 	defer managedCancel()
 	if managedClient != nil && storage.IsBlobStorage(store) {
 		wireManagedCommit(managedClient, store, configPath, reloadAfterCommit, auditLog)
 	}
 	if apiCfgOK {
-		// apiUsers and the auth-mode report were resolved above; the boot-time
+		// bootUsers and the auth-mode report were resolved above; the boot-time
 		// management-listener guard has already refused any non-loopback API
 		// listener without authentication (the former apiHasNonLoopback inline
 		// refusal is folded into the single shared classifier).
@@ -1192,7 +1167,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 				Server:     apiServer,
 				Store:      store,
 				ConfigPath: configPath,
-				Users:      apiUsers,
+				Users:      bootUsers,
 				UsersLive:  localUsers,
 				Authorizer: liveAAABundleAuthorizer{},
 				ReloadHook: reloadAfterCommit,
@@ -1209,7 +1184,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 					return 1
 				}
 				if h.Server != nil {
-					lm.SetREST(h.Server)
+					lm.setREST(h.Server)
 					apiShutdowns = append(apiShutdowns, h.Shutdown)
 				}
 			}
@@ -1223,7 +1198,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 					return 1
 				}
 				if h.Server != nil {
-					lm.SetGRPC(h.Server)
+					lm.setGRPC(h.Server)
 					apiShutdowns = append(apiShutdowns, h.Shutdown)
 				}
 			}
@@ -1318,20 +1293,12 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		fmt.Println("CLI detached. Press Ctrl+C to stop daemon.")
 	}
 
-	// Wait for either signal or server shutdown (e.g., "daemon shutdown" command).
-	// Server.Wait blocks until all plugin processes exit -- happens when a plugin
-	// dispatches "daemon shutdown" which calls reactor.Stop().
-	// Only listen for server-done when plugins actually started; otherwise the
-	// WaitGroup is zero from the start and Wait returns immediately -- causing
-	// the daemon to exit before SSH/web servers are ready (breaks "config edit").
-	if apiServer.HasProcesses() {
-		doneCh := make(chan struct{})
-		go waitForServerDone(apiServer, doneCh)
-
-		waitLoop(sigCh, reloadCh, doneCh)
-	} else {
-		waitLoop(sigCh, reloadCh, nil)
-	}
+	// Wait for either a signal or an explicit server shutdown request.
+	// Server.Wait reports the request so this loop can call Server.Stop.
+	// A reload can remove every plugin without ending this daemon lifecycle.
+	doneCh := make(chan struct{})
+	go waitForServerDone(apiServer, doneCh)
+	waitLoop(sigCh, reloadCh, doneCh)
 	close(reloadCh)
 	awaitReloadWorker(reloadDone, reloadShutdownGrace)
 	fmt.Println("\nShutting down...")

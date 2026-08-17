@@ -131,7 +131,7 @@ var (
 		Pattern:     regexp.MustCompile(`("checked-at": ")[^"]*"`),
 		Replacement: `${1}<TIME>"`,
 	}
-	// SessionStore.CreateSession draws the token from crypto/rand.
+	// SessionStore.createSession draws the token from crypto/rand.
 	webSessionCookieRewrite = golden.Rewrite{
 		Pattern:     regexp.MustCompile(`(?m)^(header: Set-Cookie: ze-session=)[^;]*`),
 		Replacement: "${1}<SESSION>",
@@ -426,7 +426,7 @@ func webLiveRoutes(t *testing.T) []string {
 // webGoldenEnv is one server: the mux the hub builds, and a signed-in session.
 //
 // handler is what a request is served through, and it is not the mux. NewWebServer
-// (server.go) puts SecurityHeaders over its mux, so the bytes a browser reads
+// (server.go) puts securityHeaders over its mux, so the bytes a browser reads
 // carry those headers on every route. mux stays because Handler(req) is how a
 // case reports which route pattern it reached.
 type webGoldenEnv struct {
@@ -651,7 +651,7 @@ func newWebGoldenEnv(t *testing.T, readOnly bool) *webGoldenEnv {
 		authWrap(finderHandler).ServeHTTP(w, r)
 	})
 
-	session, err := sessionStore.CreateSession(webGoldenUser, authz.AuthResult{Authenticated: true})
+	session, err := sessionStore.createSession(webGoldenUser, authz.AuthResult{Authenticated: true})
 	if err != nil {
 		t.Fatalf("create the capture session: %v", err)
 	}

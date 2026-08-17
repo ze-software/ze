@@ -268,20 +268,20 @@ peer peer-east {
 ### Go Tokenizer
 
 ```go
-type Tokenizer struct {
+type tokenizer struct {
     tokens   []string
     next     []string  // lookahead
     consumed int
 }
 
-func (t *Tokenizer) Peek() string {
+func (t *tokenizer) Peek() string {
     if len(t.next) > 0 {
         return t.next[0]
     }
     // ...
 }
 
-func (t *Tokenizer) Next() string {
+func (t *tokenizer) Next() string {
     t.consumed++
     // ...
 }

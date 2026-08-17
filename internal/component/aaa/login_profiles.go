@@ -67,28 +67,35 @@ func LoginProfiles(username string) ([]string, bool) {
 	return profiles, true
 }
 
-// ForgetLoginProfiles drops the recorded profiles for username. Exported for
+// ForgetLoginProfilesForTest drops the recorded profiles for username. Exported for
 // tests, which must not leak identities into each other through this map.
-func ForgetLoginProfiles(username string) {
+func ForgetLoginProfilesForTest(username string) {
 	loginProfiles.Delete(username)
 }
 
-// profileRecordingAuthenticator wraps the composed authenticator chain so that a
-// successful authentication publishes its resolved profiles to authorization.
-// It sits in Build rather than in each transport so no surface can forget it.
+// profileRecordingAuthenticator wraps an authenticator so successful
+// authentication publishes its resolved profiles to authorization.
 type profileRecordingAuthenticator struct {
 	next Authenticator
 }
 
+// WithProfileRecording wraps next with the common authentication choke point
+// that rejects reserved usernames and publishes successful login profiles.
+// Registry-built authentication and direct local API authentication must both
+// use this function so neither behavior can drift between construction paths.
+func WithProfileRecording(next Authenticator) Authenticator {
+	return profileRecordingAuthenticator{next: next}
+}
+
 func (p profileRecordingAuthenticator) Authenticate(request AuthRequest) (AuthResult, error) {
 	// Fail closed: no externally-supplied username may bear the reserved prefix.
-	// A reserved username is a bug or an attempt to spoof a server-injected
-	// internal/recovery identity that authz.Store.Authorize trusts (the reserved
-	// prefix short-circuits to Allow). This wrapper is the one authentication
-	// choke point every surface (ssh, web, api) passes through, so rejecting here
-	// stops any backend -- including a hostile remote TACACS+/RADIUS server -- from
-	// ever making such a username Authenticated. Server-injected internal
-	// identities never pass through authentication, so they are unaffected.
+	// Such a username is a bug or an attempt to spoof a server-injected trusted
+	// identity that authz.Store.Authorize permits, or a reserved recovery
+	// profile. This wrapper is the one authentication choke point every surface
+	// (ssh, web, api) passes through, so rejecting here stops any backend,
+	// including a hostile remote TACACS+/RADIUS server, from ever making such a
+	// username Authenticated. Server-injected identities never pass through
+	// authentication, so they are unaffected.
 	if IsReservedName(request.Username) {
 		return AuthResult{}, ErrAuthRejected
 	}

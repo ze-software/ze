@@ -1,6 +1,6 @@
 // Design: docs/architecture/web-interface.md -- Web server infrastructure
 // Related: doctor.go -- the doctor check over this listener's TLS material
-// Related: auth.go -- SecurityHeaders, the wrapper this server puts over its mux
+// Related: auth.go -- securityHeaders, the wrapper this server puts over its mux
 
 // Package web provides the HTTPS web interface for ze.
 //

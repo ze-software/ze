@@ -1095,7 +1095,7 @@ func TestReloadVerifyCrashedPlugin(t *testing.T) {
 
 	// Simulate crash: close conn so Conn() returns nil.
 	proc := s.procManager.Load().GetProcess("crashed-plugin")
-	proc.CloseConn()
+	proc.CloseConnForTest()
 
 	err := s.ReloadConfig(context.Background(), newTree)
 	require.Error(t, err, "should fail when plugin conn is nil during verify")
@@ -1165,7 +1165,7 @@ func TestReloadVerifyCrashedPluginMultiple(t *testing.T) {
 
 	// Nil conn for "crashed" before reload — verify phase catches this.
 	proc := s.procManager.Load().GetProcess("crashed")
-	proc.CloseConn()
+	proc.CloseConnForTest()
 
 	err := s.ReloadConfig(context.Background(), newTree)
 	require.Error(t, err, "should fail when plugin conn is nil during verify")
@@ -1200,7 +1200,7 @@ func TestReloadProcessDiedBetweenVerifyAndApply(t *testing.T) {
 	// which returns nil, triggering the abort.
 	plugins[0].responder.mu.Lock()
 	plugins[0].responder.beforeVerifyRsp = func() {
-		proc.ClearConn()
+		proc.ClearConnForTest()
 	}
 	plugins[0].responder.mu.Unlock()
 

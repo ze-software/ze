@@ -7,9 +7,10 @@
 #    profile) and a single config user "nobody" that is assigned NO profile.
 #    Because no user is assigned any profile, s.assignments is empty (the former
 #    hasUsers == false shape) -- exactly the box on which the old code fell
-#    through to BuiltinAdminProfile allow-all. This is the local, no-external-AAA
-#    reproduction of the TACACS/RADIUS-only "authenticated but no resolved
-#    profile" case: the same S-2 branch decides for both.
+#    through to the built-in admin profile's allow-all behavior. This is the
+#    local, no-external-AAA reproduction of the TACACS/RADIUS-only
+#    "authenticated but no resolved profile" case: the same S-2 branch decides
+#    for both.
 # 2. "nobody" authenticates over SSH (real credential) and runs "show version",
 #    a real, registered command.
 # 3. The command is refused: the authorization store exists, so RBAC is in use,
@@ -20,9 +21,9 @@
 #            (spec-fixit-authz-admin-fallthrough, Q-2 "deny always").
 # LOAD-BEARING: under the OLD allow-all fall-through this exact scenario
 #            (profiles present, no assignments, authenticated user with no
-#            resolved profile) returned BuiltinAdminProfile, so "show version"
-#            would have SUCCEEDED (exit 0). The assertions below require a
-#            refusal AND the specific daemon decision line
+#            resolved profile) returned the built-in admin profile, so "show
+#            version" would have SUCCEEDED (exit 0). The assertions below
+#            require a refusal AND the specific daemon decision line
 #            "denied: no applicable profile" (emitted only by the S-2 branch of
 #            Store.Authorize) -- both would fail against the pre-fix behavior.
 #            The "unknown command" check keeps the refusal distinguishable from

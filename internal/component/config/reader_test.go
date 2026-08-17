@@ -16,25 +16,25 @@ import (
 	_ "github.com/ze-software/ze/internal/component/bgp/yang"
 )
 
-// TestSchemaInfo_HandlerMap verifies handler map construction from SchemaInfo slice.
+// TestSchemaInfo_HandlerMap verifies handler map construction from a schemaInfo slice.
 //
-// VALIDATES: SchemaInfo slice is correctly converted to handler→schema map.
+// VALIDATES: A schemaInfo slice is correctly converted to a handler→schema map.
 // PREVENTS: Missing handler registrations breaking config block routing.
 func TestSchemaInfo_HandlerMap(t *testing.T) {
-	schemas := []SchemaInfo{
-		{Module: "ze-bgp", Handlers: []string{"bgp", "bgp/peer"}},
-		{Module: "ze-rib", Handlers: []string{"rib"}},
+	schemas := []schemaInfo{
+		{module: "ze-bgp", handlers: []string{"bgp", "bgp/peer"}},
+		{module: "ze-rib", handlers: []string{"rib"}},
 	}
 
-	r := NewReader(schemas, "", nil, nil)
+	r := newReader(schemas, "", nil, nil)
 
 	// Each handler path should map to its schema.
 	assert.NotNil(t, r.findHandler("bgp"))
 	assert.NotNil(t, r.findHandler("bgp/peer"))
 	assert.NotNil(t, r.findHandler("rib"))
-	assert.Equal(t, "ze-bgp", r.findHandler("bgp").Module)
-	assert.Equal(t, "ze-bgp", r.findHandler("bgp/peer").Module)
-	assert.Equal(t, "ze-rib", r.findHandler("rib").Module)
+	assert.Equal(t, "ze-bgp", r.findHandler("bgp").module)
+	assert.Equal(t, "ze-bgp", r.findHandler("bgp/peer").module)
+	assert.Equal(t, "ze-rib", r.findHandler("rib").module)
 }
 
 // TestReader_FindHandler verifies longest-prefix handler matching.
@@ -42,13 +42,13 @@ func TestSchemaInfo_HandlerMap(t *testing.T) {
 // VALIDATES: Exact match, base path match, and prefix shortening all work.
 // PREVENTS: Wrong plugin receiving config blocks.
 func TestReader_FindHandler(t *testing.T) {
-	schemas := []SchemaInfo{
-		{Module: "ze-bgp", Handlers: []string{"bgp"}},
-		{Module: "ze-bgp-peer", Handlers: []string{"bgp/peer"}},
-		{Module: "ze-rib", Handlers: []string{"rib"}},
+	schemas := []schemaInfo{
+		{module: "ze-bgp", handlers: []string{"bgp"}},
+		{module: "ze-bgp-peer", handlers: []string{"bgp/peer"}},
+		{module: "ze-rib", handlers: []string{"rib"}},
 	}
 
-	r := NewReader(schemas, "", nil, nil)
+	r := newReader(schemas, "", nil, nil)
 
 	tests := []struct {
 		path       string
@@ -66,7 +66,7 @@ func TestReader_FindHandler(t *testing.T) {
 		t.Run(tt.path, func(t *testing.T) {
 			handler := r.findHandler(tt.path)
 			require.NotNil(t, handler, "handler for %q should not be nil", tt.path)
-			assert.Equal(t, tt.wantModule, handler.Module)
+			assert.Equal(t, tt.wantModule, handler.module)
 		})
 	}
 }
@@ -76,11 +76,11 @@ func TestReader_FindHandler(t *testing.T) {
 // VALIDATES: Paths with no registered handler return nil.
 // PREVENTS: Panic or false positive matches on unregistered paths.
 func TestReader_FindHandler_Unknown(t *testing.T) {
-	schemas := []SchemaInfo{
-		{Module: "ze-bgp", Handlers: []string{"bgp"}},
+	schemas := []schemaInfo{
+		{module: "ze-bgp", handlers: []string{"bgp"}},
 	}
 
-	r := NewReader(schemas, "", nil, nil)
+	r := newReader(schemas, "", nil, nil)
 
 	assert.Nil(t, r.findHandler("unknown"))
 	assert.Nil(t, r.findHandler("rib"))
@@ -92,8 +92,8 @@ func TestReader_FindHandler_Unknown(t *testing.T) {
 // VALIDATES: Config blocks are parsed and matched to correct handlers.
 // PREVENTS: Config blocks routed to wrong handler or lost.
 func TestReader_ParseBlocks(t *testing.T) {
-	schemas := []SchemaInfo{
-		{Module: "ze-bgp", Handlers: []string{"bgp", "bgp/peer"}},
+	schemas := []schemaInfo{
+		{module: "ze-bgp", handlers: []string{"bgp", "bgp/peer"}},
 	}
 
 	configContent := `
@@ -121,17 +121,17 @@ bgp {
 	confPath := filepath.Join(dir, "test.conf")
 	require.NoError(t, os.WriteFile(confPath, []byte(configContent), 0o644))
 
-	r := NewReader(schemas, confPath, nil, nil)
-	state, err := r.Load()
+	r := newReader(schemas, confPath, nil, nil)
+	state, err := r.load()
 	require.NoError(t, err)
 
 	// "bgp" handler should have a default-keyed block.
-	bgpBlock := state.Get("bgp", "_default")
+	bgpBlock := state.get("bgp", "_default")
 	require.NotNil(t, bgpBlock, "bgp block should exist")
 	// walkMap stores only flat fields; "local" is a container processed separately.
 
 	// "bgp/peer" handler should have a block keyed by "upstream".
-	peerBlock := state.Get("bgp/peer", "upstream")
+	peerBlock := state.get("bgp/peer", "upstream")
 	require.NotNil(t, peerBlock, "bgp/peer block should exist")
 	// walkMap stores only flat fields; "remote" is a container processed separately.
 }
@@ -141,20 +141,20 @@ bgp {
 // VALIDATES: Blocks present in new state but not old produce "create" action.
 // PREVENTS: New config blocks being silently ignored on reload.
 func TestReader_DiffConfig_Create(t *testing.T) {
-	oldState := NewBlockState()
-	newState := NewBlockState()
-	newState.Set(&BlockEntry{
-		Handler: "bgp/peer",
-		Key:     "192.0.2.1",
-		Path:    "bgp/peer[key=192.0.2.1]",
-		Data:    `{"as":65001}`,
+	oldState := newBlockState()
+	newState := newBlockState()
+	newState.set(&blockEntry{
+		handler: "bgp/peer",
+		key:     "192.0.2.1",
+		path:    "bgp/peer[key=192.0.2.1]",
+		data:    `{"as":65001}`,
 	})
 
-	changes := DiffBlocks(oldState, newState)
+	changes := diffBlocks(oldState, newState)
 
 	require.Len(t, changes, 1)
-	assert.Equal(t, "create", changes[0].Action)
-	assert.Equal(t, "bgp/peer", changes[0].Handler)
+	assert.Equal(t, "create", changes[0].action)
+	assert.Equal(t, "bgp/peer", changes[0].handler)
 }
 
 // TestReader_DiffConfig_Delete verifies removed blocks produce "delete" changes.
@@ -162,19 +162,19 @@ func TestReader_DiffConfig_Create(t *testing.T) {
 // VALIDATES: Blocks present in old state but not new produce "delete" action.
 // PREVENTS: Removed config blocks persisting after reload.
 func TestReader_DiffConfig_Delete(t *testing.T) {
-	oldState := NewBlockState()
-	oldState.Set(&BlockEntry{
-		Handler: "bgp/peer",
-		Key:     "192.0.2.1",
-		Path:    "bgp/peer[key=192.0.2.1]",
-		Data:    `{"as":65001}`,
+	oldState := newBlockState()
+	oldState.set(&blockEntry{
+		handler: "bgp/peer",
+		key:     "192.0.2.1",
+		path:    "bgp/peer[key=192.0.2.1]",
+		data:    `{"as":65001}`,
 	})
-	newState := NewBlockState()
+	newState := newBlockState()
 
-	changes := DiffBlocks(oldState, newState)
+	changes := diffBlocks(oldState, newState)
 
 	require.Len(t, changes, 1)
-	assert.Equal(t, "delete", changes[0].Action)
+	assert.Equal(t, "delete", changes[0].action)
 }
 
 // TestReader_DiffConfig_Modify verifies changed blocks produce "modify" changes.
@@ -182,27 +182,27 @@ func TestReader_DiffConfig_Delete(t *testing.T) {
 // VALIDATES: Blocks present in both states with different data produce "modify" action.
 // PREVENTS: Config changes being treated as no-ops on reload.
 func TestReader_DiffConfig_Modify(t *testing.T) {
-	oldState := NewBlockState()
-	oldState.Set(&BlockEntry{
-		Handler: "bgp/peer",
-		Key:     "192.0.2.1",
-		Path:    "bgp/peer[key=192.0.2.1]",
-		Data:    `{"as":65001}`,
+	oldState := newBlockState()
+	oldState.set(&blockEntry{
+		handler: "bgp/peer",
+		key:     "192.0.2.1",
+		path:    "bgp/peer[key=192.0.2.1]",
+		data:    `{"as":65001}`,
 	})
-	newState := NewBlockState()
-	newState.Set(&BlockEntry{
-		Handler: "bgp/peer",
-		Key:     "192.0.2.1",
-		Path:    "bgp/peer[key=192.0.2.1]",
-		Data:    `{"as":65002}`,
+	newState := newBlockState()
+	newState.set(&blockEntry{
+		handler: "bgp/peer",
+		key:     "192.0.2.1",
+		path:    "bgp/peer[key=192.0.2.1]",
+		data:    `{"as":65002}`,
 	})
 
-	changes := DiffBlocks(oldState, newState)
+	changes := diffBlocks(oldState, newState)
 
 	require.Len(t, changes, 1)
-	assert.Equal(t, "modify", changes[0].Action)
-	assert.Equal(t, `{"as":65001}`, changes[0].OldData)
-	assert.Equal(t, `{"as":65002}`, changes[0].NewData)
+	assert.Equal(t, "modify", changes[0].action)
+	assert.Equal(t, `{"as":65001}`, changes[0].oldData)
+	assert.Equal(t, `{"as":65002}`, changes[0].newData)
 }
 
 // TestReader_DiffConfig_NoChange verifies identical states produce no changes.
@@ -210,22 +210,22 @@ func TestReader_DiffConfig_Modify(t *testing.T) {
 // VALIDATES: Identical old and new states produce empty change list.
 // PREVENTS: Unnecessary reload processing when config hasn't changed.
 func TestReader_DiffConfig_NoChange(t *testing.T) {
-	oldState := NewBlockState()
-	oldState.Set(&BlockEntry{
-		Handler: "bgp/peer",
-		Key:     "192.0.2.1",
-		Path:    "bgp/peer[key=192.0.2.1]",
-		Data:    `{"as":65001}`,
+	oldState := newBlockState()
+	oldState.set(&blockEntry{
+		handler: "bgp/peer",
+		key:     "192.0.2.1",
+		path:    "bgp/peer[key=192.0.2.1]",
+		data:    `{"as":65001}`,
 	})
-	newState := NewBlockState()
-	newState.Set(&BlockEntry{
-		Handler: "bgp/peer",
-		Key:     "192.0.2.1",
-		Path:    "bgp/peer[key=192.0.2.1]",
-		Data:    `{"as":65001}`,
+	newState := newBlockState()
+	newState.set(&blockEntry{
+		handler: "bgp/peer",
+		key:     "192.0.2.1",
+		path:    "bgp/peer[key=192.0.2.1]",
+		data:    `{"as":65001}`,
 	})
 
-	changes := DiffBlocks(oldState, newState)
+	changes := diffBlocks(oldState, newState)
 
 	assert.Empty(t, changes)
 }
@@ -235,25 +235,25 @@ func TestReader_DiffConfig_NoChange(t *testing.T) {
 // VALIDATES: Changes are in deterministic order regardless of map iteration.
 // PREVENTS: Non-deterministic config application order.
 func TestReader_DiffConfig_Deterministic(t *testing.T) {
-	oldState := NewBlockState()
-	newState := NewBlockState()
+	oldState := newBlockState()
+	newState := newBlockState()
 
 	// Add blocks in reverse alphabetical order to test sorting.
-	newState.Set(&BlockEntry{Handler: "rib", Key: "_default", Path: "rib", Data: `{}`})
-	newState.Set(&BlockEntry{Handler: "bgp/peer", Key: "10.0.0.2", Path: "bgp/peer[key=10.0.0.2]", Data: `{}`})
-	newState.Set(&BlockEntry{Handler: "bgp/peer", Key: "10.0.0.1", Path: "bgp/peer[key=10.0.0.1]", Data: `{}`})
-	newState.Set(&BlockEntry{Handler: "bgp", Key: "_default", Path: "bgp", Data: `{}`})
+	newState.set(&blockEntry{handler: "rib", key: "_default", path: "rib", data: `{}`})
+	newState.set(&blockEntry{handler: "bgp/peer", key: "10.0.0.2", path: "bgp/peer[key=10.0.0.2]", data: `{}`})
+	newState.set(&blockEntry{handler: "bgp/peer", key: "10.0.0.1", path: "bgp/peer[key=10.0.0.1]", data: `{}`})
+	newState.set(&blockEntry{handler: "bgp", key: "_default", path: "bgp", data: `{}`})
 
-	changes := DiffBlocks(oldState, newState)
+	changes := diffBlocks(oldState, newState)
 
 	require.Len(t, changes, 4)
 	// Should be sorted: bgp, bgp.peer/10.0.0.1, bgp.peer/10.0.0.2, rib
-	assert.Equal(t, "bgp", changes[0].Handler)
-	assert.Equal(t, "bgp/peer", changes[1].Handler)
-	assert.Equal(t, "10.0.0.1", extractKeyFromPath(changes[1].Path))
-	assert.Equal(t, "bgp/peer", changes[2].Handler)
-	assert.Equal(t, "10.0.0.2", extractKeyFromPath(changes[2].Path))
-	assert.Equal(t, "rib", changes[3].Handler)
+	assert.Equal(t, "bgp", changes[0].handler)
+	assert.Equal(t, "bgp/peer", changes[1].handler)
+	assert.Equal(t, "10.0.0.1", extractKeyFromPath(changes[1].path))
+	assert.Equal(t, "bgp/peer", changes[2].handler)
+	assert.Equal(t, "10.0.0.2", extractKeyFromPath(changes[2].path))
+	assert.Equal(t, "rib", changes[3].handler)
 }
 
 // TestReader_HandlerPathBoundary verifies long handler paths are accepted.
@@ -262,15 +262,15 @@ func TestReader_DiffConfig_Deterministic(t *testing.T) {
 // BOUNDARY: 512 chars accepted.
 func TestReader_HandlerPathBoundary(t *testing.T) {
 	longPath := strings.Repeat("a.", 256)[:512]
-	schemas := []SchemaInfo{
-		{Module: "test", Handlers: []string{longPath}},
+	schemas := []schemaInfo{
+		{module: "test", handlers: []string{longPath}},
 	}
 
-	r := NewReader(schemas, "", nil, nil)
+	r := newReader(schemas, "", nil, nil)
 
 	handler := r.findHandler(longPath)
 	require.NotNil(t, handler)
-	assert.Equal(t, "test", handler.Module)
+	assert.Equal(t, "test", handler.module)
 }
 
 // TestReader_Reload verifies end-to-end reload with file modification.
@@ -278,8 +278,8 @@ func TestReader_HandlerPathBoundary(t *testing.T) {
 // VALIDATES: Modifying a config file and calling Reload produces correct changes.
 // PREVENTS: Reload returning stale data or missing changes.
 func TestReader_Reload(t *testing.T) {
-	schemas := []SchemaInfo{
-		{Module: "ze-bgp", Handlers: []string{"bgp", "bgp/peer"}},
+	schemas := []schemaInfo{
+		{module: "ze-bgp", handlers: []string{"bgp", "bgp/peer"}},
 	}
 
 	dir := t.TempDir()
@@ -309,8 +309,8 @@ bgp {
 `
 	require.NoError(t, os.WriteFile(confPath, []byte(initial), 0o644))
 
-	r := NewReader(schemas, confPath, nil, nil)
-	_, err := r.Load()
+	r := newReader(schemas, confPath, nil, nil)
+	_, err := r.load()
 	require.NoError(t, err)
 
 	// Modify config: change peer AS and add a second peer.
@@ -349,7 +349,7 @@ bgp {
 `
 	require.NoError(t, os.WriteFile(confPath, []byte(modified), 0o644))
 
-	changes, err := r.Reload()
+	changes, err := r.reload()
 	require.NoError(t, err)
 
 	// The walker always detects:
@@ -362,20 +362,20 @@ bgp {
 
 	actions := make(map[string]int)
 	for _, c := range changes {
-		actions[c.Action]++
+		actions[c.action]++
 	}
 	assert.GreaterOrEqual(t, actions["modify"], 1, "expected at least 1 modify")
 	assert.Equal(t, 1, actions["create"])
 
 	// Verify the new peer was created.
-	var create *BlockChange
+	var create *blockChange
 	for i := range changes {
-		if changes[i].Action == "create" {
+		if changes[i].action == "create" {
 			create = &changes[i]
 		}
 	}
 	require.NotNil(t, create)
-	assert.Contains(t, create.Path, "downstream")
+	assert.Contains(t, create.path, "downstream")
 }
 
 // TestReader_Load_MissingFile verifies Load returns error for nonexistent file.
@@ -383,8 +383,8 @@ bgp {
 // VALIDATES: Missing config file produces a clear error.
 // PREVENTS: Panic or nil state on missing file.
 func TestReader_Load_MissingFile(t *testing.T) {
-	r := NewReader(nil, "/nonexistent/path/config.conf", nil, nil)
-	state, err := r.Load()
+	r := newReader(nil, "/nonexistent/path/config.conf", nil, nil)
+	state, err := r.load()
 	assert.Error(t, err)
 	assert.Nil(t, state)
 	assert.Contains(t, err.Error(), "read config")
@@ -395,8 +395,8 @@ func TestReader_Load_MissingFile(t *testing.T) {
 // VALIDATES: Empty string path produces a clear error.
 // PREVENTS: Panic or confusing error from os.ReadFile("").
 func TestReader_Load_EmptyPath(t *testing.T) {
-	r := NewReader(nil, "", nil, nil)
-	state, err := r.Load()
+	r := newReader(nil, "", nil, nil)
+	state, err := r.load()
 	assert.Error(t, err)
 	assert.Nil(t, state)
 	assert.Contains(t, err.Error(), "no config path")
@@ -418,8 +418,8 @@ func newTestValidator(t *testing.T) *yang.Validator {
 // PREVENTS: False rejection of correct config values.
 func TestReader_ValidateBlock_ValidTypes(t *testing.T) {
 	validator := newTestValidator(t)
-	schemas := []SchemaInfo{
-		{Module: "ze-bgp-conf", Handlers: []string{"bgp", "bgp/peer"}},
+	schemas := []schemaInfo{
+		{module: "ze-bgp-conf", handlers: []string{"bgp", "bgp/peer"}},
 	}
 
 	configContent := `
@@ -451,15 +451,15 @@ bgp {
 	confPath := filepath.Join(dir, "valid.conf")
 	require.NoError(t, os.WriteFile(confPath, []byte(configContent), 0o644))
 
-	r := NewReader(schemas, confPath, validator, nil)
-	state, err := r.Load()
+	r := newReader(schemas, confPath, validator, nil)
+	state, err := r.load()
 	require.NoError(t, err)
 	require.NotNil(t, state)
 
 	// Verify blocks were stored.
-	bgpBlock := state.Get("bgp", "_default")
+	bgpBlock := state.get("bgp", "_default")
 	require.NotNil(t, bgpBlock)
-	assert.Contains(t, bgpBlock.Data, "router-id")
+	assert.Contains(t, bgpBlock.data, "router-id")
 }
 
 // TestReader_ValidateBlock_InvalidRange verifies YANG validator rejects out-of-range values.
@@ -468,8 +468,8 @@ bgp {
 // PREVENTS: Accepting config with out-of-range numeric values.
 func TestReader_ValidateBlock_InvalidRange(t *testing.T) {
 	validator := newTestValidator(t)
-	schemas := []SchemaInfo{
-		{Module: "ze-bgp-conf", Handlers: []string{"bgp", "bgp/peer", "bgp/peer/timer"}},
+	schemas := []schemaInfo{
+		{module: "ze-bgp-conf", handlers: []string{"bgp", "bgp/peer", "bgp/peer/timer"}},
 	}
 
 	configContent := `
@@ -501,8 +501,8 @@ bgp {
 	confPath := filepath.Join(dir, "invalid-range.conf")
 	require.NoError(t, os.WriteFile(confPath, []byte(configContent), 0o644))
 
-	r := NewReader(schemas, confPath, validator, nil)
-	_, err := r.Load()
+	r := newReader(schemas, confPath, validator, nil)
+	_, err := r.load()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "range")
 }
@@ -513,8 +513,8 @@ bgp {
 // PREVENTS: Accepting config with malformed IP addresses.
 func TestReader_ValidateBlock_InvalidPattern(t *testing.T) {
 	validator := newTestValidator(t)
-	schemas := []SchemaInfo{
-		{Module: "ze-bgp-conf", Handlers: []string{"bgp"}},
+	schemas := []schemaInfo{
+		{module: "ze-bgp-conf", handlers: []string{"bgp"}},
 	}
 
 	configContent := `
@@ -531,8 +531,8 @@ bgp {
 	confPath := filepath.Join(dir, "invalid-pattern.conf")
 	require.NoError(t, os.WriteFile(confPath, []byte(configContent), 0o644))
 
-	r := NewReader(schemas, confPath, validator, nil)
-	_, err := r.Load()
+	r := newReader(schemas, confPath, validator, nil)
+	_, err := r.load()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "pattern")
 }
@@ -543,8 +543,8 @@ bgp {
 // PREVENTS: Accepting incomplete config missing required fields.
 func TestReader_ValidateBlock_MandatoryMissing(t *testing.T) {
 	validator := newTestValidator(t)
-	schemas := []SchemaInfo{
-		{Module: "ze-bgp-conf", Handlers: []string{"bgp"}},
+	schemas := []schemaInfo{
+		{module: "ze-bgp-conf", handlers: []string{"bgp"}},
 	}
 
 	// Config has session.asn.local (mandatory) but is missing router-id (mandatory).
@@ -562,8 +562,8 @@ bgp {
 	confPath := filepath.Join(dir, "missing-mandatory.conf")
 	require.NoError(t, os.WriteFile(confPath, []byte(configContent), 0o644))
 
-	r := NewReader(schemas, confPath, validator, nil)
-	_, err := r.Load()
+	r := newReader(schemas, confPath, validator, nil)
+	_, err := r.load()
 	// Note: YANG mandatory enforcement may not be implemented yet.
 	// If Load succeeds, skip rather than fail -- the original test relied on
 	// "listen" being a valid leaf to keep parsing alive, which no longer exists.
@@ -578,8 +578,8 @@ bgp {
 // VALIDATES: nil validator means no validation — reader accepts any config.
 // PREVENTS: Panic or error when validator is not provided.
 func TestReader_Load_NoValidator(t *testing.T) {
-	schemas := []SchemaInfo{
-		{Module: "ze-bgp-conf", Handlers: []string{"bgp"}},
+	schemas := []schemaInfo{
+		{module: "ze-bgp-conf", handlers: []string{"bgp"}},
 	}
 
 	configContent := `
@@ -597,8 +597,8 @@ bgp {
 	require.NoError(t, os.WriteFile(confPath, []byte(configContent), 0o644))
 
 	// nil validator — should skip all validation.
-	r := NewReader(schemas, confPath, nil, nil)
-	state, err := r.Load()
+	r := newReader(schemas, confPath, nil, nil)
+	state, err := r.load()
 	require.NoError(t, err)
 	require.NotNil(t, state)
 }
@@ -609,8 +609,8 @@ bgp {
 // PREVENTS: Validation bypass by modifying config after initial Load.
 func TestReader_Reload_WithValidator(t *testing.T) {
 	validator := newTestValidator(t)
-	schemas := []SchemaInfo{
-		{Module: "ze-bgp-conf", Handlers: []string{"bgp", "bgp/peer", "bgp/peer/timer"}},
+	schemas := []schemaInfo{
+		{module: "ze-bgp-conf", handlers: []string{"bgp", "bgp/peer", "bgp/peer/timer"}},
 	}
 
 	dir := t.TempDir()
@@ -644,8 +644,8 @@ bgp {
 `
 	require.NoError(t, os.WriteFile(confPath, []byte(initial), 0o644))
 
-	r := NewReader(schemas, confPath, validator, nil)
-	_, err := r.Load()
+	r := newReader(schemas, confPath, validator, nil)
+	_, err := r.load()
 	require.NoError(t, err)
 
 	// Reload with invalid config (hold-time 2 violates range 0|3..65535).
@@ -676,7 +676,7 @@ bgp {
 `
 	require.NoError(t, os.WriteFile(confPath, []byte(invalid), 0o644))
 
-	_, err = r.Reload()
+	_, err = r.reload()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "range")
 }
@@ -711,8 +711,8 @@ func frontendTestSchema() *Schema {
 // TestFrontend_Tokenizer_ProducesMap verifies the tokenizer frontend produces
 // correct map[string]any from Ze/Junos-style config.
 //
-// VALIDATES: TokenizerFrontend.ParseConfig returns nested map with correct keys and values.
-// PREVENTS: Tokenizer frontend producing wrong structure or losing data.
+// VALIDATES: tokenizerFrontend.parseConfigContent returns a nested map with correct keys and values.
+// PREVENTS: tokenizer frontend producing wrong structure or losing data.
 func TestFrontend_Tokenizer_ProducesMap(t *testing.T) {
 	content := `
 router-id 1.2.3.4
@@ -721,8 +721,8 @@ neighbor 192.0.2.1 {
     peer-as 65001
 }
 `
-	fe := &TokenizerFrontend{}
-	result, err := fe.ParseConfig(content)
+	fe := &tokenizerFrontend{}
+	result, err := fe.parseConfigContent(content)
 	require.NoError(t, err)
 
 	// Top-level leaves.
@@ -741,16 +741,16 @@ neighbor 192.0.2.1 {
 // TestFrontend_SetParser_ProducesMap verifies the SetParser frontend produces
 // correct map[string]any from set-style config.
 //
-// VALIDATES: SetParserFrontend.ParseConfig returns nested map with correct keys.
-// PREVENTS: SetParser frontend producing wrong structure or losing data.
+// VALIDATES: setParserFrontend.parseConfigContent returns a nested map with correct keys.
+// PREVENTS: set-parser frontend producing wrong structure or losing data.
 func TestFrontend_SetParser_ProducesMap(t *testing.T) {
 	content := `
 set router-id 1.2.3.4
 set local-as 65000
 set neighbor 192.0.2.1 peer-as 65001
 `
-	fe := &SetParserFrontend{Schema: frontendTestSchema()}
-	result, err := fe.ParseConfig(content)
+	fe := &setParserFrontend{schema: frontendTestSchema()}
+	result, err := fe.parseConfigContent(content)
 	require.NoError(t, err)
 
 	// Top-level leaves (convertStringValues converts to typed values).
@@ -784,12 +784,12 @@ set router-id 1.2.3.4
 set local-as 65000
 set neighbor 192.0.2.1 peer-as 65001
 `
-	tokFE := &TokenizerFrontend{}
-	tokResult, err := tokFE.ParseConfig(tokenizerContent)
+	tokFE := &tokenizerFrontend{}
+	tokResult, err := tokFE.parseConfigContent(tokenizerContent)
 	require.NoError(t, err)
 
-	setFE := &SetParserFrontend{Schema: frontendTestSchema()}
-	setResult, err := setFE.ParseConfig(setContent)
+	setFE := &setParserFrontend{schema: frontendTestSchema()}
+	setResult, err := setFE.parseConfigContent(setContent)
 	require.NoError(t, err)
 
 	// Both must have the same top-level keys.
@@ -807,14 +807,14 @@ set neighbor 192.0.2.1 peer-as 65001
 }
 
 // TestFrontend_SetParser_YANGValidation verifies that the SetParser path
-// triggers YANG validation when wired through the Reader.
+// triggers YANG validation when wired through the reader.
 //
 // VALIDATES: Invalid values in set-style config are rejected by YANG validator.
 // PREVENTS: Validation bypass when using SetParser frontend.
 func TestFrontend_SetParser_YANGValidation(t *testing.T) {
 	validator := newTestValidator(t)
-	schemas := []SchemaInfo{
-		{Module: "ze-bgp-conf", Handlers: []string{"bgp"}},
+	schemas := []schemaInfo{
+		{module: "ze-bgp-conf", handlers: []string{"bgp"}},
 	}
 
 	// Set-style config with invalid router-id (not a valid IP pattern).
@@ -832,9 +832,9 @@ set bgp router-id not-an-ip
 	confPath := filepath.Join(dir, "set-yang.conf")
 	require.NoError(t, os.WriteFile(confPath, []byte(content), 0o644))
 
-	fe := &SetParserFrontend{Schema: setSchema}
-	r := NewReader(schemas, confPath, validator, fe)
-	_, err := r.Load()
+	fe := &setParserFrontend{schema: setSchema}
+	r := newReader(schemas, confPath, validator, fe)
+	_, err := r.load()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "pattern")
 }

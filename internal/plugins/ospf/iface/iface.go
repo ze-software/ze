@@ -188,7 +188,7 @@ type Snapshot struct {
 	Name        string `json:"name"`
 	Area        string `json:"area"`
 	State       string `json:"state"`
-	NetworkType string `json:"network_type"`
+	NetworkType string `json:"network-type"`
 	Cost        uint16 `json:"cost"`
 	Priority    uint8  `json:"priority"`
 	Passive     bool   `json:"passive"`
@@ -197,9 +197,9 @@ type Snapshot struct {
 	BFD           bool   `json:"bfd,omitempty"`
 	DR            string `json:"dr"`
 	BDR           string `json:"bdr"`
-	HelloInterval uint16 `json:"hello_interval"`
-	DeadInterval  uint16 `json:"dead_interval"`
-	NeighborCount int    `json:"neighbor_count"`
+	HelloInterval uint16 `json:"hello-interval"`
+	DeadInterval  uint16 `json:"dead-interval"`
+	NeighborCount int    `json:"neighbor-count"`
 	// PollInterval and NBMANeighbors are populated only for an NBMA interface (RFC
 	// 2328 App C.5/C.6); omitempty keeps every other network type's snapshot
 	// byte-for-byte as before.

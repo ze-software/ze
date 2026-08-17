@@ -1,3 +1,5 @@
+// Design: docs/architecture/appliance/self-update.md -- self-update configuration and status
+
 package system
 
 import "time"

@@ -12,42 +12,42 @@ import (
 // Also handles: `name subname { ... }` (skips subname)
 // Stores each "word word" line as key -> "true".
 func (p *Parser) parseFreeform(tree *Tree, name string) error {
-	tok := p.tok.Peek()
+	tok := p.tok.peek()
 
 	// Skip optional words before the block (e.g., "api services { }")
-	for tok.Type == TokenWord || tok.Type == TokenString {
-		p.tok.Next()
-		tok = p.tok.Peek()
+	for tok.kind == tokenWord || tok.kind == tokenString {
+		p.tok.next()
+		tok = p.tok.peek()
 	}
 
-	if tok.Type != TokenLBrace {
-		return p.errorf(tok, "expected '{' after %s, got %s", name, tok.Type)
+	if tok.kind != tokenLBrace {
+		return p.errorf(tok, "expected '{' after %s, got %s", name, tok.kind)
 	}
-	p.tok.Next()
+	p.tok.next()
 
 	child := NewTree()
 
 	for {
-		tok = p.tok.Peek()
-		if tok.Type == TokenRBrace {
-			p.tok.Next()
+		tok = p.tok.peek()
+		if tok.kind == tokenRBrace {
+			p.tok.next()
 			break
 		}
-		if tok.Type == TokenEOF {
+		if tok.kind == tokenEOF {
 			return p.errorf(tok, "unexpected EOF in %s block", name)
 		}
 
 		// Collect words until semicolon or nested block
 		var words []string
 		hadArray := false
-		startLine := p.tok.Peek().Line
+		startLine := p.tok.peek().line
 		for {
-			tok = p.tok.Peek()
-			if tok.Type == TokenSemicolon {
-				p.tok.Next()
+			tok = p.tok.peek()
+			if tok.kind == tokenSemicolon {
+				p.tok.next()
 				break
 			}
-			if tok.Type == TokenLBrace {
+			if tok.kind == tokenLBrace {
 				// Warn about nested block being skipped
 				p.warn(startLine, "freeform '%s' contains nested block '%s' - data may be lost", name, textbuf.Join(words, " "))
 				// Skip nested block
@@ -56,7 +56,7 @@ func (p *Parser) parseFreeform(tree *Tree, name string) error {
 				}
 				break
 			}
-			if tok.Type == TokenLBracket {
+			if tok.kind == tokenLBracket {
 				// Capture array [ ... ] values, preserving brackets
 				arrayVals, err := p.collectArray()
 				if err != nil {
@@ -69,14 +69,14 @@ func (p *Parser) parseFreeform(tree *Tree, name string) error {
 				hadArray = true
 				continue
 			}
-			if tok.Type == TokenRBrace || tok.Type == TokenEOF {
+			if tok.kind == tokenRBrace || tok.kind == tokenEOF {
 				break
 			}
-			if tok.Type == TokenWord || tok.Type == TokenString {
-				words = append(words, tok.Value)
-				p.tok.Next()
+			if tok.kind == tokenWord || tok.kind == tokenString {
+				words = append(words, tok.value)
+				p.tok.next()
 			} else {
-				return p.errorf(tok, "unexpected token in %s block: %s", name, tok.Type)
+				return p.errorf(tok, "unexpected token in %s block: %s", name, tok.kind)
 			}
 		}
 
@@ -97,39 +97,39 @@ func (p *Parser) parseFreeform(tree *Tree, name string) error {
 
 // parseFlex parses a flex node: flag (;), value (word;), or block ({}).
 func (p *Parser) parseFlex(tree *Tree, name string, node *FlexNode) error {
-	tok := p.tok.Peek()
+	tok := p.tok.peek()
 
-	switch tok.Type { //nolint:exhaustive // Only specific tokens valid here, others handled in final return
-	case TokenSemicolon:
+	switch tok.kind { //nolint:exhaustive // Only specific tokens valid here, others handled in final return
+	case tokenSemicolon:
 		// Flag mode: just the name with semicolon = true
-		p.tok.Next()
+		p.tok.next()
 		tree.Set(name, configTrue)
 		return nil
 
-	case TokenLBrace:
+	case tokenLBrace:
 		// Block mode: parse as container
-		p.tok.Next()
+		p.tok.next()
 		child := NewTree()
 
 		for {
-			tok = p.tok.Peek()
-			if tok.Type == TokenRBrace {
-				p.tok.Next()
+			tok = p.tok.peek()
+			if tok.kind == tokenRBrace {
+				p.tok.next()
 				break
 			}
-			if tok.Type == TokenEOF {
+			if tok.kind == tokenEOF {
 				return p.errorf(tok, "unexpected EOF in %s block", name)
 			}
-			if tok.Type != TokenWord {
-				return p.errorf(tok, "expected keyword in %s block, got %s", name, tok.Type)
+			if tok.kind != tokenWord {
+				return p.errorf(tok, "expected keyword in %s block, got %s", name, tok.kind)
 			}
 
-			fieldName := tok.Value
-			p.tok.Next()
+			fieldName := tok.value
+			p.tok.next()
 
 			fieldNode := node.Get(fieldName)
 			if fieldNode == nil {
-				return p.errorf(tok, "unknown field in %s: %s (line %d)", name, fieldName, tok.Line)
+				return p.errorf(tok, "unknown field in %s: %s (line %d)", name, fieldName, tok.line)
 			}
 
 			if err := p.parseNode(child, fieldName, fieldNode); err != nil {
@@ -140,22 +140,22 @@ func (p *Parser) parseFlex(tree *Tree, name string, node *FlexNode) error {
 		tree.MergeContainer(name, child)
 		return nil
 
-	case TokenLParen:
+	case tokenLParen:
 		// Parenthesized mode: parse ( ... ) and optional semicolon
 		parenVals, err := p.collectParenthesized()
 		if err != nil {
 			return err
 		}
 		// Optional semicolon after parenthesized content
-		tok = p.tok.Peek()
-		if tok.Type == TokenSemicolon {
-			p.tok.Next()
+		tok = p.tok.peek()
+		if tok.kind == tokenSemicolon {
+			p.tok.next()
 		}
 
 		tree.Set(name, textbuf.Join(parenVals, " "))
 		return nil
 
-	case TokenLBracket:
+	case tokenLBracket:
 		// Array mode: parse [ ... ] directly (e.g., "attribute [ 0x20 0xc0 ... ];")
 		arrayVals, err := p.collectArray()
 		if err != nil {
@@ -165,29 +165,29 @@ func (p *Parser) parseFlex(tree *Tree, name string, node *FlexNode) error {
 		value := tb.Byte('[').Join(arrayVals, " ").Byte(']').String()
 
 		// Expect semicolon
-		tok = p.tok.Peek()
-		if tok.Type != TokenSemicolon {
-			return p.errorf(tok, "expected ';' after %s array, got %s", name, tok.Type)
+		tok = p.tok.peek()
+		if tok.kind != tokenSemicolon {
+			return p.errorf(tok, "expected ';' after %s array, got %s", name, tok.kind)
 		}
-		p.tok.Next()
+		p.tok.next()
 
 		tree.Set(name, value)
 		return nil
 
-	case TokenWord, TokenString:
+	case tokenWord, tokenString:
 		return p.parseFlexValue(tree, name, node, tok)
 	}
 
-	return p.errorf(tok, "expected ';', value, or '{' for %s, got %s", name, tok.Type)
+	return p.errorf(tok, "expected ';', value, or '{' for %s, got %s", name, tok.kind)
 }
 
 // parseFlexValue handles the word/string case for parseFlex.
-func (p *Parser) parseFlexValue(tree *Tree, name string, node *FlexNode, tok Token) error {
+func (p *Parser) parseFlexValue(tree *Tree, name string, node *FlexNode, tok token) error {
 	// Value mode: parse multiple words until semicolon or block delimiter
 	var values []string
-	for tok.Type == TokenWord || tok.Type == TokenString || tok.Type == TokenLBracket || tok.Type == TokenLParen {
-		switch tok.Type { //nolint:exhaustive // Only handling specific types in loop condition
-		case TokenLBracket:
+	for tok.kind == tokenWord || tok.kind == tokenString || tok.kind == tokenLBracket || tok.kind == tokenLParen {
+		switch tok.kind { //nolint:exhaustive // Only handling specific types in loop condition
+		case tokenLBracket:
 			// Array: collect [ ... ]
 			arrayVals, err := p.collectArray()
 			if err != nil {
@@ -195,7 +195,7 @@ func (p *Parser) parseFlexValue(tree *Tree, name string, node *FlexNode, tok Tok
 			}
 			var tb textbuf.Buffer
 			values = append(values, tb.Byte('[').Join(arrayVals, " ").Byte(']').String())
-		case TokenLParen:
+		case tokenLParen:
 			// Parenthesized: collect ( ... )
 			parenVals, err := p.collectParenthesized()
 			if err != nil {
@@ -204,45 +204,45 @@ func (p *Parser) parseFlexValue(tree *Tree, name string, node *FlexNode, tok Tok
 			var tb2 textbuf.Buffer
 			values = append(values, tb2.Byte('(').Join(parenVals, " ").Byte(')').String())
 		default:
-			values = append(values, tok.Value)
-			p.tok.Next()
+			values = append(values, tok.value)
+			p.tok.next()
 		}
-		tok = p.tok.Peek()
+		tok = p.tok.peek()
 	}
 
 	// Check if this is a named block (e.g., "vpls site5 { ... }")
-	if tok.Type == TokenLBrace && len(values) == 1 {
+	if tok.kind == tokenLBrace && len(values) == 1 {
 		// Named block: the first value is the key
 		key := values[0]
-		p.tok.Next() // consume {
+		p.tok.next() // consume {
 
 		child := NewTree()
 		for {
-			tok = p.tok.Peek()
-			if tok.Type == TokenRBrace {
-				p.tok.Next()
+			tok = p.tok.peek()
+			if tok.kind == tokenRBrace {
+				p.tok.next()
 				break
 			}
-			if tok.Type == TokenEOF {
+			if tok.kind == tokenEOF {
 				return p.errorf(tok, "unexpected EOF in %s block", name)
 			}
-			if tok.Type != TokenWord {
-				return p.errorf(tok, "expected keyword in %s block, got %s", name, tok.Type)
+			if tok.kind != tokenWord {
+				return p.errorf(tok, "expected keyword in %s block, got %s", name, tok.kind)
 			}
 
-			fieldName := tok.Value
-			p.tok.Next()
+			fieldName := tok.value
+			p.tok.next()
 
 			fieldNode := node.Get(fieldName)
 			if fieldNode == nil {
 				// Unknown field - store as value
 				p.warnings = append(p.warnings, "unknown field in "+AppendPath(name, key)+": "+fieldName)
 				// Consume until semicolon
-				for p.tok.Peek().Type != TokenSemicolon && p.tok.Peek().Type != TokenEOF {
-					p.tok.Next()
+				for p.tok.peek().kind != tokenSemicolon && p.tok.peek().kind != tokenEOF {
+					p.tok.next()
 				}
-				if p.tok.Peek().Type == TokenSemicolon {
-					p.tok.Next()
+				if p.tok.peek().kind == tokenSemicolon {
+					p.tok.next()
 				}
 				continue
 			}
@@ -256,10 +256,10 @@ func (p *Parser) parseFlexValue(tree *Tree, name string, node *FlexNode, tok Tok
 		return nil
 	}
 
-	if tok.Type != TokenSemicolon {
-		return p.errorf(tok, "expected ';' after %s value, got %s", name, tok.Type)
+	if tok.kind != tokenSemicolon {
+		return p.errorf(tok, "expected ';' after %s value, got %s", name, tok.kind)
 	}
-	p.tok.Next()
+	p.tok.next()
 
 	// Use AppendValue to support multiple inline entries (e.g., multiple mup routes)
 	tree.AppendValue(name, textbuf.Join(values, " "))
@@ -271,14 +271,14 @@ func (p *Parser) parseFlexValue(tree *Tree, name string, node *FlexNode, tok Tok
 // Block: "route 10.0.0.0/8 { next-hop 1.1.1.1; }".
 func (p *Parser) parseInlineList(tree *Tree, name string, node *InlineListNode) error {
 	// Get key
-	tok := p.tok.Peek()
+	tok := p.tok.peek()
 	var key string
-	keyLine := tok.Line
-	if tok.Type == TokenWord || tok.Type == TokenString {
-		key = tok.Value
-		p.tok.Next()
+	keyLine := tok.line
+	if tok.kind == tokenWord || tok.kind == tokenString {
+		key = tok.value
+		p.tok.next()
 	} else {
-		return p.errorf(tok, "expected key for %s, got %s", name, tok.Type)
+		return p.errorf(tok, "expected key for %s, got %s", name, tok.kind)
 	}
 
 	// Validate key type
@@ -289,30 +289,30 @@ func (p *Parser) parseInlineList(tree *Tree, name string, node *InlineListNode) 
 	entry := NewTree()
 
 	// Check for block or inline
-	tok = p.tok.Peek()
-	if tok.Type == TokenLBrace {
+	tok = p.tok.peek()
+	if tok.kind == tokenLBrace {
 		// Block mode
-		p.tok.Next()
+		p.tok.next()
 
 		for {
-			tok = p.tok.Peek()
-			if tok.Type == TokenRBrace {
-				p.tok.Next()
+			tok = p.tok.peek()
+			if tok.kind == tokenRBrace {
+				p.tok.next()
 				break
 			}
-			if tok.Type == TokenEOF {
+			if tok.kind == tokenEOF {
 				return p.errorf(tok, "unexpected EOF in %s block", name)
 			}
-			if tok.Type != TokenWord {
-				return p.errorf(tok, "expected keyword in %s block, got %s", name, tok.Type)
+			if tok.kind != tokenWord {
+				return p.errorf(tok, "expected keyword in %s block, got %s", name, tok.kind)
 			}
 
-			fieldName := tok.Value
-			p.tok.Next()
+			fieldName := tok.value
+			p.tok.next()
 
 			fieldNode := node.Get(fieldName)
 			if fieldNode == nil {
-				return p.errorf(tok, "unknown field in %s: %s (line %d)", name, fieldName, tok.Line)
+				return p.errorf(tok, "unknown field in %s: %s (line %d)", name, fieldName, tok.line)
 			}
 
 			if err := p.parseNode(entry, fieldName, fieldNode); err != nil {
@@ -322,26 +322,26 @@ func (p *Parser) parseInlineList(tree *Tree, name string, node *InlineListNode) 
 	} else {
 		// Inline mode: parse "attr value attr value ... ;"
 		for {
-			tok = p.tok.Peek()
-			if tok.Type == TokenSemicolon {
-				p.tok.Next()
+			tok = p.tok.peek()
+			if tok.kind == tokenSemicolon {
+				p.tok.next()
 				break
 			}
-			if tok.Type == TokenEOF || tok.Type == TokenRBrace {
+			if tok.kind == tokenEOF || tok.kind == tokenRBrace {
 				return p.errorf(tok, "expected ';' in inline %s", name)
 			}
-			if tok.Type != TokenWord {
-				return p.errorf(tok, "expected attribute name in inline %s, got %s", name, tok.Type)
+			if tok.kind != tokenWord {
+				return p.errorf(tok, "expected attribute name in inline %s, got %s", name, tok.kind)
 			}
 
-			attrName := tok.Value
-			p.tok.Next()
+			attrName := tok.value
+			p.tok.next()
 
 			// Get value - can be word, string, array [ ... ], parenthesized ( ... ), or flag
-			tok = p.tok.Peek()
+			tok = p.tok.peek()
 			var attrValue string
-			switch tok.Type { //nolint:exhaustive // Other types handled in final error return
-			case TokenLBracket:
+			switch tok.kind { //nolint:exhaustive // Other types handled in final error return
+			case tokenLBracket:
 				// Array value: [ item item ... ]
 				arrayVals, err := p.collectArray()
 				if err != nil {
@@ -354,7 +354,7 @@ func (p *Parser) parseInlineList(tree *Tree, name string, node *InlineListNode) 
 					}
 					attrValue += v
 				}
-			case TokenLParen:
+			case tokenLParen:
 				// Parenthesized value: ( item item ... )
 				parenVals, err := p.collectParenthesized()
 				if err != nil {
@@ -367,27 +367,27 @@ func (p *Parser) parseInlineList(tree *Tree, name string, node *InlineListNode) 
 					}
 					attrValue += v
 				}
-			case TokenWord, TokenString:
+			case tokenWord, tokenString:
 				// Check if this word is a known attribute name - if so, current attr is a flag
-				if node.Get(tok.Value) != nil {
+				if node.Get(tok.value) != nil {
 					attrValue = configTrue
 					// Don't consume - it's the next attribute name
 				} else {
-					attrValue = tok.Value
-					p.tok.Next()
+					attrValue = tok.value
+					p.tok.next()
 				}
-			case TokenSemicolon:
+			case tokenSemicolon:
 				// Flag without value - the attribute itself is the value (like "withdraw;")
 				attrValue = configTrue
 			default:
-				return p.errorf(tok, "expected value for %s.%s, got %s", name, attrName, tok.Type)
+				return p.errorf(tok, "expected value for %s.%s, got %s", name, attrName, tok.kind)
 			}
 
 			// Validate if we know this attribute (skip for arrays since values are joined)
 			if fieldNode := node.Get(attrName); fieldNode != nil {
 				if leaf, ok := fieldNode.(*LeafNode); ok {
 					// Only validate non-array simple values
-					if tok.Type != TokenLBracket {
+					if tok.kind != tokenLBracket {
 						if err := ValidateLeafValue(leaf, attrValue); err != nil {
 							return p.errorf(tok, "invalid value for %s.%s: %v", name, attrName, err)
 						}
@@ -419,7 +419,7 @@ func (p *Parser) addParsedInlineListEntry(
 			if incomingInactive || existing.IsInactive() || allowsDuplicateInlineListEntry(node, existing, entry) {
 				continue
 			}
-			return p.errorf(Token{Line: line}, "duplicate list key for %s: %s", name, key)
+			return p.errorf(token{line: line}, "duplicate list key for %s: %s", name, key)
 		}
 	}
 	tree.AddListEntry(name, key, entry)
@@ -437,21 +437,21 @@ func allowsDuplicateInlineListEntry(node *InlineListNode, existing, incoming *Tr
 
 // skipBlock skips a nested block { ... }, including nested blocks.
 func (p *Parser) skipBlock() error {
-	tok := p.tok.Peek()
-	if tok.Type != TokenLBrace {
-		return p.errorf(tok, "expected '{', got %s", tok.Type)
+	tok := p.tok.peek()
+	if tok.kind != tokenLBrace {
+		return p.errorf(tok, "expected '{', got %s", tok.kind)
 	}
-	p.tok.Next()
+	p.tok.next()
 
 	depth := 1
 	for depth > 0 {
-		tok = p.tok.Next()
-		switch tok.Type { //nolint:exhaustive // Only tracking braces and EOF
-		case TokenLBrace:
+		tok = p.tok.next()
+		switch tok.kind { //nolint:exhaustive // Only tracking braces and EOF
+		case tokenLBrace:
 			depth++
-		case TokenRBrace:
+		case tokenRBrace:
 			depth--
-		case TokenEOF:
+		case tokenEOF:
 			return p.errorf(tok, "unexpected EOF in nested block")
 		}
 	}
@@ -461,51 +461,51 @@ func (p *Parser) skipBlock() error {
 // collectArray collects array values [ item item ... ] and returns them.
 // Handles nested brackets by including them as literal text.
 func (p *Parser) collectArray() ([]string, error) {
-	tok := p.tok.Peek()
-	if tok.Type != TokenLBracket {
-		return nil, p.errorf(tok, "expected '[', got %s", tok.Type)
+	tok := p.tok.peek()
+	if tok.kind != tokenLBracket {
+		return nil, p.errorf(tok, "expected '[', got %s", tok.kind)
 	}
-	p.tok.Next() // consume [
+	p.tok.next() // consume [
 
 	var items []string
 	depth := 1
 	var nested string
 
 	for depth > 0 {
-		tok = p.tok.Peek()
-		switch tok.Type { //nolint:exhaustive // Only specific tokens handled, others pass through
-		case TokenRBracket:
+		tok = p.tok.peek()
+		switch tok.kind { //nolint:exhaustive // Only specific tokens handled, others pass through
+		case tokenRBracket:
 			depth--
 			if depth > 0 {
 				nested += "]"
 			}
-			p.tok.Next()
-		case TokenLBracket:
+			p.tok.next()
+		case tokenLBracket:
 			depth++
 			nested += "["
-			p.tok.Next()
-		case TokenWord, TokenString:
+			p.tok.next()
+		case tokenWord, tokenString:
 			if depth > 1 {
 				if nested != "" && nested[len(nested)-1] != '[' {
 					nested += " "
 				}
-				nested += tok.Value
+				nested += tok.value
 			} else {
 				if nested != "" {
 					items = append(items, nested)
 					nested = ""
 				}
-				items = append(items, tok.Value)
+				items = append(items, tok.value)
 			}
-			p.tok.Next()
-		case TokenEOF:
+			p.tok.next()
+		case tokenEOF:
 			return nil, p.errorf(tok, "unexpected EOF in array")
 		default:
 			// Include other tokens (parens, commas) in nested content
 			if depth > 1 {
-				nested += tok.Value
+				nested += tok.value
 			}
-			p.tok.Next()
+			p.tok.next()
 		}
 	}
 
@@ -519,46 +519,46 @@ func (p *Parser) collectArray() ([]string, error) {
 // collectParenthesized collects parenthesized values ( item item ... ) and returns them.
 // Handles nested content including brackets.
 func (p *Parser) collectParenthesized() ([]string, error) {
-	tok := p.tok.Peek()
-	if tok.Type != TokenLParen {
-		return nil, p.errorf(tok, "expected '(', got %s", tok.Type)
+	tok := p.tok.peek()
+	if tok.kind != tokenLParen {
+		return nil, p.errorf(tok, "expected '(', got %s", tok.kind)
 	}
-	p.tok.Next() // consume (
+	p.tok.next() // consume (
 
 	var items []string
 	depth := 1
 	var current string
 
 	for depth > 0 {
-		tok = p.tok.Peek()
-		switch tok.Type { //nolint:exhaustive // Only specific tokens handled
-		case TokenRParen:
+		tok = p.tok.peek()
+		switch tok.kind { //nolint:exhaustive // Only specific tokens handled
+		case tokenRParen:
 			depth--
 			if depth > 0 {
 				current += ")"
 			}
-			p.tok.Next()
-		case TokenLParen:
+			p.tok.next()
+		case tokenLParen:
 			depth++
 			current += "("
-			p.tok.Next()
-		case TokenLBracket:
+			p.tok.next()
+		case tokenLBracket:
 			current += "["
-			p.tok.Next()
-		case TokenRBracket:
+			p.tok.next()
+		case tokenRBracket:
 			current += "]"
-			p.tok.Next()
-		case TokenWord, TokenString:
+			p.tok.next()
+		case tokenWord, tokenString:
 			if current != "" && current[len(current)-1] != '(' && current[len(current)-1] != '[' {
 				current += " "
 			}
-			current += tok.Value
-			p.tok.Next()
-		case TokenEOF:
+			current += tok.value
+			p.tok.next()
+		case tokenEOF:
 			return nil, p.errorf(tok, "unexpected EOF in parenthesized expression")
 		default:
-			current += tok.Value
-			p.tok.Next()
+			current += tok.value
+			p.tok.next()
 		}
 	}
 

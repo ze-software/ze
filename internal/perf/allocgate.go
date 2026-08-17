@@ -76,7 +76,7 @@ type allocViolation struct {
 // build errors, ns/op-only lines) are skipped.
 func parseAllocsPerOp(text string) []allocResult {
 	// A scan that stops early drops benchmarks from this list, and a ceiling
-	// with no result becomes a Missing violation in CheckAllocCeilings below. A
+	// with no result becomes a Missing violation in checkAllocCeilings below. A
 	// partial read therefore FAILS the gate; it cannot pass one.
 	var out []allocResult
 	sc := bufio.NewScanner(strings.NewReader(text))
@@ -123,12 +123,12 @@ func stripProcSuffix(name string) string {
 	return name[:i]
 }
 
-// CheckAllocCeilings parses `go test -benchmem` output and returns the
+// checkAllocCeilings parses `go test -benchmem` output and returns the
 // violations against ceilings, in stable (sorted) order. Every registered
 // benchmark MUST appear in the output; a missing one is reported as a
 // fail-closed violation. When a benchmark appears more than once (e.g.
 // `-count=N`), the worst (highest) allocs/op sample is used.
-func CheckAllocCeilings(text string, ceilings map[string]int) []allocViolation {
+func checkAllocCeilings(text string, ceilings map[string]int) []allocViolation {
 	worst := make(map[string]int, len(ceilings))
 	seen := make(map[string]bool, len(ceilings))
 	for _, r := range parseAllocsPerOp(text) {

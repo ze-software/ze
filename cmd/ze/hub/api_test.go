@@ -8,12 +8,110 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/bcrypt"
 
+	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/api"
+	"github.com/ze-software/ze/internal/component/authz"
 	"github.com/ze-software/ze/internal/component/plugin"
 	_ "github.com/ze-software/ze/internal/component/plugin/all"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
+
+// VALIDATES: AC-6, successful API local authentication publishes the zefs
+// recovery profile before strict command authorization runs.
+// PREVENTS: buildUserAuthenticator authenticating a power user but discarding
+// AuthResult.Profiles, which leaves authz.Store unable to recognize recovery.
+func TestBuildUserAuthenticatorRecordsRecoveryProfiles(t *testing.T) {
+	const username = "api-recovery-user"
+	aaa.ForgetLoginProfilesForTest(username)
+	t.Cleanup(func() { aaa.ForgetLoginProfilesForTest(username) })
+
+	hash, err := bcrypt.GenerateFromPassword([]byte("recovery-pass"), bcrypt.MinCost)
+	require.NoError(t, err)
+	users := []authz.UserConfig{{
+		Name:     username,
+		Hash:     string(hash),
+		Profiles: []string{aaa.ReservedRecoveryProfile},
+	}}
+	authenticator := buildUserAuthenticator(users, func() ([]authz.UserConfig, error) {
+		return users, nil
+	})
+	require.NotNil(t, authenticator)
+
+	gotUser, ok := authenticator("Bearer " + username + ":recovery-pass")
+	require.True(t, ok, "the credential must authenticate before profile publication is assessed")
+	assert.Equal(t, username, gotUser)
+
+	store := authz.NewStore()
+	store.AddProfile(authz.Profile{
+		Name: "unrelated",
+		Run:  authz.Section{Default: authz.Deny},
+		Edit: authz.Section{Default: authz.Deny},
+	})
+	assert.Equal(t, authz.Allow, store.Authorize(username, "show version", true),
+		"the recorded recovery profile must cross a strict authorization store")
+}
+
+// VALIDATES: the shared API engine translates a denial from the real command
+// dispatcher into api.ErrUnauthorized for REST and gRPC status mapping.
+// PREVENTS: dispatcher RBAC returning a canonical denial response with no Go
+// error while the transport renders that response with HTTP/RPC success.
+func TestBuildAPIEngineTranslatesDispatcherAuthorizationDenial(t *testing.T) {
+	server, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, nil)
+	require.NoError(t, err)
+
+	const command = "test api denied"
+	ran := false
+	server.Dispatcher().Register(command, func(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+		ran = true
+		return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON("should not run")), nil
+	}, command)
+	authorizer := &apiStreamTestAuthorizer{allow: false}
+	server.Dispatcher().SetAuthorizer(authorizer)
+
+	engine := buildAPIEngine(server)
+	result, err := engine.Execute(t.Context(), &api.ExecuteRequest{
+		Caller: api.CallerIdentity{
+			Username:   "alice",
+			RemoteAddr: "198.51.100.10:4444",
+		},
+		Command: command,
+	})
+
+	require.ErrorIs(t, err, api.ErrUnauthorized)
+	require.NotNil(t, result)
+	assert.Equal(t, api.StatusError, result.Status)
+	assert.False(t, ran, "authorization denial must stop dispatch")
+	assert.Equal(t, "alice", authorizer.username)
+	assert.Equal(t, "198.51.100.10:4444", authorizer.remoteAddr)
+	assert.Equal(t, command, authorizer.command)
+	assert.False(t, authorizer.readOnly)
+}
+
+// VALIDATES: a canonical dispatcher denial response with a nil Go error maps
+// to api.ErrUnauthorized at the shared API boundary.
+// PREVENTS: nested dispatcher paths returning HTTP/RPC success for denied
+// commands after preserving only the response envelope.
+func TestAPIDispatchErrorTranslatesNilErrorDenialResponse(t *testing.T) {
+	const command = "show config dump"
+	denied := &plugin.Response{
+		Status: plugin.StatusError,
+		Error:  plugin.UnauthorizedMessage + ": " + command,
+	}
+
+	assert.ErrorIs(t, apiDispatchError(denied, nil, command), api.ErrUnauthorized)
+	assert.NoError(t, apiDispatchError(&plugin.Response{
+		Status: plugin.StatusDone,
+		Error:  denied.Error,
+	}, nil, command), "a successful response must not be reclassified")
+	assert.NoError(t, apiDispatchError(denied, nil, "show version"),
+		"a denial for a different command must not be reclassified")
+	assert.NoError(t, apiDispatchError(&plugin.Response{
+		Status: plugin.StatusError,
+		Error:  "unrelated failure",
+	}, nil, command), "an ordinary error response must not be reclassified")
+}
 
 // VALIDATES: API execute wiring preserves request context and remote address into dispatcher context.
 // PREVENTS: REST/gRPC metadata reaching APIEngine but being dropped before Dispatcher.Dispatch().

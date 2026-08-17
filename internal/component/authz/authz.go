@@ -249,8 +249,8 @@ func (p *Profile) Validate() error {
 	return nil
 }
 
-// BuiltinAdminProfile returns the built-in admin profile (allow all).
-func BuiltinAdminProfile() Profile {
+// builtinAdminProfile returns the built-in admin profile (allow all).
+func builtinAdminProfile() Profile {
 	return Profile{
 		Name: "admin",
 		Run:  Section{Default: Allow},
@@ -258,8 +258,8 @@ func BuiltinAdminProfile() Profile {
 	}
 }
 
-// BuiltinReadOnlyProfile returns the built-in read-only profile.
-func BuiltinReadOnlyProfile() Profile {
+// builtinReadOnlyProfile returns the built-in read-only profile.
+func builtinReadOnlyProfile() Profile {
 	return Profile{
 		Name: "read-only",
 		Run: Section{Default: Allow, Entries: []Entry{
@@ -334,8 +334,8 @@ func (s *Store) WalkEntries(fn func(profileName, section string, e Entry)) {
 	}
 }
 
-// HasUserAssignments returns true if any user-to-profile assignments exist.
-func (s *Store) HasUserAssignments() bool {
+// hasUserAssignments returns true if any user-to-profile assignments exist.
+func (s *Store) hasUserAssignments() bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return len(s.assignments) > 0
@@ -353,19 +353,22 @@ func (s *Store) HasUserAssignments() bool {
 // TACACS/RADIUS-only box has profiles but no assignments, and its authenticated
 // users must still resolve a profile or be denied.
 //
-// Two reserved identities keep the strict default from bricking or breaking a box:
+// Three reserved cases keep the strict default from bricking or breaking a box:
 //   - A trusted in-process caller, whose username bears ReservedInternalPrefix
 //     (injected at the plugin RPC boundary), is allowed so internal dispatch
 //     keeps working. Its prefix is un-typeable, so no authenticated identity can
 //     spoof it.
+//   - A shared-token or no-auth API caller whose username exactly equals
+//     ReservedSharedAPIUsername is allowed after REST or gRPC classification.
+//     The transport's read-only gate denies no-auth mutations first.
 //   - The break-glass recovery admin, whose LOGIN-RESOLVED profiles include
 //     ReservedRecoveryProfile (delivered to the `ze init` bootstrap admin, never
 //     as a config assignment), is allowed so an operator can always reach a
 //     misconfigured box.
 //
-// Every audit-worthy decision (a trusted-internal grant, a recovery grant, and
-// each deny reason) is logged so an operator can distinguish "denied by profile"
-// from "denied because no profile applied".
+// Every audit-worthy decision (a trusted-internal grant, a shared-API grant, a
+// recovery grant, and each deny reason) is logged so an operator can distinguish
+// "denied by profile" from "denied because no profile applied".
 func (s *Store) Authorize(username, command string, isReadOnly bool) Action {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -376,6 +379,15 @@ func (s *Store) Authorize(username, command string, isReadOnly bool) Action {
 	if strings.HasPrefix(username, aaa.ReservedInternalPrefix) {
 		authzLogger.Debug("authorized: trusted internal caller",
 			"identity", username, "command", command)
+		return Allow
+	}
+
+	// Shared API identity injected only after REST or gRPC has classified a
+	// validated shared-token caller or a no-auth caller. Match the complete
+	// identity rather than a prefix so no other reserved name gains this grant.
+	// No-auth mutations are rejected by the API read-only gate before this call.
+	if username == aaa.ReservedSharedAPIUsername {
+		authzLogger.Debug("authorized: shared API caller", "command", command)
 		return Allow
 	}
 
@@ -432,7 +444,8 @@ func (s *Store) Authorize(username, command string, isReadOnly bool) Action {
 	}
 	if !hasAssignment || len(profileNames) == 0 {
 		// Fail closed: authenticated but no applicable profile resolved. Was:
-		// BuiltinAdminProfile allow-all whenever no local user was assigned
+		// the built-in admin profile's allow-all default whenever no local user
+		// was assigned
 		// (hasUsers == false) -- the privilege escalation this store's existence
 		// now closes. The store existing IS the "authorization is in use" signal.
 		authzLogger.Warn("denied: no applicable profile",

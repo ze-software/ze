@@ -43,7 +43,7 @@ func v4Builder(vip netip.Addr, buf []byte) (int, bool) {
 	if !vip.Is4() {
 		return 0, false
 	}
-	return BuildGARP(buf, [6]byte{0x00, 0x00, 0x5e, 0x00, 0x01, 0x0a}, vip.As4()), true
+	return buildGARP(buf, [6]byte{0x00, 0x00, 0x5e, 0x00, 0x01, 0x0a}, vip.As4()), true
 }
 
 func TestAnnounceBurstRepeatsAndSpacing(t *testing.T) {

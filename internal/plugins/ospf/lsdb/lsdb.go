@@ -105,8 +105,8 @@ type TimerConfig struct {
 	MinLSInterval time.Duration
 }
 
-// DefaultTimers returns RFC 2328 default timer values for LSDB operations.
-func DefaultTimers() TimerConfig {
+// defaultTimers returns RFC 2328 default timer values for LSDB operations.
+func defaultTimers() TimerConfig {
 	return TimerConfig{
 		MinLSArrival:  time.Second,
 		MinLSInterval: 5 * time.Second,
@@ -129,7 +129,7 @@ func New(now func() time.Time) *LSDB {
 		areaTypes:        make(map[types.AreaID]string),
 		nssaTranslator:   make(map[types.AreaID]bool),
 		now:              now,
-		timers:           DefaultTimers(),
+		timers:           defaultTimers(),
 		retransmit:       make(map[NeighborKey]map[types.LSAKey]*retransmitEntry),
 		delayedAck:       make(map[string]map[types.LSAKey]packet.LSAHeader),
 		arrival:          make(map[types.AreaID]map[types.LSAKey]time.Time),
@@ -619,7 +619,7 @@ func snapshotEntries(store *areaDB, now time.Time, iface string, linkScope bool)
 // Snapshot is the show/API view consumed by later CLI work.
 type Snapshot struct {
 	Areas      []AreaSnapshot `json:"areas"`
-	ASExternal []LSASnapshot  `json:"as_external"`
+	ASExternal []LSASnapshot  `json:"as-external"`
 	// ASOpaque holds the AS-wide (Type 11) opaque LSAs (RFC 5250 §3.1).
 	ASOpaque []LSASnapshot  `json:"as-opaque,omitempty"`
 	Links    []LinkSnapshot `json:"links,omitempty"`
@@ -640,14 +640,14 @@ type LinkSnapshot struct {
 // LSASnapshot is the thin metadata rendered by show ospf database.
 type LSASnapshot struct {
 	Type              string `json:"type"`
-	LinkStateID       string `json:"link_state_id"`
-	AdvertisingRouter string `json:"advertising_router"`
+	LinkStateID       string `json:"link-state-id"`
+	AdvertisingRouter string `json:"advertising-router"`
 	Sequence          string `json:"sequence"`
 	Age               uint16 `json:"age"`
 	Checksum          uint16 `json:"checksum"`
 	Length            uint16 `json:"length"`
 	Interface         string `json:"interface,omitempty"`
-	LinkLocalAddress  string `json:"link_local_address,omitempty"`
+	LinkLocalAddress  string `json:"link-local-address,omitempty"`
 }
 
 func (d *LSDB) publishAllSizeMetrics() {

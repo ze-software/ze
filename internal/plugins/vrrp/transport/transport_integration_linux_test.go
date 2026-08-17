@@ -419,7 +419,7 @@ func TestIntegrationGARPOnWire(t *testing.T) {
 	tr.AnnounceMaster(key, []netip.Addr{vip})
 
 	var want [64]byte
-	n := BuildGARP(want[:], lab.vmac, vip.As4())
+	n := buildGARP(want[:], lab.vmac, vip.As4())
 	frame := captureMatch(t, lab.captureFD, func(f []byte) bool {
 		return len(f) >= n && f[12] == 0x08 && f[13] == 0x06
 	})

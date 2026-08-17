@@ -37,7 +37,7 @@ func (s *stubAccountant) CommandStop(_, _, _, command string) {
 // VALIDATES: AC-5 — Build with no backends registered returns an error.
 // PREVENTS: silent pass when the hub forgot to register any backend.
 func TestBundleComposeEmpty(t *testing.T) {
-	r := NewBackendRegistry()
+	r := NewBackendRegistryForTest()
 	_, err := r.Build(BuildParams{})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "no authentication backend")
@@ -46,7 +46,7 @@ func TestBundleComposeEmpty(t *testing.T) {
 // VALIDATES: AC-6 — single backend producing an Authenticator yields a chain of length 1.
 // PREVENTS: chain rejecting a lone backend.
 func TestBundleComposeLocalOnly(t *testing.T) {
-	r := NewBackendRegistry()
+	r := NewBackendRegistryForTest()
 	local := &fakeBackend{result: AuthResult{Authenticated: true, Source: "local"}}
 	require.NoError(t, r.Register(&stubBackend{
 		name:    "local",
@@ -67,7 +67,7 @@ func TestBundleComposeLocalOnly(t *testing.T) {
 // VALIDATES: AC-7 — chain order follows Priority (tacacs before local).
 // PREVENTS: reversed fallback (local first would swallow every auth).
 func TestBundleComposeChainOrder(t *testing.T) {
-	r := NewBackendRegistry()
+	r := NewBackendRegistryForTest()
 	tacacs := &fakeBackend{err: ErrAuthRejected, result: AuthResult{Source: "tacacs"}}
 	local := &fakeBackend{result: AuthResult{Authenticated: true, Source: "local"}}
 
@@ -94,7 +94,7 @@ func TestBundleComposeChainOrder(t *testing.T) {
 // VALIDATES: AC-8 — the first non-nil Authorizer (lowest priority) is selected.
 // PREVENTS: silently picking the wrong backend's authorizer.
 func TestBundleAuthorizerSelection(t *testing.T) {
-	r := NewBackendRegistry()
+	r := NewBackendRegistryForTest()
 	tacacsAuthz := &stubAuthorizer{allow: false}
 	localAuthz := &stubAuthorizer{allow: true}
 
@@ -120,7 +120,7 @@ func TestBundleAuthorizerSelection(t *testing.T) {
 // VALIDATES: AC-9 — the first non-nil Accountant is selected.
 // PREVENTS: two backends fighting over accounting.
 func TestBundleAccountantSelection(t *testing.T) {
-	r := NewBackendRegistry()
+	r := NewBackendRegistryForTest()
 	tacacsAcct := &stubAccountant{}
 
 	require.NoError(t, r.Register(&stubBackend{
@@ -145,7 +145,7 @@ func TestBundleAccountantSelection(t *testing.T) {
 // VALIDATES: AC-13 — Bundle.Close() fans out to every contributed Close hook.
 // PREVENTS: TacacsAccountant worker goroutine leaking on shutdown.
 func TestBundleCloseFanOut(t *testing.T) {
-	r := NewBackendRegistry()
+	r := NewBackendRegistryForTest()
 	var stopped1, stopped2 bool
 
 	require.NoError(t, r.Register(&stubBackend{
@@ -174,7 +174,7 @@ func TestBundleCloseFanOut(t *testing.T) {
 // VALIDATES: Build surfaces factory errors rather than skipping the backend silently.
 // PREVENTS: misconfigured tacacs being silently dropped, leaving only local.
 func TestBundleBuildSurfacesFactoryError(t *testing.T) {
-	r := NewBackendRegistry()
+	r := NewBackendRegistryForTest()
 	require.NoError(t, r.Register(&stubBackend{
 		name: "bad", err: errors.New("bad config"),
 	}))
@@ -188,7 +188,7 @@ func TestBundleBuildSurfacesFactoryError(t *testing.T) {
 // VALIDATES: a Backend that returns an empty Contribution is skipped, not rejected.
 // PREVENTS: hub forced to keep unused factories happy with no-op configs.
 func TestBundleEmptyContributionSkipped(t *testing.T) {
-	r := NewBackendRegistry()
+	r := NewBackendRegistryForTest()
 	require.NoError(t, r.Register(&stubBackend{
 		name: "quiet", priority: 50,
 		contrib: Contribution{}, // contributes nothing

@@ -19,18 +19,39 @@ func (f fakeAuthorizer) Authorize(_, _, _ string, isReadOnly bool) bool {
 	return f.allowEdit
 }
 
+func testAdminProfile() authz.Profile {
+	return authz.Profile{
+		Name: "admin",
+		Run:  authz.Section{Default: authz.Allow},
+		Edit: authz.Section{Default: authz.Allow},
+	}
+}
+
+func testReadOnlyProfile() authz.Profile {
+	return authz.Profile{
+		Name: "read-only",
+		Run: authz.Section{Default: authz.Allow, Entries: []authz.Entry{
+			{Number: 10, Action: authz.Deny, Match: "restart"},
+			{Number: 20, Action: authz.Deny, Match: "kill"},
+			{Number: 30, Action: authz.Deny, Match: "clear"},
+			{Number: 40, Action: authz.Deny, Match: "debug"},
+		}},
+		Edit: authz.Section{Default: authz.Deny},
+	}
+}
+
 func TestSessionStoresProfiles(t *testing.T) {
-	// VALIDATES: AC-2 -- WebSession carries the authenticated user's profiles,
-	// preserved across ValidateToken.
+	// VALIDATES: AC-2 -- webSession carries the authenticated user's profiles,
+	// preserved across validateToken.
 	store := NewSessionStore(nil)
-	session, err := store.CreateSession("alice", authz.AuthResult{Profiles: []string{"read-only"}})
+	session, err := store.createSession("alice", authz.AuthResult{Profiles: []string{"read-only"}})
 	if err != nil {
-		t.Fatalf("CreateSession: %v", err)
+		t.Fatalf("createSession: %v", err)
 	}
 	if len(session.Profiles) != 1 || session.Profiles[0] != "read-only" {
 		t.Fatalf("session profiles = %v, want [read-only]", session.Profiles)
 	}
-	got := store.ValidateToken(session.Token)
+	got := store.validateToken(session.Token)
 	if got == nil || len(got.Profiles) != 1 || got.Profiles[0] != "read-only" {
 		t.Fatalf("validated session lost profiles: %+v", got)
 	}
@@ -73,19 +94,19 @@ func TestRouteGateOpenWhenUnassigned(t *testing.T) {
 }
 
 func TestProfilesInRequestContext(t *testing.T) {
-	// VALIDATES: AC-2 -- AuthMiddleware carries session profiles into the
-	// request context for route gates and nav rendering.
+	// VALIDATES: AC-2 -- the authentication middleware carries session profiles
+	// into the request context for route gates and nav rendering.
 	store := NewSessionStore(nil)
-	session, err := store.CreateSession("carol", authz.AuthResult{Profiles: []string{"admin"}})
+	session, err := store.createSession("carol", authz.AuthResult{Profiles: []string{"admin"}})
 	if err != nil {
-		t.Fatalf("CreateSession: %v", err)
+		t.Fatalf("createSession: %v", err)
 	}
 	var gotProfiles []string
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotProfiles = getProfilesFromRequest(r)
 		w.WriteHeader(http.StatusOK)
 	})
-	handler := AuthMiddleware(store, &authz.LocalAuthenticator{}, noopRenderer, next)
+	handler := authMiddleware(store, &authz.LocalAuthenticator{}, noopRenderer, next)
 	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	req.AddCookie(&http.Cookie{Name: "ze-session", Value: session.Token})
 	rec := httptest.NewRecorder()
@@ -98,14 +119,14 @@ func TestProfilesInRequestContext(t *testing.T) {
 func TestRouteGateRealAuthzChain(t *testing.T) {
 	// VALIDATES: AC-1 end-to-end -- the gate decision flows through the REAL
 	// chain: authz.Store section routing (isReadOnly=false -> Edit section),
-	// the builtin profiles' Edit defaults (read-only: Deny; admin: Allow), and
+	// the test profiles' Edit defaults (read-only: Deny; admin: Allow), and
 	// the StoreAuthorizer adapter. Guards the rbac.go premise that the
-	// representative edit command is denied by the builtin read-only profile.
+	// representative edit command is denied by the read-only profile.
 	// PREVENTS: a stub-only test suite hiding a regression in any real link
-	// (section routing, builtin profile defaults, adapter mapping).
+	// (section routing, profile defaults, adapter mapping).
 	store := authz.NewStore()
-	store.AddProfile(authz.BuiltinReadOnlyProfile())
-	store.AddProfile(authz.BuiltinAdminProfile())
+	store.AddProfile(testReadOnlyProfile())
+	store.AddProfile(testAdminProfile())
 	store.AssignProfiles("bob", []string{"read-only"})
 	store.AssignProfiles("root", []string{"admin"})
 	authorizer := authz.StoreAuthorizer{Store: store}

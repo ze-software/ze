@@ -1,5 +1,5 @@
 // Design: ai/rules/plugins.md -- compile-out-able services (feature-gate)
-// Related: main.go -- resolves MCP listen/token/config to plain values and feeds them via ServiceDeps.MCP
+// Related: main.go -- resolves MCP listen/token/config to plain values and feeds them via serviceDeps.MCP
 //
 // MCP (Model Context Protocol) service: built through the construction registry
 // and compiled in ONLY under //go:build ze_mcp. This file (with register_mcp.go)
@@ -47,7 +47,7 @@ func (mcpService) Name() string { return "mcp" }
 // nil Service (not an error) when MCP is not configured or fails to start --
 // preserving the prior best-effort, non-fatal behavior of the inline
 // startMCPServer call in main.go.
-func buildMCPService(deps ServiceDeps) (Service, error) {
+func buildMCPService(deps serviceDeps) (Service, error) {
 	m := deps.MCP
 	if m == nil || len(m.Addrs) == 0 || m.Dispatch == nil {
 		// Not configured: a skip, not a failure.

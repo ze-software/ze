@@ -72,7 +72,7 @@ After `commit` (or `ze config set`), the persisted file contains
 only the bcrypt hash; the `plaintext-password` leaf is removed and never
 written to disk. This matches Junos's `plain-text-password` behavior.
 
-<!-- source: internal/component/ssh/yang/ze-ssh-conf.yang -- system.authentication.user -->
+<!-- source: internal/component/authz/yang/ze-authz-conf.yang -- system.authentication.user -->
 <!-- source: internal/component/config/password_hash.go -- ApplyPasswordHashing -->
 <!-- source: internal/component/cli/editor_commit.go -- commit path caller -->
 
@@ -123,7 +123,7 @@ The daemon does not restart. The 24h session TTL is a ceiling, never the
 only test. A connection already open outlives the removal until it closes.
 
 <!-- source: cmd/ze/hub/main_servers.go -- liveLocalUsers -->
-<!-- source: internal/component/web/auth.go -- SessionStore.ValidateToken -->
+<!-- source: internal/component/web/auth.go -- SessionStore.validateToken -->
 <!-- source: internal/component/ssh/pubkey.go -- authenticatePublicKey -->
 
 ## Logging in as a YANG user
@@ -185,7 +185,7 @@ listener. The guard runs before any covered listener binds:
 | Web in insecure mode | Disable insecure mode and configure users |
 | MCP | Configure a bearer token or another authenticated `auth-mode` |
 | gNMI | Configure `ze.gnmi.token` or `environment.gnmi token` |
-| REST and gRPC API | Configure an API token or initialize zefs users |
+| REST and gRPC API | Configure an API token, initialize zefs, or configure a `system.authentication.user` |
 
 Literal addresses in `127.0.0.0/8` and `::1` count as loopback. Wildcard
 addresses (`0.0.0.0`, `::`, or `:port`), empty addresses, DNS names, and even

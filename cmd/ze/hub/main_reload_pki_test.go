@@ -24,7 +24,7 @@ import (
 )
 
 // fakeTLSUpdatable records the material handed to the rotation seam. It lives
-// in an untagged file because TLSUpdatable is always-on hub code.
+// in an untagged file because tlsUpdatable is always-on hub code.
 type fakeTLSUpdatable struct {
 	certPEM []byte
 	keyPEM  []byte
@@ -150,8 +150,8 @@ func TestReloadInstallsPKIBeforePluginApply(t *testing.T) {
 	cp.SetRoot("pki", map[string]any{})
 
 	fake := &fakeTLSUpdatable{}
-	lm := &ListenerMigrator{}
-	lm.SetWebTLS(fake)
+	lm := &listenerMigrator{}
+	lm.setWebTLS(fake)
 
 	load := func() (map[string]any, *zeconfig.Tree, error) {
 		return newTree, treeFromMap(newTree), nil
@@ -179,10 +179,10 @@ func TestReloadCertificateGateSeesTheIncomingStore(t *testing.T) {
 	require.NoError(t, zepki.Load(incoming))
 
 	fake := &fakeTLSUpdatable{}
-	lm := &ListenerMigrator{}
-	lm.SetWebTLS(fake)
+	lm := &listenerMigrator{}
+	lm.setWebTLS(fake)
 
-	require.NoError(t, lm.UpdateWebCertificate("fresh-cert"))
+	require.NoError(t, lm.updateWebCertificate("fresh-cert"))
 	require.Equal(t, 1, fake.calls)
 
 	pair, err := tls.X509KeyPair(fake.certPEM, fake.keyPEM)
@@ -211,8 +211,8 @@ func TestReloadRejectsBrokenWebCertificateReference(t *testing.T) {
 	cp.SetRoot("pki", map[string]any{})
 
 	fake := &fakeTLSUpdatable{}
-	lm := &ListenerMigrator{}
-	lm.SetWebTLS(fake)
+	lm := &listenerMigrator{}
+	lm.setWebTLS(fake)
 
 	load := func() (map[string]any, *zeconfig.Tree, error) {
 		return newTree, treeFromMap(newTree), nil
