@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Run the full ze test suite inside the QEMU Linux VM.
 #
-# Invoked by `make ze-qemu-all-test` via scripts/evidence/qemu-run.py, which has
+# Invoked by `make ze-qemu-test-all` via scripts/evidence/qemu-run.py, which has
 # already: booted Alpine, 9p-mounted the repo at /workspace, loaded the ppp/l2tp/
 # nft kernel modules, and installed the Go toolchain (GOCACHE/GOMODCACHE live on
 # the 9p mount so they persist between runs).
@@ -76,7 +76,7 @@ for bin in "$ZE_BIN" "$ZE_STRIPPED_BIN" "$ZE_TEST_BIN"; do
 	resolved="$(workspace_path "$bin")"
 	if [ ! -x "$resolved" ]; then
 		echo "error: $bin missing or not executable -- cross-compile it on the host first" >&2
-		echo "       (make ze-qemu-all-test does this automatically)" >&2
+		echo "       (make ze-qemu-test-all does this automatically)" >&2
 		exit 1
 	fi
 done

@@ -238,7 +238,7 @@ was retired with the learned corpus, so they need a live design target
     apply: `//go:build integration && linux` unit tests (auto-discovered, above), and a `.ci`
     that boots a daemon exercising a kernel feature MUST carry `option=needs-linux` so it
     SKIPs on darwin and runs for real under `make ze-qemu-needs-linux-test` /
-    `make ze-qemu-all-test`.
+    `make ze-qemu-test-all`.
 - [ ] `ai/rules/architecture.md` - core/component/plugin placement by dependency direction
   → Constraint: `internal/core/` MUST NOT import `internal/component/` or `internal/plugins/`
     (`scripts/dev/dep_audit.py --check`, `make ze-tier-check`). The netns helper imports only

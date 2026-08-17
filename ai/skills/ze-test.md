@@ -58,7 +58,7 @@ happens fast enough" eventually does not.
 | Shutting down when your own assertion passed | wait for the state your PEERS assert on, then shut down |
 | `api.quiesce()` as the only barrier | quiesce drains the forward pool; it says nothing about a peer that was not yet an established target |
 | A peer that closes as soon as its script completes | `option=linger:value=true` when another peer's assertion is still in flight |
-| Closing the connection to make ze notice a dead peer | `option=silent:value=true`: a closed socket is a DIFFERENT event on a different code path (`handleConnectionClose`), so it never reaches the receive hold timer. Silent stops the peer's automatic KEEPALIVE reply while the connection stays open, which is the only way a `.ci` reaches dead-peer detection (`test/plugin/deadpeer-holddown.ci`) |
+| Closing the connection to make ze-build notice a dead peer | `option=silent:value=true`: a closed socket is a DIFFERENT event on a different code path (`handleConnectionClose`), so it never reaches the receive hold timer. Silent stops the peer's automatic KEEPALIVE reply while the connection stays open, which is the only way a `.ci` reaches dead-peer detection (`test/plugin/deadpeer-holddown.ci`) |
 
 Three barriers that already exist, in `test/scripts/ze_api.py`:
 

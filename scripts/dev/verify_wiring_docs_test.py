@@ -280,7 +280,7 @@ class TemplRoutingTest(unittest.TestCase):
     """Changed-file routing for the templ generated-output freshness gate.
 
     Wiring row: a changed .templ or *_templ.go must select
-    ze-templ-generate-check, so `make ze-precommit-verify-changed` runs the gate exactly
+    ze-templ-output-check, so `make ze-precommit-verify-changed` runs the gate exactly
     when the pair could have gone stale.
     """
 
@@ -300,19 +300,19 @@ class TemplRoutingTest(unittest.TestCase):
             "scripts/dev/templ_orphan_check.py",
         ):
             with self.subTest(path=path):
-                self.assertIn("ze-templ-generate-check", selected_targets(root, [path]))
+                self.assertIn("ze-templ-output-check", selected_targets(root, [path]))
 
     def test_an_unrelated_change_does_not_select_it(self):
         root = self._root()
         for path in ("internal/component/web/render.go", "docs/guide/docker.md"):
             with self.subTest(path=path):
                 self.assertNotIn(
-                    "ze-templ-generate-check", selected_targets(root, [path])
+                    "ze-templ-output-check", selected_targets(root, [path])
                 )
 
     def test_target_is_runnable_and_ordered(self):
-        self.assertIn("ze-templ-generate-check", MAKE_TARGETS)
-        self.assertIn("ze-templ-generate-check", TARGET_ORDER)
+        self.assertIn("ze-templ-output-check", MAKE_TARGETS)
+        self.assertIn("ze-templ-output-check", TARGET_ORDER)
 
 
 if __name__ == "__main__":

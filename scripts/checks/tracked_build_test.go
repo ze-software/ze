@@ -357,7 +357,7 @@ func TestTrackedBuildRefusesATreeWithoutFeatureGates(t *testing.T) {
 // TestTrackedBuildSelftestPasses
 //
 // VALIDATES: `--selftest` proves the vacuity guards still fire, and exits 0.
-// PREVENTS: `make ze-tracked-build-check` running a gate whose guards were
+// PREVENTS: `make ze-repository-tracked-build-check` running a gate whose guards were
 // broken; the target runs the selftest before it judges the live tree, matching
 // every other checker in this directory.
 func TestTrackedBuildSelftestPasses(t *testing.T) {
@@ -575,7 +575,7 @@ type matrixRow struct {
 
 // TestTrackedBuildPrimaryFlavorMatchesMakeZe
 //
-// VALIDATES: the `distro` row's tags are EXACTLY the literal tags `make ze`
+// VALIDATES: the `distro` row's tags are EXACTLY the literal tags `make ze-build`
 // builds bin/ze with, derived from the Makefile and compared against the gate's
 // own `--matrix` output (ai/rules/evidence.md).
 // PREVENTS: the daemon's tag set changing in the Makefile while the gate keeps

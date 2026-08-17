@@ -72,7 +72,7 @@ Corrections against the 2026-07 followup wave (see `tmp/review-followup/context.
   → Decision: the wave's stance: stub-backed `.ci` = wiring proof, real-VPP evidence = correctness proof (1097: "Real-VPP evidence is the authoritative apply-tier validation (A-6: the stub cannot run a full traffic Apply)"). This spec keeps that split and closes the CI side.
   → Constraint: 1097 gotcha: the traffic `.ci` suite is timing/stderr-capture sensitive under load; do NOT raise sleep baselines; poll the stub JSONL with deadlines instead.
 - [ ] `internal/test/cli/cmd_vpp.go`, `mk/test-functional.mk`, `mk/test-release.mk`
-  → Constraint: `ze-test vpp --all` discovers `test/vpp/*.ci` (`cmd_vpp.go`); run by `make ze-functional-vpp-test`; the vpp suite is NOT in the gating `ze-functional-test` list (`mk/test-functional.mk` "platform deps or infra") and runs in `ze-functional-extra-test` (release evidence).
+  → Constraint: `ze-test vpp --all` discovers `test/vpp/*.ci` (`cmd_vpp.go`); run by `make ze-functional-vpp-test`; the vpp suite is NOT in the gating `ze-functional-test` list (`mk/test-functional.mk` "platform deps or infra") and runs in `ze-evidence-functional-test` (release evidence).
 - [ ] `vendor/go.fd.io/govpp/adapter/statsclient/statsclient.go`
   → Constraint: stats are NOT binary-API messages: the client dials a `unixpacket` (SOCK_SEQPACKET) socket, receives ONE fd via SCM_RIGHTS, fstats + mmaps it read-only, and reads a versioned (1 or 2) stat segment. Emulation = seqpacket listener + memfd with a v1/v2-conformant segment.
 - [ ] `vendor/go.fd.io/govpp/core/connection.go`, `internal/component/vpp/conn.go`, `internal/component/vpp/vpp.go`
@@ -211,7 +211,7 @@ Beyond requests, two non-request surfaces are unemulated:
 
 - The drivers embedded in each `test/vpp/*.ci` locate `test/scripts/vpp_stub.py` via the repo root and spawn it per-test with `--socket <tmp>/api.sock --log <tmp>/vpp-requests.jsonl --deadline N -v`.
 - `ze-test vpp` (registered `internal/test/cli/register.go`, implemented `cmd_vpp.go`) discovers `test/vpp/*.ci`; `make ze-functional-vpp-test` = `bin/ze-test vpp --all` (`mk/test-functional.mk`).
-- The vpp suite is non-gating: absent from the `ze-functional-test` suite list (`mk/test-functional.mk`), present in `ze-functional-extra-test` (`mk/test-release.mk`).
+- The vpp suite is non-gating: absent from the `ze-functional-test` suite list (`mk/test-functional.mk`), present in `ze-evidence-functional-test` (`mk/test-release.mk`).
 
 **Behavior to preserve:**
 - All existing behaviour of the listed files; this backlog work only adds the missing pieces named in the Task work items.

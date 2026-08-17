@@ -86,7 +86,7 @@ split.
 | Change | File |
 |--------|------|
 | `ai/rules/<rule>.md` rendered by `make ze-rules-render-update` | `Makefile`, `mk/` |
-| Added to the regen set and its freshness gate | `ze-generated-files-update`, `ze-generated-files-update-check` |
+| Added to the regen set and its freshness gate | `ze-generated-files-update`, `ze-generated-files-reconcile` |
 | An edit to a rendered rule is refused and names the point file | `c_generated_files` in `.claude/hooks/pretool-writeedit.py` |
 | The sync-direction row | `ai/rules/repo-maintenance.md`, "Canonical Sources and Sync Direction" |
 

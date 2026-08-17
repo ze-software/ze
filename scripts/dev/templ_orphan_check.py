@@ -2,9 +2,9 @@
 """Report a .templ outside internal/, and a *_templ.go with no .templ source.
 
 Run by `make ze-templ-orphan-check`, a prerequisite of
-`make ze-templ-generate-check`.
+`make ze-templ-output-check`.
 
-THIS IS THE ONLY THING THAT SEES AN ORPHAN. `ze-templ-generate-check` passes
+THIS IS THE ONLY THING THAT SEES AN ORPHAN. `ze-templ-output-check` passes
 -keep-orphaned-files, so `FSEventHandler.HandleEvent`
 (vendor/github.com/a-h/templ/cmd/templ/generatecmd/eventhandler.go) returns an
 empty result on an orphan before any writer is consulted. That flag is what

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Unit tests for templ_orphan_check.py, the only sight of an orphan ze has.
 
-`make ze-templ-generate-check` passes -keep-orphaned-files, so templ neither
+`make ze-templ-output-check` passes -keep-orphaned-files, so templ neither
 deletes nor reports a *_templ.go whose .templ source is gone. This script is
 what reports it, and a stale generated file passes every other gate.
 

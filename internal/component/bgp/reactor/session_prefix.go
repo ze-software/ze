@@ -511,7 +511,7 @@ type prefixSetChange struct {
 //
 // A family stops taking new prefixes the moment its set passes its maximum, so
 // one over-limit message can grow a set to maximum+1 and no further. Without
-// that bound a peer could make ze build a set the size of its message before ze
+// that bound a peer could make ze-build build a set the size of its message before ze
 // threw it away, and a Go map does not return its buckets when its entries go.
 // The count this reports is therefore maximum+1: the size at which the family
 // crossed its bound, not the size the whole message would have reached.

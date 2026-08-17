@@ -31,7 +31,7 @@ holds for `ze-rsvpte-test` and `ze-install-test`. The other 21 names in the
 
 The cost is not only the dead hint. To run one of those suites the operator must
 reproduce what `ZE_ALT_BUILD` does by hand. The runner needs three binaries, and
-their build tags differ from the tags `make ze` uses. That was paid once already:
+their build tags differ from the tags `make ze-build` uses. That was paid once already:
 verifying two `.ci` changes in the install suite needed a hand-built binary set
 before the suite would run.
 

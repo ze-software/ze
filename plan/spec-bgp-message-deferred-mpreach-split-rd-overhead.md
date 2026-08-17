@@ -195,7 +195,7 @@ given. That gap is what makes the test discriminate.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| N-A, not applicable: no `.ci` can reach this path today | `test/` | A `.ci` would have to make ze re-split a SAFI 128 UPDATE, which needs an ingress UPDATE larger than the destination's ceiling. The bulk injector that builds such an UPDATE, `option=update:value=send-bulk` (`internal/test/peer/expect.go`), emits IPv4 unicast prefixes only, and the announce rail's builders never hand the splitter an UPDATE above the peer's own maximum. Extending the injector to MP and VPN NLRI is test infrastructure, not this fix; it is recorded under Known Limitations. `TestSplitUpdate_VPNChunksFitMaxMessageSize` drives the same entry point the daemon calls, `Splitter.Split`, with the same 4096-octet ceiling | |
+| N-A, not applicable: no `.ci` can reach this path today | `test/` | A `.ci` would have to make ze-build re-split a SAFI 128 UPDATE, which needs an ingress UPDATE larger than the destination's ceiling. The bulk injector that builds such an UPDATE, `option=update:value=send-bulk` (`internal/test/peer/expect.go`), emits IPv4 unicast prefixes only, and the announce rail's builders never hand the splitter an UPDATE above the peer's own maximum. Extending the injector to MP and VPN NLRI is test infrastructure, not this fix; it is recorded under Known Limitations. `TestSplitUpdate_VPNChunksFitMaxMessageSize` drives the same entry point the daemon calls, `Splitter.Split`, with the same 4096-octet ceiling | |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -265,7 +265,7 @@ given. That gap is what makes the test discriminate.
 4. **Phase: Land it** -- gates, commit, stop
    - Tests: `make ze-unit-pkg-test PKG=./internal/component/bgp/message`, then `make ze-lint-changed`
    - Files: the two files above, plus this spec and the deferral shard row
-   - Verify: prepare the commit with `scripts/dev/commit_helper.py create`, run the script it prints, then `make ze-tracked-build-check` because the commit carries Go. Set this spec's Status to `verification` in the same commit and STOP: `Handoff | verify` gives the close to a later Opus 5 session
+   - Verify: prepare the commit with `scripts/dev/commit_helper.py create`, run the script it prints, then `make ze-repository-tracked-build-check` because the commit carries Go. Set this spec's Status to `verification` in the same commit and STOP: `Handoff | verify` gives the close to a later Opus 5 session
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |

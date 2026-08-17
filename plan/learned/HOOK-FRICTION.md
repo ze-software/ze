@@ -779,7 +779,7 @@ it emitted the awaited line immediately). All of them were innocent.
 The mechanism: the functional suites are NOT meant to be launched by running the
 runner binary. `mk/test-functional.mk` builds ISOLATED, BARE-NAMED binaries
 into `$(ZE_ALT_BIN)` -- and the daemon it builds carries the `zetest` build tag
-(`ze_core ze_distro ze_setup zetest ...`), which the ordinary `make ze` daemon
+(`ze_core ze_distro ze_setup zetest ...`), which the ordinary `make ze-build` daemon
 does not. `:145` then runs the suite as
 `env ZE_TEST_NO_BUILD=1 ZE_BIN=$(ZE_ALT_BIN)/ze ZE_TEST_BIN=$(ZE_ALT_BIN)/ze-test
 $(ZE_ALT_BIN)/ze-test ...`. Launched directly, the runner instead rebuilds a ze
@@ -1659,7 +1659,7 @@ captured their in-flight `file:line` positions.
 
 Committing it would have swept their work into a commit titled as a BGP fix.
 Omitting it left the ledger stale, which reds four `ze-precommit-verify` stages at once
-(`ze-rfc-check`, `ze-doc-verify`, `ze-wiring-docs-check` and `ze-unit-test-cached`,
+(`ze-rfc-check`, `ze-doc-verify`, `ze-doc-wiring-check` and `ze-unit-test-cached`,
 all one cause).
 
 **How it resolved, which is the interesting part.** The other session committed

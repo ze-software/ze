@@ -91,7 +91,7 @@ for verification and usage.
 
 Agents should use the existing inventory and verification surfaces before
 inventing new ones: `make ze-inventory`, `make ze-command-list`,
-`make ze-doc-verify`, `make ze-doc-index-update`, and `make ze-wiring-docs-check`.
+`make ze-doc-verify`, `make ze-doc-index-update`, and `make ze-doc-wiring-check`.
 
 Commit preparation uses `scripts/dev/commit_helper.py`: agents pass the vetted
 subject, body, and explicit file list, and the helper creates the session ID,

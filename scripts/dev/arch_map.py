@@ -13,7 +13,7 @@ Replaces the text between marker pairs:
 for <name> in: components, system-plugins, bgp-plugins.
 
 Usage: scripts/dev/arch_map.py [--check]
-Called by: make ze-arch-map-update, make ze-generated-files-update / ze-generated-files-update-check
+Called by: make ze-arch-map-update, make ze-generated-files-update / ze-generated-files-reconcile
 Exit codes: 0 = ok, 1 = --check found drift or a marker is missing.
 """
 

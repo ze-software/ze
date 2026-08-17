@@ -30,7 +30,7 @@ This produces `ze:<YY.MM.DD>` and `ze:latest`. Override the image name or tag:
 make ze-docker-build ZE_DOCKER_IMAGE=myregistry/ze ZE_DOCKER_TAG=v1
 ```
 
-Both recipes derive their build tags from `feature-gates.txt`, the same list `make ze` uses, so the container runs the feature set the shipped binary runs. `ZE_TAGS` adds tags on top of that list. It does not replace it:
+Both recipes derive their build tags from `feature-gates.txt`, the same list `make ze-build` uses, so the container runs the feature set the shipped binary runs. `ZE_TAGS` adds tags on top of that list. It does not replace it:
 
 ```bash
 make ze-docker-build ZE_TAGS=maprib

@@ -13,7 +13,7 @@
 .PHONY: ze-unit-test ze-unit-installer-test ze-unit-test-coverage ze-unit-test-cached ze-unit-test-race-changed
 .PHONY: ze-unit-bgp-test ze-unit-core-test ze-unit-plugins-test ze-unit-config-test ze-unit-cli-test ze-unit-rest-test ze-unit-pkg-test
 
-ze-unit-test ze-unit-test-coverage ze-unit-test-cached ze-unit-test-race-changed ze-unit-rest-test ze-unit-pkg-test: ze-links-ensure
+ze-unit-test ze-unit-test-coverage ze-unit-test-cached ze-unit-test-race-changed ze-unit-rest-test ze-unit-pkg-test: ze-scratch-links-ensure
 
 # Component groups for scoped testing (ze-test-<group>).
 # "rest" = everything in ZE_PACKAGES not covered by a named group.

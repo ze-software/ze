@@ -86,7 +86,7 @@ Each finding should include:
 - [ ] `mk/test-functional.mk` - gated functional test suites
   -> Decision: `ze-functional-test` gates 12 suites, while extra suites remain release evidence only
 - [ ] `mk/test-release.mk` - full release evidence matrix
-  -> Decision: release inventory must include evidence categories from `ze-release-evidence-verify`
+  -> Decision: release inventory must include evidence categories from `ze-evidence-release-verify`
 
 **Key insights:**
 - Ze has several registration layers, but no single source covers all user-visible surfaces.
@@ -106,7 +106,7 @@ Each finding should include:
 - [ ] `internal/component/ike/engine/register.go` - registers plugin name `ike`; current aggregate test did not fail on `ike`, likely because another imported command path pulls it in indirectly
 - [ ] `internal/component/plugin/server/rpc_register.go` - `RegisterRPCs` appends online command handlers for later wiring
 - [ ] `mk/test-functional.mk` - `ze-functional-test` runs encode, plugin, parse, decode, reload, ui, editor, managed, l2tp, firewall, policy, web
-- [ ] `mk/test-release.mk` - `ze-release-evidence-verify` composes verify, chaos, fuzz, interop, ipsec-interop, l2tp-interop, functional-extra, perf, qemu, vpp-deployment, live
+- [ ] `mk/test-release.mk` - `ze-evidence-release-verify` composes verify, chaos, fuzz, interop, ipsec-interop, l2tp-interop, functional-extra, perf, qemu, vpp-deployment, live
 
 **Behavior to preserve:**
 - `make ze-precommit-verify` remains fast and stays distinct from heavyweight release evidence.
@@ -179,7 +179,7 @@ Inventory data enters from code and tests:
 |---------|--------|----------|-------------|------------------|
 | `ze` | `cmd/ze/` | `make ze-precommit-verify`, `test/ui`, `test/plugin`, `test/web`, `test/install` | config/CLI, web/API, plugins | Inventory started |
 | `ze-test` | `cmd/ze-test/` | all functional and evidence targets | surface inventory, test evidence | Inventory started |
-| `ze-perf` | `cmd/ze-perf/` | `make ze-perf-evidence-update-check`, `test/perf` | resilience/security, release evidence | Inventory started |
+| `ze-perf` | `cmd/ze-perf/` | `make ze-evidence-perf-record`, `test/perf` | resilience/security, release evidence | Inventory started |
 | `ze-analyse` | `cmd/ze-analyse/` | unit/tests to be verified | docs/onboarding or protocol | Needs child audit row |
 | `ze-chaos` | `cmd/ze-chaos/` | `make ze-chaos-test`, `test/chaos-web` | resilience/security | Inventory started |
 
@@ -368,7 +368,7 @@ Despite the template heading, these are audit documentation steps only. They do 
 2. **Phase: Online command inventory** - diff YANG `ze:command` and API RPC methods against `pluginserver.RegisterRPCs` registrations.
 3. **Phase: Plugin and schema inventory** - diff aggregate imports, registry names, expected plugin tests, config roots, and YANG modules.
 4. **Phase: Network route inventory** - enumerate web, LG, REST, gRPC, MCP, SSH routes/listeners and map tests.
-5. **Phase: Evidence inventory** - map every `test/` directory to `ze-test`, Make targets, `ze-precommit-verify`, `ze-release-evidence-verify`, or explicit non-release disposition.
+5. **Phase: Evidence inventory** - map every `test/` directory to `ze-test`, Make targets, `ze-precommit-verify`, `ze-evidence-release-verify`, or explicit non-release disposition.
 6. **Phase: Finding triage** - classify findings and route to child audits.
 
 ### Critical Review Checklist

@@ -47,7 +47,7 @@ Two QEMU entry points run these tests, both **one VM for all of them** (never
 one VM per test):
 
 - `make ze-qemu-needs-linux-test` -- the tight loop. Sets `ZE_QEMU_LINUX_ONLY=1`, which flips the runner to skip every test that is NOT `needs-linux`, so the VM spends its whole boot only on the Linux-only surface. You MAY use this while iterating on a Linux-only feature.
-- `make ze-qemu-all-test` -- the full pass. Runs every functional suite in the VM, so `needs-linux` tests are exercised alongside everything else.
+- `make ze-qemu-test-all` -- the full pass. Runs every functional suite in the VM, so `needs-linux` tests are exercised alongside everything else.
 
 No per-test wiring is needed for either: the suites are the same as the native
 runner, so the QEMU pass discovers `needs-linux` tests automatically.
@@ -268,7 +268,7 @@ reaching for it, so a lab that gains nothing does not gain a precondition.
 `make ze-kernel-build` routes through the durable architecture- and config-keyed cache
 under `~/.cache/ze`, so it materializes on a cache hit and builds only on a miss
 or after a config fragment changes. The two functional targets
-(`ze-qemu-all-test`, `ze-qemu-needs-linux-test`) use `--kernel` unconditionally.
+(`ze-qemu-test-all`, `ze-qemu-needs-linux-test`) use `--kernel` unconditionally.
 
 ## What the QEMU VM Provides
 
@@ -343,8 +343,8 @@ Woodpecker instance could not.
 | `ze-qemu-ldp-frr-test`, `ze-qemu-isis-frr-test`, `ze-qemu-vrrp-keepalived-test` (stock-kernel protocol labs) | `.github/workflows/qemu-nightly.yml`, job `protocol-labs`, scheduled | advisory |
 | `ze-qemu-l2tp-ppp-test`, `ze-qemu-pppoe-accel-test`, `ze-qemu-pppoe-test`, `ze-qemu-traffic-usage-test` (runtime-kernel labs) | `.github/workflows/qemu-nightly.yml`, job `runtime-kernel-labs`, scheduled | advisory |
 | `ze-interop-test`, `ze-interop-ipsec-test` (Docker interop trees) | `.github/workflows/evidence-nightly.yml`, scheduled | advisory |
-| `ze-qemu-integration-test` (Go `integration && linux` packages) | `make ze-release-evidence-verify` only, by hand | -- |
-| `ze-qemu-all-test` (full suite in the VM) | nothing; `manualQemuTargets` records why | -- |
+| `ze-qemu-integration-test` (Go `integration && linux` packages) | `make ze-evidence-release-verify` only, by hand | -- |
+| `ze-qemu-test-all` (full suite in the VM) | nothing; `manualQemuTargets` records why | -- |
 
 Two notes on the nightly row:
 
@@ -363,7 +363,7 @@ the job simply runs under `sudo` as root, which has those capabilities natively.
 It is advisory-first (`continue-on-error: true`): a red suite reports without
 marking the run failed, until a green baseline lets it flip to blocking.
 
-**`ze-qemu-integration-test` is NOT automated:** its only caller is `make ze-release-evidence-verify` (`mk/test-release.mk`), which a person runs before a release. Its own cost keeps it out. You MUST NOT assume CI catches a broken Go `integration && linux` package for you.
+**`ze-qemu-integration-test` is NOT automated:** its only caller is `make ze-evidence-release-verify` (`mk/test-release.mk`), which a person runs before a release. Its own cost keeps it out. You MUST NOT assume CI catches a broken Go `integration && linux` package for you.
 
 **Every `ze-qemu-*-test` and `ze-*-interop-test` target MUST have a caller that runs on its own**: a workflow job, a script, or another make target. A `.PHONY` line, a `make help` entry, and a paragraph in `docs/` are mentions, not callers. `TestQemuAndInteropTargetsHaveACaller` (`scripts/dev/github_workflows_test.go`) derives the targets from `mk/*.mk` and the callers from actual invocation. **A target that is deliberately manual MUST be listed in that test's `manualQemuTargets` with the reason no pipeline runs it**. "Expensive" describes every target in the class and is not a reason.
 

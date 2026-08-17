@@ -55,7 +55,7 @@ SUITE_RUN = timeout --kill-after=$(ZE_SUITE_KILL_AFTER) $(ZE_SUITE_TIMEOUT)
 # frozen against it (ZE_TEST_NO_BUILD=1). This keeps testing and development on
 # separate binaries:
 #   - the legacy path had each $(ZEBIN_TEST) invocation recompile ze + ze-test
-#     from the working tree (internal/test/runner Build), so `make ze` or an
+#     from the working tree (internal/test/runner Build), so `make ze-build` or an
 #     edit made while a suite ran clobbered the dev $(ZEBIN_ZE), and half-edited
 #     source leaked into later suites;
 #   - now each target builds the set at the start of its recipe and

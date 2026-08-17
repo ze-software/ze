@@ -25,20 +25,23 @@ The family and scope come first, then the subject, then the action. For
 example, `ze-unit-bgp-test`, `ze-functional-plugin-test`, and
 `ze-qemu-install-iso-test` identify progressively more specific test families
 before saying that they run tests. Modes follow the action
-(`ze-unit-test-cached`, `ze-precommit-verify-changed`), and output formats come
-last (`ze-inventory-json`).
+(`ze-unit-test-cached`, `ze-fuzz-test-one`, `ze-qemu-test-all`), and output
+formats come last (`ze-inventory-json`).
 
 Action words describe the contract: `check` is a read-only verdict, `verify` is
 a composite policy gate, `report` is advisory output, `update` rewrites tracked
-state, `sync` copies canonical state, and `build` produces an artifact. Build
-targets do not reuse binary basenames: `ze-appliance-build` produces
-`bin/ze-appliance`, and `ze-test-build` produces `bin/ze-test`.
+state, `reconcile` rewrites generated state before checking whether it was
+current, `record` appends durable evidence, `sync` copies canonical state, and
+`build` produces an artifact. Build targets include the action rather than
+reusing a bare binary basename: `ze-build` produces `bin/ze`,
+`ze-appliance-build` produces `bin/ze-appliance`, and `ze-test-build` produces
+`bin/ze-test`.
 
 The conventional unprefixed entry points (`build`, `check`, `clean`, `fmt`,
 `generate`, `help`, `test`, `tidy`, and `vet`) remain short. Retired names have
 no compatibility aliases, so scripts and documentation must use the current
-spelling shown by `make help`, `make help-test`, `make help-deploy`, and
-`make help-dev`.
+spelling. `make help`, `make help-test`, `make help-deploy`, and `make help-dev`
+show the common entry points, not an exhaustive target inventory.
 
 ## The escalation ladder
 
@@ -225,7 +228,7 @@ three cases into one table lowers a count exactly as deleting a check does. The
 COMMIT still needs a row for it, and that row is where you say which of the two
 happened.
 
-`make ze-weakened-check` runs the checker over the file and is a stage of
+`make ze-test-weakened-check` runs the checker over the file and is a stage of
 `ze-precommit-verify` in both modes. The rule is `ai/rules/testing.md`, and the design is
 `docs/architecture/testing/test-health.md`.
 
@@ -263,13 +266,13 @@ make ze-staticcheck-feature-matrix-check
 ```
 
 The matrix checks package and test variants in the working tree.
-`ze-tracked-build-check` remains the committed-tree final-link check for shipped
+`ze-repository-tracked-build-check` remains the committed-tree final-link check for shipped
 build flavors.
 
 ### The one stage that does not read your working tree
 
 Every stage above compiles and runs the files on your disk, uncommitted ones
-included. `ze-tracked-build-check` (`scripts/checks/tracked_build.go`) is the
+included. `ze-repository-tracked-build-check` (`scripts/checks/tracked_build.go`) is the
 exception: it extracts the commit with `git archive` and compiles the extracted
 tree, so it sees only what git holds.
 
@@ -278,8 +281,8 @@ producer uncommitted. The build is green on your disk and red for everybody who
 clones. Run it after the commit script when the commit carried Go:
 
 ```sh
-make ze-tracked-build-check              # HEAD
-make ze-tracked-build-check REV=7abe8a07e  # any commit
+make ze-repository-tracked-build-check              # HEAD
+make ze-repository-tracked-build-check REV=7abe8a07e  # any commit
 ```
 
 It builds six flavors over `./...`: `ze_core ze_distro`, `ze_test` and
@@ -341,15 +344,15 @@ fuzz corpus entry becomes a regression test automatically.
 | Type-check every supported direct feature omission | `make ze-staticcheck-feature-matrix-check` |
 | See all test targets | `make help-test` |
 | List functional tests | `bin/ze-test bgp encode --list` |
-| Run fuzz for one target | `make ze-fuzz-one-test FUZZ=FuzzName PKG=./path/... TIME=30s` |
+| Run fuzz for one target | `make ze-fuzz-test-one FUZZ=FuzzName PKG=./path/... TIME=30s` |
 | Check test coverage | `make ze-unit-test-coverage` then open `coverage.html` |
 | Mutation test changed files | `make ze-mutation-test-changed` |
 | Mutation test one package | `make ze-mutation-pkg-test PKG=./internal/core/textbuf/` |
 | Debug a verify failure | `grep FAIL tmp/ze-verify.log` |
-| Check the commit I just made compiles | `make ze-tracked-build-check` |
+| Check the commit I just made compiles | `make ze-repository-tracked-build-check` |
 | Prove a web or looking-glass template renders the same bytes | `make ze-web-golden-check` |
 | Prove a web or looking-glass ROUTE answers the same bytes | `make ze-web-golden-check` (the handler capture runs in the same target) |
 | Prove an HTML builder that no template holds renders the same bytes | `make ze-web-golden-check` (the markup capture runs in the same target) |
 | Recapture those bytes after a deliberate markup change | `make ze-web-golden-update`, then read the diff |
 | Prove a rendering-engine port changed no page | `make ze-templ-port-check REF=<sha>`. It compares every fixture against the bytes it held at REF, under `golden.AssertPortFidelity`. Whitespace layout, doctype case, the attribute delimiter and the character-reference spelling fold. Nothing else does. Run it BEFORE you recapture. After a recapture, `ze-web-golden-check` compares the port against itself |
-| Check that every `*_templ.go` matches its `.templ` source | `make ze-templ-generate-check`, and `make generate` to bring it back in step. Both walk `internal/` only. Run neither templ command by hand, and switch off an editor's on-save templ integration. A bare `templ generate` walks from the repo root. It writes that root into every generated file, and it reds the gate |
+| Check that every `*_templ.go` matches its `.templ` source | `make ze-templ-output-check`, and `make generate` to bring it back in step. Both walk `internal/` only. Run neither templ command by hand, and switch off an editor's on-save templ integration. A bare `templ generate` walks from the repo root. It writes that root into every generated file, and it reds the gate |

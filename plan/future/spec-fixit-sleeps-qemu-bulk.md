@@ -119,7 +119,7 @@ Gate taxonomy across ALL files containing sleeps (blind = raw minus bounded poll
 | Group | Gate | Reachable by | Raw | Blind |
 |-------|------|--------------|-----|-------|
 | A | `option=needs-linux` | `make ze-qemu-needs-linux-test` | 14 | **9** |
-| B | `option=skip-os:value=darwin` only | NOT that target (filtered at `record_parse.go`); needs `ze-qemu-all-test` | 31 | **12** |
+| B | `option=skip-os:value=darwin` only | NOT that target (filtered at `record_parse.go`); needs `ze-qemu-test-all` | 31 | **12** |
 | C | no OS gate | the darwin host directly | 81 | **54** |
 
 Group A files (raw/blind): `install/dhcp-zero-listener.ci` 1/1, `install/tftp-zero-listener.ci` 1/1,
@@ -144,11 +144,11 @@ Per-directory raw vs blind (the brief's numbers are the raw column):
 
 **The three corrections that matter for scope:**
 1. Only 9 blind sleeps are actually reachable by `make ze-qemu-needs-linux-test`. The brief's implied scope (~56 raw across those dirs) is roughly 6x the target-reachable blind population.
-2. The policy/firewall/ospf/pppoe bulk (group B, 12 blind) is linux-only but NOT run by the needs-linux target. Verifying it needs `make ze-qemu-all-test`, or those tests need `option=needs-linux` added. Unresolved fork, see Open Questions.
+2. The policy/firewall/ospf/pppoe bulk (group B, 12 blind) is linux-only but NOT run by the needs-linux target. Verifying it needs `make ze-qemu-test-all`, or those tests need `option=needs-linux` added. Unresolved fork, see Open Questions.
 3. flow-export (4 blind), reload (1 blind), `install/image-resolve-failure.ci` (1 blind) and the 12 ungated traffic vpp-stub sleeps have NO OS gate, so they are host-runnable on darwin and do not belong in a QEMU-gated spec by its own criterion. Either they are misfiled here, or they are missing a gate they should have.
 
-→ AUTONOMOUS DEFAULT (2026-07-17) [scope]: This spec is scoped to **groups A + B** — the needs-linux + skip-os:darwin linux-only blind sleeps (A = 9 blind, reachable by `make ze-qemu-needs-linux-test`; B = 12 blind, reachable only by `make ze-qemu-all-test`; measured taxonomy verified 2026-07-17: group A raw 14, group B raw 31, tree total 132 -- baseline now 125, 2026-07-22; re-derive the taxonomy at Phase 2). **Group C** (54 blind, ungated, host-runnable on darwin) is OUT OF SCOPE and recorded as a noted follow-up (see Future + Open Questions → Resolutions). Rationale: smaller, self-contained scope per the readiness decision protocol — a QEMU-gated spec should own only the sleeps its QEMU criterion can verify; the ungated group C is host-verifiable and belongs to a host-runnable (or gate-audit) spec that decides per file whether each C test is misfiled or missing a gate. Thomas: override if wrong.
-→ AUTONOMOUS DEFAULT (2026-07-17) [scope]: Group B verification fork (correction 2) resolves in favour of `make ze-qemu-all-test` as the DEFAULT branch (it already runs the skip-os:darwin group; zero committed change). Adding `option=needs-linux` to the 15 group B files — which would pull the 12 blind into the fast `ze-qemu-needs-linux-test` loop — is the more-reversible alternative, recorded as an OPTIONAL follow-up (a test-metadata change with its own review), adopted only if full-suite turnaround proves impractical during implement. Rationale: the smaller self-contained default mutates zero committed metadata; both branches remain valid "done" states under AC-8. Thomas: override if wrong.
+→ AUTONOMOUS DEFAULT (2026-07-17) [scope]: This spec is scoped to **groups A + B** — the needs-linux + skip-os:darwin linux-only blind sleeps (A = 9 blind, reachable by `make ze-qemu-needs-linux-test`; B = 12 blind, reachable only by `make ze-qemu-test-all`; measured taxonomy verified 2026-07-17: group A raw 14, group B raw 31, tree total 132 -- baseline now 125, 2026-07-22; re-derive the taxonomy at Phase 2). **Group C** (54 blind, ungated, host-runnable on darwin) is OUT OF SCOPE and recorded as a noted follow-up (see Future + Open Questions → Resolutions). Rationale: smaller, self-contained scope per the readiness decision protocol — a QEMU-gated spec should own only the sleeps its QEMU criterion can verify; the ungated group C is host-verifiable and belongs to a host-runnable (or gate-audit) spec that decides per file whether each C test is misfiled or missing a gate. Thomas: override if wrong.
+→ AUTONOMOUS DEFAULT (2026-07-17) [scope]: Group B verification fork (correction 2) resolves in favour of `make ze-qemu-test-all` as the DEFAULT branch (it already runs the skip-os:darwin group; zero committed change). Adding `option=needs-linux` to the 15 group B files — which would pull the 12 blind into the fast `ze-qemu-needs-linux-test` loop — is the more-reversible alternative, recorded as an OPTIONAL follow-up (a test-metadata change with its own review), adopted only if full-suite turnaround proves impractical during implement. Rationale: the smaller self-contained default mutates zero committed metadata; both branches remain valid "done" states under AC-8. Thomas: override if wrong.
 
 **UNVERIFIED:**
 - That the ORIGINAL (unconverted) tests currently pass under QEMU. Not run: this host does not run QEMU, and this skeleton ran no tests. The confirm-original step is AC-1 precisely because it is unverified.
@@ -210,7 +210,7 @@ Per-directory raw vs blind (the brief's numbers are the raw column):
 | AC-5 | A sleep annotated "bounded wait not a blind sleep" | Left unchanged; it is already deterministic |
 | AC-6 | A deliberate timer (traffic/012, traffic/026: the 5s vpp `WaitConnected` timeout IS the behavior under test) | Kept, justifying comment intact, `check_ci_sleep_justification` green |
 | AC-7 | Any commit that removes sleeps | `test/.ci-sleep-baseline` lowered by exactly the number removed, in the SAME change (the baseline stood at 132 when written; now 125, 2026-07-22) |
-| AC-8 | The group B (skip-os-darwin) tests in scope | Either verified via a target that actually runs them (`ze-qemu-all-test`), or given `option=needs-linux` so `ze-qemu-needs-linux-test` reaches them, with the choice recorded. Never claimed verified by a target that skipped them |
+| AC-8 | The group B (skip-os-darwin) tests in scope | Either verified via a target that actually runs them (`ze-qemu-test-all`), or given `option=needs-linux` so `ze-qemu-needs-linux-test` reaches them, with the choice recorded. Never claimed verified by a target that skipped them |
 | AC-9 | Full suite after all conversions | `make ze-qemu-needs-linux-test` green, no test converted-but-unverified, no regression in the affected suites |
 
 ## Risks & Assumptions
@@ -314,7 +314,7 @@ assertions. Unit tests apply only if research adds runner/production infrastruct
 3. **ZE_READY_FILE shape (A-2).** Investigate why a backgrounded ze gets no marker. If fixable once at the runner, that converts the whole shape in one move.
 4. **tc/nft readback shape.** Convert the boot-apply holds to kernel readback polls; QEMU-verify each.
 5. **Reload shape (A-3).** Resolve whether a reload-completion signal exists; convert or hand to `spec-fixit-reject-fence-observability`.
-6. **Group B decision (AC-8).** Either regate to `option=needs-linux` or verify via `ze-qemu-all-test`; then convert.
+6. **Group B decision (AC-8).** Either regate to `option=needs-linux` or verify via `ze-qemu-test-all`; then convert.
 7. **Final ratchet + full QEMU pass (AC-9).**
 
 ### Critical Review Checklist (/implement stage 6)
@@ -352,7 +352,7 @@ assertions. Unit tests apply only if research adds runner/production infrastruct
 ## Open Questions (research before design)
 
 - Do the originals pass under QEMU today (A-1)? This gates everything and must be the first action.
-- Group B fork: run them via `make ze-qemu-all-test`, or add `option=needs-linux` to bring them into the fast loop? The second is a test-metadata change with its own review, but it makes 12 blind sleeps verifiable in the tight target. Which is intended?
+- Group B fork: run them via `make ze-qemu-test-all`, or add `option=needs-linux` to bring them into the fast loop? The second is a test-metadata change with its own review, but it makes 12 blind sleeps verifiable in the tight target. Which is intended?
 - Group C (flow-export 4, reload 1, `install/image-resolve-failure` 1, traffic vpp-stub 12): misfiled into a QEMU spec, or missing an OS gate they should have? If genuinely host-runnable, do they belong here at all, given the umbrella says no clean host-verifiable blind sleeps remain?
 - Why does a backgrounded ze get no ZE_READY_FILE marker (A-2)? Is that a runner limitation fixable once, converting the whole ZE_READY_FILE shape (5+ traffic tests) in one move rather than per test?
 - Is there a reload-completion signal for the SIGHUP shape (A-3), or does it need the same production observability as `spec-fixit-reject-fence-observability`? If the latter, should the reload shape move to that spec?
@@ -367,7 +367,7 @@ Every open question above is resolved for readiness. Empirical confirmations tha
 | # | Question | Resolution | Stakes |
 |---|----------|-----------|--------|
 | 1 | Originals pass under QEMU today (A-1)? | Cannot run on this host; settled as AC-1, the first implement action. Failure routing already routes an AC-1 red to "fix/quarantine first, do not convert a red test". Not a readiness blocker — it is the first implement step, not a design gap. | low |
-| 2 | Group B fork: `ze-qemu-all-test` vs add `option=needs-linux`? | Group B is IN SCOPE. Default branch = `make ze-qemu-all-test` (zero committed change). Regating to `option=needs-linux` is an optional follow-up with its own review. Both are valid AC-8 "done" states. | scope |
+| 2 | Group B fork: `ze-qemu-test-all` vs add `option=needs-linux`? | Group B is IN SCOPE. Default branch = `make ze-qemu-test-all` (zero committed change). Regating to `option=needs-linux` is an optional follow-up with its own review. Both are valid AC-8 "done" states. | scope |
 | 3 | Group C: misfiled or missing a gate? | OUT OF SCOPE for this spec (host-runnable, not QEMU-gated). The misfiled-vs-missing-gate call is handed to a follow-up host-runnable/gate-audit spec. | scope |
 | 4 | Why no ZE_READY_FILE marker for backgrounded ze (A-2)? Runner-level one-move fix? | Implement-time research (Phase 3). Design-settled: if not fixable once at the runner, AC-2 falls back to a wait on the already-asserted OnConfigure log line (A-5 requires asserting the kernel readback too where possible). Fallback stated → not design-open. | arch |
 | 5 | Reload-completion signal for SIGHUP (A-3)? | Implement-time research (Phase 5). Design-settled: if no signal exists, the reload shape hands to `plan/spec-fixit-reject-fence-observability.md` (Failure Routing) or is recorded infra-gated (AC-3). Fallback stated → not design-open. | arch | <!-- doc-links: ignore (spec closed and removed) -->

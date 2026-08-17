@@ -8,7 +8,7 @@ here as `NN-<slug>.md`, `NN` being the highest existing number plus one.
 directories, so when the last handover is closed the directory disappears from
 the tree, and every reference to `plan/handover/` in `ai/rules/planning.md` and
 `ai/rules/CONDENSED.md` becomes a broken path -- `make ze-doc-links-check` (inside
-`ze-wiring-docs-check`, a deterministic structural gate) then fails, and
+`ze-doc-wiring-check`, a deterministic structural gate) then fails, and
 `scripts/dev/commit_helper.py` refuses every commit in the repo until it is
 fixed. That is what happened on 2026-07-27 after the 11 open handovers were
 closed: 6 broken references, all to a directory whose absence was deliberate.

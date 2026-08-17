@@ -797,7 +797,7 @@ Environment deps (skip-env tagged): show-policy-routes, wireguard-invalid.
 
 **Resolved 2026-06-10.** Namespace-aware subscribe + event polling.
 
-### 2026-06-11 -- `make ze-wiring-docs-check` command validation drift
+### 2026-06-11 -- `make ze-doc-wiring-check` command validation drift
 
 **Resolved 2026-06-11.** Wiring, doc, and inventory gates all green.
 

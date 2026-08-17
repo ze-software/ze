@@ -1,7 +1,7 @@
 # Inventory, spec status, doc validation, and consistency tools
 #
 # Quick reference:
-#   make ze-wiring-docs-check  Changed-file-aware wiring/doc/inventory gate
+#   make ze-doc-wiring-check  Changed-file-aware wiring/doc/inventory gate
 #   make ze-doc-verify             All doc checks (drift + anchors + YANG/handler)
 #   make ze-ste-review           ASD-STE100 findings, with file:line and the fix
 #   make ze-ste-check            ASD-STE100 gate: no habit grew vs HEAD
@@ -13,7 +13,7 @@
 .PHONY: ze-spec-status ze-spec-status-json ze-spec-citation-check
 .PHONY: ze-inventory ze-inventory-json ze-command-list ze-command-list-json
 .PHONY: ze-command-contract-check ze-command-contract-check-json ze-command-ownership-check ze-command-ownership-check-json ze-cli-grammar-check ze-cli-grammar-check-json ze-config-claims-check ze-config-claims-check-json ze-doc-drift-check ze-doc-verify ze-doc-index-update ze-doc-index-check ze-rules-index-update ze-rules-index-check ze-rules-condensed-update ze-rules-condensed-check ze-rules-points-roundtrip-check ze-rules-render-update ze-rules-render-check ze-rules-gate-map-report ze-rules-payload-report ze-rules-router-report ze-rules-router-report-json ze-rules-lint ze-token-economy-report ze-discovery-index-update ze-discovery-index-check ze-digest-check ze-consistency-check
-.PHONY: ze-wiring-docs-check ze-wiki-update ze-wiki-commands-update ze-journal-report
+.PHONY: ze-doc-wiring-check ze-wiki-update ze-wiki-commands-update ze-journal-report
 .PHONY: ze-ste-check ze-ste-review ze-ste-review-changed ze-ste-review-json
 
 ze-spec-status:
@@ -89,7 +89,7 @@ ze-config-claims-check-json:
 	@$(GO_RUN) scripts/checks/config_claims.go --json
 
 
-ze-wiring-docs-check:
+ze-doc-wiring-check:
 	@python3 scripts/dev/verify_wiring_docs.py --make "$(MAKE)"
 
 ze-doc-verify:

@@ -243,7 +243,7 @@ Boundaries Crossed section further below.)
 
 ### Evidence Path
 
-1. Protected default-branch `release-build.yml` calls `release-evidence.yml` only through local reusable `workflow_call`, passing required channel, release identity, candidate ref/SHA, caller workflow path/digest/run ID/attempt, and required-set version. `release-evidence.yml` has no PR, push, schedule, or manual trigger; it rejects a non-protected caller/ref or candidate-controlled workflow revision, checks out only the passed candidate as test input, and runs `make ze-release-evidence-verify` on the dedicated reset runner.
+1. Protected default-branch `release-build.yml` calls `release-evidence.yml` only through local reusable `workflow_call`, passing required channel, release identity, candidate ref/SHA, caller workflow path/digest/run ID/attempt, and required-set version. `release-evidence.yml` has no PR, push, schedule, or manual trigger; it rejects a non-protected caller/ref or candidate-controlled workflow revision, checks out only the passed candidate as test input, and runs `make ze-evidence-release-verify` on the dedicated reset runner.
 2. Stable mandatory category IDs are exactly: `verify`, `chaos`, `fuzz`, `interop`, `ipsec-interop`, `l2tp-interop`, `pppoe-interop`, `functional-extra`, `perf`, `qemu`, `vpp-deployment`, `live`, `release-policy`, `release-repro`, `package-deb-amd64`, `package-deb-arm64`, `package-rpm-amd64`, `package-rpm-arm64`, `package-vm-deb`, `package-vm-rpm`, and `repository-tamper`. None may be skipped.
 3. Stable evidence also includes `mutation` as its only advisory category. It must execute and record either pass or advisory-fail; it may not be skipped and cannot substitute for a mandatory category.
 4. Nightly mandatory and allowed IDs are exactly: `verify`, `release-policy`, `release-repro`, `package-deb-amd64`, `package-deb-arm64`, `package-rpm-amd64`, `package-rpm-arm64`, `package-vm-deb`, `package-vm-rpm`, and `repository-tamper`; mutation is not a nightly category. VM categories use the nightly smoke profile, while stable uses full lifecycle.
@@ -1402,7 +1402,7 @@ Not applicable. This spec does not add or change a network protocol.
 - [ ] `spec-release-audit-0-umbrella.md` and blocking child findings are complete.
 - [ ] `/ze-review-spec` and final `/ze-review` are clean.
 - [ ] `make ze-precommit-verify` and `make ze-lint-changed` pass.
-- [ ] `make ze-release-evidence-verify` passes with no mandatory skip on the exact stable SHA.
+- [ ] `make ze-evidence-release-verify` passes with no mandatory skip on the exact stable SHA.
 - [ ] Package container and booted QEMU VM matrices pass for required distro/architecture/policy cases.
 - [ ] Staging stable/nightly/attestation-race/failure/freshness/storage/key-rotation/retention/monitoring/restore exercises pass.
 - [ ] Infrastructure preflight, dependency closure, raw/API-policy denials, five-bucket/three-domain prefix locks and brokered credentials, clock/monitor thresholds, input/final/final-attestation/refresh archive inventory, and clean-room restore pass.

@@ -28,7 +28,7 @@ Commit" -> pre-existing failures >10 min): logged, not blocking unrelated commit
 **Scope: TEST reds whose MECHANISM you could not determine.** Deterministic
 structural gates (`ze-lint`, `ze-lint-changed`, `ze-tier-check`, `ze-evidence-vet`,
 `ze-plugin-boundary-check`, `ze-iface-resolution-check`, `ze-generated-files-check`,
-`ze-wiring-docs-check`) are NEVER logged here -- a red means the tree is
+`ze-doc-wiring-check`) are NEVER logged here -- a red means the tree is
 structurally broken; fix it at the source. `scripts/dev/commit_helper.py` enforces
 this by refusing `--unverified` while a structural gate is red (see
 `ai/rules/git-safety.md` "Structural Gates Are Never Known-Red").

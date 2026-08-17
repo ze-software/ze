@@ -524,7 +524,7 @@ All groups run with `-race`. Use the group matching your change during iteration
 |--------|---------|
 | `make ze-precommit-verify` | Pre-commit gate: lint, changed-file wiring/doc/inventory, vet evidence, Linux/amd64 SCA (`govulncheck`), two-pass unit, functional, and ExaBGP |
 | `make ze-precommit-verify-changed` | Changed-package lint/test plus wiring/doc/inventory, Linux/amd64 SCA (`govulncheck`), functional, and ExaBGP |
-| `make ze-wiring-docs-check` | Changed-file-aware wiring, documentation, command, and inventory gate |
+| `make ze-doc-wiring-check` | Changed-file-aware wiring, documentation, command, and inventory gate |
 | `make ze-unit-test` | All unit tests with `-race` under default-on feature tags, plus bare `ze_core` compile-out checks (~5 min) |
 | `make ze-functional-test` | All 13 functional test suites |
 | `make ze-lint` | 26 linters |
@@ -539,7 +539,7 @@ All groups run with `-race`. Use the group matching your change during iteration
 | `make ze-mutation-test-changed` | Incremental mutation testing on changed files only (advisory, fast) |
 | `make ze-mutation-report` | Mutation testing with HTML report to `tmp/mutation-report.html` |
 | `make ze-test-sensitivity-check` | Assert-nothing and tag-orphan ratchets (in `ze-precommit-verify`, both modes) |
-| `make ze-weakened-check` | Selftests `scripts/dev/check_weakened_tests.py`, then checks that `test/weakened.md` parses (in `ze-precommit-verify`, both modes) |
+| `make ze-test-weakened-check` | Selftests `scripts/dev/check_weakened_tests.py`, then checks that `test/weakened.md` parses (in `ze-precommit-verify`, both modes) |
 | `make ze-test-health-update` | Regenerate `docs/features/test-health.md` + `test/health/latest.json` |
 | `make ze-test-health-record` | Append one KPI sample to `test/health/history.ndjson` |
 
@@ -627,7 +627,7 @@ problem to fix before merging, not a deferral to log.
 1. **Lint** (full or changed-only depending on target)
 2. **Cached full pass** (`go test` without `-race`): Go caches results by source hash.
    The pass uses `ze_core` plus the default-on feature tags from `feature-gates.txt`,
-   matching the shipped `make ze` feature set. It also runs the bare `ze_core`
+   matching the shipped `make ze-build` feature set. It also runs the bare `ze_core`
    hub compile-out checks so absent-feature tests still execute.
    When nothing changed, this completes in under 1 second. Catches logic regressions
    across the entire codebase.
@@ -713,7 +713,7 @@ and `getLogEnv` (`internal/core/slogutil/slogutil.go`) splits the subsystem on
 the WARN default -- with no error, which is why it has recurred three times. A
 hyphen in the key is legitimate ONLY when that exact subsystem is declared
 literally in Go (`slogutil.LazyLogger("bgp.filter.aspath-length")`). Enforced by
-`check_ci_log_subsystem_keys` in `make ze-wiring-docs-check`.
+`check_ci_log_subsystem_keys` in `make ze-doc-wiring-check`.
 
 **Escalation ladder:** direct test -> file/feature test -> single package -> component group -> whole suite or `ze-precommit-verify`. If any rung fails, MUST fix from that evidence and rerun the failed rung or a narrower failing test, not a wider suite.
 
@@ -736,7 +736,7 @@ confirmation. The combined log is `tmp/ze-verify.log`, and automation can read
 go test -race ./internal/component/bgp/message/... -v  # Single package
 go test -race ./... -run TestName -v          # Single test
 go test -race -cover ./...                    # Coverage
-make ze-fuzz-one-test FUZZ=FuzzName TIME=30s       # Single fuzz target
+make ze-fuzz-test-one FUZZ=FuzzName TIME=30s       # Single fuzz target
 ```
 
 ## Timing Baseline
@@ -789,7 +789,7 @@ other, but not from a sibling session: put it under your session's own directory
 gives the `scratch/` subdirectory of `tmp/session/<YYYY-MM-DD>-<session-id>/`, so scratch
 never collides with a sibling session (`ai/rules/commands.md`). Nothing removes it for you:
 the date in the directory name is what lets the operator find it later, with
-`make ze-sessions-clean BEFORE=<YYYY-MM-DD>`. A fixed name at
+`make ze-session-clean BEFORE=<YYYY-MM-DD>`. A fixed name at
 the `tmp/` ROOT is the failure this replaces: `tmp/` is keyed per checkout, so
 `tmp/out.log` names the same file for every session in it.
 A file at that root is refused: `check_scratch_path`
@@ -1030,7 +1030,7 @@ Detection hook: `c_observer_sys_exit` in `.claude/hooks/pretool-writeedit.py`
 
 **Sleep ratchet (BLOCKING):** the total `time.sleep(` count across
 `test/**/*.ci` MUST NOT increase. The committed baseline lives in
-`test/.ci-sleep-baseline`; `make ze-wiring-docs-check` fails when the count
+`test/.ci-sleep-baseline`; `make ze-doc-wiring-check` fails when the count
 exceeds it. Use `ze_api` `wait_for_event` / `wait_for_shutdown` / `wait_until` /
 `dispatch_until` (the payload-predicate waits, below) instead of sleeps (sleeps
 hide real races). When your change removes sleeps, lower the baseline in the same
@@ -1077,7 +1077,7 @@ error). No em dashes in the comment text.
 ### Enforcement
 
 - **Blocking gate:** `check_ci_sleep_justification` in
-  `scripts/dev/verify_wiring_docs.py`, run by `make ze-wiring-docs-check` (and the
+  `scripts/dev/verify_wiring_docs.py`, run by `make ze-doc-wiring-check` (and the
   inventory make gate). Scoped to CHANGED `.ci` files: a session MUST justify
   the sleeps in the tests it touches. Fails (exit 1) listing every unjustified
   `file:line`.

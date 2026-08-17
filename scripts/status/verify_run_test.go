@@ -76,12 +76,12 @@ func TestVerifyRunProducesStageAndGroupSummaries(t *testing.T) {
 	stages := []stage{
 		{Name: "ze-unit-test-cached", Rerun: "make ze-unit-test-cached"},
 		{Name: "ze-functional-test", Rerun: "make ze-functional-test"},
-		{Name: "ze-wiring-docs-check", Rerun: "make ze-wiring-docs-check"},
+		{Name: "ze-doc-wiring-check", Rerun: "make ze-doc-wiring-check"},
 	}
 	outputs := map[string]string{
 		"ze-unit-test-cached":  readFixture(t, "go-test-mixed.log"),
 		"ze-functional-test":   readFixture(t, "functional-groups.log"),
-		"ze-wiring-docs-check": readFixture(t, "wiring-failure.log"),
+		"ze-doc-wiring-check": readFixture(t, "wiring-failure.log"),
 	}
 	code, err := runVerify(context.Background(), verifyConfig{
 		Root:   root,
@@ -131,13 +131,13 @@ func TestVerifyRunMixedFailureFixture(t *testing.T) {
 	stages := []stage{
 		{Name: "ze-unit-test-cached", Rerun: "make ze-unit-test-cached"},
 		{Name: "ze-functional-test", Rerun: "make ze-functional-test"},
-		{Name: "ze-wiring-docs-check", Rerun: "make ze-wiring-docs-check"},
+		{Name: "ze-doc-wiring-check", Rerun: "make ze-doc-wiring-check"},
 		{Name: "ze-functional-exabgp-test", Rerun: "make ze-functional-exabgp-test"},
 	}
 	outputs := map[string]string{
 		"ze-unit-test-cached":       readFixture(t, "go-test-mixed.log"),
 		"ze-functional-test":        readFixture(t, "functional-groups.log"),
-		"ze-wiring-docs-check":      readFixture(t, "wiring-failure.log"),
+		"ze-doc-wiring-check":      readFixture(t, "wiring-failure.log"),
 		"ze-functional-exabgp-test": readFixture(t, "exabgp-summary.log"),
 	}
 
@@ -304,7 +304,7 @@ func TestVetFailuresGroupByPackage(t *testing.T) {
 
 func TestWiringDocFailuresGroupBySubcheck(t *testing.T) {
 	text := "Running ze-doc-verify...\noutput\nze-doc-verify failed\n"
-	groups := classifyWiringDocs(stage{Name: "ze-wiring-docs-check"}, "tmp/verify/wiring.log", text)
+	groups := classifyWiringDocs(stage{Name: "ze-doc-wiring-check"}, "tmp/verify/wiring.log", text)
 	if len(groups) != 1 {
 		t.Fatalf("expected one group, got %+v", groups)
 	}
@@ -494,11 +494,11 @@ var goldenStagesZeVerify = []string{
 	"ze-port-defaults-check",
 	"ze-config-claims-check",
 	"ze-test-sensitivity-check",
-	"ze-weakened-check",
+	"ze-test-weakened-check",
 	"ze-staticcheck-feature-matrix-check",
-	"ze-tracked-build-check",
+	"ze-repository-tracked-build-check",
 	"ze-platform-vet",
-	"ze-wiring-docs-check",
+	"ze-doc-wiring-check",
 	"ze-doc-verify",
 	"ze-doc-links-check",
 	"ze-repository-tree-check",
@@ -527,11 +527,11 @@ var goldenStagesZeVerifyChanged = []string{
 	"ze-port-defaults-check",
 	"ze-config-claims-check",
 	"ze-test-sensitivity-check",
-	"ze-weakened-check",
+	"ze-test-weakened-check",
 	"ze-staticcheck-feature-matrix-check",
-	"ze-tracked-build-check",
+	"ze-repository-tracked-build-check",
 	"ze-platform-vet",
-	"ze-wiring-docs-check",
+	"ze-doc-wiring-check",
 	"ze-doc-verify",
 	"ze-doc-links-check",
 	"ze-repository-tree-check",
@@ -600,7 +600,7 @@ func TestVerifyStagesIncludeStaticcheckFeatureMatrix(t *testing.T) {
 						t.Fatalf("%s lists ze-staticcheck-feature-matrix-check more than once", mode)
 					}
 					matrixIndex = i
-				case "ze-tracked-build-check":
+				case "ze-repository-tracked-build-check":
 					trackedBuildIndex = i
 				}
 			}
@@ -608,7 +608,7 @@ func TestVerifyStagesIncludeStaticcheckFeatureMatrix(t *testing.T) {
 				t.Fatalf("%s does not include ze-staticcheck-feature-matrix-check", mode)
 			}
 			if trackedBuildIndex <= matrixIndex {
-				t.Fatalf("%s must retain ze-tracked-build-check after the matrix gate", mode)
+				t.Fatalf("%s must retain ze-repository-tracked-build-check after the matrix gate", mode)
 			}
 		})
 	}
@@ -699,7 +699,7 @@ func TestStagesForModeBranchesAgree(t *testing.T) {
 // VALIDATES: the write-safe, read-only regen check runs under `make ze-precommit-verify`
 // and `make ze-precommit-verify-changed` (AC-4).
 // PREVENTS: a stale generated file reaching a commit unnoticed because the only
-// gate that detected it -- `ze-generated-files-update-check` -- runs nowhere. Scoped honestly:
+// gate that detected it -- `ze-generated-files-reconcile` -- runs nowhere. Scoped honestly:
 // this is NEW coverage for the ai/* discovery indexes, feature_tags' outputs
 // (.golangci.yml, gokrazy/ze/config.json, docs/guide/quickstart.md) and
 // mk/test-fuzz-targets.mk. It is REDUNDANT (a second, uncached path) for
@@ -707,7 +707,7 @@ func TestStagesForModeBranchesAgree(t *testing.T) {
 // TestVerifyWiringDocsChecksPluginImports already covered. CLAUDE.md/AGENTS.md
 // and the skill mirrors are NOT covered here at all -- see the two documented
 // exclusions above the target in the Makefile.
-// PREVENTS: the MUTATING `ze-generated-files-update-check` being wired instead: it depends on
+// PREVENTS: the MUTATING `ze-generated-files-reconcile` being wired instead: it depends on
 // `ze-generated-files-update`, which rewrites generated files before diffing them, so verify
 // would leave a dirty working tree (spec R-1).
 func TestStagesForModeIncludesRegenCheck(t *testing.T) {
@@ -719,8 +719,8 @@ func TestStagesForModeIncludesRegenCheck(t *testing.T) {
 		if !names["ze-generated-files-check"] {
 			t.Errorf("stagesForMode(%q) missing ze-generated-files-check; generated-file staleness would go unguarded", mode)
 		}
-		if names["ze-generated-files-update-check"] {
-			t.Errorf("stagesForMode(%q) wires the MUTATING ze-generated-files-update-check; it runs ze-generated-files-update and would leave verify with a dirty tree", mode)
+		if names["ze-generated-files-reconcile"] {
+			t.Errorf("stagesForMode(%q) wires the MUTATING ze-generated-files-reconcile; it runs ze-generated-files-update and would leave verify with a dirty tree", mode)
 		}
 	}
 }
@@ -894,7 +894,7 @@ var regenCheckPrereqs = map[string]string{
 	"ze-plugin-imports-check":  "plugin_imports.go -> internal/component/plugin/all/all.go",
 	"ze-yang-glue-check":       "yang_glue.go -> yang/*/register.go, embed.go",
 	"ze-feature-tags-check":    "feature_tags.go -> .golangci.yml, gokrazy/ze/config.json, docs/guide/quickstart.md",
-	"ze-templ-generate-check":  "templ generate -> internal/**/*_templ.go",
+	"ze-templ-output-check":  "templ generate -> internal/**/*_templ.go",
 	"ze-fuzz-targets-check":    "fuzz-targets.py -> mk/test-fuzz-targets.mk",
 	"ze-vendor-web-check":      "sync_web.go -> the vendored asset copy in each internal/**/assets/",
 	"ze-web-assets-check":      "web_assets.go -> the per-page asset set in each internal/**/page_assets.go",
@@ -921,7 +921,7 @@ var generatorChecks = map[string]string{
 	"scripts/codegen/yang_glue.go":      "ze-yang-glue-check",
 	"scripts/codegen/plugin_imports.go": "ze-plugin-imports-check",
 	"scripts/codegen/feature_tags.go":   "ze-feature-tags-check",
-	"github.com/a-h/templ/cmd/templ":    "ze-templ-generate-check",
+	"github.com/a-h/templ/cmd/templ":    "ze-templ-output-check",
 	"scripts/dev/fuzz-targets.py":       "ze-fuzz-targets-check",
 	"scripts/vendor/sync_web.go":        "ze-vendor-web-check",
 	"scripts/codegen/web_assets.go":     "ze-web-assets-check",
@@ -1136,7 +1136,7 @@ var producerREs = []*regexp.Regexp{
 // `ze-generated-files-update` with no read-only check, leaving its output's staleness unguarded
 // everywhere -- the drift class this spec exists to kill, one level up from the
 // stage list; two of the four codegen scripts (feature_tags, fuzz-targets) were
-// previously guarded ONLY by the mutating ze-generated-files-update-check's `git diff`, which
+// previously guarded ONLY by the mutating ze-generated-files-reconcile's `git diff`, which
 // runs nowhere. (b) A prerequisite being quietly dropped from the target, which
 // matters most for ze-arch-map-check: unlike the other doc checks it is NOT
 // also run by ze-doc-verify, so deleting it would leave ai/INSTRUCTIONS.md's
@@ -1214,9 +1214,9 @@ func TestRegenCheckReadonlyCoversGenerators(t *testing.T) {
 }
 
 // templCallerTargets are the make targets allowed to run the templ CLI. The
-// write path (generate) and the read-only path (ze-templ-generate-check) hold
+// write path (generate) and the read-only path (ze-templ-output-check) hold
 // different obligations, so a third caller must be judged here before it runs.
-var templCallerTargets = []string{"generate", "ze-templ-generate-check"}
+var templCallerTargets = []string{"generate", "ze-templ-output-check"}
 
 // makeRuleHead matches a rule head at column 0 and captures its prerequisites.
 // The negative lookahead-free `[^=]` on the tail is what keeps `FOO := bar` and
@@ -1227,7 +1227,7 @@ var makeRuleHead = regexp.MustCompile(`^([A-Za-z0-9_./%-]+):(?:([^=].*)?)$`)
 // check-mode gate run over a working tree.
 //
 // VALIDATES: every `templ generate -check` recipe line also passes
-// -keep-orphaned-files, and ze-templ-generate-check keeps the
+// -keep-orphaned-files, and ze-templ-output-check keeps the
 // ze-templ-orphan-check prerequisite that runs
 // scripts/dev/templ_orphan_check.py.
 // PREVENTS: two opposite failures from one flag. Without it templ DELETES an
@@ -1284,8 +1284,8 @@ func TestTemplCheckIsReadOnlyAndReportsOrphans(t *testing.T) {
 		}
 	}
 
-	if !slices.Contains(strings.Fields(prereqs["ze-templ-generate-check"]), detector) {
-		t.Errorf("ze-templ-generate-check lost the %q prerequisite (its prerequisites are %q); with -keep-orphaned-files templ reports no orphan, so nothing would", detector, strings.TrimSpace(prereqs["ze-templ-generate-check"]))
+	if !slices.Contains(strings.Fields(prereqs["ze-templ-output-check"]), detector) {
+		t.Errorf("ze-templ-output-check lost the %q prerequisite (its prerequisites are %q); with -keep-orphaned-files templ reports no orphan, so nothing would", detector, strings.TrimSpace(prereqs["ze-templ-output-check"]))
 	}
 	if _, ok := prereqs[detector]; !ok {
 		t.Fatalf("%q is not a target in the Makefile: the prerequisite above resolves to nothing and no orphan is reported", detector)

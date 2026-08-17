@@ -27,7 +27,7 @@
 # <session-dir>/etc/ze/.dev-password. tmp/ is gitignored (.gitignore, `tmp/*`),
 # so the password cannot reach a commit, and two sessions never share one.
 #
-# Idempotent on the database's own existence: a second `make ze` finds
+# Idempotent on the database's own existence: a second `make ze-build` finds
 # database.zefs and returns without reseeding and without rotating the password.
 #
 # No --force, deliberately. Its only effect is to move an EXISTING database

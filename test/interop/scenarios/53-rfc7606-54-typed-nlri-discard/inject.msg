@@ -34,7 +34,7 @@ action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF005D020000004640010
 action=send:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 
 # Hold the session open while check.py reads the speaker's verdict. A peer whose script is
-# exhausted exits, and its session dropping would make ze withdraw the relayed route before
+# exhausted exits, and its session dropping would make ze-build withdraw the relayed route before
 # the speaker sees it. Two more KEEPALIVE waits keep it up for roughly 60s.
 # Checker.check silently accepts an unmatched KEEPALIVE or EOR (internal/test/peer/checker.go).
 expect=bgp:conn=1:seq=5:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304

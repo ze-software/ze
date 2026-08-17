@@ -33,7 +33,7 @@ Rules: 7 of 28. Reasons: no past task would surface it, precedence rung 1/2, the
 | Your commit omits a shared plan file you edited | Check `git log -1 -- <file>` before assuming the edit was lost: another session probably committed it already. |
 | You see foreign rows in a shared plan file's diff | That is expected, not misconduct. Do not "clean" them out; you would revert another session's work. |
 **Explicit commit requests are a fast path.** When the user asks for a
-**One check is exempt, because it cannot run earlier: `make ze-tracked-build-check`
+**One check is exempt, because it cannot run earlier: `make ze-repository-tracked-build-check`
 **Thomas ruled on this exemption on 2026-08-04: KEEP IT.** It is settled, so you
 **Commit workflow:**
 1. You MUST use `scripts/dev/commit_helper.py session` to create or reuse the 8-char session ID stored in `tmp/commit-session-id-<claude-session>` (keyed per Claude session so concurrent sessions never share a message or script namespace).
@@ -41,7 +41,7 @@ Rules: 7 of 28. Reasons: no past task would surface it, precedence rung 1/2, the
 3. The helper writes executable scripts, uses `git commit -F <message-file>`, and rejects ignored/generated paths. It never writes over an existing script unless `--script` names it, with `--replace` or `--append`. It also **gates on verify-status**: `create` runs `verify-status.sh check` and refuses unless FRESH, or unless you pass `--unverified "<reason>"` (owner override, or a failure you tried and could not reproduce, logged in `plan/known-failures/`). This makes "verify before commit" enforced rather than honor-system.
 4. If the helper cannot express the commit shape, you MUST hand-write the same script pattern and `chmod +x` it. You MUST give it a name no other agent will pick: `tmp/commit-<SESSION>-<tag>-<random>.sh`. You MUST NOT use heredocs. You MUST use `git commit -F <file>`.
 5. You MUST NOT end an output line with `.`, `,`, `:`, or `)` directly after a path/URL/command -- users copy-paste; trailing punctuation breaks it. You MUST put path on its own line or follow with a space.
-6. You MUST run the finished script yourself with `bash` and the helper's `script=` path. **When the commit contained any `.go`, `go.mod`, `go.sum`, or `vendor/` path, you MUST run `make ze-tracked-build-check` immediately afterwards** (about 45s): it compiles what git now holds, and it is the only check that reads that population -- see "Your Working Tree Is Not What You Committed" below. You MUST then report the resulting commit SHA(s), included files, message file, script path, whether the script pushed, and verification evidence or skip reason. You MUST NOT add a late completeness or remaining-work review unless the user explicitly asked for one.
+6. You MUST run the finished script yourself with `bash` and the helper's `script=` path. **When the commit contained any `.go`, `go.mod`, `go.sum`, or `vendor/` path, you MUST run `make ze-repository-tracked-build-check` immediately afterwards** (about 45s): it compiles what git now holds, and it is the only check that reads that population -- see "Your Working Tree Is Not What You Committed" below. You MUST then report the resulting commit SHA(s), included files, message file, script path, whether the script pushed, and verification evidence or skip reason. You MUST NOT add a late completeness or remaining-work review unless the user explicitly asked for one.
 7. Before writing a commit script, you MUST read `.gitignore` and MUST NOT `git add` ignored paths. Key ignored paths: `CLAUDE.md`, `AGENTS.md`, `.claude/skills/`, `.codex/skills/`, `.agents/skills/`, `tmp/`, `/bin/`. You MUST only add canonical sources (e.g., `ai/skills/`, `ai/INSTRUCTIONS.md`).
 **The helper asks for no lesson artifact, and it MUST NOT be made to (owner directive, 2026-08-10).** A lesson is applied by UPDATING the surface that governs behaviour, never by saving a summary beside the commit. Route it: a recurring trap to a rule under `ai/rules/`, a design decision to `docs/architecture/`, a subsystem's data flow to `ai/digests/`, a protocol obligation to `rfc/short/`. The journal row survives for its own reason, which is counting how often a PROBLEM class recurs (`ai/rules/planning.md`, "Writing Journal Rows").
 **`git rm` safety:** before using `git rm` in a commit script, you MUST verify
@@ -74,12 +74,12 @@ BLOCKING only when the commit could plausibly affect build, tests, or generated 
 The pre-commit checklist's "write its spec, finish this commit, ask" branch, and its `plan/known-failures/` shard, are for **non-deterministic** failures only.
 **The general escape is owner-only: `--structural-red-ok "<reason>"`** (the
 ### Your Working Tree Is Not What You Committed (BLOCKING)
-**Nothing else in this repository COMPILES what git holds.** `make ze`,
+**Nothing else in this repository COMPILES what git holds.** `make ze-build`,
 `ze-precommit-verify`, `ze-lint-changed`, `ze-rfc-check` and every test target build and run your WORKING TREE, uncommitted and untracked files included.
 | Situation | Do |
 |-----------|-----|
 | You are about to `--file` a consumer | Name the file that DEFINES every symbol it newly uses, and check that file is in the same `--file` list or already committed (`git log -1 -- <path>`) |
-| The commit script has just run and it carried Go | Run `make ze-tracked-build-check`. About 45s. This is step 7 of the commit workflow, not an optional extra |
+| The commit script has just run and it carried Go | Run `make ze-repository-tracked-build-check`. About 45s. This is step 7 of the commit workflow, not an optional extra |
 | It goes red | Commit the producer. Never revert the consumer, and never park it: HEAD is broken for everyone until you do |
 **What it does NOT read: test files.** `go build` MUST NOT compile `_test.go`, so a
 ### Thomas Owner Override: Commit Without Verify
@@ -139,12 +139,12 @@ time, when the work is finished and you are about to prepare the commit script.*
 | A `.ci` or `.et` test | its suite target: `make ze-functional-plugin-test`, `ze-functional-parse-test`, `ze-functional-encode-test`, `ze-functional-editor-test`, `ze-functional-web-test`. Draft first in `test/draft/` |
 | Linux-only code (`//go:build linux`) | `make ze-qemu-integration-test`, or `make ze-qemu-needs-linux-test` for a `needs-linux` `.ci` (`ai/rules/platform-linux.md`) |
 | `rfc/short/*.md`, an `RFC requirement:` tag, `rfc/extraction/*` | `make ze-rfc-check` |
-| `docs/**`, `ai/**`, `plan/**` | `make ze-doc-verify`, and `make ze-wiring-docs-check` for the changed-file gates |
+| `docs/**`, `ai/**`, `plan/**` | `make ze-doc-verify`, and `make ze-doc-wiring-check` for the changed-file gates |
 | `ai/rules/*.md` | `make ze-rules-condensed-update` then `make ze-rules-lint`, and commit all three digests with the rule |
 | A `*.yang` file or a `ze:command` | `make ze-doc-verify`, `make ze-cli-grammar-check` |
 | A plugin `register.go`, or anything generated | `make generate`, `make ze-plugin-imports-check` |
 | A new package's placement | `make ze-tier-check` |
-| Anything, once the commit script has run and it carried Go | `make ze-tracked-build-check` -- the only check that compiles what git holds |
+| Anything, once the commit script has run and it carried Go | `make ze-repository-tracked-build-check` -- the only check that compiles what git holds |
 | A `scripts/dev/*.py` tool | its sibling `*_test.py` directly (python needs no build cache), then `make ze-unit-pkg-test PKG=./scripts/dev` |
 | Several of the above, and you want breadth | `make ze-precommit-verify-changed` |
 **A change to what the daemon PUTS ON THE WIRE, installs, or shows MUST run the

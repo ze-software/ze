@@ -56,7 +56,7 @@
 
 The QEMU functional targets boot the stock Alpine virt kernel (6.12.13-0-virt), which
 is older than the kernel ze actually targets and cannot survive ze's own firewall
-tests: `make ze-qemu-all-test` SKIPS the `firewall` suite by default because it
+tests: `make ze-qemu-test-all` SKIPS the `firewall` suite by default because it
 "crashes the Alpine QEMU kernel on nft set-element-timeout operations". Run the QEMU
 targets on the in-tree runtime kernel (7.1.1) instead, then stop skipping firewall.
 
@@ -164,7 +164,7 @@ need to find a way to run a 7.+ kernel."
       is FALSE: neither target has ever run a firewall test in the VM. That is why
       nobody has seen the crash from that target.
       -> Constraint: dropping `firewall` from the skip lists therefore changes
-      `ze-qemu-all-test` ONLY. Getting firewall into the needs-linux loop is a
+      `ze-qemu-test-all` ONLY. Getting firewall into the needs-linux loop is a
       SEPARATE change: 21 `.ci` files must move from `skip-os:value=darwin` to
       `option=needs-linux`, which `ai/rules/platform-linux.md` already mandates
       ("Do NOT use `skip-os:value=darwin` as a substitute for `needs-linux`"). The
@@ -196,7 +196,7 @@ need to find a way to run a 7.+ kernel."
       kernel=None)` appends `-kernel <path>` only when a kernel is supplied.
 - [ ] `mk/test-integration.mk` lines 220 and 239 - `ZE_QEMU_SKIP_SUITES ?=
       web,firewall`, passed into `qemu-all-tests.sh`. No `--kernel`, so
-      `ze-qemu-all-test` boots stock Alpine.
+      `ze-qemu-test-all` boots stock Alpine.
 - [ ] `mk/test-integration.mk` line 261 - `ze-qemu-needs-linux-test` hardcodes
       `ZE_QEMU_SKIP_SUITES="web"` so it DOES run firewall, also with no `--kernel`.
       The two targets therefore disagree about whether firewall is safe on stock.
@@ -208,7 +208,7 @@ need to find a way to run a 7.+ kernel."
       default.
 
 **Behavior to preserve:**
-- `ze-qemu-all-test` must stay runnable without a manual multi-step setup, or people
+- `ze-qemu-test-all` must stay runnable without a manual multi-step setup, or people
   will stop running it.
 - The three existing `--kernel` labs keep working.
 - `test/parse/cli-show-version.ci` still passes: the QEMU ze build deliberately omits
@@ -216,7 +216,7 @@ need to find a way to run a 7.+ kernel."
 - Suites that pass on stock today must not regress on the runtime kernel.
 
 **Behavior to change:**
-- `ze-qemu-all-test` and `ze-qemu-needs-linux-test` boot the runtime kernel.
+- `ze-qemu-test-all` and `ze-qemu-needs-linux-test` boot the runtime kernel.
 - `firewall` leaves the default skip list.
 
 ## Problem / Evidence
@@ -243,7 +243,7 @@ initramfs-virt for custom-kernel boot. `make ze-kernel-build` builds and stages
 comment states the tradeoff explicitly: staying on stock "keeps this target runnable
 without a ~30-minute `make ze-kernel-build` build first, matching the isis-frr/ldp-frr
 labs" (`:441`). `ze-kernel-build` additionally requires a prior `make ze-gokrazy-deps-download`
-(`mk/gokrazy.mk`). A naive `--kernel` addition to `ze-qemu-all-test` imposes
+(`mk/gokrazy.mk`). A naive `--kernel` addition to `ze-qemu-test-all` imposes
 that ~30 minutes plus a dependency step on every full QEMU run.
 
 **UNVERIFIED, and this is AC-1.** That 7.1.1 actually fixes the nft
@@ -261,7 +261,7 @@ not the full suite.
 ## Data Flow
 
 ### Entry Point
-An agent or operator runs `make ze-qemu-all-test` or `make ze-qemu-needs-linux-test`.
+An agent or operator runs `make ze-qemu-test-all` or `make ze-qemu-needs-linux-test`.
 
 ### Transformation Path
 Today: make cross-compiles linux binaries -> `qemu-run.py` downloads the Alpine virt
@@ -293,8 +293,8 @@ the VM on the new kernel, which the table below asserts.
 
 | Entry Point | -> | Feature Code | Test |
 |-------------|----|--------------|------|
-| `make ze-qemu-all-test` | -> | `--kernel` wiring in `mk/test-integration.mk` (CANDIDATE) | `test_qemu_all_test_passes_kernel` |
-| `make ze-qemu-all-test` | -> | `qemu-all-tests.sh` firewall suite, no longer skipped | the `firewall` `.ci` suite runs green in the VM (AC-2) |
+| `make ze-qemu-test-all` | -> | `--kernel` wiring in `mk/test-integration.mk` (CANDIDATE) | `test_qemu_all_test_passes_kernel` |
+| `make ze-qemu-test-all` | -> | `qemu-all-tests.sh` firewall suite, no longer skipped | the `firewall` `.ci` suite runs green in the VM (AC-2) |
 | `make ze-qemu-needs-linux-test` | -> | `--kernel` wiring at `mk/test-integration.mk` (CANDIDATE) | `test_needs_linux_passes_kernel` |
 | A missing `tmp/kernel/vmlinuz` | -> | the `test -f` guard pattern from `:410`/`:424`/`:456` (CANDIDATE) | `test_missing_kernel_fails_loudly` |
 
@@ -374,7 +374,7 @@ work; the change is the harness those `.ci` files run on.
 4. Wire `--kernel` into both targets, with the guard from contract row 6 and
    `KERNEL_ARCH` derived from `QEMU_GOARCH` (AC-11).
 5. Remove `firewall` from both default skip lists (`mk/test-integration.mk`,
-   `qemu-all-tests.sh`). This fixes `ze-qemu-all-test` only.
+   `qemu-all-tests.sh`). This fixes `ze-qemu-test-all` only.
 6. NEW: re-mark the 21 firewall `.ci` from `skip-os:value=darwin` to
    `option=needs-linux` (AC-10), per file, so `ze-qemu-needs-linux-test` stops
    silently skipping the suite. Verify natively first: both directives skip on darwin
@@ -387,8 +387,8 @@ work; the change is the harness those `.ci` files run on.
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
 | AC-1 | The firewall `.ci` suite runs on the 7.1.1 runtime kernel under QEMU | No kernel crash on nft set-element-timeout operations |
-| AC-2 | `make ze-qemu-all-test` with no overrides | The firewall suite runs and passes; `firewall` is not in the default skips |
-| AC-3 | `make ze-qemu-all-test` / `ze-qemu-needs-linux-test` | Both boot the runtime kernel, not stock Alpine |
+| AC-2 | `make ze-qemu-test-all` with no overrides | The firewall suite runs and passes; `firewall` is not in the default skips |
+| AC-3 | `make ze-qemu-test-all` / `ze-qemu-needs-linux-test` | Both boot the runtime kernel, not stock Alpine |
 | AC-4 | `tmp/kernel/vmlinuz` is absent | The target fails with an actionable message; it NEVER silently falls back to stock, which would restore the crash quietly. Reuses the cache spec's guard (contract row 6) |
 | AC-5 | The suites that pass on stock today | Still pass on the runtime kernel; no suite regresses |
 | ~~AC-6~~ | ~~The kernel cost is paid once and cached; survives a `tmp/` wipe~~ | **MOVED to `spec-fixit-qemu-artifact-cache` AC-1** (handoff contract rows 2 and 5). Consumed here, not built here |
@@ -408,7 +408,7 @@ work; the change is the harness those `.ci` files run on.
 | A-2 | The runtime kernel boots an Alpine live system well enough for the full suite | Three labs already boot it under QEMU with Alpine's initramfs | The kernel needs extra config (virtio, fs, modules) or a matching initramfs, which is a much bigger job | Step 2: run the full suite | **confirmed 2026-08-07**. The VM boots (`Linux localhost 7.1.4 ... aarch64`), mounts the 9p share, installs packages and runs the suites. The seam has one real consequence, now documented in `ai/rules/platform-linux.md`: Alpine's `/lib/modules` is built for 6.12.13-0-virt, so NO module of the ze kernel can load and every symbol a QEMU run needs must be `=y` |
 | A-3 | The runtime kernel has the nftables surface the firewall suite needs | `kernel.config:40,55,57` enable NF_TABLES + IPV4 + IPV6 | Config fragments must be extended; note `runtime.config` alone lacks NF_TABLES, so fragment resolution matters (`build.py`) | Diff the built `.config` against what the firewall `.ci` files exercise | **partially confirmed 2026-07-16**: re-read at the producer. `gokrazy/kernel/kernel.config:40,55,57` = `CONFIG_NF_TABLES=y`, `CONFIG_NF_TABLES_IPV4=y`, `CONFIG_NF_TABLES_IPV6=y`, and `kernel.config` IS included for the runtime profile (`resolve_profile_fragments`, `build.py`, requires `kernel.config` + `<profile>.config`). `runtime.config` itself carries only `CONFIG_IP_NF_NAT`/`CONFIG_IP_NF_TARGET_MASQUERADE`. Still unvalidated: whether the SET/TIMEOUT surface the crash involves (`nft set element timeout`) is present. That needs the built `.config`, which needs the build. Fold into step 1. **CONFIRMED 2026-08-07 by the build plus a direct probe**: the surface has no Kconfig symbol of its own in 7.1.4 (the old `NFT_SET_*` and `NFT_RBTREE` symbols are absent from the resolved `.config`, folded into `nf_tables`), it arrives with `CONFIG_NF_TABLES=y`, and in the VM a set with `flags timeout` plus an element with `timeout 5s` are both accepted and read back with an expiry. What the fragment DID lack was `CONFIG_NF_TABLES_INET`, which the assumption never asked about, and which broke 20 of 23 tests. See "The kernel config defect" |
 | A-5 | The firewall suite currently runs somewhere under QEMU | The skeleton's R-5 assumed `ze-qemu-needs-linux-test` runs it (`:261` skips only `web`) | If it runs nowhere, "stop skipping firewall" is a bigger change than removing a word from two lists, and the suite's `.ci` markers are wrong | Grep the `.ci` for `option=needs-linux`; read the runner's skip producer | **BROKEN 2026-07-16**: 0 of 23 firewall `.ci` carry `needs-linux`; 21 carry `skip-os:value=darwin`. `record_parse.go` skips every non-`needs-linux` test under `ZE_QEMU_LINUX_ONLY=1`. The firewall suite runs in NEITHER QEMU target today. Adds AC-10 and the 21-file re-marking to scope |
-| A-6 | Removing `firewall` from the two default skip lists is sufficient to run it by default | The skeleton's AC-2/step 5 | Insufficient: it fixes `ze-qemu-all-test` only | Trace both targets to the producer | **broken 2026-07-16**, per A-5. Sufficient for `ze-qemu-all-test` (suite-level `fsuite`, `qemu-all-tests.sh`); a no-op for `ze-qemu-needs-linux-test`, which needs the `.ci` re-marking |
+| A-6 | Removing `firewall` from the two default skip lists is sufficient to run it by default | The skeleton's AC-2/step 5 | Insufficient: it fixes `ze-qemu-test-all` only | Trace both targets to the producer | **broken 2026-07-16**, per A-5. Sufficient for `ze-qemu-test-all` (suite-level `fsuite`, `qemu-all-tests.sh`); a no-op for `ze-qemu-needs-linux-test`, which needs the `.ci` re-marking |
 | A-4 | The ~30-minute build can be amortised | CONFIRMED for a single checkout: `gokrazy/kernel/Makefile` already declares `$(OUT)/vmlinuz` with the config fragments, patches and builder scripts as prerequisites, so make skips an unchanged rebuild; `mk/test-integration.mk` relies on exactly that. The ~30 minutes is a first build, not a per-run cost | Only the SCOPE is unsolved: `.gitignore:12` ignores `tmp/*`, so a fresh clone and every `.claude/worktrees/` worktree rebuilds | Confirmed by reading the Makefile prerequisites; the remaining work is choosing a cache scope | confirmed (scope open) |
 
 ### Risks
@@ -418,7 +418,7 @@ work; the change is the harness those `.ci` files run on.
 | R-2 | The kernel build makes the full QEMU target so slow nobody runs it | The target grows a ~30-minute prelude | This is the reason stock was chosen. Cache/prebuild the artifact; consider a checked-in or CI-published kernel; keep a documented stock-kernel escape hatch for suites that do not need 7.x |
 | R-3 | A silent fallback to stock when the kernel is missing | The suite passes suspiciously fast, or the crash returns | AC-4: hard-fail, mirroring the `test -f` guard the labs already use |
 | R-4 | The kernel/initramfs seam breaks obscurely (VM boots, subtle driver differences) | Unrelated suites fail only under QEMU | Bisect per suite; AC-5 requires no regressions |
-| R-5 | ~~The two QEMU targets keep disagreeing about firewall~~ **BROKEN 2026-07-16: they do not disagree, neither runs it** | ~~One skips it, the other runs it~~ | Superseded. `ze-qemu-needs-linux-test` sets `ZE_QEMU_LINUX_ONLY=1` and `record_parse.go` skips every non-`needs-linux` test; 0 of 23 firewall `.ci` are marked `needs-linux`. The real risk is the INVERSE: removing `firewall` from the skip lists looks like it fixes both targets but only fixes `ze-qemu-all-test`, leaving a silent gap that looks closed. Mitigation: AC-10 |
+| R-5 | ~~The two QEMU targets keep disagreeing about firewall~~ **BROKEN 2026-07-16: they do not disagree, neither runs it** | ~~One skips it, the other runs it~~ | Superseded. `ze-qemu-needs-linux-test` sets `ZE_QEMU_LINUX_ONLY=1` and `record_parse.go` skips every non-`needs-linux` test; 0 of 23 firewall `.ci` are marked `needs-linux`. The real risk is the INVERSE: removing `firewall` from the skip lists looks like it fixes both targets but only fixes `ze-qemu-test-all`, leaving a silent gap that looks closed. Mitigation: AC-10 |
 | R-6 | Kernel/ISO arch mismatch on the two host arches | Boot fails on one arch only | **FIXED 2026-08-07** by `ze-qemu-kernel-guard` (`mk/test-integration.mk`), which keys on `QEMU_GOARCH` and compares the staged kernel against the architecture-keyed cache entry. Proven with a real Alpine x86_64 `vmlinuz-virt` staged on this arm64 host: the target exits 2 naming the architecture. Original note kept below. **CONFIRMED live, not hypothetical**: `GOKRAZY_ARCH ?= amd64` (`mk/gokrazy.mk`) + arch-unkeyed staging + existence-only guard (`mk/test-integration.mk`) means a bare `make ze-kernel-build` on Apple Silicon stages an unbootable amd64 kernel and the guard passes. Derive `KERNEL_ARCH` from `QEMU_GOARCH`; the cache spec's arch-keyed variant (`cache.go`) makes the mismatch a cache MISS instead of a boot failure |
 | R-7 | The 21 `.ci` re-marking (`skip-os` -> `needs-linux`) changes native behavior | Suites that were silent on darwin start reporting SKIP with a different reason, or a `.ci` that genuinely needs `skip-os` for a non-kernel reason gets mis-marked | Both directives skip on darwin, so native results should be unchanged in substance (`record_parse.go`); verify per file rather than sed-ing all 21. Any file whose darwin skip is NOT about the kernel keeps `skip-os` |
 
@@ -454,14 +454,14 @@ work; the change is the harness those `.ci` files run on.
   (`gokrazy/kernel/Makefile`). A cache that loses that property is worse than no
   cache: a config change would appear to work while testing the old kernel. AC-9
   holds it.
-- Should `ze-qemu-all-test` require `make ze-gokrazy-deps-download` (`mk/gokrazy.mk`)?
+- Should `ze-qemu-test-all` require `make ze-gokrazy-deps-download` (`mk/gokrazy.mk`)?
   That is a new dependency for a target that currently needs only QEMU.
   -> AUTONOMOUS DEFAULT (2026-07-17): NO new manual step. The cache spec's ensure
   target (Handoff Contract row 2, `ze-kernel-ensure`) encapsulates the modcache
-  prerequisite: `ze-qemu-all-test` gains a single make prerequisite on that target,
+  prerequisite: `ze-qemu-test-all` gains a single make prerequisite on that target,
   which internally satisfies `make ze-gokrazy-deps-download` on the build path (cache miss) and
   is a no-op on a hit. The operator still runs one command. Rationale: preserves
-  "`ze-qemu-all-test` must stay runnable without a manual multi-step setup"
+  "`ze-qemu-test-all` must stay runnable without a manual multi-step setup"
   (Current Behavior / Behavior to preserve); the deps step is a cache-build concern
   owned by row 2, not re-exposed here. Thomas: override if wrong.
 - Does the runtime kernel need config additions to host the full suite (virtio, fs,
@@ -492,7 +492,7 @@ work; the change is the harness those `.ci` files run on.
   build) and probed clean on it (`mk/test-integration.mk`,
   `ai/rules/platform-linux.md`); retiring it would impose the kernel build on
   targets that do not need 7.x. Only the two targets this spec names
-  (`ze-qemu-all-test`, `ze-qemu-needs-linux-test`) move to `--kernel`. Rationale:
+  (`ze-qemu-test-all`, `ze-qemu-needs-linux-test`) move to `--kernel`. Rationale:
   smaller, reversible, non-regressing; matches R-2's "keep a documented stock-kernel
   escape hatch." Thomas: override if wrong.
 - ~~Is `ze-qemu-needs-linux-test` running the firewall suite against the crashing stock
@@ -601,9 +601,9 @@ Recorded here so the two can be reconciled by their owners rather than by a race
 
 | Their item | The answer this work produced |
 |------------|-------------------------------|
-| R-5 "the two QEMU targets disagree about firewall" | Was already recorded BROKEN, and is now closed rather than broken. Both targets run the firewall suite: `ze-qemu-all-test` because `firewall` left both default skip lists, and `ze-qemu-needs-linux-test` because the 21 `.ci` carry `option=needs-linux` (landed by `6c27ebd37`). The "runs nowhere" state is over |
+| R-5 "the two QEMU targets disagree about firewall" | Was already recorded BROKEN, and is now closed rather than broken. Both targets run the firewall suite: `ze-qemu-test-all` because `firewall` left both default skip lists, and `ze-qemu-needs-linux-test` because the 21 `.ci` carry `option=needs-linux` (landed by `6c27ebd37`). The "runs nowhere" state is over |
 | R-6 "the deadlock may be entangled with a kernel crash" | **The kernel crash is not the explanation.** On 7.1.4 the nft set-element-timeout operations do not crash: the suite is 23/23 in 28.4s. Their Finding 2 story, that a wedged nft subsystem makes `Apply` block forever and holds `r.mu`, is no longer supported by the kernel. If the ~255s dispatch stall still reproduces, it reproduces against a healthy kernel and is a Go-level defect |
-| Their repro environment | Now trustworthy. `make ze-qemu-all-test` boots ze's own kernel and refuses to start on anything else, so a run cannot silently be on the crashing stock kernel. Re-run the repro before drawing any conclusion from the older observation |
+| Their repro environment | Now trustworthy. `make ze-qemu-test-all` boots ze's own kernel and refuses to start on anything else, so a run cannot silently be on the crashing stock kernel. Re-run the repro before drawing any conclusion from the older observation |
 | The ordering hazard they were warned about | Gone. This spec edited no `test/firewall/*.ci`: the re-marking had already landed, and it was verified rather than redone |
 
 ## Implementation Audit (2026-08-07)
@@ -613,7 +613,7 @@ Recorded here so the two can be reconciled by their owners rather than by a race
 | AC-1 | Done | The firewall suite ran to completion on 7.1.4 under QEMU with no panic, `009-set-element-timeout` included. Direct probe: a set with `flags timeout` and an element with `timeout 5s` are accepted, read back as `expires 5s`, and the VM survives `nft flush ruleset` |
 | AC-2 | Done | `firewall` removed from the default skip list in `mk/test-integration.mk` AND `scripts/evidence/qemu-all-tests.sh`. Suite result on the fixed kernel: `pass 23/23 100.0% 28.4s`. Guarded by `TestFirewallNotInDefaultQemuSkips` |
 | AC-3 | Done | Both targets pass `--kernel $(ZE_QEMU_KERNEL)`. The VM reports `Linux localhost 7.1.4 ... aarch64`, not 6.12.13-0-virt. Guarded by `TestQemuFunctionalTargetsBootTheRuntimeKernel` |
-| AC-4 | Done | `tmp/kernel/vmlinuz` moved aside, `make ze-qemu-all-test` exits 2 with `error: tmp/kernel/vmlinuz not found -- this target boots ze's runtime kernel and never stock Alpine (run: make ze-kernel-build KERNEL_ARCH=arm64)`. Restored after. Guarded by `TestQemuTargetsGuardTheStagedKernel` |
+| AC-4 | Done | `tmp/kernel/vmlinuz` moved aside, `make ze-qemu-test-all` exits 2 with `error: tmp/kernel/vmlinuz not found -- this target boots ze's runtime kernel and never stock Alpine (run: make ze-kernel-build KERNEL_ARCH=arm64)`. Restored after. Guarded by `TestQemuTargetsGuardTheStagedKernel` |
 | AC-5 | **Partly** | Every regression the kernel switch caused is found, fixed and re-measured green: `policy` PASS, and the `cos-*`, `iface-*` and `forked-route-install-kernel` tests gone from the failure list. What AC-5 still lacks is a STOCK-kernel baseline for the reds that were red in both runs, so "unrelated" is argued rather than measured for `ospf` and `ddos-*`. See "Full-suite result" |
 | AC-10 | Done | Landed by `6c27ebd37` before this work; verified rather than redone. 21 of 23 carry `option=needs-linux:caps=net-admin`, 0 carry `skip-os:value=darwin`, and the 2 unmarked start no daemon. Guarded by `TestFirewallCiTestsAreNeedsLinux` |
 | AC-11 | Done | A REAL amd64 kernel (Alpine's own `vmlinuz-virt` for x86_64) staged at `tmp/kernel/vmlinuz` on this arm64 host: `make ze-qemu-needs-linux-test` exits 2 with `error: ... is not this tree's arm64 runtime kernel -- wrong architecture, or a kernel config fragment changed after it was staged`. The guard derives its architecture from `QEMU_GOARCH`, never `GOKRAZY_ARCH` |
@@ -625,7 +625,7 @@ the appliance kernel config defect above. R-3 also has a proof of its own -- the
 stock Alpine kernel staged at `tmp/kernel/vmlinuz` is REFUSED, so there is no
 silent fallback path even when the stock kernel is the thing sitting there.
 
-## Full-suite result (`make ze-qemu-all-test`, 2026-08-07, runtime kernel 7.1.4 arm64)
+## Full-suite result (`make ze-qemu-test-all`, 2026-08-07, runtime kernel 7.1.4 arm64)
 
 23 functional suites ran. **`firewall` was one of the 23 and it passed, 23/23** --
 the deliverable of this spec, through the real target rather than by hand.

@@ -216,7 +216,7 @@ func TestDefaultScratchRootEmptyOffSession(t *testing.T) {
 }
 
 // VALIDATES: ZE_TEST_NO_BUILD keeps working under a session when the binaries
-// were pre-built into the SHARED bin/ (make ze off-session, or a cross-compile).
+// were pre-built into the SHARED bin/ (make ze-build off-session, or a cross-compile).
 // PREVENTS: session scoping turning a good prebuilt binary into a "missing
 // binary" error -- scoping is about builds clobbering, not about reads.
 func TestFindPrebuiltDirPrefersSessionThenShared(t *testing.T) {

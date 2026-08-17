@@ -252,7 +252,7 @@ func applyChildRekeyResponse(sa *SA, pending *pendingRekey, inner []wire.Payload
 	// The replacement records the suite it is keyed with, and nothing else. It inherits
 	// the retired SA's group. respondChildRekey reads Proposals[0] of that group when
 	// the peer rekeys this SA next. An unselected proposal left in front of the accepted
-	// one would make ze answer that rekey for an algorithm this pair never ran. Only the
+	// one would make ze-build answer that rekey for an algorithm this pair never ran. Only the
 	// child's own copy changes. The retired SA keeps its group.
 	child.ESPGroup.Proposals = []ipsec.ESPProposal{prop}
 	if err := installChildTolerant(child, prop, dp, log); err != nil {

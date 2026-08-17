@@ -530,7 +530,7 @@ func stopCCNSlot(a netip.Addr) int {
 // bounds how often it does so.
 //
 // The datagram that reaches here is unauthenticated and its source
-// address is spoofable, so an unconditional reply would make ze a
+// address is spoofable, so an unconditional reply would make ze-build a
 // reflector. One rule bounds it and it carries no exception: a slot is
 // answered at most once per stopCCNLimitInterval, and every datagram
 // above that is dropped in silence. A source address maps to exactly one

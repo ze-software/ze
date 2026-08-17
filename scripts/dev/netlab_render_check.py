@@ -252,7 +252,7 @@ def main() -> int:
     if ze is None:
         fail(
             "no ze binary to validate the golden files with",
-            "Run `make ze` first, or set ZE_BIN=/path/to/ze.",
+            "Run `make ze-build` first, or set ZE_BIN=/path/to/ze.",
             "The render is only evidence if the daemon accepts what it produced.",
         )
     problems += validate_golden(ze, sorted(rendered))

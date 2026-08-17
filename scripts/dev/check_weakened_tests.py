@@ -496,7 +496,7 @@ def _read_contract(repo_root):
 def file_shape_problems(repo_root=PROJECT_DIR):
     """[problem] -- ways `test/weakened.md` would not be readable by the two gates.
 
-    What `make ze-weakened-check` runs, and it deliberately reads no source file.
+    What `make ze-test-weakened-check` runs, and it deliberately reads no source file.
     Whether a commit's weakenings are covered is a question about that commit's
     paths, and a verify stage has none. What a verify stage CAN answer is whether
     the file the commit gate depends on still parses, which is a fact about a
@@ -543,7 +543,7 @@ _SELFTEST_TABLE = "| Test | Reason |\n|------|--------|\n"
 def selftest(quiet=False):
     """Prove the checker fires on fixtures whose answer is known.
 
-    Runs before the real check in `make ze-weakened-check`, so a checker that
+    Runs before the real check in `make ze-test-weakened-check`, so a checker that
     reported nothing because it was broken cannot report a clean file.
     """
     failures = []

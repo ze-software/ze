@@ -275,7 +275,7 @@ func TestVerifyWorkflowIsTheFastMergeGate(t *testing.T) {
 	// must not appear anywhere in the fast gate.
 	for _, heavy := range []string{
 		"ze-fuzz-test", "ze-integration-test", "ze-qemu-integration-test",
-		"ze-mutation-test", "ze-release-evidence-verify",
+		"ze-mutation-test", "ze-evidence-release-verify",
 	} {
 		if strings.Contains(src, heavy) {
 			t.Errorf("verify.yml must not run %q: it is a scheduled/heavy suite, and the merge gate stays fast", heavy)
@@ -384,7 +384,7 @@ func TestEvidenceNightlyRunsFuzzAndIntegration(t *testing.T) {
 // VALIDATES: the nightly invokes `make ze-interop-test` by name, from its OWN
 // job, and that job is advisory (plan/spec-rfcgate-2-evidence.md AC-2, AC-3).
 // PREVENTS: the interop suite going back to having no automated caller at all.
-// Until this landed its only caller was ze-release-evidence-verify, a manual
+// Until this landed its only caller was ze-evidence-release-verify, a manual
 // release-time target -- so the 104 BGP scenarios ran when somebody remembered.
 // That is the condition that makes an interop `RFC requirement:` tag inadmissible
 // (rfc_requirements.py CARRIERS, tier `unrun`): a tag is only evidence if
@@ -770,7 +770,7 @@ func TestWorkflowMakeTargetsExist(t *testing.T) {
 // was deleted so that gh-pages owns the deploy. The invocations did not go away
 // with it: gh-pages/.github/workflows/pages.yml still runs
 // `make -C main ze-terminal-demo-tools-install` and `make -C main
-// ze-terminal-demos-release-render` against a checkout of THIS branch. That is a real
+// ze-terminal-demo-release-render-all` against a checkout of THIS branch. That is a real
 // dependency no glob on main can see, so it is pinned here explicitly.
 func TestCrossBranchDemoTargetsExist(t *testing.T) {
 	root := repoRoot(t)
@@ -788,7 +788,7 @@ func TestCrossBranchDemoTargetsExist(t *testing.T) {
 
 	// Invoked by gh-pages/.github/workflows/pages.yml, which runs on the
 	// gh-pages branch against a `main` checkout.
-	for _, target := range []string{"ze-terminal-demo-tools-install", "ze-terminal-demos-release-render"} {
+	for _, target := range []string{"ze-terminal-demo-tools-install", "ze-terminal-demo-release-render-all"} {
 		if !strings.Contains(corpus, "\n"+target+":") {
 			t.Errorf("the gh-pages deploy runs `make -C main %s`, but no such target exists in Makefile or mk/*.mk: "+
 				"the website publish would fail with `No rule to make target` and nothing on main would report it", target)
@@ -933,14 +933,14 @@ func TestWorkflowTargetExtractorsAgree(t *testing.T) {
 // ends with a `printf "  make ze-interop-test\n"` hint per failed category, and a
 // scan that reads those as calls would report every target named in a help or
 // remediation line as wired. Dropping quoted spans before looking for `make`
-// removes the whole class, `@echo "  ze-qemu-all-test  FULL suite"` included.
+// removes the whole class, `@echo "  ze-qemu-test-all  FULL suite"` included.
 var quotedSpan = regexp.MustCompile(`"[^"]*"|'[^']*'`)
 
 // makeInvocations returns the make targets a Makefile recipe body actually runs.
 //
 // parseMakeTargets models a workflow's command lines and documents that `$(MAKE)`
 // is out of scope. Inside a make fragment `$(MAKE)` is the NORMAL spelling, and
-// the aggregate that runs the heavy suites (ze-release-evidence-verify) reaches them
+// the aggregate that runs the heavy suites (ze-evidence-release-verify) reaches them
 // through a shell function: `run_if_qemu qemu $(MAKE) --no-print-directory
 // ze-qemu-integration-test`. So three things happen before the shared parser is
 // handed the fragment: quoted spans go (see quotedSpan), `$(MAKE)` becomes `make`,
@@ -999,7 +999,7 @@ func isQemuOrInteropTarget(name string) bool {
 // class. An entry whose target no longer exists fails the test, so the list
 // cannot rot into an unread allowlist.
 var manualQemuTargets = map[string]string{
-	"ze-qemu-all-test": "runs the same driver as ze-qemu-needs-linux-test " +
+	"ze-qemu-test-all": "runs the same driver as ze-qemu-needs-linux-test " +
 		"(scripts/evidence/qemu-all-tests.sh) without ZE_QEMU_LINUX_ONLY, so nightly " +
 		"coverage is a strict superset of what this adds; scheduling both would pay a " +
 		"second ~90-minute VM run for no test that the first does not already execute. " +
@@ -1106,7 +1106,7 @@ func TestQemuAndInteropTargetsHaveACaller(t *testing.T) {
 	}
 
 	// (3) A script. Comments are stripped first: scripts/evidence/qemu-all-tests.sh
-	// opens with "# Invoked by `make ze-qemu-all-test`", which is a description of
+	// opens with "# Invoked by `make ze-qemu-test-all`", which is a description of
 	// its caller, not a call.
 	scriptCount := 0
 	err = filepath.Walk(filepath.Join(root, "scripts"), func(path string, info os.FileInfo, err error) error {

@@ -1,4 +1,4 @@
-make ze
+make ze-build
 
 mkdir -p tmp
 export ZE_CONFIG_DIR="$(mktemp -d "$PWD/tmp/webui-mac.XXXXXX")"

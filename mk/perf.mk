@@ -33,7 +33,7 @@ ze-perf-history-record: ze-perf-build
 	@python3 scripts/dev/perf-suggest.py --record
 
 # Advisory: if BGP data-plane code changed since the last perf run, suggest one.
-# A NUDGE, never a gate -- always exits 0. The heavy suite (ze-perf-evidence-update-check) needs
+# A NUDGE, never a gate -- always exits 0. The heavy suite (ze-evidence-perf-record) needs
 # Docker and minutes, so it is not run every edit; this notices when a Docker
 # perf run is overdue on THIS machine. It complements the scheduled Docker-free
 # regression check (.github/workflows/perf-nightly.yml): that guards the committed

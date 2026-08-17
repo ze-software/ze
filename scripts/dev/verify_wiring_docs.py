@@ -39,7 +39,7 @@ TARGET_ORDER = (
     "ze-command-list-json",
     "ze-plugin-imports-check",
     "ze-fuzz-targets-check",
-    "ze-templ-generate-check",
+    "ze-templ-output-check",
     "ze-functional-docker-exec-check",
     "ze-spec-citation-check",
 )
@@ -55,7 +55,7 @@ MAKE_TARGETS = {
     "ze-command-list-json",
     "ze-plugin-imports-check",
     "ze-fuzz-targets-check",
-    "ze-templ-generate-check",
+    "ze-templ-output-check",
     "ze-functional-docker-exec-check",
     "ze-spec-citation-check",
 }
@@ -651,7 +651,7 @@ def selected_targets(root: Path, changed: Iterable[str]) -> list[str]:
         if is_fuzz_source(root, path):
             selected.add("ze-fuzz-targets-check")
         if is_templ_source(path):
-            selected.add("ze-templ-generate-check")
+            selected.add("ze-templ-output-check")
         if is_docker_exec_source(path):
             selected.add("ze-functional-docker-exec-check")
         if is_plan_source(path):

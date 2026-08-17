@@ -122,7 +122,7 @@ ze-cadence-monthly-run:
 	$(call ZE_CADENCE_RUN,ze-cadence-monthly-run -- needs Docker/QEMU/root; members report rather than gate,\
 		run_check note ze-deployment-preflight $(MAKE) --no-print-directory ze-deployment-preflight; \
 		run_check note ze-qemu-integration-test $(MAKE) --no-print-directory ze-qemu-integration-test; \
-		run_check note ze-perf-evidence-update-check $(MAKE) --no-print-directory ze-perf-evidence-update-check; \
+		run_check note ze-evidence-perf-record $(MAKE) --no-print-directory ze-evidence-perf-record; \
 		run_check note ze-mutation-test-changed $(MAKE) --no-print-directory ze-mutation-test-changed; \
 		run_check note ze-ste-review $(MAKE) --no-print-directory ze-ste-review; \
 	)

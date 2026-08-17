@@ -42,7 +42,7 @@ func clearBinOverrides(t *testing.T) {
 // ZE_TEST_NO_BUILD.
 // PREVENTS: those suites recompiling ze on a slow target (e.g. a QEMU VM over
 // 9p) when a host cross-compiled binary already exists, defeating the
-// host-compile architecture used by `make ze-qemu-all-test`.
+// host-compile architecture used by `make ze-qemu-test-all`.
 func TestBuildZeNoBuild(t *testing.T) {
 	clearBinOverrides(t)
 	setBuildEnv(t, "ZE_TEST_NO_BUILD", "1")

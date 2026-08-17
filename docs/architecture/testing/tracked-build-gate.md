@@ -1,13 +1,13 @@
 # The Tracked-Build Gate
 
-`make ze-tracked-build-check` compiles what git holds. Every other build and
+`make ze-repository-tracked-build-check` compiles what git holds. Every other build and
 test target in this repository compiles the WORKING TREE, so a commit that
 lands a consumer while its producer stays uncommitted passes every gate and
 breaks HEAD for everyone else.
 
 <!-- source: scripts/checks/tracked_build.go -- extraction, flavors, anchors, package floor -->
 
-On 2026-08-04 four commits broke `make ze` in one day with that same defect.
+On 2026-08-04 four commits broke `make ze-build` in one day with that same defect.
 Every gate was green at each commit. Nothing in the pipeline compiled the
 committed population, so nothing could see the class at all.
 

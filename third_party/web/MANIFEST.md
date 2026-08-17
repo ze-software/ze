@@ -69,18 +69,18 @@ version above is the version the cutover ships.
 ## Sync
 
 ```bash
-make ze-sync-vendor-web            # copy from third_party/web/ to every consumer
+make ze-vendor-web-sync            # copy from third_party/web/ to every consumer
 make generate                      # runs the same sync, with the other generators
-make ze-check-vendor-web           # gate: each consumer copy matches its source
-make ze-check-vendor-web-updates   # ask the npm registry for newer versions
+make ze-vendor-web-check           # gate: each consumer copy matches its source
+make ze-vendor-web-update-report   # ask the npm registry for newer versions
 make ze-htmx-upgrade-check         # gate: no unexplained htmx 4 upgrade issue
 make ze-htmx-upgrade-report        # print every htmx 4 upgrade issue
 ```
 
 The consumer copies are generated files and they stay tracked in git. `//go:embed`
-reads them at compile time, and `make ze-tracked-build-check` compiles what git
+reads them at compile time, and `make ze-repository-tracked-build-check` compiles what git
 holds, so a build with no `make` run must find them.
 
-`make ze-check-vendor-web` is a stage of `make ze-verify` and a prerequisite of
-`ze-regen-check-readonly`. It exits non-zero over a copy that differs or is
-absent. It queries no registry, so it runs with no network.
+`make ze-vendor-web-check` is a stage of `make ze-precommit-verify` and a
+prerequisite of `ze-generated-files-check`. It exits non-zero when a copy
+differs or is absent. It queries no registry, so it runs with no network.

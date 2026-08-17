@@ -296,7 +296,7 @@ one.
 | the same failure in a shard, a commit body, a report and a summary | pick one place |
 
 Enforced: `check_known_failure_load_excuses` in `scripts/dev/verify_wiring_docs.py`
-(`make ze-wiring-docs-check`, inside `make ze-precommit-verify`) fails a CHANGED
+(`make ze-doc-wiring-check`, inside `make ze-precommit-verify`) fails a CHANGED
 `plan/known-failures/` shard containing "under load", "loaded host", "load
 average", "load-sensitive", "passes in isolation", "resource contention" or
 "contended host". `README.md` and `RESOLVED.md` are exempt: the first states this
@@ -488,7 +488,7 @@ If you find yourself checking wiring for the first time at completion, three ear
 
 ### Mechanical Check (MANDATORY before claiming done)
 
-`make ze-precommit-verify` runs `make ze-wiring-docs-check`. That changed-file
+`make ze-precommit-verify` runs `make ze-doc-wiring-check`. That changed-file
 gate is blocking and checks:
 
 **The wiring gate MUST verify that:**

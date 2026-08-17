@@ -63,7 +63,7 @@ def find_ze_binary() -> str:
         print(f"Error: ZE_BIN={ze_bin} does not exist", file=sys.stderr)
         sys.exit(1)
 
-    # Off-session (a human shell, CI) `make ze` writes the unsuffixed name, and
+    # Off-session (a human shell, CI) `make ze-build` writes the unsuffixed name, and
     # this script is runnable by hand against an ExaBGP config.
     bin_path = repo_root / 'bin' / 'ze'
     if bin_path.exists():
@@ -71,7 +71,7 @@ def find_ze_binary() -> str:
 
     print("Error: no ze binary for the ExaBGP wrapper", file=sys.stderr)
     print("  tried: $ZE_BIN (unset or empty), " + str(bin_path), file=sys.stderr)
-    print("  build one with `make ze` (it carries the ze_exabgp tag), or set ZE_BIN",
+    print("  build one with `make ze-build` (it carries the ze_exabgp tag), or set ZE_BIN",
           file=sys.stderr)
     sys.exit(1)
 

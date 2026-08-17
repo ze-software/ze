@@ -1,18 +1,18 @@
 # Release evidence: full test matrix for release-readiness proof
 #
 # These targets compose every existing test suite into a single gate.
-# ze-precommit-verify stays the fast pre-commit gate (4-10 min). ze-release-evidence-verify runs
+# ze-precommit-verify stays the fast pre-commit gate (4-10 min). ze-evidence-release-verify runs
 # everything: interop, chaos, fuzz, perf regression, QEMU, deployment.
 #
 # Quick reference:
-#   make ze-release-evidence-preflight  Check required tooling
-#   make ze-release-evidence-verify            Full release evidence matrix
-#   make ze-perf-evidence-update-check                   Perf bench + regression check
+#   make ze-evidence-release-preflight  Check required tooling
+#   make ze-evidence-release-verify            Full release evidence matrix
+#   make ze-evidence-perf-record                   Perf bench + regression check
 #
 # Skip categories:
-#   ZE_RELEASE_SKIP=interop,perf make ze-release-evidence-verify
+#   ZE_RELEASE_SKIP=interop,perf make ze-evidence-release-verify
 
-.PHONY: ze-release-evidence-verify ze-release-evidence-preflight ze-functional-extra-test ze-perf-evidence-update-check
+.PHONY: ze-evidence-release-verify ze-evidence-release-preflight ze-evidence-functional-test ze-evidence-perf-record
 
 ZE_RELEASE_SKIP ?=
 
@@ -24,7 +24,7 @@ endif
 
 # ─── Preflight ─────────────────────────────────────────────────────────────
 
-ze-release-evidence-preflight:
+ze-evidence-release-preflight:
 	@missing=0; advisory=0; \
 	if command -v docker >/dev/null 2>&1; then \
 		echo "ok: docker (interop, ipsec-interop, l2tp-interop, pppoe-interop, perf, vpp-deployment, live)"; \
@@ -49,7 +49,7 @@ ze-release-evidence-preflight:
 
 # ─── Perf gate ─────────────────────────────────────────────────────────────
 
-ze-perf-evidence-update-check: ze-perf-build
+ze-evidence-perf-record: ze-perf-build
 	@echo "Running perf benchmarks (ze DUT only)..."
 	@$(MAKE) --no-print-directory ze-perf-bench PERF_DUT=ze
 	@echo "Appending result to history..."
@@ -61,7 +61,7 @@ ze-perf-evidence-update-check: ze-perf-build
 
 # ─── Extra functional evidence ──────────────────────────────────────────────
 
-ze-functional-extra-test: $(ZEBIN_TEST)
+ze-evidence-functional-test: $(ZEBIN_TEST)
 	@failed=0; failed_names=""; total=0; \
 	run_extra() { \
 		suite="$$1"; shift; \
@@ -80,7 +80,7 @@ ze-functional-extra-test: $(ZEBIN_TEST)
 
 # ─── Release evidence ─────────────────────────────────────────────────────
 
-ze-release-evidence-verify: ze-release-evidence-preflight $(ZEBIN_ZE) $(ZEBIN_TEST)
+ze-evidence-release-verify: ze-evidence-release-preflight $(ZEBIN_ZE) $(ZEBIN_TEST)
 	@failed=0; failed_names=""; skipped_names=""; total=0; \
 	has_docker=false; has_qemu=false; \
 	if command -v docker >/dev/null 2>&1; then has_docker=true; fi; \
@@ -153,8 +153,8 @@ ze-release-evidence-verify: ze-release-evidence-preflight $(ZEBIN_ZE) $(ZEBIN_TE
 	run_if_docker ipsec-interop $(MAKE) --no-print-directory ze-interop-ipsec-test; \
 	run_if_docker l2tp-interop $(MAKE) --no-print-directory ze-deployment-docker-l2tp-ppp-test; \
 	run_if_docker pppoe-interop $(MAKE) --no-print-directory ze-deployment-docker-pppoe-accel-test; \
-	run_category functional-extra $(MAKE) --no-print-directory ze-functional-extra-test; \
-	run_if_docker perf $(MAKE) --no-print-directory ze-perf-evidence-update-check; \
+	run_category functional-extra $(MAKE) --no-print-directory ze-evidence-functional-test; \
+	run_if_docker perf $(MAKE) --no-print-directory ze-evidence-perf-record; \
 	run_if_qemu qemu $(MAKE) --no-print-directory ze-qemu-integration-test; \
 	run_if_docker vpp-deployment $(MAKE) --no-print-directory ze-deployment-vpp-test; \
 	run_if_docker live $(MAKE) --no-print-directory ze-live-test; \
@@ -176,8 +176,8 @@ ze-release-evidence-verify: ze-release-evidence-preflight $(ZEBIN_ZE) $(ZEBIN_TE
 				ipsec-interop) printf "  make ze-interop-ipsec-test\n" ;; \
 				l2tp-interop) printf "  make ze-deployment-docker-l2tp-ppp-test\n" ;; \
 				pppoe-interop) printf "  make ze-deployment-docker-pppoe-accel-test\n" ;; \
-				functional-extra) printf "  make ze-functional-extra-test\n" ;; \
-				perf) printf "  make ze-perf-evidence-update-check\n" ;; \
+				functional-extra) printf "  make ze-evidence-functional-test\n" ;; \
+				perf) printf "  make ze-evidence-perf-record\n" ;; \
 				qemu) printf "  make ze-qemu-integration-test\n" ;; \
 				vpp-deployment) printf "  make ze-deployment-vpp-test\n" ;; \
 				live) printf "  make ze-live-test\n" ;; \

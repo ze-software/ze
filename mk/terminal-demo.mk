@@ -6,16 +6,16 @@
 # required by the Linux network-namespace traceroute lab.
 
 TERMINAL_DEMO_GOARCH ?= $(shell $(GO) env GOARCH)
-TERMINAL_DEMO_IMAGE := ze-terminal-demos-render:vhs-0.11.0-playwright-1.55.0
+TERMINAL_DEMO_IMAGE := ze-terminal-demo-render-all:vhs-0.11.0-playwright-1.55.0
 TERMINAL_DEMO_RELEASE ?= $(ZE_VERSION)
 TERMINAL_DEMO_BIN_DIR := $(CURDIR)/tmp/terminal-demos/bin
 TERMINAL_DEMO_OUTPUT ?= $(CURDIR)/../gh-pages/assets/demos
 TERMINAL_DEMO_TAGS := ze_core ze_distro $(ZE_FEATURES) $(ZE_TAGS)
 
-.PHONY: ze-terminal-demo-render ze-terminal-demos-render ze-terminal-demos-check
+.PHONY: ze-terminal-demo-render ze-terminal-demo-render-all ze-terminal-demo-check-all
 .PHONY: ze-terminal-demo-image-build ze-terminal-demo-binaries-build
-.PHONY: ze-terminal-demos-validation-check
-.PHONY: ze-terminal-demos-release-render ze-terminal-demos-release-check
+.PHONY: ze-terminal-demo-validation-check-all
+.PHONY: ze-terminal-demo-release-render-all ze-terminal-demo-release-check-all
 .PHONY: ze-terminal-demo-tools-install
 .PHONY: ze-release-assets-update ze-release-assets-check
 
@@ -42,22 +42,22 @@ ze-terminal-demo-render: ze-terminal-demo-image-build ze-terminal-demo-binaries-
 	@test -n "$(DEMO)" || { echo "error: pass DEMO=<id> (see demos/terminal/manifest.json)"; exit 1; }
 	@ZE_TERMINAL_DEMO_OUTPUT="$(TERMINAL_DEMO_OUTPUT)" python3 demos/terminal/render.py --demo "$(DEMO)" --release "$(TERMINAL_DEMO_RELEASE)"
 
-ze-terminal-demos-render: ze-terminal-demo-image-build ze-terminal-demo-binaries-build
+ze-terminal-demo-render-all: ze-terminal-demo-image-build ze-terminal-demo-binaries-build
 	@ZE_TERMINAL_DEMO_OUTPUT="$(TERMINAL_DEMO_OUTPUT)" python3 demos/terminal/render.py --all --release "$(TERMINAL_DEMO_RELEASE)"
 
-ze-terminal-demos-validation-check: ze-terminal-demo-image-build ze-terminal-demo-binaries-build
+ze-terminal-demo-validation-check-all: ze-terminal-demo-image-build ze-terminal-demo-binaries-build
 	@ZE_TERMINAL_DEMO_OUTPUT="$(TERMINAL_DEMO_OUTPUT)" python3 demos/terminal/render.py --all --validate
 
-ze-terminal-demos-check:
+ze-terminal-demo-check-all:
 	@ZE_TERMINAL_DEMO_OUTPUT="$(TERMINAL_DEMO_OUTPUT)" python3 demos/terminal/render.py --all --check
 
 # Release preparation calls this aggregate target before tagging. It rebuilds
 # the released binaries and every website recording from the checked-in tapes.
-ze-terminal-demos-release-render: ze-terminal-demos-render
+ze-terminal-demo-release-render-all: ze-terminal-demo-render-all
 
-ze-terminal-demos-release-check:
+ze-terminal-demo-release-check-all:
 	@ZE_TERMINAL_DEMO_OUTPUT="$(TERMINAL_DEMO_OUTPUT)" python3 demos/terminal/render.py --all --release "$(TERMINAL_DEMO_RELEASE)" --check
 
-ze-release-assets-update: ze-terminal-demos-release-render
+ze-release-assets-update: ze-terminal-demo-release-render-all
 
-ze-release-assets-check: ze-terminal-demos-release-check
+ze-release-assets-check: ze-terminal-demo-release-check-all

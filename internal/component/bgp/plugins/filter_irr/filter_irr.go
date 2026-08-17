@@ -255,7 +255,7 @@ func (plug *irrPlugin) handleConfigure(bgpCfg map[string]any) {
 
 	// Resolve every enrolled ASN ONCE in the background, NOT inline. configure
 	// runs inside the plugin startup handshake, gated by the engine's stage
-	// barrier; a synchronous first resolution here would make ze startup depend
+	// barrier; a synchronous first resolution here would make ze-build startup depend
 	// on reaching the IRR server (default RADB), so an unreachable or slow IRR
 	// server would fail the configure stage and bring the whole BGP plugin set
 	// down -- even for a config that has BGP peers but no IRR import filter.

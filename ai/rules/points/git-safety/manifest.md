@@ -49,7 +49,7 @@ before-any-commit ## Before Any Commit
   a-stale-generated-file-is-structural-not-flaky
   your-working-tree-is-not-what-you-committed-blocking
   only-one-check-compiles-what-git-holds
-  what-ze-tracked-build-check-reads
+  what-ze-repository-tracked-build-check-reads
   commit-the-producer-with-its-consumer
   bisect-a-broken-head-with-rev
   the-tracked-build-check-never-reads-test-files

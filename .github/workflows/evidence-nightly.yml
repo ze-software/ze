@@ -95,7 +95,7 @@ jobs:
         run: sudo -E env "PATH=$PATH" make ze-integration-test
 
   # The 104 BGP interop scenarios had NO automated caller: ze-interop-test's only
-  # invoker was ze-release-evidence-verify (mk/test-release.mk), a manual release-time
+  # invoker was ze-evidence-release-verify (mk/test-release.mk), a manual release-time
   # target behind run_if_docker. So the one suite that proves Ze against FRR, BIRD
   # and GoBGP ran when somebody remembered to run it.
   #

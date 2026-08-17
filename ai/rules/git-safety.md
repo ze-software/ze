@@ -44,7 +44,7 @@ script and run it immediately. You MUST NOT re-audit the implementation, run lat
 completeness/remaining-work tables, inspect speculative companion artifacts,
 or rerun lint/tests just because commit was requested. You MUST inspect only enough
 state to avoid staging unrelated, ignored, generated, or out-of-scope paths.
-**One check is exempt, because it cannot run earlier: `make ze-tracked-build-check`
+**One check is exempt, because it cannot run earlier: `make ze-repository-tracked-build-check`
 after the script has run** (step 7). It judges the commit you just made, which no
 run before that commit could see.
 
@@ -63,7 +63,7 @@ If scope is ambiguous, ask one narrow question; otherwise proceed.
    It further **gates on discovery-index freshness**: `create` refuses if a generated index (`ai/PACKAGE-MAP.md`, `ai/DOCS-TO-CODE.md`) is stale (run `make ze-generated-files-update`), or if the commit changes an index-feeding source (a `register.go`, a `.go` with a `// Package`/`// Design:` header) but omits the regenerated index. Override with `--stale-index-ok "<reason>"`. With no CI, this is the only place index freshness is enforced. `create` additionally **warns (non-blocking)** when HEAD's committed index does not match HEAD's committed sources, which catches a prior commit that bypassed the gate; it detects this by re-running the generators against a materialized copy of HEAD, so it works even when the working tree carries unrelated uncommitted changes.
 4. If the helper cannot express the commit shape, you MUST hand-write the same script pattern and `chmod +x` it. You MUST give it a name no other agent will pick: `tmp/commit-<SESSION>-<tag>-<random>.sh`. You MUST NOT use heredocs. You MUST use `git commit -F <file>`.
 5. You MUST NOT end an output line with `.`, `,`, `:`, or `)` directly after a path/URL/command -- users copy-paste; trailing punctuation breaks it. You MUST put path on its own line or follow with a space.
-6. You MUST run the finished script yourself with `bash` and the helper's `script=` path. **When the commit contained any `.go`, `go.mod`, `go.sum`, or `vendor/` path, you MUST run `make ze-tracked-build-check` immediately afterwards** (about 45s): it compiles what git now holds, and it is the only check that reads that population -- see "Your Working Tree Is Not What You Committed" below. You MUST then report the resulting commit SHA(s), included files, message file, script path, whether the script pushed, and verification evidence or skip reason. You MUST NOT add a late completeness or remaining-work review unless the user explicitly asked for one.
+6. You MUST run the finished script yourself with `bash` and the helper's `script=` path. **When the commit contained any `.go`, `go.mod`, `go.sum`, or `vendor/` path, you MUST run `make ze-repository-tracked-build-check` immediately afterwards** (about 45s): it compiles what git now holds, and it is the only check that reads that population -- see "Your Working Tree Is Not What You Committed" below. You MUST then report the resulting commit SHA(s), included files, message file, script path, whether the script pushed, and verification evidence or skip reason. You MUST NOT add a late completeness or remaining-work review unless the user explicitly asked for one.
 7. Before writing a commit script, you MUST read `.gitignore` and MUST NOT `git add` ignored paths. Key ignored paths: `CLAUDE.md`, `AGENTS.md`, `.claude/skills/`, `.codex/skills/`, `.agents/skills/`, `tmp/`, `/bin/`. You MUST only add canonical sources (e.g., `ai/skills/`, `ai/INSTRUCTIONS.md`).
 **The helper asks for no lesson artifact, and it MUST NOT be made to (owner directive, 2026-08-10).** A lesson is applied by UPDATING the surface that governs behaviour, never by saving a summary beside the commit. Route it: a recurring trap to a rule under `ai/rules/`, a design decision to `docs/architecture/`, a subsystem's data flow to `ai/digests/`, a protocol obligation to `rfc/short/`. The journal row survives for its own reason, which is counting how often a PROBLEM class recurs (`ai/rules/planning.md`, "Writing Journal Rows").
 
@@ -268,14 +268,14 @@ Those are flaky or environmental TEST reds: load-sensitive races, GC-pressure po
 flakes, host-specific listener probes ("Before Any Commit", above). A **deterministic
 structural gate** is NEVER eligible: `ze-lint`, `ze-lint-changed`, `ze-tier-check`,
 `ze-evidence-vet`, `ze-plugin-boundary-check`, `ze-iface-resolution-check`,
-`ze-generated-files-check`, `ze-wiring-docs-check`, and `ze-tracked-build-check`
+`ze-generated-files-check`, `ze-doc-wiring-check`, and `ze-repository-tracked-build-check`
 fail only when the tree is structurally broken (a misplaced module tier, a
 lint/vet violation, a broken plugin boundary, an unresolved iface, a stale
 generated file, a stale wiring index, a HEAD that does not compile). Such a red
 must be fixed at the source before any commit -- do not park it, do not
 `--unverified` past it.
 
-`ze-tracked-build-check` is the one entry whose red is cleared BY a commit
+`ze-repository-tracked-build-check` is the one entry whose red is cleared BY a commit
 rather than before one. It judges what git already holds, so a broken HEAD is
 fixed by committing the producer a previous commit left behind, and every other
 gate on the list is fixed in the working tree first. Refusing every commit until
@@ -283,7 +283,7 @@ it goes green would therefore deadlock: the refusal would block the only commit
 that can lift it. **`--broken-head-fix "<reason>"` is that commit's route
 through**, and it is narrow by construction: `commit_helper.py` accepts it only
 when tracked-build is the ONLY structural red, so a lint, tier or wiring failure
-riding alongside still refuses. Run `make ze-tracked-build-check` after the
+riding alongside still refuses. Run `make ze-repository-tracked-build-check` after the
 script and confirm it went green. If it did not, HEAD is still broken for
 everybody who builds it.
 
@@ -308,7 +308,7 @@ specific `--fix` the failing check names). It is never flaky or environmental.
 
 ### Your Working Tree Is Not What You Committed (BLOCKING)
 
-**Nothing else in this repository COMPILES what git holds.** `make ze`,
+**Nothing else in this repository COMPILES what git holds.** `make ze-build`,
 `ze-precommit-verify`, `ze-lint-changed`, `ze-rfc-check` and every test target build and
 run your WORKING TREE, uncommitted and untracked files included. (One gate does
 read the commit: `commit_helper.py` judges discovery-index freshness against a
@@ -317,18 +317,18 @@ commit a CONSUMER while its PRODUCER stays uncommitted: it is green for you and
 broken for everybody who builds what git holds. This is a structural blind
 spot.
 
-`make ze-tracked-build-check` (`scripts/checks/tracked_build.go`) is the one
+`make ze-repository-tracked-build-check` (`scripts/checks/tracked_build.go`) is the one
 check that reads what git holds: it extracts the commit with `git archive` and
 compiles six build flavors of the extracted tree. Three rules follow.
 
 | Situation | Do |
 |-----------|-----|
 | You are about to `--file` a consumer | Name the file that DEFINES every symbol it newly uses, and check that file is in the same `--file` list or already committed (`git log -1 -- <path>`) |
-| The commit script has just run and it carried Go | Run `make ze-tracked-build-check`. About 45s. This is step 7 of the commit workflow, not an optional extra |
+| The commit script has just run and it carried Go | Run `make ze-repository-tracked-build-check`. About 45s. This is step 7 of the commit workflow, not an optional extra |
 | It goes red | Commit the producer. Never revert the consumer, and never park it: HEAD is broken for everyone until you do |
 
 `REV=<commit-ish>` judges any commit, so a break found later is bisectable:
-`make ze-tracked-build-check REV=<commit-ish>`. `ARGS=--keep` leaves the extracted
+`make ze-repository-tracked-build-check REV=<commit-ish>`. `ARGS=--keep` leaves the extracted
 tree in place for inspection.
 
 **What it does NOT read: test files.** `go build` MUST NOT compile `_test.go`, so a
@@ -521,7 +521,7 @@ concurrent-session interference is the third case, and the reason MUST say so.
 **A deterministic STRUCTURAL gate MUST NOT be waved through** (see "Structural
 Gates Are Never Known-Red"). Those read files, not a moving tree, so they are
 reproducible and yours to fix when your diff caused them: `ze-lint`,
-`ze-rules-lint`, `ze-doc-verify`, `ze-rfc-check`, `ze-wiring-docs-check`,
+`ze-rules-lint`, `ze-doc-verify`, `ze-rfc-check`, `ze-doc-wiring-check`,
 `ze-tier-check`. You MUST always green those. It is the TEST stages -- unit, functional,
 web -- whose reds a concurrent tree can manufacture.
 
@@ -569,12 +569,12 @@ make ze-unit-pkg-test PKG=./internal/component/ike/... RUN=TestEAPTLS
 | A `.ci` or `.et` test | its suite target: `make ze-functional-plugin-test`, `ze-functional-parse-test`, `ze-functional-encode-test`, `ze-functional-editor-test`, `ze-functional-web-test`. Draft first in `test/draft/` |
 | Linux-only code (`//go:build linux`) | `make ze-qemu-integration-test`, or `make ze-qemu-needs-linux-test` for a `needs-linux` `.ci` (`ai/rules/platform-linux.md`) |
 | `rfc/short/*.md`, an `RFC requirement:` tag, `rfc/extraction/*` | `make ze-rfc-check` |
-| `docs/**`, `ai/**`, `plan/**` | `make ze-doc-verify`, and `make ze-wiring-docs-check` for the changed-file gates |
+| `docs/**`, `ai/**`, `plan/**` | `make ze-doc-verify`, and `make ze-doc-wiring-check` for the changed-file gates |
 | `ai/rules/*.md` | `make ze-rules-condensed-update` then `make ze-rules-lint`, and commit all three digests with the rule |
 | A `*.yang` file or a `ze:command` | `make ze-doc-verify`, `make ze-cli-grammar-check` |
 | A plugin `register.go`, or anything generated | `make generate`, `make ze-plugin-imports-check` |
 | A new package's placement | `make ze-tier-check` |
-| Anything, once the commit script has run and it carried Go | `make ze-tracked-build-check` -- the only check that compiles what git holds |
+| Anything, once the commit script has run and it carried Go | `make ze-repository-tracked-build-check` -- the only check that compiles what git holds |
 | A `scripts/dev/*.py` tool | its sibling `*_test.py` directly (python needs no build cache), then `make ze-unit-pkg-test PKG=./scripts/dev` |
 | Several of the above, and you want breadth | `make ze-precommit-verify-changed` |
 

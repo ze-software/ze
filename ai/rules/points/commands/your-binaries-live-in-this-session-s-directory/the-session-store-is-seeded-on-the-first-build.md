@@ -13,4 +13,4 @@ error when it is absent, so `ze` would start with no users and a fresh SSH host
 key rather than fail. The credentials are generated per session -- user `admin`,
 and a random password at `<session-dir>/etc/ze/.dev-password`, mode 0600 under a
 gitignored root -- so nothing is tracked and two sessions never share one. A
-second `make ze` reseeds nothing and rotates nothing.
+second `make ze-build` reseeds nothing and rotates nothing.

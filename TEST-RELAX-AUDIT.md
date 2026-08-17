@@ -427,7 +427,7 @@ past row beside the change it accepted.
 | a ceiling file plus a census target counting HEAD | nothing to count, because a per-commit file cannot accumulate |
 | `c_test_weakening` opens on a token the edit writes | `c_test_weakening` opens on a row naming the test the edit weakens |
 | no commit-time check | `weakened_problems` (`scripts/dev/commit_helper.py`) recomputes the weakenings of the paths the commit names, and refuses a commit that does not carry `test/weakened.md` |
-| `make ze-relax-census` | `make ze-weakened-check` |
+| `make ze-relax-census` | `make ze-test-weakened-check` |
 
 `scripts/dev/check_weakened_tests.py` is the one implementation both gates call.
 `docs/architecture/testing/test-health.md` describes the live mechanism.

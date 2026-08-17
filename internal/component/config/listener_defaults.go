@@ -40,6 +40,6 @@ func RegisterBuiltinListenerDefaults() {
 	// extractMCPBlock (loader_extract.go) passes an EMPTY default port and
 	// ExtractMCPConfig returns ok=false whenever the first server carries no
 	// port, so an empty list and an ip-only entry both start no listener at all.
-	// A default here would make ze doctor report a bind failure for a listener
+	// A default here would make ze-build doctor report a bind failure for a listener
 	// that does not exist.
 }

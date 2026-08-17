@@ -3,7 +3,7 @@
 
 A NUDGE, never a gate: it prints a suggestion and always exits 0, so it can sit
 in the dev loop without ever blocking a build. It exists because the real perf
-suite (`make ze-perf-evidence-update-check`) needs Docker and minutes, so it is not run every
+suite (`make ze-evidence-perf-record`) needs Docker and minutes, so it is not run every
 edit -- and a throughput/convergence regression in the BGP data plane is exactly
 the kind that slips in silently between perf runs.
 
@@ -173,7 +173,7 @@ def suggest() -> int:
     if len(hot) > 12:
         print(f"  ... and {len(hot) - 12} more", file=sys.stderr)
     print(
-        "  Run:  make ze-perf-evidence-update-check   (Docker; records the baseline so this clears)\n"
+        "  Run:  make ze-evidence-perf-record   (Docker; records the baseline so this clears)\n"
         "  This is advisory -- it never blocks a build.",
         file=sys.stderr,
     )

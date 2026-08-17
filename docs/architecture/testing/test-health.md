@@ -107,7 +107,7 @@ makes that safe is a human reading it.
 | Refused at commit time by | `weakened_problems` (`scripts/dev/commit_helper.py`) |
 | Reads | `test/weakened.md` + the HEAD content of the paths the commit names |
 | Source | `scripts/dev/check_weakened_tests.py`, called by both gates |
-| Parse gate | `make ze-weakened-check`, in `ze-precommit-verify` both modes |
+| Parse gate | `make ze-test-weakened-check`, in `ze-precommit-verify` both modes |
 <!-- source: scripts/status/verify_run.go -- stagesForMode -->
 
 **The file is replaced per commit, and that shape is the whole design.** Delete

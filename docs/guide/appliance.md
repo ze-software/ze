@@ -448,7 +448,7 @@ kernel profile (both surfaced by `ze doctor`).
 Build the full ISO in one command:
 
 ```bash
-make ze-iso-full-build CONFIG=prod.json SSH_PASSWORD='choose-a-strong-one'
+make ze-iso-build-full CONFIG=prod.json SSH_PASSWORD='choose-a-strong-one'
 ```
 
 This runs the entire pipeline: init, kernel build, initrd, disk image, and ISO.
@@ -469,7 +469,7 @@ make ze-pxe-build NAME=prod
 ```
 
 See `make help-deploy` for all variables (`APPLIANCE_BUILDER`, `PXE_DIR`, etc.).
-<!-- source: mk/appliance.mk -- ze-iso-full-build, ze-iso-build, ze-pxe-build -->
+<!-- source: mk/appliance.mk -- ze-iso-build-full, ze-iso-build, ze-pxe-build -->
 
 ### Manual steps
 

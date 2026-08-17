@@ -119,7 +119,7 @@ func makeDefine(t *testing.T, mk, name string) string {
 
 // TestQemuFunctionalTargetsBootTheRuntimeKernel is the AC-3 guard.
 //
-// VALIDATES: `make ze-qemu-all-test` and `make ze-qemu-needs-linux-test` both
+// VALIDATES: `make ze-qemu-test-all` and `make ze-qemu-needs-linux-test` both
 // pass --kernel to qemu-run.py, so both boot ze's 7.x runtime kernel.
 // PREVENTS: a silent return to the stock Alpine 6.12.13-0-virt kernel, which
 // ze itself refuses to support (tools/kernel-builder/build.py requires >= 7.0)
@@ -128,7 +128,7 @@ func makeDefine(t *testing.T, mk, name string) string {
 // looks like it runs.
 func TestQemuFunctionalTargetsBootTheRuntimeKernel(t *testing.T) {
 	mk := readOrFail(t, integrationMk)
-	for _, name := range []string{"ze-qemu-all-test", "ze-qemu-needs-linux-test"} {
+	for _, name := range []string{"ze-qemu-test-all", "ze-qemu-needs-linux-test"} {
 		body := target(t, mk, name)
 		if !strings.Contains(body, "--kernel $(ZE_QEMU_KERNEL)") {
 			t.Errorf("%s does not pass --kernel $(ZE_QEMU_KERNEL) to qemu-run.py; it would boot the stock Alpine kernel", name)
@@ -148,7 +148,7 @@ func TestQemuFunctionalTargetsBootTheRuntimeKernel(t *testing.T) {
 // (AC-11).
 func TestQemuTargetsGuardTheStagedKernel(t *testing.T) {
 	mk := readOrFail(t, integrationMk)
-	for _, name := range []string{"ze-qemu-all-test", "ze-qemu-needs-linux-test"} {
+	for _, name := range []string{"ze-qemu-test-all", "ze-qemu-needs-linux-test"} {
 		if !strings.Contains(target(t, mk, name), "$(ze-qemu-kernel-guard)") {
 			t.Errorf("%s does not run $(ze-qemu-kernel-guard); a missing or wrong-arch kernel would reach QEMU", name)
 		}

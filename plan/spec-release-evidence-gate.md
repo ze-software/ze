@@ -8,7 +8,7 @@
 | Updated | 2026-07-22 |
 
 Phase note (was in the Phase cell; moved 2026-07-22): implementation landed --
-`ze-release-evidence-verify` is defined at `mk/test-release.mk` and wired in the
+`ze-evidence-release-verify` is defined at `mk/test-release.mk` and wired in the
 Makefile (commit `d0e9d388c` "test: add release evidence gate runner"). The
 outstanding step is the full evidence-matrix verification re-run.
 
@@ -19,14 +19,14 @@ outstanding step is the full evidence-matrix verification re-run.
 2. `mk/test-integration.mk` - existing heavy test targets
 3. `mk/test-functional.mk` - shell runner pattern (lines 48-86)
 4. `mk/perf.mk` - perf bench/track targets
-5. `Makefile` - ze-precommit-verify, ze-all-verify, ze-all-test composition
+5. `Makefile` - ze-precommit-verify, ze-verify-all, ze-test-all composition
 
 ## Task
 
 Turn release evidence into a product gate. The default `ze-precommit-verify` gate excludes
 integration, interop, stress, live, deployment, and QEMU tests because they need
 external infrastructure. Some shipped functional suites are also non-gated (static,
-traffic, vpp, l2tp-wire). Add a `ze-release-evidence-verify` target that runs the full
+traffic, vpp, l2tp-wire). Add a `ze-evidence-release-verify` target that runs the full
 evidence matrix while keeping `ze-precommit-verify` fast.
 
 ### Inherited item: the `static` suite currently runs NOWHERE (2026-07-27)
@@ -43,11 +43,11 @@ check, with the tree having moved AGAINST it since:
 | `internal/test/runner/record_parse.go` | on `GOOS != linux` the record gets a `SkipReason`, so they never run on the darwin dev host |
 | `mk/test-functional.mk` (`all_suites`) | no `static`, so `make ze-precommit-verify` never runs it |
 | `scripts/evidence/qemu-all-tests.sh` (`fsuite` lines) | no `static`, so `make ze-qemu-needs-linux-test` never runs it -- and that is the only automated Linux functional path (`.github/workflows/qemu-nightly.yml`) |
-| `mk/test-functional.mk`, `mk/test-release.mk` | the suite's only two invocation sites tree-wide, and `ze-release-evidence-verify` is invoked by no workflow |
+| `mk/test-functional.mk`, `mk/test-release.mk` | the suite's only two invocation sites tree-wide, and `ze-evidence-release-verify` is invoked by no workflow |
 
 So a rewrite fixed a real defect in those tests and left them behind a gate no runner
 honors. They are not skipped honestly; they are simply never reached. Either add `static`
-to the QEMU functional list, or make `ze-release-evidence-verify` an invoked path -- this spec's
+to the QEMU functional list, or make `ze-evidence-release-verify` an invoked path -- this spec's
 own subject.
 
 Carry with it: both tests run `ip link add` in `setup.py` (`004:26-30`, `005:28-35`) while
@@ -58,7 +58,7 @@ rather than skipping honestly.
 ## Required Reading
 
 ### Architecture Docs
-- [x] The deployment-readiness-review record (retired with the learned corpus) - established ze-release-check
+- [x] The deployment-readiness-review record (retired with the learned corpus) - established ze-evidence-release-candidate-check
   → Decision: Docker-based clean-clone verify is a permanent gate target
   → Constraint: ZE_SKIP_SUITES mechanism for container-incompatible suites
 
@@ -92,16 +92,16 @@ rather than skipping honestly.
 
 **Behavior to preserve:**
 - `ze-precommit-verify` stays fast (~2 min), unchanged: lint + vet + unit(2-pass) + functional(12) + exabgp
-- `ze-all-verify` stays as ze-precommit-verify + chaos-verify
-- `ze-all-test` stays as ze-test + chaos-verify
+- `ze-verify-all` stays as ze-precommit-verify + chaos-verify
+- `ze-test-all` stays as ze-test + chaos-verify
 - All existing individual targets keep working independently
-- `ze-release-check` (Docker clean-clone) stays as-is
+- `ze-evidence-release-candidate-check` (Docker clean-clone) stays as-is
 - `ze-deployment-preflight` stays as-is (deployment-specific checks)
 
 **Behavior to change:**
-- Add `ze-release-evidence-verify` composite target in new `mk/test-release.mk`
-- Add `ze-perf-evidence-update-check` target (bench + regression check)
-- Add `ze-release-evidence-preflight` target (broader than deployment-preflight)
+- Add `ze-evidence-release-verify` composite target in new `mk/test-release.mk`
+- Add `ze-evidence-perf-record` target (bench + regression check)
+- Add `ze-evidence-release-preflight` target (broader than deployment-preflight)
 
 ## Data Flow (MANDATORY)
 
@@ -109,7 +109,7 @@ N/A: This spec adds Makefile targets only. No data enters, transforms, or crosse
 component boundaries. The targets compose existing test runners.
 
 ### Entry Point
-- `make ze-release-evidence-verify` invoked by operator from command line
+- `make ze-evidence-release-verify` invoked by operator from command line
 - No runtime data flow; this is build/test infrastructure
 
 ### Transformation Path
@@ -125,7 +125,7 @@ component boundaries. The targets compose existing test runners.
 | Shell → Make sub-targets | `$(MAKE) ze-interop-test` etc. | [x] |
 
 ### Integration Points
-- Calls existing targets: ze-precommit-verify, ze-chaos-test, ze-fuzz-test, ze-interop-test, ze-interop-ipsec-test, ze-deployment-docker-l2tp-ppp-test, ze-functional-static-test, ze-functional-traffic-test, ze-functional-vpp-test, ze-functional-l2tp-wire-test, ze-perf-evidence-update-check (new), ze-qemu-integration-test, ze-deployment-vpp-test, ze-live-test
+- Calls existing targets: ze-precommit-verify, ze-chaos-test, ze-fuzz-test, ze-interop-test, ze-interop-ipsec-test, ze-deployment-docker-l2tp-ppp-test, ze-functional-static-test, ze-functional-traffic-test, ze-functional-vpp-test, ze-functional-l2tp-wire-test, ze-evidence-perf-record (new), ze-qemu-integration-test, ze-deployment-vpp-test, ze-live-test
 
 ### Architectural Verification
 - [x] No bypassed layers (calls existing targets, does not duplicate their logic)
@@ -140,21 +140,21 @@ and `make help-test` output checks.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `make ze-release-evidence-verify` | → | `mk/test-release.mk` recipe | `make -n ze-release-evidence-verify` dry-run shows all sub-targets |
-| `make ze-perf-evidence-update-check` | → | `mk/test-release.mk` recipe | `make -n ze-perf-evidence-update-check` dry-run shows bench + track |
-| `make ze-release-evidence-preflight` | → | `mk/test-release.mk` recipe | `make ze-release-evidence-preflight` prints ok/missing |
+| `make ze-evidence-release-verify` | → | `mk/test-release.mk` recipe | `make -n ze-evidence-release-verify` dry-run shows all sub-targets |
+| `make ze-evidence-perf-record` | → | `mk/test-release.mk` recipe | `make -n ze-evidence-perf-record` dry-run shows bench + track |
+| `make ze-evidence-release-preflight` | → | `mk/test-release.mk` recipe | `make ze-evidence-release-preflight` prints ok/missing |
 
 ## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | `make ze-release-evidence-preflight` | Checks Docker, QEMU, prints ok/missing per tool, exits non-zero if Docker missing |
-| AC-2 | `make ze-release-evidence-verify` on a machine with Docker | Runs all categories in sequence, prints per-category PASS/FAIL/SKIP, summary at end |
+| AC-1 | `make ze-evidence-release-preflight` | Checks Docker, QEMU, prints ok/missing per tool, exits non-zero if Docker missing |
+| AC-2 | `make ze-evidence-release-verify` on a machine with Docker | Runs all categories in sequence, prints per-category PASS/FAIL/SKIP, summary at end |
 | AC-3 | One category fails | Remaining categories still run, summary shows which failed, exit code non-zero |
-| AC-4 | `ZE_RELEASE_SKIP=interop,perf make ze-release-evidence-verify` | Named categories are skipped, shown as SKIPPED in summary |
-| AC-5 | `make ze-perf-evidence-update-check` | Runs ze-perf-bench then ze-perf track --check on ze results, exits non-zero on regression |
-| AC-6 | `make ze-release-evidence-verify` with no QEMU | QEMU category skipped (not failed), others still run |
-| AC-7 | `make help-test` | Shows ze-release-evidence-verify and ze-perf-evidence-update-check in help output |
+| AC-4 | `ZE_RELEASE_SKIP=interop,perf make ze-evidence-release-verify` | Named categories are skipped, shown as SKIPPED in summary |
+| AC-5 | `make ze-evidence-perf-record` | Runs ze-perf-bench then ze-perf track --check on ze results, exits non-zero on regression |
+| AC-6 | `make ze-evidence-release-verify` with no QEMU | QEMU category skipped (not failed), others still run |
+| AC-7 | `make help-test` | Shows ze-evidence-release-verify and ze-evidence-perf-record in help output |
 | AC-8 | All categories pass | Summary shows all green, exit code 0 |
 
 ## 🧪 TDD Test Plan
@@ -188,7 +188,7 @@ own .ci coverage.
 
 ## Implementation Steps
 
-### Categories in ze-release-evidence-verify
+### Categories in ze-evidence-release-verify
 
 Run in this order (fast/no-infra first, slow/heavy last):
 
@@ -201,7 +201,7 @@ Run in this order (fast/no-infra first, slow/heavy last):
 | 5 | ipsec-interop | `ze-interop-ipsec-test` | Docker+privileged |
 | 6 | l2tp-interop | `ze-deployment-docker-l2tp-ppp-test` | Docker |
 | 7 | functional-extra | static + traffic + vpp + l2tp-wire | Platform deps |
-| 8 | perf | `ze-perf-evidence-update-check` | Docker |
+| 8 | perf | `ze-evidence-perf-record` | Docker |
 | 9 | qemu | `ze-qemu-integration-test` | QEMU |
 | 10 | vpp-deployment | `ze-deployment-vpp-test` | Docker+privileged |
 | 11 | live | `ze-live-test` | Docker+internet |
@@ -210,14 +210,14 @@ Run in this order (fast/no-infra first, slow/heavy last):
 
 1. Header comment with quick reference
 2. `.PHONY` declarations for all new targets
-3. `ze-release-evidence-preflight`: check Docker (mandatory), QEMU (optional), print status
-4. `ze-perf-evidence-update-check`: depends on `ze-perf-build`, runs the benchmark for the Ze DUT, then runs `ze-perf track --check`
-5. `ze-release-evidence-verify`: shell runner with run_category() function, ZE_RELEASE_SKIP support, summary
+3. `ze-evidence-release-preflight`: check Docker (mandatory), QEMU (optional), print status
+4. `ze-evidence-perf-record`: depends on `ze-perf-build`, runs the benchmark for the Ze DUT, then runs `ze-perf track --check`
+5. `ze-evidence-release-verify`: shell runner with run_category() function, ZE_RELEASE_SKIP support, summary
 
 ### Phase 2: Wire into Makefile
 
 1. Add `include mk/test-release.mk` to the include block
-2. Add help-test entries for ze-release-evidence-verify, ze-perf-evidence-update-check, ze-release-evidence-preflight
+2. Add help-test entries for ze-evidence-release-verify, ze-evidence-perf-record, ze-evidence-release-preflight
 
 ### Critical Review Checklist
 
@@ -235,9 +235,9 @@ Run in this order (fast/no-infra first, slow/heavy last):
 | Deliverable | Verification method |
 |-------------|---------------------|
 | `mk/test-release.mk` exists | `ls mk/test-release.mk` |
-| Preflight target works | `make ze-release-evidence-preflight` |
-| Perf gate target works | `make -n ze-perf-evidence-update-check` |
-| Evidence target works | `make -n ze-release-evidence-verify` |
+| Preflight target works | `make ze-evidence-release-preflight` |
+| Perf gate target works | `make -n ze-evidence-perf-record` |
+| Evidence target works | `make -n ze-evidence-release-verify` |
 | Makefile includes test-release.mk | `grep 'test-release.mk' Makefile` |
 | Help entries present | `make help-test` shows new targets |
 
@@ -270,7 +270,7 @@ Run in this order (fast/no-infra first, slow/heavy last):
 
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-8 all demonstrated
-- [x] `make -n ze-release-evidence-verify` shows correct target expansion
+- [x] `make -n ze-evidence-release-verify` shows correct target expansion
 - [x] Feature code integrated (`mk/test-release.mk`, `Makefile`)
 - [ ] `make ze-standard-test` passes (lint + all ze tests)
 
@@ -289,15 +289,15 @@ Run in this order (fast/no-infra first, slow/heavy last):
 
 | Check | Result | Evidence |
 |-------|--------|----------|
-| AC-1 preflight success | PASS | `make ze-release-evidence-preflight` found Docker and `qemu-system-x86_64`, exited 0 |
-| AC-1 Docker missing | PASS | `PATH="/usr/bin:/bin" make ze-release-evidence-preflight` reported Docker missing and exited 1 |
-| AC-2 category runner | PARTIAL | `make ZE_RELEASE_SKIP=verify ze-release-evidence-verify` ran the non-skipped matrix and printed per-category PASS/FAIL/SKIP plus summary |
-| AC-3 continue after failure | PASS | `make MAKE=false ZE_RELEASE_SKIP=fuzz,interop,ipsec-interop,l2tp-interop,functional-extra,perf,qemu,vpp-deployment,live ze-release-evidence-verify` reported verify and chaos failures, then skipped remaining named categories and exited 1 |
-| AC-4 explicit skip | PASS | `make MAKE=true ZE_RELEASE_SKIP=interop,perf ze-release-evidence-verify` reported `SKIPPED: interop perf` and exited 0 |
-| AC-5 perf gate | PARTIAL | `make -n ze-perf-evidence-update-check` shows `ze-perf-bench PERF_DUT=ze`, history append, and `bin/ze-perf track --check`; full run failed because current `cmd/ze/hub` does not build in Docker |
-| AC-6 no QEMU skip | PASS | `make MAKE=true ZE_RELEASE_QEMU_BIN=definitely-not-qemu ZE_RELEASE_SKIP=interop,ipsec-interop,l2tp-interop,perf,vpp-deployment,live ze-release-evidence-verify` skipped qemu and exited 0 |
-| AC-7 help output | PASS | `make help-test` shows `ze-release-evidence-preflight`, `ze-release-evidence-verify`, and `ze-perf-evidence-update-check` |
-| AC-8 all categories pass | FAIL | Not demonstrated. `make ZE_RELEASE_SKIP=verify ze-release-evidence-verify` failed 7 of 10 attempted categories |
+| AC-1 preflight success | PASS | `make ze-evidence-release-preflight` found Docker and `qemu-system-x86_64`, exited 0 |
+| AC-1 Docker missing | PASS | `PATH="/usr/bin:/bin" make ze-evidence-release-preflight` reported Docker missing and exited 1 |
+| AC-2 category runner | PARTIAL | `make ZE_RELEASE_SKIP=verify ze-evidence-release-verify` ran the non-skipped matrix and printed per-category PASS/FAIL/SKIP plus summary |
+| AC-3 continue after failure | PASS | `make MAKE=false ZE_RELEASE_SKIP=fuzz,interop,ipsec-interop,l2tp-interop,functional-extra,perf,qemu,vpp-deployment,live ze-evidence-release-verify` reported verify and chaos failures, then skipped remaining named categories and exited 1 |
+| AC-4 explicit skip | PASS | `make MAKE=true ZE_RELEASE_SKIP=interop,perf ze-evidence-release-verify` reported `SKIPPED: interop perf` and exited 0 |
+| AC-5 perf gate | PARTIAL | `make -n ze-evidence-perf-record` shows `ze-perf-bench PERF_DUT=ze`, history append, and `bin/ze-perf track --check`; full run failed because current `cmd/ze/hub` does not build in Docker |
+| AC-6 no QEMU skip | PASS | `make MAKE=true ZE_RELEASE_QEMU_BIN=definitely-not-qemu ZE_RELEASE_SKIP=interop,ipsec-interop,l2tp-interop,perf,vpp-deployment,live ze-evidence-release-verify` skipped qemu and exited 0 |
+| AC-7 help output | PASS | `make help-test` shows `ze-evidence-release-preflight`, `ze-evidence-release-verify`, and `ze-evidence-perf-record` |
+| AC-8 all categories pass | FAIL | Not demonstrated. `make ZE_RELEASE_SKIP=verify ze-evidence-release-verify` failed 7 of 10 attempted categories |
 | Required final gate | FAIL | `make ze-standard-test` fails at `ze-lint` on unrelated `cmd/ze/service` errcheck/modernize/unused issues and `internal/component/web/handler_config_test.go` gofmt |
 
 ## Unblock record (2026-07-10)
@@ -321,7 +321,7 @@ Additional post-wave corrections:
   functional `.ci` (as112-dot/doh, exabgp-bridge-internal, mcp-get-sse,
   test/traffic 020-026) via their existing category targets.
 
-Remaining work: re-run `make ze-release-evidence-verify` on a capable host (Docker +
+Remaining work: re-run `make ze-evidence-release-verify` on a capable host (Docker +
 QEMU + privileged), record fresh per-category results, fill the Review Gate, close.
 
 Blocked failures from the (superseded) 2026-05-24 release evidence run:

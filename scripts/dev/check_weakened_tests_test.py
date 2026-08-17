@@ -544,7 +544,7 @@ class TestParse(unittest.TestCase):
 
 
 class TestFileShape(unittest.TestCase):
-    """What `make ze-weakened-check` runs with no paths."""
+    """What `make ze-test-weakened-check` runs with no paths."""
 
     def test_the_committed_contract_file_parses(self) -> None:
         # Pins the parser against the file phase 2 published. If either moves,

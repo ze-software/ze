@@ -197,7 +197,7 @@ Seed `0` disables chaos entirely (zero overhead). Seed `-1` uses the current tim
 | Target | Description |
 |--------|-------------|
 | `make ze-chaos-test` | Run chaos unit + functional tests |
-| `make ze-chaos` | Build ze-chaos binary |
+| `make ze-chaos-build` | Build ze-chaos binary |
 
 ## When to Use
 

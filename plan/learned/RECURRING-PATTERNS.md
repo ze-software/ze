@@ -99,7 +99,7 @@ flagged by the user across sessions.
 4. `architecture.md` item 5: name the entry point and file:line
    before writing any feature code.
 
-**Gated by.** `make ze-wiring-docs-check`, which runs `check_wiring` in
+**Gated by.** `make ze-doc-wiring-check`, which runs `check_wiring` in
 `scripts/dev/verify_wiring_docs.py`. It fails when a new exported symbol under
 `internal/` or `cmd/` has no non-test caller, so this pattern is now caught
 mechanically rather than at review time.
@@ -724,7 +724,7 @@ mid-run.
 
 **Symptom.** `make ze-rfc-check` fails with the violation
 `rfc/requirements/<stem>.md is stale vs its sources`. You changed no tagged
-test. `ze-doc-verify`, `ze-wiring-docs-check`, `ze-generated-files-check`
+test. `ze-doc-verify`, `ze-doc-wiring-check`, `ze-generated-files-check`
 and `TestRFCLedgerFresh` all go red at the same time, because each one
 reads the same freshness fact.
 

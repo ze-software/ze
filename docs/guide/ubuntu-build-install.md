@@ -92,7 +92,7 @@ The default build includes the feature gates listed in `feature-gates.txt` throu
 If you deliberately want a smaller custom binary, override the feature set. `ZE_TAGS` only *appends* to the full default feature set, so overriding `ZE_FEATURES` (or using the `ze-stripped-build` target, or `go build -tags ze_core`) is what actually shrinks the binary. This is for packagers and lab work, not the normal install path.
 
 ```bash
-make ze ZE_FEATURES="ze_ssh ze_lg ze_web"
+make ze-build ZE_FEATURES="ze_ssh ze_lg ze_web"
 ```
 
 ## 3. Install the binary

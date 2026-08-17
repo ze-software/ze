@@ -1,7 +1,7 @@
 # Appliance installer: ISO and PXE boot
 #
 # Full build from a JSON config file:
-#   make ze-iso-full-build CONFIG=prod.json SSH_PASSWORD='...'
+#   make ze-iso-build-full CONFIG=prod.json SSH_PASSWORD='...'
 #
 # Rebuild (appliance already initialized):
 #   make ze-iso-build NAME=prod
@@ -21,7 +21,7 @@
 #   PXE_DIR            PXE/TFTP root (default: build/pxe)
 #   IPXE_DIR           iPXE source checkout (default: build/ipxe)
 
-.PHONY: ze-iso-full-build ze-iso-initialize ze-iso-build ze-iso-check ze-pxe-build ze-installer-build
+.PHONY: ze-iso-build-full ze-iso-initialize ze-iso-build ze-iso-check ze-pxe-build ze-installer-build
 
 CONFIG            ?=
 APPLIANCE_BUILDER ?= docker
@@ -39,10 +39,10 @@ APPLIANCE_DIR := $(HOME)/.config/ze/appliances/$(NAME)
 
 # --- Full build: init + ISO from a config file --------------------------------
 
-ze-iso-full-build: $(ZEBIN_SETUP)
-	@test -n "$(CONFIG)" || { echo "error: CONFIG required"; echo "  make ze-iso-full-build CONFIG=mybox.json SSH_PASSWORD='...'"; exit 1; }
+ze-iso-build-full: $(ZEBIN_SETUP)
+	@test -n "$(CONFIG)" || { echo "error: CONFIG required"; echo "  make ze-iso-build-full CONFIG=mybox.json SSH_PASSWORD='...'"; exit 1; }
 	@test -f "$(CONFIG)" || { echo "error: $(CONFIG) not found"; exit 1; }
-	@test -n "$(SSH_PASSWORD)" || { echo "error: SSH_PASSWORD required"; echo "  make ze-iso-full-build CONFIG=$(CONFIG) SSH_PASSWORD='...'"; exit 1; }
+	@test -n "$(SSH_PASSWORD)" || { echo "error: SSH_PASSWORD required"; echo "  make ze-iso-build-full CONFIG=$(CONFIG) SSH_PASSWORD='...'"; exit 1; }
 	@rm -rf $(APPLIANCE_DIR)
 	@echo "=== Initializing appliance $(NAME) from $(CONFIG) ==="
 	env ze.appliance.ssh.password='$(SSH_PASSWORD)' \
@@ -104,7 +104,7 @@ ze-installer-build:
 	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 $(GO) build -tags ze_installer -ldflags "$(ZE_LDFLAGS)" -o bin/ze-installer-arm64 ./cmd/ze-installer
 
 ze-pxe-build: $(ZEBIN_SETUP)
-	@test -d "$(APPLIANCE_DIR)" || { echo "error: appliance $(NAME) not found; run ze-iso-full-build or ze-iso-build first"; exit 1; }
+	@test -d "$(APPLIANCE_DIR)" || { echo "error: appliance $(NAME) not found; run ze-iso-build-full or ze-iso-build first"; exit 1; }
 	@echo "--- Setting up PXE boot ---"
 	mkdir -p $(PXE_DIR)/tftp $(PXE_DIR)/boot
 	cp build/kernel/Image $(PXE_DIR)/boot/vmlinuz

@@ -14,7 +14,7 @@
 #
 # NOTE (Docker-free boundary): keep this in its own file, separate from
 # mk/perf.mk whose ze-perf-bench requires Docker (test/perf/run.py). The
-# Docker throughput/p99 matrix stays in `make ze-perf-evidence-update-check`.
+# Docker throughput/p99 matrix stays in `make ze-evidence-perf-record`.
 
 .PHONY: ze-alloc-check
 

@@ -1138,7 +1138,7 @@ class TestStructuralRedOwnerOverride(unittest.TestCase):
 class TestBrokenHeadFixEscape(unittest.TestCase):
     """A broken HEAD must not block the commit that fixes it.
 
-    VALIDATES: `ze-tracked-build-check` is the one structural gate whose red
+    VALIDATES: `ze-repository-tracked-build-check` is the one structural gate whose red
     lives in HEAD, not in the working tree, so it is cleared BY a commit rather
     than before one. `--broken-head-fix "<reason>"` lets that commit through, and
     only that one: the escape applies when tracked-build is the ONLY structural

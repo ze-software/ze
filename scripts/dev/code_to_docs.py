@@ -457,7 +457,7 @@ def main():
         # ai/CODE-TO-DOCS.md reported "all references valid" and exit 0. It had
         # silently drifted by 24 code paths (1439 recorded vs 1463 live) before
         # anyone noticed, because the one target that would have caught it
-        # (ze-generated-files-update-check, via `git diff`) has no callers.
+        # (ze-generated-files-reconcile, via `git diff`) has no callers.
         # A guard that cannot fail is not a guard (ai/rules/evidence.md).
         try:
             current = output_file.read_text(encoding="utf-8")

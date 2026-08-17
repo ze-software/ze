@@ -121,7 +121,7 @@ GOKRAZY_TEMPLATE ?= gokrazy/ze/ze.conf
 ze-gokrazy-gosum-check:
 	@python3 scripts/dev/gokrazy_gosum_check.py
 
-ze-gokrazy-build: ze bin/gok ze-gokrazy-gosum-check
+ze-gokrazy-build: ze-build bin/gok ze-gokrazy-gosum-check
 	@miss=""; for t in mkfs.ext4 debugfs; do { [ -n "$(E2FS)" ] && [ -x "$(E2FS)/$$t" ]; } || miss="$$miss $$t"; done; \
 		[ -z "$$miss" ] || { echo "error: e2fsprogs tool(s) not found:$$miss (searched '$(E2FS)'). Install e2fsprogs (Debian/Ubuntu: apt install e2fsprogs; Fedora: dnf install e2fsprogs; macOS: brew install e2fsprogs), or pass the sbin directory that holds BOTH mkfs.ext4 and debugfs: make ze-gokrazy-build E2FS=/path/to/sbin"; exit 1; }
 	@mkdir -p tmp/gokrazy/init

@@ -109,7 +109,7 @@ class ScaleScenario:
     def setup(self, config_text=None, l2tp_port=None, extra_env=None):
         """Start Ze with L2TP enabled on a free port."""
         if not self.ze_binary:
-            raise RuntimeError("ze binary not found (run 'make ze' first)")
+            raise RuntimeError("ze binary not found (run 'make ze-build' first)")
         if not self.ze_test_binary:
             raise RuntimeError(
                 "ze-test binary not found (run 'make test-runner' first)"

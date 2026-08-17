@@ -46,7 +46,7 @@ so their absence is a property of the checkout, not a broken reference.
 
 Usage: scripts/dev/check_doc_links.py [--md-only|--design-only] [-v]
        scripts/dev/check_doc_links.py --write-baseline
-Called by: make ze-doc-links-check, make ze-generated-files-update-check
+Called by: make ze-doc-links-check, make ze-generated-files-reconcile
 Exit codes: 0 = all resolve, 1 = broken references found.
 """
 

@@ -13,4 +13,4 @@ reaching for it, so a lab that gains nothing does not gain a precondition.
 `make ze-kernel-build` routes through the durable architecture- and config-keyed cache
 under `~/.cache/ze`, so it materializes on a cache hit and builds only on a miss
 or after a config fragment changes. The two functional targets
-(`ze-qemu-all-test`, `ze-qemu-needs-linux-test`) use `--kernel` unconditionally.
+(`ze-qemu-test-all`, `ze-qemu-needs-linux-test`) use `--kernel` unconditionally.

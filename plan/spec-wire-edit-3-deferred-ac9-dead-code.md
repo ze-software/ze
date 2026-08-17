@@ -367,9 +367,9 @@ deleting symbols under a live edit discards that session's work
    - Verify: a grep for `EBGPWire` over `docs/` and `internal/` returns nothing (AC-1, AC-2). No gate reads these pages, so the grep IS the check
 7. **Phase: gates, then stop.**
    - Run `make ze-unit-reactor-test-race`. This touches reactor state shared across goroutines, so `ai/rules/testing.md` requires it. Paste the output
-   - Run `make ze-unit-pkg-test PKG=./internal/component/bgp/reactor`, `make ze-unit-pkg-test PKG=./internal/perf`, `make ze-alloc-check`, `make ze-rfc-check`, `make ze-doc-verify`, `make ze-lint-changed`, `make ze-weakened-check`
+   - Run `make ze-unit-pkg-test PKG=./internal/component/bgp/reactor`, `make ze-unit-pkg-test PKG=./internal/perf`, `make ze-alloc-check`, `make ze-rfc-check`, `make ze-doc-verify`, `make ze-lint-changed`, `make ze-test-weakened-check`
    - Run `make ze-precommit-verify` once, at the end, in the foreground. Never poll
-   - Commit with `scripts/dev/commit_helper.py create`, passing `--remove` for the two deleted bench files. Run `make ze-tracked-build-check` immediately after the script, because the commit carries Go
+   - Commit with `scripts/dev/commit_helper.py create`, passing `--remove` for the two deleted bench files. Run `make ze-repository-tracked-build-check` immediately after the script, because the commit carries Go
    - **Handoff is `verify`: set Status to `verification` in this file, report, and STOP.** Do not append `plan/TEMPLATE-CLOSURE.md`, do not run `/ze-close`, do not `git rm` this spec. A later Opus 5 session reviews the commit and closes it
 
 ### Critical Review Checklist
@@ -434,7 +434,7 @@ deleting symbols under a live edit discards that session's work
 
 - The before-and-after numbers in `docs/architecture/perf-round-3.md` stop being re-runnable, because the baseline comparator benchmark goes with the cache. That is accepted: the measured path is unreachable, so a re-run would measure nothing the daemon does.
 - Two `.ci` comments, in `test/plugin/asn4-transcode-pooled-buffer.ci` and `test/plugin/bgp-rs-asn4-transcode.ci`, and one comment block in `internal/component/bgp/reactor/forward_readbuf_leak_test.go`, name a `getEBGPWire` function. That symbol is ALREADY gone: the AS-path fold removed it, and no Go file defines or calls it today. Those comments are stale for a different reason and are OUT of scope here, because this spec's delete does not create or worsen them. Do not fold the fix into this commit: `ai/rules/rule-precedence.md` says an unrelated fix in a closing commit costs the commit its single focus. Write one row in `plan/journal/` instead and move on.
-- This spec removes the cache. It adds no gate that would have caught an unreachable exported method at commit time; `make ze-wiring-docs-check` already owns that surface.
+- This spec removes the cache. It adds no gate that would have caught an unreachable exported method at commit time; `make ze-doc-wiring-check` already owns that surface.
 
 ## RFC Documentation (Scope: protocol)
 
@@ -467,7 +467,7 @@ a polarity, so no ratchet fires.
 - [ ] `make ze-unit-reactor-test-race` passes, output pasted
 - [ ] `make ze-alloc-check` passes
 - [ ] `make ze-rfc-check` passes, with both `make ze-rfc-index-update` outputs committed
-- [ ] `make ze-weakened-check` passes
+- [ ] `make ze-test-weakened-check` passes
 - [ ] Every deleted `Test` and `Benchmark` named in the report with its own reason
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -485,5 +485,5 @@ a polarity, so no ratchet fires.
 ### Handoff (Handoff = `verify`)
 - [ ] Status set to `verification` in this file
 - [ ] Commit prepared with `scripts/dev/commit_helper.py create`, using `--remove` for the two deleted bench files
-- [ ] `make ze-tracked-build-check` run after the commit script, because the commit carries Go
+- [ ] `make ze-repository-tracked-build-check` run after the commit script, because the commit carries Go
 - [ ] Report delivered and the session STOPPED. Closure belongs to a later Opus 5 session, which reviews the commit

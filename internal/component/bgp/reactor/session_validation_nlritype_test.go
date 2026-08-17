@@ -240,7 +240,7 @@ func acceptEveryFamily(uint16, uint8) bool { return true }
 // withdrawal names an unrecognized type is DROPPED, not relayed.
 // PREVENTS: a forged End-of-RIB. With the only attribute gone, RebuildUpdateBody emits
 // withdrawn-length 0, attribute-length 0 and no NLRI -- four zero octets, which is exactly
-// RFC 4724 Section 2's legacy End-of-RIB marker. Relaying it would make ze tell every peer
+// RFC 4724 Section 2's legacy End-of-RIB marker. Relaying it would make ze-build tell every peer
 // that this neighbor finished its initial routing update, ending a restarting peer's RFC
 // 4724 route deferral early on a withdrawal the peer never meant as an EoR.
 //

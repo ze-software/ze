@@ -126,7 +126,7 @@ other.
 
 ## F1-F3 IMPLEMENTED 2026-07-16 (F4 open); measured blast radius below
 
--> Decision: F1, F2 and F3 are implemented and green (`make ze` OK,
+-> Decision: F1, F2 and F3 are implemented and green (`make ze-build` OK,
 `make ze-lint-changed` 0 issues). No production file was touched. F4 (fixing the
 `.ci` tests) is deliberately NOT done here and is fanned out; see
 `plan/deferrals.md` (5 rows, 2026-07-16) for the sharded work.
@@ -852,7 +852,7 @@ contradicts `peer_run.go`, which documents this loop as deliberately replacing t
 
 ### DISPROVEN (do not repeat)
 - "Committed plugin-startup regression (closed pipe)": FALSE. Artifact of running with
-  `ZE_TEST_NO_BUILD=1 ZE_BIN=bin/ze` where `bin/ze` was a `make ze` **core** build lacking the
+  `ZE_TEST_NO_BUILD=1 ZE_BIN=bin/ze` where `bin/ze` was a `make ze-build` **core** build lacking the
   `zetest` fake plugins (fakeredist/fakefib). With the default `zetest` build (buildZe,
   `cmd_bgp.go` uses `runner.TestBuildTags()`), `redistribute-as112-announce` passes.
   Always let ze-test build (do not pin ZE_BIN to a core binary) for the `bgp plugin` suite.
@@ -1041,7 +1041,7 @@ ze-peer does with a peer block containing only `expect=json`
 - R-1: reordering establishment vs. replay dispatch could regress late-join replay; guard
   with spec-redistribute-late-join-replay tests.
 - R-2: as of 2026-07-14 a concurrent session's `internal/component/iface` break prevents
-  `make ze`; this spec cannot be implemented until the tree builds.
+  `make ze-build`; this spec cannot be implemented until the tree builds.
 
 ## Checklist
 

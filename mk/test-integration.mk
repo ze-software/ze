@@ -23,11 +23,11 @@
 .PHONY: ze-live-test ze-live-rpki-test
 .PHONY: ze-integration-test ze-integration-iface-test ze-integration-fib-test ze-integration-firewall-test ze-integration-traffic-test ze-integration-gtsm-test ze-integration-as112-test
 .PHONY: ze-netns-test ze-qemu-netns-test ze-netns-plugin-test
-.PHONY: ze-release-check ze-deployment-vpp-test ze-deployment-vpp-iface-test ze-deployment-l2tp-test ze-deployment-l2tp-ppp-test
+.PHONY: ze-evidence-release-candidate-check ze-deployment-vpp-test ze-deployment-vpp-iface-test ze-deployment-l2tp-test ze-deployment-l2tp-ppp-test
 .PHONY: ze-deployment-docker-l2tp-ppp-test ze-deployment-gokrazy-l2tp-ppp-test
 .PHONY: ze-deployment-docker-pppoe-accel-test
-.PHONY: ze-docker-evidence-run ze-deployment-preflight
-.PHONY: ze-qemu-integration-test ze-qemu-l2tp-ppp-test ze-qemu-pppoe-accel-test ze-qemu-pppoe-test ze-qemu-ldp-frr-test ze-qemu-isis-frr-test ze-qemu-vrrp-keepalived-test ze-qemu-traffic-usage-test ze-qemu-vpp-hugepages-test ze-qemu-install-test ze-qemu-install-iso-test ze-qemu-install-scenarios-test ze-qemu-install-ventoy-test ze-qemu-all-test ze-qemu-needs-linux-test
+.PHONY: ze-evidence-docker-run ze-deployment-preflight
+.PHONY: ze-qemu-integration-test ze-qemu-l2tp-ppp-test ze-qemu-pppoe-accel-test ze-qemu-pppoe-test ze-qemu-ldp-frr-test ze-qemu-isis-frr-test ze-qemu-vrrp-keepalived-test ze-qemu-traffic-usage-test ze-qemu-vpp-hugepages-test ze-qemu-install-test ze-qemu-install-iso-test ze-qemu-install-scenarios-test ze-qemu-install-ventoy-test ze-qemu-test-all ze-qemu-needs-linux-test
 .PHONY: ze-qemu-debug ze-qemu-shell
 
 # ─── Interop ────────────────────────────────────────────────────────────────
@@ -300,7 +300,7 @@ ze-deployment-vpp-iface-test:
 	@echo "Running real VPP interface-feature deployment test (tunnels/mirror/wireguard/LCP; requires Docker + privileged container)..."
 	python3 scripts/evidence/effective-vpp-iface.py
 
-ze-release-check:
+ze-evidence-release-candidate-check:
 	@echo "Running clean release-candidate verification (requires Docker + clean worktree)..."
 	bash scripts/evidence/effective-verify.sh
 
@@ -326,7 +326,7 @@ ze-deployment-gokrazy-l2tp-ppp-test:
 
 EVIDENCE_SCRIPT ?=
 EVIDENCE_PACKAGES ?=
-ze-docker-evidence-run:
+ze-evidence-docker-run:
 	@test -n "$(EVIDENCE_SCRIPT)" || { echo "error: set EVIDENCE_SCRIPT=scripts/evidence/foo.py"; exit 1; }
 	python3 scripts/evidence/docker-run.py $(EVIDENCE_SCRIPT) $(EVIDENCE_PACKAGES)
 
@@ -366,7 +366,7 @@ ze-deployment-preflight:
 # ruleset`. The stock Alpine 6.12.13-0-virt kernel is the one that cannot take
 # it, and no target runs on it any more.
 # Cross-compiled binaries take the name ze-linux-<arch> so $(ZEBIN_ZE) stays the
-# host-native binary. No need to run `make ze test` after QEMU testing.
+# host-native binary. No need to run `make ze-build test` after QEMU testing.
 QEMU_GOARCH := $(shell uname -m | sed -e 's/x86_64/amd64/' -e 's/aarch64/arm64/')
 # $(ZE_BIN_DIR) (mk/session.mk) is bin/ off-session and this session's own
 # directory under an AI session, so two sessions cross-compiling for the VM at
@@ -439,7 +439,7 @@ endef
 # zetest + ze_core + ze_distro + ze_setup + every default-on feature tag. It
 # omitted ze_setup and $(ZE_FEATURES) until 2026-07-23, so the VM ran a daemon
 # with NO ssh, web, bgp, isis, ospf, vrrp, ldp, rsvpte, gnmi or telemetry -- not
-# the binary `make ze` ships. That surfaced as unrelated-looking failures: a
+# the binary `make ze-build` ships. That surfaced as unrelated-looking failures: a
 # config using `system { authentication { user ... } }` was rejected with
 # "unknown field in authentication: user", because that leaf is declared in
 # internal/component/ssh/yang/ze-ssh-conf.yang and ze_ssh gates that package
@@ -474,7 +474,7 @@ CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags '$(ZE_QEMU_STRI
 CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags '$(ZE_QEMU_TEST_TAGS)' -o $(ZE_QEMU_TEST_BIN) ./cmd/ze
 endef
 
-ze-qemu-all-test: ze-host-build
+ze-qemu-test-all: ze-host-build
 	$(ze-qemu-kernel-guard)
 	$(ze-qemu-crossbuild)
 	@echo "Running full test suite in QEMU Linux VM (host-compiled binaries; no in-VM ze/ze-test compile)..."
@@ -533,11 +533,11 @@ ze-qemu-needs-linux-test: ze-host-build
 
 # Debug specific functional tests in the QEMU VM with verbose output.
 #
-# Unlike ze-qemu-all-test (all-or-nothing, non-verbose), this runs ONE arbitrary
+# Unlike ze-qemu-test-all (all-or-nothing, non-verbose), this runs ONE arbitrary
 # command in the VM and streams its output, so a failing .ci test can be re-run
 # with -v to see the expect-vs-got diff. The command runs from /workspace with
 # ZE_TEST_NO_BUILD=1 set (the runner reuses the cross-compiled binaries instead
-# of recompiling on the slow 9p mount). Indices come from the ze-qemu-all-test
+# of recompiling on the slow 9p mount). Indices come from the ze-qemu-test-all
 # summary line, e.g. "failed 2 [264, 310]".
 #
 # Usage:

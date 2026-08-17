@@ -8,7 +8,7 @@ stage:
 1. **Lint** (full or changed-only depending on target)
 2. **Cached full pass** (`go test` without `-race`): Go caches results by source hash.
    The pass uses `ze_core` plus the default-on feature tags from `feature-gates.txt`,
-   matching the shipped `make ze` feature set. It also runs the bare `ze_core`
+   matching the shipped `make ze-build` feature set. It also runs the bare `ze_core`
    hub compile-out checks so absent-feature tests still execute.
    When nothing changed, this completes in under 1 second. Catches logic regressions
    across the entire codebase.
