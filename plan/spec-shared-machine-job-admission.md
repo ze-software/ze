@@ -1,0 +1,348 @@
+# Spec: shared-machine-job-admission
+
+| Field | Value |
+|-------|-------|
+| Status | skeleton |
+| Scope | tooling |
+| Depends | - |
+| Phase | - |
+| Deferral shard | `plan/deferrals/shared-machine-job-admission.md` (or `-` if nothing deferred) |
+| Handoff | - |
+| Updated | 2026-08-17 |
+
+Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Task
+
+Several Claude sessions share one checkout and one machine. Each session, and
+each subagent it spawns, decides on its own to run tests or lint. Every heavy
+target is sized for the WHOLE machine, and only three of them take any lock, so
+two agents starting work at the same moment oversubscribe the box until it
+stops responding.
+
+The owner reported the symptom on 2026-08-17: three concurrent sessions, and
+"running the linting by hand can cause the machine to freeze".
+
+The goal is that a session can ask for a heavy job at any moment and get one of
+three answers, none of which is a frozen machine: it runs now, it waits with a
+visible position and progress, or it attaches to an equivalent run already in
+flight and shares that result.
+
+## Required Reading
+
+### Architecture Docs
+- [ ] `docs/functional-tests.md` - the verify runner's stages, artifacts, and the log paths a waiter would follow
+  → Constraint: the runner already writes a per-stage banner to `tmp/ze-verify.log` and a machine-readable index to `tmp/ze-verify-failures.json`, so progress reporting needs no new output format, only a reader
+  → Decision: artifact paths are fixed strings in `scripts/status/verify_run.go`; a second concurrent run overwrites them, so job isolation must give each run its own log directory before any two runs are allowed to overlap
+- [ ] `ai/rules/commands.md` - the existing "run commands through make" instruction the hook would enforce
+  → Constraint: the rule already says prefer `make` and that a bare `go test` drops feature tags; this spec adds enforcement, it does not add a new rule
+- [ ] `ai/rules/repo-maintenance.md` - what a new tool owes: rule, index row, discovery surface, verification
+  → Constraint: a new script under `scripts/dev/` needs a sibling `*_test.py` and a row in the Hook-to-Rule Mapping table when it is bound to a hook check
+
+**Key insights:** (minimal context to resume after compaction)
+- The coordination primitive already exists (`scripts/dev/verify-lock.sh`) and is wired to 3 targets out of ~15 heavy ones. This is mostly a wiring and admission-policy problem, not a new-mechanism problem.
+- Lint dominates. Measured 2026-08-17: `ze-lint` took about 18 minutes of a 20-minute full verify under load; the other 25 stages took about 2.
+- The largest single win is DEDUPLICATION, not serialization: in a shared checkout most agents want the same verify of the same tree.
+
+## Current Behavior (MANDATORY)
+
+**Source files read:** (must read BEFORE you write this spec)
+- [ ] `scripts/dev/verify-lock.sh` - `flock -o` on `tmp/.ze-verify.lock`, re-enters itself as `__inner__` to write `tmp/.ze-verify.lock.owner` (LABEL, PID, PGID, STARTED, CMD), records elapsed time to `tmp/.ze-verify-duration.txt`, and prints the previous run's duration on acquisition. Interface is `LABEL CMD [ARGS...]`, so it already accepts an arbitrary command.
+- [ ] `Makefile` - `ze-precommit-verify` (:669) and `ze-precommit-verify-changed` (:688) are the only targets that call `verify-lock.sh`; `GO_TEST_PROCS` (:112) computes `max(nproc-3, ceil(nproc/2))`, which is 29 on the 32-core box; `ze-lint` (:560-564) and `ze-lint-changed` (:622-628) each invoke `golangci-lint` TWICE, once native and once `GOOS=linux --build-tags integration`.
+- [ ] `mk/test-chaos.mk` - `ze-chaos-verify` (:47) is the third and last caller of the lock.
+- [ ] `.golangci.yml` - enables `unused`, `dupl`, `staticcheck`, `gocritic` and 20 more; sets NO `concurrency` key and no memory ceiling, so golangci-lint defaults to one worker per core.
+- [ ] `.claude/hooks/pretool-bash.py` - `CHECKS` is a tuple of `check_x(cmd, ctx) -> None | (exit_code, message)`; `main()` returns the worst code, and it can also emit `hookSpecificOutput.updatedInput` to REWRITE the command before it runs, which it already does to inject `CLAUDE_CODE_SESSION_ID`.
+- [ ] `scripts/status/verify_run.go` - stage names come from `stagesForMode`; artifact paths (`tmp/ze-verify.log`, `tmp/verify/<nn>-<stage>.log`, `tmp/ze-verify-failures.json`) are package constants, so two concurrent runs collide on them.
+
+**Behavior to preserve:**
+- `verify-lock.sh`'s `LABEL CMD [ARGS...]` interface and its owner file, which the "waiting" banner and `commit_helper.py` diagnostics read.
+- The duration history in `tmp/.ze-verify-duration.txt` and the "previous run took" line, which is how a session picks a timeout.
+- Every existing `make` target name. Agents, rules and skills reference them by name.
+- The verify runner's exit code contract: the commit gate reads it.
+
+**Behavior to change:**
+- The lock's population grows from 3 targets to every heavy target.
+- The stuck-holder rule stops being age-based (see R-1 below).
+- The linter gains a concurrency and memory ceiling.
+- A raw `go test` / `golangci-lint` / `bin/ze-test` / `python3 *_test.py` invocation is refused by the Bash hook.
+
+## Data Flow (MANDATORY)
+
+### Entry Point
+- An agent's Bash tool call containing a heavy command, in one of three forms: a `make` target, a raw tool invocation, or a script that wraps either.
+
+### Transformation Path
+1. `.claude/hooks/pretool-bash.py` inspects the command text. A raw heavy invocation is refused with the queued equivalent named.
+2. The `make` target's recipe calls `scripts/dev/ze-run.sh <label> <command>`.
+3. `ze-run.sh` computes a job key from the label and the tree hash, then consults the job registry under `tmp/.ze-jobs/`.
+4. Three outcomes: an equivalent job is RUNNING, so attach to its log and exit with its code; a slot is free, so claim it and run; no slot is free, so wait, printing the holder's label and current stage.
+5. The job writes its artifacts under a per-job directory, and on exit records duration and clears its registry entry.
+
+### Boundaries Crossed
+| Boundary | How | Verified |
+|----------|-----|----------|
+| Agent ↔ harness | PreToolUse hook exit code 2 refuses the call; stderr carries the replacement command | No |
+| Session ↔ session | Shared filesystem state under `tmp/.ze-jobs/`, guarded by `flock` | No |
+| Wrapper ↔ job | Process group, so a broken job's children die with it | No |
+
+### Integration Points
+- `scripts/dev/verify-lock.sh` - `ze-run.sh` is its generalization; the old name stays as a thin alias so no caller breaks.
+- `scripts/dev/commit_helper.py` - reads `tmp/ze-verify-full.json` for the Go-commit coverage gate; a per-job artifact directory must still publish that file at its documented path.
+- `mk/*.mk` - every heavy target's recipe gains the wrapper.
+
+### Architectural Verification
+| Check | Holds? | Evidence |
+|-------|--------|----------|
+| No bypassed layers (data flows through the intended path) | No | |
+| No unintended coupling (components stay isolated) | No | |
+| No duplicated functionality (extends existing, does not recreate) | No | |
+| Zero-copy preserved where applicable (refs, not copies) | No | |
+| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them | No | |
+
+## Risks & Assumptions
+
+### Assumptions
+| ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
+|----|-----------|--------------------------------|----------|--------------|--------|
+| A-1 | The freeze is memory pressure before CPU contention | measured 2026-08-17: 31 GB total, 2 GB free, load 25.5, two `gopls` at 3.0 GB combined | a CPU-only token pool would not prevent it; admission must be weighted by memory, not by job count | run two `ze-lint` invocations with and without a `GOMEMLIMIT` and record peak RSS | unvalidated |
+| A-2 | Most concurrent verify requests are for an equivalent tree, so attach-and-share removes most of the queue | shared checkout, 8 agents, one working tree | dedup buys little and plain serialization is the whole answer | count distinct tree hashes among job requests over one working day | unvalidated |
+| A-3 | The PreToolUse hook sees every agent Bash call, including subagents' | `.claude/hooks/pretool-bash.py` `main()` handles `agent_id` and `CLAUDE_CODE_FORK_SUBAGENT` | a subagent could bypass admission entirely, and the guard would be advisory | spawn a subagent, have it run a raw `go test`, confirm refusal | unvalidated |
+| A-4 | `golangci-lint` honors a `concurrency` setting and `GOMEMLIMIT` in the way the ceiling assumes | golangci-lint documentation, not yet verified against the installed version | the cheapest mitigation does not work and admission must carry the whole load | measure peak RSS with and without both settings | unvalidated |
+
+### Risks
+| ID | Risk | Early signal | Mitigation / fallback |
+|----|------|--------------|----------------------|
+| R-1 | The existing stuck-lock rule kills the legitimate run. `MAX_LOCK_AGE` defaults to 1800s, and the header comment justifies it with "ze-precommit-verify targets ~2 min". The recorded history says 12m45s and the run of 2026-08-17 exceeded 20 minutes under load. Under exactly the contention this spec addresses, the first waiter SIGKILLs the holder's process group, then runs slowly itself and is killed by the next waiter | a `breaking stuck lock` line in a transcript, or a verify that dies with no failure summary | replace the age test with a liveness test: break the lock only when the holder's PID is dead, or when its log has not grown for N minutes. Age alone cannot distinguish "hung" from "slow because the box is busy", which is the state this tool exists to manage |
+| R-2 | Attach-and-share returns a stale verdict. Session B attaches to session A's run, but the tree changed between A's start and B's request, so B is certified by a run that never saw its code | a commit passes the Go-coverage gate whose diff the attached run predates | the job key includes the tree hash, and attach requires an exact match. `verify-status.sh tree_hash` already computes one over HEAD, the diff, and untracked files |
+| R-3 | Serializing every heavy target makes the queue the new bottleneck: eight agents each waiting 20 minutes | agents idling on the lock rather than working | weight admission rather than counting jobs, so light targets keep running; and land the linter ceiling first, since lint is about 90% of the measured wall clock |
+| R-4 | The hook refuses a command an agent legitimately needs and there is no escape, so the agent invents a workaround (a script file, a renamed binary) that the hook cannot see | a transcript where the refusal is followed by an unusual invocation | give the refusal a named escape that is cheap and honest, and make the queued path the shorter thing to type |
+| R-5 | The wrapper leaks a slot when it is killed, and admission deadlocks for every session | jobs waiting with no live holder | registry entries carry PID and PGID; a waiter reaps an entry whose PID is dead, which is the behaviour `verify-lock.sh` already implements for its owner file |
+| R-6 | Two concurrent jobs overwrite the fixed artifact paths in `scripts/status/verify_run.go`, so a failure index describes the wrong run | a failure summary naming stages the session never ran | per-job artifact directory, with the documented paths published as symlinks or copies once the job completes |
+
+## Blast Radius
+
+| Question | Answer |
+|----------|--------|
+| What breaks if this is wrong? | Every agent's ability to run a test. A wedged admission point is worse than the freeze it replaces, because the freeze at least resolves when a job ends |
+| How is it reverted? | Single commit revert. The wrapper is additive: the old `verify-lock.sh` interface stays, and reverting the Makefile recipes restores today's behaviour |
+| Who else touches this path? | Every session in the checkout, concurrently, which is why the rollout order below starts with the change that needs no coordination |
+
+## Wiring Test (MANDATORY -- NOT deferrable)
+
+| Entry Point | → | Feature Code | Test |
+|-------------|---|--------------|------|
+| `make ze-lint` with a job already holding the slot | → | `ze-run.sh` admission wait path | `test_a_second_heavy_job_waits_for_the_slot` |
+| `make ze-precommit-verify` when an equivalent job is running | → | `ze-run.sh` attach path | `test_an_equivalent_job_is_attached_not_queued` |
+| Agent Bash call `go test ./internal/...` | → | `check_raw_test_invocation` in `pretool-bash.py` | `test_a_raw_go_test_is_refused_and_names_the_make_target` |
+| A job whose holder PID is dead | → | `ze-run.sh` reap path | `test_a_dead_holder_s_slot_is_reclaimed` |
+| A slow but live holder past the old age limit | → | `ze-run.sh` liveness test | `test_a_slow_live_holder_is_not_killed` |
+
+## Acceptance Criteria
+
+| AC ID | Input / Condition | Expected Behavior |
+|-------|-------------------|-------------------|
+| AC-1 | `golangci-lint` runs via `make ze-lint` or `ze-lint-changed` | Peak RSS is bounded by a configured ceiling and worker count is capped, both set in `.golangci.yml`; the measured peak is recorded in the spec |
+| AC-2 | Two heavy jobs are requested at once by different sessions | Exactly one runs; the second reports the holder's label and elapsed time and waits, without either being killed |
+| AC-3 | A second session requests a job equivalent to one already running (same label, same tree hash) | It attaches to the running job, follows its output, and exits with that job's exit code, without starting a second run |
+| AC-4 | A second session requests a job with the same label but a DIFFERENT tree hash | It does NOT attach; it queues, because the running job never saw its code |
+| AC-5 | An agent issues a raw `go test`, `golangci-lint`, `bin/ze-test`, or `python3 <path>_test.py` | The Bash hook refuses with exit 2 and names the queued command to use instead |
+| AC-6 | The holder of a slot is alive and has been running longer than the old 1800s limit, and its log is still growing | The waiter does NOT kill it |
+| AC-7 | The holder's process is dead | The next waiter reclaims the slot without operator action |
+| AC-8 | A waiting session asks what is happening | It sees the holder's current stage name and elapsed time, refreshed as the holder progresses |
+| AC-9 | Two jobs run concurrently under a weighted policy | Neither overwrites the other's log or failure index; each artifact set is attributable to one job |
+| AC-10 | `commit_helper.py` reads full-verify coverage after a job completes | `tmp/ze-verify-full.json` is present at its documented path with that job's content |
+
+## 🧪 TDD Test Plan
+
+### Unit Tests
+| Test | File | Validates | Status |
+|------|------|-----------|--------|
+| `test_a_second_heavy_job_waits_for_the_slot` | `scripts/dev/ze_run_test.py` | AC-2 | |
+| `test_an_equivalent_job_is_attached_not_queued` | `scripts/dev/ze_run_test.py` | AC-3 | |
+| `test_a_different_tree_hash_does_not_attach` | `scripts/dev/ze_run_test.py` | AC-4 | |
+| `test_a_slow_live_holder_is_not_killed` | `scripts/dev/ze_run_test.py` | AC-6 | |
+| `test_a_dead_holder_s_slot_is_reclaimed` | `scripts/dev/ze_run_test.py` | AC-7 | |
+| `test_a_raw_go_test_is_refused_and_names_the_make_target` | `.claude/hooks/tests/` fixture | AC-5 | |
+| `test_the_make_target_itself_is_not_refused` | `.claude/hooks/tests/` fixture | AC-5 discriminator: the guard must not block the sanctioned path | |
+| `TestConcurrentRunsDoNotShareArtifactPaths` | `scripts/status/verify_run_test.go` | AC-9 | |
+
+### Boundary Tests (numeric inputs)
+| Field | Range | Last Valid | Invalid Below | Invalid Above |
+|-------|-------|------------|---------------|---------------|
+| admission weight | 1..total slots | total slots | 0 | total slots + 1 |
+| liveness stall window (seconds) | 60..3600 | 3600 | 59 | 3601 |
+| `golangci-lint` concurrency | 1..nproc | nproc | 0 | nproc + 1 |
+
+### Functional Tests
+| Test | Location | End-User Scenario | Status |
+|------|----------|-------------------|--------|
+| `test-job-admission-serialises` | `test/tooling/*.ci` | two agents ask for lint at once; one runs, one waits, the machine stays responsive | |
+| `test-job-admission-attaches` | `test/tooling/*.ci` | two agents ask for the same verify of the same tree; one run serves both | |
+
+### Interop Tests (Scope: protocol)
+N/A - Scope is tooling; no wire-visible behavior changes.
+
+## Files to Modify
+- `Makefile` - route `ze-lint`, `ze-lint-changed`, `ze-unit-*`, `ze-functional-*` recipes through the wrapper
+- `mk/test-unit.mk`, `mk/test-integration.mk`, `mk/test-chaos.mk` - same, for targets defined there
+- `.golangci.yml` - add `concurrency` and a memory ceiling
+- `scripts/dev/verify-lock.sh` - becomes a thin alias over the generalized wrapper
+- `scripts/status/verify_run.go` - per-job artifact directory, with documented paths published on completion
+- `.claude/hooks/pretool-bash.py` - add the raw-invocation check to `CHECKS`
+- `ai/rules/points/commands/` - state the admission rule and bind the new check to it
+- `ai/rules/points/repo-maintenance/` - Hook-to-Rule Mapping row for the new check
+- `docs/functional-tests.md` - the artifact table and the queued invocation
+
+## Files to Create
+- `scripts/dev/ze-run.sh` - the admission wrapper
+- `scripts/dev/ze_run_test.py` - its tests
+- `test/tooling/*.ci` - the functional tests above
+
+### Integration Checklist
+| Integration Point | Applies? | File / reason |
+|-------------------|----------|---------------|
+| YANG schema (new RPCs/config) | N-A | developer tooling; nothing is operator-configurable |
+| YANG validation constraints | N-A | as above |
+| YANG custom validators | N-A | as above |
+| CLI commands/flags | N-A | no `ze` subcommand; the surface is `make` and the hook |
+| CLI grammar (keyword before value) | N-A | as above |
+| Editor autocomplete | N-A | as above |
+| Functional test for new RPC/API | Yes | `test/tooling/*.ci` above |
+| Pipe completeness | N-A | no `ze` command output |
+| Env var registration | N-A | wrapper settings are developer env vars, not `ze.*` YANG-backed config |
+| Doctor check for runtime dependencies | Yes | the wrapper requires `flock` (util-linux); `verify-lock.sh` already errors when it is absent, and that check moves into the wrapper |
+| Prometheus counters/metrics | N-A | developer tooling, not daemon state |
+| BGP family surface | N-A | not protocol work |
+
+### Documentation Update Checklist (BLOCKING)
+| # | Question | Applies? | File to update |
+|---|----------|----------|---------------|
+| 1 | New user-facing feature? | N-A | developer tooling, not a product feature |
+| 2 | Config syntax changed? | N-A | no operator config |
+| 3 | CLI command added/changed? | N-A | no `ze` subcommand |
+| 4 | API/RPC added/changed? | N-A | none |
+| 5 | Plugin added/changed? | N-A | none |
+| 6 | Has a user guide page? | N-A | contributor surface, not user |
+| 7 | Wire format changed? | N-A | none |
+| 8 | Plugin SDK/protocol changed? | N-A | none |
+| 9 | RFC behavior implemented, changed, or newly proven? | N-A | not protocol work |
+| 10 | Test infrastructure changed? | Yes | `docs/functional-tests.md` - artifact table, queued invocation, attach semantics |
+| 11 | Affects daemon comparison? | N-A | none |
+| 12 | Internal architecture changed? | N-A | build tooling, not daemon architecture |
+| 13 | Route metadata keys added/changed? | N-A | none |
+| 14 | Prometheus counters added/changed? | N-A | none |
+| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | N-A | none |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | grep `docs/` for anchors on `verify_run.go` and `verify-lock.sh` |
+| 17 | Existing docs show config/CLI/API examples for this area? | Yes | `docs/contributing/testing.md` shows raw `go test` invocations the hook will refuse |
+
+## Implementation Steps
+
+1. **Phase: Wiring (MANDATORY FIRST)** -- the wrapper exists and one target uses it
+   - Tests: `test_a_second_heavy_job_waits_for_the_slot`, `test_a_dead_holder_s_slot_is_reclaimed`
+   - Files: `scripts/dev/ze-run.sh`, `scripts/dev/ze_run_test.py`, `Makefile` (`ze-lint` only)
+   - Verify: the wiring test fails because the wrapper is a stub, then passes
+2. **Phase: Linter ceiling** -- the cheapest relief, landed first and independently
+   - Tests: AC-1's measurement, recorded as peak RSS before and after
+   - Files: `.golangci.yml`
+   - Verify: peak RSS of `make ze-lint` drops below the ceiling; `ze-lint` still reports the same findings on a known-red tree
+3. **Phase: Liveness replaces age** -- stop killing slow runs
+   - Tests: `test_a_slow_live_holder_is_not_killed`
+   - Files: `scripts/dev/ze-run.sh`
+   - Verify: a holder past 1800s with a growing log survives; a holder with a dead PID is reaped
+4. **Phase: Attach and share** -- the dedup win
+   - Tests: `test_an_equivalent_job_is_attached_not_queued`, `test_a_different_tree_hash_does_not_attach`
+   - Files: `scripts/dev/ze-run.sh`, `scripts/status/verify_run.go`
+   - Verify: two requests, one run, both correct exit codes
+5. **Phase: Artifact isolation** -- concurrency becomes safe
+   - Tests: `TestConcurrentRunsDoNotShareArtifactPaths`
+   - Files: `scripts/status/verify_run.go`
+   - Verify: two jobs, two artifact sets, `tmp/ze-verify-full.json` still published where `commit_helper.py` reads it
+6. **Phase: Enforcement** -- the hook refuses raw invocations
+   - Tests: `test_a_raw_go_test_is_refused_and_names_the_make_target`, `test_the_make_target_itself_is_not_refused`
+   - Files: `.claude/hooks/pretool-bash.py`, rule points, Hook-to-Rule Mapping
+   - Verify: the raw form is refused, the sanctioned form is not, and a subagent gets the same answer
+7. **Phase: Rollout** -- every remaining heavy target joins
+   - Files: `Makefile`, `mk/*.mk`, `docs/functional-tests.md`, `docs/contributing/testing.md`
+
+### Critical Review Checklist
+| Check | What to verify for this spec |
+|-------|------------------------------|
+| Completeness | Every AC-N has an implementation at file:line |
+| Correctness | The attach path returns the ATTACHED job's exit code, never 0 by default; a failed shared run must fail both askers |
+| Fail-closed | An unreadable or corrupt registry entry makes the wrapper QUEUE, never run unadmitted |
+| Data flow | Admission is decided in one place; no target reaches a heavy tool without passing it |
+| Rule: `ai/rules/simplicity.md` | No daemon, no new process to supervise, unless a measured requirement forces one |
+| Rule: `ai/rules/evidence.md` | The hook check drives from its entry point (a real payload), not the helper alone |
+
+### Deliverables Checklist
+| Deliverable | Verification method |
+|-------------|---------------------|
+| Every heavy target routes through the wrapper | `grep -L ze-run.sh` over the heavy-target recipes returns nothing |
+| The raw invocations are refused | run each form through the hook fixture and assert exit 2 |
+| Peak lint RSS is bounded | `/usr/bin/time -v make ze-lint` before and after, both recorded |
+| No slot leak | kill a holder mid-run; the next waiter starts within one poll interval |
+
+### Security Review Checklist
+| Check | What to look for |
+|-------|-----------------|
+| Input validation | The label becomes a filesystem path component: reject separators, dots, and empty strings, or a label escapes `tmp/.ze-jobs/` |
+| Resource exhaustion | The registry is bounded; a session that crashes in a loop must not fill it |
+| Signal handling | Killing a process GROUP is the existing behaviour and it is load-bearing; verify the wrapper never targets pgid 0 or the session's own group |
+
+### Failure Routing
+| Failure | Route To |
+|---------|----------|
+| Compilation error | Fix in the phase that introduced it |
+| Test fails for the wrong reason | Fix the test assertion or setup |
+| Test fails on behavior mismatch | Re-read the source in Current Behavior. If misunderstood → RESEARCH |
+| Lint failure | Fix inline. If architectural → DESIGN |
+| Functional test fails | Check the AC: wrong AC → DESIGN, correct AC → IMPLEMENT |
+| 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
+
+## Design Insights
+
+- The measurement that reframes the problem: on 2026-08-17 a full verify spent about 18 of its 20 minutes in `ze-lint` while the box sustained load 25, and the remaining 25 stages took about 2 minutes. Coordination policy that treats all heavy jobs alike would be tuned for the wrong job.
+- `gopls` is an uncounted multiplier: one per session, measured at 1.4 to 1.6 GB. Eight sessions is 12 GB of a 31 GB box before any test runs. Admission that only counts test jobs is measuring the smaller half.
+- The existing lock's stuck-holder rule is age-based, and age cannot distinguish "hung" from "slow because the box is oversubscribed". That is precisely the state this tool exists to manage, so the rule inverts under load.
+
+## Key Design Decisions
+| Decision | Alternatives Considered | Rationale |
+|----------|------------------------|-----------|
+| Generalize `verify-lock.sh` into a wrapper with a job registry | (a) a resident daemon holding a token pool and streaming progress, as the owner proposed; (b) plain `flock` over more targets with no registry | The daemon's three benefits are attach-and-share, weighted admission, and progress. A state directory plus `flock` delivers all three: progress already exists in the runner's stage banners, weights are counting semaphores, and attach needs a registry file rather than a process. A daemon adds something to supervise, restart, and debug, and a wedged daemon blocks every agent, which is the failure this spec exists to prevent. Option (b) is rejected because it gives no dedup, and dedup is the largest win |
+| Enforce at the PreToolUse hook, not in `make` | trusting `make` alone | Any admission wired into `make` is bypassed by the first agent that types the tool directly, and that is the normal case: this session ran `commit_helper_test.py` directly six times on 2026-08-17 rather than through `make ze-unit-pkg-test` |
+| Refuse the raw invocation rather than silently rewriting it | `updatedInput` rewriting, which the hook already supports | A rewrite is invisible in the transcript, so an agent cannot learn the sanctioned path and a wrong rewrite is undebuggable. Refusal teaches; rewriting hides. Reconsider only if refusals prove too frequent to work with |
+| Job key is label plus tree hash | label alone | Attaching on the label alone certifies a session with a run that never saw its code, which breaks the Go-commit coverage gate landed the same day |
+| Land the linter ceiling first and separately | one big change | It needs no coordination, no new script, and addresses about 90% of the measured wall clock. It is the change that helps tonight |
+
+## Known Limitations
+- Admission covers what the hook can see. A heavy command inside a shell script file is out of reach by construction, exactly as the existing poll-loop check documents.
+- The wrapper does not schedule across machines, and does not know about Docker or QEMU containers started by functional suites; their weight is attributed to the job that started them.
+- `gopls` memory is measured but not managed. Capping it belongs to the harness, not to this wrapper.
+
+## Checklist
+
+### Goal Gates (MUST pass)
+- [ ] AC-1..AC-10 all demonstrated
+- [ ] Wiring Test table complete: every row a concrete test name, none deferred
+- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] Feature code integrated, not library-only
+- [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
+- [ ] Architectural Verification table filled
+- [ ] Critical Review passes (all 6 checks in `ai/rules/quality.md`)
+- [ ] Every A-N confirmed or broken, none `unvalidated`
+- [ ] Deferral shard resolved: no live row without a destination
+
+### TDD
+- [ ] Tests written
+- [ ] Tests FAIL (paste output)
+- [ ] Tests PASS (paste output)
+- [ ] Boundary tests for all numeric inputs
+- [ ] Functional `.ci` tests for end-to-end behavior
+- [ ] Interop tests for protocol features (or N-A with a reason)
+
+### Closure
+- [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
+- [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
+- [ ] Learned summary written to `plan/learned/NNN-<name>.md`
+- [ ] **Commit A:** code + tests + docs + spec + learned summary
+- [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
