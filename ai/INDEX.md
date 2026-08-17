@@ -172,6 +172,7 @@ artifact type. Check them whenever your work touches the described concern.
 | Concern | Rule | When it applies |
 |---|---|---|
 | Every word you write | `ai/rules/writing.md`, guide: `docs/contributing/writing-style.md` | Rule one. ASD-STE100 Issue 9 for all repository writing: docs, comments, error messages, CLI output, YANG descriptions, specs, commit and PR text. Six banned habits. Gate: `make ze-ste-check`. Report: `make ze-ste-review` |
+| Every line of Go you write | `ai/rules/go-standards.md`, guide: `docs/contributing/ze-style.md` | The reasoning behind the Go rules: safety, performance, developer experience, in that order. Adapted from TigerStyle. Read it once, then use the rule files |
 | How much you write | `ai/rules/writing.md` | Any subagent report, rule, doc, commit body, or learned summary. Per-artifact budgets. A report to the owner routes to `ai/INSTRUCTIONS.md`, "Say it once, say it short" |
 | Listing/enumerating things | `ai/rules/evidence.md` | Help text, usage strings, error messages, any output that enumerates items |
 | Goroutine lifecycle | `ai/rules/goroutine-lifecycle.md` | Any `go func()`, any `OnStarted` callback, any worker pattern |

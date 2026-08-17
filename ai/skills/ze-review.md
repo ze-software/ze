@@ -230,6 +230,20 @@ phase itself.
 | Config parsing | `config.md` -- fail on unknown keys, no version numbers |
 | New data wrapper/struct | `architecture.md` -- lazy over eager, no identity wrappers |
 | Any new abstraction, option, layer, or parameter | `simplicity.md` -- the simplest fully correct answer, and nothing beyond it |
+| Any changed Go file | `docs/contributing/ze-style.md` -- the style pass below |
+
+    **Style pass (every changed Go file).** These six are judgement calls that no linter and no other step in this review makes. Each maps to a section of `docs/contributing/ze-style.md`.
+
+    | Ask | Report unless |
+    |-----|---------------|
+    | Can a peer reach this `panic()`? Trace the input back to the socket | The state is only reachable from a Ze defect. A malformed message is an operating error and returns an error. This is a BLOCKER when the trace reaches a socket |
+    | What bounds this loop, queue, retry, or cache? | A bound is stated in the code. An endless loop by design says so in a comment above it |
+    | Does this name say what the value IS? | The name carries the concept, not the Go type. `famStr` is the failure, `family` is the fix. A qualifier goes last, by descending significance |
+    | Does this new lifecycle, resource, or paired call state its obligation? | The doc comment says MUST on BOTH sides. `Stop` names `Wait`, and `Wait` names `Stop` |
+    | Does the diff duplicate a value that already exists, or alias one? | The copy is deliberate for one of the four reasons in `performance.md`. Two names for one fact will disagree |
+    | Is this return type wider than it needs to be? | The extra dimension is used. Prefer nothing over `bool`, `bool` over a value, a value over `(value, ok)`, and `(value, ok)` over `(value, error)` |
+
+    Report each as an ISSUE naming the section, except the `panic()` trace, which is a BLOCKER.
 
 19. **Filter false positives:** Before reporting, discard findings that match any of these:
 

@@ -187,12 +187,16 @@ is the only command the spec's Goal Gates name. Do not add a third spelling.
    - Update the **Risks & Assumptions** tables: flip A-N statuses as evidence arrives;
      when an assumption breaks mid-phase, add the Mistake Log row immediately and STOP
      if the approved design no longer holds. Add new A-N/R-N rows as they surface.
+   - Before the phase ends, re-read the Go you wrote for it against `docs/contributing/ze-style.md`.
+     A style defect caught in the phase that produced it costs one edit. The same defect
+     caught in step 7 costs a re-read of every phase before it.
    - Move to next phase
 6. **Run full verification:** `make ze-lint && make ze-unit-test && make ze-functional-test`
 7. **Critical review:** Use the spec's **Critical Review Checklist** table. For each row:
    - Verify the "What to verify" column against the actual implementation
    - Document pass/fail for each check
-   - Also apply generic checks from `ai/rules/quality.md` (Correctness, Simplicity, Consistency, Completeness, Quality, Tests)
+   - Also apply generic checks from `ai/rules/quality.md` (Correctness, Simplicity, Consistency, Completeness, Quality, Tests, Style)
+   - **Ze Style (BLOCKING):** Apply the Style row of `ai/rules/quality.md` to every Go file this spec touched, against `docs/contributing/ze-style.md`. Four questions, and the first is a BLOCKER on its own. Can a peer reach any `panic()` you added? Trace the input back to the socket: a malformed message is an operating error and returns an error. What bounds each new loop, queue, retry, and cache? Does each new name say what the value IS rather than its Go type? Does each new lifecycle or paired call state its obligation with MUST on BOTH sides?
    - **CLI grammar (BLOCKING):** If any CLI command was added or changed, verify it follows action-before-identifier per `ai/rules/cli.md`. Run the mechanical check: `args[0]` must always be a keyword, never a user identifier.
    - **Invocation-form change (BLOCKING):** If the change REMOVES or ALTERS how a binary is invoked (a launch/dispatch form, a positional's meaning, a flag's meaning), enumerate EVERY invocation site by grepping the bare invocation token (`\bze <positional>`), NOT just the framework directive (`exec=ze`). Invocations hide in `.ci` `exec=` directives, **embedded `tmpfs=*.sh` script bodies** (run via `exec=./script.sh`), helper `.sh`/`.py`, the test-runner launch code, wrapper scripts (`test/exabgp-compat/bin/exabgp`), and docs. A directive-only grep is blind to shell-script-mediated launches. Then prove the change against the **FULL affected suite, never a sample** -- only the full run executes the embedded launches, so a passing sample is a false green. (Learned 1248: removing the bare `ze <config>` sink broke 26 auth `.ci` that launched the daemon from an embedded `tmpfs=*.sh` `ze <config>` line the migration grep never saw; the full functional suite caught it, a sampled run would not have.)
    - **Doctor checks (BLOCKING):** If the implementation adds any runtime dependency (file path, socket, kernel module, port, TLS cert, external binary), verify a `ze doctor` check exists per `ai/rules/repo-maintenance.md`. Register diagnostic codes in `internal/core/diagnostic/codes.go`.
