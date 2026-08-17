@@ -123,7 +123,7 @@ These should be treated as partial or non-authoritative until reworked:
 | `test/plugin/nexthop-self-ipv6-forward.ci` | Self-declared partial, forwarding proof blocked by fixture limitation. |
 | `test/plugin/llgr-readvertise.ci` | Self-declared partial, non-LLGR suppression not proven. |
 | `test/plugin/bgp-rs-fastpath-ebgp-shared.ci` | Self-declared partial, does not compare forwarded bytes. |
-| `test/plugin/policy-show-list.ci` | Self-declared blocked by framework issue. |
+| `test/plugin/policy-list-show.ci` | Self-declared blocked by framework issue. |
 | `test/plugin/rr-ipv6-config.ci` | Self-declared blocked by single-peer fixture limitation. |
 | `test/plugin/gr-cli-restart.ci` | Self-declared partially demonstrated only. |
 | `test/plugin/rib-best-selection.ci` | Uses `bgp rib inject`, does not prove real receive path. |

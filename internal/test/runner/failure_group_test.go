@@ -29,7 +29,7 @@ func TestFunctionalFailureGroupsUseSuiteTypeAndSubsystemPrefix(t *testing.T) {
 func TestTopLevelCIFailureGroupsDoNotMergeByFirstToken(t *testing.T) {
 	records := []*Record{
 		{Name: "cli-schema-protocol", Nick: "1", State: StateFail, FailureType: FailTypeMismatch},
-		{Name: "cli-show-bgp-encode", Nick: "2", State: StateFail, FailureType: FailTypeMismatch},
+		{Name: "cli-bgp-encode-show", Nick: "2", State: StateFail, FailureType: FailTypeMismatch},
 	}
 	groups := groupFunctionalFailures("ui", records, nil)
 	if len(groups) != 2 {
@@ -38,7 +38,7 @@ func TestTopLevelCIFailureGroupsDoNotMergeByFirstToken(t *testing.T) {
 	if groups[0].GroupID != "ui:mismatch:cli-schema-protocol" || groups[0].Rerun != "ze-test ui 1" {
 		t.Fatalf("unexpected first ui group: %+v", groups[0])
 	}
-	if groups[1].GroupID != "ui:mismatch:cli-show-bgp-encode" || groups[1].Rerun != "ze-test ui 2" {
+	if groups[1].GroupID != "ui:mismatch:cli-bgp-encode-show" || groups[1].Rerun != "ze-test ui 2" {
 		t.Fatalf("unexpected second ui group: %+v", groups[1])
 	}
 }

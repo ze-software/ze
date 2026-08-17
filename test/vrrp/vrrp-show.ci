@@ -47,7 +47,7 @@
 #
 # The observer is spawned as a BGP peer `process` (with a ze-peer connection),
 # the established external-observer pattern (test/plugin/ddos-show.ci,
-# anomaly-show.ci, bfd-show-json.ci): a top-level `plugin { external }` alone
+# anomaly-show.ci, bfd-json-show.ci): a top-level `plugin { external }` alone
 # fails with "no TLS acceptor configured (hub config required for external
 # plugins)"; attaching it under a peer process gives it the engine connection it
 # needs. The bgp/interface config here carries no leaf-lists, so the hub

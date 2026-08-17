@@ -21,7 +21,7 @@ import (
 // VALIDATES: a line written immediately before the child exits still reaches the
 // relay, on every one of the runs below.
 // PREVENTS: the regression that made test/ipsec/ipsec-clear-sa.ci and
-// ipsec-show-sa.ci red on linux CI (run 31225029268) while passing on an idle
+// ipsec-sa-show.ci red on linux CI (run 31225029268) while passing on an idle
 // machine. Cmd.StderrPipe hands Cmd.Wait the read end, and Wait closes it as
 // soon as the child exits ("it is thus incorrect to call Wait before all reads
 // from the pipe have completed", os/exec), so whatever the reader had not yet

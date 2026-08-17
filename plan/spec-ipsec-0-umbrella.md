@@ -363,7 +363,7 @@ These are the top-level outcomes. Each child spec has its own detailed ACs.
 | Config load with `vpn ipsec { esp-group ... }` | -> | IPsec config parsed into Go structs | `test/parse/ipsec-esp-group.ci` |
 | Config load with site-to-site peer | -> | IKE engine initiates IKEv2 negotiation | `test/ipsec/ipsec-site-to-site-initiate.ci` |
 | IKEv2 negotiation completes | -> | XFRM SA/SP installed in kernel via dataplane backend | `test/ipsec/ipsec-sa-installed.ci` |
-| `show vpn ipsec sa` CLI command | -> | IKE engine SA table queried, JSON returned | `test/ipsec/ipsec-show-sa.ci` |
+| `show vpn ipsec sa` CLI command | -> | IKE engine SA table queried, JSON returned | `test/ipsec/ipsec-sa-show.ci` |
 | Windows client connects with EAP | -> | EAP exchange completes, virtual IP assigned | `test/ipsec/ipsec-eap-auth.ci` |
 
 ## 🧪 TDD Test Plan
@@ -393,7 +393,7 @@ These are the top-level outcomes. Each child spec has its own detailed ACs.
 | `ipsec-esp-group` | `test/parse/ipsec-esp-group.ci` | ESP group config accepted | |
 | `ipsec-site-to-site-initiate` | `test/ipsec/ipsec-site-to-site-initiate.ci` | Tunnel initiates to peer | |
 | `ipsec-sa-installed` | `test/ipsec/ipsec-sa-installed.ci` | XFRM SA/SP visible in kernel after negotiation | |
-| `ipsec-show-sa` | `test/ipsec/ipsec-show-sa.ci` | SA displayed with correct fields | |
+| `ipsec-sa-show` | `test/ipsec/ipsec-sa-show.ci` | SA displayed with correct fields | |
 | `ipsec-eap-auth` | `test/ipsec/ipsec-eap-auth.ci` | EAP authentication completes, virtual IP assigned | |
 | `iface-xfrm-create` | `test/reload/test-tx-iface-xfrm-create.ci` | XFRM netdev created on config load | |
 
@@ -473,7 +473,7 @@ Each phase corresponds to a child spec. Phases are ordered by dependency.
    - Verify: Windows client authenticates via EAP, virtual IP assigned, NAT-T works
 
 10. **Phase: CLI and Diagnostics (ipsec-10)** -- show/clear/monitor commands, web page, health, metrics
-   - Tests: `ipsec-show-sa.ci`
+   - Tests: `ipsec-sa-show.ci`
    - Files: CLI command handlers, web page, health checks, Prometheus collector
    - Verify: SA state visible via CLI and web, health checks registered, metrics exposed
 

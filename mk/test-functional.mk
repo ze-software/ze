@@ -136,7 +136,7 @@ ifeq ($(ZE_TEST_CANONICAL),)
   # exec by. The DUT build mirrors runner.TestBuildTags()
   # (internal/test/runner/runner.go): zetest test plugins + full command surface
   # (ze_core ze_distro ze_setup) + default feature gates, NO version ldflags so
-  # `ze show version` prints "ze dev" (test/parse/cli-show-version.ci).
+  # `ze show version` prints "ze dev" (test/parse/cli-version-show.ci).
   # ze-stripped tags match the $(ZEBIN_STRIPPED) Makefile rule.
   ZE_ALT_BUILD = { mkdir -p $(ZE_ALT_BIN) && printf 'Building isolated test binaries in %s/ (ze, ze-test, ze-stripped)...\n' '$(ZE_ALT_BIN)' && CGO_ENABLED=0 $(GO) build -tags 'ze_core ze_distro ze_setup zetest $(ZE_FEATURES) $(ZE_TAGS)' -o $(ZE_ALT_BIN)/ze ./cmd/ze && CGO_ENABLED=0 $(GO) build -tags 'ze_core ze_ssh $(ZE_TAGS)' -o $(ZE_ALT_BIN)/ze-stripped ./cmd/ze && CGO_ENABLED=0 $(GO) build -tags 'ze_test $(ZE_FEATURES) $(ZE_TAGS)' -o $(ZE_ALT_BIN)/ze-test ./cmd/ze ; } || exit 1;
   ZE_TEST_DEPS :=
