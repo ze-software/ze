@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/go-standards.md`.
 
-Total: 262 design docs, 3417 files
+Total: 262 design docs, 3453 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -178,7 +178,43 @@ Total: 262 design docs, 3417 files
 | `internal/component/config/yang/cli/tree_bfd.go` | ze_bfd partition of the analysis-tree blank imports |
 | `internal/component/config/yang/cli/tree_bgp.go` | ze_bgp partition of the analysis-tree blank imports |
 | `internal/component/ike/dataplane/register_vpp.go` | ze_vpp partition of the dataplane registry |
+| `internal/component/plugin/all/all_ze_anomaly.go` | feature-gated plugin composition |
+| `internal/component/plugin/all/all_ze_as112.go` | feature-gated plugin composition |
+| `internal/component/plugin/all/all_ze_bfd.go` | feature-gated plugin composition |
+| `internal/component/plugin/all/all_ze_bgp.go` | feature-gated plugin composition |
+| `internal/component/plugin/all/all_ze_bmp.go` | feature-gated plugin composition |
+| `internal/component/plugin/all/all_ze_copp.go` | feature-gated plugin composition |
+| `internal/component/plugin/all/all_ze_cos.go` | feature-gated plugin composition |
+| `internal/component/plugin/all/all_ze_ddos.go` | feature-gated plugin composition |
+| `internal/component/plugin/all/all_ze_dhcpserver.go` | feature-gated plugin composition |
+| `internal/component/plugin/all/all_ze_exabgp.go` | feature-gated plugin composition |
+| `internal/component/plugin/all/all_ze_flowexport.go` | feature-gated plugin composition |
+| `internal/component/plugin/all/all_ze_geodns.go` | feature-gated plugin composition |
+| `internal/component/plugin/all/all_ze_gnmi.go` | feature-gated plugin composition |
+| `internal/component/plugin/all/all_ze_grpc.go` | feature-gated plugin composition |
+| `internal/component/plugin/all/all_ze_ike.go` | feature-gated plugin composition |
+| `internal/component/plugin/all/all_ze_isis.go` | feature-gated plugin composition |
+| `internal/component/plugin/all/all_ze_l2tp.go` | feature-gated plugin composition |
+| `internal/component/plugin/all/all_ze_ldp.go` | feature-gated plugin composition |
+| `internal/component/plugin/all/all_ze_lg.go` | feature-gated plugin composition |
+| `internal/component/plugin/all/all_ze_mcp.go` | feature-gated plugin composition |
+| `internal/component/plugin/all/all_ze_mpls.go` | feature-gated plugin composition |
+| `internal/component/plugin/all/all_ze_mrt.go` | feature-gated plugin composition |
+| `internal/component/plugin/all/all_ze_ntp.go` | feature-gated plugin composition |
+| `internal/component/plugin/all/all_ze_ospf.go` | feature-gated plugin composition |
+| `internal/component/plugin/all/all_ze_policyroute.go` | feature-gated plugin composition |
+| `internal/component/plugin/all/all_ze_pxe.go` | feature-gated plugin composition |
+| `internal/component/plugin/all/all_ze_radius.go` | feature-gated plugin composition |
+| `internal/component/plugin/all/all_ze_radius_ze_l2tp.go` | feature-gated plugin composition |
+| `internal/component/plugin/all/all_ze_rest.go` | feature-gated plugin composition |
+| `internal/component/plugin/all/all_ze_rsvpte.go` | feature-gated plugin composition |
 | `internal/component/plugin/all/all_ze_ssh.go` | feature-gated plugin composition |
+| `internal/component/plugin/all/all_ze_tacacs.go` | feature-gated plugin composition |
+| `internal/component/plugin/all/all_ze_telemetry.go` | feature-gated plugin composition |
+| `internal/component/plugin/all/all_ze_trafficusage.go` | feature-gated plugin composition |
+| `internal/component/plugin/all/all_ze_vpp.go` | feature-gated plugin composition |
+| `internal/component/plugin/all/all_ze_vrrp.go` | feature-gated plugin composition |
+| `internal/component/plugin/all/all_ze_web.go` | feature-gated plugin composition |
 | `internal/component/web/page_l2tp_off.go` | ze_l2tp-off L2TP page stub |
 | `internal/component/web/page_vpn_ipsec_off.go` | ze_ike-off VPN page stub |
 | `internal/component/web/register_gokrazy.go` | gokrazy portal web route self-registration |
