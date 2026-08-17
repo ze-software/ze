@@ -11,7 +11,7 @@ The fix has four parts: restrict hash-as-token to local transports, mask the
 bcrypt leaf on display, gate the raw download behind the edit authorization, and
 redact credential tokens in the command log.
 
-<!-- source: internal/component/ssh/passwordauth.go -- authenticatePassword, isLocalTransport, loggedCommand -->
+<!-- source: internal/component/ssh/passwordauth.go -- authenticatePasswordResult, isLocalTransport, loggedCommand -->
 <!-- source: internal/component/authz/auth.go -- CheckPassword, authenticateUser -->
 <!-- source: internal/component/config/mask.go -- LeafHoldsSecret, MaskBcrypt, MaskSecrets, MaskSecretsInPlace, SecretKeys, RejectMaskedSecretLeaves -->
 <!-- source: internal/component/cli/editor_mask.go -- DisplayContentAtPath, DisplayOriginalContentAtPath -->

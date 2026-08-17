@@ -128,7 +128,7 @@ only test. A connection already open outlives the removal until it closes.
 
 <!-- source: cmd/ze/hub/aaa_lifecycle.go -- liveAcceptedLocalUsers -->
 <!-- source: internal/component/web/auth.go -- SessionStore.validateToken -->
-<!-- source: internal/component/ssh/pubkey.go -- authenticatePublicKey -->
+<!-- source: internal/component/ssh/pubkey.go -- authenticatePublicKeyResult -->
 
 ## Logging in as a YANG user
 
@@ -166,7 +166,7 @@ or zefs copy cannot be replayed as a password from another machine. Remote
 logins must supply the real plaintext password (via `ze.ssh.password` or an
 interactive prompt); plaintext works from anywhere.
 
-<!-- source: internal/component/ssh/passwordauth.go -- isLocalTransport, authenticatePassword -->
+<!-- source: internal/component/ssh/passwordauth.go -- isLocalTransport, authenticatePasswordResult -->
 <!-- source: internal/component/authz/auth.go -- CheckPassword allowHashToken gate -->
 
 The stored bcrypt hash is also **masked** in every config display: `show config`,

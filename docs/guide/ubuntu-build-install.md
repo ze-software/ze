@@ -7,8 +7,8 @@ The commands assume Ubuntu 24.04 or newer, `sudo`, and an `amd64` or `arm64` hos
 <!-- source: scripts/dev/dev-setup.py -- Ubuntu package names and setup helper -->
 <!-- source: Makefile -- build target and default feature tags -->
 <!-- source: internal/plugins/init/main.go -- ze init input format and database.zefs creation -->
-<!-- source: internal/component/ssh/yang/ze-ssh-conf.yang -- SSH server and user config -->
-<!-- source: internal/component/authz/yang/ze-authz-conf.yang -- authorization profile config -->
+<!-- source: internal/component/authz/yang/ze-authz-conf.yang -- system.authentication.user base fields and system.authorization.profile -->
+<!-- source: internal/component/ssh/yang/ze-ssh-conf.yang -- environment.ssh and public-keys augmentation -->
 
 ## 1. Install build tools
 

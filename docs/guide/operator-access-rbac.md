@@ -233,4 +233,4 @@ session a TACACS+ or RADIUS backend granted is not revoked by the local user
 list, which never authenticated it.
 <!-- source: cmd/ze/hub/aaa_lifecycle.go -- liveAcceptedLocalUsers -->
 <!-- source: internal/component/web/auth.go -- SessionStore.validateToken, webSession -->
-<!-- source: internal/component/ssh/pubkey.go -- authenticatePublicKey -->
+<!-- source: internal/component/ssh/pubkey.go -- authenticatePublicKeyResult -->

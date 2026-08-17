@@ -46,7 +46,7 @@ user. A session a remote backend granted (RADIUS, TACACS+) is not revoked by the
 local user list, which never authenticated it.
 <!-- source: cmd/ze/hub/main_servers.go -- liveLocalUsers -->
 <!-- source: internal/component/web/auth.go -- SessionStore.validateToken, webSession -->
-<!-- source: internal/component/ssh/pubkey.go -- authenticatePublicKey -->
+<!-- source: internal/component/ssh/pubkey.go -- authenticatePublicKeyResult -->
 
 ## Error Handling
 
