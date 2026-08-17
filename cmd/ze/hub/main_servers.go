@@ -152,9 +152,8 @@ func liveConfigUsers(cp *zeconfig.Provider) ([]authz.UserConfig, error) {
 
 // liveLocalUsers returns the local credentials the daemon accepts RIGHT NOW:
 // the zefs power users merged with the users the running configuration
-// declares. It is the one live user source in the hub, shared by the AAA
-// chain's local backend and by the web fallback, so those two can never
-// disagree about who exists.
+// declares. It is the one live source shared by AAA, API, standalone SSH, and
+// web authentication, so the surfaces cannot disagree about who exists.
 //
 // zefsUsers is a startup snapshot and correctly so. Those credentials live in
 // the blob store, not the config file: no reload adds or removes them, and
@@ -193,6 +192,17 @@ func liveLocalUsers(zefsUsers []authz.UserConfig, configUsers func() ([]authz.Us
 		}
 		return mergeAuthUsers(zefsUsers, current), nil
 	}
+}
+
+// resolveBootUsers is the single boot snapshot seam. Production calls the
+// already-assembled live source once after ConfigProvider population. Tests
+// replace this function to prove a source failure stops runYANGConfig before
+// listener construction without adding another credential source.
+var resolveBootUsers = func(usersLive func() ([]authz.UserConfig, error)) ([]authz.UserConfig, error) {
+	if usersLive == nil {
+		return nil, errNoLiveConfigProvider
+	}
+	return usersLive()
 }
 
 // loadZefsUsers reads credentials from the zefs database (created by ze init).

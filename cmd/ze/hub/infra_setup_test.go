@@ -1,4 +1,4 @@
-//go:build ze_ssh
+//go:build ze_ssh && ze_bgp
 
 package hub
 

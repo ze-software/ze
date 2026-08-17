@@ -9,19 +9,22 @@ import (
 	"sync/atomic"
 
 	"github.com/ze-software/ze/internal/component/aaa"
+	"github.com/ze-software/ze/internal/component/authz"
 )
 
 // aaaBundle holds the live AAA bundle.
 //
-// Swapped atomically on every infraSetup invocation (which runs on initial
-// startup and on each config reload). The previously installed bundle is
-// Close()d by swapAAABundle so backend workers (TACACS+ accounting) drain
-// cleanly across reloads.
+// Startup installs one bundle for the active reactor composition. Reload keeps
+// that bundle and updates the local authorization store it reads. Replacing a
+// bundle closes the previous one so backend workers drain cleanly.
 //
 // closeAAABundle is wired as a defer at the top of runYANGConfig so the
 // currently-installed bundle is Close()d on any exit path (clean shutdown,
 // error return, panic recovery).
-var aaaBundle atomic.Pointer[aaa.Bundle]
+var (
+	aaaBundle           atomic.Pointer[aaa.Bundle]
+	liveLocalAuthzStore atomic.Pointer[authz.Store]
+)
 
 // swapAAABundle installs the new bundle as the live one and closes the
 // previously installed bundle (if any). Safe to call concurrently; safe
@@ -35,9 +38,16 @@ func swapAAABundle(b *aaa.Bundle, logger *slog.Logger) {
 	}
 }
 
-// closeAAABundle closes whatever bundle is currently installed and clears
-// the slot. Called via defer from runYANGConfig so the TACACS+ accounting
-// worker drains on every exit path.
+// swapLocalAuthzStore installs the authorization policy local AAA decisions
+// consult. The store is immutable after extraction, so decisions need only one
+// atomic load and do not rebuild configuration on the command path.
+func swapLocalAuthzStore(store *authz.Store) {
+	liveLocalAuthzStore.Store(store)
+}
+
+// closeAAABundle closes the installed bundle and clears the local authorization
+// store. Called via defer from runYANGConfig so backend workers drain and no
+// policy state survives daemon shutdown.
 func closeAAABundle(logger *slog.Logger) {
 	prev := aaaBundle.Swap(nil)
 	if prev != nil {
@@ -45,6 +55,22 @@ func closeAAABundle(logger *slog.Logger) {
 			logger.Warn("aaa: bundle close error on shutdown", "error", err)
 		}
 	}
+	liveLocalAuthzStore.Store(nil)
+}
+
+// liveLocalAuthorizer is the local backend's stable AAA contribution. External
+// authorizers keep registry priority over it, while TACACS+ receives the same
+// value as its fallback. A nil live store is the existing no-RBAC allow mode.
+type liveLocalAuthorizer struct{}
+
+func (liveLocalAuthorizer) Authorize(username, remoteAddr, command string, isReadOnly bool) bool {
+	return (authz.StoreAuthorizer{Store: liveLocalAuthzStore.Load()}).
+		Authorize(username, remoteAddr, command, isReadOnly)
+}
+
+func (liveLocalAuthorizer) AuthorizeCommandArgs(username, remoteAddr, command string, args []string, peer string, isReadOnly bool) bool {
+	return (authz.StoreAuthorizer{Store: liveLocalAuthzStore.Load()}).
+		AuthorizeCommandArgs(username, remoteAddr, command, args, peer, isReadOnly)
 }
 
 type liveAAABundleAuthorizer struct{}

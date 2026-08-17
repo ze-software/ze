@@ -10,7 +10,6 @@ import (
 	"github.com/ze-software/ze/internal/component/config/infra"
 
 	"github.com/ze-software/ze/internal/component/aaa"
-	"github.com/ze-software/ze/internal/component/authz"
 	zeconfig "github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/audit"
 	coreenv "github.com/ze-software/ze/internal/core/env"
@@ -23,9 +22,9 @@ import (
 // future RADIUS/LDAP) and Build assembles the live Authenticator chain,
 // Authorizer, and Accountant.
 //
-// A nil store yields a nil LocalAuthorizer so the local backend does not
-// contribute a permissive "allow all" authorizer when the caller explicitly
-// has no RBAC configured.
+// The local backend always receives liveLocalAuthorizer. A nil live store
+// preserves the no-RBAC allow behavior while keeping one stable contribution
+// that can follow successful policy reloads.
 //
 // liveUsers is the running-config view of the same credentials `users` holds.
 // The bundle is built once per reactor creation and is NOT rebuilt by a config
@@ -33,18 +32,14 @@ import (
 // forever, and it answers FIRST: a deleted user is accepted by the chain before
 // any fallback can refuse them. A nil liveUsers leaves the snapshot behavior,
 // which is correct only where no reload can reach the process.
-func buildAAABundle(tree *zeconfig.Tree, users []aaa.UserCredential, liveUsers func() ([]aaa.UserCredential, error), store *authz.Store, logger *slog.Logger) (*aaa.Bundle, error) {
-	var localAuthorizer aaa.Authorizer
-	if store != nil {
-		localAuthorizer = authz.StoreAuthorizer{Store: store}
-	}
+func buildAAABundle(tree *zeconfig.Tree, users []aaa.UserCredential, liveUsers func() ([]aaa.UserCredential, error), logger *slog.Logger) (*aaa.Bundle, error) {
 	params := aaa.BuildParams{
 		Ctx:             context.Background(),
 		ConfigTree:      tree,
 		Logger:          logger,
 		LocalUsers:      users,
 		LocalUsersFunc:  liveUsers,
-		LocalAuthorizer: localAuthorizer,
+		LocalAuthorizer: liveLocalAuthorizer{},
 	}
 	return aaa.Default.Build(params)
 }
@@ -104,15 +99,24 @@ func infraSetup(params infra.HookParams, recorder audit.Recorder, reloadFn func(
 		hasSSHConfig = true
 	}
 
-	// Users from zefs + config. Loaded regardless of SSH so the local AAA
-	// backend sees them even on API-only or MCP-only deployments where
-	// authorization and accounting must still apply.
-	var zefsUsers []aaa.UserCredential
-	if u, err := loadZefsUsers(); err == nil {
-		zefsUsers = u
+	// Resolve the shared running-config source once. Its successful snapshot is
+	// the common boot input for local AAA and optional SSH. A source error is
+	// fail-closed: other registered AAA backends are still built, but the local
+	// backend receives no users or live callback, and SSH is not constructed
+	// from an unreadable identity source.
+	var users []aaa.UserCredential
+	usersReady := true
+	aaaLiveUsers := liveUsers
+	if liveUsers != nil {
+		var liveErr error
+		users, liveErr = liveUsers()
+		if liveErr != nil {
+			log.Warn("live local user source unavailable", "error", liveErr)
+			users = nil
+			usersReady = false
+			aaaLiveUsers = nil
+		}
 	}
-	users := mergeAuthUsers(zefsUsers, sshCfg.Users)
-
 	// Warn on every ze:bcrypt canonical leaf that holds a non-bcrypt value.
 	// `ze config validate` already surfaces this, but a daemon reload from a
 	// hand-edited file (or a fleet push) bypasses validate -- the warning
@@ -133,9 +137,9 @@ func infraSetup(params infra.HookParams, recorder audit.Recorder, reloadFn func(
 
 	// Build the AAA bundle unconditionally. TACACS+ accounting fires on
 	// every dispatched command (SSH, MCP, API), so the bundle must exist
-	// even when SSH is disabled. On config reload the previous bundle is
-	// closed so backend workers (TACACS+ accounting) drain.
-	bundle, buildErr := buildAAABundle(params.ConfigTree, users, liveUsers, params.AuthzStore, log)
+	// even when SSH is disabled. Its local authorizer follows the live store
+	// across reloads without rebuilding backend workers.
+	bundle, buildErr := buildAAABundle(params.ConfigTree, users, aaaLiveUsers, log)
 	if buildErr != nil {
 		log.Warn("AAA backend build failed", "error", buildErr)
 		bundle = nil
@@ -146,11 +150,11 @@ func infraSetup(params infra.HookParams, recorder audit.Recorder, reloadFn func(
 	// Build the ssh server through the compile-out seam (ssh_infra.go). When
 	// ssh is compiled out (ze_ssh off) sshBuild is nil and ssh is skipped; the
 	// AAA/authz/accounting work above still runs for MCP/API.
-	if hasSSHConfig && bundle != nil && sshBuild != nil {
+	if hasSSHConfig && usersReady && bundle != nil && sshBuild != nil {
 		sshSrv = sshBuild(&sshBuildInputs{
 			Config:        sshCfg,
 			Users:         users,
-			UsersFunc:     liveUsers,
+			UsersFunc:     aaaLiveUsers,
 			Authenticator: bundle.Authenticator,
 			Recorder:      recorder,
 			EphemeralFile: ephemeralFile,
@@ -199,8 +203,8 @@ func infraSetup(params infra.HookParams, recorder audit.Recorder, reloadFn func(
 			if bundle != nil && bundle.Authorizer != nil {
 				d.SetAuthorizer(bundle.Authorizer)
 				log.Info("authorization configured", "source", "aaa bundle")
-			} else if authzStore != nil {
-				d.SetAuthorizer(authz.StoreAuthorizer{Store: authzStore})
+			} else if params.AuthzStore != nil {
+				d.SetAuthorizer(liveLocalAuthorizer{})
 				log.Info("authorization profiles loaded")
 			}
 
