@@ -175,6 +175,13 @@
       "category": "platform",
       "blog": "2026-07-20",
       "blurb": "Thirty-six subsystems compile out behind build tags, so a deployment ships only the code it runs. All are on by default, and the config loader fails closed on a config carrying blocks the running build has no code for."
+    },
+    {
+      "date": "2026-08-10",
+      "title": "RFC 7999 remote-triggered blackholing",
+      "category": "secure",
+      "blog": "2026-08-10",
+      "blurb": "Per-peer RFC 7999 policy turns an authorized BLACKHOLE community inside an authorized covering prefix into a discard route. The feature is off by default."
     }
   ]
 }

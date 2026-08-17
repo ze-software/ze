@@ -856,7 +856,7 @@
           "bullets": [
             "**Access concentrator** with discovery FSM",
             "Shared **PPP driver** with L2TP",
-            "HMAC-SHA256 **cookie**, rate limiting"
+            "**PAP**, **CHAP-MD5**, and **MS-CHAPv2** authentication"
           ]
         },
         {

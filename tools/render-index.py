@@ -785,7 +785,7 @@ def render(data):
     change_topics = change_topics_by_slug()
     blog_teaser_cards = "\n".join(
         render_blog_teaser_card(p, i, change_topics.get(p["slug"], []))
-        for i, p in enumerate(sitelib.latest_blog_posts(3))
+        for i, p in enumerate(sitelib.latest_blog_posts(4))
     )
     whats_new = render_whats_new(
         models.validate_whats_new(json.loads(WHATS_NEW_DATA.read_text()))
