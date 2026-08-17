@@ -1,6 +1,7 @@
 package reactor
 
 import (
+	"bytes"
 	"encoding/hex"
 	"slices"
 	"testing"
@@ -9,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/wire"
@@ -44,6 +46,164 @@ func medAttrsWire(t *testing.T, payload []byte) *attribute.AttributesWire {
 	sections, err := wire.ParseUpdateSections(payload)
 	require.NoError(t, err)
 	return attribute.NewAttributesWire(sections.Attrs(payload), bgpctx.ContextID(0))
+}
+
+func payloadWithoutMEDWithCommunity(t *testing.T, payload, community []byte) []byte {
+	t.Helper()
+
+	var mods filterapi.ModAccumulator
+	mods.Op(uint8(attribute.AttrMED), filterapi.AttrModSuppress, nil)
+	mods.Op(uint8(attribute.AttrCommunity), filterapi.AttrModSet, community)
+	result, _, fail := buildModifiedPayload(payload, &mods, attrModHandlersWithDefaults(), nil, nil)
+	require.Equal(t, modifyFailureNone, fail)
+	require.NotNil(t, result, "the raw override must remove MED and change a non-MED attribute")
+	return result
+}
+
+// VALIDATES: spec-rfc4271-med-ibgp-readvertisement AC-1 -- an IBGP readvertisement
+// whose raw egress policy base omits the selected MULTI_EXIT_DISC gets the selected
+// value restored before it reaches the destination wire.
+//
+// VALIDATES: the common egress guard keeps the selected MED present on the
+// destination wire when a raw override removes it after selection. This is not
+// full RFC4271-9.1.2.2-2 proof because the runnable functional and interop
+// producers use the route-server rail, not normal BGP selected-route
+// readvertisement.
+func TestRFC4271IBGPReadvertisementRejectsRawMEDRemoval(t *testing.T) {
+	h := newFanoutHarnessWith(t, 1, 1, fanoutOpts{modify: false, groups: true})
+
+	changedCommunity := []byte{0xD0, 0x08, 0x00, 0x04, 0x00, 0x64, 0x00, 0x02}
+	override := payloadWithoutMEDWithCommunity(t, fanoutPayload(), []byte{0x00, 0x64, 0x00, 0x02})
+	r := h.adapter.r
+	r.api = &pluginserver.Server{} // non-nil: past the fail-closed r.api guard
+	r.policyFilterSeam = func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
+		return PolicyResponse{Action: PolicyModify, Raw: override}
+	}
+	r.orderedEgressSteps = []orderedEgressStep{{name: policyChainStepName, policyChain: true}}
+
+	dest := h.dests[0]
+	dest.settings.ExportFilters = []filterapi.FilterRef{{Name: "someplugin:remove-med"}}
+	dest.refreshForwardFacts()
+
+	require.NoError(t, h.forward())
+	sent := h.delivered(t, 1)
+	require.Len(t, sent, 1)
+
+	selectedMED := makeAttr(0x80, 4, []byte{0, 0, 0, 10})
+	require.True(t, bytes.Contains(sent[0].body, selectedMED),
+		"IBGP destination must receive the selected MED after a raw egress replacement omitted it\nwire: %x", sent[0].body)
+	require.True(t, bytes.Contains(sent[0].body, changedCommunity),
+		"the delivered UPDATE must use the raw post-selection base, not the original payload\nwire: %x", sent[0].body)
+	require.True(t, payloadMED(sent[0].body).present,
+		"the delivered UPDATE must be parseable and carry MULTI_EXIT_DISC")
+}
+
+func TestRFC4271IBGPReadvertisementSkipsWithdrawOnlyBase(t *testing.T) {
+	s := newMEDSource([]byte{0x00, 0x00, 0x00, 0x64})
+	withdrawOnly := buildModTestPayload(nil, nil)
+	facts := &peerForwardFacts{isEBGP: false}
+
+	var mods filterapi.ModAccumulator
+	applyFactsMED(facts, payloadMED(s.payload), payloadMED(withdrawOnly), withdrawOnly, &mods)
+	require.Zero(t, mods.Len(), "a withdraw-only base carries no route that can receive MED")
+
+	result, _, fail := buildModifiedPayload(withdrawOnly, &mods, attrModHandlersWithDefaults(), nil, nil)
+	require.Equal(t, modifyFailureNone, fail)
+	require.Nil(t, result, "withdraw-only bases stay off the rebuild path")
+}
+
+// VALIDATES: spec-rfc4271-med-ibgp-readvertisement AC-2 -- selected routes without
+// MED do not gain one on IBGP egress.
+//
+// VALIDATES: preserving post-selection MED presence is not permission to
+// synthesize a value that never participated in selection. A guard that sets
+// zero or copies from the destination base fails here.
+func TestRFC4271IBGPReadvertisementDoesNotSynthesizeMED(t *testing.T) {
+	origin := makeAttr(0x40, 1, []byte{0x00})
+	community := makeAttr(0xC0, 8, []byte{0x00, 0x64, 0x00, 0x01})
+	payload := buildModTestPayload(slices.Concat(origin, community), []byte{24, 10, 0, 0})
+	med := payloadMED(payload)
+	require.False(t, med.present, "the selected source has no MED")
+
+	facts := &peerForwardFacts{isEBGP: false}
+
+	var mods filterapi.ModAccumulator
+	applyFactsMED(facts, med, med, payload, &mods)
+	require.Zero(t, mods.Len(), "IBGP preservation must not synthesize MED")
+
+	result, _, fail := buildModifiedPayload(payload, &mods, attrModHandlersWithDefaults(), nil, nil)
+	require.Equal(t, modifyFailureNone, fail)
+	require.Nil(t, result, "no operation means the route stays on the zero-copy path")
+}
+
+// VALIDATES: spec-rfc4271-med-ibgp-readvertisement AC-3 -- a destination-specific
+// MED Set already recorded by egress policy wins over the preservation guard.
+//
+// VALIDATES: the guard fixes removal only. It must not replace a valid policy
+// value with the selected value merely because the raw base omitted MED.
+func TestIBGPEgressMEDSetWins(t *testing.T) {
+	s := newMEDSource([]byte{0x00, 0x00, 0x00, 0x64})
+	base := buildModTestPayload(slices.Concat(s.origin, s.community), s.nlri)
+	src := payloadMED(s.payload)
+	require.True(t, src.present)
+	require.False(t, payloadMED(base).present)
+
+	facts := &peerForwardFacts{isEBGP: false}
+
+	var mods filterapi.ModAccumulator
+	mods.Op(uint8(attribute.AttrMED), filterapi.AttrModSet, []byte{0x00, 0x00, 0x00, 0x07})
+	applyFactsMED(facts, src, payloadMED(base), base, &mods)
+	require.Equal(t, 1, mods.Len(), "the policy Set stays alone; the guard must not append another Set")
+
+	result, _, fail := buildModifiedPayload(base, &mods, attrModHandlersWithDefaults(), nil, nil)
+	require.Equal(t, modifyFailureNone, fail)
+	require.NotNil(t, result)
+
+	want := buildModTestPayload(slices.Concat(s.origin, makeAttr(0x80, 4, []byte{0x00, 0x00, 0x00, 0x07}), s.community), s.nlri)
+	assert.Equal(t, hex.EncodeToString(want), hex.EncodeToString(result),
+		"the destination-specific MED reaches the peer, not the selected value")
+}
+
+// VALIDATES: spec-rfc4271-med-ibgp-readvertisement AC-4, AC-5 and AC-6 -- the
+// preservation guard does not change the existing EBGP strip, route-server
+// transparency, or zero-copy path when the destination base already carries MED.
+func TestRFC4271IBGPReadvertisementPreservesExistingMEDBoundaries(t *testing.T) {
+	s := newMEDSource([]byte{0x00, 0x00, 0x00, 0x64})
+	src := payloadMED(s.payload)
+	require.True(t, src.present)
+
+	t.Run("ordinary-ebgp-suppression-remains", func(t *testing.T) {
+		facts := &peerForwardFacts{isEBGP: true}
+
+		var mods filterapi.ModAccumulator
+		applyFactsMED(facts, src, src, s.payload, &mods)
+		require.Equal(t, 1, mods.Len(), "EBGP still records the Section 5.1.4 strip")
+		assert.Equal(t, filterapi.AttrModSuppress, mods.Ops()[0].Action)
+	})
+
+	t.Run("route-server-client-transparency-remains", func(t *testing.T) {
+		facts := &peerForwardFacts{isEBGP: true, rsClient: true}
+
+		var mods filterapi.ModAccumulator
+		applyFactsMED(facts, src, src, s.payload, &mods)
+		require.Zero(t, mods.Len(), "RFC 7947 route-server clients remain transparent")
+
+		result, _, fail := buildModifiedPayload(s.payload, &mods, attrModHandlersWithDefaults(), nil, nil)
+		require.Equal(t, modifyFailureNone, fail)
+		require.Nil(t, result, "route-server client forwarding remains zero-copy")
+	})
+
+	t.Run("internal-base-already-has-med-stays-zero-copy", func(t *testing.T) {
+		facts := &peerForwardFacts{isEBGP: false}
+
+		var mods filterapi.ModAccumulator
+		applyFactsMED(facts, src, src, s.payload, &mods)
+		require.Zero(t, mods.Len(), "nothing to restore when the destination base already carries MED")
+
+		result, _, fail := buildModifiedPayload(s.payload, &mods, attrModHandlersWithDefaults(), nil, nil)
+		require.Equal(t, modifyFailureNone, fail)
+		require.Nil(t, result, "no operation means the route stays on the zero-copy path")
+	})
 }
 
 // VALIDATES: spec-rfc4271-med-across-as AC-1, AC-4 -- a MULTI_EXIT_DISC received
@@ -84,7 +244,7 @@ func TestForwardSuppressesReceivedMEDToAnotherAS(t *testing.T) {
 				facts := &peerForwardFacts{isEBGP: true}
 
 				var mods filterapi.ModAccumulator
-				applyFactsMED(facts, src, src, &mods)
+				applyFactsMED(facts, src, src, s.payload, &mods)
 				require.Equal(t, 1, mods.Len(), "an external destination must record the Section 5.1.4 strip")
 
 				result, _, fail := buildModifiedPayload(s.payload, &mods, attrModHandlersWithDefaults(), nil, nil)
@@ -104,7 +264,7 @@ func TestForwardSuppressesReceivedMEDToAnotherAS(t *testing.T) {
 				facts := &peerForwardFacts{isEBGP: false}
 
 				var mods filterapi.ModAccumulator
-				applyFactsMED(facts, src, src, &mods)
+				applyFactsMED(facts, src, src, s.payload, &mods)
 				assert.Zero(t, mods.Len(), "an internal destination is owed the metric, not a strip")
 
 				result, _, fail := buildModifiedPayload(s.payload, &mods, attrModHandlersWithDefaults(), nil, nil)
@@ -139,7 +299,7 @@ func TestForwardWritesLocallySetMED(t *testing.T) {
 	facts := &peerForwardFacts{isEBGP: true}
 
 	var mods filterapi.ModAccumulator
-	applyFactsMED(facts, payloadMED(received), payloadMED(originated), &mods)
+	applyFactsMED(facts, payloadMED(received), payloadMED(originated), originated, &mods)
 	assert.Zero(t, mods.Len(), "a metric nobody received is Ze's own, and Section 5.1.4 does not touch it")
 
 	result, _, fail := buildModifiedPayload(originated, &mods, attrModHandlersWithDefaults(), nil, nil)
@@ -168,7 +328,7 @@ func TestForwardKeepsFilterSetMED(t *testing.T) {
 	t.Run("an-accumulator-set-is-honored", func(t *testing.T) {
 		var mods filterapi.ModAccumulator
 		mods.Op(uint8(attribute.AttrMED), filterapi.AttrModSet, []byte{0x00, 0x00, 0x00, 0x07})
-		applyFactsMED(facts, src, src, &mods)
+		applyFactsMED(facts, src, src, s.payload, &mods)
 		require.Equal(t, 1, mods.Len(), "the filter's Set stays alone; no strip is added after it")
 
 		result, _, fail := buildModifiedPayload(s.payload, &mods, attrModHandlersWithDefaults(), nil, nil)
@@ -189,7 +349,7 @@ func TestForwardKeepsFilterSetMED(t *testing.T) {
 			slices.Concat(s.origin, makeAttr(0x80, 4, []byte{0x00, 0x00, 0x00, 0x07}), s.community), s.nlri)
 
 		var mods filterapi.ModAccumulator
-		applyFactsMED(facts, src, payloadMED(override), &mods)
+		applyFactsMED(facts, src, payloadMED(override), override, &mods)
 		assert.Zero(t, mods.Len(), "a base carrying a different metric is origination, not propagation")
 
 		result, _, fail := buildModifiedPayload(override, &mods, attrModHandlersWithDefaults(), nil, nil)
@@ -219,7 +379,7 @@ func TestForwardKeepsMEDForRouteServerClient(t *testing.T) {
 	facts := &peerForwardFacts{isEBGP: true, rsClient: true}
 
 	var mods filterapi.ModAccumulator
-	applyFactsMED(facts, src, src, &mods)
+	applyFactsMED(facts, src, src, s.payload, &mods)
 	assert.Zero(t, mods.Len(), "RFC 7947 Section 2.2.3: a route server does not modify the metric")
 
 	result, _, fail := buildModifiedPayload(s.payload, &mods, attrModHandlersWithDefaults(), nil, nil)
@@ -244,7 +404,7 @@ func TestForwardMEDStaysOffRebuildPathWhenUnchanged(t *testing.T) {
 	facts := &peerForwardFacts{isEBGP: true}
 
 	var mods filterapi.ModAccumulator
-	applyFactsMED(facts, med, med, &mods)
+	applyFactsMED(facts, med, med, payload, &mods)
 	assert.Zero(t, mods.Len(), "nothing to strip must cost nothing")
 
 	result, _, fail := buildModifiedPayload(payload, &mods, attrModHandlersWithDefaults(), nil, nil)

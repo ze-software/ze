@@ -18,9 +18,7 @@ plan/spec-filter-wire-5-plugins-modify.md
 plan/spec-fixit-bcrypt-hash-credential.md
 plan/spec-fixit-ddos-test-infra.md
 plan/spec-fixit-parser-fuzz-gaps.md
-plan/spec-fixit-private-asn-leak.md
 plan/spec-fixit-qemu-artifact-cache.md
-plan/spec-fixit-reject-fence-observability.md
 plan/spec-fixit-tombstone-code-point-split.md
 plan/spec-fixit-tombstone-ebgp-transitive.md
 plan/spec-fixit-vpp-lcp-netns-default.md
@@ -43,9 +41,6 @@ plan/spec-release-audit-5-plugins-rib.md
 plan/spec-release-audit-6-system-linux.md
 plan/spec-release-audit-7-resilience-security.md
 plan/spec-rfc-requirement-coverage.md
-plan/spec-rfc7606-close-gaps.md
-plan/spec-rfcgate-0-umbrella.md
-plan/spec-rfcgate-1-extraction.md
 plan/spec-rfcgate-2-evidence.md
 plan/spec-rfcgate-4-ledger.md
 plan/spec-rib-arch-8-nlri-rewrite.md
@@ -54,3 +49,9 @@ plan/spec-static-routes.md
 plan/spec-vpp-host-tuning.md
 plan/spec-vrrp-0-umbrella.md
 plan/spec-vrrp-5-plugin.md
+plan/spec-ze-website-1-cli-session.md
+plan/spec-ze-website-2-wasm-composition.md
+plan/spec-ze-website-3-browser-zefs.md
+plan/spec-ze-website-4-browser-cli-bridge.md
+plan/spec-ze-website-5-bgp-bfd-lab.md
+plan/spec-ze-website-6-integration-release.md
