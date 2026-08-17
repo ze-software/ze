@@ -9,7 +9,7 @@ that the project's command catalog uses. The command registry combines the YANG
 dispatch tree and offline local commands, so the generated page cannot silently
 drift from the binary.
 
-Run `make ze` in ../main before this tool to update changed commands.
+Run `make ze-build` in ../main before this tool to update changed commands.
 """
 
 import html
@@ -81,7 +81,7 @@ def ensure_production_binary():
         if "zetest" in tags:
             print(
                 (
-                    "error: %s was built with zetest; run `make ze` in ../main "
+                    "error: %s was built with zetest; run `make ze-build` in ../main "
                     "before generating public command docs"
                 )
                 % ZE_BINARY,
@@ -94,7 +94,7 @@ def ensure_production_binary():
 def fetch_commands():
     if not ZE_BINARY.exists():
         print(
-            "error: %s not found -- run `make ze` in ../main first" % ZE_BINARY,
+            "error: %s not found -- run `make ze-build` in ../main first" % ZE_BINARY,
             file=sys.stderr,
         )
         sys.exit(1)
@@ -130,7 +130,7 @@ def load_commands():
         DATA.write_text(json.dumps(commands, indent=2, ensure_ascii=False) + "\n")
         return commands
     print(
-        "error: neither %s nor a cached %s exist -- run `make ze` in ../main first"
+        "error: neither %s nor a cached %s exist -- run `make ze-build` in ../main first"
         % (ZE_BINARY, DATA),
         file=sys.stderr,
     )

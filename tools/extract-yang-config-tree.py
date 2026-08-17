@@ -7,7 +7,7 @@ Runs the current build session's `ze yang tree --json --config` and caches the
 unified configuration tree to data/yang-config-tree.json. The tree is keyed by
 top-level container name, such as bgp and interface.
 
-Run `make ze` in ../main before this tool if the binary is missing or stale.
+Run `make ze-build` in ../main before this tool if the binary is missing or stale.
 """
 
 import json
@@ -26,7 +26,7 @@ DEST = GH_PAGES / "data" / "yang-config-tree.json"
 def fetch_tree():
     if not ZE_BINARY.exists():
         print(
-            "error: %s not found -- run `make ze` in ../main first" % ZE_BINARY,
+            "error: %s not found -- run `make ze-build` in ../main first" % ZE_BINARY,
             file=sys.stderr,
         )
         sys.exit(1)

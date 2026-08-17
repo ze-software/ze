@@ -238,7 +238,7 @@ def render_quality_snapshot():
             "- Verify workflow: `make ze-precommit-verify` takes a shared lock, writes stage logs under `tmp/`, groups related failures, and prints narrow rerun commands. `make ze-precommit-verify-changed` and `make ze-repository-check` are narrower handoff gates.",
             "- Rule for regressions: do not hide a failure with a skip or loose assertion. Move the proof to the layer that can see the real behavior, add the narrow test, rerun it, then rerun the gate that should have caught it.",
             "",
-            "Useful commands: `go test -race -run TestName ./internal/...`, `make ze-fuzz-one-test FUZZ=FuzzName PKG=./path TIME=30s`, `make ze-mutation-test-changed`, `bin/ze-test bgp plugin 42 -v`, `make ze-qemu-needs-linux-test`, `make ze-interop-test`, `make ze-release-evidence-verify`.",
+            "Useful commands: `go test -race -run TestName ./internal/...`, `make ze-fuzz-test-one FUZZ=FuzzName PKG=./path TIME=30s`, `make ze-mutation-test-changed`, `bin/ze-test bgp plugin 42 -v`, `make ze-qemu-needs-linux-test`, `make ze-interop-test`, `make ze-evidence-release-verify`.",
             "",
         ]
     )

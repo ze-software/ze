@@ -93,7 +93,7 @@ Ze's quality work has one rule: when something fails, the output should show wha
     <h3>Edit loop</h3>
     <p>Use one focused command while changing code.</p>
     <pre><code>go test -race -run TestName ./internal/component/config/...
-make ze-fuzz-one-test FUZZ=FuzzParseNLRI PKG=./internal/component/bgp/wire/ TIME=30s
+make ze-fuzz-test-one FUZZ=FuzzParseNLRI PKG=./internal/component/bgp/wire/ TIME=30s
 make ze-mutation-test-changed
 bin/ze-test bgp plugin 42 -v</code></pre>
   </article>
@@ -110,7 +110,7 @@ make ze-repository-check</code></pre>
     <pre><code>make ze-qemu-needs-linux-test
 make ze-qemu-debug RUN='...'
 make ze-interop-test
-make ze-release-evidence-verify</code></pre>
+make ze-evidence-release-verify</code></pre>
   </article>
 </div>
 

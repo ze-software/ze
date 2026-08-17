@@ -17,7 +17,7 @@ Start with a normal Go test. It names the behavior and fixes the expected result
 <thead><tr><th>Mode</th><th>Question</th><th>Command</th></tr></thead>
 <tbody>
 <tr><td>Example test</td><td>Does this named input produce the exact expected behavior?</td><td><code>go test -race -run TestName ./path/...</code></td></tr>
-<tr><td>Fuzz target</td><td>Does the same rule hold for generated inputs and saved corpus entries?</td><td><code>make ze-fuzz-one-test FUZZ=FuzzParseNLRI PKG=./internal/component/bgp/wire/ TIME=30s</code></td></tr>
+<tr><td>Fuzz target</td><td>Does the same rule hold for generated inputs and saved corpus entries?</td><td><code>make ze-fuzz-test-one FUZZ=FuzzParseNLRI PKG=./internal/component/bgp/wire/ TIME=30s</code></td></tr>
 <tr><td>gomu mutation run</td><td>Would the tests fail if the implementation made a small wrong decision?</td><td><code>make ze-mutation-test-changed</code></td></tr>
 <tr><td>Race run</td><td>Does the behavior still hold when goroutines are scheduled differently?</td><td><code>make ze-unit-test-race-changed</code></td></tr>
 <tr><td>Coverage report</td><td>Which branches ran without a strong assertion attached?</td><td><code>make ze-unit-test-coverage</code></td></tr>
@@ -49,7 +49,7 @@ A Go fuzz target is a test function with generated inputs. It should start from 
 
 ```bash
 make ze-fuzz-test
-make ze-fuzz-one-test FUZZ=FuzzParseNLRI PKG=./internal/component/bgp/wire/ TIME=30s
+make ze-fuzz-test-one FUZZ=FuzzParseNLRI PKG=./internal/component/bgp/wire/ TIME=30s
 ```
 
 Keep the target deterministic and small. Be strict about accepted errors and round trips. When fuzzing finds a crash or semantic bug, keep the corpus entry. That saved input becomes the named regression case that explains the failure.
