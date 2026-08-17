@@ -1325,10 +1325,10 @@ class TestStructuralGatesAreLiveStages(unittest.TestCase):
             "STRUCTURAL_GATES names stages that stagesForMode never emits, so "
             f"structural_gate_reds can never match them: {dead}",
         )
+
     def test_staticcheck_feature_matrix_is_structural(self):
         """A red matrix verdict must block normal unverified commit preparation."""
         self.assertIn("ze-staticcheck-feature-matrix-check", ch.STRUCTURAL_GATES)
-
 
     def test_structural_gates_is_not_empty(self):
         # The subset assertion above is satisfied by an empty frozenset too.
@@ -3133,6 +3133,207 @@ class TestWeakenedTestsGate(unittest.TestCase):
             self.assertEqual(rc, 2, out.getvalue())
             self.assertIn("test/weakened.md", err.getvalue())
             self.assertIn("TestOne", err.getvalue())
+
+
+class TestFullVerifyCoverage(unittest.TestCase):
+    """The owner directive of 2026-08-17: a Go-carrying commit owes a full run.
+
+    The gate asks whether a full `make ze-precommit-verify` STARTED after the
+    last Go edit. It deliberately does not read the run's exit code: in a shared
+    checkout the run is red for another session's work nearly every time, and
+    that code is taken as working.
+    """
+
+    def _repo(self, tmp: str) -> Path:
+        root = Path(tmp)
+        (root / "scripts" / "status").mkdir(parents=True)
+        (root / "scripts" / "status" / "verify_run.go").write_text("package main\n")
+        (root / "tmp").mkdir()
+        (root / "internal").mkdir()
+        return root
+
+    def _record(
+        self,
+        root: Path,
+        started: str,
+        mode: str = "ze-precommit-verify",
+        exit_code: int = 1,
+    ) -> None:
+        (root / "tmp" / "ze-verify-full.json").write_text(
+            '{"mode": "%s", "exit-code": %d, "generated-at": "%s", "stages": []}'
+            % (mode, exit_code, started)
+        )
+
+    def _go_file(self, root: Path, written_at: float) -> str:
+        path = "internal/a.go"
+        (root / path).write_text("package a\n")
+        os.utime(root / path, (written_at, written_at))
+        return path
+
+    def test_go_paths_in_names_the_population(self) -> None:
+        self.assertEqual(
+            ch.go_paths_in(
+                [
+                    "internal/a.go",
+                    "go.mod",
+                    "go.sum",
+                    "vendor/x/y.txt",
+                    "tools/go.mod",
+                    "docs/x.md",
+                    "ai/rules/points/git-safety/manifest.md",
+                ]
+            ),
+            ["internal/a.go", "go.mod", "go.sum", "vendor/x/y.txt", "tools/go.mod"],
+        )
+
+    def test_a_run_started_after_the_edit_covers_it(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            edited = time.time() - 3600
+            path = self._go_file(root, edited)
+            started = ch.datetime.datetime.fromtimestamp(
+                edited + 60, ch.datetime.timezone.utc
+            )
+            self._record(root, started.isoformat().replace("+00:00", "Z"))
+            state, detail = ch.full_verify_coverage(root, [path])
+            self.assertEqual(state, "covered", detail)
+
+    def test_a_red_run_still_covers_it(self) -> None:
+        # The discriminator for the owner directive: coverage, never the verdict.
+        # A run whose exit code is 1 because another session's tree was red is
+        # exactly the run this gate accepts.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            edited = time.time() - 3600
+            path = self._go_file(root, edited)
+            started = ch.datetime.datetime.fromtimestamp(
+                edited + 60, ch.datetime.timezone.utc
+            )
+            self._record(root, started.isoformat().replace("+00:00", "Z"), exit_code=1)
+            state, _ = ch.full_verify_coverage(root, [path])
+            self.assertEqual(state, "covered")
+
+    def test_an_edit_after_the_run_started_is_uncovered(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            now = time.time()
+            path = self._go_file(root, now)
+            started = ch.datetime.datetime.fromtimestamp(
+                now - 600, ch.datetime.timezone.utc
+            )
+            self._record(root, started.isoformat().replace("+00:00", "Z"))
+            state, detail = ch.full_verify_coverage(root, [path])
+            self.assertEqual(state, "uncovered", detail)
+            self.assertIn(path, detail, "the message must name the file that moved")
+
+    def test_the_changed_mode_run_is_not_the_full_gate(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            edited = time.time() - 3600
+            path = self._go_file(root, edited)
+            started = ch.datetime.datetime.fromtimestamp(
+                edited + 60, ch.datetime.timezone.utc
+            )
+            self._record(
+                root,
+                started.isoformat().replace("+00:00", "Z"),
+                mode="ze-precommit-verify-changed",
+            )
+            state, detail = ch.full_verify_coverage(root, [path])
+            self.assertEqual(state, "uncovered", detail)
+            self.assertIn("ze-precommit-verify-changed", detail)
+
+    def test_no_record_at_all_is_uncovered(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            path = self._go_file(root, time.time())
+            state, detail = ch.full_verify_coverage(root, [path])
+            self.assertEqual(state, "uncovered", detail)
+
+    def _git_repo_with_runner(self, tmp: str) -> tuple[Path, str]:
+        root = Path(tmp)
+        _git(root, "init", "-q")
+        _git(root, "config", "user.email", "t@example.com")
+        _git(root, "config", "user.name", "t")
+        _git(root, "config", "commit.gpgsign", "false")
+        (root / "scripts" / "status").mkdir(parents=True)
+        (root / "scripts" / "status" / "verify_run.go").write_text("package main\n")
+        (root / "tmp").mkdir()
+        (root / "internal").mkdir()
+        path = self._go_file(root, time.time())
+        _git(root, "add", "-A")
+        _git(root, "commit", "-qm", "init")
+        (root / path).write_text("package a\n\nfunc X() {}\n")
+        return root, path
+
+    def _create(self, root: Path, *extra: str) -> tuple[int, str, str]:
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            rc = ch.main(
+                ["--repo", str(root), "create", "--session", "abcd1234", *extra]
+            )
+        return rc, out.getvalue(), err.getvalue()
+
+    def test_create_refuses_a_go_commit_with_no_full_run(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root, path = self._git_repo_with_runner(tmp)
+            rc, out, err = self._create(root, "--subject", "feat(a): x", "--file", path)
+            self.assertEqual(rc, 2, out)
+            self.assertIn("carries Go", err)
+
+    def test_the_owner_override_clears_it_loudly(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root, path = self._git_repo_with_runner(tmp)
+            rc, out, err = self._create(
+                root,
+                "--subject",
+                "feat(a): x",
+                "--file",
+                path,
+                "--missing-full-verify-ok",
+                "Thomas: land it, the runner is down",
+            )
+            self.assertEqual(rc, 0, err)
+            self.assertIn("Owner override", err)
+
+    def test_a_go_deletion_is_gated_too(self) -> None:
+        # Deleting a .go file changes what the tree builds, so a commit that
+        # only removes Go owes the same run as one that adds it.
+        with tempfile.TemporaryDirectory() as tmp:
+            root, path = self._git_repo_with_runner(tmp)
+            (root / "docs").mkdir()
+            (root / "docs" / "x.md").write_text("one line of prose\n")
+            rc, out, err = self._create(
+                root,
+                "--subject",
+                "chore: drop a",
+                "--file",
+                "docs/x.md",
+                "--remove",
+                path,
+            )
+            self.assertEqual(rc, 2, out)
+            self.assertIn("carries Go", err)
+
+    def test_a_commit_carrying_no_go_is_not_asked_for_a_full_run(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root, _ = self._git_repo_with_runner(tmp)
+            (root / "docs").mkdir()
+            (root / "docs" / "x.md").write_text("one line of prose\n")
+            rc, out, err = self._create(
+                root, "--subject", "docs: x", "--file", "docs/x.md"
+            )
+            self.assertEqual(rc, 0, err)
+
+    def test_a_checkout_with_no_verify_runner_cannot_answer(self) -> None:
+        # Mirrors verify_status(): a gate never invents an answer it cannot
+        # confirm, so an isolated test repo is not blocked.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "internal").mkdir()
+            path = self._go_file(root, time.time())
+            state, _ = ch.full_verify_coverage(root, [path])
+            self.assertEqual(state, "unknown")
 
 
 if __name__ == "__main__":

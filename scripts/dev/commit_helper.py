@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import datetime
 import importlib.util
 import json
 import os
@@ -1013,6 +1014,103 @@ def structural_gate_reds(repo: Path) -> list[str]:
         if st.get("exit-code", 0) != 0 and st.get("stage") in STRUCTURAL_GATES:
             reds.append(st["stage"])
     return reds
+
+
+# The mode `scripts/status/verify_run.go` records for the 25-stage full gate.
+# `ze-precommit-verify-changed` writes its own mode and is deliberately NOT
+# accepted here: it runs no full lint, no vet evidence, and no cached full unit
+# pass, so it is not the run a Go-carrying commit owes.
+FULL_VERIFY_MODE = "ze-precommit-verify"
+
+
+def go_paths_in(paths: list[str] | tuple[str, ...]) -> list[str]:
+    """The paths that make a commit a GO-CARRYING one.
+
+    Same population as the tracked-build rule in ai/rules/git-safety.md: source,
+    the module files, and vendored code. `go.mod`/`go.sum` are matched by name so
+    a nested module counts too.
+    """
+    hits: list[str] = []
+    for path in paths:
+        name = path.rsplit("/", 1)[-1]
+        if (
+            path.endswith(".go")
+            or name in ("go.mod", "go.sum")
+            or path.startswith("vendor/")
+        ):
+            hits.append(path)
+    return hits
+
+
+def full_verify_coverage(repo: Path, go_files: list[str]) -> tuple[str, str]:
+    """Did a full `make ze-precommit-verify` run SEE this commit's Go code?
+
+    Returns (state, detail) where state is "covered", "uncovered", or "unknown".
+
+    The question is COVERAGE, never the verdict: in a shared checkout a full run
+    is red for somebody else's half-finished edits nearly every time, and the
+    owner directive of 2026-08-17 says to take that code as working. So the exit
+    code is not read here -- only whether a run of the full mode STARTED after
+    the newest Go file in the commit was last written. `generated-at` in
+    tmp/ze-verify-full.json is stamped when the run starts, so a file written
+    later than it was certainly not compiled by that run.
+
+    It reads tmp/ze-verify-full.json rather than tmp/ze-verify-failures.json
+    because only the FULL gate writes the former. Several sessions share this
+    checkout, and any one of them running ze-precommit-verify-changed rewrites
+    the shared artifact -- which would erase your evidence and refuse a commit
+    whose full run really did happen.
+
+    "unknown" never blocks, mirroring verify_status(): a checkout with no verify
+    runner (an isolated test repo, a minimal clone) cannot answer the question,
+    and a gate that invents an answer it cannot confirm is worse than no gate.
+    """
+    if not (repo / "scripts" / "status" / "verify_run.go").exists():
+        return "unknown", "no verify runner in this checkout"
+    index = repo / "tmp" / "ze-verify-full.json"
+    try:
+        data = json.loads(index.read_text(encoding="utf-8"))
+    except OSError:
+        return (
+            "uncovered",
+            "no full ze-precommit-verify recorded (tmp/ze-verify-full.json is missing)",
+        )
+    except ValueError:
+        return "uncovered", "tmp/ze-verify-full.json is unreadable"
+    if not isinstance(data, dict):
+        return "uncovered", "tmp/ze-verify-full.json is unreadable"
+    mode = data.get("mode") or "unknown"
+    if mode != FULL_VERIFY_MODE:
+        return (
+            "uncovered",
+            f"the last recorded run was `{mode}`, not the full `{FULL_VERIFY_MODE}`",
+        )
+    stamp = data.get("generated-at") or ""
+    try:
+        started = datetime.datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
+    except ValueError:
+        return "uncovered", f"the recorded run has no readable start time ({stamp!r})"
+    if started.tzinfo is None:
+        started = started.replace(tzinfo=datetime.timezone.utc)
+    newest, newest_at = "", None
+    for path in go_files:
+        try:
+            mtime = (repo / path).stat().st_mtime
+        except OSError:
+            continue  # a --remove path, or a file already gone: nothing to cover
+        edited = datetime.datetime.fromtimestamp(mtime, datetime.timezone.utc)
+        if newest_at is None or edited > newest_at:
+            newest, newest_at = path, edited
+    if newest_at is None:
+        return (
+            "covered",
+            f"full run at {stamp} (no Go file in the commit is still on disk)",
+        )
+    if newest_at > started:
+        return "uncovered", (
+            f"{newest} was written at {newest_at.isoformat()}, after the full run started at {stamp}"
+        )
+    return "covered", f"full run started {stamp}, after every Go file in this commit"
 
 
 def _read_head(path: Path, n: int) -> str:
@@ -2896,6 +2994,45 @@ def _create(args: argparse.Namespace, repo: Path, session: str, tag: str) -> int
                 "  override, or a flaky/environmental known-red logged in\n"
                 "  plan/known-failures/; structural gates are never eligible)."
             )
+    # Full-verify coverage gate (owner directive, 2026-08-17): a commit carrying
+    # Go must be preceded by a FULL `make ze-precommit-verify` that ran after the
+    # last Go edit. This is a different question from the verify-status gate
+    # above, which asks whether the record is GREEN. In a shared checkout the
+    # record is red for another session's in-flight work nearly every time, and
+    # the directive says to take that code as working -- so --unverified is
+    # passed on almost every commit and stopped being evidence that the gate ran
+    # at all. Hence a separate flag: --unverified explains a red, and this one
+    # answers "did the full run happen over YOUR code". See ai/rules/git-safety.md.
+    # Removals count: deleting a .go file changes what the tree builds, and at
+    # `create` time the file is still on disk (the script runs the git rm), so
+    # its mtime reads like any other -- old, hence covered by an existing run.
+    go_files = go_paths_in(add_paths + remove_paths)
+    if go_files and (args.missing_full_verify_ok or "").strip():
+        # LOUD on purpose: a silent bypass makes an unverified Go commit
+        # indistinguishable from a verified one in the transcript.
+        print(
+            "WARNING: committing Go with no full ze-precommit-verify over it.\n"
+            "  Owner override: " + args.missing_full_verify_ok.strip(),
+            file=sys.stderr,
+        )
+    elif go_files:
+        cstate, cdetail = full_verify_coverage(repo, go_files)
+        if cstate == "uncovered":
+            raise UsageError(
+                "this commit carries Go and no full ze-precommit-verify covers it: "
+                + cdetail
+                + ".\n"
+                "  Owner directive (2026-08-17): a commit carrying .go, go.mod, go.sum or\n"
+                "  vendor/ is preceded by a full `make ze-precommit-verify`. Its RED stages\n"
+                "  do not block this commit -- a failure in code another session has\n"
+                "  uncommitted is taken as working, named in --unverified, and committed.\n"
+                "  What blocks it is never having run the gate over your own code.\n"
+                "  Run `make ze-precommit-verify` (25-30 min, foreground, and it takes a\n"
+                "  repo-wide lock), then prepare the commit, OR pass\n"
+                '  --missing-full-verify-ok "<reason>" (owner override only).'
+            )
+        if cstate == "covered":
+            print(f"full-verify coverage: {cdetail}")
     # Discovery-index gate: the generated maps (ai/PACKAGE-MAP.md,
     # ai/DOCS-TO-CODE.md, ai/LEARNED-FULL-INDEX.md) must match the committed
     # sources. With no CI, this is the only place the freshness is enforced.
@@ -3097,6 +3234,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--unverified so the flaky-test path can never reach it. Use when the red "
         "belongs to another session's in-flight work and this commit cannot affect "
         "it; the reason is echoed with the red gate names",
+    )
+    create_cmd.add_argument(
+        "--missing-full-verify-ok",
+        help="OWNER OVERRIDE ONLY: reason to prepare a commit carrying Go when no "
+        "full ze-precommit-verify ran after the last Go edit. Deliberately separate "
+        "from --unverified, which explains a RED run: in a shared checkout that flag "
+        "is passed on nearly every commit, so it cannot also certify that the run "
+        "happened. The reason is echoed with the missing coverage",
     )
     create_cmd.add_argument(
         "--stale-index-ok",

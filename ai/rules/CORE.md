@@ -38,7 +38,7 @@ Rules: 7 of 28. Reasons: no past task would surface it, precedence rung 1/2, the
 **Commit workflow:**
 1. You MUST use `scripts/dev/commit_helper.py session` to create or reuse the 8-char session ID stored in `tmp/commit-session-id-<claude-session>` (keyed per Claude session so concurrent sessions never share a message or script namespace).
 2. You MUST use `scripts/dev/commit_helper.py create` to write one message file and one commit script. You MUST pass `--file` once per explicit file and `--remove` for tracked deletions. The path is the `script=` line it prints (`ai/INSTRUCTIONS.md`). One session can run many subagents that share the session id, so `--push` adds a push after the commits only on an owner instruction (see "Pushing").
-3. The helper writes executable scripts, uses `git commit -F <message-file>`, and rejects ignored/generated paths. It never writes over an existing script unless `--script` names it, with `--replace` or `--append`. It also **gates on verify-status**: `create` runs `verify-status.sh check` and refuses unless FRESH, or unless you pass `--unverified "<reason>"` (owner override, or a failure you tried and could not reproduce, logged in `plan/known-failures/`). This makes "verify before commit" enforced rather than honor-system.
+3. The helper writes executable scripts, uses `git commit -F <message-file>`, and rejects ignored/generated paths. It never writes over an existing script unless `--script` names it, with `--replace` or `--append`. It also **gates on verify-status**: `create` runs `verify-status.sh check` and refuses unless FRESH, or unless you pass `--unverified "<reason>"` (owner override, or a failure you tried and could not reproduce, logged in `plan/known-failures/`). This makes "verify before commit" enforced rather than honor-system. When the commit carries `.go`, `go.mod`, `go.sum` or `vendor/`, it also **gates on full-verify coverage**: `create` refuses unless a full `make ze-precommit-verify` STARTED after the newest Go file in the commit was last written, whatever that run's exit code was. Override with `--missing-full-verify-ok "<reason>"`. `--unverified` MUST NOT clear it: that flag says a red was explained, and this gate asks whether the run happened at all.
 4. If the helper cannot express the commit shape, you MUST hand-write the same script pattern and `chmod +x` it. You MUST give it a name no other agent will pick: `tmp/commit-<SESSION>-<tag>-<random>.sh`. You MUST NOT use heredocs. You MUST use `git commit -F <file>`.
 5. You MUST NOT end an output line with `.`, `,`, `:`, or `)` directly after a path/URL/command -- users copy-paste; trailing punctuation breaks it. You MUST put path on its own line or follow with a space.
 6. You MUST run the finished script yourself with `bash` and the helper's `script=` path. **When the commit contained any `.go`, `go.mod`, `go.sum`, or `vendor/` path, you MUST run `make ze-repository-tracked-build-check` immediately afterwards** (about 45s): it compiles what git now holds, and it is the only check that reads that population -- see "Your Working Tree Is Not What You Committed" below. You MUST then report the resulting commit SHA(s), included files, message file, script path, whether the script pushed, and verification evidence or skip reason. You MUST NOT add a late completeness or remaining-work review unless the user explicitly asked for one.
@@ -89,12 +89,13 @@ Thomas owns the repository and may explicitly override the `ze-precommit-verify`
 - You MUST NOT run `make ze-precommit-verify`, `make ze-precommit-verify-changed`, lint, or tests as a
 - You MUST inspect only enough state to stage exactly the requested files and avoid
 - You MUST use `scripts/dev/commit_helper.py create` with the normal user-run script
+- You MUST carry the override into the helper: `--unverified "<reason>"`, and
 - You MUST NOT run `git add`, `git commit`, `git rm`, `git stash`, or prohibited git
 - You MUST NOT add `--no-verify`, `--no-gpg-sign`, disabled hooks, or any bypass to
 - You MUST report `Verification skipped by Thomas owner override` in the final response
 - You MUST NOT claim tests, lint, `ze-precommit-verify`, integrations, or behavior were
 ### Known-Red Full Verify: Scope to Changed (BLOCKING)
-When `make ze-precommit-verify` is known-red from failures this session did not cause -- pre-existing reds, or a separate session is actively clearing the global suite -- do NOT rerun full `ze-precommit-verify` before...
+When `make ze-precommit-verify` is known-red from failures this session did not cause -- pre-existing reds, or a separate session is actively clearing the global suite -- a commit carrying NO Go is gated on changed...
 - `make ze-lint-changed`
 - the touched packages' `go test` (or `make ze-precommit-verify-changed`)
 - `make ze-doc-verify` / `make ze-repository-check` when those surfaces changed
@@ -117,12 +118,20 @@ Each directive below is one physical line on purpose.
 **Never edit the tree while a verify runs, yours or anybody's: it reads the working tree.**
 ### A SHARED CHECKOUT NEVER GIVES A CLEAN `ze-precommit-verify` (BLOCKING)
 **Several agents work this checkout at once. `make ze-precommit-verify` reads the WORKING
-TREE, so it reads their half-finished edits too, and a fully green run is unreachable by construction.
-**So the full gate is not the pre-commit evidence here. You MUST scope evidence to
-1. You MUST run the narrow gate owning each surface you changed (the table below).
-2. You MUST run the tests of each package you touched, with `make ze-unit-pkg-test`.
-3. You MUST ATTRIBUTE every red you saw: name the file, and say whether it is yours. `git
-4. You MUST prepare the script with `--unverified "<attribution>"`, giving the gates you ran
+TREE, so it reads their half-finished edits too, and a fully GREEN run is unreachable by construction.
+**Owner directive, 2026-08-17: a commit carrying `.go`, `go.mod`, `go.sum` or `vendor/` MUST be preceded by a full `make ze-precommit-verify` whose run STARTED after your last Go edit. You MUST NOT reach such a commit on scoped gates alone, and you MUST NOT re-run the gate to watch somebody else's red clear.** What the commit owes is the run's COVERAGE, never its exit code: the exit code is read through the attribution table below. `commit_helper.py create` enforces the coverage and names the owner-only escape when no such run exists.
+| The failing path | Whose red | What you do |
+|------------------|-----------|-------------|
+| In this commit's `--file` list | Yours | Fix it. A red you caused is never attributed away |
+| Dirty in `git status --porcelain`, and not in your list | Another session's | Take that code as working. Name it in `--unverified` and commit |
+| Clean and tracked, and your diff PRODUCES a symbol the failure names | Yours | Fix it. Ownership follows the producer, not the file that failed |
+| Clean and tracked, and unrelated to your diff | Pre-existing | Attribute it against `git log`, name it in `--unverified`, and commit |
+| Any deterministic structural gate | Yours until you prove otherwise | Fix it. Those read files rather than a moving tree, so no attribution clears one |
+**Owner directive, 2026-08-17: code another session holds uncommitted MUST be taken as WORKING. You MUST NOT fix its red, wait for it, or re-run the gate to see whether it cleared.** Attribution is the whole answer: name the file and say whose it is, put that in `--unverified`, and commit. The row that MUST NOT be attributed away is a red your own diff produced, and the table above is what decides which row you are on.
+**A commit that carries NO Go owes no full run. You MUST scope its evidence to YOUR
+1. You MUST run the gate the commit owes: `make ze-precommit-verify` when it carries Go,
+2. You MUST ATTRIBUTE every red you saw, by the table above: name the file, and say
+3. You MUST prepare the script with `--unverified "<attribution>"`, giving the gates you ran
 **`--unverified` is the CORRECT path in a shared checkout, not a shortcut.** It
 **A deterministic STRUCTURAL gate MUST NOT be waved through** (see "Structural
 **You MUST NOT edit the tree while a verify runs**, yours or anybody's. Regenerating an
@@ -357,6 +366,7 @@ just BGP: IS-IS, OSPF, BFD, LDP, RSVP-TE, IKE/IPsec, L2TP, PPPoE, DHCP, NTP, RAD
 | Leave a MUST implemented but unproven (no `RFC requirement:` tagged test) | Ask. "Implemented" is a claim; the tagged test is the evidence (`ai/rules/testing.md`, `ai/rules/testing.md`) |
 | Leave a MUST unextracted, or scope a spec so an RFC obligation falls outside it | Ask. See Extraction Completeness -- the gate cannot see an obligation nobody wrote down |
 | Defer an RFC requirement to a follow-up spec, a deferral row, or a known-failure shard | Ask. Recording is not fixing (`ai/rules/completion.md`), and the deferral machinery is not a compliance decision procedure. The spec-close-ask route in the conformance table above IS that ask, made the same session. The deferral row is never a substitute for it |
+| Lower a requirement's level in `rfc/short/`, so the row stops being MUST-level | Read the RFC sentence first. It is a CORRECTION only when the document states the lower strength, and then it MUST be recorded as a `Correction <YYYY-MM-DD>:` paragraph quoting that sentence, which `check_level_ratchet` refuses to do without. Anything else lowers what Ze owes: ask |
 | Close a spec, review, or audit whose RFC rows are anything other than implemented-and-proven | Ask before closing, not after |
 | Answer "is this conformant enough" with anything but yes | Ask. "Enough" is Thomas's word to say, never yours |
 **How to ask (never "MAY I skip it").** The requirement id and the RFC section text MUST be quoted verbatim, the producing function MUST be named (`ai/rules/evidence.md`), what full implementation plus a tagged test would actually cost MUST be stated, and then which way he wants it fixed MUST be asked. Offering "leave it non-conformant" as an option MUST NOT be done (`ai/rules/completion.md`).
@@ -391,12 +401,13 @@ just BGP: IS-IS, OSPF, BFD, LDP, RSVP-TE, IKE/IPsec, L2TP, PPPoE, DHCP, NTP, RAD
 |--------|----------------|
 | A `{not-applicable}` whose reason is "ze has no X producer at all" | That admission is often the violation of a separate MUST requiring X to exist. RFC 4271 §5.1.4's "MUST implement a mechanism ... that allows MULTI_EXIT_DISC to be removed" was unextracted, and two requirements cited its absence as their exemption. |
 | A section whose siblings are enumerated but one clause is not | RFC 8666 §5's "MUST be ignored on reception" was omitted while §6, §7.1 and §7.2 each had it. An enumeration hole, not a style choice. |
-## What Keeps RFC Testing Valid (the seven ratchets)
+## What Keeps RFC Testing Valid (the eight ratchets)
 `make ze-rfc-check` reads the WORKING TREE to judge coverage, and a tree cannot tell "never proven" from "stopped being proven".
 | Ratchet | Producer | Fires when |
 |---------|----------|-----------|
 | Enrolment is monotonic | `check_enrolment` | an RFC whose MUSTs were gated stops being gated |
 | **Proof is monotonic** | `check_coverage_ratchet` | a requirement loses a polarity it had at HEAD. `{gap}` is NOT an escape: it is the move being blocked |
+| **Gating is monotonic** | `check_level_ratchet` | a requirement leaves the MUST-level population: its level was gated at HEAD and is advisory now. That is the CHEAPEST route from red to green in this gate, cheaper than `{gap}` and cheaper than deleting the row, because the id survives and the tests survive while every coverage obligation attached to the row disappears. The one escape is a `Correction <YYYY-MM-DD>:` paragraph in the same summary, naming the id and quoting at least 24 characters of the RFC verbatim: a quotation of the document, never a free-text reason. A row GAINING a gated level is never reported |
 | **Requirements do not vanish** | `check_retired_requirements` | a requirement id of an enrolled RFC disappears from its summary. Without this, deleting the checklist line is the CHEAPEST route from red to green, cheaper than `{gap}` which costs a public disclosure row, and the ratchet would be pressuring people to hide obligations rather than declare them. Correcting a misquote means editing the TEXT under the same id, which is allowed |
 | **Adding an RFC adds checking** | `check_new_summaries` | a summary that is NEW since HEAD declares gated MUSTs and is not in `rfc/enrolled.txt`, fails to parse, or captures zero requirements while `rfc/full/<stem>.txt` has MUST-level keywords. A document's own RFC 2119 key-words paragraph does not count, and neither does its reference-list entry for RFC 2119 or RFC 8174. Both say where the words come from, and neither binds anybody. Counting the paragraph refused RFC 7454, a BCP whose body states no MUST |
 | **Non-unit evidence is monotonic, per tier** | `check_evidence_ratchet` | a requirement loses an evidence KIND it had at HEAD -- its `.ci` becomes a unit test, or its verify-tier binding is swapped for a nightly-tier interop one. Keyed by `kind/tier`, so a substitution that leaves the tag COUNT unchanged still fires: a unit test proves the algorithm, only a running functional or interop test proves the daemon or a peer. No annotation satisfies it |
@@ -410,7 +421,7 @@ just BGP: IS-IS, OSPF, BFD, LDP, RSVP-TE, IKE/IPsec, L2TP, PPPoE, DHCP, NTP, RAD
 | `check_summary_disposition` | a summary in `rfc/short/` that is in neither `rfc/enrolled.txt` nor `rfc/not-enrolled.txt`. Also a stem in BOTH, a disposition naming a summary that does not exist, and a disposition deleted while the stem never reaches `rfc/enrolled.txt`. Also a `non-normative` reason that judges what ZE owes rather than what the DOCUMENT states. Every summary needs a recorded disposition that distinguishes "the RFC imposes nothing", "nobody extracted it", and "we do not have the text" |
 | `check_unproven_support` | a support claim over a summary that declares ZERO gated requirements. A claim is any Status other than `Unsupported` or `Future`, an empty cell included. Two ledgers agreeing on NOTHING is not conformance. It is the cheapest way to look green. Two escapes exist and both are evidence rather than assertion. One is a `non-normative` disposition whose reason states a property of the text. The other is a VALID `manual-walk` extraction sign-off carrying a `register-reason`. The second lets an Informational RFC that invokes RFC 2119 nowhere enrol on an honest zero, and it needs no fabricated MUST |
 | `check_gap_count_agreement` | a Remaining cell whose spelled number, sitting immediately before MUST or SHALL, disagrees with the real `{gap}` count. The COUNT is the only fact on that page a machine can own. It says how many annotations exist. It never says their classifications are right, which matters because the paragraph above VOIDS every annotation as authority. A Remaining PROSE derived from those classifications would launder a void judgement into generated text |
-**A tagged test's assertions MUST NOT be weakened *in place* while keeping the same shape.** None of the seven ratchets catches that: `c_test_weakening` and `scripts/dev/audit-test-relaxation.py`, plus the SHA ratchet (`check_audit_freshness`), catch it instead, wherever `/ze-rfc-audit` has recorded a verdict. The SHA ratchet is armed only for RFCs that have an `rfc/audit/<rfc>.json`.
+**A tagged test's assertions MUST NOT be weakened *in place* while keeping the same shape.** None of the eight ratchets catches that: `c_test_weakening` and `scripts/dev/audit-test-relaxation.py`, plus the SHA ratchet (`check_audit_freshness`), catch it instead, wherever `/ze-rfc-audit` has recorded a verdict. The SHA ratchet is armed only for RFCs that have an `rfc/audit/<rfc>.json`.
 ## Before Implementing BGP Features
 1. Find RFC in `rfc/` — if missing: `curl -o rfc/full/rfcNNNN.txt https://www.rfc-editor.org/rfc/rfcNNNN.txt`
 2. Read relevant sections, note MUST/SHOULD/MAY

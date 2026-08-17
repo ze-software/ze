@@ -59,7 +59,7 @@ If scope is ambiguous, ask one narrow question; otherwise proceed.
 1. You MUST use `scripts/dev/commit_helper.py session` to create or reuse the 8-char session ID stored in `tmp/commit-session-id-<claude-session>` (keyed per Claude session so concurrent sessions never share a message or script namespace).
 2. You MUST use `scripts/dev/commit_helper.py create` to write one message file and one commit script. You MUST pass `--file` once per explicit file and `--remove` for tracked deletions. The path is the `script=` line it prints (`ai/INSTRUCTIONS.md`). One session can run many subagents that share the session id, so `--push` adds a push after the commits only on an owner instruction (see "Pushing").
    `--append` adds a later commit block to a script you already prepared. You MUST pass `--script` with the path that create printed. Without `--script` it resolves only when the session has exactly one script, and otherwise refuses with the list. `--replace` rewrites the script `--script` names. It is refused when that script was prepared for a file set sharing nothing with yours. To start over, prepare a new one: a `create` without `--script` always gets its own path.
-3. The helper writes executable scripts, uses `git commit -F <message-file>`, and rejects ignored/generated paths. It never writes over an existing script unless `--script` names it, with `--replace` or `--append`. It also **gates on verify-status**: `create` runs `verify-status.sh check` and refuses unless FRESH, or unless you pass `--unverified "<reason>"` (owner override, or a failure you tried and could not reproduce, logged in `plan/known-failures/`). This makes "verify before commit" enforced rather than honor-system.
+3. The helper writes executable scripts, uses `git commit -F <message-file>`, and rejects ignored/generated paths. It never writes over an existing script unless `--script` names it, with `--replace` or `--append`. It also **gates on verify-status**: `create` runs `verify-status.sh check` and refuses unless FRESH, or unless you pass `--unverified "<reason>"` (owner override, or a failure you tried and could not reproduce, logged in `plan/known-failures/`). This makes "verify before commit" enforced rather than honor-system. When the commit carries `.go`, `go.mod`, `go.sum` or `vendor/`, it also **gates on full-verify coverage**: `create` refuses unless a full `make ze-precommit-verify` STARTED after the newest Go file in the commit was last written, whatever that run's exit code was. Override with `--missing-full-verify-ok "<reason>"`. `--unverified` MUST NOT clear it: that flag says a red was explained, and this gate asks whether the run happened at all.
    It further **gates on discovery-index freshness**: `create` refuses if a generated index (`ai/PACKAGE-MAP.md`, `ai/DOCS-TO-CODE.md`) is stale (run `make ze-generated-files-update`), or if the commit changes an index-feeding source (a `register.go`, a `.go` with a `// Package`/`// Design:` header) but omits the regenerated index. Override with `--stale-index-ok "<reason>"`. With no CI, this is the only place index freshness is enforced. `create` additionally **warns (non-blocking)** when HEAD's committed index does not match HEAD's committed sources, which catches a prior commit that bypassed the gate; it detects this by re-running the generators against a materialized copy of HEAD, so it works even when the working tree carries unrelated uncommitted changes.
 4. If the helper cannot express the commit shape, you MUST hand-write the same script pattern and `chmod +x` it. You MUST give it a name no other agent will pick: `tmp/commit-<SESSION>-<tag>-<random>.sh`. You MUST NOT use heredocs. You MUST use `git commit -F <file>`.
 5. You MUST NOT end an output line with `.`, `,`, `:`, or `)` directly after a path/URL/command -- users copy-paste; trailing punctuation breaks it. You MUST put path on its own line or follow with a space.
@@ -212,6 +212,22 @@ in any shard that lacks a real destination spec is surfaced at closure
 regardless of what you commit -- home it in its own shard, do not paper over
 it (the check is advisory, but the obligation is not).
 
+This checkout is shared by several sessions ON PURPOSE, so that concurrent
+work needs no merge. A session working here MUST NOT move its own work into
+a worktree it creates: that reintroduces the integration step the shared tree
+exists to avoid. (A worktree AGENT, launched into `.claude/worktrees/` by the
+owner, is a different thing and keeps its own rules above.)
+
+`git worktree add --detach <scratch-path> HEAD` MAY be used to READ a clean
+tree -- to establish whether a build break or a red test predates your own
+change, which a dirty shared tree cannot answer on its own. It MUST be
+created outside the repository, it MUST NOT be written to, and it MUST be
+removed with `git worktree remove` as soon as the read is done: a registered
+worktree shows up in every other session's `git worktree list`, so one left
+behind is a change to shared state nobody asked for. When a single file
+answers the question, `git show HEAD:<path>` costs nothing and registers
+nothing.
+
 ## Before Any Commit
 
 ### Step 0: Does `ze-precommit-verify` apply?
@@ -252,7 +268,10 @@ full pass (no `-race`) + `-race` only on component groups with changed
 still tested rather than skipped on the now-clean tree. For reactor concurrency changes, also run `make
 ze-unit-reactor-test-race`. Output writes: `tmp/ze-verify.log`, per-stage logs
 under `tmp/verify/`, `tmp/ze-verify-failures.log`,
-`tmp/ze-verify-failures.json`, and `tmp/ze-verify.status`.
+`tmp/ze-verify-failures.json`, and `tmp/ze-verify.status`. The full mode writes
+`tmp/ze-verify-full.json` as well, which is the coverage record a Go-carrying
+commit is gated on: the changed mode never writes it, so a cheaper run cannot
+certify one.
 
 ```
 [ ] 0. `scripts/dev/verify-status.sh check`. FRESH -> MUST NOT run `make ze-precommit-verify` or `make ze-precommit-verify-changed` again; note timestamp. STALE -> continue only if the table above says verification applies.
@@ -389,6 +408,8 @@ When the override is active:
   ignored, generated, unrelated, or user-owned paths.
 - You MUST use `scripts/dev/commit_helper.py create` with the normal user-run script
   path. The override changes verification requirements only.
+- You MUST carry the override into the helper: `--unverified "<reason>"`, and
+  `--missing-full-verify-ok "<reason>"` as well when the commit carries Go.
 - You MUST NOT run `git add`, `git commit`, `git rm`, `git stash`, or prohibited git
   commands from an AI tool.
 - You MUST NOT add `--no-verify`, `--no-gpg-sign`, disabled hooks, or any bypass to
@@ -402,9 +423,10 @@ When the override is active:
 
 When `make ze-precommit-verify` is known-red from failures this session did not cause --
 pre-existing reds, or a separate session is actively clearing the global suite --
-do NOT rerun full `ze-precommit-verify` before committing. Rerunning re-surfaces other
-sessions' noise that is not your regression and blocks progress. Gate the commit
-on changed scope only:
+a commit carrying NO Go is gated on changed scope only. Rerunning the full gate for
+it re-surfaces other sessions' noise that is not your regression and blocks progress.
+A commit carrying Go still owes the full run above: the known red is ATTRIBUTED
+there, and is never a reason to skip it. Gate the rest on changed scope only:
 
 You MUST run these scoped gates instead:
 
@@ -495,23 +517,37 @@ An edit mid-run invalidates the run you are waiting for.
 ### A SHARED CHECKOUT NEVER GIVES A CLEAN `ze-precommit-verify` (BLOCKING)
 
 **Several agents work this checkout at once. `make ze-precommit-verify` reads the WORKING
-TREE, so it reads their half-finished edits too, and a fully green run is
-unreachable by construction. You MUST NOT wait for one: it is a strategy that cannot terminate.**
+TREE, so it reads their half-finished edits too, and a fully GREEN run is
+unreachable by construction. You MUST NOT wait for one and you MUST NOT re-run for one: what is unreachable is the green bar, never the run.**
 
-It is worse than futile. The full gate saturates every core for half an hour, and
-that contention is what makes the functional suites flake -- so a run started to
-prove your own work reddens somebody else's at the same time.
+**Owner directive, 2026-08-17: a commit carrying `.go`, `go.mod`, `go.sum` or `vendor/` MUST be preceded by a full `make ze-precommit-verify` whose run STARTED after your last Go edit. You MUST NOT reach such a commit on scoped gates alone, and you MUST NOT re-run the gate to watch somebody else's red clear.** What the commit owes is the run's COVERAGE, never its exit code: the exit code is read through the attribution table below. `commit_helper.py create` enforces the coverage and names the owner-only escape when no such run exists.
 
-**So the full gate is not the pre-commit evidence here. You MUST scope evidence to
-YOUR files.** Before preparing the commit script:
+| The failing path | Whose red | What you do |
+|------------------|-----------|-------------|
+| In this commit's `--file` list | Yours | Fix it. A red you caused is never attributed away |
+| Dirty in `git status --porcelain`, and not in your list | Another session's | Take that code as working. Name it in `--unverified` and commit |
+| Clean and tracked, and your diff PRODUCES a symbol the failure names | Yours | Fix it. Ownership follows the producer, not the file that failed |
+| Clean and tracked, and unrelated to your diff | Pre-existing | Attribute it against `git log`, name it in `--unverified`, and commit |
+| Any deterministic structural gate | Yours until you prove otherwise | Fix it. Those read files rather than a moving tree, so no attribution clears one |
 
-1. You MUST run the narrow gate owning each surface you changed (the table below).
-2. You MUST run the tests of each package you touched, with `make ze-unit-pkg-test`.
-3. You MUST ATTRIBUTE every red you saw: name the file, and say whether it is yours. `git
-   status --porcelain` plus a modification time settles it in seconds. A red in a
-   path your diff does not contain is not yours to chase.
-4. You MUST prepare the script with `--unverified "<attribution>"`, giving the gates you ran
-   and their verdicts, and naming the concurrent session's paths you excluded.
+**Owner directive, 2026-08-17: code another session holds uncommitted MUST be taken as WORKING. You MUST NOT fix its red, wait for it, or re-run the gate to see whether it cleared.** Attribution is the whole answer: name the file and say whose it is, put that in `--unverified`, and commit. The row that MUST NOT be attributed away is a red your own diff produced, and the table above is what decides which row you are on.
+
+The full gate saturates every core for half an hour, and that contention is what
+makes the functional suites flake, so a run started to prove your own work
+reddens somebody else's at the same time. Expect reds you did not cause. That is
+the condition the attribution table answers, and it is why the run is made ONCE,
+in the foreground, at the end of the work.
+
+**A commit that carries NO Go owes no full run. You MUST scope its evidence to YOUR
+files, running the narrow gate that owns each surface it changes.** Before preparing
+the commit script, on either route:
+
+1. You MUST run the gate the commit owes: `make ze-precommit-verify` when it carries Go,
+   and the narrow gate owning each changed surface (the table below) when it does not.
+2. You MUST ATTRIBUTE every red you saw, by the table above: name the file, and say
+   whose it is. `git status --porcelain` plus a modification time settles it in seconds.
+3. You MUST prepare the script with `--unverified "<attribution>"`, giving the gates you ran
+   and their verdicts, and naming the concurrent session's paths whose reds you attributed away.
 
 **`--unverified` is the CORRECT path in a shared checkout, not a shortcut.** It
 exists for exactly this: a full-tree gate whose red belongs to somebody else's

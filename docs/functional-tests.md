@@ -52,6 +52,7 @@ fails if any other gate lands in one mode but not the other, and
 | `tmp/verify/<nn>-<stage>.log` | Full log for one stage |
 | `tmp/ze-verify-failures.log` | Compact failure index to read first |
 | `tmp/ze-verify-failures.json` | Machine-readable failure routing index |
+| `tmp/ze-verify-full.json` | The same index, written by the FULL mode only. It is the record a commit carrying Go is gated on, and it is separate because a `ze-precommit-verify-changed` run in another session rewrites the shared file |
 | `tmp/ze-verify.status` | Freshness fingerprint for the last run |
 
 The functional test target runs 24 suites: encode, plugin, parse, decode, reload,
@@ -304,7 +305,7 @@ and name, plus periodic progress while tests are still running.
 | L2TP wire | `ze-test l2tp-wire` | `test/l2tp-wire/*.ci` | Exercises L2TP wire-level encode/decode and malformed-packet handling. |
 | IS-IS wire | `ze-test isis-wire` | `test/isis-wire/*.ci` | Exercises IS-IS wire-level decode and malformed-PDU handling. |
 | OSPFv2 wire | `ze-test ospf-wire` | `test/ospf-wire/*.ci` | Exercises OSPFv2 packet/LSA wire-level decode and malformed-packet handling. |
-| OSPF | `ze-test ospf` | `test/ospf/*.ci` | Exercises release-gate OSPF config validation, interface ISM config leaves including passive and loopback records, NSM config leaves including `mtu-ignore`, LSDB flooding/retransmit/purge logic, SPF route installation via Loc-RIB/sysrib ECMP membership updates, inter-area ABR Type 3/4 summary origination, area ranges, summary withdraw, border-router snapshots, daemon route snapshot wiring, admin-distance arbitration, and raw-socket doctor diagnostics, plus the RFC 5250 opaque carrier, RFC 3630/5392 Traffic Engineering, the RFC 7770 Router Information LSA (`ospf-ri-*.ci`, `ospf6-ri-originate.ci`), and the RFC 7684 Extended Prefix/Link Opaque LSAs (`ospf-ext-register.ci`, `ospf-ext-prefix-originate.ci`, `ospf-ext-link-originate.ci`, `ospf-ext-prefix-receive.ci`, `ospf-ext-subtlv-hook.ci`, `ospf-ext-decode.ci`), with FRR interop scenarios (`ospf-ri-frr`, `ospf6-ri-frr`, `ospf-ext-prefix-link-frr`) run under QEMU. |
+| OSPF | `ze-test ospf` | `test/ospf/*.ci` | Exercises release-gate OSPF config validation, interface ISM config leaves including passive and loopback records, NSM config leaves including `mtu-ignore`, LSDB flooding/retransmit/purge logic, SPF route installation via Loc-RIB/sysrib ECMP membership updates, inter-area ABR Type 3/4 summary origination, area ranges, summary withdraw, border-router snapshots, daemon route snapshot wiring, admin-distance arbitration, and raw-socket doctor diagnostics, plus the RFC 5250 opaque carrier, RFC 3630/5392 Traffic Engineering, the RFC 7770 Router Information LSA (`ospf-ri-*.ci`, and `test/ospfv3/ospfv3-ri-originate.ci` for the v3 engine), and the RFC 7684 Extended Prefix/Link Opaque LSAs (`ospf-ext-register.ci`, `ospf-ext-prefix-originate.ci`, `ospf-ext-link-originate.ci`, `ospf-ext-prefix-receive.ci`, `ospf-ext-subtlv-hook.ci`, `ospf-ext-decode.ci`), with FRR interop scenarios (`ospf-ri-frr`, `ospf6-ri-frr`, `ospf-ext-prefix-link-frr`) run under QEMU. |
 | Chaos | `ze-test bgp chaos` | `test/chaos/*.ci` | Runs Ze plus chaos peers end-to-end through the BGP `.ci` runner. |
 | Chaos web | `ze-test bgp chaos-web` | `test/chaos-web/*.ci` | Runs chaos dashboard HTTP endpoint checks through the BGP `.ci` runner. |
 | ExaBGP compatibility | `ze-test exabgp` | `test/exabgp-compat/encoding/*.ci` | Runs the ExaBGP compatibility fixtures through the Go `ze-test` runner, starts the mock BGP peer, runs the ExaBGP wrapper client, and checks the expected wire output. |
@@ -397,7 +398,7 @@ emitted.
 ### Allocation-ceiling gate (`make ze-alloc-check`, always-run in `ze-precommit-verify`)
 
 `make ze-alloc-check` runs the reactor hot-path `ReportAllocs` benchmarks
-(bufmux / forward-pool / EBGPWire) with `-benchmem` at a bounded benchtime and
+(bufmux / forward-pool / prefix-limits) with `-benchmem` at a bounded benchtime and
 asserts a per-benchmark `allocs/op` ceiling. allocs/op counts allocations, not
 time, so the ceiling is machine-independent; the gate needs no Docker and is
 registered as a stage in `scripts/status/verify_run.go`, so every full
@@ -428,8 +429,8 @@ test everywhere rather than relocate it. `TestCapabilityGatedTestsHaveAQemuHome`
 <!-- source: internal/test/runner/record_parse.go -- caps=net-admin gate and skip reason -->
 
 The `traffic` suite is enrolled
-in `scripts/evidence/qemu-all-tests.sh`; `test/traffic/022-boot-qdisc-tc.ci` and
-`023-reload-qdisc-tc.ci` assert real `tc qdisc show` kernel state after boot and
+in `scripts/evidence/qemu-all-tests.sh`; `test/traffic/traffic-boot-qdisc-tc.ci` and
+`traffic-reload-qdisc-tc.ci` assert real `tc qdisc show` kernel state after boot and
 after a reload (the check `001`/`002` document as deferred). The chaos iface
 fault family (`iface-link-flap`, `iface-addr-remove`) has a netns-scoped
 integration test (`//go:build integration && linux`) run via
@@ -490,7 +491,7 @@ subject of the test.
 <!-- source: internal/test/runner/exclusive_group_test.go -- TestContendingFunctionalTestsDeclareExclusiveGroup ratchet -->
 <!-- source: internal/plugins/policyroute/translate.go -- policyRoutingTable = "ze_pr" -->
 <!-- source: internal/plugins/policyroute/marks.go -- fwmarkBase deterministic per process -->
-<!-- source: test/traffic/022-boot-qdisc-tc.ci -- needs-linux tc qdisc assertion -->
+<!-- source: test/traffic/traffic-boot-qdisc-tc.ci -- needs-linux tc qdisc assertion -->
 <!-- source: internal/chaos/peer/simulator_actions_iface_linux.go -- iface fault executor -->
 
 ### Netns launch mode for netlink `.ci` suites (host-safe firewall/policy/OSPF)
@@ -1286,7 +1287,7 @@ BGP-over-TAP needs a VPP image built with the linux-cp plugins.
 **Example:**
 ```
 bin/ze-test vpp -l
-bin/ze-test vpp 001-boot
+bin/ze-test vpp vpp-boot
 bin/ze-test vpp -a
 ```
 <!-- source: internal/test/cli/cmd_vpp.go -- vppCmd wires EncodingTests to test/vpp/ -->

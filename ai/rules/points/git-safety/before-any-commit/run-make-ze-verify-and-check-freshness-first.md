@@ -22,4 +22,7 @@ full pass (no `-race`) + `-race` only on component groups with changed
 still tested rather than skipped on the now-clean tree. For reactor concurrency changes, also run `make
 ze-unit-reactor-test-race`. Output writes: `tmp/ze-verify.log`, per-stage logs
 under `tmp/verify/`, `tmp/ze-verify-failures.log`,
-`tmp/ze-verify-failures.json`, and `tmp/ze-verify.status`.
+`tmp/ze-verify-failures.json`, and `tmp/ze-verify.status`. The full mode writes
+`tmp/ze-verify-full.json` as well, which is the coverage record a Go-carrying
+commit is gated on: the changed mode never writes it, so a cheaper run cannot
+certify one.

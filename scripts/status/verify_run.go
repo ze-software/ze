@@ -24,11 +24,12 @@ import (
 )
 
 const (
-	combinedLogPath  = "tmp/ze-verify.log"
-	failuresLogPath  = "tmp/ze-verify-failures.log"
-	failuresJSONPath = "tmp/ze-verify-failures.json"
-	statusPath       = "tmp/ze-verify.status"
-	stageLogDir      = "tmp/verify"
+	combinedLogPath    = "tmp/ze-verify.log"
+	failuresLogPath    = "tmp/ze-verify-failures.log"
+	failuresJSONPath   = "tmp/ze-verify-failures.json"
+	fullVerifyJSONPath = "tmp/ze-verify-full.json"
+	statusPath         = "tmp/ze-verify.status"
+	stageLogDir        = "tmp/verify"
 
 	maxInlineMembers = 8
 	maxExcerptLines  = 20
@@ -473,6 +474,16 @@ func writeFailureArtifacts(root string, index verifyIndex) error {
 	data = append(data, '\n')
 	if err := os.WriteFile(filepath.Join(root, failuresJSONPath), data, 0o600); err != nil {
 		return fmt.Errorf("write failure json: %w", err)
+	}
+	// The full gate keeps its own copy, because a Go-carrying commit is gated on
+	// having RUN it (ai/rules/git-safety.md, owner directive 2026-08-17) and
+	// several sessions share this checkout: any one of them running the cheaper
+	// ze-precommit-verify-changed rewrites failuresJSONPath and would otherwise
+	// erase the evidence that this session's full run ever happened.
+	if index.Mode == modeFullVerify {
+		if err := os.WriteFile(filepath.Join(root, fullVerifyJSONPath), data, 0o600); err != nil {
+			return fmt.Errorf("write full-verify json: %w", err)
+		}
 	}
 	return nil
 }

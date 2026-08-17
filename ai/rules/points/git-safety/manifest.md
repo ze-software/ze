@@ -34,6 +34,7 @@ commit-ownership-in-parallel-sessions-2026-07-10-owner ## Commit Ownership in Pa
   commit-your-own-work-and-scope-every-script
   include-a-foreign-edit-only-when-it-is-in-scope
   sweep-foreign-non-code-files-never-foreign-source
+  a-worktree-is-for-reading-never-for-working
 before-any-commit ## Before Any Commit
   step-0-does-ze-verify-apply
   run-verify-only-when-the-commit-can-affect-the-build
@@ -77,6 +78,9 @@ before-any-commit ## Before Any Commit
   run-verify-in-the-foreground-and-wait
   a-shared-checkout-never-gives-a-clean-ze-verify-blocking
   a-clean-full-verify-is-unreachable-in-a-shared-tree
+  run-the-full-gate-before-any-commit-carrying-go
+  who-owns-each-red-a-full-run-reports
+  take-another-sessions-red-as-working-code
   a-full-gate-run-reddens-other-sessions
   use-evidence-scoped-to-your-own-files
   the-scoped-evidence-a-shared-checkout-owes

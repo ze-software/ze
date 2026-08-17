@@ -79,8 +79,8 @@ func TestVerifyRunProducesStageAndGroupSummaries(t *testing.T) {
 		{Name: "ze-doc-wiring-check", Rerun: "make ze-doc-wiring-check"},
 	}
 	outputs := map[string]string{
-		"ze-unit-test-cached":  readFixture(t, "go-test-mixed.log"),
-		"ze-functional-test":   readFixture(t, "functional-groups.log"),
+		"ze-unit-test-cached": readFixture(t, "go-test-mixed.log"),
+		"ze-functional-test":  readFixture(t, "functional-groups.log"),
 		"ze-doc-wiring-check": readFixture(t, "wiring-failure.log"),
 	}
 	code, err := runVerify(context.Background(), verifyConfig{
@@ -137,7 +137,7 @@ func TestVerifyRunMixedFailureFixture(t *testing.T) {
 	outputs := map[string]string{
 		"ze-unit-test-cached":       readFixture(t, "go-test-mixed.log"),
 		"ze-functional-test":        readFixture(t, "functional-groups.log"),
-		"ze-doc-wiring-check":      readFixture(t, "wiring-failure.log"),
+		"ze-doc-wiring-check":       readFixture(t, "wiring-failure.log"),
 		"ze-functional-exabgp-test": readFixture(t, "exabgp-summary.log"),
 	}
 
@@ -426,6 +426,45 @@ func TestStagesForModeChangedIncludesDocGate(t *testing.T) {
 	for _, want := range []string{"ze-doc-verify", "ze-doc-links-check"} {
 		if !names[want] {
 			t.Errorf("stagesForMode(%q) missing doc-gate stage %q; changed-mode would skip the doc checks", "ze-precommit-verify-changed", want)
+		}
+	}
+}
+
+// The full gate's own copy of the index is what proves a full run happened over
+// a session's Go code (ai/rules/git-safety.md, owner directive 2026-08-17). The
+// shared artifact cannot carry that: any session running the cheaper changed
+// mode rewrites it. So the copy exists for the full mode and for nothing else.
+func TestOnlyTheFullModeWritesTheFullVerifyIndex(t *testing.T) {
+	for _, tc := range []struct {
+		mode string
+		want bool
+	}{
+		{modeFullVerify, true},
+		{"ze-precommit-verify-changed", false},
+	} {
+		root := t.TempDir()
+		if _, err := runVerify(context.Background(), verifyConfig{
+			Root:   root,
+			Mode:   tc.mode,
+			Stages: []stage{{Name: "one", Rerun: "make one"}},
+			Now:    fixedNow,
+			Out:    io.Discard,
+			RunStage: func(context.Context, string, stage, io.Writer) int {
+				return 0
+			},
+			WriteStatus: testStatusWriter,
+		}); err != nil {
+			t.Fatalf("%s: run verify: %v", tc.mode, err)
+		}
+		// The shared artifact is written by every mode, so its presence says
+		// nothing; only the full-mode copy discriminates.
+		mustReadFileContains(t, root, failuresJSONPath, tc.mode)
+		_, err := os.Stat(filepath.Join(root, fullVerifyJSONPath))
+		if tc.want && err != nil {
+			t.Fatalf("%s must write %s: %v", tc.mode, fullVerifyJSONPath, err)
+		}
+		if !tc.want && err == nil {
+			t.Fatalf("%s must NOT write %s: a cheaper run would certify a Go commit", tc.mode, fullVerifyJSONPath)
 		}
 	}
 }
@@ -894,7 +933,7 @@ var regenCheckPrereqs = map[string]string{
 	"ze-plugin-imports-check":  "plugin_imports.go -> internal/component/plugin/all/all.go",
 	"ze-yang-glue-check":       "yang_glue.go -> yang/*/register.go, embed.go",
 	"ze-feature-tags-check":    "feature_tags.go -> .golangci.yml, gokrazy/ze/config.json, docs/guide/quickstart.md",
-	"ze-templ-output-check":  "templ generate -> internal/**/*_templ.go",
+	"ze-templ-output-check":    "templ generate -> internal/**/*_templ.go",
 	"ze-fuzz-targets-check":    "fuzz-targets.py -> mk/test-fuzz-targets.mk",
 	"ze-vendor-web-check":      "sync_web.go -> the vendored asset copy in each internal/**/assets/",
 	"ze-web-assets-check":      "web_assets.go -> the per-page asset set in each internal/**/page_assets.go",
