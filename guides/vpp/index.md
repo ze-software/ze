@@ -121,11 +121,14 @@ without it accepts the config and then fails the WHOLE apply at the binary-API
 layer, with a raw VPP error that names the failing message rather than the missing
 plugin. `ze doctor` reports `doctor-vpp-lcp-plugin` first. The probe reads the
 RUNNING VPP with `vppctl show plugins`, not the filesystem: what matters is what
-the loaded VPP has, not whether a copy exists on disk. A probe that cannot answer
-degrades to a WARNING and never claims the plugin is missing, because `vppctl`
-exits non-zero identically for an absent binary, an absent socket, and a wedged
-VPP, and none of those is evidence about which plugins VPP loaded. An absent
-`enabled` leaf reads as on, matching the YANG default.
+the loaded VPP has, not whether a copy exists on disk. An absent `enabled` leaf
+reads as on, matching the YANG default.
+
+Severity follows what the probe proved. A probe that answers and does not list
+the plugin is an ERROR, and `ze doctor` reports the host as not ready. A probe
+that cannot answer degrades to a WARNING and never claims the plugin is missing.
+`vppctl` exits non-zero identically for an absent binary, an absent socket, and a
+wedged VPP. None of those is evidence about which plugins VPP loaded.
 <!-- source: internal/plugins/iface/vpp/doctor.go -- checkVPPLCPPlugin, lcpEnabled, lcpPluginSO -->
 <!-- source: internal/core/diagnostic/codes.go -- doctor-vpp-lcp-plugin -->
 

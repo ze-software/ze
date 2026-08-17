@@ -12,16 +12,17 @@
   "github_stars": 46,
   "interop": {
     "scenario_dirs_raw": 128,
-    "scenarios": 127,
+    "scenarios": 128,
     "target_display": "9",
     "targets": 9
   },
+  "published_at": "2026-08-17T20:32:42+00:00",
   "tests": {
-    "e2e": 1654,
+    "e2e": 1657,
     "e2e_display": "1,600+",
     "fuzz": 78,
     "fuzz_display": "78",
-    "unit": 23032,
-    "unit_display": "23,000+"
+    "unit": 23133,
+    "unit_display": "23,100+"
   }
 }

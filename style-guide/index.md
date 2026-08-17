@@ -172,7 +172,7 @@ Wraps markdown rendered by tools/render-doc.py -- headings, tables, blockquotes,
 
 Top menu and right menu come from shared data; footer is a license line.
 
-Use navigation to explain where the reader should go next, not as a dump of every page. The top mega-menu is the global map from `data/nav.json`. The right page menu is the local guide from `data/page-links.json`. The footer is a shared license line from `sitelib.footer_html`. Do not hand-code equivalent link lists in page bodies.
+Use navigation to explain where the reader should go next, not as a dump of every page. The top mega-menu is the global map from `data/nav.json`. The right page menu is the local guide from `data/page-links.json`. The footer is the shared license line and publication stamp from `sitelib.footer_html`. Do not hand-code equivalent link lists in page bodies.
 
 ### Top mega-menu
 

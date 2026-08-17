@@ -179,11 +179,13 @@ without it accepts the config and then fails the WHOLE apply at the binary-API
 layer, with a raw VPP error that names the failing message rather than the missing
 plugin. <code>ze doctor</code> reports <code>doctor-vpp-lcp-plugin</code> first. The probe reads the
 RUNNING VPP with <code>vppctl show plugins</code>, not the filesystem: what matters is what
-the loaded VPP has, not whether a copy exists on disk. A probe that cannot answer
-degrades to a WARNING and never claims the plugin is missing, because <code>vppctl</code>
-exits non-zero identically for an absent binary, an absent socket, and a wedged
-VPP, and none of those is evidence about which plugins VPP loaded. An absent
-<code>enabled</code> leaf reads as on, matching the YANG default.</p>
+the loaded VPP has, not whether a copy exists on disk. An absent <code>enabled</code> leaf
+reads as on, matching the YANG default.</p>
+<p>Severity follows what the probe proved. A probe that answers and does not list
+the plugin is an ERROR, and <code>ze doctor</code> reports the host as not ready. A probe
+that cannot answer degrades to a WARNING and never claims the plugin is missing.
+<code>vppctl</code> exits non-zero identically for an absent binary, an absent socket, and a
+wedged VPP. None of those is evidence about which plugins VPP loaded.</p>
 <!-- source: internal/plugins/iface/vpp/doctor.go -- checkVPPLCPPlugin, lcpEnabled, lcpPluginSO -->
 <!-- source: internal/core/diagnostic/codes.go -- doctor-vpp-lcp-plugin -->
 
@@ -705,6 +707,7 @@ and converging sub-second on a full table.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
+                    <span class="footer-published">Published 17 August 2026 20:32 UTC</span>
                 </div>
             </div>
         </footer>

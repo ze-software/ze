@@ -5,7 +5,7 @@ Source: `scripts/dev/rfc_requirements.py`, `rfc/short/*.md`, `docs/features/rfc-
 ## Current gate output
 
 ```
-rfc-requirements OK: 2965 gated MUST-level requirement(s) across 171 enrolled RFC(s); 3545 test tag(s) resolved.
+rfc-requirements OK: 2965 gated MUST-level requirement(s) across 171 enrolled RFC(s); 3547 test tag(s) resolved.
 ```
 
 | Metric | Value |
@@ -13,7 +13,7 @@ rfc-requirements OK: 2965 gated MUST-level requirement(s) across 171 enrolled RF
 | Gate issues | 0 |
 | Gated MUST-level requirements | 2,965 |
 | Enrolled RFCs | 171 |
-| Resolved test tags | 3,545 |
+| Resolved test tags | 3,547 |
 | Declared gaps | 519 |
 | RFCs with declared gaps | 80 |
 | Fresh semantic audit verdicts | 52 |
@@ -69,7 +69,7 @@ rfc-requirements OK: 2965 gated MUST-level requirement(s) across 171 enrolled RF
 |---|---|---|
 | Requirement source | `rfc/short/*.md` | 2,965 gated MUST-level requirements |
 | Enrollment | `rfc/enrolled.txt` | 171 enrolled RFCs |
-| Test tags | `internal/, pkg/, test/` | 3,545 resolved tags |
+| Test tags | `internal/, pkg/, test/` | 3,547 resolved tags |
 | Public ledger | `docs/features/rfc-status.md` | 80 RFCs with gaps |
 | Semantic audits | `rfc/audit/*.json` | 52 fresh, 0 shifted, 0 stale, 2,913 missing |
 | AI write/edit guard | `.claude/hooks/pretool-writeedit.py` | ON |

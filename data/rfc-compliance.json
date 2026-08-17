@@ -4,8 +4,8 @@
     "error_count": 0,
     "gated_must": 2965,
     "enrolled_rfcs": 171,
-    "test_tags": 3545,
-    "message": "rfc-requirements OK: 2965 gated MUST-level requirement(s) across 171 enrolled RFC(s); 3545 test tag(s) resolved."
+    "test_tags": 3547,
+    "message": "rfc-requirements OK: 2965 gated MUST-level requirement(s) across 171 enrolled RFC(s); 3547 test tag(s) resolved."
   },
   "satisfaction": [
     {

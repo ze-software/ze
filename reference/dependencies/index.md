@@ -21,7 +21,7 @@ Ze is Go, and Go code leans on packages. 42 direct dependencies, read straight f
 | Module | Version | Why we use it |
 | --- | --- | --- |
 | `github.com/miekg/dns` | `v1.1.72` | DNS message parsing and serving underneath Ze's DNS server engine, the AS112 blackhole plugin, and GeoDNS. It's the library underpinning CoreDNS. |
-| `github.com/insomniacslk/dhcp` | `v0.0.0-20260326115832-991c7910cf36` | DHCPv4/DHCPv6 client used for interface lease handling and the installer's disk-provisioning DHCP client. |
+| `github.com/insomniacslk/dhcp` | `v0.0.0-20260719225207-c76316d4aa82` | DHCPv4/DHCPv6 client used for interface lease handling and the installer's disk-provisioning DHCP client. |
 | `github.com/beevik/ntp` | `v1.5.0` | NTP client queries used by the ntp plugin. |
 | `golang.zx2c4.com/wireguard/wgctrl` | `v0.0.0-20241231184526-a9ab2273dd10` | Creates and configures WireGuard interfaces and peers from the interface netlink backend. |
 | `github.com/mdlayher/packet` | `v1.1.2` | Raw AF_PACKET sockets behind the `diag capture` CLI command. |
