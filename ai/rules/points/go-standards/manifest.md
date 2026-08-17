@@ -64,6 +64,7 @@ prefer-typed-numeric-over-string ## Prefer Typed Numeric Over String
   parse-the-string-once-at-the-boundary
   when-map-string-v-is-acceptable
   where-a-string-keyed-map-is-acceptable
+  bind-an-accepted-string-key-to-a-constant
   anti-patterns
   the-string-key-anti-patterns-and-their-fixes
   mechanical-check

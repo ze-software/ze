@@ -17,6 +17,7 @@ commit-rules ## Commit Rules
   git-verbs-inside-the-commit-script-are-allowed
   verify-a-file-is-tracked-before-git-rm
   commit-helper-invocation-examples
+  never-put-a-backtick-in-a-commit-helper-body
   the-commit-helper-flags-that-matter
   the-generated-script-has-this-shape
   never-suggest-or-ask-about-committing
