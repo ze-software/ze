@@ -10,6 +10,7 @@ import (
 	"bytes"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/wire"
 )
@@ -108,12 +109,17 @@ func modsSetMED(mods *filterapi.ModAccumulator) bool {
 	return false
 }
 
-// applyFactsMED enforces RFC 4271 Section 5.1.4 on the forward rails: a
-// MULTI_EXIT_DISC that ARRIVED from a neighboring AS is not relayed to another
-// one.
+// applyFactsMED enforces the MED rules that sit after egress policy on the
+// received-route forward rails.
 //
 // RFC 4271 Section 5.1.4: "The MULTI_EXIT_DISC attribute received from a
 // neighboring AS MUST NOT be propagated to other neighboring ASes."
+//
+// RFC 4271 Section 9.1.2.2 warns about MED removal after route selection.
+// Removal after comparison can create loops unless the decision process
+// restricts comparison. Ze does not apply that restriction. Thus, an internal
+// readvertisement whose selected source carried MED must not let a raw
+// post-selection egress base silently drop it.
 //
 // PROVENANCE IS THE TEST, NOT THE DESTINATION ALONE. Both forward rails relay an
 // UPDATE another speaker sent, so every byte of src came off that speaker's
@@ -127,22 +133,38 @@ func modsSetMED(mods *filterapi.ModAccumulator) bool {
 //     (modsSetMED) or as a policy chain's wire override, which arrives here as a
 //     base whose metric differs from the one received.
 //
-// A base equal to the source is the received value carried on unchanged, and
-// that is the propagation the section forbids. A policy that rewrites the metric
-// to the value it already held is indistinguishable on the wire from that
-// propagation, so the MUST NOT decides the tie and the attribute is suppressed.
+// For an internal destination, absence is the only defect this boundary repairs.
+// A base that already carries MED stays on the zero-copy path. A base that
+// carries a different MED is a policy-originated value. An accumulator Set is the
+// operator's last word.
+//
+// For an external destination, a base equal to the source is the received value
+// carried on unchanged, and that is the propagation Section 5.1.4 forbids. A
+// policy that rewrites the metric to the value it already held is
+// indistinguishable on the wire from that propagation, so the MUST NOT decides
+// the tie and the attribute is suppressed.
 //
 // Recorded AFTER the egress filter pass on both rails, like its sibling, so the
 // base this reads is the payload the rebuild runs over rather than the source.
-// Unlike its sibling the Suppress does not exist to WIN there: it is skipped
-// whenever a filter originated the metric.
+// Unlike its sibling the external Suppress does not exist to WIN there: it is
+// skipped whenever a filter originated the metric.
 //
 // src is computed ONCE per UPDATE by the caller rather than once per
 // destination. Recording the operation unconditionally would be simpler and
 // would also force every route to every external peer onto the payload-rebuild
 // path, which is the cost the route-server fast path exists to avoid.
-func applyFactsMED(f *peerForwardFacts, src, base medValue, mods *filterapi.ModAccumulator) {
+func applyFactsMED(f *peerForwardFacts, src, base medValue, basePayload []byte, mods *filterapi.ModAccumulator) {
 	if medPropagationAllowedTo(f.isEBGP, f.rsClient) {
+		if f.isEBGP {
+			return
+		}
+		// RFC 4271 Section 9.1.2.2: if MED participated in selection, it must not
+		// be removed before IBGP readvertisement by a raw post-selection policy
+		// base. Restore only absence on an advertisement, and stand aside for a
+		// policy Set.
+		if src.present && !base.present && !modsSetMED(mods) && wireu.PayloadAdvertisesNLRI(basePayload) {
+			mods.Op(uint8(attribute.AttrMED), filterapi.AttrModSet, src.raw)
+		}
 		return
 	}
 	// Nothing on this destination's wire to remove. Recording anyway would cost

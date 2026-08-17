@@ -83,45 +83,37 @@ route in the comparison with an IBGP-learned route, then removing the
 MULTI_EXIT_DISC attribute, and advertising the route has been proven to cause
 route loops."
 
-## Why the Section 9.1.2.2 restricted comparison does not bind ze
+## How the Section 9.1.2.2 boundary is enforced
 
 The same paragraph states an obligation: "If an implementation chooses to remove
 MULTI_EXIT_DISC, then the optional comparison on MULTI_EXIT_DISC, if performed,
-MUST be performed only among EBGP-learned routes." Ze offers a removal and does
-not restrict its comparison, so the sentence needs an answer rather than a shrug.
+MUST be performed only among EBGP-learned routes." Ze does not restrict its
+comparison, so removal must not occur after selection before an IBGP
+readvertisement.
 
-**Read the paragraph from its first sentence.** It opens with its own antecedent:
-"If a MULTI_EXIT_DISC attribute is removed before re-advertising a route into
-IBGP, then comparison based on the received EBGP MULTI_EXIT_DISC attribute MAY
-still be performed." Every later sentence refers to THAT removal, the one that
-takes the value off the wire while the speaker keeps it for its own decision.
-
-Three things in the text settle which reading governs.
-
-| Ground | Text |
-|--------|------|
-| Section 5.1.4 already fixes the order for the configured mechanism | "this removal MUST be done prior to determining the degree of preference of the route and prior to performing route selection (Decision Process phases 1 and 2)" |
-| Section 5.1.4 makes that mechanism compulsory for every speaker, so a universal restriction would contradict the sentence three lines below the MUST | "For IBGP-learned routes, the MULTI_EXIT_DISC MUST be used in route comparisons that reach this step in the Decision Process" |
-| The paragraph blesses the state an ingress removal leaves behind | "The best EBGP-learned route may then be compared with IBGP-learned routes after the removal of the MULTI_EXIT_DISC attribute" |
-
-**Ze cannot execute the sequence the hazard names, and the hazard names it in
-order: include in the comparison, then remove, then advertise.** Every removal ze
-performs happens before the comparison or not at all. `ExtractMEDRemoveOps`
-converts the directive at the ingress site alone, `appendMEDRemove`
-(`internal/component/bgp/plugins/filter_modify/filter_modify.go`) refuses it on an
-export chain and logs the reason, and `medPropagationAllowedTo`
+The public `del { med; }` mechanism satisfies Section 5.1.4 by running on the
+import chain only. `ExtractMEDRemoveOps` converts that directive at ingress,
+`appendMEDRemove` (`internal/component/bgp/plugins/filter_modify/filter_modify.go`)
+refuses it on export and logs the reason, and `medPropagationAllowedTo`
 (`internal/component/bgp/reactor/forward_med.go`) returns true for every non-eBGP
-destination, so the automatic strip never touches an internal peer. The announce
-rails write a metric ze set and remove none.
+destination. That path keeps the value used for comparison aligned with the value
+advertised to an IBGP peer.
+
+The lower raw egress replacement path needs the same boundary. A policy handler
+can return a full UPDATE body on the common IBGP egress rail. `applyFactsMED`
+receives the source payload and the post-policy destination base. For an IBGP
+destination, it records a MED Set when the source carries MED and the base omits
+it. The function records no operation if the base already carries MED, the source
+had no MED, or policy already recorded a MED Set.
 
 **No later RFC changed the clause.** Of RFC 4271's twelve updaters, ten never
 mention MULTI_EXIT_DISC. RFC 7606 Section 7.4 governs a malformed length. RFC
 6793 Section 7 adds an AS_TRANS warning. No erratum touches Section 9.1.2.2.
 
-**The invariant is what to hold, not the argument.** For every route ze
-advertises, the metric used at the comparison step must equal the metric on the
-advertised route, two absences counting as equal. An export-side or reflection-
-side removal breaks it whatever the reading, and the obligation then binds.
+**The invariant is MED presence at IBGP readvertisement.** A selected route that
+used MED in comparison must keep that MED before an IBGP advertisement. The only
+exception is a candidate set whose comparison is restricted to EBGP-learned
+routes.
 
 ### What FRR and BIRD do, and why it corroborates
 
@@ -140,16 +132,15 @@ reproducing this loop. Their loop warnings are about MED oscillation, which is
 order-dependence in the decision process and a different failure.
 
 So the two implementations sit on opposite sides of the fault line the text
-predicted, and neither guards it. FRR escapes the obligation by not offering the
-feature, which is a consequence of its feature set rather than a conformance
-decision. BIRD offers the removal on the export side, which is the side that
-reopens the hazard, and leaves its comparison unrestricted.
+predicted, and neither guards it. FRR escapes the obligation because it does not
+offer the feature. That is a consequence of its feature set, not a conformance
+decision. BIRD offers the removal on the export side. That side reopens the
+hazard, and BIRD leaves its comparison unrestricted.
 
 That is the corroboration, and it is not agreement. Neither daemon reasoned about
-the clause; what they show is that placing the removal is the whole question, and
-that an implementation which places it on export owes the restricted comparison
-and does not pay it. Ze places it on ingress, which is why the compared value and
-the advertised value cannot diverge here.
+the clause. They show that placement is the whole question. An implementation
+that can place removal after selection owes the restricted comparison until that
+path is removed, guarded, or proven unreachable.
 
 ## Proof
 
@@ -158,14 +149,17 @@ the advertised value cannot diverge here.
 | LOCAL_PREF | `forward_local_pref_test.go` | `test/plugin/local-pref-strip-ebgp.ci` | `test/interop/scenarios/54-local-pref-strip-gobgp/` |
 | MULTI_EXIT_DISC, the propagation rule | `forward_med_test.go` | `test/plugin/med-not-propagated-across-as.ci`, `test/plugin/med-locally-set-reaches-peer.ci` | `test/interop/scenarios/60-med-across-as-gobgp/` |
 | MULTI_EXIT_DISC, the configured removal | `forward_med_test.go`, `filter_delta_test.go`, `filter_modify/modify_test.go` | `test/plugin/med-removal-configured.ci`, `test/plugin/med-removal-before-decision.ci`, `test/plugin/med-removal-export-refused.ci` | `test/interop/scenarios/61-med-remove-configured-gobgp/` |
+| MULTI_EXIT_DISC, IBGP post-selection preservation | `forward_med_test.go` | `test/plugin/med-ibgp-post-selection-removal.ci` | `test/interop/scenarios/62-med-ibgp-post-selection-removal-gobgp/` |
 
 Each functional test carries its confining negative in the same run: one
 UPDATE, several destinations, opposite transforms, so neither half can pass by
-accident. Both interop scenarios carry the same pair against a foreign RIB.
+accident. The interop scenarios carry the same pair against a foreign RIB.
 Scenario 60: the relayed metric is gone from GoBGP's view and ze's own metric is
 in it. Scenario 61: the destination is INTERNAL, so the automatic rule never
 fires there, and of two routes on one session the one the policy names arrives
-with no metric while the one it does not keeps 100.
+with no metric while the one it does not keeps 100. Scenario 62: a raw export
+filter removes MED from the destination base on the route-server egress rail,
+and GoBGP still receives MED.
 
 The configured removal's gate reads the WIRE rather than the filter text.
 `appendSingleAttr` (`internal/component/bgp/reactor/filter_format.go`) switches

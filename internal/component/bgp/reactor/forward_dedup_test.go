@@ -559,28 +559,32 @@ func TestGroupsDisabledNoDedup(t *testing.T) {
 	}
 }
 
-// overrideMED is the marker byte the export policy chain's raw override writes
-// into MULTI_EXIT_DISC, so a destination's delivered wire says which BASE it was
-// rebuilt from rather than only which edit set was applied to it.
-const overrideMED = 0xAA
+// overrideCommunity is the marker byte the export policy chain's raw override
+// writes into the final COMMUNITY value, so a destination's delivered wire says
+// which BASE it was rebuilt from rather than only which edit set was applied to it.
+const overrideCommunity = 0xAA
 
-// fanoutOverridePayload is the raw full-UPDATE-body replacement a raw=true
-// export filter returns. It is fanoutPayload with one attribute value changed,
-// so the two bases differ by a needle a test can point at while every other
-// property (length, attribute order, NLRI) stays equal.
+func fanoutCommunityAttr(last byte) []byte {
+	comms := make([]byte, 0, 32)
+	for i := range 7 {
+		comms = append(comms, 0xFD, 0xE9, 0x00, byte(i+1)) //nolint:gosec // fixture index
+	}
+	comms = append(comms, 0xFD, 0xE9, 0x00, last)
+	return makeAttr(0xC0, 8, comms)
+}
+
+// export filter returns. It is fanoutPayload with one non-MED attribute value
+// changed, so the two bases differ by a needle a test can point at while every
+// other property (length, attribute order, NLRI) stays equal.
 func fanoutOverridePayload() []byte {
 	asPath := []byte{0x02, 0x03, 0, 0, 0xFD, 0xE9, 0, 0, 0xFD, 0xEA, 0, 0, 0xFD, 0xEB}
 	var attrs []byte
 	attrs = append(attrs, makeAttr(0x40, 1, []byte{0x00})...)
 	attrs = append(attrs, makeAttr(0x40, 2, asPath)...)
 	attrs = append(attrs, makeAttr(0x40, 3, []byte{192, 0, 2, 1})...)
-	attrs = append(attrs, makeAttr(0x80, 4, []byte{0, 0, 0, overrideMED})...) // the marker
+	attrs = append(attrs, makeAttr(0x80, 4, []byte{0, 0, 0, 10})...)
 	attrs = append(attrs, makeAttr(0x40, 5, []byte{0, 0, 0, 100})...)
-	comms := make([]byte, 0, 32)
-	for i := range 8 {
-		comms = append(comms, 0xFD, 0xE9, 0x00, byte(i+1)) //nolint:gosec // fixture index
-	}
-	attrs = append(attrs, makeAttr(0xC0, 8, comms)...)
+	attrs = append(attrs, fanoutCommunityAttr(overrideCommunity)...)
 	nlri := []byte{24, 10, 0, 0, 24, 10, 0, 1}
 	return buildModTestPayload(attrs, nlri)
 }
@@ -640,10 +644,10 @@ func TestDifferentBaseSameEditSetNeverShares(t *testing.T) {
 	require.NotEmpty(t, overriddenBody)
 	require.NotEmpty(t, plainBody)
 
-	// The needle: the whole MULTI_EXIT_DISC attribute, header included, so a
+	// The needle: the whole COMMUNITY attribute, header included, so a
 	// coincidental byte run elsewhere cannot satisfy it.
-	overrideNeedle := makeAttr(0x80, 4, []byte{0, 0, 0, overrideMED})
-	originalNeedle := makeAttr(0x80, 4, []byte{0, 0, 0, 10})
+	overrideNeedle := fanoutCommunityAttr(overrideCommunity)
+	originalNeedle := fanoutCommunityAttr(8)
 
 	// The wire assertions come first: they are the leak itself, and a failure
 	// here prints the borrowed bytes rather than a counter.
