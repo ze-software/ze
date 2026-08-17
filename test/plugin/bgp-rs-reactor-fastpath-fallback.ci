@@ -161,7 +161,7 @@ bgp {
 		# (server_handlers.go) and the received UPDATE is what it forwards.
 		# `plugin { internal rs }` STARTS the program and `rs-fast-path enable`
 		# selects the reactor rail; neither creates a delivery edge
-		# (plan/spec-fixit-peer-process-event-filter.md, Known Limitations), so
+		# (spec-fixit-peer-process-event-filter, Known Limitations), so
 		# without this block the fast path is the ONLY rail and a receiver that
 		# is not yet a target loses the UPDATE for good.
 		attach process rs {

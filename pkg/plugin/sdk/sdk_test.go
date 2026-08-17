@@ -1279,14 +1279,17 @@ func TestSDKDispatchCommandArgsDirectError(t *testing.T) {
 	var gotCommand string
 	var gotArgs []string
 	var gotPeer string
+	completed := false
 	bridge.SetDispatchCommandArgs(func(command string, got []string, peer string) (*rpc.DispatchCommandOutput, error) {
 		gotCommand = command
 		gotArgs = append(gotArgs, got...)
 		gotPeer = peer
-		return &rpc.DispatchCommandOutput{
+		out := &rpc.DispatchCommandOutput{
 			Status: rpc.StatusError,
 			Error:  "target rejected",
-		}, nil
+		}
+		out.OnTransportComplete(func() { completed = true })
+		return out, nil
 	})
 	bridge.SetReady()
 
@@ -1294,6 +1297,7 @@ func TestSDKDispatchCommandArgsDirectError(t *testing.T) {
 	require.Error(t, err)
 	assert.Equal(t, rpc.StatusError, status)
 	assert.Nil(t, data)
+	assert.True(t, completed, "the SDK must complete the action after it projects the direct result")
 	assert.EqualError(t, err, "target rejected")
 	assert.Equal(t, "bgp rib reject-routes", gotCommand)
 	assert.Equal(t, args, gotArgs)

@@ -451,6 +451,13 @@ func (s *Server) removePluginFamilies(name string) {
 }
 
 func (s *Server) rollbackStartupProcess(proc *process.Process) {
+	proc.Stop()
+	if proc.Stage() >= plugin.StageRunning {
+		proc.WaitRuntimeCleanup()
+	} else {
+		s.cleanupProcess(proc)
+	}
+
 	if s.registry != nil {
 		s.registry.Unregister(proc.Name())
 	}
@@ -458,18 +465,6 @@ func (s *Server) rollbackStartupProcess(proc *process.Process) {
 		s.capInjector.RemovePluginCapabilities(proc.Name())
 	}
 	s.removePluginFamilies(proc.Name())
-	if s.dispatcher != nil {
-		s.dispatcher.Registry().UnregisterAll(proc)
-		s.dispatcher.Pending().CancelAll(proc)
-	}
-	if s.subscriptions != nil {
-		s.subscriptions.clearProcess(proc)
-	}
-	if proc.IsCacheConsumer() && s.reactor != nil {
-		s.reactor.UnregisterCacheConsumer(proc.Name())
-	}
-	runProcessCleanupHooks(proc.Name())
-	proc.Stop()
 	if pm := s.procManager.Load(); pm != nil {
 		pm.RemoveProcess(proc.Name())
 	}

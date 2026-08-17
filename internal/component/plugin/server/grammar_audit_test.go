@@ -8,7 +8,7 @@
 // all-plugins config:
 //
 //   - TestRuntimeBuiltinSurfaceGrammar walks the exact inputs the server feeds to
-//     LoadBuiltinsWithAliases (server.go:190) -- every registered builtin RPC mapped
+//     loadBuiltinsWithAliases (server.go:257) -- every registered builtin RPC mapped
 //     through yang.WireMethodToPaths -- and re-runs grammar.CheckName on each path,
 //     skipping category-exempt handlers via grammar.ExemptCategory(WireMethod). This
 //     is the one check the live `system command list` RPC could not do: the RPC
@@ -72,7 +72,7 @@ func TestRuntimeBuiltinSurfaceGrammar(t *testing.T) {
 			exempt[cat]++
 			continue
 		}
-		// Handlers with no YANG path are not CLI-dispatchable; LoadBuiltinsWithAliases
+		// Handlers with no YANG path are not CLI-dispatchable; loadBuiltinsWithAliases
 		// skips them (command.go:80-84), so they carry no CLI grammar. Skip likewise.
 		for _, path := range wireToPaths[reg.WireMethod] {
 			checked++

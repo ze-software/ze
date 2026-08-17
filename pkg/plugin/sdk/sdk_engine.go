@@ -205,32 +205,28 @@ func (p *Plugin) BatchValidate(ctx context.Context, decisions []rpc.ValidationDe
 // plugin via longest-match registry lookup and returns the full structured response.
 // Error text from the handler is returned as a Go error (not in data).
 func (p *Plugin) DispatchCommand(ctx context.Context, command string) (status string, data json.RawMessage, err error) {
-	var out *rpc.DispatchCommandOutput
-
 	if p.bridge != nil && p.bridge.HasDispatchCommand() {
-		out, err = p.bridge.DispatchCommand(command)
-	} else {
-		input := &rpc.DispatchCommandInput{Command: command}
-		out, err = p.dispatchCommandRPC(ctx, rpc.MethodDispatchCommand, input, "dispatch-command")
+		out, dispatchErr := p.bridge.DispatchCommand(command)
+		return dispatchDirectCommandResult(out, dispatchErr)
 	}
 
-	return dispatchCommandResult(out, err)
+	input := &rpc.DispatchCommandInput{Command: command}
+	out, dispatchErr := p.dispatchCommandRPC(ctx, rpc.MethodDispatchCommand, input, "dispatch-command")
+	return dispatchCommandResult(out, dispatchErr)
 }
 
 // DispatchCommandArgs dispatches an exact registered command with pre-tokenized
 // arguments through the engine's command dispatcher. It preserves the external
 // dispatch-command API while avoiding command-string tokenization for internal data.
 func (p *Plugin) DispatchCommandArgs(ctx context.Context, command string, args []string, peer string) (status string, data json.RawMessage, err error) {
-	var out *rpc.DispatchCommandOutput
-
 	if p.bridge != nil && p.bridge.HasDispatchCommandArgs() {
-		out, err = p.bridge.DispatchCommandArgs(command, args, peer)
-	} else {
-		input := &rpc.DispatchCommandArgsInput{Command: command, Args: args, Peer: peer}
-		out, err = p.dispatchCommandRPC(ctx, rpc.MethodDispatchCommandArgs, input, "dispatch-command-args")
+		out, dispatchErr := p.bridge.DispatchCommandArgs(command, args, peer)
+		return dispatchDirectCommandResult(out, dispatchErr)
 	}
 
-	return dispatchCommandResult(out, err)
+	input := &rpc.DispatchCommandArgsInput{Command: command, Args: args, Peer: peer}
+	out, dispatchErr := p.dispatchCommandRPC(ctx, rpc.MethodDispatchCommandArgs, input, "dispatch-command-args")
+	return dispatchCommandResult(out, dispatchErr)
 }
 
 func (p *Plugin) dispatchCommandRPC(ctx context.Context, method string, input any, label string) (*rpc.DispatchCommandOutput, error) {
@@ -243,6 +239,16 @@ func (p *Plugin) dispatchCommandRPC(ctx context.Context, method string, input an
 		return nil, fmt.Errorf("unmarshal %s result: %w", label, err)
 	}
 	return out, nil
+}
+
+// dispatchDirectCommandResult projects an in-process result before it completes
+// the accepted action. The socket transport completes the action after writing
+// its response, but DirectBridge has no transport writer to own that boundary.
+func dispatchDirectCommandResult(out *rpc.DispatchCommandOutput, err error) (string, json.RawMessage, error) {
+	if out != nil {
+		defer out.TransportComplete()
+	}
+	return dispatchCommandResult(out, err)
 }
 
 func dispatchCommandResult(out *rpc.DispatchCommandOutput, err error) (string, json.RawMessage, error) {

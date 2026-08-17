@@ -148,7 +148,7 @@ func TestGraphReportsUnresolvedTokens(t *testing.T) {
 // VALIDATES: AC-8 and R-8, proven by measurement rather than by inspection.
 // The lookup runs once per peer-scoped event, on the UPDATE path, so an
 // allocation here is an allocation per BGP message.
-// PREVENTS: the cost SubscriptionManager.GetMatching has today -- a scan of
+// PREVENTS: the cost SubscriptionManager.getMatching has today -- a scan of
 // every process and a fresh result slice on every event.
 func TestGraphLookupAllocatesNothing(t *testing.T) {
 	g := twoPeerGraph()
