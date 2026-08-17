@@ -23,7 +23,7 @@
 # (textDeltaToModOps skips the directive, and the export site never calls ExtractMEDRemoveOps);
 # the log half is bgp-filter-modify's own refusal (appendMEDRemove,
 # internal/component/bgp/plugins/filter_modify/filter_modify.go). Deleting the refusal turns
-# `delta=med-remove` back on in the log and the reject line below goes red, while the wire stays
+# `delta=med-remove` back on in the internal log and the reject line below goes red, while the wire stays
 # where it is: that is the point, and it is why the log assertion is not decoration.
 #
 # THE RECEIVER IS A ROUTE SERVER CLIENT, so ze's automatic Section 5.1.4 strip does not fire for
@@ -177,7 +177,7 @@ EOF_CONF
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze --plugin ze.bgp-filter-modify -:stdin=ze-bgp:timeout=20s
 expect=exit:code=0
-expect=stderr:pattern=med-remove is an import-chain mechanism
+expect=stderr:pattern=del \{ med; \} is ignored on export
 reject=stderr:pattern=delta=med-remove
 reject=stderr:pattern=panic
 reject=stderr:pattern=fatal error

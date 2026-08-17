@@ -828,13 +828,12 @@ func TestReceivedOnlyGuardReadsEveryShape(t *testing.T) {
 		},
 		{
 			// docs/guide/bgp-resilience.md, plugins.md, flowspec-route-reflector.md.
-			// It LOOKS like a whole document and the parser refuses it: automatic
-			// semicolon insertion fires at a newline, so a closing brace on the
-			// same line as the statement it closes is a syntax error. Measured
-			// with a built `ze config validate`: "line 2: expected ';' after use
-			// value, got RBRACE". The text scan is what reads it, and it has to,
-			// because this is the form four guides wrote.
-			name: "alias declared on one line, which does not parse",
+			// This shape used to be refused because the closing brace sat on the
+			// same line as the statement it closed. The parser now reads it, so the
+			// guard must prove the tree path still resolves the alias and refuses
+			// the received-only plugin grant.
+			name:      "alias declared on one line",
+			viaParser: true,
 			config: `
 plugin {
     internal rrx { use bgp-rr }
@@ -929,9 +928,10 @@ bgp {
 		{
 			// The alias declaration quoted on both sides, so the alias key, the
 			// plugin behind it and the block naming it are each read through the
-			// quotes. Written one-line without its semicolons, as the guides
-			// wrote it, so the parser refuses it and the text scan answers.
-			name: "quoted alias and quoted block name",
+			// quotes. The parser now reads the one-line form, so this case pins the
+			// parsed-tree path instead of falling back to the text scan.
+			name:      "quoted alias and quoted block name",
+			viaParser: true,
 			config: `
 plugin {
     internal "rrx" { use "bgp-rs" }

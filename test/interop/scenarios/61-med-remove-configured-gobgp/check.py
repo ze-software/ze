@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Scenario 61: the configured MULTI_EXIT_DISC removal, judged by GoBGP.
 
-A raw injector EXTERNAL to Ze (65005 against Ze's 65001) announces two prefixes,
-both carrying ORIGIN, AS_PATH [65005], NEXT_HOP 172.30.0.9 and MULTI_EXIT_DISC
+A real FRR peer EXTERNAL to Ze (65005 against Ze's 65001) announces two prefixes,
+both carrying ORIGIN, AS_PATH [65005], NEXT_HOP 172.30.0.3 and MULTI_EXIT_DISC
 100. Only 10.61.0.0/24 also carries COMMUNITY 65005:1. Ze's import chain on that
 session runs `modify DROP-MED`, whose `del` block is `del { med; }` and whose
-match container names that community. Ze relays both routes to GoBGP. GoBGP is
-an INTERNAL peer.
+match container names that community. Ze relays both routes to GoBGP through the
+route-server rail, where GoBGP is an INTERNAL peer.
 
 THE DESTINATION IS INTERNAL BECAUSE THAT IS WHAT MAKES THE ABSENCE MEAN
 SOMETHING. Ze's automatic Section 5.1.4 strip fires toward a different
@@ -16,20 +16,20 @@ destinations; this one measures the mechanism the same section separately
 requires.
 
 THE UNTAGGED PREFIX IS THE IN-RUN POSITIVE CONTROL. It travels the same session,
-the same forward rail and the same policy chain, and it keeps Med 100. Without
-it, "GoBGP has no Med" would be satisfied just as well by a broken relay, by a
+the same route-server rail and the same policy chain, and it keeps Med 100.
+Without it, "GoBGP has no Med" would be satisfied just as well by a broken relay,
 blanket strip, or by a daemon printing no attributes at all.
 
 The assertions:
   * GoBGP holds both prefixes                     (the relay works)
-  * GoBGP shows AS_PATH 65005 and NEXT_HOP .0.9   (the source block arrived)
+  * GoBGP shows AS_PATH 65005 and NEXT_HOP .0.3   (the source block arrived)
   * GoBGP shows no Med on 10.61.0.0/24            (Section 5.1.4's mechanism)
   * GoBGP shows Med 100 on 10.61.1.0/24           (the mechanism is a policy an
                                                    operator states, not a strip)
 """
 
-# VALIDATES: plan/spec-rfc4271-med-across-as.md AC-5, against a real peer rather
-#   than against Ze's own view of what it sent.
+# VALIDATES: RFC4271-5.1.4-4 against a real peer rather than against Ze's own
+# view of what it sent.
 #
 # RFC requirement: RFC4271-5.1.4-4 positive -- "A BGP speaker MUST implement a
 #   mechanism (based on local configuration) that allows the MULTI_EXIT_DISC
@@ -55,7 +55,7 @@ import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from interop import (  # noqa: E402
-    INJECT_CONTAINER,
+    FRR,
     GoBGP,
     ZE_CONTAINER,
     ZE_IP,
@@ -71,7 +71,7 @@ REMOVED = "10.61.0.0/24"
 # Untagged, so the same policy leaves it alone.
 KEPT = "10.61.1.0/24"
 
-# What the injector puts on the wire for both.
+# What FRR puts on the wire for both.
 INJECTED_MED = 100
 
 
@@ -98,19 +98,19 @@ def _gobgp_rib(gobgp, prefix):
 
 
 def _check_source_block_arrived(output, prefix):
-    """The route GoBGP holds is the injected one, relayed.
+    """The route GoBGP holds is the source route, readvertised.
 
-    Without this, a Ze that rebuilt the route from something other than the
+    Without this, a Ze path that rebuilt the route from something other than the
     received block would satisfy the absence check below for a reason that has
     nothing to do with the configured removal.
     """
     if "65005" not in output:
         log_fail("GoBGP route %s has no 65005 in its AS_PATH: %s" % (prefix, output))
-        raise AssertionError("relayed AS_PATH is not the injected one")
-    if "172.30.0.9" not in output:
+        raise AssertionError("relayed AS_PATH is not the source one")
+    if "172.30.0.3" not in output:
         log_fail("GoBGP route %s has the wrong next-hop: %s" % (prefix, output))
-        raise AssertionError("relayed NEXT_HOP is not the injected one")
-    log_pass("GoBGP route %s carries the injected AS_PATH and NEXT_HOP" % prefix)
+        raise AssertionError("relayed NEXT_HOP is not the source peer")
+    log_pass("GoBGP route %s carries the source AS_PATH and NEXT_HOP" % prefix)
 
 
 def _check_removed(output, prefix):
@@ -143,7 +143,9 @@ def _check_kept(output, prefix):
 
 
 def _check():
+    frr = FRR()
     gobgp = GoBGP()
+    frr.wait_session(ZE_IP)
     gobgp.wait_session(ZE_IP)
 
     for prefix in (REMOVED, KEPT):
@@ -165,8 +167,8 @@ def _check():
 
 
 def check():
-    """Entry point the runner calls. A silent injector looks like a working
-    removal, so every sidecar log is dumped when an assertion fails."""
+    """Entry point the runner calls. A silent source looks like a working
+    removal, so the daemon logs are dumped when an assertion fails."""
     try:
         _check()
     except Exception:
@@ -174,6 +176,5 @@ def check():
         print("--- GoBGP rib ---")
         # fail-open-ok: diagnostic print, the bare `raise` below is unconditional
         print(gobgp._gobgp_quiet(["global", "rib", "-a", "ipv4"]))
-        print(docker_logs(INJECT_CONTAINER, 40))
         print(docker_logs(ZE_CONTAINER, 60))
         raise

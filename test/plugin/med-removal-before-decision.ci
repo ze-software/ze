@@ -45,6 +45,12 @@ option=timeout:value=25s
 #   NLRI:      180A0100                  10.1.0.0/24
 # attr len = 4+9+7+7+7 = 34 = 0x22; total = 19+2+2+34+4 = 61 = 0x3D.
 action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003D02000000224001010040020602010000FDE94003040101010180040400000064C008040000FDE9180A0100
+# Keep the session established until the observer reads Adj-RIB-In. Without this
+# protocol barrier, ze-peer closes after the send and Ze purges the route first.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+# The observer requests shutdown only after it verifies the stored route. Waiting
+# for that shutdown notification keeps the peer alive through the observation.
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D0306021741646D696E6973747261746976652053687574646F776E
 EOF_PEER
 
 tmpfs=med-store-check.run:mode=755:terminator=EOF_RUN

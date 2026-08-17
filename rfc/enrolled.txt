@@ -198,7 +198,7 @@ draft-ietf-bess-mup-safi	BGP Extensions for Mobile User Plane (MUP) SAFI
 rfc9012	The BGP Tunnel Encapsulation Attribute
 rfc9494	Long-Lived Graceful Restart for BGP
 rfc8669	SR Prefix Segment Identifier Extensions for BGP
-rfc4271	A Border Gateway Protocol 4 (BGP-4)
+rfc4271	A Border Gateway Protocol 4 (BGP-4): Section 5.1.4 requires a local-configuration mechanism that removes MULTI_EXIT_DISC from a route. Ze exposes the full obligation as `modify NAME { del { med; } }` on an import chain, before Decision Process phases 1 and 2.
 rfc5340	OSPF for IPv6 (OSPFv3)
 rfc9830	BGP Extensions for SR Policy
 rfc4577	OSPF as the PE/CE Protocol for BGP/MPLS IP VPNs

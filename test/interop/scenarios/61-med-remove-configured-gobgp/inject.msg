@@ -24,9 +24,8 @@ option=timeout:value=300s
 
 # THE WAIT FAVORS LIVE FORWARDING, BUT DOES NOT CLAIM THAT THE DESTINATION IS
 # UP. The runner starts GoBGP after Ze, so four KEEPALIVEs give the ordinary
-# forwarding path time to become ready. Correctness does not depend on that
-# elapsed time: Adj-RIB-In stores the post-import UPDATE and bgp-rs replays it
-# after the GoBGP peer-up state arrives if live forwarding had no destination.
+# RIB forwarding path time to become ready. Correctness depends on the final
+# GoBGP RIB assertion, not on this elapsed time alone.
 # Ze's 15 s hold sends the KEEPALIVEs below every 5 s.
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
 expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304

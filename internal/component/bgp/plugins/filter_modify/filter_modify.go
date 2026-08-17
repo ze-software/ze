@@ -148,9 +148,9 @@ func handleFilterUpdate(in *sdk.FilterUpdateInput) *sdk.FilterUpdateOutput {
 // and never says why.
 func appendMEDRemove(delta, filter, direction string) string {
 	if direction != directionImport {
-		logger().Warn("med-remove is an import-chain mechanism and is ignored here",
+		logger().Warn("del { med; } is ignored on export",
 			"filter", filter, "direction", direction,
-			"rfc", "RFC 4271 Section 5.1.4 requires removal before decision process phases 1 and 2")
+			"rfc", "RFC 4271 Section 5.1.4 requires configured removal before decision process phases 1 and 2")
 		return delta
 	}
 	if delta == "" {
