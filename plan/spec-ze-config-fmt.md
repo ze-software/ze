@@ -133,7 +133,7 @@ Each row is a decision for Thomas. None is settled here.
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (must read BEFORE you write this spec)
-- [ ] `internal/component/config/tokenizer.go` - the lexer. `Tokenizer.Next` sets `insertSemi` after a WORD, STRING, `]`, or `)`. `Tokenizer.scan` emits the synthetic semicolon only when `skipWhitespaceAndComments` crossed a newline or the input ended. `skipWhitespaceAndComments` consumes a `#` comment to end of line and produces no token, so no comment reaches the parser
+- [ ] `internal/component/config/tokenizer.go` - the lexer. `tokenizer.Next` sets `insertSemi` after a WORD, STRING, `]`, or `)`. `tokenizer.scan` emits the synthetic semicolon only when `skipWhitespaceAndComments` crossed a newline or the input ended. `skipWhitespaceAndComments` consumes a `#` comment to end of line and produces no token, so no comment reaches the parser
 - [ ] `internal/component/config/parser.go` - `Parser.Parse`, `Parser.parseRoot`, `Parser.parseLeaf`. `Parser.parseContainer` implements automatic brace insertion: when the token after a container name is a word naming a child of that container, the child parses with no braces, so the flat spelling and the nested spelling both parse
 - [ ] `internal/component/config/serialize.go` - `Serialize` walks `serializeTree` in YANG schema child order, indents with tabs, writes no explicit semicolons, and appends unknown keys sorted alphabetically through `serializeExtraValues`. `quoteIfNeeded` quotes an empty string and any value holding a space, tab, quote, apostrophe, brace, `;`, or `#`. `normalizeBool` prints `enable` and `disable`. `canInlineContainer` with `serializeContainerInline` collapses a container holding exactly one leaf onto one line, bounded by `maxInlineDepth`
 - [ ] `internal/component/config/flatten.go` - `hasFlattenExtension`, `canFlattenContainer`, `serializeFlattenedContainer`. The `ze:flatten` extension chooses the flat spelling at print time. Exactly one YANG node carries it: `container attach` in `internal/component/bgp/yang/ze-bgp-conf.yang`
@@ -152,7 +152,7 @@ Each row is a decision for Thomas. None is settled here.
 | That output fed back through `ze config fmt` | Byte identical to the first pass, on this one sample |
 
 **Not established:**
-- Why the one-line attach block is refused when it carries an explicit semicolon. Reading `Tokenizer.scan` explains the semicolon-free form: after `]` the next scan crosses no newline, so no synthetic semicolon is produced and the parser meets `}` where it expects a terminator. That trace does not explain the explicit-semicolon form, where `scan` returns the real semicolon token. The `bin/ze` in this checkout predates the uncommitted edit to `internal/component/bgp/yang/ze-bgp-conf.yang`, so it answered `unknown field in peer: attach` and could not reach the question. Resolve this at DESIGN with a freshly built binary before any gate message quotes a cause.
+- Why the one-line attach block is refused when it carries an explicit semicolon. Reading `tokenizer.scan` explains the semicolon-free form: after `]` the next scan crosses no newline, so no synthetic semicolon is produced and the parser meets `}` where it expects a terminator. That trace does not explain the explicit-semicolon form, where `scan` returns the real semicolon token. The `bin/ze` in this checkout predates the uncommitted edit to `internal/component/bgp/yang/ze-bgp-conf.yang`, so it answered `unknown field in peer: attach` and could not reach the question. Resolve this at DESIGN with a freshly built binary before any gate message quotes a cause.
 - Whether `config.Serialize` is idempotent and round-trip stable over the whole corpus. One sample held. Nothing measures the rest.
 - Whether every `.conf` file in the tree parses today.
 
@@ -173,7 +173,7 @@ Each row is a decision for Thomas. None is settled here.
 ### Transformation Path
 1. `cliio.ReadFile` reads the bytes.
 2. `config.YANGSchema` builds the schema from the registered YANG modules.
-3. `config.NewParser(schema).Parse` tokenizes and builds a `*config.Tree`. Comments are dropped in `Tokenizer.skipWhitespaceAndComments` and never reach the tree.
+3. `config.NewParser(schema).Parse` tokenizes and builds a `*config.Tree`. Comments are dropped in `tokenizer.skipWhitespaceAndComments` and never reach the tree.
 4. `config.Serialize` walks the schema children in order and writes canonical text.
 5. `cmdFmt` compares input against output and acts on `-w`, `--check`, or `--diff`.
 

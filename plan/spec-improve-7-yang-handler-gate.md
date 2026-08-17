@@ -24,7 +24,7 @@ Ze's config path silently tolerates schema subtrees that no plugin claims.
 longest-prefix match (`findHandler`, `internal/component/config/reader.go`)
 and recurses past handler-less blocks, dropping their flat leaves.~~
 **Corrected during research (2026-07-10):** that reader is test-only --
-`config.NewReader` (`reader.go`) has no non-test caller (grep verified this
+`newReader` (`reader.go`) has no non-test caller (grep verified this
 session). The silent tolerance lives in the PRODUCTION config path:
 
 - Delivery is claimed per top-level root: `Server.reloadConfig` selects plugins by
@@ -92,7 +92,7 @@ improve-6's post-wave corrections.)
 - PRODUCTION claim granularity is per top-level root (`reg.WantsConfigRoots` matched
   by `rootHasChanges`, `reload.go`) -- coarser than Holo's per-node
   callbacks. The reader.go longest-prefix path is test-only (no non-test caller of
-  `config.NewReader`, grep verified). Gate v1 models root-level claiming; per-leaf
+  `newReader`, grep verified). Gate v1 models root-level claiming; per-leaf
   "does the plugin consume it" is improve-6 reporting territory.
 - No existing check ties YANG nodes to config claiming. Closest precedent:
   `scripts/docvalid/commands.go` OrphanYANG gates YANG *commands* (WireMethod) with
@@ -116,7 +116,7 @@ improve-6's post-wave corrections.)
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (must read BEFORE writing this spec)
-- [ ] `internal/component/config/reader.go` - TEST-ONLY path: `NewReader` (:236) has no non-test caller (grep verified this session); `walkMap` recursion (:372-383) and `findHandler` longest-prefix (:433-455) exhibit the silent-tolerance pattern but do not run in production
+- [ ] `internal/component/config/reader.go` - TEST-ONLY path: `newReader` (:236) has no non-test caller (grep verified this session); `walkMap` recursion (:372-383) and `findHandler` longest-prefix (:433-455) exhibit the silent-tolerance pattern but do not run in production
   → Decision: gate targets the production claiming surfaces, not reader.go; reader.go is a dead-code candidate to surface to the user (never delete without asking)
 - [ ] `internal/component/plugin/server/reload.go` - `reloadConfig` selects affected plugins by `reg.WantsConfigRoots` + `rootHasChanges` (:214-248); zero affected -> Info log + `SetConfigTree`, no verify/delivery (:251-256) (read this session)
   → Constraint: the gate's claim model must match rootHasChanges root-granularity or it will invent claims the server does not honor
@@ -158,7 +158,7 @@ improve-6's post-wave corrections.)
 | Boundary | How | Verified |
 |----------|-----|----------|
 | Loader ↔ gate | read-only walk of resolved modules | [ ] |
-| Handler registry ↔ gate | same producer as NewReader's schemas slice | [ ] |
+| Handler registry ↔ gate | same producer as `newReader`'s schemas slice | [ ] |
 | Gate ↔ verify | scripts/checks exit-code contract | [ ] |
 
 ### Integration Points
@@ -381,7 +381,7 @@ improve-6's post-wave corrections.)
 ### Wrong Assumptions
 | What was assumed | What was true | How discovered | Impact |
 |------------------|---------------|----------------|--------|
-| `reader.go` walkMap/findHandler is the production config apply path (skeleton Task premised on it) | `config.NewReader` (:236) has no non-test caller; production claiming is `WantsConfigRoots` root-matching (`reload.go`) + hub `Schema.Handlers` (`hub.go`) | Research agent caller trace, grep-verified this session | Task rewritten before design; claim model changed from per-node prefix to per-root; reader.go flagged as dead-code candidate |
+| `reader.go` walkMap/findHandler is the production config apply path (skeleton Task premised on it) | `newReader` (:236) has no non-test caller; production claiming is `WantsConfigRoots` root-matching (`reload.go`) + hub `Schema.Handlers` (`hub.go`) | Research agent caller trace, grep-verified this session | Task rewritten before design; claim model changed from per-node prefix to per-root; reader.go flagged as dead-code candidate |
 
 ### Failed Approaches
 | Approach | Why abandoned | Replacement |
@@ -393,7 +393,7 @@ improve-6's post-wave corrections.)
 
 ## Design Insights
 - `internal/component/config/reader.go` block-dispatch machinery
-  (SchemaInfo/BlockEntry/BlockChange/DiffBlocks/findHandler) is exercised only by
+  (`schemaInfo`/`blockEntry`/`blockChange`/`diffBlocks`/`findHandler`) is exercised only by
   `reader_test.go` -- dead-code candidate; surface to user, never delete
   unilaterally (`ai/rules/never-destroy-work.md`).
 - Unknown-key permissiveness in `validateContainerEntry` (`validator.go`) is a

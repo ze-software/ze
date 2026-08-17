@@ -108,7 +108,7 @@ only changes where their certificate material comes from.)
 - [ ] `internal/plugins/as112/register.go` - in-process-only guard (:223-226); DoctorChecks declaration (:138-157)
 - [ ] `internal/plugins/geodns/config.go` - same `Secure` field (:91) and shared parse (:206 area); `internal/plugins/geodns/doctor.go` same cert check; codes at `register.go`
 - [ ] `cmd/ze/hub/main.go` - startup: `preparePKIConfig` + `zepki.Load` (:359-367) precede coordinator creation (:385) and service construction
-- [ ] `cmd/ze/hub/main_reload.go` - `doReload`: `preparePKIConfig` early (:131-137), plugin apply `s.ReloadConfig` (:151), `eng.Reload` (:163), `lm.ReloadListeners` (:178), `zepki.Load` LAST (:192-203)
+- [ ] `cmd/ze/hub/main_reload.go` - `doReload`: `preparePKIConfig` early (:131-137), plugin apply `s.ReloadConfig` (:151), `eng.Reload` (:163), `lm.reloadListeners` (:178), `zepki.Load` LAST (:192-203)
 - [ ] `cmd/ze/hub/main_pki.go` - `preparePKIConfig` (:10-19): parse + side-effect-free `Validate`
 - [ ] `internal/component/config/loader_extract.go` - `WebListenConfig`/`ExtractWebConfig` (:85-130): `environment.web` leaves `enabled`, `server` list, `insecure`, `ui-mode` (with env override precedent at :115)
 - [ ] `internal/component/config/environment.go` - existing `ze.web.*` env registrations (:49-60)
@@ -535,7 +535,7 @@ shape for core-hosted listeners like dnsserver.
 - `WebServer.UpdateTLSCertificate` + `tls.Config.GetCertificate` indirection over an
   atomic `tls.Certificate` (`internal/component/web/server.go`): rotation with no rebind.
 - Hub: `webTLSMaterial` (fail-closed selection, `service_web.go`), a startup gate in
-  `main.go`, and the `TLSUpdatable` / `SetWebTLS` / `UpdateWebCertificate` seam in
+  `main.go`, and the `tlsUpdatable` / `setWebTLS` / `updateWebCertificate` seam in
   `listener_migrate.go` so always-on code never imports the gated web package.
 - Reload: `zepki.Load` moved BEFORE plugin apply, a web-reference gate before that apply,
   and `restorePKI` / `restorePKIAfter` so every failure path reinstalls the prior store.
@@ -595,7 +595,7 @@ shape for core-hosted listeners like dnsserver.
 | Same capability on the DoT/DoH listeners | done | `internal/core/dnsserver/secure.go` `buildSecureTLS` | resolver injected by as112/geodns |
 | Self-signed fallback semantics unchanged | done | `webTLSMaterial`, `LoadTLSMaterial` | only when NO name is configured |
 | Doctor checks for a broken reference | done | `pki.CheckCertReference` + three owner checks | `doctor-tls-reference` |
-| Reload / rotation behavior | done | `runReload`, `UpdateWebCertificate` | store first, then rotate |
+| Reload / rotation behavior | done | `runReload`, `updateWebCertificate` | store first, then rotate |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
