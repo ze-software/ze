@@ -3,7 +3,7 @@
 // Related: accounting.go -- accounting bridge (sibling wrapper around client)
 // Related: authorizer.go -- authorization bridge (sibling wrapper around client)
 
-// TacacsAuthenticator bridges the TACACS+ client to the aaa.Authenticator interface.
+// tacacsAuthenticator bridges the TACACS+ client to aaa.Authenticator.
 package tacacs
 
 import (
@@ -13,20 +13,20 @@ import (
 	"github.com/ze-software/ze/internal/component/aaa"
 )
 
-// TacacsAuthenticator implements aaa.Authenticator using a TACACS+ client.
-type TacacsAuthenticator struct {
+// tacacsAuthenticator implements aaa.Authenticator using a TACACS+ client.
+type tacacsAuthenticator struct {
 	client     *TacacsClient
 	privLvlMap map[int][]string // priv-lvl -> ze profile names
 	logger     *slog.Logger
 }
 
-// NewTacacsAuthenticator creates a TacacsAuthenticator.
+// newTacacsAuthenticator creates a tacacsAuthenticator.
 // privLvlMap maps TACACS+ privilege levels (0-15) to ze authz profile names.
-func NewTacacsAuthenticator(client *TacacsClient, privLvlMap map[int][]string, logger *slog.Logger) *TacacsAuthenticator {
+func newTacacsAuthenticator(client *TacacsClient, privLvlMap map[int][]string, logger *slog.Logger) *tacacsAuthenticator {
 	if logger == nil {
 		logger = slog.Default()
 	}
-	return &TacacsAuthenticator{
+	return &tacacsAuthenticator{
 		client:     client,
 		privLvlMap: privLvlMap,
 		logger:     logger,
@@ -41,7 +41,7 @@ func NewTacacsAuthenticator(client *TacacsClient, privLvlMap map[int][]string, l
 //   - (rejected result, ErrAuthRejected) on PASS with a priv-lvl that names no
 //     profiles, whether unmapped or mapped to an empty list (AC-18)
 //   - (zero, error) on ERROR status or connection failure (chain tries next backend)
-func (a *TacacsAuthenticator) Authenticate(request aaa.AuthRequest) (aaa.AuthResult, error) {
+func (a *tacacsAuthenticator) Authenticate(request aaa.AuthRequest) (aaa.AuthResult, error) {
 	service := request.Service
 	if service == "" {
 		service = "ssh"
@@ -75,7 +75,7 @@ func (a *TacacsAuthenticator) Authenticate(request aaa.AuthRequest) (aaa.AuthRes
 }
 
 // handlePass processes a PASS reply: extracts priv-lvl and maps to ze profiles.
-func (a *TacacsAuthenticator) handlePass(username string, reply *AuthenReply) (aaa.AuthResult, error) {
+func (a *tacacsAuthenticator) handlePass(username string, reply *AuthenReply) (aaa.AuthResult, error) {
 	// Extract priv-lvl via the stack-safe PrivLvl field rather than reply.Data.
 	// reply.Data aliases the client's pool buffer which has already been
 	// Put by the time we get here; reading it would race with any concurrent
@@ -96,14 +96,11 @@ func (a *TacacsAuthenticator) handlePass(username string, reply *AuthenReply) (a
 	// and when every member is deactivated -- so the key is present with an empty
 	// value and a plain `, ok :=` lookup reports it as mapped.
 	//
-	// Returning success with an empty set would ESCALATE rather than restrict.
-	// aaa.RecordLoginProfiles ignores an empty slice (login_profiles.go:46), so
-	// nothing is recorded; authz.Store.Authorize then finds no assignment and no
-	// login profiles. This is the primary guard: it denies the login here, before
-	// authorization ever runs. authz.Store.Authorize now also fails closed for a
-	// user that resolves no profile (spec-fixit-authz-admin-fallthrough), so the
-	// escalation is closed at both layers; historically this branch fell through
-	// to the built-in admin profile and handed the level admin.
+	// Returning success with an empty set would escalate rather than restrict.
+	// The result-scoped authorizer fails closed when no profile resolves. This
+	// primary guard rejects the login before authorization runs. Historically,
+	// this branch fell through to the built-in admin profile and handed the level
+	// admin.
 	profiles, ok := a.privLvlMap[privLvl]
 	// Defense in depth: ValidateAuthzConfig already rejects a reserved-name
 	// reference in a tacacs-profile mapping, but strip any that reach here so a

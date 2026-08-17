@@ -9,8 +9,8 @@ starts a Ze command session, so a successful login grants access to Ze commands
 and the config editor rather than to a Unix shell. Local users, TACACS+, and
 RADIUS all map back to Ze authorization profiles, audit, and accounting.
 
-<!-- source: internal/component/ssh/yang/ze-ssh-conf.yang -- system.authentication.user and environment.ssh -->
-<!-- source: internal/component/authz/yang/ze-authz-conf.yang -- system.authorization.profile -->
+<!-- source: internal/component/authz/yang/ze-authz-conf.yang -- system.authentication.user base fields and system.authorization.profile -->
+<!-- source: internal/component/ssh/yang/ze-ssh-conf.yang -- environment.ssh and public-keys augmentation -->
 <!-- source: internal/component/authz/authz.go -- built-in profile behavior and fail-closed assignments -->
 <!-- source: internal/component/config/password_hash.go -- ApplyPasswordHashing, at commit and at config load -->
 <!-- source: docs/guide/tacacs.md -- TACACS+ fallback and profile mapping -->
@@ -231,6 +231,6 @@ Removal governs NEW connections. A session that is already open outlives it unti
 the connection closes, because an operator may be editing their own account. A
 session a TACACS+ or RADIUS backend granted is not revoked by the local user
 list, which never authenticated it.
-<!-- source: cmd/ze/hub/main_servers.go -- liveLocalUsers -->
+<!-- source: cmd/ze/hub/aaa_lifecycle.go -- liveAcceptedLocalUsers -->
 <!-- source: internal/component/web/auth.go -- SessionStore.validateToken, webSession -->
 <!-- source: internal/component/ssh/pubkey.go -- authenticatePublicKey -->

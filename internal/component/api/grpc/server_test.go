@@ -17,12 +17,39 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
-	"github.com/ze-software/ze/internal/component/plugin"
-
 	zepb "github.com/ze-software/ze/api/proto"
+	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/api"
+	"github.com/ze-software/ze/internal/component/authz"
+	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/audit"
 )
+
+func testAuthentication(token string, authenticate func(string) (string, bool), authorizer aaa.Authorizer) api.AuthenticationProvider {
+	return func() api.Authentication {
+		if authenticate != nil {
+			return api.Authentication{
+				Required: true,
+				Authenticate: func(header string) (api.CallerIdentity, bool) {
+					username, ok := authenticate(header)
+					return api.CallerIdentity{Username: username, Authorizer: authorizer}, ok
+				},
+			}
+		}
+		if token != "" {
+			return api.Authentication{
+				Required: true,
+				Authenticate: func(header string) (api.CallerIdentity, bool) {
+					return api.CallerIdentity{
+						Username:   aaa.ReservedSharedAPIUsername,
+						Authorizer: authorizer,
+					}, header == "Bearer "+token
+				},
+			}
+		}
+		return api.Authentication{}
+	}
+}
 
 // testEngine creates an APIEngine with fake implementations.
 func testEngine() *api.APIEngine {
@@ -155,8 +182,8 @@ func startTestServerWithSessionFactory(t *testing.T, token string, factory api.C
 	// bypass Serve() and bind their own listener via serveBackground below,
 	// so the value here is a placeholder that never gets bound.
 	srv, err := NewGRPCServer(GRPCConfig{
-		ListenAddrs: []string{"127.0.0.1:0"},
-		Token:       token,
+		ListenAddrs:    []string{"127.0.0.1:0"},
+		Authentication: testAuthentication(token, nil, nil),
 	}, engine, sessions)
 	require.NoError(t, err)
 
@@ -186,9 +213,9 @@ func startTestServerWithEngineAndAudit(t *testing.T, token string, engine *api.A
 	// bypass Serve() and bind their own listener via serveBackground below,
 	// so the value here is a placeholder that never gets bound.
 	srv, err := NewGRPCServer(GRPCConfig{
-		ListenAddrs:   []string{"127.0.0.1:0"},
-		Token:         token,
-		AuditRecorder: recorder,
+		ListenAddrs:    []string{"127.0.0.1:0"},
+		Authentication: testAuthentication(token, nil, nil),
+		AuditRecorder:  recorder,
 	}, engine, sessions)
 	require.NoError(t, err)
 
@@ -229,6 +256,37 @@ func TestGRPCExecute(t *testing.T) {
 	assert.Contains(t, string(resp.GetData()), "peer-count")
 }
 
+// VALIDATES: gRPC retains lifecycle completion until grpc-go reports that the
+// unary response payload was written.
+// PREVENTS: accepted teardown never running, or running inside the API engine.
+func TestGRPCExecuteCompletesAfterPayloadWrite(t *testing.T) {
+	completed := make(chan struct{}, 1)
+	engine := api.NewAPIEngine(
+		func(context.Context, api.CallerIdentity, string) (*plugin.Response, error) {
+			resp := plugin.NewResponse(api.StatusDone, plugin.RawJSON(`{"accepted":true}`))
+			resp.OnTransportComplete(func() { completed <- struct{}{} })
+			return resp, nil
+		},
+		func() []api.CommandMeta {
+			return []api.CommandMeta{{Name: "request shutdown"}}
+		},
+		func(_, _ string) bool { return true },
+		nil,
+	)
+	ze, _ := startTestServerWithEngine(t, "completion-token", engine)
+	md := metadata.Pairs("authorization", "Bearer completion-token")
+	ctx := metadata.NewOutgoingContext(t.Context(), md)
+
+	resp, err := ze.Execute(ctx, &zepb.CommandRequest{Command: "request shutdown"})
+	require.NoError(t, err)
+	assert.Equal(t, api.StatusDone, resp.GetStatus())
+	select {
+	case <-completed:
+	default:
+		t.Fatal("gRPC payload write did not complete the accepted action")
+	}
+}
+
 // VALIDATES: gRPC Execute extracts the peer address into CallerIdentity.
 // PREVENTS: dispatcher/accounting seeing empty remote address for gRPC callers.
 func TestExecuteUsesPeerRemoteAddr(t *testing.T) {
@@ -251,7 +309,7 @@ func TestExecuteUsesPeerRemoteAddr(t *testing.T) {
 	resp, err := ze.Execute(t.Context(), &zepb.CommandRequest{Command: "bgp summary"})
 	require.NoError(t, err)
 	assert.Equal(t, "done", resp.GetStatus())
-	assert.Equal(t, "api", gotAuth.Username)
+	assert.Equal(t, aaa.ReservedSharedAPIUsername, gotAuth.Username)
 	assert.NotEmpty(t, gotAuth.RemoteAddr)
 	assert.Contains(t, gotAuth.RemoteAddr, "127.0.0.1:")
 }
@@ -286,9 +344,9 @@ func TestGRPCAuthFailureAuditRecord(t *testing.T) {
 	engine := testEngine()
 	srv, err := NewGRPCServer(GRPCConfig{
 		ListenAddrs: []string{"127.0.0.1:0"},
-		Authenticator: func(header string) (string, bool) {
+		Authentication: testAuthentication("", func(header string) (string, bool) {
 			return "", false
-		},
+		}, nil),
 		AuditRecorder: recorder,
 	}, engine, nil)
 	require.NoError(t, err)
@@ -318,8 +376,8 @@ func TestGRPCAuthFailureAuditRecord(t *testing.T) {
 	assert.Equal(t, audit.OutcomeDenied, entries[0].Outcome)
 }
 
-// VALIDATES: AC-8 -- gRPC no-auth mode gives the default api identity read-only access, not admin access.
-// PREVENTS: gRPC without authenticator or token accepting write commands and config sessions.
+// VALIDATES: AC-8, gRPC no-auth mode gives the reserved shared API identity
+// read-only access, not admin access.
 func TestGRPCNoAuthReadOnly(t *testing.T) {
 	ze, cfg := startTestServer(t, "")
 
@@ -334,6 +392,86 @@ func TestGRPCNoAuthReadOnly(t *testing.T) {
 	_, sessionErr := cfg.EnterSession(t.Context(), &zepb.Empty{})
 	require.Error(t, sessionErr)
 	assert.Equal(t, codes.PermissionDenied, status.Code(sessionErr))
+}
+
+// VALIDATES: AC-7 and AC-8, real gRPC token writes and no-auth reads cross a
+// strict AAA store, while no-auth writes remain read-only denied.
+// PREVENTS: gRPC publishing the printable unassigned username "api", which a
+// strict Store correctly denies when authorization profiles exist.
+func TestGRPCSharedIdentitySurvivesStrictAuthorization(t *testing.T) {
+	store := authz.NewStore()
+	store.AddProfile(authz.Profile{
+		Name: "unrelated",
+		Run:  authz.Section{Default: authz.Deny},
+		Edit: authz.Section{Default: authz.Deny},
+	})
+	commands := func() []api.CommandMeta {
+		return []api.CommandMeta{
+			{Name: "bgp summary", ReadOnly: true},
+			{Name: "daemon reload", ReadOnly: false},
+		}
+	}
+	var callers []api.CallerIdentity
+	var authorizationCalls []string
+	engine := api.NewAPIEngine(
+		func(_ context.Context, caller api.CallerIdentity, command string) (*plugin.Response, error) {
+			callers = append(callers, caller)
+			return plugin.NewResponse(api.StatusDone, plugin.RawJSON("ok: "+command)), nil
+		},
+		commands,
+		func(username, command string) bool {
+			authorizationCalls = append(authorizationCalls, command)
+			return store.Authorize(username, command, command == "bgp summary") == authz.Allow
+		},
+		nil,
+	)
+	start := func(t *testing.T, token string) zepb.ZeServiceClient {
+		t.Helper()
+		srv, err := NewGRPCServer(GRPCConfig{
+			ListenAddrs:    []string{"127.0.0.1:0"},
+			Authentication: testAuthentication(token, nil, nil),
+		}, engine, nil)
+		require.NoError(t, err)
+		var lc net.ListenConfig
+		ln, err := lc.Listen(t.Context(), "tcp", "127.0.0.1:0")
+		require.NoError(t, err)
+		serveBackground(srv.srv, ln)
+		t.Cleanup(srv.Stop)
+		conn, err := grpc.NewClient(ln.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+		require.NoError(t, err)
+		t.Cleanup(func() { require.NoError(t, conn.Close()) })
+		return zepb.NewZeServiceClient(conn)
+	}
+
+	noAuth := start(t, "")
+	read, err := noAuth.Execute(t.Context(), &zepb.CommandRequest{Command: "bgp summary"})
+	require.NoError(t, err, "the reserved shared identity must let a no-auth read cross strict AAA")
+	assert.Equal(t, "done", read.GetStatus())
+	require.Len(t, callers, 1)
+	assert.Equal(t, aaa.ReservedSharedAPIUsername, callers[0].Username)
+	assert.True(t, callers[0].ReadOnly)
+	assert.Equal(t, []string{"bgp summary"}, authorizationCalls)
+	authorizationCallCount := len(authorizationCalls)
+	_, err = noAuth.Execute(t.Context(), &zepb.CommandRequest{Command: "daemon reload"})
+	assert.Equal(t, codes.PermissionDenied, status.Code(err),
+		"the read-only gate must reject no-auth writes before strict AAA")
+	assert.Len(t, authorizationCalls, authorizationCallCount,
+		"the read-only gate must reject no-auth writes before calling the authorizer")
+	assert.Len(t, callers, 1,
+		"the read-only gate must reject no-auth writes before dispatch")
+
+	token := start(t, "shared-secret")
+	ctx := metadata.NewOutgoingContext(t.Context(), metadata.Pairs("authorization", "Bearer shared-secret"))
+	write, err := token.Execute(ctx, &zepb.CommandRequest{Command: "daemon reload"})
+	require.NoError(t, err, "a validated token caller must retain write authority through strict AAA")
+	assert.Equal(t, "done", write.GetStatus())
+	require.Len(t, callers, 2)
+	assert.Equal(t, aaa.ReservedSharedAPIUsername, callers[1].Username)
+	assert.False(t, callers[1].ReadOnly)
+	assert.Equal(t, []string{"bgp summary", "daemon reload"}, authorizationCalls)
+	wrongCtx := metadata.NewOutgoingContext(t.Context(), metadata.Pairs("authorization", "Bearer wrong"))
+	_, err = token.Execute(wrongCtx, &zepb.CommandRequest{Command: "daemon reload"})
+	assert.Equal(t, codes.Unauthenticated, status.Code(err))
 }
 
 // execWithErr calls Execute and returns only the error.
@@ -410,10 +548,9 @@ func TestGRPCConfigSessionAuthorizerDeny(t *testing.T) {
 	authorizer := &denyAllAuthorizer{}
 	srv, err := NewGRPCServer(GRPCConfig{
 		ListenAddrs: []string{"127.0.0.1:0"},
-		Authenticator: func(header string) (string, bool) {
+		Authentication: testAuthentication("", func(header string) (string, bool) {
 			return "alice", header == "Bearer alice-token"
-		},
-		Authorizer: authorizer,
+		}, authorizer),
 	}, engine, sessions)
 	require.NoError(t, err)
 
@@ -458,7 +595,7 @@ func TestGRPCConfigCommitAuditRecord(t *testing.T) {
 
 	entries := recorder.Query(audit.Filter{Action: audit.ActionConfigCommit})
 	require.Len(t, entries, 1)
-	assert.Equal(t, "api", entries[0].Actor)
+	assert.Equal(t, aaa.ReservedSharedAPIUsername, entries[0].Actor)
 	assert.Equal(t, audit.GRPC, entries[0].Surface)
 	assert.Equal(t, audit.OutcomeSuccess, entries[0].Outcome)
 	assert.Contains(t, entries[0].Detail, "bgp.router-id")
@@ -484,7 +621,7 @@ func TestGRPCConfigDiscardAuditRecord(t *testing.T) {
 
 	entries := recorder.Query(audit.Filter{Action: audit.ActionConfigDiscard})
 	require.Len(t, entries, 1)
-	assert.Equal(t, "api", entries[0].Actor)
+	assert.Equal(t, aaa.ReservedSharedAPIUsername, entries[0].Actor)
 	assert.Equal(t, audit.GRPC, entries[0].Surface)
 	assert.Equal(t, audit.OutcomeSuccess, entries[0].Outcome)
 	assert.Contains(t, entries[0].Detail, "bgp.router-id")
@@ -551,6 +688,30 @@ func TestGRPCExecutePermissionDenied(t *testing.T) {
 	assert.Equal(t, codes.PermissionDenied, status.Code(execErr))
 }
 
+// VALIDATES: GetRunningConfig maps denied "show config dump" execution to PermissionDenied.
+// PREVENTS: authorization denials being exposed as Internal gRPC failures.
+func TestGRPCGetRunningConfigPermissionDenied(t *testing.T) {
+	exec := func(_ context.Context, _ api.CallerIdentity, _ string) (*plugin.Response, error) {
+		return nil, errors.New("should not reach")
+	}
+	cmds := func() []api.CommandMeta {
+		return []api.CommandMeta{{Name: "show config dump", ReadOnly: true}}
+	}
+	var authorizedCommand string
+	auth := func(_, command string) bool {
+		authorizedCommand = command
+		return false
+	}
+	engine := api.NewAPIEngine(exec, cmds, auth, nil)
+	_, cfg := startTestServerWithEngine(t, "", engine)
+
+	_, err := cfg.GetRunningConfig(t.Context(), &zepb.Empty{})
+
+	require.Error(t, err)
+	assert.Equal(t, codes.PermissionDenied, status.Code(err))
+	assert.Equal(t, "show config dump", authorizedCommand)
+}
+
 // VALIDATES: TLS cert/key mismatch rejected at construction.
 // PREVENTS: gRPC server starting plaintext when TLS was intended.
 func TestGRPCTLSRequiresBoth(t *testing.T) {
@@ -605,14 +766,14 @@ func TestNewGRPCServer_RejectsNonLoopbackAuthenticatedPlaintext(t *testing.T) {
 		},
 		{
 			name: "token",
-			cfg:  GRPCConfig{ListenAddrs: []string{"0.0.0.0:50051"}, Token: "secret"},
+			cfg:  GRPCConfig{ListenAddrs: []string{"0.0.0.0:50051"}, Authentication: testAuthentication("secret", nil, nil)},
 			want: "requires TLS",
 		},
 		{
 			name: "per_user_auth",
 			cfg: GRPCConfig{
-				ListenAddrs:   []string{"0.0.0.0:50051"},
-				Authenticator: func(string) (string, bool) { return "alice", true },
+				ListenAddrs:    []string{"0.0.0.0:50051"},
+				Authentication: testAuthentication("", func(string) (string, bool) { return "alice", true }, nil),
 			},
 			want: "requires TLS",
 		},
@@ -628,7 +789,7 @@ func TestNewGRPCServer_RejectsNonLoopbackAuthenticatedPlaintext(t *testing.T) {
 }
 
 // VALIDATES: per-user authenticator passes username to engine.
-// PREVENTS: all gRPC requests authenticated as "api" default.
+// PREVENTS: all gRPC requests using the reserved shared API identity.
 func TestGRPCAuthenticator(t *testing.T) {
 	var seenUser string
 	exec := func(_ context.Context, auth api.CallerIdentity, _ string) (*plugin.Response, error) {
@@ -647,8 +808,8 @@ func TestGRPCAuthenticator(t *testing.T) {
 	}
 
 	srv, err := NewGRPCServer(GRPCConfig{
-		ListenAddrs:   []string{"127.0.0.1:0"},
-		Authenticator: authenticator,
+		ListenAddrs:    []string{"127.0.0.1:0"},
+		Authentication: testAuthentication("", authenticator, nil),
 	}, engine, nil)
 	require.NoError(t, err)
 

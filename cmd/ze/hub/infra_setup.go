@@ -22,16 +22,15 @@ import (
 // future RADIUS/LDAP) and Build assembles the live Authenticator chain,
 // Authorizer, and Accountant.
 //
-// The local backend always receives liveLocalAuthorizer. A nil live store
-// preserves the no-RBAC allow behavior while keeping one stable contribution
-// that can follow successful policy reloads.
+// The local backend always receives liveLocalAuthorizer and the accepted users
+// closure. Both dereference acceptedLocalIdentity, so one generation supplies
+// credentials and policy. A nil policy preserves no-RBAC allow behavior.
 //
-// liveUsers is the running-config view of the same credentials `users` holds.
-// The bundle is built once per reactor creation and is NOT rebuilt by a config
-// reload, so without it the chain's local backend answers from the boot list
-// forever, and it answers FIRST: a deleted user is accepted by the chain before
-// any fallback can refuse them. A nil liveUsers leaves the snapshot behavior,
-// which is correct only where no reload can reach the process.
+// liveUsers is the accepted view of the same credentials `users` holds. The
+// bundle is built once per daemon boot and is not rebuilt when the
+// infrastructure hook reenters, so its local backend must dereference the
+// accepted generation on each login. A nil liveUsers leaves snapshot behavior
+// for callers with no reload lifecycle.
 func buildAAABundle(tree *zeconfig.Tree, users []aaa.UserCredential, liveUsers func() ([]aaa.UserCredential, error), logger *slog.Logger) (*aaa.Bundle, error) {
 	params := aaa.BuildParams{
 		Ctx:             context.Background(),
@@ -66,20 +65,20 @@ func registerAAAAccountingProvider(bundle *aaa.Bundle) {
 // reloadFn is the daemon-reaching config reload threaded into every SSH
 // session editor (commit = apply + propagate); the hub passes a late-bound
 // wrapper because the hook is registered before reloadAfterCommit exists.
-// liveUsers is the running-config credential source the AAA chain's local
-// backend answers from. It is threaded from the hub rather than derived from
-// params.ConfigTree because that tree is the one the reactor was BUILT with:
-// re-deriving from it would reproduce the snapshot this exists to remove.
+// liveUsers reads the accepted local identity generation used by the AAA chain
+// and optional SSH. It never reads the candidate ConfigProvider.
 func setupInfraHook(recorder audit.Recorder, reloadFn func() error, liveUsers func() ([]aaa.UserCredential, error)) {
 	infra.SetHook(func(params infra.HookParams) {
 		_ = infraSetup(params, recorder, reloadFn, liveUsers)
 	})
 }
 
-// infraSetup builds the always-on infra (AAA bundle, authorization, accounting,
-// reboot/GR marker) and, when ssh is compiled in, builds + wires the ssh server
-// through the seam (ssh_infra.go). Returns the ssh server handle (nil if ssh is
-// not configured, failed to start, or compiled out).
+// infraSetup reuses the boot-owned AAA bundle for the always-on authorization,
+// accounting, and optional SSH wiring. The first invocation owns the daemon's
+// sole build attempt, including a failed attempt, so hook reentry cannot publish
+// candidate backends before reload acceptance.
+// It returns the optional SSH server handle after wiring that same bundle
+// through the compile-out seam.
 func infraSetup(params infra.HookParams, recorder audit.Recorder, reloadFn func() error, liveUsers func() ([]aaa.UserCredential, error)) sshServer {
 	log := slogutil.Logger("hub.infra")
 	r := params.Reactor
@@ -99,11 +98,11 @@ func infraSetup(params infra.HookParams, recorder audit.Recorder, reloadFn func(
 		hasSSHConfig = true
 	}
 
-	// Resolve the shared running-config source once. Its successful snapshot is
-	// the common boot input for local AAA and optional SSH. A source error is
-	// fail-closed: other registered AAA backends are still built, but the local
-	// backend receives no users or live callback, and SSH is not constructed
-	// from an unreadable identity source.
+	// Resolve the accepted generation once. Its snapshot is the common
+	// construction input for initial local AAA and optional SSH, while their
+	// live callbacks continue to follow later atomic publications. A source
+	// error is fail closed: SSH is not constructed, and an initial bundle build
+	// receives neither local users nor a callback.
 	var users []aaa.UserCredential
 	usersReady := true
 	aaaLiveUsers := liveUsers
@@ -135,17 +134,22 @@ func infraSetup(params infra.HookParams, recorder audit.Recorder, reloadFn func(
 		}
 	}
 
-	// Build the AAA bundle unconditionally. TACACS+ accounting fires on
-	// every dispatched command (SSH, MCP, API), so the bundle must exist
-	// even when SSH is disabled. Its local authorizer follows the live store
-	// across reloads without rebuilding backend workers.
-	bundle, buildErr := buildAAABundle(params.ConfigTree, users, aaaLiveUsers, log)
-	if buildErr != nil {
-		log.Warn("AAA backend build failed", "error", buildErr)
-		bundle = nil
+	// Build AAA only on the daemon's first boot-owned attempt. A no-BGP boot
+	// installs the bundle before this hook can run; BGP auto-load must reuse that
+	// exact pointer so established authorization and in-flight accounting never
+	// cross a backend close or production bundle swap. A failed initial build
+	// also consumes the attempt and keeps later hook reentry fail closed.
+	bundle := aaaBundle.Load()
+	if bundle == nil && claimAAABundleBoot() {
+		var buildErr error
+		bundle, buildErr = buildAAABundle(params.ConfigTree, users, aaaLiveUsers, log)
+		if buildErr != nil {
+			log.Warn("AAA backend build failed", "error", buildErr)
+			bundle = nil
+		}
+		registerAAAAccountingProvider(bundle)
+		swapAAABundle(bundle, log)
 	}
-	registerAAAAccountingProvider(bundle)
-	swapAAABundle(bundle, log)
 
 	// Build the ssh server through the compile-out seam (ssh_infra.go). When
 	// ssh is compiled out (ze_ssh off) sshBuild is nil and ssh is skipped; the
@@ -156,6 +160,7 @@ func infraSetup(params infra.HookParams, recorder audit.Recorder, reloadFn func(
 			Users:         users,
 			UsersFunc:     aaaLiveUsers,
 			Authenticator: bundle.Authenticator,
+			Authorizer:    bundle.Authorizer,
 			Recorder:      recorder,
 			EphemeralFile: ephemeralFile,
 			Params:        params,

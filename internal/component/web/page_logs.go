@@ -10,7 +10,6 @@
 package web
 
 import (
-	"context"
 	"encoding/json"
 	"html/template"
 	"net/http"
@@ -93,14 +92,15 @@ func fillOperationalRows(data *logTableData, dispatch CommandDispatcher, r *http
 		return
 	}
 	username := GetUsernameFromRequest(r)
-	output, err := dispatch.JSON(context.Background(), plugin.CallerIdentity{Username: username, RemoteAddr: r.RemoteAddr}, command)
+	rendered, err := dispatch.JSON(r.Context(), plugin.CallerIdentity{Username: username, RemoteAddr: r.RemoteAddr}, command)
+	defer rendered.TransportComplete()
 	if err != nil {
 		data.EmptyMessage = operationalUnavailableMessage
 		data.EmptyHint = operationalUnavailableHint
 		return
 	}
-	if output != "" {
-		data.Rows = parseIssueJSON(output, key, includeDuration)
+	if rendered.Output != "" {
+		data.Rows = parseIssueJSON(rendered.Output, key, includeDuration)
 	}
 }
 

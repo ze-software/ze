@@ -60,11 +60,22 @@ func (p *Provider) Tools() []map[string]any {
 }
 
 func (p *Provider) CallTool(name string, args json.RawMessage) map[string]any {
+	result := p.CallToolResult(name, args)
+	if result == nil {
+		return nil
+	}
+	return result.Value
+}
+
+func (p *Provider) CallToolResult(name string, args json.RawMessage) *zemcp.ToolResult {
+	if name == "chaos_execute" {
+		return p.toolExecute(args)
+	}
 	handler, ok := toolHandlers[name]
 	if !ok {
 		return nil
 	}
-	return handler(p, args)
+	return &zemcp.ToolResult{Value: handler(p, args)}
 }
 
 var toolHandlers = map[string]func(p *Provider, args json.RawMessage) map[string]any{
@@ -73,7 +84,6 @@ var toolHandlers = map[string]func(p *Provider, args json.RawMessage) map[string
 	"chaos_peers":    (*Provider).toolPeers,
 	"chaos_scenario": (*Provider).toolScenario,
 	"chaos_control":  (*Provider).toolControl,
-	"chaos_execute":  (*Provider).toolExecute,
 }
 
 func (p *Provider) toolStatus(_ json.RawMessage) map[string]any {
@@ -362,9 +372,9 @@ func (p *Provider) toolControl(args json.RawMessage) map[string]any {
 	return zemcp.TextResult(tb.Str("ok: ").Str(input.Action).String())
 }
 
-func (p *Provider) toolExecute(args json.RawMessage) map[string]any {
+func (p *Provider) toolExecute(args json.RawMessage) *zemcp.ToolResult {
 	if p.Execute == nil {
-		return zemcp.ErrResult("execute not available")
+		return &zemcp.ToolResult{Value: zemcp.ErrResult("execute not available")}
 	}
 
 	var input struct {
@@ -372,17 +382,17 @@ func (p *Provider) toolExecute(args json.RawMessage) map[string]any {
 	}
 	if err := json.Unmarshal(args, &input); err != nil {
 		var tb textbuf.Buffer
-		return zemcp.ErrResult(tb.Str("invalid arguments: ").Err(err).String())
+		return &zemcp.ToolResult{Value: zemcp.ErrResult(tb.Str("invalid arguments: ").Err(err).String())}
 	}
 	if input.Command == "" {
-		return zemcp.ErrResult("missing required argument: command")
+		return &zemcp.ToolResult{Value: zemcp.ErrResult("missing required argument: command")}
 	}
 
 	result, err := p.Execute.JSON(context.Background(), plugin.CallerIdentity{}, input.Command)
 	if err != nil {
-		return zemcp.ErrResult(err.Error())
+		return &zemcp.ToolResult{Value: zemcp.ErrResult(err.Error()), Completion: result}
 	}
-	return zemcp.TextResult(result)
+	return &zemcp.ToolResult{Value: zemcp.TextResult(result.Output), Completion: result}
 }
 
 func statusStr(pass bool) string {

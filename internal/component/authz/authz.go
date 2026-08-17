@@ -370,6 +370,16 @@ func (s *Store) hasUserAssignments() bool {
 // recovery grant, and each deny reason) is logged so an operator can distinguish
 // "denied by profile" from "denied because no profile applied".
 func (s *Store) Authorize(username, command string, isReadOnly bool) Action {
+	return s.authorize(username, nil, false, command, isReadOnly)
+}
+
+// AuthorizeWithProfiles evaluates one authenticated session's resolved profile
+// names. It does not consult the mutable username profile view.
+func (s *Store) AuthorizeWithProfiles(username string, profiles []string, command string, isReadOnly bool) Action {
+	return s.authorize(username, profiles, true, command, isReadOnly)
+}
+
+func (s *Store) authorize(username string, loginNames []string, hasLoginNames bool, command string, isReadOnly bool) Action {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -399,48 +409,31 @@ func (s *Store) Authorize(username, command string, isReadOnly bool) Action {
 		return Deny
 	}
 
-	profileNames, hasAssignment := s.assignments[username]
-	if !hasAssignment || len(profileNames) == 0 {
-		// Fall back to the profiles the user's authentication resolved. A local
-		// user's profiles reach us as a config assignment above, but a TACACS+
-		// user's come from the server's priv-lvl reply via the tacacs-profile
-		// mapping and appear nowhere in config keyed by username. Without this the
-		// mapping is logged at login and then ignored: an unassigned user falls
-		// through to the admin default below (or to Deny once any local user
-		// exists), so priv-lvl 1 mapped to read-only would authorize as admin.
-		//
-		// Config assignments win when both exist: an explicit local assignment is
-		// the operator's stated intent for that name.
-		//
-		// Only names this store actually defines count. ValidateAuthzConfig checks
-		// user[*].profile references but NOT tacacs-profile ones, so a mapping may
-		// name a profile that does not exist. Accepting such a name as an
-		// assignment would be worse than ignoring it: the loop below skips every
-		// unknown name, leaves firstDefault nil, and falls through to the admin
-		// default -- turning a typo in tacacs-profile into allow-all. Dropping
-		// them here leaves the decision to the fail-closed branch below.
-		if loginNames, ok := aaa.LoginProfiles(username); ok {
-			// The break-glass recovery admin is delivered here, never as a config
-			// assignment (which would flip the operator's RBAC posture). It is
-			// honored regardless of what the store defines, so a strict default
-			// cannot lock an operator out of a box whose authorization config is
-			// wrong or partial.
-			if slices.Contains(loginNames, aaa.ReservedRecoveryProfile) {
-				authzLogger.Info("authorized: break-glass recovery admin",
-					"username", username, "command", command)
-				return Allow
-			}
-			known := make([]string, 0, len(loginNames))
-			for _, name := range loginNames {
-				if s.profiles[name] != nil {
-					known = append(known, name)
-				}
-			}
-			if len(known) > 0 {
-				profileNames = known
-				hasAssignment = true
+	var profileNames []string
+	var hasAssignment bool
+	if hasLoginNames {
+		// The break-glass recovery admin is delivered here, never as a config
+		// assignment. It is honored regardless of what the store defines, so a
+		// strict default cannot lock an operator out of a box whose authorization
+		// config is wrong or partial.
+		if slices.Contains(loginNames, aaa.ReservedRecoveryProfile) {
+			authzLogger.Info("authorized: break-glass recovery admin",
+				"username", username, "command", command)
+			return Allow
+		}
+
+		// Only names this store defines count. ValidateAuthzConfig checks local
+		// user profile references but not remote AAA profile mappings. A remote
+		// mapping can therefore name a profile that does not exist.
+		profileNames = make([]string, 0, len(loginNames))
+		for _, name := range loginNames {
+			if s.profiles[name] != nil {
+				profileNames = append(profileNames, name)
 			}
 		}
+		hasAssignment = len(profileNames) > 0
+	} else {
+		profileNames, hasAssignment = s.assignments[username]
 	}
 	if !hasAssignment || len(profileNames) == 0 {
 		// Fail closed: authenticated but no applicable profile resolved. Was:

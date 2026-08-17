@@ -437,11 +437,19 @@ func TestDispatchCommandDirectBridge(t *testing.T) {
 	t.Parallel()
 
 	d := NewDispatcher()
-	d.Register("bridge test", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
-		return &plugin.Response{
+	handlerReturned := false
+	completed := false
+	d.Register("bridge test", func(_ *CommandContext, _ []string) (resp *plugin.Response, err error) {
+		defer func() { handlerReturned = true }()
+		resp = &plugin.Response{
 			Status: plugin.StatusDone,
 			Data:   plugin.Map{"result": "bridge-ok"},
-		}, nil
+		}
+		resp.OnTransportComplete(func() {
+			assert.True(t, handlerReturned, "direct completion ran before the handler delivered its result")
+			completed = true
+		})
+		return resp, nil
 	}, "bridge test")
 
 	s := &Server{
@@ -466,6 +474,7 @@ func TestDispatchCommandDirectBridge(t *testing.T) {
 
 	assert.Equal(t, "done", output.Status)
 	assert.Contains(t, string(output.Data), "bridge-ok")
+	assert.True(t, completed, "direct transport did not complete the accepted action")
 }
 
 // TestDispatchCommandArgsRoutesSameHandlerAsDispatchCommand verifies that the

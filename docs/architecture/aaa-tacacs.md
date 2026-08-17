@@ -63,9 +63,11 @@ blocks the command.
 
 <!-- source: internal/component/plugin/server/command.go -- accountant hook in Dispatcher -->
 
-Every config reload swaps the bundle atomically and closes the previous one, so
-the accounting workers drain. A test that counts "N enqueued, N sent" must
-tolerate a dropped tail during the stop.
+The AAA bundle is built once at boot. A later BGP infrastructure hook reuses
+the same bundle, so an open session and its accounting pair keep live backends.
+Daemon shutdown closes the bundle and drains its accounting workers.
+<!-- source: cmd/ze/hub/infra_setup.go -- boot-owned AAA bundle reuse -->
+<!-- source: cmd/ze/hub/aaa_lifecycle.go -- claimAAABundleBoot, closeAAABundle -->
 
 ## The schema merge defect this work uncovered
 

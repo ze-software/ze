@@ -269,21 +269,21 @@ func webTLSMaterial(certName string, certStore selfcert.CertStore, listenAddr st
 // Every entry in listenAddrs becomes a bound listener on the same
 // *http.Server; Shutdown closes all of them.
 // Requires blob storage -- TLS keys and config must not leak to the filesystem.
-// localUsersLive is the caller's live view of the local credentials: the zefs
-// power users merged with the users the RUNNING configuration declares. It comes
-// from the caller because the caller already built that closure for the AAA
-// chain, and a second reader could disagree with it. A power user the chain
-// admits, whom this server's session check then does not declare, is refused on
-// every following request: a login loop on the break-glass account.
+// localUsersLive reads the accepted local identity generation shared with AAA,
+// SSH, REST, and gRPC. The ConfigProvider may hold a rejectable reload candidate,
+// so the web session path must not read it directly.
 //
-// It is consulted per login attempt AND per request carrying a session cookie,
-// so a reload that removes a user takes effect at once on both paths, and once
-// HERE to decide whether the server serves at all.
+// It is consulted per login attempt and per request carrying a session cookie,
+// so a successfully published reload that removes a user takes effect at once on
+// both paths, and once here to decide whether the server serves at all.
 //
 // powerUsers is the caller's zefs snapshot, used to NAME those accounts for the
 // UI. It never decides who may log in; localUsersLive already carries them.
 func startWebServer(store storage.Storage, configPath string, listenAddrs []string, insecureWeb bool, certName string, dispatch zeweb.CommandDispatcher, resolvers *resolve.Resolvers, authorizer aaa.Authorizer, recorder audit.Recorder, commitHook func() error, powerUsers []authz.UserConfig, localUsersLive func() ([]authz.UserConfig, error), commandEntries func() []command.CommandEntry) (*zeweb.WebServer, *zeweb.EventBroker) {
 	dispatch = withBGPDecode(dispatch)
+	if insecureWeb {
+		authorizer = nil
+	}
 
 	if !storage.IsBlobStorage(store) {
 		fmt.Fprintf(os.Stderr, "warning: web server disabled: requires blob storage (run ze init first)\n")

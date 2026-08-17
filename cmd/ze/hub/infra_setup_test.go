@@ -45,6 +45,6 @@ func TestInfraSetupWiresSessionModelFactory(t *testing.T) {
 	require.NotNil(t, sshSrv, "infraSetup should return a running SSH server")
 	srv, ok := sshSrv.(*zessh.Server)
 	require.True(t, ok, "infraSetup should return a *zessh.Server when ssh is compiled in")
-	assert.True(t, srv.HasSessionModelFactory(),
+	assert.True(t, srv.HasSessionModelFactoryForTest(),
 		"session model factory must be set for interactive SSH sessions to work")
 }

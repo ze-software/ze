@@ -97,18 +97,12 @@ func TestWebLoginAdmitsPowerAndConfigUsers(t *testing.T) {
 	})
 }
 
-// TestAPILoginAdmitsPowerAndConfigUsers drives the real API per-user
-// authenticator (buildUserAuthenticator) with the merged user set, proving that
-// both the power user and a config-file user authenticate via the Bearer
-// "<user>:<password>" credential, and that bad credentials are rejected.
+// TestAPILoginAdmitsPowerAndConfigUsers drives one immutable API per-user
+// generation and proves both merged user sources authenticate.
 func TestAPILoginAdmitsPowerAndConfigUsers(t *testing.T) {
 	users, powerPass, configPass := e2eAuthUsers(t)
-
-	// The live source the hub threads in: the same merged set, read per request.
-	validate := buildUserAuthenticator(users, func() ([]authz.UserConfig, error) { return users, nil })
-	if validate == nil {
-		t.Fatal("buildUserAuthenticator returned nil for a non-empty user set")
-	}
+	authentication := buildAPIAuthentication(users, "", nil)
+	validate := authentication.Authenticate
 
 	cases := []struct {
 		name     string
@@ -125,9 +119,9 @@ func TestAPILoginAdmitsPowerAndConfigUsers(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			user, ok := validate(c.header)
-			if ok != c.wantOK || user != c.wantUser {
-				t.Errorf("validate(%q) = (%q, %v), want (%q, %v)", c.header, user, ok, c.wantUser, c.wantOK)
+			caller, ok := validate(c.header)
+			if ok != c.wantOK || caller.Username != c.wantUser {
+				t.Errorf("validate(%q) = (%q, %v), want (%q, %v)", c.header, caller.Username, ok, c.wantUser, c.wantOK)
 			}
 		})
 	}
@@ -149,7 +143,7 @@ func TestLiveAAABundleAuthorizerHonorsConfiguredProfiles(t *testing.T) {
 
 	// nil liveUsers: this test asserts authorization, not credential freshness,
 	// so the backend keeps the snapshot behavior.
-	swapLocalAuthzStore(store)
+	publishAcceptedLocalIdentity(newAcceptedLocalIdentity(users, store, nil, ""))
 	bundle, err := buildAAABundle(nil, users, nil, nil)
 	if err != nil {
 		t.Fatalf("buildAAABundle: %v", err)

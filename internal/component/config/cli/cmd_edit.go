@@ -241,8 +241,9 @@ func probeSSHWithTimeout(host, port string, timeout time.Duration) bool {
 // optionally wrapping with transcript recording if enabled. Returns the
 // TranscriptWriter (nil if disabled) so the caller can defer Close.
 func wireSSHCommandExecutor(m *cli.Model, creds sshclient.Credentials, username, remoteHost string) *cli.TranscriptWriter {
-	executor := func(input string) (string, error) {
-		return sshclient.ExecCommand(creds, input)
+	executor := func(input string) (cli.CommandOutput, error) {
+		output, err := sshclient.ExecCommand(creds, input)
+		return cli.CommandOutput{Text: output}, err
 	}
 
 	var tw *cli.TranscriptWriter

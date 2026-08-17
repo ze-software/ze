@@ -82,11 +82,11 @@ func LoadBuiltins(d *Dispatcher, wireToPath, pathToDesc map[string]string, pathT
 	}
 }
 
-// LoadBuiltinsWithAliases registers all builtin handlers with the dispatcher,
+// loadBuiltinsWithAliases registers all builtin handlers with the dispatcher,
 // including all YANG command aliases for each wire method. When cmdTree is
 // non-nil, commands whose YANG path passes through a ze:ensure-exists node
 // are wrapped to auto-ensure the parent resource and rollback on failure.
-func LoadBuiltinsWithAliases(d *Dispatcher, wireToPaths map[string][]string, pathToDesc map[string]string, pathToArgDefs map[string][]command.ArgDef, cmdTree *command.Node) {
+func loadBuiltinsWithAliases(d *Dispatcher, wireToPaths map[string][]string, pathToDesc map[string]string, pathToArgDefs map[string][]command.ArgDef, cmdTree *command.Node) {
 	wireToHandler := make(map[string]Handler, len(AllBuiltinRPCs()))
 	for _, reg := range AllBuiltinRPCs() {
 		if reg.Handler != nil {
@@ -134,9 +134,9 @@ func IsReadOnlyPath(path string) bool {
 	return false
 }
 
-// RegisterDefaultHandlers registers all builtin handlers with the dispatcher.
-func RegisterDefaultHandlers(d *Dispatcher, wireToPath, pathToDesc map[string]string, pathToArgDefs map[string][]command.ArgDef) {
-	LoadBuiltins(d, wireToPath, pathToDesc, pathToArgDefs)
+// registerDefaultHandlers registers all builtin handlers with the dispatcher.
+func registerDefaultHandlers(d *Dispatcher, wireToPath map[string]string) {
+	LoadBuiltins(d, wireToPath, nil, nil)
 }
 
 // Handler processes a command and returns a response.
@@ -152,9 +152,9 @@ type CommandContext struct {
 	Username       string            // Authenticated username (empty = no auth, full access)
 	RemoteAddr     string            // Remote address of the client (e.g., SSH peer IP:port)
 	Surface        string            // Trusted caller surface for audit attribution.
+	Authorizer     plugin.Authorizer // Request-carried policy generation; nil uses the dispatcher's live policy.
 	Meta           map[string]any    // Route metadata from UpdateRoute RPC; nil if not set.
 	Selectors      map[string]string // Extracted typed selector values, keyed by selector keyword.
-
 	// Sender says who issued this command, and every path that builds a
 	// CommandContext states it: plugin.ProcessSender(proc.Name()) on the plugin
 	// server's own dispatch paths, plugin.OperatorSender() on the operator
@@ -719,15 +719,19 @@ func (d *Dispatcher) BeginAccounting(ctx *CommandContext, input string) func() {
 
 // isAuthorized checks if the user is allowed to execute the command.
 func (d *Dispatcher) isAuthorized(ctx *CommandContext, input string, readOnly bool) bool {
-	if d.authorizer == nil {
-		return true
-	}
+	authorizer := d.authorizer
 	var username, remoteAddr string
 	if ctx != nil {
 		username = ctx.Username
 		remoteAddr = ctx.RemoteAddr
+		if ctx.Authorizer != nil {
+			authorizer = ctx.Authorizer
+		}
 	}
-	return d.authorizer.Authorize(username, remoteAddr, input, readOnly)
+	if authorizer == nil {
+		return true
+	}
+	return authorizer.Authorize(username, remoteAddr, input, readOnly)
 }
 
 // isAuthorizedCommandArgs checks if the user is allowed to execute a typed
@@ -735,18 +739,22 @@ func (d *Dispatcher) isAuthorized(ctx *CommandContext, input string, readOnly bo
 // so built-in policy sees the exact command, args, and selector scope.
 // aaa.CanonicalCommand is fallback only for legacy string authorizers.
 func (d *Dispatcher) isAuthorizedCommandArgs(ctx *CommandContext, command string, args []string, peer string, readOnly bool) bool {
-	if d.authorizer == nil {
-		return true
-	}
+	authorizer := d.authorizer
 	var username, remoteAddr string
 	if ctx != nil {
 		username = ctx.Username
 		remoteAddr = ctx.RemoteAddr
+		if ctx.Authorizer != nil {
+			authorizer = ctx.Authorizer
+		}
 	}
-	if authzArgs, ok := d.authorizer.(aaa.CommandArgsAuthorizer); ok {
+	if authorizer == nil {
+		return true
+	}
+	if authzArgs, ok := authorizer.(aaa.CommandArgsAuthorizer); ok {
 		return authzArgs.AuthorizeCommandArgs(username, remoteAddr, command, args, peer, readOnly)
 	}
-	return d.authorizer.Authorize(username, remoteAddr, aaa.CanonicalCommand(command, args, peer), readOnly)
+	return authorizer.Authorize(username, remoteAddr, aaa.CanonicalCommand(command, args, peer), readOnly)
 }
 
 // Dispatch parses and executes a command.

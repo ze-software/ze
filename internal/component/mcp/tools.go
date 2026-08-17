@@ -604,6 +604,7 @@ type server struct {
 	// crosses between the two requests. Nothing is held server-side between
 	// them.
 	inputResponses map[string]any
+	completion     *plugin.RenderedResponse
 }
 
 // context returns the context every dispatch this runner makes MUST run under.
@@ -736,10 +737,21 @@ const maxRequestBody = 1 << 20
 // server. ze-chaos implements this with its own tools (chaos_status, ...);
 // set StreamableConfig.Provider to serve a provider's tools instead of the
 // command-registry surface.
+// ToolResult carries a provider result and its response completion to the MCP
+// HTTP writer.
+type ToolResult struct {
+	Value      map[string]any
+	Completion *plugin.RenderedResponse
+}
+
 type ToolProvider interface {
 	ServerName() string
 	Tools() []map[string]any
 	CallTool(name string, args json.RawMessage) map[string]any
+}
+
+type completingToolProvider interface {
+	CallToolResult(name string, args json.RawMessage) *ToolResult
 }
 
 // CommandDispatcher executes a Ze command and returns the typed response. It
@@ -763,6 +775,8 @@ type response struct {
 	ID      *json.RawMessage `json:"id"`
 	Result  any              `json:"result,omitempty"`
 	Error   *rpcError        `json:"error,omitempty"`
+
+	completion *plugin.RenderedResponse
 }
 
 type rpcError struct {
@@ -824,11 +838,12 @@ var toolHandlers = map[string]func(s *server, args json.RawMessage) map[string]a
 		case inputMalformed:
 			return ErrResult(tb.Reset().Str("could not read the supplied command: ").Err(ErrElicitMalformed).String())
 		}
-		result, err := s.dispatch.JSON(s.context(), plugin.CallerIdentity{Username: s.username, RemoteAddr: s.remoteAddr}, command)
+		rendered, err := s.dispatch.JSON(s.context(), plugin.CallerIdentity{Username: s.username, RemoteAddr: s.remoteAddr}, command)
+		s.completion = rendered
 		if err != nil {
 			return ErrResult(err.Error())
 		}
-		return TextResult(result)
+		return TextResult(rendered.Output)
 	},
 	// ze_reference returns the full machine-readable AI reference, assembled
 	// from the same source as `ze help ai --json` (internal/component/aihelp),
@@ -870,11 +885,12 @@ func noSpaces(field, value string) error {
 // task execution deadline and a client disconnect reach the dispatcher at
 // all.
 func (s *server) run(command string) map[string]any {
-	output, err := s.dispatch.JSON(s.context(), plugin.CallerIdentity{Username: s.username, RemoteAddr: s.remoteAddr}, command)
+	rendered, err := s.dispatch.JSON(s.context(), plugin.CallerIdentity{Username: s.username, RemoteAddr: s.remoteAddr}, command)
+	s.completion = rendered
 	if err != nil {
 		return ErrResult(err.Error())
 	}
-	return TextResult(output)
+	return TextResult(rendered.Output)
 }
 
 // TextResult returns an MCP text content result.

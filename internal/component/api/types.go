@@ -53,6 +53,23 @@ type ExecResult = plugin.Response
 // infrastructure package so the shared CommandDispatcher type can reference it.
 type CallerIdentity = plugin.CallerIdentity
 
+// Authentication is one immutable request-authentication generation. The
+// transport obtains it once per request, so credential mode, credential
+// material, and the authorizer carried by the returned identity cannot mix
+// across a reload publication.
+//
+// Required=false is the explicit local no-auth mode. Required=true with a nil
+// Authenticate function is fail-closed staging.
+type Authentication struct {
+	Required     bool
+	Authenticate func(authHeader string) (CallerIdentity, bool)
+}
+
+// AuthenticationProvider returns the currently published authentication
+// generation. A provider is stable for the life of a server; reload swaps the
+// generation it reads instead of rewriting REST and gRPC fields independently.
+type AuthenticationProvider func() Authentication
+
 // Status constants for ExecResult. Sourced from the single definition in the
 // plugin package so the "done"/"error" literals live in exactly one place.
 const (

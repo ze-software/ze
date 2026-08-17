@@ -195,13 +195,10 @@ func TestAuthBudgetBounds(t *testing.T) {
 // PREVENTS: a RADIUS server that sends Access-Accept without a Filter-Id, against
 //
 //	out-of-the-box config with no default-profile, authenticating with zero
-//	profiles. Zero profiles are recorded nowhere (aaa.RecordLoginProfiles skips
-//	len(profiles)==0, login_profiles.go:46), so authz.Store.Authorize would find no
-//	assignment and no login profiles. This test enforces the primary guard: the
-//	login is rejected here, before authorization runs. authz.Store.Authorize now
-//	also fails closed in that case (spec-fixit-authz-admin-fallthrough); before
-//	that fix such an Accept granted ADMIN with no operator misconfiguration, since
-//	GetSlice returns nil for an absent leaf-list.
+//	profiles. The result-scoped authorizer would fail closed, but this test
+//	enforces the primary guard: authentication rejects the login before
+//	authorization runs. Before that guard, the empty profile set granted admin
+//	because GetSlice returns nil for an absent leaf-list.
 func TestRadiusAuthenticateProfileResolutionShapes(t *testing.T) {
 	filterID := func(vals ...string) []Attr {
 		attrs := make([]Attr, 0, len(vals))

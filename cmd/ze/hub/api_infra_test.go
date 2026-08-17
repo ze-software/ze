@@ -26,6 +26,7 @@ func clearAPIEnv(t *testing.T) {
 		"ze.api-server.rest.listen",
 		"ze.api-server.grpc.enabled",
 		"ze.api-server.grpc.listen",
+		"ze.api-server.token",
 	} {
 		orig := env.Get(key)
 		t.Cleanup(func() { _ = env.Set(key, orig) })

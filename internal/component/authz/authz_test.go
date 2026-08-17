@@ -836,13 +836,13 @@ func TestRegexInvalidPatternInMatches(t *testing.T) {
 //
 // A TACACS+ user has no system.authentication.user block, so the store holds no
 // assignment for their username. Their profiles come from the server's priv-lvl
-// reply through the tacacs-profile mapping, recorded at login.
+// reply through the tacacs-profile mapping, bound to the authentication result.
 //
 // VALIDATES: tacacs-profile priv-lvl mapping governs command authorization.
 // PREVENTS: regression to every TACACS+-authenticated user being authorized as
 //
 //	admin because the store found no config assignment and fell through to
-//	the built-in admin profile -- the mapping logged at login and then ignored.
+//	the built-in admin profile.
 func TestStoreAuthorizeUsesLoginResolvedProfiles(t *testing.T) {
 	s := NewStore()
 	s.AddProfile(Profile{
@@ -851,56 +851,43 @@ func TestStoreAuthorizeUsesLoginResolvedProfiles(t *testing.T) {
 		Edit: Section{Default: Deny},
 	})
 
-	// Deliberately no AssignProfiles for this user: that is the TACACS+ shape.
-	aaa.RecordLoginProfiles("tacacs-noc", []string{"read-only"})
-	t.Cleanup(func() { aaa.ForgetLoginProfilesForTest("tacacs-noc") })
-
-	if got := s.Authorize("tacacs-noc", "show bgp summary", true); got != Allow {
+	if got := s.AuthorizeWithProfiles("tacacs-noc", []string{"read-only"}, "show bgp summary", true); got != Allow {
 		t.Errorf("run section defaults to allow: expected Allow, got %v", got)
 	}
-	if got := s.Authorize("tacacs-noc", "request quiesce", false); got != Deny {
+	if got := s.AuthorizeWithProfiles("tacacs-noc", []string{"read-only"}, "request quiesce", false); got != Deny {
 		t.Errorf("edit section defaults to deny: expected Deny, got %v (admin fallthrough?)", got)
 	}
 }
 
-// TestStoreAuthorizeConfigAssignmentWinsOverLogin verifies that an explicit config
-// assignment takes precedence over profiles recorded at login.
+// TestStoreAuthorizeLoginBindingWinsOverConfigAssignment verifies that a remote
+// authentication result takes precedence over a same-name local assignment.
 //
-// VALIDATES: system.authentication.user[*].profile is the operator's stated intent
-//
-//	for a name and is not overridden by a login-time resolution.
-//
-// PREVENTS: a login from silently widening a locally assigned profile.
-func TestStoreAuthorizeConfigAssignmentWinsOverLogin(t *testing.T) {
+// VALIDATES: one authenticated session uses the profiles resolved for that
+// credential and not mutable state keyed only by username.
+// PREVENTS: a same-name local assignment widening a remote session's authority.
+func TestStoreAuthorizeLoginBindingWinsOverConfigAssignment(t *testing.T) {
 	s := NewStore()
 	s.AddProfile(Profile{Name: "read-only", Run: Section{Default: Allow}, Edit: Section{Default: Deny}})
 	s.AddProfile(Profile{Name: "admin-like", Run: Section{Default: Allow}, Edit: Section{Default: Allow}})
 	s.AssignProfiles("dual", []string{"read-only"})
 
-	aaa.RecordLoginProfiles("dual", []string{"admin-like"})
-	t.Cleanup(func() { aaa.ForgetLoginProfilesForTest("dual") })
-
-	if got := s.Authorize("dual", "request quiesce", false); got != Deny {
-		t.Errorf("config assignment must win: expected Deny, got %v", got)
+	if got := s.AuthorizeWithProfiles("dual", []string{"admin-like"}, "request quiesce", false); got != Allow {
+		t.Errorf("login-bound profile must win: expected Allow, got %v", got)
 	}
 }
 
-// TestStoreAuthorizeLoginProfilesDoNotLeakAcrossUsers verifies that recording
-// profiles for one user leaves another user's decision untouched.
+// TestStoreAuthorizeProfilesDoNotLeakAcrossUsers verifies that one request's
+// profiles leave another user's decision untouched.
 //
-// VALIDATES: login-resolved profiles are keyed per username.
+// VALIDATES: login-resolved profiles are request-scoped.
 // PREVENTS: one user's login granting or restricting a different account.
-func TestStoreAuthorizeLoginProfilesDoNotLeakAcrossUsers(t *testing.T) {
+func TestStoreAuthorizeProfilesDoNotLeakAcrossUsers(t *testing.T) {
 	s := NewStore()
 	s.AddProfile(Profile{Name: "read-only", Run: Section{Default: Allow}, Edit: Section{Default: Deny}})
 	s.AssignProfiles("known", []string{"read-only"})
 
-	aaa.RecordLoginProfiles("known", []string{"read-only"})
-	t.Cleanup(func() { aaa.ForgetLoginProfilesForTest("known") })
-
-	// "other" never authenticated: no assignment, no login profiles. A non-nil
-	// store means authorization is in use, so it fails closed regardless of whether
-	// any other user is assigned.
+	// "other" has no assignment and no login-bound profiles. A non-nil store
+	// means authorization is in use, so it fails closed.
 	if got := s.Authorize("other", "show bgp summary", true); got != Deny {
 		t.Errorf("unassigned user with no resolved profile must fail closed: got %v", got)
 	}
@@ -927,13 +914,10 @@ func TestStoreAuthorizeIgnoresUnresolvableLoginProfiles(t *testing.T) {
 	// resolves no profile.
 	s.AssignProfiles("local-admin", []string{"read-only"})
 
-	aaa.RecordLoginProfiles("tacacs-typo", []string{"does-not-exist"})
-	t.Cleanup(func() { aaa.ForgetLoginProfilesForTest("tacacs-typo") })
-
-	if got := s.Authorize("tacacs-typo", "request quiesce", false); got != Deny {
+	if got := s.AuthorizeWithProfiles("tacacs-typo", []string{"does-not-exist"}, "request quiesce", false); got != Deny {
 		t.Errorf("unresolvable profile name must not authorize as admin: got %v", got)
 	}
-	if got := s.Authorize("tacacs-typo", "show bgp summary", true); got != Deny {
+	if got := s.AuthorizeWithProfiles("tacacs-typo", []string{"does-not-exist"}, "show bgp summary", true); got != Deny {
 		t.Errorf("unresolvable profile name must not authorize as admin: got %v", got)
 	}
 }
@@ -947,13 +931,10 @@ func TestStoreAuthorizeKeepsResolvableLoginProfiles(t *testing.T) {
 	s := NewStore()
 	s.AddProfile(Profile{Name: "read-only", Run: Section{Default: Allow}, Edit: Section{Default: Deny}})
 
-	aaa.RecordLoginProfiles("mixed", []string{"does-not-exist", "read-only"})
-	t.Cleanup(func() { aaa.ForgetLoginProfilesForTest("mixed") })
-
-	if got := s.Authorize("mixed", "show bgp summary", true); got != Allow {
+	if got := s.AuthorizeWithProfiles("mixed", []string{"does-not-exist", "read-only"}, "show bgp summary", true); got != Allow {
 		t.Errorf("resolvable name must still apply: got %v", got)
 	}
-	if got := s.Authorize("mixed", "request quiesce", false); got != Deny {
+	if got := s.AuthorizeWithProfiles("mixed", []string{"does-not-exist", "read-only"}, "request quiesce", false); got != Deny {
 		t.Errorf("resolvable name's edit deny must apply: got %v", got)
 	}
 }
@@ -981,7 +962,7 @@ func TestStoreAuthorizeProfilesNoAssignmentsDeniesNotAdmin(t *testing.T) {
 	// builds for a TACACS/RADIUS-only box.
 	s.AddProfile(Profile{Name: "read-only", Run: Section{Default: Allow}, Edit: Section{Default: Deny}})
 
-	// No AssignProfiles, no RecordLoginProfiles: the arbitrary authenticated user
+	// No assignment or login-bound profiles: the arbitrary authenticated user
 	// resolves nothing.
 	if got := s.Authorize("tacacs-user", "restart", true); got != Deny {
 		t.Errorf("run: expected Deny (fail closed), got %v (admin fallthrough?)", got)
@@ -1001,10 +982,7 @@ func TestStoreAuthorizeTacacsUnresolvedLoginDeniesNotAdmin(t *testing.T) {
 	s := NewStore()
 	s.AddProfile(Profile{Name: "read-only", Run: Section{Default: Allow}, Edit: Section{Default: Deny}})
 
-	aaa.RecordLoginProfiles("tacacs-priv15", []string{"does-not-exist"})
-	t.Cleanup(func() { aaa.ForgetLoginProfilesForTest("tacacs-priv15") })
-
-	if got := s.Authorize("tacacs-priv15", "restart", true); got != Deny {
+	if got := s.AuthorizeWithProfiles("tacacs-priv15", []string{"does-not-exist"}, "restart", true); got != Deny {
 		t.Errorf("expected Deny (fail closed), got %v (admin fallthrough?)", got)
 	}
 }
@@ -1090,14 +1068,19 @@ func TestStoreAuthorizeRecoveryProfile(t *testing.T) {
 	// exposed profiles-but-no-config-admin shape.
 	s.AddProfile(Profile{Name: "read-only", Run: Section{Default: Allow}, Edit: Section{Default: Deny}})
 
-	aaa.RecordLoginProfiles("admin", []string{aaa.ReservedRecoveryProfile})
-	t.Cleanup(func() { aaa.ForgetLoginProfilesForTest("admin") })
+	aaa.SetAcceptedLocalProfileGeneration(1)
+	t.Cleanup(func() { aaa.SetAcceptedLocalProfileGeneration(0) })
+	authorizer := aaa.AuthorizerForResult(StoreAuthorizer{Store: s}, aaa.AuthResult{
+		Source:          aaa.SourceLocal,
+		Profiles:        []string{aaa.ReservedRecoveryProfile},
+		LocalGeneration: 1,
+	})
 
-	if got := s.Authorize("admin", "restart", true); got != Allow {
-		t.Errorf("recovery run: expected Allow, got %v", got)
+	if !authorizer.Authorize("admin", "", "restart", true) {
+		t.Error("recovery run: expected allow")
 	}
-	if got := s.Authorize("admin", "router bgp", false); got != Allow {
-		t.Errorf("recovery edit: expected Allow, got %v", got)
+	if !authorizer.Authorize("admin", "", "router bgp", false) {
+		t.Error("recovery edit: expected allow")
 	}
 }
 
@@ -1136,5 +1119,34 @@ func TestIsReservedAuthzName(t *testing.T) {
 		if aaa.IsReservedName(name) {
 			t.Errorf("%q must not be reserved (config-typeable names)", name)
 		}
+	}
+}
+
+// VALIDATES: one username can hold concurrent session-bound profile views.
+// PREVENTS: a later login replacing the authorization of an established session.
+func TestStoreAuthorizerBoundProfilesDoNotCrossSessions(t *testing.T) {
+	s := NewStore()
+	s.AddProfile(Profile{
+		Name: "read-only",
+		Run:  Section{Default: Allow},
+		Edit: Section{Default: Deny},
+	})
+	s.AddProfile(Profile{
+		Name: "operator",
+		Run:  Section{Default: Deny},
+		Edit: Section{Default: Allow},
+	})
+	base := StoreAuthorizer{Store: s}
+	readSession := base.BindProfiles([]string{"read-only"})
+	writeSession := base.BindProfiles([]string{"operator"})
+
+	if !readSession.Authorize("same-user", "", "show version", true) {
+		t.Fatal("the first session lost its read profile after a later login")
+	}
+	if readSession.Authorize("same-user", "", "set system host-name router", false) {
+		t.Fatal("the first session gained the later login's write profile")
+	}
+	if !writeSession.Authorize("same-user", "", "set system host-name router", false) {
+		t.Fatal("the second session did not receive its own write profile")
 	}
 }

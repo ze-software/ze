@@ -38,7 +38,7 @@ func declaredCommandPaths() []string {
 	wireToPaths := cli.WireToPaths()
 	seen := make(map[string]bool)
 	var out []string
-	for _, reg := range cli.AllCLIRPCs() {
+	for _, reg := range pluginserver.AllBuiltinRPCs() {
 		for _, path := range wireToPaths[reg.WireMethod] {
 			if seen[path] || !strings.Contains(path, " ") {
 				continue
@@ -247,7 +247,7 @@ func placeholderValueCommands(t *testing.T) []string {
 	t.Helper()
 
 	registered := make(map[string]bool)
-	for _, reg := range cli.AllCLIRPCs() {
+	for _, reg := range pluginserver.AllBuiltinRPCs() {
 		registered[reg.WireMethod] = true
 	}
 

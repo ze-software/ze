@@ -24,6 +24,6 @@ func init() {
 		return handleL2TPSamplesCSV()
 	}})
 	RegisterWebRoute(WebRoute{Pattern: "GET /l2tp/{login}/samples/stream", Wrap: WrapAuth, Build: func(RouteDeps) http.Handler {
-		return HandleL2TPSamplesSSE()
+		return handleL2TPSamplesSSE()
 	}})
 }

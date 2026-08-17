@@ -4,120 +4,139 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-// VALIDATES: a successful authentication publishes its resolved profiles, so a
-//
-//	later authorization call (which sees only a username) can find them.
-//
-// PREVENTS: regression to profiles being resolved at login, logged, and dropped --
-//
-//	which authorized every TACACS+ user as admin.
-func TestProfileRecordingAuthenticatorRecordsOnSuccess(t *testing.T) {
-	t.Cleanup(func() { ForgetLoginProfilesForTest("noc") })
-
-	inner := &fakeBackend{result: AuthResult{Authenticated: true, Source: "tacacs", Profiles: []string{"read-only"}}}
-	auth := WithProfileRecording(inner)
+// VALIDATES: remote profiles are bound to the authentication result.
+// PREVENTS: a later login for the same username changing this result's authority.
+func TestProfileAuthorizerBindsRemoteProfiles(t *testing.T) {
+	probe := &profileBindingProbe{}
+	auth := WithProfileAuthorizer(&fakeBackend{result: AuthResult{
+		Authenticated: true,
+		Source:        "tacacs",
+		Profiles:      []string{"read-only"},
+	}}, probe)
 
 	result, err := auth.Authenticate(AuthRequest{Username: "noc", Password: "pw"})
 	assert.NoError(t, err)
-	assert.True(t, result.Authenticated)
-
-	got, ok := LoginProfiles("noc")
-	assert.True(t, ok, "a successful authentication must publish its profiles")
-	assert.Equal(t, []string{"read-only"}, got)
+	assert.Equal(t, []string{"read-only"}, probe.bound)
+	assert.NotNil(t, result.Authorizer)
 }
 
-// VALIDATES: a failed authentication publishes nothing.
-// PREVENTS: a rejected login granting profiles to that username.
-func TestProfileRecordingAuthenticatorIgnoresFailure(t *testing.T) {
-	t.Cleanup(func() { ForgetLoginProfilesForTest("intruder") })
-
-	inner := &fakeBackend{
+// VALIDATES: a failed authentication carries no authorizer.
+// PREVENTS: a rejected login receiving an authorization capability.
+func TestProfileAuthorizerIgnoresFailure(t *testing.T) {
+	probe := &profileBindingProbe{}
+	auth := WithProfileAuthorizer(&fakeBackend{
 		result: AuthResult{Authenticated: false, Profiles: []string{"admin"}},
 		err:    ErrAuthRejected,
-	}
-	auth := WithProfileRecording(inner)
+	}, probe)
 
-	_, err := auth.Authenticate(AuthRequest{Username: "intruder", Password: "wrong"})
+	result, err := auth.Authenticate(AuthRequest{Username: "intruder", Password: "wrong"})
 	assert.Error(t, err)
-
-	_, ok := LoginProfiles("intruder")
-	assert.False(t, ok, "a rejected authentication must not publish profiles")
+	assert.Nil(t, result.Authorizer)
+	assert.Nil(t, probe.bound)
 }
 
-// VALIDATES: an authentication that resolves no profiles leaves an earlier
-//
-//	mapping intact rather than erasing it.
-//
-// PREVENTS: a profile-less login from a second backend silently widening a user
-//
-//	to the admin fallthrough in authz.Store.Authorize.
-func TestRecordLoginProfilesEmptyDoesNotErase(t *testing.T) {
-	t.Cleanup(func() { ForgetLoginProfilesForTest("noc") })
+// VALIDATES: ordinary local users continue to use the live authorizer.
+// PREVENTS: freezing a local config assignment at login.
+func TestProfileAuthorizerKeepsOrdinaryLocalProfilesLive(t *testing.T) {
+	probe := &profileBindingProbe{}
+	auth := WithProfileAuthorizer(&fakeBackend{result: AuthResult{
+		Authenticated: true,
+		Source:        SourceLocal,
+		Profiles:      []string{"read-only"},
+	}}, probe)
 
-	RecordLoginProfiles("noc", []string{"read-only"})
-	RecordLoginProfiles("noc", nil)
-
-	got, ok := LoginProfiles("noc")
-	assert.True(t, ok, "an empty record must not erase a real mapping")
-	assert.Equal(t, []string{"read-only"}, got)
+	result, err := auth.Authenticate(AuthRequest{Username: "operator", Password: "pw"})
+	assert.NoError(t, err)
+	assert.Same(t, probe, result.Authorizer)
+	assert.Nil(t, probe.bound)
 }
 
-// VALIDATES: the recorded slice is independent of the caller's AuthResult.
-// PREVENTS: a backend reusing its slice and mutating a live authorization input.
-func TestRecordLoginProfilesCopies(t *testing.T) {
-	t.Cleanup(func() { ForgetLoginProfilesForTest("noc") })
+// VALIDATES: a recovery grant is bound to the accepted credential generation.
+// PREVENTS: an established recovery session retaining authority after reload.
+func TestProfileAuthorizerExpiresLocalRecoveryGrant(t *testing.T) {
+	t.Cleanup(func() { SetAcceptedLocalProfileGeneration(0) })
+	SetAcceptedLocalProfileGeneration(1)
+	probe := &profileBindingProbe{}
+	auth := WithProfileAuthorizer(&fakeBackend{result: AuthResult{
+		Authenticated:   true,
+		Source:          SourceLocal,
+		Profiles:        []string{ReservedRecoveryProfile},
+		LocalGeneration: 1,
+	}}, probe)
 
+	result, err := auth.Authenticate(AuthRequest{Username: "recovery", Password: "pw"})
+	assert.NoError(t, err)
+	assert.True(t, result.Authorizer.Authorize("recovery", "", "show version", true))
+	typed, ok := result.Authorizer.(CommandArgsAuthorizer)
+	require.True(t, ok)
+	assert.True(t, typed.AuthorizeCommandArgs("recovery", "", "show", []string{"version"}, "", true))
+
+	SetAcceptedLocalProfileGeneration(2)
+	assert.False(t, result.Authorizer.Authorize("recovery", "", "show version", true))
+	assert.False(t, typed.AuthorizeCommandArgs("recovery", "", "show", []string{"version"}, "", true))
+}
+
+// VALIDATES: a remote backend cannot mint the reserved recovery profile.
+// PREVENTS: a TACACS+ or RADIUS reply granting local break-glass authority.
+func TestProfileAuthorizerFiltersRemoteRecoveryProfile(t *testing.T) {
+	probe := &profileBindingProbe{}
+	auth := WithProfileAuthorizer(&fakeBackend{result: AuthResult{
+		Authenticated: true,
+		Source:        "tacacs",
+		Profiles:      []string{"read-only", ReservedRecoveryProfile},
+	}}, probe)
+
+	result, err := auth.Authenticate(AuthRequest{Username: "remote-user", Password: "pw"})
+	assert.NoError(t, err)
+	assert.NotNil(t, result.Authorizer)
+	assert.Equal(t, []string{"read-only"}, probe.bound)
+}
+
+// VALIDATES: the bound profile slice does not alias the backend's result.
+// PREVENTS: backend slice reuse changing an established authorization view.
+func TestProfileAuthorizerCopiesRemoteProfiles(t *testing.T) {
 	profiles := []string{"read-only"}
-	RecordLoginProfiles("noc", profiles)
-	profiles[0] = "admin"
+	probe := &profileBindingProbe{}
+	auth := WithProfileAuthorizer(&fakeBackend{result: AuthResult{
+		Authenticated: true,
+		Source:        "tacacs",
+		Profiles:      profiles,
+	}}, probe)
 
-	got, ok := LoginProfiles("noc")
-	assert.True(t, ok)
-	assert.Equal(t, []string{"read-only"}, got, "recorded profiles must not alias the caller's slice")
+	_, err := auth.Authenticate(AuthRequest{Username: "noc", Password: "pw"})
+	assert.NoError(t, err)
+	profiles[0] = "admin"
+	assert.Equal(t, []string{"read-only"}, probe.bound)
 }
 
-// VALIDATES: Build wraps the composed authenticator, so every surface records.
-// PREVENTS: a transport authenticating without publishing profiles because the
-//
-//	recording lived at one call site instead of the composition point.
-func TestBuildWrapsAuthenticatorWithProfileRecording(t *testing.T) {
-	t.Cleanup(func() { ForgetLoginProfilesForTest("built") })
-
+// VALIDATES: Build binds the composed authorizer to authentication results.
+// PREVENTS: one transport bypassing result-scoped authorization.
+func TestBuildWrapsAuthenticatorWithProfileAuthorizer(t *testing.T) {
+	probe := &profileBindingProbe{}
 	r := NewBackendRegistryForTest()
 	err := r.Register(&fakeAuthBackend{
-		name:   "probe",
-		result: AuthResult{Authenticated: true, Source: "probe", Profiles: []string{"read-only"}},
+		name:       "probe",
+		result:     AuthResult{Authenticated: true, Source: "probe", Profiles: []string{"read-only"}},
+		authorizer: probe,
 	})
 	assert.NoError(t, err)
 
 	bundle, err := r.Build(BuildParams{})
 	assert.NoError(t, err)
-
-	_, err = bundle.Authenticator.Authenticate(AuthRequest{Username: "built", Password: "pw"})
+	result, err := bundle.Authenticator.Authenticate(AuthRequest{Username: "built", Password: "pw"})
 	assert.NoError(t, err)
-
-	got, ok := LoginProfiles("built")
-	assert.True(t, ok, "Build must wrap the chain so authentication publishes profiles")
-	assert.Equal(t, []string{"read-only"}, got)
+	assert.NotNil(t, result.Authorizer)
+	assert.Equal(t, []string{"read-only"}, probe.bound)
 }
 
-// TestProfileRecordingAuthenticatorRejectsReservedUsername pins the fail-closed
-// ingress guard (spec-fixit-authz-admin-fallthrough review finding 2): an
-// externally-supplied username bearing the reserved prefix must be rejected at the
-// authentication choke point, before any backend sees it, so it can never become
-// Authenticated and reach authz.Store.Authorize, which trusts server-injected
-// internal and shared-API identities. Server-injected identities never pass
-// through authentication and are unaffected.
-//
 // VALIDATES: reserved-name usernames are rejected at AAA ingress.
-// PREVENTS: a RADIUS/TACACS+ server (or any surface) letting a client spoof a
-//
-//	reserved internal, shared-API, or recovery name via the username.
-func TestProfileRecordingAuthenticatorRejectsReservedUsername(t *testing.T) {
+// PREVENTS: a remote backend letting a client spoof a trusted identity.
+func TestProfileAuthorizerRejectsReservedUsername(t *testing.T) {
 	inner := &fakeBackend{result: AuthResult{Authenticated: true, Source: "fake", Profiles: []string{"admin"}}}
-	auth := WithProfileRecording(inner)
+	auth := WithProfileAuthorizer(inner, &profileBindingProbe{})
 
 	reserved := []string{
 		ReservedInternalPrefix + "rpc",
@@ -126,31 +145,83 @@ func TestProfileRecordingAuthenticatorRejectsReservedUsername(t *testing.T) {
 		ReservedSharedAPIUsername,
 	}
 	for _, name := range reserved {
-		res, err := auth.Authenticate(AuthRequest{Username: name, Password: "x"})
+		result, err := auth.Authenticate(AuthRequest{Username: name, Password: "x"})
 		assert.ErrorIs(t, err, ErrAuthRejected, "reserved username %q must be rejected", name)
-		assert.False(t, res.Authenticated, "reserved username %q must not authenticate", name)
-		if _, ok := LoginProfiles(name); ok {
-			t.Errorf("reserved username %q must not record login profiles", name)
-			ForgetLoginProfilesForTest(name)
-		}
+		assert.False(t, result.Authenticated, "reserved username %q must not authenticate", name)
 	}
 	assert.False(t, inner.called, "backend must not be consulted for a reserved username")
 
-	// Sanity: a normal username still authenticates through the wrapper.
-	t.Cleanup(func() { ForgetLoginProfilesForTest("alice") })
-	res, err := auth.Authenticate(AuthRequest{Username: "alice", Password: "x"})
+	result, err := auth.Authenticate(AuthRequest{Username: "alice", Password: "x"})
 	assert.NoError(t, err)
-	assert.True(t, res.Authenticated)
+	assert.True(t, result.Authenticated)
 }
 
-// fakeAuthBackend is a Backend contributing only an Authenticator.
+func TestLocalRecoveryAuthenticationRacingPublicationExpires(t *testing.T) {
+	t.Cleanup(func() { SetAcceptedLocalProfileGeneration(0) })
+	SetAcceptedLocalProfileGeneration(1)
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	auth := WithProfileAuthorizer(blockingAuthBackend{
+		entered: entered,
+		release: release,
+		result: AuthResult{
+			Authenticated:   true,
+			Source:          SourceLocal,
+			Profiles:        []string{ReservedRecoveryProfile},
+			LocalGeneration: 1,
+		},
+	}, &profileBindingProbe{})
+	done := make(chan AuthResult, 1)
+	go func() {
+		result, _ := auth.Authenticate(AuthRequest{Username: "racing-recovery", Password: "pw"})
+		done <- result
+	}()
+	<-entered
+	SetAcceptedLocalProfileGeneration(2)
+	close(release)
+
+	result := <-done
+	assert.NotNil(t, result.Authorizer)
+	assert.False(t, result.Authorizer.Authorize("racing-recovery", "", "show version", true))
+}
+
+type profileBindingProbe struct {
+	bound []string
+}
+
+func (p *profileBindingProbe) Authorize(string, string, string, bool) bool {
+	return true
+}
+
+func (p *profileBindingProbe) BindProfiles(profiles []string) Authorizer {
+	p.bound = append([]string(nil), profiles...)
+	return p
+}
+
+type blockingAuthBackend struct {
+	entered chan<- struct{}
+	release <-chan struct{}
+	result  AuthResult
+}
+
+func (b blockingAuthBackend) Authenticate(AuthRequest) (AuthResult, error) {
+	close(b.entered)
+	<-b.release
+	return b.result, nil
+}
+
+// fakeAuthBackend contributes an authenticator and optional authorizer.
 type fakeAuthBackend struct {
-	name   string
-	result AuthResult
+	name       string
+	result     AuthResult
+	authorizer Authorizer
 }
 
 func (f *fakeAuthBackend) Name() string  { return f.name }
 func (f *fakeAuthBackend) Priority() int { return 0 }
 func (f *fakeAuthBackend) Build(BuildParams) (Contribution, error) {
-	return Contribution{Authenticator: &fakeBackend{result: f.result}}, nil
+	return Contribution{
+		Authenticator: &fakeBackend{result: f.result},
+		Authorizer:    f.authorizer,
+	}, nil
 }

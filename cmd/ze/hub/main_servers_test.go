@@ -4,17 +4,47 @@ import (
 	"errors"
 	"io"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
 
+	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/authz"
 	zeconfig "github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/env"
 )
+
+func captureHubStderr(t *testing.T, fn func()) string {
+	t.Helper()
+	originalStderr := os.Stderr
+	r, w, err := os.Pipe()
+	require.NoError(t, err, "stderr pipe")
+	os.Stderr = w
+	defer func() { os.Stderr = originalStderr }()
+
+	type captureResult struct {
+		data []byte
+		err  error
+	}
+	captured := make(chan captureResult, 1)
+	go func() {
+		data, readErr := io.ReadAll(r)
+		captured <- captureResult{data: data, err: readErr}
+	}()
+
+	fn()
+
+	require.NoError(t, w.Close())
+	os.Stderr = originalStderr
+	result := <-captured
+	require.NoError(t, result.err)
+	require.NoError(t, r.Close())
+	return string(result.data)
+}
 
 // systemRootWith builds the `system` root exactly as the daemon holds it: the
 // map form config.Tree.ToMap() produces and applyLoadedTreeToProvider writes
@@ -39,9 +69,9 @@ func userNames(t *testing.T, cp *zeconfig.Provider) []string {
 }
 
 // VALIDATES: liveConfigUsers answers from the provider as it stands at the
-// moment of the call, so a reload that removes a user removes them from the
-// answer, and one that adds a user adds them.
-// PREVENTS: authentication answering from the user list the daemon booted with.
+// moment of each boot or reload staging read.
+// PREVENTS: a candidate identity generation being assembled from stale provider
+// roots.
 func TestLiveConfigUsersFollowsTheProvider(t *testing.T) {
 	cp := zeconfig.NewProvider()
 	cp.SetRoot("system", systemRootWith("alice", "bob"))
@@ -112,23 +142,44 @@ func TestLiveConfigUsersNilProviderIsAnError(t *testing.T) {
 	assert.Nil(t, users, "a failed read returns no users to fall back on")
 }
 
+type bootAAABuildProbe struct {
+	builds *int
+}
+
+func (p bootAAABuildProbe) Name() string  { return "boot-build-probe" }
+func (p bootAAABuildProbe) Priority() int { return 1 }
+func (p bootAAABuildProbe) Build(aaa.BuildParams) (aaa.Contribution, error) {
+	(*p.builds)++
+	return aaa.Contribution{}, nil
+}
+
 // VALIDATES: AC-5 through runYANGConfig's boot resolver. A source error aborts
 // startup even when a shared token and REST listener are configured.
 // PREVENTS: boot classifying a failed read as token-only or NONE and reaching
 // management listener construction without the users it failed to resolve.
 func TestAPIBootUsersFailClosed(t *testing.T) {
+	resetAAABundleForTest(t)
 	sourceErr := errors.New("running config user source unreadable")
 	originalResolver := resolveBootUsers
 	originalRESTBuild := restBuild
+	originalRegistry := aaa.Default
+	buildCalls := 0
+	testRegistry := aaa.NewBackendRegistryForTest()
+	require.NoError(t, testRegistry.Register(bootAAABuildProbe{builds: &buildCalls}))
+	aaa.Default = testRegistry
 	t.Cleanup(func() {
 		resolveBootUsers = originalResolver
 		restBuild = originalRESTBuild
+		aaa.Default = originalRegistry
 	})
 
 	resolverCalls := 0
 	resolveBootUsers = func(usersLive func() ([]authz.UserConfig, error)) ([]authz.UserConfig, error) {
 		resolverCalls++
 		require.NotNil(t, usersLive, "runYANGConfig must hand the resolver its assembled live source")
+		assert.Zero(t, buildCalls, "AAA build must not start before the user source succeeds")
+		assert.Nil(t, aaaBundle.Load(), "AAA install must not occur before the user source succeeds")
+		assert.Nil(t, acceptedLocalIdentity.Load(), "boot must not publish policy without resolved users")
 		failingLive := liveLocalUsers(nil, func() ([]authz.UserConfig, error) {
 			return nil, sourceErr
 		}, nil)
@@ -168,47 +219,80 @@ func TestAPIBootUsersFailClosed(t *testing.T) {
 
 	assert.Equal(t, 1, exit)
 	assert.Equal(t, 1, resolverCalls, "boot must resolve the merged snapshot exactly once")
+	assert.Zero(t, buildCalls, "AC-5 requires zero AAA builds after the user-source failure")
+	assert.Nil(t, aaaBundle.Load(), "AC-5 requires zero installed AAA bundles after the user-source failure")
 	assert.Zero(t, listenerSetupCalls, "a source error must refuse boot before listener construction")
 	assert.Contains(t, string(stderr), sourceErr.Error(), "startup must preserve the source error")
 }
 
-// VALIDATES: AC-13. The REST/gRPC bearer authenticator answers from the running
-// configuration, so a user a reload removes loses API access with no restart.
-// PREVENTS: the third credential surface staying on the boot snapshot. REST and
-// gRPC accept "Bearer <user>:<pass>" and dispatch commands, so a deleted
-// operator kept full API rights until the daemon was restarted.
-func TestAPIUserAuthenticatorFollowsTheRunningConfig(t *testing.T) {
-	hash, err := bcrypt.GenerateFromPassword([]byte("testpass"), bcrypt.MinCost)
-	require.NoError(t, err)
+func TestAPIBootWarnsExactlyWhenNoUsersAndNoToken(t *testing.T) {
+	resetAAABundleForTest(t)
+	clearAPIEnv(t)
 
-	boot := []authz.UserConfig{{Name: "alice", Hash: string(hash)}}
-	current := boot
+	originalResolver := resolveBootUsers
+	originalRESTBuild := restBuild
+	resolveBootUsers = func(func() ([]authz.UserConfig, error)) ([]authz.UserConfig, error) {
+		return nil, nil
+	}
+	stopErr := errors.New("stop after API auth warning")
+	restBuild = func(*apiBuildInputs, *apiShared) (apiServerHandle, error) {
+		return apiServerHandle{}, stopErr
+	}
+	t.Cleanup(func() {
+		resolveBootUsers = originalResolver
+		restBuild = originalRESTBuild
+	})
 
-	auth := buildUserAuthenticator(boot, func() ([]authz.UserConfig, error) { return current, nil })
-	require.NotNil(t, auth)
+	originalConfigDir := env.Get("ze.config.dir")
+	originalToken := env.Get("ze.api-server.token")
+	require.NoError(t, env.Set("ze.config.dir", t.TempDir()))
+	require.NoError(t, env.Set("ze.api-server.rest.enabled", "1"))
+	require.NoError(t, env.Set("ze.api-server.rest.listen", "127.0.0.1:0"))
+	require.NoError(t, env.Set("ze.api-server.token", ""))
+	t.Cleanup(func() {
+		require.NoError(t, env.Set("ze.config.dir", originalConfigDir))
+		require.NoError(t, env.Set("ze.api-server.token", originalToken))
+	})
 
-	user, ok := auth("Bearer alice:testpass")
-	require.True(t, ok, "alice must authenticate while the config declares her, or the refusal below proves nothing")
-	assert.Equal(t, "alice", user)
+	var exit int
+	stderr := captureHubStderr(t, func() {
+		exit = runYANGConfig(storage.NewFilesystem(), "-", nil, nil, 0, -1, false, false, "", false, "", "", false, nil)
+	})
 
-	// The reload removes alice.
-	current = nil
-
-	_, ok = auth("Bearer alice:testpass")
-	assert.False(t, ok, "a user the running config no longer declares must lose API access with no restart")
+	assert.Equal(t, 1, exit, "the REST build seam must stop boot after the warning producer runs")
+	assert.Contains(t, strings.Split(stderr, "\n"),
+		"warning: API auth mode: NONE (no users, no token) -- set ze.api-server.token or initialize zefs",
+		"boot must emit the complete operator-facing warning as one unchanged line")
 }
 
-// VALIDATES: an API authenticator with no live source stays on its boot list.
-// PREVENTS: the nil branch silently authenticating nobody, which would take
-// every API caller down rather than leaving the caller's own list in charge.
-func TestAPIUserAuthenticatorWithoutLiveSourceUsesItsList(t *testing.T) {
+func TestAPIAcceptedAuthenticationFollowsIdentityPublication(t *testing.T) {
+	resetAAABundleForTest(t)
 	hash, err := bcrypt.GenerateFromPassword([]byte("testpass"), bcrypt.MinCost)
 	require.NoError(t, err)
+	boot := []authz.UserConfig{{Name: "alice", Hash: string(hash)}}
+	publishAcceptedLocalIdentity(newAcceptedLocalIdentity(boot, nil, nil, ""))
 
-	auth := buildUserAuthenticator([]authz.UserConfig{{Name: "alice", Hash: string(hash)}}, nil)
-	require.NotNil(t, auth)
-
-	user, ok := auth("Bearer alice:testpass")
+	caller, ok := liveAcceptedAPIAuthentication().Authenticate("Bearer alice:testpass")
 	require.True(t, ok)
-	assert.Equal(t, "alice", user)
+	assert.Equal(t, "alice", caller.Username)
+
+	publishAcceptedLocalIdentity(newAcceptedLocalIdentity(nil, nil, nil, "next-token"))
+	_, ok = liveAcceptedAPIAuthentication().Authenticate("Bearer alice:testpass")
+	assert.False(t, ok, "a user absent from the next accepted generation must lose API access")
+	caller, ok = liveAcceptedAPIAuthentication().Authenticate("Bearer next-token")
+	require.True(t, ok)
+	assert.Equal(t, aaa.ReservedSharedAPIUsername, caller.Username)
+}
+
+func TestBuildAPIAuthenticationUsesImmutableUserList(t *testing.T) {
+	hash, err := bcrypt.GenerateFromPassword([]byte("testpass"), bcrypt.MinCost)
+	require.NoError(t, err)
+	authentication := buildAPIAuthentication(
+		[]authz.UserConfig{{Name: "alice", Hash: string(hash)}},
+		"",
+		nil,
+	)
+	caller, ok := authentication.Authenticate("Bearer alice:testpass")
+	require.True(t, ok)
+	assert.Equal(t, "alice", caller.Username)
 }

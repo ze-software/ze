@@ -4,7 +4,7 @@ module ze-authz-conf {
 
     import ze-extensions { prefix ze; }
 
-    description "Authorization profile configuration for Ze";
+    description "Authentication and authorization configuration for Ze";
 
     revision 2026-01-01 {
         description "Initial revision";
@@ -12,6 +12,45 @@ module ze-authz-conf {
 
     container system {
         description "System-level settings";
+
+        container authentication {
+            description "System authentication settings";
+
+            list user {
+                key "name";
+                description "Authenticated user (local)";
+
+                leaf name {
+                    type string;
+                    description "Username";
+                }
+
+                leaf password {
+                    type string;
+                    ze:bcrypt;
+                    description "Bcrypt-hashed password (canonical form, e.g. $2a$10$...).
+                                 Write plaintext via plaintext-password -- it is hashed
+                                 into this leaf on commit and then discarded.";
+                }
+
+                leaf plaintext-password {
+                    type string;
+                    ze:ephemeral;
+                    ze:sensitive;
+                    description "Write-only plaintext password. On commit, the config
+                                 system bcrypt-hashes this value into the canonical
+                                 password leaf and removes this one from the tree.
+                                 The value is never written to the config file, and
+                                 a display path renders the secret placeholder for
+                                 it.";
+                }
+
+                leaf-list profile {
+                    type string;
+                    description "Authorization profile name(s) assigned to this user";
+                }
+            }
+        }
 
         container authorization {
             description "Profile-based command authorization";

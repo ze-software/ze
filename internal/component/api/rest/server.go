@@ -20,7 +20,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/api"
 	"github.com/ze-software/ze/internal/core/audit"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -44,21 +43,14 @@ var ConvenienceCommands = []string{
 	"request reload",
 }
 
-// Authenticator validates an Authorization header value and returns the
-// authenticated username. Returns ("", false) on invalid credentials.
-// When nil, the server accepts all requests with no authentication.
-type Authenticator func(authHeader string) (username string, ok bool)
-
 // RESTConfig holds REST server configuration.
 // ListenAddrs must contain at least one entry; every entry becomes a
 // separate listener on the same *http.Server. Shutdown closes all of them.
 type RESTConfig struct {
-	ListenAddrs   []string       // e.g. []string{"0.0.0.0:8081", "127.0.0.1:18081"}
-	Token         string         // Single bearer token (empty = no auth). Ignored when Authenticator is set.
-	Authenticator Authenticator  // Per-user auth callback. When set, Token is not checked.
-	Authorizer    aaa.Authorizer // Optional per-command profile authorizer for config sessions.
-	CORSOrigin    string         // Allowed CORS origin (empty = no CORS headers)
-	AuditRecorder audit.Recorder
+	ListenAddrs    []string                   // e.g. []string{"127.0.0.1:8081", "127.0.0.1:18081"}
+	Authentication api.AuthenticationProvider // Live accepted request-authentication generation.
+	CORSOrigin     string
+	AuditRecorder  audit.Recorder
 }
 
 // OpenAPIProvider returns the OpenAPI spec bytes.
@@ -71,14 +63,12 @@ type OpenAPIProvider func() []byte
 // closed and ListenAndServe returns the error.
 // Caller MUST call Shutdown when done.
 type RESTServer struct {
-	engine        *api.APIEngine
-	sessions      *api.ConfigSessionManager
-	openAPI       OpenAPIProvider
-	token         string
-	authenticator Authenticator
-	authorizer    aaa.Authorizer
-	corsOrigin    string
-	auditRecorder audit.Recorder
+	engine         *api.APIEngine
+	sessions       *api.ConfigSessionManager
+	openAPI        OpenAPIProvider
+	authentication api.AuthenticationProvider
+	corsOrigin     string
+	auditRecorder  audit.Recorder
 
 	srv *http.Server
 	// configured holds the addresses passed in by the caller, in original order.
@@ -112,17 +102,19 @@ func NewRESTServer(cfg RESTConfig, engine *api.APIEngine, sessions *api.ConfigSe
 		}
 	}
 
+	authentication := cfg.Authentication
+	if authentication == nil {
+		authentication = func() api.Authentication { return api.Authentication{} }
+	}
 	s := &RESTServer{
-		engine:        engine,
-		sessions:      sessions,
-		openAPI:       openAPI,
-		token:         cfg.Token,
-		authenticator: cfg.Authenticator,
-		authorizer:    cfg.Authorizer,
-		corsOrigin:    cfg.CORSOrigin,
-		auditRecorder: cfg.AuditRecorder,
-		configured:    append([]string(nil), cfg.ListenAddrs...),
-		listeners:     make(map[string]net.Listener),
+		engine:         engine,
+		sessions:       sessions,
+		openAPI:        openAPI,
+		authentication: authentication,
+		corsOrigin:     cfg.CORSOrigin,
+		auditRecorder:  cfg.AuditRecorder,
+		configured:     append([]string(nil), cfg.ListenAddrs...),
+		listeners:      make(map[string]net.Listener),
 	}
 
 	mux := http.NewServeMux()
@@ -454,7 +446,7 @@ func (s *RESTServer) handleExecute(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusForbidden, result.Error)
 		return
 	}
-	writeJSON(w, http.StatusOK, result)
+	writeExecResult(w, result)
 }
 
 func (s *RESTServer) handleConvenience(command string) http.HandlerFunc {
@@ -464,7 +456,7 @@ func (s *RESTServer) handleConvenience(command string) http.HandlerFunc {
 			writeError(w, http.StatusForbidden, result.Error)
 			return
 		}
-		writeJSON(w, http.StatusOK, result)
+		writeExecResult(w, result)
 	}
 }
 
@@ -484,7 +476,7 @@ func (s *RESTServer) handlePeerByName(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusForbidden, result.Error)
 		return
 	}
-	writeJSON(w, http.StatusOK, result)
+	writeExecResult(w, result)
 }
 
 func (s *RESTServer) handlePeerAction(action string) http.HandlerFunc {
@@ -504,7 +496,7 @@ func (s *RESTServer) handlePeerAction(action string) http.HandlerFunc {
 			writeError(w, http.StatusForbidden, result.Error)
 			return
 		}
-		writeJSON(w, http.StatusOK, result)
+		writeExecResult(w, result)
 	}
 }
 
@@ -525,7 +517,7 @@ func (s *RESTServer) handlePeerRefresh(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusForbidden, result.Error)
 		return
 	}
-	writeJSON(w, http.StatusOK, result)
+	writeExecResult(w, result)
 }
 
 func (s *RESTServer) handleRIB(w http.ResponseWriter, r *http.Request) {
@@ -555,7 +547,7 @@ func (s *RESTServer) handleRIB(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusForbidden, result.Error)
 		return
 	}
-	writeJSON(w, http.StatusOK, result)
+	writeExecResult(w, result)
 }
 
 func (s *RESTServer) handleConfigRunning(w http.ResponseWriter, r *http.Request) {
@@ -564,7 +556,7 @@ func (s *RESTServer) handleConfigRunning(w http.ResponseWriter, r *http.Request)
 		writeError(w, http.StatusForbidden, result.Error)
 		return
 	}
-	writeJSON(w, http.StatusOK, result)
+	writeExecResult(w, result)
 }
 
 func (s *RESTServer) handleConfigEnter(w http.ResponseWriter, r *http.Request) {
@@ -861,6 +853,18 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.WriteHeader(status)
 	if _, writeErr := w.Write(data); writeErr != nil {
 		return
+	}
+}
+
+// writeExecResult completes the command response only after its JSON payload
+// has been written and flushed to the HTTP transport.
+func writeExecResult(w http.ResponseWriter, result *api.ExecResult) {
+	writeJSON(w, http.StatusOK, result)
+	if flusher, ok := w.(http.Flusher); ok {
+		flusher.Flush()
+	}
+	if result != nil {
+		result.TransportComplete()
 	}
 }
 

@@ -1,6 +1,6 @@
 // Design: ai/rules/evidence.md -- the exposure guard, re-run on every reload
 // Related: mgmt_guard.go -- the boot-time classifier these reloaders re-answer for
-// Related: listener_migrate.go -- authReloader, AuthUpdatable, reloadListeners
+// Related: listener_migrate.go -- authReloader, authReporter, reloadListeners
 //
 // How each management surface's authentication is resolved from a RELOADED
 // config tree. The boot guard (mgmt_guard.go) answers the same question once,
@@ -22,8 +22,8 @@ import (
 	zeconfig "github.com/ze-software/ze/internal/component/config"
 )
 
-// mgmtAuthInputs carries the boot precedence answers a reload cannot re-derive
-// and the live credential source that follows the running ConfigProvider.
+// mgmtAuthInputs carries boot precedence answers a reload cannot re-derive and
+// the candidate credential resolver used to classify the final API mode.
 type mgmtAuthInputs struct {
 	// webFollowsConfig is true when the config file's `insecure` leaf decided
 	// the web authentication switch at boot. It is false when a flag or an
@@ -39,12 +39,9 @@ type mgmtAuthInputs struct {
 	// as it does at boot.
 	apiTokenEnv string
 
-	// apiUsersLive returns the credentials valid right now (liveLocalUsers in
-	// main.go). runReload installs the candidate tree in ConfigProvider before
-	// invoking listener reloaders, so this call resolves the candidate users.
-	// The rebuilt authenticator keeps the same closure for request-time reads,
-	// so later user removals cannot revive a stale account.
-	apiUsersLive func() ([]authz.UserConfig, error)
+	// apiCandidateUsers reads the provider only while runReload stages the
+	// candidate generation. Its result selects the candidate auth mode.
+	apiCandidateUsers func() ([]authz.UserConfig, error)
 }
 
 // markMgmtAuth hands the boot guard's classification to the listener migrator,
@@ -132,35 +129,45 @@ func mcpAuthReloader(in mgmtAuthInputs) authReloader {
 	}
 }
 
-// apiAuthReloader resolves the credentials the reloaded config gives the REST
-// and gRPC servers. Both transports can install them without rebinding
-// (AuthUpdatable), so this reloader returns the material as well as the mode.
+// apiAuthReloader resolves only the final authentication mode for exposure
+// checks. Candidate tokens and users remain in the unpublished identity state.
+// A present block re-resolves config-over-environment token precedence. An
+// absent block retains the accepted token because an environment- or
+// flag-started transport remains live, but still resolves candidate users so
+// deleting the final user cannot silently expose that listener.
 func apiAuthReloader(in mgmtAuthInputs) authReloader {
 	return func(tree *zeconfig.Tree) (authIntent, bool, error) {
-		cfg, ok := zeconfig.ExtractAPIConfig(tree)
-		if !ok {
-			// The reloaded config says nothing about the API. The running
-			// servers keep the credentials they have: removing a block must
-			// never strip authentication off a listener that stays up.
-			return authIntent{}, false, nil
+		cfg, present := zeconfig.ExtractAPISettings(tree)
+		if in.apiCandidateUsers == nil {
+			return authIntent{}, false, fmt.Errorf("resolve candidate API users: %w", errNoLiveConfigProvider)
 		}
-
-		if in.apiUsersLive == nil {
-			return authIntent{}, false, fmt.Errorf("resolve live API users: %w", errNoLiveConfigProvider)
-		}
-		users, err := in.apiUsersLive()
+		users, err := in.apiCandidateUsers()
 		if err != nil {
-			return authIntent{}, false, fmt.Errorf("resolve live API users: %w", err)
+			return authIntent{}, false, fmt.Errorf("resolve candidate API users: %w", err)
 		}
 
-		token := cfg.Token
-		if token == "" {
-			token = in.apiTokenEnv
+		retainedToken := ""
+		if !present {
+			accepted := acceptedLocalIdentity.Load()
+			if accepted == nil {
+				return authIntent{}, false, fmt.Errorf("resolve retained API token: %w", errNoAcceptedLocalIdentity)
+			}
+			retainedToken = accepted.apiToken
 		}
-		return authIntent{
-			authenticated: len(users) > 0 || token != "",
-			token:         token,
-			authenticator: buildUserAuthenticator(users, in.apiUsersLive),
-		}, true, nil
+		token := candidateAPIToken(cfg.Token, present, retainedToken, in.apiTokenEnv)
+		return authIntent{authenticated: len(users) > 0 || token != ""}, true, nil
 	}
+}
+
+// candidateAPIToken is shared by exposure classification and final identity
+// publication so both answer from identical absent-block retention and
+// config-over-environment precedence.
+func candidateAPIToken(configToken string, blockPresent bool, retainedToken, environmentToken string) string {
+	if !blockPresent {
+		return retainedToken
+	}
+	if configToken != "" {
+		return configToken
+	}
+	return environmentToken
 }

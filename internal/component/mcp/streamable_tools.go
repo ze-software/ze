@@ -249,11 +249,18 @@ func (s *Streamable) callTool(ctx context.Context, req *request, scope requestSc
 	// `ze:task-support`, and the server-directed rule below has nothing to
 	// read.
 	if s.cfg.Provider != nil {
-		result := s.cfg.Provider.CallTool(params.Name, params.Arguments)
+		var result *ToolResult
+		if provider, ok := s.cfg.Provider.(completingToolProvider); ok {
+			result = provider.CallToolResult(params.Name, params.Arguments)
+		} else if value := s.cfg.Provider.CallTool(params.Name, params.Arguments); value != nil {
+			result = &ToolResult{Value: value}
+		}
 		if result == nil {
 			return s.fail(req.ID, rpcInvalidParams, tb.Reset().Str("unknown tool: ").Str(params.Name).String())
 		}
-		return s.ok(req.ID, result)
+		resp := s.ok(req.ID, result.Value)
+		resp.completion = result.Completion
+		return resp
 	}
 
 	// The server-directed eligibility decision (D-1). The client no longer opts
@@ -299,11 +306,15 @@ func (s *Streamable) callTool(ctx context.Context, req *request, scope requestSc
 		inputResponses: decodeInputResponses(req.Params),
 	}
 	if handler, ok := toolHandlers[params.Name]; ok {
-		return s.ok(req.ID, handler(runner, params.Arguments))
+		resp := s.ok(req.ID, handler(runner, params.Arguments))
+		resp.completion = runner.completion
+		return resp
 	}
 	if s.cfg.Commands != nil {
 		if prefix, validActions, ok := s.findGeneratedTool(params.Name); ok {
-			return s.ok(req.ID, runner.dispatchGenerated(prefix, validActions, params.Arguments))
+			resp := s.ok(req.ID, runner.dispatchGenerated(prefix, validActions, params.Arguments))
+			resp.completion = runner.completion
+			return resp
 		}
 	}
 	return s.fail(req.ID, rpcInvalidParams, tb.Reset().Str("unknown tool: ").Str(params.Name).String())
@@ -675,6 +686,9 @@ func writeJSONResponse(w http.ResponseWriter, v any) {
 // HTTP status. MCP 2026-07-28 pins a status to several JSON-RPC error codes, so
 // the status is chosen with the body rather than defaulted to 200.
 func writeJSONResponseStatus(w http.ResponseWriter, status int, v any) {
+	if resp, ok := v.(*response); ok && resp.completion != nil {
+		defer resp.completion.TransportComplete()
+	}
 	data, err := json.Marshal(v)
 	if err != nil {
 		http.Error(w, "encode error", http.StatusInternalServerError)
@@ -684,5 +698,8 @@ func writeJSONResponseStatus(w http.ResponseWriter, status int, v any) {
 	w.WriteHeader(status)
 	if _, writeErr := w.Write(data); writeErr != nil {
 		return
+	}
+	if flusher, ok := w.(http.Flusher); ok {
+		flusher.Flush()
 	}
 }

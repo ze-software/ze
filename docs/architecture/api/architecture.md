@@ -422,7 +422,97 @@ Monitor supports filtering by peer address, event type, and direction. Pipe oper
 
 ## Identity and Authorization
 
-User identity for authorization is always injected by the transport layer, never accepted from the client payload:
+### REST and gRPC authentication flow
+
+At boot, `runYANGConfig` loads the zefs user snapshot once. It creates
+`liveLocalUsers` after the config provider contains the running tree.
+`liveLocalUsers` merges that snapshot with `system.authentication.user`.
+A config user replaces a same-name zefs user. Only surviving zefs users retain
+their recovery profile.
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig -->
+<!-- source: cmd/ze/hub/main_servers.go -- liveLocalUsers, mergeAuthUsers, usersFromZefsDB -->
+
+`runYANGConfig` calls the live source once to produce the shared boot snapshot.
+A source error stops startup before AAA installation or management listener
+construction.
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig boot user resolution -->
+
+The first BGP or no-BGP construction builds and publishes one boot-owned AAA
+bundle before command dispatch. A later BGP infrastructure hook reuses that
+bundle, so open sessions and in-flight accounting never cross a backend close.
+Each accepted API generation binds its local policy store as the bundle's local
+fallback. External authorizers keep registry priority, and TACACS+ receives the
+same local fallback.
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig -->
+<!-- source: cmd/ze/hub/infra_setup.go -- boot-owned bundle construction and reuse -->
+<!-- source: cmd/ze/hub/aaa_lifecycle.go -- claimAAABundleBoot, acceptedLocalGenerationAuthorizer -->
+<!-- source: internal/component/aaa/types.go -- Bundle.AuthorizerWithLocalFallback -->
+<!-- source: internal/component/tacacs/authorizer.go -- TacacsAuthorizer.BindLocalFallback -->
+
+`newAcceptedLocalIdentity` calls `buildAPIAuthentication` once for each
+candidate generation. The builder wraps that generation's fixed users with
+`WithProfileAuthorizer`. A successful result carries the same generation's
+authorization view in `AuthResult.Authorizer`, beside the authenticated
+username. REST and gRPC obtain the accepted `api.Authentication` snapshot once
+for each request.
+<!-- source: cmd/ze/hub/aaa_lifecycle.go -- newAcceptedLocalIdentity, liveAcceptedAPIAuthentication -->
+<!-- source: cmd/ze/hub/api.go -- buildAPIAuthentication -->
+<!-- source: internal/component/api/types.go -- Authentication, AuthenticationProvider -->
+<!-- source: internal/component/aaa/login_profiles.go -- WithProfileAuthorizer, AuthorizerForResult -->
+
+REST and gRPC use the same authentication precedence and authorization
+identities:
+
+| Mode | Transport producer | Authorization identity | Authority |
+|------|--------------------|------------------------|-----------|
+| Per-user | REST `withAuth`, gRPC `checkAuth` | Authenticated username and result authorizer | Assigned or authentication-resolved profiles |
+| Shared token | REST `withAuth`, gRPC `checkAuth` | `ReservedSharedAPIUsername` | Read and write |
+| No auth | REST `withAuth`, gRPC `checkAuth` | `ReservedSharedAPIUsername` | Read-only |
+
+REST `callerIdentity` publishes the trusted request identity and its authorizer.
+gRPC returns the same classification from `checkAuth`. Both transports attach
+that identity to the request context before command dispatch. Concurrent
+requests with the same username cannot replace each other's authorization
+view. The read-only check rejects no-auth writes before `Store.Authorize`
+permits the shared identity.
+<!-- source: internal/component/api/rest/auth.go -- RESTServer.withAuth, RESTServer.callerIdentity -->
+<!-- source: internal/component/api/grpc/server.go -- GRPCServer.checkAuth -->
+<!-- source: internal/component/plugin/dispatch.go -- WithCallerAuthorizer, CallerAuthorizer -->
+<!-- source: internal/component/aaa/reserved.go -- ReservedSharedAPIUsername -->
+<!-- source: internal/component/authz/authz.go -- Store.Authorize, Store.AuthorizeWithProfiles -->
+
+On reload, `runReloadContext` applies the candidate tree to the config provider.
+It resolves candidate users through the accepted generation's resolver. It then
+passes those users, the candidate authorization store, and the API token to
+`newAcceptedLocalIdentity`. The new state stays unpublished while remaining
+steps can fail.
+
+During listener migration, REST and gRPC use a fail-closed staging view.
+`apiAuthReloader` only classifies whether the candidate exposure is
+authenticated. It does not build or publish an authenticator. After every reload
+step succeeds, `runReloadContext` atomically publishes the complete state. A
+failed listener migration restores the prior API generation after rollback. A
+failed listener rollback leaves API authentication fail closed.
+<!-- source: cmd/ze/hub/main_reload.go -- runReloadContext -->
+<!-- source: cmd/ze/hub/aaa_lifecycle.go -- newAcceptedLocalIdentity, stageAPIAuthentication, publishAcceptedLocalIdentity -->
+<!-- source: cmd/ze/hub/mgmt_auth_reload.go -- apiAuthReloader -->
+
+REST constructors and reconfiguration reject every non-loopback address. gRPC
+permits a non-loopback address only when authentication and TLS are both
+configured.
+<!-- source: internal/component/api/rest/server.go -- NewRESTServer, RESTServer.Reconfigure -->
+<!-- source: internal/component/api/grpc/server.go -- NewGRPCServer, checkGRPCListenAddr -->
+
+Shared local users belong to `acceptedLocalIdentityState`.
+`SSHExtractedConfig` contains only SSH listener settings. An `environment.ssh`
+block does not produce API users or API AAA.
+<!-- source: cmd/ze/hub/aaa_lifecycle.go -- acceptedLocalIdentityState -->
+<!-- source: internal/component/config/infra/hook.go -- SSHExtractedConfig -->
+
+### Other command transports
+
+User identity for authorization is injected by the transport layer and is
+never accepted from the client payload:
 
 | Transport | Identity source |
 |-----------|----------------|
@@ -431,7 +521,8 @@ User identity for authorization is always injected by the transport layer, never
 | Plugin (external) | Plugin auth token (TLS handshake) |
 | Unix socket | OS peer credentials |
 
-The `RPCParams` struct does not carry a username field. Authorization checks use the `CommandContext.Username` set by the server from the transport session, not from client-supplied JSON.
+The `RPCParams` struct does not carry a username field. Authorization checks use
+the `CommandContext.Username` that the server sets from the transport session.
 <!-- source: internal/component/plugin/server/command.go -- CommandContext -->
 
 ## Connection Types

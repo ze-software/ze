@@ -1,0 +1,3 @@
+| Date | Spec | Surface | Symptom | Fix |
+|------|------|---------|---------|-----|
+| 2026-08-17 | spec-hub-deferred-api-auth-independent-of-ssh-block | AAA bundle lifecycle | BGP infrastructure hook reentry rebuilt and swapped the AAA bundle after no-BGP startup. A rejected BGP auto-load could leave candidate backends live, close an established session's TACACS authorizer, and stop the accountant before its matching STOP record | AAA construction now has one boot-owned attempt. Hook reentry reuses the installed bundle, and a failed initial build still consumes the attempt. `TestInfraSetupReentryReusesNoBGPBootBundle` and `TestInfraSetupReentryDoesNotRetryFailedNoBGPAAABoot` cover both paths |

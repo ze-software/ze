@@ -528,6 +528,30 @@ type DispatchCommandOutput struct {
 	Status string          `json:"status"`         // "done" or "error" (see plugin.StatusDone/StatusError)
 	Data   json.RawMessage `json:"data,omitempty"` // raw JSON response data (single-decode)
 	Error  string          `json:"error,omitempty"`
+
+	transportComplete func()
+}
+
+// OnTransportComplete carries an accepted action across the in-process bridge
+// without adding it to the serialized RPC response.
+func (o *DispatchCommandOutput) OnTransportComplete(action func()) {
+	if o == nil {
+		return
+	}
+	o.transportComplete = action
+}
+
+// TransportComplete runs the accepted action after the RPC transport has
+// delivered this output. Repeated calls are harmless.
+func (o *DispatchCommandOutput) TransportComplete() {
+	if o == nil {
+		return
+	}
+	action := o.transportComplete
+	o.transportComplete = nil
+	if action != nil {
+		action()
+	}
 }
 
 // EmitEventInput is the input for ze-plugin-engine:emit-event.

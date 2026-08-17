@@ -7,8 +7,6 @@ package grpc
 
 import (
 	"context"
-	"crypto/sha256"
-	"crypto/subtle"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
@@ -24,6 +22,7 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/reflection"
+	"google.golang.org/grpc/stats"
 	"google.golang.org/grpc/status"
 
 	zepb "github.com/ze-software/ze/api/proto"
@@ -31,31 +30,57 @@ import (
 	"github.com/ze-software/ze/internal/component/api"
 	"github.com/ze-software/ze/internal/core/audit"
 	"github.com/ze-software/ze/internal/core/slogutil"
-	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 var logger = slogutil.Logger("api.grpc")
 
-// defaultUsername is used when no authenticator is configured (unauthenticated mode)
-// or when the single-token path authenticates without identifying a specific user.
-const defaultUsername = "api"
+type transportCompletionKey struct{}
 
-// Authenticator validates an Authorization header value and returns the
-// authenticated username. Returns ("", false) on invalid credentials.
-// When nil, the server accepts all requests with no authentication.
-type Authenticator func(authHeader string) (username string, ok bool)
+type transportCompletion struct {
+	result *api.ExecResult
+}
+
+type transportCompletionStatsHandler struct{}
+
+func (transportCompletionStatsHandler) TagRPC(ctx context.Context, _ *stats.RPCTagInfo) context.Context {
+	return context.WithValue(ctx, transportCompletionKey{}, &transportCompletion{})
+}
+
+func (transportCompletionStatsHandler) HandleRPC(ctx context.Context, rpcStats stats.RPCStats) {
+	if _, sent := rpcStats.(*stats.OutPayload); !sent {
+		return
+	}
+	completion, ok := ctx.Value(transportCompletionKey{}).(*transportCompletion)
+	if !ok || completion.result == nil {
+		return
+	}
+	result := completion.result
+	completion.result = nil
+	result.TransportComplete()
+}
+
+func (transportCompletionStatsHandler) TagConn(ctx context.Context, _ *stats.ConnTagInfo) context.Context {
+	return ctx
+}
+
+func (transportCompletionStatsHandler) HandleConn(context.Context, stats.ConnStats) {}
+
+func completeAfterGRPCPayload(ctx context.Context, result *api.ExecResult) {
+	completion, ok := ctx.Value(transportCompletionKey{}).(*transportCompletion)
+	if ok {
+		completion.result = result
+	}
+}
 
 // GRPCConfig holds gRPC server configuration.
 // ListenAddrs must contain at least one entry; every entry becomes a
 // separate listener on the same *grpc.Server. Stop closes all of them.
 type GRPCConfig struct {
-	ListenAddrs   []string       // e.g. []string{"0.0.0.0:50051", "127.0.0.1:51051"}
-	Token         string         // Single bearer token (empty = no auth). Ignored when Authenticator is set.
-	Authenticator Authenticator  // Per-user auth callback. When set, Token is not checked.
-	Authorizer    aaa.Authorizer // Optional per-command profile authorizer for config sessions.
-	TLSCert       string         // Path to TLS certificate file (empty = plaintext)
-	TLSKey        string         // Path to TLS key file (empty = plaintext)
-	AuditRecorder audit.Recorder
+	ListenAddrs    []string                   // e.g. []string{"0.0.0.0:50051", "127.0.0.1:51051"}
+	Authentication api.AuthenticationProvider // Live accepted request-authentication generation.
+	TLSCert        string
+	TLSKey         string
+	AuditRecorder  audit.Recorder
 }
 
 // GRPCServer is the gRPC API server.
@@ -64,12 +89,10 @@ type GRPCConfig struct {
 // serve goroutine; if ANY bind fails the already-bound listeners are closed
 // and Serve returns the error.
 type GRPCServer struct {
-	engine        *api.APIEngine
-	sessions      *api.ConfigSessionManager
-	token         string
-	authenticator Authenticator
-	authorizer    aaa.Authorizer
-	auditRecorder audit.Recorder
+	engine         *api.APIEngine
+	sessions       *api.ConfigSessionManager
+	authentication api.AuthenticationProvider
+	auditRecorder  audit.Recorder
 	// tlsConfigured records that the server was built with a certificate and
 	// key, so its listeners are encrypted. Reconfigure needs it: a reload moving
 	// a listener off loopback must apply the same TLS requirement the
@@ -105,27 +128,30 @@ func NewGRPCServer(cfg GRPCConfig, engine *api.APIEngine, sessions *api.ConfigSe
 		return nil, errors.New("both TLSCert and TLSKey must be set together")
 	}
 
+	authentication := cfg.Authentication
+	if authentication == nil {
+		authentication = func() api.Authentication { return api.Authentication{} }
+	}
 	for _, addr := range cfg.ListenAddrs {
-		if err := checkGRPCListenAddr(addr, cfg.Token != "" || cfg.Authenticator != nil, hasTLS); err != nil {
+		if err := checkGRPCListenAddr(addr, authentication().Required, hasTLS); err != nil {
 			return nil, err
 		}
 	}
 
 	s := &GRPCServer{
-		engine:        engine,
-		sessions:      sessions,
-		token:         cfg.Token,
-		authenticator: cfg.Authenticator,
-		authorizer:    cfg.Authorizer,
-		auditRecorder: cfg.AuditRecorder,
-		tlsConfigured: hasTLS,
-		configured:    append([]string(nil), cfg.ListenAddrs...),
-		listeners:     make(map[string]net.Listener),
+		engine:         engine,
+		sessions:       sessions,
+		authentication: authentication,
+		auditRecorder:  cfg.AuditRecorder,
+		tlsConfigured:  hasTLS,
+		configured:     append([]string(nil), cfg.ListenAddrs...),
+		listeners:      make(map[string]net.Listener),
 	}
 
 	opts := []grpc.ServerOption{
 		grpc.ChainUnaryInterceptor(s.authUnaryInterceptor),
 		grpc.ChainStreamInterceptor(s.authStreamInterceptor),
+		grpc.StatsHandler(transportCompletionStatsHandler{}),
 	}
 
 	// Load TLS credentials if both cert and key are configured.
@@ -143,7 +169,7 @@ func NewGRPCServer(cfg GRPCConfig, engine *api.APIEngine, sessions *api.ConfigSe
 
 	s.srv = grpc.NewServer(opts...)
 	zepb.RegisterZeServiceServer(s.srv, &zeServiceImpl{engine: engine})
-	zepb.RegisterZeConfigServiceServer(s.srv, &zeConfigServiceImpl{engine: engine, sessions: sessions, authorizer: cfg.Authorizer, auditRecorder: cfg.AuditRecorder})
+	zepb.RegisterZeConfigServiceServer(s.srv, &zeConfigServiceImpl{engine: engine, sessions: sessions, auditRecorder: cfg.AuditRecorder})
 	reflection.Register(s.srv)
 
 	return s, nil
@@ -263,9 +289,7 @@ func (s *GRPCServer) Reconfigure(ctx context.Context, newAddrs []string) error {
 	}
 
 	// The constructor's rule, re-applied to the addresses this reload asks for.
-	// Skipping it let a SIGHUP move an authenticated plaintext listener off
-	// loopback, a state the daemon refuses to boot into.
-	authenticated := s.authenticator != nil || s.token != ""
+	authenticated := s.authentication().Required
 	for _, addr := range newAddrs {
 		if err := checkGRPCListenAddr(addr, authenticated, s.tlsConfigured); err != nil {
 			return err
@@ -386,37 +410,23 @@ func (s *GRPCServer) Address() string {
 
 // --- Auth interceptors ---
 
-// usernameKeyType is the context key for the authenticated username.
-type usernameKeyType struct{}
+type callerKeyType struct{}
 
-var usernameKey = usernameKeyType{}
-
-type readOnlyKeyType struct{}
-
-var readOnlyKey = readOnlyKeyType{}
-
-// usernameFromContext extracts the authenticated username, defaulting to defaultUsername.
-func usernameFromContext(ctx context.Context) string {
-	if user, ok := ctx.Value(usernameKey).(string); ok {
-		return user
-	}
-	return defaultUsername
-}
-
-func readOnlyFromContext(ctx context.Context) bool {
-	readOnly, _ := ctx.Value(readOnlyKey).(bool)
-	return readOnly
-}
+var callerKey = callerKeyType{}
 
 func callerIdentityFromContext(ctx context.Context) api.CallerIdentity {
-	caller := api.CallerIdentity{Username: usernameFromContext(ctx), Surface: audit.GRPC, ReadOnly: readOnlyFromContext(ctx)}
-	if p, ok := peer.FromContext(ctx); ok && p.Addr != nil {
-		caller.RemoteAddr = p.Addr.String()
+	if caller, ok := ctx.Value(callerKey).(api.CallerIdentity); ok {
+		return caller
 	}
-	return caller
+	return api.CallerIdentity{Surface: audit.GRPC, ReadOnly: true}
 }
 
-// wrappedStream overrides ServerStream.Context to inject the authenticated username.
+func usernameFromContext(ctx context.Context) string {
+	return callerIdentityFromContext(ctx).Username
+}
+
+// wrappedStream overrides ServerStream.Context to inject the authenticated
+// identity and its accepted policy generation.
 type wrappedStream struct {
 	grpc.ServerStream
 	ctx context.Context
@@ -425,23 +435,22 @@ type wrappedStream struct {
 func (w *wrappedStream) Context() context.Context { return w.ctx }
 
 func (s *GRPCServer) authUnaryInterceptor(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
-	user, readOnly, err := s.checkAuth(ctx)
+	caller, err := s.checkAuth(ctx)
 	if err != nil {
 		return nil, err
 	}
-	ctx = context.WithValue(ctx, usernameKey, user)
-	ctx = context.WithValue(ctx, readOnlyKey, readOnly)
-	return handler(ctx, req)
+	return handler(context.WithValue(ctx, callerKey, caller), req)
 }
 
 func (s *GRPCServer) authStreamInterceptor(srv any, ss grpc.ServerStream, _ *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-	user, readOnly, err := s.checkAuth(ss.Context())
+	caller, err := s.checkAuth(ss.Context())
 	if err != nil {
 		return err
 	}
-	ctx := context.WithValue(ss.Context(), usernameKey, user)
-	ctx = context.WithValue(ctx, readOnlyKey, readOnly)
-	wrapped := &wrappedStream{ServerStream: ss, ctx: ctx}
+	wrapped := &wrappedStream{
+		ServerStream: ss,
+		ctx:          context.WithValue(ss.Context(), callerKey, caller),
+	}
 	return handler(srv, wrapped)
 }
 
@@ -450,17 +459,9 @@ func (s *GRPCServer) authStreamInterceptor(srv any, ss grpc.ServerStream, _ *grp
 // second, the bearer token that satisfies the first crosses the network in
 // cleartext.
 //
-// Four callers reach a listening state, and every one of them goes through
-// this: NewGRPCServer, Reconfigure, UpdateAuth, and the undo UpdateAuth
-// returns. The undo is the easiest of the four to forget, because putting a
-// previous value back does not look like a change; it is judged against the
-// addresses in force when it RUNS, and a reload moves those.
-//
-// Both omissions were live defects. Before Reconfigure consulted this, a SIGHUP
-// moved an authenticated plaintext listener from loopback to 0.0.0.0. Before
-// the undo consulted it, a reload that installed a token, moved the listener to
-// 0.0.0.0, and then failed at a later step restored the empty credentials and
-// left the public port ungated.
+// Construction and every reconfiguration evaluate the currently published
+// generation. Reload publishes fail-closed staging before moving a listener, so
+// no candidate credential is usable on either the old or new address.
 func checkGRPCListenAddr(addr string, authenticated, tlsConfigured bool) error {
 	if api.IsLoopbackAddr(addr) {
 		return nil
@@ -474,126 +475,51 @@ func checkGRPCListenAddr(addr string, authenticated, tlsConfigured bool) error {
 	return nil
 }
 
-// authSnapshot returns the credentials gating RPCs right now. The read is
-// synchronized because UpdateAuth replaces them while the server is serving, so
-// an RPC in flight during a reload sees the old pair or the new one and never a
-// mix of the two.
-func (s *GRPCServer) authSnapshot() (string, Authenticator) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.token, s.authenticator
-}
-
-// Authenticated reports whether every RPC is gated right now. It reads the live
-// credentials rather than the ones the server was constructed with, so the
-// reload exposure guard classifies what the server actually serves.
+// Authenticated reports whether the currently published generation gates every
+// RPC. Fail-closed staging counts as gated for exposure checks.
 func (s *GRPCServer) Authenticated() bool {
-	token, authenticator := s.authSnapshot()
-	return authenticator != nil || token != ""
+	return s.authentication().Required
 }
 
-// setAuthLocked installs credentials after checking that every address the
-// server holds tolerates them. Caller holds s.mu.
-//
-// Both UpdateAuth and the undo it returns go through this, and the undo is the
-// reason it exists. Restoring credentials is a credential CHANGE like any
-// other, and it is judged against the addresses in force WHEN IT RUNS, which
-// are not the ones in force when they were captured: a single reload installs a
-// token and then moves the listener off loopback, so an unconditional restore
-// puts an unauthenticated server on a public address.
-func (s *GRPCServer) setAuthLocked(token string, authenticator Authenticator) error {
-	addrs := s.bound
-	if len(addrs) == 0 {
-		addrs = s.configured
+// checkAuth obtains one immutable generation for the whole RPC. The returned
+// caller carries that generation's authorizer through dispatch.
+func (s *GRPCServer) checkAuth(ctx context.Context) (api.CallerIdentity, error) {
+	authentication := s.authentication()
+	caller := api.CallerIdentity{
+		Username: aaa.ReservedSharedAPIUsername,
+		Surface:  audit.GRPC,
+		ReadOnly: !authentication.Required,
 	}
-	for _, addr := range addrs {
-		if err := checkGRPCListenAddr(addr, token != "" || authenticator != nil, s.tlsConfigured); err != nil {
-			return err
-		}
+	if p, ok := peer.FromContext(ctx); ok && p.Addr != nil {
+		caller.RemoteAddr = p.Addr.String()
 	}
-	s.token = token
-	s.authenticator = authenticator
-	return nil
-}
-
-// UpdateAuth installs reloaded credentials without rebinding any listener, and
-// returns a function that puts the previous credentials back. A reload that
-// fails after this call runs that function, so a partially applied reload never
-// leaves the server less authenticated than it was.
-//
-// Removing authentication is refused while any address the server holds is
-// non-loopback. That is the refusal NewGRPCServer makes at construction,
-// applied to the addresses in force now: a remotely reachable gRPC listener
-// without credentials must never exist, and a config reload is not a way to
-// reach one.
-//
-// The undo carries the same refusal, and it KEEPS the reloaded credentials when
-// putting the old ones back would expose the listener. Keeping credentials the
-// running config does not describe is a divergence; serving a public port with
-// none is an exposure, and only one of those two is recoverable by restarting.
-func (s *GRPCServer) UpdateAuth(token string, authenticator func(authHeader string) (username string, ok bool)) (func(), error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if s.stopped {
-		return nil, errors.New("gRPC server has been stopped")
-	}
-
-	prevToken, prevAuthenticator := s.token, s.authenticator
-	if err := s.setAuthLocked(token, authenticator); err != nil {
-		return nil, err
-	}
-
-	return func() {
-		s.mu.Lock()
-		defer s.mu.Unlock()
-		if err := s.setAuthLocked(prevToken, prevAuthenticator); err != nil {
-			logger.Error("keeping the reloaded gRPC credentials: restoring the previous ones would leave a listener reachable without them",
-				"error", err)
-		}
-	}, nil
-}
-
-// checkAuth validates the Authorization metadata and returns the authenticated username.
-func (s *GRPCServer) checkAuth(ctx context.Context) (string, bool, error) {
-	// One snapshot for the whole check: reading the fields twice would let a
-	// reload land between the no-credentials decision and the comparison, and
-	// answer the two from different configurations.
-	token, authenticator := s.authSnapshot()
-
-	if authenticator == nil && token == "" {
-		return defaultUsername, true, nil
+	if !authentication.Required {
+		return caller, nil
 	}
 
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
 		s.recordAuthFailure(ctx, "")
-		return "", false, status.Error(codes.Unauthenticated, "missing metadata")
+		return api.CallerIdentity{}, status.Error(codes.Unauthenticated, "missing metadata")
 	}
 	tokens := md.Get("authorization")
 	if len(tokens) == 0 {
 		s.recordAuthFailure(ctx, "")
-		return "", false, status.Error(codes.Unauthenticated, "missing authorization")
+		return api.CallerIdentity{}, status.Error(codes.Unauthenticated, "missing authorization")
 	}
-
-	if authenticator != nil {
-		user, ok := authenticator(tokens[0])
-		if !ok {
-			s.recordAuthFailure(ctx, attemptedBearerUser(tokens[0]))
-			return "", false, status.Error(codes.Unauthenticated, "invalid credentials")
-		}
-		return user, false, nil
-	}
-
-	var tb textbuf.Buffer
-	expected := tb.Str("Bearer ").Str(token).String()
-	got := sha256.Sum256([]byte(tokens[0]))
-	want := sha256.Sum256([]byte(expected))
-	if subtle.ConstantTimeCompare(got[:], want[:]) != 1 {
+	if authentication.Authenticate == nil {
 		s.recordAuthFailure(ctx, attemptedBearerUser(tokens[0]))
-		return "", false, status.Error(codes.Unauthenticated, "invalid token")
+		return api.CallerIdentity{}, status.Error(codes.Unauthenticated, "authentication unavailable")
 	}
-	return defaultUsername, false, nil
+
+	authenticated, ok := authentication.Authenticate(tokens[0])
+	if !ok {
+		s.recordAuthFailure(ctx, attemptedBearerUser(tokens[0]))
+		return api.CallerIdentity{}, status.Error(codes.Unauthenticated, "invalid credentials")
+	}
+	authenticated.RemoteAddr = caller.RemoteAddr
+	authenticated.Surface = audit.GRPC
+	return authenticated, nil
 }
 
 func (s *GRPCServer) recordAuthFailure(ctx context.Context, actor string) {
@@ -645,7 +571,9 @@ func (s *zeServiceImpl) Execute(ctx context.Context, req *zepb.CommandRequest) (
 	if errors.Is(err, api.ErrUnauthorized) {
 		return nil, status.Error(codes.PermissionDenied, result.Error)
 	}
-	return execResultToProto(result), nil
+	response := execResultToProto(result)
+	completeAfterGRPCPayload(ctx, result)
+	return response, nil
 }
 
 func (s *zeServiceImpl) Stream(req *zepb.CommandRequest, stream zepb.ZeService_StreamServer) error {
@@ -714,18 +642,14 @@ type zeConfigServiceImpl struct {
 	engine        *api.APIEngine
 	sessions      *api.ConfigSessionManager
 	auditRecorder audit.Recorder
-	authorizer    aaa.Authorizer
 }
 
 func (s *zeConfigServiceImpl) requireWriteAccess(ctx context.Context, command string) error {
-	if readOnlyFromContext(ctx) {
+	caller := callerIdentityFromContext(ctx)
+	if caller.ReadOnly {
 		return status.Error(codes.PermissionDenied, "read-only API caller cannot modify configuration")
 	}
-	if s.authorizer == nil {
-		return nil
-	}
-	caller := callerIdentityFromContext(ctx)
-	if s.authorizer.Authorize(caller.Username, caller.RemoteAddr, command, false) {
+	if caller.Authorizer == nil || caller.Authorizer.Authorize(caller.Username, caller.RemoteAddr, command, false) {
 		return nil
 	}
 	return status.Error(codes.PermissionDenied, "API caller is not authorized to modify configuration")
@@ -736,6 +660,9 @@ func (s *zeConfigServiceImpl) GetRunningConfig(ctx context.Context, _ *zepb.Empt
 		Caller:  callerIdentityFromContext(ctx),
 		Command: "show config dump",
 	})
+	if errors.Is(err, api.ErrUnauthorized) {
+		return nil, status.Error(codes.PermissionDenied, result.Error)
+	}
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -743,6 +670,7 @@ func (s *zeConfigServiceImpl) GetRunningConfig(ctx context.Context, _ *zepb.Empt
 	if jsonErr != nil {
 		return nil, status.Error(codes.Internal, jsonErr.Error())
 	}
+	completeAfterGRPCPayload(ctx, result)
 	// The running config arrives as typed Data on the unified envelope. It may
 	// marshal to a bare JSON string literal (raw config text) or to a JSON
 	// object; unwrap the string literal so the config text is returned verbatim,

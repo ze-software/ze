@@ -549,12 +549,13 @@ func (s *LGServer) query(cmd string) string {
 	// caller identity (no username/remote-addr; the injected dispatcher supplies
 	// the fixed surface). Render the typed response to its JSON string here.
 	result, err := s.dispatch.JSON(context.Background(), plugin.CallerIdentity{}, cmd)
+	defer result.TransportComplete()
 	if err != nil {
 		s.logger.Warn("dispatch error", "command", cmd, "error", err)
 		b, _ := json.Marshal(map[string]any{"error": err.Error()})
 		return string(b)
 	}
-	return result
+	return result.Output
 }
 
 // writeJSONError writes a JSON error response with the given HTTP status code.

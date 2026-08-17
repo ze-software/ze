@@ -46,11 +46,15 @@ func serverDispatcher(s *pluginserver.Server, surface string) plugin.CommandDisp
 		if caller.Surface != "" {
 			srf = caller.Surface
 		}
+		if caller.Authorizer == nil {
+			caller.Authorizer = plugin.CallerAuthorizer(ctx)
+		}
 		cmdCtx := &pluginserver.CommandContext{
 			Server:     s,
 			Username:   caller.Username,
 			RemoteAddr: caller.RemoteAddr,
 			Surface:    srf,
+			Authorizer: caller.Authorizer,
 			// Every surface this dispatcher serves is an operator surface (web,
 			// ssh, mcp, cli, lg, chaos, REST, gRPC). The command carries the
 			// operator's own authority, which AAA checks against Username above,
@@ -103,12 +107,15 @@ func mergeAuthUsers(zefsUsers, configUsers []authz.UserConfig) []authz.UserConfi
 	return out
 }
 
-// errNoLiveConfigProvider reports that no live view of the running config is
-// wired, so the current user list cannot be read at all. The reachable caller
-// is liveLocalUsers with no config source threaded into it; the nil-provider
-// branch of liveConfigUsers guards the same seam one layer down, for a caller
-// that holds the provider rather than the func.
+// errNoLiveConfigProvider reports that no ConfigProvider-backed candidate user
+// source is wired. Boot and reload use that source to assemble a generation;
+// request-time authentication uses liveAcceptedLocalUsers instead.
 var errNoLiveConfigProvider = errors.New("no live config provider")
+
+// errNoAcceptedLocalIdentity reports that boot has not published a complete
+// users-plus-authorization generation. It is an authentication failure, never a
+// valid empty user list.
+var errNoAcceptedLocalIdentity = errors.New("no accepted local identity state")
 
 // errNoSystemConfigRoot reports that the running configuration holds no
 // `system` root at all, as distinct from a `system` root that declares no
@@ -120,25 +127,22 @@ var errNoLiveConfigProvider = errors.New("no live config provider")
 // caller says which one happened instead of treating one answer as two facts.
 var errNoSystemConfigRoot = errors.New("the running configuration declares no system root")
 
-// liveConfigUsers returns the users the CURRENT configuration declares, read
-// from the shared ConfigProvider rather than from a startup snapshot.
+// liveConfigUsers returns the users the ConfigProvider currently declares.
 //
-// Every applied reload refreshes that provider root by root
-// (applyLoadedTreeToProvider in main_reload.go), and a rolled-back reload
-// restores the prior roots, so the provider is the one in-process view of the
-// config the daemon is actually running. A caller that authenticates against it
-// stops accepting a user the operator deleted, without waiting for a restart.
+// During boot the provider holds the boot tree. During reload it temporarily
+// holds the candidate tree so the hub can stage a replacement identity
+// generation. Authentication must not call this function directly because a
+// candidate remains rejectable until the reload's final publication step.
 //
 // A nil provider is an ERROR, not an empty user list. The caller cannot tell a
 // configuration with no users from a configuration it failed to read, so this
 // makes the miss explicit at the producer and lets the caller deny
 // (ai/rules/evidence.md, "fail closed or say something").
 //
-// An absent `system` root is reported the same way, as errNoSystemConfigRoot
-// beside an empty list. It is not a denial (see that error), but it is the
-// fault mode this reader actually has: Provider.Get answers a missing root with
-// an empty map and a nil error, so before this branch existed the daemon losing
-// the root and the operator writing no users were one indistinguishable answer.
+// An absent `system` root is reported as errNoSystemConfigRoot beside an empty
+// list. It is not a denial (see that error), but it is the fault mode this
+// reader actually has: Provider.Get answers a missing root with an empty map and
+// a nil error.
 func liveConfigUsers(cp *zeconfig.Provider) ([]authz.UserConfig, error) {
 	if cp == nil {
 		return nil, errNoLiveConfigProvider
@@ -150,20 +154,21 @@ func liveConfigUsers(cp *zeconfig.Provider) ([]authz.UserConfig, error) {
 	return infra.ExtractAuthUsers(system), nil
 }
 
-// liveLocalUsers returns the local credentials the daemon accepts RIGHT NOW:
-// the zefs power users merged with the users the running configuration
-// declares. It is the one live source shared by AAA, API, standalone SSH, and
-// web authentication, so the surfaces cannot disagree about who exists.
+// liveLocalUsers assembles a candidate local identity list from the zefs boot
+// snapshot and the users currently in ConfigProvider. Config users win name
+// collisions.
+//
+// Production calls this resolver once at boot and once while staging each
+// reload. Request-time SSH, REST, gRPC, web, and AAA authentication call
+// liveAcceptedLocalUsers so a rejectable candidate is never exposed.
 //
 // zefsUsers is a startup snapshot and correctly so. Those credentials live in
 // the blob store, not the config file: no reload adds or removes them, and
 // `meta/instance/admin-disabled` is written only at image assembly
 // (internal/appliance/cmd_assemble.go).
 //
-// A read failure is logged HERE, at the layer that knows the read happened, and
-// returned so the caller denies. Every later layer sees only "no credentials
-// matched", which is indistinguishable from a wrong password
-// (ai/rules/evidence.md, "make the miss explicit at the producer").
+// A read failure is logged here, at the layer that knows the read happened, and
+// returned so boot or reload rejects the candidate.
 func liveLocalUsers(zefsUsers []authz.UserConfig, configUsers func() ([]authz.UserConfig, error), logger *slog.Logger) func() ([]authz.UserConfig, error) {
 	return func() ([]authz.UserConfig, error) {
 		if configUsers == nil {
@@ -240,13 +245,12 @@ func usersFromZefsDB(db *zefs.BlobStore) ([]authz.UserConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	// Carry the reserved break-glass recovery profile. It is delivered ONLY through
-	// login-resolved profiles (UserCredential.Profiles -> AuthResult.Profiles ->
-	// RecordLoginProfiles), never a config assignment, so it cannot flip the
-	// operator's RBAC posture. authz.Store.Authorize honors this reserved name
-	// regardless of the profiles the store defines, so a strict authorization
-	// default can never lock the bootstrap admin out of a box whose authorization
-	// config is wrong or partial (spec-fixit-authz-admin-fallthrough O-3').
+	// Carry the reserved break-glass recovery profile. Authentication binds it
+	// to AuthResult.Authorizer, never to a config assignment, so it cannot change
+	// the operator's RBAC posture. The grant remains valid only for the accepted
+	// local credential generation that produced the result. A strict
+	// authorization default cannot lock the bootstrap admin out because
+	// authz.Store honors this reserved profile.
 	// meta/instance/admin-disabled (checked above) still lets an operator suppress
 	// this account entirely.
 	return []authz.UserConfig{{

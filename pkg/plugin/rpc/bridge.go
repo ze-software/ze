@@ -321,8 +321,8 @@ func (b *DirectBridge) SetDispatchCommand(fn DispatchCommandHandler) {
 }
 
 // DispatchCommand calls the engine's typed dispatch-command handler directly.
-// Returns error if the handler is not set. The hasDispatchCmd atomic load
-// creates a happens-before from SetDispatchCommand's write.
+// Returns error if the handler is not set. The caller owns any transport
+// completion action attached to the returned output.
 func (b *DirectBridge) DispatchCommand(command string) (*DispatchCommandOutput, error) {
 	if !b.beginDispatch() {
 		return nil, ErrBridgeClosed
@@ -352,9 +352,10 @@ func (b *DirectBridge) SetDispatchCommandArgs(fn DispatchCommandArgsHandler) {
 	b.hasDispatchCmdArgs.Store(fn != nil)
 }
 
-// DispatchCommandArgs calls the engine's typed dispatch-command-args handler directly.
-// Returns error if the handler is not set. The hasDispatchCmdArgs atomic load
-// creates a happens-before from SetDispatchCommandArgs' write.
+// DispatchCommandArgs calls the engine's typed dispatch-command-args handler
+// directly. Returns error if the handler is not set. The hasDispatchCmdArgs
+// atomic load creates a happens-before from SetDispatchCommandArgs' write. The
+// caller owns any transport completion action attached to the returned output.
 func (b *DirectBridge) DispatchCommandArgs(command string, args []string, peer string) (*DispatchCommandOutput, error) {
 	if !b.beginDispatch() {
 		return nil, ErrBridgeClosed

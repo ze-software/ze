@@ -2,13 +2,20 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"net"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/plugin"
+	plugipc "github.com/ze-software/ze/internal/component/plugin/ipc"
+	"github.com/ze-software/ze/internal/component/plugin/process"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // TestHandleSystemDispatch verifies ze-system:dispatch routes text commands
@@ -94,6 +101,8 @@ func TestHandleDaemonShutdownReactorlessUsesShutdownFunc(t *testing.T) {
 	resp, err := handleDaemonShutdown(&CommandContext{Server: srv}, nil)
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
+	assert.False(t, called, "shutdown must wait for transport completion")
+	resp.TransportComplete()
 	assert.True(t, called, "reactorless shutdown must invoke the daemon shutdownFunc, not coordinator.Stop()")
 }
 
@@ -109,6 +118,8 @@ func TestHandleDaemonShutdownRealReactorStops(t *testing.T) {
 	resp, err := handleDaemonShutdown(&CommandContext{Server: srv}, nil)
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
+	assert.False(t, reactor.stopped, "shutdown must wait for transport completion")
+	resp.TransportComplete()
 	assert.True(t, reactor.stopped, "a real reactor must be stopped directly")
 	assert.False(t, funcCalled, "a real reactor must not fall back to shutdownFunc")
 }
@@ -154,4 +165,141 @@ func TestHandleSystemDispatchJoinsArgs(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 	assert.Equal(t, []string{"dnsr"}, receivedArgs)
+}
+
+type gatedStopReactor struct {
+	*mockReactor
+	entered     chan struct{}
+	release     chan struct{}
+	enterOnce   sync.Once
+	releaseOnce sync.Once
+}
+
+func newGatedStopReactor() *gatedStopReactor {
+	return &gatedStopReactor{
+		mockReactor: &mockReactor{},
+		entered:     make(chan struct{}),
+		release:     make(chan struct{}),
+	}
+}
+
+func (r *gatedStopReactor) Stop() {
+	r.enterOnce.Do(func() { close(r.entered) })
+	<-r.release
+	r.mockReactor.Stop()
+}
+
+func (r *gatedStopReactor) releaseStop() {
+	r.releaseOnce.Do(func() { close(r.release) })
+}
+
+// TestDaemonTerminationSocketResponsePrecedesWait verifies every accepted
+// daemon-termination command answers the admitted socket RPC before it releases
+// the daemon wait loop.
+//
+// VALIDATES: shutdown, reboot, and quit return their success response before
+// Server.Wait reports the explicit termination request.
+// PREVENTS: Server.Stop closing the requesting process connection while its
+// successful response is still waiting to be written.
+func TestDaemonTerminationSocketResponsePrecedesWait(t *testing.T) {
+	tests := []struct {
+		name    string
+		command string
+		wire    func(*Server, *gatedStopReactor)
+	}{
+		{name: "shutdown", command: "request shutdown"},
+		{
+			name:    "reboot",
+			command: "request reboot",
+			wire: func(s *Server, r *gatedStopReactor) {
+				s.SetRebootFunc(r.Stop)
+			},
+		},
+		{name: "quit", command: "request halt"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+
+			reactor := newGatedStopReactor()
+			t.Cleanup(reactor.releaseStop)
+
+			s, err := NewServer(&ServerConfig{}, reactor)
+			require.NoError(t, err)
+			require.NoError(t, s.StartWithContext(context.Background()))
+			if tt.wire != nil {
+				tt.wire(s, reactor)
+			}
+
+			pluginSide, engineSide := net.Pipe()
+			t.Cleanup(func() {
+				_ = pluginSide.Close()
+				_ = engineSide.Close()
+			})
+
+			proc := process.NewProcess(plugin.PluginConfig{Name: "daemon-termination-caller"})
+			proc.SetConn(plugipc.NewPluginConn(engineSide, engineSide))
+			pm := process.NewProcessManager(nil)
+			pm.AddProcess(proc.Name(), proc)
+			s.procManager.Store(pm)
+			s.wg.Go(func() {
+				s.handleSingleProcessCommandsRPC(proc)
+			})
+
+			waitDone := make(chan error, 1)
+			go func() {
+				waitDone <- s.Wait(testCtx)
+			}()
+
+			pluginConn := rpc.NewConn(pluginSide, pluginSide)
+			type callResult struct {
+				output rpc.DispatchCommandOutput
+				err    error
+			}
+			callDone := make(chan callResult, 1)
+			go func() {
+				raw, callErr := pluginConn.CallRPC(testCtx, rpc.MethodDispatchCommand, &rpc.DispatchCommandInput{
+					Command: tt.command,
+				})
+				var output rpc.DispatchCommandOutput
+				if callErr == nil {
+					callErr = json.Unmarshal(raw, &output)
+				}
+				callDone <- callResult{output: output, err: callErr}
+			}()
+
+			var result callResult
+			select {
+			case result = <-callDone:
+			case <-testCtx.Done():
+				t.Fatal("daemon command did not return its socket response")
+			}
+			require.NoError(t, result.err)
+			assert.Equal(t, plugin.StatusDone, result.output.Status)
+
+			select {
+			case <-reactor.entered:
+			case <-testCtx.Done():
+				t.Fatal("daemon command did not begin reactor shutdown after writing its response")
+			}
+			select {
+			case err := <-waitDone:
+				t.Fatalf("Server.Wait unblocked before the accepted response completed: %v", err)
+			default:
+			}
+
+			reactor.releaseStop()
+			select {
+			case err := <-waitDone:
+				require.NoError(t, err)
+			case <-testCtx.Done():
+				t.Fatal("daemon command did not unblock Server.Wait")
+			}
+
+			s.Stop()
+			require.NoError(t, s.Wait(testCtx))
+		})
+	}
 }

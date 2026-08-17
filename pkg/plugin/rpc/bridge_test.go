@@ -373,6 +373,33 @@ func TestStructuredEventDeliverViaDirectBridge(t *testing.T) {
 	assert.Equal(t, "test-payload", got.RawMessage)
 }
 
+// VALIDATES: typed direct dispatch transfers accepted-action completion
+// ownership with the returned output.
+// PREVENTS: lifecycle teardown running before the result consumer has read it.
+func TestDirectBridgeDispatchCommandTransfersCompletionOwnership(t *testing.T) {
+	b := NewDirectBridge()
+	handlerReturned := false
+	completed := false
+	b.SetDispatchCommand(func(string) (output *DispatchCommandOutput, err error) {
+		defer func() { handlerReturned = true }()
+		output = &DispatchCommandOutput{Status: "done"}
+		output.OnTransportComplete(func() {
+			assert.True(t, handlerReturned)
+			completed = true
+		})
+		return output, nil
+	})
+	b.SetReady()
+
+	output, err := b.DispatchCommand("request shutdown")
+
+	require.NoError(t, err)
+	require.Equal(t, "done", output.Status)
+	assert.False(t, completed, "DirectBridge must not complete an action before its caller consumes the result")
+	output.TransportComplete()
+	assert.True(t, completed)
+}
+
 // TestDirectBridgeStopDispatchRejectsPluginCalls verifies bridge shutdown
 // closes the plugin-to-engine direction without invoking registered handlers.
 //
@@ -382,11 +409,11 @@ func TestDirectBridgeStopDispatchRejectsPluginCalls(t *testing.T) {
 	b := NewDirectBridge()
 	b.SetDispatchRPC(func(string, json.RawMessage) (json.RawMessage, error) {
 		t.Fatal("generic handler ran after dispatch shutdown")
-		return nil, nil
+		return nil, assert.AnError
 	})
 	b.SetDispatchCommand(func(string) (*DispatchCommandOutput, error) {
 		t.Fatal("typed handler ran after dispatch shutdown")
-		return nil, nil
+		return nil, assert.AnError
 	})
 	b.SetReady()
 

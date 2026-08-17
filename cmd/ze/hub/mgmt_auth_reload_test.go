@@ -2,15 +2,16 @@ package hub
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/crypto/bcrypt"
 
+	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/authz"
 	zeconfig "github.com/ze-software/ze/internal/component/config"
+	zepki "github.com/ze-software/ze/internal/component/pki"
+	"github.com/ze-software/ze/internal/core/env"
 )
 
 // webTreeWithInsecure builds a config tree whose web block carries the given
@@ -92,204 +93,165 @@ func mcpSettingsTree(authMode string) *zeconfig.Tree {
 	return tree
 }
 
-// VALIDATES: the API reloader resolves a token from the reloaded config and
-// hands the migrator material a server can install.
-// PREVENTS: registering a reloader that reports a mode without the credentials
-// to build it, leaving the rebuild with nothing to apply.
+// VALIDATES: the API reloader resolves the final exposure mode without handing
+// candidate credential material to the listener migrator.
 func TestAPIAuthReloaderResolvesConfiguredToken(t *testing.T) {
+	users := func() ([]authz.UserConfig, error) { return nil, nil }
 	migrator := newListenerMigrator()
 	registerMgmtAuthReloaders(migrator, mgmtAuthInputs{
-		apiUsersLive: func() ([]authz.UserConfig, error) { return nil, nil },
+		apiCandidateUsers: users,
 	})
 	intent, ok, err := migrator.authReloaders["rest"](apiTokenTree("reloaded-token"))
 	require.NoError(t, err)
 	require.True(t, ok)
 	assert.True(t, intent.authenticated)
-	assert.Equal(t, "reloaded-token", intent.token)
 
-	// REST and gRPC share the API block, so they must share one answer.
 	grpcIntent, _, err := migrator.authReloaders["grpc"](apiTokenTree("reloaded-token"))
 	require.NoError(t, err)
-	assert.Equal(t, intent.token, grpcIntent.token)
+	assert.Equal(t, intent.authenticated, grpcIntent.authenticated)
 }
 
-// VALIDATES: a reloaded config with no api-server block leaves the running API
-// servers' credentials alone.
-// PREVENTS: deleting a config block silently stripping authentication off a
-// server that is still listening.
-func TestAPIAuthReloaderSilentWithoutBlock(t *testing.T) {
-	calls := 0
+// VALIDATES: an absent api-server block still produces candidate intent for an
+// environment-started listener from candidate users and the retained accepted
+// token.
+// PREVENTS: removing the block and final user publishing no-auth while a
+// non-loopback API transport remains live.
+func TestAPIAuthReloaderAbsentBlockUsesCandidateUsersAndRetainedToken(t *testing.T) {
+	resetAAABundleForTest(t)
+	publishAcceptedLocalIdentity(newAcceptedLocalIdentity(nil, nil, nil, "retained-token"))
+	usersCalled := false
+	var candidateUsers []authz.UserConfig
 	migrator := newListenerMigrator()
 	registerMgmtAuthReloaders(migrator, mgmtAuthInputs{
-		apiUsersLive: func() ([]authz.UserConfig, error) {
-			calls++
-			return nil, nil
+		apiCandidateUsers: func() ([]authz.UserConfig, error) {
+			usersCalled = true
+			return candidateUsers, nil
 		},
 	})
 
-	_, ok, err := migrator.authReloaders["rest"](zeconfig.NewTree())
+	intent, ok, err := migrator.authReloaders["grpc"](zeconfig.NewTree())
 	require.NoError(t, err)
-	assert.False(t, ok)
-	assert.Zero(t, calls, "removing api-server must not consult or replace the running credentials")
+	require.True(t, ok, "a running API transport needs known candidate intent even when its block is absent")
+	assert.True(t, intent.authenticated, "the identity publisher retains the accepted token when the block is absent")
+	assert.True(t, usersCalled, "candidate users must participate in the published API mode")
 
-	rest := &recordingAuthServer{token: "running-token"}
-	migrator.setREST(rest)
-	migrator.markAuthenticated(svcREST)
-	_, err = migrator.reloadListeners(context.Background(), zeconfig.NewTree())
+	publishAcceptedLocalIdentity(newAcceptedLocalIdentity(nil, nil, nil, ""))
+	intent, ok, err = migrator.authReloaders["grpc"](zeconfig.NewTree())
 	require.NoError(t, err)
-	assert.Equal(t, "running-token", rest.token)
-	assert.Empty(t, rest.updates, "removing api-server must leave running credentials untouched")
+	require.True(t, ok)
+	assert.False(t, intent.authenticated, "no candidate users and no retained token select no-auth")
+
+	candidateUsers = []authz.UserConfig{{Name: "operator", Hash: "unused"}}
+	intent, ok, err = migrator.authReloaders["grpc"](zeconfig.NewTree())
+	require.NoError(t, err)
+	require.True(t, ok)
+	assert.True(t, intent.authenticated, "candidate users authenticate even without a retained token")
 }
 
-func apiReloadUser(t *testing.T, name, password string) authz.UserConfig {
-	t.Helper()
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.MinCost)
-	require.NoError(t, err)
-	return authz.UserConfig{Name: name, Hash: string(hash)}
-}
+// VALIDATES: an unchanged reload of an environment-started gRPC API reads the
+// token from a dormant api-server block even when neither transport has
+// enabled=true, while its non-loopback address and TLS settings remain dormant
+// config settings rather than a request to start another transport.
+// PREVENTS: the auth reloader using the config-enable gate, classifying the
+// running non-loopback gRPC listener as unauthenticated, and rejecting SIGHUP.
+func TestRunReloadEnvEnabledGRPCKeepsDormantAPISettings(t *testing.T) {
+	resetAAABundleForTest(t)
+	clearAPIEnv(t)
+	require.NoError(t, env.Set("ze.api-server.grpc.enabled", "1"))
+	t.Cleanup(func() { _ = zepki.Load(nil) })
+	require.NoError(t, zepki.Load(nil))
 
-func apiReloadSystemRoot(users ...authz.UserConfig) map[string]any {
-	entries := make(map[string]any, len(users))
-	for _, user := range users {
-		entries[user.Name] = map[string]any{"password": user.Hash, "profile": "admin"}
+	treeValue := dormantAPIBlock(t, true)
+	grpcBlock := treeValue.GetContainer("environment").GetContainer("api-server").GetContainer("grpc")
+	require.NotNil(t, grpcBlock)
+	grpcServer := grpcBlock.GetList("server")["main"]
+	require.NotNil(t, grpcServer)
+	grpcServer.Set("ip", "192.0.2.10")
+	system := zeconfig.NewTree()
+	system.SetContainer("authentication", zeconfig.NewTree())
+	treeValue.SetContainer("system", system)
+	tree := treeValue.ToMap()
+
+	srv, cp := reloadDriver(t, tree)
+	cp.SetRoot("system", map[string]any{"authentication": map[string]any{}})
+	resolveCandidate := liveLocalUsers(nil, func() ([]authz.UserConfig, error) {
+		return liveConfigUsers(cp)
+	}, nil)
+	publishAcceptedLocalIdentity(newAcceptedLocalIdentity(nil, nil, resolveCandidate, "api-s3cret"))
+
+	grpc := &recordingAuthServer{
+		recordingReconfigurable: recordingReconfigurable{addrs: []string{"192.0.2.10:50052"}},
+		authenticated:           true,
 	}
-	return map[string]any{"authentication": map[string]any{"user": entries}}
-}
-
-// VALIDATES: AC-9 and AC-12, runReload installs the candidate provider before
-// apiAuthReloader resolves its live users. A no-SSH config user produces
-// working per-user material, and that material follows later user changes.
-// PREVENTS: resolving from the previous provider tree or rebuilding from a
-// separate snapshot parsed directly from the candidate tree.
-func TestAPIAuthReloaderUsesLiveUsersWithoutSSHBlock(t *testing.T) {
-	alice := apiReloadUser(t, "alice", "alice-pass")
-	bob := apiReloadUser(t, "bob", "bob-pass")
-	candidate := apiTokenTree("").ToMap()
-	candidate["system"] = apiReloadSystemRoot(alice)
-	parsedCandidate := treeFromMap(candidate)
-
-	server, provider := reloadDriver(t, candidate)
-	calls := 0
-	usersLive := func() ([]authz.UserConfig, error) {
-		calls++
-		return liveConfigUsers(provider)
-	}
-	rest := &recordingAuthServer{
-		recordingReconfigurable: recordingReconfigurable{},
-		token:                   "boot-token",
-	}
-	migrator := newListenerMigrator()
-	migrator.setREST(rest)
-	migrator.markAuthenticated(svcREST)
-	registerMgmtAuthReloaders(migrator, mgmtAuthInputs{apiUsersLive: usersLive})
-
+	lm := newListenerMigrator()
+	lm.setGRPC(grpc)
+	lm.markAuthenticated(svcGRPC)
+	registerMgmtAuthReloaders(lm, mgmtAuthInputs{apiCandidateUsers: resolveCandidate})
 	load := func() (map[string]any, *zeconfig.Tree, error) {
-		return candidate, parsedCandidate, nil
+		return tree, treeValue, nil
 	}
-	require.NoError(t, runReload(server, nil, provider, nil, "", load, migrator))
-	require.NotNil(t, rest.authenticator)
-	assert.Equal(t, 1, calls, "runReload must refresh the provider before resolving API mode once")
-	assert.Empty(t, rest.token, "per-user mode must replace the previous shared token")
-	assert.Equal(t, []string{""}, rest.updates, "the candidate authenticator must be installed")
 
-	user, authenticated := rest.authenticator("Bearer alice:alice-pass")
-	require.True(t, authenticated, "the installed material must authenticate, not only report a boolean mode")
-	assert.Equal(t, "alice", user)
-	_, authenticated = rest.authenticator("Bearer alice:wrong")
-	assert.False(t, authenticated)
-
-	provider.SetRoot("system", apiReloadSystemRoot(bob))
-	_, authenticated = rest.authenticator("Bearer alice:alice-pass")
-	assert.False(t, authenticated, "a user removed from the live source must stop authenticating")
-	user, authenticated = rest.authenticator("Bearer bob:bob-pass")
-	require.True(t, authenticated, "a user added to the live source must authenticate without restart")
-	assert.Equal(t, "bob", user)
+	require.NoError(t, runReload(srv, cp, load, lm))
+	assert.Empty(t, grpc.calls, "an unchanged env-started listener must not be rebound")
+	caller, ok := liveAcceptedAPIAuthentication().Authenticate("Bearer api-s3cret")
+	require.True(t, ok, "the dormant block token must remain the live credential")
+	assert.Equal(t, aaa.ReservedSharedAPIUsername, caller.Username)
 }
 
-// VALIDATES: AC-10, an unreadable live API user source rejects the reload and
-// yields no installable intent.
-// PREVENTS: a failed source read becoming a valid token-only or anonymous mode.
-func TestAPIAuthReloaderFailsClosedWhenLiveUsersUnreadable(t *testing.T) {
-	sourceErr := errors.New("provider user read failed")
-	migrator := newListenerMigrator()
-	registerMgmtAuthReloaders(migrator, mgmtAuthInputs{
-		apiUsersLive: func() ([]authz.UserConfig, error) {
-			return nil, sourceErr
+// VALIDATES: removing both environment.api-server and the final local user
+// still classifies an already-running non-loopback gRPC listener from the
+// candidate identity that would be published.
+// PREVENTS: absent-block intent falling back to the authenticated running mode,
+// accepting the reload, then publishing no API authentication on that listener.
+func TestRunReloadRejectsAbsentAPIBlockAndLastUserRemovalOnRemoteGRPC(t *testing.T) {
+	resetAAABundleForTest(t)
+	clearAPIEnv(t)
+	t.Cleanup(func() { _ = zepki.Load(nil) })
+	require.NoError(t, zepki.Load(nil))
+
+	tree := map[string]any{
+		"system": map[string]any{"authentication": map[string]any{}},
+	}
+	treeValue := treeFromMap(tree)
+	srv, cp := reloadDriver(t, tree)
+	oldSystem := map[string]any{
+		"authentication": map[string]any{
+			"user": map[string]any{
+				"operator": map[string]any{"password": "unused"},
+			},
 		},
-	})
+	}
+	cp.SetRoot("system", oldSystem)
+	resolveCandidate := liveLocalUsers(nil, func() ([]authz.UserConfig, error) {
+		return liveConfigUsers(cp)
+	}, nil)
+	publishAcceptedLocalIdentity(newAcceptedLocalIdentity(
+		[]authz.UserConfig{{Name: "operator", Hash: "unused"}},
+		nil,
+		resolveCandidate,
+		"",
+	))
 
-	intent, ok, err := migrator.authReloaders["rest"](apiTokenTree("configured-token"))
-	require.ErrorIs(t, err, sourceErr)
-	assert.Contains(t, err.Error(), "resolve live API users", "the reload refusal must name the failed source")
-	assert.False(t, ok)
-	assert.False(t, intent.authenticated)
-	assert.Nil(t, intent.authenticator)
+	grpc := &recordingAuthServer{
+		recordingReconfigurable: recordingReconfigurable{addrs: []string{"192.0.2.10:50052"}},
+		authenticated:           true,
+	}
+	lm := newListenerMigrator()
+	lm.setGRPC(grpc)
+	lm.markAuthenticated(svcGRPC)
+	registerMgmtAuthReloaders(lm, mgmtAuthInputs{apiCandidateUsers: resolveCandidate})
+	load := func() (map[string]any, *zeconfig.Tree, error) {
+		return tree, treeValue, nil
+	}
 
-	rest := &recordingAuthServer{token: "running-token"}
-	migrator.setREST(rest)
-	migrator.markAuthenticated(svcREST)
-	_, reloadErr := migrator.reloadListeners(context.Background(), apiTokenTree("configured-token"))
-	require.ErrorIs(t, reloadErr, sourceErr)
-	assert.Equal(t, "running-token", rest.token, "a failed source read must preserve running credentials")
-	assert.Empty(t, rest.updates, "a failed source read must install no new intent")
-}
-
-// VALIDATES: AC-7 and per-user precedence, a successful empty live read keeps
-// token or no-auth mode, while a non-empty live read installs per-user
-// authentication that rejects the shared token as a user credential.
-// PREVENTS: confusing an empty list with a source error, or letting a token
-// bypass a configured user's password after reload.
-func TestAPIAuthReloaderProceedsWithTokenAndNoUsers(t *testing.T) {
-	t.Run("empty live source keeps token mode", func(t *testing.T) {
-		calls := 0
-		migrator := newListenerMigrator()
-		registerMgmtAuthReloaders(migrator, mgmtAuthInputs{
-			apiUsersLive: func() ([]authz.UserConfig, error) {
-				calls++
-				return nil, nil
-			},
-		})
-		intent, ok, err := migrator.authReloaders["rest"](apiTokenTree("configured-token"))
-		require.NoError(t, err)
-		require.True(t, ok)
-		assert.True(t, intent.authenticated)
-		assert.Equal(t, "configured-token", intent.token)
-		assert.Nil(t, intent.authenticator)
-		assert.Equal(t, 1, calls)
-	})
-
-	t.Run("empty live source keeps no-auth mode", func(t *testing.T) {
-		migrator := newListenerMigrator()
-		registerMgmtAuthReloaders(migrator, mgmtAuthInputs{
-			apiUsersLive: func() ([]authz.UserConfig, error) {
-				return []authz.UserConfig{}, nil
-			},
-		})
-		intent, ok, err := migrator.authReloaders["rest"](apiTokenTree(""))
-		require.NoError(t, err)
-		require.True(t, ok)
-		assert.False(t, intent.authenticated)
-		assert.Empty(t, intent.token)
-		assert.Nil(t, intent.authenticator)
-	})
-
-	t.Run("per-user mode takes precedence over token", func(t *testing.T) {
-		alice := apiReloadUser(t, "alice", "alice-pass")
-		migrator := newListenerMigrator()
-		registerMgmtAuthReloaders(migrator, mgmtAuthInputs{
-			apiUsersLive: func() ([]authz.UserConfig, error) {
-				return []authz.UserConfig{alice}, nil
-			},
-		})
-		intent, ok, err := migrator.authReloaders["rest"](apiTokenTree("configured-token"))
-		require.NoError(t, err)
-		require.True(t, ok)
-		require.NotNil(t, intent.authenticator)
-		_, authenticated := intent.authenticator("Bearer configured-token")
-		assert.False(t, authenticated, "the shared token is not a per-user credential")
-		_, authenticated = intent.authenticator("Bearer alice:alice-pass")
-		assert.True(t, authenticated)
-	})
+	err := runReload(srv, cp, load, lm)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "grpc listener")
+	assert.Contains(t, err.Error(), "192.0.2.10:50052")
+	assert.Empty(t, grpc.calls, "exposure must be rejected before any listener mutation")
+	authentication := liveAcceptedAPIAuthentication()
+	assert.True(t, authentication.Required, "the rejected no-auth candidate must not be published")
+	assert.NotNil(t, authentication.Authenticate, "the prior user-authenticated generation must remain accepted")
 }
 
 func apiTokenTree(token string) *zeconfig.Tree {
@@ -345,7 +307,10 @@ func TestMarkMgmtAuthClassifiesBeforeAnyHandleExists(t *testing.T) {
 // server. It also stops an unresolved live API user source from failing a
 // reload over a server that does not exist.
 func TestUnbuiltSurfaceResolvesNoAuthIntent(t *testing.T) {
-	rest := &recordingAuthServer{recordingReconfigurable: recordingReconfigurable{addrs: []string{"127.0.0.1:8081"}}}
+	rest := &recordingAuthServer{
+		recordingReconfigurable: recordingReconfigurable{addrs: []string{"127.0.0.1:8081"}},
+		authenticated:           true,
+	}
 	migrator := newListenerMigrator()
 	markMgmtAuth(migrator, map[string]bool{svcREST: true, svcGRPC: true})
 	migrator.setREST(rest)
@@ -366,27 +331,6 @@ func TestUnbuiltSurfaceResolvesNoAuthIntent(t *testing.T) {
 	assert.Equal(t, svcREST, intents[0].name)
 	assert.Equal(t, 1, called[svcREST])
 	assert.Equal(t, 0, called[svcGRPC], "the unbuilt transport's reloader is never CALLED, not merely ignored")
-}
-
-// VALIDATES: an unbuilt transport does not refuse the reload when the API's
-// authentication changes, end to end through reloadListeners (AC-5).
-// PREVENTS: the operator-facing symptom the marking fix removes -- a token
-// removal failing the whole commit over a server that does not exist.
-func TestReloadListenersProceedsWhenSiblingTransportWasNeverBuilt(t *testing.T) {
-	rest := &recordingAuthServer{recordingReconfigurable: recordingReconfigurable{addrs: []string{"127.0.0.1:8081"}}, token: "boot-token"}
-	migrator := newListenerMigrator()
-	migrator.setREST(rest)
-	markMgmtAuth(migrator, map[string]bool{"rest": true, "grpc": true})
-
-	// One api-server block answers for both transports, so both reloaders read
-	// the same intent: the operator removed the token.
-	migrator.setAuthReloader("rest", staticAuth(false, ""))
-	migrator.setAuthReloader("grpc", staticAuth(false, ""))
-
-	_, err := migrator.reloadListeners(context.Background(), restOnlyTree("127.0.0.1", "8081"))
-	require.NoError(t, err, "a transport that was never built cannot refuse a reload")
-	assert.Equal(t, []string{""}, rest.updates, "the running transport still rebuilds its authentication")
-	assert.Empty(t, rest.token, "the removed token is removed from the running server")
 }
 
 // restOnlyTree builds a config tree whose api-server block enables REST alone,

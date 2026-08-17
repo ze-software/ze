@@ -20,6 +20,13 @@ import (
 	"fmt"
 )
 
+// Authorizer is the request-carried policy decision used by the shared command
+// dispatcher. AAA authorizers satisfy it without making this infrastructure
+// package depend on the AAA component.
+type Authorizer interface {
+	Authorize(username, remoteAddr, command string, isReadOnly bool) bool
+}
+
 // CallerIdentity carries trusted caller metadata for a command request.
 // Populated by the transport after authentication; it is not an auth
 // credential. Surface names the originating transport for audit attribution;
@@ -31,6 +38,30 @@ type CallerIdentity struct {
 	// ReadOnly means the transport admitted the caller with read-only access
 	// only. Used by the API engine to deny writes from no-auth/read-only callers.
 	ReadOnly bool
+	// Authorizer is the policy generation accepted with this identity. Carrying
+	// it with the request prevents a reload publication between authentication
+	// and dispatch from authorizing the caller against a different generation.
+	Authorizer Authorizer
+}
+
+type callerAuthorizerContextKey struct{}
+
+// WithCallerAuthorizer carries a session-bound authorizer through handlers that
+// construct CallerIdentity at their dispatch edge.
+func WithCallerAuthorizer(ctx context.Context, authorizer Authorizer) context.Context {
+	if authorizer == nil {
+		return ctx
+	}
+	return context.WithValue(ctx, callerAuthorizerContextKey{}, authorizer)
+}
+
+// CallerAuthorizer returns the session-bound authorizer carried by ctx.
+func CallerAuthorizer(ctx context.Context) Authorizer {
+	if ctx == nil {
+		return nil
+	}
+	authorizer, _ := ctx.Value(callerAuthorizerContextKey{}).(Authorizer)
+	return authorizer
 }
 
 // CommandDispatcher executes a command on behalf of an authenticated caller and
@@ -42,22 +73,28 @@ type CallerIdentity struct {
 // own edge via CommandDispatcher.JSON.
 type CommandDispatcher func(ctx context.Context, caller CallerIdentity, command string) (*Response, error)
 
-// JSON dispatches command and flattens the typed response into the JSON string
-// text surfaces render. It preserves, byte for byte, what the historical hub
-// adapters produced:
-//   - a dispatch error, or a Response with a non-empty Error, surfaces as a Go
-//     error (empty string output);
-//   - a Response with Status=="error" and no Error message surfaces as the
-//     "unknown error" Go error;
-//   - a nil Response, or one with nil Data, yields an empty string and no error;
-//   - otherwise Data is JSON-marshaled and returned as the output string.
-//
-// Callers MUST guard against a nil dispatcher before calling JSON (invoking a
-// nil func value panics); every surface already nil-checks its injected
-// dispatcher before use.
-func (d CommandDispatcher) JSON(ctx context.Context, caller CallerIdentity, command string) (string, error) {
+// RenderedResponse carries flattened text and the accepted action that belongs
+// to the transport writing that text.
+type RenderedResponse struct {
+	Output   string
+	Response *Response
+}
+
+// TransportComplete releases the accepted action after Output reaches the
+// caller. Repeated calls are harmless.
+func (r *RenderedResponse) TransportComplete() {
+	if r != nil && r.Response != nil {
+		r.Response.TransportComplete()
+	}
+}
+
+// JSON dispatches a command and flattens the typed response while retaining
+// transport completion ownership. The caller must call TransportComplete only
+// after it writes Output to its response transport.
+func (d CommandDispatcher) JSON(ctx context.Context, caller CallerIdentity, command string) (*RenderedResponse, error) {
 	resp, err := d(ctx, caller, command)
-	return ResponseJSON(resp, err)
+	output, renderErr := ResponseJSON(resp, err)
+	return &RenderedResponse{Output: output, Response: resp}, renderErr
 }
 
 // ResponseJSON is the single flatten sequence shared by every text surface and

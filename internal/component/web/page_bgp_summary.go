@@ -5,7 +5,6 @@
 package web
 
 import (
-	"context"
 	"encoding/json"
 	"html/template"
 	"net/http"
@@ -30,7 +29,9 @@ func fetchBGPSummaryPeers(r *http.Request, dispatch CommandDispatcher) map[strin
 		return nil
 	}
 	username := GetUsernameFromRequest(r)
-	output, err := dispatch.JSON(context.Background(), plugin.CallerIdentity{Username: username, RemoteAddr: r.RemoteAddr}, "show bgp summary")
+	rendered, err := dispatch.JSON(r.Context(), plugin.CallerIdentity{Username: username, RemoteAddr: r.RemoteAddr}, "show bgp summary")
+	defer rendered.TransportComplete()
+	output := rendered.Output
 	if err != nil || output == "" {
 		return nil
 	}

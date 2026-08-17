@@ -23,8 +23,17 @@ import (
 	"github.com/ze-software/ze/internal/component/authz"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	zeweb "github.com/ze-software/ze/internal/component/web"
+	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/pkg/zefs"
 )
+
+func setAPIConfigDir(t *testing.T, dir string) {
+	t.Helper()
+	require.NoError(t, env.Set("ze.config.dir", dir))
+	t.Cleanup(func() {
+		require.NoError(t, env.Set("ze.config.dir", ""))
+	})
+}
 
 // VALIDATES: the web server derives BOTH the serve-or-not test and the live
 // user view from the credentials its caller hands it, and reads the zefs

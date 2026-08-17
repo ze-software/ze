@@ -40,13 +40,11 @@ func grpcBuildImpl(in *apiBuildInputs, sh *apiShared) (apiServerHandle, error) {
 	}
 
 	srv, err := apigrpc.NewGRPCServer(apigrpc.GRPCConfig{
-		ListenAddrs:   addrs,
-		Token:         cfg.Token,
-		Authenticator: sh.Authenticator,
-		Authorizer:    in.Authorizer,
-		TLSCert:       cfg.GRPCTLSCert,
-		TLSKey:        cfg.GRPCTLSKey,
-		AuditRecorder: in.Recorder,
+		ListenAddrs:    addrs,
+		Authentication: sh.Authentication,
+		TLSCert:        cfg.GRPCTLSCert,
+		TLSKey:         cfg.GRPCTLSKey,
+		AuditRecorder:  in.Recorder,
 	}, sh.Engine, sh.Sessions)
 	if err != nil {
 		return apiServerHandle{}, fmt.Errorf("create gRPC API: %w", err)

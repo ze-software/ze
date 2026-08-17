@@ -492,6 +492,36 @@ func TestZeReferenceTool(t *testing.T) {
 	}
 }
 
+// VALIDATES: MCP completes accepted command actions only after the JSON-RPC
+// body is written and flushed.
+// PREVENTS: lifecycle teardown racing the MCP response writer.
+func TestWriteJSONResponseCompletesCommandAfterFlush(t *testing.T) {
+	recorder := httptest.NewRecorder()
+	completed := false
+	commandResponse := plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(`{"accepted":true}`))
+	commandResponse.OnTransportComplete(func() {
+		if !recorder.Flushed {
+			t.Error("completion ran before the MCP response flush")
+		}
+		if !strings.Contains(recorder.Body.String(), `"jsonrpc":"2.0"`) {
+			t.Error("completion ran before the MCP response body was written")
+		}
+		completed = true
+	})
+	rendered := &plugin.RenderedResponse{Output: `{"accepted":true}`, Response: commandResponse}
+	resp := &response{
+		JSONRPC:    "2.0",
+		Result:     TextResult(rendered.Output),
+		completion: rendered,
+	}
+
+	writeJSONResponse(recorder, resp)
+
+	if !completed {
+		t.Fatal("MCP writer did not complete the accepted action")
+	}
+}
+
 // TestCallToolGeneratedViaHTTP drives a synchronous auto-generated tools/call
 // through the Streamable HTTP path: one self-contained POST carrying its own
 // headers and _meta -> dispatchGenerated -> dispatcher output framed as MCP

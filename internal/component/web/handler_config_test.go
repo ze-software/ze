@@ -783,7 +783,7 @@ func TestWebShowUnaffectedByRBAC(t *testing.T) {
 	_, schema := newHandlerTestManager(t)
 	renderer, err := NewRenderer()
 	require.NoError(t, err)
-	handler := HandleConfigView(renderer, schema, config.NewTree())
+	handler := handleConfigViewForTest(renderer, schema, config.NewTree())
 
 	req := httptest.NewRequest(http.MethodGet, "/show/", http.NoBody)
 	req = req.WithContext(context.WithValue(req.Context(), ctxKeyUsername, "alice"))

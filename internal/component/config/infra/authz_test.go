@@ -684,8 +684,8 @@ system {
 // This test pins the complete parsed-tree shape so shared credentials cannot
 // drift from the operator configuration.
 //
-// VALIDATES: ExtractAuthUsers reports base credentials, profiles, and registered
-// credential augments from the parsed system tree.
+// VALIDATES: ExtractAuthUsers reports base credentials and profiles from the
+// parsed system tree. SSH credential augments have feature-gated tests.
 // PREVENTS: a configured user or credential field disappearing between parsing
 // and the shared live-user source.
 func TestExtractAuthUsersFromParsedTree(t *testing.T) {
@@ -695,10 +695,6 @@ system {
         user alice {
             password "$2a$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ01234"
             profile admin
-            public-keys laptop {
-                type ssh-ed25519
-                key AAAAC3NzaC1lZDI1NTE5AAAAIExampleKeyDataHere
-            }
         }
         user bob {
             password "$2a$10$zyxwvutsrqponmlkjihgfZYXWVUTSRQPONMLKJIHGFEDCBA98765"
@@ -717,11 +713,6 @@ system {
 			Name:     "alice",
 			Hash:     "$2a$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ01234",
 			Profiles: []string{"admin"},
-			PublicKeys: []authz.SSHPublicKey{{
-				Name: "laptop",
-				Type: "ssh-ed25519",
-				Key:  "AAAAC3NzaC1lZDI1NTE5AAAAIExampleKeyDataHere",
-			}},
 		},
 		{
 			Name: "bob",
@@ -730,8 +721,6 @@ system {
 	}, users, "the shared extractor must preserve the complete parsed user configuration")
 	assert.Equal(t, "alice", users[0].Name, "users come back sorted; the map form carries no order of its own")
 	assert.Equal(t, []string{"admin"}, users[0].Profiles)
-	require.Len(t, users[0].PublicKeys, 1)
-	assert.Equal(t, "laptop", users[0].PublicKeys[0].Name)
 	assert.Empty(t, users[1].Profiles, "bob declares no profile")
 }
 

@@ -1,9 +1,9 @@
 # Authentication
 
-Ze supports multiple SSH login users defined in the daemon's configuration,
-in addition to the bootstrap super-admin written to `database.zefs` by
-`ze init`. This guide covers adding YANG-configured users, hashing their
-passwords, and connecting as them with the `ze` CLI.
+Ze supports local operator users defined in the daemon configuration, in
+addition to the bootstrap super-admin written to `database.zefs` by `ze init`.
+This guide covers adding configured users, hashing their passwords, and
+connecting with the `ze` CLI.
 
 ## Two sources of users
 
@@ -12,8 +12,10 @@ passwords, and connecting as them with the `ze` CLI.
 | zefs super-admin | `database.zefs` (`meta/auth/local/{username,password}`) | `ze init` | Bootstrap and recovery -- the operator who set the box up |
 | YANG users | `system.authentication.user <name>` | Config edit | Day-to-day operators, auditors, scripts |
 
-The daemon merges both sources at config load: any login attempt is checked
-against the combined list. YANG users work only when the config is loaded.
+At boot, the daemon resolves both sources and publishes the merged users with
+their authorization policy as one accepted generation. SSH, web, REST, and
+gRPC read that live generation. During reload, the old generation remains
+active through every fallible step; a failed candidate is never published.
 
 When a YANG user has the same name as the zefs super-admin, the YANG entry
 takes precedence and the zefs entry is dropped. This lets operators override
@@ -28,8 +30,10 @@ on all surfaces: SSH, web, API, and serial console. The serial console
 returns "local admin login disabled" and denies access (fail-closed), unlike
 the missing-database case which grants access for emergency recovery.
 
-<!-- source: internal/plugins/init/main.go -- RunWithReader entries -->
-<!-- source: cmd/ze/hub/main_servers.go -- usersFromZefsDB -->
+<!-- source: cmd/ze/hub/main_servers.go -- liveLocalUsers candidate assembly -->
+<!-- source: cmd/ze/hub/aaa_lifecycle.go -- publishAcceptedLocalIdentity, liveAcceptedLocalUsers -->
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig boot publication -->
+<!-- source: cmd/ze/hub/main_reload.go -- runReloadContext reload publication -->
 
 ## Adding a user
 
@@ -122,7 +126,7 @@ deletes stops authenticating at once on every credential surface:
 The daemon does not restart. The 24h session TTL is a ceiling, never the
 only test. A connection already open outlives the removal until it closes.
 
-<!-- source: cmd/ze/hub/main_servers.go -- liveLocalUsers -->
+<!-- source: cmd/ze/hub/aaa_lifecycle.go -- liveAcceptedLocalUsers -->
 <!-- source: internal/component/web/auth.go -- SessionStore.validateToken -->
 <!-- source: internal/component/ssh/pubkey.go -- authenticatePublicKey -->
 
@@ -291,9 +295,9 @@ credentials the reload had already installed, so the daemon keeps serving the
 config it rolled back to.
 
 <!-- source: cmd/ze/hub/mgmt_auth_reload.go -- markMgmtAuth, registerMgmtAuthReloaders -->
-<!-- source: cmd/ze/hub/listener_migrate.go -- checkAuthRebuildable, applyAuthIntents, checkReloadExposure -->
-<!-- source: internal/component/api/rest/auth.go -- UpdateAuth -->
-<!-- source: internal/component/api/grpc/server.go -- UpdateAuth -->
+<!-- source: cmd/ze/hub/listener_migrate.go -- (*ListenerMigrator).checkAuthRebuildable, (*ListenerMigrator).applyAuthIntents, (*ListenerMigrator).checkReloadExposure -->
+<!-- source: internal/component/api/rest/auth.go -- RESTServer.Authenticated -->
+<!-- source: internal/component/api/grpc/server.go -- GRPCServer.Authenticated -->
 
 ### Tab completion (`ze completion`)
 
@@ -454,7 +458,8 @@ and continues.
 
 | Symbol | Location |
 |--------|----------|
-| YANG schema | `internal/component/ssh/yang/ze-ssh-conf.yang` |
+| Base user and authorization YANG | `internal/component/authz/yang/ze-authz-conf.yang` |
+| SSH listener and public-key augmentation YANG | `internal/component/ssh/yang/ze-ssh-conf.yang` |
 | Public key matching | `internal/component/ssh/pubkey.go` |
 | Commit-time hashing helper | `internal/component/config/password_hash.go` |
 | Validator | `internal/component/cli/validator.go` |

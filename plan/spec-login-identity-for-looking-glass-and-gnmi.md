@@ -147,7 +147,7 @@ identity the other two lack.
 |----------|--------|
 | What breaks if this is wrong? | A monitoring system loses gNMI access, which is visible and quickly diagnosed. The worse direction is quieter: a looking glass that was meant to be public starts refusing, or one that was meant to be gated stays open because an unset mode resolved to open |
 | How is it reverted? | Single commit revert. A config carrying the new mode leaf must be edited before an older daemon accepts it |
-| Who else touches this path? | `plan/spec-login-service-authorisation.md` builds the gate these surfaces join, and must land first. `plan/spec-hub-deferred-api-auth-independent-of-ssh-block.md` is in the same credential area |
+| Who else touches this path? | `plan/spec-login-service-authorisation.md` builds the gate these surfaces join, and must land first. The closed `spec-hub-deferred-api-auth-independent-of-ssh-block` work is in the same credential area |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 

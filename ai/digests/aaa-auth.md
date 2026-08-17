@@ -5,18 +5,14 @@
 <!-- digest-base: internal/component/aaa internal/component/authz internal/component/radius internal/component/tacacs internal/component/ssh -->
 
 ## What it is
-`aaa` defines a pluggable AAA (Authentication, Authorization, Accounting) backend
-layer: a `BackendRegistry` that self-registered backends (`authz` for local bcrypt,
-`tacacs` for RFC 8907, `radius` reserved but not yet wired to admin login) compose
-into one `Bundle` at hub startup. The hub never imports a backend by name; it calls
-`aaa.Default.Build` and wires the resulting `Authenticator`/`Authorizer`/`Accountant`
-into the SSH server and the plugin command `Dispatcher`. Two independent bootstrap
-paths feed the same chain: a zefs-stored local super-admin (written once by `ze init`,
-or by appliance/installer tooling) and YANG-configured `system.authentication.user`
-entries loaded on every config parse/reload. Authorization is a separate profile-based
-RBAC store (`authz.Store`) that TACACS+ per-command authorization can wrap and fall
-back to. The real flow: SSH login -> `aaa.Bundle.Authenticator` -> profiles -> session
--> every dispatched command re-checked against `aaa.Bundle.Authorizer` -> accounting.
+`aaa` defines a pluggable AAA (Authentication, Authorization, Accounting)
+backend layer. A `BackendRegistry` composes self-registered backends (`authz`
+for local bcrypt, `tacacs` for RFC 8907, and `radius`, whose admin contribution
+is currently empty) into one `Bundle`. The hub wires that bundle into the SSH
+server and the plugin command `Dispatcher`.
+
+The hub owns the accepted local identity lifecycle separately from the backend
+registry; the flow below shows where boot, request-time reads, and reload meet.
 
 ## Flow
 1. **Bootstrap credentials.** `ze init` (`internal/plugins/init/main.go` `runInit`)
@@ -27,18 +23,16 @@ back to. The real flow: SSH login -> `aaa.Bundle.Authenticator` -> profiles -> s
    (`pkg/zefs/keys.go`) can disable this account on every surface. Appliance
    image builds write the same keys via `internal/appliance/cmd_assemble.go` and
    `internal/plugins/imageserver/handler.go`.
-2. **Config load reaches the infra hook.** Parsing a config with a `bgp {}` block
-   extracts the authz store and SSH config, then calls the hub-registered hook
-   (`internal/component/bgp/config/loader_create.go`,
-   `internal/component/config/infra/hook.go`). Without `bgp {}`
-   (ssh-only appliance), `cmd/ze/hub/main.go` builds the same pieces inline.
-3. **Hub composes the bundle.** `infraSetup` (`cmd/ze/hub/infra_setup.go`) loads
-   the zefs user (`loadZefsUsers`/`usersFromZefsDB`, `cmd/ze/hub/main_servers.go`,
-   `:109-126`, fails closed on empty username/hash, `:128-138`), merges it with
-   YANG users (`mergeAuthUsers`, `cmd/ze/hub/main_servers.go`; a YANG user
-   with the zefs admin's name overrides it), then calls `buildAAABundle`
-   (`cmd/ze/hub/infra_setup.go`) -> `aaa.Default.Build`
-   (`aaa/types.go`).
+2. **Schema and config ownership.** `ze-authz-conf.yang` owns the base
+   `system.authentication.user` fields and authorization profiles.
+   `ze-ssh-conf.yang` owns `environment.ssh` listener settings and augments
+   each user with `public-keys`. Config loading populates the provider used to
+   assemble a candidate identity generation.
+3. **Hub publishes the boot generation.** `runYANGConfig` loads the zefs users
+   (`bootPowerUsers`/`usersFromZefsDB`, `cmd/ze/hub/main_servers.go`) and builds
+   `liveLocalUsers`, whose config-over-zefs merge lets a configured user replace
+   a same-named zefs user. After resolving that candidate, it calls
+   `publishAcceptedLocalIdentity` with the users and `infra.ExtractAuthzStore`.
 4. **Backend priority order.** `orderedBackends` sorts registered backends ascending
    by `Priority()` (`aaa/types.go`): `radius` (50, `radius/aaa.go`),
    `tacacs` (100, `tacacs/register.go`), local bcrypt (200,
@@ -52,13 +46,13 @@ back to. The real flow: SSH login -> `aaa.Bundle.Authenticator` -> profiles -> s
    by the local backend (empty user list means every login is rejected, still
    timing-safe), so a `Bundle.Authenticator` always exists once Build succeeds
    (`aaa/types.go`).
-6. **Bundle install + SSH build.** `swapAAABundle` installs the new bundle
+6. **Bundle and transport wiring.** `swapAAABundle` installs the bundle
    atomically and closes the previous one (`cmd/ze/hub/aaa_lifecycle.go`).
-   If SSH is configured and compiled in, `sshBuild` (set by
-   `cmd/ze/hub/register_ssh.go` -> `sshBuildImpl`,
-   `cmd/ze/hub/service_ssh.go`) constructs `ssh.Config{Authenticator:
-   bundle.Authenticator, Users: users, AuditRecorder: recorder, ...}`
-   (`cmd/ze/hub/infra_setup.go`) and starts `ssh.Server`.
+   SSH receives `liveAcceptedLocalUsers` for password and public-key checks.
+   Web, REST, and gRPC receive the same live source through hub service
+   dependencies and API config. `liveLocalAuthorizer` reads the matching store
+   from `acceptedLocalIdentityState`, so credentials and local RBAC cannot come
+   from different accepted generations.
 7. **Client connects.** `ssh.Server.Start` registers both auth callbacks
    (`ssh/ssh.go`). Public key: `wish.WithPublicKeyAuth` calls
    `matchPublicKey` against the configured user list (`ssh/ssh.go`,
@@ -80,30 +74,28 @@ back to. The real flow: SSH login -> `aaa.Bundle.Authenticator` -> profiles -> s
    `ErrAuthRejected` (chain stops). ERROR or connection failure -> plain error
    (chain tries local next).
 10. **Local bcrypt authenticate (always present, priority 200).**
-    `LocalAuthenticator.Authenticate` (`authz/auth.go`) scans `Users` for
-    a name match and calls `CheckPassword` (`authz/auth.go`): either the
-    caller sent the stored bcrypt hash itself (hash-as-token, constant-time
-    compare) or a plaintext password (bcrypt compare). Unknown users still run
-    bcrypt against a `dummyHash` (`authz/auth.go`) for timing safety.
-11. **Outcome.** Success logs `"SSH auth success"` with the winning `Source` and
-    truncated profile list (`ssh/ssh.go`, `truncateProfiles`,
-    `ssh/ssh.go`); wish proceeds to the session. Failure logs a warning
-    and calls `recordAuthFailure`, which writes an `audit.Entry{Surface:SSH,
-    Action:ActionAuthFail}` when an `AuditRecorder` is configured
-    (`ssh/ssh.go`, `:444-446`).
+    `LocalAuthenticator.Authenticate` (`authz/auth.go`) resolves its
+    `UsersFunc` and scans that list for a name match. It calls
+    `CheckPassword`: either the caller sent the stored bcrypt hash itself
+    (hash-as-token, constant-time compare) or a plaintext password (bcrypt
+    compare). Unknown users still run bcrypt against a `dummyHash` for timing
+    safety.
+11. **Outcome.** Success logs `"SSH auth success"` with the winning `Source`
+    and truncated profile list (`ssh/ssh.go`, `truncateProfiles`); wish proceeds
+    to the session. Failure logs a warning and calls `recordAuthFailure`, which
+    writes an `audit.Entry{Surface:SSH, Action:ActionAuthFail}` when an
+    `AuditRecorder` is configured (`ssh/ssh.go`).
 12. **Session creation.** `teaHandler` -> `createSessionModel`
     (`ssh/session.go`) delegates to the hub's `SessionModelFactory`, which
     wires a per-session `CommandExecutor` via `Server.ExecutorForUser`
     (`ssh/ssh.go`). The editor/session/TUI wiring itself is traced in
     `ai/digests/cli-editor.md`.
 13. **Command authorization wiring.** Once the reactor starts, its post-start
-    callback sets the dispatcher's authorizer: `bundle.Authorizer` wins if
-    present, else a bare `authz.StoreAuthorizer{Store: authzStore}`
-    (`cmd/ze/hub/infra_setup.go`); accounting hook likewise
-    (`:193-196`). If TACACS+ authorization is enabled, `bundle.Authorizer` is a
-    `TacacsAuthorizer` wrapping the local `StoreAuthorizer` as fallback
-    (`tacacs/register.go`, `tacacs/authorizer.go`); otherwise it is
-    the plain `StoreAuthorizer` (`authz/register.go`).
+    callback installs `bundle.Authorizer` on the dispatcher. The local backend
+    contribution is `liveLocalAuthorizer`, and TACACS+ wraps that same value as
+    its fallback (`cmd/ze/hub/infra_setup.go`, `authz/register.go`,
+    `tacacs/register.go`). If the bundle has no authorizer but local profiles
+    exist, the dispatcher receives `liveLocalAuthorizer` directly.
 14. **Per-command check.** `Dispatcher.Dispatch` (`internal/component/plugin/server/command.go`)
     resolves the builtin command, then calls `isAuthorized(ctx, input,
     matchedCmd.ReadOnly)` (`internal/component/plugin/server/command.go`,
@@ -134,14 +126,14 @@ back to. The real flow: SSH login -> `aaa.Bundle.Authenticator` -> profiles -> s
     channel drained by one worker goroutine; a full queue or a
     stopped accountant drops the record and logs a warning, never blocking the
     command.
-17. **Reload / shutdown.** Every config reload re-runs step 3-6 and
-    `swapAAABundle` closes the prior bundle (`cmd/ze/hub/aaa_lifecycle.go`);
-    `Bundle.Close` is idempotent via `sync.Once` and runs every backend's
-    `Close` (`aaa/types.go`), which for TACACS+ stops the accounting
-    worker and drains the client's connection pool
-    (`tacacs/register.go`). On daemon exit, `closeAAABundle` is deferred
-    at the top of `runYANGConfig` (`cmd/ze/hub/aaa_lifecycle.go`,
-    `cmd/ze/hub/main.go`).
+17. **Reload / shutdown.** `runReloadContext` uses the accepted state's
+    candidate resolver after installing the candidate provider roots. It stages
+    those users with `infra.ExtractAuthzStore(parsedTree)` and calls
+    `publishAcceptedLocalIdentity` only after listener migration, certificate
+    update, and candidate promotion succeed (`cmd/ze/hub/main_reload.go`).
+    Rejected reloads leave the prior generation visible. On daemon exit,
+    `closeAAABundle` closes the bundle and clears accepted local identity
+    (`cmd/ze/hub/aaa_lifecycle.go`, `cmd/ze/hub/main.go`).
 
 ## Key files
 | File | Role |
@@ -164,9 +156,9 @@ back to. The real flow: SSH login -> `aaa.Bundle.Authenticator` -> profiles -> s
 | `ssh/ssh.go` | `Server`: wish password/public-key auth callbacks, exec middleware, audit-failure recording |
 | `ssh/pubkey.go` | `matchPublicKey`: configured-key lookup for public-key auth |
 | `ssh/session.go` | `createSessionModel`: delegates to the hub's `SessionModelFactory` |
-| `cmd/ze/hub/infra_setup.go` | `buildAAABundle`, `infraSetup`: the orchestration that ties zefs+YANG users, the bundle, and SSH together |
-| `cmd/ze/hub/aaa_lifecycle.go` | Atomic bundle swap/close, `liveAAABundleAuthorizer` (fail-open bootstrap window) |
-| `cmd/ze/hub/main_servers.go` | `loadZefsUsers`/`usersFromZefsDB`/`mergeAuthUsers`: zefs + YANG user merge |
+| `cmd/ze/hub/infra_setup.go` | `buildAAABundle`, `infraSetup`: bundle and optional SSH wiring |
+| `cmd/ze/hub/aaa_lifecycle.go` | `acceptedLocalIdentityState`, atomic generation publication, accepted users, and live local authorizer |
+| `cmd/ze/hub/main_servers.go` | `bootPowerUsers`/`usersFromZefsDB`/`liveLocalUsers`: zefs and configured candidate-user assembly |
 | `internal/component/plugin/server/command.go` | `Dispatcher.isAuthorized`/`isAuthorizedCommandArgs`, `BeginAccounting`, `SetAuthorizer`/`SetAccountingHook` |
 | `internal/plugins/init/main.go` | `ze init`: writes the bootstrap super-admin credentials into `database.zefs` |
 | `pkg/zefs/keys.go` | `meta/auth/local/{username,password}` and `meta/instance/admin-disabled` key registration |
@@ -220,10 +212,9 @@ back to. The real flow: SSH login -> `aaa.Bundle.Authenticator` -> profiles -> s
   (`false`) falls back to local RBAC when the TACACS+ server errors or is
   unreachable; `true` denies instead (`tacacs/authorizer.go`). This is
   a per-deployment security/availability trade-off, not a bug either way.
-- **Config-file users and the zefs super-admin share one `LocalAuthenticator`.**
-  `mergeAuthUsers` (`cmd/ze/hub/main_servers.go`) lets a YANG user with
-  the same name override the zefs entry; there is no separate code path for
-  "the bootstrap account" once the merge has run.
+- **Configured users override a same-named zefs super-admin during candidate
+  assembly.** `liveLocalUsers` (`cmd/ze/hub/main_servers.go`) applies that
+  precedence before the candidate can be published.
 - **Accounting never blocks command execution.** `TacacsAccountant` drops
   records on a full queue or after `Stop` rather than backpressuring the
   command path (`tacacs/accounting.go`); `Dispatcher.BeginAccounting`

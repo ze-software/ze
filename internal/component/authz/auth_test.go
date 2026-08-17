@@ -229,7 +229,7 @@ func TestAuthenticateUser(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Plaintext path; local flag false (remote) still authenticates plaintext.
-			got := AuthenticateUser(users, tt.username, tt.password, false)
+			got := authenticateUser(users, tt.username, tt.password, false)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -239,9 +239,9 @@ func TestAuthenticateUser(t *testing.T) {
 // PREVENTS: unauthenticated SSH access when authentication block is omitted.
 func TestAuthenticateUserNoUsersRejectsAll(t *testing.T) {
 	var users []UserConfig // no users configured
-	assert.False(t, AuthenticateUser(users, "admin", "password", true), "should reject when no users configured")
-	assert.False(t, AuthenticateUser(users, "root", "root", true), "should reject any credentials")
-	assert.False(t, AuthenticateUser(users, "", "", true), "should reject empty credentials")
+	assert.False(t, authenticateUser(users, "admin", "password", true), "should reject when no users configured")
+	assert.False(t, authenticateUser(users, "root", "root", true), "should reject any credentials")
+	assert.False(t, authenticateUser(users, "", "", true), "should reject empty credentials")
 }
 
 // VALIDATES: hash-as-token — sending the bcrypt hash itself authenticates.
@@ -333,13 +333,13 @@ func TestAuthenticateUserDuplicateEntries(t *testing.T) {
 	}
 
 	// Sending hash1 as token should match the first entry (local transport).
-	assert.True(t, AuthenticateUser(users, "admin", string(hash1), true), "hash1 as token should match first entry")
+	assert.True(t, authenticateUser(users, "admin", string(hash1), true), "hash1 as token should match first entry")
 
 	// Sending hash2 as token should match the second entry (local transport).
-	assert.True(t, AuthenticateUser(users, "admin", string(hash2), true), "hash2 as token should match second entry")
+	assert.True(t, authenticateUser(users, "admin", string(hash2), true), "hash2 as token should match second entry")
 
 	// Plaintext should match via bcrypt on either entry.
-	assert.True(t, AuthenticateUser(users, "admin", "pass", true), "plaintext should match via bcrypt")
+	assert.True(t, authenticateUser(users, "admin", "pass", true), "plaintext should match via bcrypt")
 }
 
 // VALIDATES: Bug 5 — timing-safe auth prevents username enumeration.
@@ -356,12 +356,12 @@ func TestAuthenticateUserTimingSafe(t *testing.T) {
 
 	// Time an unknown user auth attempt — should still invoke bcrypt (>10ms).
 	start := time.Now()
-	AuthenticateUser(users, "nonexistent", "anypassword", false)
+	authenticateUser(users, "nonexistent", "anypassword", false)
 	unknownDuration := time.Since(start)
 
 	// Time a known user auth attempt with wrong password.
 	start = time.Now()
-	AuthenticateUser(users, "admin", "wrongpassword", false)
+	authenticateUser(users, "admin", "wrongpassword", false)
 	knownDuration := time.Since(start)
 
 	// Both should take a meaningful amount of time (bcrypt was invoked).

@@ -10,6 +10,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/authz"
 	zeconfig "github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/infra"
 	"github.com/ze-software/ze/internal/component/config/storage"
@@ -255,8 +256,8 @@ func doReloadContext(ctx context.Context, s *pluginserver.Server, eng *engine.En
 // avoids redundant I/O + YANG parse on every SIGHUP.
 //
 // Callers go through doReload, which wraps this to record the reload fence.
-func runReload(s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider, store storage.Storage, configPath string, load func() (map[string]any, *zeconfig.Tree, error), lm *listenerMigrator) error {
-	return runReloadContext(context.Background(), s, eng, cp, store, configPath, load, lm)
+func runReload(s *pluginserver.Server, cp *zeconfig.Provider, load func() (map[string]any, *zeconfig.Tree, error), lm *listenerMigrator) error {
+	return runReloadContext(context.Background(), s, nil, cp, nil, "", load, lm)
 }
 
 func runReloadContext(ctx context.Context, s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider, store storage.Storage, configPath string, load func() (map[string]any, *zeconfig.Tree, error), lm *listenerMigrator) error {
@@ -366,6 +367,77 @@ func runReloadContext(ctx context.Context, s *pluginserver.Server, eng *engine.E
 		applyLoadedTreeToProvider(cp, newTree)
 	}
 
+	// Stage credentials and policy from the candidate provider roots, but keep
+	// the accepted generation published while every remaining reload step can
+	// still fail. The resolver belongs to the accepted state and carries the
+	// fixed zefs boot snapshot, so config-over-zefs precedence is identical to
+	// boot without authentication reading ConfigProvider directly.
+	var candidateIdentity *acceptedLocalIdentityState
+	if accepted := acceptedLocalIdentity.Load(); accepted != nil {
+		if accepted.resolveCandidateUsers == nil {
+			err := fmt.Errorf("reload: resolve candidate local identity: %w", errNoLiveConfigProvider)
+			if rollbackErr := rollbackReload(reloadCtx, s, eng, cp, priorProvider, priorPKI); rollbackErr != nil {
+				if clearErr := clearCandidate(); clearErr != nil {
+					return fmt.Errorf("%w (rollback failed: %w; candidate cleanup failed: %w)", err, rollbackErr, clearErr)
+				}
+				return fmt.Errorf("%w (rollback failed: %w)", err, rollbackErr)
+			}
+			if clearErr := clearCandidate(); clearErr != nil {
+				return fmt.Errorf("%w (candidate cleanup failed: %w)", err, clearErr)
+			}
+			return err
+		}
+		candidateUsers, candidateErr := accepted.resolveCandidateUsers()
+		if candidateErr != nil {
+			err := fmt.Errorf("reload: resolve candidate local identity: %w", candidateErr)
+			if rollbackErr := rollbackReload(reloadCtx, s, eng, cp, priorProvider, priorPKI); rollbackErr != nil {
+				if clearErr := clearCandidate(); clearErr != nil {
+					return fmt.Errorf("%w (rollback failed: %w; candidate cleanup failed: %w)", err, rollbackErr, clearErr)
+				}
+				return fmt.Errorf("%w (rollback failed: %w)", err, rollbackErr)
+			}
+			if clearErr := clearCandidate(); clearErr != nil {
+				return fmt.Errorf("%w (candidate cleanup failed: %w)", err, clearErr)
+			}
+			return err
+		}
+		var candidateStore *authz.Store
+		if parsedTree != nil {
+			candidateStore = infra.ExtractAuthzStore(parsedTree)
+		}
+		// An absent API block leaves an environment- or flag-started listener
+		// running, so retain its accepted token. A present block re-resolves
+		// config-over-environment precedence for the candidate generation. The
+		// exposure classifier uses candidateAPIToken too, so it guards exactly
+		// the credentials this identity will publish.
+		candidateAPITokenValue := accepted.apiToken
+		if parsedTree != nil {
+			candidateAPI, _, apiErr := resolveAPIListeners(parsedTree)
+			if apiErr != nil {
+				err := fmt.Errorf("reload: resolve candidate API identity: %w", apiErr)
+				if rollbackErr := rollbackReload(reloadCtx, s, eng, cp, priorProvider, priorPKI); rollbackErr != nil {
+					if clearErr := clearCandidate(); clearErr != nil {
+						return fmt.Errorf("%w (rollback failed: %w; candidate cleanup failed: %w)", err, rollbackErr, clearErr)
+					}
+					return fmt.Errorf("%w (rollback failed: %w)", err, rollbackErr)
+				}
+				if clearErr := clearCandidate(); clearErr != nil {
+					return fmt.Errorf("%w (candidate cleanup failed: %w)", err, clearErr)
+				}
+				return err
+			}
+			_, apiBlockPresent := zeconfig.ExtractAPISettings(parsedTree)
+			candidateAPITokenValue = candidateAPIToken(
+				candidateAPI.Token, apiBlockPresent, accepted.apiToken, env.Get("ze.api-server.token"))
+		}
+		candidateIdentity = newAcceptedLocalIdentity(
+			candidateUsers,
+			candidateStore,
+			accepted.resolveCandidateUsers,
+			candidateAPITokenValue,
+		)
+	}
+
 	if eng != nil {
 		if err := eng.Reload(reloadCtx); err != nil {
 			if rollbackErr := rollbackReload(reloadCtx, s, eng, cp, priorProvider, priorPKI); rollbackErr != nil {
@@ -381,27 +453,29 @@ func runReloadContext(ctx context.Context, s *pluginserver.Server, eng *engine.E
 		}
 	}
 
-	// Undo the credentials reloadListeners installs on the running management
-	// servers, unless this reload reaches its end. The operator is told a failed
-	// reload was rejected and the config is rolled back, so a listener left
-	// authenticating against the rejected config is a divergence nothing else
-	// repairs: rollbackReload restores config and PKI, and takes no lm.
-	//
-	// A deferred flag, not a call on each failure path. There are five returns
-	// below and every one of them is a rejected reload; hand-placing the undo on
-	// each made it a line a later edit can forget, and the promote-candidate
-	// path had already been written without it. This way a new failure path
-	// inherits the undo instead of needing to remember it.
-	restoreAuth := noAuthRestore
+	// API requests fail closed while listeners migrate. The staging generation
+	// contains no candidate credentials. A failed reload restores the accepted
+	// API generation only after its listener addresses are restored. If listener
+	// rollback fails, the affected API listeners stay fail closed.
+	restoreIdentity := func() {}
+	if lm != nil && (lm.rest != nil || lm.grpc != nil) {
+		restoreIdentity = stageAPIAuthentication()
+	}
+	restoreListeners := noListenerRestore
 	reloadApplied := false
 	defer func() {
-		if !reloadApplied {
-			restoreAuth()
+		if reloadApplied {
+			return
 		}
+		if restoreErr := restoreListeners(); restoreErr != nil {
+			slogutil.Logger("hub.reload").Error("listener rollback failed", "error", restoreErr)
+			return
+		}
+		restoreIdentity()
 	}()
 	if lm != nil && parsedTree != nil {
 		undo, err := lm.reloadListeners(reloadCtx, parsedTree)
-		restoreAuth = undo
+		restoreListeners = undo
 		if err != nil {
 			if rollbackErr := rollbackReload(reloadCtx, s, eng, cp, priorProvider, priorPKI); rollbackErr != nil {
 				if clearErr := clearCandidate(); clearErr != nil {
@@ -444,17 +518,17 @@ func runReloadContext(ctx context.Context, s *pluginserver.Server, eng *engine.E
 
 	if candidateSet {
 		if err := storage.PromoteCandidate(store, configPath); err != nil {
+			if rollbackErr := rollbackReload(reloadCtx, s, eng, cp, priorProvider, priorPKI); rollbackErr != nil {
+				return fmt.Errorf("reload: promote candidate: %w (rollback failed: %w)", err, rollbackErr)
+			}
 			return fmt.Errorf("reload: promote candidate: %w", err)
 		}
 	}
 
-	// Authorization changes become live only after every fallible reload step,
-	// including candidate promotion, has succeeded. The stable local AAA
-	// authorizer dereferences this store on its next decision.
-	if parsedTree == nil {
-		swapLocalAuthzStore(nil)
-	} else {
-		swapLocalAuthzStore(infra.ExtractAuthzStore(parsedTree))
+	// The complete local and API identity becomes live only after every
+	// fallible reload step, including candidate promotion, has succeeded.
+	if candidateIdentity != nil {
+		publishAcceptedLocalIdentity(candidateIdentity)
 	}
 	reloadApplied = true
 	return nil

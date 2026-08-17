@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/authz"
+	"github.com/ze-software/ze/internal/component/plugin"
 )
 
 // fakeAuthorizer implements aaa.Authorizer for RBAC tests: edit access is
@@ -44,7 +45,10 @@ func TestSessionStoresProfiles(t *testing.T) {
 	// VALIDATES: AC-2 -- webSession carries the authenticated user's profiles,
 	// preserved across validateToken.
 	store := NewSessionStore(nil)
-	session, err := store.createSession("alice", authz.AuthResult{Profiles: []string{"read-only"}})
+	sessionAuthorizer := fakeAuthorizer{allowEdit: true}
+	session, err := store.createSession("alice", authz.AuthResult{
+		Profiles: []string{"read-only"}, Authorizer: sessionAuthorizer,
+	})
 	if err != nil {
 		t.Fatalf("createSession: %v", err)
 	}
@@ -54,6 +58,9 @@ func TestSessionStoresProfiles(t *testing.T) {
 	got := store.validateToken(session.Token)
 	if got == nil || len(got.Profiles) != 1 || got.Profiles[0] != "read-only" {
 		t.Fatalf("validated session lost profiles: %+v", got)
+	}
+	if got.Authorizer == nil {
+		t.Fatal("validated session lost its bound authorizer")
 	}
 }
 
@@ -81,6 +88,20 @@ func TestRouteGateAllowsAdmin(t *testing.T) {
 	}
 }
 
+// VALIDATES: the login-bound policy takes precedence over mutable live fallback.
+// PREVENTS: a later same-username login granting an established session edits.
+func TestRouteGateUsesSessionBoundAuthorizer(t *testing.T) {
+	gate := RequireEditAuthz(fakeAuthorizer{allowEdit: true}, okHandler())
+	req := httptest.NewRequest(http.MethodGet, "/config/edit/", http.NoBody)
+	ctx := withUsername(req.Context(), "same-user")
+	ctx = plugin.WithCallerAuthorizer(ctx, fakeAuthorizer{allowEdit: false})
+	rec := httptest.NewRecorder()
+	gate.ServeHTTP(rec, req.WithContext(ctx))
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("session-bound read-only user: status %d, want 403", rec.Code)
+	}
+}
+
 func TestRouteGateOpenWhenUnassigned(t *testing.T) {
 	// VALIDATES: R-1 -- a nil authorizer (no authz assignments configured) fails
 	// open, so single-admin deployments keep working.
@@ -97,13 +118,18 @@ func TestProfilesInRequestContext(t *testing.T) {
 	// VALIDATES: AC-2 -- the authentication middleware carries session profiles
 	// into the request context for route gates and nav rendering.
 	store := NewSessionStore(nil)
-	session, err := store.createSession("carol", authz.AuthResult{Profiles: []string{"admin"}})
+	sessionAuthorizer := fakeAuthorizer{allowEdit: true}
+	session, err := store.createSession("carol", authz.AuthResult{
+		Profiles: []string{"admin"}, Authorizer: sessionAuthorizer,
+	})
 	if err != nil {
 		t.Fatalf("createSession: %v", err)
 	}
 	var gotProfiles []string
+	var gotAuthorizer plugin.Authorizer
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotProfiles = getProfilesFromRequest(r)
+		gotAuthorizer = plugin.CallerAuthorizer(r.Context())
 		w.WriteHeader(http.StatusOK)
 	})
 	handler := authMiddleware(store, &authz.LocalAuthenticator{}, noopRenderer, next)
@@ -113,6 +139,9 @@ func TestProfilesInRequestContext(t *testing.T) {
 	handler.ServeHTTP(rec, req)
 	if len(gotProfiles) != 1 || gotProfiles[0] != "admin" {
 		t.Fatalf("context profiles = %v, want [admin]", gotProfiles)
+	}
+	if gotAuthorizer == nil || !gotAuthorizer.Authorize("carol", "", "set system host-name router", false) {
+		t.Fatal("request context lost the session-bound authorizer")
 	}
 }
 

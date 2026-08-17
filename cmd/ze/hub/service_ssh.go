@@ -47,6 +47,7 @@ func sshBuildImpl(in *sshBuildInputs) sshServer {
 		Users:         in.Users,
 		UsersFunc:     in.UsersFunc,
 		Authenticator: in.Authenticator,
+		Authorizer:    in.Authorizer,
 		AuditRecorder: in.Recorder,
 	}
 	cfg.ConfigDir = params.ConfigDir
@@ -89,27 +90,28 @@ func sshWireImpl(handle sshServer, in *sshWireInputs) {
 	d := r.Dispatcher()
 	apiServer := params.APIServer()
 
-	sshSrv.SetExecutorFactory(func(username, remoteAddr string) zessh.CommandExecutor {
-		return func(input string) (string, error) {
+	sshSrv.SetExecutorFactory(func(username, remoteAddr string, authorizer plugin.Authorizer) zessh.CommandExecutor {
+		return func(input string) (*plugin.RenderedResponse, error) {
 			ctx := &pluginserver.CommandContext{
 				Server:     apiServer,
 				Username:   username,
 				RemoteAddr: remoteAddr,
 				// An SSH session is an operator, authenticated as Username above.
-				Sender: plugin.OperatorSender(),
+				Authorizer: authorizer,
+				Sender:     plugin.OperatorSender(),
 			}
 			resp, err := d.Dispatch(ctx, input)
 			if err != nil {
-				return "", err
+				return &plugin.RenderedResponse{Response: resp}, err
 			}
 			if resp == nil {
-				return "", nil
+				return &plugin.RenderedResponse{}, nil
 			}
 			formatted := params.FormatResponseData(resp.Data)
-			return formatted, responseExecErr(resp, formatted)
+			return &plugin.RenderedResponse{Output: formatted, Response: resp}, responseExecErr(resp, formatted)
 		}
 	})
-	sshSrv.SetStreamingExecutorFactory(func(username, remoteAddr string) zessh.StreamingExecutor {
+	sshSrv.SetStreamingExecutorFactory(func(username, remoteAddr string, authorizer plugin.Authorizer) zessh.StreamingExecutor {
 		return func(ctx context.Context, w io.Writer, args []string) error {
 			if len(args) == 0 {
 				return errNoCommandProvided
@@ -120,7 +122,8 @@ func sshWireImpl(handle sshServer, in *sshWireInputs) {
 				Username:   username,
 				RemoteAddr: remoteAddr,
 				// An SSH session is an operator, authenticated as Username above.
-				Sender: plugin.OperatorSender(),
+				Authorizer: authorizer,
+				Sender:     plugin.OperatorSender(),
 			}
 			// Streaming commands are currently monitor-style read-only commands.
 			// They still must pass through the same AAA authorizer/accountant as
@@ -223,6 +226,7 @@ func sshBuildStandaloneImpl(in *sshStandaloneInputs) func() {
 		Users:         in.Users,
 		UsersFunc:     in.UsersFunc,
 		Authenticator: in.Authenticator,
+		Authorizer:    in.Authorizer,
 		AuditRecorder: in.Recorder,
 		ConfigDir:     in.ConfigDir,
 		Storage:       in.Storage,
@@ -242,9 +246,11 @@ func sshBuildStandaloneImpl(in *sshStandaloneInputs) func() {
 		Store:      in.Storage,
 	}, in.Recorder, in.ReloadFn))
 	dispatch := in.Dispatch
-	srv.SetExecutorFactory(func(username, remoteAddr string) zessh.CommandExecutor {
-		return func(input string) (string, error) {
-			return dispatch.JSON(context.Background(), plugin.CallerIdentity{Username: username, RemoteAddr: remoteAddr}, input)
+	srv.SetExecutorFactory(func(username, remoteAddr string, authorizer plugin.Authorizer) zessh.CommandExecutor {
+		return func(input string) (*plugin.RenderedResponse, error) {
+			return dispatch.JSON(context.Background(), plugin.CallerIdentity{
+				Username: username, RemoteAddr: remoteAddr, Authorizer: authorizer,
+			}, input)
 		}
 	})
 

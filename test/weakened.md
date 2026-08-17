@@ -78,5 +78,61 @@ that row is where you say which of the two happened.
 
 | Test | Reason |
 |------|--------|
-| TestChildSAReplayWindowMinimum | Renamed to `TestChildSAReplayWindowDefault`, which the detector reads as a deletion. Nothing left the suite: the same test, over the same production path and the same fixtures, still asserts an exact `ReplayWin` on both the inbound and the outbound SA. The number it asserts moved from 32 to 64 because the value ze installs did, and 64 still satisfies the RFC 4303 Section 3.4.3 minimum the old name referred to. |
-| TestReloadHashesPlaintextPassword | The test moved unchanged to `main_reload_ssh_test.go`, which has the `ze_ssh` build tag required by its authentication YANG fixture. Full-feature unit tests still run every assertion. The bare `ze_core` pass no longer tries to parse a schema that is compiled out. |
+| TestReloadHashesPlaintextPassword | The test moved unchanged to `main_reload_auth_test.go`. It keeps the disk loader and bcrypt assertions. |
+| TestLiveLocalAuthorizerFollowsStoreSwap | Replaced by `TestLiveLocalAuthorizerFollowsIdentityPublication` through the same bundle authorizer path. |
+| TestCloseAAABundleClearsLiveLocalAuthorization | Replaced by `TestCloseAAABundleClearsAcceptedLocalIdentity`, which covers the complete accepted state. |
+| TestBuildUserAuthenticatorRecordsRecoveryProfiles | Replaced by `TestBuildAPIAuthenticationBindsRecoveryProfiles` and `TestAPIRequestCarriesAuthenticatedAuthorizationGeneration`. |
+| TestAPILoginAdmitsPowerAndConfigUsers | The same six cases remain. One compound assertion now checks the username and authentication result. |
+| UpdateAuth | Removed because REST and gRPC now read the accepted `api.Authentication` provider for each request. |
+| TestReloadListenersRebuildsAuthenticationOn | Replaced by the REST and gRPC `AuthenticationProviderPublishesModesAtomically` tests and `TestRunReloadPublishesAcceptedIdentityAtomically`. |
+| TestReloadListenersRebuildsAuthenticationOff | Replaced by the transport provider-mode tests and `TestRunReloadEmptyUsersSelectNoAPIAuthentication`. |
+| TestReloadListenersRestoresAuthenticationWhenMigrationFails | Replaced by `TestRunReloadCertificateFailurePreservesAcceptedAPIToken` and the listener rollback tests. |
+| TestReloadListenersRestoresEarlierServiceWhenLaterResolveFails | Replaced by `TestReloadListenersFailsClosedWhenAuthCannotBeResolved`. All modes resolve before migration. |
+| TestReloadListenersRestoresEarlierServiceWhenLaterRebuildFails | Removed because the per-server credential rebuild no longer exists. Provider publication is atomic. |
+| TestReloadListenersUndoRevertsInstalledCredentials | Replaced by `TestRunReloadCertificateFailurePreservesAcceptedAPIToken`. |
+| TestReloadListenersLeavesAuthAloneWhenConfigIsSilent | Replaced by `TestAPIAuthReloaderAbsentBlockKeepsRunningMode` and `TestRunReloadWithoutAPIBlockPreservesAcceptedAPIToken`. |
+| TestReloadListenersFailsClosedWhenServerRefusesRebuild | Removed with transport `UpdateAuth`. Provider publication and exposure validation are separate. |
+| TestApplyAuthIntentsInstallsAndRestoresCredentials | Removed with `applyAuthIntents`. Transport-provider and hub identity tests cover publication and restoration. |
+| listener_migrate_test | The count fell with obsolete credential-mutation fixtures. Listener resolution, exposure, migration, and undo assertions remain. |
+| withReloadAuthorization | Replaced by `reloadIdentitySystem` and `withReloadIdentity`, which combine credentials and policy. |
+| TestRunReloadSuccessfulReloadSwapsLiveAuthorization | Replaced by `TestRunReloadPublishesAcceptedIdentityAtomically`. |
+| TestRunReloadFailedReloadPreservesLiveAuthorization | Replaced by `TestRunReloadFailurePreservesAcceptedIdentity`. |
+| TestRunReloadUndoesCredentialsWhenCertificateRotationFails | Replaced by `TestRunReloadCertificateFailurePreservesAcceptedAPIToken`. |
+| TestRunReloadKeepsCredentialsWhenReloadSucceeds | Replaced by `TestRunReloadPublishesAcceptedIdentityAtomically`, including new-password success and old-password denial. |
+| reloadUserPassword | Moved unchanged to `main_reload_auth_test.go` beside its caller. |
+| main_reload_test | The file count fell because the plaintext reload test moved to `main_reload_auth_test.go`. |
+| TestAPIUserAuthenticatorFollowsTheRunningConfig | Replaced by `TestAPIAcceptedAuthenticationFollowsIdentityPublication`. |
+| TestAPIUserAuthenticatorWithoutLiveSourceUsesItsList | Replaced by `TestBuildAPIAuthenticationUsesImmutableUserList` with the same bcrypt fixture. |
+| TestAPIAuthReloaderResolvesConfiguredToken | Replaced by `TestRunReloadPublishesExactCandidateAPIToken`. |
+| TestAPIAuthReloaderSilentWithoutBlock | Replaced by `TestAPIAuthReloaderAbsentBlockKeepsRunningMode`. |
+| apiReloadUser | Replaced by the shared bcrypt fixtures and `reloadIdentitySystem`. |
+| apiReloadSystemRoot | Replaced by `reloadIdentitySystem`, including its authorization policy. |
+| TestAPIAuthReloaderUsesLiveUsersWithoutSSHBlock | Replaced by `TestRunReloadPublishesAcceptedIdentityAtomically` and `TestAPIAcceptedAuthenticationFollowsIdentityPublication`. |
+| TestAPIAuthReloaderFailsClosedWhenLiveUsersUnreadable | Replaced by `TestRunReloadUserSourceErrorPreservesAcceptedAPICredentials`. |
+| TestAPIAuthReloaderProceedsWithTokenAndNoUsers | Replaced by `TestRunReloadPublishesExactCandidateAPIToken`, `TestRunReloadEmptyUsersSelectNoAPIAuthentication`, and `TestRunReloadConfiguredUsersTakePrecedenceOverSharedToken`. |
+| TestReloadListenersProceedsWhenSiblingTransportWasNeverBuilt | Replaced by `TestUnbuiltSurfaceResolvesNoAuthIntent` and `TestReloadListenersIgnoresUnclassifiedService`. |
+| TestGRPCBuildAuthenticatesConfigUserWithoutSSH | The same test now uses `runYANGConfig`. Real TLS RPC, wrong-password, construction, and shutdown checks remain. |
+| TestProfileRecordingAuthenticatorRecordsOnSuccess | Replaced by `TestProfileAuthorizerBindsRemoteProfiles`. |
+| TestProfileRecordingAuthenticatorIgnoresFailure | Replaced by `TestProfileAuthorizerIgnoresFailure`. |
+| TestRecordLoginProfilesEmptyDoesNotErase | Replaced by request-scoped `TestStoreAuthorizerBoundProfilesDoNotCrossSessions`. The global map is gone. |
+| TestRecordLoginProfilesCopies | Replaced by `TestProfileAuthorizerCopiesRemoteProfiles`. |
+| TestBuildWrapsAuthenticatorWithProfileRecording | Replaced by `TestBuildWrapsAuthenticatorWithProfileAuthorizer`. |
+| TestProfileRecordingAuthenticatorRejectsReservedUsername | Replaced by `TestProfileAuthorizerRejectsReservedUsername` with the same reserved-name matrix. |
+| TestGRPCUpdateAuthTurnsAuthenticationOn | Replaced by `TestGRPCAuthenticationProviderPublishesModesAtomically` through real RPCs. |
+| TestGRPCUpdateAuthTurnsAuthenticationOff | Replaced by the no-auth publication case in `TestGRPCAuthenticationProviderPublishesModesAtomically`. |
+| TestGRPCUpdateAuthRestoreRevertsCredentials | Replaced by `TestRunReloadCertificateFailurePreservesAcceptedAPIToken` and `TestGRPCRejectedCandidateNeverAuthenticates`. |
+| TestGRPCUpdateAuthRefusesToUnauthenticateNonLoopback | Replaced by `TestGRPCReconfigureAppliesPublishedExposureModeAndTLS` and the hub exposure test. |
+| TestGRPCReconfigureRefusesNonLoopbackWithoutTLS | Replaced by `TestGRPCReconfigureAppliesPublishedExposureModeAndTLS`. |
+| TestGRPCUpdateAuthUndoRefusesToExposeMigratedListener | Replaced by `TestRunReloadListenerRollbackFailureStaysFailClosed` and gRPC staging rejection. |
+| TestGRPCUpdateAuthUndoRestoresWhenLoopback | Replaced by `TestRunReloadCertificateFailurePreservesAcceptedAPIToken` and `TestGRPCRejectedCandidateNeverAuthenticates`. |
+| TestGRPCUpdateAuthRefusedAfterStop | Removed with `UpdateAuth`. A stopped server serves no requests. |
+| auth_reload_test | The count fell with `UpdateAuth`. Real-RPC publication, candidate rejection, and reconfiguration checks remain. |
+| TestRESTUpdateAuthTurnsAuthenticationOn | Replaced by `TestRESTAuthenticationProviderPublishesModesAtomically`. |
+| TestRESTUpdateAuthTurnsAuthenticationOff | Replaced by the no-auth publication case in `TestRESTAuthenticationProviderPublishesModesAtomically`. |
+| TestRESTUpdateAuthRestoreRevertsCredentials | Replaced by `TestRunReloadCertificateFailurePreservesAcceptedAPIToken` and `TestRESTRejectedCandidateNeverAuthenticates`. |
+| TestRESTUpdateAuthInstallsPerUserAuthenticator | Replaced by `TestRunReloadConfiguredUsersTakePrecedenceOverSharedToken` and `TestRESTAuthenticator`. |
+| TestRESTUpdateAuthRefusedAfterShutdown | Removed with `UpdateAuth`. A stopped REST server serves no requests. |
+| auth_test | The count fell with `UpdateAuth`. Live provider publication and rejected-candidate request checks remain. |
+| TestStoreAuthorizeConfigAssignmentWinsOverLogin | Replaced by `TestStoreAuthorizeLoginBindingWinsOverConfigAssignment` for result-scoped sessions. |
+| TestStoreAuthorizeLoginProfilesDoNotLeakAcrossUsers | Replaced by `TestStoreAuthorizeProfilesDoNotLeakAcrossUsers` and `TestStoreAuthorizerBoundProfilesDoNotCrossSessions`. |
+| authz_test | Two extractor assertions moved to the no-SSH ownership test; the parsed-tree and malformed-shape coverage remains. |

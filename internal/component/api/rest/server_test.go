@@ -16,10 +16,38 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/api"
+	"github.com/ze-software/ze/internal/component/authz"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/audit"
 )
+
+func testAuthentication(token string, authenticate func(string) (string, bool), authorizer aaa.Authorizer) api.AuthenticationProvider {
+	return func() api.Authentication {
+		if authenticate != nil {
+			return api.Authentication{
+				Required: true,
+				Authenticate: func(header string) (api.CallerIdentity, bool) {
+					username, ok := authenticate(header)
+					return api.CallerIdentity{Username: username, Authorizer: authorizer}, ok
+				},
+			}
+		}
+		if token != "" {
+			return api.Authentication{
+				Required: true,
+				Authenticate: func(header string) (api.CallerIdentity, bool) {
+					return api.CallerIdentity{
+						Username:   aaa.ReservedSharedAPIUsername,
+						Authorizer: authorizer,
+					}, header == "Bearer "+token
+				},
+			}
+		}
+		return api.Authentication{}
+	}
+}
 
 // testEngine creates an APIEngine with fake implementations for testing.
 func testEngine() *api.APIEngine {
@@ -218,6 +246,45 @@ func TestRESTExecute(t *testing.T) {
 	assert.Equal(t, "done", result.Status)
 }
 
+// VALIDATES: accepted lifecycle actions run only after the REST payload is
+// written and flushed.
+// PREVENTS: HTTP teardown racing the success response out of the daemon.
+func TestRESTExecuteCompletesTransportAfterResponseWrite(t *testing.T) {
+	var (
+		recorder  *httptest.ResponseRecorder
+		completed bool
+	)
+	engine := api.NewAPIEngine(
+		func(context.Context, api.CallerIdentity, string) (*plugin.Response, error) {
+			resp := plugin.NewResponse(api.StatusDone, plugin.RawJSON(`{"accepted":true}`))
+			resp.OnTransportComplete(func() {
+				assert.True(t, recorder.Flushed, "completion must follow the HTTP flush")
+				assert.Contains(t, recorder.Body.String(), `"status":"done"`)
+				completed = true
+			})
+			return resp, nil
+		},
+		func() []api.CommandMeta {
+			return []api.CommandMeta{{Name: "request shutdown"}}
+		},
+		func(_, _ string) bool { return true },
+		nil,
+	)
+	srv := &RESTServer{engine: engine}
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/execute", strings.NewReader(`{"command":"request shutdown"}`))
+	req.Header.Set("Content-Type", "application/json")
+	ctx := context.WithValue(req.Context(), callerKey, api.CallerIdentity{
+		Username: aaa.ReservedSharedAPIUsername,
+	})
+	req = req.WithContext(ctx)
+	recorder = httptest.NewRecorder()
+
+	srv.handleExecute(recorder, req)
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+	assert.True(t, completed)
+}
+
 // VALIDATES: request context and HTTP remote address reach the API executor.
 // PREVENTS: execute requests losing cancellation or accounting metadata at the REST boundary.
 func TestExecutePropagatesRequestContextAndRemoteAddr(t *testing.T) {
@@ -258,7 +325,7 @@ func TestExecutePropagatesRequestContextAndRemoteAddr(t *testing.T) {
 	require.Equal(t, http.StatusOK, rec.Code)
 	require.NotNil(t, gotCtx)
 	assert.Equal(t, "trace-id", gotCtx.Value(ctxKey{}))
-	assert.Equal(t, "api", gotAuth.Username)
+	assert.Equal(t, aaa.ReservedSharedAPIUsername, gotAuth.Username)
 	assert.Equal(t, "198.51.100.10:4444", gotAuth.RemoteAddr)
 }
 
@@ -267,7 +334,7 @@ func TestExecutePropagatesRequestContextAndRemoteAddr(t *testing.T) {
 func TestRESTExecuteUnauthorized(t *testing.T) {
 	engine := testEngine()
 	openAPI, _ := api.OpenAPISchema(nil)
-	srv, err := NewRESTServer(RESTConfig{ListenAddrs: []string{"127.0.0.1:0"}, Token: "secret"}, engine, nil, func() []byte { return openAPI })
+	srv, err := NewRESTServer(RESTConfig{ListenAddrs: []string{"127.0.0.1:0"}, Authentication: testAuthentication("secret", nil, nil)}, engine, nil, func() []byte { return openAPI })
 	require.NoError(t, err)
 
 	// No Authorization header.
@@ -298,9 +365,9 @@ func TestRESTAuthFailureAuditRecord(t *testing.T) {
 	require.NoError(t, err)
 	srv, err := NewRESTServer(RESTConfig{
 		ListenAddrs: []string{"127.0.0.1:0"},
-		Authenticator: func(header string) (string, bool) {
+		Authentication: testAuthentication("", func(header string) (string, bool) {
 			return "", false
-		},
+		}, nil),
 		AuditRecorder: recorder,
 	}, engine, nil, func() []byte { return openAPI })
 	require.NoError(t, err)
@@ -321,8 +388,8 @@ func TestRESTAuthFailureAuditRecord(t *testing.T) {
 	assert.Equal(t, audit.OutcomeDenied, entries[0].Outcome)
 }
 
-// VALIDATES: AC-8 -- REST no-auth mode gives the default api identity read-only access, not admin access.
-// PREVENTS: REST without authenticator or token accepting write commands and config sessions.
+// VALIDATES: AC-8, REST no-auth mode gives the reserved shared API identity
+// read-only access, not admin access.
 func TestRESTNoAuthReadOnly(t *testing.T) {
 	srv := testServer(t)
 
@@ -334,6 +401,82 @@ func TestRESTNoAuthReadOnly(t *testing.T) {
 
 	session := do(t, srv, "POST", "/api/v1/config/sessions", "")
 	assert.Equal(t, http.StatusForbidden, session.Status)
+}
+
+// VALIDATES: AC-7 and AC-8, shared-token writes and loopback no-auth reads
+// cross a strict AAA store, while no-auth writes remain read-only denied.
+// PREVENTS: REST publishing the printable unassigned username "api", which a
+// strict Store correctly denies after any authorization profile is configured.
+func TestRESTSharedIdentitySurvivesStrictAuthorization(t *testing.T) {
+	store := authz.NewStore()
+	store.AddProfile(authz.Profile{
+		Name: "unrelated",
+		Run:  authz.Section{Default: authz.Deny},
+		Edit: authz.Section{Default: authz.Deny},
+	})
+	commands := func() []api.CommandMeta {
+		return []api.CommandMeta{
+			{Name: "show version", ReadOnly: true},
+			{Name: "request reload", ReadOnly: false},
+		}
+	}
+	var callers []api.CallerIdentity
+	var authorizationCalls []string
+	engine := api.NewAPIEngine(
+		func(_ context.Context, caller api.CallerIdentity, command string) (*plugin.Response, error) {
+			callers = append(callers, caller)
+			return plugin.NewResponse(api.StatusDone, plugin.RawJSON("ok: "+command)), nil
+		},
+		commands,
+		func(username, command string) bool {
+			authorizationCalls = append(authorizationCalls, command)
+			return store.Authorize(username, command, strings.HasPrefix(command, "show ")) == authz.Allow
+		},
+		nil,
+	)
+	newServer := func(t *testing.T, token string) *RESTServer {
+		t.Helper()
+		srv, err := NewRESTServer(RESTConfig{
+			ListenAddrs:    []string{"127.0.0.1:0"},
+			Authentication: testAuthentication(token, nil, nil),
+		}, engine, nil, nil)
+		require.NoError(t, err)
+		return srv
+	}
+
+	noAuth := newServer(t, "")
+	read := do(t, noAuth, http.MethodPost, "/api/v1/execute", `{"command":"show version"}`)
+	assert.Equal(t, http.StatusOK, read.Status,
+		"the reserved shared identity must let a no-auth read cross strict AAA")
+	require.Len(t, callers, 1)
+	assert.Equal(t, aaa.ReservedSharedAPIUsername, callers[0].Username)
+	assert.True(t, callers[0].ReadOnly)
+	assert.Equal(t, []string{"show version"}, authorizationCalls)
+	authorizationCallCount := len(authorizationCalls)
+	write := do(t, noAuth, http.MethodPost, "/api/v1/execute", `{"command":"request reload"}`)
+	assert.Equal(t, http.StatusForbidden, write.Status,
+		"the read-only gate must reject no-auth writes before strict AAA")
+	assert.Len(t, authorizationCalls, authorizationCallCount,
+		"the read-only gate must reject no-auth writes before calling the authorizer")
+	assert.Len(t, callers, 1,
+		"the read-only gate must reject no-auth writes before dispatch")
+
+	token := newServer(t, "shared-secret")
+	headers := map[string]string{
+		"Authorization": "Bearer shared-secret",
+		"Content-Type":  "application/json",
+	}
+	write = doWithHeader(t, token, http.MethodPost, "/api/v1/execute",
+		`{"command":"request reload"}`, headers)
+	assert.Equal(t, http.StatusOK, write.Status,
+		"a validated token caller must retain write authority through strict AAA")
+	require.Len(t, callers, 2)
+	assert.Equal(t, aaa.ReservedSharedAPIUsername, callers[1].Username)
+	assert.False(t, callers[1].ReadOnly)
+	assert.Equal(t, []string{"show version", "request reload"}, authorizationCalls)
+	wrong := doWithHeader(t, token, http.MethodPost, "/api/v1/execute",
+		`{"command":"request reload"}`, map[string]string{"Authorization": "Bearer wrong"})
+	assert.Equal(t, http.StatusUnauthorized, wrong.Status)
 }
 
 // VALIDATES: AC-4 -- GET /api/v1/peers returns peer summary.
@@ -365,7 +508,7 @@ func TestRESTConfigSession(t *testing.T) {
 		editor = &fakeEditor{values: make(map[string]string)}
 		return editor, nil
 	})
-	srv, err := NewRESTServer(RESTConfig{ListenAddrs: []string{"127.0.0.1:0"}, Token: "secret"}, engine, sessions, func() []byte { return openAPI })
+	srv, err := NewRESTServer(RESTConfig{ListenAddrs: []string{"127.0.0.1:0"}, Authentication: testAuthentication("secret", nil, nil)}, engine, sessions, func() []byte { return openAPI })
 	require.NoError(t, err)
 	headers := map[string]string{"Authorization": "Bearer secret", "Content-Type": "application/json"}
 
@@ -407,10 +550,9 @@ func TestRESTConfigSessionAuthorizerDeny(t *testing.T) {
 	authorizer := &denyAllAuthorizer{}
 	srv, err := NewRESTServer(RESTConfig{
 		ListenAddrs: []string{"127.0.0.1:0"},
-		Authenticator: func(header string) (string, bool) {
+		Authentication: testAuthentication("", func(header string) (string, bool) {
 			return "alice", header == "Bearer alice-token"
-		},
-		Authorizer: authorizer,
+		}, authorizer),
 	}, engine, sessions, func() []byte { return openAPI })
 	require.NoError(t, err)
 
@@ -434,7 +576,7 @@ func TestRESTConfigCommitAuditRecord(t *testing.T) {
 	})
 	recorder, err := audit.NewMemory(100)
 	require.NoError(t, err)
-	srv, err := NewRESTServer(RESTConfig{ListenAddrs: []string{"127.0.0.1:0"}, Token: "secret", AuditRecorder: recorder}, engine, sessions, func() []byte { return openAPI })
+	srv, err := NewRESTServer(RESTConfig{ListenAddrs: []string{"127.0.0.1:0"}, Authentication: testAuthentication("secret", nil, nil), AuditRecorder: recorder}, engine, sessions, func() []byte { return openAPI })
 	require.NoError(t, err)
 	headers := map[string]string{"Authorization": "Bearer secret", "Content-Type": "application/json"}
 
@@ -451,7 +593,7 @@ func TestRESTConfigCommitAuditRecord(t *testing.T) {
 
 	entries := recorder.Query(audit.Filter{Action: audit.ActionConfigCommit})
 	require.Len(t, entries, 1)
-	assert.Equal(t, "api", entries[0].Actor)
+	assert.Equal(t, aaa.ReservedSharedAPIUsername, entries[0].Actor)
 	assert.Equal(t, audit.REST, entries[0].Surface)
 	assert.Equal(t, audit.OutcomeSuccess, entries[0].Outcome)
 	assert.Contains(t, entries[0].Detail, "bgp.router-id")
@@ -468,7 +610,7 @@ func TestRESTConfigDiscardAuditRecord(t *testing.T) {
 	})
 	recorder, err := audit.NewMemory(100)
 	require.NoError(t, err)
-	srv, err := NewRESTServer(RESTConfig{ListenAddrs: []string{"127.0.0.1:0"}, Token: "secret", AuditRecorder: recorder}, engine, sessions, func() []byte { return openAPI })
+	srv, err := NewRESTServer(RESTConfig{ListenAddrs: []string{"127.0.0.1:0"}, Authentication: testAuthentication("secret", nil, nil), AuditRecorder: recorder}, engine, sessions, func() []byte { return openAPI })
 	require.NoError(t, err)
 	headers := map[string]string{"Authorization": "Bearer secret", "Content-Type": "application/json"}
 
@@ -485,7 +627,7 @@ func TestRESTConfigDiscardAuditRecord(t *testing.T) {
 
 	entries := recorder.Query(audit.Filter{Action: audit.ActionConfigDiscard})
 	require.Len(t, entries, 1)
-	assert.Equal(t, "api", entries[0].Actor)
+	assert.Equal(t, aaa.ReservedSharedAPIUsername, entries[0].Actor)
 	assert.Equal(t, audit.REST, entries[0].Surface)
 	assert.Equal(t, audit.OutcomeSuccess, entries[0].Outcome)
 	assert.Contains(t, entries[0].Detail, "bgp.router-id")
@@ -546,7 +688,7 @@ func TestRESTSwaggerJS(t *testing.T) {
 func TestRESTDocsRequireAuthWhenConfigured(t *testing.T) {
 	engine := testEngine()
 	openAPI, _ := api.OpenAPISchema(nil)
-	srv, err := NewRESTServer(RESTConfig{ListenAddrs: []string{"127.0.0.1:0"}, Token: "secret"}, engine, nil, func() []byte { return openAPI })
+	srv, err := NewRESTServer(RESTConfig{ListenAddrs: []string{"127.0.0.1:0"}, Authentication: testAuthentication("secret", nil, nil)}, engine, nil, func() []byte { return openAPI })
 	require.NoError(t, err)
 
 	paths := []string{
@@ -678,7 +820,7 @@ func TestRESTRIBFamilyWhitespace(t *testing.T) {
 }
 
 // VALIDATES: per-user authenticator passes username to engine.
-// PREVENTS: all requests authenticated as "api" default.
+// PREVENTS: all requests using the reserved shared API identity.
 func TestRESTAuthenticator(t *testing.T) {
 	var seenUser string
 	exec := func(_ context.Context, auth api.CallerIdentity, _ string) (*plugin.Response, error) {
@@ -702,8 +844,8 @@ func TestRESTAuthenticator(t *testing.T) {
 
 	openAPI, _ := api.OpenAPISchema(nil)
 	srv, err := NewRESTServer(RESTConfig{
-		ListenAddrs:   []string{"127.0.0.1:0"},
-		Authenticator: authenticator,
+		ListenAddrs:    []string{"127.0.0.1:0"},
+		Authentication: testAuthentication("", authenticator, nil),
 	}, engine, nil, func() []byte { return openAPI })
 	require.NoError(t, err)
 
@@ -762,13 +904,13 @@ func TestNewRESTServer_RejectsNonLoopback(t *testing.T) {
 		},
 		{
 			name: "token",
-			cfg:  RESTConfig{ListenAddrs: []string{"0.0.0.0:8081"}, Token: "secret"},
+			cfg:  RESTConfig{ListenAddrs: []string{"0.0.0.0:8081"}, Authentication: testAuthentication("secret", nil, nil)},
 		},
 		{
 			name: "per_user_auth",
 			cfg: RESTConfig{
-				ListenAddrs:   []string{"0.0.0.0:8081"},
-				Authenticator: func(string) (string, bool) { return "alice", true },
+				ListenAddrs:    []string{"0.0.0.0:8081"},
+				Authentication: testAuthentication("", func(string) (string, bool) { return "alice", true }, nil),
 			},
 		},
 	}

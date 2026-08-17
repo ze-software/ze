@@ -42,7 +42,7 @@ func TestTacacsAuthenticatorPass(t *testing.T) {
 		1:  {"read-only"},
 	}
 
-	auth := NewTacacsAuthenticator(client, privMap, nil)
+	auth := newTacacsAuthenticator(client, privMap, nil)
 	result, err := auth.Authenticate(authz.AuthRequest{Username: "admin", Password: "secret"})
 
 	require.NoError(t, err)
@@ -68,7 +68,7 @@ func TestTacacsAuthenticatorPrivLvl1(t *testing.T) {
 		1:  {"read-only"},
 	}
 
-	auth := NewTacacsAuthenticator(client, privMap, nil)
+	auth := newTacacsAuthenticator(client, privMap, nil)
 	result, err := auth.Authenticate(authz.AuthRequest{Username: "user", Password: "pass"})
 
 	require.NoError(t, err)
@@ -88,7 +88,7 @@ func TestTacacsAuthenticatorFail(t *testing.T) {
 		Timeout: 2 * time.Second,
 	})
 
-	auth := NewTacacsAuthenticator(client, map[int][]string{15: {"admin"}}, nil)
+	auth := newTacacsAuthenticator(client, map[int][]string{15: {"admin"}}, nil)
 	result, err := auth.Authenticate(authz.AuthRequest{Username: "admin", Password: "wrong"})
 
 	assert.ErrorIs(t, err, authz.ErrAuthRejected)
@@ -114,7 +114,7 @@ func TestTacacsAuthenticatorUnmappedPrivLvl(t *testing.T) {
 		// 5 intentionally missing
 	}
 
-	auth := NewTacacsAuthenticator(client, privMap, nil)
+	auth := newTacacsAuthenticator(client, privMap, nil)
 	result, err := auth.Authenticate(authz.AuthRequest{Username: "user", Password: "pass"})
 
 	assert.ErrorIs(t, err, authz.ErrAuthRejected)
@@ -130,13 +130,10 @@ func TestTacacsAuthenticatorUnmappedPrivLvl(t *testing.T) {
 // and an authenticated result never carries an empty profile set.
 // PREVENTS: `tacacs-profile { level 15; }` with no profile leaf-list entries
 //
-//	authenticating successfully with zero profiles. Zero profiles are recorded
-//	nowhere (aaa.RecordLoginProfiles skips len(profiles)==0, login_profiles.go:46),
-//	so authz.Store.Authorize would find no assignment and no login profiles. This
-//	test enforces the primary guard: the login is rejected here, before
-//	authorization runs. authz.Store.Authorize now also fails closed in that case
-//	(spec-fixit-authz-admin-fallthrough); before that fix an empty mapping granted
-//	admin, the exact opposite of the operator's intent in restricting that level.
+//	authenticating successfully with zero profiles. The result-scoped authorizer
+//	would fail closed, but this test enforces the primary guard: authentication
+//	rejects the login before authorization runs. Before that guard, an empty
+//	mapping granted admin, the opposite of the operator's intent.
 func TestTacacsAuthenticatorProfileMappingShapes(t *testing.T) {
 	privMap := map[int][]string{
 		15: {"admin"},
@@ -169,7 +166,7 @@ func TestTacacsAuthenticatorProfileMappingShapes(t *testing.T) {
 				Timeout: 2 * time.Second,
 			})
 
-			auth := NewTacacsAuthenticator(client, privMap, nil)
+			auth := newTacacsAuthenticator(client, privMap, nil)
 			result, err := auth.Authenticate(authz.AuthRequest{Username: "user", Password: "pass"})
 
 			if tt.wantProfiles != nil {
@@ -211,7 +208,7 @@ func TestTacacsAuthenticatorDropsReservedProfile(t *testing.T) {
 		Servers: []TacacsServer{{Address: srv.addr(), Key: key}},
 		Timeout: 2 * time.Second,
 	})
-	res, err := NewTacacsAuthenticator(client, privMap, nil).
+	res, err := newTacacsAuthenticator(client, privMap, nil).
 		Authenticate(authz.AuthRequest{Username: "u", Password: "p"})
 	assert.ErrorIs(t, err, authz.ErrAuthRejected, "reserved-only priv-lvl must be rejected")
 	assert.False(t, res.Authenticated)
@@ -224,7 +221,7 @@ func TestTacacsAuthenticatorDropsReservedProfile(t *testing.T) {
 		Servers: []TacacsServer{{Address: srv2.addr(), Key: key}},
 		Timeout: 2 * time.Second,
 	})
-	res2, err2 := NewTacacsAuthenticator(client2, privMap, nil).
+	res2, err2 := newTacacsAuthenticator(client2, privMap, nil).
 		Authenticate(authz.AuthRequest{Username: "u2", Password: "p"})
 	require.NoError(t, err2)
 	assert.True(t, res2.Authenticated)
@@ -258,7 +255,7 @@ func TestTacacsAuthenticatorAuthenticatedImpliesProfiles(t *testing.T) {
 			Timeout: 2 * time.Second,
 		})
 
-		auth := NewTacacsAuthenticator(client, privMap, nil)
+		auth := newTacacsAuthenticator(client, privMap, nil)
 		result, err := auth.Authenticate(authz.AuthRequest{Username: "user", Password: "pass"})
 		srv.close()
 
@@ -291,7 +288,7 @@ func TestTacacsAuthenticatorErrorStatus(t *testing.T) {
 		Timeout: 2 * time.Second,
 	})
 
-	auth := NewTacacsAuthenticator(client, map[int][]string{15: {"admin"}}, nil)
+	auth := newTacacsAuthenticator(client, map[int][]string{15: {"admin"}}, nil)
 	_, err := auth.Authenticate(authz.AuthRequest{Username: "admin", Password: "pass"})
 
 	// ERROR should be a non-ErrAuthRejected error (chain tries next backend).
@@ -308,7 +305,7 @@ func TestTacacsAuthenticatorConnectionFailure(t *testing.T) {
 		Timeout: 200 * time.Millisecond,
 	})
 
-	auth := NewTacacsAuthenticator(client, map[int][]string{15: {"admin"}}, nil)
+	auth := newTacacsAuthenticator(client, map[int][]string{15: {"admin"}}, nil)
 	_, err := auth.Authenticate(authz.AuthRequest{Username: "admin", Password: "pass"})
 
 	// Connection failure should be a non-ErrAuthRejected error.
@@ -334,7 +331,7 @@ func TestTacacsAuthenticatorUsesRemoteAddr(t *testing.T) {
 		Timeout: 2 * time.Second,
 	})
 
-	auth := NewTacacsAuthenticator(client, map[int][]string{15: {"admin"}}, nil)
+	auth := newTacacsAuthenticator(client, map[int][]string{15: {"admin"}}, nil)
 	result, err := auth.Authenticate(authz.AuthRequest{
 		Username:   "admin",
 		Password:   "secret",

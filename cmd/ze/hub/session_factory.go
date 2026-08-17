@@ -23,6 +23,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/config/yang"
 	pingcmd "github.com/ze-software/ze/internal/component/ping/cmd"
+	"github.com/ze-software/ze/internal/component/plugin"
 	zessh "github.com/ze-software/ze/internal/component/ssh"
 	traceroutecmd "github.com/ze-software/ze/internal/component/traceroute/cmd"
 	"github.com/ze-software/ze/internal/core/audit"
@@ -54,10 +55,10 @@ func newSessionEditor(store storage.Storage, configPath, username string, reload
 // createSessionModel, moved here to decouple ssh from cli.
 // reloadFn is wired into every session editor as the reload notifier
 // (see newSessionEditor); nil leaves commits non-transactional.
-func buildSessionModelFactory(srv *zessh.Server, params infra.HookParams, recorder audit.Recorder, reloadFn func() error) contract.SessionModelFactory {
+func buildSessionModelFactory(srv *zessh.Server, params infra.HookParams, recorder audit.Recorder, reloadFn func() error) zessh.SessionModelFactory {
 	log := slogutil.Logger("hub.session")
 
-	return func(username, remoteAddr string) tea.Model {
+	return func(username, remoteAddr string, authorizer plugin.Authorizer) tea.Model {
 		// Build command tree for tab completion. The tree is rebuilt per session
 		// and plugin commands are merged in lazily from the live dispatcher, so a
 		// plugin registered (or gone) since the daemon started is reflected in the
@@ -77,7 +78,7 @@ func buildSessionModelFactory(srv *zessh.Server, params infra.HookParams, record
 		cliWarnings := warnings
 
 		// Get executors from the server.
-		executor := srv.ExecutorForUser(username, remoteAddr)
+		executor := srv.ExecutorForUser(username, remoteAddr, authorizer)
 
 		// Try to create editor-capable model.
 		if params.ConfigPath != "" && params.Store != nil {
@@ -92,7 +93,7 @@ func buildSessionModelFactory(srv *zessh.Server, params infra.HookParams, record
 					m.SetAuditRecorder(recorder, audit.SSH, username, remoteAddr)
 					m.SetCommandCompleter(cmdCompleter)
 					if executor != nil {
-						m.SetCommandExecutor(executor)
+						m.SetCommandExecutor(cliExecutor(executor))
 						injectViewFactories(&m, executor)
 					}
 					monitorFn := srv.MonitorFactoryFunc()
@@ -117,7 +118,7 @@ func buildSessionModelFactory(srv *zessh.Server, params infra.HookParams, record
 		m := cli.NewCommandModel()
 		m.SetCommandCompleter(cmdCompleter)
 		if executor != nil {
-			m.SetCommandExecutor(executor)
+			m.SetCommandExecutor(cliExecutor(executor))
 			injectViewFactories(&m, executor)
 		}
 		monitorFn := srv.MonitorFactoryFunc()
@@ -167,11 +168,24 @@ func mergePluginCommands(tree *command.Node, params infra.HookParams) {
 	command.MergeCommandPaths(tree, d.Registry().VisibleCommandEntries())
 }
 
+// cliExecutor carries an SSH command response into the Bubble Tea writer.
+func cliExecutor(executor zessh.CommandExecutor) cli.CommandExecutor {
+	return func(input string) (cli.CommandOutput, error) {
+		rendered, err := executor(input)
+		if rendered == nil {
+			return cli.CommandOutput{}, err
+		}
+		return cli.CommandOutput{
+			Text:              rendered.Output,
+			TransportComplete: rendered.TransportComplete,
+		}, err
+	}
+}
+
 // injectViewFactories injects each registered live view's concrete factory into
 // the model by iterating cli.RegisteredViews() instead of calling per-view typed
-// setters. The owner-cmd factories (ping/traceroute engines, dashboard executor)
-// are built here -- Design 1 keeps those imports in the consumer, but the Model
-// discovers which views exist through the registry.
+// setters. The owner-cmd factories are built here so imports stay in the
+// consumer while the model discovers views through the registry.
 func injectViewFactories(m *cli.Model, executor zessh.CommandExecutor) {
 	for _, v := range cli.RegisteredViews() {
 		switch v.Key {
@@ -189,7 +203,12 @@ func injectViewFactories(m *cli.Model, executor zessh.CommandExecutor) {
 func dashboardFactoryFromExecutor(cmdExec zessh.CommandExecutor) cli.DashboardFactory {
 	return func() (func() (string, error), error) {
 		return func() (string, error) {
-			return cmdExec("show bgp summary")
+			rendered, err := cmdExec("show bgp summary")
+			if rendered != nil {
+				defer rendered.TransportComplete()
+				return rendered.Output, err
+			}
+			return "", err
 		}, nil
 	}
 }

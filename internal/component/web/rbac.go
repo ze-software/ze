@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/ze-software/ze/internal/component/aaa"
+	"github.com/ze-software/ze/internal/component/plugin"
 )
 
 // webCommandConfigEdit is the representative command the route gate authorizes
@@ -16,13 +17,18 @@ import (
 // command, while an admin (or an unassigned single-admin deployment) is allowed.
 const webCommandConfigEdit = webCommandConfigCommit
 
-// canEdit reports whether the request's authenticated user may perform
-// configuration edits. It consults the same aaa.Authorizer the config-mutation
-// handlers use, so page/nav gating and mutation enforcement never diverge. A
-// nil authorizer allows all, and an authorizer with no assignments fails open
-// (R-1), preserving single-admin deployments. Used by both the route gate and
-// nav rendering (to hide gated entries).
+// authorizerForRequest returns the session-bound authorizer when authentication
+// supplied one. The live authorizer remains the fallback for trusted identities.
+func authorizerForRequest(r *http.Request, fallback aaa.Authorizer) aaa.Authorizer {
+	if sessionAuthorizer := plugin.CallerAuthorizer(r.Context()); sessionAuthorizer != nil {
+		return sessionAuthorizer
+	}
+	return fallback
+}
+
+// canEdit reports whether the request's authenticated user may edit config.
 func canEdit(r *http.Request, authorizer aaa.Authorizer) bool {
+	authorizer = authorizerForRequest(r, authorizer)
 	if authorizer == nil {
 		return true
 	}

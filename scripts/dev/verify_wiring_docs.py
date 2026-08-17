@@ -86,6 +86,12 @@ WIRING_ALLOWLIST: set[tuple[str, str]] = {
     # stage), which has_production_reference does not count. The daemon-side
     # entry point is AuditConfigured, called by the doctor check.
     ("internal/component/config/claims/claims.go", "Audit"),
+    # grpc-go invokes these methods through stats.Handler. The concrete handler
+    # is installed in NewGRPCServer, so no production source names the methods.
+    ("internal/component/api/grpc/server.go", "TagRPC"),
+    ("internal/component/api/grpc/server.go", "HandleRPC"),
+    ("internal/component/api/grpc/server.go", "TagConn"),
+    ("internal/component/api/grpc/server.go", "HandleConn"),
     # internal/test/golden is the golden-capture harness. Its callers are the
     # _test.go files of internal/component/web and internal/component/lg, which
     # is a different package, so every entry point it offers must be exported
@@ -971,6 +977,11 @@ def check_wiring(
 
     issues: list[str] = []
     for sym in added:
+        # The repository-wide wiring gate uses the same explicit convention:
+        # an exported *ForTest helper exists for a cross-package test, not for a
+        # production caller. Do not require a fake production reference here.
+        if sym.name.endswith("ForTest"):
+            continue
         if not has_production_reference(root, sym):
             issues.append(
                 f"{sym.path}:{sym.line}: exported {sym.kind} {sym.name} has no non-test reference in internal/ or cmd/"

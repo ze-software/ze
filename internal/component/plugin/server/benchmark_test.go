@@ -27,7 +27,7 @@ var (
 // This is the hot path: tokenize input → longest-prefix match → handler execution.
 func BenchmarkDispatch(b *testing.B) {
 	d := NewDispatcher()
-	RegisterDefaultHandlers(d, internalBuildTestWireToPath(), nil, nil)
+	registerDefaultHandlers(d, internalBuildTestWireToPath())
 
 	reactor := &mockReactor{
 		peers: []plugin.PeerInfo{
@@ -83,7 +83,7 @@ func BenchmarkDispatch(b *testing.B) {
 // Isolates the longest-prefix matching cost from handler processing.
 func BenchmarkDispatchLookup(b *testing.B) {
 	d := NewDispatcher()
-	RegisterDefaultHandlers(d, internalBuildTestWireToPath(), nil, nil)
+	registerDefaultHandlers(d, internalBuildTestWireToPath())
 
 	commands := []string{
 		"peer list",
@@ -167,7 +167,7 @@ func BenchmarkPluginStartup(b *testing.B) {
 	b.ReportAllocs()
 	for b.Loop() {
 		d := NewDispatcher()
-		RegisterDefaultHandlers(d, internalBuildTestWireToPath(), nil, nil)
+		registerDefaultHandlers(d, internalBuildTestWireToPath())
 		benchCmd = d.Lookup("peer list")
 	}
 }
@@ -177,7 +177,7 @@ func BenchmarkPluginStartup(b *testing.B) {
 // the minimal per-session setup cost.
 func BenchmarkConnect(b *testing.B) {
 	d := NewDispatcher()
-	RegisterDefaultHandlers(d, internalBuildTestWireToPath(), nil, nil)
+	registerDefaultHandlers(d, internalBuildTestWireToPath())
 
 	reactor := &mockReactor{
 		stats: plugin.ReactorStats{
@@ -208,7 +208,7 @@ func BenchmarkMemoryPerConnection(b *testing.B) {
 
 	for b.Loop() {
 		d := NewDispatcher()
-		RegisterDefaultHandlers(d, internalBuildTestWireToPath(), nil, nil)
+		registerDefaultHandlers(d, internalBuildTestWireToPath())
 		ctx := &CommandContext{
 			Server: &Server{reactor: reactor, dispatcher: d},
 			Peer:   "*",

@@ -36,6 +36,9 @@ type UserCredential struct {
 	Hash       string
 	Profiles   []string
 	PublicKeys []SSHPublicKey
+	// LocalGeneration identifies the accepted local credential generation that
+	// produced this record. It is runtime-only and never loaded from config.
+	LocalGeneration uint64
 }
 
 // BuildParams is the data passed to every backend factory at Build time.
@@ -76,12 +79,29 @@ type Contribution struct {
 // Close is idempotent: a second call is a no-op and returns the same error
 // (or nil) that the first call returned.
 type Bundle struct {
-	Authenticator Authenticator
-	Authorizer    Authorizer
-	Accountant    Accountant
-	closers       []func() error
-	closeOnce     sync.Once
-	closeErr      error // set by the first Close call, returned by all calls
+	Authenticator           Authenticator
+	Authorizer              Authorizer
+	Accountant              Accountant
+	localAuthorizerSelected bool
+	closers                 []func() error
+	closeOnce               sync.Once
+	closeErr                error // set by the first Close call, returned by all calls
+}
+
+// AuthorizerWithLocalFallback returns the selected external authorizer with
+// fallback replaced by local. When the local backend itself was selected, local
+// is the complete authorization policy for this request generation.
+func (b *Bundle) AuthorizerWithLocalFallback(local Authorizer) Authorizer {
+	if b == nil {
+		return nil
+	}
+	if b.Authorizer == nil || b.localAuthorizerSelected {
+		return local
+	}
+	if binder, ok := b.Authorizer.(localFallbackBindingAuthorizer); ok {
+		return binder.BindLocalFallback(local)
+	}
+	return b.Authorizer
 }
 
 // backendRegistry holds registered backends. It freezes after the first Build
@@ -110,6 +130,14 @@ type AuthResult struct {
 	// answer reads it here rather than asking a second question of its own,
 	// which would be a different question taken at a different instant.
 	Source string
+	// LocalGeneration is copied from the matched local credential. It makes a
+	// recovery authorizer expire after a newer identity generation is accepted,
+	// including when authentication and publication overlap.
+	LocalGeneration uint64
+	// Authorizer is the authorization view for this authentication result.
+	// Transports carry it with the session or request so another login that uses
+	// the same username cannot change this result's authorization.
+	Authorizer Authorizer
 }
 
 // GrantedByLocalBackend reports whether the local (configuration plus zefs)
@@ -274,6 +302,7 @@ func (r *backendRegistry) Build(params BuildParams) (*Bundle, error) {
 		if contrib.Authorizer != nil {
 			if bundle.Authorizer == nil {
 				bundle.Authorizer = contrib.Authorizer
+				bundle.localAuthorizerSelected = b.Name() == SourceLocal
 				authorizerOwner = b.Name()
 			} else if params.Logger != nil {
 				params.Logger.Info("aaa: dropping duplicate authorizer",
@@ -293,18 +322,17 @@ func (r *backendRegistry) Build(params BuildParams) (*Bundle, error) {
 			bundle.closers = append(bundle.closers, contrib.Close)
 		}
 	}
-
 	if len(authChain) == 0 {
 		return nil, errNoAuthenticationBackendConfigured
 	}
-	// Use the shared wrapper so successful authentication publishes the
-	// profiles it resolved and reserved usernames are rejected. Authorization
-	// later receives only a username; WithProfileRecording is the common choke
-	// point for both registry-built surfaces and direct local API authentication.
+	var authenticator Authenticator
 	if len(authChain) == 1 {
-		bundle.Authenticator = WithProfileRecording(authChain[0])
-		return bundle, nil
+		authenticator = authChain[0]
+	} else {
+		authenticator = &ChainAuthenticator{Backends: authChain}
 	}
-	bundle.Authenticator = WithProfileRecording(&ChainAuthenticator{Backends: authChain})
+	// Bind the selected authorizer to each successful authentication result.
+	// The transport carries that immutable view through command dispatch.
+	bundle.Authenticator = WithProfileAuthorizer(authenticator, bundle.Authorizer)
 	return bundle, nil
 }

@@ -171,6 +171,38 @@ type Response struct {
 	Partial bool         `json:"partial,omitempty"` // True for streaming chunks, false for final
 	Data    ResponseData `json:"data,omitempty"`    // Typed success payload
 	Error   string       `json:"error,omitempty"`   // Error message (set when Status is "error")
+
+	transportComplete func()
+}
+
+// OnTransportComplete carries an accepted action to the transport that owns
+// delivery of this response. Lifecycle commands use it to keep teardown behind
+// the response boundary instead of coupling the command handler to one socket.
+func (r *Response) OnTransportComplete(action func()) {
+	if r == nil {
+		return
+	}
+	r.transportComplete = action
+}
+
+// TakeTransportComplete transfers the completion action to another response
+// envelope at a process boundary. The source response no longer owns it.
+func (r *Response) TakeTransportComplete() func() {
+	if r == nil {
+		return nil
+	}
+	action := r.transportComplete
+	r.transportComplete = nil
+	return action
+}
+
+// TransportComplete runs the accepted action after the transport has completed
+// response delivery. Clearing it first makes repeated completion calls harmless.
+func (r *Response) TransportComplete() {
+	action := r.TakeTransportComplete()
+	if action != nil {
+		action()
+	}
 }
 
 // RouteResult is the typed payload for update-route command responses.

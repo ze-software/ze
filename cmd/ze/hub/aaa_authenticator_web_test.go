@@ -288,7 +288,7 @@ func TestAAABundleLocalBackendFollowsRunningConfig(t *testing.T) {
 	resetAAABundleForTest(t)
 	cfg := &runningConfig{users: []authz.UserConfig{bcryptUser(t, "alice", "alicepw", "admin")}}
 
-	bundle, err := buildAAABundle(nil, nil, liveLocalUsers(nil, cfg.source(), nil), nil, nil)
+	bundle, err := buildAAABundle(nil, nil, liveLocalUsers(nil, cfg.source(), nil), nil)
 	require.NoError(t, err)
 	swapAAABundle(bundle, nil)
 

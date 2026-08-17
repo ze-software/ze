@@ -29,9 +29,11 @@ import (
 	"charm.land/wish/v2/bubbletea"
 	gossh "golang.org/x/crypto/ssh"
 
+	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/authz"
 	"github.com/ze-software/ze/internal/component/cli/contract"
 	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/audit"
 	"github.com/ze-software/ze/internal/core/paths"
@@ -46,6 +48,19 @@ var (
 	errHostCertificateFileDoesNotContain = errors.New("host-certificate file does not contain an SSH certificate")
 )
 
+type sessionAuthorizerKey struct{}
+
+func setSessionAuthorizer(ctx ssh.Context, authorizer aaa.Authorizer) {
+	if authorizer != nil {
+		ctx.SetValue(sessionAuthorizerKey{}, authorizer)
+	}
+}
+
+func getSessionAuthorizer(sess ssh.Session) plugin.Authorizer {
+	authorizer, _ := sess.Context().Value(sessionAuthorizerKey{}).(plugin.Authorizer)
+	return authorizer
+}
+
 // Compile-time interface check.
 var _ ze.Subsystem = (*Server)(nil)
 
@@ -57,15 +72,13 @@ const (
 	defaultHostKeyFile = "ssh_host_ed25519_key"
 )
 
-// CommandExecutor executes an operational command and returns the output.
-// The SSH server calls this directly — no socket indirection needed
-// since the server runs as a goroutine inside the daemon process.
-type CommandExecutor func(input string) (string, error)
+// CommandExecutor executes an operational command and carries the response
+// completion action to the SSH writer.
+type CommandExecutor func(input string) (*plugin.RenderedResponse, error)
 
 // CommandExecutorFactory creates a per-session CommandExecutor.
-// The username is the authenticated SSH user; remoteAddr is the SSH client's
-// IP:port. The returned executor can use both for authorization and accounting.
-type CommandExecutorFactory func(username, remoteAddr string) CommandExecutor
+// authorizer is bound to the authentication result for this SSH connection.
+type CommandExecutorFactory func(username, remoteAddr string, authorizer plugin.Authorizer) CommandExecutor
 
 // StreamingExecutor executes a streaming command, writing output line-by-line
 // to the writer until the context is canceled or a write error occurs.
@@ -73,10 +86,12 @@ type CommandExecutorFactory func(username, remoteAddr string) CommandExecutor
 type StreamingExecutor func(ctx context.Context, w io.Writer, args []string) error
 
 // StreamingExecutorFactory creates a StreamingExecutor.
-// Called when execMiddleware detects a streaming command (e.g., "bgp monitor").
-// The username and remoteAddr are passed through so streaming commands share
-// the same authorization/accounting context as normal commands.
-type StreamingExecutorFactory func(username, remoteAddr string) StreamingExecutor
+// The identity and authorizer are the same values used by normal commands.
+type StreamingExecutorFactory func(username, remoteAddr string, authorizer plugin.Authorizer) StreamingExecutor
+
+// SessionModelFactory creates the interactive model with the authorization
+// view bound to this SSH connection's authentication result.
+type SessionModelFactory func(username, remoteAddr string, authorizer plugin.Authorizer) tea.Model
 
 // PluginProtocolFunc handles a "plugin protocol" SSH session by running
 // the 5-stage plugin handshake and runtime command loop over the SSH channel.
@@ -106,6 +121,7 @@ type Config struct {
 	// their configured public key until the process restarted.
 	UsersFunc     func() ([]authz.UserConfig, error)
 	Authenticator authz.Authenticator // pluggable auth backend (nil = use Users with bcrypt)
+	Authorizer    aaa.Authorizer      // binds public-key authentication to one session
 	AuditRecorder audit.Recorder      // records failed authentication attempts when set
 	Executor      CommandExecutor     // injected by daemon, not from config
 }
@@ -132,15 +148,15 @@ type Server struct {
 	extraListeners           []net.Listener // additional listeners for multi-address binding
 	logger                   *slog.Logger
 	activeSessions           atomic.Int32
-	executorFactory          CommandExecutorFactory       // set after reactor starts; creates per-session executors
-	streamingExecutorFactory StreamingExecutorFactory     // set after reactor starts; for monitor commands
-	pluginProtocolFunc       PluginProtocolFunc           // set after reactor starts; for plugin debug shell
-	monitorFactory           contract.MonitorFactory      // set after reactor starts; for TUI monitor mode
-	sessionModelFactory      contract.SessionModelFactory // set by hub; creates TUI model per session
-	shutdownFunc             ShutdownFunc                 // set by daemon; called on "stop" exec command
-	restartFunc              RestartFunc                  // set by daemon; called on "restart" exec command
-	rebootFunc               RebootFunc                   // set by daemon; called on "reboot" exec command
-	loginWarningsFunc        LoginWarningsFunc            // set by daemon; returns login warnings for SSH sessions
+	executorFactory          CommandExecutorFactory   // set after reactor starts; creates per-session executors
+	streamingExecutorFactory StreamingExecutorFactory // set after reactor starts; for monitor commands
+	pluginProtocolFunc       PluginProtocolFunc       // set after reactor starts; for plugin debug shell
+	monitorFactory           contract.MonitorFactory  // set after reactor starts; for TUI monitor mode
+	sessionModelFactory      SessionModelFactory      // set by hub; creates TUI model per session
+	shutdownFunc             ShutdownFunc             // set by daemon; called on "stop" exec command
+	restartFunc              RestartFunc              // set by daemon; called on "restart" exec command
+	rebootFunc               RebootFunc               // set by daemon; called on "reboot" exec command
+	loginWarningsFunc        LoginWarningsFunc        // set by daemon; returns login warnings for SSH sessions
 }
 
 // maxLoggedProfiles caps the number of profile names that appear in an
@@ -300,14 +316,14 @@ func (s *Server) SetMonitorFactory(f contract.MonitorFactory) {
 
 // SetSessionModelFactory sets the factory that creates TUI models for SSH sessions.
 // Called by the hub before starting the SSH server.
-func (s *Server) SetSessionModelFactory(f contract.SessionModelFactory) {
+func (s *Server) SetSessionModelFactory(f SessionModelFactory) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.sessionModelFactory = f
 }
 
-// HasSessionModelFactory reports whether a session model factory has been set.
-func (s *Server) HasSessionModelFactory() bool {
+// HasSessionModelFactoryForTest reports whether a session model factory is set.
+func (s *Server) HasSessionModelFactoryForTest() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.sessionModelFactory != nil
@@ -346,9 +362,9 @@ func (s *Server) SetLoginWarnings(f LoginWarningsFunc) {
 	s.loginWarningsFunc = f
 }
 
-// ExecutorForUser returns a CommandExecutor for the given username.
+// ExecutorForUser returns a CommandExecutor for the authenticated session.
 // Returns nil if no executor factory is set.
-func (s *Server) ExecutorForUser(username, remoteAddr string) CommandExecutor {
+func (s *Server) ExecutorForUser(username, remoteAddr string, authorizer plugin.Authorizer) CommandExecutor {
 	s.mu.Lock()
 	factory := s.executorFactory
 	s.mu.Unlock()
@@ -358,19 +374,19 @@ func (s *Server) ExecutorForUser(username, remoteAddr string) CommandExecutor {
 		}
 		return nil
 	}
-	return factory(username, remoteAddr)
+	return factory(username, remoteAddr, authorizer)
 }
 
-// streamingExecutorForUser returns a StreamingExecutor for the given username.
-// Returns nil if no streaming executor factory is set.
-func (s *Server) streamingExecutorForUser(username, remoteAddr string) StreamingExecutor {
+// streamingExecutorForUser returns a StreamingExecutor for the authenticated
+// session. Returns nil if no streaming executor factory is set.
+func (s *Server) streamingExecutorForUser(username, remoteAddr string, authorizer plugin.Authorizer) StreamingExecutor {
 	s.mu.Lock()
 	factory := s.streamingExecutorFactory
 	s.mu.Unlock()
 	if factory == nil {
 		return nil
 	}
-	return factory(username, remoteAddr)
+	return factory(username, remoteAddr, authorizer)
 }
 
 // MonitorFactoryFunc returns the monitor factory, or nil if not set.
@@ -447,10 +463,22 @@ func (s *Server) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvider) 
 			s.maxSessionsMiddleware(),
 		),
 		wish.WithPublicKeyAuth(func(ctx ssh.Context, key ssh.PublicKey) bool {
-			return s.authenticatePublicKey(ctx.User(), key, ctx.RemoteAddr())
+			result := s.authenticatePublicKeyResult(ctx.User(), key, ctx.RemoteAddr())
+			if result.Authenticated {
+				setSessionAuthorizer(ctx, aaa.AuthorizerForResult(s.config.Authorizer, result))
+			}
+			return result.Authenticated
 		}),
 		wish.WithPasswordAuth(func(ctx ssh.Context, pass string) bool {
-			return s.authenticatePassword(authenticator, ctx.User(), pass, ctx.RemoteAddr())
+			ok, result := s.authenticatePasswordResult(authenticator, ctx.User(), pass, ctx.RemoteAddr())
+			if ok {
+				authorizer := result.Authorizer
+				if authorizer == nil {
+					authorizer = aaa.AuthorizerForResult(s.config.Authorizer, result)
+				}
+				setSessionAuthorizer(ctx, authorizer)
+			}
+			return ok
 		}),
 	}
 
@@ -695,10 +723,12 @@ func (s *Server) execMiddleware() wish.Middleware {
 					sess.Exit(1)                                                                                //nolint:errcheck // best-effort
 					return
 				}
-				executor := lcFactory(sess.User(), sess.RemoteAddr().String())
-				if _, err := executor(lcInput); errors.Is(err, pluginserver.ErrUnauthorized) {
+				executor := lcFactory(sess.User(), sess.RemoteAddr().String(), getSessionAuthorizer(sess))
+				rendered, err := executor(lcInput)
+				if errors.Is(err, pluginserver.ErrUnauthorized) {
 					fmt.Fprintf(sess.Stderr(), "error: %v\n", err) //nolint:errcheck // best-effort
 					sess.Exit(1)                                   //nolint:errcheck // best-effort
+					rendered.TransportComplete()
 					return
 				}
 				s.mu.Lock()
@@ -716,10 +746,12 @@ func (s *Server) execMiddleware() wish.Middleware {
 					msg := map[string]string{"stop": "stopping", "restart": "restarting", "reboot": "rebooting"}
 					fmt.Fprintf(sess, "%s daemon\n", msg[lcInput]) //nolint:errcheck // best-effort
 					sess.Exit(0)                                   //nolint:errcheck // best-effort exit status
+					rendered.TransportComplete()
 					fn()
 				} else {
 					fmt.Fprintf(sess.Stderr(), "error: %s not available\n", lcInput) //nolint:errcheck // best-effort
 					sess.Exit(1)                                                     //nolint:errcheck // best-effort
+					rendered.TransportComplete()
 				}
 				return
 			}
@@ -739,12 +771,15 @@ func (s *Server) execMiddleware() wish.Middleware {
 					sess.Exit(1)                                                                             //nolint:errcheck // best-effort
 					return
 				}
-				executor := factory(sess.User(), sess.RemoteAddr().String())
-				if _, err := executor("plugin protocol"); errors.Is(err, pluginserver.ErrUnauthorized) {
+				executor := factory(sess.User(), sess.RemoteAddr().String(), getSessionAuthorizer(sess))
+				rendered, err := executor("plugin protocol")
+				if errors.Is(err, pluginserver.ErrUnauthorized) {
 					fmt.Fprintf(sess.Stderr(), "error: %v\n", err) //nolint:errcheck // best-effort
 					sess.Exit(1)                                   //nolint:errcheck // best-effort
+					rendered.TransportComplete()
 					return
 				}
+				rendered.TransportComplete()
 				if pluginProto == nil {
 					fmt.Fprintln(sess.Stderr(), "error: plugin protocol not available (daemon still starting)") //nolint:errcheck // best-effort
 					sess.Exit(1)                                                                                //nolint:errcheck // best-effort
@@ -761,7 +796,7 @@ func (s *Server) execMiddleware() wish.Middleware {
 			// Check for streaming commands (e.g., "monitor event ...").
 			// Pass the full input to the executor; the executor does handler lookup.
 			if streamFactory != nil && pluginserver.IsStreamingCommand(input) {
-				streamExec := streamFactory(sess.User(), sess.RemoteAddr().String())
+				streamExec := streamFactory(sess.User(), sess.RemoteAddr().String(), getSessionAuthorizer(sess))
 				if err := streamExec(sess.Context(), sess, []string{input}); err != nil {
 					fmt.Fprintf(sess.Stderr(), "error: %v\n", err) //nolint:errcheck // best-effort
 					sess.Exit(1)                                   //nolint:errcheck // best-effort
@@ -782,17 +817,19 @@ func (s *Server) execMiddleware() wish.Middleware {
 				return
 			}
 
-			executor := factory(sess.User(), sess.RemoteAddr().String())
+			executor := factory(sess.User(), sess.RemoteAddr().String(), getSessionAuthorizer(sess))
 			result, err := executor(input)
 			if err != nil {
 				fmt.Fprintf(sess.Stderr(), "error: %v\n", err) //nolint:errcheck // best-effort
 				sess.Exit(1)                                   //nolint:errcheck // best-effort
+				result.TransportComplete()
 				return
 			}
 
-			if result != "" {
-				fmt.Fprintln(sess, result) //nolint:errcheck // best-effort
+			if result != nil && result.Output != "" {
+				fmt.Fprintln(sess, result.Output) //nolint:errcheck // best-effort
 			}
+			result.TransportComplete()
 		}
 	}
 }
@@ -808,7 +845,7 @@ func (s *Server) execMiddleware() wish.Middleware {
 func (s *Server) teaHandler(sess ssh.Session) (tea.Model, []tea.ProgramOption) {
 	username := sess.User()
 	remoteAddr := sess.RemoteAddr().String()
-	model := s.createSessionModel(username, remoteAddr)
+	model := s.createSessionModel(username, remoteAddr, getSessionAuthorizer(sess))
 	s.logger.Info("SSH session started", "user", username, "remote", remoteAddr)
 	return model, []tea.ProgramOption{}
 }

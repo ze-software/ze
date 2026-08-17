@@ -20,74 +20,91 @@
 
 package aaa
 
-import "sync"
+import (
+	"slices"
+	"sync/atomic"
+)
 
-// loginProfiles maps username -> authz profile names resolved at authentication.
-//
-// Keyed by username alone, not by session: authorizers receive a username and a
-// remote address, but the remote address of a command is not the address of the
-// login for every surface. A username is one identity here -- two sessions for
-// the same name are the same user -- so the last successful authentication wins.
-//
-// Entries are not evicted on logout. The map is bounded by the number of distinct
-// usernames that have ever authenticated successfully, an entry costs a name and
-// a short slice, and a stale entry cannot outlive its meaning: it holds names,
-// and a name that no longer resolves in the live store contributes nothing.
-var loginProfiles sync.Map // string -> []string
+var acceptedLocalProfileGeneration atomic.Uint64
 
-// RecordLoginProfiles stores the authz profile names a backend resolved for a
-// successful authentication. Build wraps the composed authenticator so this is
-// called for every surface (ssh, web, api) rather than at each call site.
-//
-// An authentication that resolves no profiles records nothing: it must not erase
-// a mapping from an earlier login that did resolve some, and an empty entry is
-// indistinguishable from "never seen" to the reader anyway.
-func RecordLoginProfiles(username string, profiles []string) {
-	if username == "" || len(profiles) == 0 {
-		return
+// SetAcceptedLocalProfileGeneration advances the generation against which
+// local recovery grants are valid. Remote login-resolved profiles are not
+// generation-bound.
+func SetAcceptedLocalProfileGeneration(generation uint64) {
+	acceptedLocalProfileGeneration.Store(generation)
+}
+
+type acceptedGenerationAuthorizer struct {
+	generation uint64
+	next       Authorizer
+}
+
+func (a acceptedGenerationAuthorizer) Authorize(username, remoteAddr, command string, isReadOnly bool) bool {
+	if a.generation == 0 || a.generation != acceptedLocalProfileGeneration.Load() {
+		return false
 	}
-	// Copy: the caller's slice belongs to an AuthResult that it may reuse.
-	stored := make([]string, len(profiles))
-	copy(stored, profiles)
-	loginProfiles.Store(username, stored)
-}
-
-// LoginProfiles returns the profile names recorded for username at its last
-// successful authentication. The returned slice is read-only; callers must not
-// mutate it.
-func LoginProfiles(username string) ([]string, bool) {
-	v, ok := loginProfiles.Load(username)
-	if !ok {
-		return nil, false
+	if a.next == nil {
+		return true
 	}
-	profiles, ok := v.([]string)
-	if !ok || len(profiles) == 0 {
-		return nil, false
+	return a.next.Authorize(username, remoteAddr, command, isReadOnly)
+}
+
+func (a acceptedGenerationAuthorizer) AuthorizeCommandArgs(
+	username, remoteAddr, command string,
+	args []string,
+	peer string,
+	isReadOnly bool,
+) bool {
+	if a.generation == 0 || a.generation != acceptedLocalProfileGeneration.Load() {
+		return false
 	}
-	return profiles, true
+	if a.next == nil {
+		return true
+	}
+	if typed, ok := a.next.(CommandArgsAuthorizer); ok {
+		return typed.AuthorizeCommandArgs(username, remoteAddr, command, args, peer, isReadOnly)
+	}
+	return a.next.Authorize(username, remoteAddr, CanonicalCommand(command, args, peer), isReadOnly)
 }
 
-// ForgetLoginProfilesForTest drops the recorded profiles for username. Exported for
-// tests, which must not leak identities into each other through this map.
-func ForgetLoginProfilesForTest(username string) {
-	loginProfiles.Delete(username)
+// resultAuthorizingAuthenticator rejects reserved identities and binds
+// authorization to each successful authentication result.
+type resultAuthorizingAuthenticator struct {
+	next       Authenticator
+	authorizer Authorizer
 }
 
-// profileRecordingAuthenticator wraps an authenticator so successful
-// authentication publishes its resolved profiles to authorization.
-type profileRecordingAuthenticator struct {
-	next Authenticator
+// WithProfileAuthorizer applies the common authentication choke point and
+// binds authorizer to each successful result's resolved profiles.
+func WithProfileAuthorizer(next Authenticator, authorizer Authorizer) Authenticator {
+	return resultAuthorizingAuthenticator{next: next, authorizer: authorizer}
 }
 
-// WithProfileRecording wraps next with the common authentication choke point
-// that rejects reserved usernames and publishes successful login profiles.
-// Registry-built authentication and direct local API authentication must both
-// use this function so neither behavior can drift between construction paths.
-func WithProfileRecording(next Authenticator) Authenticator {
-	return profileRecordingAuthenticator{next: next}
+// AuthorizerForResult returns the authorization view for one successful
+// authentication result. Local users retain live assignment behavior across
+// reloads. Remote profiles are bound to the result. A recovery profile is valid
+// only while its accepted local credential generation remains current.
+func AuthorizerForResult(authorizer Authorizer, result AuthResult) Authorizer {
+	if result.Source == SourceLocal {
+		if !slices.Contains(result.Profiles, ReservedRecoveryProfile) {
+			return authorizer
+		}
+		return acceptedGenerationAuthorizer{
+			generation: result.LocalGeneration,
+			next:       BindProfiles(authorizer, []string{ReservedRecoveryProfile}),
+		}
+	}
+
+	profiles := make([]string, 0, len(result.Profiles))
+	for _, profile := range result.Profiles {
+		if profile != ReservedRecoveryProfile {
+			profiles = append(profiles, profile)
+		}
+	}
+	return BindProfiles(authorizer, profiles)
 }
 
-func (p profileRecordingAuthenticator) Authenticate(request AuthRequest) (AuthResult, error) {
+func (p resultAuthorizingAuthenticator) Authenticate(request AuthRequest) (AuthResult, error) {
 	// Fail closed: no externally-supplied username may bear the reserved prefix.
 	// Such a username is a bug or an attempt to spoof a server-injected trusted
 	// identity that authz.Store.Authorize permits, or a reserved recovery
@@ -101,14 +118,7 @@ func (p profileRecordingAuthenticator) Authenticate(request AuthRequest) (AuthRe
 	}
 	result, err := p.next.Authenticate(request)
 	if err == nil && result.Authenticated {
-		// NOTE: do NOT FilterReservedNames(result.Profiles) here. The trusted local
-		// backend legitimately delivers the reserved break-glass recovery profile
-		// through this exact path (UserCredential.Profiles -> AuthResult.Profiles;
-		// cmd/ze/hub/main_servers.go usersFromZefsDB), so a central strip here would
-		// erase the recovery grant and lock out the bootstrap admin. Reserved-name
-		// filtering therefore lives in each UNTRUSTED wire backend (radius mapProfiles,
-		// tacacs handlePass), which never has a legitimate reason to emit one.
-		RecordLoginProfiles(request.Username, result.Profiles)
+		result.Authorizer = AuthorizerForResult(p.authorizer, result)
 	}
 	return result, err
 }

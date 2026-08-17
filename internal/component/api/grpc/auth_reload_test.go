@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"net"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -13,6 +14,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	zepb "github.com/ze-software/ze/api/proto"
+	"github.com/ze-software/ze/internal/component/api"
 )
 
 // startAuthReloadServer starts a real gRPC server on a bound loopback listener
@@ -51,182 +53,66 @@ func listCommandsCode(t *testing.T, client zepb.ZeServiceClient, token string) c
 	return status.Code(err)
 }
 
-// VALIDATES: AC-1 -- turning authentication ON in a reloaded config makes the
-// RUNNING gRPC server demand it, proven by a real RPC and with no rebind.
-// PREVENTS: a reload that reports success while the listener keeps accepting
-// every RPC unauthenticated, which is what the daemon did while authentication
-// was fixed at construction.
-func TestGRPCUpdateAuthTurnsAuthenticationOn(t *testing.T) {
-	srv, client := startAuthReloadServer(t, GRPCConfig{})
+func TestGRPCAuthenticationProviderPublishesModesAtomically(t *testing.T) {
+	var live atomic.Pointer[api.Authentication]
+	publish := func(authentication api.Authentication) { live.Store(&authentication) }
+	provider := func() api.Authentication { return *live.Load() }
+	publish(testAuthentication("old", nil, nil)())
+	srv, client := startAuthReloadServer(t, GRPCConfig{Authentication: provider})
 
+	assert.True(t, srv.Authenticated())
+	assert.Equal(t, codes.OK, listCommandsCode(t, client, "old"))
+	assert.Equal(t, codes.Unauthenticated, listCommandsCode(t, client, "new"))
+
+	publish(api.Authentication{Required: true})
+	assert.True(t, srv.Authenticated(), "staging is gated for exposure checks")
+	assert.Equal(t, codes.Unauthenticated, listCommandsCode(t, client, "old"))
+	assert.Equal(t, codes.Unauthenticated, listCommandsCode(t, client, "new"))
+
+	publish(testAuthentication("new", nil, nil)())
+	assert.Equal(t, codes.Unauthenticated, listCommandsCode(t, client, "old"))
+	assert.Equal(t, codes.OK, listCommandsCode(t, client, "new"))
+
+	publish(api.Authentication{})
 	assert.False(t, srv.Authenticated())
 	assert.Equal(t, codes.OK, listCommandsCode(t, client, ""))
-
-	restore, err := srv.UpdateAuth("secret", nil)
-	require.NoError(t, err)
-	require.NotNil(t, restore)
-
-	assert.True(t, srv.Authenticated())
-	assert.Equal(t, codes.Unauthenticated, listCommandsCode(t, client, ""), "an unauthenticated RPC must be refused after the reload")
-	assert.Equal(t, codes.Unauthenticated, listCommandsCode(t, client, "wrong"))
-	assert.Equal(t, codes.OK, listCommandsCode(t, client, "secret"))
 }
 
-// VALIDATES: AC-1 (other direction) -- turning authentication OFF in a reloaded
-// config also takes effect on the running gRPC server.
-// PREVENTS: an implementation that only ever adds credentials, leaving the
-// exposure guard's view of the server drifting from what it serves.
-func TestGRPCUpdateAuthTurnsAuthenticationOff(t *testing.T) {
-	srv, client := startAuthReloadServer(t, GRPCConfig{Token: "secret"})
+func TestGRPCRejectedCandidateNeverAuthenticates(t *testing.T) {
+	var live atomic.Pointer[api.Authentication]
+	accepted := testAuthentication("accepted", nil, nil)()
+	live.Store(&accepted)
+	_, client := startAuthReloadServer(t, GRPCConfig{Authentication: func() api.Authentication {
+		return *live.Load()
+	}})
 
-	assert.True(t, srv.Authenticated())
-	assert.Equal(t, codes.Unauthenticated, listCommandsCode(t, client, ""))
+	staging := api.Authentication{Required: true}
+	live.Store(&staging)
+	assert.Equal(t, codes.Unauthenticated, listCommandsCode(t, client, "candidate"))
 
-	_, err := srv.UpdateAuth("", nil)
-	require.NoError(t, err)
-
-	assert.False(t, srv.Authenticated())
-	assert.Equal(t, codes.OK, listCommandsCode(t, client, ""), "the reloaded config no longer asks for credentials")
+	live.Store(&accepted)
+	assert.Equal(t, codes.Unauthenticated, listCommandsCode(t, client, "candidate"))
+	assert.Equal(t, codes.OK, listCommandsCode(t, client, "accepted"))
 }
 
-// VALIDATES: AC-2 -- the restore function UpdateAuth returns puts the previous
-// credentials back on the running server.
-// PREVENTS: a reload that fails after the rebuild leaving the server less
-// authenticated than it was before the reload started.
-func TestGRPCUpdateAuthRestoreRevertsCredentials(t *testing.T) {
-	srv, client := startAuthReloadServer(t, GRPCConfig{Token: "original"})
-
-	restore, err := srv.UpdateAuth("", nil)
+func TestGRPCReconfigureAppliesPublishedExposureModeAndTLS(t *testing.T) {
+	var live atomic.Pointer[api.Authentication]
+	authenticated := testAuthentication("secret", nil, nil)()
+	live.Store(&authenticated)
+	srv, err := NewGRPCServer(GRPCConfig{
+		ListenAddrs: []string{"127.0.0.1:0"},
+		Authentication: func() api.Authentication {
+			return *live.Load()
+		},
+	}, testEngine(), nil)
 	require.NoError(t, err)
-	assert.Equal(t, codes.OK, listCommandsCode(t, client, ""))
-
-	restore()
-
-	assert.True(t, srv.Authenticated())
-	assert.Equal(t, codes.Unauthenticated, listCommandsCode(t, client, ""))
-	assert.Equal(t, codes.OK, listCommandsCode(t, client, "original"))
-}
-
-// VALIDATES: AC-3 -- gRPC refuses to drop its authentication while it is bound
-// to a non-loopback address, so a reload cannot produce the pair the boot guard
-// refuses to start with.
-// PREVENTS: a reload turning a remotely reachable gRPC listener into an
-// unauthenticated one, which is the exposure the whole guard exists to stop.
-func TestGRPCUpdateAuthRefusesToUnauthenticateNonLoopback(t *testing.T) {
-	srv, err := NewGRPCServer(GRPCConfig{ListenAddrs: []string{"127.0.0.1:0"}, Token: "secret"}, testEngine(), nil)
-	require.NoError(t, err)
-
-	// Bound non-loopback. Reaching this state through the constructor needs TLS
-	// material a unit test has no fixture for, so the addresses are set here
-	// directly: the guard under test reads them, and reading them is the
-	// behavior being proven.
-	srv.bound = []string{"192.0.2.10:50051"}
-
-	restore, updErr := srv.UpdateAuth("", nil)
-	require.Error(t, updErr)
-	assert.Contains(t, updErr.Error(), "192.0.2.10:50051")
-	assert.Nil(t, restore)
-	assert.True(t, srv.Authenticated(), "a refused update must leave the credentials untouched")
-
-	// A loopback address in the same set is not an escape: one non-loopback
-	// entry is enough to refuse.
-	srv.bound = []string{"127.0.0.1:50051", "192.0.2.10:50051"}
-	_, updErr = srv.UpdateAuth("", nil)
-	require.Error(t, updErr)
-
-	// Loopback only: the same call is allowed.
-	srv.bound = []string{"127.0.0.1:50051"}
-	_, updErr = srv.UpdateAuth("", nil)
-	require.NoError(t, updErr)
-	assert.False(t, srv.Authenticated())
-}
-
-// VALIDATES: Reconfigure applies the constructor's full rule -- authenticated
-// AND encrypted -- to the addresses a reload asks for.
-// PREVENTS: a SIGHUP reaching a state the daemon refuses to boot into. gRPC on
-// loopback with a token and no TLS, migrated to 0.0.0.0, sends every bearer
-// token across the network in cleartext. The hub's exposure guard passes it,
-// because that guard classifies authentication and cannot see a certificate.
-func TestGRPCReconfigureRefusesNonLoopbackWithoutTLS(t *testing.T) {
-	srv, err := NewGRPCServer(GRPCConfig{ListenAddrs: []string{"127.0.0.1:0"}, Token: "secret"}, testEngine(), nil)
-	require.NoError(t, err)
-	require.False(t, srv.tlsConfigured)
 
 	err = srv.Reconfigure(t.Context(), []string{"0.0.0.0:50051"})
-	require.Error(t, err, "an authenticated plaintext listener must not move off loopback")
-	assert.Contains(t, err.Error(), "TLS")
-	assert.Contains(t, err.Error(), "0.0.0.0:50051")
+	require.ErrorContains(t, err, "TLS")
 
-	// Unauthenticated is refused first, and names the other missing condition.
-	_, updErr := srv.UpdateAuth("", nil)
-	require.NoError(t, updErr)
+	unauthenticated := api.Authentication{}
+	live.Store(&unauthenticated)
 	err = srv.Reconfigure(t.Context(), []string{"0.0.0.0:50051"})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "requires authentication")
-
-	// A loopback move is unaffected: the rule gates exposure, not reloads.
+	require.ErrorContains(t, err, "requires authentication")
 	require.NoError(t, srv.Reconfigure(t.Context(), []string{"127.0.0.1:0"}))
-}
-
-// VALIDATES: the undo UpdateAuth returns re-checks the listener rule and KEEPS
-// the reloaded credentials when putting the old ones back would expose the
-// listener.
-// PREVENTS: the original defect mirrored. A single reload installs a token and
-// then moves gRPC off loopback; both guards pass, because the credentials are
-// in place when each one looks. If a LATER step of the reload fails, runReload
-// runs this undo and nothing moves the listener back, so an unconditional
-// restore leaves 0.0.0.0 serving with no credentials -- the operator told the
-// reload FAILED, and the port ungated.
-func TestGRPCUpdateAuthUndoRefusesToExposeMigratedListener(t *testing.T) {
-	srv, err := NewGRPCServer(GRPCConfig{ListenAddrs: []string{"127.0.0.1:0"}}, testEngine(), nil)
-	require.NoError(t, err)
-	srv.tlsConfigured = true // as a boot with tls-cert/tls-key would leave it
-	require.False(t, srv.Authenticated())
-
-	// The reload installs a token while the listener is still on loopback.
-	restore, err := srv.UpdateAuth("reloaded-token", nil)
-	require.NoError(t, err)
-	require.True(t, srv.Authenticated())
-
-	// ...and then migrates it off loopback, which the rule allows now that the
-	// server is authenticated and encrypted.
-	require.NoError(t, srv.Reconfigure(t.Context(), []string{"0.0.0.0:0"}))
-
-	// A later step of the reload fails, so runReload unwinds the credentials.
-	restore()
-
-	assert.True(t, srv.Authenticated(), "the undo must not strip credentials off a listener it cannot move back")
-	require.NoError(t, checkGRPCListenAddr(srv.bound[0], srv.Authenticated(), srv.tlsConfigured),
-		"no address the server holds may be left reachable without credentials")
-}
-
-// VALIDATES: the undo still restores when doing so is safe, so keeping the
-// reloaded credentials is the exception and not the rule.
-// PREVENTS: a fix that simply stops restoring, which would leave every failed
-// reload authenticating against the config the daemon rolled back.
-func TestGRPCUpdateAuthUndoRestoresWhenLoopback(t *testing.T) {
-	srv, err := NewGRPCServer(GRPCConfig{ListenAddrs: []string{"127.0.0.1:50051"}, Token: "original"}, testEngine(), nil)
-	require.NoError(t, err)
-
-	restore, err := srv.UpdateAuth("reloaded", nil)
-	require.NoError(t, err)
-	require.Equal(t, "reloaded", srv.token)
-
-	restore()
-
-	assert.Equal(t, "original", srv.token, "a loopback listener must get its previous credentials back")
-}
-
-// VALIDATES: UpdateAuth fails closed on a server that has been stopped.
-// PREVENTS: a reload believing it rebuilt authentication on a server that is no
-// longer serving.
-func TestGRPCUpdateAuthRefusedAfterStop(t *testing.T) {
-	srv, err := NewGRPCServer(GRPCConfig{ListenAddrs: []string{"127.0.0.1:0"}, Token: "secret"}, testEngine(), nil)
-	require.NoError(t, err)
-	srv.Stop()
-
-	restore, updErr := srv.UpdateAuth("", nil)
-	require.Error(t, updErr)
-	assert.Nil(t, restore)
-	assert.True(t, srv.Authenticated())
 }

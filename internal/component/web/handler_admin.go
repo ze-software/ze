@@ -6,7 +6,6 @@
 package web
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -153,7 +152,9 @@ func HandleAdminExecute(renderer *Renderer, dispatch CommandDispatcher) http.Han
 		}
 
 		username := GetUsernameFromRequest(r)
-		output, execErr := dispatch.JSON(context.Background(), plugin.CallerIdentity{Username: username, RemoteAddr: r.RemoteAddr}, commandStr)
+		rendered, execErr := dispatch.JSON(r.Context(), plugin.CallerIdentity{Username: username, RemoteAddr: r.RemoteAddr}, commandStr)
+		defer rendered.TransportComplete()
+		output := rendered.Output
 
 		result := CommandResultData{
 			CommandName: commandStr,

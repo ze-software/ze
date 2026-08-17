@@ -16,6 +16,35 @@ type StoreAuthorizer struct {
 	Store *Store
 }
 
+// BindProfiles returns a request-carried authorizer for one authentication
+// result. The profile slice is copied so backend-owned result storage cannot
+// mutate an established session.
+func (a StoreAuthorizer) BindProfiles(profiles []string) aaa.Authorizer {
+	return boundStoreAuthorizer{
+		store:    a.Store,
+		profiles: append([]string(nil), profiles...),
+	}
+}
+
+type boundStoreAuthorizer struct {
+	store    *Store
+	profiles []string
+}
+
+func (a boundStoreAuthorizer) Authorize(username, _, command string, isReadOnly bool) bool {
+	if a.store == nil {
+		return true
+	}
+	return a.store.AuthorizeWithProfiles(username, a.profiles, command, isReadOnly) != Deny
+}
+
+func (a boundStoreAuthorizer) AuthorizeCommandArgs(username, _, command string, args []string, peer string, isReadOnly bool) bool {
+	if a.store == nil {
+		return true
+	}
+	return a.store.AuthorizeWithProfiles(username, a.profiles, aaa.CanonicalCommand(command, args, peer), isReadOnly) != Deny
+}
+
 // Authorize implements aaa.Authorizer.
 func (a StoreAuthorizer) Authorize(username, remoteAddr, command string, isReadOnly bool) bool {
 	if a.Store == nil {

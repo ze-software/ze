@@ -18,39 +18,121 @@ import (
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
 
-// VALIDATES: AC-6, successful API local authentication publishes the zefs
-// recovery profile before strict command authorization runs.
-// PREVENTS: buildUserAuthenticator authenticating a power user but discarding
-// AuthResult.Profiles, which leaves authz.Store unable to recognize recovery.
-func TestBuildUserAuthenticatorRecordsRecoveryProfiles(t *testing.T) {
+// VALIDATES: successful API local authentication binds the generation-scoped
+// zefs recovery profile before strict command authorization runs.
+func TestBuildAPIAuthenticationBindsRecoveryProfiles(t *testing.T) {
 	const username = "api-recovery-user"
-	aaa.ForgetLoginProfilesForTest(username)
-	t.Cleanup(func() { aaa.ForgetLoginProfilesForTest(username) })
+	aaa.SetAcceptedLocalProfileGeneration(1)
+	t.Cleanup(func() {
+		aaa.SetAcceptedLocalProfileGeneration(0)
+	})
 
 	hash, err := bcrypt.GenerateFromPassword([]byte("recovery-pass"), bcrypt.MinCost)
 	require.NoError(t, err)
 	users := []authz.UserConfig{{
-		Name:     username,
-		Hash:     string(hash),
-		Profiles: []string{aaa.ReservedRecoveryProfile},
+		Name:            username,
+		Hash:            string(hash),
+		Profiles:        []string{aaa.ReservedRecoveryProfile},
+		LocalGeneration: 1,
 	}}
-	authenticator := buildUserAuthenticator(users, func() ([]authz.UserConfig, error) {
-		return users, nil
-	})
-	require.NotNil(t, authenticator)
-
-	gotUser, ok := authenticator("Bearer " + username + ":recovery-pass")
-	require.True(t, ok, "the credential must authenticate before profile publication is assessed")
-	assert.Equal(t, username, gotUser)
-
 	store := authz.NewStore()
 	store.AddProfile(authz.Profile{
 		Name: "unrelated",
 		Run:  authz.Section{Default: authz.Deny},
 		Edit: authz.Section{Default: authz.Deny},
 	})
-	assert.Equal(t, authz.Allow, store.Authorize(username, "show version", true),
-		"the recorded recovery profile must cross a strict authorization store")
+	authentication := buildAPIAuthentication(users, "", authz.StoreAuthorizer{Store: store})
+	caller, ok := authentication.Authenticate("Bearer " + username + ":recovery-pass")
+	require.True(t, ok)
+	assert.Equal(t, username, caller.Username)
+	assert.True(t, caller.Authorizer.Authorize(username, "", "show version", true))
+}
+
+func TestAPIRequestCarriesAuthenticatedAuthorizationGeneration(t *testing.T) {
+	oldAuthorizer := &apiStreamTestAuthorizer{allow: true}
+	authentication := buildAPIAuthentication(nil, "old-token", oldAuthorizer)
+	caller, ok := authentication.Authenticate("Bearer old-token")
+	require.True(t, ok)
+
+	server, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, nil)
+	require.NoError(t, err)
+	newAuthorizer := &apiStreamTestAuthorizer{allow: false}
+	server.Dispatcher().SetAuthorizer(newAuthorizer)
+	const command = "test generation command"
+	server.Dispatcher().Register(command, func(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+		return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(`"ok"`)), nil
+	}, command)
+
+	response, err := serverDispatcher(server, "")(t.Context(), caller, command)
+	require.NoError(t, err)
+	require.NotNil(t, response)
+	assert.Equal(t, plugin.StatusDone, response.Status)
+	assert.Equal(t, command, oldAuthorizer.command)
+	assert.Empty(t, newAuthorizer.command, "publication between authentication and dispatch must not switch policy generations")
+}
+
+// VALIDATES: REST/gRPC request-carried authorization still invokes the
+// selected TACACS-style bundle authorizer, whose denial is authoritative.
+// PREVENTS: accepted-generation local policy bypassing remote command denial.
+func TestAPIRequestTACACSDenialOverridesAcceptedLocalAllow(t *testing.T) {
+	resetAAABundleForTest(t)
+	remote := &apiExternalFallbackAuthorizer{allow: false}
+	swapAAABundle(&aaa.Bundle{Authorizer: remote}, nil)
+
+	authentication := buildAPIAuthentication(
+		nil,
+		"api-token",
+		acceptedLocalGenerationAuthorizer{store: nil},
+	)
+	caller, ok := authentication.Authenticate("Bearer api-token")
+	require.True(t, ok)
+	caller.RemoteAddr = "198.51.100.23:4444"
+
+	server, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, nil)
+	require.NoError(t, err)
+	const command = "test tacacs denied api command"
+	ran := false
+	server.Dispatcher().Register(command, func(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+		ran = true
+		return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(`"unexpected"`)), nil
+	}, command)
+
+	result, err := buildAPIEngine(server).Execute(t.Context(), &api.ExecuteRequest{
+		Caller:  caller,
+		Command: command,
+	})
+
+	require.ErrorIs(t, err, api.ErrUnauthorized)
+	require.NotNil(t, result)
+	assert.False(t, ran, "remote denial must stop API command execution")
+	assert.Equal(t, 1, remote.calls)
+	assert.Equal(t, aaa.ReservedSharedAPIUsername, remote.username)
+	assert.Equal(t, caller.RemoteAddr, remote.remoteAddr)
+	assert.Equal(t, command, remote.command)
+	require.NotNil(t, remote.localFallback)
+	assert.True(t, remote.localFallback.Authorize(caller.Username, caller.RemoteAddr, command, false),
+		"the accepted local no-RBAC fallback is permissive, so only the remote denial can block execution")
+}
+
+// VALIDATES: web handlers can carry their session authorizer in request context.
+// PREVENTS: web command dispatch falling back to mutable username-scoped policy.
+func TestServerDispatcherUsesContextAuthorizer(t *testing.T) {
+	server, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, nil)
+	require.NoError(t, err)
+	newAuthorizer := &apiStreamTestAuthorizer{allow: false}
+	server.Dispatcher().SetAuthorizer(newAuthorizer)
+	const command = "test web session generation"
+	server.Dispatcher().Register(command, func(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+		return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(`"ok"`)), nil
+	}, command)
+
+	sessionAuthorizer := &apiStreamTestAuthorizer{allow: true}
+	ctx := plugin.WithCallerAuthorizer(t.Context(), sessionAuthorizer)
+	response, err := serverDispatcher(server, "web")(ctx, plugin.CallerIdentity{Username: "same-user"}, command)
+	require.NoError(t, err)
+	require.NotNil(t, response)
+	assert.Equal(t, command, sessionAuthorizer.command)
+	assert.Empty(t, newAuthorizer.command)
 }
 
 // VALIDATES: the shared API engine translates a denial from the real command
@@ -137,7 +219,8 @@ func TestAPIExecutorPropagatesRequestContextAndRemoteAddr(t *testing.T) {
 		RemoteAddr: "198.51.100.10:4444",
 	}, "test api")
 	require.NoError(t, err)
-	assert.Equal(t, `{"result":"ok"}`, output)
+	assert.Equal(t, `{"result":"ok"}`, output.Output)
+	output.TransportComplete()
 
 	require.NotNil(t, seen)
 	assert.Equal(t, "alice", seen.Username)
@@ -410,6 +493,28 @@ func (a *apiStreamTestAuthorizer) Authorize(username, remoteAddr, command string
 	a.remoteAddr = remoteAddr
 	a.command = command
 	a.readOnly = isReadOnly
+	return a.allow
+}
+
+type apiExternalFallbackAuthorizer struct {
+	allow         bool
+	calls         int
+	username      string
+	remoteAddr    string
+	command       string
+	localFallback aaa.Authorizer
+}
+
+func (a *apiExternalFallbackAuthorizer) BindLocalFallback(local aaa.Authorizer) aaa.Authorizer {
+	a.localFallback = local
+	return a
+}
+
+func (a *apiExternalFallbackAuthorizer) Authorize(username, remoteAddr, command string, _ bool) bool {
+	a.calls++
+	a.username = username
+	a.remoteAddr = remoteAddr
+	a.command = command
 	return a.allow
 }
 

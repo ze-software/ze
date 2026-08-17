@@ -23,9 +23,8 @@ environment {
 }
 ```
 
-REST is plaintext HTTP and only starts on loopback addresses. To expose REST
-remotely, keep Ze bound to `127.0.0.1` or `::1` and terminate TLS in a trusted
-local proxy.
+REST uses plaintext HTTP and only binds loopback addresses. Use authenticated
+gRPC with TLS for management from a non-loopback address.
 <!-- source: internal/component/api/rest/server.go -- NewRESTServer loopback check -->
 
 Or via environment variable:
@@ -49,30 +48,74 @@ Open interactive docs: <http://localhost:8081/api/v1/docs>
 
 ## Authentication
 
-Three modes, in order of precedence:
+Ze selects one of three API authentication modes:
 
-| Mode | How to enable | How clients authenticate |
-|------|--------------|-------------------------|
-| Per-user (recommended) | Run `ze init` to create the zefs user database | `Authorization: Bearer username:password` |
-| Single token | Set `ze.api-server.token=<secret>` or YANG `api-server { token "secret"; }` | `Authorization: Bearer <secret>` |
-| No auth | Leave both unset | No header required, read-only identity |
+| Mode | User or token source | Client credentials |
+|------|----------------------|--------------------|
+| Per-user | A zefs user or a `system.authentication.user` entry | `Authorization: Bearer username:password` |
+| Single token | `ze.api-server.token` or YANG `api-server { token "secret"; }` | `Authorization: Bearer <secret>` |
+| No auth | No users and no token | No header, with read-only authority |
 
-Per-user mode uses the same user list as SSH and the web UI. Each request
-authenticates as a specific user, and the engine enforces per-user
-authorization via the existing dispatcher.
+Per-user mode has precedence. If at least one user exists, the shared token does
+not act as a fallback for a failed per-user login.
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig API auth mode -->
+<!-- source: internal/component/api/rest/auth.go -- RESTServer.withAuth -->
+<!-- source: internal/component/api/grpc/server.go -- GRPCServer.checkAuth -->
 
-On startup, ze prints the active auth mode:
+The per-user source merges the zefs users with `system.authentication.user`
+entries from the running config. A config user replaces a zefs user with the
+same name. Only zefs users that survive this merge keep the zefs recovery
+profile. A successful login carries its authorization view with the
+authenticated request. Concurrent requests with the same username cannot
+replace each other's resolved profiles.
+<!-- source: cmd/ze/hub/main_servers.go -- liveLocalUsers, mergeAuthUsers, usersFromZefsDB -->
+<!-- source: cmd/ze/hub/api.go -- buildAPIAuthentication -->
+<!-- source: internal/component/aaa/login_profiles.go -- WithProfileAuthorizer, AuthorizerForResult -->
+
+At boot, Ze reads the merged user source once after it populates the config
+provider. Ze refuses startup before management listeners bind if that read
+fails. An `environment.ssh` block is not required for API users or no-BGP AAA.
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig boot user resolution and no-BGP AAA installation -->
+
+Each request uses the current accepted authentication generation. A successful
+reload publishes one generation that adds, changes, or removes API users and
+authorization policy atomically. The generation includes profile definitions
+and user-profile assignments. A failed reload keeps the prior credentials and
+policy. The zefs user list stays the boot snapshot.
+<!-- source: cmd/ze/hub/api.go -- buildAPIAuthentication -->
+<!-- source: cmd/ze/hub/mgmt_auth_reload.go -- apiAuthReloader -->
+<!-- source: cmd/ze/hub/aaa_lifecycle.go -- acceptedLocalIdentity, publishAcceptedLocalIdentity -->
+<!-- source: cmd/ze/hub/main_reload.go -- runReloadContext -->
+
+Per-user requests keep the authenticated username and the authorizer from that
+authentication result. Single-token and no-auth requests use a reserved
+server-injected identity. A valid shared token has write authority. A no-auth
+request stays read-only, so Ze denies writes before command authorization.
+<!-- source: internal/component/aaa/reserved.go -- ReservedSharedAPIUsername -->
+<!-- source: internal/component/authz/authz.go -- Store.Authorize, Store.AuthorizeWithProfiles -->
+<!-- source: internal/component/api/rest/auth.go -- RESTServer.withAuth, RESTServer.callerIdentity -->
+<!-- source: internal/component/api/grpc/server.go -- GRPCServer.checkAuth -->
+
+### Startup output and remedies
+
+Ze writes one of these exact lines when an API server is configured:
+
 ```
-API auth mode: per-user (1 users from zefs)
+API auth mode: per-user (1 users)
 ```
 
-If neither per-user nor token is configured, ze warns:
+```
+API auth mode: single-token (shared bearer)
+```
+
 ```
 warning: API auth mode: NONE (no users, no token) -- set ze.api-server.token or initialize zefs
 ```
 
-In no-auth mode the built-in `api` identity is read-only. Command reads work,
-but write commands, REST config sessions, and gRPC config sessions return 403.
+The per-user count includes surviving zefs users and config users. To leave
+single-token or NONE mode, add a config user or initialize zefs. To keep shared
+credentials, set `ze.api-server.token`.
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig API auth mode output -->
 
 ## REST Endpoints
 

@@ -63,7 +63,7 @@ func TestTacacsAuthorizerPassAdd(t *testing.T) {
 		Timeout: 2 * time.Second,
 	})
 	local := &fakeLocalAuthz{allow: false}
-	authorizer := NewTacacsAuthorizer(client, local, nil)
+	authorizer := newTacacsAuthorizer(client, local)
 	result := authorizer.Authorize("admin", "10.0.0.1:22", "show version", true)
 	assert.True(t, result, "PASS_ADD should allow")
 }
@@ -85,7 +85,7 @@ func TestTacacsAuthorizerAuthorizeCommandArgsPreservesOddArgs(t *testing.T) {
 		Timeout: 2 * time.Second,
 	})
 	local := &fakeLocalAuthz{allow: false}
-	authorizer := NewTacacsAuthorizer(client, local, nil)
+	authorizer := newTacacsAuthorizer(client, local)
 
 	result := authorizer.AuthorizeCommandArgs(
 		"admin",
@@ -121,10 +121,43 @@ func TestTacacsAuthorizerFail(t *testing.T) {
 		Timeout: 2 * time.Second,
 	})
 	local := &fakeLocalAuthz{allow: true}
-	authorizer := NewTacacsAuthorizer(client, local, nil)
+	authorizer := newTacacsAuthorizer(client, local)
 
 	result := authorizer.Authorize("admin", "10.0.0.1:22", "restart", true)
 	assert.False(t, result, "FAIL should deny")
+}
+
+// VALIDATES: replacing TACACS+ local fallback keeps a reachable remote denial
+// authoritative over permissive accepted-generation policy.
+// PREVENTS: API fallback rebinding bypassing TACACS+ command authorization.
+func TestTacacsAuthorizerBoundLocalFallbackPreservesRemoteDenial(t *testing.T) {
+	key := []byte("secret")
+	srv := newTestServer(t, key, authorReply(AuthorStatusFail))
+	defer srv.close()
+
+	client := NewTacacsClient(TacacsClientConfig{
+		Servers: []TacacsServer{{Address: srv.addr(), Key: key}},
+		Timeout: 2 * time.Second,
+	})
+	authorizer := newTacacsAuthorizer(client, &fakeLocalAuthz{allow: false})
+	permissive := &fakeLocalAuthz{allow: true}
+	bound := authorizer.BindLocalFallback(permissive)
+
+	assert.False(t, bound.Authorize("admin", "10.0.0.1:22", "restart", false))
+	assert.Equal(t, 0, permissive.calls, "reachable TACACS+ denial must not consult local fallback")
+}
+
+// VALIDATES: replacing TACACS+ local fallback preserves server-unavailable
+// fallback semantics.
+// PREVENTS: accepted-generation rebinding turning TACACS+ outages into denial.
+func TestTacacsAuthorizerBoundLocalFallbackUsedWhenUnavailable(t *testing.T) {
+	client := NewTacacsClient(TacacsClientConfig{Timeout: 200 * time.Millisecond})
+	authorizer := newTacacsAuthorizer(client, &fakeLocalAuthz{allow: false})
+	permissive := &fakeLocalAuthz{allow: true}
+	bound := authorizer.BindLocalFallback(permissive)
+
+	assert.True(t, bound.Authorize("admin", "10.0.0.1:22", "show version", true))
+	assert.Equal(t, 1, permissive.calls)
 }
 
 // VALIDATES: AC-9/AC-10 -- TACACS+ server unreachable falls back to local.
@@ -134,7 +167,7 @@ func TestTacacsAuthorizerFallbackToLocal(t *testing.T) {
 		Timeout: 200 * time.Millisecond,
 	})
 	local := &fakeLocalAuthz{allow: true}
-	authorizer := NewTacacsAuthorizer(client, local, nil)
+	authorizer := newTacacsAuthorizer(client, local)
 
 	result := authorizer.Authorize("admin", "10.0.0.1:22", "show version", true)
 	assert.True(t, result, "should fall back to local allow")
@@ -152,7 +185,7 @@ func TestTacacsAuthorizerPassRepl(t *testing.T) {
 		Timeout: 2 * time.Second,
 	})
 	local := &fakeLocalAuthz{allow: false}
-	authorizer := NewTacacsAuthorizer(client, local, nil)
+	authorizer := newTacacsAuthorizer(client, local)
 
 	result := authorizer.Authorize("admin", "10.0.0.1:22", "show version", true)
 	assert.True(t, result, "PASS_REPL should allow")
@@ -170,7 +203,7 @@ func TestTacacsAuthorizerErrorFallback(t *testing.T) {
 		Timeout: 2 * time.Second,
 	})
 	local := &fakeLocalAuthz{allow: true}
-	authorizer := NewTacacsAuthorizer(client, local, nil)
+	authorizer := newTacacsAuthorizer(client, local)
 
 	result := authorizer.Authorize("admin", "10.0.0.1:22", "show version", true)
 	assert.True(t, result, "ERROR should fall back to local allow")
@@ -183,7 +216,7 @@ func TestTacacsAuthorizerStrictFallbackDeniesUnreachable(t *testing.T) {
 		Timeout: 200 * time.Millisecond,
 	})
 	local := &fakeLocalAuthz{allow: true}
-	authorizer := NewTacacsAuthorizerWithFallback(client, local, nil, true)
+	authorizer := newTacacsAuthorizerWithFallback(client, local, nil, true)
 
 	result := authorizer.Authorize("admin", "10.0.0.1:22", "show version", true)
 	assert.False(t, result, "strict fallback should deny")

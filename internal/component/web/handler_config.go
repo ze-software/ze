@@ -96,6 +96,7 @@ type LeafField struct {
 }
 
 func authorizeWebConfigMutation(w http.ResponseWriter, r *http.Request, authorizer aaa.Authorizer, username, command string) bool {
+	authorizer = authorizerForRequest(r, authorizer)
 	if authorizer == nil {
 		return true
 	}
@@ -138,12 +139,9 @@ func htmxRedirect(w http.ResponseWriter, r *http.Request, target string) {
 	http.Redirect(w, r, target, http.StatusSeeOther)
 }
 
-// HandleConfigView returns an HTTP handler that serves the config tree view.
-// It parses the URL path (stripping the /show/ prefix), walks both schema and
-// tree, and renders the appropriate template. JSON responses return the subtree
-// as a map. HTMX partial requests (HX-Request header) return the content
-// fragment without the layout wrapper.
-func HandleConfigView(renderer *Renderer, schema *config.Schema, tree *config.Tree) http.HandlerFunc {
+// handleConfigViewForTest returns the legacy show-tree handler used by focused
+// compatibility tests.
+func handleConfigViewForTest(renderer *Renderer, schema *config.Schema, tree *config.Tree) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		parsed, err := ParseURL(r)
 		if err != nil {

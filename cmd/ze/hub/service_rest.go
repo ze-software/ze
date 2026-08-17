@@ -61,12 +61,10 @@ func restBuildImpl(in *apiBuildInputs, sh *apiShared) (apiServerHandle, error) {
 	}
 
 	srv, err := rest.NewRESTServer(rest.RESTConfig{
-		ListenAddrs:   addrs,
-		Token:         cfg.Token,
-		Authenticator: sh.Authenticator,
-		Authorizer:    in.Authorizer,
-		CORSOrigin:    cfg.RESTCORSOrigin,
-		AuditRecorder: in.Recorder,
+		ListenAddrs:    addrs,
+		Authentication: sh.Authentication,
+		CORSOrigin:     cfg.RESTCORSOrigin,
+		AuditRecorder:  in.Recorder,
 	}, sh.Engine, sh.Sessions, lazySpec)
 	if err != nil {
 		return apiServerHandle{}, fmt.Errorf("create REST API: %w", err)

@@ -43,14 +43,31 @@ SOURCE_ANCHOR_LINE_RE = re.compile(r"<!--\s*source:\s*\S+\.go:\d+\s")
 AC_ROW_RE = re.compile(r"^\|\s*(AC-\d+)\s*\|([^|]*)\|([^|]*)\|([^|]*)\|")
 EXPORTED_FUNC_RE = re.compile(r"^func\s+(?:\([^)]*\)\s*)?([A-Z][A-Za-z0-9_]*)\s*\(")
 EXPORTED_TYPE_RE = re.compile(r"^type\s+([A-Z][A-Za-z0-9_]*)\b")
-# A method declaration with a receiver; recvtype is the (possibly pointer, possibly
-# generic) receiver type name. Used to detect a method on an UNEXPORTED receiver type,
-# which cannot be named from another package and is reachable only via an interface.
+# A method declaration with a named or unnamed receiver. recvtype is the
+# receiver type name. It lets the wiring check distinguish concrete interface
+# implementations from free functions.
 FUNC_RECV_RE = re.compile(
-    r"^func\s+\(\s*\w+\s+\*?(?P<recvtype>[A-Za-z_][A-Za-z0-9_]*)(?:\[[^\]]*\])?\s*\)\s*[A-Z]"
+    r"^func\s+\(\s*(?:\w+\s+)?\*?(?P<recvtype>[A-Za-z_][A-Za-z0-9_]*)(?:\[[^\]]*\])?\s*\)\s*[A-Z]"
 )
 EXPORTED_IFACE_RE = re.compile(r"^type\s+[A-Z][A-Za-z0-9_]*\s+interface\s*\{")
+EXPORTED_IFACE_NAMED_RE = re.compile(
+    r"^type\s+(?P<name>[A-Z][A-Za-z0-9_]*)\s+interface\s*\{"
+)
 IFACE_METHOD_RE = re.compile(r"^\s*([A-Z][A-Za-z0-9_]*)\s*\(")
+REGISTERED_SERVER_RE = re.compile(
+    r"\b[A-Za-z_][A-Za-z0-9_]*\.Register"
+    r"(?P<interface>[A-Z][A-Za-z0-9_]*Server)\s*\("
+    r"[^,\n]+,\s*&(?P<receiver>[a-z][A-Za-z0-9_]*)\s*\{"
+)
+# grpc-go calls these methods only through stats.Handler. The concrete handler
+# is private, so neither the same-package interface rule nor a bare
+# cross-package name search can observe the dispatch. Keep this allowlist exact:
+# another exported method on the handler still needs a caller.
+INTERFACE_DISPATCH_METHODS = {
+    ("internal/component/api/grpc", "transportCompletionStatsHandler"): frozenset(
+        {"TagRPC", "HandleRPC", "TagConn", "HandleConn"}
+    ),
+}
 SPEC_STATUS_RE = re.compile(r"^\|\s*Status\s*\|\s*(\S+)\s*\|", re.MULTILINE)
 
 CLI_PATHS = (
@@ -478,6 +495,115 @@ def _pkg_exported_interface_methods(root: Path, pkg_dir: str) -> set[str]:
     return names
 
 
+def _type_embedded_in_wired_interface(
+    root: Path, pkg_dir: str, type_name: str, search_dirs: list[str]
+) -> bool:
+    """True when a live exported interface composes type_name.
+
+    Go interface embedding carries the embedded contract without callers ever
+    spelling its type name. The outer interface must itself have a
+    cross-package production reference, or one dead interface could hide
+    another.
+    """
+    pkg_path = root / pkg_dir
+    if not pkg_path.is_dir():
+        return False
+    embedded = re.compile(r"^\s*" + re.escape(type_name) + r"\s*$")
+    for go_file in sorted(pkg_path.glob("*.go")):
+        if go_file.name.endswith("_test.go"):
+            continue
+        try:
+            lines = go_file.read_text(encoding="utf-8").splitlines()
+        except OSError:
+            continue
+        outer = ""
+        depth = 0
+        for line in lines:
+            if depth <= 0:
+                match = EXPORTED_IFACE_NAMED_RE.match(line)
+                if match is None:
+                    continue
+                outer = match.group("name")
+                depth = line.count("{") - line.count("}")
+                continue
+            if embedded.match(line) and _has_cross_pkg_ref(
+                root, outer, pkg_dir, search_dirs
+            ):
+                return True
+            depth += line.count("{") - line.count("}")
+    return False
+
+
+def _registered_interface_methods_by_receiver(
+    root: Path, pkg_dir: str
+) -> dict[str, set[str]]:
+    """Exported API methods reached through a registered service implementation.
+
+    Generated gRPC clients call the service interface, never the concrete
+    unexported implementation type. Binding an implementation to a generated
+    Register*Server function is therefore the production call site that makes
+    its interface methods reachable.
+    """
+    registrations: set[tuple[str, str]] = set()
+    pkg_path = root / pkg_dir
+    if not pkg_path.is_dir():
+        return {}
+    for go_file in sorted(pkg_path.glob("*.go")):
+        if go_file.name.endswith("_test.go"):
+            continue
+        try:
+            content = go_file.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        registrations.update(
+            (match.group("receiver"), match.group("interface"))
+            for match in REGISTERED_SERVER_RE.finditer(content)
+        )
+    if not registrations:
+        return {}
+
+    methods_by_interface: dict[str, set[str]] = {}
+    wanted_interfaces = {interface for _, interface in registrations}
+    interface_declarations = {
+        interface: re.compile(
+            r"^type\s+" + re.escape(interface) + r"\s+interface\s*\{",
+            re.MULTILINE,
+        )
+        for interface in wanted_interfaces
+    }
+    for source_dir in ("api", "internal", "pkg"):
+        source_path = root / source_dir
+        if not source_path.is_dir():
+            continue
+        for go_file in sorted(source_path.rglob("*.go")):
+            if go_file.name.endswith("_test.go"):
+                continue
+            try:
+                content = go_file.read_text(encoding="utf-8")
+            except OSError:
+                continue
+            for interface, declaration in interface_declarations.items():
+                match = declaration.search(content)
+                if match is None:
+                    continue
+                names = methods_by_interface.setdefault(interface, set())
+                depth = 1
+                for line in content[match.end() :].splitlines():
+                    method = IFACE_METHOD_RE.match(line)
+                    if method:
+                        names.add(method.group(1))
+                    depth += line.count("{") - line.count("}")
+                    if depth <= 0:
+                        break
+
+    methods_by_receiver: dict[str, set[str]] = {}
+    for receiver, interface in registrations:
+        methods_by_receiver.setdefault(receiver, set()).update(
+            methods_by_interface.get(interface, set())
+        )
+    return methods_by_receiver
+
+
 def check_cross_package_wiring(root: Path, changed: list[str]) -> list[Finding]:
     go_files = [
         f
@@ -489,7 +615,7 @@ def check_cross_package_wiring(root: Path, changed: list[str]) -> list[Finding]:
     if not go_files:
         return []
 
-    symbols: list[tuple[str, int, str, str, str]] = []
+    symbols: list[tuple[str, int, str, str, str, str | None]] = []
     for go_file in go_files:
         full_path = root / go_file
         if not full_path.exists():
@@ -506,11 +632,20 @@ def check_cross_package_wiring(root: Path, changed: list[str]) -> list[Finding]:
                 kind = "func"
                 if rm and rm.group("recvtype")[:1].islower():
                     kind = "method_unexported"
-                symbols.append((go_file, line_num, m.group(1), pkg_dir, kind))
+                symbols.append(
+                    (
+                        go_file,
+                        line_num,
+                        m.group(1),
+                        pkg_dir,
+                        kind,
+                        rm.group("recvtype") if rm else None,
+                    )
+                )
                 continue
             m = EXPORTED_TYPE_RE.match(line)
             if m:
-                symbols.append((go_file, line_num, m.group(1), pkg_dir, "type"))
+                symbols.append((go_file, line_num, m.group(1), pkg_dir, "type", None))
 
     if not symbols:
         return []
@@ -527,7 +662,11 @@ def check_cross_package_wiring(root: Path, changed: list[str]) -> list[Finding]:
     if not search_dirs:
         return findings
 
-    for go_file, line_num, sym, pkg_dir, kind in symbols:
+    registered_methods = {
+        pkg_dir: _registered_interface_methods_by_receiver(root, pkg_dir)
+        for pkg_dir in {symbol[3] for symbol in symbols}
+    }
+    for go_file, line_num, sym, pkg_dir, kind, receiver in symbols:
         # *ForTest helpers exist to be called by tests in other packages; the
         # caller search excludes test files by design, so they would always be
         # flagged. The naming convention declares the test-only intent.
@@ -551,10 +690,11 @@ def check_cross_package_wiring(root: Path, changed: list[str]) -> list[Finding]:
             or _type_used_as_field_in_pkg(root, pkg_dir, sym)
             or _type_returned_by_wired_func(root, pkg_dir, sym, search_dirs)
             or _type_used_as_param_of_wired_func(root, pkg_dir, sym, search_dirs)
+            or _type_embedded_in_wired_interface(
+                root, pkg_dir, sym, search_dirs
+            )
         ):
             continue
-
-        # Interface-seam case: a method on an UNEXPORTED receiver type cannot be named
         # from another package, so it has no cross-package caller by construction. When
         # its name matches an exported interface method declared in the same package, it
         # is reached through interface dispatch (e.g. a pluggable transport backend an
@@ -562,6 +702,26 @@ def check_cross_package_wiring(root: Path, changed: list[str]) -> list[Finding]:
         # concrete method. Flagging it is a false positive.
         if kind == "method_unexported" and sym in _pkg_exported_interface_methods(
             root, pkg_dir
+        ):
+            continue
+
+        # Generated gRPC clients call an exported service interface. The
+        # concrete implementation type stays package-private and is reached
+        # when startup registers it with the generated Register*Server hook.
+        if (
+            kind == "method_unexported"
+            and receiver is not None
+            and sym in registered_methods[pkg_dir].get(receiver, set())
+        ):
+            continue
+
+        # External interface dispatch can make an exported receiver's methods
+        # live without any caller spelling those method names. The exact
+        # receiver/method list above is the auditable interface conformance
+        # declaration; it must not exempt neighboring methods.
+        if (
+            receiver is not None
+            and sym in INTERFACE_DISPATCH_METHODS.get((pkg_dir, receiver), ())
         ):
             continue
 

@@ -37,7 +37,6 @@ type SSHExtractedConfig struct {
 	HostCertPath string
 	IdleTimeout  uint32
 	MaxSessions  int
-	Users        []authz.UserConfig
 	HasConfig    bool // true if SSH block was present in config
 }
 

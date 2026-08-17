@@ -83,9 +83,10 @@ func (a *LocalAuthenticator) Authenticate(request aaa.AuthRequest) (AuthResult, 
 			found = true
 			if CheckPassword(u.Hash, password, request.Local) {
 				return AuthResult{
-					Authenticated: true,
-					Profiles:      u.Profiles,
-					Source:        aaa.SourceLocal,
+					Authenticated:   true,
+					Profiles:        u.Profiles,
+					Source:          aaa.SourceLocal,
+					LocalGeneration: u.LocalGeneration,
 				}, nil
 			}
 		}
@@ -127,7 +128,7 @@ func CheckPassword(hash, credential string, allowHashToken bool) bool {
 	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(credential)) == nil
 }
 
-// AuthenticateUser checks username/credential against the configured user list.
+// authenticateUser checks username/credential against the configured user list.
 // Tries all matching entries (a user may appear in both config and zefs with
 // different bcrypt hashes). Returns true on first match.
 // When no username matches, bcrypt is still invoked against a dummy hash
@@ -138,7 +139,7 @@ func CheckPassword(hash, credential string, allowHashToken bool) bool {
 // non-test caller today, but carries the restriction so a future caller that
 // wires it cannot fail open (the parameter is not optional; a caller must state
 // the transport class explicitly).
-func AuthenticateUser(users []UserConfig, username, credential string, allowHashToken bool) bool {
+func authenticateUser(users []UserConfig, username, credential string, allowHashToken bool) bool {
 	if username == "" {
 		return false
 	}

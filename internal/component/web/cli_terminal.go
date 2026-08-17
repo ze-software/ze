@@ -108,7 +108,10 @@ func HandleCLITerminalWithDispatchAuthorizerAndAudit(mgr *EditorManager, schema 
 		// use the per-user working tree when one exists.
 		viewTree := tree
 
-		result := executeTerminalCommand(schema, viewTree, mgr, username, r.RemoteAddr, contextPath, mode, cmd, commandText, dispatch)
+		result := executeTerminalCommand(r.Context(), schema, viewTree, mgr, username, r.RemoteAddr, contextPath, mode, cmd, commandText, dispatch)
+		if result.completion != nil {
+			defer result.completion.TransportComplete()
+		}
 		if terminalAuditSucceeded(auditAction, result.output) {
 			recordWebAudit(recorder, r, username, auditAction, auditDetail)
 		}
@@ -163,24 +166,25 @@ func terminalAuthCommandForMode(mode string, cmd cliCommand) string {
 }
 
 type terminalCommandResult struct {
-	path   []string
-	mode   string
-	output string
+	path       []string
+	mode       string
+	output     string
+	completion *plugin.RenderedResponse
 }
 
-func executeTerminalCommand(schema *config.Schema, viewTree *config.Tree, mgr *EditorManager, username, remoteAddr string, contextPath []string, mode string, cmd cliCommand, raw string, dispatch CommandDispatcher) terminalCommandResult {
+func executeTerminalCommand(ctx context.Context, schema *config.Schema, viewTree *config.Tree, mgr *EditorManager, username, remoteAddr string, contextPath []string, mode string, cmd cliCommand, raw string, dispatch CommandDispatcher) terminalCommandResult {
 	result := terminalCommandResult{
 		path: append([]string{}, contextPath...),
 		mode: normalizeTerminalMode(mode),
 	}
 
 	if result.mode == terminalModeOperational {
-		return executeTerminalOperationalMode(schema, viewTree, mgr, username, remoteAddr, result.path, cmd, raw, dispatch)
+		return executeTerminalOperationalMode(ctx, schema, viewTree, mgr, username, remoteAddr, result.path, cmd, raw, dispatch)
 	}
-	return executeTerminalConfigMode(schema, viewTree, mgr, username, remoteAddr, result.path, cmd, dispatch)
+	return executeTerminalConfigMode(ctx, schema, viewTree, mgr, username, remoteAddr, result.path, cmd, dispatch)
 }
 
-func executeTerminalConfigMode(schema *config.Schema, viewTree *config.Tree, mgr *EditorManager, username, remoteAddr string, contextPath []string, cmd cliCommand, dispatch CommandDispatcher) terminalCommandResult {
+func executeTerminalConfigMode(ctx context.Context, schema *config.Schema, viewTree *config.Tree, mgr *EditorManager, username, remoteAddr string, contextPath []string, cmd cliCommand, dispatch CommandDispatcher) terminalCommandResult {
 	result := terminalCommandResult{path: contextPath, mode: terminalModeConfig}
 	switch cmd.Verb {
 	case verbRun:
@@ -188,7 +192,7 @@ func executeTerminalConfigMode(schema *config.Schema, viewTree *config.Tree, mgr
 			result.output = "usage: run <command>"
 			return result
 		}
-		result.output = executeTerminalOperational(dispatch, username, remoteAddr, textbuf.Join(cmd.Args, " "))
+		result.output, result.completion = executeTerminalOperational(ctx, dispatch, username, remoteAddr, textbuf.Join(cmd.Args, " "))
 		return result
 	case verbExit:
 		if mgr.ChangeCount(username) > 0 {
@@ -213,7 +217,7 @@ func executeTerminalConfigMode(schema *config.Schema, viewTree *config.Tree, mgr
 	return result
 }
 
-func executeTerminalOperationalMode(schema *config.Schema, viewTree *config.Tree, mgr *EditorManager, username, remoteAddr string, contextPath []string, cmd cliCommand, raw string, dispatch CommandDispatcher) terminalCommandResult {
+func executeTerminalOperationalMode(ctx context.Context, schema *config.Schema, viewTree *config.Tree, mgr *EditorManager, username, remoteAddr string, contextPath []string, cmd cliCommand, raw string, dispatch CommandDispatcher) terminalCommandResult {
 	result := terminalCommandResult{path: contextPath, mode: terminalModeOperational}
 	switch cmd.Verb {
 	case verbConfigure:
@@ -228,9 +232,9 @@ func executeTerminalOperationalMode(schema *config.Schema, viewTree *config.Tree
 		return result
 	}
 	if terminalConfigCommandInOperationalMode(cmd.Verb) {
-		return executeTerminalConfigMode(schema, viewTree, mgr, username, remoteAddr, contextPath, cmd, dispatch)
+		return executeTerminalConfigMode(ctx, schema, viewTree, mgr, username, remoteAddr, contextPath, cmd, dispatch)
 	}
-	result.output = executeTerminalOperational(dispatch, username, remoteAddr, raw)
+	result.output, result.completion = executeTerminalOperational(ctx, dispatch, username, remoteAddr, raw)
 	return result
 }
 
@@ -245,9 +249,9 @@ func terminalConfigCommandInOperationalMode(verb string) bool {
 	}
 }
 
-func executeTerminalOperational(dispatch CommandDispatcher, username, remoteAddr, input string) string {
+func executeTerminalOperational(ctx context.Context, dispatch CommandDispatcher, username, remoteAddr, input string) (string, *plugin.RenderedResponse) {
 	if dispatch == nil {
-		return "error: operational command dispatch not available"
+		return "error: operational command dispatch not available", nil
 	}
 	// No session format override: the web terminal has no `set cli format` surface
 	// (that command is dispatched only by the SSH/TUI model), so it always uses the
@@ -255,14 +259,14 @@ func executeTerminalOperational(dispatch CommandDispatcher, username, remoteAddr
 	cmdStr, formatFn, pipeErr := command.ProcessPipesDefaultFormatChecked(input, "")
 	if pipeErr != "" {
 		var tb textbuf.Buffer
-		return tb.Str("pipe error: ").Str(pipeErr).String()
+		return tb.Str("pipe error: ").Str(pipeErr).String(), nil
 	}
-	output, err := dispatch.JSON(context.Background(), plugin.CallerIdentity{Username: username, RemoteAddr: remoteAddr}, cmdStr)
+	rendered, err := dispatch.JSON(ctx, plugin.CallerIdentity{Username: username, RemoteAddr: remoteAddr}, cmdStr)
 	if err != nil {
 		var tb textbuf.Buffer
-		return tb.Str("error: ").Err(err).String()
+		return tb.Str("error: ").Err(err).String(), rendered
 	}
-	return formatFn(output)
+	return formatFn(rendered.Output), rendered
 }
 
 func terminalOperationalHelp() string {

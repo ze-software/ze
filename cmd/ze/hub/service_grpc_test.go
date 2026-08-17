@@ -15,10 +15,12 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/pem"
+	"fmt"
 	"net"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -30,11 +32,11 @@ import (
 	"google.golang.org/grpc/status"
 
 	zepb "github.com/ze-software/ze/api/proto"
-	"github.com/ze-software/ze/internal/component/aaa"
-	"github.com/ze-software/ze/internal/component/authz"
 	zeconfig "github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/env"
 )
 
 func TestGRPCBuildNotEnabled(t *testing.T) {
@@ -61,61 +63,111 @@ func writeGRPCTestTLSMaterial(t *testing.T) (string, string) {
 	return certPath, keyPath
 }
 
-// VALIDATES: AC-3 and AC-4, grpcBuildImpl serves a real authenticated RPC from
-// the shared no-SSH user source on a non-loopback TLS listener.
-// PREVENTS: the gRPC builder receiving a nil authenticator because boot users
-// were classified through SSH, or accepting credentials without publishing the
-// user's resolved profiles.
+// VALIDATES: AC-3 and AC-4 through runYANGConfig. A user declared only at
+// system.authentication.user reaches ConfigProvider, the accepted identity
+// generation, the gRPC builder, and a real authenticated RPC without an SSH
+// block.
+// PREVENTS: a hand-built user slice proving grpcBuildImpl while the daemon boot
+// producer remains disconnected from gRPC.
 func TestGRPCBuildAuthenticatesConfigUserWithoutSSH(t *testing.T) {
-	const username = "grpc-config-user"
-	aaa.ForgetLoginProfilesForTest(username)
-	t.Cleanup(func() { aaa.ForgetLoginProfilesForTest(username) })
-
-	hash, err := bcrypt.GenerateFromPassword([]byte("grpc-pass"), bcrypt.MinCost)
+	resetAAABundleForTest(t)
+	clearAPIEnv(t)
+	const (
+		username = "grpc-config-user"
+		password = "grpc-pass"
+		command  = "test grpc no ssh auth"
+	)
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.MinCost)
 	require.NoError(t, err)
-	users := []authz.UserConfig{{
-		Name:     username,
-		Hash:     string(hash),
-		Profiles: []string{"grpc-operator"},
-	}}
-	server, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, nil)
-	require.NoError(t, err)
-	t.Cleanup(server.Stop)
-	const command = "test grpc no ssh auth"
-	server.Dispatcher().Register(command, func(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
-		return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(`"ok"`)), nil
-	}, command)
-
 	certPath, keyPath := writeGRPCTestTLSMaterial(t)
-	cfg := zeconfig.APIConfig{
-		GRPCOn:      true,
-		GRPC:        []zeconfig.APIListenConfig{{Host: "0.0.0.0", Port: "0"}},
-		GRPCTLSCert: certPath,
-		GRPCTLSKey:  keyPath,
+	configText := fmt.Sprintf(`
+environment {
+	api-server {
+		grpc {
+			enabled true
+			tls-cert %q
+			tls-key %q
+			server main {
+				ip 0.0.0.0
+				port 0
+			}
+		}
 	}
-	in := &apiBuildInputs{
-		Config: cfg,
-		Server: server,
-		Users:  users,
-		UsersLive: func() ([]authz.UserConfig, error) {
-			return users, nil
-		},
+}
+system {
+	authentication {
+		user %s {
+			password %q
+			profile [ grpc-operator ]
+		}
 	}
-	shared := buildAPIShared(in)
-	require.NotNil(t, shared.Authenticator)
-	assert.False(t, checkMgmtListeners([]mgmtListener{{
-		service:       "API gRPC",
-		addrs:         apiGuardAddrs(cfg),
-		authenticated: shared.Authenticator != nil,
-	}}), "real per-user authentication must satisfy the generic non-loopback guard")
+	authorization {
+		profile grpc-operator {
+			run { default-action allow }
+			edit { default-action allow }
+		}
+	}
+}
+`, certPath, keyPath, username, string(hash))
 
-	handle, err := grpcBuildImpl(in, shared)
-	require.NoError(t, err)
-	require.NotNil(t, handle.Server)
-	require.NotNil(t, handle.Shutdown)
-	t.Cleanup(func() { handle.Shutdown(t.Context()) })
-	require.Len(t, handle.Server.Addresses(), 1)
-	_, port, err := net.SplitHostPort(handle.Server.Addresses()[0])
+	type bootServer struct {
+		handle   apiServerHandle
+		server   *pluginserver.Server
+		buildErr error
+	}
+	started := make(chan bootServer, 1)
+	originalBuild := grpcBuild
+	t.Cleanup(func() { grpcBuild = originalBuild })
+	grpcBuild = func(in *apiBuildInputs, shared *apiShared) (apiServerHandle, error) {
+		in.Server.Dispatcher().Register(command, func(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+			return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(`"ok"`)), nil
+		}, command)
+		handle, buildErr := grpcBuildImpl(in, shared)
+		started <- bootServer{
+			handle:   handle,
+			server:   in.Server,
+			buildErr: buildErr,
+		}
+		return handle, buildErr
+	}
+
+	configDir := t.TempDir()
+	originalConfigDir := env.Get("ze.config.dir")
+	require.NoError(t, env.Set("ze.config.dir", configDir))
+	t.Cleanup(func() { require.NoError(t, env.Set("ze.config.dir", originalConfigDir)) })
+	exitResult := make(chan int, 1)
+	go func() {
+		exitResult <- runYANGConfig(
+			storage.NewFilesystem(),
+			"-",
+			[]byte(configText),
+			nil,
+			0,
+			-1,
+			false,
+			false,
+			"",
+			false,
+			"",
+			"",
+			false,
+			nil,
+		)
+	}()
+
+	var booted bootServer
+	select {
+	case booted = <-started:
+	case exit := <-exitResult:
+		t.Fatalf("runYANGConfig exited with %d before building gRPC", exit)
+	case <-time.After(10 * time.Second):
+		t.Fatal("runYANGConfig did not build the configured gRPC server")
+	}
+	require.NoError(t, booted.buildErr)
+	t.Cleanup(booted.server.Stop)
+	require.NotNil(t, booted.handle.Server)
+	require.Len(t, booted.handle.Server.Addresses(), 1)
+	_, port, err := net.SplitHostPort(booted.handle.Server.Addresses()[0])
 	require.NoError(t, err)
 
 	conn, err := grpc.NewClient(net.JoinHostPort("127.0.0.1", port), grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{
@@ -127,7 +179,7 @@ func TestGRPCBuildAuthenticatesConfigUserWithoutSSH(t *testing.T) {
 	client := zepb.NewZeServiceClient(conn)
 
 	goodCtx := metadata.NewOutgoingContext(t.Context(), metadata.Pairs(
-		"authorization", "Bearer "+username+":grpc-pass",
+		"authorization", "Bearer "+username+":"+password,
 	))
 	response, err := client.Execute(goodCtx, &zepb.CommandRequest{Command: command})
 	require.NoError(t, err)
@@ -139,7 +191,11 @@ func TestGRPCBuildAuthenticatesConfigUserWithoutSSH(t *testing.T) {
 	_, err = client.Execute(wrongCtx, &zepb.CommandRequest{Command: command})
 	assert.Equal(t, codes.Unauthenticated, status.Code(err))
 
-	profiles, ok := aaa.LoginProfiles(username)
-	require.True(t, ok, "the actual gRPC login must publish resolved profiles")
-	assert.Equal(t, []string{"grpc-operator"}, profiles)
+	booted.server.Stop()
+	select {
+	case exit := <-exitResult:
+		assert.Zero(t, exit)
+	case <-time.After(10 * time.Second):
+		t.Fatal("runYANGConfig did not exit after its plugin server stopped")
+	}
 }

@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/authz"
+	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/audit"
 	"github.com/ze-software/ze/internal/core/errorfragment"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -91,6 +92,8 @@ type webSession struct {
 	// user (AuthResult.Profiles). Carried so route gates and nav rendering can
 	// reason about the session's authorization without re-querying (AC-2).
 	Profiles []string
+	// Authorizer is bound to the profiles resolved for this login.
+	Authorizer plugin.Authorizer
 	// LocalAnchored reports that the LOCAL backend granted this session, and
 	// therefore that removing the user from the local list MUST end it (AC-10).
 	// It is the authenticator's own answer, carried on AuthResult.Source and
@@ -227,6 +230,7 @@ func (s *SessionStore) createSession(username string, result authz.AuthResult) (
 		Token:         token,
 		CreatedAt:     time.Now(),
 		Profiles:      result.Profiles,
+		Authorizer:    result.Authorizer,
 		LocalAnchored: result.GrantedByLocalBackend(),
 	}
 	s.sessions[token] = session
@@ -334,6 +338,7 @@ func AuthMiddlewareWithAudit(store *SessionStore, authenticator authz.Authentica
 			if session := store.validateToken(cookie.Value); session != nil {
 				addSecurityHeaders(w)
 				ctx := withProfiles(withUsername(r.Context(), session.Username), session.Profiles)
+				ctx = plugin.WithCallerAuthorizer(ctx, session.Authorizer)
 				next.ServeHTTP(w, r.WithContext(ctx))
 
 				return
@@ -350,6 +355,7 @@ func AuthMiddlewareWithAudit(store *SessionStore, authenticator authz.Authentica
 				logger.Debug("basic auth accepted", "username", username)
 				addSecurityHeaders(w)
 				ctx := withProfiles(withUsername(r.Context(), username), result.Profiles)
+				ctx = plugin.WithCallerAuthorizer(ctx, result.Authorizer)
 				next.ServeHTTP(w, r.WithContext(ctx))
 
 				return

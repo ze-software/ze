@@ -68,21 +68,23 @@ func TestWithBGPDecodeInterceptsDecodeCommand(t *testing.T) {
 	// the registry seam is nil and the command is just another unknown command,
 	// which is the honest behavior for a BGP-less binary.
 	out, err := dispatch.JSON(context.Background(), wodCaller, "show bgp decode FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304")
+	defer out.TransportComplete()
 	require.NoError(t, err)
 	if bgpDecodeLinked {
 		assert.False(t, innerCalled, "decode must be handled in-process, not forwarded")
-		assert.Contains(t, out, "KEEPALIVE")
+		assert.Contains(t, out.Output, "KEEPALIVE")
 	} else {
 		assert.True(t, innerCalled, "with BGP compiled out, decode must fall through to the dispatcher")
-		assert.Equal(t, "inner:show bgp decode FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304", out)
+		assert.Equal(t, "inner:show bgp decode FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304", out.Output)
 	}
 
 	// A non-decode command passes through to the inner dispatcher.
 	innerCalled = false
 	out, err = dispatch.JSON(context.Background(), wodCaller, "show ping 1.1.1.1")
+	defer out.TransportComplete()
 	require.NoError(t, err)
 	assert.True(t, innerCalled, "non-decode commands must reach the inner dispatcher")
-	assert.Equal(t, "inner:show ping 1.1.1.1", out)
+	assert.Equal(t, "inner:show ping 1.1.1.1", out.Output)
 }
 
 // TestWithBGPDecodeNilInner verifies that withBGPDecode with a nil inner
@@ -95,9 +97,10 @@ func TestWithBGPDecodeNilInner(t *testing.T) {
 	dispatch := withBGPDecode(nil)
 
 	out, err := dispatch.JSON(context.Background(), wodCaller, "show bgp decode FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304")
+	defer out.TransportComplete()
 	if bgpDecodeLinked {
 		require.NoError(t, err)
-		assert.Contains(t, out, "KEEPALIVE")
+		assert.Contains(t, out.Output, "KEEPALIVE")
 	} else {
 		// No decoder and no inner dispatcher: the same friendly
 		// daemon-required error every other unservable command gets, not a

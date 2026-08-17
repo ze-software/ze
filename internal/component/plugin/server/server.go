@@ -56,11 +56,11 @@ func stageTimeoutFromEnv() time.Duration {
 	return env.GetDuration("ze.plugin.stage.timeout", defaultStageTimeout)
 }
 
-// RPCParams is the standard params format for JSON RPC requests from socket clients.
+// rpcParams is the standard params format for JSON RPC requests from socket clients.
 // Handlers receive Args as positional arguments and Selector as the peer filter.
-// Identity (Username) is never accepted from client JSON -- it MUST be injected by
+// Identity (Username) is never accepted from client JSON; it must be injected by
 // the transport layer (SSH session, plugin process manager, TLS auth).
-type RPCParams struct {
+type rpcParams struct {
 	Selector string   `json:"selector,omitempty"` // Peer selector (optional)
 	Args     []string `json:"args,omitempty"`     // Command arguments (optional)
 }
@@ -108,10 +108,12 @@ type Server struct {
 	startupDoneOnce sync.Once
 	startupErr      error // non-nil when a config-path plugin fails during startup
 
-	configLoader ConfigLoader   // Loads new config tree for ReloadFromDisk
-	fullReload   FullReloadFunc // Runs hub-level reload for daemon-reload RPC
-	rebootFunc   func()         // Set by daemon; called on "daemon reboot" RPC
-	shutdownFunc func()         // Set by daemon; reactor-independent daemon shutdown (used when no BGP reactor is present)
+	configLoader          ConfigLoader   // Loads new config tree for ReloadFromDisk
+	fullReload            FullReloadFunc // Runs hub-level reload for daemon-reload RPC
+	rebootFunc            func()         // Set by daemon; called on "daemon reboot" RPC
+	shutdownFunc          func()         // Set by daemon; reactor-independent daemon shutdown (used when no BGP reactor is present)
+	shutdownRequested     chan struct{}
+	shutdownRequestedOnce sync.Once
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -158,7 +160,7 @@ func (s *Server) wrapHandler(handler Handler, cliCommand string, readOnly bool) 
 			// carry the caller down to here and state the sender.
 		}
 
-		var rpcParams RPCParams
+		var rpcParams rpcParams
 		if len(params) > 0 {
 			if err := json.Unmarshal(params, &rpcParams); err != nil {
 				return nil, rpc.NewCodedError("invalid-params", fmt.Sprintf("invalid params: %v", err))
@@ -211,6 +213,7 @@ func NewServer(config *ServerConfig, reactor plugin.ReactorLifecycle) (*Server, 
 		capInjector:       plugin.NewCapabilityInjector(),
 		eventRing:         NewEventRing(defaultEventRingCapacity),
 		startupDone:       make(chan struct{}),
+		shutdownRequested: make(chan struct{}),
 		loadedPlugins:     make(map[string]bool),
 		runtimeFamilies:   make(map[string][]family.FamilyRegistration),
 	}
@@ -251,7 +254,7 @@ func NewServer(config *ServerConfig, reactor plugin.ReactorLifecycle) (*Server, 
 	// Register core handlers (text dispatcher for plugin protocol),
 	// including all YANG command aliases.
 	cmdTree := yang.BuildCommandTree(loader)
-	LoadBuiltinsWithAliases(s.dispatcher, wireToPaths, pathToDesc, pathToArgDefs, cmdTree)
+	loadBuiltinsWithAliases(s.dispatcher, wireToPaths, pathToDesc, pathToArgDefs, cmdTree)
 
 	// Register all builtin RPCs with wire method dispatcher (for socket clients)
 	for _, reg := range AllBuiltinRPCs() {
@@ -315,15 +318,6 @@ func (s *Server) isPluginLoaded(name string) bool {
 	s.loadedPluginsMu.Lock()
 	defer s.loadedPluginsMu.Unlock()
 	return s.loadedPlugins[name]
-}
-
-// HasProcesses returns true if any plugin processes were loaded during startup.
-// Used by the main loop to decide whether to listen for server-done (all processes
-// exited). Without this, configs with no plugins cause immediate daemon exit.
-func (s *Server) HasProcesses() bool {
-	s.loadedPluginsMu.Lock()
-	defer s.loadedPluginsMu.Unlock()
-	return len(s.loadedPlugins) > 0
 }
 
 // Context returns the server's context. Used by RPC handlers that need
@@ -585,19 +579,26 @@ func (s *Server) StartWithContext(ctx context.Context) error {
 }
 
 // replyContext carries a RESPONSE to a request the engine has already run. It
-// is s.ctx with the cancellation Stop triggers removed, because a reply and a
-// request are owed different things: reading the NEXT request must stop the
-// moment the server stops, and answering one already run must not.
+// is s.ctx with Stop cancellation removed because a reply and the next request
+// are owed different things: reading the next request stops with the server,
+// while an admitted reply must still be attempted.
 //
-// `request shutdown` is the case that proves it. handleDaemonShutdown stops the
-// reactor, which reaches Stop below and cancels s.ctx, all before the reply to
-// that same command is written; writeAppended (pkg/plugin/rpc/conn.go) returns
-// ctx.Err() without writing a byte on a canceled context, so the one caller
-// certain to lose its answer was the caller that asked the daemon to stop. The
-// write stays bounded: defaultWriteDeadline when nothing else bounds it, and the
-// socket error the moment the plugin is gone.
+// Daemon termination commands defer their lifecycle action until the response
+// transport completes, but parent cancellation or another concurrent stop can
+// still cancel s.ctx between handler completion and the write. Without this
+// context split, writeAppended (pkg/plugin/rpc/conn.go) returns ctx.Err()
+// without writing the response. The write remains bounded by
+// defaultWriteDeadline, or by the socket error when the plugin is gone.
 func (s *Server) replyContext() context.Context {
 	return context.WithoutCancel(s.ctx)
+}
+
+func (s *Server) signalShutdownRequested() {
+	s.shutdownRequestedOnce.Do(func() {
+		if s.shutdownRequested != nil {
+			close(s.shutdownRequested)
+		}
+	})
 }
 
 // Stop signals the server to stop and cleans up resources.
@@ -608,6 +609,7 @@ func (s *Server) replyContext() context.Context {
 // bridge reads each connection as a crashed plugin. That elects a rollback,
 // which restarts plugins the next line is about to kill.
 func (s *Server) Stop() {
+	s.running.Store(false)
 	s.stopTransaction(txShutdownGrace)
 	if s.cancel != nil {
 		s.cancel()
@@ -615,15 +617,43 @@ func (s *Server) Stop() {
 	s.cleanup()
 }
 
-// Wait waits for the server to stop.
+// Wait reports an accepted explicit shutdown request after its response
+// boundary, so the daemon can call Stop without closing the requesting
+// connection too early. After direct Stop or parent cancellation, it drains
+// runtime handlers. An empty runtime plugin set does not stop the server.
 func (s *Server) Wait(ctx context.Context) error {
-	return syncutil.WaitGroupWait(ctx, &s.wg)
+	var serverDone <-chan struct{}
+	if s.ctx != nil {
+		serverDone = s.ctx.Done()
+	}
+	if serverDone == nil && s.shutdownRequested == nil {
+		return syncutil.WaitGroupWait(ctx, &s.wg)
+	}
+	if !s.running.Load() {
+		return syncutil.WaitGroupWait(ctx, &s.wg)
+	}
+	select {
+	case <-s.shutdownRequested:
+		return nil
+	default:
+	}
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-s.shutdownRequested:
+		return nil
+	case <-serverDone:
+		select {
+		case <-s.shutdownRequested:
+			return nil
+		default:
+		}
+		return syncutil.WaitGroupWait(ctx, &s.wg)
+	}
 }
 
 // cleanup stops processes.
 func (s *Server) cleanup() {
-	s.running.Store(false)
-
 	// Stop processes
 	if pm := s.procManager.Load(); pm != nil {
 		pm.Stop()

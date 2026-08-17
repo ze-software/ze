@@ -6,11 +6,14 @@ package hub
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"crypto/subtle"
 	"errors"
 	"fmt"
 	"strings"
 	"sync"
 
+	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/api"
 	"github.com/ze-software/ze/internal/component/authz"
 	"github.com/ze-software/ze/internal/component/cli"
@@ -42,8 +45,8 @@ func configValidationHook(configPath string) api.ConfigValidationHook {
 // internal/component/api package and other always-on helpers, so it stays
 // always-on; the gated transport builders (service_rest.go / service_grpc.go)
 // construct their own server from the returned shared state. Starts the session
-// cleanup goroutine (tied to the server context). Called by the hub only when at
-// least one transport is compiled in.
+// cleanup goroutine when the plugin server has a lifecycle context. Unit-level
+// builders can use an unstarted server, which has no cleanup lifetime yet.
 func buildAPIShared(in *apiBuildInputs) *apiShared {
 	engine := buildAPIEngine(in.Server)
 	sessions := api.NewConfigSessionManager(func() (api.ConfigEditor, error) {
@@ -55,51 +58,62 @@ func buildAPIShared(in *apiBuildInputs) *apiShared {
 	})
 	sessions.SetValidationHook(configValidationHook(in.ConfigPath))
 	sessions.SetCommitHook(in.ReloadHook)
-	go sessions.RunCleanup(in.Server.Context())
+	if ctx := in.Server.Context(); ctx != nil {
+		go sessions.RunCleanup(ctx)
+	}
 	return &apiShared{
-		Engine:        engine,
-		Sessions:      sessions,
-		Authenticator: buildUserAuthenticator(in.Users, in.UsersLive),
+		Engine:         engine,
+		Sessions:       sessions,
+		Authentication: in.Authentication,
 	}
 }
 
-// buildUserAuthenticator returns an Authenticator that parses
-// "Bearer <username>:<password>" and validates against the user list.
-// Returns nil if no users are configured (caller falls back to Token or no-auth).
-//
-// users decides only WHETHER this daemon authenticates API callers per user.
-// usersLive decides WHO they are, read per request, so a user an operator
-// removes and reloads stops being able to dispatch commands over REST or gRPC
-// without waiting for a restart (AC-13). A nil usersLive leaves the returned
-// authenticator on the boot list, which is correct only for a caller whose list
-// is itself rebuilt whenever the configuration changes.
-func buildUserAuthenticator(users []authz.UserConfig, usersLive func() ([]authz.UserConfig, error)) func(string) (string, bool) {
-	if len(users) == 0 {
-		return nil
-	}
-	// One list, never two: UsersFunc REPLACES Users at authz.LocalAuthenticator,
-	// and a snapshot left beside it is the stale answer this spec deletes.
-	auth := &authz.LocalAuthenticator{Users: users}
-	if usersLive != nil {
-		auth = &authz.LocalAuthenticator{UsersFunc: usersLive}
-	}
-	return func(header string) (string, bool) {
-		raw, ok := strings.CutPrefix(header, "Bearer ")
-		if !ok {
-			return "", false
+// buildAPIAuthentication assembles one immutable accepted API credential
+// generation. Per-user credentials take precedence over the shared token, and
+// the authorizer returned with a successful identity is the policy from this
+// same generation.
+func buildAPIAuthentication(users []authz.UserConfig, token string, authorizer aaa.Authorizer) api.Authentication {
+	switch {
+	case len(users) > 0:
+		local := aaa.WithProfileAuthorizer(&authz.LocalAuthenticator{Users: users}, authorizer)
+		return api.Authentication{
+			Required: true,
+			Authenticate: func(header string) (api.CallerIdentity, bool) {
+				raw, ok := strings.CutPrefix(header, "Bearer ")
+				if !ok {
+					return api.CallerIdentity{}, false
+				}
+				username, password, ok := strings.Cut(raw, ":")
+				if !ok || username == "" {
+					return api.CallerIdentity{}, false
+				}
+				result, err := local.Authenticate(authz.AuthRequest{
+					Username: username,
+					Password: password,
+				})
+				if err != nil || !result.Authenticated {
+					return api.CallerIdentity{}, false
+				}
+				return api.CallerIdentity{Username: username, Authorizer: result.Authorizer}, true
+			},
 		}
-		username, password, ok := strings.Cut(raw, ":")
-		if !ok || username == "" {
-			return "", false
+	case token != "":
+		expected := sha256.Sum256([]byte("Bearer " + token))
+		return api.Authentication{
+			Required: true,
+			Authenticate: func(header string) (api.CallerIdentity, bool) {
+				got := sha256.Sum256([]byte(header))
+				if subtle.ConstantTimeCompare(got[:], expected[:]) != 1 {
+					return api.CallerIdentity{}, false
+				}
+				return api.CallerIdentity{
+					Username:   aaa.ReservedSharedAPIUsername,
+					Authorizer: authorizer,
+				}, true
+			},
 		}
-		result, err := auth.Authenticate(authz.AuthRequest{
-			Username: username,
-			Password: password,
-		})
-		if err != nil || !result.Authenticated {
-			return "", false
-		}
-		return username, true
+	default:
+		return api.Authentication{}
 	}
 }
 
@@ -108,14 +122,35 @@ func buildUserAuthenticator(users []authz.UserConfig, usersLive func() ([]authz.
 // same command dispatcher every surface shares, and the REST/gRPC transports
 // set the audit surface per request via CallerIdentity.Surface (the "" fixed
 // default here is never used because the transports always set it).
+//
+// Dispatcher authorization is the source of truth for command RBAC. Translate
+// both its denial sentinel and its exact denial response to the API sentinel at
+// this boundary so REST and gRPC return their permission-denied status instead
+// of rendering a denied dispatcher response as HTTP/RPC success.
 func buildAPIEngine(server *pluginserver.Server) *api.APIEngine {
-	exec := serverDispatcher(server, "")
-	cmds := apiCommandLister(server)
-	auth := func(_, _ string) bool {
-		// Bearer token auth handled at transport level.
-		return true
+	dispatch := serverDispatcher(server, "")
+	exec := func(ctx context.Context, caller plugin.CallerIdentity, command string) (*plugin.Response, error) {
+		resp, err := dispatch(ctx, caller, command)
+		return resp, apiDispatchError(resp, err, command)
 	}
-	return api.NewAPIEngine(exec, cmds, auth, apiStreamSource(server))
+	return api.NewAPIEngine(exec, apiCommandLister(server), nil, apiStreamSource(server))
+}
+
+// apiDispatchError maps only the command dispatcher's canonical authorization
+// denial. Some dispatcher paths carry ErrUnauthorized, while nested handlers
+// can preserve the exact error response but return a nil Go error.
+func apiDispatchError(resp *plugin.Response, err error, command string) error {
+	if errors.Is(err, pluginserver.ErrUnauthorized) {
+		return api.ErrUnauthorized
+	}
+	if resp == nil || resp.Status != plugin.StatusError {
+		return err
+	}
+	deniedCommand, denied := strings.CutPrefix(resp.Error, plugin.UnauthorizedMessage+": ")
+	if denied && deniedCommand == command {
+		return api.ErrUnauthorized
+	}
+	return err
 }
 
 const (
@@ -145,6 +180,7 @@ func apiStreamSource(s *pluginserver.Server) api.StreamSource {
 			Username:       caller.Username,
 			RemoteAddr:     caller.RemoteAddr,
 			Surface:        caller.Surface,
+			Authorizer:     caller.Authorizer,
 			// An API client streaming a monitor command is an operator, and AAA
 			// checks that operator against Username above (main_servers.go says
 			// the same for the command path).

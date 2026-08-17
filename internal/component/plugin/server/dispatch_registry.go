@@ -188,10 +188,16 @@ func lookupEngineOp(method string) *engineOp {
 	return engineOpTable[method]
 }
 
-// serveEngineOpJSON runs an op for the JSON socket path: call the shared handler,
-// then write the socket via SendResult / SendError. The error detail is the raw
-// message (rpcErrMessage), matching what serveEngineOpDirect puts in the returned
-// RPCCallError so external and in-process callers see identical error text (AC-2).
+// transportCompleteResponse is implemented by response envelopes that carry an
+// accepted action to the boundary responsible for delivering them.
+type transportCompleteResponse interface {
+	TransportComplete()
+}
+
+// serveEngineOpJSON runs an op for the JSON socket path, writes its result, then
+// completes any accepted lifecycle action. Error detail is the raw message
+// (rpcErrMessage), matching what serveEngineOpDirect returns so external and
+// in-process callers see identical error text (AC-2).
 func (s *Server) serveEngineOpJSON(proc *process.Process, conn *plugipc.PluginConn, req *rpc.Request, op *engineOp) {
 	result, err := op.handle(s, proc, req.Params)
 	reply := s.replyContext()
@@ -201,15 +207,18 @@ func (s *Server) serveEngineOpJSON(proc *process.Process, conn *plugipc.PluginCo
 		}
 		return
 	}
+	if completed, ok := result.(transportCompleteResponse); ok {
+		defer completed.TransportComplete()
+	}
 	if sendErr := conn.SendResult(reply, req.ID, result); sendErr != nil {
 		logger().Debug("rpc runtime: send result failed", "plugin", proc.Name(), "error", sendErr)
 	}
 }
 
-// serveEngineOpDirect runs an op for the in-process Direct path: call the shared
-// handler, then return the marshaled result JSON (no socket envelope). Errors are
-// returned as *rpc.RPCCallError, matching the SDK's CallRPC protocol; an error
-// that is already an RPCCallError passes through unwrapped so its detail is not
+// serveEngineOpDirect runs an op for the in-process Direct path and marshals its
+// result before completing any accepted lifecycle action. Errors are returned
+// as *rpc.RPCCallError, matching the SDK's CallRPC protocol; an
+// existing RPCCallError passes through unwrapped so its detail is not
 // double-prefixed.
 func (s *Server) serveEngineOpDirect(proc *process.Process, op *engineOp, params json.RawMessage) (json.RawMessage, error) {
 	result, err := op.handle(s, proc, params)
@@ -275,7 +284,8 @@ func (s *Server) opUpdateRoute(proc *process.Process, params json.RawMessage) (a
 }
 
 // opDispatchCommand is the shared handler for dispatch-command (JSON + Direct).
-// It delegates to the s.dispatchCommand core (identity, dispatch, {status,data}).
+// Its output carries the accepted lifecycle action unchanged so the selected
+// transport can complete it after response delivery.
 func (s *Server) opDispatchCommand(proc *process.Process, params json.RawMessage) (any, error) {
 	var input rpc.DispatchCommandInput
 	if err := json.Unmarshal(params, &input); err != nil {

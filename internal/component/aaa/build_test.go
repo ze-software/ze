@@ -117,6 +117,53 @@ func TestBundleAuthorizerSelection(t *testing.T) {
 	assert.Equal(t, 0, localAuthz.called)
 }
 
+// VALIDATES: request-scoped local fallback replaces the selected local backend
+// without changing backend priority.
+// PREVENTS: API requests authenticated by an accepted generation consulting a
+// later mutable local policy store.
+func TestBundleAuthorizerWithLocalFallbackReplacesSelectedLocal(t *testing.T) {
+	r := NewBackendRegistryForTest()
+	selectedLocal := &stubAuthorizer{allow: false}
+	require.NoError(t, r.Register(&stubBackend{
+		name: "local", priority: 200,
+		contrib: Contribution{
+			Authenticator: &fakeBackend{},
+			Authorizer:    selectedLocal,
+		},
+	}))
+	bundle, err := r.Build(BuildParams{})
+	require.NoError(t, err)
+
+	acceptedLocal := &stubAuthorizer{allow: true}
+	authorizer := bundle.AuthorizerWithLocalFallback(acceptedLocal)
+	assert.True(t, authorizer.Authorize("u", "", "show version", true))
+	assert.Equal(t, 0, selectedLocal.called)
+	assert.Equal(t, 1, acceptedLocal.called)
+}
+
+// VALIDATES: a selected external authorizer without local fallback behavior
+// remains authoritative for an accepted local request generation.
+// PREVENTS: request-scoped local policy bypassing non-TACACS external backends.
+func TestBundleAuthorizerWithLocalFallbackKeepsSelectedExternal(t *testing.T) {
+	r := NewBackendRegistryForTest()
+	external := &stubAuthorizer{allow: false}
+	require.NoError(t, r.Register(&stubBackend{
+		name: "external", priority: 100,
+		contrib: Contribution{
+			Authenticator: &fakeBackend{},
+			Authorizer:    external,
+		},
+	}))
+	bundle, err := r.Build(BuildParams{})
+	require.NoError(t, err)
+
+	acceptedLocal := &stubAuthorizer{allow: true}
+	authorizer := bundle.AuthorizerWithLocalFallback(acceptedLocal)
+	assert.False(t, authorizer.Authorize("u", "", "show version", true))
+	assert.Equal(t, 1, external.called)
+	assert.Equal(t, 0, acceptedLocal.called)
+}
+
 // VALIDATES: AC-9 — the first non-nil Accountant is selected.
 // PREVENTS: two backends fighting over accounting.
 func TestBundleAccountantSelection(t *testing.T) {

@@ -30,6 +30,29 @@ type Authorizer interface {
 	Authorize(username, remoteAddr, command string, isReadOnly bool) (allowed bool)
 }
 
+// profileBindingAuthorizer creates an authorization view for one successful
+// authentication result. The returned authorizer must not consult mutable
+// profile state from another session with the same username.
+type profileBindingAuthorizer interface {
+	BindProfiles(profiles []string) Authorizer
+}
+
+// BindProfiles binds login-resolved profiles to one authenticated session.
+// Authorizers without profile-dependent behavior are already session-safe and
+// are returned unchanged.
+func BindProfiles(authorizer Authorizer, profiles []string) Authorizer {
+	if binder, ok := authorizer.(profileBindingAuthorizer); ok {
+		return binder.BindProfiles(profiles)
+	}
+	return authorizer
+}
+
+// localFallbackBindingAuthorizer replaces the local policy used by an external
+// authorizer when its remote service is unavailable.
+type localFallbackBindingAuthorizer interface {
+	BindLocalFallback(Authorizer) Authorizer
+}
+
 // Accountant records command execution. Implementations MUST NOT block
 // command execution on accounting failure; errors are logged locally.
 type Accountant interface {

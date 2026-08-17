@@ -45,7 +45,12 @@ func (s *Server) handleSingleProcessCommandsRPC(proc *process.Process) {
 	// server is shutting down so Server.Wait() blocks until actual termination.
 	// Plugin->engine RPCs still flow via DirectBridge independently of this.
 	if conn.HasBridge() {
-		<-s.ctx.Done()
+		select {
+		case <-s.ctx.Done():
+		case <-proc.Done():
+		}
+		proc.Bridge().StopDispatch()
+		proc.Bridge().WaitDispatch()
 		return
 	}
 
@@ -101,6 +106,7 @@ func responseToDispatchOutput(resp *plugin.Response) *rpc.DispatchCommandOutput 
 		output.Status = plugin.StatusDone
 		return output
 	}
+	output.OnTransportComplete(resp.TakeTransportComplete())
 	output.Status = resp.Status
 	if resp.Error != "" {
 		output.Error = resp.Error
@@ -596,9 +602,9 @@ func (s *Server) dispatchCommandArgs(proc *process.Process, command string, args
 	return responseToDispatchOutput(resp), nil
 }
 
-// dispatchCommand is the core dispatch-command logic shared by JSON and typed paths.
-// Creates command context, dispatches through the command registry, and returns
-// the full DispatchCommandOutput. Logs failures with shutdown awareness.
+// dispatchCommand is the shared dispatch-command producer for socket and
+// DirectBridge transports. The returned output retains any accepted lifecycle
+// action until the consuming transport completes delivery.
 func (s *Server) dispatchCommand(proc *process.Process, command string) (*rpc.DispatchCommandOutput, error) {
 	cmdCtx := &CommandContext{
 		Server:         s,
@@ -634,8 +640,12 @@ func handleCodecRPCDirect(codec func(json.RawMessage) (any, error), params json.
 	return directResultResponse(result)
 }
 
-// directResultResponse marshals data to JSON. Returns nil for nil data.
+// directResultResponse marshals data to JSON and then completes any lifecycle
+// action carried by the result. It returns nil for nil data.
 func directResultResponse(data any) (json.RawMessage, error) {
+	if completed, ok := data.(transportCompleteResponse); ok {
+		defer completed.TransportComplete()
+	}
 	if data == nil {
 		return nil, nil
 	}
@@ -676,28 +686,30 @@ func (s *Server) wireBridgeDispatch(proc *process.Process) {
 
 // cleanupProcess handles cleanup when a process exits.
 func (s *Server) cleanupProcess(proc *process.Process) {
-	// Unregister all commands from this process
-	s.dispatcher.Registry().UnregisterAll(proc)
+	proc.RunRuntimeCleanupOnce(func() {
+		// Unregister all commands and cancel pending requests from this process.
+		if s.dispatcher != nil {
+			s.dispatcher.Registry().UnregisterAll(proc)
+			s.dispatcher.Pending().CancelAll(proc)
+		}
 
-	// Cancel all pending requests
-	s.dispatcher.Pending().CancelAll(proc)
+		// Clear all subscriptions for this process.
+		if s.subscriptions != nil {
+			s.subscriptions.clearProcess(proc)
+		}
 
-	// Clear all subscriptions for this process
-	if s.subscriptions != nil {
-		s.subscriptions.clearProcess(proc)
-	}
+		// Remove cache consumer tracking for this plugin.
+		// UnregisterConsumer decrements pending counts for unacked entries
+		// so they can be evicted instead of leaking.
+		if proc.IsCacheConsumer() && s.reactor != nil {
+			s.reactor.UnregisterCacheConsumer(proc.Name())
+		}
 
-	// Remove cache consumer tracking for this plugin.
-	// UnregisterConsumer decrements pending counts for unacked entries
-	// so they can be evicted instead of leaking.
-	if proc.IsCacheConsumer() && s.reactor != nil {
-		s.reactor.UnregisterCacheConsumer(proc.Name())
-	}
+		// Withdraw any routes this plugin installed into the engine Loc-RIB via the
+		// route-install RPC (AC-8): a forked OSPF/IS-IS that dies without withdrawing
+		// must not leave stale routes in the kernel.
+		s.withdrawPluginRoutes(proc.Name())
 
-	// Withdraw any routes this plugin installed into the engine Loc-RIB via the
-	// route-install RPC (AC-8): a forked OSPF/IS-IS that dies without withdrawing
-	// must not leave stale routes in the kernel.
-	s.withdrawPluginRoutes(proc.Name())
-
-	runProcessCleanupHooks(proc.Name())
+		runProcessCleanupHooks(proc.Name())
+	})
 }

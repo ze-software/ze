@@ -5,6 +5,7 @@ package infra
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -18,6 +19,99 @@ import (
 
 // infraLogger is the daemon-startup config-extraction logger (lazy init).
 var infraLogger = slogutil.LazyLogger("config.infra")
+
+// ExtractAuthUsers returns the local user credentials the `system` subtree
+// describes. The subtree is in resolved map form, which is what
+// config.Tree.ToMap() produces and what config.Provider.Get("system") returns.
+//
+// A nil or shapeless subtree yields no users. Every caller treats that as "this
+// configuration authenticates nobody", which denies, so the empty result is the
+// closed answer rather than a permissive one.
+//
+// Users and their public keys come back sorted by name. The map form has no
+// order of its own, and a caller that merges or logs the result needs one.
+func ExtractAuthUsers(system map[string]any) []authz.UserConfig {
+	auth, ok := system["authentication"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	entries, ok := auth["user"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	users := make([]authz.UserConfig, 0, len(entries))
+	for name, raw := range entries {
+		entry, ok := raw.(map[string]any)
+		if !ok {
+			continue
+		}
+		uc := authz.UserConfig{Name: name}
+		if pw, ok := entry["password"].(string); ok {
+			uc.Hash = pw
+		}
+		uc.Profiles = leafListValues(entry["profile"])
+		uc.PublicKeys = extractPublicKeys(entry["public-keys"])
+		users = append(users, uc)
+	}
+	slices.SortFunc(users, func(a, b authz.UserConfig) int { return strings.Compare(a.Name, b.Name) })
+	return users
+}
+
+// extractPublicKeys reads the `public-keys` keyed list of one user entry.
+func extractPublicKeys(raw any) []authz.SSHPublicKey {
+	entries, ok := raw.(map[string]any)
+	if !ok {
+		return nil
+	}
+	keys := make([]authz.SSHPublicKey, 0, len(entries))
+	for name, rawKey := range entries {
+		entry, ok := rawKey.(map[string]any)
+		if !ok {
+			continue
+		}
+		pk := authz.SSHPublicKey{Name: name}
+		if t, ok := entry["type"].(string); ok {
+			pk.Type = t
+		}
+		if k, ok := entry["key"].(string); ok {
+			pk.Key = k
+		}
+		keys = append(keys, pk)
+	}
+	if len(keys) == 0 {
+		return nil
+	}
+	slices.SortFunc(keys, func(a, b authz.SSHPublicKey) int { return strings.Compare(a.Name, b.Name) })
+	return keys
+}
+
+// leafListValues reads a YANG leaf-list from resolved map form. Tree.ToMap
+// collapses a one-member leaf-list to a plain string and emits []string for
+// more, while the same value arrives as []any after a JSON round trip, so all
+// three shapes are accepted.
+func leafListValues(raw any) []string {
+	switch v := raw.(type) {
+	case string:
+		if v == "" {
+			return nil
+		}
+		return []string{v}
+	case []string:
+		return slices.Clone(v)
+	case []any:
+		out := make([]string, 0, len(v))
+		for _, item := range v {
+			if s, ok := item.(string); ok {
+				out = append(out, s)
+			}
+		}
+		if len(out) == 0 {
+			return nil
+		}
+		return out
+	}
+	return nil
+}
 
 // ValidateAuthzConfig validates authorization config in the parsed tree.
 // Checks: profile entry regex syntax (hard error), user→profile references (AC-8).

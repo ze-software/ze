@@ -14,6 +14,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
 
@@ -99,9 +100,9 @@ func TestSessionEditorWithoutReloadFn(t *testing.T) {
 // PREVENTS: a healthy dashboard rendering an empty peer table.
 func TestDashboardFactoryUsesPublicSummaryCommand(t *testing.T) {
 	var command string
-	factory := dashboardFactoryFromExecutor(func(input string) (string, error) {
+	factory := dashboardFactoryFromExecutor(func(input string) (*plugin.RenderedResponse, error) {
 		command = input
-		return `{"summary":{"peers-configured":3}}`, nil
+		return &plugin.RenderedResponse{Output: `{"summary":{"peers-configured":3}}`}, nil
 	})
 
 	poller, err := factory()

@@ -133,11 +133,11 @@ func handleSystemVersionAPI(_ *CommandContext, _ []string) (*plugin.Response, er
 	}, nil
 }
 
-// handleDaemonShutdown stops the daemon. A BGP daemon stops the reactor (which
-// runs its graceful-shutdown sequence); a reactorless daemon (e.g. OSPF-only)
-// has no reactor, so it falls back to the daemon-provided shutdownFunc that
-// triggers the same signal-based teardown as SIGTERM. Without the fallback a
-// reactorless daemon could not be stopped by command and hung until timeout.
+// handleDaemonShutdown accepts a daemon stop. Command transports defer the
+// lifecycle action until after they have written the accepted response, so
+// teardown cannot close the requesting process connection first. A BGP daemon
+// stops its real reactor; a reactorless daemon uses the daemon-provided
+// shutdownFunc that triggers the same signal-based teardown as SIGTERM.
 func handleDaemonShutdown(ctx *CommandContext, _ []string) (*plugin.Response, error) {
 	// Coordinator.FullReactor returns the coordinator ITSELF as a no-op fallback
 	// when no BGP reactor is registered, so ctx.Reactor() is non-nil even for an
@@ -147,12 +147,18 @@ func handleDaemonShutdown(ctx *CommandContext, _ []string) (*plugin.Response, er
 	// daemon hangs until timeout on `request shutdown`.
 	r := ctx.Reactor()
 	if _, isFallback := r.(*plugin.Coordinator); r != nil && !isFallback {
-		r.Stop()
-		return shutdownInitiated(), nil
+		return shutdownInitiated(func() {
+			r.Stop()
+			if ctx.Server != nil {
+				ctx.Server.signalShutdownRequested()
+			}
+		}), nil
 	}
 	if ctx.Server != nil && ctx.Server.shutdownFunc != nil {
-		ctx.Server.shutdownFunc()
-		return shutdownInitiated(), nil
+		return shutdownInitiated(func() {
+			ctx.Server.shutdownFunc()
+			ctx.Server.signalShutdownRequested()
+		}), nil
 	}
 	return &plugin.Response{
 		Status: plugin.StatusError,
@@ -160,18 +166,20 @@ func handleDaemonShutdown(ctx *CommandContext, _ []string) (*plugin.Response, er
 	}, errShutdownNotConfigured
 }
 
-func shutdownInitiated() *plugin.Response {
-	return &plugin.Response{
+func shutdownInitiated(action func()) *plugin.Response {
+	resp := &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
 			"message": "shutdown initiated",
 		},
 	}
+	resp.OnTransportComplete(action)
+	return resp
 }
 
-// handleDaemonReboot signals a system reboot after graceful shutdown.
-// The reboot function is wired by the daemon at startup via SetRebootFunc.
-// The response is sent to the caller before the shutdown sequence begins.
+// handleDaemonReboot accepts a system reboot after graceful shutdown. The
+// reboot function and Server.Wait notification run only after the requesting
+// command transport has written the accepted response.
 func handleDaemonReboot(ctx *CommandContext, _ []string) (*plugin.Response, error) {
 	_, errResp, err := RequireReactor(ctx)
 	if err != nil {
@@ -183,13 +191,17 @@ func handleDaemonReboot(ctx *CommandContext, _ []string) (*plugin.Response, erro
 			Error:  "reboot not available",
 		}, errRebootFunctionNotConfigured
 	}
-	ctx.Server.rebootFunc()
-	return &plugin.Response{
+	resp := &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
 			"message": "reboot initiated",
 		},
-	}, nil
+	}
+	resp.OnTransportComplete(func() {
+		ctx.Server.rebootFunc()
+		ctx.Server.signalShutdownRequested()
+	})
+	return resp, nil
 }
 
 // SetShutdownFunc sets a reactor-independent daemon-shutdown callback. The
@@ -199,16 +211,16 @@ func (s *Server) SetShutdownFunc(fn func()) {
 	s.shutdownFunc = fn
 }
 
-// SetRebootFunc sets the function called for "daemon reboot" commands.
-// Called by the daemon to wire graceful shutdown + OS reboot.
+// SetRebootFunc sets the lifecycle action accepted by "daemon reboot".
+// Command transports run it after writing the accepted response.
 func (s *Server) SetRebootFunc(fn func()) {
 	s.rebootFunc = fn
 }
 
-// handleDaemonQuit dumps all goroutine stacks then shuts down. Like
-// handleDaemonShutdown it must not rely on a BGP reactor: on a reactorless
-// daemon ctx.Reactor() is the no-op Coordinator fallback, so it stops via the
-// daemon shutdownFunc instead (otherwise quit dumps stacks but never exits).
+// handleDaemonQuit dumps all goroutine stacks and accepts daemon shutdown. The
+// lifecycle action follows the written accepted response, and it does not rely
+// on a BGP reactor: a reactorless daemon uses shutdownFunc instead of the no-op
+// Coordinator fallback.
 func handleDaemonQuit(ctx *CommandContext, _ []string) (*plugin.Response, error) {
 	buf := make([]byte, 1<<20) // 1MB
 	n := runtime.Stack(buf, true)
@@ -216,12 +228,18 @@ func handleDaemonQuit(ctx *CommandContext, _ []string) (*plugin.Response, error)
 
 	r := ctx.Reactor()
 	if _, isFallback := r.(*plugin.Coordinator); r != nil && !isFallback {
-		r.Stop()
-		return quitInitiated(), nil
+		return quitInitiated(func() {
+			r.Stop()
+			if ctx.Server != nil {
+				ctx.Server.signalShutdownRequested()
+			}
+		}), nil
 	}
 	if ctx.Server != nil && ctx.Server.shutdownFunc != nil {
-		ctx.Server.shutdownFunc()
-		return quitInitiated(), nil
+		return quitInitiated(func() {
+			ctx.Server.shutdownFunc()
+			ctx.Server.signalShutdownRequested()
+		}), nil
 	}
 	return &plugin.Response{
 		Status: plugin.StatusError,
@@ -229,13 +247,15 @@ func handleDaemonQuit(ctx *CommandContext, _ []string) (*plugin.Response, error)
 	}, errShutdownNotConfigured
 }
 
-func quitInitiated() *plugin.Response {
-	return &plugin.Response{
+func quitInitiated(action func()) *plugin.Response {
+	resp := &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
 			"message": "quit initiated (goroutines dumped)",
 		},
 	}
+	resp.OnTransportComplete(action)
+	return resp
 }
 
 // handleDaemonStatus returns daemon status.
@@ -264,8 +284,9 @@ func handleDaemonReload(ctx *CommandContext, _ []string) (*plugin.Response, erro
 	if err != nil {
 		return errResp, err
 	}
+	reloadCtx := contextWithReloadCaller(ctx.Context(), ctx.Process)
 	if ctx.Server != nil && ctx.Server.hasFullReloadFunc() {
-		if err := ctx.Server.reloadFull(ctx.Context()); err != nil {
+		if err := ctx.Server.reloadFull(reloadCtx); err != nil {
 			return &plugin.Response{
 				Status: plugin.StatusError,
 				Error:  func() string { var tb textbuf.Buffer; return tb.Str("reload failed: ").Err(err).String() }(),
@@ -282,7 +303,7 @@ func handleDaemonReload(ctx *CommandContext, _ []string) (*plugin.Response, erro
 	// Use coordinator path when available: reloads config from disk, verifies with
 	// all plugins that registered WantsConfigRoots, then applies to each.
 	if ctx.Server != nil && ctx.Server.HasConfigLoader() {
-		if err := ctx.Server.ReloadFromDisk(ctx.Server.Context()); err != nil {
+		if err := ctx.Server.ReloadFromDisk(reloadCtx); err != nil {
 			return &plugin.Response{
 				Status: plugin.StatusError,
 				Error:  func() string { var tb textbuf.Buffer; return tb.Str("reload failed: ").Err(err).String() }(),

@@ -40,21 +40,22 @@ type snapshotHandlers struct {
 
 // dispatchJSON runs a show command through the dispatcher and returns the raw JSON,
 // degrading gracefully (error) rather than panicking when the engine is unavailable.
-func (h *snapshotHandlers) dispatchJSON(command, username, remoteAddr string) (json.RawMessage, error) {
+func (h *snapshotHandlers) dispatchJSON(ctx context.Context, command, username, remoteAddr string) (json.RawMessage, error) {
 	if h.dispatch == nil {
 		return nil, h.errNoDispatch
 	}
-	out, err := h.dispatch.JSON(context.Background(), plugin.CallerIdentity{Username: username, RemoteAddr: remoteAddr}, command)
+	rendered, err := h.dispatch.JSON(ctx, plugin.CallerIdentity{Username: username, RemoteAddr: remoteAddr}, command)
+	defer rendered.TransportComplete()
 	if err != nil {
 		return nil, err
 	}
-	if out == "" {
+	if rendered.Output == "" {
 		return json.RawMessage("null"), nil
 	}
-	if json.Valid([]byte(out)) {
-		return json.RawMessage(out), nil
+	if json.Valid([]byte(rendered.Output)) {
+		return json.RawMessage(rendered.Output), nil
 	}
-	wrapped, _ := json.Marshal(map[string]string{"raw": out})
+	wrapped, _ := json.Marshal(map[string]string{"raw": rendered.Output})
 	return wrapped, nil
 }
 
@@ -63,7 +64,7 @@ func (h *snapshotHandlers) dispatchJSON(command, username, remoteAddr string) (j
 func (h *snapshotHandlers) handleView(v viewSpec) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		username := GetUsernameFromRequest(r)
-		payload, err := h.dispatchJSON(v.command, username, r.RemoteAddr)
+		payload, err := h.dispatchJSON(r.Context(), v.command, username, r.RemoteAddr)
 		if err != nil {
 			http.Error(w, h.unavailableMsg, http.StatusServiceUnavailable)
 			return
@@ -87,8 +88,8 @@ func (h *snapshotHandlers) handleView(v viewSpec) http.HandlerFunc {
 // client disconnect so the goroutine never leaks.
 func (h *snapshotHandlers) sse(v viewSpec) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		sseSnapshotStream(w, r, v.eventName, h.refresh, func(username, remoteAddr string) (json.RawMessage, error) {
-			return h.dispatchJSON(v.command, username, remoteAddr)
+		sseSnapshotStream(w, r, v.eventName, h.refresh, func(ctx context.Context, username, remoteAddr string) (json.RawMessage, error) {
+			return h.dispatchJSON(ctx, v.command, username, remoteAddr)
 		})
 	}
 }

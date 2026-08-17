@@ -42,36 +42,18 @@ type tlsUpdatable interface {
 	UpdateTLSCertificate(certPEM, keyPEM []byte) error
 }
 
-// AuthUpdatable is implemented by any management server that can replace the
-// credentials gating its requests without rebinding its listeners. Declared
-// here for the same reason as tlsUpdatable: always-on hub code must rebuild a
-// server's authentication on reload without importing the compile-out-able
-// package that constructs it.
-//
-// A server that implements it answers for its LIVE authentication, which is
-// what lets the reload guard classify what a server serves rather than the mode
-// it was built with. A server that does not implement it keeps the
-// authentication it was constructed with until the daemon restarts, and
-// reloadListeners refuses that service's listener change instead of applying an
-// address under authentication the reloaded config no longer describes.
-type AuthUpdatable interface {
-	// Authenticated reports whether every request is gated right now.
+// authReporter is implemented by a server whose request gate follows live
+// accepted authentication state. The migrator uses it for exposure checks
+// without installing candidate credential material in the server.
+type authReporter interface {
 	Authenticated() bool
-	// UpdateAuth installs reloaded credentials and returns a function that puts
-	// the previous ones back. Restoring a value the server already held cannot
-	// fail, so the returned function reports nothing.
-	UpdateAuth(token string, authenticator func(authHeader string) (username string, ok bool)) (restore func(), err error)
 }
 
-// authIntent is the authentication a reloaded config asks one management
-// service to serve. token and authenticator are the material an AuthUpdatable
-// server installs; authenticated is what the exposure guard classifies, and it
-// is the only field a service whose authentication is fixed at construction
-// uses.
+// authIntent is the authentication mode a reloaded config asks one management
+// service to serve after final acceptance. Candidate credential material never
+// crosses the listener-migration seam.
 type authIntent struct {
 	authenticated bool
-	token         string
-	authenticator func(authHeader string) (username string, ok bool)
 }
 
 // authReloader resolves one service's authIntent from a reloaded config tree.
@@ -114,13 +96,11 @@ type listenerMigrator struct {
 	// classified -- the looking glass, an intentionally public surface -- and
 	// the reload guard leaves it alone exactly as the boot guard does.
 	//
-	// A service that implements AuthUpdatable is asked directly instead, because
-	// a reload changes its answer and this record would go stale.
+	// A service that implements authReporter answers from its live accepted
+	// request gate. Other services keep the boot classification.
 	authAtBoot map[string]bool
 
-	// authUpdaters holds the services that can rebuild their authentication in
-	// place. Populated from the Set* methods by type assertion.
-	authUpdaters map[string]AuthUpdatable
+	authReporters map[string]authReporter
 
 	// authReloaders resolves each service's configured authentication from a
 	// reloaded config tree.
@@ -176,21 +156,18 @@ func (m *listenerMigrator) setAuthReloader(name string, r authReloader) {
 	m.authReloaders[name] = r
 }
 
-// registerAuthUpdater records a server that can rebuild its authentication in
-// place. A server that does not implement AuthUpdatable is deliberately not
-// recorded: reloadListeners then reads the boot guard's classification for it,
-// which stays correct precisely because such a server's authentication cannot
-// change while it runs.
-func (m *listenerMigrator) registerAuthUpdater(name string, srv Reconfigurable) {
-	au, ok := srv.(AuthUpdatable)
+// registerAuthReporter records a server whose live request gate can report its
+// current accepted authentication mode.
+func (m *listenerMigrator) registerAuthReporter(name string, srv Reconfigurable) {
+	reporter, ok := srv.(authReporter)
 	if !ok {
-		delete(m.authUpdaters, name)
+		delete(m.authReporters, name)
 		return
 	}
-	if m.authUpdaters == nil {
-		m.authUpdaters = make(map[string]AuthUpdatable)
+	if m.authReporters == nil {
+		m.authReporters = make(map[string]authReporter)
 	}
-	m.authUpdaters[name] = au
+	m.authReporters[name] = reporter
 }
 
 // runningAuth reports whether the named service gates every request right now,
@@ -203,8 +180,8 @@ func (m *listenerMigrator) registerAuthUpdater(name string, srv Reconfigurable) 
 // intentionally public surface that the boot guard never declares, and the
 // reload guard must not start refusing its migrations.
 func (m *listenerMigrator) runningAuth(name string) (authenticated, known bool) {
-	if au, ok := m.authUpdaters[name]; ok && au != nil {
-		return au.Authenticated(), true
+	if reporter, ok := m.authReporters[name]; ok && reporter != nil {
+		return reporter.Authenticated(), true
 	}
 	v, ok := m.authAtBoot[name]
 	return v, ok
@@ -213,10 +190,8 @@ func (m *listenerMigrator) runningAuth(name string) (authenticated, known bool) 
 // newListenerMigrator creates a migrator with no services attached. Each service
 // registers itself later through its setter method as it starts.
 //
-// It takes no web argument on purpose. setWeb both assigns the reference AND
-// calls registerAuthUpdater, so a web server installed here instead would reach
-// the reload guard with no auth updater registered and runningAuth would fall
-// back to the boot snapshot for it.
+// It takes no web argument on purpose. Each setter both assigns the reference
+// and registers any live authentication reporter.
 func newListenerMigrator() *listenerMigrator {
 	return &listenerMigrator{
 		logger: slogutil.Logger("hub.listener"),
@@ -226,7 +201,7 @@ func newListenerMigrator() *listenerMigrator {
 // setWeb updates the web server reference.
 func (m *listenerMigrator) setWeb(web Reconfigurable) {
 	m.web = web
-	m.registerAuthUpdater(svcWeb, web)
+	m.registerAuthReporter(svcWeb, web)
 }
 
 // setWebTLS updates the web server's certificate-rotation reference. Takes
@@ -257,49 +232,31 @@ func (m *listenerMigrator) updateWebCertificate(certName string) error {
 	return nil
 }
 
-// setLG updates the looking glass server reference. Takes Reconfigurable (not
-// *lg.LGServer) so always-on code never imports the lg package: lg is built
-// through the construction registry and may be compiled out (//go:build ze_lg).
-//
-// The registerAuthUpdater call below is a live dependency, not boilerplate. No
-// looking-glass type implements AuthUpdatable today, so runningAuth("lg")
-// answers known=false and the reload guard leaves the looking glass alone,
-// which is what registerMgmtAuthReloaders documents. The day an LG type gains
-// UpdateAuth, this line makes runningAuth answer known=true from the live
-// server, and a looking glass with no token starts having its non-loopback
-// migrations REFUSED -- the opposite of the intentionally public posture.
-// Whoever implements AuthUpdatable on lg owns that decision here.
+// setLG updates the looking glass server reference.
 func (m *listenerMigrator) setLG(s Reconfigurable) {
 	m.lg = s
-	m.registerAuthUpdater(svcLG, s)
+	m.registerAuthReporter(svcLG, s)
 }
 
-// setMCP updates the MCP server reference. Takes Reconfigurable (not
-// *mcpServerHandle) so always-on code never imports the mcp package: mcp is
-// built through the construction registry and may be compiled out
-// (//go:build ze_mcp).
+// setMCP updates the MCP server reference.
 func (m *listenerMigrator) setMCP(s Reconfigurable) {
 	m.mcp = s
-	m.registerAuthUpdater(svcMCP, s)
+	m.registerAuthReporter(svcMCP, s)
 }
 
-// setREST updates the REST API server reference. Takes Reconfigurable (not
-// *rest.RESTServer) so always-on code never imports the api/rest package: the
-// API servers are built through the ze_api seam and may be compiled out.
+// setREST updates the REST API server reference.
 func (m *listenerMigrator) setREST(s Reconfigurable) {
 	m.rest = s
-	m.registerAuthUpdater(svcREST, s)
+	m.registerAuthReporter(svcREST, s)
 }
 
-// setGRPC updates the gRPC API server reference. Takes Reconfigurable (see
-// setREST) so always-on code never imports the api/grpc package.
+// setGRPC updates the gRPC API server reference.
 func (m *listenerMigrator) setGRPC(s Reconfigurable) {
 	m.grpc = s
-	m.registerAuthUpdater(svcGRPC, s)
+	m.registerAuthReporter(svcGRPC, s)
 }
 
-// noAuthRestore is the undo returned when a reload installed no credentials.
-func noAuthRestore() {}
+func noListenerRestore() error { return nil }
 
 // resolvedAuth pairs a service with the authentication its reloaded config asks
 // for.
@@ -308,54 +265,28 @@ type resolvedAuth struct {
 	intent authIntent
 }
 
-// reloadListeners applies a reloaded config to the running management
-// services:
-// it rebuilds the authentication of every server that can take a new one,
-// re-runs the exposure guard over the (address, authentication) pair the reload
-// produces, and then migrates listen addresses.
-//
-// It returns an undo for the credentials it installed. The caller MUST run that
-// undo if any LATER step of the reload fails, because a reload the operator is
-// told failed must not leave a listener authenticated differently from the
-// config the daemon rolled back to (runReload, main_reload.go). On its own
-// error paths reloadListeners has already undone everything itself, and the
-// returned undo does nothing.
-//
-// Order matters, and refusals come first. A service that must change its
-// authentication and cannot is refused BEFORE anything is applied, so the
-// daemon keeps every listener and every credential it has. Authentication is
-// then rebuilt BEFORE any address moves, so the exposure guard classifies the
-// pair the reload produces rather than the one the servers were constructed
-// with.
-func (m *listenerMigrator) reloadListeners(ctx context.Context, tree *zeconfig.Tree) (func(), error) {
+// reloadListeners validates candidate authentication modes, re-runs the
+// exposure guard over the final (address, mode) pair, and migrates listeners.
+// It returns an undo for every listener that may still be on its candidate
+// address. This includes a failed migration whose internal rollback was
+// incomplete, so the reload transaction can retry restoration before making
+// accepted credentials visible again.
+func (m *listenerMigrator) reloadListeners(ctx context.Context, tree *zeconfig.Tree) (func() error, error) {
 	changes := m.buildChanges(tree)
-
 	intents, err := m.resolveAuthIntents(tree)
 	if err != nil {
-		return noAuthRestore, err
+		return noListenerRestore, err
 	}
-
 	if err := m.checkAuthRebuildable(intents); err != nil {
-		return noAuthRestore, err
+		return noListenerRestore, err
 	}
-
-	restoreAuth, err := m.applyAuthIntents(intents)
-	if err != nil {
-		return noAuthRestore, err
+	if err := m.checkReloadExposure(changes, intents); err != nil {
+		return noListenerRestore, err
 	}
-
-	if err := m.checkReloadExposure(changes); err != nil {
-		restoreAuth()
-		return noAuthRestore, err
+	if len(changes) == 0 {
+		return noListenerRestore, nil
 	}
-
-	if len(changes) > 0 {
-		if err := m.migrateListeners(ctx, changes, restoreAuth); err != nil {
-			return noAuthRestore, err
-		}
-	}
-
-	return restoreAuth, nil
+	return m.migrateListeners(ctx, changes)
 }
 
 // resolveAuthIntents asks each registered reloader what the reloaded config
@@ -439,7 +370,7 @@ func (m *listenerMigrator) resolveAuthIntents(tree *zeconfig.Tree) ([]resolvedAu
 // here (AC-5).
 func (m *listenerMigrator) checkAuthRebuildable(intents []resolvedAuth) error {
 	for _, ra := range intents {
-		if au, ok := m.authUpdaters[ra.name]; ok && au != nil {
+		if reporter, ok := m.authReporters[ra.name]; ok && reporter != nil {
 			continue
 		}
 		running, known := m.runningAuth(ra.name)
@@ -460,79 +391,61 @@ func authWord(authenticated bool) string {
 	return "unauthenticated"
 }
 
-// applyAuthIntents installs each resolved intent on the server that can take
-// it, and returns a function restoring every server it changed.
-func (m *listenerMigrator) applyAuthIntents(intents []resolvedAuth) (func(), error) {
-	var restores []func()
-	restoreAll := func() {
-		for i := len(restores) - 1; i >= 0; i-- {
-			restores[i]()
-		}
+// checkReloadExposure evaluates final addresses against candidate modes. A
+// service with no candidate auth intent keeps its running mode, which remains
+// load-bearing for fixed-auth services such as web.
+func (m *listenerMigrator) checkReloadExposure(changes []serviceChange, intents []resolvedAuth) error {
+	candidate := make(map[string]bool, len(intents))
+	for _, resolved := range intents {
+		candidate[resolved.name] = resolved.intent.authenticated
 	}
 
-	for _, ra := range intents {
-		au, updatable := m.authUpdaters[ra.name]
-		if !updatable || au == nil {
-			// checkAuthRebuildable already refused any such service whose mode
-			// must change, so reaching here means its mode is already correct.
+	checked := make(map[string]bool, len(changes))
+	for _, change := range changes {
+		authenticated, known := m.runningAuth(change.name)
+		if value, ok := candidate[change.name]; ok {
+			authenticated, known = value, true
+		}
+		if err := checkServiceExposure(change.name, change.newAddr, authenticated, known); err != nil {
+			return err
+		}
+		checked[change.name] = true
+	}
+
+	for _, resolved := range intents {
+		if checked[resolved.name] {
 			continue
 		}
-		// Always applied, never only on a changed mode: a rotated token or an
-		// edited user list changes the material while the mode stays the same,
-		// and the reloaded config is what the server must serve.
-		restore, err := au.UpdateAuth(ra.intent.token, ra.intent.authenticator)
-		if err != nil {
-			restoreAll()
-			return nil, fmt.Errorf("rebuild %s authentication: %w", ra.name, err)
+		if err := checkServiceExposure(resolved.name, m.serviceAddresses(resolved.name),
+			resolved.intent.authenticated, true); err != nil {
+			return err
 		}
-		restores = append(restores, restore)
 	}
-
-	return restoreAll, nil
+	return nil
 }
 
-// checkReloadExposure re-runs the boot guard's AUTHENTICATION classification
-// over the (address, authentication) pair each service holds once this reload
-// applies. It refuses before anything is rebound, so the daemon keeps every
-// listener it has.
-//
-// It reads the LIVE authentication, so a server whose authentication this
-// reload just rebuilt is classified on the new mode. That is the whole point:
-// the boot-time record would still call such a server authenticated because
-// that is what it was when it started.
-//
-// An unknown service is SKIPPED, which is the permissive branch, and it is
-// correct only for a surface the boot guard genuinely never classified (the
-// looking glass). So markMgmtAuth runs before any handle reaches the migrator:
-// a classified surface whose record has not landed yet would take this branch
-// and migrate unauthenticated to a public address, and the web server carries
-// no loopback rule of its own to catch it.
-//
-// Authentication is all it judges, and that is deliberate rather than
-// complete. A transport requirement belongs to the server that knows its own
-// transport: gRPC refuses a non-loopback address without TLS in
-// checkGRPCListenAddr, on the same reload, and this function cannot see a
-// certificate. Do not read a pass here as "the listener is safe to expose".
-//
-// The ADDRESSES a change ADDS are all it reads, so a reload that turns
-// authentication OFF while every address stays put is not judged here at all.
-// Three properties in other packages close that case today: REST refuses every
-// non-loopback address, so removing its credentials exposes nothing
-// (internal/component/api/rest/auth.go, RESTServer.UpdateAuth); gRPC re-runs
-// checkGRPCListenAddr inside setAuthLocked, on the update and on its undo
-// (internal/component/api/grpc/server.go); and web and MCP implement no
-// AuthUpdatable, so checkAuthRebuildable refuses the whole reload. The next
-// surface to gain UpdateAuth without an address rule of its own reopens it.
-func (m *listenerMigrator) checkReloadExposure(changes []serviceChange) error {
-	for i := range changes {
-		authenticated, known := m.runningAuth(changes[i].name)
-		if !known || authenticated {
-			continue
-		}
-		for _, addr := range changes[i].add {
-			if listenAddrIsNonLoopback(addr) {
-				return fmt.Errorf("refusing to migrate %s to non-loopback listener %q without authentication", changes[i].name, addr)
-			}
+func (m *listenerMigrator) serviceAddresses(name string) []string {
+	switch name {
+	case svcWeb:
+		return m.web.Addresses()
+	case svcMCP:
+		return m.mcp.Addresses()
+	case svcREST:
+		return m.rest.Addresses()
+	case svcGRPC:
+		return m.grpc.Addresses()
+	default:
+		return nil
+	}
+}
+
+func checkServiceExposure(name string, addrs []string, authenticated, known bool) error {
+	if !known || authenticated {
+		return nil
+	}
+	for _, addr := range addrs {
+		if listenAddrIsNonLoopback(addr) {
+			return fmt.Errorf("%s listener %q cannot serve a non-loopback address without authentication", name, addr)
 		}
 	}
 	return nil
@@ -585,11 +498,11 @@ func (m *listenerMigrator) buildChanges(tree *zeconfig.Tree) []serviceChange {
 	return changes
 }
 
-// migrateListeners applies an already-guarded change set. restoreAuth puts back
-// the authentication every server started the reload with; it runs on any
-// failure, alongside the address rollback, so a reload that fails part-way
-// leaves neither the addresses nor the authentication half-applied.
-func (m *listenerMigrator) migrateListeners(ctx context.Context, changes []serviceChange, restoreAuth func()) error {
+// migrateListeners applies an already-guarded change set. It rolls back every
+// listener applied before an in-transaction migration failure. If that
+// rollback is incomplete, the returned undo retries the same accepted
+// addresses at the outer reload boundary.
+func (m *listenerMigrator) migrateListeners(ctx context.Context, changes []serviceChange) (func() error, error) {
 	conflicts := detectConflicts(changes)
 
 	ordered := make([]serviceChange, 0, len(changes))
@@ -619,16 +532,20 @@ func (m *listenerMigrator) migrateListeners(ctx context.Context, changes []servi
 		}
 		if err := change.server.Reconfigure(ctx, change.newAddr); err != nil {
 			rollbackErr := m.rollbackAppliedListeners(ctx, applied)
-			restoreAuth()
 			if rollbackErr != nil {
-				return fmt.Errorf("reconfigure %s: %w (listener rollback failed: %w)", label, err, rollbackErr)
+				retryRollback := func() error {
+					return m.rollbackAppliedListeners(ctx, applied)
+				}
+				return retryRollback, fmt.Errorf("reconfigure %s: %w (listener rollback failed: %w)", label, err, rollbackErr)
 			}
-			return fmt.Errorf("reconfigure %s: %w", label, err)
+			return noListenerRestore, fmt.Errorf("reconfigure %s: %w", label, err)
 		}
 		applied = append(applied, change)
 	}
 
-	return nil
+	return func() error {
+		return m.rollbackAppliedListeners(ctx, applied)
+	}, nil
 }
 
 func (m *listenerMigrator) rollbackAppliedListeners(ctx context.Context, applied []serviceChange) error {

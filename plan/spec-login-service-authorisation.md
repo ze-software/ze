@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | design |
 | Scope | config |
-| Depends | - |
+| Depends | `plan/spec-ssh-optional-composition.md` |
 | Phase | - |
 | Deferral shard | `plan/deferrals/fixit-web-auth-deleted-user-survives-reload.md` |
 | Handoff | verify |
@@ -68,9 +68,9 @@ username at all, so they cannot answer the question yet; giving them identity is
 
 **Key insights:** (minimal context to resume after compaction)
 - The registry-backed name check already exists three times over and needs no invention: `RegisterSource` (`internal/component/config/redistribute/registry.go`) is written at `init()`, the leaf is `type string` carrying `ze:validate "redistribute-source"`, and `RedistributeSourceValidator` (`internal/component/config/validators.go`) calls `redistribute.LookupSource` at validate time and hands `redistribute.SourceNames` back as its `CompleteFn`. `CheckAllValidatorsRegistered` (`internal/component/config/yang/validator_registry.go`) fails a `ze:validate` name nobody registered.
-- There is ONE user list, not two. `ExtractAuthUsers` (`internal/component/config/infra/ssh.go`) reads `system/authentication/user` and is the only producer of `authz.UserConfig`, which is `aaa.UserCredential` (`internal/component/aaa/types.go`).
+- There is ONE user list, not two. `ExtractAuthUsers` (`internal/component/config/infra/authz.go`) reads `system/authentication/user` and is the only producer of `authz.UserConfig`, which is `aaa.UserCredential` (`internal/component/aaa/types.go`).
 - `aaa.UserCredential` carries `Name`, `Hash`, `Profiles` and `PublicKeys`. It carries NO surface field, so the surface name has to be threaded in rather than read off the credential.
-- The user list already carries `leaf-list profile` (`internal/component/ssh/yang/ze-ssh-conf.yang`). The login-set reference is its sibling, and the ssh module owns that node even though the authz module owns the profile it names.
+- The user list already carries `leaf-list profile` (`internal/component/authz/yang/ze-authz-conf.yang`). The login-set reference is its sibling in the shared identity module.
 - No surface has a per-user surface gate today. Four carry a username into `authz`; gNMI and the looking glass carry none.
 
 ## Current Behavior (MANDATORY)
@@ -78,10 +78,10 @@ username at all, so they cannot answer the question yet; giving them identity is
 **Source files read:** (must read BEFORE you write this spec)
 - [ ] `internal/component/authz/authz.go` - `Store` holds `profiles` and `assignments`; `(*Store).Authorize` is the single decision point and fails closed on an empty identity; `(*Profile).Authorize` picks a run or edit section and `(*Section).evaluate` walks numbered entries against a command path. Nothing on this path names a surface.
 - [ ] `internal/component/aaa/types.go` - `UserCredential{Name, Hash, Profiles, PublicKeys}` is the credential shape every backend consumes. `BuildParams` carries `LocalUsers` and `LocalUsersFunc`, which is what makes a deleted user stop authenticating without a restart.
-- [ ] `internal/component/config/infra/ssh.go` - `ExtractAuthUsers` reads `system/authentication/user` from the resolved `system` map and is the ONE producer of the credential shape. `ExtractSSHConfig` derives its own `Users` field from it, after two early returns that fire when `environment` or `environment/ssh` is absent.
+- [ ] `internal/component/config/infra/authz.go` - `ExtractAuthUsers` reads `system/authentication/user` from the resolved `system` map and is the ONE producer of the credential shape. `ExtractSSHConfig` derives its SSH construction snapshot from the same function.
 - [ ] `internal/component/config/infra/authz.go` - `extractAuthzConfig` populates the store and `ValidateAuthzConfig` rejects a user naming an undefined profile, by string compare against the configured profile list. This is the existing shape a login-set reference check must match.
-- [ ] `internal/component/authz/yang/ze-authz-conf.yang` - `system/authorization/profile`, a named list whose `run` and `edit` containers each hold a `default-action` and an ordered `entry` list. The new section is its sibling.
-- [ ] `internal/component/ssh/yang/ze-ssh-conf.yang` - owns `system/authentication/user`, with `name`, `password`, `plaintext-password`, `leaf-list profile` and a `public-keys` list. The user side of the new reference belongs here, beside `profile`.
+- [ ] `internal/component/authz/yang/ze-authz-conf.yang` - owns both `system/authentication/user` and `system/authorization/profile`. The new login-set and user reference belong here.
+- [ ] `internal/component/ssh/yang/ze-ssh-conf.yang` - augments shared users only with SSH public keys and owns `environment.ssh`. It does not own the new login-set reference.
 - [ ] `internal/component/config/redistribute/registry.go` - `RegisterSource`, `SourceNames`: the registry shape to copy, including `ErrSourceConflict` on a re-registration that disagrees.
 - [ ] `internal/component/config/validators.go` - `RedistributeSourceValidator`, the validator shape to copy, including `CompleteFn` for CLI completion.
 - [ ] `internal/component/config/validators_register.go` - `RegisterValidators` wires a validator to the `ze:validate` name.
@@ -123,12 +123,12 @@ username at all, so they cannot answer the question yet; giving them identity is
 | Boundary | How | Verified |
 |----------|-----|----------|
 | Plugin → name registry | A registration call at `init()`, no import of the plugin by the core | Yes: the shape `RegisterSource` (`internal/component/config/redistribute/registry.go`) already uses |
-| Config tree → credential | `ExtractAuthUsers` (`internal/component/config/infra/ssh.go`) stays the one producer; the login-set reference joins the existing fields | Yes: one reader, no second parser of `system/authentication` |
+| Config tree → credential | `ExtractAuthUsers` (`internal/component/config/infra/authz.go`) stays the one producer; the login-set reference joins the existing fields | Yes: one reader, no second parser of `system.authentication` |
 | Surface → authentication request | The surface passes its registered name; no transport type crosses into `aaa` or `authz` | To be established by the design phase: `aaa.UserCredential` has no surface field today |
 | Authentication → authorisation | Unchanged. A refused login never reaches `(*Store).Authorize` | Yes: the gate sits before the authorisation call |
 
 ### Integration Points
-- `ExtractAuthUsers` (`internal/component/config/infra/ssh.go`) - the one credential producer. The login-set reference is read here or nowhere.
+- `ExtractAuthUsers` (`internal/component/config/infra/authz.go`) - the one credential producer. The login-set reference is read here or nowhere.
 - `ValidateAuthzConfig` (`internal/component/config/infra/authz.go`) - already rejects a user naming an undefined profile. The login-set reference gets the same treatment in the same function.
 - `RegisterValidators` (`internal/component/config/validators_register.go`) - where the new `ze:validate` name is wired.
 - `(*Store).Authorize` (`internal/component/authz/authz.go`) - NOT edited. Command authorisation is a separate question and stays one.
@@ -169,7 +169,7 @@ username at all, so they cannot answer the question yet; giving them identity is
 |----------|--------|
 | What breaks if this is wrong? | Two directions, both bad and not symmetric. Too permissive: a surface that should refuse an account admits it, which is the status quo and is at least no worse. Too strict: an operator is locked out of every management surface of a running router, with no way in except physical access. The second is the one to design against |
 | How is it reverted? | Single commit revert. The new config section becomes unknown, so a config carrying it must be edited before the older daemon accepts it. That is a one-way door for the config file and MUST be stated in the release note |
-| Who else touches this path? | `plan/spec-hub-deferred-api-auth-independent-of-ssh-block.md` corrects where the API reads its user list from, in the same area. It is separable and lands first. `plan/spec-login-identity-for-looking-glass-and-gnmi.md` extends the same design to two more surfaces |
+| Who else touches this path? | The closed `spec-hub-deferred-api-auth-independent-of-ssh-block` work corrected where the API reads its user list from, in the same area. It is separable and landed first. `plan/spec-login-identity-for-looking-glass-and-gnmi.md` extends the same design to two more surfaces |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -238,10 +238,8 @@ N-A. Scope is config and local credential policy. No wire format, no peer
 daemon, and no RFC obligation is touched.
 
 ## Files to Modify
-- `internal/component/authz/yang/ze-authz-conf.yang` - the new named list under `system/authorization/`, sibling to `profile`
-- `internal/component/ssh/yang/ze-ssh-conf.yang` - the user's reference to a login set, beside the existing `leaf-list profile`
-- `internal/component/config/infra/ssh.go` - `ExtractAuthUsers` carries the reference on the credential it already produces
-- `internal/component/config/infra/authz.go` - `ValidateAuthzConfig` rejects an undefined login-set reference, beside the undefined-profile check
+- `internal/component/authz/yang/ze-authz-conf.yang` - add the named login-set list under `system/authorization` and its user reference beside `leaf-list profile`
+- `internal/component/config/infra/authz.go` - carry the reference in `ExtractAuthUsers` and reject an undefined reference in `ValidateAuthzConfig`
 - `internal/component/config/validators.go` - the new validator, copying `RedistributeSourceValidator`
 - `internal/component/config/validators_register.go` - wire the new `ze:validate` name
 - `internal/component/aaa/types.go` - the login set on the credential, and the surface name on the authentication request
@@ -290,7 +288,7 @@ daemon, and no RFC obligation is touched.
 | 13 | Route metadata keys added/changed? | No | No route metadata |
 | 14 | Prometheus counters added/changed? | Yes | The refused-by-login-set counter |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | A new registry. Add it to the registration inventory |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes | Grep `docs/` for anchors naming the four login functions and `internal/component/config/infra/ssh.go` |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | Grep `docs/` for anchors naming the four login functions and `internal/component/config/infra/authz.go` |
 | 17 | Existing docs show config/CLI/API examples for this area? | Yes | `docs/guide/authentication.md` shows user config examples that now have a further dimension |
 
 ## Implementation Steps
@@ -309,7 +307,7 @@ daemon, and no RFC obligation is touched.
    - Verify: AC-9, AC-10, and CLI completion offers registered names only
 4. **Phase: The credential carries the set** -- one producer, no second reader
    - Tests: `TestLoginSetAbsentAdmitsEveryService`, `TestLoginSetUnreadableDenies`
-   - Files: `internal/component/config/infra/ssh.go`, `internal/component/aaa/types.go`
+   - Files: `internal/component/config/infra/authz.go`, `internal/component/aaa/types.go`
    - Verify: AC-6, AC-7. An unreadable set denies
 5. **Phase: The gate, on all four surfaces at once** -- never one surface at a time
    - Tests: the four surface `.ci` files, plus `TestSSHPublicKeyLoginHonoursLoginSet`

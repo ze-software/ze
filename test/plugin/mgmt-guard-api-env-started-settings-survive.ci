@@ -12,6 +12,9 @@
 # only surface that could serve an authenticated listener in clear.
 
 option=exclusive:group=mgmt-guard
+# Keep zefs in the per-test working directory. The fixture tests token mode, so
+# a developer's power-user database must not enable per-user mode.
+option=env:var=ze.config.dir:value=.
 option=env:var=ze.api-server.rest.enabled:value=1
 
 stdin=ze-bgp:terminator=EOF_CONF

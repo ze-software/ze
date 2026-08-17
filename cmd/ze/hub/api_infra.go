@@ -26,9 +26,7 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/api"
-	"github.com/ze-software/ze/internal/component/authz"
 	zeconfig "github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -126,29 +124,19 @@ type apiBuildInputs struct {
 	Store      storage.Storage
 	ConfigPath string
 
-	// Users is the boot user list, and answers one question only: whether this
-	// daemon authenticates API callers per user at all. It is a snapshot and
-	// must never decide WHICH credentials are valid.
-	Users []authz.UserConfig
-
-	// UsersLive returns the credentials valid right now. It is what the API
-	// authenticator answers from, so a user an operator removes and reloads
-	// loses REST and gRPC access with no restart (AC-13).
-	UsersLive func() ([]authz.UserConfig, error)
-
-	Authorizer aaa.Authorizer
-	ReloadHook func() error
-	Recorder   audit.Recorder
+	// Authentication returns one accepted API credential and authorization
+	// generation per request. Reload swaps its backing state atomically.
+	Authentication api.AuthenticationProvider
+	ReloadHook     func() error
+	Recorder       audit.Recorder
 }
 
-// apiShared is the engine + config session manager + authenticator shared by
-// both transports. Built once, always-on (buildAPIShared) from the parent api
-// package, so a transport's gated builder only constructs its own server. The
-// fields are parent internal/component/api types (always-on), never rest/grpc.
+// apiShared is the engine, config session manager, and accepted authentication
+// provider shared by both transports.
 type apiShared struct {
-	Engine        *api.APIEngine
-	Sessions      *api.ConfigSessionManager
-	Authenticator func(string) (string, bool)
+	Engine         *api.APIEngine
+	Sessions       *api.ConfigSessionManager
+	Authentication api.AuthenticationProvider
 }
 
 // apiServerHandle is one built transport: the running server as Reconfigurable

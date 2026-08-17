@@ -11,7 +11,6 @@
 package web
 
 import (
-	"context"
 	"html/template"
 	"net/http"
 	"net/netip"
@@ -289,7 +288,9 @@ func dispatchToolCommand(r *http.Request, dispatch CommandDispatcher, cmd string
 	}
 
 	username := GetUsernameFromRequest(r)
-	output, err := dispatch.JSON(context.Background(), plugin.CallerIdentity{Username: username, RemoteAddr: r.RemoteAddr}, cmd)
+	rendered, err := dispatch.JSON(r.Context(), plugin.CallerIdentity{Username: username, RemoteAddr: r.RemoteAddr}, cmd)
+	defer rendered.TransportComplete()
+	output := rendered.Output
 	if err != nil {
 		errMsg := err.Error()
 		if output != "" {

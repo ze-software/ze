@@ -1,0 +1,3 @@
+| Date | Spec | Surface | Symptom | Fix |
+|------|------|---------|---------|-----|
+| 2026-08-17 | spec-hub-deferred-api-auth-independent-of-ssh-block | management listener reload | `listenerMigrator.migrateListeners` tried to restore applied listener moves after a later move failed, but returned only an error when that restore also failed. `runReloadContext` therefore received a no-op undo and restored accepted API credentials while a listener could remain on its candidate address | `migrateListeners` now returns a retryable undo for the applied set. `runReloadContext` keeps API authentication staged unless that outer restore succeeds. `TestRunReloadInternalAndRetryListenerRollbackFailureStaysFailClosed` covers both failed restore attempts |

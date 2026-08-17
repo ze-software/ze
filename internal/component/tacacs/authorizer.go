@@ -39,31 +39,54 @@ func splitTacacsTokens(tokens []string) []string {
 	return args
 }
 
-// TacacsAuthorizer wraps a local authorizer with TACACS+ per-command authorization.
+// tacacsAuthorizer wraps a local authorizer with TACACS+ per-command authorization.
 // When the TACACS+ server is reachable, its decision is authoritative. On
 // connection failure, the default policy falls back to the local authorizer;
 // strictFallback changes that fail mode to deny.
-type TacacsAuthorizer struct {
+type tacacsAuthorizer struct {
 	client         *TacacsClient
 	local          aaa.Authorizer
 	logger         *slog.Logger
 	strictFallback bool
 }
 
-// NewTacacsAuthorizer creates a TacacsAuthorizer.
+// newTacacsAuthorizer creates a tacacsAuthorizer with the default logger.
 // The local authorizer is used as fallback when the TACACS+ server is unreachable.
-func NewTacacsAuthorizer(client *TacacsClient, local aaa.Authorizer, logger *slog.Logger) *TacacsAuthorizer {
-	return NewTacacsAuthorizerWithFallback(client, local, logger, false)
+func newTacacsAuthorizer(client *TacacsClient, local aaa.Authorizer) *tacacsAuthorizer {
+	return newTacacsAuthorizerWithFallback(client, local, nil, false)
 }
 
-// NewTacacsAuthorizerWithFallback creates a TacacsAuthorizer with explicit
+// newTacacsAuthorizerWithFallback creates a tacacsAuthorizer with explicit
 // fallback behavior. strictFallback denies when TACACS+ authorization is
 // unavailable instead of falling back to local RBAC.
-func NewTacacsAuthorizerWithFallback(client *TacacsClient, local aaa.Authorizer, logger *slog.Logger, strictFallback bool) *TacacsAuthorizer {
+func newTacacsAuthorizerWithFallback(client *TacacsClient, local aaa.Authorizer, logger *slog.Logger, strictFallback bool) *tacacsAuthorizer {
 	if logger == nil {
 		logger = slog.Default()
 	}
-	return &TacacsAuthorizer{client: client, local: local, logger: logger, strictFallback: strictFallback}
+	return &tacacsAuthorizer{client: client, local: local, logger: logger, strictFallback: strictFallback}
+}
+
+// BindLocalFallback returns a live TACACS+ authorizer whose server-error
+// fallback is the supplied local policy generation.
+func (a *tacacsAuthorizer) BindLocalFallback(local aaa.Authorizer) aaa.Authorizer {
+	if a == nil {
+		return nil
+	}
+	bound := *a
+	bound.local = local
+	return &bound
+}
+
+// BindProfiles returns a session authorizer whose local fallback uses only the
+// profiles resolved by that authentication. Per-command TACACS+ authorization
+// remains live.
+func (a *tacacsAuthorizer) BindProfiles(profiles []string) aaa.Authorizer {
+	if a == nil {
+		return nil
+	}
+	bound := *a
+	bound.local = aaa.BindProfiles(a.local, profiles)
+	return &bound
 }
 
 // Authorize sends an AUTHOR REQUEST to the TACACS+ server for the given command.
@@ -73,7 +96,7 @@ func NewTacacsAuthorizerWithFallback(client *TacacsClient, local aaa.Authorizer,
 //   - true on PASS_ADD or PASS_REPL (AC-9)
 //   - false on FAIL (AC-10)
 //   - Falls back to local authorizer on ERROR or connection failure.
-func (a *TacacsAuthorizer) Authorize(username, remoteAddr, command string, isReadOnly bool) bool {
+func (a *tacacsAuthorizer) Authorize(username, remoteAddr, command string, isReadOnly bool) bool {
 	return a.authorize(username, remoteAddr, command, splitTacacsArgs(command), func() bool {
 		return a.fallback(username, remoteAddr, command, isReadOnly)
 	})
@@ -82,14 +105,14 @@ func (a *TacacsAuthorizer) Authorize(username, remoteAddr, command string, isRea
 // AuthorizeCommandArgs implements aaa.CommandArgsAuthorizer.
 // It preserves typed arg boundaries and peer scoping when building TACACS+
 // cmd/cmd-arg fields for inter-plugin command dispatch.
-func (a *TacacsAuthorizer) AuthorizeCommandArgs(username, remoteAddr, command string, args []string, peer string, isReadOnly bool) bool {
+func (a *tacacsAuthorizer) AuthorizeCommandArgs(username, remoteAddr, command string, args []string, peer string, isReadOnly bool) bool {
 	authCommand := aaa.CanonicalCommand(command, args, peer)
 	return a.authorize(username, remoteAddr, authCommand, splitTacacsCommandArgs(command, args, peer), func() bool {
 		return a.fallbackArgs(username, remoteAddr, command, args, peer, isReadOnly)
 	})
 }
 
-func (a *TacacsAuthorizer) authorize(username, remoteAddr, command string, args []string, fallback func() bool) bool {
+func (a *tacacsAuthorizer) authorize(username, remoteAddr, command string, args []string, fallback func() bool) bool {
 	req := &AuthorRequest{
 		AuthenMethod:  AuthenMethodTACACS,
 		PrivLvl:       1,
@@ -144,14 +167,14 @@ func (a *TacacsAuthorizer) authorize(username, remoteAddr, command string, args 
 	return fallback()
 }
 
-func (a *TacacsAuthorizer) fallback(username, remoteAddr, command string, isReadOnly bool) bool {
+func (a *tacacsAuthorizer) fallback(username, remoteAddr, command string, isReadOnly bool) bool {
 	if a.local == nil {
 		return false
 	}
 	return a.local.Authorize(username, remoteAddr, command, isReadOnly)
 }
 
-func (a *TacacsAuthorizer) fallbackArgs(username, remoteAddr, command string, args []string, peer string, isReadOnly bool) bool {
+func (a *tacacsAuthorizer) fallbackArgs(username, remoteAddr, command string, args []string, peer string, isReadOnly bool) bool {
 	if a.local == nil {
 		return false
 	}

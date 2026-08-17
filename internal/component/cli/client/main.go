@@ -92,8 +92,8 @@ func usage() {
 	p.WriteErr()
 }
 
-// CommandFunc dispatches a CLI command and returns the response.
-type CommandFunc func(command string) (string, error)
+// CommandFunc dispatches a CLI command and carries completion to the UI writer.
+type CommandFunc func(command string) (unicli.CommandOutput, error)
 
 // RunAttached starts an interactive CLI session using a direct dispatch
 // function (no SSH). Called by `ze start --cli` after the daemon is ready.
@@ -111,9 +111,7 @@ func runInteractiveWithDispatch(dispatch CommandFunc) int {
 		}
 	}
 
-	executor := func(input string) (string, error) {
-		return dispatch(input)
-	}
+	executor := unicli.CommandExecutor(dispatch)
 
 	if tf := openTranscriptFile(); tf != nil {
 		tw := unicli.NewTranscriptWriter(tf, os.Getenv("USER"), "local")
@@ -128,7 +126,11 @@ func runInteractiveWithDispatch(dispatch CommandFunc) int {
 
 	injectViewFactories(&m, func() (func() (string, error), error) {
 		return func() (string, error) {
-			return dispatch("show bgp summary")
+			output, err := dispatch("show bgp summary")
+			if output.TransportComplete != nil {
+				defer output.TransportComplete()
+			}
+			return output.Text, err
 		}, nil
 	})
 
@@ -199,8 +201,9 @@ func runInteractiveSession(client *cliClient) int {
 		}
 	}
 
-	executor := func(input string) (string, error) {
-		return client.SendCommand(input)
+	executor := func(input string) (unicli.CommandOutput, error) {
+		output, err := client.SendCommand(input)
+		return unicli.CommandOutput{Text: output}, err
 	}
 
 	if tf := openTranscriptFile(); tf != nil {
@@ -464,10 +467,7 @@ func (c *cliClient) StreamMonitor(command string) int {
 	return 0
 }
 
-// AllCLIRPCs returns all RPCs needed for CLI command mapping.
-// All RPCs self-register via init() + pluginserver.RegisterRPCs().
-// Exported so other CLI commands (e.g., ze show) can build from the same source.
-func AllCLIRPCs() []pluginserver.RPCRegistration {
+func allCLIRPCs() []pluginserver.RPCRegistration {
 	return pluginserver.AllBuiltinRPCs()
 }
 
@@ -513,7 +513,7 @@ func YANGCommandTree() *Command {
 // If readOnly is true, only includes RPCs whose CLI path starts with a read-only verb (for "ze show").
 // Descriptions come from the YANG command tree, not from the RPC registration.
 func BuildCommandTree(readOnly bool) *Command {
-	rpcs := AllCLIRPCs()
+	rpcs := allCLIRPCs()
 	infos := make([]cmd.RPCInfo, 0, len(rpcs))
 	for _, reg := range rpcs {
 		paths := cliWireToPaths[reg.WireMethod]
@@ -684,7 +684,7 @@ func buildRuntimeTree(client *cliClient) *Command {
 	// Filter: include RPCs that are either not proxy commands,
 	// or whose underlying plugin command is available at runtime
 	var filtered []cmd.RPCInfo
-	for _, reg := range AllCLIRPCs() {
+	for _, reg := range allCLIRPCs() {
 		if reg.PluginCommand != "" && !available[strings.ToLower(reg.PluginCommand)] {
 			continue // Plugin not running -- skip this proxy command
 		}
@@ -729,11 +729,14 @@ func buildRuntimeTreeFromDispatch(dispatch CommandFunc) *Command {
 	if err != nil {
 		return commandTree
 	}
+	if output.TransportComplete != nil {
+		defer output.TransportComplete()
+	}
 
 	var data struct {
 		Commands []commandEntry `json:"commands"`
 	}
-	if json.Unmarshal([]byte(output), &data) != nil {
+	if json.Unmarshal([]byte(output.Text), &data) != nil {
 		return commandTree
 	}
 
@@ -751,7 +754,7 @@ func buildRuntimeTreeFromDispatch(dispatch CommandFunc) *Command {
 	}
 
 	var filtered []cmd.RPCInfo
-	for _, reg := range AllCLIRPCs() {
+	for _, reg := range allCLIRPCs() {
 		if reg.PluginCommand != "" && !available[strings.ToLower(reg.PluginCommand)] {
 			continue
 		}
@@ -798,13 +801,16 @@ func fetchPeerSelectorsFromDispatch(dispatch CommandFunc) []cmd.Suggestion {
 	if err != nil {
 		return nil
 	}
+	if output.TransportComplete != nil {
+		defer output.TransportComplete()
+	}
 
 	var data struct {
 		Peers map[string]struct {
 			Name string `json:"name"`
 		} `json:"peers"`
 	}
-	if json.Unmarshal([]byte(output), &data) != nil {
+	if json.Unmarshal([]byte(output.Text), &data) != nil {
 		return nil
 	}
 

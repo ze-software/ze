@@ -25,7 +25,9 @@ func (fakeProvider) CallTool(name string, _ json.RawMessage) map[string]any {
 	if name != "chaos_status" {
 		return nil
 	}
-	return TextResult(`{"routes-announced":42}`)
+	return map[string]any{
+		"content": []map[string]any{{"type": "text", "text": "ok"}},
+	}
 }
 
 // TestStreamableProviderServesToolsAndCalls verifies the Provider path used by
@@ -73,8 +75,8 @@ func TestStreamableProviderServesToolsAndCalls(t *testing.T) {
 		t.Fatalf("tools/call returned no content: %v", parsed)
 	}
 	text, _ := content[0].(map[string]any)["text"].(string)
-	if !strings.Contains(text, "routes-announced") {
-		t.Fatalf("tools/call result = %q, want the provider payload", text)
+	if text != "ok" {
+		t.Fatalf("tools/call result = %q, want the fake provider payload", text)
 	}
 }
 

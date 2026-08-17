@@ -23,7 +23,7 @@ import (
 // Read-only commands that are not rooted under "show" remain available under
 // `ze show` unchanged.
 func BuildVerbCommandTree(verb string) *Command {
-	rpcs := AllCLIRPCs()
+	rpcs := allCLIRPCs()
 	infos := make([]cmd.RPCInfo, 0, len(rpcs))
 	descriptions := make(map[string]string)
 	argDefs := make(map[string][]cmd.ArgDef)
@@ -84,7 +84,7 @@ func AbsoluteVerbPath(verb string, rel []string) (words []string, declared bool)
 	}
 	relPath := textbuf.Join(rel, " ")
 	carried := ""
-	for _, reg := range AllCLIRPCs() {
+	for _, reg := range allCLIRPCs() {
 		for _, cliPath := range cliWireToPaths[reg.WireMethod] {
 			effective, ok := verbContextPath(cliPath, verb)
 			if !ok || effective != relPath {
@@ -115,7 +115,7 @@ func AbsoluteVerbPath(verb string, rel []string) (words []string, declared bool)
 // after the last registration.
 var declaredCommands = sync.OnceValue(func() map[string]struct{} {
 	set := make(map[string]struct{})
-	for _, reg := range AllCLIRPCs() {
+	for _, reg := range allCLIRPCs() {
 		for _, cliPath := range cliWireToPaths[reg.WireMethod] {
 			set[cliPath] = struct{}{}
 		}

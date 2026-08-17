@@ -15,7 +15,6 @@
 package web
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"html/template"
@@ -174,7 +173,9 @@ func HandleRelatedToolRun(renderer *Renderer, schema *config.Schema, tree *confi
 		// Dispatch through the standard pipeline. Authz, accounting, and
 		// peer-selector extraction live there; this handler only constructs
 		// the trusted command and identity.
-		output, dispatchErr := dispatch.JSON(context.Background(), plugin.CallerIdentity{Username: username, RemoteAddr: r.RemoteAddr}, res.Command)
+		rendered, dispatchErr := dispatch.JSON(r.Context(), plugin.CallerIdentity{Username: username, RemoteAddr: r.RemoteAddr}, res.Command)
+		defer rendered.TransportComplete()
+		output := rendered.Output
 		if dispatchErr != nil {
 			data := errorOverlay(toolID, contextPath, tool, dispatchErr.Error())
 			data.Command = res.Command

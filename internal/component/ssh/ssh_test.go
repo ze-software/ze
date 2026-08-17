@@ -21,11 +21,13 @@ import (
 	"github.com/stretchr/testify/require"
 	gossh "golang.org/x/crypto/ssh"
 
+	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/authz"
 	"github.com/ze-software/ze/internal/component/cli"
 	"github.com/ze-software/ze/internal/component/cli/contract"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/plugin"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/audit"
 	sshclient "github.com/ze-software/ze/internal/core/ssh/client"
 )
@@ -39,6 +41,20 @@ func marshalED25519PrivateKey(t *testing.T, priv ed25519.PrivateKey) []byte {
 	pkcs8, err := x509.MarshalPKCS8PrivateKey(priv)
 	require.NoError(t, err)
 	return pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: pkcs8})
+}
+
+type passwordProfilesAuthenticator struct{}
+
+func (passwordProfilesAuthenticator) Authenticate(request aaa.AuthRequest) (aaa.AuthResult, error) {
+	profiles := map[string][]string{
+		"read-pass":  {"read-only"},
+		"write-pass": {"operator"},
+	}[request.Password]
+	return aaa.AuthResult{
+		Authenticated: profiles != nil,
+		Source:        "tacacs",
+		Profiles:      profiles,
+	}, nil
 }
 
 // VALIDATES: AC-4 — SSH server created with config values.
@@ -496,14 +512,14 @@ func TestSSHUsesSessionModelFactory(t *testing.T) {
 	require.NoError(t, err)
 
 	// Inject a test factory that creates a command-only model.
-	srv.SetSessionModelFactory(func(username, remoteAddr string) tea.Model {
+	srv.SetSessionModelFactory(func(username, remoteAddr string, _ plugin.Authorizer) tea.Model {
 		factoryCalled = true
 		receivedUsername = username
 		receivedRemoteAddr = remoteAddr
 		return cli.NewCommandModel()
 	})
 
-	model := srv.createSessionModel("testuser", "203.0.113.5:2222")
+	model := srv.createSessionModel("testuser", "203.0.113.5:2222", nil)
 	require.NotNil(t, model, "factory should return a model")
 	assert.True(t, factoryCalled, "factory should be called")
 	assert.Equal(t, "testuser", receivedUsername)
@@ -522,12 +538,12 @@ func TestSSHSessionGetsEditor(t *testing.T) {
 	}
 	srv, err := NewServer(cfg)
 	require.NoError(t, err)
-	srv.SetSessionModelFactory(func(username, remoteAddr string) tea.Model {
+	srv.SetSessionModelFactory(func(username, remoteAddr string, _ plugin.Authorizer) tea.Model {
 		receivedUser = username
 		receivedRemoteAddr = remoteAddr
 		return cli.NewCommandModel()
 	})
-	srv.createSessionModel("alice", "198.51.100.1:22")
+	srv.createSessionModel("alice", "198.51.100.1:22", nil)
 	assert.Equal(t, "alice", receivedUser)
 	assert.Equal(t, "198.51.100.1:22", receivedRemoteAddr)
 }
@@ -543,7 +559,7 @@ func TestSSHSessionFallbackWithoutConfig(t *testing.T) {
 	srv, err := NewServer(cfg)
 	require.NoError(t, err)
 	// No factory set -- createSessionModel should return nil.
-	model := srv.createSessionModel("alice", "198.51.100.1:22")
+	model := srv.createSessionModel("alice", "198.51.100.1:22", nil)
 	assert.Nil(t, model)
 }
 
@@ -563,21 +579,22 @@ func TestSSHExecCommandPropagatesRemoteAddr(t *testing.T) {
 		gotCommand    string
 	)
 
-	srv.SetExecutorFactory(func(username, remoteAddr string) CommandExecutor {
+	srv.SetExecutorFactory(func(username, remoteAddr string, _ plugin.Authorizer) CommandExecutor {
 		gotUser = username
 		gotRemoteAddr = remoteAddr
-		return func(input string) (string, error) {
+		return func(input string) (*plugin.RenderedResponse, error) {
 			gotCommand = input
-			return "ok", nil
+			return &plugin.RenderedResponse{Output: "ok"}, nil
 		}
 	})
 
-	exec := srv.ExecutorForUser("alice", "203.0.113.5:2222")
+	exec := srv.ExecutorForUser("alice", "203.0.113.5:2222", nil)
 	require.NotNil(t, exec)
 
 	output, err := exec("show version")
 	require.NoError(t, err)
-	assert.Equal(t, "ok", output)
+	assert.Equal(t, "ok", output.Output)
+	output.TransportComplete()
 	assert.Equal(t, "alice", gotUser)
 	assert.Equal(t, "203.0.113.5:2222", gotRemoteAddr)
 	assert.Equal(t, "show version", gotCommand)
@@ -599,7 +616,7 @@ func TestSSHStreamingCommandPropagatesRemoteAddr(t *testing.T) {
 		gotArgs       []string
 	)
 
-	srv.SetStreamingExecutorFactory(func(username, remoteAddr string) StreamingExecutor {
+	srv.SetStreamingExecutorFactory(func(username, remoteAddr string, _ plugin.Authorizer) StreamingExecutor {
 		gotUser = username
 		gotRemoteAddr = remoteAddr
 		return func(_ context.Context, _ io.Writer, args []string) error {
@@ -608,7 +625,7 @@ func TestSSHStreamingCommandPropagatesRemoteAddr(t *testing.T) {
 		}
 	})
 
-	exec := srv.streamingExecutorForUser("alice", "203.0.113.5:2222")
+	exec := srv.streamingExecutorForUser("alice", "203.0.113.5:2222", nil)
 	require.NotNil(t, exec)
 
 	err = exec(context.Background(), io.Discard, []string{"monitor event"})
@@ -633,16 +650,91 @@ func TestCreateSessionModelPreservesRemoteAddr(t *testing.T) {
 		gotRemoteAddr string
 	)
 
-	srv.SetSessionModelFactory(func(username, remoteAddr string) tea.Model {
+	srv.SetSessionModelFactory(func(username, remoteAddr string, _ plugin.Authorizer) tea.Model {
 		gotUser = username
 		gotRemoteAddr = remoteAddr
 		return cli.NewCommandModel()
 	})
 
-	model := srv.createSessionModel("alice", "203.0.113.5:2222")
+	model := srv.createSessionModel("alice", "203.0.113.5:2222", nil)
 	require.NotNil(t, model)
 	assert.Equal(t, "alice", gotUser)
 	assert.Equal(t, "203.0.113.5:2222", gotRemoteAddr)
+}
+
+// VALIDATES: concurrent SSH logins with one username keep their own profiles.
+// PREVENTS: a later login replacing an established connection's authorization.
+func TestSSHSessionAuthorizationIsBoundToAuthenticationResult(t *testing.T) {
+	store := authz.NewStore()
+	store.AddProfile(authz.Profile{
+		Name: "read-only",
+		Run:  authz.Section{Default: authz.Allow},
+		Edit: authz.Section{Default: authz.Deny},
+	})
+	store.AddProfile(authz.Profile{
+		Name: "operator",
+		Run:  authz.Section{Default: authz.Deny},
+		Edit: authz.Section{Default: authz.Allow},
+	})
+	srv, err := NewServer(Config{
+		Listen:        "127.0.0.1:0",
+		HostKeyPath:   t.TempDir() + "/test_host_key",
+		Authenticator: passwordProfilesAuthenticator{},
+		Authorizer:    authz.StoreAuthorizer{Store: store},
+	})
+	require.NoError(t, err)
+	srv.SetExecutorFactory(func(username, remoteAddr string, authorizer plugin.Authorizer) CommandExecutor {
+		return func(input string) (*plugin.RenderedResponse, error) {
+			result := &plugin.RenderedResponse{Output: "allowed"}
+			if !authorizer.Authorize(username, remoteAddr, input, strings.HasPrefix(input, "show ")) {
+				return result, pluginserver.ErrUnauthorized
+			}
+			return result, nil
+		}
+	})
+	require.NoError(t, srv.Start(t.Context(), nil, nil))
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		require.NoError(t, srv.Stop(ctx))
+	})
+
+	dial := func(password string) *gossh.Client {
+		client, dialErr := gossh.Dial("tcp", srv.Address(), &gossh.ClientConfig{
+			User:            "same-user",
+			Auth:            []gossh.AuthMethod{gossh.Password(password)},
+			HostKeyCallback: gossh.InsecureIgnoreHostKey(), //nolint:gosec // test server key is generated per run
+			Timeout:         time.Second,
+		})
+		require.NoError(t, dialErr)
+		t.Cleanup(func() { require.NoError(t, client.Close()) })
+		return client
+	}
+
+	readClient := dial("read-pass")
+	writeClient := dial("write-pass")
+
+	readSession, err := readClient.NewSession()
+	require.NoError(t, err)
+	readOutput, err := readSession.CombinedOutput("show version")
+	require.NoError(t, err)
+	assert.Contains(t, string(readOutput), "allowed")
+
+	readDenied, err := readClient.NewSession()
+	require.NoError(t, err)
+	_, err = readDenied.CombinedOutput("set system host-name router")
+	require.Error(t, err, "read-only session must not gain the later login's write profile")
+
+	writeSession, err := writeClient.NewSession()
+	require.NoError(t, err)
+	writeOutput, err := writeSession.CombinedOutput("set system host-name router")
+	require.NoError(t, err)
+	assert.Contains(t, string(writeOutput), "allowed")
+
+	writeDenied, err := writeClient.NewSession()
+	require.NoError(t, err)
+	_, err = writeDenied.CombinedOutput("show version")
+	require.Error(t, err, "write session must not inherit the first login's read profile")
 }
 
 // TestLoginWarningsStalePeers verifies SetLoginWarnings stores the function.

@@ -157,7 +157,7 @@ func TestReloadInstallsPKIBeforePluginApply(t *testing.T) {
 		return newTree, treeFromMap(newTree), nil
 	}
 
-	err = runReload(srv, nil, cp, nil, "", load, lm)
+	err = runReload(srv, cp, load, lm)
 	require.Error(t, err, "this harness has no reactor, so the reload cannot complete")
 	require.ErrorContains(t, err, "no reactor configured",
 		"the reload must reach plugin apply, which means it passed the certificate gate")
@@ -218,7 +218,7 @@ func TestReloadRejectsBrokenWebCertificateReference(t *testing.T) {
 		return newTree, treeFromMap(newTree), nil
 	}
 
-	err = runReload(srv, nil, cp, nil, "", load, lm)
+	err = runReload(srv, cp, load, lm)
 	require.Error(t, err, "a reload naming an absent certificate must fail")
 	require.Contains(t, err.Error(), "absent-cert")
 	require.Zero(t, fake.calls, "nothing may be installed on the listener by a rejected reload")

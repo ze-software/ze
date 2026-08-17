@@ -11,7 +11,6 @@
 package web
 
 import (
-	"context"
 	"encoding/json"
 	"html/template"
 	"net/http"
@@ -197,9 +196,10 @@ func handleDashboardEventsPage(renderer *Renderer, r *http.Request, dispatch Com
 		username := GetUsernameFromRequest(r)
 
 		// Fetch namespaces for the filter dropdown.
-		nsOutput, nsErr := dispatch.JSON(context.Background(), plugin.CallerIdentity{Username: username, RemoteAddr: r.RemoteAddr}, "show event namespaces")
-		if nsErr == nil && nsOutput != "" {
-			data.Namespaces = parseNamespaces(nsOutput)
+		nsRendered, nsErr := dispatch.JSON(r.Context(), plugin.CallerIdentity{Username: username, RemoteAddr: r.RemoteAddr}, "show event namespaces")
+		defer nsRendered.TransportComplete()
+		if nsErr == nil && nsRendered.Output != "" {
+			data.Namespaces = parseNamespaces(nsRendered.Output)
 		}
 
 		// Fetch recent events with optional namespace filter.
@@ -207,9 +207,10 @@ func handleDashboardEventsPage(renderer *Renderer, r *http.Request, dispatch Com
 		if selectedNS != "" {
 			cmd += " namespace " + selectedNS
 		}
-		output, err := dispatch.JSON(context.Background(), plugin.CallerIdentity{Username: username, RemoteAddr: r.RemoteAddr}, cmd)
-		if err == nil && output != "" {
-			data.Rows = parseEventOutput(output)
+		rendered, err := dispatch.JSON(r.Context(), plugin.CallerIdentity{Username: username, RemoteAddr: r.RemoteAddr}, cmd)
+		defer rendered.TransportComplete()
+		if err == nil && rendered.Output != "" {
+			data.Rows = parseEventOutput(rendered.Output)
 		}
 	}
 

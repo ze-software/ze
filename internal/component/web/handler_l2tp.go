@@ -7,7 +7,6 @@
 package web
 
 import (
-	"context"
 	"encoding/csv"
 	"encoding/json"
 	"errors"
@@ -215,9 +214,8 @@ func handleL2TPSamplesCSV() http.HandlerFunc {
 	}
 }
 
-// HandleL2TPSamplesSSE returns a handler for GET /l2tp/{login}/samples/stream
-// that pushes new CQM buckets as SSE events on a per-connection ticker.
-func HandleL2TPSamplesSSE() http.HandlerFunc {
+// handleL2TPSamplesSSE returns the SSE route for new CQM buckets.
+func handleL2TPSamplesSSE() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		login := extractLogin(r)
 		if login == "" {
@@ -344,7 +342,9 @@ func (h *l2TPHandlers) handleL2TPDisconnect() http.HandlerFunc {
 			http.Error(w, "command dispatch not available", http.StatusServiceUnavailable)
 			return
 		}
-		output, execErr := h.Dispatch.JSON(context.Background(), plugin.CallerIdentity{Username: username, RemoteAddr: r.RemoteAddr}, cmd)
+		rendered, execErr := h.Dispatch.JSON(r.Context(), plugin.CallerIdentity{Username: username, RemoteAddr: r.RemoteAddr}, cmd)
+		defer rendered.TransportComplete()
+		output := rendered.Output
 
 		if NegotiateContentType(r) == formatJSON {
 			result := map[string]any{

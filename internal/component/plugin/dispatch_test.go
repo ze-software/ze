@@ -96,18 +96,28 @@ func TestResponseJSON(t *testing.T) {
 func TestCommandDispatcherJSON(t *testing.T) {
 	var gotCaller CallerIdentity
 	var gotCmd string
+	completed := false
 	d := CommandDispatcher(func(_ context.Context, caller CallerIdentity, cmd string) (*Response, error) {
 		gotCaller = caller
 		gotCmd = cmd
-		return NewResponse(StatusDone, RawJSON(`{"ok":true}`)), nil
+		resp := NewResponse(StatusDone, RawJSON(`{"ok":true}`))
+		resp.OnTransportComplete(func() { completed = true })
+		return resp, nil
 	})
 
 	out, err := d.JSON(context.Background(), CallerIdentity{Username: "admin", Surface: "web"}, "show status")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if out != `{"ok":true}` {
-		t.Fatalf("want flattened data, got %q", out)
+	if out.Output != `{"ok":true}` {
+		t.Fatalf("want flattened data, got %q", out.Output)
+	}
+	if completed {
+		t.Fatal("JSON conversion completed the response before its transport wrote it")
+	}
+	out.TransportComplete()
+	if !completed {
+		t.Fatal("transport completion did not release the accepted action")
 	}
 	if gotCmd != "show status" {
 		t.Fatalf("command not threaded: %q", gotCmd)
@@ -127,7 +137,8 @@ func TestCommandDispatcherJSONError(t *testing.T) {
 	if err == nil || err.Error() != "denied" {
 		t.Fatalf("want denied error, got %v", err)
 	}
-	if out != "" {
-		t.Fatalf("want empty output, got %q", out)
+	if out.Output != "" {
+		t.Fatalf("want empty output, got %q", out.Output)
 	}
+	out.TransportComplete()
 }

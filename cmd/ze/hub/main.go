@@ -25,6 +25,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/authz"
+	unicli "github.com/ze-software/ze/internal/component/cli"
 	zecli "github.com/ze-software/ze/internal/component/cli/client"
 	showCmd "github.com/ze-software/ze/internal/component/cmd/show"
 	"github.com/ze-software/ze/internal/component/command"
@@ -316,10 +317,20 @@ func recoverableLoadError(err error) bool {
 	return !errors.Is(err, zeconfig.ErrCustomValidation)
 }
 
+// installNoBGPAAADispatch installs live bundle adapters on the shared
+// management dispatcher used by API, MCP, and standalone SSH.
+func installNoBGPAAADispatch(d *pluginserver.Dispatcher) {
+	if d == nil {
+		return
+	}
+	d.SetAuthorizer(liveAAABundleAuthorizer{})
+	d.SetAccountingHook(newLiveAAABundleAccountant())
+}
+
 func runYANGConfig(store storage.Storage, configPath string, data []byte, plugins []string, chaosSeed int64, chaosRate float64, stdinOpen, webEnabled bool, webListenAddr string, insecureWeb bool, mcpAddr, mcpToken string, cliAttach bool, managedClient *managed.ClientConfig) int { //nolint:cyclop // startup orchestration
-	// Close the AAA bundle and clear its live local authorization store on every
-	// exit path so backend workers drain and no daemon or test run inherits
-	// policy state.
+	// Close the AAA bundle and clear the accepted local identity on every exit
+	// path so backend workers drain and no daemon or test run inherits
+	// credentials or policy.
 	defer closeAAABundle(slogutil.Logger("hub.aaa"))
 
 	// Phase 1: Parse config and resolve plugins.
@@ -348,10 +359,6 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	}
 	loadResult.Tree = outcome.tree
 	data = outcome.data
-	// Install local authorization before the engine can create BGP infra and
-	// before the no-BGP bundle or any management dispatcher can be built.
-	swapLocalAuthzStore(infra.ExtractAuthzStore(loadResult.Tree))
-
 	if configPath != "" && configPath != "-" {
 		if _, _, activeErr := storage.EnsureActiveVersion(store, configPath, data, time.Now()); activeErr != nil {
 			fmt.Fprintf(os.Stderr, "error: initialize active config: %v\n", activeErr)
@@ -626,21 +633,35 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		}
 		return (*fn)()
 	}
-	// The AAA chain's local backend answers from the running config, not from
-	// the tree the reactor was built with. Zefs users are a boot snapshot
-	// because reload cannot change the blob store. Resolve the merged boot list
-	// exactly once, after ConfigProvider population, so AAA, API, and standalone
-	// SSH make their startup decisions from the same users.
+	// Assemble the boot identity after ConfigProvider population. API listener
+	// resolution runs here as part of that assembly so local users, policy,
+	// per-user mode, shared token mode, and no-auth mode publish once.
 	zefsAuthUsers := bootPowerUsers(slogutil.Logger("hub.aaa"))
-	configUsersLive := func() ([]authz.UserConfig, error) { return liveConfigUsers(configProvider) }
-	localUsers := liveLocalUsers(zefsAuthUsers, configUsersLive, slogutil.Logger("hub.aaa"))
-	bootUsers, bootUsersErr := resolveBootUsers(localUsers)
+	configUsersCandidate := func() ([]authz.UserConfig, error) { return liveConfigUsers(configProvider) }
+	resolveCandidateUsers := liveLocalUsers(zefsAuthUsers, configUsersCandidate, slogutil.Logger("hub.aaa"))
+	bootUsers, bootUsersErr := resolveBootUsers(resolveCandidateUsers)
 	if bootUsersErr != nil {
 		fmt.Fprintf(os.Stderr, "error: resolve boot users: %v\n", bootUsersErr)
 		logStartupFailure("resolve boot users", bootUsersErr)
 		return 1
 	}
-	setupInfraHook(auditLog, sessionReload, localUsers)
+	apiCfg, apiCfgOK, apiResolveErr := resolveAPIListeners(loadResult.Tree)
+	if apiResolveErr != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", apiResolveErr)
+		logStartupFailure("api-server listen", apiResolveErr)
+		return 1
+	}
+	apiTokenEnv := env.Get("ze.api-server.token")
+	if apiTokenEnv != "" && apiCfg.Token == "" {
+		apiCfg.Token = apiTokenEnv
+	}
+	publishAcceptedLocalIdentity(newAcceptedLocalIdentity(
+		bootUsers,
+		infra.ExtractAuthzStore(loadResult.Tree),
+		resolveCandidateUsers,
+		apiCfg.Token,
+	))
+	setupInfraHook(auditLog, sessionReload, liveAcceptedLocalUsers)
 	coordinator := zePlugin.NewCoordinator(configTree)
 
 	// Store config state for the BGP plugin's reactor factory as a typed
@@ -856,9 +877,10 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// path remains owned by infraSetup through the reactor hook.
 	_, hasBGPBlock := configTree["bgp"]
 	var noBGPAuthenticator aaa.Authenticator
+	var noBGPAuthorizer aaa.Authorizer
 	if !hasBGPBlock {
 		aaaLog := slogutil.Logger("hub.aaa")
-		aaaBundle, aaaErr := buildAAABundle(loadResult.Tree, bootUsers, localUsers, aaaLog)
+		aaaBundle, aaaErr := buildAAABundle(loadResult.Tree, bootUsers, liveAcceptedLocalUsers, aaaLog)
 		if aaaErr != nil {
 			aaaLog.Warn("AAA backend build failed", "error", aaaErr)
 			aaaBundle = nil
@@ -867,13 +889,15 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		swapAAABundle(aaaBundle, aaaLog)
 		if aaaBundle != nil {
 			noBGPAuthenticator = aaaBundle.Authenticator
+			noBGPAuthorizer = aaaBundle.Authorizer
 		}
 
-		// Resolve the bundle per dispatch so later swaps take effect without
-		// rewiring. This belongs to no-BGP startup, not to optional SSH.
+		// Resolve authorization and accounting per dispatch so later swaps take
+		// effect without rewiring. This belongs to no-BGP startup, not to
+		// optional SSH.
 		if d := apiServer.Dispatcher(); d != nil {
-			d.SetAuthorizer(liveAAABundleAuthorizer{})
-			aaaLog.Info("authorization configured", "source", "live aaa bundle", "path", "no-bgp")
+			installNoBGPAAADispatch(d)
+			aaaLog.Info("authorization and accounting configured", "source", "live aaa bundle", "path", "no-bgp")
 		}
 	}
 
@@ -902,8 +926,9 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		inputs := &sshStandaloneInputs{
 			Config:        sshCfg,
 			Users:         bootUsers,
-			UsersFunc:     localUsers,
+			UsersFunc:     liveAcceptedLocalUsers,
 			Authenticator: noBGPAuthenticator,
+			Authorizer:    noBGPAuthorizer,
 			Recorder:      auditLog,
 			ConfigDir:     configDir,
 			Storage:       infra.ResolveSSHStorage(store, configDir),
@@ -916,21 +941,6 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		if stop := sshBuildStandalone(inputs); stop != nil {
 			defer stop()
 		}
-	}
-
-	// Resolve REST/gRPC API listen config (env > config file) up front so the
-	// boot-time management-listener guard below sees every management surface's
-	// (address, auth) pair before anything binds. The API build path further
-	// down reuses apiCfg, apiCfgOK, and the shared boot snapshot.
-	apiCfg, apiCfgOK, apiResolveErr := resolveAPIListeners(loadResult.Tree)
-	if apiResolveErr != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", apiResolveErr)
-		logStartupFailure("api-server listen", apiResolveErr)
-		return 1
-	}
-	apiTokenEnv := env.Get("ze.api-server.token")
-	if apiTokenEnv != "" && apiCfg.Token == "" {
-		apiCfg.Token = apiTokenEnv
 	}
 
 	if apiCfgOK {
@@ -1063,10 +1073,10 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// question from a reloaded tree, so an auth-mode change takes effect on
 	// SIGHUP instead of waiting for a restart.
 	registerMgmtAuthReloaders(lm, mgmtAuthInputs{
-		webFollowsConfig: webAuthFollowsConfig,
-		mcpTokenBase:     mcpTokenBase,
-		apiTokenEnv:      apiTokenEnv,
-		apiUsersLive:     localUsers,
+		webFollowsConfig:  webAuthFollowsConfig,
+		mcpTokenBase:      mcpTokenBase,
+		apiTokenEnv:       apiTokenEnv,
+		apiCandidateUsers: resolveCandidateUsers,
 	})
 
 	// Build optional, compile-out-able services through the construction
@@ -1089,19 +1099,12 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		Authorizer:     liveAAABundleAuthorizer{},
 		Recorder:       auditLog,
 		CommitHook:     reloadAfterCommit,
-		// The zefs break-glass account, read once above and merged into
-		// localUsers. Handing the factory the same snapshot and the same closure
-		// the AAA chain uses is what keeps one producer: a web server that read
-		// zefs again could fail where the chain succeeded, admit a power user
-		// through the chain, and then revoke their session on the next request
-		// for not being declared.
-		PowerUsers: zefsAuthUsers,
-		// The power users merged with config users, read from the shared
-		// ConfigProvider at each login instead of pinned here. Every applied
-		// reload refreshes that provider, so a deleted user stops authenticating
-		// without a restart. The web service therefore uses the same
-		// authentication source as AAA and the API transports.
-		LocalUsersLive:    localUsers,
+		// The zefs break-glass account is read once above. The accepted merged
+		// generation is the authentication source; a reload candidate in
+		// ConfigProvider cannot invalidate a session or admit a login before the
+		// transaction commits.
+		PowerUsers:        zefsAuthUsers,
+		LocalUsersLive:    liveAcceptedLocalUsers,
 		EventRing:         apiServer.EventRing(),
 		WebPortalServices: webPortalServices,
 		// Plugin-registered commands for web tab-completion, resolved lazily
@@ -1163,15 +1166,13 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		// config resolution above and the shared engine/sessions stay always-on.
 		if restBuild != nil || grpcBuild != nil {
 			apiIn := &apiBuildInputs{
-				Config:     apiCfg,
-				Server:     apiServer,
-				Store:      store,
-				ConfigPath: configPath,
-				Users:      bootUsers,
-				UsersLive:  localUsers,
-				Authorizer: liveAAABundleAuthorizer{},
-				ReloadHook: reloadAfterCommit,
-				Recorder:   auditLog,
+				Config:         apiCfg,
+				Server:         apiServer,
+				Store:          store,
+				ConfigPath:     configPath,
+				Authentication: liveAcceptedAPIAuthentication,
+				ReloadHook:     reloadAfterCommit,
+				Recorder:       auditLog,
 			}
 			shared := buildAPIShared(apiIn)
 			if restBuild != nil {
@@ -1287,8 +1288,15 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	}
 
 	if cliAttach {
-		zecli.RunAttached(func(command string) (string, error) {
-			return cliDispatch.JSON(context.Background(), zePlugin.CallerIdentity{Username: "root", RemoteAddr: "local"}, command)
+		zecli.RunAttached(func(command string) (unicli.CommandOutput, error) {
+			rendered, err := cliDispatch.JSON(context.Background(), zePlugin.CallerIdentity{Username: "root", RemoteAddr: "local"}, command)
+			if rendered == nil {
+				return unicli.CommandOutput{}, err
+			}
+			return unicli.CommandOutput{
+				Text:              rendered.Output,
+				TransportComplete: rendered.TransportComplete,
+			}, err
 		})
 		fmt.Println("CLI detached. Press Ctrl+C to stop daemon.")
 	}

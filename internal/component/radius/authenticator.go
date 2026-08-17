@@ -142,15 +142,11 @@ func (a *radiusAuthenticator) Authenticate(request aaa.AuthRequest) (aaa.AuthRes
 		// the leaf-list is absent -- the out-of-the-box config -- and when every
 		// member is deactivated (tree.go:183-185).
 		//
-		// Returning success with an empty set would ESCALATE rather than restrict.
-		// aaa.RecordLoginProfiles ignores an empty slice (login_profiles.go:46), so
-		// nothing is recorded; authz.Store.Authorize then finds no assignment and no
-		// login profiles. This is the primary guard: it rejects the login here,
-		// before authorization runs. authz.Store.Authorize now also fails closed for
-		// a user that resolves no profile (spec-fixit-authz-admin-fallthrough), so
-		// the escalation is closed at both layers; historically this branch fell
-		// through to the built-in admin profile and a server that omitted Filter-Id
-		// handed every user admin.
+		// Returning success with an empty set would escalate rather than restrict.
+		// The result-scoped authorizer fails closed when no profile resolves. This
+		// primary guard rejects the login before authorization runs. Historically,
+		// this branch fell through to the built-in admin profile, so a server that
+		// omitted Filter-Id handed every user admin.
 		//
 		// This is NOT the R-4 case above. There, SendToServers produced no answer at
 		// all, so asking the next backend is right and locking the operator out on an

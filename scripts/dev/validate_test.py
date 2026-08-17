@@ -580,6 +580,112 @@ class TestCrossPackageWiring(unittest.TestCase):
             self.assertEqual(len(findings), 1)
             self.assertIn("Orphan", findings[0].message)
 
+    def test_embedded_interface_is_wired_only_when_outer_contract_is_wired(self):
+        """A live exported interface carries its embedded interface contract;
+        an embedded interface inside a dead outer interface stays flagged."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            pkg = root / "internal" / "alpha"
+            pkg.mkdir(parents=True)
+            consumer = root / "internal" / "beta"
+            consumer.mkdir(parents=True)
+            (pkg / "types.go").write_text(
+                "package alpha\n\n"
+                "type Inner interface { Run() }\n"
+                "type Outer interface {\n\tInner\n}\n"
+                "type DeadInner interface { Stop() }\n"
+                "type DeadOuter interface {\n\tDeadInner\n}\n"
+            )
+            (consumer / "use.go").write_text(
+                "package beta\n\nfunc Use(value alpha.Outer) { _ = value }\n"
+            )
+
+            findings = check_cross_package_wiring(
+                root, ["internal/alpha/types.go"]
+            )
+            names = {finding.message.split()[2] for finding in findings}
+            self.assertEqual(names, {"DeadInner", "DeadOuter"})
+
+    def test_registered_generated_service_interface_wires_method(self):
+        """A private implementation method is wired when startup registers its
+        receiver against the generated service interface that declares it."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            pkg = root / "internal" / "alpha"
+            pkg.mkdir(parents=True)
+            api = root / "api" / "zepb"
+            api.mkdir(parents=True)
+            (api / "service.go").write_text(
+                "package zepb\n\n"
+                "type ZeConfigServiceServer interface {\n"
+                "\tGetRunningConfig()\n"
+                "}\n"
+            )
+            (pkg / "server.go").write_text(
+                "package alpha\n\n"
+                "type configServiceImpl struct{}\n\n"
+                "func (s *configServiceImpl) GetRunningConfig() {}\n\n"
+                "func register(server any) {\n"
+                "\tzepb.RegisterZeConfigServiceServer(server, &configServiceImpl{})\n"
+                "}\n"
+            )
+
+            findings = check_cross_package_wiring(root, ["internal/alpha/server.go"])
+            self.assertEqual(findings, [], f"unexpected findings: {findings}")
+
+    def test_registration_only_wires_the_registered_receiver(self):
+        """A lookalike method on an unregistered receiver stays flagged."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            pkg = root / "internal" / "alpha"
+            pkg.mkdir(parents=True)
+            api = root / "api" / "zepb"
+            api.mkdir(parents=True)
+            (api / "service.go").write_text(
+                "package zepb\n\n"
+                "type ZeConfigServiceServer interface {\n"
+                "\tGetRunningConfig()\n"
+                "}\n"
+            )
+            (pkg / "server.go").write_text(
+                "package alpha\n\n"
+                "type registeredImpl struct{}\n"
+                "type unusedImpl struct{}\n\n"
+                "func (s *registeredImpl) GetRunningConfig() {}\n"
+                "func (s *unusedImpl) GetRunningConfig() {}\n\n"
+                "func register(server any) {\n"
+                "\tzepb.RegisterZeConfigServiceServer(server, &registeredImpl{})\n"
+                "}\n"
+            )
+
+            findings = check_cross_package_wiring(root, ["internal/alpha/server.go"])
+            self.assertEqual(len(findings), 1)
+            self.assertIn("GetRunningConfig", findings[0].message)
+
+    def test_external_interface_dispatch_allowlist_wires_exact_grpc_stats_methods(self):
+        """grpc-go reaches the four stats.Handler methods through interface
+        dispatch, while a neighboring exported method remains unwired."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            pkg = root / "internal" / "component" / "api" / "grpc"
+            pkg.mkdir(parents=True)
+            (pkg / "server.go").write_text(
+                "package grpc\n\n"
+                "type transportCompletionStatsHandler struct{}\n\n"
+                "func (transportCompletionStatsHandler) TagRPC() {}\n"
+                "func (transportCompletionStatsHandler) HandleRPC() {}\n"
+                "func (transportCompletionStatsHandler) TagConn() {}\n"
+                "func (transportCompletionStatsHandler) HandleConn() {}\n"
+                "func (transportCompletionStatsHandler) Orphan() {}\n"
+            )
+
+
+            findings = check_cross_package_wiring(
+                root, ["internal/component/api/grpc/server.go"]
+            )
+            self.assertEqual(len(findings), 1)
+            self.assertIn("Orphan", findings[0].message)
+
     def test_fortest_helper_is_exempt(self):
         """An exported *ForTest helper is test-only by convention and is exempt
         from the production-wiring check (NOTE 3)."""

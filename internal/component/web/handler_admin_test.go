@@ -313,6 +313,30 @@ func TestAdminContentNegotiationView(t *testing.T) {
 	assert.Len(t, kids, 1)
 }
 
+// VALIDATES: web command completion follows the response writer.
+// PREVENTS: accepted lifecycle teardown running during text rendering.
+func TestAdminExecuteCompletesAfterResponseWrite(t *testing.T) {
+	renderer, err := NewRenderer()
+	require.NoError(t, err)
+
+	recorder := httptest.NewRecorder()
+	completed := false
+	dispatch := CommandDispatcher(func(context.Context, plugin.CallerIdentity, string) (*plugin.Response, error) {
+		resp := plugin.NewResponse(plugin.StatusDone, plugin.Text("accepted"))
+		resp.OnTransportComplete(func() {
+			assert.Contains(t, recorder.Body.String(), "accepted")
+			completed = true
+		})
+		return resp, nil
+	})
+	handler := HandleAdminExecute(renderer, dispatch)
+	req := httptest.NewRequest(http.MethodPost, "/admin/request/shutdown?format=json", http.NoBody)
+
+	handler(recorder, req)
+
+	assert.True(t, completed)
+}
+
 // TestAdminExecuteMethodNotAllowed verifies that GET to the execute handler
 // returns 405 Method Not Allowed.
 //

@@ -24,6 +24,7 @@ from verify_wiring_docs import (
     MAKE_TARGETS,
     TARGET_ORDER,
     check_ci_sleep_ratchet,
+    check_wiring,
     check_known_failure_load_excuses,
     parse_sleep_baseline,
     selected_targets,
@@ -38,6 +39,24 @@ def write(root: Path, rel: str, body: str) -> None:
 
 def ci_with_sleeps(n: int) -> str:
     return "".join(f"time.sleep(0.1)  # deliberate\n" for _ in range(n))
+
+
+class WiringForTestConventionTest(unittest.TestCase):
+    def test_fortest_export_does_not_require_fake_production_reference(self):
+        root = Path(tempfile.mkdtemp(prefix="wiring-fortest-"))
+        self.addCleanup(lambda: __import__("shutil").rmtree(root, ignore_errors=True))
+        write(
+            root,
+            "internal/component/example/helper.go",
+            "package example\n\nfunc ProbeForTest() {}\n",
+        )
+
+        issues = check_wiring(
+            root,
+            ["internal/component/example/helper.go"],
+            baseline_reader=lambda _path: "",
+        )
+        self.assertEqual(issues, [])
 
 
 class ParseSleepBaselineTest(unittest.TestCase):
