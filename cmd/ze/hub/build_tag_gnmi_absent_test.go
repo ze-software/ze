@@ -11,6 +11,7 @@ package hub
 // always-on import, ungated schema import, or ungated RPC registration.
 
 import (
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -52,6 +53,7 @@ func TestBuildTag_GNMI_AbsentBinaryDropsGNMISymbolsAndCommand(t *testing.T) {
 	bin := filepath.Join(t.TempDir(), "ze-core")
 	build := exec.Command("go", "build", "-tags", "ze_core", "-o", bin, "./cmd/ze")
 	build.Dir = repoRoot
+	build.Env = append(os.Environ(), "CGO_ENABLED=0")
 	if out, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("go build ze_core failed: %v\n%s", err, out)
 	}

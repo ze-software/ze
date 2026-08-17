@@ -1,7 +1,7 @@
-# Unit tests: Go test targets with race detector
+# Unit tests: Go test targets with race instrumentation
 #
 # Quick reference:
-#   make ze-unit-test          All packages, -race (~5 min)
+#   make ze-unit-test          All packages with -race on Linux and Darwin (~5 min)
 #   make ze-unit-bgp-test           BGP component group only (~1:30)
 #   make ze-unit-core-test           Core libraries only (~30s)
 #   make ze-unit-plugins-test       Plugins only (~40s)
@@ -29,11 +29,11 @@ ZE_GROUP_REST    = $$(go list ./... | grep -v /cmd/ze-chaos \
 	| grep -v '^github.com/ze-software/ze/internal/component/config' \
 	| grep -v '^github.com/ze-software/ze/internal/component/cli')
 
-# Run ze unit tests with race detector (default-on features plus bare-core compile-out checks).
+# Run ze unit tests with the shared race-instrumented command.
 ze-unit-test: ze-unit-installer-test
-	@echo "Running ze unit tests..."
+	@echo "Running ze unit tests ($(GO_TEST_RACE_LABEL))..."
 	$(GO_TEST_RACE) $(ZE_PACKAGES)
-	@echo "Unit tests: bare ze_core compile-out checks..."
+	@echo "Unit tests: bare ze_core compile-out checks ($(GO_TEST_RACE_LABEL))..."
 	$(GO_TEST_CORE_RACE) ./cmd/ze/hub
 
 # The installer initrd is built with `ze_installer`, so every _test.go guarded by
@@ -71,7 +71,7 @@ endif
 
 # Run ze unit tests with coverage.
 ze-unit-test-coverage:
-	@echo "Running ze unit tests with coverage..."
+	@echo "Running ze unit tests with coverage ($(GO_TEST_RACE_LABEL))..."
 	$(GO_TEST_RACE) -coverprofile=coverage.out $(ZE_PACKAGES)
 	go tool cover -html=coverage.out -o coverage.html
 	@echo "Coverage report: coverage.html"
@@ -84,16 +84,16 @@ ze-unit-test-cached:
 	@echo "Unit tests: bare ze_core compile-out checks..."
 	$(GO_TEST_CORE) ./cmd/ze/hub
 
-# Race pass: -race only on component groups with changed .go files.
-# Unmapped packages are included individually, never as a full sweep.
+# Changed-group pass: race-instrumented with CGO enabled on Linux and Darwin.
+# Unmapped packages are included individually.
 ze-unit-test-race-changed:
 	@groups=$$(scripts/dev/changed-groups.sh --pkgs 2>/dev/null); \
 	if [ -z "$$groups" ]; then \
-		echo "No changed .go files -- skipping -race pass"; \
+		echo "No changed .go files -- skipping changed-group pass"; \
 	else \
-		echo "Unit tests: -race on changed groups: $$groups"; \
+		echo "Unit tests: changed groups ($(GO_TEST_RACE_LABEL)): $$groups"; \
 		$(GO_TEST_RACE) $$groups; \
-		echo "Unit tests: bare ze_core compile-out checks..."; \
+		echo "Unit tests: bare ze_core compile-out checks ($(GO_TEST_RACE_LABEL))..."; \
 		$(GO_TEST_CORE_RACE) ./cmd/ze/hub; \
 	fi
 
@@ -102,27 +102,27 @@ ze-unit-test-race-changed:
 # what you're working on. All groups together = ze-unit-test.
 
 ze-unit-bgp-test:
-	@echo "Unit tests: bgp group..."
+	@echo "Unit tests: bgp group ($(GO_TEST_RACE_LABEL))..."
 	$(GO_TEST_RACE) $(ZE_GROUP_BGP)
 
 ze-unit-core-test:
-	@echo "Unit tests: core group..."
+	@echo "Unit tests: core group ($(GO_TEST_RACE_LABEL))..."
 	$(GO_TEST_RACE) $(ZE_GROUP_CORE)
 
 ze-unit-plugins-test:
-	@echo "Unit tests: plugins group..."
+	@echo "Unit tests: plugins group ($(GO_TEST_RACE_LABEL))..."
 	$(GO_TEST_RACE) $(ZE_GROUP_PLUGINS)
 
 ze-unit-config-test:
-	@echo "Unit tests: config group..."
+	@echo "Unit tests: config group ($(GO_TEST_RACE_LABEL))..."
 	$(GO_TEST_RACE) $(ZE_GROUP_CONFIG)
 
 ze-unit-cli-test:
-	@echo "Unit tests: cli group..."
+	@echo "Unit tests: cli group ($(GO_TEST_RACE_LABEL))..."
 	$(GO_TEST_RACE) $(ZE_GROUP_CLI)
 
 ze-unit-rest-test:
-	@echo "Unit tests: rest group (everything not in a named group)..."
+	@echo "Unit tests: rest group ($(GO_TEST_RACE_LABEL), everything not in a named group)..."
 	$(GO_TEST_RACE) $(ZE_GROUP_REST)
 
 # Test ONE package, or any package pattern, while you are developing it.
@@ -132,15 +132,15 @@ ze-unit-rest-test:
 # cache/go-cache and that export reaches make RECIPES only, so a shell run uses
 # the user's own ~/.cache/go-build: it rebuilds cold, shares nothing with
 # ze-precommit-verify, and leaves the project cache no warmer than it found it. The feature
-# tags, the timeout, GOMAXPROCS and CGO_ENABLED for race come from GO_TEST /
+# tags, the timeout, GOMAXPROCS and race selection come from GO_TEST /
 # GO_TEST_RACE and a shell run drops all of them (ai/rules/commands.md).
 #
 #   make ze-unit-pkg-test PKG=./internal/component/ike/eap
 #   make ze-unit-pkg-test PKG=./internal/component/ike/... RUN=TestEAPTLS
-#   make ze-unit-pkg-test PKG=./scripts/dev RACE=0        # skip -race while iterating
+#   make ze-unit-pkg-test PKG=./scripts/dev RACE=0        # force the non-race command
 #
-# RACE defaults to 1, matching the group targets above: a package tested without
-# it has not been tested the way ze-precommit-verify tests it.
+# RACE defaults to 1, selecting GO_TEST_RACE. That test-only command explicitly
+# enables cgo and uses -race on Linux and Darwin.
 RACE ?= 1
 
 # Nested makes must stay QUIET, exactly as they are under ze-precommit-verify, which runs
@@ -154,5 +154,5 @@ ze-unit-pkg-test:
 ifndef PKG
 	$(error PKG is required, e.g. make ze-unit-pkg-test PKG=./internal/component/ike/eap)
 endif
-	@echo "Unit tests: $(PKG)$(if $(RUN), -run $(RUN))$(if $(filter 0,$(RACE)), (no -race))..."
+	@echo "Unit tests: $(PKG)$(if $(RUN), -run $(RUN))$(if $(filter 0,$(RACE)), (no race request), ($(GO_TEST_RACE_LABEL)))..."
 	MAKEFLAGS=--no-print-directory $(if $(filter 0,$(RACE)),$(GO_TEST),$(GO_TEST_RACE)) $(if $(RUN),-run '$(RUN)') $(PKG)

@@ -22,7 +22,7 @@
 // variable carries the full feature tag set, and a reduced one compiles modules
 // out and shrinks the surface this checks.
 //
-// Usage:   go run scripts/checks/config_claims.go [--json]
+// Usage:   CGO_ENABLED=0 go run scripts/checks/config_claims.go [--json]
 // Called by: make ze-config-claims-check (a verify stage)
 //
 //go:build ignore

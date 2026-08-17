@@ -90,7 +90,7 @@ esac
 command -v go >/dev/null 2>&1 || fail "Go is required to install VHS"
 install_dir="${VHS_BIN_DIR:-$default_bin_dir}"
 mkdir -p "$install_dir"
-GOBIN="$install_dir" go install "github.com/charmbracelet/vhs@${VHS_VERSION}"
+CGO_ENABLED=0 GOBIN="$install_dir" go install "github.com/charmbracelet/vhs@${VHS_VERSION}"
 
 "$install_dir/vhs" --version
 ffmpeg -version | sed -n '1p'

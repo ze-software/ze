@@ -84,6 +84,7 @@ def build_ze():
     subprocess.run(
         ["go", "build", "-tags", "ze_core,ze_distro", "-o", ze_binary, "./cmd/ze"],
         cwd=PROJECT_ROOT,
+        env={**os.environ, "CGO_ENABLED": "0"},
         check=True,
         timeout=120,
     )

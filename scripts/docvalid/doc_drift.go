@@ -4,7 +4,7 @@
 // registry, Makefile gates, filesystem counts, and structured doc tables.
 // It reports any drift between what the code provides and what the docs claim.
 //
-// Usage: go run scripts/check-doc-drift.go [--strict]
+// Usage: CGO_ENABLED=0 go run scripts/check-doc-drift.go [--strict]
 // Called by: make ze-doc-drift-check, .claude/hooks/check-doc-drift.sh
 //
 // Exit codes:

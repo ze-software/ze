@@ -46,7 +46,7 @@ make ze-qemu-integration-test
        ├─ virtio-9p mount       → the tmp/ target, when tmp/ is a symlink
        ├─ SSH tunnel (port 2222)
        ├─ installs Go + packages
-       └─ ssh: go test -tags integration ...
+       └─ ssh: CGO_ENABLED=0 go test -tags integration ...
                                    ├─ full root
                                    ├─ /dev/ptmx (PTY)
                                    ├─ CAP_NET_ADMIN
@@ -132,7 +132,7 @@ Add your package to the `--run` argument in the Makefile:
 ze-qemu-integration-test:
     python3 scripts/evidence/qemu-run.py \
         --packages "nftables iproute2 iputils-ping kmod iptables" \
-        --run 'go test -tags integration -count=1 -timeout 120s \
+        --run 'CGO_ENABLED=0 go test -tags integration -count=1 -timeout 120s \
             ./internal/component/iface/... \
             ./your/new/package/... \           # add here
             ...'

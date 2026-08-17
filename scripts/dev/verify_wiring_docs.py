@@ -8,6 +8,7 @@ existing direct targets, and only decides which ones apply to the current diff.
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import subprocess
 import sys
@@ -1061,12 +1062,15 @@ def has_production_reference(root: Path, sym: Symbol) -> bool:
 
 
 def check_plugin_imports(root: Path) -> None:
+    env = os.environ.copy()
+    env["CGO_ENABLED"] = "0"
     proc = subprocess.run(
         ("go", "run", "scripts/codegen/plugin_imports.go", "--check"),
         cwd=root,
         text=True,
         capture_output=True,
         check=False,
+        env=env,
     )
     if proc.stdout:
         print(proc.stdout, end="")

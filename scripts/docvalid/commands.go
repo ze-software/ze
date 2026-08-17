@@ -5,7 +5,7 @@
 //   - YANG ze:command referencing a handler that doesn't exist
 //   - Registered handler with no YANG ze:command entry
 //
-// Usage: go run scripts/validate-commands.go [--json]
+// Usage: CGO_ENABLED=0 go run scripts/validate-commands.go [--json]
 // Called by: make ze-command-contract-check
 //
 //go:build ignore

@@ -70,6 +70,7 @@ func setupTestBinaries(t *testing.T) {
 		//nolint:gosec // Test code, paths from temp dir.
 		buildCmd := exec.CommandContext(ctx, "go", "build", "-tags", "ze_core,ze_distro", "-o", testZePath, "./cmd/ze")
 		buildCmd.Dir = projectRoot
+		buildCmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 		buildOutput, err := buildCmd.CombinedOutput()
 		if err != nil {
 			testSetupErr = fmt.Errorf("build ze: %w\n%s", err, buildOutput)

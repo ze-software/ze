@@ -22,6 +22,7 @@ func runFeatureTagsCheck(t *testing.T) string {
 	ctx, cancel := context.WithTimeout(context.Background(), featureTagsTimeout)
 	defer cancel()
 	cmd := osexec.CommandContext(ctx, "go", "run", filepath.Join(repoRoot(t), "scripts", "codegen", "feature_tags.go"), "--check")
+	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 	cmd.Dir = repoRoot(t)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -30,11 +31,10 @@ func runFeatureTagsCheck(t *testing.T) string {
 	return string(out)
 }
 
-// VALIDATES: scripts/codegen/feature_tags.go --check reports the generated tag lists
-// (.golangci.yml build-tags, gokrazy GoBuildTags, quickstart go-install command) are
-// current -- i.e. they match feature-gates.txt. The drift gate that replaces hand-maintenance.
-// PREVENTS: a gate added to feature-gates.txt without regenerating the two static
-// consumers (the exact miss that let ze_vrrp reach neither at first).
+// VALIDATES: scripts/codegen/feature_tags.go --check reports the generated tag
+// lists and their CGO-free command anchors as current.
+// PREVENTS: a gate or CGO policy change reaching the manifest without updating
+// all static consumers.
 func TestFeatureTagsCheckRuns(t *testing.T) {
 	out := runFeatureTagsCheck(t)
 	if !strings.Contains(out, "current") {
@@ -51,6 +51,7 @@ func TestFeatureTagsCheckIsReadOnly(t *testing.T) {
 		filepath.Join(root, ".golangci.yml"),
 		filepath.Join(root, "gokrazy", "ze", "config.json"),
 		filepath.Join(root, "docs", "guide", "quickstart.md"),
+		filepath.Join(root, ".github", "workflows", "codeql.yml"),
 	}
 	before := make([][]byte, len(targets))
 	for i, p := range targets {
@@ -120,6 +121,9 @@ func TestFeatureTagsCoverManifest(t *testing.T) {
 		if !strings.Contains(string(quickstart), tag) {
 			t.Errorf("docs/guide/quickstart.md go-install command missing %q", tag)
 		}
+	}
+	if !strings.Contains(string(quickstart), "CGO_ENABLED=0 go install -tags '") {
+		t.Error("docs/guide/quickstart.md generated go-install command must set CGO_ENABLED=0")
 	}
 	if !strings.Contains(string(gokrazy), "ze_appliance") {
 		t.Error("gokrazy GoBuildTags missing base tag ze_appliance")

@@ -26,7 +26,7 @@
 // test before it is committed, not blame the next change); --tracked-only scans
 // git's index (the generated page must be reproducible from a clean checkout).
 //
-// Usage:   go run scripts/checks/inert_tests.go [--json] [--check] [--selftest] [--tracked-only]
+// Usage:   CGO_ENABLED=0 go run scripts/checks/inert_tests.go [--json] [--check] [--selftest] [--tracked-only]
 // Called by: make ze-test-sensitivity-check, scripts/dev/testing_health.py
 //
 //go:build ignore

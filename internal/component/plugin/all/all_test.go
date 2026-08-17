@@ -184,6 +184,7 @@ func TestGeneratedPluginImportsCurrent(t *testing.T) {
 		defer cancel()
 	}
 	cmd := exec.CommandContext(ctx, "go", "run", "../../../../scripts/codegen/plugin_imports.go", "--check")
+	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("plugin/all generated imports are stale: %v\n%s", err, out)

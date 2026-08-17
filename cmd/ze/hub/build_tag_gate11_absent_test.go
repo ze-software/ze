@@ -34,6 +34,7 @@ package hub
 
 import (
 	"context"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -85,6 +86,7 @@ func TestBuildTag_Gate11_SymbolMatrix(t *testing.T) {
 		bin := filepath.Join(t.TempDir(), name)
 		cmd := exec.CommandContext(ctx, "go", "build", "-tags", tags, "-o", bin, "./cmd/ze")
 		cmd.Dir = repoRoot
+		cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 		if out, err := cmd.CombinedOutput(); err != nil {
 			t.Fatalf("go build -tags %q failed: %v\n%s", tags, err, out)
 		}

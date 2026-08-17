@@ -17,7 +17,7 @@
 // 0. It is deliberately absent from every verify stage; the ratchet that keeps
 // it honest is its self-test.
 //
-// Usage:   go run scripts/checks/yang_leaf_mentions.go [--json] [--selftest]
+// Usage:   CGO_ENABLED=0 go run scripts/checks/yang_leaf_mentions.go [--json] [--selftest]
 // Called by: make ze-yang-leaf-mentions-report (advisory; not a verify stage)
 //
 //go:build ignore

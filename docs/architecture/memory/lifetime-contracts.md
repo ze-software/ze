@@ -138,4 +138,4 @@ nil and GC-safe) instead of `memguard.Poison`. It still gates on
   ceiling; release builds reuse slots and never hit it. Size high-churn debug
   soaks accordingly (or run them against a release build).
 
-Run the enforcement with `go test -tags debug ./...`.
+Run the enforcement with `CGO_ENABLED=0 go test -tags debug ./...`.

@@ -782,6 +782,7 @@ func derivedPageAssets(t *testing.T) map[string][]string {
 	cmd := osexec.CommandContext(ctx, "go", "run",
 		filepath.Join(root, "scripts", "codegen", "web_assets.go"), "--json")
 	cmd.Dir = root
+	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 
 	var out, errOut bytes.Buffer
 	cmd.Stdout = &out

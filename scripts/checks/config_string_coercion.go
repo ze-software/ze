@@ -24,7 +24,7 @@
 // (genuine non-config coercion). New parsers must handle strings; add an
 // allowlist entry, with a reason, only for a real non-config use.
 //
-// Usage:     go run scripts/checks/config_string_coercion.go [--json|--selftest]
+// Usage:     CGO_ENABLED=0 go run scripts/checks/config_string_coercion.go [--json|--selftest]
 // Called by: make ze-config-coercion-check (wired into ze-precommit-verify via
 //            scripts/status/verify_run.go) and
 //            scripts/checks/config_string_coercion_test.go

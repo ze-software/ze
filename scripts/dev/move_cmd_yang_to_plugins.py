@@ -213,7 +213,7 @@ def main():
             "Dry run. To apply: python3 scripts/dev/move_cmd_yang_to_plugins.py --apply"
         )
         print(
-            "After applying, run: go run scripts/codegen/yang_glue.go && go run scripts/codegen/plugin_imports.go"
+            "After applying, run: CGO_ENABLED=0 go run scripts/codegen/yang_glue.go && CGO_ENABLED=0 go run scripts/codegen/plugin_imports.go"
         )
 
     return 0

@@ -100,7 +100,7 @@ Location: `internal/component/plugin/server/config_test.go`
 
 Run:
 ```bash
-go test -v ./internal/component/plugin/server/... -run "TestConfigTree|TestHostname|TestParseCap"
+CGO_ENABLED=0 go test -v ./internal/component/plugin/server/... -run "TestConfigTree|TestHostname|TestParseCap"
 ```
 
 ### Hostname Plugin Tests
@@ -119,7 +119,7 @@ Location: `internal/component/bgp/plugins/hostname/hostname_test.go`
 
 Run:
 ```bash
-go test -v ./internal/component/bgp/plugins/hostname/...
+CGO_ENABLED=0 go test -v ./internal/component/bgp/plugins/hostname/...
 ```
 
 ### Capability Injection Tests
@@ -135,7 +135,7 @@ Location: `internal/component/plugin/capability_injection_test.go`
 
 Run:
 ```bash
-go test -v ./internal/component/plugin/... -run "Capability"
+CGO_ENABLED=0 go test -v ./internal/component/plugin/... -run "Capability"
 ```
 
 ## Debug Logging
@@ -186,8 +186,8 @@ When plugin capabilities aren't appearing in OPEN messages:
 
 4. **Run unit tests:**
    ```bash
-   go test -v ./internal/component/bgp/plugins/hostname/...
-   go test -v ./internal/component/plugin/... -run "Capability"
+   CGO_ENABLED=0 go test -v ./internal/component/bgp/plugins/hostname/...
+   CGO_ENABLED=0 go test -v ./internal/component/plugin/... -run "Capability"
    ```
 
 5. **Enable debug logging:**

@@ -5,7 +5,7 @@
 .PHONY: ze-lint-changed ze-unit-test-changed ze-tmp-clean ze-sessions-clean ze-unit-hook-test
 .PHONY: ze-tier-check ze-iface-resolution-check ze-plugin-boundary-check ze-config-coercion-check ze-fs-persistence-check ze-dash-stdio-check ze-port-defaults-check ze-yang-leaf-mentions-report ze-platform-vet ze-ci-dispatch-check
 .PHONY: ze-test-sensitivity-check ze-test-health-update ze-test-health-check ze-test-health-record ze-weakened-check
-.PHONY: ze-tracked-build-check
+.PHONY: ze-staticcheck-feature-matrix-check ze-tracked-build-check
 .PHONY: ze-iso-full-build ze-iso-initialize ze-iso-build ze-iso-check ze-pxe-build
 .PHONY: ze-vendor-web-sync ze-vendor-web-check ze-vendor-web-update-report ze-htmx-upgrade-check ze-htmx-upgrade-report ze-ai-skills-sync ze-ai-instructions-generate ze-ai-sync-check
 .PHONY: ze-proto-generate ze-plugin-snapshot-update ze-plugin-imports-check ze-fuzz-targets-check ze-yang-glue-check ze-feature-tags-check ze-web-assets-check ze-templ-orphan-check ze-templ-generate-check ze-generated-files-update ze-generated-files-update-check ze-generated-files-check ze-arch-map-update ze-arch-map-check
@@ -79,7 +79,7 @@ endif
 # Default-on per-feature compile-out tags. A service guarded by //go:build
 # ze_<feature> is compiled into ze / ze-appliance iff its tag is listed here.
 # ze-stripped keeps only ze_ssh (the base operator management plane) and drops
-# the rest; a fully hardened build with no ssh either is `go build -tags ze_core`
+# the rest; a fully hardened build with no ssh either is `CGO_ENABLED=0 go build -tags ze_core`
 # (bare) -- the no-ssh path proven by TestBuildTag_SSH_Absent + a go-tool-nm
 # symbol check.
 #
@@ -134,12 +134,13 @@ GO_RUN = go run -tags '$(GO_TEST_TAGS)'
 GO_TEST_CORE_TAGS = ze_core $(ZE_TAGS)
 GO_TEST = GOMAXPROCS=$(GO_TEST_PROCS) go test -timeout $(GO_TEST_TIMEOUT) -tags '$(GO_TEST_TAGS)'
 GO_TEST_CORE = GOMAXPROCS=$(GO_TEST_PROCS) go test -timeout $(GO_TEST_TIMEOUT) -tags '$(GO_TEST_CORE_TAGS)'
-# `go test -race` links the race runtime through cgo, so the global CGO_ENABLED=0
-# (kept so release binaries stay static) has to be overridden on race targets or
-# every -race run aborts with "-race requires cgo". Non-race test runs stay
-# CGO-free. Use these for any -race invocation instead of `$(GO_TEST) -race`.
-GO_TEST_RACE = GOMAXPROCS=$(GO_TEST_PROCS) CGO_ENABLED=1 go test -timeout $(GO_TEST_TIMEOUT) -tags '$(GO_TEST_TAGS)' -race
-GO_TEST_CORE_RACE = GOMAXPROCS=$(GO_TEST_PROCS) CGO_ENABLED=1 go test -timeout $(GO_TEST_TIMEOUT) -tags '$(GO_TEST_CORE_TAGS)' -race
+# Race-detector test commands are the sole CGO-enabled Go compilation path.
+# They run with -race on both Linux and Darwin. Their test binaries never ship
+# or serve as release/build evidence. Every non-race command inherits the
+# top-level CGO_ENABLED=0 export.
+GO_TEST_RACE_LABEL = race-instrumented
+GO_TEST_RACE = CGO_ENABLED=1 GOMAXPROCS=$(GO_TEST_PROCS) go test -timeout $(GO_TEST_TIMEOUT) -tags '$(GO_TEST_TAGS)' -race
+GO_TEST_CORE_RACE = CGO_ENABLED=1 GOMAXPROCS=$(GO_TEST_PROCS) go test -timeout $(GO_TEST_TIMEOUT) -tags '$(GO_TEST_CORE_TAGS)' -race
 ZE_EXABGP_TIMEOUT ?= 180
 ZE_LINUX_GO_IMAGE ?= golang:1.26-alpine
 ZE_LINUX_TEST_PACKAGES ?= ./internal/plugins/traffic/vpp
@@ -227,8 +228,8 @@ generate:
 # refuses .pb.go for exactly this reason and points here.
 ze-proto-generate:
 	@command -v protoc >/dev/null || { echo "protoc not found -- install it (brew install protobuf)"; exit 1; }
-	@go build -mod=vendor -o bin/protoc-gen-go google.golang.org/protobuf/cmd/protoc-gen-go
-	@go build -mod=vendor -o bin/protoc-gen-go-grpc google.golang.org/grpc/cmd/protoc-gen-go-grpc
+	@CGO_ENABLED=0 go build -mod=vendor -o bin/protoc-gen-go google.golang.org/protobuf/cmd/protoc-gen-go
+	@CGO_ENABLED=0 go build -mod=vendor -o bin/protoc-gen-go-grpc google.golang.org/grpc/cmd/protoc-gen-go-grpc
 	@PATH="$(CURDIR)/bin:$$PATH" protoc \
 		--go_out=. --go_opt=module=$(ZE_MODULE) \
 		--go-grpc_out=. --go-grpc_opt=module=$(ZE_MODULE) \
@@ -407,21 +408,21 @@ build: generate $(ZEBIN_ZE) $(ZEBIN_APPLIANCE) $(ZEBIN_SETUP) $(ZEBIN_STRIPPED) 
 
 ze:
 	@mkdir -p $(ZE_BIN_DIR)
-	$(GO) build -tags 'ze_core ze_distro $(ZE_FEATURES) $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o $(ZEBIN_ZE) ./cmd/ze
+	CGO_ENABLED=0 $(GO) build -tags 'ze_core ze_distro $(ZE_FEATURES) $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o $(ZEBIN_ZE) ./cmd/ze
 	$(call ZE_SEED_SESSION_STORE,$(ZEBIN_ZE))
 
 ze-appliance-build:
 	@mkdir -p $(ZE_BIN_DIR)
-	$(GO) build -tags 'ze_core ze_appliance $(ZE_FEATURES) $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o $(ZEBIN_APPLIANCE) ./cmd/ze
+	CGO_ENABLED=0 $(GO) build -tags 'ze_core ze_appliance $(ZE_FEATURES) $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o $(ZEBIN_APPLIANCE) ./cmd/ze
 	$(call ZE_SEED_SESSION_STORE,$(ZEBIN_APPLIANCE))
 
 ze-setup-build:
 	@mkdir -p $(ZE_BIN_DIR)
-	$(GO) build -tags 'ze_setup $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o $(ZEBIN_SETUP) ./cmd/ze
+	CGO_ENABLED=0 $(GO) build -tags 'ze_setup $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o $(ZEBIN_SETUP) ./cmd/ze
 
 ze-stripped-build:
 	@mkdir -p $(ZE_BIN_DIR)
-	$(GO) build -tags 'ze_core ze_ssh $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o $(ZEBIN_STRIPPED) ./cmd/ze
+	CGO_ENABLED=0 $(GO) build -tags 'ze_core ze_ssh $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o $(ZEBIN_STRIPPED) ./cmd/ze
 	$(call ZE_SEED_SESSION_STORE,$(ZEBIN_STRIPPED))
 
 # ze-chaos and ze-perf drive an in-process BGP reactor, so they force ze_bgp on:
@@ -429,58 +430,58 @@ ze-stripped-build:
 # the BGP plugins would silently register nothing rather than fail to build.
 ze-chaos-build:
 	@mkdir -p $(ZE_BIN_DIR)
-	$(GO) build -tags 'ze_chaos ze_bgp' -o $(ZEBIN_CHAOS) ./cmd/ze
+	CGO_ENABLED=0 $(GO) build -tags 'ze_chaos ze_bgp' -o $(ZEBIN_CHAOS) ./cmd/ze
 
 ze-test-build:
 	@mkdir -p $(ZE_BIN_DIR)
-	$(GO) build -tags 'ze_test $(ZE_FEATURES) $(ZE_TAGS)' -o $(ZEBIN_TEST) ./cmd/ze
+	CGO_ENABLED=0 $(GO) build -tags 'ze_test $(ZE_FEATURES) $(ZE_TAGS)' -o $(ZEBIN_TEST) ./cmd/ze
 
 ze-analyze-build:
 	@mkdir -p $(ZE_BIN_DIR)
-	$(GO) build -tags ze_analyze -o $(ZEBIN_ANALYZE) ./cmd/ze
+	CGO_ENABLED=0 $(GO) build -tags ze_analyze -o $(ZEBIN_ANALYZE) ./cmd/ze
 
 
 $(ZEBIN_ZE): $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze..."
 	@mkdir -p $(ZE_BIN_DIR)
-	$(GO) build -tags 'ze_core ze_distro $(ZE_FEATURES) $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o $(ZEBIN_ZE) ./cmd/ze
+	CGO_ENABLED=0 $(GO) build -tags 'ze_core ze_distro $(ZE_FEATURES) $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o $(ZEBIN_ZE) ./cmd/ze
 	$(call ZE_SEED_SESSION_STORE,$(ZEBIN_ZE))
 
 $(ZEBIN_APPLIANCE): $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze-appliance..."
 	@mkdir -p $(ZE_BIN_DIR)
-	$(GO) build -tags 'ze_core ze_appliance $(ZE_FEATURES) $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o $(ZEBIN_APPLIANCE) ./cmd/ze
+	CGO_ENABLED=0 $(GO) build -tags 'ze_core ze_appliance $(ZE_FEATURES) $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o $(ZEBIN_APPLIANCE) ./cmd/ze
 	$(call ZE_SEED_SESSION_STORE,$(ZEBIN_APPLIANCE))
 
 $(ZEBIN_SETUP): $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze-setup..."
 	@mkdir -p $(ZE_BIN_DIR)
-	$(GO) build -tags 'ze_setup $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o $(ZEBIN_SETUP) ./cmd/ze
+	CGO_ENABLED=0 $(GO) build -tags 'ze_setup $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o $(ZEBIN_SETUP) ./cmd/ze
 
 $(ZEBIN_STRIPPED): $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze-stripped..."
 	@mkdir -p $(ZE_BIN_DIR)
-	$(GO) build -tags 'ze_core ze_ssh $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o $(ZEBIN_STRIPPED) ./cmd/ze
+	CGO_ENABLED=0 $(GO) build -tags 'ze_core ze_ssh $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o $(ZEBIN_STRIPPED) ./cmd/ze
 	$(call ZE_SEED_SESSION_STORE,$(ZEBIN_STRIPPED))
 $(ZEBIN_TEST): $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze-test..."
 	@mkdir -p $(ZE_BIN_DIR)
-	$(GO) build -tags 'ze_test $(ZE_FEATURES) $(ZE_TAGS)' -o $(ZEBIN_TEST) ./cmd/ze
+	CGO_ENABLED=0 $(GO) build -tags 'ze_test $(ZE_FEATURES) $(ZE_TAGS)' -o $(ZEBIN_TEST) ./cmd/ze
 
 $(ZEBIN_CHAOS): $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze-chaos..."
 	@mkdir -p $(ZE_BIN_DIR)
-	$(GO) build -tags 'ze_chaos ze_bgp' -o $(ZEBIN_CHAOS) ./cmd/ze
+	CGO_ENABLED=0 $(GO) build -tags 'ze_chaos ze_bgp' -o $(ZEBIN_CHAOS) ./cmd/ze
 
 $(ZEBIN_ANALYZE): $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze-analyze..."
 	@mkdir -p $(ZE_BIN_DIR)
-	$(GO) build -tags ze_analyze -o $(ZEBIN_ANALYZE) ./cmd/ze
+	CGO_ENABLED=0 $(GO) build -tags ze_analyze -o $(ZEBIN_ANALYZE) ./cmd/ze
 
 $(ZEBIN_PERF): $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze-perf..."
 	@mkdir -p $(ZE_BIN_DIR)
-	$(GO) build -tags 'ze_perf ze_bgp' -o $(ZEBIN_PERF) ./cmd/ze
+	CGO_ENABLED=0 $(GO) build -tags 'ze_perf ze_bgp' -o $(ZEBIN_PERF) ./cmd/ze
 
 # ─── Docker ────────────────────────────────────────────────────────────────
 
@@ -556,7 +557,7 @@ ze-evidence-vet:
 	@GOOS=linux go vet ./scripts/evidence/...
 
 ze-unit-reactor-test-race:
-	@echo "Stress race-test reactor (count=20)..."
+	@echo "Stress-testing reactor (count=20, $(GO_TEST_RACE_LABEL))..."
 	$(GO_TEST_RACE) -count=20 ./internal/component/bgp/reactor/...
 
 ze-unit-linux-test:
@@ -567,6 +568,7 @@ ze-unit-linux-test:
 		-v "$(CURDIR):/src" \
 		-w /src \
 		-e HOME=/tmp \
+		-e CGO_ENABLED=0 \
 		-e GOCACHE=/src/tmp/linux-go-cache \
 		-e GOMODCACHE=/src/tmp/linux-gomodcache \
 		$(ZE_LINUX_GO_IMAGE) \
@@ -617,9 +619,9 @@ ze-lint-changed:
 ze-unit-test-changed: ze-links-ensure
 	@pkgs=$$(scripts/dev/changed-pkgs.sh); \
 	if [ -z "$$pkgs" ]; then echo "No changed Go packages to test"; exit 0; fi; \
-	echo "Testing changed packages: $$pkgs"; \
+	echo "Testing changed packages ($(GO_TEST_RACE_LABEL)): $$pkgs"; \
 	$(GO_TEST_RACE) $$pkgs
-	@echo "Unit tests: bare ze_core compile-out checks..."
+	@echo "Unit tests: bare ze_core compile-out checks ($(GO_TEST_RACE_LABEL))..."
 	$(GO_TEST_CORE_RACE) ./cmd/ze/hub
 
 # ─── Agent-guard hook tests ────────────────────────────────────────────────
@@ -826,6 +828,10 @@ ze-test-sensitivity-check:
 ze-weakened-check:
 	@python3 scripts/dev/check_weakened_tests.py --selftest
 	@python3 scripts/dev/check_weakened_tests.py
+
+# Entry point for the Staticcheck feature-tag matrix gate.
+ze-staticcheck-feature-matrix-check:
+	@$(GO) run scripts/checks/staticcheck_feature_matrix.go
 
 # Tracked-build gate (docs/architecture/testing/tracked-build-gate.md): compile
 # the tree GIT HOLDS, which is the one population no other check compiles. Every
@@ -1186,7 +1192,7 @@ help:
 	@echo "    make ze-smoke-verify                       Verify setup: lint + unit + build (~2 min)"
 	@echo ""
 	@echo "  Daily development:"
-	@echo "    make ze-unit-bgp-test                      Unit tests for one component group (-race)"
+	@echo "    make ze-unit-bgp-test                      Unit tests for one component group ($(GO_TEST_RACE_LABEL))"
 	@echo "                                               Also: ze-unit-core-test, ze-unit-plugins-test, ze-unit-config-test, ze-unit-cli-test, ze-unit-rest-test"
 	@echo "    make ze-functional-encode-test             Single functional suite (encode, plugin, decode, parse, reload, ...)"
 	@echo "    make ze-precommit-verify                   Pre-commit gate: lint + wiring/docs + SCA + unit + functional + exabgp (4-10 min)"
@@ -1213,7 +1219,7 @@ help:
 help-test:
 	@echo "Ze Test Targets"
 	@echo ""
-	@echo "  Unit tests (Go test with -race):"
+	@echo "  Unit tests ($(GO_TEST_RACE_LABEL)):"
 	@echo "    ze-unit-test                               All packages (~5 min)"
 	@echo "    ze-unit-test-coverage                      All packages with coverage report"
 	@echo "    ze-unit-bgp-test                           BGP component group (~1:30)"
@@ -1222,7 +1228,7 @@ help-test:
 	@echo "    ze-unit-config-test                        Config component (~20s)"
 	@echo "    ze-unit-cli-test                           CLI component (~10s)"
 	@echo "    ze-unit-rest-test                          Everything else (~1:00)"
-	@echo "    ze-unit-reactor-test-race                  Stress race-test reactor (-race -count=20)"
+	@echo "    ze-unit-reactor-test-race                  Stress-test reactor ($(GO_TEST_RACE_LABEL), count=20)"
 	@echo ""
 	@echo "  Functional tests (.ci suites via $(ZEBIN_TEST)):"
 	@echo "    ze-functional-test                         All 24 gating suites"
@@ -1375,7 +1381,7 @@ help-deploy:
 	@echo "    ze-deployment-docker-l2tp-ppp-test         PPP/NCP Docker lab (Ze LNS + LAC + FRR)"
 	@echo "    ze-deployment-docker-pppoe-accel-test      PPPoE Docker lab (Ze client + accel-ppp AC)"
 	@echo "    ze-deployment-gokrazy-l2tp-ppp-test        PPP against QEMU appliance"
-	@echo "    ze-docker-evidence-run EVIDENCE_SCRIPT=... EVIDENCE_PACKAGES=..."
+	@echo "    ze-evidence-docker-run EVIDENCE_SCRIPT=... EVIDENCE_PACKAGES=..."
 	@echo "    ze-deployment-preflight                    Check deployment tooling availability"
 	@echo "    ze-release-check                           Clean release-candidate verification in Docker"
 
@@ -1402,6 +1408,7 @@ help-dev:
 	@echo "    ze-wiring-docs-check                       Changed-file-aware wiring, docs, command, and inventory gate"
 	@echo ""
 	@echo "  Commit integrity:"
+	@echo "    ze-staticcheck-feature-matrix-check        Type-check the working tree across feature-tag configurations"
 	@echo "    ze-tracked-build-check                     Compile the tree GIT HOLDS (REV=<sha> for another commit)"
 	@echo ""
 	@echo "  Spec management:"

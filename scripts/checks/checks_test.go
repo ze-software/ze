@@ -11,9 +11,11 @@ package main
 
 import (
 	"context"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -30,6 +32,7 @@ func TestNoOwnerAllowlistIsEnforced(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), checkTimeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "go", "run", "scripts/checks/command_ownership.go")
+	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 	cmd.Dir = repoRoot(t)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -48,6 +51,447 @@ func repoRoot(t *testing.T) string {
 	}
 	return root
 }
+
+func walkFirstPartyFiles(t *testing.T, visit func(string, []byte)) {
+	t.Helper()
+	root := repoRoot(t)
+	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		rel, err := filepath.Rel(root, path)
+		if err != nil {
+			return err
+		}
+		rel = filepath.ToSlash(rel)
+		if entry.IsDir() {
+			if entry.Name() == "testdata" {
+				return fs.SkipDir
+			}
+			switch rel {
+			case ".git", ".cache", "vendor", "third_party", "tmp", "cache", "bin", "build", "dist", "node_modules", ".venv", "gokrazy/modcache", "gokrazy/ze/builddir", ".claude/worktrees":
+				return fs.SkipDir
+			}
+			return nil
+		}
+		base := entry.Name()
+		ext := filepath.Ext(base)
+		// Scan authored usage documentation. ai/*.md command indexes are rendered
+		// artifacts; their source points are the owned surface and regeneration is
+		// deliberately outside this structural check.
+		relevant := ext == ".go" || ext == ".py" || ext == ".mk" || ext == ".sh" ||
+			ext == ".ci" || ext == ".yml" || ext == ".yaml" || base == "Makefile" ||
+			strings.HasPrefix(base, "Dockerfile") || rel == "README.md" ||
+			strings.HasPrefix(rel, "docs/") ||
+			rel == "test/exabgp-compat/bin/test-migrate"
+		if !relevant {
+			return nil
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		visit(rel, data)
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk first-party files: %v", err)
+	}
+}
+
+// isExternalGoProducerPath derives exclusions from ownership boundaries, not
+// individual files. Interop Dockerfiles other than Dockerfile.ze build
+// third-party daemons, and external-plugin trees document/build consumer code.
+func isExternalGoProducerPath(rel string) bool {
+	if strings.HasPrefix(rel, "examples/external-plugin/") ||
+		strings.HasPrefix(rel, "docs/plugin-development/") {
+		return true
+	}
+	return strings.HasPrefix(rel, "test/interop/Dockerfile.") &&
+		rel != "test/interop/Dockerfile.ze"
+}
+
+var goProducerCommandRE = regexp.MustCompile(
+	`(^|[^[:alnum:]_])(go|\$\(GO\))[[:space:]]+(build|install|test|run)([[:space:]]|$)`,
+)
+
+var cgoEnabledOneRE = regexp.MustCompile(`CGO_ENABLED[[:space:]]*([:?+]?=|:)[[:space:]]*["']?1([^0-9]|$)`)
+
+var raceFlagRE = regexp.MustCompile(`(^|[[:space:]"'])-race([[:space:]"',\\]|$)`)
+
+func shellCGOOneAllowed(producerKind, command string) bool {
+	return producerKind == "test" && raceFlagRE.MatchString(command)
+}
+
+func pythonCGOOneAllowed(rel string, build bool, call string) bool {
+	if !raceFlagRE.MatchString(call) {
+		return false
+	}
+	return rel == "scripts/dev/stress-repro.py" && build
+}
+
+func pythonEnablesCGO(scope string) bool {
+	return strings.Contains(scope, `"CGO_ENABLED": "1"`) ||
+		strings.Contains(scope, `'CGO_ENABLED': '1'`) ||
+		strings.Contains(scope, `env["CGO_ENABLED"] = "1"`) ||
+		strings.Contains(scope, `env['CGO_ENABLED'] = '1'`) ||
+		strings.Contains(scope, `CGO_ENABLED="1"`)
+}
+
+// firstGoProducer matches command tokens. Substring matching is incorrect:
+// "cargo build" contains "go build" but does not invoke the Go tool.
+func firstGoProducer(command string) (int, string, bool) {
+	match := goProducerCommandRE.FindStringSubmatchIndex(command)
+	if match == nil {
+		return -1, "", false
+	}
+	return match[3], command[match[6]:match[7]], true
+}
+
+func pythonFunctionScope(lines []string, at int) string {
+	start := 0
+	for i := at; i >= 0; i-- {
+		if strings.HasPrefix(lines[i], "def ") || strings.HasPrefix(lines[i], "async def ") {
+			start = i
+			break
+		}
+	}
+	end := len(lines)
+	for i := at + 1; i < len(lines); i++ {
+		if strings.HasPrefix(lines[i], "def ") || strings.HasPrefix(lines[i], "async def ") {
+			end = i
+			break
+		}
+	}
+	return strings.Join(lines[start:end], "\n")
+}
+
+// VALIDATES: every first-party shell, workflow, Make, Docker, documentation,
+// Python, and go:generate producer explicitly disables cgo, except a derived
+// test-only process whose same command actually uses -race.
+// PREVENTS: inherited cgo and cgo-enabled release/build-evidence producers.
+func TestFirstPartyGoProducerCommandsDisableCGO(t *testing.T) {
+	var shellProducers, shellRunProducers, functionalCIProducers, pythonProducers, pythonRunProducers, usageRunCommands int
+	makefile := string(mustReadFile(t, filepath.Join(repoRoot(t), "Makefile")))
+	if !strings.Contains(makefile, "export CGO_ENABLED := 0") {
+		t.Fatal("Makefile must export CGO_ENABLED := 0 for included recipes")
+	}
+	if _, _, found := firstGoProducer("cargo build --release"); found {
+		t.Fatal("Go producer matcher must not treat cargo build as go build")
+	}
+	if _, kind, found := firstGoProducer("CGO_ENABLED=0 go test ./..."); !found || kind != "test" {
+		t.Fatalf("Go producer matcher missed tokenized go test: found=%v kind=%q", found, kind)
+	}
+	if !shellCGOOneAllowed("test", "CGO_ENABLED=1 go test -race ./...") {
+		t.Fatal("race-instrumented test command must permit explicit cgo enablement")
+	}
+	if shellCGOOneAllowed("test", "CGO_ENABLED=1 go test ./...") {
+		t.Fatal("non-race test command must not permit cgo enablement")
+	}
+	if shellCGOOneAllowed("build", "CGO_ENABLED=1 go build -race ./cmd/ze") {
+		t.Fatal("race-enabled build command must not be treated as a test-only shell producer")
+	}
+	if !cgoEnabledOneRE.MatchString("CGO_ENABLED: 1") {
+		t.Fatal("cgo enablement matcher must recognize workflow environment syntax")
+	}
+	if !pythonCGOOneAllowed("scripts/dev/stress-repro.py", true, `["go", "build", "-race"]`) {
+		t.Fatal("test-only Python stress race build must permit explicit cgo enablement")
+	}
+	if pythonCGOOneAllowed("scripts/evidence/release.py", true, `["go", "build", "-race"]`) {
+		t.Fatal("Python race builds must not receive a general shipping/evidence exemption")
+	}
+	if pythonCGOOneAllowed("scripts/dev/stress-repro.py", true, `["go", "build"]`) {
+		t.Fatal("Python stress build without -race must not permit cgo enablement")
+	}
+	walkFirstPartyFiles(t, func(rel string, data []byte) {
+		if isExternalGoProducerPath(rel) {
+			return
+		}
+		base := filepath.Base(rel)
+		ext := filepath.Ext(base)
+		makeLike := base == "Makefile" || ext == ".mk"
+		if ext == ".ci" && strings.Contains(string(data), "var=CGO_ENABLED") {
+			t.Errorf("%s sets CGO_ENABLED through a functional env directive; childEnv owns that boundary", rel)
+		}
+		shellLike := makeLike || ext == ".sh" || ext == ".ci" ||
+			ext == ".yml" || ext == ".yaml" || strings.HasPrefix(base, "Dockerfile") ||
+			rel == "README.md" || strings.HasPrefix(rel, "docs/")
+		if shellLike {
+			var logical string
+			inCodeFence := ext != ".md"
+			for lineNumber, line := range strings.Split(string(data), "\n") {
+				trimmed := strings.TrimSpace(line)
+				if ext == ".md" && strings.HasPrefix(trimmed, "```") {
+					inCodeFence = !inCodeFence
+					continue
+				}
+				if !inCodeFence {
+					continue
+				}
+				if logical == "" && strings.HasPrefix(trimmed, "#") {
+					continue
+				}
+				logical += " " + strings.TrimSuffix(trimmed, "\\")
+				if strings.HasSuffix(trimmed, "\\") {
+					continue
+				}
+				segments := strings.Split(strings.ReplaceAll(logical, "&&", ";"), ";")
+				logical = ""
+				for _, segment := range segments {
+					producerAt, producerKind, found := firstGoProducer(segment)
+					if gokAt := strings.Index(segment, "bin/gok --parent_dir"); gokAt >= 0 &&
+						(!found || gokAt < producerAt) {
+						producerAt, producerKind, found = gokAt, "build", true
+					}
+					if !found {
+						if cgoEnabledOneRE.MatchString(segment) {
+							t.Errorf("%s:%d cgo enablement is not attached to a derived race-test command: %s", rel, lineNumber+1, strings.TrimSpace(segment))
+						}
+						continue
+					}
+					if producerAt < 0 {
+						continue
+					}
+					shellProducers++
+					if producerKind == "run" {
+						shellRunProducers++
+					}
+					if ext == ".ci" {
+						functionalCIProducers++
+						if cgoEnabledOneRE.MatchString(segment) {
+							t.Errorf("%s:%d functional command enables cgo: %s", rel, lineNumber+1, strings.TrimSpace(segment))
+						}
+						continue
+					}
+					prefix := segment[:producerAt]
+					if cgoEnabledOneRE.MatchString(prefix) {
+						if !shellCGOOneAllowed(producerKind, segment[producerAt:]) {
+							t.Errorf("%s:%d non-race or non-test Go producer enables cgo: %s", rel, lineNumber+1, strings.TrimSpace(segment))
+						}
+						continue
+					}
+					zeroAt := strings.Index(prefix, "CGO_ENABLED=0")
+					overridesCGO := strings.Contains(prefix, "CGO_ENABLED=")
+					containerized := strings.Contains(prefix, "docker run") || strings.Contains(prefix, "docker exec") ||
+						strings.Contains(prefix, "podman run") || strings.Contains(prefix, "podman exec")
+					inheritsMakeZero := makeLike && !overridesCGO && !containerized
+					if zeroAt < 0 && !inheritsMakeZero {
+						t.Errorf("%s:%d Go producer does not set CGO_ENABLED=0: %s", rel, lineNumber+1, strings.TrimSpace(segment))
+					}
+				}
+			}
+		}
+
+		allLines := strings.Split(string(data), "\n")
+		for lineNumber, line := range allLines {
+			trimmed := strings.TrimSpace(line)
+			goRunAt, producerKind, found := firstGoProducer(line)
+			if !found || producerKind != "run" {
+				continue
+			}
+			commentBody := strings.TrimSpace(strings.TrimPrefix(trimmed, "//"))
+			documentedUsage := strings.Contains(line, "Usage:") ||
+				strings.Contains(line, "Run:") ||
+				strings.Contains(line, "or:") ||
+				strings.HasPrefix(commentBody, "go run ") ||
+				strings.HasPrefix(commentBody, "CGO_ENABLED=") ||
+				strings.Contains(line, "//go:generate") ||
+				(ext == ".md" && strings.Contains(line, "| `"))
+			if !documentedUsage {
+				continue
+			}
+			usageRunCommands++
+			if !strings.Contains(line[:goRunAt], "CGO_ENABLED=0") {
+				t.Errorf("%s:%d independently runnable go run usage does not set CGO_ENABLED=0", rel, lineNumber+1)
+			}
+		}
+
+		if (ext != ".py" && rel != "test/exabgp-compat/bin/test-migrate") ||
+			strings.HasSuffix(rel, "_test.py") {
+			return
+		}
+		lines := allLines
+		for i, line := range lines {
+			commandHead := strings.Join(lines[i:min(len(lines), i+6)], "\n")
+			multilineGo := strings.TrimSpace(line) == `"go",` || strings.TrimSpace(line) == `'go',`
+			build := strings.Contains(line, `["go", "build"`) || strings.Contains(line, `['go', 'build'`) ||
+				(multilineGo && (strings.Contains(commandHead, `"build",`) || strings.Contains(commandHead, `'build',`)))
+			install := strings.Contains(line, `["go", "install"`) || strings.Contains(line, `['go', 'install'`) ||
+				(multilineGo && (strings.Contains(commandHead, `"install",`) || strings.Contains(commandHead, `'install',`)))
+			run := strings.Contains(line, `["go", "run"`) || strings.Contains(line, `['go', 'run'`) ||
+				strings.Contains(line, `("go", "run"`) || strings.Contains(line, `('go', 'run'`) ||
+				(multilineGo && (strings.Contains(commandHead, `"run",`) || strings.Contains(commandHead, `'run',`)))
+			compiledTest := multilineGo &&
+				((strings.Contains(commandHead, `"test",`) && strings.Contains(commandHead, `"-c",`)) ||
+					(strings.Contains(commandHead, `'test',`) && strings.Contains(commandHead, `'-c',`)))
+			if !build && !install && !run && !compiledTest {
+				continue
+			}
+			pythonProducers++
+			if run {
+				pythonRunProducers++
+			}
+			end := min(len(lines), i+24)
+			call := strings.Join(lines[i:end], "\n")
+			if !strings.Contains(call, "env=") {
+				t.Errorf("%s:%d Go producer does not pass an explicit environment", rel, i+1)
+				continue
+			}
+			scope := pythonFunctionScope(lines, i)
+			copiesParent := strings.Contains(scope, "os.environ.copy()") ||
+				strings.Contains(scope, "{**os.environ") ||
+				strings.Contains(scope, "dict(os.environ")
+			if !copiesParent {
+				t.Errorf("%s:%d Go producer environment does not copy the parent environment", rel, i+1)
+			}
+			enablesCGO := pythonEnablesCGO(scope)
+			if enablesCGO {
+				sameProcessEnablesCGO := pythonEnablesCGO(call)
+				if !sameProcessEnablesCGO || !pythonCGOOneAllowed(rel, build, call) {
+					t.Errorf("%s:%d non-race or non-test Go producer environment enables cgo", rel, i+1)
+				}
+				continue
+			}
+			zero := strings.Contains(scope, `"CGO_ENABLED": "0"`) ||
+				strings.Contains(scope, `'CGO_ENABLED': '0'`) ||
+				strings.Contains(scope, `env["CGO_ENABLED"] = "0"`) ||
+				strings.Contains(scope, `env['CGO_ENABLED'] = '0'`) ||
+				strings.Contains(scope, `CGO_ENABLED="0"`)
+			if !zero {
+				t.Errorf("%s:%d Go producer environment does not set CGO_ENABLED=0", rel, i+1)
+			}
+		}
+	})
+	if shellProducers == 0 || shellRunProducers == 0 || functionalCIProducers == 0 ||
+		pythonProducers == 0 || pythonRunProducers == 0 || usageRunCommands == 0 {
+		t.Fatalf(
+			"producer scan was vacuous: shell=%d shell-run=%d functional-ci=%d python=%d python-run=%d usage-run=%d",
+			shellProducers, shellRunProducers, functionalCIProducers, pythonProducers, pythonRunProducers, usageRunCommands,
+		)
+	}
+
+	runnerEnv := string(mustReadFile(t, filepath.Join(repoRoot(t), "internal", "test", "runner", "runner_exec_util.go")))
+	if !strings.Contains(runnerEnv, `return append(env, "CGO_ENABLED=0")`) {
+		t.Error("functional .ci command runner must force CGO_ENABLED=0 in childEnv")
+	}
+
+	migration := string(mustReadFile(t, filepath.Join(repoRoot(t), "scripts", "dev", "migrate_module.py")))
+	if !strings.Contains(migration, "NEXT (manual): CGO_ENABLED=0 go build ./...") {
+		t.Error("migrate_module.py manual build command must set CGO_ENABLED=0")
+	}
+
+	gokMain := string(mustReadFile(t, filepath.Join(repoRoot(t), "cmd", "ze-gok", "main.go")))
+	if !strings.Contains(gokMain, `os.Setenv("CGO_ENABLED", "0")`) {
+		t.Error("cmd/ze-gok must force its nested Go builds to CGO_ENABLED=0")
+	}
+
+	stressRepro := string(mustReadFile(t, filepath.Join(repoRoot(t), "scripts", "dev", "stress-repro.py")))
+	if strings.Contains(stressRepro, `os.path.join(REPO, "bin", "ze-stress")`) ||
+		!strings.Contains(stressRepro, `os.path.join(outdir, f"ze-race-{os.getpid()}")`) {
+		t.Error("stress-repro.py race binary must stay in tmp/stress-repro, outside the shipping bin tree")
+	}
+}
+
+// VALIDATES: each exec.Cmd that starts a nested first-party Go build or run
+// sets a CGO-free child environment before it starts the command.
+// PREVENTS: package tests and structural gates producing host-dependent binaries.
+func TestNestedGoCompilationCommandsDisableCGO(t *testing.T) {
+	var buildProducers, runProducers int
+	walkFirstPartyFiles(t, func(rel string, data []byte) {
+		if filepath.Ext(rel) != ".go" || rel == "scripts/checks/checks_test.go" {
+			return
+		}
+		lines := strings.Split(string(data), "\n")
+		for i, line := range lines {
+			build := strings.Contains(line, `"go", "build"`) ||
+				strings.Contains(line, `"go", buildArgs`)
+			run := strings.Contains(line, `"go", "run"`)
+			command := build || run
+			if !command || (!strings.Contains(line, "exec.Command") && !strings.Contains(line, "osexec.Command")) {
+				continue
+			}
+			if build {
+				buildProducers++
+			}
+			if run {
+				runProducers++
+			}
+			assignAt := strings.Index(line, ":=")
+			if assignAt < 0 {
+				assignAt = strings.Index(line, "=")
+			}
+			if assignAt < 0 {
+				t.Errorf("%s:%d cannot derive exec.Cmd variable", rel, i+1)
+				continue
+			}
+			fields := strings.Fields(strings.TrimSpace(line[:assignAt]))
+			if len(fields) == 0 {
+				t.Errorf("%s:%d cannot derive exec.Cmd variable", rel, i+1)
+				continue
+			}
+			name := fields[len(fields)-1]
+			end := min(len(lines), i+10)
+			block := strings.Join(lines[i:end], "\n")
+			if !strings.Contains(block, name+".Env =") {
+				t.Errorf("%s:%d nested Go compilation does not set %s.Env", rel, i+1, name)
+				continue
+			}
+			if !strings.Contains(block, "CGO_ENABLED=0") && !strings.Contains(block, ".Env = goEnv(") {
+				t.Errorf("%s:%d nested Go compilation does not set CGO_ENABLED=0", rel, i+1)
+			}
+		}
+	})
+	if buildProducers == 0 || runProducers == 0 {
+		t.Fatalf("nested Go compilation scan was vacuous: build=%d run=%d", buildProducers, runProducers)
+	}
+
+	trackedBuild := string(mustReadFile(t, filepath.Join(repoRoot(t), "scripts", "checks", "tracked_build.go")))
+	if !strings.Contains(trackedBuild, `append(os.Environ(), "CGO_ENABLED=0")`) {
+		t.Error("tracked_build.go goEnv must set CGO_ENABLED=0 for every flavor")
+	}
+}
+
+func mustReadFile(t *testing.T, path string) []byte {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	return data
+}
+// TestStaticcheckFeatureMatrixMakeTargetRunsExecutable exercises the public
+// Make entry point and requires the checker to reach its real verdict path.
+//
+// VALIDATES: make ze-staticcheck-feature-matrix-check reaches Staticcheck and
+// reports either a checked-row verdict or an explicit unable-to-judge result.
+// PREVENTS: a missing target, a green no-op recipe, or the phase-one stub.
+func TestStaticcheckFeatureMatrixMakeTargetRunsExecutable(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "make", "--no-print-directory", "ze-staticcheck-feature-matrix-check")
+	cmd.Dir = repoRoot(t)
+	out, err := cmd.CombinedOutput()
+	if ctx.Err() != nil {
+		t.Fatalf("matrix checker did not return before the wiring timeout: %v", ctx.Err())
+	}
+	text := string(out)
+	if strings.Contains(text, "matrix judgment is unavailable") {
+		t.Fatalf("Make target still reached the phase-one stub:\n%s", out)
+	}
+	checked := strings.Contains(text, "staticcheck feature matrix: checked ")
+	unable := strings.Contains(text, "matrix could not be judged")
+	if !checked && !unable {
+		t.Fatalf("Make target did not reach the checker verdict path:\nerror: %v\n%s", err, out)
+	}
+	if checked && err != nil {
+		t.Fatalf("checker reported checked rows but Make failed: %v\n%s", err, out)
+	}
+	if !checked && err == nil {
+		t.Fatalf("checker reported no checked rows but Make passed:\n%s", out)
+	}
+}
+
 
 // TestMigratedDaemonCommandsLiveInOwners asserts the command-surface-ownership
 // daemon-RPC migrations stay migrated: each owner-specific command package

@@ -148,11 +148,14 @@ func main() {
 		fmt.Fprintf(os.Stderr, "ze-gok: setenv: %v\n", err)
 		os.Exit(1)
 	}
+	// gok spawns Go build and list subprocesses. Keep their target binaries
+	// CGO-free and their checked-in module cache user-writable.
+	// Mirrors appliance.runGokBuild (not imported: too heavy here).
+	if err := os.Setenv("CGO_ENABLED", "0"); err != nil {
+		fmt.Fprintf(os.Stderr, "ze-gok: setenv: %v\n", err)
+		os.Exit(1)
+	}
 
-	// gok spawns go build/list subprocesses that may download into the
-	// checked-in modcache; keep it user-writable (-modcacherw) or git
-	// cannot delete/overwrite it in later checkouts and rebases.
-	// Mirrors appliance.ensureModcacheRW (not imported: too heavy here).
 	if goflags := os.Getenv("GOFLAGS"); !strings.Contains(goflags, "-modcacherw") {
 		var tb textbuf.Buffer
 		if goflags != "" {

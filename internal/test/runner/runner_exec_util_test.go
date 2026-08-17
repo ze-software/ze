@@ -406,6 +406,30 @@ func TestChildEnvCarriesGotraceback(t *testing.T) {
 	}
 }
 
+// VALIDATES: childEnv is the functional .ci command boundary and forces every
+// child, including nested go test and go run commands, to compile without cgo.
+// PREVENTS: an inherited or test-supplied CGO_ENABLED=1 escaping into a child.
+func TestChildEnvDisablesCGO(t *testing.T) {
+	t.Setenv("CGO_ENABLED", "1")
+
+	env := childEnv("ZE_CHILD_ENV_PROBE=preserved", "CGO_ENABLED=1")
+	last := ""
+	for _, kv := range env {
+		if strings.HasPrefix(kv, "CGO_ENABLED=") {
+			last = kv
+		}
+	}
+	if last != "CGO_ENABLED=0" {
+		t.Fatalf("childEnv must force the final child value to zero, got %q", last)
+	}
+	if !slices.Contains(env, "ZE_CHILD_ENV_PROBE=preserved") {
+		t.Error("childEnv dropped a caller entry")
+	}
+	if got := os.Getenv("CGO_ENABLED"); got != "1" {
+		t.Fatalf("childEnv mutated the parent environment: CGO_ENABLED=%q", got)
+	}
+}
+
 // VALIDATES: no exec site in this package builds a child environment by hand.
 // PREVENTS: a launch path silently opting out of childEnv, which is exactly how
 // runOrchestrated -- the path every `cmd=`-driven .ci takes -- was missed.

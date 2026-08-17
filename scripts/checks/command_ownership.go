@@ -12,7 +12,7 @@
 //     remains under cmd/ze is in the no-owner allowlist with a stated reason
 //     (AC-4, AC-8). Adding a root centrally without allowlisting it fails.
 //
-// Usage:   go run scripts/checks/command_ownership.go [--json]
+// Usage:   CGO_ENABLED=0 go run scripts/checks/command_ownership.go [--json]
 // Called by: make ze-command-ownership-check
 //
 //go:build ignore

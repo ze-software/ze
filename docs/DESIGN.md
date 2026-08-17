@@ -858,7 +858,7 @@ expect=exit:code=0
 | Plugin behavior | `test/plugin/` | `ze-test bgp plugin` |
 | ExaBGP compat | `test/exabgp/` | `make ze-functional-exabgp-test` |
 | Integration | `test/integration/` | `make ze-functional-test` |
-| Unit tests | `internal/**/*_test.go` | `go test -race ./...` |
+| Unit tests | `internal/**/*_test.go` | `CGO_ENABLED=0 go test ./...` |
 | Fuzz tests | Various | `make ze-fuzz-test` |
 | Chaos tests | Various | `make ze-chaos-test` |
 

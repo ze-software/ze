@@ -9,6 +9,7 @@ package main
 
 import (
 	"context"
+	"os"
 	"os/exec"
 	"strings"
 	"testing"
@@ -22,6 +23,7 @@ func TestPortDefaultsGate(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), checkTimeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "go", "run", "scripts/checks/port_defaults.go")
+	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 	cmd.Dir = repoRoot(t)
 	out, err := cmd.CombinedOutput()
 	if !strings.Contains(string(out), "port-defaults: OK") {
@@ -37,6 +39,7 @@ func TestPortDefaultsSelftest(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), checkTimeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "go", "run", "scripts/checks/port_defaults.go", "--selftest")
+	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 	cmd.Dir = repoRoot(t)
 	out, err := cmd.CombinedOutput()
 	if err != nil {

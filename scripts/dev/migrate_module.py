@@ -35,7 +35,7 @@ What it REFUSES / reports (cannot be fixed by a pure mover):
     (.mk/.sh/.ci/.yang/docs/rfc) and .go comments. plan/ specs are skipped
     (owned by other work). These are reported for manual follow-up.
 
-This tool performs NO git operations. After --apply, verify with `go build ./...`,
+This tool performs NO git operations. After --apply, verify with `CGO_ENABLED=0 go build ./...`,
 diff `bin/ze --plugins`, run `scripts/dev/dep_audit.py --check`, then commit via a
 user-run script.
 
@@ -488,8 +488,12 @@ def run_goimports(root: str, module: str, plan: dict) -> None:
 
 
 def run_generator(root: str) -> int:
-    print(f"  running: go run {GENERATOR}")
-    return subprocess.run(["go", "run", GENERATOR], cwd=root, check=False).returncode
+    print(f"  running: CGO_ENABLED=0 go run {GENERATOR}")
+    env = os.environ.copy()
+    env["CGO_ENABLED"] = "0"
+    return subprocess.run(
+        ["go", "run", GENERATOR], cwd=root, check=False, env=env
+    ).returncode
 
 
 # --------------------------------------------------------------------------- #
@@ -655,7 +659,7 @@ def apply_plan(root: str, module: str, plan: dict) -> int:
         print("\nall.go registration set preserved (0 changed).")
 
     print(
-        "\nApplied. NEXT (manual): go build ./...  |  diff bin/ze --plugins  |  "
+        "\nApplied. NEXT (manual): CGO_ENABLED=0 go build ./...  |  diff bin/ze --plugins  |  "
         "scripts/dev/dep_audit.py --check  |  then a user-run commit script."
     )
     if rc != 0:

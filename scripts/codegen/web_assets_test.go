@@ -106,6 +106,7 @@ func derivedPages(t *testing.T) map[string][]string {
 
 	program := filepath.Join(repoRoot(t), "scripts", "codegen", "web_assets.go")
 	cmd := osexec.CommandContext(ctx, "go", "run", program, "--json")
+	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 	cmd.Dir = repoRoot(t)
 
 	var errOut bytes.Buffer

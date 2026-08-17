@@ -229,10 +229,10 @@ deliberate:
 ## Testing
 
 ```
-go test -race ./internal/component/bfd/...
-go test -fuzz=FuzzParseControl -fuzztime=10s ./internal/component/bfd/packet/
-go test -fuzz=FuzzParseAuth    -fuzztime=10s ./internal/component/bfd/packet/
-go test -run=^$ -bench=BenchmarkRoundTrip -benchmem ./internal/component/bfd/packet/
+CGO_ENABLED=0 go test ./internal/component/bfd/...
+CGO_ENABLED=0 go test -fuzz=FuzzParseControl -fuzztime=10s ./internal/component/bfd/packet/
+CGO_ENABLED=0 go test -fuzz=FuzzParseAuth    -fuzztime=10s ./internal/component/bfd/packet/
+CGO_ENABLED=0 go test -run=^$ -bench=BenchmarkRoundTrip -benchmem ./internal/component/bfd/packet/
 ```
 
 The engine test (`TestLoopbackHandshake`) creates two paired `Loop`

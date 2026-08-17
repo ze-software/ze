@@ -301,7 +301,7 @@ if [ -f feature-gates.txt ]; then
 	integration_tags="$integration_tags $(awk '$1 ~ /^ze_/ {print $1}' feature-gates.txt | sort -u | tr '\n' ' ')"
 fi
 run_check "integration tests (-tags integration)" \
-	go test -tags "$integration_tags" -count=1 -timeout 120s "${integration_pkgs[@]}"
+	env CGO_ENABLED=0 go test -tags "$integration_tags" -count=1 -timeout 120s "${integration_pkgs[@]}"
 
 banner "SUMMARY"
 if [ "$rc" -eq 0 ]; then

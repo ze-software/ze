@@ -3,6 +3,7 @@ package all
 import (
 	"bytes"
 	"context"
+	"os"
 	"os/exec"
 	"regexp"
 	"strconv"
@@ -45,6 +46,7 @@ func TestYANGGlueCurrent(t *testing.T) {
 		defer cancel()
 	}
 	cmd := exec.CommandContext(ctx, "go", "run", "../../../../scripts/codegen/yang_glue.go", "--check")
+	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("yang glue generated files are stale: %v\n%s\nRun `make generate` and commit the result.", err, out)

@@ -6,7 +6,7 @@
 // It imports the real plugin/RPC registrations and YANG command tree, so the
 // output is always accurate.
 //
-// Usage: go run scripts/inventory/commands.go [--json]
+// Usage: CGO_ENABLED=0 go run scripts/inventory/commands.go [--json]
 // Called by: make ze-command-list
 //
 //go:build ignore

@@ -48,7 +48,7 @@ IPv4/IPv6 unicast and multicast are built into the engine. See [Feature Inventor
 Thirty-six subsystems compile out behind `ze_<feature>` build tags, the BGP engine among them. If you leave a tag off, that code is not in the binary at all, which keeps the image small and the attack surface with it, and a config which selects a subsystem you compiled out is rejected as unknown rather than silently ignored. `make ze` builds everything and `make ze-stripped-build` keeps only the SSH management plane. The list of gates is declared once, in `feature-gates.txt`, and every consumer derives from it.
 
 ```bash
-go build -tags 'ze_core ze_ssh ze_ospf' ./cmd/ze   # an OSPF-only router, no BGP
+CGO_ENABLED=0 go build -tags 'ze_core ze_ssh ze_ospf' ./cmd/ze   # an OSPF-only router, no BGP
 ```
 
 That build is 39 MB where the full binary is 83 MB, and none of the 1,201 BGP reactor symbols are linked into it.

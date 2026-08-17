@@ -273,10 +273,10 @@ func ensureModcacheRW() error {
 
 // runGokInProcess runs the gokrazy builder (gok) embedded in-process rather
 // than shelling out to the ze-gok binary. gok still spawns its own
-// `go build`/`go list` subprocesses for the target packages, and those resolve
-// modules from the repo-local gokrazy/modcache, so GOMODCACHE is pointed there
-// (gok hardcodes -mod=mod, so it always reads the module cache). Must run from
-// the ze source tree root, where gokrazy/{ze,modcache} live.
+// `go build`/`go list` subprocesses for the target packages. runGokBuild sets
+// their target architecture and CGO-free environment before this function.
+// The subprocesses resolve modules from the repo-local gokrazy/modcache, so
+// GOMODCACHE is pointed there. Must run from the ze source tree root.
 func runGokInProcess(args []string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), buildTimeout)
 	defer cancel()
@@ -341,6 +341,19 @@ func runGokBuild(cfg *applianceConfig, imgPath string) int {
 			return
 		}
 		_ = os.Unsetenv("GOARCH")
+	}()
+
+	oldCGO, hadCGO := os.LookupEnv("CGO_ENABLED")
+	if err := os.Setenv("CGO_ENABLED", "0"); err != nil {
+		fmt.Fprintf(os.Stderr, "error: set CGO_ENABLED: %v\n", err)
+		return exitError
+	}
+	defer func() {
+		if hadCGO {
+			_ = os.Setenv("CGO_ENABLED", oldCGO)
+			return
+		}
+		_ = os.Unsetenv("CGO_ENABLED")
 	}()
 
 	if err := gokBuildFn([]string{

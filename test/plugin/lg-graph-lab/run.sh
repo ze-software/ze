@@ -17,7 +17,7 @@ BGP_PORT=1790
 # Build ze if needed
 if [[ ! -x "$REPO_ROOT/bin/ze" ]]; then
     echo "Building ze..."
-    (cd "$REPO_ROOT" && go build -tags 'ze_core ze_distro' -o bin/ze ./cmd/ze)
+    (cd "$REPO_ROOT" && CGO_ENABLED=0 go build -tags 'ze_core ze_distro' -o bin/ze ./cmd/ze)
 fi
 
 # Prepare working directory with config and plugin

@@ -14,7 +14,7 @@
 // resolver/kernel owner itself, a post-resolution os-name lookup, a one-shot
 // command with no iface backend loaded, or a kernel-sourced device name.
 //
-// Usage:     go run scripts/checks/iface_resolution.go [--json]
+// Usage:     CGO_ENABLED=0 go run scripts/checks/iface_resolution.go [--json]
 // Called by: make ze-iface-resolution-check (wired into ze-precommit-verify) and
 //            scripts/checks/iface_resolution_test.go
 //

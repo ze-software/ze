@@ -711,7 +711,7 @@ apply, the stall-timeout download, the partition-node wait, and the recovery
 console / fatal policy):
 
 ```bash
-go test ./internal/install/disk/...
+CGO_ENABLED=0 go test ./internal/install/disk/...
 ```
 
 End-to-end boot and install are covered by the QEMU evidence harness, which

@@ -963,9 +963,9 @@ def verify_status(repo: Path) -> tuple[str, str]:
 # scripts/status/verify_run.go stagesForMode). Unlike the unit/functional/exabgp
 # TEST stages, these NEVER fail for flaky or environmental reasons: a red means
 # the tree is structurally broken -- a module-tier misplacement, a lint or vet
-# violation, a broken plugin boundary, an unresolved iface, a stale generated
-# file, a stale wiring index, or a HEAD that does not compile
-# (ze-tracked-build-check). They are therefore NOT eligible to be parked
+# violation, a broken plugin boundary, an unresolved iface, a failed feature-tag
+# type-check, a stale generated file, a stale wiring index, or a HEAD that does
+# not compile (ze-tracked-build-check). They are therefore NOT eligible to be parked
 # in plan/known-failures/
 # or waved through with --unverified. Every name here MUST be a stage that
 # stagesForMode actually emits, or it matches nothing and gates nothing;
@@ -986,6 +986,7 @@ STRUCTURAL_GATES = frozenset(
         "ze-generated-files-check",
         "ze-wiring-docs-check",
         "ze-evidence-vet",
+        "ze-staticcheck-feature-matrix-check",
         TRACKED_BUILD_GATE,
     }
 )
@@ -2092,6 +2093,8 @@ def doc_drift_warnings(repo: Path) -> list[str]:
     if not (repo / "scripts" / "docvalid" / "doc_drift.go").exists():
         return []
     tags = " ".join(["ze_core", *feature_gate_tags(repo)])
+    env = os.environ.copy()
+    env["CGO_ENABLED"] = "0"
     try:
         res = subprocess.run(
             ("go", "run", "-tags", tags, "scripts/docvalid/doc_drift.go"),
@@ -2099,6 +2102,7 @@ def doc_drift_warnings(repo: Path) -> list[str]:
             capture_output=True,
             text=True,
             timeout=120,
+            env=env,
         )
     except Exception:
         return []  # compile error / timeout / no toolchain -- never block

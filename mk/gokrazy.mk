@@ -93,7 +93,7 @@ GOKRAZY_QEMU_AARCH64_CPU ?= max
 bin/gok:
 	@echo "Building ze-gok from vendored source..."
 	@mkdir -p bin
-	go build -mod=vendor -o bin/gok ./cmd/ze-gok
+	CGO_ENABLED=0 go build -mod=vendor -o bin/gok ./cmd/ze-gok
 
 GOMODCACHE_LOCAL := $(CURDIR)/$(GOKRAZY_DIR)/modcache
 
@@ -171,7 +171,7 @@ ze-gokrazy-build: ze bin/gok ze-gokrazy-gosum-check
 	@# out-of-tree kernel for THIS build only; leaving it unset uses the pin.
 	@# `env` is required: a dotted name is not a valid shell identifier, so the
 	@# `VAR=val cmd` prefix form would fail with "not a valid identifier".
-	GOOS=linux GOARCH=$(GOKRAZY_ARCH) env 'ze.gok.kernel-package=$(KERNEL_PKG)' \
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(GOKRAZY_ARCH) env 'ze.gok.kernel-package=$(KERNEL_PKG)' \
 		bin/gok --parent_dir $(GOKRAZY_DIR) -i $(GOKRAZY_INSTANCE) overwrite \
 		--full $(GOKRAZY_IMG) \
 		--target_storage_bytes $(GOKRAZY_IMG_SIZE)
@@ -279,7 +279,7 @@ KERNEL_PINNED_BACKUP  := $(GOKRAZY_DIR)/modcache/.ze-pinned-kernel
 # so the make path can never drift from `ze appliance kernel`.
 ze-host-build:
 	@echo "--- Building host ze binary (ze-host: -tags ze_core,ze_setup, NO GOARCH override) ---"
-	@$(GO) build -tags 'ze_core ze_setup' -o "$(CURDIR)/ze-host" ./cmd/ze
+	@CGO_ENABLED=0 $(GO) build -tags 'ze_core ze_setup' -o "$(CURDIR)/ze-host" ./cmd/ze
 
 # ze-kernel-vmlinuz-stage routes the runtime kernel through the durable cache (~/.cache/ze,
 # Option C):

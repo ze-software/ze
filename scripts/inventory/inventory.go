@@ -6,7 +6,7 @@
 // It imports the real plugin registry and YANG module list, so the output
 // is always accurate — no regex parsing of source files for metadata.
 //
-// Usage: go run scripts/inventory.go [--json]
+// Usage: CGO_ENABLED=0 go run scripts/inventory.go [--json]
 // Called by: make ze-inventory
 //
 //go:build ignore

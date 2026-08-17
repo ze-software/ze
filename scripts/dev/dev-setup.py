@@ -111,6 +111,11 @@ REQUIRED_TOOLS: list[Tool] = [
         go_install="github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.10.1",
     ),
     Tool(
+        name="staticcheck",
+        probe=["staticcheck"],
+        go_install="honnef.co/go/tools/cmd/staticcheck@2026.1",
+    ),
+    Tool(
         name="goimports",
         probe=["goimports"],
         go_install="golang.org/x/tools/cmd/goimports@latest",
@@ -887,11 +892,14 @@ def install_tool(tool: Tool, pkg_mgr: str) -> bool:
         if not shutil.which("go"):
             print(f"  SKIP {tool.name}: go not available yet")
             return False
-        print(f"  go install {tool.go_install}")
+        print(f"  CGO_ENABLED=0 go install {tool.go_install}")
+        env = os.environ.copy()
+        env["CGO_ENABLED"] = "0"
         r = subprocess.run(
             ["go", "install", tool.go_install],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
+            env=env,
         )
         if r.returncode != 0:
             print(f"  FAIL {tool.name}: {r.stdout.decode().strip()}")

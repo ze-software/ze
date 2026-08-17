@@ -6,7 +6,7 @@
 // Source of truth: third_party/web/. See third_party/web/MANIFEST.md.
 // The read-only twin that gates the result is scripts/vendor/check_web.go.
 //
-// Usage: go run scripts/vendor/sync_web.go [--root DIR]
+// Usage: CGO_ENABLED=0 go run scripts/vendor/sync_web.go [--root DIR]
 //
 // Replaces the previous bash implementation (scripts/sync-vendor-web.sh).
 

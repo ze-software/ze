@@ -24,6 +24,7 @@ package hub
 
 import (
 	"context"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -45,6 +46,7 @@ func TestBuildTag_Gate12_AbsentBinaryDropsSymbols(t *testing.T) {
 	bin := filepath.Join(t.TempDir(), "ze-core")
 	cmd := exec.CommandContext(ctx, "go", "build", "-tags", "ze_core", "-o", bin, "./cmd/ze")
 	cmd.Dir = repoRoot
+	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("go build -tags ze_core failed: %v\n%s", err, out)
 	}
@@ -131,6 +133,7 @@ func TestBuildTag_Gate12_AbsentBinaryDropsSymbols(t *testing.T) {
 	binBGP := filepath.Join(t.TempDir(), "ze-bgp-nobfd")
 	cmdBGP := exec.CommandContext(ctx, "go", "build", "-tags", "ze_core,ze_bgp", "-o", binBGP, "./cmd/ze")
 	cmdBGP.Dir = repoRoot
+	cmdBGP.Env = append(os.Environ(), "CGO_ENABLED=0")
 	if out, err := cmdBGP.CombinedOutput(); err != nil {
 		t.Fatalf("go build -tags ze_core,ze_bgp failed: %v\n%s", err, out)
 	}
@@ -168,6 +171,7 @@ func TestBuildTag_Gate12_AbsentBinaryDropsSymbols(t *testing.T) {
 		binM := filepath.Join(t.TempDir(), m.name)
 		cmdM := exec.CommandContext(ctx, "go", "build", "-tags", m.tags, "-o", binM, "./cmd/ze")
 		cmdM.Dir = repoRoot
+		cmdM.Env = append(os.Environ(), "CGO_ENABLED=0")
 		if out, err := cmdM.CombinedOutput(); err != nil {
 			t.Fatalf("go build -tags %s failed: %v\n%s", m.tags, err, out)
 		}

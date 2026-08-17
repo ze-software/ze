@@ -156,10 +156,14 @@ func zeRepoRootEnv(baseDir string) string {
 //
 // Cost is zero until something crashes: the variable only changes what the Go
 // runtime prints on the way down.
+//
+// Every command launched from a functional .ci file receives CGO_ENABLED=0
+// here. Appending it last prevents an inherited or test-supplied value from
+// enabling cgo in nested Go compilations.
 func childEnv(extra ...string) []string {
-	env := os.Environ()
-	env = append(env, "GOTRACEBACK=all")
-	return append(env, extra...)
+	env := append(os.Environ(), "GOTRACEBACK=all")
+	env = append(env, extra...)
+	return append(env, "CGO_ENABLED=0")
 }
 
 // testBudgetEnv publishes the deadline a child actually races, so the child can

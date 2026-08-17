@@ -247,6 +247,7 @@ def ensure_ze(root: Path) -> Path:
     ze = bindir / "ze-l2tp-ppp"
 
     env = os.environ.copy()
+    env["CGO_ENABLED"] = "0"
     env.setdefault("GOCACHE", str(root / "tmp" / "go-cache"))
     build = run(
         ["go", "build", "-tags", "ze_core,ze_distro", "-o", str(ze), "./cmd/ze"],

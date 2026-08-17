@@ -4,7 +4,7 @@
 // contains .yang files. The generated Go glue wires YANG modules into the
 // config/yang registry via init().
 //
-// Usage: go run scripts/codegen/yang_glue.go [--check]
+// Usage: CGO_ENABLED=0 go run scripts/codegen/yang_glue.go [--check]
 //
 //go:build ignore
 

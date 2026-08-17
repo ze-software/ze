@@ -283,6 +283,36 @@ func TestVerifyWorkflowIsTheFastMergeGate(t *testing.T) {
 	}
 }
 
+// TestVerifyInstallsPinnedStaticcheck
+//
+// VALIDATES: CI, the agent workstation, and isolated verification evidence
+// install the same cgo-free Staticcheck release that supports the repository Go version.
+// PREVENTS: duplicate, unpinned, or native-CGO installs making the matrix verdict
+// depend on which verification bootstrap prepared the host.
+func TestVerifyInstallsPinnedStaticcheck(t *testing.T) {
+	const module = "honnef.co/go/tools/cmd/staticcheck"
+	const nonSudoInstall = "CGO_ENABLED=0 go install " + module + "@2026.1"
+	for _, tc := range []struct {
+		path    string
+		install string
+	}{
+		{path: ".github/workflows/verify.yml", install: nonSudoInstall},
+		{
+			path:    "scripts/dev/setup_claude_server.sh",
+			install: `sudo -u "$TARGET_USER" env CGO_ENABLED=0 /usr/local/go/bin/go install ` + module + "@2026.1",
+		},
+		{path: "scripts/evidence/effective-verify.sh", install: nonSudoInstall},
+	} {
+		src := readFileOrFail(t, filepath.Join(repoRoot(t), tc.path))
+		if strings.Count(src, tc.install) != 1 {
+			t.Errorf("%s must contain exactly one %q", tc.path, tc.install)
+		}
+		if strings.Count(src, module) != 1 {
+			t.Errorf("%s must contain exactly one pinned Staticcheck install", tc.path)
+		}
+	}
+}
+
 // TestVerifyWorkflowProvisionsTheLoopbackAddress
 //
 // VALIDATES: verify.yml adds fd00::2 to lo before it runs `make ze-precommit-verify`.

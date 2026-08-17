@@ -1552,17 +1552,30 @@ func TestGovulncheckTargetUsesLinuxAMD64Analysis(t *testing.T) {
 	}
 }
 
-// TestCodeQLBuildUsesShippedTags pins that CodeQL analyses the feature-gated
-// surface, not a bare build (spec-fixit-supply-chain-hardening AC-2).
+// TestCodeQLBuildUsesShippedTags pins that CodeQL analyzes the feature-gated
+// surface with CGO disabled, not a bare or host-dependent build.
 //
 // VALIDATES: the manual Go build step in .github/workflows/codeql.yml compiles the
-// SHIPPED -tags combos (ze_core/ze_distro/ze_appliance/ze_setup), so code behind
-// //go:build ze_core / ze_appliance enters the CodeQL database, and is NOT a bare
-// `go build ./...` (which compiles none of it).
-// PREVENTS: reverting to a tagless build that leaves most of cmd/ze and the whole
-// appliance -- the largest attack surface -- unanalysed while the job stays green.
+// shipped tag combinations (ze_core/ze_distro/ze_appliance/ze_setup) with
+// CGO_ENABLED=0. Thus, code behind ze_core and ze_appliance enters the CodeQL
+// database without a host C toolchain.
+// PREVENTS: a tagless or host-dependent build excluding the largest attack surface.
 func TestCodeQLBuildUsesShippedTags(t *testing.T) {
 	body := stripYAMLComments(readFile(t, repoRootFromScriptsStatus(), ".github/workflows/codeql.yml"))
+	var buildLines []string
+	for line := range strings.SplitSeq(body, "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.Contains(line, "go build ") {
+			continue
+		}
+		buildLines = append(buildLines, line)
+		if !strings.HasPrefix(line, "CGO_ENABLED=0 go build ") {
+			t.Errorf("codeql.yml Go build must set CGO_ENABLED=0: %s", line)
+		}
+	}
+	if len(buildLines) != 3 {
+		t.Fatalf("codeql.yml must contain exactly three shipped Go build commands, got %d: %v", len(buildLines), buildLines)
+	}
 
 	if !strings.Contains(body, "-tags") {
 		t.Fatalf("codeql.yml build step must pass -tags (the shipped feature set); body (comments stripped):\n%s", body)

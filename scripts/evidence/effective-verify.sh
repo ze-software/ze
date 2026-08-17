@@ -45,7 +45,8 @@ if ! command -v uv >/dev/null 2>&1; then
     curl -LsSf https://astral.sh/uv/install.sh | sh
 fi
 export PATH="/go/bin:/usr/local/go/bin:$HOME/.local/bin:$PATH"
-go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.10.1
+CGO_ENABLED=0 go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.10.1
+CGO_ENABLED=0 go install honnef.co/go/tools/cmd/staticcheck@2026.1
 
 git config --global --add safe.directory /host
 git clone --no-local /host /work/src

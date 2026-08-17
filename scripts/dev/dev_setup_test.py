@@ -506,6 +506,23 @@ class TestSmokeCheck(unittest.TestCase):
         self.assertIn("[present]", output)
 
 
+class TestDevSetupRequiresPinnedStaticcheck(unittest.TestCase):
+    """The feature-tag matrix needs standalone Staticcheck, not the lint wrapper."""
+
+    def test_required_staticcheck_pin(self):
+        tools = [
+            tool
+            for tool in dev_setup.REQUIRED_TOOLS
+            if tool.name == "staticcheck"
+        ]
+        self.assertEqual(len(tools), 1, "staticcheck must occur once in REQUIRED_TOOLS")
+        self.assertEqual(tools[0].probe, ["staticcheck"])
+        self.assertEqual(
+            tools[0].go_install,
+            "honnef.co/go/tools/cmd/staticcheck@2026.1",
+        )
+
+
 class TestGoplsIsRequired(unittest.TestCase):
     """gopls backs the agent LSP tool, which .claude/rules/session-start.md
     makes a BLOCKING first action. The gate there lifts on the query text, so
@@ -539,14 +556,22 @@ class TestGoplsIsRequired(unittest.TestCase):
                 mock.patch.object(
                     dev_setup.shutil, "which", return_value="/usr/bin/go"
                 ),
+                mock.patch.dict(
+                    dev_setup.os.environ,
+                    {"ZE_SETUP_TEST_ENV": "preserved", "CGO_ENABLED": "1"},
+                ),
                 mock.patch.object(dev_setup.subprocess, "run") as run,
             ):
                 run.return_value = subprocess.CompletedProcess([], 0, b"", b"")
                 self.assertTrue(dev_setup.install_tool(tool, pkg_mgr))
+                self.assertEqual(dev_setup.os.environ["CGO_ENABLED"], "1")
             self.assertEqual(
                 run.call_args[0][0],
                 ["go", "install", "golang.org/x/tools/gopls@latest"],
             )
+            child_env = run.call_args.kwargs["env"]
+            self.assertEqual(child_env["ZE_SETUP_TEST_ENV"], "preserved")
+            self.assertEqual(child_env["CGO_ENABLED"], "0")
 
 
 def _completed(returncode: int, stdout: bytes = b"", stderr: bytes = b""):

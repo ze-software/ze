@@ -7,7 +7,7 @@
 // The gate needs no network. `--updates` adds an npm registry query that
 // reports newer releases, and that query is the only part which does.
 //
-// Usage: go run scripts/vendor/check_web.go [--root DIR] [--updates]
+// Usage: CGO_ENABLED=0 go run scripts/vendor/check_web.go [--root DIR] [--updates]
 //
 // Run by `make ze-vendor-web-check`, which is a stage of `make ze-precommit-verify` and a
 // prerequisite of ze-generated-files-check. `make ze-vendor-web-update-report`

@@ -486,6 +486,8 @@ def collect_inert(root: Path) -> tuple[Metric, Metric, dict]:
     an enforced contract, not a new problem, and colouring it red would make the
     page cry wolf on every run until the debt is fully paid.
     """
+    env = os.environ.copy()
+    env["CGO_ENABLED"] = "0"
     proc = subprocess.run(
         ["go", "run", "scripts/checks/inert_tests.go", "--json", "--tracked-only"],
         cwd=root,
@@ -493,6 +495,7 @@ def collect_inert(root: Path) -> tuple[Metric, Metric, dict]:
         text=True,
         check=False,
         timeout=SUBPROCESS_TIMEOUT,
+        env=env,
     )
     if proc.returncode != 0:
         raise CollectError(f"inert_tests.go --json failed: {proc.stderr.strip()}")

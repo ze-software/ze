@@ -31,7 +31,7 @@
 // entries are added with a stated reason for a legitimate exemption (e.g.
 // the owning package itself calling its own function).
 //
-// Usage:     go run scripts/checks/plugin_process_boundary.go [--json|--selftest]
+// Usage:     CGO_ENABLED=0 go run scripts/checks/plugin_process_boundary.go [--json|--selftest]
 // Called by: make ze-plugin-boundary-check (wired into ze-precommit-verify via
 //            scripts/status/verify_run.go's stagesForMode) and
 //            scripts/checks/plugin_process_boundary_test.go

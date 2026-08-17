@@ -26,7 +26,7 @@
 // a string it could not read would be the same blind spot in a new place.
 // Genuinely dynamic emitters carry an explicit marker stating a reason.
 //
-// Usage:     go run scripts/checks/ci_dispatch_commands.go [--json|--selftest]
+// Usage:     CGO_ENABLED=0 go run scripts/checks/ci_dispatch_commands.go [--json|--selftest]
 // Called by: make ze-ci-dispatch-check (routed onto the verify path by
 //            scripts/dev/verify_wiring_docs.py when a .ci/.py/.go emitter or a
 //            command YANG file changes) and

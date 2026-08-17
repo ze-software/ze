@@ -19,7 +19,7 @@
 // any commit-ish with no extra bookkeeping, so `--rev=<sha>` (used to reproduce
 // a past break) is the same code path as the default.
 //
-// Usage:   go run scripts/checks/tracked_build.go [--rev=REV] [--repo=DIR]
+// Usage:   CGO_ENABLED=0 go run scripts/checks/tracked_build.go [--rev=REV] [--repo=DIR]
 //                                                 [--keep] [--json] [--matrix]
 //                                                 [--selftest] [--package-floor=N] [--deadline=D]
 // Called by: make ze-tracked-build-check, and `make ze-precommit-verify` via
@@ -193,7 +193,7 @@ type report struct {
 	// PackageFloor is published so a green run pasted as evidence carries the
 	// threshold it was judged against. `--package-floor` can lower it, and a
 	// lowered-floor green would otherwise be indistinguishable from a real one.
-	PackageFloor int `json:"package_floor"`
+	PackageFloor int `json:"package-floor"`
 	// Incomplete means the run stopped before judging every flavor, so OK is a
 	// statement about the flavors listed and about nothing else.
 	Incomplete bool `json:"incomplete,omitempty"`
@@ -575,13 +575,12 @@ func setBuildCache(repo string) error {
 	return nil
 }
 
-// goEnv returns the environment for one flavor's toolchain calls.
+// goEnv returns the explicit CGO-free environment for one flavor's toolchain
+// calls. A cross-target flavor also sets GOOS.
 func goEnv(ts tagSet) []string {
-	env := os.Environ()
+	env := append(os.Environ(), "CGO_ENABLED=0")
 	if ts.GOOS != "" {
 		env = append(env, strings.Join([]string{"GOOS", ts.GOOS}, "="))
-		// A cross-target build must not need a C toolchain.
-		env = append(env, "CGO_ENABLED=0")
 	}
 	return env
 }

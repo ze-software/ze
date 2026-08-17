@@ -73,15 +73,18 @@ sudo -u "$TARGET_USER" mkdir -p "${GOPATH}/bin"
 if command -v golangci-lint &>/dev/null; then
     echo "golangci-lint already installed: $(golangci-lint --version 2>/dev/null | head -1)"
 else
-    go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.10.1
+    CGO_ENABLED=0 go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.10.1
     chown -R "$TARGET_USER:$TARGET_USER" "${GOPATH}"
     echo "golangci-lint installed: $(golangci-lint --version 2>/dev/null | head -1)"
 fi
+sudo -u "$TARGET_USER" env CGO_ENABLED=0 /usr/local/go/bin/go install honnef.co/go/tools/cmd/staticcheck@2026.1
+echo "staticcheck installed: $(staticcheck -version 2>/dev/null)"
+
 
 if command -v goimports &>/dev/null; then
     echo "goimports already installed"
 else
-    sudo -u "$TARGET_USER" /usr/local/go/bin/go install golang.org/x/tools/cmd/goimports@latest
+    sudo -u "$TARGET_USER" env CGO_ENABLED=0 /usr/local/go/bin/go install golang.org/x/tools/cmd/goimports@latest
     echo "goimports installed"
 fi
 
@@ -216,6 +219,7 @@ echo -n "npm:      "; npm --version 2>/dev/null || echo "MISSING"
 echo -n "Claude:   "; claude --version 2>/dev/null || echo "MISSING"
 echo -n "Make:     "; make --version 2>/dev/null | head -1 || echo "MISSING"
 echo -n "Lint:     "; golangci-lint --version 2>/dev/null | head -1 || echo "MISSING"
+echo -n "Types:    "; staticcheck -version 2>/dev/null || echo "MISSING"
 echo -n "Imports:  "; command -v goimports &>/dev/null && echo "$(goimports --help 2>&1 | head -1)" || echo "MISSING"
 echo -n "Git:      "; git --version 2>/dev/null || echo "MISSING"
 echo -n "Mosh:     "; mosh-server --version 2>/dev/null | head -1 || echo "MISSING"

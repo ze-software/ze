@@ -11,7 +11,7 @@
 // 5. Attempts PPPoL2TP socket connect
 //
 // Usage (inside QEMU VM):
-//   go run -buildvcs=false scripts/evidence/l2tp-pppox-diag/main.go
+//   CGO_ENABLED=0 go run -buildvcs=false scripts/evidence/l2tp-pppox-diag/main.go
 
 package main
 

@@ -2,4 +2,4 @@
 
 package all
 
-//go:generate go run ../../../../scripts/codegen/plugin_imports.go
+//go:generate env CGO_ENABLED=0 go run ../../../../scripts/codegen/plugin_imports.go

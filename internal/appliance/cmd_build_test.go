@@ -85,12 +85,14 @@ func TestBuildUsesGokBuildFn(t *testing.T) {
 	var called bool
 	var gotArgs []string
 	var gotArch string
+	var gotCGO string
 	var pinsVisibleToGok bool
 	old := gokBuildFn
 	gokBuildFn = func(args []string) error {
 		called = true
 		gotArgs = args
 		gotArch = os.Getenv("GOARCH")
+		gotCGO = os.Getenv("CGO_ENABLED")
 		// runGokBuild defers cleanup of the prepared dir, so what gok can see must
 		// be observed HERE, not after the call returns.
 		if len(args) > 1 {
@@ -108,6 +110,7 @@ func TestBuildUsesGokBuildFn(t *testing.T) {
 	defer func() { runExternalFn = oldExt }()
 
 	t.Setenv("GOARCH", archAMD64)
+	t.Setenv("CGO_ENABLED", "1")
 
 	// Every build now runs from a PREPARED instance under the project tmp/, so the
 	// test needs a checked-in gokrazy tree to prepare from (AC-1).
@@ -162,6 +165,9 @@ func TestBuildUsesGokBuildFn(t *testing.T) {
 	}
 	if gotArch != archARM64 {
 		t.Fatalf("GOARCH = %q, want %q", gotArch, archARM64)
+	}
+	if gotCGO != "0" {
+		t.Fatalf("CGO_ENABLED = %q, want 0", gotCGO)
 	}
 }
 
@@ -864,3 +870,4 @@ func captureStderr(t *testing.T, fn func()) string {
 	}
 	return string(data)
 }
+

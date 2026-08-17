@@ -31,6 +31,7 @@ func TestNoDeadDispatchCommands(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), checkTimeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "go", "run", "-tags", featureTags(t), "scripts/checks/ci_dispatch_commands.go")
+	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 	cmd.Dir = repoRoot(t)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -54,6 +55,7 @@ func TestCIDispatchCommandsSelftest(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), checkTimeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "go", "run", "-tags", featureTags(t), "scripts/checks/ci_dispatch_commands.go", "--selftest")
+	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 	cmd.Dir = repoRoot(t)
 	out, err := cmd.CombinedOutput()
 	if err != nil {

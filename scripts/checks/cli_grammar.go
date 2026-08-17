@@ -11,7 +11,7 @@
 // guard (TestRuntimeBuiltinSurfaceGrammar / TestRegistrationRejectsBadGrammar in
 // internal/component/plugin/server) is Feeder 3.
 //
-// Usage:   go run scripts/checks/cli_grammar.go [--json]
+// Usage:   CGO_ENABLED=0 go run scripts/checks/cli_grammar.go [--json]
 // Called by: make ze-cli-grammar-check
 //
 //go:build ignore

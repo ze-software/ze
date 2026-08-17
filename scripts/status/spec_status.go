@@ -7,7 +7,7 @@
 // detects the spec set from the filename, sorts by status order then by
 // updated date descending, and prints either a fixed-width table or JSON.
 //
-// Usage: go run scripts/status/spec_status.go [--json]
+// Usage: CGO_ENABLED=0 go run scripts/status/spec_status.go [--json]
 //
 // Replaces the previous bash implementation (scripts/spec-status.sh).
 

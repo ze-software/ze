@@ -249,7 +249,7 @@ Nothing in the incubator is gated, so promote early rather than polishing for
 days against no accept-only check, no sleep ratchet, and no frame-length
 validation. Full contract and workflow: `test/draft/README.md`, or the
 `/ze-test` skill.
-<!-- source: internal/test/runner/draft_dir.go -- SuiteDir, IsDraftPath, DraftDirName -->
+<!-- source: internal/test/runner/draft_dir.go -- SuiteDir, isDraftPath, DraftDirName -->
 <!-- source: internal/test/runner/draft_dir_test.go -- TestDraftDirIsInvisibleToRepoGates ratchet -->
 
 ### Changing a live test that already passes
@@ -335,7 +335,9 @@ component-group targets to test only the area you changed:
 | `make ze-unit-rest-test` | Everything not in a named group (~70 pkgs) | ~1:00 |
 | `make ze-unit-test` | All packages with `-race` | ~5 min |
 
-All groups run with `-race`.
+All groups run with the test-only `CGO_ENABLED=1 go test -race` path on Linux
+and Darwin. These race-built test executables never ship or serve as
+release/build evidence.
 
 ### Property-based tests (stdlib `testing/quick`)
 
@@ -407,7 +409,7 @@ is absent from the output. The machine-dependent timing regression check
 (convergence / throughput / p99) is NOT in this gate: it runs scheduled-only via
 `.github/workflows/perf-nightly.yml` (`bin/ze-perf track --check`, scheduled), and
 the heavy Docker throughput/p99 DUT matrix stays in `make ze-perf-evidence-update-check`.
-<!-- source: internal/perf/allocgate.go -- AllocCeilings, CheckAllocCeilings -->
+<!-- source: internal/perf/allocgate.go -- AllocCeilings, checkAllocCeilings -->
 <!-- source: mk/alloc-gate.mk -- ze-alloc-check target -->
 <!-- source: scripts/status/verify_run.go -- stagesForMode ze-precommit-verify includes ze-alloc-check -->
 <!-- source: .github/workflows/perf-nightly.yml -- scheduled Docker-free perf --check -->
@@ -630,7 +632,7 @@ single test  →  single package  →  component group  →  ze-precommit-verify
 ```
 
 ```bash
-go test -race -run TestMyThing ./internal/component/config/system/...  # single test
+CGO_ENABLED=0 go test -run TestMyThing ./internal/component/config/system/...  # single test
 make ze-unit-config-test                                                     # component group
 make ze-precommit-verify                                                          # pre-commit gate
 ```

@@ -140,14 +140,14 @@ func NewValidationCache(size int) (*ValidationCache, error) {
 
 ```bash
 # Step 1: Establish baseline
-go test -bench=. -benchmem ./internal/bgp/message/
+CGO_ENABLED=0 go test -bench=. -benchmem ./internal/bgp/message/
 
 # Step 2: Profile CPU
-go test -cpuprofile=cpu.prof ./internal/bgp/message/
+CGO_ENABLED=0 go test -cpuprofile=cpu.prof ./internal/bgp/message/
 go tool pprof -http=:8080 cpu.prof
 
 # Step 3: Profile memory
-go test -memprofile=mem.prof ./internal/bgp/message/
+CGO_ENABLED=0 go test -memprofile=mem.prof ./internal/bgp/message/
 go tool pprof -http=:8081 mem.prof
 
 # Step 4: Analyze real traffic
@@ -228,14 +228,14 @@ func (c *ValidationCache) makeKey(pathAttrs []byte, hasNLRI, isIBGP, asn4 bool) 
 
 ```bash
 # 1. Baseline benchmarks
-go test -bench=BenchmarkValidateUpdateRFC7606 -benchmem
+CGO_ENABLED=0 go test -bench=BenchmarkValidateUpdateRFC7606 -benchmem
 
 # 2. CPU profiling
-go test -cpuprofile=cpu.prof ./internal/bgp/message/
+CGO_ENABLED=0 go test -cpuprofile=cpu.prof ./internal/bgp/message/
 go tool pprof -http=:8080 cpu.prof
 
 # 3. Memory profiling
-go test -memprofile=mem.prof ./internal/bgp/message/
+CGO_ENABLED=0 go test -memprofile=mem.prof ./internal/bgp/message/
 go tool pprof -http=:8081 mem.prof
 
 # 4. Real traffic analysis

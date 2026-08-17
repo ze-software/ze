@@ -1,23 +1,23 @@
-// Design: ai/rules/plugins.md -- the three static consumers are GENERATED, not hand-maintained
+// Design: ai/rules/plugins.md -- static consumers are GENERATED, not hand-maintained
 //
 // feature_tags regenerates the build-tag lists that DERIVE from feature-gates.txt
 // but live inside files a program cannot self-derive at runtime:
 //
 //   - .golangci.yml           `build-tags`   = ze_core + every gate tag (manifest order)
 //   - gokrazy/ze/config.json  `GoBuildTags`  = ze_core, ze_appliance + every gate tag (sorted)
-//   - docs/guide/quickstart.md `go install`  = ze_core, ze_distro + every gate tag (sorted)
-//   - .github/workflows/codeql.yml `go build` combos = the distro and appliance shipped tag sets
+//   - docs/guide/quickstart.md `CGO_ENABLED=0 go install` = ze_core, ze_distro + every gate tag (sorted)
+//   - .github/workflows/codeql.yml `CGO_ENABLED=0 go build` combos = the distro and appliance shipped tag sets
 //
 // feature-gates.txt is the single source of truth (ai/rules/plugins.md).
 // The Makefile ZE_FEATURES, the test runner, the plugin_imports generator, and
-// dep_audit all already derive from the manifest; these three static files could not,
+// dep_audit all already derive from the manifest; these four static files could not,
 // so they were hand-maintained + drift-gated. This generator makes them derived too:
-// add a gate to feature-gates.txt, run `make generate`, and all three files update.
+// add a gate to feature-gates.txt, run `make generate`, and all four files update.
 //
 // Surgical, byte-stable edits: only the tag list changes, everything else in each
 // file is preserved untouched, so the --check comparison is exact.
 //
-// Usage:  go run scripts/codegen/feature_tags.go [--check]
+// Usage:  CGO_ENABLED=0 go run scripts/codegen/feature_tags.go [--check]
 // Called by: make generate (and `--check` by the generate check target).
 //
 //go:build ignore
@@ -56,7 +56,7 @@ func main() {
 	golangciTags := append([]string{"ze_core"}, manifestOrder...)
 	// gokrazy GoBuildTags: ze_core, ze_appliance base + gate tags sorted.
 	gokrazyTags := append([]string{"ze_core", "ze_appliance"}, sorted...)
-	// quickstart `go install` command: mirrors `make build` = ze_core, ze_distro +
+	// quickstart `CGO_ENABLED=0 go install` command: mirrors `make build` = ze_core, ze_distro +
 	// ZE_FEATURES (sorted), so a user who go-installs without cloning gets the same
 	// feature set the repo ships.
 	quickstartTags := append([]string{"ze_core", "ze_distro"}, sorted...)
@@ -259,14 +259,14 @@ func rewriteGokrazy(content []byte, tags []string) ([]byte, error) {
 }
 
 // rewriteCodeQL replaces the tag lists inside codeql.yml's two shipped-combo
-// `go build -tags '...'` lines: the FIRST gets the distro combo, the SECOND
-// the appliance combo. The third build line (`ze_setup`) contains no gate tags
-// and is left untouched -- only lines whose quoted list starts with "ze_core "
-// are rewritten. Errors if the file does not contain exactly two such lines,
+// `CGO_ENABLED=0 go build -tags '...'` lines: the FIRST gets the distro combo,
+// and the SECOND gets the appliance combo. The third build line (`ze_setup`)
+// contains no gate tags and is left untouched. Only lines whose quoted list
+// starts with "ze_core " are rewritten. Errors if the file does not contain exactly two such lines,
 // so a workflow restructure fails loudly instead of silently dropping CodeQL
 // coverage of the gated surface.
 func rewriteCodeQL(content []byte, distroTags, applianceTags []string) ([]byte, error) {
-	const marker = "go build -tags '"
+	const marker = "CGO_ENABLED=0 go build -tags '"
 	lines := strings.Split(string(content), "\n")
 	combos := [][]string{distroTags, applianceTags}
 	found := 0
@@ -285,7 +285,7 @@ func rewriteCodeQL(content []byte, distroTags, applianceTags []string) ([]byte, 
 			continue // the ze_setup combo carries no gate tags
 		}
 		if found >= len(combos) {
-			return nil, fmt.Errorf("codeql.yml: more than two ze_core `go build -tags` lines; update rewriteCodeQL")
+			return nil, fmt.Errorf("codeql.yml: more than two ze_core `CGO_ENABLED=0 go build -tags` lines; update rewriteCodeQL")
 		}
 		var b strings.Builder
 		b.WriteString(line[:quoteStart])
@@ -295,16 +295,17 @@ func rewriteCodeQL(content []byte, distroTags, applianceTags []string) ([]byte, 
 		found++
 	}
 	if found != len(combos) {
-		return nil, fmt.Errorf("codeql.yml: found %d ze_core `go build -tags` lines, want %d", found, len(combos))
+		return nil, fmt.Errorf("codeql.yml: found %d ze_core `CGO_ENABLED=0 go build -tags` lines, want %d", found, len(combos))
 	}
 	return []byte(strings.Join(lines, "\n")), nil
 }
 
-// rewriteQuickstart replaces the tag list inside the `go install -tags '...'` line
-// of the quickstart doc, preserving the rest of the line (module path, @latest).
-// Errors if the line is absent or malformed.
+// rewriteQuickstart replaces the tag list inside the
+// `CGO_ENABLED=0 go install -tags '...'` line of the quickstart doc. It
+// preserves the rest of the line (module path, @latest). It returns an error
+// if the line is absent or malformed.
 func rewriteQuickstart(content []byte, tags []string) ([]byte, error) {
-	const marker = "go install -tags '"
+	const marker = "CGO_ENABLED=0 go install -tags '"
 	lines := strings.Split(string(content), "\n")
 	idx := -1
 	for i, line := range lines {

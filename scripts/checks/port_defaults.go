@@ -40,7 +40,7 @@
 //     serviceYANG is how such a service is expressed, and the comment on the map
 //     says why. See the mcp entry that is not there.
 //
-// Usage:   go run scripts/checks/port_defaults.go [--json] [--selftest]
+// Usage:   CGO_ENABLED=0 go run scripts/checks/port_defaults.go [--json] [--selftest]
 // Called by: make ze-port-defaults-check
 //
 //go:build ignore

@@ -17,8 +17,9 @@ race report) instead of the 2-line summary the verify aggregator keeps.
 It also makes the failure SELF-REPORT:
   * GOTRACEBACK=all -> a panic dumps every goroutine stack, so the goroutine
     racing on the corrupt buffer is captured alongside the crashing one.
-  * --race          -> builds a race-instrumented ze; a genuine data race then
-    prints the two conflicting accesses (file:line) directly.
+  * --race          -> builds a dedicated test-only race-instrumented ze with
+    CGO_ENABLED=1 on Linux and Darwin. It never ships or serves as
+    release/build evidence.
 
 Usage:
   python3 scripts/dev/stress-repro.py <suite> [options]
@@ -27,7 +28,7 @@ Examples:
   # Hunt the rsvpte boot panic under heavy load, capture the stack:
   python3 scripts/dev/stress-repro.py rsvpte --iterations 80
 
-  # Same, but race-instrumented so a data race self-reports its two accesses:
+  # Same with race instrumentation on Linux or Darwin:
   python3 scripts/dev/stress-repro.py rsvpte --race --iterations 40
 
   # A specific test only, lighter load:
@@ -103,8 +104,8 @@ def _burn(deadline):
     return x
 
 
-def build_race_ze(tags, out_path):
-    """Build a race-instrumented, full-feature ze (CGO required for -race)."""
+def build_stress_ze(tags, out_path):
+    """Build a dedicated test-only race binary outside the shipping bin tree."""
     ldflags = "-X main.version=stress -X main.buildDate=stress"
     cmd = [
         "go",
@@ -118,8 +119,9 @@ def build_race_ze(tags, out_path):
         out_path,
         "./cmd/ze",
     ]
-    env = dict(os.environ, CGO_ENABLED="1")
-    print(f"building race ze: {' '.join(cmd)}", flush=True)
+    env = os.environ.copy()
+    env["CGO_ENABLED"] = "1"
+    print(f"building test-only race-instrumented stress ze: {' '.join(cmd)}", flush=True)
     r = subprocess.run(cmd, cwd=REPO, env=env, capture_output=True, text=True)
     if r.returncode != 0:
         sys.stderr.write(r.stdout + r.stderr)
@@ -299,7 +301,9 @@ def main():
         help="per-invocation timeout seconds (default 120)",
     )
     ap.add_argument(
-        "--race", action="store_true", help="build+use a race-instrumented ze"
+        "--race",
+        action="store_true",
+        help="build+use a dedicated test-only race-instrumented ze",
     )
     ap.add_argument(
         "--any-failure",
@@ -314,6 +318,10 @@ def main():
     parallel = args.parallel or max(2, ncpu // 2)
     nburn = args.burners if args.burners else 2 * ncpu
 
+    ts = time.strftime("%Y%m%d-%H%M%S")
+    outdir = os.path.join(REPO, "tmp", "stress-repro")
+    os.makedirs(outdir, exist_ok=True)
+
     ze_bin = _bin_from_env("ze.bin", os.path.join(REPO, "bin", "ze"))
     test_bin = _bin_from_env("ze.test.bin", os.path.join(REPO, "bin", "ze-test"))
 
@@ -321,23 +329,18 @@ def main():
         # Mirror the runner's full-feature tag set (ze_core/ze_distro/ze_setup base +
         # ZE_FEATURES, derived from feature-gates.txt) so the command registry (hence
         # the boot dump size) matches a real functional run.
-        race_tags = " ".join(
+        stress_tags = " ".join(
             ["ze_core", "ze_distro", "ze_setup"] + _feature_gate_tags()
         )
         if args.tags:
-            race_tags += " " + args.tags
-        ze_bin = os.path.join(REPO, "bin", "ze-race")
-        if not build_race_ze(race_tags, ze_bin):
-            print("race build failed", file=sys.stderr)
+            stress_tags += " " + args.tags
+        ze_bin = os.path.join(outdir, f"ze-race-{os.getpid()}")
+        if not build_stress_ze(stress_tags, ze_bin):
+            print("stress build failed", file=sys.stderr)
             return 2
 
     if not ensure_binaries(ze_bin, test_bin):
         return 2
-
-    ts = time.strftime("%Y%m%d-%H%M%S")
-    outdir = os.path.join(REPO, "tmp", "stress-repro")
-    os.makedirs(outdir, exist_ok=True)
-    logpath = os.path.join(outdir, f"{run_slug(args.suite, args.sel)}-{ts}.log")
 
     deadline = time.time() + args.minutes * 60
     print(

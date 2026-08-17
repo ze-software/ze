@@ -128,6 +128,7 @@ def build_host_ze(root: Path, work: Path) -> str:
     r = run(
         ["go", "build", "-tags", "ze_core,ze_setup", "-o", ze, "./cmd/ze"],
         cwd=str(root),
+        env={**os.environ, "CGO_ENABLED": "0"},
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
     )

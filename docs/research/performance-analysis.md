@@ -404,7 +404,7 @@ These files can be used for regression testing after optimizations:
 
 Run all benchmarks:
 ```bash
-go test -run='^$' -bench=. -benchmem ./internal/component/bgp/reactor/ ./internal/component/bgp/wireu/ ./internal/component/plugin/server/
+CGO_ENABLED=0 go test -run='^$' -bench=. -benchmem ./internal/component/bgp/reactor/ ./internal/component/bgp/wireu/ ./internal/component/plugin/server/
 ```
 
 ---

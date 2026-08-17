@@ -133,6 +133,7 @@ func gateBinary(t *testing.T, ctx context.Context) string {
 	gate := filepath.Join(t.TempDir(), "tracked-build")
 	compile := exec.CommandContext(ctx, "go", "build", "-o", gate, "scripts/checks/tracked_build.go")
 	compile.Dir = repoRoot(t)
+	compile.Env = append(os.Environ(), "CGO_ENABLED=0")
 	if out, err := compile.CombinedOutput(); err != nil {
 		t.Fatalf("compile the gate: %v\n%s", err, out)
 	}
@@ -218,6 +219,7 @@ func TestTrackedBuildRedWhenProducerUncommitted(t *testing.T) {
 	}
 	tree := exec.CommandContext(ctx, "go", "build", "-o", binDir, "./...")
 	tree.Dir = repo
+	tree.Env = append(os.Environ(), "CGO_ENABLED=0")
 	if out, err := tree.CombinedOutput(); err != nil {
 		t.Fatalf("fixture working tree does not build, so it cannot show the gap:\n%s", out)
 	}
@@ -558,7 +560,7 @@ func TestTrackedBuildRejectsABadDeadline(t *testing.T) {
 }
 
 // makeZeTags extracts the tag spec the Makefile's `ze` target builds bin/ze with.
-var makeZeTags = regexp.MustCompile(`(?m)^\t\$\(GO\) build -tags '([^']*)'[^\n]*\$\(ZEBIN_ZE\) \./cmd/ze$`)
+var makeZeTags = regexp.MustCompile(`(?m)^\tCGO_ENABLED=0 \$\(GO\) build -tags '([^']*)'[^\n]*\$\(ZEBIN_ZE\) \./cmd/ze$`)
 
 // matrixRow mirrors the fields --matrix emits, so the assertion below reads the
 // gate's own data rather than a text search over its source.
@@ -587,7 +589,7 @@ func TestTrackedBuildPrimaryFlavorMatchesMakeZe(t *testing.T) {
 	}
 	m := makeZeTags.FindSubmatch(raw)
 	if m == nil {
-		t.Fatal("no `$(GO) build -tags '...' ... $(ZEBIN_ZE) ./cmd/ze` line in the Makefile; the ze target moved")
+		t.Fatal("no `CGO_ENABLED=0 $(GO) build -tags '...' ... $(ZEBIN_ZE) ./cmd/ze` line in the Makefile; the ze target moved")
 	}
 	var want []string
 	wantFeatures := false

@@ -10,6 +10,7 @@ package main
 
 import (
 	"context"
+	"os"
 	"os/exec"
 	"slices"
 	"strings"
@@ -27,6 +28,7 @@ func TestNoUnguardedPluginProcessBoundaryCall(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), checkTimeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "go", "run", "scripts/checks/plugin_process_boundary.go")
+	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 	cmd.Dir = repoRoot(t)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -49,6 +51,7 @@ func TestBoundaryScanRootsDerivedFromGenerator(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), checkTimeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "go", "run", "scripts/checks/plugin_process_boundary.go", "--print-roots")
+	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 	cmd.Dir = repoRoot(t)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -79,6 +82,7 @@ func TestPluginProcessBoundarySelftest(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), checkTimeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "go", "run", "scripts/checks/plugin_process_boundary.go", "--selftest")
+	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 	cmd.Dir = repoRoot(t)
 	out, err := cmd.CombinedOutput()
 	if err != nil {

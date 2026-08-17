@@ -6,7 +6,7 @@
 // Preserves exact formatting by operating on source lines, not AST rewriting.
 // Runs goimports on both files after extraction.
 //
-// Usage: go run scripts/dev/go_extract.go <source.go> <dest.go> <symbol1> [symbol2 ...]
+// Usage: CGO_ENABLED=0 go run scripts/dev/go_extract.go <source.go> <dest.go> <symbol1> [symbol2 ...]
 
 package main
 
@@ -28,7 +28,7 @@ func die(msg string, args ...any) {
 
 func main() {
 	if len(os.Args) < 4 {
-		die("usage: go run scripts/go-extract.go <source.go> <dest.go> <symbol1> [symbol2 ...]")
+		die("usage: CGO_ENABLED=0 go run scripts/go-extract.go <source.go> <dest.go> <symbol1> [symbol2 ...]")
 	}
 
 	srcPath := os.Args[1]

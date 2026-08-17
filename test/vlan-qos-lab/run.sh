@@ -48,7 +48,7 @@ trap cleanup EXIT
 # Build ze (sanity check; config reference in ze-vlan-qos.conf)
 if [ ! -x "$REPO_ROOT/bin/ze" ]; then
     echo "Building ze..."
-    (cd "$REPO_ROOT" && go build -tags 'ze_core ze_distro' -o bin/ze ./cmd/ze)
+    (cd "$REPO_ROOT" && CGO_ENABLED=0 go build -tags 'ze_core ze_distro' -o bin/ze ./cmd/ze)
 fi
 
 # Create two namespaces connected by a veth pair

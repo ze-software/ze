@@ -46,8 +46,8 @@ Use the narrowest test that covers your change. Escalate only when needed.
 
 | Step | What you run | When | Time |
 |------|-------------|------|------|
-| 1 | `go test -race -run TestName ./pkg/...` | Iterating on one test | seconds |
-| 2 | `go test -race ./internal/component/bgp/reactor/...` | Iterating on one package | seconds |
+| 1 | `CGO_ENABLED=0 go test -run TestName ./pkg/...` | Iterating on one test | seconds |
+| 2 | `CGO_ENABLED=0 go test ./internal/component/bgp/reactor/...` | Iterating on one package | seconds |
 | 3 | `make ze-unit-bgp-test` | Done with a component, want to check for regressions | 10s - 1:30 |
 | 4 | `make ze-precommit-verify` | Ready to commit | ~2 min |
 
@@ -101,8 +101,8 @@ right output, does the state machine transition correctly, does the encoder
 round-trip.
 
 ```sh
-go test -race ./internal/component/bgp/message/...    # one package
-go test -race -run TestParseOrigin ./internal/...      # one test
+CGO_ENABLED=0 go test ./internal/component/bgp/message/...                  # one package
+CGO_ENABLED=0 go test -run TestParseOrigin ./internal/...                  # one test
 make ze-unit-test                                      # all packages (~5 min)
 ```
 
@@ -237,12 +237,34 @@ happened.
 2. **Vet evidence** (cross-compile evidence scripts for Linux)
 3. **Cached full pass** (`go test` without `-race`): Go caches by source hash,
    so when nothing changed this is instant. Catches logic regressions everywhere.
-4. **Race pass on changed groups** (`go test -race` only on packages with
-   modified `.go` files): catches data races in what you touched.
+4. **Changed-group pass**: uses the test-only `CGO_ENABLED=1 go test -race`
+   path on Linux and Darwin. Its test binaries are never release/build evidence.
 5. **Functional tests** (the gating functional suites; see `mk/test-functional.mk`)
 6. **ExaBGP compatibility**
 
 Common case (one group changed): ~2 min total instead of 6+.
+
+### Feature-tag structural type check
+
+<!-- source: scripts/checks/staticcheck_feature_matrix.go -- buildFeatureMatrix, runStaticcheckFeatureMatrix -->
+
+`make ze-staticcheck-feature-matrix-check` type-checks the working tree in N+2
+configurations derived from the N unique features in `feature-gates.txt`: one
+distro all-on row, one bare-core row, and one row that omits each feature.
+Staticcheck includes selected `_test.go` files. This stage type-checks those
+files without running their tests.
+
+The matrix guarantees these direct single-feature omissions. It makes no
+guarantee for arbitrary combinations with two or more omitted features.
+Rerun the stage directly:
+
+```sh
+make ze-staticcheck-feature-matrix-check
+```
+
+The matrix checks package and test variants in the working tree.
+`ze-tracked-build-check` remains the committed-tree final-link check for shipped
+build flavors.
 
 ### The one stage that does not read your working tree
 
@@ -312,10 +334,11 @@ fuzz corpus entry becomes a regression test automatically.
 | I want to... | Run |
 |--------------|-----|
 | Check my setup works | `make ze-smoke-verify` |
-| Run one Go test | `go test -race -run TestName ./pkg/...` |
+| Run one Go test | `CGO_ENABLED=0 go test -run TestName ./pkg/...` |
 | Run one functional test | `bin/ze-test bgp plugin 42` |
 | Run tests for what I changed | `make ze-unit-bgp-test` (pick your group) |
 | Pre-commit check | `make ze-precommit-verify` |
+| Type-check every supported direct feature omission | `make ze-staticcheck-feature-matrix-check` |
 | See all test targets | `make help-test` |
 | List functional tests | `bin/ze-test bgp encode --list` |
 | Run fuzz for one target | `make ze-fuzz-one-test FUZZ=FuzzName PKG=./path/... TIME=30s` |

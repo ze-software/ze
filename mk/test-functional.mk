@@ -138,7 +138,7 @@ ifeq ($(ZE_TEST_CANONICAL),)
   # (ze_core ze_distro ze_setup) + default feature gates, NO version ldflags so
   # `ze show version` prints "ze dev" (test/parse/cli-show-version.ci).
   # ze-stripped tags match the $(ZEBIN_STRIPPED) Makefile rule.
-  ZE_ALT_BUILD = { mkdir -p $(ZE_ALT_BIN) && printf 'Building isolated test binaries in %s/ (ze, ze-test, ze-stripped)...\n' '$(ZE_ALT_BIN)' && $(GO) build -tags 'ze_core ze_distro ze_setup zetest $(ZE_FEATURES) $(ZE_TAGS)' -o $(ZE_ALT_BIN)/ze ./cmd/ze && $(GO) build -tags 'ze_core ze_ssh $(ZE_TAGS)' -o $(ZE_ALT_BIN)/ze-stripped ./cmd/ze && $(GO) build -tags 'ze_test $(ZE_FEATURES) $(ZE_TAGS)' -o $(ZE_ALT_BIN)/ze-test ./cmd/ze ; } || exit 1;
+  ZE_ALT_BUILD = { mkdir -p $(ZE_ALT_BIN) && printf 'Building isolated test binaries in %s/ (ze, ze-test, ze-stripped)...\n' '$(ZE_ALT_BIN)' && CGO_ENABLED=0 $(GO) build -tags 'ze_core ze_distro ze_setup zetest $(ZE_FEATURES) $(ZE_TAGS)' -o $(ZE_ALT_BIN)/ze ./cmd/ze && CGO_ENABLED=0 $(GO) build -tags 'ze_core ze_ssh $(ZE_TAGS)' -o $(ZE_ALT_BIN)/ze-stripped ./cmd/ze && CGO_ENABLED=0 $(GO) build -tags 'ze_test $(ZE_FEATURES) $(ZE_TAGS)' -o $(ZE_ALT_BIN)/ze-test ./cmd/ze ; } || exit 1;
   ZE_TEST_DEPS :=
   ZE_TEST_DEPS_STRIPPED :=
   ZE_TEST_DEPS_ZE :=
@@ -147,7 +147,7 @@ ifeq ($(ZE_TEST_CANONICAL),)
   # The chaos dashboard is a second compile of cmd/ze under different tags, and
   # only the .wb suite starts it (option=server:kind=chaos). It is built BESIDE
   # the ze binary the run uses, which is where cmd_web.go looks for it.
-  ZE_ALT_CHAOS_BUILD = { $(GO) build -tags 'ze_chaos ze_bgp' -o $(ZE_ALT_BIN)/ze-chaos ./cmd/ze ; } || exit 1;
+  ZE_ALT_CHAOS_BUILD = { CGO_ENABLED=0 $(GO) build -tags 'ze_chaos ze_bgp' -o $(ZE_ALT_BIN)/ze-chaos ./cmd/ze ; } || exit 1;
   ZE_WEB_CHAOS_DEP :=
 else
   ZE_ALT_TRAP := true

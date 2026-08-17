@@ -513,6 +513,7 @@ def run_in_vm(
                 'export GOCACHE="/workspace/tmp/qemu/go-cache"',
                 'export GOMODCACHE="/workspace/tmp/qemu/gomodcache"',
                 'export GOFLAGS="-buildvcs=false"',
+                'export CGO_ENABLED="0"',
                 'export HOME="/root"',
                 'export TMPDIR="/tmp"',
                 # The 9p mount carries the HOST user's uid, so every repository
@@ -541,6 +542,7 @@ def run_in_vm(
                 "export GOCACHE=/workspace/tmp/qemu/go-cache",
                 "export GOMODCACHE=/workspace/tmp/qemu/gomodcache",
                 "export GOFLAGS=-buildvcs=false",
+                "export CGO_ENABLED=0",
                 "export HOME=/root",
                 "export TMPDIR=/tmp",
                 "cd /workspace",
@@ -578,7 +580,7 @@ def run_in_vm(
                 "Run with the Go toolchain (login shell sources the env):", flush=True
             )
             print(
-                f"  {ssh_cmd} 'bash -lc \"go test -tags integration ./cmd/ze/doctor/...\"'",
+                f"  {ssh_cmd} 'bash -lc \"CGO_ENABLED=0 go test -tags integration ./cmd/ze/doctor/...\"'",
                 flush=True,
             )
             print("Inspect kernel state between runs, e.g.:", flush=True)

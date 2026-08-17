@@ -382,6 +382,7 @@ def ensure_ze(root: Path) -> Path:
     bindir.mkdir(parents=True, exist_ok=True)
     ze = bindir / "ze-pppoe-accel"
     env = os.environ.copy()
+    env["CGO_ENABLED"] = "0"
     env.setdefault("GOCACHE", str(root / "tmp" / "go-cache"))
     build = run(
         ["go", "build", "-tags", "ze_core,ze_distro", "-o", str(ze), "./cmd/ze"],

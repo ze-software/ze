@@ -91,6 +91,7 @@ func runPluginImportsCheckCommand(t *testing.T, dir string) (string, error) {
 	defer cancel()
 
 	cmd := osexec.CommandContext(ctx, "go", "run", filepath.Join(repoRoot(t), "scripts", "codegen", "plugin_imports.go"), "--check")
+	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 	cmd.Dir = dir
 	out, err := cmd.CombinedOutput()
 	return string(out), err
@@ -161,7 +162,9 @@ func TestPluginImportsConstraintSelftest(t *testing.T) {
 	defer cancel()
 
 	script := filepath.Join(repoRoot(t), "scripts", "codegen", "plugin_imports.go")
-	out, err := osexec.CommandContext(ctx, "go", "run", script, "--selftest").CombinedOutput()
+	cmd := osexec.CommandContext(ctx, "go", "run", script, "--selftest")
+	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
+	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("plugin_imports.go --selftest failed: %v\n%s", err, out)
 	}

@@ -31,6 +31,7 @@ def find_ze_binary() -> str:
     result = subprocess.run(
         ['go', 'build', '-o', str(ze_path), './cmd/ze'],
         cwd=script_dir,
+        env={**os.environ, 'CGO_ENABLED': '0'},
         capture_output=True,
         text=True
     )
