@@ -71,6 +71,21 @@ $ gopls references internal/component/bgp/config/resolve.go:43:6
 .../peers.go:53:18-32
 ```
 
+## Which Index Answers Which Question
+
+- **A question about what a file is FOR, what a package does, or which doc governs a subsystem MUST go to the index that answers it, before Read and before Grep over `docs/`.** The symbol route above answers what code IS; these answer what it is FOR, and neither substitutes for the other.
+- **Every non-test `.go` file carries that answer in its own first 25 lines, as a `// Design: <doc> -- topic` header** (`DESIGN_RE`, `scripts/dev/docs_to_code.py`). On `internal/component/bgp/reactor/peer.go` the header block is 378 bytes against the file's 66,700 (176x), and it names the sibling files that own each detail.
+- **MUST grep an index; MUST NOT read one.** `ai/CODE-TO-DOCS.md` and `ai/DOCS-TO-CODE.md` are about 293KB and 301KB, so reading either whole costs more than the source it was meant to save.
+- **A digest orients; it never proves.** `ai/digests/*.md` are hand-maintained (`ai/digests/README.md`), so MUST open the files a digest names before stating what code does (`ai/rules/evidence.md`).
+
+| Question | Where the answer is | What comes back |
+|----------|---------------------|-----------------|
+| What is this file for, and which doc governs it? | the file's own `// Design:` header, in its first 25 lines | the design doc, plus the sibling files that own each detail |
+| Which docs cover this code? | `grep` the basename under its package heading in `ai/CODE-TO-DOCS.md` | every doc citing it. Rows are keyed by BASENAME, so the package heading is what stops a bare `grep peer.go` returning three packages |
+| Which `.go` files implement this design doc? | `grep` the doc path in `ai/DOCS-TO-CODE.md` | every file whose `// Design:` header cites that doc, one line each |
+| What does this package do? | `grep` the package path in `ai/PACKAGE-MAP.md` | one line, derived from the package doc comment |
+| How does this subsystem flow, entry to exit? | `ai/digests/<subsystem>.md` | the flow with `file:line`, the load-bearing files, and the invariants |
+
 ## What This Rule Never Targets
 
 - **Review. 144 review agents were 15.4% of measured subagent context, and the fix/debug phase they prevent was 24.5%.** Cutting lenses, passes, or the model a reviewer runs on to save tokens MUST NOT happen: it costs more than it saves, and it is banned by `ai/rules/planning.md` independently of this measurement. `make ze-token-economy-report` prints both figures, and labels its phase split a keyword heuristic over the spawn description: nothing in the transcript store records the phase an agent ran.
@@ -106,6 +121,8 @@ $ gopls references internal/component/bgp/config/resolve.go:43:6
 | "Spawning an agent costs a round trip" | The round trip is the supervision (`ai/rules/planning.md`). Size the agent instead |
 | "My context is nearly full, I will push through to the end" | Write the state file and hand off |
 | "LSP is IDE navigation, grep is enough for me" | Grep matches strings; LSP resolves symbols |
+| "I need to know what this file is for, so I will read it" | Its `// Design:` header sits in the first 25 lines and names the doc that governs it |
+| "I will read `ai/CODE-TO-DOCS.md` to find which doc covers this" | It is 293KB. Grep the basename under its package heading |
 | "The LSP schema loaded, so LSP works" | A loaded schema is not a running server. With `gopls` absent every call returns `ENOENT`. Verify the server once (`.claude/rules/session-start.md`) |
 | "My ToolSearch came back empty, so I have no LSP here" | You have no LSP TOOL here. The capability is on PATH: run `gopls` from Bash |
 | "Subagents never get LSP, so I will not try" | Which contexts carry the tool depends on the harness build and the machine, and both change. Issue the query, then fall back |

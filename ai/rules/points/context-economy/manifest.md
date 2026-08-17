@@ -15,6 +15,9 @@ which-lsp-operation-answers-which-question ## Which LSP Operation Answers Which 
 the-gopls-cli-lsp-from-any-context-subagents-included ## The gopls CLI: LSP From Any Context, Subagents Included
   use-the-gopls-cli-from-any-context-with-bash
   worked-example-of-the-two-step-recipe
+which-index-answers-which-question ## Which Index Answers Which Question
+  answer-a-design-or-package-question-from-the-index
+  index-and-what-it-answers
 what-this-rule-never-targets ## What This Rule Never Targets
   never-cut-review-gates-or-rule-reading-to-save-tokens
 process-proportional-to-the-change ## Process Is Proportional to the Change

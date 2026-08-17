@@ -13,6 +13,8 @@ stage:
 | "Spawning an agent costs a round trip" | The round trip is the supervision (`ai/rules/planning.md`). Size the agent instead |
 | "My context is nearly full, I will push through to the end" | Write the state file and hand off |
 | "LSP is IDE navigation, grep is enough for me" | Grep matches strings; LSP resolves symbols |
+| "I need to know what this file is for, so I will read it" | Its `// Design:` header sits in the first 25 lines and names the doc that governs it |
+| "I will read `ai/CODE-TO-DOCS.md` to find which doc covers this" | It is 293KB. Grep the basename under its package heading |
 | "The LSP schema loaded, so LSP works" | A loaded schema is not a running server. With `gopls` absent every call returns `ENOENT`. Verify the server once (`.claude/rules/session-start.md`) |
 | "My ToolSearch came back empty, so I have no LSP here" | You have no LSP TOOL here. The capability is on PATH: run `gopls` from Bash |
 | "Subagents never get LSP, so I will not try" | Which contexts carry the tool depends on the harness build and the machine, and both change. Issue the query, then fall back |
