@@ -13,7 +13,7 @@
 # host) emits the empty object `{}`. No per-section field can be asserted
 # non-vacuously here without thermal hardware, so this test asserts the
 # offline JSON-object contract only; DetectThermal dispatch within the full
-# inventory is additionally covered by cli-host-show-all.ci.
+# inventory is additionally covered by cli-host-all-show.ci.
 option=skip-os:value=darwin
 stdin=config:terminator=EOF_CONF
 bgp { }
