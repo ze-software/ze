@@ -33,6 +33,20 @@ type affectedPlugin struct {
 	sections []rpc.ConfigSection
 }
 
+type reloadCallerContextKey struct{}
+
+func contextWithReloadCaller(ctx context.Context, proc *process.Process) context.Context {
+	if proc == nil {
+		return ctx
+	}
+	return context.WithValue(ctx, reloadCallerContextKey{}, proc)
+}
+
+func reloadCallerFromContext(ctx context.Context) *process.Process {
+	proc, _ := ctx.Value(reloadCallerContextKey{}).(*process.Process)
+	return proc
+}
+
 // txLock enforces one config transaction at a time.
 // CLI/API commits are rejected when locked. SIGHUP is queued.
 //
@@ -264,6 +278,11 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) error
 		}
 	}
 
+	preflightStopped := s.collectProcessesForRemovedConfigPaths(removedKeys)
+	if caller := reloadCallerFromContext(ctx); caller != nil && preflightStopped[caller.Name()] {
+		return fmt.Errorf("config reload would stop calling plugin %q", caller.Name())
+	}
+
 	// Auto-load plugins for newly added config sections.
 	// When a user adds fib { kernel { } } to their config, the fib-kernel plugin
 	// needs to start before we can send it config.
@@ -318,8 +337,10 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) error
 	}
 
 	if len(affected) == 0 {
-		// No plugins care about these changes — just update.
+		// No plugins care about these changes. Recompute orphan ownership after
+		// auto-load, stop removed config owners, then update the running config.
 		logger().Info("config reload: no affected plugins, updating config")
+		s.stopCollectedProcesses(s.collectProcessesForRemovedConfigPaths(removedKeys))
 		s.reactor.SetConfigTree(newTree)
 		return nil
 	}
@@ -353,12 +374,9 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) error
 		return err
 	}
 
-	// Transaction committed. Now stop plugins whose config sections were
-	// removed. Deferred to here so a failed verify/apply does not leave
-	// plugins stopped with no way to restore them.
-	if len(removedKeys) > 0 {
-		s.autoStopForRemovedConfigPaths(removedKeys)
-	}
+	// Transaction committed. Recompute against the post-auto-load process set
+	// so new dependents keep shared dependencies alive.
+	s.stopCollectedProcesses(s.collectProcessesForRemovedConfigPaths(removedKeys))
 
 	// Update running config tree after the orchestrator commits. Plugins
 	// have already persisted their per-root state via apply; reconciling

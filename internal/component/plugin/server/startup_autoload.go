@@ -275,58 +275,55 @@ func collectContainerMapPaths(m map[string]any, prefix string, paths *[]string) 
 	}
 }
 
-// autoStopForRemovedConfigPaths stops plugins whose config sections were removed.
-// Matches removed root keys against ConfigRoots, stops matching plugins.
-// Skips explicitly configured plugins (asymmetry prevention).
-// Dependencies are also stopped if no other running plugin depends on them.
-// Stopped processes are removed from the ProcessManager to prevent stale entries.
-func (s *Server) autoStopForRemovedConfigPaths(removedRoots []string) {
+// collectProcessesForRemovedConfigPaths returns every process that removal of
+// the config roots would stop, including transitive orphan dependencies.
+// It does not change process or registry state.
+func (s *Server) collectProcessesForRemovedConfigPaths(removedRoots []string) map[string]bool {
 	removedSet := make(map[string]bool, len(removedRoots))
-	for _, r := range removedRoots {
-		removedSet[r] = true
+	for _, root := range removedRoots {
+		removedSet[root] = true
 	}
 
-	configRootsMap := registry.ConfigRootsMap()
+	pm := s.procManager.Load()
+	if pm == nil {
+		return nil
+	}
+
+	stopped := make(map[string]bool)
+	for pluginName, roots := range registry.ConfigRootsMap() {
+		if s.hasConfiguredPlugin(pluginName) || pm.GetProcess(pluginName) == nil {
+			continue
+		}
+		for _, root := range roots {
+			if removedSet[root] || parentRemoved(root, removedSet) {
+				stopped[pluginName] = true
+				break
+			}
+		}
+	}
+	return s.collectOrphanedDependencies(pm, stopped)
+}
+
+// stopCollectedProcesses tears down a stop set produced before the reload
+// transaction starts.
+func (s *Server) stopCollectedProcesses(stopped map[string]bool) {
 	pm := s.procManager.Load()
 	if pm == nil {
 		return
 	}
-
-	// Find plugins that were config-loaded and whose config root is now removed.
-	var toStop []string
-	for pluginName, roots := range configRootsMap {
-		// Skip explicitly configured plugins -- they should not be auto-stopped.
-		if s.hasConfiguredPlugin(pluginName) {
+	for name := range stopped {
+		proc := pm.GetProcess(name)
+		if proc == nil {
 			continue
 		}
-		for _, root := range roots {
-			if !removedSet[root] && !parentRemoved(root, removedSet) {
-				continue
-			}
-			if pm.GetProcess(pluginName) == nil {
-				continue
-			}
-			toStop = append(toStop, pluginName)
-			logger().Info("config reload: stopping plugin for removed config path",
-				"plugin", pluginName, "path", root)
-		}
+		logger().Info("config reload: stopping plugin for removed config", "plugin", name)
+		s.rollbackStartupProcess(proc)
 	}
+}
 
-	stoppedSet := make(map[string]bool, len(toStop))
-	for _, name := range toStop {
-		if proc := pm.GetProcess(name); proc != nil {
-			proc.Stop()
-			pm.RemoveProcess(name)
-			stoppedSet[name] = true
-		}
-	}
-
-	// Stop orphaned dependencies: plugins that were loaded only because a
-	// now-stopped plugin depended on them. A dependency is orphaned if no
-	// remaining running plugin declares it in Dependencies.
-	if len(stoppedSet) > 0 {
-		s.stopOrphanedDependencies(pm, stoppedSet)
-	}
+// autoStopForRemovedConfigPaths stops plugins whose config sections were removed.
+func (s *Server) autoStopForRemovedConfigPaths(removedRoots []string) {
+	s.stopCollectedProcesses(s.collectProcessesForRemovedConfigPaths(removedRoots))
 }
 
 // autoStopPluginNames stops the exact plugin processes that a failed reload
@@ -386,52 +383,55 @@ func pluginDependsOn(reg *registry.Registration, candidate string) bool {
 		slices.Contains(reg.OptionalDependencies, candidate)
 }
 
-// stopOrphanedDependencies stops dependency-only plugins that have no remaining dependents.
-// Loops until no more orphans are found (handles transitive dependency chains).
-// Skips explicitly configured plugins. Walks both `Dependencies` (hard) and
-// `OptionalDependencies` (soft) via `collectOrphanCandidates` + `pluginDependsOn`.
-func (s *Server) stopOrphanedDependencies(pm *process.ProcessManager, stopped map[string]bool) {
+// collectOrphanedDependencies expands stopped with dependency-only plugins
+// that have no remaining dependents. It does not change process state.
+func (s *Server) collectOrphanedDependencies(pm *process.ProcessManager, stopped map[string]bool) map[string]bool {
+	result := make(map[string]bool, len(stopped))
+	for name := range stopped {
+		result[name] = true
+	}
+
 	for {
-		newlyStopped := false
-
-		candidates := collectOrphanCandidates(stopped, registry.Lookup)
-
-		for candidate := range candidates {
-			if stopped[candidate] {
-				continue
-			}
-			// Skip explicitly configured plugins.
-			if s.hasConfiguredPlugin(candidate) {
-				continue
-			}
-			proc := pm.GetProcess(candidate)
-			if proc == nil {
+		added := false
+		for candidate := range collectOrphanCandidates(result, registry.Lookup) {
+			if result[candidate] || s.hasConfiguredPlugin(candidate) || pm.GetProcess(candidate) == nil {
 				continue
 			}
 
 			hasDependent := false
-			for _, p := range pm.AllProcesses() {
-				if stopped[p.Name()] || p.Name() == candidate {
+			for _, proc := range pm.AllProcesses() {
+				if result[proc.Name()] || proc.Name() == candidate {
 					continue
 				}
-				if pluginDependsOn(registry.Lookup(p.Name()), candidate) {
+				if pluginDependsOn(registry.Lookup(proc.Name()), candidate) {
 					hasDependent = true
 					break
 				}
 			}
-
 			if !hasDependent {
-				logger().Info("config reload: stopping orphaned dependency", "plugin", candidate)
-				proc.Stop()
-				pm.RemoveProcess(candidate)
-				stopped[candidate] = true
-				newlyStopped = true
+				result[candidate] = true
+				added = true
 			}
 		}
-
-		if !newlyStopped {
-			break
+		if !added {
+			return result
 		}
+	}
+}
+
+// stopOrphanedDependencies stops dependency-only plugins that have no remaining dependents.
+func (s *Server) stopOrphanedDependencies(pm *process.ProcessManager, stopped map[string]bool) {
+	for name := range s.collectOrphanedDependencies(pm, stopped) {
+		if stopped[name] {
+			continue
+		}
+		proc := pm.GetProcess(name)
+		if proc == nil {
+			continue
+		}
+		logger().Info("config reload: stopping orphaned dependency", "plugin", name)
+		s.rollbackStartupProcess(proc)
+		stopped[name] = true
 	}
 }
 
