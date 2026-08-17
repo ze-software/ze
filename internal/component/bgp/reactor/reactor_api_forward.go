@@ -804,7 +804,7 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 		if peerBaseWire != update.WireUpdate {
 			baseMED = payloadMED(peerBaseWire.Payload())
 		}
-		applyFactsMED(facts, srcMED, baseMED, &mods)
+		applyFactsMED(facts, srcMED, baseMED, peerBaseWire.Payload(), &mods)
 
 		// The AS-path family is recorded as INTENT, so the exactly-sized one-pass
 		// writer emits it into the destination buffer alongside every other edit.

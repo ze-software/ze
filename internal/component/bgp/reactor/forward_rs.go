@@ -447,7 +447,7 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 		if destBaseWire != update.WireUpdate {
 			baseMED = payloadMED(destBaseWire.Payload())
 		}
-		applyFactsMED(facts, srcMED, baseMED, &mods)
+		applyFactsMED(facts, srcMED, baseMED, destBaseWire.Payload(), &mods)
 
 		// The AS-path family is recorded as INTENT, exactly as on the general
 		// forward rail, so the one-pass writer emits it into the client's buffer
