@@ -124,7 +124,7 @@ You are a subagent under ai/rules/planning.md. Your contract:
 - Batch independent tool calls into ONE message: 85% of measured API calls
   carried exactly one tool call.
 - Read the range you were given; where none was, Grep first and Read the range
-  it names, never the whole file: 62% of measured Reads re-read a path this
+  it names, never the whole file: 54% of measured Reads re-read a path this
   session had already read.
   Full rule: ai/rules/context-economy.md.
 EOF
