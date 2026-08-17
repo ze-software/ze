@@ -29,13 +29,18 @@ reads `WireMethod`, so a completion-only node surfaces.
 
 ## Why web sources at request time
 
-`buildServices` runs before `WaitForStartupComplete`, so plugins have not
-registered their commands when the web server builds its tree. A build-time
-snapshot is empty. A `sync.Once` snapshot taken on the first request is not
-empty and never reflects a later register or unregister. The live per-request
-overlay handles the startup race and hot reload with one mechanism. SSH gets the
-same liveness for free, because it rebuilds its whole tree per session and every
-session starts after startup completes.
+`runYANGConfig` waits for plugin startup before `buildServices` constructs and
+binds the optional looking-glass, web, and MCP management services.
+`signalStartupComplete` freezes the dispatcher command registry before
+`WaitForStartupComplete` returns. The MCP `tools/list` endpoint therefore cannot <!-- doc-links: ignore (JSON-RPC method name, not a repository path) -->
+answer before the initial registry freeze.
+
+Web still builds a live per-request overlay so plugins that a reload adds or
+removes are visible. A one-time build snapshot would become stale after a reload.
+SSH has the same liveness because it rebuilds its whole tree per session.
+
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig -->
+<!-- source: internal/component/plugin/server/startup.go -- signalStartupComplete, WaitForStartupComplete -->
 
 ## The three completion paths are distinct
 

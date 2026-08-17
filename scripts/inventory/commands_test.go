@@ -27,6 +27,7 @@ func TestCommandInventoryRuns(t *testing.T) {
 		t.Fatalf("resolve repository root: %v", err)
 	}
 	cmd := exec.CommandContext(ctx, "go", "run", "scripts/inventory/commands.go")
+	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 	cmd.Dir = root
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -78,6 +79,7 @@ func TestInventoryStopsOnUnreadableFile(t *testing.T) {
 		t.Fatalf("resolve repository root: %v", err)
 	}
 	cmd := exec.CommandContext(ctx, "go", "run", "scripts/inventory/inventory.go", "--root", fixture)
+	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 	cmd.Dir = root
 	out, runErr := cmd.CombinedOutput()
 

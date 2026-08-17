@@ -5,6 +5,10 @@
 # bgp-adj-rib-in replay provider and its source/destination attachments. This
 # repairs route-server replay when the source UPDATE precedes receiver peer-up;
 # every RFC assertion and expected wire outcome below is unchanged.
+# rfc-test-change-approved: 2026-08-17 Thomas approved adding option=linger to
+# keep both sessions alive after Peer.completed (internal/test/peer/reject.go)
+# until observer-owned shutdown. This is lifecycle-only; RFC7606-5.4-1
+# assertions remain byte-identical.
 # RFC requirement: RFC7606-5.4-1 positive -- a peer sends an EVPN UPDATE mixing route types
 # ze implements with one it does not; the unrecognized route is NOT relayed to the other
 # client, and the implemented ones are.
@@ -25,6 +29,7 @@
 
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=2
+option=linger:value=true
 option=timeout:value=20s
 option=bind:value=0.0.0.0
 # Bind conn=N by remote IP: which client connects first is a race (peer_connmap.go).

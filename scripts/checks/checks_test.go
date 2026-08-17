@@ -270,12 +270,12 @@ func TestFirstPartyGoProducerCommandsDisableCGO(t *testing.T) {
 						}
 						continue
 					}
-					zeroAt := strings.Index(prefix, "CGO_ENABLED=0")
+					disablesCGO := strings.Contains(prefix, "CGO_ENABLED=0")
 					overridesCGO := strings.Contains(prefix, "CGO_ENABLED=")
 					containerized := strings.Contains(prefix, "docker run") || strings.Contains(prefix, "docker exec") ||
 						strings.Contains(prefix, "podman run") || strings.Contains(prefix, "podman exec")
 					inheritsMakeZero := makeLike && !overridesCGO && !containerized
-					if zeroAt < 0 && !inheritsMakeZero {
+					if !disablesCGO && !inheritsMakeZero {
 						t.Errorf("%s:%d Go producer does not set CGO_ENABLED=0: %s", rel, lineNumber+1, strings.TrimSpace(segment))
 					}
 				}
@@ -459,39 +459,52 @@ func mustReadFile(t *testing.T, path string) []byte {
 	}
 	return data
 }
+
 // TestStaticcheckFeatureMatrixMakeTargetRunsExecutable exercises the public
-// Make entry point and requires the checker to reach its real verdict path.
+// Make entry point with a deterministic Staticcheck executable.
 //
-// VALIDATES: make ze-staticcheck-feature-matrix-check reaches Staticcheck and
-// reports either a checked-row verdict or an explicit unable-to-judge result.
-// PREVENTS: a missing target, a green no-op recipe, or the phase-one stub.
+// VALIDATES: make ze-staticcheck-feature-matrix-check reaches the checker,
+// invokes Staticcheck, and reports a checked-row verdict.
+// PREVENTS: a missing target, a green no-op recipe, or either executable being
+// skipped.
 func TestStaticcheckFeatureMatrixMakeTargetRunsExecutable(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), checkTimeout)
 	defer cancel()
+
+	shimDir := t.TempDir()
+	marker := filepath.Join(shimDir, "staticcheck-invoked")
+	writeStaticcheckFixtureFile(
+		t,
+		shimDir,
+		"staticcheck",
+		"#!/bin/sh\nset -eu\ncat >/dev/null\n: > \"$ZE_STATICCHECK_SHIM_MARKER\"\n",
+		0o700,
+	)
 
 	cmd := exec.CommandContext(ctx, "make", "--no-print-directory", "ze-staticcheck-feature-matrix-check")
 	cmd.Dir = repoRoot(t)
+	cmd.Env = overriddenEnvironment(map[string]string{
+		"CGO_ENABLED":                "0",
+		"PATH":                       shimDir + string(os.PathListSeparator) + os.Getenv("PATH"),
+		"ZE_STATICCHECK_SHIM_MARKER": marker,
+	})
 	out, err := cmd.CombinedOutput()
 	if ctx.Err() != nil {
 		t.Fatalf("matrix checker did not return before the wiring timeout: %v", ctx.Err())
 	}
-	text := string(out)
-	if strings.Contains(text, "matrix judgment is unavailable") {
-		t.Fatalf("Make target still reached the phase-one stub:\n%s", out)
+	if err != nil {
+		t.Fatalf("Make target failed: %v\n%s", err, out)
 	}
-	checked := strings.Contains(text, "staticcheck feature matrix: checked ")
-	unable := strings.Contains(text, "matrix could not be judged")
-	if !checked && !unable {
-		t.Fatalf("Make target did not reach the checker verdict path:\nerror: %v\n%s", err, out)
+	if strings.Contains(string(out), "could not be judged") {
+		t.Fatalf("Make target reported an incomplete matrix verdict:\n%s", out)
 	}
-	if checked && err != nil {
-		t.Fatalf("checker reported checked rows but Make failed: %v\n%s", err, out)
+	if !strings.Contains(string(out), "staticcheck feature matrix: checked ") {
+		t.Fatalf("Make target did not report checked matrix rows:\n%s", out)
 	}
-	if !checked && err == nil {
-		t.Fatalf("checker reported no checked rows but Make passed:\n%s", out)
+	if _, err := os.Stat(marker); err != nil {
+		t.Fatalf("Make target did not invoke the Staticcheck executable: %v\n%s", err, out)
 	}
 }
-
 
 // TestMigratedDaemonCommandsLiveInOwners asserts the command-surface-ownership
 // daemon-RPC migrations stay migrated: each owner-specific command package

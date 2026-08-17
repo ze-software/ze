@@ -11,6 +11,11 @@ package runner
 
 import (
 	"bytes"
+	"go/ast"
+	"go/importer"
+	"go/parser"
+	"go/token"
+	"go/types"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -430,9 +435,12 @@ func TestChildEnvDisablesCGO(t *testing.T) {
 	}
 }
 
-// VALIDATES: no exec site in this package builds a child environment by hand.
+const childEnvProducerFile = "runner_exec_util.go"
+
+// VALIDATES: childEnv is the only runner function that reads the inherited
+// environment for a child process.
 // PREVENTS: a launch path silently opting out of childEnv, which is exactly how
-// runOrchestrated -- the path every `cmd=`-driven .ci takes -- was missed.
+// runOrchestrated, the path every `cmd=`-driven .ci takes, was missed.
 func TestEveryExecSiteUsesChildEnv(t *testing.T) {
 	entries, err := os.ReadDir(".")
 	if err != nil {
@@ -448,19 +456,168 @@ func TestEveryExecSiteUsesChildEnv(t *testing.T) {
 		if err != nil {
 			t.Fatalf("read %s: %v", name, err)
 		}
+		fset := token.NewFileSet()
+		file, err := parser.ParseFile(fset, name, src, 0)
+		if err != nil {
+			t.Fatalf("parse %s: %v", name, err)
+		}
 		checked++
-		for i, line := range strings.Split(string(src), "\n") {
-			if !strings.Contains(line, "append(os.Environ()") {
-				continue
-			}
-			t.Errorf("%s:%d builds a child environment by hand:\n\t%s\n"+
-				"use childEnv(...) so the child inherits the runner's standard env",
-				name, i+1, strings.TrimSpace(line))
+		for _, position := range unexpectedOSEnvironCalls(fset, name, file) {
+			t.Errorf("%s:%d calls os.Environ outside canonical childEnv", name, position.Line)
 		}
 	}
 	if checked == 0 {
 		t.Fatal("scanned no source files; the test cannot be gating anything")
 	}
+}
+
+func TestEveryExecSiteUsesChildEnvChecksAllSyntax(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		filename string
+		src      string
+		want     int
+	}{
+		{
+			name:     "canonical producer",
+			filename: childEnvProducerFile,
+			src:      "package runner\nimport \"os\"\nfunc childEnv() []string { return os.Environ() }\n",
+		},
+		{
+			name:     "package initializer",
+			filename: childEnvProducerFile,
+			src:      "package runner\nimport \"os\"\nvar inherited = os.Environ()\n",
+			want:     1,
+		},
+		{
+			name:     "aliased package initializer",
+			filename: childEnvProducerFile,
+			src:      "package runner\nimport stdos \"os\"\nvar inherited = stdos.Environ()\n",
+			want:     1,
+		},
+		{
+			name:     "dot-import package initializer",
+			filename: childEnvProducerFile,
+			src:      "package runner\nimport . \"os\"\nvar inherited = Environ()\n",
+			want:     1,
+		},
+		{
+			name:     "parenthesized default import",
+			filename: "parenthesized_default.go",
+			src:      "package runner\nimport \"os\"\nvar inherited = ((os.Environ))()\n",
+			want:     1,
+		},
+		{
+			name:     "parenthesized aliased import",
+			filename: "parenthesized_alias.go",
+			src:      "package runner\nimport stdos \"os\"\nvar inherited = ((stdos.Environ))()\n",
+			want:     1,
+		},
+		{
+			name:     "parenthesized dot import",
+			filename: "parenthesized_dot.go",
+			src:      "package runner\nimport . \"os\"\nvar inherited = ((Environ))()\n",
+			want:     1,
+		},
+		{
+			name:     "method named childEnv",
+			filename: childEnvProducerFile,
+			src:      "package runner\nimport \"os\"\ntype runner struct{}\nfunc (runner) childEnv() []string { return os.Environ() }\n",
+			want:     1,
+		},
+		{
+			name:     "dot-import method named childEnv",
+			filename: childEnvProducerFile,
+			src:      "package runner\nimport . \"os\"\ntype runner struct{}\nfunc (runner) childEnv() []string { return Environ() }\n",
+			want:     1,
+		},
+		{
+			name:     "producer name in another file",
+			filename: "other.go",
+			src:      "package runner\nimport \"os\"\nfunc childEnv() []string { return os.Environ() }\n",
+			want:     1,
+		},
+		{
+			name:     "locally shadowed Environ",
+			filename: "shadow.go",
+			src:      "package runner\nimport . \"os\"\nfunc probe() []string {\nEnviron := func() []string { return nil }\nreturn Environ()\n}\n",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			fset := token.NewFileSet()
+			file, err := parser.ParseFile(fset, tc.filename, tc.src, 0)
+			if err != nil {
+				t.Fatalf("parse injected source: %v", err)
+			}
+			if got := len(unexpectedOSEnvironCalls(fset, tc.filename, file)); got != tc.want {
+				t.Fatalf("unexpected os.Environ calls = %d, want %d", got, tc.want)
+			}
+		})
+	}
+}
+
+func unexpectedOSEnvironCalls(fset *token.FileSet, filename string, file *ast.File) []token.Position {
+	info := &types.Info{Uses: make(map[*ast.Ident]types.Object)}
+	config := &types.Config{
+		Importer: importer.Default(),
+		Error:    func(error) {},
+	}
+	_, _ = config.Check("runnerguard", fset, []*ast.File{file}, info)
+
+	exempt := make(map[*ast.CallExpr]struct{})
+	if filepath.Base(filename) == childEnvProducerFile {
+		for _, declaration := range file.Decls {
+			fn, ok := declaration.(*ast.FuncDecl)
+			if !ok || fn.Recv != nil || fn.Name.Name != "childEnv" {
+				continue
+			}
+			ast.Inspect(fn.Body, func(node ast.Node) bool {
+				if call, ok := node.(*ast.CallExpr); ok && isOSEnvironCall(call, info) {
+					exempt[call] = struct{}{}
+				}
+				return true
+			})
+		}
+	}
+
+	var positions []token.Position
+	ast.Inspect(file, func(node ast.Node) bool {
+		call, ok := node.(*ast.CallExpr)
+		if !ok || !isOSEnvironCall(call, info) {
+			return true
+		}
+		if _, ok := exempt[call]; !ok {
+			positions = append(positions, fset.Position(call.Pos()))
+		}
+		return true
+	})
+	return positions
+}
+
+func isOSEnvironCall(call *ast.CallExpr, info *types.Info) bool {
+	fun := call.Fun
+	for {
+		paren, ok := fun.(*ast.ParenExpr)
+		if !ok {
+			break
+		}
+		fun = paren.X
+	}
+
+	var name *ast.Ident
+	switch fun := fun.(type) {
+	case *ast.Ident:
+		name = fun
+	case *ast.SelectorExpr:
+		name = fun.Sel
+	default:
+		return false
+	}
+	if name.Name != "Environ" {
+		return false
+	}
+	object := info.Uses[name]
+	return object != nil && object.Pkg() != nil && object.Pkg().Path() == "os"
 }
 
 // TestSelfStopGraceStaysInsideTheBudget drives the derived grace at the budgets

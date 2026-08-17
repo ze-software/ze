@@ -49,6 +49,7 @@ func runConsistency(t *testing.T, root string) string {
 		t.Fatalf("resolve repository root: %v", err)
 	}
 	cmd := exec.CommandContext(ctx, "go", "run", "scripts/lint/consistency.go", root)
+	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 	cmd.Dir = repo
 	out, _ := cmd.CombinedOutput() // exit 1 means findings, which is a result not a failure
 	if ctx.Err() != nil {

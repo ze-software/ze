@@ -13,6 +13,11 @@
 # 2. Customer is equally one of the three destination roles egress rule 1 names,
 # so what the test PROVES is unchanged; the label was wrong.
 #
+# rfc-test-change-approved: 2026-08-17 Thomas approved replay-wiring only:
+# attach the auto-loaded bgp-adj-rib-in to ingest source updates/state and send
+# stored routes to destination. RFC9234-5-4 positive/negative wire assertions
+# are unchanged.
+#
 # The RS-Client DESTINATION (declared wire role 2) that this header used to
 # record as proven nowhere is now proven, by
 # test/plugin/role-otc-rs-client-dest-stamp.ci. Egress rule 1's third named
@@ -225,10 +230,13 @@ bgp {
 			import provider
 			export default
 		}
+		attach process bgp-adj-rib-in {
+			receive [ update-received state ]
+		}
 		# rfc-test-change-approved: 2026-08-16 Thomas -- wiring, not an assertion. Since
 		# 06c95f65d a peer feeds a process only where it attaches it, and neither peer
 		# attached `rs`, so reconcileDelivery warned that no peer-scoped event reaches
-		# bgp-rs. Nothing asserted below changes: the RFC 8893 rows still read the same
+		# bgp-rs. Nothing asserted below changes: the RFC 9234 rows still read the same
 		# frames off the same peers. The grant matches what 06c95f65d gave the sibling
 		# fixtures it did repair (med-removal-export-refused.ci).
 		attach process rs {
@@ -265,6 +273,9 @@ bgp {
 		role {
 			import provider
 			export default
+		}
+		attach process bgp-adj-rib-in {
+			send [ update ]
 		}
 		# rfc-test-change-approved: 2026-08-16 Thomas -- the same wiring grant as on
 		# source-peer above, for the same reason. dest-peer carried no attach block at

@@ -1079,7 +1079,6 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		apiCandidateUsers: resolveCandidateUsers,
 	})
 
-
 	// REST/gRPC API listen config and users were resolved above (before the
 	// management-listener guard); apiCfg, apiCfgOK, and bootUsers are reused here.
 	var apiShutdowns []func(context.Context)

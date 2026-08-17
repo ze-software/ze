@@ -1187,12 +1187,11 @@ never shadows a builtin at the completion layer (mirroring dispatch precedence).
 - **SSH** rebuilds the tree per session and merges eagerly
   (`session_factory.go` `mergePluginCommands`), so each session reflects the
   current registry — a plugin that has exited is simply absent next session.
-- **Web** overlays plugin commands live on every `/cli/complete` request
-  (`web_completer.go` `pluginAwareCommandCompleter`): the YANG tree stays
-  immutable and a throwaway overlay is built per request from the current
-  registry, so a plugin that registered or exited since the last keystroke is
-  reflected immediately (and the web service is built before plugins finish
-  registering, so a build-time snapshot would be empty).
+- **Web** builds a throwaway overlay from the current registry for each
+  `/cli/complete` request (`web_completer.go` `pluginAwareCommandCompleter`).
+  The shared YANG tree stays immutable. The hub binds the web listener after
+  plugin startup and the initial registry freeze. The per-request overlay
+  reflects plugins that a later reload adds or removes.
 - **Shell completion** (`ze completion words`) runs in a standalone CLI process
   with no daemon, so it stays YANG-only; the daemon's `system command complete`
   RPC completes plugin commands directly from the registry (`Registry().Complete`).
@@ -1207,6 +1206,8 @@ every hidden plugin command.
 <!-- source: internal/component/command/node.go -- MergeCommandPaths, CommandEntry -->
 <!-- source: cmd/ze/hub/session_factory.go -- mergePluginCommands (SSH per-session) -->
 <!-- source: cmd/ze/hub/web_completer.go -- pluginAwareCommandCompleter (web live overlay) -->
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig -->
+<!-- source: internal/component/plugin/server/startup.go -- signalStartupComplete, WaitForStartupComplete -->
 
 ### Quiesce Barrier (test synchronization)
 
