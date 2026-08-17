@@ -839,7 +839,7 @@ class TestSessionStoreIsSeeded(SessionDirCase):
         """
         sid = self.sid("recipe")
         targets = (
-            ("ze", "ze"),
+            ("ze-build", "ze"),
             ("ze-appliance-build", "ze-appliance"),
             ("ze-stripped-build", "ze-stripped"),
         )
@@ -857,7 +857,13 @@ class TestSessionStoreIsSeeded(SessionDirCase):
                 self.assertNotIn(SESSION_ROOT, off, "a human's build moved")
 
         # The rest link no init and reach no silent path, so they never seed.
-        for target in ("ze-setup-build", "ze-test-build", "ze-chaos-build", "ze-analyze-build", "ze-perf-build"):
+        for target in (
+            "ze-setup-build",
+            "ze-test-build",
+            "ze-chaos-build",
+            "ze-analyze-build",
+            "ze-perf-build",
+        ):
             with self.subTest(target=target):
                 self.assertNotIn(
                     "session-seed-store",
