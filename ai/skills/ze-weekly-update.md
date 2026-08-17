@@ -29,17 +29,17 @@ Read these before drafting:
 
 1. `scripts/zeledon/STYLE.md`.
 2. The latest one or two files in `scripts/zeledon/weekly/`. <!-- doc-links: ignore (archive dir created at runtime by post_weekly.py; absent on a clean tree) -->
-3. `../gh-pages/AI.md`, especially `Weekly Update Checklist`.
-4. `../gh-pages/data/topics.json` for allowed update tags.
-5. The latest `../gh-pages/changes/posts/*.md` post, to keep format and coverage continuity.
+3. `website/AI.md`, especially `Weekly Update Checklist`.
+4. `website/data/topics.json` for allowed update tags.
+5. The latest `website/changes/posts/*.md` post, to keep format and coverage continuity.
 
-If your working directory is `../gh-pages`, then the main repo is `../main`. If your working directory is `../main`, then the website worktree is `../gh-pages`.
+Website sources are in `website/`; the publishable artifact is generated into `../gh-pages`.
 
 ## Phase 1: Establish the week
 
-1. Find the newest archived Discord post in `scripts/zeledon/weekly/` and the newest website post in `../gh-pages/changes/posts/`. <!-- doc-links: ignore (runtime archive dir + gh-pages sibling worktree) -->
+1. Find the newest archived Discord post in `scripts/zeledon/weekly/` and the newest website post in `website/changes/posts/`. <!-- doc-links: ignore (runtime archive dir created by post_weekly.py) -->
 2. Determine the new `covers:` range from the previous post's end date unless Thomas gives a different range.
-3. Gather what shipped during the range from `../main`:
+3. Gather what shipped during the range:
    - inspect `git log` for the range,
    - read the touched source, docs, specs, or tests needed to understand user-visible behavior,
    - include only behavior that actually landed,
@@ -73,7 +73,7 @@ read end to end. SHOULD waits behind all of it.
 
 ## Phase 2: Draft the public post
 
-1. Create or update `../gh-pages/changes/posts/<covers-start>.md`.
+1. Create or update `website/changes/posts/<covers-start>.md`.
 2. Use this front matter:
 
 ```yaml
@@ -83,7 +83,7 @@ tags: <comma-separated allowed tags>
 ---
 ```
 
-3. Choose tags from `../gh-pages/data/topics.json`. If the week needs a genuinely new topic, add it to `data/topics.json` with the right category. Do not force a near miss.
+3. Choose tags from `website/data/topics.json`. If the week needs a genuinely new topic, add it to `data/topics.json` with the right category. Do not force a near miss.
 4. Decide what the week is about before writing, and leave the rest out. A full week yields far more than fits, so `STYLE.md` ("How long") governs what survives: 3 sections is normal, 5 is the ceiling, and a section carrying one bullet is a sentence in the wrong shape.
 5. Write the body in Zeledon style:
    - `**📅 Ze Weekly Update**` header,
@@ -113,20 +113,20 @@ After Thomas approves the exact text:
 1. Run a dry run first:
 
 ```sh
-python3 scripts/zeledon/post_weekly.py ../gh-pages/changes/posts/<covers-start>.md
+python3 scripts/zeledon/post_weekly.py website/changes/posts/<covers-start>.md
 ```
 
 2. Check the chunk count and text. The tool splits at section boundaries for Discord's message limit.
 3. If Thomas wants a Discord preview, post to test only:
 
 ```sh
-python3 scripts/zeledon/post_weekly.py ../gh-pages/changes/posts/<covers-start>.md --channel ze-test --yes
+python3 scripts/zeledon/post_weekly.py website/changes/posts/<covers-start>.md --channel ze-test --yes
 ```
 
 4. Post to `ze-news` only after approval:
 
 ```sh
-python3 scripts/zeledon/post_weekly.py ../gh-pages/changes/posts/<covers-start>.md --yes
+python3 scripts/zeledon/post_weekly.py website/changes/posts/<covers-start>.md --yes
 ```
 
 The posting tool refuses incomplete weeks unless `--force` is used. Do not use `--force` unless Thomas explicitly asks for an in-progress week to be posted. The tool archives the exact posted text to `scripts/zeledon/weekly/<covers-start>-weekly.md` after a successful post.
@@ -134,24 +134,24 @@ The posting tool refuses incomplete weeks unless `--force` is used. Do not use `
 5. **A run that stops partway has already put messages in the channel.** Read what it printed. It names the chunk that failed and the flag that finishes the post:
 
 ```sh
-python3 scripts/zeledon/post_weekly.py ../gh-pages/changes/posts/<covers-start>.md --resume-from <N> --yes
+python3 scripts/zeledon/post_weekly.py website/changes/posts/<covers-start>.md --resume-from <N> --yes
 ```
 
 Never answer a partial send by running the command again without `--resume-from`. The archive is written only after the last chunk lands, so nothing records the week as posted, and a fresh run sends every chunk that already arrived a second time.
 
 ## Phase 4: Update the website
 
-In `../gh-pages`, apply the checklist from `AI.md`:
+In `website/`, apply the checklist from `AI.md`:
 
 1. Confirm the post has valid `tags:` front matter.
 2. Check `data/features.json` and `data/milestones.json` for drift.
-3. Check `../main/docs/comparison.md` and `compare/comparison.md` for comparison drift.
+3. Check `docs/comparison.md` and `website/compare/comparison.md` for comparison drift.
 4. Check whether a new lab page or `data/nav.json` Labs entry is needed.
 5. Check whether `performance/index.html` needs fresh headline benchmark stats.
 6. Run:
 
 ```sh
-./update-website.sh
+make ze-site-generate
 ```
 
 7. Verify these outputs exist and reference the new week:
@@ -159,7 +159,7 @@ In `../gh-pages`, apply the checklist from `AI.md`:
    - `changes/index.html`,
    - `changes/feed.xml`,
    - `index.html` homepage `Latest updates` cards, when the new week is within the rendered latest set.
-8. Do not assume the homepage card count. Read `tools/render-index.py` and check `sitelib.latest_blog_posts(N)`. <!-- doc-links: ignore (tools/render-index.py lives in the ../gh-pages sibling repo, not this tree) --> If Thomas expects four cards and the renderer still uses a different number, update the renderer before claiming the homepage is correct.
+8. Do not assume the homepage card count. Read `website/tools/render-index.py` and check `sitelib.latest_blog_posts(N)`. If Thomas expects four cards and the renderer still uses a different number, update the renderer before claiming the homepage is correct.
 9. Link-check the changed site. Reuse an existing local checker if available, otherwise use a temporary script that walks published `*.html` and `*.md` files, excludes `presentations/`, and resolves local `href` and `src` targets.
 
 ## Phase 5: Report
@@ -171,7 +171,7 @@ Report only grounded facts:
 - the Discord archive path,
 - whether `ze-news` was posted,
 - which site files or data files changed,
-- the `./update-website.sh` result,
+- the `make ze-site-generate` result,
 - the link-check result,
 - any intentionally skipped drift item, with the reason.
 

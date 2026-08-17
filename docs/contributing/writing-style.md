@@ -31,7 +31,7 @@ The checker is `scripts/dev/ste_check.py`.
 | YANG `description` strings | Yes |
 | `ai/` rules and patterns, `plan/` specs and learned summaries | Yes |
 | Commit messages and PR text | Yes |
-| The website and the wiki | No. Both live outside this repository |
+| The website and the wiki | Yes for `website/`. No for generated files in `../gh-pages` |
 | Identifiers, keys, tokens, quoted external text, fixture data | No. Read "Words that never change" |
 
 ## The six habits to avoid

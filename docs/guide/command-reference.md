@@ -13,15 +13,15 @@ is produced from this JSON.
 For the generated cross-vendor migration view (Junos MX, Cisco IOS XR,
 Nokia SR OS, and VyOS), use the website's
 [Command Equivalents](https://ze-software.net/reference/command-equivalents/) page.
-It joins `ze help command --json` with the curated vendor mapping in the
-website branch, so Ze command additions appear as unmapped rows until a vendor
-equivalent is added. For code-tree readers, the maintained data and generator
-are in the repository on the `gh-pages` branch:
-[`data/command-equivalents.json`](https://github.com/ze-software/ze/blob/gh-pages/data/command-equivalents.json)
+It joins `ze help command --json` with the curated vendor mapping in
+`website/data/command-equivalents.json`, so Ze command additions appear as
+unmapped rows until a vendor equivalent is added. For code-tree readers, the
+maintained data and generator are in `website/`:
+[`data/command-equivalents.json`](https://github.com/ze-software/ze/blob/main/website/data/command-equivalents.json)
 and
-[`tools/render-command-equivalents.py`](https://github.com/ze-software/ze/blob/gh-pages/tools/render-command-equivalents.py).
-<!-- source: ../gh-pages/tools/render-command-equivalents.py -- load_inputs, build_rows -->
-<!-- source: ../gh-pages/data/command-equivalents.json -- vendor mapping -->
+[`tools/render-command-equivalents.py`](https://github.com/ze-software/ze/blob/main/website/tools/render-command-equivalents.py).
+<!-- source: website/tools/render-command-equivalents.py -- load_inputs, build_rows -->
+<!-- source: website/data/command-equivalents.json -- vendor mapping -->
 
 ## Conventions
 

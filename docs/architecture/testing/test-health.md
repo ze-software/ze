@@ -176,13 +176,13 @@ identical to the previous one at the same commit so trends do not overstate `n`.
 
 ## Publication
 
-The website mirrors the generated Markdown verbatim: `../gh-pages/tools/render-test-health.py`
+The website mirrors the generated Markdown verbatim: `website/tools/render-test-health.py`
 reads `test/health/latest.json` and `history.ndjson`, renders the page at
 `quality/health/`, and publishes the repository's `docs/features/test-health.md`
 as the `index.md` sibling unchanged. It computes nothing, so the site cannot
 publish a figure the repository disagrees with. The homepage's test counts read
-the same `latest.json` through `../gh-pages/tools/sitefacts.py`.
-<!-- source: ../gh-pages/tools/render-test-health.py -- page_markdown, render -->
+the same `latest.json` through `website/tools/sitefacts.py`.
+<!-- source: website/tools/render-test-health.py -- page_markdown, render -->
 
 ## Full operator reference
 
