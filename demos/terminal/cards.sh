@@ -82,9 +82,9 @@ EOF
 
   ZeFS now contains a valid active configuration.
 
-  Next: connect over SSH and run show bgp summary in its default text
-  format. Then switch the default to table, review and commit the diff,
-  and run the same command again to compare the presentation.
+  Next: connect over SSH and show bgp summary in its default text format.
+  Then switch the default to table, review and commit the diff.
+  Return to operational mode and run the same show command again.
 EOF
         ;;
     zefs-config:recap)

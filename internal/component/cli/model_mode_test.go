@@ -219,6 +219,41 @@ func TestCommandModeDispatch(t *testing.T) {
 	}
 }
 
+// VALIDATES: operational-mode "show ..." uses the command executor even when an
+// editor is available.
+// PREVENTS: "show bgp summary" switching to config mode and rendering config
+// instead of daemon output.
+func TestOperationalShowDispatchesToCommandExecutorWithEditor(t *testing.T) {
+	m := newTestModel(t)
+	m.SetCommandExecutor(func(input string) (CommandOutput, error) {
+		if input != "show bgp summary" {
+			return CommandOutput{}, fmt.Errorf("unexpected command: %s", input)
+		}
+		return CommandOutput{Text: "operational summary"}, nil
+	})
+	m.switchMode(ModeOperational)
+	m.textInput.SetValue("show bgp summary")
+
+	next, cmd := m.handleEnter()
+	updated, ok := next.(Model)
+	if !ok {
+		t.Fatal("expected Model from handleEnter")
+	}
+	if updated.Mode() != ModeOperational {
+		t.Fatalf("mode = %v, want %v", updated.Mode(), ModeOperational)
+	}
+	if cmd == nil {
+		t.Fatal("expected operational command")
+	}
+	msg, ok := cmd().(commandResultMsg)
+	if !ok {
+		t.Fatalf("command result type = %T, want commandResultMsg", msg)
+	}
+	if msg.result.output != "operational summary" {
+		t.Fatalf("output = %q, want operational summary", msg.result.output)
+	}
+}
+
 // VALIDATES: direct CLI completion runs only after Update applies command text
 // to the viewport.
 // PREVENTS: attached lifecycle teardown racing the CLI result writer.

@@ -397,17 +397,16 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	}
-	if m.mode == ModeOperational && isConfigCommand(input) {
+	if m.mode == ModeOperational && isConfigCommand(input) && !isOperationalVerb(input) {
 		if m.hasEditor() {
 			m.switchMode(ModeConfig)
 			// Fall through to normal dispatch -- history/clear happens below,
 			// executeCommand runs with the switched mode.
-		} else if !isOperationalVerb(input) {
+		} else {
 			m.textInput.SetValue("")
 			m.statusMessage = "config mode not available (no config file loaded)"
 			return m, nil
 		}
-		// Operational verbs (show, errors, who) fall through to command dispatch.
 	}
 
 	// Handle exit/quit directly (not via async command dispatch).
