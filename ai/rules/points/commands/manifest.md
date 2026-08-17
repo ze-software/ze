@@ -6,12 +6,15 @@ related: testing, platform-linux, git-safety
 ---
 directives ## Directives
   run-commands-through-make-and-never-poll
+cgo-free-builds ## CGO-Free Builds
+  ze-is-cgo-free
 one-owner-runs-the-suites ## One Owner Runs The Suites
   rule
   why-one-owner-and-not-a-lock
   never-attribute-a-red-taken-under-contention
   the-proof-a-fix-needs-is-not-a-suite
   known-failure-reruns-stay-focused-until-final-verification
+  sample-tests-before-aggregate-suite
 bare-go-test-lies-always-pass-the-feature-tags ## Bare `go test` Lies -- Always Pass The Feature Tags
   bare-go-test-omits-the-feature-build-tags
   prefer-a-make-target-or-pass-the-tags-yourself

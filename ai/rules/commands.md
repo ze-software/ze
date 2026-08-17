@@ -20,6 +20,14 @@
 - **Run `make ze-lint-changed` before claiming any Go implementation work is done.**
 - **Fix every issue it reports. Do not claim done with lint failures outstanding.**
 
+## CGO-Free Builds
+
+- Non-race first-party Go compilation MUST set `CGO_ENABLED=0` in the process environment.
+- This covers binaries, tests, benchmarks, fuzzing, `go run`, nested helpers, and installed project tools.
+- A test-only command that uses `-race` MAY set `CGO_ENABLED=1`.
+- Race binaries MUST NOT ship or serve as release or build evidence.
+- Inherited CGO defaults MUST NOT be used.
+
 ## One Owner Runs The Suites
 
 **Suite runs have ONE owner: the main thread, or one agent it dedicates to
@@ -49,6 +57,13 @@ survive contention.
 - A known failing test MUST stay at the narrowest runnable scope until it passes. For Go tests, run `make ze-unit-pkg-test PKG=./path/to/package RUN='^TestName$' RACE=0`.
 - Use `RACE=0` only for non-race iteration. A race or concurrency failure MUST keep race detection enabled.
 - Run the required aggregate target, `make ze-precommit-verify` or `make ze-precommit-verify-changed`, only once. Run it after focused tests pass and all edits are complete. You MUST NOT use either aggregate target to rerun one known failure.
+
+- During development, the session MUST run a focused test sample for the changed code path before a fuller, aggregate, or full suite.
+- The sample MAY include the test being developed.
+- The focused sample is a scope probe, not a suite substitute.
+- The session MAY run more focused sample tests to find the failure boundary.
+- When a sample test fails, the fix loop MUST use the narrowest command that reproduces that failure.
+- The session MUST NOT run a fuller, aggregate, or full suite until the reproducer and the relevant focused sample tests pass.
 
 ## Bare `go test` Lies -- Always Pass The Feature Tags
 
