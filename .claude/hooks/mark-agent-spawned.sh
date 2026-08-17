@@ -17,10 +17,9 @@
 # Companion to mark-lsp-invoked.sh / mark-source-read.sh, same marker convention.
 # Marker path: tmp/session/.agent-spawned-<SID>. Content: ISO-8601 timestamp.
 #
-# The id is the PARENT session's: subagents inherit $CLAUDE_CODE_SESSION_ID
-# deliberately (.claude/hooks/lib/session_id.py, "Precedence" 1), and this hook
-# fires in the parent anyway, so the marker always lands on the supervising
-# session rather than the agent it launched.
+# This hook fires in the parent process after the spawn. The resolver therefore
+# names the supervising session's marker without depending on a subagent
+# environment.
 #
 # Non-blocking: this hook only records; it never rejects a spawn.
 

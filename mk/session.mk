@@ -1,7 +1,7 @@
 # Session-scoped binary directory.
 #
 # Concurrent AI sessions share ONE working tree, so a fixed output path like
-# bin/ze means session B's `make ze` overwrites the binary session A is running
+# bin/ze means session B's `make ze-build` overwrites the binary session A is running
 # tests against, mid-run. Every canonical binary therefore goes into this
 # session's OWN directory, under its BARE name:
 # tmp/session/<YYYY-MM-DD>-<session-id>/bin/ze.
@@ -33,17 +33,21 @@
 # exactly the path used before this file existed. Nothing changes for anyone but
 # an AI session.
 #
-# Source of the id: CLAUDE_CODE_SESSION_ID, which the Claude CLI exports into
-# every child process (.claude/hooks/lib/session_id.py, source 1 -- "always set
-# on current CLIs"). We deliberately do NOT shell out to session_id.py here:
-# its last-resort source 4 MINTS an id keyed on the topmost process ancestor
-# when none is found, so calling it from a human's `make` would invent a session
-# and move that human's binaries. Presence of the exported variable is the
-# correct, side-effect-free signal that an AI session is driving this build.
-
-# `?=` so an explicit `make ZE_SESSION_ID=x` (or an id exported by a parent make)
-# still wins, while the normal case takes the CLI's variable.
+# Preferred source: SessionStart validates its JSON payload and writes the safe
+# id to CLAUDE_CODE_SESSION_ID and CLAUDE_ENV_FILE. A restricted subagent Bash
+# call also receives an exact export prefix from the PreToolUse hook. `?=`
+# preserves an explicit `make ZE_SESSION_ID=x` or an id from a parent make.
 ZE_SESSION_ID ?= $(CLAUDE_CODE_SESSION_ID)
+
+# The fork-only fallback remains for direct Make invocations that did not pass
+# through the Bash hook and did not receive the environment file. A human's
+# off-session `make` must not call the resolver because its last source mints an
+# id and would move human binaries out of bin/.
+ifeq ($(ZE_SESSION_ID),)
+ifdef CLAUDE_CODE_FORK_SUBAGENT
+ZE_SESSION_ID := $(shell python3 .claude/hooks/lib/session_id.py)
+endif
+endif
 
 # Reject an id that is unusable as a filename component before it reaches a path.
 # Whitespace shows up as a word count other than 1; '/' would escape the session
@@ -55,7 +59,7 @@ ZE_SESSION_ID ?= $(CLAUDE_CODE_SESSION_ID)
 # The validation deliberately runs on the RESOLVED id, not on
 # CLAUDE_CODE_SESSION_ID: a command-line assignment overrides every file
 # assignment in make, so validating only the environment source would leave
-# `make ze ZE_SESSION_ID=../../etc` writing outside the session root.
+# `make ze-build ZE_SESSION_ID=../../etc` writing outside the session root.
 # The charset check MUST match Go's sidSafe (internal/test/sessionpath, itself a
 # mirror of _SID_SAFE_RE in .claude/hooks/lib/session_id.py). A weaker check here
 # is not cosmetic: make would build into a directory Go's ID() rejected while Go
@@ -64,9 +68,9 @@ ZE_SESSION_ID ?= $(CLAUDE_CODE_SESSION_ID)
 # single-resolver design exists to prevent.
 #
 # `tr -d` deletes every accepted character; a non-empty remainder means the id
-# carries something Go would reject. One `tr` per make run, no side effects --
-# unlike calling session_id.py, which MINTS an id (session_id.py:278-286) and
-# would invent a session for a human's `make`.
+# carries something Go would reject. This validation has no side effects. The
+# fork-only resolver call above can mint an id, but a human invocation never
+# reaches it.
 #
 # The id must be INTERPOLATED into the command: passing it through an exported
 # variable and reading $$VAR inside the shell was tried and silently validated
@@ -114,7 +118,7 @@ endif
 #
 # `override` is required, not stylistic: a command-line assignment outranks every
 # makefile assignment, so a plain `ZE_SESSION_ID :=` here would be discarded and
-# `make ze ZE_SESSION_ID=../../etc` would still reach the -o path.
+# `make ze-build ZE_SESSION_ID=../../etc` would still reach the -o path.
 override ZE_SESSION_ID := $(ZE_SESSION_SAFE)
 export ZE_SESSION_ID
 
@@ -192,7 +196,7 @@ ZEBIN_PERF      := $(ZE_BIN_DIR)/ze-perf
 # call this.
 #
 # Off-session the macro expands to NOTHING, and a recipe line that expands to
-# nothing is neither printed nor executed, so a human's `make ze` stays the
+# nothing is neither printed nor executed, so a human's `make ze-build` stays the
 # command it always was -- `make -n ze` included.
 ifeq ($(ZE_SESSION_ID),)
 ZE_SEED_SESSION_STORE =

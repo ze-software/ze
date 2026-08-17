@@ -7,16 +7,32 @@
 # govern it; when that is manual per-spawn work, delegating costs more than
 # working inline and the rule loses. So the harness supplies it instead.
 #
-# The claimed spec resolves through the parent session's marker: subagents
-# inherit $CLAUDE_CODE_SESSION_ID from the parent deliberately
-# (.claude/hooks/lib/session_id.py, "Precedence" 1), so tmp/session/.session-<sid>
-# is the PARENT's claim, which is exactly the one the agent is working under.
+# The SubagentStart payload carries the parent session id even when the fork has
+# no identity environment and cannot inspect its process ancestry. Validate that
+# raw payload here, then use the accepted parent id for all parent-owned paths.
 
 # $CLAUDE_PROJECT_DIR first, $0-relative only as a fallback -- the convention every
 # other hook here follows. Deriving the root from $0 alone resolves to the checkout
 # the script lives in, which is the wrong tree for a worktree and untestable from a
 # fixture project.
 cd "$CLAUDE_PROJECT_DIR" 2>/dev/null || cd "$(dirname "$0")/../.." || exit 0
+
+source .claude/hooks/lib/state-file.sh 2>/dev/null || true
+if PARENT_SID=$(python3 .claude/hooks/lib/session_id.py --hook-session-id 2>/dev/null); then
+    PAYLOAD_STATUS=0
+else
+    PAYLOAD_STATUS=$?
+    PARENT_SID=""
+fi
+if [ "$PAYLOAD_STATUS" -eq 1 ] && type _session_id &>/dev/null; then
+    PARENT_SID=$(_session_id 2>/dev/null || echo "")
+fi
+PARENT_SESSION_DIR=""
+PARENT_SCRATCH=""
+if [ -n "$PARENT_SID" ] && type _session_dir &>/dev/null; then
+    PARENT_SESSION_DIR=$(_session_dir "$PARENT_SID")
+    PARENT_SCRATCH="$PARENT_SESSION_DIR/scratch"
+fi
 
 # Current branch
 BRANCH=$(git branch --show-current 2>/dev/null || echo "unknown")
@@ -25,26 +41,24 @@ BRANCH=$(git branch --show-current 2>/dev/null || echo "unknown")
 SPEC=""
 SPEC_STATUS=""
 SPEC_STATE=""
-source .claude/hooks/lib/state-file.sh 2>/dev/null || true
-if type _session_id &>/dev/null; then
-    SID=$(_session_id 2>/dev/null || echo "")
-    if [ -n "$SID" ] && [ -f "tmp/session/.session-${SID}" ]; then
-        CLAIM=$(head -1 "tmp/session/.session-${SID}" 2>/dev/null || true)
-        if [ -n "$CLAIM" ] && [ "$CLAIM" != "unassigned" ] && [ -f "plan/$CLAIM" ]; then
-            SPEC="plan/$CLAIM"
-            SPEC_STATUS=$(grep -m1 -E "^\| Status \|" "$SPEC" 2>/dev/null | sed 's/|//g; s/Status//; s/^ *//; s/ *$//')
-            # The per-spec digest an earlier phase wrote. One resolver owns this
-            # file family (lib/state-file.sh); never spell a second path here.
-            # Absent file means absent line: an empty path teaches nothing.
-            if type _find_latest_state_for_spec &>/dev/null; then
-                STEM=$(echo "$CLAIM" | sed 's/^spec-//; s/\.md$//')
-                SPEC_STATE=$(_find_latest_state_for_spec "$STEM" 2>/dev/null || true)
-                [ -n "$SPEC_STATE" ] && [ -f "$SPEC_STATE" ] || SPEC_STATE=""
-            fi
+if [ -n "$PARENT_SID" ] && [ -f "tmp/session/.session-${PARENT_SID}" ]; then
+    CLAIM=$(head -1 "tmp/session/.session-${PARENT_SID}" 2>/dev/null || true)
+    if [ -n "$CLAIM" ] && [ "$CLAIM" != "unassigned" ] && [ -f "plan/$CLAIM" ]; then
+        SPEC="plan/$CLAIM"
+        SPEC_STATUS=$(grep -m1 -E "^\| Status \|" "$SPEC" 2>/dev/null | sed 's/|//g; s/Status//; s/^ *//; s/ *$//')
+        STEM=$(echo "$CLAIM" | sed 's/^spec-//; s/\.md$//')
+        if [ -n "$PARENT_SESSION_DIR" ]; then
+            SPEC_STATE="$PARENT_SESSION_DIR/state/session-state-${STEM}-${PARENT_SID}.md"
+            [ -f "$SPEC_STATE" ] || SPEC_STATE=""
+        fi
+        if [ -z "$SPEC_STATE" ] && type _find_latest_state_for_spec &>/dev/null; then
+            SPEC_STATE=$(_find_latest_state_for_spec "$STEM" 2>/dev/null || true)
+            [ -n "$SPEC_STATE" ] && [ -f "$SPEC_STATE" ] || SPEC_STATE=""
         fi
     fi
 fi
 
+emit_context() {
 cat <<EOF
 Ze is a Network OS in Go (BGP, CLI, web, plugins). Key constraints:
 - Zero-copy, buffer-first encoding: WriteTo(buf, off) int -- no make/append in encoding
@@ -70,6 +84,16 @@ Digest of that spec's earlier phases: $SPEC_STATE
 Read it before re-deriving what an earlier phase already established.
 EOF
     fi
+fi
+
+if [ -n "$PARENT_SID" ] && [ -n "$PARENT_SCRATCH" ]; then
+    cat <<EOF
+
+Parent session ID: $PARENT_SID
+Parent session scratch: $PARENT_SCRATCH
+Set CLAUDE_CODE_SESSION_ID=$PARENT_SID for every Bash tool call. The Bash
+PreToolUse hook adds this prefix to the command.
+EOF
 fi
 
 cat <<'EOF'
@@ -104,3 +128,6 @@ You are a subagent under ai/rules/planning.md. Your contract:
   session had already read.
   Full rule: ai/rules/context-economy.md.
 EOF
+}
+
+emit_context | python3 -c 'import json, sys; json.dump({"hookSpecificOutput": {"hookEventName": "SubagentStart", "additionalContext": sys.stdin.read()}}, sys.stdout); sys.stdout.write("\n")'

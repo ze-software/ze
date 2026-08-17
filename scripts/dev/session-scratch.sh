@@ -18,7 +18,7 @@
 #
 # So two sessions never clobber each other's scratch, and an operator reads the
 # age of a session off its name and removes it by date, with
-# `make ze-sessions-clean BEFORE=<YYYY-MM-DD>`.
+# `make ze-session-clean BEFORE=<YYYY-MM-DD>`.
 #
 # NOTHING under tmp/session/ is ever removed automatically (owner decision,
 # 2026-08-03): not at session end, not on an age timer, not by a hook. The price
@@ -45,9 +45,6 @@
 # --clean removes the WHOLE session directory, binaries included: it is what
 # `make clean` runs, and `make clean` removes bin/ for an off-session build.
 #
-# No `set -u`: session-id.sh reads $CLAUDE_CODE_SESSION_ID and
-# $CLAUDE_CODE_SESSION_ACCESS_TOKEN without defaults (matches spec-session.sh).
-
 # Resolve the id helper relative to THIS script (the real checkout), so it is
 # found no matter the caller's cwd -- that is what lets the tests run isolated.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -65,16 +62,18 @@ if [ -z "$root" ]; then
 fi
 cd "$root" || exit 1
 
+# Refuse a non-empty raw environment id that the canonical validator rejects.
+# This check must happen before the resolver falls through to another source.
+if [ -n "${CLAUDE_CODE_SESSION_ID:-}" ] \
+    && [ -z "$(_sid_safe "$CLAUDE_CODE_SESSION_ID" 2>/dev/null)" ]; then
+    echo "session-scratch: unsafe session id '${CLAUDE_CODE_SESSION_ID}'" >&2
+    exit 1
+fi
 sid=$(_session_id)
-# Refuse an id that is empty, path-bearing, or a dot entry, so we can never
-# escape tmp/session/ under --clean. _sid_safe already drops
-# '/', globs and whitespace, but it permits '.' and '..'.
-case "$sid" in
-    "" | */* | . | ..)
-        echo "session-scratch: unsafe session id '${sid}'" >&2
-        exit 1
-        ;;
-esac
+if [ -z "$sid" ]; then
+    echo "session-scratch: no session id" >&2
+    exit 1
+fi
 
 session=$(_session_dir "$sid")
 dir="$session/scratch"

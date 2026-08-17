@@ -99,7 +99,7 @@ Automated enforcement of `ai/rules/` requirements.
 ### Session Lifecycle
 | Hook | What it does |
 |------|-------------|
-| `session-start.sh` | Status summary at session start |
+| `session-start.sh` | Publishes a safe payload session id and prints the session status |
 | `block-until-lsp.sh` | Refuses every tool call until `ToolSearch select:LSP` loads the LSP tool |
 | `pre-compact-save.sh` | Auto-save session state before compaction |
 | `block-premature-stop.sh` | Blocks a stop on ownership-dodging, permission-seeking and premature handoff (exit 2). The phrase scan has two tiers. `PHRASES` always blocks. `COMPLETION_PHRASES` (`what next`, `what would you like`) blocks ONLY when a claimed spec is still in-progress, because `.claude/rules/session-start.md` requires that question once the task is done. Nothing is exempt from either tier, and nothing may become exempt by FILTERING the scan's input: an exemption written and removed on 2026-08-08 dropped the whole line carrying `ai/rules/completion.md`'s mandated `New spec: <path>. Implement it?`, so a banned phrase sharing that line ended the turn, and it defeated the unbalanced-backtick and all-markup fallbacks whose purpose is to scan MORE. That sentence needs no exemption: it matches no pattern in either list. Two fixtures pin it (`stop-phrase-mandated-spec-ask-allowed`, `stop-phrase-mandated-ask-does-not-cover-a-second-request`), so a future pattern that swallowed it would go red here rather than in a session. A phrase inside a fenced block or inline backticks is NAMED rather than used, and does not block. Four guards keep that filter scanning MORE rather than less, and guard 4 strips inline spans only on a line whose backticks balance. When the harness sets `stop_hook_active` the hook skips the PHRASE SCAN alone. That bounds a refusal loop, and the other three gates stay armed. It exits 0 on input it cannot parse. Also refuses a stop while a CLAIMED spec is implemented but not closed, and warns (exit 1) when a claimed spec was worked with no subagent. The state checks need a claimed spec, and they need it on every turn rather than only the first. Runs first at `Stop`, and no hook releases the claim: `spec-session.sh release` does, from `/ze-close`, so the marker survives the turn-by-turn `Stop` and every later one. It heartbeats TWO markers on the way past: the claim, and `tmp/session/.agent-spawned-<SID>`. Both calls use `touch -c`, so a missing marker is never created. Neither marker is ever deleted on a timer, so the mtime this heartbeat writes is what dates a live claim against one a dead session left behind. Fixtures: `python3 scripts/dev/hook-fixture-check.py --only delegation` (36) |
@@ -150,12 +150,16 @@ Every hook that names a per-session marker under `tmp/session/`
 `.source-read-<kind>-<sid>`, `.session-<sid>`), or the session directory that
 holds the digest (`tmp/session/<YYYY-MM-DD>-<sid>/state/session-state-<stem>-<sid>.md`),
 resolves `<sid>` through **one** resolver:
-`.claude/hooks/lib/session_id.py`. It has two faces:
+`.claude/hooks/lib/session_id.py`. It has three faces:
 
-- an importable `session_id()` for the in-process Python callers
-  (`pretool-writeedit.py`, `scripts/dev/commit_helper.py`); and
-- a `__main__` that prints the id for the Bash hooks, which reach it through the
-  one-line shim `.claude/hooks/lib/session-id.sh` (`_session_id`).
+- an importable `session_id()` for Python callers (`pretool-writeedit.py`,
+  `pretool-agent-skill.py`, `running_model.py`, `scripts/dev/commit_helper.py`,
+  and `scripts/dev/review_gate.py`).
+- `--hook-session-id`, which reads hook JSON from stdin. It exits 0 and prints
+  the raw `session_id` only for a safe string. It exits 1 when an object omits
+  the field, and exits 2 for malformed JSON or an invalid field.
+- a default `__main__` that prints the resolved id for shell callers. Bash hooks
+  reach it through `.claude/hooks/lib/session-id.sh` (`_session_id`).
 
 There is deliberately no second copy. Three independent derivations (Bash,
 Python-hook, `commit_helper`) previously drifted for weeks despite a prose "MUST
@@ -163,18 +167,38 @@ stay identical" note, and a disagreement fails **closed**: the reader looks for 
 marker nothing wrote and blocks work already done. A shim cannot drift from the
 code it calls. See `plan/learned/` (spec `spec-fixit-session-id-collision`).
 
+`session-start.sh` passes its JSON payload directly to `--hook-session-id`.
+Its empty SessionStart matcher runs for startup, resume, clear, compact, and
+fork events. When the payload id is safe, the hook exports it as
+`CLAUDE_CODE_SESSION_ID` and appends the same export to `CLAUDE_ENV_FILE`.
+The hook does not persist `ZE_SESSION_ID`.
+
+Restricted fork tool processes do not always receive the environment file.
+`subagent-context.sh` therefore reads the parent id from its SubagentStart
+payload. Only an absent `session_id` field permits resolver fallback. A present
+invalid field adds no parent-owned paths or state to the context. The hook emits
+one JSON object and puts its complete text in
+`hookSpecificOutput.additionalContext`. For a safe id, this text names the
+parent id and exact scratch directory. `pretool-bash.py` reads the same field
+from each subagent PreToolUse payload and prefixes an accepted Bash command with
+the safe export. The prefix reaches Make, scratch, and review subprocesses
+without a shared identity cache.
+
+Fork-only Python consumers use the canonical resolver when their direct
+environment id is absent or invalid. Human and CI fallbacks remain unchanged.
+
 ### Resolution precedence
 
 | # | Source | Notes |
 |---|--------|-------|
-| 1 | `$CLAUDE_CODE_SESSION_ID` | The session UUID the CLI exports into every child process. Free, canonical, no walk. Forks/subagents inherit the **parent** session's value on purpose, so a fork sees the fail-closed markers its parent wrote. |
-| 2 | `--session-id` in the process tree | The CLI's own flag, present only when launched with it. `/proc` on Linux, `ps` on macOS/BSD. |
-| 3 | `CLAUDE_CODE_SESSION_ACCESS_TOKEN` JWT `session_id` claim | Empty for subscription auth. |
-| 4 | Minted UUID at `tmp/session/.sid-by-pid-<clipid>-<starttime>` | Last resort: a UUID minted once and cached, keyed by the long-lived **CLI-ancestor PID and that process's start time** (never the id itself). Per-session unique **and** stable across the many short-lived hook subprocesses. A reused PID carries a different start time, so a new session never reads a dead one's id. Replaces the old shared constant `claude-session-fallback`, which every concurrent session collided on. |
+| 1 | `$CLAUDE_CODE_SESSION_ID` | Used only when the raw value is already safe in this process. SessionStart accepts the safe hook payload. PreToolUse Bash prefixes restricted fork commands from their safe parent payload. |
+| 2 | `--session-id` in the process tree | The CLI's own flag, present only when launched with it. `/proc` is used on Linux. `ps` is used on macOS and BSD. |
+| 3 | `CLAUDE_CODE_SESSION_ACCESS_TOKEN` JWT `session_id` claim | Empty for subscription authentication. |
+| 4 | Minted UUID at `tmp/session/.sid-by-pid-<clipid>-<starttime>` | Last resort, keyed by the CLI ancestor PID and process start time. It is stable when process ancestry is visible. Restricted fork Bash commands use the hook payload before this fallback. |
 
-An id from any source is used only when it is safe as a filename component
-(`[A-Za-z0-9._-]`); anything else falls through, so the Bash and Python entry
-points cannot disagree on the marker path.
+An id from any source is used only when it is a non-dot filename component
+that matches `[A-Za-z0-9._-]+`. The validator rejects `.`, `..`, whitespace,
+newlines, NUL bytes, slashes, empty values, and non-string JSON values.
 
 The regression harness is `scripts/dev/hook-fixture-check.py` (section
 `session-id`), run by `make ze-unit-hook-test`.
@@ -184,9 +208,8 @@ The regression harness is `scripts/dev/hook-fixture-check.py` (section
 A session owns one directory, `tmp/session/<YYYY-MM-DD>-<sid>/`, holding `bin/`
 (its binaries and the `etc/ze` they resolve), `scratch/` (ad-hoc logs and
 probes) and `state/` (the per-spec digest). The flat marker files above sit
-beside it, not inside it: `.sid-by-pid-<clipid>` mints the id the directory is
-named for, and `.closure-ack-<stem>` is keyed by spec stem rather than by
-session.
+beside it, not inside it. `.sid-by-pid-<clipid>-<starttime>` mints the id that
+names the directory. `.closure-ack-<stem>` is keyed by spec stem.
 
 The directory is LOOKED UP, never recomputed: take the directory already
 carrying this id, whatever its date, and name a new one with today's date only
@@ -197,7 +220,7 @@ definition is `.claude/hooks/lib/session-dir.sh` (`_session_dir`), used by
 `internal/test/sessionpath` implement the same rule for their own callers, and
 `TestMakeAndGoAgreeOnBinDir` (`scripts/dev/session_bin_dir_test.py`) is what
 stops the copies drifting. Nothing under `tmp/session/` is ever removed
-automatically; `make ze-sessions-clean BEFORE=<YYYY-MM-DD>` is the operator's
+automatically; `make ze-session-clean BEFORE=<YYYY-MM-DD>` is the operator's
 route.
 
 Its regression harness is `hook-fixture-check.py` section

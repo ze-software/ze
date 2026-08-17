@@ -18,10 +18,18 @@ a broken guard must never wedge delegation.
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import re
 import sys
+
+_SID_MODULE_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "lib", "session_id.py"
+)
+_sid_spec = importlib.util.spec_from_file_location("ze_session_id", _SID_MODULE_PATH)
+_ze_session_id = importlib.util.module_from_spec(_sid_spec)
+_sid_spec.loader.exec_module(_ze_session_id)
 
 # A `ze point:` comment directly above a gate names the rule point it enforces
 # (`<rule-stem>/<slug>` under ai/rules/points/), or `none -- <why>`. Joined by
@@ -172,10 +180,14 @@ def rm_is_review_tier(model: str) -> bool:
         return True  # cannot tell the tier: do not block
 
 
-def _ack_recorded() -> bool:
-    """The operator's recorded decision, the same escape the edit gate uses."""
+def _ack_recorded(payload: object | None = None) -> bool:
+    """Whether this session has a recorded operator decision."""
     root = os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd()
-    sid = os.environ.get("CLAUDE_CODE_SESSION_ID", "").strip()
+    sid = _ze_session_id._hook_session_id(payload)
+    if not sid:
+        sid = _ze_session_id._sid_safe(os.environ.get("CLAUDE_CODE_SESSION_ID"))
+    if not sid and os.environ.get("CLAUDE_CODE_FORK_SUBAGENT"):
+        sid = _ze_session_id.session_id()
     if not sid:
         return False
     path = os.path.join(root, "tmp", "session", f".model-ack-{sid}")
@@ -201,11 +213,13 @@ def _is_review_work(prompt: str) -> bool:
 
 
 # ze point: planning/work-phases/run-every-review-on-opus-5
-def review_model_refusal(prompt: str, transcript: str | None = None) -> str:
+def review_model_refusal(
+    prompt: str, transcript: str | None = None, payload: object | None = None
+) -> str:
     """Why this review may not run here, or '' when it may."""
     if not _is_review_work(prompt):
         return ""
-    if _ack_recorded():
+    if _ack_recorded(payload):
         return ""
     model = _running_model(transcript)
     if not model:
@@ -239,7 +253,7 @@ def main() -> int:
         return 0
     ti = payload.get("tool_input") or {}
     prompt = str(ti.get("prompt") or "")
-    refusal = review_model_refusal(prompt, payload.get("transcript_path"))
+    refusal = review_model_refusal(prompt, payload.get("transcript_path"), payload)
     if refusal:
         sys.stderr.write(refusal + "\n")
         return 2

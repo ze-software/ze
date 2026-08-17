@@ -18,11 +18,10 @@ _session_id() {
 }
 
 # _sid_safe prints its argument when it is usable as a filename component, and
-# nothing otherwise. Callers that receive an id rather than resolve one (the
-# SessionEnd hooks read it from their JSON payload) need the safety rule without
-# the resolution walk. It delegates to the same _sid_safe in session_id.py, so
-# there is still exactly one implementation of the rule -- restoring the shell
-# copy that the shim replaced would re-create the drift the shim exists to stop.
+# nothing otherwise. Direct-value consumers need the safety rule without the
+# resolution walk. It delegates to the same _sid_safe in session_id.py, so there
+# is still exactly one implementation of the rule. Restoring a shell copy would
+# recreate the drift that this shim prevents.
 _sid_safe() {
     python3 "$_ZE_SID_DIR/session_id.py" --safe "$1"
 }

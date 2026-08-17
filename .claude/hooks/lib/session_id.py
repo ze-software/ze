@@ -4,12 +4,13 @@
 Every hook that names a per-session marker under tmp/session/ (.lsp-loaded-<sid>,
 .lsp-invoked-<sid>, .source-read-<sid>, .session-<sid>) or the session directory
 holding the digest (tmp/session/<YYYY-MM-DD>-<sid>/state/session-state-*.md)
-resolves the <sid> HERE, and only here. Two faces:
+resolves the <sid> HERE, and only here. Three faces:
 
-  * an importable ``session_id()`` for the in-process Python callers
-    (.claude/hooks/pretool-writeedit.py, scripts/dev/commit_helper.py); and
-  * a ``__main__`` that prints the id, for the Bash callers, which reach it through
-    the one-line shim .claude/hooks/lib/session-id.sh (``_session_id``).
+  * an importable ``session_id()`` for in-process Python callers;
+  * ``--hook-session-id``, which validates the raw ``session_id`` string in hook
+    JSON from stdin before shell command substitution can normalize it; and
+  * a default ``__main__`` that prints the resolved id for Bash callers through
+    .claude/hooks/lib/session-id.sh (``_session_id``).
 
 There is deliberately no second copy. Three independent derivations used to exist
 (Bash, Python-hook, commit_helper) and drifted for weeks despite a prose "MUST stay
@@ -19,10 +20,10 @@ truth is the fix (spec-fixit-session-id-collision).
 
 Precedence:
 
-  1. $CLAUDE_CODE_SESSION_ID -- the session UUID the CLI exports into every child
-     process, so it reaches each short-lived hook subprocess for free: no walk, no
-     decode. Subagents and forks inherit the PARENT session's value deliberately: a
-     fork must see the fail-closed markers its parent wrote.
+  1. $CLAUDE_CODE_SESSION_ID when it is already present in this process.
+     SessionStart accepts it from the validated hook payload. PreToolUse Bash
+     prefixes a validated parent payload id for restricted fork commands that do
+     not receive the SessionStart environment file.
   2. --session-id from the process tree -- the CLI's own flag, present only when the
      CLI was launched with it (an interactive `claude` has none). /proc on Linux,
      `ps` on macOS/BSD.
@@ -30,19 +31,18 @@ Precedence:
      subscription auth).
   4. A UUID minted once and cached at tmp/session/.sid-by-pid-<clipid>-<starttime>,
      keyed by the long-lived CLI-ancestor PID AND that process's start time.
-     Per-session unique AND stable across the many short-lived hook subprocesses --
-     it replaces the old shared constant "claude-session-fallback", which every
-     concurrent session collided on. The start time is what retires a dead session's
-     entry (see _cache_key): a reused PID never reads it.
+     Per-session unique. It is stable across short-lived subprocesses when the CLI
+     ancestry can be inspected. Restricted forks that cannot inspect ancestry must
+     use the hook payload before they reach this fallback.
 
-An id from any source is used only when it is safe as a filename component
+An id from any source is used only when it is a non-dot filename component
 ([A-Za-z0-9._-]); anything else falls through rather than being rewritten, so the
 Bash and Python entry points cannot disagree on the marker path.
 """
 
 from __future__ import annotations
 
-import base64
+import json
 import os
 import re
 import subprocess
@@ -59,9 +59,11 @@ _SID_SAFE_RE = re.compile(r"\A[A-Za-z0-9._-]+\Z")
 _TOKEN_UNSAFE_RE = re.compile(r"[^A-Za-z0-9._-]+")
 
 
-def _sid_safe(sid: str) -> str:
-    """Return sid when it is usable as a filename component, else ''."""
-    return sid if sid and _SID_SAFE_RE.match(sid) else ""
+def _sid_safe(sid: object) -> str:
+    """Return sid when it is a non-dot filename component, else ''."""
+    if not isinstance(sid, str) or sid in ("", ".", ".."):
+        return ""
+    return sid if _SID_SAFE_RE.match(sid) else ""
 
 
 def _path_token(value: str) -> str:
@@ -163,7 +165,7 @@ def _session_id_from_argv(argv: list[str]) -> str:
 
 
 def _sid_from_env() -> str:
-    """This session's UUID as exported by the CLI, or '' (source 1)."""
+    """A safe UUID already present in this process, or '' (source 1)."""
     return _sid_safe(os.environ.get("CLAUDE_CODE_SESSION_ID", ""))
 
 
@@ -227,19 +229,17 @@ def _cli_ancestor_pid() -> int:
     """PID of the long-lived Claude CLI ancestor, used only as a CACHE KEY.
 
     Walk the process tree and return the nearest ancestor that looks like the CLI
-    (_is_cli: `claude` as comm basename or an argv path component). It is stable
-    across a session's short-lived hook subprocesses and distinct between concurrent
-    top-level sessions. The PID is never itself the id, only part of the cache key:
-    _cache_key pairs it with this process's start time, so a REUSED PID yields a
-    different key and cannot alias the dead session's id or its markers. That pairing
-    is what makes the entry self-invalidating; it does not depend on any sweep.
+    (_is_cli: `claude` as comm basename or an argv path component). When ancestry
+    is visible, it is stable across short-lived subprocesses and distinct between
+    concurrent top-level sessions. The PID is never itself the id. _cache_key
+    pairs it with the process start time, so a reused PID cannot alias the dead
+    session's id or markers.
 
-    Fallback: if NO ancestor looks like the CLI, key on the topmost walkable
-    ancestor. Known limitation (source-4 only): two sessions launched from ONE shell,
-    neither carrying a `claude` marker anywhere in the ancestry, would share that top
-    ancestor and mint ONE id. This is the irreducible floor of a process-tree-only
-    key. It cannot bite while the CLI exports CLAUDE_CODE_SESSION_ID (source 1, always
-    set on current CLIs), which resolves before source 4 is ever reached.
+    If no ancestor looks like the CLI, use the topmost process that the walk can
+    inspect. A restricted fork that cannot inspect parent processes can get a
+    different key in each subprocess. SubagentStart and PreToolUse Bash carry the
+    validated parent payload id so restricted Bash commands do not depend on this
+    fallback.
     """
     pid = os.getpid()
     top = pid
@@ -285,12 +285,10 @@ def _cache_key(clipid: int) -> str:
 def _mint_cached(cache_dir: str, key: str) -> str:
     """Return a per-key UUID from cache_dir, minting on first miss (source 4).
 
-    Stable: the same (cache_dir, key) always yields the same id, so every
-    short-lived hook subprocess of one session resolves identically. Unique:
-    a distinct key yields a distinct minted UUID, so concurrent sessions never
-    share a marker set. A cache hit refreshes the file mtime. Nothing ages the
-    file out any more, so the touch no longer defends against a sweep; it dates
-    the entry, which is how an operator tells a live cache from a dead one.
+    Stable: the same (cache_dir, key) always yields the same id. Unique: a
+    distinct key yields a distinct minted UUID. A cache hit refreshes the file
+    mtime. Nothing ages the file out, so the touch dates the entry for an
+    operator.
 
     The published cache file is NEVER empty or partial: the id is written to a
     per-pid temp file and atomically os.replace()d into place, so a reader always
@@ -342,16 +340,39 @@ def session_id() -> str:
         _sid_from_env() or _sid_from_process_tree() or _sid_from_jwt() or _sid_minted()
     )
 
+def _hook_session_id_status(payload: object) -> tuple[int, str]:
+    """Return the hook payload status and its safe raw session_id, if present."""
+    if not isinstance(payload, dict):
+        return 2, ""
+    if "session_id" not in payload:
+        return 1, ""
+    hook_sid = _sid_safe(payload["session_id"])
+    return (0, hook_sid) if hook_sid else (2, "")
+
+
+def _hook_session_id(payload: object) -> str:
+    """Return a hook payload's raw session_id only when the validator accepts it."""
+    return _hook_session_id_status(payload)[1]
+
 
 if __name__ == "__main__":
     import sys
 
-    # `--safe <value>` sanitises a caller-supplied id instead of resolving one.
-    # SessionEnd hooks receive the id in their JSON payload rather than through
-    # the environment, so they need the SAME filename-safety rule without the
-    # resolution walk -- and they must not carry their own copy of it (the copy
-    # that used to live in session-id.sh is what this module replaced).
-    if len(sys.argv) == 3 and sys.argv[1] == "--safe":
+    # Hook payload mode validates the decoded JSON string before a shell reads it
+    # through command substitution. That order matters because a shell removes
+    # trailing newlines from command output.
+    if len(sys.argv) == 2 and sys.argv[1] == "--hook-session-id":
+        try:
+            hook_status, hook_sid = _hook_session_id_status(json.load(sys.stdin))
+        except Exception:
+            hook_status, hook_sid = 2, ""
+        if hook_status == 0:
+            sys.stdout.write(hook_sid + "\n")
+        sys.exit(hook_status)
+    # `--safe <value>` validates a caller-supplied id instead of resolving one.
+    # Payload consumers use --hook-session-id so JSON type and raw-value checks
+    # happen before the value crosses a shell boundary.
+    elif len(sys.argv) == 3 and sys.argv[1] == "--safe":
         print(_sid_safe(sys.argv[2]))
     else:
         print(session_id())

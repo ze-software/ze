@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """A session's binaries live in that session's own dated directory.
 
-make (mk/session.mk) decides where `make ze` writes; Go
+make (mk/session.mk) decides where `make ze-build` writes; Go
 (internal/test/sessionpath) decides where the test runner looks. Both must
 resolve the SAME directory: tmp/session/<YYYY-MM-DD>-<sid>/bin. When they
 disagree, a session builds into one directory and execs from another, and
@@ -84,6 +84,7 @@ def _clean_env(session_id=None):
     """A child environment carrying exactly the session id under test."""
     env = dict(os.environ)
     env.pop("CLAUDE_CODE_SESSION_ID", None)
+    env.pop("CLAUDE_CODE_FORK_SUBAGENT", None)
     env.pop("ZE_SESSION_ID", None)
     if session_id is not None:
         env["ZE_SESSION_ID"] = session_id
@@ -100,7 +101,7 @@ def ze_path(session_id=None):
 
     The id goes on the command line because that is the case with the sharpest
     edge: a command-line assignment outranks every makefile assignment, so a
-    validator that reads only the environment would let `make ze
+    validator that reads only the environment would let `make ze-build
     ZE_SESSION_ID=../../etc` reach the -o path.
     """
     cmd = ["make", "ze-session-binary-path"]
@@ -828,13 +829,13 @@ class TestSessionStoreIsSeeded(SessionDirCase):
                 self.assertFalse((etc / "database.zefs").exists())
 
     def test_every_ze_core_recipe_seeds_and_only_on_session(self):
-        """AC-8 does not stop at `make ze`; AC-2 keeps every recipe unmoved.
+        """AC-8 does not stop at `make ze-build`; AC-2 keeps every recipe unmoved.
 
         ze, ze-appliance, and ze-stripped each link `internal/core/resolve`,
         `internal/component/ssh` and `internal/plugins/init` (measured with
         `go list -deps` over each recipe's own tags), so each resolves the same
         <session-dir>/etc/ze and each can seed it. A target that seeded only
-        under `make ze` would leave the same silent empty store one target over.
+        under `make ze-build` would leave the same silent empty store one target over.
         """
         sid = self.sid("recipe")
         targets = (
@@ -925,7 +926,7 @@ class TestValidationDoesNotRunShell(unittest.TestCase):
 
 
 class CleanSessionsCase(unittest.TestCase):
-    """Drives `make ze-sessions-clean` against a fixture session root.
+    """Drives `make ze-session-clean` against a fixture session root.
 
     The target is real and so is the recipe; only the root it sweeps is
     redirected, through the ZE_SESSION_ROOT that mk/session.mk already defines
@@ -956,7 +957,7 @@ class CleanSessionsCase(unittest.TestCase):
         return path
 
     def clean(self, before=None):
-        cmd = ["make", "ze-sessions-clean", f"ZE_SESSION_ROOT={self.root}"]
+        cmd = ["make", "ze-session-clean", f"ZE_SESSION_ROOT={self.root}"]
         if before is not None:
             cmd.append(f"BEFORE={before}")
         return subprocess.run(
@@ -995,7 +996,7 @@ class TestCleanSessionsRefusesWithoutBefore(CleanSessionsCase):
         )
 
     def test_an_empty_before_removes_nothing(self):
-        # `make ze-sessions-clean BEFORE=` is what a shell variable that did not
+        # `make ze-session-clean BEFORE=` is what a shell variable that did not
         # expand looks like. It must refuse exactly as the bare form does.
         self.plant_dir("2020-01-01-ancient")
 

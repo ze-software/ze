@@ -32,10 +32,20 @@ from __future__ import annotations
 import argparse
 import datetime
 import hashlib
+import importlib.util
 import os
 import re
 import sys
 from pathlib import Path
+
+_SID_MODULE_PATH = (
+    Path(__file__).resolve().parents[2] / ".claude" / "hooks" / "lib" / "session_id.py"
+)
+_sid_spec = importlib.util.spec_from_file_location(
+    "ze_session_id", str(_SID_MODULE_PATH)
+)
+_ze_session_id = importlib.util.module_from_spec(_sid_spec)
+_sid_spec.loader.exec_module(_ze_session_id)
 
 ARTIFACT_DIR = Path("tmp/review")
 
@@ -54,29 +64,21 @@ HEADER_RE = re.compile(
     r"<!--\s*ze-review\s+spec=(?P<spec>\S+)\s+verdict=(?P<verdict>\S+).*?-->"
 )
 FILE_LINE_RE = re.compile(r"^\s{2}(?P<hash>[0-9a-f]{64}|DELETED)\s+(?P<path>.+)$")
-_SID_SAFE = re.compile(r"[A-Za-z0-9._-]+")
 
 
 def session_id() -> str:
-    """Per-session component of the review-artifact filename, so two agents
-    working the SAME spec do not clobber each other's review: each records AND
-    checks its own artifact.
+    """Per-session component of the review-artifact filename.
 
-    Mirrors .claude/hooks/lib/session-id.sh strategy 1 -- the CLI exports
-    CLAUDE_CODE_SESSION_ID into every process it spawns, and subagents/forks
-    inherit the parent's value -- so a review this session recorded (including
-    via its reviewer subagents) is found by this same session's commit-gate
-    check (record, the create-time gate, and the generated commit script all run
-    in the session), while a concurrent session on the same spec resolves a
-    different id and can neither ride nor overwrite it. Falls back to a shared
-    constant when the env var is absent (older CLI / non-session context),
-    degrading to the old spec-keyed behaviour rather than breaking the
-    record/check agreement.
+    A safe direct id wins. A fork with an absent or invalid direct id delegates
+    to the canonical resolver. Human and CI invocations keep the historical
+    ``shared`` fallback and never cause the resolver to mint an id.
     """
-    sid = os.environ.get("CLAUDE_CODE_SESSION_ID", "")
-    # fullmatch (not match): reject an id with a trailing newline or any unsafe
-    # char rather than letting it into the artifact filename.
-    return sid if _SID_SAFE.fullmatch(sid) else "shared"
+    sid = _ze_session_id._sid_safe(os.environ.get("CLAUDE_CODE_SESSION_ID"))
+    if sid:
+        return sid
+    if os.environ.get("CLAUDE_CODE_FORK_SUBAGENT"):
+        return _ze_session_id.session_id()
+    return "shared"
 
 
 # Files whose correctness a critical review must cover. Prose (.md) and the

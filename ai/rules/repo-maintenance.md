@@ -80,7 +80,7 @@ Use these before inventing a new mechanism:
 
 | Need | Existing surface |
 |------|------------------|
-| Changed-file-aware wiring, doc, command, and inventory gate | `make ze-wiring-docs-check` |
+| Changed-file-aware wiring, doc, command, and inventory gate | `make ze-doc-wiring-check` |
 | Documentation drift and YANG command contracts | `make ze-doc-verify` |
 | Source-to-document reverse index | `make ze-doc-index-update`; read `ai/CODE-TO-DOCS.md` |
 | RFC MUST requirement to enforcing-test coverage (which tests prove each requirement, plus the backlog) | `make ze-rfc-index-update`. Read `rfc/requirements/<stem>.md` for one RFC's requirement to test rows. Read `ai/RFC-REQUIREMENTS.md` for the counts, the coverage rollup and the backlog over all of them. Both are generated. Coverage is gated by `make ze-rfc-check`, staleness by `make ze-doc-verify` |
@@ -89,7 +89,7 @@ Use these before inventing a new mechanism:
 | Which tests enforce an RFC MUST | read `rfc/requirements/<stem>.md`, or print it with `python3 scripts/dev/rfc_requirements.py --show <stem>`. `make ze-rfc-index-update` generates it. `make ze-rfc-check` and `make ze-doc-verify` gate its freshness |
 | The un-enrolled backlog, and how much each RFC still owes | read `ai/RFC-REQUIREMENTS.md`, the index over the per-RFC files (same generator, same gates) |
 | Which problems recur | `make ze-journal-report`; read `plan/journal/` (one file per class, row count is recurrence) |
-| Whether every path the instruction corpus names still resolves | `make ze-doc-links-check`. It is its OWN `ze-precommit-verify` stage: `make ze-doc-verify` runs no part of it, and `ze-generated-files-update-check` ends with the `--md-only` subset. It also rejects a dead `*.sh` or `c_*`/`check_*` name in the hook-describing documents |
+| Whether every path the instruction corpus names still resolves | `make ze-doc-links-check`. It is its OWN `ze-precommit-verify` stage: `make ze-doc-verify` runs no part of it, and `ze-generated-files-reconcile` ends with the `--md-only` subset. It also rejects a dead `*.sh` or `c_*`/`check_*` name in the hook-describing documents |
 | Whether a `doc-links: ignore` marker states a reason, anywhere in the tree | `make ze-doc-links-check` (`check_ignore_reasons` in `scripts/dev/check_doc_links.py`). The sweep is over every TRACKED file, not the walked corpus, so a marker nobody's gate reads is still audited |
 | Whether every path a TRACKED file names resolves, outside the instruction corpus | `make ze-doc-links-check` (`check_tracked_citations` in `scripts/dev/check_doc_links.py`). A dead path in any tracked file fails the gate. Repair the reference, or mark its line with a `doc-links: ignore` marker that states why the path cannot resolve. `vendor/` and `third_party/` are excluded because their references point into another repository, and `plan/handover/` because it records the tree as it was. `scripts/dev/doc_citation_baseline.txt` grandfathers the pairs that predate the check. `check_baseline_growth` compares the pairs against HEAD and refuses each pair HEAD does not hold, so that file only shrinks |
 | Whether every symbol a `docs/` source anchor names is declared in the file that anchor points at | `make ze-doc-verify` (`check_anchor_symbols` in `scripts/dev/code_to_docs.py`). It resolves the tokens after the anchor's `--` against that file's own top-level declarations, and the `report=` argument `main()` passes decides whether a finding is emitted |
@@ -98,7 +98,7 @@ Use these before inventing a new mechanism:
 | Command inventory | `make ze-command-list`, `make ze-command-list-json` |
 | Spec progress | `make ze-spec-status`, `make ze-spec-status-json` |
 | Generated plugin imports | `make ze-plugin-imports-check` |
-| Whether the tree GIT HOLDS compiles, as opposed to the working tree every other gate reads | `make ze-tracked-build-check` (`REV=<sha>` judges another commit). Runs in `ze-precommit-verify`, both modes, and is a structural gate in `scripts/dev/commit_helper.py` |
+| Whether the tree GIT HOLDS compiles, as opposed to the working tree every other gate reads | `make ze-repository-tracked-build-check` (`REV=<sha>` judges another commit). Runs in `ze-precommit-verify`, both modes, and is a structural gate in `scripts/dev/commit_helper.py` |
 | Runtime readiness | `ze doctor --json` and `ze explain <diagnostic-code>` |
 
 **If a new feature cannot be found from one of those surfaces or from `ai/INDEX.md`, the missing discovery link MUST be added before claiming completion.**
@@ -194,7 +194,7 @@ Every new doctor check needs both:
 
 ### Drift Detection
 
-**The `CLAUDE.md`, `AGENTS.md` and skill mirrors are gitignored, so `git diff` can NEVER show drift for them.** `make ze-ai-sync-check` (also part of `make ze-generated-files-update-check`) compares content against a fresh generation; the session-start hook runs it and warns `generated agent files are stale` when a resync is needed. You MUST fix it with `make ze-generated-files-update`. `ai/rules/<rule>.md` is the one "Generates" target that IS tracked, so `git diff` does show its drift, and `make ze-rules-render-check` reaches the same verdict, but writes nothing.
+**The `CLAUDE.md`, `AGENTS.md` and skill mirrors are gitignored, so `git diff` can NEVER show drift for them.** `make ze-ai-sync-check` (also part of `make ze-generated-files-reconcile`) compares content against a fresh generation; the session-start hook runs it and warns `generated agent files are stale` when a resync is needed. You MUST fix it with `make ze-generated-files-update`. `ai/rules/<rule>.md` is the one "Generates" target that IS tracked, so `git diff` does show its drift, and `make ze-rules-render-check` reaches the same verdict, but writes nothing.
 
 ### Banned Actions
 
@@ -230,7 +230,25 @@ Still standalone (single-purpose or deliberately not folded): `block-until-lsp.s
 
 **Reads never block:** `Read`, `Grep`, `Glob`, `LSP`, `WebFetch`, `WebSearch` are never rejected. Two of them write a non-blocking freshness marker so the `design-without-lsp` gate knows the implementation was investigated: `LSP` (via `mark-lsp-invoked.sh`) and `Read` of implementation source (via `mark-source-read.sh`). Source is what a spec can be ABOUT, and the KIND is the file's EXTENSION with no directory anchor: `.go`, `.py`, `.sh`, `.yang`, the `Makefile`, `*.mk`. Each accepted Read records its kind (`go`, `py`, `sh`, `make`, `yang`) in `.source-read-<kind>-<sid>` beside the aggregate marker, which is how the gate asks for the spec's own subject rather than for any file at all. The extension is the whole rule because this writer and `_SUBJECT_PATTERNS` in `pretool-writeedit.py` are two ends of one contract: the gate demands the kind a spec's own file list names, so a path the writer refuses is a spec nobody can ground by reading its own subject. A directory list is a second thing to keep in sync, and it drifted: 11 open specs named `.py` subjects under `test/` and `tools/` and 2 named `.sh` subjects under `packaging/` whose only exit was reading an unrelated file. A Read is also held to a DEPTH bar: a window of under 20 lines records nothing, while a whole file records its kind at any length. A Read that showed NOTHING records nothing, whatever else the payload says: an empty file, a window past the end, a failed Read, and the `file_unchanged` answer the harness gives a repeat WHOLE Read all measure zero, and zero is not the same as unmeasurable. A stale marker MUST therefore be renewed with `Read(path, offset=N, limit>=20)`, which returns content where a second whole Read returns nothing. Only a payload shape the writer does not recognise AT ALL is accepted unmeasured, so an unfamiliar payload still cannot silently disable the evidence path. The count is lines of TEXT, taken from the response body, because `numLines` counts the trailing newline as a line and a 19-line window arrives as 20. Only mutating/executing tools (`Bash`, `Write`, `Edit`, `MultiEdit`, `NotebookEdit`, `Task`, `Agent`) and `ToolSearch` (which loads LSP) are actually gated.
 
-**Every marker is keyed by session id**, and every consumer MUST use `.claude/hooks/lib/session_id.py`. Bash hooks call it through `.claude/hooks/lib/session-id.sh` (`_session_id`), and Python callers import `session_id()`. `session-start.sh` validates the SessionStart payload with the same resolver's `_sid_safe` function through the shell shim. A safe payload is exported as `$CLAUDE_CODE_SESSION_ID` for the current hook and appended to `$CLAUDE_ENV_FILE` for later Bash commands. The hook MUST NOT persist `$ZE_SESSION_ID`. `mk/session.mk` derives it. An unsafe payload falls through to the resolver, and unsafe ids are rejected rather than rewritten. `make ze-unit-hook-test` (section `session-id`) locks this behavior.
+**Every marker is keyed by session id**, and every consumer MUST use
+`.claude/hooks/lib/session_id.py`. Bash hooks call it through
+`.claude/hooks/lib/session-id.sh` (`_session_id`). Python callers import
+`session_id()` and reuse `_sid_safe()` for direct values.
+
+`session-start.sh` and `subagent-context.sh` pass hook JSON to
+`--hook-session-id`. This mode validates the decoded raw string before shell
+normalization. It returns status 0 for a safe id, status 1 for an absent field,
+and status 2 for malformed JSON or an invalid field. SessionStart has an empty
+matcher so startup, resume, clear, compact, and fork events republish an
+accepted id through `$CLAUDE_ENV_FILE`. SubagentStart falls back to `_session_id`
+only for status 1. It emits its complete context as JSON
+`hookSpecificOutput.additionalContext`. Status 2 adds no parent id, path, spec,
+or state. For a restricted subagent Bash call, `pretool-bash.py` prefixes the
+command with the accepted parent id from the PreToolUse payload.
+
+The hook MUST NOT persist `$ZE_SESSION_ID`. `mk/session.mk` derives it. Unsafe
+ids are rejected rather than rewritten. The validator rejects dot entries.
+`make ze-unit-hook-test` (section `session-id`) locks this behavior.
 
 ### PreToolUse Checks (block before the tool runs)
 
@@ -284,7 +302,7 @@ The five commit-time gates (spec-audit, deferral-in-diff, deferral-unassigned, w
 | `c_yagni` | `architecture.md` | `.go` | Blocks speculative-feature comments. BLOCKING. |
 | `c_fake_bufhandle` | `performance.md` (pool correctness) | `.go` | Blocks `BufHandle{Buf: make(...)}` outside `testPoolBuf`. BLOCKING. |
 | `c_observer_sys_exit` | `testing.md` | `.ci` | Warns about `sys.exit(1)` in observers without `runtime_fail`. Advisory. |
-| `c_ci_sleep_justification` | `testing.md` | `.ci` | Warns when a `time.sleep(` is introduced with no comment above/trailing it. Advisory (blocking gate is `make ze-wiring-docs-check`). |
+| `c_ci_sleep_justification` | `testing.md` | `.ci` | Warns when a `time.sleep(` is introduced with no comment above/trailing it. Advisory (blocking gate is `make ze-doc-wiring-check`). |
 | `c_hardcoded_commands` | `evidence.md` | `.go` | Blocks hardcoded command-list literals. BLOCKING. |
 | `c_switch_dispatch` | `plugins.md` | `.go` | Blocks `switch args[0]` subcommand dispatch; use `subdispatch.New()` + `Register()`. BLOCKING. |
 | `c_json_kebab` | `cli.md`, `go-standards.md` | `.go` | Blocks non-kebab-case JSON tags. BLOCKING. |
@@ -329,7 +347,7 @@ The five commit-time gates (spec-audit, deferral-in-diff, deferral-unassigned, w
 |---|---|---|---|---|
 | mark-lsp-invoked | `mark-lsp-invoked.sh` | `session-start.md` | LSP | Writes `.lsp-invoked` freshness marker for the design-without-lsp gate. |
 | mark-source-read | `mark-source-read.sh` | `evidence.md` | Read | Writes the `.source-read` freshness markers when implementation source is read, so reading the producing code satisfies the design-without-lsp gate. Two files per accepted Read: the aggregate `.source-read-<sid>`, and `.source-read-<kind>-<sid>` naming the kind (`go`, `py`, `sh`, `make`, `yang`). The kind is the file's extension, spelled identically here and in `_SUBJECT_PATTERNS`, so the file a spec names is always a file whose Read records the kind that spec demands. A window of under 20 lines records nothing, and so does a Read that showed nothing at all: an empty file, a failed Read, or the `file_unchanged` answer to a repeat Read. Non-blocking. |
-| mark-agent-spawned | `mark-agent-spawned.sh` | `planning.md` | Agent, Task | Writes `.agent-spawned-<sid>` so the Stop hook can tell a supervising main thread from one that ran the phase inline. Fires in the PARENT (subagents inherit its session id), so the marker always lands on the supervising session. Non-blocking. |
+| mark-agent-spawned | `mark-agent-spawned.sh` | `planning.md` | Agent, Task | Writes `.agent-spawned-<sid>` so the Stop hook can tell a supervising main thread from one that ran the phase inline. The hook runs in the parent process. The marker uses the supervising session. It does not use the subagent environment. Non-blocking. |
 | auto-lint | `posttool-writeedit.py` | `go-standards.md` | `.go` Write/Edit | `gofmt`/`goimports -w`, then **one** `golangci-lint --new-from-rev=HEAD` pass (flags only issues this edit introduced). BLOCKING on lint failure. |
 | auto-py-format | `posttool-writeedit.py` | (code style) | `.py` Write/Edit | `ruff format` + `ruff check`. Non-blocking. |
 | validate-spec | `validate-spec.sh` | `planning.md` | `plan/spec-*.md` | Validates required sections/format. Exit 2 blocks a structurally invalid spec; both `→` and `->` wiring rows accepted. |
@@ -348,9 +366,9 @@ The five commit-time gates (spec-audit, deferral-in-diff, deferral-unassigned, w
 > It stays out of the dispatcher (see spec Key Design Decisions). Covered by
 > `scripts/dev/hook-fixture-check.py` (`validate-spec-*`).
 
-`make ze-precommit-verify` separately runs `ze-wiring-docs-check` (wiring/doc-drift gate); that is a Make target, not a Claude hook.
+`make ze-precommit-verify` separately runs `ze-doc-wiring-check` (wiring/doc-drift gate); that is a Make target, not a Claude hook.
 
-### Changed-file gates inside `ze-wiring-docs-check`
+### Changed-file gates inside `ze-doc-wiring-check`
 
 Also Make targets, not Claude hooks. All are changed-file scoped: a session owns the files it touches, not the whole tree.
 
@@ -413,7 +431,7 @@ These are NOT Claude hooks. They run when `commit_helper.py create` generates th
 
 | Hook | Event | What it does |
 |---|---|---|
-| `session-start.sh` | SessionStart | Validates the payload `session_id`. Publishes a safe id as `CLAUDE_CODE_SESSION_ID` for the hook and later Bash commands. Prints the status summary. Deletes NOTHING. `make ze-tmp-clean` and `make ze-sessions-clean BEFORE=<date>` are the operator's cleanup routes. |
+| `session-start.sh` | SessionStart (all sources) | Passes the raw payload to the canonical validator. The empty matcher covers startup, resume, clear, compact, and fork. Publishes an accepted id as `CLAUDE_CODE_SESSION_ID` for the hook and appends it to `CLAUDE_ENV_FILE`. Prints the status summary. Deletes NOTHING. `make ze-scratch-clean` and `make ze-session-clean BEFORE=<date>` are the operator's cleanup routes. |
 | `compaction-reminder.sh` | UserPromptSubmit | Detects compaction; reminds to read `post-compaction.md`. Writes to **stderr**, so it costs no context tokens. |
 | `verify-claim-reminder.sh` | UserPromptSubmit | Emits one **stdout** line per turn. Verify a claim about code by reading the function that PRODUCES the behavior, not the caller. Label an unread claim unverified. Name the file and the symbol, and use a line number only when the line IS the fact. Report the conclusion, not the search. Enforces `ai/rules/evidence.md` and `ai/rules/writing.md`. A banner read once at session start does not survive to the turn that makes the claim, so this lands in fresh context. |
 | `delegation-reminder.sh` | UserPromptSubmit | Emits one **stdout** line per turn: subagent delegation needs no permission in this repository. The harness appends the guard "Do not call the AgentTool unless the user requested it" to the END of the system prompt, where it wins on position. `ai/INSTRUCTIONS.md` "STANDING REQUEST: delegate to subagents" IS the request that guard defers to, but it sits far earlier in the same prompt and loses. UserPromptSubmit stdout is the only harness position that lands after the whole system prompt, so the counter goes there. Unconditional by design: a conditional reminder adds a "did the condition fire" failure mode, and the reminder is correct on every turn. Enforces `ai/rules/planning.md`. Fixtures: `python3 scripts/dev/hook-fixture-check.py --only delegation-reminder`. |
@@ -421,7 +439,7 @@ These are NOT Claude hooks. They run when `commit_helper.py create` generates th
 | `session-end-summary.sh` | Stop | Writes session state snapshot. It does not release the spec claim, and no hook does: `spec-session.sh release` does, from `/ze-close`, so the claim survives the turn-by-turn `Stop` and every session end after it. There is no `SessionEnd` hook at all; the only work that event ever did here was deleting `tmp/session/`. |
 | `session-end-deferrals.sh` | Stop | Prints open deferral count. Advisory. |
 | `pre-compact-save.sh` | PreCompact | Saves session state before compaction. |
-| `subagent-context.sh` | SubagentStart | Injects project context into spawned agents, PLUS the parent session's claimed spec (with its Status) and the subagent contract from `ai/rules/planning.md`. This exists to make delegating cheap: the rule requires the main thread to hand every agent its spec, phase, and rules, and when that is manual per-spawn work, delegating costs more than working inline and the rule loses. |
+| `subagent-context.sh` | SubagentStart | Validates the parent `session_id` from the hook payload. Only an absent field permits resolver fallback. A malformed value adds no parent id, path, spec, or state. Emits the complete context through JSON `hookSpecificOutput.additionalContext`. For a safe id, that context includes the exact parent id and scratch directory, the parent session's claimed spec and status, and the subagent contract from `ai/rules/planning.md`. |
 
 ### Pre-Flight Checklist by File Type
 
@@ -460,7 +478,7 @@ checks. A rule that says "also run the other check" is followed on the day
 somebody remembers it. A rule that names the blind spot is followed by whoever
 reads the gate and wonders what its green covers.**
 
-**`make ze-tracked-build-check` is the only gate that compiles what git holds,
+**`make ze-repository-tracked-build-check` is the only gate that compiles what git holds,
 and it compiles no `_test.go`. Its green therefore says nothing about the test
 build. Before you treat work as committable, you MUST also compile the test
 binaries of every package you touched, without running them.**
@@ -488,7 +506,7 @@ binaries of every package you touched, without running them.**
 
 One-line lesson + rule pointer. Full root-cause in the linked journal row's Fix cell.
 
-- **"Linux-only tests can't run on this macOS host / need hardware" is a LIE** (RECURRING, ZERO TOL). Ze HAS a QEMU Alpine-VM harness: `option=needs-linux` `.ci` tests SKIP on native darwin and RUN under `make ze-qemu-needs-linux-test` / `ze-qemu-all-test`; kernel/netlink/nft/veth/loop tests run via `make ze-qemu-integration-test` and the `ze-qemu-<feature>-test` targets. A Linux-only test that FAILS (not skips) on native darwin is missing its `option=needs-linux` marker (fix: the marker MUST be added, then the test MUST be run in QEMU), never "environmental / unfixable here". A Linux test red MUST NOT be attributed to "darwin env" or "needs docker/qemu we don't have": we HAVE QEMU, and the test MUST be run there. `ai/rules/platform-linux.md`.
+- **"Linux-only tests can't run on this macOS host / need hardware" is a LIE** (RECURRING, ZERO TOL). Ze HAS a QEMU Alpine-VM harness: `option=needs-linux` `.ci` tests SKIP on native darwin and RUN under `make ze-qemu-needs-linux-test` / `ze-qemu-test-all`; kernel/netlink/nft/veth/loop tests run via `make ze-qemu-integration-test` and the `ze-qemu-<feature>-test` targets. A Linux-only test that FAILS (not skips) on native darwin is missing its `option=needs-linux` marker (fix: the marker MUST be added, then the test MUST be run in QEMU), never "environmental / unfixable here". A Linux test red MUST NOT be attributed to "darwin env" or "needs docker/qemu we don't have": we HAVE QEMU, and the test MUST be run there. `ai/rules/platform-linux.md`.
 - **Feature not wired** (RECURRING, ZERO TOL). Unit tests != wiring. The user entry point MUST be named. `ai/rules/completion.md`.
 - **Daemon command without offline CLI** (sysctl-0). Every `CommandDecl` plugin MUST have a `cmd/ze/<name>/` offline entry point.
 - **Wrong production path** (rib-04). ALL implementations MUST be grepped; the consumer's call chain MUST be traced.

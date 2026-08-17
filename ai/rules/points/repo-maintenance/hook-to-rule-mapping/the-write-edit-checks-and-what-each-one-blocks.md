@@ -29,7 +29,7 @@ stage:
 | `c_yagni` | `architecture.md` | `.go` | Blocks speculative-feature comments. BLOCKING. |
 | `c_fake_bufhandle` | `performance.md` (pool correctness) | `.go` | Blocks `BufHandle{Buf: make(...)}` outside `testPoolBuf`. BLOCKING. |
 | `c_observer_sys_exit` | `testing.md` | `.ci` | Warns about `sys.exit(1)` in observers without `runtime_fail`. Advisory. |
-| `c_ci_sleep_justification` | `testing.md` | `.ci` | Warns when a `time.sleep(` is introduced with no comment above/trailing it. Advisory (blocking gate is `make ze-wiring-docs-check`). |
+| `c_ci_sleep_justification` | `testing.md` | `.ci` | Warns when a `time.sleep(` is introduced with no comment above/trailing it. Advisory (blocking gate is `make ze-doc-wiring-check`). |
 | `c_hardcoded_commands` | `evidence.md` | `.go` | Blocks hardcoded command-list literals. BLOCKING. |
 | `c_switch_dispatch` | `plugins.md` | `.go` | Blocks `switch args[0]` subcommand dispatch; use `subdispatch.New()` + `Register()`. BLOCKING. |
 | `c_json_kebab` | `cli.md`, `go-standards.md` | `.go` | Blocks non-kebab-case JSON tags. BLOCKING. |

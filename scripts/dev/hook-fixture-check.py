@@ -40,6 +40,7 @@ import json
 import os
 import re
 import shutil
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -1840,6 +1841,430 @@ def _run_session_id_cache_key(results: Results) -> None:
         shutil.rmtree(cache, ignore_errors=True)
 
 
+def _fork_payload_env(work: str, project_dir: str | None = None) -> dict:
+    """Fork environment with no inherited identity and no usable ps command."""
+    deny_bin = os.path.join(work, "deny-bin")
+    os.makedirs(deny_bin, exist_ok=True)
+    ps = os.path.join(deny_bin, "ps")
+    with open(ps, "w", encoding="utf-8") as fh:
+        fh.write("#!/bin/sh\nexit 126\n")
+    os.chmod(ps, 0o755)
+
+    env = dict(os.environ)
+    for name in (
+        "CLAUDE_CODE_SESSION_ID",
+        "CLAUDE_CODE_SESSION_ACCESS_TOKEN",
+        "ZE_SESSION_ID",
+        "CLAUDE_ENV_FILE",
+    ):
+        env.pop(name, None)
+    env.update(
+        {
+            "CLAUDE_CODE_FORK_SUBAGENT": "1",
+            "CLAUDE_PROJECT_DIR": project_dir or work,
+            "PATH": deny_bin + os.pathsep + env["PATH"],
+        }
+    )
+    return env
+
+
+# VALIDATES: SessionStart accepts a payload id only when the raw JSON string is
+# already a safe, non-dot filename component.
+# PREVENTS: jq and shell command substitution deleting a trailing newline or
+# encoded NUL, then persisting a different id than the payload supplied.
+def _run_session_start_raw_payload_ids(results: Results) -> None:
+    work = _deleg_project(spec=None)
+    try:
+        env_file = os.path.join(work, "persistent-env")
+        env = _fork_payload_env(work)
+        env["CLAUDE_ENV_FILE"] = env_file
+        for label, sid in (
+            ("trailing-newline", _DELEG_SID + "\n"),
+            ("encoded-nul", _DELEG_SID + "\0suffix"),
+            ("dot", "."),
+            ("dot-dot", ".."),
+        ):
+            with open(env_file, "w", encoding="utf-8"):
+                pass
+            proc = subprocess.run(
+                ["bash", os.path.join(HOOKS, "session-start.sh")],
+                input=json.dumps(
+                    {
+                        "hook_event_name": "SessionStart",
+                        "session_id": sid,
+                        "source": "startup",
+                    }
+                ),
+                capture_output=True,
+                text=True,
+                env=env,
+                timeout=60,
+            )
+            with open(env_file, encoding="utf-8") as fh:
+                persisted = fh.read()
+            results.check(
+                f"session-start-rejects-raw-{label}-id",
+                proc.returncode == 0 and persisted == "",
+                f"rc={proc.returncode} env={persisted!r} err={proc.stderr!r}",
+            )
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
+# VALIDATES: the canonical hook-payload parser distinguishes a safe id, an
+# absent id that permits legacy fallback, and a present malformed id.
+# PREVENTS: payload consumers treating malformed input as absent and minting a
+# replacement id that is then mislabeled as the parent session.
+def _run_hook_payload_status(results: Results) -> None:
+    parser = os.path.join(HOOKS, "lib", "session_id.py")
+    for name, payload, expected_status, expected_stdout in (
+        (
+            "hook-session-id-status-safe",
+            {"session_id": _DELEG_SID},
+            0,
+            _DELEG_SID,
+        ),
+        ("hook-session-id-status-absent", {}, 1, ""),
+        ("hook-session-id-status-malformed-dot", {"session_id": "."}, 2, ""),
+        (
+            "hook-session-id-status-malformed-trailing-newline",
+            {"session_id": _DELEG_SID + "\n"},
+            2,
+            "",
+        ),
+    ):
+        proc = subprocess.run(
+            [sys.executable, parser, "--hook-session-id"],
+            input=json.dumps(payload),
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        results.check(
+            name,
+            proc.returncode == expected_status
+            and proc.stdout.strip() == expected_stdout,
+            f"rc={proc.returncode} out={proc.stdout!r} err={proc.stderr!r}",
+        )
+
+
+# VALIDATES: the empty SessionStart matcher routes startup, resume, clear,
+# compact, and fork events to session-start.sh.
+# PREVENTS: an explicit startup matcher silently excluding four supported
+# SessionStart sources from session identity initialization.
+def _run_session_start_registration(results: Results) -> None:
+    with open(os.path.join(ROOT, ".claude", "settings.json"), encoding="utf-8") as fh:
+        cfg = json.load(fh)
+    registrations = [
+        (group.get("matcher"), entry.get("command", ""))
+        for group in cfg.get("hooks", {}).get("SessionStart", [])
+        for entry in group.get("hooks", [])
+    ]
+    results.check(
+        "session-start-empty-matcher-registered",
+        any(
+            matcher == "" and command.endswith("session-start.sh")
+            for matcher, command in registrations
+        ),
+        repr(registrations),
+    )
+
+
+def _subagent_context_output(
+    proc: subprocess.CompletedProcess,
+) -> tuple[dict | None, str | None]:
+    try:
+        output = json.loads(proc.stdout)
+    except (json.JSONDecodeError, TypeError):
+        return None, None
+    if not isinstance(output, dict):
+        return None, None
+    specific = output.get("hookSpecificOutput")
+    if not isinstance(specific, dict):
+        return None, None
+    additional = specific.get("additionalContext")
+    return specific, additional if isinstance(additional, str) else None
+
+
+# VALIDATES: a safe SubagentStart payload identifies the parent session and its
+# exact scratch directory in hookSpecificOutput.additionalContext, even when ps
+# is unavailable.
+# PREVENTS: plain stdout bypassing the SubagentStart context contract, or the
+# subagent receiving a minted id and another session's state or scratch path.
+def _run_subagent_parent_payload_context(results: Results) -> None:
+    parent_sid = _DELEG_SID
+    work = _deleg_project(spec="spec-parent-context.md")
+    try:
+        state_dir = _deleg_state_dir(work)
+        parent_scratch = os.path.relpath(
+            os.path.join(os.path.dirname(state_dir), "scratch"), work
+        )
+        env = _fork_payload_env(work)
+        proc = subprocess.run(
+            ["bash", os.path.join(HOOKS, "subagent-context.sh")],
+            input=json.dumps(
+                {
+                    "hook_event_name": "SubagentStart",
+                    "agent_id": "fixture-agent",
+                    "session_id": parent_sid,
+                }
+            ),
+            capture_output=True,
+            text=True,
+            env=env,
+            timeout=60,
+        )
+        specific, additional = _subagent_context_output(proc)
+        lines = additional.splitlines() if additional is not None else []
+        results.check(
+            "subagent-context-emits-json-contract",
+            proc.returncode == 0
+            and specific is not None
+            and specific.get("hookEventName") == "SubagentStart"
+            and additional is not None,
+            f"rc={proc.returncode} out={proc.stdout!r} err={proc.stderr!r}",
+        )
+        results.check(
+            "subagent-context-names-safe-parent-id",
+            f"Parent session ID: {parent_sid}" in lines
+            and additional is not None
+            and "plan/spec-parent-context.md" in additional,
+            f"additionalContext={additional!r}",
+        )
+        results.check(
+            "subagent-context-names-exact-parent-scratch",
+            f"Parent session scratch: {parent_scratch}" in lines,
+            f"expected={parent_scratch!r} additionalContext={additional!r}",
+        )
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
+# VALIDATES: a present malformed SubagentStart session_id is rejected as an
+# identity source while the hook still returns valid SubagentStart JSON.
+# PREVENTS: a dot or trailing newline falling through to process identity or a
+# minted UUID that is then labeled as the parent session and scratch directory.
+def _run_subagent_malformed_parent_payloads(results: Results) -> None:
+    work = _deleg_project(spec=None)
+    try:
+        env = _fork_payload_env(work)
+        for label, sid in (
+            ("dot", "."),
+            ("trailing-newline", _DELEG_SID + "\n"),
+        ):
+            proc = subprocess.run(
+                ["bash", os.path.join(HOOKS, "subagent-context.sh")],
+                input=json.dumps(
+                    {
+                        "hook_event_name": "SubagentStart",
+                        "agent_id": "fixture-agent",
+                        "session_id": sid,
+                    }
+                ),
+                capture_output=True,
+                text=True,
+                env=env,
+                timeout=60,
+            )
+            specific, additional = _subagent_context_output(proc)
+            context = additional or ""
+            minted_parent = any(
+                line.startswith("Parent session ID: ")
+                and _UUID_RE.match(line.removeprefix("Parent session ID: ")) is not None
+                for line in context.splitlines()
+            )
+            results.check(
+                f"subagent-context-rejects-present-{label}-parent-id",
+                proc.returncode == 0
+                and specific is not None
+                and specific.get("hookEventName") == "SubagentStart"
+                and additional is not None
+                and "Parent session ID:" not in context
+                and "Parent session scratch:" not in context
+                and not minted_parent,
+                f"rc={proc.returncode} out={proc.stdout!r} err={proc.stderr!r}",
+            )
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
+# VALIDATES: an absent SubagentStart session_id retains the intentional legacy
+# fallback and reports its minted parent id and exact scratch path in JSON.
+# PREVENTS: the malformed-id fail-closed rule accidentally removing fallback
+# behavior for older callers that omit the field.
+def _run_subagent_absent_parent_payload(results: Results) -> None:
+    work = _deleg_project(spec=None)
+    try:
+        proc = subprocess.run(
+            ["bash", os.path.join(HOOKS, "subagent-context.sh")],
+            input=json.dumps(
+                {
+                    "hook_event_name": "SubagentStart",
+                    "agent_id": "fixture-agent",
+                }
+            ),
+            capture_output=True,
+            text=True,
+            env=_fork_payload_env(work),
+            timeout=60,
+        )
+        specific, additional = _subagent_context_output(proc)
+        lines = additional.splitlines() if additional is not None else []
+        parent_prefix = "Parent session ID: "
+        parent_ids = [
+            line.removeprefix(parent_prefix)
+            for line in lines
+            if line.startswith(parent_prefix)
+        ]
+        fallback_sid = parent_ids[0] if len(parent_ids) == 1 else ""
+        expected_scratch = (
+            "Parent session scratch: "
+            f"tmp/session/{datetime.date.today().isoformat()}-{fallback_sid}/scratch"
+        )
+        results.check(
+            "subagent-context-absent-id-keeps-legacy-fallback",
+            proc.returncode == 0
+            and specific is not None
+            and specific.get("hookEventName") == "SubagentStart"
+            and additional is not None
+            and _UUID_RE.match(fallback_sid) is not None
+            and expected_scratch in lines,
+            f"rc={proc.returncode} additionalContext={additional!r} "
+            f"err={proc.stderr!r}",
+        )
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
+def _updated_bash_command(proc: subprocess.CompletedProcess) -> str | None:
+    if not proc.stdout.strip():
+        return None
+    try:
+        output = json.loads(proc.stdout)
+    except json.JSONDecodeError:
+        return None
+    specific = output.get("hookSpecificOutput") or {}
+    updated = specific.get("updatedInput") or output.get("updatedInput") or {}
+    command = updated.get("command")
+    return command if isinstance(command, str) else None
+
+
+# VALIDATES: PreToolUse Bash injects the safe parent payload id into a subagent
+# command, and every session-path consumer inherits that one identity.
+# PREVENTS: separate scratch, Make, and review subprocesses minting unrelated
+# fallback ids when the restricted fork cannot inspect ps.
+def _run_pretool_parent_payload_export(results: Results) -> None:
+    parent_sid = _DELEG_SID
+    work = tempfile.mkdtemp(prefix="ze-pretool-parent-", dir=_fixture_root())
+    try:
+        review_probe = (
+            "import sys;"
+            f"sys.path.insert(0,{DEV!r});"
+            "import review_gate;"
+            "print(review_gate.session_id())"
+        )
+        original = "; ".join(
+            [
+                "printf 'scratch1=%s\\n' \"$(scripts/dev/session-scratch.sh --path)\"",
+                "printf 'scratch2=%s\\n' \"$(scripts/dev/session-scratch.sh --path)\"",
+                "printf 'scratch3=%s\\n' \"$(scripts/dev/session-scratch.sh --path)\"",
+                "printf 'make=%s\\n' \"$(make -s ze-session-binary-path)\"",
+                "printf 'review=%s\\n' "
+                f"\"$({shlex.quote(sys.executable)} -c {shlex.quote(review_probe)})\"",
+            ]
+        )
+        env = _fork_payload_env(work, ROOT)
+
+        def pretool(sid: str) -> subprocess.CompletedProcess:
+            return subprocess.run(
+                [sys.executable, os.path.join(HOOKS, "pretool-bash.py")],
+                input=json.dumps(
+                    {
+                        "hook_event_name": "PreToolUse",
+                        "tool_name": "Bash",
+                        "agent_id": "fixture-agent",
+                        "session_id": sid,
+                        "tool_input": {"command": original},
+                    }
+                ),
+                capture_output=True,
+                text=True,
+                env=env,
+                timeout=60,
+            )
+
+        safe = pretool(parent_sid)
+        updated = _updated_bash_command(safe)
+        results.check(
+            "pretool-bash-prefixes-safe-parent-export",
+            safe.returncode == 0
+            and updated
+            == f"export CLAUDE_CODE_SESSION_ID={parent_sid}; {original}",
+            f"rc={safe.returncode} updated={updated!r} err={safe.stderr!r}",
+        )
+
+        for label, bad in (
+            ("trailing-newline", parent_sid + "\n"),
+            ("encoded-nul", parent_sid + "\0suffix"),
+            ("dot", "."),
+            ("dot-dot", ".."),
+        ):
+            malformed = pretool(bad)
+            malformed_update = _updated_bash_command(malformed)
+            results.check(
+                f"pretool-bash-leaves-{label}-id-unchanged",
+                malformed.returncode == 0
+                and malformed_update in (None, original),
+                f"rc={malformed.returncode} updated={malformed_update!r} "
+                f"err={malformed.stderr!r}",
+            )
+
+        executed = None
+        if updated:
+            executed = subprocess.run(
+                ["bash", "-c", updated],
+                capture_output=True,
+                text=True,
+                cwd=ROOT,
+                env=env,
+                timeout=60,
+            )
+        values = {}
+        if executed is not None:
+            values = dict(
+                line.split("=", 1)
+                for line in executed.stdout.splitlines()
+                if "=" in line
+            )
+        scratches = [values.get(f"scratch{i}", "") for i in range(1, 4)]
+        scratch = scratches[0]
+        session_root = scratch.removesuffix("/scratch")
+        results.check(
+            "pretool-bash-parent-export-keeps-three-scratch-calls-stable",
+            executed is not None
+            and executed.returncode == 0
+            and all(path == scratch for path in scratches)
+            and re.fullmatch(
+                rf"tmp/session/\d{{4}}-\d{{2}}-\d{{2}}-{re.escape(parent_sid)}/scratch",
+                scratch,
+            )
+            is not None,
+            f"values={values!r} err={executed.stderr if executed else ''!r}",
+        )
+        results.check(
+            "pretool-bash-parent-export-reaches-make",
+            values.get("make") == f"{session_root}/bin/ze",
+            f"values={values!r}",
+        )
+        results.check(
+            "pretool-bash-parent-export-reaches-review",
+            values.get("review") == parent_sid,
+            f"values={values!r}",
+        )
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
 # VALIDATES: a fork SessionStart payload persists its safe parent session id, so
 # later Bash, Make, Python review, and scratch subprocesses use that parent.
 # PREVENTS: CLAUDE_CODE_FORK_SUBAGENT=1 losing the exported parent id while
@@ -2255,6 +2680,13 @@ def run_session_id(results: Results) -> None:
 
     _run_session_id_mint(results)
     _run_session_id_cache_key(results)
+    _run_session_start_raw_payload_ids(results)
+    _run_hook_payload_status(results)
+    _run_session_start_registration(results)
+    _run_subagent_parent_payload_context(results)
+    _run_subagent_malformed_parent_payloads(results)
+    _run_subagent_absent_parent_payload(results)
+    _run_pretool_parent_payload_export(results)
     _run_fork_parent_session_id(results)
     _run_fork_tool_session_id(results)
 
@@ -4085,6 +4517,7 @@ def run_delegation(results: Results) -> None:
     try:
         r = subprocess.run(
             ["bash", os.path.join(HOOKS, "subagent-context.sh")],
+            input=json.dumps({"session_id": _DELEG_SID}),
             text=True,
             capture_output=True,
             env=_deleg_env(work),
@@ -4108,6 +4541,7 @@ def run_delegation(results: Results) -> None:
     try:
         r = subprocess.run(
             ["bash", os.path.join(HOOKS, "subagent-context.sh")],
+            input=json.dumps({"session_id": _DELEG_SID}),
             text=True,
             capture_output=True,
             env=_deleg_env(work),
@@ -4987,6 +5421,7 @@ def run_session_state_location(results: Results) -> None:
 def _subagent_context(work: str) -> subprocess.CompletedProcess:
     return subprocess.run(
         ["bash", os.path.join(HOOKS, "subagent-context.sh")],
+        input=json.dumps({"session_id": _DELEG_SID}),
         text=True,
         capture_output=True,
         env=_deleg_env(work),
@@ -5135,6 +5570,120 @@ def run_delegation_reminder(results: Results) -> None:
     )
 
 
+# VALIDATES: a restricted fork selects the transcript named by the canonical
+# session resolver, even when another transcript has the newest mtime.
+# PREVENTS: an off-model neighboring session answering the review-model gate for
+# the fork. A human invocation with no fork keeps the newest-file fallback.
+def _run_fork_transcript_selection(results: Results) -> None:
+    work = _deleg_project(spec=None)
+    home = tempfile.mkdtemp(prefix="ze-model-home-", dir=_fixture_root())
+    try:
+        env = _fork_payload_env(work)
+        env["HOME"] = home
+        probe = (
+            "import importlib.util,os,sys;"
+            "sys.path.insert(0,sys.argv[1]);"
+            "import running_model as rm;"
+            "spec=importlib.util.spec_from_file_location('fixture_sid',sys.argv[2]);"
+            "sidmod=importlib.util.module_from_spec(spec);"
+            "spec.loader.exec_module(sidmod);"
+            "sid=sidmod.session_id();"
+            "tdir=rm.transcript_dir();"
+            "os.makedirs(tdir,exist_ok=True);"
+            "canonical=os.path.join(tdir,sid+'.jsonl');"
+            "neighbor=os.path.join(tdir,'newest-neighbor.jsonl');"
+            "open(canonical,'w').write('{\"message\":{\"model\":\"claude-sonnet-5\"}}\\n');"
+            "open(neighbor,'w').write('{\"message\":{\"model\":\"claude-opus-5\"}}\\n');"
+            "os.utime(canonical,(1,1));"
+            "os.utime(neighbor,None);"
+            "print(sid);"
+            "print(canonical);"
+            "print(rm.transcript_path());"
+            "os.environ.pop('CLAUDE_CODE_FORK_SUBAGENT',None);"
+            "print(rm.transcript_path())"
+        )
+        proc = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                probe,
+                DEV,
+                os.path.join(work, ".claude", "hooks", "lib", "session_id.py"),
+            ],
+            capture_output=True,
+            text=True,
+            env=env,
+            timeout=60,
+        )
+        lines = proc.stdout.splitlines()
+        sid, canonical, selected, human = (
+            lines if len(lines) == 4 else ("", "", "", "")
+        )
+        results.check(
+            "review-model-fork-transcript-uses-canonical-id-not-mtime",
+            proc.returncode == 0
+            and sid
+            and os.path.basename(canonical) == f"{sid}.jsonl"
+            and selected == canonical,
+            f"rc={proc.returncode} out={proc.stdout!r} err={proc.stderr!r}",
+        )
+        results.check(
+            "review-model-human-transcript-keeps-mtime-fallback",
+            human.endswith("/newest-neighbor.jsonl"),
+            f"out={proc.stdout!r}",
+        )
+    finally:
+        shutil.rmtree(home, ignore_errors=True)
+        shutil.rmtree(work, ignore_errors=True)
+
+
+# VALIDATES: the model acknowledgement lookup for a restricted fork uses the
+# same canonical identity as the shared session resolver.
+# PREVENTS: fork acknowledgement checks reading a global or neighboring
+# session's decision when no session environment variable is present.
+def _run_fork_model_ack_identity(results: Results) -> None:
+    work = _deleg_project(spec=None)
+    try:
+        env = _fork_payload_env(work)
+        probe = (
+            "import importlib.util,os,sys;"
+            "spec=importlib.util.spec_from_file_location('agent_hook',sys.argv[1]);"
+            "mod=importlib.util.module_from_spec(spec);"
+            "spec.loader.exec_module(mod);"
+            "sid=mod._ze_session_id.session_id();"
+            "path=os.path.join(os.environ['CLAUDE_PROJECT_DIR'],'tmp','session',"
+            "'.model-ack-'+sid);"
+            "open(path,'w').write('operator approved fork identity');"
+            "print(sid);"
+            "print(path);"
+            "print(mod._ack_recorded())"
+        )
+        proc = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                probe,
+                os.path.join(HOOKS, "pretool-agent-skill.py"),
+            ],
+            capture_output=True,
+            text=True,
+            env=env,
+            timeout=60,
+        )
+        lines = proc.stdout.splitlines()
+        sid, path, recorded = lines if len(lines) == 3 else ("", "", "")
+        results.check(
+            "review-model-ack-uses-canonical-fork-id",
+            proc.returncode == 0
+            and recorded == "True"
+            and os.path.basename(path) == f".model-ack-{sid}"
+            and re.fullmatch(r"[A-Za-z0-9_-]+", sid) is not None,
+            f"rc={proc.returncode} out={proc.stdout!r} err={proc.stderr!r}",
+        )
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
 def run_phase_gates(results: Results) -> None:
     print("phase-gates:")
     """The two gates that stop a session doing the right work the wrong way.
@@ -5258,6 +5807,7 @@ def run_phase_gates(results: Results) -> None:
                 fh.write(json.dumps({"message": {"model": model}}) + "\n")
             env = dict(os.environ, HOME=home, CLAUDE_PROJECT_DIR=ROOT)
             env.pop("CLAUDE_CODE_SESSION_ID", None)
+            env.pop("CLAUDE_CODE_FORK_SUBAGENT", None)
             return env
 
         env = as_model("claude-sonnet-5")
@@ -5474,6 +6024,93 @@ def run_phase_gates(results: Results) -> None:
             if os.path.isfile(ackp):
                 os.remove(ackp)
 
+        # VALIDATES: a safe top-level hook payload session_id selects the
+        # parent session's non-empty review-model acknowledgement.
+        # PREVENTS: a restricted fork ignoring the direct hook payload and
+        # using a process fallback identity that cannot find the parent marker.
+        safe_parent = "fixture-safe-parent"
+        payload_ack = os.path.join(
+            ROOT, "tmp", "session", f".model-ack-{safe_parent}"
+        )
+        payload_env = _fork_payload_env(home, ROOT)
+        payload_env["HOME"] = home
+        with open(transcript, "w", encoding="utf-8") as fh:
+            fh.write(
+                json.dumps({"message": {"model": "claude-sonnet-5"}}) + "\n"
+            )
+        try:
+            with open(payload_ack, "w", encoding="utf-8") as fh:
+                fh.write("operator approved parent review identity")
+            rr = subprocess.run(
+                [sys.executable, hook],
+                input=json.dumps(
+                    {
+                        "tool_name": "Agent",
+                        "session_id": safe_parent,
+                        "agent_id": "fixture-fork-agent",
+                        "transcript_path": transcript,
+                        "tool_input": {
+                            "prompt": "Follow /ze-review over the diff"
+                        },
+                    }
+                ),
+                capture_output=True,
+                text=True,
+                env=payload_env,
+            )
+            results.check(
+                "review-model-ack-uses-safe-payload-id",
+                rr.returncode == 0,
+                f"rc={rr.returncode} err={rr.stderr!r}",
+            )
+        finally:
+            if os.path.isfile(payload_ack):
+                os.remove(payload_ack)
+
+        # VALIDATES: an acknowledgement id is safe in its raw form. Whitespace
+        # suffixes and dot entries do not select a file after normalization.
+        # PREVENTS: _ack_recorded stripping an unsafe id into another session's
+        # valid id, or accepting "." and ".." as identities.
+        for label, bad_sid, misleading_name in (
+            ("trailing-space-id", "fixture-ack-probe ", ".model-ack-fixture-ack-probe"),
+            (
+                "trailing-newline-id",
+                "fixture-ack-probe\n",
+                ".model-ack-fixture-ack-probe",
+            ),
+            ("dot-id", ".", ".model-ack-."),
+            ("dot-dot-id", "..", ".model-ack-.."),
+        ):
+            misleading = os.path.join(ROOT, "tmp", "session", misleading_name)
+            with open(misleading, "w", encoding="utf-8") as fh:
+                fh.write("operator approved another identity")
+            invalid_env = dict(env_non_review)
+            invalid_env["CLAUDE_CODE_SESSION_ID"] = bad_sid
+            try:
+                rr = subprocess.run(
+                    [sys.executable, hook],
+                    input=json.dumps(
+                        {
+                            "tool_name": "Agent",
+                            "transcript_path": transcript,
+                            "tool_input": {
+                                "prompt": "Follow /ze-review over the diff"
+                            },
+                        }
+                    ),
+                    capture_output=True,
+                    text=True,
+                    env=invalid_env,
+                )
+                results.check(
+                    f"review-model-ack-rejects-{label}",
+                    rr.returncode == 2,
+                    f"rc={rr.returncode} err={rr.stderr!r}",
+                )
+            finally:
+                if os.path.isfile(misleading):
+                    os.remove(misleading)
+
         # Both gates must read the SAME transcript. The spawn gate threw the
         # payload path away and re-resolved, so the two disagreed.
         #
@@ -5521,6 +6158,9 @@ def run_phase_gates(results: Results) -> None:
             "UNCHECKED" in r.stderr,
             repr(r.stderr),
         )
+
+    _run_fork_transcript_selection(results)
+    _run_fork_model_ack_identity(results)
 
 
 # --------------------------------------------------------------------------- #

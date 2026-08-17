@@ -53,6 +53,15 @@ _scratch_spec = importlib.util.spec_from_file_location(
 _scratch_path = importlib.util.module_from_spec(_scratch_spec)
 _scratch_spec.loader.exec_module(_scratch_path)
 
+# Canonical session-id validator. The payload value must be accepted before it is
+# copied into a shell command.
+_sid_spec = importlib.util.spec_from_file_location(
+    "ze_session_id",
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "lib", "session_id.py"),
+)
+_ze_session_id = importlib.util.module_from_spec(_sid_spec)
+_sid_spec.loader.exec_module(_ze_session_id)
+
 # A check returns None to pass, or (code, message) where code is 1 or 2.
 #
 # A `ze point:` comment directly above a check names the rule point it enforces
@@ -136,7 +145,7 @@ def check_root_build(cmd, _ctx):
         2,
         f"{RED}{BOLD}✘ BLOCKED: go build without -o bin/{RESET}\n\n"
         f"  {RED}→{RESET} Use: go build -o bin/<name> ./cmd/<name>\n"
-        f"  {RED}→{RESET} Or: make ze / make ze-chaos-build / make test-runner",
+        f"  {RED}→{RESET} Or: make ze-build / make ze-chaos-build / make test-runner",
     )
 
 
@@ -624,13 +633,19 @@ def main():
         return 0  # no parsable payload -> nothing to check
     if payload.get("tool_name") != "Bash":
         return 0
-    cmd = (payload.get("tool_input") or {}).get("command") or ""
+    tool_input = payload.get("tool_input")
+    if not isinstance(tool_input, dict):
+        return 0
+    cmd = tool_input.get("command") or ""
     project_dir = os.environ.get("CLAUDE_PROJECT_DIR")
     if not project_dir:
         project_dir = os.path.abspath(
             os.path.join(os.path.dirname(__file__), "..", "..")
         )
     ctx = {"dir": project_dir}
+    parent_sid = ""
+    if payload.get("agent_id") or os.environ.get("CLAUDE_CODE_FORK_SUBAGENT"):
+        parent_sid = _ze_session_id._hook_session_id(payload)
 
     worst = 0
     messages = []
@@ -653,6 +668,22 @@ def main():
 
     if messages:
         sys.stderr.write("\n\n".join(messages) + "\n")
+    if worst < 2 and parent_sid and isinstance(tool_input.get("command"), str):
+        updated_input = dict(tool_input)
+        updated_input["command"] = (
+            f"export CLAUDE_CODE_SESSION_ID={parent_sid}; "
+            f"{tool_input['command']}"
+        )
+        json.dump(
+            {
+                "hookSpecificOutput": {
+                    "hookEventName": "PreToolUse",
+                    "updatedInput": updated_input,
+                }
+            },
+            sys.stdout,
+        )
+        sys.stdout.write("\n")
     return worst
 
 

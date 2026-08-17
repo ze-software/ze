@@ -3,4 +3,8 @@ kind: directive
 level: MUST
 stage:
 ---
-**Give every subagent the spec path, the phase it is in, and the rules that govern it.** A subagent inherits no session state: name `plan/<spec>.md`, the `ai/rules/` files that apply, and what its report MUST contain. It cannot ask the user -- MUST NOT hand it work that needs an answer from them. It CAN resolve symbols: by the LSP tool where its registry carries one, by `gopls` from Bash where it does not (`ai/rules/context-economy.md`).
+- **Give every subagent the spec path, its phase, the rules that govern it, the parent session ID, and the exact per-session scratch path.** Name `plan/<spec>.md`, the applicable `ai/rules/` files, and what the report MUST contain.
+- **When a delegation API does not run `.claude/hooks/subagent-context.sh`, the main thread MUST put the parent session ID and exact per-session scratch path in the shared task context.** The OMP `task` delegation API uses this fallback.
+- **The subagent MUST use the provided scratch path.** When its environment does not contain `CLAUDE_CODE_SESSION_ID`, it MUST set that variable to the parent session ID for shell commands. It MUST NOT resolve a fresh session ID in this case.
+- **A subagent cannot ask the user.** The main thread MUST NOT give it work that needs an answer from the user.
+- **A subagent CAN resolve symbols.** It uses the LSP tool where its registry carries one, or `gopls` from Bash where it does not (`ai/rules/context-economy.md`).

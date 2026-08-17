@@ -7,12 +7,24 @@ cd "$CLAUDE_PROJECT_DIR" 2>/dev/null || cd "$(dirname "$0")/../.."
 # Load helpers
 source .claude/hooks/lib/state-file.sh
 
+# SessionStart supplies the canonical session id in its JSON payload. Validate the
+# decoded JSON value before shell command substitution can remove trailing newlines.
+SAFE_PAYLOAD_SID=$(python3 .claude/hooks/lib/session_id.py --hook-session-id 2>/dev/null) \
+    || SAFE_PAYLOAD_SID=""
+if [ -n "$SAFE_PAYLOAD_SID" ]; then
+    export CLAUDE_CODE_SESSION_ID="$SAFE_PAYLOAD_SID"
+    if [ -n "${CLAUDE_ENV_FILE:-}" ]; then
+        printf 'export CLAUDE_CODE_SESSION_ID=%s\n' "$SAFE_PAYLOAD_SID" \
+            >> "$CLAUDE_ENV_FILE" 2>/dev/null || true
+    fi
+fi
+
 # This hook DELETES NOTHING. It once swept tmp/ and tmp/session/ on an age
 # timer, and reaped the dated session directories of sessions that never fired
 # SessionEnd. Every one of those removed the operator's own files without being
 # asked, and one of them deleted the tracked tmp/go.mod sentinel on every start.
-# Cleanup is now operator-invoked only: `make ze-tmp-clean` for the tmp/ root,
-# `make ze-sessions-clean BEFORE=<YYYY-MM-DD>` for the dated session directories
+# Cleanup is now operator-invoked only: `make ze-scratch-clean` for the tmp/ root,
+# `make ze-session-clean BEFORE=<YYYY-MM-DD>` for the dated session directories
 # (owner decision, 2026-08-03).
 
 # --- Read this session's claimed spec (set via scripts/dev/spec-session.sh) ---

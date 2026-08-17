@@ -3,4 +3,22 @@ kind: directive
 level: MUST
 stage:
 ---
-**Every marker is keyed by session id**, and the id is resolved in TWO places that MUST agree: `.claude/hooks/lib/session-id.sh` (`_session_id`, used by the shell hooks that WRITE `.lsp-loaded-*` / `.lsp-invoked-*` / `.source-read-*` / `.session-*`) and a port inside `pretool-writeedit.py` (`session_id()`, which READS them). Disagreement fails CLOSED: the reader looks for a file nothing wrote and blocks work that was actually done. Both read `$CLAUDE_CODE_SESSION_ID` first; an id that is not a safe filename component is rejected by both rather than rewritten. `make ze-unit-hook-test` (section `session-id`) locks this. Before 2026-07-16 neither end had an env lookup, so with no `--session-id` in argv and no access token every concurrent session shared ONE marker set, and `spec-session.sh claim` then silently overwrote another session's spec claim. If you touch either resolver, change BOTH and re-run the test.
+**Every marker is keyed by session id**, and every consumer MUST use
+`.claude/hooks/lib/session_id.py`. Bash hooks call it through
+`.claude/hooks/lib/session-id.sh` (`_session_id`). Python callers import
+`session_id()` and reuse `_sid_safe()` for direct values.
+
+`session-start.sh` and `subagent-context.sh` pass hook JSON to
+`--hook-session-id`. This mode validates the decoded raw string before shell
+normalization. It returns status 0 for a safe id, status 1 for an absent field,
+and status 2 for malformed JSON or an invalid field. SessionStart has an empty
+matcher so startup, resume, clear, compact, and fork events republish an
+accepted id through `$CLAUDE_ENV_FILE`. SubagentStart falls back to `_session_id`
+only for status 1. It emits its complete context as JSON
+`hookSpecificOutput.additionalContext`. Status 2 adds no parent id, path, spec,
+or state. For a restricted subagent Bash call, `pretool-bash.py` prefixes the
+command with the accepted parent id from the PreToolUse payload.
+
+The hook MUST NOT persist `$ZE_SESSION_ID`. `mk/session.mk` derives it. Unsafe
+ids are rejected rather than rewritten. The validator rejects dot entries.
+`make ze-unit-hook-test` (section `session-id`) locks this behavior.
