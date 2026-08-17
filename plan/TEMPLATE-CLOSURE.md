@@ -103,10 +103,12 @@
 
      The machine-checked artifact is the deliverable, not this table:
      scripts/dev/review_gate.py record --spec <spec> --rounds <N> ... then check.
-     --rounds is the pass count and is required; more than three needs
-     --rounds-reason naming the PRODUCT defect a later round found. A false
-     statement in this record is a NOTE, never a reason for another round
-     (ai/rules/planning.md).
+     --rounds is the pass count and is required; more than five needs
+     --rounds-reason naming the PRODUCT defect a later round found, AND
+     --owner-authorised carrying Thomas's word, because more than five passes
+     is his decision (owner ruling 2026-08-17). At the cap you stop and ask him;
+     you never set that flag on your own initiative. A false statement in this
+     record is a NOTE, never a reason for another round (ai/rules/planning.md).
      commit_helper.py runs `review_gate.py check` on the closure commit and
      refuses without a fresh, hash-pinned, CLEAN artifact. Record the artifact
      first; this table exists only to carry what was FOUND and FIXED forward

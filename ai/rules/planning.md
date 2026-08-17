@@ -440,7 +440,7 @@ reviewers caught on the same diff minutes later.
 3. **Verify the reviewers too.** A reviewer can be wrong. Before acting on a
    finding, reproduce it (an empirical check beats an argument: a `.ci` exit
    assertion that "SHOULD fire" either fires or does not; run it).
-4. **Looped to zero over a SHRINKING scope.** Every fix is new code and earns a fresh pass. Each pass reviews less than the one before it. There is no cap on the NUMBER of passes, and a hard bound on what each one covers. See "Bounding the loop" below.
+4. **Looped to zero over a SHRINKING scope.** Every fix is new code and earns a fresh pass. Each pass reviews less than the one before it. Five passes are the session's to spend. The sixth is Thomas's to grant. Each pass carries a hard bound on what it covers. See "Bounding the loop" below.
 5. **Evidenced by an artifact, not narrated.** Record the pass with
    `scripts/dev/review_gate.py record` → `tmp/review/<spec-stem>-<session-id>.md`
    (session-scoped, so concurrent same-spec sessions never clobber each other). It pins the
@@ -476,11 +476,21 @@ reviewers caught on the same diff minutes later.
   has stopped converging on the product: each prose fix creates fresh text to
   audit, so another round cannot establish product quality.
 - **`scripts/dev/review_gate.py record` takes `--rounds N` and refuses more than
-  three without `--rounds-reason`, which MUST name the PRODUCT defect a later
+  five without `--rounds-reason`, which MUST name the PRODUCT defect a later
   round found.** The cap is not a ban: a genuinely defective implementation can
-  need a fourth round and gets one for the cost of a sentence. That sentence is
+  need a sixth round and gets one for the cost of a sentence. That sentence is
   the one nobody can write when the loop is auditing its own bookkeeping, which is
   what makes it the right toll.
+- **Past FIVE rounds a session MUST NOT authorise itself. MORE THAN FIVE PASSES
+  IS THOMAS'S DECISION** (owner ruling, 2026-08-17). `record` refuses a sixth
+  round without `--owner-authorised` carrying what he said. `--rounds-reason`
+  stays required alongside it. The product defect and his word are both owed,
+  and neither substitutes for the other.
+- **You MUST NOT set `--owner-authorised` on your own initiative.** The same ban
+  covers `--push` on `scripts/dev/commit_helper.py` (`ai/rules/git-safety.md`).
+  At the cap you MUST stop. Report what the loop keeps finding, then ask him
+  whether it runs another pass. A script cannot check who typed a flag. Setting
+  it unasked is a recorded false statement about the owner, not a shortcut.
 
 - **The same cut applies to TEST-ONLY code: a defect there that cannot reach the product is a NOTE, and a NOTE MUST NOT re-open a round.** Test helpers, fixture builders, `.ci` and `.et` scripts, the runners under `test/`, and the harness code that drives them ship in no binary an operator runs. An error branch nothing reaches, an edge case no caller has, a handle left open in a process that is about to exit: report it once if it is free to fix, and it earns no round, no spec, and no hold on a closure. Test code that runs and does its job is finished.
 - **A bug in test code that leads to NO TESTING is load-bearing, and MUST be fixed.** The test does not run, the runner skips it and reports green, the harness never reaches the code under test, the fixture builds the wrong scenario, the assertion is swallowed, the `.ci` observer exits before it checks: nothing is being tested and the suite says otherwise. That is a silent loss of coverage, which is the failure mode the always-in-scope list exists for, so it is a BLOCKER or an ISSUE like any other.

@@ -2736,9 +2736,11 @@ def review_gate_problems(
         "    python3 scripts/dev/review_gate.py record --spec "
         + stem
         + " --verdict clean --rounds <N> --files <code files>\n"
-        "  --rounds is the pass count. Past 3 it needs --rounds-reason naming the\n"
+        "  --rounds is the pass count. Past 5 it needs --rounds-reason naming the\n"
         "  PRODUCT defect a later round found; a false statement in the spec's own\n"
-        "  closure prose is not one.\n"
+        "  closure prose is not one. Past 5 it ALSO needs --owner-authorised:\n"
+        "  more than five passes is Thomas's decision, so you stop and ask him\n"
+        "  rather than setting that flag yourself.\n"
         '  Owner override: --review-override "<reason>".'
     ]
 
@@ -2886,7 +2888,9 @@ def _create(args: argparse.Namespace, repo: Path, session: str, tag: str) -> int
         # self-service --unverified. The fixing commit passes both flags.
         if not args.unverified and not (args.structural_red_ok or "").strip():
             raise UsageError(
-                "ze-precommit-verify is not FRESH-green (" + (detail or "unknown") + ").\n"
+                "ze-precommit-verify is not FRESH-green ("
+                + (detail or "unknown")
+                + ").\n"
                 "  Run `make ze-precommit-verify` (or `make ze-precommit-verify-changed`) until green, then\n"
                 '  commit, OR pass --unverified "<reason>" to commit anyway (owner\n'
                 "  override, or a flaky/environmental known-red logged in\n"

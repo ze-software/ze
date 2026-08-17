@@ -321,29 +321,72 @@ class RoundCapCase(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn("rounds=3", self.artifact())
 
+    def test_the_fifth_round_is_the_last_a_session_spends_alone(self):
+        # Owner ruling 2026-08-17: five passes are the session's to spend.
+        r = self.record("--rounds", "5")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("rounds=5", self.artifact())
+
     def test_over_the_cap_is_refused_without_a_reason(self):
-        r = self.record("--rounds", "4")
+        r = self.record("--rounds", "6")
         self.assertEqual(r.returncode, 2)
         self.assertIn("--rounds-reason", r.stderr)
         # The refusal must say what a valid reason IS, or the next agent writes
         # "the review found more issues", which is the thing being refused.
         self.assertIn("product", r.stderr.lower())
 
-    def test_over_the_cap_records_when_a_product_defect_is_named(self):
+    def test_a_product_defect_alone_does_not_lift_the_owner_cap(self):
+        # Owner ruling 2026-08-17: past five passes the session may not authorise
+        # itself, however good the product defect it can name.
         r = self.record(
             "--rounds",
-            "5",
+            "6",
             "--rounds-reason",
-            "round 4 found the retry loop drops the last error",
+            "round 5 found the retry loop drops the last error",
+        )
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("--owner-authorised", r.stderr)
+        # The refusal must tell the agent to STOP and ask, or it invents a value.
+        self.assertIn("own initiative", r.stderr.lower())
+
+    def test_over_the_cap_records_with_a_defect_and_the_owners_word(self):
+        r = self.record(
+            "--rounds",
+            "6",
+            "--rounds-reason",
+            "round 5 found the retry loop drops the last error",
+            "--owner-authorised",
+            "Thomas asked for one more pass on the retry path",
         )
         self.assertEqual(r.returncode, 0, r.stderr)
         art = self.artifact()
-        self.assertIn("rounds=5", art)
-        self.assertIn("round 4 found the retry loop drops the last error", art)
+        self.assertIn("rounds=6", art)
+        self.assertIn("round 5 found the retry loop drops the last error", art)
+        self.assertIn("Thomas asked for one more pass on the retry path", art)
+
+    def test_the_owners_word_alone_does_not_lift_the_reason_requirement(self):
+        # Both tolls are owed past the cap; neither substitutes for the other.
+        r = self.record(
+            "--rounds", "6", "--owner-authorised", "Thomas said run one more"
+        )
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("--rounds-reason", r.stderr)
 
     def test_a_blank_reason_does_not_lift_the_cap(self):
-        r = self.record("--rounds", "4", "--rounds-reason", "   ")
+        r = self.record("--rounds", "6", "--rounds-reason", "   ")
         self.assertEqual(r.returncode, 2)
+
+    def test_a_blank_owner_authorisation_does_not_lift_the_owner_cap(self):
+        r = self.record(
+            "--rounds",
+            "6",
+            "--rounds-reason",
+            "round 5 found a guard that fails open",
+            "--owner-authorised",
+            "   ",
+        )
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("--owner-authorised", r.stderr)
 
     def test_zero_rounds_is_refused(self):
         # An artifact claiming zero passes is a review that never ran.

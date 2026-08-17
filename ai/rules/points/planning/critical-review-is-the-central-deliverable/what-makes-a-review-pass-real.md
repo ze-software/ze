@@ -22,7 +22,7 @@ stage:
 3. **Verify the reviewers too.** A reviewer can be wrong. Before acting on a
    finding, reproduce it (an empirical check beats an argument: a `.ci` exit
    assertion that "SHOULD fire" either fires or does not; run it).
-4. **Looped to zero over a SHRINKING scope.** Every fix is new code and earns a fresh pass. Each pass reviews less than the one before it. There is no cap on the NUMBER of passes, and a hard bound on what each one covers. See "Bounding the loop" below.
+4. **Looped to zero over a SHRINKING scope.** Every fix is new code and earns a fresh pass. Each pass reviews less than the one before it. Five passes are the session's to spend. The sixth is Thomas's to grant. Each pass carries a hard bound on what it covers. See "Bounding the loop" below.
 5. **Evidenced by an artifact, not narrated.** Record the pass with
    `scripts/dev/review_gate.py record` → `tmp/review/<spec-stem>-<session-id>.md`
    (session-scoped, so concurrent same-spec sessions never clobber each other). It pins the

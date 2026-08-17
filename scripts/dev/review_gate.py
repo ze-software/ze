@@ -22,6 +22,7 @@ Usage:
                         --files F...
                         [--reviewers TEXT] [--findings-file PATH]
                         [--rounds-reason TEXT]  # required past ROUND_CAP rounds
+                        [--owner-authorised TEXT]  # required past ROUND_OWNER_CAP
   review_gate.py check  --spec STEM --files F...      # exit 0 pass / 3 block
 
 Exit codes: 0 pass; 2 usage error; 3 gate BLOCK (missing/stale/dirty review).
@@ -59,7 +60,19 @@ ARTIFACT_DIR = Path("tmp/review")
 # The cap is not a ban -- a genuinely defective implementation can need more. It
 # costs one sentence naming what the extra round found in the PRODUCT, which is
 # the sentence nobody can write when the loop is auditing its own bookkeeping.
-ROUND_CAP = 3
+#
+# Owner ruling, 2026-08-17: the cap is 5, and passing it is THOMAS'S decision,
+# not the session's. Rounds 4 and 5 still cost the sentence (--rounds-reason);
+# round 6 and beyond additionally need --owner-authorised, which records what he
+# said. A session MUST NOT set that flag on its own initiative, exactly as it
+# must not add --push to commit_helper.py on its own initiative. A script cannot
+# check who typed a flag; what it can do is make the flag impossible to set by
+# accident and name the owner in its text, so setting it without his word is a
+# recorded false statement rather than a silent one.
+ROUND_CAP = 5
+# Past this many rounds the session may no longer authorise itself, whatever
+# product defect it can name.
+ROUND_OWNER_CAP = 5
 HEADER_RE = re.compile(
     r"<!--\s*ze-review\s+spec=(?P<spec>\S+)\s+verdict=(?P<verdict>\S+).*?-->"
 )
@@ -238,6 +251,7 @@ def cmd_record(args: argparse.Namespace) -> int:
             file=sys.stderr,
         )
         return 2
+    owner_authorised = str(getattr(args, "owner_authorised", "") or "").strip()
     if rounds > ROUND_CAP and not rounds_reason:
         print(
             f"review_gate: {rounds} review rounds needs --rounds-reason "
@@ -246,6 +260,24 @@ def cmd_record(args: argparse.Namespace) -> int:
             "a missing test, an unwired symbol, a guard that fails open.\n"
             "  A false statement in the spec's own closure prose is NOT one. Fix "
             "those in one edit and stop the loop; they ship nothing.\n"
+            "  See ai/rules/planning.md, 'How each review round is scoped and when "
+            "it ends'.",
+            file=sys.stderr,
+        )
+        return 2
+    # Owner ruling 2026-08-17: past ROUND_OWNER_CAP the session may not authorise
+    # itself. --rounds-reason stays required, so a run past the cap carries BOTH
+    # the product defect and Thomas's word; neither substitutes for the other.
+    if rounds > ROUND_OWNER_CAP and not owner_authorised:
+        print(
+            f"review_gate: {rounds} review rounds needs Thomas's authorisation "
+            f"(--owner-authorised), not only --rounds-reason.\n"
+            f"  More than {ROUND_OWNER_CAP} passes is his call to make, per the "
+            "owner ruling of 2026-08-17.\n"
+            "  You MUST NOT set --owner-authorised on your own initiative. STOP, "
+            "report what the loop keeps finding, and ask him whether it runs "
+            "another pass.\n"
+            "  If he authorises it, pass what he said as the flag's value.\n"
             "  See ai/rules/planning.md, 'How each review round is scoped and when "
             "it ends'.",
             file=sys.stderr,
@@ -272,6 +304,8 @@ def cmd_record(args: argparse.Namespace) -> int:
         lines += ["", f"model-override: {override}"]
     if rounds_reason:
         lines += ["", f"rounds-reason: {rounds_reason}"]
+    if owner_authorised:
+        lines += ["", f"owner-authorised: {owner_authorised}"]
     lines += ["", "## Findings", "", findings or "(none recorded)", ""]
     out.write_text("\n".join(lines), encoding="utf-8")
     print(f"review_gate: wrote {out} ({len(files)} files, verdict={verdict})")
@@ -393,6 +427,14 @@ def main(argv: list[str]) -> int:
         default="",
         help=f"required past round {ROUND_CAP}: the PRODUCT defect a later round "
         "found. A finding in the spec's own closure prose is not one",
+    )
+    r.add_argument(
+        "--owner-authorised",
+        default="",
+        help=f"OWNER AUTHORISATION ONLY: required past round {ROUND_OWNER_CAP}, "
+        "in addition to --rounds-reason. Record what Thomas said when he "
+        "authorised the extra pass. A session MUST NOT set this on its own "
+        "initiative: past the cap it stops and asks him",
     )
     r.add_argument(
         "--model-override",
