@@ -13,10 +13,10 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-// TestValidateSyntaxMissingSemicolon verifies semicolon handling.
+// TestValidateSyntaxMissingSemicolon verifies automatic semicolon insertion.
 //
-// VALIDATES: Semicolons are auto-inserted at newlines; still required on single-line input.
-// PREVENTS: Invalid config saved without warning.
+// VALIDATES: Semicolons are auto-inserted at newlines, EOF, and before closing braces.
+// PREVENTS: Rejecting valid config with one command per line or inline block.
 func TestValidateSyntaxMissingSemicolon(t *testing.T) {
 	v, err := newConfigValidator()
 	require.NoError(t, err)
@@ -32,9 +32,9 @@ func TestValidateSyntaxMissingSemicolon(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "missing_semicolon_single_line",
+			name:    "auto_semicolon_before_closing_brace",
 			content: "bgp { router-id 1.2.3.4 }",
-			wantErr: true,
+			wantErr: false,
 		},
 		{
 			name: "block_no_semicolon_needed",
