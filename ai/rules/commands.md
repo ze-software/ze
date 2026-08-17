@@ -58,12 +58,11 @@ survive contention.
 - Use `RACE=0` only for non-race iteration. A race or concurrency failure MUST keep race detection enabled.
 - Run the required aggregate target, `make ze-precommit-verify` or `make ze-precommit-verify-changed`, only once. Run it after focused tests pass and all edits are complete. You MUST NOT use either aggregate target to rerun one known failure.
 
-- During development, the session MUST run a focused test sample for the changed code path before a fuller, aggregate, or full suite.
+- During development, the session MUST start with a focused test sample for the changed code path before it runs a fuller, aggregate, or full suite.
 - The sample MAY include the test being developed.
-- The focused sample is a scope probe, not a suite substitute.
-- The session MAY run more focused sample tests to debug the problem, find the failure boundary, or unblock diagnosis.
-- When a sample test fails, the fix loop MUST use the narrowest command that reproduces the failure unless broader focused samples are needed for diagnosis.
-- A fuller, aggregate, or full suite MUST run only after the reproducer and the selected focused checks for the finished change pass.
+- When that sample finds a failing test, the fix loop MUST use the narrowest command that reproduces that failure.
+- The narrow loop MUST NOT stop the session from running more focused sample tests when needed to debug, find the failure boundary, or remove a blocker.
+- The fuller, aggregate, or full suite runs after the focused debugging loop no longer finds a relevant failure. It MUST NOT be the first probe.
 
 ## Bare `go test` Lies -- Always Pass The Feature Tags
 
@@ -148,7 +147,7 @@ durable side.
 Under an AI session every canonical binary is built into this session's own
 directory, under its BARE name:
 `tmp/session/<YYYY-MM-DD>-<session-id>/bin/ze` (`mk/session.mk`). A sibling
-session's `make ze` therefore cannot overwrite the binary you are testing
+session's `make ze-build` therefore cannot overwrite the binary you are testing
 against. Off-session (a human shell, CI) the path is the plain `bin/ze` it
 always was.
 
@@ -181,7 +180,7 @@ error when it is absent, so `ze` would start with no users and a fresh SSH host
 key rather than fail. The credentials are generated per session -- user `admin`,
 and a random password at `<session-dir>/etc/ze/.dev-password`, mode 0600 under a
 gitignored root -- so nothing is tracked and two sessions never share one. A
-second `make ze` reseeds nothing and rotates nothing.
+second `make ze-build` reseeds nothing and rotates nothing.
 
 Test binaries take the same shape one level in -- a private `bin/` subdir of a
 throwaway directory under `$(ZE_SCRATCH_DIR)` -- because `.ci` tests exec them by
