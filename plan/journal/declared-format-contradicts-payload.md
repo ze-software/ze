@@ -1,0 +1,3 @@
+| Date | Spec | Surface | Symptom | Fix |
+|------|------|---------|---------|-----|
+| 2026-08-15 | bgp-pcap-decode | diag pcap export | `exportBGPPcap` declares `LinkTypeRaw`, but writes only BGP bodies. `notifyMessageReceiver` receives the body after the 19-byte header. Wireshark reads it as IPv4 and displays invalid packets. The capture omits the message type and boundaries | `plan/spec-bgp-pcap-decode.md` fixes this defect. It adds IP and TCP framing around complete BGP messages. This owner decision dates 2026-08-15. The defect blocked pcap input for `ze bgp decode` because Ze did not read its own capture |
