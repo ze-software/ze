@@ -30,6 +30,14 @@ const reservedPrefix = "\x00ze:"
 // caller.
 const ReservedInternalPrefix = reservedPrefix + "internal:"
 
+// ReservedSharedAPIUsername is the identity REST and gRPC inject after they
+// classify a caller as either a validated shared-token request or a no-auth
+// loopback request. Both modes share one identity because the transport marks
+// no-auth callers read-only before command authorization, while a validated
+// shared token retains write authority. Per-user authentication never emits
+// this name and keeps the authenticated username.
+const ReservedSharedAPIUsername = reservedPrefix + "shared-api"
+
 // ReservedRecoveryProfile is the allow-all break-glass profile delivered to the
 // `ze init` bootstrap admin through login-resolved profiles ONLY (never a config
 // assignment, so it cannot flip an operator's RBAC posture).

@@ -372,3 +372,83 @@ func TestStructuredEventDeliverViaDirectBridge(t *testing.T) {
 	assert.Equal(t, uint64(1), got.MessageID)
 	assert.Equal(t, "test-payload", got.RawMessage)
 }
+
+// TestDirectBridgeStopDispatchRejectsPluginCalls verifies bridge shutdown
+// closes the plugin-to-engine direction without invoking registered handlers.
+//
+// VALIDATES: StopDispatch makes generic and typed plugin calls return ErrBridgeClosed.
+// PREVENTS: A stopped plugin publishing engine state after runtime cleanup starts.
+func TestDirectBridgeStopDispatchRejectsPluginCalls(t *testing.T) {
+	b := NewDirectBridge()
+	b.SetDispatchRPC(func(string, json.RawMessage) (json.RawMessage, error) {
+		t.Fatal("generic handler ran after dispatch shutdown")
+		return nil, nil
+	})
+	b.SetDispatchCommand(func(string) (*DispatchCommandOutput, error) {
+		t.Fatal("typed handler ran after dispatch shutdown")
+		return nil, nil
+	})
+	b.SetReady()
+
+	b.StopDispatch()
+
+	_, err := b.DispatchRPC("test", nil)
+	require.ErrorIs(t, err, ErrBridgeClosed)
+	_, err = b.DispatchCommand("show test")
+	require.ErrorIs(t, err, ErrBridgeClosed)
+	assert.False(t, b.Ready())
+}
+
+// TestDirectBridgeWaitDispatchDrainsInflightCall verifies shutdown waits for
+// a plugin-to-engine call that entered before dispatch admission closed.
+//
+// VALIDATES: WaitDispatch returns only after an admitted generic call finishes.
+// PREVENTS: Runtime cleanup racing with an in-flight direct bridge handler.
+func TestDirectBridgeWaitDispatchDrainsInflightCall(t *testing.T) {
+	b := NewDirectBridge()
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	b.SetDispatchRPC(func(string, json.RawMessage) (json.RawMessage, error) {
+		close(entered)
+		<-release
+		return json.RawMessage(`{"status":"done"}`), nil
+	})
+	b.SetReady()
+
+	callDone := make(chan error, 1)
+	go func() {
+		_, err := b.DispatchRPC("test", nil)
+		callDone <- err
+	}()
+	<-entered
+
+	b.StopDispatch()
+	_, err := b.DispatchRPC("rejected", nil)
+	require.ErrorIs(t, err, ErrBridgeClosed)
+
+	waitDone := make(chan struct{})
+	go func() {
+		b.WaitDispatch()
+		close(waitDone)
+	}()
+	select {
+	case <-waitDone:
+		t.Fatal("WaitDispatch returned before the admitted call finished")
+	default:
+	}
+
+	close(release)
+	waitCtx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	select {
+	case err := <-callDone:
+		require.NoError(t, err)
+	case <-waitCtx.Done():
+		t.Fatal("admitted direct bridge call did not finish")
+	}
+	select {
+	case <-waitDone:
+	case <-waitCtx.Done():
+		t.Fatal("WaitDispatch did not return after the admitted call finished")
+	}
+}

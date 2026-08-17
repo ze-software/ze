@@ -77,9 +77,12 @@ type DirectBridge struct {
 	closeOnce           sync.Once                  // Guards callbackCh close (Stop may be called multiple times)
 	sendMu              sync.RWMutex               // Held for reading by senders, for writing by CloseCallbacks
 	sendClosed          bool                       // Guarded by sendMu: the callback channels are closed
-	failed              atomic.Bool                // Set after callback loop failure; callers fail fast.
-	failureMu           sync.RWMutex               // Guards failureErr, read only after failed is set.
-	failureErr          error                      // First callback loop failure reported to later callers.
+	dispatchMu          sync.Mutex                 // Serializes dispatch admission with StopDispatch.
+	dispatchClosed      bool
+	dispatchWG          sync.WaitGroup
+	failed              atomic.Bool  // Set after callback loop failure; callers fail fast.
+	failureMu           sync.RWMutex // Guards failureErr, read only after failed is set.
+	failureErr          error        // First callback loop failure reported to later callers.
 	ready               atomic.Bool
 }
 
@@ -178,6 +181,7 @@ func (b *DirectBridge) callbackFailure() error {
 // only cost. A send concurrent with a close is a data race whatever the outcome,
 // and -race fails the test that provoked it.
 func (b *DirectBridge) CloseCallbacks() {
+	b.StopDispatch()
 	b.closeOnce.Do(func() {
 		b.sendMu.Lock()
 		b.sendClosed = true
@@ -206,6 +210,36 @@ func (b *DirectBridge) beginSend() bool {
 
 func (b *DirectBridge) endSend() { b.sendMu.RUnlock() }
 
+// beginDispatch admits one plugin-to-engine call before shutdown.
+func (b *DirectBridge) beginDispatch() bool {
+	b.dispatchMu.Lock()
+	defer b.dispatchMu.Unlock()
+	if b.dispatchClosed {
+		return false
+	}
+	b.dispatchWG.Add(1)
+	return true
+}
+
+func (b *DirectBridge) endDispatch() {
+	b.dispatchWG.Done()
+}
+
+// StopDispatch rejects new plugin-to-engine calls without waiting for active calls.
+// Safe to call multiple times.
+func (b *DirectBridge) StopDispatch() {
+	b.dispatchMu.Lock()
+	b.dispatchClosed = true
+	b.ready.Store(false)
+	b.dispatchMu.Unlock()
+}
+
+// WaitDispatch waits for admitted plugin-to-engine calls to finish.
+// Caller MUST call StopDispatch before WaitDispatch.
+func (b *DirectBridge) WaitDispatch() {
+	b.dispatchWG.Wait()
+}
+
 // SetDeliverEvents registers the plugin-side event handler (engine→plugin direction).
 // Called by the SDK after startup to register the onEvent dispatcher.
 func (b *DirectBridge) SetDeliverEvents(fn func(events []string) error) {
@@ -222,7 +256,11 @@ func (b *DirectBridge) SetDispatchRPC(fn func(method string, params json.RawMess
 // can be used for direct transport. Must be called after both SetDeliverEvents
 // and SetDispatchRPC.
 func (b *DirectBridge) SetReady() {
-	b.ready.Store(true)
+	b.dispatchMu.Lock()
+	if !b.dispatchClosed {
+		b.ready.Store(true)
+	}
+	b.dispatchMu.Unlock()
 }
 
 // Ready reports whether the bridge is ready for direct transport.
@@ -286,6 +324,10 @@ func (b *DirectBridge) SetDispatchCommand(fn DispatchCommandHandler) {
 // Returns error if the handler is not set. The hasDispatchCmd atomic load
 // creates a happens-before from SetDispatchCommand's write.
 func (b *DirectBridge) DispatchCommand(command string) (*DispatchCommandOutput, error) {
+	if !b.beginDispatch() {
+		return nil, ErrBridgeClosed
+	}
+	defer b.endDispatch()
 	if !b.hasDispatchCmd.Load() {
 		return nil, errors.New("dispatch-command handler not set")
 	}
@@ -314,6 +356,10 @@ func (b *DirectBridge) SetDispatchCommandArgs(fn DispatchCommandArgsHandler) {
 // Returns error if the handler is not set. The hasDispatchCmdArgs atomic load
 // creates a happens-before from SetDispatchCommandArgs' write.
 func (b *DirectBridge) DispatchCommandArgs(command string, args []string, peer string) (*DispatchCommandOutput, error) {
+	if !b.beginDispatch() {
+		return nil, ErrBridgeClosed
+	}
+	defer b.endDispatch()
 	if !b.hasDispatchCmdArgs.Load() {
 		return nil, errors.New("dispatch-command-args handler not set")
 	}
@@ -337,6 +383,10 @@ func (b *DirectBridge) SetUpdateRouteSel(fn UpdateRouteSelHandler) {
 
 // UpdateRouteSel calls the typed selector update-route handler directly.
 func (b *DirectBridge) UpdateRouteSel(sel *selector.Selector, command string, meta map[string]any) (announced, withdrawn uint32, err error) {
+	if !b.beginDispatch() {
+		return 0, 0, ErrBridgeClosed
+	}
+	defer b.endDispatch()
 	if !b.hasUpdateRouteSel.Load() {
 		return 0, 0, errors.New("update-route-sel handler not set")
 	}
@@ -397,13 +447,14 @@ func (b *DirectBridge) ExecuteCommand(ctx context.Context, serial, command strin
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	if !b.HasExecuteCommand() {
-		return nil, errors.New("execute-command handler not set")
-	}
-	resultCh := make(chan ExecuteCommandResult, 1)
 	if !b.beginSend() {
 		return nil, ErrBridgeClosed
 	}
+	if !b.HasExecuteCommand() {
+		b.endSend()
+		return nil, errors.New("execute-command handler not set")
+	}
+	resultCh := make(chan ExecuteCommandResult, 1)
 	select {
 	case b.executeCommandCh <- ExecuteCommandRequest{
 		Serial:  serial,
@@ -461,6 +512,10 @@ func (b *DirectBridge) SetEmitEvent(fn EmitEventHandler) {
 // Returns error if the handler is not set. The hasEmitEvent atomic load
 // creates a happens-before from SetEmitEvent's write.
 func (b *DirectBridge) EmitEvent(namespace, eventType, direction, peerAddress, event string) (int, error) {
+	if !b.beginDispatch() {
+		return 0, ErrBridgeClosed
+	}
+	defer b.endDispatch()
 	if !b.hasEmitEvent.Load() {
 		return 0, errors.New("emit-event handler not set")
 	}
@@ -491,6 +546,10 @@ func (b *DirectBridge) SetForwardCached(fn ForwardCachedHandler) {
 // Returns ctx.Err() when ctx is already canceled before dispatch, or the
 // handler's error otherwise. Not-set returns an error without dispatching.
 func (b *DirectBridge) ForwardCached(ctx context.Context, ids []uint64, destinations []string) error {
+	if !b.beginDispatch() {
+		return ErrBridgeClosed
+	}
+	defer b.endDispatch()
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -522,6 +581,10 @@ func (b *DirectBridge) SetReleaseCached(fn ReleaseCachedHandler) {
 // Returns ctx.Err() when ctx is already canceled before dispatch, or the
 // handler's error otherwise. Not-set returns an error without dispatching.
 func (b *DirectBridge) ReleaseCached(ctx context.Context, ids []uint64) error {
+	if !b.beginDispatch() {
+		return ErrBridgeClosed
+	}
+	defer b.endDispatch()
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -554,6 +617,10 @@ func (b *DirectBridge) SetRelayStoredRoute(fn RelayStoredRouteHandler) {
 // Returns ctx.Err() when ctx is already canceled before dispatch, or the
 // handler's error otherwise. Not-set returns an error without dispatching.
 func (b *DirectBridge) RelayStoredRoute(ctx context.Context, destination string, routes []StoredRoute) error {
+	if !b.beginDispatch() {
+		return ErrBridgeClosed
+	}
+	defer b.endDispatch()
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -606,6 +673,10 @@ func (b *DirectBridge) SetInjectWireRoute(fn InjectWireRouteHandler) {
 // InjectWireRoute calls the engine's typed inject-wire-route handler directly.
 // Returns error if the handler is not set.
 func (b *DirectBridge) InjectWireRoute(protocol, peerKey string, updateBody []byte) error {
+	if !b.beginDispatch() {
+		return ErrBridgeClosed
+	}
+	defer b.endDispatch()
 	if !b.hasInjectWireRoute.Load() {
 		return errors.New("inject-wire-route handler not set")
 	}
@@ -669,6 +740,10 @@ func (b *DirectBridge) SetBatchValidate(fn BatchValidateHandler) {
 // BatchValidate calls the engine's typed batch-validate handler directly.
 // Returns error if the handler is not set.
 func (b *DirectBridge) BatchValidate(decisions []ValidationDecision) (*BatchValidateResult, error) {
+	if !b.beginDispatch() {
+		return nil, ErrBridgeClosed
+	}
+	defer b.endDispatch()
 	if !b.hasBatchValidate.Load() {
 		return nil, errors.New("batch-validate handler not set")
 	}
@@ -683,6 +758,10 @@ func (b *DirectBridge) HasBatchValidate() bool {
 // DispatchRPC calls the engine's RPC handler directly. Returns error if
 // the bridge is not ready or the handler is not set.
 func (b *DirectBridge) DispatchRPC(method string, params json.RawMessage) (json.RawMessage, error) {
+	if !b.beginDispatch() {
+		return nil, ErrBridgeClosed
+	}
+	defer b.endDispatch()
 	if !b.ready.Load() {
 		return nil, errors.New("bridge not ready")
 	}
