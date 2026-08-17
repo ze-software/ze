@@ -54,9 +54,9 @@ var pythonTestRoots = []string{
 	// ran its tests before 2026-07-31. A `bytes\s+(\d+)` pattern that matches no
 	// iproute2 release lived in four copies of the scenarios for that reason.
 	// Every copy read zero, so every "traffic flowed" assertion built on it
-	// passed whatever the tunnel did. test/ipsec-interop/lab_test.py pins the
+	// passed whatever the tunnel did. test/interop-ipsec/lab_test.py pins the
 	// parser against captured `ip -s xfrm state` output.
-	"test/ipsec-interop",
+	"test/interop-ipsec",
 	// The interop speaker engine is the independent BGP peer several scenarios judge
 	// ze with, so a bug in ITS decode makes a scenario pass or fail for the wrong
 	// reason. Its tests sat unrun until 2026-08-04 because the file is named

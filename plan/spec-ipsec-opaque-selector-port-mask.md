@@ -502,9 +502,9 @@ than assumed.
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `22-ts-port-opaque` | `test/ipsec-interop/scenarios/` | strongSwan | A strongSwan peer that proposes OPAQUE ports establishes a Child SA with Ze, and Ze answers the OPAQUE form rather than TS_UNACCEPTABLE | |
+| `22-ts-port-opaque` | `test/interop-ipsec/scenarios/` | strongSwan | A strongSwan peer that proposes OPAQUE ports establishes a Child SA with Ze, and Ze answers the OPAQUE form rather than TS_UNACCEPTABLE | |
 
-**This scenario cannot carry an RFC tag.** `test/ipsec-interop/` is declared `TIER_UNRUN`
+**This scenario cannot carry an RFC tag.** `test/interop-ipsec/` is declared `TIER_UNRUN`
 (`scripts/dev/rfc_requirements.py`), and a tag there is refused, because nothing runs the
 suite automatically. Write that reason into the scenario header. Compliance evidence stays
 on the existing unit-tier tags.
@@ -536,7 +536,7 @@ on the existing unit-tier tags.
 - `test/ipsec/ipsec-ts-port-opaque.ci`
 - `test/ipsec/ipsec-ts-port-opaque-reject.ci`
 - `test/ipsec/ipsec-show-sa-port-opaque.ci`
-- `test/ipsec-interop/scenarios/22-ts-port-opaque/`
+- `test/interop-ipsec/scenarios/22-ts-port-opaque/`
 - `rfc/short/rfc4301.md` - the Security Architecture summary, if absent. Section 4.4.1.1
   defines OPAQUE
 
@@ -720,7 +720,7 @@ on the existing unit-tier tags.
   (`vppUnsupportedSA`, `internal/component/ike/dataplane/vpp.go`; `spec-fixit-vpp-ipsec-inoperable`,
   closed 2026-08-10). AC-12 can therefore only be satisfied by an explicit refusal until
   that backend can express the opaque form.
-- The interop scenario cannot carry an RFC tag, because `test/ipsec-interop/` is
+- The interop scenario cannot carry an RFC tag, because `test/interop-ipsec/` is
   `TIER_UNRUN`. Compliance evidence stays on the existing unit-tier tags.
 
 ## RFC Documentation (Scope: protocol)

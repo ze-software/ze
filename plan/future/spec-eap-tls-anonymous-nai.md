@@ -82,6 +82,6 @@ it belongs to the owner.
 ### Interop
 
 Wire-visible, and already covered rather than blocked:
-`test/ipsec-interop/scenarios/06-eap-tls13` sets `eap_id = %any` in its
+`test/interop-ipsec/scenarios/06-eap-tls13` sets `eap_id = %any` in its
 `swanctl.conf`, so an anonymous NAI still authenticates. The scenario should be
 TIGHTENED to assert the octets Ze sends, not replaced.

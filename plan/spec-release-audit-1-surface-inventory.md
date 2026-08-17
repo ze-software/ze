@@ -233,7 +233,7 @@ Inventory data enters from code and tests:
 | Fast gate | `make ze-precommit-verify` | lint, vet evidence, cached unit, race-on-changed, functional, ExaBGP | all | Needs current run before release decision |
 | Functional gate | `mk/test-functional.mk` | encode, plugin, parse, decode, reload, ui, editor, managed, l2tp, firewall, policy, web | all | Inventory started |
 | Extra functional | `mk/test-functional.mk`, `mk/test-release.mk` | static, traffic, vpp, l2tp-wire | system-linux, plugins/RIB | Release evidence only |
-| Interop/deployment | `mk/test-integration.mk`, `test/interop`, `test/ipsec-interop`, `test/l2tp-interop` | BGP interop, IPsec interop, L2TP PPP Docker, VPP deployment, QEMU | BGP protocol, system-linux | Release evidence only |
+| Interop/deployment | `mk/test-integration.mk`, `test/interop`, `test/interop-ipsec`, `test/interop-l2tp` | BGP interop, IPsec interop, L2TP PPP Docker, VPP deployment, QEMU | BGP protocol, system-linux | Release evidence only |
 | Fuzz | `mk/test-fuzz.mk` | fuzz targets for parsers/wire paths | resilience/security | Release evidence only |
 | Chaos | `mk/test-chaos.mk`, `test/chaos-web` | chaos unit, functional, web | resilience/security | Release evidence only |
 | Perf | `mk/perf.mk`, `test/perf` | benchmark and regression history | resilience/security | Release evidence only |

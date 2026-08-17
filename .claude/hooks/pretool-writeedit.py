@@ -1773,7 +1773,7 @@ _SOURCE_KINDS = ("go", "py", "sh", "make", "yang")
 # author's way past a block is to READ THE FILE THE SPEC NAMES. While this end
 # demanded `py` for any `*.py` and the writer recorded `py` only under `scripts/`
 # and `.claude/hooks/`, 11 open specs (test/interop/interop.py,
-# test/ipsec-interop/lab.py, tools/kernel-builder/build.py) and 2 more for `sh`
+# test/interop-ipsec/lab.py, tools/kernel-builder/build.py) and 2 more for `sh`
 # (packaging/deb/preinstall.sh) had no readable route to their own marker: the
 # sanctioned exit was reading an unrelated scripts/*.py, which manufactures the
 # evidence the gate exists to demand. Anchoring THIS end to those directories

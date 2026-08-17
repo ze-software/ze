@@ -2,7 +2,7 @@
 // (plan/spec-rfcgate-2-evidence.md AC-1).
 //
 // test/interop/run.py used to print "Docker unavailable, skipping interop tests"
-// and exit 0, while its sibling test/ipsec-interop/run.py exits 1 on the same
+// and exit 0, while its sibling test/interop-ipsec/run.py exits 1 on the same
 // condition. Two runners, opposite failure polarity, in one repo. The fail-open
 // one is the dangerous half: once an interop scenario may carry an
 // `RFC requirement:` tag (this spec's Phase 2), a green-but-unrun suite would

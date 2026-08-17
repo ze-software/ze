@@ -35,12 +35,12 @@ Full format: `docs/architecture/testing/ci-format.md`. Rules: `ai/rules/testing.
 | `test/policy/` | Policy routing | Route policy, redistribution |
 | `test/l2tp/` | L2TP daemon | L2TP tunnel/session lifecycle |
 | `test/l2tp-wire/` | L2TP wire format | AVP encoding, control messages |
-| `test/l2tp-interop/` | L2TP interop | Cross-daemon L2TP (xl2tpd) |
+| `test/interop-l2tp/` | L2TP interop | Cross-daemon L2TP (xl2tpd) |
 | `test/traffic/` | Traffic control | QoS, shaping, VPP traffic |
 | `test/vpp/` | VPP backend | VPP FIB, interfaces |
 | `test/static/` | Static routes | Static route installation |
 | `test/ipsec/` | IPsec/IKE | IKEv2 sessions, SAs |
-| `test/pppoe-interop/` | PPPoE interop | Ze PPPoE client vs accel-ppp AC |
+| `test/interop-pppoe/` | PPPoE interop | Ze PPPoE client vs accel-ppp AC |
 | `test/stress/` | Stress testing | High-volume UPDATE streams |
 
 ## Runner Commands

@@ -144,7 +144,7 @@ implementation.
 ### Interop Tests (MANDATORY for protocol features)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `ike-pq-strongswan` | `test/ipsec-interop/scenarios/` | strongSwan | Hybrid/PQ key exchange interoperates with another IKEv2 implementation | |
+| `ike-pq-strongswan` | `test/interop-ipsec/scenarios/` | strongSwan | Hybrid/PQ key exchange interoperates with another IKEv2 implementation | |
 
 ## Files to Modify
 - `internal/component/ike/crypto/transform.go` - add ML-KEM / hybrid entries to the DH group registry

@@ -93,7 +93,7 @@ pending state is tracked only for rekeys. This is harmless to the rekey.
 
 ## Proof
 
-`test/ipsec-interop/scenarios/05-child-rekey` runs against strongSwan 5.9.14.
+`test/interop-ipsec/scenarios/05-child-rekey` runs against strongSwan 5.9.14.
 strongSwan parses the REKEY_SA request, installs the new Child SA, and receives
 the Delete for the old SA. The Docker VM on macOS has no XFRM or ESP, so the
 scenario proves the control plane and the dataplane assertions gate on XFRM

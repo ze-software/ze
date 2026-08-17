@@ -12,7 +12,7 @@
 # // the original (never-executed) revision asserted the kernel
 # XFRM state too; XFRM install needs CAP_NET_ADMIN and cannot run natively
 # unprivileged. Kernel-state assertions stay with the strongSwan interop lab
-# (test/ipsec-interop/) and the QEMU pass; this test gates the IKEv2
+# (test/interop-ipsec/) and the QEMU pass; this test gates the IKEv2
 # control plane (negotiation, SA table, sa-up event) natively.
 
 option=env:var=ze_test_ike_port:value=$PORT2

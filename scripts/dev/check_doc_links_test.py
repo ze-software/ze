@@ -945,8 +945,8 @@ class PytestNodeIdTest(unittest.TestCase):
                `:Symbol`, so the target it returns is the file itself.
     PREVENTS:  a live file reported as a dead citation. The single-colon rule
                removed the test name and left the second colon on the path, so
-               `test/ipsec-interop/lab_test.py::test_x` became
-               `test/ipsec-interop/lab_test.py:`, which resolves nowhere. The
+               `test/interop-ipsec/lab_test.py::test_x` became
+               `test/interop-ipsec/lab_test.py:`, which resolves nowhere. The
                cheapest way out of that finding is a suppression over a
                reference that is not broken, which is how a gate stops meaning
                anything.
@@ -954,8 +954,8 @@ class PytestNodeIdTest(unittest.TestCase):
 
     def test_a_node_id_reduces_to_its_file(self) -> None:
         self.assertEqual(
-            cdl.candidate_paths("test/ipsec-interop/lab_test.py::test_x"),
-            ["test/ipsec-interop/lab_test.py"],
+            cdl.candidate_paths("test/interop-ipsec/lab_test.py::test_x"),
+            ["test/interop-ipsec/lab_test.py"],
         )
 
     def test_a_single_colon_symbol_still_reduces_to_its_file(self) -> None:

@@ -1,0 +1,140 @@
+# Test: a SIGHUP reload that adds a collector starts the exporter.
+#
+# VALIDATES: spec-flow-export-1 AC-6 -- a config reload that adds a collector
+#            brings a new exporter online; the reactor's OnConfigVerify accepts
+#            the changed config and OnConfigure rebuilds the exporter, emitting
+#            "flow-export configured".
+#            spec-flow-export-1 AC-12 -- with no flow-export section at boot the
+#            component does not start an exporter; it only comes up after the
+#            reload introduces the section.
+# PREVENTS:  regression where a SIGHUP that introduces a flow-export block is
+#            ignored (verify/configure path not wired on reload), leaving the
+#            exporter silent.
+#
+# Scope note (spec-flow-export-1): the assertion is on the reactor's
+# "flow-export configured" log line, not on a captured datagram, because the
+# reload mechanics (SIGHUP + config swap) are what is under test here. Datagram
+# emission is covered by sflow-export.ci / netflow9-export.ci / ipfix-export.ci.
+
+tmpfs=reload.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+"""Wait for ze ready, rewrite config to add a collector, SIGHUP, then SIGTERM."""
+import os
+import shutil
+import signal
+import sys
+import time
+
+for _ in range(200):
+    if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
+        break
+    # poll interval; the loop above breaks once daemon.pid and daemon.ready exist, bounded wait not a blind sleep
+    time.sleep(0.05)
+else:
+    print("ERROR: daemon.pid or daemon.ready never appeared", file=sys.stderr)
+    sys.exit(1)
+
+with open("daemon.pid") as f:
+    pid = int(f.read().strip())
+
+# blind settle: let the initial apply finish before the reload; this standalone driver has no post-apply signal to poll
+time.sleep(0.3)
+shutil.copy("config2.conf", "ze-bgp.conf")
+os.kill(pid, signal.SIGHUP)
+
+# blind hold: SIGHUP reload exposes no completion signal to this standalone driver; hold for the reactor to re-apply and emit the asserted log, then SIGTERM
+time.sleep(2.5)
+os.kill(pid, signal.SIGTERM)
+EOF_PY
+
+stdin=ze-conf:terminator=EOF_CONF
+environment {
+	log {
+		flow.export info
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+tmpfs=config2.conf:terminator=EOF_CONF2
+environment {
+	log {
+		flow.export info
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+
+flow-export {
+	collector c1 {
+		address 127.0.0.1
+		port $PORT2
+		protocol sflow
+		polling-interval 1
+	}
+}
+EOF_CONF2
+
+option=env:var=ze.log.flow.export:value=info
+
+cmd=background:seq=1:exec=python3 reload.py
+cmd=foreground:seq=2:exec=ze -:stdin=ze-conf:timeout=15s
+expect=exit:code=0
+expect=stderr:contains=flow-export configured

@@ -4,7 +4,7 @@
 // sec 3.6), never injects an Inter-Area-Router-LSA into the stub, and (totally-stubby)
 // suppresses every other inter-area prefix. PREVENTS: a v6 stub area whose internal routers
 // have no way out because the ABR never originated the default -- the gap that blocked the
-// ospf-v6-stub-frr interop scenario (the OSPFv2 path had this via spf.applyAreaTypePolicy;
+// ospfv3-stub-frr interop scenario (the OSPFv2 path had this via spf.applyAreaTypePolicy;
 // the OSPFv3 path did not).
 package ospf
 

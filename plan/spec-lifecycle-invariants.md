@@ -298,7 +298,7 @@ tests instead.
 | RADIUS sends a Disconnect-Request for a PPPoE session | → | the transport-generic disconnect handler | `test/pppoe/coa-disconnect.ci` |
 | Peer sends a Configure-Request on an established session | → | `afterLCPOpen` params-changed branch | `test/l2tp/renegotiation-preserves-session.ci` |
 | Operator reloads config with flow export enabled | → | `configure` closure preserving the exporter epoch | `test/plugin/flowexport-reload-epoch.ci` |
-| Locally-initiated IKE SA rekey | → | `applyIKERekeyResponse` | `test/ipsec-interop/` rekey-uptime scenario |
+| Locally-initiated IKE SA rekey | → | `applyIKERekeyResponse` | `test/interop-ipsec/` rekey-uptime scenario |
 | `ze doctor` on a VPP host | → | `checkVPPVersion` range check | `TestCheckVPPVersionRejectsUnsupportedRange` (tooling, no user entry point) |
 | An event topic emitted and never subscribed | → | `check_wiring` emit-versus-subscribe predicate | `test_emit_without_subscribe_is_reported` (tooling, no user entry point) |
 
@@ -383,9 +383,9 @@ tests instead.
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `pppoe-accounting-freeradius` | `test/pppoe-interop/` | accel-ppp + FreeRADIUS | a real PPPoE peer produces exactly one accounting session | |
-| `l2tp-renegotiation-xl2tpd` | `test/l2tp-interop/` | xl2tpd + pppd | a real peer's renegotiation does not restart accounting | |
-| `ipsec-rekey-uptime-strongswan` | `test/ipsec-interop/` | strongSwan | uptime continuity across a locally-initiated rekey | |
+| `pppoe-accounting-freeradius` | `test/interop-pppoe/` | accel-ppp + FreeRADIUS | a real PPPoE peer produces exactly one accounting session | |
+| `l2tp-renegotiation-xl2tpd` | `test/interop-l2tp/` | xl2tpd + pppd | a real peer's renegotiation does not restart accounting | |
+| `ipsec-rekey-uptime-strongswan` | `test/interop-ipsec/` | strongSwan | uptime continuity across a locally-initiated rekey | |
 
 ## Files to Modify
 - `internal/component/l2tp/ppp/session_run.go` - split the post-Opened side effects into first-activation and params-changed paths

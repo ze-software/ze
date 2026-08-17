@@ -56,7 +56,7 @@ chain against the configured roots through an explicit callback.
 
 ## Proof
 
-`test/ipsec-interop/scenarios` carries `03-eap-mschapv2` and `04-eap-tls`, with
+`test/interop-ipsec/scenarios` carries `03-eap-mschapv2` and `04-eap-tls`, with
 Ze as the initiator and strongSwan as the authenticator. The MS-CHAPv2 and MD4
 primitives worked against strongSwan on the first run; what interop found was
 elsewhere. See `docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md` for the five

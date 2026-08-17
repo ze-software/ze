@@ -137,7 +137,7 @@ conformance row become true as written.
 - [ ] `test/interop/scenarios/ospf-stub-nssa-frr/` - Ze is a dual-area OSPFv2 NSSA ABR; FRR
   is an NSSA-internal router with no backbone, so FRR never originates a Type-7 default and
   Ze's border-router install gates are never reached by a peer.
-- [ ] `test/interop/scenarios/ospf-v6-nssa-redist-frr/` - Ze is SINGLE-area, an NSSA-internal
+- [ ] `test/interop/scenarios/ospfv3-nssa-redist-frr/` - Ze is SINGLE-area, an NSSA-internal
   ASBR, so `IsABR` is false and no OSPFv3 ABR default behaviour is exercised.
 
 **Behavior to preserve:**
@@ -362,7 +362,7 @@ never arrived", which is the vacuity trap `ai/rules/interop-and-goal-validation.
 - `docs/guide/ospf.md` - state both families, restore the still-true OSPFv3 P-bit prose, fix
   the orphaned `v6OriginateNSSALSA` source anchor
 - `docs/architecture/wire/ospfv3.md` - add the NSSA-LSA and default-route material it lacks
-- `test/interop/scenarios/ospf-v6-nssa-redist-frr/` - unchanged, but referenced as the
+- `test/interop/scenarios/ospfv3-nssa-redist-frr/` - unchanged, but referenced as the
   single-area contrast case
 
 ## Files to Create

@@ -87,7 +87,7 @@ matches is relayed into an L2TP incoming call (ICRQ) toward the bound remote
 instead of terminating PPP locally. The subscriber-PPP↔L2TP kernel channel
 bridge that carries frames at the LAC is Linux-only and exercised under QEMU
 (`make ze-qemu-l2tp-ppp-test`). Initiator tunnel interop is proven against
-xl2tpd in `test/l2tp-interop/scenarios/03-ze-lac-xl2tpd-lns`.
+xl2tpd in `test/interop-l2tp/scenarios/03-ze-lac-xl2tpd-lns`.
 
 <!-- source: internal/component/l2tp/yang/ze-l2tp-conf.yang -- remote/relay lists -->
 <!-- source: internal/component/l2tp/cmd/outgoing_call.go -- handleOutgoingCall -->

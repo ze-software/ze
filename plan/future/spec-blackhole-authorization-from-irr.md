@@ -97,5 +97,5 @@ bulk. State whether they union.
 **The evidence tiers hold.** `RFC7999-3.3-1` is enrolled with both polarities at
 unit/verify AND interop/nightly. `check_evidence_ratchet` is keyed by kind and tier, so
 this work MUST reduce neither. The interop pair in
-`test/interop/scenarios/59-rfc7999-blackhole-frr/` keeps proving the condition, whatever
+`test/interop/scenarios/bgp-rfc7999-blackhole-frr/` keeps proving the condition, whatever
 supplies the prefixes.

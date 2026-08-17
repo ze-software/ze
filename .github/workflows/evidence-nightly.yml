@@ -139,9 +139,9 @@ jobs:
   # a DIRECT job key.
   #
   # setup-go is REQUIRED here and is not boilerplate copied from the siblings.
-  # Unlike the BGP lab, which builds ze inside Docker, test/ipsec-interop/run.py
+  # Unlike the BGP lab, which builds ze inside Docker, test/interop-ipsec/run.py
   # build_images() cross-compiles ze on the HOST (`CGO_ENABLED=0 GOOS=linux go
-  # build` into the gitignored test/ipsec-interop/ze-linux) and the Dockerfile then
+  # build` into the gitignored test/interop-ipsec/ze-linux) and the Dockerfile then
   # COPYs the result. Without a host toolchain this job fails at image build, which
   # would read as a scenario failure.
   #

@@ -34,7 +34,7 @@ tmpfs=radius-mock.py:mode=755:terminator=EOF_RADIUS
 #!/usr/bin/env python3
 """Mock RADIUS server: Access-Accept and Accounting-Response, decoding attributes.
 
-Shape copied from test/l2tp-interop/scenarios/04-radius-acct-attrs/radius-mock.py.
+Shape copied from test/interop-l2tp/scenarios/04-radius-acct-attrs/radius-mock.py.
 No attributes are returned in the Access-Accept: the address the accounting record
 must report comes from ze's own pool, so a Framed-IP-Address in the reply would let
 the test pass on a value the server handed over rather than on the negotiated one.

@@ -3713,7 +3713,7 @@ def run_mark_source_read(results: Results) -> None:
         # open spec lists today and NO accepted Read could record before: 11 specs
         # for py, 2 for sh. Their authors' only route past the gate was reading an
         # unrelated scripts/*.py.
-        ("py-under-test", "/repo/test/ipsec-interop/lab.py", "py"),
+        ("py-under-test", "/repo/test/interop-ipsec/lab.py", "py"),
         ("py-under-tools", "/repo/tools/kernel-builder/build.py", "py"),
         ("sh-under-packaging", "/repo/packaging/deb/preinstall.sh", "sh"),
         ("go-under-test", "/repo/test/interop/harness_test.go", "go"),
@@ -4293,11 +4293,11 @@ def run_design_gate(results: Results) -> None:
         "test/interop/harness_test.go",
         "scripts/dev/commit_helper.py",
         ".claude/hooks/pretool-writeedit.py",
-        "test/ipsec-interop/lab.py",
+        "test/interop-ipsec/lab.py",
         "tools/kernel-builder/build.py",
         ".claude/hooks/mark-source-read.sh",
         "packaging/deb/preinstall.sh",
-        "test/ipsec-interop/scenarios/06-eap-tls13/pki/gen-pki.sh",
+        "test/interop-ipsec/scenarios/06-eap-tls13/pki/gen-pki.sh",
         "Makefile",
         "mk/appliance.mk",
         "internal/component/iface/yang/ze-iface.yang",

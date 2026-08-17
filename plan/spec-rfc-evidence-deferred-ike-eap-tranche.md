@@ -159,7 +159,7 @@ buys. Check whether that review has landed before starting.
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| Fill at design time | `test/ipsec-interop/` | strongSwan | Fill at design time | |
+| Fill at design time | `test/interop-ipsec/` | strongSwan | Fill at design time | |
 
 ## Files to Modify
 - Fill at design time.

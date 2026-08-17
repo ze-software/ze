@@ -34,7 +34,7 @@ import (
 // and finally reads the kernel's own state table to prove the SA behind those three
 // exchanges was one SA throughout.
 //
-// It carries no RFC requirement tag. test/ipsec-interop is TIER_UNRUN and this package is
+// It carries no RFC requirement tag. test/interop-ipsec is TIER_UNRUN and this package is
 // integration tier, so the compliance evidence for RFC 7296 Section 2.23 stays with the
 // unit-tier tagged pairs in engine/rfc7296_natt_bothforms_test.go. This probe records
 // that the shipped receive path works on a live SA.
@@ -199,7 +199,7 @@ func TestEncapEstablishedSAServesAPeerFormChange(t *testing.T) {
 	// traffic.
 	//
 	// So the proof for that half lives where a peer sends over a real interface, in
-	// test/ipsec-interop/scenarios/23-esp-form-change. This probe owns the kernel
+	// test/interop-ipsec/scenarios/23-esp-form-change. This probe owns the kernel
 	// mechanism and the SA's identity across the change (ai/rules/evidence.md).
 	anyV4 := &net.IPNet{IP: net.IPv4zero.To4(), Mask: net.CIDRMask(0, 32)}
 	if err := dp.InstallPolicy(SPParams{

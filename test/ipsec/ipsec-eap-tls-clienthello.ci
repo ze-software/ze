@@ -37,7 +37,7 @@
 # bare fragment ACK with a bare fragment ACK (tlsMethod.Process, eap_tls.go),
 # and the peer then sends the ClientHello on the next round, so the exchange
 # recovers and the SA comes up. strongSwan refuses that reply and fails the
-# method, which is why test/ipsec-interop/scenarios/04-eap-tls is the only test
+# method, which is why test/interop-ipsec/scenarios/04-eap-tls is the only test
 # that sees the 67-octet answer to a 67-octet Start. Two ze daemons cannot
 # discriminate it, and no assertion added here would change that.
 

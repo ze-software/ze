@@ -165,7 +165,7 @@ the LAN feature.
 ### Interop Tests (MANDATORY for protocol features)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| extend l2tp-interop teardown scenario | `test/l2tp-interop/` | xl2tpd/pppd peer | real client kernel drops the route on cease RA | |
+| extend l2tp-interop teardown scenario | `test/interop-l2tp/` | xl2tpd/pppd peer | real client kernel drops the route on cease RA | |
 
 ### Future (if deferring any tests)
 - None planned (skeleton; refine at design).

@@ -1,0 +1,11 @@
+# Ze IKE image for IPsec interop lab.
+# Expects a pre-built linux binary at test/interop-ipsec/ze-linux.
+# Build with: CGO_ENABLED=0 GOOS=linux go build -o test/interop-ipsec/ze-linux ./cmd/ze
+
+FROM alpine:3.21
+
+RUN apk add --no-cache tini iproute2
+
+COPY test/interop-ipsec/ze-linux /usr/local/bin/ze
+
+ENTRYPOINT ["tini", "--", "ze"]

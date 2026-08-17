@@ -18,7 +18,7 @@
 #           MUST prepend the local CLUSTER_ID to the CLUSTER_LIST."
 #
 # WHY A .ci AND NOT ONLY THE INTEROP SCENARIO. This runs in the verify tier.
-# test/interop/scenarios/54-relay-withdraw-reflector-frr proves the same property
+# test/interop/scenarios/bgp-relay-withdraw-reflector-frr proves the same property
 # with FRR 10.3.1 as the route's source, but interop is the nightly tier, so
 # without this file the daemon's own wire output for the RFC 4456 producer is
 # proven only by unit tests. relay-withdraw-nexthop-self.ci does not cover it:

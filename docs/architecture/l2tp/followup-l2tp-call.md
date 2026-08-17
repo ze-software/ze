@@ -56,7 +56,7 @@ runner and runs unprivileged.
 - The access-concentrator dataplane, which bridges the PPPoE channel to the
   kernel L2TP channel, stays gated on `CAP_NET_ADMIN` and runs under QEMU.
 
-<!-- source: test/l2tp-interop/scenarios -- interop scenarios, including the Ze-dials-xl2tpd case -->
+<!-- source: test/interop-l2tp/scenarios -- interop scenarios, including the Ze-dials-xl2tpd case -->
 
 ## Traps this code exists to avoid
 

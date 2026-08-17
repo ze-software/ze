@@ -225,7 +225,7 @@ tree.
   derives keys from the peer's Nr/KEr (`applyChildRekeyResponse` /
   `applyIKERekeyResponse`), installs the new SA before removing the old
   (make-before-break) and Deletes the old (`sendDeleteESP` / `sendDeleteIKE`).
-  Interop-verified vs strongSwan 5.9.14 (`test/ipsec-interop/scenarios/05-child-rekey`).
+  Interop-verified vs strongSwan 5.9.14 (`test/interop-ipsec/scenarios/05-child-rekey`).
   IKE-SA rekey works in **both** directions now: `initiateIKERekey`/`applyIKERekeyResponse`
   (initiator) and `respondIKERekey` (responder, `rekey.go`, spec-ipsec-14, closed the
   ipsec-13 deferral). The responder holds the new IKE SA in `ps.pendingIKESwap` and

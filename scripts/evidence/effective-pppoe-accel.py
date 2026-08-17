@@ -2,7 +2,7 @@
 """Run Ze's PPPoE client and a real accel-ppp access concentrator in isolated
 Linux namespaces (no Docker).
 
-This is the QEMU/netns sibling of the Docker lab in test/pppoe-interop/: same
+This is the QEMU/netns sibling of the Docker lab in test/interop-pppoe/: same
 roles (Ze is the PPPoE client, accel-ppp is the AC), but joined by a veth pair
 across two network namespaces so it runs inside the QEMU runtime kernel where
 CONFIG_PPPOE is built in. Driven by `make ze-qemu-pppoe-accel-test`.

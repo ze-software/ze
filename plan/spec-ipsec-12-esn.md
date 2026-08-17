@@ -285,7 +285,7 @@ Section 3.3.2). This is a deliberate, documented limitation (see Known Limitatio
 ### Interop Tests (MANDATORY for protocol features)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `NN-ipsec-esn-strongswan` | `test/ipsec-interop/scenarios/` (new, mirror `test/pppoe-interop` layout) | strongSwan `esn=yes` | ESN negotiated, tunnel up, bidirectional traffic (AC-11, R-4) | |
+| `NN-ipsec-esn-strongswan` | `test/interop-ipsec/scenarios/` (new, mirror `test/interop-pppoe` layout) | strongSwan `esn=yes` | ESN negotiated, tunnel up, bidirectional traffic (AC-11, R-4) | |
 | `NN-ipsec-esn-optional-fallback` | same | strongSwan `esn=no` | Ze `optional` falls back to No-ESN, tunnel still up (R-3) | |
 
 ### Future (if deferring any tests)
@@ -335,7 +335,7 @@ Section 3.3.2). This is a deliberate, documented limitation (see Known Limitatio
 | 16 | Changed source referenced by doc source anchors? | [ ] check | grep `docs/` for anchors on the changed files |
 
 ## Files to Create
-- `test/ipsec-interop/...` -- strongSwan ESN interop scenario(s) (new dir mirroring `test/pppoe-interop`)
+- `test/interop-ipsec/...` -- strongSwan ESN interop scenario(s) (new dir mirroring `test/interop-pppoe`)
 - QEMU integration test entry under `test/` wired into `mk/test-integration.mk`
 - (optional) a short RFC 4304 summary under rfc/short/ only if the team wants the historical addendum summarized
 

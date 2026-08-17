@@ -13,7 +13,7 @@
 # no IKE responder to negotiate with -- peer-1 initiates toward an address
 # nothing answers, so sa-up can never fire here. SA-lifecycle events are
 # asserted by the responder-backed tests (ipsec-sa-installed) and the
-# strongSwan interop lab (test/ipsec-interop/).
+# strongSwan interop lab (test/interop-ipsec/).
 
 stdin=config:terminator=EOF_CONFIG
 plugin {

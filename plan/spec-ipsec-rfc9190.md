@@ -194,7 +194,7 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `06-eap-tls13` | `test/ipsec-interop/scenarios/` | strongSwan | Ze as EAP-TLS CLIENT on TLS 1.3 | exists, green after phase 1 |
+| `06-eap-tls13` | `test/interop-ipsec/scenarios/` | strongSwan | Ze as EAP-TLS CLIENT on TLS 1.3 | exists, green after phase 1 |
 | `25-responder-eap-tls13` | same | strongSwan | Ze as EAP-TLS SERVER sends the indication and a real client accepts it. Reverting the write makes charon log `missing protected success indication` and the SA never establishes | done, phase 1 |
 | a resumption scenario | same | strongSwan | AC-4 against a real peer | |
 
@@ -207,7 +207,7 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
 ## Files to Create
 - `rfc/extraction/rfc9190.json` - the hand-classified sign-off enrolment requires.
 - `internal/component/ike/eap/rfc9190_test.go` - created, phase 1.
-- `test/ipsec-interop/scenarios/25-responder-eap-tls13/` - created, phase 1. The
+- `test/interop-ipsec/scenarios/25-responder-eap-tls13/` - created, phase 1. The
   first scenario in the lab with Ze in the EAP-TLS SERVER role. 04 and 06 both
   put strongSwan there, which is why a wire-visible violation on Ze's
   authenticator survived until 2026-08-12.

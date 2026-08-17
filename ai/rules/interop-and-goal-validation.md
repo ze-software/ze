@@ -20,9 +20,9 @@ other implementation.
 | Protocol area | Test infrastructure | Directory | Make target |
 |---------------|--------------------|-----------|----|
 | BGP (session, capability, NLRI, community, policy) | Docker: FRR, BIRD, GoBGP | `test/interop/scenarios/` | `make ze-interop-test` |
-| IPsec (IKEv2, EAP, MOBIKE) | Docker: strongSwan | `test/ipsec-interop/` | `make ze-interop-ipsec-test` |
-| L2TP | Docker | `test/l2tp-interop/` | (L2TP runner) |
-| PPPoE (Ze as client) | Docker: accel-ppp | `test/pppoe-interop/` | `make ze-deployment-docker-pppoe-accel-test` |
+| IPsec (IKEv2, EAP, MOBIKE) | Docker: strongSwan | `test/interop-ipsec/` | `make ze-interop-ipsec-test` |
+| L2TP | Docker | `test/interop-l2tp/` | (L2TP runner) |
+| PPPoE (Ze as client) | Docker: accel-ppp | `test/interop-pppoe/` | `make ze-deployment-docker-pppoe-accel-test` |
 
 ### What must be tested
 
@@ -127,7 +127,7 @@ Each row maps a stated goal to the evidence that proves it. This section is fill
 ```
 # For each protocol feature in the spec, verify an interop scenario exists:
 ls test/interop/scenarios/*<feature-keyword>*/ 2>/dev/null
-ls test/ipsec-interop/scenarios/*<feature-keyword>*/ 2>/dev/null
+ls test/interop-ipsec/scenarios/*<feature-keyword>*/ 2>/dev/null
 ```
 
 If no matching scenario exists, one must be created before claiming done.

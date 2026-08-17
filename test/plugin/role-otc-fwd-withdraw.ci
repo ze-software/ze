@@ -81,7 +81,7 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003A020000001F400101
 # AS_PATH for a withdrawal. RFC 4271 Section 4.3: such a message "will not
 # include path attributes"; Section 6.3 made the old shape a Missing Well-known
 # Attribute error, which FRR 10.3.1 answered with "rcvd UPDATE with errors in
-# attr(s)!! Withdrawing route" (test/interop/scenarios/52-relay-withdraw-shape-frr
+# attr(s)!! Withdrawing route" (test/interop/scenarios/bgp-relay-withdraw-shape-frr
 # proves the accepted shape against the live daemon).
 expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B020004180A00000000
 EOF_DEST

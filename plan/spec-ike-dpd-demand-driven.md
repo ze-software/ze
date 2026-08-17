@@ -436,7 +436,7 @@ Child SA observation path therefore needs either a `needs-linux` `.ci` run under
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| (fill during design) | `test/ipsec-interop/` | strongSwan | (fill during design) | |
+| (fill during design) | `test/interop-ipsec/` | strongSwan | (fill during design) | |
 
 **Note on interop applicability.** The probe's WIRE FORM does not change: this
 work changes only WHEN a probe is emitted. S-7 says explicitly that retries and

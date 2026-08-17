@@ -5,7 +5,7 @@
 #            which would reject the whole config an operator wrote for it.
 #
 # The RADIUS packets themselves are proven on the wire by the interop scenario
-# test/l2tp-interop/scenarios/04-radius-acct-attrs, which needs a real pppd peer
+# test/interop-l2tp/scenarios/04-radius-acct-attrs, which needs a real pppd peer
 # and kernel PPPoL2TP. This test owns the config surface: it runs the same
 # OnConfigVerify path the daemon runs at boot, offline, with no kernel needed.
 

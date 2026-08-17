@@ -321,7 +321,7 @@ func ExtractMEDRemoveOps(modAttrs *filterAttrs, mods *filterapi.ModAccumulator) 
 // case never matches and `med` never reaches the text a filter is given.
 // Reading modAttrs alone makes the removal silently do nothing, measured
 // against GoBGP on 2026-08-15
-// (test/interop/scenarios/61-med-remove-configured-gobgp).
+// (test/interop/scenarios/bgp-med-remove-configured-gobgp).
 //
 // A FILTER EARLIER IN THE SAME CHAIN SET IT, which only the TEXT can answer.
 // `filter import [ modify:SET-MED modify:DROP-MED ]` is legal config --
