@@ -24,7 +24,7 @@ ze-chaos-lint:
 	@golangci-lint run $(CHAOS_PACKAGES)
 
 ze-chaos-unit-test:
-	@echo "Running chaos unit tests..."
+	@echo "Running chaos unit tests ($(GO_TEST_RACE_LABEL))..."
 	$(GO_TEST_RACE) $(CHAOS_PACKAGES)
 
 ze-chaos-functional-test: $(ZEBIN_CHAOS)

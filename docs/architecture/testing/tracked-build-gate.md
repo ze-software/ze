@@ -11,6 +11,21 @@ On 2026-08-04 four commits broke `make ze-build` in one day with that same defec
 Every gate was green at each commit. Nothing in the pipeline compiled the
 committed population, so nothing could see the class at all.
 
+## Structural type checking and final linking
+
+<!-- source: scripts/checks/staticcheck_feature_matrix.go -- buildFeatureMatrix, runStaticcheckFeatureMatrix -->
+
+`make ze-staticcheck-feature-matrix-check` type-checks working-tree production
+and `_test.go` sources. It derives N+2 rows from the N unique manifest features:
+distro all-on, bare core, and one row for each omitted feature.
+The matrix covers those direct omissions. It makes no guarantee for arbitrary
+combinations with multiple omitted features.
+
+Staticcheck stops after package and test-variant type checking.
+`ze-repository-tracked-build-check` supplies committed-tree final-link proof for
+its six tracked configurations, not for every shipped build flavor. Keep both
+stages live because they judge different populations and compiler boundaries.
+
 ## Extraction
 
 The tree is extracted with `git archive`, not `git worktree add --detach`.

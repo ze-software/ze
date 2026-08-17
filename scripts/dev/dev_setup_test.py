@@ -507,20 +507,89 @@ class TestSmokeCheck(unittest.TestCase):
 
 
 class TestDevSetupRequiresPinnedStaticcheck(unittest.TestCase):
-    """The feature-tag matrix needs standalone Staticcheck, not the lint wrapper."""
+    """The feature-tag matrix needs the pinned standalone tool, not stale presence."""
 
-    def test_required_staticcheck_pin(self):
+    def _staticcheck(self):
         tools = [
-            tool
-            for tool in dev_setup.REQUIRED_TOOLS
-            if tool.name == "staticcheck"
+            tool for tool in dev_setup.REQUIRED_TOOLS if tool.name == "staticcheck"
         ]
         self.assertEqual(len(tools), 1, "staticcheck must occur once in REQUIRED_TOOLS")
-        self.assertEqual(tools[0].probe, ["staticcheck"])
+        return tools[0]
+
+    def test_required_staticcheck_pin(self):
+        self.assertEqual(dev_setup.STATICCHECK_VERSION, "2026.1")
+        self.assertEqual(self._staticcheck().probe, ["staticcheck"])
         self.assertEqual(
-            tools[0].go_install,
+            self._staticcheck().go_install,
             "honnef.co/go/tools/cmd/staticcheck@2026.1",
         )
+
+    def test_probe_accepts_expected_version(self):
+        tool = self._staticcheck()
+        with (
+            mock.patch.object(
+                dev_setup.shutil, "which", return_value="/test/bin/staticcheck"
+            ),
+            mock.patch.object(
+                dev_setup.subprocess,
+                "run",
+                return_value=_completed(0, b"staticcheck 2026.1 (v0.7.0)\n"),
+            ) as run,
+        ):
+            self.assertTrue(dev_setup.probe_tool(tool))
+        run.assert_called_once_with(
+            ["/test/bin/staticcheck", "-version"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            timeout=dev_setup.STATICCHECK_PROBE_TIMEOUT,
+        )
+
+    def test_probe_rejects_stale_version(self):
+        tool = self._staticcheck()
+        with (
+            mock.patch.object(
+                dev_setup.shutil, "which", return_value="/test/bin/staticcheck"
+            ),
+            mock.patch.object(
+                dev_setup.subprocess,
+                "run",
+                return_value=_completed(0, b"staticcheck 2025.1.1 (v0.6.1)\n"),
+            ),
+        ):
+            self.assertFalse(dev_setup.probe_tool(tool))
+
+    def test_probe_rejects_missing_failing_and_timed_out_tools(self):
+        tool = self._staticcheck()
+        with (
+            mock.patch.object(dev_setup.shutil, "which", return_value=None),
+            mock.patch.object(dev_setup.subprocess, "run") as run,
+        ):
+            self.assertFalse(dev_setup.probe_tool(tool))
+            run.assert_not_called()
+
+        with (
+            mock.patch.object(
+                dev_setup.shutil, "which", return_value="/test/bin/staticcheck"
+            ),
+            mock.patch.object(
+                dev_setup.subprocess,
+                "run",
+                return_value=_completed(1, b"staticcheck 2026.1 (v0.7.0)\n"),
+            ),
+        ):
+            self.assertFalse(dev_setup.probe_tool(tool))
+
+        with (
+            mock.patch.object(
+                dev_setup.shutil, "which", return_value="/test/bin/staticcheck"
+            ),
+            mock.patch.object(
+                dev_setup.subprocess,
+                "run",
+                side_effect=subprocess.TimeoutExpired(["staticcheck", "-version"], 5),
+            ),
+        ):
+            self.assertFalse(dev_setup.probe_tool(tool))
 
 
 class TestGoplsIsRequired(unittest.TestCase):

@@ -28,6 +28,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+STATICCHECK_VERSION = "2026.1"
+STATICCHECK_PROBE_TIMEOUT = 5
 
 
 # GRUB ships one module set per EFI target, and Debian packages each set for its
@@ -113,7 +115,7 @@ REQUIRED_TOOLS: list[Tool] = [
     Tool(
         name="staticcheck",
         probe=["staticcheck"],
-        go_install="honnef.co/go/tools/cmd/staticcheck@2026.1",
+        go_install=f"honnef.co/go/tools/cmd/staticcheck@{STATICCHECK_VERSION}",
     ),
     Tool(
         name="goimports",
@@ -778,6 +780,22 @@ def probe_tool(tool: Tool) -> bool:
     # also made the install path report [pending] forever on such a box.
     if tool.name == "e2fsprogs":
         return probe_e2fsprogs()
+    if tool.name == "staticcheck":
+        executable = shutil.which(tool.probe[0])
+        if executable is None:
+            return False
+        try:
+            result = subprocess.run(
+                [executable, "-version"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                timeout=STATICCHECK_PROBE_TIMEOUT,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            return False
+        version = result.stdout.decode(errors="replace").strip()
+        expected = rf"staticcheck {re.escape(STATICCHECK_VERSION)}(?: \([^)]+\))?"
+        return result.returncode == 0 and re.fullmatch(expected, version) is not None
     if tool.probe_any:
         return any(shutil.which(p) is not None for p in tool.probe)
     return all(shutil.which(p) is not None for p in tool.probe)

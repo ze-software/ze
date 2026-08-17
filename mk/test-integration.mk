@@ -85,7 +85,7 @@ ze-stress-profile: $(ZEBIN_ZE)
 
 # Evidence-tier concurrency stress tests (build-tagged, out of ze-precommit-verify per R-6).
 ze-stress-web-test:
-	@echo "Running web concurrent-edit stress test (>=50 editor sessions, -race)..."
+	@echo "Running web concurrent-edit stress test (>=50 editor sessions, $(GO_TEST_RACE_LABEL))..."
 	CGO_ENABLED=1 $(GO) test -tags 'ze_core stress' -race -count=1 -timeout 300s ./internal/component/web/ -run TestWebConcurrentEditStress -v
 
 ze-stress-fleet-test:
@@ -103,27 +103,27 @@ ze-live-rpki-test:
 # ─── Integration (network namespace) ────────────────────────────────────────
 
 ze-integration-iface-test:
-	@echo "Running iface integration tests (requires CAP_NET_ADMIN)..."
+	@echo "Running iface integration tests ($(GO_TEST_RACE_LABEL), requires CAP_NET_ADMIN)..."
 	CGO_ENABLED=1 $(GO) test -tags integration -count=1 -race -timeout 120s ./internal/component/iface/...
 
 ze-integration-fib-test:
-	@echo "Running FIB kernel integration tests (requires CAP_NET_ADMIN)..."
+	@echo "Running FIB kernel integration tests ($(GO_TEST_RACE_LABEL), requires CAP_NET_ADMIN)..."
 	CGO_ENABLED=1 $(GO) test -tags integration -count=1 -race -timeout 120s ./internal/plugins/fib/kernel/...
 
 ze-integration-firewall-test:
-	@echo "Running firewall nft integration tests (requires CAP_NET_ADMIN)..."
+	@echo "Running firewall nft integration tests ($(GO_TEST_RACE_LABEL), requires CAP_NET_ADMIN)..."
 	CGO_ENABLED=1 $(GO) test -tags integration -count=1 -race -timeout 120s ./internal/plugins/firewall/nft/...
 
 ze-integration-traffic-test:
-	@echo "Running traffic-control netlink integration tests (requires CAP_NET_ADMIN)..."
+	@echo "Running traffic-control netlink integration tests ($(GO_TEST_RACE_LABEL), requires CAP_NET_ADMIN)..."
 	CGO_ENABLED=1 $(GO) test -tags integration -count=1 -race -timeout 120s ./internal/plugins/traffic/netlink/...
 
 ze-integration-gtsm-test:
-	@echo "Running BGP GTSM / TTL-security socket-option integration tests (linux)..."
+	@echo "Running BGP GTSM / TTL-security socket-option integration tests ($(GO_TEST_RACE_LABEL), linux)..."
 	CGO_ENABLED=1 $(GO) test -tags integration -count=1 -race -timeout 120s ./internal/core/network/... ./internal/component/bgp/reactor/...
 
 ze-integration-as112-test:
-	@echo "Running AS112 privileged-port-53 DNS-serving integration tests (requires CAP_NET_BIND_SERVICE/root)..."
+	@echo "Running AS112 privileged-port-53 DNS-serving integration tests ($(GO_TEST_RACE_LABEL), requires CAP_NET_BIND_SERVICE/root)..."
 	CGO_ENABLED=1 $(GO) test -tags integration -count=1 -race -timeout 60s ./internal/plugins/as112/...
 
 ze-integration-test: ze-integration-iface-test ze-integration-fib-test ze-integration-firewall-test ze-integration-traffic-test ze-integration-gtsm-test ze-integration-as112-test
@@ -349,10 +349,9 @@ ze-deployment-preflight:
 #     bin/ze-test-linux-<arch>) and shared into the VM over 9p; ZE_BIN,
 #     ZE_STRIPPED_BIN, and ZE_TEST_BIN tell the runner where to find them, and
 #     ZE_TEST_NO_BUILD=1 skips recompilation on the slow 9p mount.
-#   - unit + integration Go tests still compile in the VM (incremental, cache on
-#     9p), no -race (Alpine has no C compiler; race coverage comes from native /
-#     Linux-CI unit runs). The VM's unique value: //go:build linux paths and the
-#     integration-tagged netlink/nft/fib/socket tests.
+#   - unit + integration Go tests compile and run without race instrumentation
+#     in the VM, with CGO disabled. The VM's unique value is //go:build linux
+#     paths and the integration-tagged netlink/nft/fib/socket tests.
 # GOARCH is derived from the host (Apple Silicon -> arm64, Intel -> amd64) so the
 # binaries match the VM. ZE_QEMU_SKIP_SUITES (default: web) lets you drop
 # suites: web needs agent-browser.

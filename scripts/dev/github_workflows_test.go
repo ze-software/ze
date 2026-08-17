@@ -283,6 +283,20 @@ func TestVerifyWorkflowIsTheFastMergeGate(t *testing.T) {
 	}
 }
 
+func activeStaticcheckInstallCounts(src, module, install string) (int, int) {
+	active := stripComments(src)
+	return strings.Count(active, install), strings.Count(active, module)
+}
+
+func TestPinnedStaticcheckInstallIgnoresCommentedCommands(t *testing.T) {
+	const module = "honnef.co/go/tools/cmd/staticcheck"
+	const install = "CGO_ENABLED=0 go install " + module + "@2026.1"
+	installs, moduleRefs := activeStaticcheckInstallCounts("# "+install, module, install)
+	if installs != 0 || moduleRefs != 0 {
+		t.Fatalf("commented install counted as active: installs=%d module references=%d", installs, moduleRefs)
+	}
+}
+
 // TestVerifyInstallsPinnedStaticcheck
 //
 // VALIDATES: CI, the agent workstation, and isolated verification evidence
@@ -304,11 +318,12 @@ func TestVerifyInstallsPinnedStaticcheck(t *testing.T) {
 		{path: "scripts/evidence/effective-verify.sh", install: nonSudoInstall},
 	} {
 		src := readFileOrFail(t, filepath.Join(repoRoot(t), tc.path))
-		if strings.Count(src, tc.install) != 1 {
-			t.Errorf("%s must contain exactly one %q", tc.path, tc.install)
+		installs, moduleRefs := activeStaticcheckInstallCounts(src, module, tc.install)
+		if installs != 1 {
+			t.Errorf("%s must contain exactly one active %q", tc.path, tc.install)
 		}
-		if strings.Count(src, module) != 1 {
-			t.Errorf("%s must contain exactly one pinned Staticcheck install", tc.path)
+		if moduleRefs != 1 {
+			t.Errorf("%s must contain exactly one active pinned Staticcheck install", tc.path)
 		}
 	}
 }

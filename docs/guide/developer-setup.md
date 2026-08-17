@@ -1,6 +1,6 @@
 # Developer Setup
 
-<!-- source: scripts/dev/dev-setup.py -- tool list and OS detection -->
+<!-- source: scripts/dev/dev-setup.py -- REQUIRED_TOOLS, detect_os -->
 
 Set up a Ze development environment with all build, lint, and test dependencies.
 
@@ -41,12 +41,22 @@ it fails the same silent way.
 | `protobuf` (`protoc`) | Protocol buffer compiler |
 | `jq` | JSON processing |
 | `golangci-lint` | Go linter (via `go install`) |
+| `staticcheck` | Feature-tag structural type checker, pinned to 2026.1 (via `go install`) |
 | `goimports` | Go import formatter (via `go install`) |
 | `gopls` | Go language server behind the agent LSP tool (via `go install`) |
 | `python3` | Runs evidence and dev scripts |
 | `pipx` | Python tool installer |
 | `ruff` | Python linter (via `pipx`) |
 | `pyright` | Python language server behind the agent LSP tool (via `pipx`) |
+
+Run the installed checker through the repository gate:
+
+```bash
+make ze-staticcheck-feature-matrix-check
+```
+
+The target and its checked feature population are documented in
+`docs/contributing/testing.md`.
 
 ### Appliance and Evidence
 
