@@ -4,15 +4,12 @@
 Usage:
     tools/render-cli-catalog.py
 
-Runs ../main/bin/ze help command --json -- the exact JSON the project's own
-wiki command-catalog is generated from (see cmd/ze/help_command.go and
-docs/guide/command-reference.md) -- caches it to data/cli-commands.json, and
-renders reference/cli/index.html grouped by command verb with a client-side filter.
+Runs the current build session's `ze help command --json`. This is the exact JSON
+that the project's command catalog uses. The command registry combines the YANG
+dispatch tree and offline local commands, so the generated page cannot silently
+drift from the binary.
 
-The catalog is generated from the live binary's own command registry
-(YANG dispatch tree + offline local commands), so it cannot go stale the
-way a hand-maintained command table can. Run `make ze` in ../main, then
-re-run this, to pick up new or changed commands.
+Run `make ze` in ../main before this tool to update changed commands.
 """
 
 import html
@@ -24,10 +21,11 @@ import subprocess
 import sys
 
 import sitelib
+import zebinary
 
 HERE = pathlib.Path(__file__).resolve().parent
 GH_PAGES = HERE.parent
-ZE_BINARY = GH_PAGES.parent / "main" / "bin" / "ze"
+ZE_BINARY = zebinary.resolve(GH_PAGES.parent / "main")
 DATA = GH_PAGES / "data" / "cli-commands.json"
 DEST = GH_PAGES / "reference" / "cli" / "index.html"
 
@@ -83,7 +81,7 @@ def ensure_production_binary():
         if "zetest" in tags:
             print(
                 (
-                    "error: %s was built with zetest; run `make bin/ze` in ../main "
+                    "error: %s was built with zetest; run `make ze` in ../main "
                     "before generating public command docs"
                 )
                 % ZE_BINARY,
@@ -96,7 +94,7 @@ def ensure_production_binary():
 def fetch_commands():
     if not ZE_BINARY.exists():
         print(
-            "error: %s not found -- run `make bin/ze` in ../main first" % ZE_BINARY,
+            "error: %s not found -- run `make ze` in ../main first" % ZE_BINARY,
             file=sys.stderr,
         )
         sys.exit(1)

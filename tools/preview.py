@@ -35,7 +35,7 @@ def parse_args():
 
 
 def build():
-    subprocess.run(["make", "-C", str(MAIN_REPO), "ZE_SESSION_ID=", "ze"], check=True)
+    subprocess.run(["make", "-C", str(MAIN_REPO), "ze"], check=True)
     subprocess.run(
         [str(SOURCE_ROOT / "update-website.sh")], cwd=SOURCE_ROOT, check=True
     )

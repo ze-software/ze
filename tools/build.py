@@ -25,11 +25,10 @@ Steps (default order, also the --only vocabulary):
     config    live YANG + ../main/internal/**/register.go -> reference/configuration/index.html
               (tools/extract-yang-config-tree.py, tools/extract-plugin-registry.py,
               tools/render-config-reference.py) -- extract-yang-config-tree.py runs
-              `ze yang tree --json --config` against ../main/bin/ze (same
-              bin/ze requirement as the "cli" step) to get the whole config
-              tree; the plugin registry only supplies which plugin owns each
-              config path. The page embeds the tree as JSON and browses it
-              level by level (breadcrumb + a table of each node's children),
+              `ze yang tree --json --config` against the current build session's
+              production binary. The plugin registry only supplies which plugin
+              owns each config path. The page embeds the tree as JSON and browses
+              it level by level (breadcrumb + a table of each node's children),
               the same presentation at every depth, not a per-plugin list
     plugins   ../main/internal/**/register.go + local PLUGIN.md front matter
               -> data/plugin-registry.json -> reference/plugins/index.html

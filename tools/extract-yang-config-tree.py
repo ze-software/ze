@@ -3,16 +3,11 @@
 
 Usage:
     tools/extract-yang-config-tree.py
+Runs the current build session's `ze yang tree --json --config` and caches the
+unified configuration tree to data/yang-config-tree.json. The tree is keyed by
+top-level container name, such as bgp and interface.
 
-Runs ../main/bin/ze yang tree --json --config -- Ze's own unified
-config-tree walker (internal/component/config/yang/cli/tree.go,
-BuildUnifiedTree; format.go, FormatTreeJSON) -- and caches it to
-data/yang-config-tree.json, keyed by top-level container name (bgp,
-interface, firewall, ...). tools/render-config-reference.py uses this to
-show a readable, command-line-shaped config tree per group instead of
-asking a non-developer to read raw YANG module source. Run `make ze` in
-../main first if bin/ze is missing or stale, same requirement as
-tools/render-cli-catalog.py.
+Run `make ze` in ../main before this tool if the binary is missing or stale.
 """
 
 import json
@@ -20,9 +15,11 @@ import pathlib
 import subprocess
 import sys
 
+import zebinary
+
 HERE = pathlib.Path(__file__).resolve().parent
 GH_PAGES = HERE.parent
-ZE_BINARY = GH_PAGES.parent / "main" / "bin" / "ze"
+ZE_BINARY = zebinary.resolve(GH_PAGES.parent / "main")
 DEST = GH_PAGES / "data" / "yang-config-tree.json"
 
 

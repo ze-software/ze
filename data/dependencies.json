@@ -201,6 +201,10 @@
                 {
                     "module": "github.com/sivchari/gomu",
                     "why": "Mutation-testing tool, run via the Makefile to advisory-score how well the test suite actually exercises the code. Not a build or CI gate."
+                },
+                {
+                    "module": "gopkg.in/yaml.v3",
+                    "why": "Parses GitHub Actions workflow YAML in verification tests so aliases, duplicate keys, and malformed trigger structures fail closed."
                 }
             ]
         }
