@@ -1439,10 +1439,16 @@ Cross-component coupling follows a strict hierarchy:
 | ssh | audit, cli, authz, config, plugin/server |
 | web | aaa, audit, cli, authz, config |
 
-**Authentication** lives in `authz` (not `ssh`). Both `ssh` and `web`
-import `authz` for `UserConfig`, `CheckPassword`, `AuthenticateUser`.
-The `authz` package also provides profile-based command authorization
-(allow/deny rules per user role).
+**Local authentication data** and the base `system.authentication.user` schema
+live in `authz`, not `ssh`. `ze-ssh-conf` owns the SSH listener settings and
+augments those users with SSH public keys. The `authz` package also provides
+password checks and profile-based command authorization.
+
+The hub resolves configured users over the zefs bootstrap users, pairs that
+credential set with its authorization store, and publishes one accepted
+generation. SSH, web, REST, and gRPC read the accepted live users, while command
+authorization reads the policy from the same generation. Reload retains the
+previous generation until the candidate succeeds.
 
 **Pluggable AAA backends.** `internal/component/aaa` defines the
 `Authenticator`, `Authorizer`, and `Accountant` interfaces and a
@@ -1473,7 +1479,13 @@ factory, login warnings) is handled by the hub via `bgpconfig.InfraHook`.
 The BGP config package extracts plain data; the hub creates servers.
 This avoids bgp importing ssh, cli, or web.
 
-<!-- source: internal/component/authz/auth.go -- UserConfig, AuthenticateUser -->
+<!-- source: internal/component/authz/auth.go -- LocalAuthenticator.Authenticate, CheckPassword, authenticateUser -->
+<!-- source: internal/component/authz/yang/ze-authz-conf.yang -- system.authentication.user base fields and system.authorization.profile -->
+<!-- source: internal/component/ssh/yang/ze-ssh-conf.yang -- environment.ssh and public-keys augmentation -->
+<!-- source: cmd/ze/hub/main_servers.go -- liveLocalUsers candidate assembly -->
+<!-- source: cmd/ze/hub/aaa_lifecycle.go -- acceptedLocalIdentityState, publishAcceptedLocalIdentity, liveAcceptedLocalUsers, liveLocalAuthorizer -->
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig boot publication -->
+<!-- source: cmd/ze/hub/main_reload.go -- runReloadContext reload publication -->
 <!-- source: internal/component/aaa/aaa.go -- Authenticator/Authorizer/Accountant interfaces -->
 <!-- source: internal/component/aaa/types.go -- ChainAuthenticator -->
 <!-- source: internal/component/aaa/all/all.go -- backend blank-imports (authz, tacacs) -->

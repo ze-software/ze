@@ -160,10 +160,10 @@ type Model struct {
 	lastCommand string           // Most recently dispatched command (for echo in output buffer)
 
 	// Mode state
-	mode             EditorMode                   // Current editor mode (config or operational)
-	modeStates       map[EditorMode]modeState     // Saved screen state per mode
-	commandCompleter CommandModeCompleter         // Completer for command mode (nil if no daemon)
-	commandExecutor  func(string) (string, error) // Executes operational commands via RPC (nil if no daemon)
+	mode             EditorMode               // Current editor mode (config or operational)
+	modeStates       map[EditorMode]modeState // Saved screen state per mode
+	commandCompleter CommandModeCompleter     // Completer for command mode (nil if no daemon)
+	commandExecutor  CommandExecutor          // Executes operational commands via RPC (nil if no daemon)
 
 	// Monitor streaming state (generic monitor view; not a registered live view)
 	monitorFactory MonitorFactory  // Creates monitor sessions (nil if unavailable)
@@ -295,15 +295,16 @@ const (
 // commandResult carries state changes from a command back to Update.
 // This allows commands to run in a tea.Cmd closure without losing state changes.
 type commandResult struct {
-	output        string        // Text to display in viewport (non-config content)
-	configView    *viewportData // Config content to display with line mapping
-	refreshConfig bool          // Recompute config view from editor state (use when original baseline changed)
-	statusMessage string        // Temporary status message (shown above viewport, clears on next command)
-	newContext    []string      // New context path (nil = no change)
-	clearContext  bool          // True to clear context to root
-	isTemplate    bool          // Template mode flag (used with newContext)
-	showHelp      bool          // Show help overlay
-	revalidate    bool          // Trigger re-validation after command
+	output            string        // Text to display in viewport (non-config content)
+	configView        *viewportData // Config content to display with line mapping
+	refreshConfig     bool          // Recompute config view from editor state (use when original baseline changed)
+	statusMessage     string        // Temporary status message (shown above viewport, clears on next command)
+	newContext        []string      // New context path (nil = no change)
+	clearContext      bool          // True to clear context to root
+	isTemplate        bool          // Template mode flag (used with newContext)
+	showHelp          bool          // Show help overlay
+	revalidate        bool          // Trigger re-validation after command
+	transportComplete func()        // Runs after the result is applied to the viewport.
 
 	// Commit confirmed state (must be propagated through result, not set directly on model)
 	setConfirmTimer       bool   // True to set confirmTimerActive
@@ -547,12 +548,29 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
+// CommandOutput carries rendered text and its transport completion action into
+// the Bubble Tea update loop.
+type CommandOutput struct {
+	Text              string
+	TransportComplete func()
+}
+
+// CommandExecutor executes one operational command.
+type CommandExecutor func(string) (CommandOutput, error)
+
 // handleCommandResult applies the result of an executed command to the model.
 func (m Model) handleCommandResult(msg commandResultMsg) (tea.Model, tea.Cmd) {
+	var complete tea.Cmd
+	if msg.result.transportComplete != nil {
+		complete = func() tea.Msg {
+			msg.result.transportComplete()
+			return nil
+		}
+	}
 	if msg.err != nil {
 		m.err = msg.err
 		m.statusMessage = "" // Clear status on error
-		return m, nil
+		return m, complete
 	}
 	r := msg.result
 
@@ -618,7 +636,7 @@ func (m Model) handleCommandResult(msg commandResultMsg) (tea.Model, tea.Cmd) {
 	}
 
 	m.err = nil
-	return m, nil
+	return m, complete
 }
 
 // applyCompletion applies a completion to the input.
@@ -887,9 +905,9 @@ func (m *Model) SetCommandCompleter(cc CommandModeCompleter) {
 }
 
 // SetCommandExecutor sets the function used to execute operational commands in command mode.
-// The function receives a command string and returns the output or an error.
+// The executor carries transport completion until the command output is applied.
 // When nil, command mode shows an error on Enter.
-func (m *Model) SetCommandExecutor(fn func(string) (string, error)) {
+func (m *Model) SetCommandExecutor(fn CommandExecutor) {
 	m.commandExecutor = fn
 }
 

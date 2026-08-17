@@ -13,15 +13,14 @@ import (
 )
 
 // liveAAABundleAuthenticator authenticates against the live AAA bundle's chain
-// (RADIUS/TACACS backends plus the local backend) once infra setup has installed
-// it, and falls back to configUsersAuthenticator otherwise. The fallback covers
-// two windows: (1) before the bundle exists -- in the BGP path the web server
-// starts during buildServices, before the reactor's InfraHook builds the chain
-// (post config load); and (2) users the chain does not recognize (a config-file
-// web user may not be present in the chain's local backend). It reads the atomic
-// slot on every call, mirroring liveAAABundleAuthorizer, so a freshly-built
-// chain takes effect without restarting the web server (AC-2: RADIUS/TACACS
-// admins authenticate on web).
+// (RADIUS/TACACS backends plus the local backend) once infra setup installs it.
+// The web listener binds after plugin startup, so the BGP InfraHook runs before
+// the listener accepts a request. The authenticator falls back to
+// configUsersAuthenticator if startup cannot install the bundle or the chain
+// does not authenticate the user. A config-file web user can be absent from the
+// chain's local backend. The authenticator reads the atomic slot on every call,
+// mirroring liveAAABundleAuthorizer, so a newly built chain takes effect without
+// a web server restart (AC-2: RADIUS/TACACS admins authenticate on web).
 //
 // The fallback answers from the CURRENT configuration, never from a startup
 // snapshot. That is what makes the second window safe: the chain not knowing a

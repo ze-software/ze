@@ -2,6 +2,7 @@ module ze-ssh-conf {
     namespace "urn:ze:ssh:conf";
     prefix ssh;
 
+    import ze-authz-conf { prefix authz; }
     import ze-types { prefix zt; }
     import ze-extensions { prefix ze; }
 
@@ -11,74 +12,33 @@ module ze-ssh-conf {
         description "Initial revision";
     }
 
-    container system {
-        description "System-level settings";
+    augment "/authz:system/authz:authentication/authz:user" {
+        list public-keys {
+            key "name";
+            description "SSH public keys for key-based authentication.
+                         Each entry is a named key (e.g. user@host).";
 
-        container authentication {
-            description "System authentication settings";
+            leaf name {
+                type string;
+                description "Key identifier (e.g. jdoe@laptop)";
+            }
 
-            list user {
-                key "name";
-                description "Authenticated user (local)";
-
-                leaf name {
-                    type string;
-                    description "Username";
+            leaf type {
+                type enumeration {
+                    enum ssh-rsa;
+                    enum ssh-ed25519;
+                    enum ecdsa-sha2-nistp256;
+                    enum ecdsa-sha2-nistp384;
+                    enum ecdsa-sha2-nistp521;
                 }
+                description "SSH public key algorithm";
+            }
 
-                leaf password {
-                    type string;
-                    ze:bcrypt;
-                    description "Bcrypt-hashed password (canonical form, e.g. $2a$10$...).
-                                 Write plaintext via plaintext-password -- it is hashed
-                                 into this leaf on commit and then discarded.";
-                }
-
-                leaf plaintext-password {
-                    type string;
-                    ze:ephemeral;
-                    ze:sensitive;
-                    description "Write-only plaintext password. On commit, the config
-                                 system bcrypt-hashes this value into the canonical
-                                 password leaf and removes this one from the tree.
-                                 The value is never written to the config file, and
-                                 a display path renders the secret placeholder for
-                                 it.";
-                }
-
-                leaf-list profile {
-                    type string;
-                    description "Authorization profile name(s) assigned to this user";
-                }
-
-                list public-keys {
-                    key "name";
-                    description "SSH public keys for key-based authentication.
-                                 Each entry is a named key (e.g. user@host).";
-
-                    leaf name {
-                        type string;
-                        description "Key identifier (e.g. jdoe@laptop)";
-                    }
-
-                    leaf type {
-                        type enumeration {
-                            enum ssh-rsa;
-                            enum ssh-ed25519;
-                            enum ecdsa-sha2-nistp256;
-                            enum ecdsa-sha2-nistp384;
-                            enum ecdsa-sha2-nistp521;
-                        }
-                        description "SSH public key algorithm";
-                    }
-
-                    leaf key {
-                        type string;
-                        description "Base64-encoded public key data (the middle field
-                                     of an SSH public key line, without type prefix
-                                     or comment suffix)";
-                    }
-                }
+            leaf key {
+                type string;
+                description "Base64-encoded public key data (the middle field
+                             of an SSH public key line, without type prefix
+                             or comment suffix)";
             }
         }
     }

@@ -2151,9 +2151,19 @@ Temperature alerts are emitted to the report bus: `temp-high` (above information
 
 ## Authentication Users
 
-Local SSH login users are declared under `system.authentication.user`. The
-list key is the username; each entry has a one-way bcrypt-hashed password
-and an optional list of authorization profile names.
+Local operator users are declared under
+`system.authentication.user`. The list key is the username; the base user
+fields are a one-way bcrypt-hashed password and optional authorization profile
+names. Builds with SSH add the optional `public-keys` list to each user.
+
+At boot, the daemon merges configured users over the zefs bootstrap users and
+publishes them with their authorization policy as one accepted generation.
+SSH, web, REST, and gRPC read that live generation. Reload publishes a new
+generation only after the candidate succeeds.
+<!-- source: cmd/ze/hub/main_servers.go -- liveLocalUsers candidate assembly -->
+<!-- source: cmd/ze/hub/aaa_lifecycle.go -- publishAcceptedLocalIdentity, liveAcceptedLocalUsers -->
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig boot publication -->
+<!-- source: cmd/ze/hub/main_reload.go -- runReloadContext reload publication -->
 
 ```
 system {
@@ -2185,7 +2195,8 @@ same transform on two paths:
 
 For end-to-end usage (login, hashing, multi-user setup) see
 [authentication.md](authentication.md).
-<!-- source: internal/component/ssh/yang/ze-ssh-conf.yang -- system.authentication.user -->
+<!-- source: internal/component/authz/yang/ze-authz-conf.yang -- system.authentication.user base fields -->
+<!-- source: internal/component/ssh/yang/ze-ssh-conf.yang -- public-keys augmentation -->
 <!-- source: internal/component/config/password_hash.go -- ApplyPasswordHashing -->
 <!-- source: internal/component/config/loader.go -- LoadConfig, warnPlaintextOnDisk -->
 

@@ -158,9 +158,13 @@ func (m Model) executeOperationalCommand(input string) tea.Cmd {
 			return commandResultMsg{err: errors.New(tb2.Str("pipe error: ").Str(pipeErr).String())}
 		}
 		output, err := executor(cmdStr)
-		if err != nil {
-			return commandResultMsg{err: err}
+		result := commandResult{
+			output:            formatFn(output.Text),
+			transportComplete: output.TransportComplete,
 		}
-		return commandResultMsg{result: commandResult{output: formatFn(output)}}
+		if err != nil {
+			return commandResultMsg{result: result, err: err}
+		}
+		return commandResultMsg{result: result}
 	}
 }

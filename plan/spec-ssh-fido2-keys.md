@@ -3,9 +3,9 @@
 | Field | Value |
 |-------|-------|
 | Status | design |
-| Depends | - |
+| Depends | `spec-ssh-optional-composition` (closed) |
 | Phase | - |
-| Updated | 2026-07-04 |
+| Updated | 2026-08-16 |
 
 ## Post-Compaction Recovery
 

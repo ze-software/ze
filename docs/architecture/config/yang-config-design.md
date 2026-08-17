@@ -86,8 +86,8 @@ Config schemas import `ze-types` for leaf types and `ze-extensions` for behavior
 | `ze-hub-conf` | Hub/environment settings | `component/hub/yang/` |
 | `ze-system-conf` | System-level configuration | `component/config/system/yang/` |
 | `ze-plugin-conf` | Plugin configuration | `component/plugin/yang/` |
-| `ze-ssh-conf` | SSH transport configuration | `component/ssh/yang/` |
-| `ze-authz-conf` | Authorization configuration | `component/authz/yang/` |
+| `ze-ssh-conf` | SSH listener configuration and user public-key augmentation | `component/ssh/yang/` |
+| `ze-authz-conf` | Local user authentication and profile authorization configuration | `component/authz/yang/` |
 | `ze-telemetry-conf` | Telemetry configuration | `component/telemetry/yang/` |
 | Plugin schemas | Per-plugin config (GR, RPKI, role, hostname, etc.) | `component/bgp/plugins/<name>/yang/` |
 

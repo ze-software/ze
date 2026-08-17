@@ -7,6 +7,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/config/yang"
+
+	_ "github.com/ze-software/ze/internal/component/authz/yang"
 )
 
 // TestSchema_ZeSSHModule verifies ze-ssh-conf.yang content.
@@ -26,24 +28,24 @@ func TestSchema_ZeSSHModule(t *testing.T) {
 	// Check namespace
 	assert.Equal(t, "urn:ze:ssh:conf", mod.Namespace.Name)
 
-	// SSH module defines both system (authentication) and environment (ssh) containers.
+	// The gated module owns transport configuration, not the shared system user.
 	var hasSystem, hasEnvironment bool
 	for _, c := range mod.Container {
-		if c.Name == "system" {
+		switch c.Name {
+		case "system":
 			hasSystem = true
-		}
-		if c.Name == "environment" {
+		case "environment":
 			hasEnvironment = true
 		}
 	}
-	assert.True(t, hasSystem, "system container should exist (for authentication)")
-	assert.True(t, hasEnvironment, "environment container should exist (for ssh)")
+	assert.False(t, hasSystem, "SSH module must not own the shared system container")
+	assert.True(t, hasEnvironment, "SSH module must own environment.ssh")
 }
 
-// TestSchema_ZeSSHEntry verifies the YANG entry has expected children.
+// TestSchema_ZeSSHEntry verifies the SSH transport entry remains intact.
 //
-// VALIDATES: AC-1 -- config file with ssh block parsed, all fields accessible.
-// PREVENTS: Missing fields in SSH YANG schema.
+// VALIDATES: current environment.ssh config syntax is preserved.
+// PREVENTS: the user ownership move accidentally dropping SSH listener fields.
 func TestSchema_ZeSSHEntry(t *testing.T) {
 	loader := yang.NewLoader()
 
@@ -54,27 +56,44 @@ func TestSchema_ZeSSHEntry(t *testing.T) {
 	entry := loader.GetEntry("ze-ssh-conf")
 	require.NotNil(t, entry, "ze-ssh-conf entry should exist")
 
-	// SSH settings live under environment.ssh.
 	environment := entry.Dir["environment"]
 	require.NotNil(t, environment, "environment container should exist in entry")
-
 	ssh := environment.Dir["ssh"]
 	require.NotNil(t, ssh, "ssh container should exist inside environment")
 
-	// After listener normalization: ssh has enabled leaf, server list, and config leaves.
 	expectedChildren := []string{"enabled", "server", "host-key", "host-certificate", "idle-timeout", "max-sessions"}
 	for _, name := range expectedChildren {
 		assert.NotNil(t, ssh.Dir[name], "ssh should have child %q", name)
 	}
+}
 
-	// Authentication stays under system.
-	system := entry.Dir["system"]
-	require.NotNil(t, system, "system container should exist in entry")
+func TestSchema_ZeSSHOwnsPublicKeyAugmentOnly(t *testing.T) {
+	loader := yang.NewLoader()
+	require.NoError(t, loader.LoadEmbedded())
+	require.NoError(t, loader.LoadRegistered())
+	require.NoError(t, loader.Resolve())
 
-	auth := system.Dir["authentication"]
-	require.NotNil(t, auth, "authentication container should exist under system")
+	module := loader.GetModule("ze-ssh-conf")
+	require.NotNil(t, module)
 
-	user := auth.Dir["user"]
-	require.NotNil(t, user, "user list should exist in authentication")
-	assert.Equal(t, "name", user.Key, "user list key should be 'name'")
+	var publicKeyAugmentFound bool
+	for _, augment := range module.Augment {
+		if augment.Name != "/authz:system/authz:authentication/authz:user" {
+			continue
+		}
+		for _, list := range augment.List {
+			if list.Name != "public-keys" {
+				continue
+			}
+			publicKeyAugmentFound = true
+			assert.Equal(t, "name", list.Key.Name, "public-keys list key should stay name")
+			var leaves []string
+			for _, leaf := range list.Leaf {
+				leaves = append(leaves, leaf.Name)
+			}
+			assert.ElementsMatch(t, []string{"name", "type", "key"}, leaves)
+		}
+	}
+	assert.True(t, publicKeyAugmentFound,
+		"ze_ssh must augment the authz-owned user with public-keys")
 }

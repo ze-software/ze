@@ -20,13 +20,9 @@ func loggedCommand(cmd string) string {
 	return truncateForLog(redact.Command(cmd))
 }
 
-// authenticatePassword runs the SSH password-auth decision for one connection.
-// It is the single producer of AuthRequest.Local: the accepted socket peer is
-// classified by isLocalTransport, so the bcrypt-hash-as-token credential path
-// is enabled only for a loopback/unix peer (the on-box ze CLI) and rejected for
-// every remote peer. Extracted from the wish callback so the transport gate is
-// unit-testable without standing up a live SSH server.
-func (s *Server) authenticatePassword(authenticator authz.Authenticator, username, pass string, peer net.Addr) bool {
+// authenticatePasswordResult returns the successful authentication result so
+// the server can bind its authorizer to the accepted SSH connection.
+func (s *Server) authenticatePasswordResult(authenticator authz.Authenticator, username, pass string, peer net.Addr) (bool, authz.AuthResult) {
 	remote := ""
 	if peer != nil {
 		remote = peer.String()
@@ -43,11 +39,11 @@ func (s *Server) authenticatePassword(authenticator authz.Authenticator, usernam
 			"username", username, "remote", remote,
 			"source", result.Source,
 			"profiles", truncateProfiles(result.Profiles))
-		return true
+		return true, result
 	}
 	s.logger.Warn("SSH auth failure", "username", username, "remote", remote)
 	s.recordAuthFailure(username, remote)
-	return false
+	return false, authz.AuthResult{}
 }
 
 // isLocalTransport reports whether an accepted connection originated from a

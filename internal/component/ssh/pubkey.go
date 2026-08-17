@@ -11,23 +11,16 @@ import (
 
 	"charm.land/ssh"
 
+	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/authz"
 )
 
 var errMissingTypeOrKeyData = errors.New("missing type or key data")
 
-// authenticatePublicKey runs the SSH public-key decision for one connection.
-// It reads the credentials that are valid RIGHT NOW through Server.users(), so
-// a user the operator deleted and reloaded is refused at the next connection
-// instead of keeping their shell until the daemon restarts. Extracted from the
-// wish callback for the same reason authenticatePassword was: the decision is
-// then testable without standing up a live SSH server, and both auth methods
-// record a refusal the same way.
-//
-// A user list that cannot be read is a refusal, not an empty list, and it is
-// logged with its cause: the audit record alone says "denied" and cannot tell
-// an unknown key from an unreadable configuration.
-func (s *Server) authenticatePublicKey(username string, presented ssh.PublicKey, peer net.Addr) bool {
+// authenticatePublicKeyResult returns the authentication result resolved from
+// the same user snapshot that accepted the key. A later login for the same
+// username cannot replace this connection's authorization view.
+func (s *Server) authenticatePublicKeyResult(username string, presented ssh.PublicKey, peer net.Addr) aaa.AuthResult {
 	remote := ""
 	if peer != nil {
 		remote = peer.String()
@@ -37,19 +30,31 @@ func (s *Server) authenticatePublicKey(username string, presented ssh.PublicKey,
 		s.logger.Warn("SSH auth failure: cannot read the running config users",
 			"username", username, "remote", remote, "error", err)
 		s.recordAuthFailure(username, remote)
-		return false
+		return aaa.AuthResult{}
 	}
 	profiles, matched := matchPublicKey(users, username, presented)
 	if !matched {
 		s.logger.Warn("SSH auth failure", "username", username, "remote", remote, "source", "public-key")
 		s.recordAuthFailure(username, remote)
-		return false
+		return aaa.AuthResult{}
+	}
+	var generation uint64
+	for _, user := range users {
+		if user.Name == username {
+			generation = user.LocalGeneration
+			break
+		}
 	}
 	s.logger.Info("SSH auth success",
 		"username", username, "remote", remote,
 		"source", "public-key",
 		"profiles", truncateProfiles(profiles))
-	return true
+	return aaa.AuthResult{
+		Authenticated:   true,
+		Source:          aaa.SourceLocal,
+		Profiles:        profiles,
+		LocalGeneration: generation,
+	}
 }
 
 // matchPublicKey reports whether the presented SSH public key matches any of

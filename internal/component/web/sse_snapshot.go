@@ -8,6 +8,7 @@
 package web
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strings"
@@ -20,7 +21,7 @@ import (
 var sseHeartbeat = []byte(": heartbeat\n\n")
 
 // snapshotFetch returns the JSON payload for one SSE push, or an error to skip the tick.
-type snapshotFetch func(username, remoteAddr string) (json.RawMessage, error)
+type snapshotFetch func(ctx context.Context, username, remoteAddr string) (json.RawMessage, error)
 
 // sseSnapshotStream runs the shared read-only SSE loop: it pushes an initial snapshot,
 // then re-pushes every refreshInterval, emitting `event: <eventName>\ndata: <json>` and
@@ -46,7 +47,7 @@ func sseSnapshotStream(w http.ResponseWriter, r *http.Request, eventName string,
 	defer heartbeat.Stop()
 
 	push := func() bool {
-		payload, err := fetch(username, r.RemoteAddr)
+		payload, err := fetch(ctx, username, r.RemoteAddr)
 		if err != nil {
 			return true
 		}

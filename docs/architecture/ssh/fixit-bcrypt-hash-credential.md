@@ -12,7 +12,7 @@ bcrypt leaf on display, gate the raw download behind the edit authorization, and
 redact credential tokens in the command log.
 
 <!-- source: internal/component/ssh/passwordauth.go -- authenticatePassword, isLocalTransport, loggedCommand -->
-<!-- source: internal/component/authz/auth.go -- CheckPassword, AuthenticateUser -->
+<!-- source: internal/component/authz/auth.go -- CheckPassword, authenticateUser -->
 <!-- source: internal/component/config/mask.go -- LeafHoldsSecret, MaskBcrypt, MaskSecrets, MaskSecretsInPlace, SecretKeys, RejectMaskedSecretLeaves -->
 <!-- source: internal/component/cli/editor_mask.go -- DisplayContentAtPath, DisplayOriginalContentAtPath -->
 <!-- source: internal/core/redact/redact.go -- IsBcryptHash, Command, JSON, Placeholder -->
@@ -22,7 +22,7 @@ redact credential tokens in the command log.
 **The transport signal is an explicit boolean whose zero value means remote.**
 Only the SSH password callback sets it, from the accepted socket peer: a unix
 socket or a loopback TCP connection is local. Web and API never set it, so they
-always reject the hash as a token. `CheckPassword` and `AuthenticateUser` take
+always reject the hash as a token. `CheckPassword` and `authenticateUser` take
 the permission as a required parameter, not an option, so a future caller has to
 state the transport class. The socket peer is the only signal that cannot be
 spoofed, and it lives at the transport layer, not inside the authorization

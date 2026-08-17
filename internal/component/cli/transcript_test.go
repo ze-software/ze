@@ -121,9 +121,9 @@ func TestTranscriptWrapsExecutor(t *testing.T) {
 	tw := NewTranscriptWriter(f, "admin", "10.0.0.1:2222")
 
 	called := false
-	base := func(input string) (string, error) {
+	base := func(input string) (CommandOutput, error) {
 		called = true
-		return "response-for-" + input, nil
+		return CommandOutput{Text: "response-for-" + input}, nil
 	}
 
 	wrapped := WrapExecutorWithTranscript(base, tw)
@@ -131,8 +131,8 @@ func TestTranscriptWrapsExecutor(t *testing.T) {
 	if err != nil {
 		t.Fatalf("wrapped executor returned error: %v", err)
 	}
-	if output != "response-for-show version" {
-		t.Errorf("wrapped executor returned %q, want %q", output, "response-for-show version")
+	if output.Text != "response-for-show version" {
+		t.Errorf("wrapped executor returned %q, want %q", output.Text, "response-for-show version")
 	}
 	if !called {
 		t.Error("base executor was not called")
@@ -156,16 +156,16 @@ func TestTranscriptWrapsExecutor(t *testing.T) {
 }
 
 func TestTranscriptWrapsExecutorNilWriter(t *testing.T) {
-	base := func(input string) (string, error) {
-		return "ok", nil
+	base := func(input string) (CommandOutput, error) {
+		return CommandOutput{Text: "ok"}, nil
 	}
 	wrapped := WrapExecutorWithTranscript(base, nil)
 	output, err := wrapped("test")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if output != "ok" {
-		t.Errorf("got %q, want %q", output, "ok")
+	if output.Text != "ok" {
+		t.Errorf("got %q, want %q", output.Text, "ok")
 	}
 }
 

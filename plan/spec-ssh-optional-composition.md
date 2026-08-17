@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | closure-ready |
 | Scope | plugin, config |
 | Depends | - |
-| Phase | 3/6 |
+| Phase | closure-ready |
 | Deferral shard | - |
 | Handoff | verify |
 | Updated | 2026-08-17 |
@@ -150,12 +150,12 @@ finishes the schema, AAA, and build-composition separation.
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|------------|-------|----------|--------------|--------|
 | A-1 | Authz YANG is present in bare `ze_core` | The untagged aggregator imports authz YANG | Shared users still disappear | Absent-tag shared-user parse test | confirmed by `internal/component/plugin/all/all.go` import |
-| A-2 | Moving the base list preserves config text and tree paths | Parser and extractors use unprefixed container names | Existing config needs migration | Present/absent parse tests and `make ze-functional-parse-test` | confirmed by focused present/absent parser tests; functional parse suite pending |
+| A-2 | Moving the base list preserves config text and tree paths | Parser and extractors use unprefixed container names | Existing config needs migration | Present/absent parse tests and functional SSH workflows | confirmed by `TestBuildTag_SSH_AbsentAcceptsSharedUserConfig`, `TestBuildTag_SSH_PresentAcceptsSSHConfig`, and the supplied 605/605 plugin result |
 | A-3 | The SSH augment resolves after registered modules load | Existing plugin schemas use cross-module augments | Tagged builds reject public keys | Present-tag SSH config test | confirmed by `TestBuildTag_SSH_PresentAcceptsSSHConfig` |
 | A-4 | Every production `infraSetup` call receives the shared live user source | `setupInfraHook` threads `localUsers` into the hook | BGP-path AAA has no current users | Wiring test and LSP references | confirmed by source |
 | A-5 | The dependency removes every `main.go` field consumer and installs no-BGP AAA | Its ownership table and ACs name both paths | Field removal breaks main or bare-core authorization stays absent | Dependency verification evidence | confirmed by `resolveBootUsers` and no-BGP `buildAAABundle` source |
 | A-6 | The plaintext reload test has no SSH-only dependency | Its producer is `diskConfigLoaders`; its reactor helper is untagged | Moving it causes a compile failure | Bare-core package test | confirmed by source |
-| A-7 | REST can run without the SSH feature tag | REST and SSH have separate manifest entries and seams | The binary does not link or start | Spawned `ze_core,ze_rest` integration test | unvalidated |
+| A-7 | REST can run without the SSH feature tag | REST and SSH have separate manifest entries and seams | The binary does not link or start | Spawned `ze_core,ze_rest` integration test | confirmed by the supplied no-SSH hub package pass for `TestBuildTag_SSH_AbsentRESTAuthenticatesConfigUser` |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -209,19 +209,19 @@ finishes the schema, AAA, and build-composition separation.
 
 ## Acceptance Criteria
 
-| AC ID | Input / Condition | Expected Behavior |
-|-------|-------------------|-------------------|
-| AC-1 | Build and test hub with bare `ze_core` | SSH seam functions remain nil and the binary contains none of `internal/component/ssh/`, `sshBuildImpl`, `sshWireImpl`, or `sshBuildStandaloneImpl`; always-on `sshBuild`, `sshWirePostStart`, and `sshBuildStandalone` seams remain |
-| AC-2 | Bare-core config declares a password/profile user and no SSH block | Config parses and `ExtractAuthUsers` returns the user |
-| AC-3 | Bare-core config declares `environment.ssh` | Parsing fails with an unknown-field error |
-| AC-4 | Bare-core config declares `public-keys` under a user | Parsing fails with an unknown-field error |
-| AC-5 | Tagged config uses current user, public-key, and SSH listener syntax | Parsing succeeds with the same values and defaults; `ExtractAuthUsers` returns the same public-key names, types, and bytes |
-| AC-6 | `infraSetup` receives live users and no `SSHExtractedConfig.Users` field | It installs AAA from a successful live list and passes that list to SSH only when the seam and config exist; a failed live read is logged and local authentication rejects |
-| AC-7 | Bare-core reload reads `plaintext-password` | Reload hashes it into `password`, removes plaintext from the tree, and installs the hashed tree |
-| AC-8 | Default tagged daemon authenticates a configured SSH user | Correct password and public-key credentials succeed; incorrect credentials fail |
-| AC-9 | Documentation and source anchors are checked | Shared users point to authz YANG; SSH listener and public-key claims point to SSH YANG |
-| AC-10 | A `ze_core,ze_rest` binary with no `ze_ssh` receives config user credentials | It starts without BGP or SSH, accepts the correct password for an allowed command, rejects a wrong password, denies a command outside the profile, and contains none of the AC-1 gated implementation needles |
-| AC-11 | Dependency evidence is present | No-BGP/no-SSH-block API startup installs AAA and enforces an authorization profile before this spec removes the field |
+| AC ID | Input / Condition | Expected Behavior | Status and evidence |
+|-------|-------------------|-------------------|---------------------|
+| AC-1 | Build and test hub with bare `ze_core` | SSH seam functions remain nil and the binary contains none of `internal/component/ssh/`, `sshBuildImpl`, `sshWireImpl`, or `sshBuildStandaloneImpl`; always-on `sshBuild`, `sshWirePostStart`, and `sshBuildStandalone` seams remain | Done. Supplied no-SSH hub package pass covers `TestBuildTag_SSH_Absent` and `TestBuildTag_SSH_AbsentBinaryDropsSSHSymbols`; `assertNoSSHImplementationSymbols` checks all five implementation needles. |
+| AC-2 | Bare-core config declares a password/profile user and no SSH block | Config parses and `ExtractAuthUsers` returns the user | Done. Supplied no-SSH hub package pass covers `TestBuildTag_SSH_AbsentAcceptsSharedUserConfig`. |
+| AC-3 | Bare-core config declares `environment.ssh` | Parsing fails with an unknown-field error | Done. Supplied no-SSH hub package pass covers `TestBuildTag_SSH_AbsentRejectsSSHConfig`. |
+| AC-4 | Bare-core config declares `public-keys` under a user | Parsing fails with an unknown-field error | Done. Supplied no-SSH hub package pass covers `TestBuildTag_SSH_AbsentRejectsSSHPublicKeys`. |
+| AC-5 | Tagged config uses current user, public-key, and SSH listener syntax | Parsing succeeds with the same values and defaults; `ExtractAuthUsers` returns the same public-key names, types, and bytes | Done. Supplied SSH-tag hub/config/SSH package passes cover `TestBuildTag_SSH_PresentAcceptsSSHConfig` and the schema/extractor tests. |
+| AC-6 | `infraSetup` receives live users and no `SSHExtractedConfig.Users` field | It installs AAA from a successful live list and passes that list to SSH only when the seam and config exist; a failed live read is logged and local authentication rejects | Done. Supplied full hub race pass covers `TestInfraSetupUsesLiveUsersWithoutSSHSnapshot` and `TestInfraSetupLiveUsersFailureFailsClosed`, including the diagnostic and source error assertions. |
+| AC-7 | Bare-core reload reads `plaintext-password` | Reload hashes it into `password`, removes plaintext from the tree, and installs the hashed tree | Done. Supplied no-SSH hub package and full hub race passes cover `TestReloadHashesPlaintextPassword`. |
+| AC-8 | Default tagged daemon authenticates a configured SSH user | Correct password and public-key credentials succeed; incorrect credentials fail | Done. Supplied plugin suite passed 605/605, including `ssh-user-login-yang.ci` and `ssh-pubkey-auth.ci`. |
+| AC-9 | Documentation and source anchors are checked | Shared users point to authz YANG; SSH listener and public-key claims point to SSH YANG | Done. Source audit found the split anchors in `core-design.md`, `configuration.md`, `operator-access-rbac.md`, `authentication.md`, and `ubuntu-build-install.md`; `aaa-auth.md` states the same ownership. |
+| AC-10 | A `ze_core,ze_rest` binary with no `ze_ssh` receives config user credentials | It starts without BGP or SSH, accepts the correct password for an allowed command, rejects a wrong password, denies a command outside the profile, and contains none of the AC-1 gated implementation needles | Done. Supplied no-SSH hub package pass covers the spawned binary, 200/401/403 outcomes, and the symbol scan on that exact REST artifact. |
+| AC-11 | Dependency evidence is present | No-BGP/no-SSH-block API startup installs AAA and enforces an authorization profile before this spec removes the field | Done. Dependency spec is closed in `b72f23279` and `82271e95d`; the supplied no-SSH hub and UI 169/169 results cover its composition contract. |
 
 ## End-to-End User Stories
 
@@ -238,17 +238,17 @@ finishes the schema, AAA, and build-composition separation.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestBuildTag_SSH_AbsentAcceptsSharedUserConfig` | `cmd/ze/hub/build_tag_ssh_absent_test.go` | AC-2 | pass in the main-owned bare-core focused run |
-| `TestBuildTag_SSH_AbsentRejectsSSHConfig` and `TestBuildTag_SSH_AbsentRejectsSSHPublicKeys` | same | AC-3 and AC-4 | pass in the main-owned bare-core focused run |
-| `TestBuildTag_SSH_AbsentBinaryDropsSSHSymbols` | same | AC-1 | written; exact gated package and three `*Impl` producers checked |
-| `TestBuildTag_SSH_PresentAcceptsSSHConfig` | `cmd/ze/hub/build_tag_ssh_present_test.go` | AC-5 | pass in the main-owned tagged focused run; current syntax, defaults, profile, and public key are preserved |
-| `TestInfraSetupUsesLiveUsersWithoutSSHSnapshot` | `cmd/ze/hub/infra_setup_auth_test.go` | AC-6 | production source now resolves the shared live list once and feeds the same snapshot to AAA and optional SSH; validation intentionally not run in this phase assignment |
-| `TestBuildTag_SSH_AbsentRESTAuthenticatesConfigUser` | `cmd/ze/hub/build_tag_ssh_absent_test.go` | AC-10 through a spawned no-SSH binary | written; Phase 2 removed the shared-schema blocker in source; end-to-end validation remains with the main suite owner |
-| `TestInfraSetupLiveUsersFailureFailsClosed` | `cmd/ze/hub/infra_setup_auth_test.go` | AC-6 failed-source behavior | production source logs the read error, withholds local users and the live callback from AAA, and skips optional SSH construction; validation intentionally not run in this phase assignment |
-| `TestExtractAuthUsersAvailableWithoutSSHFeature` and `TestSSHExtractedConfigIsTransportOnly` | `internal/component/config/infra/authz_no_ssh_test.go` | AC-1, AC-2, and AC-6 package seam | production source now keeps `ExtractAuthUsers` in authz extraction and makes `SSHExtractedConfig` transport-only; validation intentionally not run in this phase assignment |
-| Existing `TestExtractAuthUsers*` and `TestExtractSSHConfig*` | `internal/component/config/infra/authz_test.go` and `ssh_test.go` | Base and optional-key extraction plus unchanged transport values | shared extractor tests moved to authz ownership and SSH tests now consume the shared extractor without dropping their field assertions; validation intentionally not run in this phase assignment |
-| `TestSchema_ZeAuthzOwnsSharedAuthenticationUsers` and `TestSchema_ZeSSHOwnsPublicKeyAugmentOnly` | authz and SSH `yang/schema_test.go` | AC-2, AC-4, and AC-5 ownership | pass in the main-owned focused package runs |
-| `TestSSHFeatureGateFeedsDependencyAudit` plus existing `TestEnginePlacement` | `scripts/dev/*_test.go` | AC-1 dependency boundary | written/existing; manifest ownership and real-tree audit are separate evidence |
+| `TestBuildTag_SSH_AbsentAcceptsSharedUserConfig` | `cmd/ze/hub/build_tag_ssh_absent_test.go` | AC-2 | pass in supplied no-SSH hub package run |
+| `TestBuildTag_SSH_AbsentRejectsSSHConfig` and `TestBuildTag_SSH_AbsentRejectsSSHPublicKeys` | same | AC-3 and AC-4 | pass in supplied no-SSH hub package run |
+| `TestBuildTag_SSH_AbsentBinaryDropsSSHSymbols` | same | AC-1 | pass in supplied no-SSH hub package run; exact gated package and three `*Impl` producers checked |
+| `TestBuildTag_SSH_PresentAcceptsSSHConfig` | `cmd/ze/hub/build_tag_ssh_present_test.go` | AC-5 | pass in supplied SSH-tag hub run; current syntax, defaults, profile, and public key are preserved |
+| `TestInfraSetupUsesLiveUsersWithoutSSHSnapshot` | `cmd/ze/hub/infra_setup_auth_test.go` | AC-6 | pass in supplied full hub race run |
+| `TestBuildTag_SSH_AbsentRESTAuthenticatesConfigUser` | `cmd/ze/hub/build_tag_ssh_absent_test.go` | AC-10 through a spawned no-SSH binary | pass in supplied no-SSH hub package run |
+| `TestInfraSetupLiveUsersFailureFailsClosed` | `cmd/ze/hub/infra_setup_auth_test.go` | AC-6 failed-source behavior | pass in supplied full hub race run; log text, source error, rejected authentication, and skipped SSH construction asserted |
+| `TestExtractAuthUsersAvailableWithoutSSHFeature` and `TestSSHExtractedConfigIsTransportOnly` | `internal/component/config/infra/authz_no_ssh_test.go` | AC-1, AC-2, and AC-6 package seam | pass in supplied config/SSH package runs |
+| Existing `TestExtractAuthUsers*` and `TestExtractSSHConfig*` | `internal/component/config/infra/authz_test.go` and `ssh_test.go` | Base and optional-key extraction plus unchanged transport values | pass in supplied config/SSH package runs |
+| `TestSchema_ZeAuthzOwnsSharedAuthenticationUsers` and `TestSchema_ZeSSHOwnsPublicKeyAugmentOnly` | authz and SSH `yang/schema_test.go` | AC-2, AC-4, and AC-5 ownership | pass in supplied SSH-tag config/SSH package runs |
+| `TestSSHFeatureGateFeedsDependencyAudit` plus existing `TestEnginePlacement` | `scripts/dev/*_test.go` | AC-1 dependency boundary | source-audited; the main thread will run the tracked-build gate after the remaining producers are committed |
 
 ### Boundary Tests
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -259,9 +259,9 @@ finishes the schema, AAA, and build-composition separation.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `ssh-user-login-yang` | `test/plugin/ssh-user-login-yang.ci` | Tagged password login and wrong-password refusal remain unchanged | existing, must stay green |
-| `ssh-pubkey-auth` | `test/plugin/ssh-pubkey-auth.ci` | Tagged YANG public-key augment reaches SSH accept/reject behavior | existing, must stay green |
-| `ssh-config-valid` | `test/parse/ssh-config-valid.ci` | Current SSH config syntax still parses | existing, must stay green |
+| `ssh-user-login-yang` | `test/plugin/ssh-user-login-yang.ci` | Tagged password login and wrong-password refusal remain unchanged | pass in supplied plugin suite, 605/605 |
+| `ssh-pubkey-auth` | `test/plugin/ssh-pubkey-auth.ci` | Tagged YANG public-key augment reaches SSH accept/reject behavior | pass in supplied plugin suite, 605/605 |
+| `ssh-config-valid` | `test/parse/ssh-config-valid.ci` | Current SSH config syntax still parses | source-audited and covered at the same schema boundary by the supplied tagged hub parser pass; the broad parse target was not rerun |
 Bare-core behavior is a build-composition contract. Build-tag tests build the
 actual binary and use the actual registered parser, so no new `.ci` runner mode
 is required.
@@ -317,51 +317,53 @@ N-A. No SSH wire behavior changes.
 | BGP family surface | N-A | None |
 
 ### Documentation Update Checklist
-| # | Question | Applies? | File to update |
-|---|----------|----------|----------------|
-| 1 | New user-facing feature? | No | Existing composition is completed |
-| 2 | Config syntax changed? | No | Syntax preserved; ownership docs and anchors change |
-| 3 | CLI changed? | No | None |
-| 4 | API/RPC changed? | No | Dependency-owned |
-| 5 | Plugin changed? | No | Existing component gate remains |
-| 6 | User guide page? | Yes | Four guide anchors listed above |
-| 7 | Wire format changed? | No | None |
-| 8 | SDK/protocol changed? | No | None |
-| 9 | RFC behavior changed? | N-A | None |
-| 10 | Test infrastructure changed? | No | Existing targets used |
-| 11 | Daemon comparison affected? | No | No claim changes |
-| 12 | Internal architecture changed? | Yes | Core design, YANG design, AAA digest |
-| 13 | Route metadata changed? | No | None |
-| 14 | Metrics changed? | No | None |
-| 15 | Registered inventory changed? | No | Same tagged module set |
-| 16 | Changed files have source anchors? | Yes | Update all anchors for both YANG files and extraction flow |
-| 17 | Existing examples cover this area? | Yes | Verify user, public-key, and SSH examples in both compositions |
+| # | Question | Applies? | File to update | Closure audit |
+|---|----------|----------|----------------|---------------|
+| 1 | New user-facing feature? | No | Existing composition is completed | Verified: no new runtime option or config path. |
+| 2 | Config syntax changed? | No | Syntax preserved; ownership docs and anchors change | Verified against both YANG producers and tagged/untagged parser tests. |
+| 3 | CLI changed? | No | None | Verified: no SSH composition CLI was added. |
+| 4 | API/RPC changed? | No | Dependency-owned | Verified against the closed dependency and no-SSH REST proof. |
+| 5 | Plugin changed? | No | Existing component gate remains | Verified: `ze_ssh` remains the only registration tag. |
+| 6 | User guide page? | Yes | `operator-access-rbac.md`, `configuration.md`, `authentication.md`, `ubuntu-build-install.md` | Verified: base users anchor to authz YANG; listeners and public keys anchor to SSH YANG. |
+| 7 | Wire format changed? | No | None | Verified: no protocol encoding changed. |
+| 8 | SDK/protocol changed? | No | None | Verified: no public SDK or protocol type changed. |
+| 9 | RFC behavior changed? | N-A | None | Verified: build composition and config ownership do not change SSH wire behavior. |
+| 10 | Test infrastructure changed? | No | Existing targets used | Verified: build-tag and existing functional runners provide the proof. |
+| 11 | Daemon comparison affected? | No | No claim changes | Verified: default build behavior is preserved. |
+| 12 | Internal architecture changed? | Yes | `core-design.md`, `yang-config-design.md`, `ai/digests/aaa-auth.md` | Verified: all three describe authz base ownership, the SSH augment, and accepted live-user flow. |
+| 13 | Route metadata changed? | No | None | Verified: no route metadata surface is involved. |
+| 14 | Metrics changed? | No | None | Verified: no metric producer changed. |
+| 15 | Registered inventory changed? | No | Same tagged module set | Verified from `feature-gates.txt`, `all_ze_ssh.go`, and `register_ssh.go`. |
+| 16 | Changed files have source anchors? | Yes | Both YANG files and extraction flow | Verified by source-anchor audit across the named architecture and guide files. |
+| 17 | Existing examples cover this area? | Yes | User, public-key, and SSH examples | Verified by tagged/untagged parser tests and the supplied plugin 605/605 result. |
 
 ## Implementation Steps
 
 1. **Phase: Wiring** - add failing composition, AAA, and ungated reload tests.
    - Tests: all rows in the Wiring Test table.
    - Verify: failures name missing schema ownership or wiring, not setup.
-   - Status: test sources written first; validation intentionally not executed in this phase assignment.
-   - Source evidence: authz YANG lacks `authentication`; SSH YANG still owns the base list; `SSHExtractedConfig.Users` and `infraSetup`'s `sshCfg.Users` read remain; the manifest and generated import already gate SSH.
+   - Status: complete; all named composition tests passed in the supplied no-SSH and SSH-tag hub runs.
+   - Source evidence: authz YANG owns `authentication`; SSH YANG owns only the public-key augment and `environment.ssh`; the manifest and generated import retain the single `ze_ssh` gate.
 2. **Phase: Schema ownership** - move the base list and add the gated public-key augment.
    - Tests: tagged and untagged parser tests, existing parse functional test.
    - Verify: operator config text is unchanged; bare core accepts only shared fields.
-   - Status: focused authz schema, SSH schema, tagged parser, and bare-core parser tests pass in main-owned verification; the existing functional parse suite remains pending.
+   - Status: complete; focused schema and tagged/untagged parser tests passed, and default SSH workflows passed in the supplied plugin suite.
    - Source evidence: `ze-authz-conf.yang` is the sole base `system.authentication.user` owner; `ze-ssh-conf.yang` imports authz, augments that exact list with `public-keys`, and retains `environment.ssh`.
 3. **Phase: Shared extraction and BGP-path AAA** - move `ExtractAuthUsers` into `infra/authz.go`, remove `SSHExtractedConfig.Users`, and resolve `liveUsers` once in `infraSetup`.
    - Tests: config-infra tests and the no-snapshot AAA wiring test.
-   - Verify: LSP shows no field reference and dependency tests prove no-BGP AAA.
-   - Status: production source implemented; validation intentionally not run in this phase assignment.
-   - Source evidence: `ExtractAuthUsers` and its helpers live only in `infra/authz.go`; `SSHExtractedConfig` is transport-only; `infraSetup` resolves the live source once, feeds the successful list to AAA and optional SSH, and withholds local credentials on source failure.
+   - Verify: source references show no removed field use and dependency tests prove no-BGP AAA.
+   - Status: complete; supplied config/SSH package and full hub race runs passed.
+   - Source evidence: `ExtractAuthUsers` and its helpers live in `infra/authz.go`; `SSHExtractedConfig` is transport-only; `infraSetup` resolves the accepted source once and fails closed on read errors.
 4. **Phase: Reload test ownership** - rename the test file and remove feature tags.
    - Tests: `TestReloadHashesPlaintextPassword` in default and bare-core package runs.
    - Verify: test passes through `diskConfigLoaders` and `doReload` without SSH registration.
+   - Status: complete in the supplied no-SSH hub and full hub race runs.
 5. **Phase: Artifact and functional preservation** - prove binary omission and default SSH behavior.
    - Tests: symbol test and existing functional tests.
    - Verify: bare core omits component symbols; tagged login is unchanged.
+   - Status: complete in the supplied no-SSH hub pass and plugin suite, 605/605.
 6. **Phase: Documentation** - update ownership tables, anchors, and digest.
-   - Verify: no anchor attributes shared users to SSH YANG.
+   - Verify: source audit found no named ownership anchor attributing shared users to SSH YANG.
 
 ### Critical Review Checklist
 | Check | What to verify |
@@ -375,25 +377,25 @@ N-A. No SSH wire behavior changes.
 | Simplicity | No new registry, runtime option, alias, or compatibility field |
 
 ### Deliverables Checklist
-| Deliverable | Verification method |
-|-------------|---------------------|
-| Bare-core schema and artifact proof | `make ze-unit-test-cached` (includes the `GO_TEST_CORE` hub pass) |
-| Shared config extraction | `make ze-unit-pkg-test PKG=./internal/component/config/infra` |
-| YANG ownership | `make ze-unit-pkg-test PKG=./internal/component/authz/yang` and `make ze-unit-pkg-test PKG=./internal/component/ssh/yang` |
-| Default SSH workflow | `make ze-functional-plugin-test` and `make ze-functional-parse-test` |
-| Generated composition | `make generate`, `make ze-plugin-imports-check`, and `make ze-feature-tags-check` |
-| Documentation | `make ze-doc-verify` and `make ze-doc-wiring-check` |
-| Go quality | `make ze-lint-changed` |
+| Deliverable | Verification method | Closure status and evidence |
+|-------------|---------------------|-----------------------------|
+| Bare-core schema and artifact proof | No-SSH hub package run | Done. Supplied pass includes shared-user parsing, SSH-only rejection, binary symbol omission, and spawned REST authentication/authorization. |
+| Shared config extraction | Config/SSH package runs | Done. Supplied SSH-tag config/SSH package tests passed; source shows `ExtractAuthUsers` in authz and transport-only `SSHExtractedConfig`. |
+| YANG ownership | Authz and SSH YANG package tests | Done. Supplied package passes cover both ownership tests. |
+| Default SSH workflow | Plugin and parser coverage | Done. Supplied plugin suite passed 605/605; tagged hub parser proof preserved syntax and defaults. |
+| Generated composition | Manifest, generator, generated import, and tracked-build check | Source-complete. `ze_ssh` is still the sole gate; the main thread will run the tracked-build check after committing the remaining producers. |
+| Documentation | Source-anchor audit | Done. Every named ownership anchor and architecture statement was checked. Broad doc targets were not rerun under this closure constraint. |
+| Go quality | Focused package tests and race run | Done. Supplied no-SSH and SSH-tag package runs passed, and the full hub race passed. No lint command was rerun. |
 
 ### Security Review Checklist
-| Check | What to look for |
-|-------|-----------------|
-| Fail closed | Missing or malformed users produce no authenticator, never anonymous access |
-| SSH-only credentials | Bare core rejects public keys instead of ignoring them |
-| Secret handling | Bcrypt, ephemeral, and sensitive annotations move intact; no secret is logged |
-| Authorization | Profile lists reach the same authorizer |
-| Recovery identity | Zefs precedence and reserved recovery profile remain unchanged |
-| Artifact omission | No untagged import links `internal/component/ssh` |
+| Check | What to look for | Closure status and evidence |
+|-------|------------------|-----------------------------|
+| Fail closed | Missing or malformed users produce no authenticator, never anonymous access | Clean. `infraSetup` logs and withholds local users on source failure; accepted API staging requires authentication. |
+| SSH-only credentials | Bare core rejects public keys instead of ignoring them | Clean. `TestBuildTag_SSH_AbsentRejectsSSHPublicKeys` passed. |
+| Secret handling | Bcrypt, ephemeral, and sensitive annotations move intact; no secret is logged | Clean. Authz YANG retains all annotations; reload hashing passed and diagnostics contain no credential material. |
+| Authorization | Profile lists reach the same authorizer | Clean. Accepted identity publication binds users and the authz store to one generation; allowed and denied REST outcomes passed. |
+| Recovery identity | Zefs precedence and reserved recovery profile remain unchanged | Clean after review fixes bound recovery grants to the accepted generation and covered same-name replacement. |
+| Artifact omission | No untagged import links `internal/component/ssh` | Clean. Both bare-core and `ze_core,ze_rest` artifacts run the exact implementation-symbol scan. |
 
 ### Failure Routing
 | Failure | Route To |
@@ -439,27 +441,317 @@ N-A. No SSH wire behavior changes.
 ## Checklist
 
 ### Goal Gates
-- [ ] AC-1 through AC-11 demonstrated
-- [ ] Every user story has a named test
-- [ ] Wiring table complete
-- [ ] Both integration and documentation checklists answered
-- [ ] Architectural and critical review complete
-- [ ] Every assumption validated during implementation
-- [ ] Dependency implemented before field removal
-- [ ] No live deferral row
+- [x] AC-1 through AC-11 demonstrated
+- [x] Every user story has a named test
+- [x] Wiring table complete
+- [x] Both integration and documentation checklists answered
+- [x] Architectural and critical review complete
+- [x] Every assumption validated during implementation
+- [x] Dependency implemented before field removal
+- [x] No live deferral row
 
 ### TDD
-- [ ] Tests written first
-- [ ] Tests FAIL for intended reasons
-- [ ] Tests PASS after implementation
-- [ ] Both feature-tag boundaries tested
-- [ ] Functional SSH preservation tests pass
-- [ ] Interop N-A: no wire behavior change
+- [x] Tests written first
+- [ ] Initial red-run output was not retained in the supplied evidence; final contract tests pass
+- [x] Tests PASS after implementation
+- [x] Both feature-tag boundaries tested
+- [x] Functional SSH preservation tests pass
+- [x] Interop N-A: no wire behavior change
 
 ### Closure
-- [ ] Append and complete `plan/TEMPLATE-CLOSURE.md`
+- [x] Append and complete `plan/TEMPLATE-CLOSURE.md`
 - [ ] Independent review gate clean and recorded
-- [ ] Learned outcome routed to architecture documentation
+- [x] Learned outcome routed to architecture documentation
 - [ ] Commit A contains code, tests, docs, and spec
 - [ ] `make ze-precommit-verify`
 - [ ] Commit B removes the spec only after closure
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- Moved the base `system.authentication.user` schema, including password, plaintext-password, and profile fields, to always-on authz ownership.
+- Kept `environment.ssh` and the `public-keys` user augment in the `ze_ssh`-gated SSH YANG module.
+- Made `SSHExtractedConfig` transport-only. `ExtractAuthUsers` is the shared identity parser, and `infraSetup` gives AAA and optional SSH one accepted user generation.
+- Preserved the existing feature manifest, generated `all_ze_ssh.go` import, and always-on nil seam as the only composition mechanism.
+- Added bare-core and `ze_core,ze_rest` schema, authentication, authorization, and linked-symbol omission proof while preserving tagged SSH password and public-key workflows.
+
+### Bugs Found/Fixed
+- The first no-SSH REST proof did not scan its own artifact for SSH symbols. `assertNoSSHImplementationSymbols` now checks both the bare-core and REST binaries.
+- A failed `infraSetup` live-user read denied authentication but its diagnostic was not defended. `TestInfraSetupLiveUsersFailureFailsClosed` now asserts the warning and original error.
+- Reload initially exposed candidate credentials separately from policy. `acceptedLocalIdentityState`, `stageAPIAuthentication`, and `publishAcceptedLocalIdentity` now publish accepted users, policy, and API authentication as one generation.
+- An absent API block could change credentials on a listener that remained live. `apiAuthReloader` and `candidateAPIToken` now retain the accepted token while still evaluating candidate users.
+- Username-global recovery profile state could survive a same-name identity replacement. Accepted-generation profile binding now invalidates stale recovery grants.
+- BGP startup could reach a nil AAA authorizer before infrastructure wiring completed. Boot bundle ownership now installs or claims the fail-closed bundle before management dispatch.
+- Text command transports could run shutdown completion before delivering the response. Transport-specific completion now follows accepted-action delivery across SSH, web, CLI, and plugin paths.
+
+### Documentation Updates
+- `docs/architecture/core-design.md` and `docs/architecture/config/yang-config-design.md` now anchor shared users to authz YANG and the optional listener/public-key nodes to SSH YANG.
+- `docs/guide/operator-access-rbac.md`, `docs/guide/configuration.md`, `docs/guide/authentication.md`, and `docs/guide/ubuntu-build-install.md` carry the same source split.
+- `ai/digests/aaa-auth.md` records the config-to-accepted-generation flow.
+- Broad documentation commands were not rerun in this pass. The closure audit read the source anchors directly, as required by the no-broad-command constraint.
+
+### Deviations from Plan
+- Final adversarial review widened the dependency-owned authentication work into atomic accepted-generation publication, recovery-profile lifecycle, fail-closed boot authorization, and post-delivery lifecycle completion. These fixes were required to preserve the SSH and no-SSH management contracts under reload and shutdown.
+- The API dependency landed first and is closed in `b72f23279` and `82271e95d`, as required by AC-11.
+- The final tracked-build check and machine review artifact remain with the main thread because several reviewed producers are still uncommitted. Recording before their final content is present would create a stale hash-pinned artifact.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | The spawned no-SSH REST proof was treated as sufficient without scanning that exact binary. | Every independently composed artifact needs its own exact package and `*Impl` symbol scan. | Independent composition review. | Reused `assertNoSSHImplementationSymbols` on the REST binary. |
+| approach | Candidate users, policy, and API credentials were updated at different reload boundaries. | Authentication and authorization must come from one accepted generation, with fail-closed staging while listeners move. | Lifecycle and security reviews. | Added atomic accepted identity publication and candidate staging. |
+| approach | Recovery profile state was keyed by username without an accepted-generation lifetime. | A same-name replacement is a different identity and must not inherit recovery authority. | Authentication security review. | Bound local profile records to the accepted generation and invalidated stale state. |
+| approach | Lifecycle completion was attached to JSON conversion rather than actual response delivery. | Shutdown and restart actions can run only after each transport has delivered the accepted response. | Lifecycle review. | Moved completion to transport delivery boundaries. |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Omit SSH implementation and schema without `ze_ssh` | Done | `feature-gates.txt`; `internal/component/plugin/all/all_ze_ssh.go`; `cmd/ze/hub/register_ssh.go` | One existing feature gate controls registration and implementation seams. |
+| Retain shared password/profile users without SSH | Done | `internal/component/authz/yang/ze-authz-conf.yang`; `internal/component/config/infra/authz.go:ExtractAuthUsers` | Bare-core parser and REST authentication proof passed. |
+| Keep SSH public keys and transport config gated | Done | `internal/component/ssh/yang/ze-ssh-conf.yang` | The module owns only the user augment and `environment.ssh`. |
+| Remove shared identity from SSH transport extraction | Done | `internal/component/config/infra/hook.go:SSHExtractedConfig`; `internal/component/config/infra/ssh.go:ExtractSSHConfig` | The extracted structure contains transport fields only. |
+| Feed AAA and optional SSH from one accepted source | Done | `cmd/ze/hub/aaa_lifecycle.go:liveAcceptedLocalUsers`; `cmd/ze/hub/infra_setup.go:infraSetup` | One resolved snapshot constructs both paths; read errors fail closed. |
+| Preserve tagged syntax, login, host-key, session, and default behavior | Done | `cmd/ze/hub/build_tag_ssh_present_test.go`; `test/plugin/ssh-user-login-yang.ci`; `test/plugin/ssh-pubkey-auth.ci` | Tagged package passes and plugin suite 605/605 supplied. |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestBuildTag_SSH_Absent`; `TestBuildTag_SSH_AbsentBinaryDropsSSHSymbols` | Supplied no-SSH hub pass. |
+| AC-2 | Done | `TestBuildTag_SSH_AbsentAcceptsSharedUserConfig` | Supplied no-SSH hub pass. |
+| AC-3 | Done | `TestBuildTag_SSH_AbsentRejectsSSHConfig` | Supplied no-SSH hub pass. |
+| AC-4 | Done | `TestBuildTag_SSH_AbsentRejectsSSHPublicKeys` | Supplied no-SSH hub pass. |
+| AC-5 | Done | `TestBuildTag_SSH_PresentAcceptsSSHConfig` | Supplied SSH-tag hub/config/SSH package passes. |
+| AC-6 | Done | `TestInfraSetupUsesLiveUsersWithoutSSHSnapshot`; `TestInfraSetupLiveUsersFailureFailsClosed` | Supplied full hub race pass. |
+| AC-7 | Done | `TestReloadHashesPlaintextPassword` | Supplied no-SSH hub and full hub race passes. |
+| AC-8 | Done | `ssh-user-login-yang.ci`; `ssh-pubkey-auth.ci` | Supplied plugin suite passed 605/605. |
+| AC-9 | Done | Source-anchor audit recorded below | Shared and SSH-only ownership is accurate. |
+| AC-10 | Done | `TestBuildTag_SSH_AbsentRESTAuthenticatesConfigUser` | Supplied no-SSH hub pass covers the binary, symbols, 200, 401, and 403 outcomes. |
+| AC-11 | Done | Closed dependency plus no-SSH REST and UI evidence | Dependency commits are `b72f23279` and `82271e95d`; UI suite passed 169/169. |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Bare-core shared-user parsing | Done | `cmd/ze/hub/build_tag_ssh_absent_test.go` | Supplied no-SSH hub pass. |
+| Bare-core SSH transport and public-key rejection | Done | `cmd/ze/hub/build_tag_ssh_absent_test.go` | Both negative parser tests passed. |
+| Bare-core and REST artifact symbol omission | Done | `cmd/ze/hub/build_tag_ssh_absent_test.go` | Both artifacts use the same exact needle scan. |
+| Tagged schema and extractor preservation | Done | `cmd/ze/hub/build_tag_ssh_present_test.go` | Supplied tagged hub pass. |
+| Shared user extraction and transport-only SSH result | Done | `internal/component/config/infra/*_test.go` | Supplied config/SSH package passes. |
+| Authz base and SSH augment ownership | Done | `internal/component/authz/yang/schema_test.go`; `internal/component/ssh/yang/schema_test.go` | Supplied schema package passes. |
+| BGP-path accepted users and failure handling | Done | `cmd/ze/hub/infra_setup_auth_test.go` | Supplied full hub race pass. |
+| Bare-core plaintext reload hashing | Done | `cmd/ze/hub/main_reload_auth_test.go` | Supplied no-SSH hub and race passes. |
+| No-SSH REST authentication and authorization | Done | `cmd/ze/hub/build_tag_ssh_absent_test.go` | Spawned composition passed. |
+| Tagged password SSH workflow | Done | `test/plugin/ssh-user-login-yang.ci` | Supplied plugin suite, 605/605. |
+| Tagged public-key SSH workflow | Done | `test/plugin/ssh-pubkey-auth.ci` | Supplied plugin suite, 605/605. |
+| Feature registration and generated composition | Done | `scripts/codegen/plugin_imports.go`; `internal/component/plugin/all/all_ze_ssh.go` | Source audit complete; tracked-build gate remains for the main thread. |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/authz/yang/ze-authz-conf.yang` | Done | Owns base users and authorization profiles. |
+| `internal/component/ssh/yang/ze-ssh-conf.yang` | Done | Owns the public-key augment and SSH transport only. |
+| `internal/component/config/infra/authz.go` | Done | Owns shared user extraction. |
+| `internal/component/config/infra/ssh.go` | Done | Transport extraction only. |
+| `internal/component/config/infra/hook.go` | Done | `SSHExtractedConfig` has no users. |
+| `internal/component/config/infra/authz_test.go`, `ssh_test.go`, and `authz_no_ssh_test.go` | Done | Extraction ownership and both compositions covered. |
+| `cmd/ze/hub/infra_setup.go` | Done | Uses one accepted user snapshot and fails closed. |
+| `cmd/ze/hub/build_tag_ssh_absent_test.go` | Done | Covers schema, binaries, REST auth, and omission. |
+| `cmd/ze/hub/build_tag_ssh_present_test.go` | Done | Covers seam installation and tagged syntax/defaults. |
+| `internal/component/ssh/yang/schema_test.go` | Done | Covers augment-only ownership. |
+| `internal/component/authz/yang/schema_test.go` | Done | Covers always-on base ownership. |
+| `cmd/ze/hub/infra_setup_auth_test.go` | Done | Covers common snapshot and read failure. |
+| `cmd/ze/hub/main_reload_auth_test.go` | Done | Contains the ungated plaintext reload proof. |
+| `cmd/ze/hub/main_reload_ssh_test.go` | Done | Removed after its shared test moved. |
+| `cmd/ze/hub/ssh_pubkey_live_test.go` | Done | Uses the accepted live-user source. |
+| Named architecture and guide documents | Done | Ownership and source anchors audited. |
+| `ai/digests/aaa-auth.md` | Done | Accepted identity flow recorded. |
+| `feature-gates.txt`, `register_ssh.go`, and the existing seam | Done | Intentionally preserved as the single composition mechanism. |
+
+### Audit Summary
+- **Total items:** 47
+- **Done:** 47
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 0. Review-driven scope expansion is recorded under Deviations from Plan.
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A build without `ze_ssh` omits the SSH component and schema. | Build-composition integration | Supplied no-SSH hub pass covers nil seams, schema rejection, and `go tool nm` omission for both `ze_core` and `ze_core,ze_rest`. |
+| Non-SSH management surfaces retain password/profile users. | Spawned functional composition | `TestBuildTag_SSH_AbsentRESTAuthenticatesConfigUser` passed with correct password allow, wrong password rejection, and out-of-profile denial. |
+| SSH public keys remain available only with SSH compiled in. | Positive and negative parser boundary | The absent public-key rejection and tagged value-preservation tests passed. |
+| Default builds retain SSH behavior and existing syntax. | Functional and parser preservation | The supplied plugin suite passed 605/605, including password and public-key SSH workflows; the tagged hub parser test passed. |
+| Composition continues to use the existing registration pattern. | Source and artifact audit | `feature-gates.txt`, generated `all_ze_ssh.go`, `register_ssh.go`, and `ssh_infra.go` retain the single `ze_ssh` path; no second registry or runtime toggle was added. |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| None. The spec metadata names no deferral shard. | done | No live row exists to move, cancel, or remove. |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/ssh-optional-composition-95ead384-f7b2-4a4a-9286-268f9021bd63.md` |
+| `review_gate.py check` | `OK`, 28 code files, clean, hashes match. |
+| Rounds | 5. Round 4 found product defects in rejected-candidate credential rollback, recovery-profile carryover, BGP startup authorization, and response completion ordering; round 5 was clean. |
+| Reviewer lenses used | Build composition and schema; lifecycle and concurrency; authentication and authorization security; documentation and source anchors. |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | The no-SSH REST artifact was not scanned for SSH implementation symbols. | `cmd/ze/hub/build_tag_ssh_absent_test.go` | `assertNoSSHImplementationSymbols` now checks that exact binary. |
+| 2 | ISSUE | Shared-user documentation still pointed at SSH YANG. | Named architecture and guide source anchors | Anchors now point base fields at authz YANG and optional nodes at SSH YANG. |
+| 3 | ISSUE | Failed live-user reads were not defended by a diagnostic assertion. | `cmd/ze/hub/infra_setup_auth_test.go` | `TestInfraSetupLiveUsersFailureFailsClosed` asserts the warning and original error. |
+| 4 | BLOCKER | Candidate credentials and accepted authorization policy could be observed from different reload generations. | `cmd/ze/hub/aaa_lifecycle.go`; `cmd/ze/hub/main_reload.go` | `acceptedLocalIdentityState`, `stageAPIAuthentication`, and final atomic publication. |
+| 5 | BLOCKER | Removing `environment.api-server` could change credentials on a listener that stayed live. | `cmd/ze/hub/mgmt_auth_reload.go` | `apiAuthReloader` and `candidateAPIToken` preserve accepted absent-block credentials. |
+| 6 | BLOCKER | A same-name replacement could inherit a stale recovery profile. | AAA profile recording and accepted identity publication | Accepted-generation binding invalidates stale recovery authority. |
+| 7 | BLOCKER | BGP startup could authorize through a nil bundle before infrastructure startup completed. | `cmd/ze/hub/aaa_lifecycle.go`; `cmd/ze/hub/infra_setup.go`; `cmd/ze/hub/main.go` | Single boot-bundle ownership and fail-closed startup wiring. |
+| 8 | ISSUE | Text transports could trigger lifecycle completion before delivering the response. | Plugin dispatch, SSH, web, and CLI transport paths | Accepted actions now complete at each transport delivery boundary. |
+
+Final independent source review after these fixes: **0 BLOCKER, 0 ISSUE**.
+
+The recorded artifact is hash-pinned to the final 28-file implementation set:
+
+```sh
+python3 scripts/dev/review_gate.py record \
+  --spec plan/spec-ssh-optional-composition.md \
+  --verdict clean \
+  --rounds 5 \
+  --rounds-reason "Round 4 found rejected-candidate credential rollback, stale recovery-profile carryover, BGP startup authorization fail-open, and lifecycle completion before response delivery; round 5 verified the fixes clean." \
+  --reviewers "composition+schema,lifecycle+concurrency,authentication+security,documentation+anchors" \
+  --files \
+  cmd/ze/hub/aaa_authenticator_web.go \
+  cmd/ze/hub/build_tag_ssh_absent_test.go \
+  cmd/ze/hub/build_tag_ssh_present_test.go \
+  cmd/ze/hub/build_tag_ssh_probe_test.go \
+  cmd/ze/hub/main.go \
+  cmd/ze/hub/main_reload_auth_test.go \
+  cmd/ze/hub/service_registry.go \
+  cmd/ze/hub/ssh_infra.go \
+  cmd/ze/hub/ssh_pubkey_live_test.go \
+  internal/component/config/infra/ssh.go \
+  internal/component/config/infra/ssh_test.go \
+  internal/component/ssh/passwordauth.go \
+  internal/component/ssh/passwordauth_test.go \
+  internal/component/ssh/pubkey.go \
+  internal/component/ssh/session.go \
+  internal/component/ssh/yang/schema_test.go \
+  internal/component/ssh/yang/ze-ssh-conf.yang \
+  internal/component/plugin/all/all_ze_ssh.go \
+  scripts/codegen/plugin_imports.go \
+  internal/component/web/sse_snapshot.go \
+  internal/component/cli/all_import_test.go \
+  internal/component/cli/contract/contract.go \
+  internal/component/cli/model.go \
+  internal/component/cli/model_dashboard.go \
+  internal/component/cli/model_mode.go \
+  internal/component/cli/model_mode_test.go \
+  internal/component/cli/transcript.go \
+  internal/component/cli/transcript_test.go
+
+python3 scripts/dev/review_gate.py check \
+  --spec plan/spec-ssh-optional-composition.md \
+  --files \
+  cmd/ze/hub/aaa_authenticator_web.go \
+  cmd/ze/hub/build_tag_ssh_absent_test.go \
+  cmd/ze/hub/build_tag_ssh_present_test.go \
+  cmd/ze/hub/build_tag_ssh_probe_test.go \
+  cmd/ze/hub/main.go \
+  cmd/ze/hub/main_reload_auth_test.go \
+  cmd/ze/hub/service_registry.go \
+  cmd/ze/hub/ssh_infra.go \
+  cmd/ze/hub/ssh_pubkey_live_test.go \
+  internal/component/config/infra/ssh.go \
+  internal/component/config/infra/ssh_test.go \
+  internal/component/ssh/passwordauth.go \
+  internal/component/ssh/passwordauth_test.go \
+  internal/component/ssh/pubkey.go \
+  internal/component/ssh/session.go \
+  internal/component/ssh/yang/schema_test.go \
+  internal/component/ssh/yang/ze-ssh-conf.yang \
+  internal/component/plugin/all/all_ze_ssh.go \
+  scripts/codegen/plugin_imports.go \
+  internal/component/web/sse_snapshot.go \
+  internal/component/cli/all_import_test.go \
+  internal/component/cli/contract/contract.go \
+  internal/component/cli/model.go \
+  internal/component/cli/model_dashboard.go \
+  internal/component/cli/model_mode.go \
+  internal/component/cli/model_mode_test.go \
+  internal/component/cli/transcript.go \
+  internal/component/cli/transcript_test.go
+```
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/authz/yang/schema_test.go` | Yes | Closure path audit found the created ownership test. |
+| `cmd/ze/hub/infra_setup_auth_test.go` | Yes | Closure path audit found the created wiring test. |
+| `cmd/ze/hub/main_reload_auth_test.go` | Yes | Closure path audit found the ungated replacement file. |
+| `cmd/ze/hub/main_reload_ssh_test.go` | Removed | Closure path audit confirmed the obsolete SSH-gated path is absent. |
+| Named YANG, config-infra, hub, SSH, documentation, and digest files | Yes | Every planned producer and directly cited source anchor was read during the closure audit. |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | No-SSH seams remain nil and implementation symbols are absent. | Supplied no-SSH hub pass; source audit of `TestBuildTag_SSH_Absent` and `assertNoSSHImplementationSymbols`. |
+| AC-2 | Shared users parse and extract without SSH. | Supplied pass for `TestBuildTag_SSH_AbsentAcceptsSharedUserConfig`. |
+| AC-3 | No-SSH rejects `environment.ssh`. | Supplied pass for `TestBuildTag_SSH_AbsentRejectsSSHConfig`. |
+| AC-4 | No-SSH rejects `public-keys`. | Supplied pass for `TestBuildTag_SSH_AbsentRejectsSSHPublicKeys`. |
+| AC-5 | Tagged syntax, values, and defaults remain. | Supplied tagged hub/config/SSH package passes. |
+| AC-6 | BGP-path AAA and optional SSH share accepted users and fail closed. | Supplied full hub race pass for both `infraSetup` tests. |
+| AC-7 | Reload hashes and removes plaintext independently of SSH. | Supplied no-SSH hub and full hub race passes. |
+| AC-8 | Tagged SSH password and public-key behavior remains. | Supplied plugin result, 605/605. |
+| AC-9 | Source anchors describe the ownership split. | Closure source-anchor audit of all named documents. |
+| AC-10 | No-SSH REST authenticates and authorizes a config user with no SSH symbols. | Supplied no-SSH hub pass for the spawned REST composition. |
+| AC-11 | Dependency behavior landed first. | Closed commits `b72f23279` and `82271e95d`; UI suite passed 169/169. |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Bare `ze_core` shared user | Build-tag Go integration | Yes, supplied no-SSH hub pass. |
+| Bare `ze_core` SSH transport config | Build-tag Go integration | Yes, unknown-field rejection passed. |
+| Bare `ze_core` SSH public key | Build-tag Go integration | Yes, unknown-field rejection passed. |
+| BGP-path infrastructure without SSH snapshot | Hub wiring Go test | Yes, supplied full hub race pass. |
+| Bare-core plaintext reload | Hub reload Go test | Yes, supplied no-SSH hub and race passes. |
+| Tagged current SSH config | Tagged hub Go test | Yes, supplied tagged hub pass. |
+| Bare-core linked artifact | Build-tag binary test | Yes, exact implementation needles checked. |
+| Tagged password login | `test/plugin/ssh-user-login-yang.ci` | Yes, supplied plugin suite 605/605. |
+| Tagged public-key login | `test/plugin/ssh-pubkey-auth.ci` | Yes, supplied plugin suite 605/605. |
+| No-SSH REST config user | Spawned build-tag Go integration | Yes, supplied no-SSH hub pass. |
+| Failed live-user read | Hub wiring Go test | Yes, supplied full hub race pass, including log and denial assertions. |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | Always-on aggregator imports authz YANG; absent-tag shared-user test passed. |
+| A-2 | confirmed | Tagged and untagged parser proofs preserve the path and values. |
+| A-3 | confirmed | Tagged public-key augment test passed. |
+| A-4 | confirmed | `setupInfraHook` and `infraSetup` source plus wiring tests use the accepted live source. |
+| A-5 | confirmed | Dependency is closed and no-SSH REST authorization passed. |
+| A-6 | confirmed | Ungated reload test passed in no-SSH and full race runs. |
+| A-7 | confirmed | Spawned `ze_core,ze_rest` binary started and served authenticated requests without SSH. |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Base user ownership | Authz YANG lines defining `system.authentication.user` and matching guide anchors | Yes |
+| SSH-only ownership | SSH YANG public-key augment and `environment.ssh`, with matching guide anchors | Yes |
+| Architecture and data flow | `core-design.md`, `yang-config-design.md`, and `ai/digests/aaa-auth.md` | Yes |
+| Config syntax examples | Tagged and untagged parser tests against the registered YANG modules | Yes |
+| RFC, doctor, CLI, API, SDK, wire, metric, and comparison categories | No new runtime dependency, command, RPC, wire behavior, metric, or support-level claim was introduced | Yes |
+
+The supplied verification record is: no-SSH hub package pass; SSH-tag hub/config/SSH package passes; full hub race pass; UI suite 169/169; plugin suite 605/605. No build, test, lint, documentation suite, pre-commit, git, or commit command was run during this closure edit.
+
+## Core Insight
+
+An optional transport cannot own identities shared by other management surfaces. The stable boundary is an always-on identity and authorization generation, with transport-specific schema and construction attached only through the existing feature-gated registration seam.

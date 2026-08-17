@@ -11,8 +11,6 @@ package contract
 import (
 	"context"
 	"time"
-
-	tea "charm.land/bubbletea/v2"
 )
 
 // LoginWarning holds a warning message for the SSH login banner.
@@ -78,10 +76,6 @@ type MonitorFactory func(ctx context.Context, args []string) (*MonitorSession, e
 
 // DashboardFactory creates a dashboard poller function.
 type DashboardFactory func() (func() (string, error), error)
-
-// SessionModelFactory creates a bubbletea Model for an SSH session.
-// The returned model handles editor, command mode, monitor, and dashboard.
-type SessionModelFactory func(username, remoteAddr string) tea.Model
 
 // LoginWarningsFunc returns login warnings for the SSH banner.
 type LoginWarningsFunc func() []LoginWarning

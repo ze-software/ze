@@ -14,7 +14,7 @@ import (
 
 // newHashUserServer returns a Server with a single user whose bcrypt hash is
 // known, plus the raw hash string. The server has a logger and no audit
-// recorder (recordAuthFailure is nil-safe), so authenticatePassword can be
+// recorder (recordAuthFailure is nil-safe), so password authentication can be
 // driven directly without a live SSH listener.
 func newHashUserServer(t *testing.T) (*Server, authz.Authenticator, string) {
 	t.Helper()
@@ -27,6 +27,11 @@ func newHashUserServer(t *testing.T) (*Server, authz.Authenticator, string) {
 	return srv, auth, string(hash)
 }
 
+func authenticateTestPassword(srv *Server, auth authz.Authenticator, pass string, peer net.Addr) bool {
+	ok, _ := srv.authenticatePasswordResult(auth, "admin", pass, peer)
+	return ok
+}
+
 // VALIDATES: AC-1 — presenting the stored bcrypt hash as the password over a
 // non-loopback SSH peer is rejected; the real plaintext still authenticates.
 // PREVENTS: a leaked config backup being replayed as an SSH credential remotely.
@@ -34,9 +39,9 @@ func TestSSHPasswordCallbackRejectsHashFromRemotePeer(t *testing.T) {
 	srv, auth, hash := newHashUserServer(t)
 	remote := &net.TCPAddr{IP: net.IPv4(10, 0, 2, 2), Port: 40000}
 
-	assert.False(t, srv.authenticatePassword(auth, "admin", hash, remote),
+	assert.False(t, authenticateTestPassword(srv, auth, hash, remote),
 		"hash-as-token MUST be rejected from a remote peer")
-	assert.True(t, srv.authenticatePassword(auth, "admin", "realpass", remote),
+	assert.True(t, authenticateTestPassword(srv, auth, "realpass", remote),
 		"plaintext password MUST still authenticate from a remote peer")
 }
 
@@ -50,11 +55,11 @@ func TestSSHPasswordCallbackAcceptsHashFromLoopback(t *testing.T) {
 	loopbackV6 := &net.TCPAddr{IP: net.IPv6loopback, Port: 2222}
 	unix := &net.UnixAddr{Name: "/run/ze/ssh.sock", Net: "unix"}
 
-	assert.True(t, srv.authenticatePassword(auth, "admin", hash, loopbackV4),
+	assert.True(t, authenticateTestPassword(srv, auth, hash, loopbackV4),
 		"hash-as-token MUST be accepted from an IPv4 loopback peer")
-	assert.True(t, srv.authenticatePassword(auth, "admin", hash, loopbackV6),
+	assert.True(t, authenticateTestPassword(srv, auth, hash, loopbackV6),
 		"hash-as-token MUST be accepted from an IPv6 loopback peer")
-	assert.True(t, srv.authenticatePassword(auth, "admin", hash, unix),
+	assert.True(t, authenticateTestPassword(srv, auth, hash, unix),
 		"hash-as-token MUST be accepted from a unix-socket peer")
 }
 

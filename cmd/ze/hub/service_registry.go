@@ -87,28 +87,24 @@ type serviceDeps struct {
 	// break-glass account out of the surface it exists to recover. A factory
 	// uses it to NAME those accounts, never to decide who may log in.
 	PowerUsers []authz.UserConfig
-	// LocalUsersLive returns the local credentials the daemon accepts RIGHT NOW:
-	// PowerUsers merged with the users the RUNNING config declares, read per call
-	// rather than snapshotted. A reload can delete a user, and a snapshot would
-	// keep letting them in until the daemon restarted. An error means the
-	// running config could not be read, and the caller MUST deny rather than
-	// fall back to a snapshot.
+	// LocalUsersLive returns credentials from the accepted local identity
+	// generation. A reload stages provider-backed users separately, then atomically
+	// replaces this source with the matching authorization policy on success.
+	// Errors deny rather than falling back to a snapshot.
 	//
-	// It answers the serve-or-not question too, asked once at construction:
-	// "does this configuration authenticate anybody". One source answers both,
-	// so a surface cannot decide to serve on a user list it will not then admit.
-	//
-	// It is the SAME closure the AAA chain's local backend answers from
-	// (liveLocalUsers in main.go), which is what stops a session and a password
-	// disagreeing about who exists.
+	// It answers the serve-or-not question once at construction and is consulted
+	// for each login and session check. The same accepted closure reaches AAA,
+	// SSH, API, and web, so those surfaces cannot disagree about the active
+	// generation.
 	LocalUsersLive    func() ([]authz.UserConfig, error)
 	EventRing         *pluginserver.EventRing
 	WebPortalServices []webPortalService
 	// WebCommands sources plugin-registered commands (Hidden excluded) for the
-	// web terminal's tab-completion. A lazy func because the web service is built
-	// before plugins finish registering; the web factory resolves it on first
-	// completion request. Generic type (command, not a web type) so the always-on
-	// registry boundary is preserved. nil leaves web completion YANG-only.
+	// web terminal's tab-completion. The hub builds web after plugin startup and
+	// the initial command-registry freeze. The lazy function lets each completion
+	// request reflect additions and removals from reload. The generic command
+	// type preserves the always-on registry boundary. `nil` leaves web
+	// completion YANG-only.
 	WebCommands func() []command.CommandEntry
 
 	// MCP resolved bindings + command source (all generic types). Consumed only

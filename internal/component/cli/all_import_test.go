@@ -1,6 +1,7 @@
 package cli
 
 import (
+	_ "github.com/ze-software/ze/internal/component/authz/yang"
 	_ "github.com/ze-software/ze/internal/component/bgp/plugin"
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/rib/yang"
 	_ "github.com/ze-software/ze/internal/component/bgp/yang"

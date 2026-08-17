@@ -1079,71 +1079,6 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		apiCandidateUsers: resolveCandidateUsers,
 	})
 
-	// Build optional, compile-out-able services through the construction
-	// registry. With a feature's ze_<feature> tag off, its factory is not
-	// registered and the service is silently skipped. Looking-glass (ze_lg) is
-	// the pilot; its listen binding (lgAddrs/lgTLS) is resolved above.
-	builtServices := buildServices(serviceDeps{
-		Store:          store,
-		ConfigPath:     configPath,
-		Resolvers:      resolvers,
-		Dispatch:       webDispatch,
-		LGAddrs:        lgAddrs,
-		LGTLS:          lgTLS,
-		LGTLSExplicit:  lgTLSSet,
-		LGToken:        lgToken,
-		WebEnabled:     webEnabled,
-		WebAddrs:       webAddrs,
-		InsecureWeb:    insecureWeb,
-		WebCertificate: webCertificate,
-		Authorizer:     liveAAABundleAuthorizer{},
-		Recorder:       auditLog,
-		CommitHook:     reloadAfterCommit,
-		// The zefs break-glass account is read once above. The accepted merged
-		// generation is the authentication source; a reload candidate in
-		// ConfigProvider cannot invalidate a session or admit a login before the
-		// transaction commits.
-		PowerUsers:        zefsAuthUsers,
-		LocalUsersLive:    liveAcceptedLocalUsers,
-		EventRing:         apiServer.EventRing(),
-		WebPortalServices: webPortalServices,
-		// Plugin-registered commands for web tab-completion, resolved lazily
-		// (plugins register after this point; the web factory reads it on first
-		// completion request). Mirrors the SSH per-session merge.
-		WebCommands: func() []command.CommandEntry {
-			d := apiServer.Dispatcher()
-			if d == nil {
-				return nil
-			}
-			return d.Registry().VisibleCommandEntries()
-		},
-		// MCP is built through the registry (service_mcp.go, //go:build ze_mcp)
-		// like web/lg. The listen/token/config resolution stays always-on here
-		// (plain values); the gated factory converts them into zemcp types. With
-		// ze_mcp off no factory consumes these fields and the mcp package is not
-		// linked.
-		MCP: &mcpServiceDeps{
-			Addrs:    mcpAddrs,
-			Token:    mcpToken,
-			Config:   mcpCfg,
-			ConfigOK: mcpCfgOK,
-			Dispatch: mcpDispatch,
-			Commands: commandMetaSource(apiServer),
-			Recorder: auditLog,
-		},
-	})
-	for _, svc := range builtServices {
-		registerBuiltService(lm, svc)
-	}
-	if len(builtServices) > 0 {
-		defer func() {
-			shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 3*time.Second)
-			defer shutdownCancel()
-			for _, svc := range builtServices {
-				_ = svc.Shutdown(shutdownCtx)
-			}
-		}()
-	}
 
 	// REST/gRPC API listen config and users were resolved above (before the
 	// management-listener guard); apiCfg, apiCfgOK, and bootUsers are reused here.
@@ -1266,6 +1201,75 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		return 1
 	}
 	startupCancel()
+
+	// Build optional, compile-out-able services through the construction
+	// registry after plugin startup completes and the dispatcher command registry
+	// freezes. A plugin startup failure returns before these factories can bind
+	// their listeners. With a feature's ze_<feature> tag off, its factory is not
+	// registered and the service is silently skipped. Looking-glass (ze_lg) is
+	// the pilot; its listen binding (lgAddrs/lgTLS) is resolved above.
+	builtServices := buildServices(serviceDeps{
+		Store:          store,
+		ConfigPath:     configPath,
+		Resolvers:      resolvers,
+		Dispatch:       webDispatch,
+		LGAddrs:        lgAddrs,
+		LGTLS:          lgTLS,
+		LGTLSExplicit:  lgTLSSet,
+		LGToken:        lgToken,
+		WebEnabled:     webEnabled,
+		WebAddrs:       webAddrs,
+		InsecureWeb:    insecureWeb,
+		WebCertificate: webCertificate,
+		Authorizer:     liveAAABundleAuthorizer{},
+		Recorder:       auditLog,
+		CommitHook:     reloadAfterCommit,
+		// The zefs break-glass account is read once above. The accepted merged
+		// generation is the authentication source; a reload candidate in
+		// ConfigProvider cannot invalidate a session or admit a login before the
+		// transaction commits.
+		PowerUsers:        zefsAuthUsers,
+		LocalUsersLive:    liveAcceptedLocalUsers,
+		EventRing:         apiServer.EventRing(),
+		WebPortalServices: webPortalServices,
+		// Plugin-registered commands for web tab-completion. Startup has frozen
+		// the initial command registry. Resolve each completion request lazily
+		// so plugin additions and removals from reload are visible. This mirrors
+		// the SSH per-session merge.
+		WebCommands: func() []command.CommandEntry {
+			d := apiServer.Dispatcher()
+			if d == nil {
+				return nil
+			}
+			return d.Registry().VisibleCommandEntries()
+		},
+		// MCP is built through the registry (service_mcp.go, //go:build ze_mcp)
+		// like web/lg. The listen/token/config resolution stays always-on here
+		// (plain values); the gated factory converts them into zemcp types. With
+		// ze_mcp off no factory consumes these fields and the mcp package is not
+		// linked.
+		MCP: &mcpServiceDeps{
+			Addrs:    mcpAddrs,
+			Token:    mcpToken,
+			Config:   mcpCfg,
+			ConfigOK: mcpCfgOK,
+			Dispatch: mcpDispatch,
+			Commands: commandMetaSource(apiServer),
+			Recorder: auditLog,
+		},
+	})
+	for _, svc := range builtServices {
+		registerBuiltService(lm, svc)
+	}
+	if len(builtServices) > 0 {
+		defer func() {
+			shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer shutdownCancel()
+			for _, svc := range builtServices {
+				_ = svc.Shutdown(shutdownCtx)
+			}
+		}()
+	}
 
 	if readyFile := env.Get("ze.ready.file"); readyFile != "" {
 		if f, createErr := os.Create(readyFile); createErr == nil { //nolint:gosec // test infrastructure path from env

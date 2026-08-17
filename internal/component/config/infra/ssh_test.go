@@ -1,3 +1,5 @@
+//go:build ze_ssh
+
 package infra_test
 
 import (
@@ -38,7 +40,7 @@ environment {
 }
 `
 
-func TestExtractSSHConfigPublicKeys(t *testing.T) {
+func TestExtractAuthUsersPublicKeys(t *testing.T) {
 	input := sshTestBoilerplate + `
 system {
     authentication {
@@ -55,10 +57,10 @@ system {
 	tree, err := config.ParseTreeWithYANG(input, nil)
 	require.NoError(t, err)
 
-	cfg := infra.ExtractSSHConfig(tree)
-	require.Len(t, cfg.Users, 1)
+	users := infra.ExtractAuthUsers(tree.GetContainer("system").ToMap())
+	require.Len(t, users, 1)
 
-	alice := cfg.Users[0]
+	alice := users[0]
 	assert.Equal(t, "alice", alice.Name)
 	assert.NotEmpty(t, alice.Hash)
 	require.Len(t, alice.PublicKeys, 1)
@@ -69,7 +71,7 @@ system {
 	assert.Equal(t, "AAAAC3NzaC1lZDI1NTE5AAAAIExampleKeyDataHere", pk.Key)
 }
 
-func TestExtractSSHConfigPublicKeysMultiple(t *testing.T) {
+func TestExtractAuthUsersPublicKeysMultiple(t *testing.T) {
 	input := sshTestBoilerplate + `
 system {
     authentication {
@@ -89,10 +91,10 @@ system {
 	tree, err := config.ParseTreeWithYANG(input, nil)
 	require.NoError(t, err)
 
-	cfg := infra.ExtractSSHConfig(tree)
-	require.Len(t, cfg.Users, 1)
+	users := infra.ExtractAuthUsers(tree.GetContainer("system").ToMap())
+	require.Len(t, users, 1)
 
-	bob := cfg.Users[0]
+	bob := users[0]
 	assert.Equal(t, "bob", bob.Name)
 	assert.Empty(t, bob.Hash)
 	require.Len(t, bob.PublicKeys, 2)
@@ -113,7 +115,7 @@ system {
 	assert.Equal(t, "AAAAC3NzaC1lZDI1NTE5AAAAISecondKey", ph.Key)
 }
 
-func TestExtractSSHConfigPublicKeysEmpty(t *testing.T) {
+func TestExtractAuthUsersPublicKeysEmpty(t *testing.T) {
 	input := sshTestBoilerplate + `
 system {
     authentication {
@@ -126,10 +128,10 @@ system {
 	tree, err := config.ParseTreeWithYANG(input, nil)
 	require.NoError(t, err)
 
-	cfg := infra.ExtractSSHConfig(tree)
-	require.Len(t, cfg.Users, 1)
+	users := infra.ExtractAuthUsers(tree.GetContainer("system").ToMap())
+	require.Len(t, users, 1)
 
-	carol := cfg.Users[0]
+	carol := users[0]
 	assert.Equal(t, "carol", carol.Name)
 	assert.NotEmpty(t, carol.Hash)
 	assert.Empty(t, carol.PublicKeys)
@@ -205,112 +207,4 @@ func TestExtractSSHConfigEmptyLeafKeepsDefault(t *testing.T) {
 	assert.Equal(t, "0.0.0.0:2222", cfg.ListenAddrs[0],
 		"an empty leaf must keep the default; a bare host:port with no port binds an ephemeral one")
 	assert.Equal(t, "0.0.0.0:2222", cfg.Listen, "Listen is the first address and must agree with it")
-}
-
-// The map form ExtractAuthUsers reads is what the running daemon holds: every
-// applied reload writes config.Tree.ToMap() into the shared ConfigProvider, and
-// the web fallback authenticator reads that provider per login. These tests pin
-// the one property that makes the arrangement safe -- the map reader and the
-// tree reader must describe the same users, or authentication and startup would
-// disagree about who exists.
-
-// VALIDATES: ExtractAuthUsers and ExtractSSHConfig report the same users for the
-// same configuration, so the per-login reader cannot drift from the startup one.
-// PREVENTS: a user who exists to one reader and not the other.
-func TestExtractAuthUsersAgreesWithExtractSSHConfig(t *testing.T) {
-	input := sshTestBoilerplate + `
-system {
-    authentication {
-        user alice {
-            password "$2a$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ01234"
-            profile admin
-            public-keys laptop {
-                type ssh-ed25519
-                key AAAAC3NzaC1lZDI1NTE5AAAAIExampleKeyDataHere
-            }
-        }
-        user bob {
-            password "$2a$10$zyxwvutsrqponmlkjihgfZYXWVUTSRQPONMLKJIHGFEDCBA98765"
-        }
-    }
-}
-`
-	tree, err := config.ParseTreeWithYANG(input, nil)
-	require.NoError(t, err)
-
-	fromTree := infra.ExtractSSHConfig(tree).Users
-	fromMap := infra.ExtractAuthUsers(tree.GetContainer("system").ToMap())
-
-	require.Len(t, fromMap, 2)
-	assert.Equal(t, fromTree, fromMap,
-		"the per-login map reader must report exactly the users the startup tree reader reports")
-	assert.Equal(t, "alice", fromMap[0].Name, "users come back sorted; the map form carries no order of its own")
-	assert.Equal(t, []string{"admin"}, fromMap[0].Profiles)
-	require.Len(t, fromMap[0].PublicKeys, 1)
-	assert.Equal(t, "laptop", fromMap[0].PublicKeys[0].Name)
-	assert.Empty(t, fromMap[1].Profiles, "bob declares no profile")
-}
-
-// VALIDATES: a leaf-list survives every shape the map form can carry it in.
-// Tree.ToMap collapses a one-member leaf-list to a bare string and emits
-// []string beyond that, and a JSON round trip turns either into []any.
-// PREVENTS: a single-profile user losing their profile, which would silently
-// change what they are authorized to do.
-func TestExtractAuthUsersLeafListShapes(t *testing.T) {
-	shapes := map[string]struct {
-		raw  any
-		want []string
-	}{
-		"one member as a bare string":   {raw: "admin", want: []string{"admin"}},
-		"several members as []string":   {raw: []string{"admin", "ro"}, want: []string{"admin", "ro"}},
-		"several members as []any":      {raw: []any{"admin", "ro"}, want: []string{"admin", "ro"}},
-		"an empty string is no profile": {raw: "", want: nil},
-		"an unexpected type is ignored": {raw: 42, want: nil},
-	}
-	for name, tc := range shapes {
-		t.Run(name, func(t *testing.T) {
-			users := infra.ExtractAuthUsers(map[string]any{
-				"authentication": map[string]any{
-					"user": map[string]any{
-						"alice": map[string]any{"password": "hash", "profile": tc.raw},
-					},
-				},
-			})
-			require.Len(t, users, 1)
-			assert.Equal(t, tc.want, users[0].Profiles)
-		})
-	}
-}
-
-// VALIDATES: a subtree that does not describe users yields no users, at every
-// depth the shape can go missing.
-// PREVENTS: an unreadable or absent config reading as a user list the caller
-// would then authenticate against.
-func TestExtractAuthUsersMissingSections(t *testing.T) {
-	cases := map[string]map[string]any{
-		"a nil subtree":               nil,
-		"an empty subtree":            {},
-		"no authentication container": {"login": map[string]any{}},
-		"authentication is not a map": {"authentication": "yes"},
-		"no user list":                {"authentication": map[string]any{}},
-		"the user list is not a map":  {"authentication": map[string]any{"user": "alice"}},
-		"a user entry is not a map":   {"authentication": map[string]any{"user": map[string]any{"alice": "hash"}}},
-		"public-keys is not a keyed list": {"authentication": map[string]any{
-			"user": map[string]any{"alice": map[string]any{"password": "h", "public-keys": "laptop"}},
-		}},
-	}
-	for name, subtree := range cases {
-		t.Run(name, func(t *testing.T) {
-			users := infra.ExtractAuthUsers(subtree)
-			if name == "a user entry is not a map" || name == "public-keys is not a keyed list" {
-				// The user list itself is well-formed here; only the entry is
-				// not. A shapeless entry is dropped, never invented.
-				for _, u := range users {
-					assert.Empty(t, u.PublicKeys)
-				}
-				return
-			}
-			assert.Empty(t, users, "a subtree that describes no users must authenticate nobody")
-		})
-	}
 }

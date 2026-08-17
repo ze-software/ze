@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/go-standards.md`.
 
-Total: 262 design docs, 3414 files
+Total: 262 design docs, 3415 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -178,6 +178,7 @@ Total: 262 design docs, 3414 files
 | `internal/component/config/yang/cli/tree_bfd.go` | ze_bfd partition of the analysis-tree blank imports |
 | `internal/component/config/yang/cli/tree_bgp.go` | ze_bgp partition of the analysis-tree blank imports |
 | `internal/component/ike/dataplane/register_vpp.go` | ze_vpp partition of the dataplane registry |
+| `internal/component/plugin/all/all_ze_ssh.go` | feature-gated plugin composition |
 | `internal/component/web/page_l2tp_off.go` | ze_l2tp-off L2TP page stub |
 | `internal/component/web/page_vpn_ipsec_off.go` | ze_ike-off VPN page stub |
 | `internal/component/web/register_gokrazy.go` | gokrazy portal web route self-registration |

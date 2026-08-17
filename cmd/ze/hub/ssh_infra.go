@@ -40,6 +40,7 @@ type sshBuildInputs struct {
 	// REPLACES Users at the server rather than adding to it.
 	UsersFunc     func() ([]aaa.UserCredential, error)
 	Authenticator aaa.Authenticator
+	Authorizer    aaa.Authorizer
 	Recorder      audit.Recorder
 	EphemeralFile string
 	Params        infra.HookParams
@@ -75,6 +76,7 @@ type sshStandaloneInputs struct {
 	// UsersFunc is the running-config credential source, as in sshBuildInputs.
 	UsersFunc     func() ([]aaa.UserCredential, error)
 	Authenticator aaa.Authenticator
+	Authorizer    aaa.Authorizer
 	Recorder      audit.Recorder
 	ConfigDir     string
 	Storage       storage.Storage

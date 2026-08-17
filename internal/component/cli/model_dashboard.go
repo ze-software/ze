@@ -217,12 +217,6 @@ func (ds *dashboardState) resolveSelectedIndex(peers []dashboardPeer) int {
 	return 0
 }
 
-// SetDashboardFactory sets the factory used to create dashboard sessions.
-// Thin wrapper over the generic keyed factory store (view_registry.go).
-func (m *Model) SetDashboardFactory(f DashboardFactory) {
-	m.SetViewFactory(ViewKeyDashboard, f)
-}
-
 // dashboardFactory returns the injected DashboardFactory, or nil when none is
 // registered or the stored value is the wrong type (fail-closed).
 func (m *Model) dashboardFactory() DashboardFactory {
@@ -244,11 +238,6 @@ func (m *Model) activeDashboard() *dashboardState {
 		return v.st
 	}
 	return nil
-}
-
-// IsDashboard returns true if the dashboard is active.
-func (m Model) IsDashboard() bool {
-	return m.activeDashboard() != nil
 }
 
 // isDashboardCommand returns true if the input should enter dashboard mode.
@@ -441,10 +430,13 @@ func (m *Model) fetchPeerDetail(addr string) {
 	}
 	var tb textbuf.Buffer
 	data, err := m.commandExecutor(tb.Str("show bgp peer ").Str(addr).Str(" detail").String())
+	if data.TransportComplete != nil {
+		defer data.TransportComplete()
+	}
 	if err != nil {
 		return
 	}
-	m.activeDashboard().detailData = parsePeerDetail(data, addr)
+	m.activeDashboard().detailData = parsePeerDetail(data.Text, addr)
 }
 
 // parsePeerDetail extracts the detail map for a specific peer from the RPC response.

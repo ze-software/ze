@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | design |
 | Scope | config |
-| Depends | `plan/spec-ssh-optional-composition.md` |
+| Depends | `spec-ssh-optional-composition` (closed) |
 | Phase | - |
 | Deferral shard | `plan/deferrals/fixit-web-auth-deleted-user-survives-reload.md` |
 | Handoff | verify |

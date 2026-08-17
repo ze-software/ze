@@ -678,7 +678,7 @@ func TestRunReloadRemovedAssignmentDeniedAfterReauthentication(t *testing.T) {
 
 // TestReloadHashesPlaintextPassword: SIGHUP inherits the password transform.
 //
-// VALIDATES: spec-netlab-integration AC-2 -- the reload path has no branch of
+// VALIDATES: spec-ssh-optional-composition AC-7 -- the reload path has no branch of
 // its own. diskConfigLoaders (main_reload.go) is the loader the daemon installs
 // for SIGHUP, it goes through zeconfig.LoadConfig, and the tree it hands
 // runReload carries the bcrypt hash rather than the operator's plaintext.

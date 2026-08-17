@@ -1,8 +1,9 @@
-//go:build ze_ssh
+//go:build ze_ssh && ze_bgp
 
 package hub
 
 import (
+	"context"
 	"crypto/ed25519"
 	cryptoRand "crypto/rand"
 	"encoding/base64"
@@ -98,7 +99,6 @@ func TestInfraSetupSSHPublicKeyFollowsRunningConfig(t *testing.T) {
 		SSHConfig: infra.SSHExtractedConfig{
 			Listen:      "127.0.0.1:0",
 			HostKeyPath: t.TempDir() + "/test_host_key",
-			Users:       []authz.UserConfig{kept, gone},
 			HasConfig:   true,
 		},
 	}
@@ -106,6 +106,13 @@ func TestInfraSetupSSHPublicKeyFollowsRunningConfig(t *testing.T) {
 	sshSrv := infraSetup(params, nil, nil, liveUsers)
 	require.NotNil(t, sshSrv, "infraSetup should return a running SSH server")
 	addr := sshSrv.Address()
+	stopper, ok := sshSrv.(interface{ Stop(context.Context) error })
+	require.True(t, ok, "the SSH test server must expose its shutdown method")
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		require.NoError(t, stopper.Stop(ctx))
+	})
 
 	require.Eventually(t, func() bool {
 		return sshDialWithKey(addr, "keepuser", keptSigner) == nil

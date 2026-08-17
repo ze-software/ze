@@ -136,3 +136,13 @@ that row is where you say which of the two happened.
 | TestStoreAuthorizeConfigAssignmentWinsOverLogin | Replaced by `TestStoreAuthorizeLoginBindingWinsOverConfigAssignment` for result-scoped sessions. |
 | TestStoreAuthorizeLoginProfilesDoNotLeakAcrossUsers | Replaced by `TestStoreAuthorizeProfilesDoNotLeakAcrossUsers` and `TestStoreAuthorizerBoundProfilesDoNotCrossSessions`. |
 | authz_test | Two extractor assertions moved to the no-SSH ownership test; the parsed-tree and malformed-shape coverage remains. |
+| TestChildSAReplayWindowMinimum | Renamed to `TestChildSAReplayWindowDefault`, which the detector reads as a deletion. Nothing left the suite: the same test, over the same production path and the same fixtures, still asserts an exact `ReplayWin` on both the inbound and the outbound SA. The number it asserts moved from 32 to 64 because the value ze installs did, and 64 still satisfies the RFC 4303 Section 3.4.3 minimum the old name referred to. |
+| TestExtractAuthUsersFromParsedTree | The SSH public-key augment assertions remain in `TestExtractAuthUsersPublicKeys`, which runs with `ze_ssh`. This base extractor test keeps the password and profile assertions, so the full no-SSH package can test the always-on schema. |
+| infra.TestExtractSSHConfigPublicKeys | Replaced by `TestExtractAuthUsersPublicKeys` with the same parsed fixture and field checks. |
+| infra.TestExtractSSHConfigPublicKeysMultiple | Replaced by `TestExtractAuthUsersPublicKeysMultiple` with the same two-key fixture. |
+| infra.TestExtractSSHConfigPublicKeysEmpty | Replaced by `TestExtractAuthUsersPublicKeysEmpty` with the same password-only fixture. |
+| infra.TestExtractAuthUsersAgreesWithExtractSSHConfig | Replaced by `TestExtractAuthUsersFromParsedTree` and the public-key tests. SSH no longer owns base users. |
+| infra.TestExtractAuthUsersLeafListShapes | Moved to `authz_test.go` with the same five cases and extractor entry point. |
+| infra.TestExtractAuthUsersMissingSections | Moved to `authz_test.go` with the same missing and malformed shapes. |
+| infra.ssh_test | The count fell because shared extractor tests moved to `authz_test.go`. SSH transport and key checks remain. |
+| yang.TestSchema_ZeSSHEntry | Transport checks remain. Authz base-user and SSH public-key augment checks moved to their ownership tests. |

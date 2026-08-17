@@ -4045,7 +4045,7 @@ Files: 6 | Docs: `docs/architecture/appliance/installer-initrd.md`, `docs/archit
 | `iface_resolution.go` | `docs/architecture/appliance/installer-initrd.md`, `docs/architecture/iface/logical-name-resolution.md`, `docs/features/interfaces.md` |
 | `inert_tests.go` | `docs/features.md` |
 | `port_defaults.go` | `docs/architecture/doctor-and-health-checks.md` |
-| `staticcheck_feature_matrix.go` | `docs/architecture/testing/tracked-build-gate.md`, `docs/contributing/testing.md` |
+| `staticcheck_feature_matrix.go` | `docs/contributing/testing.md` |
 | `tracked_build.go` | `docs/architecture/testing/tracked-build-gate.md` |
 
 ## `scripts/codegen/`

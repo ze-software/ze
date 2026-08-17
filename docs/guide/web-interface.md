@@ -5,7 +5,10 @@ title: Web Interface (Guide)
 
 Ze provides an HTTPS web interface for browsing configuration, editing values, and running commands through a browser. The web UI uses the same YANG schemas, user database, and command grammar as the SSH CLI.
 <!-- source: internal/component/web/handler.go -- URL routing, three-tier scheme -->
-<!-- source: internal/component/web/auth.go -- authMiddleware uses ssh.AuthenticateUser -->
+<!-- source: internal/component/web/auth.go -- authMiddleware, AuthMiddlewareWithAudit -->
+<!-- source: cmd/ze/hub/service_web.go -- buildWebService -->
+<!-- source: cmd/ze/hub/aaa_authenticator_web.go -- liveAAABundleAuthenticator, liveAAABundleAuthenticator.Authenticate -->
+<!-- source: internal/component/authz/auth.go -- LocalAuthenticator.Authenticate, authenticateUser -->
 
 ## Starting the Web Server
 

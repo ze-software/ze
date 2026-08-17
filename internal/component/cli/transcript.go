@@ -77,16 +77,16 @@ func TranscriptEnabled() bool {
 	return v == "true" || v == "1" || v == "yes" || v == "enabled"
 }
 
-// WrapExecutorWithTranscript wraps a command executor function so that every
-// command and its response are recorded in the transcript. The original
-// response is returned unchanged.
-func WrapExecutorWithTranscript(fn func(string) (string, error), tw *TranscriptWriter) func(string) (string, error) {
+// WrapExecutorWithTranscript wraps a command executor so that every command
+// and its response are recorded. Completion ownership remains on the returned
+// CommandOutput for the UI writer.
+func WrapExecutorWithTranscript(fn CommandExecutor, tw *TranscriptWriter) CommandExecutor {
 	if tw == nil {
 		return fn
 	}
-	return func(input string) (string, error) {
+	return func(input string) (CommandOutput, error) {
 		output, err := fn(input)
-		tw.Record(input, output)
+		tw.Record(input, output.Text)
 		return output, err
 	}
 }

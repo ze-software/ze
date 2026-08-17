@@ -3,12 +3,16 @@
 
 package ssh
 
-import tea "charm.land/bubbletea/v2"
+import (
+	tea "charm.land/bubbletea/v2"
+
+	"github.com/ze-software/ze/internal/component/plugin"
+)
 
 // createSessionModel builds a bubbletea Model for an SSH session.
 // Delegates to the SessionModelFactory injected by the hub.
 // Falls back to a nil model if no factory is set (shouldn't happen in production).
-func (s *Server) createSessionModel(username, remoteAddr string) tea.Model {
+func (s *Server) createSessionModel(username, remoteAddr string, authorizer plugin.Authorizer) tea.Model {
 	s.mu.Lock()
 	factory := s.sessionModelFactory
 	s.mu.Unlock()
@@ -17,5 +21,5 @@ func (s *Server) createSessionModel(username, remoteAddr string) tea.Model {
 		s.logger.Error("no session model factory set")
 		return nil
 	}
-	return factory(username, remoteAddr)
+	return factory(username, remoteAddr, authorizer)
 }

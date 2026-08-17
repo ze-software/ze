@@ -194,19 +194,21 @@ func TestCommandModeDispatch(t *testing.T) {
 	}))
 
 	// Set executor that returns a canned response
-	m.SetCommandExecutor(func(input string) (string, error) {
+	m.SetCommandExecutor(func(input string) (CommandOutput, error) {
 		if input == "peer list" {
-			return "peer 1.1.1.1 [established]\npeer 2.2.2.2 [idle]", nil
+			return CommandOutput{Text: "peer 1.1.1.1 [established]\npeer 2.2.2.2 [idle]"}, nil
 		}
-		return "", fmt.Errorf("unknown command: %s", input)
+		return CommandOutput{}, fmt.Errorf("unknown command: %s", input)
 	})
 
+	// Completion belongs to Update, after the returned output is applied.
 	m.switchMode(ModeOperational)
 
 	// Simulate executeOperationalCommand via Update
 	result, _ := m.Update(commandResultMsg{
 		result: commandResult{output: "peer 1.1.1.1 [established]\npeer 2.2.2.2 [idle]"},
 	})
+
 	updated, ok := result.(Model)
 	if !ok {
 		t.Fatal("expected Model from Update")
@@ -214,6 +216,50 @@ func TestCommandModeDispatch(t *testing.T) {
 
 	if updated.ViewportContent() != "peer 1.1.1.1 [established]\npeer 2.2.2.2 [idle]" {
 		t.Errorf("expected peer list output, got %q", updated.ViewportContent())
+	}
+}
+
+// VALIDATES: direct CLI completion runs only after Update applies command text
+// to the viewport.
+// PREVENTS: attached lifecycle teardown racing the CLI result writer.
+func TestOperationalCommandCompletesAfterResultApplied(t *testing.T) {
+	m := NewCommandModel()
+	completed := false
+	m.SetCommandExecutor(func(string) (CommandOutput, error) {
+		return CommandOutput{
+			Text: "accepted",
+			TransportComplete: func() {
+				completed = true
+			},
+		}, nil
+	})
+
+	rawMsg := m.executeOperationalCommand("request shutdown")()
+	msg, ok := rawMsg.(commandResultMsg)
+	if !ok {
+		t.Fatalf("command result type = %T, want commandResultMsg", rawMsg)
+	}
+	if completed {
+		t.Fatal("executor completed before Update received the result")
+	}
+	updated, complete := m.Update(msg)
+	next, ok := updated.(Model)
+	if !ok {
+		t.Fatalf("updated model type = %T, want Model", updated)
+	}
+	m = next
+	if !strings.Contains(m.outputBuf.String(), "accepted") {
+		t.Fatalf("viewport output = %q, want accepted result", m.outputBuf.String())
+	}
+	if completed {
+		t.Fatal("completion ran before Update delivered the model")
+	}
+	if complete == nil {
+		t.Fatal("Update did not return transport completion")
+	}
+	complete()
+	if !completed {
+		t.Fatal("completion did not run after Update delivered the model")
 	}
 }
 
