@@ -6,6 +6,7 @@ related: config, cli, performance, repo-maintenance, architecture
 ---
 directives ## Directives
   read-the-ze-style-guide-before-go-design-or-review
+  guard-with-early-returns-one-fact-per-guard
   required
   always-follow-these-required-go-patterns
   logging-log-slog-only

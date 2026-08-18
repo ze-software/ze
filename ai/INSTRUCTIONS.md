@@ -311,7 +311,7 @@ means "no rule applies".
 | Action | Read first |
 |--------|-----------|
 | Write repository prose: docs, comments, error messages, CLI output, specs, commit messages | `ai/rules/writing.md` -- apply US English and the six habits. Read the full style guide only for documentation work, a deep prose review, or resolving an STE finding |
-| Start a session | `.claude/rules/session-start.md` |
+| Start a session | **Read `docs/contributing/ze-style.md` in full, EVERY session, before any code (owner directive, 2026-08-18).** Then `.claude/rules/session-start.md` for the {{TOOL}}-specific checklist |
 | Edit CLAUDE.md, AGENTS.md, any synced file, or add an agent behavior rule | `ai/rules/repo-maintenance.md` -- never edit generated files; shared rules go in `ai/rules/` |
 | Design or implement anything | `ai/rules/architecture.md` -- grep ze before proposing, never default to trained instincts |
 | Choose the shape of a fix, or add an abstraction, option, layer, or parameter | `ai/rules/simplicity.md` -- the fix MUST be the simplest FULLY CORRECT answer. Simplicity cuts machinery, never correctness: quality is 0% compromise. The simplest design is usually the hardest to find, so budget the thinking. Another problem you see gets its own spec, never an extra branch here |
