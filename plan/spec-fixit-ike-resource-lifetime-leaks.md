@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | - |
+| Phase | 5/5 |
 | Deferral shard | `-` |
-| Updated | 2026-08-07 |
+| Updated | 2026-08-17 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -172,10 +172,36 @@ lands.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The double-remove in `delete.go` really does make `XfrmStateDel` fail in ordinary operation | read, `engine/delete.go` | Leak 1 is rare rather than routine, which lowers its priority but does not close it | a QEMU run counting `espForms` entries after a tunnel closes twice | unvalidated |
-| A-2 | A stranded `espForms` entry holds a real host-wide raw ESP socket open | read, `dataplane/xfrm_linux.go` | Leak 1 is a map leak only, far cheaper than stated | inspect the socket table in QEMU after the repro | unvalidated |
-| A-3 | The four bypass policies are node-wide and survive process exit | read, `engine/register.go` `removeIKEBypass` | Leak 2 is bounded by the process and self-clears | `ip xfrm policy` in QEMU after killing ze on an error path | unvalidated |
-| A-4 | No subscriber compensates for the missing initiator `SADown` elsewhere | read, `engine/fsm.go`, `engine/reconcile.go` | Leak 3 is already handled and only the direct path is unbalanced | grep every `SADown` producer and every subscriber | unvalidated |
+| A-1 | The double-remove in `delete.go` really does make `XfrmStateDel` fail in ordinary operation | read, `engine/delete.go` | Leak 1 is rare rather than routine, which lowers its priority but does not close it | a QEMU run counting `espForms` entries after a tunnel closes twice | broken 2026-08-17 |
+| A-2 | A stranded `espForms` entry holds a real host-wide raw ESP socket open | read, `dataplane/xfrm_linux.go` | Leak 1 is a map leak only, far cheaper than stated | inspect the socket table in QEMU after the repro | confirmed 2026-08-17 |
+| A-3 | The four bypass policies are node-wide and survive process exit | read, `engine/register.go` `removeIKEBypass` | Leak 2 is bounded by the process and self-clears | `ip xfrm policy` in QEMU after killing ze on an error path | confirmed 2026-08-17 |
+| A-4 | No subscriber compensates for the missing initiator `SADown` elsewhere | read, `engine/fsm.go`, `engine/reconcile.go` | Leak 3 is already handled and only the direct path is unbalanced | grep every `SADown` producer and every subscriber | confirmed 2026-08-17 |
+
+A-1 is BROKEN in the half that matters, and the correction widens leak 1 rather than
+closing it. The second `RemoveSA` does fail, as stated. It is not what strands the ESP
+form: the FIRST remove succeeded and already ran `Forget`, so the second finds nothing
+left to forget. The stranding case is a FIRST remove that fails while the SPI is still
+watched, which the kernel produces on its own -- a hard lifetime expiry, an operator
+flush, or any state the kernel dropped behind the backend. That is why the fix releases
+on every exit rather than on the second call, and why both new tests drive a delete the
+kernel refuses.
+
+A-2 is confirmed by reading the producer: `espFormReceiver.Forget`
+(`dataplane/espform_linux.go`) releases the raw sockets only when the LAST watched SPI
+goes, so one stranded entry holds them open for the life of the process.
+`TestXFRMDoubleTeardownLeavesNothing` measures that half on a real kernel.
+
+A-3 is confirmed by reading `installIKEBypass` / `removeIKEBypass` (`engine/bypass.go`):
+the four policies carry no peer identity and go straight to the kernel policy table, and
+`runEngine` runs as an in-process plugin whose non-zero exit is logged rather than
+turned into a process exit (`internal/component/plugin/process/process.go`), so nothing
+removes them once the engine returns.
+
+A-4 is confirmed by enumerating every `emitSADown` producer: `reconcile.go` (the
+reconcile stop path), `register.go` (TerminateAllSAs and TerminatePeerSA),
+`established.go` (a PENDING SA, never the owned one) and `fsm.go` (the responder owner
+loop). None of them runs when an established initiator tunnel goes down of its own
+accord, which is the reconnect path.
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -199,7 +225,7 @@ lands.
 | Second teardown of one Child SA | → | `RemoveSA` forget-on-error path | `TestRemoveSAForgetsESPFormWhenStateDeleteFails` |
 | Daemon start that fails after bypass install | → | `p.Run` error exit | `TestRunRemovesIKEBypassOnEveryErrorExit` |
 | Initiator tunnel that goes down | → | `runInitiator` teardown | `TestInitiatorEmitsSADownWhenEstablishedLoopReturns` |
-| Full teardown on a real kernel | → | XFRM state and policy tables | `test/ipsec/ipsec-teardown-leaves-nothing.ci` |
+| Full teardown on a real kernel | → | XFRM state and policy tables | `test/ipsec/ipsec-teardown-leaves-nothing.ci`, and `fsuite ipsec` in `scripts/evidence/qemu-all-tests.sh` is what runs it |
 | A DPD tick on an SA with no send path | → | `sendDPD` early return | `TestDPDNoTransportTakesNoWindow` |
 | A DPD tick on a floated SA with a nil fallback | → | `sendDPD` send-path predicate | `TestDPDFloatedSAProbesWithoutTheFallback` |
 
@@ -211,7 +237,7 @@ lands.
 | AC-2 | `p.Run` takes any error exit after the bypass is installed | No IKE bypass policy remains in the kernel policy table |
 | AC-3 | An initiator tunnel establishes and then goes down | Exactly one `SADown` follows the one `SAUp`, on the initiator path |
 | AC-4 | An initiator tunnel reconnects N times after a peer Delete | The count of `SAUp` equals the count of `SADown` for every N |
-| AC-5 | A tunnel is torn down twice on a real kernel | The XFRM state table, the policy table, and `espForms` are all empty |
+| AC-5 | A tunnel is torn down twice on a real kernel | The XFRM state table, the policy table, and `espForms` are all empty. Proven in two halves: `TestXFRMDoubleTeardownLeavesNothing` drives the SECOND `XfrmStateDel` for one SPI, which the kernel refuses, and asserts the SPI is unwatched and the ESP sockets closed; `ipsec-teardown-leaves-nothing.ci` tears one tunnel down through the operator clear, twice over the same peer, then stops both daemons and asserts no state, no policy and no raw ESP socket is left |
 | AC-6 | `sendDPD` runs on an SA with no send path | No request window is held, no `awaitReply` is set, no probe is stored, and no Message ID is spent |
 | AC-7 | `sendDPD` runs on a floated SA whose fallback transport is nil | The probe leaves from the NAT-T socket, and the SA awaits its reply |
 
@@ -227,10 +253,11 @@ lands.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestRemoveSAForgetsESPFormWhenStateDeleteFails` | `internal/component/ike/dataplane/xfrm_linux_test.go` | AC-1 | |
-| `TestRunRemovesIKEBypassOnEveryErrorExit` | `internal/component/ike/engine/register_test.go` | AC-2 | |
-| `TestInitiatorEmitsSADownWhenEstablishedLoopReturns` | `internal/component/ike/engine/fsm_test.go` | AC-3 | |
-| `TestSAUpAndSADownBalanceAcrossReconnects` | `internal/component/ike/engine/fsm_test.go` | AC-4 | |
+| `TestRemoveSAForgetsESPFormWhenStateDeleteFails` | `internal/component/ike/dataplane/xfrm_state_del_failure_linux_test.go` | AC-1 | PASS 2026-08-17, red without the fix |
+| `TestRunRemovesIKEBypassOnEveryErrorExit` | `internal/component/ike/engine/register_test.go` | AC-2 | PASS 2026-08-17, red without the fix |
+| `TestInitiatorEmitsSADownWhenEstablishedLoopReturns` | `internal/component/ike/engine/sa_event_pairing_test.go` | AC-3 | PASS 2026-08-17, red without the fix |
+| `TestSAUpAndSADownBalanceAcrossReconnects` | `internal/component/ike/engine/sa_event_pairing_test.go` | AC-4 | PASS 2026-08-17, red without the fix |
+| `TestXFRMDoubleTeardownLeavesNothing` | `internal/component/ike/dataplane/xfrm_teardown_integration_linux_test.go` | AC-5, kernel half | written, runs on the QEMU integration rail |
 | `TestDPDNoTransportTakesNoWindow` | `internal/component/ike/engine/dpd_test.go` | AC-6 | PASS 2026-08-07 |
 | `TestDPDFloatedSAProbesWithoutTheFallback` | `internal/component/ike/engine/dpd_test.go` | AC-7 | PASS 2026-08-07 |
 
@@ -242,7 +269,7 @@ lands.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `ipsec-teardown-leaves-nothing` | `test/ipsec/*.ci` | After the last tunnel closes, no XFRM state, policy, or ESP form remains | |
+| `ipsec-teardown-leaves-nothing` | `test/ipsec/ipsec-teardown-leaves-nothing.ci` | After the operator tears the tunnel down and both daemons stop, no XFRM state, no XFRM policy and no raw ESP socket remains | PASS 2026-08-17. `fsuite ipsec` added to `scripts/evidence/qemu-all-tests.sh`, so the suite now executes in the QEMU VM where `option=needs-linux:caps=net-admin` is satisfied. Two daemons, one real xfrm backend: the kernel keys a state on (src, dst, spi, proto) and the two ends of one Child SA are the SAME two states, so a second real backend would answer EEXIST (measured). Discriminates: with `RemoveSA`'s state delete removed the clear leaves both states behind and the test reddens, and with the bypass release removed the test reports `RESIDUE: states=0 policies=8`. EXECUTED, twice: natively in an unprivileged user+net namespace (`unshare -rn`, which satisfies caps=net-admin without root), and in the QEMU VM through the new `fsuite ipsec` line, where the whole suite passed 16/16 in 180s |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -250,13 +277,16 @@ lands.
 | `05-child-rekey` | `test/interop/scenarios/` | strongSwan | Repeated teardown against a real peer leaves no residue | |
 
 ## Files to Modify
-- `internal/component/ike/dataplane/xfrm_linux.go` - forget the ESP form on every exit of `RemoveSA`
-- `internal/component/ike/engine/register.go` - remove the bypass on every error exit of `Run`
-- `internal/component/ike/engine/fsm.go` - pair the initiator `SAUp` with an `SADown`
+- `internal/component/ike/dataplane/xfrm_linux.go` - DONE 2026-08-17, `RemoveSA` defers `espForms.Forget` so every exit releases it, and the delete error still reaches the caller
+- `internal/component/ike/engine/register.go` - DONE 2026-08-17, `runEngine` defers `removeIKEBypass` plus `dataplane.CloseBackend` beside the install, and the shutdown tail no longer repeats them
+- `internal/component/ike/engine/fsm.go` - DONE 2026-08-17, `runInitiator` calls `emitSADown` and clears `ps.sa` when its established loop returns, as `runResponder` does
+- `internal/component/ike/engine/events.go` - DONE 2026-08-17, the `SAUp` / `SADown` godoc states the pairing obligation with MUST on both sides
 - `internal/component/ike/engine/dpd.go` - DONE 2026-08-07, `sendDPD` returns before it reserves the request window when the session has no transport
+- `internal/component/ike/engine/bypass.go` - DONE 2026-08-17, `removeIKEBypass`'s godoc no longer says it runs once at shutdown: it runs on every exit, from the deferred cleanup
+- `internal/component/plugin/process/manager.go` - DONE 2026-08-17, `ProcessManager.Stop` waits `pluginStopGrace` (the daemon's own 3s shutdown budget) for each plugin goroutine and NAMES any plugin that misses it. It waited 500ms and discarded the timeout, so a release slower than that was lost with nothing logged. This is what made AC-5 fail in QEMU: the IKE engine's eight XFRM bypass policy deletes run after its read loop ends, and the daemon exited first (MEASURED: a release delayed 700ms leaves `RESIDUE: policies=8`)
 
 ## Files to Create
-- `test/ipsec/ipsec-teardown-leaves-nothing.ci` - functional proof that teardown leaves no residue
+- `test/ipsec/ipsec-teardown-leaves-nothing.ci` - DONE 2026-08-17, functional proof that teardown leaves no residue, plus the `fsuite ipsec` line in `scripts/evidence/qemu-all-tests.sh` that makes it execute
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -366,19 +396,33 @@ lands.
 
 ## Known Limitations
 - Phase 1 is evidence, so no fix lands until each leak is measured rather than read.
-- Leak 4 leaves one edge open, and it is the owner's call. `maintainSA` reads
-  `dpd.timedOut(now)` before `shouldRetransmit` in the same tick, and `shouldRetransmit`
-  refuses once `timedOut`. A `dead-peer-detection timeout 1`, the smallest value
-  `parseDPD` accepts, plus a tick delayed past the microseconds between the probe and the
-  tick boundary, therefore reaches the dead-peer verdict after ONE attempt and no repeat.
-  RFC 7296 Section 2.4 MUST: an endpoint concludes the other one has failed "only when
-  repeated attempts to contact it have gone unanswered for a timeout period". One attempt
-  is not repeated attempts, so this is a violation of the MUST and not a tuning choice.
-  The same section's later sentence, "The number of retries and length of timeouts are
-  not covered in this specification", chooses HOW MANY repeats an implementation makes.
-  It never licenses zero of them, and it must not be read as softening the MUST.
-  Two candidate fixes were put to Thomas on 2026-08-07 and neither is approved:
-  `timedOut` also requiring `retries > 0`, or `parseDPD` flooring `timeout` at 2 seconds.
+- Leak 4's remaining edge is FIXED (2026-08-18), not deferred. The 2026-08-07 ask was
+  itself the error: `ai/rules/rfc-compliance.md` reserves the question for a choice that
+  does LESS than the RFC, and full compliance was reachable here, so it was owed
+  implementation rather than an owner decision.
+
+  `maintainSA` reads `dpd.timedOut(now)` before `shouldRetransmit` in the same tick, and
+  `shouldRetransmit` refuses once `timedOut`. A `dead-peer-detection timeout 1`, the
+  smallest value `parseDPD` accepts, therefore reached the dead-peer verdict after ONE
+  attempt and no repeat. RFC 7296 Section 2.4 MUST: an endpoint concludes the other one
+  has failed "only when repeated attempts to contact it have gone unanswered for a
+  timeout period". The same section's "The number of retries and length of timeouts are
+  not covered in this specification" chooses how MANY repeats an implementation makes; it
+  never licenses zero of them.
+
+  `timedOut` (`internal/component/ike/engine/dpd.go`) now requires the elapsed budget AND
+  `retries > 0`. The second candidate, flooring `timeout` at 2 seconds in `parseDPD`, was
+  rejected: it rewrites an operator's configured value, and it makes the violation
+  unlikely by timing rather than impossible by construction. The one case that still ends
+  on the budget alone is a probe with no stored datagram, which can never be repeated;
+  waiting for a repeat there would hold the SA and its request window open for ever.
+
+  Proven by `TestDPDVerdictNeedsARepeatedAttempt` and
+  `TestDPDVerdictEndsAProbeThatCannotBeRepeated` (`dpd_test.go`, both tagged
+  `RFC7296-2.4-11`). `TestSesPeerFailedOnlyAfterRepeatedSilence` asserted the verdict on
+  the elapsed budget alone, which is the shape the requirement refuses; that assertion is
+  corrected to establish a repeat first, and it is strengthened rather than weakened.
+  Reverting `timedOut` reddens both.
 
 ## RFC Documentation (Scope: protocol)
 

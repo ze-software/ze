@@ -350,9 +350,18 @@ func TestSesPeerFailedOnlyAfterRepeatedSilence(t *testing.T) {
 	if dpd.timedOut(dpd.sentAt.Add(dpd.timeout - time.Millisecond)) {
 		t.Error("the peer was declared failed before the timeout elapsed")
 	}
-	// Positive. Past the timeout the verdict stands.
-	if !dpd.timedOut(dpd.sentAt.Add(dpd.timeout)) {
-		t.Error("the peer was not declared failed after the timeout elapsed")
+	// Past the timeout with nothing repeated the verdict does NOT stand: Section
+	// 2.4 asks for repeated attempts, and the elapsed budget is only half of that.
+	// This assertion read the budget alone before 2026-08-18, which is the shape
+	// the requirement refuses.
+	past := dpd.sentAt.Add(dpd.timeout)
+	if dpd.timedOut(past) {
+		t.Error("the peer was declared failed on one unanswered attempt")
+	}
+	// Positive. Past the timeout, with a repeat that also went unanswered, it does.
+	dpd.noteRetransmit(past)
+	if !dpd.timedOut(past) {
+		t.Error("the peer was not declared failed after a repeat also went unanswered")
 	}
 
 	// Negative. An answered probe clears the wait, so no timeout is ever reached.

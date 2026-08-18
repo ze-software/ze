@@ -83,15 +83,31 @@ func (d *dpdState) awaitingReply() bool {
 	return d != nil && d.awaitReply
 }
 
-// timedOut reports whether the peer failed to respond within timeout. The timeout
-// bounds the whole liveness budget, so it spans the probe and every retransmission
-// of it. RFC 7296 Section 2.4: the peer has failed once repeated attempts have gone
-// unanswered for a timeout period.
+// timedOut reports whether the peer failed to respond. The timeout bounds the whole
+// liveness budget, so it spans the probe and every retransmission of it.
+//
+// RFC 7296 Section 2.4 MUST: "An endpoint MUST conclude that the other endpoint has
+// failed only when repeated attempts to contact it have gone unanswered for a
+// timeout period." Both halves are required, so both are tested here.
+//
+// The elapsed budget alone is not the verdict. `dead-peer-detection timeout 1` is
+// the smallest value parseDPD accepts. It puts the first tick past the budget, and
+// that would declare a live peer dead on ONE attempt. The same section adds "The
+// number of retries and length of timeouts are not covered in this specification".
+// That chooses how MANY repeats an implementation makes. It never licenses zero.
+//
+// A probe with no stored datagram can never be repeated. Waiting for a repeat would
+// hold the SA open for ever on a state that cannot advance, so the elapsed budget
+// alone ends that one. sendDPD is the only writer of the awaiting state and
+// it always stores what it sent, so this reads as a guard rather than a live path.
 func (d *dpdState) timedOut(now time.Time) bool {
 	if d == nil || !d.awaitReply {
 		return false
 	}
-	return !now.Before(d.sentAt.Add(d.timeout))
+	if now.Before(d.sentAt.Add(d.timeout)) {
+		return false
+	}
+	return d.retries > 0 || len(d.probeMsg) == 0
 }
 
 // shouldRetransmit reports whether the outstanding probe waited past its current

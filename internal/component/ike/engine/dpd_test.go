@@ -220,3 +220,76 @@ func TestDPDNextDeadline(t *testing.T) {
 		t.Errorf("nextDeadline (await) = %v, want ~%v", deadline, expected)
 	}
 }
+
+// VALIDATES: the dead-peer verdict follows a REPEAT that went unanswered, not the
+// first probe. maintainSA (established.go) reads timedOut before shouldRetransmit in
+// the same tick. With the smallest timeout parseDPD accepts, the first tick lands
+// past the whole budget with zero repeats behind it.
+// PREVENTS: `dead-peer-detection timeout 1` tearing down a live tunnel on one lost
+// datagram. The budget alone was the verdict. It is now the budget AND a repeat.
+//
+// RFC requirement: RFC7296-2.4-11 negative -- one unanswered attempt is not "repeated
+// attempts", so it does not reach the verdict however far past the budget it sits.
+// RFC requirement: RFC7296-2.4-11 positive -- a repeat that also goes unanswered for
+// the timeout period does reach it.
+func TestDPDVerdictNeedsARepeatedAttempt(t *testing.T) {
+	ini, _, _, peerTr, myTr := dpdProbeLink(t)
+	log := slogutil.DiscardLogger()
+
+	dpd := winDueDPD()
+	dpd.timeout = time.Second // the smallest value parseDPD accepts
+
+	sendDPD(ini, myTr, dpd, log)
+	if raw := rtxRecv(t, peerTr); raw == nil {
+		t.Fatal("the probe never reached the peer")
+	}
+	if dpd.retries != 0 {
+		t.Fatalf("retries = %d before any repeat, want 0", dpd.retries)
+	}
+
+	// The moment maintainSA ticks, past the whole liveness budget.
+	past := dpd.sentAt.Add(2 * time.Second)
+
+	if dpd.timedOut(past) {
+		t.Error("the peer was declared dead on one unanswered attempt")
+	}
+	if !dpd.shouldRetransmit(past) {
+		t.Fatal("the probe was never repeated, so no repeat can go unanswered")
+	}
+
+	retransmitDPD(ini, myTr, dpd, past, log)
+	if raw := rtxRecv(t, peerTr); raw == nil {
+		t.Fatal("the repeat never reached the peer")
+	}
+	if dpd.retries != 1 {
+		t.Fatalf("retries = %d after one repeat, want 1", dpd.retries)
+	}
+	if !dpd.timedOut(past) {
+		t.Error("a repeat went unanswered past the budget and the peer survived it")
+	}
+}
+
+// VALIDATES: an awaited probe with no stored datagram still ends. Waiting for a
+// repeat that can never be made would hold the SA, and the one request window it
+// took, open for ever.
+// PREVENTS: the repeat requirement above turning a bug state into a permanent one.
+//
+// RFC requirement: RFC7296-2.4-11 positive -- the timeout period ends a probe whose
+// repeat is impossible, because no further attempt can be made to contact the peer.
+func TestDPDVerdictEndsAProbeThatCannotBeRepeated(t *testing.T) {
+	dpd := winDueDPD()
+	dpd.timeout = time.Second
+	dpd.awaitReply = true
+	dpd.sentAt = time.Now().Add(-2 * time.Second)
+	dpd.lastAttempt = dpd.sentAt
+
+	if len(dpd.probeMsg) != 0 {
+		t.Fatal("the fixture stored a datagram, so it does not measure an unrepeatable probe")
+	}
+	if dpd.shouldRetransmit(time.Now()) {
+		t.Fatal("a probe with no datagram was offered for repeat")
+	}
+	if !dpd.timedOut(time.Now()) {
+		t.Error("a probe that can never be repeated holds the SA open for ever")
+	}
+}
