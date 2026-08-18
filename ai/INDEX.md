@@ -83,7 +83,7 @@ and gated fresh, so they never lie about the current code.
 
 | Task | Read first | Then use |
 |---|---|---|
-| Generate and run a commit script | `ai/rules/git-safety.md` | Fast path: use `scripts/dev/commit_helper.py create`, then run it with `bash` and the path its `script=` line prints. if verification is considered, run `scripts/dev/verify-status.sh check` first and never rerun verify when FRESH |
+| Generate and run a commit script | `ai/rules/git-safety.md` | Fast path: use `scripts/dev/commit_helper.py create`, then run it with `bash` and the path its `script=` line prints. if verification is considered, run `scripts/dev/verify-status.sh check` first and never rerun verify when FRESH (`ai/rules/precommit-verify.md`) |
 | Record a problem the work uncovered | `ai/rules/planning.md` ("Writing Journal Rows") | Append a row to `plan/journal/<class>.md`, then `--file` it on commit A; `make ze-journal-report` prints every class that repeated |
 
 ### Modifying Existing Code
@@ -466,7 +466,7 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | docker, container, scratch, lab image | `docs/guide/docker.md` (both images), `docker/Dockerfile`, `docker/Dockerfile.lab` |
 | netlab, containerlab, lab topology, daemon integration, contrib | `docs/guide/netlab.md`, `contrib/netlab/README.md`, `contrib/netlab/ze.yml` (the daemon definition), `contrib/netlab/ze/` (the Jinja2 templates), `make ze-netlab-render-check`, `make ze-docker-lab-build`, `docker/Dockerfile.lab` |
 | chaos, fault injection, scheduler | `docs/architecture/chaos-web-dashboard.md`, `docs/guide/chaos-testing.md` |
-| commit, commit script, commit message, verified commit, verify freshness, owner override, commit no test | `scripts/dev/commit_helper.py`, `scripts/dev/verify-status.sh`, `ai/rules/git-safety.md`, `ai/skills/ze-commit.md`, `ai/skills/ze-commit-check.md` |
+| commit, commit script, commit message, verified commit, verify freshness, owner override, commit no test | `scripts/dev/commit_helper.py`, `scripts/dev/verify-status.sh`, `ai/rules/git-safety.md`, `ai/rules/precommit-verify.md`, `ai/skills/ze-commit.md`, `ai/skills/ze-commit-check.md` |
 | weekly update, Zeledon, ze-news, Discord announcement, website changes, homepage latest updates | `ai/skills/ze-weekly-update.md`, `website/AI.md`, `website/tools/render-index.py`, `scripts/zeledon/STYLE.md` |
 | self-improvement, discoverability, discovery, new tool, self-check, verification gate | `ai/rules/repo-maintenance.md`, `ai/rules/repo-maintenance.md`, `docs/contributing/documentation-testing.md` |
 | inventory, command-list, doc drift, source anchor, doc index | `ai/rules/repo-maintenance.md`, `ai/rules/writing.md`, `docs/contributing/documentation-testing.md`, `mk/inventory.mk` |

@@ -14,7 +14,7 @@ that no past task description in `plan/` would surface
 Every other rule is named in `ai/rules/TRIGGERS.md`. Read its file when its
 trigger matches.
 
-Rules: 7 of 28. Reasons: no past task would surface it, precedence rung 1/2, the ladder itself.
+Rules: 7 of 29. Reasons: no past task would surface it, precedence rung 1/2, the ladder itself.
 
 ---
 
@@ -46,6 +46,8 @@ Rules: 7 of 28. Reasons: no past task would surface it, precedence rung 1/2, the
 **The helper asks for no lesson artifact, and it MUST NOT be made to (owner directive, 2026-08-10).** A lesson is applied by UPDATING the surface that governs behaviour, never by saving a summary beside the commit. Route it: a recurring trap to a rule under `ai/rules/`, a design decision to `docs/architecture/`, a subsystem's data flow to `ai/digests/`, a protocol obligation to `rfc/short/`. The journal row survives for its own reason, which is counting how often a PROBLEM class recurs (`ai/rules/planning.md`, "Writing Journal Rows").
 **`git rm` safety:** before using `git rm` in a commit script, you MUST verify
 **You MUST use this helper format:**
+- Read the generated message file before running the script. `create` prints its
+- Treat `command not found` anywhere in the helper's output as a failed
 **You MUST NOT suggest / ask / hint at committing.** Complete ALL work first
 ## Pushing (2026-08-05, owner amendment)
 - **A bare `git push` from a Bash call stays forbidden; the hook enforces it.**
@@ -58,122 +60,6 @@ Single-focus commits: one logical change per commit.
 **A FAILED commit leaves the index STAGED, and the next session's commit inherits
 it.
 **The failure mode is invisible from the failed run.** It exits non-zero, prints
-## Before Any Commit
-### Step 0: Does `ze-precommit-verify` apply?
-BLOCKING only when the commit could plausibly affect build, tests, or generated code.
-| Files in commit | Run `ze-precommit-verify`? |
-|-----------------|------------------|
-| Any `.go`, `go.mod`, `go.sum`, `vendor/**` | YES |
-| `Makefile`, `scripts/**`, build/CI config | YES |
-| `*.yang`, generated code, codegen templates | YES |
-| Anything that runs at build time or affects a binary | YES |
-| `ai/**/*.md`, `.claude/**/*.md`, `plan/**/*.md`, `docs/**/*.md`, `README.md` | NO |
-### Step 1: If `ze-precommit-verify` applies (BLOCKING)
-`make ze-precommit-verify`, in the foreground ("Running ze-precommit-verify" below).
-### Structural Gates Are Never Known-Red (BLOCKING)
-The pre-commit checklist's "write its spec, finish this commit, ask" branch, and its `plan/known-failures/` shard, are for **non-deterministic** failures only.
-**The general escape is owner-only: `--structural-red-ok "<reason>"`** (the
-### Your Working Tree Is Not What You Committed (BLOCKING)
-**Nothing else in this repository COMPILES what git holds.** `make ze-build`,
-`ze-precommit-verify`, `ze-lint-changed`, `ze-rfc-check` and every test target build and run your WORKING TREE, uncommitted and untracked files included.
-| Situation | Do |
-|-----------|-----|
-| You are about to `--file` a consumer | Name the file that DEFINES every symbol it newly uses, and check that file is in the same `--file` list or already committed (`git log -1 -- <path>`) |
-| The commit script has just run and it carried Go | Run `make ze-repository-tracked-build-check`. About 45s. This is step 7 of the commit workflow, not an optional extra |
-| It goes red | Commit the producer. Never revert the consumer, and never park it: HEAD is broken for everyone until you do |
-**What it does NOT read: test files.** `go build` MUST NOT compile `_test.go`, so a
-### Thomas Owner Override: Commit Without Verify
-Thomas owns the repository and may explicitly override the `ze-precommit-verify` requirement for commit-script preparation.
-1. prepare a commit script, and
-2. skip tests, skip verify, or commit without running tests.
-- You MUST NOT run `make ze-precommit-verify`, `make ze-precommit-verify-changed`, lint, or tests as a
-- You MUST inspect only enough state to stage exactly the requested files and avoid
-- You MUST use `scripts/dev/commit_helper.py create` with the normal user-run script
-- You MUST carry the override into the helper: `--unverified "<reason>"`, and
-- You MUST NOT run `git add`, `git commit`, `git rm`, `git stash`, or prohibited git
-- You MUST NOT add `--no-verify`, `--no-gpg-sign`, disabled hooks, or any bypass to
-- You MUST report `Verification skipped by Thomas owner override` in the final response
-- You MUST NOT claim tests, lint, `ze-precommit-verify`, integrations, or behavior were
-### Known-Red Full Verify: Scope to Changed (BLOCKING)
-When `make ze-precommit-verify` is known-red from failures this session did not cause -- pre-existing reds, or a separate session is actively clearing the global suite -- a commit carrying NO Go is gated on changed...
-- `make ze-lint-changed`
-- the touched packages' `go test` (or `make ze-precommit-verify-changed`)
-- `make ze-doc-verify` / `make ze-repository-check` when those surfaces changed
-- a QEMU run for any linux-only runtime code touched
-**The red MUST be attributed, not assumed (BLOCKING).** "Known-red" means you
-**You MUST NOT let a red persist.** Scope-to-changed is a temporary bridge while the
-### Concurrent Verify Runs (BLOCKING)
-One `make ze-precommit-verify*` (or `ze-chaos-verify`) at a time repo-wide -- parallel runs share build cache + ports + `bin/ze` processes and trash each other.
-| Do | Don't |
-|----|-------|
-| Let the second invocation block | Kill the running verify |
-| If the run is yours (same tree), read `tmp/ze-verify.log` instead of re-running | Delete the lockfile |
-| If "waiting for lock" appears, do other work | Start `go test` / `golangci-lint` / `bin/ze-test` in parallel (bypasses lock) |
-### Running ze-precommit-verify
-Each directive below is one physical line on purpose.
-**Run `make ze-precommit-verify` in the foreground, wait for it, and never poll: the foreground return IS the completion signal.**
-**Do not kill it for being slow. Give the call the largest timeout your harness allows.**
-**Never take a timeout from a duration written in a rule: read `tmp/.ze-verify-duration.txt` instead.**
-**A slow run can outlast the lock's own break threshold: raise `ZE_VERIFY_MAX_LOCK_AGE` rather than lose the pass.**
-**Never edit the tree while a verify runs, yours or anybody's: it reads the working tree.**
-### A SHARED CHECKOUT NEVER GIVES A CLEAN `ze-precommit-verify` (BLOCKING)
-**Several agents work this checkout at once. `make ze-precommit-verify` reads the WORKING
-TREE, so it reads their half-finished edits too, and a fully GREEN run is unreachable by construction.
-**Owner directive, 2026-08-17: a commit carrying `.go`, `go.mod`, `go.sum` or `vendor/` MUST be preceded by a full `make ze-precommit-verify` whose run STARTED after your last Go edit. You MUST NOT reach such a commit on scoped gates alone, and you MUST NOT re-run the gate to watch somebody else's red clear.** What the commit owes is the run's COVERAGE, never its exit code: the exit code is read through the attribution table below. `commit_helper.py create` enforces the coverage and names the owner-only escape when no such run exists.
-**One full run covers EVERY commit prepared from it. You MUST NOT re-run the gate between back-to-back commits of the same code.** The debt is incurred by an EDIT, never by a commit: one body of work split into three commits owes one run, not three, and the same run answers for all of them. What owes a fresh run is a Go file written again after that run started, and nothing else does.
-| The failing path | Whose red | What you do |
-|------------------|-----------|-------------|
-| In this commit's `--file` list | Yours | Fix it. A red you caused is never attributed away |
-| Dirty in `git status --porcelain`, and not in your list | Another session's | Take that code as working. Name it in `--unverified` and commit |
-| Clean and tracked, and your diff PRODUCES a symbol the failure names | Yours | Fix it. Ownership follows the producer, not the file that failed |
-| Clean and tracked, and unrelated to your diff | Pre-existing | Attribute it against `git log`, name it in `--unverified`, and commit |
-| Any deterministic structural gate | Yours until you prove otherwise | Fix it. Those read files rather than a moving tree, so no attribution clears one |
-**Owner directive, 2026-08-17: code another session holds uncommitted MUST be taken as WORKING. You MUST NOT fix its red, wait for it, or re-run the gate to see whether it cleared.** Attribution is the whole answer: name the file and say whose it is, put that in `--unverified`, and commit. The row that MUST NOT be attributed away is a red your own diff produced, and the table above is what decides which row you are on.
-**A commit that carries NO Go owes no full run. You MUST scope its evidence to YOUR
-1. You MUST run the gate the commit owes: `make ze-precommit-verify` when it carries Go,
-2. You MUST ATTRIBUTE every red you saw, by the table above: name the file, and say
-3. You MUST prepare the script with `--unverified "<attribution>"`, giving the gates you ran
-**`--unverified` is the CORRECT path in a shared checkout, not a shortcut.** It
-**A deterministic STRUCTURAL gate MUST NOT be waved through** (see "Structural
-**You MUST NOT edit the tree while a verify runs**, yours or anybody's. Regenerating an
-### ONCE, AT THE END. Never during development (BLOCKING)
-**`make ze-precommit-verify` is a 25-stage full gate and takes 25 to 30 minutes. You MUST run it ONE
-time, when the work is finished and you are about to prepare the commit script.** Running it to "check in" mid-change is the single most expensive habit available in this repository, and it buys nothing a scoped check...
-**You MUST run what the change touches.** Every surface has one owning target, and it costs
-**You MUST go through `make`, or carry `GOCACHE` yourself.** `Makefile` exports
-| You changed | Run this |
-|-------------|----------|
-| A `.go` file | `make ze-unit-pkg-test PKG=<that package>`, or the group target covering it (`ze-unit-bgp-test`, `ze-unit-core-test`, `ze-unit-plugins-test`, `ze-unit-config-test`, `ze-unit-cli-test`, `ze-unit-rest-test`). Then `make ze-lint-changed` (`ai/rules/commands.md`) |
-| A `.go` change that alters what the daemon PUTS ON THE WIRE, installs, or shows | the FUNCTIONAL suite owning that surface as well: `make ze-functional-plugin-test`, `ze-functional-encode-test`, `ze-functional-decode-test`, `ze-functional-parse-test`, `ze-functional-reload-test`, `ze-functional-ui-test`, `ze-functional-web-test`. The unit tests of the package you edited are not evidence about the rail |
-| Reactor concurrency (`reactor/session*.go`, `forward_pool*.go`, `peer.go`) | `make ze-unit-reactor-test-race` (`ai/rules/testing.md`) |
-| A `.ci` or `.et` test | its suite target: `make ze-functional-plugin-test`, `ze-functional-parse-test`, `ze-functional-encode-test`, `ze-functional-editor-test`, `ze-functional-web-test`. Draft first in `test/draft/` |
-| Linux-only code (`//go:build linux`) | `make ze-qemu-integration-test`, or `make ze-qemu-needs-linux-test` for a `needs-linux` `.ci` (`ai/rules/platform-linux.md`) |
-| `rfc/short/*.md`, an `RFC requirement:` tag, `rfc/extraction/*` | `make ze-rfc-check` |
-| `docs/**`, `ai/**`, `plan/**` | `make ze-doc-verify`, and `make ze-doc-wiring-check` for the changed-file gates |
-| `ai/rules/*.md` | `make ze-rules-condensed-update` then `make ze-rules-lint`, and commit all three digests with the rule |
-| A `*.yang` file or a `ze:command` | `make ze-doc-verify`, `make ze-cli-grammar-check` |
-| A plugin `register.go`, or anything generated | `make generate`, `make ze-plugin-imports-check` |
-| A new package's placement | `make ze-tier-check` |
-| Anything, once the commit script has run and it carried Go | `make ze-repository-tracked-build-check` -- the only check that compiles what git holds |
-| A `scripts/dev/*.py` tool | its sibling `*_test.py` directly (python needs no build cache), then `make ze-unit-pkg-test PKG=./scripts/dev` |
-| Several of the above, and you want breadth | `make ze-precommit-verify-changed` |
-**A change to what the daemon PUTS ON THE WIRE, installs, or shows MUST run the
-**The fixture that catches the regression is named after ANOTHER feature.** A rail
-**A guard is the case this bites hardest.** It changes the answer for every caller
-**A surface is usually observed by MORE THAN ONE suite, so "the" suite is the
-**A gate's population is defined by where a file LIVES, not by what you edited, so
-**Scoped evidence is keyed on the surface; the gate that catches you is keyed on
-**Ask it as a question about paths.** For each path in the commit that did not
-**When the table has no row for what you touched, you MUST derive it.** `mk/*.mk` names every
-**YOU MUST READ THE WHOLE FAILURE SUMMARY BEFORE YOU RE-RUN.** A verify run ends with
-- **`tail` on the log of a run that is still going.** The stage banner tells you
-- **Grepping for `--- FAIL` only.** Lint, tier, doc and inventory stages fail with
-**A second `ze-precommit-verify` cannot overlap the first: it blocks on the repo-wide lock**
-**A NARROW FAILURE MUST GET A NARROW RE-RUN; IT MUST NOT GET A SECOND FULL PASS.** When the
-**The status record is what forces the second pass, so plan the FIRST one to be
-**You MUST NOT stop to ask which way.** The operator is often not present, and a session
-### Step 2: Always
-Unless Thomas Owner Override is active, never commit with lint issues and never commit without test evidence when code changed.
 ## Branch Changes Are Forbidden
 Stay on the branch you started on.
 ## Before Destructive Actions

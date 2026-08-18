@@ -8,7 +8,7 @@ in hand, READ that rule's file before acting. A row marked `always-on` is
 already loaded in full (`ai/rules/CORE.md`) and needs no read; every other
 rule's body is one Read away at the path in its row.
 
-Rules: 28 (28 blocking, 0 advisory). Always-on: 7.
+Rules: 29 (29 blocking, 0 advisory). Always-on: 7.
 
 | Rule | Severity | When to read it |
 |------|----------|-----------------|
@@ -29,6 +29,7 @@ Rules: 28 (28 blocking, 0 advisory). Always-on: 7.
 | `ai/rules/planning.md` | blocking | before implementing any non-trivial feature, and whenever a spec phase starts, resumes, or closes |
 | `ai/rules/platform-linux.md` | blocking | writing Linux-only code, changing the installer initrd, or bumping and booting an appliance dependency |
 | `ai/rules/plugins.md` | blocking | creating or changing a plugin: its registration, placement, transport, command surface, process boundary, dispatch table, or a feature gate |
+| `ai/rules/precommit-verify.md` | blocking | before running precommit-verify, judging its red in a shared checkout, or running the tracked-build check after a commit script |
 | `ai/rules/protocol.md` | blocking | implementing or changing a protocol, an external API, a wire format, or a backend that applies operator config |
 | `ai/rules/quality.md` | blocking | before presenting any work as complete |
 | `ai/rules/repo-maintenance.md` | blocking | adding or changing a feature, tool, gate, hook, runtime dependency, or generated file, looking up which check enforces a rule, or reporting... |

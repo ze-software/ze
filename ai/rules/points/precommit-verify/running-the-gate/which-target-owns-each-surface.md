@@ -17,5 +17,5 @@ stage:
 | A plugin `register.go`, or anything generated | `make generate`, `make ze-plugin-imports-check` |
 | A new package's placement | `make ze-tier-check` |
 | Anything, once the commit script has run and it carried Go | `make ze-repository-tracked-build-check` -- the only check that compiles what git holds |
-| A `scripts/dev/*.py` tool | its sibling `*_test.py` directly (python needs no build cache), then `make ze-unit-pkg-test PKG=./scripts/dev` |
+| A `scripts/dev/*.py` tool | `make ze-unit-pkg-test PKG=./scripts/dev`, which runs the sibling `*_test.py` through `TestPythonUnitTests` and the Go tools' tests in one pass. A raw `python3 <tool>_test.py` is refused by the Bash hook (`ai/rules/commands.md`) |
 | Several of the above, and you want breadth | `make ze-precommit-verify-changed` |

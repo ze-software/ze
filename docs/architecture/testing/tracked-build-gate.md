@@ -74,7 +74,7 @@ tried first and both were inert:
 
 The gate judges what git already holds, so the commit that breaks HEAD is
 caught by the next run, not by itself. Two things make that bite:
-`ai/rules/git-safety.md` requires the check right after a commit script that
+`ai/rules/precommit-verify.md` requires the check right after a commit script that
 carried Go, and the gate is in `STRUCTURAL_GATES`, so the next commit is
 refused while HEAD is red.
 

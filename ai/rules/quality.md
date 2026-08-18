@@ -54,7 +54,7 @@ Every check answered honestly. "Probably fine" is not a pass — run the code, r
 
 Paste command output as evidence. "Should work" is not evidence.
 
-`make ze-precommit-verify` is the ONLY acceptable verification before claiming done. Run it in the foreground and wait for it to finish. Output auto-captured to `tmp/ze-verify.log`. See `ai/rules/git-safety.md` for the full pre-commit workflow, and its "Running ze-precommit-verify" for why you must not kill it for being slow.
+`make ze-precommit-verify` is the ONLY acceptable verification before claiming done. Run it in the foreground and wait for it to finish. Output auto-captured to `tmp/ze-verify.log`. See `ai/rules/precommit-verify.md` for the full pre-commit workflow, and its "Running The Gate" for why you must not kill it for being slow.
 
 Race coverage: `ze-precommit-verify` runs `-race` on component groups with changed `.go` files (two-pass strategy). For reactor concurrency changes, also run `make ze-unit-reactor-test-race` (`-race -count=20`).
 

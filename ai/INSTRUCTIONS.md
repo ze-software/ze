@@ -339,7 +339,7 @@ means "no rule applies".
 | Claim work is done | `ai/rules/completion.md`, `ai/rules/completion.md` -- every AC implemented, tested, wired; every exported symbol has a non-test caller |
 | Review code, or close a spec | `ai/rules/planning.md` -- review is the central deliverable and is INDEPENDENT; your own inline reasoning about code you wrote is NOT a review. Independence is a property of the CONTEXT, so ONE closure agent running every lens itself satisfies it and MUST NOT spawn readers of its own. Loop to zero, record the `review_gate.py` artifact (`commit_helper.py` enforces it) |
 | Finish Go edits | `ai/rules/commands.md` -- run `make ze-lint-changed` before claiming done |
-| Commit | `ai/rules/git-safety.md` -- fast commit-script path; check verify status before any `ze-precommit-verify` rerun |
+| Commit | `ai/rules/git-safety.md` -- fast commit-script path. What the commit owes in verification, and how to judge a red, is `ai/rules/precommit-verify.md` |
 | Run any test/build/lint command | `ai/rules/commands.md` -- prefer `make`; a bare `go test` drops feature tags and fakes reds; no pipes, read log after; write the log under `$(scripts/dev/session-scratch.sh)`, never at the `tmp/` root |
 | Delete / overwrite any user-visible file | `ai/rules/never-destroy-work.md` -- ask first for user-visible or uncommitted work; this is the standing exception to "don't ask" |
 | Complete work autonomously | `ai/rules/completion.md` -- finish the task, then report; ask only for destructive actions or genuine scope changes |

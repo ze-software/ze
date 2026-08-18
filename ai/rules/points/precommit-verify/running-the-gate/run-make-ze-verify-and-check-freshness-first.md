@@ -21,7 +21,9 @@ full pass (no `-race`) + `-race` only on component groups with changed
 `tmp/ze-verify.status`), so a package committed before it was verified is
 still tested rather than skipped on the now-clean tree. For reactor concurrency changes, also run `make
 ze-unit-reactor-test-race`. Output writes: `tmp/ze-verify.log`, per-stage logs
-under `tmp/verify/`, `tmp/ze-verify-failures.log`,
+under that run's own `tmp/verify/run-<start>-<mode>-<id>/` (reach one through the
+`detail-log` field of the failure index, never by guessing a path),
+`tmp/ze-verify-failures.log`,
 `tmp/ze-verify-failures.json`, and `tmp/ze-verify.status`. The full mode writes
 `tmp/ze-verify-full.json` as well, which is the coverage record a Go-carrying
 commit is gated on: the changed mode never writes it, so a cheaper run cannot

@@ -147,7 +147,7 @@ half lives in `plan/TEMPLATE-CLOSURE.md` and `/ze-close` appends it when it is
 first needed.
 
 **Verification: inner loop vs gate.** Steps 6 and 9 use the fast targets to
-iterate. `make ze-precommit-verify` is the pre-commit GATE (`ai/rules/git-safety.md`) and
+iterate. `make ze-precommit-verify` is the pre-commit GATE (`ai/rules/precommit-verify.md`) and
 is the only command the spec's Goal Gates name. Do not add a third spelling.
 
 ## Steps

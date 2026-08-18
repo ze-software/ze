@@ -25,11 +25,13 @@ seconds for the machine you are on, and `tmp/*` is gitignored, so that file is
 the only per-machine record there is. Read it as an expectation, never as a
 threshold: a run past it is a slow run, not a failed one.
 
-**A slow run can outlast the lock's own break threshold: raise `ZE_VERIFY_MAX_LOCK_AGE` rather than lose the pass.**
-When a second invocation is waiting, `verify-lock.sh` breaks a lock whose holder
-has run past `MAX_LOCK_AGE` (default 1800s) and SIGKILLs its process group. Half
-an hour is often enough for a full pass and is not guaranteed on a loaded VM, so
-that threshold can reach a healthy run rather than a stuck one.
+**A slow run is never broken for being slow, so there is no threshold to raise.**
+A waiter breaks a holder's slot only when that holder is DEAD, or when it has
+made no progress for the stall window: `_scan_and_claim` (`scripts/dev/ze-run.sh`)
+judges progress by the mtime of the job's log, never by elapsed time. A run still
+writing stages is a run still working, however long it has taken. `ZE_JOB_STALL_SECONDS`
+sets the window and is bounded to 60..3600; a value outside that range is refused
+before the job starts, so raising it past an hour is not a route to anything.
 
 **Never edit the tree while a verify runs, yours or anybody's: it reads the working tree.**
 An edit mid-run invalidates the run you are waiting for.
