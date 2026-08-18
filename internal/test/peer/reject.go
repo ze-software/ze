@@ -126,15 +126,30 @@ func (c *Checker) rejection(msg *Message) (string, bool) {
 	return "", false
 }
 
+// RejectionMarker is printed on a check-mode peer's output when a `reject=bgp:`
+// pattern fires. The runner's verdict reads it and lets it override the success
+// token (internal/test/runner/peer_contract.go).
+//
+// It exists because the success token is not the peer's last word under
+// option=linger: teardown is a kill, so the peer announces success BEFORE the
+// linger loop and can only discover a rejection afterwards.
+const RejectionMarker = "ZE-PEER-REJECTED"
+
 // rejected fails the peer when a frame carries bytes a `reject=bgp:` forbids.
 // The frame is printed first: the pattern alone says which rule fired, and the
 // reader still has to see the message that broke it.
+//
+// The rejection marker is printed on the peer's own output because the returned
+// Result is not always what decides the run. Under option=linger the peer has
+// already announced success before entering the linger loop, so a rejection
+// found there has to retract that announcement in the output the runner reads.
 func (p *Peer) rejected(msg *Message) (Result, bool) {
 	needle, found := p.checker.rejection(msg)
 	if !found {
 		return Result{}, false
 	}
 	p.printPayload("msg  recv", msg.Header, msg.Body)
+	p.printf("%s: received bytes that reject=bgp:pattern=%s forbids\n", RejectionMarker, needle)
 	return Result{Success: false, Error: fmt.Errorf(
 		"received bytes that reject=bgp:pattern=%s forbids, in %s", needle, msg.Stream())}, true
 }

@@ -2,6 +2,7 @@ package peer
 
 import (
 	"encoding/hex"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -161,4 +162,39 @@ func TestParseRejectRulePassesOtherLinesThrough(t *testing.T) {
 		assert.Zero(t, conn)
 		assert.Empty(t, pattern)
 	}
+}
+
+// TestRejectedPrintsTheRejectionMarker pins the peer half of the linger verdict.
+//
+// VALIDATES: a rejection writes RejectionMarker to the peer's own output, which
+// is the only channel the runner's verdict reads once the peer has already
+// announced success.
+// PREVENTS: the marker being dropped from rejected() while
+// failedCheckPeers (internal/test/runner/peer_contract.go) still looks for it.
+// The two halves share only this constant, so nothing else would go red: every
+// negative assertion held open by option=linger would quietly become vacuous
+// again, which is the exact defect this pair was written to close.
+func TestRejectedPrintsTheRejectionMarker(t *testing.T) {
+	c, err := newChecker([]string{
+		"expect=bgp:conn=1:seq=1:contains=18C00002",
+		"reject=bgp:conn=1:pattern=180A0100",
+	})
+	require.NoError(t, err)
+	c.Init()
+
+	var out strings.Builder
+	p := &Peer{config: &Config{}, checker: c, output: &out}
+
+	res, rejected := p.rejected(wireMessage(t, "0000001B180A0100"))
+	assert.True(t, rejected, "the forbidden bytes are on the wire")
+	assert.False(t, res.Success, "a rejection fails the peer")
+	assert.Contains(t, out.String(), RejectionMarker,
+		"the rejection must be visible in the peer's output, not only in the returned Result")
+
+	var clean strings.Builder
+	p2 := &Peer{config: &Config{}, checker: c, output: &clean}
+	_, rejected = p2.rejected(wireMessage(t, "0000001B18C00002"))
+	assert.False(t, rejected, "a frame carrying other routes is accepted")
+	assert.NotContains(t, clean.String(), RejectionMarker,
+		"a clean frame must not print the marker; it would fail every lingering peer")
 }

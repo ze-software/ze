@@ -422,3 +422,31 @@ func TestPeerLabelPrefersAuthoredNames(t *testing.T) {
 	assert.Equal(t, "stdin=peer1", peerLabel(RunCommand{Stdin: "peer1", Seq: 3}))
 	assert.Equal(t, "cmd seq=3", peerLabel(RunCommand{Seq: 3}))
 }
+
+// TestPeerVerdictFailsOnRetractionAfterSuccess is the regression guard for the
+// linger vacuity defect.
+//
+// VALIDATES: a rejection the linger loop finds fails the peer, even though the
+// peer already printed peerSuccessToken before entering that loop.
+// PREVENTS: the verdict reverting to a bare peerSuccessToken substring test.
+// (*Peer).completed prints the success token BEFORE the linger loop, because
+// teardown is a kill and the post-Run print can be lost. Under a bare substring
+// test every negative assertion held open by option=linger is therefore vacuous:
+// the rejection is detected, returned, and then discarded by the verdict.
+func TestPeerVerdictFailsOnRetractionAfterSuccess(t *testing.T) {
+	lingered := "exchange successful\n" +
+		"lingering: holding the session open until teardown (option=linger)\n" +
+		peerRejectionMarker + ": received bytes that reject=bgp:pattern=01180A0100 forbids\n"
+
+	got := failedCheckPeers(1, []peerOutput{mkPeerOutput(t, true, "stdin=peer1", lingered)})
+	if len(got) != 1 || got[0] != "stdin=peer1" {
+		t.Errorf("failedCheckPeers = %v, want [stdin=peer1]: a rejection found after the "+
+			"success token was printed must still fail the peer", got)
+	}
+
+	clean := "exchange successful\n" +
+		"lingering: holding the session open until teardown (option=linger)\n"
+	if got := failedCheckPeers(1, []peerOutput{mkPeerOutput(t, true, "stdin=peer1", clean)}); got != nil {
+		t.Errorf("failedCheckPeers = %v, want nil: a lingering peer that saw no rejection passes", got)
+	}
+}

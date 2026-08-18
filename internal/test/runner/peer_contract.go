@@ -74,6 +74,15 @@ func countCheckPeers(cmds []RunCommand) int {
 // (internal/test/cli/cmd_bgp.go).
 const peerSuccessToken = "successful"
 
+// peerRejectionMarker is what a check-mode ze-peer prints when a reject= pattern
+// fires. It exists because the success token is not always the peer's last word:
+// under option=linger the peer announces success BEFORE the linger loop, since
+// teardown is a kill and a post-Run print can be lost. A verdict that only asks
+// whether the success token appeared therefore cannot see a rejection the linger
+// loop found, which made every negative assertion held open by linger vacuous.
+// The retraction is checked after the success token and overrides it.
+const peerRejectionMarker = peer.RejectionMarker
+
 // peerLabel names a peer in a failure message, preferring whatever the .ci author
 // actually wrote: an explicit cmd name, else the stdin block the peer's
 // expectations came from, else the command's sequence number.
@@ -115,7 +124,11 @@ func failedCheckPeers(declared int, peers []peerOutput) []string {
 			continue
 		}
 		captured++
-		if strings.Contains(peers[i].combined(), peerSuccessToken) {
+		out := peers[i].combined()
+		// The retraction is read first and overrides the success token, because
+		// under option=linger the peer prints success before the linger loop and
+		// only then discovers the rejection.
+		if strings.Contains(out, peerSuccessToken) && !strings.Contains(out, peerRejectionMarker) {
 			continue
 		}
 		label := peers[i].label
