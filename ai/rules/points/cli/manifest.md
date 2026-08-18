@@ -6,6 +6,13 @@ related: evidence, performance, protocol, repo-maintenance, git-safety
 ---
 directives ## Directives
   put-a-closed-keyword-before-every-user-supplied-value
+  follow-the-cli-patterns-in-every-command
+  support-every-pipe-operator-in-every-command-that-produces-output
+  answer-with-structured-data-never-pre-rendered-text
+  keep-state-in-a-field-or-a-column-never-a-sigil
+  say-what-failed-why-and-what-to-do-next-in-every-error
+  follow-the-json-format-conventions-in-all-json-output
+  follow-the-agent-tooling-contract-in-agent-facing-output
 cli-grammar-keywords-before-values ## CLI Grammar: Keywords Before Values
   the-rule
   the-command-token-order
@@ -120,8 +127,6 @@ pipe-completeness ## Pipe Completeness
   for-every-new-command-or-display-mode
   grep-for-the-pipe-entry-points
   check-a-bypassing-path-still-applies-data-pipes
-  known-violations-to-fix
-  the-commands-still-missing-pipe-support
   how-the-monitor-log-paths-apply-data-pipes
 error-messages ## Error Messages
   the-contract-what-why-next

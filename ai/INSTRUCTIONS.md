@@ -323,6 +323,7 @@ means "no rule applies".
 | Find recurring development friction or problem patterns | `ai/rules/repo-maintenance.md` -- report the pattern and decide whether a new or changed rule would prevent it |
 | Write any code | `ai/rules/architecture.md`, relevant `ai/patterns/`, `ai/rules/repo-maintenance.md` (which checks will fire) |
 | Write or review a guard (auth check, validator, constraint, ratchet, lookup that gates behavior) | `ai/rules/evidence.md` -- fail closed or say something; a zero value must never be a valid-looking answer; drive the guard's test from its entry point, never the helper alone |
+| Add or change a CLI command, its output, or its JSON | `ai/rules/cli.md` -- keyword before value, every command supports all pipe operators, and the response payload is structured data so `\| json`, `\| yaml` and `\| table` each render it. Structural template: `ai/patterns/cli-command.md` |
 | Add terminal colors or TUI styling | `docs/architecture/cli/color-system.md` -- 7 semantic roles, consistent palette across all surfaces |
 | Touch wire encoding, allocate memory, or build strings | `ai/rules/performance.md`, `ai/rules/performance.md`, `ai/rules/performance.md` -- load-bearing divergence from standard Go |
 | Add a YANG leaf, env var, or config option | `ai/rules/config.md` (YANG vs env var decision), `ai/rules/config.md` (naming), `ai/patterns/config-option.md` (structural template) |

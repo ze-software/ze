@@ -11,10 +11,10 @@ Read the grammar rule before designing any new command.
 
 | Rule | When it applies |
 |------|----------------|
-| `ai/rules/cli.md` | Every command producing output MUST support all pipe operators |
+| `ai/rules/cli.md` | Every command producing output MUST support all pipe operators. Its response payload MUST be structured data, never text a renderer already formatted, so `\| json`, `\| yaml` and `\| table` each render it |
+| `ai/rules/cli.md` | If the command emits JSON: kebab-case keys and the envelope conventions |
 | `ai/rules/evidence.md` | If the command lists or enumerates things (help, show, status) |
 | `ai/rules/goroutine-lifecycle.md` | If the command launches background work (monitor, streaming) |
-| `ai/rules/cli.md` | If the command emits JSON |
 | Full navigation: `ai/INDEX.md` | |
 
 ## Two Types of Commands

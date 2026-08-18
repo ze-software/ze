@@ -157,3 +157,5 @@ The Why cell says what happened to the instruction, not that it was removed.
 | `git-safety/before-any-commit/who-owns-each-red-a-full-run-reports` | unchanged instruction, moved with the pre-commit verification rule to `precommit-verify/reading-a-red/who-owns-each-red-a-full-run-reports` |
 | `git-safety/before-any-commit/your-working-tree-is-not-what-you-committed-blocking` | heading only, no instruction; replaced by the `after-the-commit` section line of `precommit-verify` |
 | `git-safety/before-any-commit/ze-test-pkg-examples` | unchanged instruction, moved with the pre-commit verification rule to `precommit-verify/running-the-gate/ze-test-pkg-examples` |
+| `cli/pipe-completeness/known-violations-to-fix` | heading only, over a table whose sole row read `_(none currently)_`; the mechanical check above it is what finds a command missing pipe support |
+| `cli/pipe-completeness/the-commands-still-missing-pipe-support` | the tracker held no command, so it stated no instruction and cost every reader of the rule; a violation is found by the grep in "Mechanical Check (pipes)" |
