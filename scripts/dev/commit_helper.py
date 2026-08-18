@@ -2091,8 +2091,14 @@ def _deferral_prose(line: str) -> str:
     `DEFERRAL_PATTERNS` entry, a test fixture string, a doc example -- is data,
     not a statement of deferring work, so it is removed before matching. A phrase
     in bare markdown text or a bare code comment survives and is caught.
+
+    A backslash-escaped quote is blanked FIRST. It is what a JSON string holding
+    a quotation looks like, and left in place it closes the span that encloses
+    it: the rest of that string then reads as bare prose, which is how a
+    generated data file quoting a code comment tripped this gate.
     """
     text = line[1:] if line.startswith("+") else line
+    text = text.replace('\\"', " ")
     text = re.sub(r'"[^"]*"', " ", text)
     text = re.sub(r"'[^']*'", " ", text)
     text = re.sub(r"`[^`]*`", " ", text)

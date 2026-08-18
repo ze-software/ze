@@ -796,6 +796,37 @@ class TestDeferralInDiff(unittest.TestCase):
                 ch.deferral_in_diff_problems(root, ("internal/vendored/y.go",), ())
             )
 
+    def test_json_escaped_quote_leaves_the_string_as_data(self):
+        """A generated data file quoting a code comment is data, not a deferral.
+
+        The site search index writes one JSON object per page, so a page that
+        quotes `"LAC-initiated incoming calls are deferred to a later spec"`
+        reaches this scan with the inner quotes backslash-escaped. Those escapes
+        used to close the span enclosing them, the rest of the string then read
+        as bare prose, and the gate refused the website publish commit. No
+        plan/deferrals/ shard can record a quotation.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            (root / "data").mkdir()
+            (root / "data" / "search-index.json").write_text(
+                '[{"text":"the page says \\"work is deferred to a later spec\\" here"}]\n'
+            )
+            self.assertEqual(
+                ch.deferral_in_diff_problems(root, ("data/search-index.json",), ()),
+                [],
+            )
+
+    def test_bare_deferral_beside_a_json_escape_is_still_caught(self):
+        """Blanking the escape must not blank the line: a real deferral survives."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            (root / "internal").mkdir()
+            (root / "internal" / "z.go").write_text(
+                'package z\n// prints \\"ok\\", and the retry is deferred to a later spec\n'
+            )
+            self.assertTrue(ch.deferral_in_diff_problems(root, ("internal/z.go",), ()))
+
     def test_bare_deferral_in_rule_doc_is_exempt(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = self._repo(tmp)
