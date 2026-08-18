@@ -3,6 +3,7 @@ package rib
 import (
 	"bytes"
 	"net/netip"
+	"sync"
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
@@ -183,5 +184,67 @@ func BenchmarkRouteStore_InternRoute(b *testing.B) {
 
 	for b.Loop() {
 		store.internRoute(route)
+	}
+}
+
+// VALIDATES: a route another caller still holds is never removed from the store.
+// internRoute finds an entry and acquires it under routesMu, so releaseRoute must
+// decide under that same lock. Deciding outside it lets an intern take the count
+// back to 1 on a route already condemned, and the map entry is then deleted under
+// a live holder.
+// PREVENTS: interned components returning to their stores while a caller holds a
+// route that still points at them.
+// Producer: releaseRoute (store.go).
+func TestReleaseRouteCannotDropARouteAnotherInternHolds(t *testing.T) {
+	store := newRouteStore(10)
+	defer store.Stop()
+
+	prefix := netip.MustParsePrefix("10.0.0.0/24")
+	nextHop := netip.MustParseAddr("192.168.1.1")
+	n := nlri.NewINET(family.IPv4Unicast, prefix, 0)
+	r := NewRoute(n, nextHop, []attribute.Attribute{attribute.LocalPref(100)})
+
+	// Resolve the key once. Index() fills a lazy cache on the Route it is called
+	// on, so reading it from the interned route inside the goroutines would race
+	// with releaseRoute's own call.
+	idx := string(r.Index())
+
+	const goroutines = 4
+	const iterations = 3000
+
+	var wg sync.WaitGroup
+	missing := make(chan struct{}, 1)
+
+	for range goroutines {
+		wg.Go(func() {
+			for range iterations {
+				held := store.internRoute(r)
+
+				// This goroutine holds a reference, so the entry cannot legally
+				// be gone: only a decrement to zero may remove it.
+				store.routesMu.RLock()
+				_, ok := store.routes[idx]
+				store.routesMu.RUnlock()
+				if !ok {
+					select {
+					case missing <- struct{}{}:
+					default:
+					}
+				}
+
+				store.releaseRoute(held)
+			}
+		})
+	}
+	wg.Wait()
+
+	select {
+	case <-missing:
+		t.Fatal("a route was removed from the store while a caller held a reference to it")
+	default:
+	}
+
+	if stats := store.Stats(); stats.Routes != 0 {
+		t.Errorf("after balanced intern and release: %d routes remain, want 0", stats.Routes)
 	}
 }

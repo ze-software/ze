@@ -197,24 +197,35 @@ func (rs *RouteStore) internRoute(route *Route) *Route {
 }
 
 // releaseRoute decrements the reference count and removes if zero.
+//
+// The decrement runs under routesMu because internRoute finds an entry and
+// acquires it under that same lock. Decrementing outside it lets an intern
+// take the count back to 1 on a route this call has already decided to free,
+// and the interned components then return to their stores under a route the
+// other caller still holds.
+//
+// The interned components are released after the unlock, never under routesMu.
+// getOrCreateAttrStore takes rs.mu, and internRoute takes rs.mu before
+// routesMu, so holding both the other way round inverts the lock ordering.
+// Releasing after the unlock is safe: AttributeStore.Release carries its own
+// lock and refcount.
 func (rs *RouteStore) releaseRoute(route *Route) {
-	if route.Release() {
-		// Remove from store
-		idx := string(route.Index())
-
-		rs.routesMu.Lock()
-		delete(rs.routes, idx)
+	rs.routesMu.Lock()
+	if !route.Release() {
 		rs.routesMu.Unlock()
-
-		// Release interned attributes
-		for _, attr := range route.attributes {
-			s := rs.getOrCreateAttrStore(attr.Code())
-			s.store.Release(hashableAttr{attr: attr})
-		}
-
-		// Release interned NLRI
-		rs.nlriStore.store.Release(hashableNLRI{n: route.nlri})
+		return
 	}
+	delete(rs.routes, string(route.Index()))
+	rs.routesMu.Unlock()
+
+	// Release interned attributes
+	for _, attr := range route.attributes {
+		s := rs.getOrCreateAttrStore(attr.Code())
+		s.store.Release(hashableAttr{attr: attr})
+	}
+
+	// Release interned NLRI
+	rs.nlriStore.store.Release(hashableNLRI{n: route.nlri})
 }
 
 // Stats returns store statistics.
