@@ -193,7 +193,7 @@ will refuse hours later at reconcile time.
 | `TestComponentToMatchRejectsUnnamedProtocol` | `internal/plugins/flowspec-firewall/translate_test.go` | replaces `TestProtoNameUnknown`: an unnamed number is refused, never rendered as digits | |
 | `TestComponentToMatchMultipleProtocolValues` | `internal/plugins/flowspec-firewall/translate_test.go` | every listed value is enforced or the rule is refused | |
 | `TestLowerProtoMatchAcceptsEveryCanonicalName` | `internal/plugins/firewall/nft/lower_linux_test.go` | every name in the canonical table lowers | |
-| `TestApplyRulesRejectsUntranslatableRuleAndKeepsOthers` | `internal/plugins/firewall/nft/backend_linux_test.go` | validates A-1: a good table still reaches the fake conn's flush when a sibling term is unlowerable | |
+| `TestApplyRulesRejectsUntranslatableRuleAndKeepsOthers` | `internal/plugins/flowspec-firewall/blast_radius_test.go` | validates A-1: a good table still reaches the fake conn's flush when a sibling term is unlowerable | |
 | `TestPolicyRouteProtocolRejectsUnknownName` | `internal/plugins/policyroute/translate_test.go` | a non-canonical protocol is refused before lowering | |
 | `TestProtocolTableIsSingleSource` | `internal/component/firewall/protocol_test.go` | the flowspec and VPP name sets are derived from `ianaProtocolNumbers`, not independent literals | |
 
@@ -271,7 +271,7 @@ will refuse hours later at reconcile time.
 
 1. **Phase: Wiring (MANDATORY FIRST)** -- prove the chain and the blast radius before changing behavior
    - Tests: `TestApplyRulesRejectsUntranslatableRuleAndKeepsOthers`, `TestLowerProtoMatchAcceptsEveryCanonicalName`
-   - Files: `internal/plugins/firewall/nft/backend_linux_test.go`, `internal/plugins/firewall/nft/lower_linux_test.go`
+   - Files: `internal/plugins/flowspec-firewall/blast_radius_test.go`, `internal/plugins/firewall/nft/lower_linux_test.go`
    - Verify: the blast-radius test fails today, validating A-1 or refuting it before any fix is designed around it
 2. **Phase: one protocol table** -- make the canonical table serve every producer
    - Tests: `TestProtocolTableIsSingleSource`, `TestComponentToMatchEveryCanonicalNumber`
