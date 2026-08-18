@@ -1023,37 +1023,45 @@ def _design_go(topic: str) -> str:
     return f"// Design: docs/{topic}.md -- {topic}\npackage {topic}\n"
 
 
+def _package_go(topic: str) -> str:
+    """A Go file whose `// Package` doc comment is a PACKAGE-MAP source row."""
+    return f"// Package {topic} does a thing.\npackage {topic}\n"
+
+
 def _seed_index_repo(repo: str, extra_generators: tuple[str, ...] = ()) -> None:
     """A fixture repo the discovery-index gate can actually run in.
 
-    By default only ONE generator is copied (docs_to_code.py, plus
-    discovery_sources.py which it imports): every consumer skips a generator that
-    is not present, so PACKAGE-MAP stays out and exactly one index is judgeable.
-    Pass `extra_generators` when a case must distinguish "verify every index"
-    from "verify the ones this commit feeds" -- one generator cannot.
+    It copies the generator discovery_sources.GENERATORS actually names, plus
+    discovery_sources.py which that generator imports. Seeding any other script
+    judges nothing: discovery_index_freshness zips GENERATORS with OUTPUTS and
+    SKIPS a generator the tree does not carry, so a fixture that seeds a script
+    outside that tuple leaves the state "unknown" and the gate returns no
+    problems at all. Four cases here asserted a block and got an empty list for
+    exactly that reason, after PACKAGE-MAP replaced DOCS-TO-CODE as the one
+    discovery index and this helper kept seeding the old generator.
 
-    The source it seeds is a `// Design:` Go file, which is what DOCS-TO-CODE is
-    built from. It used to be a `plan/learned/NNN-*.md` summary feeding a learned
-    index; that corpus and its generator are gone (plan/spec-problem-journal.md).
-    The journal that replaced the corpus generates NO index by design, so no
-    `plan/journal/` file can stand in here: what these cases exercise is index
-    FRESHNESS, and an index is what the journal deliberately does not have. The
-    journal's own commit-gate coverage is the spec-audit and closure-stem cases
-    above, which need no generator at all.
+    The source it seeds carries a `// Package` doc comment, which is what
+    PACKAGE-MAP rows are built from. It used to be a `plan/learned/NNN-*.md`
+    summary feeding a learned index; that corpus and its generator are gone
+    (plan/spec-problem-journal.md). The journal that replaced the corpus
+    generates NO index by design, so no `plan/journal/` file can stand in here:
+    what these cases exercise is index FRESHNESS, and an index is what the
+    journal deliberately does not have. The journal's own commit-gate coverage
+    is the spec-audit and closure-stem cases above, which need no generator.
     """
     gens = (
-        "scripts/dev/docs_to_code.py",
+        "scripts/dev/package_map.py",
         "scripts/dev/discovery_sources.py",
     ) + extra_generators
     for rel in gens:
         dst = os.path.join(repo, rel)
         os.makedirs(os.path.dirname(dst), exist_ok=True)
         shutil.copyfile(os.path.join(DEV, os.path.basename(rel)), dst)
-    _write(repo, "internal/alpha/a.go", _design_go("alpha"))
+    _write(repo, "internal/alpha/a.go", _package_go("alpha"))
     os.makedirs(os.path.join(repo, "ai"), exist_ok=True)
-    _regen_docs_to_code(repo)
+    _regen_package_map(repo)
     _git(repo, "add", "scripts", "internal", "ai")
-    _git(repo, "commit", "-q", "-m", "seed docs-to-code index")
+    _git(repo, "commit", "-q", "-m", "seed package-map index")
 
 
 def _regen(repo: str, generator: str) -> None:
@@ -1065,8 +1073,8 @@ def _regen(repo: str, generator: str) -> None:
     )
 
 
-def _regen_docs_to_code(repo: str) -> None:
-    _regen(repo, "docs_to_code.py")
+def _regen_package_map(repo: str) -> None:
+    _regen(repo, "package_map.py")
 
 
 def run_commit_gate(results: Results) -> None:
@@ -1448,7 +1456,7 @@ def run_commit_gate(results: Results) -> None:
         # A: this commit adds a source and omits the regenerated index -> block.
         # Asserts the MESSAGE, not merely that something blocked: the pre-change
         # implementation also blocked here, by a different branch.
-        _write(repo, "internal/beta/b.go", _design_go("beta"))
+        _write(repo, "internal/beta/b.go", _package_go("beta"))
         with contextlib.redirect_stderr(io.StringIO()):
             problems = ch.discovery_index_problems(Path(repo), ("internal/beta/b.go",))
         results.check(
@@ -1471,12 +1479,12 @@ def run_commit_gate(results: Results) -> None:
 
         # B: same commit, index regenerated to match HEAD + its own source, while a
         # concurrent session leaves an UNTRACKED source in the tree -> no block.
-        _regen_docs_to_code(repo)
-        _write(repo, "internal/foreign/f.go", _design_go("foreign"))
+        _regen_package_map(repo)
+        _write(repo, "internal/foreign/f.go", _package_go("foreign"))
         with contextlib.redirect_stderr(io.StringIO()):
             problems = ch.discovery_index_problems(
                 Path(repo),
-                ("internal/beta/b.go", "ai/DOCS-TO-CODE.md"),
+                ("internal/beta/b.go", "ai/PACKAGE-MAP.md"),
             )
         results.check(
             "commit-gate-index-foreign-staleness-passes", not problems, repr(problems)
@@ -1486,11 +1494,11 @@ def run_commit_gate(results: Results) -> None:
         # source and then committed -> it would publish a row for a file absent
         # from HEAD. A never-committed summary reached HEAD's committed index
         # this way, and a working-tree check calls this state "fresh".
-        _regen_docs_to_code(repo)
+        _regen_package_map(repo)
         with contextlib.redirect_stderr(io.StringIO()):
             problems = ch.discovery_index_problems(
                 Path(repo),
-                ("internal/beta/b.go", "ai/DOCS-TO-CODE.md"),
+                ("internal/beta/b.go", "ai/PACKAGE-MAP.md"),
             )
         results.check(
             "commit-gate-index-foreign-row-included-blocks",
@@ -1503,44 +1511,40 @@ def run_commit_gate(results: Results) -> None:
 
     # --- discovery-index: an index the commit does not visibly FEED is still
     # verified. `indexes_fed_by` recognises a PACKAGE-MAP source by a `// Package`
-    # header or a register.go name, but package_map keys its rows on DIRECTORY
-    # existence, so a new .go carrying only `// Design:` drifts PACKAGE-MAP while
-    # feeding DOCS-TO-CODE alone. Needs TWO generators: with one, "verify every
-    # index" and "verify the fed ones" are indistinguishable.
+    # header or a register.go name, so a new .go carrying only `// Design:` feeds
+    # NOTHING by that rule -- yet package_map keys its rows on DIRECTORY
+    # existence, so the new package drifts the map anyway. A gate that verified
+    # only the indexes a commit feeds would pass this and publish a stale map.
     repo = _init_repo()
     try:
-        _seed_index_repo(repo, extra_generators=("scripts/dev/package_map.py",))
+        _seed_index_repo(repo)
         _write(
             repo,
             "internal/existing/a.go",
             "// Package existing does a thing.\npackage existing\n",
         )
-        _regen(repo, "package_map.py")
+        _regen_package_map(repo)
         _git(repo, "add", "internal", "ai")
         _git(repo, "commit", "-q", "-m", "seed package map")
 
-        # The new file feeds DOCS-TO-CODE only (no `// Package`), yet it adds a
-        # PACKAGE-MAP row. The author regenerated BOTH indexes and --file'd only
-        # DOCS-TO-CODE, the one this commit visibly feeds, so the working tree is
-        # FRESH and only the commit view can see the PACKAGE-MAP drift. Both
-        # generators regenerate on purpose: leaving DOCS-TO-CODE stale as well
-        # would let the assertion pass on the fed index's own drift.
+        # The new file feeds no index by `indexes_fed_by`, yet it adds a
+        # PACKAGE-MAP row. The author regenerated the map, so the WORKING TREE is
+        # fresh, and --file'd only the source: only the commit view (HEAD plus
+        # this commit's own files) can see that the committed map will not match
+        # the committed tree.
         _write(
             repo,
             "internal/newpkg/thing.go",
             "// Design: docs/x.md -- thing\npackage newpkg\n",
         )
-        _regen(repo, "package_map.py")
-        _regen_docs_to_code(repo)
+        _regen_package_map(repo)
         with contextlib.redirect_stderr(io.StringIO()):
             problems = ch.discovery_index_problems(
-                Path(repo), ("internal/newpkg/thing.go", "ai/DOCS-TO-CODE.md")
+                Path(repo), ("internal/newpkg/thing.go",)
             )
         results.check(
             "commit-gate-index-unfed-index-still-verified",
-            bool(problems)
-            and "PACKAGE-MAP" in "".join(problems)
-            and "DOCS-TO-CODE" not in "".join(problems),
+            bool(problems) and "PACKAGE-MAP" in "".join(problems),
             repr(problems),
         )
     finally:
@@ -1553,8 +1557,8 @@ def run_commit_gate(results: Results) -> None:
     repo = _init_repo()
     try:
         _seed_index_repo(repo)
-        _write(repo, "internal/beta/b.go", _design_go("beta"))
-        _regen_docs_to_code(repo)
+        _write(repo, "internal/beta/b.go", _package_go("beta"))
+        _regen_package_map(repo)
         _git(repo, "add", "internal", "ai")
         _git(repo, "commit", "-q", "-m", "add beta")
         os.remove(os.path.join(repo, "internal/beta/b.go"))
@@ -1569,10 +1573,10 @@ def run_commit_gate(results: Results) -> None:
         )
 
         # E2: same removal with the regenerated index riding along -> passes.
-        _regen_docs_to_code(repo)
+        _regen_package_map(repo)
         with contextlib.redirect_stderr(io.StringIO()):
             problems = ch.discovery_index_problems(
-                Path(repo), ("ai/DOCS-TO-CODE.md",), ("internal/beta/b.go",)
+                Path(repo), ("ai/PACKAGE-MAP.md",), ("internal/beta/b.go",)
             )
         results.check(
             "commit-gate-index-removal-regenerated-passes", not problems, repr(problems)
@@ -1587,8 +1591,8 @@ def run_commit_gate(results: Results) -> None:
     repo = _init_repo()
     try:
         _seed_index_repo(repo)
-        _write(repo, "internal/beta/b.go", _design_go("beta"))
-        _regen_docs_to_code(repo)
+        _write(repo, "internal/beta/b.go", _package_go("beta"))
+        _regen_package_map(repo)
         _git(repo, "add", "internal", "ai")
         _git(repo, "commit", "-q", "-m", "add beta")
         os.remove(os.path.join(repo, "internal/beta/b.go"))
