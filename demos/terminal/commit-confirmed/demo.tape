@@ -11,7 +11,9 @@ Enter
 Type "bash /src/demos/terminal/cards.sh commit-confirmed intro"
 Enter
 Show
-Sleep 10s
+Wait+Screen /====/
+Sleep 500ms
+Screenshot artifacts/commit-confirmed.png
 
 Hide
 Type "clear"
@@ -58,7 +60,6 @@ Type "show system host"
 Enter
 Wait+Screen /edge-confirmed/
 Sleep 5s
-Screenshot artifacts/commit-confirmed.png
 
 Hide
 Type "clear"

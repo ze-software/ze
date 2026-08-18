@@ -17,7 +17,9 @@ Enter
 Type "bash /src/demos/terminal/cards.sh rib-fib intro"
 Enter
 Show
-Sleep 11s
+Wait+Screen /====/
+Sleep 500ms
+Screenshot artifacts/rib-fib.png
 
 Hide
 Type "clear"
@@ -34,7 +36,6 @@ Type "ip -details route show exact 198.51.100.0/24"
 Enter
 Wait+Screen /proto 250/
 Sleep 6s
-Screenshot artifacts/rib-fib.png
 
 Hide
 Type "clear"

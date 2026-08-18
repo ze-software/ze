@@ -5,7 +5,9 @@ Hide
 Type "bash /src/demos/terminal/cards.sh launcher intro"
 Enter
 Show
-Sleep 11s
+Wait+Screen /====/
+Sleep 500ms
+Screenshot artifacts/launcher.png
 
 Hide
 Type "clear"
@@ -26,7 +28,6 @@ Sleep 4s
 Type "traceroute"
 Wait+Screen /filter: traceroute/
 Sleep 7s
-Screenshot artifacts/launcher.png
 
 Escape
 Sleep 3s

@@ -10,7 +10,9 @@ Wait+Screen /terminal demo ready/
 Type "bash /src/demos/terminal/cards.sh traceroute intro"
 Enter
 Show
-Sleep 11s
+Wait+Screen /====/
+Sleep 500ms
+Screenshot artifacts/traceroute.png
 
 Hide
 Type "clear"
@@ -28,7 +30,6 @@ Type "run monitor traceroute 192.0.2.53"
 Enter
 Wait+Screen /Loss/
 Sleep 10s
-Screenshot artifacts/traceroute.png
 Sleep 3s
 Type "q"
 Sleep 3s

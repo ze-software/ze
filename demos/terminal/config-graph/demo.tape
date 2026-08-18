@@ -7,7 +7,9 @@ Enter
 Type "bash /src/demos/terminal/cards.sh config-graph intro"
 Enter
 Show
-Sleep 11s
+Wait+Screen /====/
+Sleep 500ms
+Screenshot artifacts/config-graph.png
 
 Hide
 Type "clear"
@@ -32,5 +34,4 @@ Sleep 5s
 Type "ze config graph /src/demos/terminal/config-graph/router.conf | ze pipe match inherits"
 Enter
 Sleep 7s
-Screenshot artifacts/config-graph.png
 Sleep 2s

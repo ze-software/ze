@@ -14,7 +14,9 @@ Enter
 Type "bash /src/demos/terminal/cards.sh config-views intro"
 Enter
 Show
-Sleep 11s
+Wait+Screen /====/
+Sleep 500ms
+Screenshot artifacts/config-views.png
 
 Hide
 Type "clear"
@@ -24,7 +26,6 @@ Type "ze config show router.conf bgp peer transit-a"
 Enter
 Wait+Screen /remote ip 192.0.2.2/
 Sleep 7s
-Screenshot artifacts/config-views.png
 Type "clear"
 Enter
 Type "ze config migrate --format set router.conf 2>/dev/null | ze pipe match 'bgp peer transit-a'"

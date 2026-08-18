@@ -10,7 +10,9 @@ Wait+Screen /terminal demo ready/
 Type "bash /src/demos/terminal/cards.sh cli-dashboard intro"
 Enter
 Show
-Sleep 11s
+Wait+Screen /====/
+Sleep 500ms
+Screenshot artifacts/cli-dashboard.png
 
 Hide
 Type "clear"
@@ -36,7 +38,6 @@ Sleep 3s
 Enter
 Wait+Screen /Peer Detail/
 Sleep 7s
-Screenshot artifacts/cli-dashboard.png
 
 Escape
 Sleep 3s

@@ -17,7 +17,9 @@ Enter
 Type "bash /src/demos/terminal/cards.sh rpki intro"
 Enter
 Show
-Sleep 11s
+Wait+Screen /====/
+Sleep 500ms
+Screenshot artifacts/rpki.png
 
 Hide
 Type "clear"
@@ -33,7 +35,6 @@ Type "ze cli -c 'show bgp adj-rib-in | no-more'"
 Enter
 Wait+Screen /11.43.0.0\/24/
 Sleep 7s
-Screenshot artifacts/rpki.png
 
 Hide
 Type "/src/demos/terminal/rpki/run.sh stop"

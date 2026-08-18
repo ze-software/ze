@@ -14,7 +14,9 @@ Enter
 Type "bash /src/demos/terminal/cards.sh vrrp-failover intro"
 Enter
 Show
-Sleep 11s
+Wait+Screen /====/
+Sleep 500ms
+Screenshot artifacts/vrrp-failover.png
 
 Hide
 Type "export ZE_PID=/src/tmp/terminal-demos/state/vrrp-failover/ze.pid ZE_CONFIG_DIR=/src/tmp/terminal-demos/state/vrrp-failover/config ZE_SSH_PASSWORD=secret123"
@@ -70,5 +72,4 @@ Type "bash -x /src/demos/terminal/vrrp-failover/failover-proof.sh"
 Enter
 Wait+Screen /2 packets transmitted, 2 received/
 Sleep 8s
-Screenshot artifacts/vrrp-failover.png
 Sleep 2s

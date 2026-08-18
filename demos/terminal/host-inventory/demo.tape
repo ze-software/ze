@@ -7,7 +7,9 @@ Enter
 Type "bash /src/demos/terminal/cards.sh host-inventory intro"
 Enter
 Show
-Sleep 11s
+Wait+Screen /====/
+Sleep 500ms
+Screenshot artifacts/host-inventory.png
 
 Hide
 Type "clear"
@@ -29,5 +31,4 @@ Type "ze show host memory | ze pipe yaml"
 Enter
 Wait+Screen /total-bytes:/
 Sleep 7s
-Screenshot artifacts/host-inventory.png
 Sleep 2s

@@ -16,7 +16,9 @@ Enter
 Type "bash /src/demos/terminal/cards.sh traffic-anomaly intro"
 Enter
 Show
-Sleep 11s
+Wait+Screen /====/
+Sleep 500ms
+Screenshot artifacts/traffic-anomaly.png
 
 Hide
 Type "cd /src"
@@ -47,5 +49,4 @@ Enter
 Type "ze cli -c 'show traffic usage name traffic0' | ze pipe yaml"
 Enter
 Sleep 8s
-Screenshot artifacts/traffic-anomaly.png
 Sleep 2s

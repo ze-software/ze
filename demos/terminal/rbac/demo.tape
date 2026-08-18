@@ -11,7 +11,9 @@ Wait+Screen /terminal demo ready/
 Type "bash /src/demos/terminal/cards.sh rbac intro"
 Enter
 Show
-Sleep 11s
+Wait+Screen /====/
+Sleep 500ms
+Screenshot artifacts/rbac.png
 
 Hide
 Type "clear"
@@ -50,7 +52,6 @@ Type "ze cli --user noc -c 'clear interface counters'"
 Enter
 Wait+Screen /restricted by access control/
 Sleep 6s
-Screenshot artifacts/rbac.png
 Sleep 3s
 
 Hide

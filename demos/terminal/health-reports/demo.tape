@@ -18,7 +18,9 @@ Enter
 Type "bash /src/demos/terminal/cards.sh health-reports intro"
 Enter
 Show
-Sleep 12s
+Wait+Screen /====/
+Sleep 500ms
+Screenshot artifacts/health-reports.png
 
 Hide
 Type "clear"
@@ -46,7 +48,6 @@ Type "run show errors source bgp | no-more"
 Enter
 Wait+Screen /notification-sent/
 Sleep 6s
-Screenshot artifacts/health-reports.png
 Escape
 Sleep 3s
 Escape

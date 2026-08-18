@@ -14,7 +14,9 @@ Enter
 Type "bash /src/demos/terminal/cards.sh ospf-adjacency intro"
 Enter
 Show
-Sleep 11s
+Wait+Screen /====/
+Sleep 500ms
+Screenshot artifacts/ospf-adjacency.png
 
 Hide
 Type "export ZE_CONFIG_DIR=/src/tmp/terminal-demos/state/ospf-adjacency/config ZE_SSH_PASSWORD=secret123"
@@ -50,5 +52,4 @@ Enter
 Type "ze cli -c 'show ospf route'"
 Enter
 Sleep 7s
-Screenshot artifacts/ospf-adjacency.png
 Sleep 2s

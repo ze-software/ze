@@ -1,3 +1,9 @@
+$ cat "$ZE_INIT_INPUT"
+admin
+secret123
+127.0.0.1
+2222
+ze-demo
 $ ze init < "$ZE_INIT_INPUT"
 $ ze config ls
 ze.conf
@@ -14,4 +20,4 @@ ze# exit
 ze# exit
 $ ze cli -c 'show bgp summary'
 
-`ze init` creates `database.zefs`. The first BGP summary uses the default text format. The SSH editor commits the format setting back to ZeFS, not to a second flat file, and the same operational command immediately uses the committed default.
+The five lines answer `ze init`'s prompts in order: username, password, host, port, and name. It reads them from a file here so the recording is reproducible, and it prints nothing when its input is not a terminal, so the file is shown first rather than left as an unexplained redirection. `ze init` creates `database.zefs`. The first BGP summary uses the default text format. The SSH editor commits the format setting back to ZeFS, not to a second flat file, and the same operational command immediately uses the committed default.

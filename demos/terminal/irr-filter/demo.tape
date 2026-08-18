@@ -17,7 +17,9 @@ Enter
 Type "bash /src/demos/terminal/cards.sh irr-filter intro"
 Enter
 Show
-Sleep 13s
+Wait+Screen /====/
+Sleep 500ms
+Screenshot artifacts/irr-filter.png
 
 Hide
 Type "clear"
@@ -101,7 +103,6 @@ Type "ze cli -c 'show bgp adj-rib-in | no-more'"
 Enter
 Wait+Screen /10.0.0.0\/24/
 Sleep 7s
-Screenshot artifacts/irr-filter.png
 
 Hide
 Type "/src/demos/terminal/irr-filter/run.sh stop"

@@ -10,12 +10,17 @@ Wait+Screen /terminal demo prepared/
 Type "bash /src/demos/terminal/cards.sh zefs-config intro"
 Enter
 Show
-Sleep 11s
+Wait+Screen /====/
+Sleep 500ms
+Screenshot artifacts/zefs-config.png
 
 Hide
 Type "clear"
 Enter
 Show
+Type "cat $ZE_INIT_INPUT"
+Enter
+Sleep 5s
 Type "ze init < $ZE_INIT_INPUT"
 Enter
 Sleep 4s
@@ -71,7 +76,6 @@ Type "ze cli -c 'show bgp summary'"
 Enter
 Wait+Screen /router-id/
 Sleep 7s
-Screenshot artifacts/zefs-config.png
 
 Hide
 Type "/src/demos/terminal/zefs-config/run.sh stop"

@@ -14,7 +14,9 @@ Enter
 Type "bash /src/demos/terminal/cards.sh bfd-failover intro"
 Enter
 Show
-Sleep 11s
+Wait+Screen /====/
+Sleep 500ms
+Screenshot artifacts/bfd-failover.png
 
 Hide
 Type "export ZE_CONFIG_DIR=/src/tmp/terminal-demos/state/bfd-failover/config ZE_SSH_PASSWORD=secret123"
@@ -79,7 +81,6 @@ Enter
 Type "ze cli -c 'show bgp peer list' | ze pipe yaml"
 Enter
 Sleep 6s
-Screenshot artifacts/bfd-failover.png
 Sleep 3s
 
 Hide
