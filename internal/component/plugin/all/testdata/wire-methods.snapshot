@@ -48,6 +48,8 @@ ze-bgp:withdraw
 ze-clear:dns-cache
 ze-clear:dns-cache-record
 ze-clear:dns-cache-stats
+ze-clear:firewall-irr-as-set
+ze-clear:firewall-irr-asn
 ze-clear:interface-counters
 ze-clear:isis-adjacency
 ze-clear:isis-counters
@@ -142,6 +144,7 @@ ze-rib-api:withdraw
 ze-set:system-file-descriptors
 ze-show:aaa-accounting
 ze-show:anomaly
+ze-show:anomaly-observe
 ze-show:anomaly-shape
 ze-show:arp
 ze-show:as112

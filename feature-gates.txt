@@ -87,9 +87,13 @@ ze_ddos    internal/plugins/ddos/local/cmd
 ze_ddos    internal/plugins/ddos/observe
 ze_ddos    internal/plugins/ddos/observe/cmd
 
-# ze_anomaly -- traffic anomaly detection (detect) + shaping responder (shape).
+# ze_anomaly -- traffic anomaly detection (detect) + shaping responder (shape)
+# + incident lifecycle store (observe); all three augment the shared `anomaly`
+# config parent.
 ze_anomaly internal/plugins/anomaly/detect
 ze_anomaly internal/plugins/anomaly/detect/cmd
+ze_anomaly internal/plugins/anomaly/observe
+ze_anomaly internal/plugins/anomaly/observe/cmd
 ze_anomaly internal/plugins/anomaly/shape
 ze_anomaly internal/plugins/anomaly/shape/cmd
 

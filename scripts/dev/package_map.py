@@ -192,9 +192,6 @@ def render(packages: dict[str, tuple[str, str]]) -> str:
         "`Description`, else `TODO` (a package that still needs a doc comment).",
         "`Registered` is the name the package registers under, where it has a",
         "register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.",
-        "",
-        f"Total: {len(packages)} packages, {len(packages) - todo} described, {todo} TODO",
-        "",
     ]
     current = None
     for rel in sorted(packages):

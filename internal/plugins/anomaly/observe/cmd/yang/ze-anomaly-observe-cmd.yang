@@ -1,0 +1,26 @@
+module ze-anomaly-observe-cmd {
+    namespace "urn:ze:anomaly-observe:cmd";
+    prefix anomalyobservecmd;
+    import ze-extensions { prefix ze; }
+    description "show anomaly observe command tree. Owned by the anomaly-observe plugin, which holds the incident lifecycle store, so removing the plugin removes this node and its handler together. Container-merges onto the shared `anomaly` namespace that `show anomaly detect` and `show anomaly shape` also merge onto. See ai/rules/plugins.md.";
+    revision 2026-08-17 { description "Initial: show anomaly observe."; }
+
+    container show {
+        config false;
+        description "Read-only commands to inspect system, protocol, and network state";
+
+        container anomaly {
+            config false;
+            description "Behavioral anomaly detection and response subsystem.";
+
+            container observe {
+                config false;
+                ze:command "ze-show:anomaly-observe";
+                description "Show the behavioral anomaly incident lifecycle, newest first: per incident the
+source entity, cohort, fired features with their deviation z-scores, combined score, severity,
+start time, end time, and whether it is still active. Finalized incidents stay in the list, so
+this shows a finished incident's duration, which `show anomaly detect` cannot.";
+            }
+        }
+    }
+}

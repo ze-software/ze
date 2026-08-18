@@ -9,9 +9,6 @@ comes from the `// Package` doc comment, else the plugin registry
 `Registered` is the name the package registers under, where it has a
 register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 
-Total: 629 packages, 626 described, 3 TODO
-
-
 ## `cmd/ze/`
 
 | Package | Responsibility | Registered |
@@ -543,6 +540,9 @@ Total: 629 packages, 626 described, 3 TODO
 | `internal/plugins/anomaly/detect` | Behavioral anomaly detector (report-only): per-entity pattern-of-life over trafficfeature | anomaly-detect-feature-source |
 | `internal/plugins/anomaly/detect/cmd/yang` | embeds and registers the anomaly-detection command YANG schema module |  |
 | `internal/plugins/anomaly/detect/yang` | embeds and registers the anomaly-detection configuration YANG schema module |  |
+| `internal/plugins/anomaly/observe` | Behavioral anomaly observability: incident lifecycle store and show anomaly observe CLI |  |
+| `internal/plugins/anomaly/observe/cmd/yang` | embeds and registers the ze-anomaly-observe-cmd YANG command schema for the behavioral anomaly observe plugin |  |
+| `internal/plugins/anomaly/observe/yang` | embeds and registers the ze-anomaly-observe-conf YANG configuration schema for the behavioral anomaly observe plugin |  |
 | `internal/plugins/anomaly/shape` | Shadow-first autonomous anomaly responder: per-source rate-limit with arm/auto-revert/kill-switch | anomaly-shape-firewall |
 | `internal/plugins/anomaly/shape/cmd/yang` | embeds and registers the anomaly-shaping command YANG schema module |  |
 | `internal/plugins/anomaly/shape/yang` | embeds and registers the anomaly-shaping configuration YANG schema module |  |

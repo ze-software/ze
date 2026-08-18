@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | 1048 |
-| Phase | A |
-| Updated | 2026-07-02 |
+| Phase | 1/11 |
+| Updated | 2026-08-17 |
 
 Child 3 of the behavioral-anomaly umbrella (`plan/spec-anomaly-0-umbrella.md`, the
 `observe` row of the Child Spec Roadmap). Adds the incident **lifecycle** store
