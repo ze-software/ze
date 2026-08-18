@@ -1,4 +1,11 @@
-// Design: docs/architecture/anomaly/anomaly-1-detect.md -- show anomaly report surface
+// VALIDATES: AC-9, the `show anomaly detect` RENDER contract across all three
+// entity kinds, driven through the real ze-show:anomaly handler rather than
+// through entityLabel alone.
+// PREVENTS: the vacuity that hid this surface's shape. test/plugin/anomaly-show.ci
+// asserts `incidents` is a LIST and never reads a row, so it passes whatever the
+// formatter returns -- the same field-presence gap that let `command-count` report
+// 0 from 2026-03-27 to 2026-08-18.
+
 package detect
 
 import (
@@ -40,15 +47,11 @@ func showRows(t *testing.T, inc []anomalyevent.AnomalyDetected) []plugin.Map {
 	return rows
 }
 
-// VALIDATES: AC-9. Each incident renders with its kind. A source row is unchanged,
-// a dest row shows the dest prefix, and a port row shows `proto/port` plus the two
-// numbers apart, so a reader never has to split the label.
-// PREVENTS: the vacuity that hid the shape of this surface for five months.
-// `test/plugin/anomaly-show.ci` asserts that `incidents` is a LIST and never reads
-// a row, so it passes whatever entityLabel returns -- the same field-presence gap
-// that let `command-count` report 0 from 2026-03-27 to 2026-08-18. This asserts
-// VALUES. It needs no traffic generator, so unlike anomaly-entity-matrix.ci it is
-// not blocked on child 4's fakeflow.
+// A source row is unchanged, a dest row shows the dest prefix, and a port row shows
+// `proto/port` with the two numbers also carried apart, so a reader never has to
+// split the label. It asserts VALUES rather than field presence, and needs no
+// traffic generator, so unlike anomaly-entity-matrix.ci it is not blocked on child
+// 4's fakeflow.
 func TestShowAnomalyEntityLabelByKind(t *testing.T) {
 	at := time.Date(2026, 8, 18, 12, 0, 0, 0, time.UTC)
 	rows := showRows(t, []anomalyevent.AnomalyDetected{

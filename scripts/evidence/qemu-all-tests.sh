@@ -171,6 +171,23 @@ fsuite l2tp "$ZE_TEST_BIN" l2tp --all -p "$PARALLEL"
 # one-daemon-at-a-time assumption these suites are written against.
 fsuite firewall "$ZE_TEST_BIN" firewall --all -p 1
 fsuite policy "$ZE_TEST_BIN" policy --all -p 1
+# IPsec/IKEv2: the control-plane tests are gated natively (mk/test-functional.mk
+# ze-functional-ipsec-test), but test/ipsec/ipsec-teardown-leaves-nothing.ci is
+# option=needs-linux:caps=net-admin -- it installs REAL XFRM state through netlink, so
+# it can only execute here, as root. Without this line that test would exist in a suite
+# no QEMU phase runs and would therefore execute NOWHERE (ai/rules/testing.md).
+#
+# It runs BEFORE the IGP suites on purpose: it asserts the XFRM state and policy tables
+# are EMPTY once its daemons stop, and test/ospfv3's RFC 4552 tests program XFRM of
+# their own. Suites run one at a time here, so ordering is enough for those.
+#
+# Serial (-p 1) for what happens INSIDE the suite. Two reasons, and the first is this
+# suite's own: the teardown test reads the whole XFRM state and policy table, which is
+# one table for the VM, so any concurrent test that programmed it would decide the
+# verdict. The second is measured: at -p 4 here, ipsec-dataplane-show failed while
+# passing serially and passing at -p 4 on the dev box, and several tests in this suite
+# share one fixed local-address (10.0.0.1) and one IKE port knob.
+fsuite ipsec "$ZE_TEST_BIN" ipsec --all -p 1
 fsuite install "$ZE_TEST_BIN" install --all -p "$PARALLEL"
 fsuite appliance "$ZE_TEST_BIN" appliance --all -p "$PARALLEL"
 # IGP/MPLS suites: gated natively too, but test/ospf and test/ospfv3 contain
@@ -218,9 +235,30 @@ fsuite traffic "$ZE_TEST_BIN" traffic --all -p 1
 # why. Short version: host developer-tooling gates, no linux-only surface, and in
 # the VM they fail on Alpine having neither brew nor apt and on 9p compile
 # timeouts. They run in full under `make ze-precommit-verify` on the host.
+# The -impl body is called DIRECTLY, bypassing the ze-run.sh admission wrapper the
+# public ze-unit-test-cached carries. The wrapper must not run in here.
+#
+# Its registry is tmp/.ze-jobs/, and tmp/ is shared into this guest from the host
+# over 9p (qemu-run.py, the repo-root export plus scratch_share for a symlinked
+# tmp/). Host and guest therefore share one registry while having DISJOINT PID
+# namespaces, and _alive (scripts/dev/ze-run.sh) judges a holder by reading
+# /proc/<pid>. A guest reading a HOST holder's entry finds no such pid, calls the
+# slot dead, and reaps it -- so a VM run would silently break admission on the
+# machine outside it, which is the opposite of what the wrapper is for. A pid that
+# happens to collide with an unrelated guest process is the other half of the same
+# hazard, and _break_stalled would signal ITS process group.
+#
+# There is nothing to admit in here anyway: the VM is single-tenant and its whole
+# job is this script. Admission is a host concern.
+#
+# ze-scratch-links-ensure is named EXPLICITLY because it is a prerequisite of the
+# PUBLIC ze-unit-test-cached (mk/test-unit.mk) and not of the -impl body. Calling
+# an -impl directly skips whatever the public half declared, silently. That is the
+# standing cost of this bypass, and it is why the bypass names one target rather
+# than being a general habit.
 run_check "unit tests (no -race, cacheable)" \
 	make --no-print-directory GOCACHE="$GOCACHE" GOMODCACHE="$GOMODCACHE" \
-	ZE_PACKAGES_EXCLUDE='/scripts/' ze-unit-test-cached
+	ZE_PACKAGES_EXCLUDE='/scripts/' ze-scratch-links-ensure _ze-unit-test-cached-impl
 
 # 3. Integration tests: linux-only, netlink/nft/fib/socket. Same package set as
 #    `make ze-qemu-integration-test`; IS-IS transport is added when present.

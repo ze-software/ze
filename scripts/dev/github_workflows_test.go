@@ -562,16 +562,23 @@ func TestQemuKernelPreconditionIsMetInTheSameJob(t *testing.T) {
 			continue
 		}
 		guarded = append(guarded, name)
-		// The job-admission wrapper splits a heavy target in two: the public name
-		// calls scripts/dev/ze-run.sh, and `_<name>-impl` carries the recipe body.
-		// The guard went with the body. A workflow calls the PUBLIC name and the
-		// guard still runs, one level down, so the public name is guarded too.
-		// Without this the scan collects impl names alone, no workflow ever names
-		// one, and the vacuity Fatal below fires on a tree where every guard is in
-		// place -- which is what happened when the wrapper landed on 2026-08-18.
-		if public, ok := strings.CutSuffix(strings.TrimPrefix(name, "_"), "-impl"); ok {
-			if _, exists := intRecipes[public]; exists {
-				guarded = append(guarded, public)
+	}
+	// The job-admission wrapper splits a heavy target in two: the public name
+	// calls scripts/dev/ze-run.sh, and an `-impl` target carries the recipe body.
+	// The guard went with the body. A workflow calls the PUBLIC name and the guard
+	// still runs, one level down, so the public name is guarded too. Without this
+	// the scan collects impl names alone, no workflow ever names one, and the
+	// vacuity Fatal below fires on a tree where every guard is in place -- which
+	// is what happened when the wrapper landed on 2026-08-18.
+	//
+	// Credited by reading what the recipe INVOKES, not by unwrapping the `_<name>-impl`
+	// spelling. The convention is a convention: a wrapper written with a differently
+	// named body would silently stop crediting its public target and put this back
+	// where it was. makeInvocations answers what make will actually run.
+	for name, target := range intRecipes {
+		for _, called := range makeInvocations(target.recipe) {
+			if slices.Contains(guarded, called) && !slices.Contains(guarded, name) {
+				guarded = append(guarded, name)
 			}
 		}
 	}
