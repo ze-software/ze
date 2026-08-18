@@ -652,6 +652,20 @@ bin/ze-setup appliance replace-cert lab --cert ca.pem --key ca.key   # use CA-si
 bin/ze-setup appliance rekey lab                 # change encryption passphrase
 bin/ze-setup appliance clone lab lab2            # copy config (not secrets)
 </code></pre>
+<p><code>replace-cert</code> validates the material before it writes anything. It refuses a
+certificate and a key that are not a pair. It refuses a file that holds no PEM
+data. It refuses a certificate that is past its not-after date, and the message
+gives both validity dates. A certificate whose validity starts in the future is
+accepted, because a staged renewal is copied into an image that boots later.
+<code>--cert</code> and <code>--key</code> must be given together.</p>
+<p>A refusal leaves <code>cert.pem</code> and <code>key.pem</code> byte-identical to what the appliance
+already held. Both files are written through a temp file and a rename, so an
+interrupted run leaves neither file truncated. When the key write fails after
+the certificate write, the command puts the previous certificate back and
+reports the restore. <code>ze appliance init</code> validates and writes the same way.</p>
+<!-- source: internal/appliance/cmd_cert.go -- validateTLSPair, writeTLSPair -->
+<!-- source: internal/appliance/cmd_init.go -- writeTLSSecrets -->
+
 <h3 id="config-layering">Config layering</h3>
 <p>Set <code>config-base</code> in <code>appliance.json</code> to share a base config across appliances:</p>
 <pre><code class="language-json">{
@@ -708,7 +722,7 @@ bin/ze-setup appliance clone lab lab2            # copy config (not secrets)
 </tr>
 <tr>
 <td><code>replace-cert &lt;name&gt;</code></td>
-<td>Replace TLS cert (regenerate or <code>--cert</code>/<code>--key</code> for CA)</td>
+<td>Replace TLS cert (regenerate or <code>--cert</code>/<code>--key</code> for CA); refuses material that is not a valid pair</td>
 </tr>
 <tr>
 <td><code>rekey &lt;name&gt;</code></td>
@@ -1038,7 +1052,7 @@ config was saved. If the window completes, the active config hash is written to
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 17 August 2026 20:32 UTC</span>
+                    <span class="footer-published">Published 18 August 2026 11:28 UTC</span>
                 </div>
             </div>
         </footer>

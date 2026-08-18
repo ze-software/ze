@@ -81,6 +81,36 @@
     "global-pipes": true
   },
   {
+    "path": "clear firewall irr as-set",
+    "description": "Remove the cached IRR prefix-list for an AS-SET.\nUsage: clear firewall irr as-set <as-set>. Drops the entry from memory\nand from the persisted cache, then re-applies the firewall tables.",
+    "mode": "daemon",
+    "wire-method": "ze-clear:firewall-irr-as-set",
+    "args": [
+      {
+        "name": "as-set",
+        "type": "string",
+        "mandatory": true
+      }
+    ],
+    "global-pipes": true,
+    "syntax": "clear firewall irr as-set <as-set>"
+  },
+  {
+    "path": "clear firewall irr asn",
+    "description": "Remove the cached IRR prefix-list for an ASN.\nUsage: clear firewall irr asn <asn>. Drops the entry from memory and\nfrom the persisted cache, then re-applies the firewall tables. Config\nthat still references the ASN fails to verify until it is fetched again\nwith 'update firewall irr asn <asn>'.",
+    "mode": "daemon",
+    "wire-method": "ze-clear:firewall-irr-asn",
+    "args": [
+      {
+        "name": "asn",
+        "type": "string",
+        "mandatory": true
+      }
+    ],
+    "global-pipes": true,
+    "syntax": "clear firewall irr asn <asn>"
+  },
+  {
     "path": "clear interface counters",
     "description": "Zero the Rx/Tx counters for every managed interface.\nUsage: clear interface counters.",
     "mode": "daemon",
@@ -1205,6 +1235,13 @@
     "description": "Show recent behavioral anomaly incidents (report-only): source entity, cohort,\nfired features with their deviation z-scores, combined score, and severity. The detector reports;\nthe anomaly/shape responder (Spec 2b) acts.",
     "mode": "read-only",
     "wire-method": "ze-show:anomaly",
+    "global-pipes": true
+  },
+  {
+    "path": "show anomaly observe",
+    "description": "Show the behavioral anomaly incident lifecycle, newest first: per incident the\nsource entity, cohort, fired features with their deviation z-scores, combined score, severity,\nstart time, end time, and whether it is still active. Finalized incidents stay in the list, so\nthis shows a finished incident's duration, which `show anomaly detect` cannot.",
+    "mode": "read-only",
+    "wire-method": "ze-show:anomaly-observe",
     "global-pipes": true
   },
   {

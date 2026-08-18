@@ -1,6 +1,6 @@
 # Plugin catalog
 
-89 runtime plugins generated from `data/plugin-registry.json`, plus 6 test fixtures. 68 runtime plugins declare configuration roots and 69 ship YANG modules.
+90 runtime plugins generated from `data/plugin-registry.json`, plus 6 test fixtures. 69 runtime plugins declare configuration roots and 70 ship YANG modules.
 
 The HTML page includes browser-side search across name, purpose, config roots, dependencies, YANG files, and source directories. Clicking a plugin opens its generated local detail page.
 
@@ -11,6 +11,7 @@ Generated group for registry entries mapped to the Anomaly area. Config roots: `
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
 | [`anomaly-detect-feature-source`](anomaly-detect-feature-source/index.md) | Behavioral anomaly detector (report-only): per-entity pattern-of-life over trafficfeature | `anomaly/detect` | `config-loaded` | `internal/plugins/anomaly/detect` |
+| [`anomaly-observe`](anomaly-observe/index.md) | Behavioral anomaly observability: incident lifecycle store and show anomaly observe CLI | `anomaly/observe` | None | `internal/plugins/anomaly/observe` |
 | [`anomaly-shape-firewall`](anomaly-shape-firewall/index.md) | Shadow-first autonomous anomaly responder: per-source rate-limit with arm/auto-revert/kill-switch | `anomaly/shape` | `config-loaded` | `internal/plugins/anomaly/shape` |
 
 ## BFD

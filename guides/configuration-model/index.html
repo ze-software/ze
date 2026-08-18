@@ -100,7 +100,10 @@
 <ol>
 <li><a href="#interface-types">Interface Types</a></li>
 <li><a href="#logical-name-and-the-os-name-selector">Logical Name and the os-name Selector</a></li>
-<li><a href="#binding-by-hardware-mac-macmatch">Binding by Hardware MAC (mac/match)</a></li>
+<li><a href="#binding-by-hardware-mac-macmatch">Binding by Hardware MAC (mac/match)</a>
+<ol>
+<li><a href="#what-happens-when-a-selector-does-not-name-one-device">What happens when a selector does not name one device</a></li>
+</ol></li>
 <li><a href="#mac-address-binding">MAC Address Binding</a></li>
 <li><a href="#discovery-during-init">Discovery During Init</a></li>
 <li><a href="#example">Example</a></li>
@@ -1991,6 +1994,12 @@ instead of by name (see <a href="#binding-by-hardware-mac-macmatch">Binding by H
 pre-existing kernel devices. Created kinds (dummy, veth, bridge, tunnels, wireguard,
 xfrm) are made by Ze under their logical name, so <code>os-name</code> is ignored on them and the
 logical name is always the kernel device name.</p>
+<p>The config apply path follows the selector too. Addresses, MTU, the MAC override,
+offloads, per-interface sysctl settings, admin state and mirrors are all applied to the
+kernel device the selector names, and a VLAN unit is created on it. A VLAN device is
+therefore named after the KERNEL device: <code>unit 100</code> on the <code>uplink</code> entry above makes
+<code>eth0.100</code>, because the kernel composes the sub-interface name from its parent.</p>
+<!-- source: internal/component/iface/config_apply.go -- bindDevices, deviceFor, unitOSName -->
 <!-- source: internal/component/iface/resolve.go -- Resolve, Addresses, osDeviceFor -->
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- leaf os-name -->
 
@@ -2010,10 +2019,38 @@ device by its hardware MAC with <code>mac { match }</code>:</p>
 matches the device's <strong>permanent (factory) address</strong> (<code>IFLA_PERM_ADDRESS</code>) when the NIC
 reports one, so the binding <strong>survives an operational MAC override</strong> (<code>mac { address }</code>) on
 the very same interface; for virtual devices that report no permanent address it matches
-the current address instead. When no device carries the MAC the binding <strong>defers</strong> until
-the device appears (the resolver fires a link event then). <code>mac/match</code> <strong>takes precedence
-over <code>os-name</code></strong> and, like <code>os-name</code>, applies to <strong>ethernet</strong> only.</p>
+the current address instead. A VLAN sub-interface is never a candidate: it inherits its
+parent's address, so it would otherwise match its own parent's selector. <code>mac/match</code>
+<strong>takes precedence over <code>os-name</code></strong> and, like <code>os-name</code>, applies to <strong>ethernet</strong> only.</p>
+<h4 id="what-happens-when-a-selector-does-not-name-one-device">What happens when a selector does not name one device</h4>
+<table>
+<thead>
+<tr>
+<th>The selector names</th>
+<th>Ze does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Exactly one device</td>
+<td>Binds to it. Every setting on the entry is applied to that device</td>
+</tr>
+<tr>
+<td class="cell-no">✕</td>
+<td><strong>Defers</strong> the binding. The commit succeeds, the entry is left unconfigured, and a warning names it. Nothing is applied to a device that merely shares the entry's logical name</td>
+</tr>
+<tr>
+<td>More than one device</td>
+<td><strong>Refuses the commit</strong>, naming the entry and the candidates. Nothing distinguishes them, so binding to one would be a guess about which physical port the entry's addresses reach</td>
+</tr>
+</tbody>
+</table>
+<p><code>ze doctor</code> reports the same two conditions before you start the daemon:
+<code>doctor-iface-selector-unmatched</code> is a warning, <code>doctor-iface-selector-ambiguous</code> is an
+error.</p>
+<!-- source: internal/component/iface/config_apply.go -- bindDevices, validateSelectors, devicesWithMAC -->
 <!-- source: internal/component/iface/resolve.go -- matchByMAC, deviceMatchMAC -->
+<!-- source: internal/component/doctor/checks_linux.go -- checkInterfaces, selectedNetDevice -->
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- leaf match (container mac) -->
 
 <h3 id="mac-address-binding">MAC Address Binding</h3>
@@ -2184,6 +2221,16 @@ vendor. That distance is not a Linux metric, and ze does not read it: 254 is the
 metric ze writes to the kernel.
 The <code>pppoe-client</code> list carries its own <code>route-priority</code> leaf with the same default,
 which ranks the route a PPPoE session installs when IPCP completes.</p>
+<p>A carrier transition reaches the route metric through a queue that keeps one
+entry per interface, so the metric always follows the state the link ENDED in. A
+config commit stops and starts DHCP clients under the same lock the queue's
+worker takes, so a link that flaps during a commit produces more transitions
+than the worker can consume while the commit runs. The intermediate transitions
+are superseded and counted in <code>ze_iface_link_events_coalesced_total</code>; the final
+one is always applied. <code>ze_iface_carrier_resyncs_total</code> counts the interfaces
+whose metric ze had to move because the recorded metric contradicted the live
+carrier, which is what repairs a route left at neither metric by a failed
+install.</p>
 <p>The metric decides ownership, not only preference. ze installs a learned default
 route with <code>RTM_NEWROUTE</code> in replace mode, and the kernel matches such a route on
 destination, metric and table. It does not match on the protocol that installed it.
@@ -4420,7 +4467,7 @@ match criteria, actions, reserved ranges, and CLI usage.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 17 August 2026 20:32 UTC</span>
+                    <span class="footer-published">Published 18 August 2026 11:28 UTC</span>
                 </div>
             </div>
         </footer>

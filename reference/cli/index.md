@@ -1,6 +1,6 @@
 # CLI Reference
 
-392 commands across 47 groups, generated straight from `ze help command --json` -- the same live command registry the binary itself uses, so this list cannot drift from what the binary actually supports. Full machine-readable list (path, mode, description for every command, one JSON array): [data/cli-commands.json](https://ze-software.net/data/cli-commands.json).
+395 commands across 48 groups, generated straight from `ze help command --json` -- the same live command registry the binary itself uses, so this list cannot drift from what the binary actually supports. Full machine-readable list (path, mode, description for every command, one JSON array): [data/cli-commands.json](https://ze-software.net/data/cli-commands.json).
 
 ## announce (1)
 
@@ -8,7 +8,16 @@
 | --- | --- | --- |
 | `announce` | Daemon | Announce a route on demand to selected peers. Usage: announce <unicast\|blackhole\|flowspec> <args> [tag <key> <value>] [for <duration>] |
 
-## clear (19)
+## clear l2tp (4)
+
+| Command | Mode | Description |
+| --- | --- | --- |
+| `clear l2tp session all` | Daemon | Disconnect every L2TP session on this box. Sends CDN for all sessions across all tunnels. Tunnels themselves stay up. Use with care. |
+| `clear l2tp session id` | Daemon | Disconnect one subscriber session. Sends a CDN to gracefully close the session. Pass the local session ID: clear l2tp session id <id> [reason <text>] [cause <code>]. |
+| `clear l2tp tunnel all` | Daemon | Tear down every L2TP tunnel on this box. Sends StopCCN for all tunnels. Every subscriber session will be disconnected. Use with care during maintenance. |
+| `clear l2tp tunnel id` | Daemon | Gracefully tear down one L2TP tunnel. Sends a StopCCN to the peer. All sessions on this tunnel will be disconnected. Pass the local tunnel ID: clear l2tp tunnel id <id>. |
+
+## clear (other) (17)
 
 | Command | Mode | Description |
 | --- | --- | --- |
@@ -18,14 +27,12 @@
 | `clear dns cache` | Daemon | Flush all DNS cache entries and reset all DNS cache counters. |
 | `clear dns cache record` | Daemon | Evict DNS cache entries for one record name, or one name and type when a type is provided. |
 | `clear dns cache stats` | Daemon | Reset DNS cache hit, miss, eviction, and expiry counters without removing cached entries. |
+| `clear firewall irr as-set` | Daemon | Remove the cached IRR prefix-list for an AS-SET. Usage: clear firewall irr as-set <as-set>. Drops the entry from memory and from the persisted cache, then re-applies the firewall tables. |
+| `clear firewall irr asn` | Daemon | Remove the cached IRR prefix-list for an ASN. Usage: clear firewall irr asn <asn>. Drops the entry from memory and from the persisted cache, then re-applies the firewall tables. Config that still references the ASN fails to verify until it is fetched again with 'update firewall irr asn <asn>'. |
 | `clear interface counters` | Daemon | Zero the Rx/Tx counters for every managed interface. Usage: clear interface counters. |
 | `clear interface name counters` | Daemon | Zero the Rx/Tx counters for one interface. Usage: clear interface name <name> counters. |
 | `clear isis adjacency` | Daemon | Tear down every IS-IS adjacency so neighbors re-form. Usage: clear isis adjacency. Adjacencies re-learn from the next Hello; the circuit is not closed and the configuration is unchanged. |
 | `clear isis counters` | Daemon | Reset IS-IS observational counters and the SPF log. Usage: clear isis counters. Monotonic Prometheus series are not reset; the SPF-run history is cleared. |
-| `clear l2tp session all` | Daemon | Disconnect every L2TP session on this box. Sends CDN for all sessions across all tunnels. Tunnels themselves stay up. Use with care. |
-| `clear l2tp session id` | Daemon | Disconnect one subscriber session. Sends a CDN to gracefully close the session. Pass the local session ID: clear l2tp session id <id> [reason <text>] [cause <code>]. |
-| `clear l2tp tunnel all` | Daemon | Tear down every L2TP tunnel on this box. Sends StopCCN for all tunnels. Every subscriber session will be disconnected. Use with care during maintenance. |
-| `clear l2tp tunnel id` | Daemon | Gracefully tear down one L2TP tunnel. Sends a StopCCN to the peer. All sessions on this tunnel will be disconnected. Pass the local tunnel ID: clear l2tp tunnel id <id>. |
 | `clear ospf counters` | Daemon | Reset the OSPF SPF-run history. Usage: clear ospf counters. Monotonic Prometheus series are not reset; the SPF-run log is cleared. |
 | `clear ospf neighbor` | Daemon | Tear down every OSPF adjacency so neighbors re-form. Usage: clear ospf neighbor. Adjacencies re-learn from the next Hello. |
 | `clear ospf process` | Daemon | Full OSPF reset: tear down every adjacency and re-run SPF. Usage: clear ospf process. Adjacencies re-form from the next Hello; the configuration is unchanged. |
@@ -507,13 +514,14 @@
 | `show vpp trace show` | Read-only | Retrieve packets captured since the last trace start. Shows per-packet VPP graph node traversal. Requires the VPP backend. |
 | `show vpp trace start` | Read-only | Start capturing packets in the VPP dataplane. Default input node is dpdk-input, default count is 100 (max 10000). After starting, use 'show vpp trace show' to retrieve the captured packets. Requires the VPP backend. |
 
-## show (other) (62)
+## show (other) (63)
 
 | Command | Mode | Description |
 | --- | --- | --- |
 | `show aaa accounting` | Read-only | Show AAA accounting counters and any dropped records. Tells you whether TACACS+ accounting is working or if records are being lost due to server unreachability. |
 | `show announcements` | Read-only | List active on-demand announcements. Usage: show announcements [tag <key>] [selector <pattern>] [family <fam>] |
 | `show anomaly detect` | Read-only | Show recent behavioral anomaly incidents (report-only): source entity, cohort, fired features with their deviation z-scores, combined score, and severity. The detector reports; the anomaly/shape responder (Spec 2b) acts. |
+| `show anomaly observe` | Read-only | Show the behavioral anomaly incident lifecycle, newest first: per incident the source entity, cohort, fired features with their deviation z-scores, combined score, severity, start time, end time, and whether it is still active. Finalized incidents stay in the list, so this shows a finished incident's duration, which `show anomaly detect` cannot. |
 | `show anomaly shape` | Read-only | Show the shadow-first anomaly responder status: mode (shadow/armed), action, kill-switch state, and the currently armed source entities with live firewall actions. |
 | `show arp` | Read-only | Show the IPv4 ARP table (shortcut for 'show neighbor ipv4'). Lists IPv4 ARP entries with MAC address and state. ARP is IPv4-only; use 'show neighbor' for both families or 'show neighbor ipv6' for the IPv6 ND table. |
 | `show as112` | Read-only | AS112 node status: enabled, address-family, hostname/ facility/location, allow-from count, served zone count, and the current SOA serial. |

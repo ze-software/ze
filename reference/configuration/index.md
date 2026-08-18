@@ -29,6 +29,13 @@ Behavioral anomaly detection and response subsystem.
     Minimum cohort (source-prefix bucket) members before peer-group rarity is scored; smaller cohorts fall back to self-deviation only.
   - **min-features-to-correlate** `uint8`
     Minimum distinct features that must fire on one entity/window before an incident is scored (weak-signal correlation gate).
+- **observe** `container`
+  *Provided by `anomaly-observe` ([ze-anomaly-observe-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/anomaly/observe/yang/ze-anomaly-observe-conf.yang))*
+  Incident lifecycle store: retains each confirmed incident from its start to its end, so `show anomaly observe` can report a finished incident's duration.
+  - **incident-ring-size** `uint32`
+    Maximum number of incidents to retain in memory. The oldest finalized incident is dropped first when the ring is full.
+  - **stale-incident-timeout** `uint32`
+    Seconds before an open incident that receives no clear event is finalized. The detector stops reporting an entity that goes idle without emitting a clear, so this bounds how long such an incident reads as active.
 - **shape** `container`
   *Provided by `anomaly-shape-firewall` ([ze-anomaly-shape-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/anomaly/shape/yang/ze-anomaly-shape-conf.yang))*
   Autonomous responder: shadow (log-only) or armed (live per-source firewall actions).
@@ -4858,8 +4865,8 @@ Policy routing configuration.
         Destination IP prefix or @set reference.
       - **destination-port** `string`
         Destination port or port range.
-      - **protocol** `string`
-        L4 protocol name (tcp, udp, icmp).
+      - **protocol** `protocol-name`
+        L4 protocol to match. The value set is the one every firewall backend can lower, so a spelling outside it is refused at commit rather than at the next firewall reconcile.
       - **source-address** `string`
         Source IP prefix or @set reference.
       - **source-port** `string`

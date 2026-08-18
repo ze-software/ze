@@ -27,4 +27,4 @@ $ make ze-qemu-pppoe-accel-test
 
 Docker for the primary path. The QEMU runner is the one to use where Docker Desktop's VM lacks the needed kernel modules.
 
-- [test/pppoe-interop/ lab source](https://github.com/ze-software/ze/tree/main/test/pppoe-interop)
+- [test/interop-pppoe/ lab source](https://github.com/ze-software/ze/tree/main/test/interop-pppoe)

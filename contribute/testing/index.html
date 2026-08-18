@@ -127,13 +127,13 @@ show the common entry points, not an exhaustive target inventory.</p>
 <tbody>
 <tr>
 <td>1</td>
-<td><code>CGO_ENABLED=0 go test -run TestName ./pkg/...</code></td>
+<td><code>make ze-unit-pkg-test PKG=./pkg/... RUN=TestName</code></td>
 <td>Iterating on one test</td>
 <td>seconds</td>
 </tr>
 <tr>
 <td>2</td>
-<td><code>CGO_ENABLED=0 go test ./internal/component/bgp/reactor/...</code></td>
+<td><code>make ze-unit-pkg-test PKG=./internal/component/bgp/reactor/...</code></td>
 <td>Iterating on one package</td>
 <td>seconds</td>
 </tr>
@@ -152,6 +152,13 @@ show the common entry points, not an exhaustive target inventory.</p>
 </tbody>
 </table>
 <p><code>make ze-precommit-verify</code> is the pre-commit gate. Everything below that is a development tool.</p>
+<p>Every step goes through <code>make</code>, and that is not a style preference. Several
+sessions share this machine, so <code>make</code> hands each heavy job to
+<code>scripts/dev/ze-run.sh</code>, which runs it now, queues it, or attaches it to an
+equivalent run already in flight. A <code>go test</code> typed into a shell skips that,
+and it also drops the feature tags, the timeout, <code>GOMAXPROCS</code> and the shared
+build cache that the <code>make</code> variables carry. The Bash hook refuses the raw form
+(<code>ai/rules/commands.md</code>).</p>
 <h3 id="the-cadence-targets">The cadence targets</h3>
 <p>The ladder above is keyed to a change you are making. Three targets are keyed to
 the calendar instead, and they exist for one reason: <code>make ze-precommit-verify</code> runs 27
@@ -241,9 +248,9 @@ checks return empty before reading anything when that list is empty.</p>
 <p>Standard Go tests. They validate logic in isolation: does the parser produce the
 right output, does the state machine transition correctly, does the encoder
 round-trip.</p>
-<pre><code class="language-sh">CGO_ENABLED=0 go test ./internal/component/bgp/message/...                  # one package
-CGO_ENABLED=0 go test -run TestParseOrigin ./internal/...                  # one test
-make ze-unit-test                                      # all packages (~5 min)
+<pre><code class="language-sh">make ze-unit-pkg-test PKG=./internal/component/bgp/message/...   # one package
+make ze-unit-pkg-test PKG=./internal/... RUN=TestParseOrigin     # one test
+make ze-unit-test                                                # all packages (~5 min)
 </code></pre>
 <h3 id="functional-tests-ci-files">Functional tests (<code>.ci</code> files)</h3>
 <p>These spin up real Ze processes and test behavior end-to-end: does the config
@@ -326,13 +333,15 @@ parse, does the BGP session establish, does the plugin produce the right output.
 </tbody>
 </table>
 <p>Run a single test by one-based id or exact name, list the available ids, or
-resume from the last printed id after an interrupted run:</p>
-<pre><code class="language-sh">bin/ze-test bgp plugin 42          # test id 42
-bin/ze-test bgp encode --list      # list N/TOTAL, id, and name
-bin/ze-test bgp plugin --start 42  # run id 42 and every later test
-bin/ze-test editor 7               # editor test id 7
-bin/ze-test editor -p nav          # editor tests matching &quot;nav&quot;
-bin/ze-test exabgp --start 20      # resume ExaBGP compatibility
+resume from the last printed id after an interrupted run. No <code>make</code> target
+expresses a selection, so queue the runner yourself: <code>ze-run.sh</code> takes a label
+and the command, and gives it the same admission a suite target gets.</p>
+<pre><code class="language-sh">scripts/dev/ze-run.sh plugin-42 bin/ze-test bgp plugin 42          # test id 42
+scripts/dev/ze-run.sh encode-list bin/ze-test bgp encode --list    # list N/TOTAL, id, and name
+scripts/dev/ze-run.sh plugin-from-42 bin/ze-test bgp plugin --start 42  # id 42 and every later test
+scripts/dev/ze-run.sh editor-7 bin/ze-test editor 7                # editor test id 7
+scripts/dev/ze-run.sh editor-nav bin/ze-test editor -p nav         # editor tests matching &quot;nav&quot;
+scripts/dev/ze-run.sh exabgp-from-20 bin/ze-test exabgp --start 20 # resume ExaBGP compatibility
 </code></pre>
 <!-- source: internal/test/runner/selection.go -- Selection -->
 <!-- source: internal/test/runner/display.go -- TestFinished -->
@@ -488,11 +497,11 @@ fuzz corpus entry becomes a regression test automatically.</p>
 </tr>
 <tr>
 <td>Run one Go test</td>
-<td><code>CGO_ENABLED=0 go test -run TestName ./pkg/...</code></td>
+<td><code>make ze-unit-pkg-test PKG=./pkg/... RUN=TestName</code></td>
 </tr>
 <tr>
 <td>Run one functional test</td>
-<td><code>bin/ze-test bgp plugin 42</code></td>
+<td><code>scripts/dev/ze-run.sh plugin-42 bin/ze-test bgp plugin 42</code></td>
 </tr>
 <tr>
 <td>Run tests for what I changed</td>
@@ -512,7 +521,7 @@ fuzz corpus entry becomes a regression test automatically.</p>
 </tr>
 <tr>
 <td>List functional tests</td>
-<td><code>bin/ze-test bgp encode --list</code></td>
+<td><code>scripts/dev/ze-run.sh encode-list bin/ze-test bgp encode --list</code></td>
 </tr>
 <tr>
 <td>Run fuzz for one target</td>
@@ -573,7 +582,7 @@ fuzz corpus entry becomes a regression test automatically.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 17 August 2026 20:32 UTC</span>
+                    <span class="footer-published">Published 18 August 2026 11:28 UTC</span>
                 </div>
             </div>
         </footer>

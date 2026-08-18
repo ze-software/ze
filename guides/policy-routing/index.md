@@ -124,8 +124,14 @@ policy {
 | `destination-address` | Destination IP prefix or `@set` reference | `0.0.0.0/0`, `@DstBypass` |
 | `source-port` | Source port or port range | `1024-65535` |
 | `destination-port` | Destination port, range, or list | `80,443` |
-| `protocol` | L4 protocol | `tcp`, `udp`, `icmp` |
+| `protocol` | L4 protocol name | `tcp`, `udp`, `icmp`, `icmpv6`, `gre`, `esp`, `ah`, `ospf`, `vrrp`, `sctp` |
 | `tcp-flags` | Comma-separated TCP flags | `syn`, `syn,ack` |
+
+`protocol` takes one of the ten names the firewall backends can program, listed
+with their IANA numbers in the firewall guide. A different spelling is refused
+at commit, naming the leaf and the accepted values. Before this check existed
+the commit succeeded and the rule failed later, inside the firewall reconcile,
+where the failure was not local to the rule that caused it.
 
 Set references (`@name`) resolve against firewall sets defined in the
 firewall config section.

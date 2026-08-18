@@ -779,6 +779,20 @@
     "doc": {}
   },
   {
+    "name": "anomaly-observe",
+    "description": "Behavioral anomaly observability: incident lifecycle store and show anomaly observe CLI",
+    "config_roots": [
+      "anomaly/observe"
+    ],
+    "dependencies": [],
+    "optional_dependencies": [],
+    "source_dir": "internal/plugins/anomaly/observe",
+    "yang_files": [
+      "internal/plugins/anomaly/observe/yang/ze-anomaly-observe-conf.yang"
+    ],
+    "doc": {}
+  },
+  {
     "name": "anomaly-shape-firewall",
     "description": "Shadow-first autonomous anomaly responder: per-source rate-limit with arm/auto-revert/kill-switch",
     "config_roots": [

@@ -1654,7 +1654,7 @@ response into a Go error, so without this directive the command step aborts the
 run before any <code>expect=</code> is reached, and no <code>.ci</code> can assert an operational
 error at all. That left one class untestable end to end, and it is the class
 where a wrong answer costs most: a command that must refuse is exactly the one
-whose failure mode is answering confidently instead. <code>test/ipsec/ipsec-show-dataplane.ci</code>
+whose failure mode is answering confidently instead. <code>test/ipsec/ipsec-dataplane-show.ci</code>
 uses it to prove that a dataplane which cannot be read SAYS so rather than
 rendering an empty table.</p>
 <p>It takes <code>contains=</code> only, and no timeout. An error is the result of one
@@ -2175,7 +2175,7 @@ expect=completion:contains=router-id,local-as,peer
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 17 August 2026 20:32 UTC</span>
+                    <span class="footer-published">Published 18 August 2026 11:28 UTC</span>
                 </div>
             </div>
         </footer>

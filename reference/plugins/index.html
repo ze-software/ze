@@ -55,7 +55,7 @@
                     <h1 id="plugin-catalog-title">Plugin catalog</h1>
                     <p>Ze features are composed from plugins. This catalog is generated from the live registry and explains what each plugin is for, what it configures, and which other plugins it relies on. Click any plugin to open a local detail page.</p>
                 </div>
-                <p class="plugin-summary">Generated from 95 registry entries: 89 runtime plugins and 6 test fixtures. Among runtime plugins, 68 declare configuration roots, 48 declare dependencies, and 69 ship YANG modules.</p>
+                <p class="plugin-summary">Generated from 96 registry entries: 90 runtime plugins and 6 test fixtures. Among runtime plugins, 69 declare configuration roots, 48 declare dependencies, and 70 ship YANG modules.</p>
                 <div class="plugin-console" role="search" aria-label="Search plugins">
                     <label for="plugin-search">Search by feature, protocol, config root, dependency, or source path</label>
                     <input id="plugin-search" type="search" autocomplete="off" placeholder="Try RPKI, FlowSpec, FIB, DHCP, DDoS, l2tp, bgp-filter..." />
@@ -65,7 +65,7 @@
                                 <select id="plugin-category" autocomplete="off">
                                     <option value="">All categories</option>
                                     <option value="routing" data-label="Routing">Routing (38)</option>
-                                    <option value="security" data-label="Policy &amp; security">Policy &amp; security (22)</option>
+                                    <option value="security" data-label="Policy &amp; security">Policy &amp; security (23)</option>
                                     <option value="tunneling" data-label="Tunneling">Tunneling (7)</option>
                                     <option value="services" data-label="Network services">Network services (7)</option>
                                     <option value="dataplane" data-label="Interfaces &amp; dataplane">Interfaces &amp; dataplane (11)</option>
@@ -89,7 +89,7 @@
                                     <option value="static" data-category="routing" data-label="Static">Static (1)</option>
                                     </optgroup>
                                     <optgroup label="Policy &amp; security">
-                                    <option value="anomaly" data-category="security" data-label="Anomaly">Anomaly (2)</option>
+                                    <option value="anomaly" data-category="security" data-label="Anomaly">Anomaly (3)</option>
                                     <option value="bgp-filter" data-category="security" data-label="BGP Filter">BGP Filter (10)</option>
                                     <option value="control-plane-protection" data-category="security" data-label="Control Plane Protection">Control Plane Protection (1)</option>
                                     <option value="ddos" data-category="security" data-label="DDoS">DDoS (5)</option>
@@ -135,7 +135,7 @@
                 <section class="plugin-group" data-plugin-group data-family="anomaly" data-category="security" aria-labelledby="plugin-group-anomaly">
                     <div class="plugin-group-head tone-pink">
                         <h2 id="plugin-group-anomaly">Anomaly</h2>
-                        <span>2 plugins</span>
+                        <span>3 plugins</span>
                     </div>
                     <p>Generated group for registry entries mapped to the Anomaly area. Config roots: <code>anomaly</code>. Source area: <code>internal/plugins/anomaly</code>.</p>
                     <div class="cards plugin-grid">
@@ -150,6 +150,17 @@
                             <span class="chip">YANG:1</span>
                         </div>
                         <dl class="plugin-meta"><div><dt>Config</dt><dd><code>anomaly/detect</code></dd></div><div><dt>Needs</dt><dd><code>config-loaded</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
+                    </article>
+
+                    <article class="card plugin-card tone-pink" id="plugin-anomaly-observe" data-plugin-card data-family="anomaly" data-category="security" data-search="anomaly-observe Behavioral anomaly observability: incident lifecycle store and show anomaly observe CLI Behavioral anomaly observability: incident lifecycle store and show anomaly observe CLI internal/plugins/anomaly/observe Anomaly   anomaly/observe   internal/plugins/anomaly/observe/yang/ze-anomaly-observe-conf.yang">
+                        <span class="cat">Anomaly</span>
+                        <h3><a href="anomaly-observe/"><code>anomaly-observe</code></a></h3>
+                        <p class="plugin-desc">Behavioral anomaly observability: incident lifecycle store and show anomaly observe CLI</p>
+                        <div class="chips">
+                            <span class="chip mode">config:anomaly/observe</span>
+                            <span class="chip">YANG:1</span>
+                        </div>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>anomaly/observe</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
                     </article>
 
                     <article class="card plugin-card tone-pink" id="plugin-anomaly-shape-firewall" data-plugin-card data-family="anomaly" data-category="security" data-search="anomaly-shape-firewall Shadow-first autonomous anomaly responder: per-source rate-limit with arm/auto-revert/kill-switch Shadow-first autonomous anomaly responder: per-source rate-limit with arm/auto-revert/kill-switch internal/plugins/anomaly/shape Anomaly   anomaly/shape config-loaded  internal/plugins/anomaly/shape/yang/ze-anomaly-shape-conf.yang">
@@ -1688,7 +1699,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 17 August 2026 20:32 UTC</span>
+                    <span class="footer-published">Published 18 August 2026 11:28 UTC</span>
                 </div>
             </div>
         </footer>

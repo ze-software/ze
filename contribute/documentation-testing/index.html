@@ -104,7 +104,7 @@ checks needed for the current diff and is included in <code>make ze-precommit-ve
 <tr>
 <td><code>scripts/dev/code_to_docs.py --check</code></td>
 <td><code>ze-doc-index-check</code>, <code>ze-doc-verify</code> and <code>ze-generated-files-check</code></td>
-<td>Three things: every <code>&lt;!-- source. --&gt;</code> path under <code>docs/</code> points to an existing source file or directory, every SYMBOL the anchor names after its <code>--</code> is declared in the <code>.go</code> file it points at, AND itself matches what the generator would write now. Check mode never writes. The freshness half was added 2026-07-20: before it, check mode built the index in memory and compared nothing, so a stale reported "all references valid" and exit 0 (it had drifted by 24 code paths). The failures report separately: a stale FILE names the regen target, a broken ANCHOR prints <code>MISSING: &lt;path&gt;</code> with its referencing doc and line, and an undeclared symbol prints <code>CLAIM:</code> with the doc, the line, the anchored file and the token. <span class="ev-src"><span class="ev-ref"><code>ai/CODE-TO-DOCS.md</code></span><span class="ev-ref"><code>ai/CODE-TO-DOCS.md</code></span></span></td>
+<td>Two things: every <code>&lt;!-- source. --&gt;</code> path under <code>docs/</code> points to an existing source file or directory, and every SYMBOL the anchor names after its <code>--</code> is declared in the <code>.go</code> file it points at. Check mode never writes. It does NOT check that is current: that file is generated on demand and gitignored, so git holds no copy that can go stale, and a comparison would only fail on a clone where it was never generated. The failures report separately: a broken ANCHOR prints <code>MISSING: &lt;path&gt;</code> with its referencing doc and line, and an undeclared symbol prints <code>CLAIM:</code> with the doc, the line, the anchored file and the token. <span class="ev-src"><span class="ev-ref"><code>ai/CODE-TO-DOCS.md</code></span></span></td>
 </tr>
 <tr>
 <td><span class="ev-src"><span class="ev-ref"><code>scripts/dev/check_doc_links.py</code></span></span></td>
@@ -301,8 +301,10 @@ looking for <code>ze:command</code> extensions. For each extension it checks
 <code>registry.CollectRPCHandlers()</code> for a matching method name.</p>
 <p><code>scripts/dev/code_to_docs.py --check</code> scans every markdown source anchor under
 <code>docs/</code>, extracts referenced code paths, and fails if any referenced file or
-directory is missing. The same script regenerates <code>ai/CODE-TO-DOCS.md</code> when run
-without <code>--check</code>; check mode is read-only.</p>
+directory is missing. The same script writes <code>ai/CODE-TO-DOCS.md</code> when run
+without <code>--check</code>; check mode is read-only. That output is gitignored: it is a
+pure derivation of the tree that no code reads, it rebuilds in about a second,
+and tracking it meant a diff on every commit that added a source anchor.</p>
 <p>One walk of <code>docs/</code> also feeds the symbol half. An anchor is
 <code>&lt;!-- source: &lt;path&gt; -- Sym1, Sym2 --&gt;</code>, and the tokens after the <code>--</code> used to
 be discarded. <code>anchor_symbol_tokens</code> keeps a token only when it is an identifier
@@ -378,7 +380,7 @@ and scans <code>docs/</code>/<code>scripts/</code> for references to packages th
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 17 August 2026 20:32 UTC</span>
+                    <span class="footer-published">Published 18 August 2026 11:28 UTC</span>
                 </div>
             </div>
         </footer>

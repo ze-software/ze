@@ -676,6 +676,21 @@ responder acts on these incidents.
 show anomaly detect                   # Recent anomaly incidents
 ```
 
+### show anomaly observe
+<!-- source: internal/plugins/anomaly/observe/show.go -- handleShowAnomalyObserve, ze-show:anomaly-observe -->
+
+The incident lifecycle held by the `anomaly-observe` plugin, newest first. Returns
+`{"enabled": bool, "active-count": N, "incidents": [{id, interface, entity, cohort,
+fired-features: [{name, z}], score, severity, start-time, end-time, active}]}`.
+A finalized incident stays in the list and carries its `end-time`, so this command
+reports how long a finished incident lasted; `show anomaly detect` records
+confirmations only and cannot. `end-time` is absent while `active` is true. An
+incident that receives no clear event is finalized after `stale-incident-timeout`.
+
+```
+show anomaly observe                  # Incident lifecycle, newest first
+```
+
 ### show anomaly shape
 <!-- source: internal/plugins/anomaly/shape/show.go -- handleShowAnomalyShape, ze-show:anomaly-shape -->
 
@@ -949,6 +964,38 @@ raw elements.
 <!-- source: internal/plugins/firewall/nft/cmd_show.go -- handleShowFirewallRuleset, handleShowFirewallGroup -->
 <!-- source: internal/component/firewall/engine.go -- runEngine; OnConfigApply stores LastApplied -->
 <!-- source: internal/plugins/firewall/nft/backend_linux.go -- applyChain (UserData + auto Counter), readRuleCounter -->
+
+### show, update and clear firewall irr
+
+IRR prefix-list data behind firewall rules and interface bindings. Provided by
+the `firewall-irr` plugin.
+
+```
+ze show firewall irr                    # Cached entries: counts, freshness, data age
+ze show firewall irr prefix <name>      # Prefixes cached for an ASN or AS-SET
+ze update firewall irr all              # Refresh every cached entry
+ze update firewall irr asn <asn>        # Fetch or refresh one ASN
+ze update firewall irr as-set <as-set>  # Fetch or refresh one AS-SET
+ze clear firewall irr asn <asn>         # Remove one ASN's cached prefixes
+ze clear firewall irr as-set <as-set>   # Remove one AS-SET's cached prefixes
+```
+
+**`show firewall irr`** reports one entry per configured reference. `status` is
+`ok` when the prefixes are what the IRR last answered, `stale` when a later
+refresh returned nothing and the previous prefixes stay in force, and `missing`
+when nothing is cached. A stale entry also carries `stale-since`, and every
+cached entry carries `data-age-seconds`.
+
+**`update firewall irr ...`** reports an error when the server returns no
+prefixes. The cached prefixes are kept rather than replaced with an empty list,
+which would drop every packet the filter was written to accept.
+
+**`clear firewall irr ...`** is how prefixes are removed. It drops the entry from
+memory and from ZeFS and re-applies the tables. Use it when an AS-SET is
+deregistered upstream: no IRR answer removes prefixes on its own.
+
+<!-- source: internal/component/firewall/plugins/irr/command.go -- handleCommand, showIRR, showIRRPrefix, updateASN, updateASSet, clearASN, clearASSet -->
+<!-- source: internal/component/resolve/irr/store/store.go -- Refresh keeps last-known-good, Purge removes -->
 
 ### show system uptime
 

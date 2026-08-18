@@ -59,6 +59,35 @@ show anomaly detect
 
 The command reports whether the detector is enabled and lists the recent-incident ring. Each incident includes the entity, cohort, fused score and severity, timestamp, and fired features with their z-scores.
 
+The detector records confirmations, so the ring says when each incident started and never says when it ended.
+
+## Incident lifecycle store
+
+The `anomaly-observe` plugin keeps the other half: it opens a record when an incident is confirmed and closes it with an end time when the incident clears, so a finished incident has a readable duration.
+
+```text
+anomaly {
+    observe {
+        incident-ring-size 1000;        // incidents retained in memory
+        stale-incident-timeout 3600;    // seconds before an open incident is closed anyway
+    }
+}
+```
+
+The store is always on when the plugin is loaded, and an empty `observe {}` block takes both defaults. Three properties matter to an operator:
+
+- **A finished incident stays visible.** Finalized records remain in the ring with their end time until the ring evicts them, which is what makes a duration readable at all.
+- **The ring is bounded.** At most `incident-ring-size` records are held. When it is full the oldest finalized record is dropped first, so the incident still in progress is never the one lost.
+- **An incident that never clears is still closed.** A source that goes silent is evicted by the detector without a clear event. Any record left open longer than `stale-incident-timeout` is finalized by a one-second sweep, so the active count cannot climb forever.
+
+Read the lifecycle with:
+
+```text
+show anomaly observe
+```
+
+The output reports whether the plugin is running, how many incidents are still active, and the ring newest-first. Each record carries the entity, cohort, fired features, score, severity, start time, active flag, and, once the incident is over, its end time.
+
 ## Shadow-first responder
 
 The `anomaly-shape` responder can act on confirmed incidents. It defaults to shadow mode, where it logs the action it would take and installs nothing. Set it explicitly to `armed` before it can alter traffic.
@@ -110,6 +139,13 @@ The output reports the mode, configured action, kill-switch state, armed count, 
 | `cohort-prefix-len-v4` | `24` | 8-32 | Source-prefix bucket length for IPv4 cohorts |
 | `cohort-prefix-len-v6` | `48` | 16-64 | Source-prefix bucket length for IPv6 cohorts |
 
+### anomaly observe
+
+| Parameter | Default | Range | Description |
+|-----------|---------|-------|-------------|
+| `incident-ring-size` | `1000` | 1-100000 | Incidents retained in memory; the oldest finalized one is evicted first |
+| `stale-incident-timeout` | `3600` | 1-86400 s | An incident open longer than this is finalized without a clear event |
+
 ### anomaly shape
 
 | Parameter | Default | Range | Description |
@@ -132,4 +168,5 @@ The output reports the mode, configured action, kill-switch state, armed count, 
 
 <!-- source: internal/component/trafficfeature/feature.go -- per-source facts and bounded snapshots -->
 <!-- source: internal/plugins/anomaly/detect/detector.go -- scoring, confirmation, and freeze-learn lifecycle -->
+<!-- source: internal/plugins/anomaly/observe/store.go -- incident lifecycle ring, eviction, and stale sweep -->
 <!-- source: internal/plugins/anomaly/shape/responder.go -- shadow-first response and safety controls -->

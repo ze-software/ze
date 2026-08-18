@@ -95,7 +95,7 @@ LCP, CHAP-MD5 authentication, IPCP address assignment, kernel <code>pppN</code> 
 creation with the server-assigned P2P address, dataplane ping to the AC
 gateway, the AC's own session view, and clean teardown when the client stops.</p>
 <h2 id="layout">Layout</h2>
-<pre><code>test/pppoe-interop/
+<pre><code>test/interop-pppoe/
   run.py               Runner: preflight, image build, scenario selection
   lab.py               Docker lifecycle, helpers, Ze/accel verification
   Dockerfile.ze        Ze PPPoE-client image (Alpine + ze + iproute2 + ppp + kmod)
@@ -119,7 +119,7 @@ macOS was measured on 2026-08-01 and its Linux VM DID supply both <code>pppoe</c
 was wrong. Run the Docker path first. If the probe refuses, use the QEMU path
 below. The accel-ppp image installs the Alpine <code>accel-ppp</code> package (the same
 build the QEMU runner uses), so the image build is fast.</p>
-<!-- source: test/pppoe-interop/lab.py -- preflight_strict -->
+<!-- source: test/interop-pppoe/lab.py -- preflight_strict -->
 
 <p>Note that <code>l2tp_ppp</code> is a SEPARATE module and was absent on that same host, so
 the sibling L2TP lab (<code>docs/labs/l2tp-interop.md</code>) can still refuse where this
@@ -129,8 +129,8 @@ one runs.</p>
 on macOS or any host without PPPoE kernel support.</p>
 <h3 id="docker-host-kernel">Docker (host kernel)</h3>
 <pre><code>make ze-deployment-docker-pppoe-accel-test               # all scenarios
-python3 test/pppoe-interop/run.py 01-pppoe-chap-ipv4     # single scenario
-VERBOSE=1 python3 test/pppoe-interop/run.py              # debug output
+python3 test/interop-pppoe/run.py 01-pppoe-chap-ipv4     # single scenario
+VERBOSE=1 python3 test/interop-pppoe/run.py              # debug output
 </code></pre>
 <p>Environment variables: <code>VERBOSE</code>, <code>NO_BUILD</code>, <code>SESSION_TIMEOUT</code> (default 90s),
 <code>ZE_PPPOE_INTEROP_SUFFIX</code> (default PID, for parallel-run isolation).</p>
@@ -196,7 +196,7 @@ ship both.</p>
 client; this lab is the only test where Ze is the <em>client</em> and the peer is a
 real, independent AC implementation.</p>
 <h2 id="design-pattern">Design Pattern</h2>
-<p>Follows the <code>test/l2tp-interop/</code> lab pattern (see <code>l2tp-interop.md</code>): scenario
+<p>Follows the <code>test/interop-l2tp/</code> lab pattern (see <code>l2tp-interop.md</code>): scenario
 directory with daemon configs, per-run Docker network with PID suffix, fixed
 container IPs, <code>atexit</code> global cleanup, strict kernel preflight, and <code>check.py</code>
 assertion scripts imported by the runner. It is a separate module because the
@@ -231,7 +231,7 @@ helpers are PPPoE/accel-ppp specific.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 17 August 2026 20:32 UTC</span>
+                    <span class="footer-published">Published 18 August 2026 11:28 UTC</span>
                 </div>
             </div>
         </footer>

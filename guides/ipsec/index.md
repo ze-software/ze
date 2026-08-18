@@ -636,7 +636,7 @@ carries no encrypted traffic` when this happens.
 ## Interop testing
 
 The IKE implementation includes interop tests against strongSwan, from the Alpine 3.21 test
-image. The infrastructure in `test/ipsec-interop/` drives strongSwan containers as remote
+image. The infrastructure in `test/interop-ipsec/` drives strongSwan containers as remote
 IKE peers. Sixteen scenarios run today:
 
 | Area | Scenarios |
@@ -650,7 +650,7 @@ IKE peers. Sixteen scenarios run today:
 There is no certificate-only (`mode x509`) scenario. The certificate paths are proven by
 unit tests and by the EAP-TLS scenarios, which authenticate both ends with certificates.
 
-<!-- source: test/ipsec-interop/scenarios -- the sixteen strongSwan scenarios -->
+<!-- source: test/interop-ipsec/scenarios -- the sixteen strongSwan scenarios -->
 
 Ze holds every gated MUST-level requirement extracted from RFC 7296 in
 `rfc/short/rfc7296.md`. That is 222 of the summary's 227 rows, each proven in both
@@ -668,4 +668,4 @@ ungated.
 <!-- source: internal/component/ike/engine/rekey.go -- make-before-break rekeying -->
 <!-- source: internal/component/ike/dataplane/dataplane.go -- XFRM state and policy programming -->
 <!-- source: internal/component/ike/ipsec/config.go -- configuration and validation -->
-<!-- source: test/ipsec-interop/run.py -- strongSwan interoperability scenarios -->
+<!-- source: test/interop-ipsec/run.py -- strongSwan interoperability scenarios -->

@@ -579,6 +579,21 @@ bin/ze-setup appliance rekey lab                 # change encryption passphrase
 bin/ze-setup appliance clone lab lab2            # copy config (not secrets)
 ```
 
+`replace-cert` validates the material before it writes anything. It refuses a
+certificate and a key that are not a pair. It refuses a file that holds no PEM
+data. It refuses a certificate that is past its not-after date, and the message
+gives both validity dates. A certificate whose validity starts in the future is
+accepted, because a staged renewal is copied into an image that boots later.
+`--cert` and `--key` must be given together.
+
+A refusal leaves `cert.pem` and `key.pem` byte-identical to what the appliance
+already held. Both files are written through a temp file and a rename, so an
+interrupted run leaves neither file truncated. When the key write fails after
+the certificate write, the command puts the previous certificate back and
+reports the restore. `ze appliance init` validates and writes the same way.
+<!-- source: internal/appliance/cmd_cert.go -- validateTLSPair, writeTLSPair -->
+<!-- source: internal/appliance/cmd_init.go -- writeTLSSecrets -->
+
 ### Config layering
 
 Set `config-base` in `appliance.json` to share a base config across appliances:
@@ -605,7 +620,7 @@ The base config is read first, then per-appliance `ze.conf` is appended. Later `
 | `iso [--image] [--output] [--kernel] [--initrd] [--target] [--builder] [<name>]` | Bootable installer ISO from an existing image |
 | `iso --check` | Check ISO prerequisites without building |
 | `passwd <name>` | Change SSH password |
-| `replace-cert <name>` | Replace TLS cert (regenerate or `--cert`/`--key` for CA) |
+| `replace-cert <name>` | Replace TLS cert (regenerate or `--cert`/`--key` for CA); refuses material that is not a valid pair |
 | `rekey <name>` | Change encryption passphrase |
 | `clone <src> <dst>` | Copy config, not secrets |
 | `list` | List appliances with hostname and arch |

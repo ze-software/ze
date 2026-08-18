@@ -82,6 +82,28 @@
       {
         "children": [
           {
+            "description": "Maximum number of incidents to retain in memory. The oldest finalized incident is dropped first when the ring is full.",
+            "kind": "leaf",
+            "name": "incident-ring-size",
+            "source": "config",
+            "type": "uint32"
+          },
+          {
+            "description": "Seconds before an open incident that receives no clear event is finalized. The detector stops reporting an entity that goes idle without emitting a clear, so this bounds how long such an incident reads as active.",
+            "kind": "leaf",
+            "name": "stale-incident-timeout",
+            "source": "config",
+            "type": "uint32"
+          }
+        ],
+        "description": "Incident lifecycle store: retains each confirmed incident from its start to its end, so `show anomaly observe` can report a finished incident's duration.",
+        "kind": "container",
+        "name": "observe",
+        "source": "config"
+      },
+      {
+        "children": [
+          {
             "description": "Armed action: rate-limit the source (surgical) or drop it (fallback).",
             "kind": "leaf",
             "name": "action",
@@ -17257,11 +17279,11 @@
                     "type": "string"
                   },
                   {
-                    "description": "L4 protocol name (tcp, udp, icmp).",
+                    "description": "L4 protocol to match. The value set is the one\nevery firewall backend can lower, so a spelling\noutside it is refused at commit rather than at the\nnext firewall reconcile.",
                     "kind": "leaf",
                     "name": "protocol",
                     "source": "config",
-                    "type": "string"
+                    "type": "protocol-name"
                   },
                   {
                     "description": "Source IP prefix or @set reference.",

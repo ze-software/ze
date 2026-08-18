@@ -70,6 +70,7 @@ the nft backend lowers them to nftables kernel expressions.</p>
 </ol></li>
 <li><a href="#match-types-from-block">Match Types (from block)</a>
 <ol>
+<li><a href="#protocol-names">Protocol names</a></li>
 <li><a href="#icmp-type-names">ICMP Type Names</a></li>
 <li><a href="#interface-wildcard">Interface Wildcard</a></li>
 </ol></li>
@@ -225,6 +226,12 @@ behind.</p>
 <td></td>
 <td>Reconciles that failed because the dataplane did not answer within the backend deadline.</td>
 </tr>
+<tr>
+<td><code>ze_flowspec_rules_refused_total</code></td>
+<td>counter</td>
+<td><code>reason</code></td>
+<td>FlowSpec routes received from a peer that did not become a firewall rule. <code>reason</code> is <code>unknown-protocol</code>, <code>unsupported-component</code>, <code>no-action</code>, <code>parse</code>, or <code>max-rules</code>.</td>
+</tr>
 </tbody>
 </table>
 <p>The <code>result</code> label is what separates a healthy-but-slow apply from one that gave
@@ -232,7 +239,11 @@ up: a backend deadline of 10s and a 10s successful reconcile land in the same
 latency bucket, and only the label tells them apart. Both signals derive from one
 result value, so they cannot drift apart. A backend that panics is recorded as
 <code>panic</code> rather than lost or filed as healthy.</p>
+<p>A refused FlowSpec route is otherwise invisible: it is never registered, so no
+reconcile fails and <code>show firewall</code> has nothing to render. The peer believes ze
+filters the traffic and ze does not, which is what the counter reports.</p>
 <!-- source: internal/component/firewall/metrics.go -- observeApply, applyDurationBuckets -->
+<!-- source: internal/plugins/flowspec-firewall/metrics.go -- countRuleRefused -->
 <!-- source: internal/component/firewall/registry.go -- ApplyAll -->
 
 <h2 id="tables-and-chains">Tables and Chains</h2>
@@ -298,7 +309,7 @@ more chains; a base chain has a type, hook, priority, and default policy.</p>
 </tr>
 <tr>
 <td><code>protocol</code></td>
-<td>L4 protocol</td>
+<td>L4 protocol name (see below)</td>
 <td><code>protocol tcp;</code></td>
 </tr>
 <tr>
@@ -331,28 +342,73 @@ more chains; a base chain has a type, hook, priority, and default policy.</p>
 <td>Mark value/mask</td>
 <td><code>connection-mark 0x10/0xff;</code></td>
 </tr>
+</tbody>
+</table>
+<h3 id="protocol-names">Protocol names</h3>
+<p><code>protocol</code> takes one of ten names. The set is the same everywhere a protocol is
+matched: the firewall config, policy routes, DDoS mitigation terms and FlowSpec
+routes learned from a peer all resolve against one table, so a name that commits
+is a name every backend can program.</p>
+<table>
+<thead>
 <tr>
-<td><code>mark</code></td>
-<td>Packet mark value/mask</td>
-<td><code>mark 0x10/0xff;</code></td>
+<th>Name</th>
+<th>IANA number</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>icmp</code></td>
+<td>1</td>
 </tr>
 <tr>
-<td><code>dscp</code></td>
-<td>DSCP value (name or number)</td>
-<td><code>dscp ef;</code></td>
+<td><code>tcp</code></td>
+<td>6</td>
 </tr>
 <tr>
-<td><code>tcp-flags</code></td>
-<td>TCP header flags</td>
-<td><code>tcp-flags syn;</code></td>
+<td><code>udp</code></td>
+<td>17</td>
 </tr>
 <tr>
-<td><code>source-address @set</code></td>
-<td>Named set lookup</td>
-<td><code>source-address @blocked;</code></td>
+<td><code>gre</code></td>
+<td>47</td>
+</tr>
+<tr>
+<td><code>esp</code></td>
+<td>50</td>
+</tr>
+<tr>
+<td><code>ah</code></td>
+<td>51</td>
+</tr>
+<tr>
+<td><code>icmpv6</code></td>
+<td>58</td>
+</tr>
+<tr>
+<td><code>ospf</code></td>
+<td>89</td>
+</tr>
+<tr>
+<td><code>vrrp</code></td>
+<td>112</td>
+</tr>
+<tr>
+<td><code>sctp</code></td>
+<td>132</td>
 </tr>
 </tbody>
 </table>
+<p>A protocol outside this set is refused where it enters. The config editor
+refuses it at commit; a FlowSpec route that names one is refused at translation,
+counted, and logged with the protocol number and the route key. Ze does not
+enforce a version of the rule with the protocol condition removed, because that
+rule is wider than the one that was asked for.</p>
+<!-- source: internal/component/firewall/protocol.go -- ianaProtocolNumbers, ProtocolName -->
+<p>| <code>mark</code> | Packet mark value/mask | <code>mark 0x10/0xff;</code> |
+| <code>dscp</code> | DSCP value (name or number) | <code>dscp ef;</code> |
+| <code>tcp-flags</code> | TCP header flags | <code>tcp-flags syn;</code> |
+| <code>source-address @set</code> | Named set lookup | <code>source-address @blocked;</code> |</p>
 <h3 id="icmp-type-names">ICMP Type Names</h3>
 <p>Symbolic names for <code>icmp-type</code>: <code>echo-reply</code>, <code>destination-unreachable</code>,
 <code>source-quench</code>, <code>redirect</code>, <code>echo-request</code>, <code>router-advertisement</code>,
@@ -645,9 +701,42 @@ caches results in zefs, and populates nftables interval sets.</p>
 <ol>
 <li>Fetch prefix data: <code>update firewall irr asn 13335</code></li>
 <li>Inspect cached data: <code>show firewall irr</code></li>
-<li>Commit config with <code>source-asn 13335</code> in a term's from-block</li>
+<li>Commit a term whose from-block names the ASN:</li>
+</ol>
+<pre><code>firewall {
+    backend nft;
+    table wan {
+        family inet;
+        chain input {
+            type filter;
+            hook input;
+            priority 0;
+            policy drop;
+            term from-cloudflare {
+                from {
+                    source-asn 13335;
+                }
+                then {
+                    accept;
+                }
+            }
+        }
+    }
+}
+</code></pre>
+<ol start="4">
 <li>Refresh all cached entries: <code>update firewall irr all</code></li>
 </ol>
+<p>Fetch the data first. The commit is refused while the ASN or AS-SET has no
+cached prefixes, and the refusal names the entry and the command that fetches
+it. A term reaches the kernel as two rules, one for the IPv4 prefixes and one
+for the IPv6 prefixes, so the table family must be <code>inet</code>.</p>
+<p>The prefix sets belong to the <code>firewall-irr</code> plugin, not to the table that names
+them. The two arrive at different times, and the firewall waits: while a rule
+names a set no owner has registered, no table is programmed and the daemon logs
+<code>reconcile deferred</code>. The plugin registers the sets moments later and the whole
+ruleset lands. That line staying in the log means the prefixes never arrived,
+and <code>show firewall irr</code> says which entry is missing.</p>
 <h3 id="config-leaves">Config Leaves</h3>
 <table>
 <thead>
@@ -689,10 +778,40 @@ caches results in zefs, and populates nftables interval sets.</p>
     }
 }
 </code></pre>
-<p>Config commit rejects if a referenced ASN/AS-SET has no cached prefix data,
-with an actionable error naming the missing entry and the command to run.</p>
-<p>Auto-refresh (when <code>refresh-interval &gt; 0</code>) is fail-closed: a failed IRR query
-preserves the last-good cache and logs an error.</p>
+<p>Config commit rejects if a referenced ASN/AS-SET has no cached prefix data, or
+has an entry holding no prefixes, with an actionable error naming the entry and
+the command to run:</p>
+<pre><code>firewall irr: no cached prefix data for as-set AS-CUSTOMER-A; run 'update firewall irr as-set AS-CUSTOMER-A' first
+</code></pre>
+<p>A daemon START reads its configuration without that check, because a commit is
+what runs it. The same sentence is logged as a warning instead, once per
+reference, and the rules naming the entry filter nothing until its prefixes are
+fetched.</p>
+<p>Auto-refresh (when <code>refresh-interval &gt; 0</code>) is fail-closed, and so is a refresh
+that succeeds without returning prefixes. A failed query and an empty answer both
+preserve the last-good cache, log the reason, and count under the
+<code>ze_firewall_irr_refresh_outcomes_total</code> labels <code>error</code> and <code>empty</code>. An empty
+answer never replaces a cached prefix list, because a filter built from an empty
+list drops everything the operator wrote it to accept.</p>
+<p><code>show firewall irr</code> reports each entry as <code>ok</code>, <code>stale</code>, or <code>missing</code>, and gives
+<code>data-age-seconds</code> for cached entries and <code>stale-since</code> for stale ones.
+<code>ze doctor</code> reports the same condition with two codes:</p>
+<ul>
+<li><code>doctor-firewall-irr-stale-data</code>: a referenced entry is enforcing prefixes the
+  IRR has stopped confirming.</li>
+<li><code>doctor-firewall-irr-no-data</code>: a referenced entry has no prefixes, so it
+  filters nothing.</li>
+</ul>
+<p>Run <code>ze explain &lt;code&gt;</code> for the full description. <code>ze_firewall_irr_data_age_seconds</code> is the
+age of the oldest data being enforced, and
+<code>ze_firewall_irr_last_refresh_timestamp</code> moves only when a refresh learned
+prefixes.</p>
+<p>Prefixes are removed only on purpose: <code>clear firewall irr asn &lt;N&gt;</code> and
+<code>clear firewall irr as-set &lt;name&gt;</code> drop the entry from memory and from zefs and
+re-apply the tables. Use them when an AS-SET is deregistered upstream.</p>
+<!-- source: internal/component/resolve/irr/store/store.go -- Refresh keeps last-known-good, Purge removes -->
+<!-- source: internal/component/firewall/plugins/irr/doctor.go -- checkIRRDataFreshness -->
+
 <h3 id="per-interface-source-validation">Per-Interface Source Validation</h3>
 <!-- source: internal/component/firewall/plugins/irr/sets.go -- buildIfaceTables -->
 
@@ -714,6 +833,11 @@ are dropped (ingress source validation, BCP 38).</p>
 For each bound interface, accept terms match <code>input-interface</code> + <code>source-address
 in set</code> for both IPv4 and IPv6, followed by a drop term for that interface.
 Unconfigured interfaces pass through unfiltered (chain policy accept).</p>
+<p>A binding whose AS-SET has no prefixes produces no terms at all, not a lone drop
+term. A lone drop term would drop every packet arriving on the interface while
+the apply reported success, so one unhelpful answer from an IRR server would take
+a customer-facing port down. The plugin logs the skipped binding, and config
+commit rejects the binding before it gets that far.</p>
 <p>Same fail-closed semantics apply: config commit rejects if any bound AS-SET
 has no cached prefix data. Removing an interface binding removes its filter
 on the next apply.</p>
@@ -753,6 +877,14 @@ on the next apply.</p>
 <tr>
 <td><code>update firewall irr all</code></td>
 <td>Refresh all cached IRR entries</td>
+</tr>
+<tr>
+<td><code>clear firewall irr asn &lt;N&gt;</code></td>
+<td>Remove an ASN's cached prefixes</td>
+</tr>
+<tr>
+<td><code>clear firewall irr as-set &lt;name&gt;</code></td>
+<td>Remove an AS-SET's cached prefixes</td>
 </tr>
 </tbody>
 </table>
@@ -809,7 +941,7 @@ A crash bypasses this path entirely, leaving tables in place.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 17 August 2026 20:32 UTC</span>
+                    <span class="footer-published">Published 18 August 2026 11:28 UTC</span>
                 </div>
             </div>
         </footer>

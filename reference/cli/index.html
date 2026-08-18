@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>CLI Reference - Ze</title>
-        <meta name="description" content="Every ze command, generated live from the binary&#x27;s own command registry -- 392 commands across 47 groups." />
+        <meta name="description" content="Every ze command, generated live from the binary&#x27;s own command registry -- 395 commands across 48 groups." />
         <meta property="og:title" content="CLI Reference - Ze" />
-        <meta property="og:description" content="Every ze command, generated live from the binary&#x27;s own command registry -- 392 commands across 47 groups." />
+        <meta property="og:description" content="Every ze command, generated live from the binary&#x27;s own command registry -- 395 commands across 48 groups." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="CLI Reference - Ze" />
-        <meta name="twitter:description" content="Every ze command, generated live from the binary&#x27;s own command registry -- 392 commands across 47 groups." />
+        <meta name="twitter:description" content="Every ze command, generated live from the binary&#x27;s own command registry -- 395 commands across 48 groups." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -53,7 +53,7 @@
                 <div class="journey-hero reveal">
                     <span class="journey-eyebrow">Reference</span>
                     <h1 id="cli-title">CLI Reference</h1>
-                    <p>392 commands across 47 groups, generated straight from <code>ze help command --json</code> -- the same live command registry the binary itself uses, so this page cannot drift from what the binary actually supports the way a hand-maintained list can. Full machine-readable list: <a href="../../data/cli-commands.json">data/cli-commands.json</a>.</p>
+                    <p>395 commands across 48 groups, generated straight from <code>ze help command --json</code> -- the same live command registry the binary itself uses, so this page cannot drift from what the binary actually supports the way a hand-maintained list can. Full machine-readable list: <a href="../../data/cli-commands.json">data/cli-commands.json</a>.</p>
                 </div>
                 <div class="cli-search-wrap">
                     <input id="cli-search" type="search" autocomplete="off" placeholder="Filter commands (e.g. bgp, traceroute, monitor)..." aria-label="Filter commands" />
@@ -64,8 +64,16 @@
 <table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
 <tr id="cmd-announce"><td><code>announce &lt;unicast|blackhole|flowspec&gt; &lt;args&gt; [tag &lt;key&gt; &lt;value&gt;] [for &lt;duration&gt;]</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Announce a route on demand to selected peers.<br>Usage: announce &lt;unicast|blackhole|flowspec&gt; &lt;args&gt; [tag &lt;key&gt; &lt;value&gt;] [for &lt;duration&gt;]</td></tr>
 </tbody></table></details>
-<details class="cli-group" id="cli-group-clear" open>
-<summary>clear <span class="cli-group-count">19</span></summary>
+<details class="cli-group" id="cli-group-clear-l2tp" open>
+<summary>clear l2tp <span class="cli-group-count">4</span></summary>
+<table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
+<tr id="cmd-clear-l2tp-session-all"><td><code>clear l2tp session all</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Disconnect every L2TP session on this box.<br>Sends CDN for all sessions across all tunnels. Tunnels themselves<br>stay up. Use with care.</td></tr>
+<tr id="cmd-clear-l2tp-session-id"><td><code>clear l2tp session id</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Disconnect one subscriber session.<br>Sends a CDN to gracefully close the session. Pass the local session<br>ID: clear l2tp session id &lt;id&gt; [reason &lt;text&gt;] [cause &lt;code&gt;].</td></tr>
+<tr id="cmd-clear-l2tp-tunnel-all"><td><code>clear l2tp tunnel all</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Tear down every L2TP tunnel on this box.<br>Sends StopCCN for all tunnels. Every subscriber session will be<br>disconnected. Use with care during maintenance.</td></tr>
+<tr id="cmd-clear-l2tp-tunnel-id"><td><code>clear l2tp tunnel id</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Gracefully tear down one L2TP tunnel.<br>Sends a StopCCN to the peer. All sessions on this tunnel will be<br>disconnected. Pass the local tunnel ID: clear l2tp tunnel id &lt;id&gt;.</td></tr>
+</tbody></table></details>
+<details class="cli-group" id="cli-group-clear-other" open>
+<summary>clear (other) <span class="cli-group-count">17</span></summary>
 <table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
 <tr id="cmd-clear-bgp-rib-in"><td><code>clear bgp rib in</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Remove all routes received from a peer.<br>Wipes the Adj-RIB-In for matched peers. They will need to<br>re-advertise everything (or you can send a route-refresh).<br>Selector: IP, name, AS pattern, glob, or *.</td></tr>
 <tr id="cmd-clear-bgp-rib-out"><td><code>clear bgp rib out</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Re-advertise all routes to a peer.<br>Triggers a full Adj-RIB-Out replay to the selected peers. Useful<br>after a policy change to push updated attributes without tearing<br>down the session. Selector: IP, name, AS pattern, glob, or *.</td></tr>
@@ -73,14 +81,12 @@
 <tr id="cmd-clear-dns-cache"><td><code>clear dns cache</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Flush all DNS cache entries and reset all DNS cache counters.</td></tr>
 <tr id="cmd-clear-dns-cache-record"><td><code>clear dns cache record</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Evict DNS cache entries for one record name, or one name and type when a type is provided.</td></tr>
 <tr id="cmd-clear-dns-cache-stats"><td><code>clear dns cache stats</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Reset DNS cache hit, miss, eviction, and expiry counters without removing cached entries.</td></tr>
+<tr id="cmd-clear-firewall-irr-as-set"><td><code>clear firewall irr as-set &lt;as-set&gt;</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Remove the cached IRR prefix-list for an AS-SET.<br>Usage: clear firewall irr as-set &lt;as-set&gt;. Drops the entry from memory<br>and from the persisted cache, then re-applies the firewall tables.</td></tr>
+<tr id="cmd-clear-firewall-irr-asn"><td><code>clear firewall irr asn &lt;asn&gt;</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Remove the cached IRR prefix-list for an ASN.<br>Usage: clear firewall irr asn &lt;asn&gt;. Drops the entry from memory and<br>from the persisted cache, then re-applies the firewall tables. Config<br>that still references the ASN fails to verify until it is fetched again<br>with &#x27;update firewall irr asn &lt;asn&gt;&#x27;.</td></tr>
 <tr id="cmd-clear-interface-counters"><td><code>clear interface counters</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Zero the Rx/Tx counters for every managed interface.<br>Usage: clear interface counters.</td></tr>
 <tr id="cmd-clear-interface-name-counters"><td><code>clear interface name &lt;name&gt; counters</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Zero the Rx/Tx counters for one interface.<br>Usage: clear interface name &lt;name&gt; counters.</td></tr>
 <tr id="cmd-clear-isis-adjacency"><td><code>clear isis adjacency</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Tear down every IS-IS adjacency so neighbors re-form.<br>Usage: clear isis adjacency. Adjacencies re-learn from the next Hello;<br>the circuit is not closed and the configuration is unchanged.</td></tr>
 <tr id="cmd-clear-isis-counters"><td><code>clear isis counters</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Reset IS-IS observational counters and the SPF log.<br>Usage: clear isis counters. Monotonic Prometheus series are not reset;<br>the SPF-run history is cleared.</td></tr>
-<tr id="cmd-clear-l2tp-session-all"><td><code>clear l2tp session all</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Disconnect every L2TP session on this box.<br>Sends CDN for all sessions across all tunnels. Tunnels themselves<br>stay up. Use with care.</td></tr>
-<tr id="cmd-clear-l2tp-session-id"><td><code>clear l2tp session id</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Disconnect one subscriber session.<br>Sends a CDN to gracefully close the session. Pass the local session<br>ID: clear l2tp session id &lt;id&gt; [reason &lt;text&gt;] [cause &lt;code&gt;].</td></tr>
-<tr id="cmd-clear-l2tp-tunnel-all"><td><code>clear l2tp tunnel all</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Tear down every L2TP tunnel on this box.<br>Sends StopCCN for all tunnels. Every subscriber session will be<br>disconnected. Use with care during maintenance.</td></tr>
-<tr id="cmd-clear-l2tp-tunnel-id"><td><code>clear l2tp tunnel id</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Gracefully tear down one L2TP tunnel.<br>Sends a StopCCN to the peer. All sessions on this tunnel will be<br>disconnected. Pass the local tunnel ID: clear l2tp tunnel id &lt;id&gt;.</td></tr>
 <tr id="cmd-clear-ospf-counters"><td><code>clear ospf counters</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Reset the OSPF SPF-run history.<br>Usage: clear ospf counters. Monotonic Prometheus series are not reset;<br>the SPF-run log is cleared.</td></tr>
 <tr id="cmd-clear-ospf-neighbor"><td><code>clear ospf neighbor</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Tear down every OSPF adjacency so neighbors re-form.<br>Usage: clear ospf neighbor. Adjacencies re-learn from the next Hello.</td></tr>
 <tr id="cmd-clear-ospf-process"><td><code>clear ospf process</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Full OSPF reset: tear down every adjacency and re-run SPF.<br>Usage: clear ospf process. Adjacencies re-form from the next Hello;<br>the configuration is unchanged.</td></tr>
@@ -525,11 +531,12 @@
 <tr id="cmd-show-vpp-trace-start"><td><code>show vpp trace start</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Start capturing packets in the VPP dataplane.<br>Default input node is dpdk-input, default count is 100 (max 10000).<br>After starting, use &#x27;show vpp trace show&#x27; to retrieve the captured<br>packets. Requires the VPP backend.</td></tr>
 </tbody></table></details>
 <details class="cli-group" id="cli-group-show-other" open>
-<summary>show (other) <span class="cli-group-count">62</span></summary>
+<summary>show (other) <span class="cli-group-count">63</span></summary>
 <table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
 <tr id="cmd-show-aaa-accounting"><td><code>show aaa accounting</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show AAA accounting counters and any dropped records.<br>Tells you whether TACACS+ accounting is working or if records are<br>being lost due to server unreachability.</td></tr>
 <tr id="cmd-show-announcements"><td><code>show announcements [tag &lt;key&gt;] [selector &lt;pattern&gt;] [family &lt;fam&gt;]</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>List active on-demand announcements.<br>Usage: show announcements [tag &lt;key&gt;] [selector &lt;pattern&gt;] [family &lt;fam&gt;]</td></tr>
 <tr id="cmd-show-anomaly-detect"><td><code>show anomaly detect</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show recent behavioral anomaly incidents (report-only): source entity, cohort,<br>fired features with their deviation z-scores, combined score, and severity. The detector reports;<br>the anomaly/shape responder (Spec 2b) acts.</td></tr>
+<tr id="cmd-show-anomaly-observe"><td><code>show anomaly observe</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show the behavioral anomaly incident lifecycle, newest first: per incident the<br>source entity, cohort, fired features with their deviation z-scores, combined score, severity,<br>start time, end time, and whether it is still active. Finalized incidents stay in the list, so<br>this shows a finished incident&#x27;s duration, which `show anomaly detect` cannot.</td></tr>
 <tr id="cmd-show-anomaly-shape"><td><code>show anomaly shape</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show the shadow-first anomaly responder status: mode (shadow/armed), action,<br>kill-switch state, and the currently armed source entities with live firewall actions.</td></tr>
 <tr id="cmd-show-arp"><td><code>show arp</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show the IPv4 ARP table (shortcut for &#x27;show neighbor ipv4&#x27;).<br>Lists IPv4 ARP entries with MAC address and state. ARP is IPv4-only;<br>use &#x27;show neighbor&#x27; for both families or &#x27;show neighbor ipv6&#x27; for the<br>IPv6 ND table.</td></tr>
 <tr id="cmd-show-as112"><td><code>show as112</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>AS112 node status: enabled, address-family, hostname/<br>facility/location, allow-from count, served zone count, and<br>the current SOA serial.</td></tr>
@@ -672,7 +679,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 17 August 2026 20:32 UTC</span>
+                    <span class="footer-published">Published 18 August 2026 11:28 UTC</span>
                 </div>
             </div>
         </footer>

@@ -78,6 +78,7 @@ and <strong>runtime commands</strong> sent to the running daemon via SSH.</p>
 <li><a href="#monitor-traffic-stat">monitor traffic stat</a></li>
 <li><a href="#show-traffic-feature">show traffic feature</a></li>
 <li><a href="#show-anomaly-detect">show anomaly detect</a></li>
+<li><a href="#show-anomaly-observe">show anomaly observe</a></li>
 <li><a href="#show-anomaly-shape">show anomaly shape</a></li>
 <li><a href="#show-traffic-usage">show traffic usage</a></li>
 <li><a href="#show-route-show-neighbor">show route / show neighbor</a></li>
@@ -88,6 +89,7 @@ and <strong>runtime commands</strong> sent to the running daemon via SSH.</p>
 <li><a href="#is-is-offline-tools">IS-IS (Offline Tools)</a></li>
 <li><a href="#show-pki">show pki</a></li>
 <li><a href="#show-firewall">show firewall</a></li>
+<li><a href="#show-update-and-clear-firewall-irr">show, update and clear firewall irr</a></li>
 <li><a href="#show-system-uptime">show system uptime</a></li>
 <li><a href="#show-system-sockets">show system sockets</a></li>
 <li><a href="#show-system-kernel-log">show system kernel-log</a></li>
@@ -1124,6 +1126,18 @@ correlated deviation confirms. The detector reports only; the <code>anomaly/shap
 responder acts on these incidents.</p>
 <pre><code>show anomaly detect                   # Recent anomaly incidents
 </code></pre>
+<h3 id="show-anomaly-observe">show anomaly observe</h3>
+<!-- source: internal/plugins/anomaly/observe/show.go -- handleShowAnomalyObserve, ze-show:anomaly-observe -->
+
+<p>The incident lifecycle held by the <code>anomaly-observe</code> plugin, newest first. Returns
+<code>{"enabled": bool, "active-count": N, "incidents": [{id, interface, entity, cohort,
+fired-features: [{name, z}], score, severity, start-time, end-time, active}]}</code>.
+A finalized incident stays in the list and carries its <code>end-time</code>, so this command
+reports how long a finished incident lasted; <code>show anomaly detect</code> records
+confirmations only and cannot. <code>end-time</code> is absent while <code>active</code> is true. An
+incident that receives no clear event is finalized after <code>stale-incident-timeout</code>.</p>
+<pre><code>show anomaly observe                  # Incident lifecycle, newest first
+</code></pre>
 <h3 id="show-anomaly-shape">show anomaly shape</h3>
 <!-- source: internal/plugins/anomaly/shape/show.go -- handleShowAnomalyShape, ze-show:anomaly-shape -->
 
@@ -1351,6 +1365,31 @@ raw elements.</p>
 <!-- source: internal/plugins/firewall/nft/cmd_show.go -- handleShowFirewallRuleset, handleShowFirewallGroup -->
 <!-- source: internal/component/firewall/engine.go -- runEngine; OnConfigApply stores LastApplied -->
 <!-- source: internal/plugins/firewall/nft/backend_linux.go -- applyChain (UserData + auto Counter), readRuleCounter -->
+
+<h3 id="show-update-and-clear-firewall-irr">show, update and clear firewall irr</h3>
+<p>IRR prefix-list data behind firewall rules and interface bindings. Provided by
+the <code>firewall-irr</code> plugin.</p>
+<pre><code>ze show firewall irr                    # Cached entries: counts, freshness, data age
+ze show firewall irr prefix &lt;name&gt;      # Prefixes cached for an ASN or AS-SET
+ze update firewall irr all              # Refresh every cached entry
+ze update firewall irr asn &lt;asn&gt;        # Fetch or refresh one ASN
+ze update firewall irr as-set &lt;as-set&gt;  # Fetch or refresh one AS-SET
+ze clear firewall irr asn &lt;asn&gt;         # Remove one ASN's cached prefixes
+ze clear firewall irr as-set &lt;as-set&gt;   # Remove one AS-SET's cached prefixes
+</code></pre>
+<p><strong><code>show firewall irr</code></strong> reports one entry per configured reference. <code>status</code> is
+<code>ok</code> when the prefixes are what the IRR last answered, <code>stale</code> when a later
+refresh returned nothing and the previous prefixes stay in force, and <code>missing</code>
+when nothing is cached. A stale entry also carries <code>stale-since</code>, and every
+cached entry carries <code>data-age-seconds</code>.</p>
+<p><strong><code>update firewall irr ...</code></strong> reports an error when the server returns no
+prefixes. The cached prefixes are kept rather than replaced with an empty list,
+which would drop every packet the filter was written to accept.</p>
+<p><strong><code>clear firewall irr ...</code></strong> is how prefixes are removed. It drops the entry from
+memory and from ZeFS and re-applies the tables. Use it when an AS-SET is
+deregistered upstream: no IRR answer removes prefixes on its own.</p>
+<!-- source: internal/component/firewall/plugins/irr/command.go -- handleCommand, showIRR, showIRRPrefix, updateASN, updateASSet, clearASN, clearASSet -->
+<!-- source: internal/component/resolve/irr/store/store.go -- Refresh keeps last-known-good, Purge removes -->
 
 <h3 id="show-system-uptime">show system uptime</h3>
 <pre><code>ze show system uptime        # Daemon start time and uptime duration
@@ -3917,7 +3956,7 @@ ze-chaos --ai-help                           # Print tool schemas
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 17 August 2026 20:32 UTC</span>
+                    <span class="footer-published">Published 18 August 2026 11:28 UTC</span>
                 </div>
             </div>
         </footer>

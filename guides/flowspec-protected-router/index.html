@@ -57,7 +57,10 @@
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
 <li><a href="#1-start-from-an-installed-ze-node">1. Start from an installed Ze node</a></li>
 <li><a href="#2-update-the-active-zefs-config">2. Update the active zefs config</a></li>
-<li><a href="#3-check-the-firewall-backend">3. Check the firewall backend</a></li>
+<li><a href="#3-check-the-firewall-backend">3. Check the firewall backend</a>
+<ol>
+<li><a href="#what-the-bridge-enforces-and-what-it-refuses">What the bridge enforces, and what it refuses</a></li>
+</ol></li>
 <li><a href="#4-test-with-a-safe-flowspec-rule">4. Test with a safe FlowSpec rule</a></li>
 <li><a href="#5-protect-the-bgp-session-itself">5. Protect the BGP session itself</a></li>
 <li><a href="#6-automatic-ddos-flowspec-policy">6. Automatic DDoS FlowSpec policy</a></li>
@@ -230,6 +233,20 @@ sudo nft list ruleset | sed -n '/table inet flowspec/,+80p'
 </tr>
 </tbody>
 </table>
+<h3 id="what-the-bridge-enforces-and-what-it-refuses">What the bridge enforces, and what it refuses</h3>
+<p>A FlowSpec route becomes a firewall rule only when every one of its components
+can be programmed. The IP protocol component is the common limit: the bridge
+enforces the ten protocol names the firewall backends know (<code>icmp</code>, <code>tcp</code>,
+<code>udp</code>, <code>gre</code>, <code>esp</code>, <code>ah</code>, <code>icmpv6</code>, <code>ospf</code>, <code>vrrp</code>, <code>sctp</code>, listed with their
+IANA numbers in the firewall guide) and refuses a route naming any other value.</p>
+<p>A refused route is logged with the protocol number and the route key, and
+counted in <code>ze_flowspec_rules_refused_total</code>. It installs nothing. Ze does not
+install the same rule with the protocol condition removed: that rule would drop
+more traffic than the peer asked it to drop.</p>
+<p>A refused route stops at the bridge and goes no further. Routes ze CAN enforce,
+and the rulesets of every other firewall owner, continue to reach the kernel.</p>
+<!-- source: internal/plugins/flowspec-firewall/translate.go -- protocolMatches -->
+
 <h2 id="4-test-with-a-safe-flowspec-rule">4. Test with a safe FlowSpec rule</h2>
 <p>The bridge only programs nftables from FlowSpec that <code>edge-01</code> <em>receives</em>, so the rule must be announced from a peer toward <code>edge-01</code>, not injected on <code>edge-01</code> itself. Use a lab prefix first. The example below drops TCP traffic to <code>10.0.0.0/8</code> port 80.</p>
 <p>If the source (<code>flowspec-rr</code>, <code>203.0.113.1</code>) is a Ze node, announce toward <code>edge-01</code> (<code>192.0.2.10</code>) with the required <code>peer &lt;selector&gt;</code> prefix:</p>
@@ -353,7 +370,7 @@ sudo systemctl reload ze.service
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 17 August 2026 20:32 UTC</span>
+                    <span class="footer-published">Published 18 August 2026 11:28 UTC</span>
                 </div>
             </div>
         </footer>

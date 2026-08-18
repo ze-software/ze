@@ -1133,7 +1133,7 @@ response into a Go error, so without this directive the command step aborts the
 run before any `expect=` is reached, and no `.ci` can assert an operational
 error at all. That left one class untestable end to end, and it is the class
 where a wrong answer costs most: a command that must refuse is exactly the one
-whose failure mode is answering confidently instead. `test/ipsec/ipsec-show-dataplane.ci`
+whose failure mode is answering confidently instead. `test/ipsec/ipsec-dataplane-show.ci`
 uses it to prove that a dataplane which cannot be read SAYS so rather than
 rendering an empty table.
 

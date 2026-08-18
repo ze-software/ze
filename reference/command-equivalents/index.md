@@ -1,6 +1,6 @@
 # Command Equivalents
 
-392 live Ze commands. 47 have vendor CLI today. 100 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
+395 live Ze commands. 47 have vendor CLI today. 100 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
 
 ## Commands with vendor CLI
 
@@ -77,6 +77,8 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `clear dns cache` | Daemon | - | - | - | - | [details](clear-dns-cache/) |
 | `clear dns cache record <name> [<type>]` | Daemon | - | - | - | - | [details](clear-dns-cache-record/) |
 | `clear dns cache stats` | Daemon | - | - | - | - | [details](clear-dns-cache-stats/) |
+| `clear firewall irr as-set <as-set>` | Daemon | - | - | - | - | [details](clear-firewall-irr-as-set/) |
+| `clear firewall irr asn <asn>` | Daemon | - | - | - | - | [details](clear-firewall-irr-asn/) |
 | `clear interface counters` | Daemon | - | - | - | `clear interfaces ethernet <name> counters` | [details](clear-interface-counters/) |
 | `clear interface name <name> counters` | Daemon | - | - | - | `clear interfaces ethernet <name> counters` | [details](clear-interface-name-counters/) |
 | `clear isis adjacency` | Daemon | - | - | - | - | [details](clear-isis-adjacency/) |
@@ -257,6 +259,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show aaa accounting` | Read-only | - | - | - | - | [details](show-aaa-accounting/) |
 | `show announcements [tag <key>] [selector <pattern>] [family <fam>]` | Read-only | - | - | - | - | [details](show-announcements/) |
 | `show anomaly detect` | Read-only | - | - | - | - | [details](show-anomaly-detect/) |
+| `show anomaly observe` | Read-only | - | - | - | - | [details](show-anomaly-observe/) |
 | `show anomaly shape` | Read-only | - | - | - | - | [details](show-anomaly-shape/) |
 | `show arp` | Read-only | - | - | - | `show arp` | [details](show-arp/) |
 | `show as112` | Read-only | - | - | - | - | [details](show-as112/) |

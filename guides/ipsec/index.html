@@ -812,7 +812,7 @@ the two gauges together separate a lost session from a session with no ESP.</p>
 carries no encrypted traffic</code> when this happens.</p>
 <h2 id="interop-testing">Interop testing</h2>
 <p>The IKE implementation includes interop tests against strongSwan, from the Alpine 3.21 test
-image. The infrastructure in <code>test/ipsec-interop/</code> drives strongSwan containers as remote
+image. The infrastructure in <code>test/interop-ipsec/</code> drives strongSwan containers as remote
 IKE peers. Sixteen scenarios run today:</p>
 <table>
 <thead>
@@ -846,7 +846,7 @@ IKE peers. Sixteen scenarios run today:</p>
 </table>
 <p>There is no certificate-only (<code>mode x509</code>) scenario. The certificate paths are proven by
 unit tests and by the EAP-TLS scenarios, which authenticate both ends with certificates.</p>
-<!-- source: test/ipsec-interop/scenarios -- the sixteen strongSwan scenarios -->
+<!-- source: test/interop-ipsec/scenarios -- the sixteen strongSwan scenarios -->
 
 <p>Ze holds every gated MUST-level requirement extracted from RFC 7296 in
 <code>rfc/short/rfc7296.md</code>. That is 222 of the summary's 227 rows, each proven in both
@@ -863,7 +863,7 @@ ungated.</p>
 <!-- source: internal/component/ike/engine/rekey.go -- make-before-break rekeying -->
 <!-- source: internal/component/ike/dataplane/dataplane.go -- XFRM state and policy programming -->
 <!-- source: internal/component/ike/ipsec/config.go -- configuration and validation -->
-<!-- source: test/ipsec-interop/run.py -- strongSwan interoperability scenarios -->
+<!-- source: test/interop-ipsec/run.py -- strongSwan interoperability scenarios -->
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -905,7 +905,7 @@ ungated.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 17 August 2026 20:32 UTC</span>
+                    <span class="footer-published">Published 18 August 2026 11:28 UTC</span>
                 </div>
             </div>
         </footer>

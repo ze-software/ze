@@ -604,6 +604,12 @@
     <loc>https://ze-software.net/reference/command-equivalents/clear-dns-cache/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/reference/command-equivalents/clear-firewall-irr-as-set/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/clear-firewall-irr-asn/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/reference/command-equivalents/clear-interface-counters/</loc>
   </url>
   <url>
@@ -932,6 +938,9 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-anomaly-detect/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-anomaly-observe/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-anomaly-shape/</loc>
@@ -1778,6 +1787,9 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/plugins/anomaly-detect-feature-source/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/plugins/anomaly-observe/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/plugins/anomaly-shape-firewall/</loc>

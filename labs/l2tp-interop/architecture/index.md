@@ -13,7 +13,7 @@ route redistribution from a live PPP session.
 ## Layout
 
 ```
-test/l2tp-interop/
+test/interop-l2tp/
   run.py               Runner: preflight, image build, scenario selection
   lab.py               Docker lifecycle, helpers, FRR/PPP verification
   Dockerfile.ze        Ze LNS image (Alpine + ze + iproute2 + kmod + ppp)
@@ -51,8 +51,8 @@ environment causes an immediate refusal.
 
 ```
 make ze-deployment-docker-l2tp-ppp-test          # all scenarios
-python3 test/l2tp-interop/run.py 01-ppp-ipv4     # single scenario
-VERBOSE=1 python3 test/l2tp-interop/run.py       # debug output
+python3 test/interop-l2tp/run.py 01-ppp-ipv4     # single scenario
+VERBOSE=1 python3 test/interop-l2tp/run.py       # debug output
 ```
 
 Environment variables: `FRR_IMAGE` (default `quay.io/frrouting/frr:10.3.1`),

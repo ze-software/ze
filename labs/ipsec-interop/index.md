@@ -13,7 +13,7 @@ Unlike the L2TP and PPPoE labs, there's no long-form design document for this on
 - **Proves:** IKEv2 negotiation and tunnel establishment against a real, independent IKE implementation
 - **Peer:** Real strongSwan/charon (IKE responder), optional FRR for redistribute scenarios
 - **Requires:** Docker, privileged containers
-- **Source:** [test/ipsec-interop/](https://github.com/ze-software/ze/tree/main/test/ipsec-interop)
+- **Source:** [test/interop-ipsec/](https://github.com/ze-software/ze/tree/main/test/interop-ipsec)
 
 ```
 # all scenarios
@@ -27,4 +27,4 @@ $ make ze-interop-ipsec-test IPSEC_INTEROP_SCENARIO=name
 
 Docker with privileged containers (IKE/IPsec needs kernel XFRM access).
 
-- [test/ipsec-interop/ lab source](https://github.com/ze-software/ze/tree/main/test/ipsec-interop)
+- [test/interop-ipsec/ lab source](https://github.com/ze-software/ze/tree/main/test/interop-ipsec)

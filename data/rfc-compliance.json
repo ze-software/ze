@@ -2,10 +2,10 @@
   "gate": {
     "ok": true,
     "error_count": 0,
-    "gated_must": 2965,
+    "gated_must": 2966,
     "enrolled_rfcs": 171,
-    "test_tags": 3547,
-    "message": "rfc-requirements OK: 2965 gated MUST-level requirement(s) across 171 enrolled RFC(s); 3547 test tag(s) resolved."
+    "test_tags": 3558,
+    "message": "rfc-requirements OK: 2966 gated MUST-level requirement(s) across 171 enrolled RFC(s); 3558 test tag(s) resolved."
   },
   "satisfaction": [
     {
@@ -13,7 +13,7 @@
       "short": "Test pair",
       "condition": "positive tag + negative tag",
       "key": "both_polarities",
-      "count": 1237,
+      "count": 1238,
       "share": 41.7
     },
     {
@@ -168,7 +168,7 @@
     "fresh": 52,
     "shifted": 0,
     "stale": 0,
-    "missing": 2913
+    "missing": 2914
   },
   "checks": [
     {

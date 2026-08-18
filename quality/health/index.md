@@ -11,7 +11,7 @@ This page answers **is our testing correct**, not *is our testing large*. Those 
 | Metric | Question | Value | What to do |
 |---|---|---|---|
 | Enrolled RFCs with zero test-proven requirements | Q2 | **36 / 170** (attention) | Pick the largest and complete a pair, or accept it is a single-polarity claim. |
-| Test files that expect a specific error | Q2 | **1069 / 3170** (attention) | Take the lowest-ranked subsystem and add malformed-input or fault-injection cases. |
+| Test files that expect a specific error | Q2 | **1071 / 3173** (attention) | Take the lowest-ranked subsystem and add malformed-input or fault-injection cases. |
 | Logged known-failing tests | Q3 | **2** (attention) | Fix or delete the oldest entry; a permanently logged failure is a deleted test with extra steps. |
 
 7 further metric(s) are within threshold and are listed in full below.
@@ -22,7 +22,7 @@ This page answers **is our testing correct**, not *is our testing large*. Those 
 
 ### Tests with no reachable failure call
 
-**134 / 23109 (floor 134)** (ok)
+**134 / 23190 (floor 134)** (ok)
 
 These execute code and pass unconditionally. Breaking the code under test would not turn them red.
 
@@ -84,7 +84,7 @@ Enrolled and gate-green, but no requirement is proven by BOTH polarities. Some o
 
 ### Test files that expect a specific error
 
-**1069 / 3170** (attention)
+**1071 / 3173** (attention)
 
 Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, ...), with comments stripped. Setup guards of the form `if err != nil { t.Fatal(err) }` are deliberately NOT counted: those assert the happy path. Blind spot: expecting *an* error is weaker than pinning the right one.
 
@@ -105,7 +105,7 @@ Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, .
 
 ### RFC MUST requirements proven by a positive+negative test pair
 
-**1237 / 2965** (ok)
+**1238 / 2966** (ok)
 
 41.7% carry both polarities. Of the remaining 1728: 839 not-applicable (ze deliberately does not do it, so no test is owed), 519 known gap (unimplemented, genuinely untested), and 370 single-polarity -- those DO have a passing tagged test, just one side of the pair, and the RFC gate fails if that test is missing. Only the gap column is untested work.
 
@@ -126,9 +126,9 @@ Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, .
 
 ### In-repo test inventory
 
-**23144 test functions** (ok)
+**23225 test functions** (ok)
 
-3170 Go test files, 78 fuzz targets, 137 benchmarks, 1657 .ci scenarios, 165 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
+3173 Go test files, 78 fuzz targets, 135 benchmarks, 1658 .ci scenarios, 165 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
 
 *Action if this degrades:* This is volume, not health. It is here to state the counting boundary, because a count that silently includes vendored tests inflates by ~6x.
 
@@ -143,7 +143,7 @@ A technique adopted only forward from its introduction shows here as a step: rec
 | package first commit | packages with tests | with a fuzz target | with an RFC-tagged test | with a .ci scenario |
 |---|---|---|---|---|
 | 2025 | 1 | 0 | 0 | 0 |
-| 2026 | 502 | 31 | 98 | 31 |
+| 2026 | 503 | 31 | 98 | 31 |
 
 ## Integrity
 

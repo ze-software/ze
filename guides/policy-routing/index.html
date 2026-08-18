@@ -203,8 +203,8 @@ policy.</p>
 </tr>
 <tr>
 <td><code>protocol</code></td>
-<td>L4 protocol</td>
-<td><code>tcp</code>, <code>udp</code>, <code>icmp</code></td>
+<td>L4 protocol name</td>
+<td><code>tcp</code>, <code>udp</code>, <code>icmp</code>, <code>icmpv6</code>, <code>gre</code>, <code>esp</code>, <code>ah</code>, <code>ospf</code>, <code>vrrp</code>, <code>sctp</code></td>
 </tr>
 <tr>
 <td><code>tcp-flags</code></td>
@@ -213,6 +213,11 @@ policy.</p>
 </tr>
 </tbody>
 </table>
+<p><code>protocol</code> takes one of the ten names the firewall backends can program, listed
+with their IANA numbers in the firewall guide. A different spelling is refused
+at commit, naming the leaf and the accepted values. Before this check existed
+the commit succeeded and the rule failed later, inside the firewall reconcile,
+where the failure was not local to the rule that caused it.</p>
 <p>Set references (<code>@name</code>) resolve against firewall sets defined in the
 firewall config section.</p>
 <p>TCP flag names: <code>fin</code>, <code>syn</code>, <code>rst</code>, <code>psh</code>, <code>ack</code>, <code>urg</code>.</p>
@@ -384,7 +389,7 @@ the shared firewall table registry.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 17 August 2026 20:32 UTC</span>
+                    <span class="footer-published">Published 18 August 2026 11:28 UTC</span>
                 </div>
             </div>
         </footer>

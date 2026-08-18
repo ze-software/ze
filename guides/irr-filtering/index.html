@@ -179,10 +179,22 @@ $ ze cli -c 'show bgp irr check customer-a 192.0.2.0/24 | no-more'
 $ ze cli -c 'update bgp irr asn 65001'
 $ ze cli -c 'update bgp irr as-set AS-CUSTOMER'
 </code></pre>
-<p>A successful refresh atomically replaces the in-memory list and persists it in ZeFS. A failed refresh preserves the last known good list and records the error in <code>show bgp irr</code>. This avoids turning a temporary IRR or PeeringDB outage into an empty allow-list.</p>
+<p>A refresh that returns prefixes atomically replaces the in-memory list and persists it in ZeFS. Two other outcomes keep the last known good list instead, and both record the reason in <code>show bgp irr</code>:</p>
+<ul>
+<li>The refresh failed: the server was unreachable, refused the query, or sent a truncated reply.</li>
+<li>The refresh succeeded and returned no prefixes at all. Ze treats "I have nothing" the same as a failure, because an empty allow-list rejects every route the peer sends. A server that answers <code>D</code> (key not found), answers with no records, or reports an error can therefore not empty a live list.</li>
+</ul>
+<p>The prefixes an empty answer left in place are still enforced. <code>show bgp irr</code> and <code>show firewall irr</code> mark the entry <code>stale</code> and give the age of the data, so enforcing data nobody has confirmed is visible rather than silent.</p>
+<p>Removing prefixes is always deliberate. When an AS-SET is deregistered upstream for good, clear its cached data:</p>
+<pre><code class="language-console">$ ze cli -c 'clear firewall irr as-set AS-CUSTOMER'
+$ ze cli -c 'clear firewall irr asn 65001'
+</code></pre>
+<p>The entry disappears from memory and from ZeFS, and the firewall tables are re-applied. Firewall configuration that still references the name fails to verify until it is fetched again with <code>update firewall irr</code>.</p>
 <p>At first enrollment, do not place the session into service until <code>show bgp irr</code> reports <code>status: ok</code>. A peer without loaded prefix data has no list from which to make a useful allow decision.</p>
 <!-- source: internal/component/bgp/plugins/filter_irr/command.go -- show, check, and manual refresh commands -->
 <!-- source: internal/component/resolve/irr/store/store.go -- atomic refresh and last-known-good persistence -->
+<!-- source: internal/component/resolve/irr/client.go -- RPSL reply classification (parseReply) -->
+<!-- source: internal/component/firewall/plugins/irr/command.go -- firewall show and clear commands -->
 
 <h2 id="local-demonstration">Local demonstration</h2>
 <p>The recording starts with a stored BGP peer that has no IRR plugin, server, AS-SET, or import filter. It adds all five settings with <code>ze config set</code>, then starts Ze against <code>ze-test irr</code>, a deterministic local whois server. Its <code>AS-TEST</code> object contains <code>10.0.0.0/24</code> but not <code>192.168.0.0/24</code>. A local BGP peer announces both routes. Ze constructs the list, accepts the registered route, rejects the other route, and shows only the accepted route in Adj-RIB-In.</p>
@@ -278,6 +290,16 @@ The operational commands use Ze&#x27;s default text format. Its key/value layout
 <td>Correct the AS-SET or server, then refresh. The last known good list remains active.</td>
 </tr>
 <tr>
+<td>Status is <code>stale</code></td>
+<td><code>stale-since</code> and <code>data-age-seconds</code> in <code>show firewall irr</code></td>
+<td>The last refresh returned no prefixes. Confirm the AS-SET still exists and the server is reachable, then refresh. The previous prefixes stay enforced meanwhile.</td>
+</tr>
+<tr>
+<td>An AS-SET no longer exists and its prefixes are still enforced</td>
+<td><code>show firewall irr</code></td>
+<td>Run <code>clear firewall irr as-set &lt;name&gt;</code>. An empty answer never removes prefixes, so removal is an operator action.</td>
+</tr>
+<tr>
 <td>The wrong AS-SET is selected</td>
 <td><code>as-set</code> in <code>show bgp irr</code></td>
 <td>Configure the expected AS-SET explicitly under the peer session.</td>
@@ -335,7 +357,7 @@ The operational commands use Ze&#x27;s default text format. Its key/value layout
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 17 August 2026 20:32 UTC</span>
+                    <span class="footer-published">Published 18 August 2026 11:28 UTC</span>
                 </div>
             </div>
         </footer>

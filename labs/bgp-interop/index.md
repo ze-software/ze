@@ -38,7 +38,7 @@ A Docker orchestrator launches Ze and one or more peer daemons on an isolated ne
 $ make ze-interop-test
 
 # single scenario, verbose
-$ python3 test/interop/run.py 01-ebgp-ipv4-frr
+$ python3 test/interop/run.py bgp-ebgp-ipv4-frr
 ```
 
 `Prerequisites`
