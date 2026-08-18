@@ -717,7 +717,7 @@ func fixedNow() time.Time {
 	return time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC)
 }
 
-func testStatusWriter(root string, code int, mode, skipped string, now time.Time) error {
+func testStatusWriter(root string, code int, mode, skipped, startHash string, now time.Time) error {
 	content := "exit=" + strconv.Itoa(code) + "\n" + "timestamp=" + now.UTC().Format(time.RFC3339) + "\nmode=" + mode + "\nskipped=" + skipped + "\ngit_sha=test\ntree_hash=test\n"
 	return os.WriteFile(filepath.Join(root, statusPath), []byte(content), 0o644)
 }
@@ -2104,4 +2104,64 @@ func TestChangedLintCoversIntegrationTaggedFiles(t *testing.T) {
 				"status is discarded when the integration pass is clean. Line: %q", ln)
 		}
 	}
+}
+
+// TestWriteVerifyStatusNamesTheTreeThatWasVerified pins the freshness
+// certificate to the evidence behind it.
+//
+// VALIDATES: tree_hash records the tree the stages READ, and a tree that moved
+// while the run was in flight is certified as nothing at all.
+// PREVENTS: the certificate outrunning its evidence. computeTreeHash used to be
+// called only at the end, so a run whose early stages judged one tree stamped
+// whichever tree existed when it finished. verify-status.sh reports FRESH on an
+// exact hash match, and commit_helper.py gates on that, so in a shared checkout
+// a run spanning another session's edits certified content it never verified.
+func TestWriteVerifyStatusNamesTheTreeThatWasVerified(t *testing.T) {
+	now := time.Date(2026, 8, 18, 12, 0, 0, 0, time.UTC)
+
+	// The tree did not move: the hash the run started with is the answer, and it
+	// is a REAL hash of this tree rather than a constant, so a later
+	// verify-status.sh comparison can match it.
+	root := t.TempDir()
+	live := computeTreeHash(root)
+	if err := writeVerifyStatus(root, 0, "ze-precommit-verify", "", live, now); err != nil {
+		t.Fatalf("write status: %v", err)
+	}
+	got := readStatusField(t, root, "tree_hash")
+	if got != live {
+		t.Errorf("tree_hash = %q, want the hash the run started with (%q)", got, live)
+	}
+	if got == treeMovedSentinel {
+		t.Error("an unchanged tree must not be certified as moved")
+	}
+
+	// The tree moved: no single hash is true for the run, so the certificate
+	// must name none. The sentinel cannot equal any tree's hash, which is what
+	// makes verify-status.sh report STALE rather than FRESH.
+	if err := writeVerifyStatus(root, 0, "ze-precommit-verify", "", "a-tree-that-is-not-this-one", now); err != nil {
+		t.Fatalf("write status: %v", err)
+	}
+	got = readStatusField(t, root, "tree_hash")
+	if got != treeMovedSentinel {
+		t.Errorf("tree_hash = %q, want %q: a run that spanned an edit certifies nothing", got, treeMovedSentinel)
+	}
+	if got == live {
+		t.Error("a moved tree must never be certified with a real hash")
+	}
+}
+
+// readStatusField returns one `key=value` field from the written status file.
+func readStatusField(t *testing.T, root, key string) string {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join(root, statusPath))
+	if err != nil {
+		t.Fatalf("read status: %v", err)
+	}
+	for line := range strings.SplitSeq(string(data), "\n") {
+		if rest, ok := strings.CutPrefix(line, key+"="); ok {
+			return rest
+		}
+	}
+	t.Fatalf("no %s field in %q", key, string(data))
+	return ""
 }

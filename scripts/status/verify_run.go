@@ -243,7 +243,7 @@ type verifyConfig struct {
 	Now         func() time.Time
 	Out         io.Writer
 	RunStage    func(context.Context, string, stage, io.Writer) int
-	WriteStatus func(root string, exitCode int, mode, skipped string, now time.Time) error
+	WriteStatus func(root string, exitCode int, mode, skipped, startHash string, now time.Time) error
 }
 
 // makeNoExecFlags are the GNU make short options under which recipes are not
@@ -527,6 +527,12 @@ func runVerify(ctx context.Context, cfg verifyConfig) (int, error) {
 		writef(out, "WARNING: %s\n\n", warn)
 	}
 
+	// The tree as it stands BEFORE any stage runs. The certificate must name
+	// what was verified, and the stages verify this tree: hashing after the loop
+	// stamps whatever the tree became, which in a shared checkout is a different
+	// tree than the early stages judged.
+	startHash := computeTreeHash(cfg.Root)
+
 	results := make([]stageResult, 0, len(cfg.Stages))
 	exitCode := 0
 	for i, st := range cfg.Stages {
@@ -571,7 +577,7 @@ func runVerify(ctx context.Context, cfg verifyConfig) (int, error) {
 	if err := writeFailureArtifacts(cfg.Root, art, index); err != nil {
 		return 2, err
 	}
-	if err := cfg.WriteStatus(cfg.Root, exitCode, cfg.Mode, os.Getenv("ZE_SKIP_SUITES"), cfg.Now()); err != nil {
+	if err := cfg.WriteStatus(cfg.Root, exitCode, cfg.Mode, os.Getenv("ZE_SKIP_SUITES"), startHash, cfg.Now()); err != nil {
 		return 2, fmt.Errorf("write verify status: %w", err)
 	}
 
@@ -1177,11 +1183,25 @@ func writeln(w io.Writer, args ...any) {
 	_, _ = fmt.Fprintln(w, args...) //nolint:errcheck // output
 }
 
-func writeVerifyStatus(root string, exitCode int, mode, skipped string, now time.Time) error {
+// treeMovedSentinel is written as the tree_hash when the tree changed while the
+// run was in flight. verify-status.sh reports FRESH only when the live hash
+// EQUALS the recorded one, so a value no tree can hash to reports STALE. That is
+// the fail-closed answer: when the stages judged more than one tree, no single
+// hash is true for the run, and asserting one would certify content that was
+// never verified.
+const treeMovedSentinel = "tree-moved-during-run"
+
+func writeVerifyStatus(root string, exitCode int, mode, skipped, startHash string, now time.Time) error {
 	if err := os.MkdirAll(filepath.Join(root, "tmp"), 0o750); err != nil {
 		return err
 	}
-	hash := computeTreeHash(root)
+	// The hash names the tree the stages READ, not the tree that happens to be
+	// on disk now. They agree only when nothing edited the checkout during the
+	// run; where they differ the run certifies nothing.
+	hash := startHash
+	if endHash := computeTreeHash(root); endHash != startHash {
+		hash = treeMovedSentinel
+	}
 	sha := gitOutput(root, "rev-parse", "HEAD")
 	if strings.TrimSpace(sha) == "" {
 		sha = "unknown"
