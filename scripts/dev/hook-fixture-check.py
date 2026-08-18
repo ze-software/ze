@@ -1608,6 +1608,77 @@ def run_commit_gate(results: Results) -> None:
     finally:
         shutil.rmtree(repo, ignore_errors=True)
 
+    # --- go-style: the content checks pretool-writeedit.py applies to Go,
+    # re-run over the lines the commit ADDS. Same bypass as go-design-ref, a
+    # different half of it: design-ref judges a file property, these judge the
+    # code. c_panic is the one that matters most -- ze-style.md calls "a peer
+    # MUST NOT be able to panic the daemon" the single most important line on
+    # the page, and it was exactly as bypassable as the rest.
+    #
+    # The ADDED lines are the subject because std_content in the hook returns
+    # "the text added by Write, Edit, or MultiEdit". Measured: over added lines
+    # this set fires twice in the last 40 commits; over whole files it fires on
+    # 1646 of 10212, which would gate on code the commit never touched.
+    repo = _init_repo()
+    try:
+        _write(repo, "internal/alpha/a.go", "// Design: docs/a.md -- a\npackage alpha\n")
+        _git(repo, "add", "internal")
+        _git(repo, "commit", "-q", "-m", "seed")
+
+        # The real finding this gate was built from: a fmt.Printf an agent wrote
+        # through a Bash heredoc, which reached HEAD because no hook saw it.
+        _write(
+            repo,
+            "internal/alpha/a.go",
+            '// Design: docs/a.md -- a\npackage alpha\n\n'
+            'func F() { fmt.Printf("regenerated %q (%d years)\\n", n, y) }\n',
+        )
+        problems = ch.go_style_problems(Path(repo), ("internal/alpha/a.go",))
+        results.check(
+            "commit-gate-go-style-added-line-blocks",
+            bool(problems) and "c_sprintf_new" in "".join(problems),
+            repr(problems)[:160],
+        )
+
+        # A bare panic is refused; the documented BUG: prefix is not. Both halves,
+        # because a gate that refused every panic would have no route to commit.
+        _write(
+            repo,
+            "internal/alpha/p.go",
+            '// Design: docs/a.md -- p\npackage alpha\n\nfunc P() { panic("boom") }\n',
+        )
+        problems = ch.go_style_problems(Path(repo), ("internal/alpha/p.go",))
+        results.check(
+            "commit-gate-go-style-panic-blocks",
+            bool(problems) and "c_panic" in "".join(problems),
+            repr(problems)[:160],
+        )
+        _write(
+            repo,
+            "internal/alpha/p.go",
+            '// Design: docs/a.md -- p\npackage alpha\n\nfunc P() { panic("BUG: unreachable") }\n',
+        )
+        results.check(
+            "commit-gate-go-style-bug-prefix-passes",
+            not ch.go_style_problems(Path(repo), ("internal/alpha/p.go",)),
+            "the documented prefix must stay committable",
+        )
+
+        # The scope. A test file, a non-Go path, and a Go file this commit does
+        # not change must all produce nothing: the subject is the added lines.
+        results.check(
+            "commit-gate-go-style-test-file-ignored",
+            not ch.go_style_problems(Path(repo), ("internal/alpha/a_test.go",)),
+            "_test.go is out of scope",
+        )
+        results.check(
+            "commit-gate-go-style-non-go-ignored",
+            not ch.go_style_problems(Path(repo), ("docs/notes.md",)),
+            "non-Go is out of scope",
+        )
+    finally:
+        shutil.rmtree(repo, ignore_errors=True)
+
     # --- discovery-index: an index the commit does not visibly FEED is still
     # verified. `indexes_fed_by` recognises a PACKAGE-MAP source by a `// Package`
     # header or a register.go name, so a new .go carrying only `// Design:` feeds

@@ -2560,11 +2560,126 @@ def go_design_ref_problems(repo: Path, add_paths: tuple[str, ...]) -> list[str]:
     ]
 
 
+# The content checks pretool-writeedit.py applies to Go, re-run here over the
+# lines a commit ADDS. Named rather than discovered: a check that reads session
+# state answers nothing at commit time, and sweeping in every c_* would gate on
+# checks nobody measured.
+#
+# Measured before choosing them. Over the last 40 commits, 159 Go file-diffs,
+# this set fires twice, and both were Go an agent wrote through a Bash heredoc.
+# Over WHOLE files it fires on 1646 of 10212, which is why the ADDED lines are
+# the subject: std_content in the hook returns "the text added by Write, Edit,
+# or MultiEdit", so added lines are what the hook has always judged. Anything
+# wider invents a standard the repository has never held itself to.
+GO_CONTENT_CHECKS = (
+    "c_panic",
+    "c_os_exit",
+    "c_ignored_errors",
+    "c_legacy_log",
+    "c_sprintf_new",
+    "c_string_concat",
+    "c_temp_debug",
+    "c_json_kebab",
+    "c_goroutine",
+    "c_raw_ansi",
+)
+
+
+def _writeedit_module():
+    """The hook module, so both gates run ONE implementation.
+
+    check_weakened_tests.py is the precedent: the pre-tool hook and this file
+    share it, so neither can disagree with the other about what a diff does.
+    Returns None when the hook cannot be loaded, because a broken guard must
+    never brick every commit in a shared checkout.
+    """
+    import importlib.util
+
+    path = Path(__file__).resolve().parents[2] / ".claude/hooks/pretool-writeedit.py"
+    if not path.is_file():
+        return None
+    spec = importlib.util.spec_from_file_location("ze_pretool_writeedit", path)
+    module = importlib.util.module_from_spec(spec)
+    try:
+        spec.loader.exec_module(module)
+    except Exception:
+        return None
+    return module
+
+
+def go_style_problems(repo: Path, add_paths: tuple[str, ...]) -> list[str]:
+    """Go style findings the pre-tool hook never saw, because Bash bypassed it.
+
+    .claude/settings.json wires pretool-writeedit.py to
+    `Write|Edit|MultiEdit|NotebookEdit`. Go written through a Bash heredoc
+    reaches none of its checks, and auto mode tells agents to prefer Bash for
+    file changes, so the bypass is the DEFAULT route rather than an unusual one.
+    c_panic is the one that matters most: docs/contributing/ze-style.md calls "a
+    peer MUST NOT be able to panic the daemon" the single most important line on
+    the page, and that check was exactly as bypassable as the rest.
+
+    At commit time the changed-file set is a FACT rather than a guess, which no
+    pattern over a shell command can have. This gate therefore reaches what a
+    pre-tool heuristic must miss.
+    """
+    go_paths = [
+        p for p in add_paths if p.endswith(".go") and not p.endswith("_test.go")
+    ]
+    if not go_paths:
+        return []
+    module = _writeedit_module()
+    if module is None:
+        return []
+    checks = [
+        (name, getattr(module, name))
+        for name in GO_CONTENT_CHECKS
+        if hasattr(module, name)
+    ]
+    problems: list[str] = []
+    for path in go_paths:
+        # A file HEAD does not carry is entirely new, and `git diff HEAD` prints
+        # nothing for it. Reading the diff alone would skip exactly the case
+        # where a violation arrives: a whole new file written from a heredoc.
+        tracked = run_git(repo, "ls-tree", "HEAD", "--", path, check=False).stdout
+        if tracked.strip():
+            diff = run_git(repo, "diff", "HEAD", "--", path, check=False).stdout
+            added = "\n".join(
+                line[1:]
+                for line in diff.split("\n")
+                if line.startswith("+") and not line.startswith("+++")
+            )
+        else:
+            try:
+                added = (repo / path).read_text(encoding="utf-8")
+            except OSError:
+                continue
+        if not added.strip():
+            continue
+        ctx = {"fp": path, "content": added, "tool": "Edit", "ti": {}}
+        for name, check in checks:
+            try:
+                result = check(ctx)
+            except Exception:
+                continue  # one broken check must not block every commit
+            if result is None:
+                continue
+            detail = result[1] if isinstance(result, tuple) else str(result)
+            problems.append(
+                f"{path}: {name} fires on the lines this commit adds.\n{detail}\n"
+                "    The pre-tool hook would have refused this edit. A shell "
+                "write reached none of its checks.\n"
+                "    Fix it at the source, or carry the //nolint the check "
+                "documents, with its reason."
+            )
+    return problems
+
+
 def commit_gate_problems(
     repo: Path, add_paths: tuple[str, ...], remove_paths: tuple[str, ...]
 ) -> list[str]:
     """All BLOCK-severity commit-time gates, in one call for create()."""
     problems: list[str] = []
+    problems += go_style_problems(repo, add_paths)
     problems += go_design_ref_problems(repo, add_paths)
     problems += deferral_in_diff_problems(repo, add_paths, remove_paths)
     problems += deferral_shard_removal_problems(repo, add_paths, remove_paths)
