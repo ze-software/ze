@@ -9,7 +9,6 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(__file__))
 from discovery_sources import (
-    DOCS_TO_CODE,
     GENERATORS,
     OUTPUTS,
     PACKAGE_MAP,
@@ -40,7 +39,9 @@ class TestDiscoverySources(unittest.TestCase):
                 "internal/x/y.go", "// Package y does things\npackage y\n"
             )
         )
-        self.assertTrue(
+        # A `// Design:` header feeds ai/DOCS-TO-CODE.md, which is no longer
+        # tracked (.gitignore), so it obliges no commit to refresh anything.
+        self.assertFalse(
             is_discovery_source(
                 "internal/x/y.go", "// Design: docs/architecture/y.md\npackage y\n"
             )
@@ -63,10 +64,16 @@ class TestIndexesFedBy(unittest.TestCase):
     def test_learned_summary_feeds_nothing(self):
         self.assertEqual(indexes_fed_by("plan/learned/1067-topic.md"), frozenset())
 
-    def test_design_header_feeds_only_docs_to_code(self):
+    def test_design_header_feeds_nothing_since_docs_to_code_is_untracked(self):
+        """ai/DOCS-TO-CODE.md is generated on demand and gitignored.
+
+        The gate asks "must this commit refresh a COMMITTED index". A file git
+        does not hold can never be the answer, so a `// Design:` header is no
+        longer a discovery source at all.
+        """
         self.assertEqual(
             indexes_fed_by("internal/x/y.go", "// Design: docs/x.md\npackage y\n"),
-            frozenset({DOCS_TO_CODE}),
+            frozenset(),
         )
 
     def test_package_header_feeds_only_package_map(self):
@@ -91,7 +98,7 @@ class TestIndexesFedBy(unittest.TestCase):
         self.assertEqual(indexes_fed_by("mk/inventory.mk"), frozenset(OUTPUTS))
 
     def test_committed_index_feeds_only_itself(self):
-        self.assertEqual(indexes_fed_by(DOCS_TO_CODE), frozenset({DOCS_TO_CODE}))
+        self.assertEqual(indexes_fed_by(PACKAGE_MAP), frozenset({PACKAGE_MAP}))
 
     def test_unrelated_feeds_nothing(self):
         self.assertEqual(indexes_fed_by("docs/guide/x.md"), frozenset())

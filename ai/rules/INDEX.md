@@ -6,8 +6,6 @@
 One-line overview of every rule under `ai/rules/`. Read the listed file in
 full before acting on a topic it covers.
 
-Total: 29 rules
-
 | Rule | When to read | Severity | File |
 |------|--------------|----------|------|
 | Architecture and Design | before any design decision, before writing code or a spec, or when deciding where a new package belongs | blocking | `ai/rules/architecture.md` |

@@ -119,3 +119,14 @@ internal/appliance/build/
 # tracked: they pin upstream gokrazy, serial-busybox and rtr7/kernel
 # dependencies that appear nowhere else.
 gokrazy/ze/builddir/github.com/ze-software/ze/go.sum
+
+# Derived documentation indexes, generated on demand and never committed.
+# Both are pure functions of the tree: docs_to_code.py reads `// Design:`
+# headers, code_to_docs.py reads `<!-- source: -->` anchors. Together they are
+# about 8900 lines that no code reads, they regenerate in under 3 seconds, and
+# tracking them cost a diff on 13% of commits plus a rebase conflict every time
+# two sessions appended a row. `make ze-doc-index-update` and
+# `make ze-discovery-index-update` write them; the session-start hook builds
+# them when they are missing.
+/ai/DOCS-TO-CODE.md
+/ai/CODE-TO-DOCS.md

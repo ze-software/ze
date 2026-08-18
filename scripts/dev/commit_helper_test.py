@@ -978,17 +978,17 @@ class TestDiscoveryIndexProblems(unittest.TestCase):
         try:
             with tempfile.TemporaryDirectory() as tmp:
                 root = self._repo(tmp)
-                # This commit feeds ONLY DOCS-TO-CODE and includes it.
+                # This commit carries a .go with no `// Package` header, so it
+                # feeds no index at all.
                 go_path = root / "internal" / "x" / "y.go"
                 go_path.parent.mkdir(parents=True, exist_ok=True)
-                go_path.write_text("// Design: docs/x.md\npackage x\n")
-                (root / "ai" / "DOCS-TO-CODE.md").write_text("v2\n")
+                go_path.write_text("package x\n\nfunc F() {}\n")
                 # PACKAGE-MAP.md is dirty from another session but this commit
                 # does not feed it, so the gate must not demand it.
                 (root / "ai" / "PACKAGE-MAP.md").write_text("someone-else\n")
                 problems = ch.discovery_index_problems(
                     root,
-                    ("internal/x/y.go", "ai/DOCS-TO-CODE.md"),
+                    ("internal/x/y.go",),
                 )
                 self.assertEqual(problems, [], problems)
         finally:
@@ -1000,14 +1000,14 @@ class TestDiscoveryIndexProblems(unittest.TestCase):
         try:
             with tempfile.TemporaryDirectory() as tmp:
                 root = self._repo(tmp)
-                # Commit feeds DOCS-TO-CODE, whose output IS dirty but omitted.
+                # Commit feeds PACKAGE-MAP, whose output IS dirty but omitted.
                 go_path = root / "internal" / "x" / "y.go"
                 go_path.parent.mkdir(parents=True, exist_ok=True)
-                go_path.write_text("// Design: docs/x.md\npackage x\n")
-                (root / "ai" / "DOCS-TO-CODE.md").write_text("v2\n")
+                go_path.write_text("// Package x does things\npackage x\n")
+                (root / "ai" / "PACKAGE-MAP.md").write_text("v2\n")
                 problems = ch.discovery_index_problems(root, ("internal/x/y.go",))
                 self.assertTrue(problems, "a fed-but-omitted dirty index must refuse")
-                self.assertIn("DOCS-TO-CODE.md", "\n".join(problems))
+                self.assertIn("PACKAGE-MAP.md", "\n".join(problems))
         finally:
             ch.discovery_index_freshness = saved
 

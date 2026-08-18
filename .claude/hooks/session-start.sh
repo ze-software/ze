@@ -102,6 +102,18 @@ if [ -n "$FOUND_STATE" ]; then
     fi
 fi
 
+# Derived documentation indexes. Both are gitignored (.gitignore), so a fresh
+# clone has neither, and a rule that tells an agent to read one would point at
+# nothing. Build only what is MISSING: in steady state this costs nothing, and
+# a full rebuild of both takes under 3 seconds. Staleness is not chased here --
+# `make ze-generated-files-update` owns that, and a derived file nothing gates
+# on is cheaper to rebuild than to police.
+for idx in ai/DOCS-TO-CODE.md:ze-discovery-index-update ai/CODE-TO-DOCS.md:ze-doc-index-update; do
+    if [ ! -f "${idx%%:*}" ]; then
+        make "${idx##*:}" >/dev/null 2>&1 && echo "Built ${idx%%:*} (derived, not tracked)"
+    fi
+done
+
 # Generated agent files drift check. CLAUDE.md / AGENTS.md / skills mirrors
 # are gitignored, so git never shows drift; compare content instead.
 if ! scripts/dev/skill_sync.sh --check >/dev/null 2>&1; then

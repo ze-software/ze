@@ -179,13 +179,13 @@ def build(rules_dir):
         "One-line overview of every rule under `ai/rules/`. Read the listed file in",
         "full before acting on a topic it covers.",
         "",
-        f"Total: {len(rows)} rules",
-        "",
         "| Rule | When to read | Severity | File |",
         "|------|--------------|----------|------|",
     ]
     for name, title, summary, severity in rows:
-        lines.append(f"| {title} | {summary} | {severity} | `ai/rules/{name}` |")  # <!-- doc-links: ignore (format template, not a path) -->
+        lines.append(
+            f"| {title} | {summary} | {severity} | `ai/rules/{name}` |"
+        )  # <!-- doc-links: ignore (format template, not a path) -->
     lines.append("")
     return "\n".join(lines), missing
 

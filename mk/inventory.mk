@@ -296,7 +296,6 @@ ze-discovery-index-update:
 
 ze-discovery-index-check:
 	@python3 scripts/dev/package_map.py --check
-	@python3 scripts/dev/docs_to_code.py --check
 
 # Digest anchor validity: every `file:line` reference in ai/digests/*.md resolves
 # to a real file and an in-range line. The digests are hand-maintained, so this

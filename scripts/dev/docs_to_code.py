@@ -91,8 +91,6 @@ def render(index: dict[str, set[tuple[str, str]]]) -> str:
         "header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side",
         "`<!-- source: -->` anchors). See `ai/rules/go-standards.md`.",
         "",
-        f"Total: {len(index)} design docs, {len(files)} files",
-        "",
     ]
     for doc in sorted(index):
         refs = sorted(index[doc])

@@ -5,13 +5,20 @@ Two gates must agree on this set: the commit gate
 (`verify_wiring_docs.is_discovery_source`). They previously carried the same
 path rules twice with a "keep in sync" comment; the rules now live here once.
 
-The two callers differ only in which file text they scan for the `// Package` /
-`// Design:` header markers -- the commit gate reads HEAD, the router reads the
-working tree plus HEAD -- so each passes its own `header_text`; the path
-patterns are shared.
+The two callers differ only in which file text they scan for the `// Package`
+header marker -- the commit gate reads HEAD, the router reads the working tree
+plus HEAD -- so each passes its own `header_text`; the path patterns are
+shared.
 
-Generated indexes: ai/PACKAGE-MAP.md (from `// Package` docs + register.go
-Description), ai/DOCS-TO-CODE.md (from `// Design:` headers).
+Generated index: ai/PACKAGE-MAP.md (from `// Package` docs + register.go
+Description).
+
+ai/DOCS-TO-CODE.md and ai/CODE-TO-DOCS.md were removed from this registry when
+they stopped being tracked (.gitignore). A gate here answers "must this commit
+refresh a committed index"; a file git does not hold cannot answer it, and a
+generator pointed at a materialized commit view would be checking a file that
+is not in the view. They are still generated -- on demand, into the working
+tree -- by `make ze-discovery-index-update` and `make ze-doc-index-update`.
 """
 
 from __future__ import annotations
@@ -22,21 +29,12 @@ from pathlib import Path
 # Named index outputs. Kept as constants (not bare tuple positions) so the
 # per-index source map below reads as data, not as a coincidence of ordering.
 PACKAGE_MAP = "ai/PACKAGE-MAP.md"  # from `// Package` docs + register.go Description
-DOCS_TO_CODE = "ai/DOCS-TO-CODE.md"  # from `// Design:` headers
 
 # GENERATORS[i] produces OUTPUTS[i]; the two tuples MUST stay parallel (the commit
 # gate and the freshness check both `zip()` them).
-GENERATORS = (
-    "scripts/dev/package_map.py",
-    "scripts/dev/docs_to_code.py",
-)
+GENERATORS = ("scripts/dev/package_map.py",)
 
-OUTPUTS = (
-    PACKAGE_MAP,
-    DOCS_TO_CODE,
-)
-
-HEADER_MARKERS = ("// Package", "// Design:")
+OUTPUTS = (PACKAGE_MAP,)
 
 # `--check` exit code meaning "the committed output no longer matches its sources".
 # Distinct from 1 (the generator itself failed: missing dir, minimal checkout,
@@ -81,7 +79,7 @@ def indexes_fed_by(path: str, header_text: str = "") -> frozenset[str]:
     feeds no index.
 
     `header_text` is only consulted for non-test `.go` files (to look for the
-    `// Package` / `// Design:` markers the indexes derive from); the caller
+    `// Package` marker the index derives from); the caller
     supplies HEAD and/or working-tree content as appropriate.
     """
     # A committed index "feeds" only itself: committing it is how its own
@@ -99,11 +97,12 @@ def indexes_fed_by(path: str, header_text: str = "") -> frozenset[str]:
     fed: set[str] = set()
     if path.endswith("register.go"):
         fed.add(PACKAGE_MAP)  # register.go Description strings feed PACKAGE-MAP
-    if path.endswith(".go") and not path.endswith("_test.go"):
-        if "// Package" in header_text:
-            fed.add(PACKAGE_MAP)
-        if "// Design:" in header_text:
-            fed.add(DOCS_TO_CODE)
+    if (
+        path.endswith(".go")
+        and not path.endswith("_test.go")
+        and "// Package" in header_text
+    ):
+        fed.add(PACKAGE_MAP)
     return frozenset(fed)
 
 
@@ -111,7 +110,7 @@ def is_discovery_source(path: str, header_text: str = "") -> bool:
     """True if committing `path` can change a generated discovery index.
 
     `header_text` is only consulted for non-test `.go` files (to look for the
-    `// Package` / `// Design:` markers the indexes derive from); the caller
+    `// Package` marker the index derives from); the caller
     supplies HEAD and/or working-tree content as appropriate. Defined in terms of
     `indexes_fed_by` so the "is it a source" and "which index" answers can never
     disagree.
