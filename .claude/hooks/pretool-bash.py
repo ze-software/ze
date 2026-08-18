@@ -818,6 +818,89 @@ def check_test_deletion(cmd, _ctx):
     return (2, "\n".join(lines))
 
 
+# The trees pretool-writeedit.py owns. settings.json wires that hook to
+# `Write|Edit|MultiEdit|NotebookEdit` and Bash is absent from the matcher, so a
+# shell write here runs NONE of its checks -- not c_design_without_lsp, not the
+# plan-file placement check, none of them.
+GOVERNED_TREE = r"(?:plan/|ai/rules/)"
+
+# Tier one: the write is a shell VERB. Binding on the verb and not on the path
+# is what keeps `grep plan/spec-x.md`, `sed -n '1,40p' plan/spec-x.md` and
+# `commit_helper.py --file plan/spec-x.md` free -- the sanctioned commit path
+# names these paths constantly and would otherwise refuse itself.
+_GOVERNED_SHELL_WRITE = re.compile(
+    r">>?\s*[\"']?"
+    + GOVERNED_TREE
+    + r"|(?:sed|perl)\s+(?:[^|;&]*\s)?-i\b[^|;&]*"
+    + GOVERNED_TREE
+    + r"|tee\s+(?:-a\s+)?[\"']?"
+    + GOVERNED_TREE
+    + r"|(?:mv|cp)\s+[^|;&]*\s[\"']?"
+    + GOVERNED_TREE
+)
+
+# Tier two: the write is inside an interpreter payload, where the shell sees no
+# verb at all. This tier OVER-MATCHES on purpose. A literal-path form
+# (`Path("plan/x.md").write_text`) has almost no false positives and misses the
+# shape that produced this finding: a loop that writes `Path(src)` with the path
+# in a variable. Matching the interpreter, a governed path and a write primitive
+# anywhere in the payload catches that, at the cost of refusing a payload that
+# merely READS plan/ and writes to scratch. That cost is deliberate and the
+# escape below is its answer.
+_GOVERNED_SCRIPT_WRITE = re.compile(
+    r"(?:python3?|perl|ruby)\b[\s\S]*" + GOVERNED_TREE + r"[\s\S]*"
+    r"(?:open\([^)]*[\"'][wa]|write_text\(|\.write\(|writelines\(|truncate\()"
+)
+
+# The escape, spelled like RAW_ADMIT_VAR above: a required reason, in the
+# command, landing in the transcript. A false positive costs one assignment; a
+# false negative costs the guard.
+GOVERNED_ADMIT_VAR = "ZE_ADMIT_GOVERNED_WRITE"
+
+
+# ze point: commands/directives/bash-must-not-edit-a-governed-document
+def check_governed_doc_edit(cmd, _ctx):
+    """Refuse a shell write to a tree pretool-writeedit.py guards.
+
+    Auto mode tells an agent to prefer Bash for file changes, so this bypass was
+    the DEFAULT route rather than an unusual one, and the guard never ran once.
+
+    It is partial by construction: deciding whether an arbitrary shell command
+    rewrites a document is undecidable, and a path assembled from variables in a
+    payload this pattern cannot read still slips through. It is not fail-open
+    for that -- what it misses is exactly what is missed today, and the shapes
+    that occur in practice are the five below.
+
+    The advice names Edit and not Write, because c_point_overwrite in
+    pretool-writeedit.py refuses a Write over an existing rule point: offering
+    both would bounce the author between two guards.
+    """
+    if not (_GOVERNED_SHELL_WRITE.search(cmd) or _GOVERNED_SCRIPT_WRITE.search(cmd)):
+        return None
+    if re.search(rf"\b{GOVERNED_ADMIT_VAR}=[\"']?\S", cmd):
+        return None
+    return (
+        2,
+        "\n".join(
+            [
+                f"{RED}{BOLD}❌ Blocked: shell write to plan/ or ai/rules/{RESET}",
+                "",
+                "  .claude/hooks/pretool-writeedit.py guards these trees, and",
+                "  settings.json wires it to Write|Edit|MultiEdit|NotebookEdit",
+                "  only. A shell write runs none of its checks.",
+                "",
+                "  → Edit the file with the Edit tool. Prefer Edit over Write:",
+                "    a Write over an existing rule point is refused separately.",
+                "  → Reading is untouched: grep, cat and `sed -n` stay free.",
+                "  → A payload that only READS these trees and writes elsewhere",
+                "    is refused too; that is the cost of catching a path built",
+                "    from a variable. State the reason and it lands:",
+                f'      {GOVERNED_ADMIT_VAR}="reads plan/, writes scratch" <command>',
+            ]
+        ),
+    )
+
+
 # Order mirrors the original settings.json hook array. The four commit-gated
 # checks (deferral-in-diff, deferral-unassigned, wiring-at-commit, doc-drift)
 # were re-homed to scripts/dev/commit_helper.py creation-time gates: they gated
@@ -834,6 +917,7 @@ CHECKS = (
     check_system_tmp,
     check_scratch_path,
     check_test_deletion,
+    check_governed_doc_edit,
 )
 
 

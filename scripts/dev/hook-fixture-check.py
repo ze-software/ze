@@ -6538,6 +6538,89 @@ def run_raw_job_admission(results: Results) -> None:
     results.check("every-refusal-names-a-way-through", named, repr(r))
 
 
+def run_governed_doc_edit(results: Results) -> None:
+    """check_governed_doc_edit: a shell write to plan/ or ai/rules/ is refused.
+
+    pretool-writeedit.py owns those trees, and settings.json wires it to
+    Write|Edit|MultiEdit|NotebookEdit only, so a shell write ran none of its
+    checks. Auto mode prefers Bash for file changes, which made the bypass the
+    default route rather than an unusual one.
+
+    The pass cases are the load-bearing half. Binding on the write VERB and not
+    on the path is what keeps the sanctioned commit path working: commit_helper
+    names these paths on every `--file`, and a check that read the path alone
+    would refuse the one route the repository requires.
+    """
+    print("governed-doc-edit:")
+    check = _load_pretool_bash().check_governed_doc_edit
+
+    def blocked(cmd):
+        return check(cmd, {"dir": "/repo"}) is not None
+
+    for name, cmd in (
+        ("redirect", "echo x > plan/spec-foo.md"),
+        ("append", "cat rows >> ai/rules/points/commands/manifest.md"),
+        ("sed-i", "sed -i 's/a/b/' plan/spec-foo.md"),
+        ("tee", "echo x | tee plan/spec-foo.md"),
+        ("cp-into", "cp build/x.md plan/spec-foo.md"),
+    ):
+        results.check(f"governed-{name}-blocks", blocked(cmd), cmd)
+
+    # The shape that produced the finding: a path held in a loop variable, which
+    # no literal-path pattern sees.
+    heredoc = (
+        "python3 - <<'PY'\n"
+        "import pathlib\n"
+        "pathlib.Path('plan/spec-foo.md').write_text('x')\n"
+        "PY"
+    )
+    results.check("governed-heredoc-literal-blocks", blocked(heredoc), heredoc)
+    loop = (
+        "python3 - <<'PY'\n"
+        "import pathlib\n"
+        "for src in ('plan/spec-a.md', 'plan/spec-b.md'):\n"
+        "    pathlib.Path(src).write_text('x')\n"
+        "PY"
+    )
+    results.check("governed-heredoc-variable-blocks", blocked(loop), loop)
+
+    # Reads. A guard that refused these would stop the tree being read at all.
+    for name, cmd in (
+        ("grep", "grep -n Status plan/spec-foo.md"),
+        ("sed-n", "sed -n '1,40p' plan/spec-foo.md"),
+        ("cat", "cat ai/rules/commands.md"),
+        ("wc", "wc -l plan/spec-foo.md"),
+    ):
+        results.check(f"governed-{name}-passes", not blocked(cmd), cmd)
+
+    commit = (
+        "scripts/dev/commit_helper.py create --subject x "
+        "--file plan/spec-foo.md --file ai/rules/commands.md"
+    )
+    results.check("governed-commit-helper-passes", not blocked(commit), commit)
+
+    scratch = 'grep Status plan/spec-foo.md > "$dir/out.log"'
+    results.check("governed-scratch-redirect-passes", not blocked(scratch), scratch)
+
+    # The escape is the answer to the deliberate over-match: a payload that only
+    # READS plan/ and writes elsewhere is refused, and states its reason to land.
+    reads = (
+        "python3 - <<'PY'\n"
+        "import pathlib\n"
+        "rows = pathlib.Path('plan/spec-foo.md').read_text()\n"
+        "pathlib.Path('out.txt').write_text(rows)\n"
+        "PY"
+    )
+    results.check("governed-read-only-payload-blocks", blocked(reads), reads)
+    admitted = 'ZE_ADMIT_GOVERNED_WRITE="reads plan, writes scratch" ' + reads
+    results.check("governed-escape-admits", not blocked(admitted), admitted[:60])
+    results.check(
+        "governed-escape-needs-a-reason",
+        blocked("ZE_ADMIT_GOVERNED_WRITE= " + reads),
+        "empty reason must not admit",
+    )
+
+
 SECTIONS = {
     "format-alloc": run_format_alloc,
     "design-ref": run_design_ref,
@@ -6549,6 +6632,7 @@ SECTIONS = {
     "rfc-test-guard": run_rfc_test_guard,
     "weakened-hatch": run_weakened_hatch,
     "draft-incubator": run_draft_incubator,
+    "governed-doc-edit": run_governed_doc_edit,
     "mark-source-read": run_mark_source_read,
     "design-gate": run_design_gate,
     "delegation": run_delegation,
