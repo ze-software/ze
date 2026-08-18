@@ -350,7 +350,12 @@ mega-menu and curated `llms.txt` sections; `tools/page_registry.py` supplies <!-
 the complete published docs index. The `nav` step publishes the menu once as
 `assets/header.html`. The footer is the
 license line and the publication stamp from `sitelib.footer_html`, not a
-sitemap or second call-to-action block. Group the top menu by reader job: Start, Evaluate, Docs,
+sitemap or second call-to-action block. A page the build did not otherwise
+change keeps the stamp it was published with (`carry_publication_stamps`,
+`tools/build-site.py`), so a publish commit holds the pages that really
+changed and the stamp reads as when THAT page last changed. Keep the
+`footer-published` span's markup as it is: the carry-over finds the stamp by
+it. Asset URLs carry no `?v=` for the same reason (`sitelib.asset_url`). Group the top menu by reader job: Start, Evaluate, Docs,
 Examples, Reference, Project. Every multi-column dropdown must show a label at
 the top of each column. Use short labels and one-line descriptions. Do not let
 dropdown panels clip outside the viewport.

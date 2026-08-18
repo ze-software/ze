@@ -155,3 +155,133 @@ def test_publish_replaces_old_pages_content_but_keeps_git(tmp_path):
     assert not (publish / "old.html").exists()
     assert (publish / "index.html").read_text() == "new page\n"
     assert (publish / "assets" / "site.css").read_text() == "css\n"
+
+
+def _page(stamp, body):
+    return (
+        "<html><body>%s<footer>"
+        '<span class="footer-published">Published %s</span>'
+        "</footer></body></html>\n" % (body, stamp)
+    )
+
+
+def _publish(build_site, build, publish):
+    original_output = build_site.OUTPUT_ROOT
+    original_publish = build_site.PUBLISH_ROOT
+    try:
+        build_site.OUTPUT_ROOT = build
+        build_site.PUBLISH_ROOT = publish
+        build_site.publish_artifact()
+    finally:
+        build_site.OUTPUT_ROOT = original_output
+        build_site.PUBLISH_ROOT = original_publish
+
+
+def _stamped_trees(tmp_path, old_page, new_page):
+    build = tmp_path / "build"
+    publish = tmp_path / "publish"
+    (publish / ".git").mkdir(parents=True)
+    build.mkdir()
+    (publish / "page.html").write_text(old_page)
+    (build / "page.html").write_text(new_page)
+    return build, publish
+
+
+def test_publish_keeps_the_old_stamp_on_an_unchanged_page(tmp_path):
+    """An unchanged page must not be rewritten just because a build ran.
+
+    Every page carries the build's publication time, so without this one build
+    rewrote 673 of 754 published files with nothing but a new stamp.
+    """
+    build_site = load_build_site()
+    build, publish = _stamped_trees(
+        tmp_path,
+        _page("17 August 2026 20:32 UTC", "<p>same</p>"),
+        _page("18 August 2026 11:28 UTC", "<p>same</p>"),
+    )
+
+    _publish(build_site, build, publish)
+
+    assert (publish / "page.html").read_text() == _page(
+        "17 August 2026 20:32 UTC", "<p>same</p>"
+    )
+
+
+def test_publish_stamps_a_page_whose_content_changed(tmp_path):
+    """The carry-over must not freeze the stamp on a page that did change."""
+    build_site = load_build_site()
+    build, publish = _stamped_trees(
+        tmp_path,
+        _page("17 August 2026 20:32 UTC", "<p>old</p>"),
+        _page("18 August 2026 11:28 UTC", "<p>new</p>"),
+    )
+
+    _publish(build_site, build, publish)
+
+    assert (publish / "page.html").read_text() == _page(
+        "18 August 2026 11:28 UTC", "<p>new</p>"
+    )
+
+
+def test_publish_stamps_a_page_that_is_new(tmp_path):
+    """A page with no previous publication has no stamp to carry."""
+    build_site = load_build_site()
+    build = tmp_path / "build"
+    publish = tmp_path / "publish"
+    (publish / ".git").mkdir(parents=True)
+    build.mkdir()
+    (build / "page.html").write_text(_page("18 August 2026 11:28 UTC", "<p>new</p>"))
+
+    _publish(build_site, build, publish)
+
+    assert (publish / "page.html").read_text() == _page(
+        "18 August 2026 11:28 UTC", "<p>new</p>"
+    )
+
+
+def test_publish_keeps_the_facts_stamp_when_no_other_fact_changed(tmp_path):
+    """The facts snapshot records the same build time and must carry it too.
+
+    It is the one file left that a no-op rebuild would rewrite, and a status
+    that is never clean cannot say whether anything changed.
+    """
+    build_site = load_build_site()
+    build = tmp_path / "build"
+    publish = tmp_path / "publish"
+    (publish / ".git").mkdir(parents=True)
+    (publish / "data").mkdir()
+    (build / "data").mkdir(parents=True)
+    (publish / "data" / "site-facts.json").write_text(
+        '{\n  "published_at": "2026-08-17T20:32:00+00:00",\n  "stars": 12\n}\n'
+    )
+    (build / "data" / "site-facts.json").write_text(
+        '{\n  "published_at": "2026-08-18T11:54:21+00:00",\n  "stars": 12\n}\n'
+    )
+
+    _publish(build_site, build, publish)
+
+    assert "2026-08-17T20:32:00+00:00" in (
+        publish / "data" / "site-facts.json"
+    ).read_text()
+
+
+def test_publish_stamps_the_facts_when_another_fact_changed(tmp_path):
+    """A real fact change republishes the snapshot with this build's time."""
+    build_site = load_build_site()
+    build = tmp_path / "build"
+    publish = tmp_path / "publish"
+    (publish / ".git").mkdir(parents=True)
+    (publish / "data").mkdir()
+    (build / "data").mkdir(parents=True)
+    (publish / "data" / "site-facts.json").write_text(
+        '{\n  "published_at": "2026-08-17T20:32:00+00:00",\n  "stars": 12\n}\n'
+    )
+    (build / "data" / "site-facts.json").write_text(
+        '{\n  "published_at": "2026-08-18T11:54:21+00:00",\n  "stars": 13\n}\n'
+    )
+
+    _publish(build_site, build, publish)
+
+    assert "2026-08-18T11:54:21+00:00" in (
+        publish / "data" / "site-facts.json"
+    ).read_text()

@@ -791,7 +791,12 @@ def patch_shared_header(html_text, root):
 
 def footer_html(root):
     """Full <footer> markup: the licensing line and the publication stamp. The
-    footer is not a sitemap and not a second call-to-action block."""
+    footer is not a sitemap and not a second call-to-action block.
+
+    The stamp is this build's time. A page the build did not otherwise change
+    gets its previous stamp back at publication time, so the line reads as when
+    that page last changed (`carry_publication_stamps`, `tools/build-site.py`).
+    Keep the span's markup as it is: that carry-over finds the stamp by it."""
     return (
         "        <footer>\n"
         '            <div class="footer-inner">\n'

@@ -320,6 +320,12 @@ def published_at():
     and the page renderers it starts as subprocesses inherit it. That is what
     makes one build publish ONE time.
 
+    A page the build did not otherwise change keeps its previous stamp instead,
+    and so does this snapshot itself: `carry_publication_stamps`
+    (`website/tools/build-site.py`) restores both when the artifact is
+    published. Everything rendered here still carries this build's time, and
+    the carry-over reads what the last publication holds.
+
     Reading the stamp out of data/site-facts.json instead does not work, and
     the failure is silent: the `facts` step runs after most page renderers, so
     the pages built before it would carry the PREVIOUS build's timestamp and
@@ -337,9 +343,11 @@ def published_display(raw=None):
     """The publication stamp the site footer carries, formatted for a reader.
 
     The site is generated and pushed in one run, so the build timestamp IS the
-    publication time. The footer names a time rather than a revision because
-    the publishing commit's own hash cannot appear in the pages that commit
-    contains."""
+    publication time for a page this build changed. A page it left alone keeps
+    the stamp of the build that last changed it (`carry_publication_stamps`,
+    `website/tools/build-site.py`). The footer names a time rather than a
+    revision because the publishing commit's own hash cannot appear in the
+    pages that commit contains."""
     stamp = datetime.fromisoformat(raw or published_at())
     # The footer prints "UTC", so convert rather than trust the offset the
     # stamp carries: a page that says UTC over a local-time clock reading is a

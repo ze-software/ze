@@ -4,6 +4,7 @@
 import hashlib
 import os
 import pathlib
+import re
 import shutil
 import subprocess
 import sys
@@ -190,9 +191,57 @@ def validate_artifact():
         )
 
 
+# Every place a build writes its own publication time, as (glob, pattern). One
+# build stamps one time, so without the carry-over below a build that changed
+# nothing still rewrites every file listed here.
+PUBLICATION_STAMPS = (
+    ("**/*.html", re.compile(rb'<span class="footer-published">[^<]*</span>')),
+    ("data/site-facts.json", re.compile(rb'"published_at": "[^"]*"')),
+)
+
+
+def carry_publication_stamps(previous_root, next_root):
+    """Keep the old stamp on every file this build did not otherwise change.
+
+    `sitelib.footer_html` stamps the build time into every page, so a build
+    that changed three pages still rewrote all ~700 and buried the real change
+    in noise. A file whose content is otherwise identical keeps the stamp it
+    was published with. That is also the more useful line to read: it says when
+    THIS page last changed, where a build stamp says only that a build ran.
+
+    Rewrites files in `next_root`, the throwaway build directory, before it is
+    copied over the published tree. Returns how many stamps were carried.
+    """
+    carried = 0
+    for glob, pattern in PUBLICATION_STAMPS:
+        for path in sorted(next_root.glob(glob)):
+            if path.is_symlink() or not path.is_file():
+                continue
+            previous = previous_root / path.relative_to(next_root)
+            if not previous.is_file() or previous.is_symlink():
+                continue
+            old = previous.read_bytes()
+            new = path.read_bytes()
+            if old == new:
+                continue
+            stamps = pattern.findall(old)
+            # One stamp on each side, or there is no single value to carry and
+            # the file is published as this build rendered it.
+            if len(stamps) != 1 or len(pattern.findall(new)) != 1:
+                continue
+            if pattern.sub(b"", old) != pattern.sub(b"", new):
+                continue
+            path.write_bytes(pattern.sub(lambda _: stamps[0], new, count=1))
+            carried += 1
+    return carried
+
+
 def publish_artifact():
     if not (PUBLISH_ROOT / ".git").exists():
         raise RuntimeError("ZE_SITE_OUTPUT must be a git worktree: %s" % PUBLISH_ROOT)
+    carried = carry_publication_stamps(PUBLISH_ROOT, OUTPUT_ROOT)
+    if carried:
+        print("kept the published stamp on %d unchanged page(s)" % carried)
     clean_tree_except_git(PUBLISH_ROOT)
     copy_tree_except_git(OUTPUT_ROOT, PUBLISH_ROOT)
 
