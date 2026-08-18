@@ -2490,11 +2490,82 @@ def weakened_problems(
     return problems
 
 
+# The exemptions c_require_design_ref applies, restated here because this gate
+# judges the same population from the other end. Keep the two in step: a file the
+# hook waves through and this refuses would make the sanctioned route impossible.
+_DESIGN_REF_EXEMPT_BASENAMES = ("register.go", "embed.go", "doc.go")
+_GENERATED_HEAD_RE = re.compile(r"Code generated|DO NOT EDIT")
+
+
+def _design_ref_required(path: str) -> bool:
+    """Whether `path` owes a `// Design:` header at all."""
+    if not path.endswith(".go"):
+        return False
+    if path.endswith("_test.go") or path.endswith("_gen.go"):
+        return False
+    if os.path.basename(path) in _DESIGN_REF_EXEMPT_BASENAMES:
+        return False
+    # Vendored third-party code has no ze design document to point at.
+    return not re.search(r"(^|/)vendor/", path)
+
+
+def go_design_ref_problems(repo: Path, add_paths: tuple[str, ...]) -> list[str]:
+    """Every non-exempt .go file in the commit carries a `// Design:` header.
+
+    This is the COMMIT-TIME half of c_require_design_ref
+    (.claude/hooks/pretool-writeedit.py). That check is wired to the matcher
+    `Write|Edit|MultiEdit|NotebookEdit` in .claude/settings.json, so a .go file
+    written from Bash -- a heredoc, `sed -i`, a python payload -- reaches it
+    never. Auto mode tells agents to prefer Bash for file changes, so the bypass
+    is the default route rather than an unusual one.
+
+    A pre-tool hook and a commit gate answer different questions, and the second
+    is the one that cannot be routed around. The hook asks "is this edit
+    allowed", which depends on the tool used. This asks "does the tree this
+    commit produces hold the header", which depends on nothing but the file. A
+    changed-file set at commit time is a FACT; how each file came to be written
+    is not recoverable and does not need to be.
+
+    Scoped to what the tree can prove. c_require_design_ref's siblings --
+    c_require_related_refs, c_require_test_first, c_check_existing_patterns --
+    gate on session-state markers, which say what the AUTHOR did and are not
+    properties of the commit. Those stay hook-only by construction.
+    """
+    missing: list[str] = []
+    for path in add_paths:
+        if not _design_ref_required(path):
+            continue
+        full = repo / path
+        if not full.is_file():
+            continue
+        try:
+            text = full.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        if "// Design:" in text:
+            continue
+        if _GENERATED_HEAD_RE.search(text[:500]):
+            continue
+        missing.append(path)
+    if not missing:
+        return []
+    return [
+        "these .go files carry no `// Design:` header:\n"
+        + "\n".join(f"  {p}" for p in missing)
+        + "\n  Format: // Design: <path-to-design-doc> -- <brief description>\n"
+        "  Exempt: _test.go, _gen.go, register.go, embed.go, doc.go, vendor/,\n"
+        "  and a file whose first 500 bytes say `Code generated` or `DO NOT EDIT`.\n"
+        "  This is the commit-time half of c_require_design_ref, which a Bash\n"
+        "  write never reaches (ai/rules/go-standards.md)."
+    ]
+
+
 def commit_gate_problems(
     repo: Path, add_paths: tuple[str, ...], remove_paths: tuple[str, ...]
 ) -> list[str]:
     """All BLOCK-severity commit-time gates, in one call for create()."""
     problems: list[str] = []
+    problems += go_design_ref_problems(repo, add_paths)
     problems += deferral_in_diff_problems(repo, add_paths, remove_paths)
     problems += deferral_shard_removal_problems(repo, add_paths, remove_paths)
     problems += journal_row_problems(repo, add_paths, remove_paths)
