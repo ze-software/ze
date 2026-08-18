@@ -444,45 +444,48 @@ func TestMidTemporaryFailureDefersTheIKERekey(t *testing.T) {
 	}
 }
 
-// VALIDATES: the responder's own request counter is set past the IKE_AUTH it answered
-// through the same 32-bit ceiling the initiator uses, so it never wraps to 0.
-// PREVENTS: `sa.NextMsgID = msgID + 1` written straight into the SA, which returns the
-// counter to 0 for a peer whose final IKE_AUTH carries math.MaxUint32.
+// VALIDATES: a responder that answers IKE_AUTH at the last legal Message ID marks the SA
+// exhausted and raises no further request on it.
+// PREVENTS: an SA that keeps running past the 32-bit ceiling and spends an id it has
+// already used under one set of keys.
 //
 // rfc-test-change-approved: 2026-07-31 the owner gave standing approval, for the whole of
-// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, to strengthen tagged coverage. This test is new. It
-// adds proof for a producer that had none, and it removes none.
+// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, to strengthen tagged coverage.
 //
-// The initiator advances its counter through advanceMsgID (fsm.go). That is where the
-// ceiling lives. finishResponderEstablish (responder.go) is the responder's counterpart, and
-// it wrote the counter directly. It was therefore the one path to a counter reset.
-//
-// Two facts bound the exposure, and neither makes the wrap safe. Only an authenticated peer
-// reaches this producer, because IKE_AUTH is protected under the SK_* keys. And cacheResponse
-// on the line above already marks the SA exhausted, so an SA that got there closed on the
-// next tick. The window between the write and the tick is still a live SA whose next request
-// carries an id it has already spent.
+// CHANGED 2026-08-18. The negative control used to assert that answering IKE_AUTH at id 1
+// left this side's NextMsgID at 2, which pinned a violation of Section 2.2's two-counter
+// rule: the id belonged to the PEER's request counter and was being spent on this side's
+// own. It made every exchange this node initiated unreachable (see
+// TestResponderFirstRequestMatchesWhatTheInitiatorExpects,
+// rfc7296_msgid_responder_request_test.go). The RFC 2119 obligation this test carries is
+// the CEILING, and that obligation is unchanged: it is now met by cacheResponse ->
+// advanceExpectedMsgID (msgid.go) rather than by a second write beside it.
 //
 // RFC requirement: RFC7296-2.2-2 positive -- Section 2.2 requires the IKE SA to be closed or
 // rekeyed once the Message ID no longer fits in 32 bits. The checklist row carries the
-// sentence verbatim (rfc/full/rfc7296.txt:1437-1440). resumeRequestsAfter (msgid.go) freezes
-// the counter at math.MaxUint32 and marks the SA exhausted, which is what closes it.
+// sentence verbatim (rfc/full/rfc7296.txt:1437-1440). advanceExpectedMsgID (msgid.go) marks
+// the SA exhausted at the ceiling, and reserveRequestWindow then refuses every later request.
 //
 // RFC requirement: RFC7296-2.2-2 negative -- the freeze is scoped to the ceiling. An ordinary
-// final IKE_AUTH at id 1 still leaves the counter at 2 and the SA usable. The frozen counter
-// above is therefore the ceiling speaking, and not a producer that stopped setting it.
+// final IKE_AUTH at id 1 leaves the SA usable and able to raise its next request. The
+// exhausted SA below is therefore the ceiling speaking, and not a producer that refuses
+// unconditionally.
+//
+// RFC requirement: RFC7296-2.2-3 negative -- the peer's request id does NOT become this
+// side's next request id. An ordinary IKE_AUTH at id 1 leaves this end's own request
+// counter where it was, so the two counters cannot be conflated into one.
 func TestMidResponderEstablishDoesNotWrapTheCounter(t *testing.T) {
 	log := slogutil.DiscardLogger()
 
-	// Negative control first. An ordinary IKE_AUTH leaves the counter one past the request
-	// it answered, per Section 2.2's "the first pair of IKE_AUTH messages will have an ID
-	// of 1, the second (when EAP is used) will be 2, and so on".
+	// Negative control first. An ordinary IKE_AUTH leaves the SA usable, and it leaves
+	// this side's OWN request counter where it was: Section 2.2 gives each end its own,
+	// and id 1 belonged to the peer's.
 	ok := testSA()
 	okPS := &PeerSession{peerName: ok.PeerName}
 	okPS.finishResponderEstablish(ok, 1, []byte("cached response"), nil, nil, nil, log)
-	if ok.NextMsgID != 2 {
-		t.Errorf("NextMsgID = %d after the responder answered IKE_AUTH at id 1, want 2",
-			ok.NextMsgID)
+	if ok.ExpectedMsgID != 2 {
+		t.Errorf("ExpectedMsgID = %d after answering IKE_AUTH at id 1, want 2; the PEER's "+
+			"counter is the one that moves here", ok.ExpectedMsgID)
 	}
 	if ok.msgIDExhausted {
 		t.Error("an SA established at id 1 is marked exhausted; the ceiling fired far below it")
@@ -495,12 +498,6 @@ func TestMidResponderEstablishDoesNotWrapTheCounter(t *testing.T) {
 	sa := testSA()
 	ps := &PeerSession{peerName: sa.PeerName}
 	ps.finishResponderEstablish(sa, math.MaxUint32, []byte("cached response"), nil, nil, nil, log)
-	if sa.NextMsgID != math.MaxUint32 {
-		t.Errorf("NextMsgID = %d after the responder answered at the last legal id, want %d; "+
-			"a wrap spends an id this SA has already used under one set of keys, and "+
-			"Section 2.2 calls the Message ID the replay protection",
-			sa.NextMsgID, uint32(math.MaxUint32))
-	}
 	if !sa.msgIDExhausted {
 		t.Fatal("the SA is not marked exhausted after the responder answered at the ceiling, " +
 			"so nothing closes it")

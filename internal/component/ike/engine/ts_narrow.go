@@ -347,6 +347,19 @@ func policyPairs(peer ipsec.SiteToSitePeer, isInitiator bool) []tsPair {
 	return out
 }
 
+// swapPairs exchanges the I and R half of every pair.
+//
+// RFC 7296 Section 2.9 orients TSi and TSr by who INITIATED the exchange, so one stored
+// selector set is TSi/TSr in one exchange and TSr/TSi in the next. This is the whole
+// conversion between the two, and it is its own inverse.
+func swapPairs(pairs []tsPair) []tsPair {
+	out := make([]tsPair, 0, len(pairs))
+	for _, p := range pairs {
+		out = append(out, tsPair{I: p.R, R: p.I})
+	}
+	return out
+}
+
 // wireToSelectors converts a received TS payload into Ze's internal form.
 //
 // A selector Ze cannot express exactly is NARROWED, never rounded outward:
@@ -499,7 +512,17 @@ func narrowChildSelectors(sa *SA, tsi, tsr *wire.PayloadTS, floor []tsPair) erro
 	proposedI := wireToSelectors(tsi.TrafficSelectors)
 	proposedR := wireToSelectors(tsr.TrafficSelectors)
 
-	narrowed, ok := narrowSelectors(proposedI, proposedR, policyPairs(sa.PeerCfg, sa.IsInitiator), floor)
+	// Narrowing is the RESPONDER's job (RFC 7296 Section 2.9), and every caller of this
+	// function is answering a proposal somebody else sent. This node is therefore the
+	// RESPONDER of the exchange in hand, so its configured local side is TSr.
+	//
+	// The IKE SA role is NOT that role. Either end may start a CREATE_CHILD_SA
+	// (Section 1.3.2), so a peer-initiated rekey on a tunnel this node initiated has
+	// sa.IsInitiator true while this node responds. Orienting the policy by the IKE SA
+	// role there compared the local prefix against the peer's, found no intersection, and
+	// answered TS_UNACCEPTABLE to every rekey the peer started. The initiator's own
+	// adoption path is recordInitiatorSelectors below, which orients by true.
+	narrowed, ok := narrowSelectors(proposedI, proposedR, policyPairs(sa.PeerCfg, false), floor)
 	if !ok {
 		return errTSUnacceptable
 	}

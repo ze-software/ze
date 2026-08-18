@@ -90,7 +90,26 @@ type ChildSA struct {
 	// narrowing below, so respondChildRekey passes it as the narrowing floor. TSLocal
 	// and TSRemote above hold only the first pair's prefixes, which cannot express the
 	// scope of a multi-selector or port-restricted SA.
+	//
+	// SelectorsLocalIsTSi below says which half of each pair is THIS node's side. The
+	// two are read together and MUST travel together: a set of selectors whose
+	// orientation is unknown cannot be turned into a policy.
 	Selectors []tsPair
+
+	// SelectorsLocalIsTSi is true when the I half of Selectors is this node's side.
+	//
+	// RFC 7296 Section 2.9 makes TSi the selector of the exchange INITIATOR, so the
+	// orientation of Selectors is fixed by whoever started the exchange that negotiated
+	// it. That exchange is over. A later rekey does not move the stored selectors, so it
+	// MUST NOT move this flag either: newRekeyedChild inherits both unchanged.
+	//
+	// It is NOT LocalIsInitiator. That field is the KEYMAT role of the exchange that
+	// keyed THIS pair (Section 2.17) and it flips every time the other end starts the
+	// rekey. Reading it to orient a selector set that did not move is how a role-flipping
+	// rekey installed a PORT-SWAPPED policy: the kernel then protects the peer's port as
+	// if it were ours, and samePolicySelector stops recognizing the pair the replacement
+	// shares its policy with.
+	SelectorsLocalIsTSi bool
 
 	// Mode is the encapsulation mode this Child SA was installed with:
 	// dataplane.ModeTunnel or dataplane.ModeTransport.
@@ -287,22 +306,27 @@ func createFirstChildSA(
 	}
 
 	child := &ChildSA{
-		InboundSPI:       inSPI,
-		OutboundSPI:      outSPI,
-		LocalAddr:        srcIP,
-		RemoteAddr:       dstIP,
-		IfID:             ifID,
-		TSLocal:          tsLocal,
-		TSRemote:         tsRemote,
-		Owner:            sa.PeerName,
-		Selectors:        sa.NegotiatedPairs,
-		Mode:             mode,
-		Keys:             keys,
-		ESPGroup:         espGroup,
-		ReqID:            defaultReqID,
-		NATDetected:      sa.NATDetected,
-		UDPEncap:         sa.NATDetected || sa.localPort == transport.NATTPort,
-		LocalIsInitiator: sa.IsInitiator,
+		InboundSPI:  inSPI,
+		OutboundSPI: outSPI,
+		LocalAddr:   srcIP,
+		RemoteAddr:  dstIP,
+		IfID:        ifID,
+		TSLocal:     tsLocal,
+		TSRemote:    tsRemote,
+		Owner:       sa.PeerName,
+		Selectors:   sa.NegotiatedPairs,
+		// sa.NegotiatedPairs is in the TSi/TSr orientation of the exchange that produced
+		// it, and the first Child SA's selectors come from IKE_AUTH. This node's IKE_AUTH
+		// role IS sa.IsInitiator, so that is the orientation, exactly as it is for the
+		// TSLocal/TSRemote swap above.
+		SelectorsLocalIsTSi: sa.IsInitiator,
+		Mode:                mode,
+		Keys:                keys,
+		ESPGroup:            espGroup,
+		ReqID:               defaultReqID,
+		NATDetected:         sa.NATDetected,
+		UDPEncap:            sa.NATDetected || sa.localPort == transport.NATTPort,
+		LocalIsInitiator:    sa.IsInitiator,
 	}
 
 	if dp == nil {
@@ -763,9 +787,11 @@ func selectorPort(child *ChildSA, local bool) dataplane.PortMatch {
 		return dataplane.AnyPortMatch()
 	}
 	pair := child.Selectors[0]
-	// Selectors are in TSi/TSr orientation. TSi is this side when we are the initiator.
+	// Selectors are in TSi/TSr orientation, and SelectorsLocalIsTSi says which half is
+	// ours. LocalIsInitiator answers a DIFFERENT question -- which KEYMAT half keys this
+	// pair -- and it flips at a rekey the peer starts while the selectors stay put.
 	side := pair.R
-	if local == child.LocalIsInitiator {
+	if local == child.SelectorsLocalIsTSi {
 		side = pair.I
 	}
 	switch side.Port.Form {

@@ -311,7 +311,15 @@ func respondChildRekey(sa *SA, inner []wire.PayloadEntry, old *ChildSA, msgID ui
 	// narrowed since the original SA came up would silently shrink a working tunnel at
 	// its next rekey.
 	if reqTSi != nil && reqTSr != nil {
-		if err := narrowChildSelectors(sa, reqTSi, reqTSr, old.Selectors); err != nil {
+		// The floor is compared against THIS request's payloads, so it has to be in THIS
+		// exchange's orientation. The peer sent Ni here, so the peer's side is TSi. The
+		// stored floor is in the orientation of whatever exchange negotiated it, which is
+		// the opposite one whenever this node's side was TSi there.
+		floor := old.Selectors
+		if old.SelectorsLocalIsTSi {
+			floor = swapPairs(floor)
+		}
+		if err := narrowChildSelectors(sa, reqTSi, reqTSr, floor); err != nil {
 			return nil, nil, err
 		}
 	}
@@ -405,9 +413,14 @@ func newRekeyedChild(old *ChildSA, inSPI, outSPI uint32, keys *crypto.ChildSAKey
 		// installs. A replacement that dropped it would fall back to tunnel, so a
 		// transport-mode tunnel would silently become a tunnel-mode one at its first
 		// rekey -- the wrong-mode-without-an-error failure this package removes.
-		Selectors:        old.Selectors,
-		Mode:             old.Mode,
-		LocalIsInitiator: localIsInitiator,
+		Selectors: old.Selectors,
+		// The orientation travels with the selectors it describes. This rekey did not
+		// renegotiate them, so the half that was ours is still ours -- whichever end
+		// started this exchange. Deriving it from localIsInitiator instead would swap the
+		// policy's ports at the first rekey the other end initiates.
+		SelectorsLocalIsTSi: old.SelectorsLocalIsTSi,
+		Mode:                old.Mode,
+		LocalIsInitiator:    localIsInitiator,
 	}
 }
 

@@ -931,12 +931,30 @@ func (ps *PeerSession) finishResponderEstablish(sa *SA, msgID uint32, resp []byt
 		ps.setChildSA(child)
 	}
 	cacheResponse(sa, msgID, resp) // advances ExpectedMsgID to msgID+1 (=2)
-	// Our next self-initiated request (DPD, Delete, rekey). It goes through
-	// resumeRequestsAfter (msgid.go) rather than written directly. That way it shares
-	// Section 2.2's ceiling, which advanceMsgID applies on the initiator side (fsm.go). A
-	// direct `msgID + 1` wraps to 0 for a peer that authenticates its final IKE_AUTH at
-	// math.MaxUint32.
-	sa.resumeRequestsAfter(msgID)
+	// sa.NextMsgID is deliberately NOT written here, and it stays 0.
+	//
+	// RFC 7296 Section 2.2: "Each endpoint in the IKE Security Association maintains two
+	// 'current' Message IDs: the next one to be used for a request it initiates and the
+	// next one it expects to see in a request from the other end." The two counters are
+	// INDEPENDENT, which the same section spells out: "each integer n may appear as the
+	// Message ID in four distinct messages: the nth request from the original IKE
+	// initiator, the corresponding response, the nth request from the original IKE
+	// responder, and the corresponding response." This side has raised no request yet, so
+	// its next one is 0. cacheResponse above moved the OTHER counter, which is the one
+	// msgID belongs to.
+	//
+	// It used to be set to msgID+1, which spent the initiator's ids on this side's
+	// counter. Every exchange this node then started -- DPD probe, Delete, Child SA
+	// rekey, IKE SA rekey -- carried id 2 while a conforming peer expected 0, and
+	// classifyInbound (msgid.go) matches ExpectedMsgID EXACTLY. MEASURED 2026-08-18 in
+	// QEMU: the responding daemon logged "child-sa: rekey initiated msgid=2", the
+	// initiating daemon answered nothing, and the Child SA hard-expired five seconds
+	// later (test/ipsec/ipsec-child-rekey-xfrm.ci).
+	//
+	// Section 2.2's ceiling still applies to this counter, and advanceMsgID (msgid.go)
+	// is where it lives: the counter only moves when this side raises a request. The
+	// PEER's counter reaches the ceiling through cacheResponse above, which marks the SA
+	// exhausted.
 	sa.LastSentMsg = resp
 	// The initiator authenticated, so this observation of its source is corroborated.
 	// RFC 7296 Section 2.11 makes it the destination of every later message on this

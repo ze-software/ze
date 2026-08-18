@@ -4,7 +4,7 @@
   "register": "rfc2119",
   "source-path": "rfc/full/rfc7296.txt",
   "source-sha": "a6f1a101b818977b",
-  "signed-off": "2026-08-02",
+  "signed-off": "2026-08-18",
   "reviewer": "six /ze-implement agents, one per section range, spec-rfcgate-1b-rfc7296-pilot AC-5; merged and re-checked in the main thread",
   "sections": [
     {
@@ -138,7 +138,10 @@
       "id": "2.2",
       "sites": 2,
       "disposition": "walked",
-      "reason": "Message ID sequence numbers. Two keyword sites map to RFC7296-2.2-1 and RFC7296-2.2-2. The counter and original-initiator paragraphs carry no keyword."
+      "reason": "Message ID sequence numbers. Two keyword sites map to RFC7296-2.2-1 and RFC7296-2.2-2. The counter paragraph carries no keyword and states an obligation the capitalised scan cannot see: each endpoint maintains two INDEPENDENT current Message IDs. It is recorded as RFC7296-2.2-3 in unsourced-ids. The original-initiator paragraph carries no keyword and states no obligation.",
+      "unsourced-ids": [
+        "RFC7296-2.2-3"
+      ]
     },
     {
       "id": "2.3",
@@ -293,19 +296,19 @@
       "id": "2.17",
       "sites": 2,
       "disposition": "walked",
-      "reason": "The section gives KEYMAT and three ordering bullets. Both MUST-level sites map to the two \u00a72.17 rows, and the first bullet's ordering rule is already inside the text of RFC7296-2.17-1."
+      "reason": "The section gives KEYMAT and three ordering bullets. Both MUST-level sites map to the two §2.17 rows, and the first bullet's ordering rule is already inside the text of RFC7296-2.17-1."
     },
     {
       "id": "2.18",
       "sites": 3,
       "disposition": "walked",
-      "reason": "The section derives SKEYSEED for a rekeyed IKE SA and states two obligations: a new Diffie-Hellman exchange, and a message-counter reset. Both \u00a72.18 rows are the target of a site."
+      "reason": "The section derives SKEYSEED for a rekeyed IKE SA and states two obligations: a new Diffie-Hellman exchange, and a message-counter reset. Both §2.18 rows are the target of a site."
     },
     {
       "id": "2.19",
       "sites": 6,
       "disposition": "walked",
-      "reason": "Two of the six MUST-level sentences map to the two \u00a72.19 rows the summary carries. The other four are the Configuration payload obligations that the 2026-07-31 owner ruling moved to plan/spec-ipsec-remote-access.md as RFC7296-2.19-2, -3, -5 and -6; those ids are not in rfc/short/rfc7296.md, so their sites stay unclassified."
+      "reason": "Two of the six MUST-level sentences map to the two §2.19 rows the summary carries. The other four are the Configuration payload obligations that the 2026-07-31 owner ruling moved to plan/spec-ipsec-remote-access.md as RFC7296-2.19-2, -3, -5 and -6; those ids are not in rfc/short/rfc7296.md, so their sites stay unclassified."
     },
     {
       "id": "2.20",
@@ -317,13 +320,13 @@
       "id": "2.21",
       "sites": 0,
       "disposition": "walked",
-      "reason": "The section states the general error-handling rule in indicative prose and MAY constructions: a badly formatted or unacceptable request draws a Notify, and a bad response draws none. It derives no MUST-level site and no summary row cites \u00a72.21."
+      "reason": "The section states the general error-handling rule in indicative prose and MAY constructions: a badly formatted or unacceptable request draws a Notify, and a bad response draws none. It derives no MUST-level site and no summary row cites §2.21."
     },
     {
       "id": "2.21.1",
       "sites": 0,
       "disposition": "walked",
-      "reason": "IKE_SA_INIT error handling is written with 'should' throughout, because every notification at that point is unauthenticated. The section derives no site and no summary row cites \u00a72.21.1."
+      "reason": "IKE_SA_INIT error handling is written with 'should' throughout, because every notification at that point is unauthenticated. The section derives no site and no summary row cites §2.21.1."
     },
     {
       "id": "2.21.2",
@@ -351,7 +354,7 @@
       "id": "2.22",
       "sites": 2,
       "disposition": "walked",
-      "reason": "Both MUST-level sentences are IPComp obligations: where an IPCOMP_SUPPORTED notification can appear, and what an implementation accepts and compresses with. The 2026-07-31 owner ruling moved the four \u00a72.22 rows to plan/spec-ipsec-ipcomp.md, so no id exists in rfc/short/rfc7296.md and both sites stay unclassified."
+      "reason": "Both MUST-level sentences are IPComp obligations: where an IPCOMP_SUPPORTED notification can appear, and what an implementation accepts and compresses with. The 2026-07-31 owner ruling moved the four §2.22 rows to plan/spec-ipsec-ipcomp.md, so no id exists in rfc/short/rfc7296.md and both sites stay unclassified."
     },
     {
       "id": "2.23",
@@ -1408,14 +1411,14 @@
       "quote": "The lengths of SK_d, SK_pi, and SK_pr MUST be the preferred key length of the PRF agreed upon.",
       "disposition": "mapped",
       "mapped-to": "RFC7296-2.13-3",
-      "reason": "The sentence sets the length of the three PRF-keyed secrets to the PRF's preferred key length. RFC7296-2.13-3 states that obligation and cites \u00a72.13 and \u00a72.14, so this site is its \u00a72.14 source."
+      "reason": "The sentence sets the length of the three PRF-keyed secrets to the PRF's preferred key length. RFC7296-2.13-3 states that obligation and cites §2.13 and §2.14, so this site is its §2.14 source."
     },
     {
       "id": "2.15:1",
       "quote": "The management interface by which the shared secret is provided MUST accept ASCII strings of at least 64 octets and MUST NOT add a null terminator before using them as shared secrets.",
       "disposition": "mapped",
       "mapped-to": "RFC7296-2.15-1",
-      "reason": "The management-interface sentence carries two obligations. This site maps the 64-octet ASCII acceptance; the null-terminator half is recorded unsourced on \u00a72.15 as RFC7296-2.15-2."
+      "reason": "The management-interface sentence carries two obligations. This site maps the 64-octet ASCII acceptance; the null-terminator half is recorded unsourced on §2.15 as RFC7296-2.15-2."
     },
     {
       "id": "2.15:2",
@@ -1429,7 +1432,7 @@
       "quote": "For this reason, these protocols are typically used to authenticate the initiator to the responder and MUST be used in conjunction with a public-key-signature-based authentication of the responder to the initiator.",
       "disposition": "mapped",
       "mapped-to": "RFC7296-2.16-11",
-      "reason": "EAP methods are asymmetric and can be non-mutual, so the section requires a public-key signature from the responder alongside them. RFC7296-2.16-11 states it and cites \u00a72.16."
+      "reason": "EAP methods are asymmetric and can be non-mutual, so the section requires a public-key signature from the responder alongside them. RFC7296-2.16-11 states it and cites §2.16."
     },
     {
       "id": "2.16:2",
@@ -1443,7 +1446,7 @@
       "quote": "For EAP methods that create a shared key as a side effect of authentication, that shared key MUST be used by both the initiator and responder to generate AUTH payloads in messages 7 and 8 using the syntax for shared secrets specified in Section 2.15.",
       "disposition": "mapped",
       "mapped-to": "RFC7296-2.16-12",
-      "reason": "For a key-generating EAP method the MSK becomes the shared secret in the message 7 and 8 AUTH computation of \u00a72.15. RFC7296-2.16-12 quotes the sentence."
+      "reason": "For a key-generating EAP method the MSK becomes the shared secret in the message 7 and 8 AUTH computation of §2.15. RFC7296-2.16-12 quotes the sentence."
     },
     {
       "id": "2.16:4",
@@ -1520,7 +1523,7 @@
       "quote": "Since the IKE_AUTH exchange creates an IKE SA and a Child SA, the IRAC MUST request the IRAS-controlled address (and optionally other information concerning the protected network) in the IKE_AUTH exchange.",
       "disposition": "mapped",
       "mapped-to": "RFC7296-2.19-1",
-      "reason": "The IKE_AUTH exchange creates both SAs, so an IRAC asks for its internal address there. RFC7296-2.19-1 quotes the sentence and cites \u00a72.19 and \u00a74."
+      "reason": "The IKE_AUTH exchange creates both SAs, so an IRAC asks for its internal address there. RFC7296-2.19-1 quotes the sentence and cites §2.19 and §4."
     },
     {
       "id": "2.19:2",
@@ -1612,21 +1615,21 @@
       "quote": "If a response is sent, the response MUST be sent to the IP address and port from where it came with the same IKE SPIs and the Message ID copied.",
       "disposition": "mapped",
       "mapped-to": "RFC7296-2.21.4-2",
-      "reason": "Fixes the destination and the header fields of the optional response to an out-of-SA request. RFC7296-2.21.4-2 states it and adds the Exchange Type and Response flag from \u00a71.5."
+      "reason": "Fixes the destination and the header fields of the optional response to an out-of-SA request. RFC7296-2.21.4-2 states it and adds the Exchange Type and Response flag from §1.5."
     },
     {
       "id": "2.21.4:3",
       "quote": "The response MUST NOT be cryptographically protected and MUST contain an INVALID_IKE_SPI Notify payload.",
       "disposition": "mapped",
       "mapped-to": "RFC7296-2.21.4-3",
-      "reason": "The sentence carries two obligations. This site maps the ban on cryptographic protection; the INVALID_IKE_SPI payload half is recorded unsourced on \u00a72.21.4 as RFC7296-2.21.4-4."
+      "reason": "The sentence carries two obligations. This site maps the ban on cryptographic protection; the INVALID_IKE_SPI payload half is recorded unsourced on §2.21.4 as RFC7296-2.21.4-4."
     },
     {
       "id": "2.21.4:4",
       "quote": "A peer receiving such an unprotected Notify payload MUST NOT respond and MUST NOT change the state of any existing SAs.",
       "disposition": "mapped",
       "mapped-to": "RFC7296-2.21.4-5",
-      "reason": "The sentence carries two obligations for the receiver of that unprotected Notify. This site maps the ban on responding; the SA-state half is recorded unsourced on \u00a72.21.4 as RFC7296-2.21.4-6."
+      "reason": "The sentence carries two obligations for the receiver of that unprotected Notify. This site maps the ban on responding; the SA-state half is recorded unsourced on §2.21.4 as RFC7296-2.21.4-6."
     },
     {
       "id": "2.21.4:5",
@@ -1658,7 +1661,7 @@
       "quote": "For this reason, even though IKE packets MUST be sent to and from UDP port 500 or 4500, they MUST be accepted coming from any port and responses MUST be sent to the port from whence they came.",
       "disposition": "mapped",
       "mapped-to": "RFC7296-2.11-1",
-      "reason": "NATs rewrite ports, so a conforming node accepts IKE from any source port and answers the port it heard. RFC7296-2.11-1 states the acceptance obligation and cites \u00a72.11 and \u00a72.23, so this site is its \u00a72.23 source; RFC7296-2.11-2 carries the reply-port half and is anchored to \u00a72.11."
+      "reason": "NATs rewrite ports, so a conforming node accepts IKE from any source port and answers the port it heard. RFC7296-2.11-1 states the acceptance obligation and cites §2.11 and §2.23, so this site is its §2.23 source; RFC7296-2.11-2 carries the reply-port half and is anchored to §2.11."
     },
     {
       "id": "2.23:2",
@@ -1721,7 +1724,7 @@
       "quote": "In the case of transport mode NAT traversal, the Traffic Selectors MUST contain exactly one IP address, which is then used as the original IP address.",
       "disposition": "mapped",
       "mapped-to": "RFC7296-2.23.1-1",
-      "reason": "Transport-mode checksum fixup needs one original IP address, so the Traffic Selectors hold exactly one. The sentence names \u00a72.23.1 as the detailed treatment, and RFC7296-2.23.1-1 is that row."
+      "reason": "Transport-mode checksum fixup needs one original IP address, so the Traffic Selectors hold exactly one. The sentence names §2.23.1 as the detailed treatment, and RFC7296-2.23.1-1 is that row."
     },
     {
       "id": "2.23.1:1",
@@ -2579,5 +2582,6 @@
       "mapped-to": "RFC7296-2.16-11",
       "reason": "Section 5's EAP rule: the server authenticates to the client with a public key before EAP begins, whatever the EAP method offers. RFC7296-2.16-11 states the same pairing obligation and cites this section."
     }
-  ]
+  ],
+  "resign-reason": "Section 2.2's counter paragraph stated an obligation with no capitalised keyword, so the rfc2119 register derived no site for it and the walk recorded only that the paragraph had no keyword. Ze violated it: a responder-role SA took the peer's request id as its own next request id, so every request it raised was numbered where a conforming peer expected none. Recorded as RFC7296-2.2-3 under unsourced-ids."
 }

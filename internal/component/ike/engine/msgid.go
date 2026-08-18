@@ -87,32 +87,6 @@ func (sa *SA) advanceMsgID() {
 	sa.NextMsgID++
 }
 
-// resumeRequestsAfter points the outbound request counter past a peer request this side
-// has just answered, and is the responder's counterpart to advanceMsgID.
-//
-// The responder raises no request of its own during the handshake. Its IKE_SA_INIT and
-// IKE_AUTH messages are responses. §2.2 makes a response carry the Message ID of the
-// request it answers, so NextMsgID is SET here rather than incremented. The first
-// self-initiated request on the new SA then takes the next free id. That request is a DPD
-// probe, a Delete, or a rekey. §2.2: "the first pair of IKE_AUTH messages will have an ID
-// of 1, the second (when EAP is used) will be 2, and so on."
-//
-// It shares advanceMsgID's ceiling. That is the whole point of routing the write through
-// here. §2.2 MUST: "In the unlikely event that Message IDs grow too large to fit in 32
-// bits, the IKE SA MUST be closed or rekeyed." A plain `NextMsgID = msgID + 1` wraps to 0
-// for an authenticated peer that answers at math.MaxUint32. That spends id 0 a second time
-// under one set of keys. It hands back the replay protection §2.2 names. The counter
-// freezes at the ceiling and the SA is marked exhausted instead. maintainSA closes it on
-// the flag.
-func (sa *SA) resumeRequestsAfter(msgID uint32) {
-	if msgID == math.MaxUint32 {
-		sa.NextMsgID = math.MaxUint32
-		sa.msgIDExhausted = true
-		return
-	}
-	sa.NextMsgID = msgID + 1
-}
-
 // advanceExpectedMsgID moves the inbound Message ID past the peer request the caller
 // just answered. It uses the same ceiling as advanceMsgID, for the same reason. The
 // peer drives this counter, so a wrap here lets it replay its whole request sequence
