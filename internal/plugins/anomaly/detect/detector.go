@@ -397,7 +397,16 @@ func destSignals(fe trafficfeature.FeatureEntry) entitySignals {
 		beacon:     fe.Beaconing,
 		fresh:      fe.NewPeer,
 		freshName:  "new-peer",
-		rarePort:   fe.RarePort,
+		// Read in the receiving direction, RarePort says the port this entity was
+		// ADDRESSED on is outside the well-known allowlist. For any client that is
+		// a destination only because a server answered it, that port is ephemeral,
+		// so the feature is true for the entity's whole life and reports nothing
+		// that CHANGED. Firing it handed every ordinary client half the correlation
+		// gate, and new-peer supplied the other half for its first newPeerTicks, so
+		// a receiver that behaved exactly like its neighbors drew an incident.
+		// Dropped for the same reason portSignals drops it, and the dest axis keeps
+		// fan-in, ratio, port-entropy and beaconing to find a real sweep.
+		rarePort: false,
 	}
 }
 
