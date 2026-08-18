@@ -179,7 +179,16 @@ func vendorPackages(root string) ([]vendorPackage, error) {
 		// `make ze-htmx-upgrade-check` grew a directory here that no consumer
 		// subscribes to. Reading it as an unsynced package makes one gate red
 		// because a different gate ran, in the same verify.
+		//
+		// The skip is ANNOUNCED. git's ignore patterns are unanchored, so a
+		// directory named `build` here would be skipped on a rule written for
+		// something else. It could not be a vendored package -- `git add`
+		// refuses an ignored path without -f, and check-ignore consults the
+		// index, so a tracked package is never reported ignored -- but a
+		// skip nobody can see is how a gate loses a population quietly.
 		if ignored[entry.Name()] {
+			fmt.Fprintf(os.Stdout, "  skipped %s: git ignores it, so it is not vendored content\n",
+				path.Join(vendorDir, entry.Name()))
 			continue
 		}
 

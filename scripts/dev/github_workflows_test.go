@@ -555,10 +555,24 @@ func TestQemuKernelPreconditionIsMetInTheSameJob(t *testing.T) {
 	integration := readFileOrFail(t, filepath.Join(root, "mk", "test-integration.mk"))
 	gokrazy := readFileOrFail(t, filepath.Join(root, "mk", "gokrazy.mk"))
 
+	intRecipes := makefileRecipes(integration)
 	var guarded []string
-	for name, target := range makefileRecipes(integration) {
-		if strings.Contains(target.recipe, "$(ze-qemu-kernel-guard)") {
-			guarded = append(guarded, name)
+	for name, target := range intRecipes {
+		if !strings.Contains(target.recipe, "$(ze-qemu-kernel-guard)") {
+			continue
+		}
+		guarded = append(guarded, name)
+		// The job-admission wrapper splits a heavy target in two: the public name
+		// calls scripts/dev/ze-run.sh, and `_<name>-impl` carries the recipe body.
+		// The guard went with the body. A workflow calls the PUBLIC name and the
+		// guard still runs, one level down, so the public name is guarded too.
+		// Without this the scan collects impl names alone, no workflow ever names
+		// one, and the vacuity Fatal below fires on a tree where every guard is in
+		// place -- which is what happened when the wrapper landed on 2026-08-18.
+		if public, ok := strings.CutSuffix(strings.TrimPrefix(name, "_"), "-impl"); ok {
+			if _, exists := intRecipes[public]; exists {
+				guarded = append(guarded, public)
+			}
 		}
 	}
 	if len(guarded) == 0 {
@@ -649,7 +663,7 @@ func TestQemuKernelPreconditionIsMetInTheSameJob(t *testing.T) {
 // fail-open: `ze-qemu-debug`, `ze-qemu-l2tp-ppp-test` and friends satisfy that
 // prefix and run no `.ci` from the plugin or reload suites. It also could not
 // see the second half of the problem, which is what actually bit:
-// test/plugin/show-policy-routes.ci carried `skip-env:var=ZE_QEMU` from an era
+// test/plugin/policy-routes-show.ci carried `skip-env:var=ZE_QEMU` from an era
 // when QEMU could not do nftables, and qemu-all-tests.sh exports ZE_QEMU=1 --
 // so the caps gate skipped it everywhere else and the env gate skipped it in the
 // one place with the capability. It ran nowhere, and every gate stayed green.
@@ -840,7 +854,7 @@ func TestValidationIsNotOnWoodpecker(t *testing.T) {
 // `RFC requirement:` tag in the tree as tier `unrun`, so deleting this job now
 // DOWNGRADES the carrier rather than passing unnoticed.
 //
-// setup-go is asserted, not assumed boilerplate: test/ipsec-interop/run.py
+// setup-go is asserted, not assumed boilerplate: test/interop-ipsec/run.py
 // build_images() cross-compiles ze on the HOST before Docker COPYs it, so without
 // a host toolchain the job dies at image build and reads as a scenario failure.
 func TestEvidenceNightlyRunsIpsecInterop(t *testing.T) {
@@ -868,7 +882,7 @@ func TestEvidenceNightlyRunsIpsecInterop(t *testing.T) {
 			"like every other job in this workflow")
 	}
 	if !strings.Contains(workflowFile(t, "evidence-nightly.yml"), "actions/setup-go") {
-		t.Error("evidence-nightly.yml must set up Go: test/ipsec-interop/run.py cross-compiles ze on the host " +
+		t.Error("evidence-nightly.yml must set up Go: test/interop-ipsec/run.py cross-compiles ze on the host " +
 			"before Docker COPYs it, so the ipsec-interop job needs a host toolchain")
 	}
 }

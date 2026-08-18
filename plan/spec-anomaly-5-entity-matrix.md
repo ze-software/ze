@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | 1048 (judgment layer); facts layer 1046 |
 | Phase | B (umbrella `plan/spec-anomaly-0-umbrella.md`, child 5 "entity-matrix") |
-| Updated | 2026-07-02 |
+| Updated | 2026-08-17 |
 
 ## Post-Compaction Recovery
 
@@ -132,11 +132,12 @@ prerequisite) and 7 (as-entities-cohorts). This spec adds no AS field and no flo
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | Dest carries only inbound bytes and is never emitted today | `feature.go` (dst branch `inBytes += v` only), `feature.go,189` (emit only when `outBytes>0`) | dest features partly exist; scope smaller | re-read `feature.go`; `feature_test.go` asserts pure-dest absent | confirmed |
 | A-2 | "port" is a per-source histogram, not an entity | `feature.go` (`ports` field in `sourceState`) | port work smaller than budgeted | re-read `feature.go`; `feature_test.go` | confirmed |
-| A-3 | The prefix cohort transfers to DEST unchanged | `cohortPrefix` groups any `netip.Addr` by prefix (`detector.go`); dest is a `netip.Addr` | dest scoring needs a new cohort model | reuse `buildCohorts` with dest list; unit test dest cohort rarity | unvalidated |
-| A-4 | PORT has no natural cohort; cohort-free = self-deviation only | ports are `uint16`+proto, not addresses; `cohortPrefix` needs an `Addr` | port over-flags or needs a cohort model | pass empty `cohortAgg`; `rarity` returns 0 for `count-1 < minSize` (`score.go`) | unvalidated |
-| A-5 | Cohort-free scoring needs NO `score.go` change | `rarity` already returns 0 below `minSize` (`score.go`); `cont` takes `math.Max(self, cohort.rarity(...))` (`detector.go`) | must fork the scoring rule (breaks 1048 purity) | drive `scoreEntity` with an empty `cohortAgg`; assert only self-deviation contributes | unvalidated |
-| A-6 | Freeze-learn + warmup are entity-map-agnostic and reuse verbatim | `onTick` freeze fold (`detector.go`) operates per `entityState`, not per address type | dest/port baselines poison under sustained anomaly | replicate `TestFreezeLearnDuringSustainedAnomaly` for dest + port | unvalidated |
-| A-7 | Adding `Dests`/`Ports` to `Snapshot` is backward-compatible | consumers build `Snapshot{Sources: ...}` (`detector_test.go`); struct-field add is additive | existing tests break; source path regresses | `go build ./...`; run `feature_test.go`, `detector_test.go` unchanged | unvalidated |
+| A-3 | The prefix cohort transfers to DEST unchanged | `cohortPrefix` groups any `netip.Addr` by prefix (`detector.go`); dest is a `netip.Addr` | dest scoring needs a new cohort model | reuse `buildCohorts` with dest list; unit test dest cohort rarity | confirmed -- `cohortsOf(entries)` serves both address axes; `TestDetectDestCohortRarity` |
+| A-4 | PORT has no natural cohort; cohort-free = self-deviation only | ports are `uint16`+proto, not addresses; `cohortPrefix` needs an `Addr` | port over-flags or needs a cohort model | pass empty `cohortAgg`; `rarity` returns 0 for `count-1 < minSize` (`score.go`) | confirmed -- a nil `*cohortAgg` gives zero-value `cohortStats`, whose `rarity` returns 0; `TestDetectPortCohortFree` |
+| A-5 | Cohort-free scoring needs NO `score.go` change | `rarity` already returns 0 below `minSize` (`score.go`); `cont` takes `math.Max(self, cohort.rarity(...))` (`detector.go`) | must fork the scoring rule (breaks 1048 purity) | drive `scoreEntity` with an empty `cohortAgg`; assert only self-deviation contributes | confirmed -- `score.go` is untouched (AC-10) |
+| A-6 | Freeze-learn + warmup are entity-map-agnostic and reuse verbatim | `onTick` freeze fold (`detector.go`) operates per `entityState`, not per address type | dest/port baselines poison under sustained anomaly | replicate `TestFreezeLearnDuringSustainedAnomaly` for dest + port | confirmed -- the fold moved into `stepEntity`, shared by all three axes; `TestFreezeLearnDestPort` |
+| A-7 | Adding `Dests`/`Ports` to `Snapshot` is backward-compatible | consumers build `Snapshot{Sources: ...}` (`detector_test.go`); struct-field add is additive | existing tests break; source path regresses | `go build ./...`; run `feature_test.go`, `detector_test.go` unchanged | confirmed -- every pre-existing test in both files passed with no edit to its body |
+| A-10 | A destination's +Inf ratio (it never answers) can be scored like a source's | the source axis reads +Inf as exfiltration and scores it at the ceiling (`detector.go` `cont`, `forceMax`) | every quiet receiver on the network fires one feature at maximum forever, and the value `buildCohorts` deliberately EXCLUDES gets a meaningless leave-one-out rarity anyway | read `buildCohorts` + `cohortStats.rarity` with the +Inf value substituted | broken -- see the Mistake Log. The ratio is now dropped for the tick on any axis that does not read the sentinel as a finding (`entitySignals.ratioMaxOnEmpty`), and `TestRatioSentinelPerAxis` holds both halves |
 | A-8 | The umbrella framing ("mostly facts, small detector re-key") is complete | umbrella lines 160,188,290-292 | scope estimate too low | see A-9 (broken) | broken -- see below |
 | A-9 | Emitting a dest/port incident on the existing events is safe for the responder | umbrella scopes child 5 as detect-only | responder throttles the victim / a zero-prefix term | read `responder.go`, `match.go` | broken -- responder acts on `Entity` as a source prefix; child 5 MUST add a source-only guard + widen the event value contract (kind + port). The umbrella's "mostly facts + small detector re-key" omits the event-contract widening and the responder guard. |
 
@@ -176,6 +177,17 @@ prerequisite) and 7 (as-entities-cohorts). This spec adds no AS field and no flo
 | AC-8 | A dest or port incident is emitted while `shape` is armed | the responder does NOT install any firewall term for it (source-only guard); armed source behavior unchanged |
 | AC-9 | `show anomaly detect` with a mix of source/dest/port incidents | each incident renders with its kind; source rows identical to today; port row shows `proto/port`, dest row shows the dest prefix |
 | AC-10 | `score.go` is unchanged | `git diff` shows no edit to `internal/plugins/anomaly/detect/score.go`; cohort-free port scoring achieved via an empty cohort |
+| AC-11 | An operator reads the anomaly docs after this spec lands | `docs/features.md` and `docs/architecture/anomaly/anomaly-1-detect.md` describe three axes, not "learns each **source** entity's own pattern-of-life"; the `<!-- source: internal/core/anomalyevent/event.go -- source-oriented event contract -->` anchor no longer calls the contract source-oriented |
+| AC-12 | A dashboard queries `ze_anomaly_tracked_entities` | the `Gauge` to `GaugeVec{dimension}` change is recorded where operators read it. A bare series became a labeled one, so an existing query returns nothing; that is a breaking change and it MUST be stated, not left for a dashboard to discover |
+| AC-13 | `buildCohorts` (`internal/plugins/anomaly/detect/detector.go`) after this spec | it has a non-test caller, or it is deleted and its test points at `cohortsOf`. `unused` does not flag it because a test calls it, so nothing else will catch it |
+
+AC-11 to AC-13 were added on 2026-08-18 by an independent review of
+`d85aa3720~1..a0c8486bb`. That range landed this spec's producers
+(`internal/component/trafficfeature`, `internal/core/anomalyevent`,
+`detector.go`, `show.go`, `responder.go`) from another session's working tree,
+because a commit there took `detector.go` as a CONSUMER and broke
+`ze-repository-tracked-build-check`. The code is this spec's; only the landing
+was somebody else's, and the three rows are what that review found unproven.
 
 ## End-to-End User Stories
 
@@ -200,6 +212,7 @@ prerequisite) and 7 (as-entities-cohorts). This spec adds no AS field and no flo
 | `TestTrackedGaugeByDimension` | `internal/plugins/anomaly/detect/detector_test.go` | `ze_anomaly_tracked_entities` labeled by `dimension` reports per-map counts | |
 | `TestResponderIgnoresNonSourceEntity` | `internal/plugins/anomaly/shape/responder_test.go` | dest/port `AnomalyDetected` installs no term; source unchanged | |
 | `TestEventKindOmitemptyForSource` | `internal/core/anomalyevent/event_test.go` | a source event marshals to identical JSON (kind omitted/defaulted); dest/port carry the new fields | |
+| `TestShowAnomalyEntityLabelByKind` | `internal/plugins/anomaly/detect/show_test.go` | AC-9's RENDER contract: `entityLabel` (`show.go`) returns `proto/port` for a port incident, the dest prefix for a dest incident, and the unchanged source label for a source one; the response carries `entity-kind`, `port` and `proto`. Needs no traffic generator, so it is NOT blocked on child 4 | |  <!-- doc-links: ignore (file this spec will create; the spec is `in-progress` and the work is not implemented) -->
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -216,6 +229,7 @@ prerequisite) and 7 (as-entities-cohorts). This spec adds no AS field and no flo
 | `TestChainDestOutlier` | `internal/plugins/anomaly/detect/chain_integration_test.go` | real `trafficfeature.Service` + real detector: a distributed-target cohort with one dest outlier confirms a `kind=dest` incident (extends the `TestChainFactsToResponse` pattern, `chain_integration_test.go`) | |
 | `TestChainPortOutlier` | `internal/plugins/anomaly/detect/chain_integration_test.go` | real chain: one port sees a source-spread outlier and confirms a `kind=port` incident | |
 | `anomaly-show` (existing) | `test/plugin/anomaly-show.ci` | `show anomaly detect` still resolves and returns `incidents` list with the new optional kind field; source path unchanged | |
+| **AC-9 is NOT evidenced by the row above** | `test/plugin/anomaly-show.ci` | that test asserts `incidents` is a list and never reads a row, so it passes whatever `entityLabel` returns. A presence-only assertion cannot prove a format. AC-9 closes on `TestShowAnomalyEntityLabelByKind` above, or on `anomaly-entity-matrix.ci` if child 4 lands first. It MUST NOT close on the row above | |
 | `anomaly-entity-matrix` (optional, if child 4 `fakeflow` has landed) | `test/plugin/anomaly-entity-matrix.ci` | daemon-level: `fakeflow` injects a dest + port outlier; `show anomaly detect` lists a dest and a port incident | conditional on child 4 |
 
 ### Interop Tests

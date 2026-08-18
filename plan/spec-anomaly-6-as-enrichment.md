@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | 1046 (traffic-analysis restructure: `observation.Feed` + `trafficfeature`) |
 | Phase | B |
-| Updated | 2026-07-02 |
+| Updated | 2026-08-17 |
 
 Umbrella: `plan/spec-anomaly-0-umbrella.md` -- this is **child 6 (`as-enrichment`)**, the
 **prerequisite for all AS work** (children 7 `as-entities-cohorts` and any AS cohort in child 5).
@@ -131,7 +131,7 @@ matching prefix) the field is `0` and downstream degrades to prefix cohorts (umb
 | A-2 | The AS is already on the flow at publish time, so the stamp is a field copy with no extra lookup | `ConntrackFlow.SrcAS` flowtypes.go; set at exporter.go before the publish loop at exporter.go | need a second enricher call | read exporter.go 246-324 | **confirmed** |
 | A-3 | `SrcAS == 0` is a safe "unknown" sentinel (public ASNs are never 0; AS0 is reserved) | `Enrich` leaves 0 on RIB miss (enricher.go); flowtypes.go "0 if unknown"; RFC 7607 reserves AS0 | a real AS0 flow reads as unknown | none needed (AS0 is reserved and never announced) | **confirmed** |
 | A-4 | Only source entities are emitted, so a source-branch stamp fully populates every `FeatureEntry` | `sent := st.outBytes > 0` gate feature.go; dest-only entities carry `inBytes` and are not emitted | dest entities would carry wrong/zero AS | read feature.go 141-209; unit test asserts `FeatureEntry.SrcAS` matches the source's AS | **confirmed** |
-| A-5 | Adding a `uint32` to `Observation` does not break the value-copy feed or other consumers | `Feed.Publish` copies the value (observation.go); other consumers (`trafficstat/window.go`) read only fields they know | feed regression | `make ze-unit-test`; existing observation/trafficstat tests | unvalidated |
+| A-5 | Adding a `uint32` to `Observation` does not break the value-copy feed or other consumers | `Feed.Publish` copies the value (observation.go); other consumers (`trafficstat/window.go`) read only fields they know | feed regression | `make ze-unit-test`; existing observation/trafficstat tests | **confirmed** -- `make ze-unit-pkg-test` green for `internal/core/observation`, `internal/component/trafficstat`, `internal/plugins/trafficusage`, `internal/component/iface`, `internal/component/trafficfeature`, `internal/plugins/flowexport`, `internal/plugins/anomaly/detect`; `TestObservationSrcASFieldZeroValue` asserts the field survives `Publish` |
 | A-6 | AS on a source entity is stable within a window (same prefix -> same origin AS) so last-non-zero-write-wins is correct | AS is a function of the source prefix in the RIB | flapping AS within a window | stamp only on non-zero `obs.SrcAS`, keep persistent | **confirmed** (design choice records last known AS) |
 
 ### Risks
@@ -161,6 +161,7 @@ matching prefix) the field is `0` and downstream degrades to prefix cohorts (umb
 | AC-3 | flowexport enrichment is absent (nil enricher or RIB miss), so `SrcAS=0` | the observation and the resulting `FeatureEntry` carry `SrcAS == 0`; a later unknown-AS flow does not overwrite a previously known AS on the same source |
 | AC-4 | the change is built | `make ze-tier-check` passes (exit 0); no file under `internal/plugins/anomaly` or `internal/component/trafficfeature` imports `internal/plugins/flowexport`; flowexport is not promoted to `component` |
 | AC-5 | flowexport is removed / disabled | `internal/core/observation` and `internal/component/trafficfeature` still compile and behave; the AS field defaults to `0` (self-containment preserved) |
+| AC-6 | this spec is closed | its closure names the spec that CONSUMES `FeatureEntry.SrcAS`. Added 2026-08-18 by an independent review of `d85aa3720~1..a0c8486bb`, which landed this spec's producer and found no non-test reader of the field: `feature.go` writes it, `service.go` returns it, and nothing reads it. The design says so on purpose ("child 6 does NOT modify the detector"), so this is a SEQUENCING obligation, not a defect. It is recorded because a producer with no consumer is exactly what a closed spec makes invisible: nothing in the tree fails if child 7 never lands, and the field then costs memory in every snapshot to feed nobody |
 
 ## End-to-End User Stories (MANDATORY for new features)
 
@@ -366,13 +367,35 @@ by construction, not by exception.
 
 ## Implementation Summary
 ### What Was Implemented
-- (filled at implementation)
+- `internal/core/observation/observation.go` -- `Observation.SrcAS uint32`, documented as the origin AS
+  of `Flow.Src` with 0 meaning "not attributed" (AS 0 reserved, RFC 7607) and an explicit MUST NOT for
+  a consumer resolving the AS itself.
+- `internal/plugins/flowexport/exporter.go` -- the publish loop in `exportFlows` sets `SrcAS: f.SrcAS`,
+  a field copy of the value the enrichment loop above already resolved. No second enricher call.
+- `internal/component/trafficfeature/feature.go` -- persistent `sourceState.srcAS`; `ingest` records
+  `obs.SrcAS` in the SOURCE-role branch only and only when non-zero; `snapshot` copies it into
+  `FeatureEntry.SrcAS`; the window reset leaves it untouched.
+- `internal/component/trafficfeature/service.go` -- `FeatureEntry.SrcAS uint32`, the field child 7
+  consumes off the `Snapshot()` it already reads.
+- Tests: `TestObservationSrcASFieldZeroValue` (observation_test.go), `TestExportFlowsStampsSrcAS` and
+  `TestExportFlowsSrcASZeroWhenNoEnricher` (new `exporter_srcas_test.go`), `TestFeatureEntryCarriesSrcAS`,
+  `TestFeatureEntrySrcASUnsetWhenUnknown` and `TestFeatureEntrySrcASSourceRoleOnly` (feature_test.go).
+  Each was proven to discriminate by mutating the code it covers.
 ### Bugs Found/Fixed
-- (filled at implementation)
+- None. The change is additive and found no defect in the paths it touched.
 ### Documentation Updates
-- (filled at implementation)
+- `docs/architecture/observation-feed.md` -- `SrcAS` in the Observation contract block, plus the
+  publisher-stamps / consumer-reads rule and the 0 sentinel.
+- `docs/architecture/traffic/traffic-analysis-layers.md` -- a decision entry for the source-role-only,
+  persistent, non-zero-write-wins stamp, with source anchors on `feature.go` and `service.go`, and the
+  `trafficfeature` row of the three-parts table now names the AS label.
 ### Deviations from Plan
-- (filled at implementation)
+- The two producer tests live in a new `internal/plugins/flowexport/exporter_srcas_test.go` rather than
+  in `exporter_test.go` as the TDD plan named. `exporter_test.go` carries RFC-tagged NetFlow and sFlow
+  proofs, and `.claude/hooks/pretool-writeedit.py` refuses any edit to such a file without owner
+  approval. A sibling file in the same package runs under the same target and touches no RFC proof.
+- The `Phase` metadata row keeps its value `B`: in this family it names the umbrella's phase, which the
+  umbrella's child table reads, not an implementation phase counter.
 
 ## Implementation Audit
 ### Requirements from Task
