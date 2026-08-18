@@ -316,7 +316,7 @@ _published_at_cache = None
 def published_at():
     """The one publication timestamp for this build, ISO-8601 in UTC.
 
-    `tools/build.py` stamps ZE_SITE_PUBLISHED_AT once, before the first step,
+    `website/tools/build.py` stamps ZE_SITE_PUBLISHED_AT once, before the first step,
     and the page renderers it starts as subprocesses inherit it. That is what
     makes one build publish ONE time.
 

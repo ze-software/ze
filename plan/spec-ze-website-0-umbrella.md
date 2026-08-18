@@ -6,7 +6,7 @@
 | Scope | cli, plugin, config, tooling, web |
 | Depends | - |
 | Phase | - |
-| Deferral shard | `plan/deferrals/ze-website.md` (create on the first deferral) |
+| Deferral shard | `plan/deferrals/ze-website.md` (create on the first deferral) |  <!-- doc-links: ignore (file this spec will create; the spec is `design` and the work is not implemented) -->
 | Handoff | - |
 | Updated | 2026-08-17 |
 
@@ -46,12 +46,12 @@ in-memory protocol runtime.
 
 | # | Spec | Deliverable | Depends | Coordinates with |
 |---|------|-------------|---------|------------------|
-| 1 | `plan/spec-ze-website-1-cli-session.md` | Transport-independent `cli.Session`; Bubble Tea moved to `cli/tui`; SSH/TUI and HTTP web migrated with output parity | - | `spec-ssh-optional-composition` for shared CLI and auth surfaces |
-| 2 | `plan/spec-ze-website-2-wasm-composition.md` | General backend gates, browser platform support, `ze_website` personality, selected registration composition, WASM build and startup smoke | 1 | `spec-dataplane-seams-0-umbrella` for backend boundary ownership |
-| 3 | `plan/spec-ze-website-3-browser-zefs.md` | ZeFS persistence seam, complete-blob `localStorage` backend, Web Locks, import/export/reset, corruption and quota handling | - | Zefs format and config storage contracts |
-| 4 | `plan/spec-ze-website-4-browser-cli-bridge.md` | Promise-based JavaScript bridge and browser CLI adapter over `cli.Session`, including profile and node selection | 1, 2, 3 | Existing server-rendered web terminal assets |
-| 5 | `plan/spec-ze-website-5-bgp-bfd-lab.md` | Two isolated browser nodes with real BGP, BFD, RIB, config reconciliation, and buffered in-memory transports | 2, 3, 4 | BGP reactor, BFD transport, RIB and config runtime |
-| 6 | `plan/spec-ze-website-6-integration-release.md` | Static site bundle, user interface, security controls, browser end-to-end suite, documentation, and public artifact | 1 through 5 | `docs/contributing/gh-pages.md` if publication is selected |
+| 1 | `plan/spec-ze-website-1-cli-session.md` | Transport-independent `cli.Session`; Bubble Tea moved to `cli/tui`; SSH/TUI and HTTP web migrated with output parity | - | `spec-ssh-optional-composition` for shared CLI and auth surfaces |  <!-- doc-links: ignore (file this spec will create; the spec is `design` and the work is not implemented) -->
+| 2 | `plan/spec-ze-website-2-wasm-composition.md` | General backend gates, browser platform support, `ze_website` personality, selected registration composition, WASM build and startup smoke | 1 | `spec-dataplane-seams-0-umbrella` for backend boundary ownership |  <!-- doc-links: ignore (file this spec will create; the spec is `design` and the work is not implemented) -->
+| 3 | `plan/spec-ze-website-3-browser-zefs.md` | ZeFS persistence seam, complete-blob `localStorage` backend, Web Locks, import/export/reset, corruption and quota handling | - | Zefs format and config storage contracts |  <!-- doc-links: ignore (file this spec will create; the spec is `design` and the work is not implemented) -->
+| 4 | `plan/spec-ze-website-4-browser-cli-bridge.md` | Promise-based JavaScript bridge and browser CLI adapter over `cli.Session`, including profile and node selection | 1, 2, 3 | Existing server-rendered web terminal assets |  <!-- doc-links: ignore (file this spec will create; the spec is `design` and the work is not implemented) -->
+| 5 | `plan/spec-ze-website-5-bgp-bfd-lab.md` | Two isolated browser nodes with real BGP, BFD, RIB, config reconciliation, and buffered in-memory transports | 2, 3, 4 | BGP reactor, BFD transport, RIB and config runtime |  <!-- doc-links: ignore (file this spec will create; the spec is `design` and the work is not implemented) -->
+| 6 | `plan/spec-ze-website-6-integration-release.md` | Static site bundle, user interface, security controls, browser end-to-end suite, documentation, and public artifact | 1 through 5 | `docs/contributing/gh-pages.md` if publication is selected |  <!-- doc-links: ignore (file this spec will create; the spec is `design` and the work is not implemented) -->
 
 Each child is independently reviewable and closable. The umbrella closes only
 after all six children close and the final browser goal test passes.
@@ -433,7 +433,7 @@ first invalid values below and above where applicable.
 
 ### Functional Tests
 
-Child 6 implements these cases in `scripts/evidence/ze-website-browser.py` and
+Child 6 implements these cases in `scripts/evidence/ze-website-browser.py` and  <!-- doc-links: ignore (file this spec will create; the spec is `design` and the work is not implemented) -->
 binds them to `make ze-website-test`.
 
 | Test | Entry point | What it proves | Status |
@@ -468,12 +468,12 @@ integration with two real Ze protocol engines.
 
 ## Files to Create
 
-- `plan/spec-ze-website-1-cli-session.md` - shared CLI semantic core and frontend migration.
-- `plan/spec-ze-website-2-wasm-composition.md` - backend gates and WASM personality.
-- `plan/spec-ze-website-3-browser-zefs.md` - browser ZeFS persistence.
-- `plan/spec-ze-website-4-browser-cli-bridge.md` - JavaScript and DOM adapter.
-- `plan/spec-ze-website-5-bgp-bfd-lab.md` - two-node protocol runtime.
-- `plan/spec-ze-website-6-integration-release.md` - final static application, security, tests, docs, and artifact.
+- `plan/spec-ze-website-1-cli-session.md` - shared CLI semantic core and frontend migration.  <!-- doc-links: ignore (file this spec will create; the spec is `design` and the work is not implemented) -->
+- `plan/spec-ze-website-2-wasm-composition.md` - backend gates and WASM personality.  <!-- doc-links: ignore (file this spec will create; the spec is `design` and the work is not implemented) -->
+- `plan/spec-ze-website-3-browser-zefs.md` - browser ZeFS persistence.  <!-- doc-links: ignore (file this spec will create; the spec is `design` and the work is not implemented) -->
+- `plan/spec-ze-website-4-browser-cli-bridge.md` - JavaScript and DOM adapter.  <!-- doc-links: ignore (file this spec will create; the spec is `design` and the work is not implemented) -->
+- `plan/spec-ze-website-5-bgp-bfd-lab.md` - two-node protocol runtime.  <!-- doc-links: ignore (file this spec will create; the spec is `design` and the work is not implemented) -->
+- `plan/spec-ze-website-6-integration-release.md` - final static application, security, tests, docs, and artifact.  <!-- doc-links: ignore (file this spec will create; the spec is `design` and the work is not implemented) -->
 
 ### Cross-Specification Ownership
 
@@ -515,7 +515,7 @@ integration with two real Ze protocol engines.
 | 3 | CLI command added/changed? | No | Command semantics and availability are preserved or explicitly absent by composition |
 | 4 | API/RPC added/changed? | Yes | Document the browser bridge under the owning browser architecture page, not the daemon process protocol |
 | 5 | Plugin added/changed? | Yes | Backend compile-out and selected registration change composition; update plugin/build composition documentation |
-| 6 | Has a user guide page? | Yes | Create `docs/guide/browser-lab.md` with build, use, persistence, recovery, and security limits |
+| 6 | Has a user guide page? | Yes | Create `docs/guide/browser-lab.md` with build, use, persistence, recovery, and security limits |  <!-- doc-links: ignore (file this spec will create; the spec is `design` and the work is not implemented) -->
 | 7 | Wire format changed? | No | BGP and BFD encoding are unchanged |
 | 8 | Plugin SDK/protocol changed? | No | No external plugin process or SDK contract is used in WASM |
 | 9 | RFC behavior implemented, changed, or newly proven? | No | Existing BGP/BFD behavior is reused; no standards ledger change |
@@ -536,7 +536,7 @@ integration with two real Ze protocol engines.
 | What rule or gate prevents regression? | Feature gate checks, CLI grammar, generated plugin import checks, native parity tests, WASM build gate, and browser functional target |
 | What source of truth prevents drift? | `feature-gates.txt`, command/YANG/plugin registries, generated compositions, and the linked browser artifact inventory |
 | What verification proves it? | `make ze-website`, child package tests, `make ze-website-test`, feature matrix checks, native CLI/web tests, and goal mutation runs |
-| What docs explain usage? | `docs/guide/browser-lab.md` and the browser-lab architecture page created by child 6 |
+| What docs explain usage? | `docs/guide/browser-lab.md` and the browser-lab architecture page created by child 6 |  <!-- doc-links: ignore (file this spec will create; the spec is `design` and the work is not implemented) -->
 | What journal record preserves the decision? | None required now. No recurring implementation defect was diagnosed during design |
 
 ## Implementation Steps

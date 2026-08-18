@@ -144,8 +144,8 @@ costs what the bug costs.
 
 | Entry Point | Feature Code | Test |
 |-------------|--------------|------|
-| UPDATE forwarded to an ADD-PATH peer | wire → forward rail → `fwdReencodeNLRIs` → generator | `addpath-readvertise-collision-frr` (interop) |
-| Peer-up replay to an ADD-PATH peer | replay rail → `fwdReencodeNLRIs` → same generator | `addpath-rail-agreement-speaker` (interop) |
+| UPDATE forwarded to an ADD-PATH peer | wire → forward rail → `fwdReencodeNLRIs` → generator | `bgp-addpath-readvertise-collision-frr` (interop) |
+| Peer-up replay to an ADD-PATH peer | replay rail → `fwdReencodeNLRIs` → same generator | `bgp-addpath-rail-agreement-speaker` (interop) |
 | The same path advertised twice | generator → held per path → same identifier | `TestForwardPathIDStableAcrossUpdates` |
 
 ## Acceptance Criteria
@@ -164,8 +164,8 @@ costs what the bug costs.
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Runs ze as a route server between two clients whose paths share one received identifier | wire → egress transform → generator → both paths survive at the third client | `addpath-readvertise-collision-frr` |
-| 2 | A client reconnects and receives the peer-up replay | replay rail → same generator → identical bytes | `addpath-rail-agreement-speaker`, and the session-reset half of `addpath-readvertise-collision-frr` |
+| 1 | Runs ze as a route server between two clients whose paths share one received identifier | wire → egress transform → generator → both paths survive at the third client | `bgp-addpath-readvertise-collision-frr` |
+| 2 | A client reconnects and receives the peer-up replay | replay rail → same generator → identical bytes | `bgp-addpath-rail-agreement-speaker`, and the session-reset half of `bgp-addpath-readvertise-collision-frr` |
 
 ## 🧪 TDD Test Plan
 
@@ -208,8 +208,8 @@ daemon holding a RIB can report it.
 ### Interop Tests (Scope: protocol)
 | Test | Peer | Validates |
 |------|------|-----------|
-| `test/interop/scenarios/addpath-readvertise-collision-frr` | FRR 10.3.1, with BIRD and GoBGP as the colliding sources | AC-2: FRR keeps both paths, under identifiers 0 and 1. Reverting the generator leaves FRR holding ONE path |
-| `test/interop/scenarios/addpath-rail-agreement-speaker` | two independent Python speakers, one live and one replayed | AC-7: both UPDATE bodies are byte-identical, Path Identifier included |
+| `test/interop/scenarios/bgp-addpath-readvertise-collision-frr` | FRR 10.3.1, with BIRD and GoBGP as the colliding sources | AC-2: FRR keeps both paths, under identifiers 0 and 1. Reverting the generator leaves FRR holding ONE path |
+| `test/interop/scenarios/bgp-addpath-rail-agreement-speaker` | two independent Python speakers, one live and one replayed | AC-7: both UPDATE bodies are byte-identical, Path Identifier included |
 
 ## Files to Modify
 
@@ -229,8 +229,8 @@ daemon holding a RIB can report it.
 | `internal/component/bgp/reactor/forward_path_id.go` | the generator, keyed by the path at ingress, plus the raw-frame rewriter the same-context branch uses |
 | `internal/component/bgp/reactor/forward_path_id_gen_test.go` | the generator's tests: withdraw matching, replacement, non-ADD-PATH source and destination, boundary values, destination agreement, release |
 | ~~the two `.ci` named above~~ | Replaced by the two interop scenarios in the TDD Test Plan. The `.ci` harness cannot express either assertion, and the property AC-2 names is a receiver's, so no test inside ze can report it |
-| `test/interop/scenarios/addpath-readvertise-collision-frr/` | AC-2 at FRR: `ze.conf`, `frr.conf`, `bird.conf`, `gobgp.toml`, `check.py` (carries the `RFC7911-2-2 positive` interop tag) |
-| `test/interop/scenarios/addpath-rail-agreement-speaker/` | AC-7 byte identity: `ze.conf`, `gobgp.toml`, `speaker-args`, `speaker2-args`, `check.py` |
+| `test/interop/scenarios/bgp-addpath-readvertise-collision-frr/` | AC-2 at FRR: `ze.conf`, `frr.conf`, `bird.conf`, `gobgp.toml`, `check.py` (carries the `RFC7911-2-2 positive` interop tag) |
+| `test/interop/scenarios/bgp-addpath-rail-agreement-speaker/` | AC-7 byte identity: `ze.conf`, `gobgp.toml`, `speaker-args`, `speaker2-args`, `check.py` |
 
 ### Integration Checklist
 
@@ -357,8 +357,8 @@ a tagged test in both polarities.
   reads an UPDATE's sections.
 - `Reactor.doRemovePeer` (`internal/component/bgp/reactor/reactor_peers.go`)
   releases a removed peer's identifiers.
-- Two interop scenarios: `addpath-readvertise-collision-frr` (AC-2 at FRR) and
-  `addpath-rail-agreement-speaker` (AC-7 byte identity), plus `--add-path` on the
+- Two interop scenarios: `bgp-addpath-readvertise-collision-frr` (AC-2 at FRR) and
+  `bgp-addpath-rail-agreement-speaker` (AC-7 byte identity), plus `--add-path` on the
   interop speaker engine.
 
 ### Bugs Found/Fixed
@@ -412,19 +412,19 @@ a tagged test in both polarities.
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
 | AC-1 | Done | `TestForwardPathIDStableAcrossUpdates` | asserts the emitted value is not the received 0xDEADBEEF |
-| AC-2 | Done | `TestForwardPathIDsDifferForCollidingSources`, `TestForwardPathIDDiffersForTwoSourcePeers`, `addpath-readvertise-collision-frr` | |
+| AC-2 | Done | `TestForwardPathIDsDifferForCollidingSources`, `TestForwardPathIDDiffersForTwoSourcePeers`, `bgp-addpath-readvertise-collision-frr` | |
 | AC-3 | Done | `TestForwardPathIDSurvivesAttributeChange` | key is the ingress path, not the attributes |
 | AC-4 | Partial | `TestForwardPathIDMatchesAnnounceAndWithdraw`, `TestForwardPathIDReleaseReturnsValues` | reuse ordering is correct and conservative; the release is so late that the table is unbounded (BLOCKER 1) |
 | AC-5 | Done | `TestForwardPathIDBoundaryReceivedValues` | 0 and 2^32-1 both regenerated; `mintLocked` issues 0 like any value |
 | AC-6 | Done | `TestForwardPathIDLeavesNonAddPathDestinationAlone` | asserts the same backing array and a nil handle |
-| AC-7 | Done | `TestForwardPathIDIdenticalForEveryDestination`, `addpath-rail-agreement-speaker` | |
+| AC-7 | Done | `TestForwardPathIDIdenticalForEveryDestination`, `bgp-addpath-rail-agreement-speaker` | |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
 | all ten unit tests | Done | `forward_path_id_test.go`, `forward_path_id_gen_test.go` | present and green |
 | boundary values 0 and 2^32-1 | Done | `TestForwardPathIDBoundaryReceivedValues` | |
-| the two interop scenarios | Done | `test/interop/scenarios/addpath-readvertise-collision-frr`, `.../addpath-rail-agreement-speaker` | auto-discovered by `test/interop/run.py`, which lists the scenarios directory |
+| the two interop scenarios | Done | `test/interop/scenarios/bgp-addpath-readvertise-collision-frr`, `.../bgp-addpath-rail-agreement-speaker` | auto-discovered by `test/interop/run.py`, which lists the scenarios directory |
 | a test that drives the table's growth from the socket | Missing | -- | owed with the BLOCKER 1 fix |
 
 ### Files from Plan
@@ -448,8 +448,8 @@ a tagged test in both polarities.
 
 | Goal (from Task) | Evidence Type | Concrete Evidence |
 |------------------|---------------|-------------------|
-| A route server does not merge two clients' paths for one prefix | interop | `addpath-readvertise-collision-frr/check.py` asserts FRR holds two paths under two identifiers, and its header records the 2026-08-14 lab measurement that reverting the generator leaves FRR holding ONE. NOT re-run in the closure session: it needs docker |
-| The replay rail and the live rail put the same bytes on the wire | interop | `addpath-rail-agreement-speaker/check.py` compares the two UPDATE bodies and fails when the NLRI is not ADD-PATH framed, so a lost capability cannot pass it vacuously. NOT re-run in the closure session |
+| A route server does not merge two clients' paths for one prefix | interop | `bgp-addpath-readvertise-collision-frr/check.py` asserts FRR holds two paths under two identifiers, and its header records the 2026-08-14 lab measurement that reverting the generator leaves FRR holding ONE. NOT re-run in the closure session: it needs docker |
+| The replay rail and the live rail put the same bytes on the wire | interop | `bgp-addpath-rail-agreement-speaker/check.py` compares the two UPDATE bodies and fails when the NLRI is not ADD-PATH framed, so a lost capability cannot pass it vacuously. NOT re-run in the closure session |
 | `RFC7911-2-2` is proven in both polarities | ledger | `rfc/requirements/rfc7911.md` shows positive tags in `forward_path_id_gen_test.go` and the interop check, and the negative in `forward_path_id_test.go` |
 | The fix costs the sessions that cannot use it nothing | unit | `TestForwardPathIDLeavesNonAddPathDestinationAlone` asserts the same backing array and a nil buffer handle |
 | The state the fix adds stays bounded | NOT MET | Review Gate BLOCKER 1 |
@@ -458,7 +458,7 @@ a tagged test in both polarities.
 
 | Row (from the deferral shard) | Final Status | Destination or evidence |
 |-------------------------------|--------------|-------------------------|
-| none: the spec's Deferral shard field is `-`, and no `plan/deferrals/rfc7911-generate-own-path-id.md` exists | done | `ls plan/deferrals/` shows no shard for this stem |
+| none: the spec's Deferral shard field is `-`, and no `plan/deferrals/rfc7911-generate-own-path-id.md` exists | done | `ls plan/deferrals/` shows no shard for this stem |  <!-- doc-links: ignore (the row asserts this shard does NOT exist; a resolving path would falsify it) -->
 
 ## Review Gate
 
@@ -472,7 +472,63 @@ a tagged test in both polarities.
 ### Findings fixed
 | # | Severity | Finding | Location | Fixed by |
 |---|----------|---------|----------|----------|
-| 1 | BLOCKER | The identifier table keeps an entry for every identifier a peer ever used. `generate` inserts one per distinct received identifier; the only release is `releaseSource`, called from `doRemovePeer` alone. A withdraw creates entries too (`fwdPatchPathIDs` runs over the withdrawn sections) and `reactorForwardRS` relays a received UPDATE without consulting a RIB, so withdrawals for paths that were never announced grow the table permanently. A five-octet withdraw NLRI buys about 30 to 40 octets of table, so one full-size UPDATE carries hundreds of them and an established route-server client exhausts the daemon's memory | `internal/component/bgp/reactor/forward_path_id.go` (`fwdPathIDTable.generate`, `fwdPathIDTable.releaseSource`, `fwdPatchPathIDs`), `internal/component/bgp/reactor/reactor_peers.go` (`doRemovePeer`) | NOT FIXED. The fix is Go: release `(source, received)` when ze has relayed the withdraw for that ingress path, which is the reuse point AC-4 names. A session-scoped release is not a substitute, because `addpath-readvertise-collision-frr` pins that a session reset must not renumber. The closure session could not commit Go: the tree did not compile and a Go commit owes a full `make ze-precommit-verify` |
+| 1 | BLOCKER | The identifier table keeps an entry for every identifier a peer ever used. `generate` inserts one per distinct received identifier; the only release is `releaseSource`, called from `doRemovePeer` alone. A withdraw creates entries too (`fwdPatchPathIDs` runs over the withdrawn sections) and `reactorForwardRS` relays a received UPDATE without consulting a RIB, so withdrawals for paths that were never announced grow the table permanently. A five-octet withdraw NLRI buys about 30 to 40 octets of table, so one full-size UPDATE carries hundreds of them and an established route-server client exhausts the daemon's memory | `internal/component/bgp/reactor/forward_path_id.go` (`fwdPathIDTable.generate`, `fwdPathIDTable.releaseSource`, `fwdPatchPathIDs`), `internal/component/bgp/reactor/reactor_peers.go` (`doRemovePeer`) | NOT FIXED, and the fix shape below was DISPROVEN on 2026-08-17 — read the correction before writing code. ~~The fix is Go: release `(source, received)` when ze has relayed the withdraw for that ingress path, which is the reuse point AC-4 names.~~ A session-scoped release is not a substitute either, because `bgp-addpath-readvertise-collision-frr` pins that a session reset must not renumber. The closure session could not commit Go: the tree did not compile and a Go commit owes a full `make ze-precommit-verify` |
+
+### BLOCKER 1: why "release on the relayed withdraw" is WRONG (2026-08-17)
+
+**One table key carries MANY prefixes, by design, so releasing it on one
+prefix's withdraw renumbers every other prefix still advertised under it.**
+
+The key is `(source, received identifier)` and holds no prefix. The table's own
+doc comment (`fwdPathIDTable`, `internal/component/bgp/reactor/forward_path_id.go`)
+states the intent: "A source that reuses one identifier across prefixes
+therefore costs one entry rather than one per prefix, which keeps the ordinary
+case -- a client that negotiated no ADD-PATH, whose every path arrives with
+identifier 0 -- at a single entry for its whole session." `fwdReencodeNLRIs`
+(`forward_body.go`) says the same from the read side: identifier 0 "is then the
+ingress key of every path that source sends". RFC 7911 also permits an ADD-PATH
+source to reuse one identifier across prefixes, and FRR and BIRD do.
+
+Releasing on a relayed withdraw therefore trades an unbounded table for
+PERMANENT PHANTOM ROUTES: the next re-advertisement of any prefix still using
+that key mints a fresh identifier, the destination keeps `(prefix, old id)`
+forever with no withdraw ze can ever send, and a duplicate appears under the new
+identifier. Both properties this spec protects break too — announce and withdraw
+share one identifier only until some OTHER prefix's withdraw releases the key.
+
+→ Decision: refcounting the key does not rescue it. Announce-twice/withdraw-once
+leaves the count above zero forever, which is the unbounded case again, and a
+withdraw for a never-announced prefix under a live key drives the count below the
+true value, which is the phantom-route case. Both are cheap peer input.
+
+→ Decision: a stateless deterministic mapping is REFUSED on security grounds. A
+route-server client sees ze's identifiers for its own paths, inverts the mapping,
+and announces a colliding identifier to displace another client's path.
+
+→ Decision: a per-source cap stays refused. It drops routes, which is the defect
+this spec exists to remove.
+
+**Three candidate designs remain, and the choice is open for the next session.**
+
+| # | Design | Cost, and the catch |
+|---|--------|---------------------|
+| a | The reactor keeps a per-`(source, received)` set of the live advertised NLRIs and releases the key when that set empties | Exact, and bounded by advertised paths. Costs one map operation per NLRI on the forward path, plus adj-rib-in-sized memory |
+| b | Drive the release from the per-source announced-NLRI set the route-server plugin already keeps (`applyNLRIRecords`, `internal/component/bgp/plugins/rs/server_inventory.go`, whose own comment records that it runs after forwarding and off the critical path) | No new memory, but its unicast key is the prefix alone with no identifier, so it cannot answer "is any path still using received id r"; and a core memory bound would then depend on a plugin |
+| c | Assign identifiers per prefix from stored paths, the FRR and BIRD model | The largest change, and it ends the prefix-less key that causes this |
+
+**Unmeasured, and it must be measured before (a) is sized.** That withdrawals
+create entries is a CODE READ, not a measurement: `fwdRegenerateRawPathIDs`
+calls `fwdPatchPathIDs` on the withdrawn section and on `MPUnreach`'s withdrawn
+bytes, and `fwdPatchPathIDs` reaches `fwdPathIDTable.generate`, which inserts.
+No growth number has been observed, and the growth test AC-4 needs must drive
+from the SOCKET — a withdraw-only UPDATE arriving and being relayed — because a
+test that calls `generate` directly proves nothing about reachability from the
+wire, and reachability is what makes this a defect.
+
+→ Constraint: growth needs a source that uses MANY DISTINCT received
+identifiers. A non-ADD-PATH source sends every path under identifier 0 and costs
+ONE entry for its whole session, so the exposure is the ADD-PATH route-server
+case this feature exists for, not every peer.
 | 2 | NOTE | The same patched payload is copied and re-walked once per destination, though ze's identifiers are destination-independent. `fwdParseCache` is already the per-source memo across that fan-out and does not carry the patched payload | `internal/component/bgp/reactor/forward_path_id.go` (`fwdRegenerateRawPathIDs`), `internal/component/bgp/reactor/forward_rs.go` | Not fixed, not blocking: the buffer is pooled, the shape matches the existing RFC 6793 transcode, and sharing one buffer needs adopt-once handle work |
 | 3 | NOTE | The generator's tests share the package global and two source constants, so two of them key on the same (source, received) pair | `internal/component/bgp/reactor/forward_path_id_gen_test.go` | Not fixed, not blocking: both assert only inequality and stability, and the package passes race-instrumented |
 | 4 | NOTE | `docs/architecture/bgp/structural-forwarding.md` claims the bucket-merge conditions exclude every copy-on-modify path | `docs/architecture/bgp/structural-forwarding.md` | Not fixed: it belongs with the BLOCKER 1 fix, which settles the release contract the same page owes |
@@ -484,8 +540,8 @@ a tagged test in both polarities.
 |------|--------|----------|
 | `internal/component/bgp/reactor/forward_path_id.go` | Yes | read in full during the review |
 | `internal/component/bgp/reactor/forward_path_id_gen_test.go` | Yes | read in full during the review |
-| `test/interop/scenarios/addpath-readvertise-collision-frr/` | Yes | `check.py`, `ze.conf`, `frr.conf`, `bird.conf`, `gobgp.toml` |
-| `test/interop/scenarios/addpath-rail-agreement-speaker/` | Yes | `check.py`, `ze.conf`, `gobgp.toml`, `speaker-args`, `speaker2-args` |
+| `test/interop/scenarios/bgp-addpath-readvertise-collision-frr/` | Yes | `check.py`, `ze.conf`, `frr.conf`, `bird.conf`, `gobgp.toml` |
+| `test/interop/scenarios/bgp-addpath-rail-agreement-speaker/` | Yes | `check.py`, `ze.conf`, `gobgp.toml`, `speaker-args`, `speaker2-args` |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
@@ -500,8 +556,8 @@ a tagged test in both polarities.
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
-| UPDATE forwarded to an ADD-PATH peer | `test/interop/scenarios/addpath-readvertise-collision-frr/check.py` | Yes: read the file. It negotiates ADD-PATH with FRR, checks the capability before asserting, injects the second path from GoBGP and reads FRR's `show bgp ipv4 unicast detail json`, which is the only form carrying the identifier |
-| Peer-up replay to an ADD-PATH peer | `test/interop/scenarios/addpath-rail-agreement-speaker/check.py` | Yes: read the file. It asserts speaker2 was NOT established when the route was stored, so its copy can only be the replay, and it fails when the NLRI is not ADD-PATH framed |
+| UPDATE forwarded to an ADD-PATH peer | `test/interop/scenarios/bgp-addpath-readvertise-collision-frr/check.py` | Yes: read the file. It negotiates ADD-PATH with FRR, checks the capability before asserting, injects the second path from GoBGP and reads FRR's `show bgp ipv4 unicast detail json`, which is the only form carrying the identifier |
+| Peer-up replay to an ADD-PATH peer | `test/interop/scenarios/bgp-addpath-rail-agreement-speaker/check.py` | Yes: read the file. It asserts speaker2 was NOT established when the route was stored, so its copy can only be the replay, and it fails when the NLRI is not ADD-PATH framed |
 | The same path advertised twice | `forward_path_id_test.go` `TestForwardPathIDStableAcrossUpdates` | Yes: drives `buildFwdBody` twice and compares the identifier field of each destination frame |
 
 ### Assumptions Resolved

@@ -6,7 +6,7 @@
 | Scope | cli |
 | Depends | - |
 | Phase | - |
-| Deferral shard | `plan/deferrals/bgp-decode-render.md` (create on the first deferral) |
+| Deferral shard | `plan/deferrals/bgp-decode-render.md` (create on the first deferral) |  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
 | Handoff | - |
 | Updated | 2026-08-15 |
 
@@ -78,7 +78,7 @@ The pcap half of the original request is `plan/spec-bgp-pcap-decode.md`.
   → Constraint: the renderer takes an ordered node; who builds the node is the caller's business. An optional probed interface arrives at the SECOND implementor, following the existing `nlri.JSONAppender` precedent, not in this spec.
 
 - [ ] `ai/rules/architecture.md` - tier placement for a new package under `internal/core/`
-  → Constraint: `internal/core/describe` must import nothing from `internal/component/` or `internal/plugins/`. `core_direction_gate` in `scripts/dev/dep_audit.py` enforces it against `scripts/dev/core_import_baseline.txt`, which can only shrink. The node type must therefore be protocol-neutral, with `decode_human.go` doing all BGP-specific mapping.
+  → Constraint: `internal/core/describe` must import nothing from `internal/component/` or `internal/plugins/`. `core_direction_gate` in `scripts/dev/dep_audit.py` enforces it against `scripts/dev/core_import_baseline.txt`, which can only shrink. The node type must therefore be protocol-neutral, with `decode_human.go` doing all BGP-specific mapping.  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
   → Decision: no row is needed in `scripts/dev/tier_non_engine_categories.txt`. That manifest covers only `internal/component/` and `internal/plugins/` paths.
 
 - [ ] `ai/rules/performance.md` - allocation rules for a helper added to `internal/core/textbuf`
@@ -145,7 +145,7 @@ Three, all existing:
 1. Offline: hex text, normalised and decoded to bytes by `decodeHexPacket`.
 2. Offline: bytes to `map[string]any` by the per-type decoders, unchanged.
 3. New: `map[string]any` to an ordered node tree, in the retargeted `decode_human.go`.
-4. New: node tree to text by the renderer in `internal/core/describe`.
+4. New: node tree to text by the renderer in `internal/core/describe`.  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
 5. New: raw bytes to a hex-dump block by the helper in `internal/core/textbuf`.
 6. Runtime: a BGP message reaches `notifyMessageReceiver`, which iterates observers. The new observer checks the level, reconstructs the 19-byte header, and runs stages 2 to 5.
 
@@ -210,7 +210,7 @@ Three, all existing:
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `ze bgp decode --open <hex>` | → | the node mapping in `decode_human.go` and the renderer in `internal/core/describe` | `TestDecodeOpenRendersOrderedTree` |
+| `ze bgp decode --open <hex>` | → | the node mapping in `decode_human.go` and the renderer in `internal/core/describe` | `TestDecodeOpenRendersOrderedTree` |  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
 | A POST to the web tool page | → | `decodeHexPacket` through `pluginreg.GetPacketDecoder` | `test/ui/web-tool-decode.ci` |
 | `request log level bgp.wire debug` then a BGP message arrives | → | the new reactor message observer | `test-bgp-wire-decode-log.ci` |
 | `show log levels` on a freshly started daemon | → | subsystem registration at reactor construction | `TestBGPWireSubsystemRegisteredBeforeFirstMessage` |
@@ -247,19 +247,19 @@ Three, all existing:
 
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestTreeRendersChildPrefixes` | `internal/core/describe/describe_test.go` | box-drawing prefixes, last-child distinction, nesting depth | |
-| `TestTreeEmptyAndSingleChild` | `internal/core/describe/describe_test.go` | a node with no children and one with exactly one child both render correctly | |
-| `TestTreeDeterministicOrder` | `internal/core/describe/describe_test.go` | node order is preserved exactly as appended | |
+| `TestTreeRendersChildPrefixes` | `internal/core/describe/describe_test.go` | box-drawing prefixes, last-child distinction, nesting depth | |  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
+| `TestTreeEmptyAndSingleChild` | `internal/core/describe/describe_test.go` | a node with no children and one with exactly one child both render correctly | |  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
+| `TestTreeDeterministicOrder` | `internal/core/describe/describe_test.go` | node order is preserved exactly as appended | |  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
 | `TestHexDumpBlock` | `internal/core/textbuf/textbuf_test.go` | offset column, hex grouping, ASCII gutter, non-printable substitution | |
 | `TestHexDumpZeroAlloc` | `internal/core/textbuf/textbuf_test.go` | the helper allocates nothing beyond the caller's buffer | |
 | `TestDecodeOpenRendersOrderedTree` | `internal/component/bgp/cli/decode_test.go` | AC-1 and AC-2 for OPEN | |
 | `TestDecodeUpdateRendersOrderedTree` | `internal/component/bgp/cli/decode_test.go` | AC-1 and AC-2 for UPDATE, including attributes and NLRI | |
 | `TestDecodeJSONUnchanged` | `internal/component/bgp/cli/decode_test.go` | AC-3, golden comparison against pre-change JSON | |
 | `TestDecodeKeepaliveLiteral` | `internal/component/bgp/cli/decode_test.go` | AC-5 | |
-| `TestBGPWireSubsystemRegisteredBeforeFirstMessage` | `internal/component/bgp/reactor/wire_observer_test.go` | AC-6 and R-1 | |
-| `TestWireObserverZeroAllocWhenDisabled` | `internal/component/bgp/reactor/wire_observer_test.go` | AC-8 | |
-| `TestWireObserverReconstructsHeader` | `internal/component/bgp/reactor/wire_observer_test.go` | AC-11 and A-1 | |
-| `TestWireObserverDecodeErrorDoesNotPanic` | `internal/component/bgp/reactor/wire_observer_test.go` | AC-10 | |
+| `TestBGPWireSubsystemRegisteredBeforeFirstMessage` | `internal/component/bgp/reactor/wire_observer_test.go` | AC-6 and R-1 | |  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
+| `TestWireObserverZeroAllocWhenDisabled` | `internal/component/bgp/reactor/wire_observer_test.go` | AC-8 | |  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
+| `TestWireObserverReconstructsHeader` | `internal/component/bgp/reactor/wire_observer_test.go` | AC-11 and A-1 | |  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
+| `TestWireObserverDecodeErrorDoesNotPanic` | `internal/component/bgp/reactor/wire_observer_test.go` | AC-10 | |  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
 
 ### Boundary Tests (numeric inputs)
 
@@ -313,13 +313,13 @@ hop is this peer's own address`. If it appears, it is that guard, not this spec.
 
 ## Files to Create
 
-- `internal/core/describe/describe.go` - the ordered node type and the tree renderer
-- `internal/core/describe/describe_test.go` - unit tests
-- `internal/component/bgp/reactor/wire_observer.go` - the message observer that renders to `bgp.wire`
-- `internal/component/bgp/reactor/wire_observer_test.go` - unit tests
-- `test/decode/test-decode-open-tree.ci` - functional test
-- `test/decode/test-decode-update-tree.ci` - functional test
-- `test/plugin/test-bgp-wire-decode-log.ci` - functional test for the runtime tap
+- `internal/core/describe/describe.go` - the ordered node type and the tree renderer  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
+- `internal/core/describe/describe_test.go` - unit tests  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
+- `internal/component/bgp/reactor/wire_observer.go` - the message observer that renders to `bgp.wire`  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
+- `internal/component/bgp/reactor/wire_observer_test.go` - unit tests  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
+- `test/decode/test-decode-open-tree.ci` - functional test  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
+- `test/decode/test-decode-update-tree.ci` - functional test  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
+- `test/plugin/test-bgp-wire-decode-log.ci` - functional test for the runtime tap  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
 
 ### Integration Checklist
 
@@ -331,7 +331,7 @@ hop is this peer's own address`. If it appears, it is that guard, not this spec.
 | CLI commands/flags | N-A | No new command or flag; `ze bgp decode` keeps its flag set |
 | CLI grammar (keyword before value) | N-A | No new command, so `make ze-cli-grammar-check` gains no new surface |
 | Editor autocomplete | N-A | No new leaf or command |
-| Functional test for new RPC/API | Yes | `test/decode/test-decode-open-tree.ci`, `test/decode/test-decode-update-tree.ci`, `test/plugin/test-bgp-wire-decode-log.ci` |
+| Functional test for new RPC/API | Yes | `test/decode/test-decode-open-tree.ci`, `test/decode/test-decode-update-tree.ci`, `test/plugin/test-bgp-wire-decode-log.ci` |  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
 | Pipe completeness | N-A | `ze bgp decode` is offline `cmd/ze` tooling and does not route through `ApplyPipes` today. This spec changes rendering only and does not alter that surface |
 | Env var registration | N-A | No new `environment/` leaf. `bgp.wire` is reached through the existing log level machinery |
 | Doctor check for runtime dependencies | N-A | No new file path, socket, port, kernel module, binary or certificate. The tap writes through the logger that already exists |
@@ -353,7 +353,7 @@ hop is this peer's own address`. If it appears, it is that guard, not this spec.
 | 9 | RFC behavior implemented, changed, or newly proven? | No | Rendering proves no RFC obligation. The header reconstruction RELIES on RFC 4271's all-ones marker but enforces nothing |
 | 10 | Test infrastructure changed? | Yes | `docs/functional-tests.md`, for the three new `.ci` tests |
 | 11 | Affects daemon comparison? | Yes | `docs/comparison.md`, since exabgp's decode output is the reference this matches |
-| 12 | Internal architecture changed? | Yes | `docs/architecture/core-design.md` or a subsystem doc, for the new `internal/core/describe` package and the observer |
+| 12 | Internal architecture changed? | Yes | `docs/architecture/core-design.md` or a subsystem doc, for the new `internal/core/describe` package and the observer |  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
 | 13 | Route metadata keys added/changed? | No | No metadata key touched |
 | 14 | Prometheus counters added/changed? | No | None added |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | No registration inventory changes; the observer is an internal reactor registration |
@@ -364,11 +364,11 @@ hop is this peer's own address`. If it appears, it is that guard, not this spec.
 
 1. **Phase: Wiring (MANDATORY FIRST)** -- prove every entry point reaches a stub
    - Tests: `TestDecodeOpenRendersOrderedTree`, `TestBGPWireSubsystemRegisteredBeforeFirstMessage`, `test-bgp-wire-decode-log.ci`
-   - Files: `internal/core/describe/describe.go` (stub), `internal/component/bgp/reactor/wire_observer.go` (stub registered on the reactor), `internal/core/slogutil/slogutil.go` (subsystem row)
+   - Files: `internal/core/describe/describe.go` (stub), `internal/component/bgp/reactor/wire_observer.go` (stub registered on the reactor), `internal/core/slogutil/slogutil.go` (subsystem row)  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
    - Verify: the observer is registered, the subsystem answers `request log level bgp.wire debug` on a cold daemon, and the tests fail because the renderer is a stub
 2. **Phase: the node type and the renderer** -- ordered nodes, tree rendering, hex dump
-   - Tests: the `internal/core/describe` and `internal/core/textbuf` unit tests
-   - Files: `internal/core/describe/describe.go`, `internal/core/textbuf/textbuf.go`
+   - Tests: the `internal/core/describe` and `internal/core/textbuf` unit tests  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
+   - Files: `internal/core/describe/describe.go`, `internal/core/textbuf/textbuf.go`  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
    - Verify: unit tests pass, `make ze-tier-check` accepts the new core package, the hex-dump helper allocates nothing
 3. **Phase: retarget the offline decoder** -- map `map[string]any` to nodes, delete the flat formatters
    - Tests: the `decode_test.go` tree, determinism and JSON-unchanged tests, then `make ze-functional-decode-test` and `make ze-functional-ui-test`
@@ -376,7 +376,7 @@ hop is this peer's own address`. If it appears, it is that guard, not this spec.
    - Verify: AC-1 to AC-5. Run `make ze-functional-ui-test` in THIS phase, not at the end, per R-5
 4. **Phase: the runtime tap** -- header reconstruction, level guard, both directions
    - Tests: the `wire_observer_test.go` tests, then `test-bgp-wire-decode-log.ci`
-   - Files: `internal/component/bgp/reactor/wire_observer.go`
+   - Files: `internal/component/bgp/reactor/wire_observer.go`  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
    - Verify: AC-6 to AC-11, including the zero-allocation assertion and the syslog backend
 5. **Phase: documentation and discovery** -- every row of the Documentation checklist
    - Files: the docs listed under Files to Modify, plus `ai/INDEX.md`
@@ -393,7 +393,7 @@ hop is this peer's own address`. If it appears, it is that guard, not this spec.
 | Determinism | No `map` iteration reaches the rendering order anywhere in the chain |
 | Performance | The `Enabled()` guard precedes every argument evaluation at the log site; the hex-dump helper uses no `fmt` |
 | Rule: `ai/rules/simplicity.md` | No `Describe()` was added to the wire interfaces; the renderer takes a node and nothing more |
-| Rule: `ai/rules/architecture.md` | `internal/core/describe` imports nothing from component or plugins |
+| Rule: `ai/rules/architecture.md` | `internal/core/describe` imports nothing from component or plugins |  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
 | Rule: `ai/rules/evidence.md` | The observer fails closed: a decode error is reported, never silently skipped |
 
 ### Deliverables Checklist
@@ -427,7 +427,7 @@ hop is this peer's own address`. If it appears, it is that guard, not this spec.
 | Test fails on behavior mismatch | Re-read the source in Current Behavior. If misunderstood → RESEARCH |
 | Lint failure | Fix inline. If architectural → DESIGN |
 | Functional test fails | Check the AC: wrong AC → DESIGN, correct AC → IMPLEMENT |
-| `make ze-tier-check` rejects `internal/core/describe` | The node type reached for a component or plugin import. Remove it; mapping belongs in `decode_human.go` |
+| `make ze-tier-check` rejects `internal/core/describe` | The node type reached for a component or plugin import. Remove it; mapping belongs in `decode_human.go` |  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
 | 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
 
 ## Design Insights
@@ -443,7 +443,7 @@ hop is this peer's own address`. If it appears, it is that guard, not this spec.
 |----------|------------------------|-----------|
 | An ordered node type plus one renderer | A `Describe()` method on `message.Message`, `attribute.Attribute` and `capability.Capability`, as originally proposed | Those are `WriteTo`-shaped hot-path contracts over pooled, lazily-parsed data. A mandatory method would put allocation on the forwarding path and force every NLRI codec plugin to implement rendering. It also cannot reach the existing decoder, which works from bytes to `map[string]any` and never constructs those types |
 | No `Describer` interface yet | Adding the optional probed interface now | `ai/rules/simplicity.md` refuses an interface with one implementation. The precedent for adding it later is `nlri.JSONAppender`, an optional interface probed by the JSON formatter |
-| `internal/core/describe`, protocol-neutral | `internal/core/bgp/describe`, BGP-specific | Four protocols have offline decoders with divergent output. A neutral node type is what lets the other three converge later without a second renderer |
+| `internal/core/describe`, protocol-neutral | `internal/core/bgp/describe`, BGP-specific | Four protocols have offline decoders with divergent output. A neutral node type is what lets the other three converge later without a second renderer |  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
 | Reconstruct the 19-byte header at the tap | Widen `MessageCallback` with a wire parameter; move the capture beside `teeCapture` | Reconstruction is byte-exact from data already in scope (all-ones marker per RFC 4271, length from the body, type from the argument) and touches no call site. Widening the callback changes six-plus sites and one caller has no wire bytes to give. Owner decision, 2026-08-15 |
 | Reuse `request log level` | A new `debug bgp decode` command; a per-peer YANG config leaf | The operation already exists and is already non-persistent, which is what the owner asked for. `ai/rules/cli.md` also reserves the `debug` verb for perturbing protocol state and says verbose logging is not that. Emitting through slog additionally makes terminal and syslog fall out of `environment/log/{backend,destination}` at no cost |
 | A `MessageObserver`, not a direct call in `notifyMessageReceiver` | Calling the renderer inline beside the existing capture branches | The observer seam exists, is iterated already, and has a working precedent in `internal/plugins/mrt`. An inline branch would add a per-feature condition to a shared reactor function, which `ai/rules/plugins.md` calls out |

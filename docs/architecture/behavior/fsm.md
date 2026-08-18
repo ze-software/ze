@@ -439,7 +439,7 @@ The `apiStateObserver` is registered by `startAPIServer`, emitting state message
 <!-- source: internal/component/bgp/reactor/reactor_notify.go -- addPeerObserver, AddPeerLifecycleCallback, callbackAdapter -->
 <!-- source: internal/component/bgp/reactor/reactor_api.go -- apiStateObserver -->
 
-**See:** `docs/architecture/api/ARCHITECTURE.md` for full details.
+**See:** `docs/architecture/api/architecture.md` for full details.
 
 ### State Machine Goroutine
 

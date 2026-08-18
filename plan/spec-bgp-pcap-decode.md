@@ -6,7 +6,7 @@
 | Scope | cli |
 | Depends | - |
 | Phase | - |
-| Deferral shard | `plan/deferrals/bgp-pcap-decode.md` (create on the first deferral) |
+| Deferral shard | `plan/deferrals/bgp-pcap-decode.md` (create on the first deferral) |  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
 | Handoff | - |
 | Updated | 2026-08-15 |
 
@@ -53,7 +53,7 @@ BGP, and `ze bgp decode` reads the same file back.
 |-------|------|
 | A truthful writer | IP and TCP headers around each FULL BGP message, keeping `LINKTYPE_RAW` (101) so the existing declaration becomes true. Owner decision, 2026-08-15 |
 | The header back | The capture point receives a header-stripped body. The 19-byte header is reconstructed at the tap, matching the sibling spec's decision |
-| `internal/core/pcap` | A synthetic IP and TCP writer ALREADY exists in `internal/analyze/convert.go`. The new package absorbs it rather than inventing framing, and carries three of its defects forward as fixes |
+| `internal/core/pcap` | A synthetic IP and TCP writer ALREADY exists in `internal/analyze/convert.go`. The new package absorbs it rather than inventing framing, and carries three of its defects forward as fixes |  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
 | A reader with TCP reassembly | The real cost. No reassembly code exists anywhere in the repository |
 | stdin and multi-payload | exabgp's decode reads hex lines from stdin; ze takes one argv string |
 
@@ -74,12 +74,12 @@ specs share the `ze bgp decode` entry point and nothing else.
   → Decision: the page's `LINKTYPE_RAW` justification is false and is corrected here, not preserved. It does not mention `internal/analyze/convert.go` at all, which is how a second pcap writer stayed invisible.
 
 - [ ] `ai/rules/architecture.md` - tier placement and the core import direction
-  → Constraint: `internal/core/pcap` must import nothing from `internal/component/` or `internal/plugins/`. Achievable: the writer needs only `encoding/binary`, `io`, `time` and `net/netip`.
+  → Constraint: `internal/core/pcap` must import nothing from `internal/component/` or `internal/plugins/`. Achievable: the writer needs only `encoding/binary`, `io`, `time` and `net/netip`.  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
   → Decision: no row in `scripts/dev/tier_non_engine_categories.txt`; that manifest covers only component and plugin paths. `internal/component/bgp/cli`, `internal/plugins/diag/cmd` and `internal/analyze` importing it are all downward imports and legal.
 
 - [ ] `ai/rules/cli.md` - the `-` stdin contract
   → Constraint: a user-supplied path must go through `internal/core/cliio`, never a raw `os` call.
-  → Constraint: `make ze-dash-stdio-check` is an AST taint pass whose `scanRoots` EXCLUDE `internal/core`. A raw `os.Open` inside `internal/core/pcap` would not be flagged, so the `-` handling MUST live at the CLI edge in `internal/component/bgp/cli`, which is scanned.
+  → Constraint: `make ze-dash-stdio-check` is an AST taint pass whose `scanRoots` EXCLUDE `internal/core`. A raw `os.Open` inside `internal/core/pcap` would not be flagged, so the `-` handling MUST live at the CLI edge in `internal/component/bgp/cli`, which is scanned.  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
 
 - [ ] `ai/rules/interop-and-goal-validation.md` - proving the test discriminates
   → Constraint: `test/plugin/diag-capture.ci` exercises capture in JSON only and asserts no pcap bytes, so the format change breaks no existing `.ci` and gains no evidence from one. The discriminating test must be new: a file ze wrote, decoded back, asserting the messages.
@@ -153,7 +153,7 @@ specs share the `ze bgp decode` entry point and nothing else.
 
 ### Integration Points
 
-- `internal/core/pcap` becomes the single owner of the pcap file format; `internal/analyze/convert.go`, `internal/plugins/diag/cmd` and the new reader all use it.
+- `internal/core/pcap` becomes the single owner of the pcap file format; `internal/analyze/convert.go`, `internal/plugins/diag/cmd` and the new reader all use it.  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
 - `decodeHexPacket` keeps its signature; the reader is a new producer of its input.
 - `BGPRawCaptureRing.Append` gains the fields framing needs.
 
@@ -204,7 +204,7 @@ specs share the `ze bgp decode` entry point and nothing else.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `show capture-raw dump bgp pcap` after a session exchanged messages | → | the split BGP exporter in `internal/plugins/diag/cmd` using `internal/core/pcap` | `test-bgp-pcap-roundtrip.ci` |
+| `show capture-raw dump bgp pcap` after a session exchanged messages | → | the split BGP exporter in `internal/plugins/diag/cmd` using `internal/core/pcap` | `test-bgp-pcap-roundtrip.ci` |  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
 | `ze bgp decode pcap <file>` | → | the pcap reader and reassembler | `TestReadPcapFramesMessages` |
 | `ze bgp decode pcap -` with a capture on stdin | → | `cliio.OpenReader` at the CLI edge | `test-bgp-decode-pcap-stdin.ci` |
 | Hex lines on stdin | → | the multi-payload path in `cmdDecode` | `test-bgp-decode-stdin-hex.ci` |
@@ -236,7 +236,7 @@ specs share the `ze bgp decode` entry point and nothing else.
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | captures BGP on a live daemon and opens it in Wireshark | `capture-raw start bgp` → tap → ring → `dump bgp pcap` → `internal/core/pcap` → file | `test-bgp-pcap-roundtrip.ci` plus the tshark assertion |
+| 1 | captures BGP on a live daemon and opens it in Wireshark | `capture-raw start bgp` → tap → ring → `dump bgp pcap` → `internal/core/pcap` → file | `test-bgp-pcap-roundtrip.ci` plus the tshark assertion |  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
 | 2 | decodes a tcpdump capture from a colleague | file → `cliio.OpenReader` → reader → reassembly → framing → `decodeHexPacket` | `TestReadPcapFramesMessages` |
 | 3 | pipes a capture through ze in a shell pipeline | stdin → `cliio.OpenReader` → same chain | `test-bgp-decode-pcap-stdin.ci` |
 | 4 | pastes several hex messages at once, as with exabgp | stdin lines → `cmdDecode` multi-payload → `decodeHexPacket` | `test-bgp-decode-stdin-hex.ci` |
@@ -248,21 +248,21 @@ specs share the `ze bgp decode` entry point and nothing else.
 
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestPcapGlobalHeader` | `internal/core/pcap/pcap_test.go` | magic, version, snaplen and link type bytes | |
-| `TestPcapRecordWithOrigLen` | `internal/core/pcap/pcap_test.go` | capture length and original length differ correctly (AC-6) | |
-| `TestFrameIPv4TCP` | `internal/core/pcap/pcap_test.go` | IPv4 and TCP header layout and checksums (AC-4) | |
-| `TestFrameIPv6TCP` | `internal/core/pcap/pcap_test.go` | IPv6 framing under link type 101 (AC-5) | |
-| `TestSequenceMonotonicPerDirection` | `internal/core/pcap/pcap_test.go` | AC-3 | |
-| `TestReadPcapRecords` | `internal/core/pcap/reader_test.go` | file header and record iteration, both endiannesses | |
-| `TestReassembleInOrder` | `internal/core/pcap/reassemble_test.go` | AC-9 | |
-| `TestReassembleOutOfOrder` | `internal/core/pcap/reassemble_test.go` | AC-11 | |
-| `TestReassembleGapFailsClosed` | `internal/core/pcap/reassemble_test.go` | AC-13 | |
-| `TestReassembleBounded` | `internal/core/pcap/reassemble_test.go` | R-7, memory bound honoured | |
-| `TestFrameMultipleMessagesPerSegment` | `internal/core/pcap/reassemble_test.go` | AC-10 | |
-| `TestReadPcapFramesMessages` | `internal/component/bgp/cli/decode_pcap_test.go` | AC-8, end to end over a fixture | |
-| `TestNonBGPFlowsIgnored` | `internal/component/bgp/cli/decode_pcap_test.go` | AC-12 | |
-| `TestNoBGPFoundIsAnError` | `internal/component/bgp/cli/decode_pcap_test.go` | AC-14 | |
-| `TestPathAndStdinRejected` | `internal/component/bgp/cli/decode_pcap_test.go` | AC-17 | |
+| `TestPcapGlobalHeader` | `internal/core/pcap/pcap_test.go` | magic, version, snaplen and link type bytes | |  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
+| `TestPcapRecordWithOrigLen` | `internal/core/pcap/pcap_test.go` | capture length and original length differ correctly (AC-6) | |  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
+| `TestFrameIPv4TCP` | `internal/core/pcap/pcap_test.go` | IPv4 and TCP header layout and checksums (AC-4) | |  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
+| `TestFrameIPv6TCP` | `internal/core/pcap/pcap_test.go` | IPv6 framing under link type 101 (AC-5) | |  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
+| `TestSequenceMonotonicPerDirection` | `internal/core/pcap/pcap_test.go` | AC-3 | |  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
+| `TestReadPcapRecords` | `internal/core/pcap/reader_test.go` | file header and record iteration, both endiannesses | |  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
+| `TestReassembleInOrder` | `internal/core/pcap/reassemble_test.go` | AC-9 | |  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
+| `TestReassembleOutOfOrder` | `internal/core/pcap/reassemble_test.go` | AC-11 | |  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
+| `TestReassembleGapFailsClosed` | `internal/core/pcap/reassemble_test.go` | AC-13 | |  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
+| `TestReassembleBounded` | `internal/core/pcap/reassemble_test.go` | R-7, memory bound honoured | |  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
+| `TestFrameMultipleMessagesPerSegment` | `internal/core/pcap/reassemble_test.go` | AC-10 | |  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
+| `TestReadPcapFramesMessages` | `internal/component/bgp/cli/decode_pcap_test.go` | AC-8, end to end over a fixture | |  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
+| `TestNonBGPFlowsIgnored` | `internal/component/bgp/cli/decode_pcap_test.go` | AC-12 | |  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
+| `TestNoBGPFoundIsAnError` | `internal/component/bgp/cli/decode_pcap_test.go` | AC-14 | |  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
+| `TestPathAndStdinRejected` | `internal/component/bgp/cli/decode_pcap_test.go` | AC-17 | |  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
 | `TestRingCarriesFramingFields` | `internal/component/bgp/reactor/raw_capture_test.go` | the ring stores addresses and the whole message | |
 
 ### Boundary Tests (numeric inputs)
@@ -312,10 +312,10 @@ the generated pcap describe a session from a host to itself.
 ## Files to Modify
 
 - `internal/plugins/diag/cmd/capture_raw.go` - split the BGP exporter from the BFD exporter; frame BGP with IP and TCP
-- `internal/plugins/diag/cmd/pcap.go` - remove the file-format code that moves to `internal/core/pcap`
+- `internal/plugins/diag/cmd/pcap.go` - remove the file-format code that moves to `internal/core/pcap`  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
 - `internal/plugins/diag/cmd/capture_interface.go` - use the promoted original-length record writer
 - `internal/plugins/diag/cmd/capture_raw_l2tp.go` - use the moved writers, output unchanged
-- `internal/analyze/convert.go` - rewire off its private copies onto `internal/core/pcap`; fix the IPv6 skip
+- `internal/analyze/convert.go` - rewire off its private copies onto `internal/core/pcap`; fix the IPv6 skip  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
 - `internal/analyze/convert_test.go` - the link-type and layout assertions move with the code
 - `internal/component/bgp/reactor/raw_capture.go` - carry the whole message plus peer and local addresses
 - `internal/component/bgp/reactor/reactor_notify.go` - reconstruct the header at the tap and pass the framing fields
@@ -328,13 +328,13 @@ the generated pcap describe a session from a host to itself.
 
 ## Files to Create
 
-- `internal/core/pcap/pcap.go` - file header and record writers, link-type constants, IP and TCP framing
-- `internal/core/pcap/reader.go` - file header and record reading
-- `internal/core/pcap/reassemble.go` - TCP stream reassembly and BGP message framing
-- `internal/core/pcap/pcap_test.go`, `reader_test.go`, `reassemble_test.go` - unit tests
-- `internal/component/bgp/cli/decode_pcap.go` - the CLI edge: path or `-`, flow selection, per-message decode
-- `internal/component/bgp/cli/decode_pcap_test.go` - unit tests
-- `test/plugin/test-bgp-pcap-roundtrip.ci`, `test/decode/test-bgp-decode-pcap-stdin.ci`, `test/decode/test-bgp-decode-stdin-hex.ci` - functional tests
+- `internal/core/pcap/pcap.go` - file header and record writers, link-type constants, IP and TCP framing  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
+- `internal/core/pcap/reader.go` - file header and record reading  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
+- `internal/core/pcap/reassemble.go` - TCP stream reassembly and BGP message framing  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
+- `internal/core/pcap/pcap_test.go`, `reader_test.go`, `reassemble_test.go` - unit tests  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
+- `internal/component/bgp/cli/decode_pcap.go` - the CLI edge: path or `-`, flow selection, per-message decode  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
+- `internal/component/bgp/cli/decode_pcap_test.go` - unit tests  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
+- `test/plugin/test-bgp-pcap-roundtrip.ci`, `test/decode/test-bgp-decode-pcap-stdin.ci`, `test/decode/test-bgp-decode-stdin-hex.ci` - functional tests  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
 - a pcap fixture captured from a real BGP session, for the reader tests
 
 ### Integration Checklist
@@ -369,7 +369,7 @@ the generated pcap describe a session from a host to itself.
 | 9 | RFC behavior implemented, changed, or newly proven? | No | Header reconstruction relies on RFC 4271's all-ones marker but enforces no obligation |
 | 10 | Test infrastructure changed? | Yes | `docs/functional-tests.md`, for the three new `.ci` tests and the pcap fixture |
 | 11 | Affects daemon comparison? | Yes | `docs/comparison.md`: exabgp decodes hex and stdin, and this closes that gap plus pcap |
-| 12 | Internal architecture changed? | Yes | `docs/architecture/core-design.md` for the new `internal/core/pcap` package |
+| 12 | Internal architecture changed? | Yes | `docs/architecture/core-design.md` for the new `internal/core/pcap` package |  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
 | 13 | Route metadata keys added/changed? | No | No metadata key touched |
 | 14 | Prometheus counters added/changed? | No | None added |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | No registration inventory changes |
@@ -380,15 +380,15 @@ the generated pcap describe a session from a host to itself.
 
 1. **Phase: Wiring (MANDATORY FIRST)** -- entry points exist and fail honestly
    - Tests: `TestReadPcapFramesMessages`, `test-bgp-pcap-roundtrip.ci`
-   - Files: `internal/core/pcap/` (stubs), `internal/component/bgp/cli/decode_pcap.go` (stub reached from `cmdDecode`)
+   - Files: `internal/core/pcap/` (stubs), `internal/component/bgp/cli/decode_pcap.go` (stub reached from `cmdDecode`)  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
    - Verify: `ze bgp decode pcap <file>` reaches the stub and reports not-implemented; the tests fail for that reason
 2. **Phase: split the exporter** -- BFD and L2TP off the BGP path, BEFORE any framing work
    - Tests: AC-7 byte-comparison tests for BFD and L2TP
    - Files: `internal/plugins/diag/cmd/capture_raw.go`, `capture_raw_l2tp.go`
    - Verify: both outputs byte-identical to before. This is R-1 and it goes first
-3. **Phase: `internal/core/pcap` writer** -- absorb `convert.go`'s framing, fix its three defects
+3. **Phase: `internal/core/pcap` writer** -- absorb `convert.go`'s framing, fix its three defects  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
    - Tests: the `pcap_test.go` unit tests, including sequence, checksums and IPv6
-   - Files: `internal/core/pcap/pcap.go`, `internal/analyze/convert.go`, `internal/analyze/convert_test.go`, `internal/plugins/diag/cmd/pcap.go`
+   - Files: `internal/core/pcap/pcap.go`, `internal/analyze/convert.go`, `internal/analyze/convert_test.go`, `internal/plugins/diag/cmd/pcap.go`  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
    - Verify: `make ze-tier-check`, and `ze-analyse convert pcap` output still opens
 4. **Phase: the capture side** -- whole messages and framing fields into the ring
    - Tests: `TestRingCarriesFramingFields`, then AC-1 to AC-6
@@ -396,7 +396,7 @@ the generated pcap describe a session from a host to itself.
    - Verify: a generated file dissects in tshark
 5. **Phase: the reader and reassembly** -- the largest item
    - Tests: the `reader_test.go` and `reassemble_test.go` suites, then AC-8 to AC-14
-   - Files: `internal/core/pcap/reader.go`, `reassemble.go`
+   - Files: `internal/core/pcap/reader.go`, `reassemble.go`  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
    - Verify: against a real tcpdump capture, not only round-tripped ze output (R-3)
 6. **Phase: the CLI edge** -- pcap input, stdin, multi-payload
    - Tests: AC-15 to AC-17, then the three `.ci` tests
@@ -415,8 +415,8 @@ the generated pcap describe a session from a host to itself.
 | Correctness | Checksums are computed over the bytes actually written; sequence numbers advance by payload length, not by record count |
 | Collateral | BFD and L2TP captures byte-identical, proven by test rather than by reading the diff |
 | Fail closed | A gap, a bound hit, or a capture with no BGP each report what was seen; none returns empty as success (`ai/rules/evidence.md`) |
-| Data flow | Reassembly happens in `internal/core/pcap` only; the CLI edge owns `-` handling because the dash-stdio gate does not scan core |
-| Rule: `ai/rules/architecture.md` | `internal/core/pcap` imports nothing from component or plugins |
+| Data flow | Reassembly happens in `internal/core/pcap` only; the CLI edge owns `-` handling because the dash-stdio gate does not scan core |  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
+| Rule: `ai/rules/architecture.md` | `internal/core/pcap` imports nothing from component or plugins |  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
 | Rule: `ai/rules/no-layering.md` | `convert.go`'s private writers are DELETED, not left beside the shared package |
 | Naming | The pcap input keyword precedes the path, per `ai/rules/cli.md` |
 
@@ -424,7 +424,7 @@ the generated pcap describe a session from a host to itself.
 
 | Deliverable | Verification method |
 |-------------|---------------------|
-| One pcap file-format owner | `grep -rn 'writePcapHeader\|writePcapPacket\|writePcapGlobalHeader' internal/` names only `internal/core/pcap` |
+| One pcap file-format owner | `grep -rn 'writePcapHeader\|writePcapPacket\|writePcapGlobalHeader' internal/` names only `internal/core/pcap` |  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
 | Truthful BGP capture | tshark dissects a generated file and reports the expected BGP message count |
 | BFD and L2TP unchanged | byte-comparison test in the suite |
 | The reader | `make ze-unit-pkg-test PKG=./internal/core/pcap` |
@@ -467,11 +467,11 @@ the generated pcap describe a session from a host to itself.
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
 | IP and TCP framing, keeping link type 101 | Synthetic Ethernet with link type 1; a private link type carrying bare BGP; matching `convert.go`'s 228 | 101 already declares raw IPv4 or IPv6, so adding real IP and TCP makes the existing declaration true instead of replacing it. Ethernet adds 14 bytes carrying no information. 228 is IPv4-only and would preserve the IPv6-skip defect. Owner decision, 2026-08-15 |
-| Absorb `convert.go`'s writer rather than write new framing | A fresh implementation in `internal/core/pcap` | Uniformity: one framing implementation, one set of fixes. Writing a second would leave two shapes and repeat the drift that produced this defect |
+| Absorb `convert.go`'s writer rather than write new framing | A fresh implementation in `internal/core/pcap` | Uniformity: one framing implementation, one set of fixes. Writing a second would leave two shapes and repeat the drift that produced this defect |  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
 | Unify both consumers on link type 101 | Leave `convert.go` on 228 | Two link types for one framing implementation is the state that caused this. 101 also fixes `convert.go`'s silent IPv6 skip for free, since the version nibble selects the family |
 | Reconstruct the 19-byte header at the tap | Widen `MessageCallback` with a wire parameter; move the capture beside `teeCapture` | Byte-exact from data already in scope, and touches no call site. Widening changes six-plus sites and one caller has no wire bytes. Matches the sibling spec so both taps behave identically. Owner decision, 2026-08-15 |
 | Fabricate TCP ports rather than read the real ones | Call `(*Peer).tCPPorts` at capture time | The real ports need two mutexes on the session read path. `convert.go` already fabricates. The fabrication is documented rather than hidden (A-1) |
-| `-` handled at the CLI edge, not in `internal/core/pcap` | Handle stdin inside the reader | `make ze-dash-stdio-check` deliberately excludes `internal/core` from its scan roots, so a raw `os.Open` there would pass unflagged. Putting it at the scanned edge keeps the gate meaningful |
+| `-` handled at the CLI edge, not in `internal/core/pcap` | Handle stdin inside the reader | `make ze-dash-stdio-check` deliberately excludes `internal/core` from its scan roots, so a raw `os.Open` there would pass unflagged. Putting it at the scanned edge keeps the gate meaningful |  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
 | Split the BFD exporter from the BGP exporter first | Share one exporter with a protocol switch | BFD and L2TP are UDP payloads. A shared exporter that grew TCP framing is exactly how a correct BFD capture would silently become malformed (R-1) |
 
 ## Known Limitations

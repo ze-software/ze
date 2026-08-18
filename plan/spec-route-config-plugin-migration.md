@@ -525,7 +525,7 @@ deleted `bgp_routes_mup.go` + `update_build_mup.go`; removed all MUP central cod
 **VPLS (Phase 3) — DONE, byte-identical, verified:** new `plugins/nlri/vpls/config.go`
 (handles `rd RD add ...` grammar, requires an op keyword, sorts ext-communities/communities,
 AFI=25); `vpls/encode.go` `EncodeRoute` moved to `BuildPlugin`; deleted `bgp_routes_vpls.go`
-+ `update_build_vpls.go`; removed all VPLS central code. `test/encode/l2vpn.ci`
++ `update_build_vpls.go`; removed all VPLS central code. `test/encode/l2vpn-encode.ci`
 (configured AS-path + origin + med + local-pref + community + ext-comm + originator +
 cluster) and VPLS plugin tests all pass. All 53 `test/encode/*.ci` pass.
 
@@ -535,7 +535,7 @@ mechanism to `sendPluginRoutesVia` (`pluginRouteGroupKey` over family|nexthop|as
 honoring the per-route `Group` flag, concatenating NLRIs into one UPDATE). Also added `MapV4NextHop`
 through the chain (MUP/SR-Policy map IPv4->IPv4-mapped-IPv6; MVPN/VPLS/FlowSpec do not). Deleted
 `bgp_routes_mvpn.go` + `update_build_mvpn.go` + orphaned `bgp_routes_inline.go`; removed all MVPN central
-code. `test/encode/mvpn.ci` (shared-join + source-join grouped into one UPDATE) passes.
+code. `test/encode/mvpn-encode.ci` (shared-join + source-join grouped into one UPDATE) passes.
 
 **FlowSpec (Phase 5) — config routes DONE, byte-identical, verified:** new `plugins/nlri/flowspec/config.go`
 (criteria-token -> map -> `BuildFlowSpecNLRI`, VPN length+RD wrap, community/ext-comm/IPv6-ext-comm,
@@ -543,7 +543,7 @@ raw attribute-25 passthrough). The native update{} nlri form AND the legacy `flo
 form both route through the plugin parser (`flowSpecConfigToPlugin`). `flowspec` EncodeRoute moved to
 `BuildPlugin`. Removed the reactor FlowSpec route path (`reactor.FlowSpecRoute`, `sendFlowSpecRoutesVia`,
 `toFlowSpecParams`, `PeerSettings.FlowSpecRoutes`). Added a generic operation-keyword requirement to the
-plugin dispatch. `test/encode/{flow,flow-redirect,simple-flow,flow-rate-packets}.ci` all pass.
+plugin dispatch. `test/encode/{flow-encode,flow-redirect,simple-flow,flow-rate-packets}.ci` all pass.
 
 ### Verification (all green)
 - All **53** `test/encode/*.ci` pass byte-identical. Full `internal/component/bgp/...` unit tree passes.
@@ -551,7 +551,7 @@ plugin dispatch. `test/encode/{flow,flow-redirect,simple-flow,flow-rate-packets}
   packages import zero nlri plugin packages.
 - Pre-existing/unrelated failures (committed firewall-irr YANG description conflict between
   `ze-firewall-cmd.yang` and `ze-firewall-irr-cmd.yang`): exabgp-compat `conf-watchdog` + 8 CLI-output
-  plugin tests (bmp-lg-*, cos-vendor-*, filter-irr, show-bmp-sessions, show-rr-status). My changes touch
+  plugin tests (bmp-lg-*, cos-vendor-*, filter-irr, bmp-sessions-show, rr-status-show). My changes touch
   no firewall/YANG/BMP/CoS/RR code.
 
 ### Remaining work (NOT done) + deviations
