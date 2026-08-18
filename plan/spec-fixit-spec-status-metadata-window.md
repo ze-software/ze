@@ -34,7 +34,7 @@ one. Seven are pre-existing and were not created by the session that found this:
 
 - `spec-fixit-dynamic-group-peer-config` (closed 2026-08-14; written without its `plan/` path for the same reason as the entry below)
 - `spec-fixit-peers-from-tree-stale-shape` (closed 2026-08-14; written without its `plan/` path for the reason the last entry states)
-- `plan/spec-fixit-positional-arg-matching.md`
+- `spec-fixit-positional-arg-matching` (closed 2026-08-18; written without its `plan/` path for the same reason as the entries above)
 - `plan/spec-fixit-zefs-diff-structural-ops.md`
 - `plan/spec-rfcgate-2-deferred-nonunit-evidence-backfill.md`
 - `spec-rfcgate-2-deferred-rs-replay-evidence` (closed 2026-08-03 in `15dac5bc4`; written without its `plan/` path because `spec-citation-check.py` reads any such path as a LIVE citation and the file is gone. Its record was retired with the learned corpus)
