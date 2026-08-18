@@ -585,18 +585,12 @@ func (c *RecentUpdateCache) ackEntryLocked(id uint64, e *cacheEntry) {
 }
 
 // evictLocked removes an entry from the cache and returns its buffer to the pool.
-// Returns all pool buffers: original read buffer, any EBGP patched versions, and
-// every per-forward wire variant adopted onto the entry (adoptFwdHandle).
+// Returns all pool buffers: the original read buffer, and every per-forward wire
+// variant adopted onto the entry (adoptFwdHandle).
 // Updates highestFullyAcked for gap detection.
 // Must be called with c.mu held.
 func (c *RecentUpdateCache) evictLocked(id uint64, e *cacheEntry) {
 	ReturnReadBuffer(e.update.poolBuf)
-	if s := e.update.ebgpSlotASN4.Load(); s != nil {
-		ReturnReadBuffer(s.handle)
-	}
-	if s := e.update.ebgpSlotASN2.Load(); s != nil {
-		ReturnReadBuffer(s.handle)
-	}
 	e.update.returnFwdHandles()
 	c.entries.Delete(id)
 	if id > c.highestFullyAcked {
@@ -658,12 +652,6 @@ func (c *RecentUpdateCache) Delete(id uint64) bool {
 
 	if e, ok := c.entries.Get(id); ok {
 		ReturnReadBuffer(e.update.poolBuf)
-		if s := e.update.ebgpSlotASN4.Load(); s != nil {
-			ReturnReadBuffer(s.handle)
-		}
-		if s := e.update.ebgpSlotASN2.Load(); s != nil {
-			ReturnReadBuffer(s.handle)
-		}
 		e.update.returnFwdHandles()
 		c.entries.Delete(id)
 		return true

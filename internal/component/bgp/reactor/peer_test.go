@@ -1283,4 +1283,4 @@ func TestPeerTeardownQueuesMessage(t *testing.T) {
 // spec-route-config-plugin-migration. MVPN route grouping is now the reactor's generic
 // pluginRouteGroupKey (keyed on family + next-hop + AS_PATH + LOCAL_PREF + raw attrs,
 // which carry origin/MED/ext-comm/originator/cluster); grouping is verified byte-for-byte
-// by test/encode/mvpn.ci. The per-attribute separation cases are subsumed by that key.
+// by test/encode/mvpn-encode.ci. The per-attribute separation cases are subsumed by that key.

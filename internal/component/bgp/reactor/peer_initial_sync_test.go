@@ -15,6 +15,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/core/bgp/capability"
 	"github.com/ze-software/ze/internal/core/family"
 )
 
@@ -489,4 +490,41 @@ func TestDefaultOriginateOmitsLinkLocalWhenPeerOffLink(t *testing.T) {
 		"RFC 2545 Section 3: the global address alone, length octet 0x10")
 	assert.NotContains(t, written, string(mpReachIPv6Attr(t, defaultRouteNLRI, "::1", "fe80::1")),
 		"no link-local may be appended when the peer shares no subnet with the speaker")
+}
+
+// TestInitialSyncEORSentWhenNeitherSideDeclaredAFamily drives the whole chain a
+// peer with no `family` block walks: capability.Negotiate over two OPENs that
+// carry no Multiprotocol capability, NewNegotiatedCapabilities over the result,
+// then sendInitialRoutes. The minimum-length UPDATE that closes the initial
+// routing update must reach the socket.
+//
+// RFC requirement: RFC4724-4-1 positive -- "The End-of-RIB marker MUST be sent by
+// a BGP speaker to its peer once it completes the initial routing update
+// (including the case when there is no update to send) for an address family
+// after the BGP session is established" (RFC 4724 Section 4). A session where
+// neither side advertised a Multiprotocol capability still exchanges IPv4 unicast
+// under RFC 4271, so IPv4 unicast is "an address family" here and its marker is
+// owed.
+//
+// VALIDATES: AC-1 and AC-5 -- the marker reaches the wire for a peer configured
+// with no family block, and the counter operators and the functional suite's
+// initial-sync barrier read moves with it.
+// PREVENTS: the silent skip this spec exists to remove. Before the fix in
+// capability.Negotiate, both sides contributed the empty set, nc.Families() was
+// empty, the End-of-RIB loop never ran, and nothing logged or counted the
+// absence: the peer waited forever for a barrier that never arrived.
+//
+// It negotiates rather than populating the family map, which is the point: the
+// sibling tests above build NegotiatedCapabilities directly and so cannot see a
+// defect in the producer that fills it.
+func TestInitialSyncEORSentWhenNeitherSideDeclaredAFamily(t *testing.T) {
+	peer, conn := newInitialSyncPeer(t, true)
+	peer.negotiated.Store(NewNegotiatedCapabilities(capability.Negotiate(nil, nil, 65000, 65001)))
+
+	peer.sendInitialRoutes()
+
+	assert.Equal(t, eorWire(family.IPv4Unicast), conn.written(),
+		"a session that declared no Multiprotocol capability still exchanges IPv4 "+
+			"unicast, so its End-of-RIB marker is owed (RFC 4724 Section 4)")
+	assert.Equal(t, uint32(1), peer.Stats().EORSent, "the marker is counted once")
 }

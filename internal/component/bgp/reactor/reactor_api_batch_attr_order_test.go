@@ -146,7 +146,7 @@ func orderCases(t *testing.T) []orderCase {
 			want: []int{1, 2, 5, 8, 14, 32},
 		},
 		{
-			// test/plugin/nexthop.ci's exact shape: ORIGIN + LOCAL_PREF + an
+			// test/plugin/plugin-nexthop.ci's exact shape: ORIGIN + LOCAL_PREF + an
 			// IPv6 MP_REACH, nothing above code 14. Included to SETTLE that
 			// test's intermittency rather than assume it: nothing here needs
 			// reordering, both rails already agreed, so nexthop's failures are

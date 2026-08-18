@@ -3,7 +3,7 @@
 //	compares each hot-path benchmark to its registered integer ceiling
 //	(spec-fixit-perf-alloc-ci-gate AC-1, AC-2, boundary).
 //
-// PREVENTS: a per-op heap allocation reintroduced on a forward/bufmux/EBGPWire
+// PREVENTS: a per-op heap allocation reintroduced on a forward/bufmux/prefix-limits
 //
 //	hot path merging undetected, and a masked benchmark build/run
 //	failure passing the gate silently (fail-closed missing-benchmark).
@@ -25,7 +25,6 @@ cpu: AMD EPYC 7351 16-Core Processor
 BenchmarkForwardDirect-4              	    3000	      4466 ns/op	     477 B/op	       5 allocs/op
 BenchmarkBufMuxGetReturn-4            	    3000	       105.3 ns/op	     175 B/op	       0 allocs/op
 BenchmarkFwdPoolTryDispatch-4         	    3000	       270.3 ns/op	     192 B/op	       0 allocs/op
-BenchmarkEBGPWireCacheHitParallel-4   	    3000	        36.41 ns/op	       0 B/op	       0 allocs/op
 BenchmarkCheckPrefixLimitsOffered-4   	    3000	       198.5 ns/op	       0 B/op	       0 allocs/op
 BenchmarkCheckPrefixLimitsInstalled-4 	    3000	       237.2 ns/op	       2 B/op	       0 allocs/op
 BenchmarkCheckPrefixLimitsInstalledChurn-4	    3000	       418.1 ns/op	      10 B/op	       2 allocs/op
@@ -113,7 +112,6 @@ func TestParseAllocsPerOp(t *testing.T) {
 		"BenchmarkForwardDirect":                   5,
 		"BenchmarkBufMuxGetReturn":                 0,
 		"BenchmarkFwdPoolTryDispatch":              0,
-		"BenchmarkEBGPWireCacheHitParallel":        0,
 		"BenchmarkCheckPrefixLimitsOffered":        0,
 		"BenchmarkCheckPrefixLimitsInstalled":      0,
 		"BenchmarkCheckPrefixLimitsInstalledChurn": 2,

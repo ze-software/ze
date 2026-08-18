@@ -1184,7 +1184,7 @@ func (p *Peer) State() PeerState {
 // 39 lines after the publication in peer_run.go's FSM callback, and every line
 // between them (SetEstablishedNow, the GR EoR timer, resolveDynamicPeerSettings,
 // a synchronous Info log, ResetAPISync, ResetPeerUpBarrier) held the window open
-// -- wide enough that an oversubscribed CI host reordered test/plugin/mup4.ci's
+// -- wide enough that an oversubscribed CI host reordered test/plugin/mup-ipv4-announce.ci's
 // wire to announce, withdraw, EoR. Binding the store to the publication makes
 // the window unreachable rather than short, and a future publication site
 // inherits the guarantee instead of having to remember it.

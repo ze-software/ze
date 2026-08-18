@@ -89,11 +89,11 @@ func TestForwardDoesNotRetranscodeASN2RewrittenWire(t *testing.T) {
 
 	attrs := forwardBodyBaseAttrs(t, 65001)
 	rawBody := buildRawUpdateBody(nil, attrs, [][]byte{forwardBodyNLRIs(1, false)})
-	received := &ReceivedUpdate{WireUpdate: wireu.NewWireUpdate(rawBody, srcCtxID)}
-	rewritten, err := received.EBGPWire(65000, true, false)
+	rewritten := make([]byte, message.MaxMsgLen) // the wire an EBGP prepend toward a 2-octet peer produces
+	n, err := wireu.RewriteASPath(rewritten, rawBody, 65000, true, false)
 	require.NoError(t, err)
 
-	result, ok := buildFwdBody(rewritten, message.MaxMsgLen, destCtxID, peer, netip.MustParseAddr("192.0.2.5"), &fwdParseCache{})
+	result, ok := buildFwdBody(wireu.NewWireUpdate(rewritten[:n], fwdContextIDWithASN4(srcCtxID, false)), message.MaxMsgLen, destCtxID, peer, netip.MustParseAddr("192.0.2.5"), &fwdParseCache{})
 	require.True(t, ok, "already rewritten ASN2 wire must not be transcoded again")
 
 	var forwarded *message.Update

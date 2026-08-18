@@ -1,7 +1,7 @@
 // VALIDATES: publishing PeerStateEstablished closes the initial-sync gate FIRST,
 //            so no observer of the state can see an established peer whose route
 //            ops still bypass opQueue and whose initial sync reads as settled.
-// PREVENTS:  the reordering that made test/plugin/mup4.ci and
+// PREVENTS:  the reordering that made test/plugin/mup-ipv4-announce.ci and
 //            test/plugin/plugin-metrics-registered.ci fail on an oversubscribed
 //            CI host. The gate used to be closed 39 lines after the publication
 //            (peer_run.go's FSM callback), and everything in between --

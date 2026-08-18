@@ -78,71 +78,14 @@ that row is where you say which of the two happened.
 
 | Test | Reason |
 |------|--------|
-| TestReloadHashesPlaintextPassword | The test moved unchanged to `main_reload_auth_test.go`. It keeps the disk loader and bcrypt assertions. |
-| TestLiveLocalAuthorizerFollowsStoreSwap | Replaced by `TestLiveLocalAuthorizerFollowsIdentityPublication` through the same bundle authorizer path. |
-| TestCloseAAABundleClearsLiveLocalAuthorization | Replaced by `TestCloseAAABundleClearsAcceptedLocalIdentity`, which covers the complete accepted state. |
-| TestBuildUserAuthenticatorRecordsRecoveryProfiles | Replaced by `TestBuildAPIAuthenticationBindsRecoveryProfiles` and `TestAPIRequestCarriesAuthenticatedAuthorizationGeneration`. |
-| TestAPILoginAdmitsPowerAndConfigUsers | The same six cases remain. One compound assertion now checks the username and authentication result. |
-| UpdateAuth | Removed because REST and gRPC now read the accepted `api.Authentication` provider for each request. |
-| TestReloadListenersRebuildsAuthenticationOn | Replaced by the REST and gRPC `AuthenticationProviderPublishesModesAtomically` tests and `TestRunReloadPublishesAcceptedIdentityAtomically`. |
-| TestReloadListenersRebuildsAuthenticationOff | Replaced by the transport provider-mode tests and `TestRunReloadEmptyUsersSelectNoAPIAuthentication`. |
-| TestReloadListenersRestoresAuthenticationWhenMigrationFails | Replaced by `TestRunReloadCertificateFailurePreservesAcceptedAPIToken` and the listener rollback tests. |
-| TestReloadListenersRestoresEarlierServiceWhenLaterResolveFails | Replaced by `TestReloadListenersFailsClosedWhenAuthCannotBeResolved`. All modes resolve before migration. |
-| TestReloadListenersRestoresEarlierServiceWhenLaterRebuildFails | Removed because the per-server credential rebuild no longer exists. Provider publication is atomic. |
-| TestReloadListenersUndoRevertsInstalledCredentials | Replaced by `TestRunReloadCertificateFailurePreservesAcceptedAPIToken`. |
-| TestReloadListenersLeavesAuthAloneWhenConfigIsSilent | Replaced by `TestAPIAuthReloaderAbsentBlockKeepsRunningMode` and `TestRunReloadWithoutAPIBlockPreservesAcceptedAPIToken`. |
-| TestReloadListenersFailsClosedWhenServerRefusesRebuild | Removed with transport `UpdateAuth`. Provider publication and exposure validation are separate. |
-| TestApplyAuthIntentsInstallsAndRestoresCredentials | Removed with `applyAuthIntents`. Transport-provider and hub identity tests cover publication and restoration. |
-| listener_migrate_test | The count fell with obsolete credential-mutation fixtures. Listener resolution, exposure, migration, and undo assertions remain. |
-| withReloadAuthorization | Replaced by `reloadIdentitySystem` and `withReloadIdentity`, which combine credentials and policy. |
-| TestRunReloadSuccessfulReloadSwapsLiveAuthorization | Replaced by `TestRunReloadPublishesAcceptedIdentityAtomically`. |
-| TestRunReloadFailedReloadPreservesLiveAuthorization | Replaced by `TestRunReloadFailurePreservesAcceptedIdentity`. |
-| TestRunReloadUndoesCredentialsWhenCertificateRotationFails | Replaced by `TestRunReloadCertificateFailurePreservesAcceptedAPIToken`. |
-| TestRunReloadKeepsCredentialsWhenReloadSucceeds | Replaced by `TestRunReloadPublishesAcceptedIdentityAtomically`, including new-password success and old-password denial. |
-| reloadUserPassword | Moved unchanged to `main_reload_auth_test.go` beside its caller. |
-| main_reload_test | The file count fell because the plaintext reload test moved to `main_reload_auth_test.go`. |
-| TestAPIUserAuthenticatorFollowsTheRunningConfig | Replaced by `TestAPIAcceptedAuthenticationFollowsIdentityPublication`. |
-| TestAPIUserAuthenticatorWithoutLiveSourceUsesItsList | Replaced by `TestBuildAPIAuthenticationUsesImmutableUserList` with the same bcrypt fixture. |
-| TestAPIAuthReloaderResolvesConfiguredToken | Replaced by `TestRunReloadPublishesExactCandidateAPIToken`. |
-| TestAPIAuthReloaderSilentWithoutBlock | Replaced by `TestAPIAuthReloaderAbsentBlockKeepsRunningMode`. |
-| apiReloadUser | Replaced by the shared bcrypt fixtures and `reloadIdentitySystem`. |
-| apiReloadSystemRoot | Replaced by `reloadIdentitySystem`, including its authorization policy. |
-| TestAPIAuthReloaderUsesLiveUsersWithoutSSHBlock | Replaced by `TestRunReloadPublishesAcceptedIdentityAtomically` and `TestAPIAcceptedAuthenticationFollowsIdentityPublication`. |
-| TestAPIAuthReloaderFailsClosedWhenLiveUsersUnreadable | Replaced by `TestRunReloadUserSourceErrorPreservesAcceptedAPICredentials`. |
-| TestAPIAuthReloaderProceedsWithTokenAndNoUsers | Replaced by `TestRunReloadPublishesExactCandidateAPIToken`, `TestRunReloadEmptyUsersSelectNoAPIAuthentication`, and `TestRunReloadConfiguredUsersTakePrecedenceOverSharedToken`. |
-| TestReloadListenersProceedsWhenSiblingTransportWasNeverBuilt | Replaced by `TestUnbuiltSurfaceResolvesNoAuthIntent` and `TestReloadListenersIgnoresUnclassifiedService`. |
-| TestGRPCBuildAuthenticatesConfigUserWithoutSSH | The same test now uses `runYANGConfig`. Real TLS RPC, wrong-password, construction, and shutdown checks remain. |
-| TestProfileRecordingAuthenticatorRecordsOnSuccess | Replaced by `TestProfileAuthorizerBindsRemoteProfiles`. |
-| TestProfileRecordingAuthenticatorIgnoresFailure | Replaced by `TestProfileAuthorizerIgnoresFailure`. |
-| TestRecordLoginProfilesEmptyDoesNotErase | Replaced by request-scoped `TestStoreAuthorizerBoundProfilesDoNotCrossSessions`. The global map is gone. |
-| TestRecordLoginProfilesCopies | Replaced by `TestProfileAuthorizerCopiesRemoteProfiles`. |
-| TestBuildWrapsAuthenticatorWithProfileRecording | Replaced by `TestBuildWrapsAuthenticatorWithProfileAuthorizer`. |
-| TestProfileRecordingAuthenticatorRejectsReservedUsername | Replaced by `TestProfileAuthorizerRejectsReservedUsername` with the same reserved-name matrix. |
-| TestGRPCUpdateAuthTurnsAuthenticationOn | Replaced by `TestGRPCAuthenticationProviderPublishesModesAtomically` through real RPCs. |
-| TestGRPCUpdateAuthTurnsAuthenticationOff | Replaced by the no-auth publication case in `TestGRPCAuthenticationProviderPublishesModesAtomically`. |
-| TestGRPCUpdateAuthRestoreRevertsCredentials | Replaced by `TestRunReloadCertificateFailurePreservesAcceptedAPIToken` and `TestGRPCRejectedCandidateNeverAuthenticates`. |
-| TestGRPCUpdateAuthRefusesToUnauthenticateNonLoopback | Replaced by `TestGRPCReconfigureAppliesPublishedExposureModeAndTLS` and the hub exposure test. |
-| TestGRPCReconfigureRefusesNonLoopbackWithoutTLS | Replaced by `TestGRPCReconfigureAppliesPublishedExposureModeAndTLS`. |
-| TestGRPCUpdateAuthUndoRefusesToExposeMigratedListener | Replaced by `TestRunReloadListenerRollbackFailureStaysFailClosed` and gRPC staging rejection. |
-| TestGRPCUpdateAuthUndoRestoresWhenLoopback | Replaced by `TestRunReloadCertificateFailurePreservesAcceptedAPIToken` and `TestGRPCRejectedCandidateNeverAuthenticates`. |
-| TestGRPCUpdateAuthRefusedAfterStop | Removed with `UpdateAuth`. A stopped server serves no requests. |
-| auth_reload_test | The count fell with `UpdateAuth`. Real-RPC publication, candidate rejection, and reconfiguration checks remain. |
-| TestRESTUpdateAuthTurnsAuthenticationOn | Replaced by `TestRESTAuthenticationProviderPublishesModesAtomically`. |
-| TestRESTUpdateAuthTurnsAuthenticationOff | Replaced by the no-auth publication case in `TestRESTAuthenticationProviderPublishesModesAtomically`. |
-| TestRESTUpdateAuthRestoreRevertsCredentials | Replaced by `TestRunReloadCertificateFailurePreservesAcceptedAPIToken` and `TestRESTRejectedCandidateNeverAuthenticates`. |
-| TestRESTUpdateAuthInstallsPerUserAuthenticator | Replaced by `TestRunReloadConfiguredUsersTakePrecedenceOverSharedToken` and `TestRESTAuthenticator`. |
-| TestRESTUpdateAuthRefusedAfterShutdown | Removed with `UpdateAuth`. A stopped REST server serves no requests. |
-| auth_test | The count fell with `UpdateAuth`. Live provider publication and rejected-candidate request checks remain. |
-| TestStoreAuthorizeConfigAssignmentWinsOverLogin | Replaced by `TestStoreAuthorizeLoginBindingWinsOverConfigAssignment` for result-scoped sessions. |
-| TestStoreAuthorizeLoginProfilesDoNotLeakAcrossUsers | Replaced by `TestStoreAuthorizeProfilesDoNotLeakAcrossUsers` and `TestStoreAuthorizerBoundProfilesDoNotCrossSessions`. |
-| authz_test | Two extractor assertions moved to the no-SSH ownership test; the parsed-tree and malformed-shape coverage remains. |
-| TestChildSAReplayWindowMinimum | Renamed to `TestChildSAReplayWindowDefault`, which the detector reads as a deletion. Nothing left the suite: the same test, over the same production path and the same fixtures, still asserts an exact `ReplayWin` on both the inbound and the outbound SA. The number it asserts moved from 32 to 64 because the value ze installs did, and 64 still satisfies the RFC 4303 Section 3.4.3 minimum the old name referred to. |
-| TestExtractAuthUsersFromParsedTree | The SSH public-key augment assertions remain in `TestExtractAuthUsersPublicKeys`, which runs with `ze_ssh`. This base extractor test keeps the password and profile assertions, so the full no-SSH package can test the always-on schema. |
-| infra.TestExtractSSHConfigPublicKeys | Replaced by `TestExtractAuthUsersPublicKeys` with the same parsed fixture and field checks. |
-| infra.TestExtractSSHConfigPublicKeysMultiple | Replaced by `TestExtractAuthUsersPublicKeysMultiple` with the same two-key fixture. |
-| infra.TestExtractSSHConfigPublicKeysEmpty | Replaced by `TestExtractAuthUsersPublicKeysEmpty` with the same password-only fixture. |
-| infra.TestExtractAuthUsersAgreesWithExtractSSHConfig | Replaced by `TestExtractAuthUsersFromParsedTree` and the public-key tests. SSH no longer owns base users. |
-| infra.TestExtractAuthUsersLeafListShapes | Moved to `authz_test.go` with the same five cases and extractor entry point. |
-| infra.TestExtractAuthUsersMissingSections | Moved to `authz_test.go` with the same missing and malformed shapes. |
-| infra.ssh_test | The count fell because shared extractor tests moved to `authz_test.go`. SSH transport and key checks remain. |
-| yang.TestSchema_ZeSSHEntry | Transport checks remain. Authz base-user and SSH public-key augment checks moved to their ownership tests. |
+| TestReceivedUpdate_EBGPWireLazyASN4 | Its subject `ReceivedUpdate.EBGPWire` is deleted. The AS-path fold (`e2037e598`) moved eBGP prepending onto the edit-set rail, so the lazy generation this asserted no longer exists to assert. |
+| TestReceivedUpdate_EBGPWireCachedASN4 | Its subject `ReceivedUpdate.EBGPWire` is deleted. Pointer equality on a second call describes a cache that is gone. |
+| TestReceivedUpdate_EBGPWireLazyASN2 | Its subject `ReceivedUpdate.EBGPWire` is deleted. The two per-width slots it kept apart are gone with it. |
+| TestReceivedUpdate_EBGPWireConcurrent | Its subject `ReceivedUpdate.EBGPWire` is deleted. There is no lazy initialization left to race. |
+| TestReceivedUpdate_EBGPWireEvictionReturnsBuffers | Its subject is the two `ebgpWireSlot` handles released by `evictLocked` and `Delete`, both deleted. `TestForwardPoolBalanceLocalASOverride` and `TestForwardRSTranscodePoolBalance` keep covering the surviving `poolBuf` and `fwdHandles` releases on the same eviction path. |
+| TestReceivedUpdate_EBGPWireErrorDoesNotPublish | Its subject is `errEbgpWireBufferExhaustedPoolAt` and the `EBGPWire` error path, both deleted. |
+| extractFirstASN | Helper of the six tests above. Its only call site was inside `TestReceivedUpdate_EBGPWireLazyASN4`. The identically named helper in `internal/component/bgp/rib` is a different package and is untouched. |
+| received_update_test | The count fell because the six `EBGPWire` tests and their helper left with the cache. `TestReceivedUpdateFields`, `TestReceivedUpdateWithdrawOnly`, `TestMsgIDAssignment`, `TestMsgIDMonotonic` and `TestReceivedUpdateAdoptedHandlesReturnedOnce` remain unchanged. |
+| BenchmarkEBGPWireCacheHitParallel | Its subject `ReceivedUpdate.EBGPWire` is deleted. Its `perf.AllocCeilings` registration goes in the same change, which is what `make ze-alloc-check` checks. |
+| BenchmarkEBGPWireCacheHitParallelMutexBaseline | The before-change comparator for the benchmark above. It takes `ebgpMu` and reads both slots directly, so it cannot outlive them. The measurement it reproduced is recorded in `docs/architecture/perf-round-3.md`. |
+| ebgpWireMutexHit | The baseline benchmark's reproduction of the pre-lock-free hit path. It reads `ebgpMu` and the two slots, all deleted. |

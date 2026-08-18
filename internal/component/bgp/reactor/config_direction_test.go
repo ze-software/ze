@@ -641,7 +641,7 @@ func aliasMap(lines []string) map[string]string {
 // brace that CLOSES it rather than at the first closing brace inside it.
 //
 // A nested container is why the difference matters. `content { format parsed }`
-// sits before `receive` in `test/plugin/check.ci` and in five
+// sits before `receive` in `test/plugin/plugin-check.ci` and in five
 // `test/exabgp-compat/native/api-*.conf`, and a scan that stopped at the
 // container's own brace never reached the receive list of any of them.
 func attachBody(lines []string, start int, rest string) string {
@@ -797,7 +797,7 @@ func TestReceivedOnlyGuardReadsEveryShape(t *testing.T) {
 		config    string
 	}{
 		{
-			// test/plugin/check.ci and five test/exabgp-compat/native/api-*.conf.
+			// test/plugin/plugin-check.ci and five test/exabgp-compat/native/api-*.conf.
 			// An earlier scan stopped at the container's closing brace. Written
 			// as a guide writes it, without the peer it belongs to, so it is a
 			// fragment here even though the file it came from parses.

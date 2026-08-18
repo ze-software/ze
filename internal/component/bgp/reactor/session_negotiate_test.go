@@ -1,7 +1,9 @@
 package reactor
 
 import (
+	"encoding/hex"
 	"net/netip"
+	"strings"
 	"testing"
 	"time"
 
@@ -10,6 +12,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // VALIDATES: Capability negotiation (hold time, extended message, family intersection).
@@ -269,4 +272,101 @@ func TestBuildOptionalParams_MultipleCaps(t *testing.T) {
 	assert.Equal(t, byte(12), result[1], "param length = 6+6")
 	assert.Equal(t, byte(1), result[2], "first cap code = Multiprotocol")
 	assert.Equal(t, byte(65), result[8], "second cap code = ASN4")
+}
+
+// newNoFamilySession returns a Session whose settings declare no capability at
+// all, which is what a peer block with no `family` section produces.
+func newNoFamilySession(t *testing.T) (*Session, *PeerSettings) {
+	t.Helper()
+	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65001, 65002, 0x01020301)
+	return NewSession(settings), settings
+}
+
+// negotiateAgainstMirror negotiates the given OPEN against a peer that echoes it,
+// which is what ze-peer does on the wire and what a silent RFC 4271 speaker
+// produces when ze itself declares no Multiprotocol capability.
+func negotiateAgainstMirror(t *testing.T, open *message.Open) *NegotiatedCapabilities {
+	t.Helper()
+	caps, err := capability.ParseFromOptionalParams(open.OptionalParams)
+	require.NoError(t, err)
+	return NewNegotiatedCapabilities(capability.Negotiate(caps, caps, 65001, 65002))
+}
+
+// TestBuildOpenNoFamilyNegotiatesImplicitIPv4Unicast covers the peer this spec
+// exists for: no `family` block in the config and no plugin declaring decode
+// families. The OPEN carries ASN4 and nothing else, exactly as before, and the
+// negotiated family set is ipv4/unicast, so the End-of-RIB loop in
+// sendInitialRoutes has a family to send a marker for.
+//
+// VALIDATES: AC-1 -- a peer with no family block and no plugin decode families
+// negotiates ipv4/unicast rather than nothing.
+// PREVENTS: the fix being applied in buildOpen, which would add a Multiprotocol
+// capability to an OPEN that carried none and change the bytes ze puts on the
+// wire for every such peer.
+func TestBuildOpenNoFamilyNegotiatesImplicitIPv4Unicast(t *testing.T) {
+	s, settings := newNoFamilySession(t)
+
+	open := s.buildOpen(settings, settings.Capabilities)
+
+	// One type-2 optional parameter carrying one capability: ASN4 (code 0x41,
+	// length 4) with local AS 65001 = 0x0000FDE9. No Multiprotocol capability.
+	assert.Equal(t, "020641040000FDE9", strings.ToUpper(hex.EncodeToString(open.OptionalParams)),
+		"the OPEN of a peer with no family block must carry ASN4 alone, unchanged by this fix")
+
+	nc := negotiateAgainstMirror(t, open)
+	require.NotNil(t, nc)
+	assert.Equal(t, []family.Family{family.IPv4Unicast}, nc.Families(),
+		"a session where neither side declares a Multiprotocol capability exchanges "+
+			"IPv4 unicast (RFC 4271) and is owed its End-of-RIB marker (RFC 4724 Section 4)")
+}
+
+// TestBuildOpenConfigFamiliesUnchanged pins AC-2: a peer that DOES declare a
+// family keeps its wire and its negotiated set byte for byte.
+//
+// VALIDATES: AC-2 -- the implicit family never fires for a side that advertised a
+// Multiprotocol capability, so the declared set is the negotiated set.
+// PREVENTS: the default being added to the advertised set rather than substituted
+// for an empty one, which would negotiate ipv4/unicast for an ipv6-only peer.
+func TestBuildOpenConfigFamiliesUnchanged(t *testing.T) {
+	s, settings := newNoFamilySession(t)
+	settings.Capabilities = []capability.Capability{
+		&capability.Multiprotocol{AFI: capability.AFIIPv6, SAFI: capability.SAFIUnicast},
+	}
+
+	open := s.buildOpen(settings, settings.Capabilities)
+
+	// Multiprotocol ipv6/unicast (code 01, length 4, AFI 0x0002, reserved 00,
+	// SAFI 01) then ASN4, bundled in one type-2 optional parameter of 12 bytes.
+	assert.Equal(t, "020C010400020001"+"41040000FDE9",
+		strings.ToUpper(hex.EncodeToString(open.OptionalParams)),
+		"a declared family produces the same OPEN bytes as before the implicit-family fix")
+
+	nc := negotiateAgainstMirror(t, open)
+	require.NotNil(t, nc)
+	assert.Equal(t, []family.Family{family.IPv6Unicast}, nc.Families(),
+		"the declared family is the negotiated family: no implicit ipv4/unicast is added")
+}
+
+// TestBuildOpenPluginFamiliesUnchanged pins AC-3: when the config declares no
+// family but a plugin declares decode families, the plugin families still fill
+// the gap and the implicit default does not fire.
+//
+// VALIDATES: AC-3 -- plugin decode families are advertised and negotiated exactly
+// as before.
+// PREVENTS: the default overriding a plugin-supplied family set, which would make
+// a plugin-only peer negotiate ipv4/unicast instead of what the plugin decodes.
+func TestBuildOpenPluginFamiliesUnchanged(t *testing.T) {
+	s, settings := newNoFamilySession(t)
+	s.SetPluginFamiliesGetter(func() []string { return []string{"ipv6/unicast"} })
+
+	open := s.buildOpen(settings, settings.Capabilities)
+
+	assert.Equal(t, "020C010400020001"+"41040000FDE9",
+		strings.ToUpper(hex.EncodeToString(open.OptionalParams)),
+		"a plugin decode family is advertised exactly as a configured one is")
+
+	nc := negotiateAgainstMirror(t, open)
+	require.NotNil(t, nc)
+	assert.Equal(t, []family.Family{family.IPv6Unicast}, nc.Families(),
+		"the plugin family is the negotiated family: no implicit ipv4/unicast is added")
 }

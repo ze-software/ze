@@ -62,7 +62,7 @@ var spanIndexPool = sync.Pool{
 // "rcvd UPDATE with errors in attr(s)!! Withdrawing route", so the withdrawal
 // never takes effect at the peer. It names whichever well-known mandatory
 // attribute it misses first: measured AS_PATH on 2026-08-04, for a withdrawal
-// carrying a lone NEXT_HOP (test/interop/scenarios/53-relay-withdraw-nexthop-self-frr).
+// carrying a lone NEXT_HOP (test/interop/scenarios/bgp-relay-withdraw-nexthop-self-frr).
 //
 // The verdict is lazy because it is needed only when a plan would create
 // something: a rebuild that merely rewrites attributes already on the wire never

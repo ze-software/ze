@@ -305,7 +305,7 @@ func newPrefixStaleTestReactor(t *testing.T, initial, next *PeerSettings) (*Reac
 
 // prefixStaleRaised reports whether the report bus currently carries a
 // bgp/prefix-stale warning for the test peer, which is what `ze show warnings` and
-// the login banner read (test/plugin/show-warnings.ci).
+// the login banner read (test/plugin/warnings-show.ci).
 func prefixStaleRaised() bool {
 	for _, w := range report.Warnings() {
 		if w.Source == reportSourceBGP && w.Code == reportCodePrefixStale && w.Subject == prefixStaleTestPeer {
