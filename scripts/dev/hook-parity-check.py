@@ -160,6 +160,24 @@ BASH_CMDS = [
     "cat >> tmp/session/x/state.md <<'EOF'\n  -- never write > tmp/out.log\nEOF",
     "bash <<'EOF'\nmake ze-doc-verify > tmp/out.log\nEOF",
     "cat > tmp/out.log <<'EOF'\nhello\nEOF",
+    # A heavy job is admitted by `make`, which routes it through
+    # scripts/dev/ze-run.sh, and refused when typed raw (AC-5 of
+    # plan/spec-shared-machine-job-admission.md). The sanctioned targets are the
+    # discriminator: a guard that refused them would pass every case below.
+    "make ze-unit-pkg-test PKG=./internal/core/env",
+    "make ze-lint-changed",
+    "go test ./internal/core/env",
+    "golangci-lint run ./...",
+    "golangci-lint config verify",
+    "bin/ze-test bgp plugin",
+    "python3 scripts/dev/commit_helper_test.py",
+    # The command WORD decides, so a make target whose argument spells the
+    # runner is still a make target -- this is the documented QEMU debug form.
+    "make ze-qemu-debug RUN='bin/ze-test-linux-arm64 bgp parse 91 -v'",
+    # The escape (spec risk R-4): cheap, honest, and recorded in the transcript.
+    # The wrapper is the other way through, and it is the queue itself.
+    'ZE_ADMIT_RAW="bisecting one 2s case" go test -run TestX ./internal/core/env',
+    "scripts/dev/ze-run.sh gotest go test ./internal/core/env",
 ]
 
 CLEAN_GO = "package foo\n\nfunc Hello() string {\n\treturn greeting\n}\n"
@@ -690,7 +708,10 @@ BASH_GOLDEN = {
     "tee @PROJECT@/tmp/notes.txt": 2,
     "echo probe > sub/tmp/notes.txt": 0,
     'make ze-unit-test-changed > "$dir/unit.log" 2>&1': 0,
-    "go test ./... 2>&1 | tee tmp/session/2026-08-10-abc123/t.log": 0,
+    # `| tee` into a per-session path satisfies check_pipe_tail and
+    # check_scratch_path, and the raw `go test` in front of it is still a heavy
+    # job nothing admitted: check_raw_test_invocation refuses it.
+    "go test ./... 2>&1 | tee tmp/session/2026-08-10-abc123/t.log": 2,
     "make ze-doc-verify > tmp/verify/out.log 2>&1": 0,
     "make ze-doc-verify > tmp/ze-verify.log 2>&1": 0,
     "make ze-doc-verify > tmp/.ze-verify-duration.txt 2>&1": 0,
@@ -708,6 +729,19 @@ BASH_GOLDEN = {
     "cat >> tmp/session/x/state.md <<'EOF'\n  -- never write > tmp/out.log\nEOF": 0,
     "bash <<'EOF'\nmake ze-doc-verify > tmp/out.log\nEOF": 2,
     "cat > tmp/out.log <<'EOF'\nhello\nEOF": 2,
+    # Job admission (AC-5). `make` is the admitted path and is never refused;
+    # the raw tools are. The two zeros at the end are the ways through: a
+    # declared reason, and the queue wrapper itself.
+    "make ze-unit-pkg-test PKG=./internal/core/env": 0,
+    "make ze-lint-changed": 0,
+    "make ze-qemu-debug RUN='bin/ze-test-linux-arm64 bgp parse 91 -v'": 0,
+    "golangci-lint config verify": 0,
+    "go test ./internal/core/env": 2,
+    "golangci-lint run ./...": 2,
+    "bin/ze-test bgp plugin": 2,
+    "python3 scripts/dev/commit_helper_test.py": 2,
+    'ZE_ADMIT_RAW="bisecting one 2s case" go test -run TestX ./internal/core/env': 0,
+    "scripts/dev/ze-run.sh gotest go test ./internal/core/env": 0,
 }
 WE_GOLDEN = {
     "Edit|and function": 2,

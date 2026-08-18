@@ -34,6 +34,7 @@ import importlib.util
 import json
 import os
 import re
+import shlex
 import sys
 
 # ANSI colours, matched to the original shell hooks.
@@ -305,6 +306,215 @@ def check_pipe_tail(cmd, _ctx):
                 '  -- Or:  dir=$(scripts/dev/session-scratch.sh); <command> 2>&1 | tee "$dir/out.log"\n'
                 "  -- Then: Read the log with offset/limit",
             )
+    return None
+
+
+# One machine, several sessions, one checkout. Every heavy target is sized for
+# the WHOLE box, so two agents starting one at the same moment oversubscribe it
+# (plan/spec-shared-machine-job-admission.md). `make` routes a job through
+# scripts/dev/ze-run.sh, which admits one and queues the rest; a raw invocation
+# reaches the machine with nothing in front of it.
+#
+# The escape. A case that genuinely needs the raw form states its reason in the
+# command, and the assignment is the whole cost. It exists so that nobody
+# reaches for a shape this check cannot see -- a script file, a renamed binary
+# (spec risk R-4). The reason is REQUIRED and lands in the transcript, so the
+# escape is auditable by reading the session rather than by trusting it.
+RAW_ADMIT_VAR = "ZE_ADMIT_RAW"
+# golangci-lint subcommands that read configuration and run no analysis. `run`
+# is the one that claims the box; `golangci-lint config verify` is how the
+# linter ceiling is checked and it costs milliseconds. An absent or unknown
+# subcommand counts as heavy, so a new analysis verb is refused by default.
+GOLANGCI_CHEAP_SUBCOMMANDS = {
+    "config",
+    "version",
+    "help",
+    "linters",
+    "cache",
+    "completion",
+}
+# The functional runner, in the three places it is built: `bin/`, this session's
+# own directory (mk/session.mk ZE_BIN_DIR), or on PATH. The arch suffix is the
+# QEMU pair's spelling (`bin/ze-test-linux-arm64`). `bin/ze` is NOT here: only
+# the suite runner is a heavy job.
+ZE_TEST_BINARY = re.compile(
+    r"^(\./)?("
+    r"bin/|"
+    r"([\w./-]*/)?tmp/session/\d{4}-\d{2}-\d{2}-[A-Za-z0-9._-]+/bin/"
+    r")?ze-test(-[\w.-]+)?$"
+)
+PYTHON_INTERPRETER = re.compile(r"^(\./)?([\w./-]*/)?python[\d.]*$")
+# The two shapes scripts/dev/python_tests_test.go globs (`pythonTestGlobs`).
+PYTHON_TEST_FILE = re.compile(r"(^|/)(test_[\w.-]*|[\w.-]*_test)\.py$")
+
+
+def _go_test_target(args):
+    """Name the `make ze-unit-pkg-test` invocation that runs the same packages."""
+    packages = []
+    run = ""
+    index = 0
+    while index < len(args):
+        arg = args[index]
+        if arg == "-run" and index + 1 < len(args):
+            run = args[index + 1]
+            index += 2
+            continue
+        if arg.startswith("-run="):
+            run = arg[len("-run=") :]
+            index += 1
+            continue
+        if not arg.startswith("-") and (
+            arg == "." or "/" in arg or arg.endswith("...")
+        ):
+            packages.append(arg)
+        index += 1
+    target = "make ze-unit-pkg-test PKG=" + (" ".join(packages) or "<package>")
+    if run:
+        target += " RUN=" + run.strip("'\"")
+    return target
+
+
+def _ze_test_suite(args):
+    """The suite name a `ze-test` argument list selects.
+
+    The runner takes `<domain> <suite>` for BGP (`bgp plugin`) and a bare suite
+    everywhere else (`editor`, `web`), with test ids and flags after it.
+    """
+    positional = [a for a in args if not a.startswith("-") and not a.isdigit()]
+    if positional[:1] == ["bgp"] and len(positional) > 1:
+        return positional[1]
+    return positional[0] if positional else "<suite>"
+
+
+_SEGMENT_SEPARATORS = frozenset({"&&", "||", ";", "|", "|&", "&"})
+
+
+def _command_segments(cmd):
+    """The command TEXT of each statement, split quote-aware.
+
+    Splitting the raw string on separators counts a newline inside a quoted
+    argument as a new statement, so a paragraph of prose that happens to begin
+    with a banned verb reads as an invocation of it. That is not hypothetical:
+    it refused the commit whose message DESCRIBES this check, and rewording the
+    message is how a phrase silently leaves the prose that most needs it. The
+    same shape is recorded for check_destructive_git in
+    plan/journal/gate-fires-outside-its-population.md.
+
+    shlex collapses a quoted argument, newlines and all, into ONE token, so a
+    separator inside quotes can never open a segment. An unbalanced quote is
+    not a command this guard can judge, and it falls back to the raw split
+    rather than failing open.
+    """
+    try:
+        tokens = shlex.split(cmd, comments=False, posix=True)
+    except ValueError:
+        return [
+            seg
+            for st in re.split(r"&&|\|\||;|\n", cmd)
+            for seg in re.split(r"\|&?", st)
+        ]
+    segments, current = [], []
+    for token in tokens:
+        if token in _SEGMENT_SEPARATORS:
+            segments.append(current)
+            current = []
+            continue
+        current.append(token)
+    segments.append(current)
+    return [shlex.join(seg) for seg in segments if seg]
+
+
+def _raw_job(segment):
+    """(what, replacement) when this pipeline segment starts a raw heavy job."""
+    tokens = segment.split()
+    while tokens:
+        head = tokens[0]
+        if "=" in head.split("/")[0] and not head.startswith("-"):
+            name, _, value = head.partition("=")
+            if name == RAW_ADMIT_VAR and value.strip("'\""):
+                return None  # a declared reason admits the raw form
+            tokens = tokens[1:]
+            continue
+        if PYTHON_INTERPRETER.match(head):
+            for arg in tokens[1:]:
+                if arg.startswith("-"):
+                    continue
+                if PYTHON_TEST_FILE.search(arg):
+                    return (
+                        f"python test `{arg}`",
+                        "make ze-unit-pkg-test PKG=./scripts/dev "
+                        "RUN=TestPythonUnitTests",
+                    )
+                break
+            return None
+        if head in LAUNCHERS:
+            tokens = tokens[1:]
+            if head in ("timeout", "nice"):
+                tokens = _strip_launcher_operands(tokens)
+            continue
+        break
+    if not tokens:
+        return None
+    word = tokens[0]
+    base = word.split("/")[-1]
+    if base == "go":
+        if len(tokens) > 1 and tokens[1] == "test":
+            return ("`go test`", _go_test_target(tokens[2:]))
+        return None
+    if base == "golangci-lint":
+        subcommand = next((t for t in tokens[1:] if not t.startswith("-")), "")
+        if subcommand in GOLANGCI_CHEAP_SUBCOMMANDS:
+            return None
+        return (
+            "`golangci-lint`",
+            "make ze-lint-changed   (make ze-lint for the whole tree)",
+        )
+    if ZE_TEST_BINARY.match(word):
+        return (
+            f"the functional runner `{word}`",
+            f"make ze-functional-{_ze_test_suite(tokens[1:])}-test",
+        )
+    return None
+
+
+# ze point: commands/directives/heavy-jobs-are-admitted-by-make-never-typed-raw
+def check_raw_test_invocation(cmd, _ctx):
+    """commands.md: a heavy job is admitted by `make`, never typed raw.
+
+    Refuses `go test`, `golangci-lint`, the `ze-test` runner and a Python test
+    file run by hand. Each refusal names the `make` target that runs the same
+    work through the admission point, so the queued path is the one on screen.
+
+    The command word is what decides, judged per statement and per pipeline
+    segment. A `make` target is never refused, whatever its arguments spell
+    (`make ze-qemu-debug RUN='bin/ze-test-linux-arm64 bgp parse 91 -v'`), and
+    neither is a search whose PATTERN quotes a banned verb.
+
+    Two boundaries are deliberate. Cheap subcommands stay usable, so
+    `golangci-lint config verify` passes and only analysis is refused. And the
+    check reads command TEXT, so a heavy job inside a script file or a
+    `bash -c` string is out of reach by construction, exactly as it is for
+    check_poll_loop; that is what the declared-reason escape is for, rather
+    than a shape nobody can audit.
+    """
+    for segment in _command_segments(cmd):
+        verdict = _raw_job(segment)
+        if verdict is None:
+            continue
+        what, replacement = verdict
+        return (
+            2,
+            f"❌ Blocked: {what} run raw, outside job admission "
+            "(ai/rules/commands.md)\n"
+            "  -- One machine, several sessions: make routes a heavy job\n"
+            "     through scripts/dev/ze-run.sh, which runs one and queues\n"
+            "     the rest. Typed raw, it lands on the box unadmitted.\n"
+            f"  -- Use: {replacement}\n"
+            "  -- No target fits? Queue the raw command yourself:\n"
+            "     scripts/dev/ze-run.sh <label> <command>\n"
+            "  -- A one-off that must not queue states its reason:\n"
+            f'     {RAW_ADMIT_VAR}="bisecting one 2s case" <command>',
+        )
     return None
 
 
@@ -619,6 +829,7 @@ CHECKS = (
     check_destructive_git,
     check_root_build,
     check_pipe_tail,
+    check_raw_test_invocation,
     check_poll_loop,
     check_system_tmp,
     check_scratch_path,
@@ -671,8 +882,7 @@ def main():
     if worst < 2 and parent_sid and isinstance(tool_input.get("command"), str):
         updated_input = dict(tool_input)
         updated_input["command"] = (
-            f"export CLAUDE_CODE_SESSION_ID={parent_sid}; "
-            f"{tool_input['command']}"
+            f"export CLAUDE_CODE_SESSION_ID={parent_sid}; {tool_input['command']}"
         )
         json.dump(
             {

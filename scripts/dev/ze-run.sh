@@ -1,0 +1,578 @@
+#!/usr/bin/env bash
+# ze-run.sh -- admission point for heavy jobs in a shared checkout.
+#
+# Several Claude sessions, and the subagents they spawn, work one checkout on
+# one machine. Every heavy target is sized for the WHOLE box (GO_TEST_PROCS,
+# golangci-lint's one worker per core), so two agents starting a heavy job at
+# the same moment oversubscribe the machine until it stops responding. That was
+# reported on 2026-08-17: three concurrent sessions, and "running the linting by
+# hand can cause the machine to freeze".
+#
+# This is the ONE place that answers "may this job run now". A job either takes
+# a free slot and runs, or it waits and says who is holding the slot.
+#
+#   Usage: scripts/dev/ze-run.sh LABEL CMD [ARGS...]
+#
+# LABEL becomes a path component under tmp/.ze-jobs/, so it is restricted to
+# [A-Za-z0-9_-]. Nothing else is accepted -- a separator or a dot in a label is
+# how a job escapes the registry directory.
+#
+# THE REGISTRY. tmp/.ze-jobs/<label>.<pid>.job holds one KEY=VALUE line per
+# field: LABEL, PID, PGID, TREE (the tree hash the job is judging), STARTED,
+# LOG, STATE and CMD. Its presence IS the claim on a slot; there is no second
+# record of who is running. The job's own exit trap removes it, and a waiter
+# reaps an entry whose PID is dead, so a crashed job costs one poll interval
+# rather than an operator.
+#
+# FAIL CLOSED. An entry this script cannot read counts as OCCUPIED. Reading
+# "cannot parse" as "nothing is running" would admit every session at once,
+# which is the failure the wrapper exists to prevent. Such an entry is
+# discarded only once it is older than STALL_SECONDS, which is what keeps the
+# registry bounded.
+#
+# NESTING. A wrapped job may run wrapped stages: `make ze-precommit-verify`
+# holds a slot and then runs `make ze-lint`, which is wrapped too. The inner
+# job would wait for a slot its own parent holds, and nothing would ever
+# release it. So the wrapper exports ZE_RUN_JOB, and a job whose parent entry
+# is still present runs inside the parent's slot instead of queueing.
+#
+# THE LOG. The job's output is teed to tmp/.ze-jobs/<label>.<pid>.log, which is
+# what LOG names. The file is real rather than aspirational because a waiter
+# has to see progress (AC-8) and because judging a holder by whether its log
+# grows is what decides whether its slot may be broken. The cost is that the
+# job's stdout is a pipe, so a tool that colours only for a terminal stops
+# colouring.
+#
+# ATTACH AND SHARE. Serialization alone makes eight agents queue for eight runs
+# of the same thing. In a shared checkout most askers want the SAME job on the
+# SAME tree, so a second asker whose LABEL and TREE both match a RUNNING job
+# does not queue for a duplicate: it follows that job's log to its own stdout
+# and exits with that job's code. One run answers both.
+#
+# The job key is (label, tree hash), never the label alone. Attaching on the
+# label would certify a session with a run that never saw its code, and the
+# Go-commit coverage gate reads exactly that certificate (full_verify_coverage
+# in scripts/dev/commit_helper.py). A tree hash that is empty or `unknown`
+# matches nothing, another unknown included: an unmeasured tree is not a
+# matching tree. A job that waited re-reads the hash when it is admitted, so
+# the field says which tree the job IS judging rather than which tree its asker
+# saw (plan/spec-shared-machine-job-admission.md, R-2, AC-3 and AC-4).
+#
+# THE RESULT. A job records its exit code in tmp/.ze-jobs/<label>.<pid>.rc
+# BEFORE it removes its entry, so an attacher that watches the entry disappear
+# always finds a code waiting for it. There is no default and no zero: a job
+# killed outright leaves no record, and the attacher then reports nothing at
+# all. It returns to the admission queue and runs the job itself, because a
+# verdict it did not observe is worse than the work it avoided.
+#
+# LIVENESS, NOT AGE. A slot is broken in two cases and no other: the holder's
+# process is GONE, or the holder is alive and its log has not grown for
+# STALL_SECONDS. Elapsed time is not one of them.
+#
+# verify-lock.sh judged by age, and this script inherited that rule: a holder
+# past 1800 seconds had its process group killed, on a threshold whose comment
+# justified it with "ze-precommit-verify targets ~2 min". The recorded history
+# in tmp/.ze-verify-duration.txt says 12m45s, and a full run under load on
+# 2026-08-17 took over 20 minutes, ze-lint alone about 18 of them. So under
+# exactly the contention this wrapper exists to manage, the first waiter killed
+# the legitimate run, ran slowly itself, and was killed in turn by the next
+# waiter. Age cannot tell "hung" from "slow because the box is oversubscribed";
+# a growing log can, and it stays true however long the job has been running
+# (plan/spec-shared-machine-job-admission.md, R-1 and AC-6).
+#
+# A holder whose log cannot be read is NOT killed. Fail closed points one way
+# here: an unjudgeable holder keeps its slot, because admitting a second job
+# oversubscribes the box and killing on a guess destroys a run. Two targets are
+# never signalled: process group 0, and this script's own group.
+#
+# The simpler shape that was looked for first: plain flock over more targets,
+# with no registry. It gives no way to see who is holding the slot, no way to
+# reap a crashed holder without an operator, and nowhere to record the tree
+# hash that later lets a second asker share a running job's result.
+
+set -e
+
+JOBS_DIR="tmp/.ze-jobs"
+REGISTRY_LOCK="$JOBS_DIR/.registry.lock"
+# The documented view of the current holder: ai/rules/git-safety.md and
+# ai/rules/commands.md both tell readers this file names it. It is written from
+# the registry entry, by the entry's own writer, and removed with it.
+OWNER_FILE="tmp/.ze-verify.lock.owner"
+DURATION_FILE="tmp/.ze-verify-duration.txt"
+
+# How long a live holder may produce NOTHING before its slot is broken. It is a
+# silence budget, not a run-time budget: a job that keeps writing is never
+# broken, whatever its elapsed time. The default is above the longest silent
+# stretch measured in this repository (ze-lint, about 18 minutes of a 20 minute
+# verify on 2026-08-17), so a real run has headroom and a wedged one is still
+# reclaimed within the hour.
+#
+# ZE_VERIFY_MAX_LOCK_AGE is honoured as the older spelling: ai/rules/git-safety.md
+# tells readers to raise it, and that instruction must keep working. It now buys
+# a longer SILENCE, which a healthy slow job no longer needs.
+STALL_MIN=60
+STALL_MAX=3600
+STALL_SECONDS="${ZE_JOB_STALL_SECONDS:-${ZE_VERIFY_MAX_LOCK_AGE:-1800}}"
+
+# How many admitted jobs run at once. The Makefile derives it beside the
+# per-job ceiling it depends on and exports it; reading it here keeps the two
+# from drifting. The default of one is for a caller that arrives without make.
+SLOTS_MIN=1
+SLOTS="${ZE_RUN_SLOTS:-1}"
+# How often a waiting job re-checks the registry.
+POLL_SECONDS=2
+# How often a waiting job repeats its banner. A 20 minute wait at the poll
+# interval would otherwise put 600 identical lines into an agent's context.
+BANNER_SECONDS=30
+# How long an attacher waits for the result of the job it followed, after that
+# job's output has ended. The job writes the result before it drops its entry,
+# so this covers only the moment between its last log line and its exit trap.
+ATTACH_RESULT_WAIT=10
+
+# ---- helpers ---------------------------------------------------------------
+
+_usage() {
+    echo "usage: $0 LABEL CMD [ARGS...]" >&2
+    exit 2
+}
+
+# _field FILE KEY -- the value of one KEY=VALUE line, empty when absent.
+_field() {
+    awk -v k="$2" 'index($0, k "=") == 1 { print substr($0, length(k) + 2); exit }' \
+        "$1" 2>/dev/null || true
+}
+
+_numeric() {
+    case "${1:-}" in
+        '' | *[!0-9]*) return 1 ;;
+    esac
+    return 0
+}
+
+# _alive PID -- true when the process is still running a job. `kill -0` alone
+# reports a process owned by another user as absent, so /proc is consulted too:
+# a process we cannot signal is still holding its slot.
+#
+# A ZOMBIE counts as gone. It has already exited, holds no CPU and no memory,
+# and writes nothing more, but `kill -0` succeeds on it and /proc still lists
+# it for as long as its parent takes to reap it. Reading that as "alive" makes
+# a finished job hold its slot, and makes a follower wait on a run that ended.
+_alive() {
+    _numeric "$1" || return 1
+    [ "$1" -gt 0 ] || return 1
+    if [ -r "/proc/$1/status" ]; then
+        if grep -qs '^State:[[:space:]]*Z' "/proc/$1/status"; then
+            return 1
+        fi
+        return 0
+    fi
+    if kill -0 "$1" 2>/dev/null; then
+        return 0
+    fi
+    [ -e "/proc/$1" ]
+}
+
+_mtime() {
+    stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null || echo 0
+}
+
+# The ceiling on SLOTS. More slots than cores is not admission.
+_cores() {
+    nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4
+}
+
+# The fingerprint of the tree this job is about to judge: the same one
+# verify-status.sh writes, so a later step can tell whether a running job has
+# already seen the asker's code.
+_tree_hash() {
+    "$(dirname "$0")/verify-status.sh" tree_hash 2>/dev/null || echo unknown
+}
+
+# _break_stalled ENTRY LABEL PID PGID LOG STATIC ELAPSED -- kill a holder that
+# is alive but has stopped producing output, then drop its entry.
+#
+# The kill prints the evidence that justified it: which file stopped growing and
+# for how long. Elapsed time is reported as context, never as the reason -- an
+# operator reading "20 minutes elapsed" cannot tell whether the kill was right,
+# and reading "no output for 31 minutes" can.
+_break_stalled() {
+    _entry="$1"; _label="$2"; _pid="$3"; _pgid="$4"; _log="$5"; _static="$6"; _elapsed="$7"
+    _target=""
+    if _numeric "$_pgid" && [ "$_pgid" != "0" ] && [ "$_pgid" != "$MY_PGID" ]; then
+        _target="-$_pgid"
+    elif _numeric "$_pid" && [ "$_pid" != "$$" ]; then
+        _target="$_pid"
+    fi
+    if [ -z "$_target" ]; then
+        # Nothing safe to signal: leave the entry alone rather than kill this
+        # session's own process group.
+        return 0
+    fi
+    printf '\033[31m[%s] breaking STALLED job: %s (pid %s, pgid %s)\n' \
+        "$LABEL" "$_label" "$_pid" "$_pgid" >&2
+    printf '  evidence: %s has not grown for %ds (stall window %ds); the job had been running %ds\033[0m\n' \
+        "$_log" "$_static" "$STALL_SECONDS" "$_elapsed" >&2
+    kill -TERM -- "$_target" 2>/dev/null || true
+    for _ in 1 2 3; do
+        _alive "$_pid" || break
+        sleep 1
+    done
+    kill -KILL -- "$_target" 2>/dev/null || true
+    rm -f "$_entry" "${_entry%.job}.log"
+}
+
+# _attach ENTRY PID LOG -- share a running job instead of running a second copy
+# of it. The job's log is replayed from its first line to this job's stdout, so
+# the asker sees the whole run and not the part that was left when it arrived.
+#
+# Returns 0 with ATTACH_RC set to the code that job recorded. Returns 1 when it
+# left no record, which is the one case the caller has to decide for itself:
+# nothing was observed, so nothing may be reported.
+_attach() {
+    _entry="$1"; _pid="$2"; _log="$3"
+    _result="${_entry%.job}.rc"
+    printf '\033[36m[%s] attaching to the %s already running for this tree (pid %s): one run answers both\033[0m\n' \
+        "$LABEL" "$LABEL" "$_pid" >&2
+
+    if [ -n "$_log" ] && [ -f "$_log" ]; then
+        # --pid is what ends the follow with the job. The watchdog is the
+        # backstop, because a follower must never outlive the job it follows.
+        tail -n +1 -f --pid="$_pid" -- "$_log" 2>/dev/null &
+        _follow=$!
+        while kill -0 "$_follow" 2>/dev/null; do
+            # The entry going is the job ending: it is removed after the result
+            # is recorded. A killed job leaves its entry behind, so the process
+            # is asked too.
+            if [ ! -f "$_entry" ] || ! _alive "$_pid"; then
+                sleep 1
+                kill "$_follow" 2>/dev/null || true
+                break
+            fi
+            sleep "$POLL_SECONDS"
+        done
+        wait "$_follow" 2>/dev/null || true
+    else
+        while _alive "$_pid" && [ -f "$_entry" ]; do
+            sleep "$POLL_SECONDS"
+        done
+    fi
+
+    _waited=0
+    while [ ! -f "$_result" ] && [ "$_waited" -lt "$ATTACH_RESULT_WAIT" ]; do
+        sleep 1
+        _waited=$(( _waited + 1 ))
+    done
+    if [ -f "$_result" ]; then
+        ATTACH_RC=$(cat "$_result" 2>/dev/null || echo 1)
+        # An unreadable result is a failure, never a pass: the shared run's
+        # verdict is the whole point of attaching to it.
+        _numeric "$ATTACH_RC" || ATTACH_RC=1
+        printf '\033[36m[%s] the shared %s finished with exit %s\033[0m\n' \
+            "$LABEL" "$LABEL" "$ATTACH_RC" >&2
+        return 0
+    fi
+    printf '\033[33m[%s] the job we followed (pid %s) ended without recording a result; nothing was observed, so back to the queue\033[0m\n' \
+        "$LABEL" "$_pid" >&2
+    return 1
+}
+
+_write_entry() {
+    {
+        printf 'LABEL=%s\n' "$LABEL"
+        printf 'PID=%s\n' "$$"
+        printf 'PGID=%s\n' "$MY_PGID"
+        printf 'TREE=%s\n' "$TREE"
+        printf 'STARTED=%s\n' "$START"
+        printf 'LOG=%s\n' "$LOG"
+        printf 'STATE=running\n'
+        printf 'CMD=%s\n' "$*"
+    } > "$ENTRY"
+    : > "$LOG"
+    cp "$ENTRY" "$OWNER_FILE"
+}
+
+# _scan_and_claim CMD... -- runs under the registry lock. Reaps dead entries,
+# counts the live ones, and either shares an equivalent job, claims a slot, or
+# reports the holder. Prints one tab-separated line:
+#   ATTACH<TAB>entry<TAB>pid<TAB>log
+#   CLAIMED
+#   BUSY<TAB>label<TAB>pid<TAB>elapsed
+_scan_and_claim() {
+    now=$(date +%s)
+    occupied=0
+    holder_label=""
+    holder_pid="?"
+    holder_elapsed=0
+    attach_entry=""
+    attach_pid=""
+    attach_log=""
+
+    for entry in "$JOBS_DIR"/*.job; do
+        [ -e "$entry" ] || continue
+        pid=$(_field "$entry" PID)
+        label=$(_field "$entry" LABEL)
+        started=$(_field "$entry" STARTED)
+
+        if [ ! -r "$entry" ] || ! _numeric "$pid"; then
+            # Fail closed: an entry we cannot read is a job we cannot prove is
+            # gone. It has no readable LOG to judge, so this one case still goes
+            # by age, and it only DROPS the entry -- nothing is signalled. The
+            # window is shared so the registry stays bounded by one number.
+            age=$(( now - $(_mtime "$entry") ))
+            if [ "$age" -gt "$STALL_SECONDS" ]; then
+                rm -f "$entry" "${entry%.job}.log"
+                continue
+            fi
+            occupied=$(( occupied + 1 ))
+            if [ -z "$holder_label" ]; then
+                holder_label="unreadable entry ${entry##*/}"
+                holder_elapsed="$age"
+            fi
+            continue
+        fi
+
+        if ! _alive "$pid"; then
+            rm -f "$entry" "${entry%.job}.log"
+            continue
+        fi
+
+        _numeric "$started" || started="$now"
+        elapsed=$(( now - started ))
+
+        # The holder is alive. Whether it is WORKING is answered by its log, not
+        # by the clock: tee updates the file's mtime on every write, so a log
+        # that grew inside the stall window is a job still producing. A holder
+        # whose log is unreadable, absent, or has an unusable mtime is left
+        # alone -- see LIVENESS, NOT AGE at the top of this file.
+        log=$(_field "$entry" LOG)
+        log_mtime=0
+        if [ -n "$log" ] && [ -f "$log" ]; then
+            log_mtime=$(_mtime "$log")
+        fi
+        if _numeric "$log_mtime" && [ "$log_mtime" -gt 0 ]; then
+            static=$(( now - log_mtime ))
+            if [ "$static" -gt "$STALL_SECONDS" ]; then
+                _break_stalled "$entry" "$label" "$pid" \
+                    "$(_field "$entry" PGID)" "$log" "$static" "$elapsed"
+                continue
+            fi
+        fi
+
+        # ATTACH AND SHARE: same job, same tree, still running. The tree hash is
+        # what makes sharing safe, so a hash nobody could measure matches
+        # nothing -- including another job that could not measure one either.
+        if [ "${MAY_ATTACH:-1}" = "1" ] && [ -z "$attach_entry" ] \
+            && [ "$label" = "$LABEL" ] \
+            && [ -n "$TREE" ] && [ "$TREE" != "unknown" ] \
+            && [ "$(_field "$entry" TREE)" = "$TREE" ] \
+            && [ "$(_field "$entry" STATE)" = "running" ]; then
+            attach_entry="$entry"
+            attach_pid="$pid"
+            attach_log="$log"
+        fi
+
+        occupied=$(( occupied + 1 ))
+        if [ -z "$holder_label" ]; then
+            holder_label="$label"
+            holder_pid="$pid"
+            holder_elapsed="$elapsed"
+        fi
+    done
+
+    # A result is read by an attacher moments after it is written, and nothing
+    # deletes it for its reader, so age is what bounds this half of the
+    # registry. The window is the same one the entries use.
+    for result in "$JOBS_DIR"/*.rc; do
+        [ -e "$result" ] || continue
+        if [ "$(( now - $(_mtime "$result") ))" -gt "$STALL_SECONDS" ]; then
+            rm -f "$result"
+        fi
+    done
+
+    if [ -n "$attach_entry" ]; then
+        printf 'ATTACH\t%s\t%s\t%s\n' "$attach_entry" "$attach_pid" "$attach_log"
+        return 0
+    fi
+
+    if [ "$occupied" -ge "$SLOTS" ]; then
+        printf 'BUSY\t%s\t%s\t%s\n' "$holder_label" "$holder_pid" "$holder_elapsed"
+        return 0
+    fi
+
+    # TREE is what a later asker attaches on, so it has to name the tree this
+    # job is about to judge. A job that queued behind a 20 minute holder asked
+    # about a tree that may have moved since, so the hash is taken again here,
+    # at the moment of admission, and only when the job waited.
+    if [ "${TREE_STALE:-0}" = "1" ]; then
+        TREE=$(_tree_hash)
+    fi
+    START="$now"
+    _write_entry "$@"
+    printf 'CLAIMED\n'
+}
+
+_release() {
+    _rc=$?
+    _end=$(date +%s)
+    printf '%s\t%s\t%s\n' "$LABEL" "$(( _end - START ))" \
+        "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$DURATION_FILE"
+    # The result before the entry, never after: an attacher watching this entry
+    # disappear must find the code already written rather than a race it can
+    # lose. Attachers may be several, and none of them owns the file, so the
+    # registry scan retires it by age.
+    printf '%s\n' "$_rc" > "${ENTRY%.job}.rc"
+    rm -f "$ENTRY" "$LOG" "$OWNER_FILE"
+}
+
+_report_previous() {
+    [ -f "$DURATION_FILE" ] || return 0
+    _prev=$(awk -F'\t' -v l="$LABEL" '$1==l{s=$2}END{if(s)print s}' "$DURATION_FILE")
+    [ -n "$_prev" ] || return 0
+    printf '[%s] previous run took %dm%ds (%ds)\n' \
+        "$LABEL" $((_prev/60)) $((_prev%60)) "$_prev"
+}
+
+# ---- arguments -------------------------------------------------------------
+
+LABEL="${1:-}"
+shift || true
+[ -n "$LABEL" ] && [ "$#" -gt 0 ] || _usage
+
+case "$LABEL" in
+    *[!A-Za-z0-9_-]*)
+        echo "error: label '$LABEL' is not a path component ([A-Za-z0-9_-] only)" >&2
+        exit 2
+        ;;
+esac
+
+# ---- make's no-execute modes: never take a slot ----------------------------
+#
+# A wrapped recipe reads `ze-run.sh <label> $(MAKE) ... _<name>-impl`, and GNU
+# make EXECUTES a recipe line containing $(MAKE) even under -n, -t and -q: that
+# is how recursive make participates in those modes. So `make -n ze-lint` really
+# starts this script. Without this guard it queues for a slot and, because the
+# stage sub-make does nothing and writes no log, it is never seen to make
+# progress -- `make -n` hangs until the stall window expires.
+#
+# Admission is skipped rather than refused. This script records no verdict, so
+# running the command through costs nothing: the child make prints its recipes
+# and exits. scripts/status/verify_run.go REFUSES under the same modes instead,
+# because it writes a verify record that a no-execute run would forge.
+_make_dry_run() {
+    _flags="${MAKEFLAGS%% *}"
+    case "$_flags" in
+        -*|*=*|"") return 1 ;;
+        *[ntq]*) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+if _make_dry_run; then
+    exec "$@"
+fi
+
+# The stall window is enforced by killing a process GROUP, so a value outside
+# the range it was designed for is refused rather than clamped or accepted. Too
+# small kills a healthy job between two log lines; too large leaves a wedged one
+# holding the only slot for hours. Neither is a policy this script picks for a
+# caller who typed something else.
+if ! _numeric "$STALL_SECONDS" \
+    || [ "$STALL_SECONDS" -lt "$STALL_MIN" ] || [ "$STALL_SECONDS" -gt "$STALL_MAX" ]; then
+    echo "error: stall window '$STALL_SECONDS' is out of range ($STALL_MIN..$STALL_MAX seconds)" >&2
+    echo "       set ZE_JOB_STALL_SECONDS. It budgets SILENCE, not run time: a job that keeps" >&2
+    echo "       writing to its log is never broken, however long it runs." >&2
+    exit 2
+fi
+
+# Refused rather than clamped, like the stall window above. Zero queues every
+# job for ever; more slots than cores admits every asker, which is no admission.
+SLOTS_MAX=$(_cores)
+if ! _numeric "$SLOTS" \
+    || [ "$SLOTS" -lt "$SLOTS_MIN" ] || [ "$SLOTS" -gt "$SLOTS_MAX" ]; then
+    echo "error: slot count '$SLOTS' is out of range ($SLOTS_MIN..$SLOTS_MAX)" >&2
+    echo "       set ZE_RUN_SLOTS. The Makefile derives it from GO_TEST_PROCS;" >&2
+    echo "       take it down with \`make <target> ZE_RUN_SLOTS=1\`." >&2
+    exit 2
+fi
+
+# ---- nested job: run inside the parent's slot -------------------------------
+
+if [ -n "${ZE_RUN_JOB:-}" ] && [ -f "$ZE_RUN_JOB" ]; then
+    printf '[%s] running inside %s\n' "$LABEL" "$(_field "$ZE_RUN_JOB" LABEL)" >&2
+    exec "$@"
+fi
+
+if ! command -v flock >/dev/null 2>&1; then
+    echo "error: flock required (Linux util-linux package)" >&2
+    exit 1
+fi
+
+mkdir -p "$JOBS_DIR"
+MY_PGID=$(ps -o pgid= -p $$ | tr -d ' ')
+TREE=$(_tree_hash)
+# This job's own entry, should it get a slot. The name carries the PID so two
+# jobs with the same label can coexist once more than one slot exists.
+ENTRY="$JOBS_DIR/$LABEL.$$.job"
+LOG="$JOBS_DIR/$LABEL.$$.log"
+
+# ---- admission -------------------------------------------------------------
+
+last_banner=0
+# Sharing is offered once. A queue that keeps re-attaching to jobs that die
+# without a result would follow one corpse after another and never run
+# anything, so an attach that observed nothing sends this job back to the
+# ordinary queue for good.
+MAY_ATTACH=1
+# Whether this job's tree hash predates its admission (see _scan_and_claim).
+TREE_STALE=0
+while :; do
+    exec 9>"$REGISTRY_LOCK"
+    if flock -w 10 9; then
+        outcome=$(_scan_and_claim "$@")
+    else
+        # Nobody could be asked, so nobody is admitted.
+        outcome=$(printf 'BUSY\tregistry lock\t?\t0')
+    fi
+    exec 9>&-
+
+    # ATTACH carries entry, pid, log; BUSY carries label, pid, elapsed.
+    IFS=$'\t' read -r state first second third <<< "$outcome"
+    if [ "$state" = "ATTACH" ]; then
+        if _attach "$first" "$second" "$third"; then
+            exit "$ATTACH_RC"
+        fi
+        MAY_ATTACH=0
+        TREE_STALE=1
+        continue
+    fi
+    [ "$state" = "BUSY" ] || break
+
+    TREE_STALE=1
+    now=$(date +%s)
+    if [ "$last_banner" = "0" ] || [ $(( now - last_banner )) -ge "$BANNER_SECONDS" ]; then
+        printf '\033[33m[%s] waiting: %s running (pid %s, %ds elapsed)...\033[0m\n' \
+            "$LABEL" "$first" "$second" "$third" >&2
+        last_banner="$now"
+    fi
+    sleep "$POLL_SECONDS"
+done
+
+# ---- run -------------------------------------------------------------------
+
+# _scan_and_claim ran in a command substitution, so the START it recorded did
+# not survive it. The entry it wrote is the record, so read it back from there.
+START=$(_field "$ENTRY" STARTED)
+
+trap '_release' EXIT INT TERM
+_report_previous
+
+# Absolute, because a stage may run from a directory other than the checkout
+# root and the registry paths are root-relative. A nested job that cannot see
+# its parent's entry queues, and a job queueing behind its own parent never
+# starts.
+export ZE_RUN_JOB="$PWD/$ENTRY"
+set +e
+"$@" 2>&1 | tee "$LOG"
+rc=${PIPESTATUS[0]}
+set -e
+exit "$rc"

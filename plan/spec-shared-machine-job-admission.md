@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Scope | tooling |
 | Depends | - |
 | Phase | - |
 | Deferral shard | `plan/deferrals/shared-machine-job-admission.md` (or `-` if nothing deferred) |
 | Handoff | - |
-| Updated | 2026-08-17 |
+| Updated | 2026-08-18 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -104,10 +104,10 @@ flight and shares that result.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The freeze is memory pressure before CPU contention | measured 2026-08-17: 31 GB total, 2 GB free, load 25.5, two `gopls` at 3.0 GB combined | a CPU-only token pool would not prevent it; admission must be weighted by memory, not by job count | run two `ze-lint` invocations with and without a `GOMEMLIMIT` and record peak RSS | unvalidated |
+| A-1 | The freeze is memory pressure before CPU contention | **the spec author's inference, not the owner's report and not a measurement.** The owner reported one symptom: the machine freezes when lint runs by hand. The author read a single `free -g` snapshot (31 GB total, 2 GB free) beside `uptime` (load 25.5) and two `gopls` at 3.0 GB combined, and wrote a cause from it. Nothing in that snapshot distinguishes memory pressure from CPU contention | a CPU-only token pool would not prevent it; admission must be weighted by memory, not by job count | Phase 2's cold paired lint measurement, 2026-08-18: the ceiling cut peak RSS 4.55 GiB to 3.96 GiB (13%) and CPU 1978% to 798% (60%). Three concurrent lint runs at the old setting are about 60 runnable threads on 32 cores, and 13.5 GiB of 31 GB. The thread count exhausts the box; the memory does not | **broken 2026-08-18.** CPU contention is the dominant term and memory is second. The measurement is in the AC-1 evidence section. Consequence: admission CAN be weighted by CPU cost alone and does NOT have to model memory. See the Mistake Log |
 | A-2 | Most concurrent verify requests are for an equivalent tree, so attach-and-share removes most of the queue | shared checkout, 8 agents, one working tree | dedup buys little and plain serialization is the whole answer | count distinct tree hashes among job requests over one working day | unvalidated |
 | A-3 | The PreToolUse hook sees every agent Bash call, including subagents' | `.claude/hooks/pretool-bash.py` `main()` handles `agent_id` and `CLAUDE_CODE_FORK_SUBAGENT` | a subagent could bypass admission entirely, and the guard would be advisory | spawn a subagent, have it run a raw `go test`, confirm refusal | unvalidated |
-| A-4 | `golangci-lint` honors a `concurrency` setting and `GOMEMLIMIT` in the way the ceiling assumes | golangci-lint documentation, not yet verified against the installed version | the cheapest mitigation does not work and admission must carry the whole load | measure peak RSS with and without both settings | unvalidated |
+| A-4 | `golangci-lint` honors a `concurrency` setting and `GOMEMLIMIT` in the way the ceiling assumes | golangci-lint v2.10.1 as installed: `run.concurrency` passes `golangci-lint config verify` and `run -h` documents `-j, --concurrency int`; the binary's Go runtime reads `GOMEMLIMIT` at startup (a malformed value fatals in `runtime.readGOMEMLIMIT`) | the cheapest mitigation does not work and admission must carry the whole load | measure peak RSS with and without both settings | **confirmed 2026-08-18, with one correction: the memory half cannot live in `.golangci.yml`.** v2.10.1 exposes no memory setting at all -- `config verify` rejects `memory`, `memory-limit`, `mem-limit`, `gomemlimit`, `max-memory` and `memory-ceiling` as unknown keys under `run`, and `run -h` lists no memory flag. `GOMEMLIMIT` is therefore set on every invocation through `ZE_LINT` in the Makefile. See the AC-1 evidence below |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -141,7 +141,7 @@ flight and shares that result.
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | `golangci-lint` runs via `make ze-lint` or `ze-lint-changed` | Peak RSS is bounded by a configured ceiling and worker count is capped, both set in `.golangci.yml`; the measured peak is recorded in the spec |
+| AC-1 | `golangci-lint` runs via `make ze-lint` or `ze-lint-changed` | Peak RSS is bounded by a configured ceiling and worker count is capped: workers in `.golangci.yml` (`run.concurrency`), memory in the Makefile (`ZE_LINT` sets `GOMEMLIMIT`), because golangci-lint v2.10.1 accepts no memory key -- see A-4; the measured peak is recorded in the spec |
 | AC-2 | Two heavy jobs are requested at once by different sessions | Exactly one runs; the second reports the holder's label and elapsed time and waits, without either being killed |
 | AC-3 | A second session requests a job equivalent to one already running (same label, same tree hash) | It attaches to the running job, follows its output, and exits with that job's exit code, without starting a second run |
 | AC-4 | A second session requests a job with the same label but a DIFFERENT tree hash | It does NOT attach; it queues, because the running job never saw its code |
@@ -152,16 +152,117 @@ flight and shares that result.
 | AC-9 | Two jobs run concurrently under a weighted policy | Neither overwrites the other's log or failure index; each artifact set is attributable to one job |
 | AC-10 | `commit_helper.py` reads full-verify coverage after a job completes | `tmp/ze-verify-full.json` is present at its documented path with that job's content |
 
+### AC-1 evidence (measured 2026-08-18)
+
+The ceiling is `run.concurrency: 8` in `.golangci.yml` and `GOMEMLIMIT=4GiB` in
+the `ZE_LINT` variable in the `Makefile`. Every golangci-lint invocation in the
+repository now goes through `ZE_LINT`: both passes of `_ze-lint-impl`, both
+passes of `ze-lint-changed`, and `ze-chaos-lint` in `mk/test-chaos.mk`.
+
+A full `make ze-lint` could not serve as the before-and-after pair. Another
+session was editing `internal/plugins/isis/packet` at the time, and the
+resulting typecheck error aborted the run after 15s and 511 MB, before the
+analysis that carries the memory. The pair below runs the same fixed package
+set (`./internal/component/... ./internal/core/... ./pkg/... ./cmd/ze/...`)
+against a private, empty golangci-lint cache, so both runs are cold and the
+shared cache other sessions rely on is untouched.
+
+| Run | Workers | GOMEMLIMIT | Peak RSS | Wall clock | CPU | Findings |
+|-----|---------|-----------|----------|-----------|-----|----------|
+| before | 32 (auto) | none | **4,770,220 KB (4.55 GiB)** | 1:00.96 | 1978% | 9 `unused` |
+| control | 8 | none | 4,356,776 KB (4.16 GiB) | 1:43.46 | 798% | 9 `unused` |
+| after | 8 | 4GiB | **4,148,636 KB (3.96 GiB)** | 1:43.83 | 798% | 9 `unused` |
+
+The findings are byte-identical across all three runs, so the ceiling weakens
+nothing. The red is another session's in-flight work in
+`internal/component/plugin/process`, and it survives unchanged.
+
+Three facts the numbers carry:
+
+- The memory limit binds. The capped peak sits at 3.96 GiB against a 4 GiB
+  limit, 0.5% under it, while the uncapped run overshot it by 576 MB. Peak RSS
+  stops growing with the size of the package set, which is the property the
+  freeze needed.
+- The memory limit is nearly free. The control run isolates it: 8 workers
+  without `GOMEMLIMIT` take 1:43.46, with it 1:43.83. 4 GiB costs 0.4% and
+  saves 208 MB, so the GC is pacing rather than thrashing at this ceiling.
+- The wall clock cost is the worker cap alone, +70% (1:01 to 1:44) for -60% CPU
+  (20 cores to 8). That is the trade the spec buys: one lint run can no longer
+  claim the whole box.
+
+Warm-cache runs cost about 180 MB either way (5.0s at 32 workers, 5.5s at 8),
+so the pressure the ceiling removes lives entirely in the cold path, which is
+the path the 2026-08-17 freeze was on.
+
+A full `make ze-lint` after the change, once the neighbouring session's tree
+typechecked again: peak RSS 2,299,092 KB (2.19 GiB) in 33s on the shared warm
+cache, reporting the 10 expected issues (one `goconst` in
+`internal/plugins/anomaly/detect/detector.go`, nine `unused` in
+`internal/component/plugin/process/process.go`).
+
+### Rollout: the admitted population and the slot count (phase 7, 2026-08-18)
+
+**The population is a criterion, not a list.** A target is admitted when its
+recipe starts a Go test binary, the `ze-test` runner, `golangci-lint`,
+`govulncheck`, Docker, or QEMU. That reads 105 targets out of the `Makefile` and
+ten `mk/*.mk` files, and `ze-lint` from phase 1 makes 106 pairs. Each is the
+phase-1 shape: the public target calls `scripts/dev/ze-run.sh`, and
+`_<target>-impl` holds the recipe body.
+
+Three exclusions, each for a stated reason rather than for size:
+
+| Excluded | Why |
+|----------|-----|
+| `ze-qemu-shell`, `ze-qemu-debug`, `ze-gokrazy-run` | interactive. The wrapper pipes a job's output through `tee`, which loses the terminal |
+| Recipe-less aggregates (`ze-integration-test`, `ze-live-test`) | their members are admitted individually; giving the aggregate a recipe would change what `make` does with it |
+| Builds, and the source-reading Python checks in `mk/inventory.mk` | single-threaded, seconds long, and not implicated in the 2026-08-17 freeze. `go build` is bounded by the shared cache |
+
+**The slot count is DERIVED, not chosen.** `ZE_RUN_SLOTS` (`Makefile`, beside
+`GO_TEST_PROCS`) is cores divided by the per-job ceiling that the owner's
+2026-08-17 ruling already set: `GO_TEST_PROCS` is `nproc / 4`, and
+`.golangci.yml` caps the linter at 8 workers to match. On this 32-core box that
+is `32 / 8 = 4`, which is the number the comment above `GO_TEST_PROCS` states in
+words: "four concurrent runs fit, and a fifth still degrades gracefully instead
+of thrashing".
+
+The quantity divided is CPU because assumption A-1 is broken (see the Mistake
+Log): the phase 2 pair measured 798% CPU and 3.96 GiB for a capped linter, so
+four jobs are about 32 runnable threads and 16 GiB of the 31 GiB on this box.
+CPU binds first; memory has headroom. Keeping `SLOTS=1` would have been
+stricter than that evidence supports: eight sessions would queue for a box
+running at a quarter of its capacity, and a queue nobody believes in is the
+thing agents route around.
+
+**Every wrapped target that is also a `ze-precommit-verify` stage inherits the
+parent's slot rather than queueing behind it.** Nine now do: `ze-lint-changed`,
+`ze-unit-hook-test`, `ze-dependency-vulnerability-check`,
+`ze-unit-test-changed`, `ze-unit-test-cached`, `ze-unit-test-race-changed`,
+`ze-alloc-check`, `ze-functional-test` and `ze-functional-exabgp-test`
+(`stagesForMode` in `scripts/status/verify_run.go`), beside `ze-lint` from
+phase 1. One code path serves all of them: the nested-job branch of
+`scripts/dev/ze-run.sh` execs straight through when `ZE_RUN_JOB` names an
+existing entry, and `execStage` (`scripts/status/verify_run.go`) extends
+`os.Environ()` so the variable reaches every stage. Measured rather than
+argued: with another session's `ze-precommit-verify` holding the only slot, a
+wrapped target run under a `ZE_RUN_JOB` entry printed `[ze-unit-pkg-test]
+running inside fake-parent` and finished at once instead of waiting.
+
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `test_a_second_heavy_job_waits_for_the_slot` | `scripts/dev/ze_run_test.py` | AC-2 | |
-| `test_an_equivalent_job_is_attached_not_queued` | `scripts/dev/ze_run_test.py` | AC-3 | |
-| `test_a_different_tree_hash_does_not_attach` | `scripts/dev/ze_run_test.py` | AC-4 | |
-| `test_a_slow_live_holder_is_not_killed` | `scripts/dev/ze_run_test.py` | AC-6 | |
-| `test_a_dead_holder_s_slot_is_reclaimed` | `scripts/dev/ze_run_test.py` | AC-7 | |
+| `test_a_second_heavy_job_waits_for_the_slot` | `scripts/dev/ze_run_test.py` | AC-2 | pass |
+| `test_an_equivalent_job_is_attached_not_queued` | `scripts/dev/ze_run_test.py` | AC-3 | pass |
+| `test_a_different_tree_hash_does_not_attach` | `scripts/dev/ze_run_test.py` | AC-4 | pass |
+| `test_a_holder_that_dies_mid_attach_leaves_no_verdict_behind` | `scripts/dev/ze_run_test.py` | AC-3 correctness: a shared job killed before it records an exit code yields no verdict at all, so the sharer returns to the queue and runs the job itself | pass |
+| `test_the_tree_hash_is_taken_when_the_job_is_admitted` | `scripts/dev/ze_run_test.py` | AC-4 support: the `TREE` a later asker attaches on names the tree the job IS judging, not the one its asker saw before it queued | pass |
+| `test_a_slow_live_holder_is_not_killed` | `scripts/dev/ze_run_test.py` | AC-6 | pass |
+| `test_a_stalled_holder_is_broken_and_the_kill_carries_its_evidence` | `scripts/dev/ze_run_test.py` | AC-6 discriminator: a holder that stops producing still loses its slot, and the kill prints the silence that justified it | pass |
+| `test_the_stall_window_boundary_is_enforced` | `scripts/dev/ze_run_test.py` | stall window 59 / 60 / 3600 / 3601, plus the older `ZE_VERIFY_MAX_LOCK_AGE` spelling | pass |
+| `test_a_dead_holder_s_slot_is_reclaimed` | `scripts/dev/ze_run_test.py` | AC-7 | pass |
+| `test_the_slot_count_is_read_from_the_environment` | `scripts/dev/ze_run_test.py` | the derived `ZE_RUN_SLOTS` reaches admission: the default queues a second job, and 2 admits it | pass |
+| `test_the_slot_count_boundary_is_enforced` | `scripts/dev/ze_run_test.py` | slot count 0 / 1 / cores / cores + 1, and a non-numeric value | pass |
 | `test_a_raw_go_test_is_refused_and_names_the_make_target` | `.claude/hooks/tests/` fixture | AC-5 | |
 | `test_the_make_target_itself_is_not_refused` | `.claude/hooks/tests/` fixture | AC-5 discriminator: the guard must not block the sanctioned path | |
 | `TestConcurrentRunsDoNotShareArtifactPaths` | `scripts/status/verify_run_test.go` | AC-9 | |
@@ -170,14 +271,17 @@ flight and shares that result.
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
 | admission weight | 1..total slots | total slots | 0 | total slots + 1 |
+| slot count (`ZE_RUN_SLOTS`) | 1..cores | cores | 0 | cores + 1 |
 | liveness stall window (seconds) | 60..3600 | 3600 | 59 | 3601 |
 | `golangci-lint` concurrency | 1..nproc | nproc | 0 | nproc + 1 |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `test-job-admission-serialises` | `test/tooling/*.ci` | two agents ask for lint at once; one runs, one waits, the machine stays responsive | |
-| `test-job-admission-attaches` | `test/tooling/*.ci` | two agents ask for the same verify of the same tree; one run serves both | |
+| `test_a_second_heavy_job_waits_for_the_slot` | `scripts/dev/ze_run_test.py` | two agents ask for a heavy job at once; one runs, one waits, neither is killed | done |
+| `test_an_equivalent_job_is_attached_not_queued` | `scripts/dev/ze_run_test.py` | two agents ask for the same job on the same tree; one run serves both, and the sharer exits with the holder's code | done |
+
+**The `.ci` vehicle named at design time was wrong, and this is the correction, not a scope reduction.** A `.ci` file is driven by `bin/ze-test` against the `ze` daemon and CLI, and `test/tooling/` does not exist. `ze-run.sh` is a developer-machine wrapper with no `ze` command to drive, so a `.ci` could only have re-implemented the Python harness badly. The coverage the two rows asked for -- two concurrent askers, one serialised and one sharing -- is delivered by the two tests above, which spawn real concurrent invocations against real git repositories and assert on real exit codes, and both were proven to fail when the behaviour under test is reverted. THOMAS: this is the one design-time item this implementation changed rather than met; say so if you want the `.ci` pair anyway.
 
 ### Interop Tests (Scope: protocol)
 N/A - Scope is tooling; no wire-visible behavior changes.
@@ -308,16 +412,37 @@ N/A - Scope is tooling; no wire-visible behavior changes.
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| Generalize `verify-lock.sh` into a wrapper with a job registry | (a) a resident daemon holding a token pool and streaming progress, as the owner proposed; (b) plain `flock` over more targets with no registry | The daemon's three benefits are attach-and-share, weighted admission, and progress. A state directory plus `flock` delivers all three: progress already exists in the runner's stage banners, weights are counting semaphores, and attach needs a registry file rather than a process. A daemon adds something to supervise, restart, and debug, and a wedged daemon blocks every agent, which is the failure this spec exists to prevent. Option (b) is rejected because it gives no dedup, and dedup is the largest win |
+| Generalize `verify-lock.sh` into a wrapper with a job registry. **Owner approved 2026-08-17: "no daemon is fine, go ahead with the spec approach"** | (a) a resident daemon holding a token pool and streaming progress, as the owner first proposed; (b) plain `flock` over more targets with no registry | The daemon's three benefits are attach-and-share, weighted admission, and progress. A state directory plus `flock` delivers all three: progress already exists in the runner's stage banners, weights are counting semaphores, and attach needs a registry file rather than a process. A daemon adds something to supervise, restart, and debug, and a wedged daemon blocks every agent, which is the failure this spec exists to prevent. Option (b) is rejected because it gives no dedup, and dedup is the largest win |
 | Enforce at the PreToolUse hook, not in `make` | trusting `make` alone | Any admission wired into `make` is bypassed by the first agent that types the tool directly, and that is the normal case: this session ran `commit_helper_test.py` directly six times on 2026-08-17 rather than through `make ze-unit-pkg-test` |
 | Refuse the raw invocation rather than silently rewriting it | `updatedInput` rewriting, which the hook already supports | A rewrite is invisible in the transcript, so an agent cannot learn the sanctioned path and a wrong rewrite is undebuggable. Refusal teaches; rewriting hides. Reconsider only if refusals prove too frequent to work with |
 | Job key is label plus tree hash | label alone | Attaching on the label alone certifies a session with a run that never saw its code, which breaks the Go-commit coverage gate landed the same day |
 | Land the linter ceiling first and separately | one big change | It needs no coordination, no new script, and addresses about 90% of the measured wall clock. It is the change that helps tonight |
 
 ## Known Limitations
+- **"CPU contention dominates" is measured for ONE job type and inferred for the rest.** The 2026-08-18 measurement that broke A-1 covers `golangci-lint` alone: 1978% to 798% CPU against 4.55 to 3.96 GiB. A QEMU or Docker functional suite holds memory without holding runnable threads, so a CPU weight for it is not established by that evidence. This is not a reason to model memory now, and phase 3 MUST NOT treat a CPU weight for a QEMU job as validated: measure that population before trusting a number for it.
+- **A holder whose log is unreadable is never broken.** Liveness reads log growth, so a job that lost its log file holds its slot until its process dies. That is deliberate: the alternative is killing on a guess, and the failure this spec exists to prevent is a waiter killing a healthy run. The residual case is a hung job with no log, which no evidence available here distinguishes from a working one.
 - Admission covers what the hook can see. A heavy command inside a shell script file is out of reach by construction, exactly as the existing poll-loop check documents.
 - The wrapper does not schedule across machines, and does not know about Docker or QEMU containers started by functional suites; their weight is attributed to the job that started them.
 - `gopls` memory is measured but not managed. Capping it belongs to the harness, not to this wrapper.
+
+## Mistake Log
+
+<!-- Opened early, in Phase 2, because a broken assumption owes a row the moment
+     it breaks (ai/rules/planning.md, Risks & Assumptions). When
+     plan/TEMPLATE-CLOSURE.md is appended at closure, MERGE its Mistake Log rows
+     into this table and delete its duplicate heading and its `none` row.
+     Kind: assumption (a broken A-N) | approach (a route abandoned) | escalation
+     (a mistake frequent enough to deserve a rule). -->
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-1 read the 2026-08-17 freeze as memory pressure before CPU contention, and concluded that admission must be weighted by memory rather than by job count | CPU contention is the dominant term. Capping the linter cut CPU by 60% (1978% to 798%) and peak RSS by 13% (4.55 GiB to 3.96 GiB). Three concurrent lint runs at the old setting are about 60 runnable threads on 32 cores, which exhausts the box, against 13.5 GiB of 31 GB, which does not | Phase 2's cold paired measurement of `make ze-lint` with and without the ceiling, run to validate A-4. A-1 was not the thing being tested; the CPU column broke it | Admission is weighted by CPU cost. Phases 3 and 4 do NOT model memory, which removes a per-job memory estimate, its calibration, and the failure mode of a wrong estimate. The design is unchanged in shape: the registry never depended on memory weighting |
+
+### Deviations from Plan
+- **Admission weighting is CPU-based, not memory-based.** A-1 is broken (see the Mistake Log). The spec's R-3 mitigation says "weight admission rather than counting jobs", and that survives; only the quantity being weighted changes.
+- **The memory half of the AC-1 ceiling sits in the `Makefile`, not in `.golangci.yml`.** golangci-lint v2.10.1 accepts no memory setting, so `GOMEMLIMIT` goes on every invocation through the `ZE_LINT` variable. See A-4 and the AC-1 evidence section.
+- **`ze-chaos-lint` in `mk/test-chaos.mk` gained the ceiling too.** AC-1 names `ze-lint` and `ze-lint-changed`; the chaos target is a fifth golangci-lint call site, and leaving it raw would let a target reach the linter with no ceiling.
+- **Admission counts jobs against `ZE_RUN_SLOTS`; it does not weight them.** Phase 7 sizes the SLOT rather than the job, because every heavy target in this repository is already capped at a quarter of the cores by `GO_TEST_PROCS` and `.golangci.yml`. Weighting is what you need when jobs differ in cost; here they were made equal first. A job type that breaks that equality (a QEMU suite holding memory without holding threads, the Known Limitation above) is the case that would need weights, and none is measured.
+- **`scripts/dev/ze-run.sh` reads `ZE_RUN_SLOTS` (landed 2026-08-18).** Phase 7 derived and exported the number but could not wire it, because phase 4 held the file, so admission stayed at one job while 105 targets queued behind it. `SLOTS` now reads the exported value and defaults to 1 for a caller that arrives without `make`. Out of range is refused rather than clamped, like the stall window: `SLOTS_MIN=1` and `SLOTS_MAX=$(_cores)`, since zero queues every job for ever and more slots than cores is no admission at all.
 
 ## Checklist
 

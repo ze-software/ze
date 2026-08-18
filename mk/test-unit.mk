@@ -30,7 +30,10 @@ ZE_GROUP_REST    = $$(go list ./... | grep -v /cmd/ze-chaos \
 	| grep -v '^github.com/ze-software/ze/internal/component/cli')
 
 # Run ze unit tests with the shared race-instrumented command.
-ze-unit-test: ze-unit-installer-test
+ze-unit-test:
+	@scripts/dev/ze-run.sh ze-unit-test $(MAKE) --no-print-directory _ze-unit-test-impl
+
+_ze-unit-test-impl: ze-unit-installer-test
 	@echo "Running ze unit tests ($(GO_TEST_RACE_LABEL))..."
 	$(GO_TEST_RACE) $(ZE_PACKAGES)
 	@echo "Unit tests: bare ze_core compile-out checks ($(GO_TEST_RACE_LABEL))..."
@@ -61,6 +64,9 @@ ze-unit-test: ze-unit-installer-test
 # (ai/rules/platform-linux.md: linux-only code runs under QEMU, never "unfixable
 # on this host").
 ze-unit-installer-test:
+	@scripts/dev/ze-run.sh ze-unit-installer-test $(MAKE) --no-print-directory _ze-unit-installer-test-impl
+
+_ze-unit-installer-test-impl:
 ifeq ($(shell go env GOOS),linux)
 	@echo "Unit tests: installer initrd (ze_installer tag)..."
 	GOOS=linux go test -tags 'ze_core ze_installer' ./internal/install/...
@@ -71,6 +77,9 @@ endif
 
 # Run ze unit tests with coverage.
 ze-unit-test-coverage:
+	@scripts/dev/ze-run.sh ze-unit-test-coverage $(MAKE) --no-print-directory _ze-unit-test-coverage-impl
+
+_ze-unit-test-coverage-impl:
 	@echo "Running ze unit tests with coverage ($(GO_TEST_RACE_LABEL))..."
 	$(GO_TEST_RACE) -coverprofile=coverage.out $(ZE_PACKAGES)
 	go tool cover -html=coverage.out -o coverage.html
@@ -79,6 +88,9 @@ ze-unit-test-coverage:
 # Cacheable full pass: no -race, Go caches results by source hash.
 # Instant when nothing changed, catches logic regressions everywhere.
 ze-unit-test-cached:
+	@scripts/dev/ze-run.sh ze-unit-test-cached $(MAKE) --no-print-directory _ze-unit-test-cached-impl
+
+_ze-unit-test-cached-impl:
 	@echo "Unit tests: full pass (cacheable, no -race)..."
 	$(GO_TEST) $(ZE_PACKAGES)
 	@echo "Unit tests: bare ze_core compile-out checks..."
@@ -87,6 +99,9 @@ ze-unit-test-cached:
 # Changed-group pass: race-instrumented with CGO enabled on Linux and Darwin.
 # Unmapped packages are included individually.
 ze-unit-test-race-changed:
+	@scripts/dev/ze-run.sh ze-unit-test-race-changed $(MAKE) --no-print-directory _ze-unit-test-race-changed-impl
+
+_ze-unit-test-race-changed-impl:
 	@groups=$$(scripts/dev/changed-groups.sh --pkgs 2>/dev/null); \
 	if [ -z "$$groups" ]; then \
 		echo "No changed .go files -- skipping changed-group pass"; \
@@ -102,26 +117,44 @@ ze-unit-test-race-changed:
 # what you're working on. All groups together = ze-unit-test.
 
 ze-unit-bgp-test:
+	@scripts/dev/ze-run.sh ze-unit-bgp-test $(MAKE) --no-print-directory _ze-unit-bgp-test-impl
+
+_ze-unit-bgp-test-impl:
 	@echo "Unit tests: bgp group ($(GO_TEST_RACE_LABEL))..."
 	$(GO_TEST_RACE) $(ZE_GROUP_BGP)
 
 ze-unit-core-test:
+	@scripts/dev/ze-run.sh ze-unit-core-test $(MAKE) --no-print-directory _ze-unit-core-test-impl
+
+_ze-unit-core-test-impl:
 	@echo "Unit tests: core group ($(GO_TEST_RACE_LABEL))..."
 	$(GO_TEST_RACE) $(ZE_GROUP_CORE)
 
 ze-unit-plugins-test:
+	@scripts/dev/ze-run.sh ze-unit-plugins-test $(MAKE) --no-print-directory _ze-unit-plugins-test-impl
+
+_ze-unit-plugins-test-impl:
 	@echo "Unit tests: plugins group ($(GO_TEST_RACE_LABEL))..."
 	$(GO_TEST_RACE) $(ZE_GROUP_PLUGINS)
 
 ze-unit-config-test:
+	@scripts/dev/ze-run.sh ze-unit-config-test $(MAKE) --no-print-directory _ze-unit-config-test-impl
+
+_ze-unit-config-test-impl:
 	@echo "Unit tests: config group ($(GO_TEST_RACE_LABEL))..."
 	$(GO_TEST_RACE) $(ZE_GROUP_CONFIG)
 
 ze-unit-cli-test:
+	@scripts/dev/ze-run.sh ze-unit-cli-test $(MAKE) --no-print-directory _ze-unit-cli-test-impl
+
+_ze-unit-cli-test-impl:
 	@echo "Unit tests: cli group ($(GO_TEST_RACE_LABEL))..."
 	$(GO_TEST_RACE) $(ZE_GROUP_CLI)
 
 ze-unit-rest-test:
+	@scripts/dev/ze-run.sh ze-unit-rest-test $(MAKE) --no-print-directory _ze-unit-rest-test-impl
+
+_ze-unit-rest-test-impl:
 	@echo "Unit tests: rest group ($(GO_TEST_RACE_LABEL), everything not in a named group)..."
 	$(GO_TEST_RACE) $(ZE_GROUP_REST)
 
@@ -150,9 +183,21 @@ RACE ?= 1
 # not there, so the same package passes in ze-precommit-verify and fails in this target.
 # A scoped target whose verdict disagrees with the full gate is worse than no
 # scoped target at all.
+#
+# The PKG guard sits on the PUBLIC half of the pair, not on the impl half: a
+# missing PKG is a typing mistake, and it must not spend a wait in the job queue
+# before saying so.
 ze-unit-pkg-test:
 ifndef PKG
 	$(error PKG is required, e.g. make ze-unit-pkg-test PKG=./internal/component/ike/eap)
 endif
+	@scripts/dev/ze-run.sh ze-unit-pkg-test $(MAKE) --no-print-directory _ze-unit-pkg-test-impl
+
+_ze-unit-pkg-test-impl:
 	@echo "Unit tests: $(PKG)$(if $(RUN), -run $(RUN))$(if $(filter 0,$(RACE)), (no race request), ($(GO_TEST_RACE_LABEL)))..."
 	MAKEFLAGS=--no-print-directory $(if $(filter 0,$(RACE)),$(GO_TEST),$(GO_TEST_RACE)) $(if $(RUN),-run '$(RUN)') $(PKG)
+
+# The `_<target>-impl` half of every admitted pair defined in this file.
+# The public half calls the admission wrapper and this half holds the work;
+# see the job-admission block above ZE_RUN_SLOTS in the Makefile.
+.PHONY: _ze-unit-test-impl _ze-unit-installer-test-impl _ze-unit-test-coverage-impl _ze-unit-test-cached-impl _ze-unit-test-race-changed-impl _ze-unit-bgp-test-impl _ze-unit-core-test-impl _ze-unit-plugins-test-impl _ze-unit-config-test-impl _ze-unit-cli-test-impl _ze-unit-rest-test-impl _ze-unit-pkg-test-impl

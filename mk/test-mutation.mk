@@ -18,11 +18,19 @@ GOMU_WORKERS   ?= 2
 GOMU_TIMEOUT   ?= 120
 GOMU_THRESHOLD ?= 0
 
-GOMU_PROCS := $(shell n=$$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4); echo $$(( n / 2 )))
+# A QUARTER of the cores, never more (owner ruling 2026-08-17, same cap as
+# GO_TEST_PROCS in the Makefile and for the same reason: runs on this checkout
+# are concurrent, so a run sized to own the box oversubscribes the machine).
+# Half the cores here plus a concurrent unit run was part of what killed it.
+# Floor of 1 so a single-core runner still runs. n=4 -> 1, n=32 -> 8.
+GOMU_PROCS := $(shell n=$$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4); p=$$(( n / 4 )); [ $$p -lt 1 ] && p=1; echo $$p)
 GOMU = nice -n 15 env GOMAXPROCS=$(GOMU_PROCS) go run github.com/sivchari/gomu/cmd/gomu
 
 # Full mutation test with JSON output
 ze-mutation-test:
+	@scripts/dev/ze-run.sh ze-mutation-test $(MAKE) --no-print-directory _ze-mutation-test-impl
+
+_ze-mutation-test-impl:
 	@set -o pipefail; \
 	echo "Mutation testing: all packages..."; \
 	mkdir -p tmp; \
@@ -43,6 +51,9 @@ ze-mutation-test:
 # The changed-pkgs.sh pre-check avoids invoking gomu when nothing changed;
 # gomu's own --incremental does a separate git-diff pass internally.
 ze-mutation-test-changed:
+	@scripts/dev/ze-run.sh ze-mutation-test-changed $(MAKE) --no-print-directory _ze-mutation-test-changed-impl
+
+_ze-mutation-test-changed-impl:
 	@set -o pipefail; \
 	pkgs=$$(scripts/dev/changed-pkgs.sh 2>/dev/null); \
 	if [ -z "$$pkgs" ]; then \
@@ -71,6 +82,9 @@ ze-mutation-test-changed:
 #   make ze-mutation-pkg-test PKG=./internal/core/...              (all under core/)
 #   make ze-mutation-pkg-test PKG="./internal/core/textbuf/ ./internal/core/netutil/"  (list)
 ze-mutation-pkg-test:
+	@scripts/dev/ze-run.sh ze-mutation-pkg-test $(MAKE) --no-print-directory _ze-mutation-pkg-test-impl
+
+_ze-mutation-pkg-test-impl:
 	@set -o pipefail; \
 	if [ -z "$(PKG)" ]; then \
 		echo "Usage: make ze-mutation-pkg-test PKG=./internal/core/textbuf/"; \
@@ -124,3 +138,8 @@ ze-mutation-report:
 		2>&1 | tee tmp/mutation-html.log; \
 	if [ -f mutation-report.html ]; then mv mutation-report.html tmp/mutation-report.html; fi; \
 	echo "Report: tmp/mutation-report.html"
+
+# The `_<target>-impl` half of every admitted pair defined in this file.
+# The public half calls the admission wrapper and this half holds the work;
+# see the job-admission block above ZE_RUN_SLOTS in the Makefile.
+.PHONY: _ze-mutation-test-impl _ze-mutation-test-changed-impl _ze-mutation-pkg-test-impl

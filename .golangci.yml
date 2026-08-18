@@ -3,6 +3,18 @@ version: "2"
 
 run:
   timeout: 10m
+  # Worker cap. Without this key golangci-lint starts one worker per logical
+  # CPU, which is 32 on the shared dev box. Several agent sessions share that
+  # box and one checkout, so two unbounded lint runs oversubscribe it: measured
+  # 2026-08-17, a lint run held load 25 with 2 GB free of 31 GB, and the machine
+  # stopped responding. 8 workers leave room for three other heavy jobs.
+  #
+  # This caps CPU workers only. The memory half of the ceiling is GOMEMLIMIT,
+  # set by ZE_LINT in the Makefile: golangci-lint v2.10.1 accepts no memory key
+  # (`golangci-lint config verify` rejects every spelling, and `run -h` lists no
+  # memory flag), so the Go runtime env var is the only place it can go.
+  # See plan/spec-shared-machine-job-admission.md, AC-1.
+  concurrency: 8
   # Lint the feature-rich shipped build (ze + ze-appliance feature set): ze_core
   # plus every default-on per-feature compile-out tag. This gives the
   # //go:build ze_<feature> registration + factory files real lint coverage and

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -60,13 +61,27 @@ func TestVerifyRunWritesArtifactsAndContinuesAfterStageFailures(t *testing.T) {
 	mustReadFileContains(t, root, combinedLogPath, "first failed")
 	mustReadFileContains(t, root, combinedLogPath, "second passed")
 	mustReadFileContains(t, root, combinedLogPath, "third failed")
-	mustReadFileContains(t, root, filepath.ToSlash(filepath.Join(stageLogDir, "01-first.log")), "first failed")
-	mustReadFileContains(t, root, filepath.ToSlash(filepath.Join(stageLogDir, "02-second.log")), "second passed")
-	mustReadFileContains(t, root, filepath.ToSlash(filepath.Join(stageLogDir, "03-third.log")), "third failed")
+	// Stage logs live in this run's own directory, and the index is what names
+	// them: the documented paths belong to whichever run published last.
+	var idx verifyIndex
+	if err := json.Unmarshal([]byte(readFile(t, root, failuresJSONPath)), &idx); err != nil {
+		t.Fatalf("decode failure json: %v", err)
+	}
+	for i, want := range []string{"first failed", "second passed", "third failed"} {
+		detail := idx.Stages[i].DetailLog
+		if path.Dir(detail) != idx.RunDir {
+			t.Fatalf("stage %d log %q is not in this run's directory %q", i+1, detail, idx.RunDir)
+		}
+		mustReadFileContains(t, root, detail, want)
+	}
+	if path.Base(idx.Stages[0].DetailLog) != "01-first.log" {
+		t.Fatalf("stage logs lost their run-order prefix: %q", idx.Stages[0].DetailLog)
+	}
 	mustReadFileContains(t, root, failuresLogPath, "## Stage: first")
 	mustReadFileContains(t, root, failuresLogPath, "## Stage: third")
 	mustReadFileContains(t, root, combinedLogPath, "FAIL  2 verify stage(s) failed")
-	mustReadFileContains(t, root, combinedLogPath, "Read first: "+failuresLogPath)
+	mustReadFileContains(t, root, combinedLogPath, "Read first: "+idx.RunDir)
+	mustReadFileContains(t, root, combinedLogPath, "published at "+failuresLogPath)
 
 	mustReadFileContains(t, root, statusPath, "exit=1")
 }
@@ -467,6 +482,235 @@ func TestOnlyTheFullModeWritesTheFullVerifyIndex(t *testing.T) {
 			t.Fatalf("%s must NOT write %s: a cheaper run would certify a Go commit", tc.mode, fullVerifyJSONPath)
 		}
 	}
+}
+
+// Several sessions share this checkout and start verify runs at the same
+// moment. Before per-run directories the artifact paths were package constants,
+// so the second run truncated the first one's combined log and rewrote its
+// failure index, and a failure summary could describe a run the reader never
+// started.
+//
+// The two runs here are held inside their stage until BOTH have started, so the
+// overlap is real rather than incidental.
+func TestConcurrentRunsDoNotShareArtifactPaths(t *testing.T) {
+	root := t.TempDir()
+	started := make(chan struct{}, 2)
+	release := make(chan struct{})
+
+	runOne := func(tag string) {
+		_, err := runVerify(context.Background(), verifyConfig{
+			Root:   root,
+			Mode:   modeFullVerify,
+			Stages: []stage{{Name: tag, Rerun: "make " + tag}},
+			Now:    fixedNow,
+			Out:    io.Discard,
+			RunStage: func(_ context.Context, _ string, st stage, w io.Writer) int {
+				if _, err := io.WriteString(w, st.Name+" ran\n"); err != nil {
+					t.Errorf("%s: write stage output: %v", st.Name, err)
+				}
+				started <- struct{}{}
+				<-release
+				return 1
+			},
+			WriteStatus: testStatusWriter,
+		})
+		if err != nil {
+			t.Errorf("%s: run verify: %v", tag, err)
+		}
+	}
+
+	done := make(chan struct{})
+	for _, tag := range []string{"alpha", "beta"} {
+		go func() {
+			defer func() { done <- struct{}{} }()
+			runOne(tag)
+		}()
+	}
+	<-started
+	<-started
+	close(release)
+	<-done
+	<-done
+
+	indexes := map[string]verifyIndex{}
+	for _, dir := range runDirNames(t, root) {
+		var idx verifyIndex
+		rel := path.Join(stageLogDir, dir, "ze-verify-failures.json")
+		if err := json.Unmarshal([]byte(readFile(t, root, rel)), &idx); err != nil {
+			t.Fatalf("decode %s: %v", rel, err)
+		}
+		if idx.RunDir != path.Join(stageLogDir, dir) {
+			t.Fatalf("index in %s claims run directory %q", dir, idx.RunDir)
+		}
+		if len(idx.Stages) != 1 {
+			t.Fatalf("index in %s holds %d stages", dir, len(idx.Stages))
+		}
+		tag := idx.Stages[0].Stage
+		if _, seen := indexes[tag]; seen {
+			t.Fatalf("two run directories claim stage %q", tag)
+		}
+		indexes[tag] = idx
+		// Each artifact set describes ONE run: its combined log holds its own
+		// stage output and none of the other run's, and its stage log is its
+		// own file.
+		combined := readFile(t, root, idx.CombinedLog)
+		if !strings.Contains(combined, tag+" ran") {
+			t.Fatalf("combined log of %s lost its own output:\n%s", tag, combined)
+		}
+		for _, other := range []string{"alpha", "beta"} {
+			if other != tag && strings.Contains(combined, other+" ran") {
+				t.Fatalf("combined log of %s carries %s output:\n%s", tag, other, combined)
+			}
+		}
+		mustReadFileContains(t, root, idx.Stages[0].DetailLog, tag+" ran")
+	}
+	if len(indexes) != 2 {
+		t.Fatalf("expected one artifact directory per run, got %d", len(indexes))
+	}
+	if indexes["alpha"].Stages[0].DetailLog == indexes["beta"].Stages[0].DetailLog {
+		t.Fatalf("both runs wrote the same stage log %q", indexes["alpha"].Stages[0].DetailLog)
+	}
+
+	// AC-10: the documented paths still exist and still hold ONE run's whole
+	// index, because commit_helper.py reads them.
+	for _, published := range []string{failuresJSONPath, fullVerifyJSONPath} {
+		var idx verifyIndex
+		if err := json.Unmarshal([]byte(readFile(t, root, published)), &idx); err != nil {
+			t.Fatalf("decode published %s: %v", published, err)
+		}
+		if idx.Mode != modeFullVerify || idx.GeneratedAt == "" {
+			t.Fatalf("published %s lost the keys the commit gate reads: %+v", published, idx)
+		}
+		want, ok := indexes[idx.Stages[0].Stage]
+		if !ok || want.RunDir != idx.RunDir {
+			t.Fatalf("published %s belongs to no run: %+v", published, idx)
+		}
+	}
+	mustReadFileContains(t, root, combinedLogPath, " ran")
+	mustReadFileContains(t, root, failuresLogPath, "Run directory: ")
+}
+
+// A run used to overwrite the previous run's artifacts, so the footprint was
+// one run. Keeping each run's own directory has to stay bounded, or tmp/verify
+// grows without limit.
+func TestOldRunDirectoriesArePruned(t *testing.T) {
+	root := t.TempDir()
+	runs := filepath.Join(root, filepath.FromSlash(stageLogDir))
+	if err := os.MkdirAll(runs, 0o750); err != nil {
+		t.Fatalf("create stage log dir: %v", err)
+	}
+	for i := range maxRetainedRunDirs + 4 {
+		name := runDirPrefix + "20260101T00000" + strconv.Itoa(i) + "Z-old"
+		if err := os.MkdirAll(filepath.Join(runs, name), 0o750); err != nil {
+			t.Fatalf("create stale run dir: %v", err)
+		}
+	}
+	// mk/alloc-gate.mk writes this beside the run directories; pruning must not
+	// see it as a run.
+	keep := filepath.Join(runs, "alloc-gate-bench.txt")
+	if err := os.WriteFile(keep, []byte("bench\n"), 0o600); err != nil {
+		t.Fatalf("write alloc gate log: %v", err)
+	}
+
+	if _, err := runVerify(context.Background(), verifyConfig{
+		Root:        root,
+		Mode:        modeFullVerify,
+		Stages:      []stage{{Name: "one", Rerun: "make one"}},
+		Now:         fixedNow,
+		Out:         io.Discard,
+		RunStage:    func(context.Context, string, stage, io.Writer) int { return 0 },
+		WriteStatus: testStatusWriter,
+	}); err != nil {
+		t.Fatalf("run verify: %v", err)
+	}
+
+	names := runDirNames(t, root)
+	if len(names) != maxRetainedRunDirs {
+		t.Fatalf("expected %d run directories after pruning, got %d: %v", maxRetainedRunDirs, len(names), names)
+	}
+	if slices.Contains(names, runDirPrefix+"20260101T000000Z-old") {
+		t.Fatalf("the oldest run directory survived pruning: %v", names)
+	}
+	if _, err := os.Stat(keep); err != nil {
+		t.Fatalf("pruning removed a file that is not a run directory: %v", err)
+	}
+}
+
+// Only a FULL run writes tmp/ze-verify-full.json, and eight sessions sharing
+// this checkout reach ten cheaper ze-precommit-verify-changed runs in a day.
+// Pruning by age alone would delete the full run's directory while that
+// published path still pointed into it, and full_verify_coverage in
+// scripts/dev/commit_helper.py returns "uncovered" when it cannot read the
+// file -- refusing every commit carrying Go until somebody spends 20 minutes on
+// a fresh full run.
+func TestPruningKeepsTheRunAPublishedPathPointsInto(t *testing.T) {
+	root := t.TempDir()
+	// A monotonic clock makes the full run the OLDEST directory by name, so it
+	// is the first one age-based pruning would take.
+	tick := 0
+	clock := func() time.Time {
+		tick++
+		return fixedNow().Add(time.Duration(tick) * time.Minute)
+	}
+	runMode := func(mode string) {
+		if _, err := runVerify(context.Background(), verifyConfig{
+			Root:        root,
+			Mode:        mode,
+			Stages:      []stage{{Name: "one", Rerun: "make one"}},
+			Now:         clock,
+			Out:         io.Discard,
+			RunStage:    func(context.Context, string, stage, io.Writer) int { return 0 },
+			WriteStatus: testStatusWriter,
+		}); err != nil {
+			t.Fatalf("%s: run verify: %v", mode, err)
+		}
+	}
+
+	runMode(modeFullVerify)
+	var full verifyIndex
+	if err := json.Unmarshal([]byte(readFile(t, root, fullVerifyJSONPath)), &full); err != nil {
+		t.Fatalf("decode published full index: %v", err)
+	}
+	for range maxRetainedRunDirs + 2 {
+		runMode("ze-precommit-verify-changed")
+	}
+
+	// The commit gate reads this path, so it must still resolve and still carry
+	// the keys full_verify_coverage reads.
+	var kept verifyIndex
+	if err := json.Unmarshal([]byte(readFile(t, root, fullVerifyJSONPath)), &kept); err != nil {
+		t.Fatalf("%s no longer resolves after %d changed-mode runs: %v", fullVerifyJSONPath, maxRetainedRunDirs+2, err)
+	}
+	if kept.Mode != modeFullVerify || kept.GeneratedAt != full.GeneratedAt || kept.RunDir != full.RunDir {
+		t.Fatalf("%s stopped describing the full run: got %+v, want mode %s run-dir %s generated-at %s",
+			fullVerifyJSONPath, kept, modeFullVerify, full.RunDir, full.GeneratedAt)
+	}
+	if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(full.RunDir))); err != nil {
+		t.Fatalf("the full run's artifact directory was pruned while %s pointed into it: %v", fullVerifyJSONPath, err)
+	}
+
+	// Pinning must not defeat the bound it lives inside.
+	names := runDirNames(t, root)
+	if len(names) > maxRetainedRunDirs {
+		t.Fatalf("pinning stopped pruning: %d run directories kept, budget is %d: %v", len(names), maxRetainedRunDirs, names)
+	}
+}
+
+// runDirNames lists the per-run artifact directories under stageLogDir.
+func runDirNames(t *testing.T, root string) []string {
+	t.Helper()
+	entries, err := os.ReadDir(filepath.Join(root, filepath.FromSlash(stageLogDir)))
+	if err != nil {
+		t.Fatalf("read run directories: %v", err)
+	}
+	var names []string
+	for _, e := range entries {
+		if e.IsDir() && strings.HasPrefix(e.Name(), runDirPrefix) {
+			names = append(names, e.Name())
+		}
+	}
+	sort.Strings(names)
+	return names
 }
 
 func fixedNow() time.Time {
@@ -996,6 +1240,15 @@ var generatorChecks = map[string]string{
 // equivalent and is not: GNU make permits blank lines inside a recipe, so a
 // stray blank line silently truncates the scan and an unguarded generator
 // added below it is accepted. A reviewer proved exactly that.
+//
+// A recipe that DELEGATES contributes the delegated recipe too. A target routed
+// through the shared job admission point keeps only one command of its own --
+// `scripts/dev/ze-run.sh <label> $(MAKE) <impl-target>` -- and its work moves to
+// the impl target (plan/spec-shared-machine-job-admission.md). A caller asking
+// what `ze-lint` RUNS wants both, and following the `$(MAKE)` invocation is what
+// keeps that answer right as more targets are routed the same way. Naming the
+// impl target at each call site instead would have to be repeated for every one
+// of them, and would go stale silently the day a target stops delegating.
 func recipeBody(t *testing.T, corpus, target string) (head string, body []string) {
 	t.Helper()
 	lines := strings.Split(corpus, "\n")
@@ -1025,10 +1278,64 @@ func recipeBody(t *testing.T, corpus, target string) (head string, body []string
 			}
 			body = append(body, next)
 		}
-		return head, body
+		return head, withDelegatedRecipes(corpus, body, map[string]bool{target: true})
 	}
 	t.Fatalf("target %q not found in the Makefile corpus. This test must not pass vacuously.", target)
 	return "", nil
+}
+
+// withDelegatedRecipes appends the recipe of every target the body invokes
+// through $(MAKE), so a delegating recipe reads as the commands it runs.
+//
+// Additive: the delegating line stays, because a caller may be asking about the
+// delegation itself. `seen` carries the target already being read, so a
+// recursive target contributes its recipe once and a cycle terminates.
+func withDelegatedRecipes(corpus string, body []string, seen map[string]bool) []string {
+	out := append([]string(nil), body...)
+	for _, ln := range body {
+		for _, target := range makeInvocationTargets(ln) {
+			if seen[target] {
+				continue
+			}
+			seen[target] = true
+			sub := optionalRecipeBody(corpus, target)
+			if len(sub) == 0 {
+				continue
+			}
+			out = append(out, withDelegatedRecipes(corpus, sub, seen)...)
+		}
+	}
+	return out
+}
+
+// makeTargetName is the shape of a target a recipe can hand to $(MAKE). It
+// excludes a flag (-C, --no-print-directory), a `VAR=value` override, and a
+// `$(VAR)` reference, none of which names a rule.
+var makeTargetName = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9._-]*$`)
+
+// makeInvocationTargets returns the target names a single recipe line asks
+// $(MAKE) to build. A line with no recursive make yields nothing.
+func makeInvocationTargets(line string) []string {
+	fields := strings.Fields(line)
+	var targets []string
+	seenMake := false
+	for _, f := range fields {
+		if f == "$(MAKE)" || f == "${MAKE}" {
+			seenMake = true
+			continue
+		}
+		if !seenMake {
+			continue
+		}
+		if strings.ContainsAny(f, ";&|") {
+			seenMake = false // a shell separator ends the make invocation
+			continue
+		}
+		if makeTargetName.MatchString(f) {
+			targets = append(targets, f)
+		}
+	}
+	return targets
 }
 
 // optionalRecipeBody is recipeBody for a name that MIGHT not be a target.
@@ -1666,10 +1973,55 @@ func shippedFeatureTags(t *testing.T) []string {
 	return tags
 }
 
+// makeVarRefRE matches a `$(NAME)` or `${NAME}` variable reference. A command
+// substitution (`$$(cmd)`) and a shell variable (`$$pkgs`) do not match: the
+// name shape below admits neither.
+var makeVarRefRE = regexp.MustCompile(`\$[({]([A-Za-z_][A-Za-z0-9_]*)[)}]`)
+
+// makeVarDefRE matches a simple variable definition at column 0.
+var makeVarDefRE = regexp.MustCompile(`(?m)^([A-Za-z_][A-Za-z0-9_]*)\s*[:?+]?=[ \t]*(.*)$`)
+
+// expandMakeVars resolves simple Makefile variable references in one line.
+//
+// A test that asks what a recipe RUNS has to see through the variables the
+// recipe is written with. `ze-lint` invokes `$(ZE_LINT)`, which carries both
+// the linter and its memory ceiling, so a matcher looking for the literal
+// `golangci-lint` reads a recipe that runs it as a recipe that does not.
+//
+// Deliberately limited: only a definition at column 0 is read, the last one
+// wins as it does after make finishes parsing, and an unknown name is left
+// alone so it stays visible in whatever the caller reports.
+func expandMakeVars(corpus, line string) string {
+	values := map[string]string{}
+	for _, m := range makeVarDefRE.FindAllStringSubmatch(corpus, -1) {
+		values[m[1]] = strings.TrimSpace(m[2])
+	}
+	// Bounded rounds resolve nesting (ZE_LINT holds $(ZE_LINT_MEMLIMIT))
+	// without looping forever on a self-referential definition.
+	for range 5 {
+		expanded := makeVarRefRE.ReplaceAllStringFunc(line, func(ref string) string {
+			name := makeVarRefRE.FindStringSubmatch(ref)[1]
+			if v, ok := values[name]; ok {
+				return v
+			}
+			return ref
+		})
+		if expanded == line {
+			break
+		}
+		line = expanded
+	}
+	return line
+}
+
 // integrationLintPass reports whether a recipe body carries the second
 // golangci-lint invocation: GOOS=linux plus the integration build tag.
-func integrationLintPass(body []string) bool {
+//
+// The corpus is read so the body's variable references resolve; see
+// expandMakeVars.
+func integrationLintPass(corpus string, body []string) bool {
 	for _, ln := range body {
+		ln = expandMakeVars(corpus, ln)
 		if strings.Contains(ln, "GOOS=linux") && strings.Contains(ln, "golangci-lint") &&
 			strings.Contains(ln, "--build-tags integration") {
 			return true
@@ -1697,8 +2049,9 @@ func integrationLintPass(body []string) bool {
 // capability, so in feature-gates.txt every other consumer of that manifest
 // would read it as a shippable feature.
 func TestLintCoversIntegrationTaggedFiles(t *testing.T) {
-	_, body := recipeBody(t, makefileCorpus(t), "ze-lint")
-	if !integrationLintPass(body) {
+	corpus := makefileCorpus(t)
+	_, body := recipeBody(t, corpus, "ze-lint")
+	if !integrationLintPass(corpus, body) {
 		t.Errorf("ze-lint runs no `GOOS=linux golangci-lint run --build-tags integration` pass: "+
 			"every //go:build integration file is unlinted again. Recipe:\n%s", strings.Join(body, "\n"))
 	}
@@ -1733,8 +2086,9 @@ func TestLintCoversIntegrationTaggedFiles(t *testing.T) {
 // runs it in place of ze-lint (stagesForMode), so full-lint-only coverage would
 // leave exactly the new files uncovered.
 func TestChangedLintCoversIntegrationTaggedFiles(t *testing.T) {
-	_, body := recipeBody(t, makefileCorpus(t), "ze-lint-changed")
-	if !integrationLintPass(body) {
+	corpus := makefileCorpus(t)
+	_, body := recipeBody(t, corpus, "ze-lint-changed")
+	if !integrationLintPass(corpus, body) {
 		t.Errorf("ze-lint-changed runs no `GOOS=linux golangci-lint run --build-tags integration` pass: "+
 			"a new //go:build integration file passes the changed-file gate unlinted. Recipe:\n%s", strings.Join(body, "\n"))
 	}

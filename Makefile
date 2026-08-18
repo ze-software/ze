@@ -1,6 +1,6 @@
 .PHONY: all build ze-build ze-appliance-build ze-setup-build ze-stripped-build ze-chaos-build ze-test-build ze-analyze-build clean clean-all fmt vet tidy generate help
 .PHONY: ze-docker-build ze-docker-lab-build
-.PHONY: ze-lint ze-evidence-vet ze-unit-reactor-test-race ze-unit-linux-test ze-functional-exabgp-test ze-dependency-vulnerability-check
+.PHONY: ze-lint _ze-lint-impl ze-evidence-vet ze-unit-reactor-test-race ze-unit-linux-test ze-functional-exabgp-test ze-dependency-vulnerability-check
 .PHONY: ze-standard-test ze-precommit-verify ze-precommit-verify-changed ze-precommit-verify-list ze-repository-check ze-repository-tree-check ze-smoke-verify ze-ci-verify ze-verify-all ze-test-all
 .PHONY: ze-lint-changed ze-unit-test-changed ze-scratch-clean ze-session-clean ze-unit-hook-test
 .PHONY: ze-tier-check ze-iface-resolution-check ze-plugin-boundary-check ze-config-coercion-check ze-fs-persistence-check ze-dash-stdio-check ze-port-defaults-check ze-yang-leaf-mentions-report ze-platform-vet ze-ci-dispatch-check
@@ -93,23 +93,79 @@ ZE_VERSION := $(shell date +%y.%m.%d)
 ZE_BUILD_DATE := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 ZE_LDFLAGS := -X main.version=$(ZE_VERSION) -X main.buildDate=$(ZE_BUILD_DATE)
 
-# CPU limit: leave 3 cores free, but never drop below HALF the cores. Used as
-# GOMAXPROCS for tests so parallel stages do not starve the system. Unit tests
-# exercise the shipped default-on feature set; GO_TEST_CORE runs bare ze_core
-# compile-out checks.
+# CPU limit: NO go process or test run gets more than a QUARTER of the cores.
+# Used as GOMAXPROCS for tests. Unit tests exercise the shipped default-on
+# feature set; GO_TEST_CORE runs bare ze_core compile-out checks.
 #
-# The half-the-cores floor is not cosmetic. "n - 3" was sized for a development
-# workstation and DEGENERATES on a small CI runner: GitHub's hosted 4-vCPU
-# runner landed on GOMAXPROCS=1, and that is two failures, not one.
-#   - `go test -p` defaults to GOMAXPROCS, so all ~450 packages ran ONE AT A
-#     TIME (the cached unit stage took 22 minutes).
+# Owner ruling, 2026-08-17. The previous sizing was "n - 3, floored at half the
+# cores", which hands 29 of 32 cores to ONE run. Several agents share this
+# checkout, so the machine was oversubscribed many times over: load average
+# reached 79 on 32 cores, a run was OOM-killed, and functional suites began
+# failing their wall-clock budgets on load rather than on defects. A single run
+# tuned to own the whole box is the wrong default when runs are concurrent by
+# construction.
+#
+# A quarter is a CEILING, not a target, and it is deliberately conservative:
+# four concurrent runs fit, and a fifth still degrades gracefully instead of
+# thrashing. Runs take longer. That is the accepted trade.
+#
+# `go test -p` defaults to GOMAXPROCS, so this also caps how many PACKAGES
+# compile and run at once, which is where the real memory pressure lives.
+#
+# The floor is 1 and it is load-bearing on a small runner. Two known effects
+# there, both slowness rather than incorrectness:
+#   - all ~450 packages run one at a time (a cached unit stage took 22 minutes
+#     on GitHub's hosted 4-vCPU runner).
 #   - internal/component/cli/testing's headless model races a command goroutine
 #     against 10 runtime.Gosched() yields and falls back to a 900ms wait when
 #     the goroutine has not finished (headless.go:152-191). With one P the
-#     command cannot run in parallel, so the .et suite paid the 900ms far more
-#     often and blew go test's 10-minute package default (CI run 30219943935).
-# Floor: n=4 -> 2, n=8 -> 5, n=16 -> 13. Never above n-3 on a big machine.
-GO_TEST_PROCS := $(shell n=$$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4); p=$$(( n - 3 )); h=$$(( (n + 1) / 2 )); [ $$p -lt $$h ] && p=$$h; [ $$p -lt 1 ] && p=1; echo $$p)
+#     command cannot run in parallel, so the .et suite pays the 900ms far more
+#     often (CI run 30219943935). GO_TEST_TIMEOUT below absorbs it.
+# n=4 -> 1, n=8 -> 2, n=16 -> 4, n=32 -> 8.
+GO_TEST_PROCS := $(shell n=$$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4); p=$$(( n / 4 )); [ $$p -lt 1 ] && p=1; echo $$p)
+
+# ─── Job admission ──────────────────────────────────────────────────────────
+# Several agents share this checkout and this machine, and each decides on its
+# own to test or lint. Every heavy target is sized for a share of the box, so
+# nothing stops eight of them starting at once: on 2026-08-17 that froze the
+# machine (plan/spec-shared-machine-job-admission.md).
+#
+# So a heavy target is a PAIR. The public half hands the work to
+# scripts/dev/ze-run.sh, which runs it now, queues it behind the jobs already in
+# flight, or attaches it to an equivalent run; `_<target>-impl` holds the work
+# and is what the wrapper calls back into. A target admitted this way is listed
+# in the `.PHONY: _<target>-impl` block at the end of the file that defines it.
+#
+# A target is admitted when its recipe starts a Go test binary, the `ze-test`
+# runner, golangci-lint, govulncheck, Docker or QEMU. A target that only reads
+# source text is not: it is single-threaded and finishes in seconds. Neither are
+# the interactive ones (ze-qemu-shell, ze-qemu-debug, ze-gokrazy-run), because
+# the wrapper pipes a job's output through `tee` and that loses the terminal.
+#
+# Nesting costs nothing: the wrapper exports ZE_RUN_JOB, and a job started
+# inside another job's slot execs straight through instead of queueing behind
+# its own parent. That is how every stage of ze-precommit-verify runs.
+#
+# How many admitted jobs scripts/dev/ze-run.sh runs at once. DERIVED from the
+# ceiling above, not guessed: every heavy job in this repository is already
+# sized at a quarter of the cores -- GO_TEST_PROCS for a Go test run,
+# `run.concurrency: 8` in .golangci.yml for the linter -- so cores divided by
+# that ceiling is exactly how many fit, which is the ruling stated above:
+# "four concurrent runs fit, and a fifth still degrades gracefully".
+#
+# The quantity being divided is CPU, and that is measured rather than assumed.
+# plan/spec-shared-machine-job-admission.md broke its own assumption A-1 with a
+# paired measurement: capping the linter cut CPU 1978% to 798% and peak RSS only
+# 4.55 to 3.96 GiB. On this 32-core, 31 GiB box four jobs are about 32 runnable
+# threads and 16 GiB, so CPU binds first and memory has headroom.
+#
+# One slot for everything would be stricter than that evidence: eight sessions
+# would queue for a box running at a quarter of its capacity, and a queue nobody
+# believes in is the thing agents route around. Take it down for one run with
+# `make <target> ZE_RUN_SLOTS=1`, or up when the jobs in flight are known light.
+ZE_RUN_SLOTS ?= $(shell n=$$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4); s=$$(( n / $(GO_TEST_PROCS) )); [ $$s -lt 1 ] && s=1; echo $$s)
+export ZE_RUN_SLOTS
+
 # Per-test-binary wall-clock cap, stated rather than inherited. go test's
 # implicit default is 10m, which nothing in this repo ever chose: the slowest
 # package measured here (internal/component/cli/testing, the .et editor suite)
@@ -332,6 +388,9 @@ endef
 # fixes: no template holds that markup, and the handler capture normalizes it
 # because the live input is whatever host.Detect finds on the machine.
 ze-web-golden-check:
+	@scripts/dev/ze-run.sh ze-web-golden-check $(MAKE) --no-print-directory _ze-web-golden-check-impl
+
+_ze-web-golden-check-impl:
 	@$(call require-go-test,TestWebGoldenOutput,./internal/component/web/)
 	@$(GO_TEST) -run 'TestWebGoldenOutput' ./internal/component/web/
 	@$(call require-go-test,TestLGGoldenOutput,./internal/component/lg/)
@@ -364,6 +423,9 @@ ze-web-golden-check:
 # port was supposed to preserve.
 REF ?=
 ze-templ-port-check:
+	@scripts/dev/ze-run.sh ze-templ-port-check $(MAKE) --no-print-directory _ze-templ-port-check-impl
+
+_ze-templ-port-check-impl:
 	@$(call require-go-test,TestWebTemplPortFidelity,./internal/component/web/)
 	@$(GO_TEST) -run 'TestWebTemplPortFidelity' ./internal/component/web/ -port-ref='$(REF)'
 	@$(call require-go-test,TestLGTemplPortFidelity,./internal/component/lg/)
@@ -372,6 +434,9 @@ ze-templ-port-check:
 # Recapture the golden fixtures after a DELIBERATE markup change. Read the diff
 # before committing it: every byte this rewrites is a byte an operator receives.
 ze-web-golden-update:
+	@scripts/dev/ze-run.sh ze-web-golden-update $(MAKE) --no-print-directory _ze-web-golden-update-impl
+
+_ze-web-golden-update-impl:
 	@$(call require-go-test,TestWebGoldenOutput,./internal/component/web/)
 	@$(GO_TEST) -run 'TestWebGoldenOutput' ./internal/component/web/ -update-golden
 	@$(call require-go-test,TestLGGoldenOutput,./internal/component/lg/)
@@ -391,6 +456,9 @@ ze-web-golden-update:
 # The check needs no target of its own. TestChaosGoldenOutput is a plain Go
 # test, so ze-unit-test runs it; only the recapture needs a name.
 ze-chaos-golden-update:
+	@scripts/dev/ze-run.sh ze-chaos-golden-update $(MAKE) --no-print-directory _ze-chaos-golden-update-impl
+
+_ze-chaos-golden-update-impl:
 	@$(call require-go-test,TestChaosGoldenOutput,./internal/chaos/web/)
 	@$(GO_TEST) -run 'TestChaosGoldenOutput' ./internal/chaos/web/ -update-golden
 	@echo "Updated internal/chaos/web/testdata/golden/"
@@ -400,6 +468,9 @@ ze-chaos-golden-update:
 # "unexpected/missing" message and points here, so the lists never silently
 # drift from all.go. Review the diff before committing.
 ze-plugin-snapshot-update:
+	@scripts/dev/ze-run.sh ze-plugin-snapshot-update $(MAKE) --no-print-directory _ze-plugin-snapshot-update-impl
+
+_ze-plugin-snapshot-update-impl:
 	@$(GO_TEST) -run 'TestRegisteredPluginNames|TestRegisteredWireMethods|TestYANGSchemaProviders' ./internal/component/plugin/all/ -update
 	@echo "Updated internal/component/plugin/all/testdata/*.snapshot"
 
@@ -557,21 +628,54 @@ ze-docker-lab-build:
 # plan/spec-fixit-lint-blind-to-integration-tag.md.
 ZE_LINT_PKGS := ./cmd/ze/... ./internal/... ./pkg/... ./test/...
 
+# Memory half of the linter ceiling; the worker half is `concurrency` in
+# .golangci.yml. golangci-lint v2.10.1 accepts no memory setting of its own, so
+# the Go runtime env var is the only place this can go: `golangci-lint config
+# verify` rejects memory, memory-limit, mem-limit, gomemlimit, max-memory and
+# memory-ceiling as unknown keys, and `golangci-lint run -h` lists no memory
+# flag. The binary honors GOMEMLIMIT, which its runtime reads at startup.
+#
+# GOMEMLIMIT is a soft limit: the GC works harder as the heap approaches it,
+# and a run whose live heap exceeds it gets slow rather than killed. 4 GiB sits
+# above the measured working set at 8 workers and below the level that starves
+# the box. Raise it for one run with `make ze-lint ZE_LINT_MEMLIMIT=8GiB`.
+# Every golangci-lint invocation in this repository goes through $(ZE_LINT):
+# a raw call reaches the linter with no ceiling.
+# See plan/spec-shared-machine-job-admission.md, AC-1.
+ZE_LINT_MEMLIMIT := 4GiB
+ZE_LINT := GOMEMLIMIT=$(ZE_LINT_MEMLIMIT) golangci-lint
+
+# Two full golangci-lint passes over the tree, each sized for the whole box.
+# Measured 2026-08-17, this is about 18 minutes of a 20-minute full verify, so
+# it is the heaviest single job in the repository and the one that froze the
+# machine when two sessions started it at once. It goes through the shared
+# admission point for that reason (plan/spec-shared-machine-job-admission.md).
+# Run as a stage of ze-precommit-verify it inherits that job's slot instead of
+# queueing behind it, which is what ZE_RUN_JOB is for.
 ze-lint:
+	@scripts/dev/ze-run.sh ze-lint $(MAKE) --no-print-directory _ze-lint-impl
+
+_ze-lint-impl:
 	@echo "Running ze linter..."
-	@golangci-lint run $(ZE_LINT_PKGS)
+	@$(ZE_LINT) run $(ZE_LINT_PKGS)
 	@echo "Running ze linter (GOOS=linux, integration tag)..."
-	@GOOS=linux golangci-lint run --build-tags integration $(ZE_LINT_PKGS)
+	@GOOS=linux $(ZE_LINT) run --build-tags integration $(ZE_LINT_PKGS)
 
 ze-evidence-vet:
 	@echo "Vetting evidence scripts (GOOS=linux)..."
 	@GOOS=linux go vet ./scripts/evidence/...
 
 ze-unit-reactor-test-race:
+	@scripts/dev/ze-run.sh ze-unit-reactor-test-race $(MAKE) --no-print-directory _ze-unit-reactor-test-race-impl
+
+_ze-unit-reactor-test-race-impl:
 	@echo "Stress-testing reactor (count=20, $(GO_TEST_RACE_LABEL))..."
 	$(GO_TEST_RACE) -count=20 ./internal/component/bgp/reactor/...
 
 ze-unit-linux-test:
+	@scripts/dev/ze-run.sh ze-unit-linux-test $(MAKE) --no-print-directory _ze-unit-linux-test-impl
+
+_ze-unit-linux-test-impl:
 	@command -v docker >/dev/null || { echo "error: docker not found"; exit 1; }
 	@mkdir -p tmp/linux-go-cache tmp/linux-gomodcache
 	docker run --rm \
@@ -585,7 +689,10 @@ ze-unit-linux-test:
 		$(ZE_LINUX_GO_IMAGE) \
 		go test $(ZE_LINUX_TEST_PACKAGES) -count=1
 
-ze-functional-exabgp-test: $(ZEBIN_ZE) $(ZEBIN_TEST)
+ze-functional-exabgp-test:
+	@scripts/dev/ze-run.sh ze-functional-exabgp-test $(MAKE) --no-print-directory _ze-functional-exabgp-test-impl
+
+_ze-functional-exabgp-test-impl: $(ZEBIN_ZE) $(ZEBIN_TEST)
 	@echo "Running ExaBGP compatibility tests..."
 	uv run --with paramiko $(ZEBIN_TEST) exabgp --all --timeout $(ZE_EXABGP_TIMEOUT)s
 
@@ -606,6 +713,9 @@ ze-functional-exabgp-test: $(ZEBIN_ZE) $(ZEBIN_TEST)
 # `tool` dependency would vendor its large analysis tree (x/tools SSA, callgraph,
 # and related packages).
 ze-dependency-vulnerability-check:
+	@scripts/dev/ze-run.sh ze-dependency-vulnerability-check $(MAKE) --no-print-directory _ze-dependency-vulnerability-check-impl
+
+_ze-dependency-vulnerability-check-impl:
 	@echo "Running govulncheck (SCA: module deps vs vuln.go.dev)..."
 	$(GO) run -exec='env GOOS=linux GOARCH=amd64' golang.org/x/vuln/cmd/govulncheck@latest ./...
 
@@ -620,14 +730,20 @@ ze-dependency-vulnerability-check:
 # gate is the only lint most edits ever face. `&&` keeps it fail-closed -- with
 # `;` a pass-1 failure would be masked by a clean pass 2.
 ze-lint-changed:
+	@scripts/dev/ze-run.sh ze-lint-changed $(MAKE) --no-print-directory _ze-lint-changed-impl
+
+_ze-lint-changed-impl:
 	@pkgs=$$(scripts/dev/changed-pkgs.sh); \
 	if [ -z "$$pkgs" ]; then echo "No changed Go packages to lint"; exit 0; fi; \
 	echo "Linting changed packages: $$pkgs"; \
-	golangci-lint run $$pkgs && \
+	$(ZE_LINT) run $$pkgs && \
 	echo "Linting changed packages (GOOS=linux, integration tag): $$pkgs" && \
-	GOOS=linux golangci-lint run --build-tags integration $$pkgs
+	GOOS=linux $(ZE_LINT) run --build-tags integration $$pkgs
 
-ze-unit-test-changed: ze-scratch-links-ensure
+ze-unit-test-changed:
+	@scripts/dev/ze-run.sh ze-unit-test-changed $(MAKE) --no-print-directory _ze-unit-test-changed-impl
+
+_ze-unit-test-changed-impl: ze-scratch-links-ensure
 	@pkgs=$$(scripts/dev/changed-pkgs.sh); \
 	if [ -z "$$pkgs" ]; then echo "No changed Go packages to test"; exit 0; fi; \
 	echo "Testing changed packages ($(GO_TEST_RACE_LABEL)): $$pkgs"; \
@@ -645,6 +761,9 @@ ze-unit-test-changed: ze-scratch-links-ensure
 # shell WRITES the markers Python READS, and a mismatch fails CLOSED).
 # See ai/rules/repo-maintenance.md.
 ze-unit-hook-test:
+	@scripts/dev/ze-run.sh ze-unit-hook-test $(MAKE) --no-print-directory _ze-unit-hook-test-impl
+
+_ze-unit-hook-test-impl:
 	@echo "Hook dispatcher parity (golden exit codes)..."
 	@python3 scripts/dev/hook-parity-check.py
 	@echo "Hook behavioural fixtures (format-alloc / validate-spec / design-gate / commit-gate)..."
@@ -1024,15 +1143,16 @@ ze-generated-files-update: generate ze-rules-render-update ze-rules-condensed-up
 #   fuzz-targets.py   -> mk/test-fuzz-targets.mk             -> ze-fuzz-targets-check
 #   sync_web.go       -> internal/**/assets/<vendored file>  -> ze-vendor-web-check
 #   web_assets.go     -> internal/**/page_assets.go           -> ze-web-assets-check
-#   code_to_docs.py   -> ai/CODE-TO-DOCS.md                  -> ze-doc-index-check
+#   code_to_docs.py   -> docs/ `<!-- source: -->` anchors    -> ze-doc-index-check
+#                        (the anchors, NOT ai/CODE-TO-DOCS.md: see exclusion 3)
 #   rules_points.py   -> ai/rules/<rule>.md (from ai/rules/points/) -> ze-rules-render-check
 #   rules_index.py    -> ai/rules/INDEX.md                   -> ze-rules-index-check
 #   rules_condensed.py-> ai/rules/TRIGGERS.md, ai/rules/CORE.md -> ze-rules-condensed-check
 #   arch_map.py       -> arch lists in ai/INSTRUCTIONS.md    -> ze-arch-map-check
-#   package_map.py    -> ai/PACKAGE-MAP.md                   \
-#   docs_to_code.py   -> ai/DOCS-TO-CODE.md                   > ze-discovery-index-check
+#   package_map.py    -> ai/PACKAGE-MAP.md                   -> ze-discovery-index-check
 #
-# TWO DELIBERATE EXCLUSIONS, both would break CI or duplicate an earlier stage:
+# THREE DELIBERATE EXCLUSIONS. The first two would break CI or duplicate an
+# earlier stage; the third has nothing left to check:
 #
 #   skill_sync.sh --check (CLAUDE.md, AGENTS.md, .claude|.codex|.agents/skills).
 #   Every one of its targets is GITIGNORED (.gitignore), so they do not exist at
@@ -1050,6 +1170,19 @@ ze-generated-files-update: generate ze-rules-render-update ze-rules-condensed-up
 #   check_doc_links.py --md-only, which ze-generated-files-reconcile's recipe ends with. It
 #   checks references, not generated-file staleness, and ze-doc-links-check runs the
 #   FULL check (a strict superset) in the stage slot immediately before this one.
+#
+#   The freshness of ai/DOCS-TO-CODE.md and ai/CODE-TO-DOCS.md. Both are now
+#   GITIGNORED, for the same reason the skill mirrors above are: nothing
+#   committed can drift, so there is nothing for CI to catch, and the check
+#   would instead fail on a fresh checkout where the derived file was never
+#   generated. They are 8900 lines of pure derivation that no code reads,
+#   they rebuild in under 3 seconds, and tracking them put a diff on 13% of
+#   commits and a rebase conflict on every concurrent append.
+#   `ze-generated-files-update` still regenerates both, and .claude/hooks/session-start.sh
+#   builds them when missing. What ze-doc-index-check still enforces is the part
+#   a generated file cannot answer for itself: that every `<!-- source: -->`
+#   anchor under docs/ points at a real path and names a symbol that file
+#   declares. Do not "fix" this by wiring the freshness half back in.
 ze-arch-map-check:
 	@python3 scripts/dev/arch_map.py --check
 
@@ -1465,3 +1598,8 @@ help-dev:
 	@echo "    clean-all                                  Full wipe: bin/ + ALL of tmp/ (shared caches, all sessions)"
 	@echo "    ze-scratch-clean                           Remove tmp/ scratch files older than 24h"
 	@echo "    ze-session-clean                           Remove session dirs dated before BEFORE=<YYYY-MM-DD>"
+
+# The `_<target>-impl` half of every admitted pair defined in this file.
+# The public half calls the admission wrapper and this half holds the work;
+# see the job-admission block above ZE_RUN_SLOTS in the Makefile.
+.PHONY: _ze-web-golden-check-impl _ze-templ-port-check-impl _ze-web-golden-update-impl _ze-chaos-golden-update-impl _ze-plugin-snapshot-update-impl _ze-unit-reactor-test-race-impl _ze-unit-linux-test-impl _ze-functional-exabgp-test-impl _ze-dependency-vulnerability-check-impl _ze-lint-changed-impl _ze-unit-test-changed-impl _ze-unit-hook-test-impl

@@ -29,4 +29,12 @@ PKG  ?= ./internal/component/bgp/wireu/...
 TIME ?= 30s
 
 ze-fuzz-test-one:
+	@scripts/dev/ze-run.sh ze-fuzz-test-one $(MAKE) --no-print-directory _ze-fuzz-test-one-impl
+
+_ze-fuzz-test-one-impl:
 	$(GO_TEST) -fuzz=$(FUZZ) -fuzztime=$(TIME) $(PKG)
+
+# The `_<target>-impl` half of every admitted pair defined in this file.
+# The public half calls the admission wrapper and this half holds the work;
+# see the job-admission block above ZE_RUN_SLOTS in the Makefile.
+.PHONY: _ze-fuzz-test-one-impl

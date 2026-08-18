@@ -44,15 +44,32 @@ their unit stage. The target needs network access to the live Go vulnerability
 database. `TestStagesForModeBranchesAgree` (`scripts/status/verify_run_test.go`)
 fails if any other gate lands in one mode but not the other, and
 `TestStagesForModeMatchesGolden` pins both lists. Both targets run under
-`scripts/dev/verify-lock.sh`, continue across top-level stage failures, and write:
+`scripts/dev/ze-run.sh` (through the `scripts/dev/verify-lock.sh` alias), which
+admits `ZE_RUN_SLOTS` heavy jobs at a time and queues the rest. Every stage a
+verify starts is itself a wrapped target, and it inherits the verify's slot
+rather than queueing behind it. Both targets continue across top-level stage
+failures, and write:
+
+Each run writes its artifacts into its OWN directory, `tmp/verify/run-<start>-<mode>-<id>/`,
+so two sessions that verify at the same time never overwrite each other's log or
+failure index. The `run-dir` key in the failure index names the directory. At
+most ten run directories are kept: the newest ones, plus every directory a
+documented path below still points into. A run a published path points into is
+never removed for age, because only a full run writes `tmp/ze-verify-full.json`
+and ten cheaper `ze-precommit-verify-changed` runs can follow it in one day.
+The documented paths below stay
+where they are: each is a symlink into the directory of the run that owns it.
+The combined log is published when the run starts, so a waiting session can
+follow it; the failure artifacts are published when the run ends.
 
 | Artifact | Purpose |
 |----------|---------|
-| `tmp/ze-verify.log` | Combined full verify log |
-| `tmp/verify/<nn>-<stage>.log` | Full log for one stage |
+| `tmp/verify/run-<start>-<mode>-<id>/` | One run's own artifacts: the combined log, the stage logs, and the failure index |
+| `tmp/ze-verify.log` | Combined log of the newest run |
+| `tmp/verify/run-<start>-<mode>-<id>/<nn>-<stage>.log` | Full log for one stage of that run. The failure index names it in `detail-log` |
 | `tmp/ze-verify-failures.log` | Compact failure index to read first |
 | `tmp/ze-verify-failures.json` | Machine-readable failure routing index |
-| `tmp/ze-verify-full.json` | The same index, written by the FULL mode only. It is the record a commit carrying Go is gated on, and it is separate because a `ze-precommit-verify-changed` run in another session rewrites the shared file |
+| `tmp/ze-verify-full.json` | The same index, written by the FULL mode only. It is the record a commit carrying Go is gated on, and it is separate because a `ze-precommit-verify-changed` run in another session republishes the shared path |
 | `tmp/ze-verify.status` | Freshness fingerprint for the last run |
 
 The functional test target runs 24 suites: encode, plugin, parse, decode, reload,
@@ -66,7 +83,7 @@ before presenting work as complete.
 <!-- source: Makefile -- ze-precommit-verify, ze-precommit-verify-changed, ze-dependency-vulnerability-check, ze-functional-exabgp-test -->
 <!-- source: scripts/dev/validate.py -- post-verify validation checks -->
 <!-- source: scripts/status/verify_run.go -- artifact writing and grouped summaries -->
-<!-- source: scripts/dev/verify-lock.sh -- verify-class lock -->
+<!-- source: scripts/dev/ze-run.sh -- job admission, one registry entry per running job -->
 <!-- source: scripts/dev/verify-status.sh -- tmp/ze-verify.status -->
 <!-- source: mk/test-functional.mk -- ze-functional-test suite list -->
 
@@ -75,22 +92,24 @@ must be run manually:
 
 | Suite | Runner | Why not gated |
 |-------|--------|---------------|
-| Static routes | `bin/ze-test static --all` | Separate route-installation fixture |
-| Traffic control | `bin/ze-test traffic --all` | Requires traffic-control platform support |
-| Flow export | `bin/ze-test flow-export --all` | Requires Linux packet-sampling support for release evidence |
-| VPP | `bin/ze-test vpp --all` | Requires Python VPP stub setup |
-| L2TP wire | `bin/ze-test l2tp-wire --all` | Wire-level fixture separate from release-gate L2TP daemon scenarios |
-| OSPFv2 wire | `bin/ze-test ospf-wire --all` | Wire-level codec fixture separate from release-gate OSPF runtime scenarios |
-| IS-IS wire | `bin/ze-test isis-wire --all` | Wire-level codec fixture separate from release-gate IS-IS runtime scenarios |
+| Static routes | `make ze-functional-static-test` | Separate route-installation fixture |
+| Traffic control | `make ze-functional-traffic-test` | Requires traffic-control platform support |
+| Flow export | `make ze-functional-flow-export-test` | Requires Linux packet-sampling support for release evidence |
+| VPP | `make ze-functional-vpp-test` | Requires Python VPP stub setup |
+| L2TP wire | `make ze-functional-l2tp-wire-test` | Wire-level fixture separate from release-gate L2TP daemon scenarios |
+| OSPFv2 wire | `make ze-functional-ospf-wire-test` | Wire-level codec fixture separate from release-gate OSPF runtime scenarios |
+| IS-IS wire | `make ze-functional-isis-wire-test` | Wire-level codec fixture separate from release-gate IS-IS runtime scenarios |
 | BGP interop | `make ze-interop-test` or `python3 test/interop/run.py [scenario]` | Requires Docker peer daemons and image builds. **Fails closed**: with Docker unreachable the runner exits non-zero naming Docker, it does not report success over a lab it never started. Runs nightly and advisory in `.github/workflows/evidence-nightly.yml`, which is what lets an interop scenario carry an `RFC requirement:` tag at all -- a tag in a suite nothing executes is refused by `make ze-rfc-check` |
-| IPsec interop | `make ze-interop-ipsec-test` or `python3 test/ipsec-interop/run.py [scenario]` | strongSwan peer via Docker (privileged). Ze runs as initiator in some scenarios and as responder in others; each scenario's `ze.conf` says which, on its `connection-type` leaf, so this page does not restate the split. **Fails closed**: `wait_xfrm_sa` and `assert_esp_accepted` (`test/ipsec-interop/lab.py`) raise `AssertionError`, so a missing SA or an unmoved ESP counter is a failure and never a skip. Control plane verified from strongSwan logs. |
-| Chaos web | `bin/ze-test bgp chaos-web --all` | Chaos dashboard scenarios live under the BGP runner |
+| IPsec interop | `make ze-interop-ipsec-test` or `python3 test/interop-ipsec/run.py [scenario]` | strongSwan peer via Docker (privileged). Ze runs as initiator in some scenarios and as responder in others; each scenario's `ze.conf` says which, on its `connection-type` leaf, so this page does not restate the split. **Fails closed**: `wait_xfrm_sa` and `assert_esp_accepted` (`test/interop-ipsec/lab.py`) raise `AssertionError`, so a missing SA or an unmoved ESP counter is a failure and never a skip. Control plane verified from strongSwan logs. |
+| Chaos web | `make ze-chaos-web-test` | Chaos dashboard scenarios live under the BGP runner; also included in `make ze-chaos-test` |
 
-These suites also have `make` targets: `make ze-functional-static-test`,
-`make ze-functional-traffic-test`, `make ze-functional-flow-export-test`, `make ze-functional-vpp-test`,
-`make ze-functional-l2tp-wire-test`, `make ze-functional-isis-wire-test`, and `make ze-functional-ospf-wire-test`.
-Chaos web is available through
-`make ze-chaos-web-test` and is also included in `make ze-chaos-test`.
+The runner is named through `make` here, and everywhere else on this page, for
+one reason: `make` hands the suite to `scripts/dev/ze-run.sh`, which runs it
+now, queues it behind the heavy jobs already in flight, or attaches it to an
+equivalent run. Several sessions share this machine, and `bin/ze-test` typed
+into a shell lands on it unadmitted. To run a SELECTION that no target
+expresses, queue the runner yourself:
+`scripts/dev/ze-run.sh <label> bin/ze-test <suite> <selection>`.
 <!-- source: mk/test-functional.mk -- non-gated functional targets and ze-functional-test suite list -->
 
 Linux-tagged Go unit tests are separate from the functional suites. From a
@@ -126,7 +145,7 @@ containers on an isolated Docker bridge. It proves PPP LCP/IPCP, kernel
 a live PPP session. The lab requires Docker and the host kernel (or Docker VM
 kernel) to have PPPoL2TP support; it refuses to run if `/dev/ppp`, `ip l2tp`,
 or the `l2tp_ppp`/`pppol2tp` module is missing. Run individual scenarios with
-`python3 test/l2tp-interop/run.py <scenario-name>`.
+`python3 test/interop-l2tp/run.py <scenario-name>`.
 
 `make ze-deployment-docker-pppoe-accel-test` runs the inverse-role PPPoE lab:
 Ze as a PPPoE **client** (`pppoe-client` interface kind) against a real
@@ -305,7 +324,7 @@ and name, plus periodic progress while tests are still running.
 | L2TP wire | `ze-test l2tp-wire` | `test/l2tp-wire/*.ci` | Exercises L2TP wire-level encode/decode and malformed-packet handling. |
 | IS-IS wire | `ze-test isis-wire` | `test/isis-wire/*.ci` | Exercises IS-IS wire-level decode and malformed-PDU handling. |
 | OSPFv2 wire | `ze-test ospf-wire` | `test/ospf-wire/*.ci` | Exercises OSPFv2 packet/LSA wire-level decode and malformed-packet handling. |
-| OSPF | `ze-test ospf` | `test/ospf/*.ci` | Exercises release-gate OSPF config validation, interface ISM config leaves including passive and loopback records, NSM config leaves including `mtu-ignore`, LSDB flooding/retransmit/purge logic, SPF route installation via Loc-RIB/sysrib ECMP membership updates, inter-area ABR Type 3/4 summary origination, area ranges, summary withdraw, border-router snapshots, daemon route snapshot wiring, admin-distance arbitration, and raw-socket doctor diagnostics, plus the RFC 5250 opaque carrier, RFC 3630/5392 Traffic Engineering, the RFC 7770 Router Information LSA (`ospf-ri-*.ci`, and `test/ospfv3/ospfv3-ri-originate.ci` for the v3 engine), and the RFC 7684 Extended Prefix/Link Opaque LSAs (`ospf-ext-register.ci`, `ospf-ext-prefix-originate.ci`, `ospf-ext-link-originate.ci`, `ospf-ext-prefix-receive.ci`, `ospf-ext-subtlv-hook.ci`, `ospf-ext-decode.ci`), with FRR interop scenarios (`ospf-ri-frr`, `ospf6-ri-frr`, `ospf-ext-prefix-link-frr`) run under QEMU. |
+| OSPF | `ze-test ospf` | `test/ospf/*.ci` | Exercises release-gate OSPF config validation, interface ISM config leaves including passive and loopback records, NSM config leaves including `mtu-ignore`, LSDB flooding/retransmit/purge logic, SPF route installation via Loc-RIB/sysrib ECMP membership updates, inter-area ABR Type 3/4 summary origination, area ranges, summary withdraw, border-router snapshots, daemon route snapshot wiring, admin-distance arbitration, and raw-socket doctor diagnostics, plus the RFC 5250 opaque carrier, RFC 3630/5392 Traffic Engineering, the RFC 7770 Router Information LSA (`ospf-ri-*.ci`, and `test/ospfv3/ospfv3-ri-originate.ci` for the v3 engine), and the RFC 7684 Extended Prefix/Link Opaque LSAs (`ospf-ext-register.ci`, `ospf-ext-prefix-originate.ci`, `ospf-ext-link-originate.ci`, `ospf-ext-prefix-receive.ci`, `ospf-ext-subtlv-hook.ci`, `ospf-ext-decode.ci`), with FRR interop scenarios (`ospf-ri-frr`, `ospfv3-ri-frr`, `ospf-ext-prefix-link-frr`) run under QEMU. |
 | Chaos | `ze-test bgp chaos` | `test/chaos/*.ci` | Runs Ze plus chaos peers end-to-end through the BGP `.ci` runner. |
 | Chaos web | `ze-test bgp chaos-web` | `test/chaos-web/*.ci` | Runs chaos dashboard HTTP endpoint checks through the BGP `.ci` runner. |
 | ExaBGP compatibility | `ze-test exabgp` | `test/exabgp-compat/encoding/*.ci` | Runs the ExaBGP compatibility fixtures through the Go `ze-test` runner, starts the mock BGP peer, runs the ExaBGP wrapper client, and checks the expected wire output. |
@@ -532,15 +551,15 @@ Linux host:
 
 | Test | Needs | Why |
 |------|-------|-----|
-| `show-system-kernel-log` | `CAP_SYSLOG` (+ `CAP_DAC_OVERRIDE` for the device mode) | Opens `/dev/kmsg`, which is `crw------- root root` and additionally gated by `kernel.dmesg_restrict`. No configuration knob can skip the work: reading the log IS the behaviour under test. |
+| `system-kernel-log-show` | `CAP_SYSLOG` (+ `CAP_DAC_OVERRIDE` for the device mode) | Opens `/dev/kmsg`, which is `crw------- root root` and additionally gated by `kernel.dmesg_restrict`. No configuration knob can skip the work: reading the log IS the behaviour under test. |
 
 ```bash
 make ze-netns-plugin-test
-make ze-netns-plugin-test ZE_NETNS_PLUGIN_TESTS=show-system-kernel-log
+make ze-netns-plugin-test ZE_NETNS_PLUGIN_TESTS=system-kernel-log-show
 ```
 
-**Five L2TP tests used to live here and no longer do.** `show-l2tp-history`,
-`show-l2tp-sessions`, `show-l2tp-session-detail`, `teardown-session` and
+**Five L2TP tests used to live here and no longer do.** `l2tp-history-show`,
+`l2tp-sessions-show`, `l2tp-session-detail-show`, `teardown-session` and
 `teardown-session-all` each establish an L2TP session, and
 `ze.l2tp.skip-kernel-probe=true` bypasses only the modprobe at Start, **not** the
 data plane: wherever `resolveGenlFamily` succeeds (any host with `l2tp_netlink`
@@ -633,8 +652,8 @@ single test  →  single package  →  component group  →  ze-precommit-verify
 ```
 
 ```bash
-CGO_ENABLED=0 go test -run TestMyThing ./internal/component/config/system/...  # single test
-make ze-unit-config-test                                                     # component group
+make ze-unit-pkg-test PKG=./internal/component/config/system/... RUN=TestMyThing  # single test
+make ze-unit-config-test                                                          # component group
 make ze-precommit-verify                                                          # pre-commit gate
 ```
 
@@ -703,8 +722,10 @@ takes the whole session directory when the operator asks for it.
 On failure, read `tmp/ze-verify-failures.log` first. It is a compact routing
 index with one block per failing stage and group. Each group names its `Rerun`
 command, `Detail log`, and `Parallel` value, so a reader can choose related
-failures without opening the full combined log. Open the referenced
-`tmp/verify/<nn>-<stage>.log` for full evidence for that group. Use
+failures without opening the full combined log. Open the `Detail log` path it
+names for full evidence for that group. That path is inside the run's own
+directory, so it stays correct after another session's run publishes its own
+failure index. Use
 `tmp/ze-verify.log` only when the whole combined run is needed.
 Automation should read `tmp/ze-verify-failures.json`.
 <!-- source: Makefile -- ze-unit-bgp-test, ze-unit-core-test, ze-unit-plugins-test, ze-unit-config-test, ze-unit-cli-test, ze-unit-rest-test -->
@@ -866,7 +887,8 @@ Config parsing tests verify configurations parse correctly.
 Parse coverage configs live in `test/parse/coverage-*.ci`. They are positive
 parse/validate coverage for realistic multi-feature configurations, such as
 IXP peering, large peer sets, RPKI policy, and redistribution. Run a specific
-coverage case by name, for example `bin/ze-test bgp parse coverage-ixp-peering`.
+coverage case by name, for example
+`scripts/dev/ze-run.sh parse-ixp bin/ze-test bgp parse coverage-ixp-peering`.
 
 BGP interop scenarios live under `test/interop/scenarios/NN-name/` and run with
 `python3 test/interop/run.py NN-name`. Scenario files are written with the
@@ -1227,7 +1249,7 @@ expect=bgp:conn=2:seq=1:hex=...   # Both routes after reload
 
 > **Not in the default release gate.** VPP tests are not included in
 > `make ze-precommit-verify` / `make ze-functional-test`. Run manually via
-> `make ze-functional-vpp-test` or `bin/ze-test vpp`.
+> `make ze-functional-vpp-test`.
 
 Functional tests that exercise `fib-vpp` end-to-end against a Python
 GoVPP-API stub. The stub replaces the real VPP process in CI: no DPDK,
@@ -1286,9 +1308,9 @@ BGP-over-TAP needs a VPP image built with the linux-cp plugins.
 
 **Example:**
 ```
-bin/ze-test vpp -l
-bin/ze-test vpp vpp-boot
-bin/ze-test vpp -a
+scripts/dev/ze-run.sh vpp-list bin/ze-test vpp -l
+scripts/dev/ze-run.sh vpp-boot bin/ze-test vpp vpp-boot
+make ze-functional-vpp-test
 ```
 <!-- source: internal/test/cli/cmd_vpp.go -- vppCmd wires EncodingTests to test/vpp/ -->
 
@@ -1377,8 +1399,9 @@ Real failures exit non-zero.
 | `qemu-iso.ci` | Appliance ISO path writes the embedded image unchanged, skips PXE ZeFS injection, powers off safely, boots the written disk, and authenticates |
 | `ze-kernel-overlay.ci` | `make ze-kernel-build` builds the runtime kernel via `run.py` and assembles it into an out-of-tree package (`tmp/kernel/pkg`) consumed via a go.mod replace, with the pinned modcache untouched |
 
-Run the install suite with `bin/ze-test install --all`. For exhaustive QEMU
-entry points:
+The install suite has no `make` target of its own, so queue the runner:
+`scripts/dev/ze-run.sh install-suite bin/ze-test install --all`. For exhaustive
+QEMU entry points:
 
 - `make ze-qemu-install-test` — PXE HTTP install.
 - `make ze-qemu-install-iso-test` — appliance ISO media (amd64 x86_64-UEFI or
@@ -1442,7 +1465,7 @@ holdtime, with Ze still in FRR's Level-1 topology.
 They are the goal-validation evidence for the IS-IS umbrella and run under the
 Linux Docker interop harness (`test/interop/daemons` has `isisd=yes`), not on darwin.
 
-Run with `bin/ze-test isis --all` or `make ze-functional-isis-test`. The offline wire-decode
+Run with `make ze-functional-isis-test`. The offline wire-decode
 suite is separate (`test/isis-wire/`, `make ze-functional-isis-wire-test`).
 <!-- source: test/interop/scenarios/isis-purge-reorig-frr/check.py -- re-origination above an own-LSP purge, witnessed by FRR -->
 <!-- source: internal/test/cli/register.go -- isis CI suite registration -->
@@ -1456,16 +1479,16 @@ suite is separate (`test/isis-wire/`, `make ze-functional-isis-wire-test`).
 The OSPF FRR interop scenarios exercise the unified OSPF engine against a live FRR
 `ospfd`/`ospf6d` over the shared Docker bridge. The OSPFv3 set proves a P2P and a broadcast
 (DR/BDR + Network-LSA + Link-LSA) adjacency, ABR inter-area summary install
-(`ospf-v6-multiarea-frr`: FRR installs Ze's area-1 prefix `2001:db8:a1::/64` as an inter-area
-route), stub-area ABR default origination (`ospf-v6-stub-frr`: FRR installs the Ze-originated
-`::/0`, no Type-5 leak), broadcast DR route install (`ospf-v6-broadcast-frr`), and ASBR
+(`ospfv3-multiarea-frr`: FRR installs Ze's area-1 prefix `2001:db8:a1::/64` as an inter-area
+route), stub-area ABR default origination (`ospfv3-stub-frr`: FRR installs the Ze-originated
+`::/0`, no Type-5 leak), broadcast DR route install (`ospfv3-broadcast-frr`), and ASBR
 redistribution into AS-External / NSSA Type-7. Route assertions on the shared LAN use a
 passive dummy interface carrying a unique global prefix that exists only on Ze, since a
 segment prefix connected on both sides cannot be asserted as a route. They run under the
 Linux Docker interop harness only (raw IPv6 proto 89 over `ff02::5`), not on darwin.
-<!-- source: test/interop/scenarios/ospf-v6-multiarea-frr/check.py -- v6 inter-area route install -->
-<!-- source: test/interop/scenarios/ospf-v6-stub-frr/check.py -- v6 stub ABR default + no Type-5 leak -->
-<!-- source: test/interop/scenarios/ospf-v6-broadcast-frr/check.py -- v6 DR-advertised route install -->
+<!-- source: test/interop/scenarios/ospfv3-multiarea-frr/check.py -- v6 inter-area route install -->
+<!-- source: test/interop/scenarios/ospfv3-stub-frr/check.py -- v6 stub ABR default + no Type-5 leak -->
+<!-- source: test/interop/scenarios/ospfv3-broadcast-frr/check.py -- v6 DR-advertised route install -->
 <!-- source: test/interop/interop.py -- FRROSPF6 has_inter_area_prefix_lsa/has_as_external_lsa helpers -->
 <!-- source: internal/plugins/ospf/origination_v6_stub.go -- v6 stub default origination (v6ApplyAreaTypePolicy) -->
 
@@ -2256,7 +2279,7 @@ Usage: `ze-test rpki --port 3323 [--valid-asn 65001] [--invalid-asn 65099]`
 
 ### ExaBGP Compatibility Test Ports
 
-ExaBGP compatibility tests (`make ze-functional-exabgp-test` or `bin/ze-test exabgp --all`) use OS-assigned dynamic ports. The mock BGP server (`test/exabgp-compat/bin/bgp`) binds to port 0, receives an OS-assigned port, and prints `PORT <N>` to stdout. The Go runner reads this line from the server process output and passes the discovered port to the ExaBGP wrapper client. This eliminates port collisions when running concurrent test instances. Use `--server ID --port N` and `--client ID --port N` for split-terminal debugging.
+ExaBGP compatibility tests (`make ze-functional-exabgp-test`) use OS-assigned dynamic ports. The mock BGP server (`test/exabgp-compat/bin/bgp`) binds to port 0, receives an OS-assigned port, and prints `PORT <N>` to stdout. The Go runner reads this line from the server process output and passes the discovered port to the ExaBGP wrapper client. This eliminates port collisions when running concurrent test instances. Use `--server ID --port N` and `--client ID --port N` for split-terminal debugging.
 <!-- source: test/exabgp-compat/bin/bgp -- dynamic port binding and PORT line output -->
 <!-- source: internal/test/cli/cmd_exabgp.go -- waitExaBGPPort and split debug modes -->
 
@@ -2310,7 +2333,7 @@ Plugin test scripts use `wait_for_ack()` from `test/scripts/ze_api.py` to ensure
 
 ## Editor Tests (.et format)
 
-Editor tests (`test/editor/`) verify the interactive TUI editor and CLI using headless keystroke simulation. Run all editor tests with `make ze-functional-editor-test` or `bin/ze-test editor --all`; select one with `bin/ze-test editor ID_OR_NAME`.
+Editor tests (`test/editor/`) verify the interactive TUI editor and CLI using headless keystroke simulation. Run all editor tests with `make ze-functional-editor-test`; select one with `scripts/dev/ze-run.sh editor-one bin/ze-test editor ID_OR_NAME`.
 
 <!-- source: internal/component/cli/testing/parser.go -- .et file parser -->
 <!-- source: internal/test/cli/cmd_editor.go -- cmdEditorMain selection flags -->
@@ -2574,11 +2597,11 @@ Additional dataplane integration packages:
 
 L2TP functional tests (`test/l2tp/`) verify tunnel lifecycle, session
 negotiation, authentication, IP pool, and teardown over real loopback UDP.
-Run with `bin/ze-test l2tp`.
+Run with `make ze-functional-l2tp-test`.
 
 > **In the default release gate.** The in-tree L2TP `.ci` tests are included in
 > `make ze-precommit-verify` / `make ze-functional-test` and can be run directly with
-> `make ze-functional-l2tp-test` or `bin/ze-test l2tp --all`. External-peer and PPP
+> `make ze-functional-l2tp-test`. External-peer and PPP
 > dataplane evidence remain separate deployment targets.
 
 ```bash

@@ -20,6 +20,12 @@
 - **Run `make ze-lint-changed` before claiming any Go implementation work is done.**
 - **Fix every issue it reports. Do not claim done with lint failures outstanding.**
 
+- **`go test`, `golangci-lint`, the `ze-test` runner, and a Python test file MUST NOT be started raw from Bash.** `check_raw_test_invocation` in `.claude/hooks/pretool-bash.py` refuses each one and names the `make` target that runs the same work.
+- **Every heavy job MUST reach the machine through `make`, which routes it to `scripts/dev/ze-run.sh`: one job runs, the others queue behind it.** One machine carries several sessions, every heavy target is sized for the whole box, and a job typed raw arrives with nothing in front of it.
+- **Work that no `make` target expresses MUST be queued by hand: `scripts/dev/ze-run.sh <label> <command>`.** The wrapper IS the queue, so the raw command inside it is admitted.
+- **A one-off that MUST NOT queue states its reason in the command: `ZE_ADMIT_RAW="<reason>" <command>`.** An empty reason admits nothing, and the reason that is there lands in the transcript, which is what makes the escape auditable by reading the session.
+- **A cheap subcommand of a heavy tool stays available: `golangci-lint config verify` runs no analysis and is not refused.**
+
 ## CGO-Free Builds
 
 - Non-race first-party Go compilation MUST set `CGO_ENABLED=0` in the process environment.
@@ -282,7 +288,7 @@ project.
 | A command this session launched in the background | Nothing. The completion notification is the wake-up |
 | A file or a log line one of your own commands will produce | ONE bounded loop in `run_in_background`: `timeout 300 bash -c 'until [ -f <path> ]; do sleep 30; done'`. It notifies once, then it is gone |
 | A repeated event (every ERROR line, every CI step) | The `Monitor` tool, with `persistent` left false so its `timeout_ms` deadline applies. `persistent: true` disables that deadline and rebuilds the problem this rule exists to stop |
-| Another session's `ze-precommit-verify` to release the lock | Do other work. `tmp/.ze-verify.lock.owner` names the holder, and `scripts/dev/verify-status.sh check` reports the last run's verdict. Never a watcher |
+| Another session's heavy job to free a slot | Do other work. `tmp/.ze-jobs/` holds one entry per running job, with its label, pid and log, and `scripts/dev/verify-status.sh check` reports the last verify's verdict. `tmp/.ze-verify.lock.owner` is a copy of ONE entry, so read the directory when more than one job can run. Never a watcher |
 | Nothing in particular | Do not wait at all |
 
 ## Lint Gate

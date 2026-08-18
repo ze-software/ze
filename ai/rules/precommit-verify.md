@@ -72,7 +72,7 @@ How long a full pass takes depends on the machine, and on what else that machine
 is doing. "25 to 30 minutes" below and "4-10 minutes" in `ai/rules/testing.md`
 are not a contradiction. They are different hardware. A loaded VM is not
 deterministic either, so even one machine gives a spread rather than a figure.
-`_record_duration` (`scripts/dev/verify-lock.sh`) appends the real elapsed
+`_release` (`scripts/dev/ze-run.sh`) appends the real elapsed
 seconds for the machine you are on, and `tmp/*` is gitignored, so that file is
 the only per-machine record there is. Read it as an expectation, never as a
 threshold: a run past it is a slow run, not a failed one.

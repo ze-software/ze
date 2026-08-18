@@ -25,8 +25,16 @@ ALLOC_GATE_BENCHTIME ?= 300x
 ALLOC_GATE_BENCH_LOG := $(CURDIR)/tmp/verify/alloc-gate-bench.txt
 
 ze-alloc-check:
+	@scripts/dev/ze-run.sh ze-alloc-check $(MAKE) --no-print-directory _ze-alloc-check-impl
+
+_ze-alloc-check-impl:
 	@mkdir -p $(CURDIR)/tmp/verify
 	@echo "Running reactor hot-path benchmarks (-benchmem) for the alloc-ceiling gate..."
 	$(GO_TEST) -run '^$$' -bench '.' -benchmem -benchtime=$(ALLOC_GATE_BENCHTIME) ./internal/component/bgp/reactor/... | tee $(ALLOC_GATE_BENCH_LOG)
 	@echo "Enforcing per-benchmark allocs/op ceilings (perf.AllocCeilings)..."
 	@ZE_ALLOC_GATE_BENCH=$(ALLOC_GATE_BENCH_LOG) $(GO_TEST) -run '^TestAllocGateEnforce$$' -count=1 ./internal/perf/
+
+# The `_<target>-impl` half of every admitted pair defined in this file.
+# The public half calls the admission wrapper and this half holds the work;
+# see the job-admission block above ZE_RUN_SLOTS in the Makefile.
+.PHONY: _ze-alloc-check-impl

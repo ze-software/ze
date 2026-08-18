@@ -49,12 +49,20 @@ Use the narrowest test that covers your change. Escalate only when needed.
 
 | Step | What you run | When | Time |
 |------|-------------|------|------|
-| 1 | `CGO_ENABLED=0 go test -run TestName ./pkg/...` | Iterating on one test | seconds |
-| 2 | `CGO_ENABLED=0 go test ./internal/component/bgp/reactor/...` | Iterating on one package | seconds |
+| 1 | `make ze-unit-pkg-test PKG=./pkg/... RUN=TestName` | Iterating on one test | seconds |
+| 2 | `make ze-unit-pkg-test PKG=./internal/component/bgp/reactor/...` | Iterating on one package | seconds |
 | 3 | `make ze-unit-bgp-test` | Done with a component, want to check for regressions | 10s - 1:30 |
 | 4 | `make ze-precommit-verify` | Ready to commit | ~2 min |
 
 `make ze-precommit-verify` is the pre-commit gate. Everything below that is a development tool.
+
+Every step goes through `make`, and that is not a style preference. Several
+sessions share this machine, so `make` hands each heavy job to
+`scripts/dev/ze-run.sh`, which runs it now, queues it, or attaches it to an
+equivalent run already in flight. A `go test` typed into a shell skips that,
+and it also drops the feature tags, the timeout, `GOMAXPROCS` and the shared
+build cache that the `make` variables carry. The Bash hook refuses the raw form
+(`ai/rules/commands.md`).
 
 ### The cadence targets
 
@@ -104,9 +112,9 @@ right output, does the state machine transition correctly, does the encoder
 round-trip.
 
 ```sh
-CGO_ENABLED=0 go test ./internal/component/bgp/message/...                  # one package
-CGO_ENABLED=0 go test -run TestParseOrigin ./internal/...                  # one test
-make ze-unit-test                                      # all packages (~5 min)
+make ze-unit-pkg-test PKG=./internal/component/bgp/message/...   # one package
+make ze-unit-pkg-test PKG=./internal/... RUN=TestParseOrigin     # one test
+make ze-unit-test                                                # all packages (~5 min)
 ```
 
 ### Functional tests (`.ci` files)
@@ -133,15 +141,17 @@ Each `test/` subdirectory has its own runner and format:
 | `test/exabgp-compat/` | ExaBGP compatibility | `ze-test exabgp` |
 
 Run a single test by one-based id or exact name, list the available ids, or
-resume from the last printed id after an interrupted run:
+resume from the last printed id after an interrupted run. No `make` target
+expresses a selection, so queue the runner yourself: `ze-run.sh` takes a label
+and the command, and gives it the same admission a suite target gets.
 
 ```sh
-bin/ze-test bgp plugin 42          # test id 42
-bin/ze-test bgp encode --list      # list N/TOTAL, id, and name
-bin/ze-test bgp plugin --start 42  # run id 42 and every later test
-bin/ze-test editor 7               # editor test id 7
-bin/ze-test editor -p nav          # editor tests matching "nav"
-bin/ze-test exabgp --start 20      # resume ExaBGP compatibility
+scripts/dev/ze-run.sh plugin-42 bin/ze-test bgp plugin 42          # test id 42
+scripts/dev/ze-run.sh encode-list bin/ze-test bgp encode --list    # list N/TOTAL, id, and name
+scripts/dev/ze-run.sh plugin-from-42 bin/ze-test bgp plugin --start 42  # id 42 and every later test
+scripts/dev/ze-run.sh editor-7 bin/ze-test editor 7                # editor test id 7
+scripts/dev/ze-run.sh editor-nav bin/ze-test editor -p nav         # editor tests matching "nav"
+scripts/dev/ze-run.sh exabgp-from-20 bin/ze-test exabgp --start 20 # resume ExaBGP compatibility
 ```
 <!-- source: internal/test/runner/selection.go -- Selection -->
 <!-- source: internal/test/runner/display.go -- TestFinished -->
@@ -337,13 +347,13 @@ fuzz corpus entry becomes a regression test automatically.
 | I want to... | Run |
 |--------------|-----|
 | Check my setup works | `make ze-smoke-verify` |
-| Run one Go test | `CGO_ENABLED=0 go test -run TestName ./pkg/...` |
-| Run one functional test | `bin/ze-test bgp plugin 42` |
+| Run one Go test | `make ze-unit-pkg-test PKG=./pkg/... RUN=TestName` |
+| Run one functional test | `scripts/dev/ze-run.sh plugin-42 bin/ze-test bgp plugin 42` |
 | Run tests for what I changed | `make ze-unit-bgp-test` (pick your group) |
 | Pre-commit check | `make ze-precommit-verify` |
 | Type-check every supported direct feature omission | `make ze-staticcheck-feature-matrix-check` |
 | See all test targets | `make help-test` |
-| List functional tests | `bin/ze-test bgp encode --list` |
+| List functional tests | `scripts/dev/ze-run.sh encode-list bin/ze-test bgp encode --list` |
 | Run fuzz for one target | `make ze-fuzz-test-one FUZZ=FuzzName PKG=./path/... TIME=30s` |
 | Check test coverage | `make ze-unit-test-coverage` then open `coverage.html` |
 | Mutation test changed files | `make ze-mutation-test-changed` |

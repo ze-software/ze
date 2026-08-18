@@ -20,10 +20,16 @@ CHAOS_PEERS    ?= 4
 CHAOS_ROUTES   ?= 10
 
 ze-chaos-lint:
+	@scripts/dev/ze-run.sh ze-chaos-lint $(MAKE) --no-print-directory _ze-chaos-lint-impl
+
+_ze-chaos-lint-impl:
 	@echo "Running chaos linter..."
-	@golangci-lint run $(CHAOS_PACKAGES)
+	@$(ZE_LINT) run $(CHAOS_PACKAGES)
 
 ze-chaos-unit-test:
+	@scripts/dev/ze-run.sh ze-chaos-unit-test $(MAKE) --no-print-directory _ze-chaos-unit-test-impl
+
+_ze-chaos-unit-test-impl:
 	@echo "Running chaos unit tests ($(GO_TEST_RACE_LABEL))..."
 	$(GO_TEST_RACE) $(CHAOS_PACKAGES)
 
@@ -32,10 +38,16 @@ ze-chaos-functional-test: $(ZEBIN_CHAOS)
 		--peers $(CHAOS_PEERS) --routes $(CHAOS_ROUTES) \
 		--seed $(CHAOS_SEED) --quiet
 
-ze-chaos-integration-test: $(ZEBIN_TEST)
+ze-chaos-integration-test:
+	@scripts/dev/ze-run.sh ze-chaos-integration-test $(MAKE) --no-print-directory _ze-chaos-integration-test-impl
+
+_ze-chaos-integration-test-impl: $(ZEBIN_TEST)
 	@$(ZEBIN_TEST) bgp chaos --all -t 40s
 
-ze-chaos-web-test: $(ZEBIN_TEST)
+ze-chaos-web-test:
+	@scripts/dev/ze-run.sh ze-chaos-web-test $(MAKE) --no-print-directory _ze-chaos-web-test-impl
+
+_ze-chaos-web-test-impl: $(ZEBIN_TEST)
 	@$(ZEBIN_TEST) bgp chaos-web --all
 
 ze-chaos-test: ze-chaos-unit-test ze-chaos-functional-test ze-chaos-integration-test ze-chaos-web-test
@@ -48,3 +60,8 @@ ze-chaos-verify:
 
 _ze-chaos-verify-impl: ze-chaos-lint ze-chaos-unit-test ze-chaos-functional-test ze-chaos-integration-test ze-chaos-web-test
 	@echo "Chaos verification passed"
+
+# The `_<target>-impl` half of every admitted pair defined in this file.
+# The public half calls the admission wrapper and this half holds the work;
+# see the job-admission block above ZE_RUN_SLOTS in the Makefile.
+.PHONY: _ze-chaos-lint-impl _ze-chaos-unit-test-impl _ze-chaos-integration-test-impl _ze-chaos-web-test-impl

@@ -35,14 +35,20 @@
 INTEROP_SCENARIO ?=
 
 ze-interop-test:
+	@scripts/dev/ze-run.sh ze-interop-test $(MAKE) --no-print-directory _ze-interop-test-impl
+
+_ze-interop-test-impl:
 	@echo "Running interop tests (requires Docker)..."
 	@python3 test/interop/run.py $(INTEROP_SCENARIO)
 
 IPSEC_INTEROP_SCENARIO ?=
 
 ze-interop-ipsec-test:
+	@scripts/dev/ze-run.sh ze-interop-ipsec-test $(MAKE) --no-print-directory _ze-interop-ipsec-test-impl
+
+_ze-interop-ipsec-test-impl:
 	@echo "Running IPsec interop tests (requires Docker + privileged containers)..."
-	python3 test/ipsec-interop/run.py $(IPSEC_INTEROP_SCENARIO)
+	python3 test/interop-ipsec/run.py $(IPSEC_INTEROP_SCENARIO)
 
 # ─── netlab ─────────────────────────────────────────────────────────────────
 #
@@ -68,27 +74,42 @@ ze-netlab-render-check: $(ZEBIN_ZE)
 
 STRESS_SCENARIO ?=
 
-ze-stress-test: $(ZEBIN_ZE)
+ze-stress-test:
+	@scripts/dev/ze-run.sh ze-stress-test $(MAKE) --no-print-directory _ze-stress-test-impl
+
+_ze-stress-test-impl: $(ZEBIN_ZE)
 	@echo "Running stress tests with ze-test peer injector (requires root + netns)..."
 	@sudo ZE_BINARY=$(CURDIR)/$(ZEBIN_ZE) VERBOSE=$(VERBOSE) SESSION_TIMEOUT=$(SESSION_TIMEOUT) \
 		python3 test/stress/run.py $(STRESS_SCENARIO)
 
 ze-stress-bird-test:
+	@scripts/dev/ze-run.sh ze-stress-bird-test $(MAKE) --no-print-directory _ze-stress-bird-test-impl
+
+_ze-stress-bird-test-impl:
 	@echo "Running BIRD baseline stress test (requires root + bird2 + netns)..."
 	@sudo VERBOSE=$(VERBOSE) SESSION_TIMEOUT=$(SESSION_TIMEOUT) \
 		python3 test/stress/run.py 04-bulk-ipv4-bird
 
-ze-stress-profile: $(ZEBIN_ZE)
+ze-stress-profile:
+	@scripts/dev/ze-run.sh ze-stress-profile $(MAKE) --no-print-directory _ze-stress-profile-impl
+
+_ze-stress-profile-impl: $(ZEBIN_ZE)
 	@echo "Running 1M profile stress test (requires root + netns)..."
 	@sudo ZE_BINARY=$(CURDIR)/$(ZEBIN_ZE) ZE_PPROF=1 VERBOSE=$(VERBOSE) \
 		python3 test/stress/run.py 05-profile-1m
 
 # Evidence-tier concurrency stress tests (build-tagged, out of ze-precommit-verify per R-6).
 ze-stress-web-test:
+	@scripts/dev/ze-run.sh ze-stress-web-test $(MAKE) --no-print-directory _ze-stress-web-test-impl
+
+_ze-stress-web-test-impl:
 	@echo "Running web concurrent-edit stress test (>=50 editor sessions, $(GO_TEST_RACE_LABEL))..."
 	CGO_ENABLED=1 $(GO) test -tags 'ze_core stress' -race -count=1 -timeout 300s ./internal/component/web/ -run TestWebConcurrentEditStress -v
 
 ze-stress-fleet-test:
+	@scripts/dev/ze-run.sh ze-stress-fleet-test $(MAKE) --no-print-directory _ze-stress-fleet-test-impl
+
+_ze-stress-fleet-test-impl:
 	@echo "Running fleet many-clients perf test (128 managed clients, real hub listener)..."
 	$(GO) test -tags 'ze_core fleetperf' -count=1 -timeout 300s ./cmd/ze/hub/ -run TestFleetManyClientsPerf -v
 
@@ -97,32 +118,53 @@ ze-stress-fleet-test:
 ze-live-test: ze-live-rpki-test
 
 ze-live-rpki-test:
+	@scripts/dev/ze-run.sh ze-live-rpki-test $(MAKE) --no-print-directory _ze-live-rpki-test-impl
+
+_ze-live-rpki-test-impl:
 	@echo "Running RPKI live test (requires Docker + internet)..."
 	$(GO) test -v -tags live -timeout 180s -count=1 ./internal/component/bgp/plugins/rpki/... -run TestLive
 
 # ─── Integration (network namespace) ────────────────────────────────────────
 
 ze-integration-iface-test:
+	@scripts/dev/ze-run.sh ze-integration-iface-test $(MAKE) --no-print-directory _ze-integration-iface-test-impl
+
+_ze-integration-iface-test-impl:
 	@echo "Running iface integration tests ($(GO_TEST_RACE_LABEL), requires CAP_NET_ADMIN)..."
 	CGO_ENABLED=1 $(GO) test -tags integration -count=1 -race -timeout 120s ./internal/component/iface/...
 
 ze-integration-fib-test:
+	@scripts/dev/ze-run.sh ze-integration-fib-test $(MAKE) --no-print-directory _ze-integration-fib-test-impl
+
+_ze-integration-fib-test-impl:
 	@echo "Running FIB kernel integration tests ($(GO_TEST_RACE_LABEL), requires CAP_NET_ADMIN)..."
 	CGO_ENABLED=1 $(GO) test -tags integration -count=1 -race -timeout 120s ./internal/plugins/fib/kernel/...
 
 ze-integration-firewall-test:
+	@scripts/dev/ze-run.sh ze-integration-firewall-test $(MAKE) --no-print-directory _ze-integration-firewall-test-impl
+
+_ze-integration-firewall-test-impl:
 	@echo "Running firewall nft integration tests ($(GO_TEST_RACE_LABEL), requires CAP_NET_ADMIN)..."
 	CGO_ENABLED=1 $(GO) test -tags integration -count=1 -race -timeout 120s ./internal/plugins/firewall/nft/...
 
 ze-integration-traffic-test:
+	@scripts/dev/ze-run.sh ze-integration-traffic-test $(MAKE) --no-print-directory _ze-integration-traffic-test-impl
+
+_ze-integration-traffic-test-impl:
 	@echo "Running traffic-control netlink integration tests ($(GO_TEST_RACE_LABEL), requires CAP_NET_ADMIN)..."
 	CGO_ENABLED=1 $(GO) test -tags integration -count=1 -race -timeout 120s ./internal/plugins/traffic/netlink/...
 
 ze-integration-gtsm-test:
+	@scripts/dev/ze-run.sh ze-integration-gtsm-test $(MAKE) --no-print-directory _ze-integration-gtsm-test-impl
+
+_ze-integration-gtsm-test-impl:
 	@echo "Running BGP GTSM / TTL-security socket-option integration tests ($(GO_TEST_RACE_LABEL), linux)..."
 	CGO_ENABLED=1 $(GO) test -tags integration -count=1 -race -timeout 120s ./internal/core/network/... ./internal/component/bgp/reactor/...
 
 ze-integration-as112-test:
+	@scripts/dev/ze-run.sh ze-integration-as112-test $(MAKE) --no-print-directory _ze-integration-as112-test-impl
+
+_ze-integration-as112-test-impl:
 	@echo "Running AS112 privileged-port-53 DNS-serving integration tests ($(GO_TEST_RACE_LABEL), requires CAP_NET_BIND_SERVICE/root)..."
 	CGO_ENABLED=1 $(GO) test -tags integration -count=1 -race -timeout 60s ./internal/plugins/as112/...
 
@@ -157,7 +199,10 @@ ze-integration-test: ze-integration-iface-test ze-integration-fib-test ze-integr
 # the binaries are current before setcap runs.
 ZE_NETNS_SUITES ?= firewall policy ospf ospfv3
 ZE_NETNS_CAPS   ?= cap_net_admin,cap_net_raw,cap_net_bind_service+ep
-ze-netns-test: $(ZEBIN_ZE) $(ZEBIN_STRIPPED) $(ZEBIN_TEST)
+ze-netns-test:
+	@scripts/dev/ze-run.sh ze-netns-test $(MAKE) --no-print-directory _ze-netns-test-impl
+
+_ze-netns-test-impl: $(ZEBIN_ZE) $(ZEBIN_STRIPPED) $(ZEBIN_TEST)
 	@[ "$$(uname)" = "Linux" ] || { echo "ze-netns-test requires Linux (netns/nft); on macOS use ze-qemu-netns-test"; exit 1; }
 	@command -v setcap >/dev/null 2>&1 || { echo "error: setcap not found (install libcap2-bin / libcap)"; exit 1; }
 	@command -v nft    >/dev/null 2>&1 || { echo "error: nft not found (install nftables)"; exit 1; }
@@ -188,7 +233,7 @@ ze-netns-test: $(ZEBIN_ZE) $(ZEBIN_STRIPPED) $(ZEBIN_TEST)
 # Six test/plugin tests need real kernel capabilities and are therefore NOT
 # provable by `make ze-functional-plugin-test` on an unprivileged host:
 #
-#   show-l2tp-history / show-l2tp-sessions / show-l2tp-session-detail /
+#   l2tp-history-show / l2tp-sessions-show / l2tp-session-detail-show /
 #   teardown-session / teardown-session-all
 #       Each establishes an L2TP session. `ze.l2tp.skip-kernel-probe=true`
 #       bypasses only the modprobe at Start (internal/component/l2tp/
@@ -200,7 +245,7 @@ ze-netns-test: $(ZEBIN_ZE) $(ZEBIN_STRIPPED) $(ZEBIN_TEST)
 #       session down, and the observer reports "session never established".
 #       The kernel then also needs a PPPoL2TP socket and /dev/ppp, which is
 #       mode 0600 root:root, hence cap_dac_override.
-#   show-system-kernel-log
+#   system-kernel-log-show
 #       Reads /dev/kmsg, which a host with kernel.dmesg_restrict=1 refuses
 #       without CAP_SYSLOG.
 #
@@ -246,8 +291,8 @@ ze-netns-test: $(ZEBIN_ZE) $(ZEBIN_STRIPPED) $(ZEBIN_TEST)
 # visible connection to the privileged run that caused it.
 ZE_NETNS_PORT_LOCK_RESTORE = sudo chown -R $$(id -u):$$(id -g) "$${TMPDIR:-/tmp}/ze-test-port-locks" 2>/dev/null || true
 ZE_NETNS_PLUGIN_CAPS ?= cap_net_admin,cap_net_raw,cap_net_bind_service,cap_dac_override,cap_syslog+ep
-# Only show-system-kernel-log remains here. The five L2TP tests this target was
-# built for (show-l2tp-history, show-l2tp-session-detail, show-l2tp-sessions,
+# Only system-kernel-log-show remains here. The five L2TP tests this target was
+# built for (l2tp-history-show, l2tp-session-detail-show, l2tp-sessions-show,
 # teardown-session, teardown-session-all) now set
 # ze.l2tp.disable-kernel-dataplane, so no kernel worker is built, nothing is
 # programmed into the kernel, and they pass in a plain unprivileged
@@ -256,14 +301,17 @@ ZE_NETNS_PLUGIN_CAPS ?= cap_net_admin,cap_net_raw,cap_net_bind_service,cap_dac_o
 # and the netns vehicle is ~5x slower (20.1s against their 20s budget, i.e. an
 # outright timeout) for a run that exercises the same control-plane path.
 #
-# show-system-kernel-log cannot be freed the same way: it reads /dev/kmsg, which
+# system-kernel-log-show cannot be freed the same way: it reads /dev/kmsg, which
 # is crw------- root root and gated by kernel.dmesg_restrict, so it needs
 # cap_syslog + cap_dac_override rather than a knob that skips work.
 #
 # Adding a test back here is right whenever it genuinely needs a capability;
 # adding one that merely CAN run here is not.
-ZE_NETNS_PLUGIN_TESTS ?= show-system-kernel-log
+ZE_NETNS_PLUGIN_TESTS ?= system-kernel-log-show
 ze-netns-plugin-test:
+	@scripts/dev/ze-run.sh ze-netns-plugin-test $(MAKE) --no-print-directory _ze-netns-plugin-test-impl
+
+_ze-netns-plugin-test-impl:
 	@[ "$$(uname)" = "Linux" ] || { echo "error: ze-netns-plugin-test requires Linux (netns + kernel L2TP); there is no macOS equivalent"; exit 1; }
 	@command -v setcap >/dev/null 2>&1 || { echo "error: setcap not found (install libcap2-bin / libcap)"; exit 1; }
 	@sudo -n true >/dev/null 2>&1 || { echo "error: passwordless sudo required (the runner needs CAP_SYS_ADMIN to create the per-test netns)"; exit 1; }
@@ -293,34 +341,58 @@ ze-netns-plugin-test:
 # ─── Deployment evidence ────────────────────────────────────────────────────
 
 ze-deployment-vpp-test:
+	@scripts/dev/ze-run.sh ze-deployment-vpp-test $(MAKE) --no-print-directory _ze-deployment-vpp-test-impl
+
+_ze-deployment-vpp-test-impl:
 	@echo "Running real VPP daemon deployment test (requires Docker + privileged container)..."
 	python3 scripts/evidence/effective-vpp.py
 
 ze-deployment-vpp-iface-test:
+	@scripts/dev/ze-run.sh ze-deployment-vpp-iface-test $(MAKE) --no-print-directory _ze-deployment-vpp-iface-test-impl
+
+_ze-deployment-vpp-iface-test-impl:
 	@echo "Running real VPP interface-feature deployment test (tunnels/mirror/wireguard/LCP; requires Docker + privileged container)..."
 	python3 scripts/evidence/effective-vpp-iface.py
 
 ze-evidence-release-candidate-check:
+	@scripts/dev/ze-run.sh ze-evidence-release-candidate-check $(MAKE) --no-print-directory _ze-evidence-release-candidate-check-impl
+
+_ze-evidence-release-candidate-check-impl:
 	@echo "Running clean release-candidate verification (requires Docker + clean worktree)..."
 	bash scripts/evidence/effective-verify.sh
 
 ze-deployment-l2tp-test:
+	@scripts/dev/ze-run.sh ze-deployment-l2tp-test $(MAKE) --no-print-directory _ze-deployment-l2tp-test-impl
+
+_ze-deployment-l2tp-test-impl:
 	@echo "Running external L2TP peer deployment test (requires Docker + privileged container)..."
 	python3 scripts/evidence/effective-l2tp-peer.py
 
 ze-deployment-l2tp-ppp-test:
+	@scripts/dev/ze-run.sh ze-deployment-l2tp-ppp-test $(MAKE) --no-print-directory _ze-deployment-l2tp-ppp-test-impl
+
+_ze-deployment-l2tp-ppp-test-impl:
 	@echo "Running full L2TP PPP/NCP peer deployment test (requires Linux root + xl2tpd + pppd + ping + PPPoL2TP kernel support)..."
 	python3 scripts/evidence/effective-l2tp-ppp.py
 
 ze-deployment-docker-l2tp-ppp-test:
+	@scripts/dev/ze-run.sh ze-deployment-docker-l2tp-ppp-test $(MAKE) --no-print-directory _ze-deployment-docker-l2tp-ppp-test-impl
+
+_ze-deployment-docker-l2tp-ppp-test-impl:
 	@echo "Running L2TP PPP/NCP peer-isolated Docker lab (requires Docker host PPPoL2TP kernel support)..."
-	python3 test/l2tp-interop/run.py
+	python3 test/interop-l2tp/run.py
 
 ze-deployment-docker-pppoe-accel-test:
+	@scripts/dev/ze-run.sh ze-deployment-docker-pppoe-accel-test $(MAKE) --no-print-directory _ze-deployment-docker-pppoe-accel-test-impl
+
+_ze-deployment-docker-pppoe-accel-test-impl:
 	@echo "Running PPPoE client-vs-accel-ppp Docker lab (requires Docker host PPPoE kernel support)..."
-	python3 test/pppoe-interop/run.py
+	python3 test/interop-pppoe/run.py
 
 ze-deployment-gokrazy-l2tp-ppp-test:
+	@scripts/dev/ze-run.sh ze-deployment-gokrazy-l2tp-ppp-test $(MAKE) --no-print-directory _ze-deployment-gokrazy-l2tp-ppp-test-impl
+
+_ze-deployment-gokrazy-l2tp-ppp-test-impl:
 	@echo "Running gokrazy appliance L2TP PPP/NCP deployment test (requires Linux root + QEMU + xl2tpd + pppd + PPPoL2TP support)..."
 	python3 scripts/evidence/effective-gokrazy-l2tp-ppp.py
 
@@ -431,7 +503,7 @@ endef
 # The QEMU ze build deliberately OMITS ZE_LDFLAGS (the version/buildDate -X
 # stamps). The .ci suites reuse this binary via ZE_TEST_NO_BUILD=1, and the
 # native parse runner (cmd/ze-test buildZe) builds ze WITHOUT version ldflags,
-# so test/parse/cli-show-version.ci asserts `ze show version` prints "ze dev".
+# so test/parse/cli-version-show.ci asserts `ze show version` prints "ze dev".
 # Stamping a real version here makes that test fail spuriously. Keep it unstamped.
 #
 # The tag set MUST match internal/test/runner TestBuildTags (runner.go:50):
@@ -473,7 +545,10 @@ CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags '$(ZE_QEMU_STRI
 CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags '$(ZE_QEMU_TEST_TAGS)' -o $(ZE_QEMU_TEST_BIN) ./cmd/ze
 endef
 
-ze-qemu-test-all: ze-host-build
+ze-qemu-test-all:
+	@scripts/dev/ze-run.sh ze-qemu-test-all $(MAKE) --no-print-directory _ze-qemu-test-all-impl
+
+_ze-qemu-test-all-impl: ze-host-build
 	$(ze-qemu-kernel-guard)
 	$(ze-qemu-crossbuild)
 	@echo "Running full test suite in QEMU Linux VM (host-compiled binaries; no in-VM ze/ze-test compile)..."
@@ -495,7 +570,10 @@ ze-qemu-test-all: ze-host-build
 # web is skipped (browser-driven, not a kernel-feature surface); every other
 # suite runs so a needs-linux test in any of them (plugin, firewall, l2tp, ...)
 # is exercised.
-ze-qemu-needs-linux-test: ze-host-build
+ze-qemu-needs-linux-test:
+	@scripts/dev/ze-run.sh ze-qemu-needs-linux-test $(MAKE) --no-print-directory _ze-qemu-needs-linux-test-impl
+
+_ze-qemu-needs-linux-test-impl: ze-host-build
 	$(ze-qemu-kernel-guard)
 	$(ze-qemu-crossbuild)
 	@echo "Running ONLY option=needs-linux tests in QEMU Linux VM (ZE_QEMU_LINUX_ONLY=1)..."
@@ -617,6 +695,9 @@ ZE_QEMU_INTEGRATION_PKGS = $(shell grep -rl --include='*.go' '^//go:build integr
 # Separate invocation because it needs its own tag set, which the
 # integration-tagged packages do not share.
 ze-qemu-integration-test:
+	@scripts/dev/ze-run.sh ze-qemu-integration-test $(MAKE) --no-print-directory _ze-qemu-integration-test-impl
+
+_ze-qemu-integration-test-impl:
 	@echo "Running integration tests in QEMU Linux VM (requires qemu + internet for first run)..."
 	python3 scripts/evidence/qemu-run.py \
 		--packages "nftables iproute2 iputils-ping kmod iptables" \
@@ -629,6 +710,9 @@ ze-qemu-integration-test:
 # untouched. The R-2 host-netns guard unit test (refuseHostNetnsFirewall) is covered
 # separately by ze-qemu-integration-test (it is in the nft integration package).
 ze-qemu-netns-test:
+	@scripts/dev/ze-run.sh ze-qemu-netns-test $(MAKE) --no-print-directory _ze-qemu-netns-test-impl
+
+_ze-qemu-netns-test-impl:
 	# This is the functional-test DUT daemon: zetest pulls in the test-only
 	# plugins (internal/test/plugins/all) the .ci suites need -- it is NOT a
 	# production build (the real $(ZEBIN_ZE) has neither zetest nor ze_test). It builds
@@ -662,7 +746,10 @@ ze-qemu-netns-test:
 # reuses that target's in-VM driver and selects the suite with
 # ZE_NETNS_QEMU_SUITES, so the setcap / uid-drop / host-safety machinery has one
 # implementation rather than two.
-ze-qemu-pppoe-test: ze-host-build
+ze-qemu-pppoe-test:
+	@scripts/dev/ze-run.sh ze-qemu-pppoe-test $(MAKE) --no-print-directory _ze-qemu-pppoe-test-impl
+
+_ze-qemu-pppoe-test-impl: ze-host-build
 	$(ze-qemu-kernel-guard)
 	$(ze-qemu-crossbuild)
 	@echo "Running the PPPoE .ci suite under the netns launch mode in QEMU (runtime kernel)..."
@@ -673,18 +760,27 @@ ze-qemu-pppoe-test: ze-host-build
 		--run 'QEMU_GOARCH=$(QEMU_GOARCH) ZE_NETNS_QEMU_SUITES=pppoe ZE_QEMU_BIN="$(ZE_QEMU_BIN)" ZE_QEMU_STRIPPED_BIN="$(ZE_QEMU_STRIPPED_BIN)" ZE_QEMU_TEST_BIN="$(ZE_QEMU_TEST_BIN)" python3 scripts/evidence/netns_qemu.py'
 
 ze-qemu-ldp-frr-test:
+	@scripts/dev/ze-run.sh ze-qemu-ldp-frr-test $(MAKE) --no-print-directory _ze-qemu-ldp-frr-test-impl
+
+_ze-qemu-ldp-frr-test-impl:
 	@echo "Running LDP interop test against FRR ldpd in QEMU Linux VM (installs frr)..."
 	python3 scripts/evidence/qemu-run.py \
 		--packages "frr iproute2 kmod" \
 		--run 'go test -tags integration -count=1 -timeout 150s -run TestLDPInteropFRR ./internal/plugins/ldp/...'
 
 ze-qemu-isis-frr-test:
+	@scripts/dev/ze-run.sh ze-qemu-isis-frr-test $(MAKE) --no-print-directory _ze-qemu-isis-frr-test-impl
+
+_ze-qemu-isis-frr-test-impl:
 	@echo "Running IS-IS interop test against FRR isisd in QEMU Linux VM (installs frr)..."
 	python3 scripts/evidence/qemu-run.py \
 		--packages "frr iproute2 kmod tcpdump" \
 		--run 'go test -tags integration -count=1 -timeout 180s -run TestISISInteropFRR ./internal/plugins/isis/...'
 
 ze-qemu-install-test:
+	@scripts/dev/ze-run.sh ze-qemu-install-test $(MAKE) --no-print-directory _ze-qemu-install-test-impl
+
+_ze-qemu-install-test-impl:
 	@echo "Running full installer-chain QEMU evidence (builds Go initrd + image, boots installer, verifies SSH login)..."
 	@echo "Set ZE_INSTALL_KERNEL=/path/to/vmlinuz (IP_PNP_DHCP/VIRTIO_NET/VIRTIO_BLK/EXT4 built in); self-skips otherwise."
 	@# macOS: point docker at colima's socket when DOCKER_HOST is unset, else the
@@ -696,11 +792,17 @@ ze-qemu-install-test:
 	fi
 
 ze-qemu-vpp-hugepages-test:
+	@scripts/dev/ze-run.sh ze-qemu-vpp-hugepages-test $(MAKE) --no-print-directory _ze-qemu-vpp-hugepages-test-impl
+
+_ze-qemu-vpp-hugepages-test-impl:
 	@echo "Running VPP hugepage boot-reservation QEMU evidence (builds an appliance with image.hugepages, boots it, asserts show host kernel + show host memory over the Ze CLI)..."
 	@echo "Self-skips when qemu / sshpass / e2fsprogs / go are absent. On Linux needs the kvm group (make ze-dev-setup checks it as kvm-access)."
 	python3 scripts/evidence/effective-vpp-hugepages-qemu.py
 
 ze-qemu-install-iso-test:
+	@scripts/dev/ze-run.sh ze-qemu-install-iso-test $(MAKE) --no-print-directory _ze-qemu-install-iso-test-impl
+
+_ze-qemu-install-iso-test-impl:
 	@echo "Running appliance ISO installer QEMU evidence (builds initrd + image + ISO, boots ISO, verifies SSH login)..."
 	@echo "Set ZE_INSTALL_KERNEL=/path/to/vmlinuz (IP_PNP_DHCP/VIRTIO_NET/VIRTIO_BLK/EXT4/ISO9660/SR built in); self-skips otherwise."
 	@if [ "$$(uname)" = "Darwin" ] && [ -z "$$DOCKER_HOST" ] && [ -S "$$HOME/.colima/default/docker.sock" ]; then \
@@ -710,6 +812,9 @@ ze-qemu-install-iso-test:
 	fi
 
 ze-qemu-install-scenarios-test:
+	@scripts/dev/ze-run.sh ze-qemu-install-scenarios-test $(MAKE) --no-print-directory _ze-qemu-install-scenarios-test-impl
+
+_ze-qemu-install-scenarios-test-impl:
 	@echo "Running installer failure-path/pin/rescue QEMU evidence (R-6 fault, ze.mac pin, rescue console)..."
 	@echo "Set ZE_INSTALL_KERNEL=/path/to/vmlinuz (IP_PNP_DHCP/VIRTIO_NET/VIRTIO_BLK/EXT4 built in); self-skips otherwise."
 	@if [ "$$(uname)" = "Darwin" ] && [ -z "$$DOCKER_HOST" ] && [ -S "$$HOME/.colima/default/docker.sock" ]; then \
@@ -719,6 +824,9 @@ ze-qemu-install-scenarios-test:
 	fi
 
 ze-qemu-install-ventoy-test:
+	@scripts/dev/ze-run.sh ze-qemu-install-ventoy-test $(MAKE) --no-print-directory _ze-qemu-install-ventoy-test-impl
+
+_ze-qemu-install-ventoy-test-impl:
 	@echo "Running installer Ventoy ISO-on-FAT QEMU evidence (ISO as a file on a FAT data disk)..."
 	@echo "Needs grub-mkstandalone + xorriso + mtools; set ZE_INSTALL_KERNEL (ISO9660/VFAT/BLK_DEV_LOOP built in); self-skips otherwise."
 	@if [ "$$(uname)" = "Darwin" ] && [ -z "$$DOCKER_HOST" ] && [ -S "$$HOME/.colima/default/docker.sock" ]; then \
@@ -727,7 +835,10 @@ ze-qemu-install-ventoy-test:
 		python3 scripts/evidence/effective-install-ventoy-qemu.py; \
 	fi
 
-ze-qemu-l2tp-ppp-test: ze-host-build
+ze-qemu-l2tp-ppp-test:
+	@scripts/dev/ze-run.sh ze-qemu-l2tp-ppp-test $(MAKE) --no-print-directory _ze-qemu-l2tp-ppp-test-impl
+
+_ze-qemu-l2tp-ppp-test-impl: ze-host-build
 	$(ze-qemu-kernel-guard)
 	@echo "Running L2TP PPP/NCP peer test in QEMU Linux VM with gokrazy kernel..."
 	python3 scripts/evidence/qemu-run.py \
@@ -736,12 +847,15 @@ ze-qemu-l2tp-ppp-test: ze-host-build
 		--run 'python3 scripts/evidence/effective-l2tp-ppp.py' \
 		--timeout 600
 
-# QEMU sibling of test/pppoe-interop/ (the Docker lab). Runs Ze's PPPoE client
+# QEMU sibling of test/interop-pppoe/ (the Docker lab). Runs Ze's PPPoE client
 # against a real accel-ppp AC in two netns inside the runtime kernel (which has
 # CONFIG_PPPOE built in). accel-ppp is installed from Alpine community.
 # `make ze-kernel-build` builds and stages the kernel to tmp/kernel/vmlinuz, and
 # rebuilds when runtime.config changes so CONFIG_PPPOE is picked up.
-ze-qemu-pppoe-accel-test: ze-host-build
+ze-qemu-pppoe-accel-test:
+	@scripts/dev/ze-run.sh ze-qemu-pppoe-accel-test $(MAKE) --no-print-directory _ze-qemu-pppoe-accel-test-impl
+
+_ze-qemu-pppoe-accel-test-impl: ze-host-build
 	$(ze-qemu-kernel-guard)
 	@echo "Running PPPoE client-vs-accel-ppp test in QEMU Linux VM with runtime kernel..."
 	python3 scripts/evidence/qemu-run.py \
@@ -762,6 +876,9 @@ ze-qemu-pppoe-accel-test: ze-host-build
 # ~30-minute `make ze-kernel-build` build first, matching the isis-frr/ldp-frr labs.
 # keepalived comes from Alpine community (v2.3.1, built with VRRP + VRRP_VMAC).
 ze-qemu-vrrp-keepalived-test:
+	@scripts/dev/ze-run.sh ze-qemu-vrrp-keepalived-test $(MAKE) --no-print-directory _ze-qemu-vrrp-keepalived-test-impl
+
+_ze-qemu-vrrp-keepalived-test-impl:
 	@echo "Running VRRP-vs-keepalived interop test in QEMU Linux VM (installs keepalived)..."
 	python3 scripts/evidence/qemu-run.py \
 		--packages "keepalived tcpdump iproute2 iputils-ping kmod python3" \
@@ -773,7 +890,10 @@ ze-qemu-vrrp-keepalived-test:
 # Loads the pure-Go programs, attaches them to a veth pair, injects frames via
 # AF_PACKET, asserts the maps, and scrapes /metrics. Validates the kernel
 # additions end-to-end, not just on the stock Alpine kernel.
-ze-qemu-traffic-usage-test: ze-host-build
+ze-qemu-traffic-usage-test:
+	@scripts/dev/ze-run.sh ze-qemu-traffic-usage-test $(MAKE) --no-print-directory _ze-qemu-traffic-usage-test-impl
+
+_ze-qemu-traffic-usage-test-impl: ze-host-build
 	$(ze-qemu-kernel-guard)
 	@echo "Running traffic-usage eBPF TCX test in QEMU Linux VM with the runtime kernel..."
 	python3 scripts/evidence/qemu-run.py \
@@ -781,3 +901,8 @@ ze-qemu-traffic-usage-test: ze-host-build
 		--packages "iproute2 kmod" \
 		--run 'go test -tags integration -count=1 -timeout 180s -run "TestProgram_|TestAttachTCX_CountsTraffic|TestMetricsScrape" ./internal/plugins/trafficusage/...' \
 		--timeout 600
+
+# The `_<target>-impl` half of every admitted pair defined in this file.
+# The public half calls the admission wrapper and this half holds the work;
+# see the job-admission block above ZE_RUN_SLOTS in the Makefile.
+.PHONY: _ze-interop-test-impl _ze-interop-ipsec-test-impl _ze-stress-test-impl _ze-stress-bird-test-impl _ze-stress-profile-impl _ze-stress-web-test-impl _ze-stress-fleet-test-impl _ze-live-rpki-test-impl _ze-integration-iface-test-impl _ze-integration-fib-test-impl _ze-integration-firewall-test-impl _ze-integration-traffic-test-impl _ze-integration-gtsm-test-impl _ze-integration-as112-test-impl _ze-netns-test-impl _ze-netns-plugin-test-impl _ze-deployment-vpp-test-impl _ze-deployment-vpp-iface-test-impl _ze-deployment-l2tp-test-impl _ze-deployment-l2tp-ppp-test-impl _ze-deployment-docker-l2tp-ppp-test-impl _ze-deployment-docker-pppoe-accel-test-impl _ze-deployment-gokrazy-l2tp-ppp-test-impl _ze-evidence-release-candidate-check-impl _ze-qemu-test-all-impl _ze-qemu-needs-linux-test-impl _ze-qemu-integration-test-impl _ze-qemu-netns-test-impl _ze-qemu-pppoe-test-impl _ze-qemu-ldp-frr-test-impl _ze-qemu-isis-frr-test-impl _ze-qemu-install-test-impl _ze-qemu-vpp-hugepages-test-impl _ze-qemu-install-iso-test-impl _ze-qemu-install-scenarios-test-impl _ze-qemu-install-ventoy-test-impl _ze-qemu-l2tp-ppp-test-impl _ze-qemu-pppoe-accel-test-impl _ze-qemu-vrrp-keepalived-test-impl _ze-qemu-traffic-usage-test-impl

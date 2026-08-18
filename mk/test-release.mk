@@ -49,7 +49,10 @@ ze-evidence-release-preflight:
 
 # ─── Perf gate ─────────────────────────────────────────────────────────────
 
-ze-evidence-perf-record: ze-perf-build
+ze-evidence-perf-record:
+	@scripts/dev/ze-run.sh ze-evidence-perf-record $(MAKE) --no-print-directory _ze-evidence-perf-record-impl
+
+_ze-evidence-perf-record-impl: ze-perf-build
 	@echo "Running perf benchmarks (ze DUT only)..."
 	@$(MAKE) --no-print-directory ze-perf-bench PERF_DUT=ze
 	@echo "Appending result to history..."
@@ -80,7 +83,10 @@ ze-evidence-functional-test: $(ZEBIN_TEST)
 
 # ─── Release evidence ─────────────────────────────────────────────────────
 
-ze-evidence-release-verify: ze-evidence-release-preflight $(ZEBIN_ZE) $(ZEBIN_TEST)
+ze-evidence-release-verify:
+	@scripts/dev/ze-run.sh ze-evidence-release-verify $(MAKE) --no-print-directory _ze-evidence-release-verify-impl
+
+_ze-evidence-release-verify-impl: ze-evidence-release-preflight $(ZEBIN_ZE) $(ZEBIN_TEST)
 	@failed=0; failed_names=""; skipped_names=""; total=0; \
 	has_docker=false; has_qemu=false; \
 	if command -v docker >/dev/null 2>&1; then has_docker=true; fi; \
@@ -188,3 +194,8 @@ ze-evidence-release-verify: ze-evidence-release-preflight $(ZEBIN_ZE) $(ZEBIN_TE
 	else \
 		printf "\033[32mPASS  all %d categories\033[0m\n\n" $$total; \
 	fi
+
+# The `_<target>-impl` half of every admitted pair defined in this file.
+# The public half calls the admission wrapper and this half holds the work;
+# see the job-admission block above ZE_RUN_SLOTS in the Makefile.
+.PHONY: _ze-evidence-perf-record-impl _ze-evidence-release-verify-impl

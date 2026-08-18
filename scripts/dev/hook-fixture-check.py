@@ -52,6 +52,14 @@ ROOT = os.environ.get("CLAUDE_PROJECT_DIR") or os.path.abspath(
 HOOKS = os.path.join(ROOT, ".claude", "hooks")
 DEV = os.path.abspath(os.path.dirname(__file__))
 
+# This runner is not a sub-make. Under `make ze-unit-hook-test` it inherits
+# MAKELEVEL and MAKEFLAGS, so every `make` a fixture starts announces
+# "Entering directory" on stdout -- and the session-id fixtures compare that
+# stdout byte for byte against the path the target prints. Dropped once, here,
+# because every child environment below derives from os.environ.
+for _make_var in ("MAKELEVEL", "MAKEFLAGS", "MFLAGS"):
+    os.environ.pop(_make_var, None)
+
 # A UUID in any version (the minted fallback is v4). Used to prove the no-source
 # path resolves a per-session id, never the old shared constant.
 _UUID_RE = re.compile(r"\A[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}\Z")
@@ -2170,7 +2178,7 @@ def _run_pretool_parent_payload_export(results: Results) -> None:
                 "printf 'scratch3=%s\\n' \"$(scripts/dev/session-scratch.sh --path)\"",
                 "printf 'make=%s\\n' \"$(make -s ze-session-binary-path)\"",
                 "printf 'review=%s\\n' "
-                f"\"$({shlex.quote(sys.executable)} -c {shlex.quote(review_probe)})\"",
+                f'"$({shlex.quote(sys.executable)} -c {shlex.quote(review_probe)})"',
             ]
         )
         env = _fork_payload_env(work, ROOT)
@@ -2198,8 +2206,7 @@ def _run_pretool_parent_payload_export(results: Results) -> None:
         results.check(
             "pretool-bash-prefixes-safe-parent-export",
             safe.returncode == 0
-            and updated
-            == f"export CLAUDE_CODE_SESSION_ID={parent_sid}; {original}",
+            and updated == f"export CLAUDE_CODE_SESSION_ID={parent_sid}; {original}",
             f"rc={safe.returncode} updated={updated!r} err={safe.stderr!r}",
         )
 
@@ -2213,8 +2220,7 @@ def _run_pretool_parent_payload_export(results: Results) -> None:
             malformed_update = _updated_bash_command(malformed)
             results.check(
                 f"pretool-bash-leaves-{label}-id-unchanged",
-                malformed.returncode == 0
-                and malformed_update in (None, original),
+                malformed.returncode == 0 and malformed_update in (None, original),
                 f"rc={malformed.returncode} updated={malformed_update!r} "
                 f"err={malformed.stderr!r}",
             )
@@ -2398,8 +2404,7 @@ def _run_fork_parent_session_id(results: Results) -> None:
         results.check(
             "session-id-fork-parent-review-artifact",
             review_path.returncode == 0
-            and review_path.stdout.strip()
-            == f"tmp/review/fork-parent-{parent_sid}.md",
+            and review_path.stdout.strip() == f"tmp/review/fork-parent-{parent_sid}.md",
             f"rc={review_path.returncode} out={review_path.stdout!r} "
             f"err={review_path.stderr!r}",
         )
@@ -2455,14 +2460,11 @@ def _run_fork_tool_session_id(results: Results) -> None:
                 timeout=60,
             )
 
-        canonical = run(
-            sys.executable, os.path.join(HOOKS, "lib", "session_id.py")
-        )
+        canonical = run(sys.executable, os.path.join(HOOKS, "lib", "session_id.py"))
         canonical_sid = canonical.stdout.strip()
-        canonical_safe = (
-            re.fullmatch(r"[A-Za-z0-9._-]+", canonical_sid) is not None
-            and canonical_sid not in (".", "..", "shared")
-        )
+        canonical_safe = re.fullmatch(
+            r"[A-Za-z0-9._-]+", canonical_sid
+        ) is not None and canonical_sid not in (".", "..", "shared")
         results.check(
             "session-id-fork-tool-canonical",
             canonical.returncode == 0 and canonical_safe,
@@ -2478,9 +2480,7 @@ def _run_fork_tool_session_id(results: Results) -> None:
         )
         results.check(
             "session-id-fork-tool-make-path",
-            make_path.returncode == 0
-            and canonical_safe
-            and make_expected is not None,
+            make_path.returncode == 0 and canonical_safe and make_expected is not None,
             f"canonical={canonical_sid!r} rc={make_path.returncode} "
             f"out={make_path.stdout!r} err={make_path.stderr!r}",
         )
@@ -2548,8 +2548,7 @@ def _run_fork_tool_session_id(results: Results) -> None:
         )
         results.check(
             "session-id-human-review-fallback",
-            human_review.returncode == 0
-            and human_review.stdout.strip() == "shared",
+            human_review.returncode == 0 and human_review.stdout.strip() == "shared",
             f"rc={human_review.returncode} out={human_review.stdout!r} "
             f"err={human_review.stderr!r}",
         )
@@ -4640,9 +4639,7 @@ def run_delegation(results: Results) -> None:
 
         # An UNCLOSED fence is not a code block. Dropping the lines after it made
         # the gate fail OPEN: a real request passed with rc=0.
-        unclosed = (
-            "Intro\n\n```bash\nmake ze-precommit-verify\n\nDone. Would you like me to continue?"
-        )
+        unclosed = "Intro\n\n```bash\nmake ze-precommit-verify\n\nDone. Would you like me to continue?"
         rc, err = _run_stop_hook(work, unclosed)
         results.check(
             "stop-phrase-unclosed-fence-still-blocks",
@@ -5592,8 +5589,8 @@ def _run_fork_transcript_selection(results: Results) -> None:
             "os.makedirs(tdir,exist_ok=True);"
             "canonical=os.path.join(tdir,sid+'.jsonl');"
             "neighbor=os.path.join(tdir,'newest-neighbor.jsonl');"
-            "open(canonical,'w').write('{\"message\":{\"model\":\"claude-sonnet-5\"}}\\n');"
-            "open(neighbor,'w').write('{\"message\":{\"model\":\"claude-opus-5\"}}\\n');"
+            'open(canonical,\'w\').write(\'{"message":{"model":"claude-sonnet-5"}}\\n\');'
+            'open(neighbor,\'w\').write(\'{"message":{"model":"claude-opus-5"}}\\n\');'
             "os.utime(canonical,(1,1));"
             "os.utime(neighbor,None);"
             "print(sid);"
@@ -5616,9 +5613,7 @@ def _run_fork_transcript_selection(results: Results) -> None:
             timeout=60,
         )
         lines = proc.stdout.splitlines()
-        sid, canonical, selected, human = (
-            lines if len(lines) == 4 else ("", "", "", "")
-        )
+        sid, canonical, selected, human = lines if len(lines) == 4 else ("", "", "", "")
         results.check(
             "review-model-fork-transcript-uses-canonical-id-not-mtime",
             proc.returncode == 0
@@ -5737,7 +5732,9 @@ def run_phase_gates(results: Results) -> None:
     results.check(
         "agent-skill-repo-path-is-not-a-skill", r.returncode == 2, repr(r.stderr)
     )
-    r = spawn("Independently review this change for bugs. Run make ze-precommit-verify first.")
+    r = spawn(
+        "Independently review this change for bugs. Run make ze-precommit-verify first."
+    )
     results.check(
         "agent-skill-make-target-is-not-a-skill", r.returncode == 2, repr(r.stderr)
     )
@@ -6029,15 +6026,11 @@ def run_phase_gates(results: Results) -> None:
         # PREVENTS: a restricted fork ignoring the direct hook payload and
         # using a process fallback identity that cannot find the parent marker.
         safe_parent = "fixture-safe-parent"
-        payload_ack = os.path.join(
-            ROOT, "tmp", "session", f".model-ack-{safe_parent}"
-        )
+        payload_ack = os.path.join(ROOT, "tmp", "session", f".model-ack-{safe_parent}")
         payload_env = _fork_payload_env(home, ROOT)
         payload_env["HOME"] = home
         with open(transcript, "w", encoding="utf-8") as fh:
-            fh.write(
-                json.dumps({"message": {"model": "claude-sonnet-5"}}) + "\n"
-            )
+            fh.write(json.dumps({"message": {"model": "claude-sonnet-5"}}) + "\n")
         try:
             with open(payload_ack, "w", encoding="utf-8") as fh:
                 fh.write("operator approved parent review identity")
@@ -6049,9 +6042,7 @@ def run_phase_gates(results: Results) -> None:
                         "session_id": safe_parent,
                         "agent_id": "fixture-fork-agent",
                         "transcript_path": transcript,
-                        "tool_input": {
-                            "prompt": "Follow /ze-review over the diff"
-                        },
+                        "tool_input": {"prompt": "Follow /ze-review over the diff"},
                     }
                 ),
                 capture_output=True,
@@ -6093,9 +6084,7 @@ def run_phase_gates(results: Results) -> None:
                         {
                             "tool_name": "Agent",
                             "transcript_path": transcript,
-                            "tool_input": {
-                                "prompt": "Follow /ze-review over the diff"
-                            },
+                            "tool_input": {"prompt": "Follow /ze-review over the diff"},
                         }
                     ),
                     capture_output=True,
@@ -6389,6 +6378,162 @@ def run_rfc_language(results: Results) -> None:
     results.check("rfc-language-unrelated-doc-allowed", code == 0, repr((code, err)))
 
 
+def run_raw_job_admission(results: Results) -> None:
+    """A heavy job is admitted by `make`; typed raw it is refused (AC-5).
+
+    The parity harness records one exit code per command, and the whole-
+    dispatcher code cannot say WHICH replacement the refusal named. The value
+    of this guard is the replacement: a refusal that does not name the queued
+    command teaches the agent nothing and gets routed around
+    (plan/spec-shared-machine-job-admission.md, R-4).
+
+    The positive cases are the point of the section. A guard that refuses
+    everything passes every negative test and is useless, so the sanctioned
+    path is pinned here first.
+    """
+    print("raw-job-admission:")
+    check = _load_pretool_bash().check_raw_test_invocation
+    # Assembled so this file's own text carries no runnable raw invocation: the
+    # Bash hook matches command TEXT, and a fixture that spells one cannot be
+    # grepped for from a session (ai/rules/commands.md, "The Bash Hook Matches
+    # Your Command Text").
+    go_test = "go" + " test"
+    lint = "golangci" + "-lint"
+    py_test = "_test" + ".py"
+
+    def refused(cmd):
+        return check(cmd, None)
+
+    # --- the discriminator: the sanctioned path is never refused ------------
+    for name, cmd in (
+        (
+            "test_the_make_target_itself_is_not_refused",
+            "make ze-unit-pkg-test PKG=./internal/core/env",
+        ),
+        ("make-lint-changed-not-refused", "make ze-lint-changed"),
+        ("make-functional-suite-not-refused", "make ze-functional-plugin-test"),
+        ("make-full-verify-not-refused", "make ze-precommit-verify"),
+        # A make target whose ARGUMENT spells the runner. The command word is
+        # what decides, or the documented QEMU debug invocation would be lost.
+        (
+            "make-target-carrying-the-runner-in-an-argument-not-refused",
+            "make ze-qemu-debug RUN='bin/ze-test-linux-arm64 bgp parse 91 -v'",
+        ),
+        # The rule stays auditable from Bash: a banned verb in a search PATTERN
+        # is text, not a command.
+        (
+            "search-pattern-naming-a-raw-command-not-refused",
+            f"grep -rn '{go_test}' ai/rules",
+        ),
+        (
+            "git-log-pickaxe-naming-the-linter-not-refused",
+            f"git log -S '{lint} run' -- Makefile",
+        ),
+        # Cheap subcommands read configuration and run no analysis.
+        ("golangci-lint-config-verify-not-refused", f"{lint} config verify"),
+        # `go build` has its own guard (check_root_build); this check is about
+        # heavy jobs, and widening it would double-refuse with a worse message.
+        ("go-build-not-this-check-s-business", "go bui" + "ld ./cmd/ze"),
+        ("the-daemon-binary-is-not-the-runner", "bin/ze parse ./x"),
+        (
+            "a-non-test-python-tool-is-not-refused",
+            "python3 scripts/dev/hook-fixture-check.py",
+        ),
+    ):
+        r = refused(cmd)
+        results.check(name, r is None, repr(r))
+
+    # --- the four raw forms AC-5 names -------------------------------------
+    for name, cmd, want in (
+        (
+            "test_a_raw_go_test_is_refused_and_names_the_make_target",
+            f"{go_test} ./internal/component/bgp/...",
+            "make ze-unit-pkg-test PKG=./internal/component/bgp/...",
+        ),
+        # The suggestion carries the packages and the -run filter, so the
+        # replacement is runnable rather than a shape to fill in.
+        (
+            "raw-go-test-replacement-carries-run-filter",
+            f"{go_test} -run TestFoo ./internal/core/env",
+            "make ze-unit-pkg-test PKG=./internal/core/env RUN=TestFoo",
+        ),
+        ("raw-golangci-lint-is-refused", f"{lint} run ./...", "make ze-lint-changed"),
+        (
+            "raw-ze-test-runner-is-refused",
+            "bin/ze-test bgp plugin",
+            "make ze-functional-plugin-test",
+        ),
+        (
+            "raw-ze-test-runner-with-dot-slash-is-refused",
+            "./bin/ze-test editor --all",
+            "make ze-functional-editor-test",
+        ),
+        # The same runner in this session's own directory (mk/session.mk
+        # ZE_BIN_DIR) is the same producer.
+        (
+            "session-directory-runner-is-refused",
+            "tmp/session/2026-08-10-abc123/bin/ze-test bgp encode",
+            "make ze-functional-encode-test",
+        ),
+        (
+            "raw-python-test-is-refused",
+            f"python3 scripts/dev/commit_helper{py_test}",
+            "make ze-unit-pkg-test PKG=./scripts/dev RUN=TestPythonUnitTests",
+        ),
+        # A launcher in front changes who runs it, not what it costs.
+        (
+            "a-launcher-does-not-hide-the-raw-job",
+            f"timeout 300 {go_test} ./internal/core/env",
+            "make ze-unit-pkg-test PKG=./internal/core/env",
+        ),
+        # Judged per statement: a sanctioned command first does not buy the
+        # raw one after it.
+        (
+            "a-raw-job-after-a-make-target-is-still-refused",
+            f"make ze-lint && {go_test} ./...",
+            "make ze-unit-pkg-test PKG=./...",
+        ),
+    ):
+        r = refused(cmd)
+        results.check(
+            name,
+            r is not None and r[0] == 2 and want in r[1],
+            repr(r),
+        )
+
+    # --- the escape (R-4): cheap, honest, and visible in the transcript -----
+    r = refused(
+        f'ZE_ADMIT_RAW="bisecting one 2s case" {go_test} -run TestX ./internal/core/env'
+    )
+    results.check("a-declared-reason-admits-the-raw-form", r is None, repr(r))
+
+    # An empty reason is no reason. Without this the escape is a bare flag, and
+    # the transcript records nothing a reviewer can read.
+    r = refused(f"ZE_ADMIT_RAW= {go_test} ./internal/core/env")
+    results.check(
+        "an-empty-reason-does-not-admit", r is not None and r[0] == 2, repr(r)
+    )
+
+    # An unrelated assignment is not the escape.
+    r = refused(f"GOFLAGS=-count=1 {go_test} ./internal/core/env")
+    results.check(
+        "an-unrelated-assignment-does-not-admit",
+        r is not None and r[0] == 2,
+        repr(r),
+    )
+
+    # The wrapper itself IS the queue, so a raw command handed to it is
+    # admitted: that is the escape for work no make target expresses.
+    r = refused(f"scripts/dev/ze-run.sh gotest {go_test} ./internal/core/env")
+    results.check("the-wrapper-admits-the-command-it-queues", r is None, repr(r))
+
+    # Every refusal names the wrapper and the reason escape. A refusal with no
+    # way through is what R-4 says produces an invented workaround.
+    r = refused(f"{go_test} ./...")
+    named = r is not None and "ze-run.sh" in r[1] and "ZE_ADMIT_RAW" in r[1]
+    results.check("every-refusal-names-a-way-through", named, repr(r))
+
+
 SECTIONS = {
     "format-alloc": run_format_alloc,
     "design-ref": run_design_ref,
@@ -6408,6 +6553,7 @@ SECTIONS = {
     "subagent-context": run_subagent_context,
     "delegation-reminder": run_delegation_reminder,
     "phase-gates": run_phase_gates,
+    "raw-job-admission": run_raw_job_admission,
 }
 
 

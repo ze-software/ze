@@ -17,7 +17,10 @@ PERF_DUT ?=
 # `make ze-perf-build` and everything depending on it had been failing since.
 ze-perf-build: $(ZEBIN_PERF)
 
-ze-perf-bench: ze-perf-build
+ze-perf-bench:
+	@scripts/dev/ze-run.sh ze-perf-bench $(MAKE) --no-print-directory _ze-perf-bench-impl
+
+_ze-perf-bench-impl: ze-perf-build
 	@echo "Running performance benchmarks (requires Docker)..."
 	@ZE_PERF_BIN=$(CURDIR)/$(ZEBIN_PERF) python3 test/perf/run.py --build --test $(PERF_DUT)
 	@python3 scripts/dev/perf-suggest.py --record
@@ -41,3 +44,8 @@ ze-perf-history-record: ze-perf-build
 # local Docker run. See scripts/dev/perf-suggest.py.
 ze-perf-suggestion-report:
 	@python3 scripts/dev/perf-suggest.py
+
+# The `_<target>-impl` half of every admitted pair defined in this file.
+# The public half calls the admission wrapper and this half holds the work;
+# see the job-admission block above ZE_RUN_SLOTS in the Makefile.
+.PHONY: _ze-perf-bench-impl
