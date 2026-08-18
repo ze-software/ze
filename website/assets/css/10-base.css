@@ -1189,22 +1189,40 @@ h2 {
 }
 
 /*
- * Topic categories and presentation tones share the same hue vocabulary.
- * Category classes describe the content. Tone classes are reserved for
- * composition-only color choices.
+ * Every section title takes the page-title gradient. The population is the one
+ * the stacking contract above already names, and for the same reason: a title
+ * is a title wherever it was authored. Gating this on the accent class
+ * instead, the cat- and tone- prefixes, left 17 section titles flat beside 12
+ * gradient ones, three of the six on the home page among them: whether a title
+ * got the site's title treatment depended on an unrelated choice of hue.
  */
 #features-title,
 #perf-title,
-:is(.section-head[class*="cat-"], .section-head[class*="tone-"]) :is(h1, h2),
+#proof-title,
+#whats-new-title,
+.section-head > :is(h1, h2):first-child,
 .md-content[class*="cat-"] > h1:first-child {
     display: inline-block;
     width: fit-content;
-    max-width: var(--page-title-max-width);
     color: var(--sky-deep);
     background: var(--page-title-gradient);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
+}
+
+/*
+ * The page-title width contract is separate from the paint above, because a
+ * heading that carries its own component width must not inherit it. Clipping
+ * the gradient to the glyphs means the box IS the paint: cap a nowrap heading
+ * at 32ch and everything past the cap is drawn with no fill at all, which
+ * read as a title truncated mid-word.
+ */
+#features-title,
+#perf-title,
+.section-head > :is(h1, h2):first-child,
+.md-content[class*="cat-"] > h1:first-child {
+    max-width: var(--page-title-max-width);
 }
 
 /*
@@ -1215,7 +1233,9 @@ h2 {
  */
 #features-title::selection,
 #perf-title::selection,
-:is(.section-head[class*="cat-"], .section-head[class*="tone-"]) :is(h1, h2)::selection,
+#proof-title::selection,
+#whats-new-title::selection,
+.section-head > :is(h1, h2):first-child::selection,
 .md-content[class*="cat-"] > h1:first-child::selection,
 .journey-hero :is(h1, h2)::selection,
 .md-content .journey-hero :is(h1, h2)::selection {
