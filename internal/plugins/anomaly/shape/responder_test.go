@@ -109,6 +109,56 @@ func TestClearedEarlyRevert(t *testing.T) {
 	}
 }
 
+// TestResponderIgnoresNonSourceEntity proves an armed responder acts on SENDERS
+// only. Every term it builds matches a source address, so acting on a destination
+// incident would rate-limit the victim of the traffic, and a port incident carries
+// no address to act on at all.
+//
+// VALIDATES: child-5 AC-8 and R-5 -- the source-only guard on all three handlers.
+// PREVENTS: an attacker weaponizing the detector by flooding a legitimate server
+// until Ze throttles it, and a Cleared on a dest incident withdrawing a live rule
+// installed for the SAME prefix as a source.
+func TestResponderIgnoresNonSourceEntity(t *testing.T) {
+	victim := netip.MustParsePrefix("203.0.113.5/32")
+
+	tr := newTestResponder(t, armedCfg())
+	tr.r.onDetected(&anomalyevent.AnomalyDetected{
+		EntityKind: anomalyevent.EntityKindDest, Entity: victim,
+	})
+	tr.r.onDetected(&anomalyevent.AnomalyDetected{
+		EntityKind: anomalyevent.EntityKindPort, Port: 31337, Proto: 17,
+	})
+	if tr.termCount() != 0 || tr.r.armedCount != 0 {
+		t.Errorf("non-source incident armed something: terms=%d armed=%d", tr.termCount(), tr.r.armedCount)
+	}
+
+	// The control: the same call with the source kind DOES arm, so the assertions
+	// above are about the kind and not about a responder that never acts.
+	tr.r.onDetected(det("198.51.100.5/32"))
+	if tr.termCount() != 1 || tr.r.armedCount != 1 {
+		t.Fatalf("source incident did not arm: terms=%d armed=%d", tr.termCount(), tr.r.armedCount)
+	}
+
+	// A destination incident on the ARMED prefix must not touch the live rule: the
+	// same address can be an anomalous sender and an anomalous receiver at once.
+	armed := netip.MustParsePrefix("198.51.100.5/32")
+	timersBefore := len(tr.timers)
+	tr.r.onOngoing(&anomalyevent.AnomalyOngoing{EntityKind: anomalyevent.EntityKindDest, Entity: armed})
+	if len(tr.timers) != timersBefore {
+		t.Errorf("dest ongoing re-armed the timer: %d timers, want %d", len(tr.timers), timersBefore)
+	}
+	tr.r.onCleared(&anomalyevent.AnomalyCleared{EntityKind: anomalyevent.EntityKindDest, Entity: armed})
+	if tr.termCount() != 1 || tr.r.armedCount != 1 {
+		t.Errorf("dest cleared withdrew the source rule: terms=%d armed=%d", tr.termCount(), tr.r.armedCount)
+	}
+
+	// The source-kind Cleared still withdraws, so the guard did not disable clearing.
+	tr.r.onCleared(&anomalyevent.AnomalyCleared{Entity: armed})
+	if tr.termCount() != 0 || tr.r.armedCount != 0 {
+		t.Errorf("source cleared did not withdraw: terms=%d armed=%d", tr.termCount(), tr.r.armedCount)
+	}
+}
+
 func TestBlastRadiusCap(t *testing.T) {
 	tr := newTestResponder(t, armedCfg()) // cap 2
 	tr.r.onDetected(det("198.51.100.1/32"))

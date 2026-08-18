@@ -85,8 +85,24 @@ func (r *responder) ttl() time.Duration {
 	return time.Duration(r.cfg.AutoRevertTTL) * time.Second
 }
 
+// actsOn reports whether an incident's entity is one this responder may install a
+// rule for. Only a SENDER qualifies: every term this package builds matches a SOURCE
+// address (match.go buildSourceTerm), so acting on a destination incident would
+// throttle the victim of the traffic, and a port incident carries no address at all.
+//
+// The test is FOR the source kind, never against the others, so a kind added to the
+// contract later is refused here rather than silently acted on.
+func actsOn(kind anomalyevent.EntityKind) bool {
+	return kind == anomalyevent.EntityKindSource
+}
+
 // onDetected is step 1 of the state machine.
 func (r *responder) onDetected(e *anomalyevent.AnomalyDetected) {
+	if !actsOn(e.EntityKind) {
+		logger().Info("anomaly-shape: report-only incident, no action",
+			"kind", e.EntityKind.String(), "entity", e.Entity, "port", e.Port)
+		return
+	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -118,8 +134,14 @@ func (r *responder) onDetected(e *anomalyevent.AnomalyDetected) {
 	logger().Info("anomaly-shape: armed source", "entity", entity, "action", r.cfg.Action)
 }
 
-// onOngoing extends the auto-revert deadline for a still-anomalous armed entity.
+// onOngoing extends the auto-revert deadline for a still-anomalous armed entity. A
+// non-source incident is ignored: the same prefix can be an anomalous sender AND an
+// anomalous receiver, so extending on the receiver's update would keep the sender's
+// rule alive on evidence about somebody else.
 func (r *responder) onOngoing(e *anomalyevent.AnomalyOngoing) {
+	if !actsOn(e.EntityKind) {
+		return
+	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if rec, ok := r.armed[e.Entity]; ok {
@@ -127,8 +149,14 @@ func (r *responder) onOngoing(e *anomalyevent.AnomalyOngoing) {
 	}
 }
 
-// onCleared withdraws an armed entity's rule early (before its TTL).
+// onCleared withdraws an armed entity's rule early (before its TTL). A non-source
+// incident is ignored for the same reason onOngoing ignores one, and the cost here is
+// higher: clearing a DESTINATION incident on an armed sender's prefix would withdraw
+// a live rule while the sender is still anomalous.
 func (r *responder) onCleared(e *anomalyevent.AnomalyCleared) {
+	if !actsOn(e.EntityKind) {
+		return
+	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if _, ok := r.armed[e.Entity]; ok {

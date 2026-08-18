@@ -1,8 +1,14 @@
-// Design: docs/architecture/traffic/traffic-analysis-layers.md -- per-source neutral feature aggregation
+// Design: docs/architecture/traffic/traffic-analysis-layers.md -- per-entity neutral feature aggregation
 //
-// Derives domain-NEUTRAL per-source feature signals from the observation feed via
+// Derives domain-NEUTRAL per-entity feature signals from the observation feed via
 // the shared internal/core/stats primitives. These are FACTS (measurable numbers),
 // never verdicts: detection plugins (anomaly, ddos) apply judgment on top.
+//
+// One flow feeds three axes, each an independent map with its own ceiling: the
+// SOURCE address, the DESTINATION address, and the destination PORT. An entity is
+// CREATED only by traffic in its own direction (a source by sending, a destination
+// and a port by receiving), which is what stops a spoofed-source flood from
+// filling the very maps that would report it.
 
 package trafficfeature
 
@@ -21,12 +27,24 @@ const (
 	// maxTrackedKey bounds distinct tracked source entities (memory ceiling under
 	// spoofed-source churn), mirroring trafficstat.
 	maxTrackedKey = 10000
+	// maxTrackedDest bounds distinct tracked destination entities. It is its OWN
+	// ceiling rather than a share of maxTrackedKey: a spoofed-source flood is
+	// exactly the traffic the destination axis exists to report, so it must not be
+	// able to evict the target it is aimed at.
+	maxTrackedDest = 10000
+	// maxTrackedPort bounds distinct tracked destination-port entities. Lower than
+	// the address ceilings because only a port that RECEIVES becomes an entity, so
+	// the natural cardinality is a service list, not a client-socket list.
+	maxTrackedPort = 4096
 	// evictIdleTicks drops an entity after this many consecutive quiet ticks.
 	evictIdleTicks = 10
-	// maxDestsPerSource / maxPortsPerSource bound per-entity fan-out and port
-	// histogram cardinality so one scanning source cannot exhaust memory.
-	maxDestsPerSource = 4096
-	maxPortsPerSource = 1024
+	// maxPeersPerEntity / maxPortsPerEntity bound one address entity's
+	// counterparty and port-histogram cardinality, so one scanning source (or one
+	// swept destination) cannot exhaust memory.
+	maxPeersPerEntity = 4096
+	maxPortsPerEntity = 1024
+	// maxSourcesPerPort bounds one port entity's per-source histogram.
+	maxSourcesPerPort = 4096
 	// gapHistoryLen bounds the retained active-tick gaps used for beaconing.
 	gapHistoryLen = 32
 	// newPeerTicks is how many ticks an entity is considered newly-seen.
@@ -42,63 +60,172 @@ var commonPorts = map[uint16]struct{}{
 	5432: {}, 8080: {}, 8443: {},
 }
 
-// sourceState is the bounded per-entity feature accumulator. Window-scoped fields
-// (outBytes, inBytes, dests, ports) reset each Tick; persistent fields (firstTick,
-// lastActiveTick, gaps, activity idle) carry across ticks.
-type sourceState struct {
-	activity       *stats.Window           // total bytes touching the entity (rate + idle)
-	outBytes       float64                 // bytes where the entity is the source (this window)
-	inBytes        float64                 // bytes where the entity is the destination (this window)
-	dests          map[netip.Addr]struct{} // distinct destinations (this window)
-	ports          map[uint16]float64      // destination-port byte histogram (this window)
-	firstTick      int                     // tick when first observed (new-peer)
-	lastActiveTick int                     // last tick with traffic (beaconing gaps)
-	gaps           []float64               // recent active-tick gaps in seconds (bounded)
+// lifespan is the persistent part of every entity's state, on every axis: when it
+// was first seen (new-peer) and the recent active-tick gaps that feed beaconing.
+// It survives the per-window reset.
+type lifespan struct {
+	firstTick      int       // tick when first observed (new-peer)
+	lastActiveTick int       // last tick with traffic (beaconing gaps)
+	gaps           []float64 // recent active-tick gaps in seconds (bounded)
 }
 
-func (st *sourceState) pushGap(g float64) {
-	if len(st.gaps) < gapHistoryLen {
-		st.gaps = append(st.gaps, g)
+func newLifespan(tick int) lifespan {
+	return lifespan{firstTick: tick, lastActiveTick: -1}
+}
+
+// pushGap records one gap, dropping the oldest past gapHistoryLen.
+func (l *lifespan) pushGap(g float64) {
+	if len(l.gaps) < gapHistoryLen {
+		l.gaps = append(l.gaps, g)
 		return
 	}
-	copy(st.gaps, st.gaps[1:])
-	st.gaps[len(st.gaps)-1] = g
+	copy(l.gaps, l.gaps[1:])
+	l.gaps[len(l.gaps)-1] = g
+}
+
+// markActive closes one active tick: it records the gap since the entity was last
+// active and remembers this tick.
+func (l *lifespan) markActive(tick int) {
+	if l.lastActiveTick >= 0 {
+		l.pushGap(float64(tick - l.lastActiveTick))
+	}
+	l.lastActiveTick = tick
+}
+
+// addrState is the bounded feature accumulator for one ADDRESS entity on ONE axis.
+// The sources map holds an address's sender-role state and the dests map its
+// receiver-role state, so an address active in both roles has one state in each and
+// neither axis can evict the other. Window-scoped fields (outBytes, inBytes, peers,
+// ports) reset each Tick; the lifespan, the activity idle counter and srcAS carry
+// across ticks.
+type addrState struct {
+	activity *stats.Window           // total bytes touching the entity (rate + idle)
+	outBytes float64                 // bytes where the entity is the source (this window)
+	inBytes  float64                 // bytes where the entity is the destination (this window)
+	peers    map[netip.Addr]struct{} // distinct counterparties (this window)
+	ports    map[uint16]float64      // destination-port byte histogram (this window)
+	lifespan
+	srcAS uint32 // origin AS of the entity, 0 if never attributed
+}
+
+// addPeer records one distinct counterparty, up to maxPeersPerEntity.
+func (st *addrState) addPeer(peer netip.Addr) {
+	if peer.IsValid() && len(st.peers) < maxPeersPerEntity {
+		st.peers[peer] = struct{}{}
+	}
+}
+
+// addPort folds bytes into the destination-port histogram. A port already tracked
+// keeps accumulating past the cap; only a NEW port is refused, so the cap bounds
+// cardinality without losing bytes.
+func (st *addrState) addPort(port uint16, v float64) {
+	if _, ok := st.ports[port]; ok {
+		st.ports[port] += v
+	} else if len(st.ports) < maxPortsPerEntity {
+		st.ports[port] = v
+	}
+}
+
+// portState is the bounded feature accumulator for one destination-PORT entity.
+// Window-scoped fields (inBytes, outBytes, srcs) reset each Tick.
+type portState struct {
+	activity *stats.Window          // total bytes touching the port (rate + idle)
+	inBytes  float64                // bytes sent TO the port (this window)
+	outBytes float64                // bytes sent FROM the port (this window)
+	srcs     map[netip.Addr]float64 // per-source byte histogram (this window)
+	lifespan
+}
+
+// addSource folds bytes into the per-source histogram, which serves both the port's
+// fan-out (its length) and its source entropy (its values). A source already
+// tracked keeps accumulating past the cap.
+func (st *portState) addSource(src netip.Addr, v float64) {
+	if !src.IsValid() {
+		return
+	}
+	if _, ok := st.srcs[src]; ok {
+		st.srcs[src] += v
+	} else if len(st.srcs) < maxSourcesPerPort {
+		st.srcs[src] = v
+	}
 }
 
 type aggregator struct {
 	mu       sync.Mutex
-	sources  map[netip.Addr]*sourceState
+	sources  map[netip.Addr]*addrState
+	dests    map[netip.Addr]*addrState
+	ports    map[PortKey]*portState
 	tickNum  int
 	lastSnap time.Time
 	hasData  bool
 }
 
 func newAggregator() *aggregator {
-	return &aggregator{sources: make(map[netip.Addr]*sourceState)}
+	return &aggregator{
+		sources: make(map[netip.Addr]*addrState),
+		dests:   make(map[netip.Addr]*addrState),
+		ports:   make(map[PortKey]*portState),
+	}
 }
 
-// getOrCreate returns the entity's state, creating it (bounded by maxTrackedKey)
-// on first sight. Caller holds a.mu.
-func (a *aggregator) getOrCreate(addr netip.Addr) *sourceState {
-	if st, ok := a.sources[addr]; ok {
+// getOrCreate returns the entity's state in the SOURCE axis, creating it (bounded
+// by maxTrackedKey) on first sight. Caller holds a.mu.
+func (a *aggregator) getOrCreate(addr netip.Addr) *addrState {
+	return getOrCreateAddr(a.sources, addr, maxTrackedKey, a.tickNum)
+}
+
+// destFor returns the entity's state in the DESTINATION axis, creating it (bounded
+// by maxTrackedDest) on first sight. Caller holds a.mu.
+func (a *aggregator) destFor(addr netip.Addr) *addrState {
+	return getOrCreateAddr(a.dests, addr, maxTrackedDest, a.tickNum)
+}
+
+// getOrCreateAddr is the shared bounded-insert for both address axes: at the cap it
+// returns nil rather than growing, and the caller drops the flow's contribution to
+// that axis.
+func getOrCreateAddr(m map[netip.Addr]*addrState, addr netip.Addr, limit, tick int) *addrState {
+	if st, ok := m[addr]; ok {
 		return st
 	}
-	if len(a.sources) >= maxTrackedKey {
+	if len(m) >= limit {
 		return nil
 	}
-	st := &sourceState{
-		activity:       stats.NewWindow(0),
-		dests:          make(map[netip.Addr]struct{}),
-		ports:          make(map[uint16]float64),
-		firstTick:      a.tickNum,
-		lastActiveTick: -1,
+	st := &addrState{
+		activity: stats.NewWindow(0),
+		peers:    make(map[netip.Addr]struct{}),
+		ports:    make(map[uint16]float64),
+		lifespan: newLifespan(tick),
 	}
-	a.sources[addr] = st
+	m[addr] = st
 	return st
 }
 
-// ingest folds one flow observation into both role entities: the source (out
-// bytes, fan-out, ports) and the destination (in bytes).
+// portFor returns the port entity's state, creating it (bounded by maxTrackedPort)
+// on first sight. Caller holds a.mu.
+func (a *aggregator) portFor(k PortKey) *portState {
+	if st, ok := a.ports[k]; ok {
+		return st
+	}
+	if len(a.ports) >= maxTrackedPort {
+		return nil
+	}
+	st := &portState{
+		activity: stats.NewWindow(0),
+		srcs:     make(map[netip.Addr]float64),
+		lifespan: newLifespan(a.tickNum),
+	}
+	a.ports[k] = st
+	return st
+}
+
+// ingest folds one flow observation into every axis it touches: the SOURCE address
+// (out bytes, fan-out, ports), the DESTINATION address (in bytes, fan-in, the ports
+// it was addressed on) and the destination PORT (in bytes, its source spread).
+//
+// Each axis also counts the bytes flowing the OTHER way, because every axis scores
+// an asymmetry ratio. Those reverse folds never CREATE an entity: a pure sender
+// must not occupy a slot in the destination map, and an ephemeral source port must
+// not occupy one in the port map.
 func (a *aggregator) ingest(obs observation.Observation) {
 	if obs.Kind != observation.KindFlow || obs.Feature != observation.FeatureFlowBytes {
 		return
@@ -115,15 +242,21 @@ func (a *aggregator) ingest(obs observation.Observation) {
 		if st := a.getOrCreate(src); st != nil {
 			st.activity.AddDelta(v)
 			st.outBytes += v
-			if dst.IsValid() && len(st.dests) < maxDestsPerSource {
-				st.dests[dst] = struct{}{}
+			// obs.SrcAS describes the flow's SOURCE, so it labels the entity only
+			// in this branch. Keep the last attributed value: a later flow whose
+			// AS lookup missed must not erase it.
+			if obs.SrcAS != 0 {
+				st.srcAS = obs.SrcAS
 			}
-			if _, ok := st.ports[obs.Flow.DstPort]; ok {
-				st.ports[obs.Flow.DstPort] += v
-			} else if len(st.ports) < maxPortsPerSource {
-				st.ports[obs.Flow.DstPort] = v
-			}
+			st.addPeer(dst)
+			st.addPort(obs.Flow.DstPort, v)
 			a.hasData = true
+		}
+		// A destination that is now sending: the denominator of its in/out ratio.
+		// Lookup-only, so a pure sender never becomes a destination entity.
+		if st := a.dests[src]; st != nil {
+			st.activity.AddDelta(v)
+			st.outBytes += v
 		}
 	}
 	if dst.IsValid() {
@@ -132,12 +265,35 @@ func (a *aggregator) ingest(obs observation.Observation) {
 			st.inBytes += v
 			a.hasData = true
 		}
+		if st := a.destFor(dst); st != nil {
+			st.activity.AddDelta(v)
+			st.inBytes += v
+			st.addPeer(src)
+			st.addPort(obs.Flow.DstPort, v)
+			a.hasData = true
+		}
+		// The port entity is keyed by the DESTINATION port, and only when that port
+		// is the flow's SERVICE side (isServicePort).
+		if isServicePort(obs.Flow.SrcPort, obs.Flow.DstPort) {
+			if st := a.portFor(PortKey{Port: obs.Flow.DstPort, Proto: obs.Flow.Proto}); st != nil {
+				st.activity.AddDelta(v)
+				st.inBytes += v
+				st.addSource(src, v)
+				a.hasData = true
+			}
+		}
+	}
+	// Bytes leaving a port already tracked: the numerator of its amplification
+	// ratio. Lookup-only, so a client socket never becomes an entity.
+	if st := a.ports[PortKey{Port: obs.Flow.SrcPort, Proto: obs.Flow.Proto}]; st != nil {
+		st.activity.AddDelta(v)
+		st.outBytes += v
 	}
 }
 
-// snapshot closes the current window: it computes each entity's feature vector,
-// records beaconing gaps, resets window-scoped state, evicts idle entities, and
-// returns the top-N most active entities.
+// snapshot closes the current window on every axis: it computes each entity's
+// feature vector, records beaconing gaps, resets window-scoped state, evicts idle
+// entities, and returns the busiest MaxTopN entities per axis.
 func (a *aggregator) snapshot(now time.Time) *Snapshot {
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -153,59 +309,134 @@ func (a *aggregator) snapshot(now time.Time) *Snapshot {
 	if !a.hasData {
 		return snap
 	}
+	snap.Sources = a.finalizeAddrs(a.sources, dt, dirSent)
+	snap.Dests = a.finalizeAddrs(a.dests, dt, dirReceived)
+	snap.Ports = a.finalizePorts(dt)
+	return snap
+}
 
+// direction says which way an address axis reads. A source entity's OWN bytes are
+// the ones it sent, a destination entity's the ones it received; that choice drives
+// the emission gate, the asymmetry ratio's numerator, and the ranking key.
+type direction int
+
+const (
+	dirSent direction = iota
+	dirReceived
+)
+
+// finalizeAddrs closes one address axis: it emits a feature vector for every entity
+// active in that axis's own direction, resets the window, evicts idle entities, and
+// returns the busiest MaxTopN. Caller holds a.mu.
+func (a *aggregator) finalizeAddrs(m map[netip.Addr]*addrState, dt float64, dir direction) []FeatureEntry {
 	type ranked struct {
-		fe   FeatureEntry
-		sent float64
+		fe    FeatureEntry
+		bytes float64
 	}
-	live := make([]ranked, 0, len(a.sources))
+	live := make([]ranked, 0, len(m))
 
-	for addr, st := range a.sources {
-		// Emit an entity only when it acted as a SOURCE this window. The features
-		// are source-behavior signals, so a pure receiver (inbound only) would
-		// carry all-zero features and dilute the ranking; its inbound bytes are
-		// still counted for other sources' out/in ratio. Idle eviction below still
-		// tracks total (in+out) activity so quiet receivers are dropped.
-		sent := st.outBytes > 0
+	for addr, st := range m {
+		own, other := st.outBytes, st.inBytes
+		if dir == dirReceived {
+			own, other = st.inBytes, st.outBytes
+		}
+		// Emit an entity only when it was active in its OWN direction. The features
+		// describe that direction, so an address on the wrong side of it (a pure
+		// receiver on the source axis, a pure sender on the destination axis) would
+		// carry all-zero features and dilute the ranking. Its bytes still count for
+		// the other axis and for its own ratio. Idle eviction below tracks total
+		// (in+out) activity, so a quiet entity is dropped whichever way it was busy.
+		acted := own > 0
 		st.activity.Tick(dt) // advance idle/rate (counts in+out) for eviction
 
-		if sent {
-			if st.lastActiveTick >= 0 {
-				st.pushGap(float64(a.tickNum - st.lastActiveTick))
-			}
-			st.lastActiveTick = a.tickNum
+		if acted {
+			st.markActive(a.tickNum)
 			live = append(live, ranked{
 				fe: FeatureEntry{
 					Addr:        addr,
-					FanOut:      len(st.dests),
-					OutInRatio:  ratio(st.outBytes, st.inBytes),
-					PortEntropy: stats.Entropy(portValues(st.ports)),
+					FanOut:      len(st.peers),
+					OutInRatio:  ratio(own, other),
+					PortEntropy: stats.Entropy(histValues(st.ports)),
 					NewPeer:     a.tickNum-st.firstTick < newPeerTicks,
 					RarePort:    rarePort(st.ports),
 					Beaconing:   stats.IntervalRegularity(st.gaps),
+					// Only the source axis is ever stamped with an AS (ingest), so
+					// this reads 0 on the destination axis.
+					SrcAS: st.srcAS,
 				},
-				sent: st.outBytes,
+				bytes: own,
 			})
 		}
 
 		// Reset window-scoped accumulators for the next window.
 		st.outBytes = 0
 		st.inBytes = 0
-		clear(st.dests)
+		clear(st.peers)
 		clear(st.ports)
 
 		if st.activity.Idle() > evictIdleTicks {
-			delete(a.sources, addr)
+			delete(m, addr)
 		}
 	}
 
-	sort.Slice(live, func(i, j int) bool { return live[i].sent > live[j].sent })
+	sort.Slice(live, func(i, j int) bool { return live[i].bytes > live[j].bytes })
 	n := min(MaxTopN, len(live))
-	snap.Sources = make([]FeatureEntry, n)
+	out := make([]FeatureEntry, n)
 	for i := range n {
-		snap.Sources[i] = live[i].fe
+		out[i] = live[i].fe
 	}
-	return snap
+	return out
+}
+
+// finalizePorts closes the destination-port axis: it emits a feature vector for
+// every port that RECEIVED this window, resets the window, evicts idle ports, and
+// returns the busiest MaxTopN. Caller holds a.mu.
+func (a *aggregator) finalizePorts(dt float64) []PortFeatureEntry {
+	type ranked struct {
+		pe    PortFeatureEntry
+		bytes float64
+	}
+	live := make([]ranked, 0, len(a.ports))
+
+	for key, st := range a.ports {
+		// A port is an entity because traffic is AIMED at it, so receiving is what
+		// makes it live this window. A port that only sent (a reply after its
+		// inbound flow landed in an earlier window) carries no spread to report.
+		received := st.inBytes > 0
+		st.activity.Tick(dt)
+
+		if received {
+			st.markActive(a.tickNum)
+			live = append(live, ranked{
+				pe: PortFeatureEntry{
+					PortKey:    key,
+					FanOut:     len(st.srcs),
+					OutInRatio: ratio(st.outBytes, st.inBytes),
+					SrcEntropy: stats.Entropy(histValues(st.srcs)),
+					NewPort:    a.tickNum-st.firstTick < newPeerTicks,
+					RarePort:   portIsRare(key.Port),
+					Beaconing:  stats.IntervalRegularity(st.gaps),
+				},
+				bytes: st.inBytes,
+			})
+		}
+
+		st.inBytes = 0
+		st.outBytes = 0
+		clear(st.srcs)
+
+		if st.activity.Idle() > evictIdleTicks {
+			delete(a.ports, key)
+		}
+	}
+
+	sort.Slice(live, func(i, j int) bool { return live[i].bytes > live[j].bytes })
+	n := min(MaxTopN, len(live))
+	out := make([]PortFeatureEntry, n)
+	for i := range n {
+		out[i] = live[i].pe
+	}
+	return out
 }
 
 // ratio returns out divided by in (the exfiltration signal). With no inbound
@@ -220,9 +451,12 @@ func ratio(out, in float64) float64 {
 	return out / in
 }
 
-func portValues(ports map[uint16]float64) []float64 {
-	out := make([]float64, 0, len(ports))
-	for _, b := range ports {
+// histValues collects a byte histogram's weights for an entropy computation. The
+// keys are irrelevant to entropy, so one helper serves the port histogram and the
+// per-source histogram alike.
+func histValues[K comparable](hist map[K]float64) []float64 {
+	out := make([]float64, 0, len(hist))
+	for _, b := range hist {
 		out = append(out, b)
 	}
 	return out
@@ -242,6 +476,26 @@ func rarePort(ports map[uint16]float64) bool {
 	if !found {
 		return false
 	}
-	_, common := commonPorts[best]
+	return portIsRare(best)
+}
+
+// isServicePort reports whether a flow's DESTINATION port is the service side of
+// the conversation, which is the only side that becomes a port entity.
+//
+// The rule is the lower of the two ports, the convention every flow analyzer uses:
+// a reply's destination is the client's ephemeral socket, and letting those in would
+// spend the port ceiling on client sockets and evict the services it exists to
+// watch. A flow source that leaves the source port at 0 (ICMP, or an exporter that
+// omits it) leaves the destination port as the only candidate, so it is kept.
+//
+// The limit is an attacker who spoofs a LOW source port to keep a swept port off
+// this axis. The source and destination address axes still see that flow.
+func isServicePort(srcPort, dstPort uint16) bool {
+	return srcPort == 0 || dstPort <= srcPort
+}
+
+// portIsRare reports whether a port number is outside the well-known allowlist.
+func portIsRare(p uint16) bool {
+	_, common := commonPorts[p]
 	return !common
 }
