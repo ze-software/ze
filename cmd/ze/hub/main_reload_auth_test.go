@@ -754,3 +754,107 @@ func reloadUserPassword(t *testing.T, tree map[string]any, name string) string {
 	require.True(t, ok, "user %q carries a password leaf", name)
 	return password
 }
+
+// recoveryZefsUsers returns the power user `ze init` writes to zefs: the one
+// account that carries the reserved recovery profile, and therefore the only
+// one whose live session the accepted generation can revoke.
+func recoveryZefsUsers(hash string) []authz.UserConfig {
+	return []authz.UserConfig{{
+		Name:     "recovery-admin",
+		Hash:     hash,
+		Profiles: []string{aaa.ReservedRecoveryProfile},
+	}}
+}
+
+// VALIDATES: a reload that re-parses an UNCHANGED configuration republishes the
+// SAME accepted generation, so a live break-glass session keeps its authority.
+// The two credential sets compared here are produced INDEPENDENTLY, as
+// production produces them: the accepted set from the map the boot provider
+// held, the candidate set from the map the reload's own parse installs, each
+// through infra.ExtractAuthUsers and mergeAuthUsers.
+// PREVENTS: an operator's own web config commit revoking, inside its own
+// request, the session that issued it. Every reload advanced the counter, a
+// bare SIGHUP included, so the commit bar came back read-only and every later
+// edit answered 403 until the operator logged in again.
+func TestRunReloadReusesGenerationWhenNoCredentialChanged(t *testing.T) {
+	resetAAABundleForTest(t)
+	t.Cleanup(func() { _ = zepki.Load(nil) })
+	require.NoError(t, zepki.Load(nil))
+	hash, err := bcrypt.GenerateFromPassword([]byte("operator-pass"), bcrypt.MinCost)
+	require.NoError(t, err)
+
+	tree := withReloadIdentity(map[string]any{}, string(hash), "allow", true)
+	srv, cp := reloadDriver(t, tree)
+	// An EQUAL but distinct map. The accepted extraction reads this one; the
+	// candidate extraction reads the root the reload installs from its own
+	// parse, so nothing but the credential values can make the two agree.
+	cp.SetRoot("system", reloadIdentitySystem(string(hash), "allow", true))
+	resolveCandidate := liveLocalUsers(recoveryZefsUsers(string(hash)), func() ([]authz.UserConfig, error) {
+		return liveConfigUsers(cp)
+	}, nil)
+	bootUsers, err := resolveCandidate()
+	require.NoError(t, err)
+	publishAcceptedLocalIdentity(newAcceptedLocalIdentity(
+		bootUsers,
+		reloadAuthorizationStore(),
+		resolveCandidate,
+		"",
+	))
+
+	accepted := acceptedLocalIdentity.Load().generation
+	session := recoverySessionAuthorizer(t, "recovery-admin")
+	require.True(t, session.Authorize("recovery-admin", "", "config commit", false))
+
+	load := func() (map[string]any, *zeconfig.Tree, error) {
+		return tree, treeFromMap(tree), nil
+	}
+	require.NoError(t, runReload(srv, cp, load, nil))
+
+	assert.Equal(t, accepted, acceptedLocalIdentity.Load().generation,
+		"a reload that re-parses the same credentials must republish the same generation")
+	assert.True(t, session.Authorize("recovery-admin", "", "config commit", false),
+		"a live break-glass session must survive a reload that changed no credential")
+}
+
+// VALIDATES: a reload that changes one configured credential still advances the
+// accepted generation and revokes the live break-glass session.
+// PREVENTS: the reuse above becoming a grant no password rotation, profile
+// demotion, or account removal can take back.
+func TestRunReloadAdvancesGenerationWhenACredentialChanged(t *testing.T) {
+	resetAAABundleForTest(t)
+	t.Cleanup(func() { _ = zepki.Load(nil) })
+	require.NoError(t, zepki.Load(nil))
+	oldHash, err := bcrypt.GenerateFromPassword([]byte("old-pass"), bcrypt.MinCost)
+	require.NoError(t, err)
+	newHash, err := bcrypt.GenerateFromPassword([]byte("new-pass"), bcrypt.MinCost)
+	require.NoError(t, err)
+
+	tree := withReloadIdentity(map[string]any{}, string(newHash), "allow", true)
+	srv, cp := reloadDriver(t, tree)
+	cp.SetRoot("system", reloadIdentitySystem(string(oldHash), "allow", true))
+	resolveCandidate := liveLocalUsers(recoveryZefsUsers(string(oldHash)), func() ([]authz.UserConfig, error) {
+		return liveConfigUsers(cp)
+	}, nil)
+	bootUsers, err := resolveCandidate()
+	require.NoError(t, err)
+	publishAcceptedLocalIdentity(newAcceptedLocalIdentity(
+		bootUsers,
+		reloadAuthorizationStore(),
+		resolveCandidate,
+		"",
+	))
+
+	accepted := acceptedLocalIdentity.Load().generation
+	session := recoverySessionAuthorizer(t, "recovery-admin")
+	require.True(t, session.Authorize("recovery-admin", "", "config commit", false))
+
+	load := func() (map[string]any, *zeconfig.Tree, error) {
+		return tree, treeFromMap(tree), nil
+	}
+	require.NoError(t, runReload(srv, cp, load, nil))
+
+	assert.NotEqual(t, accepted, acceptedLocalIdentity.Load().generation,
+		"a rotated password must publish a new generation")
+	assert.False(t, session.Authorize("recovery-admin", "", "config commit", false),
+		"the session pinned to the replaced generation must lose its authority")
+}

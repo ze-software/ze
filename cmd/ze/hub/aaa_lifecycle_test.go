@@ -2,6 +2,7 @@ package hub
 
 import (
 	"errors"
+	"reflect"
 	"sync"
 	"testing"
 
@@ -440,4 +441,171 @@ func TestSwapAAABundleConcurrent(t *testing.T) {
 	wg.Wait()
 
 	closeAAABundle(nil)
+}
+
+// recoverySessionAuthorizer returns the authorizer a live break-glass session
+// holds: the one aaa binds to a local login that resolved the reserved recovery
+// profile, pinned to the generation that authenticated it.
+func recoverySessionAuthorizer(t *testing.T, username string) aaa.Authorizer {
+	t.Helper()
+	accepted := acceptedLocalIdentity.Load()
+	require.NotNil(t, accepted)
+
+	for _, user := range accepted.users {
+		if user.Name == username {
+			return aaa.AuthorizerForResult(nil, aaa.AuthResult{
+				Authenticated:   true,
+				Source:          aaa.SourceLocal,
+				Profiles:        []string{aaa.ReservedRecoveryProfile},
+				LocalGeneration: user.LocalGeneration,
+			})
+		}
+	}
+
+	t.Fatalf("the accepted generation carries no user %q to log in as", username)
+	return nil
+}
+
+// VALIDATES: republishing an identical local credential set reuses the accepted
+// generation, so a live break-glass session keeps its authority across a config
+// reload that changed no credential.
+// PREVENTS: a web config commit revoking, inside its own request, the session
+// that issued it -- the commit succeeded, then the commit bar it wrote back
+// rendered read-only and every later edit answered 403.
+func TestAcceptedLocalIdentityReusesGenerationForUnchangedCredentials(t *testing.T) {
+	resetAAABundleForTest(t)
+
+	users := []aaa.UserCredential{{
+		Name:     "admin",
+		Hash:     "$2a$10$accepted",
+		Profiles: []string{aaa.ReservedRecoveryProfile},
+	}}
+	publishAcceptedLocalIdentity(newAcceptedLocalIdentity(users, nil, nil, ""))
+	first := acceptedLocalIdentity.Load().generation
+	session := recoverySessionAuthorizer(t, "admin")
+	require.True(t, session.Authorize("admin", "", "config commit", false))
+
+	publishAcceptedLocalIdentity(newAcceptedLocalIdentity(users, nil, nil, ""))
+	assert.Equal(t, first, acceptedLocalIdentity.Load().generation)
+	assert.True(t, session.Authorize("admin", "", "config commit", false),
+		"a reload that changed no credential must not revoke a live recovery session")
+}
+
+// VALIDATES: a changed local credential still advances the generation.
+// PREVENTS: the reuse above becoming a permanent break-glass grant that a
+// password change, a profile change, or a removed admin cannot revoke.
+func TestAcceptedLocalIdentityAdvancesGenerationForChangedCredentials(t *testing.T) {
+	resetAAABundleForTest(t)
+
+	users := []aaa.UserCredential{{
+		Name:     "admin",
+		Hash:     "$2a$10$accepted",
+		Profiles: []string{aaa.ReservedRecoveryProfile},
+	}}
+	publishAcceptedLocalIdentity(newAcceptedLocalIdentity(users, nil, nil, ""))
+	first := acceptedLocalIdentity.Load().generation
+	session := recoverySessionAuthorizer(t, "admin")
+	require.True(t, session.Authorize("admin", "", "config commit", false))
+
+	rotated := []aaa.UserCredential{{
+		Name:     "admin",
+		Hash:     "$2a$10$rotated",
+		Profiles: []string{aaa.ReservedRecoveryProfile},
+	}}
+	publishAcceptedLocalIdentity(newAcceptedLocalIdentity(rotated, nil, nil, ""))
+	assert.NotEqual(t, first, acceptedLocalIdentity.Load().generation)
+	assert.False(t, session.Authorize("admin", "", "config commit", false),
+		"a rotated password hash must revoke the session it no longer matches")
+
+	publishAcceptedLocalIdentity(newAcceptedLocalIdentity(nil, nil, nil, ""))
+	assert.False(t, session.Authorize("admin", "", "config commit", false),
+		"removing the admin must revoke it too")
+}
+
+// VALIDATES: sameLocalCredential reads every field of aaa.UserCredential that
+// authenticates or authorizes a user, in BOTH directions -- an equal pair
+// compares equal, and a pair differing in one field compares different.
+// PREVENTS: two ways of losing the revocation. A field the comparison forgets:
+// Profiles and PublicKeys were exercised in neither direction, so deleting
+// their lines left the suite green while a demoted profile and a revoked SSH
+// key silently stopped revoking a live session. And a field a later change ADDS
+// to aaa.UserCredential: the field count below fails the moment the struct
+// grows, so whoever adds the field decides whether a change to it must revoke.
+func TestSameLocalCredentialReadsEveryField(t *testing.T) {
+	// The five fields this test covers: Name, Hash, Profiles and PublicKeys
+	// below, and LocalGeneration, which is deliberately excluded. A sixth field
+	// fails here rather than reaching production unread. Counted by reflection
+	// because an unkeyed literal, which would fail at compile time instead, is
+	// what `go vet` composites refuses for a struct from another package.
+	require.Equal(t, 5, reflect.TypeFor[aaa.UserCredential]().NumField(),
+		"aaa.UserCredential grew a field: decide whether a change to it must revoke a live session, then extend sameLocalCredential and this test")
+
+	accepted := aaa.UserCredential{
+		Name:            "admin",
+		Hash:            "$2a$10$accepted",
+		Profiles:        []string{"ops"},
+		PublicKeys:      []aaa.SSHPublicKey{{Name: "laptop", Type: "ssh-ed25519", Key: "AAAA"}},
+		LocalGeneration: 7,
+	}
+
+	assert.True(t, sameLocalCredential(accepted, accepted), "a record compares equal to itself")
+
+	restamped := accepted
+	restamped.LocalGeneration = accepted.LocalGeneration + 1
+	assert.True(t, sameLocalCredential(accepted, restamped),
+		"LocalGeneration is the stamp this comparison decides and must not be read")
+
+	changes := []struct {
+		field  string
+		change func(*aaa.UserCredential)
+	}{
+		{"Name", func(u *aaa.UserCredential) { u.Name = "root" }},
+		{"Hash", func(u *aaa.UserCredential) { u.Hash = "$2a$10$rotated" }},
+		{"Profiles", func(u *aaa.UserCredential) { u.Profiles = []string{"read-only"} }},
+		{"PublicKeys", func(u *aaa.UserCredential) {
+			u.PublicKeys = []aaa.SSHPublicKey{{Name: "laptop", Type: "ssh-ed25519", Key: "BBBB"}}
+		}},
+		{"Profiles removed", func(u *aaa.UserCredential) { u.Profiles = nil }},
+		{"PublicKeys revoked", func(u *aaa.UserCredential) { u.PublicKeys = nil }},
+	}
+	for _, tc := range changes {
+		t.Run(tc.field, func(t *testing.T) {
+			candidate := accepted
+			tc.change(&candidate)
+			assert.False(t, sameLocalCredential(accepted, candidate),
+				"a change to %s must revoke every session pinned to the accepted generation", tc.field)
+		})
+	}
+}
+
+// VALIDATES: sameLocalCredentials pairs users by name, so a reordered set of
+// identical credentials still compares equal and a renamed user does not.
+// PREVENTS: the comparison depending on infra.ExtractAuthUsers and
+// mergeAuthUsers happening to produce the same order on both sides. An
+// index-wise comparison stops revoking the day either one stops sorting, with
+// every test still green.
+func TestSameLocalCredentialsPairsUsersByName(t *testing.T) {
+	alice := aaa.UserCredential{Name: "alice", Hash: "$2a$10$alice", Profiles: []string{"ops"}}
+	bob := aaa.UserCredential{Name: "bob", Hash: "$2a$10$bob"}
+
+	assert.True(t, sameLocalCredentials(
+		[]aaa.UserCredential{alice, bob},
+		[]aaa.UserCredential{bob, alice}),
+		"the same two users in the other order are the same credential set")
+
+	carol := aaa.UserCredential{Name: "carol", Hash: "$2a$10$bob"}
+	assert.False(t, sameLocalCredentials(
+		[]aaa.UserCredential{alice, bob},
+		[]aaa.UserCredential{alice, carol}),
+		"renaming a user is a credential change, whatever its hash")
+
+	assert.False(t, sameLocalCredentials(
+		[]aaa.UserCredential{alice, bob},
+		[]aaa.UserCredential{alice, alice}),
+		"a repeated name leaves the pairing ambiguous, so it must fail closed")
+
+	assert.False(t, sameLocalCredentials(
+		[]aaa.UserCredential{alice, bob},
+		[]aaa.UserCredential{alice}),
+		"a removed user is a credential change")
 }

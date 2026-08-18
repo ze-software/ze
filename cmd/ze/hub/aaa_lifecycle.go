@@ -6,6 +6,7 @@ package hub
 
 import (
 	"log/slog"
+	"slices"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -60,28 +61,138 @@ func swapAAABundle(b *aaa.Bundle, logger *slog.Logger) {
 	}
 }
 
+// publishLocalIdentity serializes the read-decide-store sequence
+// publishAcceptedLocalIdentity runs.
+//
+// Two reload drivers reach that sequence on different goroutines:
+// handleSIGHUPReload (main_reload.go) and the web or SSH commit path through
+// reloadAfterCommitContext (main.go). The plugin server's transaction lock
+// excludes them only across Server.reloadConfig (plugin/server/reload.go),
+// which releases while the reload still has every identity step in front of
+// it, so nothing else stops one driver from deciding a generation against a
+// state the other is about to replace.
+var publishLocalIdentity sync.Mutex
+
 // publishAcceptedLocalIdentity installs one complete accepted identity
 // generation. Callers must finish every fallible reload step before publishing
 // a candidate.
+//
+// The generation is decided HERE and not by the caller. Deciding it means
+// comparing the candidate against the ACCEPTED credentials, and only an answer
+// read at the instant of the store is still true when the store happens. A
+// decision taken where the candidate is built let the other driver publish in
+// between, and a reused number then LOWERED the accepted generation, reviving
+// every session that publication had revoked.
 func publishAcceptedLocalIdentity(state *acceptedLocalIdentityState) {
+	publishLocalIdentity.Lock()
+	defer publishLocalIdentity.Unlock()
+
+	stampLocalIdentityGeneration(state)
 	aaa.SetAcceptedLocalProfileGeneration(state.generation)
 	acceptedLocalIdentity.Store(state)
 }
 
-func newAcceptedLocalIdentity(users []aaa.UserCredential, store *authz.Store, resolveCandidateUsers func() ([]aaa.UserCredential, error), apiToken string) *acceptedLocalIdentityState {
-	generation := localIdentityGeneration.Add(1)
-	generationUsers := append([]aaa.UserCredential(nil), users...)
-	for i := range generationUsers {
-		generationUsers[i].LocalGeneration = generation
+// stampLocalIdentityGeneration decides the generation this identity publishes
+// and writes it into the state and into every credential the state carries.
+// The caller MUST hold publishLocalIdentity.
+//
+// The generation exists for ONE consumer: aaa.acceptedGenerationAuthorizer, the
+// break-glass grant a `ze init` bootstrap admin's live session holds
+// (internal/component/aaa/login_profiles.go, AuthorizerForResult). That grant is
+// valid only while its generation is the accepted one, so advancing the counter
+// revokes every session already holding it, silently and mid-request.
+//
+// So the counter tracks the LOCAL CREDENTIAL SET, not the configuration. A
+// candidate whose credentials equal the accepted ones keeps their number.
+// Advancing on every reload made an operator's own config commit revoke the
+// session that issued it: the commit reloaded, the generation moved, and the
+// same request rendered its commit bar read-only and answered every later edit
+// with 403.
+//
+// A credential that differs in any field still advances the counter, which is
+// the revocation this grant was written for (a changed password hash, a removed
+// admin, a demoted profile list, a revoked public key).
+func stampLocalIdentityGeneration(state *acceptedLocalIdentityState) {
+	state.generation = localIdentityGenerationFor(state.users)
+	for i := range state.users {
+		state.users[i].LocalGeneration = state.generation
 	}
-	generationAuthorizer := acceptedLocalGenerationAuthorizer{store: store}
+	state.apiAuthentication = buildAPIAuthentication(
+		state.users,
+		state.apiToken,
+		acceptedLocalGenerationAuthorizer{store: state.authorizer},
+	)
+}
+
+// localIdentityGenerationFor returns the accepted generation when users carries
+// the same credentials as the accepted state, and a fresh number otherwise. The
+// caller MUST hold publishLocalIdentity.
+func localIdentityGenerationFor(users []aaa.UserCredential) uint64 {
+	if accepted := acceptedLocalIdentity.Load(); accepted != nil && sameLocalCredentials(accepted.users, users) {
+		return accepted.generation
+	}
+
+	return localIdentityGeneration.Add(1)
+}
+
+// sameLocalCredentials reports whether two local credential sets carry the same
+// authentication and authorization material.
+//
+// Users are paired by NAME, never by position. Both sides are assembled by
+// infra.ExtractAuthUsers and mergeAuthUsers (main_servers.go), which sort and
+// then concatenate, so the two orders agree today. Nothing states that as a
+// contract, and a comparison that read position would stop revoking on the day
+// one of them stopped sorting, with every test still green.
+//
+// A name that appears twice on either side reports false. The pairing is then
+// ambiguous, and revoking is the answer that fails closed.
+func sameLocalCredentials(accepted, candidate []aaa.UserCredential) bool {
+	if len(accepted) != len(candidate) {
+		return false
+	}
+
+	unmatched := make(map[string]aaa.UserCredential, len(accepted))
+	for _, user := range accepted {
+		unmatched[user.Name] = user
+	}
+
+	for _, user := range candidate {
+		previous, found := unmatched[user.Name]
+		if !found || !sameLocalCredential(previous, user) {
+			return false
+		}
+		delete(unmatched, user.Name)
+	}
+
+	return len(unmatched) == 0
+}
+
+// sameLocalCredential compares the two records of one user. LocalGeneration is
+// excluded: it is the stamp this comparison decides, so reading it here would
+// compare a record against itself.
+//
+// Every other field of aaa.UserCredential is read. A field added to that struct
+// and not added here would stop revoking a live session on a change nobody
+// compared, so TestSameLocalCredentialReadsEveryField pins the field count and
+// fails the moment the struct grows.
+func sameLocalCredential(accepted, candidate aaa.UserCredential) bool {
+	return accepted.Name == candidate.Name &&
+		accepted.Hash == candidate.Hash &&
+		slices.Equal(accepted.Profiles, candidate.Profiles) &&
+		slices.Equal(accepted.PublicKeys, candidate.PublicKeys)
+}
+
+// newAcceptedLocalIdentity builds one candidate identity. The result carries no
+// generation and no API authentication mode: publishAcceptedLocalIdentity
+// decides and stamps both at the instant it installs the state. A candidate a
+// later reload step rejects therefore consumes no generation. The caller MUST
+// publish the result before any surface reads it.
+func newAcceptedLocalIdentity(users []aaa.UserCredential, store *authz.Store, resolveCandidateUsers func() ([]aaa.UserCredential, error), apiToken string) *acceptedLocalIdentityState {
 	return &acceptedLocalIdentityState{
-		generation:            generation,
-		users:                 generationUsers,
+		users:                 append([]aaa.UserCredential(nil), users...),
 		authorizer:            store,
 		resolveCandidateUsers: resolveCandidateUsers,
 		apiToken:              apiToken,
-		apiAuthentication:     buildAPIAuthentication(generationUsers, apiToken, generationAuthorizer),
 	}
 }
 
@@ -98,6 +209,12 @@ func liveAcceptedAPIAuthentication() api.Authentication {
 // stageAPIAuthentication hides every accepted and candidate API credential
 // while listeners migrate. The returned restore is used only when the reload is
 // rejected; successful reload publishes the complete candidate instead.
+//
+// The restore is a compare-and-swap, not a store: the other reload driver can
+// publish a complete identity while this one is staged, and putting the older
+// state back would lower the accepted generation and revive the sessions that
+// publication revoked. When the staged state is no longer the accepted one,
+// somebody newer owns it and this restore has nothing to put back.
 func stageAPIAuthentication() func() {
 	previous := acceptedLocalIdentity.Load()
 	if previous == nil {
@@ -106,7 +223,7 @@ func stageAPIAuthentication() func() {
 	staged := *previous
 	staged.apiAuthentication = api.Authentication{Required: true}
 	acceptedLocalIdentity.Store(&staged)
-	return func() { acceptedLocalIdentity.Store(previous) }
+	return func() { acceptedLocalIdentity.CompareAndSwap(&staged, previous) }
 }
 
 // liveAcceptedLocalUsers returns credentials from the accepted generation.
