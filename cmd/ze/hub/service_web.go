@@ -212,14 +212,20 @@ func withBGPDecode(inner zeweb.CommandDispatcher) zeweb.CommandDispatcher {
 	return func(ctx context.Context, caller plugin.CallerIdentity, command string) (*plugin.Response, error) {
 		if decode := pluginreg.GetPacketDecoder(); decode != nil && strings.HasPrefix(command, prefix) {
 			hex := strings.TrimSpace(command[len(prefix):])
-			// The decoder returns human-readable text (outputJSON=false);
-			// carry it as pre-rendered Text so the web tool renders it verbatim
-			// rather than re-quoting/escaping it through JSON marshaling.
-			decoded, err := decode(hex, "", "", false)
+			// The decoder is asked for JSON (outputJSON=true) so the response
+			// carries structured data. A payload that is already rendered text
+			// leaves "| json", "| yaml" and "| table" nothing to work with, so
+			// the rendering is the pipe layer's job here, never the decoder's
+			// (ai/rules/cli.md).
+			decoded, err := decode(hex, "", "", true)
 			if err != nil {
 				return nil, err
 			}
-			return plugin.NewResponse(plugin.StatusDone, plugin.Text(decoded)), nil
+			var payload map[string]any
+			if err := json.Unmarshal([]byte(decoded), &payload); err != nil {
+				return nil, fmt.Errorf("decode bgp packet: %w", err)
+			}
+			return plugin.NewResponse(plugin.StatusDone, plugin.Map(payload)), nil
 		}
 		if inner != nil {
 			return inner(ctx, caller, command)

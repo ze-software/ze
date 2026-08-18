@@ -200,14 +200,13 @@ func readGRMarker(r *reactor.Reactor, store storage.Storage) {
 	}
 }
 
-// formatResponseData converts a command response Data value to a human-readable string.
-// Strings pass through directly. Maps and other complex types are JSON-encoded with indentation.
+// formatResponseData converts a command response Data value to a JSON string.
+// Its one caller passes plugin.Response.Data, which is a plugin.ResponseData:
+// every payload is a map, a slice, or a struct, so the value is always encoded
+// rather than passed through.
 func formatResponseData(data any) string {
 	if data == nil {
 		return ""
-	}
-	if s, ok := data.(string); ok {
-		return s
 	}
 	b, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {

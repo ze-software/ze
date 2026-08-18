@@ -59,7 +59,7 @@ func TestWithBGPDecodeInterceptsDecodeCommand(t *testing.T) {
 	var innerCalled bool
 	inner := zeweb.CommandDispatcher(func(_ context.Context, _ plugin.CallerIdentity, cmd string) (*plugin.Response, error) {
 		innerCalled = true
-		return plugin.NewResponse(plugin.StatusDone, plugin.Text("inner:"+cmd)), nil
+		return plugin.NewResponse(plugin.StatusDone, plugin.Map{"inner": cmd}), nil
 	})
 	dispatch := withBGPDecode(inner)
 
@@ -72,10 +72,10 @@ func TestWithBGPDecodeInterceptsDecodeCommand(t *testing.T) {
 	require.NoError(t, err)
 	if bgpDecodeLinked {
 		assert.False(t, innerCalled, "decode must be handled in-process, not forwarded")
-		assert.Contains(t, out.Output, "KEEPALIVE")
+		assert.Equal(t, "keepalive", decodedMessageType(t, out.Output))
 	} else {
 		assert.True(t, innerCalled, "with BGP compiled out, decode must fall through to the dispatcher")
-		assert.Equal(t, "inner:show bgp decode FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304", out.Output)
+		assert.JSONEq(t, `{"inner":"show bgp decode FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304"}`, out.Output)
 	}
 
 	// A non-decode command passes through to the inner dispatcher.
@@ -84,7 +84,7 @@ func TestWithBGPDecodeInterceptsDecodeCommand(t *testing.T) {
 	defer out.TransportComplete()
 	require.NoError(t, err)
 	assert.True(t, innerCalled, "non-decode commands must reach the inner dispatcher")
-	assert.Equal(t, "inner:show ping 1.1.1.1", out.Output)
+	assert.JSONEq(t, `{"inner":"show ping 1.1.1.1"}`, out.Output)
 }
 
 // TestWithBGPDecodeNilInner verifies that withBGPDecode with a nil inner
@@ -100,7 +100,7 @@ func TestWithBGPDecodeNilInner(t *testing.T) {
 	defer out.TransportComplete()
 	if bgpDecodeLinked {
 		require.NoError(t, err)
-		assert.Contains(t, out.Output, "KEEPALIVE")
+		assert.Equal(t, "keepalive", decodedMessageType(t, out.Output))
 	} else {
 		// No decoder and no inner dispatcher: the same friendly
 		// daemon-required error every other unservable command gets, not a

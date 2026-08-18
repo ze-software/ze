@@ -322,7 +322,7 @@ func TestAdminExecuteCompletesAfterResponseWrite(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	completed := false
 	dispatch := CommandDispatcher(func(context.Context, plugin.CallerIdentity, string) (*plugin.Response, error) {
-		resp := plugin.NewResponse(plugin.StatusDone, plugin.Text("accepted"))
+		resp := plugin.NewResponse(plugin.StatusDone, plugin.Map{"result": "accepted"})
 		resp.OnTransportComplete(func() {
 			assert.Contains(t, recorder.Body.String(), "accepted")
 			completed = true

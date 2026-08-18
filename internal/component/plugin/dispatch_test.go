@@ -37,9 +37,13 @@ func TestResponseJSON(t *testing.T) {
 			want: `{"a":1}`,
 		},
 		{
-			name: "pre-rendered text passes through verbatim (unquoted)",
-			resp: NewResponse(StatusDone, Text("line one\nline two")),
-			want: "line one\nline two",
+			// The one escape from the structured-data invariant was a Text
+			// payload that ResponseJSON returned verbatim. It is gone: a
+			// payload carrying newlines is marshaled like any other, so
+			// "| json", "| yaml" and "| table" all have data to render.
+			name: "text-carrying data is marshaled, never passed through verbatim",
+			resp: NewResponse(StatusDone, Map{"lines": "line one\nline two"}),
+			want: `{"lines":"line one\nline two"}`,
 		},
 		{
 			name: "nil response yields empty",

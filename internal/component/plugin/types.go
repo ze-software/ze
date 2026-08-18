@@ -123,21 +123,6 @@ type Slice[T any] []T
 
 func (Slice[T]) responseData() {}
 
-// Text is a ResponseData payload that is already-rendered plain text, not
-// JSON. Text surfaces render it verbatim (ResponseJSON returns it unchanged);
-// when marshaled into a JSON envelope for the REST/gRPC API it becomes a JSON
-// string. Use it for commands whose output is human-readable text that must not
-// be re-quoted or escaped on a text surface (e.g. the web BGP-decode tool).
-type Text string
-
-func (Text) responseData() {}
-
-// MarshalJSON encodes the text as a JSON string so the API envelope stays valid
-// JSON. Text surfaces bypass this via ResponseJSON's Text fast path.
-func (t Text) MarshalJSON() ([]byte, error) {
-	return json.Marshal(string(t))
-}
-
 // RawJSON holds pre-serialized JSON from an RPC boundary.
 type RawJSON string
 

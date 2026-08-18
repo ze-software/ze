@@ -116,11 +116,6 @@ func ResponseJSON(resp *Response, err error) (string, error) {
 	if resp.Data == nil {
 		return "", nil
 	}
-	// Pre-rendered text renders verbatim; marshaling it would re-quote and
-	// escape it (breaking human-readable output such as the web BGP decoder).
-	if t, ok := resp.Data.(Text); ok {
-		return string(t), nil
-	}
 	b, jsonErr := json.Marshal(resp.Data)
 	if jsonErr != nil {
 		return "", fmt.Errorf("marshal response: %w", jsonErr)

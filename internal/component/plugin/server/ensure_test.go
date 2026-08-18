@@ -32,7 +32,7 @@ func TestWasCreated(t *testing.T) {
 		{"created true", &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"created": true}}, true, false},
 		{"created false", &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"created": false}}, false, false},
 		{"no created key", &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"message": "ok"}}, false, true},
-		{"data not a plugin.Map", &plugin.Response{Status: plugin.StatusDone, Data: plugin.Text("created")}, false, true},
+		{"data not a plugin.Map", &plugin.Response{Status: plugin.StatusDone, Data: plugin.RawJSON(`"created"`)}, false, true},
 		{"created not a bool", &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"created": "true"}}, false, true},
 	}
 	for _, tt := range tests {

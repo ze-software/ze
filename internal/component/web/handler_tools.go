@@ -24,6 +24,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -170,10 +171,22 @@ func HandleRelatedToolRun(renderer *Renderer, schema *config.Schema, tree *confi
 			return
 		}
 
+		// A dispatcher answers structured data, so the overlay renders it
+		// through the configured display default, exactly as the tool pages
+		// and the web terminal do. There is no session format override on this
+		// surface, and a related-tool command carries no pipe of its own.
+		cmdStr, formatFn, pipeErr := command.ProcessPipesDefaultFormatChecked(res.Command, "")
+		if pipeErr != "" {
+			var tb textbuf.Buffer
+			data := errorOverlay(toolID, contextPath, tool, tb.Str("pipe error: ").Str(pipeErr).String())
+			renderToolOverlay(w, renderer, data, http.StatusOK)
+			return
+		}
+
 		// Dispatch through the standard pipeline. Authz, accounting, and
 		// peer-selector extraction live there; this handler only constructs
 		// the trusted command and identity.
-		rendered, dispatchErr := dispatch.JSON(r.Context(), plugin.CallerIdentity{Username: username, RemoteAddr: r.RemoteAddr}, res.Command)
+		rendered, dispatchErr := dispatch.JSON(r.Context(), plugin.CallerIdentity{Username: username, RemoteAddr: r.RemoteAddr}, cmdStr)
 		defer rendered.TransportComplete()
 		output := rendered.Output
 		if dispatchErr != nil {
@@ -184,7 +197,7 @@ func HandleRelatedToolRun(renderer *Renderer, schema *config.Schema, tree *confi
 		}
 
 		// Strip ANSI, cap at 4 MiB, split inline / overflow.
-		cleaned, truncated := normalizeOutput(output)
+		cleaned, truncated := normalizeOutput(formatFn(output))
 		data := toolOverlayData{
 			ID:          overlayID(toolID, contextPath),
 			State:       ToolOverlayResult,
