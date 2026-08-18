@@ -24,11 +24,14 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io/fs"
 	"net/http"
 	"os"
+	"os/exec"
+	"path"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -161,9 +164,23 @@ func vendorPackages(root string) ([]vendorPackage, error) {
 	var pkgs []vendorPackage
 	owner := map[string]string{}
 
+	ignored, err := ignoredNames(root, entries)
+	if err != nil {
+		return nil, err
+	}
+
 	for _, entry := range entries {
 		if !entry.IsDir() {
 			continue // MANIFEST.md, and anything else at the top level
+		}
+		// A vendored package is tracked. third_party/web/htmx-upgrade-check.py
+		// lives beside the packages it checks, so importing it writes
+		// third_party/web/__pycache__/, and every session that ran
+		// `make ze-htmx-upgrade-check` grew a directory here that no consumer
+		// subscribes to. Reading it as an unsynced package makes one gate red
+		// because a different gate ran, in the same verify.
+		if ignored[entry.Name()] {
+			continue
 		}
 
 		dir := filepath.Join(base, entry.Name())
@@ -314,6 +331,44 @@ func driftCheck(root string) (problems, compared int, err error) {
 	}
 
 	return problems, compared, nil
+}
+
+// ignoredNames names the entries of the vendor directory that git ignores. It asks
+// git rather than matching names, so a cache directory nobody predicted is excluded
+// on the same evidence as the one that prompted this: the repository already says it
+// is not content. Outside a git checkout the answer is "nothing is ignored", which
+// is the reading that reports more rather than less.
+func ignoredNames(root string, entries []os.DirEntry) (map[string]bool, error) {
+	ignored := map[string]bool{}
+	if len(entries) == 0 {
+		return ignored, nil
+	}
+
+	var stdin bytes.Buffer
+	for _, entry := range entries {
+		stdin.WriteString(path.Join(vendorDir, entry.Name()))
+		stdin.WriteByte('\n')
+	}
+
+	cmd := exec.Command("git", "-C", root, "check-ignore", "--stdin")
+	cmd.Stdin = &stdin
+	out, err := cmd.Output()
+	// Exit 1 is "nothing matched" and exit 128 is "not a git repository". Both are
+	// answers, not failures. Anything else is a broken invocation and is reported.
+	if err != nil {
+		var exit *exec.ExitError
+		if !errors.As(err, &exit) || (exit.ExitCode() != 1 && exit.ExitCode() != 128) {
+			return nil, fmt.Errorf("git check-ignore in %s: %w", root, err)
+		}
+	}
+
+	for _, line := range strings.Split(string(out), "\n") {
+		if line == "" {
+			continue
+		}
+		ignored[path.Base(strings.TrimSuffix(line, "/"))] = true
+	}
+	return ignored, nil
 }
 
 // subscribes reports whether a consumer holds any file of one vendor package.
