@@ -37,4 +37,7 @@ _ze-fuzz-test-one-impl:
 # The `_<target>-impl` half of every admitted pair defined in this file.
 # The public half calls the admission wrapper and this half holds the work;
 # see the job-admission block above ZE_RUN_SLOTS in the Makefile.
-.PHONY: _ze-fuzz-test-one-impl
+# _ze-fuzz-test-impl is DEFINED in the generated mk/test-fuzz-targets.mk, the
+# same split ze-fuzz-test itself has (declared above, defined there). Declared
+# here because the generator emits recipes, not .PHONY lines.
+.PHONY: _ze-fuzz-test-one-impl _ze-fuzz-test-impl

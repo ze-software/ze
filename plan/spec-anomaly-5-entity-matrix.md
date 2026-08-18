@@ -181,7 +181,15 @@ prerequisite) and 7 (as-entities-cohorts). This spec adds no AS field and no flo
 | AC-12 | A dashboard queries `ze_anomaly_tracked_entities` | the `Gauge` to `GaugeVec{dimension}` change is recorded where operators read it. A bare series became a labeled one, so an existing query returns nothing; that is a breaking change and it MUST be stated, not left for a dashboard to discover |
 | AC-13 | `buildCohorts` (`internal/plugins/anomaly/detect/detector.go`) after this spec | it has a non-test caller, or it is deleted and its test points at `cohortsOf`. `unused` does not flag it because a test calls it, so nothing else will catch it |
 
-AC-11 to AC-13 were added on 2026-08-18 by an independent review of
+AC-11, AC-12 and AC-13 were MET on 2026-08-18, in the same commit that carries
+this note: `docs/features.md` and `docs/architecture/anomaly/anomaly-1-detect.md`
+describe three entity kinds and the anchor no longer calls the contract
+source-oriented (AC-11); both pages state that `ze_anomaly_tracked_entities`
+gained a `dimension` label and that an existing query stops matching (AC-12);
+and `buildCohorts` is deleted, with `detector_test.go` calling `cohortsOf`
+directly, which is what production already did (AC-13).
+
+They were added on 2026-08-18 by an independent review of
 `d85aa3720~1..a0c8486bb`. That range landed this spec's producers
 (`internal/component/trafficfeature`, `internal/core/anomalyevent`,
 `detector.go`, `show.go`, `responder.go`) from another session's working tree,
@@ -212,7 +220,8 @@ was somebody else's, and the three rows are what that review found unproven.
 | `TestTrackedGaugeByDimension` | `internal/plugins/anomaly/detect/detector_test.go` | `ze_anomaly_tracked_entities` labeled by `dimension` reports per-map counts | |
 | `TestResponderIgnoresNonSourceEntity` | `internal/plugins/anomaly/shape/responder_test.go` | dest/port `AnomalyDetected` installs no term; source unchanged | |
 | `TestEventKindOmitemptyForSource` | `internal/core/anomalyevent/event_test.go` | a source event marshals to identical JSON (kind omitted/defaulted); dest/port carry the new fields | |
-| `TestShowAnomalyEntityLabelByKind` | `internal/plugins/anomaly/detect/show_test.go` | AC-9's RENDER contract: `entityLabel` (`show.go`) returns `proto/port` for a port incident, the dest prefix for a dest incident, and the unchanged source label for a source one; the response carries `entity-kind`, `port` and `proto`. Needs no traffic generator, so it is NOT blocked on child 4 | |  <!-- doc-links: ignore (file this spec will create; the spec is `in-progress` and the work is not implemented) -->
+| `TestShowAnomalyEntityLabelByKind` | `internal/plugins/anomaly/detect/show_test.go` | AC-9's RENDER contract: `entityLabel` (`show.go`) returns `proto/port` for a port incident, the dest prefix for a dest incident, and the unchanged source label for a source one; the response carries `entity-kind`, `port` and `proto`. Needs no traffic generator, so it is NOT blocked on child 4 | pass 2026-08-18. Drives `handleShowAnomaly` itself over a detector holding three incidents, not `entityLabel` alone. Discriminating: making `entityLabel` always return `e.Entity.String()` fails it with `port entity = invalid Prefix`, which is what a port incident rendered before this test existed |
+| `TestShowAnomalyWithNoDetector` | `internal/plugins/anomaly/detect/show_test.go` | with no detector loaded the surface reports `enabled: false`, rather than an empty incident list that reads like a running, quiet detector | pass 2026-08-18 |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |

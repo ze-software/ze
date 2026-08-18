@@ -10,15 +10,25 @@ This is a SEPARATE domain from volumetric DDoS. It shares no event contract, no
 detector and no responder with `ddos`. It is report-only: it emits incidents, and
 `anomaly/shape` acts on them.
 
-## The event contract is source-oriented
+## The event contract names one of three entity kinds
 
 <!-- source: internal/core/anomalyevent/event.go -- event structs, events.Register -->
 
 `anomalyevent` mirrors `ddosevent`'s `events.Register[T](ns, et)` pattern under
-namespace `anomaly-detect`. The difference is the key: an anomaly event is keyed
-on a SOURCE `netip.Prefix`, where a DDoS event is keyed on a destination
-`VectorTuple`. `events.Register` self-registers the namespace, so package-level
-`var` declarations are the whole contract.
+namespace `anomaly-detect`. `events.Register` self-registers the namespace, so
+package-level `var` declarations are the whole contract.
+
+An event carries an `EntityKind` naming what it is about: a SOURCE (an anomalous
+sender), a DEST (an anomalous receiver, a distributed sink or a probed host), or
+a PORT. Source and dest are identified by `Entity`, a `netip.Prefix`. A port has
+no address, so it is identified by `Port` and `Proto` and its `Entity` is zero.
+The DDoS side stays keyed on a destination `VectorTuple`, which is the contrast
+this section originally drew.
+
+`EntityKindSource` is the ZERO value, deliberately: an event a producer built
+before the other two kinds existed reads as a source event, which is what it
+was. So a reader tests against `EntityKindSource` rather than against the other
+kinds, and a kind added later does not silently join the source population.
 
 ## Baselines are two EWMAs per entity and feature
 
@@ -87,7 +97,16 @@ plumbing exists on this path.
 The plugin emits `anomaly-detect` events and keeps a bounded recent-incident ring
 that `show anomaly detect` surfaces. Metrics are
 `ze_anomaly_incidents_total`, `ze_anomaly_active` and
-`ze_anomaly_tracked_entities`. The doctor check
+`ze_anomaly_tracked_entities`.
+
+`ze_anomaly_tracked_entities` carries a `dimension` label (`source`, `dest`,
+`port`), one series per tracked map. It was a bare gauge until 2026-08-18, so a
+query written against the unlabelled series returns nothing now and has to sum
+over the label or select one dimension. That is a BREAKING change for an
+existing dashboard, and it is stated here because nothing else would tell the
+operator: the series does not disappear, it stops matching.
+
+The doctor check
 `anomaly-detect-feature-source` warns when the plugin is enabled and no flow
 source feeds `trafficfeature`.
 

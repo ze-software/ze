@@ -149,7 +149,7 @@ func TestBuildCohortsExcludesInfiniteRatio(t *testing.T) {
 		trafficfeature.FeatureEntry{Addr: netip.MustParseAddr("198.51.100.3"), FanOut: 1, OutInRatio: 2},
 		trafficfeature.FeatureEntry{Addr: netip.MustParseAddr("198.51.100.9"), FanOut: 1, OutInRatio: math.Inf(1)},
 	)
-	cohorts := d.buildCohorts(snap)
+	cohorts := d.cohortsOf(snap.Sources)
 	ca := cohorts[d.cohortPrefix(netip.MustParseAddr("198.51.100.1"))]
 	if ca == nil {
 		t.Fatal("no cohort built")
@@ -304,7 +304,7 @@ func TestDetectPortCohortFree(t *testing.T) {
 //
 // VALIDATES: child-5 R-6 -- the dest axis does not over-fire on every quiet receiver.
 // PREVENTS: two failures at once. Every pure receiver on the network firing one
-// feature at maximum forever; and the +Inf value, which buildCohorts deliberately
+// feature at maximum forever; and the +Inf value, which cohortsOf deliberately
 // leaves OUT of the cohort, being scored against that cohort anyway, where its own
 // missing contribution makes the leave-one-out mean meaningless.
 func TestRatioSentinelPerAxis(t *testing.T) {

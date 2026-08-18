@@ -310,11 +310,6 @@ func evictIdle[K comparable](states map[K]*entityState, seen map[K]bool) {
 	}
 }
 
-// buildCohorts groups the snapshot's SOURCE axis into prefix cohorts.
-func (d *detector) buildCohorts(snap *trafficfeature.Snapshot) map[netip.Prefix]*cohortAgg {
-	return d.cohortsOf(snap.Sources)
-}
-
 // cohortsOf groups one address axis's entries into prefix cohorts, so an entity is
 // measured against its neighbors as well as against its own history. One grouping
 // serves both address axes; only the axis whose entries are passed differs.
@@ -472,7 +467,7 @@ func (d *detector) scoreEntity(sig entitySignals, st *entityState, ca *cohortAgg
 	// it as a finding, the feature is dropped for this tick -- no signal, and nothing
 	// folded into the baseline, so the next two-way tick measures it honestly. The
 	// forceMax branch also keeps the value away from the cohort it was deliberately
-	// left out of (buildCohorts), and needs nothing else to: zMax exceeds any rarity.
+	// left out of (cohortsOf), and needs nothing else to: zMax exceeds any rarity.
 	if !math.IsInf(sig.ratio, 1) {
 		cont(featOutInRatio, sig.ratio, st.ratio, ratio, false)
 	} else if sig.ratioMaxOnEmpty {
@@ -620,7 +615,7 @@ func zValues(sigs []anomalyevent.FeatureSignal) []float64 {
 
 // finiteRatio maps the +Inf exfil sentinel to a large finite value so it never
 // propagates NaN/Inf through the scoring arithmetic. A +Inf entity is excluded
-// from its cohort's ratio baseline (buildCohorts) and scores via self-deviation
+// from its cohort's ratio baseline (cohortsOf) and scores via self-deviation
 // (forceMax), so this value only ever appears in that entity's own harmless
 // leave-one-out rarity.
 func finiteRatio(r float64) float64 {

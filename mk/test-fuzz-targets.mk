@@ -5,6 +5,9 @@
 # Add a fuzzer and run `make generate`; never hand-edit this file.
 
 ze-fuzz-test:
+	@scripts/dev/ze-run.sh ze-fuzz-test $(MAKE) --no-print-directory _ze-fuzz-test-impl
+
+_ze-fuzz-test-impl:
 	@echo "Running ze fuzz tests..."
 	$(GO_TEST) -fuzz=^FuzzAuthDigest$$ -fuzztime=10s -timeout=60s ./internal/component/bfd/auth
 	$(GO_TEST) -fuzz=^FuzzParseAuth$$ -fuzztime=10s -timeout=60s ./internal/component/bfd/packet
