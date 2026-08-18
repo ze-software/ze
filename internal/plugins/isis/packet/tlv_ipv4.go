@@ -39,24 +39,6 @@ func DecodeIPv4InterfaceAddrTLV(value []byte) (IPv4InterfaceAddrTLV, error) {
 	return out, nil
 }
 
-// valueLen returns the encoded TLV 132 value length.
-func (t IPv4InterfaceAddrTLV) valueLen() int { return len(t.Addresses) * IPv4AddrLen }
-
-// writeIPv4InterfaceAddrTLV emits TLV 132 into buf at off. Non-IPv4 addresses
-// in the slice are skipped (the caller is responsible for passing IPv4 only);
-// each address is written as its 4-octet form.
-func writeIPv4InterfaceAddrTLV(buf []byte, off int, t IPv4InterfaceAddrTLV) int {
-	vlen := t.valueLen()
-	buf[off] = TLVIPInterfaceAddress
-	buf[off+1] = byte(vlen)
-	off += TLVHeaderLen
-	for _, a := range t.Addresses {
-		a4 := a.As4()
-		off += copy(buf[off:], a4[:])
-	}
-	return off
-}
-
 // ---- TLV 135: Extended IP Reachability (RFC 5305 sec 4) ----
 //
 // Each entry (the canonical layout in the umbrella "Shared Contracts -> TLV

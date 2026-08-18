@@ -104,35 +104,66 @@ func TestISISTLVLSPEntriesBadLength(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-6 -- TLV 22 (Extended IS Reachability) round-trips the 7-octet
-// neighbor, the 24-bit metric, and sub-TLVs 4/6/8; outer and sub-TLV lengths
-// stay consistent. Also covers the 24-bit metric boundary (16777215).
+// VALIDATES: AC-6 -- TLV 22 (Extended IS Reachability) decodes the 7-octet
+// neighbor, the 24-bit metric, and sub-TLVs 4/6/8 from wire bytes; outer and
+// sub-TLV lengths stay consistent. Also covers the 24-bit metric boundary
+// (16777215).
+//
+// The fixture is written by hand from the RFC rather than produced by Ze's own
+// encoder: a round trip through one codec proves self-consistency, and a shared
+// misreading of the wire format would pass it. These bytes assert the format.
+//
+// rfc-test-change-approved: 2026-08-17 -- Thomas approved the dead-codec sweep after being
+// shown this specific change: the fixture rewrite was described to him and he directed it.
+// He did not review the wording of this marker. writeExtendedISReachTLV had no production
+// caller and was deleted, so the fixture it built is replaced by hand-written RFC 5305
+// bytes. Every assertion about opaque sub-TLV retention is kept, and an entry-1 neighbor
+// check is added; only the encoder re-encode drift check goes, because it has no subject
+// once the encoder is gone.
 func TestISISTLV22RoundTrip(t *testing.T) {
 	sys := types.SystemID{0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff}
-	maxMetric, err := types.NewMetric(types.MaxMetric) // 16777215, the 24-bit boundary
-	if err != nil {
-		t.Fatalf("NewMetric(max): %v", err)
+
+	// TLV 22 wire layout, hand-built from RFC 5305 sec 3 (entry: 7 octets of
+	// system ID and pseudonode number, 3 octets of default metric, 1 octet of
+	// sub-TLV block length, then the block) and RFC 5305 sec 2 (each sub-TLV:
+	// 1 octet type, 1 octet length, then the value).
+	//
+	//	offset  field
+	//	     0  TLV type   = 22
+	//	     1  TLV length = 44 (two entries: 33 + 11)
+	//	  ---- entry 0, offsets 2..34 ----
+	//	  2- 8  neighbor: system ID aa bb cc dd ee ff, pseudonode 00
+	//	  9-11  default metric = 00 00 0a (10)
+	//	    12  sub-TLV block length = 22 (three sub-TLVs: 10 + 6 + 6)
+	//	 13-14  sub-TLV type 4 (link local/remote ID), length 8
+	//	 15-22    value 00 00 00 01 00 00 00 02
+	//	 23-24  sub-TLV type 6 (IPv4 interface address), length 4
+	//	 25-28    value c0 00 02 01 (192.0.2.1)
+	//	 29-30  sub-TLV type 8 (IPv4 neighbor address), length 4
+	//	 31-34    value c0 00 02 02 (192.0.2.2)
+	//	  ---- entry 1, offsets 35..45 ----
+	//	 35-41  neighbor: system ID aa bb cc dd ee ff, pseudonode 07
+	//	 42-44  default metric = ff ff ff (16777215, the 24-bit boundary)
+	//	    45  sub-TLV block length = 0 (an empty block, not an omitted octet)
+	wire := []byte{
+		TLVExtendedISReach, 44,
+		0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0x00,
+		0x00, 0x00, 0x0a,
+		22,
+		SubTLVLinkLocalRemoteID, 8, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02,
+		SubTLVIPv4InterfaceAddr, 4, 0xc0, 0x00, 0x02, 0x01,
+		SubTLVIPv4NeighborAddr, 4, 0xc0, 0x00, 0x02, 0x02,
+		0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0x07,
+		0xff, 0xff, 0xff,
+		0,
 	}
-	m10, _ := types.NewMetric(10)
-	in := ExtendedISReachTLV{Entries: []ExtISReachEntry{
-		{
-			Neighbor: mustSource(sys, 0),
-			Metric:   m10,
-			SubTLVs: []SubTLV{
-				{Type: SubTLVLinkLocalRemoteID, Value: []byte{0, 0, 0, 1, 0, 0, 0, 2}}, // 8-octet local/remote IDs
-				{Type: SubTLVIPv4InterfaceAddr, Value: []byte{192, 0, 2, 1}},
-				{Type: SubTLVIPv4NeighborAddr, Value: []byte{192, 0, 2, 2}},
-			},
-		},
-		{
-			Neighbor: mustSource(sys, 7),
-			Metric:   maxMetric, // boundary
-			SubTLVs:  nil,       // zero-length sub-TLV block
-		},
-	}}
-	buf := make([]byte, 512)
-	n := writeExtendedISReachTLV(buf, 0, in)
-	it := NewTLVIterator(buf[:n])
+	wantSubs := []SubTLV{
+		{Type: SubTLVLinkLocalRemoteID, Value: []byte{0, 0, 0, 1, 0, 0, 0, 2}}, // 8-octet local/remote IDs
+		{Type: SubTLVIPv4InterfaceAddr, Value: []byte{192, 0, 2, 1}},
+		{Type: SubTLVIPv4NeighborAddr, Value: []byte{192, 0, 2, 2}},
+	}
+
+	it := NewTLVIterator(wire)
 	typ, value, ok := it.Next()
 	if !ok || typ != TLVExtendedISReach {
 		t.Fatalf("framing: ok=%v typ=%d", ok, typ)
@@ -144,8 +175,11 @@ func TestISISTLV22RoundTrip(t *testing.T) {
 	if len(out.Entries) != 2 {
 		t.Fatalf("got %d entries, want 2", len(out.Entries))
 	}
-	if out.Entries[0].Neighbor != in.Entries[0].Neighbor {
-		t.Errorf("entry0 neighbor mismatch")
+	if out.Entries[0].Neighbor != mustSource(sys, 0) {
+		t.Errorf("entry0 neighbor = %v, want %v", out.Entries[0].Neighbor, mustSource(sys, 0))
+	}
+	if out.Entries[1].Neighbor != mustSource(sys, 7) {
+		t.Errorf("entry1 neighbor = %v, want %v (pseudonode octet)", out.Entries[1].Neighbor, mustSource(sys, 7))
 	}
 	if out.Entries[0].Metric.Value() != 10 {
 		t.Errorf("entry0 metric = %d, want 10", out.Entries[0].Metric.Value())
@@ -153,11 +187,11 @@ func TestISISTLV22RoundTrip(t *testing.T) {
 	if out.Entries[1].Metric.Value() != types.MaxMetric {
 		t.Errorf("entry1 metric = %d, want %d (24-bit boundary)", out.Entries[1].Metric.Value(), types.MaxMetric)
 	}
-	// RFC requirement: RFC5305-2-1 positive -- sub-TLVs the codec does not interpret are retained opaquely and re-emitted verbatim (round-trip), never dropped or rejected (RFC 5305 sec 2: unknown sub-TLVs are ignored and skipped, not fatal).
+	// RFC requirement: RFC5305-2-1 positive -- sub-TLVs the codec does not interpret are retained opaquely on the decoded entry, never dropped or rejected (RFC 5305 sec 2: unknown sub-TLVs are ignored and skipped, not fatal).
 	if len(out.Entries[0].SubTLVs) != 3 {
 		t.Fatalf("entry0 got %d sub-TLVs, want 3", len(out.Entries[0].SubTLVs))
 	}
-	for i, want := range in.Entries[0].SubTLVs {
+	for i, want := range wantSubs {
 		got := out.Entries[0].SubTLVs[i]
 		if got.Type != want.Type || !bytes.Equal(got.Value, want.Value) {
 			t.Errorf("sub-TLV[%d] = {%d,% x}, want {%d,% x}", i, got.Type, got.Value, want.Type, want.Value)
@@ -165,13 +199,6 @@ func TestISISTLV22RoundTrip(t *testing.T) {
 	}
 	if len(out.Entries[1].SubTLVs) != 0 {
 		t.Errorf("entry1 should have no sub-TLVs, got %d", len(out.Entries[1].SubTLVs))
-	}
-
-	// Re-encode and confirm byte-for-byte stability.
-	buf2 := make([]byte, 512)
-	n2 := writeExtendedISReachTLV(buf2, 0, out)
-	if !bytes.Equal(buf[:n], buf2[:n2]) {
-		t.Errorf("TLV 22 re-encode drift:\n got % x\nwant % x", buf2[:n2], buf[:n])
 	}
 }
 
@@ -186,23 +213,15 @@ func TestISISTLV22Truncated(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-12 -- TLV 129 (Protocols Supported) round-trips the NLPID list.
-//
-// RFC requirement: RFC1195-5.2-1 positive -- the Protocols Supported TLV 129 round-trips its NLPID list (0xCC for IPv4 among them) through encode/decode, so an IP-capable router can advertise TLV 129 with NLPID 0xCC (RFC 1195 sec 5.2).
-func TestISISTLVProtocolsSupported(t *testing.T) {
-	in := protocolsSupportedTLV{NLPIDs: []uint8{NLPIDIPv4, NLPIDIPv6}}
-	buf := make([]byte, 16)
-	n := writeProtocolsSupportedTLV(buf, 0, in)
-	it := NewTLVIterator(buf[:n])
-	typ, value, _ := it.Next()
-	if typ != TLVProtocolsSupported {
-		t.Fatalf("type = %d", typ)
-	}
-	out := DecodeProtocolsSupportedTLV(value)
-	if !bytes.Equal(out.NLPIDs, in.NLPIDs) {
-		t.Errorf("NLPIDs = % x, want % x", out.NLPIDs, in.NLPIDs)
-	}
-}
+// rfc-test-change-approved: 2026-08-17 -- Thomas approved the dead-codec sweep, and this
+// deletion was described to him before he directed it. He did not review the wording of
+// this marker. TestISISTLVProtocolsSupported was
+// deleted here together with writeProtocolsSupportedTLV, which had no production caller and
+// was the test's only subject beyond the decoder. The RFC1195-5.2-1 positive proof survives
+// at internal/plugins/isis/lsdb/origination_test.go:122, which reads TLV 129 off an LSP the
+// daemon actually originated. DecodeProtocolsSupportedTLV keeps hand-built-bytes coverage in
+// TestISISIgnoreObsoleteTLVs131And133 and ordered multi-NLPID coverage in
+// internal/plugins/isis/lsdb/origination_ipv6_test.go.
 
 // VALIDATES: TLV 137 (Dynamic Hostname) round-trips an ASCII name.
 func TestISISTLVHostname(t *testing.T) {

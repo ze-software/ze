@@ -207,11 +207,6 @@ func DecodeProtocolsSupportedTLV(value []byte) protocolsSupportedTLV {
 	return out
 }
 
-// writeProtocolsSupportedTLV emits TLV 129 into buf at off.
-func writeProtocolsSupportedTLV(buf []byte, off int, t protocolsSupportedTLV) int {
-	return writeTLV(buf, off, TLVProtocolsSupported, t.NLPIDs)
-}
-
 // ---- TLV 137: Dynamic Hostname (RFC 5301 sec 3) ----
 //
 // Value is a 1..255 byte hostname with no NUL at its end. RFC 5301 sec 3 says
@@ -350,8 +345,8 @@ func putBeUint32(b []byte, v uint32) {
 const extISReachFixedLen = types.SourceIDLen + types.MetricLen + 1
 
 // Sub-TLV type codes for TLV 22 the spec calls out (RFC 5305 sec 3, sec 5.2.1).
-// The codec round-trips ANY sub-TLV as an opaque SubTLV; these constants are
-// provided for callers that build the in-scope set.
+// The decoder retains ANY sub-TLV as an opaque SubTLV; these constants name the
+// types RFC 5305 defines, for a reader that inspects a decoded entry.
 const (
 	SubTLVLinkLocalRemoteID = 4 // RFC 5305 sec 5.2.1 / RFC 5307: link local/remote identifiers
 	SubTLVIPv4InterfaceAddr = 6 // RFC 5305 sec 3.2: IPv4 interface address
@@ -360,8 +355,8 @@ const (
 
 // ExtISReachEntry is one decoded TLV 22 neighbor entry. The 24-bit metric is
 // carried in types.Metric (which range-checks the 24-bit bound). SubTLVs are
-// retained opaquely so the entry round-trips verbatim regardless of which
-// sub-TLV types Ze understands.
+// retained opaquely, so a sub-TLV type Ze does not interpret stays on the
+// decoded entry rather than being dropped (RFC 5305 sec 2).
 type ExtISReachEntry struct {
 	Neighbor types.SourceID
 	Metric   types.Metric
@@ -413,37 +408,4 @@ func DecodeExtendedISReachTLV(value []byte) (ExtendedISReachTLV, error) {
 		})
 	}
 	return out, nil
-}
-
-// entryLen returns the encoded length of one TLV 22 entry.
-func (e ExtISReachEntry) entryLen() int {
-	return extISReachFixedLen + subTLVsEncodedLen(e.SubTLVs)
-}
-
-// valueLen returns the encoded TLV 22 value length.
-func (t ExtendedISReachTLV) valueLen() int {
-	n := 0
-	for _, e := range t.Entries {
-		n += e.entryLen()
-	}
-	return n
-}
-
-// writeExtendedISReachTLV emits TLV 22 (type+length+value) into buf at off. The
-// caller ensures the value fits one TLV (<= 255 octets); isis-6 repeats the TLV
-// across fragments otherwise. Buffer-first.
-func writeExtendedISReachTLV(buf []byte, off int, t ExtendedISReachTLV) int {
-	vlen := t.valueLen()
-	buf[off] = TLVExtendedISReach
-	buf[off+1] = byte(vlen)
-	off += TLVHeaderLen
-	for _, e := range t.Entries {
-		off += e.Neighbor.WriteTo(buf, off)
-		off += e.Metric.WriteTo(buf, off)
-		subLen := subTLVsEncodedLen(e.SubTLVs)
-		buf[off] = byte(subLen)
-		off++
-		off = writeSubTLVs(buf, off, e.SubTLVs)
-	}
-	return off
 }

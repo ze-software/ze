@@ -9,18 +9,45 @@ import (
 	"github.com/ze-software/ze/internal/plugins/isis/types"
 )
 
-// VALIDATES: AC-12 -- TLV 132 (IP Interface Address) round-trips a list of
-// 4-octet IPv4 addresses.
+// VALIDATES: AC-12 -- TLV 132 (IP Interface Address) decodes a list of 4-octet
+// IPv4 addresses from wire bytes.
 //
-// RFC requirement: RFC1195-5.2-2 positive -- the IP Interface Address TLV 132 round-trips a list of 4-octet IPv4 addresses through encode/decode, so an IP-capable router can carry TLV 132 in its LSPs (RFC 1195 sec 5.2).
+// The fixture is written by hand from the RFC rather than produced by Ze's own
+// encoder: a round trip through one codec proves self-consistency, and a shared
+// misreading of the wire format would pass it. These bytes assert the format.
+//
+// RFC requirement: RFC1195-5.2-2 positive -- the IP Interface Address TLV 132 carries a list of 4-octet IPv4 addresses that the codec reads back verbatim, so an IP-capable router can carry TLV 132 in its LSPs (RFC 1195 sec 5.2).
+//
+// rfc-test-change-approved: 2026-08-17 -- Thomas approved the dead-codec sweep, but what he
+// was shown for this test was a DELETION. It was rewritten instead, because
+// DecodeIPv4InterfaceAddrTLV stays live in circuit/runtime.go and spf/graph.go and this test
+// is its only assertion-bearing coverage, so deleting it would have cut coverage of shipped
+// code. That deviation is the implementer's call, not his, and he did not review the wording
+// of this marker. writeIPv4InterfaceAddrTLV had no production caller and was deleted, so the
+// fixture it built is replaced by hand-written RFC 1195 bytes. Every assertion about
+// DecodeIPv4InterfaceAddrTLV is kept.
 func TestISISTLVIPv4InterfaceAddr(t *testing.T) {
-	in := IPv4InterfaceAddrTLV{Addresses: []netip.Addr{
+	want := []netip.Addr{
 		netip.MustParseAddr("192.0.2.1"),
 		netip.MustParseAddr("10.0.0.254"),
-	}}
-	buf := make([]byte, 64)
-	n := writeIPv4InterfaceAddrTLV(buf, 0, in)
-	it := NewTLVIterator(buf[:n])
+	}
+
+	// TLV 132 wire layout, hand-built from RFC 1195 sec 5.3 ("IP Interface
+	// Addresses": CODE 132, LENGTH is the total value length at four octets per
+	// address, VALUE is a flat list of 4-octet IP addresses).
+	//
+	//	offset  field
+	//	     0  TLV type   = 132
+	//	     1  TLV length = 8 (two addresses at 4 octets each)
+	//	  2- 5  address 0 = c0 00 02 01 (192.0.2.1)
+	//	  6- 9  address 1 = 0a 00 00 fe (10.0.0.254)
+	wire := []byte{
+		TLVIPInterfaceAddress, 8,
+		0xc0, 0x00, 0x02, 0x01,
+		0x0a, 0x00, 0x00, 0xfe,
+	}
+
+	it := NewTLVIterator(wire)
 	typ, value, ok := it.Next()
 	if !ok || typ != TLVIPInterfaceAddress {
 		t.Fatalf("framing: ok=%v typ=%d", ok, typ)
@@ -29,8 +56,8 @@ func TestISISTLVIPv4InterfaceAddr(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DecodeIPv4InterfaceAddrTLV: %v", err)
 	}
-	if len(out.Addresses) != 2 || out.Addresses[0] != in.Addresses[0] || out.Addresses[1] != in.Addresses[1] {
-		t.Errorf("addresses = %v, want %v", out.Addresses, in.Addresses)
+	if len(out.Addresses) != 2 || out.Addresses[0] != want[0] || out.Addresses[1] != want[1] {
+		t.Errorf("addresses = %v, want %v", out.Addresses, want)
 	}
 }
 
