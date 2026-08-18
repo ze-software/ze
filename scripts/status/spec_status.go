@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/scripts/status/specbucket"
+	"github.com/ze-software/ze/scripts/status/specmeta"
 )
 
 type spec struct {
@@ -44,6 +45,11 @@ type spec struct {
 	Stale bool `json:"stale"`
 }
 
+// statusUnparsed is the status reported for a spec that carries no metadata
+// table. It is distinct from "unknown", which means the table was read and the
+// Status row was absent from it.
+const statusUnparsed = "unparsed"
+
 // statusOrder returns the sort key for a status (lower = sorted first).
 func statusOrder(status string) int {
 	switch status {
@@ -59,6 +65,10 @@ func statusOrder(status string) int {
 		return 5
 	case "deferred":
 		return 6
+	case statusUnparsed:
+		// Sorted first: a spec the inventory cannot read is the one row a
+		// reader must act on, and burying it reads as "nothing to see".
+		return 0
 	}
 	return 9
 }
@@ -75,22 +85,8 @@ func detectSet(filename string) string {
 	return m[1]
 }
 
-// extractField returns the value of a metadata field from a spec's table.
-// The table has rows like "| Status | design |"; only the first 10 lines of
-// the file are scanned to avoid matching unrelated tables further down.
-func extractField(content, field string) string {
-	pattern := regexp.MustCompile(`^\|\s*` + regexp.QuoteMeta(field) + `\s*\|\s*([^|]*?)\s*\|`)
-	lines := strings.SplitN(content, "\n", 11)
-	if len(lines) > 10 {
-		lines = lines[:10]
-	}
-	for _, line := range lines {
-		if m := pattern.FindStringSubmatch(line); m != nil {
-			return strings.TrimSpace(m[1])
-		}
-	}
-	return ""
-}
+// The metadata table parse lives in the specmeta subpackage so a test can
+// import it; this file is //go:build ignore and cannot be compiled into one.
 
 // gitDate returns git's last-modified date for a file (YYYY-MM-DD), falling
 // back to "unknown" if git is unavailable or the file is untracked.
@@ -116,14 +112,23 @@ func loadSpec(path string) (spec, error) {
 	base := filepath.Base(path)
 	name := strings.TrimSuffix(strings.TrimPrefix(base, "spec-"), ".md")
 
+	rows, found := specmeta.Rows(content)
 	s := spec{
 		Name:        name,
-		Status:      extractField(content, "Status"),
-		Depends:     extractField(content, "Depends"),
-		Phase:       extractField(content, "Phase"),
-		Updated:     extractField(content, "Updated"),
+		Status:      specmeta.Field(rows, "Status"),
+		Depends:     specmeta.Field(rows, "Depends"),
+		Phase:       specmeta.Field(rows, "Phase"),
+		Updated:     specmeta.Field(rows, "Updated"),
 		Set:         detectSet(base),
 		GitModified: gitDate(path),
+	}
+	// Fail closed: a spec with no metadata table at all is an authoring error,
+	// not a spec whose Status row is merely absent. Reporting both as "unknown"
+	// dresses a zero-information answer as data, so the two are kept distinct
+	// and the unreadable one names itself on stderr.
+	if !found {
+		fmt.Fprintf(os.Stderr, "spec-status: %s has no '| Field | Value |' metadata table\n", path)
+		s.Status = statusUnparsed
 	}
 	if s.Status == "" {
 		s.Status = "unknown"
@@ -207,7 +212,7 @@ func printTable(specs []spec) {
 	for _, s := range specs {
 		counts[s.Status]++
 	}
-	order := []string{"in-progress", "ready", "design", "skeleton", "blocked", "deferred", "unknown"}
+	order := []string{statusUnparsed, "in-progress", "ready", "design", "skeleton", "blocked", "deferred", "unknown"}
 	var sb strings.Builder
 	first := true
 	for _, st := range order {
