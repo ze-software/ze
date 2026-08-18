@@ -60,6 +60,23 @@
             rgba(255, 255, 255, 0.72),
             rgba(247, 252, 250, 0.58)
         );
+        /*
+         * Page titles paint a gradient clipped to the glyphs. Light mode runs
+         * blue -> grape -> pink; dark mode stays in the green/blue range,
+         * because the grape and pink tones read as neon on the dark panel.
+         */
+        --page-title-gradient: linear-gradient(
+            90deg,
+            var(--sky-deep),
+            var(--grape-deep) 52%,
+            var(--pink-deep)
+        );
+        --journey-title-gradient: linear-gradient(
+            90deg,
+            var(--grape-deep),
+            var(--sky-deep) 54%,
+            var(--teal-deep)
+        );
         --accent-solid-foreground: #fff;
     }
 
@@ -206,6 +223,18 @@
             oklch(19% 0.023 295 / 0.84),
             oklch(16.5% 0.02 295 / 0.76)
         );
+        --page-title-gradient: linear-gradient(
+            90deg,
+            var(--teal-deep),
+            var(--mint-mid) 45%,
+            var(--sky-base)
+        );
+        --journey-title-gradient: linear-gradient(
+            90deg,
+            var(--sky-deep),
+            var(--mint-mid) 46%,
+            var(--teal-base)
+        );
         --accent-solid-foreground: oklch(13.5% 0.018 295);
     }
 
@@ -348,6 +377,18 @@
                 135deg,
                 oklch(19% 0.023 295 / 0.84),
                 oklch(16.5% 0.02 295 / 0.76)
+            );
+            --page-title-gradient: linear-gradient(
+                90deg,
+                var(--teal-deep),
+                var(--mint-mid) 45%,
+                var(--sky-base)
+            );
+            --journey-title-gradient: linear-gradient(
+                90deg,
+                var(--sky-deep),
+                var(--mint-mid) 46%,
+                var(--teal-base)
             );
             --accent-solid-foreground: oklch(13.5% 0.018 295);
         }

@@ -1117,6 +1117,15 @@ main.has-page-sidebar > :not(.page-sidebar) {
     }
 }
 
+/*
+ * Selected text keeps the site palette instead of the browser default, which
+ * is a flat grey block on the dark theme.
+ */
+::selection {
+    background-color: var(--sky-chip);
+    color: var(--text);
+}
+
 h1,
 h2,
 h3,
@@ -1192,15 +1201,27 @@ h2 {
     width: fit-content;
     max-width: var(--page-title-max-width);
     color: var(--sky-deep);
-    background: linear-gradient(
-        90deg,
-        var(--sky-deep),
-        var(--grape-deep) 52%,
-        var(--pink-deep)
-    );
+    background: var(--page-title-gradient);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
+}
+
+/*
+ * A gradient title paints its glyphs with a clipped background and a
+ * transparent fill, so the selection highlight covers the whole line and the
+ * text disappears behind it. Restore a solid fill for the selected run.
+ * Chrome honors -webkit-text-fill-color here; Firefox honors color.
+ */
+#features-title::selection,
+#perf-title::selection,
+:is(.section-head[class*="cat-"], .section-head[class*="tone-"]) :is(h1, h2)::selection,
+.md-content[class*="cat-"] > h1:first-child::selection,
+.journey-hero :is(h1, h2)::selection,
+.md-content .journey-hero :is(h1, h2)::selection {
+    color: var(--text);
+    -webkit-text-fill-color: var(--text);
+    background-color: var(--sky-chip);
 }
 
 #hero-title {
@@ -1649,7 +1670,7 @@ section[aria-labelledby="blog-teaser-title"] {
     max-width: var(--page-title-max-width);
     margin: 0;
     color: var(--text);
-    background: linear-gradient(90deg, var(--grape-deep), var(--sky-deep) 54%, var(--teal-deep));
+    background: var(--journey-title-gradient);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
