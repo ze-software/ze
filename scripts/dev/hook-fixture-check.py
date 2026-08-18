@@ -317,8 +317,40 @@ def run_rendered_rule(results: Results) -> None:
     )
     results.check("rendered-rule-unrelated-doc-allowed", code == 0, repr((code, err)))
 
+    # c_rendered_rules must not BLOCK a .claude/rules/ file: only ai/rules/ holds
+    # rendered rules. Since 2026-08-18 the same path draws a WARN from
+    # c_claude_tree_has_ai_home, so the aggregate is 1 rather than 0. Asserted as
+    # exactly 1 with the message named, not as `!= 2`, which a later unrelated
+    # warning would satisfy without anyone noticing this one had stopped firing.
     code, err = _writeedit(os.path.join(ROOT, ".claude", "rules", "planning.md"))
-    results.check("rendered-rule-claude-rules-allowed", code == 0, repr((code, err)))
+    results.check(
+        "rendered-rule-claude-rules-allowed",
+        code == 1 and "shared home" in err,
+        repr((code, err)),
+    )
+
+    # c_claude_tree_has_ai_home: the population is DERIVED -- `.claude/<sub>/`
+    # warns exactly when `ai/<sub>/` exists. Both halves are pinned, because a
+    # check that warned on everything and one that warned on nothing would each
+    # pass a one-sided test.
+    for sub, leaf in (("rules", "x.md"), ("skills", "x/SKILL.md"), ("agents", "x.md")):
+        code, err = _writeedit(os.path.join(ROOT, ".claude", sub, leaf))
+        results.check(
+            f"claude-tree-warns-for-{sub}",
+            code == 1 and f"ai/{sub}/" in err,
+            repr((code, err)),
+        )
+    for sub, leaf in (
+        ("hooks", "x.py"),
+        ("plan", "ze-plan-x"),
+        ("output-styles", "x.md"),
+    ):
+        code, err = _writeedit(os.path.join(ROOT, ".claude", sub, leaf))
+        results.check(
+            f"claude-tree-silent-for-{sub}",
+            "shared home" not in err,
+            repr((code, err)),
+        )
 
     # A non-markdown file in ai/rules/ is not a rendered rule.
     code, err = _writeedit(os.path.join(rules, "notes.txt"))

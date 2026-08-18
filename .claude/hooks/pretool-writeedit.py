@@ -1288,6 +1288,55 @@ def c_generated_files(ctx):
     return (2, f"BLOCKED: {base} is generated{fix}")
 
 
+# ze point: repo-maintenance/canonical-sources-and-sync-direction/keep-shared-rules-in-ai-rules-and-render-them
+def c_claude_tree_has_ai_home(ctx):
+    """Remind that `.claude/<sub>/` has a cross-agent home at `ai/<sub>/`.
+
+    WARN, never block. `.claude/rules/` legitimately holds Claude-SPECIFIC
+    extensions -- planning.md opens "Extends ai/rules/planning.md with Claude
+    Code session management" -- so a block would refuse correct work. What the
+    author needs is the question, at the moment they can still answer it: does
+    this instruction bind every agent, or only this one?
+
+    The population is DERIVED, not listed: warn for `.claude/<sub>/` exactly when
+    `ai/<sub>/` exists on disk. Today that is agents, rules and skills. It stays
+    silent for hooks, settings, plan, output-styles, docs and memory, which have
+    no ai/ counterpart and would otherwise make this noise for anyone editing a
+    hook. A new shared tree earns the reminder by existing, and a list nobody
+    updates cannot drift.
+
+    Written after a session put "read ze-style every session" in
+    .claude/rules/session-start.md alone. ai/INSTRUCTIONS.md generates BOTH
+    CLAUDE.md and AGENTS.md (Makefile), so the rule reached Claude and never
+    reached Codex -- a rule filed where half its readers do not look, which is
+    the failure it had been written to fix.
+    """
+    if ctx["tool"] not in ("Write", "Edit"):
+        return None
+    given = (
+        ctx["fp"] if os.path.isabs(ctx["fp"]) else os.path.join(PROJECT_DIR, ctx["fp"])
+    )
+    rel = os.path.relpath(os.path.realpath(given), os.path.realpath(PROJECT_DIR))
+    parts = rel.split(os.sep)
+    # `.claude/<sub>/<something>`: a file directly in .claude/ has no subtree to
+    # map, and a path outside the project resolves to `..` and is not ours.
+    if len(parts) < 3 or parts[0] != ".claude":
+        return None
+    sub = parts[1]
+    if not os.path.isdir(os.path.join(PROJECT_DIR, "ai", sub)):
+        return None
+    return (
+        1,
+        f"{YELLOW}{BOLD}WARN: {rel} is read by this tool alone; ai/{sub}/ is the shared home{RESET}"
+        f"\n  ai/INSTRUCTIONS.md generates BOTH CLAUDE.md and AGENTS.md, so an"
+        f"\n  instruction that binds every agent belongs in ai/{sub}/ and reaches"
+        f"\n  one filed here only. Keep it here when it is genuinely specific to"
+        f"\n  this tool -- .claude/rules/planning.md extends the shared rule and"
+        f"\n  is correct where it is."
+        f"\n  See ai/rules/repo-maintenance.md, canonical sources.",
+    )
+
+
 # The generated files that sit DIRECTLY in ai/rules/, and how each is rebuilt.
 # A rendered rule (any other `*.md` there) comes from ai/rules/points/<stem>/.
 _RULES_ARTIFACTS = {
@@ -3336,6 +3385,7 @@ def c_line_number_ref(ctx):
 CHECKS = (
     c_line_number_ref,
     c_generated_files,
+    c_claude_tree_has_ai_home,
     c_rendered_rules,
     c_point_overwrite,
     c_rule_point_rfc_language,
