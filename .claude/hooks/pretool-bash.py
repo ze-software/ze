@@ -829,14 +829,14 @@ GOVERNED_TREE = r"(?:plan/|ai/rules/)"
 # `commit_helper.py --file plan/spec-x.md` free -- the sanctioned commit path
 # names these paths constantly and would otherwise refuse itself.
 _GOVERNED_SHELL_WRITE = re.compile(
-    r">>?\s*[\"']?"
-    + GOVERNED_TREE
-    + r"|(?:sed|perl)\s+(?:[^|;&]*\s)?-i\b[^|;&]*"
-    + GOVERNED_TREE
-    + r"|tee\s+(?:-a\s+)?[\"']?"
-    + GOVERNED_TREE
-    + r"|(?:mv|cp)\s+[^|;&]*\s[\"']?"
-    + GOVERNED_TREE
+    # Each verb is anchored at a word start, or `cp` matches inside "mcp" and
+    # `mv` inside any word ending in it -- "mcp spec" once blocked a plain grep.
+    # The span is newline-free for the same class of reason: without it a verb
+    # on one line reached a path on the NEXT command's line.
+    r">>?[ \t]*[\"']?" + GOVERNED_TREE
+    + r"|(?:^|[\s;&|])(?:sed|perl)[ \t]+(?:[^|;&\n]*[ \t])?-i\b[^|;&\n]*" + GOVERNED_TREE
+    + r"|(?:^|[\s;&|])tee[ \t]+(?:-a[ \t]+)?[\"']?" + GOVERNED_TREE
+    + r"|(?:^|[\s;&|])(?:mv|cp)[ \t]+[^|;&\n]*[ \t][\"']?" + GOVERNED_TREE
 )
 
 # Tier two: the write is inside an interpreter payload, where the shell sees no
