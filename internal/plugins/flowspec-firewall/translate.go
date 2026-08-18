@@ -22,6 +22,8 @@ var (
 	errUnsupportedComponent = errors.New("flowspec: unsupported component type")
 	errUnsupportedOperator  = errors.New("flowspec: non-equality operator not supported")
 	errNoAction             = errors.New("flowspec: no traffic action")
+	errUnknownProtocol      = errors.New("flowspec: IP protocol has no canonical firewall name")
+	errUnreadableValue      = errors.New("flowspec: NLRI value cannot be read")
 )
 
 // flowAction holds the parsed traffic action from extended communities.
@@ -33,12 +35,22 @@ type flowAction struct {
 }
 
 // translateFlowSpec converts a parsed FlowSpec NLRI and its actions into
-// firewall Terms. Returns errUnsupportedComponent if any component cannot be
-// mapped, or errNoAction if no filtering/shaping action is present.
-// FlowSpec Type 4 (Port = src OR dst) produces two terms to avoid incorrect
-// AND logic in nftables.
+// firewall Terms.
+//
+// A Term ANDs its matches, so every component whose values are ALTERNATIVES
+// multiplies the terms rather than adding a match. Type 4 (Port = source OR
+// destination) gives two terms, and type 3 (IP protocol) gives one term per
+// protocol the peer listed. A rule with neither gives one term.
+//
+// It returns errUnsupportedComponent for a component ze cannot map,
+// errUnknownProtocol for a protocol with no canonical firewall name,
+// errUnreadableValue for a value ze cannot read, and errNoAction when the
+// route carries no filtering or shaping action. Each refuses the WHOLE route:
+// enforcing a rule without one of its narrowing conditions would drop more
+// traffic than the peer asked ze to drop.
 func translateFlowSpec(fs *flowspec.FlowSpec, act flowAction, nlriKey string) ([]firewall.Term, error) {
 	var matches []firewall.Match
+	var protoMatches []firewall.MatchProtocol
 	var portAnyRanges []firewall.PortRange
 
 	for _, comp := range fs.Components() {
@@ -53,7 +65,16 @@ func translateFlowSpec(fs *flowspec.FlowSpec, act flowAction, nlriKey string) ([
 		if err != nil {
 			return nil, err
 		}
-		matches = append(matches, m...)
+		// A type 3 component lists alternatives, so its matches are held back
+		// and expanded into one term each below. Every other component
+		// contributes matches that AND together inside one term.
+		for _, one := range m {
+			if pm, ok := one.(firewall.MatchProtocol); ok {
+				protoMatches = append(protoMatches, pm)
+				continue
+			}
+			matches = append(matches, one)
+		}
 	}
 
 	actions := actionToFirewall(act)
@@ -61,21 +82,54 @@ func translateFlowSpec(fs *flowspec.FlowSpec, act flowAction, nlriKey string) ([
 		return nil, errNoAction
 	}
 
-	if len(portAnyRanges) > 0 {
-		srcMatches := append(append([]firewall.Match{}, matches...), firewall.MatchSourcePort{Ranges: portAnyRanges})
-		dstMatches := append(append([]firewall.Match{}, matches...), firewall.MatchDestinationPort{Ranges: portAnyRanges})
-		var tb textbuf.Buffer
-		return []firewall.Term{
-			{Name: termName(tb.Str(nlriKey).Str("|sp").String()), Matches: srcMatches, Actions: actions},
-			{Name: termName(tb.Reset().Str(nlriKey).Str("|dp").String()), Matches: dstMatches, Actions: actions},
-		}, nil
+	if len(protoMatches) == 0 {
+		return portTerms(nlriKey, matches, portAnyRanges, actions), nil
 	}
 
-	return []firewall.Term{{
-		Name:    termName(nlriKey),
-		Matches: matches,
-		Actions: actions,
-	}}, nil
+	// One term per protocol alternative. The key keeps its old spelling when
+	// there is a single protocol, so the term names of every rule written
+	// before this split are unchanged.
+	terms := make([]firewall.Term, 0, len(protoMatches))
+	for _, pm := range protoMatches {
+		key := nlriKey
+		if len(protoMatches) > 1 {
+			var tb textbuf.Buffer
+			key = tb.Str(nlriKey).Str("|p").Str(pm.Protocol).String()
+		}
+		withProto := make([]firewall.Match, len(matches), len(matches)+1)
+		copy(withProto, matches)
+		terms = append(terms, portTerms(key, append(withProto, pm), portAnyRanges, actions)...)
+	}
+	return terms, nil
+}
+
+// portTerms renders one match set as terms under key. A type 4 (Port) component
+// matches source OR destination while a Term ANDs its matches, so a port-any
+// component becomes two terms rather than one that can never match.
+func portTerms(key string, matches []firewall.Match, portAny []firewall.PortRange, actions []firewall.Action) []firewall.Term {
+	if len(portAny) == 0 {
+		return []firewall.Term{{Name: termName(key), Matches: matches, Actions: actions}}
+	}
+	// Each term owns its match array: the two differ only in the last element,
+	// and a shared backing array would let the second overwrite the first.
+	withPort := func(m firewall.Match) []firewall.Match {
+		out := make([]firewall.Match, len(matches), len(matches)+1)
+		copy(out, matches)
+		return append(out, m)
+	}
+	var tb textbuf.Buffer
+	return []firewall.Term{
+		{
+			Name:    termName(tb.Str(key).Str("|sp").String()),
+			Matches: withPort(firewall.MatchSourcePort{Ranges: portAny}),
+			Actions: actions,
+		},
+		{
+			Name:    termName(tb.Reset().Str(key).Str("|dp").String()),
+			Matches: withPort(firewall.MatchDestinationPort{Ranges: portAny}),
+			Actions: actions,
+		},
+	}
 }
 
 // componentToMatch converts a single FlowSpec component to firewall matches.
@@ -97,11 +151,7 @@ func componentToMatch(comp flowspec.FlowComponent, fam family.Family) ([]firewal
 		return []firewall.Match{firewall.MatchSourceAddress{Prefix: pfx}}, nil
 
 	case flowspec.FlowIPProtocol:
-		vals := extractNumericValues(comp)
-		if len(vals) == 0 {
-			return nil, nil
-		}
-		return []firewall.Match{firewall.MatchProtocol{Protocol: protoName(uint8(vals[0]))}}, nil
+		return protocolMatches(extractNumericValues(comp))
 
 	case flowspec.FlowPort:
 		// Type 4 (Port = src OR dst) is handled in translateFlowSpec by
@@ -247,7 +297,13 @@ func destPrefixFromJSON(fam family.Family, data json.RawMessage) netip.Prefix {
 		return netip.Prefix{}
 	}
 	isV6 := fam.AFI == family.AFIIPv6
-	return firstPrefix(n.Destination, n.DestinationV6, isV6)
+	// A refusal here needs no separate report: parseNLRIJSON reads the same
+	// fields with the same helper and rejects the NLRI before it is used.
+	pfx, err := firstPrefix(n.Destination, n.DestinationV6, isV6)
+	if err != nil {
+		return netip.Prefix{}
+	}
+	return pfx
 }
 
 func termName(nlriKey string) string {
@@ -256,22 +312,40 @@ func termName(nlriKey string) string {
 	return tb.Str("fs-").Str(hex.EncodeToString(h[:8])).String()
 }
 
-func protoName(proto uint8) string {
-	switch proto {
-	case 1:
-		return "icmp"
-	case 6:
-		return "tcp"
-	case 17:
-		return "udp"
-	case 47:
-		return "gre"
-	case 58:
-		return "icmpv6"
-	default:
-		var tb textbuf.Buffer
-		return tb.Reset().Uint8(proto).String()
+// protocolMatches maps the values of a FlowSpec type 3 component to protocol
+// matches, keeping the peer's order and dropping repeats. RFC 8955 Section
+// 4.2.2.3 gives the field one octet, so every value 0-255 is legal on the wire
+// and the translator cannot assume a small set.
+//
+// A value with no canonical name is refused instead of rendered as digits.
+// MatchProtocol carries a name, every backend resolves it through
+// firewall.ProtocolNumber, and a spelling no backend knows fails inside
+// Backend.Apply -- which returns before its single Flush, so one such rule from
+// one peer would leave every other owner's ruleset unapplied.
+//
+// Dropping repeats bounds the match count by the size of the canonical table,
+// so one NLRI cannot expand into an unbounded number of terms.
+func protocolMatches(vals []uint64) ([]firewall.Match, error) {
+	if len(vals) == 0 {
+		return nil, nil
 	}
+	matches := make([]firewall.Match, 0, len(vals))
+	seen := make(map[string]struct{}, len(vals))
+	for _, v := range vals {
+		if v > 255 {
+			return nil, fmt.Errorf("%w: value %d exceeds the one-octet protocol field", errUnsupportedComponent, v)
+		}
+		name, ok := firewall.ProtocolName(uint8(v))
+		if !ok {
+			return nil, fmt.Errorf("%w: %d", errUnknownProtocol, v)
+		}
+		if _, dup := seen[name]; dup {
+			continue
+		}
+		seen[name] = struct{}{}
+		matches = append(matches, firewall.MatchProtocol{Protocol: name})
+	}
+	return matches, nil
 }
 
 func valuesToPortRanges(vals []uint64) []firewall.PortRange {
@@ -377,13 +451,17 @@ func parseNLRIJSON(fam family.Family, data json.RawMessage) (*flowspec.FlowSpec,
 	fs := flowspec.NewFlowSpec(fam)
 	isV6 := fam.AFI == family.AFIIPv6
 
-	if pfx := firstPrefix(n.Destination, n.DestinationV6, isV6); pfx.IsValid() {
+	if pfx, err := firstPrefix(n.Destination, n.DestinationV6, isV6); err != nil {
+		return nil, err
+	} else if pfx.IsValid() {
 		fs.AddComponent(flowspec.NewFlowDestPrefixComponent(pfx))
 	}
-	if pfx := firstPrefix(n.Source, n.SourceV6, isV6); pfx.IsValid() {
+	if pfx, err := firstPrefix(n.Source, n.SourceV6, isV6); err != nil {
+		return nil, err
+	} else if pfx.IsValid() {
 		fs.AddComponent(flowspec.NewFlowSourcePrefixComponent(pfx))
 	}
-	if vals, err := firstNumericVals(n.Protocol, n.NextHeader, isV6); err != nil {
+	if vals, err := protocolValues(n.Protocol, n.NextHeader, isV6); err != nil {
 		return nil, err
 	} else if len(vals) > 0 {
 		fs.AddComponent(flowspec.NewFlowIPProtocolComponent(vals...))
@@ -434,21 +512,97 @@ func parseNLRIJSON(fam family.Family, data json.RawMessage) (*flowspec.FlowSpec,
 	return fs, nil
 }
 
+// Every helper below REFUSES a value it cannot read rather than skipping it.
+// A skipped value is a dropped match, and a dropped match makes the rule WIDER
+// than the peer announced: "drop tcp to 10.1.0.0/24 port 80" whose prefix and
+// protocol were both skipped became an unconditional drop of port 80 to every
+// address on every protocol. A rule ze cannot read is a rule ze must not
+// enforce a looser version of.
+
 // firstPrefix extracts the first prefix from v4 or v6 groups.
-func firstPrefix(v4, v6 [][]string, isV6 bool) netip.Prefix {
+//
+// The NLRI JSON writer emits "prefix/length/offset" (json.go,
+// formatPrefixWithOffset), so the offset suffix is accepted here. RFC 8956
+// Section 3.1 lets an IPv6 component match a bit range starting at a non-zero
+// offset; the firewall data model has no match for that, so a non-zero offset
+// is refused rather than widened into a whole-prefix match.
+func firstPrefix(v4, v6 [][]string, isV6 bool) (netip.Prefix, error) {
 	groups := v4
 	if isV6 {
 		groups = v6
 	}
+	if len(groups) == 0 || len(groups[0]) == 0 {
+		return netip.Prefix{}, nil
+	}
+	raw := groups[0][0]
+	text := raw
+	if base, offset, ok := splitPrefixOffset(raw); ok {
+		if offset != 0 {
+			return netip.Prefix{}, fmt.Errorf("%w: prefix %q matches from bit offset %d, which no firewall backend can express", errUnsupportedComponent, raw, offset)
+		}
+		text = base
+	}
+	pfx, err := netip.ParsePrefix(text)
+	if err != nil {
+		return netip.Prefix{}, fmt.Errorf("%w: prefix %q", errUnreadableValue, raw)
+	}
+	return pfx, nil
+}
+
+// splitPrefixOffset splits "addr/length/offset" into "addr/length" and the
+// offset. It reports false for a plain "addr/length", which carries no offset.
+func splitPrefixOffset(s string) (string, uint64, bool) {
+	last := strings.LastIndexByte(s, '/')
+	if last < 0 || strings.Count(s, "/") < 2 {
+		return "", 0, false
+	}
+	offset, err := parseDigits(s[last+1:])
+	if err != nil {
+		return "", 0, false
+	}
+	return s[:last], offset, true
+}
+
+// protocolValues resolves the JSON protocol (IPv4) or next-header (IPv6) key.
+//
+// The writer spells a protocol it has a name for as that name ("=tcp",
+// "=sctp") and every other value as digits ("=51"), so both forms are read
+// here. A name outside the canonical firewall table is refused: no backend can
+// lower it, and the value cannot simply be skipped without widening the rule.
+func protocolValues(v4, v6 [][]string, isV6 bool) ([]uint8, error) {
+	groups := v4
+	if isV6 {
+		groups = v6
+	}
+	var vals []uint8
 	for _, group := range groups {
 		for _, s := range group {
-			pfx, err := netip.ParsePrefix(s)
-			if err == nil {
-				return pfx
+			token, err := stripEqualityOperator(s)
+			if err != nil {
+				return nil, err
 			}
+			if token == "" {
+				continue
+			}
+			if token[0] >= '0' && token[0] <= '9' {
+				n, err := parseDigits(token)
+				if err != nil {
+					return nil, err
+				}
+				if n > 255 {
+					return nil, fmt.Errorf("%w: protocol %d exceeds the one-octet field", errUnreadableValue, n)
+				}
+				vals = append(vals, uint8(n))
+				continue
+			}
+			num, ok := firewall.ProtocolNumber(token)
+			if !ok {
+				return nil, fmt.Errorf("%w: %q", errUnknownProtocol, token)
+			}
+			vals = append(vals, num)
 		}
 	}
-	return netip.Prefix{}
+	return vals, nil
 }
 
 // firstNumericVals extracts uint8 values from OR-groups of equality-only numeric strings.
@@ -465,9 +619,13 @@ func firstNumericVals(v4, v6 [][]string, isV6 bool) ([]uint8, error) {
 			if err != nil {
 				return nil, err
 			}
-			if v >= 0 && v <= 255 {
-				vals = append(vals, uint8(v))
+			if v < 0 {
+				continue
 			}
+			if v > 255 {
+				return nil, fmt.Errorf("%w: value %d exceeds one octet", errUnreadableValue, v)
+			}
+			vals = append(vals, uint8(v))
 		}
 	}
 	return vals, nil
@@ -483,40 +641,76 @@ func firstUint16Vals(groups [][]string) ([]uint16, error) {
 			if err != nil {
 				return nil, err
 			}
-			if v >= 0 && v <= 65535 {
-				vals = append(vals, uint16(v))
+			if v < 0 {
+				continue
 			}
+			if v > 65535 {
+				return nil, fmt.Errorf("%w: value %d exceeds two octets", errUnreadableValue, v)
+			}
+			vals = append(vals, uint16(v))
 		}
 	}
 	return vals, nil
 }
 
-// parseEqualityValue parses a FlowSpec numeric string that uses the equality operator.
-// Accepts bare numbers ("80") and equality prefixed ("=80").
-// Returns errUnsupportedOperator for range operators (">80", ">=1024", etc.).
-func parseEqualityValue(s string) (int, error) {
-	if s == "" {
+// parseEqualityValue parses a FlowSpec numeric string that uses the equality
+// operator. It accepts bare numbers ("80") and equality prefixed ("=80"), and
+// returns -1 for an empty value, which carries no match.
+//
+// It returns errUnsupportedOperator for a range operator (">80", ">=1024") and
+// errUnreadableValue for anything else, including the flag NAMES the writer
+// emits for tcp-flags and fragment ("syn", "is-fragment"). Those names are not
+// numbers and ze cannot enforce them yet, so the rule carrying one is refused
+// rather than enforced without its narrowing condition.
+//
+// The result is int64 rather than int so the caller's range check is exact on
+// every build. On a 32-bit target (the arm appliance) an int would wrap, and a
+// wrapped value can land back inside the range the caller accepts, which turns
+// an out-of-range value from a peer into a plausible one.
+func parseEqualityValue(s string) (int64, error) {
+	token, err := stripEqualityOperator(s)
+	if err != nil {
+		return -1, err
+	}
+	if token == "" {
 		return -1, nil
 	}
-	start := 0
+	n, err := parseDigits(token)
+	if err != nil {
+		return -1, err
+	}
+	return int64(n), nil
+}
+
+// stripEqualityOperator removes a leading "=" and refuses every operator ze
+// cannot translate into a firewall match.
+func stripEqualityOperator(s string) (string, error) {
+	if s == "" {
+		return "", nil
+	}
 	switch s[0] {
 	case '=':
-		start = 1
-	case '>', '<', '!':
-		return -1, fmt.Errorf("%w: %q", errUnsupportedOperator, s)
+		return s[1:], nil
+	case '>', '<', '!', '&', '|':
+		return "", fmt.Errorf("%w: %q", errUnsupportedOperator, s)
 	}
-	if start >= len(s) {
-		return -1, nil
+	return s, nil
+}
+
+// parseDigits reads a decimal value, refusing anything that is not one.
+func parseDigits(s string) (uint64, error) {
+	if s == "" {
+		return 0, fmt.Errorf("%w: empty value", errUnreadableValue)
 	}
-	var n int
-	for _, c := range s[start:] {
+	var n uint64
+	for _, c := range s {
 		if c < '0' || c > '9' {
-			return -1, nil
+			return 0, fmt.Errorf("%w: %q is not a number", errUnreadableValue, s)
 		}
 		if n > 1<<50 {
-			return -1, nil
+			return 0, fmt.Errorf("%w: value %q is out of range", errUnreadableValue, s)
 		}
-		n = n*10 + int(c-'0')
+		n = n*10 + uint64(c-'0')
 	}
 	return n, nil
 }

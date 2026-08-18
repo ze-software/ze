@@ -154,7 +154,11 @@ func parsePolicyRule(name string, m map[string]any) (PolicyRule, error) {
 	}
 
 	if fromMap, ok := m["from"].(map[string]any); ok {
-		rule.Match = parsePolicyMatch(fromMap)
+		match, err := parsePolicyMatch(fromMap)
+		if err != nil {
+			return PolicyRule{}, fmt.Errorf("from: %w", err)
+		}
+		rule.Match = match
 	}
 
 	if thenMap, ok := m["then"].(map[string]any); ok {
@@ -168,7 +172,12 @@ func parsePolicyRule(name string, m map[string]any) (PolicyRule, error) {
 	return rule, nil
 }
 
-func parsePolicyMatch(m map[string]any) PolicyMatch {
+// parsePolicyMatch reads the "from" block. It refuses a protocol the firewall
+// backends cannot lower, so the operator learns at commit rather than at the
+// next reconcile -- where the failure is not local to this rule, because the
+// nft backend returns a lowering error before its single Flush and leaves
+// every firewall owner's ruleset unapplied in the kernel.
+func parsePolicyMatch(m map[string]any) (PolicyMatch, error) {
 	var pm PolicyMatch
 	if v, ok := m["source-address"].(string); ok {
 		pm.SourceAddress = v
@@ -182,13 +191,17 @@ func parsePolicyMatch(m map[string]any) PolicyMatch {
 	if v, ok := m["destination-port"].(string); ok {
 		pm.DestinationPort = v
 	}
-	if v, ok := m["protocol"].(string); ok {
+	if v, ok := m["protocol"].(string); ok && v != "" {
+		if _, known := firewall.ProtocolNumber(v); !known {
+			return PolicyMatch{}, fmt.Errorf("protocol: %q is not a protocol the firewall can match; accepted values are %s",
+				v, strings.Join(firewall.ProtocolNames(), ", "))
+		}
 		pm.Protocol = v
 	}
 	if v, ok := m["tcp-flags"].(string); ok {
 		pm.TCPFlags = v
 	}
-	return pm
+	return pm, nil
 }
 
 // validateActionTable rejects table values Ze must not program (0, the kernel

@@ -3,6 +3,8 @@
 
 package firewall
 
+import "sort"
+
 // ianaProtocolNumbers maps each L4 protocol name carried by MatchProtocol to
 // its IANA protocol number (the value a backend programs into its L4-protocol
 // field). It is the single source of truth shared by every firewall backend --
@@ -21,4 +23,40 @@ var ianaProtocolNumbers = map[string]uint8{
 func ProtocolNumber(name string) (uint8, bool) {
 	num, ok := ianaProtocolNumbers[name]
 	return num, ok
+}
+
+// protocolNames is the reverse of ianaProtocolNumbers, derived from it so the
+// two directions can never drift. A producer that starts from a wire protocol
+// number (a FlowSpec type 3 component, a DDoS vector tuple) resolves the name
+// here rather than keeping its own table.
+var protocolNames = buildProtocolNames()
+
+func buildProtocolNames() map[uint8]string {
+	names := make(map[uint8]string, len(ianaProtocolNumbers))
+	for name, num := range ianaProtocolNumbers {
+		names[num] = name
+	}
+	return names
+}
+
+// ProtocolName returns the MatchProtocol name for an IANA protocol number and
+// true, or ("", false) when no name in the canonical table carries that number.
+// A producer MUST use the boolean to refuse the rule: MatchProtocol carries a
+// name, every backend resolves it through ProtocolNumber, and a number rendered
+// as digits is a rule no backend can lower.
+func ProtocolName(num uint8) (string, bool) {
+	name, ok := protocolNames[num]
+	return name, ok
+}
+
+// ProtocolNames returns every protocol name the canonical table carries, sorted,
+// so a validator or an error message can state what it accepts without spelling
+// the list a second time.
+func ProtocolNames() []string {
+	names := make([]string, 0, len(ianaProtocolNumbers))
+	for name := range ianaProtocolNumbers {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
 }

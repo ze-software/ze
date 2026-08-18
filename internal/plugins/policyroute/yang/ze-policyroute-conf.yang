@@ -3,6 +3,7 @@ module ze-policyroute-conf {
     prefix policyroute;
 
     import ze-extensions { prefix ze; }
+    import ze-firewall-conf { prefix fw; }
 
     description
         "Policy-based routing configuration for Ze.
@@ -79,8 +80,12 @@ module ze-policyroute-conf {
                     }
 
                     leaf protocol {
-                        type string;
-                        description "L4 protocol name (tcp, udp, icmp).";
+                        type fw:protocol-name;
+                        description
+                            "L4 protocol to match. The value set is the one
+                             every firewall backend can lower, so a spelling
+                             outside it is refused at commit rather than at the
+                             next firewall reconcile.";
                     }
 
                     leaf tcp-flags {

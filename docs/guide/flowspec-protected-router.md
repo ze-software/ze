@@ -118,6 +118,24 @@ The FlowSpec bridge generates an nft table named `flowspec`. It creates base cha
 | `flowspec-fwd` | `forward` | Transit traffic that matches non-local FlowSpec destinations. |
 | `flowspec-in` | `input` | Locally terminated traffic for addresses owned by the router. |
 
+### What the bridge enforces, and what it refuses
+
+A FlowSpec route becomes a firewall rule only when every one of its components
+can be programmed. The IP protocol component is the common limit: the bridge
+enforces the ten protocol names the firewall backends know (`icmp`, `tcp`,
+`udp`, `gre`, `esp`, `ah`, `icmpv6`, `ospf`, `vrrp`, `sctp`, listed with their
+IANA numbers in the firewall guide) and refuses a route naming any other value.
+
+A refused route is logged with the protocol number and the route key, and
+counted in `ze_flowspec_rules_refused_total`. It installs nothing. Ze does not
+install the same rule with the protocol condition removed: that rule would drop
+more traffic than the peer asked it to drop.
+
+A refused route stops at the bridge and goes no further. Routes ze CAN enforce,
+and the rulesets of every other firewall owner, continue to reach the kernel.
+
+<!-- source: internal/plugins/flowspec-firewall/translate.go -- protocolMatches -->
+
 ## 4. Test with a safe FlowSpec rule
 
 The bridge only programs nftables from FlowSpec that `edge-01` *receives*, so the rule must be announced from a peer toward `edge-01`, not injected on `edge-01` itself. Use a lab prefix first. The example below drops TCP traffic to `10.0.0.0/8` port 80.

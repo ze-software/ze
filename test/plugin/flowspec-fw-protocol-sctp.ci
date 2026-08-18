@@ -1,0 +1,112 @@
+# Test: a peer's FlowSpec SCTP rule becomes a kernel drop rule.
+#
+# VALIDATES: AC-1 -- a type 3 component carrying IP protocol 132 translates to
+#            the canonical name "sctp" and lowers to an nftables rule.
+# PREVENTS:  the private five-name protocol table returning. It knew 1, 6, 17,
+#            47 and 58 and rendered every other value as decimal digits, which
+#            no backend resolves. The nft backend returns that error from Apply
+#            BEFORE its single Flush, so one such route from one peer left the
+#            kernel holding the previous ruleset for every firewall owner.
+#
+# Reverting the translator change makes this test fail: the term would carry
+# MatchProtocol{"132"}, the reconcile would fail, and no table named flowspec
+# would ever appear in the kernel.
+#
+# Requires CAP_NET_ADMIN.
+
+option=needs-linux:caps=net-admin
+option=env:var=ze.log.firewall:value=info
+option=env:var=ze.log.flowspec.firewall:value=info
+option=timeout:value=40s
+
+# The test peer sends ONE FlowSpec UPDATE to ze.
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=35s
+# Marker(16) + Len=0048(72) + Type=02 + WdLen=0000 + AttrLen=0031(49)
+#   ORIGIN:       40010100                    (igp)
+#   AS_PATH:      400200                      (empty, iBGP)
+#   LOCAL_PREF:   40050400000064              (100)
+#   MP_REACH:     800E15 0001 85 04 01020304 00
+#                 NLRI len 0B:
+#                   01 18 0A0100  destination 10.1.0.0/24
+#                   03 81 84      protocol  = 132 (sctp)
+#                   05 81 50      dest port = 80
+#   EXT_COMM:     C01008 8006 0000 00000000   traffic-rate 0 -> discard
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004802000000314001010040020040050400000064800E150001850401020304000B01180A0100038184058150C010088006000000000000
+EOF_PEER
+
+tmpfs=driver.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+"""Wait for the FlowSpec SCTP route to reach the kernel ruleset."""
+import os
+import signal
+import subprocess
+import sys
+
+from ze_api import wait_until
+
+if not wait_until(
+    lambda: os.path.exists("daemon.pid") and os.path.exists("daemon.ready"),
+    attempts=400,
+    delay=0.05,
+):
+    sys.exit("daemon readiness files missing")
+
+with open("daemon.pid") as f:
+    pid = int(f.read().strip())
+
+state = {"ruleset": ""}
+
+
+def installed():
+    snap = subprocess.run(["nft", "list", "ruleset"], capture_output=True, text=True)
+    state["ruleset"] = snap.stdout
+    return "flowspec" in state["ruleset"] and "sctp" in state["ruleset"]
+
+
+ok = wait_until(installed, attempts=200, delay=0.1)
+
+sys.stdout.write(state["ruleset"])
+os.kill(pid, signal.SIGTERM)
+
+if not ok:
+    sys.exit("no sctp rule in the kernel ruleset")
+EOF_PY
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/flow { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=2:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=3:exec=python3 driver.py:timeout=35s
+expect=exit:code=0
+expect=stdout:contains=table inet flowspec
+# nft renders protocol 132 symbolically; the name is the whole point of the fix.
+expect=stdout:pattern=l4proto (132|sctp)
+expect=stdout:contains=10.1.0.0/24
+# A digits spelling must never appear: it is the defect this test exists for.
+reject=stdout:pattern=l4proto "132"

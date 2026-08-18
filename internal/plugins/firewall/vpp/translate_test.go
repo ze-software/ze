@@ -450,3 +450,35 @@ func TestTranslateTermAllProtocols(t *testing.T) {
 		})
 	}
 }
+
+// TestTranslateTermEveryCanonicalProtocol is the completeness ratchet beside
+// TestTranslateTermAllProtocols, which walks its own literal list and so cannot
+// see a name the canonical table gains.
+//
+// VALIDATES: every name firewall.ProtocolNames returns translates to a VPP ACL
+// rule without error.
+// PREVENTS: this backend knowing a different set of protocol names from nft and
+// from the YANG enum. It kept a private name -> IPProto table until this spec;
+// the FlowSpec bridge kept another, and that one knew five of the ten.
+func TestTranslateTermEveryCanonicalProtocol(t *testing.T) {
+	for _, name := range firewall.ProtocolNames() {
+		t.Run(name, func(t *testing.T) {
+			term := firewall.Term{
+				Name:    name,
+				Matches: []firewall.Match{firewall.MatchProtocol{Protocol: name}},
+				Actions: []firewall.Action{firewall.Accept{}},
+			}
+			rules, err := translateTerm(&term)
+			if err != nil {
+				t.Fatalf("canonical protocol %q must translate: %v", name, err)
+			}
+			num, ok := firewall.ProtocolNumber(name)
+			if !ok {
+				t.Fatalf("ProtocolNumber(%q) = ok false, but the name came from ProtocolNames", name)
+			}
+			if rules[0].Proto != ip_types.IPProto(num) {
+				t.Errorf("protocol %q programmed as %v, want the IANA number %d", name, rules[0].Proto, num)
+			}
+		})
+	}
+}

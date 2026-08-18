@@ -1,0 +1,137 @@
+# Test: an untranslatable FlowSpec route does not stop the firewall reconcile.
+#
+# VALIDATES: AC-4 -- a peer announcing a FlowSpec route ze cannot enforce leaves
+#            every other owner's ruleset in the kernel, and a LATER FlowSpec
+#            route that ze CAN enforce still reaches the kernel.
+# PREVENTS:  a BGP peer freezing this router's firewall reconciliation with one
+#            legal FlowSpec route. An unlowerable term made Apply return before
+#            its single Flush, so from that moment nothing any owner registered
+#            reached the kernel.
+#
+# The ORDER is what makes this discriminate. The untranslatable route arrives
+# FIRST and the enforceable one SECOND: with the defect in place the second
+# reconcile fails too, so the sctp rule never appears however long the driver
+# waits. Asserting only on the locally configured table would pass either way,
+# because that table was applied at boot before any route arrived.
+#
+# Requires CAP_NET_ADMIN.
+
+option=needs-linux:caps=net-admin
+option=env:var=ze.log.firewall:value=info
+option=env:var=ze.log.flowspec.firewall:value=info
+option=timeout:value=40s
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=35s
+# 1) destination 10.2.0.0/24, protocol = 253 (no canonical name: ze must refuse
+#    this route and enforce nothing for it), traffic-rate 0 -> discard.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004802000000314001010040020040050400000064800E150001850401020304000B01180A02000381FD058150C010088006000000000000
+# 2) destination 10.1.0.0/24, protocol = 132 (sctp): ze must still enforce this
+#    one, which it cannot do if the route above wedged the reconcile.
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004802000000314001010040020040050400000064800E150001850401020304000B01180A0100038184058150C010088006000000000000
+EOF_PEER
+
+tmpfs=driver.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+"""Assert the enforceable route lands even after an unenforceable one arrived."""
+import os
+import signal
+import subprocess
+import sys
+
+from ze_api import wait_until
+
+if not wait_until(
+    lambda: os.path.exists("daemon.pid") and os.path.exists("daemon.ready"),
+    attempts=400,
+    delay=0.05,
+):
+    sys.exit("daemon readiness files missing")
+
+with open("daemon.pid") as f:
+    pid = int(f.read().strip())
+
+state = {"ruleset": ""}
+
+
+def reconciled():
+    snap = subprocess.run(["nft", "list", "ruleset"], capture_output=True, text=True)
+    state["ruleset"] = snap.stdout
+    # The locally configured table proves other owners still reach the kernel;
+    # sctp proves the reconcile did not stop when the refused route arrived.
+    return "ze_fslocal" in state["ruleset"] and "sctp" in state["ruleset"]
+
+
+ok = wait_until(reconciled, attempts=200, delay=0.1)
+
+sys.stdout.write(state["ruleset"])
+os.kill(pid, signal.SIGTERM)
+
+if not ok:
+    sys.exit("the reconcile did not survive the untranslatable FlowSpec route")
+EOF_PY
+
+stdin=ze-bgp:terminator=EOF_CONF
+firewall {
+	backend nft;
+	table fslocal {
+		family inet;
+		chain input {
+			type filter;
+			hook input;
+			priority 0;
+			policy accept;
+			term allow-ssh {
+				from {
+					protocol tcp;
+					destination-port 22;
+				}
+				then {
+					accept;
+				}
+			}
+		}
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/flow { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=2:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=3:exec=python3 driver.py:timeout=35s
+expect=exit:code=0
+# Another owner's ruleset is still in the kernel.
+expect=stdout:contains=table inet ze_fslocal
+# The enforceable FlowSpec route reached the kernel AFTER the refused one.
+expect=stdout:contains=table inet flowspec
+expect=stdout:pattern=l4proto (132|sctp)
+expect=stdout:contains=10.1.0.0/24
+# The refused route enforces nothing, under any spelling.
+reject=stdout:contains=10.2.0.0/24
+reject=stdout:pattern=l4proto "253"
+# The bridge says so, naming the protocol number and the rule key.
+expect=stderr:contains=rule refused
+expect=stderr:contains=253

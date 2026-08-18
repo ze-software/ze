@@ -7,13 +7,6 @@ import (
 	"github.com/ze-software/ze/internal/core/ddosevent"
 )
 
-var protoName = map[uint8]string{
-	6:  "tcp",
-	17: "udp",
-	1:  "icmp",
-	58: "icmpv6",
-}
-
 // buildDropTerm renders the vector as one nftables drop term. Every field is
 // optional and contributes a match only when set.
 //
@@ -26,8 +19,14 @@ func buildDropTerm(name string, v ddosevent.VectorTuple) firewall.Term {
 	if v.DstPrefix.IsValid() {
 		matches = append(matches, firewall.MatchDestinationAddress{Prefix: v.DstPrefix})
 	}
-	if p, ok := protoName[v.Proto]; ok {
-		matches = append(matches, firewall.MatchProtocol{Protocol: p})
+	// The name comes from the one canonical table every firewall backend
+	// resolves against; a private copy here narrowed mitigations for six of the
+	// ten protocols by silently dropping their protocol condition. A number
+	// with no canonical name still contributes no match: MatchProtocol carries
+	// a name, and digits would fail inside Backend.Apply, which returns before
+	// its single Flush and would leave every other owner's ruleset unapplied.
+	if protocol, ok := firewall.ProtocolName(v.Proto); ok {
+		matches = append(matches, firewall.MatchProtocol{Protocol: protocol})
 	}
 	if v.DstPort != 0 {
 		matches = append(matches, firewall.MatchDestinationPort{

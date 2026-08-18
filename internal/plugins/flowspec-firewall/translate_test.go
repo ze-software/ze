@@ -2,6 +2,7 @@ package flowspecfirewall
 
 import (
 	"net/netip"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -273,6 +274,176 @@ func TestRangeOperatorRejected(t *testing.T) {
 	assert.ErrorIs(t, err, errUnsupportedOperator)
 }
 
-func TestProtoNameUnknown(t *testing.T) {
-	assert.Equal(t, "99", protoName(99))
+// TestComponentToMatchRejectsUnnamedProtocol replaces TestProtoNameUnknown,
+// which asserted that protocol 99 translated to the string "99".
+//
+// VALIDATES: a type 3 value with no canonical name is refused at translation.
+// PREVENTS: a MatchProtocol carrying decimal digits. No backend resolves a
+// number, so the rule failed in the nft backend instead, and that failure
+// returns from Apply before Flush -- one such rule from one peer stopped every
+// other owner's ruleset from reaching the kernel.
+func TestComponentToMatchRejectsUnnamedProtocol(t *testing.T) {
+	fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}
+
+	for _, proto := range []uint8{0, 2, 99, 133, 255} {
+		comp := flowspec.NewFlowIPProtocolComponent(proto)
+		matches, err := componentToMatch(comp, fam)
+		require.ErrorIs(t, err, errUnknownProtocol, "protocol %d must be refused", proto)
+		assert.Contains(t, err.Error(), strconv.Itoa(int(proto)), "the error must name the protocol number")
+		assert.Empty(t, matches, "a refused protocol produces no match")
+	}
+}
+
+// TestComponentToMatchSCTPName is the wiring case: protocol 132 arrives from a
+// peer and must become the canonical name the backends resolve.
+//
+// VALIDATES: type 3 value 132 becomes MatchProtocol{"sctp"}.
+// PREVENTS: the five-name private table returning, which knew 1, 6, 17, 47 and
+// 58 and rendered every other value as digits.
+func TestComponentToMatchSCTPName(t *testing.T) {
+	fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}
+	matches, err := componentToMatch(flowspec.NewFlowIPProtocolComponent(132), fam)
+	require.NoError(t, err)
+	require.Len(t, matches, 1)
+	assert.Equal(t, firewall.MatchProtocol{Protocol: "sctp"}, matches[0])
+}
+
+// TestComponentToMatchEveryCanonicalNumber walks the whole canonical table
+// rather than a sample, so a name added to the table without a translator
+// change is caught here and not by an operator.
+//
+// VALIDATES: every number firewall.ProtocolNumber knows translates to its name.
+// PREVENTS: the translator knowing a subset of the names the backends accept.
+func TestComponentToMatchEveryCanonicalNumber(t *testing.T) {
+	fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}
+
+	for _, name := range firewall.ProtocolNames() {
+		num, ok := firewall.ProtocolNumber(name)
+		require.True(t, ok)
+		matches, err := componentToMatch(flowspec.NewFlowIPProtocolComponent(num), fam)
+		require.NoError(t, err, "protocol %d (%s)", num, name)
+		require.Len(t, matches, 1)
+		assert.Equal(t, firewall.MatchProtocol{Protocol: name}, matches[0])
+	}
+}
+
+// TestComponentToMatchMultipleProtocolValues covers a type 3 component that
+// lists several values. RFC 8955 Section 4.2.2 gives a numeric operator list OR
+// semantics, and a firewall Term ANDs its matches, so one value per match is
+// the only faithful rendering.
+//
+// VALIDATES: every listed value produces a match, repeats collapse, and the
+// list is refused as a whole when one value has no canonical name.
+// PREVENTS: the translator reading vals[0] and discarding the rest, which
+// enforced the first protocol alone and said nothing.
+func TestComponentToMatchMultipleProtocolValues(t *testing.T) {
+	fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}
+
+	matches, err := componentToMatch(flowspec.NewFlowIPProtocolComponent(6, 17, 132), fam)
+	require.NoError(t, err)
+	assert.Equal(t, []firewall.Match{
+		firewall.MatchProtocol{Protocol: "tcp"},
+		firewall.MatchProtocol{Protocol: "udp"},
+		firewall.MatchProtocol{Protocol: "sctp"},
+	}, matches)
+
+	// A repeat cannot inflate the term count: the bound is the table size.
+	matches, err = componentToMatch(flowspec.NewFlowIPProtocolComponent(6, 6, 6, 17), fam)
+	require.NoError(t, err)
+	assert.Equal(t, []firewall.Match{
+		firewall.MatchProtocol{Protocol: "tcp"},
+		firewall.MatchProtocol{Protocol: "udp"},
+	}, matches)
+
+	// One unnamed value refuses the component; no partial enforcement.
+	_, err = componentToMatch(flowspec.NewFlowIPProtocolComponent(6, 99), fam)
+	require.ErrorIs(t, err, errUnknownProtocol)
+}
+
+// TestTranslateFlowSpecMultipleProtocolsBecomeSeparateTerms proves the OR
+// semantics survive term construction: matches inside one Term are ANDed, so a
+// single Term holding tcp AND udp would match nothing at all.
+//
+// VALIDATES: a two-protocol component yields two terms with distinct names,
+// each carrying one protocol and the shared matches.
+// PREVENTS: an unenforceable term that silently drops the peer's second
+// protocol, or two terms colliding on one name.
+func TestTranslateFlowSpecMultipleProtocolsBecomeSeparateTerms(t *testing.T) {
+	fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}
+	fs := flowspec.NewFlowSpec(fam)
+	fs.AddComponent(flowspec.NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24")))
+	fs.AddComponent(flowspec.NewFlowIPProtocolComponent(6, 132))
+
+	terms, err := translateFlowSpec(fs, flowAction{discard: true}, "multi-proto-key")
+	require.NoError(t, err)
+	require.Len(t, terms, 2)
+	assert.NotEqual(t, terms[0].Name, terms[1].Name, "each term needs its own name")
+
+	got := make([]string, 0, 2)
+	for _, term := range terms {
+		var proto string
+		var hasPrefix bool
+		for _, m := range term.Matches {
+			switch v := m.(type) {
+			case firewall.MatchProtocol:
+				require.Empty(t, proto, "a term must carry at most one protocol match")
+				proto = v.Protocol
+			case firewall.MatchDestinationAddress:
+				hasPrefix = true
+			}
+		}
+		assert.True(t, hasPrefix, "every term keeps the shared destination match")
+		got = append(got, proto)
+	}
+	assert.Equal(t, []string{"tcp", "sctp"}, got)
+}
+
+// TestTranslateFlowSpecSingleProtocolKeepsOneTerm pins the common case against
+// the term-splitting change.
+//
+// VALIDATES: one protocol value still yields exactly one term.
+// PREVENTS: every existing FlowSpec rule gaining a term and a new name.
+func TestTranslateFlowSpecSingleProtocolKeepsOneTerm(t *testing.T) {
+	fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}
+	fs := flowspec.NewFlowSpec(fam)
+	fs.AddComponent(flowspec.NewFlowIPProtocolComponent(132))
+
+	terms, err := translateFlowSpec(fs, flowAction{discard: true}, "single-proto-key")
+	require.NoError(t, err)
+	require.Len(t, terms, 1)
+	assert.Equal(t, termName("single-proto-key"), terms[0].Name)
+	assert.Contains(t, terms[0].Matches, firewall.MatchProtocol{Protocol: "sctp"})
+}
+
+// TestComponentToMatchEveryWireValue sweeps the whole one-octet value space
+// rather than a sample of it, because the value comes from a peer.
+//
+// VALIDATES: every value 0-255 a peer can put in a type 3 component produces
+// either exactly one canonical protocol match or a clean refusal naming the
+// number. No value panics, and none produces a match carrying digits.
+// PREVENTS: a value between the sampled ones behaving differently. RFC 8955
+// Section 4.2.2.3 makes the field one octet, so this IS the input space, and a
+// peer chooses which of the 256 to send.
+func TestComponentToMatchEveryWireValue(t *testing.T) {
+	fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}
+
+	canonical := 0
+	for v := range 256 {
+		proto := uint8(v)
+		matches, err := componentToMatch(flowspec.NewFlowIPProtocolComponent(proto), fam)
+
+		name, known := firewall.ProtocolName(proto)
+		if !known {
+			require.ErrorIs(t, err, errUnknownProtocol, "protocol %d must be refused", proto)
+			assert.Contains(t, err.Error(), strconv.Itoa(v), "the refusal must name the protocol number")
+			assert.Empty(t, matches, "a refused protocol produces no match")
+			continue
+		}
+		canonical++
+		require.NoError(t, err, "protocol %d (%s)", proto, name)
+		require.Len(t, matches, 1)
+		assert.Equal(t, firewall.MatchProtocol{Protocol: name}, matches[0])
+	}
+	assert.Len(t, firewall.ProtocolNames(), canonical,
+		"the sweep must have accepted exactly the canonical table and nothing else")
 }

@@ -5,6 +5,9 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/internal/component/firewall"
 	"github.com/ze-software/ze/internal/core/ddosevent"
 )
@@ -77,3 +80,47 @@ func TestLocalTCPFlagsMatch(t *testing.T) {
 // policy, which decides exempt-vs-mitigate and delivers it via the event's
 // SuppressMitigation flag (spec-ddos-direction-allowlist). Coverage moves to the
 // detector policy_test.go and the responder SuppressMitigation tests.
+
+// TestBuildDropTermCoversEveryCanonicalProtocol walks the canonical protocol
+// table rather than a sample.
+//
+// VALIDATES: a vector carrying any protocol the firewall backends can enforce
+// produces a MatchProtocol for it.
+// PREVENTS: this package holding its own protocol table again. The private copy
+// knew four names, so a mitigation for an SCTP, ESP, AH, OSPF, VRRP or GRE flood
+// silently dropped its protocol condition and programmed a term wider than the
+// attack -- a blackhole for every other protocol reaching the victim prefix.
+func TestBuildDropTermCoversEveryCanonicalProtocol(t *testing.T) {
+	for _, name := range firewall.ProtocolNames() {
+		num, ok := firewall.ProtocolNumber(name)
+		require.True(t, ok)
+		term := buildDropTerm("attack", ddosevent.VectorTuple{
+			DstPrefix: netip.MustParsePrefix("192.0.2.0/24"),
+			Proto:     num,
+		})
+		assert.Contains(t, term.Matches, firewall.MatchProtocol{Protocol: name},
+			"protocol %d (%s) must narrow the mitigation term", num, name)
+	}
+}
+
+// TestBuildDropTermSkipsUnnamedProtocol pins the deliberate behavior of this
+// producer, which differs from the FlowSpec bridge on purpose.
+//
+// VALIDATES: a protocol with no canonical name contributes no match, leaving
+// the other fields of the vector to narrow the term.
+// PREVENTS: a MatchProtocol carrying digits, which no backend can lower and
+// which would abort the whole firewall reconcile for every owner.
+func TestBuildDropTermSkipsUnnamedProtocol(t *testing.T) {
+	term := buildDropTerm("attack", ddosevent.VectorTuple{
+		DstPrefix: netip.MustParsePrefix("192.0.2.0/24"),
+		Proto:     253,
+		DstPort:   53,
+	})
+	for _, m := range term.Matches {
+		_, isProto := m.(firewall.MatchProtocol)
+		assert.False(t, isProto, "an unnamed protocol number must contribute no protocol match")
+	}
+	assert.Contains(t, term.Matches, firewall.MatchDestinationPort{
+		Ranges: []firewall.PortRange{{Lo: 53, Hi: 53}},
+	})
+}

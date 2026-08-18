@@ -42,6 +42,7 @@ func init() { //nolint:gochecknoinits // plugin registration
 		ConfigureEventBus: func(eb ze.EventBus) {
 			setEventBusRef(eb)
 		},
+		ConfigureMetrics: bindMetrics,
 	}
 	reg.CLIHandler = func(_ []string) int {
 		return 1

@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/component/firewall"
 )
 
 func TestParsePolicyConfig(t *testing.T) {
@@ -397,5 +399,89 @@ func TestParsePolicyConfigAllowNonReservedTable(t *testing.T) {
 		if err != nil {
 			t.Errorf("table %s: unexpected error: %v", tbl, err)
 		}
+	}
+}
+
+func policyConfigWithProtocol(proto string) string {
+	return `{
+		"policy": {
+			"route": {
+				"test": {
+					"interface": "eth0",
+					"rule": {
+						"r1": {
+							"from": { "protocol": "` + proto + `" },
+							"then": { "table": "100" }
+						}
+					}
+				}
+			}
+		}
+	}`
+}
+
+// TestPolicyRouteProtocolRejectsUnknownName closes the config-side instance of
+// the protocol-name drift.
+//
+// VALIDATES: a protocol spelling outside the canonical firewall table is
+// refused at parse time, and the error names the leaf and the accepted values.
+// PREVENTS: an operator committing a protocol that only fails hours later, at
+// reconcile time, inside the nft backend -- where the failure is not local to
+// the offending rule, because Apply returns before its single Flush and leaves
+// every firewall owner's ruleset unapplied.
+func TestPolicyRouteProtocolRejectsUnknownName(t *testing.T) {
+	for _, proto := range []string{"TCP", "132", "igmp", "bogus", "tcp6"} {
+		_, err := parsePolicyConfig(policyConfigWithProtocol(proto))
+		if err == nil {
+			t.Errorf("protocol %q: expected the commit to be refused, got nil", proto)
+			continue
+		}
+		for _, want := range []string{"protocol", "tcp"} {
+			if !strings.Contains(err.Error(), want) {
+				t.Errorf("protocol %q: error %q must name %q", proto, err, want)
+			}
+		}
+	}
+}
+
+// TestPolicyRouteProtocolAcceptsEveryCanonicalName is the other half: the leaf
+// must accept everything the backends can lower.
+//
+// VALIDATES: every name firewall.ProtocolNames returns is accepted.
+// PREVENTS: the validator becoming a second, narrower protocol table.
+func TestPolicyRouteProtocolAcceptsEveryCanonicalName(t *testing.T) {
+	for _, name := range firewall.ProtocolNames() {
+		routes, err := parsePolicyConfig(policyConfigWithProtocol(name))
+		if err != nil {
+			t.Fatalf("canonical protocol %q must be accepted: %v", name, err)
+		}
+		if got := routes[0].Rules[0].Match.Protocol; got != name {
+			t.Errorf("protocol %q parsed as %q", name, got)
+		}
+	}
+}
+
+// TestPolicyRouteEmptyProtocolStaysOptional pins the leaf as optional.
+//
+// VALIDATES: a rule with no protocol leaf still parses.
+// PREVENTS: the new validator turning an optional match into a required one.
+func TestPolicyRouteEmptyProtocolStaysOptional(t *testing.T) {
+	input := `{
+		"policy": {
+			"route": {
+				"test": {
+					"interface": "eth0",
+					"rule": {
+						"r1": {
+							"from": { "destination-port": "80" },
+							"then": { "table": "100" }
+						}
+					}
+				}
+			}
+		}
+	}`
+	if _, err := parsePolicyConfig(input); err != nil {
+		t.Fatalf("a rule with no protocol must parse: %v", err)
 	}
 }

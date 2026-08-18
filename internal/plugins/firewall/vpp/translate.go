@@ -18,14 +18,6 @@ import (
 	"github.com/ze-software/ze/internal/component/firewall"
 )
 
-var protoNumbers = map[string]ip_types.IPProto{
-	"tcp": ip_types.IP_API_PROTO_TCP, "udp": ip_types.IP_API_PROTO_UDP,
-	"icmp": ip_types.IP_API_PROTO_ICMP, "icmpv6": ip_types.IP_API_PROTO_ICMP6,
-	"sctp": ip_types.IP_API_PROTO_SCTP, "gre": ip_types.IP_API_PROTO_GRE,
-	"esp": ip_types.IP_API_PROTO_ESP, "ah": ip_types.IP_API_PROTO_AH,
-	"ospf": ip_types.IP_API_PROTO_OSPF, "vrrp": 112,
-}
-
 // translateTerm converts a ze Term into one or more VPP ACL rules.
 // Most terms produce exactly one rule; the verifier guarantees that
 // multi-range ports and unsupported expressions have been rejected
@@ -80,10 +72,17 @@ func applyMatch(rule *acl_types.ACLRule, m firewall.Match, isStateful, isICMP, h
 	case firewall.MatchDestinationAddress:
 		rule.DstPrefix = prefixToVPP(v.Prefix)
 	case firewall.MatchProtocol:
-		proto, ok := protoNumbers[v.Protocol]
+		// ip_types.IPProto IS the IANA protocol number: VPP names the constants
+		// after the registry and gives each one the registry's value (TCP=6,
+		// SCTP=132, OSPF=89), and it has no constant at all for VRRP, which the
+		// private table this replaced spelled as a bare 112. So the canonical
+		// table is the value, not merely the key set, and no second table has
+		// to be kept in step with it.
+		num, ok := firewall.ProtocolNumber(v.Protocol)
 		if !ok {
 			return fmt.Errorf("unknown protocol %q", v.Protocol)
 		}
+		proto := ip_types.IPProto(num)
 		rule.Proto = proto
 		if proto == ip_types.IP_API_PROTO_ICMP || proto == ip_types.IP_API_PROTO_ICMP6 {
 			*isICMP = true

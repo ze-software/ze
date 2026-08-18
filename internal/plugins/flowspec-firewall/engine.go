@@ -153,7 +153,9 @@ func (b *bridge) handleFlowSpecAdd(peer string, fam family.Family, nlriKey strin
 
 	fs, err := parseNLRIJSON(fam, nlriJSON)
 	if err != nil {
-		b.log.Warn("flowspec: NLRI parse failed", "peer", peer, "error", err)
+		countRuleRefused(refusalReason(err))
+		b.log.Warn("flowspec: NLRI parse failed, the route will not be enforced",
+			"peer", peer, "nlri", nlriKey, "error", err)
 		return false
 	}
 
@@ -162,13 +164,21 @@ func (b *bridge) handleFlowSpecAdd(peer string, fam family.Family, nlriKey strin
 
 	terms, err := translateFlowSpec(fs, act, nlriKey)
 	if err != nil {
-		b.log.Warn("flowspec: translation failed", "peer", peer, "error", err)
+		// The route is dropped here rather than registered, because a term no
+		// backend can lower fails inside Backend.Apply, and Apply returns
+		// before its single Flush -- one such route would leave the tables of
+		// every other firewall owner unapplied in the kernel.
+		countRuleRefused(refusalReason(err))
+		b.log.Warn("flowspec: rule refused, it will not be enforced",
+			"peer", peer, "nlri", nlriKey, "error", err)
 		return false
 	}
 
 	entry := ruleEntry{terms: terms, local: local}
 	if !b.rules.add(peer, nlriKey, entry) {
-		b.log.Warn("flowspec: max rules reached", "peer", peer, "limit", maxRulesDefault)
+		countRuleRefused(refusedReasonMaxRules)
+		b.log.Warn("flowspec: max rules reached, the route will not be enforced",
+			"peer", peer, "nlri", nlriKey, "limit", maxRulesDefault)
 		return false
 	}
 	return true

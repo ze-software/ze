@@ -28,3 +28,61 @@ func TestProtocolNumber(t *testing.T) {
 		}
 	}
 }
+
+// TestProtocolNameRoundTripsEveryCanonicalNumber pins the reverse direction of
+// the single protocol table.
+//
+// VALIDATES: ProtocolName returns the canonical name for every number
+// ProtocolNumber hands out, and ProtocolNumber accepts that name back.
+// PREVENTS: a producer that starts from a wire protocol number keeping its own
+// number -> name table, which is how the FlowSpec translator came to know five
+// of the ten names and to render the rest as decimal digits.
+func TestProtocolNameRoundTripsEveryCanonicalNumber(t *testing.T) {
+	for _, name := range ProtocolNames() {
+		num, ok := ProtocolNumber(name)
+		if !ok {
+			t.Fatalf("ProtocolNumber(%q) = ok false, but the name came from ProtocolNames", name)
+		}
+		back, ok := ProtocolName(num)
+		if !ok || back != name {
+			t.Errorf("ProtocolName(%d) = (%q, %v), want (%q, true)", num, back, ok, name)
+		}
+	}
+}
+
+// TestProtocolNameRefusesUnnamedNumber covers the boundary rows of the spec's
+// numeric table: 0 sits below the lowest canonical number and 133 above the
+// highest, and neither has a name.
+//
+// VALIDATES: ProtocolName reports ok=false rather than inventing a spelling.
+// PREVENTS: a MatchProtocol carrying digits, which no backend can lower and
+// which aborts the whole firewall reconcile for every owner.
+func TestProtocolNameRefusesUnnamedNumber(t *testing.T) {
+	for _, num := range []uint8{0, 2, 4, 41, 133, 255} {
+		if got, ok := ProtocolName(num); ok {
+			t.Errorf("ProtocolName(%d) = (%q, true), want ok=false", num, got)
+		}
+	}
+}
+
+// TestProtocolNamesListsEveryCanonicalName checks the accessor validators and
+// error messages use so they never spell the accepted set a second time.
+//
+// VALIDATES: ProtocolNames returns each name once, sorted.
+// PREVENTS: an error message that names a set the backends do not accept.
+func TestProtocolNamesListsEveryCanonicalName(t *testing.T) {
+	names := ProtocolNames()
+	if len(names) != len(ianaProtocolNumbers) {
+		t.Fatalf("ProtocolNames returned %d names, table holds %d", len(names), len(ianaProtocolNumbers))
+	}
+	for i := 1; i < len(names); i++ {
+		if names[i-1] >= names[i] {
+			t.Fatalf("ProtocolNames is not sorted and deduplicated: %v", names)
+		}
+	}
+	for _, name := range names {
+		if _, ok := ianaProtocolNumbers[name]; !ok {
+			t.Errorf("ProtocolNames returned %q, which the table does not carry", name)
+		}
+	}
+}
