@@ -101,13 +101,21 @@ func (d *dpdState) awaitingReply() bool {
 // alone ends that one. sendDPD is the only writer of the awaiting state and
 // it always stores what it sent, so this reads as a guard rather than a live path.
 func (d *dpdState) timedOut(now time.Time) bool {
-	if d == nil || !d.awaitReply {
+	if d == nil {
+		return false
+	}
+	if !d.awaitReply {
 		return false
 	}
 	if now.Before(d.sentAt.Add(d.timeout)) {
 		return false
 	}
-	return d.retries > 0 || len(d.probeMsg) == 0
+	// The budget has run out. The verdict now needs a repeat that also went
+	// unanswered, and the one exception is a probe that cannot be repeated at all.
+	if d.retries > 0 {
+		return true
+	}
+	return len(d.probeMsg) == 0
 }
 
 // shouldRetransmit reports whether the outstanding probe waited past its current

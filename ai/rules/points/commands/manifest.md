@@ -7,6 +7,7 @@ related: testing, platform-linux, git-safety
 directives ## Directives
   run-commands-through-make-and-never-poll
   heavy-jobs-are-admitted-by-make-never-typed-raw
+  bash-must-not-edit-a-governed-document
 cgo-free-builds ## CGO-Free Builds
   ze-is-cgo-free
 one-owner-runs-the-suites ## One Owner Runs The Suites

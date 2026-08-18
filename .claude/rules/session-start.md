@@ -7,13 +7,42 @@ Rationale: `ai/rationale/session-start.md`
 
 ```
 [ ] 1. Load LSP tool (`ToolSearch query="select:LSP"`). UNCONDITIONAL FIRST ACTION.
-[ ] 2. Run `scripts/dev/spec-session.sh current` to see this session's claimed spec
-[ ] 3. Read plan/<spec-name> (if a spec is claimed)
-[ ] 4. Read per-spec session state (tmp/session/<YYYY-MM-DD>-<SID>/state/session-state-<spec-stem>-<SID>.md) if exists
-[ ] 5. Check git status
-[ ] 6. If user provides a handoff: complete Receiving a Handoff (below) BEFORE any plan
-[ ] 7. Start working
+[ ] 2. Read `docs/contributing/ze-style.md`. EVERY session, before any code.
+[ ] 3. Run `scripts/dev/spec-session.sh current` to see this session's claimed spec
+[ ] 4. Read plan/<spec-name> (if a spec is claimed)
+[ ] 5. Read per-spec session state (tmp/session/<YYYY-MM-DD>-<SID>/state/session-state-<spec-stem>-<SID>.md) if exists
+[ ] 6. Check git status
+[ ] 7. If user provides a handoff: complete Receiving a Handoff (below) BEFORE any plan
+[ ] 8. Start working
 ```
+
+## Style Read (step 2) -- owner directive, 2026-08-18
+
+**BLOCKING, every session, whatever the task looks like.** Read
+`docs/contributing/ze-style.md` in full before writing any code.
+
+This REPLACES the older instruction in
+`ai/rules/points/go-standards/directives/read-the-ze-style-guide-before-go-design-or-review.md`,
+which read the guide only before a Go DESIGN decision, a review, or an argument
+about how Ze code is written, and told you not to open it for an ordinary edit.
+That gate was set to save context and it cost more than it saved: a session can
+write Go all day, never meet one of those three triggers, and never learn that
+Ze guards with early returns, splits a compound condition, or states an
+invariant positively.
+
+The failure was measured on 2026-08-18. One session wrote `dpd.go`,
+`detector.go`, `command_registry.go` and `process.go` without opening the guide
+once, and shipped `if d == nil || !d.awaitReply` and a three-fact error
+condition. It had a route -- `ai/rules/TRIGGERS.md` lists `go-standards` under
+"writing Go in Ze" -- and did not take it.
+
+Two things hid the gap, and neither is a reason to rely on them:
+
+- `ze-style` is an OUTPUT STYLE (`.claude/output-styles/ze-style.md`), not a
+  skill, so it never appears in the skills listing an agent reads at startup.
+- `c_pre_write_go` (`.claude/hooks/pretool-writeedit.py`) returns None unless
+  the tool is `Write` or `Edit`. Go written through a Bash heredoc reaches it
+  never, and auto mode tells agents to prefer Bash for file changes.
 
 ## LSP Load (step 1) -- no-exceptions clause
 

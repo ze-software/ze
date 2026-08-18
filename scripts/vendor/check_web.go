@@ -342,6 +342,14 @@ func driftCheck(root string) (problems, compared int, err error) {
 	return problems, compared, nil
 }
 
+// isCheckIgnoreAnswer reports whether a `git check-ignore` exit code is an ANSWER
+// rather than a failure. 1 is "nothing matched" and 128 is "not a git repository";
+// both tell us what we asked. Named so the two numbers read as what they mean at
+// the call site instead of as a compound condition.
+func isCheckIgnoreAnswer(code int) bool {
+	return code == 1 || code == 128
+}
+
 // ignoredNames names the entries of the vendor directory that git ignores. It asks
 // git rather than matching names, so a cache directory nobody predicted is excluded
 // on the same evidence as the one that prompted this: the repository already says it
@@ -364,14 +372,22 @@ func ignoredNames(root string, entries []os.DirEntry) (map[string]bool, error) {
 	out, err := cmd.Output()
 	// Exit 1 is "nothing matched" and exit 128 is "not a git repository". Both are
 	// answers, not failures. Anything else is a broken invocation and is reported.
+	//
+	// One guard per fact, rather than one condition holding three: a reader deciding
+	// whether every case is covered should not have to hold "did it exit at all",
+	// "is it an ExitError" and "which code" at once (docs/contributing/ze-style.md,
+	// "Control flow a reader can simulate").
 	if err != nil {
 		var exit *exec.ExitError
-		if !errors.As(err, &exit) || (exit.ExitCode() != 1 && exit.ExitCode() != 128) {
+		if !errors.As(err, &exit) {
+			return nil, fmt.Errorf("git check-ignore in %s: %w", root, err)
+		}
+		if !isCheckIgnoreAnswer(exit.ExitCode()) {
 			return nil, fmt.Errorf("git check-ignore in %s: %w", root, err)
 		}
 	}
 
-	for _, line := range strings.Split(string(out), "\n") {
+	for line := range strings.SplitSeq(string(out), "\n") {
 		if line == "" {
 			continue
 		}
