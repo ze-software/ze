@@ -90,7 +90,7 @@ needs `kill -HUP` on the ze process inside the node, or a node restart.
 as `ze cli -c "show $@ | json compact"`, and netlab runs it with `docker exec`. An
 explicit format pipe beats the `--format` flag, so that command emits JSON.
 <!-- source: contrib/netlab/ze.yml -- clab.group_vars.netlab_show_command -->
-<!-- source: internal/component/cli/client/main.go -- renderCommandOutput -->
+<!-- source: internal/component/cli/client/main.go -- commandWithFormat -->
 
 ## The lab login
 

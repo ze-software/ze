@@ -35,7 +35,11 @@ func writePeers(w io.Writer) int {
 		return 0 // Graceful fallback: no usable credentials
 	}
 
-	output, err := sshclient.ExecCommand(creds, "show bgp peer list")
+	// ExecCommandRaw, not ExecCommand: formatPeerCompletions unmarshals this
+	// answer, and the exec channel renders in the operator's configured format.
+	// A table would parse as nothing and completion would silently offer no
+	// peers, which is the failure this call is written to avoid.
+	output, err := sshclient.ExecCommandRaw(creds, "show bgp peer list")
 	if err != nil {
 		return 0 // Graceful fallback: daemon not responding
 	}

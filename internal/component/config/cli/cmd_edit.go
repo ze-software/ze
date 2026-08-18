@@ -237,14 +237,30 @@ func probeSSHWithTimeout(host, port string, timeout time.Duration) bool {
 	return true
 }
 
+// execEditorCommand indirects over the SSH client so a test can read the command
+// string the editor's executor put on the channel, `| raw` included, without
+// opening a connection. The same pattern is in reload_notify.go, for the same
+// reason.
+var execEditorCommand = sshclient.ExecCommand
+
+// sshCommandExecutor is the operational-command executor the editor's Model runs.
+//
+// The Model splits the pipe chain and renders the answer itself
+// (internal/component/cli/model_mode.go, executeOperationalCommand), so this
+// executor asks for the dispatcher's JSON. An answer the daemon already
+// rendered in the configured format cannot be rendered a second time.
+func sshCommandExecutor(creds sshclient.Credentials) cli.CommandExecutor {
+	return func(input string) (cli.CommandOutput, error) {
+		output, err := execEditorCommand(creds, sshclient.RawCommand(input))
+		return cli.CommandOutput{Text: output}, err
+	}
+}
+
 // wireSSHCommandExecutor sets up a command executor that dispatches via SSH exec,
 // optionally wrapping with transcript recording if enabled. Returns the
 // TranscriptWriter (nil if disabled) so the caller can defer Close.
 func wireSSHCommandExecutor(m *cli.Model, creds sshclient.Credentials, username, remoteHost string) *cli.TranscriptWriter {
-	executor := func(input string) (cli.CommandOutput, error) {
-		output, err := sshclient.ExecCommand(creds, input)
-		return cli.CommandOutput{Text: output}, err
-	}
+	executor := sshCommandExecutor(creds)
 
 	var tw *cli.TranscriptWriter
 	if tf := openTranscriptFile(); tf != nil {

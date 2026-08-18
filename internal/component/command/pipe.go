@@ -28,6 +28,7 @@ const (
 	pipeTable                   // | table — nushell-style table rendering with box-drawing
 	pipeText                    // | text — space-aligned columns without box-drawing
 	pipeYAML                    // | yaml — YAML-formatted output
+	pipeRaw                     // | raw — the dispatcher's JSON, byte for byte
 	pipeResolve                 // | resolve — add reverse DNS names for IP address values
 	pipeOrigin                  // | origin — add ASN and network name for IP address values
 	pipeLog                     // | log — append each update instead of replacing
@@ -56,6 +57,7 @@ var knownPipeOps = map[string]pipeKind{
 	"table":   pipeTable,
 	"text":    pipeText,
 	"yaml":    pipeYAML,
+	"raw":     pipeRaw,
 	"json":    pipeJSON,
 	"resolve": pipeResolve,
 	"origin":  pipeOrigin,
@@ -129,7 +131,7 @@ func foldFilters(command string, ops []pipeOp) (string, []pipeOp, map[string]any
 
 	for _, op := range ops {
 		switch op.kind { //nolint:exhaustive // only classify server vs client ops
-		case pipeNoMore, pipeJSON, pipeNDJSON, pipeTable, pipeText, pipeYAML, pipeResolve, pipeOrigin, pipeLog:
+		case pipeNoMore, pipeJSON, pipeNDJSON, pipeTable, pipeText, pipeYAML, pipeRaw, pipeResolve, pipeOrigin, pipeLog:
 			clientOps = append(clientOps, op)
 		case pipeMatch:
 			if filter, ok := set.byName["match"]; ok {
@@ -285,12 +287,18 @@ func appendFilter(args []string, filter PipeFilter, value string) []string {
 func ApplyPipes(output string, ops []pipeOp, meta map[string]any) (string, string) {
 	formatCount := 0
 	for _, op := range ops {
-		if op.kind == pipeJSON || op.kind == pipeNDJSON || op.kind == pipeTable || op.kind == pipeText || op.kind == pipeYAML {
+		if isFormatOp(op.kind) {
 			formatCount++
+		}
+		if op.kind == pipeRaw {
+			// raw answers a program, not a reader. Pipe metadata is display
+			// information for a renderer, so injecting it would leave the
+			// caller parsing a key the dispatcher never produced.
+			meta = nil
 		}
 	}
 	if formatCount > 1 {
-		return "", "multiple format operators (use only one of: json, table, text, yaml)"
+		return "", multipleFormatsError
 	}
 
 	result := output
@@ -320,6 +328,8 @@ func ApplyPipes(output string, ops []pipeOp, meta map[string]any) (string, strin
 			result = applyText(result)
 		case pipeYAML:
 			result = applyYAML(result)
+		case pipeRaw:
+			// Identity: the dispatcher's JSON is already the answer.
 		case pipeResolve:
 			result = applyResolve(result)
 		case pipeOrigin:
@@ -343,11 +353,15 @@ func ApplyPipes(output string, ops []pipeOp, meta map[string]any) (string, strin
 	return result, ""
 }
 
+// multipleFormatsError is refused by both the validator and the runner, so the
+// two can never disagree about which operators are formats.
+const multipleFormatsError = "multiple format operators (use only one of: json, ndjson, table, text, yaml, raw)"
+
 // hasFormatOp returns true if the pipe chain contains an explicit display format.
 // Count is a data transform (not a format) — it produces JSON for downstream formatting.
 func hasFormatOp(ops []pipeOp) bool {
 	for _, op := range ops {
-		if op.kind == pipeJSON || op.kind == pipeNDJSON || op.kind == pipeTable || op.kind == pipeText || op.kind == pipeYAML {
+		if isFormatOp(op.kind) {
 			return true
 		}
 	}
@@ -380,7 +394,7 @@ func ValidatePipes(ops []pipeOp) string {
 			var tb textbuf.Buffer
 			return tb.Str("unknown pipe operator: ").Str(op.arg).String()
 		}
-		if op.kind == pipeJSON || op.kind == pipeNDJSON || op.kind == pipeTable || op.kind == pipeText || op.kind == pipeYAML {
+		if isFormatOp(op.kind) {
 			formatCount++
 		}
 		if op.kind == pipeMatch && op.arg == "" {
@@ -403,7 +417,7 @@ func ValidatePipes(ops []pipeOp) string {
 		}
 	}
 	if formatCount > 1 {
-		return "multiple format operators (use only one of: json, ndjson, table, text, yaml)"
+		return multipleFormatsError
 	}
 	return ""
 }
@@ -469,8 +483,12 @@ func countItems(v any) int {
 	return 1
 }
 
+// isFormatOp reports whether the operator decides the shape of the answer.
+// A chain names at most one of them, and naming one stops the configured
+// default being appended. pipeRaw is one: it names the dispatcher's JSON as
+// the shape, which is a choice like any other.
 func isFormatOp(k pipeKind) bool {
-	return k == pipeJSON || k == pipeNDJSON || k == pipeTable || k == pipeText || k == pipeYAML
+	return k == pipeJSON || k == pipeNDJSON || k == pipeTable || k == pipeText || k == pipeYAML || k == pipeRaw
 }
 
 func injectPipeMeta(input string, meta map[string]any) string {

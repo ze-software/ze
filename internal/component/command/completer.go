@@ -50,6 +50,7 @@ var PipeOperators = []Suggestion{
 	{Text: "resolve", Description: "Reverse DNS for IP addresses", Type: "pipe"},
 	{Text: "origin", Description: "ASN and network for IP addresses", Type: "pipe"},
 	{Text: "ndjson", Description: "One JSON object per line", Type: "pipe"},
+	{Text: "raw", Description: "Dispatcher JSON, unformatted", Type: "pipe"},
 	{Text: "log", Description: "Append each update (monitor)", Type: "pipe"},
 	{Text: "first", Description: "Take first N items", Type: "pipe"},
 	{Text: "last", Description: "Take last N items", Type: "pipe"},

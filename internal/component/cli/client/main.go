@@ -72,12 +72,13 @@ func usage() {
 			}},
 			{Title: "Options", Entries: []helpfmt.HelpEntry{
 				{Name: "-c <command>", Desc: "Execute single command and exit (like ssh -c)"},
+				{Name: "--format <format>", Desc: "Output format: text, table, json, yaml, ndjson. Default: the daemon's environment cli format default"},
 			}},
-			{Title: "Pipe operators (interactive mode only, Tab completes after |)", Entries: []helpfmt.HelpEntry{
+			{Title: "Pipe operators (Tab completes after |)", Entries: []helpfmt.HelpEntry{
 				{Name: "<command> | match <pattern>", Desc: "Filter lines matching pattern"},
 				{Name: "<command> | count", Desc: "Count output lines"},
 				{Name: "<command> | table", Desc: "Render as nushell-style table"},
-				{Name: "<command> | json", Desc: "Pretty-print JSON (default)"},
+				{Name: "<command> | json", Desc: "Pretty-print JSON"},
 				{Name: "<command> | json compact", Desc: "Single-line JSON"},
 				{Name: "<command> | no-more", Desc: "Disable paging"},
 			}},
@@ -201,10 +202,7 @@ func runInteractiveSession(client *cliClient) int {
 		}
 	}
 
-	executor := func(input string) (unicli.CommandOutput, error) {
-		output, err := client.SendCommand(input)
-		return unicli.CommandOutput{Text: output}, err
-	}
+	executor := client.modelExecutor()
 
 	if tf := openTranscriptFile(); tf != nil {
 		tw := unicli.NewTranscriptWriter(tf, os.Getenv("USER"), client.creds.Host+":"+client.creds.Port)
@@ -217,11 +215,7 @@ func runInteractiveSession(client *cliClient) int {
 	cmdTree := buildRuntimeTree(client)
 	m.SetCommandCompleter(unicli.NewCommandCompleter(cmdTree))
 
-	injectViewFactories(&m, func() (func() (string, error), error) {
-		return func() (string, error) {
-			return client.SendCommand("show bgp summary")
-		}, nil
-	})
+	injectViewFactories(&m, client.dashboardPoller)
 
 	p := tea.NewProgram(m)
 	if _, err := p.Run(); err != nil {
@@ -257,7 +251,10 @@ func runOfflineFallback(command string) (int, bool) {
 func runBGP(args []string) int {
 	fs := flag.NewFlagSet("cli", flag.ExitOnError)
 	runCmd := fs.String("c", "", "Execute single command and exit")
-	format := fs.String("format", "yaml", "Output format: yaml, json, table")
+	// Empty means "no override": the daemon renders in its configured default
+	// (environment cli format default). The client cannot resolve that default
+	// itself, because nothing on this startup path loads the configuration.
+	format := fs.String("format", "", "Output format: text, table, json, yaml, ndjson (default: the daemon's configured format)")
 	user := fs.String("user", "", "SSH login username (overrides zefs super-admin)")
 	fs.StringVar(user, "u", "", "Short alias for --user")
 	remote := fs.String("remote", "", "Connect to remote daemon (host:port)")
@@ -331,40 +328,43 @@ func runBGP(args []string) int {
 // cliClient handles communication with the daemon via SSH exec.
 type cliClient struct {
 	creds sshclient.Credentials
+	// send is the SSH exec transport. It is a field rather than a direct call
+	// for one reason: a test reads the exact command string a caller put on
+	// the channel, `| raw` included, and opens no connection to do it.
+	// Every production client comes from newCLIClient. The zero value carries
+	// no transport, so a caller MUST NOT build this struct by hand outside a
+	// test.
+	send func(sshclient.Credentials, string) (string, error)
 }
 
 func newCLIClient(creds sshclient.Credentials) *cliClient {
-	return &cliClient{creds: creds}
+	return &cliClient{creds: creds, send: sshclient.ExecCommand}
 }
 
-// Execute sends a command via SSH and prints the response in the given format.
-// Valid formats: "yaml" (default), "json", "table".
+// Execute sends a command to the daemon and prints the answer.
+//
+// The client does not format. The daemon holds the configuration. It is
+// therefore the only process of the pair that can honor
+// `environment cli format default`. It runs the whole pipe chain for the same
+// reason, so one implementation renders every surface. This client sends the
+// command with its pipes intact. It prints what comes back.
 func (c *cliClient) Execute(command, format string) int {
-	cmdStr, formatFn, pipeErr := cmd.ProcessPipesChecked(command)
-	if pipeErr != "" {
-		fmt.Fprintf(os.Stderr, "pipe error: %s\n", pipeErr)
-		return 1
-	}
-	output, err := c.SendCommand(cmdStr)
+	output, err := c.SendCommand(commandWithFormat(command, format))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
 	}
 
-	renderCommandOutput(command, format, formatFn(output))
+	printDaemonOutput(command, output)
 	return 0
 }
 
 // executeWithTranscript is like Execute but also records the command and response
 // to the given transcript writer. Records the original command (with pipe
-// operators) for transcript fidelity.
+// operators) for transcript fidelity, and the daemon's rendering as the answer,
+// which is what the operator saw.
 func (c *cliClient) executeWithTranscript(command, format string, tw *unicli.TranscriptWriter) int {
-	cmdStr, formatFn, pipeErr := cmd.ProcessPipesChecked(command)
-	if pipeErr != "" {
-		fmt.Fprintf(os.Stderr, "pipe error: %s\n", pipeErr)
-		return 1
-	}
-	output, err := c.SendCommand(cmdStr)
+	output, err := c.SendCommand(commandWithFormat(command, format))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
@@ -372,64 +372,93 @@ func (c *cliClient) executeWithTranscript(command, format string, tw *unicli.Tra
 
 	tw.Record(command, output)
 
-	renderCommandOutput(command, format, formatFn(output))
+	printDaemonOutput(command, output)
 	return 0
 }
 
-// renderCommandOutput prints what the pipe chain produced for a `-c` command.
+// commandWithFormat appends the --format flag to the command as a format pipe,
+// so the daemon applies it. The flag needs no field on the wire. The pipe
+// grammar already names every format. Routing the flag through it keeps one
+// implementation deciding the format of every surface.
 //
-// A format operator the command names -- `show bgp peer list | json compact` --
-// is the operator's own choice, and it outranks the --format flag. The flag says
-// what to do when the command asks for nothing, and nothing more.
+// A format operator the command already names is the operator's own choice,
+// and it outranks the flag. `show bgp peer list | json compact` is that shape.
+// The flag says what to do when the command asks for nothing, and nothing more.
+// Without that precedence a `--format yaml` re-renders the JSON the pipe just
+// produced. Every consumer that asked for JSON on the command line then got
+// YAML with exit code 0 (plan/journal/silent-fall-through.md, 2026-08-14).
 //
-// Without that precedence the flag's "yaml" default fed the pipe's JSON straight
-// back into printFormatted, which unmarshalled it and re-rendered YAML. The
-// requested format never reached the caller, and the exit code stayed 0, so a
-// consumer parsing the output saw only a parse error with no cause
-// (plan/journal/silent-fall-through.md, 2026-08-14). The interactive path never
-// had the defect: it goes through ProcessPipesDetectLog, which applies the same
-// precedence with its HasFormat flag (internal/component/command/pipe.go).
-//
-// Empty output is printed as nothing on this branch, where printFormatted prints
-// "OK". That is deliberate: the caller asked for a machine format, and "OK" is
-// not valid JSON. A human running the command with no format operator still gets
-// "OK", because that input takes the branch above.
-func renderCommandOutput(command, format, formatted string) {
-	if !cmd.HasFormatPipe(command) {
-		printFormatted(formatted, format)
-		return
+// An unknown format reaches the daemon as an unknown pipe operator, which
+// ValidatePipes refuses with a message naming it.
+func commandWithFormat(command, format string) string {
+	if format == "" || cmd.HasFormatPipe(command) {
+		return command
 	}
-	if formatted != "" && !strings.HasSuffix(formatted, "\n") {
-		formatted += "\n"
-	}
-	fmt.Print(formatted)
+	var tb textbuf.Buffer
+	return tb.Str(command).Str(" | ").Str(format).String()
 }
 
-// SendCommand sends a command to the daemon via SSH exec and returns the response.
-func (c *cliClient) SendCommand(command string) (string, error) {
-	return sshclient.ExecCommand(c.creds, command)
-}
-
-// printFormatted formats and prints output in the given format.
-func printFormatted(output, format string) {
+// printDaemonOutput prints the daemon's answer for a `-c` command. The daemon
+// has already applied the pipe chain and the configured default format, so
+// nothing is re-rendered here.
+//
+// An empty answer prints "OK" when the command names no format operator. A
+// human ran a command that reports nothing, and silence does not say it worked.
+// A command that names one gets nothing at all. "OK" is not valid JSON.
+// The --format flag does not decide this branch. A `--format json` on a
+// command with no format pipe still prints "OK". That is what it did before
+// the daemon took over formatting.
+func printDaemonOutput(command, output string) {
 	if output == "" {
-		fmt.Println("OK")
+		if !cmd.HasFormatPipe(command) {
+			fmt.Println(okAnswer)
+		}
 		return
 	}
+	// The daemon can end its rendering with a newline. Println adds the only
+	// one the caller needs.
+	fmt.Println(strings.TrimRight(output, "\n"))
+}
 
-	switch format {
-	case "json":
-		fmt.Println(cmd.ApplyJSON(output, "pretty"))
-	case "table":
-		fmt.Print(cmd.ApplyTable(output))
-	default: // yaml
-		var data any
-		if err := json.Unmarshal([]byte(output), &data); err != nil {
-			fmt.Println(output)
-			return
-		}
-		fmt.Print(cmd.RenderYAML(data))
+// okAnswer is what a command reporting no data prints, so silence never reads
+// as a failure.
+const okAnswer = "OK"
+
+// SendCommand sends a command to the daemon via SSH exec. It returns the
+// answer as an operator would see it. The daemon has already applied the pipe
+// chain and the configured default format.
+func (c *cliClient) SendCommand(command string) (string, error) {
+	return c.send(c.creds, command)
+}
+
+// SendCommandRaw sends a command and returns the dispatcher's JSON, whatever
+// format the operator configured. Every caller in this package that PARSES the
+// answer uses this. See sshclient.ExecCommandRaw for why.
+func (c *cliClient) SendCommandRaw(command string) (string, error) {
+	return c.send(c.creds, sshclient.RawCommand(command))
+}
+
+// modelExecutor is the operational-command executor the interactive Model runs.
+//
+// The Model splits the pipe chain and renders the answer itself
+// (internal/component/cli/model_mode.go, executeOperationalCommand). Its
+// dashboard unmarshals the same answer (model_dashboard.go,
+// parseDashboardSnapshot, parsePeerDetail). So this executor asks for the
+// dispatcher's JSON. Text the daemon already rendered cannot be rendered
+// again. And `| json` typed in a session would answer the configured default.
+func (c *cliClient) modelExecutor() unicli.CommandExecutor {
+	return func(input string) (unicli.CommandOutput, error) {
+		output, err := c.SendCommandRaw(input)
+		return unicli.CommandOutput{Text: output}, err
 	}
+}
+
+// dashboardPoller feeds the live dashboard view. parseDashboardSnapshot
+// unmarshals what it returns, so it asks for the dispatcher's JSON.
+func (c *cliClient) dashboardPoller() (func() (string, error), error) {
+	return func() (string, error) {
+		return c.SendCommandRaw("show bgp summary")
+	}, nil
 }
 
 // isMonitorCommand returns true if the command is a streaming monitor command.
@@ -655,7 +684,7 @@ var commandTree = BuildCommandTree(false)
 // Falls back to the static commandTree on any error.
 func buildRuntimeTree(client *cliClient) *Command {
 	// Query daemon for runtime command list
-	output, err := client.SendCommand("system command list")
+	output, err := client.SendCommandRaw("system command list")
 	if err != nil {
 		return commandTree
 	}
@@ -858,7 +887,7 @@ func fetchPeerSelectors(client *cliClient) []cmd.Suggestion {
 	}
 
 	// See fetchPeerSelectorsFromDispatch: `show bgp peer list`, no `*`.
-	output, err := client.SendCommand("show bgp peer list")
+	output, err := client.SendCommandRaw("show bgp peer list")
 	if err != nil {
 		return nil
 	}

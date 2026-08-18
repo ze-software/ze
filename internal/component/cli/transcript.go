@@ -49,6 +49,15 @@ func (w *TranscriptWriter) writeHeader(t time.Time, username, remoteHost string)
 
 // Record appends a command and its output to the transcript file.
 // Errors are silently ignored (best-effort).
+//
+// The output is whatever the caller passes, and the two callers differ. A `-c`
+// run records what the operator saw: the daemon renders the answer in the
+// configured format before it reaches the client (internal/component/ssh/ssh.go,
+// execMiddleware). An interactive session records the dispatcher's JSON, because
+// WrapExecutorWithTranscript sits under the Model and the Model renders after
+// the executor returns (model_mode.go, executeOperationalCommand). The command
+// is recorded with its pipe operators either way, so the two lines together say
+// what was asked and what came back.
 func (w *TranscriptWriter) Record(command, output string) {
 	if w == nil || w.file == nil {
 		return

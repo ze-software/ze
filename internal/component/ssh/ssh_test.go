@@ -29,6 +29,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/audit"
+	"github.com/ze-software/ze/internal/core/env"
 	sshclient "github.com/ze-software/ze/internal/core/ssh/client"
 )
 
@@ -988,4 +989,127 @@ func TestExecLogRedactsBeforeTruncation(t *testing.T) {
 	if !strings.Contains(got, "bytes total") {
 		t.Errorf("expected truncation of an over-long command: %q", got)
 	}
+}
+
+// execFormatServer starts an SSH server whose exec executor answers a fixed
+// payload and records the command string it received.
+func execFormatServer(t *testing.T, output string) (*Server, *string) {
+	t.Helper()
+	srv, err := NewServer(Config{
+		Listen:        "127.0.0.1:0",
+		HostKeyPath:   t.TempDir() + "/test_host_key",
+		Authenticator: passwordProfilesAuthenticator{},
+	})
+	require.NoError(t, err)
+	received := new(string)
+	srv.SetExecutorFactory(func(_, _ string, _ plugin.Authorizer) CommandExecutor {
+		return func(input string) (*plugin.RenderedResponse, error) {
+			*received = input
+			return &plugin.RenderedResponse{Output: output}, nil
+		}
+	})
+	require.NoError(t, srv.Start(t.Context(), nil, nil))
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		require.NoError(t, srv.Stop(ctx))
+	})
+	return srv, received
+}
+
+// execFormatRun runs one command over a real SSH exec channel and returns what
+// the server wrote to the session.
+func execFormatRun(t *testing.T, srv *Server, command string) string {
+	t.Helper()
+	client, err := gossh.Dial("tcp", srv.Address(), &gossh.ClientConfig{
+		User:            "operator",
+		Auth:            []gossh.AuthMethod{gossh.Password("read-pass")},
+		HostKeyCallback: gossh.InsecureIgnoreHostKey(), //nolint:gosec // test server key is generated per run
+		Timeout:         5 * time.Second,
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, client.Close()) })
+	session, err := client.NewSession()
+	require.NoError(t, err)
+	out, err := session.CombinedOutput(command)
+	require.NoError(t, err, "exec failed: %s", string(out))
+	return string(out)
+}
+
+func isTableRendering(s string) bool {
+	return strings.Contains(s, "┌") || strings.Contains(s, "│")
+}
+
+// VALIDATES: AC-1, AC-2 -- an SSH exec command carrying no format pipe renders in
+// the configured default (ze.cli.format), not the executor's raw JSON.
+// PREVENTS: `ssh host 'show version'` answering indented JSON after the operator
+// committed `environment cli format default table`.
+func TestSSHExecAppliesConfiguredFormatDefault(t *testing.T) {
+	t.Setenv("ze.cli.format", "table")
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+
+	srv, received := execFormatServer(t, `{"version":"1.2.3"}`)
+	out := execFormatRun(t, srv, "show version")
+
+	assert.Equal(t, "show version", *received, "the dispatcher must receive the command unchanged")
+	assert.Contains(t, out, "1.2.3")
+	assert.True(t, isTableRendering(out), "configured default table must render a table; got:\n%s", out)
+	assert.NotContains(t, out, `"version"`, "the raw JSON must not reach the caller")
+}
+
+// VALIDATES: AC-3 -- an explicit format pipe wins over the configured default, and
+// the pipe chain is stripped before the command reaches the dispatcher.
+// PREVENTS: `tokenize` receiving `|` and `json` as ordinary command arguments.
+func TestSSHExecRunsAFormatPipe(t *testing.T) {
+	t.Setenv("ze.cli.format", "table")
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+
+	srv, received := execFormatServer(t, `{"version":"1.2.3"}`)
+	out := execFormatRun(t, srv, "show version | json")
+
+	assert.Equal(t, "show version", *received, "the pipe chain must not reach the dispatcher")
+	// The executor answers compact JSON; the | json operator indents it, so the
+	// space after the colon proves the pipe ran rather than the payload passing
+	// through untouched.
+	assert.Contains(t, out, `"version": "1.2.3"`)
+	assert.False(t, isTableRendering(out), "an explicit | json must beat the configured default; got:\n%s", out)
+}
+
+// TestExecCommandRawAnswersTheDispatcherJSON drives the RPC helper from its
+// entry point, over a real SSH exec channel, with a display format configured.
+//
+// The exec channel carries two kinds of caller. An operator wants the rendering
+// their `environment cli format default` asks for. Ze's own code wants the
+// bytes the dispatcher produced, because it unmarshals them. sshclient.
+// ExecCommandRaw is the single place the second kind says so, and this proves
+// the request survives the whole path: client, channel, execMiddleware, pipe
+// chain, and back.
+//
+// VALIDATES: spec-fixit-cli-format-default-everywhere AC-9.
+// PREVENTS: every in-tree RPC caller parsing a table and degrading in silence.
+func TestExecCommandRawAnswersTheDispatcherJSON(t *testing.T) {
+	t.Setenv("ze.cli.format", "table")
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+
+	srv, received := execFormatServer(t, `{"version":"1.2.3"}`)
+	host, port, err := net.SplitHostPort(srv.Address())
+	require.NoError(t, err)
+
+	creds := sshclient.Credentials{Host: host, Port: port, Username: "operator", Auth: "read-pass"}
+
+	raw, err := sshclient.ExecCommandRaw(creds, "show version")
+	require.NoError(t, err)
+	assert.Equal(t, "show version", *received, "the raw pipe must not reach the dispatcher")
+	assert.JSONEq(t, `{"version":"1.2.3"}`, raw)
+	assert.False(t, isTableRendering(raw), "the configured default must not reach an RPC caller; got:\n%s", raw)
+
+	// The comparison arm. The same command over the same channel, asked for the
+	// ordinary way, still answers the operator's format -- so this test is about
+	// which helper was called, not about the daemon having stopped formatting.
+	rendered, err := sshclient.ExecCommand(creds, "show version")
+	require.NoError(t, err)
+	assert.True(t, isTableRendering(rendered), "the operator surface lost the configured default; got:\n%s", rendered)
 }

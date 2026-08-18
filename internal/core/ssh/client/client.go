@@ -103,6 +103,37 @@ func ExecCommand(creds Credentials, command string) (string, error) {
 	return strings.TrimSpace(string(output)), nil
 }
 
+// rawPipe is the pipe operator that asks the daemon to answer with the
+// dispatcher's JSON rather than a rendering of it.
+//
+// The exec channel is two things at once: an operator surface, where
+// `environment cli format default` decides the rendering, and ze's own RPC
+// transport, where a caller parses the answer. This operator is how the second
+// caller says which one it is. It is spelled here and nowhere else.
+const rawPipe = " | raw"
+
+// RawCommand appends the raw pipe to a command, so the daemon answers with the
+// dispatcher's JSON whatever format the operator configured.
+//
+// A caller that owns its own transport uses this. A caller that does not uses
+// ExecCommandRaw below, which is the same request over this package's channel.
+func RawCommand(command string) string {
+	var tb textbuf.Buffer
+	return tb.Str(command).Str(rawPipe).String()
+}
+
+// ExecCommandRaw runs a command over the SSH channel and returns the
+// dispatcher's JSON, unchanged by the configured display format.
+//
+// Every in-tree caller that PARSES the answer MUST use this rather than
+// ExecCommand. ExecCommand answers what an operator would see, and an operator
+// who commits `environment cli format default table` would otherwise hand every
+// such caller a table to unmarshal. Each one degrades quietly, so the failure
+// is invisible until somebody asks why completion stopped offering peers.
+func ExecCommandRaw(creds Credentials, command string) (string, error) {
+	return ExecCommand(creds, RawCommand(command))
+}
+
 // errorPrefix is how the daemon's ssh exec handler formats a failure on the
 // session's stderr, so that `ssh <host> <command>` reads well on its own.
 const errorPrefix = "error: "

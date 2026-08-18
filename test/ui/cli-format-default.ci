@@ -1,0 +1,234 @@
+# Test: `ze cli -c` renders in the format the DAEMON was configured with, and an
+#       explicit request still beats that default.
+#
+# VALIDATES: spec-fixit-cli-format-default-everywhere AC-4 to AC-7, AC-9, AC-10.
+#            With `environment cli format default table` in the daemon's config,
+#            `ze cli -c "show version"` answers the table rendering (AC-4);
+#            `--format json` answers JSON whatever the operator configured
+#            (AC-5); an explicit `| yaml` answers YAML (AC-6); and a command
+#            whose answer is empty and which names no format still prints `OK`
+#            (AC-7). `| raw` answers the dispatcher's JSON whatever was
+#            committed, and `ze completion peers`, which parses that answer off
+#            the same channel, still finds its peers (AC-9, AC-10).
+# REGRESSION: `ze cli` never loads the configuration. Nothing on its startup path
+#            (RunCommand -> Run -> runBGP -> LoadCredentialsWithFlags) calls
+#            config.LoadConfig, so env.Get("ze.cli.format") in that process can
+#            only ever answer the registered default. The client nonetheless
+#            formatted the answer itself, with a --format flag defaulting to
+#            "yaml", so an operator who committed `cli format default table` got
+#            a table over `ssh host <cmd>` and YAML from `ze cli -c <cmd>` for
+#            the same command. The client now sends the command with its pipes
+#            intact and prints what comes back; --format travels as a format
+#            pipe so one implementation renders every surface.
+#
+# The daemon runs with an ephemeral SSH listener; ZE_SSH_* carry the credentials
+# `ze cli` has no flags for.
+#
+# The timeout is DECLARED. This file starts one daemon and launches `ze` nine
+# times, about 5s on an idle host, and the runner's derived bound is
+# max(5s, 5 * historical average) -- which a first run, and a run sharing the
+# host with a parallel agent, can both cross while every assertion still holds.
+# KNOWN COST, recorded rather than fixed: declaring the bound opts this file out
+# of that ratchet permanently, so a regression taking it from 4s to 50s would
+# pass unremarked. The ratchet is per-test and has no "declared but still
+# ratcheted" mode.
+option=timeout:value=60s
+
+tmpfs=run.py:terminator=EOF_PY
+import json
+import os
+import subprocess
+import sys
+
+from ze_api import wait_until
+
+def require(condition, message):
+    if not condition:
+        raise SystemExit(message)
+
+def run(argv, env):
+    r = subprocess.run(argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env, check=False)
+    return r.returncode, r.stdout, r.stderr
+
+def is_table(text):
+    # ApplyTable draws box characters; no other renderer emits them.
+    return '┌' in text or '│' in text
+
+password_hash = subprocess.check_output(['ze', 'passwd'], input='secret\n', text=True).strip()
+with open('format.conf', 'w', encoding='utf-8') as fh:
+    fh.write('''environment {
+    cli {
+        format {
+            default table;
+        }
+    }
+}
+
+bgp {
+    router-id 192.0.2.254
+    session {
+        asn {
+            local 65000
+        }
+    }
+    peer peer1 {
+        connection {
+            remote {
+                ip 192.0.2.1
+            }
+            local {
+                ip 127.0.0.1
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+        }
+    }
+}
+
+system {
+    authentication {
+        user ci {
+            password "''' + password_hash + '''"
+            profile [ admin ]
+        }
+    }
+}
+''')
+
+daemon_env = os.environ.copy()
+daemon_env['ZE_SSH_EPHEMERAL'] = os.path.abspath('ssh.addr')
+daemon_env['ZE_READY_FILE'] = os.path.abspath('ready')
+daemon_env['ZE_CONFIG_DIR'] = os.getcwd()
+# The BGP listener must leave port 179 alone: this suite runs unprivileged, and
+# a bind failure there takes the whole daemon down before it writes `ready`.
+# ze_test_bgp_port is the test infrastructure's own override
+# (internal/component/bgp/config/loader_create.go, envKeyTCPPort).
+daemon_env['ze_test_bgp_port'] = str(12000 + os.getpid() % 40000)
+# ze.cli.format must come from the config file, not from the ambient
+# environment: ApplyEnvConfig lets an OS env var win over the config, so an
+# inherited ZE_CLI_FORMAT would silence the very plumbing under test.
+daemon_env.pop('ZE_CLI_FORMAT', None)
+daemon = subprocess.Popen(['ze', '-f', 'format.conf'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=daemon_env)
+
+def daemon_ready():
+    if daemon.poll() is not None:
+        out, err = daemon.communicate()
+        raise SystemExit('daemon exited early\nstdout:\n' + out + '\nstderr:\n' + err)
+    return os.path.exists('ssh.addr') and os.path.exists('ready')
+
+try:
+    # ze writes ssh.addr (the ephemeral listener) and ready (startup complete),
+    # so this is a barrier on both, not a guessed duration. 200 x 0.1s = 20s.
+    if not wait_until(daemon_ready, attempts=200, delay=0.1):
+        raise SystemExit('daemon did not become ready')
+
+    host, port = open('ssh.addr', encoding='utf-8').read().strip().rsplit(':', 1)
+    cli_env = os.environ.copy()
+    cli_env.update({
+        'ZE_SSH_HOST': host,
+        'ZE_SSH_PORT': port,
+        'ZE_SSH_USERNAME': 'ci',
+        'ZE_SSH_PASSWORD': 'secret',
+        'ZE_CONFIG_DIR': os.getcwd(),
+    })
+    cli_env.pop('ZE_CLI_FORMAT', None)
+
+    # 1. AC-4. The committed default reaches a command the client sent with no
+    #    format of its own. `show version` is used throughout because its answer
+    #    is one field, so each renderer's shape is unmistakable and nothing about
+    #    the assertion depends on daemon state.
+    code, out, err = run(['ze', 'cli', '-c', 'show version'], cli_env)
+    require(code == 0, 'ze cli -c "show version" exit=%d: %s%s' % (code, out, err))
+    require(is_table(out), 'the committed `cli format default table` did not reach `ze cli -c`: %r' % out)
+    require('version' in out, 'the answer lost its field name: %r' % out)
+
+    # 2. AC-5. A script demands JSON and gets JSON, whatever the operator
+    #    committed. This is the agent-facing contract: no operator setting may
+    #    take a machine format away (ai/rules/cli.md).
+    code, out, err = run(['ze', 'cli', '-c', 'show version', '--format', 'json'], cli_env)
+    require(code == 0, '--format json exit=%d: %s%s' % (code, out, err))
+    require(not is_table(out), '--format json was overridden by the configured default: %r' % out)
+    parsed = None
+    try:
+        parsed = json.loads(out)
+    except ValueError as exc:
+        raise SystemExit('--format json did not answer JSON (%s): %r' % (exc, out))
+    require('version' in parsed, '--format json answered JSON without the field: %r' % out)
+
+    # 3. AC-6. An explicit format pipe is run by the daemon. Before this change
+    #    the client stripped the chain, applied it locally to text the daemon had
+    #    already rendered, and the operator's `| yaml` did nothing.
+    code, out, err = run(['ze', 'cli', '-c', 'show version | yaml'], cli_env)
+    require(code == 0, '| yaml exit=%d: %s%s' % (code, out, err))
+    require(not is_table(out), 'an explicit | yaml lost to the configured default: %r' % out)
+    require(out.startswith('version:'), '| yaml did not answer YAML: %r' % out)
+
+    # 4. The precedence between the two ways of asking. What the operator typed
+    #    outranks the flag, so --format never re-renders a chain's own output.
+    code, out, err = run(['ze', 'cli', '-c', 'show version | yaml', '--format', 'json'], cli_env)
+    require(code == 0, '| yaml with --format json exit=%d: %s%s' % (code, out, err))
+    require(out.startswith('version:'), '--format overrode an explicit | yaml: %r' % out)
+
+    # 5. AC-7. An empty answer with no format operator still says OK, so a human
+    #    can tell "nothing to report" from "the command did not run". The answer
+    #    is emptied by a filter rather than by a command that reports nothing,
+    #    because no RPC handler in the tree returns an empty Response.
+    code, out, err = run(['ze', 'cli', '-c', 'show version | match zzz-no-such-token'], cli_env)
+    require(code == 0, 'an emptied answer exit=%d: %s%s' % (code, out, err))
+    require(out == 'OK\n', 'an empty answer with no format operator must print OK: %r' % out)
+
+    # 6. The other half of AC-7's branch: a command that asked for a machine
+    #    format gets nothing, because OK is not valid JSON.
+    code, out, err = run(['ze', 'cli', '-c', 'show version | match zzz-no-such-token | json'], cli_env)
+    require(code == 0, 'an emptied answer in json exit=%d: %s%s' % (code, out, err))
+    require(out == '', 'a machine format must not receive OK: %r' % out)
+
+    # 7. A format the grammar does not name is REFUSED, not passed to the
+    #    dispatcher as a command argument. --format now reaches the daemon
+    #    through the pipe chain, so ValidatePipes is what judges it and the
+    #    message must name the word that was rejected.
+    code, out, err = run(['ze', 'cli', '-c', 'show version', '--format', 'bogus'], cli_env)
+    require(code == 1, '--format bogus exit=%d, want 1: %s%s' % (code, out, err))
+    require('bogus' in err, 'the refusal did not name the rejected format: %r' % err)
+
+    # 8. AC-9. `| raw` answers the dispatcher's JSON whatever the operator
+    #    committed. This is the operator-visible half of the RPC channel: the
+    #    exec channel is ze's own transport as well as a display surface, and
+    #    `| raw` is how a caller says which one it is. `| json` cannot serve,
+    #    because ApplyJSON unwraps a single-key wrapper and so reshapes the
+    #    payload.
+    code, out, err = run(['ze', 'cli', '-c', 'show version | raw'], cli_env)
+    require(code == 0, '| raw exit=%d: %s%s' % (code, out, err))
+    require(not is_table(out), '| raw lost to the configured default: %r' % out)
+    try:
+        parsed = json.loads(out)
+    except ValueError as exc:
+        raise SystemExit('| raw did not answer the dispatcher JSON (%s): %r' % (exc, out))
+    require('version' in parsed, '| raw answered JSON without the field: %r' % out)
+
+    # 9. AC-9, AC-10 for the completion call site. `ze completion peers`
+    #    unmarshals `show bgp peer list` off the same exec channel and falls back
+    #    to NO completions on a parse failure, so a table would empty the
+    #    operator's TAB with no error anywhere. The config above declares peer1
+    #    at 192.0.2.1 in AS 65001, so all three selectors must appear.
+    code, out, err = run(['ze', 'completion', 'peers'], cli_env)
+    require(code == 0, 'ze completion peers exit=%d: %s%s' % (code, out, err))
+    for selector in ('192.0.2.1', 'peer1', 'as65001'):
+        require(selector in out, 'completion lost the %s selector to the configured format: %r' % (selector, out))
+finally:
+    daemon.terminate()
+    try:
+        daemon.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        daemon.kill()
+        daemon.wait(timeout=5)
+
+print('OK')
+EOF_PY
+
+cmd=foreground:seq=1:exec=python3 run.py
+expect=exit:code=0
+expect=stdout:contains=OK

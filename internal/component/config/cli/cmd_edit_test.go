@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/config/storage"
+	sshclient "github.com/ze-software/ze/internal/core/ssh/client"
 )
 
 // TestPromptCreateConfigYes verifies that answering "y" creates the file.
@@ -542,5 +543,38 @@ func TestEditRefusesWithoutZefs(t *testing.T) {
 
 	if code != 1 {
 		t.Errorf("expected exit code 1, got %d", code)
+	}
+}
+
+// TestEditorExecutorAsksForTheDispatcherJSON covers the `ze config edit --daemon`
+// call site on the SSH exec channel.
+//
+// The editor hands its executor to internal/component/cli's Model, and that
+// Model splits the pipe chain and renders the answer itself
+// (model_mode.go, executeOperationalCommand). An answer the daemon already
+// rendered in the configured format cannot be rendered a second time, so this
+// executor asks for the dispatcher's JSON.
+//
+// VALIDATES: spec-fixit-cli-format-default-everywhere AC-9, AC-10.
+// PREVENTS: `| json` inside the editor's command mode answering whatever
+// `environment cli format default` says, and the dashboard failing to parse.
+func TestEditorExecutorAsksForTheDispatcherJSON(t *testing.T) {
+	var sent []string
+	original := execEditorCommand
+	execEditorCommand = func(_ sshclient.Credentials, command string) (string, error) {
+		sent = append(sent, command)
+		return `{"version":"1.2.3"}`, nil
+	}
+	t.Cleanup(func() { execEditorCommand = original })
+
+	output, err := sshCommandExecutor(sshclient.Credentials{})("show version")
+	if err != nil {
+		t.Fatalf("editor executor: %v", err)
+	}
+	if output.Text != `{"version":"1.2.3"}` {
+		t.Errorf("editor executor answered %q, want the dispatcher's JSON", output.Text)
+	}
+	if len(sent) != 1 || sent[0] != "show version | raw" {
+		t.Errorf("editor executor sent %v, want [\"show version | raw\"]", sent)
 	}
 }

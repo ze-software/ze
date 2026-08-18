@@ -32,6 +32,7 @@ import (
 	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/authz"
 	"github.com/ze-software/ze/internal/component/cli/contract"
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -693,7 +694,12 @@ func truncateForLog(cmd string) string {
 }
 
 // execMiddleware handles non-interactive SSH exec commands (e.g., "ssh daemon stop").
-// If the session has a command, it dispatches through the executor.
+// If the session has a command, it dispatches through the executor and renders the
+// answer with the command's pipe chain, or with the configured default format
+// (ze.cli.format) when the chain names none.
+// Lifecycle commands (stop, restart, reboot), the plugin protocol channel and
+// streaming commands are answered before that split: none of them carries command
+// dispatcher output, so none of them is formatted here.
 // Interactive sessions (no command) pass through to the next middleware (BubbleTea).
 func (s *Server) execMiddleware() wish.Middleware {
 	return func(next ssh.Handler) ssh.Handler {
@@ -817,8 +823,21 @@ func (s *Server) execMiddleware() wish.Middleware {
 				return
 			}
 
+			// Split the pipe chain off the command. The dispatcher's tokenizer
+			// gives "|" no meaning, so the chain must not reach it. The formatter
+			// renders the answer in the format the chain names, or in the
+			// configured default (ze.cli.format) when it names none. An exec
+			// channel holds no per-session "set cli format" override, so the
+			// session format is empty.
+			dispatched, formatOutput, pipeErr := command.ProcessPipesDefaultFormatChecked(input, "")
+			if pipeErr != "" {
+				fmt.Fprintln(sess.Stderr(), "error:", pipeErr) //nolint:errcheck // best-effort
+				sess.Exit(1)                                       //nolint:errcheck // best-effort
+				return
+			}
+
 			executor := factory(sess.User(), sess.RemoteAddr().String(), getSessionAuthorizer(sess))
-			result, err := executor(input)
+			result, err := executor(dispatched)
 			if err != nil {
 				fmt.Fprintf(sess.Stderr(), "error: %v\n", err) //nolint:errcheck // best-effort
 				sess.Exit(1)                                   //nolint:errcheck // best-effort
@@ -826,8 +845,12 @@ func (s *Server) execMiddleware() wish.Middleware {
 				return
 			}
 
-			if result != nil && result.Output != "" {
-				fmt.Fprintln(sess, result.Output) //nolint:errcheck // best-effort
+			if result != nil {
+				// The formatter can end its rendering with a newline; Fprintln
+				// adds the only one the caller needs.
+				if rendered := strings.TrimRight(formatOutput(result.Output), "\n"); rendered != "" {
+					fmt.Fprintln(sess, rendered) //nolint:errcheck // best-effort
+				}
 			}
 			result.TransportComplete()
 		}

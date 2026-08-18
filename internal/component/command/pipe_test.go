@@ -1209,3 +1209,151 @@ func TestApplyFirstSingleKeyWrapper(t *testing.T) {
 		t.Errorf("got %q, want single-key wrapper with 2 items", trimmed)
 	}
 }
+
+// TestRawPipeReturnsTheDispatcherJSONUnchanged pins the identity property the
+// `| raw` operator exists to provide.
+//
+// The SSH exec channel is both an operator surface and ze's own RPC transport.
+// Since the daemon renders every exec answer in the configured format, a caller
+// that parses the answer needs one way to ask for the bytes the dispatcher
+// produced. `| json` cannot serve: unwrapSingleKeyArray reshapes a single-key
+// wrapper into a bare array, so it is a renderer, not an identity.
+//
+// VALIDATES: spec-fixit-cli-format-default-everywhere AC-9 -- `| raw` answers
+// the dispatcher's JSON byte for byte, whatever ze.cli.format says, and injects
+// no pipe metadata into it.
+// PREVENTS: an in-tree RPC caller unmarshalling a table, which every one of them
+// absorbs into a silent graceful fallback.
+func TestRawPipeReturnsTheDispatcherJSONUnchanged(t *testing.T) {
+	t.Setenv("ze.cli.format", "table")
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+
+	tests := []struct {
+		name     string
+		input    string
+		response string
+		want     string
+		wantCmd  string
+	}{
+		{
+			name:     "raw beats the configured default",
+			input:    "show version | raw",
+			response: `{"version":"1.2.3"}`,
+			want:     `{"version":"1.2.3"}`,
+			wantCmd:  "show version",
+		},
+		{
+			name: "raw keeps a single-key wrapper that | json would unwrap",
+			// This case is why the RPC callers cannot simply ask for | json:
+			// buildRuntimeTree unmarshals into a struct with a "commands" field.
+			input:    "system command list | raw",
+			response: `{"commands":[{"name":"show"}]}`,
+			want:     `{"commands":[{"name":"show"}]}`,
+			wantCmd:  "system command list",
+		},
+		{
+			name:     "raw passes a non-JSON answer through untouched",
+			input:    "show version | raw",
+			response: "plain text",
+			want:     "plain text",
+			wantCmd:  "show version",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			command, format, errMsg := ProcessPipesDefaultFormatChecked(tt.input, "")
+			if errMsg != "" {
+				t.Fatalf("ProcessPipesDefaultFormatChecked(%q) refused it: %s", tt.input, errMsg)
+			}
+			if command != tt.wantCmd {
+				t.Errorf("command = %q, want %q", command, tt.wantCmd)
+			}
+			if got := format(tt.response); got != tt.want {
+				t.Errorf("format(%q) = %q, want %q", tt.response, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestRawPipeSuppressesPipeMetadata shows both sides of the metadata rule.
+//
+// A data-shaping operator normally records itself under a "pipe" key inside the
+// answer, so a renderer can say what was filtered. That key is display
+// information, and a caller that unmarshals the answer never asked for it.
+//
+// VALIDATES: spec-fixit-cli-format-default-everywhere AC-9 -- `| raw` returns
+// the payload with no injected key, while the same chain without it keeps one.
+// PREVENTS: raw quietly ceasing to be an identity the day a caller combines it
+// with a filter.
+func TestRawPipeSuppressesPipeMetadata(t *testing.T) {
+	t.Setenv("ze.cli.format", "table")
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+
+	const response = `{"peers":{"a":{"state":"up"},"b":{"state":"down"}}}`
+
+	_, rawFormat, errMsg := ProcessPipesDefaultFormatChecked("show bgp peer list | count | raw", "")
+	if errMsg != "" {
+		t.Fatalf("the raw chain was refused: %s", errMsg)
+	}
+	const wantCount = "{\"count\":2}\n" // applyCount terminates its own answer.
+	if got := rawFormat(response); got != wantCount {
+		t.Errorf("raw answer = %q, want %q", got, wantCount)
+	}
+
+	_, jsonFormat, errMsg := ProcessPipesDefaultFormatChecked("show bgp peer list | count | json compact", "")
+	if errMsg != "" {
+		t.Fatalf("the json chain was refused: %s", errMsg)
+	}
+	if got := jsonFormat(response); !strings.Contains(got, `"pipe"`) {
+		t.Errorf("the comparison arm lost its pipe metadata, so this test proves nothing: %q", got)
+	}
+}
+
+// TestRawPipeIsRefusedBesideAnotherFormat proves `raw` joined the mutually
+// exclusive format set rather than becoming a silent extra operator.
+//
+// VALIDATES: `| raw | json` is refused by the validator, not run.
+// PREVENTS: a chain naming two answers, where the winner depends on order.
+func TestRawPipeIsRefusedBesideAnotherFormat(t *testing.T) {
+	_, ops := ParsePipe("show version | raw | json")
+	if msg := ValidatePipes(ops); msg == "" {
+		t.Fatal("ValidatePipes accepted two format operators")
+	} else if !strings.Contains(msg, "raw") {
+		t.Errorf("the refusal does not name raw: %q", msg)
+	}
+}
+
+// TestRawPipeSurvivesFilterFolding covers the one path where a new operator can
+// disappear without a compile error.
+//
+// foldFilters splits a chain into what the command executes server-side and what
+// stays a client-side operator. Its switch is exhaustive-exempt, so an operator
+// it does not name falls out of both lists. The chain then names no format, the
+// configured default is appended, and an RPC caller quietly gets a rendering.
+//
+// VALIDATES: spec-fixit-cli-format-default-everywhere AC-9 -- `| raw` survives a
+// command that owns pipe filters of its own.
+// PREVENTS: raw working for every command except the ones with registered
+// filters, which are the route-heavy ones a script is most likely to parse.
+func TestRawPipeSurvivesFilterFolding(t *testing.T) {
+	t.Setenv("ze.cli.format", "table")
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+
+	RegisterPipeFilters([]string{"show routes"}, PipeFilter{Name: "peer", Description: "Filter by peer", TakesArg: true})
+
+	command, format, errMsg := ProcessPipesDefaultFormatChecked("show routes | peer 192.0.2.1 | raw", "")
+	if errMsg != "" {
+		t.Fatalf("the chain was refused: %s", errMsg)
+	}
+	if command != "show routes peer 192.0.2.1" {
+		t.Errorf("command = %q, want the filter folded into it", command)
+	}
+	const response = `{"routes":[{"prefix":"192.0.2.0/24"}]}`
+	if got := format(response); got != response {
+		t.Errorf("format(%q) = %q, want it unchanged", response, got)
+	}
+}

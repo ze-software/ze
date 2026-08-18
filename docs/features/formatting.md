@@ -40,9 +40,8 @@ show bgp rib | match established
 show bgp peer list | first 5
 ```
 
-Only one format operator (`json`, `ndjson`, `table`, `text`, `yaml`) is
-allowed per chain; combining two is rejected. Filter and display operators
-chain freely.
+A chain takes one format operator: `json`, `ndjson`, `table`, `text`, `yaml`
+or `raw`. Two together are rejected. Filter and display operators chain freely.
 
 | Operator | Kind | Description |
 |----------|------|-------------|
@@ -51,6 +50,7 @@ chain freely.
 | `json [compact]` | format | Pretty (default) or compact JSON |
 | `ndjson` | format | One compact JSON object per line |
 | `yaml` | format | YAML output |
+| `raw` | format | The dispatcher's JSON, byte for byte. For a program that parses the answer |
 | `match <pattern>` | filter | Case-insensitive grep on output lines |
 | `count` | filter | Count items (JSON-aware: array length or map size) |
 | `first <n>` / `last <n>` | filter | Take first or last N items |
@@ -60,6 +60,29 @@ chain freely.
 | `no-more` | display | Disable paging (currently a no-op) |
 
 <!-- source: internal/component/command/pipe.go -- knownPipeOps, ApplyPipes, ValidatePipes -->
+
+### Scripting against the daemon: `| raw`
+
+The SSH exec channel is two surfaces at once. An operator running
+`ssh <host> 'show bgp peer list'` gets the format `environment cli format
+default` names. A program that parses the answer wants the data behind that
+rendering, and it must not change the day an operator changes the default.
+
+`| raw` is how the second caller asks. It answers the command dispatcher's JSON
+byte for byte, so it is the stable contract for a script:
+
+```
+ssh ze-host 'show bgp peer list | raw'
+```
+
+`| json` is a renderer, not this. It unwraps a single-key object holding an
+array, so `{"commands": [...]}` reaches the caller as a bare `[...]`.
+
+Ze's own tooling uses the same operator. Completion, the runtime command tree
+and the live dashboard each parse an exec-channel answer. Each asks for it
+through one helper, rather than composing the pipe itself.
+
+<!-- source: internal/core/ssh/client/client.go -- RawCommand, ExecCommandRaw -->
 
 ### The offline way: `ze pipe`
 

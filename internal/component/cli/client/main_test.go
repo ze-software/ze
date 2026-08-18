@@ -1,9 +1,9 @@
 package client
 
 import (
-	"encoding/json"
 	"io"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 
@@ -11,6 +11,7 @@ import (
 
 	unicli "github.com/ze-software/ze/internal/component/cli"
 	"github.com/ze-software/ze/internal/core/env"
+	sshclient "github.com/ze-software/ze/internal/core/ssh/client"
 )
 
 // captureOutput captures stdout or stderr during a function call.
@@ -47,172 +48,128 @@ func captureOutput(t *testing.T, isStderr bool, fn func()) string {
 	return string(out)
 }
 
-// TestPrintFormatted verifies response formatting.
+// TestCLIFormatFlagBecomesAPipe proves that --format travels to the daemon as a
+// format pipe, and that a format operator the operator typed still beats it.
 //
-// VALIDATES: Different output formats render correctly.
-// PREVENTS: Formatting bugs causing garbled output.
-func TestPrintFormatted(t *testing.T) {
+// VALIDATES: spec-fixit-cli-format-default-everywhere AC-5. `--format json`
+//
+//	reaches the daemon as `| json` whatever the configured default is,
+//	and no flag appends nothing, which is what lets the daemon apply
+//	`environment cli format default`.
+//
+// PREVENTS:  two defects at once. The first is the client deciding the format
+//
+//	itself: nothing on its startup path loads the configuration, so it
+//	can only ever see the registered default, and `ze cli -c "show
+//	version"` answered YAML however the operator had configured the
+//	daemon. The second is the flag overriding an explicit pipe: the
+//	flag's old "yaml" default fed the pipe's JSON back into a local
+//	renderer, so every consumer that asked for JSON on the command line
+//	got YAML with exit code 0
+//	(plan/journal/silent-fall-through.md, 2026-08-14).
+func TestCLIFormatFlagBecomesAPipe(t *testing.T) {
 	tests := []struct {
-		name     string
-		output   string
-		format   string
-		contains []string
+		name    string
+		command string
+		format  string
+		want    string
 	}{
 		{
-			name:     "empty_output",
-			output:   "",
-			format:   "yaml",
-			contains: []string{"OK"},
+			name:    "no flag leaves the command alone",
+			command: "show version",
+			format:  "",
+			want:    "show version",
 		},
 		{
-			name:     "json_data_yaml_format",
-			output:   `{"version":"1.0"}`,
-			format:   "yaml",
-			contains: []string{"version", "1.0"},
+			name:    "the flag becomes a format pipe",
+			command: "show version",
+			format:  "json",
+			want:    "show version | json",
 		},
 		{
-			name:     "json_data_json_format",
-			output:   `{"version":"1.0"}`,
-			format:   "json",
-			contains: []string{"version", "1.0"},
+			name:    "the flag joins a chain that names no format",
+			command: "show bgp peer list | match established",
+			format:  "table",
+			want:    "show bgp peer list | match established | table",
 		},
 		{
-			name:     "plain_text",
-			output:   "some plain text",
-			format:   "yaml",
-			contains: []string{"some plain text"},
+			name:    "an explicit format pipe beats the flag",
+			command: "show bgp peer list | json compact",
+			format:  "yaml",
+			want:    "show bgp peer list | json compact",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			output := captureOutput(t, false, func() {
-				printFormatted(tt.output, tt.format)
-			})
-
-			for _, want := range tt.contains {
-				if !strings.Contains(output, want) {
-					t.Errorf("printFormatted() output = %q, want to contain %q", output, want)
-				}
+			if got := commandWithFormat(tt.command, tt.format); got != tt.want {
+				t.Errorf("commandWithFormat(%q, %q) = %q, want %q", tt.command, tt.format, got, tt.want)
 			}
 		})
 	}
 }
 
-// TestRenderCommandOutputFormatPipeBeatsFormatFlag proves the precedence that
-// `ze cli -c "show ... | json"` depends on.
+// TestPrintDaemonOutputPrintsWhatTheDaemonRendered holds the other half of the
+// client's job: it prints, and it does not format.
 //
-// VALIDATES: spec-netlab-integration AC-10. A format operator the command names
+// VALIDATES: spec-fixit-cli-format-default-everywhere AC-7. An empty answer
 //
-//	outranks the --format flag, which only says what to do when the
-//	command named none.
+//	prints "OK" when the command names no format operator, and prints
+//	nothing when it names one, because "OK" is not valid JSON. A
+//	non-empty answer reaches the caller unchanged, with exactly one
+//	trailing newline.
 //
-// PREVENTS:  the defect this test was written for. Execute applied the pipe,
+// PREVENTS:  the client re-rendering an answer the daemon already rendered, and
 //
-//	producing JSON, and then handed the result to printFormatted with
-//	the flag's "yaml" default, which unmarshalled it and re-rendered
-//	YAML. Every consumer that asked for JSON on the command line got
-//	YAML with exit code 0, netlab validation among them
-//	(plan/journal/silent-fall-through.md, 2026-08-14).
-func TestRenderCommandOutputFormatPipeBeatsFormatFlag(t *testing.T) {
-	// What ProcessPipesChecked hands back for `... | json compact`: the pipe has
-	// already rendered the JSON, so the only question left is whether the flag
-	// re-renders it.
-	compact := `{"peers":{"10.0.0.1":{"state":"established"}}}`
-
-	output := captureOutput(t, false, func() {
-		renderCommandOutput("show bgp peer list | json compact", "yaml", compact)
-	})
-
-	var got any
-	if err := json.Unmarshal([]byte(output), &got); err != nil {
-		t.Fatalf("an explicit | json must survive --format yaml, got %q: %v", output, err)
-	}
-	if !strings.HasSuffix(output, "\n") {
-		t.Errorf("output must end with a newline, got %q", output)
-	}
-}
-
-// TestRenderCommandOutputFormatFlagAppliesWithoutAPipe holds the other half of
-// the same precedence: with no format operator in the command, the --format flag
-// still decides. Without this the fix above could have been "never format", which
-// would break every `ze cli -c "show ..."` that relies on the yaml default.
-func TestRenderCommandOutputFormatFlagAppliesWithoutAPipe(t *testing.T) {
-	compact := `{"peers":{"10.0.0.1":{"state":"established"}}}`
-
-	output := captureOutput(t, false, func() {
-		renderCommandOutput("show bgp peer list", "yaml", compact)
-	})
-
-	if strings.HasPrefix(strings.TrimSpace(output), "{") {
-		t.Errorf("with no format pipe the --format flag must render, got %q", output)
-	}
-	if !strings.Contains(output, "10.0.0.1") {
-		t.Errorf("output missing the peer address: %q", output)
-	}
-}
-
-// TestPrintFormattedNestedData verifies nested data formatting.
-//
-// VALIDATES: Nested maps and arrays format with proper indentation.
-// PREVENTS: Nested data being flattened or misformatted.
-func TestPrintFormattedNestedData(t *testing.T) {
-	data := map[string]any{
-		"peers": []any{
-			map[string]any{"Address": "10.0.0.1", "State": "established"},
-			map[string]any{"Address": "10.0.0.2", "State": "idle"},
+//	an empty command losing the "OK" that tells a human it worked.
+func TestPrintDaemonOutputPrintsWhatTheDaemonRendered(t *testing.T) {
+	tests := []struct {
+		name    string
+		command string
+		output  string
+		want    string
+	}{
+		{
+			name:    "empty answer with no format pipe says OK",
+			command: "request reload",
+			output:  "",
+			want:    "OK\n",
 		},
-		"config": map[string]any{
-			"local": map[string]any{"as": 65000},
+		{
+			name:    "empty answer with a format pipe says nothing",
+			command: "request reload | json",
+			output:  "",
+			want:    "",
 		},
-		"empty-list": []any{},
-	}
-	jsonBytes, _ := json.Marshal(data)
-
-	output := captureOutput(t, false, func() {
-		printFormatted(string(jsonBytes), "yaml")
-	})
-
-	// Check peer formatting
-	if !strings.Contains(output, "10.0.0.1") {
-		t.Errorf("output missing peer address: %q", output)
-	}
-
-	// Check empty list handling
-	if !strings.Contains(output, "[]") {
-		t.Errorf("output should show '[]' for empty list: %q", output)
-	}
-
-	// Check nested map
-	if !strings.Contains(output, "local") {
-		t.Errorf("output missing nested config: %q", output)
-	}
-}
-
-// TestPrintFormattedStringList verifies string list formatting.
-//
-// VALIDATES: String arrays format as bullet points.
-// PREVENTS: String lists being printed as Go slice syntax.
-func TestPrintFormattedStringList(t *testing.T) {
-	data := map[string]any{
-		"commands": []any{
-			"daemon shutdown",
-			"peer list",
-			"system help",
+		{
+			name:    "the daemon rendering is printed unchanged",
+			command: "show version",
+			output:  "version  ze 26.08.18",
+			want:    "version  ze 26.08.18\n",
+		},
+		{
+			name:    "a trailing newline is not doubled",
+			command: "show version",
+			output:  "version  ze 26.08.18\n",
+			want:    "version  ze 26.08.18\n",
+		},
+		{
+			name:    "a table rendering keeps its interior newlines",
+			command: "show bgp peer list | table",
+			output:  "┌─────┐\n│ a   │\n└─────┘\n",
+			want:    "┌─────┐\n│ a   │\n└─────┘\n",
 		},
 	}
-	jsonBytes, _ := json.Marshal(data)
 
-	output := captureOutput(t, false, func() {
-		printFormatted(string(jsonBytes), "yaml")
-	})
-
-	if !strings.Contains(output, "daemon shutdown") {
-		t.Errorf("output missing command in list: %q", output)
-	}
-
-	if !strings.Contains(output, "- ") {
-		t.Errorf("output should format list items with '- ': %q", output)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := captureOutput(t, false, func() {
+				printDaemonOutput(tt.command, tt.output)
+			})
+			if got != tt.want {
+				t.Errorf("printDaemonOutput(%q, %q) printed %q, want %q", tt.command, tt.output, got, tt.want)
+			}
+		})
 	}
 }
 
@@ -354,8 +311,8 @@ func TestRun_HelpFlags(t *testing.T) {
 // VALIDATES: buildRuntimeTree returns static tree on SSH error.
 // PREVENTS: nil tree or panic when daemon not reachable.
 func TestBuildRuntimeTree_FallbackToStatic(t *testing.T) {
-	// Client with invalid credentials — SendCommand will fail
-	client := &cliClient{}
+	// Client with invalid credentials — the transport will fail
+	client := newCLIClient(sshclient.Credentials{})
 
 	tree := buildRuntimeTree(client)
 	if tree == nil {
@@ -699,3 +656,129 @@ func TestBuildCommandTreeEnvHintsExcludePrivate(t *testing.T) {
 // with ghost text). Equivalent behavior is tested in
 // internal/component/cli/model_test.go (TestTabOnListKeyShowsChildrenImmediately
 // and the headless .et functional tests).
+
+// rawOnlyJSONClient builds a client whose transport behaves like a daemon with
+// `environment cli format default table` committed: it answers JSON only to a
+// caller that asked for the raw pipe, and a table rendering to everybody else.
+//
+// The returned slice records every command that reached the channel, so a test
+// can assert which of the two a caller asked for rather than inferring it.
+func rawOnlyJSONClient(jsonAnswer string) (*cliClient, *[]string) {
+	sent := new([]string)
+	return &cliClient{send: func(_ sshclient.Credentials, command string) (string, error) {
+		*sent = append(*sent, command)
+		if strings.HasSuffix(command, "| raw") {
+			return jsonAnswer, nil
+		}
+		return "┌─────────┐\n│ rendered │\n└─────────┘", nil
+	}}, sent
+}
+
+// TestBuildRuntimeTreeAsksForTheDispatcherJSON covers the `system command list`
+// call site.
+//
+// VALIDATES: spec-fixit-cli-format-default-everywhere AC-9, AC-10 -- the runtime
+// command tree is built from the daemon's answer even when the operator
+// configured a display format.
+// PREVENTS: the completion tree silently reverting to the compile-time static
+// tree, which is what buildRuntimeTree does on a parse failure. Plugin commands
+// then vanish from tab completion with no error anywhere.
+func TestBuildRuntimeTreeAsksForTheDispatcherJSON(t *testing.T) {
+	client, sent := rawOnlyJSONClient(`{"commands":[{"value":"zz-runtime-only","help":"proves the runtime answer was parsed"}]}`)
+
+	tree := buildRuntimeTree(client)
+	if tree == nil {
+		t.Fatal("buildRuntimeTree returned nil")
+	}
+	if len(*sent) != 1 || (*sent)[0] != "system command list | raw" {
+		t.Fatalf("buildRuntimeTree sent %q, want [\"system command list | raw\"]", *sent)
+	}
+	if _, ok := tree.Children["zz-runtime-only"]; !ok {
+		t.Error("the runtime command list was not parsed: the tree fell back to the static one")
+	}
+}
+
+// TestFetchPeerSelectorsAsksForTheDispatcherJSON covers the peer-completion call
+// site.
+//
+// VALIDATES: spec-fixit-cli-format-default-everywhere AC-9, AC-10.
+// PREVENTS: `peer <TAB>` offering nothing, which is how fetchPeerSelectors
+// reports a parse failure.
+func TestFetchPeerSelectorsAsksForTheDispatcherJSON(t *testing.T) {
+	peerCache = peerSelectorCache{} // the TTL cache is package state; start cold.
+	t.Cleanup(func() { peerCache = peerSelectorCache{} })
+
+	client, sent := rawOnlyJSONClient(`{"peers":{"192.0.2.1":{"name":"transit-a"}}}`)
+
+	suggestions := fetchPeerSelectors(client)
+	if len(*sent) != 1 || (*sent)[0] != "show bgp peer list | raw" {
+		t.Fatalf("fetchPeerSelectors sent %q, want [\"show bgp peer list | raw\"]", *sent)
+	}
+	var texts []string
+	for _, s := range suggestions {
+		texts = append(texts, s.Text)
+	}
+	if !slices.Contains(texts, "192.0.2.1") || !slices.Contains(texts, "transit-a") {
+		t.Errorf("peer selectors = %q, want the address and the name from the answer", texts)
+	}
+}
+
+// TestModelExecutorAsksForTheDispatcherJSON covers the interactive session's
+// executor and the dashboard poller, the two call sites that hand their answer
+// to internal/component/cli's Model.
+//
+// VALIDATES: spec-fixit-cli-format-default-everywhere AC-9, AC-10 -- both give
+// the Model the dispatcher's JSON, which is what it renders from.
+// PREVENTS: an interactive `show bgp peer list | json` answering the configured
+// default, and the dashboard failing to parse its own poll.
+func TestModelExecutorAsksForTheDispatcherJSON(t *testing.T) {
+	const answer = `{"summary":{"router-id":"192.0.2.1"}}`
+
+	client, sent := rawOnlyJSONClient(answer)
+	output, err := client.modelExecutor()("show bgp summary")
+	if err != nil {
+		t.Fatalf("modelExecutor: %v", err)
+	}
+	if output.Text != answer {
+		t.Errorf("modelExecutor answered %q, want the dispatcher's JSON %q", output.Text, answer)
+	}
+	if len(*sent) != 1 || (*sent)[0] != "show bgp summary | raw" {
+		t.Errorf("modelExecutor sent %q, want [\"show bgp summary | raw\"]", *sent)
+	}
+
+	client, sent = rawOnlyJSONClient(answer)
+	poll, err := client.dashboardPoller()
+	if err != nil {
+		t.Fatalf("dashboardPoller: %v", err)
+	}
+	got, err := poll()
+	if err != nil {
+		t.Fatalf("dashboard poll: %v", err)
+	}
+	if got != answer {
+		t.Errorf("dashboard poll answered %q, want the dispatcher's JSON %q", got, answer)
+	}
+	if len(*sent) != 1 || (*sent)[0] != "show bgp summary | raw" {
+		t.Errorf("dashboardPoller sent %q, want [\"show bgp summary | raw\"]", *sent)
+	}
+}
+
+// TestExecuteKeepsTheOperatorSurface is the other half of the classification: a
+// caller that PRINTS must not ask for raw, or `ze cli -c` would answer JSON and
+// the whole spec would be undone.
+//
+// VALIDATES: spec-fixit-cli-format-default-everywhere AC-10 -- the human-output
+// call sites are unchanged by this phase.
+// PREVENTS: the raw helper spreading to every call site because it looked safer.
+func TestExecuteKeepsTheOperatorSurface(t *testing.T) {
+	client, sent := rawOnlyJSONClient(`{"version":"1.2.3"}`)
+
+	var code int
+	captureOutput(t, false, func() { code = client.Execute("show version", "") })
+	if code != 0 {
+		t.Fatalf("Execute exit = %d, want 0", code)
+	}
+	if len(*sent) != 1 || (*sent)[0] != "show version" {
+		t.Errorf("Execute sent %q, want [\"show version\"]", *sent)
+	}
+}
