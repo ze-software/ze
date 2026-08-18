@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -2164,4 +2165,90 @@ func readStatusField(t *testing.T, root, key string) string {
 	}
 	t.Fatalf("no %s field in %q", key, string(data))
 	return ""
+}
+
+// TestVerifyRunCertifiesOnlyATreeThatHeldStill drives the certificate from
+// runVerify, which is the entry point that produces it.
+//
+// VALIDATES: a stage that changes the tree makes the run certify nothing, and a
+// run over a still tree certifies the tree the stages read.
+// PREVENTS: the fix regressing to hashing after the stage loop. The direct test
+// of writeVerifyStatus cannot see that: every other runVerify test installs a
+// fake WriteStatus that ignores the hash, so moving the computeTreeHash call
+// back below the loop leaves the whole suite green while the certificate again
+// stamps a tree the early stages never read. A guard is driven from its entry
+// point or it is not driven (ai/rules/evidence.md).
+func TestVerifyRunCertifiesOnlyATreeThatHeldStill(t *testing.T) {
+	run := func(t *testing.T, mutate bool) string {
+		t.Helper()
+		root := t.TempDir()
+		// computeTreeHash asks git for HEAD, the diff and the untracked set, and
+		// gitOutput returns "" for every error. Outside a repository it therefore
+		// hashes the same empty answer whatever the files say, so the tree must be
+		// a real one or this test cannot see a change at all.
+		// The run writes its own stage logs under tmp/, and computeTreeHash counts
+		// untracked files. The real checkout gitignores tmp/, so those artifacts
+		// never move the hash; without the same ignore here every run would
+		// certify itself as moved. That dependency is worth stating: if tmp/ ever
+		// left .gitignore, every verify would refuse to certify its own tree.
+		if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte("tmp/\n"), 0o600); err != nil {
+			t.Fatalf("gitignore: %v", err)
+		}
+		for _, args := range [][]string{{"init", "-q"}, {"add", "-A"}} {
+			cmd := exec.CommandContext(context.Background(), "git", args...)
+			cmd.Dir = root
+			if out, err := cmd.CombinedOutput(); err != nil {
+				// Never skip. computeTreeHash IS a git question, so a tree this
+				// test cannot build is a broken environment rather than a reason
+				// to stop asserting: a skipped guard reads exactly like a passing
+				// one, and this file's subject is a certificate that over-claimed.
+				t.Fatalf("git unavailable, so the tree-hash guard cannot be driven: %v: %s", err, out)
+			}
+		}
+		if err := os.WriteFile(filepath.Join(root, "seed.txt"), []byte("seed\n"), 0o600); err != nil {
+			t.Fatalf("seed: %v", err)
+		}
+		var written string
+		_, err := runVerify(context.Background(), verifyConfig{
+			Root:   root,
+			Mode:   "ze-precommit-verify",
+			Stages: []stage{{Name: "only", Rerun: "make only"}},
+			Now:    fixedNow,
+			Out:    io.Discard,
+			RunStage: func(_ context.Context, _ string, _ stage, w io.Writer) int {
+				_, _ = io.WriteString(w, "ran\n")
+				if mutate {
+					// A concurrent session editing the checkout mid-run, which is
+					// the case the certificate used to mis-certify.
+					_ = os.WriteFile(filepath.Join(root, "seed.txt"), []byte("edited\n"), 0o600)
+				}
+				return 0
+			},
+			WriteStatus: func(_ string, _ int, _, _, startHash string, _ time.Time) error {
+				// The real writer's decision, reproduced here so the assertion is
+				// about what runVerify HANDS the writer rather than about the file.
+				written = startHash
+				if end := computeTreeHash(root); end != startHash {
+					written = treeMovedSentinel
+				}
+				return nil
+			},
+		})
+		if err != nil {
+			t.Fatalf("run verify: %v", err)
+		}
+		return written
+	}
+
+	if got := run(t, true); got != treeMovedSentinel {
+		t.Errorf("a stage changed the tree and the run certified %q, want %q: the hash was "+
+			"taken after the stages rather than before them", got, treeMovedSentinel)
+	}
+	still := run(t, false)
+	if still == treeMovedSentinel {
+		t.Errorf("a tree that held still certified %q, want its real hash", still)
+	}
+	if still == "" {
+		t.Error("runVerify handed the writer no start hash at all")
+	}
 }
