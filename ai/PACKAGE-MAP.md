@@ -224,7 +224,6 @@ register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | `internal/component/bgp/rib` | implements the BGP Routing Information Base with per-attribute-type deduplication |  |
 | `internal/component/bgp/route` | parses text-format BGP route definitions into wire-ready attributes and NLRI |  |
 | `internal/component/bgp/server` | provides BGP-specific event delivery and dispatch for the plugin server |  |
-| `internal/component/bgp/store` | provides deduplication stores for BGP attributes and NLRI data |  |
 | `internal/component/bgp/textparse` | provides a zero-allocation tokenizer and keyword resolution for BGP text commands |  |
 | `internal/component/bgp/transaction` | manages named BGP commits that queue route announcements and withdrawals until they are ended or rolled back |  |
 | `internal/component/bgp/types` | defines shared BGP-specific types for routes, next-hops, and reactor interfaces |  |

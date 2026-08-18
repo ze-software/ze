@@ -89,16 +89,39 @@ that row is where you say which of the two happened.
 
 | Test | Reason |
 |------|--------|
-| TestApplyRulesRejectsUntranslatableRuleAndKeepsOthers | The test moved unchanged to `blast_radius_test.go`. The detector compares by PATH, so a rename reads as deleting every test in the old file; the content is identical (git reports R100) and no assertion left the suite. |
-| TestParseNLRIJSONReadsWhatTheDaemonWrites | The test moved unchanged to `wire_format_test.go`, for the same reason: a rename is a delete plus an add to a path-comparing detector. R100, no assertion lost. |
-| TestParseNLRIJSONResolvesEveryProtocolNameTheWriterEmits | Moved unchanged to `wire_format_test.go`. R100, no assertion lost. |
-| TestParseNLRIJSONRefusesAnUnreadableValue | Moved unchanged to `wire_format_test.go`. R100, no assertion lost. |
-| TestParseNLRIJSONRefusesFlagNamesItCannotRead | Moved unchanged to `wire_format_test.go`. R100, no assertion lost. |
-| parseAndTranslate | Helper of the four `TestParseNLRIJSON` tests above, moved unchanged to `wire_format_test.go` with them. It is named separately because it sits outside every top-level test func in the old path, so the detector reports it under the file rather than under a test. R100, no assertion lost. |
-| realNLRIJSON | Helper of the four `TestParseNLRIJSON` tests, moved unchanged to `wire_format_test.go` with them. R100, no assertion lost. |
-| otherOwnerTable | Helper of `TestApplyRulesRejectsUntranslatableRuleAndKeepsOthers`, moved unchanged to `blast_radius_test.go` with it. R100, no assertion lost. |
-| flowSpecAddEvent | Helper of `TestApplyRulesRejectsUntranslatableRuleAndKeepsOthers`, moved unchanged to `blast_radius_test.go` with it. R100, no assertion lost. |
-| Apply | Method of the `lowerOnlyCanonicalBackend` test double, moved unchanged to `blast_radius_test.go`. R100, no assertion lost. |
-| ListTables | Method of the same test double, moved unchanged to `blast_radius_test.go`. R100, no assertion lost. |
-| GetCounters | Method of the same test double, moved unchanged to `blast_radius_test.go`. R100, no assertion lost. |
-| Close | Method of the same test double, moved unchanged to `blast_radius_test.go`. R100, no assertion lost. |
+| TestRouteStore_InternAttribute | Tested `RouteStore`, deleted in this commit as superseded by `attrpool.Pool.Intern`. The code under test no longer exists, so no live behavior loses coverage. |
+| TestRouteStore_InternNLRI | Same deletion. NLRI interning on this path was replaced by trie keys in `internal/component/bgp/plugins/rib/storage`. |
+| TestRouteStore_InternRoute | Same deletion. `internRoute` never had a production caller in any commit. |
+| TestRouteStore_ReleaseRoute | Same deletion. |
+| TestRouteStore_Stats | Same deletion. |
+| BenchmarkRouteStore_InternAttribute | Benchmark of the deleted store. `attrpool` carries its own benchmarks for the mechanism that replaced it. |
+| BenchmarkRouteStore_InternRoute | Same deletion. |
+| TestReleaseRouteCannotDropARouteAnotherInternHolds | Added in `aae53cb1b` to pin the lock ordering in `releaseRoute`. That function is deleted here, so the invariant it asserted has no code left to hold. The defect and its repair stay recorded in `plan/journal/refcount-released-outside-the-lock.md`. |
+| Hash | Method of the `hashableAttr` test subject in the deleted `rib/store.go`. |
+| Equal | Method of the same deleted type. |
+| TestAttributeStore_InternBasic | Tested `internal/component/bgp/store`, deleted in this commit: the package had exactly one importer, the deleted `rib/store.go`. |
+| TestAttributeStore_Lookup | Same package deletion. |
+| TestAttributeStore_Release | Same package deletion. |
+| TestAttributeStore_Concurrent | Same package deletion. |
+| TestAttributeStore_InternDirect | Same package deletion. |
+| TestHashHelpers | Tested `HashBytes` in the deleted package. |
+| BenchmarkAttributeStore_Intern | Benchmark of the deleted package. |
+| BenchmarkAttributeStore_InternDirect | Benchmark of the deleted package. |
+| BenchmarkAttributeStore_ConcurrentIntern | Benchmark of the deleted package. |
+| Key | Method of the `hashableNLRI` test subject in the deleted `rib/store.go`. |
+| FamilyKey | Method of the same deleted type. |
+| TestFamilyStore_InternBasic | Tested the per-family NLRI store in the deleted package. |
+| TestFamilyStore_Release | Same package deletion. |
+| TestFamilyStore_Concurrent | Same package deletion. |
+| TestNLRIStore_MultipleFamilies | Same package deletion. |
+| TestNLRIStore_GetOrCreate | Same package deletion. |
+| TestNLRIStore_Release | Same package deletion. |
+| TestNLRIStore_ConcurrentFamilies | Same package deletion. |
+| BenchmarkFamilyStore_Intern | Benchmark of the deleted package. |
+| BenchmarkNLRIStore_Intern | Benchmark of the deleted package. |
+| TestPrintFormatted | Tested `printFormatted`, the client's local renderer, deleted in this commit. The daemon now renders every one-shot answer (`internal/component/ssh/ssh.go`, `execMiddleware`), because it is the only process of the pair that holds `environment cli format default`. Leaving the client renderer beside it is the layering `ai/rules/no-layering.md` forbids. Its four cases did not leave the suite: `empty_output` is now `TestPrintDaemonOutputPrintsWhatTheDaemonRendered/empty_answer_with_no_format_pipe_says_OK` and `plain_text` is that test's verbatim-printing case, both in the same file; `json_data_yaml_format` moved to `TestRenderYAMLScalarFields` and `json_data_json_format` is covered by `TestApplyJSON*` in `internal/component/command`. |
+| TestRenderCommandOutputFormatPipeBeatsFormatFlag | Tested `renderCommandOutput`, deleted with `printFormatted` for the same reason. The precedence it pinned SURVIVES and moved to the site that now applies it: `TestCLIFormatFlagBecomesAPipe/an_explicit_format_pipe_beats_the_flag` asserts that `commandWithFormat` leaves a command whose chain already names `json compact` alone under `--format yaml`. The defect it names (plan/journal/silent-fall-through.md, 2026-08-14) is quoted in the new test's PREVENTS comment and in `commandWithFormat`'s doc comment. |
+| TestRenderCommandOutputFormatFlagAppliesWithoutAPipe | The other half of the same precedence, same deletion. It is now `TestCLIFormatFlagBecomesAPipe/the_flag_becomes_a_format_pipe`, which asserts the stronger fact: the flag does not merely apply, it reaches the daemon as a format pipe so one implementation renders every surface. |
+| TestPrintFormattedNestedData | Reached `command.RenderYAML` through the deleted `printFormatted`. Moved unchanged to `TestRenderYAMLNestedData` in `internal/component/command/format_test.go`, the package that produces the behavior, which had no direct test for `RenderYAML` before this commit. Every assertion is carried over. |
+| TestPrintFormattedStringList | Same move, to `TestRenderYAMLStringList` in the same new file. Every assertion is carried over. |
+| main_test | The assertion count of `internal/component/cli/client/main_test.go` falls 71 -> 63 because the five tests above left this file. Six of the eight land in the two new tests in this same file and in `internal/component/command/format_test.go`; the remaining two are `printFormatted`'s json and table arms, which `internal/component/command/pipe_table_test.go` and `pipe_test.go` already own at the layer that renders them. |
