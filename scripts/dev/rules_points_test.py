@@ -121,19 +121,23 @@ class SplitPartitionTest(unittest.TestCase):
                     self.assertEqual(point.body, lines[point.start : point.end])
 
     def test_roundtrip_every_committed_rule(self):
-        """AC-2: all 28 rules round-trip byte-identical through files on disk."""
+        """AC-2: all 29 rules round-trip byte-identical through files on disk."""
         with tempfile.TemporaryDirectory(prefix="ze-rules-points-test-") as tmp:
             failures = rules_points.roundtrip(RULES_DIR, Path(tmp))
         self.assertEqual(failures, [], "\n".join(failures))
 
     def test_roundtrip_covers_the_whole_corpus(self):
-        """The go/no-go is over 28 rules. A narrowed corpus is not a pass.
+        """The go/no-go is over 29 rules. A narrowed corpus is not a pass.
 
         The number is deliberate rather than derived: it must be bumped by hand
         when a rule is added, so a corpus that SHRINKS cannot reach green on its
-        own. `ai/rules/simplicity.md` took it from 27 to 28 on 2026-08-09.
+        own. `ai/rules/simplicity.md` took it from 27 to 28 on 2026-08-09, and
+        `ai/rules/precommit-verify.md` took it to 29 on 2026-08-18 (commit
+        `e1fd46079`, which added the rule and left this number behind -- the
+        two-sided edit this docstring asks for is easy to half-do, and the test
+        was red at HEAD for every session in between).
         """
-        self.assertEqual(len(committed_rules()), 28)
+        self.assertEqual(len(committed_rules()), 29)
 
     def test_fenced_table_is_one_point(self):
         """A table inside a fence is one fence point, never split as a table."""
