@@ -181,3 +181,84 @@ func TestNetlinkMonitorCancellation(t *testing.T) {
 	// On Linux the streaming handler blocks until context cancellation;
 	// a full integration test is in test/plugin/monitor-system-netlink.ci.
 }
+
+// VALIDATES: a link message populates ifNameCache and RTM_DELLINK clears it,
+// so the cache carries only entries a link message named.
+// Producer: linkUpdateToEvent (monitor_netlink_linux.go).
+func TestLinkMsgOwnsTheNameCache(t *testing.T) {
+	const idx = 424242
+	ifNameCache.Delete(idx)
+	t.Cleanup(func() { ifNameCache.Delete(idx) })
+
+	u := netlink.LinkUpdate{
+		Link: &netlink.Dummy{
+			LinkAttrs: netlink.LinkAttrs{Name: "zetest0", Index: idx},
+		},
+	}
+	u.Header.Type = unix.RTM_NEWLINK
+	linkUpdateToEvent(u)
+
+	if name, ok := ifNameCache.Load(idx); !ok || name != "zetest0" {
+		t.Fatalf("after RTM_NEWLINK: cache holds %v (present=%v), want zetest0", name, ok)
+	}
+
+	u.Header.Type = unix.RTM_DELLINK
+	linkUpdateToEvent(u)
+
+	if name, ok := ifNameCache.Load(idx); ok {
+		t.Fatalf("after RTM_DELLINK: cache still holds %v, want the entry gone", name)
+	}
+}
+
+// VALIDATES: resolving an index does NOT write ifNameCache. A kernel interface
+// index is reusable, so a route or address update still in flight for a deleted
+// link must not cache the new link's name against that index and mislabel every
+// later event. Producer: ifName (monitor_netlink_linux.go).
+func TestIfNameLookupDoesNotRepopulateTheCache(t *testing.T) {
+	lo, err := netlink.LinkByName("lo")
+	if err != nil {
+		t.Fatalf("LinkByName(lo): %v", err)
+	}
+	idx := lo.Attrs().Index
+
+	// The link message for this index has been seen and then deleted, which is
+	// the state a straggler route or address event arrives in.
+	ifNameCache.Delete(idx)
+	t.Cleanup(func() { ifNameCache.Delete(idx) })
+
+	if got := ifName(idx); got != "lo" {
+		t.Fatalf("ifName(%d) = %q, want lo", idx, got)
+	}
+	if name, ok := ifNameCache.Load(idx); ok {
+		t.Fatalf("ifName cached %v; a reused index would then mislabel later events", name)
+	}
+}
+
+// VALIDATES: the route path resolves its interface through ifName without
+// leaving a cache entry behind.
+// Producer: routeUpdateToEvent (monitor_netlink_linux.go).
+func TestRouteEventDoesNotRepopulateTheCache(t *testing.T) {
+	lo, err := netlink.LinkByName("lo")
+	if err != nil {
+		t.Fatalf("LinkByName(lo): %v", err)
+	}
+	idx := lo.Attrs().Index
+	ifNameCache.Delete(idx)
+	t.Cleanup(func() { ifNameCache.Delete(idx) })
+
+	u := netlink.RouteUpdate{}
+	u.Type = unix.RTM_NEWROUTE
+	u.Route = netlink.Route{
+		Dst:       &net.IPNet{IP: net.IPv4(10, 9, 8, 0), Mask: net.CIDRMask(24, 32)},
+		LinkIndex: idx,
+	}
+
+	ev := routeUpdateToEvent(&u)
+
+	if ev["interface"] != "lo" {
+		t.Fatalf("interface = %v, want lo", ev["interface"])
+	}
+	if name, ok := ifNameCache.Load(idx); ok {
+		t.Fatalf("route event cached %v; the link path is the only writer", name)
+	}
+}

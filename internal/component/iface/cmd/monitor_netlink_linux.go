@@ -138,6 +138,15 @@ func forwardAddrUpdates(ctx context.Context, ch <-chan netlink.AddrUpdate, out c
 
 var ifNameCache sync.Map
 
+// ifName resolves an interface index to a name for the route and address
+// events, which carry an index and no name.
+//
+// Only linkUpdateToEvent writes ifNameCache, because a link message names the
+// link it is about. This lookup deliberately does not write it: a kernel
+// interface index is reusable, so a route or address update still in flight
+// for a deleted link would otherwise cache the NEW link's name against that
+// index and mislabel every later event until the next link message corrected
+// it. An uncached miss costs one netlink call on a monitor stream.
 func ifName(index int) string {
 	if name, ok := ifNameCache.Load(index); ok {
 		if s, isStr := name.(string); isStr {
@@ -148,9 +157,7 @@ func ifName(index int) string {
 	if err != nil {
 		return ""
 	}
-	name := link.Attrs().Name
-	ifNameCache.Store(index, name)
-	return name
+	return link.Attrs().Name
 }
 
 func routeUpdateToEvent(u *netlink.RouteUpdate) map[string]any {
