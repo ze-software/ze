@@ -922,10 +922,19 @@
         display: inline-grid;
     }
 
-    .theme-toggle:hover {
-        border-color: var(--grape-base);
-        color: var(--pink-deep);
-        transform: translateY(-1px) rotate(-5deg);
+    /*
+     * A touch browser leaves :hover on the last element tapped until something
+     * else is tapped, so an unguarded hover decoration STICKS. On the theme
+     * toggle that left the button tilted after every switch, and below 960px
+     * the toggle is a full-width labelled row, so a whole line of text sat at
+     * -5deg with no way back. Hover decoration belongs to pointers that hover.
+     */
+    @media (hover: hover) {
+        .theme-toggle:hover {
+            border-color: var(--grape-base);
+            color: var(--pink-deep);
+            transform: translateY(-1px) rotate(-5deg);
+        }
     }
 
     .theme-toggle:focus-visible {
@@ -1052,6 +1061,15 @@
             grid-template-columns: auto auto;
             gap: var(--space-2);
             border-radius: var(--radius-lg);
+        }
+
+        /*
+         * The tilt is a flourish for a small square icon button. This form is
+         * a full-width row carrying its label as text, and a mouse on a narrow
+         * window would tilt that whole row.
+         */
+        .theme-toggle:hover {
+            transform: none;
         }
 
         .theme-toggle::after {
