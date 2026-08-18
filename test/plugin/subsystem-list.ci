@@ -1,6 +1,11 @@
 # Test: subsystem-list returns real plugin data (not hardcoded ["bgp"])
 # Exercises: dispatch-command -> ze-system:subsystem-list -> handleSystemSubsystemList
 # Verifies AC-9: returns JSON array with name, stage, running, command-count per plugin
+#
+# command-count is asserted by VALUE, not by presence. It read 0 for every plugin
+# from 2026-03-27 to 2026-08-18 because Process kept a registeredCommands mirror
+# that the YANG RPC migration stopped feeding, and a presence-only check passed
+# throughout. This plugin declares two commands and requires its own row to say 2.
 
 # ze-peer: accepts connection
 stdin=peer:terminator=EOF_PEER
@@ -26,6 +31,9 @@ def dispatch(api, command):
 
 def main():
     api = API()
+    # Two commands, so the count this test reads is a number this plugin chose.
+    api.declare_command('show subsystem-list-test alpha')
+    api.declare_command('show subsystem-list-test beta')
     api.declare_done()
     api.wait_for_config()
     api.capability_done()
@@ -57,6 +65,16 @@ def main():
             for field in ('name', 'stage', 'running', 'command-count'):
                 if field not in sub:
                     runtime_fail(f'subsystem-list: missing field {field!r} in {sub}')
+
+        mine = [s for s in subsystems if s['name'] == 'subsystem-list-test']
+        if len(mine) != 1:
+            runtime_fail(f'subsystem-list: expected exactly one own row, got {mine}')
+        got = mine[0]['command-count']
+        if got != 2:
+            runtime_fail(
+                f'subsystem-list: command-count={got!r}, want 2. This plugin declared '
+                f'two commands, so a 0 here means the count is not reading the '
+                f'registry dispatch resolves against. Row: {mine[0]}')
 
         names = [s['name'] for s in subsystems]
         print(f'OK: subsystem-list returned {count} subsystem(s): {names}', file=sys.stderr)
