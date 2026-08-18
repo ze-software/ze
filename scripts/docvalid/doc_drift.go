@@ -171,6 +171,57 @@ func checkForbiddenDocClaims(root string) []issue {
 	return issues
 }
 
+// makeRecipe returns the recipe lines of one make target, plus the recipe of
+// every target it invokes through $(MAKE).
+//
+// Delegation is followed because a target split into a thin wrapper plus an
+// `-impl` body keeps none of its commands on the wrapper. A reader that stops
+// at the wrapper derives nothing and reports that as drift in the DOCUMENT,
+// which sends a reader to edit prose that was never wrong.
+//
+// `seen` stops a cycle and keeps each recipe to one copy.
+func makeRecipe(lines []string, target string, seen map[string]bool) []string {
+	if seen[target] {
+		return nil
+	}
+	seen[target] = true
+
+	var body []string
+	inTarget := false
+	for _, line := range lines {
+		if rest, ok := strings.CutPrefix(line, target); ok && strings.HasPrefix(rest, ":") {
+			inTarget = true
+			continue
+		}
+		if !inTarget {
+			continue
+		}
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		if !strings.HasPrefix(line, "\t") {
+			break
+		}
+		body = append(body, line)
+	}
+
+	out := append([]string(nil), body...)
+	for _, line := range body {
+		_, rest, ok := strings.Cut(line, "$(MAKE)")
+		if !ok {
+			continue
+		}
+		for tok := range strings.FieldsSeq(rest) {
+			if strings.HasPrefix(tok, "-") || strings.Contains(tok, "=") {
+				continue
+			}
+			out = append(out, makeRecipe(lines, tok, seen)...)
+		}
+	}
+	return out
+}
+
 func functionalGateSuites(root string) []string {
 	lines, err := readMakefileLines(root, "Makefile", make(map[string]bool))
 	if err != nil {
@@ -179,23 +230,7 @@ func functionalGateSuites(root string) []string {
 
 	var suites []string
 	seen := make(map[string]bool)
-	inTarget := false
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(line, "ze-functional-test:") {
-			inTarget = true
-			continue
-		}
-		if !inTarget {
-			continue
-		}
-		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
-			continue
-		}
-		if !strings.HasPrefix(line, "\t") {
-			break
-		}
-
+	for _, line := range makeRecipe(lines, "ze-functional-test", make(map[string]bool)) {
 		suite, ok := zeTestSuiteFromMakeLine(line)
 		if !ok || seen[suite] {
 			continue

@@ -108,6 +108,7 @@ hook-to-rule-mapping ## Hook-to-Rule Mapping
 gate-population ## Gate Population
   rule
   state-what-the-gate-cannot-see
+  anchor-a-structural-read-on-a-marker-not-a-position
   compile-the-tests-before-you-call-it-committable
 ze-project-knowledge ## Ze Project Knowledge
   project-knowledge-not-in-other-rules

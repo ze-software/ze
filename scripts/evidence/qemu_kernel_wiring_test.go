@@ -36,7 +36,8 @@ func readOrFail(t *testing.T, path string) string {
 }
 
 // target returns the RECIPE of one make target: the tab-indented lines that
-// follow its `name:` line, and nothing else.
+// follow its `name:` line, plus the recipe of every target it delegates to
+// through $(MAKE).
 //
 // Only tab-indented lines count. An earlier version also walked blank and `#`
 // lines, which let a comment block BELOW the recipe be read as part of it -- so
@@ -44,8 +45,29 @@ func readOrFail(t *testing.T, path string) string {
 // green with the flag deleted from the real command. make itself ends a recipe
 // at the first line that is not tab-indented, so matching make is both stricter
 // and more accurate.
+//
+// Delegation is followed because a target split into a thin `ze-run.sh` wrapper
+// plus an `-impl` body carries neither the flag nor the guard on the wrapper.
+// Without following it, every check below reports "not wired" for a tree that
+// is correctly wired, which is how these guards went red while the wiring they
+// pin was intact.
 func target(t *testing.T, mk, name string) string {
 	t.Helper()
+	body, found := recipeOf(mk, name)
+	if !found {
+		t.Fatalf("make target %q not found in %s", name, integrationMk)
+	}
+	if len(body) == 0 {
+		t.Fatalf("make target %q has an empty recipe in %s; the parser or the layout changed", name, integrationMk)
+	}
+	return strings.Join(withDelegated(mk, body, map[string]bool{name: true}), "\n")
+}
+
+// recipeOf returns the tab-indented lines that follow a target's `name:` line,
+// and reports whether the file declares that target at all. The two are kept
+// separate so a caller can tell "no such target" from "declared with an empty
+// recipe": they are different failures of this file's assumptions.
+func recipeOf(mk, name string) ([]string, bool) {
 	lines := strings.Split(mk, "\n")
 	start := -1
 	for i, l := range lines {
@@ -55,7 +77,7 @@ func target(t *testing.T, mk, name string) string {
 		}
 	}
 	if start < 0 {
-		t.Fatalf("make target %q not found in %s", name, integrationMk)
+		return nil, false
 	}
 	var body []string
 	for _, l := range lines[start+1:] {
@@ -64,10 +86,46 @@ func target(t *testing.T, mk, name string) string {
 		}
 		body = append(body, l)
 	}
-	if len(body) == 0 {
-		t.Fatalf("make target %q has an empty recipe in %s; the parser or the layout changed", name, integrationMk)
+	return body, true
+}
+
+// withDelegated appends the recipe of every target the body invokes through
+// $(MAKE). The delegating line stays, because a check may be asking about the
+// delegation itself. `seen` stops a cycle and keeps each recipe to one copy.
+func withDelegated(mk string, body []string, seen map[string]bool) []string {
+	out := append([]string(nil), body...)
+	for _, ln := range body {
+		for _, name := range makeInvocationTargets(ln) {
+			if seen[name] {
+				continue
+			}
+			seen[name] = true
+			sub, ok := recipeOf(mk, name)
+			if !ok || len(sub) == 0 {
+				continue
+			}
+			out = append(out, withDelegated(mk, sub, seen)...)
+		}
 	}
-	return strings.Join(body, "\n")
+	return out
+}
+
+// makeInvocationTargets returns the target names one recipe line invokes
+// through $(MAKE): the tokens after it that are neither flags nor variable
+// assignments.
+func makeInvocationTargets(line string) []string {
+	_, rest, ok := strings.Cut(line, "$(MAKE)")
+	if !ok {
+		return nil
+	}
+	var names []string
+	for tok := range strings.FieldsSeq(rest) {
+		if strings.HasPrefix(tok, "-") || strings.Contains(tok, "=") {
+			continue
+		}
+		names = append(names, tok)
+	}
+	return names
 }
 
 // prerequisites returns the text after the colon on a target's own line.
