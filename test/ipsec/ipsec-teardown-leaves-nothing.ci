@@ -1,0 +1,269 @@
+# Functional test: an IPsec teardown gives the kernel back everything ze took.
+# VALIDATES: spec-fixit-ike-resource-lifetime-leaks AC-5 -- one tunnel is torn down on
+#            a REAL kernel by the operator clear, twice over the same peer, and then
+#            both daemons stop: the XFRM state table, the XFRM policy table and the raw
+#            ESP socket set are all empty afterwards. The dataplane half of AC-5 (a
+#            SECOND XfrmStateDel for one SPI, which the kernel refuses) is proven at the
+#            backend by TestXFRMDoubleTeardownLeavesNothing; this test is the daemon
+#            half.
+# PREVENTS: the three leaks that spec closes escaping their unit tests. Each one
+#           releases a resource the daemon acquired, and each release is invisible to
+#           the engine's own `show` output: only the kernel says whether the state,
+#           the policy and the socket are gone. The bypass policies are node-wide, so
+#           a residue here outlives the daemon and exempts IKE traffic from IPsec for
+#           a process that no longer exists.
+#
+# WHY ONE DATAPLANE AND NOT TWO. Both daemons cannot install this tunnel: the kernel
+# keys an XFRM state on (src, dst, spi, proto), and the two ends of one negotiated
+# Child SA are the SAME two states. The second XfrmStateAdd answers EEXIST (MEASURED
+# 2026-08-17 with `ip xfrm state add` twice in a user namespace), so a two-real-backend
+# fixture would test a failed install. The RESPONDER therefore runs the real xfrm
+# backend and the initiator the noop one, so exactly one daemon owns what is in the
+# kernel and every assertion below is about that daemon.
+#
+# WHY THE SELECTORS ARE RFC 5737 DOCUMENTATION PREFIXES. The installed policies are
+# real and node-wide for the life of the test. A default 0.0.0.0/0 pair would capture
+# every packet on the box into a tunnel nothing else knows about, so the selectors name
+# addresses no other test can be using.
+#
+# Gated option=needs-linux:caps=net-admin: the responder programs real XFRM state, so
+# it SKIPs on a host without CAP_NET_ADMIN (the unprivileged dev box) and runs as root
+# in the QEMU VM, where `fsuite ipsec` in scripts/evidence/qemu-all-tests.sh executes
+# the suite.
+
+option=needs-linux:caps=net-admin
+option=env:var=ze_test_ike_port:value=$PORT2
+option=timeout:value=90s
+option=env:var=ze_log_ike:value=info
+
+tmpfs=cycle.py:mode=755:terminator=EOF_CYCLE
+#!/usr/bin/env python3
+"""Watch one tunnel reach the kernel and then leave it.
+
+The kernel is the synchronisation point, not a log line: the responder's two XFRM
+states appear when the Child SA is installed, and they leave when the operator clear
+(the command= steps below, dispatched inside that same daemon) ends the owner loop.
+"""
+import subprocess
+import sys
+
+from ze_api import wait_until
+
+
+def spis():
+    out = subprocess.run(["ip", "xfrm", "state"], capture_output=True, text=True).stdout
+    return frozenset(
+        fields[i + 1]
+        for line in out.splitlines()
+        for fields in [line.split()]
+        for i, f in enumerate(fields)
+        if f == "spi" and i + 1 < len(fields)
+    )
+
+
+if not wait_until(lambda: len(spis()) >= 2, attempts=240, delay=0.25):
+    sys.exit(f"tunnel never reached the kernel: ip xfrm state holds {sorted(spis())}")
+installed = spis()
+print("INSTALLED:", " ".join(sorted(installed)))
+
+# Teardown 1: the states of THAT SA leave the kernel. Asserted as "gone", never as
+# "the table is empty", so a reconnect that beats this poll cannot make it pass for
+# the wrong reason.
+if not wait_until(lambda: not (spis() & installed), attempts=240, delay=0.25):
+    sys.exit(f"the operator clear left the installed SA in the kernel: {sorted(installed)}")
+print("TORN-DOWN:", " ".join(sorted(installed)))
+
+EOF_CYCLE
+
+tmpfs=residue.py:mode=755:terminator=EOF_RESIDUE
+#!/usr/bin/env python3
+"""Assert both daemons gave the kernel back everything they took.
+
+Runs after cmd=stop has reaped both, so nothing is left that could still be
+mid-teardown. Every residue is PRINTED rather than counted, because the useful
+failure names what stayed behind: a child state, a child policy, or one of the four
+node-wide IKE bypass policies per family.
+"""
+import subprocess
+import sys
+
+
+def lines(*cmd):
+    out = subprocess.run(cmd, capture_output=True, text=True)
+    if out.returncode != 0:
+        sys.exit(f"{' '.join(cmd)} failed: {out.stderr.strip()}")
+    return out.stdout
+
+
+# /proc/net/raw carries one line per IPv4 raw socket, and its local_address port
+# field holds the protocol: 0032 is 50, IPPROTO_ESP. That is the socket pair the ESP
+# form receiver opens (dataplane/espform_linux.go), so a surviving one is a watched
+# SPI that no Forget released.
+raw = [l for l in open("/proc/net/raw").read().splitlines()[1:] if ":0032 " in l]
+states = [l for l in lines("ip", "xfrm", "state").splitlines() if l.startswith("src")]
+policies = [l for l in lines("ip", "xfrm", "policy").splitlines() if l.startswith("src")]
+
+if states or policies or raw:
+    print("RESIDUE: states=%d policies=%d esp-sockets=%d" % (len(states), len(policies), len(raw)))
+    print(lines("ip", "xfrm", "state"), end="")
+    print(lines("ip", "xfrm", "policy"), end="")
+    print("\n".join(raw))
+    sys.exit(1)
+print("RESIDUE: none")
+EOF_RESIDUE
+
+# ── Responder daemon (background, REAL xfrm, engine-steps executor): binds 127.0.0.2 ──
+#
+# The executor sits on THIS daemon, not on the initiator, because the clear it
+# dispatches has to BE the teardown the kernel sees: TerminateAllSAs ends this
+# session's owner loop, and cleanupChild then removes the two states and two policies
+# this daemon installed. Driving it from the initiator would make the assertion depend
+# on a Delete crossing the wire as well, and on the initiator applying its config once
+# (MEASURED 2026-08-17: with the executor on the initiator, the engine applied the
+# config twice, started the peer twice, and one run in three lost IKE_AUTH integrity
+# verification to the two competing handshakes).
+stdin=responder:terminator=EOF_RESPONDER
+plugin {
+	external engine-steps {
+		run "ze-test engine-steps ./engine-steps.json"
+		encoder json
+	}
+}
+
+vpn {
+	ipsec {
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer initiator {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type respond
+				local-address 127.0.0.2
+				remote-address 127.0.0.1
+				mode tunnel
+				traffic-selector 1 {
+					local {
+						prefix 203.0.113.0/24
+					}
+					remote {
+						prefix 198.51.100.0/24
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_RESPONDER
+
+# ── Initiator daemon (background, noop dataplane): binds 127.0.0.1 ──
+stdin=initiator:terminator=EOF_INITIATOR
+vpn {
+	ipsec {
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer peer-1 {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type initiate
+				local-address 127.0.0.1
+				remote-address 127.0.0.2
+				mode tunnel
+				traffic-selector 1 {
+					local {
+						prefix 198.51.100.0/24
+					}
+					remote {
+						prefix 203.0.113.0/24
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_INITIATOR
+
+cmd=background:seq=1:exec=ze -:stdin=responder:name=responder
+# The initiator's dataplane, and ONLY the initiator's: option=env applies to every
+# process the runner launches, so the per-daemon override rides in front of the command.
+# `env` rather than a shell, because a shell is free to drop an assignment whose name is
+# not an identifier and `exec` semantics for an assignment prefix vary between them; env
+# just execs, so the daemon still gets the signal cmd=stop sends. The bare `ze` resolves
+# through the shim the runner puts first on the child PATH (Runner.setupBinShims).
+cmd=background:seq=2:exec=env ze_test_ike_dataplane=noop ze -:stdin=initiator:name=initiator
+cmd=foreground:seq=3:exec=python3 cycle.py:timeout=70s
+# signal=term, not the default kill: the release under test runs on the way out of
+# runEngine, and a SIGKILLed process runs nothing at all. The runner reaps each
+# process before the next step, so the residue check below sees a settled kernel.
+cmd=stop:seq=4:name=initiator:signal=term
+cmd=stop:seq=5:name=responder:signal=term
+cmd=foreground:seq=6:exec=python3 residue.py
+
+# The operator clear, dispatched inside the responder. It ends the
+# owner loop, which removes this Child SA's two states and two policies from the kernel
+# (established.go cleanupChild -> child.go removeChildSA -> dataplane RemoveSA /
+# RemovePolicy), and that removal is what cycle.py above waits to see. aes-cbc appears
+# in the SA row only once IKE_AUTH has completed, so it is a real establishment gate.
+command=show vpn ipsec sa | json
+expect=output:contains=aes-cbc:timeout=40
+# The clear must tear down an ESTABLISHED tunnel, so wait until this SA has been up
+# for a second before dispatching it. uptime-seconds is the SA's own age
+# (cmd/show_ipsec.go saToMap), and expect=output re-dispatches the command until the
+# predicate holds, so this is a poll on the daemon's own state and not a delay.
+# MEASURED 2026-08-17: a clear that landed 49ms after the responder installed its Child
+# SA left both XFRM states in the kernel for the remaining 60s of the test. That is
+# recorded in plan/journal/ and is not what AC-5 is about.
+command=show vpn ipsec sa | json
+expect=output:contains="uptime-seconds":1:timeout=15
+command=clear vpn ipsec sa
+expect=output:contains=clear-all:timeout=10
+# The same teardown a second time, over the same peer, now that the first has already
+# taken its Child SA out of the kernel. It costs one dispatch and it is the shape of
+# the ordinary repeat: the engine tears down what it can still find and must leave
+# nothing extra behind either way.
+command=clear vpn ipsec sa
+expect=output:contains=clear-all:timeout=10
+expect=exit:code=0
+expect=stdout:contains=INSTALLED:
+expect=stdout:contains=TORN-DOWN:
+expect=stdout:contains=RESIDUE: none
+expect=stderr:contains=engine-steps: all steps passed
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error

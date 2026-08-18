@@ -790,3 +790,55 @@ func TestHiddenCommandPreservedInAll(t *testing.T) {
 	all := registry.All()
 	assert.Equal(t, 2, len(all), "All() should return both visible and hidden commands")
 }
+
+// TestCommandRegistry_CommandCountsByProcess verifies the number `show system
+// subsystem list` reports as command-count.
+//
+// VALIDATES: the count comes from the registry dispatch resolves against, so it
+// counts accepted registrations, drops on unregister, and attributes each command
+// to its owning process.
+// PREVENTS: the defect this replaced. Process kept a registeredCommands mirror fed
+// by the text-protocol register and unregister handlers. The YANG RPC migration
+// deleted those handlers and registered here instead, nobody repointed the mirror,
+// and both `command-count` sites read an empty slice from 2026-03-27 to
+// 2026-08-18. An operator was told every plugin had zero commands. A count that
+// cannot go up is indistinguishable from a plugin that registered nothing, which
+// is why this asserts a NON-zero number rather than agreement between two readers.
+func TestCommandRegistry_CommandCountsByProcess(t *testing.T) {
+	registry := NewCommandRegistry()
+	proc1 := process.NewProcess(plugin.PluginConfig{Name: "proc1"})
+	proc2 := process.NewProcess(plugin.PluginConfig{Name: "proc2"})
+
+	registry.Register(proc1, []CommandDef{
+		{Name: "show alpha", Description: "alpha"},
+		{Name: "show beta", Description: "beta"},
+	})
+	registry.Register(proc2, []CommandDef{
+		{Name: "show gamma", Description: "gamma"},
+	})
+
+	counts := registry.CommandCountsByProcess()
+	assert.Equal(t, 2, counts["proc1"], "proc1 registered two commands")
+	assert.Equal(t, 1, counts["proc2"], "proc2 registered one")
+
+	// A registration the registry REFUSED is not counted. The mirror this replaced
+	// appended only when the result was OK. The count keeps that meaning: what
+	// dispatch can resolve, never what a plugin asked for.
+	results := registry.Register(proc2, []CommandDef{
+		{Name: "show alpha", Description: "collides with proc1"},
+	})
+	if results[0].OK {
+		t.Fatal("the colliding registration was accepted, so it cannot measure a refusal")
+	}
+	counts = registry.CommandCountsByProcess()
+	assert.Equal(t, 1, counts["proc2"], "a refused registration was counted")
+	assert.Equal(t, 2, counts["proc1"], "the owner's count changed on somebody else's refusal")
+
+	// Unregister lowers it, which is what removeRegisteredCommand did for the mirror.
+	registry.Unregister(proc1, []string{"show beta"})
+	counts = registry.CommandCountsByProcess()
+	assert.Equal(t, 1, counts["proc1"], "unregister did not lower the count")
+
+	// A process that registered nothing reads zero rather than being absent-and-wrong.
+	assert.Equal(t, 0, counts["never-registered"])
+}

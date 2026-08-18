@@ -347,6 +347,13 @@ func handleSystemSubsystemList(ctx *CommandContext, _ []string) (*plugin.Respons
 			Data:   plugin.Map{"subsystems": []any{}, "count": 0},
 		}, nil
 	}
+	// The dispatcher's registry is what command-count counts. A per-Process list
+	// was the source until 2026-08-18 and nothing had fed it since the YANG RPC
+	// migration, so every operator read 0.
+	var counts map[string]int
+	if d := ctx.Server.Dispatcher(); d != nil {
+		counts = d.Registry().CommandCountsByProcess()
+	}
 	procs := pm.AllProcesses()
 	out := make([]map[string]any, 0, len(procs))
 	for _, p := range procs {
@@ -354,7 +361,7 @@ func handleSystemSubsystemList(ctx *CommandContext, _ []string) (*plugin.Respons
 			"name":          p.Name(),
 			"stage":         p.Stage().String(),
 			"running":       p.Running(),
-			"command-count": len(p.RegisteredCommands()),
+			"command-count": counts[p.Name()],
 		})
 	}
 	return &plugin.Response{

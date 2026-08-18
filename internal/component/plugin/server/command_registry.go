@@ -430,6 +430,32 @@ func (r *CommandRegistry) All() []*RegisteredCommand {
 	return result
 }
 
+// CommandCountsByProcess returns how many registered commands each process owns,
+// keyed by process name.
+//
+// This registry is the answer, not a list kept on the Process. Process carried a
+// registeredCommands mirror until 2026-08-18. Its writers were the text-protocol
+// register and unregister handlers. The YANG RPC migration deleted those handlers
+// and registered here instead, so the mirror stayed empty and every reader of it
+// saw zero. Counting the entries dispatch resolves against cannot drift from what
+// dispatch does.
+//
+// A command with no owning process is skipped. Nothing registers one today, and a
+// count attributed to no plugin would be a number with no row to sit in.
+func (r *CommandRegistry) CommandCountsByProcess() map[string]int {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	counts := make(map[string]int)
+	for _, cmd := range r.commands {
+		if cmd.Process == nil {
+			continue
+		}
+		counts[cmd.Process.Name()]++
+	}
+	return counts
+}
+
 // VisibleCommandEntries returns completion-tree entries for every non-hidden
 // registered command. Hidden commands are excluded so they never surface in
 // tab-completion or help (they still dispatch when typed in full via Lookup).

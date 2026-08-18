@@ -7,6 +7,8 @@ package process
 import (
 	"context"
 	"errors"
+	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -30,6 +32,18 @@ const (
 	// Prevents a permanently broken plugin from cycling indefinitely across windows.
 	MaxTotalRespawns = 20
 )
+
+// pluginStopGrace is how long Stop gives every plugin goroutine to finish once the
+// connections are closed. It is the daemon's own shutdown budget (cmd/ze/hub/main.go
+// gives eng.Stop 3s and warns when that is missed), so the two bounds are one number:
+// a wait shorter than the budget it sits inside discards cleanup the daemon was still
+// willing to wait for. See Stop for what a plugin does after its read loop ends, and
+// what was measured when this wait expired first.
+//
+// It is a var rather than a const so a test can drive the EXPIRED branch without
+// spending the real grace on it. Same test seam as hasCaps in
+// internal/test/runner/caps.go: never written outside a test.
+var pluginStopGrace = 3 * time.Second
 
 // Respawn errors.
 var (
@@ -201,20 +215,71 @@ func (pm *ProcessManager) Stop() {
 	}
 	pm.mu.Unlock()
 
-	// Wait briefly for processes to exit. Should be near-instant since
-	// closing connections immediately unblocks plugin reads.
+	// Wait for each plugin ENGINE to return, and SAY SO when one does not.
+	//
+	// Closing the connection unblocks a plugin's read loop at once, but the read loop
+	// is not the whole engine: an engine releases what it installed AFTER its loop
+	// ends, and that release can be netlink round-trips. The IKE engine's is eight
+	// XFRM policy deletes plus a backend close (engine/runEngine, bypass.go), and
+	// those policies are node-wide, so losing the release leaves them installed for a
+	// daemon that no longer exists.
+	//
+	// This wait is what decides whether that release lands. It waited on the whole
+	// goroutine group for 500ms and discarded its own timeout, so a slower box simply
+	// lost the cleanup with nothing said: MEASURED 2026-08-17, a release delayed 700ms
+	// left all eight IKE bypass policies in the kernel, and the same test failed the
+	// same way in the QEMU VM at the real speed of that release
+	// (test/ipsec/ipsec-teardown-leaves-nothing.ci).
+	//
+	// It waits on the ENGINE and not on the group, because the group also holds the
+	// event delivery loop, which can still be draining a batch when the engine has
+	// long finished: in the QEMU VM the bgp plugin's group needed more than 3s while
+	// its engine did not, so waiting on the group would charge every daemon stop for a
+	// signal that says nothing about released resources.
+	//
+	// The bound is the daemon's own shutdown budget, so there is one number to reason
+	// about rather than two: cmd/ze/hub/main.go gives eng.Stop 3s and warns when it is
+	// missed. An engine that returns promptly costs nothing here.
 	pm.mu.RLock()
-	waitCtx, waitCancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	engineCtx, engineCancel := context.WithTimeout(context.Background(), pluginStopGrace)
 	var waitWg sync.WaitGroup
+	var lateMu sync.Mutex
+	var late []string
 	for _, proc := range pm.processes {
 		waitWg.Add(1)
 		go func(p *Process) {
 			defer waitWg.Done()
-			_ = p.Wait(waitCtx)
+			if err := p.WaitEngine(engineCtx); err != nil {
+				lateMu.Lock()
+				late = append(late, p.config.Name)
+				lateMu.Unlock()
+			}
 		}(proc)
 	}
 	pm.mu.RUnlock()
 	waitWg.Wait()
+	engineCancel()
+	if len(late) > 0 {
+		slices.Sort(late)
+		logger().Warn("plugin engine did not finish its shutdown cleanup in time, resources it installed may be left behind",
+			"plugins", strings.Join(late, ","), "grace", pluginStopGrace)
+	}
+
+	// Then the goroutine-leak wait, unchanged: the group holds the delivery loop and
+	// the external-process monitor as well, and this is the "call Wait after Stop"
+	// half of the Process contract rather than a cleanup guarantee.
+	pm.mu.RLock()
+	waitCtx, waitCancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	var groupWg sync.WaitGroup
+	for _, proc := range pm.processes {
+		groupWg.Add(1)
+		go func(p *Process) {
+			defer groupWg.Done()
+			_ = p.Wait(waitCtx)
+		}(proc)
+	}
+	pm.mu.RUnlock()
+	groupWg.Wait()
 	waitCancel()
 
 	pm.mu.Lock()

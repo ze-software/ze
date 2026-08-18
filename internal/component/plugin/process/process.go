@@ -72,19 +72,11 @@ type Process struct {
 	syncEnabled   atomic.Bool // Whether to wait for wire transmission (default: false)
 	cacheConsumer atomic.Bool // Whether plugin participates in cache consumer tracking
 
-	// Wire encoding for API messages (default: WireEncodingHex = 0)
-	wireEncodingIn  atomic.Uint32 // Inbound: events ze→Process
-	wireEncodingOut atomic.Uint32 // Outbound: commands Process→ze
-
 	// High-level encoding and format (bgp plugin encoding/format commands)
 	encoding       atomic.Value // string: "json" or "text" (default: "json")
 	format         atomic.Value // string: "hex", "base64", "parsed", "full" (default: "hex")
 	formatCacheKey atomic.Value // string: precomputed "format+encoding" for event dispatch cache lookup
 	envelope       atomic.Bool  // true: wrap delivered events in an EventEnvelope (default: bare payload)
-
-	// Registered plugin commands (tracked for cleanup on death)
-	registeredCommands []string
-	registeredMu       sync.Mutex
 
 	// Plugin registration protocol (5-stage startup)
 	stage        atomic.Int32               // Current stage (PluginStage)
@@ -113,9 +105,20 @@ type Process struct {
 	eventClosed bool
 	eventMu     sync.RWMutex
 
-	ctx                context.Context
-	cancel             context.CancelFunc
-	wg                 sync.WaitGroup
+	ctx    context.Context
+	cancel context.CancelFunc
+	wg     sync.WaitGroup
+	// engineDone closes when an internal plugin's RunEngine has RETURNED, which is
+	// after it has released what it installed. It is separate from wg on purpose: wg
+	// also holds the event delivery loop, and a delivery still draining says nothing
+	// about whether the engine gave its resources back (WaitEngine).
+	//
+	// Written by startInternal and read by WaitEngine without a lock, and the ordering
+	// is what makes that safe: startInternal sets it before Start returns, and a
+	// Process only becomes reachable from ProcessManager.processes after its Start has
+	// returned (startConfigs, manager.go), so no reader can see the field being
+	// assigned. Nil means "no engine goroutine here", which is every external plugin.
+	engineDone         chan struct{}
 	mu                 sync.Mutex
 	cleanupOnce        sync.Once // ensures connection cleanup runs exactly once
 	runtimeCleanupOnce sync.Once // ensures server runtime cleanup runs exactly once
@@ -304,34 +307,6 @@ func (p *Process) SetCacheConsumer(enabled bool) {
 	p.cacheConsumer.Store(enabled)
 }
 
-// inboundWireEncoding returns the inbound wire encoding (events ze→Process).
-func (p *Process) inboundWireEncoding() plugin.WireEncoding {
-	// Safe: only values 0-3 are ever stored (WireEncodingHex..WireEncodingText).
-	return plugin.WireEncoding(p.wireEncodingIn.Load()) //nolint:gosec // Bounded to 0-3
-}
-
-// outboundWireEncoding returns the outbound wire encoding (commands Process→ze).
-func (p *Process) outboundWireEncoding() plugin.WireEncoding {
-	// Safe: only values 0-3 are ever stored (WireEncodingHex..WireEncodingText).
-	return plugin.WireEncoding(p.wireEncodingOut.Load()) //nolint:gosec // Bounded to 0-3
-}
-
-// setWireEncodingIn sets the inbound wire encoding.
-func (p *Process) setWireEncodingIn(enc plugin.WireEncoding) {
-	p.wireEncodingIn.Store(uint32(enc))
-}
-
-// setWireEncodingOut sets the outbound wire encoding.
-func (p *Process) setWireEncodingOut(enc plugin.WireEncoding) {
-	p.wireEncodingOut.Store(uint32(enc))
-}
-
-// setWireEncoding sets both inbound and outbound wire encoding.
-func (p *Process) setWireEncoding(enc plugin.WireEncoding) {
-	p.wireEncodingIn.Store(uint32(enc))
-	p.wireEncodingOut.Store(uint32(enc))
-}
-
 // HasStructuredHandler reports whether this process supports structured event delivery.
 // True when the process has a DirectBridge with a registered structured handler.
 func (p *Process) HasStructuredHandler() bool {
@@ -402,34 +377,6 @@ func (p *Process) FormatCacheKey() string {
 // Called by SetFormat and SetEncoding after storing the new value.
 func (p *Process) recomputeFormatCacheKey() {
 	p.formatCacheKey.Store(p.Format() + "+" + p.Encoding())
-}
-
-// addRegisteredCommand tracks a command registered by this process.
-func (p *Process) addRegisteredCommand(name string) {
-	p.registeredMu.Lock()
-	defer p.registeredMu.Unlock()
-	p.registeredCommands = append(p.registeredCommands, name)
-}
-
-// removeRegisteredCommand removes a command from tracking.
-func (p *Process) removeRegisteredCommand(name string) {
-	p.registeredMu.Lock()
-	defer p.registeredMu.Unlock()
-	for i, cmd := range p.registeredCommands {
-		if cmd == name {
-			p.registeredCommands = append(p.registeredCommands[:i], p.registeredCommands[i+1:]...)
-			return
-		}
-	}
-}
-
-// RegisteredCommands returns a copy of the registered command names.
-func (p *Process) RegisteredCommands() []string {
-	p.registeredMu.Lock()
-	defer p.registeredMu.Unlock()
-	result := make([]string, len(p.registeredCommands))
-	copy(result, p.registeredCommands)
-	return result
 }
 
 // Name returns the process name from config.
@@ -586,8 +533,15 @@ func (p *Process) startInternal() error {
 	// Wrap plugin-side connection with bridge reference.
 	bridgedPluginSide := rpc.NewBridgedConn(pluginSide, p.bridge)
 
+	// Closed by the goroutine below once the engine has returned. Stop waits on it,
+	// because the engine's LAST act is releasing what it installed.
+	p.engineDone = make(chan struct{})
+
 	// Start the plugin in a goroutine.
 	p.wg.Go(func() {
+		// Registered first, so it runs LAST: the signal means the engine and every
+		// defer of its own have finished, release included.
+		defer close(p.engineDone)
 		defer p.running.Store(false)
 		defer func() {
 			if rec := recover(); rec != nil {
