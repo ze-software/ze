@@ -72,3 +72,38 @@ A manually added IPv6 address with a finite valid and preferred lifetime has
 `IFA_F_PERMANENT` clear, so it is flag-equivalent to a SLAAC address. An
 integration test classifies `origin=slaac` against the real kernel with no
 radvd and no RA daemon.
+
+## Carrier events are queued per interface, never dropped
+
+The event bus dispatches a subscriber synchronously on the emitter's goroutine,
+and for a link event that goroutine is the netlink monitor's own read loop. A
+subscriber that does netlink work there stops the loop, and the kernel-side
+subscription queue overflows behind it. So the `up`, `down`, `router-discovered`
+and `router-lost` subscribers do no work at all: each pushes onto a queue, and
+one worker goroutine does every route call.
+
+The queue holds ONE pending entry per subject: an interface for a carrier
+transition, an (interface, router) pair for a router transition. A second push
+for a subject that is still pending replaces the first. Nothing the consumers
+read is lost by that, because they act on the state a subject ended in, and the
+memory it costs is bounded by the number of subjects with an unconsumed event.
+
+The replaced design was a 16-deep channel with a `default:` branch that dropped
+the event when the buffer was full. A config commit was exactly when it filled,
+because the commit holds the lock the worker takes across DHCP client stop and
+start. The route handlers are idempotent by their recorded metric state, which
+is what makes them safe against a duplicate event and helpless against a missing
+one: a dropped `up` after an applied `down` left the default route at
+`route-priority + 1024` with the link up, and nothing read live carrier state
+afterwards to repair it.
+
+Two things read live carrier state now. The worker applies the queued final
+state, and a resync compares the recorded metric state against the interface
+list the rate tracker already dumps every second, moving a route only where the
+two definitely contradict each other. A recorded state of "unknown" is not a
+contradiction: a DHCP lease sets it on every renewal, and repairing it would
+re-install the route the client has just installed.
+
+<!-- source: internal/component/iface/link_queue.go -- the queue, the worker and the carrier resync -->
+<!-- source: internal/component/iface/register.go -- the subscribers that push and the handlers the worker calls -->
+<!-- source: internal/component/plugin/server/engine_event.go -- EmitEngineEvent dispatches subscribers on the caller's goroutine -->

@@ -253,7 +253,7 @@ func TestIndexMirrorSpecsSkipsDisabledEntries(t *testing.T) {
 			{Name: "bare0", Units: []unitEntry{{}}},
 		},
 	}
-	specs := indexMirrorSpecs(cfg)
+	specs := indexMirrorSpecs(cfg, nil)
 	if _, ok := specs["off0"]; ok {
 		t.Error("a disabled interface must not be a desired mirror")
 	}
@@ -280,7 +280,7 @@ func TestIndexMirrorSpecsCoversEveryInterfaceFamily(t *testing.T) {
 		Wireguard: []wireguardEntry{{ifaceEntry: ifaceEntry{Name: "wg0", Units: []unitEntry{{MirrorIngress: "cap0"}}}}},
 		XFRM:      []xfrmEntry{{ifaceEntry: ifaceEntry{Name: "xfrm0", Units: []unitEntry{{MirrorIngress: "cap0"}}}}},
 	}
-	specs := indexMirrorSpecs(cfg)
+	specs := indexMirrorSpecs(cfg, nil)
 	for _, name := range []string{"eth0", "dum0", "veth0", "br0", "tun0", "wg0", "xfrm0"} {
 		if _, ok := specs[name]; !ok {
 			t.Errorf("mirror on %q not seen by indexMirrorSpecs", name)

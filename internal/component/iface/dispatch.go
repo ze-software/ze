@@ -6,6 +6,7 @@ package iface
 
 import (
 	"errors"
+	"fmt"
 	"net/netip"
 
 	"github.com/ze-software/ze/internal/core/rtproto"
@@ -24,27 +25,43 @@ func backendOrErr() (Backend, error) {
 
 // resolveOS translates a logical interface name to its kernel device name via
 // the shared resolver, so the by-name dispatch ops below honor the os-name /
-// mac-match selectors instead of assuming name == kernel device. It is
-// best-effort: when no backend is loaded or the device is absent (resolution
-// fails), it returns the name unchanged, so the backend call produces exactly
-// the error it would have produced without translation -- behavior is identical
-// to before whenever resolution is unavailable, and only redirects when a
-// binding is known. The name "" (ResetCounters uses it to mean "every
-// interface") never resolves and passes through untouched.
+// mac-match selectors instead of assuming name == kernel device. The name ""
+// (ResetCounters uses it to mean "every interface") never resolves and passes
+// through untouched.
+//
+// A failed resolution is answered two ways, and which one it gets is the whole
+// point of this function. A name with NO selector configured IS its own kernel
+// device, so the name passes through and the backend produces exactly the error
+// it would have produced without translation. A name WITH a selector was bound
+// to other hardware, so a failure is refused: falling back to the logical name
+// there is how an address, an MTU or an admin-down reaches whatever else happens
+// to carry that name, which is the same wrong-port landing the config-apply path
+// refuses through bindDevices.
 //
 // GetInterface / ListInterfaces are deliberately NOT routed through here: the
 // resolver is built on them (resolve.go osDeviceFor), so translating them would
 // recurse. The Create* ops are also raw -- a created device's name IS its
 // kernel name.
-func resolveOS(name string) string {
+func resolveOS(name string) (string, error) {
 	if name == "" {
-		return ""
+		return "", nil
 	}
-	if b, err := Resolve(name); err == nil && b.OsName != "" {
-		return b.OsName
+	b, err := Resolve(name)
+	if err == nil && b.OsName != "" {
+		return b.OsName, nil
 	}
-	return name
+	if globalResolver.hasSelector(name) {
+		if err == nil {
+			err = errIfaceSelectorUnresolved
+		}
+		return "", fmt.Errorf("iface: interface %q is bound to hardware by a selector that resolves to no device: %w", name, err)
+	}
+	return name, nil
 }
+
+// errIfaceSelectorUnresolved names the one case Resolve reports as success and
+// resolveOS still refuses: a binding whose device carries no name.
+var errIfaceSelectorUnresolved = errors.New("resolved device has no name")
 
 // Package-level functions that delegate to the active backend. By-name
 // mutation/query ops translate the logical name to its kernel device via
@@ -77,28 +94,44 @@ func CreateVLAN(parent string, vid int) error {
 	if err != nil {
 		return err
 	}
-	return b.CreateVLAN(VLANSpec{Parent: resolveOS(parent), VLANID: vid})
+	osParent, err := resolveOS(parent)
+	if err != nil {
+		return err
+	}
+	return b.CreateVLAN(VLANSpec{Parent: osParent, VLANID: vid})
 }
 func DeleteInterface(name string) error {
 	b, err := backendOrErr()
 	if err != nil {
 		return err
 	}
-	return b.DeleteInterface(resolveOS(name))
+	osName, err := resolveOS(name)
+	if err != nil {
+		return err
+	}
+	return b.DeleteInterface(osName)
 }
 func AddAddress(iface, cidr string) error {
 	b, err := backendOrErr()
 	if err != nil {
 		return err
 	}
-	return b.AddAddress(resolveOS(iface), cidr)
+	osName, err := resolveOS(iface)
+	if err != nil {
+		return err
+	}
+	return b.AddAddress(osName, cidr)
 }
 func RemoveAddress(iface, cidr string) error {
 	b, err := backendOrErr()
 	if err != nil {
 		return err
 	}
-	return b.RemoveAddress(resolveOS(iface), cidr)
+	osName, err := resolveOS(iface)
+	if err != nil {
+		return err
+	}
+	return b.RemoveAddress(osName, cidr)
 }
 
 func AddRoute(ifaceName, destCIDR, gateway string, metric int, proto rtproto.Proto) error {
@@ -106,7 +139,11 @@ func AddRoute(ifaceName, destCIDR, gateway string, metric int, proto rtproto.Pro
 	if err != nil {
 		return err
 	}
-	return b.AddRoute(resolveOS(ifaceName), destCIDR, gateway, metric, proto)
+	osName, err := resolveOS(ifaceName)
+	if err != nil {
+		return err
+	}
+	return b.AddRoute(osName, destCIDR, gateway, metric, proto)
 }
 
 func RemoveRoute(ifaceName, destCIDR, gateway string, metric int, proto rtproto.Proto) error {
@@ -114,7 +151,11 @@ func RemoveRoute(ifaceName, destCIDR, gateway string, metric int, proto rtproto.
 	if err != nil {
 		return err
 	}
-	return b.RemoveRoute(resolveOS(ifaceName), destCIDR, gateway, metric, proto)
+	osName, err := resolveOS(ifaceName)
+	if err != nil {
+		return err
+	}
+	return b.RemoveRoute(osName, destCIDR, gateway, metric, proto)
 }
 
 func ListRoutes(ifaceName, destCIDR string) ([]RouteInfo, error) {
@@ -122,7 +163,11 @@ func ListRoutes(ifaceName, destCIDR string) ([]RouteInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	return b.ListRoutes(resolveOS(ifaceName), destCIDR)
+	osName, err := resolveOS(ifaceName)
+	if err != nil {
+		return nil, err
+	}
+	return b.ListRoutes(osName, destCIDR)
 }
 
 // ListNeighbors returns the kernel neighbor table via the active backend.
@@ -181,7 +226,11 @@ func ResetCounters(name string) error {
 	if err != nil {
 		return err
 	}
-	return resetCountersViaBackend(b, resolveOS(name))
+	osName, err := resolveOS(name)
+	if err != nil {
+		return err
+	}
+	return resetCountersViaBackend(b, osName)
 }
 
 func ReplaceAddressWithLifetime(ifaceName, cidr string, validLft, preferredLft int) error {
@@ -189,7 +238,11 @@ func ReplaceAddressWithLifetime(ifaceName, cidr string, validLft, preferredLft i
 	if err != nil {
 		return err
 	}
-	return b.ReplaceAddressWithLifetime(resolveOS(ifaceName), cidr, validLft, preferredLft)
+	osName, err := resolveOS(ifaceName)
+	if err != nil {
+		return err
+	}
+	return b.ReplaceAddressWithLifetime(osName, cidr, validLft, preferredLft)
 }
 
 func SetAdminUp(iface string) error {
@@ -197,28 +250,44 @@ func SetAdminUp(iface string) error {
 	if err != nil {
 		return err
 	}
-	return b.SetAdminUp(resolveOS(iface))
+	osName, err := resolveOS(iface)
+	if err != nil {
+		return err
+	}
+	return b.SetAdminUp(osName)
 }
 func SetAdminDown(iface string) error {
 	b, err := backendOrErr()
 	if err != nil {
 		return err
 	}
-	return b.SetAdminDown(resolveOS(iface))
+	osName, err := resolveOS(iface)
+	if err != nil {
+		return err
+	}
+	return b.SetAdminDown(osName)
 }
 func SetMTU(iface string, mtu int) error {
 	b, err := backendOrErr()
 	if err != nil {
 		return err
 	}
-	return b.SetMTU(resolveOS(iface), mtu)
+	osName, err := resolveOS(iface)
+	if err != nil {
+		return err
+	}
+	return b.SetMTU(osName, mtu)
 }
 func SetMACAddress(iface, mac string) error {
 	b, err := backendOrErr()
 	if err != nil {
 		return err
 	}
-	return b.SetMACAddress(resolveOS(iface), mac)
+	osName, err := resolveOS(iface)
+	if err != nil {
+		return err
+	}
+	return b.SetMACAddress(osName, mac)
 }
 
 func GetMACAddress(iface string) (string, error) {
@@ -226,7 +295,11 @@ func GetMACAddress(iface string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return b.GetMACAddress(resolveOS(iface))
+	osName, err := resolveOS(iface)
+	if err != nil {
+		return "", err
+	}
+	return b.GetMACAddress(osName)
 }
 
 func GetStats(iface string) (*InterfaceStats, error) {
@@ -237,7 +310,10 @@ func GetStats(iface string) (*InterfaceStats, error) {
 	// Resolve once and key the baseline on the kernel device name, so a clear
 	// (ResetCounters) and a subsequent read agree on the key regardless of the
 	// selector (both resolve the logical name to the same os device).
-	osName := resolveOS(iface)
+	osName, err := resolveOS(iface)
+	if err != nil {
+		return nil, err
+	}
 	s, err := b.GetStats(osName)
 	if err != nil {
 		return nil, err
@@ -255,7 +331,11 @@ func LinkSpeedDuplex(name string) (int, string) {
 	if b == nil {
 		return 0, ""
 	}
-	return b.LinkSpeedDuplex(resolveOS(name))
+	osName, err := resolveOS(name)
+	if err != nil {
+		return 0, ""
+	}
+	return b.LinkSpeedDuplex(osName)
 }
 
 func ListInterfaces() ([]InterfaceInfo, error) {
@@ -293,21 +373,37 @@ func BridgeAddPort(bridge, port string) error {
 	if err != nil {
 		return err
 	}
-	return b.BridgeAddPort(resolveOS(bridge), resolveOS(port))
+	osBridge, err := resolveOS(bridge)
+	if err != nil {
+		return err
+	}
+	osPort, err := resolveOS(port)
+	if err != nil {
+		return err
+	}
+	return b.BridgeAddPort(osBridge, osPort)
 }
 func BridgeDelPort(port string) error {
 	b, err := backendOrErr()
 	if err != nil {
 		return err
 	}
-	return b.BridgeDelPort(resolveOS(port))
+	osPort, err := resolveOS(port)
+	if err != nil {
+		return err
+	}
+	return b.BridgeDelPort(osPort)
 }
 func BridgeSetSTP(bridge string, on bool) error {
 	b, err := backendOrErr()
 	if err != nil {
 		return err
 	}
-	return b.BridgeSetSTP(resolveOS(bridge), on)
+	osBridge, err := resolveOS(bridge)
+	if err != nil {
+		return err
+	}
+	return b.BridgeSetSTP(osBridge, on)
 }
 
 func SetupMirror(src, dst string, ingress, egress bool) error {
@@ -315,7 +411,15 @@ func SetupMirror(src, dst string, ingress, egress bool) error {
 	if err != nil {
 		return err
 	}
-	return b.SetupMirror(resolveOS(src), resolveOS(dst), ingress, egress)
+	osSrc, err := resolveOS(src)
+	if err != nil {
+		return err
+	}
+	osDst, err := resolveOS(dst)
+	if err != nil {
+		return err
+	}
+	return b.SetupMirror(osSrc, osDst, ingress, egress)
 }
 
 func RemoveMirror(src string) error {
@@ -323,7 +427,11 @@ func RemoveMirror(src string) error {
 	if err != nil {
 		return err
 	}
-	return b.RemoveMirror(resolveOS(src))
+	osSrc, err := resolveOS(src)
+	if err != nil {
+		return err
+	}
+	return b.RemoveMirror(osSrc)
 }
 
 func GetXFRMInfo(name string) (XFRMInfo, error) {
@@ -331,7 +439,11 @@ func GetXFRMInfo(name string) (XFRMInfo, error) {
 	if err != nil {
 		return XFRMInfo{}, err
 	}
-	return b.GetXFRMInfo(resolveOS(name))
+	osName, err := resolveOS(name)
+	if err != nil {
+		return XFRMInfo{}, err
+	}
+	return b.GetXFRMInfo(osName)
 }
 
 // ListRates returns the current rate data for all interfaces.

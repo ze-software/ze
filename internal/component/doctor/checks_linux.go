@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -238,6 +239,27 @@ func checkKernelModules(tree *config.Tree) []diagnostic.Diagnostic {
 	return diags
 }
 
+// sysClassNetDir is the directory the interface presence and state checks read.
+// A variable so a test can point them at a fixture tree, matching
+// loadedModulesPath below.
+var sysClassNetDir = "/sys/class/net"
+
+// checkInterfaces reports on every configured ethernet interface: absent,
+// administratively down, or carrying a hardware selector that names no device or
+// more than one.
+//
+// The entry NAME is not the device when the entry carries a selector. `os-name`
+// aliases a kernel device and `mac/match` binds to the device carrying a
+// hardware address, and the config apply path keys its work by whichever one
+// answers (bindDevices, internal/component/iface/config_apply.go). A check that
+// looked the entry name up in sysfs therefore called a perfectly good mac/match
+// config a missing interface, and said nothing at all about a selector that
+// resolves to nothing.
+//
+// The two selector verdicts differ in severity because the daemon treats them
+// differently. A selector no device answers to is a DEFERRED binding, which the
+// YANG promises and the apply accepts, so it is a warning. A selector several
+// devices answer to is refused by the apply, so it is an error.
 func checkInterfaces(tree *config.Tree) []diagnostic.Diagnostic {
 	if tree == nil {
 		return nil
@@ -259,17 +281,22 @@ func checkInterfaces(tree *config.Tree) []diagnostic.Diagnostic {
 
 	var diags []diagnostic.Diagnostic
 	var tb textbuf.Buffer
-	for name := range ethList {
-		if strings.Contains(name, "..") || strings.ContainsAny(name, "/\x00") {
+	for name, entry := range ethList {
+		device, diag := selectedNetDevice(name, entry)
+		if diag != nil {
+			diags = append(diags, *diag)
 			continue
 		}
-		statePath := tb.Reset().Str("/sys/class/net/").Str(name).String()
+		if strings.Contains(device, "..") || strings.ContainsAny(device, "/\x00") {
+			continue
+		}
+		statePath := tb.Reset().Str(sysClassNetDir).Byte('/').Str(device).String()
 		info, err := os.Stat(statePath)
 		if err != nil || !info.IsDir() {
 			diags = append(diags, diagnostic.Diagnostic{
 				Code:     "doctor-iface-missing",
 				Severity: diagnostic.SeverityError,
-				Message:  tb.Reset().Str("ethernet interface not found: ").Str(name).String(),
+				Message:  tb.Reset().Str("ethernet interface not found: ").Str(device).String(),
 			})
 			continue
 		}
@@ -282,11 +309,84 @@ func checkInterfaces(tree *config.Tree) []diagnostic.Diagnostic {
 			diags = append(diags, diagnostic.Diagnostic{
 				Code:     "doctor-iface-down",
 				Severity: diagnostic.SeverityWarning,
-				Message:  tb.Reset().Str("ethernet interface ").Str(name).Str(" operstate: ").Str(state).String(),
+				Message:  tb.Reset().Str("ethernet interface ").Str(device).Str(" operstate: ").Str(state).String(),
 			})
 		}
 	}
 	return diags
+}
+
+// selectedNetDevice returns the kernel device an ethernet entry configures, or a
+// diagnostic when its hardware selector names no device or more than one.
+// mac/match wins over os-name, as the YANG leaf states, and an entry with
+// neither selector IS its own kernel device.
+func selectedNetDevice(name string, entry *config.Tree) (string, *diagnostic.Diagnostic) {
+	if entry == nil {
+		return name, nil
+	}
+	var tb textbuf.Buffer
+	if mac := entry.GetContainer("mac"); mac != nil {
+		if match, ok := mac.Get("match"); ok && match != "" {
+			devices := netDevicesWithAddress(match)
+			switch len(devices) {
+			case 1:
+				return devices[0], nil
+			case 0:
+				return "", &diagnostic.Diagnostic{
+					Code:     "doctor-iface-selector-unmatched",
+					Severity: diagnostic.SeverityWarning,
+					Message: tb.Reset().Str("ethernet ").Str(name).Str(": no device carries MAC ").Str(match).
+						Str("; the binding stays deferred until one appears").String(),
+				}
+			default:
+				return "", &diagnostic.Diagnostic{
+					Code:     "doctor-iface-selector-ambiguous",
+					Severity: diagnostic.SeverityError,
+					Message: tb.Reset().Str("ethernet ").Str(name).Str(": MAC ").Str(match).Str(" is carried by ").
+						Str(strings.Join(devices, ", ")).Str("; a hardware MAC selects at most one device").String(),
+				}
+			}
+		}
+	}
+	if osName, ok := entry.Get("os-name"); ok && osName != "" {
+		return osName, nil
+	}
+	return name, nil
+}
+
+// netDevicesWithAddress returns the names of the kernel devices whose hardware
+// address equals mac, read from sysfs and sorted for a reproducible message.
+//
+// sysfs exposes the CURRENT address; the daemon's resolver prefers the permanent
+// (factory) one and falls back to the current address only for the virtual kinds
+// that report none (deviceMatchMAC, internal/component/iface/resolve.go). The two
+// agree unless something outside ze overrode a NIC's operational address, and on
+// such a box this check reports "no device carries MAC" where the daemon binds.
+// That is why the unmatched verdict is a warning naming the address it compared,
+// rather than an error.
+func netDevicesWithAddress(mac string) []string {
+	target := strings.ToLower(strings.TrimSpace(mac))
+	entries, err := os.ReadDir(sysClassNetDir)
+	if err != nil {
+		return nil
+	}
+	var tb textbuf.Buffer
+	var found []string
+	for _, e := range entries {
+		device := e.Name()
+		if strings.Contains(device, "..") || strings.ContainsAny(device, "/\x00") {
+			continue
+		}
+		addr, readErr := os.ReadFile(tb.Reset().Str(sysClassNetDir).Byte('/').Str(device).Str("/address").String()) //nolint:gosec // path traversal guarded above
+		if readErr != nil {
+			continue
+		}
+		if strings.ToLower(strings.TrimSpace(string(addr))) == target {
+			found = append(found, device)
+		}
+	}
+	sort.Strings(found)
+	return found
 }
 
 // checkVPPVersion runs `vppctl show version` and warns if the major version

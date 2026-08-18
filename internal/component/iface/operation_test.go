@@ -190,6 +190,8 @@ func TestIfaceOperationDecomposerMixedDiffFallsBack(t *testing.T) {
 // PREVENTS: Operation apply succeeding without a usable inverse journal entry.
 func TestApplyIfaceOperationAddressJournal(t *testing.T) {
 	b := &fakeBackend{}
+	b.ensureMaps()
+	b.ifaces["dum0"] = fakeIface{name: "dum0", linkType: "dummy"}
 	op := tx.ConfigOperation{
 		ID:    "addr-add",
 		Type:  tx.OperationAddAddress,

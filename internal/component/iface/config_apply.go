@@ -6,6 +6,7 @@ package iface
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -18,21 +19,32 @@ import (
 // Also returns the set of Ze-managed interface names (dummy, veth, bridge, VLAN)
 // that should exist. Physical interfaces (ethernet) are never in the managed set.
 //
+// devices is bindDevices' answer for this config: it turns each logical
+// entry name into the kernel device the entry's hardware selector names, so
+// every key here is a device the operator selected rather than a name they
+// chose. An entry whose selector is unbound contributes nothing, which is how a
+// deferred binding stays deferred instead of claiming a device that merely
+// shares its name.
+//
 // staleNames is address_owner.go's ownedAddresses() staleNames, passed
 // through unchanged -- see clearStaleIfaces for why callers that reconcile
 // against this exact snapshot must use it, not a fresh read of the live
 // registry, to clear staleIfaces afterward.
-func (cfg *ifaceConfig) desiredState() (addrs map[string]map[string]bool, managed map[string]bool, staleNames []string) {
+func (cfg *ifaceConfig) desiredState(devices map[string]string) (addrs map[string]map[string]bool, managed map[string]bool, staleNames []string) {
 	addrs = make(map[string]map[string]bool)
 	managed = make(map[string]bool)
 
 	addIfaceAddrs := func(name string, units []unitEntry) {
+		device, bound := deviceFor(devices, name)
+		if !bound {
+			return
+		}
 		for i := range units {
 			u := &units[i]
 			if u.Disable {
 				continue
 			}
-			osName := unitOSName(name, u)
+			osName := unitOSName(device, u)
 			if u.VLANID > 0 {
 				managed[osName] = true
 			}
@@ -169,12 +181,18 @@ func zeManageable(linkType string) bool {
 // applied config. Reconcile uses this runtime-only set as its deletion scope:
 // a manageable kernel link is eligible for deletion only if Ze managed it
 // before and it disappeared from the new config.
-func (cfg *ifaceConfig) rememberPreviousManaged(previous *ifaceConfig) {
+//
+// previousDevices is bindDevices' answer for the PREVIOUS config, so a VLAN
+// made on a selected parent is remembered under the kernel name it carries. An
+// entry whose selector is unbound is remembered as owning nothing, which is the
+// safe direction: the prune deletes nothing it cannot name, and a guess here
+// deletes an operator's device.
+func (cfg *ifaceConfig) rememberPreviousManaged(previous *ifaceConfig, previousDevices map[string]string) {
 	cfg.previousManaged = nil
 	if previous == nil {
 		return
 	}
-	_, managed, _ := previous.desiredState()
+	_, managed, _ := previous.desiredState(previousDevices)
 	cfg.previousManaged = managed
 }
 
@@ -194,14 +212,158 @@ func removedManagedNames(previousManaged, currentManaged map[string]bool) map[st
 	return removed
 }
 
-// unitOSName returns the OS device name a unit configures: the interface
-// itself for an untagged unit, "<name>.<vlan>" for a VLAN unit.
-func unitOSName(name string, u *unitEntry) string {
+// unitOSName returns the OS device name a unit configures on kernel device
+// osName: the device itself for an untagged unit, "<device>.<vlan>" for a VLAN
+// unit. The caller passes the kernel device the entry resolved to, never the
+// logical entry name, because both backends compose the VLAN netdev name from
+// the parent they are handed -- netlinkBackend.CreateVLAN and
+// vppBackendImpl.CreateVLAN each build "<spec.Parent>.<VLANID>", and VLANSpec
+// carries no name of its own. A VLAN on a selected parent therefore IS named
+// after the hardware, and naming it anything else names a device that does not
+// exist.
+func unitOSName(osName string, u *unitEntry) string {
 	if u.VLANID <= 0 {
-		return name
+		return osName
 	}
 	var b textbuf.Buffer
-	return b.Reset().Str(name).Byte('.').Int(int64(u.VLANID)).String()
+	return b.Reset().Str(osName).Byte('.').Int(int64(u.VLANID)).String()
+}
+
+// deviceFor returns the kernel device a logical interface name configures, and
+// whether the name is bound to one at all. Only ethernet entries carry a
+// hardware selector, so a name absent from devices is its own kernel device.
+// A name mapped to the empty string selected hardware that is not present (or
+// that more than one device answers to): it is UNBOUND, and every apply phase
+// skips it rather than falling back to the logical name. That fallback is how
+// an address reaches a device which merely shares the entry's name.
+func deviceFor(devices map[string]string, name string) (device string, bound bool) {
+	device, selected := devices[name]
+	if !selected {
+		return name, true
+	}
+	return device, device != ""
+}
+
+// bindDevices maps the logical name of every enabled ethernet entry to the
+// kernel device the apply path must act on, derived from one interface listing.
+// mac/match binds to the device whose match MAC the selector names; os-name
+// aliases a kernel device by name; an entry with neither binds to its own name.
+// Ethernet is the only kind that carries a selector and the only kind Ze does
+// not create, so it is the only kind in this map: every other name is its own
+// kernel device and is absent here.
+//
+// An entry maps to the empty string -- UNBOUND -- when no device answers its
+// selector, when several do, or when the device it names is not present. Every
+// apply phase skips an unbound entry. None falls back to the logical name,
+// which is what the YANG promises for an absent binding ("the binding defers
+// until it appears") and what keeps a device that merely shares the entry's
+// name from being configured in its place.
+//
+// infos is one interface listing, taken once per apply. A nil listing (the
+// backend could not answer) leaves every entry unbound, so an apply that cannot
+// see the hardware defers rather than inventing a binding.
+func (cfg *ifaceConfig) bindDevices(infos []InterfaceInfo) map[string]string {
+	if cfg == nil || len(cfg.Ethernet) == 0 {
+		return nil
+	}
+	present := make(map[string]struct{}, len(infos))
+	for i := range infos {
+		present[infos[i].Name] = struct{}{}
+	}
+	devices := make(map[string]string, len(cfg.Ethernet))
+	for i := range cfg.Ethernet {
+		e := &cfg.Ethernet[i]
+		if e.Disable {
+			continue
+		}
+		device := e.Name
+		switch {
+		case e.MatchMAC != "":
+			matched := devicesWithMAC(infos, e.MatchMAC)
+			if len(matched) != 1 {
+				devices[e.Name] = ""
+				continue
+			}
+			device = infos[matched[0]].Name
+		case e.OSName != "" && e.OSName != e.Name:
+			device = e.OSName
+		}
+		if _, ok := present[device]; !ok {
+			devices[e.Name] = ""
+			continue
+		}
+		devices[e.Name] = device
+	}
+	return devices
+}
+
+// validateSelectors refuses a mac/match selector that more than one present
+// device answers to. Nothing distinguishes the candidates, so binding to one is
+// a guess about which physical port the entry's addresses, MTU and admin state
+// land on. Returns nil when every selector names at most one device, including
+// when it names none -- an absent device is a deferred binding, which the YANG
+// promises, not an error.
+func (cfg *ifaceConfig) validateSelectors(infos []InterfaceInfo) error {
+	if cfg == nil {
+		return nil
+	}
+	for i := range cfg.Ethernet {
+		e := &cfg.Ethernet[i]
+		if e.Disable || e.MatchMAC == "" {
+			continue
+		}
+		matched := devicesWithMAC(infos, e.MatchMAC)
+		if len(matched) <= 1 {
+			continue
+		}
+		names := make([]string, 0, len(matched))
+		for _, idx := range matched {
+			names = append(names, infos[idx].Name)
+		}
+		sort.Strings(names)
+		return fmt.Errorf("ethernet %q: MAC %s is carried by %d devices (%s); a hardware MAC selects at most one device",
+			e.Name, normalizeMAC(e.MatchMAC), len(names), strings.Join(names, ", "))
+	}
+	return nil
+}
+
+// devicesWithMAC returns the index in infos of every device whose match MAC
+// equals want and that a hardware selector can name. deviceMatchMAC decides
+// which address a device is matched on: its permanent (factory) address when it
+// reports one, else its current address, so a binding survives an operational
+// MAC override.
+//
+// A stacked device is excluded, and that exclusion is load-bearing rather than
+// tidy. A VLAN sub-interface inherits its parent's hardware address, so the
+// moment ze creates one on a mac/match parent, TWO devices carry the selector's
+// MAC and the parent's own binding reads as ambiguous. Measured against a live
+// kernel: creating zesel0.100 on zesel0 made the next resolution of zesel0's
+// selector refuse, and its addresses were never applied.
+func devicesWithMAC(infos []InterfaceInfo, want string) []int {
+	target := normalizeMAC(want)
+	if target == "" {
+		return nil
+	}
+	var matched []int
+	for i := range infos {
+		if isStackedDevice(&infos[i]) {
+			continue
+		}
+		if normalizeMAC(deviceMatchMAC(&infos[i])) == target {
+			matched = append(matched, i)
+		}
+	}
+	return matched
+}
+
+// isStackedDevice reports whether info describes a device built on top of
+// another one, whose hardware address is therefore its parent's rather than its
+// own. The netlink backend sets ParentIndex for the two kinds that inherit an
+// address, vlan and macvlan (show_linux.go linkToInfo); the VPP backend reports
+// SupSwIfIndex for every interface, and a top-level one names itself, which is
+// why self-parenthood does not count.
+func isStackedDevice(info *InterfaceInfo) bool {
+	return info.ParentIndex != 0 && info.ParentIndex != info.Index
 }
 
 // allIfaceEntries returns every interface entry in the config, across the
@@ -354,6 +516,21 @@ func xfrmSpecEqual(a, b XFRMSpec) bool {
 	return a.Name == b.Name && a.IfID == b.IfID && a.PhysicalDev == b.PhysicalDev
 }
 
+// applyAndPublish publishes cfg's hardware-selector mapping to the shared
+// resolver and then applies cfg. The order is the contract, and it is why the
+// two calls have one name: the apply is itself a resolver consumer -- every
+// by-name dispatch op it reaches translates through the resolver, and so does
+// every consumer that reacts to what it does -- so publishing afterwards runs
+// the apply against the mapping of the commit before it.
+//
+// Every path that applies a config goes through here, the rollback re-apply
+// included: leaving a refused config's mapping published would serve bindings
+// no committed config asked for.
+func applyAndPublish(cfg, previous *ifaceConfig, b Backend) []error {
+	setResolverConfig(cfg)
+	return applyConfig(cfg, previous, b)
+}
+
 // applyConfig applies the parsed interface config declaratively via the backend.
 // 1. Creates missing Ze-managed interfaces (dummy, veth, tunnel, xfrm, bridge, VLAN)
 // 2. Sets properties (MTU, MAC, sysctl, mirror) on all configured interfaces
@@ -380,7 +557,6 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 	log := loggerPtr.Load()
 	var errs []error
 	journal := sdk.NewJournal()
-	cfg.rememberPreviousManaged(previous)
 
 	rollbackPartial := func() []error {
 		for _, err := range journal.Rollback() {
@@ -701,96 +877,134 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 	}
 
 	// Phase 2: Set properties and create VLANs.
+	//
+	// One interface listing answers every hardware-selector question the rest of
+	// this apply asks, so each logical name resolves once and every phase below
+	// keys its work by the same kernel device. It is taken HERE rather than at
+	// the top because Phase 1 has just created devices, and the reconcile takes
+	// its own listing at the same point in its own pass: resolving both against a
+	// post-create view is what keeps the two agreeing.
+	//
+	// A backend that cannot list -- the vpp handshake is still in flight --
+	// leaves every ethernet entry unbound, which is what the per-entry presence
+	// probe did before: those entries are skipped here, and the reconcile the
+	// connect event fires picks them up.
+	infos, listErr := b.ListInterfaces()
+	if listErr != nil {
+		log.Debug("iface config: interface listing unavailable, ethernet bindings deferred", "err", listErr)
+		infos = nil
+	}
+	if selectorErr := cfg.validateSelectors(infos); selectorErr != nil {
+		return record("hardware selector", selectorErr)
+	}
+	devices := cfg.bindDevices(infos)
+	previousDevices := previous.bindDevices(infos)
+	cfg.rememberPreviousManaged(previous, previousDevices)
+
 	allEntries := allIfaceEntries(cfg)
 
 	// Retire the mirrors the new config no longer asks for, before the loop
 	// below installs the ones it does ask for. tc filters are additive, so a
 	// changed destination has to be removed rather than overwritten.
-	if mirrorErrs := removeStaleMirrors(cfg, previous, b, journal); len(mirrorErrs) > 0 {
+	if mirrorErrs := removeStaleMirrors(cfg, previous, devices, previousDevices, b, journal); len(mirrorErrs) > 0 {
 		errs = append(errs, mirrorErrs...)
 		return rollbackPartial()
 	}
 
-	// Physical (Ethernet) interfaces named in the config but absent from the
-	// system are skipped, not treated as a fatal error. An appliance must not
-	// brick because a configured NIC is missing -- an unplugged cable, a
-	// hardware change, or an image built on a host whose interface names differ
-	// from the deployment target. Created interface types (dummy/veth/bridge/
-	// tunnel/wireguard/xfrm) are made in Phase 1 and exist by now, so they are
-	// NOT skipped here; a genuine error on any interface still aborts + rolls back.
-	absentPhysical := make(map[string]bool)
+	// Physical (Ethernet) interfaces whose kernel device is absent are skipped,
+	// not treated as a fatal error. An appliance must not brick because a
+	// configured NIC is missing -- an unplugged cable, a hardware change, or an
+	// image built on a host whose interface names differ from the deployment
+	// target. bindDevices has already made that judgement for every ethernet
+	// entry, over the device its selector names rather than over its logical
+	// name, so an entry bound by mac/match to a NIC that has not appeared yet is
+	// skipped here exactly as an absent one is. Created interface types
+	// (dummy/veth/bridge/tunnel/wireguard/xfrm) are made in Phase 1 and exist by
+	// now, so they are NOT skipped; a genuine error on any interface still
+	// aborts + rolls back.
+	//
+	// The skip covers the address reconcile too (Phase 3+4 reads the same
+	// bindings), because an entry whose device is absent has nowhere to put its
+	// addresses: adding them by the logical name is what failed the whole commit
+	// before, and what put them on a same-named stranger when one existed.
 	for i := range cfg.Ethernet {
 		e := &cfg.Ethernet[i]
 		if e.Disable {
 			continue
 		}
-		if _, err := b.GetInterface(e.Name); err != nil {
-			log.Warn("iface config: configured interface not present, skipping", "iface", e.Name, "err", err)
-			absentPhysical[e.Name] = true
+		if _, bound := deviceFor(devices, e.Name); bound {
+			continue
+		}
+		if e.MatchMAC != "" || e.OSName != "" {
+			log.Warn("iface config: no present device answers this interface's hardware selector, binding deferred",
+				"iface", e.Name, "mac-match", e.MatchMAC, "os-name", e.OSName)
+			continue
+		}
+		log.Warn("iface config: configured interface not present, skipping", "iface", e.Name)
+	}
+	// Drop unbound ethernet entries from every per-interface phase (property set
+	// in Phase 2, admin-up in Phase 2c) so a missing NIC never aborts the apply.
+	// Created types (dummy/veth/bridge/tunnel/wireguard/xfrm) are made in Phase 1
+	// and are never in devices, so deviceFor answers with their own name.
+	kept := allEntries[:0]
+	for _, e := range allEntries {
+		if _, bound := deviceFor(devices, e.Name); bound {
+			kept = append(kept, e)
 		}
 	}
-	// Drop absent physical interfaces from every per-interface phase (property
-	// set in Phase 2, admin-up in Phase 2c) so a missing NIC never aborts the
-	// apply. Created types (dummy/veth/bridge/tunnel/wireguard/xfrm) are made in
-	// Phase 1 and stay. Address reconcile (Phase 3+4) diffs live state, so an
-	// absent interface is naturally excluded there.
-	if len(absentPhysical) > 0 {
-		kept := allEntries[:0]
-		for _, e := range allEntries {
-			if !absentPhysical[e.Name] {
-				kept = append(kept, e)
-			}
-		}
-		allEntries = kept
-	}
+	allEntries = kept
 
 	for _, e := range allEntries {
 		if e.Disable {
 			continue
 		}
+		// The kernel device this entry configures. Every backend call below
+		// takes it, never e.Name: the logical name steers the config tree, the
+		// device steers the hardware.
+		device, _ := deviceFor(devices, e.Name)
 		if e.MTU > 0 {
 			oldMTU := 0
-			if info, err := b.GetInterface(e.Name); err == nil {
+			if info, err := b.GetInterface(device); err == nil {
 				oldMTU = info.MTU
 			}
 			if err := applyBackendStep(journal, func() error {
-				return b.SetMTU(e.Name, e.MTU)
+				return b.SetMTU(device, e.MTU)
 			}, func() error {
 				if oldMTU <= 0 {
 					return nil
 				}
-				return b.SetMTU(e.Name, oldMTU)
+				return b.SetMTU(device, oldMTU)
 			}); err != nil {
 				var bMtu textbuf.Buffer
-				return record(bMtu.Reset().Str(e.Name).Str(" set mtu ").Int(int64(e.MTU)).String(), err)
+				return record(bMtu.Reset().Str(device).Str(" set mtu ").Int(int64(e.MTU)).String(), err)
 			}
 		}
 		if e.MACAddress != "" {
-			oldMAC, _ := b.GetMACAddress(e.Name)
+			oldMAC, _ := b.GetMACAddress(device)
 			if err := applyBackendStep(journal, func() error {
-				return b.SetMACAddress(e.Name, e.MACAddress)
+				return b.SetMACAddress(device, e.MACAddress)
 			}, func() error {
 				if oldMAC == "" {
 					return nil
 				}
-				return b.SetMACAddress(e.Name, oldMAC)
+				return b.SetMACAddress(device, oldMAC)
 			}); err != nil {
-				return record(e.Name+" set mac", err)
+				return record(device+" set mac", err)
 			}
 		}
-		applyOffloads(e.Name, e.Offload)
+		applyOffloads(device, e.Offload)
 		for i := range e.Units {
 			u := &e.Units[i]
 			if u.Disable {
 				continue
 			}
-			osName := e.Name
+			osName := device
 			if u.VLANID > 0 {
-				vlanName := unitOSName(e.Name, u)
+				vlanName := unitOSName(device, u)
 				created := false
 				if err := applyBackendStep(journal, func() error {
 					if err := b.CreateVLAN(VLANSpec{
-						Parent:        e.Name,
+						Parent:        device,
 						VLANID:        u.VLANID,
 						IngressQoSMap: u.IngressQoSMap,
 						EgressQoSMap:  u.EgressQoSMap,
@@ -842,19 +1056,20 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 		if e.Disable {
 			continue
 		}
+		device, _ := deviceFor(devices, e.Name)
 		wasDown := false
-		if info, err := b.GetInterface(e.Name); err == nil {
+		if info, err := b.GetInterface(device); err == nil {
 			wasDown = info.State != "" && info.State != "up" && info.State != "UP"
 		}
 		if err := applyBackendStep(journal, func() error {
-			return b.SetAdminUp(e.Name)
+			return b.SetAdminUp(device)
 		}, func() error {
 			if !wasDown {
 				return nil
 			}
-			return b.SetAdminDown(e.Name)
+			return b.SetAdminDown(device)
 		}); err != nil {
-			return record(e.Name+" admin up", err)
+			return record(device+" admin up", err)
 		}
 	}
 
@@ -866,7 +1081,7 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 	reconcileErrs, deferred := reconcileOnReadyWithJournal(cfg, b, journal, previous)
 	if deferred {
 		log.Debug("iface reconcile deferred, backend not ready")
-		addDesiredAddresses(cfg, b)
+		addDesiredAddresses(cfg, b, devices)
 		return errs
 	}
 	if len(reconcileErrs) > 0 {
@@ -933,7 +1148,6 @@ func reconcileOnReadyWithJournal(cfg *ifaceConfig, b Backend, journal *sdk.Journ
 	defer reconcileMu.Unlock()
 
 	log := loggerPtr.Load()
-	desiredAddrs, managedNames, staleNames := cfg.desiredState()
 
 	currentInfos, err := b.ListInterfaces()
 	if err != nil {
@@ -943,6 +1157,16 @@ func reconcileOnReadyWithJournal(cfg *ifaceConfig, b Backend, journal *sdk.Journ
 		errs = append(errs, fmt.Errorf("list interfaces for reconciliation: %w", err))
 		return errs, false
 	}
+
+	// Resolve the hardware selectors against THIS listing, so a reconcile
+	// triggered long after the commit (vpp connect, an owned-address
+	// registration) sees the devices present now rather than the ones present
+	// when the config was applied -- a mac/match binding that was deferred then
+	// can have appeared since. The previous config resolves against the same
+	// listing, so the prune scope below names the devices it actually made.
+	devices := cfg.bindDevices(currentInfos)
+	previousDevices := previous.bindDevices(currentInfos)
+	desiredAddrs, managedNames, staleNames := cfg.desiredState(devices)
 
 	record := func(msg string, err error) {
 		log.Warn(msg, "err", err)
@@ -1016,7 +1240,7 @@ func reconcileOnReadyWithJournal(cfg *ifaceConfig, b Backend, journal *sdk.Journ
 		if err := applyBackendStep(journal, func() error {
 			return b.DeleteInterface(name)
 		}, func() error {
-			return recreateManagedInterface(previous, name, b)
+			return recreateManagedInterface(previous, previousDevices, name, b)
 		}); err != nil {
 			record("delete "+name+" ("+linkType+")", err)
 			return errs, false
@@ -1204,7 +1428,11 @@ func interfaceExists(b Backend, name string) bool {
 	return err == nil
 }
 
-func recreateManagedInterface(cfg *ifaceConfig, name string, b Backend) error {
+// recreateManagedInterface rebuilds the device the prune step deleted, as that
+// step's undo. cfg is the PREVIOUS config, which is the one that made the
+// device, and devices is that config's binding map, so a VLAN is recreated on
+// the kernel parent it was made on rather than on a logical name.
+func recreateManagedInterface(cfg *ifaceConfig, devices map[string]string, name string, b Backend) error {
 	if cfg == nil {
 		return nil
 	}
@@ -1256,7 +1484,11 @@ func recreateManagedInterface(cfg *ifaceConfig, name string, b Backend) error {
 		if e.Disable {
 			continue
 		}
-		if err := recreateManagedVLAN(e.Name, e.Units, name, b); err != nil {
+		device, bound := deviceFor(devices, e.Name)
+		if !bound {
+			continue
+		}
+		if err := recreateManagedVLAN(device, e.Units, name, b); err != nil {
 			return err
 		}
 	}
@@ -1305,6 +1537,9 @@ func recreateManagedInterface(cfg *ifaceConfig, name string, b Backend) error {
 	return nil
 }
 
+// recreateManagedVLAN recreates the VLAN unit of parent whose device is called
+// name. parent is the KERNEL device, resolved by the caller, because that is
+// what the netdev name was composed from when the VLAN was made.
 func recreateManagedVLAN(parent string, units []unitEntry, name string, b Backend) error {
 	for i := range units {
 		u := &units[i]
@@ -1328,9 +1563,9 @@ func recreateManagedVLAN(parent string, units []unitEntry, name string, b Backen
 // backend for current state. Used as the additive-only fallback when
 // reconcileOnReady defers; the full reconcile fires later via
 // vppevents.EventConnected.
-func addDesiredAddresses(cfg *ifaceConfig, b Backend) {
+func addDesiredAddresses(cfg *ifaceConfig, b Backend, devices map[string]string) {
 	log := loggerPtr.Load()
-	desiredAddrs, _, _ := cfg.desiredState()
+	desiredAddrs, _, _ := cfg.desiredState(devices)
 	for osName, addrs := range desiredAddrs {
 		for addr := range addrs {
 			if err := b.AddAddress(osName, addr); err != nil {

@@ -725,3 +725,91 @@ func TestRoutePriorityYANGDefaultMatchesTheConstant(t *testing.T) {
 		assert.Equal(t, defaultLearnedRouteMetric, got)
 	}
 }
+
+// TestCoalescedUpRestoresBaseMetric drives the whole hand-off, from the push an
+// event bus handler makes to the route the kernel is asked for.
+//
+// VALIDATES: AC-1 -- transitions arriving while the worker is blocked on the
+// config-apply lock reach applyLinkEvent as ONE entry carrying the state the
+// interface ENDED in, and the default route ends at the metric that state
+// names. The superseded transitions cost no route move at all.
+// PREVENTS: the loss this spec exists for, at the layer an operator sees it: an
+// UP dropped after an applied DOWN left the route at base + 1024 with the link
+// up, and handleLinkUp is idempotent by routeMetricState, so no later event
+// repaired it. Both cases below fail against that design: the first ends
+// deprioritized with a route move it should never have made, and the second
+// ends at the base metric having moved nothing.
+func TestCoalescedUpRestoresBaseMetric(t *testing.T) {
+	// blockedRun replays transitions into a queue whose worker is stuck behind
+	// the lock a config apply holds, then releases it and drains.
+	blockedRun := func(t *testing.T, active map[dhcpUnitKey]dhcpEntry, transitions []bool) {
+		t.Helper()
+		var dhcpMu sync.Mutex
+		dhcpMu.Lock()
+
+		routers := map[routerKey]routerEntry{}
+		priorities := map[string]int{}
+		q := newLinkEventQueue(slog.Default())
+		q.start(func(k linkEventKey, v linkEventValue) {
+			dhcpMu.Lock()
+			defer dhcpMu.Unlock()
+			applyLinkEvent(k, v, active, routers, priorities, slog.Default())
+		})
+		for _, up := range transitions {
+			q.pushCarrier("eth0", up)
+		}
+		dhcpMu.Unlock() // the commit finishes
+		q.stop()
+	}
+
+	newActive := func(t *testing.T, state routeMetricState) (map[dhcpUnitKey]dhcpEntry, dhcpUnitKey) {
+		t.Helper()
+		factory := &recordingDHCPFactory{}
+		factory.install(t)
+		active := map[dhcpUnitKey]dhcpEntry{}
+		reconcileDHCP(dhcpUnitJSON(t, ""), nil, active, slog.Default())
+		key := dhcpUnitKey{ifaceName: "eth0", unit: "0"}
+		entry := active[key]
+		entry.gateway = "192.0.2.1"
+		entry.metricState = state
+		active[key] = entry
+		return active, key
+	}
+
+	t.Run("a down superseded by an up leaves the route where it was", func(t *testing.T) {
+		fb := setupFakeBackendForTest(t)
+		active, key := newActive(t, routeMetricBase)
+
+		blockedRun(t, active, []bool{false, true})
+
+		assert.Equal(t, routeMetricBase, active[key].metricState,
+			"UP is the state the interface ended in, and the route is already at the base metric")
+		assert.Empty(t, fb.routeAdds, "the superseded DOWN must never reach the kernel")
+		assert.Empty(t, fb.routeRemoves)
+	})
+
+	t.Run("the last state of the burst is the one the kernel is asked for", func(t *testing.T) {
+		fb := setupFakeBackendForTest(t)
+		active, key := newActive(t, routeMetricBase)
+
+		blockedRun(t, active, []bool{false, true, false})
+
+		assert.Equal(t, routeMetricDeprioritized, active[key].metricState)
+		require.Len(t, fb.routeAdds, 1, "a burst that ends DOWN is one route move, not three")
+		assert.Equal(t, routeCall{"eth0", "0.0.0.0/0", "192.0.2.1", 254 + deprioritizedMetric, rtproto.Iface}, fb.routeAdds[0])
+		require.Len(t, fb.routeRemoves, 1)
+		assert.Equal(t, routeCall{"eth0", "0.0.0.0/0", "192.0.2.1", 254, rtproto.Iface}, fb.routeRemoves[0])
+	})
+
+	t.Run("an up after an applied down restores the base metric", func(t *testing.T) {
+		fb := setupFakeBackendForTest(t)
+		active, key := newActive(t, routeMetricDeprioritized)
+
+		blockedRun(t, active, []bool{false, true})
+
+		assert.Equal(t, routeMetricBase, active[key].metricState,
+			"the UP that arrived while the worker was blocked is what brings the route back")
+		require.Len(t, fb.routeAdds, 1)
+		assert.Equal(t, routeCall{"eth0", "0.0.0.0/0", "192.0.2.1", 254, rtproto.Iface}, fb.routeAdds[0])
+	})
+}

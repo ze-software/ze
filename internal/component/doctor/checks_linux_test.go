@@ -436,3 +436,108 @@ func TestCheckMachineIDPathOverride(t *testing.T) {
 		}
 	}
 }
+
+// fakeSysClassNet builds a sysfs-shaped tree where each named device carries the
+// given MAC and an "up" operstate, and points the interface checks at it.
+func fakeSysClassNet(t *testing.T, devices map[string]string) {
+	t.Helper()
+	root := t.TempDir()
+	for device, mac := range devices {
+		dir := filepath.Join(root, device)
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "address"), []byte(mac+"\n"), 0o600); err != nil {
+			t.Fatalf("write address: %v", err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "operstate"), []byte("up\n"), 0o600); err != nil {
+			t.Fatalf("write operstate: %v", err)
+		}
+	}
+	old := sysClassNetDir
+	sysClassNetDir = root
+	t.Cleanup(func() { sysClassNetDir = old })
+}
+
+// ethernetTree returns a config tree holding one netlink-backed ethernet entry.
+func ethernetTree(name string, leaves, mac map[string]string) *config.Tree {
+	tree := config.NewTree()
+	ifaceBlock := tree.GetOrCreateContainer("interface")
+	ifaceBlock.Set("backend", "netlink")
+	entry := config.NewTree()
+	for k, v := range leaves {
+		entry.Set(k, v)
+	}
+	if len(mac) > 0 {
+		macBlock := entry.GetOrCreateContainer("mac")
+		for k, v := range mac {
+			macBlock.Set(k, v)
+		}
+	}
+	ifaceBlock.AddListEntry("ethernet", name, entry)
+	return tree
+}
+
+// TestCheckInterfacesFollowsOSNameAlias verifies the doctor interface check
+// judges an aliased entry by the device the alias names, not by the entry name.
+//
+// VALIDATES: spec-fixit-iface-selector-ignored-by-apply, the doctor surface.
+// PREVENTS: `ze doctor` calling a correct os-name config a missing interface,
+// which is the same name-versus-device confusion the config apply path had.
+func TestCheckInterfacesFollowsOSNameAlias(t *testing.T) {
+	fakeSysClassNet(t, map[string]string{"enp1s0": "aa:bb:cc:00:00:01"})
+
+	tree := ethernetTree("wan", map[string]string{"os-name": "enp1s0"}, nil)
+
+	assertNoDiagCode(t, checkInterfaces(tree), "doctor-iface-missing")
+}
+
+// TestCheckInterfacesFollowsMACMatch verifies the check resolves a mac/match
+// selector to the device carrying the address, and reports the two selector
+// verdicts the config apply path distinguishes: an unmatched selector defers
+// (warning), an ambiguous one is refused (error).
+//
+// VALIDATES: spec-fixit-iface-selector-ignored-by-apply, the doctor surface.
+// PREVENTS: doctor staying silent about a selector that leaves an interface
+// unconfigured, and calling a bound one missing.
+func TestCheckInterfacesFollowsMACMatch(t *testing.T) {
+	const wanted = "aa:bb:cc:00:00:01"
+
+	t.Run("one device carries it", func(t *testing.T) {
+		fakeSysClassNet(t, map[string]string{"enp1s0": wanted, "enp2s0": "aa:bb:cc:00:00:02"})
+		tree := ethernetTree("wan", nil, map[string]string{"match": wanted})
+		diags := checkInterfaces(tree)
+		assertNoDiagCode(t, diags, "doctor-iface-missing")
+		assertNoDiagCode(t, diags, "doctor-iface-selector-unmatched")
+		assertNoDiagCode(t, diags, "doctor-iface-selector-ambiguous")
+	})
+
+	t.Run("no device carries it", func(t *testing.T) {
+		// A device named after the entry exists, so a name-based check would
+		// report nothing at all while the interface stays unconfigured.
+		fakeSysClassNet(t, map[string]string{"wan": "aa:bb:cc:00:00:02"})
+		tree := ethernetTree("wan", nil, map[string]string{"match": wanted})
+		diags := checkInterfaces(tree)
+		requireDiag(t, diags, "doctor-iface-selector-unmatched", diagnostic.SeverityWarning)
+	})
+
+	t.Run("two devices carry it", func(t *testing.T) {
+		fakeSysClassNet(t, map[string]string{"enp1s0": wanted, "enp2s0": wanted})
+		tree := ethernetTree("wan", nil, map[string]string{"match": wanted})
+		diags := checkInterfaces(tree)
+		requireDiag(t, diags, "doctor-iface-selector-ambiguous", diagnostic.SeverityError)
+	})
+}
+
+// TestCheckInterfacesUnselectedEntryUnchanged pins the behavior of an entry with
+// no selector: its name IS its device, and an absent one is still an error.
+//
+// VALIDATES: the selector work changes nothing for a plain entry.
+// PREVENTS: the selector branches swallowing the missing-interface report.
+func TestCheckInterfacesUnselectedEntryUnchanged(t *testing.T) {
+	fakeSysClassNet(t, map[string]string{"enp1s0": "aa:bb:cc:00:00:01"})
+
+	tree := ethernetTree("eth9", nil, nil)
+
+	requireDiag(t, checkInterfaces(tree), "doctor-iface-missing", diagnostic.SeverityError)
+}

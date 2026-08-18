@@ -334,15 +334,14 @@ func runEngine(conn net.Conn) int {
 	// Protected by dhcpMu.
 	raRoutePriority := make(map[string]int)
 
-	// linkEventCh is a buffered channel for link failover work items.
-	// Event bus handlers enqueue here (non-blocking, no I/O) and the
-	// linkWorker goroutine processes them with netlink calls.
-	type linkEvent struct {
-		name string
-		up   bool
-	}
-	linkEventCh := make(chan linkEvent, 16)
-	linkWorkerDone := make(chan struct{})
+	// linkQueue carries every carrier and router transition, and the periodic
+	// carrier resync, from the event bus to a worker goroutine. Event bus
+	// handlers push (no lock, no I/O) and the worker does the netlink calls
+	// under dhcpMu. It coalesces per subject rather than dropping, so a burst
+	// during a config commit -- when the commit holds dhcpMu across DHCP
+	// client stop and start -- costs the intermediate transitions and never
+	// the state a subject ended in. See link_queue.go.
+	linkQueue := newLinkEventQueue(log)
 	// vppReconcileCh coalesces vpp-lifecycle reconcile requests into at most
 	// one pending work item. The vppReadyWorker goroutine drains it and
 	// calls reconcileOnVPPReady so the actual GoVPP I/O runs outside the
@@ -395,20 +394,21 @@ func runEngine(conn net.Conn) int {
 	// registries from snapshots on every pass, so one worker serves both and a
 	// second channel would add interleaving without adding freshness.
 	setDeviceOwnerReconcileTrigger(func() { nonBlockingNotify(registryReconcileCh) })
-	go func() {
-		defer close(linkWorkerDone)
-		for ev := range linkEventCh {
-			dhcpMu.Lock()
-			if ev.up {
-				handleLinkUp(ev.name, activeDHCP, log)
-				handleLinkUpIPv6(ev.name, activeRouters, log)
-			} else {
-				handleLinkDown(ev.name, activeDHCP, log)
-				handleLinkDownIPv6(ev.name, activeRouters, log)
-			}
-			dhcpMu.Unlock()
-		}
-	}()
+	linkQueue.start(func(key linkEventKey, value linkEventValue) {
+		dhcpMu.Lock()
+		defer dhcpMu.Unlock()
+		applyLinkEvent(key, value, activeDHCP, activeRouters, raRoutePriority, log)
+	})
+
+	// The rate tracker already dumps the interface list every second, so the
+	// resync reads live carrier state at no extra netlink cost. The callback
+	// runs on the tracker's ticker goroutine and MUST NOT take dhcpMu there: a
+	// config commit holds that lock for as long as it takes to stop and start
+	// DHCP clients, and blocking the ticker would stall rate collection for
+	// the whole commit. It pushes instead, and the worker does the comparison.
+	collectSubID := SubscribeCollectNotify(func(ifs []InterfaceInfo) {
+		linkQueue.pushResync(carrierFromInterfaces(ifs))
+	})
 
 	// unsubscribers tracks event bus subscriptions for cleanup.
 	var unsubscribers []func()
@@ -434,15 +434,10 @@ func runEngine(conn net.Conn) int {
 
 		b := GetBackend()
 
-		if errs := applyConfig(cfg, nil, b); len(errs) > 0 {
+		if errs := applyAndPublish(cfg, nil, b); len(errs) > 0 {
 			return joinApplyErrors("interface config", errs)
 		}
 		activeCfg.Store(cfg)
-		// Publish the logical<->os-name mapping to the shared resolver so
-		// consumers (IS-IS, ...) that call iface.Resolve translate a logical
-		// name to its kernel device. Done on every apply so a config change
-		// re-points the binding.
-		setResolverConfig(cfg)
 		log.Info("interface config applied")
 
 		eb := GetEventBus()
@@ -500,35 +495,6 @@ func runEngine(conn net.Conn) int {
 				handleDHCPLeaseEvent(data, activeDHCP, log)
 				dhcpMu.Unlock()
 			})),
-			// Link events enqueue to worker channel (no I/O in handler).
-			eb.Subscribe(ifaceevents.Namespace, ifaceevents.EventDown, events.AsString(func(data string) {
-				var ev struct {
-					Name string `json:"name"`
-				}
-				if err := json.Unmarshal([]byte(data), &ev); err == nil && ev.Name != "" {
-					select {
-					case linkEventCh <- linkEvent{name: ev.Name, up: false}:
-					default: // non-blocking: drop if buffer full (transient overload)
-					}
-				}
-			})),
-			eb.Subscribe(ifaceevents.Namespace, ifaceevents.EventUp, events.AsString(func(data string) {
-				var ev struct {
-					Name string `json:"name"`
-				}
-				if err := json.Unmarshal([]byte(data), &ev); err == nil && ev.Name != "" {
-					select {
-					case linkEventCh <- linkEvent{name: ev.Name, up: true}:
-					default: // non-blocking: drop if buffer full (transient overload)
-					}
-					// A registered owned-macvlan parent coming up re-triggers a
-					// reconcile pass so a device whose earlier create failed
-					// (parent was absent) is retried with no plugin calls.
-					if isRegisteredMacvlanParent(ev.Name) {
-						nonBlockingNotify(registryReconcileCh)
-					}
-				}
-			})),
 			// A registered owned-macvlan parent APPEARING (first RTM_NEWLINK)
 			// re-triggers a reconcile pass so the device is created once its
 			// parent exists (holo bug 12: fire-and-forget create replaced by an
@@ -541,18 +507,18 @@ func runEngine(conn net.Conn) int {
 					nonBlockingNotify(registryReconcileCh)
 				}
 			})),
-			// IPv6 router discovery events from netlink neighbor monitor.
-			eb.Subscribe(ifaceevents.Namespace, ifaceevents.EventRouterDiscovered, events.AsString(func(data string) {
-				dhcpMu.Lock()
-				handleRouterDiscovered(data, activeRouters, raRoutePriority, log)
-				dhcpMu.Unlock()
-			})),
-			eb.Subscribe(ifaceevents.Namespace, ifaceevents.EventRouterLost, events.AsString(func(data string) {
-				dhcpMu.Lock()
-				handleRouterLost(data, activeRouters, log)
-				dhcpMu.Unlock()
-			})),
 		)
+
+		// The carrier and router subscribers, which do no work of their own:
+		// each pushes onto linkQueue and the worker does every route call.
+		unsubscribers = append(unsubscribers, subscribeLinkEvents(eb, linkQueue, func(name string) {
+			// A registered owned-macvlan parent coming up re-triggers a
+			// reconcile pass so a device whose earlier create failed (parent
+			// was absent) is retried with no plugin calls.
+			if isRegisteredMacvlanParent(name) {
+				nonBlockingNotify(registryReconcileCh)
+			}
+		})...)
 
 		// Subscribe once to vpp lifecycle events so reconciliation that was
 		// deferred during initial apply (vpp handshake still in flight) runs
@@ -608,7 +574,11 @@ func runEngine(conn net.Conn) int {
 		j := sdk.NewJournal()
 		err := j.Record(
 			func() error {
-				if errs := applyConfig(cfg, previousCfg, b); len(errs) > 0 {
+				// A reload used to apply without republishing, which left every
+				// iface.Resolve consumer and every by-name dispatch op on the
+				// mapping the daemon booted with: an operator who re-pointed a
+				// selector saw it take effect only after a restart.
+				if errs := applyAndPublish(cfg, previousCfg, b); len(errs) > 0 {
 					return joinApplyErrors("interface reload", errs)
 				}
 				return nil
@@ -623,7 +593,7 @@ func runEngine(conn net.Conn) int {
 				if rollbackCfg == nil {
 					rollbackCfg = &ifaceConfig{Backend: defaultBackendName}
 				}
-				if errs := applyConfig(rollbackCfg, cfg, b); len(errs) > 0 {
+				if errs := applyAndPublish(rollbackCfg, cfg, b); len(errs) > 0 {
 					return joinApplyErrors("interface rollback", errs)
 				}
 				// Emit rollback event so downstream plugins react.
@@ -758,9 +728,12 @@ func runEngine(conn net.Conn) int {
 		unsub()
 	}
 
-	// Stop link event worker.
-	close(linkEventCh)
-	<-linkWorkerDone
+	// Stop the carrier resync feed before the worker, so no push outlives the
+	// goroutine that drains it.
+	UnsubscribeCollectNotify(collectSubID)
+
+	// Stop the link event worker. It applies what is still pending first.
+	linkQueue.stop()
 
 	// Stop vpp-ready reconcile worker. Must happen after the vpp-events
 	// unsubscribers above have run so no further sends race the close.
@@ -1218,6 +1191,18 @@ func handleLinkUp(ifaceName string, active map[dhcpUnitKey]dhcpEntry, log *slog.
 		active[key] = entry
 		return
 	}
+}
+
+// parseRouterEvent decodes a router-discovered or router-lost payload far
+// enough to key it in the link queue. A payload the handlers would refuse --
+// unparseable, or missing either field -- is refused here instead, so the queue
+// never holds an entry no handler would act on.
+func parseRouterEvent(data string) (RouterEventPayload, bool) {
+	var payload RouterEventPayload
+	if err := json.Unmarshal([]byte(data), &payload); err != nil || payload.Name == "" || payload.RouterIP == "" {
+		return RouterEventPayload{}, false
+	}
+	return payload, true
 }
 
 // handleRouterDiscovered processes a router-discovered event from the netlink

@@ -31,6 +31,7 @@ module ze-iface-conf {
 
         leaf os-name {
             type string;
+            ze:validate "os-device-name";
             description
                 "OS/kernel device this logical interface name binds to. When
                  omitted, the logical name is used as the OS device name, so

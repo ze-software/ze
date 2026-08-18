@@ -30,6 +30,18 @@ type ifaceMetrics struct {
 	// by the owned-device registry (device_owner.go) on register/unregister
 	// and by the reconcile device pass.
 	ownedDevices metrics.GaugeVec
+	// linkEventsCoalesced counts carrier and router events the link queue
+	// superseded before its worker took them (link_queue.go). A non-zero
+	// count says the worker fell behind the kernel, which a config commit
+	// causes because it holds the lock the worker takes. No final state is
+	// lost when it rises, which is the whole difference from the 16-deep
+	// channel this replaced: that one dropped the event instead.
+	linkEventsCoalesced metrics.CounterVec
+	// carrierResyncs counts interfaces whose route metric the carrier resync
+	// had to repair because acted-on state contradicted live carrier
+	// (link_queue.go, resyncCarrierState). A non-zero count says an event was
+	// never delivered or a route install failed, and names the interface.
+	carrierResyncs metrics.CounterVec
 }
 
 var ifaceMetricsPtr atomic.Pointer[ifaceMetrics]
@@ -52,6 +64,10 @@ func bindMetricsRegistry(reg metrics.Registry) {
 		rxDropped:    reg.GaugeVec("ze_interface_rx_dropped_total", "Interface total RX dropped (raw kernel counter)", []string{"name"}),
 		txDropped:    reg.GaugeVec("ze_interface_tx_dropped_total", "Interface total TX dropped (raw kernel counter)", []string{"name"}),
 		ownedDevices: reg.GaugeVec("ze_iface_owned_devices", "Plugin-owned devices (macvlan) per owner", []string{"owner"}),
+		linkEventsCoalesced: reg.CounterVec("ze_iface_link_events_coalesced_total",
+			"Carrier and router events superseded in the link queue before the worker took them", []string{"name"}),
+		carrierResyncs: reg.CounterVec("ze_iface_carrier_resyncs_total",
+			"Interfaces whose route metric the carrier resync repaired", []string{"name"}),
 	}
 	ifaceMetricsPtr.Store(m)
 }
@@ -325,5 +341,21 @@ func cleanStaleIfaceMetrics(previousNames, currentNames map[string]bool) {
 		m.txErrors.Delete(name)
 		m.rxDropped.Delete(name)
 		m.txDropped.Delete(name)
+	}
+}
+
+// countLinkEventCoalesced records that the link queue superseded a pending
+// event for ifaceName. A nil registry (no metrics bound) is not an error: the
+// engine runs before ConfigureMetrics and after a registry-less start.
+func countLinkEventCoalesced(ifaceName string) {
+	if m := ifaceMetricsPtr.Load(); m != nil {
+		m.linkEventsCoalesced.With(ifaceName).Inc()
+	}
+}
+
+// countCarrierResync records that the carrier resync repaired ifaceName.
+func countCarrierResync(ifaceName string) {
+	if m := ifaceMetricsPtr.Load(); m != nil {
+		m.carrierResyncs.With(ifaceName).Inc()
 	}
 }

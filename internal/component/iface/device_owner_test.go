@@ -149,20 +149,27 @@ func TestOwnedDeviceGaugeTracksRegistry(t *testing.T) {
 	}
 }
 
-// capturingGaugeRegistry is a metrics.Registry that records the owned-devices
-// GaugeVec so the test can read back per-owner values.
+// capturingGaugeRegistry is a metrics.Registry that records the vectors
+// bindMetricsRegistry creates, so a test can read back per-label values.
+//
+// CounterVec returns a working vector rather than nil on purpose: a nil stored
+// in ifaceMetrics is a panic waiting for the first counter increment, and the
+// increments run from goroutines no test controls (link_queue.go).
 type capturingGaugeRegistry struct {
 	ownedDevicesVec *capturingGaugeVec
+	counterVecs     map[string]*capturingCounterVec
 }
 
 func newCapturingGaugeRegistry() *capturingGaugeRegistry {
-	return &capturingGaugeRegistry{}
+	return &capturingGaugeRegistry{counterVecs: map[string]*capturingCounterVec{}}
 }
 
 func (r *capturingGaugeRegistry) Counter(string, string) metrics.Counter { return nil }
 func (r *capturingGaugeRegistry) Gauge(string, string) metrics.Gauge     { return nil }
-func (r *capturingGaugeRegistry) CounterVec(string, string, []string) metrics.CounterVec {
-	return nil
+func (r *capturingGaugeRegistry) CounterVec(name, _ string, _ []string) metrics.CounterVec {
+	v := newCapturingCounterVec()
+	r.counterVecs[name] = v
+	return v
 }
 func (r *capturingGaugeRegistry) GaugeVec(name, _ string, _ []string) metrics.GaugeVec {
 	v := &capturingGaugeVec{gauges: map[string]*capturingGauge{}}

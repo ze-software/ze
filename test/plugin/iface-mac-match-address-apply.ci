@@ -1,0 +1,178 @@
+# Test: an interface entry bound to hardware by mac/match gets its address on
+#       the kernel device carrying that MAC, under a different name.
+#
+# VALIDATES: spec-fixit-iface-selector-ignored-by-apply, AC-1. The address
+#            reconcile resolves each ethernet entry through its selector and
+#            keys the AddAddress call by the device that answers it
+#            (bindDevices + desiredState, internal/component/iface/config_apply.go).
+# PREVENTS:  the measured defect. desiredState keyed addresses by unitOSName,
+#            which returned the LOGICAL entry name, so a mac/match entry carrying
+#            an address made the daemon call AddAddress on a name the kernel does
+#            not carry; the backend answered "not found" and applyConfig rolled
+#            the whole commit back. Exit code 0 is therefore half the assertion:
+#            pre-fix the daemon failed its own startup config.
+#
+# The selected device is created by ze as a dummy in the same config and given
+# the MAC the selector names, because a functional test has no NIC of its own to
+# bind to. A dummy reports no permanent (factory) address, and deviceMatchMAC
+# falls back to the current address for exactly that reason, so the binding this
+# test exercises is the one a virtual device gets. The MAC is locally
+# administered (the 0x02 bit), so it can never collide with real hardware.
+#
+# The binding is made by the RECONCILE pass, not by Phase 2: Phase 2 reads the
+# interface list before the allEntries loop assigns the dummy its configured MAC,
+# so the selector matches nothing on that read and the entry defers. The
+# reconcile takes its own listing afterwards, finds the MAC, and applies the
+# address. That is the deferred-then-bound path AC-4 promises, exercised here
+# end to end, and both passes finish inside the startup apply.
+#
+# needs-linux:caps=net-admin: creating a netdev, setting its MAC and assigning an
+# address need CAP_NET_ADMIN, which the verify runner does not have. Runs as root
+# under `make ze-qemu-needs-linux-test`.
+#
+# KERNEL STATE THIS TEST OWNS: the device zemacsel0, the MAC 02:00:00:00:be:11
+# and the address block 198.51.100.128/28. No other file under test/ puts any of
+# them in a kernel. The per-test /28 matters because the plugin suite runs 8-wide
+# in ONE namespace (ZE_PLUGIN_PARALLEL, mk/test-functional.mk).
+option=needs-linux:caps=net-admin
+option=timeout:value=30s
+
+tmpfs=iface-mac-match-address-apply.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Assert the mac/match entry's address landed on the device carrying the MAC.
+
+The read goes straight to the kernel through `ip -j addr show`, not through a ze
+command, so nothing in the assertion shares a resolver with the code under test.
+"""
+
+import json
+import subprocess
+import sys
+
+from ze_api import API
+from ze_api import runtime_fail
+
+DEVICE = "zemacsel0"     # the kernel device carrying the selected MAC
+LOGICAL = "zemacwan"     # the entry name; no kernel device carries it
+MAC = "02:00:00:00:be:11"
+CIDR = "198.51.100.129/28"
+
+
+def ip_json(*args):
+    result = subprocess.run(["ip", "-j", *args], capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        return None
+    return json.loads(result.stdout or "[]")
+
+
+def addresses_on(device):
+    return [
+        f'{a["local"]}/{a["prefixlen"]}'
+        for entry in (ip_json("addr", "show", device) or [])
+        for a in (entry.get("addr_info") or [])
+    ]
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    api.wait_for_post_startup(timeout=5.0)
+
+    try:
+        links = ip_json("link", "show", DEVICE)
+        if not links:
+            runtime_fail(f'{DEVICE} was not created: the apply never reached the selected device')
+        if links[0].get("address") != MAC:
+            runtime_fail(f'{DEVICE} carries MAC {links[0].get("address")!r}, not {MAC}: '
+                         f'the selector had nothing to bind to')
+
+        found = addresses_on(DEVICE)
+        if CIDR not in found:
+            runtime_fail(f'{DEVICE} carries {found!r}, not {CIDR}: '
+                         f'the address did not follow the mac/match selector')
+
+        if ip_json("link", "show", LOGICAL):
+            runtime_fail(f'a device named {LOGICAL} exists: the apply worked on the logical name')
+
+        print(f'OK: mac/match selector applied {CIDR} to {DEVICE} ({MAC})', file=sys.stderr)
+    finally:
+        api._call_engine('ze-plugin-engine:dispatch-command', {'command': 'request shutdown'})
+        api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+	external iface-mac-match-address-apply {
+		run ./iface-mac-match-address-apply.run
+		encoder json
+	}
+}
+
+interface {
+	backend netlink
+
+	# The hardware the selector binds to. ze creates it and gives it the MAC.
+	dummy zemacsel0 {
+		mac {
+			address 02:00:00:00:be:11
+		}
+	}
+
+	# The entry an operator writes: a human-readable name bound to a NIC by
+	# its hardware address. Nothing in the kernel is named zemacwan.
+	ethernet zemacwan {
+		mac {
+			match 02:00:00:00:be:11
+		}
+		unit 0 {
+			ipv4 {
+				address [198.51.100.129/28]
+			}
+		}
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=30s
+expect=exit:code=0
+expect=stderr:contains=mac/match selector applied
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error

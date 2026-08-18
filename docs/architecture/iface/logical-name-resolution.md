@@ -27,15 +27,61 @@ deleted.
 
 The kernel device is never renamed. The binding is a map only.
 
+## The config apply path translates, and does not go through the resolver
+
+The apply path is the one consumer that does NOT call `Resolve`. It takes one
+interface listing per apply and binds every ethernet entry from it, so each
+logical name resolves once and Phase 2, Phase 2c and the address reconcile all
+key their work by the same kernel device. Two properties come out of that
+choice and neither comes free from the dispatch wrappers:
+
+- The apply resolves against the config it is applying, including the rollback
+  re-apply, rather than against whatever mapping happens to be published.
+- The prune step resolves the PREVIOUS config with the previous config's own
+  selectors, so it names the devices that config actually made.
+
+The sites the wrappers cannot reach were the other half of the reason. The
+per-interface sysctl keys and the ethtool offload ioctls take a device string
+and make no backend call, so a translation that lives in the dispatch layer
+never touches them.
+
+<!-- source: internal/component/iface/config_apply.go -- bindDevices, deviceFor, unitOSName -->
+
+An entry whose selector names no present device is UNBOUND, and every phase
+skips it. No phase falls back to the logical name: that fallback is what let an
+aliased entry configure whatever else carried its name, and it is the same
+fallback `resolveOS` now refuses for a name that HAS a selector. A `mac/match`
+that names more than one device refuses the apply, because nothing
+distinguishes the candidates. A VLAN sub-interface is excluded from MAC
+matching entirely: it inherits its parent's address, so leaving it in made a
+parent's own selector ambiguous the moment ze created a VLAN on it.
+
+<!-- source: internal/component/iface/config_apply.go -- validateSelectors, devicesWithMAC, isStackedDevice -->
+<!-- source: internal/component/iface/dispatch.go -- resolveOS -->
+
+## The mapping is published before the apply, not after
+
+`applyAndPublish` is the single entry point every config apply goes through. It
+calls `setResolverConfig` and then `applyConfig`, in that order, because the
+apply is itself a consumer: the by-name dispatch ops it reaches translate
+through the resolver, and so does every consumer reacting to what it does.
+Publishing afterwards ran each apply against the mapping of the commit before
+it, and the reload path published nothing at all, which left every consumer on
+the mapping the daemon booted with until it restarted.
+
+<!-- source: internal/component/iface/config_apply.go -- applyAndPublish -->
+<!-- source: internal/component/iface/register.go -- OnConfigure, OnConfigApply and its rollback -->
+
 ## Resolution path
 
 `Resolve(name)` translates the logical name through `effectiveOSName(name)`,
 which reads the config `os-name` override and falls back to the name itself,
 then looks up the OS device. The mapping is published to the resolver from the
-iface config-apply path, together with a reverse map from OS name to logical
-names, so a kernel-name monitor event reaches every logical name bound to it.
+iface config-apply path BEFORE the apply runs, together with a reverse map from
+OS name to logical names, so a kernel-name monitor event reaches every logical
+name bound to it.
 
-<!-- source: internal/component/iface/register.go -- setResolverConfig, bindResolverEvents -->
+<!-- source: internal/component/iface/resolve.go -- setResolverConfig, bindResolverEvents -->
 <!-- source: internal/component/iface/config.go -- ifaceEntry.OSName, osNameMap -->
 
 `osNameMap` emits real overrides only. It skips the identity mapping and the

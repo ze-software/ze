@@ -19,7 +19,13 @@ type mirrorSpec struct {
 // indexMirrorSpecs returns an OS device name -> mirrorSpec map of the mirrors
 // a config asks for. A disabled interface or unit contributes nothing, so
 // disabling one is a way of asking for no mirror.
-func indexMirrorSpecs(cfg *ifaceConfig) map[string]mirrorSpec {
+//
+// devices is bindDevices' answer for cfg, so a mirror on an interface selected
+// by mac/match or aliased by os-name is keyed by the kernel device tc installs
+// the filter on. An entry whose binding is unbound contributes nothing: there is
+// no device to mirror, and keying it by the logical name would install the
+// filter on whatever else carries that name.
+func indexMirrorSpecs(cfg *ifaceConfig, devices map[string]string) map[string]mirrorSpec {
 	if cfg == nil {
 		return nil
 	}
@@ -28,12 +34,16 @@ func indexMirrorSpecs(cfg *ifaceConfig) map[string]mirrorSpec {
 		if e.Disable {
 			continue
 		}
+		device, bound := deviceFor(devices, e.Name)
+		if !bound {
+			continue
+		}
 		for i := range e.Units {
 			u := &e.Units[i]
 			if u.Disable || (u.MirrorIngress == "" && u.MirrorEgress == "") {
 				continue
 			}
-			specs[unitOSName(e.Name, u)] = mirrorSpec{ingress: u.MirrorIngress, egress: u.MirrorEgress}
+			specs[unitOSName(device, u)] = mirrorSpec{ingress: u.MirrorIngress, egress: u.MirrorEgress}
 		}
 	}
 	return specs
@@ -56,19 +66,23 @@ func indexMirrorSpecs(cfg *ifaceConfig) map[string]mirrorSpec {
 //
 // Each removal is journalled with the previous mirror as its undo, so a later
 // failure in the same apply puts the mirror back.
-func removeStaleMirrors(cfg, previous *ifaceConfig, b Backend, journal *sdk.Journal) []error {
-	previousSpecs := indexMirrorSpecs(previous)
+func removeStaleMirrors(cfg, previous *ifaceConfig, devices, previousDevices map[string]string, b Backend, journal *sdk.Journal) []error {
+	previousSpecs := indexMirrorSpecs(previous, previousDevices)
 	if len(previousSpecs) == 0 {
 		return nil
 	}
-	desired := indexMirrorSpecs(cfg)
+	desired := indexMirrorSpecs(cfg, devices)
 
 	var errs []error
 	// Walk the previous config in its own order, so the teardown sequence is
 	// reproducible rather than map-random.
 	for _, e := range allIfaceEntries(previous) {
+		device, bound := deviceFor(previousDevices, e.Name)
+		if !bound {
+			continue
+		}
 		for i := range e.Units {
-			osName := unitOSName(e.Name, &e.Units[i])
+			osName := unitOSName(device, &e.Units[i])
 			prev, had := previousSpecs[osName]
 			if !had || desired[osName] == prev {
 				continue

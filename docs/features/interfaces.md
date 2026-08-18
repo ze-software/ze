@@ -222,13 +222,35 @@ layer performs this translation for the by-name backend ops, leaving
 checks gate (`make ze-iface-resolution-check`) keeps new consumers from
 resolving the kernel directly instead of through the resolver.
 
+The **config apply path** resolves separately, and on purpose. It takes ONE interface
+listing per apply and binds every ethernet entry from it, so each logical name resolves
+once and Phase 2, Phase 2c and the address reconcile all key their work by the same
+kernel device. Going through the dispatch wrappers instead would translate at each of
+about twenty call sites and still miss the sites that take a device string rather than
+make a backend call: the per-interface sysctl keys and the ethtool offload ioctls.
+
+An entry whose selector names no present device is **unbound**: every phase skips it,
+and none falls back to the logical name. That fallback is what made an aliased entry
+configure whatever else carried its name. An entry whose `mac/match` names more than one
+device refuses the apply. `resolveOS` draws the same line for the by-name dispatch ops:
+a name with no selector passes through unchanged, and a name WITH a selector that fails
+to resolve returns an error rather than the name.
+
+<!-- source: internal/component/iface/config_apply.go -- bindDevices, deviceFor, validateSelectors -->
 <!-- source: internal/component/iface/dispatch.go -- resolveOS translation in the by-name dispatch ops -->
 <!-- source: internal/component/iface/resolve.go -- Resolve / Addresses / Subscribe logical-name resolver -->
 <!-- source: scripts/checks/iface_resolution.go -- no-direct-resolution guard -->
 
 A MAC address validator (`ze:validate "mac-address"`) provides format checking (colon-separated
 hex octets) and live OS autocomplete. The `CompleteFn` calls `DiscoverInterfaces` on each
-tab press, returning MAC addresses from currently active OS interfaces.
+tab press, returning MAC addresses from currently active OS interfaces. The `os-name`
+selector carries the sibling validator `ze:validate "os-device-name"`, which screens the
+FORM of a kernel device name and completes to the device names present on the box. It
+does not check that the device exists: the YANG promises a binding that defers until its
+device appears, and a config is validated on machines that will never run it.
+
+<!-- source: internal/component/config/validators.go -- MACAddressValidator, OSDeviceNameValidator -->
+<!-- source: internal/component/iface/validators.go -- macAddressCompleteFn, osDeviceNameCompleteFn -->
 
 <!-- source: internal/component/config/validators.go -- MACAddressValidator, CompleteFn -->
 <!-- source: internal/component/config/validators_register.go -- mac-address registration -->

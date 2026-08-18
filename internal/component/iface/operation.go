@@ -123,8 +123,26 @@ func decomposeIfaceOperations(_ context.Context, req tx.DecomposeRequest) ([]tx.
 	if err != nil {
 		return nil, fmt.Errorf("iface operation decompose candidate: %w", err)
 	}
-	activeAddrs, activeManaged, _ := active.desiredState()
-	candidateAddrs, candidateManaged, _ := candidate.desiredState()
+	// Resolve both sides' hardware selectors against the devices present now,
+	// so every operation names the kernel device it will be applied to. The
+	// executor hands that name straight to the backend (applyIfaceOperation),
+	// and the settlement rule waits on a monitor event that carries the KERNEL
+	// name, so a logical name here would configure the wrong device and then
+	// never settle. One listing serves both sides, which keeps the diff between
+	// them a diff about config rather than about resolution.
+	//
+	// Without a listing every selected entry reads as unbound and contributes no
+	// operation, which is the same fail-safe direction the apply path takes: skip
+	// the entry, never guess a device for it. There is no separate refusal to
+	// make here, because this function's caller appends what it returns and
+	// cannot tell nil from an empty slice (reload_tx.go decomposeRootOperations).
+	// An entry with no selector needs no listing and is unaffected.
+	var infos []InterfaceInfo
+	if b := GetBackend(); b != nil {
+		infos, _ = b.ListInterfaces()
+	}
+	activeAddrs, activeManaged, _ := active.desiredState(active.bindDevices(infos))
+	candidateAddrs, candidateManaged, _ := candidate.desiredState(candidate.bindDevices(infos))
 
 	var ops []tx.ConfigOperation
 

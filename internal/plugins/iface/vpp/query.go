@@ -227,8 +227,16 @@ func detailsToInfo(d *interfaces.SwInterfaceDetails) iface.InterfaceInfo {
 	if len(d.Mtu) > 0 {
 		mtu = int(d.Mtu[0])
 	}
+	name := trimCString(d.InterfaceName)
 	return iface.InterfaceInfo{
-		Name:        trimCString(d.InterfaceName),
+		Name: name,
+		// OsName is what the shared resolver reads back as the kernel device a
+		// logical name resolved to (resolve.go bindingFromInfo). Leaving it
+		// empty made every Resolve on this backend answer with an empty device,
+		// so the by-name dispatch ops fell back to the logical name and an
+		// os-name or mac/match selector steered nothing at all on VPP. The
+		// netlink backend has always set it (show_linux.go).
+		OsName:      name,
 		Index:       int(d.SwIfIndex),
 		Type:        d.Type.String(),
 		State:       state,

@@ -75,6 +75,7 @@ func TestIfaceSameSubnetSwapAppliesNewAddress(t *testing.T) {
 
 	b := &fakeBackend{}
 	b.ensureMaps()
+	b.ifaces["zdiag0"] = fakeIface{name: "zdiag0", linkType: "dummy"}
 	b.addrs["zdiag0"] = []string{"10.77.0.1/24"}
 	for i := range sorted {
 		_, err := applyIfaceOperation(&sorted[i], b)

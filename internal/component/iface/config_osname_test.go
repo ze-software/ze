@@ -1,6 +1,12 @@
 package iface
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+
+	"github.com/ze-software/ze/internal/component/config"
+)
 
 // VALIDATES: spec-iface-resolve-2 -- the os-name selector parses into the
 // runtime config and osNameMap builds the logical->os override map the resolver
@@ -52,4 +58,57 @@ func TestOSNameMapSkipsIdentityAndAbsent(t *testing.T) {
 	if len(m) != 1 {
 		t.Errorf("override map size = %d, want 1", len(m))
 	}
+}
+
+// TestOSDeviceNameValidatorScreensForm verifies the os-name leaf's validator
+// refuses a value no kernel device can carry, and accepts one that is merely
+// absent from this box: the YANG promises a binding that defers until its device
+// appears, and a config is validated on machines that will never run it.
+//
+// VALIDATES: spec-fixit-iface-selector-ignored-by-apply, the editor surface.
+// PREVENTS: `ze config validate` accepting an os-name the backend can only fail
+// on, and rejecting an alias for hardware that is not plugged in yet.
+func TestOSDeviceNameValidatorScreensForm(t *testing.T) {
+	validate := config.OSDeviceNameValidator().ValidateFn
+
+	for _, accepted := range []string{"eth0", "enp1s0f0np0", "a"} {
+		if err := validate("interface/ethernet/wan/os-name", accepted); err != nil {
+			t.Errorf("os-name %q refused: %v", accepted, err)
+		}
+	}
+	for _, refused := range []string{"", "this-name-is-far-too-long", "eth/0", "../etc", "eth 0"} {
+		if err := validate("interface/ethernet/wan/os-name", refused); err == nil {
+			t.Errorf("os-name %q accepted; no kernel device can carry it", refused)
+		}
+	}
+}
+
+// TestOSDeviceNameCompletionOffersPresentDevices verifies the os-name selector
+// completes to the devices this box carries. A mistyped alias is not refused by
+// validation, so completion is what separates a typo from an intent.
+//
+// VALIDATES: spec-fixit-iface-selector-ignored-by-apply, the editor surface.
+// PREVENTS: the os-name leaf staying a blind free-text field.
+func TestOSDeviceNameCompletionOffersPresentDevices(t *testing.T) {
+	b := &fakeBackend{ifaces: map[string]fakeIface{
+		"enp1s0": {name: "enp1s0", linkType: "device", index: 2},
+		"enp2s0": {name: "enp2s0", linkType: "device", index: 3},
+	}}
+	const backendName = "os-device-name-completion"
+	if err := RegisterBackend(backendName, func() (Backend, error) { return b, nil }); err != nil {
+		t.Fatalf("register backend: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = CloseBackend()
+		backendsMu.Lock()
+		delete(backends, backendName)
+		backendsMu.Unlock()
+	})
+	if err := LoadBackend(backendName); err != nil {
+		t.Fatalf("load backend: %v", err)
+	}
+
+	got := osDeviceNameCompleteFn()
+
+	assert.ElementsMatch(t, []string{"enp1s0", "enp2s0"}, got)
 }

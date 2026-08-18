@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"sort"
 	"strings"
 	"sync"
 
@@ -144,29 +145,35 @@ func (r *resolver) osDeviceFor(name string) (*InterfaceInfo, error) {
 // matchByMAC returns the interface whose hardware MAC equals want. It matches
 // the permanent (factory) MAC when the device reports one -- so the binding
 // survives an operational MAC override on a real NIC -- and falls back to the
-// current MAC for the virtual kinds that report no permanent address. When
-// several devices match (a kernel anomaly) the lowest ifindex wins, for
-// determinism.
+// current MAC for the virtual kinds that report no permanent address
+// (deviceMatchMAC, shared with the config-apply path through devicesWithMAC).
+//
+// Several matching devices is refused rather than resolved. Nothing
+// distinguishes the candidates, so picking one -- by lowest ifindex or by any
+// other rule -- is a guess about which physical port a caller's addresses,
+// routes and admin state reach.
 func (r *resolver) matchByMAC(name, want string) (*InterfaceInfo, error) {
 	target := normalizeMAC(want)
 	infos, err := ListInterfaces()
 	if err != nil {
 		return nil, err
 	}
-	var best *InterfaceInfo
-	for i := range infos {
-		if normalizeMAC(deviceMatchMAC(&infos[i])) != target {
-			continue
-		}
-		if best == nil || infos[i].Index < best.Index {
-			c := infos[i]
-			best = &c
-		}
-	}
-	if best == nil {
+	matched := devicesWithMAC(infos, want)
+	switch len(matched) {
+	case 0:
 		return nil, fmt.Errorf("iface: no device with MAC %s for logical interface %q", target, name)
+	case 1:
+		info := infos[matched[0]]
+		return &info, nil
+	default:
+		names := make([]string, 0, len(matched))
+		for _, idx := range matched {
+			names = append(names, infos[idx].Name)
+		}
+		sort.Strings(names)
+		return nil, fmt.Errorf("iface: MAC %s for logical interface %q is carried by %d devices (%s); a hardware MAC selects at most one device",
+			target, name, len(names), strings.Join(names, ", "))
 	}
-	return best, nil
 }
 
 // deviceMatchMAC returns the MAC the resolver matches a device on: its permanent
@@ -302,6 +309,21 @@ func (r *resolver) onLinkEvent(kernelName string, kind LinkEventKind, index int)
 			}
 		}
 	}
+}
+
+// hasSelector reports whether the logical name carries a hardware selector --
+// an os-name alias or a mac/match binding. It is what separates "this name IS
+// its kernel device" from "this name was bound to other hardware", which is the
+// difference between a failed resolution that may fall back to the name and one
+// that must not (resolveOS in dispatch.go).
+func (r *resolver) hasSelector(name string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, ok := r.permMACs[name]; ok {
+		return true
+	}
+	_, ok := r.osNames[name]
+	return ok
 }
 
 // hasPermMACMatches reports whether any mac/match selector is configured, so

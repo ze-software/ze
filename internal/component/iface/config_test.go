@@ -1166,7 +1166,10 @@ func TestApplyWireguardsUnchangedSkipsConfigure(t *testing.T) {
 		Wireguard: []wireguardEntry{{ifaceEntry: ifaceEntry{Name: "wg0"}, Spec: spec}},
 	}
 
-	b := &fakeBackend{ifaces: map[string]fakeIface{}}
+	// The previous config already had wg0, so the kernel already has the
+	// device: applyConfig skips the create, and every later phase addresses a
+	// link that exists.
+	b := &fakeBackend{ifaces: map[string]fakeIface{"wg0": {name: "wg0", linkType: "wireguard"}}}
 	errs := applyConfig(cfg, previous, b)
 	assert.Empty(t, errs)
 	assert.Equal(t, 0, b.wgConfigCt["wg0"], "configure should be skipped when spec unchanged")
@@ -1199,7 +1202,10 @@ func TestApplyWireguardsAddPeer(t *testing.T) {
 	previous := &ifaceConfig{Wireguard: []wireguardEntry{{ifaceEntry: ifaceEntry{Name: "wg0"}, Spec: base}}}
 	cfg := &ifaceConfig{Wireguard: []wireguardEntry{{ifaceEntry: ifaceEntry{Name: "wg0"}, Spec: withNew}}}
 
-	b := &fakeBackend{ifaces: map[string]fakeIface{}}
+	// The previous config already had wg0, so the kernel already has the
+	// device: applyConfig skips the create, and every later phase addresses a
+	// link that exists.
+	b := &fakeBackend{ifaces: map[string]fakeIface{"wg0": {name: "wg0", linkType: "wireguard"}}}
 	errs := applyConfig(cfg, previous, b)
 	assert.Empty(t, errs)
 	assert.Equal(t, 1, b.wgConfigCt["wg0"])
@@ -1229,7 +1235,10 @@ func TestApplyWireguardsRemovePeer(t *testing.T) {
 	previous := &ifaceConfig{Wireguard: []wireguardEntry{{ifaceEntry: ifaceEntry{Name: "wg0"}, Spec: twoPeer}}}
 	cfg := &ifaceConfig{Wireguard: []wireguardEntry{{ifaceEntry: ifaceEntry{Name: "wg0"}, Spec: onePeer}}}
 
-	b := &fakeBackend{ifaces: map[string]fakeIface{}}
+	// The previous config already had wg0, so the kernel already has the
+	// device: applyConfig skips the create, and every later phase addresses a
+	// link that exists.
+	b := &fakeBackend{ifaces: map[string]fakeIface{"wg0": {name: "wg0", linkType: "wireguard"}}}
 	errs := applyConfig(cfg, previous, b)
 	assert.Empty(t, errs)
 	assert.Equal(t, 1, b.wgConfigCt["wg0"])
@@ -1262,7 +1271,10 @@ func TestApplyWireguardsAllowedIPsChange(t *testing.T) {
 	previous := &ifaceConfig{Wireguard: []wireguardEntry{{ifaceEntry: ifaceEntry{Name: "wg0"}, Spec: beforeSpec}}}
 	cfg := &ifaceConfig{Wireguard: []wireguardEntry{{ifaceEntry: ifaceEntry{Name: "wg0"}, Spec: afterSpec}}}
 
-	b := &fakeBackend{ifaces: map[string]fakeIface{}}
+	// The previous config already had wg0, so the kernel already has the
+	// device: applyConfig skips the create, and every later phase addresses a
+	// link that exists.
+	b := &fakeBackend{ifaces: map[string]fakeIface{"wg0": {name: "wg0", linkType: "wireguard"}}}
 	errs := applyConfig(cfg, previous, b)
 	assert.Empty(t, errs)
 	assert.Equal(t, 1, b.wgConfigCt["wg0"])
@@ -1300,7 +1312,10 @@ func TestApplyWireguardsEndpointChange(t *testing.T) {
 	previous := &ifaceConfig{Wireguard: []wireguardEntry{{ifaceEntry: ifaceEntry{Name: "wg0"}, Spec: beforeSpec}}}
 	cfg := &ifaceConfig{Wireguard: []wireguardEntry{{ifaceEntry: ifaceEntry{Name: "wg0"}, Spec: afterSpec}}}
 
-	b := &fakeBackend{ifaces: map[string]fakeIface{}}
+	// The previous config already had wg0, so the kernel already has the
+	// device: applyConfig skips the create, and every later phase addresses a
+	// link that exists.
+	b := &fakeBackend{ifaces: map[string]fakeIface{"wg0": {name: "wg0", linkType: "wireguard"}}}
 	errs := applyConfig(cfg, previous, b)
 	assert.Empty(t, errs)
 	assert.Equal(t, 1, b.wgConfigCt["wg0"])
@@ -2152,6 +2167,9 @@ type fakeBackend struct {
 	mirrorCalls      []mirrorCall           // ordered log of SetupMirror + RemoveMirror calls
 	setupMirrorErr   map[string]error       // per-source-interface SetupMirror error injection
 	removeMirrorErr  map[string]error       // per-source-interface RemoveMirror error injection
+	nextIndex        int                    // hands each created device its own kernel index
+	mtuSet           map[string]int         // kernel device -> MTU recorded by SetMTU
+	adminSet         map[string]string      // kernel device -> "up"/"down" recorded by SetAdminUp/Down
 }
 
 // The two mirror operations a backend can be asked for.
@@ -2172,13 +2190,19 @@ type mirrorCall struct {
 }
 
 type fakeIface struct {
-	name        string
-	linkType    string
-	mac         string
+	name     string
+	linkType string
+	mac      string
+	// permMAC is the device's permanent (factory) address, IFLA_PERM_ADDRESS.
+	// A real NIC reports one and a virtual device does not, which is the
+	// difference the mac/match selector is built on: deviceMatchMAC prefers it
+	// so a binding survives an operational MAC override.
+	permMAC     string
 	alias       string
 	index       int // the interface's own kernel index
 	parentIndex int // for macvlan: the parent's index
 	mtu         int
+	state       string
 }
 
 func (b *fakeBackend) ensureMaps() {
@@ -2242,7 +2266,20 @@ func (b *fakeBackend) CreateVLAN(spec VLANSpec) error {
 	name := nb.Str(spec.Parent).Byte('.').Int(int64(spec.VLANID)).String()
 	b.created[name] = true
 	b.vlans[name] = spec
-	b.ifaces[name] = fakeIface{name: name, linkType: "vlan"}
+	// A VLAN sub-interface INHERITS its parent's hardware address and names the
+	// parent in ParentIndex, and it reports no permanent address of its own.
+	// A fake that left the MAC empty could not show what a live kernel showed:
+	// the parent's own mac/match selector matching its child as well as itself.
+	parent := b.ifaces[spec.Parent]
+	b.nextIndex++
+	b.ifaces[name] = fakeIface{
+		name:        name,
+		linkType:    "vlan",
+		mac:         parent.mac,
+		index:       1000 + b.nextIndex,
+		parentIndex: parent.index,
+		mtu:         parent.mtu,
+	}
 	return nil
 }
 
@@ -2349,9 +2386,42 @@ func (b *fakeBackend) CreateMacvlanDevice(spec MacvlanSpec) error {
 }
 func (b *fakeBackend) GetXFRMInfo(_ string) (XFRMInfo, error) { return XFRMInfo{}, nil }
 
-func (b *fakeBackend) SetAdminUp(_ string) error    { return nil }
-func (b *fakeBackend) SetAdminDown(_ string) error  { return nil }
-func (b *fakeBackend) SetMTU(_ string, _ int) error { return nil }
+// SetAdminUp, SetAdminDown, SetMTU and AddAddress all refuse a device that is
+// not present, which is what the netlink backend does: each starts with
+// netlink.LinkByName and answers "not found" when it fails (manage_linux.go).
+// A fake that accepted any name could not tell an apply that reached the
+// operator's hardware from one that named a device which does not exist.
+func (b *fakeBackend) SetAdminUp(name string) error { return b.setAdmin(name, "up") }
+
+func (b *fakeBackend) SetAdminDown(name string) error { return b.setAdmin(name, "down") }
+
+func (b *fakeBackend) setAdmin(name, state string) error {
+	if _, ok := b.ifaces[name]; !ok {
+		return fmt.Errorf("iface: set %s %q: not found: link not found", state, name)
+	}
+	if b.adminSet == nil {
+		b.adminSet = make(map[string]string)
+	}
+	b.adminSet[name] = state
+	f := b.ifaces[name]
+	f.state = state
+	b.ifaces[name] = f
+	return nil
+}
+
+func (b *fakeBackend) SetMTU(name string, mtu int) error {
+	f, ok := b.ifaces[name]
+	if !ok {
+		return fmt.Errorf("iface: set mtu on %q: not found: link not found", name)
+	}
+	if b.mtuSet == nil {
+		b.mtuSet = make(map[string]int)
+	}
+	b.mtuSet[name] = mtu
+	f.mtu = mtu
+	b.ifaces[name] = f
+	return nil
+}
 func (b *fakeBackend) SetMACAddress(name, mac string) error {
 	// Faithful to the netlink backend: setting a MAC on an interface whose link
 	// is absent fails with a not-found error (manage_linux.go SetMACAddress).
@@ -2364,7 +2434,13 @@ func (b *fakeBackend) SetMACAddress(name, mac string) error {
 	b.macSet[name] = mac
 	return nil
 }
-func (b *fakeBackend) GetMACAddress(_ string) (string, error) { return "", nil }
+func (b *fakeBackend) GetMACAddress(name string) (string, error) {
+	f, ok := b.ifaces[name]
+	if !ok {
+		return "", fmt.Errorf("iface: get mac on %q: not found: link not found", name)
+	}
+	return f.mac, nil
+}
 func (b *fakeBackend) GetStats(_ string) (*InterfaceStats, error) {
 	return &InterfaceStats{}, nil
 }
@@ -2380,6 +2456,9 @@ func (b *fakeBackend) AddAddress(ifaceName, cidr string) error {
 	b.ensureMaps()
 	if err := b.addAddressErr[addressErrKey(ifaceName, cidr)]; err != nil {
 		return err
+	}
+	if _, ok := b.ifaces[ifaceName]; !ok {
+		return fmt.Errorf("iface: add address on %q: not found: link not found", ifaceName)
 	}
 	b.callOrder = append(b.callOrder, "add-address:"+ifaceName+":"+cidr)
 	b.addrs[ifaceName] = append(b.addrs[ifaceName], cidr)
@@ -2442,7 +2521,11 @@ func (b *fakeBackend) ListInterfaces() ([]InterfaceInfo, error) {
 	}
 	var result []InterfaceInfo
 	for _, f := range b.ifaces {
-		info := InterfaceInfo{Name: f.name, Type: f.linkType, MAC: f.mac, Alias: f.alias, ParentIndex: f.parentIndex, MTU: f.mtu, Index: f.index}
+		// OsName carries the kernel device name, as the netlink backend sets it
+		// (show_linux.go). The resolver reads it back as the device a logical
+		// name resolved to, so a fake that left it empty made every Resolve in
+		// a unit test answer with no device.
+		info := InterfaceInfo{Name: f.name, OsName: f.name, Type: f.linkType, MAC: f.mac, PermanentMAC: f.permMAC, Alias: f.alias, ParentIndex: f.parentIndex, MTU: f.mtu, Index: f.index, State: f.state}
 		if addrs, ok := b.addrs[f.name]; ok {
 			for _, a := range addrs {
 				// b.addrs stores full CIDR strings (what AddAddress received,
@@ -2471,7 +2554,12 @@ func (b *fakeBackend) GetInterface(name string) (*InterfaceInfo, error) {
 	if !ok {
 		return nil, fmt.Errorf("interface %s not found", name)
 	}
-	return &InterfaceInfo{Name: f.name, Type: f.linkType}, nil
+	// The same projection ListInterfaces makes. A GetInterface that answered
+	// with the name and type alone made the apply path read MTU 0 and an empty
+	// state for every device, so its MTU undo and its admin-state undo were
+	// no-ops no test could see.
+	return &InterfaceInfo{Name: f.name, OsName: f.name, Type: f.linkType, MAC: f.mac, PermanentMAC: f.permMAC,
+		Alias: f.alias, ParentIndex: f.parentIndex, MTU: f.mtu, Index: f.index, State: f.state}, nil
 }
 
 func (b *fakeBackend) BridgeAddPort(_, _ string) error     { return nil }
@@ -3439,7 +3527,7 @@ func TestDesiredState_PerFamilyAddresses(t *testing.T) {
 			}},
 		}},
 	}
-	addrs, managed, _ := cfg.desiredState()
+	addrs, managed, _ := cfg.desiredState(nil)
 	assert.True(t, managed["dum0"])
 	assert.True(t, addrs["dum0"]["10.0.0.1/24"])
 	assert.True(t, addrs["dum0"]["fd00::1/64"])
@@ -3868,7 +3956,8 @@ func TestApplyXFRMUnchangedSkipsRecreate(t *testing.T) {
 			Spec:       spec,
 		}},
 	}
-	b := &fakeBackend{ifaces: map[string]fakeIface{}}
+	// Unchanged spec means the device survived the reload, so it is present.
+	b := &fakeBackend{ifaces: map[string]fakeIface{"xfrm0": {name: "xfrm0", linkType: "xfrm"}}}
 	errs := applyConfig(cfg, prev, b)
 	assert.Empty(t, errs)
 	assert.False(t, b.created["xfrm0"])

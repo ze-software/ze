@@ -18,7 +18,7 @@ func TestDesiredState_IncludesRegisteredOwnerAddresses(t *testing.T) {
 	}
 
 	cfg := &ifaceConfig{}
-	addrs, _, _ := cfg.desiredState()
+	addrs, _, _ := cfg.desiredState(nil)
 
 	if !addrs["lo"]["192.175.48.1/32"] {
 		t.Fatalf("desiredState() addrs[lo] = %v, want it to include the registered address", addrs["lo"])
@@ -36,7 +36,7 @@ func TestDesiredState_DropsAddressAfterUnregister(t *testing.T) {
 	UnregisterOwnedAddresses("test-owner")
 
 	cfg := &ifaceConfig{}
-	addrs, _, _ := cfg.desiredState()
+	addrs, _, _ := cfg.desiredState(nil)
 
 	if addrs["lo"]["192.175.48.1/32"] {
 		t.Fatalf("desiredState() addrs[lo] still contains the unregistered address: %v", addrs["lo"])
@@ -61,7 +61,7 @@ func TestDesiredState_YangAndRegistryOverlap(t *testing.T) {
 		},
 	}
 
-	addrs, _, _ := cfg.desiredState()
+	addrs, _, _ := cfg.desiredState(nil)
 	if got := len(addrs["lo"]); got != 1 {
 		t.Fatalf("desiredState() addrs[lo] has %d entries, want exactly 1 (deduplicated): %v", got, addrs["lo"])
 	}
@@ -71,7 +71,7 @@ func TestDesiredState_YangAndRegistryOverlap(t *testing.T) {
 
 	// Plugin unregisters; YANG config still declares the address.
 	UnregisterOwnedAddresses("test-owner")
-	addrs, _, _ = cfg.desiredState()
+	addrs, _, _ = cfg.desiredState(nil)
 	if !addrs["lo"][shared] {
 		t.Fatalf("desiredState() dropped %q after unregister even though YANG config still declares it", shared)
 	}
@@ -88,7 +88,7 @@ func TestDesiredState_EmptyRegistryUnchanged(t *testing.T) {
 		},
 	}
 
-	addrs, managed, _ := cfg.desiredState()
+	addrs, managed, _ := cfg.desiredState(nil)
 	if len(addrs) != 1 || len(addrs["lo"]) != 1 || !addrs["lo"]["127.0.0.1/8"] {
 		t.Fatalf("desiredState() with empty registry = %v, want only the YANG-declared address", addrs)
 	}
@@ -310,7 +310,7 @@ func TestApplyLoopbackLCPPairOnVPP(t *testing.T) {
 			Backend: vppBackendName,
 			Dummy:   []ifaceEntry{{Name: "loop0"}},
 		}
-		if err := recreateManagedInterface(cfg, "loop0", b); err != nil {
+		if err := recreateManagedInterface(cfg, nil, "loop0", b); err != nil {
 			t.Fatalf("recreateManagedInterface: %v", err)
 		}
 		if got := b.lcpPairs["loop0"]; got != "loop0" {
