@@ -1,6 +1,6 @@
 # 03 — ze initiator (LAC/dialer) vs xl2tpd LNS
 
-Spec: `plan/spec-followup-l2tp-call.md` (AC-7). This is the inverse of scenarios
+Spec: `plan/spec-followup-l2tp-call.md` (AC-7). This is the inverse of scenarios  <!-- doc-links: ignore (interop scenario this document plans; it does not exist in the tree) -->
 01/02: here **ze dials** a real `xl2tpd` daemon running as an LNS, proving the
 new initiator half of the L2TPv2 tunnel FSM (SCCRQ initiation → SCCRP handling →
 SCCCN → established) interoperates with an independent RFC 2661 implementation.

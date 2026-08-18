@@ -96,7 +96,7 @@ command grammar has advertised since 2026-06-03 and never emitted.
 - [ ] `internal/component/ike/engine/testport.go` - `ikeDataplaneName()` returns the `ze.test.ike.dataplane` override or `xfrm`. Functional tests set it to `noop`.
 - [ ] `internal/appliance/kernelreq.go` - `runtimeKernelRequirements` lists `CONFIG_MODULES`, `CONFIG_PPP`, `CONFIG_PPPOE`, `CONFIG_L2TP`, `CONFIG_PPPOL2TP`, `CONFIG_L2TP_V3`. `enforceKernelRequirements` unions the profile manifests with this floor and fails the build when a symbol is not `=y`.
 - [ ] `gokrazy/kernel/kernel.config` - holds `CONFIG_XFRM_USER=y`. No fragment holds `CONFIG_INET_ESP` or `CONFIG_XFRM_STATISTICS`.
-- [ ] `test/ipsec-interop/lab.py` - `ze_xfrm_state`, `ze_xfrm_policy`, `wait_xfrm_sa`, `check_xfrm_sa_count`, `xfrm_sa_bytes_by_spi`, and `assert_esp_accepted` all run iproute2 through `docker_exec_quiet`. There is no helper that runs a `ze` CLI command.
+- [ ] `test/interop-ipsec/lab.py` - `ze_xfrm_state`, `ze_xfrm_policy`, `wait_xfrm_sa`, `check_xfrm_sa_count`, `xfrm_sa_bytes_by_spi`, and `assert_esp_accepted` all run iproute2 through `docker_exec_quiet`. There is no helper that runs a `ze` CLI command.
 - [ ] `scripts/evidence/qemu-all-tests.sh` - 23 `fsuite` lines. None of them is `ipsec`.
 - [ ] `gokrazy/ze/config.json` - image packages are `cmd/ze-serial-shell` and `cmd/ze`, plus gokrazy `randomd` and `heartbeat`.
 
@@ -136,7 +136,7 @@ command grammar has advertised since 2026-06-03 and never emitted.
 | Command handler ↔ dataplane backend | `dataplane.Get()` then the `Dataplane` interface | No |
 | Dataplane ↔ Linux kernel | netlink `XFRM_MSG_GETSA` and `XFRM_MSG_GETPOLICY` dumps through the vendored `vishvananda/netlink` | No |
 | Engine belief ↔ kernel truth | drift handler reads `engine.PeerInfoMap()` and the SAD dump, and reports the difference | No |
-| Interop harness ↔ ze container | new `ze_cli` helper in `test/ipsec-interop/lab.py` running `ze cli -c` through `docker_exec` | No |
+| Interop harness ↔ ze container | new `ze_cli` helper in `test/interop-ipsec/lab.py` running `ze cli -c` through `docker_exec` | No |
 
 ### Integration Points
 - `dataplane.Get()` - already the accessor used by `engine/register.go` and `engine/reconcile.go`.
@@ -164,7 +164,7 @@ command grammar has advertised since 2026-06-03 and never emitted.
 | A-3 | An appliance kernel with `CONFIG_XFRM_USER=y` lists nothing for `xfrm_user` in `/proc/modules`, so `checkKernelModules` reports a false error today | `loadedKernelModules` reads `/proc/modules`, which lists loaded modules only; built-in code never appears there | the module check is correct and only the ESP floor is missing | run `ze doctor` in QEMU against an IPsec config on the appliance kernel and observe the diagnostic | **confirmed at source** 2026-08-03: `readLoadedModules` (`internal/component/doctor/checks_linux.go`) parses `/proc/modules` alone, and `checkKernelModules` in the same file appends `xfrm_user` and `xfrm_algo`. Observing the diagnostic on a built-in kernel still needs QEMU |
 | A-4 | A `.ci` under `option=needs-linux:caps=net-admin` can run the real xfrm backend once `fsuite ipsec` is added to the QEMU runner | `ikeDataplaneName()` defaults to `xfrm` when no override is set; other suites already run with that option | the kernel-level `.ci` has no home and the evidence must come from the Go integration tier alone | add the `fsuite` line and run `make ze-qemu-integration-test` | unvalidated. `scripts/evidence/qemu-all-tests.sh` carries 23 `fsuite` lines and none is `ipsec`; `caps=net-admin` is already used by several `test/reload/*.ci`. Settled only by a QEMU run |
 | A-5 | `XfrmPolicyList` returns the policies IKE installs at `if_id 0`, so the SPD dump is not limited to xfrm-interface peers | `GetXFRMInfo` (`internal/plugins/iface/netlink/xfrm_linux.go`) filters the same call by `Ifid`, which implies the unfiltered call returns all of them | the SPD dump misses site-to-site policies, which is most of them | `TestXFRMReadbackPolicyNoIfID` installs a policy with `IfID` zero and asserts the dump returns it | unvalidated. Settled only by a real kernel, and not upgraded on inference |
-| A-6 | Returning `ErrNotSupported` from the noop backend does not break an existing functional test | no `.ci` calls `ListSAs` today, because no production caller exists | a `.ci` goes red and the change needs a different shape | `make ze-precommit-verify` after Phase 1 | **confirmed** 2026-08-03: `make ze-functional-ipsec-test` is 13/13 with the change in place, including the new `ipsec-show-dataplane.ci`. Earlier runs of the same suite showed 1 to 3 reds that did not reproduce (privileged UDP 500 bind, NAT-T 4500 contention under parallelism); those are load-sensitive and independent of this change |
+| A-6 | Returning `ErrNotSupported` from the noop backend does not break an existing functional test | no `.ci` calls `ListSAs` today, because no production caller exists | a `.ci` goes red and the change needs a different shape | `make ze-precommit-verify` after Phase 1 | **confirmed** 2026-08-03: `make ze-functional-ipsec-test` is 13/13 with the change in place, including the new `ipsec-dataplane-show.ci`. Earlier runs of the same suite showed 1 to 3 reds that did not reproduce (privileged UDP 500 bind, NAT-T 4500 contention under parallelism); those are load-sensitive and independent of this change |
 | A-7 | A kernel policy row from `XfrmPolicyList` inverts back to the `policySelectorKey` that `ownerOf` compares, losslessly, for every policy Ze itself installs | `xfrmSelectorPort` (`internal/component/ike/dataplane/xfrm_linux.go`) REFUSES any port mask other than 0 or `0xffff`, so Ze installs two port shapes and both invert; every other key field (src, dst, dir, upper proto, ifindex, if_id) appears verbatim on `netlink.XfrmPolicy` | the owner join is unsound and the Owner column must be dropped rather than guessed | `TestPolicyOwnerJoinRoundTrips` covers both port shapes and the wildcard prefix | **confirmed** 2026-08-03, by reading `xfrmSelectorPort` and the vendored `parseXfrmPolicy` |
 
 ### Risks
@@ -193,7 +193,7 @@ command grammar has advertised since 2026-06-03 and never emitted.
 | `show vpn ipsec dataplane sa` typed at the CLI | → | `handleShowVPNIPsecDataplaneSA` | `TestShowDataplaneSARegistered` |
 | `show vpn ipsec dataplane policy` typed at the CLI | → | `handleShowVPNIPsecDataplanePolicy` | `TestShowDataplanePolicyRegistered` |
 | `show vpn ipsec dataplane drift` typed at the CLI | → | `handleShowVPNIPsecDataplaneDrift` | `TestShowDataplaneDriftRegistered` |
-| CLI dispatch through the plugin server, end to end | → | the three handlers | `ipsec-show-dataplane.ci` |
+| CLI dispatch through the plugin server, end to end | → | the three handlers | `ipsec-dataplane-show.ci` |
 | `ze doctor <config>` with an ipsec container | → | `checkXFRMReachable` | `TestXFRMReachableDoctorCheckRegistered`, `doctor-ipsec-xfrm.ci` |
 | `show vpn ipsec sa \| json` | → | `saToMap` counter fields | `ipsec-show-sa-counters.ci` |
 | Appliance kernel build | → | `runtimeKernelRequirements` ESP entries | `TestRuntimeFloorRequiresESP` |
@@ -262,7 +262,7 @@ command grammar has advertised since 2026-06-03 and never emitted.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `ipsec-show-dataplane` | `test/ipsec/ipsec-show-dataplane.ci` | the operator reaches all three new commands end to end under the noop backend, and each reports that the backend cannot enumerate rather than showing an empty table. Reachability evidence only, not kernel evidence | |
+| `ipsec-dataplane-show` | `test/ipsec/ipsec-dataplane-show.ci` | the operator reaches all three new commands end to end under the noop backend, and each reports that the backend cannot enumerate rather than showing an empty table. Reachability evidence only, not kernel evidence | |
 | `ipsec-show-dataplane-kernel` | `test/ipsec/ipsec-show-dataplane-kernel.ci` | two daemons negotiate IKEv2 with the real xfrm backend under `option=needs-linux:caps=net-admin`, and the SAD dump reports the same SPI the SA table reports | |
 | `ipsec-show-sa-counters` | `test/ipsec/ipsec-show-sa-counters.ci` | after traffic passes, `show vpn ipsec sa \| json` reports non-zero `bytes-out` for the tunnel | |
 | `doctor-ipsec-xfrm` | `test/ui/doctor-ipsec-xfrm.ci` | `ze doctor --json` on an ipsec config emits the reachability diagnostic when the probe seam fails | |
@@ -270,7 +270,7 @@ command grammar has advertised since 2026-06-03 and never emitted.
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `19-dataplane-readback` | `test/ipsec-interop/scenarios/19-dataplane-readback/` | strongSwan | Ze's SAD dump, `ip xfrm state` in the ze container, and strongSwan's own view report the same non-empty SPI set, and that set tracks a Child SA rekey (AC-12, AC-13) | |
+| `19-dataplane-readback` | `test/interop-ipsec/scenarios/19-dataplane-readback/` | strongSwan | Ze's SAD dump, `ip xfrm state` in the ze container, and strongSwan's own view report the same non-empty SPI set, and that set tracks a Child SA rekey (AC-12, AC-13) | |  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `in-progress` and the work is not implemented) -->
 
 ## Files to Modify
 - `internal/component/ike/dataplane/dataplane.go` - widen `SAInfo`, add `PolicyInfo`, add `ListPolicies` to the `Dataplane` interface
@@ -305,7 +305,7 @@ command grammar has advertised since 2026-06-03 and never emitted.
 - `gokrazy/kernel/runtime.config` - set the ESP and XFRM statistics symbols
 - `gokrazy/kernel/runtime.require` - list the bare symbols
 - `scripts/evidence/qemu-all-tests.sh` - add the `fsuite ipsec` line
-- `test/ipsec-interop/lab.py` - add the `ze_cli` helper beside `ze_xfrm_state`
+- `test/interop-ipsec/lab.py` - add the `ze_cli` helper beside `ze_xfrm_state`
 - `docs/guide/ipsec.md` - document the new commands and add a troubleshooting section
 - `docs/guide/command-reference.md` - the three new commands
 
@@ -317,11 +317,11 @@ command grammar has advertised since 2026-06-03 and never emitted.
 - `internal/component/ike/engine/doctor_xfrm_other.go` - the non-Linux stub
 - `internal/component/ike/engine/doctor_xfrm_test.go` - check unit tests
 - `internal/component/ike/dataplane/xfrm_readback_integration_linux_test.go` - install, read back, remove, read back again
-- `test/ipsec/ipsec-show-dataplane.ci` - reachability under the noop backend
+- `test/ipsec/ipsec-dataplane-show.ci` - reachability under the noop backend
 - `test/ipsec/ipsec-show-dataplane-kernel.ci` - real kernel readback
 - `test/ipsec/ipsec-show-sa-counters.ci` - the counters AC-8 restores
 - `test/ui/doctor-ipsec-xfrm.ci` - the doctor diagnostic
-- `test/ipsec-interop/scenarios/19-dataplane-readback/` - `ze.conf`, `strongswan.conf`, `check.py`
+- `test/interop-ipsec/scenarios/19-dataplane-readback/` - `ze.conf`, `strongswan.conf`, `check.py`  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `in-progress` and the work is not implemented) -->
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -332,7 +332,7 @@ command grammar has advertised since 2026-06-03 and never emitted.
 | CLI commands/flags | Yes | handlers in `internal/component/ike/cmd/show_dataplane.go`, registered through `pluginserver.RegisterRPCs` in `show_ipsec.go` |
 | CLI grammar (keyword before value) | Yes | `show vpn ipsec dataplane sa`, `... policy`, `... drift`. Any per-object lookup is a typed selector container, never a positional |
 | Editor autocomplete | Yes | automatic. `internal/plugins/completion/words.go` builds the verb tree from the YANG nodes, so a fixed keyword needs nothing else |
-| Functional test for new RPC/API | Yes | `test/ipsec/ipsec-show-dataplane.ci` and `test/ipsec/ipsec-show-dataplane-kernel.ci` |
+| Functional test for new RPC/API | Yes | `test/ipsec/ipsec-dataplane-show.ci` and `test/ipsec/ipsec-show-dataplane-kernel.ci` |
 | Pipe completeness | Yes | handlers return `plugin.Map` and never format. `command.ApplyPipes` renders table and JSON. Column order follows the JSON key names |
 | Env var registration | N-A | no new env var. The existing `ze.test.ike.dataplane` override is reused unchanged |
 | Doctor check for runtime dependencies | Yes | `internal/component/ike/engine/doctor_xfrm.go`, registered in `engine/register.go`, codes in `internal/core/diagnostic/codes.go`, unit test plus `test/ui/doctor-ipsec-xfrm.ci` |
@@ -363,7 +363,7 @@ command grammar has advertised since 2026-06-03 and never emitted.
 ## Implementation Steps
 
 1. **Phase: Wiring (MANDATORY FIRST)** - register the three commands as stubs and prove they are reachable
-   - Tests: `TestShowDataplaneSARegistered`, `TestShowDataplanePolicyRegistered`, `TestShowDataplaneDriftRegistered`, `ipsec-show-dataplane.ci`
+   - Tests: `TestShowDataplaneSARegistered`, `TestShowDataplanePolicyRegistered`, `TestShowDataplaneDriftRegistered`, `ipsec-dataplane-show.ci`
    - Files: `internal/component/ike/yang/ze-ipsec-cmd.yang`, `internal/component/ike/yang/cmd_schema_test.go`, `internal/component/ike/cmd/show_dataplane.go`, `internal/component/ike/cmd/show_ipsec.go`
    - Verify: `make ze-command-contract-check` passes (it fails a `ze:command` with no handler and a handler with no `ze:command`), and the wiring tests fail on the stub bodies
 2. **Phase: Dataplane read contract** - widen the interface and close the fail-open backends
@@ -388,7 +388,7 @@ command grammar has advertised since 2026-06-03 and never emitted.
    - Verify: the kernel floor change and the config fragment change land together, or the appliance build fails
 7. **Phase: Kernel-level and interop evidence** - prove it against a real kernel and a real peer
    - Tests: `ipsec-show-dataplane-kernel.ci`, scenario `19-dataplane-readback`
-   - Files: `scripts/evidence/qemu-all-tests.sh`, `test/ipsec-interop/lab.py`, `test/ipsec-interop/scenarios/19-dataplane-readback/`
+   - Files: `scripts/evidence/qemu-all-tests.sh`, `test/interop-ipsec/lab.py`, `test/interop-ipsec/scenarios/19-dataplane-readback/`  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `in-progress` and the work is not implemented) -->
    - Verify: revert the read handler and confirm the interop assertion fails. An SPI set that is empty on both sides is the vacuity trap, so assert non-empty before asserting equality
 8. **Phase: Documentation** - every row of the Documentation checklist marked Yes
    - Files: as listed in that checklist
@@ -463,7 +463,7 @@ a delegated agent. Phases 7 and 8 are OPEN.
 Still to do, none of it started:
 - `test/ipsec/ipsec-show-dataplane-kernel.ci` and `test/ipsec/ipsec-show-sa-counters.ci`
 - the `fsuite ipsec` line in `scripts/evidence/qemu-all-tests.sh`, and a QEMU run
-- the `ze_cli` helper in `test/ipsec-interop/lab.py` and scenario `19-dataplane-readback`
+- the `ze_cli` helper in `test/interop-ipsec/lab.py` and scenario `19-dataplane-readback`
 - the two Prometheus gauges named in the Integration Checklist
 - Phase 8 documentation, except `docs/architecture/testing/ci-format.md` which is done
 

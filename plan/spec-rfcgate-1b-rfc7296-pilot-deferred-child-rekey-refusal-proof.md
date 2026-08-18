@@ -38,7 +38,7 @@ exists.
 **Two carriers, one blocker.**
 
 1. `test/ipsec/ipsec-child-rekey-no-proposal.ci` -- the ze-to-ze proof.
-2. `test/ipsec-interop/scenarios/19-error-notifications/` -- the same proof against
+2. `test/interop-ipsec/scenarios/19-error-notifications/` -- the same proof against  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `blocked` and the work is not implemented) -->
    strongSwan.
 
 **The blocker is measured, not chosen.** A static configuration cannot make IKE_AUTH succeed

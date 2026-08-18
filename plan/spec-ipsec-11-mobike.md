@@ -198,8 +198,8 @@ address events, but wiring them to the IKE engine is deferred to a future spec.
 | Inbound INFORMATIONAL with UPDATE_SA_ADDRESSES | -> | `handleMobikeUpdate` | `TestHandleMobikeUpdate` |
 | Address change on interface | -> | Initiator sends UPDATE_SA_ADDRESSES | `TestInitiatorAddressChange` |
 | COOKIE2 in request | -> | Echoed in response | `TestCookie2Echo` |
-| Interop: strongSwan initiator moves | -> | Ze responder updates SA | `test/ipsec-interop/scenarios/12-mobike-responder/check.py` |
-| Interop: Ze initiator moves | -> | strongSwan responder updates SA | `test/ipsec-interop/scenarios/13-mobike-initiator/check.py` |
+| Interop: strongSwan initiator moves | -> | Ze responder updates SA | `test/interop-ipsec/scenarios/12-mobike-responder/check.py` |  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `design` and the work is not implemented) -->
+| Interop: Ze initiator moves | -> | strongSwan responder updates SA | `test/interop-ipsec/scenarios/13-mobike-initiator/check.py` |  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `design` and the work is not implemented) -->
 
 ## Acceptance Criteria
 
@@ -249,8 +249,8 @@ address events, but wiring them to the IKE engine is deferred to a future spec.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `12-mobike-responder` | `test/ipsec-interop/scenarios/12-mobike-responder/check.py` | strongSwan initiator moves IP, Ze responder updates tunnel, traffic flows | |
-| `13-mobike-initiator` | `test/ipsec-interop/scenarios/13-mobike-initiator/check.py` | Ze initiator moves IP, strongSwan responder updates tunnel, traffic flows | |
+| `12-mobike-responder` | `test/interop-ipsec/scenarios/12-mobike-responder/check.py` | strongSwan initiator moves IP, Ze responder updates tunnel, traffic flows | |  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `design` and the work is not implemented) -->
+| `13-mobike-initiator` | `test/interop-ipsec/scenarios/13-mobike-initiator/check.py` | Ze initiator moves IP, strongSwan responder updates tunnel, traffic flows | |  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `design` and the work is not implemented) -->
 | `ipsec-mobike-config` (added 2026-07-10) | `test/parse/ipsec-mobike-config.ci` | `mobike enable/disable` ike-group leaf parsed and accepted | |
 
 ### Interop Test Network Design
@@ -367,7 +367,7 @@ The `Scenario.teardown()` must also clean up the mobility network.
 | YANG schema | [x] | `internal/yang/modules/ze-vpn.yang` -- add `mobike` leaf under ike-group |
 | CLI commands/flags | [ ] | Not needed (show vpn ipsec sa already shows SA state) |
 | Editor autocomplete | [x] | YANG-driven (automatic if YANG updated) |
-| Functional test | [x] | `test/ipsec-interop/scenarios/12-*/check.py`, `13-*/check.py` |
+| Functional test | [x] | `test/interop-ipsec/scenarios/12-*/check.py`, `13-*/check.py` |
 
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File to update |
@@ -392,12 +392,12 @@ The `Scenario.teardown()` must also clean up the mobility network.
 - `internal/component/ike/engine/addrwatch_linux.go` -- netlink AddrSubscribe wrapper for IKE engine
 - `internal/component/ike/engine/addrwatch_other.go` -- stub for non-Linux (macOS build)
 - `internal/component/ike/engine/addrwatch_test.go` -- address watcher tests
-- `test/ipsec-interop/scenarios/12-mobike-responder/check.py` -- interop: Ze responder
-- `test/ipsec-interop/scenarios/12-mobike-responder/swanctl.conf` -- strongSwan with MOBIKE
-- `test/ipsec-interop/scenarios/12-mobike-responder/ze.conf` -- Ze config with MOBIKE
-- `test/ipsec-interop/scenarios/13-mobike-initiator/check.py` -- interop: Ze initiator
-- `test/ipsec-interop/scenarios/13-mobike-initiator/swanctl.conf` -- strongSwan responder
-- `test/ipsec-interop/scenarios/13-mobike-initiator/ze.conf` -- Ze config
+- `test/interop-ipsec/scenarios/12-mobike-responder/check.py` -- interop: Ze responder  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `design` and the work is not implemented) -->
+- `test/interop-ipsec/scenarios/12-mobike-responder/swanctl.conf` -- strongSwan with MOBIKE  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `design` and the work is not implemented) -->
+- `test/interop-ipsec/scenarios/12-mobike-responder/ze.conf` -- Ze config with MOBIKE  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `design` and the work is not implemented) -->
+- `test/interop-ipsec/scenarios/13-mobike-initiator/check.py` -- interop: Ze initiator  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `design` and the work is not implemented) -->
+- `test/interop-ipsec/scenarios/13-mobike-initiator/swanctl.conf` -- strongSwan responder  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `design` and the work is not implemented) -->
+- `test/interop-ipsec/scenarios/13-mobike-initiator/ze.conf` -- Ze config  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `design` and the work is not implemented) -->
 
 ## Implementation Steps
 
@@ -474,12 +474,12 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
     - Verify: `mobike enable` parsed and propagated to IKEGroup
 
 11. **Phase: Interop scenario 12** -- Ze responder, strongSwan initiator address change
-    - Tests: `test/ipsec-interop/scenarios/12-mobike-responder/check.py`
+    - Tests: `test/interop-ipsec/scenarios/12-mobike-responder/check.py`  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `design` and the work is not implemented) -->
     - Files: scenario configs + check script
     - Verify: tunnel survives address change, traffic flows
 
 12. **Phase: Interop scenario 13** -- Ze initiator, address change
-    - Tests: `test/ipsec-interop/scenarios/13-mobike-initiator/check.py`
+    - Tests: `test/interop-ipsec/scenarios/13-mobike-initiator/check.py`  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `design` and the work is not implemented) -->
     - Files: scenario configs + check script
     - Verify: Ze detects address change, sends UPDATE_SA_ADDRESSES, traffic flows
 
@@ -508,8 +508,8 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | handleMobikeUpdate function | `grep handleMobikeUpdate engine/mobike.go` |
 | reinstallChildSA function | `grep reinstallChildSA engine/mobike.go` |
 | addrwatch_linux.go | `ls engine/addrwatch_linux.go` |
-| Interop scenario 12 | `ls test/ipsec-interop/scenarios/12-mobike-responder/check.py` |
-| Interop scenario 13 | `ls test/ipsec-interop/scenarios/13-mobike-initiator/check.py` |
+| Interop scenario 12 | `ls test/interop-ipsec/scenarios/12-mobike-responder/check.py` |  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `design` and the work is not implemented) -->
+| Interop scenario 13 | `ls test/interop-ipsec/scenarios/13-mobike-initiator/check.py` |  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `design` and the work is not implemented) -->
 | Mobike config field | `grep Mobike ike/ipsec/types.go` |
 
 ### Security Review Checklist (/implement stage 11)

@@ -42,7 +42,7 @@ inert config.
 
 **What already works and is reused, not rebuilt.** EAP-MSCHAPv2 and EAP-TLS authentication
 against a *responder* are implemented and interop-proven today
-(`test/ipsec-interop/scenarios/08-responder-eap-mschapv2`, `04-eap-tls`), expressed as a
+(`test/interop-ipsec/scenarios/08-responder-eap-mschapv2`, `04-eap-tls`), expressed as a
 site-to-site peer with `connection-type respond` and a fixed `remote-address`. The Configuration
 payload codec (`wire/payload_cp.go`) and the virtual IP pool (`eap/pool.go`, with
 `Allocate`/`Release`/`Available`) ~~are both complete and~~ both have zero callers.
@@ -303,7 +303,7 @@ SAME commit. The ledger records each tagged test's `file:line`, and both verify 
 `ze-rfc-check` fail on a stale ledger.
 
 **Tag carriers.** A tag can live in a `_test.go` or in a `.ci` under `test/ipsec/`, which
-`ze-functional-test` runs. `test/ipsec-interop/` is REFUSED as a carrier, because nothing
+`ze-functional-test` runs. `test/interop-ipsec/` is REFUSED as a carrier, because nothing
 runs that suite automatically. The strongSwan scenarios in this spec are goal-validation
 evidence, and they earn no row a polarity.
 
@@ -470,7 +470,7 @@ gates exists. This spec owns both.
 - [ ] `internal/component/ike/eap/pool.go` - `NewPool` (:35), `Allocate` (:89), `Release` (:126)
 - [ ] `internal/component/ike/wire/payload_cp.go` - complete CP codec, zero callers
 - [ ] `internal/component/ike/ipsec/types.go` - `RemoteAccessConfig` (:420), `EAPUser` (:399)
-- [ ] `test/ipsec-interop/scenarios/08-responder-eap-mschapv2/` - the shape that works today
+- [ ] `test/interop-ipsec/scenarios/08-responder-eap-mschapv2/` - the shape that works today
 
 **Behavior to preserve:**
 - Site-to-site peers keep exact-match admission and priority. A configured peer address must
@@ -569,7 +569,7 @@ Inbound UDP IKE_SA_INIT from an arbitrary source address, on the IKE (500) or NA
 | EAP identity of a configured `eap-user` | -> | per-user credential resolver | `TestRemoteAccessResolvesEAPUserPassword` |
 | CP(CFG_REQUEST) in IKE_AUTH | -> | pool allocate + CFG_REPLY | `TestRemoteAccessAssignsVirtualIP` |
 | SA teardown | -> | pool release + session reap | `TestRemoteAccessReleasesAddressOnTeardown` |
-| strongSwan road-warrior client | -> | the whole path | `test/ipsec-interop/scenarios/12-remote-access-eap-mschapv2` |
+| strongSwan road-warrior client | -> | the whole path | `test/interop-ipsec/scenarios/12-remote-access-eap-mschapv2` |  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `design` and the work is not implemented) -->
 
 ## Acceptance Criteria
 
@@ -656,8 +656,8 @@ redden the half named.
 ### Interop Tests (MANDATORY for protocol features)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `12-remote-access-eap-mschapv2` | `test/ipsec-interop/scenarios/` | strongSwan (road-warrior client) | AC-14: unconfigured source establishes, gets a virtual IP, passes traffic | |
-| `13-remote-access-eap-tls` | `test/ipsec-interop/scenarios/` | strongSwan | EAP-TLS road warrior, client chain validated | |
+| `12-remote-access-eap-mschapv2` | `test/interop-ipsec/scenarios/` | strongSwan (road-warrior client) | AC-14: unconfigured source establishes, gets a virtual IP, passes traffic | |
+| `13-remote-access-eap-tls` | `test/interop-ipsec/scenarios/` | strongSwan | EAP-TLS road warrior, client chain validated | |
 
 ## Files to Modify
 - `internal/component/ike/engine/register.go` - admission fallback; stop discarding the pool
@@ -703,8 +703,8 @@ redden the half named.
 - `internal/component/ike/engine/remote_access.go` + `_test.go`
 - `internal/component/ike/eap/eap_user.go` + `_test.go` (or additive in `eap.go`)
 - `test/reload/test-tx-ipsec-remote-access-pki.ci`
-- `test/ipsec-interop/scenarios/12-remote-access-eap-mschapv2/{ze.conf,swanctl.conf,check.py}`
-- `test/ipsec-interop/scenarios/13-remote-access-eap-tls/{ze.conf,swanctl.conf,check.py}`
+- `test/interop-ipsec/scenarios/12-remote-access-eap-mschapv2/{ze.conf,swanctl.conf,check.py}`  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `design` and the work is not implemented) -->
+- `test/interop-ipsec/scenarios/13-remote-access-eap-tls/{ze.conf,swanctl.conf,check.py}`  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `design` and the work is not implemented) -->
 
 ## Implementation Steps
 
@@ -730,7 +730,7 @@ redden the half named.
 5. **Phase: Config validation** - AC-12, AC-13 (inherited deferral)
    - Files: `ipsec/validate.go`, `engine/config.go`, `test/reload/*.ci`
 6. **Phase: Interop** - AC-14
-   - `test/ipsec-interop/scenarios/12-*`, `13-*`; `make ze-interop-ipsec-test`
+   - `test/interop-ipsec/scenarios/12-*`, `13-*`; `make ze-interop-ipsec-test`
 7. **Observability + docs** - counters, `show` views, documentation checklist
 8. **Full verification, review gate, closure**
 

@@ -536,7 +536,7 @@ on the existing unit-tier tags.
 - `test/ipsec/ipsec-ts-port-opaque.ci`
 - `test/ipsec/ipsec-ts-port-opaque-reject.ci`
 - `test/ipsec/ipsec-show-sa-port-opaque.ci`
-- `test/interop-ipsec/scenarios/22-ts-port-opaque/`
+- `test/interop-ipsec/scenarios/22-ts-port-opaque/`  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `skeleton` and the work is not implemented) -->
 - `rfc/short/rfc4301.md` - the Security Architecture summary, if absent. Section 4.4.1.1
   defines OPAQUE
 
