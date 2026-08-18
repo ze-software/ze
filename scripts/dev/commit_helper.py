@@ -1659,7 +1659,22 @@ DEFERRAL_PATTERNS = (
 # Without this, vendoring almost any large dependency blocks the commit.
 # github.com/andybalholm/brotli carries a "TODO: Postpone decision" comment,
 # which stopped the commit that vendored templ.
-DEFERRAL_SCAN_EXEMPT_DIRS = ("ai/rules/", ".claude/rules/", "vendor/")
+# Where verification debt is recorded: one gate a commit owed and did not run.
+# The writer and the full rationale are `record_debt` and the block above it.
+VERIFICATION_DEBT_DIR = "plan/verification-debt"
+
+# plan/verification-debt/ is exempt for a different reason from the rest: its
+# rows ARE owed work, written in the one place that records it, and they carry a
+# free-text reason an author might phrase as "deferred to". Demanding a
+# plan/deferrals/ shard alongside would home the same obligation twice, in a
+# ledger that answers a different question. Debt rows are enforced by their own
+# gate -- `create --push` refuses while one is open -- not by this scan.
+DEFERRAL_SCAN_EXEMPT_DIRS = (
+    "ai/rules/",
+    ".claude/rules/",
+    "vendor/",
+    VERIFICATION_DEBT_DIR + "/",
+)
 
 
 DEFERRAL_NO_DESTINATION_NEEDED = frozenset({"cancelled", "user-approved-drop"})
@@ -2706,6 +2721,119 @@ def _spec_closed_earlier(repo: Path, stem: str) -> bool:
     return res.returncode == 0 and res.stdout.strip() != ""
 
 
+# --- Verification debt -------------------------------------------------------
+#
+# A commit override says "this gate did not run green over this commit, and I am
+# committing anyway". Before this ledger those overrides were waved through with
+# a reason nobody could find again, and the alternative -- refusing the commit --
+# is worse: several sessions share this checkout, the record is red for somebody
+# else's in-flight work nearly always, and a commit that never lands is the most
+# expensive failure this repo has (`ai/rules/rule-precedence.md`).
+#
+# So the override is allowed and the OBLIGATION is written down. What is recorded
+# is VERIFICATION debt: a gate that has not yet run over this code. That is a
+# different thing from a DEFECT, which `ai/rules/completion.md` requires you to
+# fix rather than record, and this ledger is never a home for one.
+#
+# Sharded per commit-session for the reason `plan/deferrals/` is: a single shared
+# file cross-commits between concurrent sessions whatever the --file list says
+# (`ai/rules/git-safety.md`).
+#
+# VERIFICATION_DEBT_DIR itself is declared beside DEFERRAL_SCAN_EXEMPT_DIRS,
+# which names it and is read at import time well before this point.
+
+# Each override flag, and the gate whose absence it is admitting.
+DEBT_FLAGS = (
+    ("unverified", "ze-precommit-verify (not FRESH-green)"),
+    ("structural_red_ok", "ze-precommit-verify structural gates (red)"),
+    ("missing_full_verify_ok", "full ze-precommit-verify over this commit's Go"),
+    ("stale_index_ok", "discovery-index freshness"),
+    ("review_override", "independent critical review"),
+    ("broken_head_fix", "ze-repository-tracked-build-check (HEAD does not compile)"),
+)
+
+DEBT_HEADER = (
+    "| Date | Session | Subject | Gate owed | Reason | Status |",
+    "|------|---------|---------|-----------|--------|--------|",
+)
+
+
+def debt_shard_path(session: str) -> str:
+    return f"{VERIFICATION_DEBT_DIR}/{session}.md"
+
+
+def debt_owed(args: argparse.Namespace) -> list[tuple[str, str]]:
+    """(gate, reason) for every override this create used. Order is DEBT_FLAGS."""
+    owed: list[tuple[str, str]] = []
+    for attr, gate in DEBT_FLAGS:
+        reason = (getattr(args, attr, None) or "").strip()
+        if reason:
+            owed.append((gate, reason))
+    return owed
+
+
+def _debt_cell(text: str) -> str:
+    """One table cell: no newline, no pipe, so a reason cannot forge a row."""
+    return " ".join(text.replace("|", "/").split())
+
+
+def record_debt(
+    repo: Path, session: str, subject: str, owed: list[tuple[str, str]]
+) -> str:
+    """Append one row per owed gate to this session's shard. Returns its path."""
+    rel = debt_shard_path(session)
+    path = repo / rel
+    path.parent.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
+    lines: list[str] = []
+    if not path.exists():
+        lines += [
+            f"# Verification debt -- commit session {session}",
+            "",
+            "Gates that had not run green over these commits when they were made.",
+            "Each row is work owed, not a defect: a defect is fixed, never recorded",
+            "(`ai/rules/completion.md`). Clear a row by running the gate over the",
+            "committed code and setting Status to `cleared`, or delete the shard once",
+            "every row is cleared. `scripts/dev/commit_helper.py create --push` refuses",
+            "while any row here is open.",
+            "",
+            *DEBT_HEADER,
+        ]
+    for gate, reason in owed:
+        lines.append(
+            f"| {stamp} | {session} | {_debt_cell(subject)} | {_debt_cell(gate)} "
+            f"| {_debt_cell(reason)} | open |"
+        )
+    with path.open("a", encoding="utf-8") as fh:
+        fh.write("\n".join(lines) + "\n")
+    return rel
+
+
+def open_debt_rows(repo: Path) -> list[tuple[str, str]]:
+    """(shard, row) for every row whose Status cell is `open`.
+
+    Reads the tracked shards, so it answers the same question in any session on
+    this checkout -- which is the point: the session that pushes is rarely the
+    session that owed the gate.
+    """
+    rows: list[tuple[str, str]] = []
+    root = repo / VERIFICATION_DEBT_DIR
+    if not root.is_dir():
+        return rows
+    for shard in sorted(root.glob("*.md")):
+        try:
+            text = shard.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        for line in text.splitlines():
+            cells = [c.strip() for c in line.split("|")]
+            # A rendered row is `| a | b | c | d | e | f |` -> 8 split cells.
+            if len(cells) != 8 or cells[-2].lower() != "open":
+                continue
+            rows.append((shard.name, line.strip()))
+    return rows
+
+
 def spec_closure_stem(
     add_paths: tuple[str, ...],
     remove_paths: tuple[str, ...],
@@ -3076,6 +3204,36 @@ def _create(args: argparse.Namespace, repo: Path, session: str, tag: str) -> int
             + " --files"
             + ("" if not rc_code else " " + quote_paths(rc_code))
         )
+    # Verification debt. Every override used above admits a gate that has not run
+    # green over this commit; each becomes one row, and the shard rides along in
+    # the commit so the obligation reaches the session that eventually pushes.
+    # Recorded AFTER the gates, so the shard itself can never trip one.
+    owed = debt_owed(args)
+    debt_rel: str | None = None
+    if owed and not args.dry_run:
+        debt_rel = record_debt(repo, session, args.subject, owed)
+        if debt_rel not in add_paths:
+            add_paths = add_paths + (debt_rel,)
+    # A push publishes to users, which is the one place the debt has to be paid.
+    # Refused here rather than at commit time, because a commit that stays local
+    # costs nobody anything and a commit that never happens costs the work.
+    if push_reason is not None:
+        blocking = open_debt_rows(repo) + [
+            (debt_rel or debt_shard_path(session), f"| (this commit) | {gate} |")
+            for gate, _ in owed
+        ]
+        if blocking:
+            raise UsageError(
+                "refusing --push: "
+                + str(len(blocking))
+                + " open verification-debt row(s). A commit that stays local is\n"
+                "  free; a push is what reaches users, so the gates are owed here.\n"
+                + "\n".join(f"    {shard}: {row}" for shard, row in blocking[:10])
+                + ("\n    ..." if len(blocking) > 10 else "")
+                + "\n  Run the named gate over the committed code, set that row's Status\n"
+                "  to `cleared`, and push again. Prepare the commit WITHOUT --push to\n"
+                "  land the work now and clear the debt in a later session."
+            )
     msg = message_text(args.subject, args.body)
     msg_path = message_rel_path(session, tag)
     block = CommitBlock(
@@ -3107,6 +3265,10 @@ def _create(args: argparse.Namespace, repo: Path, session: str, tag: str) -> int
             print(f"verify={vstate.upper()} ({detail})")
         if args.review_override and spec_closure_stem(add_paths, remove_paths, repo):
             print(f"review=OVERRIDDEN ({args.review_override})")
+        if debt_rel:
+            print(f"debt={len(owed)} row(s) -> {debt_rel}")
+            for gate, _ in owed:
+                print(f"  owed: {gate}")
         # Printed whenever the SCRIPT will push, including when this create only
         # appended a block to a script an earlier --push authorised: what the
         # caller needs to know is what the script they are about to run does.
@@ -3223,37 +3385,43 @@ def build_parser() -> argparse.ArgumentParser:
     )
     create_cmd.add_argument(
         "--unverified",
-        help="reason to allow a commit when ze-precommit-verify is not FRESH-green "
-        "(owner override, or a flaky/environmental known-red logged in "
-        "plan/known-failures/; deterministic structural gates are never eligible)",
+        help="reason this commit lands while ze-precommit-verify is not FRESH-green. "
+        "SELF-SERVICE: give a truthful reason and proceed -- do not stop to ask. "
+        "The gate is not skipped, it is OWED: one row lands in "
+        "plan/verification-debt/<session>.md and --push refuses while it is open",
     )
     create_cmd.add_argument(
         "--structural-red-ok",
-        help="OWNER OVERRIDE ONLY: reason to allow a commit while a deterministic "
-        "structural gate is red in the verify record. Deliberately separate from "
-        "--unverified so the flaky-test path can never reach it. Use when the red "
-        "belongs to another session's in-flight work and this commit cannot affect "
-        "it; the reason is echoed with the red gate names",
+        help="reason this commit lands while a deterministic structural gate is red in "
+        "the verify record. Deliberately separate from --unverified so the flaky-test "
+        "path can never reach it. Use when the red belongs to another session's "
+        "in-flight work and this commit cannot affect it. SELF-SERVICE and RECORDED: "
+        "the reason is echoed with the red gate names and becomes an open row in "
+        "plan/verification-debt/<session>.md that --push refuses to publish over",
     )
     create_cmd.add_argument(
         "--missing-full-verify-ok",
-        help="OWNER OVERRIDE ONLY: reason to prepare a commit carrying Go when no "
-        "full ze-precommit-verify ran after the last Go edit. Deliberately separate "
-        "from --unverified, which explains a RED run: in a shared checkout that flag "
-        "is passed on nearly every commit, so it cannot also certify that the run "
-        "happened. The reason is echoed with the missing coverage",
+        help="reason to prepare a commit carrying Go when no full ze-precommit-verify ran "
+        "after the last Go edit. Deliberately separate from --unverified, which "
+        "explains a RED run: in a shared checkout that flag is passed on nearly every "
+        "commit, so it cannot also certify that the run happened. SELF-SERVICE and "
+        "RECORDED: the missing coverage becomes an open row in "
+        "plan/verification-debt/<session>.md that --push refuses to publish over",
     )
     create_cmd.add_argument(
         "--stale-index-ok",
-        help="reason to allow a commit when a generated discovery index "
-        "(ai/PACKAGE-MAP.md, ai/DOCS-TO-CODE.md, ai/LEARNED-FULL-INDEX.md) is "
-        "stale or omitted (owner override)",
+        help="reason this commit lands while a generated discovery index "
+        "(ai/PACKAGE-MAP.md, ai/LEARNED-FULL-INDEX.md) is stale or omitted. "
+        "SELF-SERVICE and RECORDED: it becomes an open row in "
+        "plan/verification-debt/<session>.md that --push refuses to publish over",
     )
     create_cmd.add_argument(
         "--review-override",
-        help="reason to allow a spec-closure commit when the independent "
-        "critical-review gate (ai/rules/planning.md) is missing/stale "
-        "(owner override; a review not performed is never a clean tree)",
+        help="reason a spec-closure commit lands while the independent critical-review "
+        "gate (ai/rules/planning.md) is missing or stale. RECORDED: it becomes an "
+        "open row in plan/verification-debt/<session>.md that --push refuses to "
+        "publish over. A review not performed is never a clean tree, so this one is "
+        "owed loudly rather than waved through",
     )
     create_cmd.add_argument(
         "--push",

@@ -502,7 +502,6 @@ def build_triggers(rules_dir, corpus=None):
     """TRIGGERS.md: every rule named, in one line each, always loaded."""
     rules = load_rules(rules_dir)
     core = {r["name"] for r in core_members(rules, corpus=corpus)}
-    blocking = sum(1 for r in rules if r["severity"] == "blocking")
     header = [
         "# Ze Rules -- Trigger Index",
         "",
@@ -513,9 +512,6 @@ def build_triggers(rules_dir, corpus=None):
         "in hand, READ that rule's file before acting. A row marked `always-on` is",
         "already loaded in full (`ai/rules/CORE.md`) and needs no read; every other",
         "rule's body is one Read away at the path in its row.",
-        "",
-        f"Rules: {len(rules)} ({blocking} blocking, {len(rules) - blocking} advisory). "
-        f"Always-on: {len(core)}.",
         "",
         "| Rule | Severity | When to read it |",
         "|------|----------|-----------------|",
@@ -533,9 +529,15 @@ def build_core(rules_dir, corpus=None):
     `ze-generated-files-check`, and a structural gate is never a known-red
     (`ai/rules/git-safety.md`).
 
-    What survives is membership: `Rules: N of M` and the reason list move only
-    when the core itself moves, which is the fact a reader acts on.
-    `make ze-rules-router-report` prints the corpus on demand.
+    The `Rules: N of M` pair went the same way on 2026-08-18, and so did
+    TRIGGERS.md's `Rules: N (N blocking, N advisory)` line. Both were derived
+    numbers stored in a generated file: M moved whenever ANY rule was added, so
+    a commit that touched no core rule still rewrote this header, and the number
+    changed nothing a reader does next.
+
+    What survives is membership: the reason list moves only when the core itself
+    moves, which is the fact a reader acts on. `make ze-rules-router-report`
+    prints the corpus and the counts on demand.
     """
     rules = load_rules(rules_dir)
     core = core_members(rules, corpus=corpus)
@@ -557,7 +559,7 @@ def build_core(rules_dir, corpus=None):
         "Every other rule is named in `ai/rules/TRIGGERS.md`. Read its file when its",
         "trigger matches.",
         "",
-        f"Rules: {len(core)} of {len(rules)}. Reasons: {', '.join(reasons)}.",
+        f"Core reasons: {', '.join(reasons)}.",
         "",
     ]
     blocks = [

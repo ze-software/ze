@@ -3358,5 +3358,83 @@ class TestFullVerifyCoverage(unittest.TestCase):
             self.assertEqual(state, "unknown")
 
 
+class TestVerificationDebt(unittest.TestCase):
+    """The ledger that lets a commit land while a gate stays owed.
+
+    The alternative it replaces is refusing the commit, which in a checkout
+    several sessions share means refusing over somebody else's red. Work that
+    was finished but never landed is the expensive failure here, so the commit
+    proceeds and the obligation is written down (`ai/rules/completion.md`,
+    "Verification debt is not defect debt").
+    """
+
+    def _repo(self, tmp: str) -> Path:
+        root = Path(tmp)
+        (root / "plan").mkdir(parents=True, exist_ok=True)
+        return root
+
+    def test_each_override_flag_becomes_one_owed_row(self) -> None:
+        args = argparse.Namespace(
+            unverified="another session's red",
+            structural_red_ok="",
+            missing_full_verify_ok=None,
+            stale_index_ok="index dirty from concurrent work",
+            review_override=None,
+            broken_head_fix=None,
+        )
+        owed = ch.debt_owed(args)
+        self.assertEqual(len(owed), 2)
+        self.assertEqual(
+            [reason for _, reason in owed],
+            ["another session's red", "index dirty from concurrent work"],
+        )
+
+    def test_no_override_owes_nothing(self) -> None:
+        args = argparse.Namespace(**{attr: None for attr, _ in ch.DEBT_FLAGS})
+        self.assertEqual(ch.debt_owed(args), [])
+
+    def test_a_recorded_row_reads_back_as_open(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            rel = ch.record_debt(root, "abcd1234", "fix: thing", [("g1", "r1")])
+            self.assertEqual(rel, "plan/verification-debt/abcd1234.md")
+            rows = ch.open_debt_rows(root)
+            self.assertEqual(len(rows), 1)
+            self.assertIn("g1", rows[0][1])
+
+    def test_clearing_a_row_drops_it_from_the_open_set(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            rel = ch.record_debt(root, "abcd1234", "s", [("g1", "r1"), ("g2", "r2")])
+            shard = root / rel
+            shard.write_text(shard.read_text().replace("| open |", "| cleared |", 1))
+            self.assertEqual(len(ch.open_debt_rows(root)), 1)
+
+    def test_a_reason_carrying_a_pipe_cannot_forge_a_row(self) -> None:
+        """The reason is author text. Were it pasted raw, `x | open |` would add
+        a row nobody wrote, and the push gate counts rows."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            ch.record_debt(root, "abcd1234", "s", [("g", "evil | open | injected")])
+            self.assertEqual(len(ch.open_debt_rows(root)), 1)
+
+    def test_a_multiline_reason_cannot_forge_a_row(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            ch.record_debt(root, "abcd1234", "s", [("g", "a\n| x | y | z | w | open |")])
+            self.assertEqual(len(ch.open_debt_rows(root)), 1)
+
+    def test_no_shard_directory_means_no_debt(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertEqual(ch.open_debt_rows(Path(tmp)), [])
+
+    def test_the_debt_dir_is_exempt_from_the_deferral_scan(self) -> None:
+        """A debt row's free-text reason may read like a deferral. Demanding a
+        plan/deferrals/ shard beside it would home one obligation twice."""
+        self.assertIn(
+            ch.VERIFICATION_DEBT_DIR + "/", ch.DEFERRAL_SCAN_EXEMPT_DIRS
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

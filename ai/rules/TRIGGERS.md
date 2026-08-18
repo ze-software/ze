@@ -8,8 +8,6 @@ in hand, READ that rule's file before acting. A row marked `always-on` is
 already loaded in full (`ai/rules/CORE.md`) and needs no read; every other
 rule's body is one Read away at the path in its row.
 
-Rules: 29 (29 blocking, 0 advisory). Always-on: 7.
-
 | Rule | Severity | When to read it |
 |------|----------|-----------------|
 | `ai/rules/architecture.md` | blocking | before any design decision, before writing code or a spec, or when deciding where a new package belongs |

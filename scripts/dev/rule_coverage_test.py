@@ -25,6 +25,7 @@ from pathlib import Path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import rule_coverage
+import rules_condensed
 
 HOOK = (
     Path(__file__).resolve().parents[2]
@@ -312,29 +313,51 @@ class TestDetector(DetectorCase):
             "CORE_RULE_LINE no longer matches what rule_block emits",
         )
 
-    def test_live_core_artifact_parses_to_its_own_header_count(self):
-        """The real `ai/rules/CORE.md`, not a fixture, still yields its 12 rules.
+    def test_live_core_artifact_round_trips_writer_to_reader(self):
+        """The real `ai/rules/CORE.md`, not a fixture: writer and reader agree.
 
         Every other test builds its own corpus, which is what keeps them stable.
         That is also what makes them blind to drift in the real artifact, so one
-        test reads it: the header states `Rules: N of M`, and N must equal the
-        number of names the parse recovers.
+        test reads it.
+
+        Two modules meet on this file and neither imports the other.
+        `rules_condensed.core_members` decides which rules the core carries and
+        writes their sections; `rule_coverage.always_on_rules` recovers those
+        names by matching its own pattern against the written text. Let the
+        writer change how it emits a rule heading and the reader silently
+        recovers fewer names -- and rule-coverage then reports always-on rules as
+        never-read, in every report, forever, which is the 87%-noise state
+        `always_on_rules` exists to remove.
+
+        This used to be checked through a `Rules: N of M` count in the file's own
+        header. That number was derived data stored in a generated document (its
+        M moved whenever ANY rule was added), so it went on 2026-08-18. Comparing
+        the two modules directly is what the count was standing in for, and it is
+        strictly stronger: it compares the NAMES, so a swap that keeps the total
+        fixed no longer passes.
         """
         live = Path(__file__).resolve().parents[2] / "ai" / "rules"
-        core = live / "CORE.md"
-        if not core.is_file():
+        if not (live / "CORE.md").is_file():
             self.skipTest("no live ai/rules/CORE.md in this checkout")
 
-        header = re.search(
-            r"^Rules:\s*(\d+)\s+of\s+\d+",
-            core.read_text(encoding="utf-8"),
-            re.MULTILINE,
-        )
-        self.assertIsNotNone(header, "CORE.md no longer states its own rule count")
+        # The same inputs `build_core` uses. The corpus is not optional here:
+        # without it `core_members` cannot derive the "no past task would
+        # surface it" members, and the comparison would fail on the tool rather
+        # than on the drift it is looking for.
+        root = live.parents[1]
+        written = {
+            r["name"]
+            for r in rules_condensed.core_members(
+                rules_condensed.load_rules(live),
+                corpus=rules_condensed.load_task_corpus(root),
+            )
+        }
+        self.assertTrue(written, "the live corpus yields no always-on rule at all")
         self.assertEqual(
-            int(header.group(1)),
-            len(rule_coverage.always_on_rules(live)),
-            "the parse and CORE.md's own header disagree on how many rules it carries",
+            written,
+            rule_coverage.always_on_rules(live),
+            "rules_condensed writes CORE.md sections that rule_coverage cannot "
+            "parse back; one of the two changed format without the other",
         )
 
     def test_always_on_rule_is_never_reported_missed(self):

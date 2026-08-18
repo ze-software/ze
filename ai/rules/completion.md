@@ -168,6 +168,38 @@ read it as fact. Before acting on an existing shard's stated cause, you MUST ver
 source (`ai/rules/evidence.md`), and when it turns out to be wrong, you MUST say so in
 the shard.
 
+## Verification debt is not defect debt
+
+**VERIFICATION debt MAY be recorded. DEFECT debt MUST NOT be.** They are different
+things and this rule bans only one of them. Verification debt is a gate that has not
+yet run over code you believe is correct: a full `ze-precommit-verify` you have not
+waited for, a review not yet done, an index left stale by a concurrent session. There
+is nothing broken to fix, only a check owed. Its home is
+`plan/verification-debt/<session>.md`, one row per owed gate, written by
+`scripts/dev/commit_helper.py create` when you pass an override.
+
+| What you are holding | Which debt | What to do |
+|---|---|---|
+| A gate you have not run yet over code you believe correct | verification | Record the row, commit, clear it later |
+| A gate that ran and went red on YOUR code | defect | Fix it. The row is not available to you |
+| A gate red on another session's uncommitted work | verification | Record the row naming whose work, commit |
+| A test that fails deterministically anywhere | defect | Fix the root cause (see "Recording is not fixing" above) |
+| A review not yet performed on a spec closure | verification | Record the row; the review is still owed before any push |
+| Behavior an acceptance criterion requires and nothing implements | defect | Implement it. Nothing here makes an unfinished AC recordable |
+
+**The override flags on `commit_helper.py create` are SELF-SERVICE. You MUST NOT stop
+and ask Thomas before using one.** `--unverified`, `--structural-red-ok`,
+`--missing-full-verify-ok`, `--stale-index-ok` and `--review-override` each admit one
+unrun gate, and each writes its row. Give a truthful reason and proceed. Several
+sessions share this checkout, so the shared verify record is red for somebody else's
+in-flight work nearly always, and work that was finished but never landed is the most
+expensive failure this repo has (`ai/rules/rule-precedence.md`).
+
+**Enforcement is at the PUSH, which is where code reaches users: `create --push`
+refuses while any row is open.** A commit that stays local costs nobody anything, so it
+is not the place to hold the line. The next session reads the open rows at session
+start, runs the gate, and sets Status to `cleared`.
+
 ## The failure this rule exists to stop
 
 A required deliverable (an interop test, a functional test, a goal-validation

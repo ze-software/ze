@@ -102,6 +102,22 @@ if [ -n "$FOUND_STATE" ]; then
     fi
 fi
 
+# Verification debt: gates a past commit owed and nobody has run yet. This is
+# the "check it next session" half of the ledger -- the session that pays the
+# debt is rarely the one that owed it, and `--push` refuses while a row is open,
+# so the first session to want a push must see this before it gets there.
+if [ -d plan/verification-debt ]; then
+    DEBT_OPEN=$(awk -F'|' 'NF == 8 && tolower($7) ~ /^ *open *$/ { n++ } END { print n+0 }' \
+        plan/verification-debt/*.md 2>/dev/null)
+    if [ -n "$DEBT_OPEN" ] && [ "$DEBT_OPEN" -gt 0 ]; then
+        echo "Warning: verification debt: $DEBT_OPEN gate(s) owed, --push is refused until cleared"
+        awk -F'|' 'NF == 8 && tolower($7) ~ /^ *open *$/ {
+            gsub(/^[ \t]+|[ \t]+$/, "", $5); gsub(/^[ \t]+|[ \t]+$/, "", $4)
+            printf "   - %s  (%s)\n", $5, $4
+        }' plan/verification-debt/*.md 2>/dev/null | head -5
+    fi
+fi
+
 # Derived documentation indexes. Both are gitignored (.gitignore), so a fresh
 # clone has neither, and a rule that tells an agent to read one would point at
 # nothing. Build only what is MISSING: in steady state this costs nothing, and

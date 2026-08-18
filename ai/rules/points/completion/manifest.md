@@ -50,6 +50,10 @@ recording-is-not-fixing-owner-directive-2026-07-23 ## Recording is not fixing (o
   the-one-exception-a-mechanism-you-could-not-determine
   a-reproducible-failure-has-no-recording-path
   never-record-a-hypothesis-as-a-finding
+verification-debt-is-not-defect-debt ## Verification debt is not defect debt
+  an-unrun-gate-is-recordable-a-defect-is-not
+  which-is-which
+  commit-locally-pay-at-the-push
 the-failure-this-rule-exists-to-stop ## The failure this rule exists to stop
   the-blocked-deliverable-pattern
   the-moves-that-follow-a-blocked-deliverable
