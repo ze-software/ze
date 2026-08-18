@@ -1,11 +1,13 @@
 package appliance
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"golang.org/x/crypto/bcrypt"
 
@@ -378,5 +380,65 @@ func TestBatchInitPerDevicePasswords(t *testing.T) {
 	}
 	if len(passwords) < 2 {
 		t.Errorf("generated passwords should be unique, got %d distinct values", len(passwords))
+	}
+}
+
+// TestInitWritesValidatedTLSSecrets covers AC-6: initialization reaches cert.pem
+// and key.pem through the same validated write as replace-cert, so the very
+// first material an appliance gets is checked too.
+func TestInitWritesValidatedTLSSecrets(t *testing.T) {
+	dir := t.TempDir()
+	baseDir = dir
+
+	t.Setenv("ZE_APPLIANCE_SSH_PASSWORD", "test-password")
+	env.ResetCache()
+
+	cfg := DefaultConfig("initcert")
+	cfgPath := filepath.Join(dir, "input.json")
+	data, err := json.MarshalIndent(&cfg, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if writeErr := os.WriteFile(cfgPath, data, 0o600); writeErr != nil {
+		t.Fatal(writeErr)
+	}
+
+	certPEM, _ := makeCertPair(t, time.Now().Add(-time.Hour), time.Now().Add(24*time.Hour))
+	_, otherKeyPEM := makeCertPair(t, time.Now().Add(-time.Hour), time.Now().Add(24*time.Hour))
+	certPath, keyPath := writeCertPair(t, dir, certPEM, otherKeyPEM)
+
+	var code int
+	stderr := captureStderr(t, func() {
+		code = runInit([]string{"--config", cfgPath, "--cert", certPath, "--key", keyPath, "initcert"})
+	})
+	if code == exitOK {
+		t.Fatal("init accepted a mismatched certificate and key")
+	}
+	if !strings.Contains(stderr, "are not a pair") {
+		t.Errorf("error should name the mismatch, got: %s", stderr)
+	}
+
+	stderr = captureStderr(t, func() {
+		code = runInit([]string{"--config", cfgPath, "--cert", certPath, "initcert"})
+	})
+	if code == exitOK {
+		t.Fatal("init accepted --cert without --key")
+	}
+	if !strings.Contains(stderr, "--cert and --key must be given together") {
+		t.Errorf("error should name both flags, got: %s", stderr)
+	}
+
+	matchedCert, matchedKey := makeCertPair(t, time.Now().Add(-time.Hour), time.Now().Add(24*time.Hour))
+	goodCertPath, goodKeyPath := writeCertPair(t, filepath.Join(dir, "good"), matchedCert, matchedKey)
+	if runInit([]string{"--config", cfgPath, "--cert", goodCertPath, "--key", goodKeyPath, "initcert"}) != exitOK {
+		t.Fatal("init refused a valid certificate and key")
+	}
+
+	storedCert, err := os.ReadFile(filepath.Join(dir, "initcert", "secrets", "tls", "cert.pem")) //nolint:gosec // test-controlled path
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(storedCert, matchedCert) {
+		t.Error("stored certificate should be the supplied certificate")
 	}
 }

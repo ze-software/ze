@@ -70,6 +70,11 @@ func runInit(args []string) int {
 		return exitError
 	}
 
+	if err := checkTLSFlags(*certFile, *keyFile); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return exitError
+	}
+
 	name := fs.Arg(0)
 	dir := getBaseDir()
 	appDir := AppliancePath(dir, name)
@@ -268,12 +273,23 @@ func readPassphraseForInit(pw io.Writer) []byte {
 	return pass
 }
 
+// writeTLSSecrets resolves the appliance's TLS material and stores it. It is
+// the one write path for cert.pem and key.pem: initialization and
+// `ze appliance replace-cert` both reach the files through here, so both get
+// the same validation and the same restore on failure (cmd_cert.go).
+//
+// Operator-supplied material is validated before either file is touched. The
+// key buffer is zeroed once the write is done, as the passphrase already is.
 func writeTLSSecrets(baseDir, name string, cfg *applianceConfig, certFile, keyFile string, passphrase []byte) error {
 	var tb textbuf.Buffer
 	certPath := tb.Str(tLSDir(baseDir, name)).Str("/cert.pem").String()
 	keyPath := tb.Reset().Str(tLSDir(baseDir, name)).Str("/key.pem").String()
 
-	if certFile != "" && keyFile != "" {
+	if err := checkTLSFlags(certFile, keyFile); err != nil {
+		return err
+	}
+
+	if certFile != "" {
 		certData, err := cliio.ReadFile(certFile) // "-" reads stdin
 		if err != nil {
 			return fmt.Errorf("read cert %s: %w", certFile, err)
@@ -282,10 +298,11 @@ func writeTLSSecrets(baseDir, name string, cfg *applianceConfig, certFile, keyFi
 		if err != nil {
 			return fmt.Errorf("read key %s: %w", keyFile, err)
 		}
-		if err := os.WriteFile(certPath, certData, 0o600); err != nil {
-			return fmt.Errorf("write cert: %w", err)
+		defer ZeroBytes(keyData)
+		if err := validateTLSPair(certData, keyData, certFile, keyFile); err != nil {
+			return err
 		}
-		return WriteSecret(keyPath, keyData, passphrase)
+		return writeTLSPair(certPath, keyPath, certData, keyData, passphrase)
 	}
 
 	validity := time.Duration(cfg.TLS.ValidityYears) * 365 * 24 * time.Hour
@@ -298,10 +315,11 @@ func writeTLSSecrets(baseDir, name string, cfg *applianceConfig, certFile, keyFi
 	if err != nil {
 		return fmt.Errorf("generate TLS certificate: %w", err)
 	}
-	if err := os.WriteFile(certPath, certPEM, 0o600); err != nil {
-		return fmt.Errorf("write cert: %w", err)
+	defer ZeroBytes(keyPEM)
+	if err := validateTLSPair(certPEM, keyPEM, "the generated certificate", "the generated key"); err != nil {
+		return err
 	}
-	return WriteSecret(keyPath, keyPEM, passphrase)
+	return writeTLSPair(certPath, keyPath, certPEM, keyPEM, passphrase)
 }
 
 func isTerminal(f *os.File) bool {

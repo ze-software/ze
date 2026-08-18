@@ -38,9 +38,22 @@ the agent expires after a bounded duration.
 - Day-2 operations are separate commands rather than flags on build: `passwd`,
   `cert`, `rekey` (both directions between plaintext and encrypted), and
   `clone`, which copies config and never secrets.
+- `cert.pem` and `key.pem` have one write path, `writeTLSSecrets`. Both
+  `ze appliance init` and `ze appliance replace-cert` reach the two files
+  through it, so both get the same guarantees.
+- The material is validated before either file is touched. The certificate and
+  the key must parse, and they must be a pair. This is the check the web server
+  makes at boot, so material the command accepts is material the listener
+  accepts. An expired certificate is refused. A certificate whose validity
+  starts in the future is accepted, because a staged renewal is copied into an
+  image that boots later.
+- Both halves are written with `WriteSecret`, which writes a temp file and
+  renames it. An interrupted run leaves neither file truncated. The certificate
+  is written first, and a failed key write puts the previous certificate back.
+  The error names the write that failed and the outcome of the restore.
 
 <!-- source: internal/appliance/cmd_passwd.go -- password rotation -->
-<!-- source: internal/appliance/cmd_cert.go -- TLS certificate replacement -->
+<!-- source: internal/appliance/cmd_cert.go -- TLS certificate replacement, validateTLSPair, writeTLSPair -->
 <!-- source: internal/appliance/cmd_rekey.go -- passphrase change -->
 <!-- source: internal/appliance/cmd_clone.go -- config-only clone -->
 <!-- source: internal/appliance/cmd_list.go -- fleet listing -->
