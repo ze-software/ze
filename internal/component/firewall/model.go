@@ -360,9 +360,18 @@ const (
 )
 
 // MatchInSet matches packets against a named set.
+//
+// ProvidedType names the element type of a set that a DIFFERENT registry
+// owner supplies for this table, which ApplyAll merges in (registry.go).
+// The config parser sets it on the matches it builds for the IRR leaves,
+// whose sets the firewall-irr owner registers; nothing else sets it, and an
+// operator cannot write it. Zero means the set MUST be declared by the table
+// itself, so a mistyped `source-address "@name"` is still refused at verify
+// (validate.go, validateMatch).
 type MatchInSet struct {
-	SetName    string
-	MatchField SetFieldType
+	SetName      string
+	MatchField   SetFieldType
+	ProvidedType SetType
 }
 
 // MatchTCPFlags matches packets by TCP header flags. Flags is the

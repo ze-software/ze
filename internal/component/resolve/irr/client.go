@@ -12,7 +12,9 @@
 // query commands. Results are returned as parsed prefix lists ready for
 // filter configuration.
 //
-// Results are cached for 1h via the shared resolve/cache package.
+// Results are cached for 1h via the shared resolve/cache package. An answer that
+// carried nothing is never cached: it is not data, and caching it would hide a
+// recovered server for an hour.
 //
 // Related: rir.go -- RIR delegation table (ASN-to-RIR lookup)
 package irr
@@ -53,6 +55,69 @@ type PrefixList struct {
 // Empty reports whether both families have zero prefixes.
 func (p PrefixList) Empty() bool {
 	return len(p.IPv4) == 0 && len(p.IPv6) == 0
+}
+
+// replyStatus is the outcome an RPSL whois reply reports. A "!" query is
+// answered with one status line: "C" when the query succeeded, "D" when the key
+// is not in the database, "E" when the database holds several copies of the key
+// and "F <message>" when the server failed the query. A reply carrying records
+// opens with an "A<length>" marker and closes with "C".
+//
+// The distinction is load-bearing. A server that answers "I hold nothing" and a
+// server that answers "the answer is nothing" reduce to the same empty prefix
+// list, and an empty prefix list applied to an interface drops every packet
+// arriving on it.
+type replyStatus int
+
+const (
+	replyOK       replyStatus = iota // the query succeeded; records, if any, are in the payload
+	replyNotFound                    // "D": the server does not hold this key
+	replyFailed                      // "E", "F", or no status line at all
+)
+
+// parseReply splits an RPSL whois reply into its record payload and its status.
+//
+// A reply with no status line is truncated: the connection closed early, or the
+// answer passed maxResponse and io.LimitReader cut it. Such a reply reports
+// replyFailed, because reading a partial record set as a complete answer
+// silently shrinks whatever filter the records feed.
+//
+// detail carries the operator-facing reason whenever status is replyFailed.
+func parseReply(response string) (payload string, status replyStatus, detail string) {
+	lines := strings.Split(response, "\n")
+	last := -1
+	for i := len(lines) - 1; i >= 0; i-- {
+		if strings.TrimSpace(lines[i]) != "" {
+			last = i
+			break
+		}
+	}
+	if last < 0 {
+		return "", replyFailed, "server sent an empty reply"
+	}
+
+	// A status line is the letter alone, except "F", which may carry a message.
+	// Matching the letter as a PREFIX would read a truncated reply whose last
+	// record happens to start with C, D or E as a complete answer.
+	statusLine := strings.TrimSpace(lines[last])
+	switch {
+	case statusLine == "C":
+		records := lines[:last]
+		// A reply carrying records opens with an "A<length>" marker line.
+		if len(records) > 0 && isAnswerMarker(strings.TrimSpace(records[0])) {
+			records = records[1:]
+		}
+		return strings.Join(records, "\n"), replyOK, ""
+	case statusLine == "D":
+		return "", replyNotFound, ""
+	case statusLine == "E":
+		return "", replyFailed, "database holds several copies of the key"
+	case statusLine == "F":
+		return "", replyFailed, "server refused the query"
+	case strings.HasPrefix(statusLine, "F "):
+		return "", replyFailed, strings.TrimSpace(statusLine[2:])
+	}
+	return "", replyFailed, "reply ended without an RPSL status line (truncated)"
 }
 
 // IRR queries an IRR database via the RPSL whois protocol.
@@ -96,7 +161,7 @@ const maxRecursionDepth = 32
 // ResolveASSet expands an AS-SET name into a set of origin ASNs.
 // Handles recursive AS-SET references (AS-SET containing other AS-SETs).
 // Uses the RPSL "!i" command for AS-SET member expansion.
-// Results are cached for 1h keyed by AS-SET name.
+// A non-empty result is cached for 1h keyed by AS-SET name.
 // Returns an error if the AS-SET name contains control characters.
 func (c *IRR) ResolveASSet(ctx context.Context, asSet string) ([]uint32, error) {
 	if err := validateASSetName(asSet); err != nil {
@@ -119,7 +184,10 @@ func (c *IRR) ResolveASSet(ctx context.Context, asSet string) ([]uint32, error) 
 	}
 	slices.Sort(asns)
 
-	c.asSetCache.Set(asSet, asns)
+	// An expansion that found no members is not data; see LookupPrefixes.
+	if len(asns) > 0 {
+		c.asSetCache.Set(asSet, asns)
+	}
 
 	return asns, nil
 }
@@ -139,17 +207,18 @@ func (c *IRR) resolveASSetRecursive(ctx context.Context, asSet string, seen map[
 	if err != nil {
 		return fmt.Errorf("irr: resolve AS-SET %s: %w", asSet, err)
 	}
+	payload, status, detail := parseReply(response)
+	switch status {
+	case replyNotFound:
+		return nil // the server does not hold this AS-SET: no members, no error
+	case replyFailed:
+		// A member list the server could not give us is unknown, not empty.
+		return fmt.Errorf("irr: resolve AS-SET %s: %s", asSet, detail)
+	case replyOK:
+	}
 
-	for line := range strings.SplitSeq(strings.TrimSpace(response), "\n") {
+	for line := range strings.SplitSeq(strings.TrimSpace(payload), "\n") {
 		for word := range strings.FieldsSeq(line) {
-			if word == "C" || word == "D" {
-				continue // end markers
-			}
-			// Skip the leading "A<count>" answer marker (e.g., "A3" = 3 results).
-			if isAnswerMarker(word) {
-				continue
-			}
-
 			// Try to parse as ASN (with or without "AS" prefix).
 			if asn, ok := parseASN(word); ok {
 				result[asn] = true
@@ -175,8 +244,11 @@ func (c *IRR) resolveASSetRecursive(ctx context.Context, asSet string, seen map[
 // LookupPrefixes fetches the announced prefixes for an AS-SET from the IRR.
 // Uses the RPSL "!a4" and "!a6" commands for IPv4 and IPv6 prefix queries.
 // Prefixes are aggregated (collapsed) and sorted.
-// Results are cached for 1h keyed by AS-SET name.
-// Returns an error if the AS-SET name contains control characters.
+// A non-empty result is cached for 1h keyed by AS-SET name.
+// Returns an error if the AS-SET name contains control characters, or if the
+// server refused the query or sent a truncated reply. An AS-SET the server does
+// not hold, and one that holds no route objects, both return an empty list and
+// no error: the caller decides what an empty answer means for its data.
 func (c *IRR) LookupPrefixes(ctx context.Context, asSet string) (PrefixList, error) {
 	if err := validateASSetName(asSet); err != nil {
 		return PrefixList{}, err
@@ -201,7 +273,12 @@ func (c *IRR) LookupPrefixes(ctx context.Context, asSet string) (PrefixList, err
 		IPv6: aggregateAndSort(ipv6),
 	}
 
-	c.prefixCache.Set(asSet, result)
+	// An answer that learned nothing is not data. Caching it would serve the
+	// same empty answer for an hour, so an operator who forced a refresh after
+	// noticing the outage would never reach the server.
+	if !result.Empty() {
+		c.prefixCache.Set(asSet, result)
+	}
 
 	return result, nil
 }
@@ -213,19 +290,22 @@ func (c *IRR) lookupFamilyPrefixes(ctx context.Context, asSet string, family int
 	if err != nil {
 		return nil, fmt.Errorf("irr: lookup prefixes %s (IPv%d): %w", asSet, family, err)
 	}
+	payload, status, detail := parseReply(response)
+	switch status {
+	case replyNotFound:
+		// The server holds no route objects for this AS-SET in this family.
+		// An AS-SET that announces IPv4 and no IPv6 answers this way, so it is
+		// an empty family rather than a failed lookup.
+		return nil, nil
+	case replyFailed:
+		return nil, fmt.Errorf("irr: lookup prefixes %s (IPv%d): %s", asSet, family, detail)
+	case replyOK:
+	}
 
 	var prefixes []netip.Prefix
 
-	for line := range strings.SplitSeq(strings.TrimSpace(response), "\n") {
+	for line := range strings.SplitSeq(strings.TrimSpace(payload), "\n") {
 		for word := range strings.FieldsSeq(line) {
-			if word == "C" || word == "D" {
-				continue // end markers
-			}
-			// Skip the leading "A<count>" answer marker.
-			if isAnswerMarker(word) {
-				continue
-			}
-
 			p, parseErr := netip.ParsePrefix(word)
 			if parseErr != nil {
 				continue // skip unparseable entries
@@ -299,7 +379,8 @@ func ValidateASSetName(name string) error {
 }
 
 // isAnswerMarker reports whether s is an RPSL answer marker like "A3" or "A125".
-// These appear at the start of whois responses to indicate the result count.
+// It opens a whois reply that carries records and gives their byte count.
+// parseReply strips it, so the record parsers never see it.
 func isAnswerMarker(s string) bool {
 	if len(s) < 2 || s[0] != 'A' {
 		return false

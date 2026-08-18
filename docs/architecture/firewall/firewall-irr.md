@@ -38,6 +38,46 @@ The original spec design did not anticipate this. Any future firewall plugin tha
 needs to register sets on the engine's table uses `RegisterTables` with the same
 table name and gets the merge.
 
+### A term states the type of the set another owner provides
+
+<!-- source: internal/component/firewall/config.go -- irrSetMatch -->
+<!-- source: internal/component/firewall/validate.go -- validateMatch -->
+
+Verify-time validation runs over the parsed configuration alone, long before the
+merge, so the IRR set is not there to be found. `MatchInSet.ProvidedType` carries
+the element type the supplying owner will register, and the config parser is the
+only thing that sets it, for the four IRR leaves alone. `validateMatch` accepts a
+match that carries it and checks the field against that type; a match without it
+still has to name a set the table itself declares, so `source-address
+"@irr_v4_typo"` typed by hand is refused as it always was.
+
+### The reconcile waits for a set nobody has registered yet
+
+<!-- source: internal/component/firewall/registry.go -- unresolvedProvidedSet -->
+
+The owners register in no fixed order. At startup the firewall engine configures
+before the plugin that supplies the set, because the plugin depends on it, and in
+a reload transaction the participants apply in whatever order the orchestrator
+emits. The backend refuses a rule whose set is not on the table, and that refusal
+fails the reconcile for every owner.
+
+`ApplyAll` therefore checks the merged tables for a match that names a provided
+set nobody declared, and returns without calling the backend when it finds one,
+logging `reconcile deferred` at WARN. The supplying owner calls `ApplyAll` when
+it registers, and that run programs the complete ruleset. The WARN is what an
+operator has to go on when the supplier never arrives, so it names the table and
+the set.
+
+### A reload reconfigures the plugin
+
+<!-- source: internal/component/firewall/plugins/irr/irr.go -- configure -->
+
+`OnConfigApply` receives a diff, not the configuration, so the plugin carries the
+config `OnConfigVerify` approved into it and calls the same `configure` that
+`OnConfigure` calls. Anything else leaves the plugin serving what the daemon
+started with: a term added by a commit would never reach the registry, and the
+firewall would wait for a set the plugin was never told to build.
+
 ### CIDR is encoded as an interval
 
 <!-- source: internal/component/firewall/model.go -- SetElement.IntervalEnd -->
@@ -60,6 +100,47 @@ and need separate terms. A future change could split terms and hide this.
 
 `refresh-interval` defaults to 0. Invalid IRR data causing a firewall outage is
 the risk that makes auto-refresh opt-in.
+
+### An empty answer is not data
+
+<!-- source: internal/component/resolve/irr/client.go -- parseReply, the RPSL status line classifier -->
+<!-- source: internal/component/resolve/irr/store/store.go -- Refresh, markStale, Purge -->
+
+An RPSL reply ends with one status line. `C` means the query succeeded, `D`
+means the server does not hold the key, `E` means the database holds several
+copies of it, and `F <message>` means the server failed the query. `parseReply`
+reads that line. Before it existed the parser skipped every word it could not
+read as a prefix, so all four replies reduced to an empty prefix list with no
+error, and a server error was indistinguishable from an answer of nothing.
+
+`E`, `F` and a reply with no status line are errors. A reply cut short by the
+4 MB read cap has no status line, so a partial record set is an error rather
+than a shorter prefix list.
+
+`Refresh` never replaces cached prefixes with none. A lookup that errors and a
+lookup that succeeds with no prefixes both keep what is cached and set
+`StaleSince` on the entry, and the second returns `store.ErrNoPrefixes`. The
+guard lives in the store, so the firewall table terms, the firewall interface
+bindings and the BGP IRR filter all get it from one place. `LookupPrefixes`
+also refuses to cache an empty answer, so an operator who forces a refresh
+reaches the server instead of the one-hour cache.
+
+Removing prefixes is an operator action: `clear firewall irr asn|as-set` calls
+`PrefixStore.Purge`. Without it, an AS-SET deregistered upstream would be
+enforced forever.
+
+### An interface binding with no prefixes produces no table
+
+<!-- source: internal/component/firewall/plugins/irr/sets.go -- buildIfaceTables -->
+<!-- source: internal/component/firewall/plugins/irr/irr.go -- verifyRefs -->
+
+The interface ingress chain is a whitelist: accept terms for the AS-SET's
+prefixes, then one drop term closing it. Emitted on its own that drop term
+drops every packet arriving on the interface, and the apply succeeds, so a
+customer-facing port goes dark with no error anywhere. `buildIfaceTables`
+therefore emits nothing for a binding with no prefixes, and logs it. An
+unfiltered port beats a blackholed one, and `verifyRefs` refuses the commit
+before it gets that far.
 
 ## Trap
 

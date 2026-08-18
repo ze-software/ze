@@ -143,3 +143,68 @@ func TestExtractFlushOnShutdown(t *testing.T) {
 		})
 	}
 }
+
+// VALIDATES: AC-1 -- the guide's IRR table term survives the verify path AND
+// the registry merge the configure path performs. parseAndVerifyFirewallSections
+// is what OnConfigVerify calls; RegisterTables plus ApplyAll is what
+// OnConfigure calls next. The set the term names arrives from the firewall-irr
+// owner, so the backend receives one table carrying both the term and the set.
+// PREVENTS: validation accepting a reference the merge cannot resolve, which
+// would move a commit-time rejection to an apply-time failure of every owner's
+// ruleset.
+func TestConfigureAcceptsIRRTableTerm(t *testing.T) {
+	resetBackends()
+	resetTables()
+	t.Cleanup(func() {
+		resetBackends()
+		resetTables()
+	})
+
+	data := `{"firewall":{"backend":"nft","table":{"wan":{"family":"inet","chain":{"input":{"type":"filter","hook":"input","priority":"0","policy":"drop","term":{"from-cloudflare":{"from":{"source-asn":"13335"},"then":{"accept":""}}}}}}}}}`
+	sections := []sdk.ConfigSection{{Root: configRootFirewall, Data: data}}
+
+	cfg, err := parseAndVerifyFirewallSections(sections)
+	require.NoError(t, err, "an IRR table term must pass the verify path")
+	require.Len(t, cfg.Tables, 1)
+
+	var applied []Table
+	require.NoError(t, RegisterBackend("irr-merge-nft", func() (Backend, error) {
+		return &countingBackend{onApply: func(d []Table) { applied = d }}, nil
+	}))
+	prev := defaultBackendForAutoload
+	defaultBackendForAutoload = "irr-merge-nft"
+	t.Cleanup(func() { defaultBackendForAutoload = prev })
+
+	RegisterTables("firewall", cfg.Tables)
+	// What the firewall-irr owner registers once the prefixes are cached:
+	// the same table name and family, carrying only the sets.
+	RegisterTables("firewall-irr", []Table{{
+		Name:   "ze_wan",
+		Family: FamilyInet,
+		Sets: []Set{
+			{Name: "irr_v4_AS13335", Type: SetTypeIPv4, Flags: SetFlagInterval},
+			{Name: "irr_v6_AS13335", Type: SetTypeIPv6, Flags: SetFlagInterval},
+		},
+	}})
+	require.NoError(t, ApplyAll(), "the merged ruleset must apply")
+
+	require.Len(t, applied, 1, "both owners must merge into one table")
+	merged := applied[0]
+	declared := make(map[string]SetType, len(merged.Sets))
+	for _, s := range merged.Sets {
+		declared[s.Name] = s.Type
+	}
+	require.Len(t, merged.Chains, 1)
+	for _, term := range merged.Chains[0].Terms {
+		for _, m := range term.Matches {
+			in, ok := m.(MatchInSet)
+			if !ok {
+				continue
+			}
+			got, ok := declared[in.SetName]
+			assert.True(t, ok, "term %q references set %q, which the merged table does not declare", term.Name, in.SetName)
+			assert.Equal(t, in.ProvidedType, got, "set %q type disagrees with what the match expects", in.SetName)
+		}
+	}
+	assert.Len(t, merged.Chains[0].Terms, 2, "the v4 term and its v6 twin must both reach the backend")
+}

@@ -152,12 +152,28 @@ $ ze cli -c 'update bgp irr asn 65001'
 $ ze cli -c 'update bgp irr as-set AS-CUSTOMER'
 ```
 
-A successful refresh atomically replaces the in-memory list and persists it in ZeFS. A failed refresh preserves the last known good list and records the error in `show bgp irr`. This avoids turning a temporary IRR or PeeringDB outage into an empty allow-list.
+A refresh that returns prefixes atomically replaces the in-memory list and persists it in ZeFS. Two other outcomes keep the last known good list instead, and both record the reason in `show bgp irr`:
+
+- The refresh failed: the server was unreachable, refused the query, or sent a truncated reply.
+- The refresh succeeded and returned no prefixes at all. Ze treats "I have nothing" the same as a failure, because an empty allow-list rejects every route the peer sends. A server that answers `D` (key not found), answers with no records, or reports an error can therefore not empty a live list.
+
+The prefixes an empty answer left in place are still enforced. `show bgp irr` and `show firewall irr` mark the entry `stale` and give the age of the data, so enforcing data nobody has confirmed is visible rather than silent.
+
+Removing prefixes is always deliberate. When an AS-SET is deregistered upstream for good, clear its cached data:
+
+```console
+$ ze cli -c 'clear firewall irr as-set AS-CUSTOMER'
+$ ze cli -c 'clear firewall irr asn 65001'
+```
+
+The entry disappears from memory and from ZeFS, and the firewall tables are re-applied. Firewall configuration that still references the name fails to verify until it is fetched again with `update firewall irr`.
 
 At first enrollment, do not place the session into service until `show bgp irr` reports `status: ok`. A peer without loaded prefix data has no list from which to make a useful allow decision.
 
 <!-- source: internal/component/bgp/plugins/filter_irr/command.go -- show, check, and manual refresh commands -->
 <!-- source: internal/component/resolve/irr/store/store.go -- atomic refresh and last-known-good persistence -->
+<!-- source: internal/component/resolve/irr/client.go -- RPSL reply classification (parseReply) -->
+<!-- source: internal/component/firewall/plugins/irr/command.go -- firewall show and clear commands -->
 
 ## Local demonstration
 
@@ -174,6 +190,8 @@ The recording starts with a stored BGP peer that has no IRR plugin, server, AS-S
 | `show bgp irr` has no entry for the ASN | Plugin and filter reference | Load `bgp-filter-irr` and use `import [ bgp-filter-irr:<remote-asn> ]` on the peer. |
 | Status stays `pending` | IRR connectivity | Permit outbound TCP to the configured whois server and run `update bgp irr asn <asn>`. |
 | Status is `error` | `error` field in `show bgp irr` | Correct the AS-SET or server, then refresh. The last known good list remains active. |
+| Status is `stale` | `stale-since` and `data-age-seconds` in `show firewall irr` | The last refresh returned no prefixes. Confirm the AS-SET still exists and the server is reachable, then refresh. The previous prefixes stay enforced meanwhile. |
+| An AS-SET no longer exists and its prefixes are still enforced | `show firewall irr` | Run `clear firewall irr as-set <name>`. An empty answer never removes prefixes, so removal is an operator action. |
 | The wrong AS-SET is selected | `as-set` in `show bgp irr` | Configure the expected AS-SET explicitly under the peer session. |
 | A valid customer route is rejected | `show bgp irr check <peer-name> <prefix>` | Confirm the exact prefix is registered in the selected IRR sources and refresh the list. |
 | An unregistered route appears in Adj-RIB-In | Active import chain | Confirm the peer uses the IRR filter and has not set `irr { enable disable; }`. |

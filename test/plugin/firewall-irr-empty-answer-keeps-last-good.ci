@@ -1,0 +1,106 @@
+# accept-only: every assertion is made by the observer through runtime_fail, not on
+# stdout. checkObserverSentinel (internal/test/runner/runner_validate.go) scans stderr
+# for ZE-OBSERVER-FAIL unconditionally at outcome classification, so an observer failure
+# fails this run ahead of the exit code. The prefix counts and the stale marker are read
+# back through the engine, which puts them on no stdout an expect= could match.
+# Test: an IRR answer carrying no prefixes never empties a live filter.
+# VALIDATES: AC-1 -- the previously learned prefixes stay cached and enforced.
+# VALIDATES: AC-4 -- the refresh reports that it learned nothing.
+# VALIDATES: AC-5 -- show firewall irr reports the entry stale and dates the data.
+# PREVENTS: a transient upstream answer emptying a prefix filter for an hour.
+#
+# Flow:
+# 1. Mock IRR server runs with -empty-after-first: AS-TEST answers once with
+#    data, then answers "D" (key not found) forever after.
+# 2. Observer refreshes AS-TEST and records the prefix counts it learned.
+# 3. Observer refreshes AS-TEST again. The second refresh gets nothing.
+# 4. show firewall irr must still carry the prefixes, marked stale.
+
+# This test programs nftables, so it needs CAP_NET_ADMIN, not merely Linux.
+option=needs-linux:caps=net-admin
+option=env:var=ze.log.firewall.irr:value=debug
+option=timeout:value=20s
+
+tmpfs=firewall-irr-empty-answer.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Verify an empty IRR answer keeps the last known good prefixes."""
+import sys
+from ze_api import API, runtime_fail, result_json_data
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    result = api.dispatch_until_done('update firewall irr as-set AS-TEST')
+    if result.get('status') != 'done':
+        runtime_fail(f'initial update failed: {result}')
+    data = result_json_data(result, {})
+    learned_v4 = data.get('ipv4-count', 0)
+    learned_v6 = data.get('ipv6-count', 0)
+    if learned_v4 < 1:
+        runtime_fail(f'expected v4 prefixes on the first refresh, got {learned_v4}')
+
+    # The server now answers "key not found" for every query.
+    result = api.dispatch_until_done('update firewall irr as-set AS-TEST')
+    if result.get('status') == 'done':
+        runtime_fail('a refresh that learned nothing reported success')
+
+    result = api.dispatch_until_done('show firewall irr')
+    if result.get('status') != 'done':
+        runtime_fail(f'show failed: {result}')
+    shown = result_json_data(result, {})
+    entries = [e for e in shown.get('entries', []) if e.get('name') == 'AS-TEST']
+    if not entries:
+        runtime_fail(f'AS-TEST missing from show output: {shown}')
+    entry = entries[0]
+    if entry.get('ipv4-count') != learned_v4 or entry.get('ipv6-count') != learned_v6:
+        runtime_fail(f'prefixes lost to the empty answer: {entry}')
+    if entry.get('status') != 'stale':
+        runtime_fail(f'entry status = {entry.get("status")}, want stale: {entry}')
+    if 'stale-since' not in entry:
+        runtime_fail(f'stale entry does not say since when: {entry}')
+
+    print(f'OK: kept v4={learned_v4} v6={learned_v6} prefixes, reported stale', file=sys.stderr)
+
+    api._call_engine('ze-plugin-engine:dispatch-command', {'command': 'request shutdown'})
+    api.wait_for_shutdown()
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-fw:terminator=EOF_CONF
+plugin {
+	external firewall-irr-empty-answer-test {
+		run ./firewall-irr-empty-answer.run
+		encoder json
+	}
+}
+firewall {
+	backend nft;
+	irr {
+		server 127.0.0.1:$PORT2;
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 1; remote 1; }
+			router-id 1.2.3.4;
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-test irr --port $PORT2 --empty-after-first
+cmd=foreground:seq=2:exec=ze --plugin ze.firewall-irr -:stdin=ze-fw:timeout=20s
+expect=exit:code=0

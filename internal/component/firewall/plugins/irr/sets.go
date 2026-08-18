@@ -128,14 +128,11 @@ func buildIfaceTables(ps *store.PrefixStore, bindings []ifaceBinding) []firewall
 		if entry == nil {
 			continue
 		}
-		if !seenSets[ib.ASSet] {
-			seenSets[ib.ASSet] = true
-			sets = append(sets, buildSets(ib.ASSet, entry.IPv4, entry.IPv6)...)
-		}
 
 		v4Name, v6Name := setNames(ib.ASSet)
+		var accepts []firewall.Term
 		if len(entry.IPv4) > 0 {
-			terms = append(terms, firewall.Term{
+			accepts = append(accepts, firewall.Term{
 				Name: ifaceTermName(ib.Interface, "v4"),
 				Matches: []firewall.Match{
 					firewall.MatchInputInterface{Name: ib.Interface},
@@ -145,7 +142,7 @@ func buildIfaceTables(ps *store.PrefixStore, bindings []ifaceBinding) []firewall
 			})
 		}
 		if len(entry.IPv6) > 0 {
-			terms = append(terms, firewall.Term{
+			accepts = append(accepts, firewall.Term{
 				Name: ifaceTermName(ib.Interface, "v6"),
 				Matches: []firewall.Match{
 					firewall.MatchInputInterface{Name: ib.Interface},
@@ -154,6 +151,23 @@ func buildIfaceTables(ps *store.PrefixStore, bindings []ifaceBinding) []firewall
 				Actions: []firewall.Action{firewall.Accept{}},
 			})
 		}
+
+		// The drop term is the whitelist's closing rule: it drops what the
+		// accept terms above did not match. Emitted on its own it drops every
+		// packet arriving on the interface, so a binding with no prefixes
+		// produces nothing at all. A filter with no data is not a filter, and
+		// an unfiltered port beats a blackholed one.
+		if len(accepts) == 0 {
+			logger().Warn("firewall-irr: interface binding has no prefixes, leaving the interface unfiltered",
+				"interface", ib.Interface, "as-set", ib.ASSet)
+			continue
+		}
+
+		if !seenSets[ib.ASSet] {
+			seenSets[ib.ASSet] = true
+			sets = append(sets, buildSets(ib.ASSet, entry.IPv4, entry.IPv6)...)
+		}
+		terms = append(terms, accepts...)
 		terms = append(terms, firewall.Term{
 			Name: ifaceTermName(ib.Interface, "drop"),
 			Matches: []firewall.Match{

@@ -7,6 +7,7 @@ module ze-firewall-irr-cmd {
                  directory removes these command nodes together with the handlers
                  and config schema. See ai/rules/plugin-self-containment.md.";
     revision 2026-06-17 { description "Initial revision."; }
+    revision 2026-08-18 { description "Add clear firewall irr asn/as-set: the deliberate way to drop cached prefixes, now that a refresh which learns nothing keeps them."; }
 
     container show {
         config false;
@@ -75,6 +76,46 @@ if it does not exist.";
                     description "Fetch or refresh IRR prefix-list for an AS-SET.
 Usage: update firewall irr as-set <as-set>. Queries the IRR server
 and saves resolved prefixes to the zefs cache.";
+                    leaf as-set { type string; mandatory true; description "AS-SET name"; }
+                }
+            }
+        }
+    }
+
+    container clear {
+        config false;
+
+        container firewall {
+            config false;
+            // Repeat the canonical description owned by ze-firewall-cmd.yang
+            // verbatim so the command-tree merge does not warn on a mismatch.
+            description "Firewall rules and groups (nftables)";
+
+            container irr {
+                config false;
+                description "Remove cached IRR prefix-lists.
+A refresh that learns nothing keeps the prefixes it already has, so that
+one bad answer from an IRR server cannot empty a live filter. These
+commands are how an operator removes prefixes on purpose, for an ASN or
+AS-SET that no longer exists upstream.";
+
+                container asn {
+                    config false;
+                    ze:command "ze-clear:firewall-irr-asn";
+                    description "Remove the cached IRR prefix-list for an ASN.
+Usage: clear firewall irr asn <asn>. Drops the entry from memory and
+from the persisted cache, then re-applies the firewall tables. Config
+that still references the ASN fails to verify until it is fetched again
+with 'update firewall irr asn <asn>'.";
+                    leaf asn { type string; mandatory true; description "ASN number"; }
+                }
+
+                container as-set {
+                    config false;
+                    ze:command "ze-clear:firewall-irr-as-set";
+                    description "Remove the cached IRR prefix-list for an AS-SET.
+Usage: clear firewall irr as-set <as-set>. Drops the entry from memory
+and from the persisted cache, then re-applies the firewall tables.";
                     leaf as-set { type string; mandatory true; description "AS-SET name"; }
                 }
             }

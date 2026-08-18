@@ -25,6 +25,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/netip"
 	"os"
 	"strconv"
@@ -46,6 +47,17 @@ var (
 	errBadPathName = errors.New("irr/store: name is not a valid zefs path segment")
 )
 
+// ErrNoPrefixes reports a refresh that learned nothing: the IRR answered, and
+// the answer carried no prefixes for either family. The previously cached
+// prefixes are kept and stay enforced, and the entry returned alongside this
+// error carries them.
+//
+// An empty answer is never data. A consumer that replaced its prefix list with
+// one has no filter left: an interface binding drops every packet arriving on
+// the port, and a BGP filter rejects every UPDATE from the peer. Purge is the
+// deliberate way to remove prefixes.
+var ErrNoPrefixes = errors.New("irr/store: IRR returned no prefixes")
+
 // CachedEntry is one resolved prefix set, keyed by Name.
 // Prefixes serialize to JSON as strings via netip.Prefix's TextMarshaler.
 type CachedEntry struct {
@@ -54,6 +66,17 @@ type CachedEntry struct {
 	IPv4        []netip.Prefix `json:"ipv4"`
 	IPv6        []netip.Prefix `json:"ipv6"`
 	RefreshedAt time.Time      `json:"refreshed-at"`
+	// StaleSince is when the first refresh since RefreshedAt learned nothing.
+	// Zero means the prefixes above are what the IRR last answered. Non-zero
+	// means they are last-known-good data still being enforced, and the gap
+	// between the two timestamps is how long that has been true.
+	StaleSince time.Time `json:"stale-since,omitzero"`
+}
+
+// Stale reports whether the entry's prefixes are last-known-good data kept
+// after a refresh learned nothing, rather than what the IRR last answered.
+func (e *CachedEntry) Stale() bool {
+	return !e.StaleSince.IsZero()
 }
 
 // PrefixList returns the entry's prefixes as an irr.PrefixList.
@@ -107,19 +130,125 @@ func (s *PrefixStore) Put(name string, ipv4, ipv6 []netip.Prefix) {
 // queries name directly if it is an AS-SET, or discovers the AS-SET via
 // PeeringDB if name is a bare ASN (falling back to the literal "AS<asn>" name).
 //
-// On a lookup error the returned entry is non-nil and carries the resolved
-// AS-SET (with no prefixes) plus the error, and the cached data for name is
-// left untouched. On success the in-memory cache and the zefs file are updated.
+// A refresh that does not learn prefixes never replaces what is cached. The
+// previously resolved prefixes stay in memory and on disk and stay enforced,
+// and the returned entry carries them with StaleSince set. Two cases reach it:
+// a lookup error, which is returned unchanged, and a lookup that succeeded and
+// carried no prefixes, which returns ErrNoPrefixes.
+//
+// On success the in-memory cache and the zefs file are updated and StaleSince
+// is cleared.
 func (s *PrefixStore) Refresh(ctx context.Context, name, asSet string) (*CachedEntry, error) {
 	entry, err := s.resolve(ctx, name, asSet)
 	if err != nil {
-		return entry, err
+		return s.markStale(name, entry), err
+	}
+	if entry.PrefixList().Empty() {
+		return s.markStale(name, entry), fmt.Errorf("%w for %s (as-set %s)", ErrNoPrefixes, name, entry.ASSet)
 	}
 	s.mu.Lock()
 	s.entries[name] = entry
 	s.mu.Unlock()
 	s.persist([]*CachedEntry{entry})
 	return entry, nil
+}
+
+// markStale records a refresh that did not learn prefixes for name. The cached
+// prefixes stay in memory and on disk, and StaleSince dates the first refresh
+// since they were learned that came back with nothing, so an operator can see
+// how long enforcement has run on data nobody has confirmed.
+//
+// When nothing was cached, nothing is written: an entry that exists and holds
+// no prefixes reads to every consumer as an answer, and a zero value must never
+// look like a valid one (ai/rules/evidence.md). fresh is returned instead, so a
+// caller still sees the AS-SET the name resolved to.
+func (s *PrefixStore) markStale(name string, fresh *CachedEntry) *CachedEntry {
+	if fresh == nil {
+		return nil // the name never reached a lookup (invalid name)
+	}
+
+	s.mu.Lock()
+	kept := s.entries[name]
+	if kept == nil {
+		s.mu.Unlock()
+		// Nothing was learned, so RefreshedAt must not date prefixes that do
+		// not exist. The caller gets the resolved AS-SET and a stale marker.
+		fresh.RefreshedAt = time.Time{}
+		fresh.StaleSince = time.Now()
+		return fresh
+	}
+	updated := *kept
+	changed := false
+	if fresh.ASSet != "" && fresh.ASSet != updated.ASSet {
+		updated.ASSet = fresh.ASSet
+		changed = true
+	}
+	if updated.StaleSince.IsZero() {
+		updated.StaleSince = time.Now()
+		changed = true
+	}
+	if !changed {
+		s.mu.Unlock()
+		return kept // already recorded; a long outage must not rewrite zefs per tick
+	}
+	s.entries[name] = &updated
+	s.mu.Unlock()
+
+	s.persist([]*CachedEntry{&updated})
+	return &updated
+}
+
+// Purge removes name from the in-memory cache and from the persisted cache, and
+// reports whether an entry was there to remove.
+//
+// It is the deliberate exit from last-known-good. A refresh that learns nothing
+// keeps the previous prefixes, so an AS-SET that was deregistered upstream stops
+// being enforced when an operator purges it, never because a server had a bad
+// minute.
+func (s *PrefixStore) Purge(name string) bool {
+	if validateName(name) != nil {
+		// The store can hold no such name, and zefs key substitution panics on
+		// some of them. Nothing to remove, and nothing to reach the key with.
+		return false
+	}
+	s.mu.Lock()
+	_, found := s.entries[name]
+	delete(s.entries, name)
+	s.mu.Unlock()
+
+	if found {
+		s.removePersisted(name)
+	}
+	return found
+}
+
+// removePersisted drops name's key from the zefs file. It is a no-op when
+// persistence is disabled or the file does not exist.
+func (s *PrefixStore) removePersisted(name string) {
+	if s.path == "" {
+		return
+	}
+	s.fileMu.Lock()
+	defer s.fileMu.Unlock()
+	bs, err := openExisting(s.path)
+	if err != nil {
+		return // no file: the in-memory delete is the whole job
+	}
+	defer func() { _ = bs.Close() }()
+
+	wl, err := bs.Lock()
+	if err != nil {
+		return
+	}
+	key := zefs.KeyIRRPrefixCache.Key(name)
+	if wl.Has(key) {
+		if rmErr := wl.Remove(key); rmErr != nil {
+			logger().Warn("irr/store: purge removal failed", "name", name, "error", rmErr)
+		}
+	}
+	if rErr := wl.Release(); rErr != nil {
+		logger().Warn("irr/store: purge lock release failed", "name", name, "error", rErr)
+	}
 }
 
 // resolve performs AS-SET resolution and the IRR lookup without mutating state.

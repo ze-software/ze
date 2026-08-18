@@ -20,6 +20,8 @@ const (
 	cmdUpdateIRRAll   = "update firewall irr all"
 	cmdUpdateIRRAsn   = "update firewall irr asn"
 	cmdUpdateIRRAsSet = "update firewall irr as-set"
+	cmdClearIRRAsn    = "clear firewall irr asn"
+	cmdClearIRRAsSet  = "clear firewall irr as-set"
 )
 
 func init() {
@@ -49,6 +51,16 @@ func init() {
 			Handler:       forwardUpdateIRRAsSet,
 			PluginCommand: cmdUpdateIRRAsSet,
 		},
+		pluginserver.RPCRegistration{
+			WireMethod:    "ze-clear:firewall-irr-asn",
+			Handler:       forwardClearIRRAsn,
+			PluginCommand: cmdClearIRRAsn,
+		},
+		pluginserver.RPCRegistration{
+			WireMethod:    "ze-clear:firewall-irr-as-set",
+			Handler:       forwardClearIRRAsSet,
+			PluginCommand: cmdClearIRRAsSet,
+		},
 	)
 }
 
@@ -65,9 +77,44 @@ func forwardUpdateIRRAll(ctx *pluginserver.CommandContext, args []string) (*plug
 }
 
 func forwardUpdateIRRAsn(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdUpdateIRRAsn, args, ctx.PeerSelector())
+	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdUpdateIRRAsn, argsOrSelector(ctx, args, leafASN), ctx.PeerSelector())
 }
 
 func forwardUpdateIRRAsSet(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdUpdateIRRAsSet, args, ctx.PeerSelector())
+	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdUpdateIRRAsSet, argsOrSelector(ctx, args, leafASSet), ctx.PeerSelector())
+}
+
+func forwardClearIRRAsn(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdClearIRRAsn, argsOrSelector(ctx, args, leafASN), ctx.PeerSelector())
+}
+
+func forwardClearIRRAsSet(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdClearIRRAsSet, argsOrSelector(ctx, args, leafASSet), ctx.PeerSelector())
+}
+
+// The four commands above end in the same word as the YANG leaf that carries
+// their value: `update firewall irr asn <asn>` reads leaf `asn` under container
+// `asn`. matchCommandTokens treats a key token that names an ArgDef as a typed
+// selector keyword, so it binds the value into ctx.Selectors and leaves args
+// empty (internal/component/plugin/server/command.go, matchCommandTokens).
+// `show firewall irr prefix <name>` is unaffected: its leaf is `name`, which no
+// key token spells, so its value stays in args.
+const (
+	leafASN   = "asn"
+	leafASSet = "as-set"
+)
+
+// argsOrSelector returns the positional arguments a plugin command was given,
+// recovering the value from the bound selector when the dispatcher consumed it.
+// Without it the plugin receives no argument at all and answers with its usage
+// line, which is what made every `update firewall irr asn|as-set` invocation
+// fail.
+func argsOrSelector(ctx *pluginserver.CommandContext, args []string, leaf string) []string {
+	if len(args) > 0 {
+		return args
+	}
+	if value := ctx.Selector(leaf); value != "" {
+		return []string{value}
+	}
+	return args
 }

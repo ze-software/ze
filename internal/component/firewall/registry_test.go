@@ -191,3 +191,121 @@ func (c *countingBackend) Apply(d []Table) error {
 func (c *countingBackend) ListTables() ([]Table, error)                { return nil, nil }
 func (c *countingBackend) GetCounters(string) ([]ChainCounters, error) { return nil, nil }
 func (c *countingBackend) Close() error                                { return nil }
+
+// VALIDATES: AC-1 -- a table whose term names a set another owner supplies is
+// held back until that owner registers it, and then the whole ruleset is
+// programmed. The two owners do not register in a fixed order: at startup the
+// firewall engine configures before the plugin that supplies the set, and in a
+// reload transaction the participants apply in whatever order the orchestrator
+// emits.
+// PREVENTS: the first owner to apply failing the reconcile for every owner with
+// `match-in-set: unknown set ... (not registered on table)`, which is what the
+// backend answers when a rule names a set the table does not carry.
+func TestApplyAllWaitsForAProvidedSet(t *testing.T) {
+	resetBackends()
+	resetTables()
+	t.Cleanup(func() {
+		resetBackends()
+		resetTables()
+	})
+
+	applies := 0
+	var lastApplied []Table
+	if err := RegisterBackend("provided-set-nft", func() (Backend, error) {
+		return &countingBackend{onApply: func(d []Table) { applies++; lastApplied = d }}, nil
+	}); err != nil {
+		t.Fatalf("RegisterBackend: %v", err)
+	}
+	prev := defaultBackendForAutoload
+	defaultBackendForAutoload = "provided-set-nft"
+	t.Cleanup(func() { defaultBackendForAutoload = prev })
+
+	RegisterTables("firewall", []Table{{
+		Name:   "ze_wan",
+		Family: FamilyInet,
+		Chains: []Chain{{
+			Name:   "input",
+			IsBase: true,
+			Type:   ChainFilter,
+			Hook:   HookInput,
+			Policy: PolicyAccept,
+			Terms: []Term{{
+				Name: "t",
+				Matches: []Match{
+					MatchInSet{SetName: "irr_v4_AS13335", MatchField: SetFieldSourceAddr, ProvidedType: SetTypeIPv4},
+				},
+				Actions: []Action{Accept{}},
+			}},
+		}},
+	}})
+
+	if err := ApplyAll(); err != nil {
+		t.Fatalf("a pending provider must not fail the reconcile: %v", err)
+	}
+	if applies != 0 {
+		t.Fatalf("the backend was given a rule naming a set nobody registered (%d applies)", applies)
+	}
+
+	RegisterTables("firewall-irr", []Table{{
+		Name:   "ze_wan",
+		Family: FamilyInet,
+		Sets:   []Set{{Name: "irr_v4_AS13335", Type: SetTypeIPv4, Flags: SetFlagInterval}},
+	}})
+
+	if err := ApplyAll(); err != nil {
+		t.Fatalf("ApplyAll after the provider registered: %v", err)
+	}
+	if applies != 1 {
+		t.Fatalf("backend applies = %d, want 1 once the set is registered", applies)
+	}
+	if len(lastApplied) != 1 || len(lastApplied[0].Sets) != 1 || lastApplied[0].Sets[0].Name != "irr_v4_AS13335" {
+		t.Fatalf("the merged table did not carry the provided set: %+v", lastApplied)
+	}
+}
+
+// VALIDATES: a set the table declares itself is applied at once, so the wait
+// above is scoped to references no owner has answered.
+// PREVENTS: the guard stalling every reconcile that uses a named set.
+func TestApplyAllDoesNotWaitForADeclaredSet(t *testing.T) {
+	resetBackends()
+	resetTables()
+	t.Cleanup(func() {
+		resetBackends()
+		resetTables()
+	})
+
+	applies := 0
+	if err := RegisterBackend("declared-set-nft", func() (Backend, error) {
+		return &countingBackend{onApply: func([]Table) { applies++ }}, nil
+	}); err != nil {
+		t.Fatalf("RegisterBackend: %v", err)
+	}
+	prev := defaultBackendForAutoload
+	defaultBackendForAutoload = "declared-set-nft"
+	t.Cleanup(func() { defaultBackendForAutoload = prev })
+
+	RegisterTables("firewall", []Table{{
+		Name:   "ze_wan",
+		Family: FamilyInet,
+		Sets:   []Set{{Name: "blocklist", Type: SetTypeIPv4}},
+		Chains: []Chain{{
+			Name:   "input",
+			IsBase: true,
+			Type:   ChainFilter,
+			Hook:   HookInput,
+			Policy: PolicyAccept,
+			Terms: []Term{{
+				Name:    "t",
+				Matches: []Match{MatchInSet{SetName: "blocklist", MatchField: SetFieldSourceAddr}},
+				Actions: []Action{Drop{}},
+			}},
+		}},
+	}})
+
+	if err := ApplyAll(); err != nil {
+		t.Fatalf("ApplyAll: %v", err)
+	}
+	if applies != 1 {
+		t.Fatalf("backend applies = %d, want 1: a declared set must not defer the reconcile", applies)
+	}
+}

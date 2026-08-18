@@ -110,8 +110,17 @@ func validateMatch(tbl *Table, ch *Chain, term *Term, m Match, sets map[string]S
 	case MatchInSet:
 		setType, ok := sets[v.SetName]
 		if !ok {
-			return fmt.Errorf("table %q chain %q term %q: match references unknown set %q",
-				tbl.Name, ch.Name, term.Name, v.SetName)
+			// A set another registry owner supplies is absent from this
+			// table's own Sets at verify time: the owners meet only at
+			// ApplyAll. The match carries the element type that owner will
+			// supply, so the field check below still runs. Only the config
+			// parser sets ProvidedType, and only for the IRR leaves, so a
+			// name the operator typed is still refused here (model.go).
+			if v.ProvidedType == 0 {
+				return fmt.Errorf("table %q chain %q term %q: match references unknown set %q",
+					tbl.Name, ch.Name, term.Name, v.SetName)
+			}
+			setType = v.ProvidedType
 		}
 		if err := validateSetFieldMatch(tbl, ch, term, v, setType); err != nil {
 			return err

@@ -231,3 +231,61 @@ func TestBuildIfaceTablesEmpty(t *testing.T) {
 		t.Errorf("expected 0 tables for empty bindings, got %d", len(tables))
 	}
 }
+
+// VALIDATES: AC-3 -- an interface bound to an AS-SET with no prefixes never
+// produces a table whose only term drops everything on that interface.
+// PREVENTS: an IRR answer that learned nothing blackholing a customer port.
+func TestBuildIfaceTablesNeverBlackholes(t *testing.T) {
+	ps := store.New(nil, nil, "")
+	ps.Put("AS-EMPTY", nil, nil)
+
+	bindings := []ifaceBinding{{Interface: "eth1", ASSet: "AS-EMPTY"}}
+	tables := buildIfaceTables(ps, bindings)
+
+	for _, tbl := range tables {
+		for _, chain := range tbl.Chains {
+			for _, term := range chain.Terms {
+				if !termDropsInterface(term, "eth1") {
+					continue
+				}
+				t.Fatalf("term %q drops every packet on eth1 with no accept term to precede it", term.Name)
+			}
+		}
+	}
+}
+
+// termDropsInterface reports whether term drops every packet arriving on iface:
+// its only match is the input interface and its only action is a drop.
+func termDropsInterface(term firewall.Term, iface string) bool {
+	if len(term.Matches) != 1 || len(term.Actions) != 1 {
+		return false
+	}
+	in, ok := term.Matches[0].(firewall.MatchInputInterface)
+	if !ok || in.Name != iface {
+		return false
+	}
+	_, drops := term.Actions[0].(firewall.Drop)
+	return drops
+}
+
+// VALIDATES: AC-3 -- an interface whose AS-SET has prefixes keeps its drop term,
+// so the accept terms still act as a whitelist.
+// PREVENTS: the no-blackhole guard disabling ingress filtering outright.
+func TestBuildIfaceTablesKeepsDropWhenPopulated(t *testing.T) {
+	ps := store.New(nil, nil, "")
+	ps.Put("AS-FULL", []netip.Prefix{netip.MustParsePrefix("10.0.0.0/8")}, nil)
+
+	tables := buildIfaceTables(ps, []ifaceBinding{{Interface: "eth1", ASSet: "AS-FULL"}})
+	if len(tables) != 1 {
+		t.Fatalf("expected 1 table, got %d", len(tables))
+	}
+	var dropped bool
+	for _, term := range tables[0].Chains[0].Terms {
+		if termDropsInterface(term, "eth1") {
+			dropped = true
+		}
+	}
+	if !dropped {
+		t.Fatal("a populated binding must still drop what its accept terms did not match")
+	}
+}

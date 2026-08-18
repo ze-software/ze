@@ -1,0 +1,98 @@
+# accept-only: every assertion is made by the observer through runtime_fail, not on
+# stdout. checkObserverSentinel (internal/test/runner/runner_validate.go) scans stderr
+# for ZE-OBSERVER-FAIL unconditionally at outcome classification, so an observer failure
+# fails this run ahead of the exit code. The generated table is read back through the
+# engine, which puts it on no stdout an expect= could match.
+# Test: an interface bound to an AS-SET never gets a drop-everything ruleset.
+# VALIDATES: AC-3 -- no table drops every packet arriving on the interface.
+# VALIDATES: AC-7 -- the reconcile still applies while the data is stale.
+# PREVENTS: a transient IRR answer blackholing a customer-facing port.
+#
+# Flow:
+# 1. Mock IRR server runs with -empty-after-first: AS-TEST answers once with
+#    data, then answers "D" (key not found) forever after.
+# 2. Observer fetches AS-TEST, so the eth1 binding has prefixes and commits.
+# 3. Observer refreshes again; the second refresh learns nothing.
+# 4. The live ruleset must still carry the accept rules for eth1, so the drop
+#    rule that closes the whitelist is not the only rule left.
+
+# This test programs nftables, so it needs CAP_NET_ADMIN, not merely Linux.
+option=needs-linux:caps=net-admin
+option=env:var=ze.log.firewall.irr:value=debug
+option=timeout:value=20s
+
+tmpfs=firewall-irr-no-blackhole.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Verify an empty IRR answer never leaves an interface dropping everything."""
+import sys
+from ze_api import API, runtime_fail, result_json_data
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    result = api.dispatch_until_done('update firewall irr as-set AS-TEST')
+    if result.get('status') != 'done':
+        runtime_fail(f'initial update failed: {result}')
+    if result_json_data(result, {}).get('ipv4-count', 0) < 1:
+        runtime_fail('expected v4 prefixes on the first refresh')
+
+    # The server now answers "key not found" for every query.
+    result = api.dispatch_until_done('update firewall irr as-set AS-TEST')
+    if result.get('status') == 'done':
+        runtime_fail('a refresh that learned nothing reported success')
+
+    result = api.dispatch_until_done('show firewall ruleset ze_irr_iface')
+    if result.get('status') != 'done':
+        runtime_fail(f'ruleset dump failed: {result}')
+    dumped = str(result_json_data(result, {}))
+    if 'iface_eth1_v4' not in dumped:
+        runtime_fail(f'eth1 lost its accept rule, so its drop rule blackholes the port: {dumped}')
+
+    print('OK: eth1 keeps its accept rule after an empty IRR answer', file=sys.stderr)
+
+    api._call_engine('ze-plugin-engine:dispatch-command', {'command': 'request shutdown'})
+    api.wait_for_shutdown()
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-fw:terminator=EOF_CONF
+plugin {
+	external firewall-irr-no-blackhole-test {
+		run ./firewall-irr-no-blackhole.run
+		encoder json
+	}
+}
+firewall {
+	backend nft;
+	irr {
+		server 127.0.0.1:$PORT2;
+		interface eth1 {
+			source-as-set AS-TEST;
+		}
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 1; remote 1; }
+			router-id 1.2.3.4;
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-test irr --port $PORT2 --empty-after-first
+cmd=foreground:seq=2:exec=ze --plugin ze.firewall-irr -:stdin=ze-fw:timeout=20s
+expect=exit:code=0

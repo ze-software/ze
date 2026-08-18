@@ -104,6 +104,20 @@ On `Open`, a legacy single-blob cache (`meta/bgp/irr-cache`, keyed by ASN) is
 migrated once into per-entry keys, and the legacy key is removed only after
 every per-entry key is written.
 
+### An empty answer never replaces cached prefixes
+
+An IRR server is a third party, so an unhelpful answer is an expected state
+rather than an exception. `Refresh` writes new prefixes only when the lookup
+returned some. A lookup that errored, and a lookup that succeeded and returned
+nothing, both keep the cached prefixes and set `StaleSince` on the entry; the
+second returns `ErrNoPrefixes`. Every consumer therefore keeps enforcing the
+last data it had rather than an empty list, which for a firewall interface
+binding means a drop-everything ruleset and for the BGP filter means rejecting
+every UPDATE from the peer.
+
+`CachedEntry.Stale` reports the condition, and `Purge` is the deliberate way to
+remove prefixes for a name that is gone upstream.
+
 Three properties of the store keep one bad entry from taking the shared file
 down. Each one is a guard, not a convention.
 

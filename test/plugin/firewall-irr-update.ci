@@ -96,4 +96,4 @@ EOF_CONF
 cmd=background:seq=1:exec=ze-test irr --port $PORT2
 cmd=foreground:seq=2:exec=ze --plugin ze.firewall-irr -:stdin=ze-fw:timeout=20s
 expect=exit:code=0
-expect=stderr:pattern=irr.*refreshed\|irr.*success
+expect=stderr:pattern=irr.*refreshed

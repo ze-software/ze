@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -491,5 +492,190 @@ func TestPrefixStoreOpenNameKeyMismatch(t *testing.T) {
 	}
 	if s.Get("AS64500") == nil {
 		t.Error("correctly-named entry should still load")
+	}
+}
+
+// fakeIRRReply starts a TCP whois server that answers each exact query string
+// with the raw RPSL reply mapped to it. An unmapped query gets "D\n" (key not
+// found), which is what a real server sends for a name it does not hold.
+func fakeIRRReply(t *testing.T, replies map[string]string) string {
+	t.Helper()
+	lc := net.ListenConfig{}
+	ln, err := lc.Listen(context.Background(), "tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	t.Cleanup(func() { _ = ln.Close() })
+
+	go func() {
+		for {
+			conn, acceptErr := ln.Accept()
+			if acceptErr != nil {
+				return
+			}
+			go func(c net.Conn) {
+				defer func() { _ = c.Close() }()
+				buf := make([]byte, 4096)
+				n, readErr := c.Read(buf)
+				if readErr != nil {
+					return
+				}
+				reply, ok := replies[strings.TrimSpace(string(buf[:n]))]
+				if !ok {
+					reply = "D\n"
+				}
+				if _, wErr := fmt.Fprint(c, reply); wErr != nil {
+					return
+				}
+			}(conn)
+		}
+	}()
+	return ln.Addr().String()
+}
+
+// seedStore refreshes name from a server holding v4Prefix and returns the zefs
+// path the entry was persisted to.
+func seedStore(t *testing.T, name, v4Prefix string) string {
+	t.Helper()
+	addr := fakeIRR(t, map[string]string{name: v4Prefix}, nil)
+	path := tempStorePath(t)
+	good := New(irr.NewIRR(addr), nil, path)
+	if _, err := good.Refresh(context.Background(), name, ""); err != nil {
+		t.Fatalf("seed Refresh: %v", err)
+	}
+	return path
+}
+
+// VALIDATES: AC-1 -- an IRR answer carrying no prefixes never overwrites a
+// populated entry, in memory or in the persisted cache.
+// PREVENTS: a bad minute upstream emptying a live prefix filter for an hour.
+func TestRefreshKeepsLastGoodOnEmptyAnswer(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		reply string
+	}{
+		{"key-not-found", "D\n"},
+		{"query-ok-no-records", "C\n"},
+		{"server-error", "F query failed\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			path := seedStore(t, "AS-TEST", "10.0.0.0/24")
+			addr := fakeIRRReply(t, map[string]string{
+				"!a4AS-TEST": tc.reply,
+				"!a6AS-TEST": tc.reply,
+			})
+
+			s := New(irr.NewIRR(addr), nil, path)
+			if err := s.Open(); err != nil {
+				t.Fatalf("Open: %v", err)
+			}
+			if _, err := s.Refresh(context.Background(), "AS-TEST", "AS-TEST"); err == nil {
+				t.Fatal("an answer carrying no prefixes must not report success")
+			}
+
+			got := s.Get("AS-TEST")
+			if got == nil || len(got.IPv4) != 1 {
+				t.Fatalf("in-memory entry not preserved: %+v", got)
+			}
+			if !got.Stale() {
+				t.Error("an entry enforced after a refresh learned nothing must report itself stale")
+			}
+
+			reopened := New(irr.NewIRR(addr), nil, path)
+			if err := reopened.Open(); err != nil {
+				t.Fatalf("reopen: %v", err)
+			}
+			persisted := reopened.Get("AS-TEST")
+			if persisted == nil || len(persisted.IPv4) != 1 {
+				t.Fatalf("persisted entry not preserved: %+v", persisted)
+			}
+			if !persisted.Stale() {
+				t.Error("staleness must survive a restart")
+			}
+		})
+	}
+}
+
+// VALIDATES: AC-1 -- an empty answer for a name that was never cached stores
+// nothing, so no consumer sees an entry that exists and holds no prefixes.
+// PREVENTS: a zero-prefix entry reading as a valid answer (ai/rules/evidence.md).
+func TestRefreshStoresNothingOnFirstEmptyAnswer(t *testing.T) {
+	addr := fakeIRRReply(t, nil) // every query answers "D"
+	s := New(irr.NewIRR(addr), nil, tempStorePath(t))
+
+	if _, err := s.Refresh(context.Background(), "AS-TEST", "AS-TEST"); !errors.Is(err, ErrNoPrefixes) {
+		t.Fatalf("Refresh error = %v, want ErrNoPrefixes", err)
+	}
+	if got := s.Get("AS-TEST"); got != nil {
+		t.Fatalf("empty answer cached an entry: %+v", got)
+	}
+}
+
+// VALIDATES: AC-1 -- a successful refresh clears the staleness a previous empty
+// answer recorded.
+// PREVENTS: an entry reporting stale data forever after one bad answer.
+func TestRefreshClearsStaleness(t *testing.T) {
+	path := seedStore(t, "AS-TEST", "10.0.0.0/24")
+
+	empty := New(irr.NewIRR(fakeIRRReply(t, nil)), nil, path)
+	if err := empty.Open(); err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	if _, err := empty.Refresh(context.Background(), "AS-TEST", "AS-TEST"); err == nil {
+		t.Fatal("expected an error for an empty answer")
+	}
+	if got := empty.Get("AS-TEST"); got == nil || !got.Stale() {
+		t.Fatalf("entry should be stale: %+v", got)
+	}
+
+	good := New(irr.NewIRR(fakeIRR(t, map[string]string{"AS-TEST": "10.0.0.0/24"}, nil)), nil, path)
+	if err := good.Open(); err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	if _, err := good.Refresh(context.Background(), "AS-TEST", "AS-TEST"); err != nil {
+		t.Fatalf("Refresh: %v", err)
+	}
+	if got := good.Get("AS-TEST"); got == nil || got.Stale() {
+		t.Fatalf("a refresh that learned prefixes must clear staleness: %+v", got)
+	}
+}
+
+// VALIDATES: AC-6 -- Purge is the deliberate exit from last-known-good, removing
+// the entry from memory and from the persisted cache.
+// PREVENTS: a deregistered AS-SET being enforced forever because empty answers
+// no longer clear it.
+func TestPurgeRemovesEntry(t *testing.T) {
+	path := seedStore(t, "AS-TEST", "10.0.0.0/24")
+
+	s := New(irr.NewIRR(fakeIRRReply(t, nil)), nil, path)
+	if err := s.Open(); err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	if s.Get("AS-TEST") == nil {
+		t.Fatal("seeded entry not loaded")
+	}
+	if !s.Purge("AS-TEST") {
+		t.Fatal("Purge reported nothing removed")
+	}
+	if got := s.Get("AS-TEST"); got != nil {
+		t.Fatalf("entry still in memory after Purge: %+v", got)
+	}
+	if s.Purge("AS-TEST") {
+		t.Error("Purge of an absent name must report nothing removed")
+	}
+	// A name the store can never hold must not reach zefs key substitution,
+	// which panics on "..".
+	for _, bad := range []string{"", "..", ".", "RIPE::AS-FOO/../x"} {
+		if s.Purge(bad) {
+			t.Errorf("Purge(%q) reported a removal", bad)
+		}
+	}
+
+	reopened := New(irr.NewIRR(fakeIRRReply(t, nil)), nil, path)
+	if err := reopened.Open(); err != nil {
+		t.Fatalf("reopen: %v", err)
+	}
+	if got := reopened.Get("AS-TEST"); got != nil {
+		t.Fatalf("entry still persisted after Purge: %+v", got)
 	}
 }

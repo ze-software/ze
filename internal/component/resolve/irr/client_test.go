@@ -211,20 +211,149 @@ func TestLookupPrefixes(t *testing.T) {
 	}
 }
 
-// VALIDATES: empty AS-SET returns empty prefix list, not error.
-// PREVENTS: error on AS-SET with no announced prefixes.
-func TestLookupPrefixesEmpty(t *testing.T) {
-	addr, cleanup := fakeIRRServer(t, handleASSetQuery)
+// VALIDATES: AC-1 -- the four RPSL reply shapes are distinguishable. A server
+// error and a truncated reply are errors; a key-not-found and a query that
+// succeeded with no records are empty answers, not failures.
+// PREVENTS: "I have nothing" and "the answer is nothing" collapsing into one
+// state that empties a live prefix filter.
+func TestLookupPrefixesDistinguishesEmptyFromData(t *testing.T) {
+	tests := []struct {
+		name      string
+		reply     string
+		wantErr   bool
+		wantCount int
+	}{
+		{"records", "A1\n10.0.0.0/24\nC\n", false, 1},
+		{"key-not-found", "D\n", false, 0},
+		{"query-ok-no-records", "C\n", false, 0},
+		{"multiple-copies-of-key", "E\n", true, 0},
+		{"server-error", "F access denied\n", true, 0},
+		{"truncated-no-status-line", "A1\n10.0.0.0/24\n", true, 0},
+		{"truncated-last-record-starts-with-c", "A2\n10.0.0.0/24\nCUSTOMER-ROUTE\n", true, 0},
+		{"nothing-at-all", "", true, 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			addr, cleanup := fakeIRRServer(t, replyWith(tt.reply))
+			defer cleanup()
+
+			pl, err := NewIRR(addr).LookupPrefixes(context.Background(), "AS-SUBJECT")
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("reply %q returned no error; a server that answered nothing usable must not read as an empty prefix list", tt.reply)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("LookupPrefixes: %v", err)
+			}
+			if len(pl.IPv4) != tt.wantCount {
+				t.Errorf("IPv4 count = %d, want %d", len(pl.IPv4), tt.wantCount)
+			}
+		})
+	}
+}
+
+// VALIDATES: AC-2 -- an answer that carried no prefixes is not written into the
+// one-hour cache, so the next lookup reaches the server again.
+// PREVENTS: an operator forcing a refresh and getting the same empty answer
+// with no network query.
+func TestLookupPrefixesDoesNotCacheEmptyAnswer(t *testing.T) {
+	var served atomic.Int32
+	addr, cleanup := fakeIRRServer(t, func(conn net.Conn) {
+		defer func() { _ = conn.Close() }()
+		buf := make([]byte, 4096)
+		if _, err := conn.Read(buf); err != nil {
+			return
+		}
+		// The first pair of family queries answers "key not found"; every
+		// later query answers with a record.
+		reply := "A1\n10.0.0.0/24\nC\n"
+		if served.Add(1) <= 2 {
+			reply = "D\n"
+		}
+		if _, err := fmt.Fprint(conn, reply); err != nil {
+			return
+		}
+	})
 	defer cleanup()
 
 	c := NewIRR(addr)
-	pl, err := c.LookupPrefixes(context.Background(), "AS-EMPTY")
+	first, err := c.LookupPrefixes(context.Background(), "AS-SUBJECT")
 	if err != nil {
-		t.Fatalf("LookupPrefixes: %v", err)
+		t.Fatalf("first LookupPrefixes: %v", err)
+	}
+	if !first.Empty() {
+		t.Fatalf("first lookup should be empty, got %v", first.IPv4)
 	}
 
-	if !pl.Empty() {
-		t.Errorf("expected empty, got IPv4=%d IPv6=%d", len(pl.IPv4), len(pl.IPv6))
+	second, err := c.LookupPrefixes(context.Background(), "AS-SUBJECT")
+	if err != nil {
+		t.Fatalf("second LookupPrefixes: %v", err)
+	}
+	if second.Empty() {
+		t.Fatal("the empty answer was cached: the second lookup never reached the server")
+	}
+}
+
+// VALIDATES: the RPSL status line is read, not skipped as an unparseable word.
+// PREVENTS: a server error, a not-found and a genuine empty answer collapsing
+// into one indistinguishable state.
+func TestParseReply(t *testing.T) {
+	tests := []struct {
+		reply       string
+		wantStatus  replyStatus
+		wantPayload string
+	}{
+		{"A1\n10.0.0.0/24\nC\n", replyOK, "10.0.0.0/24"},
+		{"C\n", replyOK, ""},
+		{"D\n", replyNotFound, ""},
+		{"E\n", replyFailed, ""},
+		{"F access denied\n", replyFailed, ""},
+		{"A1\n10.0.0.0/24\n", replyFailed, ""},
+		{"A2\n10.0.0.0/24\nCUSTOMER-ROUTE\n", replyFailed, ""},
+		{"F\n", replyFailed, ""},
+		{"", replyFailed, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.reply, func(t *testing.T) {
+			payload, status, detail := parseReply(tt.reply)
+			if status != tt.wantStatus {
+				t.Errorf("status = %v, want %v", status, tt.wantStatus)
+			}
+			if strings.TrimSpace(payload) != tt.wantPayload {
+				t.Errorf("payload = %q, want %q", payload, tt.wantPayload)
+			}
+			if status == replyFailed && detail == "" {
+				t.Error("a failed reply must carry a reason for the operator")
+			}
+		})
+	}
+}
+
+// VALIDATES: a server error during AS-SET expansion is an error, not an empty
+// member list.
+// PREVENTS: a filter built from a silently truncated AS-SET expansion.
+func TestResolveASSetServerError(t *testing.T) {
+	addr, cleanup := fakeIRRServer(t, replyWith("F database unavailable\n"))
+	defer cleanup()
+
+	if _, err := NewIRR(addr).ResolveASSet(context.Background(), "AS-SUBJECT"); err == nil {
+		t.Fatal("a server error must not read as an AS-SET with no members")
+	}
+}
+
+// replyWith returns a handler that answers every query with the same raw reply.
+func replyWith(reply string) func(net.Conn) {
+	return func(conn net.Conn) {
+		defer func() { _ = conn.Close() }()
+		buf := make([]byte, 4096)
+		if _, err := conn.Read(buf); err != nil {
+			return
+		}
+		if _, err := fmt.Fprint(conn, reply); err != nil {
+			return
+		}
 	}
 }
 

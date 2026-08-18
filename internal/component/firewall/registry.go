@@ -143,6 +143,26 @@ func ApplyAll() error {
 	tableRegistry.mu.Unlock()
 	all = mergeSameNameTables(all)
 
+	// A term can name a set that a DIFFERENT owner registers (the IRR leaves
+	// are the case that exists today). The two owners meet here and nowhere
+	// earlier, and they do not register in a fixed order: at startup the
+	// firewall engine configures before the plugin that supplies the set, and
+	// in a reload transaction the participants apply in whatever order the
+	// orchestrator emits. Handing the backend a rule whose set is not there
+	// yet fails the whole reconcile for every owner, so wait instead: the
+	// supplying owner calls ApplyAll when it registers, and that run programs
+	// the complete ruleset. Reported at WARN because a supplier that never
+	// arrives leaves the ruleset unapplied, and the operator must be able to
+	// see why.
+	if tbl, set, waiting := unresolvedProvidedSet(all); waiting {
+		if log := loggerPtr.Load(); log != nil {
+			log.Warn("firewall: reconcile deferred, a rule names a set no owner has registered yet",
+				"table", tbl, "set", set,
+				"effect", "no firewall table is programmed until the owner of that set registers it")
+		}
+		return nil
+	}
+
 	backendsMu.Lock()
 	// A plugin (copp, policy-routes, ddos-local) can register tables without
 	// the operator writing a firewall {} block, so no firewall config section
@@ -209,4 +229,30 @@ func mergeSameNameTables(tables []Table) []Table {
 		}
 	}
 	return merged
+}
+
+// unresolvedProvidedSet reports the first match in tables that names a set
+// another owner supplies (MatchInSet.ProvidedType is set) and that the merged
+// tables do not declare. It returns the table and set names for the log line.
+// A match with no ProvidedType is not examined here: ValidateTables already
+// refused it at verify, where the operator sees the error.
+func unresolvedProvidedSet(tables []Table) (tableName, setName string, found bool) {
+	for i := range tables {
+		tbl := &tables[i]
+		declared := collectSetNames(tbl)
+		for j := range tbl.Chains {
+			for k := range tbl.Chains[j].Terms {
+				for _, m := range tbl.Chains[j].Terms[k].Matches {
+					in, ok := m.(MatchInSet)
+					if !ok || in.ProvidedType == 0 {
+						continue
+					}
+					if _, ok := declared[in.SetName]; !ok {
+						return tbl.Name, in.SetName, true
+					}
+				}
+			}
+		}
+	}
+	return "", "", false
 }

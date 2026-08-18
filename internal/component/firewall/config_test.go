@@ -1469,3 +1469,57 @@ func TestParseFromNoIRRNoExpansion(t *testing.T) {
 		t.Fatalf("expected 1 term (no IRR expansion), got %d", len(terms))
 	}
 }
+
+// VALIDATES: AC-1, AC-2 -- a table term matching by ASN or AS-SET parses AND
+// passes verify-time validation, for each of the four IRR leaves. The parser
+// emits a MatchInSet naming a set another registry owner supplies, so the
+// unknown-set guard must accept it instead of refusing the whole config.
+// PREVENTS: the firewall guide's operator-workflow step 3 being impossible to
+// commit. Before the fix every IRR table term was refused with
+// `match references unknown set "irr_v4_AS13335"`, because the parser test
+// stopped at the parse and never called ValidateTables.
+func TestParseAndValidateSourceASN(t *testing.T) {
+	tests := []struct {
+		leaf   string
+		value  string
+		wantV4 string
+		wantV6 string
+		field  SetFieldType
+	}{
+		{"source-asn", "13335", "irr_v4_AS13335", "irr_v6_AS13335", SetFieldSourceAddr},
+		{"source-as-set", "AS-CLOUDFLARE", "irr_v4_AS-CLOUDFLARE", "irr_v6_AS-CLOUDFLARE", SetFieldSourceAddr},
+		{"destination-asn", "64496", "irr_v4_AS64496", "irr_v6_AS64496", SetFieldDestAddr},
+		{"destination-as-set", "AS-EXAMPLE", "irr_v4_AS-EXAMPLE", "irr_v6_AS-EXAMPLE", SetFieldDestAddr},
+	}
+	for _, tt := range tests {
+		t.Run(tt.leaf, func(t *testing.T) {
+			data := `{"firewall":{"table":{"wan":{"family":"inet","chain":{"input":{"type":"filter","hook":"input","priority":"0","policy":"drop","term":{"t":{"from":{"` +
+				tt.leaf + `":"` + tt.value + `"},"then":{"drop":""}}}}}}}}}`
+			tables, err := ParseFirewallConfig(data)
+			if err != nil {
+				t.Fatalf("ParseFirewallConfig: %v", err)
+			}
+			terms := tables[0].Chains[0].Terms
+			if len(terms) != 2 {
+				t.Fatalf("expected 2 terms (v4+v6), got %d", len(terms))
+			}
+			v4, ok := terms[0].Matches[0].(MatchInSet)
+			if !ok {
+				t.Fatalf("v4 match type = %T, want MatchInSet", terms[0].Matches[0])
+			}
+			if v4.SetName != tt.wantV4 || v4.MatchField != tt.field {
+				t.Errorf("v4 match = {%q %v}, want {%q %v}", v4.SetName, v4.MatchField, tt.wantV4, tt.field)
+			}
+			v6, ok := terms[1].Matches[0].(MatchInSet)
+			if !ok {
+				t.Fatalf("v6 match type = %T, want MatchInSet", terms[1].Matches[0])
+			}
+			if v6.SetName != tt.wantV6 || v6.MatchField != tt.field {
+				t.Errorf("v6 match = {%q %v}, want {%q %v}", v6.SetName, v6.MatchField, tt.wantV6, tt.field)
+			}
+			if err := ValidateTables(tables); err != nil {
+				t.Fatalf("ValidateTables rejected an IRR table term: %v", err)
+			}
+		})
+	}
+}

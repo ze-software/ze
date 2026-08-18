@@ -500,3 +500,94 @@ func itoa(n int) string {
 	}
 	return string(buf[i:])
 }
+
+// VALIDATES: AC-1 -- a match whose set another registry owner supplies passes
+// the set-reference guard. The owners meet only at ApplyAll, so at verify the
+// name is absent from the table's own Sets and the match's ProvidedType is the
+// only thing that says the set will exist.
+// PREVENTS: the firewall guide's IRR workflow being unusable, which is what
+// `match references unknown set "irr_v4_AS13335"` made it.
+func TestValidateTablesAcceptsIRRTermMatch(t *testing.T) {
+	tbl := makeTable(FamilyInet)
+	tbl.Chains[0].Terms[0].Matches = []Match{
+		MatchInSet{SetName: "irr_v4_AS13335", MatchField: SetFieldSourceAddr, ProvidedType: SetTypeIPv4},
+	}
+	if err := ValidateTables([]Table{tbl}); err != nil {
+		t.Fatalf("a provided set must validate, got %v", err)
+	}
+
+	tbl.Chains[0].Terms[0].Matches = []Match{
+		MatchInSet{SetName: "irr_v6_AS13335", MatchField: SetFieldDestAddr, ProvidedType: SetTypeIPv6},
+	}
+	if err := ValidateTables([]Table{tbl}); err != nil {
+		t.Fatalf("a provided ipv6 set must validate, got %v", err)
+	}
+}
+
+// VALIDATES: AC-4 -- a set name no owner declares is still refused, INCLUDING
+// one an operator spelled to look like an IRR set. Only the config parser sets
+// ProvidedType, and only for the four IRR leaves, so `source-address
+// "@irr_v4_AS13335"` reaches validation with ProvidedType unset.
+// PREVENTS: the fix degrading the guard into a name-prefix exemption. Under an
+// exemption keyed on the set name, the second half of this test would pass an
+// unresolvable match to the backend, where a missing set aborts the reconcile
+// for every owner.
+func TestValidateTablesStillRefusesUnknownSet(t *testing.T) {
+	tbl := makeTable(FamilyInet)
+	tbl.Chains[0].Terms[0].Matches = []Match{
+		MatchInSet{SetName: "typo_set", MatchField: SetFieldSourceAddr},
+	}
+	err := ValidateTables([]Table{tbl})
+	if err == nil || !strings.Contains(err.Error(), `match references unknown set "typo_set"`) {
+		t.Fatalf("an undeclared set must be refused, got %v", err)
+	}
+
+	data := `{"firewall":{"table":{"wan":{"family":"inet","chain":{"input":{"term":{"t":{"from":{"source-address":"@irr_v4_AS13335"},"then":{"drop":""}}}}}}}}}`
+	tables, perr := ParseFirewallConfig(data)
+	if perr != nil {
+		t.Fatalf("ParseFirewallConfig: %v", perr)
+	}
+	if got := len(tables[0].Chains[0].Terms); got != 1 {
+		t.Fatalf("a hand-written set name must not be expanded to a v6 twin, got %d terms", got)
+	}
+	err = ValidateTables(tables)
+	if err == nil || !strings.Contains(err.Error(), `match references unknown set "irr_v4_AS13335"`) {
+		t.Fatalf("a hand-written set name in the IRR namespace must still be refused, got %v", err)
+	}
+}
+
+// VALIDATES: AC-5 -- the set-type agreement check still runs, for a declared
+// set and for a provided one alike. The provided match carries the element type
+// its owner will supply, so the family and field checks read a real type rather
+// than skipping.
+// PREVENTS: ProvidedType turning into a blanket accept that lets an ipv4 set
+// lower against an IPv6 header at IPv4 offsets.
+func TestValidateTablesStillRefusesSetTypeMismatch(t *testing.T) {
+	tbl := makeTable(FamilyInet)
+	tbl.Sets = []Set{{Name: "ports", Type: SetTypeInetService}}
+	tbl.Chains[0].Terms[0].Matches = []Match{
+		MatchInSet{SetName: "ports", MatchField: SetFieldSourceAddr},
+	}
+	err := ValidateTables([]Table{tbl})
+	if err == nil || !strings.Contains(err.Error(), "expects an ipv4/ipv6 set") {
+		t.Fatalf("a field/type disagreement must be refused, got %v", err)
+	}
+
+	tbl = makeTable(FamilyIP6)
+	tbl.Chains[0].Terms[0].Matches = []Match{
+		MatchInSet{SetName: "irr_v4_AS13335", MatchField: SetFieldSourceAddr, ProvidedType: SetTypeIPv4},
+	}
+	err = ValidateTables([]Table{tbl})
+	if err == nil || !strings.Contains(err.Error(), "is invalid in family ip6") {
+		t.Fatalf("a provided ipv4 set in an ip6 table must be refused, got %v", err)
+	}
+
+	tbl = makeTable(FamilyInet)
+	tbl.Chains[0].Terms[0].Matches = []Match{
+		MatchInSet{SetName: "irr_v4_AS13335", MatchField: SetFieldSourcePort, ProvidedType: SetTypeIPv4},
+	}
+	err = ValidateTables([]Table{tbl})
+	if err == nil || !strings.Contains(err.Error(), "expects an inet-service set") {
+		t.Fatalf("a provided address set behind a port field must be refused, got %v", err)
+	}
+}

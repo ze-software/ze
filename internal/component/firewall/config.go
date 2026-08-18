@@ -537,6 +537,11 @@ func parseLogAction(m map[string]any) (Log, error) {
 
 // irrSetMatch builds a MatchInSet for an IRR-resolved prefix set.
 // Naming coupling with firewall-irr plugin is accepted per spec design decision.
+//
+// The set itself is registered by that owner and merged at ApplyAll, so it is
+// absent from this table's own Sets. ProvidedType carries the element type the
+// owner will supply, which is what lets verify-time validation check the field
+// against it instead of reporting an unknown set (validate.go, validateMatch).
 func irrSetMatch(v string, isASSet, isSource bool) MatchInSet {
 	var tb textbuf.Buffer
 	switch {
@@ -551,7 +556,7 @@ func irrSetMatch(v string, isASSet, isSource bool) MatchInSet {
 	if !isSource {
 		field = SetFieldDestAddr
 	}
-	return MatchInSet{SetName: tb.String(), MatchField: field}
+	return MatchInSet{SetName: tb.String(), MatchField: field, ProvidedType: SetTypeIPv4}
 }
 
 const irrV4Prefix = "irr_v4_"
@@ -562,11 +567,16 @@ func expandIRRTermV6(term Term) *Term {
 	hasIRR := false
 	for _, m := range term.Matches {
 		mis, ok := m.(MatchInSet)
-		if ok && len(mis.SetName) > len(irrV4Prefix) && mis.SetName[:len(irrV4Prefix)] == irrV4Prefix {
+		// ProvidedType gates the expansion, not the name alone: an operator
+		// can write `source-address "@irr_v4_x"` by hand, and that names a set
+		// their own table must declare. Expanding it would invent a reference
+		// to an ipv6 set nobody declares, which validateMatch would then have
+		// to accept on this term's say-so.
+		if ok && mis.ProvidedType == SetTypeIPv4 && len(mis.SetName) > len(irrV4Prefix) && mis.SetName[:len(irrV4Prefix)] == irrV4Prefix {
 			hasIRR = true
 			var tb textbuf.Buffer
 			v6Name := tb.Str(irrV6Prefix).Str(mis.SetName[len(irrV4Prefix):]).String()
-			v6Matches = append(v6Matches, MatchInSet{SetName: v6Name, MatchField: mis.MatchField})
+			v6Matches = append(v6Matches, MatchInSet{SetName: v6Name, MatchField: mis.MatchField, ProvidedType: SetTypeIPv6})
 		} else {
 			v6Matches = append(v6Matches, m)
 		}
