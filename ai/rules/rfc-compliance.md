@@ -70,6 +70,7 @@ Rationale: `ai/rationale/rfc-compliance.md`
 | Leave a MUST implemented but unproven (no `RFC requirement:` tagged test) | Ask. "Implemented" is a claim; the tagged test is the evidence (`ai/rules/testing.md`, `ai/rules/testing.md`) |
 | Leave a MUST unextracted, or scope a spec so an RFC obligation falls outside it | Ask. See Extraction Completeness -- the gate cannot see an obligation nobody wrote down |
 | Defer an RFC requirement to a follow-up spec, a deferral row, or a known-failure shard | Ask. Recording is not fixing (`ai/rules/completion.md`), and the deferral machinery is not a compliance decision procedure. The spec-close-ask route in the conformance table above IS that ask, made the same session. The deferral row is never a substitute for it |
+| Lower a requirement's level in `rfc/short/`, so the row stops being MUST-level | Read the RFC sentence first. It is a CORRECTION only when the document states the lower strength, and then it MUST be recorded as a `Correction <YYYY-MM-DD>:` paragraph quoting that sentence, which `check_level_ratchet` refuses to do without. Anything else lowers what Ze owes: ask |
 | Close a spec, review, or audit whose RFC rows are anything other than implemented-and-proven | Ask before closing, not after |
 | Answer "is this conformant enough" with anything but yes | Ask. "Enough" is Thomas's word to say, never yours |
 
@@ -88,7 +89,11 @@ Rationale: `ai/rationale/rfc-compliance.md`
 
 ## RFC Summaries (`rfc/short/`)
 
-**RFC summaries are protocol-only reference documents: they MUST NOT contain Ze-specific information -- no Ze implementation notes, no Ze file paths, no "Ze does/does not" statements, no "for ze" sections.** Implementation decisions belong in specs (`plan/`), architecture docs (`docs/architecture/`), or code comments. A reader SHOULD be able to use any `rfc/short/` file as a standalone protocol reference with no knowledge of Ze.
+**A summary's PROSE is a protocol-only reference document: it MUST NOT contain Ze-specific information -- no Ze implementation notes, no Ze file paths, no "Ze does/does not" statements, no "for ze" sections.** Implementation decisions belong in specs (`plan/`), architecture docs (`docs/architecture/`), or code comments. A reader SHOULD be able to read any `rfc/short/` file's prose as a standalone protocol reference with no knowledge of Ze.
+
+**The `{...}` annotation on a requirement line is a SEPARATE register, and the constraint above does not reach it.** An annotation exists to say why this codebase owes less than the literal requirement, and `ai/rules/evidence.md` requires that justification to name the producing function. So a `{gap: ...}`, `{not-applicable: ...}`, `{partial: ...}` or `{single-polarity: ...}` MUST name the code it judges, file and symbol, and a search it relied on MUST be recorded the same way. An annotation that names no code is an assertion, and the two registers MUST NOT be traded against each other: stripping a path out of an annotation to satisfy the prose rule destroys the evidence the annotation exists to carry.
+
+**The boundary is the line, not the file.** A requirement line and its wrapped continuation are annotation; every other line is prose. A Ze path that has escaped into a bullet, a heading or a paragraph is what this rule was written for, and it stays forbidden.
 
 ## Extraction Completeness (BLOCKING when enrolling a summary)
 
@@ -137,10 +142,10 @@ receives** a route with ATOMIC_AGGREGATE, and recording it as an aggregator rule
 let the readvertisement path be cited as evidence of non-applicability when it is
 the bound path.
 
-## What Keeps RFC Testing Valid (the seven ratchets)
+## What Keeps RFC Testing Valid (the eight ratchets)
 
 `make ze-rfc-check` reads the WORKING TREE to judge coverage, and a tree cannot tell
-"never proven" from "stopped being proven". Seven comparisons against HEAD supply that
+"never proven" from "stopped being proven". Eight comparisons against HEAD supply that
 difference. Each fires only on a real downgrade, so a green run means the evidence held,
 not that nobody looked.
 
@@ -148,6 +153,7 @@ not that nobody looked.
 |---------|----------|-----------|
 | Enrolment is monotonic | `check_enrolment` | an RFC whose MUSTs were gated stops being gated |
 | **Proof is monotonic** | `check_coverage_ratchet` | a requirement loses a polarity it had at HEAD. `{gap}` is NOT an escape: it is the move being blocked |
+| **Gating is monotonic** | `check_level_ratchet` | a requirement leaves the MUST-level population: its level was gated at HEAD and is advisory now. That is the CHEAPEST route from red to green in this gate, cheaper than `{gap}` and cheaper than deleting the row, because the id survives and the tests survive while every coverage obligation attached to the row disappears. The one escape is a `Correction <YYYY-MM-DD>:` paragraph in the same summary, naming the id and quoting at least 24 characters of the RFC verbatim: a quotation of the document, never a free-text reason. A row GAINING a gated level is never reported |
 | **Requirements do not vanish** | `check_retired_requirements` | a requirement id of an enrolled RFC disappears from its summary. Without this, deleting the checklist line is the CHEAPEST route from red to green, cheaper than `{gap}` which costs a public disclosure row, and the ratchet would be pressuring people to hide obligations rather than declare them. Correcting a misquote means editing the TEXT under the same id, which is allowed |
 | **Adding an RFC adds checking** | `check_new_summaries` | a summary that is NEW since HEAD declares gated MUSTs and is not in `rfc/enrolled.txt`, fails to parse, or captures zero requirements while `rfc/full/<stem>.txt` has MUST-level keywords. A document's own RFC 2119 key-words paragraph does not count, and neither does its reference-list entry for RFC 2119 or RFC 8174. Both say where the words come from, and neither binds anybody. Counting the paragraph refused RFC 7454, a BCP whose body states no MUST |
 | **Non-unit evidence is monotonic, per tier** | `check_evidence_ratchet` | a requirement loses an evidence KIND it had at HEAD -- its `.ci` becomes a unit test, or its verify-tier binding is swapped for a nightly-tier interop one. Keyed by `kind/tier`, so a substitution that leaves the tag COUNT unchanged still fires: a unit test proves the algorithm, only a running functional or interop test proves the daemon or a peer. No annotation satisfies it |
@@ -185,7 +191,7 @@ waves its deletion through, after which the test is unguarded and a self-written
 sits on the doc comment, so a hunk-scoped guard misses exactly the edit it exists to stop)
 and not the whole file (which blocked 331 of 3220 untagged helper functions).
 
-**A tagged test's assertions MUST NOT be weakened *in place* while keeping the same shape.** None of the seven ratchets catches that: `c_test_weakening` and `scripts/dev/audit-test-relaxation.py`, plus the SHA ratchet (`check_audit_freshness`), catch it instead, wherever `/ze-rfc-audit` has recorded a verdict. The SHA ratchet is armed only for RFCs that have an `rfc/audit/<rfc>.json`.
+**A tagged test's assertions MUST NOT be weakened *in place* while keeping the same shape.** None of the eight ratchets catches that: `c_test_weakening` and `scripts/dev/audit-test-relaxation.py`, plus the SHA ratchet (`check_audit_freshness`), catch it instead, wherever `/ze-rfc-audit` has recorded a verdict. The SHA ratchet is armed only for RFCs that have an `rfc/audit/<rfc>.json`.
 
 ## Before Implementing BGP Features
 

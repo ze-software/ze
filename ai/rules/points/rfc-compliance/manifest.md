@@ -34,7 +34,7 @@ extraction-completeness-blocking-when-enrolling-a-summary ## Extraction Complete
   how-a-missing-extraction-announces-itself
   signals-that-an-extraction-is-missing
   verify-the-requirement-text-matches-the-rfc
-what-keeps-rfc-testing-valid-the-seven-ratchets ## What Keeps RFC Testing Valid (the seven ratchets)
+what-keeps-rfc-testing-valid-the-eight-ratchets ## What Keeps RFC Testing Valid (the eight ratchets)
   why-the-working-tree-alone-cannot-judge-coverage
   what-fires-each-ratchet
   why-pre-head-summaries-are-grandfathered
