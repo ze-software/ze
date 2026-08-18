@@ -686,7 +686,7 @@ class TestCarrierTable(unittest.TestCase):
             R.carrier_for("test/interop/scenarios/47-x/check.py").name, "interop-bgp"
         )
         self.assertEqual(
-            R.carrier_for("test/ipsec-interop/scenarios/01-x/check.py").name,
+            R.carrier_for("test/interop-ipsec/scenarios/01-x/check.py").name,
             "interop-ipsec",
         )
         self.assertEqual(
@@ -766,22 +766,22 @@ class TestUnrunCarrierRefused(unittest.TestCase):
         self.addCleanup(shutil.rmtree, self.root, True)
 
     def test_tag_in_unrun_carrier_is_refused(self):
-        # test/l2tp-interop/, not test/ipsec-interop/: the ipsec tree gained a scheduled
+        # test/interop-l2tp/, not test/interop-ipsec/: the ipsec tree gained a scheduled
         # caller (evidence-nightly.yml `ipsec-interop`) and its tier is now DERIVED as
         # nightly, so it is no longer an example of a carrier nothing executes. The l2tp
         # lab still has no scheduled runner. Same assertion, current example.
-        _write(self.root, "test/l2tp-interop/scenarios/01-lac/check.py", _PY_TAG)
+        _write(self.root, "test/interop-l2tp/scenarios/01-lac/check.py", _PY_TAG)
         with self.assertRaises(R.ParseError) as cm:
             R.scan_tree(self.root)
         msg = str(cm.exception)
-        self.assertIn("test/l2tp-interop/scenarios/01-lac/check.py", msg)
+        self.assertIn("test/interop-l2tp/scenarios/01-lac/check.py", msg)
         self.assertIn("interop-l2tp", msg)
         self.assertIn("make ze-deployment-docker-l2tp-ppp-test", msg)
         self.assertIn("SCHEDULED workflow", msg)
 
     def test_unrun_carrier_without_a_tag_is_silent(self):
         """Discriminates from 'always raises': the refusal is about the TAG, not the tree."""
-        _write(self.root, "test/l2tp-interop/scenarios/01-lac/check.py", "x = 1\n")
+        _write(self.root, "test/interop-l2tp/scenarios/01-lac/check.py", "x = 1\n")
         self.assertEqual(R.scan_tree(self.root), [])
 
     def test_unclassified_scenario_check_is_refused_too(self):
@@ -849,7 +849,7 @@ class TestFilterAgreement(unittest.TestCase):
         otherwise the ratchet demands evidence the tree is forbidden to supply."""
         # l2tp, not ipsec: the ipsec tree now has a scheduled caller and derives a nightly
         # tier, so it no longer demonstrates an unrun carrier.
-        fixture = {"test/l2tp-interop/scenarios/01-lac/check.py": _PY_TAG}
+        fixture = {"test/interop-l2tp/scenarios/01-lac/check.py": _PY_TAG}
         with _patched(subprocess=_FakeGit(fixture)):
             self.assertEqual(R._git_baseline_tag_polarities(), {})
 
@@ -1459,7 +1459,7 @@ class TestLedgerRender(unittest.TestCase):
 
 
 _CI_FILE = "test/plugin/rfc7606-reset.ci"
-_INTEROP_FILE = "test/interop/scenarios/47-rfc7606-relay-shape-frr/check.py"
+_INTEROP_FILE = "test/interop/scenarios/bgp-rfc7606-relay-shape-frr/check.py"
 
 
 class TestLedgerEvidenceTier(unittest.TestCase):
@@ -2413,6 +2413,12 @@ class TestLevelChangeUnderStableIdIsAccepted(unittest.TestCase):
     move they exist to refuse. `test_advisory_requirement_is_ratcheted_too` above shows
     a SHOULD losing a polarity still fires; it says nothing about a level CHANGE, which
     is the move here.
+
+    Since 2026-08-17 a THIRD ratchet sits on the same path and it does judge the level:
+    `check_level_ratchet` (TestLevelRatchet) refuses the demotion unless the summary
+    records the correction. These two stay as they are -- the demotion must not read as a
+    retirement or as lost proof, whatever the level ratchet says about it -- but "costless"
+    is now wrong: the cost is a `Correction <date>:` paragraph quoting the RFC.
 
     The demotion must stay costless only while the proof survives. The second case is
     what keeps the first from being vacuous: demote AND drop the negative, and the
@@ -3376,6 +3382,342 @@ class TestRetiredRequirements(unittest.TestCase):
         )
         self.assertEqual(len(errs), 1, errs)
         self.assertIn("draft-foo-bar", errs[0])
+
+
+_RFC_TEXT = (
+    "2.8.1.  Simultaneous Child SA Rekeying\n\n"
+    "   If redundant SAs are created, the SA created with the lowest of the\n"
+    "   four nonces SHOULD be closed by the endpoint that created it.\n"
+)
+
+
+def _correction(body):
+    """One correction paragraph as a summary would carry it, parsed by the real reader."""
+    return R.parse_corrections(body)
+
+
+class TestParseCorrections(unittest.TestCase):
+    """The record the corpus already writes. rfc/short/rfc7947.md blockquotes it and
+    rfc/short/rfc7296.md writes it as a plain paragraph, so the reader accepts both or it
+    reads only half the corrections in the tree."""
+
+    def test_blockquoted_paragraph_is_read(self):
+        got = _correction(
+            "> Correction 2026-08-15: `RFC7947-x-3` was extracted at MUST strength.\n"
+            '> RFC 7947 says it "SHOULD be propagated to other clients".\n'
+        )
+        self.assertEqual(len(got), 1, got)
+        self.assertEqual(got[0].date, "2026-08-15")
+        self.assertEqual(got[0].rids, ("RFC7947-x-3",))
+        self.assertEqual(got[0].quotes, ("SHOULD be propagated to other clients",))
+
+    def test_plain_paragraph_is_read(self):
+        got = _correction(
+            "Correction 2026-08-15: `RFC7296-2.8-1` was extracted at MUST strength. The\n"
+            'SA "SHOULD be closed by the endpoint that created it".\n'
+        )
+        self.assertEqual(len(got), 1, got)
+        self.assertEqual(got[0].rids, ("RFC7296-2.8-1",))
+
+    def test_quote_spanning_a_line_break_is_one_quote(self):
+        """RFC prose wraps, and so does a summary. A quotation cut in two by the wrap
+        would never match the RFC text it came from."""
+        got = _correction(
+            'Correction 2026-08-15: `RFC7296-2.8-1`. The SA "SHOULD be closed by the\n'
+            'endpoint that created it".\n'
+        )
+        self.assertEqual(
+            got[0].quotes, ("SHOULD be closed by the endpoint that created it",)
+        )
+
+    def test_ordinary_prose_is_not_a_correction(self):
+        """Discriminates from 'every paragraph counts'. A summary is mostly prose, and a
+        paragraph that merely mentions a correction authorises nothing."""
+        self.assertEqual(
+            _correction("This row was corrected on 2026-08-15: see the journal.\n"), []
+        )
+
+    def test_a_correction_without_a_quotation_still_parses(self):
+        """Tolerant on purpose: rfc/short/rfc7947.md's 2026-08-14 note records a POLARITY
+        repair and quotes nothing. Raising here would red the gate over a legitimate note.
+        It authorises no level change -- that verdict belongs to the ratchet, which says so
+        at the row."""
+        got = _correction(
+            "Correction 2026-08-14: `RFC7947-x-3` read single-polarity.\n"
+        )
+        self.assertEqual(len(got), 1, got)
+        self.assertEqual(got[0].quotes, ())
+
+    def test_bare_id_in_prose_does_not_name_the_row(self):
+        """The id must be backticked, as every correction in the corpus writes it. A
+        paragraph that mentions a neighbouring row in passing must not authorise it."""
+        got = _correction(
+            'Correction 2026-08-15: `RFC7296-2.8-1`, unlike RFC7296-2.8-2, "SHOULD be '
+            'closed by the endpoint that created it".\n'
+        )
+        self.assertEqual(got[0].rids, ("RFC7296-2.8-1",))
+
+
+class TestLevelRatchet(unittest.TestCase):
+    """Gating is monotonic. A MUST demoted to a SHOULD keeps its id (so
+    check_retired_requirements is silent), keeps its tests (so check_coverage_ratchet and
+    check_evidence_ratchet are silent), and stops being asked for either polarity. It was
+    the cheapest route from red to green in the whole gate: cheaper than {gap}, which costs
+    a public disclosure row, and cheaper than deleting the row, which costs the id."""
+
+    def _errs(
+        self,
+        reqs,
+        baseline_levels,
+        corrections=(),
+        rfc_text=_RFC_TEXT,
+        enrolled=("rfc7296",),
+        base_enrolled=None,
+    ):
+        with _patched(
+            summary_corrections=lambda stem: list(corrections),
+            source_text=lambda stem: rfc_text,
+        ):
+            return R.check_level_ratchet(
+                requirements=reqs,
+                enrolled=set(enrolled),
+                baseline_levels=dict(baseline_levels),
+                baseline_enrolled=set(
+                    enrolled if base_enrolled is None else base_enrolled
+                ),
+            )
+
+    def _row(self, level="SHOULD"):
+        return _req("RFC7296-2.8-1", level=level, rfc="rfc7296")._replace(
+            section="2.8.1", source="rfc/short/rfc7296.md", line=520
+        )
+
+    def _authorising(self):
+        return _correction(
+            "Correction 2026-08-15: `RFC7296-2.8-1` was extracted at MUST strength. "
+            '§2.8.1 states it as a recommendation: the SA "SHOULD be closed by the '
+            'endpoint that created it".\n'
+        )
+
+    def test_unrecorded_demotion_fails(self):
+        """AC-1. The message must carry the id, BOTH levels and the section, because the
+        reader's next action is to open that section and decide which one is right."""
+        errs = self._errs([self._row()], {"RFC7296-2.8-1": "MUST"})
+        self.assertEqual(len(errs), 1, errs)
+        self.assertIn("RFC7296-2.8-1", errs[0])
+        self.assertIn("[MUST]", errs[0])
+        self.assertIn("[SHOULD]", errs[0])
+        self.assertIn("2.8.1", errs[0])
+
+    def test_recorded_correction_passes(self):
+        """AC-2. The escape, and the shape the corpus already writes."""
+        errs = self._errs(
+            [self._row()], {"RFC7296-2.8-1": "MUST"}, corrections=self._authorising()
+        )
+        self.assertEqual(errs, [])
+
+    def test_promotion_needs_no_record(self):
+        """AC-3. One-directional by construction: a row GAINING a gated level is a
+        conformance improvement, and gating it would make the gate argue against its own
+        purpose."""
+        errs = self._errs([self._row(level="MUST")], {"RFC7296-2.8-1": "SHOULD"})
+        self.assertEqual(errs, [])
+
+    def test_unchanged_gated_row_is_clean(self):
+        """AC-5 in miniature: the corpus is overwhelmingly rows that did not move, and a
+        ratchet that fires on them would be routed around within a day."""
+        errs = self._errs([self._row(level="MUST")], {"RFC7296-2.8-1": "MUST"})
+        self.assertEqual(errs, [])
+
+    def test_advisory_to_advisory_is_not_this_ratchet(self):
+        """A SHOULD lowered to a MAY loses no gating, because a SHOULD never gated. Stated
+        as a test so the boundary is a decision rather than an oversight: the SHOULD tier
+        is the backlog's second phase (the spec's Known Limitations)."""
+        errs = self._errs([self._row(level="MAY")], {"RFC7296-2.8-1": "SHOULD"})
+        self.assertEqual(errs, [])
+
+    def test_correction_for_another_id_does_not_authorise(self):
+        """A paragraph naming a sibling row is not this row's authorisation. Without the id
+        match, one correction anywhere in a summary would license every demotion in it."""
+        other = _correction(
+            'Correction 2026-08-15: `RFC7296-2.8-2` "SHOULD be closed by the endpoint '
+            'that created it".\n'
+        )
+        errs = self._errs([self._row()], {"RFC7296-2.8-1": "MUST"}, corrections=other)
+        self.assertEqual(len(errs), 1, errs)
+
+    def test_quotation_absent_from_the_rfc_does_not_authorise(self):
+        """The condition that makes the record evidence rather than assertion. A reason
+        nobody can check is what `GATED_FLOOR` already was: a note the demoting commit
+        writes about itself."""
+        invented = _correction(
+            'Correction 2026-08-15: `RFC7296-2.8-1` because the RFC says "this obligation '
+            'is only a recommendation for implementers".\n'
+        )
+        errs = self._errs(
+            [self._row()], {"RFC7296-2.8-1": "MUST"}, corrections=invented
+        )
+        self.assertEqual(len(errs), 1, errs)
+
+    def test_keyword_sized_quotation_does_not_authorise(self):
+        """ "SHOULD" appears in every RFC, so quoting it proves nothing about THIS row. The
+        quotation has to carry the obligation, which is what MIN_CORRECTION_QUOTE buys."""
+        thin = _correction('Correction 2026-08-15: `RFC7296-2.8-1` says "SHOULD".\n')
+        errs = self._errs([self._row()], {"RFC7296-2.8-1": "MUST"}, corrections=thin)
+        self.assertEqual(len(errs), 1, errs)
+
+    def test_missing_rfc_text_fails_closed(self):
+        """No source text, no way to check a quotation. Failing OPEN here would make
+        deleting rfc/full/<stem>.txt the new cheapest route from red to green."""
+        errs = self._errs(
+            [self._row()],
+            {"RFC7296-2.8-1": "MUST"},
+            corrections=self._authorising(),
+            rfc_text=None,
+        )
+        self.assertEqual(len(errs), 1, errs)
+        self.assertIn("rfc/full/rfc7296.txt", errs[0])
+
+    def test_retired_row_is_left_to_its_own_ratchet(self):
+        """AC-4. A vanished id is check_retired_requirements' subject. Reporting it here
+        too would double-count one loss and split its fix across two messages."""
+        errs = self._errs([], {"RFC7296-2.8-1": "MUST"})
+        self.assertEqual(errs, [])
+        retired = R.check_retired_requirements(
+            requirements=[],
+            enrolled={"rfc7296"},
+            baseline_ids={"RFC7296-2.8-1"},
+            baseline_enrolled={"rfc7296"},
+            stems={"rfc7296"},
+            baseline_stems={"rfc7296"},
+        )
+        self.assertEqual(len(retired), 1, retired)
+
+    def test_duplicate_lines_report_one_demotion(self):
+        errs = self._errs([self._row(), self._row()], {"RFC7296-2.8-1": "MUST"})
+        self.assertEqual(len(errs), 1, errs)
+
+    def test_row_with_no_baseline_is_not_judged(self):
+        """A requirement added in this very change has no level to have fallen from."""
+        self.assertEqual(self._errs([self._row()], {}), [])
+
+    def test_newly_enrolled_rfc_is_not_judged(self):
+        """Scoped like its siblings. An RFC enrolled in this change is judged by
+        evaluate()'s ordinary rules, not accused of a regression it predates."""
+        errs = self._errs([self._row()], {"RFC7296-2.8-1": "MUST"}, base_enrolled=())
+        self.assertEqual(errs, [])
+
+    def test_unenrolled_rfc_is_not_judged(self):
+        errs = self._errs([self._row()], {"RFC7296-2.8-1": "MUST"}, enrolled=())
+        self.assertEqual(errs, [])
+
+
+class TestLevelRatchetWiring(unittest.TestCase):
+    """Drive run_check. The check is dead code unless the gate calls it with the real HEAD
+    levels, and every sibling ratchet has a wiring class for exactly that reason: correct in
+    isolation, deletable from run_check with every other test still green."""
+
+    def _drive(self, level, corrections=()):
+        row = _req("RFC7606-2-1", level=level)._replace(section="2")
+        tags = [
+            _tag("RFC7606-2-1", "positive"),
+            _tag("RFC7606-2-1", "negative", line=2),
+        ]
+        with _patched(
+            load_enrolled=lambda: {"rfc7606"},
+            summary_stems=lambda: {"rfc7606"},
+            parse_summary_file=lambda path: [row],
+            summary_corrections=lambda stem: list(corrections),
+            source_text=lambda stem: _RFC_TEXT,
+            _git_baseline_enrolment=lambda: {"rfc7606"},
+            _git_baseline_ids=lambda: {"RFC7606-2-1"},
+            _git_baseline_levels=lambda: {"RFC7606-2-1": "MUST"},
+            _git_baseline_tag_polarities=lambda: {},
+            _git_baseline_evidence=lambda: {},
+            _git_baseline_summary_stems=lambda: {"rfc7606"},
+            scan_tree=lambda *a, **k: tags,
+            check_status_agreement=lambda *a, **k: [],
+            # The audit half and the ledger edges, neutralised for the reason every driver
+            # in this file neutralises them: they read the REAL rfc/audit/*.json,
+            # rfc/not-enrolled.txt and docs/features/rfc-status.md, and this driver declares
+            # a synthetic summary universe. Each has its own wiring class.
+            check_audit_files=lambda *a, **k: [],
+            check_audit_schema=lambda *a, **k: [],
+            check_audit_freshness=lambda *a, **k: [],
+            check_audit_disclosure=lambda *a, **k: [],
+            check_audit_note=lambda *a, **k: [],
+            check_audit_findings=lambda *a, **k: [],
+            check_audit_verdict_ratchet=lambda *a, **k: [],
+            signed_extractions=lambda reqs_: {},
+            check_extraction_signoff=lambda *a, **k: [],
+            check_extraction_ratchet=lambda *a, **k: [],
+            check_drain_floor=lambda *a, **k: [],
+            check_summary_disposition=lambda *a, **k: [],
+            check_status_completeness=lambda *a, **k: [],
+            check_unproven_support=lambda *a, **k: [],
+            check_gap_count_agreement=lambda *a, **k: [],
+            check_ledger_fresh=lambda *a, **k: [],
+        ):
+            return _run_capturing(R.run_check)
+
+    def test_run_check_fails_on_an_unrecorded_demotion(self):
+        """AC-1 at the gate. The row keeps its id and both its tags, so every other check
+        on the path is content: only this one can see the MUST leave."""
+        code, out = self._drive("SHOULD")
+        self.assertEqual(code, 2, out)
+        self.assertIn("RFC7606-2-1", out)
+        self.assertIn("Gating is monotonic", out)
+
+    def test_run_check_passes_with_the_correction_recorded(self):
+        """AC-2 at the gate, and the discrimination for the case above: the same demoted
+        tree with the authorising paragraph present reports clean."""
+        code, out = self._drive(
+            "SHOULD",
+            corrections=_correction(
+                'Correction 2026-08-15: `RFC7606-2-1` -- the RFC says it "SHOULD be '
+                'closed by the endpoint that created it".\n'
+            ),
+        )
+        self.assertEqual(code, 0, out)
+
+    def test_run_check_passes_when_the_level_holds(self):
+        code, out = self._drive("MUST")
+        self.assertEqual(code, 0, out)
+
+
+class TestCorrectionsInTheRealCorpus(unittest.TestCase):
+    """The three level corrections the tree already carries, judged by the rule that now
+    reads them. Written against the REAL summaries and the REAL RFC texts: a synthetic
+    fixture would pass with the convention spelled any way at all, and the point of reusing
+    the corpus's own paragraph is that it is the one people write."""
+
+    CASES = (
+        ("rfc7296", "RFC7296-2.8-1"),
+        ("rfc7947", "RFC7947-x-1"),
+        ("rfc7947", "RFC7947-x-3"),
+    )
+
+    def test_every_recorded_demotion_is_authorised(self):
+        for stem, rid in self.CASES:
+            with self.subTest(rid=rid):
+                got = R.authorising_correction(
+                    rid, R.summary_corrections(stem), R.source_text(stem)
+                )
+                self.assertIsNotNone(
+                    got,
+                    f"{rid}'s correction in rfc/short/{stem}.md no longer authorises it",
+                )
+
+    def test_an_uncorrected_row_is_not_authorised(self):
+        """Discriminates from 'authorises everything'. RFC7947-x-2 is a MUST NOT that was
+        never corrected, so no paragraph in rfc/short/rfc7947.md may cover it."""
+        self.assertIsNone(
+            R.authorising_correction(
+                "RFC7947-x-2",
+                R.summary_corrections("rfc7947"),
+                R.source_text("rfc7947"),
+            )
+        )
 
 
 class TestRetiredRequirementsWiring(unittest.TestCase):
@@ -7044,7 +7386,7 @@ class TestCITierIsEarnedNotAssumed(unittest.TestCase):
     anywhere under internal/, pkg/ or test/ was credited `functional/verify` by extension
     alone. Three evasions followed, each of them silent: move a tagged `.ci` out of a run
     suite (test/traffic/), into the gitignored incubator (test/draft/), or into a tree
-    whose sibling check.py the SAME table refuses as unrun (test/ipsec-interop/). The tier
+    whose sibling check.py the SAME table refuses as unrun (test/interop-ipsec/). The tier
     is now derived from mk/test-functional.mk's own suite list, so it tracks reality
     instead of restating it (ai/rules/evidence.md).
     """
@@ -7092,8 +7434,8 @@ class TestCITierIsEarnedNotAssumed(unittest.TestCase):
             self.assertIsNone(R.carrier_for(rel), rel)
 
     def test_evasion_moving_a_ci_beside_a_refused_check_py_is_not_verify_tier(self):
-        """The sharpest of the three: test/ipsec-interop/**/check.py is refused as unrun
-        while test/ipsec-interop/**.ci was credited verify-tier, in ONE table."""
+        """The sharpest of the three: test/interop-ipsec/**/check.py is refused as unrun
+        while test/interop-ipsec/**.ci was credited verify-tier, in ONE table."""
         for tree in ("ipsec-interop", "l2tp-interop", "pppoe-interop", "interop"):
             ci = R.carrier_for(f"test/{tree}/regress.ci")
             self.assertIsNotNone(ci, tree)
@@ -7364,7 +7706,7 @@ class TestInteropTierIsDerivedFromWorkflows(unittest.TestCase):
                 R.scheduled_workflow_targets(d)
 
     def test_ipsec_interop_carrier_earns_nightly_when_wired(self):
-        c = R.carrier_for("test/ipsec-interop/scenarios/04-eap-tls/check.py")
+        c = R.carrier_for("test/interop-ipsec/scenarios/04-eap-tls/check.py")
         self.assertIsNotNone(c)
         self.assertEqual(c.name, "interop-ipsec")
         self.assertEqual(c.tier, R.TIER_NIGHTLY)
@@ -7380,7 +7722,7 @@ class TestInteropTierIsDerivedFromWorkflows(unittest.TestCase):
         tag = R.Tag(
             rid="RFC7296-1-1",
             polarity="positive",
-            file="test/ipsec-interop/scenarios/x/check.py",
+            file="test/interop-ipsec/scenarios/x/check.py",
             line=3,
         )
         msg = str(R._refuse_unrun(by_name["interop-ipsec"], tag))
@@ -7392,8 +7734,8 @@ class TestInteropTierIsDerivedFromWorkflows(unittest.TestCase):
         provide, so no workflow names their runners and the tier derivation refuses them.
         The pin is on the DERIVATION's answer, not on a literal."""
         for rel in (
-            "test/l2tp-interop/scenarios/x/check.py",
-            "test/pppoe-interop/scenarios/x/check.py",
+            "test/interop-l2tp/scenarios/x/check.py",
+            "test/interop-pppoe/scenarios/x/check.py",
         ):
             self.assertEqual(R.carrier_for(rel).tier, R.TIER_UNRUN, rel)
 
@@ -8323,7 +8665,7 @@ class TestSymbolKeyResolution(_AuditFixture):
         msg = str(cm.exception)
         self.assertIn("TestTagged", msg)
         self.assertIn(self.rel, msg)
-        self.assertIn("/ze-rfc-audit", msg)
+        self.assertIn("ai/skills/ze-rfc-audit.md", msg)
 
     def test_a_gone_symbol_reaches_the_gate_as_stale_not_as_a_crash(self):
         """The state, not the exception. Raising through `audit_freshness` would take the LEDGER
@@ -8671,7 +9013,7 @@ class TestAuditUnitFreshness(_AuditFixture):
             [self.req], self.tags, {"rfc9999"}, self.audits(v)
         )
         self.assertTrue(errs)
-        self.assertIn("/ze-rfc-audit", errs[0])
+        self.assertIn("ai/skills/ze-rfc-audit.md", errs[0])
         self.assertIn("refuse", errs[0])
 
 
@@ -12220,37 +12562,42 @@ class TestRealTree(unittest.TestCase):
     STEM = "rfc7296"
     PREFIX = "RFC7296-"
 
-    # The 23 ids rfc/short/rfc7296.md carried before the pilot's first landing, read from
-    # `git show 9551e66f4^:rfc/short/rfc7296.md`. Recorded here rather than re-derived,
-    # because both ratchets below compare against HEAD and HEAD has already moved past the
-    # re-authoring they were written to police.
-    PRE_PILOT_IDS = frozenset(
-        {
-            "RFC7296-1.2-1",
-            "RFC7296-1.3.3-1",
-            "RFC7296-1.4-1",
-            "RFC7296-2.1-1",
-            "RFC7296-2.1-2",
-            "RFC7296-2.4-1",
-            "RFC7296-2.4-2",
-            "RFC7296-2.4-3",
-            "RFC7296-2.4-4",
-            "RFC7296-2.6-1",
-            "RFC7296-2.7-1",
-            "RFC7296-2.8-1",
-            "RFC7296-2.8-2",
-            "RFC7296-2.8-3",
-            "RFC7296-2.9-1",
-            "RFC7296-2.23-1",
-            "RFC7296-2.23-2",
-            "RFC7296-2.23-3",
-            "RFC7296-3.3-1",
-            "RFC7296-3.3-2",
-            "RFC7296-3.3.2-1",
-            "RFC7296-3.3.6-1",
-            "RFC7296-3.8-1",
-        }
-    )
+    # The 23 rows rfc/short/rfc7296.md carried before the pilot's first landing, with the
+    # LEVEL each one carried, read from `git show 9551e66f4^:rfc/short/rfc7296.md`.
+    # Recorded here rather than re-derived, because all three ratchets below compare against
+    # HEAD and HEAD has already moved past the re-authoring they were written to police.
+    #
+    # The levels are recorded, not just the ids, because the level ratchet's whole subject
+    # is a row leaving the gated population. 18 of these 23 were MUST-level; a baseline
+    # derived from today's rows would carry whatever level each row has NOW, which is the
+    # tautology `test_rfc7296_ids_are_neither_retired_nor_lose_a_polarity` used to be
+    # named for.
+    PRE_PILOT_LEVELS = {
+        "RFC7296-1.2-1": "MUST",
+        "RFC7296-1.3.3-1": "MUST",
+        "RFC7296-1.4-1": "MUST",
+        "RFC7296-2.1-1": "SHOULD",
+        "RFC7296-2.1-2": "SHOULD",
+        "RFC7296-2.4-1": "MUST",
+        "RFC7296-2.4-2": "SHOULD",
+        "RFC7296-2.4-3": "MUST NOT",
+        "RFC7296-2.4-4": "MUST",
+        "RFC7296-2.6-1": "MUST",
+        "RFC7296-2.7-1": "MUST",
+        "RFC7296-2.8-1": "MUST",
+        "RFC7296-2.8-2": "MUST NOT",
+        "RFC7296-2.8-3": "SHOULD",
+        "RFC7296-2.9-1": "MUST",
+        "RFC7296-2.23-1": "MUST",
+        "RFC7296-2.23-2": "MUST",
+        "RFC7296-2.23-3": "MUST",
+        "RFC7296-3.3-1": "MUST",
+        "RFC7296-3.3-2": "MUST",
+        "RFC7296-3.3.2-1": "MUST",
+        "RFC7296-3.3.6-1": "MUST",
+        "RFC7296-3.8-1": "SHOULD",
+    }
+    PRE_PILOT_IDS = frozenset(PRE_PILOT_LEVELS)
 
     # The three ids that carried an annotation before the pilot: {single-polarity} on
     # 3.3-1 and {gap} on the other two. AC-18: each was CLEARED by the work that
@@ -12273,6 +12620,16 @@ class TestRealTree(unittest.TestCase):
     # moved that row out of the gated MUST-level population. Ze's behaviour is
     # unchanged and still meets it. A decrease that cannot name the row it corrected,
     # and the RFC sentence that corrected it, is the deletion this floor refuses.
+    #
+    # THE FLOOR IS NOT THE CONTROL, and never was: the commit that lowered the level
+    # edited this integer in the same breath, so it recorded the demotion instead of
+    # refusing it, and 165 other enrolled RFCs have no floor at all. Since 2026-08-17 the
+    # control is check_level_ratchet, which compares every row's level against HEAD and
+    # demands the correction paragraph in the summary
+    # (`test_rfc7296_pre_pilot_musts_are_still_gated_or_corrected`). What survives here is
+    # a count no ratchet can supply: 221 rows landed in the pilot, and a mass deletion
+    # spread over several commits would clear each HEAD-to-HEAD comparison one row at a
+    # time while this case still fails.
     GATED_FLOOR = 221
 
     @classmethod
@@ -12377,7 +12734,7 @@ class TestRealTree(unittest.TestCase):
         annotated = sorted(f"{r.rid} {r.annotation}" for r in self.reqs if r.annotation)
         self.assertEqual(annotated, [], "OR-1 permits no annotation on any rfc7296 row")
 
-    def test_rfc7296_ids_are_neither_retired_nor_demoted(self):
+    def test_rfc7296_ids_are_neither_retired_nor_lose_a_polarity(self):
         """AC-3, driving check_retired_requirements and check_coverage_ratchet.
 
         Both ratchets compare the working tree against HEAD, and HEAD sits well past the
@@ -12386,17 +12743,16 @@ class TestRealTree(unittest.TestCase):
         baseline claims BOTH for every gated pre-pilot id, which is the strongest claim a
         real loss could fail against.
 
-        WHAT "demoted" MEANS HERE, and what it does not. This case catches a pre-pilot id
-        that is RETIRED, and one that LOSES a polarity. It does NOT catch a level change:
-        `baseline` is built from `r.gated` over the CURRENT rows, so an id that stops being
-        MUST-level leaves the baseline rather than failing against it. RFC7296-2.8-1 went
-        [MUST] -> [SHOULD] on 2026-08-15 and passed straight through this case. That is not
-        a defect in the assertions below, which are all true; it is the reach of the name.
-        Six of the 23 pre-pilot ids sit at SHOULD today and five of them always did, so
-        "every pre-pilot id stays gated" is not the missing assertion. A real level ratchet
-        needs a recorded MUST-level subset and a place to record an authorised correction,
-        which is a decision rather than an edit. Recorded in
-        `plan/journal/reference-checked-claim-unchecked.md`.
+        WHAT THIS CASE COVERS, and what it does not. It catches a pre-pilot id that is
+        RETIRED, and one that LOSES a polarity. It does not judge a LEVEL change: `baseline`
+        is built from `r.gated` over the CURRENT rows, so an id that stops being MUST-level
+        leaves the baseline rather than failing against it. The case was named
+        `..._nor_demoted` until 2026-08-17 and RFC7296-2.8-1 went [MUST] -> [SHOULD] on
+        2026-08-15 straight through it. The assertions were all true; the NAME reached
+        further than any of them, and a reader who grepped for a demotion ratchet found it
+        and stopped looking. The level is now
+        `test_rfc7296_pre_pilot_musts_are_still_gated_or_corrected`'s subject, over the
+        recorded PRE_PILOT_LEVELS and check_level_ratchet.
         """
         live = {r.rid for r in self.reqs}
         self.assertEqual(
@@ -12434,6 +12790,36 @@ class TestRealTree(unittest.TestCase):
                 R.POLARITIES,
                 f"{rid} lost the polarity that let its annotation be cleared",
             )
+
+    def test_rfc7296_pre_pilot_musts_are_still_gated_or_corrected(self):
+        """AC-3's missing half, over the REAL summary and the REAL RFC text.
+
+        18 of the 23 pre-pilot rows were MUST-level. Any one of them may leave that
+        population only behind a recorded correction, and exactly one has: RFC7296-2.8-1,
+        whose `Correction 2026-08-15:` paragraph in rfc/short/rfc7296.md quotes §2.8.1's
+        "SHOULD be closed by the endpoint that created it" -- a sentence this case's second
+        half proves is really in rfc/full/rfc7296.txt.
+
+        This is the case GATED_FLOOR was standing in for. A single integer maintained by
+        hand, in the file that also holds the assertion, was edited by the very commit that
+        lowered the level: a record of the demotion, never a control over it.
+        """
+        errs = R.check_level_ratchet(
+            self.reqs, self.enrolled, dict(self.PRE_PILOT_LEVELS), {self.STEM}
+        )
+        self.assertEqual(
+            errs, [], "a pre-pilot MUST left the gated population unrecorded"
+        )
+
+        # Discrimination: the silence above is a verdict about THIS tree, not the only
+        # answer the check can give. Take the corrections away and RFC7296-2.8-1's [MUST]
+        # -> [SHOULD] is exactly what the ratchet exists to refuse.
+        with _patched(summary_corrections=lambda stem: []):
+            unrecorded = R.check_level_ratchet(
+                self.reqs, self.enrolled, dict(self.PRE_PILOT_LEVELS), {self.STEM}
+            )
+        self.assertEqual(len(unrecorded), 1, unrecorded)
+        self.assertIn("RFC7296-2.8-1", unrecorded[0])
 
     def test_rfc7296_ledger_is_fresh_after_the_pilot(self):
         """Story 1: an operator sizes ze's IKEv2 from docs/features/rfc-status.md, and that

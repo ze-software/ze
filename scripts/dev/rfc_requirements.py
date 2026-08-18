@@ -209,6 +209,26 @@ _TRAILING_PAREN_RE = re.compile(r"\((?P<body>[^()]*)\)[^()]*$")
 NO_SECTION = "x"
 _ANNOTATION_RE = re.compile(r"\{(?P<body>[^{}]*)\}\s*$")
 
+# A recorded, authorised change to a requirement row: `Correction <YYYY-MM-DD>: ...`, the
+# paragraph rfc/short/rfc7947.md and rfc/short/rfc7296.md already write beside a corrected
+# row. Both spellings are in the corpus, blockquoted and plain, so the mark is stripped per
+# line before the opener is matched.
+_CORRECTION_MARK_RE = re.compile(r"^>\s?")
+_CORRECTION_OPEN_RE = re.compile(r"^Correction\s+(?P<date>\d{4}-\d{2}-\d{2})\s*:")
+# The id, backticked, exactly as every correction in the corpus writes it. Backticks rather
+# than a bare id so a paragraph mentioning a neighbouring row in prose cannot silently
+# authorise it.
+_CORRECTION_RID_RE = re.compile(r"`(?P<rid>[A-Za-z0-9][A-Za-z0-9.\-]*-\d+)`")
+# The quotation of the RFC's own words. Straight double quotes only: they are what the
+# corpus uses, and a smart-quoted span would not match the RFC text either.
+_CORRECTION_QUOTE_RE = re.compile(r"\"(?P<quote>[^\"]+)\"")
+# How much of the RFC a correction must quote, in characters after whitespace is squashed.
+# The bar exists so the quotation carries the OBLIGATION and not just the keyword that
+# names its strength: "SHOULD NOT" is 10 characters and appears in nearly every RFC, while
+# the three corrections in the corpus today quote 45, 48 and 100. A shorter span proves
+# only that the word occurs somewhere in the document.
+MIN_CORRECTION_QUOTE = 24
+
 _GO_TAG_RE = re.compile(r"^\s*//\s*RFC requirement:\s*(?P<rest>.*)$")
 _CI_TAG_RE = re.compile(r"^#\s*RFC requirement:\s*(?P<rest>.*)$")
 _PY_TAG_RE = re.compile(r"^#\s*RFC requirement:\s*(?P<rest>.*)$")
@@ -256,6 +276,17 @@ class Requirement(NamedTuple):
     @property
     def gated(self) -> bool:
         return self.level in GATED_LEVELS
+
+
+class Correction(NamedTuple):
+    """One `Correction <date>:` paragraph in a summary: the recorded authorisation for a
+    change to the rows it names. `quotes` holds every double-quoted span in the paragraph,
+    unverified -- `check_level_ratchet` is what checks one against the RFC's own text."""
+
+    date: str
+    rids: Tuple[str, ...]
+    quotes: Tuple[str, ...]
+    line: int
 
 
 class Tag(NamedTuple):
@@ -466,6 +497,63 @@ def parse_summary_file(path: str) -> List[Requirement]:
         return parse_summary_text(
             fh.read(), stem, source=os.path.relpath(path, PROJECT_DIR)
         )
+
+
+def parse_corrections(text: str) -> List[Correction]:
+    """Every `Correction <date>:` paragraph in a summary.
+
+    The convention is older than this reader: rfc/short/rfc7947.md and rfc/short/rfc7296.md
+    already record a corrected extraction as a dated paragraph naming the id in backticks
+    and quoting the RFC's own words. This parses what the corpus writes -- blockquoted
+    (`> Correction ...`) and plain paragraphs alike -- so the record the gate reads is the
+    record a human already writes beside the row (`ai/rules/no-layering.md`).
+
+    Deliberately TOLERANT, unlike `parse_dispositions`. A correction paragraph that names
+    no id, or carries no quotation, authorises nothing and is simply not an authorisation;
+    the ratchet says so at the row it fails to cover. Raising here instead would red the
+    gate on the corrections already in the tree that record a POLARITY or a TEXT repair
+    rather than a level one, and those are legitimate notes.
+    """
+    out: List[Correction] = []
+    lines = text.split("\n")
+    start = 0
+    while start < len(lines):
+        if not lines[start].strip():
+            start += 1
+            continue
+        end = start
+        while end < len(lines) and lines[end].strip():
+            end += 1
+        body = [_CORRECTION_MARK_RE.sub("", ln).strip() for ln in lines[start:end]]
+        m = _CORRECTION_OPEN_RE.match(body[0])
+        if m:
+            joined = " ".join(body)
+            out.append(
+                Correction(
+                    date=m.group("date"),
+                    rids=tuple(_CORRECTION_RID_RE.findall(joined)),
+                    quotes=tuple(_CORRECTION_QUOTE_RE.findall(joined)),
+                    line=start + 1,
+                )
+            )
+        start = end
+    return out
+
+
+def summary_corrections(stem: str) -> List[Correction]:
+    """The corrections recorded in the WORKING TREE copy of one summary.
+
+    The working tree, not HEAD: the paragraph that authorises a level change lands in the
+    same commit as the change it authorises, so HEAD has not seen it yet.
+    """
+    path = os.path.join(SUMMARY_DIR, stem + ".md")
+    try:
+        with open(path, encoding="utf-8") as fh:
+            return parse_corrections(fh.read())
+    except OSError:
+        # A summary that cannot be read is reported by check_enrolment and by the parse
+        # pass; here it simply supplies no authorisation, which fails the ratchet closed.
+        return []
 
 
 def _ord_of(rid: str) -> Optional[int]:
@@ -916,9 +1004,9 @@ def scheduled_workflow_targets(path: str = WORKFLOWS_DIR) -> Dict[str, str]:
 # whether CI runs that target, which _interop_carriers reads from the workflows.
 INTEROP_TREES: Tuple[Tuple[str, str, str], ...] = (
     ("interop-bgp", "test/interop/scenarios/", "ze-interop-test"),
-    ("interop-ipsec", "test/ipsec-interop/", "ze-interop-ipsec-test"),
-    ("interop-l2tp", "test/l2tp-interop/", "ze-deployment-docker-l2tp-ppp-test"),
-    ("interop-pppoe", "test/pppoe-interop/", "ze-deployment-docker-pppoe-accel-test"),
+    ("interop-ipsec", "test/interop-ipsec/", "ze-interop-ipsec-test"),
+    ("interop-l2tp", "test/interop-l2tp/", "ze-deployment-docker-l2tp-ppp-test"),
+    ("interop-pppoe", "test/interop-pppoe/", "ze-deployment-docker-pppoe-accel-test"),
 )
 
 
@@ -1017,7 +1105,7 @@ CARRIERS: Tuple[Carrier, ...] = (
     # test/ as merge-gate evidence, which made three silent evasions possible: move a
     # tagged .ci out of a run suite (test/traffic/), into the gitignored incubator
     # (test/draft/), or into a tree whose sibling check.py the SAME table refuses as unrun
-    # (test/ipsec-interop/). ~59 .ci live in suites the recipe does not list.
+    # (test/interop-ipsec/). ~59 .ci live in suites the recipe does not list.
     *_suite_carriers(
         "functional",
         ".ci",
@@ -1783,6 +1871,25 @@ def _git_baseline_ids() -> Set[str]:
     "id retired, then a DIFFERENT obligation re-points at it" (catastrophic). On the first
     commit, a missing baseline, or any git failure, return an empty set -- the same graceful
     fallback, meaning simply "no reuse baseline to compare against yet".
+
+    Derived from `_git_baseline_levels` so one reader answers both questions and the two
+    baselines cannot describe different trees. run_check calls both, which costs a second
+    `git cat-file --batch` (0.2s over 180 summaries, measured 2026-08-17). That is paid on
+    purpose: the level ratchet must not be able to change what the id ratchet sees.
+    """
+    return set(_git_baseline_levels())
+
+
+def _git_baseline_levels() -> Dict[str, str]:
+    """{requirement id: level} as committed at HEAD.
+
+    The level ratchet's baseline. A tree alone cannot tell "was never MUST-level" from
+    "stopped being MUST-level", and the second is the regression: the row keeps its id, so
+    check_retired_requirements stays silent, and it keeps its tests, so check_coverage_ratchet
+    stays silent, while every coverage obligation attached to it disappears with the gating.
+
+    Any git failure yields an empty map, the same graceful fallback its siblings take: the
+    ratchet reads it as "no baseline for this id", so an unknown baseline accuses nobody.
     """
     try:
         listing = subprocess.run(
@@ -1793,31 +1900,31 @@ def _git_baseline_ids() -> Set[str]:
             check=False,
         )
     except OSError:
-        return set()
+        return {}
     if listing.returncode != 0:
-        return set()
+        return {}
     paths = [
         path.strip()
         for path in listing.stdout.split("\0")
         if path.strip().endswith(".md")
     ]
     if not paths:
-        return set()
+        return {}
 
     blobs = _git_cat_blobs(paths)
-    ids: Set[str] = set()
+    levels: Dict[str, str] = {}
     for path in paths:
         if path not in blobs:
             continue
         stem = os.path.basename(path)[: -len(".md")]
         try:
             for req in parse_summary_text(blobs[path], stem, source=path):
-                ids.add(req.rid)
+                levels[req.rid] = req.level
         except ParseError:
-            # A committed summary that no longer parses contributes no baseline ids for its
-            # sections; the ratchet skips reuse-checking there rather than crashing the gate.
+            # A committed summary that no longer parses contributes no baseline for its
+            # sections; both ratchets skip it rather than crashing the gate.
             continue
-    return ids
+    return levels
 
 
 def _git_baseline_summary_stems() -> Optional[Set[str]]:
@@ -2419,6 +2526,122 @@ def check_retired_requirements(
     return errs
 
 
+def _squash_ws(text: str) -> str:
+    """One space between words, nothing at the ends.
+
+    RFC text wraps at 72 columns and a quotation of it almost always crosses a line break,
+    so a verbatim comparison has to be made on the words rather than on the layout.
+    """
+    return " ".join(text.split())
+
+
+def authorising_correction(
+    rid: str, corrections: Sequence[Correction], rfc_text: str
+) -> Optional[Correction]:
+    """The correction that authorises a change to `rid`, or None.
+
+    Two conditions, both mechanical, because a free-text reason beside the row it excuses is
+    an assertion and this file's escapes are evidence (`ai/rules/evidence.md`). The
+    paragraph MUST name the id, and it MUST quote at least MIN_CORRECTION_QUOTE characters
+    that appear VERBATIM in the RFC's own text. Quoting the document is what a correction
+    is: the row was wrong about what the RFC says, and the RFC sentence is the proof.
+
+    What it deliberately does NOT judge: whether the quoted sentence carries the level the
+    row now claims. Requiring the new level's keyword inside the quotation reads well and
+    refuses the best correction in the corpus -- RFC7947-x-1 is justified by RFC 7947's own
+    "is a recommendation rather than a requirement", which states the strength without
+    spelling a keyword. The reviewer reads the quotation; the gate proves it is the RFC's.
+    """
+    haystack = _squash_ws(rfc_text)
+    for correction in corrections:
+        if rid not in correction.rids:
+            continue
+        for quote in correction.quotes:
+            squashed = _squash_ws(quote)
+            if len(squashed) < MIN_CORRECTION_QUOTE:
+                continue
+            if squashed in haystack:
+                return correction
+    return None
+
+
+def check_level_ratchet(
+    requirements: Sequence[Requirement],
+    enrolled: Set[str],
+    baseline_levels: Dict[str, str],
+    baseline_enrolled: Set[str],
+) -> List[str]:
+    """Gating is monotonic: a requirement cannot leave the MUST-level population unrecorded.
+
+    Demotion is the cheapest route from red to green in this gate, cheaper than the {gap}
+    check_coverage_ratchet refuses and cheaper than the deletion check_retired_requirements
+    refuses, because it costs neither a public disclosure row nor a lost id. Lower the level
+    and `Requirement.gated` goes false: evaluate() stops asking the row for a positive and a
+    negative test, and the two ratchets that would notice a loss both stay silent -- one
+    compares polarity sets of rows that are STILL gated, the other compares ids, and the id
+    is still there. The gated count simply drops.
+
+    One-directional by construction. A row GAINING a gated level is a conformance
+    improvement and is never reported; a row that was advisory at HEAD is not read at all.
+    A row that vanished is check_retired_requirements' subject, not this one's, so an id
+    absent from the tree is skipped here and reported once, there.
+
+    The escape is a `Correction <date>:` paragraph in the same summary, naming the id and
+    quoting the RFC (`authorising_correction`). It is permanent and public, it sits beside
+    the row, and it is the record the corpus already writes: rfc/short/rfc7947.md and
+    rfc/short/rfc7296.md carry three of them, each of which authorises the demotion it
+    describes under this rule.
+
+    Scoped like its siblings to RFCs enrolled on BOTH sides. An RFC enrolled in this very
+    change has no baseline to fall from, and one being un-enrolled is check_enrolment's.
+    """
+    errs: List[str] = []
+    seen: Set[str] = set()
+    corrections: Dict[str, List[Correction]] = {}
+    sources: Dict[str, Optional[str]] = {}
+    for req in requirements:
+        if req.rfc not in enrolled or req.rfc not in baseline_enrolled:
+            continue
+        was = baseline_levels.get(req.rid)
+        if was is None or was not in GATED_LEVELS or req.gated:
+            continue
+        if req.rid in seen:
+            continue  # two summary lines sharing an id are one demotion, not two
+        seen.add(req.rid)
+        if req.rfc not in sources:
+            corrections[req.rfc] = summary_corrections(req.rfc)
+            sources[req.rfc] = source_text(req.rfc)
+        where = f"{req.source}:{req.line}" if req.source else req.rid
+        section = (
+            "no section cited"
+            if req.section == NO_SECTION
+            else f"section {req.section}"
+        )
+        text = sources[req.rfc]
+        if text is None:
+            errs.append(
+                f"{where}: {req.rid} ({section}) moved [{was}] -> [{req.level}] and the "
+                f"RFC's own text is not in the repository, so no correction can be "
+                f"checked against it. Fetch it to rfc/full/{req.rfc}.txt or "
+                f"rfc/drafts/{req.rfc}.txt, then record the correction"
+            )
+            continue
+        if authorising_correction(req.rid, corrections[req.rfc], text) is not None:
+            continue
+        errs.append(
+            f"{where}: {req.rid} ({section}) moved [{was}] -> [{req.level}] and left the "
+            f"gated MUST-level population with nothing recorded. Gating is monotonic: the "
+            f"row keeps its id and its tests, so no other ratchet sees the loss, while "
+            f"every coverage obligation attached to it disappears. Record the correction "
+            f"in rfc/short/{req.rfc}.md as a paragraph opening "
+            f"'Correction <YYYY-MM-DD>:', naming `{req.rid}` and quoting, in double "
+            f"quotes, at least {MIN_CORRECTION_QUOTE} characters of the RFC sentence that "
+            f"states the lower strength. If the RFC does say MUST, restore the level "
+            f"instead"
+        )
+    return errs
+
+
 def check_new_summaries(
     stems: Set[str],
     baseline_stems: Optional[Set[str]],
@@ -2903,7 +3126,7 @@ def check_unproven_support(
     What the fourth fact does NOT establish, stated rather than implied: a `prose` grade is not
     proof the classifications were right. It bounds the escape to documents whose obligations
     are not written in the register the corpus is normally read in; judging the exclusions
-    themselves is /ze-rfc-audit's job, and ai/rules/rfc-compliance.md:56 voided every
+    themselves is the ze-rfc-audit skill's job, and ai/rules/rfc-compliance.md:56 voided every
     annotation as authority.
 
     Scoped to stems that HAVE a summary. 19 rows on the page name an RFC with no
@@ -3080,7 +3303,7 @@ def check_gap_count_agreement(
 
 
 # --------------------------------------------------------------------------
-# Fingerprints (drive /ze-rfc-audit staleness)
+# Fingerprints (drive ze-rfc-audit staleness)
 # --------------------------------------------------------------------------
 def _normalize(src: str) -> str:
     lines = [line.strip() for line in src.split("\n")]
@@ -3128,7 +3351,8 @@ def recorded_map(verdict: Dict, key: str) -> Dict[str, str]:
     `not-applicable` verdict cites no test, `ai/skills/ze-rfc-audit.md` tells the author to omit
     the field, and the omitted spelling then read STALE_UNIT forever with a message that was
     false in all three of its clauses: no tagged test was ever gone (OR-1 FORBIDS citing one),
-    it is not a line shift, and re-running `/ze-rfc-audit` reproduces the identical record.
+    it is not a line shift, and a re-read with the `ze-rfc-audit` skill reproduces the
+    identical record.
     `--reseal` refused it too, so nothing cleared it (`ai/rules/evidence.md`, the
     zero-value trap: a present-but-empty value must not diverge from an absent one;
     `ai/rules/cli.md` leg 3: a remediation must be TRUE, not merely present).
@@ -3280,7 +3504,8 @@ def _sha_value(sha: object, where: str) -> str:
     value and resolves to STALE_UNIT, which degrades toward MORE checking, so this was never an
     unsound-green defect (`ai/rules/evidence.md`). It is the wrong DIAGNOSIS, though --
     it sends a reader to re-audit a requirement whose judgement never moved, and the remediation
-    STALE prints ("re-run /ze-rfc-audit") does not name the actual fault, which leaves leg 3 of
+    STALE prints (re-read it with the ze-rfc-audit skill) does not name the actual fault,
+    which leaves leg 3 of
     `ai/rules/cli.md` present but untrue.
 
     Length alone is not the check. A value truncated and then padded to 16 characters has the
@@ -3395,7 +3620,7 @@ def audit_stems() -> Set[str]:
 
 
 def load_audit(rfc: str) -> Dict[str, Dict]:
-    """Read and VALIDATE rfc/audit/<rfc>.json: /ze-rfc-audit's per-requirement verdicts.
+    """Read and VALIDATE rfc/audit/<rfc>.json: the ze-rfc-audit skill's per-requirement verdicts.
 
     Before this the body was a bare `json.load` returning `data.get("requirements", {})`: no
     field-presence check, no enum check, no type check, and every other top-level key silently
@@ -3686,7 +3911,7 @@ def unit_shas(
                 raise ParseError(
                     f"{where}: {key} names symbol {symbol!r} in {rel}, where {why}. A verdict "
                     f"judged that function, so a rename or a removal is a change to what was "
-                    f"judged: re-run /ze-rfc-audit rather than re-pointing the key"
+                    f"judged: re-read it with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md) rather than re-pointing the key"
                 )
         if not text:
             raise ParseError(
@@ -3955,8 +4180,8 @@ def check_audit_freshness(
         if state == STALE_REQUIREMENT:
             errs.append(
                 f"{where}: {req.rid} has a STALE audit verdict -- the REQUIREMENT TEXT changed "
-                f"since it was judged, so every judgement under it is void. Re-run: "
-                f"/ze-rfc-audit {req.rfc}"
+                f"since it was judged, so every judgement under it is void. Re-read {req.rfc} with "
+                f"the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)"
             )
             continue
         if not scopes:
@@ -3965,7 +4190,8 @@ def check_audit_freshness(
         errs.append(
             f"{where}: {req.rid} has a STALE audit verdict -- what it judged changed: "
             f"{detail or 'a tagged test is gone'}. This is NOT a line shift and "
-            f"make ze-rfc-reseal will refuse it. Re-run: /ze-rfc-audit {req.rfc}"
+            f"make ze-rfc-reseal will refuse it. Re-read {req.rfc} with the ze-rfc-audit "
+            f"skill (ai/skills/ze-rfc-audit.md)"
         )
     return errs
 
@@ -4331,7 +4557,8 @@ def check_audit_verdict_ratchet(
         errs.append(
             f"rfc/audit/{req.rfc}.json: {req.rid} carried a verdict at HEAD and carries none "
             f"now. Audit coverage is monotonic per requirement id: a judgement that was made "
-            f"cannot be un-made by deleting it. Re-judge it (/ze-rfc-audit {req.rfc}) or "
+            f"cannot be un-made by deleting it. Re-judge it (the ze-rfc-audit skill, "
+            f"ai/skills/ze-rfc-audit.md) or "
             f"re-stamp it (make ze-rfc-reseal) -- removal is not an option"
         )
     return errs
@@ -4860,7 +5087,7 @@ def _render_audit_coverage(
     out.append("## Audit coverage")
     out.append("")
     out.append(
-        f"{audited} of {auditable} auditable requirement(s) carry a `/ze-rfc-audit` verdict "
+        f"{audited} of {auditable} auditable requirement(s) carry a `ze-rfc-audit` verdict "
         f"({pct:.2f}%), across {sum(1 for r in rows if r.audited)} of {len(rows)} enrolled "
         f"RFC(s). **Auditable** = gated, enrolled, and polarity coverage complete: a pair of "
         f"tests, or one test over a `{{single-polarity}}` line saying why the other cannot "
@@ -4908,7 +5135,7 @@ def _render_audit_coverage(
     if not worklist:
         out.append(
             "None: every recorded verdict is a fresh `enforced`. On a corpus this size that is "
-            "worth reading as a warning as much as a result -- `/ze-rfc-audit` says `weak` and "
+            "worth reading as a warning as much as a result -- the `ze-rfc-audit` skill says `weak` and "
             "`wrong` are its valuable outputs, and a run that returns all `enforced` has "
             "probably not read anything."
         )
@@ -4947,11 +5174,11 @@ _STATE_MEANING = {
     ),
     STALE_UNIT: (
         "what it judged changed -- the tagged unit itself, or the producing code it cites; it "
-        "must be re-judged with `/ze-rfc-audit` before it counts as anything"
+        "must be re-judged with the `ze-rfc-audit` skill before it counts as anything"
     ),
     STALE_REQUIREMENT: (
         "the requirement's own text changed since it was judged, so every judgement under it is "
-        "void; re-run `/ze-rfc-audit`"
+        "void; re-read it with the `ze-rfc-audit` skill"
     ),
 }
 
@@ -7336,7 +7563,9 @@ def check_ledger_fresh(
     for stem in shard_stems(requirements):
         path = shard_path(stem)
         if not os.path.exists(path):
-            errs.append(f"{shard_rel(stem)} is missing -- run: make ze-rfc-index-update")
+            errs.append(
+                f"{shard_rel(stem)} is missing -- run: make ze-rfc-index-update"
+            )
             continue
         with open(path, encoding="utf-8") as fh:
             if fh.read() != shards[stem] + "\n":
@@ -7456,6 +7685,16 @@ def run_check() -> int:
                     stems,
                     baseline_stems,
                     parse_by_stem,
+                )
+            )
+            # And the population those two ratchets judge: a row that stops being MUST-level
+            # keeps its id and its tests, so neither of them can see it leave.
+            errs.extend(
+                check_level_ratchet(
+                    reqs,
+                    enrolled,
+                    _git_baseline_levels(),
+                    base_enrolled,
                 )
             )
             errs.extend(
