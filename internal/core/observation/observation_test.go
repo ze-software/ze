@@ -201,6 +201,53 @@ func TestObservationValueType(t *testing.T) {
 	}
 }
 
+// VALIDATES: child-6 AC-3/A-5 -- SrcAS is 0 on a bare Observation (the "AS
+// unknown" sentinel) and survives the value copy through Publish to a
+// subscriber, at both ends of the uint32 range.
+func TestObservationSrcASFieldZeroValue(t *testing.T) {
+	if got := (Observation{}).SrcAS; got != 0 {
+		t.Errorf("zero-value Observation SrcAS = %d, want 0", got)
+	}
+
+	f := NewFeed()
+	defer f.Close()
+
+	var received []Observation
+	var mu sync.Mutex
+	f.Subscribe("test", func(obs Observation) {
+		mu.Lock()
+		received = append(received, obs)
+		mu.Unlock()
+	})
+
+	want := []uint32{0, 64500, 4294967295}
+	for _, as := range want {
+		obs := Observation{
+			Kind:    KindFlow,
+			Feature: FeatureFlowBytes,
+			Value:   1,
+			At:      time.Now(),
+			SrcAS:   as,
+		}
+		obs.Flow.Src = netip.MustParseAddr("192.0.2.1")
+		f.Publish(obs)
+	}
+
+	waitFor(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return len(received) == len(want)
+	})
+
+	mu.Lock()
+	defer mu.Unlock()
+	for i, as := range want {
+		if received[i].SrcAS != as {
+			t.Errorf("received[%d].SrcAS = %d, want %d", i, received[i].SrcAS, as)
+		}
+	}
+}
+
 func waitFor(t *testing.T, cond func() bool) {
 	t.Helper()
 	deadline := time.Now().Add(2 * time.Second)

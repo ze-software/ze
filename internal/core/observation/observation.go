@@ -66,6 +66,13 @@ type Observation struct {
 	Feature Feature
 	Value   float64
 	At      time.Time
+	// SrcAS is the origin autonomous system of Flow.Src, as the publisher
+	// resolved it. It is 0 when the publisher could not attribute the address:
+	// AS 0 is reserved (RFC 7607) and never announced, so 0 is unambiguous. A
+	// consumer that needs the AS MUST treat 0 as "unknown" and fall back to the
+	// address or its prefix; it MUST NOT resolve the AS itself, because the
+	// resolver lives in the publisher's plugin.
+	SrcAS uint32
 }
 
 const bufferCap = 1024
