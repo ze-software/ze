@@ -795,7 +795,7 @@ def footer_html(root):
 
     The stamp is this build's time. A page the build did not otherwise change
     gets its previous stamp back at publication time, so the line reads as when
-    that page last changed (`carry_publication_stamps`, `tools/build-site.py`).
+    that page last changed (`carry_publication_stamps`, `tools/build-site.py`).  <!-- doc-links: ignore (website-subtree-relative, matching website/AI.md; the file is website/tools/build-site.py) -->
     Keep the span's markup as it is: that carry-over finds the stamp by it."""
     return (
         "        <footer>\n"

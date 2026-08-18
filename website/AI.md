@@ -352,7 +352,7 @@ the complete published docs index. The `nav` step publishes the menu once as
 license line and the publication stamp from `sitelib.footer_html`, not a
 sitemap or second call-to-action block. A page the build did not otherwise
 change keeps the stamp it was published with (`carry_publication_stamps`,
-`tools/build-site.py`), so a publish commit holds the pages that really
+`tools/build-site.py`), so a publish commit holds the pages that really <!-- doc-links: ignore (website-subtree-relative, as every tools/*.py citation in this file is; the file is website/tools/build-site.py) -->
 changed and the stamp reads as when THAT page last changed. Keep the
 `footer-published` span's markup as it is: the carry-over finds the stamp by
 it. Asset URLs carry no `?v=` for the same reason (`sitelib.asset_url`). Group the top menu by reader job: Start, Evaluate, Docs,
