@@ -153,9 +153,15 @@ try:
     require('"address"' in as_json, '`| peers | json` dropped the rows: %r' % as_json)
     require('router-id' not in as_json, '`| peers | json` kept the aggregates: %r' % as_json)
 
-    # An alias takes no argument, and a word after it is refused by name.
+    # An alias takes no argument, and a word after it is refused by name. The
+    # refusal is asserted on the message rather than on the alias name, which
+    # the accepted answer would carry as a column header too.
     code, out, err = run(['ze', 'cli', '-c', 'show bgp summary | peers established'], cli_env)
-    require('peers' in (out + err), 'an argument after the alias was accepted in silence: %r %r' % (out, err))
+    refusal = out + err
+    require('does not accept an argument' in refusal,
+            'an argument after the alias was accepted in silence: %r %r' % (out, err))
+    require('peers' in refusal, 'the refusal does not name the alias: %r %r' % (out, err))
+    require('192.0.2.1' not in refusal, 'the refused chain answered rows anyway: %r' % refusal)
 finally:
     daemon.terminate()
     try:

@@ -6,7 +6,7 @@
 | Scope | cli |
 | Depends | spec-cli-column-order, spec-cli-order-pipe |
 | Phase | 5/5 |
-| Deferral shard | - |
+| Deferral shard | `plan/deferrals/cli-pipe-aliases.md` |
 | Handoff | - |
 | Updated | 2026-08-19 |
 
@@ -110,11 +110,11 @@ expressions. No descend operator, no path syntax.
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | No | |
-| No unintended coupling (components stay isolated) | No | |
-| No duplicated functionality (extends existing, does not recreate) | No | |
-| Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
+| No bypassed layers (data flows through the intended path) | Yes | `parsePipeChain` (`internal/component/command/pipe.go`) is the only producer of an expanded chain, and all five `ProcessPipes*` entry points call it. `ParsePipe` keeps two callers, `model_ping.go` and `model_traceroute.go`, and both discard the ops and keep only the command, so neither needs expansion |
+| No unintended coupling (components stay isolated) | Yes | `internal/component/command` imports nothing new. The BGP peer plugin calls `command.RegisterAliases` the way it already calls `command.RegisterColumns` |
+| No duplicated functionality (extends existing, does not recreate) | Yes | `aliasRegistry` is `newCommandRegistry[aliasSet]()`, the third user of the lookup `ColumnsForCommand` and `lookupPipeFilters` share. `RegisterAliases` parses an expansion with `parsePipeOps`, extracted from `ParsePipe`, so one reading of the operator names exists |
+| Zero-copy preserved where applicable (refs, not copies) | N-A | No wire encoding. `expandAliases` splices `entry.ops`, a slice fixed at registration, rather than re-parsing per command |
+| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | Yes | The two aliases are declared in `registerAliases` (`internal/component/bgp/plugins/cmd/peer/peer.go`), and `internal/component/command` names neither. `foldFilters` LOST a twelve-kind case list and gained a `default:` arm, so the change moves in the direction this check asks for |
 
 ## The flat payload
 
@@ -241,7 +241,6 @@ Not applicable. Scope is `cli`; no wire-visible behavior changes.
 - `internal/component/lg/handler_ui.go` - reads the flat shape
 - `internal/component/cli/model_dashboard.go` - `parseDashboardSnapshot` binds the flat shape
 - `internal/component/web/page_bgp_summary.go` - binds the flat shape
-- `internal/component/config/yang/cli/format.go` - binds the flat shape
 - `internal/component/command/pipe.go` - alias expansion between `ParsePipe` and `foldFilters`
 - `docs/architecture/api/commands.md` - the payload shape and the alias mechanism
 - `docs/features/formatting.md` - aliases beside the operators
@@ -291,6 +290,8 @@ Not applicable. Scope is `cli`; no wire-visible behavior changes.
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | Nothing enters an inventory |
 | 16 | Any changed source file referenced by existing doc source anchors? | Yes | Grep `docs/` for anchors naming `summary.go`, `handler_api.go`, `pipe.go` |
 | 17 | Existing docs show config/CLI/API examples for this area? | Yes | Any doc showing `show bgp summary` JSON shows the envelope and must be corrected |
+| 18 | `docs/architecture/web-interface.md`, the design doc `internal/component/lg/handler_ui.go` declares? | No | Unaffected. `grep -n summary docs/architecture/web-interface.md` returns nothing: the page's design doc describes the looking-glass surface and states no payload shape. The flatten changed how `extractPeers` and `findPeer` navigate, not what the page is |
+| 19 | `docs/architecture/web-workbench-pages.md`, the design doc `internal/component/web/page_bgp_summary.go` declares? | No | Unaffected. Its one hit is the source anchor `<!-- source: internal/component/web/page_bgp_summary.go -- summary table -->`, which names the table's existence. The prose beneath it is about `collectPeers` and the row actions, and states no JSON shape |
 
 ## Implementation Steps
 
@@ -400,3 +401,235 @@ Not applicable. Scope is `cli`; no wire-visible behavior changes.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+
+- `handleBgpSummary` (`internal/component/bgp/plugins/cmd/peer/summary.go`)
+  answers a flat `plugin.Map`. The `summary` envelope is deleted, not kept
+  beside the flat form.
+- Four consumers read the flat shape: `summaryPeers` and its dead envelope
+  branch removed (`internal/component/lg/handler_api.go`), `extractPeers` and
+  `findPeer` (`internal/component/lg/handler_ui.go`),
+  `parseDashboardSnapshot` (`internal/component/cli/model_dashboard.go`), and
+  `fetchBGPSummaryPeers` (`internal/component/web/page_bgp_summary.go`).
+- `internal/component/command/alias.go` is new: `Alias`, `RegisterAliases`,
+  `lookupAlias`, `AliasesForCommand`, `aliasSuggestions`, the `globalAliases`
+  table, and the two collision refusals `filterShadowing` and
+  `aliasShadowing`.
+- `parsePipeChain` and `expandAliases` (`internal/component/command/pipe.go`)
+  expand a chain once, between `ParsePipe` and `foldFilters`. All five
+  `ProcessPipes*` entry points call `parsePipeChain`.
+- `registerAliases` (`internal/component/bgp/plugins/cmd/peer/peer.go`)
+  declares `summary` and `peers` on `show bgp summary`.
+- `pipeExtras` (`internal/component/command/completer.go`) offers alias names
+  in the pipe position beside the operators.
+
+### Bugs Found/Fixed
+
+- `foldFilters` (`internal/component/command/pipe.go`) had no `default:` arm,
+  so any op kind absent from its twelve-case client-side list was dropped with
+  no error on every command that registers filters. `pipeInvalid` was one of
+  them, so a filtered command discarded its own validation errors. The case
+  list is gone and a `default:` arm does the same job for every kind.
+  `TestFoldFiltersKeepsAnInvalidOpOnAFilteredCommand` covers it.
+- Three `.ci` assertions were wrong about their subject and the functional
+  suites found all three, fixed in `88de3212f`: `alias-summary` used a
+  router-id containing a peer address as a substring, `lg-peer-table-flat-payload`
+  waited on an endpoint the flatten never touched, and
+  `cli-verb-daemon-dispatch` used `show bgp` as its example of a container that
+  is not a command, which it had stopped being.
+
+### Documentation Updates
+
+- `docs/architecture/api/commands.md` -- the flat payload and the alias
+  mechanism, anchored `<!-- source: internal/component/command/alias.go --
+  RegisterAliases, lookupAlias, AliasesForCommand -->` and
+  `<!-- source: internal/component/command/pipe.go -- parsePipeChain,
+  expandAliases, parsePipeOps -->`.
+- `docs/features/formatting.md` -- aliases beside the operators, anchored on
+  `alias.go`.
+- `docs/guide/command-reference.md` -- the `show bgp summary` output shape.
+- `docs/architecture/api/birdwatcher-compat.md` -- Section 9 said the engine
+  answers `{"summary":{"peers":[...]}}`; it now records that as the history it
+  is and states the flat shape.
+- `make ze-doc-verify` is RED on one anchor and it is not this spec's:
+  `docs/architecture/api/process-protocol.md` names `runHub` in
+  `cmd/ze/hub/main.go`. `git grep 'func runHub' HEAD` is empty and so is the
+  worktree, and that doc's 27 added lines are another session's uncommitted
+  work. No file this commit carries is in that stage.
+
+### Deviations from Plan
+
+- `internal/component/config/yang/cli/format.go` was listed under Files to
+  Modify and was NOT modified. Its `json:"summary"` belongs to
+  `formatCollisionsJSON`, the completion-collision report, and has nothing to
+  do with the BGP summary. It is removed from the list; A-2 records the
+  correction.
+- `internal/component/lg/handler_api.go` was expected to need no change (A-1)
+  and changed anyway: `ai/rules/no-layering.md` requires the dead envelope
+  branch to go, and the doc comment stated the envelope as current fact.
+- `spec-cli-column-order` had declared the summary's column orders against the
+  pre-flatten key layout, so `registerColumns` moved with the payload in the
+  same commit.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-2 said four consumers bind the envelope and no more | `format.go` was never a consumer, `handler_ui.go` holds TWO sites, and beyond production code 12 Go fixtures and 9 `.ci` tests pinned the shape | the re-grep the spec's own Implementation Step 1 required | consumer list re-derived at implementation time and again at closure; Files to Modify corrected |
+| approach | A global alias was expected to be an empty-path registration in `commandRegistry` | `register` skips an empty command and `commandMatchesPrefix` returns false for an empty prefix, so it would match nothing and report nothing | read during research, before any code | `globalAliases` is its own mutex-guarded table, and the reason is a comment above it |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| `handleBgpSummary` stops wrapping its answer in an envelope named after one of its views | Done | `internal/component/bgp/plugins/cmd/peer/summary.go`, `handleBgpSummary` | Returns `plugin.Map` directly |
+| `summary` and `peers` are sayable names for expressions an operator would retype | Done | `internal/component/bgp/plugins/cmd/peer/peer.go`, `registerAliases` | Both registered on `show bgp summary` |
+| No descend operator and no path syntax | Done | `internal/component/command/alias.go` | An alias expands to a fixed operator chain; no fifth JSON walker was added |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestBgpSummaryPayloadIsFlat`, `test/plugin/bgp-summary-flat-payload.ci` | The test asserts the `summary` key is ABSENT, which nothing did before |
+| AC-2 | Done | `TestBgpSummaryFamilyKeysAreSiblings` | |
+| AC-3 | Done | `TestSummaryPeersReadsFlatPayload`, `test/ui/lg-peer-table-flat-payload.ci` | |
+| AC-4 | Done | `TestDashboardParsesFlatPayload`, the `web` package suite | `format.go` is not a consumer, per A-2 |
+| AC-5 | Done | `TestPeersAliasRendersRows`, `test/ui/alias-peers.ci` | The `.ci` asserts the table header names the peer columns |
+| AC-6 | Done | `TestSummaryAliasDropsRows`, `test/ui/alias-summary.ci` | |
+| AC-7 | Done | `TestAliasResolvesGlobal` | |
+| AC-8 | Done | `TestAliasSurvivesFoldFiltersOnFilteredCommand`, `TestFoldFiltersKeepsAnInvalidOpOnAFilteredCommand` | The second pins the `default:` arm that a filtered command used to drop |
+| AC-9 | Done | `TestAliasRegistrationRefusesFilterCollision` | Refused from both sides, since init order picks which registration runs second |
+| AC-10 | Done | `TestAliasRecursionIsRefused`, `TestAliasExpandsOnce` | |
+| AC-11 | Done | `TestAliasCommandSpecificBeatsGlobal` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| The 6 payload and consumer unit tests | Done | `summary_test.go`, `handler_api_test.go`, `model_dashboard_test.go` | |
+| The 11 alias unit tests | Done | `alias_test.go`, `pipe_test.go`, `pipe_table_test.go`, `completer_test.go` | |
+| `bgp-summary-flat-payload` | Done | `test/plugin/bgp-summary-flat-payload.ci` | Ran: plugin suite 671/672 |
+| `alias-peers`, `alias-summary`, `lg-peer-table-flat-payload` | Done | `test/ui/` | Ran: ui suite 191/191, skip 1. The spec's own table still said "written, NOT RUN"; the harness came back and all three ran |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Every file under Files to Create | Done | `ls` output in Pre-Commit Verification |
+| Every file under Files to Modify | Changed | `internal/component/config/yang/cli/format.go` removed from the list, see Deviations |
+
+### Audit Summary
+- **Total items:** 11 AC + 3 task requirements + 17 tests + 2 file groups = 33
+- **Done:** 32
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (Files to Modify, recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| An operator names a view instead of retyping five fields | functional | `test/ui/alias-summary.ci` pipes `show bgp summary` through the `summary` alias and requires all four aggregates present and both peer addresses absent, then requires the same of the `json` rendering. `test/ui/alias-peers.ci` does the mirror for the rows and asserts the table header leads with `address`. Both compare against the whole answer FIRST, so each assertion measures a CHANGE. UI suite: `pass 191/191 100.0% 33.8s skip 1` |
+| The `show bgp summary` payload matches the house shape | functional | `test/plugin/bgp-summary-flat-payload.ci`, run in the plugin suite at 671/672; the one red, `remove-private-as-replace-peer`, passes 3/3 alone and is recorded in `plan/journal/gate-verdict-depends-on-the-machine.md` |
+| No consumer of the old envelope renders empty | functional and unit | The consumer list was re-derived at closure, not trusted: a grep for `json:"summary` across `internal/`, `cmd/` and `pkg/` leaves only `formatCollisionsJSON`; a grep for the map index leaves only tests of other subjects; no `.js` or `.templ` reads the key. All four consumer packages are green: `command` 1.093s, `peer` 46.018s, `lg` 1.954s, `web` 465.130s, `cli` dashboard tests 1.149s. `test/ui/lg-peer-table-flat-payload.ci` drives the public peer table over HTTP |
+| An alias that silently does nothing is impossible | unit | Four registration refusals, each with a test: `TestAliasRegistrationRefusesFilterCollision`, `TestAliasRegistrationRefusesOperatorName`, `TestAliasRecursionIsRefused`, and the no-name and empty-expansion subtests beside it. `TestFoldFiltersKeepsAnInvalidOpOnAFilteredCommand` proves the drop that used to be possible is not |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| Operator-defined aliases in configuration | deferred | `plan/future/spec-cli-operator-defined-aliases.md`, created at this closure. It carries the four design questions the row was waiting on: which registry an operator's alias joins, what replaces the four `panic("BUG:")` refusals in `checkedAlias` when a typo arrives from config, what a reload does to a table written once at init, and whether an operator's alias may shadow a shipped one |
+
+The shard still holds this live row, so it is NOT removed at closure: the row
+is homed at the future spec, and the shard is where it is written down
+(`ai/rules/planning.md`). No foreign shard was emptied by this resolution.
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/cli-pipe-aliases-2e38eb27-078b-4f5b-a456-56437e962d09.md`, 16 files, verdict clean |
+| `review_gate.py check` | `review_gate: OK (2 code files, clean, hashes match)`, exit 0 |
+| Rounds | 2 |
+| Reviewer lenses used | wiring and logic and removed-behavior; security and guard audit; simplicity and the style pass over every changed Go file |
+
+Independence: this closure agent did not author the diff. It read
+`f539aebab`, `5d0d73222` and the four later commits from source, and
+re-derived the envelope consumer list itself rather than reading the spec's.
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | The no-argument check in `alias-peers.ci` did not discriminate. It asserted that the word `peers` appears in the output, and that word is the table header the ACCEPTED answer prints, so the assertion passes whether the argument is refused or silently taken (`ai/rules/interop-and-goal-validation.md`, "Prove the test discriminates") | `test/ui/alias-peers.ci` | Asserts the message `does not accept an argument`, that the message names the alias, and that no peer row was answered. Re-run: ui suite `pass 191/191`, `alias-peers` PASS 8.8s |
+
+### Findings recorded, not fixed
+| # | Severity | Finding | Disposition |
+|---|----------|---------|-------------|
+| 2 | ISSUE, FIXED IN THE TREE, NOT IN THIS COMMIT | The `pipeInvalid` declaration comment still said "produced while folding command filters". `expandAliases` produces it too, for an alias given an argument, so the comment named one of its two producers (`ai/rules/stale-comments.md`). The one-line correction is in the working tree | `internal/component/command/pipe.go` is NOT in commit A. When this closure opened it, the file already carried ANOTHER session's uncommitted work: a package doc comment about the daemon running the chain, and a rename of `clientOps` to `chainOps` through `foldFilters`. Naming the file in this commit would carry that work under this commit's message, which is the cross-commit the explicit `--file` list exists to prevent (`ai/rules/git-safety.md`). The correction is left in the tree for whoever commits that rename. It is a comment, so nothing in the product depends on landing it here |
+| 3 | NOTE | `ApplyJSON` (`internal/component/command/pipe.go`) has no cross-package non-test caller, and `ze-repository-check` reports it | Pre-existing, not this spec's. A grep for `command.ApplyJSON` is empty at `53e84d473~1`, at `45ebae909~1` and at HEAD, and none of this spec's commits touches the symbol |
+| 4 | NOTE | `AliasesForCommand` is exported and its only non-test caller is `aliasSuggestions`, in the same file. The nearest analogue, `filterSuggestions` (`pipe_filter.go`), is unexported | Not dead: it is reached in production through `aliasSuggestions`, then `pipeExtras`, then `CompletePipe`, so tab completion is the user action. The name follows the exported `ColumnsForCommand`. Two readings, and neither is a defect, so the export stands |
+| 5 | NOTE | The `test/weakened.md` row for `TestBgpSummaryNoPeers` says the assertion reads the top-level map directly, where the code reads the same map through a local conversion | Record defect, no product effect. `test/weakened.md` is replaced per commit and the row is already committed; adding a row to a commit that weakens nothing is what its own gate refuses |
+| 6 | FIND | `handleBgpOverview` answers `show bgp` with the same payload, and neither the column orders nor the aliases reach that path: both register against `cmdBgpSummary` and `commandMatchesPrefix` refuses a prefix longer than the command | Journal row in `plan/journal/unwired-feature.md`, 2026-08-19. Not fixed here: re-registering on `show bgp` leaks both onto `show bgp rib`, `rpki`, `rs` and `healthcheck`, so the repair needs an exact-path registration no registry has. It does not block this spec's goal, which is the aliases on `show bgp summary` |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/command/alias.go` | Yes | `ls -la` 10030 bytes |
+| `internal/component/command/alias_test.go` | Yes | `ls -la` 9937 bytes |
+| `test/plugin/bgp-summary-flat-payload.ci` | Yes | `ls -la` 5266 bytes |
+| `test/ui/alias-peers.ci` | Yes | `ls -la` 6492 bytes |
+| `test/ui/alias-summary.ci` | Yes | `ls -la` 5344 bytes |
+| `test/ui/lg-peer-table-flat-payload.ci` | Yes | `ls -la` 3099 bytes |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | No `summary` key exists | A grep for `summary` in `internal/component/bgp/plugins/cmd/peer/summary.go` shows the local variable and the wire method only; the return is `Data: summary`, not `plugin.Map{"summary": summary}` |
+| AC-2 | `family` and `peers-in-family` are top-level siblings | Same grep: both are set on the same map the handler returns |
+| AC-3, AC-4 | Every consumer reads the flat shape | A grep for `json:"summary` across `internal/`, `cmd/` and `pkg/` leaves `format.go` (`formatCollisionsJSON`), `ospf`, `diagnostic` and the test runner, none a summary consumer. `summaryPeers` reads `ze["peers"]` with no envelope branch |
+| AC-5 to AC-11 | Every alias behaviour | `make ze-unit-pkg-test PKG=./internal/component/command` exits 0, `ok github.com/ze-software/ze/internal/component/command 1.093s`, and every named test is present in the package |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `show bgp summary` over the CLI | `test/plugin/bgp-summary-flat-payload.ci` | Read: it parses the command's JSON and asserts the sibling keys |
+| `show bgp summary` through the `peers` alias | `test/ui/alias-peers.ci` | Read: its `cli()` helper requires exit 0, so the alias not resolving fails the test; the rows, the table header and the JSON form are each asserted, and the aggregates are asserted ABSENT |
+| `show bgp summary` through the `summary` alias | `test/ui/alias-summary.ci` | Read: the four aggregates asserted present, both peer addresses asserted absent, and the `peers` key looked for as the first field on a line so a prefix match cannot satisfy it |
+| The public looking glass peer page | `test/ui/lg-peer-table-flat-payload.ci` | Read: drives `/protocols/bgp`, the endpoint that reads the summary |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed, with a change | `summaryPeers` needed no behavioural change; the flat fallback carried it. The dead envelope branch was deleted under `ai/rules/no-layering.md` |
+| A-2 | broken | `format.go` is not a consumer, `handler_ui.go` holds two sites, and 12 Go fixtures plus 9 `.ci` tests pinned the shape. Mistake Log and Deviations both carry it |
+| A-3 | confirmed | `TestPeersAliasRendersRows` asserts the header names the peer columns; `test/ui/alias-peers.ci` asserts the same through the daemon |
+| A-4 | confirmed | `TestAliasExpandsOnce` and `TestAliasRecursionIsRefused`. An alias naming another is refused at registration, so one pass cannot leave an alias behind |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/architecture/api/commands.md` alias table | The two rows match `registerAliases` (`peer.go`) field for field | Yes |
+| `docs/guide/command-reference.md` payload example | A grep for `peers-configured` across `docs/` shows the flat example and no envelope anywhere | Yes |
+| `docs/architecture/api/birdwatcher-compat.md` Section 9 | States the envelope as history and the flat shape as current; matches `summaryPeers` | Yes |
+| `docs/architecture/web-interface.md`, `docs/architecture/web-workbench-pages.md` | A grep for `summary` returns nothing in the first and only a source anchor in the second; neither states a payload shape | Yes, unaffected |
+| `make ze-doc-verify` | RED on one anchor, in `process-protocol.md`, naming `runHub`, which exists neither at HEAD nor in the worktree; that file's 27 added lines are another session's uncommitted work | Not this commit's |
+
+## Core Insight
+
+The flatten was not tidiness, and the review confirmed the spec's own
+reasoning: an alias over an envelope needs an operator that DESCENDS, and that
+operator would be a fifth independent implementation of single-key unwrapping
+which `renderValue`, `selectMap`, `countItems` and `unwrapSingleKeyArray` would
+all have to agree with. Changing the one outlier handler cost four consumer
+updates. Building the operator would have cost a walker that four existing ones
+must never disagree with.
+
+The second insight is smaller and cost more: `foldFilters` had no `default:`
+arm. A switch over a kind enum, with no default, on a shared classification
+path, is a silent drop for every kind added after it was written. The alias
+work only found it because `pipeInvalid` had to survive that switch.
