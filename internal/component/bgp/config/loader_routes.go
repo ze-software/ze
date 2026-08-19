@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"net/netip"
 	"slices"
-	"strings"
 
 	"github.com/ze-software/ze/internal/component/bgp/reactor"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
@@ -56,12 +55,18 @@ func flowSpecConfigToPlugin(fr FlowSpecRouteConfig) (PluginRouteConfig, error) {
 
 	// Pre-parse the generic attributes from the route config strings.
 	var extComm []byte
+	var ipv6Ext []byte
 	if fr.ExtendedCommunity != "" {
 		ec, err := ParseExtendedCommunity(fr.ExtendedCommunity)
 		if err != nil {
 			return PluginRouteConfig{}, fmt.Errorf("parse extended-community: %w", err)
 		}
 		extComm = ec.Bytes
+		// The 20-octet communities of RFC 5701 travel in attribute 25, and the
+		// parser above is the one place that decides which width a string names.
+		// Cloned, so the raw-attribute append below cannot reach into the parsed
+		// value's spare capacity.
+		ipv6Ext = slices.Clone(ec.IPv6Bytes)
 	}
 	var community []uint32
 	if fr.Community != "" {
@@ -71,7 +76,6 @@ func flowSpecConfigToPlugin(fr FlowSpecRouteConfig) (PluginRouteConfig, error) {
 		}
 		community = comm.Values
 	}
-	ipv6Ext := buildIPv6ExtCommunityFromString(fr.ExtendedCommunity)
 	if fr.Attribute != "" {
 		rawAttr, err := ParseRawAttribute(fr.Attribute)
 		if err != nil {
@@ -140,30 +144,6 @@ func sortExtCommunities(data []byte) []byte {
 		result[offset+6] = byte(c >> 8)
 		result[offset+7] = byte(c)
 	}
-	return result
-}
-
-// buildIPv6ExtCommunityFromString builds IPv6 Extended Communities (attribute 25, RFC 5701)
-// from an extended community string. Only extracts redirect-to-nexthop with IPv6 addresses.
-// RFC 7674 Section 3.2 defines the Redirect to IPv6 action (subtype 0x000c).
-func buildIPv6ExtCommunityFromString(ec string) []byte {
-	var result []byte
-	parts := strings.Fields(ec)
-
-	for i := 0; i < len(parts); i++ {
-		if parts[i] == flowSpecRedirectNextHop && i+1 < len(parts) {
-			// Check if next part is an IPv6 address
-			if ip, err := netip.ParseAddr(parts[i+1]); err == nil && ip.Is6() {
-				// RFC 5701: IPv6 Extended Community = subtype(2) + IPv6(16) + copy_flag(2) = 20 bytes
-				ipBytes := ip.As16()
-				result = append(result, 0x00, 0x0c) // Subtype 0x000c = redirect to IP
-				result = append(result, ipBytes[:]...)
-				result = append(result, 0x00, 0x00) // Copy flag = 0
-			}
-			i++ // Skip the IP address part
-		}
-	}
-
 	return result
 }
 

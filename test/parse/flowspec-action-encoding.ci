@@ -1,0 +1,49 @@
+# Test: FlowSpec traffic-action encoding through `ze show bgp encode`
+# VALIDATES: a zero rate limit and a zero DSCP reach the wire, and an rt-redirect
+#            whose administrator is an IPv4 address takes the RFC 8955 Section 7.4
+#            type 0x81 encoding.
+# PREVENTS: `then mark 0` and `then rate-limit 0` being dropped because the encoder
+#           read a zero value as "no action asked for", and the type 0x81 redirect
+#           staying unimplemented on every path.
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+		}
+	}
+}
+EOF_CONF
+
+# RFC 8955 Section 7.5: DSCP 0 is CS0, a value rather than an absent action.
+cmd=foreground:seq=1:exec=ze show bgp encode -f ipv4/flow "match destination 10.0.0.0/8 then mark 0"
+expect=exit:code=0
+expect=stdout:contains=C010088009000000000000
+
+# RFC 8955 Section 7.1: "A traffic-rate of 0 should result on all traffic for the
+# particular flow to be discarded."
+cmd=foreground:seq=2:exec=ze show bgp encode -f ipv4/flow "match destination 10.0.0.0/8 then rate-limit 0"
+expect=exit:code=0
+expect=stdout:contains=C010088006000000000000
+
+# RFC 8955 Section 7.4 type 0x81: 4-octet IPv4 address, 2-octet value.
+cmd=foreground:seq=3:exec=ze show bgp encode -f ipv4/flow "match destination 10.0.0.0/8 then redirect 192.0.2.1:100"
+expect=exit:code=0
+expect=stdout:contains=C010088108C00002010064
+
+# A DSCP above the six-bit field is refused rather than truncated into the
+# Section 7.5 reserved bits.
+cmd=foreground:seq=4:exec=ze show bgp encode -f ipv4/flow "match destination 10.0.0.0/8 then mark 64"
+expect=exit:code=1
+expect=stderr:contains=DSCP must be 0-63

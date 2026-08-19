@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -438,9 +439,11 @@ func buildConfigRouteRequest(attr *config.Tree, content []string, isIPv6 bool) (
 
 	nextHop, _ := attr.Get("next-hop")
 
-	// IPv6 Extended Communities (attr 25): redirect-to-nexthop IPv6 plus any raw
-	// attribute 25 the operator supplied verbatim (RFC 5701).
-	ipv6ExtComm := buildIPv6ExtCommunityFromString(sr.ExtendedCommunity)
+	// IPv6 Extended Communities (attr 25): the 20-octet communities the
+	// extended-community string produced, plus any raw attribute 25 the operator
+	// supplied verbatim (RFC 5701). Cloned, so the append below cannot reach into
+	// the parsed value's spare capacity.
+	ipv6ExtComm := slices.Clone(parsed.ExtendedCommunity.IPv6Bytes)
 	for i := range parsed.RawAttributes {
 		if parsed.RawAttributes[i].Code == 25 {
 			ipv6ExtComm = append(ipv6ExtComm, parsed.RawAttributes[i].Value...)

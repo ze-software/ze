@@ -1,18 +1,18 @@
 // Design: docs/architecture/wire/nlri-flowspec.md — FlowSpec NLRI plugin
-// RFC: rfc/short/rfc5575.md
+// RFC: rfc/short/rfc8955.md — traffic filtering actions (Section 7)
+// Related: ../../../../../core/bgp/attribute/flowspec_encode.go — the shared action encoders
 
 package flowspec
 
 import (
 	"errors"
 	"fmt"
-	"math"
-	"strconv"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/route"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
 var errMissingFlowspecCommand = errors.New("missing FlowSpec command")
@@ -101,34 +101,60 @@ func EncodeRoute(routeCmd, family string, localAS uint32, isIBGP, asn4, addPath 
 
 // flowSpecActionExtComm builds the Traffic Filtering Action extended-community
 // wire bytes (RFC 8955 Section 7) from a parsed FlowSpec route's actions.
+//
+// Every community comes from the shared encoders in the attribute package, so
+// this path and the two config/API parsers cannot drift on what an action means.
+//
+// An action is emitted when the operator asked for it, which is what the `*Set`
+// flags record. Reading the value alone dropped `then rate-limit 0` and
+// `then mark 0`: a zero rate is RFC 8955 Section 7.1's discard and DSCP 0 is CS0,
+// so both are values rather than absences.
 func flowSpecActionExtComm(r bgptypes.FlowSpecRoute) ([]byte, error) {
 	var extComms []byte
 
-	// Discard action = rate-limit to 0 (RFC 5575).
+	// Discard action: RFC 8955 Section 7.1 gives a traffic-rate of 0 that meaning.
 	if r.Actions.Discard {
-		extComms = append(extComms, 0x80, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00)
+		ec, err := attribute.FlowSpecTrafficRate(attribute.FlowSpecRateBytes, 0, 0)
+		if err != nil {
+			return nil, err
+		}
+		extComms = append(extComms, ec[:]...)
 	}
 
 	// Rate-limit action (RFC 8955 Section 7.1).
-	if r.Actions.RateLimit > 0 {
-		bits := floatToIEEE754(float32(r.Actions.RateLimit))
-		extComms = append(extComms, 0x80, 0x06, 0x00, 0x00, byte(bits>>24), byte(bits>>16), byte(bits>>8), byte(bits))
+	if r.Actions.RateLimitSet || r.Actions.RateLimit > 0 {
+		ec, err := attribute.FlowSpecTrafficRate(attribute.FlowSpecRateBytes, 0, float64(r.Actions.RateLimit))
+		if err != nil {
+			return nil, err
+		}
+		extComms = append(extComms, ec[:]...)
 	}
 
 	// Packet rate-limit action (RFC 8955 Section 7.2).
-	if r.Actions.RateLimitPackets > 0 {
-		bits := floatToIEEE754(float32(r.Actions.RateLimitPackets))
-		extComms = append(extComms, 0x80, 0x0c, 0x00, 0x00, byte(bits>>24), byte(bits>>16), byte(bits>>8), byte(bits))
+	if r.Actions.RateLimitPacketsSet || r.Actions.RateLimitPackets > 0 {
+		ec, err := attribute.FlowSpecTrafficRate(attribute.FlowSpecRatePackets, 0, float64(r.Actions.RateLimitPackets))
+		if err != nil {
+			return nil, err
+		}
+		extComms = append(extComms, ec[:]...)
 	}
 
-	// DSCP marking (RFC 5575).
-	if r.Actions.MarkDSCP > 0 {
-		extComms = append(extComms, 0x80, 0x09, 0x00, 0x00, 0x00, 0x00, 0x00, r.Actions.MarkDSCP)
+	// DSCP marking (RFC 8955 Section 7.5).
+	if r.Actions.MarkDSCPSet || r.Actions.MarkDSCP > 0 {
+		ec, err := attribute.FlowSpecTrafficMarking(uint64(r.Actions.MarkDSCP))
+		if err != nil {
+			return nil, err
+		}
+		extComms = append(extComms, ec[:]...)
 	}
 
-	// Redirect action (RFC 5575/7674).
+	// rt-redirect action (RFC 8955 Section 7.4).
 	if r.Actions.Redirect != "" {
-		ec, err := parseRedirectTarget(r.Actions.Redirect)
+		admin, local, ok := strings.Cut(r.Actions.Redirect, ":")
+		if !ok {
+			return nil, fmt.Errorf("invalid redirect format: %s", r.Actions.Redirect)
+		}
+		ec, err := attribute.FlowSpecRedirect(admin, local)
 		if err != nil {
 			return nil, fmt.Errorf("invalid redirect: %w", err)
 		}
@@ -136,59 +162,4 @@ func flowSpecActionExtComm(r bgptypes.FlowSpecRoute) ([]byte, error) {
 	}
 
 	return extComms, nil
-}
-
-// floatToIEEE754 converts a float32 to IEEE 754 bits.
-func floatToIEEE754(f float32) uint32 {
-	// Use math.Float32bits for proper IEEE 754 conversion
-	return math.Float32bits(f)
-}
-
-// parseRedirectTarget parses a redirect target in ASN:value format.
-// Supports both 2-byte ASN (RFC 5575) and 4-byte ASN (RFC 7674).
-func parseRedirectTarget(s string) ([8]byte, error) {
-	var ec [8]byte
-	parts := strings.Split(s, ":")
-	if len(parts) != 2 {
-		return ec, fmt.Errorf("invalid redirect format: %s", s)
-	}
-
-	asn, err := strconv.ParseUint(parts[0], 10, 32)
-	if err != nil {
-		return ec, fmt.Errorf("invalid ASN in redirect: %s", parts[0])
-	}
-
-	if asn <= 65535 {
-		// 2-byte ASN format (RFC 5575)
-		// Type 0x80, Subtype 0x08, 2-byte ASN, 4-byte local value
-		target, err := strconv.ParseUint(parts[1], 10, 32)
-		if err != nil {
-			return ec, fmt.Errorf("invalid target in redirect: %s", parts[1])
-		}
-		ec[0] = 0x80
-		ec[1] = 0x08
-		ec[2] = byte(asn >> 8)
-		ec[3] = byte(asn)
-		ec[4] = byte(target >> 24)
-		ec[5] = byte(target >> 16)
-		ec[6] = byte(target >> 8)
-		ec[7] = byte(target)
-	} else {
-		// 4-byte ASN format (RFC 7674)
-		// Type 0x82, Subtype 0x08, 4-byte ASN, 2-byte local value
-		target, err := strconv.ParseUint(parts[1], 10, 16)
-		if err != nil {
-			return ec, fmt.Errorf("invalid target in redirect (4-byte ASN max 16-bit local): %s", parts[1])
-		}
-		ec[0] = 0x82
-		ec[1] = 0x08
-		ec[2] = byte(asn >> 24)
-		ec[3] = byte(asn >> 16)
-		ec[4] = byte(asn >> 8)
-		ec[5] = byte(asn)
-		ec[6] = byte(target >> 8)
-		ec[7] = byte(target)
-	}
-
-	return ec, nil
 }

@@ -1,5 +1,7 @@
 // Design: docs/architecture/config/syntax.md — community attribute parsing
+// RFC: rfc/short/rfc8955.md — FlowSpec traffic filtering actions (Section 7)
 // Overview: routeattr.go — core route attribute types
+// Related: ../../../core/bgp/attribute/flowspec_encode.go — the shared action encoders
 
 package bgpconfig
 
@@ -7,7 +9,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"math"
 	"net/netip"
 	"strconv"
 	"strings"
@@ -120,9 +121,16 @@ func parseOneLargeCommunity(s string) ([3]uint32, error) {
 
 // ExtendedCommunity represents one or more extended communities (RFC 4360).
 // Formats: target:ASN:NN, origin:ASN:NN, N:IP:NN, ASN:IP (type-0 generic).
+//
+// One string can produce communities of two widths, so it produces two byte
+// slices. Every RFC 4360 community is 8 octets and rides EXTENDED_COMMUNITIES
+// (attribute 16). An IPv6-address-specific community is 20 octets and rides
+// IPV6_EXTENDED_COMMUNITIES (attribute 25, RFC 5701 Section 2), because a
+// 16-octet global administrator does not fit the 8-octet form.
 type ExtendedCommunity struct {
-	Raw   string // Original string for encoding
-	Bytes []byte // Wire-format bytes (8 bytes per community)
+	Raw       string // Original string for encoding
+	Bytes     []byte // Wire-format bytes (8 bytes per community), attribute 16
+	IPv6Bytes []byte // Wire-format bytes (20 bytes per community), attribute 25
 }
 
 // Extended community types and subtypes (RFC 4360, RFC 7153).
@@ -152,6 +160,7 @@ func ParseExtendedCommunity(s string) (ExtendedCommunity, error) {
 
 	parts := strings.Fields(s)
 	var allBytes []byte
+	var allIPv6Bytes []byte
 
 	// Process parts, looking ahead for two-word formats (action, mark, redirect-to-nexthop).
 	for i := 0; i < len(parts); i++ {
@@ -161,26 +170,39 @@ func ParseExtendedCommunity(s string) (ExtendedCommunity, error) {
 		if i+1 < len(parts) {
 			switch p {
 			case "action":
-				// "action sample-terminal" or "action sample" or "action terminal"
-				b := parseFlowSpecAction(parts[i+1])
-				allBytes = append(allBytes, b...)
+				// "action sample-terminal" or "action sample" or "action terminal".
+				ec, err := attribute.FlowSpecTrafficAction(parts[i+1])
+				if err != nil {
+					return ExtendedCommunity{}, err
+				}
+				allBytes = append(allBytes, ec[:]...)
 				i++ // skip next part
 				continue
 			case "mark":
 				// "mark N" - DSCP marking
-				b := parseFlowSpecMark(parts[i+1])
-				allBytes = append(allBytes, b...)
+				ec, err := parseFlowSpecMark(parts[i+1])
+				if err != nil {
+					return ExtendedCommunity{}, err
+				}
+				allBytes = append(allBytes, ec[:]...)
 				i++ // skip next part
 				continue
-			case "redirect-to-nexthop":
-				// "redirect-to-nexthop IP" - RFC 7674 Section 3.1
-				b := parseFlowSpecRedirectNextHop(parts[i+1])
-				if b != nil {
-					allBytes = append(allBytes, b...)
-					i++ // skip next part
-					continue
+			case flowSpecRedirectNextHop:
+				// "redirect-to-nexthop IP". This is the ONE place that decides
+				// which form the string names, because the two forms land in
+				// different attributes: an IPv4 next hop is an 8-octet
+				// IPv4-address-specific community, and an IPv6 next hop is a
+				// 20-octet IPv6-address-specific one (RFC 5701 Section 2).
+				// Deciding it twice is what left the IPv6 encoder unreachable:
+				// this parser refused the string before the second decision ran.
+				ec8, ec20, err := parseFlowSpecRedirectNextHop(parts[i+1])
+				if err != nil {
+					return ExtendedCommunity{}, err
 				}
-				// If parsing failed, fall through to single-word handling
+				allBytes = append(allBytes, ec8...)
+				allIPv6Bytes = append(allIPv6Bytes, ec20...)
+				i++ // skip next part
+				continue
 			}
 		}
 
@@ -192,7 +214,7 @@ func ParseExtendedCommunity(s string) (ExtendedCommunity, error) {
 		allBytes = append(allBytes, b...)
 	}
 
-	return ExtendedCommunity{Raw: s, Bytes: allBytes}, nil
+	return ExtendedCommunity{Raw: s, Bytes: allBytes, IPv6Bytes: allIPv6Bytes}, nil
 }
 
 // parseOneExtCommunity parses a single extended community string to 8 bytes.
@@ -220,7 +242,7 @@ func parseOneExtCommunity(s string) ([]byte, error) {
 
 	// FlowSpec rate-limit:N, rate-limit:N:packets, and legacy rate-limit-packets:N formats.
 	if len(parts) == 2 && parts[0] == flowSpecRateLimitPacketsName {
-		return parseFlowSpecRateLimitWithSubtype(parts[1], 0x0c)
+		return parseFlowSpecRateLimitWithSubtype(parts[1], attribute.FlowSpecRatePackets)
 	}
 	if len(parts) == 2 && parts[0] == flowSpecRateLimitName {
 		return parseFlowSpecRateLimit(parts[1])
@@ -228,9 +250,9 @@ func parseOneExtCommunity(s string) ([]byte, error) {
 	if len(parts) == 3 && parts[0] == flowSpecRateLimitName {
 		switch parts[2] {
 		case flowSpecPacketsUnit:
-			return parseFlowSpecRateLimitWithSubtype(parts[1], 0x0c)
+			return parseFlowSpecRateLimitWithSubtype(parts[1], attribute.FlowSpecRatePackets)
 		case flowSpecBytesUnit:
-			return parseFlowSpecRateLimitWithSubtype(parts[1], 0x06)
+			return parseFlowSpecRateLimitWithSubtype(parts[1], attribute.FlowSpecRateBytes)
 		default:
 			return nil, fmt.Errorf("unknown rate-limit unit %q", parts[2])
 		}
@@ -467,104 +489,84 @@ func parseFlowSpecRateLimit(rateStr string) ([]byte, error) {
 	if hasUnit {
 		switch unit {
 		case flowSpecPacketsUnit:
-			return parseFlowSpecRateLimitWithSubtype(rate, 0x0c)
+			return parseFlowSpecRateLimitWithSubtype(rate, attribute.FlowSpecRatePackets)
 		case flowSpecBytesUnit:
-			return parseFlowSpecRateLimitWithSubtype(rate, 0x06)
+			return parseFlowSpecRateLimitWithSubtype(rate, attribute.FlowSpecRateBytes)
 		default:
 			return nil, fmt.Errorf("unknown rate-limit unit %q", unit)
 		}
 	}
-	return parseFlowSpecRateLimitWithSubtype(rate, 0x06)
+	return parseFlowSpecRateLimitWithSubtype(rate, attribute.FlowSpecRateBytes)
 }
 
-func parseFlowSpecRateLimitWithSubtype(rateStr string, subtype byte) ([]byte, error) {
+// parseFlowSpecRateLimitWithSubtype builds one traffic-rate community. The
+// 2-octet id stays zero: a config rate-limit names no AS, and RFC 8955
+// Section 7.1 calls the field "purely informational".
+func parseFlowSpecRateLimitWithSubtype(rateStr string, unit attribute.FlowSpecRateUnit) ([]byte, error) {
 	rate, err := strconv.ParseFloat(rateStr, 32)
 	if err != nil {
 		return nil, fmt.Errorf("invalid %s value %q: %w", flowSpecRateLimitName, rateStr, err)
 	}
-	// RFC 8955 Section 7.1: "On encoding, the traffic-rate MUST NOT be negative."
-	// RFC 8955 Section 7.2: "On encoding, the traffic-rate-packets MUST NOT be negative."
-	if rate < 0 {
-		return nil, fmt.Errorf("%s must not be negative: %s", flowSpecRateLimitName, rateStr)
-	}
 
-	// Convert to IEEE 754 single-precision float (4 bytes)
-	bits := math.Float32bits(float32(rate))
-	return []byte{
-		0x80, subtype, // Type: Traffic Rate variant
-		0x00, 0x00, // AS number (informational, usually 0)
-		byte(bits >> 24), byte(bits >> 16), byte(bits >> 8), byte(bits),
-	}, nil
+	ec, err := attribute.FlowSpecTrafficRate(unit, 0, rate)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", flowSpecRateLimitName, err)
+	}
+	return ec[:], nil
 }
 
-// parseFlowSpecAction parses FlowSpec action flags (RFC 8955 Section 7.4).
-// Traffic Action extended community: type 0x80, subtype 0x07.
-// Format: "sample", "terminal", "sample-terminal" (hyphen or space separated).
-func parseFlowSpecAction(flagsStr string) []byte {
-	var flags uint8
-	// Parse flags: sample (bit 1), terminal (bit 0)
-	lower := strings.ToLower(flagsStr)
-	if strings.Contains(lower, "sample") {
-		flags |= 0x02 // Sample bit
+// parseFlowSpecMark parses the DSCP of a `mark N` action into the traffic-marking
+// extended community (RFC 8955 Section 7.5).
+//
+// The parse error is returned rather than discarded. It used to be dropped, and
+// strconv answers MaxUint64 on a range error, so `mark 300` wrote 0xff into the
+// value and `mark abc` wrote 0x00, remarking every matching packet to
+// best-effort. The DSCP bound itself lives in the shared encoder, which every
+// FlowSpec caller now reaches.
+func parseFlowSpecMark(dscpStr string) (attribute.ExtendedCommunity, error) {
+	dscp, err := strconv.ParseUint(dscpStr, 10, 8)
+	if err != nil {
+		return attribute.ExtendedCommunity{}, fmt.Errorf("invalid DSCP %q in mark: %w", dscpStr, err)
 	}
-	if strings.Contains(lower, "terminal") {
-		flags |= 0x01 // Terminal bit
-	}
-	return []byte{0x80, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, flags}
+	return attribute.FlowSpecTrafficMarking(dscp)
 }
 
-// parseFlowSpecMark parses DSCP marking value (RFC 8955 Section 7.6).
-// Traffic Marking extended community: type 0x80, subtype 0x09.
-func parseFlowSpecMark(dscpStr string) []byte {
-	dscp, _ := strconv.ParseUint(dscpStr, 10, 8)
-	return []byte{0x80, 0x09, 0x00, 0x00, 0x00, 0x00, 0x00, byte(dscp)}
-}
-
-// parseFlowSpecRedirectNextHop parses redirect-to-nexthop with IPv4 (RFC 7674 Section 3.1).
-// Returns nil if the IP is invalid or IPv6 (IPv6 handled separately via attribute 25).
-func parseFlowSpecRedirectNextHop(ipStr string) []byte {
+// parseFlowSpecRedirectNextHop parses the address of a `redirect-to-nexthop IP`
+// action into the community its address family needs.
+//
+// It returns the 8-octet community for an IPv4 address and the 20-octet one for
+// an IPv6 address, and exactly one of the two is ever non-empty. They travel in
+// different attributes: 16 for the first, 25 for the second (RFC 5701).
+func parseFlowSpecRedirectNextHop(ipStr string) (ipv4Bytes, ipv6Bytes []byte, err error) {
 	ip, err := netip.ParseAddr(ipStr)
-	if err != nil || !ip.Is4() {
-		return nil // Invalid or IPv6 - handled elsewhere
+	if err != nil {
+		return nil, nil, fmt.Errorf("invalid %s address %q: %w", flowSpecRedirectNextHop, ipStr, err)
 	}
-	ipBytes := ip.As4()
-	return []byte{0x01, 0x0c, ipBytes[0], ipBytes[1], ipBytes[2], ipBytes[3], 0x00, 0x00}
+
+	if ip.Is4() {
+		ec, err := attribute.FlowSpecRedirectToIPv4(ip)
+		if err != nil {
+			return nil, nil, err
+		}
+		return ec[:], nil, nil
+	}
+
+	ec, err := attribute.FlowSpecRedirectToIPv6(ip)
+	if err != nil {
+		return nil, nil, err
+	}
+	return nil, ec[:], nil
 }
 
-// parseFlowSpecRedirect parses redirect:ASN:NN format for FlowSpec (RFC 5575).
-func parseFlowSpecRedirect(asnStr, numStr string) ([]byte, error) {
-	asn, err := strconv.ParseUint(asnStr, 10, 32)
+// parseFlowSpecRedirect parses redirect:ADMIN:VALUE for FlowSpec
+// (RFC 8955 Section 7.4). ADMIN is an AS number or an IPv4 address, and it
+// selects which of the section's three encodings the community takes.
+func parseFlowSpecRedirect(adminStr, numStr string) ([]byte, error) {
+	ec, err := attribute.FlowSpecRedirect(adminStr, numStr)
 	if err != nil {
-		return nil, fmt.Errorf("invalid redirect ASN %q", asnStr)
+		return nil, err
 	}
-
-	if asn > 0xFFFF {
-		// Type 0x82, subtype 0x08: 4-byte ASN, 2-byte value. RFC 8955 Section
-		// 7.4 gives this type "the same encoding as ... Section 2 of
-		// [RFC5668] (type 0x82: 4-octet AS, 2-octet value)", so the value
-		// stops at 65535 here as it does for a route target.
-		num, err := strconv.ParseUint(numStr, 10, 16)
-		if err != nil {
-			return nil, fmt.Errorf("invalid redirect number %q (4-byte ASN format max 65535)", numStr)
-		}
-		return []byte{
-			0x82, 0x08,
-			byte(asn >> 24), byte(asn >> 16), byte(asn >> 8), byte(asn),
-			byte(num >> 8), byte(num),
-		}, nil
-	}
-
-	// Type 0x80, subtype 0x08: 2-byte ASN, 4-byte value (RFC 8955 Section 7.4,
-	// the RFC 4360 Section 3.1 encoding).
-	num, err := strconv.ParseUint(numStr, 10, 32)
-	if err != nil {
-		return nil, fmt.Errorf("invalid redirect number %q", numStr)
-	}
-	return []byte{
-		0x80, 0x08,
-		byte(asn >> 8), byte(asn),
-		byte(num >> 24), byte(num >> 16), byte(num >> 8), byte(num),
-	}, nil
+	return ec[:], nil
 }
 
 // parseExtCommunityASN parses an ASN string that may have an "L" suffix forcing 4-byte encoding.

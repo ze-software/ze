@@ -192,7 +192,14 @@ func TestParsePrefixSIDSRv6_ReservedFieldsZero(t *testing.T) {
 // PREVENTS: stray bits in the reserved Traffic Action Field, which a receiver that later
 // assigns those codepoints would read as an action the operator never configured.
 func TestRFC8955TrafficActionUnusedBitsZero(t *testing.T) {
-	for _, spec := range []string{"sample", "terminal", "sample-terminal", "bogus"} {
+	// rfc-test-change-approved: 2026-08-19 Thomas ruled that "bogus" should not be
+	// supported. It sat in this list only because the parser accepted any word, and
+	// it asserted that a typo yields a real traffic-action community with S=T=0
+	// rather than an error, which is the defect rather than the requirement. The
+	// three valid specs prove the reserved bits are zero, and "none" replaces it
+	// with a fourth distinct bit pattern, 0x00, where the final octet must be
+	// entirely clear. The tag, the assertions and the polarity are untouched.
+	for _, spec := range []string{"sample", "terminal", "sample-terminal", "none"} {
 		ec, err := ParseExtendedCommunity("[ action " + spec + " ]")
 		require.NoError(t, err, "spec %q", spec)
 		require.GreaterOrEqual(t, len(ec.Bytes), 8, "spec %q", spec)

@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/family"
 )
 
@@ -130,16 +131,19 @@ func ParseFlowSpecArgs(args []string) (bgptypes.FlowSpecRoute, error) {
 					switch {
 					case strings.EqualFold(args[i+2], "packets"):
 						route.Actions.RateLimitPackets = uint32(rate)
+						route.Actions.RateLimitPacketsSet = true
 						i += 2
 						consumedUnit = true
 					case strings.EqualFold(args[i+2], "bytes"):
 						route.Actions.RateLimit = uint32(rate)
+						route.Actions.RateLimitSet = true
 						i += 2
 						consumedUnit = true
 					}
 				}
 				if !consumedUnit {
 					route.Actions.RateLimit = uint32(rate)
+					route.Actions.RateLimitSet = true
 					i++
 				}
 			case "rate-limit-packets":
@@ -151,6 +155,7 @@ func ParseFlowSpecArgs(args []string) (bgptypes.FlowSpecRoute, error) {
 					return route, fmt.Errorf("invalid packet rate limit: %s", args[i+1])
 				}
 				route.Actions.RateLimitPackets = uint32(rate)
+				route.Actions.RateLimitPacketsSet = true
 				i++
 			case "redirect":
 				if i+1 >= len(args) {
@@ -166,7 +171,17 @@ func ParseFlowSpecArgs(args []string) (bgptypes.FlowSpecRoute, error) {
 				if err != nil {
 					return route, fmt.Errorf("invalid DSCP: %s", args[i+1])
 				}
+				// RFC 8955 Section 7.5: the DSCP is the 6 least significant
+				// bits of the extended community value, and the bits above it
+				// are "reserved (r): MUST be set to 0 on encoding". Say so
+				// here rather than truncating in silence, which would install
+				// a marking the operator did not ask for. The encoder refuses
+				// the same value again, from the same bound.
+				if dscp > attribute.FlowSpecDSCPMax {
+					return route, fmt.Errorf("DSCP must be 0-%d, got %d", attribute.FlowSpecDSCPMax, dscp)
+				}
 				route.Actions.MarkDSCP = uint8(dscp)
+				route.Actions.MarkDSCPSet = true
 				i++
 
 			default: // reject unknown then keyword
