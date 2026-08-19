@@ -4443,6 +4443,41 @@ class TestVerificationDebt(unittest.TestCase):
             )
             self.assertEqual(len(ch.open_debt_rows(root)), 1)
 
+    def test_a_second_create_does_not_duplicate_an_open_row(self) -> None:
+        """A re-run of `create` for one commit owes the gate once, not twice.
+
+        Two routes reach this: `--replace`, which supersedes the script and
+        re-records what its predecessor already wrote, and a `create` killed
+        after it appended and then run again. Both leave the push gate
+        counting a debt nobody owes, and `debt-clear` re-running one gate per
+        duplicate row. DEBT_FLAGS holds one entry per gate, so `debt_owed`
+        cannot emit the same gate twice in one call: byte-identical open rows
+        in a shard are duplicates and nothing else.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            ch.record_debt(root, "abcd1234", "fix: thing", [("g1", "r1")])
+            ch.record_debt(root, "abcd1234", "fix: thing", [("g1", "r1")])
+            self.assertEqual(len(ch.open_debt_rows(root)), 1)
+
+    def test_a_second_create_records_again_once_the_row_is_cleared(self) -> None:
+        """Deduplication is over OPEN rows. A cleared row is a spent record, so
+        a later commit owing the same gate earns a fresh row."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            rel = ch.record_debt(root, "abcd1234", "fix: thing", [("g1", "r1")])
+            shard = root / rel
+            shard.write_text(shard.read_text().replace("| open |", "| cleared |", 1))
+            ch.record_debt(root, "abcd1234", "fix: thing", [("g1", "r1")])
+            self.assertEqual(len(ch.open_debt_rows(root)), 1)
+
+    def test_a_second_create_owing_a_different_gate_still_appends(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            ch.record_debt(root, "abcd1234", "fix: thing", [("g1", "r1")])
+            ch.record_debt(root, "abcd1234", "fix: thing", [("g2", "r2")])
+            self.assertEqual(len(ch.open_debt_rows(root)), 2)
+
     def test_no_shard_directory_means_no_debt(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             self.assertEqual(ch.open_debt_rows(Path(tmp)), [])
@@ -4508,12 +4543,19 @@ class TestDebtClear(unittest.TestCase):
         root = self._repo([("green fixture gate", "another session's red")])
 
         def append_a_twin(repo: Path) -> tuple[int, str]:
-            ch.record_debt(
-                repo,
-                "abcd1234",
-                "fix: thing",
-                [("green fixture gate", "another session's red")],
+            # Written straight to the shard rather than through record_debt,
+            # which refuses a row the shard already holds open. The twin is
+            # still reachable: shards recorded before that guard carry one, and
+            # so does a hand edit. What clear_debt_rows owes is unchanged --
+            # a judgement clears the row it was passed on and no other.
+            shard = repo / ch.debt_shard_path("abcd1234")
+            twin = next(
+                line
+                for line in shard.read_text(encoding="utf-8").splitlines()
+                if line.endswith("| open |")
             )
+            with shard.open("a", encoding="utf-8") as handle:
+                handle.write(twin + "\n")
             return 0, "the gate ran"
 
         with mock.patch.dict(

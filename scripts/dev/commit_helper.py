@@ -3588,43 +3588,65 @@ def _debt_cell(text: str) -> str:
 def record_debt(
     repo: Path, session: str, subject: str, owed: list[tuple[str, str]]
 ) -> str:
-    """Append one row per owed gate to this session's shard. Returns its path."""
+    """Append one row per owed gate to this session's shard. Returns its path.
+
+    A row the shard already holds OPEN is not appended again. Two routes
+    re-record what a previous run wrote: `--replace`, which supersedes a script
+    without knowing which rows its predecessor left, and a `create` killed after
+    it appended and then run again. Both inflate the count the push gate reads
+    and make `debt-clear` re-run one gate per duplicate row.
+
+    Byte-identical open rows are duplicates and nothing else, so the text is a
+    safe key HERE. `DEBT_FLAGS` holds one entry per gate and `debt_owed` walks
+    it once, so a single call cannot emit the same gate twice. `clear_debt_rows`
+    still keys on the line POSITION, and for its own reason: it judges rows that
+    already exist, where an append landing mid-pass could match a verdict passed
+    on a twin. This function runs before any position exists.
+
+    Deduplication is over OPEN rows alone. A cleared row is a spent record, so a
+    later commit owing the same gate earns a fresh one.
+    """
     rel = debt_shard_path(session)
     path = repo / rel
     path.parent.mkdir(parents=True, exist_ok=True)
     stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
-    lines: list[str] = []
-    if not path.exists():
-        lines += [
-            f"# Verification debt -- commit session {session}",
-            "",
-            "Gates that had not run green over these commits when they were made.",
-            "Each row is work owed, not a defect: a defect is fixed, never recorded",
-            "(`ai/rules/completion.md`). Clear a row with `make ze-verify-debt-clear`:",
-            "it re-runs the gate the row names and writes `cleared` only when that",
-            "run exits 0. Most of those gates judge the WORKING TREE, so a cleared",
-            "row says the gate was green in this checkout, other sessions'",
-            "uncommitted files included. It does not say the gate is green over the",
-            "commit alone: `discovery-index freshness` and",
-            "`ze-repository-tracked-build-check` are the two gates re-judged over",
-            "what git holds. A human MAY delete the",
-            "shard once every row is cleared.",
-            "`scripts/dev/commit_helper.py create --push` refuses while any row here",
-            "is open.",
-            "",
-            *DEBT_HEADER,
-        ]
-    for gate, reason in owed:
-        lines.append(
-            f"| {stamp} | {session} | {_debt_cell(subject)} | {_debt_cell(gate)} "
-            f"| {_debt_cell(reason)} | open |"
-        )
+    header: list[str] = [
+        f"# Verification debt -- commit session {session}",
+        "",
+        "Gates that had not run green over these commits when they were made.",
+        "Each row is work owed, not a defect: a defect is fixed, never recorded",
+        "(`ai/rules/completion.md`). Clear a row with `make ze-verify-debt-clear`:",
+        "it re-runs the gate the row names and writes `cleared` only when that",
+        "run exits 0. Most of those gates judge the WORKING TREE, so a cleared",
+        "row says the gate was green in this checkout, other sessions'",
+        "uncommitted files included. It does not say the gate is green over the",
+        "commit alone: `discovery-index freshness` and",
+        "`ze-repository-tracked-build-check` are the two gates re-judged over",
+        "what git holds. A human MAY delete the",
+        "shard once every row is cleared.",
+        "`scripts/dev/commit_helper.py create --push` refuses while any row here",
+        "is open.",
+        "",
+        *DEBT_HEADER,
+    ]
+    candidates = [
+        f"| {stamp} | {session} | {_debt_cell(subject)} | {_debt_cell(gate)} "
+        f"| {_debt_cell(reason)} | open |"
+        for gate, reason in owed
+    ]
     # The same exclusive lock `clear_debt_rows` takes. Without it an append
     # landing inside a clearing pass's read-modify-write is lost, and this
-    # checkout runs several sessions at once.
-    with path.open("a", encoding="utf-8") as fh:
+    # checkout runs several sessions at once. The read of what the shard
+    # already holds sits inside it too, so a concurrent append cannot slip
+    # between the test and the write.
+    with path.open("a+", encoding="utf-8") as fh:
         fcntl.flock(fh, fcntl.LOCK_EX)
-        fh.write("\n".join(lines) + "\n")
+        fh.seek(0)
+        held = {line.strip() for line in fh.read().splitlines()}
+        lines = [] if held else list(header)
+        lines += [row for row in candidates if row not in held]
+        if lines:
+            fh.write("\n".join(lines) + "\n")
     return rel
 
 
@@ -3636,10 +3658,15 @@ def open_debt_rows(repo: Path) -> list[tuple[str, str, int]]:
     session that owed the gate.
 
     `position` is the row's 0-based line index in its shard, and it is the row's
-    IDENTITY. The text is not: two overrides recorded by one `create` with the
-    same gate and reason render byte-identically, and so does a second `create`
-    on the same day with the same subject. `clear_debt_rows` keys on the
-    position for that reason.
+    IDENTITY. The text is not, because a shard CAN hold byte-identical open
+    rows: one written by hand, and one recorded before `record_debt` learned to
+    refuse a duplicate. `clear_debt_rows` keys on the position for that reason.
+
+    This docstring also claimed that one `create` renders two identical rows
+    when two overrides share a gate and reason. It cannot. `DEBT_FLAGS` holds
+    one entry per gate and `debt_owed` walks it once, so a call emits each gate
+    at most once. The claim went unchecked and made the duplicate rows a second
+    `create` produced look like a shape the ledger expected.
     """
     rows: list[tuple[str, str, int]] = []
     root = repo / VERIFICATION_DEBT_DIR
