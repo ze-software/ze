@@ -6858,6 +6858,34 @@ def run_governed_doc_edit(results: Results) -> None:
         "PY"
     )
     results.check("governed-heredoc-variable-blocks", blocked(loop), loop)
+    # The shape that slipped through: the script is WRITTEN first and the
+    # interpreter runs LAST, so an ordered interpreter-path-write pattern sees
+    # nothing although every element is a literal. Tier one stays silent on
+    # purpose here, because the redirect target is the scratch path.
+    write_then_run = (
+        "cat > \"$scratch/edit.py\" <<'PY'\n"
+        "import pathlib\n"
+        "pathlib.Path('plan/spec-foo.md').write_text('x')\n"
+        "PY\n"
+        'python3 "$scratch/edit.py"'
+    )
+    results.check(
+        "governed-write-script-then-run-blocks",
+        blocked(write_then_run),
+        write_then_run.replace("\n", "\\n"),
+    )
+    # The same order with no interpreter anywhere is not tier two's business:
+    # the payload is never executed as a script by this command.
+    no_interpreter = (
+        "cat > \"$scratch/notes.txt\" <<'TXT'\n"
+        "pathlib.Path('plan/spec-foo.md').write_text('x')\n"
+        "TXT"
+    )
+    results.check(
+        "governed-write-script-without-interpreter-passes",
+        not blocked(no_interpreter),
+        no_interpreter.replace("\n", "\\n"),
+    )
 
     # Reads. A guard that refused these would stop the tree being read at all.
     for name, cmd in (

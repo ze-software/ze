@@ -873,9 +873,36 @@ _GOVERNED_SHELL_WRITE = re.compile(
 # anywhere in the payload catches that, at the cost of refusing a payload that
 # merely READS plan/ and writes to scratch. That cost is deliberate and the
 # escape below is its answer.
-_GOVERNED_SCRIPT_WRITE = re.compile(
-    r"(?:python3?|perl|ruby)\b[\s\S]*" + GOVERNED_TREE + r"[\s\S]*"
+#
+# The three elements are matched in ANY ORDER. Requiring the interpreter first,
+# then the path, then the write call let a two-step command through untouched:
+#
+#     cat > "$scratch/edit.py" <<'PY'
+#     pathlib.Path("plan/journal/x.md").write_text(...)
+#     PY
+#     python3 "$scratch/edit.py"
+#
+# Every element there is a literal and the interpreter is simply LAST, so the
+# ordered pattern did not match and a plan/ file was edited unguarded. Measured
+# 2026-08-19; the same edit spelled inline as `python3 - <<'PY'` was refused one
+# command later. Tier one is right to stay silent, because the redirect target is
+# the scratch path. Both fixtures in run_governed_doc_edit
+# (scripts/dev/hook-fixture-check.py) open with `python3 -`, so they agreed with
+# the code and could not see it.
+_GOVERNED_INTERPRETER = re.compile(r"\b(?:python3?|perl|ruby)\b")
+
+_GOVERNED_WRITE_CALL = (
     r"(?:open\([^)]*[\"'][wa]|write_text\(|\.write\(|writelines\(|truncate\()"
+)
+
+_GOVERNED_SCRIPT_WRITE = re.compile(
+    GOVERNED_TREE
+    + r"[\s\S]*"
+    + _GOVERNED_WRITE_CALL
+    + r"|"
+    + _GOVERNED_WRITE_CALL
+    + r"[\s\S]*"
+    + GOVERNED_TREE
 )
 
 # The escape, spelled like RAW_ADMIT_VAR above: a required reason, in the
@@ -916,7 +943,13 @@ def check_governed_doc_edit(cmd, _ctx):
     pretool-writeedit.py refuses a Write over an existing rule point: offering
     both would bounce the author between two guards.
     """
-    if not (_GOVERNED_SHELL_WRITE.search(cmd) or _GOVERNED_SCRIPT_WRITE.search(cmd)):
+    # Tier two needs an interpreter somewhere in the command AND a governed path
+    # beside a write call, in either order. Splitting the interpreter out of the
+    # ordered pattern is what closes the write-the-script-then-run-it shape.
+    script_write = _GOVERNED_INTERPRETER.search(cmd) and _GOVERNED_SCRIPT_WRITE.search(
+        cmd
+    )
+    if not (_GOVERNED_SHELL_WRITE.search(cmd) or script_write):
         return None
     if _governed_admit_reason(cmd):
         return None
