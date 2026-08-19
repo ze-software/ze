@@ -1261,6 +1261,7 @@ rollback, `.prev` no longer exists and the new version is gone from disk.
 ### show bgp summary
 
 ```
+ze show bgp                          # The same answer, object typed with no verb
 ze show bgp summary                  # Every configured peer
 ze show bgp summary ipv4             # Expanded to ipv4/unicast
 ze show bgp summary ipv6             # Expanded to ipv6/unicast
@@ -1289,7 +1290,12 @@ ze show bgp summary | peers      # the peer rows alone, as a table
 ze show bgp summary | summary    # the aggregate fields alone
 ```
 
-<!-- source: internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang -- module ze-peer-cmd; internal/component/bgp/plugins/cmd/peer/summary.go -- handleBgpSummary -->
+`show bgp` typed with no subcommand gives the same answer, as `show ospf` and
+`show vrrp` do for their objects. It takes the same optional family argument. A
+token that names no family and no subcommand comes back as an unknown command,
+so a mistyped subcommand is not reported as an invalid family.
+
+<!-- source: internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang -- module ze-peer-cmd; internal/component/bgp/plugins/cmd/peer/summary.go -- handleBgpSummary, handleBgpOverview -->
 <!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- registerAliases -->
 
 ### ping / traceroute

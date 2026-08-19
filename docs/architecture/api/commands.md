@@ -94,6 +94,28 @@ Before a verb-first migration of a noun-first built-in, grep for senders. See
 `ai/rules/cli.md` "Migrating a Built-in Command's Path".
 <!-- source: internal/component/plugin/server/command.go -- LoadBuiltins, IsReadOnlyPath -->
 
+### A parent command never swallows a registered child
+
+The daemon serves the LONGEST registered key that prefixes the input and hands the
+rest to that handler as arguments. A parent registered at a short path would
+therefore own the whole subtree below it, children another owner registered
+included. `show bgp` is a builtin key; `show bgp rpki status` is a PLUGIN name that
+`Dispatch` reaches only after the builtin match fails, so an unguarded match sends
+the rpki subtree to the summary handler, which reads its first argument as an
+address family.
+
+`matchBuiltinTokens` refuses its match when a LONGER prefix of the input is itself a
+registered command. It asks all three registries the dispatcher resolves from: the
+builtin keys, the plugin registry, and the subsystem handlers. The test is a
+registered PATH, never the presence of leftover tokens, because leftovers are how
+every argument-taking command works: `show bgp summary ipv4` still reaches its
+handler with the family.
+
+The client-side lookup carries the same rule, and the two are separate because they
+read different registries. Neither is derived from the other.
+<!-- source: internal/component/plugin/server/command.go -- matchBuiltinTokens, longerCommandPath, isCommandPath -->
+<!-- source: internal/component/command/registry/registry.go -- LookupLocal -->
+
 ### Offline fallback (read-only commands without a daemon)
 
 Some read-only `show` commands must work with **no daemon reachable** — `show crashes`
