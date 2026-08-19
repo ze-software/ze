@@ -64,7 +64,10 @@ generate() {
 }
 
 show() {
-    capture_bounded ze cli -c "show traffic usage name traffic0 | no-more"
+    # `raw` is the dispatcher's JSON. validate.sh reads byte counters out of
+    # this snapshot, and a rendering meant for a person is not a parsing
+    # surface: its shape follows `environment cli format default`.
+    capture_bounded ze cli -c "show traffic usage name traffic0 | no-more | raw"
 }
 
 walkthrough() {

@@ -31,8 +31,13 @@ assert_contains "${warnings}" '127.0.0.2'
 health=$(ze cli -c 'show health | no-more | yaml' 2>&1)
 assert_contains "${health}" 'status: down'
 
-teardown=$(ze cli -c 'request peer 127.0.0.2 teardown 4' 2>&1)
-assert_not_contains "${teardown}" 'error'
+teardown=$(ze cli -c 'request peer 127.0.0.2 teardown 4 | yaml' 2>&1)
+# The answer names the peer and the subcode the daemon acted on. This used to
+# assert the answer carried no `error`, a string no reached outcome could hold:
+# `ze cli -c` exits non-zero on a failed request, so `set -e` aborts the
+# assignment before any assertion runs.
+assert_contains "${teardown}" 'peer: 127.0.0.2'
+assert_contains "${teardown}" 'subcode: 4'
 errors=
 for _ in {1..100}; do
     errors=$(ze cli -c 'show errors source bgp | no-more | yaml' 2>&1 || true)

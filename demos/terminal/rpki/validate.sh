@@ -32,7 +32,15 @@ for _ in {1..100}; do
     fi
     sleep 0.1
 done
-assert_contains "${status}" 'sessions: 1'
+# `sessions` counted CONFIGURED cache servers, so it read 1 the moment the
+# config loaded and would have held with the RTR session never connected.
+# `sessions-synced` counts the servers that completed an RTR sync, which no
+# configuration alone can produce. `state` cannot carry this: it returns to
+# `idle` between polls (internal/component/bgp/plugins/rpki/rtr_session.go:45),
+# and the sync flag is set before the VRPs are applied (:326), so the poll above
+# never breaks ahead of it.
+assert_contains "${status}" 'sessions-synced: 1'
+assert_contains "${status}" 'synced: true'
 assert_contains "${status}" "vrp-count-ipv4: ${expected_vrp_ipv4}"
 
 routes=

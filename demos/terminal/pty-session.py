@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Drive Ze's interactive SSH CLI through a real pseudo-terminal."""
+"""Drive an interactive Ze screen through a real pseudo-terminal.
+
+That is the SSH CLI, and the full-screen programs it and `ze` paint: the
+command launcher, the monitor dashboards. A screen that reads single
+keystrokes needs "@type" and "@key", because a typed LINE ends in a carriage
+return that such a screen reads as an answer.
+"""
 
 from __future__ import annotations
 
@@ -17,10 +23,30 @@ import termios
 import time
 
 ANSI_RE = re.compile(rb"\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1b\\))")
-PROMPT_RE = re.compile(rb"ze[>#]")
+# Default --ready: the SSH CLI prints its prompt when it can take a command.
+READY_DEFAULT = rb"ze[>#]"
 CLOSE_RE = re.compile(rb"Connection .* closed|logout")
 # Directives the command list understands, and whether each takes an argument.
-DIRECTIVES = {"@escape": False, "@sleep": True, "@wait": True}
+DIRECTIVES = {
+    "@escape": False,
+    "@sleep": True,
+    "@wait": True,
+    "@type": True,
+    "@key": True,
+}
+# Keys a full-screen program reads that a line of text cannot carry. A menu
+# that filters as you type reads every character as it arrives, so the carriage
+# return a typed line ends with is a SELECTION rather than punctuation: "@type"
+# is how a filter is entered, and "@key enter" is how it is then answered.
+KEYS = {
+    "enter": b"\r",
+    "up": b"\x1b[A",
+    "down": b"\x1b[B",
+    "left": b"\x1b[D",
+    "right": b"\x1b[C",
+    "tab": b"\t",
+    "space": b" ",
+}
 # Directives that read on their own terms and return early. As the LAST command
 # they would skip the read-until-the-connection-closes and drop the tail.
 NON_TERMINAL_DIRECTIVES = ("@sleep", "@wait")
@@ -46,13 +72,25 @@ def parse_args() -> argparse.Namespace:
         action="append",
         required=True,
         help=(
-            "a line to type, or one of the directives '@escape', '@sleep <s>' "
-            "and '@wait <regex>'. Use '@wait' after any command the NEXT command "
-            "depends on: it holds until the regex appears, where --delay only "
-            "hopes the answer arrived in time"
+            "a line to type, or one of the directives '@escape', '@sleep <s>', "
+            "'@wait <regex>', '@type <text>' and '@key <name>'. A line is typed "
+            "with a carriage return after it; '@type' is the same characters "
+            "without one, which is what a filter-as-you-type screen reads. Use "
+            "'@wait' after any command the NEXT command depends on: it holds "
+            "until the regex appears, where --delay only hopes the answer "
+            "arrived in time"
         ),
     )
     parser.add_argument("--timeout", type=float, default=15.0)
+    parser.add_argument(
+        "--ready",
+        default=READY_DEFAULT.decode(),
+        help=(
+            "regex the program prints once it is ready for the first command. "
+            "The default is the CLI prompt; a full-screen program that paints "
+            "no prompt needs its own first frame named here"
+        ),
+    )
     parser.add_argument("--delay", type=float, default=1.0)
     parser.add_argument("program", nargs=argparse.REMAINDER)
     args = parser.parse_args()
@@ -60,6 +98,10 @@ def parse_args() -> argparse.Namespace:
         args.program = args.program[1:]
     if not args.program:
         parser.error("program is required after --")
+    try:
+        re.compile(args.ready.encode())
+    except (re.error, UnicodeEncodeError) as exc:
+        parser.error(f"--ready needs a regex, got {args.ready!r}: {exc}")
     for name, seconds in (("--timeout", args.timeout), ("--delay", args.delay)):
         # Same reason as '@sleep' below: a negative or NaN duration reads
         # nothing and an infinite one never returns.
@@ -81,6 +123,9 @@ def parse_args() -> argparse.Namespace:
             parser.error(f"directive {word!r} needs an argument")
         if not DIRECTIVES[word] and argument:
             parser.error(f"directive {word!r} takes no argument")
+        if word == "@key" and argument.strip() not in KEYS:
+            names = ", ".join(sorted(KEYS))
+            parser.error(f"directive '@key' needs one of {names}; got {argument!r}")
         if word == "@sleep":
             try:
                 seconds = float(argument)
@@ -212,7 +257,7 @@ def main() -> int:
     # wait is looking for, and a search that began later would miss it.
     window = 0
     try:
-        captured.extend(read_until(fd, PROMPT_RE, args.timeout))
+        captured.extend(read_until(fd, re.compile(args.ready.encode()), args.timeout))
         # The login banner belongs to no directive, so a leading "@wait" must
         # not search it.
         window = len(captured)
@@ -242,6 +287,11 @@ def main() -> int:
             window = len(captured)
             if directive == "@escape":
                 os.write(fd, b"\x1b")
+            elif directive == "@type":
+                # No carriage return: the characters are the whole input.
+                os.write(fd, argument.encode())
+            elif directive == "@key":
+                os.write(fd, KEYS[argument.strip()])
             elif directive == "@sleep":
                 captured.extend(read_for(fd, float(argument)))
                 continue

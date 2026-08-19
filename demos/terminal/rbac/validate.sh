@@ -9,7 +9,11 @@ trap '"${run}" stop >/dev/null 2>&1 || true' EXIT
 
 export ZE_SSH_PASSWORD=noc-secret
 allowed=$(ze cli --user noc -c 'show version' 2>&1)
-assert_contains "${allowed}" "version"
+# The version STRING, not the field name: `version` is a label in every
+# rendering, so the old assertion held over an answer that carried no version
+# at all. The daemon runs this same binary, so `ze version` is the value it
+# must report.
+assert_contains "${allowed}" "$(ze version)"
 set +e
 denied=$(ze cli --user noc -c 'clear interface counters' 2>&1)
 status=$?
