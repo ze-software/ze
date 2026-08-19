@@ -803,3 +803,57 @@ func TestConn_MuxConn_Compatibility(t *testing.T) {
 	require.NoError(t, json.Unmarshal(raw, &result))
 	assert.Equal(t, "compat-test", result.Method)
 }
+
+// TestAnswerWriterPutsEachLineOnTheWireWhole verifies that the writer an answer
+// sequence is written to delivers one framed line for each Write, in order and
+// unmodified.
+//
+// The goal is the transport half of the record shape: WriteAnswer frames each
+// line and hands it here, so this writer must add nothing, split nothing, and
+// join nothing. The method writes a head, a record and a terminator, then reads
+// them back through the frame layer a consumer uses.
+//
+// VALIDATES: the record shape reaches the wire one line at a time.
+// PREVENTS: a second newline, a joined pair of lines, or a reordering, each of
+// which makes an answer unreadable to the peer that negotiated it.
+func TestAnswerWriterPutsEachLineOnTheWireWhole(t *testing.T) {
+	t.Parallel()
+
+	clientEnd, serverEnd := net.Pipe()
+	defer closePipe(t, "clientEnd", clientEnd)
+	defer closePipe(t, "serverEnd", serverEnd)
+
+	conn := NewConn(clientEnd, clientEnd)
+	defer closeConn(t, conn)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	want := []string{
+		"#7 ok status=done key=peers",
+		`#7 ok item={"peer":"10.0.0.1","state":"established"}`,
+		"#7 ok count=1",
+	}
+
+	// net.Pipe is synchronous, so the writes must not run on the goroutine
+	// that reads them back.
+	written := make(chan error, 1)
+	go func() {
+		w := conn.AnswerWriter(ctx)
+		for _, line := range want {
+			if _, err := w.Write([]byte(line + "\n")); err != nil {
+				written <- err
+				return
+			}
+		}
+		written <- nil
+	}()
+
+	reader := NewFrameReader(serverEnd)
+	for _, wantLine := range want {
+		frame, err := reader.Read()
+		require.NoError(t, err)
+		assert.Equal(t, wantLine, string(frame))
+	}
+	require.NoError(t, <-written)
+}

@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -40,9 +41,8 @@ func TestPendingRequests_AddComplete(t *testing.T) {
 	}
 
 	// Complete the request
-	ok := pending.Complete(serial, &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"result": "test"}})
-	if !ok {
-		t.Error("Complete should return true for valid serial")
+	if err := pending.Complete(serial, &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"result": "test"}}); err != nil {
+		t.Errorf("Complete should deliver for a valid serial: %v", err)
 	}
 
 	// Check response was delivered
@@ -56,9 +56,8 @@ func TestPendingRequests_AddComplete(t *testing.T) {
 	}
 
 	// Completing again should fail (already completed)
-	ok = pending.Complete(serial, &plugin.Response{Status: plugin.StatusDone})
-	if ok {
-		t.Error("Complete should return false for already-completed serial")
+	if err := pending.Complete(serial, &plugin.Response{Status: plugin.StatusDone}); !errors.Is(err, ErrPendingUnknownSerial) {
+		t.Errorf("Complete on an already-completed serial should report it unknown, got %v", err)
 	}
 }
 
@@ -98,9 +97,8 @@ func TestPendingRequests_Timeout(t *testing.T) {
 	}, 2*time.Second, time.Millisecond, "timeout response should have been delivered")
 
 	// Complete after timeout should fail
-	ok := pending.Complete(serial, &plugin.Response{Status: plugin.StatusDone})
-	if ok {
-		t.Error("Complete should return false after timeout")
+	if err := pending.Complete(serial, &plugin.Response{Status: plugin.StatusDone}); !errors.Is(err, ErrPendingUnknownSerial) {
+		t.Errorf("Complete after a timeout should report the serial unknown, got %v", err)
 	}
 }
 
@@ -168,9 +166,8 @@ func TestPendingRequests_CancelAll(t *testing.T) {
 	}
 
 	// Complete proc2 request should work
-	ok := pending.Complete(serial2, &plugin.Response{Status: plugin.StatusDone})
-	if !ok {
-		t.Error("proc2 request should still be completable")
+	if err := pending.Complete(serial2, &plugin.Response{Status: plugin.StatusDone}); err != nil {
+		t.Errorf("proc2 request should still be completable: %v", err)
 	}
 }
 
@@ -242,7 +239,9 @@ func TestPendingRequests_SerialUniqueness(t *testing.T) {
 		serials[serial] = true
 
 		// Complete to free up limit
-		pending.Complete(serial, &plugin.Response{Status: plugin.StatusDone})
+		if err := pending.Complete(serial, &plugin.Response{Status: plugin.StatusDone}); err != nil {
+			t.Errorf("Complete should free the limit slot: %v", err)
+		}
 	}
 }
 
@@ -267,12 +266,11 @@ func TestPendingRequests_StreamingResponse(t *testing.T) {
 
 	// Send partial responses, waiting for each to be received before sending next.
 	for i := range 3 {
-		ok := pending.Partial(serial, &plugin.Response{
+		if err := pending.Partial(serial, &plugin.Response{
 			Status: "partial",
 			Data:   plugin.Map{"chunk": i},
-		})
-		if !ok {
-			t.Errorf("Partial should succeed for chunk %d", i)
+		}); err != nil {
+			t.Errorf("Partial should succeed for chunk %d: %v", i, err)
 		}
 		// Wait for this partial to be received before sending next.
 		require.Eventually(t, func() bool {
@@ -281,9 +279,8 @@ func TestPendingRequests_StreamingResponse(t *testing.T) {
 	}
 
 	// Complete
-	ok := pending.Complete(serial, &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"result": "final"}})
-	if !ok {
-		t.Error("Complete should succeed after partials")
+	if err := pending.Complete(serial, &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"result": "final"}}); err != nil {
+		t.Errorf("Complete should succeed after partials: %v", err)
 	}
 
 	// Wait for all responses to arrive, then count.
@@ -311,7 +308,7 @@ func TestPendingRequests_ConcurrentAccess(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	done := make(chan bool, 100)
+	done := make(chan error, 100)
 
 	// Spawn concurrent adders and completers
 	for range 50 {
@@ -323,19 +320,121 @@ func TestPendingRequests_ConcurrentAccess(t *testing.T) {
 				Timeout:  DefaultCommandTimeout,
 				RespChan: respCh,
 			})
-			if serial != "" {
-				pending.Complete(serial, &plugin.Response{Status: plugin.StatusDone})
+			if serial == "" {
+				done <- nil
+				return
 			}
-			done <- true
+			done <- pending.Complete(serial, &plugin.Response{Status: plugin.StatusDone})
 		}()
 	}
 
 	// Wait for all
 	for range 50 {
 		select {
-		case <-done:
+		case err := <-done:
+			if err != nil {
+				t.Errorf("concurrent Complete should deliver: %v", err)
+			}
 		case <-ctx.Done():
 			t.Fatal("timeout waiting for concurrent operations")
 		}
 	}
+}
+
+// TestPartialWaitsForASlowConsumerRatherThanDropping checks that a stream of
+// responses reaches a consumer that drains slower than the producer sends. The
+// method: a channel that holds one response and a consumer that takes one every
+// few milliseconds, against a producer that sends five as fast as it can.
+//
+// VALIDATES: R-9 -- a full channel applies backpressure to the producer instead
+// of discarding the response.
+// PREVENTS: a record sequence losing rows while its terminator still counts
+// them, which makes the answer wrong rather than slow.
+func TestPartialWaitsForASlowConsumerRatherThanDropping(t *testing.T) {
+	pending := newPendingRequests()
+	proc := process.NewProcess(plugin.PluginConfig{Name: "test-proc"})
+
+	const rows = 5
+
+	// Capacity one: every row after the first meets a full channel.
+	respCh := make(chan *plugin.Response, 1)
+	serial := pending.Add(&PendingRequest{
+		Command:  "myapp dump",
+		Process:  proc,
+		Timeout:  5 * time.Second,
+		RespChan: respCh,
+	})
+	require.NotEmpty(t, serial)
+
+	received := make(chan int, rows+1)
+	go func() {
+		for range rows {
+			resp := <-respCh
+			data, ok := resp.Data.(plugin.Map)
+			if !ok {
+				return
+			}
+			row, ok := data["row"].(int)
+			if !ok {
+				return
+			}
+			received <- row
+			time.Sleep(2 * time.Millisecond)
+		}
+	}()
+
+	for row := range rows {
+		if err := pending.Partial(serial, &plugin.Response{
+			Status: "partial",
+			Data:   plugin.Map{"row": row},
+		}); err != nil {
+			t.Fatalf("row %d was not delivered: %v", row, err)
+		}
+	}
+
+	for row := range rows {
+		select {
+		case got := <-received:
+			require.Equal(t, row, got, "rows arrive in order and none is skipped")
+		case <-time.After(5 * time.Second):
+			t.Fatalf("row %d never arrived", row)
+		}
+	}
+}
+
+// TestPartialReportsAResponseItCannotDeliver checks that a consumer which stops
+// reading altogether is told, rather than losing rows quietly. The method: a
+// channel that holds one response, a caller that reads none, and a request
+// whose timeout is short.
+//
+// VALIDATES: R-9 -- an undeliverable response is reported and is NOT counted as
+// delivered.
+// PREVENTS: the silent drop that a non-blocking send with an empty default arm
+// performs, which no counter and no log records.
+func TestPartialReportsAResponseItCannotDeliver(t *testing.T) {
+	pending := newPendingRequests()
+	proc := process.NewProcess(plugin.PluginConfig{Name: "test-proc"})
+
+	respCh := make(chan *plugin.Response, 1)
+	serial := pending.Add(&PendingRequest{
+		Command:  "myapp dump",
+		Process:  proc,
+		Timeout:  50 * time.Millisecond,
+		RespChan: respCh,
+	})
+	require.NotEmpty(t, serial)
+
+	require.NoError(t, pending.Partial(serial, &plugin.Response{
+		Status: "partial",
+		Data:   plugin.Map{"row": 0},
+	}), "the first row fits in the channel")
+
+	err := pending.Partial(serial, &plugin.Response{
+		Status: "partial",
+		Data:   plugin.Map{"row": 1},
+	})
+	require.ErrorIs(t, err, ErrPendingUndeliverable,
+		"a row nobody takes is reported, never dropped in silence")
+
+	require.Len(t, respCh, 1, "the channel still holds the row that did fit, and no other")
 }

@@ -566,6 +566,19 @@ func internalPluginIdentity(pluginName string) string {
 // It routes an exact registered plugin command with pre-tokenized args, avoiding
 // command-string tokenization for runtime data while preserving dispatch-command output.
 func (s *Server) dispatchCommandArgs(proc *process.Process, command string, args []string, peer string) (*rpc.DispatchCommandOutput, error) {
+	resp, err := s.dispatchCommandArgsResponse(proc, command, args, peer)
+	if err != nil && resp == nil {
+		return nil, err
+	}
+	return responseToDispatchOutput(resp), err
+}
+
+// dispatchCommandArgsResponse is the core dispatch-command-args logic, and it
+// answers with the response the dispatcher produced rather than its wire
+// projection. The record path needs it unprojected: a generator payload is
+// walked once, so projecting it consumes the rows the records would carry
+// (Records, internal/component/plugin/types.go).
+func (s *Server) dispatchCommandArgsResponse(proc *process.Process, command string, args []string, peer string) (*plugin.Response, error) {
 	if peer == "" {
 		peer = "*"
 	}
@@ -579,7 +592,7 @@ func (s *Server) dispatchCommandArgs(proc *process.Process, command string, args
 	}
 
 	if s.dispatcher != nil && !s.dispatcher.isAuthorizedCommandArgs(cmdCtx, command, args, peer, false) {
-		return &rpc.DispatchCommandOutput{
+		return &plugin.Response{
 			Status: plugin.StatusError,
 			Error:  unauthorizedError(aaa.CanonicalCommand(command, args, peer)),
 		}, ErrUnauthorized
@@ -588,7 +601,7 @@ func (s *Server) dispatchCommandArgs(proc *process.Process, command string, args
 	resp, dispatchErr := s.dispatcher.ForwardToPlugin(cmdCtx, command, args, peer)
 	if dispatchErr != nil {
 		if errors.Is(dispatchErr, ErrSilent) {
-			return &rpc.DispatchCommandOutput{Status: plugin.StatusDone}, nil
+			return &plugin.Response{Status: plugin.StatusDone}, nil
 		}
 		authInput := aaa.CanonicalCommand(command, args, peer)
 		if s.ctx.Err() != nil {
@@ -599,13 +612,24 @@ func (s *Server) dispatchCommandArgs(proc *process.Process, command string, args
 		return nil, dispatchErr
 	}
 
-	return responseToDispatchOutput(resp), nil
+	return resp, nil
 }
 
 // dispatchCommand is the shared dispatch-command producer for socket and
 // DirectBridge transports. The returned output retains any accepted lifecycle
 // action until the consuming transport completes delivery.
 func (s *Server) dispatchCommand(proc *process.Process, command string) (*rpc.DispatchCommandOutput, error) {
+	resp, err := s.dispatchCommandResponse(proc, command)
+	if err != nil && resp == nil {
+		return nil, err
+	}
+	return responseToDispatchOutput(resp), err
+}
+
+// dispatchCommandResponse is the core dispatch-command logic, and it answers
+// with the response the dispatcher produced rather than its wire projection.
+// See dispatchCommandArgsResponse for why the record path needs it unprojected.
+func (s *Server) dispatchCommandResponse(proc *process.Process, command string) (*plugin.Response, error) {
 	cmdCtx := &CommandContext{
 		Server:         s,
 		Process:        proc,
@@ -617,7 +641,7 @@ func (s *Server) dispatchCommand(proc *process.Process, command string) (*rpc.Di
 	resp, dispatchErr := s.dispatcher.Dispatch(cmdCtx, command)
 	if dispatchErr != nil {
 		if errors.Is(dispatchErr, ErrSilent) {
-			return &rpc.DispatchCommandOutput{Status: plugin.StatusDone}, nil
+			return &plugin.Response{Status: plugin.StatusDone}, nil
 		}
 		if s.ctx.Err() != nil {
 			logger().Debug("dispatch-command failed (shutting down)", "plugin", proc.Name(), "command", command, "error", dispatchErr)
@@ -627,7 +651,7 @@ func (s *Server) dispatchCommand(proc *process.Process, command string) (*rpc.Di
 		return nil, dispatchErr
 	}
 
-	return responseToDispatchOutput(resp), nil
+	return resp, nil
 }
 
 // handleCodecRPCDirect handles codec RPCs without socket I/O.

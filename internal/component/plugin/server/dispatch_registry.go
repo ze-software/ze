@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 
 	plugin "github.com/ze-software/ze/internal/component/plugin"
 	plugipc "github.com/ze-software/ze/internal/component/plugin/ipc"
@@ -194,6 +195,42 @@ type transportCompleteResponse interface {
 	TransportComplete()
 }
 
+// recordAnswer is the op result of a peer that declared
+// rpc.ProtocolRecordAnswers at Stage 3: the response itself, unprojected, so
+// the transport writes it as a head, its records and a terminator instead of
+// marshaling it into one JSON result.
+//
+// It exists because the two readings of one answer are exclusive. A generator
+// payload is walked once, so the {status, data, error} projection and the
+// record sequence cannot both run over the same response
+// (Records, internal/component/plugin/types.go).
+type recordAnswer struct {
+	resp *plugin.Response
+}
+
+// write puts the answer sequence for id on w, one framed line at a time.
+func (a *recordAnswer) write(w io.Writer, id uint64) error {
+	return plugin.WriteAnswer(w, id, a.resp)
+}
+
+// TransportComplete runs the accepted lifecycle action the response carries,
+// after the transport has delivered the answer. Repeated calls are harmless.
+func (a *recordAnswer) TransportComplete() {
+	a.resp.TransportComplete()
+}
+
+// answerResult projects resp for the peer that will read it. A peer that
+// declared the record shape takes the record sequence; every other peer takes
+// the {status, data, error} projection, unchanged, which is what keeps a plugin
+// written before this shape existed working (AC-13 of
+// plan/spec-streaming-answer-protocol.md).
+func answerResult(recordAnswers bool, resp *plugin.Response) any {
+	if recordAnswers {
+		return &recordAnswer{resp: resp}
+	}
+	return responseToDispatchOutput(resp)
+}
+
 // serveEngineOpJSON runs an op for the JSON socket path, writes its result, then
 // completes any accepted lifecycle action. Error detail is the raw message
 // (rpcErrMessage), matching what serveEngineOpDirect returns so external and
@@ -209,6 +246,12 @@ func (s *Server) serveEngineOpJSON(proc *process.Process, conn *plugipc.PluginCo
 	}
 	if completed, ok := result.(transportCompleteResponse); ok {
 		defer completed.TransportComplete()
+	}
+	if answer, negotiated := result.(*recordAnswer); negotiated {
+		if writeErr := answer.write(conn.AnswerWriter(reply), req.ID); writeErr != nil {
+			logger().Debug("rpc runtime: write answer failed", "plugin", proc.Name(), "error", writeErr)
+		}
+		return
 	}
 	if sendErr := conn.SendResult(reply, req.ID, result); sendErr != nil {
 		logger().Debug("rpc runtime: send result failed", "plugin", proc.Name(), "error", sendErr)
@@ -228,6 +271,14 @@ func (s *Server) serveEngineOpDirect(proc *process.Process, op *engineOp, params
 			return nil, callErr
 		}
 		return nil, &rpc.RPCCallError{Message: err.Error()}
+	}
+	if answer, records := result.(*recordAnswer); records {
+		// The Direct bridge is a typed in-process call and not the wire, so it
+		// has no line to carry a record on. Project the answer instead, which
+		// is the JSON the record sequence reassembles to (AC-10 of
+		// plan/spec-streaming-answer-protocol.md). Without this the marshal
+		// below would answer `{}`: recordAnswer exports no field.
+		result = responseToDispatchOutput(answer.resp)
 	}
 	return directResultResponse(result)
 }
@@ -292,7 +343,11 @@ func (s *Server) opDispatchCommand(proc *process.Process, params json.RawMessage
 		var tb textbuf.Buffer
 		return nil, &rpc.RPCCallError{Message: tb.Str("invalid dispatch-command params: ").Err(err).String()}
 	}
-	return s.dispatchCommand(proc, input.Command)
+	resp, err := s.dispatchCommandResponse(proc, input.Command)
+	if err != nil {
+		return nil, err
+	}
+	return answerResult(proc.RecordAnswers(), resp), nil
 }
 
 // opDispatchCommandArgs is the shared handler for dispatch-command-args.
@@ -302,7 +357,11 @@ func (s *Server) opDispatchCommandArgs(proc *process.Process, params json.RawMes
 		var tb textbuf.Buffer
 		return nil, &rpc.RPCCallError{Message: tb.Str("invalid dispatch-command-args params: ").Err(err).String()}
 	}
-	return s.dispatchCommandArgs(proc, input.Command, input.Args, input.Peer)
+	resp, err := s.dispatchCommandArgsResponse(proc, input.Command, input.Args, input.Peer)
+	if err != nil {
+		return nil, err
+	}
+	return answerResult(proc.RecordAnswers(), resp), nil
 }
 
 // opSubscribeEvents is the shared handler for subscribe-events.

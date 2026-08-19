@@ -15,7 +15,11 @@
 //     decode/encode-nlri, decode-capability, execute-command, bye
 package rpc
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"iter"
+	"slices"
+)
 
 // Status constants for plugin API responses.
 // Defined here so both internal code and pkg/plugin/sdk can use them.
@@ -24,6 +28,56 @@ const (
 	StatusError = "error"
 	StatusOK    = "ok"
 )
+
+// Record is one row of an answer. Exactly one of Item and Fault is set: Item is
+// a row the command produced, Fault is a row the command rejected while the
+// walk continued. Both hold the JSON the producer marshaled once, so a
+// consumer that forwards a record parses nothing.
+type Record struct {
+	Item  json.RawMessage
+	Fault json.RawMessage
+}
+
+// Answer is a received answer: what its head declared, and the records that
+// follow that head. Every answer has this shape whatever its record count, so a
+// reader never branches on how many records arrive.
+//
+// Records yields each record in arrival order and ends at the terminator. A
+// consumer that stops the range stops the walk producing the records, which is
+// what bounds `| first 10` over a table nobody wants whole. The sequence is
+// single-use: it is the arriving answer, not a collection, so a second range
+// over it yields nothing.
+//
+// Verdict and Err state how the answer ended. Both MUST be read after the range
+// over Records has returned, and on the goroutine that ranged: the range is
+// what fills them, so before it ends every answer reads as truncated.
+type Answer struct {
+	// Status is the head's status= value: StatusDone or StatusError.
+	Status string
+	// Key is the head's key= value, the envelope the records belong under. It
+	// is empty when the head names none.
+	Key     string
+	Records iter.Seq[Record]
+
+	// terminator is the line that ended the answer, and nil when the answer
+	// stopped before one arrived. It is the only source of the verdict.
+	terminator *AnswerTail
+	// err states why the answer stopped without its terminator, and is nil when
+	// the terminator arrived or the consumer stopped the range itself.
+	err error
+}
+
+// Verdict reports the outcome the answer's terminator derives, and
+// VerdictTruncated when no terminator arrived. MUST be read after the range
+// over Records has returned.
+func (a *Answer) Verdict() string { return Verdict(a.terminator) }
+
+// Err reports why the answer stopped before its terminator: the peer's
+// not-understood error, an unreadable line, a queue the consumer fell behind,
+// or the connection ending. It is nil when the terminator arrived, and nil when
+// the consumer stopped the range itself, which Verdict still reports as
+// truncated. MUST be read after the range over Records has returned.
+func (a *Answer) Err() error { return a.err }
 
 // Plugin->engine runtime RPC method strings. Single source of truth: the
 // engine's method registry (internal/component/plugin/server) and the plugin
@@ -244,9 +298,41 @@ type ConfigureInput struct {
 	Claims []string `json:"claims,omitempty"`
 }
 
+// ProtocolRecordAnswers is the wire-shape name a peer declares to say it reads
+// an answer as a head carrying status=, one line for each record, and a
+// terminator carrying count= (AppendAnswerHead and its siblings in message.go).
+// A peer that does not declare it receives `#<id> ok [<json>]`, unchanged.
+//
+// A later shape earns a NEW name here rather than a new key on this one.
+// ParseAnswerTail refuses a key it does not know, so a key added under an
+// agreed name would make the whole line unreadable to the peer that agreed to
+// the older spelling.
+const ProtocolRecordAnswers = "record-answers"
+
 // DeclareCapabilitiesInput is the input for ze-plugin-engine:declare-capabilities (Stage 3).
 type DeclareCapabilitiesInput struct {
 	Capabilities []CapabilityDecl `json:"capabilities"`
+
+	// Protocol names the wire shapes this peer understands, one name for each
+	// (ProtocolRecordAnswers is the only one today). Stage 3 is where the
+	// engine learns them, so every answer after the stage-3 barrier is written
+	// in a shape the peer agreed to.
+	//
+	// An absent or empty list is a peer that named none, and that is the
+	// fail-closed reading rather than a silent default: every plugin written
+	// before a shape existed sends no name, so it keeps the frame it was
+	// written against (ai/rules/evidence.md).
+	Protocol []string `json:"protocol,omitempty"`
+}
+
+// Understands reports whether the peer declared the named wire shape. A nil
+// input, an absent list and an unknown name all read false, so a shape is used
+// only where the peer asked for it by name.
+func (d *DeclareCapabilitiesInput) Understands(name string) bool {
+	if d == nil {
+		return false
+	}
+	return slices.Contains(d.Protocol, name)
 }
 
 // CapabilityDecl declares a BGP capability for OPEN injection.

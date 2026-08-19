@@ -619,8 +619,15 @@ func (e *engineStartupSink) deliverConfig(ctx context.Context) error {
 }
 
 // OnCapabilities converts and registers the plugin's declared capabilities into
-// the capability injector. A conflict returns the exact plugin-facing message.
+// the capability injector, and records the answer shape the plugin declared it
+// reads. A conflict returns the exact plugin-facing message.
+//
+// The answer shape is recorded BEFORE the injector runs: a conflict fails this
+// plugin's startup, and a plugin that never reaches Stage 5 answers nothing, so
+// the order cannot leave a running peer reading a shape it did not ask for.
 func (e *engineStartupSink) onCapabilities(input *rpc.DeclareCapabilitiesInput) error {
+	e.proc.SetRecordAnswers(input.Understands(rpc.ProtocolRecordAnswers))
+
 	caps := capabilitiesFromRPC(input)
 	caps.PluginName = e.proc.Config().Name
 	e.proc.SetCapabilities(caps)

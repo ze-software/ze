@@ -247,13 +247,12 @@ func (c *Conn) readLoop() {
 
 // readFrame waits for the next frame from the persistent reader, respecting
 // context cancellation. Returns the raw frame bytes or an error.
+//
+// A frame the reader already delivered outranks the reader's terminal error: a
+// peer that writes its last line and closes the connection stores that error
+// while the line is still queued, and the line is data the peer did send.
 func (c *Conn) readFrame(ctx context.Context) ([]byte, error) {
 	c.startReader()
-
-	// Fast path: if reader already failed, return stored error immediately.
-	if errPtr := c.readerErr.Load(); errPtr != nil {
-		return nil, *errPtr
-	}
 
 	select {
 	case <-ctx.Done():
@@ -261,7 +260,18 @@ func (c *Conn) readFrame(ctx context.Context) ([]byte, error) {
 	case data := <-c.frameCh:
 		return data, nil
 	case <-c.readerDone:
-		// Reader exited -- error was stored before readerDone was closed.
+		return c.queuedFrame()
+	}
+}
+
+// queuedFrame returns a frame the reader delivered before it stopped, and the
+// reason it stopped once none is left. The error was stored before readerDone
+// was closed, so it is readable here.
+func (c *Conn) queuedFrame() ([]byte, error) {
+	select {
+	case data := <-c.frameCh:
+		return data, nil
+	default:
 		if errPtr := c.readerErr.Load(); errPtr != nil {
 			return nil, *errPtr
 		}
@@ -284,6 +294,24 @@ func (c *Conn) NextID() uint64 {
 // both the Format*-side []byte allocation and FrameWriter.Write's
 // per-call copy.
 func (c *Conn) writeAppended(ctx context.Context, appender func([]byte) []byte) error {
+	bp := getFrameBuf()
+	defer putFrameBuf(bp)
+
+	buf := appender(*bp)
+	buf = append(buf, '\n')
+	*bp = buf
+
+	return c.writeFrame(ctx, buf)
+}
+
+// writeFrame writes one already-framed message, its newline terminator
+// included, to the underlying writer under c.mu. The lock spans the deadline
+// set, the write, and the deadline clear, so two goroutines writing at once
+// never interleave a partial frame.
+//
+// It is the shared write core: writeAppended formats into a pooled buffer and
+// calls it, and answerWriter hands it a line another package framed.
+func (c *Conn) writeFrame(ctx context.Context, buf []byte) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -293,12 +321,6 @@ func (c *Conn) writeAppended(ctx context.Context, appender func([]byte) []byte) 
 		deadline = time.Now().Add(defaultWriteDeadline)
 	}
 
-	bp := getFrameBuf()
-	defer putFrameBuf(bp)
-
-	buf := appender(*bp)
-	buf = append(buf, '\n')
-	*bp = buf
 	if len(buf) > MaxMessageSize+1 {
 		return fmt.Errorf("message exceeds maximum size %d", MaxMessageSize)
 	}
@@ -331,6 +353,40 @@ func (c *Conn) writeAppended(ctx context.Context, appender func([]byte) []byte) 
 		return fmt.Errorf("write frame: %w", writeErr)
 	}
 	return nil
+}
+
+// AnswerWriter returns the writer one answer sequence is written to. Each Write
+// takes ONE framed line, its newline included, and puts it on the wire under
+// the connection's write lock, so no other writer interleaves a line into the
+// middle of an answer. The producer is WriteAnswer
+// (internal/component/plugin/dispatch.go), which frames every line it writes.
+//
+// The returned writer is for the one answer it is created for, and it MUST NOT
+// outlive the call that created it. Safe for concurrent use in the sense that
+// each Write is one atomic frame; the lines of one answer are written in order
+// by the one goroutine producing them.
+func (c *Conn) AnswerWriter(ctx context.Context) io.Writer {
+	return answerWriter{conn: c, ctx: ctx}
+}
+
+// answerWriter is the one-answer writer AnswerWriter returns.
+type answerWriter struct {
+	conn *Conn
+	// ctx is held rather than passed because io.Writer states no context
+	// parameter, and every line of an answer must carry the deadline of the
+	// call that produced it. AnswerWriter's doc states the lifetime that makes
+	// this safe.
+	ctx context.Context //nolint:containedctx // io.Writer has no ctx parameter; see AnswerWriter
+}
+
+// Write puts one framed answer line on the wire. line MUST already end with the
+// newline that terminates a message, and MUST be one whole line: this writer
+// frames nothing and buffers nothing.
+func (w answerWriter) Write(line []byte) (int, error) {
+	if err := w.conn.writeFrame(w.ctx, line); err != nil {
+		return 0, err
+	}
+	return len(line), nil
 }
 
 // writeLineWithContext writes a line with context-derived write deadline.

@@ -3,6 +3,8 @@
 package server
 
 import (
+	"errors"
+	"log/slog"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -13,6 +15,15 @@ import (
 
 // MaxPendingPerProcess limits pending requests to prevent memory exhaustion.
 const MaxPendingPerProcess = 100
+
+// ErrPendingUnknownSerial says the serial names no in-flight request: it
+// completed, timed out, or died with its process before this delivery.
+var ErrPendingUnknownSerial = errors.New("pending request: unknown serial")
+
+// ErrPendingUndeliverable says the waiting caller did not take the response
+// within the request's own timeout. The response was NOT delivered, so a
+// producer that gets it MUST treat the row as unsent and MUST NOT count it.
+var ErrPendingUndeliverable = errors.New("pending request: caller is not reading its responses")
 
 // PendingRequest represents an in-flight plugin command request.
 type PendingRequest struct {
@@ -51,15 +62,15 @@ func (p *PendingRequests) Add(req *PendingRequest) string {
 	// Check per-process limit
 	if procSerials, ok := p.byProcess[req.Process]; ok {
 		if len(procSerials) >= MaxPendingPerProcess {
-			// Send error to channel
-			if req.RespChan != nil {
-				select {
-				case req.RespChan <- &plugin.Response{
-					Status: plugin.StatusError,
-					Error:  "too many pending requests",
-				}:
-				default:
-				}
+			// This runs under p.mu, so the delivery cannot wait for room. The
+			// caller learns of the refusal from the empty serial as well, and
+			// the log says so when its channel had no room for the reason.
+			if !tryDeliver(req, &plugin.Response{
+				Status: plugin.StatusError,
+				Error:  "too many pending requests",
+			}) {
+				slog.Warn("plugin pending: refusal undelivered, caller is not reading",
+					"command", req.Command, "limit", MaxPendingPerProcess)
 			}
 			return ""
 		}
@@ -88,13 +99,17 @@ func (p *PendingRequests) Add(req *PendingRequest) string {
 }
 
 // Complete delivers a final response and removes the request.
-// Returns true if the serial was found (response delivered).
-func (p *PendingRequests) Complete(serial string, resp *plugin.Response) bool {
+//
+// It returns nil when the response reached the waiting caller,
+// ErrPendingUnknownSerial when no request holds that serial, and
+// ErrPendingUndeliverable when the caller did not take the response within the
+// request's timeout. The last one means the response was NOT delivered.
+func (p *PendingRequests) Complete(serial string, resp *plugin.Response) error {
 	p.mu.Lock()
 	req, ok := p.requests[serial]
 	if !ok {
 		p.mu.Unlock()
-		return false
+		return ErrPendingUnknownSerial
 	}
 
 	// Stop timer
@@ -112,25 +127,23 @@ func (p *PendingRequests) Complete(serial string, resp *plugin.Response) bool {
 	}
 	p.mu.Unlock()
 
-	// Deliver response
-	if req.RespChan != nil {
-		select {
-		case req.RespChan <- resp:
-		default:
-		}
-	}
-
-	return true
+	return deliver(req, resp)
 }
 
-// Partial delivers a partial response (streaming) and resets the timeout.
-// Returns true if the serial was found.
-func (p *PendingRequests) Partial(serial string, resp *plugin.Response) bool {
+// Partial delivers one response of a stream and resets the timeout, so an
+// answer that arrives row by row does not expire between its rows.
+//
+// It returns what Complete returns, and the same rule holds: a row that comes
+// back ErrPendingUndeliverable did NOT reach the caller. A producer of records
+// MUST stop the walk and report a short answer rather than count that row,
+// because a count that includes a row nobody received is worse than a slow
+// answer (R-9).
+func (p *PendingRequests) Partial(serial string, resp *plugin.Response) error {
 	p.mu.Lock()
 	req, ok := p.requests[serial]
 	if !ok {
 		p.mu.Unlock()
-		return false
+		return ErrPendingUnknownSerial
 	}
 
 	// Reset timer
@@ -142,15 +155,52 @@ func (p *PendingRequests) Partial(serial string, resp *plugin.Response) bool {
 	}
 	p.mu.Unlock()
 
-	// Deliver partial response
-	if req.RespChan != nil {
-		select {
-		case req.RespChan <- resp:
-		default:
-		}
+	return deliver(req, resp)
+}
+
+// deliver hands resp to the caller waiting on req and reports whether it
+// arrived. A full channel makes the producer wait rather than lose the
+// response: the wait is bounded by the request's own timeout, which is how long
+// its caller already said it would wait for this answer.
+//
+// The caller MUST NOT hold p.mu, because this waits.
+//
+// A response that cannot be delivered is reported, never discarded. Silence
+// loses a row while the terminator still counts it, which makes the answer
+// wrong rather than slow.
+func deliver(req *PendingRequest, resp *plugin.Response) error {
+	if req.RespChan == nil {
+		return nil
+	}
+	if tryDeliver(req, resp) {
+		return nil
 	}
 
-	return true
+	wait := time.NewTimer(req.Timeout)
+	defer wait.Stop()
+
+	select {
+	case req.RespChan <- resp:
+		return nil
+	case <-wait.C:
+		slog.Warn("plugin pending: response undelivered, caller is not reading",
+			"serial", req.Serial, "command", req.Command, "timeout", req.Timeout)
+		return ErrPendingUndeliverable
+	}
+}
+
+// tryDeliver attempts the delivery a caller with room takes at once, and
+// reports whether it happened. It is the path that costs no timer.
+func tryDeliver(req *PendingRequest, resp *plugin.Response) bool {
+	if req.RespChan == nil {
+		return true
+	}
+	select {
+	case req.RespChan <- resp:
+		return true
+	default:
+		return false
+	}
 }
 
 // timeout handles a request timeout.
@@ -172,15 +222,14 @@ func (p *PendingRequests) timeout(serial string) {
 	}
 	p.mu.Unlock()
 
-	// Send timeout error
-	if req.RespChan != nil {
-		select {
-		case req.RespChan <- &plugin.Response{
-			Status: plugin.StatusError,
-			Error:  "command timed out",
-		}:
-		default:
-		}
+	// Send timeout error. The request's own timeout has just expired, so this
+	// delivery waits no longer than that again before it says so.
+	if err := deliver(req, &plugin.Response{
+		Status: plugin.StatusError,
+		Error:  "command timed out",
+	}); err != nil {
+		slog.Warn("plugin pending: timeout notice undelivered",
+			"serial", serial, "command", req.Command, "error", err)
 	}
 }
 
@@ -208,16 +257,15 @@ func (p *PendingRequests) CancelAll(proc *process.Process) {
 	delete(p.byProcess, proc)
 	p.mu.Unlock()
 
-	// Send error responses
+	// Send error responses. Each delivery waits at most that request's own
+	// timeout, so one caller that stopped reading cannot hold up the rest.
 	for _, req := range toCancel {
-		if req.RespChan != nil {
-			select {
-			case req.RespChan <- &plugin.Response{
-				Status: plugin.StatusError,
-				Error:  "process died",
-			}:
-			default:
-			}
+		if err := deliver(req, &plugin.Response{
+			Status: plugin.StatusError,
+			Error:  "process died",
+		}); err != nil {
+			slog.Warn("plugin pending: process-death notice undelivered",
+				"serial", req.Serial, "command", req.Command, "error", err)
 		}
 	}
 }

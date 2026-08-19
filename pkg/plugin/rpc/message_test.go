@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"encoding/json"
+	"math"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -365,4 +366,320 @@ func TestParseLineFormatRoundTrip(t *testing.T) {
 		assert.Equal(t, "ok", verb)
 		assert.Nil(t, payload)
 	})
+}
+
+// TestParseLineCarriesKeyValueTailWhole checks that the frame layer hands a
+// key=value tail to the answer reader unsplit. The method: one line of each
+// answer shape is parsed, and the payload is compared with everything the line
+// carries after the verb.
+//
+// VALIDATES: A-1 of plan/spec-streaming-answer-protocol.md -- the frame layer
+// needs no change to carry a tail, because ParseLine cuts the verb at the first
+// space and returns the remainder as one payload.
+// PREVENTS: the tail migration reaching the frame reader, which would break
+// every plugin at once rather than at the payload boundary.
+func TestParseLineCarriesKeyValueTailWhole(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		line        string
+		wantVerb    string
+		wantPayload string
+	}{
+		{
+			name:        "head",
+			line:        "#7 ok status=done key=peers",
+			wantVerb:    "ok",
+			wantPayload: "status=done key=peers",
+		},
+		{
+			name:        "item holding = and spaces",
+			line:        `#7 ok item={"peer":"10.0.0.1","note":"a=b c"}`,
+			wantVerb:    "ok",
+			wantPayload: `item={"peer":"10.0.0.1","note":"a=b c"}`,
+		},
+		{
+			name:        "terminator",
+			line:        "#7 ok count=97 faults=3",
+			wantVerb:    "ok",
+			wantPayload: "count=97 faults=3",
+		},
+		{
+			name:        "not understood",
+			line:        "#7 error message=unknown command: shwo bgp peers",
+			wantVerb:    "error",
+			wantPayload: "message=unknown command: shwo bgp peers",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			id, verb, payload, err := ParseLine([]byte(tt.line))
+			require.NoError(t, err)
+			assert.Equal(t, uint64(7), id)
+			assert.Equal(t, tt.wantVerb, verb)
+			assert.Equal(t, tt.wantPayload, string(payload))
+		})
+	}
+}
+
+// TestTailTokenizerNeedsNoJSONDecoder checks that a reader decides how to read
+// an answer from the tail's keys alone. The method: tails whose open-ended
+// value is not JSON at all are parsed, and the control keys are asserted.
+//
+// VALIDATES: the verdict is a key, never a payload field.
+// PREVENTS: a consumer parsing a record payload to learn what the line is,
+// which is the whole-answer materialization this protocol exists to remove.
+func TestTailTokenizerNeedsNoJSONDecoder(t *testing.T) {
+	t.Parallel()
+
+	head, err := ParseAnswerTail([]byte("status=error key=peers"))
+	require.NoError(t, err)
+	assert.Equal(t, StatusError, head.Status)
+	assert.Equal(t, "peers", head.Key)
+	assert.False(t, head.IsTerminator())
+
+	record, err := ParseAnswerTail([]byte("item=<<this is not json>>"))
+	require.NoError(t, err)
+	assert.Equal(t, "<<this is not json>>", string(record.Item))
+	assert.False(t, record.IsTerminator())
+
+	terminator, err := ParseAnswerTail([]byte("count=97 faults=3"))
+	require.NoError(t, err)
+	assert.Equal(t, uint64(97), terminator.Count)
+	assert.Equal(t, uint64(3), terminator.Faults)
+	assert.True(t, terminator.IsTerminator())
+}
+
+// TestOpenEndedKeyRunsToEndOfLine checks that item=, fault= and message= take
+// the rest of the line verbatim. The method: values holding = and spaces are
+// written, parsed back through the frame layer, and compared byte for byte;
+// then a value holding a newline is written and the line count is asserted.
+//
+// VALIDATES: AC-11 -- a record whose JSON value contains = and spaces
+// round-trips with no escaping and no quoting.
+// PREVENTS: an escaping scheme being invented for the tail, and an open-ended
+// value splitting one answer line into two.
+func TestOpenEndedKeyRunsToEndOfLine(t *testing.T) {
+	t.Parallel()
+
+	t.Run("item holding = and spaces", func(t *testing.T) {
+		t.Parallel()
+		item := json.RawMessage(`{"filter":"community = 65000:1","note":"a b c"}`)
+
+		tail := parseAnswerLine(t, AppendAnswerItem(nil, 7, item))
+		assert.Equal(t, string(item), string(tail.Item))
+		assert.Empty(t, tail.Fault)
+	})
+
+	t.Run("fault holding = and spaces", func(t *testing.T) {
+		t.Parallel()
+		fault := json.RawMessage(`{"path":"bgp/peer/10.0.0.2","message":"nexthop = unreachable"}`)
+
+		tail := parseAnswerLine(t, AppendAnswerFault(nil, 7, fault))
+		assert.Equal(t, string(fault), string(tail.Fault))
+		assert.Empty(t, tail.Item)
+	})
+
+	t.Run("message holding = and spaces", func(t *testing.T) {
+		t.Parallel()
+
+		tail := parseAnswerLine(t, AppendAnswerTerminator(nil, 7, 417, 0, "rib snapshot expired: age = 4h"))
+		assert.Equal(t, uint64(417), tail.Count)
+		assert.Equal(t, "rib snapshot expired: age = 4h", tail.Message)
+	})
+
+	t.Run("newline in a value stays on one line", func(t *testing.T) {
+		t.Parallel()
+
+		line := AppendAnswerTerminator(nil, 7, 0, 0, "peer rejected\nthe route")
+		assert.NotContains(t, string(line), "\n")
+
+		tail := parseAnswerLine(t, line)
+		assert.Equal(t, "peer rejected the route", tail.Message)
+	})
+}
+
+// TestTerminatorIsTheLineCarryingCount checks that a reader tells the head from
+// the terminator by a key rather than by position. The method: a head and a
+// terminator are written and parsed, and each is asked what it is with no other
+// line in hand.
+//
+// VALIDATES: the first of the four structural rules -- a reader needs no
+// lookahead and no state beyond "have I seen the head".
+// PREVENTS: a reader buffering the answer to find out where it ends.
+func TestTerminatorIsTheLineCarryingCount(t *testing.T) {
+	t.Parallel()
+
+	head := parseAnswerLine(t, AppendAnswerHead(nil, 7, StatusDone, "peers"))
+	assert.False(t, head.IsTerminator())
+	assert.Equal(t, StatusDone, head.Status)
+	assert.Equal(t, "peers", head.Key)
+
+	record := parseAnswerLine(t, AppendAnswerItem(nil, 7, json.RawMessage(`{"peer":"10.0.0.1"}`)))
+	assert.False(t, record.IsTerminator())
+
+	terminator := parseAnswerLine(t, AppendAnswerTerminator(nil, 7, 2, 0, ""))
+	assert.True(t, terminator.IsTerminator())
+	assert.Equal(t, uint64(2), terminator.Count)
+}
+
+// TestVerdictDerivesFromTheCounts checks every row of the derivation table. The
+// method: each terminator shape is written, parsed back, and its derived
+// verdict compared with the row.
+//
+// VALIDATES: AC-12 -- the verdict a consumer computes matches the table.
+// PREVENTS: a consumer inventing its own reading of the counts, and a
+// truncated answer being read as a short one.
+func TestVerdictDerivesFromTheCounts(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		count   uint64
+		faults  uint64
+		message string
+		want    string
+	}{
+		{name: "records and no fault", count: 2, want: VerdictDone},
+		{name: "no records and no fault", count: 0, want: VerdictDone},
+		{name: "records and faults", count: 97, faults: 3, want: VerdictPartial},
+		{name: "no records and faults", count: 0, faults: 3, want: VerdictError},
+		{name: "aborted walk", count: 417, message: "rib snapshot expired", want: VerdictAborted},
+		{name: "aborted before any record", count: 0, message: "peer 10.0.0.1 not configured", want: VerdictAborted},
+		{name: "aborted with faults", count: 97, faults: 3, message: "rib snapshot expired", want: VerdictAborted},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			terminator := parseAnswerLine(t, AppendAnswerTerminator(nil, 7, tt.count, tt.faults, tt.message))
+			assert.Equal(t, tt.want, Verdict(&terminator))
+		})
+	}
+
+	t.Run("no terminator", func(t *testing.T) {
+		t.Parallel()
+		assert.Equal(t, VerdictTruncated, Verdict(nil))
+	})
+
+	t.Run("last line is not a terminator", func(t *testing.T) {
+		t.Parallel()
+		head := parseAnswerLine(t, AppendAnswerHead(nil, 7, StatusDone, "peers"))
+		assert.Equal(t, VerdictTruncated, Verdict(&head))
+	})
+}
+
+// TestTerminatorCarriesNoStatusKey checks that the counts stay the single
+// source of the verdict. The method: every terminator shape is written and
+// searched for a status key, and a terminator that states one is fed to the
+// reader.
+//
+// VALIDATES: AC-12 -- no status= key is written on a terminator.
+// PREVENTS: a second source of truth for a fact the counts already hold, which
+// is a disagreement a consumer would have to resolve.
+func TestTerminatorCarriesNoStatusKey(t *testing.T) {
+	t.Parallel()
+
+	shapes := [][]byte{
+		AppendAnswerTerminator(nil, 7, 0, 0, ""),
+		AppendAnswerTerminator(nil, 7, 2, 0, ""),
+		AppendAnswerTerminator(nil, 7, 97, 3, ""),
+		AppendAnswerTerminator(nil, 7, 0, 3, ""),
+		AppendAnswerTerminator(nil, 7, 417, 0, "rib snapshot expired"),
+		AppendAnswerTerminator(nil, 7, 0, 0, "peer 10.0.0.1 not configured"),
+	}
+	for _, shape := range shapes {
+		assert.NotContains(t, string(shape), answerKeyStatus+"=", "terminator states a status")
+	}
+
+	_, err := ParseAnswerTail([]byte("count=2 status=done"))
+	require.Error(t, err, "a terminator stating a status must be refused")
+	assert.Contains(t, err.Error(), "derives")
+}
+
+// TestAnswerTerminatorCountBoundaries checks the numeric edges of the
+// terminator's counts. The method: the lowest count, the highest, and one past
+// the highest are each written or fed to the reader.
+//
+// VALIDATES: the count= boundary row of the spec's Boundary Tests table -- 0
+// and max uint64 are carried, and an overflow is refused.
+// PREVENTS: a count wrapping to a small number, which would report a large
+// answer as a short one.
+func TestAnswerTerminatorCountBoundaries(t *testing.T) {
+	t.Parallel()
+
+	lowest := parseAnswerLine(t, AppendAnswerTerminator(nil, 7, 0, 0, ""))
+	assert.Equal(t, uint64(0), lowest.Count)
+	assert.True(t, lowest.IsTerminator())
+
+	highest := parseAnswerLine(t, AppendAnswerTerminator(nil, 7, math.MaxUint64, math.MaxUint64, ""))
+	assert.Equal(t, uint64(math.MaxUint64), highest.Count)
+	assert.Equal(t, uint64(math.MaxUint64), highest.Faults)
+
+	_, err := ParseAnswerTail([]byte("count=18446744073709551616"))
+	require.Error(t, err, "a count past max uint64 must be refused")
+
+	_, err = ParseAnswerTail([]byte("count=-1"))
+	require.Error(t, err, "a negative count must be refused")
+}
+
+// TestParseRPCErrorReadsMessageKey checks that a not-understood answer's text
+// reaches the caller without its key. The method: the writer produces the
+// answer, the frame layer hands over the payload, and the decoded error is
+// compared with the text that was written.
+//
+// VALIDATES: R-4 of plan/spec-streaming-answer-protocol.md -- parseRPCError
+// reads the tail rather than treating it as message text.
+// PREVENTS: an operator reading `message=unknown command: shwo bgp peers` with
+// the key still in front of it.
+func TestParseRPCErrorReadsMessageKey(t *testing.T) {
+	t.Parallel()
+
+	t.Run("message only", func(t *testing.T) {
+		t.Parallel()
+
+		_, _, payload, err := ParseLine(AppendAnswerNotUnderstood(nil, 7, "", "unknown command: shwo bgp peers"))
+		require.NoError(t, err)
+
+		got := parseRPCError(payload)
+		assert.Empty(t, got.Code)
+		assert.Equal(t, "unknown command: shwo bgp peers", got.Message)
+	})
+
+	t.Run("code and message", func(t *testing.T) {
+		t.Parallel()
+
+		_, _, payload, err := ParseLine(AppendAnswerNotUnderstood(nil, 7, "unknown-command", "unknown command: shwo bgp peers"))
+		require.NoError(t, err)
+
+		got := parseRPCError(payload)
+		assert.Equal(t, "unknown-command", got.Code)
+		assert.Equal(t, "unknown command: shwo bgp peers", got.Message)
+	})
+
+	t.Run("text that is neither json nor a tail", func(t *testing.T) {
+		t.Parallel()
+
+		got := parseRPCError([]byte("plain text"))
+		assert.Empty(t, got.Code)
+		assert.Equal(t, "plain text", got.Message)
+	})
+}
+
+// parseAnswerLine takes one written answer line back through the frame layer
+// and the tail reader, which is the route every consumer takes.
+func parseAnswerLine(t *testing.T, line []byte) AnswerTail {
+	t.Helper()
+
+	_, _, payload, err := ParseLine(line)
+	require.NoError(t, err)
+
+	tail, err := ParseAnswerTail(payload)
+	require.NoError(t, err)
+	return tail
 }

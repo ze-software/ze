@@ -609,3 +609,425 @@ func TestMuxConn_UnexpectedID(t *testing.T) {
 	_, err := mux.CallRPC(ctx, "test-method", nil)
 	require.NoError(t, err)
 }
+
+// TestMuxConnDeliversEveryRecordToOneCaller checks that every line of one
+// answer reaches the caller that asked for it. The method: a peer answers a
+// single request with a head, two record lines and a terminator, all under the
+// caller's id, and the caller counts the records it took delivery of.
+//
+// VALIDATES: R-1 -- the pending entry survives every line of an answer, not
+// only the first.
+// PREVENTS: an answer arriving as its head alone, with every record orphaned by
+// the LoadAndDelete that routed the head.
+func TestMuxConnDeliversEveryRecordToOneCaller(t *testing.T) {
+	t.Parallel()
+
+	pluginEnd, engineEnd := net.Pipe()
+	defer closePipe(t, "pluginEnd", pluginEnd)
+	defer closePipe(t, "engineEnd", engineEnd)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	go func() {
+		engineConn := NewConn(engineEnd, engineEnd)
+		req, err := engineConn.ReadRequest(ctx)
+		if err != nil {
+			return
+		}
+		answer := []string{
+			fmt.Sprintf("#%d ok status=done key=peers\n", req.ID),
+			fmt.Sprintf("#%d ok item={\"peer\":\"10.0.0.1\"}\n", req.ID),
+			fmt.Sprintf("#%d ok item={\"peer\":\"10.0.0.2\"}\n", req.ID),
+			fmt.Sprintf("#%d ok count=2\n", req.ID),
+		}
+		for _, line := range answer {
+			if _, writeErr := engineEnd.Write([]byte(line)); writeErr != nil {
+				return
+			}
+		}
+	}()
+
+	mux := NewMuxConn(NewConn(pluginEnd, pluginEnd))
+	defer func() {
+		if err := mux.Close(); err != nil {
+			t.Logf("mux close: %v", err)
+		}
+	}()
+
+	received, err := mux.CallAnswer(ctx, "ze-bgp:peer-list", nil)
+	require.NoError(t, err)
+
+	var items []string
+	for record := range received.Records {
+		items = append(items, string(record.Item))
+	}
+
+	assert.Equal(t, "peers", received.Key, "the head names the envelope its records belong under")
+	assert.Equal(t, []string{`{"peer":"10.0.0.1"}`, `{"peer":"10.0.0.2"}`}, items,
+		"every record line of the answer must reach the one caller waiting on that id")
+	assert.Equal(t, VerdictDone, received.Verdict(), "the terminator carried count=2 faults=0")
+	assert.NoError(t, received.Err(), "an answer that reached its terminator ended with no fault")
+}
+
+// writeLines writes each line to conn and stops at the first write error, which
+// is what a closed pipe gives a peer goroutine.
+func writeLines(conn net.Conn, lines ...string) {
+	for _, line := range lines {
+		if _, err := conn.Write([]byte(line)); err != nil {
+			return
+		}
+	}
+}
+
+// TestSingleResponseCallRPCPathUnchanged checks that a peer answering with
+// today's one-line frame still reaches its caller byte for byte. The method: a
+// peer answers a CallRPC with #<id> ok <json>, and the test compares the
+// returned payload against the bytes it wrote and then checks the pending entry
+// is gone.
+//
+// VALIDATES: AC-13 -- a peer that has not negotiated the answer shape sees the
+// path it saw before, and its entry still lives for exactly one line.
+// PREVENTS: the pending lifetime a record sequence needs leaking into the
+// single-response path, where it would leave every completed call registered.
+func TestSingleResponseCallRPCPathUnchanged(t *testing.T) {
+	t.Parallel()
+
+	pluginEnd, engineEnd := net.Pipe()
+	defer closePipe(t, "pluginEnd", pluginEnd)
+	defer closePipe(t, "engineEnd", engineEnd)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	const payload = `{"peers":[{"peer":"10.0.0.1"}],"count":1}`
+
+	go func() {
+		engineConn := NewConn(engineEnd, engineEnd)
+		req, err := engineConn.ReadRequest(ctx)
+		if err != nil {
+			return
+		}
+		writeLines(engineEnd, fmt.Sprintf("#%d ok %s\n", req.ID, payload))
+	}()
+
+	mux := NewMuxConn(NewConn(pluginEnd, pluginEnd))
+	defer func() {
+		if err := mux.Close(); err != nil {
+			t.Logf("mux close: %v", err)
+		}
+	}()
+
+	result, err := mux.CallRPC(ctx, "ze-bgp:peer-list", nil)
+	require.NoError(t, err)
+	assert.Equal(t, payload, string(result), "the caller gets the peer's payload unchanged")
+
+	_, found := mux.pending.Load(pendingKey(1))
+	assert.False(t, found, "a CallRPC entry is released as its one response is routed")
+}
+
+// TestVerbPredicateUnchangedForResponses checks that readLoop still splits
+// responses from requests on the verb alone. The method: the peer sends a line
+// whose verb is a method name under the id of a call that is waiting, and the
+// test asserts it arrives as an inbound request while the call keeps waiting.
+//
+// VALIDATES: readLoop's isResponse predicate is still verb == StatusOK ||
+// verb == StatusError, so no plugin's inbound dispatch moved.
+// PREVENTS: an answer-shape reader claiming a line by its id and swallowing a
+// request the plugin was meant to serve.
+func TestVerbPredicateUnchangedForResponses(t *testing.T) {
+	t.Parallel()
+
+	pluginEnd, engineEnd := net.Pipe()
+	defer closePipe(t, "pluginEnd", pluginEnd)
+	defer closePipe(t, "engineEnd", engineEnd)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	go func() {
+		engineConn := NewConn(engineEnd, engineEnd)
+		req, err := engineConn.ReadRequest(ctx)
+		if err != nil {
+			return
+		}
+		// Same id as the waiting call, but the verb is a method name.
+		writeLines(engineEnd,
+			fmt.Sprintf("#%d deliver-event {\"kind\":\"route\"}\n", req.ID),
+			fmt.Sprintf("#%d ok {\"served\":true}\n", req.ID),
+		)
+	}()
+
+	mux := NewMuxConn(NewConn(pluginEnd, pluginEnd))
+	defer func() {
+		if err := mux.Close(); err != nil {
+			t.Logf("mux close: %v", err)
+		}
+	}()
+
+	result, err := mux.CallRPC(ctx, "ze-bgp:peer-list", nil)
+	require.NoError(t, err)
+	assert.Equal(t, `{"served":true}`, string(result), "only the ok line answered the call")
+
+	select {
+	case req := <-mux.Requests():
+		assert.Equal(t, "deliver-event", req.Method, "a method verb is an inbound request whatever its id")
+	case <-ctx.Done():
+		t.Fatal("the line whose verb is a method name never reached Requests()")
+	}
+}
+
+// TestOrphanRecordDoesNotCloseConnection checks that record lines for an answer
+// nobody waits on leave the connection alive. The method: the peer writes more
+// orphaned record lines than the flood guard's threshold, then answers a real
+// call on the same connection.
+//
+// VALIDATES: AC-16, R-2 -- a record for an unknown id is discarded without
+// counting toward maxConsecutiveBadLines.
+// PREVENTS: a canceled answer's in-flight records killing a live plugin
+// connection, which takes every other id down with it.
+func TestOrphanRecordDoesNotCloseConnection(t *testing.T) {
+	t.Parallel()
+
+	pluginEnd, engineEnd := net.Pipe()
+	defer closePipe(t, "pluginEnd", pluginEnd)
+	defer closePipe(t, "engineEnd", engineEnd)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	const orphans = maxConsecutiveBadLines + 50
+
+	go func() {
+		engineConn := NewConn(engineEnd, engineEnd)
+		req, err := engineConn.ReadRequest(ctx)
+		if err != nil {
+			return
+		}
+		for i := range orphans {
+			line := fmt.Sprintf("#999 ok item={\"row\":%d}\n", i)
+			if _, writeErr := engineEnd.Write([]byte(line)); writeErr != nil {
+				return
+			}
+		}
+		writeLines(engineEnd, fmt.Sprintf("#%d ok {\"alive\":true}\n", req.ID))
+	}()
+
+	mux := NewMuxConn(NewConn(pluginEnd, pluginEnd))
+	defer func() {
+		if err := mux.Close(); err != nil {
+			t.Logf("mux close: %v", err)
+		}
+	}()
+
+	result, err := mux.CallRPC(ctx, "ze-bgp:peer-list", nil)
+	require.NoError(t, err, "%d orphaned records must not close the connection", orphans)
+	assert.Equal(t, `{"alive":true}`, string(result))
+}
+
+// TestOrphanJunkStillClosesConnection checks that the flood guard was narrowed
+// rather than removed. The method: the peer writes more orphaned lines than the
+// threshold, none of which reads as an answer tail, and the test asserts the
+// call fails because readLoop closed the connection.
+//
+// VALIDATES: maxConsecutiveBadLines still fires for junk, which is what makes
+// TestOrphanRecordDoesNotCloseConnection a statement about records rather than
+// about a guard that no longer works.
+// PREVENTS: silently disabling the flood guard while making orphaned records
+// harmless.
+func TestOrphanJunkStillClosesConnection(t *testing.T) {
+	t.Parallel()
+
+	pluginEnd, engineEnd := net.Pipe()
+	defer closePipe(t, "pluginEnd", pluginEnd)
+	defer closePipe(t, "engineEnd", engineEnd)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	const junk = maxConsecutiveBadLines + 50
+
+	go func() {
+		engineConn := NewConn(engineEnd, engineEnd)
+		if _, err := engineConn.ReadRequest(ctx); err != nil {
+			return
+		}
+		for i := range junk {
+			line := fmt.Sprintf("#999 ok {\"row\":%d}\n", i)
+			if _, writeErr := engineEnd.Write([]byte(line)); writeErr != nil {
+				return
+			}
+		}
+	}()
+
+	mux := NewMuxConn(NewConn(pluginEnd, pluginEnd))
+	defer func() {
+		if err := mux.Close(); err != nil {
+			t.Logf("mux close: %v", err)
+		}
+	}()
+
+	_, err := mux.CallRPC(ctx, "ze-bgp:peer-list", nil)
+	require.Error(t, err, "%d orphaned JSON responses must still trip the flood guard", junk)
+	assert.Contains(t, err.Error(), "consecutive malformed lines")
+}
+
+// TestSlowConsumerDoesNotStallReadLoop checks that one caller that stops
+// reading its records cannot stop the connection. The method: a peer writes
+// more record lines than the queue holds for a caller that reads none, then
+// answers a second call, and the test asserts the second call returns and the
+// first is told its answer was abandoned.
+//
+// VALIDATES: AC-17, R-5 -- readLoop never waits on a consumer, and a record it
+// cannot deliver becomes a reported fault rather than silence.
+// PREVENTS: the reader goroutine blocking on a chan send, which stops every
+// other id on the connection with it.
+func TestSlowConsumerDoesNotStallReadLoop(t *testing.T) {
+	t.Parallel()
+
+	pluginEnd, engineEnd := net.Pipe()
+	defer closePipe(t, "pluginEnd", pluginEnd)
+	defer closePipe(t, "engineEnd", engineEnd)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+
+	const records = answerQueueDepth + 100
+
+	go func() {
+		engineConn := NewConn(engineEnd, engineEnd)
+		slow, err := engineConn.ReadRequest(ctx)
+		if err != nil {
+			return
+		}
+		writeLines(engineEnd, fmt.Sprintf("#%d ok status=done key=peers\n", slow.ID))
+		for i := range records {
+			line := fmt.Sprintf("#%d ok item={\"row\":%d}\n", slow.ID, i)
+			if _, writeErr := engineEnd.Write([]byte(line)); writeErr != nil {
+				return
+			}
+		}
+		writeLines(engineEnd, fmt.Sprintf("#%d ok count=%d\n", slow.ID, records))
+
+		other, err := engineConn.ReadRequest(ctx)
+		if err != nil {
+			return
+		}
+		writeLines(engineEnd, fmt.Sprintf("#%d ok {\"flowing\":true}\n", other.ID))
+	}()
+
+	mux := NewMuxConn(NewConn(pluginEnd, pluginEnd))
+	defer func() {
+		if err := mux.Close(); err != nil {
+			t.Logf("mux close: %v", err)
+		}
+	}()
+
+	// The slow caller takes its head and then reads nothing until the second
+	// call has been answered.
+	slow, err := mux.CallAnswer(ctx, "ze-bgp:peer-list", nil)
+	require.NoError(t, err)
+
+	result, err := mux.CallRPC(ctx, "ze-bgp:summary", nil)
+	require.NoError(t, err, "a caller that stopped reading must not stall the reader for every other id")
+	assert.Equal(t, `{"flowing":true}`, string(result))
+
+	delivered := 0
+	for range slow.Records {
+		delivered++
+	}
+	assert.Less(t, delivered, records, "the queue is bounded, so the abandoned answer is short")
+	assert.ErrorIs(t, slow.Err(), ErrAnswerQueueFull, "the records it did not get are reported, never dropped in silence")
+	assert.Equal(t, VerdictTruncated, slow.Verdict(), "an abandoned answer never reads as complete")
+}
+
+// TestAnswerWithoutTerminatorReportsTruncation checks that an answer cut short
+// is reported as truncated. The method: a peer writes a head and one record and
+// then closes the connection, and the test asserts the consumer sees the
+// records it got plus a truncated verdict.
+//
+// VALIDATES: AC-9 -- an answer whose connection dies before the terminator is
+// truncation, not a short answer.
+// PREVENTS: a consumer rendering half a table as the whole table.
+func TestAnswerWithoutTerminatorReportsTruncation(t *testing.T) {
+	t.Parallel()
+
+	pluginEnd, engineEnd := net.Pipe()
+	defer closePipe(t, "pluginEnd", pluginEnd)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	go func() {
+		engineConn := NewConn(engineEnd, engineEnd)
+		req, err := engineConn.ReadRequest(ctx)
+		if err != nil {
+			return
+		}
+		writeLines(engineEnd,
+			fmt.Sprintf("#%d ok status=done key=peers\n", req.ID),
+			fmt.Sprintf("#%d ok item={\"peer\":\"10.0.0.1\"}\n", req.ID),
+		)
+		if closeErr := engineEnd.Close(); closeErr != nil {
+			return
+		}
+	}()
+
+	mux := NewMuxConn(NewConn(pluginEnd, pluginEnd))
+	defer func() {
+		if err := mux.Close(); err != nil {
+			t.Logf("mux close: %v", err)
+		}
+	}()
+
+	cut, err := mux.CallAnswer(ctx, "ze-bgp:peer-list", nil)
+	require.NoError(t, err)
+
+	delivered := 0
+	for range cut.Records {
+		delivered++
+	}
+
+	assert.Equal(t, 1, delivered, "the record that did arrive is still delivered")
+	assert.Equal(t, VerdictTruncated, cut.Verdict(), "no terminator arrived, so the answer is truncated")
+	assert.Error(t, cut.Err(), "the consumer is told why the answer stopped")
+}
+
+// TestNotUnderstoodAnswerReachesTheCaller checks that the error verb ends an
+// answer as an error rather than as an empty result. The method: a peer answers
+// a CallAnswer with one #<id> error message= line, and the test asserts the
+// call fails with that message.
+//
+// VALIDATES: AC-4 -- the not-understood answer is the only line for its id, and
+// CallAnswer surfaces it instead of waiting for a head.
+// PREVENTS: a mistyped command hanging the caller until its context expires.
+func TestNotUnderstoodAnswerReachesTheCaller(t *testing.T) {
+	t.Parallel()
+
+	pluginEnd, engineEnd := net.Pipe()
+	defer closePipe(t, "pluginEnd", pluginEnd)
+	defer closePipe(t, "engineEnd", engineEnd)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	go func() {
+		engineConn := NewConn(engineEnd, engineEnd)
+		req, err := engineConn.ReadRequest(ctx)
+		if err != nil {
+			return
+		}
+		writeLines(engineEnd, fmt.Sprintf("#%d error message=unknown command: shwo bgp peers\n", req.ID))
+	}()
+
+	mux := NewMuxConn(NewConn(pluginEnd, pluginEnd))
+	defer func() {
+		if err := mux.Close(); err != nil {
+			t.Logf("mux close: %v", err)
+		}
+	}()
+
+	_, err := mux.CallAnswer(ctx, "shwo bgp peers", nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown command: shwo bgp peers")
+}

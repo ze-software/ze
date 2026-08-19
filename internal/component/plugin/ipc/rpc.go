@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -111,6 +112,15 @@ func (pc *PluginConn) SendResult(ctx context.Context, id uint64, data any) error
 		return pc.mux.SendResult(ctx, id, data)
 	}
 	return pc.Conn.SendResult(ctx, id, data)
+}
+
+// AnswerWriter returns the writer one answer sequence is written to. See
+// rpc.Conn.AnswerWriter for what each Write owes.
+func (pc *PluginConn) AnswerWriter(ctx context.Context) io.Writer {
+	if pc.mux != nil {
+		return pc.mux.AnswerWriter(ctx)
+	}
+	return pc.Conn.AnswerWriter(ctx)
 }
 
 // SendOK sends an empty successful RPC response.

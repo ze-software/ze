@@ -12,9 +12,11 @@ package plugin
 import (
 	"encoding/json"
 	"fmt"
+	"iter"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // Encoding constants for process output formatting.
@@ -150,6 +152,112 @@ func (r RawJSON) MarshalJSON() ([]byte, error) {
 			"with plugin.Map or plugin.Slice (got %d bytes starting %.32q)", len(b), string(b))
 	}
 	return b, nil
+}
+
+// Records is the ResponseData a handler answers with when its rows are
+// produced on demand instead of built whole before the answer opens. It is the
+// one ResponseData implementor that carries no finished collection, so an
+// answer nobody wants whole costs only the rows a consumer reads
+// (`ai/rules/cli.md` still holds: each row is structured data, so `| json`,
+// `| yaml` and `| table` stay three renderings of one payload).
+//
+// Key names the envelope the rows belong under, and the head line carries it.
+// Rows is pulled one row at a time; a consumer that stops ranging stops the
+// walk, which is how `| first 10` bounds a read of a table with a million rows.
+type Records struct {
+	Key  string
+	Rows iter.Seq[rpc.Record]
+}
+
+// The two envelope names a buffered answer uses beside the handler's own.
+//
+// answerErrorsKey holds the rejected rows, as a sibling of the rows the command
+// produced rather than a member of them: the terminator counts the two
+// separately, so mixing them would make `| count` answer one number on the
+// record path and another on the buffered one. It is written only when a row
+// was rejected, so an answer that rejected none has the shape it always had and
+// no consumer sees a new key.
+//
+// answerDefaultKey is where the rows go when the handler names no envelope AND
+// a row was rejected. A bare array has nowhere to carry a sibling, so the rows
+// move under a key rather than the rejected ones being dropped.
+//
+// A handler MUST NOT name its envelope answerErrorsKey. Both producers refuse
+// it (errReservedEnvelopeKey), because the two collections would otherwise land
+// under one key and one would overwrite the other.
+const (
+	answerErrorsKey  = "errors"
+	answerDefaultKey = "data"
+)
+
+func (Records) responseData() {}
+
+// rows is Rows with the empty sequence standing in for a nil one. A Records
+// that names an envelope and carries no generator is an empty collection, which
+// is what a command that produced nothing answered with; ranging a nil
+// iter.Seq panics instead of saying so.
+func (r Records) rows() iter.Seq[rpc.Record] {
+	if r.Rows == nil {
+		return noRecords
+	}
+	return r.Rows
+}
+
+// MarshalJSON collapses the answer into the object a consumer of the record
+// path holds once the terminator arrives: the rows the command produced, in
+// walk order, under Key, and the rows it rejected under answerErrorsKey beside
+// them. With no rejected row it is Key over the items, or a bare array when Key
+// is empty, which is the shape a buffered surface has always seen.
+//
+// It is the buffered half of AC-10 in plan/spec-streaming-answer-protocol.md,
+// so a surface that takes the whole answer as one string (REST, gRPC, web, MCP,
+// the looking glass) reads through ResponseJSON what a surface reading records
+// reads through WriteAnswer. A commit that applied 97 leaves and rejected 3
+// therefore renders both on a web page, rather than the 97 being lost with the
+// error.
+//
+// The two collections stay separate, which is what keeps `| count` honest:
+// count= counts the rows produced and faults= counts the rows rejected, and
+// nothing lands in the item array that the terminator did not count.
+//
+// This walks the whole answer into memory, which is what a buffered rendering
+// is. A caller that must bound the memory takes the record path.
+//
+// Rows is walked once here, so one Records value takes one path, never both.
+func (r Records) MarshalJSON() ([]byte, error) {
+	if r.Key == answerErrorsKey {
+		return nil, errReservedEnvelopeKey
+	}
+
+	// A nil slice marshals to null, and a command that produced no rows
+	// produced an empty collection. The record path says the same thing with
+	// count=0, so the two must not disagree here. faults stays nil until a row
+	// is rejected, because nil is what states that the sibling key is absent.
+	items := []json.RawMessage{}
+	var faults []json.RawMessage
+	for record := range r.rows() {
+		switch {
+		case len(record.Fault) > 0:
+			faults = append(faults, record.Fault)
+		case len(record.Item) > 0:
+			items = append(items, record.Item)
+		default:
+			return nil, errEmptyAnswerRecord
+		}
+	}
+
+	if faults == nil {
+		if r.Key == "" {
+			return json.Marshal(items)
+		}
+		return json.Marshal(map[string][]json.RawMessage{r.Key: items})
+	}
+
+	key := r.Key
+	if key == "" {
+		key = answerDefaultKey
+	}
+	return json.Marshal(map[string][]json.RawMessage{key: items, answerErrorsKey: faults})
 }
 
 // UnauthorizedMessage is the canonical operator-facing text for a command

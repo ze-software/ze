@@ -274,3 +274,94 @@ func TestConfigDiffSectionMarshal(t *testing.T) {
 	assert.Empty(t, decoded.Removed)
 	assert.Empty(t, decoded.Changed)
 }
+
+// TestUnderstandsNeedsTheNameDeclared verifies that a wire shape is used only
+// where the peer named it, over every way a declaration can be absent.
+//
+// The goal is the fail-closed direction: a shape nobody asked for is never
+// used, so a plugin written before the shape existed keeps its frame. The
+// method is one table over the four absences (nil input, nil list, empty list,
+// a different name) and the one presence.
+//
+// VALIDATES: AC-13 -- an undeclared shape is not negotiated, so the peer keeps
+// today's frame.
+// PREVENTS: an absent declaration reading as consent, which would emit the
+// record shape at every plugin in the tree and outside it.
+func TestUnderstandsNeedsTheNameDeclared(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name  string
+		input *DeclareCapabilitiesInput
+		want  bool
+	}{
+		{name: "no input at all", input: nil, want: false},
+		{name: "no protocol list", input: &DeclareCapabilitiesInput{}, want: false},
+		{
+			name:  "an empty protocol list",
+			input: &DeclareCapabilitiesInput{Protocol: []string{}},
+			want:  false,
+		},
+		{
+			name:  "another shape named",
+			input: &DeclareCapabilitiesInput{Protocol: []string{"something-else"}},
+			want:  false,
+		},
+		{
+			name:  "this shape named",
+			input: &DeclareCapabilitiesInput{Protocol: []string{ProtocolRecordAnswers}},
+			want:  true,
+		},
+		{
+			name:  "this shape named beside another",
+			input: &DeclareCapabilitiesInput{Protocol: []string{"something-else", ProtocolRecordAnswers}},
+			want:  true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, tc.want, tc.input.Understands(ProtocolRecordAnswers))
+		})
+	}
+}
+
+// TestDeclareCapabilitiesCarriesTheProtocolList verifies that the declaration
+// crosses the wire: the engine reads names the plugin wrote, and a plugin that
+// wrote none sends no key at all.
+//
+// VALIDATES: AC-13 -- Stage 3 is where the answer shape is agreed.
+// PREVENTS: the field being dropped by a tag mistake, which reads at the engine
+// as a peer that declared nothing.
+func TestDeclareCapabilitiesCarriesTheProtocolList(t *testing.T) {
+	t.Parallel()
+
+	t.Run("a peer that names a shape", func(t *testing.T) {
+		t.Parallel()
+
+		encoded, err := json.Marshal(DeclareCapabilitiesInput{
+			Capabilities: []CapabilityDecl{},
+			Protocol:     []string{ProtocolRecordAnswers},
+		})
+		require.NoError(t, err)
+		assert.Contains(t, string(encoded), `"protocol":["record-answers"]`)
+
+		var decoded DeclareCapabilitiesInput
+		require.NoError(t, json.Unmarshal(encoded, &decoded))
+		assert.True(t, decoded.Understands(ProtocolRecordAnswers))
+	})
+
+	t.Run("a peer that names none", func(t *testing.T) {
+		t.Parallel()
+
+		encoded, err := json.Marshal(DeclareCapabilitiesInput{})
+		require.NoError(t, err)
+		assert.NotContains(t, string(encoded), "protocol")
+
+		var decoded DeclareCapabilitiesInput
+		require.NoError(t, json.Unmarshal(encoded, &decoded))
+		assert.False(t, decoded.Understands(ProtocolRecordAnswers))
+	})
+}

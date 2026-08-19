@@ -557,25 +557,33 @@ func handleArgComplete(ctx *CommandContext, cmdName string, completedArgs []stri
 
 	// Send completion request via RPC
 	conn := proc.Conn()
-	if conn == nil {
-		ctx.Dispatcher().Pending().Complete(serial, emptyResult)
-		return <-respCh, nil
-	}
-	rpcCtx, cancel := context.WithTimeout(context.Background(), CompletionTimeout)
-	defer cancel()
-	rpcOut, rpcErr := conn.SendExecuteCommand(rpcCtx, serial, cmd.Name, completedArgs, partial)
-	switch {
-	case rpcErr != nil:
-		ctx.Dispatcher().Pending().Complete(serial, emptyResult)
-	case rpcOut != nil && rpcOut.Status == plugin.StatusError:
-		ctx.Dispatcher().Pending().Complete(serial, &plugin.Response{Status: plugin.StatusError, Error: string(rpcOut.Data)})
-	case rpcOut != nil:
-		ctx.Dispatcher().Pending().Complete(serial, &plugin.Response{Status: rpcOut.Status, Data: plugin.RawJSON(rpcOut.Data)})
-	case rpcOut == nil: // no output and no error — complete with empty result
-		ctx.Dispatcher().Pending().Complete(serial, emptyResult)
+	completion := emptyResult
+	if conn != nil {
+		rpcCtx, cancel := context.WithTimeout(context.Background(), CompletionTimeout)
+		defer cancel()
+		rpcOut, rpcErr := conn.SendExecuteCommand(rpcCtx, serial, cmd.Name, completedArgs, partial)
+		switch {
+		case rpcErr != nil: // The empty result is the answer to a failed call.
+		case rpcOut != nil && rpcOut.Status == plugin.StatusError:
+			completion = &plugin.Response{Status: plugin.StatusError, Error: string(rpcOut.Data)}
+		case rpcOut != nil:
+			completion = &plugin.Response{Status: rpcOut.Status, Data: plugin.RawJSON(rpcOut.Data)}
+		}
 	}
 
-	// Wait for response
-	resp := <-respCh
-	return resp, nil
+	if err := ctx.Dispatcher().Pending().Complete(serial, completion); err != nil {
+		slog.Warn("plugin completion: answer not delivered",
+			"command", cmd.Name, "serial", serial, "error", err)
+	}
+
+	// The pending request holds respCh, so the answer is already in it: the one
+	// Complete just delivered, or the timeout error that removed the request
+	// before it. A completion is best-effort, so a request that left nothing
+	// behind answers empty rather than waiting for a write nobody will make.
+	select {
+	case resp := <-respCh:
+		return resp, nil
+	default:
+		return emptyResult, nil
+	}
 }

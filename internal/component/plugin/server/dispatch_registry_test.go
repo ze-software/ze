@@ -1,8 +1,10 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -280,4 +282,81 @@ func TestEngineOpBatchValidateJSONFallback(t *testing.T) {
 	require.NoError(t, json.Unmarshal(res, &out))
 	assert.Equal(t, 2, out.Accepted)
 	assert.Equal(t, 1, out.Rejected)
+}
+
+// TestAnswerResultTakesTheRecordPathOnlyWhenNegotiated verifies the per-peer
+// switch: the shape of a command answer follows what THIS peer declared at
+// Stage 3, and one dispatcher serves both shapes from one response.
+//
+// The goal is AC-13. The method projects one response twice, once for a peer
+// that declared the shape and once for a peer that did not, and reads the bytes
+// each of them would receive.
+//
+// VALIDATES: AC-13 -- an un-negotiated peer receives `#<id> ok [<json>]`
+// exactly as today, and a negotiated peer receives the record sequence.
+// PREVENTS: a global switch, which would move every peer at once and break the
+// plugins that never asked.
+func TestAnswerResultTakesTheRecordPathOnlyWhenNegotiated(t *testing.T) {
+	t.Parallel()
+
+	newResponse := func() *plugin.Response {
+		return &plugin.Response{
+			Status: plugin.StatusDone,
+			Data:   plugin.Map{"version": "3"},
+		}
+	}
+
+	t.Run("a peer that declared nothing", func(t *testing.T) {
+		t.Parallel()
+
+		result := answerResult(false, newResponse())
+
+		output, isProjection := result.(*rpc.DispatchCommandOutput)
+		require.True(t, isProjection, "want the JSON projection, got %T", result)
+		assert.Equal(t, plugin.StatusDone, output.Status)
+		assert.JSONEq(t, `{"version":"3"}`, string(output.Data))
+
+		// The bytes the peer reads are the frame it has always read.
+		line := rpc.AppendResult(nil, 7, mustMarshal(t, output))
+		assert.Equal(t, `#7 ok {"status":"done","data":{"version":"3"}}`, string(line))
+	})
+
+	t.Run("a peer that declared record-answers", func(t *testing.T) {
+		t.Parallel()
+
+		result := answerResult(true, newResponse())
+
+		answer, isRecords := result.(*recordAnswer)
+		require.True(t, isRecords, "want the record answer, got %T", result)
+
+		var wire bytes.Buffer
+		require.NoError(t, answer.write(&wire, 7))
+		assert.Equal(t, []string{
+			"#7 ok status=done",
+			`#7 ok item={"version":"3"}`,
+			"#7 ok count=1",
+		}, strings.Split(strings.TrimSuffix(wire.String(), "\n"), "\n"))
+	})
+}
+
+// TestUndeclaredPeerReadsAsUnnegotiated verifies the state a peer starts in: a
+// process whose Stage 3 has not run reports that it negotiated nothing.
+//
+// VALIDATES: AC-13 -- an unknown capability state fails closed to the original
+// frame (ai/rules/evidence.md).
+// PREVENTS: a peer receiving the record shape in the window between its
+// connection and its declaration.
+func TestUndeclaredPeerReadsAsUnnegotiated(t *testing.T) {
+	t.Parallel()
+
+	assert.False(t, (&process.Process{}).RecordAnswers())
+}
+
+// mustMarshal renders a value the way the RPC transport does.
+func mustMarshal(t *testing.T, value any) []byte {
+	t.Helper()
+
+	encoded, err := json.Marshal(value)
+	require.NoError(t, err)
+	return encoded
 }
