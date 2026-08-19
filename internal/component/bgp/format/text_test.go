@@ -1172,6 +1172,13 @@ func TestFormatMessageTextEncoding(t *testing.T) {
 // VALIDATES: AC-13: event text formatter uses short aliases (next, path, pref, s-com, l-com, x-com).
 //
 // PREVENTS: Long-form keywords in API text output making messages unnecessarily verbose.
+//
+// Each row carries the attribute in the shape its PARSER produces, because
+// that is the only shape appendAttributeText ever meets: ParseNextHop and
+// ParseASPath return pointers, and ParseOrigin, ParseMED, ParseLocalPref and
+// ParseCommunities return values (internal/core/bgp/attribute). The community
+// row used to pass a pointer, so it was green against a renderer that dropped
+// every community a peer sent.
 func TestFormatTextUpdate_ShortAliases(t *testing.T) {
 	// Build a single attribute and verify text uses short form.
 	tests := []struct {
@@ -1203,37 +1210,37 @@ func TestFormatTextUpdate_ShortAliases(t *testing.T) {
 		{
 			name: "local-preference uses pref",
 			code: attribute.AttrLocalPref,
-			attr: func() attribute.Attribute {
-				lp := attribute.LocalPref(100)
-				return &lp
-			}(),
+			attr: attribute.LocalPref(100),
 			want: "pref 100",
 		},
 		{
 			name: "community uses s-com",
 			code: attribute.AttrCommunity,
-			attr: func() attribute.Attribute {
-				c := attribute.Communities{attribute.Community(65000<<16 | 100)}
-				return &c
-			}(),
+			attr: attribute.Communities{attribute.Community(65000<<16 | 100)},
 			want: "s-com 65000:100",
+		},
+		{
+			name: "large-community uses l-com",
+			code: attribute.AttrLargeCommunity,
+			attr: attribute.LargeCommunities{{GlobalAdmin: 65000, LocalData1: 1, LocalData2: 2}},
+			want: "l-com 65000:1:2",
+		},
+		{
+			name: "extended-community uses x-com",
+			code: attribute.AttrExtCommunity,
+			attr: attribute.ExtendedCommunities{{0x00, 0x02, 0xfd, 0xe8, 0x00, 0x00, 0x00, 0x01}},
+			want: "x-com 0002fde800000001",
 		},
 		{
 			name: "origin unchanged",
 			code: attribute.AttrOrigin,
-			attr: func() attribute.Attribute {
-				o := attribute.Origin(0)
-				return &o
-			}(),
+			attr: attribute.Origin(0),
 			want: "origin igp",
 		},
 		{
 			name: "med unchanged",
 			code: attribute.AttrMED,
-			attr: func() attribute.Attribute {
-				m := attribute.MED(42)
-				return &m
-			}(),
+			attr: attribute.MED(42),
 			want: "med 42",
 		},
 	}
@@ -1244,7 +1251,7 @@ func TestFormatTextUpdate_ShortAliases(t *testing.T) {
 			sb.Write(appendAttributeText(nil, tt.code, tt.attr))
 			got := sb.String()
 			if got != tt.want {
-				t.Errorf("formatAttributeText() = %q, want %q", got, tt.want)
+				t.Errorf("appendAttributeText() = %q, want %q", got, tt.want)
 			}
 		})
 	}

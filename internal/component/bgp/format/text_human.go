@@ -113,7 +113,7 @@ func appendAttributesText(buf []byte, result bgpfilter.FilterResult) []byte {
 // Known attribute types are formatted with named keys (short aliases for API output);
 // unknown types use "attr-N" with hex value.
 // Short forms: next (next-hop), path (as-path), pref (local-preference),
-// s-com (community), l-com (large-community), e-com (extended-community).
+// s-com (community), l-com (large-community), x-com (extended-community).
 func appendAttributeText(buf []byte, code attribute.AttributeCode, attr attribute.Attribute) []byte {
 	switch code { //nolint:exhaustive // common attributes; unknown handled after switch
 	case attribute.AttrOrigin:
@@ -175,11 +175,16 @@ func appendAttributeText(buf []byte, code attribute.AttributeCode, attr attribut
 			buf = strconv.AppendUint(buf, uint64(uint32(lp)), 10)
 		}
 		return buf
+	// The three community parsers return VALUE types (ParseCommunities,
+	// ParseLargeCommunities and ParseExtendedCommunities in
+	// internal/core/bgp/attribute/community.go), so these assertions ask for
+	// the value. A pointer assertion matches nothing the receive path produces
+	// and drops the attribute into the "attr-N hex" fallback below.
 	case attribute.AttrCommunity:
-		if c, ok := attr.(*attribute.Communities); ok {
+		if c, ok := attr.(attribute.Communities); ok {
 			buf = append(buf, textparse.ShortSCom...)
 			buf = append(buf, ' ')
-			for i, comm := range *c {
+			for i, comm := range c {
 				if i > 0 {
 					buf = append(buf, ',')
 				}
@@ -188,10 +193,10 @@ func appendAttributeText(buf []byte, code attribute.AttributeCode, attr attribut
 		}
 		return buf
 	case attribute.AttrLargeCommunity:
-		if lc, ok := attr.(*attribute.LargeCommunities); ok {
+		if lc, ok := attr.(attribute.LargeCommunities); ok {
 			buf = append(buf, textparse.ShortLCom...)
 			buf = append(buf, ' ')
-			for i, comm := range *lc {
+			for i, comm := range lc {
 				if i > 0 {
 					buf = append(buf, ',')
 				}
@@ -200,10 +205,10 @@ func appendAttributeText(buf []byte, code attribute.AttributeCode, attr attribut
 		}
 		return buf
 	case attribute.AttrExtCommunity:
-		if ec, ok := attr.(*attribute.ExtendedCommunities); ok {
+		if ec, ok := attr.(attribute.ExtendedCommunities); ok {
 			buf = append(buf, textparse.ShortXCom...)
 			buf = append(buf, ' ')
-			for i, comm := range *ec {
+			for i, comm := range ec {
 				if i > 0 {
 					buf = append(buf, ',')
 				}

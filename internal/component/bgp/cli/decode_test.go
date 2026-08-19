@@ -1434,9 +1434,10 @@ func TestDecodeKeepalive_Human(t *testing.T) {
 // TestRFC8955TrafficRateNegativeDecodesAsZero verifies a decoded FlowSpec traffic-rate is
 // clamped to zero when the IEEE 754 value on the wire is negative.
 //
-// VALIDATES: formatFlowSpecTrafficRate (decode_extcomm.go) reads the 4-octet float and
-// replaces any negative (or NaN) value with 0 before rendering the rate-limit string, for
-// both the bytes (0x8006) and packets (0x800c) sub-types.
+// VALIDATES: appendExtCommTrafficRate (internal/core/bgp/attribute/extcomm_decoded.go),
+// which this CLI path reaches through parseExtendedCommunities, reads the 4-octet float
+// and replaces any negative (or NaN) value with 0 before rendering the rate-limit string,
+// for both the bytes (0x8006) and packets (0x800c) sub-types.
 //
 // PREVENTS: a negative rate reaching a consumer as a huge unsigned rate (the uint64
 // conversion of a negative float is undefined) and turning an intended discard into an
@@ -1472,7 +1473,8 @@ func TestRFC8955TrafficRateNegativeDecodesAsZero(t *testing.T) {
 // TestRFC8955TrafficActionUnusedBitsIgnoredOnDecode verifies unused bits in the FlowSpec
 // traffic-action field do not change the decoded community.
 //
-// VALIDATES: parseExtendedCommunities (decode_extcomm.go) classifies type 0x80 /
+// VALIDATES: ExtendedCommunity.AppendDecoded (internal/core/bgp/attribute/extcomm_decoded.go),
+// which this CLI path reaches through parseExtendedCommunities, classifies type 0x80 /
 // sub-type 0x07 by its type octets alone and renders "traffic-action" without consulting
 // the 6-octet Traffic Action Field, so the reserved bits are ignored.
 //

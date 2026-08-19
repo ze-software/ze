@@ -1,0 +1,163 @@
+# Test: every community attribute a peer sends reaches a plugin decoded
+# VALIDATES: COMMUNITIES, EXTENDED_COMMUNITIES, IPV6_EXTENDED_COMMUNITIES and
+#            LARGE_COMMUNITIES each render under their own ze-bgp JSON key on
+#            the plugin update-received event, and an EXTENDED_COMMUNITIES
+#            entry carries the named form (`target:65000:1`, `mark:46`) that
+#            the FlowSpec firewall bridge matches, not raw hex.
+# PREVENTS: the four JSON formatters in filter_community asserting a POINTER
+#           while every parser in internal/core/bgp/attribute/community.go
+#           returns a VALUE. The assertion never matched, appendAttributeJSON
+#           read the nil return as "no formatter", and every community
+#           attribute an operator saw was "attr-8" / "attr-16" / "attr-25" /
+#           "attr-32" with a hex payload.
+# RFC requirement: RFC8955-7.5-1 positive -- a traffic-marking community reaches a plugin as its DSCP (§7.5)
+# RFC requirement: RFC8955-7.5-1 negative -- the reserved bits above the 6-bit DSCP field are ignored on decode (§7.5)
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=20s
+# Hold the session open until the observer has read the event and shut ze down.
+option=linger:value=true
+# UPDATE carrying one of each community attribute.
+# Header: marker(16) + len=0069(105) + type=02
+# Body:   withdrawn len=0000, attr len=004E(78)
+#   40 01 01 00                            ORIGIN igp
+#   40 02 00                               AS_PATH empty (iBGP)
+#   40 03 04 C0A80102                      NEXT_HOP 192.168.1.2
+#   C0 08 04 FDE90064                      COMMUNITIES 65001:100 (RFC 1997)
+#   C0 10 10                               EXTENDED_COMMUNITIES, two entries (RFC 4360)
+#            0002FDE800000001              route target 65000:1
+#            80090000000000EE              traffic-marking DSCP 46, and BOTH bits above
+#                                          the 6-bit DSCP field set: 0xEE is 0b11_101110,
+#                                          and RFC 8955 Section 7.5 says those two are
+#                                          reserved and ignored during decoding
+#   C0 19 14 0002 20010DB8.. 0001          IPV6_EXTENDED_COMMUNITIES 2001:db8::,1 (RFC 5701)
+#   C0 20 0C 0000FDE9 00000001 00000002    LARGE_COMMUNITIES 65001:1:2 (RFC 8092)
+#   18 0A0000                              NLRI 10.0.0.0/24
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0069020000004E40010100400200400304C0A80102C00804FDE90064C010100002FDE80000000180090000000000EEC01914000220010DB80000000000000000000000000001C0200C0000FDE90000000100000002180A0000
+EOF_PEER
+
+tmpfs=community-json.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Assert every community attribute a peer sends reaches this plugin decoded."""
+import json
+import sys
+
+from ze_api import API, runtime_fail
+
+# What appendAttributeJSON writes when a formatter claims the attribute. The
+# values are read straight off the wire bytes the peer sent above.
+#
+# extended-communities carries the NAMED form, the vocabulary Ze's own route and
+# config parsers accept on input and the FlowSpec firewall bridge matches on
+# this event. 'mark:46' is the proof that RFC 8955 Section 7.5's two reserved
+# bits were ignored: the octet on the wire is 0xEE, so an unmasked read would
+# say 'mark:238' and the firewall would drop the marking action.
+#
+# ipv6-extended-communities stays hex: RFC 5701 puts a 16-octet IPv6 global
+# administrator where RFC 4360 puts a 2-octet AS, so this vocabulary names
+# nothing in it.
+DECODED = {
+    'communities': ['65001:100'],
+    'extended-communities': ['target:65000:1', 'mark:46'],
+    'ipv6-extended-communities': ['000220010db80000000000000000000000000001'],
+    'large-communities': ['65001:1:2'],
+}
+
+# What it falls back to when no formatter claims one: the defect's signature.
+HEX_FALLBACK = ('attr-8', 'attr-16', 'attr-25', 'attr-32')
+
+
+def carries_attributes(event):
+    """True for the received UPDATE, false for state and End-of-RIB events."""
+    if not isinstance(event, dict):
+        return False
+    bgp = event.get('bgp')
+    if not isinstance(bgp, dict):
+        return False
+    update = bgp.get('update')
+    if not isinstance(update, dict):
+        return False
+    return bool(update.get('attr'))
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    # The config's `receive [ update-received ]` grants the events; this asks
+    # for them. Without both, no event is delivered and the wait below times out.
+    api.subscribe(['update'])
+    api.ready()
+
+    raw = api.wait_for_event(timeout=15.0, predicate=carries_attributes)
+    if raw is None:
+        runtime_fail('no UPDATE event carrying attributes arrived')
+
+    attr = json.loads(raw)['bgp']['update']['attr']
+
+    for key, want in DECODED.items():
+        if attr.get(key) != want:
+            runtime_fail(f'{key}: expected {want}, got {attr.get(key)!r} in {attr!r}')
+
+    for key in HEX_FALLBACK:
+        if key in attr:
+            runtime_fail(f'{key} fell back to raw hex: {attr!r}')
+
+    print('OK: all four community attributes decoded', file=sys.stderr)
+    api.shutdown_fire_and_forget()
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external community-json {
+		run ./community-json.run
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		attach process community-json {
+			receive [ update-received ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+expect=exit:code=0

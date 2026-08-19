@@ -1,5 +1,8 @@
 // Design: docs/architecture/wire/attributes.md — path attribute encoding
 // Related: text.go — text parsing + legacy Format* helpers (deleted post-migration)
+// Related: extcomm_decoded.go — ExtendedCommunity.AppendDecoded, the named form
+//          (`target:65000:1`) the CLI and the event JSON render, as opposed to
+//          the raw hex this file writes for the filter-text contract
 //
 // Zero-allocation filter-text serialization. Each attribute type appends its
 // filter-text rendering ("<name> <value>" form, except AtomicAggregate which

@@ -1,6 +1,7 @@
 // Design: docs/architecture/wire/attributes.md -- FlowSpec traffic-action extended communities
 // RFC: rfc/short/rfc8955.md -- traffic filtering actions (Section 7)
 // Related: community.go -- ExtendedCommunity, the 8-octet value these produce
+// Related: extcomm_decoded.go -- the decode half, rendering those values back to their names
 
 package attribute
 
