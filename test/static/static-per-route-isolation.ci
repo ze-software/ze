@@ -20,9 +20,18 @@ option=needs-linux
 tmpfs=setup.py:mode=755:terminator=EOF_SETUP
 #!/usr/bin/env python3
 # Create a dummy interface carrying 192.168.1.0/24 so the GOOD route's gateway
-# 192.168.1.1 resolves. The BAD route's gateway 203.0.113.1 is deliberately in
+# 192.168.1.1 resolves. The BAD route's gateway 198.18.0.1 is deliberately in
 # no connected subnet, so RouteReplace fails ENETUNREACH -- the runtime-
 # unresolvable case under test. Idempotent: "exists" errors are ignored.
+#
+# The BAD gateway must be an address NO other test configures, because the QEMU
+# run shares one root namespace and an interface outlives the test that made it.
+# It was 203.0.113.1 and that premise was false: test/plugin/ddos-transit-
+# forward-drop.ci puts 203.0.113.1/24 on zdd0, so the gateway resolved, the
+# route was programmed, and this test failed the first time the static suite
+# ran anywhere. 198.18.0.0/15 is RFC 2544 benchmark space and is claimed by no
+# .ci in this repository. Before changing it, measure the replacement the same
+# way: `grep -rl <prefix> test/` must find nothing.
 import subprocess
 def ip(*args):
     subprocess.run(["ip", *args], stderr=subprocess.DEVNULL)
@@ -88,7 +97,7 @@ static {
         }
         route 172.16.0.0/12 {
             next {
-                hop 203.0.113.1 { }
+                hop 198.18.0.1 { }
             }
         }
     }
