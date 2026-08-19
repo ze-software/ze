@@ -380,12 +380,12 @@ that proof. Editing it to match the code retires the evidence while the claim st
 | `*.ci` | `functional/verify` | `make ze-functional-test` | runs on every push, but ONLY from a suite that target actually runs: the tier is derived per-suite from `mk/test-functional.mk`'s own `all_suites=` line, so a `.ci` in a suite outside it (traffic, vrrp, ipsec, flow-export, static, vpp, chaos) earns no verify tier, and `test/draft/` is skipped entirely |
 | `*.et` | `editor/verify` | `make ze-functional-editor-test` | runs on every push, on the same earned-per-suite basis as `*.ci` |
 | `test/interop/scenarios/*/check.py` | `interop/nightly` | `make ze-interop-test` | scheduled, ADVISORY |
-| `test/ipsec-interop/scenarios/*/check.py` | `interop/nightly` | `make ze-interop-ipsec-test` | scheduled, ADVISORY |
+| `test/interop-ipsec/scenarios/*/check.py` | `interop/nightly` | `make ze-interop-ipsec-test` | scheduled, ADVISORY |
 
 - **SHOULD prefer a `.ci` over an interop binding** when a behavior is reachable from both: a `.ci` runs inside `ze-precommit-verify` on every push, interop does not (owner decision, umbrella D3).
 - A requirement whose ONLY evidence is nightly-tier is marked `**nightly-only**` on its ledger row and counted in its own rollup column: it is not merge-gate-proven, and the rollup deliberately never sums the two.
 - **An interop tier is DERIVED; it MUST NOT be declared.** A tree earns `interop/nightly` when a SCHEDULED workflow under `.github/workflows/` names its runner, which `scheduled_workflow_targets()` reads. So adding the job IS the whole fix and `CARRIERS` needs no edit, and deleting the job takes the tier away again rather than leaving a stale claim behind (`ai/rules/evidence.md`).
-- **A tag in `test/l2tp-interop/`, `test/pppoe-interop/`, or any other `check.py` tree is REFUSED** with an error naming the file, because no scheduled workflow runs those suites and a tag nothing executes is an absence of evidence rather than weak evidence. The l2tp and pppoe labs need host kernel modules (`l2tp_ppp`, `pppoe`, `/dev/ppp`) that no runner is yet confirmed to provide, so the sequence stays wire, observe one green run, then the tier follows on its own.
+- **A tag in `test/interop-l2tp/`, `test/interop-pppoe/`, or any other `check.py` tree is REFUSED** with an error naming the file, because no scheduled workflow runs those suites and a tag nothing executes is an absence of evidence rather than weak evidence. The l2tp and pppoe labs need host kernel modules (`l2tp_ppp`, `pppoe`, `/dev/ppp`) that no runner is yet confirmed to provide, so the sequence stays wire, observe one green run, then the tier follows on its own.
 - **A QEMU sibling is not that pipeline.** `ze-qemu-l2tp-ppp-test` and `ze-qemu-pppoe-accel-test` run `scripts/evidence/effective-*.py`, never the trees' `check.py`, so they execute no tagged carrier and cannot justify a tier for one.
 - **Non-unit evidence is monotonic, per requirement and per tier.** Replacing a `.ci` binding with a unit tag, or with a nightly interop tag, fails `make ze-rfc-check`, and no annotation satisfies it.
 - A `check.py` is TOKENIZED, not line-scanned: a `#` inside a docstring or string literal is not a comment and is not a tag, and an untokenizable `check.py` fails the scan closed.
@@ -395,6 +395,27 @@ justification, not the user's approval. Enforced by the `rfc-tagged-test` hook, 
 before `test-weakening` precisely so the weakening record cannot pre-empt it
 (`ai/rules/repo-maintenance.md`). Once the USER approves, record what they approved:
 `// rfc-test-change-approved: <date> <what and why>`.
+
+**A justification explains one diff, so it belongs with the commit and not in the file
+forever.** That is the principle behind `test/weakened.md` being REPLACED per commit, and
+its own prose gives the reason: a permanent comment "explains a change the reader of the
+test file can no longer see", and storing it permanently "is what built the pile" -- 601
+justifications across 413 files before the `test-relax:` mechanism was retired for it.
+Before writing any justification an instruction hands you, check whether this repository
+already has a canonical home for that class of record. A gate's message states a
+constraint to satisfy; it does not decide where the record belongs.
+
+**`rfc-test-change-approved:` is the one mechanism that has not moved yet, and it is
+KNOWN to be on the wrong side of this principle** (owner ruling, 2026-08-19). The tree
+holds 255 of them across 120 test files, plus 27 `test-relax:` that survived the reform
+meant to replace them, and 6 `test-asserts-nothing:`. Keep writing the marker while the
+hook demands it: a rule that forbids it today would refuse every author for obeying
+another gate, and `scripts/dev/audit-test-relaxation.py` calls
+`grep -rn 'rfc-test-change-approved'` its only backstop against a forged token. The
+repair lands as one set -- a per-commit ledger, a `commit_helper.py` gate reading it, the
+hook message rewritten to point at it, then the sweep -- and the ORDER is load-bearing:
+sweeping first leaves the tree contradictory. Recorded in
+`plan/journal/guard-message-teaches-the-violation.md`.
 
 Every gated requirement needs BOTH a positive and a negative test. A negative-only test
 passes if the code rejects everything; a positive-only test passes if it accepts
@@ -576,7 +597,7 @@ Makefile wiring, reference implementations). MUST read it before writing any
 | Target | What it runs | When required |
 |--------|-------------|---------------|
 | `make ze-netns-test` | `firewall` `policy` `ospf` `ospfv3` suites under `ZE_TEST_NETNS=1` | Any change to nft/FIB/OSPF kernel programming |
-| `make ze-netns-plugin-test` | `show-system-kernel-log`, which needs CAP_SYSLOG to read `/dev/kmsg` | Any change to `readKmsg` |
+| `make ze-netns-plugin-test` | `system-kernel-log-show`, which needs CAP_SYSLOG to read `/dev/kmsg` | Any change to `readKmsg` |
 
 Both setcap a **throwaway** binary, run under `sudo` with a per-test network
 namespace, assert the host's kernel state is byte-identical before and after,
