@@ -2,11 +2,11 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | done |
 | Scope | cli |
 | Depends | spec-cli-column-order |
-| Phase | 1/5 |
-| Deferral shard | - |
+| Phase | 5/5 |
+| Deferral shard | `plan/deferrals/cli-order-pipe.md` |
 | Handoff | - |
 | Updated | 2026-08-19 |
 
@@ -401,6 +401,19 @@ Not applicable. Scope is `cli`; no wire-visible behavior changes.
 - `| fill` orders the remainder, never the fields `| display` named. There is no way to say "these fields, sorted among themselves".
 - Field completion offers nothing for a command that declared no built-in column order. Completion quality tracks the `spec-cli-column-order` rollout rather than this spec.
 - Row ordering (sorting ROWS by a field's value) is neither operator and is not in scope.
+- A field name that exists at TWO depths of one payload resolves to the OUTER one, and
+  the nested container beside it is then dropped. `selectRecord`
+  (`internal/component/command/pipe_columns.go`) marks a record as the chosen one when
+  ANY of its keys is named, and `tableStyle.orderKeys`
+  (`internal/component/command/pipe_table.go`) applies the same test, so the table and
+  the JSON never disagree. `show bgp summary` carries `uptime` in the record that HOLDS
+  the peer rows and in every peer row, so `| display address remote-as state uptime`
+  matches at the top level and answers with the aggregate `uptime` alone: `peers` is a
+  key the operator did not name. The resolution is load-bearing rather than accidental.
+  `| peers` and `| summary` (`registerAliases`,
+  `internal/component/bgp/plugins/cmd/peer/peer.go`) are each a `| display` over that
+  top-level record and both depend on it. Reach the nested rows through the alias
+  first: `show bgp summary | peers | display address state`.
 
 ## Checklist
 
@@ -430,3 +443,192 @@ Not applicable. Scope is `cli`; no wire-visible behavior changes.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- `internal/component/command/pipe_columns.go` (NEW, 294L). `columnRequest{display, fill, reverse}` and the `fillWay` enum (`fillNone`, `fillDefault`, `fillAlpha`, `fillOverall`). `parseDisplay` and `parseFill` read the two arguments, `columnsInChain` folds the whole chain into one request, `displayError` and `fillError` produce the AC-7 messages, and `applyDisplaySelect` / `selectFields` / `selectMap` / `selectRecord` cut the payload once so every format sees the same field set.
+- `internal/component/command/pipe.go`. `pipeDisplay` and `pipeFill` kinds, both entries in `knownPipeOps`, both in the multi-token `ParsePipe` arm beside `pipeMatch`, both refused by `ValidatePipes` on a bad argument, both classified CLIENT-side in `foldFilters`, and `ApplyPipes` builds the request once before the loop and gains a `columns []ColumnOrder` parameter.
+- `internal/component/command/pipe_table.go`. `tableStyle.request`; `orderKeys` honors it; `declaredKeys`, `splitByOrder`, `fillKeys` and `sortByWidth` split the two sequences over two disjoint key sets; `listWidths`, `mapOfMapsWidths` and `recordWidths` measure only when `fill overall` asks and return nil otherwise.
+- `internal/component/command/completer.go`. `completePipe` matches the LAST token; `completePipeArg` routes `display` to `completeDisplayFields`, which reads `ColumnsForCommand`, and every other operator to `pipeSubArgs`, which gained fill's three words. `PipeOperators` gained both names.
+- `internal/component/cli/model.go`. `SetCommandCompleter` and `refreshCompleter` guard the nil config completer that `NewCommandModel` leaves behind. Landed separately in `6361e97e7`; AC-8 cannot be proven without it.
+- Four `.ci` files under `test/ui/`, 18 unit tests in `pipe_columns_test.go`, 4 in `completer_test.go`, 1 in `internal/component/cli/model_test.go`.
+- Docs: `docs/features/formatting.md`, `docs/guide/command-reference.md`, `docs/architecture/api/commands.md`.
+
+### Bugs Found/Fixed
+- `NewCommandModel` (`internal/component/cli/model.go`) builds a Model with no config completer, and `SetCommandCompleter` dereferenced it. Every interactive session died with a SIGSEGV before it drew a prompt, on `ze cli` and `ze start --cli` alike. Nothing saw it because every `.ci` in the tree used `ze cli -c`, which never builds a Model. `test/ui/display-fill-completion.ci` is the first test to drive the interactive client over a pseudo-terminal, and it found it. Covered by `TestCommandModelTakesACompleterWithNoEditor`, which first asserts that `NewCommandModel` still leaves the field nil, so the test cannot pass by the case going away. Journal row: `plan/journal/guard-added-to-one-half-of-a-pair.md`, 2026-08-19.
+
+### Documentation Updates
+- `docs/features/formatting.md`: the operator table gained both rows, and a new "Choosing the columns" section carries the fill table and the rule that `| display` reaches `| json`, `| ndjson` and `| yaml` while `| fill` does not. Anchor: `<!-- source: internal/component/command/pipe_table.go -- tableStyle.orderKeys, fillKeys -->`.
+- `docs/guide/command-reference.md`: the `ze pipe` operator list.
+- `docs/architecture/api/commands.md`: the operator table and where each half of the request travels.
+- All three landed in `53e84d473`. `make ze-doc-verify` was not re-run at closure: no doc file changed after that commit, and the tree-wide harness rewrite in flight makes a whole-suite run report somebody else's red.
+
+### Deviations from Plan
+- The grammar changed twice on owner direction during implementation. `| order <field>... *` became `| display <field>...` plus `| fill [alpha|overall] [reverse]`, and a bare `| fill` then became VALID, meaning the command's own declared order rather than a synonym for `alpha`. The spec text above is the final shape and Key Design Decisions records why `*` and a positional mode word were both dropped.
+- No learned summary was written to `plan/learned/NNN-<name>.md`. That artifact was retired on 2026-08-10 (`ai/rules/completion.md`): the closure artifact is a journal row, and `plan/learned/` now holds three durable documents alone.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | A single `\| order` operator taking field names and a mode word together was specified and started | A token cannot be a field name in one position and a keyword in another. Nothing can complete it, and a command whose answer carries a field called `alpha` makes the grammar ambiguous rather than merely awkward | Owner direction, 2026-08-19, while the completer was being wired | Split into `\| display` and `\| fill`, each taking ONE type of argument. Recorded in Key Design Decisions |
+| approach | A trailing `*` was specified as the "and the rest" token | An unquoted `*` is expanded by the user's shell before ze sees it (`runPipe` joins `os.Args`), so the syntax typed most often is the one the shell eats | Owner direction, 2026-08-19 | `\| fill` says the same thing in a word no shell touches. R-3 is RETIRED rather than mitigated |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| An operator can put the field they are working on first | Done | `orderKeys` and `splitByOrder`, `internal/component/command/pipe_table.go` | The named fields lead, in the order named |
+| An operator can cut a 19-column table to the four columns the question is about | Done | `applyDisplaySelect`, `internal/component/command/pipe_columns.go` | Selection is applied to the payload once |
+| Each operator takes ONE homogeneous kind of argument | Done | `parseDisplay` and `parseFill`, same file | `completePipeArg` offers one kind per position and never mixes them |
+| Field names after `\| display` autocomplete in the SSH CLI | Done | `completeDisplayFields`, `internal/component/command/completer.go` | Reads `ColumnsForCommand`; `test/ui/display-fill-completion.ci` drives a real pseudo-terminal |
+| `\| fill` completes its own keywords and never a field name | Done | `pipeSubArgs`, same file | `TestCompleteFillOffersKeywordsOnly` |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestDisplayThenFillAlpha`; `test/ui/display-fill-remainder.ci` | Named fields first, remainder by field name |
+| AC-2 | Done | `TestDisplayAloneSelectsAndSequences`; `test/ui/display-fill-select.ci` | Only the named columns, in that order |
+| AC-3 | Done | `TestDisplayUnknownFieldIsInert` | An unmatched name adds no column |
+| AC-4 | Done | `TestDisplayOverridesRegisteredOrder` | The request is a distinct `tableStyle` field, never appended to `orders` |
+| AC-5 | Done | `TestDisplaySelectionReachesJSON`; `test/ui/display-fill-select.ci` | Selection reaches JSON; key order stays alphabetical |
+| AC-6 | Done | `TestColumnOpsAbsentLeavesOutputUnchanged` | Neither operator typed leaves every format byte-identical |
+| AC-7 | Done | `TestValidatePipesRejectsBadColumnArguments` | Both directions: what is refused, and that a bare `\| fill` stays valid |
+| AC-8 | Done | `TestCompleteDisplayFieldsFromRegistry`, `TestCompleteDisplayFieldsAfterFirst`, `TestCompleteDisplaySkipsTypedFields`, `TestCompleteFillOffersKeywordsOnly`; `test/ui/display-fill-completion.ci` | Real interactive client over a pseudo-terminal |
+| AC-9 | Done | `TestColumnOpsSurviveFoldFiltersOnFilteredCommand`; `test/ui/display-fill-filtered-command.ci` | `show bgp rib` registers eleven filters; neither kind is dropped |
+| AC-10 | Done | `TestDisplayKeepsParentKeyColumn` | `selectMap` leaves the parent key outside selection for a homogeneous map-of-maps |
+| AC-11 | Done | `TestFillDefaultUsesTheDeclaredOrderForTheRemainder`, `TestFillDefaultAloneMatchesTheBuiltInOrder`; `test/ui/display-fill-remainder.ci` | Two sequences over two disjoint key sets |
+| AC-12 | Done | `TestFillOverallOrdersByRenderedWidth`; `test/ui/display-fill-remainder.ci` | Widths read back from the box-drawing border |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| The 18 planned `pipe_columns_test.go` tests | Done | `internal/component/command/pipe_columns_test.go` | Every one exists under its planned name |
+| `TestCompleteDisplayFieldsFromRegistry`, `TestCompleteDisplayFieldsAfterFirst`, `TestCompleteDisplaySkipsTypedFields`, `TestCompleteFillOffersKeywordsOnly` | Done | `internal/component/command/completer_test.go` | |
+| `TestCommandModelTakesACompleterWithNoEditor` | Done | `internal/component/cli/model_test.go` | |
+| `display-fill-select`, `display-fill-remainder`, `display-fill-completion`, `display-fill-filtered-command` | Done | `test/ui/` | All four PASS in the ui suite |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/command/pipe_columns.go` | Done | Created, 294L |
+| `internal/component/command/pipe_columns_test.go` | Done | Created |
+| `internal/component/command/pipe.go` | Done | Modified as planned |
+| `internal/component/command/pipe_table.go` | Done | Modified as planned |
+| `internal/component/command/completer.go` | Done | Modified as planned |
+| `internal/component/cli/model.go` | Done | Guarded in `6361e97e7` |
+| `test/ui/display-fill-select.ci`, `-remainder.ci`, `-completion.ci`, `-filtered-command.ci` | Done | All four created |
+| `docs/features/formatting.md`, `docs/guide/command-reference.md`, `docs/architecture/api/commands.md` | Done | All three updated |
+
+### Audit Summary
+- **Total items:** 12 AC, 5 Task requirements, 23 planned tests, 12 planned files
+- **Done:** all of them
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** the grammar, twice, on owner direction. Recorded in Deviations and in the Mistake Log
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| An operator can cut a wide table to the columns the question is about | functional | `test/ui/display-fill-select.ci` PASS in the ui suite (191 of 191, 1 skipped). It drives a real daemon over SSH and asserts the answer carries the two named columns and no others |
+| An operator can put the field under investigation first and keep the rest | functional | `test/ui/display-fill-remainder.ci` PASS. It asserts the declared order, the alphabet and the rendered width as three different answers, so one cannot pass for another |
+| An operator discovers the field names by pressing Tab | functional | `test/ui/display-fill-completion.ci` PASS. It drives the interactive client over a pseudo-terminal, which is why it found the nil-completer SIGSEGV that every `ze cli -c` test missed |
+| Neither operator is silently dropped on a command that owns pipe filters | functional | `test/ui/display-fill-filtered-command.ci` PASS against `show bgp rib`, which registers eleven filters. `foldFilters` has no `default:` arm, so this is the trap the test exists for |
+| The tests discriminate | ablation | Eight ablations, each turning a named test red: unclassify both kinds in `foldFilters`; disable `applyDisplaySelect`; ignore the display names in `orderKeys`; ignore widths for `fill overall`; ignore the fill way; make `fillDefault` fall back to alpha; make `fillDefault` read the display names instead of the registry; revert last-token completion to whole-tail |
+| Interop | N-A | Scope is `cli`. No wire-visible behavior changes, so `ai/rules/interop-and-goal-validation.md` requires no scenario |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| Row ordering: an operator that sorts the ROWS by a field's value | deferred | `plan/future/spec-cli-pipe-column-modifiers.md`. A different axis from `display` and `fill`, so it needs its own name and its own semantics |
+| Exclusion syntax: "every column except these two" | deferred | `plan/future/spec-cli-pipe-column-modifiers.md`. Named in Known Limitations as the modifier judged worth adding next |
+
+`plan/deferrals/cli-order-pipe.md` holds two LIVE rows, so it is NOT removed at
+closure: the shard outlives its source spec and both rows are homed at the spec
+above (`ai/rules/planning.md`).
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/cli-order-pipe-2e38eb27-078b-4f5b-a456-56437e962d09.md` |
+| `review_gate.py check` | clean: `review_gate: OK (0 code files, clean, hashes match ...)` |
+| Rounds | 1. Zero BLOCKER and zero ISSUE on the first pass, so no fix produced new code to re-review |
+| Reviewer lenses used | automated pre-checks, change size, wiring, functional coverage, documentation drift, removed-behavior audit, data flow, edge cases, security, allocation, logic, performance, simplicity and altitude, project rules, ze-style |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| - | none | No BLOCKER and no ISSUE were found | - | - |
+
+Four NOTEs were recorded and none blocks:
+
+1. A field name at two depths of one payload resolves to the OUTER record, and the nested container beside it is dropped (`selectRecord`, `internal/component/command/pipe_columns.go`). Load-bearing rather than accidental: `\| peers` and `\| summary` both depend on it. Recorded in Known Limitations and in `plan/journal/field-carries-two-meanings.md`.
+2. `\| json pretty \| display a b` answers COMPACT, because `applyDisplaySelect` re-marshals with `json.Marshal` at the operator's own position. The field set is identical either way, so this is formatting rather than data. The spec's order-independence claim is scoped to the sequence half and is pinned for `\| table` and `\| text`.
+3. `make ze-repository-check` reports `ApplyJSON` (`internal/component/command/pipe.go`) as exported with no cross-package non-test caller. PRE-EXISTING: `git grep -l "command.ApplyJSON"` is empty at `53e84d473~`, at `80c9fbcf7~` and at HEAD, and `53e84d473` changes neither the symbol nor a caller. The check reads CHANGED files, so editing the file is what surfaced it. Homed at `plan/future/spec-fixit-unexport-package-private-symbols.md` and journalled twice already in `plan/journal/unwired-feature.md`.
+4. `parseFill` strips `reverse` from the tail only, so `\| fill reverse alpha` is refused. The grammar states the position; the error message names the words but not their order.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/command/pipe_columns.go` | Yes | `ls -l` 9396 bytes |
+| `internal/component/command/pipe_columns_test.go` | Yes | `ls -l` 23429 bytes |
+| `test/ui/display-fill-select.ci` | Yes | `ls -l` 6180 bytes |
+| `test/ui/display-fill-remainder.ci` | Yes | `ls -l` 8354 bytes |
+| `test/ui/display-fill-completion.ci` | Yes | `ls -l` 6459 bytes |
+| `test/ui/display-fill-filtered-command.ci` | Yes | `ls -l` 5981 bytes |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 to AC-12 | Every AC has a named passing test | `make ze-unit-pkg-test PKG=./internal/component/command/` with the display, fill, parse, validate, column-ops and completion tests selected, run at closure: 26 `--- PASS`, 0 `--- FAIL` |
+| AC-2, AC-5, AC-10 | End to end through the daemon | `test/ui/display-fill-select.ci` PASS in the ui run |
+| AC-1, AC-4, AC-11, AC-12 | End to end through the daemon | `test/ui/display-fill-remainder.ci` PASS in the ui run |
+| AC-8 | Real interactive client | `test/ui/display-fill-completion.ci` PASS in the ui run |
+| AC-9 | Filtered command | `test/ui/display-fill-filtered-command.ci` PASS in the ui run |
+| AC-7 | Both directions of the refusal | `TestValidatePipesRejectsBadColumnArguments` PASS |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `show bgp peer list \| display state \| fill alpha` in the SSH CLI | `test/ui/display-fill-remainder.ci` | Yes. Read at closure: it asserts the declared order, the alphabet and the rendered width as three distinct answers, reading widths back from the box-drawing border |
+| `show bgp peer list \| display state name` | `test/ui/display-fill-select.ci` | Yes. Read at closure: it asserts the two columns, the surviving parent-key column (AC-10) and the JSON field set (AC-5) |
+| Tab after `show bgp peer list \| display ` | `test/ui/display-fill-completion.ci` | Yes. Read at closure: it drives the real interactive client over a pseudo-terminal and asserts that `display` and `fill` never offer each other's set |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | The `*` token is gone from the grammar. `TestParsePipeDisplayJoinsFields` and `TestParsePipeFillWayAndReverse` PASS, and no argument of either operator carries a shell metacharacter |
+| A-2 | confirmed | `completePipe` matches the LAST token (`internal/component/command/completer.go`). `TestCompleteDisplayFieldsAfterFirst` PASS |
+| A-3 | confirmed | Both kinds are in the client-side arm of `foldFilters`. `TestColumnOpsSurviveFoldFiltersOnFilteredCommand` PASS, and `test/ui/display-fill-filtered-command.ci` PASS against a command with eleven registered filters |
+| A-4 | confirmed | The six structured-data callers reclassified in `spec-fixit-cli-format-default-everywhere` all use `\| raw`, which is an identity arm in `ApplyPipes`; none passes `\| display` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/features/formatting.md`, the two operator rows in the pipe table | `PipeOperators` in `internal/component/command/completer.go` carries the same two descriptions | Yes |
+| `docs/features/formatting.md`, the fill table | `fillKeys` in `internal/component/command/pipe_table.go`: `fillDefault` reads `bestColumnOrder`, `fillAlpha` sorts by name, `fillOverall` sorts by width, and `reverse` flips whichever is in force | Yes |
+| `docs/features/formatting.md`, "`\| display` reaches `\| json`, `\| ndjson` and `\| yaml`. `\| fill` does not" | `applyDisplaySelect` runs in the `ApplyPipes` loop and reaches every format; the request reaches `tableStyle` through the `pipeTable` and `pipeText` arms alone | Yes |
+| `docs/features/formatting.md`, "`\| peers` is `\| display peers`" | `registerAliases`, `internal/component/bgp/plugins/cmd/peer/peer.go` | Yes |
+| `docs/guide/command-reference.md` and `docs/architecture/api/commands.md` | Both updated in `53e84d473` and unchanged since for this feature | Yes |
+| Doctor check | No new file path, socket, port, service or binary. A pipe operator adds no runtime dependency | N-A |
+| RFC status | Scope is `cli`. No RFC-level protocol behavior is implemented, changed or newly proven | N-A |
+
+## Core Insight
+
+A pipe operator's request splits into two questions that travel different
+distances. WHICH fields the answer carries is a DATA question, so it is applied
+once to the payload and every format that follows sees it. In WHAT SEQUENCE they
+render is a PRESENTATION question, so it rides on `tableStyle` and stops at the
+two human renderers. Reading `| display` as one feature forced a choice between
+erroring under `| json` and silently dropping the operator's request, and both
+answers were wrong. Splitting it made the JSON case fall out with no special
+case at all.
