@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import io
+import json
 import os
 import re
 import shutil
@@ -233,7 +234,7 @@ class TestDeferralDestination(unittest.TestCase):
 
     def _repo(self, tmp: str, rows: str) -> Path:
         root = Path(tmp)
-        (root / "plan" / "deferrals").mkdir(parents=True)
+        (root / "plan" / "deferrals").mkdir(parents=True, exist_ok=True)
         (root / "plan" / "spec-rib-deferred-ipv6-coverage.md").write_text("# Spec\n")
         # Deferrals are sharded per source; the gate folds over plan/deferrals/*.md.
         (root / "plan" / "deferrals" / "spec-rib.md").write_text(
@@ -323,7 +324,7 @@ class TestDeferralDestination(unittest.TestCase):
     def test_resolved_rows_are_not_checked(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            (root / "plan" / "deferrals").mkdir(parents=True)
+            (root / "plan" / "deferrals").mkdir(parents=True, exist_ok=True)
             (root / "plan" / "deferrals" / "spec-rib.md").write_text(
                 DEFERRALS_HEADER
                 + "| 2026-07-16 | spec-rib.md | old item | time | later maybe | done |\n"
@@ -337,7 +338,7 @@ def _seed_shard_repo(root: Path, rows: list[tuple[str, str]]) -> None:
     _git(root, "config", "user.email", "t@example.com")
     _git(root, "config", "user.name", "t")
     _git(root, "config", "commit.gpgsign", "false")
-    (root / "plan" / "deferrals").mkdir(parents=True)
+    (root / "plan" / "deferrals").mkdir(parents=True, exist_ok=True)
     body = "".join(
         f"| 2026-08-03 | spec-gone | what-{i} | reason |"
         f" plan/spec-home.md | {status} |\n"
@@ -574,7 +575,7 @@ def _deferral_gate(rows: list[tuple[str, str]]) -> list[str]:
     """
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
-        (root / "plan" / "deferrals").mkdir(parents=True)
+        (root / "plan" / "deferrals").mkdir(parents=True, exist_ok=True)
         body = ""
         for i, (dest, status) in enumerate(rows):
             for ref in ch.deferral_destination_paths(dest):
@@ -669,7 +670,7 @@ class TestDeferralUnassigned(unittest.TestCase):
     def test_malformed_row_is_reported_not_skipped(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            (root / "plan" / "deferrals").mkdir(parents=True)
+            (root / "plan" / "deferrals").mkdir(parents=True, exist_ok=True)
             (root / "plan" / "deferrals" / "spec-x.md").write_text(
                 DEFERRALS_HEADER
                 + "| 2026-07-16 | spec-x | dropped work | reason | dest-only |\n"
@@ -684,7 +685,7 @@ class TestDeferralUnassigned(unittest.TestCase):
     def test_header_and_separator_are_not_rows(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            (root / "plan" / "deferrals").mkdir(parents=True)
+            (root / "plan" / "deferrals").mkdir(parents=True, exist_ok=True)
             (root / "plan" / "deferrals" / "spec-x.md").write_text(DEFERRALS_HEADER)
             self.assertEqual(ch.deferral_unassigned_problems(root), [])
 
@@ -698,7 +699,7 @@ class TestDeferralGateSeverity(unittest.TestCase):
 
     def _repo_with_unhomed_row(self, tmp: str) -> Path:
         root = Path(tmp)
-        (root / "plan" / "deferrals").mkdir(parents=True)
+        (root / "plan" / "deferrals").mkdir(parents=True, exist_ok=True)
         (root / "plan" / "deferrals" / "spec-x.md").write_text(
             DEFERRALS_HEADER
             + "| 2026-07-16 | spec-x | dropped work | reason | future work | deferred |\n"
@@ -738,7 +739,7 @@ class TestDeferralInDiff(unittest.TestCase):
     (ai/rules/planning.md, ai/rules/repo-maintenance.md).
     """
 
-    def _repo(self, tmp: str) -> Path:
+    def _repo(self, tmp: str, with_plan: bool = True) -> Path:
         root = Path(tmp)
         _git(root, "init")
         _git(root, "config", "user.email", "t@e.st")
@@ -753,6 +754,11 @@ class TestDeferralInDiff(unittest.TestCase):
         (root / "README.md").write_text("seed\n")
         _git(root, "add", "README.md")
         _git(root, "commit", "-q", "-m", "seed")
+        # A Ze source checkout always carries plan/, and the scan is skipped
+        # where it does not: a repo with nowhere to record a deferral has no
+        # satisfying action. Fixtures model the source repo, so they carry it.
+        if with_plan:
+            (root / "plan" / "deferrals").mkdir(parents=True, exist_ok=True)
         return root
 
     def test_bare_deferral_in_code_blocks(self):
@@ -795,6 +801,22 @@ class TestDeferralInDiff(unittest.TestCase):
             self.assertTrue(
                 ch.deferral_in_diff_problems(root, ("internal/vendored/y.go",), ())
             )
+
+    def test_repo_without_a_plan_tree_is_not_scanned(self):
+        """A repo that cannot record a deferral must not be refused for one.
+
+        The published website is generated, holds no plan tree, and its pages
+        quote these phrases as prose about documents: an RFC status page saying
+        what an RFC leaves `out of scope` is not somebody parking work. With no
+        shard to write, the gate had no satisfying action and refused every
+        publish.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp, with_plan=False)
+            (root / "page.md").write_text("This behaviour is out of scope for the RFC.\n")
+            self.assertEqual(ch.deferral_in_diff_problems(root, ("page.md",), ()), [])
+            (root / "plan" / "deferrals").mkdir(parents=True, exist_ok=True)
+            self.assertTrue(ch.deferral_in_diff_problems(root, ("page.md",), ()))
 
     def test_json_escaped_quote_leaves_the_string_as_data(self):
         """A generated data file quoting a code comment is data, not a deferral.
@@ -852,7 +874,7 @@ class TestDeferralInDiff(unittest.TestCase):
     def test_bare_deferral_in_spec_still_blocks(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = self._repo(tmp)
-            (root / "plan").mkdir()
+            (root / "plan").mkdir(exist_ok=True)
             (root / "plan" / "spec-x.md").write_text(
                 "# Spec\n\nThe IPv6 path is future work.\n"
             )
@@ -865,7 +887,7 @@ class TestDeferralInDiff(unittest.TestCase):
     def test_cleared_by_deferrals_shard_in_commit(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = self._repo(tmp)
-            (root / "plan" / "deferrals").mkdir(parents=True)
+            (root / "plan" / "deferrals").mkdir(parents=True, exist_ok=True)
             (root / "plan" / "spec-x.md").write_text(
                 "# Spec\n\nThe IPv6 path is future work.\n"
             )
@@ -894,7 +916,7 @@ class TestDeferralInDiff(unittest.TestCase):
     def test_not_cleared_by_lookalike_path(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = self._repo(tmp)
-            (root / "plan").mkdir()
+            (root / "plan").mkdir(exist_ok=True)
             (root / "plan" / "spec-x.md").write_text(
                 "# Spec\n\nThe IPv6 path is future work.\n"
             )
@@ -1043,6 +1065,261 @@ class TestDiscoveryIndexProblems(unittest.TestCase):
             ch.discovery_index_freshness = saved
 
 
+class TestVerifyStatusScope(unittest.TestCase):
+    """The verify gate asks about the paths the commit CARRIES, not the checkout.
+
+    VALIDATES: `plan/spec-verify-scope-1-shared-checkout-freshness.md` AC-1 and
+    AC-2. Six sessions share this checkout and it carries hundreds of
+    uncommitted files, so the whole-tree answer is STALE within seconds of a
+    PASS -- almost always for a file the asking session never wrote. The scoped
+    answer already existed in `verify-status.sh` and had no caller.
+    """
+
+    def _repo(self, exit_code: int = 0) -> Path:
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        root = Path(tmp.name)
+        (root / "scripts" / "dev").mkdir(parents=True)
+        checker = root / "scripts" / "dev" / "verify-status.sh"
+        # Records the argv it was called with, so the test asserts what the gate
+        # ASKED rather than what it concluded.
+        #
+        # TWO records, because `"$*"` cannot answer every question asked of it.
+        # It joins the arguments with spaces, so `check "a b.md"` and
+        # `check a b.md` produce the same line -- and whether a path holding a
+        # space survives as ONE argument is exactly what this class tests. The
+        # unit-separated record keeps the boundaries; the joined one stays
+        # because it reads better wherever the boundaries are not the point.
+        checker.write_text(
+            "#!/bin/sh\n"
+            'mkdir -p "$(dirname "$0")/../../tmp"\n'
+            'printf \'%s\\n\' "$*" >> "$(dirname "$0")/../../tmp/check-argv.txt"\n'
+            'printf \'%s\\037\' "$@" >> "$(dirname "$0")/../../tmp/check-args.txt"\n'
+            'printf \'\\n\' >> "$(dirname "$0")/../../tmp/check-args.txt"\n'
+            "echo FRESH\n"
+            f"exit {exit_code}\n",
+            encoding="utf-8",
+        )
+        os.chmod(checker, 0o755)
+        return root
+
+    def _argv(self, root: Path) -> list[str]:
+        return (root / "tmp" / "check-argv.txt").read_text().splitlines()
+
+    def _args(self, root: Path) -> list[list[str]]:
+        """One list of ARGUMENTS per invocation, boundaries intact."""
+        text = (root / "tmp" / "check-args.txt").read_text()
+        return [line.split("\037")[:-1] for line in text.splitlines()]
+
+    def test_verify_status_passes_commit_paths(self):
+        root = self._repo()
+        state, _ = ch.verify_status(root, ("internal/a/a.go", "docs/x.md"))
+        self.assertEqual(state, "fresh")
+        self.assertEqual(self._argv(root), ["check internal/a/a.go docs/x.md"])
+
+    def test_create_scopes_the_gate_to_its_own_file_list(self):
+        """The wiring row: `create --file X` must reach `check X`. Asking
+        `verify_status` directly would leave the production caller unproven."""
+        root = self._repo()
+        _git(root, "init", "-q")
+        _git(root, "config", "user.email", "t@example.com")
+        _git(root, "config", "user.name", "t")
+        _git(root, "config", "commit.gpgsign", "false")
+        (root / "f.txt").write_text("hello\n")
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            rc = ch.main(
+                [
+                    "--repo",
+                    str(root),
+                    "create",
+                    "--session",
+                    "abcd1234",
+                    "--subject",
+                    "fixture",
+                    "--file",
+                    "f.txt",
+                ]
+            )
+        self.assertEqual(rc, 0, out.getvalue() + err.getvalue())
+        self.assertIn("check f.txt", self._argv(root))
+
+    def test_no_paths_keeps_the_whole_tree_question(self):
+        """`hook-parity-check.py` pins the bare form's exit code, and a caller
+        with nothing to scope must still get an answer."""
+        root = self._repo()
+        ch.verify_status(root, ())
+        self.assertEqual(self._argv(root), ["check"])
+
+    def test_a_path_holding_a_space_is_scoped_not_dropped(self):
+        """`manifest_scoped` reads the path as everything after the first space
+        and takes it from ENVIRON, so a space in a filename is representable and
+        the path is asked about rather than widened away."""
+        root = self._repo()
+        ch.verify_status(root, ("internal/a/a.go", "docs/a b.md"))
+        self.assertEqual(
+            self._args(root), [["check", "internal/a/a.go", "docs/a b.md"]]
+        )
+
+    def test_a_backslash_path_widens_to_the_whole_tree(self):
+        """A backslash is representable in the ARGUMENT -- `manifest_scoped`
+        takes it from ENVIRON, which no longer expands escape sequences -- and
+        not in a ROW: git C-quotes such a path, so `dirty_manifest` records it
+        quoted. The two spellings match nothing on either side and two empty
+        sets compare FRESH, so the whole-tree question is asked instead."""
+        root = self._repo()
+        ch.verify_status(root, ("internal/a\\tb.go",))
+        self.assertEqual(self._argv(root), ["check"])
+
+    def test_a_non_ascii_path_widens_to_the_whole_tree(self):
+        """The same shape one byte class up: git quotes every byte over 0x7E, so
+        an accented filename reaches a manifest row as an octal escape sequence
+        and never as the letters the caller named."""
+        root = self._repo()
+        ch.verify_status(root, ("docs/caf\u00e9.md",))
+        self.assertEqual(self._argv(root), ["check"])
+
+    def test_an_empty_path_falls_back_to_the_whole_tree(self):
+        """One of the two shapes the manifest cannot answer about; a path git
+        C-quotes is the other. No row's path
+        equals "" or starts with "/", so an empty scope argument selects nothing
+        from the recorded manifest AND nothing from the live one, and two empty
+        sets compare equal -- FRESH over nothing at all. The whole-tree question
+        is asked instead, which can only refuse more."""
+        root = self._repo()
+        ch.verify_status(root, ("internal/a/a.go", ""))
+        self.assertEqual(self._argv(root), ["check"])
+
+    def test_an_edit_to_a_committed_space_path_refuses(self):
+        """The regression the two cases above used to hide, driven end to end
+        through the REAL checker.
+
+        Before the producer fix this answered FRESH: `manifest_scoped` read the
+        path as awk's `$2`, so `my file.txt` was truncated to `my`, matched no
+        row in the recorded manifest and no row in the live one, and the two
+        empty sets compared equal. A guard whose empty answer looks valid is the
+        shape `ai/rules/evidence.md` refuses."""
+        root = self._real_checker_repo()
+        spaced = root / "my file.txt"
+        spaced.write_text("edited after the pass\n", encoding="utf-8")
+        state, detail = ch.verify_status(root, ("my file.txt",))
+        self.assertEqual(state, "stale", detail)
+
+    def test_a_c_quoted_path_is_never_answered_fresh(self):
+        """The same guard, one byte class up, driven end to end through the REAL
+        checker.
+
+        `dirty_manifest` records a path as git PRINTS it, and git C-quotes an
+        accented filename. The scope argument is the raw path, so it matched no
+        row in the recorded manifest and no row in the live one, and the two
+        empty sets compared equal -- FRESH for a file that had just appeared.
+        `scopeable_paths` now widens to the whole-tree question instead, which
+        can only refuse more."""
+        root = self._real_checker_repo()
+        (root / "caf\u00e9.txt").write_text("new since the pass\n", encoding="utf-8")
+        state, detail = ch.verify_status(root, ("caf\u00e9.txt",))
+        self.assertEqual(state, "stale", detail)
+
+    def _real_checker_repo(self, exit_code: int = 0) -> Path:
+        """A repo carrying the REAL verify-status.sh, a green PASS, and two
+        files: one this session commits, one another session owns."""
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        root = Path(tmp.name)
+        (root / "scripts" / "dev").mkdir(parents=True)
+        real = Path(ch.__file__).resolve().parent / "verify-status.sh"
+        shutil.copy2(real, root / "scripts" / "dev" / "verify-status.sh")
+        (root / ".gitignore").write_text("tmp/\n", encoding="utf-8")
+        _git(root, "init", "-q")
+        _git(root, "config", "user.email", "t@example.com")
+        _git(root, "config", "user.name", "t")
+        _git(root, "config", "commit.gpgsign", "false")
+        (root / "mine.txt").write_text("mine\n", encoding="utf-8")
+        (root / "theirs.txt").write_text("theirs\n", encoding="utf-8")
+        _git(root, "add", "-A")
+        _git(root, "commit", "-q", "-m", "base")
+        subprocess.run(
+            [
+                "bash",
+                "scripts/dev/verify-status.sh",
+                "write",
+                str(exit_code),
+                "ze-precommit-verify",
+            ],
+            cwd=root,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        return root
+
+    def _create(self, root: Path) -> tuple[int, str]:
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            rc = ch.main(
+                [
+                    "--repo",
+                    str(root),
+                    "create",
+                    "--session",
+                    "abcd1234",
+                    "--subject",
+                    "fixture",
+                    "--file",
+                    "mine.txt",
+                ]
+            )
+        return rc, out.getvalue() + err.getvalue()
+
+    def test_another_sessions_edit_leaves_the_gate_green(self):
+        """AC-1. The whole-tree answer here is STALE, and it is STALE for a file
+        this commit does not carry."""
+        root = self._real_checker_repo()
+        (root / "theirs.txt").write_text(
+            "theirs\n// another session\n", encoding="utf-8"
+        )
+        rc, msg = self._create(root)
+        self.assertEqual(rc, 0, msg)
+
+    def test_an_edit_to_a_committed_path_still_refuses(self):
+        """AC-2. Scoping answers about the session's own paths; it does not stop
+        answering."""
+        root = self._real_checker_repo()
+        (root / "mine.txt").write_text(
+            "mine\n// edited after the pass\n", encoding="utf-8"
+        )
+        rc, msg = self._create(root)
+        self.assertEqual(rc, 2, msg)
+        self.assertIn("not FRESH-green", msg)
+
+    def test_a_structural_red_still_refuses_over_untouched_paths(self):
+        """Scoping the FRESHNESS question is not a route around a structural red.
+
+        The two questions stay separate because `verify-status.sh check` reads
+        `exit` BEFORE it reads any scope: a run that failed is STALE for every
+        path list, so `structural_gate_reds` is still reached with the commit's
+        own files untouched since the PASS.
+        """
+        root = self._real_checker_repo(exit_code=1)
+        (root / "tmp" / "ze-verify-failures.json").write_text(
+            '{"stages": [{"stage": "ze-tier-check", "exit-code": 2}]}\n',
+            encoding="utf-8",
+        )
+        rc, msg = self._create(root)
+        self.assertEqual(rc, 2, msg)
+        self.assertIn("STRUCTURAL GATE", msg)
+        self.assertIn("ze-tier-check", msg)
+
+    def test_a_missing_checker_still_answers_unknown(self):
+        """Scoping must not widen the one hole this gate has: `unknown` does not
+        block, and it stays reserved for a checker that is not there."""
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        state, detail = ch.verify_status(Path(tmp.name), ("a.go",))
+        self.assertEqual(state, "unknown")
+        self.assertIn("not found", detail)
+
+
 class TestStructuralGateRemediation(unittest.TestCase):
     """T-3 (AC-5): the structural-gate refusal must name a command that actually
     refreshes tmp/ze-verify-failures.json. Only a full `make ze-precommit-verify` /
@@ -1055,8 +1332,10 @@ class TestStructuralGateRemediation(unittest.TestCase):
         import io
 
         saved = (ch.verify_status, ch.structural_gate_reds)
-        ch.verify_status = lambda repo: ("stale", "structural red")
-        ch.structural_gate_reds = lambda repo: ["ze-lint-changed"]
+        ch.verify_status = lambda repo, paths: ("stale", "structural red")
+        ch.structural_gate_reds = lambda repo, paths=(): ch.GateReds(
+            ("ze-lint-changed",), (), ()
+        )
         try:
             with tempfile.TemporaryDirectory() as tmp:
                 root = Path(tmp)
@@ -1111,8 +1390,10 @@ class TestStructuralRedOwnerOverride(unittest.TestCase):
         import io
 
         saved = (ch.verify_status, ch.structural_gate_reds)
-        ch.verify_status = lambda repo: ("stale", "structural red")
-        ch.structural_gate_reds = lambda repo: ["ze-generated-files-check"]
+        ch.verify_status = lambda repo, paths: ("stale", "structural red")
+        ch.structural_gate_reds = lambda repo, paths=(): ch.GateReds(
+            ("ze-generated-files-check",), (), ()
+        )
         try:
             with tempfile.TemporaryDirectory() as tmp:
                 root = Path(tmp)
@@ -1166,6 +1447,332 @@ class TestStructuralRedOwnerOverride(unittest.TestCase):
         self.assertEqual(rc, 2, msg)
 
 
+class TestStructuralRedAttribution(unittest.TestCase):
+    """Verification debt is charged for the reds this commit's files could have
+    caused, and for the reds nobody can attribute -- never for another session's.
+
+    VALIDATES: AC-4, AC-4b and AC-5 of the shared-checkout freshness spec.
+    `failureGroup.Related` (scripts/status/verify_run.go) names the files behind
+    a lint or vet red, so a red every one of whose files lies outside this commit
+    cannot be this commit's.
+    PREVENTS: the 95 open `structural gates (red)` rows in
+    plan/verification-debt/, every one of which records that the red belonged to
+    another session. A ledger where the whole population says "not mine" charges
+    nobody and blocks --push for everybody.
+    """
+
+    def _repo(self, stages: list[dict]) -> Path:
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        root = Path(tmp.name)
+        (root / "mine").mkdir()
+        (root / "theirs").mkdir()
+        (root / "mine" / "a.txt").write_text("mine\n", encoding="utf-8")
+        (root / "theirs" / "b.txt").write_text("theirs\n", encoding="utf-8")
+        (root / "tmp").mkdir()
+        (root / "tmp" / "ze-verify-failures.json").write_text(
+            json.dumps({"stages": stages}), encoding="utf-8"
+        )
+        return root
+
+    @staticmethod
+    def _lint_red(related: list[str], group_id: str = "lint:g:gofmt") -> dict:
+        return {
+            "stage": "ze-lint",
+            "exit-code": 2,
+            "groups": [{"group-id": group_id, "kind": "gofmt", "related": related}],
+        }
+
+    def test_a_red_naming_only_other_files_is_not_charged(self):
+        """AC-4."""
+        root = self._repo([self._lint_red(["theirs/b.txt"])])
+        reds = ch.structural_gate_reds(root, ("mine/a.txt",))
+        self.assertEqual(reds.charged, ())
+        self.assertEqual(reds.foreign, ("ze-lint",))
+        self.assertEqual(reds.unattributed, ())
+
+    def test_a_red_naming_a_committed_file_is_charged(self):
+        """AC-5."""
+        root = self._repo([self._lint_red(["theirs/b.txt", "mine/a.txt"])])
+        reds = ch.structural_gate_reds(root, ("mine/a.txt",))
+        self.assertEqual(reds.charged, ("ze-lint",))
+        self.assertEqual(reds.foreign, ())
+        self.assertEqual(reds.unattributed, ())
+
+    def test_a_committed_directory_scopes_to_the_files_under_it(self):
+        """AC-5. `manifest_scoped` gives a directory argument that meaning, and
+        the two questions are asked about one file list."""
+        root = self._repo([self._lint_red(["mine/a.txt"])])
+        self.assertEqual(ch.structural_gate_reds(root, ("mine",)).charged, ("ze-lint",))
+
+    def test_a_related_directory_covers_a_committed_file_inside_it(self):
+        """AC-5 from the other side. `classifyVet` records `./mine/...` for every
+        red in that package, so a commit carrying one file inside owns it."""
+        root = self._repo(
+            [
+                {
+                    "stage": "ze-evidence-vet",
+                    "exit-code": 2,
+                    "groups": [
+                        {
+                            "group-id": "vet:./mine/...",
+                            "kind": "package",
+                            "related": ["./mine/..."],
+                        }
+                    ],
+                }
+            ]
+        )
+        self.assertEqual(
+            ch.structural_gate_reds(root, ("mine/a.txt",)).charged,
+            ("ze-evidence-vet",),
+        )
+
+    def test_a_group_naming_no_file_is_charged_and_named(self):
+        """AC-4b. `classifyWiringDocs` records a CHECK name, not a path. Guessing
+        which files a check covers would let a real red go uncharged, so the
+        helper charges it and says which group it could not attribute."""
+        root = self._repo(
+            [
+                {
+                    "stage": "ze-doc-wiring-check",
+                    "exit-code": 2,
+                    "groups": [
+                        {
+                            "group-id": "subcheck:wiring",
+                            "kind": "subcheck",
+                            "related": ["wiring"],
+                        }
+                    ],
+                }
+            ]
+        )
+        reds = ch.structural_gate_reds(root, ("mine/a.txt",))
+        self.assertEqual(reds.charged, ("ze-doc-wiring-check",))
+        self.assertEqual(reds.foreign, ())
+        self.assertEqual(reds.unattributed, ("ze-doc-wiring-check (subcheck:wiring)",))
+
+    def test_a_subcheck_name_that_is_also_a_repo_entry_is_not_attribution(self):
+        """The gate must be charged, not dropped. `classifyWiringDocs` builds a
+        `related` member out of `([A-Za-z0-9_-]+) failed` matched over a log that
+        carries the delegated targets' stdout, so `docs failed` records the bare
+        word `docs` -- which the checkout also holds as a directory. Judged by
+        existence alone it reads as a path nobody committed, nothing is blind,
+        and the whole red lands in `foreign` uncharged. `kind` says it is a
+        subcheck, and a subcheck names no path."""
+        root = self._repo(
+            [
+                {
+                    "stage": "ze-doc-wiring-check",
+                    "exit-code": 2,
+                    "groups": [
+                        {
+                            "group-id": "subcheck:docs",
+                            "kind": "subcheck",
+                            "related": ["docs"],
+                        }
+                    ],
+                }
+            ]
+        )
+        (root / "docs").mkdir()
+        reds = ch.structural_gate_reds(root, ("mine/a.txt",))
+        self.assertEqual(reds.charged, ("ze-doc-wiring-check",))
+        self.assertEqual(reds.foreign, ())
+        self.assertEqual(reds.unattributed, ("ze-doc-wiring-check (subcheck:docs)",))
+
+    def test_a_suite_name_that_is_also_a_repo_entry_is_not_attribution(self):
+        """The same hole from `classifyFunctional`, whose `related` is a SUITE
+        name. `test` is a suite this repo runs and a directory this repo holds."""
+        root = self._repo(
+            [
+                {
+                    "stage": "ze-lint",
+                    "exit-code": 2,
+                    "groups": [
+                        {
+                            "group-id": "suite:test",
+                            "kind": "suite",
+                            "related": ["test"],
+                        }
+                    ],
+                }
+            ]
+        )
+        (root / "test").mkdir()
+        self.assertEqual(
+            ch.structural_gate_reds(root, ("mine/a.txt",)).charged, ("ze-lint",)
+        )
+
+    def test_a_group_with_no_kind_names_no_path(self):
+        """Every group `writeFailureIndex` writes carries a kind, so an artifact
+        without one is not that index. Charging is the safe direction."""
+        root = self._repo(
+            [
+                {
+                    "stage": "ze-lint",
+                    "exit-code": 2,
+                    "groups": [{"group-id": "lint:g:gofmt", "related": ["theirs/b.txt"]}],
+                }
+            ]
+        )
+        self.assertEqual(
+            ch.structural_gate_reds(root, ("mine/a.txt",)).charged, ("ze-lint",)
+        )
+
+    def test_a_red_with_no_group_at_all_is_charged(self):
+        """AC-4b. A stage the classifier produced no group for names nothing, so
+        it must not read as attributable."""
+        root = self._repo([{"stage": "ze-tier-check", "exit-code": 2}])
+        reds = ch.structural_gate_reds(root, ("mine/a.txt",))
+        self.assertEqual(reds.charged, ("ze-tier-check",))
+        self.assertEqual(reds.unattributed, ("ze-tier-check (ze-tier-check)",))
+
+    def test_a_related_file_that_no_longer_exists_is_charged(self):
+        """Fail closed on a name the checkout cannot resolve. Another session may
+        have deleted the file since the run; that is not evidence the red is
+        theirs."""
+        root = self._repo([self._lint_red(["theirs/gone.txt"])])
+        reds = ch.structural_gate_reds(root, ("mine/a.txt",))
+        self.assertEqual(reds.charged, ("ze-lint",))
+
+    def test_a_whole_tree_pattern_is_not_attribution(self):
+        """`./...` reduces to the whole tree, which rules nothing out."""
+        root = self._repo(
+            [
+                {
+                    "stage": "ze-evidence-vet",
+                    "exit-code": 2,
+                    "groups": [
+                        {
+                            "group-id": "vet:./...",
+                            "kind": "package",
+                            "related": ["./..."],
+                        }
+                    ],
+                }
+            ]
+        )
+        self.assertEqual(
+            ch.structural_gate_reds(root, ("mine/a.txt",)).charged,
+            ("ze-evidence-vet",),
+        )
+
+    def test_an_empty_file_list_keeps_the_whole_tree_meaning(self):
+        """Attribution narrows a question asked about the caller's own files.
+        With no files named there is no question to narrow, so every red is
+        charged, exactly as before this gate learned to scope."""
+        root = self._repo([self._lint_red(["theirs/b.txt"])])
+        self.assertEqual(ch.structural_gate_reds(root, ()).charged, ("ze-lint",))
+
+    def test_a_missing_artifact_still_charges_nothing(self):
+        """The gate never invents a red it cannot confirm, and attribution must
+        not turn that into never charging one either."""
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        reds = ch.structural_gate_reds(Path(tmp.name), ("mine/a.txt",))
+        self.assertEqual((reds.charged, reds.unattributed, reds.foreign), ((), (), ()))
+
+
+class TestDebtNotChargedForForeignRed(unittest.TestCase):
+    """AC-4 driven through `create`, which is where the debt row is written.
+
+    The freshness verdict is STALE here whatever the file list says, because a
+    run that FAILED is stale for every path (`verify-status.sh check` reads
+    `exit` before it reads any scope). So this is the shape the 95 structural
+    debt rows were written in, and the question is only which gates it charges.
+    """
+
+    def _run(self, related: list[str], extra: list[str]) -> tuple[int, str, Path]:
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        root = Path(tmp.name)
+        _git(root, "init", "-q")
+        _git(root, "config", "user.email", "t@example.com")
+        _git(root, "config", "user.name", "t")
+        _git(root, "config", "commit.gpgsign", "false")
+        (root / "mine.txt").write_text("mine\n", encoding="utf-8")
+        (root / "theirs.txt").write_text("theirs\n", encoding="utf-8")
+        (root / "tmp").mkdir()
+        (root / "tmp" / "ze-verify-failures.json").write_text(
+            json.dumps(
+                {
+                    "stages": [
+                        {
+                            "stage": "ze-lint",
+                            "exit-code": 2,
+                            "groups": [
+                                {
+                                    "group-id": "lint:.:gofmt",
+                                    "kind": "gofmt",
+                                    "related": related,
+                                }
+                            ],
+                        }
+                    ]
+                }
+            ),
+            encoding="utf-8",
+        )
+        saved = ch.verify_status
+        ch.verify_status = lambda repo, paths: ("stale", "tree changed since last PASS")
+        try:
+            out, err = io.StringIO(), io.StringIO()
+            with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                rc = ch.main(
+                    [
+                        "--repo",
+                        str(root),
+                        "create",
+                        "--session",
+                        "abcd1234",
+                        "--subject",
+                        "fixture",
+                        "--file",
+                        "mine.txt",
+                    ]
+                    + extra
+                )
+        finally:
+            ch.verify_status = saved
+        return rc, out.getvalue() + err.getvalue(), root
+
+    def test_debt_not_charged_for_foreign_red(self):
+        """AC-4. The red names one file, this commit does not carry it, and the
+        commit is prepared with no structural override -- so no `structural
+        gates (red)` row is written."""
+        rc, msg, root = self._run(
+            ["theirs.txt"], ["--unverified", "another session edited the tree"]
+        )
+        self.assertEqual(rc, 0, msg)
+        self.assertIn("red for another session only: ze-lint", msg)
+        shard = (root / ch.VERIFICATION_DEBT_DIR / "abcd1234.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("| ze-precommit-verify (not FRESH-green) |", shard)
+        self.assertNotIn("structural gates (red)", shard)
+
+    def test_a_red_naming_a_committed_file_still_refuses(self):
+        """AC-5. Attribution is not a bypass: the same run, with the same file
+        list, refuses when the red names a file this commit carries."""
+        rc, msg, _ = self._run(
+            ["mine.txt"], ["--unverified", "another session edited the tree"]
+        )
+        self.assertEqual(rc, 2, msg)
+        self.assertIn("STRUCTURAL GATE", msg)
+        self.assertIn("ze-lint", msg)
+
+    def test_an_unattributable_red_refuses_and_names_the_group(self):
+        """AC-4b. `wiring` is a check name, not a path, so the commit's file list
+        cannot rule the red out and the refusal says which group is blind."""
+        rc, msg, _ = self._run(
+            ["wiring"], ["--unverified", "another session edited the tree"]
+        )
+        self.assertEqual(rc, 2, msg)
+        self.assertIn("Charged for want of attribution", msg)
+        self.assertIn("lint:.:gofmt", msg)
+
+
 class TestBrokenHeadFixEscape(unittest.TestCase):
     """A broken HEAD must not block the commit that fixes it.
 
@@ -1186,8 +1793,10 @@ class TestBrokenHeadFixEscape(unittest.TestCase):
         import io
 
         saved = (ch.verify_status, ch.structural_gate_reds)
-        ch.verify_status = lambda repo: ("stale", "structural red")
-        ch.structural_gate_reds = lambda repo: reds
+        ch.verify_status = lambda repo, paths: ("stale", "structural red")
+        ch.structural_gate_reds = lambda repo, paths=(): ch.GateReds(
+            tuple(reds), (), ()
+        )
         try:
             with tempfile.TemporaryDirectory() as tmp:
                 root = Path(tmp)
@@ -1400,7 +2009,7 @@ class TestDeferralSharding(unittest.TestCase):
     def test_two_sessions_no_cross_commit(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = self._commit_repo(tmp)
-            (root / "plan" / "deferrals").mkdir(parents=True)
+            (root / "plan" / "deferrals").mkdir(parents=True, exist_ok=True)
             a = "plan/deferrals/spec-a.md"
             b = "plan/deferrals/spec-b.md"
             (root / a).write_text(
@@ -1433,7 +2042,7 @@ class TestDeferralSharding(unittest.TestCase):
     def test_single_file_would_cross_commit(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = self._commit_repo(tmp)
-            (root / "plan").mkdir()
+            (root / "plan").mkdir(exist_ok=True)
             shared = "plan/deferrals-single.md"
             (root / shared).write_text(
                 DEFERRALS_HEADER
@@ -1458,7 +2067,7 @@ class TestDeferralSharding(unittest.TestCase):
     def test_unassigned_folds_across_shards(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            (root / "plan" / "deferrals").mkdir(parents=True)
+            (root / "plan" / "deferrals").mkdir(parents=True, exist_ok=True)
             (root / "plan" / "spec-real.md").write_text("# Spec\n")
             (root / "plan" / "deferrals" / "clean.md").write_text(
                 DEFERRALS_HEADER
@@ -3197,7 +3806,12 @@ class TestFullVerifyCoverage(unittest.TestCase):
 
     def _go_file(self, root: Path, written_at: float) -> str:
         path = "internal/a.go"
-        (root / path).write_text("package a\n")
+        # The `// Design:` header is what `design_ref_problems` requires of every
+        # committed .go file. Without it this fixture is refused by THAT gate,
+        # and the coverage gate under test here is never reached.
+        (root / path).write_text(
+            "// Design: docs/architecture/core-design.md -- fixture\npackage a\n"
+        )
         os.utime(root / path, (written_at, written_at))
         return path
 
@@ -3294,7 +3908,10 @@ class TestFullVerifyCoverage(unittest.TestCase):
         path = self._go_file(root, time.time())
         _git(root, "add", "-A")
         _git(root, "commit", "-qm", "init")
-        (root / path).write_text("package a\n\nfunc X() {}\n")
+        (root / path).write_text(
+            "// Design: docs/architecture/core-design.md -- fixture\n"
+            "package a\n\nfunc X() {}\n"
+        )
         return root, path
 
     def _create(self, root: Path, *extra: str) -> tuple[int, str, str]:
@@ -3452,7 +4069,9 @@ class TestVerificationDebt(unittest.TestCase):
     def test_a_multiline_reason_cannot_forge_a_row(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = self._repo(tmp)
-            ch.record_debt(root, "abcd1234", "s", [("g", "a\n| x | y | z | w | open |")])
+            ch.record_debt(
+                root, "abcd1234", "s", [("g", "a\n| x | y | z | w | open |")]
+            )
             self.assertEqual(len(ch.open_debt_rows(root)), 1)
 
     def test_no_shard_directory_means_no_debt(self) -> None:
@@ -3462,9 +4081,212 @@ class TestVerificationDebt(unittest.TestCase):
     def test_the_debt_dir_is_exempt_from_the_deferral_scan(self) -> None:
         """A debt row's free-text reason may read like a deferral. Demanding a
         plan/deferrals/ shard beside it would home one obligation twice."""
-        self.assertIn(
-            ch.VERIFICATION_DEBT_DIR + "/", ch.DEFERRAL_SCAN_EXEMPT_DIRS
+        self.assertIn(ch.VERIFICATION_DEBT_DIR + "/", ch.DEFERRAL_SCAN_EXEMPT_DIRS)
+
+
+class TestDebtClear(unittest.TestCase):
+    """AC-6 and AC-7: a row clears by RUNNING its gate, never by trusting it.
+
+    The ledger's whole purpose is to hold evidence that a gate ran, so writing
+    `cleared` on anything weaker than an exit 0 would put a claim where the
+    evidence goes (`ai/rules/evidence.md`). Every case below therefore asserts
+    on what the gate PRINTED as well as on the row, so a clearing pass that
+    skipped the run could not pass them.
+    """
+
+    def _repo(self, rows: list[tuple[str, str]]) -> Path:
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        root = Path(tmp.name)
+        _git(root, "init", "-q")
+        ch.record_debt(root, "abcd1234", "fix: thing", rows)
+        return root
+
+    def _clear(self, root: Path) -> tuple[int, str]:
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            rc = ch.main(["--repo", str(root), "debt-clear"])
+        return rc, out.getvalue() + err.getvalue()
+
+    def _shard(self, root: Path) -> str:
+        return (root / ch.VERIFICATION_DEBT_DIR / "abcd1234.md").read_text(
+            encoding="utf-8"
         )
+
+    def test_debt_clear_reruns_the_owed_gate(self) -> None:
+        """AC-6. The gate is a real command, it really runs, and its exit 0 is
+        what turns the row. `the gate ran` can only reach the output through the
+        subprocess, so a pass that trusted the row instead fails here."""
+        root = self._repo([("green fixture gate", "another session's red")])
+        runners = {
+            "green fixture gate": ch.gate_command("sh", "-c", "echo the gate ran")
+        }
+        with mock.patch.dict(ch.DEBT_GATE_RUNNERS, runners):
+            rc, msg = self._clear(root)
+        self.assertEqual(rc, 0, msg)
+        self.assertIn("the gate ran", msg)
+        self.assertIn("PASS", msg)
+        self.assertIn("| cleared |", self._shard(root))
+        self.assertEqual(ch.open_debt_rows(root), [])
+
+    def test_a_row_appended_mid_pass_is_not_cleared_with_its_twin(self) -> None:
+        """A judgement covers the ROW it was passed on, not every row that reads
+        like it. A second override with the same session, subject, gate and
+        reason, recorded on the same day, renders BYTE-IDENTICAL. Keyed by text
+        the judgement clears both, and the twin's commit was covered by nothing.
+        The runner appends the twin while the gate is `running`, which is when a
+        concurrent `create` would."""
+        root = self._repo([("green fixture gate", "another session's red")])
+
+        def append_a_twin(repo: Path) -> tuple[int, str]:
+            ch.record_debt(
+                repo,
+                "abcd1234",
+                "fix: thing",
+                [("green fixture gate", "another session's red")],
+            )
+            return 0, "the gate ran"
+
+        with mock.patch.dict(
+            ch.DEBT_GATE_RUNNERS, {"green fixture gate": append_a_twin}
+        ):
+            rc, msg = self._clear(root)
+        self.assertEqual(rc, 0, msg)
+        self.assertEqual(self._shard(root).count("| cleared |"), 1)
+        self.assertEqual(len(ch.open_debt_rows(root)), 1)
+
+    def test_the_shard_header_says_what_a_cleared_row_establishes(self) -> None:
+        """The header is the contract every reader of the ledger gets, and it
+        used to say the pass re-runs the gate `over the committed code`. Three
+        of the five runnable gates in `DEBT_GATE_RUNNERS` are plain make targets
+        over the working tree, which in this checkout carries other sessions'
+        uncommitted files, so that claim was about a tree the pass never
+        judged."""
+        root = self._repo([("green fixture gate", "r")])
+        header = self._shard(root).split("| Date |")[0]
+        self.assertNotIn("over the committed code", header)
+        self.assertIn("WORKING TREE", header)
+
+    def test_a_red_gate_leaves_the_row_open_and_prints_its_output(self) -> None:
+        """AC-7. Exit 3 is not exit 0, so the row is untouched and the operator
+        is shown what the gate said rather than a bare refusal."""
+        root = self._repo([("red fixture gate", "structural red")])
+        runners = {
+            "red fixture gate": ch.gate_command(
+                "sh", "-c", "echo tier-check: internal/x misplaced; exit 3"
+            )
+        }
+        with mock.patch.dict(ch.DEBT_GATE_RUNNERS, runners):
+            rc, msg = self._clear(root)
+        self.assertEqual(rc, 0, msg)
+        self.assertIn("RED", msg)
+        self.assertIn("exit 3", msg)
+        self.assertIn("internal/x misplaced", msg)
+        self.assertNotIn("cleared |", self._shard(root))
+        self.assertEqual(len(ch.open_debt_rows(root)), 1)
+
+    def test_an_unrunnable_gate_leaves_the_row_open_and_says_why(self) -> None:
+        """`independent critical review` is a judgement, not a command. Reading
+        the missing runner as a pass would clear 32 live rows nobody reviewed,
+        so the row stays open and the output says what is missing."""
+        gate = dict(ch.DEBT_FLAGS)["review_override"]
+        root = self._repo([(gate, "single-session spec")])
+        rc, msg = self._clear(root)
+        self.assertEqual(rc, 0, msg)
+        self.assertIn("UNRUNNABLE", msg)
+        self.assertIn("/ze-review", msg)
+        self.assertNotIn("cleared |", self._shard(root))
+        self.assertEqual(len(ch.open_debt_rows(root)), 1)
+
+    def test_a_gate_name_no_runner_knows_leaves_the_row_open(self) -> None:
+        """A row written under an older wording of DEBT_FLAGS. Nothing runs, so
+        nothing clears, and the unknown name is printed."""
+        root = self._repo([("ze-something-retired", "reason")])
+        rc, msg = self._clear(root)
+        self.assertEqual(rc, 0, msg)
+        self.assertIn("no gate is registered", msg)
+        self.assertIn("ze-something-retired", msg)
+        self.assertEqual(len(ch.open_debt_rows(root)), 1)
+
+    def test_only_the_rows_whose_gate_passed_are_cleared(self) -> None:
+        """One shard, two gates, one verdict each. The green gate's row turns
+        and the red gate's row does not."""
+        root = self._repo(
+            [("green fixture gate", "r1"), ("red fixture gate", "r2")]
+        )
+        runners = {
+            "green fixture gate": ch.gate_command("true"),
+            "red fixture gate": ch.gate_command("false"),
+        }
+        with mock.patch.dict(ch.DEBT_GATE_RUNNERS, runners):
+            rc, msg = self._clear(root)
+        self.assertEqual(rc, 0, msg)
+        shard = self._shard(root)
+        self.assertIn("| green fixture gate | r1 | cleared |", shard)
+        self.assertIn("| red fixture gate | r2 | open |", shard)
+        self.assertIn("cleared 1 row(s), 1 still open", msg)
+
+    def test_a_row_appended_while_the_gates_ran_is_not_dropped(self) -> None:
+        """Several sessions share this checkout, so a shard grows under the
+        pass. Only rows this pass JUDGED are rewritten: the newcomer is copied
+        out untouched, and it is still open."""
+        root = self._repo([("green fixture gate", "r1")])
+
+        def slow_gate(repo: Path) -> tuple[int, str]:
+            ch.record_debt(repo, "abcd1234", "other session", [("g9", "late row")])
+            return 0, "ran"
+
+        with mock.patch.dict(ch.DEBT_GATE_RUNNERS, {"green fixture gate": slow_gate}):
+            rc, msg = self._clear(root)
+        self.assertEqual(rc, 0, msg)
+        shard = self._shard(root)
+        self.assertIn("| green fixture gate | r1 | cleared |", shard)
+        self.assertIn("| g9 | late row | open |", shard)
+        self.assertEqual(len(ch.open_debt_rows(root)), 1)
+
+    def test_the_shard_survives_its_last_row_clearing(self) -> None:
+        """The header says a HUMAN may delete a fully cleared shard. A pass that
+        deleted it would destroy the record of what was owed and when."""
+        root = self._repo([("green fixture gate", "r1")])
+        with mock.patch.dict(
+            ch.DEBT_GATE_RUNNERS, {"green fixture gate": ch.gate_command("true")}
+        ):
+            self._clear(root)
+        self.assertTrue((root / ch.VERIFICATION_DEBT_DIR / "abcd1234.md").exists())
+
+    def test_no_open_row_runs_no_gate(self) -> None:
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        root = Path(tmp.name)
+        _git(root, "init", "-q")
+        rc, msg = self._clear(root)
+        self.assertEqual(rc, 0, msg)
+        self.assertIn("No open verification-debt rows", msg)
+
+    def test_every_debt_flag_gate_has_a_verdict(self) -> None:
+        """DEBT_FLAGS writes the cell and DEBT_GATE_RUNNERS reads it. A flag
+        added to one and not the other would write rows nothing can ever
+        judge."""
+        for _, gate in ch.DEBT_FLAGS:
+            self.assertIn(gate, ch.DEBT_GATE_RUNNERS)
+            runner = ch.DEBT_GATE_RUNNERS[gate]
+            self.assertTrue(
+                callable(runner) or isinstance(runner, str),
+                f"{gate}: neither a runner nor a reason",
+            )
+
+    def test_a_command_that_cannot_start_is_not_a_pass(self) -> None:
+        """Fail closed: an OSError from the runner is a gate that did not
+        answer, and a gate that did not answer has not passed."""
+        root = self._repo([("missing binary gate", "r1")])
+        runners = {
+            "missing binary gate": ch.gate_command("ze-no-such-binary-exists")
+        }
+        with mock.patch.dict(ch.DEBT_GATE_RUNNERS, runners):
+            rc, msg = self._clear(root)
+        self.assertEqual(rc, 0, msg)
+        self.assertIn("RED", msg)
+        self.assertEqual(len(ch.open_debt_rows(root)), 1)
 
 
 if __name__ == "__main__":

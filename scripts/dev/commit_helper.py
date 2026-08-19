@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import datetime
+import fcntl
 import importlib.util
 import json
 import os
@@ -18,6 +19,7 @@ import sys
 import tempfile
 import textwrap
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -939,8 +941,72 @@ def write_outputs(
     return script, authorisation
 
 
-def verify_status(repo: Path) -> tuple[str, str]:
-    """Return (state, detail) from scripts/dev/verify-status.sh check.
+def manifest_quotes(path: str) -> bool:
+    """True when git C-quotes `path`, so no manifest row can spell it raw.
+
+    `dirty_manifest` (scripts/dev/verify-status.sh) and `computeDirtyManifest`
+    (scripts/status/verify_run.go) both record a path as `git diff --name-only`
+    and `git ls-files -o` PRINT it, and git C-quotes any path carrying a byte
+    outside printable ASCII (0x20-0x7E), a double quote, or a backslash. A space
+    is NOT quoted, which is why a space is representable in a row and these
+    bytes are not.
+    """
+    return any(ch in '"\\' or not (" " <= ch <= "~") for ch in path)
+
+
+def scopeable_paths(paths: tuple[str, ...] | list[str]) -> tuple[str, ...]:
+    """The commit's paths, or () when the manifest cannot answer about one.
+
+    () is the whole-tree question, which is what `verify-status.sh check` asks
+    with no arguments. It is the conservative answer: it is what this gate did
+    before scoping existed, and it can only refuse more. Scoping an
+    unrepresentable path would instead make the gate answer yes to a question it
+    cannot ask.
+
+    Two shapes are unrepresentable, and both widen to (). `manifest_scoped`
+    (scripts/dev/verify-status.sh) matches a row when the row's path equals the
+    scope argument or starts with it plus a slash, so each of them selects
+    nothing from the recorded manifest AND nothing from the live one -- and two
+    empty sets compare EQUAL, a FRESH answer covering nothing at all. That is a
+    guard failing open, which `ai/rules/evidence.md` refuses.
+
+    An EMPTY path: no real row's path equals "" or starts with "/".
+
+    A path git C-QUOTES (`manifest_quotes`): the row spells it quoted while the
+    scope argument is the raw path, so neither side matches. Measured on
+    2026-08-19 against the real checker: an edited path holding an accented
+    letter and an edited path holding a backslash both answered FRESH, while
+    `my file.txt` answered STALE.
+
+    The real repair is to make both producers record the RAW path, and it is not
+    a one-line change: the manifest format is agreed between two producers in
+    two languages, and a path holding a NEWLINE breaks its one-row-per-line
+    shape outright. Until that lands, the checker must never be ASKED about such
+    a path, and this is the only caller that passes it any.
+
+    A space used to land here too, because `manifest_scoped` read the path as
+    awk's $2. That is fixed at the producer: the path is everything after the
+    first space, so a space is asked about rather than widened away.
+    `rel_path` already refuses a control character.
+    """
+    scope = tuple(paths)
+    if any(not path or manifest_quotes(path) for path in scope):
+        return ()
+    return scope
+
+
+def verify_status(repo: Path, paths: tuple[str, ...] | list[str]) -> tuple[str, str]:
+    """Return (state, detail) from scripts/dev/verify-status.sh check <paths>.
+
+    `paths` is the file list this commit carries, and it SCOPES the question:
+    did these paths change since the PASS, rather than did the checkout change.
+    Several sessions share this checkout and it routinely carries 300+
+    uncommitted files, so the whole-tree answer is STALE within seconds of a
+    PASS -- almost always for a file the asking session never wrote. An empty
+    list keeps the whole-tree meaning, which `hook-parity-check.py` pins.
+
+    Scoping the FRESHNESS question is not a route around a structural red: that
+    is `structural_gate_reds`, and it still reads every red the run recorded.
 
     state is "fresh", "stale", or "unknown". Only "stale" blocks a commit:
     the gate enforces a CONFIRMED red, it never invents one when the checker is
@@ -952,7 +1018,10 @@ def verify_status(repo: Path) -> tuple[str, str]:
         return "unknown", "verify-status.sh not found"
     try:
         proc = subprocess.run(
-            [str(script), "check"], cwd=repo, capture_output=True, text=True
+            [str(script), "check", *scopeable_paths(paths)],
+            cwd=repo,
+            capture_output=True,
+            text=True,
         )
     except OSError as exc:
         return "unknown", f"verify-status.sh did not run: {exc}"
@@ -993,27 +1062,173 @@ STRUCTURAL_GATES = frozenset(
 )
 
 
-def structural_gate_reds(repo: Path) -> list[str]:
+@dataclass(frozen=True)
+class GateReds:
+    """The last verify's structural reds, attributed against a commit's file list.
+
+    `charged` refuses the commit. `unattributed` names the groups that put a gate
+    into `charged` for want of any path at all, rather than for a path this commit
+    carries: AC-4b makes the helper say that out loud, so the blind spot is
+    visible instead of silent. `foreign` names the gates attribution dropped --
+    every group of theirs named files, and every one of those files lies outside
+    the commit.
+    """
+
+    charged: tuple[str, ...]
+    unattributed: tuple[str, ...]
+    foreign: tuple[str, ...]
+
+
+# The `failureGroup.Kind` values (scripts/status/verify_run.go) whose `Related`
+# members are names rather than paths: a subcheck name from `classifyWiringDocs`,
+# a stage name from `genericGroup`, a functional suite from `classifyFunctional`,
+# and ExaBGP test names from `classifyExabgp`. Every other kind this gate meets
+# names files -- `classifyLint` records the LINTER as the kind and .go files as
+# the members, `classifyVet` records `package` and a package pattern.
+NON_PATH_GROUP_KINDS = frozenset({"subcheck", "stage", "suite", "mismatch", "timeout"})
+
+
+def related_repo_path(repo: Path, related: str) -> str | None:
+    """The repo path a `related` member names, or None when it names no path.
+
+    `failureGroup.Related` (scripts/status/verify_run.go) is a UNION, and which
+    member you hold is not visible in the string: `classifyLint` records a .go
+    FILE, `classifyVet` a package PATTERN (`./scripts/evidence/...`),
+    `classifyWiringDocs` a check NAME, `classifyFunctional` a suite name,
+    `classifyExabgp` test names, and `genericGroup` the stage's own name. `wiring`
+    and `Makefile` are both bare words, so shape decides nothing. Which arm of the
+    union it is comes from the group's `kind`, and `group_related_paths` reads
+    that BEFORE calling this. What is left for existence to answer is whether the
+    checkout holds a path-bearing member: a name no file answers to is not
+    attribution evidence, and the caller charges the debt for it rather than
+    reading a path the checkout no longer holds as somebody else's.
+
+    `.` is refused for the same reason from the other side. A vet pattern of
+    `./...` reduces to it, and it names the whole tree rather than a path the
+    commit can be compared against.
+    """
+    text = related.strip().removesuffix("/...").removeprefix("./")
+    if not text or text == "." or text.startswith("/"):
+        return None
+    if any(part in ("", ".", "..") for part in text.split("/")):
+        return None
+    if not (repo / text).exists():
+        return None
+    return text
+
+
+def group_related_paths(repo: Path, group: dict) -> list[str]:
+    """Every repo path this failure group names. Empty when it names none.
+
+    The group's `kind` decides whether its members can name a path at all, and
+    existence decides nothing on its own. `classifyWiringDocs` builds a member
+    out of `([A-Za-z0-9_-]+) failed` over a log carrying the delegated targets'
+    stdout, so a subcheck can be called `docs`, `test`, `api`, `build` or
+    `Makefile` -- each of them also a repo entry. Read as attribution evidence,
+    such a name leaves nothing blind, drops the whole gate into `foreign`, and
+    the red goes uncharged.
+
+    A group carrying NO kind names nothing here. Every group `writeFailureIndex`
+    writes has one, so its absence says the artifact is not that index, and
+    charging a red nobody attributed is the safe direction.
+    """
+    if str(group.get("kind") or "") in NON_PATH_GROUP_KINDS | {""}:
+        return []
+    found: list[str] = []
+    for related in group.get("related") or []:
+        if not isinstance(related, str):
+            continue
+        path = related_repo_path(repo, related)
+        if path:
+            found.append(path)
+    return found
+
+
+def related_in_commit(related: str, paths: tuple[str, ...]) -> bool:
+    """True when `related` and a committed path name overlapping trees.
+
+    `manifest_scoped` (scripts/dev/verify-status.sh) already fixes one direction:
+    a directory argument scopes to everything under it. The other direction
+    exists because `Related` itself can be a directory -- `classifyVet` records
+    `./scripts/evidence/...` for every red in that package -- and a commit
+    carrying one file inside it owns that red.
+    """
+    for path in paths:
+        if related == path:
+            return True
+        if related.startswith(path + "/") or path.startswith(related + "/"):
+            return True
+    return False
+
+
+def structural_gate_reds(
+    repo: Path, paths: tuple[str, ...] | list[str] = ()
+) -> GateReds:
     """Structural-gate stages recorded red by the last `make ze-precommit-verify` run.
 
     Reads tmp/ze-verify-failures.json, which verify_run.go rewrites after EVERY
     run (green or red, unconditionally), so a stale red cannot linger past a
-    green verify: a fixed-and-reverified tree clears this. Returns [] when the
-    artifact is missing or unreadable -- mirroring verify_status(), the gate
-    never invents a red it cannot confirm. Preserves stage order.
+    green verify: a fixed-and-reverified tree clears this. Returns nothing
+    charged when the artifact is missing or unreadable -- mirroring
+    verify_status(), the gate never invents a red it cannot confirm. Preserves
+    stage order.
+
+    `paths` is the commit's file list, the same list `verify_status` scopes the
+    freshness question to, and here it ATTRIBUTES each red. A gate whose every
+    failure group names files, all of them outside that list, cannot have been
+    caused by this commit, so it is not charged (AC-4). One named file inside the
+    list charges it, exactly as before (AC-5). A group that names NO path is not
+    attributable at all, so it is charged as it always was and `unattributed`
+    names it (AC-4b): guessing which files a check name or a suite name covers
+    would let a real red go uncharged.
+
+    An empty list keeps the whole-tree meaning and charges every red. Attribution
+    narrows a question the caller asked about its own files; with no files named
+    there is no question to narrow.
     """
     path = repo / "tmp" / "ze-verify-failures.json"
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
-        return []
-    reds: list[str] = []
+        return GateReds((), (), ())
+    scope = tuple(p for p in paths if p)
+    charged: list[str] = []
+    unattributed: list[str] = []
+    foreign: list[str] = []
     for st in data.get("stages", []) if isinstance(data, dict) else []:
         if not isinstance(st, dict):
             continue
-        if st.get("exit-code", 0) != 0 and st.get("stage") in STRUCTURAL_GATES:
-            reds.append(st["stage"])
-    return reds
+        if st.get("exit-code", 0) == 0 or st.get("stage") not in STRUCTURAL_GATES:
+            continue
+        stage = st["stage"]
+        if not scope:
+            charged.append(stage)
+            continue
+        groups = st.get("groups")
+        blind: list[str] = []
+        owned = False
+        if not isinstance(groups, list) or not groups:
+            # A red the classifier produced no group for. It names nothing, so
+            # it is charged: `genericGroup` is the usual shape here, and a stage
+            # recorded with no groups at all must not read as attributable.
+            blind.append(stage)
+        for group in groups if isinstance(groups, list) else []:
+            if not isinstance(group, dict):
+                continue
+            named = group_related_paths(repo, group)
+            if not named:
+                blind.append(str(group.get("group-id") or stage))
+                continue
+            if any(related_in_commit(name, scope) for name in named):
+                owned = True
+        if not blind and not owned:
+            # Every group named files, and every one is another session's.
+            foreign.append(stage)
+            continue
+        charged.append(stage)
+        if not owned:
+            unattributed.append(stage + " (" + ", ".join(blind) + ")")
+    return GateReds(tuple(charged), tuple(unattributed), tuple(foreign))
 
 
 # The mode `scripts/status/verify_run.go` records for the 25-stage full gate.
@@ -2125,6 +2340,14 @@ def deferral_in_diff_problems(
     """
     if any(p.startswith("plan/deferrals/") for p in add_paths):
         return []
+    # A repository with no plan/ tree cannot record a deferral, so this gate has
+    # no satisfying action there and refuses every commit it examines. The
+    # published website is such a repository: it is generated, nobody parks work
+    # in it, and its pages legitimately quote the phrases this scan looks for --
+    # an RFC status page describing what an RFC leaves `out of scope` is prose
+    # about a document, not somebody deferring their own work.
+    if not (repo / "plan").is_dir():
+        return []
     prose = [
         (line, _deferral_prose(line))
         for path, line in _prospective_added_lines(repo, add_paths, remove_paths)
@@ -3016,10 +3239,17 @@ def record_debt(
             "",
             "Gates that had not run green over these commits when they were made.",
             "Each row is work owed, not a defect: a defect is fixed, never recorded",
-            "(`ai/rules/completion.md`). Clear a row by running the gate over the",
-            "committed code and setting Status to `cleared`, or delete the shard once",
-            "every row is cleared. `scripts/dev/commit_helper.py create --push` refuses",
-            "while any row here is open.",
+            "(`ai/rules/completion.md`). Clear a row with `make ze-verify-debt-clear`:",
+            "it re-runs the gate the row names and writes `cleared` only when that",
+            "run exits 0. Most of those gates judge the WORKING TREE, so a cleared",
+            "row says the gate was green in this checkout, other sessions'",
+            "uncommitted files included. It does not say the gate is green over the",
+            "commit alone: `discovery-index freshness` and",
+            "`ze-repository-tracked-build-check` are the two gates re-judged over",
+            "what git holds. A human MAY delete the",
+            "shard once every row is cleared.",
+            "`scripts/dev/commit_helper.py create --push` refuses while any row here",
+            "is open.",
             "",
             *DEBT_HEADER,
         ]
@@ -3028,19 +3258,29 @@ def record_debt(
             f"| {stamp} | {session} | {_debt_cell(subject)} | {_debt_cell(gate)} "
             f"| {_debt_cell(reason)} | open |"
         )
+    # The same exclusive lock `clear_debt_rows` takes. Without it an append
+    # landing inside a clearing pass's read-modify-write is lost, and this
+    # checkout runs several sessions at once.
     with path.open("a", encoding="utf-8") as fh:
+        fcntl.flock(fh, fcntl.LOCK_EX)
         fh.write("\n".join(lines) + "\n")
     return rel
 
 
-def open_debt_rows(repo: Path) -> list[tuple[str, str]]:
-    """(shard, row) for every row whose Status cell is `open`.
+def open_debt_rows(repo: Path) -> list[tuple[str, str, int]]:
+    """(shard, row, position) for every row whose Status cell is `open`.
 
     Reads the tracked shards, so it answers the same question in any session on
     this checkout -- which is the point: the session that pushes is rarely the
     session that owed the gate.
+
+    `position` is the row's 0-based line index in its shard, and it is the row's
+    IDENTITY. The text is not: two overrides recorded by one `create` with the
+    same gate and reason render byte-identically, and so does a second `create`
+    on the same day with the same subject. `clear_debt_rows` keys on the
+    position for that reason.
     """
-    rows: list[tuple[str, str]] = []
+    rows: list[tuple[str, str, int]] = []
     root = repo / VERIFICATION_DEBT_DIR
     if not root.is_dir():
         return rows
@@ -3049,13 +3289,217 @@ def open_debt_rows(repo: Path) -> list[tuple[str, str]]:
             text = shard.read_text(encoding="utf-8")
         except OSError:
             continue
-        for line in text.splitlines():
+        for index, line in enumerate(text.splitlines()):
             cells = [c.strip() for c in line.split("|")]
             # A rendered row is `| a | b | c | d | e | f |` -> 8 split cells.
             if len(cells) != 8 or cells[-2].lower() != "open":
                 continue
-            rows.append((shard.name, line.strip()))
+            rows.append((shard.name, line.strip(), index))
     return rows
+
+
+# --------------------------------------------------------------------------- #
+# Clearing a debt row.
+#
+# A row is cleared by RUNNING the gate it names and reading that run's exit
+# code. The alternative is what the ledger shipped with -- a human editing the
+# Status cell -- and by 2026-08-19 it had produced 270 open rows against 22
+# cleared, because the session that owes a gate is rarely the session that can
+# spare an hour to run it. A `cleared` written any other way would be a CLAIM about verification
+# sitting in the artifact that exists to hold evidence of it
+# (`ai/rules/evidence.md`), so nothing below writes that word without an exit 0
+# in hand.
+# --------------------------------------------------------------------------- #
+
+# (exit code, what the gate printed). Exit 0, and only exit 0, clears a row.
+GateVerdict = tuple[int, str]
+GateRunner = Callable[[Path], GateVerdict]
+
+
+def gate_command(*argv: str) -> GateRunner:
+    """A debt gate re-run by executing `argv` from the repo root.
+
+    The command line is echoed into the returned output, so a reader of a red
+    gate sees which command produced it without the runner carrying a second
+    field for it.
+    """
+
+    def run(repo: Path) -> GateVerdict:
+        shown = "$ " + " ".join(argv) + "\n"
+        try:
+            proc = subprocess.run(list(argv), cwd=repo, capture_output=True, text=True)
+        except OSError as exc:
+            return 1, shown + f"{argv[0]} did not run: {exc}"
+        return proc.returncode, shown + (proc.stdout or "") + (proc.stderr or "")
+
+    return run
+
+
+def index_head_gate(repo: Path) -> GateVerdict:
+    """The discovery-index gate, re-judged over HEAD rather than the tree.
+
+    `discovery_index_head_status` materializes HEAD and re-runs the generators
+    there, so it answers about the COMMITTED code, which is what a debt row is
+    about. The working-tree spelling (`make ze-discovery-index-check`) answers
+    about every other session's uncommitted sources too, and the row would then
+    wait on work nobody in this pass owns. "unknown" does not clear: a gate that
+    could not answer has not passed.
+    """
+    state, stale = discovery_index_head_status(repo)
+    detail = f"discovery-index at HEAD: {state}"
+    if stale:
+        detail += "\n" + "\n".join("  stale: " + name for name in stale)
+    return (0 if state == "fresh" else 1), detail
+
+
+_DEBT_GATE_NAME = dict(DEBT_FLAGS)
+
+# How each owed gate is re-judged: a runner taking the repo root, or the
+# sentence saying why no command can produce that judgement. Keyed by the flag
+# rather than by the literal cell text, so rewording a gate name in DEBT_FLAGS
+# cannot orphan an entry here. A row written under an OLDER wording finds no
+# runner and stays open, which is the safe direction.
+DEBT_GATE_RUNNERS: dict[str, GateRunner | str] = {
+    _DEBT_GATE_NAME["unverified"]: gate_command("make", "ze-precommit-verify"),
+    _DEBT_GATE_NAME["structural_red_ok"]: gate_command(
+        "make", *sorted(STRUCTURAL_GATES)
+    ),
+    _DEBT_GATE_NAME["missing_full_verify_ok"]: gate_command(
+        "make", "ze-precommit-verify"
+    ),
+    _DEBT_GATE_NAME["stale_index_ok"]: index_head_gate,
+    _DEBT_GATE_NAME["review_override"]: (
+        "a review is a judgement made in another context, and no command "
+        "produces one. `scripts/dev/review_gate.py` records that a review "
+        "happened; it cannot perform it. Run /ze-review over the commit, then "
+        "set this row to `cleared` by hand"
+    ),
+    _DEBT_GATE_NAME["broken_head_fix"]: gate_command("make", TRACKED_BUILD_GATE),
+}
+
+
+def gate_last_word(output: str) -> str:
+    """The last thing a passing gate said, which is what a PASS prints.
+
+    A green `make ze-precommit-verify` writes an hour of log and none of it
+    changes what the operator does next, so a pass does not print the whole
+    thing. Printing NOTHING is the other failure: a `PASS` line this file wrote
+    would then look the same whether the gate ran or not, and this pass exists
+    because a `cleared` nobody could check is worthless. One line of the gate's
+    own output is the cheapest thing that is still evidence.
+    """
+    spoken = [line for line in output.splitlines() if line.strip()]
+    return spoken[-1] if spoken else "(the gate printed nothing)"
+
+
+def debt_row_gate(row: str) -> str:
+    """The `Gate owed` cell of a rendered debt row, or "" when it has none."""
+    cells = [c.strip() for c in row.split("|")]
+    return cells[4] if len(cells) == 8 else ""
+
+
+def clear_debt_rows(path: Path, rows: dict[int, str]) -> int:
+    """Set Status to `cleared` at each POSITION of `rows`, in place. Returns the count.
+
+    The key is the line index this pass judged the row at; the value is the text
+    it carried then. Both must still hold, so a shard a human rewrote in the
+    meantime loses nothing: a position that no longer reads as the judged row is
+    copied out unchanged.
+
+    The position is the identity because the TEXT is not. Two rows can be
+    byte-identical (`open_debt_rows`), so a row APPENDED while the gates ran
+    could match a judgement passed on its twin and be cleared with it -- a
+    `cleared` over a commit no gate covered, which is the one thing this ledger
+    exists not to hold.
+
+    The shard is re-read under the exclusive lock `record_debt` takes, which is
+    what orders an append against this rewrite rather than racing it. An append
+    lands after every position this pass holds and shifts none of them, and the
+    rewrite preserves the line count.
+    """
+    written = 0
+    with path.open("r+", encoding="utf-8") as handle:
+        fcntl.flock(handle, fcntl.LOCK_EX)
+        out: list[str] = []
+        for index, line in enumerate(handle.read().splitlines()):
+            if rows.get(index) == line.strip():
+                cells = line.split("|")
+                cells[-2] = " cleared "
+                line = "|".join(cells)
+                written += 1
+            out.append(line)
+        handle.seek(0)
+        handle.write("\n".join(out) + "\n")
+        handle.truncate()
+    return written
+
+
+def clear_debt(args: argparse.Namespace) -> int:
+    """`commit_helper.py debt-clear`: re-run every open row's gate, clear on 0.
+
+    What a cleared row establishes is what the RUN established, and that is
+    narrower than the row's subject. Three of the five runnable gates are plain
+    `make` targets over the WORKING TREE (`DEBT_GATE_RUNNERS`), which in this
+    checkout carries several other sessions' uncommitted files as well as the
+    committed code the row is about. Two answer about what git holds:
+    `index_head_gate` materializes HEAD, and `ze-repository-tracked-build-check`
+    compiles the tracked tree. So a `cleared` says the gate was green HERE, and
+    it does not say the gate is green over the commit alone.
+
+    Clearing every row over HEAD is the stronger check, and it is separable
+    work rather than a wording fix: each gate would need a HEAD-scoped spelling
+    of the kind `discovery_index_head_status` already has, or the pass would
+    need to materialize HEAD once and run the make targets inside it.
+
+    Each distinct gate runs ONCE, however many rows name it, and every row
+    naming a gate that exited 0 is cleared (AC-6). A gate that exited non-zero
+    leaves its rows open and its output is printed (AC-7), and so does a gate no
+    command can produce -- with the reason, so an unrunnable row never reads as
+    a clearable one.
+
+    The shard is never deleted, even when its last row clears: the header says a
+    human MAY delete it, and a file another session still holds rows in is not
+    this pass's to remove (`ai/rules/never-destroy-work.md`).
+    """
+    repo = repo_root(args.repo)
+    rows = open_debt_rows(repo)
+    if not rows:
+        print("No open verification-debt rows.")
+        return 0
+    by_shard: dict[str, list[tuple[int, str, str]]] = {}
+    for shard, row, line in rows:
+        by_shard.setdefault(shard, []).append((line, row, debt_row_gate(row)))
+    owed = {gate for shard_rows in by_shard.values() for _, _, gate in shard_rows}
+    passed: set[str] = set()
+    for gate in sorted(owed):
+        runner = DEBT_GATE_RUNNERS.get(gate)
+        if not callable(runner):
+            reason = runner or f"no gate is registered for {gate!r}"
+            print(f"UNRUNNABLE  {gate}\n  {reason}")
+            continue
+        print(f"RUN         {gate}", flush=True)
+        code, output = runner(repo)
+        if code == 0:
+            print(f"PASS        {gate}")
+            print(textwrap.indent(gate_last_word(output), "  "))
+            passed.add(gate)
+            continue
+        print(f"RED         {gate} (exit {code})")
+        print(textwrap.indent(output.rstrip("\n"), "  "))
+    cleared = 0
+    for shard in sorted(by_shard):
+        judged = {line: row for line, row, gate in by_shard[shard] if gate in passed}
+        if not judged:
+            continue
+        try:
+            cleared += clear_debt_rows(repo / VERIFICATION_DEBT_DIR / shard, judged)
+        except OSError as exc:
+            # A human MAY delete a shard whose rows all cleared, and one may have
+            # done so between the read above and here. Say which shard kept its
+            # rows open; do not lose the rest of the pass over it.
+            print(f"UNWRITTEN   {shard}: {exc}")
+    print(f"cleared {cleared} row(s), {len(rows) - cleared} still open")
+    return 0
 
 
 def spec_closure_stem(
@@ -3233,7 +3677,7 @@ def _create(args: argparse.Namespace, repo: Path, session: str, tag: str) -> int
     # known-red logged in plan/known-failures/). This turns "verify before
     # commit" from honor-system into an enforced, overridable gate. See
     # ai/rules/git-safety.md.
-    vstate, detail = verify_status(repo)
+    vstate, detail = verify_status(repo, add_paths + remove_paths)
     if vstate == "stale":
         # A DETERMINISTIC STRUCTURAL GATE red (tier/lint/vet/plugin-boundary/
         # iface-resolution/regen-check-readonly/wiring-docs/tracked-build) is
@@ -3242,7 +3686,20 @@ def _create(args: argparse.Namespace, repo: Path, session: str, tag: str) -> int
         # (those cover flaky TEST stages only). This closes the hole that let a
         # misplaced-tier gate (routeinstall) be parked as "pre-existing" and
         # shipped red on main. See ai/rules/git-safety.md.
-        gate_reds = structural_gate_reds(repo)
+        reds = structural_gate_reds(repo, add_paths + remove_paths)
+        gate_reds = list(reds.charged)
+        # Attribution is LOUD in both directions. A dropped red is still a red
+        # somebody owns, and a session that never hears which one was dropped
+        # cannot tell a scoped gate from an ignored one.
+        if reds.foreign:
+            print(
+                "NOTE: structural gate(s) red for another session only: "
+                + ", ".join(reds.foreign)
+                + "\n  Every file their failure groups name lies outside this"
+                " commit, so no\n  verification debt is charged for them. They"
+                " are still red for the tree.",
+                file=sys.stderr,
+            )
         # ze-repository-tracked-build-check is the one structural gate whose red lives in
         # HEAD rather than in the working tree, so it is NOT cleared before the
         # next commit -- it is cleared BY it, by landing the producer that was
@@ -3292,6 +3749,16 @@ def _create(args: argparse.Namespace, repo: Path, session: str, tag: str) -> int
                 "  or environmental reasons -- a red means the tree is structurally\n"
                 "  broken. They are NOT eligible for --unverified or a\n"
                 "  plan/known-failures/ known-red.\n"
+                + (
+                    "  Charged for want of attribution: "
+                    + "; ".join(reds.unattributed)
+                    + ".\n  Those failure groups name a check, a suite or the"
+                    " stage itself, never a\n  file, so this commit's file list"
+                    " cannot rule the red out. A gate whose\n  groups name only"
+                    " other sessions' files is dropped instead.\n"
+                    if reds.unattributed
+                    else ""
+                )
                 + (
                     "  "
                     + TRACKED_BUILD_GATE
@@ -3442,7 +3909,7 @@ def _create(args: argparse.Namespace, repo: Path, session: str, tag: str) -> int
     # Refused here rather than at commit time, because a commit that stays local
     # costs nobody anything and a commit that never happens costs the work.
     if push_reason is not None:
-        blocking = open_debt_rows(repo) + [
+        blocking = [(shard, row) for shard, row, _ in open_debt_rows(repo)] + [
             (debt_rel or debt_shard_path(session), f"| (this commit) | {gate} |")
             for gate, _ in owed
         ]
@@ -3454,9 +3921,10 @@ def _create(args: argparse.Namespace, repo: Path, session: str, tag: str) -> int
                 "  free; a push is what reaches users, so the gates are owed here.\n"
                 + "\n".join(f"    {shard}: {row}" for shard, row in blocking[:10])
                 + ("\n    ..." if len(blocking) > 10 else "")
-                + "\n  Run the named gate over the committed code, set that row's Status\n"
-                "  to `cleared`, and push again. Prepare the commit WITHOUT --push to\n"
-                "  land the work now and clear the debt in a later session."
+                + "\n  Run `make ze-verify-debt-clear`: it re-runs each owed gate and\n"
+                "  writes `cleared` on exit 0. A row is never turned by hand. Then push\n"
+                "  again. Prepare the commit WITHOUT --push to land the work now and\n"
+                "  clear the debt in a later session."
             )
     msg = message_text(args.subject, args.body)
     msg_path = message_rel_path(session, tag)
@@ -3545,6 +4013,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--session", help="set the reusable session id, mainly for tests"
     )
     session.set_defaults(func=print_session)
+
+    debt = sub.add_parser(
+        "debt-clear",
+        help="re-run the gate every open verification-debt row names, and set "
+        "that row to `cleared` only when the gate exits 0",
+    )
+    debt.set_defaults(func=clear_debt)
 
     create_cmd = sub.add_parser(
         "create",
