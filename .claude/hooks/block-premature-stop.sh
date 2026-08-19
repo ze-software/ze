@@ -266,14 +266,31 @@ for r in "${REASONS[@]}"; do
     esac
 done
 
-# Stop phrases always block
+# Stop phrases always block.
+#
+# The remedy line must route on WHO asked for the work, because the phrase list
+# catches two different failures and they take opposite fixes.
+#
+#   Asked for already: the ASK was the waste. Do the work.
+#   Thought of by you: the OFFER was the waste. Drop the work.
+#
+# "You have work remaining. Continue without asking permission." was the whole
+# remedy until 2026-08-19, and it answered the first case only. On the second it
+# reads as an order to go and do the thing that was just offered. A turn ending
+# `Want me to spec the streaming writer?` was refused its end and then specced
+# the streaming writer, so the hook MANUFACTURED the uncommissioned work that
+# CLAUDE.md and ai/rules/completion.md both ban. The offer is the defect here.
+# It is never the starting gun.
 if [ "$HAS_PHRASE" = true ]; then
     {
         echo "BLOCKED: Premature stop detected."
         for r in "${REASONS[@]}"; do
             echo "  - $r"
         done
-        echo "You have work remaining. Continue without asking permission."
+        echo "Delete the sentence that asked, then answer one question: who asked for that work?"
+        echo "  The user did: finish it now, and do not ask permission again."
+        echo "  You did: DROP IT. Do not start it, size it, or offer it again."
+        echo "This block is not an instruction to do the work you just offered."
     } >&2
     exit 2
 fi

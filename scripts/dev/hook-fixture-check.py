@@ -5008,6 +5008,25 @@ def run_delegation(results: Results) -> None:
         rc, err = _run_stop_hook(work, "Done. Would you like me to run the tests?")
         results.check("stop-phrase-blocks-real-use", rc == 2, f"rc={rc} {err}")
 
+        # The REMEDY the block prints must not read as an order to go and do the
+        # work that was just offered. It did until 2026-08-19, when the whole
+        # remedy was "Continue without asking permission". That answers
+        # permission-seeking, and the same list catches OFFERS of work nobody
+        # commissioned, where the correct move is the opposite one: drop it. A
+        # turn ending "Want me to spec the streaming writer?" was refused its end
+        # and then wrote that spec, so the gate against uncommissioned work was
+        # manufacturing it. rc == 2 alone cannot see that, so assert the routing
+        # text and the absence of the old line.
+        rc, err = _run_stop_hook(work, "Done.\n\nWant me to spec the streaming writer?")
+        results.check(
+            "stop-phrase-remedy-does-not-order-the-offered-work",
+            rc == 2
+            and "DROP IT" in err
+            and "not an instruction to do the work you just offered" in err
+            and "Continue without asking permission" not in err,
+            f"rc={rc} {err!r}",
+        )
+
         # Does not block when the phrase sits in an inline code span.
         rc, err = _run_stop_hook(
             work, "The scan matches `would you like me to` and blocks the turn."
