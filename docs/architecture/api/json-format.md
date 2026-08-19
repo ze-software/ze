@@ -193,7 +193,7 @@ Attributes appear under the `attr` object:
 | local-preference | `"local-preference": 100` |
 | communities | `"communities": ["65001:100", "65001:200"]` |
 | large-communities | `"large-communities": ["65001:0:100"]` |
-| extended-communities | `"extended-communities": ["0002..."]` (hex) |
+| extended-communities | `"extended-communities": ["target:65000:1", "rate-limit:0"]` (named; a subtype the vocabulary does not name keeps its octets as `0x<type><subtype>:<hex>`) |
 | ipv6-extended-communities | `"ipv6-extended-communities": ["000c2a02..."]` (hex) |
 | aigp | `"aigp": 123` |
 <!-- source: internal/core/bgp/attribute/json.go -- RegisterJSONFormatter, GetJSONFormatter (registry) -->

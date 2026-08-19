@@ -108,6 +108,15 @@ func appendExtCommASSpecific(buf []byte, name string, e ExtendedCommunity) []byt
 // RFC 8955 Sections 7.1 and 7.2: the rate is a 4-octet IEEE 754 float in the
 // last four octets, and "On decoding, negative values MUST be treated as zero
 // (i.e., discard all traffic)". A NaN carries no rate either, so it discards.
+//
+// A fractional rate rounds DOWN, because the integer conversion below truncates.
+// The RFC states no rounding rule, so this states one: a rate under one unit per
+// second renders "rate-limit:0", which the FlowSpec firewall bridge reads as
+// discard-all. Rounding up instead would let a peer that asked for almost no
+// traffic get one whole unit per second, and the peer that means "discard" has
+// an exact encoding for it (rate 0), so nothing needs the fractional value to
+// survive. The direction is load-bearing rather than incidental: this renderer
+// feeds the firewall's input on the receive path.
 func appendExtCommTrafficRate(buf []byte, e ExtendedCommunity, unit string) []byte {
 	rate := float64(math.Float32frombits(binary.BigEndian.Uint32(e[4:8])))
 	if rate < 0 || math.IsNaN(rate) {
