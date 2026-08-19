@@ -3020,10 +3020,14 @@ def go_design_ref_problems(repo: Path, add_paths: tuple[str, ...]) -> list[str]:
     changed-file set at commit time is a FACT; how each file came to be written
     is not recoverable and does not need to be.
 
-    Scoped to what the tree can prove. c_require_design_ref's siblings --
-    c_require_related_refs, c_require_test_first, c_check_existing_patterns --
-    gate on session-state markers, which say what the AUTHOR did and are not
-    properties of the commit. Those stay hook-only by construction.
+    Scoped to what the tree can prove. c_require_related_refs gates on
+    session-state markers, which say what the AUTHOR did and are not properties
+    of the commit, so it stays hook-only by construction.
+
+    c_require_test_first was named here too, and that was wrong: it reads
+    isfile() and no session state at all, so the tree could always have answered
+    its question. The claim went unchecked and the gap stayed open until
+    2026-08-19. Its second half is test_coverage_problems, below.
     """
     missing: list[str] = []
     for path in add_paths:
@@ -3051,6 +3055,83 @@ def go_design_ref_problems(repo: Path, add_paths: tuple[str, ...]) -> list[str]:
         "  and a file whose first 500 bytes say `Code generated` or `DO NOT EDIT`.\n"
         "  This is the commit-time half of c_require_design_ref, which a Bash\n"
         "  write never reaches (ai/rules/go-standards.md)."
+    ]
+
+
+def _test_coverage_required(path: str) -> bool:
+    """Whether `path` raises a test obligation for the commit that carries it."""
+    if not _design_ref_required(path):
+        return False
+    # cmd/ is thin wiring with no package of its own to test. The hook exempts
+    # it; restated here so a file one gate waves through the other cannot refuse.
+    return not re.search(r"(^|/)cmd/", path)
+
+
+def _is_test_path(path: str) -> bool:
+    """A path that proves something: a Go unit test, or a functional test.
+
+    Both kinds count, and either alone clears the gate. ai/rules/testing.md
+    requires both and says neither substitutes for the other, but that is a
+    property of a FEATURE, not of a commit -- a commit landing the unit tests
+    and a later one landing the .ci are both doing the right thing.
+    """
+    if path.endswith("_test.go"):
+        return True
+    return path.endswith((".ci", ".et")) and re.search(r"(^|/)test/", path) is not None
+
+
+def test_coverage_problems(repo: Path, add_paths: tuple[str, ...]) -> list[str]:
+    """A commit carrying non-exempt Go carries a test too.
+
+    The commit-time half of c_require_test_first
+    (.claude/hooks/pretool-writeedit.py). That check fires on Write of a NEW
+    .go file only, so a source file added by Edit -- or written from a Bash
+    heredoc, which auto mode tells agents to prefer -- meets no test
+    obligation anywhere.
+
+    go_design_ref_problems' docstring is why this gap stayed open: it records
+    that c_require_test_first "gates on session-state markers, which say what
+    the AUTHOR did", and concludes the check must stay hook-only. That is not
+    what the check does. It reads isfile() and nothing else, so the tree a
+    commit produces answers the same question, and the reasoning that kept
+    design-ref's second half out did not apply to this one.
+
+    WARN, not BLOCK. The same reason commit_gate_warnings gives for
+    deferral_unassigned: this checkout is shared by many concurrent sessions,
+    and a gate that refuses every refactor commit holds real work back for no
+    software reason. Arming it is one line -- move the call from
+    commit_gate_warnings to commit_gate_problems -- and it is the owner's to
+    make, with an escape flag (`--no-test "<reason>"`) added in the same move,
+    the way --unverified answers the verify-status gate.
+    """
+    owing = [p for p in add_paths if _test_coverage_required(p)]
+    if not owing:
+        return []
+    kept: list[str] = []
+    for path in owing:
+        full = repo / path
+        if not full.is_file():
+            continue
+        try:
+            text = full.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        if _GENERATED_HEAD_RE.search(text[:500]):
+            continue
+        kept.append(path)
+    if not kept:
+        return []
+    if any(_is_test_path(p) for p in add_paths):
+        return []
+    return [
+        "this commit carries Go and no test:\n"
+        + "\n".join(f"  {p}" for p in kept)
+        + "\n  Add the _test.go that proves the change, or the .ci/.et under\n"
+        "  test/ that exercises it end to end. Either clears this gate.\n"
+        "  Exempt: _test.go, _gen.go, register.go, embed.go, doc.go, vendor/,\n"
+        "  cmd/, and a file whose first 500 bytes say `Code generated`.\n"
+        "  This is the commit-time half of c_require_test_first, which sees a\n"
+        "  Write of a new file and nothing else (ai/rules/testing.md)."
     ]
 
 
@@ -3221,6 +3302,11 @@ def commit_gate_warnings(
 ) -> list[str]:
     """All WARN-severity commit-time gates, in one call for create().
 
+    Two of them are advisory for the same reason, which is that this checkout is
+    shared: a gate that refuses commits other sessions have to make holds real
+    work back for no software reason. test_coverage_problems states its own case
+    in its docstring, including what arming it would cost.
+
     deferral_unassigned is advisory, not blocking. An unhomed live deferral row
     is a bookkeeping state that is harmless to software behaviour: the worst case
     is a row committed too early or in the wrong commit. Blocking EVERY commit on
@@ -3233,6 +3319,7 @@ def commit_gate_warnings(
     """
     return (
         deferral_unassigned_problems(repo)
+        + test_coverage_problems(repo, add_paths)
         + wiring_warnings(add_paths)
         + doc_drift_warnings(repo)
     )

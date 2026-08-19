@@ -2288,17 +2288,30 @@ def c_require_test_first(ctx):
         or "/cmd/" in fp
     ):
         return None
+    if ctx["tool"] != "Write" or isfile(fp):
+        return None
+    # The unit is the PACKAGE, not the file. A package that tests itself from
+    # one `<pkg>_test.go` owes no `<name>_test.go` beside every source file, and
+    # demanding one refuses correct work -- which is why this check could not be
+    # made blocking while it was spelled per-file. It returned 1 (a non-blocking
+    # warning) under a message that said BLOCKED, so it announced an obligation
+    # it held nobody to.
+    pkg_dir = os.path.dirname(fp) or "."
+    try:
+        tested = any(f.endswith("_test.go") for f in os.listdir(pkg_dir))
+    except OSError:
+        tested = False
+    if tested:
+        return None
     test_file = fp[:-3] + "_test.go"
-    if ctx["tool"] == "Write" and not isfile(fp):
-        if not isfile(test_file):
-            return (
-                1,
-                f"{RED}{BOLD}❌ BLOCKED: TDD - Write test first{RESET}\n"
-                f"  Write the test file before the implementation:\n"
-                f"    {test_file}\n"
-                "  See ai/rules/testing.md",
-            )
-    return None
+    return (
+        2,
+        f"{RED}{BOLD}❌ BLOCKED: TDD - write the test first{RESET}\n"
+        f"  {pkg_dir} holds no _test.go. Write the test, run it red, then\n"
+        f"  write the implementation:\n"
+        f"    {test_file}\n"
+        "  See ai/rules/testing.md",
+    )
 
 
 # ze point: architecture/design-context/reuse-the-existing-pattern-before-adding-one

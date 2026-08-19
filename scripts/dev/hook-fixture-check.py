@@ -200,6 +200,76 @@ def run_design_ref(results: Results) -> None:
 
 
 # --------------------------------------------------------------------------- #
+# test-first: a new .go file owes a test, and the package is the unit
+# --------------------------------------------------------------------------- #
+
+
+def run_test_first(results: Results) -> None:
+    """c_require_test_first reads the filesystem, not session state.
+
+    Two properties are pinned. The check BLOCKS, because the message it prints
+    has always said `BLOCKED` while the code returned 1, which the dispatcher
+    treats as a non-blocking warning: the gate announced an obligation it did
+    not hold anyone to. And the unit is the PACKAGE, not the file. Demanding
+    `<name>_test.go` beside every source file refuses a package that tests
+    itself from one `<pkg>_test.go`, which is the common shape here, so the
+    per-file spelling could not be made blocking without refusing correct work.
+    """
+    print("test-first:")
+    mod = _load_pretool_writeedit()
+    crtf = mod.c_require_test_first
+    root = tempfile.mkdtemp(dir=_fixture_root(), prefix="test-first-")
+    try:
+        pkg = os.path.join(root, "internal", "alpha")
+        os.makedirs(pkg, exist_ok=True)
+
+        def call(fp: str, tool: str = "Write"):
+            return crtf({"tool": tool, "ti": {"content": "package alpha\n"}, "fp": fp})
+
+        # A brand-new source file in a package holding no test at all.
+        r = call(os.path.join(pkg, "a.go"))
+        results.check(
+            "test-first-untested-package-blocks", r is not None and r[0] == 2, repr(r)
+        )
+
+        # The package tests itself from one package-level test file. The source
+        # file has no `_test.go` twin and owes none.
+        open(os.path.join(pkg, "alpha_test.go"), "w").write("package alpha\n")
+        r = call(os.path.join(pkg, "a.go"))
+        results.check("test-first-package-level-test-passes", r is None, repr(r))
+
+        # The sibling spelling still satisfies it.
+        beta = os.path.join(root, "internal", "beta")
+        os.makedirs(beta, exist_ok=True)
+        open(os.path.join(beta, "b_test.go"), "w").write("package beta\n")
+        r = call(os.path.join(beta, "b.go"))
+        results.check("test-first-sibling-test-passes", r is None, repr(r))
+
+        # Exemptions: a test file, generated code, and cmd/ wiring.
+        gamma = os.path.join(root, "internal", "gamma")
+        os.makedirs(gamma, exist_ok=True)
+        for rel in ("c_test.go", "c_gen.go", "c.pb.go"):
+            r = call(os.path.join(gamma, rel))
+            results.check(f"test-first-exempt-{rel}", r is None, repr(r))
+        cmd = os.path.join(root, "cmd", "ze")
+        os.makedirs(cmd, exist_ok=True)
+        r = call(os.path.join(cmd, "main.go"))
+        results.check("test-first-exempt-cmd", r is None, repr(r))
+
+        # An EDIT of an existing file is not this check's population. It judges
+        # the creation of a source file. An existing file is judged at commit
+        # time by test_coverage_problems instead.
+        delta = os.path.join(root, "internal", "delta")
+        os.makedirs(delta, exist_ok=True)
+        existing = os.path.join(delta, "d.go")
+        open(existing, "w").write("package delta\n")
+        r = call(existing, tool="Edit")
+        results.check("test-first-edit-out-of-scope", r is None, repr(r))
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+# --------------------------------------------------------------------------- #
 # rendered-rule: ai/rules/<rule>.md is generated, ai/rules/points/** is not
 # --------------------------------------------------------------------------- #
 
@@ -1685,6 +1755,74 @@ def run_commit_gate(results: Results) -> None:
             "commit-gate-go-design-ref-ignores-absent",
             not ch.go_design_ref_problems(Path(repo), ("internal/alpha/gone.go",)),
             "a path not on disk is not a missing header",
+        )
+    finally:
+        shutil.rmtree(repo, ignore_errors=True)
+
+    # --- test-coverage: the commit-time half of c_require_test_first. The hook
+    # fires on Write of a NEW .go file only, so a source file added by Edit, or
+    # written from a Bash heredoc, meets no test obligation at all -- and auto
+    # mode tells agents to prefer Bash for file changes.
+    #
+    # The claim that kept this gap open is in go_design_ref_problems' own
+    # docstring: that c_require_test_first "gates on session-state markers,
+    # which say what the AUTHOR did". It does not. It reads isfile() and
+    # nothing else, so the commit tree can answer the same question.
+    repo = _init_repo()
+    try:
+        _write(repo, "internal/alpha/a.go", "package alpha\n\nfunc F() {}\n")
+        problems = ch.test_coverage_problems(Path(repo), ("internal/alpha/a.go",))
+        results.check(
+            "commit-gate-test-coverage-no-test-reports",
+            bool(problems) and "no test" in "".join(problems),
+            repr(problems),
+        )
+
+        _write(repo, "internal/alpha/a_test.go", "package alpha\n")
+        results.check(
+            "commit-gate-test-coverage-unit-test-passes",
+            not ch.test_coverage_problems(
+                Path(repo), ("internal/alpha/a.go", "internal/alpha/a_test.go")
+            ),
+            "a commit carrying a _test.go is satisfied",
+        )
+
+        # A functional test is the other half of the obligation and counts on
+        # its own: testing.md requires both kinds and neither substitutes for
+        # the other, so either one carried by the commit clears this gate.
+        _write(repo, "test/bgp/thing.ci", "cmd=show bgp\n")
+        results.check(
+            "commit-gate-test-coverage-functional-test-passes",
+            not ch.test_coverage_problems(
+                Path(repo), ("internal/alpha/a.go", "test/bgp/thing.ci")
+            ),
+            "a commit carrying a .ci is satisfied",
+        )
+
+        # Same exemptions as the hook and as go-design-ref, so a file one gate
+        # waves through the other cannot refuse.
+        for rel, body in (
+            ("internal/alpha/a_gen.go", "package alpha\n"),
+            ("vendor/example.com/x/x.go", "package x\n"),
+            ("cmd/ze/main.go", "package main\n"),
+            (
+                "internal/alpha/g.go",
+                "// Code generated by t; DO NOT EDIT.\npackage alpha\n",
+            ),
+        ):
+            _write(repo, rel, body)
+            results.check(
+                f"commit-gate-test-coverage-exempt-{os.path.basename(rel)}",
+                not ch.test_coverage_problems(Path(repo), (rel,)),
+                rel,
+            )
+
+        # A commit carrying no Go at all is not a testing question.
+        _write(repo, "docs/notes.md", "# notes\n")
+        results.check(
+            "commit-gate-test-coverage-ignores-non-go",
+            not ch.test_coverage_problems(Path(repo), ("docs/notes.md",)),
+            "only .go files raise the obligation",
         )
     finally:
         shutil.rmtree(repo, ignore_errors=True)
@@ -7218,6 +7356,7 @@ def run_governed_doc_edit(results: Results) -> None:
 SECTIONS = {
     "format-alloc": run_format_alloc,
     "design-ref": run_design_ref,
+    "test-first": run_test_first,
     "rendered-rule": run_rendered_rule,
     "rfc-language": run_rfc_language,
     "validate-spec": run_validate_spec,
