@@ -299,6 +299,33 @@ Engine sends `ze-plugin-callback:bye` with an optional reason:
 For internal plugins, the engine then closes the connection (EOF signals exit).
 For external plugins, the process is expected to exit cleanly after receiving bye.
 
+#### Who stops the plugin server
+
+**A component does not stop a server it borrowed. Whoever CONSTRUCTS the plugin
+server stops it, and nobody else.**
+
+The hub constructs the one plugin server of a normal daemon and stops it at
+shutdown. A component that runs inside that server borrows the pointer: the BGP
+reactor gets it through `registry.SetPluginServer` -> `registry.GetPluginServer`
+-> `Reactor.SetPluginServerAny`, and its own engine runs as a plugin under the
+same server. A borrowed server is read, never stopped.
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig, pluginserver.NewServer then apiServer.Stop -->
+<!-- source: internal/component/bgp/reactor/reactor.go -- Reactor.cleanup, the !externalServer guard -->
+
+Stopping a borrowed server costs twice, and both costs were measured:
+
+| Occasion | What a component stopping its host does |
+|----------|------------------------------------------|
+| Daemon shutdown | `Server.Stop` calls `ProcessManager.Stop`, which waits for every plugin engine. The engine that made the call cannot return until the call returns, so the stop is bounded only by `pluginStopGrace` plus the group wait: 3.520s per stop, with `resources it installed may be left behind` logged twice, on a daemon that had released everything |
+| A reload that removes the component | `runBGPEngine` returns when bgp is removed at reload, not only at shutdown, and its tail stops the reactor. An unguarded stop takes the hub's whole plugin server down, and every other plugin with it, while the daemon keeps running |
+
+A component that CONSTRUCTS its own server still stops it: a standalone reactor
+(`Config.Standalone`, the ze-chaos in-process runner) self-hosts, and its cleanup
+is that server's only stop. So the rule is a test of ownership, never of the call
+site.
+<!-- source: internal/component/bgp/reactor/reactor.go -- startAPIServer, the self-host branch -->
+<!-- source: internal/chaos/inprocess/runner.go -- the standalone reactor whose cleanup is its server's only stop -->
+
 ---
 
 ## Runtime RPCs
