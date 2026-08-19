@@ -22,10 +22,10 @@ $ ze cli -c 'show bgp irr prefix customer-a | no-more'
 10.0.1.0/24
 172.16.0.0/16
 2001:db8::/32
-$ ze cli -c 'show bgp irr check customer-a 10.0.0.0/24 | no-more'
+$ ze cli -c 'show bgp irr check customer-a 10.0.0.0/24 | no-more | yaml'
 accepted: true
 matched-entry: 10.0.0.0/24
-$ ze cli -c 'show bgp irr check customer-a 192.168.0.0/24 | no-more'
+$ ze cli -c 'show bgp irr check customer-a 192.168.0.0/24 | no-more | yaml'
 accepted: false
 $ ze cli -c 'show bgp adj-rib-in | no-more'
 10.0.0.0/24

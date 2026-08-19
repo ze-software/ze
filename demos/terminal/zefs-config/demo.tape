@@ -82,10 +82,14 @@ Wait+Screen /router-id/
 Sleep 7s
 Type "clear"
 Enter
-Type "ze cli -c 'show bgp summary | raw'"
+Type "ze cli -c 'show bgp summary | raw' | head -14"
 Enter
-Wait+Screen /router-id/
+# head truncates above router-id, and the typed line carries only single
+# quotes, so a double quote appears exactly when JSON output does.
+Wait+Screen /"/
 Sleep 8s
+Type "clear"
+Enter
 Type "ze cli -c 'show bgp summary | raw' | ze pipe text"
 Enter
 Wait+Screen /router-id/

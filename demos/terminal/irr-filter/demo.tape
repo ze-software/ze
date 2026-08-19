@@ -89,11 +89,11 @@ Wait+Screen /Customer routes announced/
 Type "clear"
 Enter
 Show
-Type "ze cli -c 'show bgp irr check customer-a 10.0.0.0/24 | no-more'"
+Type "ze cli -c 'show bgp irr check customer-a 10.0.0.0/24 | no-more | yaml'"
 Enter
 Wait+Screen /accepted: true/
 Sleep 5s
-Type "ze cli -c 'show bgp irr check customer-a 192.168.0.0/24 | no-more'"
+Type "ze cli -c 'show bgp irr check customer-a 192.168.0.0/24 | no-more | yaml'"
 Enter
 Wait+Screen /accepted: false/
 Sleep 6s
