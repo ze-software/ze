@@ -4,16 +4,26 @@
 //
 // pipe.go implements VyOS-style pipe operators for command output.
 // Users can append | match <pattern>, | count, | no-more, | json [compact|pretty],
-// | table, | yaml to any command. Pipes are client-side filters applied to command output.
+// | table, | yaml to any command.
+//
+// The DAEMON runs the chain, not the client. A client sends the operator's text
+// with its pipes intact and prints the answer (cliClient.Execute,
+// internal/component/cli/client/main.go). The SSH exec handler splits the chain
+// off the command and applies it to the dispatcher's JSON (execMiddleware,
+// internal/component/ssh/ssh.go). One implementation therefore renders every
+// surface, and the daemon is the process that holds the configured default
+// format.
 package command
 
 import (
 	"encoding/json"
+	"iter"
 	"strconv"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // pipeKind identifies the type of pipe operator.
@@ -37,7 +47,7 @@ const (
 	pipeDisplay                 // | display <field>... — the fields to answer with, in that order
 	pipeFill                    // | fill [<way>] [reverse] — bring the remaining fields back, in a named order
 	pipeUnknown                 // unrecognized operator
-	pipeInvalid                 // validation error produced while folding command filters
+	pipeInvalid                 // validation error produced while expanding an alias or folding a command filter
 )
 
 const (
@@ -181,7 +191,8 @@ func expandAliases(command string, ops []pipeOp) []pipeOp {
 }
 
 // foldFilters rewrites command-owned pipe filters into command arguments.
-// Generic display and transform pipes stay client-side.
+// A folded filter runs in the command handler, at the source of the data.
+// Every other operator stays in the chain ApplyPipes runs over the answer.
 // Returns pipe metadata recording all data-shaping modifiers (both folded
 // and remaining). Display-only pipes are excluded from metadata.
 func foldFilters(command string, ops []pipeOp) (string, []pipeOp, map[string]any) {
@@ -196,7 +207,7 @@ func foldFilters(command string, ops []pipeOp) (string, []pipeOp, map[string]any
 
 	var leadingArgs []string
 	var serverArgs []string
-	var clientOps []pipeOp
+	var chainOps []pipeOp
 
 	for _, op := range ops {
 		switch op.kind {
@@ -204,34 +215,34 @@ func foldFilters(command string, ops []pipeOp) (string, []pipeOp, map[string]any
 			if filter, ok := set.byName["match"]; ok {
 				serverArgs = appendFilter(serverArgs, filter, op.arg)
 			} else {
-				clientOps = append(clientOps, op)
+				chainOps = append(chainOps, op)
 			}
 		case pipeCount:
 			if filter, ok := set.byName["count"]; ok {
 				serverArgs = appendFilter(serverArgs, filter, "")
 			} else {
-				clientOps = append(clientOps, op)
+				chainOps = append(chainOps, op)
 			}
 		case pipeFirst:
 			if filter, ok := set.byName["first"]; ok {
 				serverArgs = appendFilter(serverArgs, filter, op.arg)
 			} else {
-				clientOps = append(clientOps, op)
+				chainOps = append(chainOps, op)
 			}
 		case pipeLast:
 			if filter, ok := set.byName["last"]; ok {
 				serverArgs = appendFilter(serverArgs, filter, op.arg)
 			} else {
-				clientOps = append(clientOps, op)
+				chainOps = append(chainOps, op)
 			}
 		case pipeUnknown:
 			filter, arg, known := lookupFilter(set, op.arg)
 			if !known {
-				clientOps = append(clientOps, pipeOp{kind: pipeInvalid, arg: unknownFilterError(trimmed, op.arg, set)})
+				chainOps = append(chainOps, pipeOp{kind: pipeInvalid, arg: unknownFilterError(trimmed, op.arg, set)})
 				continue
 			}
 			if msg := validateFilter(filter, arg); msg != "" {
-				clientOps = append(clientOps, pipeOp{kind: pipeInvalid, arg: msg})
+				chainOps = append(chainOps, pipeOp{kind: pipeInvalid, arg: msg})
 				continue
 			}
 			if filter.Leading {
@@ -241,11 +252,11 @@ func foldFilters(command string, ops []pipeOp) (string, []pipeOp, map[string]any
 			}
 		default:
 			// Every other kind is the operator's own request about the answer
-			// they are reading, so it stays client-side. The default arm is
+			// they are reading, so it stays in the chain. The default arm is
 			// what makes that true for a kind nobody thought of here. Without
 			// one, such a kind reached neither side and nothing reported the
 			// loss. pipeDisplay, pipeFill and pipeInvalid all arrive this way.
-			clientOps = append(clientOps, op)
+			chainOps = append(chainOps, op)
 		}
 	}
 
@@ -257,7 +268,7 @@ func foldFilters(command string, ops []pipeOp) (string, []pipeOp, map[string]any
 		command = tb.Str(trimmed).Byte(' ').Join(allServerArgs, " ").String()
 	}
 
-	return command, clientOps, meta
+	return command, chainOps, meta
 }
 
 // collectPipeMeta builds metadata from all data-shaping pipe ops.
@@ -352,6 +363,24 @@ func appendFilter(args []string, filter PipeFilter, value string) []string {
 		args = append(args, strings.Fields(value)...)
 	}
 	return args
+}
+
+// ApplyPipesRecords runs the pipe chain in input over records pulled one at a
+// time, and returns the records the chain leaves. It is the record-at-a-time
+// half of ApplyPipes: an operator that reads a record and forgets it (json,
+// ndjson, yaml, match, first, count, display) never holds the answer, while
+// table and text buffer because a column width needs every row.
+//
+// Ranging the returned sequence pulls from records, so a consumer that stops
+// ranging stops the walk that produces them. That is what makes `| first 10`
+// over a table with a million rows cost ten rows.
+//
+// No operator reads records yet, so every record passes through and `| first N`
+// bounds nothing. The record-at-a-time operators and the cancellation they
+// carry are phase 6 of plan/spec-streaming-answer-protocol.md, and
+// TestFirstNStopsTheGenerator is what holds them to it.
+func ApplyPipesRecords(input string, records iter.Seq[rpc.Record]) iter.Seq[rpc.Record] {
+	return records
 }
 
 // ApplyPipes runs the output through each pipe operator in order.

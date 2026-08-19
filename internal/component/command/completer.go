@@ -66,7 +66,6 @@ var pipeSubArgs = map[string][]Suggestion{
 	},
 	"fill": {
 		{Text: fillWayAlpha, Description: "Remaining columns by field name", Type: "pipe"},
-		{Text: fillWayOverall, Description: "Remaining columns narrowest first", Type: "pipe"},
 		{Text: fillWordReverse, Description: "Flip the order in force", Type: "pipe"},
 	},
 }

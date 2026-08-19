@@ -130,7 +130,7 @@ func (s tableStyle) renderMapOfMaps(m map[string]any, childKeys []string) string
 	// The parent keys identify rows (a peer address, a family name), so they
 	// stay alphabetical. Only the child keys are columns.
 	parentKeys := tableSortedKeys(m)
-	childKeys = s.orderKeys(childKeys, s.mapOfMapsWidths(m, parentKeys, childKeys))
+	childKeys = s.orderKeys(childKeys)
 
 	// All columns: parent key header + child key headers.
 	allCols := make([]string, 0, 1+len(childKeys))
@@ -187,7 +187,7 @@ func (s tableStyle) renderMapOfMaps(m map[string]any, childKeys []string) string
 
 // renderRecord renders a map as a two-column key-value table.
 func (s tableStyle) renderRecord(m map[string]any) string {
-	keys := s.orderKeys(tableSortedKeys(m), s.recordWidths(m))
+	keys := s.orderKeys(tableSortedKeys(m))
 
 	keyCells := make([]tableCell, len(keys))
 	valCells := make([]tableCell, len(keys))
@@ -237,7 +237,7 @@ func (s tableStyle) renderList(arr []any) string {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
-	keys = s.orderKeys(keys, s.listWidths(arr, keys))
+	keys = s.orderKeys(keys)
 
 	// Initialize widths from header names.
 	widths := make([]int, len(keys))
@@ -450,10 +450,10 @@ func (s tableStyle) writeRow(b *textbuf.Buffer, cells []tableCell, widths []int)
 // nineteen-name declaration by how many keys each one hits would lose it every
 // time.
 //
-// widths carries the rendered width of each key, and is nil unless the request
-// orders by width. Measuring renders every cell, so a caller measures only when
-// the answer depends on it.
-func (s tableStyle) orderKeys(keys []string, widths map[string]int) []string {
+// No caller measures a column to answer this. `| fill overall` ordered by
+// rendered width and was removed on 2026-08-19, so every way here is decided
+// from the key set alone and this method reads no cell.
+func (s tableStyle) orderKeys(keys []string) []string {
 	request := s.request
 	if len(request.display) == 0 && request.fill == fillNone {
 		return s.declaredKeys(keys)
@@ -469,7 +469,7 @@ func (s tableStyle) orderKeys(keys []string, widths map[string]int) []string {
 		}
 		return keys
 	}
-	return append(displayed, s.fillKeys(keys, rest, widths)...)
+	return append(displayed, s.fillKeys(keys, rest)...)
 }
 
 // declaredKeys returns keys with the columns the command declared first, in the
@@ -521,13 +521,11 @@ func splitByOrder(keys []string, order ColumnOrder) (named, rest []string) {
 // keys is the whole key set of the record, which is what says WHICH record
 // shape is being rendered. rest is the part `| display` did not name, which is
 // what gets ordered.
-func (s tableStyle) fillKeys(keys, rest []string, widths map[string]int) []string {
+func (s tableStyle) fillKeys(keys, rest []string) []string {
 	filled := make([]string, len(rest))
 	copy(filled, rest)
 
 	switch s.request.fill {
-	case fillOverall:
-		sortByWidth(filled, widths)
 	case fillAlpha:
 		sort.Strings(filled)
 	case fillDefault:
@@ -546,103 +544,6 @@ func (s tableStyle) fillKeys(keys, rest []string, widths map[string]int) []strin
 		slices.Reverse(filled)
 	}
 	return filled
-}
-
-// sortByWidth orders keys by the width their column renders at, narrowest
-// first. A tie goes to the field name, so the answer is the same on every run.
-// An unmeasured set goes to the field name too: a renderer with no widths
-// answers in a stated order rather than an arbitrary one.
-func sortByWidth(keys []string, widths map[string]int) {
-	if widths == nil {
-		sort.Strings(keys)
-		return
-	}
-	sort.SliceStable(keys, func(i, j int) bool {
-		if widths[keys[i]] != widths[keys[j]] {
-			return widths[keys[i]] < widths[keys[j]]
-		}
-		return keys[i] < keys[j]
-	})
-}
-
-// listWidths returns the rendered width of each column of an array of records:
-// the header name, or the widest value under it. It returns nil unless the
-// request orders by width, because measuring renders every cell a second time.
-func (s tableStyle) listWidths(arr []any, keys []string) map[string]int {
-	if s.request.fill != fillOverall {
-		return nil
-	}
-
-	widths := make(map[string]int, len(keys))
-	for _, k := range keys {
-		widths[k] = displayWidth(k)
-	}
-	for _, item := range arr {
-		record, ok := item.(map[string]any)
-		if !ok {
-			continue
-		}
-		for _, k := range keys {
-			value, exists := record[k]
-			if !exists {
-				continue
-			}
-			if w := s.cellFromValue(value).width; w > widths[k] {
-				widths[k] = w
-			}
-		}
-	}
-	return widths
-}
-
-// mapOfMapsWidths returns the rendered width of each child column of records
-// indexed by a parent key. It returns nil unless the request orders by width.
-func (s tableStyle) mapOfMapsWidths(m map[string]any, parentKeys, childKeys []string) map[string]int {
-	if s.request.fill != fillOverall {
-		return nil
-	}
-
-	widths := make(map[string]int, len(childKeys))
-	for _, k := range childKeys {
-		widths[k] = displayWidth(k)
-	}
-	for _, parentKey := range parentKeys {
-		child, ok := m[parentKey].(map[string]any)
-		if !ok {
-			continue
-		}
-		for _, k := range childKeys {
-			value, exists := child[k]
-			if !exists {
-				continue
-			}
-			if w := s.cellFromValue(value).width; w > widths[k] {
-				widths[k] = w
-			}
-		}
-	}
-	return widths
-}
-
-// recordWidths returns the rendered width of each row of a key-value record:
-// the key, or its value when the value is wider. It returns nil unless the
-// request orders by width.
-func (s tableStyle) recordWidths(m map[string]any) map[string]int {
-	if s.request.fill != fillOverall {
-		return nil
-	}
-
-	widths := make(map[string]int, len(m))
-	for key, value := range m {
-		if key == pipeMetaKey {
-			continue
-		}
-		widths[key] = displayWidth(key)
-		if w := s.cellFromValue(value).width; w > widths[key] {
-			widths[key] = w
-		}
-	}
-	return widths
 }
 
 // bestColumnOrder returns the declared order that names the most of keys, and

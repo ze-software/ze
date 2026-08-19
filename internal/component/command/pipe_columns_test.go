@@ -10,10 +10,6 @@ import (
 // columnsPayload is one command answer with two record shapes in it: a list of
 // peer rows, and the record that carries them. Every test below reads it, so a
 // change that only works for one shape shows up here.
-//
-// The values have deliberately different widths, because `| fill overall`
-// orders by the width a column renders at. That width is the wider of its
-// header and its widest value.
 const columnsPayload = `{"peers":[{"address":"192.0.2.1","description":"transit","remote-as":65001,"state":"established","uptime":"1h0m0s"}]}`
 
 // VALIDATES: `| display` takes every token after its name as its argument,
@@ -47,9 +43,7 @@ func TestParsePipeFillWayAndReverse(t *testing.T) {
 		{"", fillDefault, false},
 		{"reverse", fillDefault, true},
 		{"alpha", fillAlpha, false},
-		{"overall", fillOverall, false},
 		{"alpha reverse", fillAlpha, true},
-		{"overall reverse", fillOverall, true},
 	}
 	for _, c := range cases {
 		way, reverse, ok := parseFill(c.arg)
@@ -62,12 +56,66 @@ func TestParsePipeFillWayAndReverse(t *testing.T) {
 		}
 	}
 
-	_, ops := ParsePipe("show test peers | fill overall reverse")
+	_, ops := ParsePipe("show test peers | fill alpha reverse")
 	if len(ops) != 1 || ops[0].kind != pipeFill {
 		t.Fatalf("ops = %+v, want one fill op", ops)
 	}
-	if ops[0].arg != "overall reverse" {
+	if ops[0].arg != "alpha reverse" {
 		t.Errorf("arg = %q, want the whole tail", ops[0].arg)
+	}
+}
+
+// VALIDATES: the `overall` way alone was removed, and the operator that carried
+// it stayed (owner decision, 2026-08-19). `| fill`, `| fill alpha` and
+// `reverse` on either are accepted; `overall` is refused by name.
+// PREVENTS: two opposite mistakes. Removing `| fill` with `overall` takes a
+// working operator with it, and a refusal that does not NAME the word reads to
+// an operator as a typo rather than as a way that no longer exists.
+//
+// `overall` ordered columns by the width they render at, which measures every
+// cell of the whole answer before the first row can be written. That is the one
+// property here that a streamed answer cannot carry.
+func TestFillOverallWayWasRemoved(t *testing.T) {
+	for _, accepted := range []string{
+		"show test peers | fill",
+		"show test peers | fill alpha",
+		"show test peers | fill reverse",
+		"show test peers | fill alpha reverse",
+	} {
+		_, ops := ParsePipe(accepted)
+		if len(ops) != 1 || ops[0].kind != pipeFill {
+			t.Fatalf("%q parsed as %+v, want one fill op", accepted, ops)
+		}
+		if msg := ValidatePipes(ops); msg != "" {
+			t.Errorf("%q was refused: %s", accepted, msg)
+		}
+	}
+
+	for _, refused := range []string{
+		"show test peers | fill overall",
+		"show test peers | fill overall reverse",
+	} {
+		_, ops := ParsePipe(refused)
+		if len(ops) != 1 || ops[0].kind != pipeFill {
+			t.Fatalf("%q parsed as %+v, want one fill op: the operator itself stays", refused, ops)
+		}
+		msg := ValidatePipes(ops)
+		if msg == "" {
+			t.Fatalf("%q was accepted, want the overall way refused", refused)
+		}
+		if !strings.Contains(msg, "overall") {
+			t.Errorf("%q gave %q, want the refusal to name overall", refused, msg)
+		}
+		if !strings.Contains(msg, fillWayAlpha) {
+			t.Errorf("%q gave %q, want the refusal to name the way that is left", refused, msg)
+		}
+	}
+
+	// The completer stops offering the word, so nobody is taught it either.
+	for _, suggestion := range pipeSubArgs["fill"] {
+		if suggestion.Text == "overall" {
+			t.Errorf("the completer still offers overall: %+v", pipeSubArgs["fill"])
+		}
 	}
 }
 
@@ -80,7 +128,7 @@ func TestValidatePipesRejectsBadColumnArguments(t *testing.T) {
 		names []string
 	}{
 		{"show test peers | display", []string{"display", "field"}},
-		{"show test peers | fill sideways", []string{"fill", "sideways", "alpha", "overall"}},
+		{"show test peers | fill sideways", []string{"fill", "sideways", "alpha"}},
 		{"show test peers | fill alpha sideways", []string{"fill", "sideways"}},
 		{"show test peers | fill reverse reverse", []string{"fill", "reverse"}},
 	}
@@ -104,7 +152,7 @@ func TestValidatePipesRejectsBadColumnArguments(t *testing.T) {
 		"show test peers | fill",
 		"show test peers | fill reverse",
 		"show test peers | fill alpha",
-		"show test peers | fill overall reverse",
+		"show test peers | fill alpha reverse",
 		"show test peers | display state | fill alpha",
 	} {
 		_, ops := ParsePipe(input)
@@ -190,39 +238,6 @@ func TestDisplayThenFillAlpha(t *testing.T) {
 	want = []string{"state", "address", "uptime", "remote-as", "description"}
 	if !slices.Equal(got, want) {
 		t.Errorf("header = %v, want the rest in reverse name order %v", got, want)
-	}
-}
-
-// VALIDATES: `| fill overall` orders the remaining fields by the width their
-// column renders at, narrowest first, and `reverse` flips that.
-// PREVENTS: the way being read from the field name rather than from the
-// rendered answer, which is the only place a column's width exists.
-func TestFillOverallOrdersByRenderedWidth(t *testing.T) {
-	ResetColumnsForTest()
-	t.Cleanup(ResetColumnsForTest)
-
-	// A column renders at the wider of its header and its widest value:
-	// uptime 6, address 9 (192.0.2.1), remote-as 9 (the header), description
-	// 11 (the header), state 11 (established). A tie goes to the field name,
-	// so address leads remote-as and description leads state.
-	got := headerFields(t, renderThroughPipes(t, "show test peers | fill overall | text", columnsPayload))
-	want := []string{"uptime", "address", "remote-as", "description", "state"}
-	if !slices.Equal(got, want) {
-		t.Errorf("header = %v, want narrowest first %v", got, want)
-	}
-
-	got = headerFields(t, renderThroughPipes(t, "show test peers | fill overall reverse | text", columnsPayload))
-	want = []string{"state", "description", "remote-as", "address", "uptime"}
-	if !slices.Equal(got, want) {
-		t.Errorf("header = %v, want widest first %v", got, want)
-	}
-
-	// The width is the rendered one, so a long value moves its column even
-	// though the field name is short.
-	wide := `{"peers":[{"a":"a-very-long-value-indeed","description":"x"}]}`
-	got = headerFields(t, renderThroughPipes(t, "show test peers | fill overall | text", wide))
-	if !slices.Equal(got, []string{"description", "a"}) {
-		t.Errorf("header = %v, want [description a]: the width is the rendered one", got)
 	}
 }
 

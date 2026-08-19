@@ -715,15 +715,15 @@ func TestCompleteFillOffersKeywordsOnly(t *testing.T) {
 
 	cc := NewTreeCompleter(columnCompleterTree())
 	got := suggestionTexts(cc.Complete("show test peers | fill "))
-	want := []string{"alpha", "overall", "reverse"}
+	want := []string{"alpha", "reverse"}
 	if !slices.Equal(got, want) {
 		t.Errorf("completions = %v, want %v", got, want)
 	}
 
-	if got := suggestionTexts(cc.Complete("show test peers | fill ov")); !slices.Equal(got, []string{"overall"}) {
-		t.Errorf("completions = %v, want [overall]", got)
+	if got := suggestionTexts(cc.Complete("show test peers | fill al")); !slices.Equal(got, []string{"alpha"}) {
+		t.Errorf("completions = %v, want [alpha]", got)
 	}
-	if got := suggestionTexts(cc.Complete("show test peers | fill overall re")); !slices.Equal(got, []string{"reverse"}) {
+	if got := suggestionTexts(cc.Complete("show test peers | fill alpha re")); !slices.Equal(got, []string{"reverse"}) {
 		t.Errorf("completions = %v, want [reverse]: the match is on the last token", got)
 	}
 	if got := suggestionTexts(cc.Complete("show test peers | fill add")); len(got) != 0 {

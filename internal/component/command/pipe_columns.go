@@ -7,7 +7,7 @@
 // columns of an answer.
 //
 //	| display <field> [<field> ...]   field names only
-//	| fill [<way>] [reverse]          keywords only: alpha or overall
+//	| fill [alpha] [reverse]          keywords only, never a field name
 //
 // Each one takes ONE type of argument, so no token is a field name in one
 // position and a keyword in another.
@@ -34,7 +34,6 @@ import (
 // The words `| fill` accepts. Each one is a keyword, never a field name.
 const (
 	fillWayAlpha    = "alpha"
-	fillWayOverall  = "overall"
 	fillWordReverse = "reverse"
 )
 
@@ -43,13 +42,18 @@ const (
 // The zero value means the chain carries no `| fill`, so those fields are not
 // filled in at all. reverse is carried beside the way rather than doubling the
 // constants, because it flips whichever way is in force.
+//
+// No way orders by rendered column width. There was one, `overall`, and it was
+// removed on 2026-08-19: measuring a column means rendering every cell of the
+// whole answer, so the first row could not be written until the last row had
+// been read. Every way here reads a declaration or a field name, so each one
+// decides the sequence from the key set alone.
 type fillWay uint8
 
 const (
 	fillNone    fillWay = iota // no `| fill`: the answer carries the displayed fields alone
 	fillDefault                // `| fill`: the command's own declared order, and by name when it declared none
 	fillAlpha                  // `alpha`: by field name, whatever the command declared
-	fillOverall                // `overall`: by rendered column width, narrowest first
 )
 
 // columnRequest is what the pipe chain asked for about columns.
@@ -100,13 +104,8 @@ func parseFill(arg string) (way fillWay, reverse, ok bool) {
 	if len(fields) == 0 {
 		return fillDefault, reverse, true
 	}
-	if len(fields) == 1 {
-		switch fields[0] {
-		case fillWayAlpha:
-			return fillAlpha, reverse, true
-		case fillWayOverall:
-			return fillOverall, reverse, true
-		}
+	if len(fields) == 1 && fields[0] == fillWayAlpha {
+		return fillAlpha, reverse, true
 	}
 	return fillNone, reverse, false
 }
@@ -145,8 +144,8 @@ func fillError(arg string) string {
 	}
 	var tb textbuf.Buffer
 	return tb.Str("fill does not recognize ").Str(strings.TrimSpace(arg)).
-		Str(" (use ").Str(fillWayAlpha).Str(" or ").Str(fillWayOverall).
-		Str(", and ").Str(fillWordReverse).Str(" to flip it)").String()
+		Str(" (use ").Str(fillWayAlpha).Str(", and ").Str(fillWordReverse).
+		Str(" to flip the order)").String()
 }
 
 // applyDisplaySelect drops every field `| display` did not name. A `| fill`

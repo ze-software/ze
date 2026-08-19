@@ -1,10 +1,13 @@
 package command
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // VALIDATES: pipe operator parsing splits command from pipe chain.
@@ -1474,5 +1477,43 @@ func TestFoldFiltersKeepsAnInvalidOpOnAFilteredCommand(t *testing.T) {
 	}
 	if !strings.Contains(errMsg, "prefixes") {
 		t.Errorf("the refusal does not name the alias: %s", errMsg)
+	}
+}
+
+// TestFirstNStopsTheGenerator checks that `| first 10` bounds the walk that
+// produces the records, not just the records the operator sees. The method: a
+// generator counts the rows it produces, the chain takes ten, and both counts
+// are read.
+//
+// VALIDATES: AC-14 / R-3 -- the generator stops after ten rows and the
+// remaining rows are never produced.
+// PREVENTS: `show bgp rib | first 10` walking a whole RIB to throw all but ten
+// rows away, which is the cost this protocol exists to remove.
+func TestFirstNStopsTheGenerator(t *testing.T) {
+	const (
+		available = 1000
+		wanted    = 10
+	)
+
+	produced := 0
+	rows := func(yield func(rpc.Record) bool) {
+		for i := range available {
+			produced++
+			if !yield(rpc.Record{Item: json.RawMessage(textbuf.StrIntStr(`{"row":`, int64(i), `}`))}) {
+				return
+			}
+		}
+	}
+
+	kept := 0
+	for range ApplyPipesRecords("show bgp rib | first 10", rows) {
+		kept++
+	}
+
+	if kept != wanted {
+		t.Errorf("chain kept %d records, want %d", kept, wanted)
+	}
+	if produced != wanted {
+		t.Errorf("generator produced %d rows, want %d: a consumer that stops must stop the walk", produced, wanted)
 	}
 }
