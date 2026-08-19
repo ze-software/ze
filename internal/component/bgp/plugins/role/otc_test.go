@@ -477,7 +477,7 @@ func TestOTCIngressFilter(t *testing.T) {
 		assert.False(t, accept)
 	})
 
-	// rfc-test-change-approved: 2026-07-27 Thomas approved correcting the fixture to carry NLRI. The test asserted a stamp on a payload with attributes and no NLRI, which is the shape RFC 9234 S5 conditions the stamp against. Assertions unchanged.
+	// The payload carries NLRI: RFC 9234 Section 5 conditions the stamp against that shape.
 	// RFC requirement: RFC9234-5-3 positive -- a route without OTC received from a Provider is stamped on ingress with the remote AS number.
 	t.Run("stamp_from_provider", func(t *testing.T) {
 		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65002}
@@ -634,10 +634,6 @@ func TestOTCEgressFilter(t *testing.T) {
 	t.Run("meta_wrong_type_not_suppressed", func(t *testing.T) {
 		// meta["src-role"] with wrong type (int instead of string) must NOT trigger Gao-Rexford suppression.
 		// Use noOTC payload: wire-bytes OTC check would suppress withOTC to Provider regardless of meta.
-		//
-		// rfc-test-change-approved: 2026-07-27 Thomas approved the RFC-tagged test
-		// changes for spec-fixit-otc-src-role-meta-fallback; this untagged subtest
-		// sits inside the same tagged function and is adjusted for the same reason.
 		//
 		// The source is 10.0.0.99, which has NO role config, and that is now
 		// load-bearing. It used to be 10.0.0.7, whose config role is "provider" --
@@ -964,7 +960,7 @@ func TestMixedTopology_RoleAndNoRolePeers(t *testing.T) {
 // VALIDATES: AC-1, AC-11 — Route without OTC to Customer gets mods.Op(35, AttrModSet, ...).
 // PREVENTS: Missing OTC egress stamping per RFC 9234 Section 5.
 //
-// rfc-test-change-approved: 2026-07-27 Thomas approved correcting the fixture to carry NLRI. The test asserted a stamp on a payload with attributes and no NLRI, which is the shape RFC 9234 S5 conditions the stamp against. Assertions unchanged.
+// The payload carries NLRI: RFC 9234 Section 5 conditions the stamp against that shape.
 // RFC requirement: RFC9234-5-4 positive -- a route without OTC advertised to a Customer is stamped with the local AS number.
 // RFC requirement: RFC9234-5-10 negative -- OTC egress processing DOES run for an IPv4 unicast route (the family gate admits AFI 1/2 SAFI 1), so a unicast route to a Customer is stamped.
 func TestOTCEgressStampMod(t *testing.T) {
@@ -1006,10 +1002,6 @@ func TestOTCEgressStampMod(t *testing.T) {
 //
 // RFC requirement: RFC9234-5-4 negative -- a route without OTC advertised to a Provider is not stamped; egress stamping is scoped to Customer/Peer/RS-Client.
 //
-// rfc-test-change-approved: 2026-07-27 Thomas approved changing this RFC-tagged
-// test so OTCEgressFilter can recover src-role from config when meta lacks it
-// (spec-fixit-otc-src-role-meta-fallback).
-//
 // WHAT CHANGED AND WHY. The source was configured {role: customer}, i.e. the
 // source peer IS our Provider, and the destination is also a Provider. Under
 // Gao-Rexford that route MUST be suppressed (RFC 9234 Section 5), and this test
@@ -1050,12 +1042,9 @@ func TestOTCEgressNoStampProvider(t *testing.T) {
 
 	noOTC := buildTestPayload(buildTestAttrs(0), nil)
 	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
-	// rfc-test-change-approved: 2026-07-27 Thomas approved "fix test + code" for
-	// this RFC-tagged test (spec-fixit-otc-src-role-meta-fallback). This is the
-	// second change under that approval: LocalAS is load-bearing, because
-	// without it the stamp is refused by the `localASN > 0` guard and the test
-	// passes with the destination-role gate deleted. It only ADDS failure modes
-	// to the tag -- no assertion is weakened. See SECOND CHANGE above.
+	// LocalAS is load-bearing here. Without it the stamp is refused by the
+	// `localASN > 0` guard, and the test then passes even with the destination-role
+	// gate deleted.
 	dest := filterapi.PeerFilterInfo{
 		Address: netip.MustParseAddr("10.0.0.5"),
 		LocalAS: 65000,
@@ -1120,7 +1109,7 @@ func TestOTCEgressSuppressProviderLearnedWithoutMeta(t *testing.T) {
 // whole package green, while ai/RFC-REQUIREMENTS.md still reported
 // RFC9234-5-4 proven -- by a test whose source DOES have role config.
 //
-// rfc-test-change-approved: 2026-07-27 Thomas approved correcting the fixture to carry NLRI. The test asserted a stamp on a payload with attributes and no NLRI, which is the shape RFC 9234 S5 conditions the stamp against. Assertions unchanged.
+// The payload carries NLRI: RFC 9234 Section 5 conditions the stamp against that shape.
 //
 // Re-audited 2026-07-27 against the RFC text itself, because this test gained
 // its RFC tag and its fixture correction in the SAME session, so the hook that
@@ -1343,7 +1332,7 @@ func TestOTCEgressPreserveExisting(t *testing.T) {
 // VALIDATES: AC-1, AC-11 — OTC stamp value is local ASN, not source or dest peer ASN.
 // PREVENTS: Stamping with wrong ASN.
 //
-// rfc-test-change-approved: 2026-07-27 Thomas approved correcting the fixture to carry NLRI. The test asserted a stamp on a payload with attributes and no NLRI, which is the shape RFC 9234 S5 conditions the stamp against. Assertions unchanged.
+// The payload carries NLRI: RFC 9234 Section 5 conditions the stamp against that shape.
 // RFC requirement: RFC9234-5-9 positive -- the egress OTC stamp uses dest.LocalAS (the effective per-peer internet-facing local AS), not the source or destination peer AS.
 func TestOTCEgressStampLocalASN(t *testing.T) {
 	setFilterState(map[string]*peerRoleConfig{
@@ -1504,11 +1493,6 @@ func TestOTCAttrModHandlerNewAttr(t *testing.T) {
 	binary.BigEndian.PutUint32(asnBuf, 65000)
 	ops := []filterapi.AttrOp{{Code: otcAttrCode, Action: filterapi.AttrModSet, Buf: asnBuf}}
 
-	// rfc-test-change-approved: 2026-08-01 Thomas approved a CALL-SHAPE change
-	// only. wire-edit child 2 migrated AttrModHandler to func(*AttrPlan), so a
-	// handler PLANS and writes no bytes; planOTCHandler materializes the plan.
-	// Every assertion below is unchanged: 7 bytes, the flags, the type code, the
-	// length and the ASN.
 	buf, ok := planOTCBytes(nil, ops)
 	require.True(t, ok, "the handler must plan an emitted OTC attribute")
 	newOff := len(buf)
@@ -1532,9 +1516,6 @@ func TestOTCAttrModHandlerExistingPreserved(t *testing.T) {
 	binary.BigEndian.PutUint32(asnBuf, 65000) // Different ASN in the op.
 	ops := []filterapi.AttrOp{{Code: otcAttrCode, Action: filterapi.AttrModSet, Buf: asnBuf}}
 
-	// rfc-test-change-approved: 2026-08-01 Thomas approved a CALL-SHAPE change
-	// only, as above. The assertion that matters is untouched: the SOURCE OTC
-	// (65001) survives and the op value (65000) does not overwrite it.
 	buf, ok := planOTCBytes(srcOTC[:], ops)
 	require.True(t, ok, "the handler must plan an emitted OTC attribute")
 	newOff := len(buf)

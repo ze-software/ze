@@ -27,11 +27,6 @@ import (
 // write into it while the test reads it. A bare bytes.Buffer here is a data race, seen
 // under `make ze-unit-reactor-test-race` between a keepalive timer's Debug line and this test's
 // String().
-//
-// rfc-test-change-approved: Thomas, 2026-08-11 -- captureSessionLog's sink changed from
-// bytes.Buffer to the package's existing syncBuffer (session_write_notify_log_test.go),
-// fixing the data race described above. No assertion, no expected value, and no
-// RFC7606-6-1 tag was changed.
 func captureSessionLog(t *testing.T, level slog.Level) *syncBuffer {
 	t.Helper()
 	buf := &syncBuffer{}

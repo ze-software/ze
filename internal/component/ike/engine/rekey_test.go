@@ -20,14 +20,6 @@ import (
 // TestApplyChildRekeyResponse (key derive + install, replaces the SPI/key asserts),
 // TestRespondChildRekey (responder install + reply).
 
-// rfc-test-change-approved: 2026-07-30 Thomas authorized correcting the RFC7296-2.8-1
-// collision direction: RFC 7296 section 2.8.1 closes the LOWEST nonce, and the test
-// asserted the opposite.
-
-// rfc-test-change-approved: 2026-07-30 Thomas authorized correcting the RFC7296-2.8-1
-// collision direction: RFC 7296 section 2.8.1 closes the LOWEST nonce, and the test
-// asserted the opposite.
-//
 // RFC requirement: RFC7296-2.8-1 positive -- localNonceIsLower (rekey.go) states one fact.
 // It reports whether our nonce sorts below the peer nonce, octet by octet. RFC 7296 section
 // 2.8.1 closes the SA that carries the lowest of the four nonces, so a caller that reads
@@ -45,18 +37,12 @@ func TestRekeyCollision(t *testing.T) {
 		t.Error("our nonce sorts above the peer nonce, so the comparison must read false")
 	}
 
-	// rfc-test-change-approved: 2026-07-30 Thomas authorized correcting the RFC7296-2.8-1
-	// collision direction, so this case now states a fact about the comparison.
 	sameNonce := []byte{0x01, 0x02, 0x03}
 	if localNonceIsLower(sameNonce, sameNonce) {
 		t.Error("two equal nonces must not report ours as the lower one")
 	}
 }
 
-// rfc-test-change-approved: 2026-07-30 Thomas authorized correcting the RFC7296-2.8-1
-// collision direction: RFC 7296 section 2.8.1 closes the LOWEST nonce, and the test
-// asserted the opposite.
-//
 // RFC requirement: RFC7296-2.8-1 positive -- the Child SA branch of handleCreateChildSAOwned
 // (inbound.go) abandons our own exchange when our nonce is the lower one. RFC 7296 section
 // 2.8.1 closes the SA that carries the lowest of the four nonces. The abandoned request frees
@@ -112,10 +98,6 @@ func TestRekeyCollisionLowestNonceAbandons(t *testing.T) {
 	}
 }
 
-// rfc-test-change-approved: 2026-07-30 Thomas authorized correcting the RFC7296-2.8-1
-// collision direction: RFC 7296 section 2.8.1 closes the LOWEST nonce, and the test
-// asserted the opposite.
-//
 // RFC requirement: RFC7296-2.8-1 positive -- the IKE SA branch of handleCreateChildSAOwned
 // (inbound.go) abandons our own exchange when our nonce is the lower one. It frees the request
 // window and answers the peer request as it answers an uncontested one.

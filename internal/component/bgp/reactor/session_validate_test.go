@@ -177,9 +177,6 @@ func TestEnforceRFC7606_ShortBody(t *testing.T) {
 // "greater than 32" rule cannot be what fires — the ONLY defect is the overrun, which is
 // exactly the §5.3-2 criterion. The previous version used prefix length 33 and so actually
 // exercised §5.3-1, proving nothing about the overrun rule this line claims.
-//
-// rfc-test-change-approved: 2026-07-17 user approved isolating the §5.3-2 overrun rule from
-// the §5.3-1 length rule in this test.
 func TestEnforceRFC7606_InvalidWithdrawnNLRI(t *testing.T) {
 	s := newValidateSession()
 

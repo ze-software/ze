@@ -68,21 +68,15 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003A020000001F400101
 # sent: attrLen=0000, no attribute of any code. A stamped withdrawal would read
 # attrLen=0007 with C023040000FDE8, and this exact-hex rule refuses it.
 #
-# rfc-test-change-approved: 2026-08-04 -- Thomas approved RFC-tagged test edits in
-# the withdraw-only AS_PATH work, on the standing condition that every one
-# STRENGTHENS the proof. This rule was re-baselined from attrLen=0009 (AS_PATH
-# 4002 06 02 01 0000FDE8) to attrLen=0000, which is strictly stronger: it now
-# refuses ANY path attribute rather than one specific extra one. The header this
-# replaces recorded the AS_PATH as a defect and said in as many words that "when
-# that defect is fixed the expected attrLen becomes 0000 and this rule must be
-# updated with it". That is what happened. ASPathEdit.Record
-# (internal/component/bgp/wireu/aspath_slot.go) now resolves a payload with no
-# reachable NLRI as transcode-only, so the EBGP forward rail synthesizes no
-# AS_PATH for a withdrawal. RFC 4271 Section 4.3: such a message "will not
-# include path attributes"; Section 6.3 made the old shape a Missing Well-known
-# Attribute error, which FRR 10.3.1 answered with "rcvd UPDATE with errors in
-# attr(s)!! Withdrawing route" (test/interop/scenarios/bgp-relay-withdraw-shape-frr
-# proves the accepted shape against the live daemon).
+# This rule expects attrLen=0000: it refuses ANY path attribute rather than one
+# specific extra one. ASPathEdit.Record (internal/component/bgp/wireu/
+# aspath_slot.go) resolves a payload with no reachable NLRI as transcode-only, so
+# the EBGP forward rail synthesizes no AS_PATH for a withdrawal. RFC 4271
+# Section 4.3: such a message "will not include path attributes"; Section 6.3
+# made the older shape a Missing Well-known Attribute error, which FRR 10.3.1
+# answered with "rcvd UPDATE with errors in attr(s)!! Withdrawing route"
+# (test/interop/scenarios/bgp-relay-withdraw-shape-frr proves the accepted shape
+# against the live daemon).
 expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B020004180A00000000
 EOF_DEST
 

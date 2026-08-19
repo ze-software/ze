@@ -80,10 +80,10 @@ func encapOwnProcess(t *testing.T) bool {
 		t.Fatalf("probe in its own process failed: %v\n%s", err, out)
 	}
 	if strings.Contains(string(out), "--- SKIP") {
-		// test-relax: this is skip PROPAGATION, not relaxation. The probe body still
-		// runs every assertion in the child; the child skips only where it always did,
-		// when the kernel refuses CLONE_NEWNET or a raw socket. Reporting the child's
-		// skip as a parent PASS would be the fail-open reading of the same result.
+		// This propagates the child's skip. The probe body runs every assertion in the
+		// child; the child skips only when the kernel refuses CLONE_NEWNET or a raw
+		// socket. Reporting the child's skip as a parent PASS is the fail-open reading of
+		// the same result.
 		t.Skipf("probe skipped in its own process:\n%s", out)
 	}
 	if !strings.Contains(string(out), "--- PASS") {

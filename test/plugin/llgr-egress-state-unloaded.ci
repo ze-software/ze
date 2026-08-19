@@ -1,10 +1,5 @@
 # Test: LLGR egress filter with the GR plugin engine in ANOTHER process.
 #
-# rfc-test-change-approved: 2026-08-16 Thomas approved adding the optional
-# bgp-adj-rib-in replay provider and its source/destination attachments. This
-# repairs route-server replay when the source UPDATE precedes receiver peer-up;
-# every RFC assertion and expected wire outcome below is unchanged.
-#
 # The daemon registers LLGREgressFilter from init() (bgp/plugins/gr/register.go),
 # so the filter is live in every ze_bgp build. The only writer of the state it
 # reads is setEgressState, called from RunGRPlugin's OnConfigure callback. This
@@ -45,27 +40,17 @@
 # The state-LOADED contrast is llgr-readvertise-multipeer.ci: the same scenario
 # with `internal gr { use bgp-gr }`, which loads the state in the daemon.
 
-# rfc-test-change-approved: 2026-08-12 Thomas approved an observer-timing change
-#   only. The RFC 9494 Section 4.3-3 assertions are UNCHANGED:
-#     expect=bgp:conn=1:seq=1:contains=180A0000
-#     expect=bgp:conn=1:seq=2:contains=FFFFFF01
-#   What DID change: 3 blind time.sleep calls became dispatch_until on the
-#   best-route predicate, wait_peer_eor_sent(2), and a poll on obsn's
-#   updates-sent minus eor-sent; and option=linger:value=true went on the source
-#   peer. No expect, reject, hex or config line was touched.
 
 # --- source: LLGR RR-client, announces 10.0.0.0/24 then waits on ze's EOR ---
 stdin=source:terminator=EOF_SOURCE
 option=tcp_connections:value=1
 option=timeout:value=20s
-# rfc-test-change-approved: 2026-08-12 -- see the block at the top of this file.
-# Assertions unchanged; this line is part of the approved timing change.
 # Hold the session open past this peer's own expect. A check-mode ze-peer closes
 # the instant its expectations are met, and the close reaches ze as a peer-down
-# that withdraws 10.0.0.0/24 from obsn -- obsn then reads that withdrawal as its
-# seq=2 and the depreference never arrives. The blind sleeps below were only ever
-# beating that withdrawal. The header above states the intent this restores: the
-# stale transition is driven by mark-stale + clear-rib-out, never by a disconnect.
+# that withdraws 10.0.0.0/24 from obsn: obsn then reads that withdrawal as its
+# seq=2 and the depreference never arrives. The header above states the intent
+# this restores: the stale transition is driven by mark-stale and clear-rib-out,
+# never by a disconnect.
 option=linger:value=true
 # iBGP UPDATE: ORIGIN igp, AS_PATH [65001], NEXT_HOP 10.0.0.1, LOCAL_PREF 200,
 # NLRI 10.0.0.0/24.
@@ -93,11 +78,6 @@ EOF_OBSN
 
 tmpfs=observer.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
-# rfc-test-change-approved: 2026-08-12 -- observer timing only. The RFC 9494
-# Section 4.3-3 assertions (obsn's two expect=bgp lines) are UNCHANGED; this
-# script asserts nothing about the RFC and never did. What changed: the 0.25s
-# poll interval, the 1.5s hold and the 2.0s hold became dispatch_until,
-# wait_peer_eor_sent(2) and two polls on obsn's updates-sent minus eor-sent.
 import sys
 from ze_api import (
     API,

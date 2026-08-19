@@ -1,12 +1,5 @@
 package rib
 
-// rfc-test-change-approved: 2026-08-01 Thomas approved adding three imports
-// (routeaction, family, rpc) required by two NEW tests appended to this file, which
-// cover the pool and injection receive paths. No existing test, assertion or RFC tag was
-// changed, removed, reworded or re-tagged: the edit is three import lines plus new
-// functions. The guard fired because an import block sits outside every function, so its
-// scope is the whole file.
-
 import (
 	"net/netip"
 	"testing"
@@ -17,8 +10,6 @@ import (
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 
-	// rfc-test-change-approved: 2026-08-01 Thomas approved these three imports for two
-	// NEW tests (pool and injection paths). No existing assertion or tag was touched.
 	"github.com/ze-software/ze/internal/core/bgp/routeaction"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/pkg/plugin/rpc"

@@ -1,18 +1,5 @@
 # Test: a peer that goes silent is torn down on its FIRST hold expiry.
 #
-# rfc-test-change-approved: 2026-08-03 -- Thomas approved two changes here.
-#   (1) He ruled for full RFC 4271 Section 8.2.2 Event 10 conformance and
-#       ordered the hold-timer grace removed, accepting that a CPU-congested
-#       daemon will now drop sessions it used to keep. This test asserted the
-#       grace ("one graced expiry then teardown") and is inverted to assert its
-#       absence: teardown on the first expiry, inside ONE hold time. The ruling
-#       supersedes spec Q-1 (2026-07-17), which settled only the grace duration.
-#   (2) The `is None` guards on api.wait_until at the two runtime_fail sites.
-#       API.wait_until is annotated `-> bool` (test/scripts/ze_api.py) and
-#       returns wait_until(...), never None, so both runtime_fail branches were
-#       dead and the OK: lines printed unconditionally. `not` makes them real
-#       assertions. Does not touch the expect=bgp: expectation.
-#
 # RFC requirement: RFC4271-8.2.2-1 positive -- the silent peer reads a byte-exact
 #   NOTIFICATION with Error Code Hold Timer Expired (4) off the wire, produced by
 #   the real daemon on a real socket, before ze drops the connection.
@@ -74,11 +61,6 @@ tmpfs=deadpeer-watch.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 """Assert the session dropped within ONE hold time of going quiet.
 
-rfc-test-change-approved: 2026-08-03 -- Thomas ruled the hold-timer grace
-removed for full RFC 4271 Section 8.2.2 Event 10 conformance, so the graced
-counter this observer polled no longer exists and the reprieve it measured is
-gone. The observer is inverted to assert the conformant timing instead.
-
 The wire expectation above proves the NOTIFICATION. It cannot prove WHEN the
 daemon sent it: a session granted a reprieve and torn down on its SECOND expiry
 produces the same bytes, one hold time later, and that timing is the whole
@@ -134,19 +116,6 @@ def find_metric_value(metrics_text, prefix):
     return None
 
 
-# rfc-test-change-approved: 2026-08-03 -- Thomas approved both edits below.
-# (1) The grace is removed for full RFC 4271 Section 8.2.2 Event 10 conformance,
-#     so ze_bgp_hold_expiry_graced_total no longer exists and the reprieve it
-#     measured is gone. The graced poll is replaced by a bounded teardown
-#     deadline, which asserts the conformant timing instead of the reprieve.
-# (2) `is None` on a bool-returning api.wait_until left the runtime_fail branch
-#     dead; `not` makes the OK: line a real assertion.
-# // the graced-counter poll and its runtime_fail asserted a REMOVED
-#     branch over a REMOVED metric, so neither can be inverted in place. The
-#     teardown assertion that replaces them is strictly stronger: it was
-#     unbounded (120 attempts, 30 s) and is now bounded to 5 s, which is under
-#     the ~6 s the reprieve took, so the timing is asserted rather than
-#     tolerated.
 FLAPS = 'ze_peer_session_flaps_total{peer="127.0.0.1"}'
 
 # The negotiated receive-hold-time from the config below.
@@ -248,9 +217,6 @@ EOF_CONF
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=40s
 expect=exit:code=0
-# rfc-test-change-approved: 2026-08-03 -- Thomas ruled the grace removed; the
-# observer's OK: line changed with it, and now carries the real assertion
-# because the wait_until guard is no longer dead (`not`, not `is None`).
 expect=stderr:contains=OK: silent peer torn down on its first hold expiry
 reject=stderr:pattern=panic
 reject=stderr:pattern=fatal error

@@ -78,10 +78,9 @@ func encapInjectRaw(t *testing.T, dst string, pkt []byte) {
 	t.Helper()
 	fd, err := unix.Socket(unix.AF_INET, unix.SOCK_RAW, unix.IPPROTO_RAW)
 	if err != nil {
-		// test-relax: capability gate, not a relaxation. CAP_NET_RAW is absent on some
-		// hosts and every sibling probe in this package skips the same way
-		// (ai/rules/testing.md). encapOwnProcess propagates a child SKIP as a
-		// parent SKIP rather than reading it as PASS.
+		// CAP_NET_RAW is absent on some hosts, and every sibling probe in this package
+		// skips the same way (ai/rules/testing.md). encapOwnProcess propagates a child
+		// SKIP as a parent SKIP rather than reading it as PASS.
 		t.Skipf("no raw socket (needs CAP_NET_RAW): %v", err)
 	}
 	defer func() {
@@ -160,7 +159,7 @@ func TestEncapOneStateAcceptsBothForms(t *testing.T) {
 
 	reader, err := (&net.ListenConfig{}).ListenPacket(t.Context(), "ip4:esp", encapLoopbackAddr)
 	if err != nil {
-		// test-relax: capability gate, not a relaxation. See encapInjectRaw above.
+		// See encapInjectRaw above: this is a capability gate, not a relaxation.
 		t.Skipf("no raw ESP socket (needs CAP_NET_RAW): %v", err)
 	}
 	defer func() {

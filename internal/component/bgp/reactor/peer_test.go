@@ -644,19 +644,18 @@ func TestRouteFamilyVPNv6(t *testing.T) {
 	require.Equal(t, family.SAFI(128), fam.SAFI, "SAFI should be MPLS-VPN (128)")
 }
 
-// test-relax: three End-of-RIB "families sent" tests stood here until 2026-08-09.
-// Each built a local map, filled it inline, and asserted on its own fill; none
-// called production code, so all three were green against any implementation while
-// their names and VALIDATES comments claimed RFC 4724 coverage they did not have.
-// One session read them as proof that ze sends End-of-RIB only for families that
+// Three End-of-RIB "families sent" tests stood here until 2026-08-09. Each built
+// a local map, filled it inline, and asserted on its own fill; none called
+// production code, so all three were green against any implementation while their
+// names and VALIDATES comments claimed RFC 4724 coverage they did not have. One
+// session read them as proof that ze sends End-of-RIB only for families that
 // carried routes, and was about to escalate a conformance violation that does not
-// exist. Coverage is REPLACED, not dropped: the behavior they named is now driven
-// from sendInitialRoutes and asserted on the bytes that reach the wire, by
-// TestInitialSyncEORCountedOncePerFamilyOnTheWire (both families silent) and
-// TestInitialSyncEORReachesTheSilentFamilyToo (one family carries a route, the
-// other does not) in peer_initial_sync_test.go. Both go red when the End-of-RIB
-// loop is disabled, and red again when it is narrowed to route-carrying families,
-// which is the reading the deleted tests encoded.
+// exist. The behavior they named is driven from sendInitialRoutes and asserted on
+// the bytes that reach the wire, by TestInitialSyncEORCountedOncePerFamilyOnTheWire
+// (both families silent) and TestInitialSyncEORReachesTheSilentFamilyToo (one
+// family carries a route, the other does not) in peer_initial_sync_test.go. Both
+// go red when the End-of-RIB loop is disabled, and red again when it is narrowed
+// to route-carrying families, which is the reading the deleted tests encoded.
 
 // =============================================================================
 // ADD-PATH Tests (RFC 7911)

@@ -27,22 +27,13 @@
 # processes in order on one goroutine. The observer waiting for the fence therefore proves
 # the mixed UPDATE was already decided.
 
-# rfc-test-change-approved: 2026-08-12 Thomas approved a SYNCHRONIZATION change only.
-#   The RFC 1997 Well-1 assertions are UNCHANGED, byte for byte:
-#     expect=bgp:seq=1:contains=18C63364   (the withdrawal reaches the refused peer)
-#     expect=bgp:seq=2:contains=18C00002   (the fence reaches it too)
-#     reject=bgp:pattern=180A0000          (the announcement never does)
-#     expect=bgp:seq=1:contains=18C63364   (the internal peer, both halves)
-#     expect=bgp:seq=2:contains=180A0000
-#   What DID change: the three ze-peer processes became ONE holding three
-#   connections, so option=conn_map:value=remote-ip now numbers them and
-#   option=await_eor:value=true is the barrier. Every expect= and the reject=
-#   moved from conn=1 of its own process to conn=2 / conn=3 of the one process.
-#   No expect, reject, hex or config line was touched otherwise.
-#   Why: a destination that comes up late loses the WITHDRAWAL for good. An
-#   announcement is replayed from the Adj-RIB-In when the session comes up, and a
-#   withdrawal has nothing to replay from -- so the race lands exactly on the
-#   assertion this file exists to make. Measured 5/6 serially before the barrier.
+# The three ze-peer connections belong to ONE process, and they must.
+# option=conn_map:value=remote-ip numbers them and option=await_eor:value=true is
+# the barrier, which is per accepted BATCH (peer_connmap.go) and so cannot span
+# processes. A destination that comes up late loses the WITHDRAWAL for good: an
+# announcement is replayed from the Adj-RIB-In when the session comes up, and a
+# withdrawal has nothing to replay from, so the race lands exactly on the
+# assertion this file exists to make. Measured 5/6 serially before the barrier.
 
 # ONE peer process holds all three sessions, and the conn number is the peer's address
 # rather than the order ze happened to connect in (option=conn_map, peer_connmap.go).
@@ -72,10 +63,6 @@ action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003A02000418C633640
 # says nothing about it, so it must be advertised to both destinations.
 action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE940030401010101C00804FDE9006418C00002
 
-# rfc-test-change-approved: 2026-08-12 -- see the block above. Only the conn number
-# changed on each line below, from conn=1 of its own process to conn=2 / conn=3 of the
-# one process. The RFC 1997 Well-1 assertions themselves are unchanged.
-#
 # conn=2, the INTERNAL destination -- AS 65000, the same AS ze runs, on 127.0.0.2.
 # CONTROL 3: an internal peer is inside the confederation boundary, so it receives BOTH
 # halves. ze splits the mixed shape before sending it (RFC 7606 Section 5.1), withdrawal
@@ -255,13 +242,9 @@ bgp {
 }
 EOF_CONF
 
-# rfc-test-change-approved: 2026-08-12 -- see the block above. Three background ze-peer
-# processes become ONE holding three connections, and the barrier is per accepted BATCH
-# (peer_connmap.go), so it cannot span processes: one process is the only shape in which
-# these RFC 1997 assertions are not a race.
-# the cmd= count falls from four to two for that reason alone. NO assertion is
-# removed and none is weakened: every expect= and the reject= survive on conn=2 / conn=3 of
-# the one peer, byte for byte, and the file gains a barrier it was asserting without.
+# One process holding three connections is the only shape in which these RFC 1997
+# assertions are not a race: the await_eor barrier is per accepted batch
+# (peer_connmap.go) and cannot span processes.
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=30s
 expect=exit:code=0

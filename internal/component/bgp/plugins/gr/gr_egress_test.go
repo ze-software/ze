@@ -236,8 +236,6 @@ func TestLLGREgressFilter_NilStateDoesNotSuppressFreshRoute(t *testing.T) {
 	assert.Equal(t, 0, mods.Len(), "a fresh route gets no modifications")
 }
 
-// rfc-test-change-approved: 2026-08-07 Thomas approved replacing TestLLGREgressFilter_NilState, which asserted the RFC 9494 Section 4.3 violation itself: accept with no mods for a stale route to an EBGP peer whose LLGR capability was never received. Coverage was checked and did not shrink. accept==true and the no-panic assertion moved to TestLLGREgressFilter_NilStateWithdrawsEBGP; the mods.Len()==0 assertion moved to TestLLGREgressFilter_NilStateDoesNotSuppressFreshRoute, where it is correct. Thomas separately approved consolidating gr_egress_warn_test.go into this file on 2026-08-07; the three logger tests below arrive from there verbatim, with no assertion changed.
-
 // withGRLoggerRestored saves and restores the package logger globals, so a test
 // that simulates "the engine never started" cannot leak that state into whatever
 // runs next in this binary.

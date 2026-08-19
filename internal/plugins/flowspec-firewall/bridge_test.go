@@ -238,11 +238,10 @@ func TestHandleUpdateEmptyPeer(t *testing.T) {
 // PREVENTS: a next-hop leaking into the FlowSpec lowering path (rule identity, term name
 // or match set), which would make an ignored field change forwarding behavior.
 func TestRFC8955NextHopIgnoredForFlowSpec(t *testing.T) {
-	// rfc-test-change-approved: 2026-08-19 Thomas approved moving this fixture to the
-	// real daemon envelope. The fixture is the ONLY change: the assertion, the tag and
-	// the polarity are untouched. The literals it replaces used a flat envelope no
-	// writer in the tree produces, so this MUST was being proven against bytes the
-	// daemon never sends. The named form "rate-limit:0" is what the event now carries.
+	// The fixture uses the real daemon envelope. The literals it replaces used a flat
+	// envelope no writer in the tree produces, so this MUST was proven against bytes
+	// the daemon never sends. The named form "rate-limit:0" is what the event
+	// carries.
 	nlri := `{"destination": [["10.1.0.0/24"]],"protocol": [["=6"]],"destination-port": [["=80"]]}`
 	withoutNextHop := daemonUpdateJSON("10.0.0.1", []string{"rate-limit:0"},
 		daemonOp{action: "add", nlri: []string{nlri}})

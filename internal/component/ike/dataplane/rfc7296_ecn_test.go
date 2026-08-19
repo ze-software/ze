@@ -6,14 +6,11 @@ import (
 	"testing"
 )
 
-// rfc-test-change-approved: 2026-08-01 Thomas approved replacing the RFC7296-2.24 evidence
-// after a review found the tagged tests here reflected over SAParams FIELD NAMES and called
-// no production function, so a no-op InstallSA left both polarities passing. The tags now
-// sit on tests that drive the production mapping: rfc7296_ecn_linux_test.go over
-// xfrmStateFromParams (the whole SAParams-to-kernel mapping), and
-// engine/rfc7296_ecn_test.go over createFirstChildSA (the producer of the SAParams). What
-// stays here is the cross-platform half of the mode mapping those two rest on, untagged
-// because on its own it does not prove Section 2.24.
+// The RFC7296-2.24 tags sit on the tests that drive the production mapping:
+// rfc7296_ecn_linux_test.go over xfrmStateFromParams (the whole SAParams-to-kernel
+// mapping), and engine/rfc7296_ecn_test.go over createFirstChildSA (the producer
+// of the SAParams). What stays here is the cross-platform half of the mode mapping
+// those two rest on, untagged because on its own it does not prove Section 2.24.
 //
 // the two RFC7296-2.24 tests that lived here are REPLACED, not weakened. They
 // asserted over a type literal's field names; their replacements named above drive

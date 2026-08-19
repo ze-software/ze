@@ -35,13 +35,6 @@ tmpfs=emitted-shape.py:mode=755:terminator=EOF_PY
 
 Nothing here imports ze. The CHAP-MD5 tunnel-authentication digest is recomputed
 from the RFC 2661 Section 4.4.3 formula rather than read back from the daemon.
-
-rfc-test-change-approved: Thomas, 2026-08-10. Docstring only, no assertion,
-directive or expectation touched. The line cited Section 4.2, which is Mandatory
-AVPs and the M-bit; the Challenge and Response construction is in Section 4.4.3.
-The `#` comment lower in this same file already cites 4.4.3, so the two halves of
-one file disagreed about which section states the formula. Fourth and last site
-of this class in the L2TP work.
 """
 import hashlib
 import socket

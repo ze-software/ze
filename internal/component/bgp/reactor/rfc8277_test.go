@@ -31,14 +31,6 @@ var labeledMPReachNLRI = []byte{48, 0x00, 0x06, 0x41, 10, 0, 0}
 // never bound, which would blackhole the MPLS path.
 //
 // RFC requirement: RFC8277-3.2.1-1 positive -- propagating with an unchanged Next Hop leaves the NLRI label octets identical to the ones received.
-//
-// rfc-test-change-approved: 2026-08-01 Thomas approved a CALL-SHAPE change only.
-// wire-edit child 2 migrated AttrModHandler from func(src, ops, buf, off) int to
-// func(*AttrPlan), so a handler now PLANS and writes no bytes; the test drives it
-// through planHandlerBytes to materialize the plan, exactly as the untagged
-// sibling below already does. Every assertion is unchanged in meaning: the whole
-// MP_REACH is byte-identical, the label entry and prefix survive, and the S bit
-// is untouched. No RFC obligation was weakened or re-scoped.
 func TestLabeledPropagationUnchangedNextHopKeepsLabels(t *testing.T) {
 	t.Parallel()
 
@@ -52,11 +44,6 @@ func TestLabeledPropagationUnchangedNextHopKeepsLabels(t *testing.T) {
 	src := buildMPReachSource(1 /*AFI IPv4*/, 4, /*SAFI labeled unicast*/
 		[]byte{10, 0, 0, 1}, labeledMPReachNLRI)
 
-	// rfc-test-change-approved: 2026-08-01 Thomas approved a CALL-SHAPE change
-	// only. wire-edit child 2 migrated AttrModHandler to func(*AttrPlan), so a
-	// handler now PLANS and writes no bytes; planHandlerBytes materializes the
-	// plan, as the untagged sibling below already does. Assertions below are
-	// unchanged in meaning.
 	out, ok := planHandlerBytes(mpReachNextHopHandler(), 14, src, mods.Ops())
 	require.True(t, ok, "with no op the handler plans a verbatim copy")
 	n := len(out)

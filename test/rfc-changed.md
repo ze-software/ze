@@ -69,9 +69,16 @@ refused every author for obeying the other gate. The hook reads this file now,
 so both acceptances are gone: a marker approves nothing, and writing a new one
 records nothing.
 
-The 255 markers already in the tree are swept in their own change. Until that
-sweep lands, a marker you meet in a test file is a record of an approval given
-before this file existed. It authorizes no edit you are making today.
+The sweep landed on 2026-08-19: 268 markers across 125 files, and 27 `test-relax:`
+comments beside them, the mechanism `test/weakened.md` had already replaced. No
+test carrier holds either token now.
+
+The sweep is worth one paragraph, because deleting a retired token is not the
+same as deleting what it said. Those 268 markers were 1475 lines of prose, and
+about one block in six stated a fact about its own test that exists nowhere else:
+a measured vacuity finding, a fixture precondition, a pointer to where coverage
+moved. 57 of them survive as ordinary comments with the approval framing removed.
+A mechanism can be retired without throwing away what people wrote under it.
 
 ## What this gate cannot see
 
@@ -126,3 +133,9 @@ row. Quote the id, so a reader can open `rfc/short/` beside it.
 
 | Test | Reason |
 |------|--------|
+| bgp-relay-withdraw-reflector-frr.check | The owner ordered the retired `rfc-test-change-approved:` markers swept from the tree, and this file carries them in the module docstring and in `#` comments. The edit deletes comment text and nothing else: RFC4456-8-1 and RFC4456-8-2 keep their assertions, their patterns and their ORIGINATOR_ID value, so each requirement keeps the proof it had. The gate fires only because `_behavior_bytes` strips `#` comment lines and not docstring lines. |
+| bgp-relay-withdraw-shape-frr.check | Same sweep. One marker sits in the module docstring and one in a `#` comment. RFC4271-5.1.2-3 keeps its tag and every assertion the scenario makes against FRR, so the proof is unchanged. |
+| bgp-role-otc-withdraw-frr.check | Same sweep. Two markers sit in the module docstring, four in `#` comments. The RFC9234-5-4 tag, the FRR log patterns and `withdraw_updates()` are all unchanged, so both polarities keep the evidence they had. |
+| rfc2661-emitted-control-shape | Same sweep. The marker sits in the embedded observer's docstring. Only comment text is deleted: the RFC2661 tag, every `expect=` and the observer's assertions are byte-identical. |
+| rfc2661-sccrq-tunnel-id-zero | Same sweep, same shape. The marker sits in the embedded observer's docstring, and no tag, expectation or assertion moves. |
+| deadpeer-holddown | Same sweep. One marker sits in the embedded observer's docstring and three in `#` comments. The RFC4271-8.2.2 assertions, the teardown deadline and every `expect=` line are unchanged. |

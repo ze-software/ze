@@ -1213,8 +1213,6 @@ func (o *recordingRouteObserver) downs() [][2]uint16 {
 // withdraw was not observed during teardown" -- the reactor's peer paths
 // (handle, handleTick) previously skipped OnSessionDown, leaving the /32
 // injected after the session was gone.
-//
-// rfc-test-change-approved: 2026-07-20 clock-sync race fix (testClock replaces shared *time.Time) + establishment barrier (waitForLog before teardown); assertions and RFC-2661 5.8-3 obligation unchanged
 func TestPeerTeardownWithdrawsSubscriberRoute(t *testing.T) {
 	clk := newTestClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
 	helloInterval := 60 * time.Second

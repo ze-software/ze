@@ -33,11 +33,6 @@ func midTemporaryFailure() []wire.PayloadEntry {
 // it carried no coverage. Its only failure path was a constructor guard on its own input.
 // `make ze-lint-changed` fails this package while it stands ("func midChildRekeyPending is
 // unused"). A later work package that needs the same fixture builds the one it needs.
-//
-// rfc-test-change-approved: 2026-07-31 the owner gave standing approval, for the whole of
-// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, to strengthen tagged coverage. Removing dead
-// scaffolding from a tagged file removes no proof. Every RFC7296-2.2-2 tag in this file
-// keeps its test and its assertions.
 
 // VALIDATES: the outbound Message ID stops at the 32-bit ceiling instead of wrapping,
 // and the owner loop closes the SA once it stops.
@@ -448,9 +443,6 @@ func TestMidTemporaryFailureDefersTheIKERekey(t *testing.T) {
 // exhausted and raises no further request on it.
 // PREVENTS: an SA that keeps running past the 32-bit ceiling and spends an id it has
 // already used under one set of keys.
-//
-// rfc-test-change-approved: 2026-07-31 the owner gave standing approval, for the whole of
-// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, to strengthen tagged coverage.
 //
 // CHANGED 2026-08-18. The negative control used to assert that answering IKE_AUTH at id 1
 // left this side's NextMsgID at 2, which pinned a violation of Section 2.2's two-counter

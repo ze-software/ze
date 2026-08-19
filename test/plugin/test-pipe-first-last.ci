@@ -4,11 +4,10 @@
 
 # ze-peer: send 5 routes into ze's adj-rib-in, then check ze's EOR.
 #
-# // test-relax: the 5 removed `expect=bgp` UPDATE hexes were unsatisfiable by
-# construction and are REPLACED, not dropped -- the routes they described are now
-# really injected (option=update:value=send-route below), which is what makes the
-# pipe assertions non-vacuous for the first time. Two reasons they could never
-# pass. (1) Nothing announced them: their paired `cmd=api:...text=peer * update
+# The routes are really injected (option=update:value=send-route below), and that
+# is what makes the pipe assertions non-vacuous. Five `expect=bgp` UPDATE hexes
+# stood here instead until aaefef8ce, and they were unsatisfiable by
+# construction, for two reasons. (1) Nothing announced them: their paired `cmd=api:...text=peer * update
 # text ...` lines are inert in the plugin runner -- cmd=api text is parsed into
 # messageExpect.Cmd (internal/test/runner/record.go:85, set at
 # record_parse.go:700) which ONLY the reporter reads (report.go:149), and ze-peer
@@ -17,9 +16,9 @@
 # malformed: 48 bytes on the wire but a Length field of 0x002E = 46, violating RFC
 # 4271 section 4.3 (Length counts the whole message including the 19-byte header),
 # and their NLRI `18 01 01 00` is 1.1.0.0/24, not the 10.1.0.0/24 the cmd= text
-# names (`18 0A 01 00`). No well-formed UPDATE could ever match them. Vacuously
-# green until aaefef8ce because the run script's `finally` requests shutdown, so
-# ze still exited 0 and only `expect=exit:code=0` was consulted.
+# names (`18 0A 01 00`). No well-formed UPDATE could ever match them, and the file
+# stayed green because the run script's `finally` requests shutdown, so ze still
+# exited 0 and only `expect=exit:code=0` was consulted.
 #
 # option=update:value=send-route is the ze-peer-consumed injection directive
 # (internal/test/peer/expect.go parseOptionConfig -> Config.SendRoutes ->

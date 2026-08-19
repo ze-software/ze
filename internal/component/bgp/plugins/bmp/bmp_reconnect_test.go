@@ -490,15 +490,6 @@ func TestConcurrentDumpsStayAddressedToTheirOwnCollector(t *testing.T) {
 	// received the other collector's as well, which is what this test exists to
 	// catch; the per-collector counts are what isolate the dumps, not the
 	// absolute marker count.
-	//
-	// rfc-test-change-approved: 2026-07-27 Thomas ruled "do what is right RFC
-	// wise". The marker count rose from 1 to 2 because a dump that produced an
-	// IPv4 batch and no IPv6 batch now closes IPv6 as well: RFC 4724 Section 4
-	// requires the End-of-RIB marker "once it completes the initial routing
-	// update (including the case when there is no update to send) for an address
-	// family", and RFC 7854 Section 5 imports that definition for the BMP dump.
-	// The isolation assertion this test was written for is UNCHANGED and still
-	// exact -- neither collector may see the other's route or markers.
 	const wantEORs = 2 // IPv4 (closed by the batch) + IPv6 (empty, closed anyway)
 	for name, conn := range map[string]*recordingConn{"collector-a": connA, "collector-b": connB} {
 		var routes, eors int

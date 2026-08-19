@@ -1,7 +1,3 @@
-// rfc-test-change-approved: 2026-07-31 owner standing approval for
-// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only. Every tag in this file is
-// NEW; the edits that build it never relax an existing proof.
-
 package engine
 
 import (
@@ -171,10 +167,6 @@ func TestTransportModeUsesExactlyOneAddress(t *testing.T) {
 	}}
 	strayTSi, strayTSr := proposeChildTSPayloads(&SA{PeerCfg: strayCfg, IsInitiator: true})
 
-	// rfc-test-change-approved: 2026-07-31 owner standing approval for
-	// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only. This ADDS the two missing
-	// negative polarities; it relaxes nothing.
-	//
 	// RFC requirement: RFC7296-2.23.1-2 negative -- the discriminator. A configured TSi
 	// address that DIFFERS from the IKE SA source never reaches the wire. Without this the
 	// positive above could pass on a fixture that merely happened to agree with config.

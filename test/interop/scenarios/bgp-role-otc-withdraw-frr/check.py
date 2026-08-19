@@ -22,12 +22,6 @@ its own passes with the whole stamping mechanism deleted, and it also passes if
 FRR never received the message -- both are the vacuity trap in
 ai/rules/interop-and-goal-validation.md.
 
-rfc-test-change-approved: 2026-08-04 -- Thomas approved. DOCSTRING ONLY, no
-assertion or regex touched. It replaces a PREDICTED mutant result with the two
-MEASURED ones, and states plainly what the new assertion does and does not
-observe. ai/rules/evidence.md: a predicted mutant result is a hypothesis, and an
-assertion whose reach is overstated is a claim nobody checked.
-
 MUTATION EVIDENCE, measured 2026-08-04 against FRR 10.3.1. Forcing
 payloadAdvertisesNLRI (internal/component/bgp/plugins/role/otc.go) to return true
 reddens the NEGATIVE with FRR's own words:
@@ -53,24 +47,16 @@ withdrawal, and test/plugin/role-otc-fwd-withdraw.ci pins the emitted bytes
 exactly. That `.ci` closes the gap, not this file. Do not read this assertion as
 proving more than its own words.
 
-rfc-test-change-approved: 2026-08-04 -- Thomas approved. The negative could not
-fire at all: it parsed `rcvd UPDATE wlen N attrlen M`, which FRR 10.3.1 never
-emits, so the pattern matched nothing and the only failure available was the
-"logged no UPDATE carrying withdrawn routes" guard. Measured on 2026-08-04:
-scenario 51 failed on that guard with the fix IN PLACE. The replacement reads two
-lines FRR does emit -- its decode of the withdrawal, and its attribute-error
-verdict -- which STRENGTHENS the assertion: it now refuses a message the receiver
-rejected, not merely a byte count. Same shape as scenario 52.
+The negative reads two lines FRR does emit: its decode of the withdrawal, and its
+attribute-error verdict. Parsing `rcvd UPDATE wlen N attrlen M` instead cannot
+fire at all, because FRR 10.3.1 never emits that line, and the only failure left
+is then the "logged no UPDATE carrying withdrawn routes" guard. Measured on
+2026-08-04: scenario 51 failed on that guard with the fix IN PLACE. Same shape as
+scenario 52.
 
 The two RFC requirement tags are below, as real comments.
 """
 
-# rfc-test-change-approved: 2026-08-04 -- Thomas approved. The two tags MOVE from
-# the docstring above into comments, and the negative is reworded to what it now
-# asserts. Measured: rfc_requirements.scan_tree() returned [] for this file with
-# them in the docstring, so this scenario ran, passed, and was counted as
-# evidence for NOTHING. Moving them makes the evidence real, which strengthens.
-#
 # The ledger's scanner (scripts/dev/rfc_requirements.py scan_python_tags)
 # tokenizes the file and reads COMMENT tokens only, so a tag inside a string is
 # invisible to it.
@@ -88,10 +74,9 @@ from interop import FRR, FRR_CONTAINER, docker_exec_quiet, log_pass, log_info
 PREFIX = "10.10.0.0/24"
 ZE_ASN = 65001
 
-# rfc-test-change-approved: 2026-08-04 -- Thomas approved. Replaces a pattern FRR
-# 10.3.1 never emits (`rcvd UPDATE wlen N attrlen M`), which made the negative
-# unable to fire, with two lines it does emit. Strengthens: the assertion now
-# refuses a message the RECEIVER rejected. See the module docstring.
+# FRR 10.3.1 never emits `rcvd UPDATE wlen N attrlen M`, so a negative built on it
+# can never fire. These two lines are ones it does emit, and an attribute error is
+# the RECEIVER's own verdict rather than a byte count this side inferred.
 #
 # FRR's own decode of an UPDATE that withdrew this prefix, under
 # `debug bgp updates in`. Its presence is what stops the negative below passing
@@ -135,9 +120,8 @@ def otc_reported(frr):
     return None
 
 
-# rfc-test-change-approved: 2026-08-04 -- Thomas approved. See the module
-# docstring: withdraw_updates() parsed a line FRR never emits, so it always
-# returned [] and the negative could not fire.
+# FRR 10.3.1 never emits the `wlen/attrlen` line, so parsing it always returns []
+# and the negative cannot fire.
 
 
 def check():
@@ -170,10 +154,8 @@ def check():
         "FRR session dropped over the withdrawal"
     )
 
-    # rfc-test-change-approved: 2026-08-04 -- Thomas approved. See the module
-    # docstring. The dead `wlen/attrlen` parse is replaced by two lines FRR does
-    # emit; the assertion is strictly stronger, because an attribute error is the
-    # RECEIVER's own verdict rather than a byte count this side inferred.
+    # The two lines below are ones FRR does emit. An attribute error is the RECEIVER's
+    # own verdict rather than a byte count this side inferred.
     #
     # FRR writes each log line as it parses, so give the last one a moment to be
     # flushed to the file rather than racing the read. Bounded, and the assertion

@@ -203,18 +203,11 @@ func TestSessionReadIncrementsWireBytesCounter(t *testing.T) {
 		"wire bytes received must equal the OPEN + KEEPALIVE message lengths")
 }
 
-// rfc-test-change-approved: 2026-08-03 -- Thomas ruled the hold-timer grace
-// removed for full RFC 4271 Section 8.2.2 Event 10 conformance.
-// TestGracedHoldExpiryIncrementsCounter lived here and asserted
-// that ze_bgp_hold_expiry_graced_total advanced on a graced expiry. Both the
-// grace branch and the counter are REMOVED -- with no reprieve to count, the
-// counter could only ever read zero, so it was deleted rather than left as a
-// flat line an operator would read as "no congestion" (ai/rules/no-layering.md).
-// Nothing here is inverted, because a test asserting the absence of a metric
-// would pass with the whole metrics subsystem deleted. The hold-expiry behavior
-// the test reached through is now covered where it is observable: the teardown
-// itself in session_hold_expiry_test.go, the wire NOTIFICATION in
-// rfc4271_test.go, and the running daemon in test/plugin/deadpeer-holddown.ci.
+// The hold-expiry behavior is covered where it is observable: the teardown itself
+// in session_hold_expiry_test.go, the wire NOTIFICATION in rfc4271_test.go, and
+// the running daemon in test/plugin/deadpeer-holddown.ci. Nothing here asserts the
+// absence of a metric, because such a test would pass with the whole metrics
+// subsystem deleted.
 
 // TestRefusedOpenIncrementsCounter drives handleOpen's Established state gate
 // and asserts the refusal advances its counter.

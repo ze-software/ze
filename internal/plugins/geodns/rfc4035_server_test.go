@@ -65,16 +65,6 @@ func hasDNSSECRR(msg *dns.Msg) bool {
 // resolver reads as "the name does not exist" rather than "no DS here"), or a
 // blanket no-data answer for names geodns is not authoritative for.
 //
-// rfc-test-change-approved: 2026-08-12 Thomas ruled "fix any issues - the code
-// must be RFC compliant" on the two geodns response codes he was shown: an
-// in-zone name that does not exist must answer NXDOMAIN rather than NODATA, and
-// a name under no served zone must answer REFUSED with AA clear rather than
-// NXDOMAIN with AA set. Both halves of this test asserted the old codes. The
-// positive half also drove the requirement from "child.t.example.", which is not
-// a zone cut for geodns and now answers NXDOMAIN under that ruling; it moves to
-// the served zone's apex, which is the name RFC 4035 Section 3.1.4.1 is about
-// ("the DS RRset does not exist in the child zone's apex").
-//
 // The apex is the name the requirement is about. RFC 4035 Section 3.1.4.1 scopes
 // its rule to a server "authoritative for the child zone" that "cannot supply
 // the requested RRset", and the response it asks for shows "that the DS RRset

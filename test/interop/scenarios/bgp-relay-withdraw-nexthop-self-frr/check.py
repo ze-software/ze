@@ -28,13 +28,6 @@ The pair is what makes the negative evidence. "No error was logged" on its own
 passes with the whole forward rail deleted, and it passes if FRR never received
 anything -- both are the vacuity trap in ai/rules/interop-and-goal-validation.md.
 
-rfc-test-change-approved: 2026-08-04 -- Thomas standing authorisation for
-correctness-only test edits. The two RFC4271-4.3-1 tags drafted here minutes ago,
-in this same session, are REMOVED because that id is the Transitive-bit rule
-(rfc/short/rfc4271.md:698) and has nothing to do with the shape this scenario
-drives. A wrong tag claims evidence for an obligation nobody proved. Nothing
-else in the file changes, and no assertion is touched.
-
 NO `RFC requirement:` TAG, deliberately. The obligation this proves is RFC 4271
 Section 4.3's message shape, which the summary carries as prose rather than as a
 checklist row: Section 4.3's "will not include path attributes" is indicative,

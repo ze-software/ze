@@ -18,14 +18,10 @@ import (
 //
 // RFC requirement: RFC1195-5.2-2 positive -- the IP Interface Address TLV 132 carries a list of 4-octet IPv4 addresses that the codec reads back verbatim, so an IP-capable router can carry TLV 132 in its LSPs (RFC 1195 sec 5.2).
 //
-// rfc-test-change-approved: 2026-08-17 -- Thomas approved the dead-codec sweep, but what he
-// was shown for this test was a DELETION. It was rewritten instead, because
-// DecodeIPv4InterfaceAddrTLV stays live in circuit/runtime.go and spf/graph.go and this test
-// is its only assertion-bearing coverage, so deleting it would have cut coverage of shipped
-// code. That deviation is the implementer's call, not his, and he did not review the wording
-// of this marker. writeIPv4InterfaceAddrTLV had no production caller and was deleted, so the
-// fixture it built is replaced by hand-written RFC 1195 bytes. Every assertion about
-// DecodeIPv4InterfaceAddrTLV is kept.
+// writeIPv4InterfaceAddrTLV had no production caller and was deleted, so the
+// fixture it built is hand-written RFC 1195 bytes. This test stays because
+// DecodeIPv4InterfaceAddrTLV is live in circuit/runtime.go and spf/graph.go and
+// this is its only assertion-bearing coverage.
 func TestISISTLVIPv4InterfaceAddr(t *testing.T) {
 	want := []netip.Addr{
 		netip.MustParseAddr("192.0.2.1"),

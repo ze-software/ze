@@ -44,11 +44,6 @@ var (
 	blackholeValue = [4]byte{0xFF, 0xFF, 0x02, 0x9A} // RFC 7999, 65535:666
 	noExportValue  = [4]byte{0xFF, 0xFF, 0xFF, 0x01} // RFC 1997 NO_EXPORT
 
-	// rfc-test-change-approved: 2026-08-13 owner directive, quoted verbatim in
-	// the task: the honor leaf is "Redundant. Delete it -- the option's presence
-	// carries the agreement". A session that listed a community has agreed, and
-	// one that listed none has not, so this value replaces honor:true and an
-	// empty list replaces honor:false. No assertion changes.
 	agreedBlackhole = []attribute.Community{attribute.CommunityBlackhole}
 )
 
@@ -113,11 +108,6 @@ func blackholeLocRIBType(t *testing.T, loc *locrib.RIB, pfx netip.Prefix) routet
 // honor BLACKHOLE on that particular BGP session, so the announcement is
 // accepted and honored.
 func TestBlackholeRouteTypeStampedOnBestPath(t *testing.T) {
-	// rfc-test-change-approved: 2026-08-13 owner directive, quoted verbatim in the
-	// task: the honor leaf is "Redundant. Delete it -- the option's presence
-	// carries the agreement". The agreement is now the listed community, so
-	// honor:true becomes a listed community. The assertions are untouched and
-	// both polarities of every tagged requirement are preserved.
 	peer := netip.MustParseAddr("192.0.2.1")
 	r, loc := blackholeRIB(t, peer, blackholeConfig{
 		communities: agreedBlackhole,
@@ -165,12 +155,6 @@ func TestBlackholeNotStampedWithoutAgreement(t *testing.T) {
 // authorization listed, and no community agreed. RFC 7999 Section 3.3 needs both
 // conditions, and the agreement is the one missing.
 //
-// rfc-test-change-approved: 2026-08-13 owner directive, quoted verbatim in the
-// task: the honor leaf is "Redundant. Delete it -- the option's presence carries
-// the agreement". honor:false becomes an empty community list, which is the same
-// state this test always covered: configured, covered, and not agreed. The
-// assertions are untouched.
-//
 // RFC requirement: RFC7999-3.3-2 negative -- the receiving party did NOT agree
 // to honor BLACKHOLE on this session, so the announcement is not honored even
 // though its prefix is covered.
@@ -178,10 +162,6 @@ func TestBlackholeNotStampedWithoutAgreement(t *testing.T) {
 // directive, the network element does not discard traffic toward the tagged
 // prefix.
 func TestBlackholeNotStampedWhenNoCommunityAgreedButAuthorizationExists(t *testing.T) {
-	// rfc-test-change-approved: 2026-08-13 owner directive, quoted verbatim in
-	// the task: the honor leaf is "Redundant. Delete it -- the option's presence
-	// carries the agreement". Renamed because honor:false is now an empty
-	// community list. Same state, same assertions, same polarity.
 	peer := netip.MustParseAddr("192.0.2.1")
 	r, loc := blackholeRIB(t, peer, blackholeConfig{
 		authorized: []netip.Prefix{netip.MustParsePrefix("10.0.0.0/24")},
@@ -208,10 +188,6 @@ func TestBlackholeNotStampedWhenNoCommunityAgreedButAuthorizationExists(t *testi
 // announcement is not honored even though the session agreed to honor it.
 func TestBlackholeNotStampedOutsideAuthorization(t *testing.T) {
 	peer := netip.MustParseAddr("192.0.2.1")
-	// rfc-test-change-approved: 2026-08-13 owner directive, quoted verbatim in
-	// the task: the honor leaf is "Redundant. Delete it -- the option's presence
-	// carries the agreement". honor:true becomes the listed community. Nothing
-	// else changes.
 	r, loc := blackholeRIB(t, peer, blackholeConfig{
 		communities: agreedBlackhole,
 		authorized:  []netip.Prefix{netip.MustParsePrefix("10.0.0.0/24")},
@@ -232,10 +208,6 @@ func TestBlackholeNotStampedOutsideAuthorization(t *testing.T) {
 // community is what asks for the discard, not the authorization.
 func TestBlackholeNotStampedWithoutTheCommunity(t *testing.T) {
 	peer := netip.MustParseAddr("192.0.2.1")
-	// rfc-test-change-approved: 2026-08-13 owner directive, quoted verbatim in
-	// the task: the honor leaf is "Redundant. Delete it -- the option's presence
-	// carries the agreement". honor:true becomes the listed community. Nothing
-	// else changes.
 	r, loc := blackholeRIB(t, peer, blackholeConfig{
 		communities: agreedBlackhole,
 		authorized:  []netip.Prefix{netip.MustParsePrefix("10.0.0.0/24")},
@@ -258,10 +230,6 @@ func TestBlackholeNotStampedWithoutTheCommunity(t *testing.T) {
 // Both rails must still carry the change.
 func TestBlackholeStampedOnCommunityOnlyReannounce(t *testing.T) {
 	peer := netip.MustParseAddr("192.0.2.1")
-	// rfc-test-change-approved: 2026-08-13 owner directive, quoted verbatim in
-	// the task: the honor leaf is "Redundant. Delete it -- the option's presence
-	// carries the agreement". honor:true becomes the listed community. Nothing
-	// else changes.
 	r, loc := blackholeRIB(t, peer, blackholeConfig{
 		communities: agreedBlackhole,
 		authorized:  []netip.Prefix{netip.MustParsePrefix("10.0.0.0/24")},
@@ -287,10 +255,6 @@ func TestBlackholeStampedOnCommunityOnlyReannounce(t *testing.T) {
 // traffic forwarded again, or a blackhole is permanent once applied.
 func TestBlackholeClearedWhenCommunityRemoved(t *testing.T) {
 	peer := netip.MustParseAddr("192.0.2.1")
-	// rfc-test-change-approved: 2026-08-13 owner directive, quoted verbatim in
-	// the task: the honor leaf is "Redundant. Delete it -- the option's presence
-	// carries the agreement". honor:true becomes the listed community. Nothing
-	// else changes.
 	r, loc := blackholeRIB(t, peer, blackholeConfig{
 		communities: agreedBlackhole,
 		authorized:  []netip.Prefix{netip.MustParsePrefix("10.0.0.0/24")},
@@ -324,10 +288,6 @@ func TestBlackholeClearedWhenCommunityRemoved(t *testing.T) {
 // revisit it.
 func TestBlackholeRemovedWhenPrefixWithdrawn(t *testing.T) {
 	peer := netip.MustParseAddr("192.0.2.1")
-	// rfc-test-change-approved: 2026-08-13 owner directive, quoted verbatim in
-	// the task: the honor leaf is "Redundant. Delete it -- the option's presence
-	// carries the agreement". honor:true becomes the listed community. Nothing
-	// else changes.
 	r, loc := blackholeRIB(t, peer, blackholeConfig{
 		communities: agreedBlackhole,
 		authorized:  []netip.Prefix{netip.MustParsePrefix("10.0.0.0/24")},

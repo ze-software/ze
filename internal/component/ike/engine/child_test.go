@@ -307,14 +307,6 @@ func TestChildSANATTEncapPorts(t *testing.T) {
 // which exceeds the RFC 4303 Section 3.4.3 minimum supported window of 32 packets.
 // RFC requirement: RFC4303-3.4.3-4 positive -- the production IKE Child SA path uses
 // the preferred 64-packet default from RFC 4303 Section 3.4.3.
-//
-// rfc-test-change-approved: 2026-08-16 -- approved changes: rename
-// TestChildSAReplayWindowMinimum to TestChildSAReplayWindowDefault; change the exact
-// ReplayWin assertion from 32 to 64 for both inbound and outbound production-path
-// SAs; and remove the vacuous RFC4303-3.4.3-4 negative tag in favor of
-// {single-polarity: positive}. Coverage remains because the same production path,
-// fixtures, inbound and outbound directions, and exact-equality assertion all
-// remain.
 func TestChildSAReplayWindowDefault(t *testing.T) {
 	sa := testSA()
 	dp := &mockDP{}
@@ -379,8 +371,6 @@ func TestChildSAReplayRequiresIntegrity(t *testing.T) {
 // in the SAME change to TestNarrowedSelectorsReachTheInstalledPolicy (ts_narrow_test.go),
 // which drives the narrowing engine the responder calls and then asserts the installed
 // inbound policy carries its result. Coverage moves onto a live path rather than dropping.
-// rfc-test-change-approved: 2026-07-31 owner standing approval for
-// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only.
 
 // TestChildSAInboundPolicyUsesNegotiatedTS asserts the inbound SPD/SAD entry is populated
 // with the Child SA's negotiated traffic selectors, not the raw tunnel endpoints.

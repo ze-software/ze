@@ -98,10 +98,6 @@ func TestRFC7296MODPPublicValueMatchesModulusLength(t *testing.T) {
 // therefore what a peer permits. The test also asserts that the pad puts the number at the
 // END of the field. A left-aligned pad returns the right octet count and still names
 // another number.
-//
-// rfc-test-change-approved: 2026-07-30 the coordinator approved this rewrite of the negative.
-// spec-fixit-ike-negotiation-conformance AC-3 added the receive-side length check that the
-// previous negative asserted was absent, so its premise is gone. The positive is untouched.
 func TestRFC7296MODPShortPublicValueIsRefusedOnReceipt(t *testing.T) {
 	modulusLen := dhxModulusLen()
 	local, err := NewDHExchange(DH_MODP_2048)

@@ -29,7 +29,10 @@ sit 27 `test-relax:` that survived the reform meant to replace them, and 6
 Never write a new one. No gate reads one. `_rfc_tagged_change_err`
 (`.claude/hooks/pretool-writeedit.py`) stopped accepting a marker in the edit's own text.
 `rfc_changed_problems` (`scripts/dev/commit_helper.py`) stopped accepting one in a commit.
-Both read `test/rfc-changed.md` instead. The 255 already in the tree leave in their own
-sweep. Until it lands, a marker records an approval given before the ledger existed, and
-it authorizes nothing you are editing today. Recorded in
+Both read `test/rfc-changed.md` instead. The sweep landed the same day: 268 markers across
+125 files, and the 27 `test-relax:` beside them, so no test carrier holds either token.
+`test-asserts-nothing:` is NOT retired and was left alone -- `escapeComment`
+(`scripts/checks/inert_tests.go`) still reads it. Retiring a token is not the same as
+discarding what it said: about one block in six stated a fact about its own test found
+nowhere else, and 57 survive as ordinary comments. Recorded in
 `plan/journal/guard-message-teaches-the-violation.md`.

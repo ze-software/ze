@@ -3,13 +3,10 @@
 # Expected: daemon shuts down cleanly, and the peer is TOLD WHY before the
 # socket goes.
 #
-# rfc-test-change-approved: Thomas, 2026-08-10. Removed an `RFC requirement:
-# RFC4271-8.2.2-18` tag this file never asserted. The tag was written here before
-# its assertion, which made the file RFC-tagged and then blocked the assertion
-# from being added. The obligation is proven, in test/reload/signal-stop-cease.ci,
-# which carries both the tag and the seq=3 wire expectation. Thomas chose one
-# subject per file: this file tests the shutdown signal, the sibling tests the
-# NOTIFICATION. No test was deleted and no proof was lost.
+# This file carries no RFC requirement tag. RFC4271-8.2.2-18 is proven in
+# test/reload/signal-stop-cease.ci, which carries both the tag and the seq=3 wire
+# expectation. One subject per file: this file tests the shutdown signal, the
+# sibling tests the NOTIFICATION.
 #
 # THE WIRE PROOF LIVES IN THE SIBLING, AND IT MATTERS. Until 2026-08-10 the
 # daemon sent NOTHING on shutdown: Session.Close built exactly that message and

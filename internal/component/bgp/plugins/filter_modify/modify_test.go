@@ -540,9 +540,6 @@ func TestExtractUint32Attr(t *testing.T) {
 	}
 }
 
-// rfc-test-change-approved: 2026-08-17 Thomas approved replacing tests of the
-// removed, unreleased set { med-remove true; } syntax with del { med; }.
-//
 // VALIDATES: spec-rfc4271-med-across-as AC-5 -- the public del { med; }
 // configuration for RFC 4271 Section 5.1.4's configured removal parses, and
 // refuses to be combined with the opposite instruction about the same

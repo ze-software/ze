@@ -1,19 +1,8 @@
-# rfc-test-change-approved: 2026-08-07 Thomas ruled for a daemon-side shared-subnet check --
-# ze evaluates RFC 2545 Section 3 itself at the producer instead of treating the operator's
-# `local-link-local` leaf as the decision, and he accepted that this changes behavior for an
-# operator whose leaf is set on a non-shared subnet. This enrolment is UNCOMMITTED and was
-# held back because two reviewers found it published a claim the code did not meet, so these
-# fixtures were never proof of a shipped claim. No assertion is weakened: the pair now
-# differs in ONE variable (the route's next hop) with the same leaf and the same capability
-# in both configs, so it discriminates on the Section 3 condition rather than on the leaf.
-#
-# rfc-test-change-approved: 2026-08-16 Thomas, extending the answer he gave on 2026-08-15 to
-# the fixtures that sweep missed. The route's next hop was ::1 and the peer was ALSO ::1, so
-# the fixture asserted the wire form of a message RFC 4271 Section 5.1.3 forbids ze to send,
-# and originatedNextHopIsPeerOwn (forward_next_hop.go) withheld the route. The next hop moves
-# to fd00::2 and the peer stays ::1. No assertion is weakened and no polarity moves: all four
-# requirements below are asserted exactly as before, on a 32-octet Next Hop field whose length
-# octet is still 0x20, because both halves of Section 3 hold for fd00::2 as they did for ::1.
+# The route's next hop is fd00::2 and the peer is ::1, and they must differ.
+# RFC 4271 Section 5.1.3 forbids advertising a peer its own address as NEXT_HOP,
+# and originatedNextHopIsPeerOwn (forward_next_hop.go) withholds such a route.
+# Both halves of RFC 2545 Section 3 hold for fd00::2 as they did for ::1, so the
+# Next Hop field is still 32 octets with a 0x20 length octet.
 #
 # RFC requirement: RFC2545-3-1 positive -- the Next Hop field carries the global IPv6
 # address first and the link-local address second. The asserted MP_REACH_NLRI is 800E36
@@ -39,9 +28,6 @@
 # no locally connected subnet.
 option=file:conf-llnh-update.conf
 option=bind:ipv6
-# rfc-test-change-approved: 2026-08-16 Thomas -- the two lines below carry the next-hop move
-# from ::1 to fd00::2 that the header block records. Only the 16 global octets change; the
-# 0x20 length octet, the fe80::1 half, the NLRI and the 005E message length all stand.
 1:cmd:announce ipv6 unicast 2001:db8:1::1/128 next-hop fd00::2 origin igp local-preference 100
 1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:005E02:000000474001010040020040050400000064800E3600020120FD000000000000000000000000000002FE800000000000000000000000000001008020010DB8000100000000000000000001
 1:cmd:announce eor ipv6 unicast

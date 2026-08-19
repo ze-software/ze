@@ -31,15 +31,6 @@ import (
 	"github.com/ze-software/ze/internal/core/selector"
 )
 
-// rfc-test-change-approved: 2026-07-22 Thomas approved the msgtype/routeaction
-// package rename (spec-feature-gate-10-bgp). MessageType/Type* moved to
-// internal/core/bgp/msgtype and the route-action enum to
-// internal/core/bgp/routeaction so MRT, sysrib and the FIB backends keep
-// compiling when the BGP engine is compiled out (//go:build ze_bgp). Every hunk
-// in this file is a package-qualifier requalification: no assertion was added,
-// removed, reworded, weakened or re-tagged, verified by normalising the diff
-// under the renaming and confirming the add/delete multisets cancel.
-
 // newRefreshPeer builds a single Established peer wired to a Session backed by a
 // recordingConn (defined in reactor_api_forward_test.go), so a test can observe
 // exactly what, if anything, is flushed to the wire. The peer negotiates IPv4

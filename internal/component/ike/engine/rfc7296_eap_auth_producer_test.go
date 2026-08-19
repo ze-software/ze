@@ -1,7 +1,5 @@
 package engine
 
-// rfc-test-change-approved: 2026-08-01 Thomas approved re-pointing the RFC7296-2.16 tags at
-// the message-7/8 producer; the imports below serve that new evidence.
 import (
 	"bytes"
 	"testing"
@@ -13,13 +11,11 @@ import (
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
-// rfc-test-change-approved: 2026-08-01 Thomas approved re-pointing the RFC7296-2.16 tags at
-// the message-7/8 producer after a review found the tagged tests did not gate. The tests
-// that carried these tags (rfc7296_wp2_test.go) exercised ComputeAuthFromMSK, the
-// primitive. A mutation keying computeEAPAuth from a constant instead of sa.EAPMSK left all
-// three PASSING. Every test in this file drives computeEAPAuth, which auth.go and
-// responder.go call to build the AUTH payloads of messages 7 and 8, and each one is red
-// under that mutation.
+// Every test in this file drives computeEAPAuth, which auth.go and responder.go
+// call to build the AUTH payloads of messages 7 and 8, and each one is red under a
+// mutation keying computeEAPAuth from a constant instead of sa.EAPMSK. The tests
+// in rfc7296_wp2_test.go exercise ComputeAuthFromMSK, the primitive, and stayed
+// green under that mutation, which is why the RFC7296-2.16 tags sit here.
 
 // eapProducerAUTH returns the AUTH payload the message-7/8 producer builds for sa.
 func eapProducerAUTH(t *testing.T, sa *SA, what string) *wire.PayloadAUTH {
@@ -125,11 +121,6 @@ func mustSignedOctets(t *testing.T, sa *SA) []byte {
 	}
 	return octets
 }
-
-// rfc-test-change-approved: 2026-08-01 Thomas approved re-pointing the RFC7296-2.16 tags at
-// the message-7/8 producer after a review found the tagged tests did not gate. This is the
-// driver those re-pointed tests run on; it is new code in a new file, not a relaxation of
-// an existing proof.
 
 // eapRoundShape records what one delivery of the EAP handshake carried.
 type eapRoundShape struct {
@@ -244,12 +235,6 @@ func eapShapeOf(t *testing.T, sa *SA, raw []byte) eapRoundShape {
 // RFC requirement: RFC7296-2.16-13 negative -- no delivery at or before the EAP Success
 // carries an AUTH payload, so the two that do are ordered by the Success and are not simply
 // every message of the exchange.
-// rfc-test-change-approved: 2026-08-01 Thomas approved re-pointing the RFC7296-2.16-13 tag
-// at the message-7/8 producer. This is that re-pointed test, corrected on first run: an
-// earlier draft asserted that NO delivery at or before the EAP Success carries an AUTH
-// payload, which the RFC contradicts. RFC 7296 Section 2.16 has the responder authenticate
-// with a public-key signature in message 4, so the responder's first IKE_AUTH response
-// legitimately carries an AUTH. That AUTH is not the EAP AUTH this row governs.
 func TestEapAuthFollowsTheSuccessMessage(t *testing.T) {
 	shapes := eapHandshakeShapes(t)
 

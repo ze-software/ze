@@ -31,13 +31,6 @@ tmpfs=zero-tid.py:mode=755:terminator=EOF_PY
 Nothing here imports ze. Every constant is transcribed from RFC 2661:
 Section 4.4.2 for the Result Code and Error Code values, Section 4.4.3 for the
 Assigned Tunnel ID rule and the Tunnel ID 0 header rule.
-
-rfc-test-change-approved: Thomas, 2026-08-10. Docstring only, no assertion or
-directive touched. The line used to cite Section 5.1 for the Tunnel ID 0 header
-rule. That rule is in Section 4.4.3; Section 5.1 is Control Connection
-Establishment and states no such rule. The correction REMOVES a citation rather
-than adding one, because Section 4.4.3 already carries both rules the sentence
-names. This is the third of three misattributions found in this spec.
 """
 import socket
 import struct

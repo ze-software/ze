@@ -103,7 +103,6 @@ func TestHashURLLookupUsesHTTPAndVerifiesTheHash(t *testing.T) {
 	}
 }
 
-// rfc-test-change-approved: 2026-07-31 NOT a weakening and NOT a strengthening -- the
 // `RFC requirement: RFC7296-3.6-3` tag on this function and on the positive above was
 // added earlier in THIS uncommitted session. This session withdraws it before any commit.
 //
@@ -154,16 +153,13 @@ func TestHashURLLookupRefusesEverythingOutsideTheBound(t *testing.T) {
 		}
 	})
 
-	// rfc-test-change-approved: 2026-07-31 owner standing approval for
-	// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only. Mutation testing found
-	// the first version of this row did not gate the control it names. Deleting
-	// io.LimitReader left the row GREEN, because the post-hoc length check still
-	// returned errCertURLTooLarge after the reader buffered the whole body.
-	// Refusing the request and
-	// BOUNDING the read are different properties, and only the second one stops an
-	// attacker-operated server from being a memory exhaustion primitive. The row now
-	// asserts the read actually stops, which is what the design specified
-	// ("refused, and no more than the cap is read").
+	// The URL names a live server whose bytes match the hash, with the destination
+	// allowance set, so a refusal can only be the gate. Mutation testing found the
+	// first version of this row did not gate the control it names: deleting
+	// io.LimitReader left it GREEN, because the post-hoc length check still returned
+	// errCertURLTooLarge after the reader buffered the whole body. Refusing the
+	// request and BOUNDING the read are different properties, and only the second one
+	// stops an attacker-operated server from being a memory exhaustion primitive.
 	t.Run("size cap", func(t *testing.T) {
 		curlReset()
 		const total = 8 << 20 // far past the cap, so stopping early is observable
@@ -326,9 +322,6 @@ func TestHashURLLookupRefusesEverythingOutsideTheBound(t *testing.T) {
 // admits a public one, so the deny list is a filter rather than a blanket refusal.
 // PREVENTS: a narrowing of one clause silently opening a class. The metadata address is
 // asserted separately from link-local for exactly that reason.
-// rfc-test-change-approved: 2026-08-01 owner standing approval for
-// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only. Rows are ADDED to the deny
-// set and to the reachable set. Nothing is removed or relaxed.
 func TestCertURLDeniedCoversEveryPrivateClass(t *testing.T) {
 	for _, s := range []string{
 		"127.0.0.1", "::1", "10.1.2.3", "192.168.0.5", "172.20.0.1",

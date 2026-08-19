@@ -1,13 +1,13 @@
 package wireu
 
-// rfc-test-change-approved: 2026-07-20 Thomas approved removing the RFC7606-5.1-2 tags
-// from this file. The tests below prove that the RE-CHUNK path emits one NLRI-bearing
-// field per message; they do NOT prove the full Section 5.1 second-bullet MUST, because
-// two relay paths still reproduce a received mixed shape (reactor/forward_body.go:63-65
-// verbatim forward, and :99 whole emit of a re-encoded destUpdate that fits). Tagging them
-// as proof of RFC7606-5.1-2 overclaimed, and `make ze-rfc-check` caught the contradiction
-// against the requirement's surviving {gap} annotation. They stay as regression protection
-// for the narrowed behavior the annotation describes.
+// The tests below prove that the RE-CHUNK path emits one NLRI-bearing field per
+// message. They do NOT prove the full RFC 7606 Section 5.1 second-bullet MUST,
+// because two relay paths still reproduce a received mixed shape (forward_body.go
+// verbatim forward, and its whole emit of a re-encoded destUpdate that fits).
+// Tagging them as proof of RFC7606-5.1-2 overclaims, and `make ze-rfc-check`
+// reports the contradiction against the requirement's surviving {gap} annotation.
+// They stay as regression protection for the narrowed behavior that annotation
+// describes.
 
 import (
 	"encoding/binary"

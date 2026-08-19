@@ -1,21 +1,12 @@
 #!/usr/bin/env python3
 """Scenario 54: a route reflector adds no RFC 4456 attribute to a withdrawal.
 
-rfc-test-change-approved: 2026-08-04 -- Thomas standing authorisation for
-correctness-only test edits, "making a negative discriminate". This scenario was
-first written hours ago in this same session with FRR as the RECEIVER, asserting
-"FRR raised no attribute error over the reflected withdrawal". That negative was
-then MEASURED VACUOUS: the mutant that stamps ORIGINATOR_ID and CLUSTER_LIST onto
-the withdrawal SURVIVED -- FRR 10.3.1 accepted it without a word. The rewrite
-moves the receiving witness to a byte-exact one and moves FRR to the source side.
-Nothing is weakened: an assertion that could not fail is replaced by one that
+FRR sits on the SOURCE side and the receiving witness is byte-exact, and it must
+be that way round. With FRR as the RECEIVER the negative read "FRR raised no
+attribute error over the reflected withdrawal", and that was MEASURED VACUOUS:
+the mutant that stamps ORIGINATOR_ID and CLUSTER_LIST onto the withdrawal
+SURVIVED, because FRR 10.3.1 accepted it without a word. A byte-exact witness
 fails on a single changed byte.
-
-rfc-test-change-approved: 2026-08-05 -- Thomas standing authorisation for
-correctness-only test edits. COMMENT ONLY, no assertion and no RFC tag touched.
-The paragraph below narrows a recorded measurement to the sessions that produced
-it. What it says about the code is unchanged; what it claims about FRR is no
-longer wider than the evidence.
 
 WHAT THAT MEASUREMENT DOES AND DOES NOT SAY. It was taken on THIS scenario's
 sessions, which are INTERNAL, over a withdrawal carrying ORIGINATOR_ID and
@@ -98,12 +89,8 @@ WITHDRAWAL_BODY = ":02:0004180A14000000"
 
 # The reflected ADVERTISEMENT, identified by ORIGINATOR_ID: attribute flags 0x80
 # (Optional, Non-transitive per RFC 4456), type 9 (0x09), length 4.
-# rfc-test-change-approved: 2026-08-04 -- Thomas standing authorisation for
-# correctness-only test edits. The value is FRR's own BGP Identifier, 172.30.0.3
-# (AC1E0003), which is what a reflector puts in ORIGINATOR_ID for a route the
-# client originated. The line first written minutes ago in this session carried
-# 0A0000.., a value no message in this scenario can hold, so the positive
-# assertion could only ever time out. Strictly more discriminating.
+# The value is FRR's own BGP Identifier, 172.30.0.3 (AC1E0003), which is what a
+# reflector puts in ORIGINATOR_ID for a route the client originated.
 ORIGINATOR_ATTR = re.compile(r":02:[0-9A-F]*800904AC1E0003", re.IGNORECASE)
 # CLUSTER_LIST: flags 0x80, type 10 (0x0A), length 4, value 172.30.0.2.
 CLUSTER_ATTR = re.compile(r":02:[0-9A-F]*800A04AC1E0002", re.IGNORECASE)

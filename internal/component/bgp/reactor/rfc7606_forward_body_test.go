@@ -168,13 +168,9 @@ func TestForwardSplitsMixedShapeAcrossContextsThatFits(t *testing.T) {
 
 	result, ok := buildFwdBody(wireu.NewWireUpdate(body, srcCtxID), message.MaxMsgLen, destCtxID, peer,
 		netip.MustParseAddr("192.0.2.14"), &fwdParseCache{})
-	// rfc-test-change-approved: 2026-08-01 Thomas approved adding the missing
-	// pool release here. No assertion changed: the test still proves the same
-	// RFC 7606 Section 5.1 obligation. It borrowed a read-pool buffer through
-	// buildFwdBody and never returned it, leaking one per run, which the sibling
-	// TestForwardCompliantShapeAcrossContextsNotSplit already avoids the same way.
-	// Stands in for the caller's adoptFwdHandle, which production does at cache
-	// eviction.
+	// The pool release below stands in for the caller's adoptFwdHandle, which
+	// production does at cache eviction. buildFwdBody borrows a read-pool buffer, so
+	// without the release this test leaks one per run.
 	defer ReturnReadBuffer(result.transcodeBuf)
 	require.True(t, ok)
 	require.Empty(t, result.rawBodies, "mismatched contexts must not reuse the source bytes")

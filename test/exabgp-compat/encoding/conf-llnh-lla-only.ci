@@ -1,12 +1,8 @@
-# rfc-test-change-approved: 2026-08-07 Thomas ruled for a daemon-side shared-subnet check --
-# ze evaluates RFC 2545 Section 3 itself at the producer instead of treating the operator's
-# `local-link-local` leaf as the decision. This enrolment is UNCOMMITTED and was held back
-# because two reviewers found it published a claim the code did not meet, so this fixture
-# was never proof of a shipped claim. The assertion is STRENGTHENED, not weakened: it used
-# to drive `next-hop fe80::cafe` and assert a 16-octet field whose only address was a
-# LINK-LOCAL, a shape Section 3 forbids ("the global IPv6 address of the next hop"). It now
-# asserts the conformant 16-octet global-only form, and its config carries the same
-# `local-link-local` leaf as conf-llnh-update.conf so the pair varies one thing.
+# This fixture asserts the conformant 16-octet global-only next hop. Driving
+# `next-hop fe80::cafe` and asserting a 16-octet field whose only address is
+# LINK-LOCAL is a shape RFC 2545 Section 3 forbids ("the global IPv6 address of
+# the next hop"). Its config carries the same `local-link-local` leaf as
+# conf-llnh-update.conf, so the pair varies one thing.
 #
 # RFC requirement: RFC2545-3-3 negative -- the link-local address is NOT included, because
 # one half of the Section 3 condition fails: the speaker shares no subnet with the entity

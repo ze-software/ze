@@ -1,18 +1,5 @@
 // Design: docs/architecture/core-design.md — BGP session hold-timer lifecycle
 // Related: session.go — the OnHoldTimerExpires callback under test
-//
-// rfc-test-change-approved: 2026-08-03 -- Thomas ruled for full RFC 4271
-// Section 8.2.2 Event 10 conformance and ordered the hold-timer grace removed:
-// a hold expiry now always tears the session down, with no reprieve. He
-// accepted the stated cost, that a CPU-congested daemon will drop sessions it
-// used to keep. This file was session_hold_grace_test.go and asserted the
-// opposite; both of its tests are inverted here rather than deleted
-// (ai/rules/testing.md). The ruling supersedes spec Q-1 (2026-07-17),
-// which settled only the grace DURATION and predates the 2026-07-27 void date
-// in ai/rules/rfc-compliance.md.
-// every assertion this file lost ("hold timer must still be armed
-// after a graced expiry", "first expiry should be graced") asserted the REMOVED
-// grace branch. Each is replaced by its opposite below.
 
 package reactor
 

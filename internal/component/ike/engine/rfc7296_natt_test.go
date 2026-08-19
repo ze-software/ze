@@ -233,9 +233,6 @@ func TestNattUnauthenticatedPacketDoesNotMoveTheEndpoint(t *testing.T) {
 // BOTH directions are asserted. A test that checked only the 4500 case passes for an
 // implementation that always answers from 4500, which breaks the row the other way.
 //
-// rfc-test-change-approved: 2026-08-01 owner standing approval for
-// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only.
-//
 // The test used to call sendReply with a transport IT chose. That proves only that
 // sendReply sends on the socket it is handed. The CHOICE belongs to production.
 // handleResponderInbound (responder.go) takes the arrival transport from its dispatch loop
@@ -493,11 +490,10 @@ func TestEncapNeverRequestedOnPort500(t *testing.T) {
 		t.Fatalf("transport.NATTPort == transport.IKEPort == %d; the two constants collided", transport.NATTPort)
 	}
 
-	// rfc-test-change-approved: 2026-07-31 owner standing approval for
-	// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only. The counter used to
-	// increment BEFORE the `if !p.UDPEncap { continue }`, so it reached its target while
-	// every port assertion was skipped. Pinning createFirstChildSA to UDPEncap false left
-	// this test green with zero assertions run, which is the shape it exists to prevent.
+	// The counter increments AFTER the `if !p.UDPEncap { continue }`, and it must.
+	// Before it, the counter reached its target while every port assertion was
+	// skipped: pinning createFirstChildSA to UDPEncap false left this test green with
+	// zero assertions run, which is the shape it exists to prevent.
 	encapChecked, plainChecked := 0, 0
 	for _, nat := range []bool{false, true} {
 		sa := testSA()
@@ -540,9 +536,6 @@ func TestEncapNeverRequestedOnPort500(t *testing.T) {
 // VALIDATES: a rekeyed Child SA inherits UDPEncap, so its XFRM state keeps the ESP-in-UDP
 // template the first Child SA was given.
 // PREVENTS: a NAT-traversing tunnel that establishes, rekeys, and then carries nothing.
-//
-// rfc-test-change-approved: 2026-07-31 owner standing approval for
-// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only. This test is new.
 //
 // createFirstChildSA is the only other writer of UDPEncap, and installChildSA gates the
 // ESP-in-UDP template on it. A rekeyed child that does not inherit the field installs a

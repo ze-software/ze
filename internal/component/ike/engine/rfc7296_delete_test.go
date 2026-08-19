@@ -151,13 +151,6 @@ func TestDelIKEDeleteDrawsAnEmptyResponse(t *testing.T) {
 // production path reaches, and the code arms that produced it were unreachable and are now
 // removed. They are replaced, not weakened: the sequence below is the real one, and the
 // record's lifetime is asserted where the ordering used to be.
-//
-// rfc-test-change-approved: 2026-08-01 Thomas approved re-pointing RFC7296-1.4.1-7 at a
-// state production can reach. The previous version recorded a Delete and left the pair
-// INSTALLED, then asserted the two halves went in the section's order. No production path
-// reaches that state: the one caller that issues a Delete (inbound.go, make-before-break
-// rekey) removes both halves synchronously right after sending, so every record is already
-// fully removed before a crossing request can be processed.
 
 // VALIDATES: when the peer's Delete crosses one ze already sent for the same pair, the
 // response carries no Delete payload for that pair.
@@ -201,11 +194,6 @@ func TestDelCrossingDeleteAnswersWithoutAPairedDelete(t *testing.T) {
 		t.Error("the crossing record outlived the response to ze's own Delete")
 	}
 }
-
-// rfc-test-change-approved: 2026-08-01 Thomas approved adding evidence that a malformed
-// Delete draws INVALID_SYNTAX, after a review found a Delete whose ESP SPI Size breaks RFC
-// 7296 Section 3.11 drew an EMPTY response. The two tests below are NEW evidence; no
-// existing tagged test is altered by them.
 
 // delNotifies returns every Notify payload in a decrypted chain.
 func delNotifies(inner []wire.PayloadEntry) []*wire.PayloadNotify {

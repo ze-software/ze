@@ -449,16 +449,11 @@ var defaultRouteNLRI = []byte{0x00}
 // Section 3 requires the second address, which no other test covers -- the
 // exabgp-compat pair drives the STATIC route rail.
 //
-// rfc-test-change-approved: 2026-08-16 -- Thomas, extending the answer he gave on
-// 2026-08-15 to the fixtures that sweep missed. The peer was ::1 while the next hop
-// was ALSO ::1, so the fixture asked the encoder to advertise a peer its own address
-// as NEXT_HOP. RFC 4271 Section 5.1.3 forbids that, and originatedNextHopIsPeerOwn
-// (forward_next_hop.go) refuses it, so the fixture asserted the wire form of a message
-// Ze must never send. The peer moves to fd00::2, which `make ze-dev-setup` provisions on
-// the loopback. Only the destination moves: the next hop stays ::1, so the asserted
-// bytes are unchanged and no assertion is weakened. Its twin
-// TestSendAnnounceAppendsLinkLocalWhenSection3Holds (peer_send_test.go) took the same
-// move under the same answer in a1a455bb9.
+// The peer is fd00::2 and the next hop is ::1, and they must stay different.
+// RFC 4271 Section 5.1.3 forbids advertising a peer its own address as NEXT_HOP,
+// and originatedNextHopIsPeerOwn (forward_next_hop.go) refuses it, so a fixture
+// that gives both ends ::1 asserts the wire form of a message Ze must never send.
+// `make ze-dev-setup` provisions fd00::2 on the loopback.
 func TestDefaultOriginateAppendsLinkLocalWhenSection3Holds(t *testing.T) {
 	peer, conn := newDefaultOriginatePeer(t, "fd00::2", "::1", "fe80::1")
 

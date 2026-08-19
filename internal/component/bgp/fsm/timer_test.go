@@ -9,15 +9,6 @@ import (
 	"github.com/ze-software/ze/internal/test/sim"
 )
 
-// rfc-test-change-approved: 2026-08-03 -- Thomas ruled for full RFC 4271
-// Section 8.2.2 Event 10 conformance and ordered the hold-timer grace removed:
-// a hold expiry now always tears the session down, with no reprieve. The tests
-// in this file that PINNED the grace are therefore wrong and are inverted to
-// assert its absence, per ai/rules/testing.md. He accepted the stated
-// cost: a CPU-congested daemon will now drop sessions it used to keep. This
-// supersedes spec Q-1 (2026-07-17), which settled only the grace DURATION and
-// predates the 2026-07-27 void date in ai/rules/rfc-compliance.md.
-//
 // testNoGraceWindow is the window these tests advance the clock by AFTER a hold
 // expiry to prove no reprieve of any size was granted. It is deliberately
 // larger than the hold times used here, so a re-introduced grace would fire a
@@ -454,16 +445,6 @@ func newFakeTimers(hold time.Duration) (*Timers, *sim.FakeClock) {
 	return t, fc
 }
 
-// rfc-test-change-approved: 2026-08-03 -- Thomas ruled for full RFC 4271
-// Section 8.2.2 Event 10 conformance: the hold-timer grace is removed and the
-// FIRST expiry always tears the session down. This test previously asserted the
-// opposite (a graced expiry re-armed) and is inverted rather than deleted.
-// the two assertions dropped here ("hold timer must still be armed
-// after a graced expiry" and "session tears down on the NEXT expiry") assert a
-// REMOVED feature -- the grace re-arm and GraceRearmHoldTimer are both gone.
-// They are replaced by the stronger opposite: nothing re-arms after an expiry,
-// checked across a window larger than the reprieve that used to exist.
-//
 // TestHoldTimerNeverRearmsAfterExpiry is the timer-level half of RFC 4271
 // Section 8.2.2 Event 10: HoldTimer_Expires has no branch that keeps the
 // session. The expiry fires once, the timer stays disarmed, and no further
@@ -532,13 +513,6 @@ func TestHoldTimerGenerationGuard(t *testing.T) {
 			"stale fired closure must not disarm a freshly armed timer")
 	})
 
-	// rfc-test-change-approved: 2026-08-03 -- Thomas ruled the hold-timer grace
-	// removed for full RFC 4271 Section 8.2.2 Event 10 conformance.
-	// this subtest asserted that GraceRearmHoldTimer LOSES a race
-	// with StopAll. That function is deleted, so the race it guarded cannot be
-	// expressed. The property that still matters -- an expiry callback cannot
-	// resurrect the timer -- is asserted directly below against the only re-arm
-	// entry point left.
 	t.Run("no re-arm entry point survives an expiry", func(t *testing.T) {
 		timers, fc := newFakeTimers(90 * time.Millisecond)
 		timers.OnHoldTimerExpires(func() {
@@ -580,12 +554,6 @@ func TestResetHoldTimerStillNoOpsAfterStop(t *testing.T) {
 	require.False(t, timers.IsHoldTimerRunning(),
 		"ResetHoldTimer must not re-arm after StopAll")
 
-	// rfc-test-change-approved: 2026-08-03 -- Thomas ruled the hold-timer grace
-	// removed for full RFC 4271 Section 8.2.2 Event 10 conformance.
-	// the GraceRearmHoldTimer assertion here covered a REMOVED
-	// function. ResetHoldTimer above is now the only re-arm entry point and is
-	// already asserted to refuse; nothing else can re-arm a stopped timer.
-
 	fc.Add(200 * time.Millisecond)
 	require.Equal(t, 0, fired, "no expiry should fire after a deliberate stop")
 }
@@ -606,12 +574,6 @@ func TestHoldTimeZeroStaysDisabled(t *testing.T) {
 	timers.StartHoldTimer()
 	require.False(t, timers.IsHoldTimerRunning())
 
-	// rfc-test-change-approved: 2026-08-03 -- Thomas ruled the hold-timer grace
-	// removed for full RFC 4271 Section 8.2.2 Event 10 conformance.
-	// the grace-re-arm-at-hold-time-0 assertion covered a REMOVED
-	// function. ResetHoldTimer is now the only re-arm entry point; its own
-	// holdTime == 0 guard is asserted here instead, which is the clause RFC 4271
-	// Section 4.4 actually binds.
 	timers.ResetHoldTimer()
 	require.False(t, timers.IsHoldTimerRunning())
 
@@ -619,15 +581,6 @@ func TestHoldTimeZeroStaysDisabled(t *testing.T) {
 	require.Equal(t, 0, fired, "no hold timer may fire when hold time is 0")
 }
 
-// rfc-test-change-approved: 2026-08-03 -- Thomas ruled the hold-timer grace
-// removed for full RFC 4271 Section 8.2.2 Event 10 conformance. This test
-// previously pinned the grace window's clamp to holdTime; the window itself no
-// longer exists, so it is inverted to assert that dead-peer detection completes
-// in ONE hold time rather than being bounded at two.
-// the clamp assertions covered a REMOVED function
-// (GraceRearmHoldTimer). The boundary they protected -- worst-case dead-peer
-// detection -- is asserted directly here instead, and is now tighter.
-//
 // TestHoldExpiryIsFinalAtOneHoldTime is the boundary this file owes RFC 4271
 // Section 8.2.2 Event 10: the whole dead-peer detection budget is ONE hold time.
 //

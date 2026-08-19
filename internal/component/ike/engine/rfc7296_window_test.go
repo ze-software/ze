@@ -322,14 +322,6 @@ func TestWinDeleteDefersWhileProbeOutstanding(t *testing.T) {
 // PREVENTS: the third exit RFC 7296 Section 2.1 does not offer, where the request is
 // forgotten and the SA it belonged to keeps running.
 //
-// rfc-test-change-approved: 2026-08-04 -- Thomas standing authorisation for
-// correctness-only test edits. This test was TestWinStaleWindowIsFreed. It asserted
-// that the window frees, and nothing else.
-// Section 2.1 MUST: "IKE is a reliable protocol: the initiator
-// MUST retransmit a request until it either receives a corresponding response or deems
-// the IKE SA to have failed." Freeing the window and carrying on is neither exit, so
-// every assertion below is kept and the SA-state assertions are ADDED.
-//
 // RFC requirement: RFC7296-2.1-7 positive -- serviceRequestWindow (established.go) takes the
 // section's second exit once every repeat has gone out and requestWindowTimeout has
 // passed. It marks the SA dead, and maintainSA's StateDead branch discards the Child SAs
@@ -354,11 +346,6 @@ func TestWinUnansweredRequestFailsTheSA(t *testing.T) {
 		t.Fatal("the ESP Delete never reached the peer")
 	}
 	now := time.Now()
-
-	// rfc-test-change-approved: 2026-08-04 -- Thomas standing authorisation for
-	// correctness-only test edits. Every assertion that was here is KEPT. What is
-	// added is the SA-state half of RFC 7296 Section 2.1's second exit, which the
-	// code now takes and which nothing asserted before.
 
 	// Negative. A fresh hold neither frees the window nor fails the SA.
 	ps.serviceRequestWindow(ini, nil, now, log)
@@ -423,14 +410,6 @@ func winDeleteSPIs(t *testing.T, peer *SA, raw []byte) []uint32 {
 
 // TestWinDeferredDeleteWaitsForTheWindow was REMOVED here, together with the
 // deferral queue it exercised. It is a removed feature, not a relaxed assertion.
-// rfc-test-change-approved: 2026-08-04 -- Thomas standing authorisation for
-// correctness-only test edits. That test was written earlier in this same uncommitted
-// session and never reached HEAD. It claimed RFC7296-2.1-5 for a queue that two
-// independent reviewers showed can never fire. Every non-test caller of sendDeleteESP
-// and sendDeleteIKE reaches them with the window free. The one refusal left is an
-// exhausted Message ID space, where maintainSA marks the SA dead before any drain runs.
-// Row RFC7296-2.1-5 keeps both polarities in TestWinDeleteIsRememberedUntilAnswered
-// below and in TestRtxEachSideRemembersWhatItSent, so no row loses coverage.
 
 // VALIDATES: a Delete that went out is kept and repeated until the peer answers it.
 // PREVENTS: a lost Delete that nothing ever repeats, which leaves the peer holding an
@@ -547,12 +526,6 @@ func TestWinRefusedTeardownSpendsNoMessageID(t *testing.T) {
 // sends as soon as the peer answers. It is not sent at all when that answer never comes.
 // PREVENTS: two of Ze's own requests unanswered at the peer at once, and a teardown
 // that blocks the operator's command behind a dead peer.
-//
-// rfc-test-change-approved: 2026-08-04 -- Thomas standing authorisation for
-// correctness-only test edits. The held-window case asserted SILENCE alone, which
-// proved nothing about WHY the datagram was absent. The sender can be broken instead.
-// It now runs three cases, and the answered-during-the-wait case is a positive that the
-// silence case is measured against.
 //
 // RFC requirement: RFC7296-2.3-2 positive -- Section 2.3 MUST: "An IKE endpoint MUST wait for a
 // response to each of its messages before sending a subsequent message unless it has

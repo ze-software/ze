@@ -133,13 +133,6 @@ func hasQdisc(t *testing.T, linkName, qdiscType string) bool {
 	return false
 }
 
-// test-relax: countQdiscs is gone. It was a HELPER and it never had a caller:
-// `git log -S countQdiscs` returns only ad18e8dd9, the commit that added it.
-// Deleting never-called test code drops no coverage, so this token records a
-// deletion rather than excusing a relaxation. It is here because the helper
-// carried two fatal-on-failure calls of its own, which the edit hook counts as
-// assertions going to zero. Nothing was given up.
-
 func TestIntegrationMirrorIngress(t *testing.T) {
 	// VALIDATES: SetupMirror with ingress=true installs a filter on the
 	// ingress hook of the clsact qdisc.
@@ -259,11 +252,8 @@ func TestIntegrationMirrorRemove(t *testing.T) {
 			t.Fatalf("SetupMirror: %v", err)
 		}
 
-		// test-relax: the pre-condition asserted an "ingress" qdisc, which is
-		// the mechanism an ingress-only mirror used before this spec. Ze now
-		// installs clsact for every mirror, so the qdisc kind no longer says
-		// whether a mirror is installed. The filter does, and that is what
-		// this now asserts.
+		// Ze installs clsact for every mirror, so the qdisc kind does not say whether a
+		// mirror is installed. The filter does, and that is what this asserts.
 		if filterAt(t, "src0", netlink.HANDLE_MIN_INGRESS, testMirrorPriority) == nil {
 			t.Fatal("mirror filter should exist before removal")
 		}
@@ -284,10 +274,8 @@ func TestIntegrationMirrorRemove(t *testing.T) {
 		if hasQdisc(t, "src0", "ingress") {
 			t.Error("ingress qdisc still present after RemoveMirror")
 		}
-		// test-relax: this asserted the clsact qdisc was GONE, which is the
-		// contract AC-3 carried until 2026-08-14. Teardown is filter-scoped
-		// now and deliberately leaves the qdisc, so the assertion is inverted
-		// rather than dropped: deleting the shared qdisc here reds this test.
+		// Teardown is filter-scoped and deliberately leaves the qdisc, so this asserts the
+		// qdisc is still there: deleting the shared qdisc reds this test.
 		if !hasQdisc(t, "src0", "clsact") {
 			t.Error("RemoveMirror deleted the shared clsact qdisc it does not own")
 		}
@@ -404,15 +392,13 @@ func TestIntegrationMirrorSetupOnExistingClsact(t *testing.T) {
 	})
 }
 
-// test-relax: AC-5's rollback test was drafted here and moved, unweakened, to
-// internal/plugins/iface/netlink/mirror_integration_linux_test.go
-// (TestIntegrationMirrorSetupRollbackKeepsForeignFilter). It needed a mirror
-// setup that fails after its first filter lands. From this package the only
-// lever is a pre-existing ingress qdisc, and sch_ingress's ingress_find accepts
-// any minor handle, so the egress filter add would succeed instead of failing.
-// The netlink package can pass an unresolvable destination ifindex to
-// setupClsactMirror, which the kernel refuses with ENODEV. Same assertions,
-// deterministic failure.
+// AC-5's rollback test lives in the netlink package, as
+// TestIntegrationMirrorSetupRollbackKeepsForeignFilter. It needs a mirror setup
+// that fails after its first filter lands, and from this package the only lever is
+// a pre-existing ingress qdisc: sch_ingress's ingress_find accepts any minor
+// handle, so the egress filter add succeeds instead of failing. The netlink
+// package can pass an unresolvable destination ifindex to setupClsactMirror, which
+// the kernel refuses with ENODEV.
 
 func TestIntegrationMirrorSetupIsIdempotent(t *testing.T) {
 	// VALIDATES: AC-7 -- applying the same mirror twice succeeds and leaves
@@ -530,11 +516,9 @@ func TestIntegrationApplyConfigMirrorRemovedOnConfigDelete(t *testing.T) {
 		if filterAt(t, "mir0", netlink.HANDLE_MIN_EGRESS, testMirrorPriority) != nil {
 			t.Error("the mirror egress filter survived a config that no longer asks for it")
 		}
-		// test-relax: this asserted the qdisc was gone. A config delete is a
-		// RemoveMirror, so it leaves the shared qdisc for the same reason
-		// RemoveMirror does. What the operator asked to stop is the
-		// duplication, and the two filter assertions above are what prove it
-		// stopped.
+		// A config delete is a RemoveMirror, so it leaves the shared qdisc for the same
+		// reason RemoveMirror does. What the operator asked to stop is the duplication,
+		// and the two filter assertions above are what prove it stopped.
 		if !hasQdisc(t, "mir0", "clsact") {
 			t.Error("the config delete took the shared clsact qdisc with the mirror")
 		}

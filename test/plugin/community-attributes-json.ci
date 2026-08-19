@@ -15,17 +15,12 @@
 # RFC requirement: RFC8955-7.5-1 negative -- the reserved bits above the 6-bit DSCP field are ignored on decode (§7.5)
 # RFC requirement: RFC8955-7.3-1 positive -- a traffic-action community reaches a plugin as the Terminal and Sample bits it carries (§7.3)
 # RFC requirement: RFC8955-7.3-1 negative -- the unused Traffic Action Field bits are ignored on decode, so two communities differing only in them decode alike (§7.3)
-# rfc-test-change-approved: 2026-08-19 owner directive -- add the four-octet-AS route target and the traffic-action pair to the same UPDATE; the RFC8955-7.5-1 assertions above are unchanged
 
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=20s
 # Hold the session open until the observer has read the event and shut ze down.
 option=linger:value=true
-# rfc-test-change-approved: 2026-08-19 owner directive to complete the extended-community
-# renderer -- three entries are ADDED to the same UPDATE (a four-octet-AS route target and
-# the traffic-action pair) so the RFC8955-7.3-1 tags above have wire bytes behind them. No
-# existing entry, assertion or RFC8955-7.5-1 expectation changes.
 # UPDATE carrying one of each community attribute.
 # Header: marker(16) + len=0081(129) + type=02
 # Body:   withdrawn len=0000, attr len=0066(102)
@@ -64,10 +59,6 @@ from ze_api import API, runtime_fail
 
 # What appendAttributeJSON writes when a formatter claims the attribute. The
 # values are read straight off the wire bytes the peer sent above.
-#
-# rfc-test-change-approved: 2026-08-19 owner directive to complete the extended-community
-# renderer -- three expectations are ADDED to match the three communities added to the
-# UPDATE above. 'target:65000:1' and 'mark:46' are unchanged.
 #
 # extended-communities carries the NAMED form, the vocabulary Ze's own route and
 # config parsers accept on input and the FlowSpec firewall bridge matches on

@@ -1,14 +1,8 @@
 package engine
 
-// rfc-test-change-approved: 2026-07-31 owner standing approval for
-// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only. Every tag in this file is
-// NEW in this package; the edits below build it, they never relax an existing proof.
-//
-// rfc-test-change-approved: 2026-08-01 owner standing approval for
-// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only. The RFC7296-2.9-2 sweep asked
-// the production predicate coveredBy whether the answer was a subset of the proposal, which
-// is the implementation grading itself. netip carries the file's own oracle, and coveredBy
-// is now pinned separately in both directions.
+// netip carries this file's own oracle, and coveredBy is pinned separately in both
+// directions. Asking the production predicate coveredBy whether the answer is a
+// subset of the proposal is the implementation grading itself.
 
 import (
 	"net"
@@ -118,9 +112,6 @@ func TestNarrowingIncludesFirstChoice(t *testing.T) {
 		t.Errorf("first answered pair = %v <-> %v, want the initiator's first choice 10.1.0.0/16 <-> 10.2.0.0/16",
 			got[0].I.Net, got[0].R.Net)
 	}
-	// rfc-test-change-approved: 2026-08-01 owner standing approval for
-	// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only.
-	//
 	// Never wider than the proposal. The oracle is tsWithinAny, written in this file over
 	// netip. It is NOT the production coveredBy this sweep used to call.
 	//
@@ -239,10 +230,6 @@ func TestRekeyFloorIsNotNarrowed(t *testing.T) {
 		t.Errorf("rekey answer TSi %v does not cover the in-use scope %v", got[0].I.Net, inUse[0].I.Net)
 	}
 
-	// rfc-test-change-approved: 2026-07-31 owner standing approval for
-	// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only. This ADDS the missing
-	// negative polarity; it relaxes nothing.
-	//
 	// RFC requirement: RFC7296-2.9.2-1 negative -- the discriminator. A rekey proposing
 	// EXACTLY the scope in use is answered with that scope, and is not widened to the
 	// policy's /8. The floor is a floor, not a constant that replaces every answer.
@@ -382,12 +369,6 @@ func TestPortEncodingFollowsSection3131(t *testing.T) {
 			singleTS.EndPort)
 	}
 
-	// rfc-test-change-approved: 2026-08-01 owner standing approval for
-	// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only. The block below was
-	// deliberately untagged while an owner decision was open. The owner ruled on
-	// 2026-08-01 that the row LANDS as encoder-proven. The tags are added, and nothing
-	// else moves.
-	//
 	// RFC requirement: RFC7296-3.13.1-3 positive -- "Systems that wish to indicate
 	// 'OPAQUE' ports, but not 'ANY' ports, MUST set the start port to 65535 and the end
 	// port to 0" (RFC 7296 S3.13.1, rfc/full/rfc7296.txt:6074-6079).
@@ -451,17 +432,11 @@ func TestNarrowedSelectorsReachTheInstalledPolicy(t *testing.T) {
 		t.Fatalf("narrowed TSi = %v, want 10.1.0.0/16", narrowed[0].I.Net)
 	}
 
-	// rfc-test-change-approved: 2026-07-31 owner standing approval for
-	// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only. This test is NEW and it
-	// RE-BINDS RFC4301-4.4.2-1 from TestNarrowTS, whose subject (narrowTS) had no
-	// non-test caller, onto the narrowing engine that the responder actually calls.
 	sa := testSA()
 	sa.IsInitiator = true
 	sa.NegotiatedTSi = narrowed[0].I.Net
 	sa.NegotiatedTSr = narrowed[0].R.Net
 	dp := &mockDP{}
-	// rfc-test-change-approved: 2026-07-31 owner standing approval for
-	// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only.
 	child, err := createFirstChildSA(sa, testESPGroup(), "10.0.0.1", "10.0.0.2", 7, dp, slogutil.DiscardLogger())
 	if err != nil {
 		t.Fatalf("createFirstChildSA: %v", err)

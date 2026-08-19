@@ -7,12 +7,10 @@
 #            write and read paths of the credential store offline.
 # PREVENTS: regressions where connect stops persisting credentials or where
 #           list stops reading/formatting them.
-# // test-relax: replaces this session's earlier never-passing draft that
-#   asserted list+add+remove output together. The parse runner exposes only
-#   the FINAL command's stdout to expect=stdout, so each per-subcommand
-#   assertion must end on the subcommand under test. add+list are covered here
-#   via the round-trip; remove is covered in cli-connect-remove.ci. No shipped
-#   coverage is lost (the draft never passed).
+# SCOPE: the parse runner exposes only the FINAL command's stdout to
+#   expect=stdout, so each per-subcommand assertion must end on the subcommand
+#   under test. add and list are covered here via the round-trip; remove is
+#   covered in cli-connect-remove.ci.
 # HARNESS NOTE: the asserted line comes from the closing `connect list`; the
 # add step is verified transitively (an empty store would make list print
 # "no remotes configured" and fail this assertion).

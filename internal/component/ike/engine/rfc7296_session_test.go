@@ -335,7 +335,6 @@ func TestSesPeerFailedOnlyAfterRepeatedSilence(t *testing.T) {
 	if dpd == nil {
 		t.Fatal("newDPDState returned nil")
 	}
-	// rfc-test-change-approved: 2026-08-07 Thomas approved replacing this test's fake DPD probe (nil transport) with a real one via dpdProbeLink. The old fixture depended on the defect being fixed: sendDPD with a nil transport reserved the request window, skipped the build, and still set awaitReply with a nil probeMsg. Every assertion is preserved; only the probe becomes real.
 	probeSA, _, _, _, probeTr := dpdProbeLink(t)
 	probeSA.NextMsgID = 1
 	sendDPD(probeSA, probeTr, dpd, log)

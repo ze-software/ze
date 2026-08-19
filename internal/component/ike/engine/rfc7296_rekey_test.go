@@ -417,11 +417,6 @@ func TestRkyIKERekeyDeleteIsTheLastRequestOnTheOldSA(t *testing.T) {
 // leads it. The refusal now draws an error notify rather than silence, because RFC 7296
 // Section 2.21.3 MUST answer every failing request on an authenticated SA. That notify
 // carries no SA payload and no SPI, so nothing is advertised that is not installed.
-// rfc-test-change-approved: 2026-07-31 owner standing approval for
-// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only. The old assertion was
-// "no datagram", a proxy for "no SPI advertised" that held only while silence was the
-// only other outcome. The new assertion reads the datagram and proves the stronger
-// claim directly.
 func TestRkyResponderInstallsTheNewChildBeforeItAnswers(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	ini, resp, _ := establishPSK(t)
@@ -497,11 +492,6 @@ func TestRkyResponderInstallsTheNewChildBeforeItAnswers(t *testing.T) {
 	}
 	_ = beforeID
 
-	// rfc-test-change-approved: 2026-07-31 owner standing approval for
-	// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only.
-	// The refusal is answered (RFC 7296 Section 2.21.3), and the answer advertises
-	// nothing. Reading the datagram proves the install-before-answer ordering directly,
-	// where the old "no datagram" assertion only implied it.
 	refused := rtxRecv(t, peerTr)
 	if refused == nil {
 		t.Fatal("a refused Child SA rekey drew no answer, so the peer burns its request window")

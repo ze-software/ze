@@ -181,20 +181,15 @@ func TestIntegrationMacvlanParentDown_DeviceSurvivesAndKeepsOperUp(t *testing.T)
 		if err := netlink.LinkSetDown(parent); err != nil {
 			t.Fatalf("set parent down: %v", err)
 		}
-		// test-relax: the removed assertion (macvlan oper-state goes not-up on
-		// parent-down) asserted a kernel behavior that does not exist. Measured
-		// in the QEMU VM 2026-07-15 with `ip -d link show mv0`: after
-		// `ip link set p0 down` the macvlan reads
-		// `<BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN> ... state UP` -- the kernel
-		// adds an M-DOWN flag but leaves oper-state UP and LOWER_UP set, both
-		// immediately and after seconds of linkwatch ticks. The assertion was
-		// therefore unsatisfiable, not red-because-the-code-is-wrong: no ze code
-		// can make the kernel report LOWERLAYERDOWN here. Coverage is REPLACED,
-		// not dropped: the inverted assertion below pins the real contract (so a
-		// future kernel that starts propagating fails this test loudly), and the
-		// behavior the old assertion was proxying for -- VRRP noticing a dead
-		// parent -- is covered where it actually lives, by spec-vrrp-5's
-		// parent-keyed readiness predicate and its engine tests.
+		// The assertion below is inverted on purpose: a macvlan does NOT report oper-state
+		// down when its parent goes down. Measured in the QEMU VM 2026-07-15 with
+		// `ip -d link show mv0`: after `ip link set p0 down` the macvlan reads
+		// `<BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN> ... state UP`, immediately and after
+		// seconds of linkwatch ticks. No ze code can make the kernel report
+		// LOWERLAYERDOWN here, so the inverted assertion pins the real contract and a
+		// future kernel that starts propagating fails this test loudly. VRRP noticing a
+		// dead parent is covered by spec-vrrp-5's parent-keyed readiness predicate and its
+		// engine tests.
 		//
 		// Give linkwatch several ticks first, so "no propagation" is a measured
 		// outcome rather than a race we won.

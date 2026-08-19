@@ -2,9 +2,8 @@
 # payloads through the real daemon command path (spec-vrrp-5 AC-8, AC-9; user
 # story 3).
 #
-# // test-relax: this file was first drafted (same session, never committed) as
-# an external observer booting a LIVE vrrp group and asserting a master in the
-# show output. That draft cannot run: an external-plugin observer needs a
+# This file does NOT boot a LIVE vrrp group behind an external observer, and it
+# cannot: an external-plugin observer needs a
 # `plugin { external ... }` block, which routes the WHOLE config through the hub
 # orchestrator's generic block parser (hub/config.go ParseHubConfig ->
 # parseGenericBlock), and that parser rejects the leaf-list `[ ... ]` syntax that
@@ -12,8 +11,8 @@
 # (verified: "parse config: line N: expected value or '{' after address, got
 # LBRACKET"). A config that declares BOTH an external observer AND a live group
 # is unparseable by the daemon, and the SSH `ze cli` alternative needs the ze_ssh
-# build tag that the needs-linux QEMU binary is not built with. Coverage is not
-# dropped, it MOVED and got stronger: the live elected-master path (macvlan +
+# build tag that the needs-linux QEMU binary is not built with. The live
+# elected-master path (macvlan +
 # virtual MAC + VIP install + FSM->Master + teardown) is proven by KERNEL
 # readback in test/vrrp/vrrp-instance-up.ci, the populated show/statistics
 # payload SHAPES by internal/plugins/vrrp/cmd_show_test.go, and THIS file now

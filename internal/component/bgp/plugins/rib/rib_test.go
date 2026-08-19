@@ -22,15 +22,6 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-// rfc-test-change-approved: 2026-07-22 Thomas approved the msgtype/routeaction
-// package rename (spec-feature-gate-10-bgp). MessageType/Type* moved to
-// internal/core/bgp/msgtype and the route-action enum to
-// internal/core/bgp/routeaction so MRT, sysrib and the FIB backends keep
-// compiling when the BGP engine is compiled out (//go:build ze_bgp). Every hunk
-// in this file is a package-qualifier requalification: no assertion was added,
-// removed, reworded, weakened or re-tagged, verified by normalising the diff
-// under the renaming and confirming the add/delete multisets cancel.
-
 // newTestRIBManager creates a RIBManager with closed SDK connections for unit testing.
 // The SDK plugin is initialized but connections are closed, so RPC calls (updateRoute)
 // will fail silently. This is appropriate for testing internal state changes.

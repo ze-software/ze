@@ -116,19 +116,6 @@ func TestForwardSplitSameContextKeepsRawSplit(t *testing.T) {
 	// VALIDATES: AC-3 -- same source/destination ContextID keeps the raw split branch before parsing.
 	// PREVENTS: Regressing same-context forwarding into parsed UPDATE allocation and SendUpdate dispatch.
 	// RFC requirement: RFC7911-5-3 positive -- source and destination share an ADD-PATH-negotiated context (both addPath=true), so ze generates the route update from the combination of the address prefix and the Path Identifier and emits the extended NLRI encoding: every emitted NLRI carries a 4-octet Path Identifier field ahead of the prefix the source sent.
-	//
-	// rfc-test-change-approved: 2026-08-14 Thomas approved correcting the
-	// assertion and the tag text of this test. It read "the emitted NLRI bytes
-	// equal the source NLRI including their 4-octet Path IDs", which pinned the
-	// RFC 7911 Section 2 violation this file's sibling reproduces: a speaker that
-	// re-advertises a route MUST generate its own Path Identifier. RFC7911-5-3
-	// says a speaker follows RFC 4271 procedures unless ADD-PATH is negotiated
-	// both ways, and says nothing about preserving a received identifier, so the
-	// old text read a requirement the RFC does not carry. What this test
-	// legitimately proves is that the same-context branch stays on the raw-split
-	// fast path, and it still proves it: the assertions on rawBodies are
-	// untouched, and the identifiers are checked as ze's own instead of the
-	// source's.
 	ctx, ctxID := registerForwardBodyTestContext(t, true, true)
 	peer := forwardBodyTestPeer(ctx, ctxID)
 
@@ -149,15 +136,6 @@ func TestForwardSplitSameContextKeepsRawSplit(t *testing.T) {
 		gotNLRI = append(gotNLRI, update.NLRI...)
 	}
 
-	// rfc-test-change-approved: 2026-08-14 Thomas approved replacing a byte
-	// equality between the emitted NLRI and the source NLRI. That equality
-	// required the emitted Path Identifiers to be the source's, and so pinned
-	// the RFC 7911 Section 2 violation: "A BGP speaker that re-advertises a
-	// route MUST generate its own Path Identifier to be associated with the
-	// re-advertised route". The extended encoding claim RFC7911-5-3 does make is
-	// kept, split in two: the prefixes are the source's, in order, and each
-	// still carries a 4-octet identifier field ahead of it, now holding ze's
-	// value rather than the source's.
 	gotIDs, gotPrefixes := forwardBodySplitNLRI(t, gotNLRI)
 	sourceIDs, sourcePrefixes := forwardBodySplitNLRI(t, sourceNLRI)
 	assert.Equal(t, sourcePrefixes, gotPrefixes,

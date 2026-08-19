@@ -11,14 +11,12 @@
 // -- pinpoints a break in the tracker's delta pipeline (the source ddos-detect and
 // the ze_interface_*_per_second metrics both consume).
 //
-// test-relax: earlier revisions of this test used withNetNS + the ListInterfaces vs
-// GetInterface diagnostic block. That was a TEST ARTIFACT, not weaker coverage:
-// withNetNS pins only the test goroutine's thread into the ephemeral namespace, but
-// tracker.Start() spawns collect() on another thread that stays in the ORIGINAL
-// namespace, so collect() read the wrong (quiet) lo and always saw a 0 delta. This
-// version runs in the VM's MAIN namespace -- where the tracker's collect() and the
-// flood share a namespace, faithfully reproducing the daemon -- and keeps the single
-// load-bearing assertion (tracker rate must be non-zero while raw counters climb).
+// This test runs in the VM's MAIN namespace, and it must. withNetNS pins only the
+// test goroutine's thread into an ephemeral namespace, while tracker.Start()
+// spawns collect() on another thread that stays in the ORIGINAL namespace, so
+// collect() reads the wrong (quiet) lo and always sees a 0 delta. In the main
+// namespace the tracker's collect() and the flood share a namespace, which is what
+// the daemon does.
 
 package iface
 

@@ -230,7 +230,6 @@ func TestPropKeyLengthRejectedOnFixedKeyTransform(t *testing.T) {
 	}{
 		{"PRF", TransformTypePRF, 5},
 		{"INTEG", TransformTypeINTG, 12},
-		// rfc-test-change-approved: 2026-07-30 review found the tag overstated Section 3.3.5; ESN and DH are not named by the RFC
 		{"ENCR_DES", TransformTypeENCR, encrDES},
 		{"ENCR_IDEA", TransformTypeENCR, encrIDEA},
 	}

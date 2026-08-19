@@ -144,13 +144,12 @@ func allZero(b []byte) bool {
 // RFC 7296 Section 2.16 -- the EAP shared key generates the AUTH of messages 7 and 8
 // ---------------------------------------------------------------------------
 
-// rfc-test-change-approved: 2026-08-01 Thomas approved re-pointing RFC7296-2.16 tags at the
-// message-7/8 producer after a review found the tagged tests did not gate. The three tests
-// below exercise ComputeAuthFromMSK, the PRIMITIVE. A mutation keying computeEAPAuth (the
-// producer of the AUTH payloads of messages 7 and 8) from a constant instead of sa.EAPMSK
-// left all three PASSING, while three untagged tests caught it. The tags now sit on
-// rfc7296_eap_auth_producer_test.go, which drives computeEAPAuth and the real EAP handshake.
-// These tests keep their value as primitive coverage and stay, untagged.
+// The three tests below exercise ComputeAuthFromMSK, the PRIMITIVE, and they are
+// untagged. A mutation keying computeEAPAuth (the producer of the AUTH payloads of
+// messages 7 and 8) from a constant instead of sa.EAPMSK left all three PASSING,
+// so the RFC7296-2.16 tags sit on rfc7296_eap_auth_producer_test.go, which drives
+// computeEAPAuth and the real EAP handshake. These keep their value as primitive
+// coverage.
 
 // VALIDATES: the AUTH primitive is derived from the EAP MSK, and an AUTH derived from a
 // DIFFERENT MSK does not verify against it.
@@ -174,9 +173,6 @@ func TestWp2EAPSharedKeyGeneratesAUTH(t *testing.T) {
 	}
 }
 
-// rfc-test-change-approved: 2026-08-01 Thomas approved re-pointing RFC7296-2.16 tags at the
-// message-7/8 producer; see the note above TestWp2EAPSharedKeyGeneratesAUTH.
-//
 // VALIDATES: an AUTH computed from a DIFFERENT shared key is refused, and so is one over
 // different signed octets. The primitive is therefore bound to both its inputs.
 func TestWp2EAPAUTHRejectsAnotherKey(t *testing.T) {
@@ -204,9 +200,6 @@ func TestWp2EAPAUTHRejectsAnotherKey(t *testing.T) {
 	}
 }
 
-// rfc-test-change-approved: 2026-08-01 Thomas approved re-pointing RFC7296-2.16 tags at the
-// message-7/8 producer; see the note above TestWp2EAPSharedKeyGeneratesAUTH.
-//
 // VALIDATES: the AUTH primitive's output tracks the MSK an SA holds, so an SA that has not
 // yet been given one cannot produce the same AUTH as one that has.
 // PREVENTS: an AUTH primitive whose output is independent of the SA's stored MSK.

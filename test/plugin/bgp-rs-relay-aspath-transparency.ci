@@ -1,11 +1,6 @@
 # bgp-rs-relay-aspath-transparency -- RS-client AS_PATH transparency on the
 # PLUGIN forwarding rail, with its confining negative in the same run.
 #
-# rfc-test-change-approved: 2026-08-16 Thomas approved adding the optional
-# bgp-adj-rib-in replay provider and its source/destination attachments. This
-# repairs route-server replay when the source UPDATE precedes receiver peer-up;
-# every RFC assertion and expected wire outcome below is unchanged.
-#
 # RFC requirement: RFC7947-x-1 positive -- the route server SHOULD NOT prepend its own AS to
 # AS_PATH for an RS client. The receiver configured with session/rs-client true gets the
 # forwarded UPDATE byte-identical to the one the source sent: AS_SEQUENCE[65001] unchanged, and

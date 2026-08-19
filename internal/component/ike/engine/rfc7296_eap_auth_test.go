@@ -171,14 +171,11 @@ func TestEapAuthResponderRefusesWithoutCertificate(t *testing.T) {
 			if err == nil {
 				t.Fatal("computeServerAuth accepted an EAP peer with no certificate")
 			}
-			// rfc-test-change-approved: 2026-07-31 the owner gave standing approval, for the
-			// whole of docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, to strengthen a tagged test
-			// whose arm no input reaches. The AUTH-data comparison used to sit after an
-			// unconditional failure on the same `auth != nil` condition, so `auth` was
-			// provably nil by the time the comparison ran and it was dead in both directions
-			// (go vet: "impossible condition: nil != nil"). Nesting it makes a reintroduced
-			// pre-shared-key fallback fail on THAT line, which is what the arm was written
-			// for. The approval covers strengthening only, never weakening.
+			// The AUTH-data comparison is nested on purpose. Sitting after an unconditional
+			// failure on the same `auth != nil` condition made `auth` provably nil by the time
+			// the comparison ran, so it was dead in both directions (go vet: "impossible
+			// condition: nil != nil"). Nested, a reintroduced pre-shared-key fallback fails on
+			// THAT line, which is what the arm was written for.
 			if auth != nil {
 				// Name the specific outcome the RFC forbids before the general one, so a
 				// reintroduced fallback is reported as itself and not as "an AUTH payload".

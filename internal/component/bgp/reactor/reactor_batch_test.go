@@ -1,9 +1,3 @@
-// rfc-test-change-approved: 2026-08-08 Thomas approved the buildBatchAnnounceUpdate
-// signature change that carries the true cause to the caller (an (*message.Update,
-// error) pair in place of a bare *message.Update, so a refused build reports WHY
-// instead of a silent nil). Every hunk in this RFC4271-5.1.2-2 / RFC4271-5.1.2-3
-// file is that caller adaptation, `update :=` becoming `update, _ :=`. No
-// assertion, fixture, or expected value changed.
 package reactor
 
 import (

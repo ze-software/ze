@@ -79,9 +79,6 @@ func TestIntegrationMonitorLinkCreated(t *testing.T) {
 	// PREVENTS: Monitor not detecting new interfaces via netlink.
 	withNetNS(t, func() {
 		bus := &collectingBus{}
-		// test-relax: NewMonitor/Start assertions moved into startTestMonitor;
-		// the iface.Monitor wrapper was removed as dead production code and the
-		// helper asserts the same StartMonitor error against the backend directly.
 		startTestMonitor(t, bus)
 
 		// Give the monitor time to subscribe to netlink.
@@ -102,9 +99,6 @@ func TestIntegrationMonitorAddrAdded(t *testing.T) {
 	// PREVENTS: Address events lost or wrong family reported.
 	withNetNS(t, func() {
 		bus := &collectingBus{}
-		// test-relax: NewMonitor/Start assertions moved into startTestMonitor;
-		// the iface.Monitor wrapper was removed as dead production code and the
-		// helper asserts the same StartMonitor error against the backend directly.
 		startTestMonitor(t, bus)
 
 		time.Sleep(200 * time.Millisecond)
@@ -134,9 +128,6 @@ func TestIntegrationMonitorAddrRemoved(t *testing.T) {
 	// PREVENTS: Removal events lost, leaving stale state.
 	withNetNS(t, func() {
 		bus := &collectingBus{}
-		// test-relax: NewMonitor/Start assertions moved into startTestMonitor;
-		// the iface.Monitor wrapper was removed as dead production code and the
-		// helper asserts the same StartMonitor error against the backend directly.
 		startTestMonitor(t, bus)
 
 		time.Sleep(200 * time.Millisecond)
@@ -169,9 +160,6 @@ func TestIntegrationMonitorLinkDeleted(t *testing.T) {
 	// PREVENTS: Deletion events lost, leaving stale tracking state.
 	withNetNS(t, func() {
 		bus := &collectingBus{}
-		// test-relax: NewMonitor/Start assertions moved into startTestMonitor;
-		// the iface.Monitor wrapper was removed as dead production code and the
-		// helper asserts the same StartMonitor error against the backend directly.
 		startTestMonitor(t, bus)
 
 		time.Sleep(200 * time.Millisecond)
@@ -201,9 +189,6 @@ func TestIntegrationMonitorLinkUpDown(t *testing.T) {
 	// PREVENTS: State change events not emitted for admin up/down transitions.
 	withNetNS(t, func() {
 		bus := &collectingBus{}
-		// test-relax: NewMonitor/Start assertions moved into startTestMonitor;
-		// the iface.Monitor wrapper was removed as dead production code and the
-		// helper asserts the same StartMonitor error against the backend directly.
 		startTestMonitor(t, bus)
 
 		time.Sleep(200 * time.Millisecond)

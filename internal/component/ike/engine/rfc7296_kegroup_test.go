@@ -148,9 +148,6 @@ func TestKegInitiatorRefusesUnofferedGroup(t *testing.T) {
 		name string
 		data []byte
 	}{
-		// rfc-test-change-approved: 2026-07-31 owner standing approval for
-		// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only.
-		//
 		// Group 20 is the DISCRIMINATING case, and it is the reason this row is proven
 		// at all. crypto.NewDHExchange can build 14, 19 and 20, and kegIKEGroup proposes
 		// only 14 and 19. A case naming a group crypto cannot build (5, say) is refused

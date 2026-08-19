@@ -27,11 +27,6 @@ on its own passes with the whole forward rail deleted, and it also passes if FRR
 never received anything -- both are the vacuity trap in
 ai/rules/interop-and-goal-validation.md.
 
-rfc-test-change-approved: 2026-08-04 -- Thomas approved. DOCSTRING ONLY, in a
-file first written in this same session: the mutation paragraph below replaces a
-predicted result with the two measured ones. No assertion, regex or fixture is
-touched. ai/rules/evidence.md: a predicted mutant result is a hypothesis.
-
 MUTATION EVIDENCE, both measured on 2026-08-04 against FRR 10.3.1:
 
   Removing the guard in ASPathEdit.Record (wireu/aspath_slot.go) outright --
@@ -54,12 +49,6 @@ remove the prefix. The error line is the only place a receiver states its verdic
 The two RFC requirement tags are below, as real comments.
 """
 
-# rfc-test-change-approved: 2026-08-04 -- Thomas approved. The two tags MOVE from
-# the docstring above into comments, verbatim. Nothing else changes. Measured:
-# rfc_requirements.scan_tree() returned [] for this file with them in the
-# docstring, so the scenario would have run, passed, and been counted as evidence
-# for NOTHING. Moving them makes the evidence real, which strengthens.
-#
 # The ledger's scanner (scripts/dev/rfc_requirements.py scan_python_tags)
 # tokenizes the file and reads COMMENT tokens only, so a tag inside a string is
 # invisible to it.

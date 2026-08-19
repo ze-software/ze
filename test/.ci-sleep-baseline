@@ -103,10 +103,9 @@
 # test/plugin/llgr-egress-state-unloaded.ci: 3 -> 0. This is the rise 6ec2a10bc
 # caused, now paid for at its source, so the ceiling drops 79 -> 76 and the
 # comment above about a removal paying for someone else's rise is spent.
-# The file is RFC-tagged (RFC9494-4.3-3), so the change carries the
-# `rfc-test-change-approved:` marker Thomas approved on 2026-08-12. No expect,
-# reject, hex or config line was touched: only the observer's waits, and
-# option=linger on the source peer.
+# The file is RFC-tagged (RFC9494-4.3-3), so Thomas approved the change on
+# 2026-08-12. No expect, reject, hex or config line was touched: only the
+# observer's waits, and option=linger on the source peer.
 #   The 0.25s best-route poll became dispatch_until on the same predicate.
 #   The 1.5s and 2.0s holds became wait_peer_eor_sent(2) and two polls on obsn's
 #     updates-sent minus eor-sent, which IncrUpdatesSent bumps after the bytes

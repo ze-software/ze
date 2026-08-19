@@ -74,11 +74,6 @@ func TestGRStateManagerTimerExpiry(t *testing.T) {
 		mu.Unlock()
 	})
 
-	// rfc-test-change-approved: 2026-08-08 Thomas approved fixing the race in this
-	// test after seeing the mechanism below. The restart time changes from 0 to
-	// 120; no assertion is added, removed or weakened, and the requirement stays
-	// proven by the same call.
-	//
 	// The restart time must be long enough that the real timer never fires while
 	// the test runs. onSessionDown arms time.AfterFunc unconditionally, so a
 	// restart time of 0 puts a second caller into handleTimerExpired concurrently

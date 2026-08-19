@@ -5,13 +5,9 @@
 // implement it.
 // RFC: rfc/short/rfc2181.md -- TTL bounds and RRSet TTL equality
 
-// rfc-test-change-approved: 2026-08-12 Thomas approved replacing the two
-// RFC1035-3.3.13-1 tagged tests, and their three tags, with tests that pin the
-// ABSENCE of the floor. Grounds: RFC 2308 (Standards Track, "Updates: 1034,
-// 1035") section 4 deprecates RFC 1035 section 3.3.13's zone-wide TTL floor.
-// These tests pinned the floor. They now pin its absence. He preferred the
-// rewrite over deleting the file so the ruling becomes an enforced invariant,
-// and so nobody re-adds the floor when you read only section 3.3.13.
+// These tests pin the ABSENCE of the RFC 1035 Section 3.3.13 zone-wide TTL floor.
+// RFC 2308 (Standards Track, "Updates: 1034, 1035") Section 4 deprecates it. They
+// exist so nobody re-adds the floor after reading Section 3.3.13 alone.
 
 package geodns
 

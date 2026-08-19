@@ -13,10 +13,6 @@ import (
 	"github.com/vishvananda/netlink"
 )
 
-// rfc-test-change-approved: 2026-08-01 Thomas approved replacing the RFC7296-2.24 evidence
-// after a review found the tagged tests reflected over SAParams field names and called no
-// production function, so a no-op InstallSA left both polarities passing.
-
 // ecnTunnelParams is one tunnel-mode ESP Child SA description, shaped like the ones
 // installChildSA builds. Section 2.24 binds TUNNEL mode, so the fixture is tunnel mode.
 func ecnTunnelParams() SAParams {
@@ -100,10 +96,6 @@ func TestEcnInstalledStateDisablesNothing(t *testing.T) {
 	if err != nil {
 		t.Fatalf("xfrmStateFromParams: %v", err)
 	}
-	// rfc-test-change-approved: 2026-08-02 Thomas approved deleting the redundant
-	// netlink.Mode(...) conversion here, which `unconvert` refuses and which reds
-	// make ze-lint at HEAD. XFRM_MODE_TUNNEL is already a netlink.Mode, so the
-	// comparison, its operands and its message are unchanged.
 	if state.Mode != netlink.XFRM_MODE_TUNNEL {
 		t.Fatalf("the state ze builds for a tunnel-mode SA has mode %v, want tunnel; "+
 			"Section 2.24 binds tunnel mode, so a non-tunnel state proves nothing", state.Mode)

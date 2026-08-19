@@ -77,10 +77,9 @@ func delOwnProcess(t *testing.T) bool {
 		t.Fatalf("probe in its own process failed: %v\n%s", err, out)
 	}
 	if strings.Contains(string(out), "--- SKIP") {
-		// test-relax: this propagates the child's skip rather than relaxing anything.
-		// The child ran every assertion; it skips only where it always did, when the
-		// kernel refuses CLONE_NEWNET or CAP_NET_ADMIN. Reporting that as a parent PASS
-		// would be the fail-open reading of the same result.
+		// This propagates the child's skip. The child runs every assertion; it skips only
+		// when the kernel refuses CLONE_NEWNET or CAP_NET_ADMIN. Reporting that as a
+		// parent PASS is the fail-open reading of the same result.
 		t.Skipf("probe skipped in its own process:\n%s", out)
 	}
 	if !strings.Contains(string(out), "--- PASS") {

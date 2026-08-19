@@ -1,24 +1,12 @@
-// test-relax: this file lost the assertions belonging to features MCP
-// 2026-07-28 removes and this phase deletes: the initialize handshake
-// (TestStreamableInitializeAssignsSessionID, TestStreamableInitializeRejects-
-// UnsupportedVersion, TestStreamable_InitializeReadsClientCapabilities,
-// TestStreamableParseInitializeProtocolVersion), the session registry and its
-// caps (TestStreamableExpiredSession404, TestStreamableMissingSessionIDFails,
-// TestStreamableConcurrentSessionsIsolated, TestStreamableTouchOnClosed-
-// SessionIsNoop, TestStreamableInitializeCapExhaustion,
-// TestStreamableNewStreamableRejectsMaxLifetimeShorterThanTTL), the GET SSE
-// stream (TestStreamableGETOpensSSEStream, TestStreamableGETClearsWriteDeadline,
-// TestStreamableGETBadAcceptReturns406, TestStreamableGETHeartbeat*,
-// TestStreamableDuplicateGETReturns409, TestStreamableGETStreamActive-
-// ReleasedAfterCancel, TestStreamableSSEResponseHasAntiBufferingHeader,
-// TestStreamableAcceptsEventStream, TestStreamableHeartbeatIntervalClampedToMin)
-// and DELETE (TestStreamableDELETEClosesSession). Every one of those names a
-// function or field that no longer exists. The fail-open assertion in
-// TestStreamableProtocolVersionMissingAssumesLegacy is deliberately INVERTED,
-// not dropped: a missing MCP-Protocol-Version is now -32020, asserted in
-// headers_test.go TestHeaderMismatchRejected. Coverage the cutover keeps is
-// carried forward below (origin, bearer auth, the task-support table). Coverage
-// it adds lives in headers_test.go, meta_test.go and discover_test.go.
+// This file lost the assertions belonging to features MCP 2026-07-28 removes: the
+// initialize handshake, the session registry and its caps, the GET SSE stream and
+// DELETE. Every one of them named a function or field that no longer exists. The
+// fail-open assertion in TestStreamableProtocolVersionMissingAssumesLegacy is
+// deliberately INVERTED, not dropped: a missing MCP-Protocol-Version is now
+// -32020, asserted in headers_test.go TestHeaderMismatchRejected. Coverage the
+// cutover keeps is carried forward below (origin, bearer auth, the task-support
+// table). Coverage it adds lives in headers_test.go, meta_test.go and
+// discover_test.go.
 
 package mcp
 

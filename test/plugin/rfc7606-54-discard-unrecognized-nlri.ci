@@ -1,14 +1,6 @@
 # rfc7606-54-discard-unrecognized-nlri -- RFC 7606 Section 5.4 through the relay.
 #
 #
-# rfc-test-change-approved: 2026-08-16 Thomas approved adding the optional
-# bgp-adj-rib-in replay provider and its source/destination attachments. This
-# repairs route-server replay when the source UPDATE precedes receiver peer-up;
-# every RFC assertion and expected wire outcome below is unchanged.
-# rfc-test-change-approved: 2026-08-17 Thomas approved adding option=linger to
-# keep both sessions alive after Peer.completed (internal/test/peer/reject.go)
-# until observer-owned shutdown. This is lifecycle-only; RFC7606-5.4-1
-# assertions remain byte-identical.
 # RFC requirement: RFC7606-5.4-1 positive -- a peer sends an EVPN UPDATE mixing route types
 # ze implements with one it does not; the unrecognized route is NOT relayed to the other
 # client, and the implemented ones are.

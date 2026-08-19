@@ -64,10 +64,6 @@ func bfmDirections(t *testing.T, natDetected, floated bool) (inbound, outbound d
 // UDP-encapsulated ESP packets even when no NAT was detected" (RFC 7296 Section 2.23,
 // rfc/full/rfc7296.txt:3624-3625).
 //
-// rfc-test-change-approved: 2026-08-02 Thomas authorized rewriting this assertion to
-// prove the lifted limit: ze receives BOTH ESP forms, and the send form follows the
-// NAT verdict. It previously asserted the bounded behavior this spec removes.
-//
 // It used to assert that EVERY state of a floated SA carried the encapsulation template,
 // inbound and outbound alike. That conflated two decisions. RECEPTION is what this MUST
 // governs, and the paragraph's last sentence governs TRANSMISSION separately: "if a NAT
@@ -210,10 +206,6 @@ func TestBfmBothESPFormsAreReachable(t *testing.T) {
 
 // RFC requirement: RFC7296-2.23-10 negative -- the boundary of the positive. It records
 // the dual-form property as something the code HAS, and not as an absent guard.
-//
-// rfc-test-change-approved: 2026-08-02 Thomas authorized rewriting this assertion to
-// prove the lifted limit: ze receives BOTH ESP forms, and the send form follows the
-// NAT verdict. It previously asserted the bounded behavior this spec removes.
 //
 // It used to assert `inbound.UDPEncap == outbound.UDPEncap`, which IS the limit this work
 // removes: one boolean applied to both directions, so one Child SA served exactly one ESP

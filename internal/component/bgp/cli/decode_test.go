@@ -1497,11 +1497,6 @@ func TestRFC8955TrafficRateNegativeDecodesAsZero(t *testing.T) {
 // renderer that ignores the WHOLE field satisfies that on its own -- it returns one
 // constant whatever the wire says, so the equality below cannot fail. The differing pair
 // is what separates "ignores the reserved bits" from "ignores every bit".
-//
-// rfc-test-change-approved: 2026-08-19 owner directive -- the equality assertion could not
-// fail while the renderer returned a constant; the defined-bits assertions below give it
-// something to discriminate against, and the expected strings follow the renderer that now
-// spells the bits.
 func TestRFC8955TrafficActionUnusedBitsIgnoredOnDecode(t *testing.T) {
 	// RFC 8955 Section 7.3 Figure 5 draws the field as |S|T|, so T is 0x01 and S is 0x02
 	// of the last octet. Terminal + Sample set, every other bit of the field clear.

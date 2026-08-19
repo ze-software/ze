@@ -113,13 +113,8 @@ func TestISISTLVLSPEntriesBadLength(t *testing.T) {
 // encoder: a round trip through one codec proves self-consistency, and a shared
 // misreading of the wire format would pass it. These bytes assert the format.
 //
-// rfc-test-change-approved: 2026-08-17 -- Thomas approved the dead-codec sweep after being
-// shown this specific change: the fixture rewrite was described to him and he directed it.
-// He did not review the wording of this marker. writeExtendedISReachTLV had no production
-// caller and was deleted, so the fixture it built is replaced by hand-written RFC 5305
-// bytes. Every assertion about opaque sub-TLV retention is kept, and an entry-1 neighbor
-// check is added; only the encoder re-encode drift check goes, because it has no subject
-// once the encoder is gone.
+// writeExtendedISReachTLV had no production caller and was deleted, so the fixture
+// it built is hand-written RFC 5305 bytes.
 func TestISISTLV22RoundTrip(t *testing.T) {
 	sys := types.SystemID{0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff}
 
@@ -213,15 +208,13 @@ func TestISISTLV22Truncated(t *testing.T) {
 	}
 }
 
-// rfc-test-change-approved: 2026-08-17 -- Thomas approved the dead-codec sweep, and this
-// deletion was described to him before he directed it. He did not review the wording of
-// this marker. TestISISTLVProtocolsSupported was
-// deleted here together with writeProtocolsSupportedTLV, which had no production caller and
-// was the test's only subject beyond the decoder. The RFC1195-5.2-1 positive proof survives
-// at internal/plugins/isis/lsdb/origination_test.go:122, which reads TLV 129 off an LSP the
-// daemon actually originated. DecodeProtocolsSupportedTLV keeps hand-built-bytes coverage in
-// TestISISIgnoreObsoleteTLVs131And133 and ordered multi-NLPID coverage in
-// internal/plugins/isis/lsdb/origination_ipv6_test.go.
+// TestISISTLVProtocolsSupported was deleted here with writeProtocolsSupportedTLV,
+// which had no production caller and was the test's only subject beyond the
+// decoder. The RFC1195-5.2-1 positive proof lives in
+// internal/plugins/isis/lsdb/origination_test.go, which reads TLV 129 off an LSP
+// the daemon originated. DecodeProtocolsSupportedTLV keeps hand-built-bytes
+// coverage in TestISISIgnoreObsoleteTLVs131And133, and ordered multi-NLPID
+// coverage in internal/plugins/isis/lsdb/origination_ipv6_test.go.
 
 // VALIDATES: TLV 137 (Dynamic Hostname) round-trips an ASCII name.
 func TestISISTLVHostname(t *testing.T) {

@@ -5,19 +5,6 @@
 #            a CONDITION: neither a withdraw-only UPDATE nor an End-of-RIB marker
 #            carries a route, so the obligation never arises for either.
 #
-# rfc-test-change-approved: 2026-08-04 -- Thomas approved. COMMENT ONLY, no
-# assertion, hex or config changed. The header called the destination an
-# RS-Client. It is not: the dest peer declares wire role 3 in its OPEN
-# (option=open:value=add-capability:code=9:hex=03), and roleNames
-# (internal/component/bgp/plugins/role/role.go) maps 3 to customer -- RS-Client is
-# 2. Customer is equally one of the three destination roles egress rule 1 names,
-# so what the test PROVES is unchanged; the label was wrong.
-#
-# rfc-test-change-approved: 2026-08-17 Thomas approved replay-wiring only:
-# attach the auto-loaded bgp-adj-rib-in to ingest source updates/state and send
-# stored routes to destination. RFC9234-5-4 positive/negative wire assertions
-# are unchanged.
-#
 # The RS-Client DESTINATION (declared wire role 2) that this header used to
 # record as proven nowhere is now proven, by
 # test/plugin/role-otc-rs-client-dest-stamp.ci. Egress rule 1's third named
@@ -44,14 +31,6 @@
 # ORIGINATED EoR takes a different route (AnnounceEOR calls peer.SendUpdate
 # directly in reactor_api_forward.go, bypassing egress filters), so
 # payloadAdvertisesNLRI is the only thing protecting a RELAYED one.
-#
-# rfc-test-change-approved: 2026-08-04 -- Thomas approved. COMMENT ONLY. The
-# sentence that stood here said the destination is an RS-Client; it declares wire
-# role 3, which roleNames calls customer. Customer is equally one of the three
-# destination roles egress rule 1 names, so the positive obligation below is
-# still the RFC's own case rather than an analogue of it. `rs-client true` on the
-# peers selects the route-server FORWARDING rail (RFC 7947 transparency), which
-# is what makes the two negatives byte-exact; it is not the peer's RFC 9234 role.
 #
 # NON-VACUITY (ai/rules/interop-and-goal-validation.md). An assertion that an
 # attribute is ABSENT passes when the mechanism that adds it is deleted. So this
@@ -233,12 +212,8 @@ bgp {
 		attach process bgp-adj-rib-in {
 			receive [ update-received state ]
 		}
-		# rfc-test-change-approved: 2026-08-16 Thomas -- wiring, not an assertion. Since
-		# 06c95f65d a peer feeds a process only where it attaches it, and neither peer
-		# attached `rs`, so reconcileDelivery warned that no peer-scoped event reaches
-		# bgp-rs. Nothing asserted below changes: the RFC 9234 rows still read the same
-		# frames off the same peers. The grant matches what 06c95f65d gave the sibling
-		# fixtures it did repair (med-removal-export-refused.ci).
+		# The attach block is required. A peer feeds a process only where it attaches it,
+		# and without it reconcileDelivery warns that no peer-scoped event reaches bgp-rs.
 		attach process rs {
 			receive [ update-received state open-received refresh ]
 			send [ update ]
@@ -277,10 +252,8 @@ bgp {
 		attach process bgp-adj-rib-in {
 			send [ update ]
 		}
-		# rfc-test-change-approved: 2026-08-16 Thomas -- the same wiring grant as on
-		# source-peer above, for the same reason. dest-peer carried no attach block at
-		# all, so bgp-rs was fed nothing about the peer it must relay the OTC-stamped
-		# advertisement to.
+		# The same attach block, for dest-peer: without it bgp-rs is fed nothing about the
+		# peer it must relay the OTC-stamped advertisement to.
 		attach process rs {
 			receive [ update-received state open-received refresh ]
 			send [ update ]

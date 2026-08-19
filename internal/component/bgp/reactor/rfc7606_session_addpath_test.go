@@ -61,8 +61,6 @@ func newAddPathSession(t *testing.T, fams ...capability.Family) *Session {
 // PREVENTS: the ADD-PATH-blind regression that read a path-id byte as a prefix length and
 // spuriously session-reset a conforming multiprotocol UPDATE.
 //
-// rfc-test-change-approved: 2026-07-17 add-path-aware §5.3 NLRI validation fix (spec-rfc-requirement-coverage REV-1, user-approved)
-//
 // The contrast case (a session with NO ADD-PATH negotiated, sending the identical bytes) is
 // asserted to session-reset: that is the correct interpretation when the leading octets are
 // NLRI rather than a path-id, and it proves the acceptance above is due to ADD-PATH awareness
@@ -117,8 +115,6 @@ func TestEnforceRFC7606_MPAddPathLargePathIDAccepted(t *testing.T) {
 // context's ADD-PATH state, so the RFC 7911 path-id is skipped and a conforming ADD-PATH
 // NLRI is accepted.
 // PREVENTS: the ADD-PATH-blind regression on the IPv4 body NLRI path.
-//
-// rfc-test-change-approved: 2026-07-17 add-path-aware §5.3 NLRI validation fix (spec-rfc-requirement-coverage REV-1, user-approved)
 //
 // Untagged guard: the RFC7606-5.3-1 coverage tags live on the message-level tests; this adds
 // the session-level ADD-PATH proof without re-staling their audited fingerprints.

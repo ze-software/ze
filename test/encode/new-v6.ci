@@ -12,14 +12,11 @@
 # is configured for this peer, so the speaker advertises only the global IPv6 address of
 # the next hop and sets the length octet to 16.
 #
-# rfc-test-change-approved: 2026-08-19 Thomas ruled "there is no community key: this is a
-# clear oversight". Both expect=json lines gain the COMMUNITIES attribute. The hex assertion
-# above each one already pins it as C0 08 08 78140000 78147814, so the two assertions in this
-# file disagreed about one UPDATE, and the JSON comparison is symmetric, so the missing key
-# asserted the attribute was ABSENT. It passed only while parsePathAttributesZe
-# (internal/component/bgp/cli/decode_update.go) had no arm for code 8 and dropped it silently.
-# The three RFC 2545 requirements above govern the MP_REACH next-hop encoding, the 0x10 length
-# octet and the single 16-octet address, all asserted by the hex line. Nothing here touches them.
+# Both expect=json lines carry the COMMUNITIES attribute. The hex assertion above
+# each one pins it as C0 08 08 78140000 78147814, and the JSON comparison is
+# symmetric, so a missing key asserts the attribute is ABSENT. That passed only
+# while parsePathAttributesZe (internal/component/bgp/cli/decode_update.go) had no
+# arm for code 8 and dropped it silently.
 #
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER

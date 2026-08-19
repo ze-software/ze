@@ -29,10 +29,6 @@ func TestRFC7606MalformedOriginLength(t *testing.T) {
 // has its own isolating negative.
 //
 // RFC requirement: RFC7606-7.8-1 negative — COMMUNITY length 5 is not a multiple of 4, so treat-as-withdraw.
-//
-// rfc-test-change-approved: 2026-07-17 user approved strengthening §7.8-1 with an added
-// assertion pinning the multiple-of-4 clause and a new zero-length negative
-// (TestRFC7606CommunityZeroLength), so both malformation clauses are proven.
 func TestRFC7606MalformedCommunityLength(t *testing.T) {
 	// Valid ORIGIN + AS_PATH + NEXT_HOP, then malformed Community
 	pathAttrs := []byte{
@@ -244,8 +240,6 @@ func TestRFC7606MultipleMPReach(t *testing.T) {
 // so the enforcement layer can strip it. Before this fix the duplicate was silently
 // skipped and its bytes left on the wire, which the attribute index later rejects.
 //
-// rfc-test-change-approved: 2026-07-21 correcting a test authored moments earlier in
-// this same session (never committed, not enrolled in the RFC ledger): dropped a
 // premature `RFC requirement: RFC7606-3.g-2` tag that would enroll a non-existent
 // requirement id, and fixed a stripped-value index typo (index 2 -> 3). No committed
 // RFC proof is weakened; this is a behavioral test for spec AC-4.
@@ -903,9 +897,6 @@ func TestRFC7606NLRIPrefixLengthValidIPv6(t *testing.T) {
 // RFC requirement: RFC7606-3.j-1 negative — an unparseable IPv6 NLRI field selects session reset.
 //
 // Changed from treat-as-withdraw to session reset with user approval (2026-07-16).
-// rfc-test-change-approved: 2026-07-17 user approved enforcing §5.3-3 on MP attribute NLRI
-// in the code (validateMPReachAttr now parses the NLRI) and driving this test through
-// ValidateUpdateRFC7606 rather than the internal ValidateNLRISyntax helper.
 func TestRFC7606NLRIPrefixLengthTooLongIPv6(t *testing.T) {
 	origin := []byte{0x40, 0x01, 0x01, 0x00} // ORIGIN = IGP
 	aspath := []byte{0x40, 0x02, 0x00}       // AS_PATH = empty

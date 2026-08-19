@@ -22,15 +22,6 @@ import (
 	"github.com/ze-software/ze/internal/core/family"
 )
 
-// rfc-test-change-approved: 2026-07-22 Thomas approved the msgtype/routeaction
-// package rename (spec-feature-gate-10-bgp). MessageType/Type* moved to
-// internal/core/bgp/msgtype and the route-action enum to
-// internal/core/bgp/routeaction so MRT, sysrib and the FIB backends keep
-// compiling when the BGP engine is compiled out (//go:build ze_bgp). Every hunk
-// in this file is a package-qualifier requalification: no assertion was added,
-// removed, reworded, weakened or re-tagged, verified by normalising the diff
-// under the renaming and confirming the add/delete multisets cancel.
-
 // rfc4271Announce encodes an announce UPDATE for 10.0.0.0/24 toward an internal or
 // external peer and returns the path-attribute section.
 func rfc4271Announce(t *testing.T, isIBGP bool) []byte {
@@ -786,14 +777,6 @@ func TestRFC4271ConformantOpenSendsNoOpenError(t *testing.T) {
 	}
 }
 
-// rfc-test-change-approved: 2026-08-03 -- Thomas ruled for full RFC 4271
-// Section 8.2.2 Event 10 conformance and ordered the hold-timer grace removed.
-// The helper's `graced` parameter selected a branch that no longer exists.
-// the "a graced expiry re-arms and a fatal one does not"
-// precondition asserted the REMOVED grace branch. Its replacement is stronger:
-// every expiry must now leave the timer disarmed, which is asserted on the one
-// remaining path rather than on one of two.
-//
 // rfc4271HoldExpiry arms a real Session's hold timer on a net.Pipe and advances
 // the clock by `advance` through the production OnHoldTimerExpires closure that
 // NewSession installs, returning what the peer saw on the wire.
@@ -828,11 +811,6 @@ func rfc4271HoldExpiry(t *testing.T, hold, advance time.Duration) <-chan []byte 
 func TestRFC4271HoldTimerExpirySendsNotification(t *testing.T) {
 	const hold = 3 * time.Second
 
-	// rfc-test-change-approved: 2026-08-03 -- Thomas ruled the hold-timer grace
-	// removed for full RFC 4271 Section 8.2.2 Event 10 conformance. The helper's
-	// boolean selected graced/fatal; with no grace there is one path, so the
-	// argument is now the clock advance. Advancing by a full hold time fires the
-	// expiry this positive polarity is about. The assertion is untouched.
 	wire := rfc4271HoldExpiry(t, hold, hold)
 
 	select {
@@ -855,17 +833,6 @@ func TestRFC4271HoldTimerExpirySendsNotification(t *testing.T) {
 	}
 }
 
-// rfc-test-change-approved: 2026-08-03 -- Thomas ruled for full RFC 4271
-// Section 8.2.2 Event 10 conformance and ordered the hold-timer grace removed.
-// This test was TestRFC4271GracedHoldExpirySendsNoNotification and asserted
-// that a GRACED expiry stays silent, which pinned the deviation. It is inverted
-// rather than deleted (ai/rules/testing.md): the negative polarity now
-// keys on an expiry that has not happened yet, which is the only condition
-// under which ze may stay silent.
-// the graced-expiry assertion covered a REMOVED branch. The
-// replacement is a strictly harder bar -- it fails if ze writes code 4 at any
-// point before the hold time is up, where the old one only checked one branch.
-//
 // RFC requirement: RFC4271-8.2.2-1 negative -- the code-4 NOTIFICATION belongs
 // to the hold timer EXPIRING, not to a hold timer merely being armed. A session
 // whose peer has been quiet for less than the negotiated hold time has not
@@ -994,11 +961,6 @@ func TestRFC4271HoldExpiryRunsTheEvent10ActionList(t *testing.T) {
 			"the routes learned over this connection")
 	requireConnClosed(t, drainErr) // RFC4271-8.2.2-4: drops the TCP connection
 
-	// rfc-test-change-approved: 2026-08-03 -- Thomas ordered Event 10's COMPLETE
-	// action list extracted and proven. This block is ADDED, not relaxed: it
-	// strengthens the new RFC4271-8.2.2-2..-5 test by also pinning the ORDER the
-	// action list gives, and no existing assertion is touched.
-	//
 	// The action list is ORDERED: the NOTIFICATION is its first item and the
 	// connection drop its fourth, so the peer must have been told before the
 	// socket went away. Reading it off the same capture that just proved the

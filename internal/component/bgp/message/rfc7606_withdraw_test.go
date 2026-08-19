@@ -223,10 +223,6 @@ func splitBody(t *testing.T, body []byte) (withdrawn, pathAttrs, nlri []byte) {
 // fits, so this test fails on the overrun and not on a neighboring rule.
 //
 // RFC requirement: RFC7606-5.3-4 negative — the last NLRI in the attribute overruns it.
-//
-// rfc-test-change-approved: 2026-07-17 user approved enforcing §5.3-4 in the code
-// (validateMPReachAttr now parses the NLRI) and rewriting this test to isolate the overrun
-// rule; it previously passed via the §7.11 NHLen=0 next-hop rule, proving nothing about §5.3-4.
 func TestRFC7606MPReachNLRIOverrunsAttribute(t *testing.T) {
 	origin := []byte{0x40, 0x01, 0x01, 0x00} // ORIGIN = IGP
 	aspath := []byte{0x40, 0x02, 0x00}       // AS_PATH = empty
@@ -259,10 +255,6 @@ func TestRFC7606MPReachNLRIOverrunsAttribute(t *testing.T) {
 // UPDATE pass — proving this fails on the flags and nothing else.
 //
 // RFC requirement: RFC7606-5.3-5 negative — MP attribute flags inconsistent with RFC 4760.
-//
-// rfc-test-change-approved: 2026-07-17 user approved enforcing §5.3-5 in the code
-// (validateAttributeFlags now checks MP_REACH/MP_UNREACH flags) and rewriting this test to
-// isolate the flag rule; it previously passed via the §7.11 NHLen=0 next-hop rule.
 func TestRFC7606MPReachFlagsInconsistentWithRFC4760(t *testing.T) {
 	origin := []byte{0x40, 0x01, 0x01, 0x00} // ORIGIN = IGP
 	aspath := []byte{0x40, 0x02, 0x00}       // AS_PATH = empty
@@ -293,9 +285,6 @@ func TestRFC7606MPReachFlagsInconsistentWithRFC4760(t *testing.T) {
 // RFC requirement: RFC7606-5.3-3 positive — an NLRI length consistent with the AFI/SAFI is accepted.
 // RFC requirement: RFC7606-5.3-4 positive — NLRI that fits the attribute is accepted.
 // RFC requirement: RFC7606-5.3-5 positive — RFC 4760-consistent flags are accepted.
-//
-// rfc-test-change-approved: 2026-07-17 user approved enforcing the §5.3 MP NLRI checks in
-// the code; this well-formed case now additionally carries the 5.3-3 positive tag.
 func TestRFC7606MPReachWellFormedAccepted(t *testing.T) {
 	// Optional flag (0x80) per RFC 4760; AFI=2 SAFI=1 NHLen=16 NH[16] Reserved=0,
 	// then a /32 prefix with exactly its 4 octets present.

@@ -204,13 +204,6 @@ func attrSetValue(originAS uint32, inner []byte) []byte {
 // RFC 7606 Section 7.16 replaces only the ACTION, which is now always "treat as withdraw"
 // rather than the old Partial/Neighbor-Complete branch.
 //
-// rfc-test-change-approved: 2026-07-20 Thomas approved removing the "nested beyond the
-// depth cap" case from this test. It is redundant: TestRFC7606AttrSetNestingCapBoundary
-// (rfc7606_attrset_context_test.go) covers the cap on BOTH sides -- the deepest accepted
-// nesting and the first rejected one -- which this case did not. Coverage of the depth cap
-// goes up, not down. Removing it also clears the lint issue on the construction loop, which
-// this guard had frozen because the enclosing function carries an RFC tag.
-//
 // RFC requirement: RFC7606-7.16-1 negative -- a malformed ATTR_SET is treat-as-withdraw.
 func TestRFC7606AttrSetMalformed(t *testing.T) {
 	for _, tc := range []struct {

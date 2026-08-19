@@ -194,10 +194,9 @@ func TestISISTransportConcurrentSendNoTear(t *testing.T) {
 
 		sender, err := be.OpenCircuit(vethA)
 		if err != nil {
-			// test-relax: missing CAP_NET_RAW means no raw socket on this host;
-			// skip mirrors the sibling veth tests (dev laptops lack the cap, the
-			// real race coverage comes from make ze-integration-test on a host
-			// with CAP_NET_ADMIN + CAP_NET_RAW where -race is enabled).
+			// Missing CAP_NET_RAW means no raw socket on this host, so this skips as the
+			// sibling veth tests do. The race coverage comes from make ze-integration-test on
+			// a host with CAP_NET_ADMIN and CAP_NET_RAW, where -race is enabled.
 			if strings.Contains(err.Error(), "CAP_NET_RAW") {
 				t.Skipf("requires CAP_NET_RAW: %v", err)
 			}

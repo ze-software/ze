@@ -25,15 +25,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// rfc-test-change-approved: 2026-07-22 Thomas approved the msgtype/routeaction
-// package rename (spec-feature-gate-10-bgp). MessageType/Type* moved to
-// internal/core/bgp/msgtype and the route-action enum to
-// internal/core/bgp/routeaction so MRT, sysrib and the FIB backends keep
-// compiling when the BGP engine is compiled out (//go:build ze_bgp). Every hunk
-// in this file is a package-qualifier requalification: no assertion was added,
-// removed, reworded, weakened or re-tagged, verified by normalising the diff
-// under the renaming and confirming the add/delete multisets cancel.
-
 // helper: create established peer with matching context.
 func makeRSPeer(t testing.TB, addr string, peerAS uint32, ctx *bgpctx.EncodingContext, ctxID bgpctx.ContextID) *Peer {
 	t.Helper()
@@ -335,17 +326,12 @@ func TestReactorForwardRSEBGPPrepend(t *testing.T) {
 	// UPDATE with AS_PATH using 4-byte ASN encoding (matching ASN4 context).
 	// flags=0x40 (well-known transitive), type=2, len=6, AS_SEQUENCE, count=1, AS=65001 (4-byte)
 	//
-	// rfc-test-change-approved: 2026-08-04 -- Thomas approved RFC-tagged test edits
-	// in the withdraw-only AS_PATH work, on the standing condition that every one
-	// STRENGTHENS the proof. This is a FIXTURE PRECONDITION correction and changes
-	// no assertion: 192.0.2.0/24 is added so the fixture is the advertisement the
-	// test's own prose claims. RFC 4271 Section 5.1.2 obliges the prepend only
-	// "when a given BGP speaker advertises the route to an external peer", so
-	// ASPathEdit.Record (wireu/aspath_slot.go) resolves a payload with no reachable
-	// NLRI as transcode-only. Without the NLRI this fixture is a withdraw-only
-	// UPDATE, and the RFC7947-x-1 negative below would be asserting about a rail
-	// that is not the prepend rail. The assertion itself is untouched and still
-	// requires the forwarded body to GROW.
+	// The fixture announces 192.0.2.0/24 on purpose. RFC 4271 Section 5.1.2 obliges
+	// the prepend only "when a given BGP speaker advertises the route to an external
+	// peer", so ASPathEdit.Record (wireu/aspath_slot.go) resolves a payload with no
+	// reachable NLRI as transcode-only. Drop the NLRI and this becomes a
+	// withdraw-only UPDATE, and the RFC7947-x-1 negative below stops asserting about
+	// the prepend rail.
 	payload := []byte{
 		0, 0, // WithdrawnLen = 0
 		0, 9, // AttrLen = 9

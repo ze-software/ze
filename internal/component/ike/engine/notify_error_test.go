@@ -381,12 +381,10 @@ var ntfNotifyLiteral = regexp.MustCompile(`NotifyMsgType:\s*(\d+)`)
 // Do not relax this test to accommodate the new constant.
 // Add the peer-understanding check the RFC requires.
 func TestNtfNotifyVocabularyIsRFCDefined(t *testing.T) {
-	// rfc-test-change-approved: 2026-07-31 owner standing approval for
-	// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only.
-	// The scan reads the working tree with os.ReadFile, which no build overlay reaches.
-	// A mutation of the ike source therefore cannot reach the assertion, and the test
-	// was unfalsifiable.
-	// The sub-test below proves the DETECTOR on a fixture, which a mutation can reach.
+	// The scan reads the working tree with os.ReadFile, which no build overlay
+	// reaches. A mutation of the ike source therefore cannot reach the assertion, and
+	// the scan alone is unfalsifiable. The sub-test below proves the DETECTOR on a
+	// fixture, which a mutation can reach.
 	t.Run("the detector rejects a private-range notify", func(t *testing.T) {
 		dir := t.TempDir()
 		bad := filepath.Join(dir, "sender.go")
@@ -404,11 +402,9 @@ func TestNtfNotifyVocabularyIsRFCDefined(t *testing.T) {
 		if _, ok := ntfConstantValue("NotifyPrivateRange"); ok {
 			t.Error("an unregistered constant name resolved, so the registry check is vacuous")
 		}
-		// rfc-test-change-approved: 2026-07-31 owner standing approval for
-		// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only.
-		// The registry check below loops over names that are all registered today.
-		// It stayed green when NotifyTypeRecognized was mutated to answer true for
-		// everything. This asserts the registry can still say no.
+		// The registry check below loops over names that are all registered today. It
+		// stayed green when NotifyTypeRecognized was mutated to answer true for
+		// everything, so this asserts the registry can still say no.
 		if wire.NotifyTypeRecognized(40961) {
 			t.Error("the RFC registry vouched for the private-range type 40961, so the " +
 				"check that ze transmits only RFC-defined types cannot fail")

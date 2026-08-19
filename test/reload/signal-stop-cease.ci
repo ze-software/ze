@@ -10,9 +10,9 @@
 # on the same session and asserts only the route, the EOR and a clean exit. It
 # could not be put there: adding the RFC tag to that file made it an RFC-tagged
 # test, after which .claude/hooks/pretool-writeedit.py refuses every
-# behaviour-bearing edit to it without a `rfc-test-change-approved:` marker that
-# only the user may write, and the tag and the assertion cannot go in one edit
-# because the hook reads the file from disk. Once the user approves, fold the
+# behaviour-bearing edit to it unless test/rfc-changed.md names it, and only the
+# owner authorises that row. The tag and the assertion cannot go in one edit,
+# because the hook reads the file from disk. Once the owner approves, fold the
 # expect line below into signal-stop.ci and delete this file
 # (plan/spec-fixit-bgp-shutdown-cease-notification.md).
 #

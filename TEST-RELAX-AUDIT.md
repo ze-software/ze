@@ -7,8 +7,19 @@ Date: 2026-08-10. Scope: every `test-relax:` token in `*_test.go`, `*.ci` and
 moved" at the foot of the page first. Everything above it describes the state of
 the tree on the date each section names.
 
-**Status: sessions 1 and 2 of the recommendation are DONE (2026-08-10). The
-sweep, session 3, is not started.** What landed:
+**Status: COMPLETE. Sessions 1 and 2 landed 2026-08-10; the sweep, session 3,
+landed 2026-08-19.** `git grep test-relax:` over `*_test.go`, `*.ci` and `*.et`
+now returns nothing. It went with the sweep of `rfc-test-change-approved:`, the
+last mechanism on the same wrong side of the principle, and the two together were
+268 plus 27 tokens across 125 files.
+
+The nine days between the mechanism retiring and its corpus leaving are the point
+this page is now most useful for. A reform that retires a mechanism without
+sweeping what it produced leaves the old thing sitting beside its own
+replacement, and a reader cannot tell which one governs. Those 27 survivors were
+the evidence that made the second sweep obviously necessary.
+
+What landed in sessions 1 and 2:
 
 | Done | Where |
 |------|-------|

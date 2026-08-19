@@ -53,12 +53,10 @@ func TestForwardPathIDsDifferForCollidingSources(t *testing.T) {
 	fromAS65001 := pathIDTestBody(t, 65001, collidingPathID)
 	fromAS65002 := pathIDTestBody(t, 65002, collidingPathID)
 
-	// rfc-test-change-approved: the two frames carried no SourceID, which
-	// session_read.go sets on every accepted UPDATE. Without it both read as ONE
-	// peer announcing one path twice, which RFC 7911 Section 5 makes a
-	// replacement rather than a second path, so a generator that also answers
-	// withdraws must give them one identifier. The fixture could not express its
-	// own subject. Owner approved 2026-08-14.
+	// Both frames carry a SourceID, which session_read.go sets on every accepted
+	// UPDATE. Without it the two read as ONE peer announcing one path twice, which
+	// RFC 7911 Section 5 makes a replacement rather than a second path, so a
+	// generator that also answers withdraws must give them one identifier.
 	firstWire := wireu.NewWireUpdate(fromAS65001, ctxID)
 	firstWire.SetSourceID(1)
 	secondWire := wireu.NewWireUpdate(fromAS65002, ctxID)

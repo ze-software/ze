@@ -257,13 +257,6 @@ func TestRtxResponderReplaysCachedResponseOnlyForDuplicate(t *testing.T) {
 	if resp.State != StateEstablished {
 		t.Error("an out-of-window request ran the Delete")
 	}
-	// rfc-test-change-approved: 2026-07-31 owner standing approval for
-	// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only.
-	// An authenticated out-of-window request now draws an INVALID_MESSAGE_ID.
-	// RFC 7296 Section 2.3 raises that as a new REQUEST.
-	// The old rtxExpectSilence asserted more than the RFC does.
-	// The replacement still forbids every response.
-	// The cached response carries that flag, so no replay of it can pass either.
 	rtxExpectNoAcknowledgement(t, peerTr, myTr, remote, "out-of-window request")
 }
 
@@ -320,12 +313,6 @@ func TestRtxResponderIgnoresRequestWithForgottenResponse(t *testing.T) {
 	if resp.State != StateEstablished {
 		t.Error("the forgotten request ran its Delete payload")
 	}
-	// rfc-test-change-approved: 2026-07-31 owner standing approval for
-	// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only.
-	// The forgotten request is out of window, so it now draws an INVALID_MESSAGE_ID.
-	// RFC7296-2.1-6 claims it "draws no answer".
-	// The replacement asserts exactly that: no datagram marked as a response.
-	//
 	// This site is also why the helper cannot test the Message ID.
 	// The responder's own outbound counter still reads 2 here.
 	// That is the id of the forgotten peer request too (RFC 7296 Section 2.2).

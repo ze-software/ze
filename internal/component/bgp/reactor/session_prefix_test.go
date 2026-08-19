@@ -146,10 +146,6 @@ func TestPrefixExceedTeardown(t *testing.T) {
 // being crossed (internal/component/bgp/reactor/session_prefix.go:399-415).
 func TestPrefixExceedDrop(t *testing.T) {
 	ps := newTestPeerSettingsWithPrefix(3, 2)
-	// rfc-test-change-approved: 2026-08-03 -- Thomas approved. PrefixTeardown became
-	// map[string]bool so per-family policy stops being applied per peer; the test must
-	// now name the family it disables. Same meaning as `= false`, and the three
-	// assertions below, the polarity and the RFC4271-6.7-4 tag are all untouched.
 	ps.PrefixTeardown = map[string]bool{"ipv4/unicast": false}
 	s := NewSession(ps)
 

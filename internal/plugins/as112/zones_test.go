@@ -1,15 +1,3 @@
-// rfc-test-change-approved: 2026-08-12 Thomas ruled "fix any issues - the code
-// must be RFC compliant" on the two DNS response codes he was shown, naming
-// zones.go as one of the two producers: a name inside a served zone that does
-// not exist must answer NXDOMAIN rather than NODATA, and a name under no served
-// zone must answer REFUSED with AA clear rather than NXDOMAIN with AA set. RFC
-// 7534 does not conflict. Its Section 3.5 zone files (db.dd-empty, db.dr-empty,
-// db.hostname.as112.net, db.hostname.as112.arpa) put every record at @ and
-// nothing below it, and Section 3.5 asks for a "standards-compliant"
-// authoritative server, which answers RCODE 3 for a name below the apex of such
-// a zone. The assertions below therefore move to the apex, which is
-// where the records they are about live.
-
 package as112
 
 import (
@@ -94,14 +82,6 @@ func TestServedZones_CompleteList(t *testing.T) {
 // for a type the zone holds no record of, gets NOERROR, empty Answer, zone SOA
 // in Authority (RFC 1035 NODATA).
 //
-// rfc-test-change-approved: 2026-08-12 Thomas ruled "fix any issues - the code
-// must be RFC compliant" on the two response codes he was shown, one of them
-// being an in-zone name that does not exist answering NODATA where NXDOMAIN is
-// owed. 1.0.10.in-addr.arpa. is such a name, so this test moves its query to
-// the apex, where the SOA and NS of RFC 7534 Section 3.5's zone file
-// actually live. RFC7534-3.5-3 positive moves to
-// TestZoneAnswer_ResponseCodeByNamePosition, which asks for the same RFC 1918
-// reverse name and asserts the nameserver hosts no record for it.
 // RFC requirement: RFC7534-3.5-1 positive -- the AS112 nameserver answers authoritatively for a
 // zone delegated to it: a query at the apex of 10.in-addr.arpa. is answered from that zone
 // (NOERROR, the zone's own SOA in Authority).
@@ -135,9 +115,6 @@ func TestZoneAnswer_ReverseZoneNoData(t *testing.T) {
 // SOA in Authority. The zone holds its SOA and NS at the apex and nothing below
 // it (RFC 7534 Section 3.5's db.dr-empty), so a redirected name landing on the
 // node does not exist.
-//
-// rfc-test-change-approved: 2026-08-12 the same ruling. foo.empty.as112.arpa.
-// is a name inside a served zone that does not exist, so it answers NXDOMAIN.
 func TestZoneAnswer_EmptyAS112Arpa(t *testing.T) {
 	r := new(dns.Msg)
 	r.SetQuestion("foo.empty.as112.arpa.", dns.TypeA)
@@ -189,12 +166,6 @@ func TestZoneAnswer_HostnameTXTIncludesHostname(t *testing.T) {
 // VALIDATES: AC-5 -- a name outside every served zone is REFUSED, with AA
 // clear.
 //
-// rfc-test-change-approved: 2026-08-12 Thomas ruled "fix any issues - the code
-// must be RFC compliant" on the response code for a name in a zone Ze does not
-// serve: REFUSED with AA clear, not NXDOMAIN with AA set. The negative polarity
-// of RFC7534-3.5-1 gets stronger for it -- the reply now asserts no authority
-// over the name instead of asserting authority and denying the name exists.
-//
 // RFC requirement: RFC7534-3.5-1 negative -- authoritative answering is confined to the delegated
 // zones: for a name outside every served zone (example.com.) the nameserver answers no zone data
 // and makes no authority claim (REFUSED, AA clear), so it answers only for the zones delegated to
@@ -217,9 +188,6 @@ func TestZoneAnswer_OutOfZoneRefused(t *testing.T) {
 // match. A sibling name that merely ENDS WITH a served zone's characters
 // (e.g. "evil10.in-addr.arpa." ends with "10.in-addr.arpa.") is NOT inside
 // that zone and must get REFUSED with AA clear, never treated as in-bailiwick.
-//
-// rfc-test-change-approved: 2026-08-12 the same ruling. A sibling name is a name
-// under no served zone, so it takes the out-of-zone answer.
 func TestZoneAnswer_SiblingNameNotInZone_Refused(t *testing.T) {
 	handler := as112Handler(t)
 	cases := []string{
@@ -246,10 +214,6 @@ func TestZoneAnswer_SiblingNameNotInZone_Refused(t *testing.T) {
 // PREVENTS: the three answers collapsing into one. A test reading the RCODE
 // alone passes against a REFUSED reply that still claims authority, and a test
 // reading AA alone passes against an NXDOMAIN that denies a name Ze does serve.
-//
-// rfc-test-change-approved: 2026-08-12 a new test, written under the same
-// ruling. It carries RFC7534-3.5-3 positive, which moves here from
-// TestZoneAnswer_ReverseZoneNoData with the same RFC 1918 reverse name.
 func TestZoneAnswer_ResponseCodeByNamePosition(t *testing.T) {
 	handler := as112Handler(t)
 

@@ -722,9 +722,6 @@ func TestLoadTCSnapshotsRejectsCorruptAndVersion(t *testing.T) {
 func TestLoadTCSnapshotsAbsentStore(t *testing.T) {
 	statestore.SetStore(nil) // filesystem-fallback: no blob store registered
 
-	// test-relax: the old "empty path" and "missing file path" sub-cases are gone
-	// because loadTCSnapshots no longer takes a path; store availability is now a
-	// single process-wide fact (statestore.Store() == nil), covered by this case.
 	absent, err := loadTCSnapshots()
 	if err != nil {
 		t.Fatalf("absent store should not error: %v", err)
@@ -744,9 +741,6 @@ func TestSaveTCSnapshotsAbsentStoreIsNoOp(t *testing.T) {
 	if err != nil {
 		t.Fatalf("newInterfaceSnapshot: %v", err)
 	}
-	// test-relax: the old "empty path" and "missing file path" no-op sub-cases are
-	// gone because saveTCSnapshots no longer takes a path; the single no-store case
-	// covers best-effort no-op semantics.
 	if err := saveTCSnapshots(map[string]tcInterfaceSnapshot{"eth0": snap}); err != nil {
 		t.Errorf("save to absent store should be a no-op, got %v", err)
 	}

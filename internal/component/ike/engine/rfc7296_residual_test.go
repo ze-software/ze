@@ -1,8 +1,5 @@
 package engine
 
-// rfc-test-change-approved: 2026-07-31 owner standing approval for
-// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only. Adds the errors import
-// that the sentinel-identity assertion above needs; no assertion is relaxed.
 import (
 	"errors"
 	"testing"
@@ -55,13 +52,6 @@ func resAuthRequestPayloads(t *testing.T, mode ipsec.AuthMode) []wire.PayloadEnt
 // RFC requirement: RFC7296-2.4-14 positive -- mayBeReplicated (auth.go) reports false
 // for a device identity, so buildAuthRequest still emits INITIAL_CONTACT.
 func TestResInitialContactSentByNonReplicableIdentity(t *testing.T) {
-	// rfc-test-change-approved: 2026-07-31 owner standing approval for
-	// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only. The predicate is
-	// still asserted for BOTH device modes. Only the wire assertion narrowed to the
-	// pre-shared secret, because buildAuthRequest refuses an x509 peer that has no
-	// certificate configured ("ike auth: no certificate configured"), so the x509
-	// wire case asserted nothing at all before. The notify branch under test is the
-	// same code for both: it sits after the isEAP if-else and reads only the mode.
 	for _, mode := range []ipsec.AuthMode{ipsec.AuthPreSharedSecret, ipsec.AuthX509} {
 		t.Run(mode.String(), func(t *testing.T) {
 			if mayBeReplicated(ipsec.SiteToSitePeer{Auth: ipsec.AuthConfig{Mode: mode}}) {
@@ -158,11 +148,6 @@ func TestResExpiredSAIsNotUsed(t *testing.T) {
 			if !ini.lifetimeExpired(time.Now()) {
 				t.Fatal("an SA past its hard lifetime did not report itself expired")
 			}
-			// rfc-test-change-approved: 2026-07-31 owner standing approval for
-			// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only. The refusal is
-			// matched by sentinel identity through errors.Is instead of by comparing
-			// error text, so an unrelated error that happens to render the same string
-			// no longer satisfies this assertion.
 			_, err := buildEncryptedMessageEx(ini, payloads, 7, wire.ExchangeInformational, 0)
 			if err == nil {
 				t.Fatal("an expired SA protected a message; RFC 7296 Section 2.8 forbids using it")
@@ -199,9 +184,6 @@ func TestResRekeyLeadLeavesRoomBeforeHardExpiry(t *testing.T) {
 		{"a very short lifetime still leads", 2 * time.Second, time.Second},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			// rfc-test-change-approved: 2026-07-31 owner standing approval for
-			// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only. Loop form only;
-			// the same 32 jitter draws are still asserted.
 			for range 32 {
 				lead := rekeyLead(c.lifetime)
 				if lead < c.wantMin {
@@ -315,10 +297,6 @@ func TestResOtherRekeyFailuresDoNotReestablish(t *testing.T) {
 	}
 }
 
-// rfc-test-change-approved: 2026-07-31 owner standing approval for
-// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only. Adds two new tests
-// above the RFC7296-3.3.6-8 pair and changes none of it.
-
 // resRewriteKEGroup rewrites the Diffie-Hellman Group Num of the KE payload in an
 // unencrypted IKE_SA_INIT message, leaving every other field alone.
 func resRewriteKEGroup(t *testing.T, raw []byte, group uint16) []byte {
@@ -406,14 +384,11 @@ func TestResIKESANeverSelectsDHGroupNone(t *testing.T) {
 	}
 }
 
-// rfc-test-change-approved: 2026-07-31 owner standing approval for
-// docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md, strengthening only. The previous
-// RFC7296-3.3.6-8 positive asserted only which group NegotiateIKE picks, and
-// mutation testing showed it gated nothing: the pick is defended by three
-// independent refusals plus `chosen := *local`, so no single mutation could kill it,
-// and it never asserted the rule's actual consequent. It is replaced by a test of
-// that consequent -- KE ignored on input, omitted from the response -- on the Child
-// SA path, which is the one exchange where ze really does select NONE.
+// The RFC7296-3.3.6-8 positive asserts the rule's consequent, KE ignored on input
+// and omitted from the response, on the Child SA path, which is the one exchange
+// where ze really does select NONE. Asserting only which group NegotiateIKE picks
+// gated nothing: the pick is defended by three independent refusals plus
+// `chosen := *local`, so no single mutation could kill it.
 
 // VALIDATES: the consequent of the rule, on the one exchange where ze does select
 // the Diffie-Hellman group NONE. A Child SA rekey without PFS IS a selected NONE, and

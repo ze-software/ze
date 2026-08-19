@@ -351,9 +351,8 @@ func TestIntegrationMirrorRemoveKeepsTheQdiscOfAnotherSubsystem(t *testing.T) {
 		if err := b.RemoveMirror("msrc0"); err != nil {
 			t.Fatalf("RemoveMirror as the last user: %v", err)
 		}
-		// test-relax: this asserted the qdisc was gone once its last user left.
-		// AC-3 was relaxed on 2026-08-14 and the assertion is inverted rather
-		// than dropped, so a teardown that starts deleting again reds here.
+		// Teardown leaves the qdisc, so this asserts it is still there: a teardown that
+		// starts deleting again reds here.
 		if !mirrorTestHasQdisc(t, src) {
 			t.Error("the last user's teardown deleted a qdisc it may not have created")
 		}

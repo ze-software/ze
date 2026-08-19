@@ -326,10 +326,6 @@ func TestNegRekeyRejectsMismatchedKEGroup(t *testing.T) {
 	}
 }
 
-// rfc-test-change-approved: 2026-08-04 -- Thomas standing authorisation for
-// correctness-only test edits. This test carries NO RFC requirement tag, and the
-// absence is the decision.
-//
 // It was tagged RFC7296-1.3-2, which asks the RESPONDER to reject a mismatched group
 // and answer INVALID_KE_PAYLOAD. The test builds no message and emits no Notify, so it
 // could never prove that row. Row RFC7296-1.3-2 is proven by
@@ -434,10 +430,6 @@ func TestNegIKERekeyCollisionResolves(t *testing.T) {
 	}
 	ps.setPendingIKESwap(nil)
 
-	// rfc-test-change-approved: 2026-07-30 Thomas authorized correcting the RFC7296-2.8-1
-	// collision direction. RFC 7296 section 2.8.1 closes the LOWEST nonce, so the two
-	// orderings below swap which side sends the lower nonce. Every assertion is unchanged.
-	//
 	// Positive, first ordering. Our nonce is the higher one, so our exchange survives
 	// and the peer request is left alone. The peer runs the same comparison and
 	// abandons its own exchange.
@@ -459,9 +451,6 @@ func TestNegIKERekeyCollisionResolves(t *testing.T) {
 	}
 	rtxExpectSilence(t, peerTr, myTr, remote, "peer IKE rekey that lost the collision")
 
-	// rfc-test-change-approved: 2026-07-30 Thomas authorized correcting the RFC7296-2.8-1
-	// collision direction, so the peer nonce here is the higher one.
-	//
 	// Positive, second ordering. Our nonce is the lower one, so we abandon our
 	// exchange, free its window, and answer the peer. R-2 drives both orderings.
 	ps.pendingRekey = nil
@@ -503,10 +492,6 @@ func TestNegSurvivingSAInheritsChildren(t *testing.T) {
 		t.Fatal("the Child SA was not installed on the session before the rekey")
 	}
 
-	// rfc-test-change-approved: 2026-07-30 Thomas authorized correcting the RFC7296-2.8-1
-	// collision direction. The peer nonce is now the higher one, so the peer exchange is
-	// still the survivor. Every assertion is unchanged.
-	//
 	// Our rekey is in flight and the peer exchange wins, so the new IKE SA of the peer
 	// is the survivor.
 	negStartIKERekey(t, ini, ps, negNonce(0x80))

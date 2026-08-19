@@ -12,9 +12,9 @@
 # address is present AND the old one is gone. A daemon that merely survives the
 # reload does not pass -- the pre-fix daemon survived it and reported success.
 #
-# // test-relax: an earlier draft also declared a BGP check peer as a "liveness
-# half", on the reasoning that a peer present only in the RELOADED config cannot
-# be satisfied before the SIGHUP. That reasoning belongs to the BACKGROUND-trigger
+# This test declares NO BGP check peer as a "liveness half", and it must not. The
+# reasoning for one -- a peer present only in the RELOADED config cannot be
+# satisfied before the SIGHUP -- belongs to the BACKGROUND-trigger
 # shape, where the runner tears the daemon down as soon as the peer is satisfied
 # (the trap documented in tx-iface-tunnel-remove.ci). This test drives the
 # reload from a FOREGROUND driver, so the runner waits for the driver and there is

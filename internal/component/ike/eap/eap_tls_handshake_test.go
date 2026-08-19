@@ -26,11 +26,6 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 
-	// rfc-test-change-approved: 2026-07-22 Thomas asked that the code and the
-	// tests do what the RFC requires; "errors" is needed by the replacement
-	// TestEAPTLSPeerWithoutCARefusesToStart, which asserts the RFC5216-5.3-1
-	// refusal instead of the fail-open the old test pinned. No assertion in any
-	// other tagged test in this file is changed.
 	"errors"
 	"math/big"
 	"testing"
@@ -356,15 +351,6 @@ func TestEAPTLSAuthenticatorRequiresClientCert(t *testing.T) {
 // the peer's certificate chain and rejects a client certificate signed by an
 // untrusted CA: the handshake never reaches EAP-Success and the authenticator's
 // TLS handshake does not complete.
-// rfc-test-change-approved: 2026-07-22 Thomas asked that the code and the tests
-// do what the RFC requires. SETUP-ONLY change, no assertion touched: this test
-// used to give the peer no CA "so it does not reject the server first". Since
-// RFC 5216 Section 5.3 now makes the peer refuse to start without a trust anchor
-// (peer.go startTLSClient), that setup meant no ClientHello was ever sent, the
-// authenticator's handshake goroutine blocked forever, and the package hit its
-// timeout. The peer is now given the authenticator's own CA, which keeps the
-// peer from rejecting the server first exactly as intended while leaving the
-// CLIENT certificate untrusted -- which is what this test is about.
 func TestEAPTLSServerRejectsUntrustedClientChain(t *testing.T) {
 	pki := newEAPTLSPKI(t)
 	peer := NewPeerSessionTLS("rogue-client", &PeerTLSConfig{
@@ -417,16 +403,6 @@ func TestEAPTLSPeerRejectsUntrustedServerChain(t *testing.T) {
 	}
 }
 
-// rfc-test-change-approved: 2026-07-22 Thomas asked that the code and the tests
-// do what the RFC requires. This function replaces
-// TestEAPTLSPeerWithoutCASkipsServerValidation, which asserted the OPPOSITE of
-// the requirement it was tagged with: it pinned the peer completing a handshake
-// against an untrusted authenticator certificate when no trust anchor was
-// configured, locking in a violation of the RFC5216-5.3-1 MUST. Its `positive`
-// polarity was redundant -- TestEAPTLSMutualAuthHandshakeSucceeds already
-// carries RFC5216-5.3-1 positive with a peer that has a CA -- so the swap costs
-// no coverage and removes a test that guarded the wrong behavior.
-//
 // TestEAPTLSPeerWithoutCARefusesToStart asserts the RFC-required outcome: with
 // no trust anchor the peer cannot path-validate the authenticator, so it refuses
 // to start EAP-TLS rather than proceeding unauthenticated.
