@@ -381,6 +381,30 @@ func (r *CommandRegistry) Lookup(name string) *RegisteredCommand {
 	return r.resolveDeprecatedLocked(key)
 }
 
+// hasCommandPath reports whether lowerName is registered, under its own name or
+// under a deprecated alias that still resolves. lowerName must already be
+// lowercased by the caller, which registration keys always are.
+//
+// It answers the dispatch guard in matchBuiltinTokens, and it logs no
+// deprecation warning: the guard asks whether a path exists, and asking is not
+// invoking.
+func (r *CommandRegistry) hasCommandPath(lowerName string) bool {
+	if snap := r.frozen.Load(); snap != nil {
+		if snap.commands[lowerName] != nil {
+			return true
+		}
+		alias := snap.deprecated[lowerName]
+		return alias != nil && snap.commands[alias.NewLowerName] != nil
+	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	if r.commands[lowerName] != nil {
+		return true
+	}
+	alias := r.deprecated[lowerName]
+	return alias != nil && r.commands[alias.NewLowerName] != nil
+}
+
 // resolveDeprecatedFrozen checks the frozen deprecated map and returns the
 // canonical command. Logs a warning once per session per old name.
 func (r *CommandRegistry) resolveDeprecatedFrozen(snap *frozenCommands, oldKey string) *RegisteredCommand {

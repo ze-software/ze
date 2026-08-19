@@ -12,7 +12,11 @@ module ze-peer-cmd {
 
         container bgp {
             config false;
-            description "BGP peers, sessions, RIB, and protocol tools";
+            ze:command "ze-bgp:overview";
+            description "BGP peers, sessions, RIB, and protocol tools.
+Typed with no subcommand, shows one line per peer, the same answer
+'show bgp summary' gives. Optionally scope by address family: ipv4,
+ipv6, or l2vpn.";
 
             container summary {
                 config false;

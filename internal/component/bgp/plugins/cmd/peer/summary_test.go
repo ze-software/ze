@@ -11,6 +11,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/family"
 )
 
@@ -860,4 +861,60 @@ func TestBgpSummaryFamilyKeysAreSiblings(t *testing.T) {
 	assert.Equal(t, "ipv4/unicast", data["family"])
 	assert.Equal(t, 1, data["peers-in-family"])
 	assert.Equal(t, 2, data["peers-configured"], "peers-configured counts every peer, filter or not")
+}
+
+// TestBgpOverviewAnswersTheSummary verifies AC-1 and AC-6.
+//
+// VALIDATES: `show bgp` typed with no subcommand gives the summary, and a
+// leftover token that is not an address family is reported as the unknown
+// command it is.
+//
+// PREVENTS: the object command answering a family-validation error for a
+// subcommand nobody registered, which is the wrong diagnosis to hand an
+// operator who mistyped a subcommand.
+func TestBgpOverviewAnswersTheSummary(t *testing.T) {
+	reactor := &mockReactor{
+		peers: []plugin.PeerInfo{
+			{
+				Address:            netip.MustParseAddr("192.0.2.1"),
+				PeerAS:             65001,
+				State:              plugin.PeerStateEstablished,
+				NegotiatedFamilies: []family.Family{family.IPv4Unicast},
+			},
+		},
+		stats: plugin.ReactorStats{PeerCount: 1},
+	}
+
+	t.Run("bare", func(t *testing.T) {
+		resp, err := handleBgpOverview(newTestContext(reactor), nil)
+		require.NoError(t, err)
+		assert.Equal(t, plugin.StatusDone, resp.Status)
+
+		want, err := handleBgpSummary(newTestContext(reactor), nil)
+		require.NoError(t, err)
+		assert.Equal(t, want.Data, resp.Data, "the object command must give the summary")
+	})
+
+	t.Run("family argument", func(t *testing.T) {
+		resp, err := handleBgpOverview(newTestContext(reactor), []string{"ipv4"})
+		require.NoError(t, err)
+		assert.Equal(t, plugin.StatusDone, resp.Status, "a family still scopes the overview")
+	})
+
+	t.Run("an oversized token is bounded in the message", func(t *testing.T) {
+		resp, err := handleBgpOverview(newTestContext(reactor), []string{strings.Repeat("z", 4096)})
+		require.Error(t, err)
+		assert.ErrorIs(t, err, pluginserver.ErrUnknownCommand)
+		assert.Less(t, len(resp.Error), 128, "operator input must not reach the envelope unbounded")
+	})
+
+	t.Run("unregistered subcommand", func(t *testing.T) {
+		resp, err := handleBgpOverview(newTestContext(reactor), []string{"nonsense"})
+		require.Error(t, err)
+		assert.ErrorIs(t, err, pluginserver.ErrUnknownCommand)
+		assert.Equal(t, plugin.StatusError, resp.Status)
+		assert.Contains(t, resp.Error, "show bgp nonsense")
+		assert.Contains(t, resp.Error, "unknown command")
+		assert.NotContains(t, resp.Error, "invalid family", "an unregistered subcommand is not a family typo")
+	})
 }

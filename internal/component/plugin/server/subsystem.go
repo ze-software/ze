@@ -479,6 +479,44 @@ func (m *SubsystemManager) FindHandler(command string) *SubsystemHandler {
 	return findHandlerByCommand(m.handlers, command)
 }
 
+// hasCommandPath reports whether a subsystem declares path as one of its
+// commands. It answers the dispatch guard in matchBuiltinTokens.
+//
+// The comparison is exact, where FindHandler matches a prefix. A prefix answer
+// would make the guard refuse a parent command for a child nobody registered.
+func (m *SubsystemManager) hasCommandPath(path string) bool {
+	if snap := m.frozen.Load(); snap != nil {
+		return handlersDeclareCommand(snap.handlers, path)
+	}
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return handlersDeclareCommand(m.handlers, path)
+}
+
+// handlersDeclareCommand reports whether any handler declares path exactly.
+func handlersDeclareCommand(handlers map[string]*SubsystemHandler, path string) bool {
+	for _, handler := range handlers {
+		if handler.declaresCommand(path) {
+			return true
+		}
+	}
+	return false
+}
+
+// declaresCommand reports whether this subsystem declares command exactly.
+// It reads the slice under the lock instead of copying it through Commands().
+// The dispatch guard asks this on every command that leaves tokens over.
+func (h *SubsystemHandler) declaresCommand(command string) bool {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	for _, cmd := range h.commands {
+		if strings.EqualFold(cmd, command) {
+			return true
+		}
+	}
+	return false
+}
+
 // findHandlerByCommand performs command prefix match on a handler map.
 func findHandlerByCommand(handlers map[string]*SubsystemHandler, command string) *SubsystemHandler {
 	lowerCmd := strings.ToLower(command)

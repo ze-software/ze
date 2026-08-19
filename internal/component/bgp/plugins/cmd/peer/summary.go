@@ -30,6 +30,7 @@ var (
 func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:summary", Handler: handleBgpSummary},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:overview", Handler: handleBgpOverview},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-capabilities", Handler: handleBgpPeerCapabilities},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-statistics", Handler: handleBgpPeerStatistics},
 	)
@@ -157,6 +158,46 @@ const maxFamilyArgLen = 32
 // hyphen. Blocks shell meta, whitespace, and control chars from
 // reaching the rejection message.
 var familyArgRE = regexp.MustCompile(`^[a-z0-9/_-]+$`)
+
+// handleBgpOverview answers `show bgp`, the object typed with no subcommand.
+// It gives the summary, which is what every sibling object command gives:
+// `show ospf`, `show vrrp` and `show l2tp` each answer with an overview.
+//
+// A leftover token here is the address family the summary accepts, or a
+// subcommand nobody registered. The dispatcher has already refused every path
+// that IS registered below `show bgp` (matchBuiltinTokens in
+// internal/component/plugin/server/command.go). So a token that names no family
+// names no command either, and it is reported as the unknown command it is.
+//
+// The family test is a registry lookup, not validateFamilyArg. That guard bounds
+// the length and the charset of the string, and "nonsense" passes it.
+func handleBgpOverview(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	if len(args) > 0 && !isFamilyArg(args[0]) {
+		// The token lands in the response envelope, so it is bounded here.
+		// validateFamilyArg bounds its own for the same reason: it is operator
+		// input of any length. %q escapes whatever charset survives the clamp.
+		token := args[0]
+		if len(token) > maxFamilyArgLen {
+			token = token[:maxFamilyArgLen]
+		}
+		var path textbuf.Buffer
+		path.Str("show bgp ").Str(token)
+		err := fmt.Errorf("%q names no subcommand and no address family: %w",
+			path.String(), pluginserver.ErrUnknownCommand)
+		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, err
+	}
+	return handleBgpSummary(ctx, args)
+}
+
+// isFamilyArg reports whether in names a registered address family, in the full
+// afi/safi form or in one of the shorthands expandFamilyShorthand accepts.
+func isFamilyArg(in string) bool {
+	if validateFamilyArg(in) != nil {
+		return false
+	}
+	_, ok := family.LookupFamily(expandFamilyShorthand(strings.ToLower(in)))
+	return ok
+}
 
 // handleBgpSummary returns a BGP summary table with per-peer
 // statistics. Similar to FRR's "show bgp summary" — aggregate totals

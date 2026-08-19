@@ -1,0 +1,137 @@
+# Test: `show bgp` typed with no subcommand answers the summary.
+#
+# VALIDATES: spec-cli-dispatch-child-guard AC-1 and AC-6. `container bgp` carries
+#            ze:command "ze-bgp:overview", so the object command answers the same
+#            data `show bgp summary` gives. A token that names no address family
+#            and no registered subcommand comes back as an unknown command.
+# PREVENTS:  the operator who types the object with no verb getting an
+#            unknown-command error, and the operator who mistypes a subcommand
+#            being told the token is an invalid address family.
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+tmpfs=bare-show-bgp.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Assert `show bgp` gives the summary and rejects an unregistered subcommand."""
+import json
+import sys
+
+from ze_api import API
+
+
+def dispatch(api, command):
+    try:
+        resp = api._call_engine(
+            'ze-plugin-engine:dispatch-command', {'command': command})
+    except RuntimeError as exc:
+        # A command registered nowhere is an RPC-level error, which is the same
+        # answer Dispatch gives for any unknown command.
+        return {'status': 'error', 'data': str(exc)}
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+
+def payload(result):
+    data = result.get('data', {})
+    if isinstance(data, str):
+        data = json.loads(data)
+    return data
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    api.wait_for_post_startup(timeout=5.0)
+
+    try:
+        bare = dispatch(api, 'show bgp')
+        if bare.get('status') != 'done':
+            print(f'FAIL: show bgp status={bare.get("status")} data={bare.get("data")}', file=sys.stderr)
+            sys.exit(1)
+
+        summary = dispatch(api, 'show bgp summary')
+        if summary.get('status') != 'done':
+            print(f'FAIL: show bgp summary status={summary.get("status")}', file=sys.stderr)
+            sys.exit(1)
+
+        bare_data, summary_data = payload(bare), payload(summary)
+        if 'peers-configured' not in bare_data:
+            print(f'FAIL: show bgp is not the summary: {sorted(bare_data)}', file=sys.stderr)
+            sys.exit(1)
+        if sorted(bare_data) != sorted(summary_data):
+            print(f'FAIL: show bgp and show bgp summary differ: {sorted(bare_data)} vs {sorted(summary_data)}', file=sys.stderr)
+            sys.exit(1)
+
+        unknown = dispatch(api, 'show bgp nonsense')
+        if unknown.get('status') != 'error':
+            print(f'FAIL: show bgp nonsense status={unknown.get("status")} want error', file=sys.stderr)
+            sys.exit(1)
+        message = str(unknown.get('data', ''))
+        if 'unknown command' not in message or 'show bgp nonsense' not in message:
+            print(f'FAIL: show bgp nonsense must report an unknown command; got {message!r}', file=sys.stderr)
+            sys.exit(1)
+        if 'invalid family' in message or 'afi/safi' in message:
+            print(f'FAIL: an unregistered subcommand is not a family typo; got {message!r}', file=sys.stderr)
+            sys.exit(1)
+
+        print(f'OK: show bgp answers the summary for {bare_data["peers-configured"]} peer(s)', file=sys.stderr)
+    finally:
+        dispatch(api, 'request shutdown')
+        api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external bare-show-bgp {
+		run ./bare-show-bgp.run
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0

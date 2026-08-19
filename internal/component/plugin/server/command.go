@@ -571,6 +571,22 @@ func (d *Dispatcher) updateSortedKeys() {
 	})
 }
 
+// matchBuiltinTokens finds the longest registered builtin whose key prefixes
+// tokens, and returns it with the tokens it did not consume as arguments.
+//
+// THE MATCH IS REFUSED WHEN THE TOKENS REACH A REGISTERED COMMAND FURTHER DOWN.
+// Longest-prefix alone hands a command registered at a SHORT path the whole
+// subtree below it. That subtree includes paths another owner registered as
+// commands of their own. `show bgp` is a builtin key. `show bgp rpki status` is
+// a plugin name that only the fallback below reaches. So an unguarded match
+// sends the rpki subtree to handleBgpSummary, which reads its first argument as
+// an address FAMILY. LookupLocal (internal/component/command/registry/registry.go)
+// applies the same rule to the client-side lookup, and this is its daemon twin.
+//
+// A command still keeps every trailing token that names no registered command,
+// which is how `show bgp summary ipv4` reaches its handler with the family. The
+// test is a registered PATH, never the presence of leftover tokens: leftovers
+// are how every argument-taking command works.
 func (d *Dispatcher) matchBuiltinTokens(tokens []string) (*Command, []string, map[string]string, bool) {
 	for _, key := range d.sortedKeys {
 		cmd := d.commands[key]
@@ -578,11 +594,60 @@ func (d *Dispatcher) matchBuiltinTokens(tokens []string) (*Command, []string, ma
 			continue
 		}
 		args, selectors, ok := matchCommandTokens(tokens, key, cmd.ArgDefs)
-		if ok {
-			return cmd, args, selectors, true
+		if !ok {
+			continue
 		}
+		if d.longerCommandPath(tokens, len(tokens)-len(args)) {
+			return nil, nil, nil, false
+		}
+		return cmd, args, selectors, true
 	}
 	return nil, nil, nil, false
+}
+
+// longerCommandPath reports whether a prefix of tokens longer than consumed is
+// itself a registered command path. consumed is how many input tokens the
+// builtin match claimed, so the walk starts one token past it.
+//
+// The walk stops at the first hit, and it does no work at all for the common
+// case where the match consumed every token.
+func (d *Dispatcher) longerCommandPath(tokens []string, consumed int) bool {
+	if consumed >= len(tokens) {
+		return false
+	}
+	var tb textbuf.Buffer
+	for i := range consumed {
+		if i > 0 {
+			tb.Byte(' ')
+		}
+		tb.Str(strings.ToLower(tokens[i]))
+	}
+	for i := consumed; i < len(tokens); i++ {
+		tb.Byte(' ').Str(strings.ToLower(tokens[i]))
+		if d.isCommandPath(tb.Bytes()) {
+			return true
+		}
+	}
+	return false
+}
+
+// isCommandPath reports whether lowerPath names a registered command exactly,
+// in any of the three places Dispatch resolves a command from. The four
+// `show bgp` subtrees this guard protects are PLUGIN names, so a guard reading
+// the builtin keys alone would see none of them.
+//
+// lowerPath must already be lowercased by the caller.
+//
+// A nil registry or subsystem manager is not missing data. NewDispatcher builds
+// both, so nil means no command of that kind can be registered here.
+func (d *Dispatcher) isCommandPath(lowerPath []byte) bool {
+	if d.commands[string(lowerPath)] != nil {
+		return true
+	}
+	if d.registry != nil && d.registry.hasCommandPath(string(lowerPath)) {
+		return true
+	}
+	return d.subsystems != nil && d.subsystems.hasCommandPath(string(lowerPath))
 }
 
 func matchCommandTokens(tokens []string, key string, defs []command.ArgDef) ([]string, map[string]string, bool) {

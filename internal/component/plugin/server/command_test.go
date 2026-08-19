@@ -15,6 +15,7 @@ import (
 	"github.com/ze-software/ze/internal/component/authz"
 	"github.com/ze-software/ze/internal/component/bgp/transaction"
 	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/component/plugin/process"
@@ -1810,4 +1811,340 @@ func TestDispatchTerminalNounSelectorBoundaries(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "*", gotPeer, "no RequiresSelector means no trailing-positional adoption")
 	})
+}
+
+// noopHandler answers every dispatch-guard test that only cares about routing.
+func noopHandler(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	return &plugin.Response{Status: plugin.StatusDone}, nil
+}
+
+// TestMatchBuiltinRefusesWhenLongerPathMatches verifies the longer-path rule
+// that matchBuiltinTokens applies before it serves a match.
+//
+// VALIDATES: longerCommandPath sees a registered path past the tokens the
+// parent claimed, and stops seeing one once the parent claimed them all.
+//
+// PREVENTS: a command registered at a short path swallowing a child another
+// owner registered, which is how `show bgp rpki status` would reach
+// handleBgpSummary and be rejected as an address family.
+//
+// A builtin child always sorts ahead of its parent, because its key is the
+// parent key plus a suffix and updateSortedKeys orders by length. The rule is
+// therefore exercised here at the guard, and end to end against plugin names in
+// TestShowBgpDoesNotSwallowPluginSubcommands.
+func TestMatchBuiltinRefusesWhenLongerPathMatches(t *testing.T) {
+	d := NewDispatcher()
+	d.Register("show demo", noopHandler, "Demo")
+	d.Register("show demo detail", noopHandler, "Demo detail")
+
+	tokens := []string{"show", "demo", "detail"}
+	assert.True(t, d.longerCommandPath(tokens, 2), "the child path must be visible past the parent match")
+	assert.False(t, d.longerCommandPath(tokens, 3), "an exhausted input leaves no longer path to find")
+
+	upper := []string{"SHOW", "DEMO", "DETAIL"}
+	assert.True(t, d.longerCommandPath(upper, 2), "registration keys are lowercase, so the walk must lower its tokens")
+}
+
+// TestMatchBuiltinServesWhenNoLongerPathMatches verifies the guard refuses
+// nothing when the tokens reach no registered command past the match.
+//
+// VALIDATES: an ordinary command still resolves, with and without a sibling
+// registered elsewhere in the tree.
+//
+// PREVENTS: R-1, a guard eager enough to break every command on the dispatch
+// path it sits on.
+func TestMatchBuiltinServesWhenNoLongerPathMatches(t *testing.T) {
+	d := NewDispatcher()
+	d.Register("show demo", noopHandler, "Demo")
+	d.Register("show other detail", noopHandler, "Other detail")
+
+	cmd, args, _, ok := d.matchBuiltinTokens([]string{"show", "demo"})
+	require.True(t, ok, "an exact match must be served")
+	require.NotNil(t, cmd)
+	assert.Equal(t, "show demo", cmd.Name)
+	assert.Empty(t, args)
+
+	cmd, args, _, ok = d.matchBuiltinTokens([]string{"show", "other", "detail"})
+	require.True(t, ok, "a longer key that matches must be served by the walk itself")
+	require.NotNil(t, cmd)
+	assert.Equal(t, "show other detail", cmd.Name)
+	assert.Empty(t, args)
+}
+
+// TestMatchBuiltinKeepsArgumentsForLeftoverValues verifies AC-4.
+//
+// VALIDATES: leftover tokens that name no registered command still reach the
+// handler as arguments.
+//
+// PREVENTS: the naive rule the spec rejects, refusing any match that leaves
+// tokens over. Leftovers are how every argument-taking command works, so that
+// rule would break `show bgp summary ipv4`.
+func TestMatchBuiltinKeepsArgumentsForLeftoverValues(t *testing.T) {
+	d := NewDispatcher()
+	d.Register("show demo summary", noopHandler, "Demo summary")
+
+	cmd, args, _, ok := d.matchBuiltinTokens([]string{"show", "demo", "summary", "ipv4"})
+	require.True(t, ok, "a value argument must not be read as a command path")
+	require.NotNil(t, cmd)
+	assert.Equal(t, "show demo summary", cmd.Name)
+	assert.Equal(t, []string{"ipv4"}, args)
+
+	cmd, args, _, ok = d.matchBuiltinTokens([]string{"show", "demo", "summary", "ipv4", "unicast"})
+	require.True(t, ok, "two value arguments must not be read as a command path")
+	require.NotNil(t, cmd)
+	assert.Equal(t, []string{"ipv4", "unicast"}, args)
+}
+
+// TestShowBgpDoesNotSwallowPluginSubcommands verifies AC-2 and assumption A-1.
+//
+// VALIDATES: the guard sees PLUGIN-registered names, so a builtin `show bgp`
+// refuses the match for each of the four plugin subtrees and the plugin
+// fallback in Dispatch answers instead.
+//
+// PREVENTS: R-2. A guard reading d.commands alone passes every builtin test and
+// still sends `show bgp rpki status` to handleBgpSummary, which rejects "rpki"
+// as an address family.
+func TestShowBgpDoesNotSwallowPluginSubcommands(t *testing.T) {
+	d := NewDispatcher()
+	d.Register("show bgp", noopHandler, "BGP overview")
+	d.Register("show bgp summary", noopHandler, "BGP summary")
+
+	proc := process.NewProcess(plugin.PluginConfig{Name: "bgp-subtrees"})
+	results := d.Registry().Register(proc, []CommandDef{
+		{Name: "show bgp rpki status"},
+		{Name: "show bgp rpki roa"},
+		{Name: "show bgp rs status"},
+		{Name: "show bgp rs peers"},
+		{Name: "show bgp adj-rib-in"},
+		{Name: "show bgp adj-rib-in status"},
+		{Name: "show bgp healthcheck"},
+	})
+	for _, result := range results {
+		require.True(t, result.OK, "%s: %s", result.Name, result.Error)
+	}
+
+	plugins := []string{
+		"show bgp rpki status",
+		"show bgp rs peers",
+		"show bgp adj-rib-in",
+		"show bgp healthcheck",
+		"show bgp rpki roa 10.0.0.0/24",
+	}
+	for _, input := range plugins {
+		t.Run(input, func(t *testing.T) {
+			_, _, _, ok := d.matchBuiltinTokens(strings.Fields(input))
+			assert.False(t, ok, "the builtin parent must refuse a path the plugin registry owns")
+
+			_, err := d.Dispatch(nil, input)
+			require.Error(t, err, "the plugin process is not running in this test")
+			assert.ErrorIs(t, err, ErrPluginProcessNotRunning,
+				"the command must reach the plugin route, not the builtin handler")
+		})
+	}
+
+	cmd, args, _, ok := d.matchBuiltinTokens([]string{"show", "bgp"})
+	require.True(t, ok, "the bare parent must still resolve")
+	assert.Equal(t, "show bgp", cmd.Name)
+	assert.Empty(t, args)
+
+	cmd, args, _, ok = d.matchBuiltinTokens([]string{"show", "bgp", "summary", "ipv4"})
+	require.True(t, ok, "a family argument must still reach the summary handler")
+	assert.Equal(t, "show bgp summary", cmd.Name)
+	assert.Equal(t, []string{"ipv4"}, args)
+}
+
+// TestGuardSeesSubsystemCommands verifies the third registry the guard reads.
+//
+// VALIDATES: a subsystem command below a builtin parent refuses the parent
+// match, and a subsystem command that only shares a prefix does not.
+//
+// PREVENTS: a forked subsystem's command being swallowed by a parent container
+// the way the plugin subtrees were.
+func TestGuardSeesSubsystemCommands(t *testing.T) {
+	d := NewDispatcher()
+	d.Register("show demo", noopHandler, "Demo")
+
+	manager := NewSubsystemManager()
+	manager.handlers["forked"] = &SubsystemHandler{commands: []string{"show demo trace"}}
+
+	assert.False(t, d.longerCommandPath([]string{"show", "demo", "trace"}, 2),
+		"an empty subsystem manager declares no command below the parent")
+
+	d.setSubsystems(manager)
+	assert.True(t, d.longerCommandPath([]string{"show", "demo", "trace"}, 2),
+		"a subsystem command below the parent must refuse the parent match")
+	assert.False(t, d.longerCommandPath([]string{"show", "demo", "tracer"}, 2),
+		"the subsystem comparison is exact, never a prefix")
+}
+
+// TestShowBgpSummaryStillResolvesToItsOwnHandler verifies AC-1, AC-3, AC-4 and
+// AC-5 against the real YANG command tree.
+//
+// VALIDATES: assumption A-3. `container bgp` now carries a ze:command and still
+// has children, the shape `show ospf` already had, and every path under it
+// resolves to the command registered at that path.
+//
+// PREVENTS: the parent command stealing `show bgp summary`, and the guard
+// refusing a parent whose leftover token is a value.
+func TestShowBgpSummaryStillResolvesToItsOwnHandler(t *testing.T) {
+	loader, err := yang.DefaultLoader()
+	require.NoError(t, err, "load YANG")
+
+	wireToPaths := yang.WireMethodToPaths(loader)
+	assert.Contains(t, wireToPaths["ze-bgp:overview"], "show bgp", "the container command must produce the bare path")
+	assert.Contains(t, wireToPaths["ze-bgp:summary"], "show bgp summary")
+
+	d := NewDispatcher()
+	loadBuiltinsWithAliases(d, wireToPaths, yang.PathToDescription(loader),
+		yang.PathToArgDefs(loader), yang.BuildCommandTree(loader))
+
+	cases := []struct {
+		input string
+		key   string
+		args  []string
+	}{
+		{input: "show bgp", key: "show bgp"},
+		{input: "show bgp summary", key: "show bgp summary"},
+		{input: "show bgp summary ipv4", key: "show bgp summary", args: []string{"ipv4"}},
+		{input: "show bgp peer list", key: "show bgp peer list"},
+		{input: "show ospf", key: "show ospf"},
+		{input: "show ospf instance", key: "show ospf instance"},
+		{input: "show system ntp", key: "show system ntp"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.input, func(t *testing.T) {
+			cmd, args, _, ok := d.matchBuiltinTokens(strings.Fields(tc.input))
+			require.True(t, ok, "must resolve to a builtin")
+			require.NotNil(t, cmd)
+			assert.Equal(t, tc.key, cmd.Name, "must resolve to the command registered at its own path")
+			if len(tc.args) == 0 {
+				assert.Empty(t, args)
+				return
+			}
+			assert.Equal(t, tc.args, args)
+		})
+	}
+}
+
+// unguardedMatch repeats the longest-prefix walk matchBuiltinTokens performs,
+// with the longer-path guard left out. It is the control the AC-7 sweep
+// compares against. A guard that changed an answer it must not change is then
+// visible as a difference rather than as an absence.
+func unguardedMatch(d *Dispatcher, tokens []string) (*Command, []string) {
+	for _, key := range d.sortedKeys {
+		cmd := d.commands[key]
+		if cmd == nil {
+			continue
+		}
+		args, _, ok := matchCommandTokens(tokens, key, cmd.ArgDefs)
+		if ok {
+			return cmd, args
+		}
+	}
+	return nil, nil
+}
+
+// TestNoArgTakingKeyIsAPrefixOfAnotherPath verifies AC-7 and assumption A-2 over
+// every dispatcher key the real YANG tree produces.
+//
+// Nine argument-taking keys ARE strict prefixes of a longer path, `show route`
+// and `show route lookup` among them. The collision is handled rather than
+// absent. The guard tests for a registered PATH. So a value typed where the
+// longer path expects a keyword resolves exactly as it did before the guard.
+//
+// VALIDATES: for every such key, the guarded match and the unguarded match agree
+// once the leftover token names no command.
+//
+// PREVENTS: R-3, a parent elsewhere in the tree that already relies on keeping a
+// value the guard CAN mistake for a child command.
+func TestNoArgTakingKeyIsAPrefixOfAnotherPath(t *testing.T) {
+	loader, err := yang.DefaultLoader()
+	require.NoError(t, err, "load YANG")
+
+	pathToArgDefs := yang.PathToArgDefs(loader)
+	d := NewDispatcher()
+	loadBuiltinsWithAliases(d, yang.WireMethodToPaths(loader), yang.PathToDescription(loader),
+		pathToArgDefs, yang.BuildCommandTree(loader))
+
+	keys := make([]string, 0, len(d.commands))
+	for key := range d.commands {
+		keys = append(keys, key)
+	}
+	require.Greater(t, len(keys), 100, "the builtin surface must be loaded, or this test proves nothing")
+
+	// A token no YANG container can be named, standing for the value an operator
+	// types where an argument-taking key meets a longer registered path.
+	const value = "zz-not-a-command"
+
+	collisions := 0
+	for _, key := range keys {
+		if len(pathToArgDefs[key]) == 0 {
+			continue
+		}
+		for _, other := range keys {
+			if !strings.HasPrefix(other, key+" ") {
+				continue
+			}
+			collisions++
+			tokens := append(strings.Fields(key), value) //nolint:gocritic // a fresh slice per case is the point
+			assert.False(t, d.longerCommandPath(tokens, len(strings.Fields(key))),
+				"%q: a value must not be read as a step toward %q", key, other)
+
+			wantCmd, wantArgs := unguardedMatch(d, tokens)
+			gotCmd, gotArgs, _, ok := d.matchBuiltinTokens(tokens)
+			if wantCmd == nil {
+				assert.False(t, ok, "%q: the guard must not invent a match", key)
+				continue
+			}
+			require.True(t, ok, "%q: the guard refused a match the walk alone serves", key)
+			assert.Same(t, wantCmd, gotCmd, "%q: the guard must not change which command answers", key)
+			assert.Equal(t, wantArgs, gotArgs, "%q: the guard must not change the arguments", key)
+		}
+	}
+	assert.Positive(t, collisions, "the sweep found no collision, so it proved nothing")
+}
+
+// BenchmarkMatchBuiltinTokens measures assumption A-4, the guard's cost on the
+// dispatch path, over the real builtin key set.
+//
+// The exact-match case pays nothing: the guard returns before its first
+// comparison. The leftover-token case walks one path per spare token.
+func BenchmarkMatchBuiltinTokens(b *testing.B) {
+	loader, err := yang.DefaultLoader()
+	require.NoError(b, err, "load YANG")
+
+	d := NewDispatcher()
+	loadBuiltinsWithAliases(d, yang.WireMethodToPaths(loader), yang.PathToDescription(loader),
+		yang.PathToArgDefs(loader), yang.BuildCommandTree(loader))
+
+	inputs := map[string][]string{
+		"exact":    {"show", "bgp", "summary"},
+		"one-arg":  {"show", "bgp", "summary", "ipv4"},
+		"two-args": {"show", "bgp", "summary", "ipv4", "unicast"},
+	}
+	for name, tokens := range inputs {
+		b.Run(name, func(b *testing.B) {
+			b.ReportAllocs()
+			for range b.N {
+				if _, _, _, ok := d.matchBuiltinTokens(tokens); !ok {
+					b.Fatal("no match")
+				}
+			}
+		})
+	}
+
+	// The guard alone, which is the cost this change adds. The whole-match
+	// numbers above cannot isolate it. sortedKeys ties resolve in map order, so
+	// how many keys the walk tries before its match varies between processes.
+	for name, tokens := range inputs {
+		b.Run("guard/"+name, func(b *testing.B) {
+			consumed := 3
+			b.ReportAllocs()
+			for range b.N {
+				if d.longerCommandPath(tokens, consumed) {
+					b.Fatal("no longer path exists for these tokens")
+				}
+			}
+		})
+	}
 }
