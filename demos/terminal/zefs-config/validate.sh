@@ -44,4 +44,26 @@ assert_contains "$(ze config cat ze.conf)" "default table"
 # are shown in the recording, so both are checked here.
 assert_not_contains "$(ze cli -c 'show bgp summary | text' 2>&1)" "┌"
 assert_contains "$(ze cli -c 'show bgp summary | raw' 2>&1)" '"router-id"'
+
+# The recording also shows display, fill and the peers alias, so each is checked
+# here. display NAMES the fields, so a field it did not name must be absent.
+#
+# The named fields are the top-level aggregates on purpose. selectRecord keeps a
+# record's named fields and returns the record WHOLE when it names none, so a
+# name that exists at two depths decides which record is selected. `uptime` is
+# both an aggregate and a peer-row field, and naming it here would select the
+# aggregate record and drop the peers array with it.
+displayed=$(ze cli -c 'show bgp summary | display router-id local-as peers-established' 2>&1)
+assert_contains "${displayed}" "router-id"
+assert_contains "${displayed}" "peers-established"
+assert_not_contains "${displayed}" "peers-configured"
+
+# fill brings the fields display did not name back, which is the half display
+# alone drops.
+assert_contains "$(ze cli -c 'show bgp summary | display router-id | fill overall' 2>&1)" "peers-configured"
+
+# The peers alias answers the rows without the aggregates beside them.
+peers_only=$(ze cli -c 'show bgp summary | peers' 2>&1)
+assert_contains "${peers_only}" "address"
+assert_not_contains "${peers_only}" "peers-established"
 finish_validation zefs-config

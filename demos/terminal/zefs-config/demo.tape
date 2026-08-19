@@ -82,6 +82,25 @@ Wait+Screen /router-id/
 Sleep 7s
 Type "clear"
 Enter
+# The operator names the fields they want, in the order they want them.
+Type "ze cli -c 'show bgp summary | display router-id local-as peers-established'"
+Enter
+Wait+Screen /router-id/
+Sleep 7s
+# fill brings the fields display did not name back, widest column last.
+Type "ze cli -c 'show bgp summary | display router-id | fill overall'"
+Enter
+Wait+Screen /router-id/
+Sleep 7s
+Type "clear"
+Enter
+# peers is an alias: a name for a pipe expression, so the rows come back alone.
+Type "ze cli -c 'show bgp summary | peers'"
+Enter
+Wait+Screen /address/
+Sleep 7s
+Type "clear"
+Enter
 Type "ze cli -c 'show bgp summary | raw' | head -14"
 Enter
 # head truncates above router-id, and the typed line carries only single
