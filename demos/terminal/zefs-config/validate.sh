@@ -31,6 +31,17 @@ after=$(ze cli -c 'show bgp summary' 2>&1)
 assert_contains "${output}" "default table"
 assert_contains "${output}" "Session committed"
 assert_contains "${output}" "router-id"
-assert_contains "${after}" "summary:"
+# The committed default now decides the answer. This used to read `summary:`,
+# a YAML key, which passed before and after the commit because `ze cli -c`
+# answered YAML whatever was configured -- the assertion pinned the defect it
+# was meant to catch. The box-drawing rule is the table, and line 18 asserts
+# its absence before the commit, so the pair proves the setting took effect.
+assert_contains "${after}" "┌"
 assert_contains "$(ze config cat ze.conf)" "default table"
+
+# An operator's own format operator outranks the committed default, and `raw`
+# answers the dispatcher JSON that `ze pipe` formats on the shell side. Both
+# are shown in the recording, so both are checked here.
+assert_not_contains "$(ze cli -c 'show bgp summary | text' 2>&1)" "┌"
+assert_contains "$(ze cli -c 'show bgp summary | raw' 2>&1)" '"router-id"'
 finish_validation zefs-config

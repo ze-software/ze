@@ -33,7 +33,7 @@ assert_contains "${configured}" '127.0.0.1:4343'
 
 status=
 for _ in {1..100}; do
-    status=$(ze cli -c 'show bgp irr | no-more' 2>&1 || true)
+    status=$(ze cli -c 'show bgp irr | no-more | yaml' 2>&1 || true)
     if [[ "${status}" == *'status: ok'* ]]; then
         break
     fi
@@ -42,22 +42,22 @@ done
 assert_contains "${status}" 'AS-TEST'
 assert_contains "${status}" 'ipv4-count: 3'
 assert_contains "${status}" 'status: ok'
-prefixes=$(ze cli -c 'show bgp irr prefix customer-a | no-more')
+prefixes=$(ze cli -c 'show bgp irr prefix customer-a | no-more | yaml')
 assert_contains "${prefixes}" '10.0.0.0/24'
 assert_contains "${prefixes}" '2001:db8::/32'
 
-allowed=$(ze cli -c 'show bgp irr check customer-a 10.0.0.0/24 | no-more')
+allowed=$(ze cli -c 'show bgp irr check customer-a 10.0.0.0/24 | no-more | yaml')
 assert_contains "${allowed}" 'accepted: true'
 assert_contains "${allowed}" 'matched-entry: 10.0.0.0/24'
 
-rejected=$(ze cli -c 'show bgp irr check customer-a 192.168.0.0/24 | no-more')
+rejected=$(ze cli -c 'show bgp irr check customer-a 192.168.0.0/24 | no-more | yaml')
 assert_contains "${rejected}" 'accepted: false'
 
 "${run}" announce >/dev/null
 
 routes=
 for _ in {1..100}; do
-    routes=$(ze cli -c 'show bgp adj-rib-in | no-more' 2>&1 || true)
+    routes=$(ze cli -c 'show bgp adj-rib-in | no-more | yaml' 2>&1 || true)
     if [[ "${routes}" == *'10.0.0.0/24'* ]]; then
         break
     fi

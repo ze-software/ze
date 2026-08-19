@@ -119,7 +119,11 @@ start() {
     local status deadline
     deadline=$((SECONDS + 5))
     while ((SECONDS < deadline)); do
-        status=$(ze cli -c 'show bgp rpki status | no-more' 2>/dev/null || true)
+        # `| yaml` is asked for, not assumed: the match below reads `key: value`,
+        # which is the yaml rendering. A bare command answers whatever
+        # `environment cli format default` says, and its registered default is
+        # text, whose rows carry no colon.
+        status=$(ze cli -c 'show bgp rpki status | yaml' 2>/dev/null || true)
         if [[ "${status}" == *"vrp-count-ipv4: ${expected_vrp_ipv4}"* ]]; then
             return 0
         fi

@@ -76,6 +76,20 @@ Type "ze cli -c 'show bgp summary'"
 Enter
 Wait+Screen /router-id/
 Sleep 7s
+Type "ze cli -c 'show bgp summary | text'"
+Enter
+Wait+Screen /router-id/
+Sleep 7s
+Type "clear"
+Enter
+Type "ze cli -c 'show bgp summary | raw'"
+Enter
+Wait+Screen /router-id/
+Sleep 8s
+Type "ze cli -c 'show bgp summary | raw' | ze pipe text"
+Enter
+Wait+Screen /router-id/
+Sleep 7s
 
 Hide
 Type "/src/demos/terminal/zefs-config/run.sh stop"

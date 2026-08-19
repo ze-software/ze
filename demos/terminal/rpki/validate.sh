@@ -26,7 +26,7 @@ ze init <"${ZE_INIT_INPUT}" >/dev/null
 # the loop stays as a cheap confirmation rather than a wait.
 status=
 for _ in {1..100}; do
-    status=$(ze cli -c 'show bgp rpki status | no-more' 2>&1 || true)
+    status=$(ze cli -c 'show bgp rpki status | yaml' 2>&1 || true)
     if [[ "${status}" == *"vrp-count-ipv4: ${expected_vrp_ipv4}"* ]]; then
         break
     fi
@@ -37,7 +37,7 @@ assert_contains "${status}" "vrp-count-ipv4: ${expected_vrp_ipv4}"
 
 routes=
 for _ in {1..100}; do
-    routes=$(ze cli -c 'show bgp adj-rib-in | no-more' 2>&1 || true)
+    routes=$(ze cli -c 'show bgp adj-rib-in | no-more | yaml' 2>&1 || true)
     if [[ "${routes}" == *'9.43.0.0/24'* && "${routes}" == *'11.43.0.0/24'* && "${routes}" != *'10.43.0.0/24'* ]]; then
         break
     fi
