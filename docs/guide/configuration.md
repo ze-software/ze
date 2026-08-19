@@ -657,6 +657,35 @@ family {
 Use `ze --plugins` to see available families from registered plugins.
 <!-- source: internal/component/bgp/plugins/nlri/ -- NLRI plugin Families registration -->
 
+### A Peer That Declares No Family
+
+The `family { }` block can be omitted. The session then negotiates
+ipv4/unicast, which RFC 4271 carries with no capability at all. The OPEN
+message carries no Multiprotocol capability in that case. That OPEN is correct,
+and a peer daemon that follows RFC 4271 reads it as IPv4 unicast.
+
+Ze sends the End-of-RIB marker for ipv4/unicast once it completes the initial
+routing update, as RFC 4724 Section 4 requires.
+
+A loaded plugin changes what Ze advertises. When the config declares no family,
+Ze advertises every family the loaded plugins can decode, and the session
+negotiates those.
+
+Declare the block for any other family. The block replaces the implicit family,
+so it must name IPv4 unicast too when the peer carries it:
+
+```
+peer transit-a {
+    family {
+        ipv4/unicast { prefix { maximum 1000000; } }
+        ipv6/unicast { prefix { maximum 200000; } }
+    }
+}
+```
+<!-- source: internal/core/bgp/capability/negotiated.go -- Negotiate treats a side with no Multiprotocol capability as advertising ipv4/unicast -->
+<!-- source: internal/component/bgp/reactor/session_negotiate.go -- buildOpen, plugin decode families when the config declares none -->
+<!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- sendInitialRoutes, one End-of-RIB marker per negotiated family -->
+
 ### Prefix Limits
 
 Every family must have a prefix maximum. Ze refuses to start without one.
@@ -1597,6 +1626,13 @@ pre-existing kernel devices. Created kinds (dummy, veth, bridge, tunnels, wiregu
 xfrm) are made by Ze under their logical name, so `os-name` is ignored on them and the
 logical name is always the kernel device name.
 
+The config apply path follows the selector too. Addresses, MTU, the MAC override,
+offloads, per-interface sysctl settings, admin state and mirrors are all applied to the
+kernel device the selector names, and a VLAN unit is created on it. A VLAN device is
+therefore named after the KERNEL device: `unit 100` on the `uplink` entry above makes
+`eth0.100`, because the kernel composes the sub-interface name from its parent.
+
+<!-- source: internal/component/iface/config_apply.go -- bindDevices, deviceFor, unitOSName -->
 <!-- source: internal/component/iface/resolve.go -- Resolve, Addresses, osDeviceFor -->
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- leaf os-name -->
 
@@ -1620,11 +1656,28 @@ The resolver scans every interface and binds `uplink` to the one carrying that M
 matches the device's **permanent (factory) address** (`IFLA_PERM_ADDRESS`) when the NIC
 reports one, so the binding **survives an operational MAC override** (`mac { address }`) on
 the very same interface; for virtual devices that report no permanent address it matches
-the current address instead. When no device carries the MAC the binding **defers** until
-the device appears (the resolver fires a link event then). `mac/match` **takes precedence
-over `os-name`** and, like `os-name`, applies to **ethernet** only.
+the current address instead. A device is a candidate only when the address it is matched
+on is its **own**: a VLAN sub-interface inherits its parent's address, and a bridge or a
+bond wears the address of a port it holds, so neither is ever a candidate. Without those
+two exclusions, putting the selected port in a bridge, or adding a VLAN on it, made the
+port's own selector ambiguous. `mac/match` **takes precedence over `os-name`** and, like
+`os-name`, applies to **ethernet** only.
 
+#### What happens when a selector does not name one device
+
+| The selector names | Ze does |
+|--------------------|---------|
+| Exactly one device | Binds to it. Every setting on the entry is applied to that device |
+| No device | **Defers** the binding. The commit succeeds, the entry is left unconfigured, and a warning names it. Nothing is applied to a device that merely shares the entry's logical name |
+| More than one device | **Refuses the commit**, naming the entry and the candidates. Nothing distinguishes them, so binding to one would be a guess about which physical port the entry's addresses reach |
+
+`ze doctor` reports the same two conditions before you start the daemon:
+`doctor-iface-selector-unmatched` is a warning, `doctor-iface-selector-ambiguous` is an
+error.
+
+<!-- source: internal/component/iface/config_apply.go -- bindDevices, validateSelectors, devicesWithMAC -->
 <!-- source: internal/component/iface/resolve.go -- matchByMAC, deviceMatchMAC -->
+<!-- source: internal/component/doctor/checks_linux.go -- checkInterfaces, selectedNetDevice -->
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- leaf match (container mac) -->
 
 ### MAC Address Binding
@@ -1779,6 +1832,17 @@ vendor. That distance is not a Linux metric, and ze does not read it: 254 is the
 metric ze writes to the kernel.
 The `pppoe-client` list carries its own `route-priority` leaf with the same default,
 which ranks the route a PPPoE session installs when IPCP completes.
+
+A carrier transition reaches the route metric through a queue that keeps one
+entry per interface, so the metric always follows the state the link ENDED in. A
+config commit stops and starts DHCP clients under the same lock the queue's
+worker takes, so a link that flaps during a commit produces more transitions
+than the worker can consume while the commit runs. The intermediate transitions
+are superseded and counted in `ze_iface_link_events_coalesced_total`; the final
+one is always applied. `ze_iface_carrier_resyncs_total` counts the interfaces
+whose metric ze had to move because the recorded metric contradicted the live
+carrier, which is what repairs a route left at neither metric by a failed
+install.
 
 The metric decides ownership, not only preference. ze installs a learned default
 route with `RTM_NEWROUTE` in replace mode, and the kernel matches such a route on

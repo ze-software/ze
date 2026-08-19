@@ -134,6 +134,21 @@ IPv4/IPv6 unicast and multicast are built into the engine. Other families
 automatically when you configure the corresponding family.
 <!-- source: internal/component/bgp/plugins/nlri/ -- NLRI plugin registrations with Families field -->
 
+### A Peer That Declares No Family
+
+The block can be omitted. Such a peer advertises no Multiprotocol capability,
+and RFC 4271 carries IPv4 unicast in the UPDATE message itself, so the session
+exchanges IPv4 unicast. Ze negotiates that one family for it and sends the
+End-of-RIB marker RFC 4724 Section 4 requires for it. The same rule applies to
+the peer: a peer that advertises no Multiprotocol capability is read as
+supporting IPv4 unicast.
+
+A plugin fills the same gap. When the config declares no family, Ze advertises
+the families the loaded plugins can decode. Config families win: a peer with a
+`family` block ignores the plugin families.
+<!-- source: internal/core/bgp/capability/negotiated.go -- Negotiate treats a side with no Multiprotocol capability as advertising ipv4/unicast -->
+<!-- source: internal/component/bgp/reactor/session_negotiate.go -- buildOpen falls back to the plugin decode families -->
+
 ### Prefix Limits
 
 The `prefix { }` block of one family holds the limit and what happens when the
@@ -477,7 +492,7 @@ included. A member that restates the block replaces the group's list for
 itself. `show event delivery` prints the resulting edges.
 <!-- source: internal/core/bgp/events/events.go -- event and send type names -->
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- container attach -->
-<!-- source: internal/component/bgp/reactor/peersettings.go -- ProcessBinding -->
+<!-- source: internal/component/bgp/reactor/peer_settings.go -- ProcessBinding -->
 
 ## Configuration Database
 

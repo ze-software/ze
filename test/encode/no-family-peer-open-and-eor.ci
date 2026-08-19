@@ -1,0 +1,61 @@
+# A peer block with no `family` section: the OPEN and the End-of-RIB, as hex.
+#
+# VALIDATES: RFC 4724 Section 4 -- "The End-of-RIB marker MUST be sent by a BGP
+#            speaker to its peer once it completes the initial routing update
+#            (including the case when there is no update to send) for an address
+#            family after the BGP session is established". This peer declares no
+#            family, so it advertises no Multiprotocol capability, and ze-peer
+#            mirrors the OPEN it receives and advertises none either. RFC 4271
+#            carries IPv4 unicast without a capability, so the session exchanges
+#            it and the marker is owed for it.
+# PREVENTS:  the silent skip. Before the fix in capability.Negotiate, both sides
+#            contributed the empty set to the family intersection, the End-of-RIB
+#            loop in sendInitialRoutes never ran, and nothing logged or counted
+#            the absence: the peer waited forever for a barrier that never came.
+#
+# The OPEN assertion is the other half, and it is what AC-2 turns on: the fix is
+# in the NEGOTIATION, not in the OPEN builder, so ze still advertises no
+# Multiprotocol capability here. A fix that synthesized one would change these
+# bytes for every peer configured this way.
+#
+# seq=1, the OPEN, field by field: 16 marker octets, length 0x0025 = 37, type 01 =
+# OPEN, version 04, My AS 0xFDE8 = 65000, Hold Time 0x005A = 90, BGP Identifier
+# 01020304 = 1.2.3.4, Optional Parameters Length 0x08, then one type-2 parameter
+# of 6 bytes carrying ASN4 alone (code 0x41, length 04, AS 0x0000FDE8). No
+# capability code 01. 19+10+8 = 37.
+#
+# seq=2, the marker: an UPDATE message with the minimum length (RFC 4724 Section
+# 2) -- length 0x0017 = 23, type 02, withdrawn-routes-length 0x0000,
+# path-attribute-length 0x0000.
+
+stdin=peer:terminator=EOF_PEER
+option=open:value=inspect-open-message
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00250104FDE8005A0102030408020641040000FDE8
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 1.2.3.4
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s

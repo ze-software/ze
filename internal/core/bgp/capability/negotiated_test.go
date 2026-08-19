@@ -152,16 +152,25 @@ func TestNegotiatedFamilies(t *testing.T) {
 
 // TestNegotiateEmpty verifies negotiation with no capabilities.
 //
-// VALIDATES: Edge case - minimal BGP session.
+// VALIDATES: Edge case - minimal BGP session. Neither side declares a
+// capability, so nothing boolean is negotiated, and the one family RFC 4271
+// carries without a capability is.
 //
 // PREVENTS: Panic on empty capability lists.
+//
+// This test asserted an empty family list until 2026-08-17. That assertion
+// encoded the defect fixed in Negotiate: a session where neither side declares a
+// Multiprotocol capability exchanges IPv4 unicast under RFC 4271 and is owed an
+// End-of-RIB marker for it under RFC 4724 Section 4. The expectation was
+// corrected, not relaxed: the family set is still pinned exactly.
 func TestNegotiateEmpty(t *testing.T) {
 	t.Parallel()
 	neg := Negotiate(nil, nil, 65001, 65002)
 
 	assert.False(t, neg.ASN4)
 	assert.False(t, neg.ExtendedMessage)
-	assert.Len(t, neg.Families(), 0)
+	assert.Len(t, neg.Families(), 1)
+	assert.True(t, neg.SupportsFamily(Family{AFI: AFIIPv4, SAFI: SAFIUnicast}))
 }
 
 // TestNegotiateMismatches verifies capability mismatch detection.
@@ -691,4 +700,115 @@ func TestNegotiatePathsLimitPartialAddPath(t *testing.T) {
 	// IPv6 has NO ADD-PATH: limits excluded
 	assert.Equal(t, uint16(0), neg.Encoding.PathsLimitSend[ipv6])
 	assert.Equal(t, uint16(0), neg.Encoding.PathsLimitRecv[ipv6])
+}
+
+// TestNegotiateImplicitIPv4UnicastWhenNoMultiprotocol pins the whole truth table of
+// the implicit IPv4-unicast family: a side that advertises NO Multiprotocol
+// capability is treated as advertising ipv4/unicast, on both sides, before the
+// intersection.
+//
+// RFC 4271 needs no capability for IPv4 unicast -- the UPDATE message carries
+// Withdrawn Routes and NLRI natively -- so a speaker that advertises no
+// Multiprotocol capability still exchanges ipv4/unicast. Intersecting only what
+// RFC 4760 Section 8 declares left such a side contributing the empty set, and
+// every consumer of the negotiated family list then read the session as carrying
+// no family at all.
+//
+// VALIDATES: the per-side default in Negotiate, for all four advertise
+// combinations, plus the case where the default finds no partner.
+// PREVENTS: the regression this fix exists to remove -- an empty negotiated family
+// set for a session that really does exchange IPv4 unicast, which silently skips
+// the End-of-RIB marker RFC 4724 Section 4 requires.
+func TestNegotiateImplicitIPv4UnicastWhenNoMultiprotocol(t *testing.T) {
+	t.Parallel()
+
+	v4 := Family{AFI: AFIIPv4, SAFI: SAFIUnicast}
+	v6 := Family{AFI: AFIIPv6, SAFI: SAFIUnicast}
+
+	mp := func(fams ...Family) []Capability {
+		caps := make([]Capability, 0, len(fams))
+		for _, f := range fams {
+			caps = append(caps, &Multiprotocol{AFI: f.AFI, SAFI: f.SAFI})
+		}
+		return caps
+	}
+
+	tests := []struct {
+		name   string
+		local  []Capability
+		remote []Capability
+		want   []Family
+	}{
+		{
+			name:   "neither side advertises a family",
+			local:  nil,
+			remote: nil,
+			want:   []Family{v4},
+		},
+		{
+			name:   "local silent, remote advertises ipv4 and ipv6",
+			local:  nil,
+			remote: mp(v4, v6),
+			want:   []Family{v4},
+		},
+		{
+			name:   "local advertises ipv4 and ipv6, remote silent",
+			local:  mp(v4, v6),
+			remote: nil,
+			want:   []Family{v4},
+		},
+		{
+			name:   "local advertises ipv6 only, remote silent: no common family",
+			local:  mp(v6),
+			remote: nil,
+			want:   nil,
+		},
+		{
+			name:   "both sides advertise: intersection is unchanged",
+			local:  mp(v4, v6),
+			remote: mp(v6),
+			want:   []Family{v6},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			neg := Negotiate(tt.local, tt.remote, 65001, 65002)
+
+			assert.Len(t, neg.Families(), len(tt.want),
+				"negotiated family count for local=%v remote=%v", tt.local, tt.remote)
+			for _, f := range tt.want {
+				assert.True(t, neg.SupportsFamily(f), "%s must be negotiated", f)
+			}
+			// A side that advertised nothing must not gain any family beyond
+			// ipv4/unicast: the implicit family is one family, not a wildcard.
+			if len(tt.want) == 0 {
+				assert.False(t, neg.SupportsFamily(v4), "no common family means no ipv4/unicast either")
+			}
+		})
+	}
+}
+
+// TestNegotiateSilentPeerSatisfiesRequiredIPv4Unicast pins the consequence for
+// CheckRequired: a peer that advertises no Multiprotocol capability is a
+// conformant RFC 4271 speaker that exchanges IPv4 unicast, so a local
+// `capability { family { require ipv4/unicast } }` is satisfied by it.
+//
+// VALIDATES: CheckRequired reads the negotiated set, which now carries the
+// implicit family.
+// PREVENTS: ze refusing a conformant peer for not declaring a capability RFC 4271
+// never asked it to declare.
+func TestNegotiateSilentPeerSatisfiesRequiredIPv4Unicast(t *testing.T) {
+	t.Parallel()
+
+	v4 := Family{AFI: AFIIPv4, SAFI: SAFIUnicast}
+	local := []Capability{&Multiprotocol{AFI: AFIIPv4, SAFI: SAFIUnicast}}
+
+	neg := Negotiate(local, nil, 65001, 65002)
+
+	assert.Empty(t, neg.CheckRequired([]Family{v4}),
+		"a silent peer supports ipv4/unicast, so requiring it must not report it missing")
+	assert.NotEmpty(t, neg.CheckRequired([]Family{{AFI: AFIIPv6, SAFI: SAFIUnicast}}),
+		"the implicit family is ipv4/unicast alone: requiring ipv6/unicast must still fail")
 }

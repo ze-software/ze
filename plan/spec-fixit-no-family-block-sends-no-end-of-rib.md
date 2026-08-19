@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | - |
+| Phase | 5/5 (documentation written) |
 | Deferral shard | - |
-| Updated | 2026-08-16 |
+| Updated | 2026-08-19 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -64,6 +64,65 @@ when full conformance and full proof of it are reachable, that IS the answer and
 Thomas is not asked to pick a narrower one. The ask is owed only if this spec
 concludes something less than full conformance is right, and then it asks which
 way to fix it.
+
+## RFC Reading — SETTLED 2026-08-17 (answer: Default)
+
+RFC 4724 Section 4, quoted verbatim from `rfc/full/rfc4724.txt`:
+
+> The End-of-RIB marker MUST be sent by a BGP speaker to its peer once it
+> completes the initial routing update (including the case when there is no
+> update to send) for an address family after the BGP session is established.
+
+Section 2 adds that for the IPv4 unicast address family the marker is "an UPDATE
+message with the minimum length", so the marker is defined for that family
+whether or not a Multiprotocol capability carried it.
+
+RFC 4271 needs no capability for IPv4 unicast: the UPDATE message itself carries
+Withdrawn Routes and NLRI natively, so a session that negotiates no
+Multiprotocol capability still exchanges IPv4 unicast. A-1 is confirmed by the
+seven `redistribution-*.ci` fixtures, which exchanged routes in exactly this
+state. So IPv4 unicast IS "an address family" for the clause above, and the
+marker is owed.
+
+**Refuse is refused by the RFC**: a peer that advertises no Multiprotocol
+capability is valid RFC 4271, so a validator rejecting it would make Ze reject a
+conformant configuration. **Warn is less than the MUST.** **Default is the only
+answer the text supports**, and full conformance plus full proof is reachable, so
+no owner question is owed (`ai/rules/rfc-compliance.md`).
+
+### Where the fix lands, and why it is ONE site
+
+Read 2026-08-17: `Negotiate` (`internal/core/bgp/capability/negotiated.go`)
+builds `localFamilies` and `remoteFamilies` from Multiprotocol capabilities only,
+then intersects them (`:229`). A side that advertised no Multiprotocol capability
+therefore contributes the EMPTY set instead of its implicit IPv4 unicast. That is
+the single producer behind both symptoms, because `NewNegotiatedCapabilities`
+(`internal/component/bgp/reactor/negotiated.go`) copies `neg.Families()` verbatim
+and `sendInitialRoutes` iterates the copy.
+
+**Fix: in `Negotiate`, a side that advertises NO Multiprotocol capability is
+treated as advertising `ipv4/unicast`, on both sides, before the intersection.**
+
+→ Decision: the fix goes in `Negotiate`, NOT in `buildOpen`. Adding a synthetic
+Multiprotocol capability to the OPEN would change bytes Ze puts on the wire for
+every such peer, which AC-2 exists to prevent and which the RFC does not ask for.
+The implicit family is a fact about what was NEGOTIATED, so it belongs in the
+producer that answers that question.
+
+→ Decision: applying the rule to BOTH sides also closes a wider interop hole
+found while reading. Today a peer that sends no capabilities at all (valid RFC
+4271) intersects to the empty set even when Ze's config declares
+`ipv4/unicast`, so Ze negotiates no family with it. FRR and BIRD both treat a
+silent peer as supporting IPv4 unicast. The per-side rule fixes that case with
+the same ten lines and needs no second spec.
+
+| Local advertises | Remote advertises | Negotiated after the fix |
+|------------------|-------------------|--------------------------|
+| nothing | nothing | `ipv4/unicast` |
+| nothing | `{ipv4/unicast, ipv6/unicast}` | `ipv4/unicast` |
+| `{ipv4/unicast, ipv6/unicast}` | nothing | `ipv4/unicast` |
+| `{ipv6/unicast}` | nothing | empty (correct: no common family) |
+| any non-empty | any non-empty | unchanged, byte for byte |
 
 ## Required Reading
 
@@ -154,9 +213,9 @@ way to fix it.
 ### Assumptions
 | ID | Assumption | Basis | If wrong | Validation | Status |
 |----|-----------|-------|----------|------------|--------|
-| A-1 | Routes really are exchanged in this state, so only the barrier is missing | the fixtures exchanged routes before the `family` block was added | the defect is larger than the marker | run a two-peer fixture with no family block and check the peer's RIB | unvalidated |
-| A-2 | No operator config in `demos/` or `docs/` omits the family block | unchecked | published examples are affected and must move with the fix | grep the corpus for peer blocks with no `family` | unvalidated |
-| A-3 | The implicit family is representable in `NegotiatedCapabilities` | not read yet | Default costs more than one site | read the producer of `Families()` | unvalidated |
+| A-1 | Routes really are exchanged in this state, so only the barrier is missing | the fixtures exchanged routes before the `family` block was added | the defect is larger than the marker | run a two-peer fixture with no family block and check the peer's RIB | confirmed -- `test/interop/scenarios/no-family-peer-eor-frr` ran against FRR 10.3.1 with the fix REMOVED: FRR installed 10.10.0.0/24 from ze and logged no End-of-RIB. Routes flowed, only the marker was missing |
+| A-2 | No operator config in `demos/` or `docs/` omits the family block | unchecked | published examples are affected and must move with the fix | grep the corpus for peer blocks with no `family` | broken -- 106 peer blocks under `docs/` and `demos/` declare no family (`demos/terminal/config-graph/router.conf`, `docs/config-reference.md`, `docs/DESIGN.md` among them). Under Default none must move: each one gains the marker it was already owed. This count is also why Refuse was refused, which R-2 predicted |
+| A-3 | The implicit family is representable in `NegotiatedCapabilities` | not read yet | Default costs more than one site | read the producer of `Families()` | confirmed -- `NewNegotiatedCapabilities` (`internal/component/bgp/reactor/negotiated.go`) copies `neg.Families()` verbatim, so the implicit family reaches it with no edit at that layer |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation |
@@ -200,21 +259,24 @@ peers. Interop scenarios and the functional suite's EoR barrier both observe it.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `buildOpen` with no config and no plugin families | `internal/component/bgp/reactor/session_negotiate_test.go` | AC-1 | |
-| `buildOpen` with config families | same | AC-2 | |
-| `buildOpen` with plugin families only | same | AC-3 | |
+| `TestBuildOpenNoFamilyNegotiatesImplicitIPv4Unicast` | `internal/component/bgp/reactor/session_negotiate_test.go` | AC-1 | green; red with the fix removed |
+| `TestBuildOpenConfigFamiliesUnchanged` | same | AC-2 | green; red when the default is applied unconditionally |
+| `TestBuildOpenPluginFamiliesUnchanged` | same | AC-3 | green; red when the default is applied unconditionally |
+| `TestNegotiateImplicitIPv4UnicastWhenNoMultiprotocol` (the five-row truth table) | `internal/core/bgp/capability/negotiated_test.go` | AC-1, AC-2 | green; three rows red with the fix removed, two rows red when it is unconditional |
+| `TestNegotiateSilentPeerSatisfiesRequiredIPv4Unicast` | same | AC-1 | green; red with the fix removed |
+| `TestInitialSyncEORSentWhenNeitherSideDeclaredAFamily` (`RFC requirement: RFC4724-4-1 positive`) | `internal/component/bgp/reactor/peer_initial_sync_test.go` | AC-1, AC-5, AC-6 | green; red with the fix removed |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `no-family-peer-open-and-eor.ci` | `test/encode/` | a peer block with no `family` section: the OPEN and the End-of-RIB are asserted as hex on the wire | |
-| `no-family-peer-refused.ci` | `test/parse/` | if the answer is Refuse, the config is rejected with a message naming the missing family | |
-| `no-family-peer-graceful-restart.ci` | `test/plugin/` | graceful restart with such a peer reaches whatever RFC 4724 requires | |
+| `no-family-peer-open-and-eor.ci` | `test/encode/` | a peer block with no `family` section: the OPEN and the End-of-RIB are asserted as hex on the wire | green in `make ze-functional-encode-test` (57/57). With the fix removed the peer logs the identical OPEN and then nothing, and the fixture times out |
+| `no-family-peer-refused.ci` | `test/parse/` | if the answer is Refuse, the config is rejected with a message naming the missing family | not written: the RFC reading refused Refuse, so this row has no subject |
+| `no-family-peer-graceful-restart.ci` | `test/plugin/` | graceful restart with such a peer reaches whatever RFC 4724 requires | not written: the RFC 4724 Section 4 marker is the requirement, and `TestInitialSyncEORSentWhenNeitherSideDeclaredAFamily` plus the FRR scenario prove it through the producing function and against a peer. Ze's health EOR timer now arms for such a peer too, because `startEORTimer` returns early on a zero family count |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Peer daemon | Assertion | Status |
 |----------|-------------|-----------|--------|
-| no-family peer | FRR or BIRD | the peer's neighbor output agrees with the chosen behavior | |
+| `no-family-peer-eor-frr` | FRR 10.3.1 | session establishes, FRR installs ze's route, FRR reports the IPv4-unicast capability as advertised by itself and not received from ze, and FRR's own decode log carries the End-of-RIB marker | PASS. Fails with the fix removed: same route, no marker |
 
 ## Files to Modify
 

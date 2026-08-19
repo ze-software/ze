@@ -108,7 +108,9 @@ type Negotiated struct {
 // the intersection of capabilities advertised in the OPEN messages.
 //
 // For each capability type:
-//   - RFC 4760: Multiprotocol - use intersection of address families
+//   - RFC 4760: Multiprotocol - use intersection of address families. A side that
+//     advertises none is treated as advertising ipv4/unicast, which RFC 4271
+//     carries with no capability at all (see the comment at the intersection)
 //   - RFC 6793: ASN4 - enabled if both peers advertise
 //   - RFC 7911: ADD-PATH - complex mode negotiation per family
 //   - RFC 8654: Extended Message - enabled if both peers advertise
@@ -222,6 +224,29 @@ func Negotiate(local, remote []Capability, localASN, peerASN uint32) *Negotiated
 			LocalSupported: localERR,
 			PeerSupported:  remoteERR,
 		})
+	}
+
+	// RFC 4271 Section 4.3: the UPDATE message carries Withdrawn Routes and NLRI
+	// natively, so IPv4 unicast needs no capability. A speaker that advertises no
+	// Multiprotocol capability still exchanges it, and RFC 4760 Section 8 says
+	// nothing to the contrary: it governs what the capability declares, not what
+	// the base protocol already carries.
+	//
+	// So a side that advertised NO Multiprotocol capability is treated as having
+	// advertised ipv4/unicast, on both sides, before the intersection below.
+	// Without this, such a side contributes the empty set, the session negotiates
+	// no family at all, and every consumer of the negotiated list acts on that:
+	// sendInitialRoutes sends no End-of-RIB marker, which RFC 4724 Section 4
+	// requires for each address family once the initial routing update completes.
+	//
+	// The default is one family, never a wildcard: a side advertising only
+	// ipv6/unicast against a silent side still intersects to nothing, which is the
+	// correct answer because the two have no family in common.
+	if len(localFamilies) == 0 {
+		localFamilies[Family{AFI: AFIIPv4, SAFI: SAFIUnicast}] = true
+	}
+	if len(remoteFamilies) == 0 {
+		remoteFamilies[Family{AFI: AFIIPv4, SAFI: SAFIUnicast}] = true
 	}
 
 	// RFC 4760 Section 8: Multiprotocol capability negotiation
@@ -410,6 +435,9 @@ func (n *Negotiated) buildSubComponents() {
 
 // SupportsFamily returns true if the given family was negotiated.
 // RFC 4760 Section 8: A family is supported only if both peers advertise it.
+// A side that advertises no Multiprotocol capability counts as advertising
+// ipv4/unicast, because RFC 4271 carries that family with no capability
+// (Negotiate).
 func (n *Negotiated) SupportsFamily(f Family) bool {
 	return n.families[f]
 }
@@ -429,7 +457,9 @@ func (n *Negotiated) ExtendedNextHopAFI(f Family) AFI {
 }
 
 // Families returns a slice of all negotiated families.
-// RFC 4760: Returns the intersection of local and remote multiprotocol capabilities.
+// RFC 4760: Returns the intersection of local and remote multiprotocol
+// capabilities, where a side that advertised none counts as having advertised
+// ipv4/unicast (Negotiate).
 func (n *Negotiated) Families() []Family {
 	if n.familySlice == nil {
 		n.familySlice = make([]Family, 0, len(n.families))
