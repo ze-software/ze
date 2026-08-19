@@ -335,3 +335,229 @@ peers. Interop scenarios and the functional suite's EoR barrier both observe it.
 
 - The seven `test/plugin/redistribution-*.ci` fixtures already carry an explicit
   `family` block. They are correct either way and this spec does not revert them.
+- `startEORTimer` (`internal/component/bgp/reactor/session_health.go`) returns
+  early on a zero family count, so a GR-negotiated peer with no `family` block used
+  to arm no End-of-RIB timer at all. It now arms one, and such a peer can raise an
+  `eor-timeout` warning where it was silent before. That is correct and new: the
+  peer owes Ze the same RFC 4724 Section 4 marker.
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+
+`Negotiate` (`internal/core/bgp/capability/negotiated.go`) now substitutes
+`ipv4/unicast` for an EMPTY per-side family set, on each side independently,
+immediately before the RFC 4760 Section 8 intersection. Both `localFamilies` and
+`remoteFamilies` are built with `make`, so the substitution writes into an
+allocated map and cannot panic. Ten lines at one site.
+
+Three comments were corrected to describe the new answer: the `Negotiate` doc
+comment, `SupportsFamily` and `Families`.
+
+The OPEN builder was NOT touched. `buildOpen`
+(`internal/component/bgp/reactor/session_negotiate.go`) still advertises no
+Multiprotocol capability for such a peer, which is what AC-2 exists to protect
+and what the FRR scenario asserts from the peer's side.
+
+### Bugs Found/Fixed
+
+- The defect itself: a side that advertised no Multiprotocol capability
+  contributed the empty set, so `nc.Families()` was empty and the family loop in
+  `sendInitialRoutes` (`internal/component/bgp/reactor/peer_initial_sync.go`)
+  never ran. Covered by `TestInitialSyncEORSentWhenNeitherSideDeclaredAFamily`
+  (`RFC requirement: RFC4724-4-1 positive`) and
+  `test/encode/no-family-peer-open-and-eor.ci`.
+- A wider interop hole closed by the same ten lines: a peer that sends no
+  capabilities at all is valid RFC 4271, and Ze used to negotiate no family with
+  it even when Ze's own config declared `ipv4/unicast`. Covered by the truth-table
+  row "local advertises ipv4 and ipv6, remote silent".
+- `TestNegotiateEmpty` asserted an empty family list and so pinned the defect. The
+  expectation was CORRECTED, not relaxed: it now pins a length of one plus
+  `SupportsFamily(ipv4/unicast)`, so the family set is still pinned exactly.
+  `scripts/dev/audit-test-relaxation.py` reports nothing on that file.
+
+### Documentation Updates
+
+- `docs/config-reference.md` -- new subsection "A Peer That Declares No Family",
+  with anchors on `negotiated.go` and `session_negotiate.go`.
+- `docs/guide/configuration.md` -- the same subsection for the operator guide,
+  with a third anchor on `peer_initial_sync.go`.
+- `docs/architecture/wire/capabilities.md` -- added by this closure. Its
+  "Capability Negotiation / Rules" list stated the rule as pure intersection,
+  which is stale for the address-family half after this change. A second rule now
+  names the implicit family, and two source anchors were added.
+- `docs/features/rfc-status.md` -- added by this closure. The RFC 4724 row's
+  Implemented coverage now states that the End-of-RIB send covers a session where
+  neither speaker advertised a Multiprotocol capability, naming both producers and
+  the FRR scenario. The Remaining cell and its spelled gap count are untouched, so
+  `check_gap_count_agreement` still agrees.
+- `make ze-doc-verify`: one red, and it is not this spec's. A source anchor in
+  `docs/architecture/api/process-protocol.md` names `runHub` in
+  `cmd/ze/hub/main.go`, where no such function is declared. That file is modified
+  and uncommitted in this shared checkout, and `cmd/ze/hub/` carries two modified
+  test files and one untracked one, so another session is mid-edit there. Neither
+  closure commit carries either path.
+
+### Deviations from Plan
+
+- The `Files to Modify` list named `buildOpen` and `sendInitialRoutes` as the
+  candidate sites. The RFC reading moved the fix to `Negotiate`, one layer down,
+  which is one site instead of two and leaves the OPEN bytes untouched.
+- Two rows of the TDD plan have no subject and were not written:
+  `test/parse/no-family-peer-refused.ci` (the reading refused Refuse) and
+  `test/plugin/no-family-peer-graceful-restart.ci` (RFC 4724 Section 4's marker IS
+  the graceful-restart requirement, and the tagged unit test plus the FRR scenario
+  prove it through the producing function and against a peer).
+- New and correct, not planned: the `startEORTimer` arming recorded under Known
+  Limitations above.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-2 assumed no published example omits the `family` block | 106 peer blocks under `docs/` and `demos/` declare none | grep over the corpus during Phase 2 | Broken in Ze's favour: under Default none must move, each gains the marker it was already owed. It is also why Refuse was refused, which R-2 predicted |
+| approach | The spec expected the fix in `buildOpen`, `sendInitialRoutes`, or both | the implicit family is a fact about what was NEGOTIATED, so it belongs in `Negotiate`, which both consumers read | reading the producer of `Families()` in Phase 2 (A-3) | Fix moved one layer down; recorded in Deviations |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Decide Refuse / Default / Warn against the RFC text, not against cost | Done | spec section "RFC Reading -- SETTLED 2026-08-17" | RFC 4724 Section 4 quoted verbatim from `rfc/full/rfc4724.txt`; Default is the only answer the text supports |
+| A peer with no `family` block stops silently skipping the barrier | Done | `internal/core/bgp/capability/negotiated.go` `Negotiate` | the marker is on the wire in `test/encode/no-family-peer-open-and-eor.ci` and decoded by FRR |
+| Config families still win over plugin families | Done | `internal/component/bgp/reactor/session_negotiate.go` `buildOpen` (unchanged) | `TestBuildOpenPluginFamiliesUnchanged` |
+| A peer that DOES declare families keeps its wire behavior byte for byte | Done | `buildOpen` unchanged; the fix is downstream of the OPEN | `TestBuildOpenConfigFamiliesUnchanged`, and the FRR scenario asserts Ze advertises no Multiprotocol capability |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestInitialSyncEORSentWhenNeitherSideDeclaredAFamily`, `TestBuildOpenNoFamilyNegotiatesImplicitIPv4Unicast`, `test/encode/no-family-peer-open-and-eor.ci` | the chosen behavior is Default, and the marker reaches the socket |
+| AC-2 | Done | `TestBuildOpenConfigFamiliesUnchanged`, and the OPEN hex pinned in the `.ci` | `04FDE8005A0102030408020641040000FDE8` with and without the fix |
+| AC-3 | Done | `TestBuildOpenPluginFamiliesUnchanged` | plugin decode families still fill the gap |
+| AC-4 | Done | `make ze-interop-test INTEROP_SCENARIO=no-family-peer-eor-frr` PASS against FRR 10.3.1, re-run 2026-08-19 | FRR decodes the marker and reports the IPv4-unicast capability as advertised by itself alone |
+| AC-5 | Done | `TestInitialSyncEORSentWhenNeitherSideDeclaredAFamily` plus the FRR scenario | RFC 4724 Section 4 IS the graceful-restart marker requirement; `startEORTimer` now arms for such a peer too |
+| AC-6 | Done | spec section "RFC Reading -- SETTLED 2026-08-17"; the `RFC4724-4-1` row in `rfc/short/rfc4724.md`, no annotation; the tag on `TestInitialSyncEORSentWhenNeitherSideDeclaredAFamily` | `make ze-rfc-check` resolves it, interop evidence 34 |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestBuildOpenNoFamilyNegotiatesImplicitIPv4Unicast` | Done | `internal/component/bgp/reactor/session_negotiate_test.go` | landed in `df44d8d27` |
+| `TestBuildOpenConfigFamiliesUnchanged` | Done | same | landed in `df44d8d27` |
+| `TestBuildOpenPluginFamiliesUnchanged` | Done | same | landed in `df44d8d27` |
+| `TestNegotiateImplicitIPv4UnicastWhenNoMultiprotocol` | Done | `internal/core/bgp/capability/negotiated_test.go` | five-row truth table, landed in `8f0d02e81` |
+| `TestNegotiateSilentPeerSatisfiesRequiredIPv4Unicast` | Done | same | pins `CheckRequired` |
+| `TestInitialSyncEORSentWhenNeitherSideDeclaredAFamily` | Done | `internal/component/bgp/reactor/peer_initial_sync_test.go` | `RFC requirement: RFC4724-4-1 positive` |
+| `no-family-peer-open-and-eor.ci` | Done | `test/encode/` | PASS in a 59/59 suite run, 2026-08-19 |
+| `no-family-peer-refused.ci` | Changed | -- | no subject: the RFC reading refused Refuse. Recorded in Deviations |
+| `no-family-peer-graceful-restart.ci` | Changed | -- | no subject: Section 4's marker IS the GR requirement, proven twice over. Recorded in Deviations |
+| `no-family-peer-eor-frr` | Done | `test/interop/scenarios/no-family-peer-eor-frr/` | PASS against FRR 10.3.1 |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/bgp/reactor/session_negotiate.go` | Changed | not modified: the fix moved to `Negotiate`, so the OPEN bytes are untouched |
+| `internal/component/bgp/reactor/peer_initial_sync.go` | Changed | not modified: it reads the negotiated list and needed no edit |
+| the config validator | Changed | not modified: Refuse was refused by the RFC |
+| `internal/core/bgp/capability/negotiated.go` | Done | the one producer changed |
+| `docs/guide/configuration.md` | Done | "A Peer That Declares No Family" |
+| `test/encode/no-family-peer-open-and-eor.ci` | Done | created |
+| `test/interop/scenarios/no-family-peer-eor-frr/` | Done | created, 3 files |
+
+### Audit Summary
+- **Total items:** 27
+- **Done:** 22
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 5 (three planned files not modified because the fix moved one layer
+  down, and two TDD rows whose subject the RFC reading removed; all five recorded
+  in Deviations, none reduces coverage)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A peer with no `family` block sends its End-of-RIB, so the peer stops waiting forever | functional (wire hex) | `test/encode/no-family-peer-open-and-eor.ci` asserts `FFFF...00170200000000` as seq=2 on the socket. `make ze-functional-encode-test` 2026-08-19: 59/59 PASS, this fixture at 9.4s. With the fix removed the peer logs the identical OPEN and then nothing, and the fixture times out |
+| Ze speaks this correctly to another implementation | interop | `make ze-interop-test INTEROP_SCENARIO=no-family-peer-eor-frr` PASS against FRR 10.3.1, re-run 2026-08-19. FRR's own `debug bgp updates in` decode of the marker is the assertion, so a peer that never decoded it cannot pass. Discriminating: with the fix removed FRR still installs 10.10.0.0/24 and logs no marker (measured 2026-08-17) |
+| The wire is unchanged for a peer that DOES declare a family | interop (negative) | the same scenario fails if FRR reports the IPv4-unicast capability as `advertisedAndReceived`. Measured value 2026-08-19: `{'advertised': True}`, so Ze advertised none |
+| The RFC 4724 Section 4 MUST is proven, not just implemented | RFC tagged test | the `RFC4724-4-1` row in `rfc/short/rfc4724.md` carries no annotation. `make ze-rfc-check` resolves four positive carriers for it, `TestInitialSyncEORSentWhenNeitherSideDeclaredAFamily` (unit/verify) and the `no-family-peer-eor-frr` `check.py` (interop/nightly) among them, and one negative in `internal/component/bgp/message/eor_test.go`. Gate green 2026-08-19: 2966 gated MUST-level requirements, 3581 tags resolved |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| none | done | The spec metadata declares `Deferral shard: -` and no `plan/deferrals/fixit-no-family-block-sends-no-end-of-rib.md` exists. Nothing is owed to a later session. The two unwritten TDD rows lost their subject to the RFC reading, and both are recorded in Deviations |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/fixit-no-family-block-sends-no-end-of-rib-fa011c6d-dddd-408b-a46c-3ee25189f6a1.md`, written by `scripts/dev/review_gate.py record` over 8 files |
+| `review_gate.py check` | `review_gate: OK (0 code files, clean, hashes match ...)`, exit 0 |
+| Rounds | 2. Round 1 found two documentation-drift ISSUEs and fixed them; round 2 read the two edited files and the renumbered list and found nothing |
+| Reviewer lenses used | wiring + functional coverage + documentation drift (steps 2-4); logic, edge cases, allocation, security (steps 11-15); altitude and simplicity (step 17); ze-style (step 18); interop and goal validation (step 20); RFC compliance (step 21). Three lenses because the diff touches a protocol path and a test that pins it |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | The architecture doc anchored to the changed producer states the negotiation rule as pure intersection: "Negotiated capabilities = capabilities both peers advertise". That is now incomplete for the address-family half, and it is the document a reader consults before touching `Negotiate` | `docs/architecture/wire/capabilities.md`, "Capability Negotiation / Rules" | A second rule names the per-side implicit `ipv4/unicast`, states that it is one family and not a wildcard, and states that the OPEN bytes are unchanged. Two source anchors added on `negotiated.go` and `peer_initial_sync.go` |
+| 2 | ISSUE | The public RFC ledger's RFC 4724 row claims "End-of-RIB send and detect" with no mention that the send used to skip a session where neither speaker advertised a Multiprotocol capability. `/ze-close` step 4 makes the row update BLOCKING when a change newly proves RFC-level behavior | `docs/features/rfc-status.md`, the RFC 4724 row | The Implemented coverage cell now names the case, both producers and the FRR scenario. The Remaining cell and its spelled count are untouched; `check_gap_count_agreement` re-run green |
+| 3 | NOTE | `startEORTimer` returns early on a zero family count, so the fix arms an EoR timer for a GR peer that used to arm none. Correct and new, but unrecorded | `internal/component/bgp/reactor/session_health.go` `startEORTimer` | Recorded under Known Limitations and in Deviations from Plan. No code change: the peer owes Ze the same marker, so the warning is the detect half of the same MUST |
+| 4 | NOTE | `make ze-rfc-index-update`, run to clear a foreign red, rewrote 15 tracked generated ledgers from a working tree holding another session's uncommitted `rfc/enrolled.txt`, `rfc/short/rfc1195.md` and `rfc/short/rfc5303.md`. Their annotation text is now in `rfc/requirements/rfc1195.md` and `rfc/requirements/rfc5303.md` | `rfc/requirements/`, `ai/RFC-REQUIREMENTS.md` | No ledger is in either closure commit. They stay in the working tree for the session that owns the sources. Row added to `plan/journal/concurrent-rfc-gate-stale.md` |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/encode/no-family-peer-open-and-eor.ci` | Yes | `ls -la` reports it, 2458 bytes, Aug 17 20:31 |
+| `test/interop/scenarios/no-family-peer-eor-frr/check.py` | Yes | `ls -la` reports it, 4945 bytes, Aug 17 21:31 |
+| `test/interop/scenarios/no-family-peer-eor-frr/frr.conf` | Yes | `ls -la` reports it, 744 bytes, Aug 17 21:20 |
+| `test/interop/scenarios/no-family-peer-eor-frr/ze.conf` | Yes | `ls -la` reports it, 502 bytes, Aug 17 21:04 |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | the marker is sent | `TestInitialSyncEORSentWhenNeitherSideDeclaredAFamily` PASS, 2026-08-19; `make ze-unit-pkg-test PKG=./internal/component/bgp/reactor` ok 151.4s |
+| AC-2 | the OPEN is unchanged | `TestBuildOpenConfigFamiliesUnchanged` PASS, and the `.ci` pins the OPEN hex at seq=1 |
+| AC-3 | plugin families unchanged | `TestBuildOpenPluginFamiliesUnchanged` PASS |
+| AC-4 | a real peer agrees | `make ze-interop-test INTEROP_SCENARIO=no-family-peer-eor-frr` exit 0, `PASS 1 scenario(s)`, 2026-08-19 |
+| AC-5 | graceful restart | the same tagged test plus the FRR scenario; `startEORTimer` now arms for such a peer |
+| AC-6 | the MUST is proven | `make ze-rfc-check` exit 0, 2026-08-19: `RFC4724-4-1` gated, four positive carriers, one negative, interop evidence 34 |
+| all | the truth table | `make ze-unit-pkg-test PKG=./internal/core/bgp/capability` ok, all five rows of `TestNegotiateImplicitIPv4UnicastWhenNoMultiprotocol` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| a peer block with no `family` section, session established -> `buildOpen` then `sendInitialRoutes` | `test/encode/no-family-peer-open-and-eor.ci` | Yes. Read the file: it feeds a real `bgp { peer peer1 { ... } }` with no `family` block to `ze -`, runs `ze-peer` against it, and asserts both frames as full hex. `option=open:value=inspect-open-message` makes the OPEN seq=1, so the OPEN assertion and the marker assertion are on the same connection |
+| the same against a real peer daemon | `test/interop/scenarios/no-family-peer-eor-frr/check.py` | Yes. Read the file: `wait_session`, then `wait_route` and `check_route` so the marker is not a barrier over an empty conversation, then a capability assertion that fails if Ze advertised Multiprotocol, then a 60s poll of FRR's own decode log, then `session_established` at the end |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | the FRR scenario run with the fix REMOVED installed 10.10.0.0/24 and logged no End-of-RIB. Routes flowed; only the marker was missing |
+| A-2 | broken | 106 peer blocks under `docs/` and `demos/` declare no family. Broken in Ze's favour under Default, and the reason Refuse was refused. Mistake Log row above |
+| A-3 | confirmed | `NewNegotiatedCapabilities` (`internal/component/bgp/reactor/negotiated.go`) copies `neg.Families()` verbatim, so the implicit family reaches every consumer with no edit at that layer |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Config syntax: a peer may omit `family` and still gets the marker | `docs/config-reference.md` and `docs/guide/configuration.md`, both anchored to `negotiated.go` `Negotiate`; the `.ci` proves the claim on the wire | Yes |
+| Architecture: the capability negotiation rules | `docs/architecture/wire/capabilities.md`, the rule added by this closure, anchored to `Negotiate` | Yes |
+| RFC compliance: the public RFC 4724 claim | `docs/features/rfc-status.md`, Implemented coverage extended, gap count untouched, `make ze-rfc-check` green | Yes |
+| CLI reference, API/RPC docs, plugin SDK, wire format, comparison table, test infrastructure | No update needed. The change adds no command, no RPC, no SDK symbol and no new wire encoding: the marker's bytes are the RFC 4724 Section 2 form Ze already emitted for every declared family. `grep -rn "capability/negotiated.go" docs/` names four documents, and the two not edited here (`docs/architecture/edge-cases/as4.md`, `docs/exabgp/exabgp-code-map.md`) anchor on `Negotiated.ASN4` and on a file mapping, neither of which this change touches | Yes |
+| Doctor checks | No update needed. The change adds no file path, socket, kernel module, listen port, external binary or TLS cert, so `ai/rules/repo-maintenance.md`'s runtime-dependency trigger does not fire | Yes |
+
+## Core Insight
+
+An intersection has no natural answer for a side that declared nothing, and the
+empty set is not it. `Negotiate` intersected two sets built from Multiprotocol
+capabilities alone, which reads "advertised no capability" as "supports no
+family". The protocol's own answer is one family: RFC 4271 carries IPv4 unicast
+in the UPDATE message with no capability at all, so silence is a declaration
+rather than an absence. The failure was invisible because the base protocol kept
+working: routes flowed and only the barrier was missing, which looks like a slow
+peer rather than a bug. The general shape is `zero-value-as-valid-answer` over a
+SET: when a set is built by collecting declarations, ask what the protocol says
+the empty collection means before intersecting it.

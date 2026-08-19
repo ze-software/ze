@@ -345,10 +345,24 @@ draft-abraitis-bgp-version-capability
 ### Rules
 
 1. **Intersection:** Negotiated capabilities = capabilities both peers advertise
-2. **Duplicates:** If same capability appears multiple times, use last one (RFC 5492)
-3. **Unknown:** Unknown capabilities are ignored (not an error)
-4. **Required:** Session fails if required capability not negotiated
-5. **Refused:** Session fails if refused capability is present in peer's OPEN
+2. **Implicit IPv4 unicast:** the address-family intersection has one exception.
+   A side that advertises no Multiprotocol capability counts as advertising
+   `ipv4/unicast`. Each side is judged on its own, before the intersection runs.
+   RFC 4271 carries that family in the UPDATE message itself. A speaker that
+   declares no capability still exchanges it, and the session owes it the
+   End-of-RIB marker of RFC 4724 Section 4.
+   The default is one family and never a wildcard. A side that advertises only
+   `ipv6/unicast`, against a silent side, still intersects to nothing. The two
+   have no family in common.
+   The OPEN bytes are unchanged. Ze advertises no Multiprotocol capability for
+   such a peer.
+3. **Duplicates:** If same capability appears multiple times, use last one (RFC 5492)
+4. **Unknown:** Unknown capabilities are ignored (not an error)
+5. **Required:** Session fails if required capability not negotiated
+6. **Refused:** Session fails if refused capability is present in peer's OPEN
+
+<!-- source: internal/core/bgp/capability/negotiated.go -- Negotiate, the per-side implicit ipv4/unicast default before the family intersection -->
+<!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- sendInitialRoutes, one End-of-RIB marker per negotiated family -->
 
 ### Negotiated State
 
