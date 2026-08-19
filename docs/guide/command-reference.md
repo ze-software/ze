@@ -1686,7 +1686,7 @@ operators as a standalone filter.
 <command> | ze pipe last <n>           # Take last N items
 <command> | ze pipe resolve            # Add reverse DNS for IP values
 <command> | ze pipe display <field>... # Answer with these fields, in this order
-<command> | ze pipe fill [alpha|overall] [reverse]  # Bring the rest back
+<command> | ze pipe fill [alpha] [reverse]  # Bring the rest back
 ```
 
 Format operators (json, yaml, table, text, ndjson) expect JSON input. Filter
@@ -2380,7 +2380,7 @@ Inside `ze cli`:
 | Pipe: last N items | `show bgp rib \| last 10` |
 | Pipe: choose columns | `show bgp peer list \| display state name` |
 | Pipe: fill the rest back | `show bgp peer list \| display state \| fill alpha` |
-| Pipe: narrowest column first | `show bgp peer list \| fill overall` |
+| Pipe: every column by name | `show bgp peer list \| fill alpha` |
 | Pipe: disable paging | `show bgp peer list \| no-more` |
 | Set default format | `set cli format json` (session override) |
 | Show current format | `set cli format` (no argument) |

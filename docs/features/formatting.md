@@ -55,6 +55,7 @@ or `raw`. Two together are rejected. Filter and display operators chain freely.
 | `count` | filter | Count items (JSON-aware: array length or map size) |
 | `first <n>` / `last <n>` | filter | Take first or last N items |
 | `display <field>...` | filter | Answer with these fields, in this order |
+| `fill [alpha] [reverse]` | display | Bring the remaining columns back, in a named order |
 | `resolve` | display | Add reverse DNS names for IP address values |
 | `origin` | display | Add ASN and network name for IP address values |
 | `log` | display | Append each update instead of replacing (monitor commands) |
@@ -163,7 +164,7 @@ somebody makes that judgment.
 <!-- source: internal/component/command/pipe_table.go -- tableStyle.orderKeys, bestColumnOrder -->
 <!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- registerColumns -->
 
-### Choosing the columns: `| display`
+### Choosing the columns: `| display` and `| fill`
 
 A nineteen-column table answers many questions at once. `| display` cuts it to
 the question you asked:
@@ -175,23 +176,46 @@ show bgp peer list | display state name
 Those two columns render, in that order, and no other column does. Press Tab
 after `| display` and the CLI offers the field names the command declared.
 
-A column you did not name is gone from that answer, and no operator brings it
-back. To see it again, run the command without the `| display`. Ze had a second
-operator for this, `| fill`, and it was removed on 2026-08-19: its `overall` way
-measured every cell of the whole result to sort the columns by width, which a
-streamed answer cannot do.
+`| fill` brings the rest back, behind what you displayed:
 
-**`| display` reaches `| json`, `| ndjson` and `| yaml` too.** Which fields to
-answer with is a question you asked out loud, so a program gets the answer you
-asked for. The SEQUENCE you gave stops at `| table` and `| text`, because the
-order of JSON keys carries no meaning for a program.
+```
+show bgp peer list | display state | fill          # then the command's own order
+show bgp peer list | display state | fill alpha    # then by field name
+show bgp peer list | fill alpha reverse            # every column, reverse by name
+```
+
+| Written | The remaining columns come back |
+|---------|--------------------------------|
+| nothing | not at all |
+| `fill` | in the order the command declares, and by name when it declares none |
+| `fill alpha` | by field name, whatever the command declares |
+| `fill ... reverse` | in the same way, flipped |
+
+The two operators are independent. `| display` names the fields that lead, and
+`| fill` says what happens to the ones it did not name. With no `| display`
+every column is a remaining column, so `| fill alpha` sorts the whole table.
+
+Each takes one type of argument, and that is deliberate: `| display` takes field
+names, `| fill` takes keywords. A token that is a field name in one position and
+a keyword in another is a token you cannot complete and cannot read.
+
+A third way was removed on 2026-08-19. `| fill overall` ordered the columns by
+the width they render at, and that width is known only after every cell of the
+whole answer has been rendered, so the first row could not be written until the
+last had been read. A streamed answer cannot do that. `overall` is now refused
+by name, and `| fill` and `| fill alpha` are unaffected.
+
+**`| display` reaches `| json`, `| ndjson` and `| yaml`. `| fill` does not.**
+Which fields to answer with is a question you asked out loud, so a program gets
+the answer you asked for. The sequence of JSON keys carries no meaning for a
+program, so it stays alphabetical.
 
 ```
 show bgp peer list | display state name | json     # two fields per peer
 ```
 
-<!-- source: internal/component/command/pipe_columns.go -- parseDisplay, displayInChain, applyDisplaySelect -->
-<!-- source: internal/component/command/pipe_table.go -- tableStyle.orderKeys -->
+<!-- source: internal/component/command/pipe_columns.go -- parseDisplay, parseFill, applyDisplaySelect -->
+<!-- source: internal/component/command/pipe_table.go -- tableStyle.orderKeys, fillKeys -->
 
 ### A name for a chain: pipe aliases
 

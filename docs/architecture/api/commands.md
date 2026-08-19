@@ -720,7 +720,7 @@ request bgp rib withdraw <peer> <family> <prefix>       # Remove route from Adj-
 show bgp rib rpf <family> <source-addr>      # RPF lookup (longest-prefix-match in Loc-RIB)
 ```
 
-Generic pipes such as `match`, `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `resolve`, `origin`, `log`, `no-more`, and `display` apply to the answer the command produced. The DAEMON runs them, on every surface. `execMiddleware` splits the chain off an SSH exec command and applies it. `ze cli` sends the chain intact and prints what comes back. Only the daemon holds the configuration, so only the daemon can honor `environment cli format default`.
+Generic pipes such as `match`, `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `resolve`, `origin`, `log`, `no-more`, `display`, and `fill` apply to the answer the command produced. The DAEMON runs them, on every surface. `execMiddleware` splits the chain off an SSH exec command and applies it. `ze cli` sends the chain intact and prints what comes back. Only the daemon holds the configuration, so only the daemon can honor `environment cli format default`.
 <!-- source: internal/component/ssh/ssh.go -- execMiddleware -->
 <!-- source: internal/component/cli/client/main.go -- Execute, commandWithFormat, printDaemonOutput -->
 
@@ -1333,18 +1333,24 @@ outer record and a list of peer rows. Both carry an `uptime` key in a different
 position. So the renderer applies the declaration that names the most of the
 keys in the record it has in hand.
 
-### `| display`: the operator's own answer
+### `| display` and `| fill`: the operator's own answer
 
-An operator overrides both halves of that with one generic pipe operator.
-`| display <field>...` names the fields the answer carries, in the sequence it
-names them. It takes field names and nothing else.
+An operator overrides both halves of that with two generic pipe operators.
+`| display <field>...` names the fields the answer leads with.
+`| fill [alpha] [reverse]` says whether the fields it did not name come back at
+all, and in what sequence. Each takes ONE type of argument, so no token is a
+field name in one position and a keyword in another.
 
-A field it does not name is not in the answer, and no operator brings that field
-back. An operator who wants it retypes the command without the `| display`. A
-second operator did bring it back, `| fill`, and it was removed on 2026-08-19.
-Its `overall` way ordered columns by the width they render at, which needs every
-cell of the whole result measured before the first row can be written. A
-streamed answer cannot do that.
+`| fill` on its own orders the remaining fields by the command's own
+declaration. `alpha` orders them by field name instead. `reverse` flips
+whichever way is in force. Neither way measures a column: each decides the
+sequence from the key set and a declaration.
+
+A third way was removed on 2026-08-19. `| fill overall` ordered columns by the
+width they render at, and that width is known only after every cell of the whole
+answer has been rendered. It made the first row unwritable until the last row
+had been read, which is the one thing a streamed answer cannot do. `overall` is
+now refused by name, and `| fill` itself is untouched.
 
 The two halves of the request travel by different routes, and the split is what
 makes them work under every format:
@@ -1352,7 +1358,7 @@ makes them work under every format:
 | Half | Where it is applied | Reaches |
 |------|--------------------|---------|
 | Selection: which fields | `applyDisplaySelect`, over the payload, at the operator's position in the chain | every format, `\| json`, `\| ndjson`, `\| yaml` and `\| raw` included |
-| Sequence: in what order | `tableStyle.display` | `\| table` and `\| text` only |
+| Sequence: in what order | `columnRequest` carried on `tableStyle` | `\| table` and `\| text` only |
 
 Selection is a data question the operator asked out loud, so a program gets the
 answer. Sequence is presentation, so it stops at the two renderers.
@@ -1372,12 +1378,12 @@ kind named nowhere reached neither side, for every command that registers
 filters of its own, and nothing reported the loss.
 `TestColumnOpsSurviveFoldFiltersOnFilteredCommand`,
 `TestAliasSurvivesFoldFiltersOnFilteredCommand` and
-`test/ui/display-filtered-command.ci` are what hold that.
+`test/ui/display-fill-filtered-command.ci` are what hold that.
 
 <!-- source: internal/component/command/column_order.go -- RegisterColumns, ColumnsForCommand, commandRegistry -->
 <!-- source: internal/component/command/pipe_filter.go -- RegisterPipeFilters, lookupPipeFilters -->
-<!-- source: internal/component/command/pipe_columns.go -- parseDisplay, displayInChain, applyDisplaySelect, selectFields -->
-<!-- source: internal/component/command/pipe_table.go -- tableStyle.orderKeys, bestColumnOrder -->
+<!-- source: internal/component/command/pipe_columns.go -- parseDisplay, parseFill, columnsInChain, applyDisplaySelect, selectFields -->
+<!-- source: internal/component/command/pipe_table.go -- tableStyle.orderKeys, fillKeys, bestColumnOrder -->
 
 ### Pipe aliases: a name for an operator chain
 
