@@ -25,6 +25,43 @@ const pluginName = "static"
 
 var sourcesOnce sync.Once
 
+// pendingSection holds the routes the config-verify callback parsed, until the
+// config-apply callback consumes them. Safe for concurrent use.
+//
+// Delivery is tracked apart from the route slice because the two questions have
+// different answers for one value. A reload that DELETES the static section
+// sends an empty section (server/reload.go, "Root was removed from new config").
+// That section parses to zero routes, and it instructs this plugin to withdraw
+// every route. A reload that changes another plugin's config sends static
+// nothing at all, which must change nothing. Both leave a nil slice, so the
+// slice alone cannot separate "withdraw everything" from "do not act".
+type pendingSection struct {
+	mu        sync.Mutex
+	routes    []staticRoute
+	delivered bool
+}
+
+// set records the routes parsed from a delivered static section. An empty or
+// nil routes argument is a delivered section that declares no route, which is
+// what a deletion looks like.
+func (p *pendingSection) set(routes []staticRoute) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.routes = routes
+	p.delivered = true
+}
+
+// take returns the parsed routes and reports whether a section was delivered
+// since the last call. It clears the state, so an apply that follows no verify
+// of its own reports false rather than replaying the previous section.
+func (p *pendingSection) take() ([]staticRoute, bool) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	routes, delivered := p.routes, p.delivered
+	p.routes, p.delivered = nil, false
+	return routes, delivered
+}
+
 // registerStaticSources registers "static" as a redistribute source so
 // `redistribute { destination <proto> { import static } }` resolves. Called from
 // init() (not plugin run) so the source is visible to `ze config validate`, which
@@ -141,7 +178,7 @@ func runStaticPlugin(conn net.Conn) int {
 
 	var mu sync.Mutex
 	var currentRoutes []staticRoute
-	var pendingRoutes []staticRoute
+	var pending pendingSection
 
 	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
 		for _, section := range sections {
@@ -152,9 +189,7 @@ func runStaticPlugin(conn net.Conn) int {
 			if err != nil {
 				return err
 			}
-			mu.Lock()
-			pendingRoutes = routes
-			mu.Unlock()
+			pending.set(routes)
 		}
 		return nil
 	})
@@ -182,13 +217,16 @@ func runStaticPlugin(conn net.Conn) int {
 	var activeJournal *sdk.Journal
 
 	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error {
+		newRoutes, delivered := pending.take()
 		mu.Lock()
-		newRoutes := pendingRoutes
 		oldRoutes := currentRoutes
-		pendingRoutes = nil
 		mu.Unlock()
 
-		if newRoutes == nil {
+		// No static section in this reload: another plugin's config changed and
+		// this one keeps what it programmed. A section that arrived empty IS
+		// delivered, and falls through so applyRoutes withdraws the routes it
+		// no longer finds in the config.
+		if !delivered {
 			return nil
 		}
 

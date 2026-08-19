@@ -204,6 +204,23 @@ func TestTranslateHTBUsesKernelDefaults(t *testing.T) {
 	}
 }
 
+// TestTranslateRejectsIngressHookQdiscs
+// VALIDATES: clsact and ingress are refused rather than built. Method: ask
+// translateQdisc for each and require an error, because every qdisc this
+// function builds attaches at the root with handle 1:0, which is not where
+// either of those two lives.
+// PREVENTS: reinstating a root-attached clsact, which is both the wrong
+// attachment point and a second owner of the ingress hook that the mirror
+// (iface/netlink/mirror_linux.go) and the sampling path already share.
+func TestTranslateRejectsIngressHookQdiscs(t *testing.T) {
+	for _, qt := range []traffic.QdiscType{traffic.QdiscClsact, traffic.QdiscIngress} {
+		qdisc, err := translateQdisc(traffic.Qdisc{Type: qt}, 5)
+		if err == nil {
+			t.Errorf("translateQdisc(%v) returned %T, want an error", qt, qdisc)
+		}
+	}
+}
+
 // desiredFiltered is the shape of test/traffic/traffic-boot-qdisc-tc.ci: an HTB
 // root with a filtered "control" class and an unfiltered "default" class.
 func desiredFiltered(iface string, filters ...traffic.TrafficFilter) traffic.InterfaceQoS {

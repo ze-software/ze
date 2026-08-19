@@ -103,8 +103,18 @@ func (w *samplingWorker) run() {
 		}
 		consecutiveErrs = 0
 
-		// Samples arrive only for interfaces we set up; an unmapped ifIndex
-		// is unexpected, so it is attributed to a generic label.
+		// Samples do NOT arrive only for the interfaces ze set up. The reader
+		// joins the psample multicast group, which carries every producer on
+		// this host, and parsePsampleMessage (sampling/psample.go) does not read
+		// the sample-group attribute, so the group ze configures is write-only:
+		// it reaches the kernel through the tc action and is never compared on
+		// the way back.
+		//
+		// A sample from another producer is exported anyway, and that is a
+		// decision rather than an oversight (owner, 2026-08-18): filtering on
+		// the group would make ze export nothing, and say nothing, if the
+		// configured group and the installed tc action ever drifted apart. The
+		// metric carries a generic label when the index is not one ze set up.
 		name := w.idxToName[pkt.IfIndex]
 		if name == "" {
 			name = "unknown"

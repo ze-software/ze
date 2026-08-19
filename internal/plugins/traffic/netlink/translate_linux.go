@@ -141,10 +141,16 @@ func translateQdisc(q traffic.Qdisc, linkIdx int) (netlink.Qdisc, error) {
 		return &netlink.Netem{QdiscAttrs: attrs}, nil
 	case traffic.QdiscPrio:
 		return &netlink.Prio{QdiscAttrs: attrs, Bands: 3}, nil
-	case traffic.QdiscClsact:
-		return &netlink.Clsact{QdiscAttrs: attrs}, nil
-	case traffic.QdiscIngress:
-		return &netlink.Ingress{QdiscAttrs: attrs}, nil
+	// Every qdisc above attaches at the root with handle 1:0, which is where a
+	// shaping discipline belongs. These two attach at the ingress hook instead,
+	// and they hold no classes. That hook belongs to the mirror and sampling
+	// paths, which install clsact at ffff:0 with parent HANDLE_CLSACT
+	// (iface/netlink/mirror_linux.go, clsactQdisc). The config surface offers
+	// neither (ze-traffic-control-conf.yang), so this refusal is reachable only
+	// from a caller that builds a Qdisc by hand. raiseQdiscType still names both
+	// when this package READS an interface that carries one.
+	case traffic.QdiscClsact, traffic.QdiscIngress:
+		return nil, fmt.Errorf("qdisc type %v attaches at the ingress hook, not at the root, and is not configurable", q.Type)
 	}
 	return nil, fmt.Errorf("unsupported qdisc type %v", q.Type)
 }

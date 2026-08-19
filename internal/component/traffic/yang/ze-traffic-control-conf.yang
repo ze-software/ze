@@ -28,10 +28,12 @@ module ze-traffic-control-conf {
             enum tbf { description "Token Bucket Filter"; }
             enum netem { description "Network Emulator"; }
             enum prio { description "Priority qdisc"; }
-            enum clsact { description "Classifier-Action qdisc"; }
-            enum ingress { description "Ingress qdisc"; }
         }
-        description "Queueing discipline type";
+        description "Queueing discipline type. The clsact and ingress hooks are
+                     not offered: they attach at the ingress hook rather than at
+                     the root, they carry no classes, and the mirror and the
+                     sampling paths own that hook already. Ze still names them
+                     when it reads an interface that carries one.";
     }
 
     typedef rate-bps {

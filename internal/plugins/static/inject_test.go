@@ -132,6 +132,42 @@ func TestRouteManagerRemoveOnReload(t *testing.T) {
 	}
 }
 
+// TestRouteManagerWithdrawsAllOnEmptyConfig
+// VALIDATES: applying an empty route set removes every route the manager had
+// programmed. Method: apply two routes, then apply none, and read the backend's
+// removals. This is the second half of a static-section deletion: the callback
+// decides that the deletion was delivered, and this decides what that means.
+// PREVENTS: a deletion that reaches applyRoutes and still leaves the routes in
+// the FIB.
+func TestRouteManagerWithdrawsAllOnEmptyConfig(t *testing.T) {
+	mb := &mockStaticBackend{}
+	rm := newRouteManager(mb)
+
+	_ = rm.applyRoutes([]staticRoute{
+		{
+			Prefix:   netip.MustParsePrefix("10.0.0.0/8"),
+			Action:   actionForward,
+			NextHops: []nextHop{{Address: netip.MustParseAddr("1.1.1.1"), Weight: 1}},
+		},
+		{
+			Prefix: netip.MustParsePrefix("172.16.0.0/12"),
+			Action: actionBlackhole,
+		},
+	})
+
+	mb.applied = nil
+	mb.removed = nil
+
+	_ = rm.applyRoutes(nil)
+
+	if len(mb.removed) != 2 {
+		t.Fatalf("removed %d routes, want 2", len(mb.removed))
+	}
+	if len(rm.routes) != 0 {
+		t.Errorf("route manager still holds %d routes, want 0", len(rm.routes))
+	}
+}
+
 func TestRouteManagerSkipsUnchangedRoutes(t *testing.T) {
 	mb := &mockStaticBackend{}
 	rm := newRouteManager(mb)

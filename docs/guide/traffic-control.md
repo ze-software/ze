@@ -69,7 +69,7 @@ learn about incompatibilities before the config lands rather than after Apply.
 | `hfsc` | rejected | Service-curve semantics have no VPP equivalent |
 | `fq` / `sfq` / `fq_codel` | rejected | Fair-queue disciplines not available in VPP |
 | `netem` | rejected | Network emulation not available in VPP |
-| `clsact` / `ingress` | rejected | Ingress policing semantics differ in VPP (deferred) |
+| `clsact` / `ingress` | not configurable | The config surface offers neither on any backend. They attach at the ingress hook rather than at the root, they hold no classes, and the mirror and sampling paths own that hook <!-- source: internal/component/traffic/yang/ze-traffic-control-conf.yang -- qdisc-type --> |
 
 **`protocol` and `dscp` filters are supported; `mark` is rejected.** A class may
 carry `match protocol <n>` or `match dscp <n>`: the backend then builds per-family

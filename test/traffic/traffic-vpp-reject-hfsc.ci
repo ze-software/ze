@@ -3,7 +3,9 @@
 #            traffic.RegisterVerifier("vpp", Verify) runs during the
 #            traffic component's OnConfigVerify and rejects qdisc types
 #            that have no VPP equivalent (hfsc here; same path covers
-#            fq / sfq / fq_codel / netem / clsact / ingress).
+#            fq / sfq / fq_codel / netem). clsact and ingress are not in
+#            the qdisc-type enumeration on any backend, so no config can
+#            reach the verifier with one.
 # PREVENTS: regression where an unsupported qdisc silently passes verify
 #           and surfaces only at Apply time, breaking the promise that
 #           operators learn about rejection before `commit` lands.

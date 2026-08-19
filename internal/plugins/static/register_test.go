@@ -3,6 +3,7 @@ package static
 import (
 	"bytes"
 	"log/slog"
+	"net/netip"
 	"slices"
 	"strings"
 	"testing"
@@ -138,5 +139,52 @@ func TestWarnIfExternal(t *testing.T) {
 	warnIfExternal(true)
 	if buf.String() != "" {
 		t.Errorf("internal static must not log the external-mode warning, got: %s", buf.String())
+	}
+}
+
+// TestPendingSectionSeparatesEmptyFromAbsent
+// VALIDATES: a delivered section that declares no route reports delivered, and
+// so is distinguishable from a reload that delivered no static section at all.
+// The method is to drive the two cases through set/take and compare the flag,
+// because both cases carry the same nil route slice.
+// PREVENTS: the config-apply callback treating the deletion of the static
+// section as "nothing changed", which left every route programmed in the FIB
+// after the operator removed the configuration that put it there.
+func TestPendingSectionSeparatesEmptyFromAbsent(t *testing.T) {
+	var pending pendingSection
+
+	if _, delivered := pending.take(); delivered {
+		t.Error("no section was set, take must report not delivered")
+	}
+
+	pending.set(nil)
+	routes, delivered := pending.take()
+	if !delivered {
+		t.Error("an empty section is delivered: it is how a deletion arrives")
+	}
+	if len(routes) != 0 {
+		t.Errorf("routes = %d, want 0", len(routes))
+	}
+}
+
+// TestPendingSectionTakeClearsState
+// VALIDATES: take consumes the section, so a second apply that runs without a
+// verify of its own reports not delivered. Method: set once, take twice.
+// PREVENTS: replaying a stale section over a later reload, which would
+// withdraw or re-add routes the current configuration never mentioned.
+func TestPendingSectionTakeClearsState(t *testing.T) {
+	var pending pendingSection
+
+	pending.set([]staticRoute{{Prefix: netip.MustParsePrefix("10.0.0.0/8"), Action: actionBlackhole}})
+	if routes, delivered := pending.take(); !delivered || len(routes) != 1 {
+		t.Fatalf("first take: delivered = %v, routes = %d, want true and 1", delivered, len(routes))
+	}
+
+	routes, delivered := pending.take()
+	if delivered {
+		t.Error("second take must report not delivered")
+	}
+	if routes != nil {
+		t.Errorf("second take returned %d routes, want none", len(routes))
 	}
 }
