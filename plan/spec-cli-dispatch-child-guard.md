@@ -8,7 +8,7 @@
 | Phase | 5/5 |
 | Deferral shard | - |
 | Handoff | - |
-| Updated | 2026-08-19 |
+| Updated | 2026-08-20 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -251,6 +251,7 @@ Not applicable. Scope is `cli`; no wire-visible behavior changes.
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | `make ze-command-list` gains `show bgp`; check the inventory docs |
 | 16 | Any changed source file referenced by existing doc source anchors? | Yes | Grep `docs/` for anchors naming `command.go` |
 | 17 | Existing docs show config/CLI/API examples for this area? | Yes | Any doc saying `show bgp` is not a command must change |
+| 18 | Design doc declared by a changed file's `// Design:` header? | No | `docs/architecture/api/process-protocol.md` is declared by `command.go`, `command_registry.go` and `subsystem.go` because those files also carry the plugin process surface. This spec changes command RESOLUTION inside the daemon and adds two registry queries (`hasCommandPath`). No message, framing, envelope or process lifecycle changes, so the process protocol is unaffected |
 
 ## Implementation Steps
 
@@ -329,6 +330,20 @@ Not applicable. Scope is `cli`; no wire-visible behavior changes.
 - Only `show bgp` gains a command here. Other parent containers that answer nothing keep answering nothing. The guard makes giving them one safe, but each is a separate judgement about what the overview should be.
 - The guard makes the daemon agree with `LookupLocal`. It does not merge the two implementations, which stay separate because they read different registries.
 - `show bgp` in the config editor is a different surface (`(*Model).cmdShow`) and is untouched.
+- **Bare `show bgp` renders its columns alphabetically and refuses `| peers`.** The
+  payload is identical (`handleBgpOverview` delegates to `handleBgpSummary`, proven
+  key for key by `test/plugin/show-bgp-bare-runs-summary.ci`), but the column order
+  and the two aliases are declared on the literal `show bgp summary`
+  (`registerColumns`, `registerAliases` in
+  `internal/component/bgp/plugins/cmd/peer/peer.go`). `commandRegistry.lookup`
+  resolves a declaration from the command's own path or an ancestor of it
+  (`internal/component/command/column_order.go`, `commandMatchesPrefix`), and
+  `show bgp` is neither, so `ColumnsForCommand` returns nil and the renderer falls
+  back to alphabetical. Registering the same declaration under a second path is not
+  the chosen fix: `spec-cli-show-bgp-is-the-command` removes `show bgp summary` so
+  one spelling remains. This spec's goal, that the object typed with no verb
+  answers, holds without it. `docs/guide/command-reference.md` states the
+  difference, so an operator is not sent to a pipe that is refused.
 
 ## Checklist
 
@@ -358,3 +373,224 @@ Not applicable. Scope is `cli`; no wire-visible behavior changes.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- The guard. `matchBuiltinTokens` refuses its longest-prefix match when a longer
+  prefix of the INPUT is itself a registered command, with `longerCommandPath` and
+  `isCommandPath` beside it (`internal/component/plugin/server/command.go`).
+  `isCommandPath` reads all three registries `Dispatch` resolves from: the builtin
+  keys, `CommandRegistry.hasCommandPath`
+  (`internal/component/plugin/server/command_registry.go`), and
+  `SubsystemManager.hasCommandPath` with `SubsystemHandler.declaresCommand`
+  (`internal/component/plugin/server/subsystem.go`).
+- `container bgp` carries `ze:command "ze-bgp:overview"`
+  (`internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang`), answered by
+  `handleBgpOverview` and `isFamilyArg`
+  (`internal/component/bgp/plugins/cmd/peer/summary.go`), which delegate to
+  `handleBgpSummary`.
+- Six unit tests plus one benchmark in
+  `internal/component/plugin/server/command_test.go`, and three `.ci` under
+  `test/plugin/`.
+- Landed in `647f33121` (code, tests, YANG, spec), `f532135d4` (docs) and
+  `f542238dd` (one of the three description-parity YANG modules). This closure
+  lands the two parity modules that were left uncommitted, the golden wire-method
+  snapshot, and one documentation correction.
+
+### Bugs Found/Fixed
+- **The golden wire-method snapshot never gained `ze-bgp:overview`**, so
+  `TestRegisteredWireMethods` (`internal/component/plugin/all/all_test.go`) was RED
+  at HEAD for every session: `unexpected wire-methods: "ze-bgp:overview"`. That
+  golden is hand-maintained and `make generate` does not write it. Fixed here, and
+  `make ze-unit-pkg-test PKG=./internal/component/plugin/all` exits 0.
+- **Two of the three description-parity modules were edited and never committed**
+  (`internal/component/bgp/cli/yang/ze-bgp-tools-cmd.yang`,
+  `internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr-cmd.yang`). Until
+  they land, the loader warns `YANG command description mismatch node=bgp` at every
+  daemon startup (`mergeYANGEntry`, `internal/component/config/yang/command.go`).
+  Both ride commit A. All four contributing modules now carry byte-identical text
+  and `make ze-command-list` prints no mismatch.
+- **The command reference overclaimed.** It said bare `show bgp` gives "the same
+  answer" while the column order and the two aliases reach only
+  `show bgp summary`. Corrected, with the producing symbols anchored. See Known
+  Limitations.
+
+### Documentation Updates
+- `docs/architecture/api/commands.md` records the parent-never-swallows-a-child
+  rule, anchored on `matchBuiltinTokens, longerCommandPath, isCommandPath` and on
+  `LookupLocal` (`f532135d4`).
+- `docs/guide/command-reference.md` records that `show bgp` answers (`f532135d4`),
+  plus this closure's correction, anchored on
+  `ColumnsForCommand, commandMatchesPrefix`.
+- Gates run over the edited tree: `ze-doc-drift-check` 0, `ze-doc-index-check` 0,
+  `ze-command-contract-check` 0, `ze-cli-grammar-check` 0,
+  `ze-command-ownership-check` 0. `ze-doc-links-check` exits 1 on 17 dead paths in
+  other sessions' specs (ipsec, vpp, streaming-answer-protocol); zero of them name
+  a file of this spec.
+
+### Deviations from Plan
+- The wire method is `ze-bgp:overview`, not the single `ze-bgp:summary` binding the
+  Task paragraph names. Recorded in Key Design Decisions: one handler serving both
+  paths cannot tell which path reached it, and AC-6 requires `show bgp nonsense` to
+  come back as an unknown command rather than an invalid family.
+- AC-7's enumeration became a DIFFERENTIAL test against an unguarded control,
+  because A-2 is broken (below).
+- `internal/component/plugin/all/testdata/wire-methods.snapshot` is a file the plan
+  never named. A new wire method is owed to it.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-2 assumed no argument-taking key is a strict prefix of another registered path | NINE are, `show route` before `show route lookup` among them | `TestNoArgTakingKeyIsAPrefixOfAnotherPath` enumerated every key the real YANG tree produces | The sweep asserts the property that matters instead: for each collision the guarded match and the unguarded match agree once the leftover token names no command |
+| approach | The implementation treated the `ze:command` line as the whole registration surface | A new wire method is also owed to a hand-maintained golden, which `make generate` does not write | This closure ran the package and read the red | Snapshot updated in commit A, and a journal row added to `plan/journal/hardcoded-count-in-test.md` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| The daemon match refuses a parent when a longer registered path matches | Done | `matchBuiltinTokens`, `longerCommandPath`, `isCommandPath` (`internal/component/plugin/server/command.go`) | The guard reads all three registries |
+| `show bgp` answers | Done | `ze:command "ze-bgp:overview"` (`ze-peer-cmd.yang`), `handleBgpOverview` (`summary.go`) | `make ze-command-list` prints the row `show bgp` with wire method `ze-bgp:overview`, source builtin |
+| The four plugin subtrees keep answering | Done | the plugin fallback in `Dispatch`, unchanged | `test/plugin/show-bgp-child-not-swallowed.ci` |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `test/plugin/show-bgp-bare-runs-summary.ci` | It asserts the two payloads carry the same keys. The rendering differs, which Known Limitations states |
+| AC-2 | Done | `test/plugin/show-bgp-child-not-swallowed.ci`, `TestShowBgpDoesNotSwallowPluginSubcommands` | All four subtrees |
+| AC-3 | Done | `TestShowBgpSummaryStillResolvesToItsOwnHandler` | Over the real YANG tree |
+| AC-4 | Done | `TestMatchBuiltinKeepsArgumentsForLeftoverValues`, `test/plugin/show-bgp-summary-family-arg.ci` | |
+| AC-5 | Done | `TestShowBgpSummaryStillResolvesToItsOwnHandler` cases `show ospf`, `show ospf instance`, `show system ntp` | |
+| AC-6 | Done | `handleBgpOverview` wraps `ErrUnknownCommand`, asserted by `show-bgp-bare-runs-summary.ci` | The message must not say `invalid family` |
+| AC-7 | Done, with the collision recorded | `TestNoArgTakingKeyIsAPrefixOfAnotherPath` | A-2 is broken, so the AC's second clause is what holds: the collision is recorded and handled |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestMatchBuiltinRefusesWhenLongerPathMatches` | Done | `internal/component/plugin/server/command_test.go` | |
+| `TestMatchBuiltinServesWhenNoLongerPathMatches` | Done | same | |
+| `TestMatchBuiltinKeepsArgumentsForLeftoverValues` | Done | same | |
+| `TestShowBgpDoesNotSwallowPluginSubcommands` | Done | same | |
+| `TestShowBgpSummaryStillResolvesToItsOwnHandler` | Done | same | |
+| `TestNoArgTakingKeyIsAPrefixOfAnotherPath` | Done | same | Differential, against `unguardedMatch` |
+| `BenchmarkMatchBuiltinTokens` | Done | same | |
+| `TestGuardSeesSubsystemCommands` | Added | same | Not in the plan. It covers the third registry |
+| three `.ci` files | Done | `test/plugin/show-bgp-*.ci` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/plugin/server/command.go` | Done | `647f33121` |
+| `internal/component/plugin/server/command_registry.go` | Done | `647f33121` |
+| `internal/component/plugin/server/subsystem.go` | Done | `647f33121` |
+| `internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang` | Done | `647f33121` |
+| `internal/component/bgp/plugins/cmd/peer/summary.go` | Done | `647f33121` |
+| `internal/component/bgp/plugins/cmd/rib/yang/ze-rib-cmd.yang` | Done | `f542238dd` |
+| `internal/component/bgp/cli/yang/ze-bgp-tools-cmd.yang` | Done | uncommitted until commit A of this closure |
+| `internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr-cmd.yang` | Done | uncommitted until commit A of this closure |
+| `docs/architecture/api/commands.md` | Done | `f532135d4` |
+| `docs/guide/command-reference.md` | Done | `f532135d4`, corrected in commit A |
+| `internal/component/plugin/all/testdata/wire-methods.snapshot` | Changed | Not in the plan. It is the golden a new wire method is owed |
+
+### Audit Summary
+- **Total items:** 30
+- **Done:** 29
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1, the golden snapshot, added by this closure and recorded in Deviations
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| An operator who types `show bgp` gets an answer, as `show ospf` gives | functional | `test/plugin/show-bgp-bare-runs-summary.ci`: `show bgp` returns status `done` with the same payload keys as `show bgp summary`. It ran in `make ze-functional-plugin-test` at 671 of 672; the one failure is `remove-private-as-replace-peer`, recorded in `plan/journal/gate-verdict-depends-on-the-machine.md`, on a surface no commit of this spec touches |
+| The four plugin subtrees keep reaching their own handler | functional | `test/plugin/show-bgp-child-not-swallowed.ci` drives all four through the running daemon |
+| The daemon dispatcher can no longer swallow a registered child | unit, over the real command tree | `TestNoArgTakingKeyIsAPrefixOfAnotherPath` sweeps every key the YANG tree produces and compares the guarded match against `unguardedMatch`. `TestShowBgpDoesNotSwallowPluginSubcommands` and `TestGuardSeesSubsystemCommands` cover the plugin and subsystem registries |
+| The guard costs nothing measurable on the dispatch path | benchmark | `BenchmarkMatchBuiltinTokens/guard/*`: 3.2 ns and 0 allocations when the match consumed every token, 333 ns and 3 allocations with one token left over, against 87 to 117 microseconds for the walk itself |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| none. The spec metadata declares `Deferral shard: -` | n/a | No file under `plan/deferrals/` names this stem |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/cli-dispatch-child-guard-2e38eb27-078b-4f5b-a456-56437e962d09.md`, 16 files, verdict clean |
+| `review_gate.py check` | OK, 2 code files, clean, hashes match |
+| Rounds | 2 |
+| Reviewer lenses used | wiring and functional coverage; registration completeness, meaning the golden and the YANG description parity; dispatch-order and logic correctness; security, meaning authorization class, the bounded echo, and allocation; documentation accuracy; the `docs/contributing/ze-style.md` pass over every changed Go file |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | `ze-bgp:overview` absent from the hand-maintained golden, so `TestRegisteredWireMethods` was red at HEAD for every session | `internal/component/plugin/all/testdata/wire-methods.snapshot` | Added in sorted position. The package exits 0 |
+| 2 | ISSUE | Two of the three description-parity YANG modules were never committed, so the loader warns on `node=bgp` at every startup | `ze-bgp-tools-cmd.yang`, `ze-filter-irr-cmd.yang` | Both ride commit A. All four contributing modules verified byte-identical, and `make ze-command-list` is clean |
+| 3 | ISSUE | The command reference claimed bare `show bgp` gives "the same answer" while the column order and the aliases are declared on `show bgp summary` alone | `docs/guide/command-reference.md` | Paragraph corrected with the producing symbols anchored. Known Limitations records the gap and its destination |
+
+Two findings were recorded as NOTE and not fixed:
+
+- `longerCommandPath` builds its candidate from the INPUT tokens, so a key whose
+  match consumed an interleaved selector VALUE produces a path no registry holds
+  and the guard never fires for it. That is fail-open toward the behaviour the
+  daemon has today, which is what Blast Radius asks for.
+- A refused match falls through to the plugin route, which authorizes as a WRITE
+  where the builtin would have authorized a `show` as read-only. Strictly tighter,
+  never looser, and it is the authorization every plugin command already gets.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/plugin/show-bgp-bare-runs-summary.ci` | Yes | `git show --stat 647f33121` lists it at 137 lines, and this closure read it |
+| `test/plugin/show-bgp-child-not-swallowed.ci` | Yes | same commit, 151 lines, read in this closure |
+| `test/plugin/show-bgp-summary-family-arg.ci` | Yes | same commit, 126 lines, read in this closure |
+| `internal/component/plugin/all/testdata/wire-methods.snapshot` | Yes | `grep -n ze-bgp:overview` returns it beside `ze-bgp:monitor`, and `LC_ALL=C sort -c` is clean |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1, AC-6 | `show bgp` answers the summary, and a token naming nothing is an unknown command | The `.ci` asserts the two key sets are equal, and that the error says `unknown command` and never `invalid family` |
+| AC-2 | The four subtrees reach their own handler | `TestShowBgpDoesNotSwallowPluginSubcommands` asserts `ErrPluginProcessNotRunning`, which only the plugin route produces |
+| AC-3, AC-5 | Every path resolves to the command registered at its own path | `TestShowBgpSummaryStillResolvesToItsOwnHandler`, seven cases over `yang.DefaultLoader()` |
+| AC-4 | Leftover values still reach the handler | `make ze-unit-pkg-test PKG=./internal/component/plugin/server` exits 0 |
+| AC-7 | Every registered key enumerated | `TestNoArgTakingKeyIsAPrefixOfAnotherPath` requires more than 100 keys loaded and a positive collision count, so it cannot pass vacuously |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `show bgp rpki status` after `show bgp` became a command | `test/plugin/show-bgp-child-not-swallowed.ci` | Yes. Read: it dispatches the four subtree commands through the running daemon and reads the answer, never the exit code |
+| Bare `show bgp` | `test/plugin/show-bgp-bare-runs-summary.ci` | Yes. Read: it compares the two payloads key for key and drives `show bgp nonsense` |
+| `show bgp summary ipv4` | `test/plugin/show-bgp-summary-family-arg.ci` | Yes. Read: it drives `show bgp summary ipv4` and `show bgp ipv4`, and pins that an un-negotiated family stays the summary's own diagnosis |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `isCommandPath` reads all three registries, and `TestShowBgpDoesNotSwallowPluginSubcommands` with `TestGuardSeesSubsystemCommands` fail when the plugin or the subsystem branch is removed |
+| A-2 | broken, and handled | Nine argument-taking keys are strict prefixes of a longer path. `TestNoArgTakingKeyIsAPrefixOfAnotherPath` proves the guarded and the unguarded match agree for each |
+| A-3 | confirmed | `TestShowBgpSummaryStillResolvesToItsOwnHandler` over the real YANG tree, and `make ze-command-list` prints the new key |
+| A-4 | confirmed | `BenchmarkMatchBuiltinTokens/guard/*`, with the numbers in Goal Validation |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/architecture/api/commands.md`: the daemon match is guarded and reads three registries | `isCommandPath` (`internal/component/plugin/server/command.go`) reads `d.commands`, `d.registry.hasCommandPath` and `d.subsystems.hasCommandPath` | Yes |
+| `docs/guide/command-reference.md`: `show bgp` answers, takes the family argument, and reports an unknown command for anything else | `handleBgpOverview` and `isFamilyArg` (`internal/component/bgp/plugins/cmd/peer/summary.go`) | Yes |
+| `docs/guide/command-reference.md`: the aliases and the column order do not reach the bare form | `commandRegistry.lookup` and `commandMatchesPrefix` (`internal/component/command/column_order.go`), so `ColumnsForCommand` returns nil and the renderer orders alphabetically | Yes |
+| Inventory docs, checklist row 15 | `docs/features/introspection.md` describes `make ze-command-list`, and no doc enumerates its output, so no list needs regenerating | Yes |
+| No doc still says `show bgp` is not a command | The pages naming this command surface are the two edited; no other doc states the command does not exist | Yes |
+
+## Core Insight
+
+The same longest-prefix lookup existed twice, in the client registry and in the
+daemon dispatcher, and only one of them refused a match that a longer registered
+path would claim. Writing the rule twice was never the risk. Nobody noticing that
+only one copy carried it is. A twin lookup deserves the question asked directly:
+which of the two carries the guard, and what happens to the other one's callers.

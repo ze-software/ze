@@ -1261,7 +1261,7 @@ rollback, `.prev` no longer exists and the new version is gone from disk.
 ### show bgp summary
 
 ```
-ze show bgp                          # The same answer, object typed with no verb
+ze show bgp                          # The same data, object typed with no verb
 ze show bgp summary                  # Every configured peer
 ze show bgp summary ipv4             # Expanded to ipv4/unicast
 ze show bgp summary ipv6             # Expanded to ipv6/unicast
@@ -1290,13 +1290,19 @@ ze show bgp summary | peers      # the peer rows alone, as a table
 ze show bgp summary | summary    # the aggregate fields alone
 ```
 
-`show bgp` typed with no subcommand gives the same answer, as `show ospf` and
+`show bgp` typed with no subcommand gives the same data, as `show ospf` and
 `show vrrp` do for their objects. It takes the same optional family argument. A
 token that names no family and no subcommand comes back as an unknown command,
 so a mistyped subcommand is not reported as an invalid family.
 
+The two aliases and the column order are declared on `show bgp summary`, and a
+command inherits a declaration from its own path or an ancestor of it. `show bgp`
+is neither, so it renders its columns alphabetically and refuses `| peers`. Type
+`show bgp summary` for the ordered table and the two aliases.
+
 <!-- source: internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang -- module ze-peer-cmd; internal/component/bgp/plugins/cmd/peer/summary.go -- handleBgpSummary, handleBgpOverview -->
-<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- registerAliases -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- registerAliases, registerColumns -->
+<!-- source: internal/component/command/column_order.go -- ColumnsForCommand, commandMatchesPrefix -->
 
 ### ping / traceroute
 

@@ -20,6 +20,7 @@ ze-bgp:log-set
 ze-bgp:metrics-list
 ze-bgp:metrics-values
 ze-bgp:monitor
+ze-bgp:overview
 ze-bgp:peer-borr
 ze-bgp:peer-capabilities
 ze-bgp:peer-clear-soft
