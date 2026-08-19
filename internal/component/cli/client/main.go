@@ -349,6 +349,9 @@ func newCLIClient(creds sshclient.Credentials) *cliClient {
 // reason, so one implementation renders every surface. This client sends the
 // command with its pipes intact. It prints what comes back.
 func (c *cliClient) Execute(command, format string) int {
+	// This emitter has no command of its own: the daemon resolves the operator's
+	// text against the registry and answers an unknown one.
+	// ze-dispatch-check: dynamic -- command is the operator's own typed input
 	output, err := c.SendCommand(commandWithFormat(command, format))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -364,6 +367,9 @@ func (c *cliClient) Execute(command, format string) int {
 // operators) for transcript fidelity, and the daemon's rendering as the answer,
 // which is what the operator saw.
 func (c *cliClient) executeWithTranscript(command, format string, tw *unicli.TranscriptWriter) int {
+	// This emitter has no command of its own: the daemon resolves the operator's
+	// text against the registry and answers an unknown one.
+	// ze-dispatch-check: dynamic -- command is the operator's own typed input
 	output, err := c.SendCommand(commandWithFormat(command, format))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)

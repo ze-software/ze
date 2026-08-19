@@ -211,10 +211,24 @@ printf 'admin\ntestpass\n127.0.0.1\n%s\n' "$SSH_PORT" | ZE_CONFIG_DIR="$ADMIN_DI
 # state string is never "UP" directly proves the watchdog announce command was
 # never issued -- the actual AC-9 claim (route never announced).
 #
-# The CLI's default output format is YAML (internal/component/cli/client/main.go
-# runBGP's --format default), rendered one "key: value" pair per line by
-# RenderYAML/writeKeyValue (internal/component/command/format.go) -- confirmed
-# empirically: a passing probe renders "state: UP", a failing one "state: DOWN".
+# The two assertions below match "state: UP" and "state: DOWN", which is the
+# YAML shape, so the poll command NAMES yaml with an explicit `| yaml` pipe
+# instead of inheriting whatever default is configured. There is no client-side
+# default left to inherit: commandWithFormat (internal/component/cli/client/main.go)
+# appends the --format flag as a pipe and returns the command unchanged when the
+# flag is empty, and the daemon renders through ProcessPipesDefaultFormatChecked
+# (internal/component/ssh/ssh.go's execMiddleware), whose configuredDefault
+# (internal/component/command/pipe.go) reads `ze.cli.format` and falls back to
+# TEXT. Text renders "state      DOWN" (space-aligned columns), which matches
+# NEITHER pattern, so before this repair the DOWN branch never armed and the UP
+# branch could never fire -- a test whose failure branch is dead. Naming the
+# format on the command makes both branches independent of the configured
+# default, which is why it is spelled out here rather than left implicit.
+#
+# `| yaml` renders handleShow's flat detail struct
+# (internal/component/bgp/plugins/healthcheck/healthcheck.go) one "key: value"
+# pair per line via RenderYAML/writeKeyValue (internal/component/command/format.go):
+# a passing probe renders "state: UP", a failing one "state: DOWN".
 #
 # Poll long enough to observe at least one COMPLETED check cycle, not just
 # "still initializing": the FIRST check runs immediately at daemon start (no
@@ -232,7 +246,7 @@ printf 'admin\ntestpass\n127.0.0.1\n%s\n' "$SSH_PORT" | ZE_CONFIG_DIR="$ADMIN_DI
 # not that the mechanism actually detected the failure).
 SAW_DOWN=0
 for i in $(seq 1 24); do
-	STATUS=$(ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_PASSWORD="testpass" ze cli -c "show bgp healthcheck as112check" 2>&1) || true
+	STATUS=$(ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_PASSWORD="testpass" ze cli -c "show bgp healthcheck as112check | yaml" 2>&1) || true
 	case "$STATUS" in
 		*"state: UP"*)
 			echo "FAIL: as112check probe reached UP even though 192.0.2.1 (RFC 5737 TEST-NET-1) never answers; got: $STATUS" >&2

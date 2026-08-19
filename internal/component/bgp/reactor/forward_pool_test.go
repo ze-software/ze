@@ -199,6 +199,18 @@ func TestFwdPool_BackpressureBehavior(t *testing.T) {
 	}, fwdPoolConfig{chanSize: 2, idleTimeout: time.Second})
 	defer pool.Stop()
 
+	// Registered after the Stop defer, so it runs BEFORE it: Stop waits for the
+	// worker, and the worker sits in the handler until blocker closes. Without
+	// this a failed assertion hangs the package until the go test timeout
+	// instead of reporting the failure.
+	var unblocked atomic.Bool
+	release := func() {
+		if unblocked.CompareAndSwap(false, true) {
+			close(blocker)
+		}
+	}
+	defer release()
+
 	key := fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}
 
 	// Fill: 1 item in handler + 2 in channel = 3 dispatches
@@ -207,33 +219,44 @@ func TestFwdPool_BackpressureBehavior(t *testing.T) {
 	pool.Dispatch(key, fwdItem{})
 	pool.Dispatch(key, fwdItem{})
 
-	// Next dispatch should block
+	// Next dispatch must block: the channel holds chanSize items and the
+	// handler holds the worker.
 	dispatched := make(chan bool, 1)
 	go func() {
 		ok := pool.Dispatch(key, fwdItem{})
 		dispatched <- ok
 	}()
 
-	require.Never(t, func() bool {
-		select {
-		case <-dispatched:
-			return true
-		default:
-			return false
-		}
-	}, 100*time.Millisecond, 10*time.Millisecond, "dispatch should have blocked on full channel")
-
-	close(blocker) // Unblock processing
-
-	var ok2 bool
+	// Wait for the blocked state itself, not for a clock. Dispatch increments
+	// pending before the channel send and decrements it after, so a full
+	// channel plus pending == 1 means one dispatcher is parked in that send.
+	// The durations bound the poll; the assertion is the condition.
 	require.Eventually(t, func() bool {
-		select {
-		case ok2 = <-dispatched:
-			return true
-		default:
+		pool.mu.Lock()
+		defer pool.mu.Unlock()
+		w := pool.workers[key]
+		if w == nil {
 			return false
 		}
-	}, 2*time.Second, time.Millisecond, "dispatch should have unblocked after handler drained")
+		if len(w.ch) < cap(w.ch) {
+			return false // The channel still has room, so nothing can be parked.
+		}
+		return w.pending.Load() == 1
+	}, time.Second, time.Millisecond, "dispatch should have blocked on full channel")
+
+	// The parked dispatch cannot have returned yet: the handler still holds
+	// the worker, so no channel slot has been freed.
+	select {
+	case <-dispatched:
+		t.Fatal("dispatch returned while the channel was full and the handler was blocked")
+	default:
+	}
+
+	release() // Unblock processing
+
+	// The parked send completes when the worker drains the channel. Wait on
+	// that result, which is the event itself, not on a timeout.
+	ok2 := <-dispatched
 	assert.True(t, ok2)
 }
 
@@ -396,42 +419,54 @@ func TestForwardPoolBackpressurePropagation(t *testing.T) {
 		pool.Stop()
 	}()
 
+	key := fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}
+
 	// Dispatch 1 item and wait for handler to start blocking.
-	pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}, fwdItem{})
+	pool.Dispatch(key, fwdItem{})
 	<-entered
 
 	// Fill channel (4 items = chanSize) while handler is blocked.
 	for range 4 {
-		pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}, fwdItem{})
+		pool.Dispatch(key, fwdItem{})
 	}
 
-	// Next dispatch should block (channel full, handler blocked).
+	// Next dispatch must block (channel full, handler blocked).
 	dispatched := make(chan struct{})
 	go func() {
-		pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}, fwdItem{})
+		pool.Dispatch(key, fwdItem{})
 		close(dispatched)
 	}()
 
-	require.Never(t, func() bool {
-		select {
-		case <-dispatched:
-			return true
-		default:
+	// Wait for the blocked state itself, not for a clock. Dispatch increments
+	// pending before the channel send and decrements it after, so a full
+	// channel plus pending == 1 means one dispatcher is parked in that send.
+	// The durations bound the poll; the assertion is the condition.
+	require.Eventually(t, func() bool {
+		pool.mu.Lock()
+		defer pool.mu.Unlock()
+		w := pool.workers[key]
+		if w == nil {
 			return false
 		}
-	}, 100*time.Millisecond, 10*time.Millisecond, "dispatch should be blocked but returned immediately")
+		if len(w.ch) < cap(w.ch) {
+			return false // The channel still has room, so nothing can be parked.
+		}
+		return w.pending.Load() == 1
+	}, time.Second, time.Millisecond, "dispatch should be blocked on the full channel")
 
-	// Unblock handler → dispatch should complete.
+	// The parked dispatch cannot have returned yet: the handler still holds
+	// the worker, so no channel slot has been freed.
+	select {
+	case <-dispatched:
+		t.Fatal("dispatch returned while the channel was full and the handler was blocked")
+	default:
+	}
+
+	// Unblock handler → the parked send completes. Wait on that event, not on
+	// a timeout.
 	unblocked.Store(1)
 	close(block)
-	require.Eventually(t, func() bool {
-		select {
-		case <-dispatched:
-			return true
-		default:
-			return false
-		}
-	}, 2*time.Second, time.Millisecond, "dispatch still blocked after handler unblocked")
+	<-dispatched
 }
 
 func TestFwdPool_DoneCalledOnSuccess(t *testing.T) {
