@@ -165,32 +165,39 @@ func (b *backend) applyChain(t *nftables.Table, sets map[string]*nftables.Set, c
 
 	ctx := &lowerCtx{conn: b.conn, table: t, sets: sets}
 	for i := range chain.Terms {
-		exprs, err := lowerTerm(ctx, &chain.Terms[i])
+		// A term is usually one rule, and is two in an inet table when an
+		// action rewrites a network-header field: lowerTerm carries why.
+		// Every rule of a term takes the term's name, which is what lets
+		// mergeRuleCounters put the two rules' packets back under the one
+		// term the operator wrote.
+		rules, err := lowerTerm(ctx, &chain.Terms[i])
 		if err != nil {
 			return fmt.Errorf("term %q: %w", chain.Terms[i].Name, err)
 		}
-		// Ensure the rule carries at least one counter expression so
-		// `show firewall ruleset` can always report per-rule packet/
-		// byte counts. If the operator already declared an explicit
-		// `counter` action (lowered to an expr.Counter in exprs), use
-		// theirs -- prepending a second one would give us two Counter
-		// exprs on the wire and readRuleCounter would silently pick
-		// whichever comes first, making any named/explicit counter
-		// inaccessible.
-		var allExprs []expr.Any
-		if hasCounterExpr(exprs) {
-			allExprs = exprs
-		} else {
-			allExprs = make([]expr.Any, 0, len(exprs)+1)
-			allExprs = append(allExprs, &expr.Counter{})
-			allExprs = append(allExprs, exprs...)
+		for _, exprs := range rules {
+			// Ensure the rule carries at least one counter expression so
+			// `show firewall ruleset` can always report per-rule packet/
+			// byte counts. If the operator already declared an explicit
+			// `counter` action (lowered to an expr.Counter in exprs), use
+			// theirs -- prepending a second one would give us two Counter
+			// exprs on the wire and readRuleCounter would silently pick
+			// whichever comes first, making any named/explicit counter
+			// inaccessible.
+			var allExprs []expr.Any
+			if hasCounterExpr(exprs) {
+				allExprs = exprs
+			} else {
+				allExprs = make([]expr.Any, 0, len(exprs)+1)
+				allExprs = append(allExprs, &expr.Counter{})
+				allExprs = append(allExprs, exprs...)
+			}
+			b.conn.AddRule(&nftables.Rule{
+				Table:    t,
+				Chain:    c,
+				Exprs:    allExprs,
+				UserData: []byte(chain.Terms[i].Name),
+			})
 		}
-		b.conn.AddRule(&nftables.Rule{
-			Table:    t,
-			Chain:    c,
-			Exprs:    allExprs,
-			UserData: []byte(chain.Terms[i].Name),
-		})
 	}
 	return nil
 }
@@ -250,8 +257,13 @@ func (b *backend) ListTables() ([]firewall.Table, error) {
 // GetCounters returns per-term packet/byte counter values for a table.
 // Each rule carries its term name in UserData (set by applyChain) and
 // an anonymous counter expression as its first Expr (also set by
-// applyChain). readRuleCounters decodes both; rules lacking either
+// applyChain). readRuleCounter decodes both; rules lacking either
 // (e.g. inserted out-of-band) surface with empty Name and zeroes.
+//
+// One term can hold more than one rule, so the counters of the rules
+// sharing a term name are summed into one entry: the result is one row per
+// TERM, which is the unit the operator wrote and the unit every caller
+// looks up by.
 func (b *backend) GetCounters(tableName string) ([]firewall.ChainCounters, error) {
 	tables, err := b.conn.ListTables()
 	if err != nil {
@@ -283,20 +295,52 @@ func (b *backend) GetCounters(tableName string) ([]firewall.ChainCounters, error
 		if err != nil {
 			return nil, fmt.Errorf("firewallnft: get rules for chain %q: %w", c.Name, err)
 		}
-		cc := firewall.ChainCounters{Chain: c.Name}
-		for _, r := range rules {
-			cc.Terms = append(cc.Terms, readRuleCounter(r))
-		}
-		result = append(result, cc)
+		result = append(result, firewall.ChainCounters{
+			Chain: c.Name,
+			Terms: mergeRuleCounters(rules),
+		})
 	}
 	return result, nil
 }
 
+// mergeRuleCounters turns one chain's kernel rules into one TermCounter per
+// TERM, in rule order.
+//
+// A term becomes more than one rule when an action needs an address family
+// (lowerTerm, lower_linux.go), and every one of those rules carries the term's
+// name. Their packets are summed back into the one term the operator wrote:
+// every caller keys the result by name (handleShowFirewallRuleset in
+// cmd_show.go, the web firewall page), so a second row for one term would
+// replace the first and report one family's packets as the term's total.
+//
+// A rule carrying no name was not programmed by ze, so each one stays its own
+// row and stays visible.
+func mergeRuleCounters(rules []*nftables.Rule) []firewall.TermCounter {
+	terms := make([]firewall.TermCounter, 0, len(rules))
+	at := make(map[string]int, len(rules))
+	for _, r := range rules {
+		tc := readRuleCounter(r)
+		if tc.Name == "" {
+			terms = append(terms, tc)
+			continue
+		}
+		first, seen := at[tc.Name]
+		if !seen {
+			at[tc.Name] = len(terms)
+			terms = append(terms, tc)
+			continue
+		}
+		terms[first].Packets += tc.Packets
+		terms[first].Bytes += tc.Bytes
+	}
+	return terms
+}
+
 // readRuleCounter extracts the term name (from Rule.UserData) and the
-// first Counter expression's packet/byte values. Rules programmed
-// outside ze (no UserData, no Counter) return a zero-valued TermCounter
-// with an empty Name; the caller still sees them so the list of rules
-// and the list of terms stay aligned by index.
+// first Counter expression's packet/byte values, for ONE rule. Rules
+// programmed outside ze (no UserData, no Counter) return a zero-valued
+// TermCounter with an empty Name, and the caller still surfaces each one
+// so a rule ze did not write is visible rather than dropped.
 func readRuleCounter(r *nftables.Rule) firewall.TermCounter {
 	tc := firewall.TermCounter{Name: string(r.UserData)}
 	for _, e := range r.Exprs {

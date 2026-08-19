@@ -3,6 +3,7 @@
 package firewallnft
 
 import (
+	"bytes"
 	"net/netip"
 	"strings"
 	"testing"
@@ -712,7 +713,7 @@ func TestLowerSetConnMarkMasked(t *testing.T) {
 // payload-write with IPv4 header checksum recomputation.
 // PREVENTS: the parser accepting `dscp-set ef` and Apply rejecting it.
 func TestLowerSetDSCP(t *testing.T) {
-	exprs, err := lowerSetDSCP(46) // EF
+	exprs, err := lowerSetDSCP(unix.NFPROTO_IPV4, 46) // EF
 	if err != nil {
 		t.Fatalf("lowerSetDSCP: %v", err)
 	}
@@ -798,11 +799,14 @@ func TestLowerSetTCPMSSZeroRejects(t *testing.T) {
 // than truncating. 64 occupies bit 6 which would spill into the ECN
 // field once shifted.
 func TestLowerSetDSCPOutOfRange(t *testing.T) {
-	if _, err := lowerSetDSCP(64); err == nil {
+	if _, err := lowerSetDSCP(unix.NFPROTO_IPV4, 64); err == nil {
 		t.Error("lowerSetDSCP(64) must reject")
 	}
-	if _, err := lowerSetDSCP(255); err == nil {
+	if _, err := lowerSetDSCP(unix.NFPROTO_IPV4, 255); err == nil {
 		t.Error("lowerSetDSCP(255) must reject")
+	}
+	if _, err := lowerSetDSCP(unix.NFPROTO_IPV6, 64); err == nil {
+		t.Error("lowerSetDSCP(ipv6, 64) must reject")
 	}
 }
 
@@ -871,16 +875,17 @@ func TestLowerRedirectRejectsFlags(t *testing.T) {
 // nftables `icmp type <n>` rule compiles to.
 // PREVENTS: LNS rule 40 (icmp type-name echo-request) lowering wrong.
 func TestLowerICMPTypeMatch(t *testing.T) {
-	exprs, err := lowerICMPTypeMatch(8)
+	exprs, err := lowerICMPTypeMatch(unix.IPPROTO_ICMP, 8)
 	if err != nil {
 		t.Fatalf("lowerICMPTypeMatch: %v", err)
 	}
-	if len(exprs) != 2 {
-		t.Fatalf("len = %d, want 2 (Payload load + Cmp)", len(exprs))
+	if len(exprs) != 4 {
+		t.Fatalf("len = %d, want 4 (l4proto dependency + Payload load + Cmp)", len(exprs))
 	}
-	p, ok := exprs[0].(*expr.Payload)
+	rest := l4protoDepRest(t, exprs, unix.IPPROTO_ICMP)
+	p, ok := rest[0].(*expr.Payload)
 	if !ok {
-		t.Fatalf("exprs[0] = %T, want *expr.Payload", exprs[0])
+		t.Fatalf("expression after the dependency = %T, want *expr.Payload", rest[0])
 	}
 	if p.OperationType != expr.PayloadLoad {
 		t.Errorf("OperationType = %v, want PayloadLoad", p.OperationType)
@@ -891,9 +896,9 @@ func TestLowerICMPTypeMatch(t *testing.T) {
 	if p.Offset != 0 || p.Len != 1 {
 		t.Errorf("offset/len = %d/%d, want 0/1 (ICMP type byte)", p.Offset, p.Len)
 	}
-	c, ok := exprs[1].(*expr.Cmp)
+	c, ok := rest[1].(*expr.Cmp)
 	if !ok {
-		t.Fatalf("exprs[1] = %T, want *expr.Cmp", exprs[1])
+		t.Fatalf("expression after the payload = %T, want *expr.Cmp", rest[1])
 	}
 	if len(c.Data) != 1 || c.Data[0] != 8 {
 		t.Errorf("Cmp.Data = %v, want [8]", c.Data)
@@ -1047,6 +1052,55 @@ func inetCtx(sets map[string]*nftables.Set) *lowerCtx {
 		table: &nftables.Table{Name: "t", Family: nftables.TableFamilyINet},
 		sets:  sets,
 	}
+}
+
+// lowerTermOneRule asserts that a term lowers to exactly ONE rule and returns
+// its expressions. Most terms do; a term that lowers to two is a family split
+// and its test says so by reading both rules.
+func lowerTermOneRule(t *testing.T, ctx *lowerCtx, term *firewall.Term) []expr.Any {
+	t.Helper()
+	rules, err := lowerTerm(ctx, term)
+	if err != nil {
+		t.Fatalf("lowerTerm: %v", err)
+	}
+	if len(rules) != 1 {
+		t.Fatalf("lowerTerm produced %d rules, want 1", len(rules))
+	}
+	return rules[0]
+}
+
+// l4protoDepRest asserts that exprs opens with the `meta l4proto <want>`
+// dependency pair, and returns the expressions that follow it. want is an IANA
+// protocol number, e.g. unix.IPPROTO_ICMP or unix.IPPROTO_ICMPV6.
+func l4protoDepRest(t *testing.T, exprs []expr.Any, want byte) []expr.Any {
+	t.Helper()
+	if len(exprs) < 2 {
+		t.Fatalf("expected at least the 2-expression l4proto dependency, got %d", len(exprs))
+	}
+	meta, ok := exprs[0].(*expr.Meta)
+	if !ok {
+		t.Fatalf("expr[0] type = %T, want *expr.Meta carrying l4proto", exprs[0])
+	}
+	if meta.Key != expr.MetaKeyL4PROTO {
+		t.Fatalf("expr[0] meta key = %v, want MetaKeyL4PROTO", meta.Key)
+	}
+	if meta.Register != 1 {
+		t.Errorf("expr[0] meta register = %d, want 1", meta.Register)
+	}
+	cmp, ok := exprs[1].(*expr.Cmp)
+	if !ok {
+		t.Fatalf("expr[1] type = %T, want *expr.Cmp", exprs[1])
+	}
+	if cmp.Op != expr.CmpOpEq {
+		t.Errorf("expr[1] cmp op = %v, want CmpOpEq", cmp.Op)
+	}
+	if cmp.Register != 1 {
+		t.Errorf("expr[1] cmp register = %d, want 1", cmp.Register)
+	}
+	if len(cmp.Data) != 1 || cmp.Data[0] != want {
+		t.Fatalf("expr[1] cmp data = %v, want [%d]", cmp.Data, want)
+	}
+	return exprs[2:]
 }
 
 // nfprotoGuardRest asserts that exprs opens with the `meta nfproto <want>`
@@ -1335,10 +1389,7 @@ func TestLowerTermInetAddrMatchGuardsOnNFProto(t *testing.T) {
 				Matches: []firewall.Match{tt.match},
 				Actions: []firewall.Action{firewall.Drop{}},
 			}
-			exprs, err := lowerTerm(inetCtx(nil), term)
-			if err != nil {
-				t.Fatalf("lowerTerm: %v", err)
-			}
+			exprs := lowerTermOneRule(t, inetCtx(nil), term)
 			rest := nfprotoGuardRest(t, exprs, tt.wantProto)
 			payload, ok := rest[0].(*expr.Payload)
 			if !ok {
@@ -1381,10 +1432,7 @@ func TestLowerTermSingleFamilyTableOmitsNFProtoGuard(t *testing.T) {
 				Name:    "t",
 				Matches: []firewall.Match{firewall.MatchSourceAddress{Prefix: netip.MustParsePrefix(tt.prefix)}},
 			}
-			exprs, err := lowerTerm(ctx, term)
-			if err != nil {
-				t.Fatalf("lowerTerm: %v", err)
-			}
+			exprs := lowerTermOneRule(t, ctx, term)
 			if len(exprs) != 3 {
 				t.Fatalf("expected Payload+Bitwise+Cmp only, got %d expressions", len(exprs))
 			}
@@ -1420,10 +1468,7 @@ func TestLowerMatchInSetInetAddrGuardsOnNFProto(t *testing.T) {
 				Name:    "t",
 				Matches: []firewall.Match{firewall.MatchInSet{SetName: "s", MatchField: tt.field}},
 			}
-			exprs, err := lowerTerm(ctx, term)
-			if err != nil {
-				t.Fatalf("lowerTerm: %v", err)
-			}
+			exprs := lowerTermOneRule(t, ctx, term)
 			rest := nfprotoGuardRest(t, exprs, tt.wantProto)
 			if _, ok := rest[0].(*expr.Payload); !ok {
 				t.Fatalf("expression after the guard = %T, want *expr.Payload", rest[0])
@@ -1498,5 +1543,311 @@ func TestLowerCtxTableFamilyFailsClosedToInet(t *testing.T) {
 	}
 	if got := (&lowerCtx{table: &nftables.Table{Family: nftables.TableFamilyIPv6}}).tableFamily(); got != nftables.TableFamilyIPv6 {
 		t.Errorf("ip6 table family = %v, want TableFamilyIPv6", got)
+	}
+}
+
+// --- family split on a network-header write ---
+
+// VALIDATES: `then { dscp-set 46; accept; }` in an inet table lowers to TWO
+// rules, one guarded `meta nfproto ipv4` carrying the IPv4 TOS-byte write with
+// its header-checksum fixup, one guarded `meta nfproto ipv6` carrying the IPv6
+// traffic-class write with NO checksum, and each rule repeating the term's own
+// matches and its accept verdict. Driven through lowerTerm, the entry point
+// applyChain calls.
+// PREVENTS: the IPv4 write reaching an IPv6 packet, where offset 1 holds the
+// traffic-class low nibble and the flow-label high nibble and the checksum
+// fixup at offset 10 lands inside the IPv6 source address. Measured in a
+// network namespace on 2026-08-19: with the IPv4 write applied to IPv6, all 6
+// packets of an ICMPv6 exchange arrived with DSCP 2 rather than the 46 asked
+// for, ECN forced to CE, and a polluted flow label.
+// PREVENTS ALSO: the single-rule repair, a `meta nfproto ipv4` guard inline in
+// one rule, which gates the accept as well as the write and so drops IPv6
+// traffic the term was written to accept.
+func TestLowerTermInetDSCPSetSplitsPerFamily(t *testing.T) {
+	term := &firewall.Term{
+		Name:    "voip",
+		Matches: []firewall.Match{firewall.MatchDestinationPort{Ranges: []firewall.PortRange{{Lo: 5060, Hi: 5060}}}},
+		Actions: []firewall.Action{firewall.SetDSCP{Value: 46}, firewall.Accept{}},
+	}
+
+	rules, err := lowerTerm(inetCtx(nil), term)
+	if err != nil {
+		t.Fatalf("lowerTerm: %v", err)
+	}
+	if len(rules) != 2 {
+		t.Fatalf("lowerTerm produced %d rules, want 2 (one per address family)", len(rules))
+	}
+
+	tests := []struct {
+		name       string
+		rule       []expr.Any
+		wantProto  byte
+		wantOffset uint32
+		wantLen    uint32
+		wantMask   []byte
+		wantXor    []byte
+		wantCsum   expr.PayloadCsumType
+		wantCsumAt uint32
+	}{
+		{
+			name:       "ipv4 rule writes the TOS byte and fixes the header checksum",
+			rule:       rules[0],
+			wantProto:  unix.NFPROTO_IPV4,
+			wantOffset: 1,
+			wantLen:    1,
+			wantMask:   []byte{0x03},
+			wantXor:    []byte{46 << 2},
+			wantCsum:   expr.CsumTypeInet,
+			wantCsumAt: 10,
+		},
+		{
+			// nft v1.0.9 compiles `ip6 dscp set 46` to exactly this:
+			// payload load 2b @ nh+0, bitwise & 0x3ff0 ^ 0x800b (little
+			// endian: mask f0 3f, xor 0b 80), payload write 2b @ nh+0
+			// csum_type 0.
+			name:       "ipv6 rule writes the traffic class and fixes no checksum",
+			rule:       rules[1],
+			wantProto:  unix.NFPROTO_IPV6,
+			wantOffset: 0,
+			wantLen:    2,
+			wantMask:   []byte{0xF0, 0x3F},
+			wantXor:    []byte{46 >> 2, (46 & 0x03) << 6},
+			wantCsum:   expr.CsumTypeNone,
+			wantCsumAt: 0,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rest := nfprotoGuardRest(t, tt.rule, tt.wantProto)
+
+			// The term's own match is repeated in both rules, so neither
+			// family loses the destination port the operator wrote.
+			port, ok := rest[0].(*expr.Payload)
+			if !ok {
+				t.Fatalf("expression after the guard = %T, want the term's port match", rest[0])
+			}
+			if port.Base != expr.PayloadBaseTransportHeader || port.Offset != 2 {
+				t.Errorf("port match = {Base:%v Offset:%d}, want {Transport 2}", port.Base, port.Offset)
+			}
+
+			read, ok := rest[2].(*expr.Payload)
+			if !ok {
+				t.Fatalf("dscp read = %T, want *expr.Payload", rest[2])
+			}
+			if read.OperationType != expr.PayloadLoad {
+				t.Errorf("dscp read op = %v, want PayloadLoad", read.OperationType)
+			}
+			if read.Base != expr.PayloadBaseNetworkHeader {
+				t.Errorf("dscp read base = %v, want PayloadBaseNetworkHeader", read.Base)
+			}
+			if read.Offset != tt.wantOffset || read.Len != tt.wantLen {
+				t.Errorf("dscp read offset/len = %d/%d, want %d/%d",
+					read.Offset, read.Len, tt.wantOffset, tt.wantLen)
+			}
+
+			bw, ok := rest[3].(*expr.Bitwise)
+			if !ok {
+				t.Fatalf("dscp rewrite = %T, want *expr.Bitwise", rest[3])
+			}
+			if !bytes.Equal(bw.Mask, tt.wantMask) {
+				t.Errorf("dscp mask = %#v, want %#v", bw.Mask, tt.wantMask)
+			}
+			if !bytes.Equal(bw.Xor, tt.wantXor) {
+				t.Errorf("dscp xor = %#v, want %#v", bw.Xor, tt.wantXor)
+			}
+
+			write, ok := rest[4].(*expr.Payload)
+			if !ok {
+				t.Fatalf("dscp write = %T, want *expr.Payload", rest[4])
+			}
+			if write.OperationType != expr.PayloadWrite {
+				t.Errorf("dscp write op = %v, want PayloadWrite", write.OperationType)
+			}
+			if write.Offset != tt.wantOffset || write.Len != tt.wantLen {
+				t.Errorf("dscp write offset/len = %d/%d, want %d/%d",
+					write.Offset, write.Len, tt.wantOffset, tt.wantLen)
+			}
+			if write.CsumType != tt.wantCsum || write.CsumOffset != tt.wantCsumAt {
+				t.Errorf("dscp write checksum = %v/%d, want %v/%d",
+					write.CsumType, write.CsumOffset, tt.wantCsum, tt.wantCsumAt)
+			}
+
+			// The verdict survives the split, so neither family is quietly
+			// dropped from the term the operator wrote.
+			verdict, ok := rest[5].(*expr.Verdict)
+			if !ok {
+				t.Fatalf("last expression = %T, want *expr.Verdict", rest[5])
+			}
+			if verdict.Kind != expr.VerdictAccept {
+				t.Errorf("verdict = %v, want VerdictAccept", verdict.Kind)
+			}
+		})
+	}
+}
+
+// VALIDATES: a term with no network-header write stays ONE rule, in an inet
+// table as in an ip one, and a dscp-set in a single-family table stays one rule
+// carrying that family's write.
+// PREVENTS: charging every rule in every inet table a second copy of itself,
+// and splitting a term whose actions have no address family to split on.
+func TestLowerTermSplitsOnlyWhereAFamilyIsWritten(t *testing.T) {
+	tests := []struct {
+		name       string
+		family     nftables.TableFamily
+		actions    []firewall.Action
+		wantOffset uint32
+		wantLen    uint32
+	}{
+		{
+			name:    "inet table, no network-header write",
+			family:  nftables.TableFamilyINet,
+			actions: []firewall.Action{firewall.Accept{}},
+		},
+		{
+			name:       "ip table, dscp-set writes the IPv4 TOS byte",
+			family:     nftables.TableFamilyIPv4,
+			actions:    []firewall.Action{firewall.SetDSCP{Value: 46}},
+			wantOffset: 1,
+			wantLen:    1,
+		},
+		{
+			name:       "ip6 table, dscp-set writes the IPv6 traffic class",
+			family:     nftables.TableFamilyIPv6,
+			actions:    []firewall.Action{firewall.SetDSCP{Value: 46}},
+			wantOffset: 0,
+			wantLen:    2,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := &lowerCtx{table: &nftables.Table{Name: "t", Family: tt.family}}
+			term := &firewall.Term{Name: "t", Actions: tt.actions}
+
+			exprs := lowerTermOneRule(t, ctx, term)
+			if _, ok := exprs[0].(*expr.Meta); ok {
+				t.Fatalf("rule opens with a meta guard; a single-rule term owes none")
+			}
+			if tt.wantLen == 0 {
+				return
+			}
+			write, ok := exprs[2].(*expr.Payload)
+			if !ok {
+				t.Fatalf("dscp write = %T, want *expr.Payload", exprs[2])
+			}
+			if write.Offset != tt.wantOffset || write.Len != tt.wantLen {
+				t.Errorf("dscp write offset/len = %d/%d, want %d/%d",
+					write.Offset, write.Len, tt.wantOffset, tt.wantLen)
+			}
+		})
+	}
+}
+
+// VALIDATES: a family-neutral rule refuses to write the DSCP rather than
+// guessing a header layout. arp, bridge and netdev tables carry no IP header,
+// so tableNFProto answers NFPROTO_UNSPEC for them.
+// PREVENTS: the guard failing open, which is what a silent default to IPv4
+// would be: a write at the wrong offset in a header nobody checked.
+func TestLowerSetDSCPRejectsWithoutAFamily(t *testing.T) {
+	if _, err := lowerSetDSCP(unix.NFPROTO_UNSPEC, 46); err == nil {
+		t.Fatal("lowerSetDSCP with no address family must reject")
+	}
+	for _, family := range []nftables.TableFamily{
+		nftables.TableFamilyARP,
+		nftables.TableFamilyBridge,
+		nftables.TableFamilyNetdev,
+	} {
+		if got := tableNFProto(family); got != unix.NFPROTO_UNSPEC {
+			t.Errorf("tableNFProto(%v) = %d, want NFPROTO_UNSPEC", family, got)
+		}
+	}
+}
+
+// --- l4proto dependency on an ICMP type match ---
+
+// VALIDATES: `icmp-type` and `icmpv6-type` each lower behind their own
+// `meta l4proto` dependency, so the type byte at transport-header offset 0 is
+// read only for the protocol whose numbering the operator wrote. Driven
+// through lowerTerm, the entry point applyChain calls.
+// PREVENTS: `icmp-type echo-request` (ICMPv4 type 8) also matching an ICMPv6
+// packet whose type byte is 8, which is `unassigned` in ICMPv6, and
+// `icmpv6-type echo-request` (128) matching an ICMPv4 packet.
+func TestLowerTermICMPTypeCarriesL4ProtoDependency(t *testing.T) {
+	tests := []struct {
+		name      string
+		match     firewall.Match
+		wantProto byte
+		wantType  byte
+	}{
+		{"icmpv4 echo-request", firewall.MatchICMPType{Type: 8}, unix.IPPROTO_ICMP, 8},
+		{"icmpv6 echo-request", firewall.MatchICMPv6Type{Type: 128}, unix.IPPROTO_ICMPV6, 128},
+		{"icmpv4 type 128 is not icmpv6", firewall.MatchICMPType{Type: 128}, unix.IPPROTO_ICMP, 128},
+		{"icmpv6 type 8 is not icmpv4", firewall.MatchICMPv6Type{Type: 8}, unix.IPPROTO_ICMPV6, 8},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			term := &firewall.Term{
+				Name:    "t",
+				Matches: []firewall.Match{tt.match},
+				Actions: []firewall.Action{firewall.Accept{}},
+			}
+			exprs := lowerTermOneRule(t, inetCtx(nil), term)
+			rest := l4protoDepRest(t, exprs, tt.wantProto)
+
+			payload, ok := rest[0].(*expr.Payload)
+			if !ok {
+				t.Fatalf("expression after the dependency = %T, want *expr.Payload", rest[0])
+			}
+			if payload.Base != expr.PayloadBaseTransportHeader {
+				t.Errorf("payload base = %v, want PayloadBaseTransportHeader", payload.Base)
+			}
+			if payload.Offset != 0 || payload.Len != 1 {
+				t.Errorf("payload offset/len = %d/%d, want 0/1", payload.Offset, payload.Len)
+			}
+			cmp, ok := rest[1].(*expr.Cmp)
+			if !ok {
+				t.Fatalf("expression after the payload = %T, want *expr.Cmp", rest[1])
+			}
+			if len(cmp.Data) != 1 || cmp.Data[0] != tt.wantType {
+				t.Errorf("type compare = %v, want [%d]", cmp.Data, tt.wantType)
+			}
+		})
+	}
+}
+
+// VALIDATES: the rules of one term are summed into a single TermCounter, in
+// rule order, and a rule ze did not program keeps a row of its own.
+// PREVENTS: a term split across two rules reporting one family's packets as
+// its total. Every caller keys the result by term name
+// (handleShowFirewallRuleset, the web firewall page), so a second row for the
+// same term replaces the first instead of adding to it.
+func TestMergeRuleCountersSumsTheRulesOfOneTerm(t *testing.T) {
+	rule := func(name string, packets, octets uint64) *nftables.Rule {
+		return &nftables.Rule{
+			UserData: []byte(name),
+			Exprs:    []expr.Any{&expr.Counter{Packets: packets, Bytes: octets}},
+		}
+	}
+
+	got := mergeRuleCounters([]*nftables.Rule{
+		rule("voip", 3, 300), // the term's IPv4 rule
+		rule("voip", 4, 400), // the term's IPv6 rule
+		rule("", 9, 900),     // programmed outside ze
+		rule("web", 5, 500),  //
+		rule("", 1, 100),     // programmed outside ze
+	})
+
+	want := []firewall.TermCounter{
+		{Name: "voip", Packets: 7, Bytes: 700},
+		{Name: "", Packets: 9, Bytes: 900},
+		{Name: "web", Packets: 5, Bytes: 500},
+		{Name: "", Packets: 1, Bytes: 100},
+	}
+	if len(got) != len(want) {
+		t.Fatalf("got %d counters, want %d: %+v", len(got), len(want), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("counter %d = %+v, want %+v", i, got[i], want[i])
+		}
 	}
 }

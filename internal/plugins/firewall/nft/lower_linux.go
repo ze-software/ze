@@ -270,13 +270,91 @@ func nfprotoGuard(family nftables.TableFamily, nfproto byte) []expr.Any {
 	}
 }
 
-// lowerTerm translates a ze Term (matches + actions) into nftables expressions.
+// lowerTerm translates a ze Term (matches + actions) into the nftables rules
+// that carry it. One term is one rule, except in an inet table where an action
+// rewrites a network-header field: there it is TWO rules, one for each address
+// family. The caller programs each returned expression list as its own rule.
+//
 // The context allows helpers that need to register anonymous sets (e.g. a
 // multi-range port match lowers to a Lookup against an anonymous interval set).
 // Pass a nil ctx in contexts that cannot materialize sets; helpers that need
 // one will reject with a clear error.
-func lowerTerm(ctx *lowerCtx, term *firewall.Term) ([]expr.Any, error) {
-	var exprs []expr.Any
+//
+// The simpler design is one rule carrying a `meta nfproto ipv4` guard ahead of
+// the IPv4 write. It is rejected because that guard gates every expression
+// after it, so `then { dscp-set 46; accept; }` would stop accepting IPv6
+// traffic: a match-narrowing guard is safe, an action-narrowing one silently
+// drops half the term. Two guarded rules repeat the term's other matches and
+// actions and keep both families whole. Cost of the split: per-rule kernel
+// state is per-family, so a term carrying both `dscp-set` and `limit` gets one
+// token bucket per address family rather than one for the term. nftables has
+// no branch inside a rule, so no single-rule form of this exists.
+func lowerTerm(ctx *lowerCtx, term *firewall.Term) ([][]expr.Any, error) {
+	family := ctx.tableFamily()
+
+	if familySplitNeeded(family, term) {
+		v4, err := lowerTermForNFProto(ctx, term, unix.NFPROTO_IPV4)
+		if err != nil {
+			return nil, err
+		}
+		v6, err := lowerTermForNFProto(ctx, term, unix.NFPROTO_IPV6)
+		if err != nil {
+			return nil, err
+		}
+		return [][]expr.Any{v4, v6}, nil
+	}
+
+	exprs, err := lowerTermForNFProto(ctx, term, tableNFProto(family))
+	if err != nil {
+		return nil, err
+	}
+	return [][]expr.Any{exprs}, nil
+}
+
+// familySplitNeeded reports whether a term must be programmed as one rule per
+// address family. Only an inet table sees both families, so only an inet table
+// can need the split.
+func familySplitNeeded(family nftables.TableFamily, term *firewall.Term) bool {
+	if family != nftables.TableFamilyINet {
+		return false
+	}
+	return termWritesNetworkHeader(term)
+}
+
+// termWritesNetworkHeader reports whether any of the term's actions rewrites a
+// network-header field whose position depends on the packet's address family.
+// An action added here MUST also teach its lowering helper to read the nfproto
+// it is handed, or the split programs the same bytes twice.
+func termWritesNetworkHeader(term *firewall.Term) bool {
+	for _, a := range term.Actions {
+		if _, ok := a.(firewall.SetDSCP); ok {
+			return true
+		}
+	}
+	return false
+}
+
+// tableNFProto returns the one address family a single-family table carries, or
+// NFPROTO_UNSPEC where the table carries more than one (inet) or none of the IP
+// families (arp, bridge, netdev). A lowering handed UNSPEC MUST NOT guess: a
+// family-specific write rejects instead (lowerSetDSCP).
+func tableNFProto(family nftables.TableFamily) byte {
+	switch family {
+	case nftables.TableFamilyIPv4:
+		return unix.NFPROTO_IPV4
+	case nftables.TableFamilyIPv6:
+		return unix.NFPROTO_IPV6
+	default:
+		return unix.NFPROTO_UNSPEC
+	}
+}
+
+// lowerTermForNFProto lowers every match and action of a term into one rule,
+// restricted to one address family. nfproto is NFPROTO_IPV4 or NFPROTO_IPV6
+// when the rule is one half of a family split, and NFPROTO_UNSPEC otherwise;
+// nfprotoGuard emits the leading guard only where the table needs one.
+func lowerTermForNFProto(ctx *lowerCtx, term *firewall.Term, nfproto byte) ([]expr.Any, error) {
+	exprs := nfprotoGuard(ctx.tableFamily(), nfproto)
 
 	for _, m := range term.Matches {
 		me, err := lowerMatch(ctx, m)
@@ -287,7 +365,7 @@ func lowerTerm(ctx *lowerCtx, term *firewall.Term) ([]expr.Any, error) {
 	}
 
 	for _, a := range term.Actions {
-		ae, err := lowerAction(a)
+		ae, err := lowerAction(a, nfproto)
 		if err != nil {
 			return nil, err
 		}
@@ -322,9 +400,9 @@ func lowerMatch(ctx *lowerCtx, m firewall.Match) ([]expr.Any, error) {
 	case firewall.MatchDSCP:
 		return lowerDSCPMatch(ctx.tableFamily(), v.Value)
 	case firewall.MatchICMPType:
-		return lowerICMPTypeMatch(v.Type)
+		return lowerICMPTypeMatch(unix.IPPROTO_ICMP, v.Type)
 	case firewall.MatchICMPv6Type:
-		return lowerICMPTypeMatch(v.Type)
+		return lowerICMPTypeMatch(unix.IPPROTO_ICMPV6, v.Type)
 	case firewall.MatchInSet:
 		return lowerMatchInSet(ctx, v)
 	case firewall.MatchTCPFlags:
@@ -420,7 +498,11 @@ func matchInSetPayloadLayout(m firewall.MatchInSet, set *nftables.Set) (payloadL
 	return payloadLayout{base: expr.PayloadBaseTransportHeader, offset: 2, length: 2, nfproto: unix.NFPROTO_UNSPEC}, nil
 }
 
-func lowerAction(a firewall.Action) ([]expr.Any, error) {
+// lowerAction translates one ze Action into nftables expressions. nfproto is
+// the address family the enclosing rule is restricted to (lowerTermForNFProto);
+// an action that rewrites a network-header field reads it to pick the header
+// layout, and every other action ignores it.
+func lowerAction(a firewall.Action, nfproto byte) ([]expr.Any, error) {
 	switch v := a.(type) {
 	case firewall.Accept:
 		return []expr.Any{&expr.Verdict{Kind: expr.VerdictAccept}}, nil
@@ -449,7 +531,7 @@ func lowerAction(a firewall.Action) ([]expr.Any, error) {
 	case firewall.SetConnMark:
 		return lowerSetConnMark(v.Value, v.Mask)
 	case firewall.SetDSCP:
-		return lowerSetDSCP(v.Value)
+		return lowerSetDSCP(nfproto, v.Value)
 	case firewall.SetTCPMSS:
 		return lowerSetTCPMSS(v.Size)
 	case firewall.FlowOffload:
@@ -666,13 +748,30 @@ func lowerIfaceMatch(key expr.MetaKey, name string, wildcard bool) ([]expr.Any, 
 	}, nil
 }
 
-// lowerICMPTypeMatch compares the first byte of the transport header
-// (ICMPv4 or ICMPv6 type) against a single value. ICMPv4 and ICMPv6
-// share the same lowering: their type byte sits at transport-header
-// offset 0 regardless of protocol. The `ip`/`ip6`/`inet` table family
-// is what disambiguates the two at the kernel level.
-func lowerICMPTypeMatch(icmpType uint8) ([]expr.Any, error) {
+// lowerICMPTypeMatch compares the first byte of the transport header against a
+// single value, behind a `meta l4proto` dependency naming which ICMP the type
+// number belongs to. l4proto is unix.IPPROTO_ICMP for MatchICMPType and
+// unix.IPPROTO_ICMPV6 for MatchICMPv6Type.
+//
+// The type byte sits at transport-header offset 0 for both protocols, so the
+// read alone cannot tell them apart, and the numbers mean different things in
+// each: 128 is echo-request in ICMPv6 and `unassigned` in ICMPv4, while 8 is
+// echo-request in ICMPv4 and `unassigned` in ICMPv6. Without the dependency an
+// `icmp-type` term also matched ICMPv6 traffic carrying that byte. The table
+// family does NOT disambiguate them: validateMatch
+// (internal/component/firewall/validate.go) accepts either match in an inet
+// table, whose chains see both protocols.
+//
+// The dependency is `meta l4proto` rather than `meta nfproto`, because what
+// separates the two type spaces is the L4 protocol number (1 against 58), and
+// meta l4proto reads it past any IPv6 extension header. nft emits an nfproto
+// guard beside it, which additionally refuses an IPv6 packet whose next header
+// is 1; that packet does carry an ICMPv4 header, so reading its type byte as
+// an ICMPv4 type is not the misread this guard exists to stop.
+func lowerICMPTypeMatch(l4proto, icmpType uint8) ([]expr.Any, error) {
 	return []expr.Any{
+		&expr.Meta{Key: expr.MetaKeyL4PROTO, Register: 1},
+		&expr.Cmp{Op: expr.CmpOpEq, Register: 1, Data: []byte{l4proto}},
 		&expr.Payload{
 			OperationType: expr.PayloadLoad,
 			DestRegister:  1,
@@ -789,19 +888,34 @@ func maskedValue(value, mask uint32) []byte {
 	return out
 }
 
-// lowerSetDSCP rewrites the IPv4 TOS byte's top 6 bits (DSCP) while
-// preserving the bottom 2 bits (ECN). Read TOS, `(tos & 0x03) ^ (dscp << 2)`,
-// write back with IPv4 header checksum recomputed.
+// lowerSetDSCP rewrites the packet's DSCP field, preserving the ECN bits
+// beside it. The DSCP sits in a different place in each IP header, so the
+// caller states which one this rule carries: nfproto is NFPROTO_IPV4 or
+// NFPROTO_IPV6, and lowerTerm splits an inet term into one rule per family so
+// both are programmed.
 //
-// IPv6 traffic class straddles bytes 0 and 1 of the network header, so
-// this lowering is IPv4-only today. A caller in a `ip6` table will land
-// this expression at the same offsets and produce a wrong write; the
-// verifier does not currently prevent it. When an IPv6 DSCP pattern is
-// needed, add a family parameter here.
-func lowerSetDSCP(dscp uint8) ([]expr.Any, error) {
+// NFPROTO_UNSPEC rejects. It says the rule is not restricted to one address
+// family, and there is no header layout that fits both: writing either one
+// would corrupt the other.
+func lowerSetDSCP(nfproto byte, dscp uint8) ([]expr.Any, error) {
 	if dscp > 63 {
 		return nil, fmt.Errorf("dscp %d out of range 0..63", dscp)
 	}
+	switch nfproto {
+	case unix.NFPROTO_IPV4:
+		return setDSCPv4(dscp), nil
+	case unix.NFPROTO_IPV6:
+		return setDSCPv6(dscp), nil
+	}
+	return nil, fmt.Errorf("dscp-set: rule carries no address family (nfproto %d); "+
+		"the DSCP field sits at a different header offset in IPv4 and IPv6", nfproto)
+}
+
+// setDSCPv4 rewrites the IPv4 TOS byte's top 6 bits (DSCP) while preserving the
+// bottom 2 bits (ECN). Read TOS at network-header offset 1,
+// `(tos & 0x03) ^ (dscp << 2)`, write it back with the IPv4 header checksum at
+// offset 10 recomputed.
+func setDSCPv4(dscp uint8) []expr.Any {
 	return []expr.Any{
 		&expr.Payload{
 			OperationType: expr.PayloadLoad,
@@ -826,7 +940,53 @@ func lowerSetDSCP(dscp uint8) ([]expr.Any, error) {
 			CsumType:       expr.CsumTypeInet,
 			CsumOffset:     10,
 		},
-	}, nil
+	}
+}
+
+// setDSCPv6 rewrites the IPv6 traffic class's top 6 bits (DSCP). The traffic
+// class straddles the first two bytes of the header, so the read, the rewrite
+// and the write all span bytes 0..1:
+//
+//	byte 0:  version (4 bits)      | traffic class 7..4
+//	byte 1:  traffic class 3..0    | flow label 19..16
+//
+// DSCP is traffic class 7..2 and ECN is traffic class 1..0, so the mask keeps
+// the version nibble in byte 0 and both the ECN bits and the flow-label nibble
+// in byte 1. The DSCP's top four bits land in byte 0's low nibble and its
+// bottom two in byte 1's top two.
+//
+// IPv6 has no header checksum, and the traffic class is outside the TCP/UDP
+// pseudo-header, so no checksum is recomputed. Writing one here is the defect
+// this function replaced: an IPv4 fixup at network-header offset 10 lands
+// inside the IPv6 source address.
+//
+// The expressions match what `nft add rule ip6 ... ip6 dscp set <n>` compiles
+// to, byte for byte, checked against nft v1.0.9 `--debug=netlink`.
+func setDSCPv6(dscp uint8) []expr.Any {
+	return []expr.Any{
+		&expr.Payload{
+			OperationType: expr.PayloadLoad,
+			DestRegister:  1,
+			Base:          expr.PayloadBaseNetworkHeader,
+			Offset:        0,
+			Len:           2,
+		},
+		&expr.Bitwise{
+			SourceRegister: 1,
+			DestRegister:   1,
+			Len:            2,
+			Mask:           []byte{0xF0, 0x3F},
+			Xor:            []byte{dscp >> 2, (dscp & 0x03) << 6},
+		},
+		&expr.Payload{
+			OperationType:  expr.PayloadWrite,
+			SourceRegister: 1,
+			Base:           expr.PayloadBaseNetworkHeader,
+			Offset:         0,
+			Len:            2,
+			CsumType:       expr.CsumTypeNone,
+		},
+	}
 }
 
 // lowerTCPFlagsMatch matches TCP header flags. TCP flags occupy byte 13

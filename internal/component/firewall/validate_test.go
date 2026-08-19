@@ -409,10 +409,11 @@ func TestValidateDSCPMatchFamily(t *testing.T) {
 }
 
 // VALIDATES: gap-3 -- SetDSCP is permitted in `inet` tables (not only
-// `ip`) because an `inet` chain dispatches IPv4 packets to the same
-// header layout that lowerSetDSCP encodes. Before this fix, an `inet`
-// table with a `then { dscp-set ... }` action rejected at verify even
-// though the expression would work on the IPv4 path.
+// `ip`). An inet chain sees both address families, so lowerTerm
+// (internal/plugins/firewall/nft/lower_linux.go) programs the term as one
+// rule per family there, each writing its own header layout. Before this
+// was allowed, an `inet` table with a `then { dscp-set ... }` action
+// rejected at verify.
 // PREVENTS: operator being forced to duplicate filter rules into a
 // second ip-only table just to reclassify DSCP.
 func TestValidateSetDSCPInet(t *testing.T) {

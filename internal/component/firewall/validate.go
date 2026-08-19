@@ -127,14 +127,11 @@ func validateMatch(tbl *Table, ch *Chain, term *Term, m Match, sets map[string]S
 		}
 	case MatchICMPType:
 		// ICMPv4 type numbers only apply to IPv4. An `inet` table is
-		// accepted, and in it the match is WIDER than the operator
-		// asked for: lowerICMPTypeMatch
-		// (internal/plugins/firewall/nft/lower_linux.go) reads
-		// transport-header offset 0 with no `meta l4proto` guard, so
-		// an ICMPv4 type also matches an ICMPv6 packet carrying that
-		// byte. Recorded in
-		// plan/journal/guard-added-to-one-half-of-a-pair.md.
-		// Any other family is a configuration error.
+		// accepted, and lowerICMPTypeMatch
+		// (internal/plugins/firewall/nft/lower_linux.go) puts a
+		// `meta l4proto 1` dependency ahead of the type-byte read there,
+		// so the match keeps to ICMPv4 in a table that sees both
+		// protocols. Any other family is a configuration error.
 		if tbl.Family != FamilyIP && tbl.Family != FamilyInet {
 			return fmt.Errorf("table %q chain %q term %q: icmp-type is valid only in family ip or inet, got %s",
 				tbl.Name, ch.Name, term.Name, tbl.Family)
@@ -276,12 +273,16 @@ func validateAction(tbl *Table, ch *Chain, term *Term, a Action, chains, flowtab
 				tbl.Name, ch.Name, term.Name, v.Name)
 		}
 	case SetDSCP:
-		// dscp-set rewrites the IPv4 TOS byte. An `inet` chain is
-		// valid because its dispatch runs the rule on the ipv4
-		// path only for ipv4 packets. ip6/arp/bridge/netdev are
-		// rejected -- the lowered Payload-write would target the
-		// wrong byte (IPv6 traffic class + flow label) or a
-		// non-IP header.
+		// dscp-set rewrites the DSCP field, which sits in the IPv4 TOS
+		// byte and in the IPv6 traffic class. An `inet` chain sees both
+		// families, so lowerTerm
+		// (internal/plugins/firewall/nft/lower_linux.go) programs the
+		// term as two rules there, one guarded on each family, and each
+		// rule writes its own header layout.
+		// arp/bridge/netdev carry no IP header to rewrite and are
+		// rejected. ip6 is still rejected: setDSCPv6 can now program it,
+		// so widening this to FamilyIP6 is a config-surface change with
+		// its own functional test, not a gap in the lowering.
 		if tbl.Family != FamilyIP && tbl.Family != FamilyInet {
 			return fmt.Errorf("table %q chain %q term %q: dscp-set is IPv4-only; move to a table with family ip or inet (got %s)",
 				tbl.Name, ch.Name, term.Name, tbl.Family)
