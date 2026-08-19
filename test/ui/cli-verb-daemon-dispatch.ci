@@ -5,8 +5,8 @@
 #            verb-relative command tree and dispatches on the ABSOLUTE path the
 #            daemon is keyed on; a trailing positional value (`ze show log
 #            recent count 5`) reaches the handler that owns it; `ze show host`
-#            answers with the daemon UP and with it DOWN; `ze show bgp` lists
-#            its members and exits 1.
+#            answers with the daemon UP and with it DOWN; `ze show bgp peer`
+#            lists its members and exits 1.
 # REGRESSION: cmdutil.RunCommand walked cli.BuildVerbCommandTree, which is
 #            RELATIVE to the verb, with the ABSOLUTE argv words. 56 of the 63
 #            `ze show` commands answered `unknown command`. Nothing caught it:
@@ -126,10 +126,13 @@ try:
     # 4. A grouping container nothing declares and no fallback covers lists its
     #    members and exits 1 -- an incomplete command did not succeed
     #    (ai/rules/cli.md). Pinned because it is user-visible.
-    code, out = run(['ze', 'show', 'bgp'], cli_env)
-    require(code == 1, 'ze show bgp exit=%d, want 1: %s' % (code, out))
+    # `show bgp` itself became a command (spec-cli-dispatch-child-guard), so it
+    # is no longer an example of this class. `show bgp peer` still is: it holds
+    # children and declares no ze:command of its own.
+    code, out = run(['ze', 'show', 'bgp', 'peer'], cli_env)
+    require(code == 1, 'ze show bgp peer exit=%d, want 1: %s' % (code, out))
     require('subcommands' in out, out)
-    require('decode' in out, out)
+    require('list' in out, out)
 
     # 5. `show host` with the daemon UP. The offline fallback made the path
     #    dispatchable, so RunCommand stopped printing the subcommand list and

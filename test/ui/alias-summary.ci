@@ -33,7 +33,7 @@ def run(argv, env):
 password_hash = subprocess.check_output(['ze', 'passwd'], input='secret\n', text=True).strip()
 with open('summary.conf', 'w', encoding='utf-8') as fh:
     fh.write('''bgp {
-    router-id 192.0.2.254
+    router-id 10.255.255.254
     session {
         asn {
             local 65000
@@ -128,7 +128,7 @@ try:
     only = cli('show bgp summary | summary | text')
     for key in ('router-id', 'local-as', 'peers-configured', 'peers-established'):
         require(key in only, 'the aggregate %s is missing: %r' % (key, only))
-    require('192.0.2.254' in only, 'the router-id value is missing: %r' % only)
+    require('10.255.255.254' in only, 'the router-id value is missing: %r' % only)
     require('192.0.2.1' not in only, 'a peer row survived `| summary`: %r' % only)
     require('192.0.2.2' not in only, 'a peer row survived `| summary`: %r' % only)
 

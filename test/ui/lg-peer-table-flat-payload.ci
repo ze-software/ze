@@ -80,7 +80,10 @@ cmd=background:seq=1:exec=ze -:stdin=ze-bgp
 
 # The status endpoint reads the same answer's router-id, which is an aggregate
 # key. It is the readiness barrier and the first half of the assertion.
-http=wait:seq=1:url=http://127.0.0.1:$PORT2/api/looking-glass/status:status=200:contains=192.0.2.254:timeout=20s
+# Wait on the endpoint this test is ABOUT. /status is served from `bgp status`
+# (handleAPIStatus, internal/component/lg/handler_api.go), a different command
+# whose payload this spec never touched; only /protocols/bgp reads the summary.
+http=wait:seq=1:url=http://127.0.0.1:$PORT2/api/looking-glass/protocols/bgp:status=200:contains=peer1:timeout=20s
 
 # The peer table: both configured peers reach it through summaryPeers.
 http=get:seq=1:url=http://127.0.0.1:$PORT2/api/looking-glass/protocols/bgp:status=200:contains=peer1
@@ -89,4 +92,4 @@ http=get:seq=3:url=http://127.0.0.1:$PORT2/api/looking-glass/protocols/bgp:statu
 http=get:seq=4:url=http://127.0.0.1:$PORT2/api/looking-glass/protocols/bgp:status=200:contains=192.0.2.2
 
 # The short form reads the same rows through the same helper.
-http=get:seq=5:url=http://127.0.0.1:$PORT2/api/looking-glass/protocols/short:status=200:contains=192.0.2.1
+http=get:seq=5:url=http://127.0.0.1:$PORT2/api/looking-glass/protocols/short:status=200:contains=peer1
