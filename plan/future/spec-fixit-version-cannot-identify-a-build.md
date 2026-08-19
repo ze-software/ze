@@ -12,6 +12,15 @@
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
+Moved to `plan/future/` on 2026-08-19. It is an improvement, not a release
+defect: it matches none of the five defect kinds in `plan/future/README.md`.
+The spec's premise also needs correcting before implementation. A make-built
+host binary already resolves to a commit, because `readInfo` and `Extended`
+(`internal/core/version/version.go`) read `vcs.revision` and `vcs.modified`
+from the build info. The two real gaps are narrower: the Docker image tag is
+date-only (`ZE_DOCKER_TAG` in the `Makefile`), and `.dockerignore` excludes
+`.git/`, so the image's binary carries no `vcs.*` stamp at all.
+
 ## Task
 
 `ZE_VERSION := $(shell date +%y.%m.%d)` (`Makefile`) is a build stamp, not a
@@ -85,7 +94,7 @@ generator would silently drop (`spec`, `plan`, `rules`, `journal`, `close`,
 ### Functional Tests
 | Test | File | Validates |
 |------|------|-----------|
-| <to be filled> | `test/plugin/version-identity.ci` | the reported version resolves to one commit |
+| <to be filled> | `test/plugin/version-identity.ci` | the reported version resolves to one commit |  <!-- doc-links: ignore (fixture this spec will create; the spec is `skeleton` and the work is not implemented) -->
 
 ## Files to Modify
 

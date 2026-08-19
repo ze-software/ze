@@ -11,6 +11,19 @@
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
+Moved to `plan/future/` on 2026-08-19. It is process tooling, not a release
+defect: it matches none of the five defect kinds in `plan/future/README.md`.
+
+The Task section below states a mechanism that does not occur, so it must be
+rewritten before anyone implements it. The captured never-dispatched output
+carries NO usage banner, so `usage_error_signature`
+(`scripts/dev/stress-repro.py`) returns `None` because neither half matches,
+not because only the signature half misses. Keying the guard on the banner is
+therefore not the fix, and a `.ci` fixture already asserts that same banner
+over a real command, so keying on it would discard a genuine failure. The
+guard needs a positive "a suite dispatched" marker instead, and an absent
+marker must read as never-dispatched.
+
 ## Task
 
 `scripts/dev/stress-repro.py` reports `*** REPRODUCED on invocation 1` for a run
