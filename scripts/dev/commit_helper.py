@@ -3096,13 +3096,17 @@ def test_coverage_problems(repo: Path, add_paths: tuple[str, ...]) -> list[str]:
     commit produces answers the same question, and the reasoning that kept
     design-ref's second half out did not apply to this one.
 
-    WARN, not BLOCK. The same reason commit_gate_warnings gives for
-    deferral_unassigned: this checkout is shared by many concurrent sessions,
-    and a gate that refuses every refactor commit holds real work back for no
-    software reason. Arming it is one line -- move the call from
-    commit_gate_warnings to commit_gate_problems -- and it is the owner's to
-    make, with an escape flag (`--no-test "<reason>"`) added in the same move,
-    the way --unverified answers the verify-status gate.
+    BLOCK, armed by the owner on 2026-08-19. It shipped WARN for one session,
+    because this checkout is shared and a gate refusing every refactor commit
+    holds other sessions' work back.
+
+    `--no-test "<reason>"` is what answers it, and it is deliberately NOT a
+    DEBT_FLAGS entry. Every flag there names a gate a later run can re-judge,
+    which is what `debt-clear` does. "This commit carried no test" is not
+    re-judgeable once the commit exists, so a row for it could never be
+    cleared. The reason is echoed instead, and lands in the transcript --
+    the same shape as ZE_ADMIT_GOVERNED_WRITE, and auditable the same way. An
+    empty reason admits nothing.
     """
     owing = [p for p in add_paths if _test_coverage_required(p)]
     if not owing:
@@ -3302,11 +3306,6 @@ def commit_gate_warnings(
 ) -> list[str]:
     """All WARN-severity commit-time gates, in one call for create().
 
-    Two of them are advisory for the same reason, which is that this checkout is
-    shared: a gate that refuses commits other sessions have to make holds real
-    work back for no software reason. test_coverage_problems states its own case
-    in its docstring, including what arming it would cost.
-
     deferral_unassigned is advisory, not blocking. An unhomed live deferral row
     is a bookkeeping state that is harmless to software behaviour: the worst case
     is a row committed too early or in the wrong commit. Blocking EVERY commit on
@@ -3319,7 +3318,6 @@ def commit_gate_warnings(
     """
     return (
         deferral_unassigned_problems(repo)
-        + test_coverage_problems(repo, add_paths)
         + wiring_warnings(add_paths)
         + doc_drift_warnings(repo)
     )
@@ -4267,6 +4265,21 @@ def _create(args: argparse.Namespace, repo: Path, session: str, tag: str) -> int
     gate_problems = commit_gate_problems(repo, add_paths, remove_paths)
     if gate_problems:
         raise UsageError("\n\n".join(gate_problems))
+    # Test-coverage gate: a commit carrying non-exempt Go carries a test too.
+    # It sits behind its own flag rather than inside commit_gate_problems, the
+    # way the RFC gate below does, because the escape is a per-commit judgement
+    # rather than a gate anything can re-run afterwards.
+    no_test_reason = (getattr(args, "no_test", None) or "").strip()
+    if not no_test_reason:
+        coverage_problems = test_coverage_problems(repo, add_paths)
+        if coverage_problems:
+            raise UsageError(
+                "\n\n".join(coverage_problems)
+                + '\n  ... or pass --no-test "<why this commit needs none>" to'
+                " commit anyway."
+            )
+    else:
+        print(f"no-test: {no_test_reason}", file=sys.stderr)
     # RFC-tagged-change gate: a test that proves an RFC obligation is the
     # evidence behind a public compliance claim, so the owner approves every
     # behavior change to one and test/rfc-changed.md is where that approval is
@@ -4519,6 +4532,15 @@ def build_parser() -> argparse.ArgumentParser:
         "(ai/PACKAGE-MAP.md, ai/LEARNED-FULL-INDEX.md) is stale or omitted. "
         "SELF-SERVICE and RECORDED: it becomes an open row in "
         "plan/verification-debt/<session>.md that --push refuses to publish over",
+    )
+    create_cmd.add_argument(
+        "--no-test",
+        help="reason this commit carries non-exempt Go and no test path. "
+        "SELF-SERVICE: give a truthful reason and proceed -- a pure rename, a "
+        "comment fix, a refactor whose behaviour is unchanged. Deliberately NOT "
+        "a verification-debt row: every gate a row names can be re-run, and "
+        "'this commit carried no test' cannot be re-judged once the commit "
+        "exists. The reason is echoed to stderr, so it lands in the transcript",
     )
     create_cmd.add_argument(
         "--rfc-change-ok",

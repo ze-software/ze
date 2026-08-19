@@ -48,7 +48,6 @@ stage:
 | `c_line_number_ref` | `evidence.md`, `writing.md` | `.md` under `ai/`, `docs/`, `plan/`, `.claude/` | Blocks a `path:NN` line citation and a `#LNN` permalink anchor in prose. Cite the file and the symbol instead. A fenced block, an `rfc/full/` path, and a file declaring itself generated in its first ten lines are all exempt. `scripts/dev/line_refs.py --apply` sweeps an existing file. BLOCKING. |
 | `c_claude_plans` | `.claude/rules/planning.md` (no point) | Write | Blocks `.claude/plans/` and `~/.claude/plan/`. BLOCKING. | <!-- doc-links: ignore (banned location, deliberately nonexistent) -->
 | `c_check_existing_patterns` | `architecture.md` | new `internal/**/*.go` | Blocks duplicate exported type/func in same package. BLOCKING. |
-| `c_check_existing_tests` | (no point: the function is a no-op) | new test files | Warns about similar existing tests. Advisory. |
 | `c_enforce_naming` | (no point: the file-naming convention is unwritten) | new files | Warns on wrong file naming. Advisory. |
 | `c_throwaway_tests` | `testing.md` | Write | Blocks test files in `/tmp` and throwaway locations. BLOCKING. |
 | `c_utils_package` | `architecture.md` | Write `.go` | Blocks `utils/`/`helpers/`/`common/`/`misc/` packages. BLOCKING. |

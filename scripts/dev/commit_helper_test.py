@@ -4144,6 +4144,86 @@ class TestRfcChangedGate(unittest.TestCase):
             self.assertEqual(rc, 0, err.getvalue())
 
 
+class TestTestCoverageGate(unittest.TestCase):
+    """`test_coverage_problems` BLOCKS, and `--no-test` is the one way past it.
+
+    The gate itself is fixtured in scripts/dev/hook-fixture-check.py
+    (`commit-gate-test-coverage-*`). What this class holds is the WIRING: that
+    create() reaches it, refuses, and names the flag. A gate nobody calls looks
+    exactly like a clean tree, so the fixtures alone cannot prove it fires.
+    """
+
+    GO_PATH = "internal/a/a.go"
+
+    def _repo(self, tmp: str) -> Path:
+        root = Path(tmp)
+        _git(root, "init", "-q")
+        _git(root, "config", "user.email", "t@example.com")
+        _git(root, "config", "user.name", "t")
+        _git(root, "config", "commit.gpgsign", "false")
+        (root / "internal" / "a").mkdir(parents=True)
+        (root / "tmp").mkdir()
+        (root / "seed.txt").write_text("seed\n")
+        _git(root, "add", "-A")
+        _git(root, "commit", "-qm", "init")
+        (root / self.GO_PATH).write_text(
+            "// Design: docs/architecture/core-design.md -- fixture\npackage a\n"
+        )
+        return root
+
+    def _create(self, root: Path, *extra: str) -> tuple[int, str]:
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            rc = ch.main(
+                [
+                    "--repo",
+                    str(root),
+                    "create",
+                    "--session",
+                    "abcd1234",
+                    "--subject",
+                    "feat(a): a thing",
+                    "--file",
+                    self.GO_PATH,
+                    "--unverified",
+                    "temp repo, no verify record",
+                    "--missing-full-verify-ok",
+                    "temp repo, no verify record",
+                    *extra,
+                ]
+            )
+        return rc, out.getvalue() + err.getvalue()
+
+    def test_a_go_commit_carrying_no_test_is_refused(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            rc, text = self._create(root)
+            self.assertEqual(rc, 2, text)
+            self.assertIn("no test", text)
+            self.assertIn("--no-test", text)
+
+    def test_a_commit_carrying_a_test_passes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            (root / "internal" / "a" / "a_test.go").write_text("package a\n")
+            rc, text = self._create(root, "--file", "internal/a/a_test.go")
+            self.assertEqual(rc, 0, text)
+
+    def test_the_no_test_flag_clears_it(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            rc, text = self._create(root, "--no-test", "pure rename, behaviour equal")
+            self.assertEqual(rc, 0, text)
+
+    def test_an_empty_no_test_reason_admits_nothing(self) -> None:
+        """`ZE_ADMIT_GOVERNED_WRITE` is the precedent: the escape is the REASON,
+        so whitespace buys nothing and the refusal stands."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            rc, text = self._create(root, "--no-test", "   ")
+            self.assertEqual(rc, 2, text)
+
+
 class TestFullVerifyCoverage(unittest.TestCase):
     """The owner directive of 2026-08-17: a Go-carrying commit owes a full run.
 
@@ -4284,10 +4364,24 @@ class TestFullVerifyCoverage(unittest.TestCase):
         return root, path
 
     def _create(self, root: Path, *extra: str) -> tuple[int, str, str]:
+        # `--no-test` for the same reason `_git_repo_with_runner` writes a
+        # `// Design:` header: the fixture's .go is scaffolding for the gate
+        # under test HERE, and without it the test-coverage gate refuses the
+        # commit first and this class's gate is never reached. Its own wiring
+        # is held by TestTestCoverageGate.
         out, err = io.StringIO(), io.StringIO()
         with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
             rc = ch.main(
-                ["--repo", str(root), "create", "--session", "abcd1234", *extra]
+                [
+                    "--repo",
+                    str(root),
+                    "create",
+                    "--session",
+                    "abcd1234",
+                    "--no-test",
+                    "fixture for the full-verify gate, carries no behaviour",
+                    *extra,
+                ]
             )
         return rc, out.getvalue(), err.getvalue()
 

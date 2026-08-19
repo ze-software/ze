@@ -2373,12 +2373,6 @@ def c_check_existing_patterns(ctx):
     return None
 
 
-# ze point: none -- the function is a no-op that always returns None, so it enforces nothing
-def c_check_existing_tests(ctx):
-    # Warning-only hook: prints to stderr but always exit 0. No effect on exit code.
-    return None
-
-
 # ze point: testing/temporary-files/use-project-tmp-for-scratch-files
 def c_system_tmp_we(ctx):
     fp = ctx["fp"]
@@ -3508,7 +3502,6 @@ CHECKS = (
     c_require_test_first,
     c_throwaway_tests,
     c_enforce_naming,
-    c_check_existing_tests,
     c_system_tmp_we,
     c_scratch_path_we,
 )
