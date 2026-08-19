@@ -94,6 +94,28 @@ func TestQdiscType(t *testing.T) {
 	}
 }
 
+// TestParseQdiscTypeRefusesIngressHookKinds
+// VALIDATES: the two directions disagree on purpose. String and Valid still
+// name clsact and ingress, because the backend reads them off an interface;
+// ParseQdiscType refuses them, because no operator can ask for one. Method:
+// parse each name and require the refusal, then parse a real discipline.
+// PREVENTS: a second enumeration that outlives the YANG one. The schema stopped
+// offering both kinds, and a config path that reaches ParseQdiscType without
+// the schema validator would otherwise still produce a qdisc no backend builds.
+func TestParseQdiscTypeRefusesIngressHookKinds(t *testing.T) {
+	for _, name := range []string{"clsact", "ingress"} {
+		if qt, ok := ParseQdiscType(name); ok {
+			t.Errorf("ParseQdiscType(%q) = %v, want refused", name, qt)
+		}
+	}
+	if qt, ok := ParseQdiscType("htb"); !ok || qt != QdiscHTB {
+		t.Errorf("ParseQdiscType(\"htb\") = %v, %v, want QdiscHTB, true", qt, ok)
+	}
+	if !QdiscClsact.Valid() || QdiscClsact.String() != "clsact" {
+		t.Error("readback must still name clsact")
+	}
+}
+
 func TestFilterType(t *testing.T) {
 	tests := []struct {
 		name  string

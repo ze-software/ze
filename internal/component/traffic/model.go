@@ -64,6 +64,11 @@ var qdiscTypeNames = map[QdiscType]string{
 	QdiscIngress: "ingress",
 }
 
+// qdiscTypeByName parses a configured name. It carries no clsact or ingress
+// row, because neither is a discipline an operator can ask for: they attach at
+// the ingress hook rather than at the root, and the mirror and sampling paths
+// own that hook. The two names stay in qdiscTypeNames above, which is the
+// other direction: naming a qdisc this backend READS off an interface.
 var qdiscTypeByName = map[string]QdiscType{
 	"htb":      QdiscHTB,
 	"hfsc":     QdiscHFSC,
@@ -73,8 +78,6 @@ var qdiscTypeByName = map[string]QdiscType{
 	"tbf":      QdiscTBF,
 	"netem":    QdiscNetem,
 	"prio":     QdiscPrio,
-	"clsact":   QdiscClsact,
-	"ingress":  QdiscIngress,
 }
 
 func (q QdiscType) String() string {

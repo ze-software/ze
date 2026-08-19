@@ -167,6 +167,27 @@ func TestPendingSectionSeparatesEmptyFromAbsent(t *testing.T) {
 	}
 }
 
+// TestPendingSectionResetDropsAnAbortedTransaction
+// VALIDATES: reset drops a section that an earlier transaction delivered, so a
+// later apply reports not delivered. Method: set a deletion, reset as the next
+// transaction's verify does, then take.
+// PREVENTS: the silent FIB wipe this sequence produces without the reset. A
+// commit deleting the static routes is verified, another plugin fails the same
+// transaction, and no apply runs and no plugin callback is told. Static is a
+// participant in every reload carrying the "interface" root, so the next
+// interface-only reload reaches apply, takes the stale delivered-empty section,
+// and withdraws every route the running config still declares.
+func TestPendingSectionResetDropsAnAbortedTransaction(t *testing.T) {
+	var pending pendingSection
+
+	pending.set(nil) // a deletion, verified in a transaction that then aborts.
+	pending.reset()  // the next transaction's verify callback.
+
+	if _, delivered := pending.take(); delivered {
+		t.Error("a section from an aborted transaction must not reach a later apply")
+	}
+}
+
 // TestPendingSectionTakeClearsState
 // VALIDATES: take consumes the section, so a second apply that runs without a
 // verify of its own reports not delivered. Method: set once, take twice.

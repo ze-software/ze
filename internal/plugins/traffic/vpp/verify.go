@@ -222,8 +222,12 @@ func verifyClass(ifaceName string, qdiscType traffic.QdiscType, cls traffic.Traf
 // rejected with a dedicated actionable error (AC-4, USER decision 2026-07-10):
 // it is a priority scheduler VPP does not expose, and mapping it to a DSCP
 // egress-map would be a silent semantic substitution. HFSC / FQ / SFQ /
-// FQ_CoDel / netem have no VPP equivalent; clsact / ingress need a different
-// classify pipeline. All are rejected per exact-or-reject.
+// FQ_CoDel / netem have no VPP equivalent, and all are rejected per
+// exact-or-reject. clsact and ingress no longer reach here from a config: the
+// qdisc-type enumeration stopped offering them (ze-traffic-control-conf.yang),
+// because they attach at the ingress hook rather than at the root on either
+// backend. The check below still refuses them, since it tests the type rather
+// than the config path that produced it.
 func verifyQdiscType(q traffic.QdiscType) error {
 	if q == traffic.QdiscHTB || q == traffic.QdiscTBF {
 		return nil

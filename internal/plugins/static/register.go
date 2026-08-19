@@ -43,7 +43,8 @@ type pendingSection struct {
 
 // set records the routes parsed from a delivered static section. An empty or
 // nil routes argument is a delivered section that declares no route, which is
-// what a deletion looks like.
+// what a deletion looks like. The caller MUST have called reset earlier in the
+// same verify callback, so what it records belongs to one transaction.
 func (p *pendingSection) set(routes []staticRoute) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -51,9 +52,26 @@ func (p *pendingSection) set(routes []staticRoute) {
 	p.delivered = true
 }
 
-// take returns the parsed routes and reports whether a section was delivered
-// since the last call. It clears the state, so an apply that follows no verify
-// of its own reports false rather than replaying the previous section.
+// reset drops any section held from an earlier transaction. The verify callback
+// MUST call it before it reads its sections, and set MUST be called after it.
+//
+// Clearing at apply time alone is not enough, because an apply is not reached
+// when another plugin fails the same transaction: the coordinator publishes an
+// abort, and no plugin-facing callback runs (config_tx_bridge.go subscribes to
+// EventRollback only). A deletion verified in that transaction would otherwise
+// stay delivered, and static is a participant in every reload carrying the
+// "interface" root as well as its own, so the next interface-only reload would
+// reach apply, take a delivered empty section, and withdraw every route the
+// config still declares.
+func (p *pendingSection) reset() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.routes, p.delivered = nil, false
+}
+
+// take returns the parsed routes and reports whether a section was delivered by
+// the verify callback of THIS transaction. It clears the state, so a second
+// apply reports false rather than replaying the section.
 func (p *pendingSection) take() ([]staticRoute, bool) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -181,6 +199,10 @@ func runStaticPlugin(conn net.Conn) int {
 	var pending pendingSection
 
 	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
+		// This transaction's delivery starts empty, so a section verified in a
+		// transaction that later aborted cannot be applied by a reload that
+		// carries no static section of its own.
+		pending.reset()
 		for _, section := range sections {
 			if section.Root != pluginName {
 				continue
