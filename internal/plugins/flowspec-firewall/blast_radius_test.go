@@ -74,18 +74,10 @@ func otherOwnerTable() firewall.Table {
 }
 
 func flowSpecAddEvent(peer, protocol string) string {
-	return `{
-		"type": "update",
-		"peer": {"address": "` + peer + `"},
-		"extended-communities": ["rate-limit:0"],
-		"ipv4/flow": [{
-			"action": "add",
-			"nlri": {
-				"destination": [["10.1.0.0/24"]],
-				"protocol": [["=` + protocol + `"]]
-			}
-		}]
-	}`
+	return daemonAddJSON(peer, "rate-limit:0", `{
+		"destination": [["10.1.0.0/24"]],
+		"protocol": [["=`+protocol+`"]]
+	}`)
 }
 
 // TestApplyRulesRejectsUntranslatableRuleAndKeepsOthers is the security case.
@@ -121,9 +113,9 @@ func TestApplyRulesRejectsUntranslatableRuleAndKeepsOthers(t *testing.T) {
 	b := testBridge()
 	// 253 is legal on the wire (RFC 3692 experimentation) and has no canonical
 	// name, so ze cannot enforce it.
-	b.handleUpdate(flowSpecAddEvent("10.0.0.2", "253"), "10.0.0.2")
+	require.NoError(t, b.handleEvent(flowSpecAddEvent("10.0.0.2", "253")))
 	// 132 is SCTP: legal on the wire, and ze can enforce it.
-	b.handleUpdate(flowSpecAddEvent("10.0.0.1", "132"), "10.0.0.1")
+	require.NoError(t, b.handleEvent(flowSpecAddEvent("10.0.0.1", "132")))
 
 	// Only now does another owner reconcile. With an unenforceable FlowSpec term
 	// registered, this is the call that never reaches the kernel.

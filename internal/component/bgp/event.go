@@ -39,12 +39,14 @@ var KnownFields = map[string]bool{
 }
 
 // ParseEvent parses a JSON event from ze.
-// Handles ze-bgp JSON format where events are nested under their event type:
+// Handles ze-bgp JSON format, where the event kind is in message.type, the peer
+// sits beside it, and the body is nested under the kind's own key:
 //
-//	{"type":"bgp","bgp":{"type":"update","update":{...}}}
-//	{"type":"bgp","bgp":{"type":"state","state":{...}}}
+//	{"type":"bgp","bgp":{"message":{"type":"update"},"peer":{...},"update":{"attr":{...},"nlri":{...}}}}
+//	{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{...},"state":"up"}}
 //
-// Extracts family operations (ipv4/unicast, ipv6/unicast, etc.) from dynamic keys.
+// A top-level "type" is accepted in place of message.type, and family
+// operations (ipv4/unicast, ipv6/unicast, ...) are extracted from dynamic keys.
 func ParseEvent(data []byte) (*Event, error) {
 	// First check if this is ze-bgp JSON format (has "bgp" or "rib" wrapper).
 	var wrapper struct {
@@ -142,7 +144,18 @@ func ParseEvent(data []byte) (*Event, error) {
 		return &event, nil //nolint:nilerr // Return event without family ops if parsing fails
 	}
 
-	// ze-bgp JSON: attributes nested under "attributes" key.
+	// ze-bgp JSON: path attributes nested under "attr".
+	//
+	// "attr" is the key every writer in this repository produces
+	// (internal/component/bgp/format: appendFilterResultJSON and
+	// appendParsedUpdateJSONDirect both open the update body with `"attr":{`),
+	// so it is read first. "attributes" is the spelling this parser was
+	// written for, and it stays accepted for a producer that emits it: no
+	// writer here emits both, so the second call sets what the first left
+	// alone rather than overriding it.
+	if attrsData, ok := raw["attr"]; ok {
+		parseAttributes(&event, attrsData)
+	}
 	if attrsData, ok := raw["attributes"]; ok {
 		parseAttributes(&event, attrsData)
 	}
@@ -163,7 +176,8 @@ func ParseEvent(data []byte) (*Event, error) {
 	return &event, nil
 }
 
-// parseAttributes extracts path attributes from the "attributes" JSON key.
+// parseAttributes extracts path attributes from the "attr" JSON object (the
+// key ze writes) or from an "attributes" object carrying the same fields.
 func parseAttributes(event *Event, attrsData json.RawMessage) {
 	var attrs struct {
 		Origin              string   `json:"origin,omitempty"`

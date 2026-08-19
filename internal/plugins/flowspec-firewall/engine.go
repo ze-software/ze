@@ -13,10 +13,13 @@ import (
 	"net"
 	"sync/atomic"
 
+	"github.com/ze-software/ze/internal/component/bgp"
 	"github.com/ze-software/ze/internal/component/firewall"
+	"github.com/ze-software/ze/internal/core/bgp/routeaction"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -51,31 +54,48 @@ func newBridge(log *slog.Logger) *bridge {
 	}
 }
 
-// handleEvent dispatches a JSON BGP event to the appropriate handler.
+// handleEvent dispatches one ze-bgp JSON event to the handler for its type.
+//
+// bgp.ParseEvent owns the envelope: the daemon writes the event type in
+// `bgp.message.type`, the peer at `bgp.peer`, and the UPDATE body under
+// `bgp.update` (internal/component/bgp/format, appendFilterResultJSON and
+// appendParsedUpdateJSONDirect). Reading that shape here with a second parser
+// is how this bridge came to read a flat envelope no writer produces.
 func (b *bridge) handleEvent(jsonStr string) error {
-	var envelope struct {
-		Type  string `json:"type"`
-		State string `json:"state,omitempty"`
-		Peer  struct {
-			Remote struct {
-				Address string `json:"address"`
-			} `json:"remote"`
-		} `json:"peer"`
-	}
-	if err := json.Unmarshal([]byte(jsonStr), &envelope); err != nil {
+	event, err := bgp.ParseEvent([]byte(jsonStr))
+	if err != nil {
 		b.log.Debug("flowspec: malformed event", "error", err)
-		return nil //nolint:nilerr // malformed events are silently dropped
+		return nil //nolint:nilerr // a malformed event is dropped, and the line above says so
 	}
 
-	switch envelope.Type {
-	case "state":
-		if envelope.State != "up" && envelope.Peer.Remote.Address != "" {
-			b.handlePeerDown(envelope.Peer.Remote.Address)
+	peer := event.GetPeerAddress()
+	if peer == "" {
+		b.log.Debug("flowspec: event carries no peer address, dropped", "type", event.Type)
+		return nil
+	}
+
+	switch event.TypeKind {
+	case rpc.EventKindState:
+		var state rpc.SessionState
+		if err := state.UnmarshalText([]byte(event.State)); err != nil {
+			b.log.Debug("flowspec: unreadable session state, the peer is treated as down",
+				"state", event.State, "peer", peer, "error", err)
 		}
-	case "update":
-		if envelope.Peer.Remote.Address != "" {
-			b.handleUpdate(jsonStr, envelope.Peer.Remote.Address)
+		// Anything that is not "up" drops the peer's rules, an unreadable
+		// state included: a peer whose session ze cannot read is a peer whose
+		// FlowSpec routes ze must stop enforcing.
+		if state != rpc.SessionStateUp {
+			b.handlePeerDown(peer)
 		}
+	case rpc.EventKindUpdate:
+		b.handleUpdate(event, peer)
+	default:
+		// Debug, not warn: this plugin subscribes to updates and state
+		// changes, and the engine delivers End-of-RIB and route-refresh
+		// markers on the same subscription. Every one of them is a legitimate
+		// event this bridge has nothing to do with, so the line records the
+		// drop without turning a normal session into a stream of warnings.
+		b.log.Debug("flowspec: event type not handled, dropped", "type", event.Type, "peer", peer)
 	}
 	return nil
 }
@@ -89,52 +109,23 @@ func (b *bridge) handlePeerDown(peer string) {
 	}
 }
 
-// flowSpecOp is a single FlowSpec family operation from the event JSON.
-type flowSpecOp struct {
-	Action string          `json:"action"`
-	NLRI   json.RawMessage `json:"nlri"`
-}
-
 // handleUpdate processes a BGP UPDATE event for FlowSpec families.
-func (b *bridge) handleUpdate(jsonStr, peer string) {
-	var raw map[string]json.RawMessage
-	if json.Unmarshal([]byte(jsonStr), &raw) != nil {
-		return
-	}
-
-	var extComms []string
-	if ec, ok := raw["extended-communities"]; ok {
-		if err := json.Unmarshal(ec, &extComms); err != nil {
-			b.log.Debug("flowspec: malformed extended-communities", "error", err)
-		}
-	}
-
-	act := parseExtendedCommunities(extComms)
+//
+// The traffic action comes from the extended communities the daemon writes
+// under `update.attr`, and the routes from the per-family arrays under
+// `update.nlri`. bgp.ParseEvent has already resolved both: the attributes into
+// Event.ExtendedCommunities and each family key into a typed family.Family.
+func (b *bridge) handleUpdate(event *bgp.Event, peer string) {
+	act := parseExtendedCommunities(event.ExtendedCommunities)
 	changed := false
 
-	for famStr, data := range raw {
-		fam, ok := family.LookupFamily(famStr)
-		if !ok {
-			continue
-		}
+	for fam, ops := range event.FamilyOps {
 		if fam.SAFI != family.SAFIFlowSpec {
 			continue
 		}
-
-		var ops []flowSpecOp
-		if json.Unmarshal(data, &ops) != nil {
-			continue
-		}
-
 		for _, op := range ops {
-			var tb textbuf.Buffer
-			nlriKey := tb.Str(famStr).Byte('|').Str(string(op.NLRI)).String()
-			switch op.Action {
-			case "add":
-				changed = b.handleFlowSpecAdd(peer, fam, nlriKey, op.NLRI, act) || changed
-			case "del", "withdraw":
-				b.rules.remove(peer, nlriKey)
-				changed = true
+			for _, item := range op.NLRIs {
+				changed = b.handleFlowSpecOp(peer, fam, op.Action, item, act) || changed
 			}
 		}
 	}
@@ -142,6 +133,41 @@ func (b *bridge) handleUpdate(jsonStr, peer string) {
 	if changed {
 		b.applyRules()
 	}
+}
+
+// handleFlowSpecOp applies one operation to one FlowSpec NLRI.
+// It returns true when the rule map changed.
+//
+// ParseEvent hands every NLRI over decoded, so the JSON the FlowSpec writer
+// produced is rebuilt here for the component parser and for the rule key. That
+// re-encode is the whole cost of sharing one event parser with the rest of the
+// engine, and it is paid at operator pace: a FlowSpec route arrives when a
+// peer announces a filter, not on every UPDATE.
+func (b *bridge) handleFlowSpecOp(peer string, fam family.Family, action routeaction.Action, item any, act flowAction) bool {
+	nlriJSON, err := json.Marshal(item)
+	if err != nil {
+		countRuleRefused(refusedReasonParse)
+		b.log.Warn("flowspec: NLRI could not be re-encoded, the route will not be enforced",
+			"peer", peer, "family", fam, "error", err)
+		return false
+	}
+
+	var tb textbuf.Buffer
+	nlriKey := tb.Str(fam.String()).Byte('|').Str(string(nlriJSON)).String()
+
+	switch action.Verb() {
+	case routeaction.VerbInstall, routeaction.VerbReplace:
+		return b.handleFlowSpecAdd(peer, fam, nlriKey, nlriJSON, act)
+	case routeaction.VerbRemove:
+		b.rules.remove(peer, nlriKey)
+		return true
+	case routeaction.VerbSkip:
+		// An action that maps to neither install nor remove. It is dropped,
+		// and this line is what stops the drop being silent.
+		b.log.Debug("flowspec: route action not handled, the route is dropped",
+			"peer", peer, "action", action.String(), "nlri", nlriKey)
+	}
+	return false
 }
 
 // handleFlowSpecAdd processes a single FlowSpec NLRI addition.

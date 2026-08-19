@@ -1,5 +1,5 @@
 // Design: docs/architecture/core-design.md -- FlowSpec-to-firewall bridge
-// Related: engine.go -- handleFlowSpecAdd, the only caller of countRuleRefused
+// Related: engine.go -- handleFlowSpecOp and handleFlowSpecAdd, the callers of countRuleRefused
 
 package flowspecfirewall
 

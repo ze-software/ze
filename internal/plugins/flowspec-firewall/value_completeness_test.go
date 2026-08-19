@@ -253,16 +253,8 @@ func TestRouteWithNoActionIsCountedAndLogged(t *testing.T) {
 	var logged bytes.Buffer
 	b := newBridge(slog.New(slog.NewTextHandler(&logged, nil)))
 
-	event := `{
-		"type": "update",
-		"peer": {"address": "10.0.0.1"},
-		"extended-communities": ["target:65000:100"],
-		"ipv4/flow": [{
-			"action": "add",
-			"nlri": {"destination": [["10.1.0.0/24"]]}
-		}]
-	}`
-	b.handleUpdate(event, "10.0.0.1")
+	event := daemonAddJSON("10.0.0.1", "target:65000:100", `{"destination": [["10.1.0.0/24"]]}`)
+	require.NoError(t, b.handleEvent(event))
 
 	assert.Nil(t, b.rules.buildTable(), "a route with no action installs nothing")
 	assert.Equal(t, 1, reg.count(refusedReasonNoAction), "the refusal must reach the counter")
