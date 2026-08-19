@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | - |
+| Phase | 5/8 |
 | Deferral shard | `plan/deferrals/streaming-answer-protocol.md` |
 | Handoff | - |
 | Updated | 2026-08-19 |
@@ -165,13 +165,26 @@ Four rules make the tail parseable without a JSON decoder, without quoting, and 
 
 `message=` is what makes an aborted walk expressible when no record faulted: `count=417 message=rib snapshot expired` is neither done nor partial, and the counts alone cannot say so.
 
+### How a fault renders on the buffered path
+
+A `fault=` record has no place on the wire's item array, but the 24 `CommandDispatcher.JSON` consumers (web, MCP, REST, gRPC, looking glass) read only the buffered form, so refusing to render a faulted answer would leave them showing nothing at all for a partial result. The collapse therefore puts faults under a SIBLING key:
+
+| Answer | Buffered rendering |
+|--------|--------------------|
+| rows only | `{"peers":[...]}` — unchanged, no new key appears |
+| rows and faults | `{"peers":[...],"errors":[...]}` |
+| faults, no envelope key | `{"data":[...],"errors":[...]}` |
+
+`errors` is emitted ONLY when a row faulted, so an ordinary answer's shape never changes and no existing consumer meets a key it has not seen. `count=` still counts items alone and `faults=` counts faults, so the two collections stay separately countable on both paths and `| count` cannot disagree with the terminator. A handler naming its own envelope `errors` is refused on both paths, because two collections under one key means one overwrites the other.
+
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The frame layer needs no change to carry a `key=value` tail | `ParseLine` (`pkg/plugin/rpc/message.go`) cuts the verb at the first space and returns the remainder unsplit | The migration grows to include the frame reader, and every plugin breaks at once rather than at the payload boundary | A unit test feeding a `key=value` tail through `ParseLine` and asserting the payload arrives whole | unvalidated |
-| A-2 | Nothing today sets or reads `Response.Partial` | The field exists in `internal/component/plugin/types.go` described as "true for streaming chunks"; no producer was read | An existing streaming consumer exists and this spec collides with it | Grep for writes to `.Partial` across `internal/` and `pkg/`, and read every producer found | unvalidated |
+| A-1 | The frame layer needs no change to carry a `key=value` tail | `ParseLine` (`pkg/plugin/rpc/message.go`) cuts the verb at the first space and returns the remainder unsplit | The migration grows to include the frame reader, and every plugin breaks at once rather than at the payload boundary | A unit test feeding a `key=value` tail through `ParseLine` and asserting the payload arrives whole | **confirmed, 2026-08-19.** `TestParseLineCarriesKeyValueTailWhole` passes against an unedited `ParseLine`, over a head, an `item=` holding `=` and spaces, a terminator, and a not-understood line |
+| A-2 | Nothing today sets or reads `Response.Partial` | The field exists in `internal/component/plugin/types.go` described as "true for streaming chunks"; no producer was read | An existing streaming consumer exists and this spec collides with it | Grep for writes to `.Partial` across `internal/` and `pkg/`, and read every producer found | **broken, 2026-08-19** — see A-7 |
+| A-7 | The server-side pending registry needs the same lifetime change as `MuxConn` | Assumed from `MuxConn.pending` using `LoadAndDelete`; the server registry was not read | Phase 4 is scoped wrongly and rebuilds a mechanism that already exists | Read `internal/component/plugin/server/pending.go` | **broken, 2026-08-19.** `PendingRequests.Partial` already keeps the entry, resets the timeout, and delivers on `RespChan`, and it has zero non-test callers. The FIELD `Response.Partial` is dead; the METHOD is a complete, unused mechanism. Phase 4 therefore narrows to `MuxConn.pending`, and the server side gains a PRODUCER rather than a lifetime change |
 | A-3 | The 24 dispatcher consumers can each take the buffering path with a one-call edit | They call `CommandDispatcher.JSON` and consume `RenderedResponse.Output` as a string | Web, MCP and looking-glass need per-surface streaming work, multiplying the scope | Read each call site and confirm it consumes `Output` as a whole string | unvalidated |
 | A-4 | A NETCONF `rpc-error` shape fits Ze's existing error modelling for the `fault=` payload | Ze is YANG-modelled throughout; the error modelling itself was not read | The `fault=` payload needs a Ze-specific shape and gains nothing from the alignment | Read the YANG error modelling and the existing error payload producers before fixing the shape | unvalidated |
 | A-5 | An operator wants a distinct exit code for a derived partial verdict | Inferred from the goal, not stated by the owner | A script branching on the new code breaks when the owner picks a different mapping | Owner decision recorded in Key Design Decisions before implementation | unvalidated |
@@ -180,14 +193,16 @@ Four rules make the tail parseable without a JSON decoder, without quoting, and 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | `readLoop` routes a response with `pending.LoadAndDelete(idStr)`, so the id is gone after the head and every later line is orphaned. Every plugin RPC goes through that map | Any plugin RPC returns only the head, or hangs waiting for records | Keep the entry until the terminator; keep the single-response path byte-identical for a peer that has not negotiated |
-| R-2 | An unmatched line takes `readLoop`'s orphaned-response branch, which increments `consecutiveBad`; past 100 the reader stores an error and closes a live plugin connection | A plugin connection drops shortly after a cancelled or abandoned answer | Cancellation must reach the producer before the reader detaches, and a record line for an unknown id must not increment that counter |
+| R-1 | `readLoop` routes a response with `pending.LoadAndDelete(idStr)`, so the id is gone after the head and every later line is orphaned. Every plugin RPC goes through that map | Any plugin RPC returns only the head, or hangs waiting for records | **closed 2026-08-19.** `routeResponse` (`pkg/plugin/rpc/mux.go`) keys on the entry type: a `chan []byte` is removed as its one line is routed, an `*answerCall` lives until `endAnswer`. `TestMuxConnDeliversEveryRecordToOneCaller` and `TestSingleResponseCallRPCPathUnchanged` hold the two halves |
+| R-2 | An unmatched line takes `readLoop`'s orphaned-response branch, which increments `consecutiveBad`; past 100 the reader stores an error and closes a live plugin connection | A plugin connection drops shortly after a cancelled or abandoned answer | **closed 2026-08-19.** `discardOrphanResponse` (`pkg/plugin/rpc/mux.go`) counts an unmatched line only when it does not read as an answer tail. `TestOrphanRecordDoesNotCloseConnection` drives 150 orphaned records and the connection lives; `TestOrphanJunkStillClosesConnection` drives 150 orphaned JSON responses and it still closes |
 | R-3 | Cancellation does not reach the generator, so `first 10` leaves the daemon walking a RIB nobody reads | CPU stays high after a short command returns | Carry a context into the generator and stop the walk when the consumer stops pulling |
 | R-4 | `parseRPCError` treats a non-JSON payload as the message text, so a `message=...` tail decodes as `Message: "message=..."` | An error message reaches the operator with a literal `message=` prefix | Update `parseRPCError` in the same change that introduces the tail, and pin the decoded text in a test |
-| R-5 | `readLoop` sends the routed body on a `chan []byte`; a stream needs that channel to accept many sends without the reader goroutine blocking behind a slow consumer | The plugin reader goroutine stalls, and every other id's traffic stops with it | Give the pending entry a bounded queue with defined backpressure, and never block `readLoop` on a consumer |
-| R-6 | `table` and `text` need every row for column widths, so they buffer and the memory win does not reach the default format | Memory profile unchanged for a default-format command | State the limit rather than hide it; the win applies to `json`, `ndjson`, `yaml`, `match`, `first`, `count`, `display` |
+| R-5 | `readLoop` sends the routed body on a `chan []byte`; a stream needs that channel to accept many sends without the reader goroutine blocking behind a slow consumer | The plugin reader goroutine stalls, and every other id's traffic stops with it | **closed 2026-08-19.** `routeAnswerLine` (`pkg/plugin/rpc/mux.go`) sends into a 256-line queue and never waits: a full queue ends that one answer with `ErrAnswerQueueFull`, which the consumer reads as a truncated verdict and a stated error. `TestSlowConsumerDoesNotStallReadLoop` fails under a blocking send, measured: the second caller times out at 20s |
+| R-6 | `table` and `text` need every row for column widths, so they buffer and the memory win does not reach the default format | Memory profile unchanged for a default-format command | State the limit rather than hide it; the win applies to `json`, `ndjson`, `yaml`, `match`, `first`, `count`, and to `display` ONCE R-10 is done |
+| R-10 | `display` is credited with the streaming win, but `applyDisplaySelect` (`internal/component/command/pipe_columns.go`) cannot deliver it: it runs `json.NewDecoder(...).Decode(&data)` over the WHOLE payload, calls `selectFields`, and re-marshals — string in, string out. That is the exact pattern the Task section names as the problem, so the operator table would be promising a win the code does not produce | A memory profile for `\| display` that matches the whole-payload path rather than O(1) | Phase 6 rewrites `applyDisplaySelect` record-by-record. Field SELECTION is per-record and needs no cross-record state, so it is genuinely streamable, unlike the width measurement that keeps `table` buffered. Until that rewrite lands, `display` belongs with `table` in the buffering column, not with `json` |
 | R-7 | Two ledgers of the same answer drift: the streamed form and the buffered form stop producing identical JSON | A consumer sees different data depending on which path it took | The reassembly-equivalence test is the control, and it must be shown to fail when streaming is reverted |
 | R-8 | A one-record answer now costs three lines, tripling answer traffic on the plugin connection | Answer throughput regression in the existing benchmark | A-6 measures it before the change lands; if it bites, the head and terminator can carry the single record without changing the reader's one path |
+| R-9 | `PendingRequests.Partial` and `PendingRequests.Complete` both deliver with a non-blocking send whose `default:` arm DROPS the response when `RespChan` is full. For a single final response that loses one answer; for a record sequence it loses rows silently, with no error, no counter and no log, which makes the stream wrong rather than slow | A record count that disagrees with the terminator's `count=`, reproducible under a slow consumer | **closed 2026-08-19.** `deliver` (`internal/component/plugin/server/pending.go`) waits up to the request's own timeout for room and returns `ErrPendingUndeliverable` when it expires. `Complete` and `Partial` return `error` rather than a found-bool, so a caller cannot ignore a row that did not arrive, and the three notice paths (`Add` at its limit, `timeout`, `CancelAll`) log what they could not deliver. `TestPartialWaitsForASlowConsumerRatherThanDropping` and `TestPartialReportsAResponseItCannotDeliver` hold both halves |
 
 ## Blast Radius
 
@@ -195,14 +210,14 @@ Four rules make the tail parseable without a JSON decoder, without quoting, and 
 |----------|--------|
 | What breaks if this is wrong? | Every plugin RPC on the shared `MuxConn`, and every command answer on every surface. A wrong `pending` lifetime hangs the daemon's plugin dispatch |
 | How is it reverted? | Single commit revert while the shape is negotiated and off by default. Once a peer has negotiated it, a revert leaves that peer waiting for a terminator that never arrives |
-| Who else touches this path? | `spec-cli-pipe-aliases` and `spec-fixit-cli-format-default-everywhere` are both in-progress on the same pipe surface |
+| Who else touches this path? | Both neighbours on this pipe surface have since closed: `spec-cli-pipe-aliases` in `eda7ad83c`, and `spec-fixit-cli-format-default-everywhere` closing 2026-08-19. This spec now owns the pipe surface alone |
 
 ## Wiring Test (MANDATORY)
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
 | `ze cli -c "show bgp peer list"` over the SSH exec channel | → | the encoder writing head, records, terminator | `test/plugin/answer-many-records.ci` |
-| `ze cli -c "show version"` answering one record | → | the same encoder path, one record | `test/plugin/answer-single-record.ci` |
+| `ze cli -c "show bgp peer list"` against a single peer | → | the same encoder path, one record | `test/plugin/answer-single-record.ci` |
 | A handler answering with a row generator | → | the generator `ResponseData` implementor | `TestGeneratorAnswerReachesTheEncoder` |
 | A plugin RPC answering with records | → | `MuxConn` routing many lines to one waiting caller | `TestMuxConnDeliversEveryRecordToOneCaller` |
 | `show bgp peer list \| first 10` | → | the record-at-a-time pipe path and generator cancellation | `TestFirstNStopsTheGenerator` |
@@ -212,7 +227,7 @@ Four rules make the tail parseable without a JSON decoder, without quoting, and 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
 | AC-1 | Any successful command | A head carrying `status=`, then its records, then a terminator carrying `count=`; the reader follows one path whatever the record count |
-| AC-2 | A command producing exactly one record | Head, one `item=` line, terminator with `count=1`; no special case in the reader |
+| AC-2 | A command producing exactly one record | Head, one `item=` line, terminator with `count=1`; no special case in the reader. Proven by driving ONE command (`show bgp peer list`) against one peer and against two: a command that answers a fixed single record could not distinguish the shared path from a special case |
 | AC-3 | A command that returns no data | Head, no records, terminator with `count=0`; the operator still sees `OK` when the chain names no format |
 | AC-4 | A command text that is not a command | Verb `error` with `message=`, no `status=` key, and the answer is the only line |
 | AC-5 | A command understood but failing before any record | Head `status=error`, terminator `count=0` carrying the operational `message=` |
@@ -244,18 +259,24 @@ Four rules make the tail parseable without a JSON decoder, without quoting, and 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestParseLineCarriesKeyValueTailWhole` | `pkg/plugin/rpc/message_test.go` | A-1: the tail arrives unsplit | |
-| `TestTailTokenizerNeedsNoJSONDecoder` | `pkg/plugin/rpc/message_test.go` | control keys read without parsing a payload | |
-| `TestOpenEndedKeyRunsToEndOfLine` | `pkg/plugin/rpc/message_test.go` | AC-11 | |
-| `TestTerminatorIsTheLineCarryingCount` | `pkg/plugin/rpc/message_test.go` | head and terminator distinguished with no lookahead | |
-| `TestVerdictDerivesFromTheCounts` | `pkg/plugin/rpc/message_test.go` | AC-12, every row of the derivation table | |
-| `TestTerminatorCarriesNoStatusKey` | `pkg/plugin/rpc/message_test.go` | AC-12, the single source of truth holds | |
-| `TestVerbPredicateUnchangedForResponses` | `pkg/plugin/rpc/mux_test.go` | `readLoop`'s request-versus-response split is untouched | |
-| `TestMuxConnDeliversEveryRecordToOneCaller` | `pkg/plugin/rpc/mux_test.go` | R-1 | |
-| `TestOrphanRecordDoesNotCloseConnection` | `pkg/plugin/rpc/mux_test.go` | AC-16, R-2 | |
-| `TestSlowConsumerDoesNotStallReadLoop` | `pkg/plugin/rpc/mux_test.go` | AC-17, R-5 | |
-| `TestParseRPCErrorReadsMessageKey` | `pkg/plugin/rpc/message_test.go` | R-4 | |
-| `TestGeneratorAnswerReachesTheEncoder` | `internal/component/plugin/dispatch_test.go` | AC-6 | |
+| `TestParseLineCarriesKeyValueTailWhole` | `pkg/plugin/rpc/message_test.go` | A-1: the tail arrives unsplit | green |
+| `TestTailTokenizerNeedsNoJSONDecoder` | `pkg/plugin/rpc/message_test.go` | control keys read without parsing a payload | green |
+| `TestOpenEndedKeyRunsToEndOfLine` | `pkg/plugin/rpc/message_test.go` | AC-11 | green |
+| `TestTerminatorIsTheLineCarryingCount` | `pkg/plugin/rpc/message_test.go` | head and terminator distinguished with no lookahead | green |
+| `TestVerdictDerivesFromTheCounts` | `pkg/plugin/rpc/message_test.go` | AC-12, every row of the derivation table | green |
+| `TestTerminatorCarriesNoStatusKey` | `pkg/plugin/rpc/message_test.go` | AC-12, the single source of truth holds | green |
+| `TestVerbPredicateUnchangedForResponses` | `pkg/plugin/rpc/mux_test.go` | `readLoop`'s request-versus-response split is untouched | green |
+| `TestMuxConnDeliversEveryRecordToOneCaller` | `pkg/plugin/rpc/mux_test.go` | R-1 | green |
+| `TestOrphanRecordDoesNotCloseConnection` | `pkg/plugin/rpc/mux_test.go` | AC-16, R-2 | green |
+| `TestOrphanJunkStillClosesConnection` | `pkg/plugin/rpc/mux_test.go` | the flood guard still fires for an orphan that is not an answer line | green |
+| `TestSingleResponseCallRPCPathUnchanged` | `pkg/plugin/rpc/mux_test.go` | AC-13, the one-response path and its entry lifetime | green |
+| `TestAnswerWithoutTerminatorReportsTruncation` | `pkg/plugin/rpc/mux_test.go` | AC-9 at the mux boundary | green |
+| `TestNotUnderstoodAnswerReachesTheCaller` | `pkg/plugin/rpc/mux_test.go` | AC-4 at the mux boundary | green |
+| `TestPartialWaitsForASlowConsumerRatherThanDropping` | `internal/component/plugin/server/pending_test.go` | R-9, backpressure rather than a drop | green |
+| `TestPartialReportsAResponseItCannotDeliver` | `internal/component/plugin/server/pending_test.go` | R-9, an undeliverable row is reported | green |
+| `TestSlowConsumerDoesNotStallReadLoop` | `pkg/plugin/rpc/mux_test.go` | AC-17, R-5 | green |
+| `TestParseRPCErrorReadsMessageKey` | `pkg/plugin/rpc/message_test.go` | R-4 | green |
+| `TestGeneratorAnswerReachesTheEncoder` | `internal/component/plugin/dispatch_test.go` | AC-6 | green |
 | `TestSingleRecordUsesTheSameReaderPath` | `internal/component/plugin/dispatch_test.go` | AC-2, the one-path property | |
 | `TestFaultDoesNotEndTheWalk` | `internal/component/plugin/dispatch_test.go` | AC-8 | |
 | `TestTransportErrorEndsTheWalk` | `internal/component/plugin/dispatch_test.go` | the Go error slot is transport-only | |
@@ -298,6 +319,7 @@ Four rules make the tail parseable without a JSON decoder, without quoting, and 
 - `internal/component/ssh/ssh.go` - `execMiddleware` writing lines as produced
 - `internal/component/command/pipe.go` - the record-at-a-time path
 - `internal/component/command/pipe_table.go` - the declared buffering path
+- `internal/component/command/pipe_columns.go` - `applyDisplaySelect` rewritten record-by-record (R-10); it is the one operator credited with the streaming win whose current code is whole-payload
 - `internal/core/ssh/client/client.go` - a record-reading client call beside `ExecCommand`
 - `internal/component/cli/client/main.go` - the exec path consuming records
 - `docs/architecture/api/ipc_protocol.md` - the wire grammar's durable home; the `// Design:` target of both `message.go` and `mux.go`, and it shows an answer example that this replaces
@@ -371,9 +393,9 @@ Four rules make the tail parseable without a JSON decoder, without quoting, and 
    - Files: `internal/component/plugin/types.go`, `internal/component/plugin/dispatch.go`
    - Verify: AC-10 holds, and it fails when the record path is reverted
 6. **Phase: Pipe consumption and cancellation** - the memory win
-   - Tests: `TestFirstNStopsTheGenerator`, `TestCountConsumesWithoutBuffering`, `TestLastNKeepsRingBufferOnly`, `TestTableBuffersAndSaysSo`
-   - Files: `internal/component/command/pipe.go`, `pipe_table.go`
-   - Verify: R-3 closed; the walk stops when the reader stops
+   - Tests: `TestFirstNStopsTheGenerator`, `TestCountConsumesWithoutBuffering`, `TestLastNKeepsRingBufferOnly`, `TestTableBuffersAndSaysSo`, `TestDisplaySelectsPerRecord`
+   - Files: `internal/component/command/pipe.go`, `pipe_table.go`, `pipe_columns.go`
+   - Verify: R-3 closed; the walk stops when the reader stops. R-10 closed: `applyDisplaySelect` no longer decodes the whole payload, and selection happens on one record at a time
 7. **Phase: Exec channel and client** - the operator-visible half
    - Tests: the six `.ci` scenarios, the five user stories
    - Files: `internal/component/ssh/ssh.go`, `internal/core/ssh/client/client.go`, `internal/component/cli/client/main.go`
@@ -408,6 +430,7 @@ Four rules make the tail parseable without a JSON decoder, without quoting, and 
 | Check | What to look for |
 |-------|-----------------|
 | Input validation | A tail key repeated on one line, an unknown key, and a `status=` value outside `done`/`error`/`partial` each need a defined answer rather than a silent default |
+| Frame injection | An open-ended value is the rest of the line, so a `\n` or `\r` inside one would end the frame early and let the remainder be read as a forged line — a `message=` could otherwise carry its own terminator and lie about `count=`. `replaceNewlines` substitutes a space before the value is written. `item=` and `fault=` carry `json.Marshal` output, which escapes newlines and cannot reach this, so the defense is load-bearing for `message=` and belt-and-braces for the other two |
 | Resource exhaustion | An answer with no terminator holds a `pending` entry open; entries need a bound or a timeout, or a malicious plugin leaks them |
 | Resource exhaustion | An unbounded generator with a slow reader needs backpressure, not an unbounded queue (R-5) |
 | Error leakage | `fault=` payloads carry paths and messages to an operator; they must not carry internal state the command surface does not otherwise expose |
@@ -447,7 +470,8 @@ Four rules make the tail parseable without a JSON decoder, without quoting, and 
 
 ## Known Limitations
 - A one-record answer costs three lines instead of one. A-6 measures the cost and R-8 carries the fallback.
-- `table` and `text` buffer the whole answer. The memory win applies to `json`, `ndjson`, `yaml`, `match`, `first`, `count`, and `display`.
+- `table` and `text` buffer the whole answer. The memory win applies to `json`, `ndjson`, `yaml`, `match`, `first`, `count`, and to `display` only after Phase 6 rewrites `applyDisplaySelect` record-by-record (R-10).
+- `| fill` was REMOVED rather than carried (owner decision, 2026-08-19). `fill overall` ordered columns by measuring every cell in the result, a deeper buffering dependency than `table`'s own, and R-6 named only `table` and `text`. Widening the exception to keep a day-old operator was the worse trade.
 - REST, gRPC, web, MCP and looking-glass take the buffering path in this spec. Their record-level streaming is separable future work and belongs in its own spec, not in the deferral shard.
 - A record larger than `MaxMessageSize` is refused rather than split.
 
