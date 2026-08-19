@@ -183,19 +183,29 @@ func xfrmStateFromParams(p SAParams) (*netlink.XfrmState, error) {
 	return state, nil
 }
 
+// RemoveSA deletes one inbound or outbound XFRM state and stops re-presenting bare ESP
+// for its SPI. The caller MUST treat the returned error as a failed kernel delete; the
+// ESP form is released either way.
+//
+// The release is deferred because it MUST run on every exit, the failed delete included.
+// A second teardown of one Child SA is ordinary rather than exotic (RFC 7296 Section 1.4
+// Delete processing, engine/delete.go): the state is already gone, XfrmStateDel answers
+// ESRCH, and a Forget sitting below that error was never reached. The SPI then stayed
+// watched forever and held a host-wide raw ESP socket open after the last tunnel was
+// gone, which taxes every packet on the box rather than only this tunnel's.
+//
+// Forget is a no-op for an SPI that was never watched, and releases the raw sockets once
+// the last watched SA is removed.
 func (b *xfrmBackend) RemoveSA(spi uint32, dst net.IP, proto uint8) error {
 	state := &netlink.XfrmState{
 		Dst:   dst,
 		Proto: netlink.Proto(proto),
 		Spi:   int(spi),
 	}
+	defer b.espForms.Forget(spi)
 	if err := netlink.XfrmStateDel(state); err != nil {
 		return fmt.Errorf("xfrm: state del spi=%d: %w", spi, err)
 	}
-	// The state is gone, so nothing must re-present bare ESP for it any more. Forget is
-	// a no-op for an SPI that was never watched, and releases the raw sockets once the
-	// last watched SA is removed.
-	b.espForms.Forget(spi)
 	return nil
 }
 

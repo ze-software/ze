@@ -76,8 +76,17 @@ IKE SA with the peer as the rekey initiator, replies under the OLD keys, holds
 the new SA pending, and swaps when the peer's INFORMATIONAL Delete of the old SA
 arrives.
 
+The pending slot MUST be empty once the owner loop that filled it has returned.
+`runEstablished` releases it in the same deferred call that releases
+`ps.pendingRekey`. The session outlives the SA -- `ps.run` loops `runOnce` on one
+`PeerSession` per peer -- so a swap the peer never confirmed would otherwise keep
+its `SK_*` material past the close of its connection, which RFC 7296 Section 2.12
+forbids, and the next reconnect cycle would promote it: the swap branch keys on
+the slot being occupied, never on which cycle filled it.
+
 <!-- source: internal/component/ike/engine/rekey.go -- respondIKERekey, applyIKERekeyResponse -->
 <!-- source: internal/component/ike/engine/reconcile.go -- setPendingIKESwap -->
+<!-- source: internal/component/ike/engine/established.go -- runEstablished teardown defer -->
 
 ## Traps this code exists to avoid
 

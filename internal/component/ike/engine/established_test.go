@@ -499,3 +499,69 @@ func TestRunEstablishedClearsPendingRekeyOnExit(t *testing.T) {
 		t.Error("the DH private value of an unanswered rekey survived the close of its session")
 	}
 }
+
+// VALIDATES: a session that ends while an IKE-SA rekey it ANSWERED is still unconfirmed
+// leaves no keyed SA behind. runEstablished releases ps.pendingIKESwap in the same
+// deferred call that releases ps.pendingRekey, and that call is the only one that covers
+// this exit: inbound.go empties the slot on the peer's Delete of the old IKE SA, and that
+// Delete never came.
+// PREVENTS: the second holder forgetKeys cannot reach. ps.pendingIKESwap lives on the
+// SESSION, and ps.run reuses one PeerSession across reconnect cycles (reconcile.go), so a
+// swap SA left here kept its SK_* material past the close of the connection that built
+// it, and the NEXT cycle's owner loop would promote it: handleInformationalOwned swaps
+// the loop onto ps.pendingIKESwap on the peer's first IKE Delete, whichever cycle filled
+// the slot. The tunnel would then run on keys negotiated for a connection that is over.
+// RFC requirement: RFC7296-2.12-1 positive -- RFC 7296 Section 2.12: "Achieving perfect
+// forward secrecy requires that when a connection is closed, each endpoint MUST forget
+// not only the keys used by the connection but also any information that could be used
+// to recompute those keys." The pending SA holds SK_d, which Section 2.18 derives a
+// rekeyed SA's whole key set from, so it is both halves of that sentence at once.
+//
+// The slot is filled directly rather than through a CREATE_CHILD_SA exchange, because
+// what is under test is the EXIT, not the rekey. What it holds is a really keyed SA
+// (wp2KeyedSA), so the erasure assertions cannot pass on fields that were empty already.
+//
+// Discrimination: with `ps.setPendingIKESwap(nil)` deleted from runEstablished's defer,
+// this test fails on every assertion below -- the slot is still occupied and SK_d, the
+// EAP MSK and the nonces are all still there.
+func TestRunEstablishedClearsPendingIKESwapOnExit(t *testing.T) {
+	log := slogutil.DiscardLogger()
+	_, resp, ps := establishPSK(t)
+	ps.stopCh = make(chan struct{})
+	ps.supersede = make(chan struct{}, 1)
+
+	// The SA the peer's rekey built and never confirmed with a Delete.
+	swap := wp2KeyedSA(t)
+	ps.pendingIKESwap = swap
+
+	// Closed before the call, so the owner loop's first select takes the stop case and
+	// the session ends with the swap still unconfirmed.
+	close(ps.stopCh)
+
+	done := make(chan error, 1)
+	go func() {
+		done <- ps.runEstablished(resp, ps.peerCfg, testIKEGroup(), NewSATable(), nil, nil, log)
+	}()
+
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("runEstablished returned %v on stop, want nil", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("runEstablished did not return after the session was stopped")
+	}
+
+	if ps.pendingIKESwap != nil {
+		t.Error("the session still holds an unconfirmed IKE swap SA after runEstablished returned, so the next reconnect cycle can promote it")
+	}
+	if !allZero(swap.SKKeys.SK_d) {
+		t.Error("the unconfirmed swap SA kept SK_d, which derives a rekeyed SA's whole key set")
+	}
+	if swap.EAPMSK != ([64]byte{}) {
+		t.Error("the unconfirmed swap SA kept its EAP MSK")
+	}
+	if swap.LocalNonce != nil || swap.RemoteNonce != nil {
+		t.Error("the unconfirmed swap SA still references its nonces, which complete the SKEYSEED input")
+	}
+}

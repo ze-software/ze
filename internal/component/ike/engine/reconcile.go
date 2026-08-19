@@ -123,6 +123,11 @@ type PeerSession struct {
 	// IKE-SA rekey; the owner loop swaps to it when the peer's INFORMATIONAL Delete
 	// of the old IKE SA arrives (make-before-break, RFC 7296 Section 2.8). Owned by
 	// the maintainSA loop.
+	//
+	// It MUST be empty once the owner loop that filled it has returned. The session is
+	// reused across reconnect cycles, so a swap the peer never confirmed would keep its
+	// SK_* material past the close of its connection (RFC 7296 Section 2.12) and would
+	// be promoted onto a later cycle's tunnel. runEstablished releases it.
 	pendingIKESwap *SA
 
 	// connectFailures counts the reconnect cycles that have ended WITHOUT the SA
@@ -221,6 +226,11 @@ func (ps *PeerSession) signalSupersede(log *slog.Logger) {
 // rekey, clearing any prior unconfirmed pending SA's key material first so a peer
 // that re-initiates before Deleting the old SA cannot leak keys (Finding 4). Owned
 // by the maintainSA loop; no lock.
+//
+// newSA nil is the RELEASE half of the pair, and the caller that fills the slot MUST
+// see it emptied on every way out: runEstablished (established.go) does that in a
+// deferred call, because a swap the peer never confirmed would otherwise outlive its
+// session and be promoted by the next reconnect cycle.
 func (ps *PeerSession) setPendingIKESwap(newSA *SA) {
 	// RFC 7296 Section 2.12: the discarded SA is closed here, so it forgets the keys
 	// AND the DH private value, nonces and EAP key that could recompute them.

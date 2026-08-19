@@ -160,8 +160,9 @@ func (ps *PeerSession) runInitiator(
 	// the wrong entry.
 	//
 	// This session owns every entry of its peer name. A removal by name ends the
-	// cycle with nothing of its own left behind. ps.sa stays, because reconnectDelay
-	// reads its retransmit count.
+	// cycle with nothing of its own left behind. ps.sa stays on every exit that
+	// returns from the handshake loop below, because reconnectDelay reads its
+	// retransmit count; the established exit clears it, and says there why.
 	defer table.removeByPeer(sa.PeerName)
 
 	remote, err := net.ResolveUDPAddr("udp4", ikeAddr(peer.RemoteAddress))
@@ -246,7 +247,22 @@ func (ps *PeerSession) runInitiator(
 		}
 	}
 
-	return ps.runEstablished(sa, peer, ikeGroup, table, tr, bus, log)
+	err = ps.runEstablished(sa, peer, ikeGroup, table, tr, bus, log)
+	// The tunnel is down (peer Delete, DPD timeout, lifetime, operator clear, or
+	// supersede), so the SAUp above gets its pair here. runResponder pairs its own
+	// emit at the same point, and this path had the emit without the pair: every
+	// reconnect cycle then added one SAUp that no SADown answered, and a subscriber
+	// counting SAs up against SAs down drifted without bound.
+	//
+	// ps.sa is cleared with it, and both halves are needed. TerminatePeerSA,
+	// TerminateAllSAs and reconcilePeers each emit SADown for the SA the session
+	// still holds, and each reads it AFTER ps.Stop has joined this goroutine, so
+	// leaving the SA in place would answer one up with two downs on every operator
+	// clear. reconnectDelay reads the same answer either way: the establishment above
+	// zeroed RetransmitCount, and runEstablished never writes it.
+	emitSADown(bus, sa, log)
+	ps.setSA(nil)
+	return err
 }
 
 // runResponder accepts remote-initiated IKE exchanges. The handshake itself is

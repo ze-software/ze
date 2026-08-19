@@ -264,6 +264,22 @@ func runEngine(conn net.Conn) int {
 	// capture the exchange that maintains the very tunnel it belongs to
 	// (installIKEBypass, bypass.go).
 	installIKEBypass(dataplane.Get(), log)
+	// Released on EVERY exit of runEngine, which is why this is a defer. The four
+	// policies are node-wide rather than per-peer, so they outlive the process that
+	// installed them: an error return that skipped the removal left ze's IKE traffic
+	// exempt from IPsec for a daemon that is no longer running, and nothing on the box
+	// ever cleaned it up. The engine owns what it installed on every way out, and
+	// removeIKEBypass is idempotent, so a removal that finds nothing is expected.
+	//
+	// The backend closes here too, and AFTER the removal: CloseBackend clears the
+	// active backend, so a removal ordered after it would have no dataplane to talk to
+	// and would silently release nothing.
+	defer func() {
+		removeIKEBypass(dataplane.Get(), log)
+		if err := dataplane.CloseBackend(); err != nil {
+			log.Warn("ike: dataplane close error", "error", err)
+		}
+	}()
 
 	p := sdk.NewWithConn("ike", conn)
 	defer closeSDK(p)
@@ -496,13 +512,11 @@ func runEngine(conn net.Conn) int {
 		}
 	}
 	_ = ipPool
-	// The IKE bypass outlives every peer on purpose, so it is released here rather
-	// than in removeChildSA (installIKEBypass, child.go). This runs after every peer
-	// has stopped, so nothing is left that still needs the exemption.
-	removeIKEBypass(dataplane.Get(), log)
-	if err := dataplane.CloseBackend(); err != nil {
-		log.Warn("ike: dataplane close error", "error", err)
-	}
+	// The IKE bypass and the backend are released by the deferred cleanup registered
+	// beside installIKEBypass, so this clean shutdown and every error exit release the
+	// same set. It runs after this line, which is after every peer has stopped, so
+	// nothing is left that still needs the exemption (installIKEBypass, bypass.go,
+	// for why the bypass outlives every peer rather than being removed per Child SA).
 
 	return 0
 }

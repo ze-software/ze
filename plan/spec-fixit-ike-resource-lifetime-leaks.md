@@ -5,9 +5,9 @@
 | Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | 5/5 |
+| Phase | 6/6 |
 | Deferral shard | `-` |
-| Updated | 2026-08-17 |
+| Updated | 2026-08-19 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -84,6 +84,28 @@ The predicate is `sa.sendPath(tr)`, never the `tr` argument. `tr` is a FALLBACK:
 stop every probe for the life of that tunnel, which is the black hole RFC 7296 Section
 2.4 asks liveness checks to prevent.
 
+### Leak 5: an unconfirmed IKE swap SA outlives its session
+
+`runEstablished` (`internal/component/ike/engine/established.go`) tears down `ownedSA`
+and `pendingRekey` when it returns, and its own comment called `pendingRekey` "the one
+holder forgetKeys cannot reach". There are TWO.
+
+`ps.pendingIKESwap` (`internal/component/ike/engine/reconcile.go`) is written only by
+`setPendingIKESwap`, from the IKE-rekey responder branch of `handleOwnedInbound`
+(`internal/component/ike/engine/inbound.go`), and cleared only where the peer's
+INFORMATIONAL Delete of the old IKE SA promotes it (`inbound.go`). Nothing cleared it at
+session end, and `ps.run` loops `runOnce` on the SAME `PeerSession`
+(`internal/component/ike/engine/reconcile.go`), so a swap the peer never confirmed
+survived into the next reconnect cycle holding its `SK_*` material, against RFC 7296
+Section 2.12. The next cycle's owner loop then promotes it: the swap branch keys on the
+slot being occupied, not on which cycle filled it, so the peer's first IKE Delete moves
+the live tunnel onto keys negotiated for a connection that is over.
+
+It is the same rule as the four above, in the same function the spec already edits: a
+resource acquired on the way in is released on EVERY way out. Found by an independent
+review of this spec on 2026-08-19, and recorded before that at
+`plan/journal/stale-artifact-reused.md` (2026-08-12 row).
+
 ### What is read and what is measured
 
 Every claim above is READ from the producing function, and the file plus symbol is
@@ -120,6 +142,10 @@ lands.
   → Decision: return before `reserveRequestWindow`, never reserve and release. Nothing is then taken that a later path has to give back
 - [ ] `internal/component/ike/engine/established.go` - `serviceRequestWindow` and `serviceRequestRetransmit` both return early on `dpd.awaitingReply()`, and `maintainSA` reads `dpd.timedOut(now)` BEFORE `shouldRetransmit` in the same tick
   → Constraint: `shouldRetransmit` refuses once `timedOut`, so a liveness budget shorter than one tick plus one backoff step reaches the verdict with no repeat. See Known Limitations
+- [ ] `internal/component/ike/engine/reconcile.go` - `pendingIKESwap` is declared beside `pendingRekey` with the same ownership (the `maintainSA` loop, no lock), `setPendingIKESwap` is its only writer, and `ps.run` loops `runOnce` on one `PeerSession` per peer
+  → Constraint: the session outlives the SA, so anything left on the session is carried into the next reconnect cycle
+- [ ] `internal/component/ike/engine/inbound.go` - the IKE-rekey responder branch fills `pendingIKESwap`, and the peer's INFORMATIONAL Delete of the old IKE SA is the only path that empties it
+  → Constraint: the promotion branch keys on the slot being occupied, never on which cycle filled it
 
 **Behavior to preserve:** (unless the user explicitly said to change it)
 - `RemoveSA` still returns the `XfrmStateDel` error to its caller. Forgetting the ESP form must not swallow the failure.
@@ -131,6 +157,8 @@ lands.
 - `RemoveSA` forgets the ESP form whether or not the state delete succeeded.
 - Every `p.Run` error exit removes the IKE bypass policies.
 - The initiator path emits `SADown` when its established loop returns.
+- `runEstablished` releases `ps.pendingIKESwap` on every exit, as it already releases
+  `ps.pendingRekey`.
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -148,10 +176,11 @@ lands.
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Engine ↔ Dataplane backend | `dataplane.Dataplane` interface calls | No |
-| Backend ↔ Kernel | netlink XFRM state and policy messages | No |
-| Engine ↔ Event bus | `SAUp` / `SADown` typed events | No |
-| Process ↔ Node | bypass policies that outlive the process | No |
+| Engine ↔ Dataplane backend | `dataplane.Dataplane` interface calls | Yes -- `runEngine` (`engine/register.go`) reaches the backend only through `dataplane.Get()`, and the deferred cleanup keeps that order: `removeIKEBypass` runs before `dataplane.CloseBackend`, because Close clears the active backend and a removal ordered after it would talk to nothing. `TestRunRemovesIKEBypassOnEveryErrorExit` drives the boundary with a registered recording backend rather than the helper |
+| Backend ↔ Kernel | netlink XFRM state and policy messages | Yes -- `RemoveSA` (`dataplane/xfrm_linux.go`) still returns the `XfrmStateDel` error unwrapped in meaning, so a kernel refusal reaches the caller; only the ESP-form release moved above it. `TestXFRMDoubleTeardownLeavesNothing` drives a real netlink delete the kernel refuses, and `ipsec-teardown-leaves-nothing.ci` reads the real state and policy tables after both daemons stop |
+| Engine ↔ Event bus | `SAUp` / `SADown` typed events | Yes -- both are `events.Register` types in `engine/events.go` and cross the bus by that registration only. The added emit calls the existing `emitSADown` (`engine/reconcile.go`), so no new payload shape and no new producer type. `TestSAUpAndSADownBalanceAcrossReconnects` counts the pair over N cycles from a subscriber |
+| Process ↔ Node | bypass policies that outlive the process | Yes -- this is the boundary leak 2 crosses, and the fix closes it: the release is deferred at the install site, so it runs on the error exits too. A-3 confirmed the policies carry no peer identity and are not reference-counted, so nothing else on the node removes them |
+| Session ↔ SA | `ps.pendingRekey` and `ps.pendingIKESwap` held on the session while the SA is owned by `maintainSA` | Yes -- both fields are owned without a lock by the `maintainSA` goroutine (`engine/reconcile.go`), and the teardown defer runs after that goroutine has returned, which is why it is the one safe place to touch them. `TestRunEstablishedClearsPendingRekeyOnExit` and `TestRunEstablishedClearsPendingIKESwapOnExit` drive `runEstablished` itself, so the race detector covers the hand-off (`make ze-unit-pkg-test` runs `-race`) |
 
 ### Integration Points
 - `internal/component/ike/dataplane` - the backend that owns `espForms`.
@@ -161,11 +190,11 @@ lands.
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | No | |
-| No unintended coupling (components stay isolated) | No | |
-| No duplicated functionality (extends existing, does not recreate) | No | |
-| Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
+| No bypassed layers (data flows through the intended path) | Yes | Every fix moves an EXISTING call, and none adds a new route. `RemoveSA` still reaches the kernel through `netlink` and the ESP form through `b.espForms`; `runEngine` still reaches the policy table through `dataplane.Get()`; `runInitiator` still reaches the bus through `emitSADown`; `runEstablished` still releases the swap SA through `setPendingIKESwap`, the same writer the fill path uses. No test reaches past an interface: `TestRunRemovesIKEBypassOnEveryErrorExit` registers a backend under `dataplane.Register` rather than assigning one |
+| No unintended coupling (components stay isolated) | Yes | The diff is confined to `internal/component/ike/` plus `internal/component/plugin/process/manager.go`. The plugin-manager change is a generic grace-period fix with no IKE spelling in it (`pluginStopGrace` applies to every plugin), which is the direction `ai/rules/plugins.md` requires: no plugin name in a shared package. Nothing outside IKE imports `engine`'s new symbols, because there are none -- no exported symbol was added |
+| No duplicated functionality (extends existing, does not recreate) | Yes | Four of the five fixes are one line each moving an existing call to a `defer`. Leak 3 calls the existing `emitSADown`, copied from `runResponder`, rather than a second emitter. Leak 5 calls the existing `setPendingIKESwap` with nil rather than open-coding `forgetKeys` plus a nil assignment, so the release and the close stay one call and cannot drift apart |
+| Zero-copy preserved where applicable (refs, not copies) | Yes | No encoding path is touched. `RemoveSA` takes a `uint32` SPI and a `net.IP` the caller owns and copies neither; the SA erasures release references and overwrite in place (`forgetKeys`, `sa.go`), which is the opposite of copying. `SAEvent` is built once per emit, as it already was |
+| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | Yes | Nothing is added to any registry and nothing is hardcoded into one. `SAUp` / `SADown` were already `events.Register` types and keep their names and payloads; no new event, command, YANG leaf, or dataplane backend is introduced; no switch case or per-feature field is added to a shared package. The test-only backend registers through `dataplane.Register` like every other backend, and is removed by `t.Cleanup` |
 
 ## Risks & Assumptions
 
@@ -176,6 +205,8 @@ lands.
 | A-2 | A stranded `espForms` entry holds a real host-wide raw ESP socket open | read, `dataplane/xfrm_linux.go` | Leak 1 is a map leak only, far cheaper than stated | inspect the socket table in QEMU after the repro | confirmed 2026-08-17 |
 | A-3 | The four bypass policies are node-wide and survive process exit | read, `engine/register.go` `removeIKEBypass` | Leak 2 is bounded by the process and self-clears | `ip xfrm policy` in QEMU after killing ze on an error path | confirmed 2026-08-17 |
 | A-4 | No subscriber compensates for the missing initiator `SADown` elsewhere | read, `engine/fsm.go`, `engine/reconcile.go` | Leak 3 is already handled and only the direct path is unbalanced | grep every `SADown` producer and every subscriber | confirmed 2026-08-17 |
+| A-5 | Nothing but the peer's IKE Delete empties `ps.pendingIKESwap`, so a session that ends before that Delete carries the swap SA into the next cycle | read, `engine/reconcile.go`, `engine/inbound.go` | Leak 5 is already handled somewhere else and the release is a duplicate | `gopls references` on `setPendingIKESwap` and on the field, over non-test code | confirmed 2026-08-19 |
+| A-6 | The teardown defer is a safe place to touch `pendingIKESwap`, on the same argument the `pendingRekey` clear already rests on | read, `engine/established.go`, `engine/reconcile.go` | The release needs a lock or a different site, and the one-line fix is wrong | both fields carry the same "owned by the maintainSA loop, no lock" declaration, and the defer runs after `maintainSA` returned; the race detector runs it (`-race` is on in `make ze-unit-pkg-test`) | confirmed 2026-08-19 |
 
 A-1 is BROKEN in the half that matters, and the correction widens leak 1 rather than
 closing it. The second `RemoveSA` does fail, as stated. It is not what strands the ESP
@@ -207,7 +238,7 @@ accord, which is the reconnect path.
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | Forgetting the ESP form on a failed delete hides a real kernel failure | a delete error that no longer changes behavior | keep returning the error, and log the forget separately |
-| R-2 | Emitting `SADown` on the initiator path double-emits where a caller already emits | subscribers see two downs per up | grep every `emitSADown` caller before adding one, and add the emit at the single return point |
+| R-2 | Emitting `SADown` on the initiator path double-emits where a caller already emits | subscribers see two downs per up | CLOSED 2026-08-19. Every `emitSADown` caller was enumerated before the emit was added, and the emit sits at the single return point with `ps.setSA(nil)` beside it so the operator paths find no SA to emit a second down for. `TestSAUpAndSADownBalanceAcrossReconnects` counts the pair, and `10-clear-reestablish` proves a real peer still re-establishes across that clear |
 | R-3 | Removing bypass policies on an early error path removes them while another peer still needs them | IKE traffic starts entering IPsec processing | confirm the bypass is process-wide and installed once, not per-peer |
 
 ## Blast Radius
@@ -228,6 +259,7 @@ accord, which is the reconnect path.
 | Full teardown on a real kernel | → | XFRM state and policy tables | `test/ipsec/ipsec-teardown-leaves-nothing.ci`, and `fsuite ipsec` in `scripts/evidence/qemu-all-tests.sh` is what runs it |
 | A DPD tick on an SA with no send path | → | `sendDPD` early return | `TestDPDNoTransportTakesNoWindow` |
 | A DPD tick on a floated SA with a nil fallback | → | `sendDPD` send-path predicate | `TestDPDFloatedSAProbesWithoutTheFallback` |
+| A session that ends holding an unconfirmed IKE swap SA | → | `runEstablished` teardown defer | `TestRunEstablishedClearsPendingIKESwapOnExit` |
 
 ## Acceptance Criteria
 
@@ -240,6 +272,7 @@ accord, which is the reconnect path.
 | AC-5 | A tunnel is torn down twice on a real kernel | The XFRM state table, the policy table, and `espForms` are all empty. Proven in two halves: `TestXFRMDoubleTeardownLeavesNothing` drives the SECOND `XfrmStateDel` for one SPI, which the kernel refuses, and asserts the SPI is unwatched and the ESP sockets closed; `ipsec-teardown-leaves-nothing.ci` tears one tunnel down through the operator clear, twice over the same peer, then stops both daemons and asserts no state, no policy and no raw ESP socket is left |
 | AC-6 | `sendDPD` runs on an SA with no send path | No request window is held, no `awaitReply` is set, no probe is stored, and no Message ID is spent |
 | AC-7 | `sendDPD` runs on a floated SA whose fallback transport is nil | The probe leaves from the NAT-T socket, and the SA awaits its reply |
+| AC-8 | A session ends while an IKE-SA rekey it answered is still unconfirmed | `ps.pendingIKESwap` is empty when `runEstablished` returns, and the SA it held has forgotten its `SK_*`, its EAP MSK and its nonces, so the next reconnect cycle has nothing to promote |
 
 ## End-to-End User Stories
 
@@ -260,6 +293,7 @@ accord, which is the reconnect path.
 | `TestXFRMDoubleTeardownLeavesNothing` | `internal/component/ike/dataplane/xfrm_teardown_integration_linux_test.go` | AC-5, kernel half | written, runs on the QEMU integration rail |
 | `TestDPDNoTransportTakesNoWindow` | `internal/component/ike/engine/dpd_test.go` | AC-6 | PASS 2026-08-07 |
 | `TestDPDFloatedSAProbesWithoutTheFallback` | `internal/component/ike/engine/dpd_test.go` | AC-7 | PASS 2026-08-07 |
+| `TestRunEstablishedClearsPendingIKESwapOnExit` | `internal/component/ike/engine/established_test.go` | AC-8 | PASS 2026-08-19, tagged `RFC7296-2.12-1` positive. Red without the fix, on all four assertions (measured: the slot stays occupied and SK_d, the EAP MSK and both nonces survive) |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -269,12 +303,14 @@ accord, which is the reconnect path.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `ipsec-teardown-leaves-nothing` | `test/ipsec/ipsec-teardown-leaves-nothing.ci` | After the operator tears the tunnel down and both daemons stop, no XFRM state, no XFRM policy and no raw ESP socket remains | PASS 2026-08-17. `fsuite ipsec` added to `scripts/evidence/qemu-all-tests.sh`, so the suite now executes in the QEMU VM where `option=needs-linux:caps=net-admin` is satisfied. Two daemons, one real xfrm backend: the kernel keys a state on (src, dst, spi, proto) and the two ends of one Child SA are the SAME two states, so a second real backend would answer EEXIST (measured). Discriminates: with `RemoveSA`'s state delete removed the clear leaves both states behind and the test reddens, and with the bypass release removed the test reports `RESIDUE: states=0 policies=8`. EXECUTED, twice: natively in an unprivileged user+net namespace (`unshare -rn`, which satisfies caps=net-admin without root), and in the QEMU VM through the new `fsuite ipsec` line, where the whole suite passed 16/16 in 180s |
+| `ipsec-teardown-leaves-nothing` | `test/ipsec/ipsec-teardown-leaves-nothing.ci` | After the operator tears the tunnel down and both daemons stop, no XFRM state, no XFRM policy and no raw ESP socket remains | PASS 2026-08-17. `fsuite ipsec` added to `scripts/evidence/qemu-all-tests.sh`, so the suite now executes in the QEMU VM where `option=needs-linux:caps=net-admin` is satisfied. Two daemons, one real xfrm backend: the kernel keys a state on (src, dst, spi, proto) and the two ends of one Child SA are the SAME two states, so a second real backend would answer EEXIST (measured). Discriminates, and the two halves are not equally strong. With `RemoveSA`'s state delete removed the clear leaves both states behind and the test reddens. With the bypass release removed ALTOGETHER -- the deferred call and the shutdown tail both -- the test reports `RESIDUE: states=0 policies=8`. That second half does NOT discriminate AC-2's fix: the test stops both daemons with `cmd=stop:signal=term`, which is the clean exit, and HEAD's shutdown tail already removed the bypass on that path. So what the `.ci` proves is that the release still runs on the clean path after it moved into a defer, which is the regression this refactor could have caused. AC-2 names the ERROR exit, and `TestRunRemovesIKEBypassOnEveryErrorExit` is its only proof: it drives `runEngine` to `return 1` through a broken plugin pipe and asserts every installed policy came back. EXECUTED, twice: natively in an unprivileged user+net namespace (`unshare -rn`, which satisfies caps=net-admin without root), and in the QEMU VM through the new `fsuite ipsec` line, where the whole suite passed 16/16 in 180s |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `05-child-rekey` | `test/interop/scenarios/` | strongSwan | Repeated teardown against a real peer leaves no residue | |
+| `09-responder-ike-rekey` | `test/interop-ipsec/scenarios/` | strongSwan | The make-before-break path this spec now releases at session end still completes normally: strongSwan initiates the IKE SA rekey, Ze answers it and holds the new SA in `ps.pendingIKESwap`, and strongSwan's Delete of the old IKE SA promotes it. A release ordered too early would leave nothing to promote, and the tunnel would drop instead of swapping | PASS 2026-08-19, executed: `make ze-interop-ipsec-test IPSEC_INTEROP_SCENARIO=09-responder-ike-rekey`, strongSwan reports `completed a peer-initiated IKE-SA rekey against Ze the responder` and the tunnel survives. It bounds the fix rather than proving it: a confirmed swap empties the slot before `runEstablished` returns, so the release runs on an empty slot here. The proof that the release happens is the unit test |
+| `10-clear-reestablish` | `test/interop-ipsec/scenarios/` | strongSwan | Repeated teardown against a real peer: an operator `clear vpn ipsec sa` sends strongSwan an authenticated Delete and Ze re-initiates, with a new ESP SPI inside 30 seconds. This is the reconnect cycle leak 3 and leak 5 both live on, driven by a real peer rather than a fixture | PASS 2026-08-19, executed: `make ze-interop-ipsec-test IPSEC_INTEROP_SCENARIO=10-clear-reestablish`, ESP SPIs move from `['0x10db820f', '0xc0623eca']` to `['0x7773ae74', '0xc5fb5a22']` and strongSwan reports the SA established again inside 30s. It is the guard R-2 asked for: `runInitiator` now clears `ps.sa` beside its `emitSADown`, and a real peer re-establishing across that clear is what shows the teardown did not break the reconnect |
+| `05-child-rekey` | `test/interop-ipsec/scenarios/` | strongSwan | N-A for this spec. The spec cited it at `test/interop/scenarios/`, which is the BGP lab; the scenario is IPsec and lives under `test/interop-ipsec/scenarios/`. It proves Child SA rekey make-before-break against strongSwan, which no fix here changes | N-A |
 
 ## Files to Modify
 - `internal/component/ike/dataplane/xfrm_linux.go` - DONE 2026-08-17, `RemoveSA` defers `espForms.Forget` so every exit releases it, and the delete error still reaches the caller
@@ -282,6 +318,12 @@ accord, which is the reconnect path.
 - `internal/component/ike/engine/fsm.go` - DONE 2026-08-17, `runInitiator` calls `emitSADown` and clears `ps.sa` when its established loop returns, as `runResponder` does
 - `internal/component/ike/engine/events.go` - DONE 2026-08-17, the `SAUp` / `SADown` godoc states the pairing obligation with MUST on both sides
 - `internal/component/ike/engine/dpd.go` - DONE 2026-08-07, `sendDPD` returns before it reserves the request window when the session has no transport
+- `internal/component/ike/engine/established.go` - DONE 2026-08-19, `runEstablished`'s teardown defer releases `ps.pendingIKESwap` beside `ps.pendingRekey`, and the comment that called `pendingRekey` "the one holder forgetKeys cannot reach" now names both
+- `internal/component/ike/engine/reconcile.go` - DONE 2026-08-19, the `pendingIKESwap` field states the emptiness obligation and `setPendingIKESwap`'s godoc names its nil argument as the release half of the pair
+- `docs/architecture/ike/ipsec-14-responder.md` - DONE 2026-08-19, the make-before-break paragraph states where the pending slot is released and why
+- `docs/features/rfc-status.md` - DONE 2026-08-19, the RFC 7296 Section 2.12 sentence names the two session-held holders
+- `rfc/requirements/rfc7296.md` - DONE 2026-08-19, GENERATED, regenerated by `make ze-rfc-index-update` after the new tag
+- `plan/journal/stale-artifact-reused.md` - DONE 2026-08-19, the 2026-08-12 row's Fix cell records the fix instead of "Not fixed"
 - `internal/component/ike/engine/bypass.go` - DONE 2026-08-17, `removeIKEBypass`'s godoc no longer says it runs once at shutdown: it runs on every exit, from the deferred cleanup
 - `internal/component/plugin/process/manager.go` - DONE 2026-08-17, `ProcessManager.Stop` waits `pluginStopGrace` (the daemon's own 3s shutdown budget) for each plugin goroutine and NAMES any plugin that misses it. It waited 500ms and discarded the timeout, so a release slower than that was lost with nothing logged. This is what made AC-5 fail in QEMU: the IKE engine's eight XFRM bypass policy deletes run after its read loop ends, and the daemon exited first (MEASURED: a release delayed 700ms leaves `RESIDUE: policies=8`)
 
@@ -301,7 +343,7 @@ accord, which is the reconnect path.
 | Pipe completeness | N-A | No new command output |
 | Env var registration | N-A | No new env var |
 | Doctor check for runtime dependencies | N-A | No new runtime dependency, the XFRM dependency already has one |
-| Prometheus counters/metrics | | Decide at design time whether an SA-up minus SA-down gauge is the right early signal for leak 3 |
+| Prometheus counters/metrics | No | No counter is added. The SA-up-minus-SA-down gauge considered for leak 3 would measure the symptom rather than the state: `internal/component/ike/engine/metrics.go` already exports `ze_ipsec_sa_count` and `ze_ipsec_tunnel_up` from the SA table, which is the state itself, so a gauge derived from event arithmetic can only ever disagree with it or repeat it. The drift the gauge would have shown is what `TestSAUpAndSADownBalanceAcrossReconnects` asserts directly |
 | BGP family surface (new SAFI / capability / attribute) | N-A | Not BGP |
 
 ### Documentation Update Checklist (BLOCKING)
@@ -312,18 +354,18 @@ accord, which is the reconnect path.
 | 3 | CLI command added/changed? | No | |
 | 4 | API/RPC added/changed? | No | |
 | 5 | Plugin added/changed? | No | |
-| 6 | Has a user guide page? | | Check `docs/guide/vpn/` at design time |
+| 6 | Has a user guide page? | No | The guide page is `docs/guide/ipsec.md`, not `docs/guide/vpn/`, which does not exist. It documents the `vpn { ipsec {} }` configuration and the `show` / `clear` surface. No leaf, command, output field, or default changed, so nothing on that page becomes wrong |
 | 7 | Wire format changed? | No | No wire-visible change |
 | 8 | Plugin SDK/protocol changed? | No | |
-| 9 | RFC behavior implemented, changed, or newly proven? | | Decide at design time whether any RFC 7296 row changes status |
-| 10 | Test infrastructure changed? | | New `.ci` in an existing suite, confirm at design time |
+| 9 | RFC behavior implemented, changed, or newly proven? | Yes | `RFC7296-2.12-1` gains a second positive test, `TestRunEstablishedClearsPendingIKESwapOnExit`. `docs/features/rfc-status.md` updated: its Section 2.12 sentence now names the two session-held holders released on the same exit. `rfc/requirements/rfc7296.md` regenerated by `make ze-rfc-index-update`. No row changes level, polarity, or enrolment, so no ratchet fires; `make ze-rfc-check` is green (2966 gated MUST-level requirements, 3559 tags resolved) |
+| 10 | Test infrastructure changed? | No | The `.ci` joins the EXISTING `test/ipsec/` suite, and the `fsuite ipsec` line added to `scripts/evidence/qemu-all-tests.sh` makes that suite execute in the QEMU phase. `docs/functional-tests.md` already documents the suite list (`ipsec` is named at `:76`) and the `scripts/evidence/qemu-all-tests.sh` mechanism, so no page changes. No runner, harness, directive, or make target was added |
 | 11 | Affects daemon comparison? | No | |
 | 12 | Internal architecture changed? | No | |
 | 13 | Route metadata keys added/changed? | No | |
-| 14 | Prometheus counters added/changed? | | Depends on the Integration Checklist row above |
+| 14 | Prometheus counters added/changed? | No | No counter added, per the Integration Checklist row above. `internal/component/ike/engine/metrics.go` reads the live SA table in `Update`, so nothing it publishes is derived from `SAUp` / `SADown` arithmetic and the event pairing fix changes no metric value |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | `SAUp` and `SADown` already exist |
-| 16 | Any changed source file referenced by existing doc source anchors? | | Grep `docs/` for the three changed files at design time |
-| 17 | Existing docs show config/CLI/API examples for this area? | | Verify at design time |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | Grepped `docs/` for every changed file. `docs/architecture/ike/ipsec-14-responder.md` anchors `reconcile.go -- setPendingIKESwap`, and its "IKE rekey responder makes before breaking" paragraph described the fill and the swap without the release. Updated, with an anchor added for `established.go`'s teardown defer. The remaining anchors are directory-level (`internal/component/ike/engine/` in `docs/features.md`) or name symbols this spec does not touch (`fsm.go -- runResponder, reapStaleHandshake`; `reconcile.go -- setSA, getSA`), so no other page describes behavior that changed |
+| 17 | Existing docs show config/CLI/API examples for this area? | No | `docs/guide/ipsec.md` carries the `vpn { ipsec {} }` examples and `docs/features.md` lists the `show vpn ipsec` / `clear vpn ipsec` surface. Every example stays correct: no YANG leaf, command, flag, JSON key, or output field is added, removed, or renamed by any of the five fixes |
 
 ## Implementation Steps
 
@@ -347,12 +389,17 @@ accord, which is the reconnect path.
    - Tests: `ipsec-teardown-leaves-nothing`
    - Files: `test/ipsec/ipsec-teardown-leaves-nothing.ci`
    - Verify: runs in QEMU per `ai/rules/platform-linux.md`, and reddens when any fix is reverted
+6. **Phase: Leak 5** - release the unconfirmed IKE swap SA on every exit
+   - Tests: `TestRunEstablishedClearsPendingIKESwapOnExit`
+   - Files: `internal/component/ike/engine/established.go`, `internal/component/ike/engine/reconcile.go`
+   - Verify: the release goes in the EXISTING teardown defer rather than a new one, so the defer chain's order is unchanged and the lock argument the `pendingRekey` comment already makes carries over unaltered; the normal swap still promotes, which `TestSetPendingIKESwapClearsSuperseded` (`responder_test.go`), the IKE-rekey rows of `rfc7296_negotiation_test.go` and the `09-responder-ike-rekey` interop scenario all check
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
 |-------|------------------------------|
 | Completeness | Every AC-N has an implementation at file plus symbol |
-| Feature completeness | All three leaks fixed, not two |
+| Feature completeness | All five leaks fixed, not four. Leak 5 is in scope because this spec's goal is that no IKE resource outlives its session, and it is in the exact function the spec already edits |
+| Holder enumeration | Every holder `forgetKeys` cannot reach is named. `gopls references` on `setPendingIKESwap` and on `pendingRekey`, not grep: a comment claiming "the one holder" is what missed the second one |
 | Correctness | The `RemoveSA` error still propagates unchanged after the forget moves |
 | Naming | The new `.ci` name states the invariant, not the mechanism |
 | Data flow | The bypass removal runs once per process, never per peer |
@@ -366,6 +413,7 @@ accord, which is the reconnect path.
 | Bypass removed on every error exit | `go test -run TestRunRemovesIKEBypass ./internal/component/ike/engine/` |
 | Initiator events balanced | `go test -run TestSAUpAndSADownBalance ./internal/component/ike/engine/` |
 | No residue after teardown | `make ze-qemu-needs-linux-test` with the new `.ci` |
+| Unconfirmed IKE swap SA released | `make ze-unit-pkg-test PKG=./internal/component/ike/engine RUN=TestRunEstablishedClearsPendingIKESwapOnExit` |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -430,10 +478,31 @@ Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code.
 MUST document: validation rules, error conditions, state transitions, timer
 constraints, message ordering, and every MUST/MUST NOT.
 
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/fixit-ike-resource-lifetime-leaks-6c2adacb-9282-4d78-9180-bab7cb6a2f15.md` |
+| `review_gate.py check` | BLOCKED -- verdict is `findings`, not clean |
+| Rounds | 1 |
+| Reviewer lenses used | uncommitted-work risk, resource-lifetime holder enumeration, spec closure-table completeness, test discrimination |
+
+Round 1 found 2 BLOCKER and 5 ISSUE, and all seven are fixed: the implementation is
+commit-ready (B-1), `ps.pendingIKESwap` is released on every exit of `runEstablished`
+with a tagged test that reddens without it (B-2), the interop scenario path is corrected
+and two scenarios that bound this spec are executed (I-1), the Architectural
+Verification and Boundaries Crossed tables are filled (I-2, I-3), every "decide at
+design time" cell is answered (I-4), and the `.ci`'s AC-2 discrimination claim is
+corrected rather than the test (I-5).
+
+The gate stays BLOCKED on purpose. The session that made those fixes is not independent
+of them, so it cannot record the clean pass. Round 2 is a fresh independent review over
+the fixes, on the review model (`ai/rules/planning.md`), and it is `/ze-close`'s to run.
+
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-7 all demonstrated
+- [ ] AC-1..AC-8 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
 - [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)

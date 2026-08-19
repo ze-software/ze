@@ -55,21 +55,33 @@ func (ps *PeerSession) runEstablished(
 	// Registered AFTER the store above, so it runs BEFORE it: defers unwind last-first.
 	defer func() { ps.ownedSA.Load().forgetKeys() }()
 
-	// The same close, for the one holder forgetKeys cannot reach. A rekey this
-	// session started and never got an answer to keeps its Diffie-Hellman private
-	// value in ps.pendingRekey, which lives on the SESSION rather than on the SA, so
-	// erasing the SA above leaves it behind. It is exactly "something that could
-	// recompute the keys" in Section 2.12's sense: it is the private half of the
-	// exchange that would have derived the replacement SA's SKEYSEED.
+	// The same close, for the two holders forgetKeys cannot reach. Both live on the
+	// SESSION rather than on the SA, so erasing the SA above leaves either one behind,
+	// and the session outlives the SA: ps.run loops runOnce on this same PeerSession
+	// (reconcile.go), so what survives here is carried into the next reconnect cycle.
 	//
-	// Safe to touch here, and only here. pendingRekey is owned without a lock by the
+	// ps.pendingRekey holds the Diffie-Hellman private value of a rekey this session
+	// started and never got an answer to. It is exactly "something that could recompute
+	// the keys" in Section 2.12's sense: the private half of the exchange that would
+	// have derived the replacement SA's SKEYSEED.
+	//
+	// ps.pendingIKESwap holds a whole IKE SA, SK_* material included, built while
+	// answering the peer's IKE-SA rekey and held make-before-break until the peer
+	// deletes the old SA (RFC 7296 Section 2.8, inbound.go). A session that ends before
+	// that Delete arrives keeps a keyed SA nobody will promote, and the next cycle then
+	// promotes it: handleInformationalOwned swaps the loop onto ps.pendingIKESwap on
+	// the peer's first IKE Delete, whichever cycle built it. Releasing it here forgets
+	// its keys and empties the slot in the one call.
+	//
+	// Safe to touch here, and only here. Both fields are owned without a lock by the
 	// maintainSA goroutine (reconcile.go), and this defer runs after maintainSA has
-	// returned. Every path that ENDS an exchange normally already clears it
+	// returned. Every path that ENDS an exchange normally already clears them
 	// (inbound.go, serviceRekeyRetransmit); this covers the paths that end the
 	// SESSION with an exchange still outstanding.
 	defer func() {
 		ps.pendingRekey.clear()
 		ps.pendingRekey = nil
+		ps.setPendingIKESwap(nil)
 	}()
 
 	ifID := resolveIfID(peer)

@@ -147,9 +147,12 @@ func installIKEBypass(dp dataplane.Dataplane, log *slog.Logger) {
 
 // removeIKEBypass releases the bypass policies for every address family.
 //
-// It runs once, at IKE engine shutdown, after every peer has stopped, because the
-// policies belong to ze's IKE listener rather than to any peer or Child SA. Ze owns
-// what it touches, so a clean shutdown gives the kernel back the state it installed.
+// It runs on EVERY exit of the engine, from the deferred cleanup registered beside
+// installIKEBypass (register.go runEngine), because the policies belong to ze's IKE
+// listener rather than to any peer or Child SA: a clean shutdown and an error return
+// both end the listener, and the policies are node-wide, so one that outlives the
+// process exempts IKE traffic from IPsec for a daemon that is no longer running. Ze
+// owns what it touches, so every way out gives the kernel back the state it installed.
 //
 // A removal that finds nothing is the expected case for a family that never carried
 // a tunnel, and for a platform that never installed anything. Errors are logged and
