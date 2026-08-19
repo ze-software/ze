@@ -60,7 +60,7 @@ assert_not_contains "${displayed}" "peers-configured"
 
 # fill brings the fields display did not name back, which is the half display
 # alone drops.
-assert_contains "$(ze cli -c 'show bgp summary | display router-id | fill overall' 2>&1)" "peers-configured"
+assert_contains "$(ze cli -c 'show bgp summary | display router-id | fill alpha' 2>&1)" "peers-configured"
 
 # The peers alias answers the rows without the aggregates beside them.
 peers_only=$(ze cli -c 'show bgp summary | peers' 2>&1)

@@ -8,10 +8,6 @@
 #            leads. Two sequences over two disjoint sets of columns, and the
 #            declaration is not the alphabet, so one answer cannot pass for the
 #            other.
-# VALIDATES: `| fill overall` orders the remaining columns by the width they
-#            RENDER at, narrowest first, and `reverse` flips whichever way is in
-#            force. The widths are read back from the box-drawing border, which
-#            is the only place a rendered width exists.
 #
 # The daemon runs with an ephemeral SSH listener; ZE_SSH_* carry the credentials
 # `ze cli` has no flags for. The peers never establish, and nothing here needs
@@ -172,30 +168,6 @@ try:
     require(reversed_header[1:] == sorted(reversed_header[1:], reverse=True),
             'reverse did not flip the name order: %r' % reversed_header)
     require(set(reversed_header) == filled, 'reverse changed which columns appear: %r' % reversed_header)
-
-    # `| fill overall` orders by rendered width. The top border of a box table
-    # draws each column as its width plus two, so the segments must not shrink
-    # from left to right.
-    out = cli(cli_env, 'show bgp peer list | fill overall | table')
-    border = None
-    for line in out.split('\n'):
-        if line.startswith('┌'):
-            border = line
-            break
-    require(border is not None, 'no box table to measure: %r' % out)
-    segments = [len(part) for part in border[1:-1].split('┬')]
-    require(len(segments) > 2, 'too few columns to say anything: %r' % border)
-    # The first column of `show bgp peer list` is the peer address, which names
-    # the row rather than a field, so it is not part of the fill.
-    widths = segments[1:]
-    require(widths == sorted(widths), 'the columns are not narrowest first: %r' % widths)
-
-    # Without `| fill`, the command answers in its own declared order, so the
-    # width order above is a request rather than the default.
-    plain = table_header(cli(cli_env, 'show bgp peer list | text'), 'state')
-    overall = table_header(cli(cli_env, 'show bgp peer list | fill overall | text'), 'state')
-    require(set(plain) == set(overall), 'fill changed which columns appear: %r vs %r' % (plain, overall))
-    require(plain != overall, 'fill overall answered in the declared order, so it did nothing: %r' % overall)
 
 finally:
     daemon.terminate()

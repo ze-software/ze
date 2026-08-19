@@ -87,8 +87,8 @@ Type "ze cli -c 'show bgp summary | display router-id local-as peers-established
 Enter
 Wait+Screen /router-id/
 Sleep 7s
-# fill brings the fields display did not name back, widest column last.
-Type "ze cli -c 'show bgp summary | display router-id | fill overall'"
+# fill brings the fields display did not name back, in field-name order.
+Type "ze cli -c 'show bgp summary | display router-id | fill alpha'"
 Enter
 Wait+Screen /router-id/
 Sleep 7s
