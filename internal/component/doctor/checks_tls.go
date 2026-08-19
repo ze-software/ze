@@ -9,6 +9,7 @@
 package doctor
 
 import (
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
@@ -71,7 +72,48 @@ func checkWebTLS(tree *config.Tree, store storage.Storage) []diagnostic.Diagnost
 		})
 	}
 
+	if certErr == nil && keyExists {
+		diags = append(diags, checkWebTLSPair(certData, store)...)
+	}
+
 	return diags
+}
+
+// checkWebTLSPair reports whether the stored web certificate and key load as a
+// TLS pair. The caller has read the certificate and has seen the key exist, so
+// the only three states left are the three this answers: the key reads and the
+// pair loads, the key reads and the pair does not load, the key does not read.
+// A read failure here is never a missing key, and MUST NOT be reported as one.
+//
+// The message names the outcome and never the material. Both files are private
+// key storage, ze doctor prints this line, and a support bundle keeps it.
+func checkWebTLSPair(certData []byte, store storage.Storage) []diagnostic.Diagnostic {
+	var tb textbuf.Buffer
+
+	keyData, keyErr := store.ReadFile(zefs.KeyWebKey.Pattern)
+	if keyErr != nil {
+		return []diagnostic.Diagnostic{{
+			Code:     "doctor-tls-invalid",
+			Severity: diagnostic.SeverityError,
+			Message:  tb.Str("web: key present in storage but cannot be read: ").Err(keyErr).String(),
+			Path:     zefs.KeyWebKey.Pattern,
+		}}
+	}
+
+	// The error is dropped, not passed through: tls.X509KeyPair reports the PEM
+	// block types it skipped, and those come from the key file.
+	if _, err := tls.X509KeyPair(certData, keyData); err != nil {
+		return []diagnostic.Diagnostic{{
+			Code:     "doctor-tls-invalid",
+			Severity: diagnostic.SeverityError,
+			Message:  "web: certificate and key in storage are not a usable pair",
+			Path:     zefs.KeyWebCert.Pattern,
+			Expected: "the stored certificate and key load as a TLS pair",
+			Actual:   "the stored pair does not load",
+		}}
+	}
+
+	return nil
 }
 
 func checkPKICerts(tree *config.Tree) []diagnostic.Diagnostic {

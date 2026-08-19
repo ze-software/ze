@@ -594,9 +594,15 @@ func TestCheckCertExpiry_BadDER(t *testing.T) {
 type stubStorage struct {
 	storage.Storage
 	data map[string][]byte
+	// unreadable names files that exist in storage and fail to read, the state
+	// a corrupt or unreadable file reaches. Exists says yes, ReadFile says no.
+	unreadable map[string]error
 }
 
 func (s *stubStorage) ReadFile(name string) ([]byte, error) {
+	if err, ok := s.unreadable[name]; ok {
+		return nil, err
+	}
 	if d, ok := s.data[name]; ok {
 		return d, nil
 	}
@@ -605,6 +611,9 @@ func (s *stubStorage) ReadFile(name string) ([]byte, error) {
 
 func (s *stubStorage) Exists(name string) bool {
 	if _, ok := s.data[name]; ok {
+		return true
+	}
+	if _, ok := s.unreadable[name]; ok {
 		return true
 	}
 	return s.Storage.Exists(name)
@@ -687,7 +696,7 @@ func TestCheckWebTLS_NoCerts(t *testing.T) {
 }
 
 func TestCheckWebTLS_ExpiredCert(t *testing.T) {
-	certPEM := generateTestCert(t, time.Now().Add(-48*time.Hour), time.Now().Add(-time.Hour))
+	certPEM, keyPEM := generateTestCertPEM(t, time.Now().Add(-48*time.Hour), time.Now().Add(-time.Hour))
 
 	tree := config.NewTree()
 	env := tree.GetOrCreateContainer("environment")
@@ -698,7 +707,7 @@ func TestCheckWebTLS_ExpiredCert(t *testing.T) {
 		Storage: storage.NewFilesystem(),
 		data: map[string][]byte{
 			zefs.KeyWebCert.Pattern: certPEM,
-			zefs.KeyWebKey.Pattern:  []byte("key-data"),
+			zefs.KeyWebKey.Pattern:  keyPEM,
 		},
 	}
 	diags := checkWebTLS(tree, store)
@@ -751,6 +760,117 @@ func TestCheckWebTLS_Disabled(t *testing.T) {
 	assert.Empty(t, diags, "web not enabled should skip")
 }
 
+func webEnabledTree() *config.Tree {
+	tree := config.NewTree()
+	env := tree.GetOrCreateContainer("environment")
+	web := env.GetOrCreateContainer("web")
+	web.Set("enabled", "true")
+	return tree
+}
+
+func TestCheckWebTLS_MatchingPair(t *testing.T) {
+	// VALIDATES: a certificate and the key that signed it produce no diagnostic.
+	// PREVENTS: a pair check that reports every stored pair as unusable.
+	certPEM, keyPEM := generateTestCertPEM(t, time.Now().Add(-time.Hour), time.Now().Add(365*24*time.Hour))
+
+	store := &stubStorage{
+		Storage: storage.NewFilesystem(),
+		data: map[string][]byte{
+			zefs.KeyWebCert.Pattern: certPEM,
+			zefs.KeyWebKey.Pattern:  keyPEM,
+		},
+	}
+	assert.Empty(t, checkWebTLS(webEnabledTree(), store), "a matching pair is not a finding")
+}
+
+func TestCheckWebTLS_MismatchedPair(t *testing.T) {
+	// VALIDATES: a stored certificate and key that do not load as a TLS pair are
+	// reported doctor-tls-invalid, and the message carries no key material.
+	// PREVENTS: a mismatched pair written by a ze that predates the replace-cert
+	// validation, which starts no web listener and which no check mentions.
+	certPEM, _ := generateTestCertPEM(t, time.Now().Add(-time.Hour), time.Now().Add(365*24*time.Hour))
+	_, foreignKeyPEM := generateTestCertPEM(t, time.Now().Add(-time.Hour), time.Now().Add(365*24*time.Hour))
+
+	store := &stubStorage{
+		Storage: storage.NewFilesystem(),
+		data: map[string][]byte{
+			zefs.KeyWebCert.Pattern: certPEM,
+			zefs.KeyWebKey.Pattern:  foreignKeyPEM,
+		},
+	}
+	diags := checkWebTLS(webEnabledTree(), store)
+	require.Len(t, diags, 1)
+	assert.Equal(t, "doctor-tls-invalid", diags[0].Code)
+	assert.Equal(t, diagnostic.SeverityError, diags[0].Severity)
+	assert.Contains(t, diags[0].Message, "not a usable pair")
+
+	for line := range strings.SplitSeq(strings.TrimSpace(string(foreignKeyPEM)), "\n") {
+		if strings.HasPrefix(line, "-----") {
+			continue
+		}
+		assert.NotContains(t, diags[0].Message, line, "the message carries key material")
+	}
+}
+
+func TestCheckWebTLS_UnreadableKey(t *testing.T) {
+	// VALIDATES: a key that exists and fails to read is reported as unreadable.
+	// PREVENTS: reading the key collapsing a read failure into "key missing",
+	// which names the wrong file and sends the operator to the wrong fix.
+	certPEM, _ := generateTestCertPEM(t, time.Now().Add(-time.Hour), time.Now().Add(365*24*time.Hour))
+
+	store := &stubStorage{
+		Storage: storage.NewFilesystem(),
+		data: map[string][]byte{
+			zefs.KeyWebCert.Pattern: certPEM,
+		},
+		unreadable: map[string]error{
+			zefs.KeyWebKey.Pattern: errors.New("input/output error"),
+		},
+	}
+	diags := checkWebTLS(webEnabledTree(), store)
+	require.Len(t, diags, 1)
+	assert.Equal(t, "doctor-tls-invalid", diags[0].Code)
+	assert.Contains(t, diags[0].Message, "cannot be read")
+	assert.NotContains(t, diags[0].Message, "missing", "an unreadable key is present, not missing")
+}
+
+func TestRunChecksReportsUnusableWebTLSPair(t *testing.T) {
+	// VALIDATES: ze doctor reaches the pair check through its own check list.
+	// PREVENTS: a check proven only by a unit test that calls it directly, while
+	// runChecks never calls it and the operator never sees the finding.
+	certPEM, _ := generateTestCertPEM(t, time.Now().Add(-time.Hour), time.Now().Add(365*24*time.Hour))
+	_, foreignKeyPEM := generateTestCertPEM(t, time.Now().Add(-time.Hour), time.Now().Add(365*24*time.Hour))
+
+	previous := env.Get("ze.storage.blob")
+	require.NoError(t, env.Set("ze.storage.blob", "false"))
+	t.Cleanup(func() {
+		require.NoError(t, env.Set("ze.storage.blob", previous))
+	})
+
+	cfgPath := writeTestConfig(t, `environment {
+	web {
+		enabled true
+	}
+}
+`)
+
+	// Filesystem storage resolves a key pattern against the working directory.
+	root := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(root, filepath.Dir(zefs.KeyWebCert.Pattern)), 0o750))
+	require.NoError(t, os.WriteFile(filepath.Join(root, zefs.KeyWebCert.Pattern), certPEM, 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(root, zefs.KeyWebKey.Pattern), foreignKeyPEM, 0o600))
+	t.Chdir(root)
+
+	found := false
+	for _, d := range runChecks(cfgPath) {
+		if d.Code == "doctor-tls-invalid" && strings.Contains(d.Message, "not a usable pair") {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "ze doctor did not report the stored web pair as unusable")
+}
+
 func TestResolveStorageWithDiag_Fallback(t *testing.T) {
 	store, diags := resolveStorageWithDiag()
 	assert.NotNil(t, store, "should always return a usable storage")
@@ -762,11 +882,28 @@ func TestResolveStorageWithDiag_Fallback(t *testing.T) {
 
 func generateTestCert(t *testing.T, notBefore, notAfter time.Time) []byte {
 	t.Helper()
-	certDER := generateTestCertDER(t, notBefore, notAfter)
+	certDER, _ := generateTestCertKey(t, notBefore, notAfter)
 	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
 }
 
 func generateTestCertDER(t *testing.T, notBefore, notAfter time.Time) []byte {
+	t.Helper()
+	certDER, _ := generateTestCertKey(t, notBefore, notAfter)
+	return certDER
+}
+
+// generateTestCertPEM returns a self-signed certificate and the key that signed
+// it, both PEM-encoded, so a test can supply material tls.X509KeyPair accepts.
+func generateTestCertPEM(t *testing.T, notBefore, notAfter time.Time) (certPEM, keyPEM []byte) {
+	t.Helper()
+	certDER, key := generateTestCertKey(t, notBefore, notAfter)
+	keyDER, err := x509.MarshalECPrivateKey(key)
+	require.NoError(t, err)
+	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER}),
+		pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: keyDER})
+}
+
+func generateTestCertKey(t *testing.T, notBefore, notAfter time.Time) ([]byte, *ecdsa.PrivateKey) {
 	t.Helper()
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
@@ -779,7 +916,7 @@ func generateTestCertDER(t *testing.T, notBefore, notAfter time.Time) []byte {
 	}
 	certDER, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
 	require.NoError(t, err)
-	return certDER
+	return certDER, key
 }
 
 func requireDiag(t *testing.T, diags []diagnostic.Diagnostic, code string, severity diagnostic.Severity) {

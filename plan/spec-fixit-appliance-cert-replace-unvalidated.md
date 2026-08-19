@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | cli |
 | Depends | - |
-| Phase | - |
+| Phase | 6/6 |
 | Deferral shard | - |
 | Handoff | - |
-| Updated | 2026-08-18 |
+| Updated | 2026-08-19 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -119,21 +119,21 @@ does the opposite.
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | No | |
-| No unintended coupling (components stay isolated) | No | |
-| No duplicated functionality (extends existing, does not recreate) | No | |
-| Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
+| No bypassed layers (data flows through the intended path) | Yes | `runReplaceCert` no longer writes files itself; both entry points go through `writeTLSSecrets` (`internal/appliance/cmd_init.go`) |
+| No unintended coupling (components stay isolated) | Yes | the validation uses `crypto/tls` and `crypto/x509` directly; no new dependency on `internal/core/selfcert` or on the doctor component |
+| No duplicated functionality (extends existing, does not recreate) | Yes | the certificate half reuses `WriteSecret` (`internal/appliance/crypto.go`) with no passphrase; no second atomic writer exists |
+| Zero-copy preserved where applicable (refs, not copies) | Yes | one backup copy of the previous certificate, held only until the key write returns; not a hot path |
+| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | Yes | no command added; `cmdReplaceCert` keeps its existing `init()` registration (`internal/appliance/cmd_cert.go`) |
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The secrets directory is an ordinary writable directory on the operator's machine, so a same-directory temp file and rename works | the directory resolver places it under the operator's configuration directory | A staging directory or a different swap mechanism is needed | A test that performs the replacement in a temporary directory and asserts the temp files are cleaned up | unvalidated |
-| A-2 | The standard library key-pair loader is sufficient validation for what the appliance will later serve | the same loader is what the web server uses at boot, so agreeing with it is exactly the property wanted | A certificate that loads here still fails at boot, and the validation gives false confidence | A test that feeds a mismatched pair and asserts the refusal, plus one that feeds the self-signed output and asserts acceptance | unvalidated |
-| A-3 | An expired certificate should be refused rather than warned about | the operator is replacing material precisely to keep the listener working | A legitimate workflow that stages a not-yet-valid certificate is blocked | Owner decision recorded here; the chosen answer is pinned by a boundary test | unvalidated |
-| A-4 | The initialisation path can take the same helper with no ordering change | it writes the same two files in the same directory | Initialisation has a constraint the replacement path does not, and the helper needs a variant | Read the initialisation ordering in Phase 2 and record the answer | unvalidated |
+| A-1 | The secrets directory is an ordinary writable directory on the operator's machine, so a same-directory temp file and rename works | the directory resolver places it under the operator's configuration directory | A staging directory or a different swap mechanism is needed | A test that performs the replacement in a temporary directory and asserts the temp files are cleaned up | confirmed -- `TestReplaceCertLeavesNoTempFile` |
+| A-2 | The standard library key-pair loader is sufficient validation for what the appliance will later serve | the same loader is what the web server uses at boot, so agreeing with it is exactly the property wanted | A certificate that loads here still fails at boot, and the validation gives false confidence | A test that feeds a mismatched pair and asserts the refusal, plus one that feeds the self-signed output and asserts acceptance | confirmed -- `TestReplaceCertRefusesMismatchedPair` refuses, `TestReplaceCertRegenerates` accepts the generated pair; `validateTLSPair` calls `tls.X509KeyPair`, the same call `selfcert.NewTLSConfig` makes at boot |
+| A-3 | An expired certificate should be refused rather than warned about | the operator is replacing material precisely to keep the listener working | A legitimate workflow that stages a not-yet-valid certificate is blocked | Owner decision recorded here; the chosen answer is pinned by a boundary test | ANSWERED, owner confirmation owed -- a certificate past its not-after date is REFUSED, and the message names both dates. A certificate whose not-before is in the future is ACCEPTED: R-3 names blocking a staged renewal as the risk, and the material is copied into an image that boots later, so the not-before check belongs at boot (`checkCertExpiry`, `internal/component/doctor/checks_tls.go`) rather than at replacement. Pinned by `TestReplaceCertExpiredCertificate`, which also asserts the last second before not-after is accepted |
+| A-4 | The initialisation path can take the same helper with no ordering change | it writes the same two files in the same directory | Initialisation has a constraint the replacement path does not, and the helper needs a variant | Read the initialisation ordering in Phase 2 and record the answer | confirmed -- `runInit` creates the TLS directory and writes `password.hash` before it calls `writeTLSSecrets` (`internal/appliance/cmd_init.go`), and the directory is empty at that point. `readForRestore` treats a missing file as absent, so the restore for the initialisation case is a delete. No variant is needed; the direction inverted instead, and `runReplaceCert` now calls `writeTLSSecrets` |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -186,25 +186,33 @@ does the opposite.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestReplaceCertRefusesMismatchedPair` | `internal/appliance/cmd_day2_test.go` | AC-1 | |
-| `TestReplaceCertRefusesUnparseablePEM` | `internal/appliance/cmd_day2_test.go` | AC-2; replaces the current test's fake body assertion | |
-| `TestReplaceCertRestoresOnKeyWriteFailure` | `internal/appliance/cmd_day2_test.go` | AC-3, with an injected write failure | |
-| `TestReplaceCertUpdatesSecrets` | `internal/appliance/cmd_day2_test.go` | existing test, corrected to supply a real pair | |
-| `TestReplaceCertRegenerates` | `internal/appliance/cmd_day2_test.go` | existing test stays green through the new write path | |
-| `TestReplaceCertLeavesNoTempFile` | `internal/appliance/cmd_day2_test.go` | AC-4 and A-1 | |
-| `TestReplaceCertExpiredCertificate` | `internal/appliance/cmd_day2_test.go` | AC-5, pinning the A-3 answer | |
-| `TestInitWritesValidatedTLSSecrets` | `internal/appliance/cmd_init_test.go` | AC-6 | |
+| `TestReplaceCertRefusesMismatchedPair` | `internal/appliance/cmd_day2_test.go` | AC-1 | RED at HEAD, GREEN with the fix |
+| `TestReplaceCertRefusesUnparseablePEM` | `internal/appliance/cmd_day2_test.go` | AC-2; replaces the current test's fake body assertion | RED at HEAD, GREEN with the fix |
+| `TestReplaceCertRestoresOnKeyWriteFailure` | `internal/appliance/cmd_day2_test.go` | AC-3, with an injected write failure | RED at HEAD, GREEN with the fix |
+| `TestReplaceCertUpdatesSecrets` | `internal/appliance/cmd_day2_test.go` | existing test, corrected to supply a real pair | GREEN; corrected, and no longer discriminating on its own |
+| `TestReplaceCertRegenerates` | `internal/appliance/cmd_day2_test.go` | existing test stays green through the new write path | GREEN, unchanged |
+| `TestReplaceCertLeavesNoTempFile` | `internal/appliance/cmd_day2_test.go` | AC-4 and A-1 | GREEN; `TestReplaceCertWritesCertificateThroughTempFile` is the discriminating half (RED at HEAD) |
+| `TestReplaceCertExpiredCertificate` | `internal/appliance/cmd_day2_test.go` | AC-5, pinning the A-3 answer | RED at HEAD, GREEN with the fix |
+| `TestInitWritesValidatedTLSSecrets` | `internal/appliance/cmd_init_test.go` | AC-6 | RED at HEAD, GREEN with the fix |
+| `TestReplaceCertWritesCertificateThroughTempFile` | `internal/appliance/cmd_day2_test.go` | AC-7 -- a directory at `cert.pem.tmp` proves the write goes through a temp file and a rename | RED at HEAD, GREEN with the fix |
+| `TestReplaceCertRefusesEmptyFile` | `internal/appliance/cmd_day2_test.go` | the zero-PEM-blocks boundary | RED at HEAD, GREEN with the fix |
+| `TestReplaceCertRequiresBothFlags` | `internal/appliance/cmd_day2_test.go` | `--cert` alone used to fall through to self-signed regeneration and destroy the material the operator meant to keep | RED at HEAD, GREEN with the fix |
+| `TestCheckWebTLS_MismatchedPair` | `internal/component/doctor/doctor_test.go` | the doctor half: a stored pair that does not load is reported, and the message carries no key material | RED without the pair check, GREEN with it |
+| `TestCheckWebTLS_UnreadableKey` | `internal/component/doctor/doctor_test.go` | a key that exists and fails to read is not reported as missing | RED without the pair check, and RED again when the read failure is reported as `doctor-tls-missing` |
+| `TestCheckWebTLS_MatchingPair` | `internal/component/doctor/doctor_test.go` | a matching pair is not a finding | GREEN; the companion that catches a check reporting every pair |
+| `TestRunChecksReportsUnusableWebTLSPair` | `internal/component/doctor/doctor_test.go` | `runChecks` reaches the pair check, so the finding is one an operator sees | RED without the pair check, GREEN with it |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
-| certificate validity window | not-before to not-after | the last second before not-after | a certificate whose not-before is in the future | a certificate already past not-after |
-| PEM blocks in the certificate file | 1 or more | a leaf plus its chain | zero blocks | N/A |
+| certificate validity window | up to not-after | the last second before not-after (`TestReplaceCertExpiredCertificate`) | N/A -- a not-before in the future is ACCEPTED per the A-3 answer, and the test asserts it | a certificate already past not-after (`TestReplaceCertExpiredCertificate`) |
+| PEM blocks in the certificate file | 1 or more | a leaf plus its chain | zero blocks (`TestReplaceCertRefusesEmptyFile`) | N/A |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `appliance-replace-cert` | `test/appliance/appliance-replace-cert.ci` | replacing a certificate with a valid pair succeeds, and replacing it with a mismatched pair refuses and leaves the appliance's material intact | |
+| `appliance-replace-cert` | `test/appliance/appliance-replace-cert.ci` | replacing a certificate with a valid pair succeeds, and replacing it with a mismatched pair refuses and leaves the appliance's material intact | GREEN (`make ze-functional-appliance-test`, 9/12); RED at HEAD with "replace-cert accepted a mismatched certificate and key" |
+| `doctor-web-tls-pair` | `test/ui/doctor-web-tls-pair.ci` | `ze doctor --json` reports a stored web certificate and key from two different pairs as `doctor-tls-invalid` | GREEN (`make ze-functional-ui-test`, 144/182); RED with the pair check removed |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -218,9 +226,13 @@ does the opposite.
 - `internal/appliance/cmd_day2_test.go` - the existing tests assert success for a fake certificate body and must be corrected
 - `docs/architecture/appliance/builder.md` - state the validation and rollback guarantee
 - `docs/guide/appliance.md` - document what the command refuses and what it leaves behind on failure
+- `internal/component/doctor/checks_tls.go` - report a stored web certificate and key that do not load as a pair
+- `internal/component/doctor/doctor_test.go` - unit and entry-point tests for the pair check
+- `internal/core/diagnostic/codes.go` - `doctor-tls-invalid` now also covers a pair that does not load
 
 ## Files to Create
 - `test/appliance/appliance-replace-cert.ci` - functional proof for AC-1 and AC-4
+- `test/ui/doctor-web-tls-pair.ci` - functional proof that `ze doctor` reports a stored pair that does not load
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -231,10 +243,10 @@ does the opposite.
 | CLI commands/flags | Yes | `internal/appliance/cmd_cert.go`; a possible override flag if A-3 lands on warn-plus-override |
 | CLI grammar (keyword before value) | Yes | any new flag follows the existing appliance flag style |
 | Editor autocomplete | N-A | not a config editor surface |
-| Functional test for new RPC/API | Yes | `test/appliance/appliance-replace-cert.ci` |
+| Functional test for new RPC/API | Yes | `test/appliance/appliance-replace-cert.ci`, and `test/ui/doctor-web-tls-pair.ci` for the doctor half |
 | Pipe completeness | N-A | the command prints one confirmation line, not a pipeable table |
 | Env var registration | N-A | no `environment/` leaf |
-| Doctor check for runtime dependencies | Yes | the TLS doctor check notices a certificate with no key but never that the pair fails to load; extending it closes the boot-side half of this failure |
+| Doctor check for runtime dependencies | Yes -- done | The owner authorised this item on 2026-08-19, after the rest of the spec was implemented. `checkWebTLSPair` (`internal/component/doctor/checks_tls.go`) reads the key and calls `tls.X509KeyPair`, under the existing `doctor-tls-invalid` code. `checkWebTLS` calls it when the certificate reads and the key exists, so a pair an older `ze` stored without validation is now reported. A key that exists and fails to read gets its own message and is never reported as missing |
 | Prometheus counters/metrics | N-A | a builder-side command emits no daemon metrics |
 | BGP family surface (new SAFI / capability / attribute) | N-A | not BGP |
 
@@ -243,14 +255,14 @@ does the opposite.
 |---|----------|----------|---------------|
 | 1 | New user-facing feature? | No | the command exists; its guarantees change |
 | 2 | Config syntax changed? | No | no config syntax |
-| 3 | CLI command added/changed? | Yes | `docs/guide/command-reference.md` and `docs/guide/appliance.md` for the refusal cases |
+| 3 | CLI command added/changed? | Yes | `docs/guide/appliance.md` carries the refusal cases and the `replace-cert <name>` row. `docs/guide/command-reference.md` is NOT updated: it documents no `ze appliance` subcommand at all, and it states that the per-command list lives in `ze help command`. One appliance command added there would document the family in two places |
 | 4 | API/RPC added/changed? | No | no API surface |
 | 5 | Plugin added/changed? | No | no plugin |
 | 6 | Has a user guide page? | Yes | `docs/guide/appliance.md` |
 | 7 | Wire format changed? | No | no wire format |
 | 8 | Plugin SDK/protocol changed? | No | no SDK surface |
 | 9 | RFC behavior implemented, changed, or newly proven? | No | no RFC requirement involved |
-| 10 | Test infrastructure changed? | Yes | `docs/functional-tests.md` if the appliance suite gains a certificate fixture |
+| 10 | Test infrastructure changed? | Yes | `docs/functional-tests.md` carries one row for `appliance-replace-cert.ci`. The new `test/ui/doctor-web-tls-pair.ci` gets no row: that page describes the ui suite as a whole and lists no individual `test/ui/*.ci` |
 | 11 | Affects daemon comparison? | No | no comparison claim |
 | 12 | Internal architecture changed? | Yes | `docs/architecture/appliance/builder.md` |
 | 13 | Route metadata keys added/changed? | No | no metadata key |
@@ -299,12 +311,12 @@ does the opposite.
 | Registration over hardcoding | The doctor check extension registers through the existing diagnostic registry |
 
 ### Deliverables Checklist
-| Deliverable | Verification method |
-|-------------|---------------------|
-| No truncating write of certificate material | grep both files for a direct write of the certificate path |
-| Validation before write | `TestReplaceCertRefusesMismatchedPair` passes |
-| Restore on failure | `TestReplaceCertRestoresOnKeyWriteFailure` passes |
-| Functional proof | `make ze-functional-appliance-test` runs the new `.ci` green, or the suite target that owns `test/appliance` |
+| Deliverable | Verification method | Result |
+|-------------|---------------------|--------|
+| No truncating write of certificate material | grep both files for a direct write of the certificate path | met -- `grep -n os.WriteFile internal/appliance/cmd_cert.go internal/appliance/cmd_init.go` returns only the two `authorized_keys` writes |
+| Validation before write | `TestReplaceCertRefusesMismatchedPair` passes | met |
+| Restore on failure | `TestReplaceCertRestoresOnKeyWriteFailure` passes | met |
+| Functional proof | `make ze-functional-appliance-test` runs the new `.ci` green, or the suite target that owns `test/appliance` | met -- `appliance-replace-cert` PASS (9/12). `vpp-hugepages-qemu` fails in the same suite at HEAD too, on an unpopulated gokrazy modcache; recorded in `plan/journal/gate-verdict-depends-on-the-machine.md` |
 
 ### Security Review Checklist
 | Check | What to look for |

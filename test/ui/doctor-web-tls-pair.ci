@@ -1,0 +1,62 @@
+# Test: ze doctor reports a stored web certificate and key that are not a pair.
+# spec-fixit-appliance-cert-replace-unvalidated: `ze appliance replace-cert`
+# now refuses to write such a pair, and this covers the appliance that already
+# holds one, written by a ze that predates that validation. The web listener
+# does not start there, and until this check nothing said why.
+#
+# The two files are a real certificate and a real key from two different
+# elliptic-curve pairs, so the refusal comes from the pair check and not from
+# unparseable material. The certificate is valid until 2126, so the expiry
+# check stays silent and the run has exactly one finding to read.
+#
+# ze_storage_blob=false puts the two keys on the filesystem, under the working
+# directory the runner gives this test. Underscore form: /bin/sh (dash) drops
+# dotted names from the environment, so the dotted spelling never reaches the
+# ze that run.sh starts. ze treats dots and underscores as equivalent
+# (internal/core/env/env.go, normalize).
+
+option=env:var=ze_storage_blob:value=false
+
+tmpfs=web.conf:terminator=EOF_CONF
+environment {
+	web {
+		enabled true
+	}
+}
+EOF_CONF
+
+tmpfs=cert.pem:terminator=EOF_CERT
+-----BEGIN CERTIFICATE-----
+MIIBmTCCAT+gAwIBAgIUV6fdVuyHSp2yU0lm92eIe2YDyYwwCgYIKoZIzj0EAwIw
+ITEfMB0GA1UEAwwWemUtZG9jdG9yLXdlYi10bHMtcGFpcjAgFw0yNjA4MTkwMDEw
+MzFaGA8yMTI2MDcyNjAwMTAzMVowITEfMB0GA1UEAwwWemUtZG9jdG9yLXdlYi10
+bHMtcGFpcjBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABMvYAFSikZq0Ku0udGAD
+OMTLp7fpw3FZzzmz1YkX61tNRJA1Tz7DWMQwBLTQCDXz7HKLbfxGsG3fy0p3hiAW
+6SijUzBRMB0GA1UdDgQWBBRrzv3UZaO93Os2KVqVkeH/o75adzAfBgNVHSMEGDAW
+gBRrzv3UZaO93Os2KVqVkeH/o75adzAPBgNVHRMBAf8EBTADAQH/MAoGCCqGSM49
+BAMCA0gAMEUCIDBY9QxzYw7Me1tR4Hvap6X/q1FHn6131D1mdcxZMEECAiEA5jeO
+cHnFfIoADLXyJ3awp+VfGeYLXoOELeAjmnRZPNM=
+-----END CERTIFICATE-----
+EOF_CERT
+
+tmpfs=foreign.key:terminator=EOF_KEY
+-----BEGIN EC PRIVATE KEY-----
+MHcCAQEEILtkYCa9XPlGFLBc1QTJa1+d6bykGJ37mn6tYR9jiDSXoAoGCCqGSM49
+AwEHoUQDQgAEdGBWV1c2M0jkumwgual2+1egnbmHqpQ1C3zrEzZpzptTFcVhpV/a
+jGgjPUai0Kqk1np08pUYbO0jUiocVBXBnw==
+-----END EC PRIVATE KEY-----
+EOF_KEY
+
+tmpfs=run.sh:terminator=EOF_SH
+#!/bin/sh
+set -eu
+mkdir -p meta/web
+cp cert.pem meta/web/cert
+cp foreign.key meta/web/key
+ze doctor --json web.conf
+EOF_SH
+
+cmd=foreground:seq=1:exec=sh run.sh
+expect=exit:code=1
+expect=stdout:contains=doctor-tls-invalid
+expect=stdout:contains=certificate and key in storage are not a usable pair
