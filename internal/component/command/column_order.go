@@ -125,6 +125,21 @@ func (r *commandRegistry[T]) lookup(command string) (T, bool) {
 	return best, found
 }
 
+// each calls visit once for every registered command path, in map order. The
+// read lock is held for the walk, so visit MUST NOT call back into this
+// registry.
+//
+// Registration reads the other registries through this. It refuses a name that
+// two of them would carry, because such a name reaches nobody.
+func (r *commandRegistry[T]) each(visit func(command string, value T)) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	for command, value := range r.byCommand {
+		visit(command, value)
+	}
+}
+
 func (r *commandRegistry[T]) reset() {
 	r.mu.Lock()
 	defer r.mu.Unlock()

@@ -1415,3 +1415,64 @@ func requireTextOrderingIsLive(t *testing.T, payload string) {
 		t.Fatal("the declared order changed nothing in | text, so this exclusion test proves nothing")
 	}
 }
+
+// VALIDATES: AC-8, R-3. An alias used on a command that owns pipe filters
+// expands and applies. `show bgp rib` is that command, and its real filter set
+// is what this test registers.
+// PREVENTS: the expansion vanishing inside foldFilters. That switch splits a
+// chain into the ops folded into server arguments and the ops the client still
+// runs. A kind it named nowhere used to reach neither side, and nothing
+// reported the loss. The assertion is that the answer CHANGED.
+func TestAliasSurvivesFoldFiltersOnFilteredCommand(t *testing.T) {
+	resetAliasTables(t)
+
+	RegisterPipeFilters([]string{"show bgp rib"},
+		PipeFilter{Name: "peer", Description: "Filter by peer", TakesArg: true},
+		PipeFilter{Name: "prefix", Description: "Filter by prefix", TakesArg: true},
+		PipeFilter{Name: "count", Description: "Count matching routes"},
+		PipeFilter{Name: "first", Description: "Take first N routes", TakesArg: true},
+	)
+	RegisterAliases([]string{"show bgp rib"}, Alias{Name: "prefixes", Expansion: "display prefix"})
+
+	const payload = `{"routes":[{"prefix":"10.10.1.0/24","aspath":"64501 64502","origin":"igp"}]}`
+
+	command, format, errMsg := ProcessPipesChecked("show bgp rib | peer 192.0.2.1 | prefixes | json")
+	if errMsg != "" {
+		t.Fatalf("the chain was refused: %s", errMsg)
+	}
+	if command != "show bgp rib peer 192.0.2.1" {
+		t.Errorf("command = %q, want the command's own filter folded into it", command)
+	}
+
+	got := format(payload)
+	if !strings.Contains(got, "10.10.1.0/24") {
+		t.Errorf("the alias dropped the field it displayed: %s", got)
+	}
+	for _, dropped := range []string{"aspath", "origin"} {
+		if strings.Contains(got, dropped) {
+			t.Errorf("%q survived the alias, so the expansion never reached the client: %s", dropped, got)
+		}
+	}
+}
+
+// VALIDATES: a validation error produced while the chain is folded is reported
+// on a command that owns filters, exactly as it is on a command that owns none.
+// PREVENTS: the silent drop returning through the other door. An alias given an
+// argument becomes a pipeInvalid op, and the classification switch names that
+// kind nowhere.
+func TestFoldFiltersKeepsAnInvalidOpOnAFilteredCommand(t *testing.T) {
+	resetAliasTables(t)
+
+	RegisterPipeFilters([]string{"show bgp rib"},
+		PipeFilter{Name: "peer", Description: "Filter by peer", TakesArg: true},
+	)
+	RegisterAliases([]string{"show bgp rib"}, Alias{Name: "prefixes", Expansion: "display prefix"})
+
+	_, _, errMsg := ProcessPipesChecked("show bgp rib | peer 192.0.2.1 | prefixes wide")
+	if errMsg == "" {
+		t.Fatal("the refusal was dropped by the fold, so the operator sees an unfiltered answer")
+	}
+	if !strings.Contains(errMsg, "prefixes") {
+		t.Errorf("the refusal does not name the alias: %s", errMsg)
+	}
+}

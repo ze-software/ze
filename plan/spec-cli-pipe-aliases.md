@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | cli |
 | Depends | spec-cli-column-order, spec-cli-order-pipe |
-| Phase | 1/5 |
+| Phase | 5/5 |
 | Deferral shard | - |
 | Handoff | - |
 | Updated | 2026-08-19 |
@@ -147,8 +147,8 @@ The two aliases then need no machinery beyond `| display`:
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | `summaryPeers` needs no BEHAVIORAL change | It already falls back to `ze["peers"]` when the envelope is absent | The public looking glass loses its peer table | `TestSummaryPeersReadsFlatPayload` plus the lg golden tests | confirmed — the fallback carried it, so nothing broke. The file still changed: the dead envelope branch is deleted under `ai/rules/no-layering.md`, and the doc comment stated the envelope as fact |
 | A-2 | Four consumers bind the envelope and no more | grep for `"summary"` across `internal/` named exactly `handler_ui.go`, `model_dashboard.go`, `page_bgp_summary.go`, `format.go` | A surface renders empty after the flatten | Re-grep at implementation time; run the web, lg and cli suites | broken — `config/yang/cli/format.go` is NOT a consumer: its `json:"summary"` belongs to `formatCollisionsJSON`, the completion-collision report. `handler_ui.go` holds TWO sites. Beyond production code the envelope was pinned by 12 Go test fixtures and 9 `.ci` tests, all of which had to be corrected |
-| A-3 | `display peers` renders the rows array as a table | `renderValue` unwraps a single-key map whose value is an array, and `renderList` renders an array of objects | `\| peers` renders a cell rather than a table | `TestPeersAliasRendersRows` | unvalidated |
-| A-4 | One expansion pass is enough | No re-entrant rewrite exists in the pipe layer today; `foldFilters` is a single pass | An alias naming an alias silently half-expands | `TestAliasExpandsOnce` and `TestAliasRecursionIsRefused` | unvalidated |
+| A-3 | `display peers` renders the rows array as a table | `renderValue` unwraps a single-key map whose value is an array, and `renderList` renders an array of objects | `\| peers` renders a cell rather than a table | `TestPeersAliasRendersRows` | confirmed — `display peers` answers `{"peers": [...]}`, which `renderValue` unwraps into rows. The test asserts the header names the peer columns |
+| A-4 | One expansion pass is enough | No re-entrant rewrite exists in the pipe layer today; `foldFilters` is a single pass | An alias naming an alias silently half-expands | `TestAliasExpandsOnce` and `TestAliasRecursionIsRefused` | confirmed — an alias naming another is refused at registration, and a second pass over an expanded chain returns it unchanged |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -206,14 +206,18 @@ The two aliases then need no machinery beyond `| display`:
 | `TestBgpSummaryFamilyKeysAreSiblings` | `internal/component/bgp/plugins/cmd/peer/summary_test.go` | AC-2 | |
 | `TestSummaryPeersReadsFlatPayload` | `internal/component/lg/handler_api_test.go` | AC-3, A-1 | |
 | `TestDashboardParsesFlatPayload` | `internal/component/cli/model_dashboard_test.go` | AC-4 | |
-| `TestAliasResolvesGlobal` | `internal/component/command/alias_test.go` | AC-7 | |
-| `TestAliasCommandSpecificBeatsGlobal` | `internal/component/command/alias_test.go` | AC-11 | |
-| `TestAliasRegistrationRefusesFilterCollision` | `internal/component/command/alias_test.go` | AC-9, R-2 | |
-| `TestAliasRecursionIsRefused` | `internal/component/command/alias_test.go` | AC-10, A-4 | |
-| `TestAliasExpandsOnce` | `internal/component/command/alias_test.go` | A-4 | |
-| `TestAliasSurvivesFoldFiltersOnFilteredCommand` | `internal/component/command/pipe_test.go` | AC-8, R-3 | |
-| `TestPeersAliasRendersRows` | `internal/component/command/pipe_table_test.go` | AC-5, A-3 | |
-| `TestSummaryAliasDropsRows` | `internal/component/command/pipe_table_test.go` | AC-6 | |
+| `TestAliasResolvesGlobal` | `internal/component/command/alias_test.go` | AC-7 | PASS |
+| `TestAliasCommandSpecificBeatsGlobal` | `internal/component/command/alias_test.go` | AC-11 | PASS |
+| `TestAliasRegistrationRefusesFilterCollision` | `internal/component/command/alias_test.go` | AC-9, R-2 | PASS |
+| `TestAliasRecursionIsRefused` | `internal/component/command/alias_test.go` | AC-10, A-4 | PASS |
+| `TestAliasExpandsOnce` | `internal/component/command/alias_test.go` | A-4 | PASS |
+| `TestAliasTakesNoArgument` | `internal/component/command/alias_test.go` | an alias carries no argument, and a word after it is refused | PASS |
+| `TestAliasRegistrationRefusesOperatorName` | `internal/component/command/alias_test.go` | a name `knownPipeOps` already carries is refused | PASS |
+| `TestCommandModePipeCompletion_WithAliases` | `internal/component/command/completer_test.go` | alias names complete in the pipe position | PASS |
+| `TestAliasSurvivesFoldFiltersOnFilteredCommand` | `internal/component/command/pipe_test.go` | AC-8, R-3 | PASS |
+| `TestFoldFiltersKeepsAnInvalidOpOnAFilteredCommand` | `internal/component/command/pipe_test.go` | AC-8: the `default:` arm carries a refusal a filtered command would have dropped | PASS |
+| `TestPeersAliasRendersRows` | `internal/component/command/pipe_table_test.go` | AC-5, A-3 | PASS |
+| `TestSummaryAliasDropsRows` | `internal/component/command/pipe_table_test.go` | AC-6 | PASS |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -224,9 +228,9 @@ The two aliases then need no machinery beyond `| display`:
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `bgp-summary-flat-payload` | `test/plugin/bgp-summary-flat-payload.ci` | An agent parses `show bgp summary \| json` and finds sibling keys | |
-| `alias-peers` | `test/ui/alias-peers.ci` | An operator types `\| peers` and sees the peer table | |
-| `alias-summary` | `test/ui/alias-summary.ci` | An operator types `\| summary` and sees the aggregates only | |
-| `lg-peer-table-flat-payload` | `test/ui/lg-peer-table-flat-payload.ci` | The looking glass peer table still renders | |
+| `alias-peers` | `test/ui/alias-peers.ci` | An operator types `\| peers` and sees the peer table | written, NOT RUN — the tree's functional harness is down by owner instruction |
+| `alias-summary` | `test/ui/alias-summary.ci` | An operator types `\| summary` and sees the aggregates only | written, NOT RUN — same |
+| `lg-peer-table-flat-payload` | `test/ui/lg-peer-table-flat-payload.ci` | The looking glass peer table still renders | written, NOT RUN — same |
 
 ### Interop Tests (Scope: protocol)
 Not applicable. Scope is `cli`; no wire-visible behavior changes.

@@ -75,13 +75,21 @@ var pipeSubArgs = map[string][]Suggestion{
 // When a pipe operator is fully matched (e.g., "json "), returns sub-argument
 // completions instead of repeating the operator.
 func CompletePipe(partial string) []Suggestion {
-	return completePipe("", partial, nil)
+	return completePipe("", partial, pipeExtras(""))
 }
 
-// completePipeForCommand returns global pipe completions plus filters registered
-// by the resolved command.
+// completePipeForCommand returns global pipe completions plus the names the
+// resolved command adds to them.
 func completePipeForCommand(command, partial string) []Suggestion {
-	return completePipe(command, partial, filterSuggestions(command))
+	return completePipe(command, partial, pipeExtras(command))
+}
+
+// pipeExtras returns the names a command answers to beside the global
+// operators: its aliases first, then the filters it owns. A name is never in
+// both, because RegisterAliases and RegisterPipeFilters each refuse the
+// collision.
+func pipeExtras(command string) []Suggestion {
+	return append(aliasSuggestions(command), filterSuggestions(command)...)
 }
 
 // completePipe completes one pipe segment: its operator name, or the argument
@@ -91,7 +99,7 @@ func completePipeForCommand(command, partial string) []Suggestion {
 // operator name. `| display address st` asks about "st". Matching the whole
 // tail "address st" against a field name answers nothing after the first
 // field.
-func completePipe(command, partial string, commandFilters []Suggestion) []Suggestion {
+func completePipe(command, partial string, extras []Suggestion) []Suggestion {
 	trimmed := strings.TrimSpace(partial)
 	fields := strings.Fields(trimmed)
 	naming := len(fields) > 1 || (len(fields) == 1 && strings.HasSuffix(partial, " "))
@@ -113,7 +121,7 @@ func completePipe(command, partial string, commandFilters []Suggestion) []Sugges
 			completions = append(completions, op)
 		}
 	}
-	for _, op := range commandFilters {
+	for _, op := range extras {
 		if pipeSuggestionExists(completions, op.Text) {
 			continue
 		}

@@ -41,6 +41,7 @@ func notifDirection(recv bool) string {
 
 func init() {
 	registerColumns()
+	registerAliases()
 
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-list", Handler: handleBgpPeerList},
@@ -91,6 +92,28 @@ func registerColumns() {
 	// already the first column and the order carries the fields that follow it.
 	command.RegisterColumns([]string{cmdBgpPeerList},
 		command.ColumnOrder{"name", "group", "remote-as", "state", "uptime"},
+	)
+}
+
+// registerAliases names the two halves of `show bgp summary`, so an operator
+// who wants one of them types its name rather than the fields it holds.
+//
+// The answer carries the aggregate keys and the peer rows as siblings, so each
+// half is a selection among them and `| display` states both. The aliases sit
+// on this command alone: the names mean nothing over an answer with no peer
+// rows in it.
+func registerAliases() {
+	command.RegisterAliases([]string{cmdBgpSummary},
+		command.Alias{
+			Name:        "summary",
+			Description: "The aggregate fields, without the peer rows",
+			Expansion:   "display router-id local-as uptime peers-configured peers-established",
+		},
+		command.Alias{
+			Name:        "peers",
+			Description: "The peer rows, without the aggregate fields",
+			Expansion:   "display peers",
+		},
 	)
 }
 

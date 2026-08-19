@@ -730,3 +730,36 @@ func TestCompleteFillOffersKeywordsOnly(t *testing.T) {
 		t.Errorf("| fill offered a field name: %v", got)
 	}
 }
+
+// VALIDATES: an alias completes in the pipe position, beside the operators and
+// the command's own filters.
+// PREVENTS: a name an operator can type but never discover. An alias exists to
+// save the operator the fields it stands for, which they must be offered first.
+func TestCommandModePipeCompletion_WithAliases(t *testing.T) {
+	resetAliasTables(t)
+
+	RegisterAliases([]string{"peer list"}, Alias{Name: "peers", Description: "The peer rows", Expansion: "display state"})
+
+	cc := NewTreeCompleter(testCommandTree())
+
+	comps := cc.Complete("peer list | pe")
+	if len(comps) != 1 {
+		t.Fatalf("completions = %v, want the one alias", comps)
+	}
+	if comps[0].Text != "peers" || comps[0].Type != "pipe" {
+		t.Errorf("completion = %+v, want the peers alias typed pipe", comps[0])
+	}
+	if comps[0].Description != "The peer rows" {
+		t.Errorf("description = %q, want the one the registration carries", comps[0].Description)
+	}
+
+	// The alias is scoped to its command path, like a filter.
+	if other := cc.Complete("rib show | pe"); len(other) != 0 {
+		t.Errorf("the alias leaked to another command: %v", other)
+	}
+
+	// An alias takes no argument, so nothing follows its name.
+	if args := cc.Complete("peer list | peers "); len(args) != 0 {
+		t.Errorf("an alias offered an argument: %v", args)
+	}
+}

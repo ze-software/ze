@@ -1333,16 +1333,71 @@ Without that agreement a nested sub-table and the JSON behind it would answer
 with different fields. Without it a record naming nothing displayed would render
 as a box with no rows.
 
-**Both kinds MUST be named in the `foldFilters` switch.** That switch has no
-`default:` arm. So a pipe kind named nowhere in it reaches neither the server
-nor the client, for every command that registers filters of its own. Nothing
-reports the loss. `TestColumnOpsSurviveFoldFiltersOnFilteredCommand` and
+**A kind the `foldFilters` switch does not name stays client-side.** The switch
+names the five kinds a command can own as a server-side filter, and its
+`default:` arm carries every other kind to the client. That arm is load-bearing.
+Without it a kind named nowhere reached neither side, for every command that
+registers filters of its own, and nothing reported the loss.
+`TestColumnOpsSurviveFoldFiltersOnFilteredCommand`,
+`TestAliasSurvivesFoldFiltersOnFilteredCommand` and
 `test/ui/display-fill-filtered-command.ci` are what hold that.
 
 <!-- source: internal/component/command/column_order.go -- RegisterColumns, ColumnsForCommand, commandRegistry -->
 <!-- source: internal/component/command/pipe_filter.go -- RegisterPipeFilters, lookupPipeFilters -->
 <!-- source: internal/component/command/pipe_columns.go -- parseDisplay, parseFill, applyDisplaySelect, selectFields -->
 <!-- source: internal/component/command/pipe_table.go -- tableStyle.orderKeys, fillKeys, bestColumnOrder -->
+
+### Pipe aliases: a name for an operator chain
+
+An alias is a name an operator types in the operator slot, standing for a chain
+they would otherwise retype. `show bgp summary | peers` says what
+`show bgp summary | display peers` says.
+
+`RegisterAliases` declares them. It writes to two tables, and which one it
+writes to is what the command list says:
+
+| Registration | Table | Resolved |
+|--------------|-------|----------|
+| `RegisterAliases([]string{"show bgp summary"}, ...)` | `aliasRegistry`, the same `commandRegistry[T]` the two registries above use | by the longest command path that is a prefix of the command |
+| `RegisterAliases(nil, ...)` | `globalAliases`, a table of its own | for every command, when the per-command lookup carries no alias of that name |
+
+The global table is separate rather than a registration on the empty command
+path. `commandRegistry.register` skips an empty path, and
+`commandMatchesPrefix` refuses an empty prefix against every non-empty command,
+so such a registration would match nothing and report nothing.
+
+`expandAliases` runs between `ParsePipe` and `foldFilters`, so classification
+only ever sees operators the parser already knows. It is ONE pass, and four
+properties are what make one pass enough. Each is refused at REGISTRATION, with
+a `panic("BUG:")` naming both sides:
+
+- An alias MUST NOT name another alias. Its expansion parses to pipe operators
+  alone.
+- An alias MUST NOT carry the name of a pipe operator, which `ParsePipe` would
+  read first.
+- An alias MUST NOT carry the name of a pipe filter of an overlapping command
+  path. A command's own filter resolves before anything generic, so the filter
+  would win at use time and nothing would say why. `RegisterPipeFilters` refuses
+  the same pair from its side, because package init order decides which of the
+  two registrations runs second.
+- An alias takes no argument. A word after the name is refused when the chain
+  runs, rather than dropped.
+
+An alias never enters the payload. It is expanded in the client, so a command
+handler cannot tell an alias from the chain it stands for.
+
+`show bgp summary` registers the two that exist. Both are a selection among
+sibling keys, because that answer carries its aggregates and its `peers` array
+at the same level:
+
+| Alias | Expands to |
+|-------|-----------|
+| `summary` | `display router-id local-as uptime peers-configured peers-established` |
+| `peers` | `display peers` |
+
+<!-- source: internal/component/command/alias.go -- RegisterAliases, lookupAlias, AliasesForCommand -->
+<!-- source: internal/component/command/pipe.go -- parsePipeChain, expandAliases, parsePipeOps -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- registerAliases -->
 
 ---
 

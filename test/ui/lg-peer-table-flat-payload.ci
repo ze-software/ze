@@ -1,0 +1,92 @@
+# Test: the looking glass peer table renders from the flat summary payload.
+#
+# VALIDATES: spec-cli-pipe-aliases AC-3 and user story 2. `show bgp summary`
+#            answers the aggregates and the peer rows as siblings, and
+#            summaryPeers (internal/component/lg/handler_api.go) reads the rows
+#            at ze["peers"]. transformProtocols builds the birdwatcher
+#            protocols object from them.
+# PREVENTS: the public looking glass rendering an EMPTY peer table after the
+#           payload was flattened. A consumer that looks one level down finds a
+#           missing key, which unmarshals to a zero value rather than failing,
+#           so an empty table is the only signal there would be.
+#
+# The peers never establish, and nothing here needs them to: a row is built for
+# every configured peer whatever its state, which is what makes the peer table
+# an assertion about the payload rather than about a session.
+
+# ze bgp configuration with the looking glass enabled
+stdin=ze-bgp:terminator=EOF_CONF
+environment {
+	looking-glass {
+		enabled true
+		# TLS defaults ON since spec-fixit-mgmt-listener-auth-guard AC-5.
+		# This test asserts looking-glass CONTENT over plain HTTP, so it takes
+		# the documented opt-out rather than terminating a self-signed TLS
+		# handshake.
+		tls false
+		server main {
+			ip 127.0.0.1
+			port $PORT2
+		}
+	}
+}
+
+bgp {
+	router-id 192.0.2.254
+	session {
+		asn {
+			local 65000
+		}
+	}
+	group transit {
+		peer peer1 {
+			connection {
+				remote {
+					ip 192.0.2.1
+				}
+				local {
+					ip 127.0.0.1
+					accept false
+				}
+			}
+			session {
+				asn {
+					remote 65001
+				}
+			}
+		}
+		peer peer2 {
+			connection {
+				remote {
+					ip 192.0.2.2
+				}
+				local {
+					ip 127.0.0.1
+					accept false
+				}
+			}
+			session {
+				asn {
+					remote 65002
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration -- the HTTP checks are the assertions.
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+
+# The status endpoint reads the same answer's router-id, which is an aggregate
+# key. It is the readiness barrier and the first half of the assertion.
+http=wait:seq=1:url=http://127.0.0.1:$PORT2/api/looking-glass/status:status=200:contains=192.0.2.254:timeout=20s
+
+# The peer table: both configured peers reach it through summaryPeers.
+http=get:seq=1:url=http://127.0.0.1:$PORT2/api/looking-glass/protocols/bgp:status=200:contains=peer1
+http=get:seq=2:url=http://127.0.0.1:$PORT2/api/looking-glass/protocols/bgp:status=200:contains=192.0.2.1
+http=get:seq=3:url=http://127.0.0.1:$PORT2/api/looking-glass/protocols/bgp:status=200:contains=peer2
+http=get:seq=4:url=http://127.0.0.1:$PORT2/api/looking-glass/protocols/bgp:status=200:contains=192.0.2.2
+
+# The short form reads the same rows through the same helper.
+http=get:seq=5:url=http://127.0.0.1:$PORT2/api/looking-glass/protocols/short:status=200:contains=192.0.2.1

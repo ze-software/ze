@@ -540,3 +540,78 @@ func TestRenderPicksOrderMatchingTheRecordShape(t *testing.T) {
 		t.Errorf("the peer rows did not take the peer-row order: %q", rendered)
 	}
 }
+
+// VALIDATES: AC-5, A-3. `| peers` renders the peer rows as a table.
+// PREVENTS: the rows arriving as one cell. `display peers` answers a single-key
+// map whose value is an array, which renderValue unwraps into rows. A change to
+// that unwrapping would render the whole array in one box.
+func TestPeersAliasRendersRows(t *testing.T) {
+	resetAliasTables(t)
+
+	RegisterAliases([]string{"show bgp summary"}, Alias{Name: "peers", Expansion: "display peers"})
+	RegisterColumns([]string{"show bgp summary"},
+		ColumnOrder{"address", "state", "uptime"},
+		ColumnOrder{"router-id", "local-as", "peers"},
+	)
+
+	const payload = `{"router-id":"192.0.2.254","local-as":65000,"peers-configured":2,` +
+		`"peers":[{"address":"192.0.2.1","state":"established","uptime":"1h0m0s"},` +
+		`{"address":"192.0.2.2","state":"idle","uptime":"0s"}]}`
+
+	rendered := renderThroughPipes(t, "show bgp summary | peers | text", payload)
+
+	header := headerFields(t, rendered)
+	if len(header) > 0 && header[0] == "peers" {
+		header = header[1:]
+	}
+	want := []string{"address", "state", "uptime"}
+	if !slices.Equal(header, want) {
+		t.Errorf("the peer rows did not render as a table: header = %v, want %v", header, want)
+	}
+	for _, row := range []string{"192.0.2.1", "192.0.2.2"} {
+		if !strings.Contains(rendered, row) {
+			t.Errorf("peer row %s is missing: %q", row, rendered)
+		}
+	}
+	for _, dropped := range []string{"192.0.2.254", "65000", "peers-configured"} {
+		if strings.Contains(rendered, dropped) {
+			t.Errorf("%q survived an alias that asked for the rows alone: %q", dropped, rendered)
+		}
+	}
+}
+
+// VALIDATES: AC-6. `| summary` renders the aggregate fields, and the peer rows
+// are absent.
+// PREVENTS: the alias selecting the aggregates and leaving the rows beside
+// them, which is what a selection that names no field does to a record.
+func TestSummaryAliasDropsRows(t *testing.T) {
+	resetAliasTables(t)
+
+	RegisterAliases([]string{"show bgp summary"}, Alias{
+		Name:      "summary",
+		Expansion: "display router-id local-as uptime peers-configured peers-established",
+	})
+
+	const payload = `{"router-id":"192.0.2.254","local-as":65000,"uptime":"2h0m0s",` +
+		`"peers-configured":2,"peers-established":1,` +
+		`"peers":[{"address":"192.0.2.1","state":"established"}]}`
+
+	rendered := renderThroughPipes(t, "show bgp summary | summary | text", payload)
+
+	for _, kept := range []string{"192.0.2.254", "65000", "2h0m0s"} {
+		if !strings.Contains(rendered, kept) {
+			t.Errorf("the aggregate value %s is missing: %q", kept, rendered)
+		}
+	}
+	if strings.Contains(rendered, "192.0.2.1") {
+		t.Errorf("a peer row survived an alias that asked for the aggregates alone: %q", rendered)
+	}
+	// "peers" is a prefix of two aggregate keys. The row array is therefore
+	// looked for by the key on its own line, never by the word anywhere.
+	for line := range strings.SplitSeq(rendered, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) > 0 && fields[0] == "peers" {
+			t.Errorf("the peers array survived: %q", rendered)
+		}
+	}
+}

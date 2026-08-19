@@ -245,7 +245,12 @@ exactly these differences.
 
 `internal/component/lg/handler_api_test.go` feeds `transformProtocols` the
 payload the engine actually produces rather than a hand-built map. That test
-exists because an earlier version read `ze["peers"]` while the engine returns
+exists because an earlier version read `ze["peers"]` while the engine answered
 `{"summary":{"peers":[...]}}`, so every peer was dropped and Alice-LG saw no
 sessions at all. A test built from a hand-written fixture would not have caught
 it, which is why this one MUST keep using the real shape.
+
+The engine answers the aggregates and the rows as siblings now, so
+`summaryPeers` reads `ze["peers"]` and the envelope is gone. The lesson stands:
+the fixture follows the engine, and `test/ui/lg-peer-table-flat-payload.ci`
+drives the peer table over HTTP for the same reason.

@@ -79,6 +79,16 @@ func ParsePipe(input string) (command string, ops []pipeOp) {
 	if !hasPipe {
 		return command, nil
 	}
+	return command, parsePipeOps(rest)
+}
+
+// parsePipeOps parses the operator chain that follows the first pipe character.
+// Each segment between two pipe characters is one operator and its argument.
+//
+// An alias registers its expansion in this same spelling, so RegisterAliases
+// parses it here rather than carrying a second reading of the operator names.
+func parsePipeOps(rest string) []pipeOp {
+	var ops []pipeOp
 
 	for part := range strings.SplitSeq(rest, "|") {
 		fields := strings.Fields(strings.TrimSpace(part))
@@ -112,7 +122,62 @@ func ParsePipe(input string) (command string, ops []pipeOp) {
 		ops = append(ops, op)
 	}
 
-	return command, ops
+	return ops
+}
+
+// parsePipeChain splits user input into the command and the operator chain it
+// runs, with every alias replaced by the operators it names.
+//
+// A caller uses it instead of ParsePipe. An alias is a spelling of an operator
+// chain rather than a chain of its own. Expansion happens before foldFilters.
+// The ops that reach classification are therefore ops the parser already knows.
+func parsePipeChain(input string) (command string, ops []pipeOp) {
+	command, ops = ParsePipe(input)
+	return command, expandAliases(command, ops)
+}
+
+// expandAliases replaces each alias in a chain with the operators it names.
+//
+// This is ONE pass, and it can produce no alias of its own. RegisterAliases
+// refuses an alias whose expansion names another alias, so every operator
+// spliced in here is one ParsePipe already knows. The result therefore holds at
+// most one expansion for each op of the input chain, each of a length fixed at
+// registration.
+//
+// An alias takes no argument. A word after the name is refused rather than
+// dropped, so an operator who expected it to filter is told that it does not.
+func expandAliases(command string, ops []pipeOp) []pipeOp {
+	if len(ops) == 0 {
+		return ops
+	}
+
+	expanded := make([]pipeOp, 0, len(ops))
+	for _, op := range ops {
+		// Only an unrecognized operator can be an alias, so no other kind pays
+		// for the split.
+		if op.kind != pipeUnknown {
+			expanded = append(expanded, op)
+			continue
+		}
+		fields := strings.Fields(op.arg)
+		if len(fields) == 0 {
+			expanded = append(expanded, op)
+			continue
+		}
+		entry, ok := lookupAlias(command, fields[0])
+		if !ok {
+			expanded = append(expanded, op)
+			continue
+		}
+		if len(fields) > 1 {
+			var tb textbuf.Buffer
+			message := tb.Str("pipe alias ").Str(entry.alias.Name).Str(" does not accept an argument").String()
+			expanded = append(expanded, pipeOp{kind: pipeInvalid, arg: message})
+			continue
+		}
+		expanded = append(expanded, entry.ops...)
+	}
+	return expanded
 }
 
 // foldFilters rewrites command-owned pipe filters into command arguments.
@@ -134,14 +199,7 @@ func foldFilters(command string, ops []pipeOp) (string, []pipeOp, map[string]any
 	var clientOps []pipeOp
 
 	for _, op := range ops {
-		switch op.kind { //nolint:exhaustive // only classify server vs client ops
-		case pipeNoMore, pipeJSON, pipeNDJSON, pipeTable, pipeText, pipeYAML, pipeRaw, pipeResolve, pipeOrigin, pipeLog, pipeDisplay, pipeFill:
-			// This switch has no default arm, so a kind named nowhere in it is
-			// dropped for every command that registers filters, with no error.
-			// pipeDisplay and pipeFill are named here because each is the
-			// operator's own request about the answer they are reading. No
-			// command owns a server-side filter of either name.
-			clientOps = append(clientOps, op)
+		switch op.kind {
 		case pipeMatch:
 			if filter, ok := set.byName["match"]; ok {
 				serverArgs = appendFilter(serverArgs, filter, op.arg)
@@ -181,6 +239,13 @@ func foldFilters(command string, ops []pipeOp) (string, []pipeOp, map[string]any
 			} else {
 				serverArgs = appendFilter(serverArgs, filter, arg)
 			}
+		default:
+			// Every other kind is the operator's own request about the answer
+			// they are reading, so it stays client-side. The default arm is
+			// what makes that true for a kind nobody thought of here. Without
+			// one, such a kind reached neither side and nothing reported the
+			// loss. pipeDisplay, pipeFill and pipeInvalid all arrive this way.
+			clientOps = append(clientOps, op)
 		}
 	}
 
@@ -403,7 +468,7 @@ func hasFormatOp(ops []pipeOp) bool {
 // when the chain names no format. A caller that goes through
 // ProcessPipesChecked has to apply it itself, and this is what it asks.
 func HasFormatPipe(input string) bool {
-	command, ops := ParsePipe(input)
+	command, ops := parsePipeChain(input)
 	_, ops, _ = foldFilters(command, ops)
 	return hasFormatOp(ops)
 }
@@ -745,7 +810,7 @@ func pipeError(msg string) string {
 // the formatter returns raw JSON unchanged. Returns a non-empty errMsg (and a nil
 // format) if the pipe chain is invalid.
 func ProcessPipesChecked(input string) (command string, format func(string) string, errMsg string) {
-	command, ops := ParsePipe(input)
+	command, ops := parsePipeChain(input)
 	columns := ColumnsForCommand(command)
 	command, ops, meta := foldFilters(command, ops)
 	if msg := ValidatePipes(ops); msg != "" {
@@ -780,7 +845,7 @@ type PipeFlags struct {
 // sessionFormat is the caller's per-session format override; pass "" for none.
 // See configuredDefault.
 func ProcessPipesDetectLog(input, sessionFormat string) (cmd string, format func(string) string, flags PipeFlags, errMsg string) {
-	cmd, ops := ParsePipe(input)
+	cmd, ops := parsePipeChain(input)
 	columns := ColumnsForCommand(cmd)
 	cmd, ops, meta := foldFilters(cmd, ops)
 
@@ -863,7 +928,7 @@ func configuredDefault(sessionFormat string) pipeKind {
 // sessionFormat is the caller's per-session format override; pass "" for none.
 // See configuredDefault.
 func ProcessPipesDefaultFormatChecked(input, sessionFormat string) (command string, format func(string) string, errMsg string) {
-	command, ops := ParsePipe(input)
+	command, ops := parsePipeChain(input)
 	columns := ColumnsForCommand(command)
 	command, ops, meta := foldFilters(command, ops)
 	if msg := ValidatePipes(ops); msg != "" {
@@ -888,7 +953,7 @@ func ProcessPipesDefaultFormatChecked(input, sessionFormat string) (command stri
 // This allows callers to provide a domain-specific formatter (e.g., compact
 // one-liner for streaming monitors) while still respecting explicit pipes.
 func ProcessPipesDefaultFunc(input string, defaultFn func(string) string) (command string, format func(string) string) {
-	command, ops := ParsePipe(input)
+	command, ops := parsePipeChain(input)
 	columns := ColumnsForCommand(command)
 	command, ops, meta := foldFilters(command, ops)
 

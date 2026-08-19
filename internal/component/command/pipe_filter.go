@@ -32,7 +32,20 @@ var pipeFilterRegistry = newCommandRegistry[pipeFilterSet]()
 // RegisterPipeFilters registers command-specific pipe filters for command paths.
 // Passing no filters registers the command as having no command-specific pipes,
 // which prevents a shorter filtered command prefix from matching it.
+//
+// A filter whose name a pipe alias of an overlapping command path already
+// carries is refused with a panic("BUG:") naming both. The filter would resolve
+// first and the alias would never be reached, which nothing reports at use
+// time. RegisterAliases refuses the same pair from the other side, so init
+// order decides which of the two reports it.
 func RegisterPipeFilters(commands []string, filters ...PipeFilter) {
+	if name, path, shadowed := aliasShadowing(commands, filters); shadowed {
+		panic("BUG: pipe filter " +
+			name +
+			" is the name of a pipe alias of " +
+			path)
+	}
+
 	set := pipeFilterSet{filters: append([]PipeFilter(nil), filters...), byName: make(map[string]PipeFilter, len(filters))}
 	for i := range filters {
 		name := strings.ToLower(strings.TrimSpace(filters[i].Name))

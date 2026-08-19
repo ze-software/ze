@@ -1273,7 +1273,24 @@ actually negotiated; unknown or un-negotiated families reject with the
 sorted set of currently-negotiated families so the operator sees
 exactly what is reachable on the running daemon.
 
+The answer carries the aggregate fields and the peer rows as siblings, with no
+wrapper around them:
+
+```json
+{"router-id": "…", "local-as": 64500, "uptime": "4h",
+ "peers-configured": 2, "peers-established": 1, "peers": [ … ]}
+```
+
+A family argument adds `family` and `peers-in-family` beside them. Two aliases
+name the halves, so an operator asks for one half and names no field:
+
+```
+ze show bgp summary | peers      # the peer rows alone, as a table
+ze show bgp summary | summary    # the aggregate fields alone
+```
+
 <!-- source: internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang -- module ze-peer-cmd; internal/component/bgp/plugins/cmd/peer/summary.go -- handleBgpSummary -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- registerAliases -->
 
 ### ping / traceroute
 

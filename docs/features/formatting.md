@@ -213,6 +213,30 @@ show bgp peer list | display state name | json     # two fields per peer
 <!-- source: internal/component/command/pipe_columns.go -- parseDisplay, parseFill, applyDisplaySelect -->
 <!-- source: internal/component/command/pipe_table.go -- tableStyle.orderKeys, fillKeys -->
 
+### A name for a chain: pipe aliases
+
+Some selections are worth a name. `show bgp summary` answers its aggregate
+fields and its peer rows side by side, and an operator usually wants one half:
+
+```
+show bgp summary | peers      # the peer rows, as a table
+show bgp summary | summary    # router-id, local AS, uptime and the peer counts
+```
+
+Each is a name for a `| display` you would otherwise type in full. `| peers` is
+`| display peers`, and `| summary` names the five aggregate fields. Press Tab
+after the pipe character and both are offered beside the operators.
+
+An alias is fixed at registration, which keeps it readable:
+
+- It takes no argument. `| peers established` is refused by name.
+- It never stands for another alias, so what you see is one substitution.
+- It is expanded in the CLI, before the command runs, so `| json`, `| text` and
+  every other format carry it.
+
+<!-- source: internal/component/command/alias.go -- RegisterAliases, AliasesForCommand -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- registerAliases -->
+
 ### Command-specific filters
 
 Some commands extend the generic set with their own filter vocabulary,

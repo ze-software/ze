@@ -1,0 +1,172 @@
+# Test: `show bgp summary | peers` answers the peer rows and nothing else.
+#
+# VALIDATES: spec-cli-pipe-aliases AC-5. The alias expands to
+#            `display peers`, whose value is an array the table renderer draws
+#            as rows. The expansion happens in the client, between ParsePipe and
+#            foldFilters, so this file drives the real daemon to prove the
+#            operator's word reached ApplyPipes rather than a unit test's
+#            renderer.
+#
+# The daemon runs with an ephemeral SSH listener; ZE_SSH_* carry the credentials
+# `ze cli` has no flags for. The peers never establish, and nothing here needs
+# them to: a row is built for every configured peer whatever its state.
+#
+# The timeout is DECLARED because this file starts a daemon and launches `ze`
+# several times, which a first (cold) run or a loaded host can take past the
+# runner's derived bound while every assertion still holds.
+option=timeout:value=60s
+
+tmpfs=run.py:terminator=EOF_PY
+import os
+import subprocess
+
+from ze_api import wait_until
+
+
+def require(condition, message):
+    if not condition:
+        raise SystemExit(message)
+
+
+def run(argv, env):
+    r = subprocess.run(argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env, check=False)
+    return r.returncode, r.stdout, r.stderr
+
+
+password_hash = subprocess.check_output(['ze', 'passwd'], input='secret\n', text=True).strip()
+with open('summary.conf', 'w', encoding='utf-8') as fh:
+    fh.write('''bgp {
+    router-id 192.0.2.254
+    session {
+        asn {
+            local 65000
+        }
+    }
+    group transit {
+        peer peer1 {
+            connection {
+                remote {
+                    ip 192.0.2.1
+                }
+                local {
+                    ip 127.0.0.1
+                }
+            }
+            session {
+                asn {
+                    remote 65001
+                }
+            }
+        }
+        peer peer2 {
+            connection {
+                remote {
+                    ip 192.0.2.2
+                }
+                local {
+                    ip 127.0.0.1
+                }
+            }
+            session {
+                asn {
+                    remote 65002
+                }
+            }
+        }
+    }
+}
+
+system {
+    authentication {
+        user ci {
+            password "''' + password_hash + '''"
+            profile [ admin ]
+        }
+    }
+}
+''')
+
+daemon_env = os.environ.copy()
+daemon_env['ZE_SSH_EPHEMERAL'] = os.path.abspath('ssh.addr')
+daemon_env['ZE_READY_FILE'] = os.path.abspath('ready')
+daemon_env['ZE_CONFIG_DIR'] = os.getcwd()
+# Leave port 179 alone: this suite runs unprivileged and a bind failure there
+# takes the daemon down before it writes `ready`.
+daemon_env['ze_test_bgp_port'] = str(12000 + os.getpid() % 40000)
+daemon = subprocess.Popen(['ze', '-f', 'summary.conf'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=daemon_env)
+
+
+def daemon_ready():
+    if daemon.poll() is not None:
+        out, err = daemon.communicate()
+        raise SystemExit('daemon exited early\nstdout:\n' + out + '\nstderr:\n' + err)
+    return os.path.exists('ssh.addr') and os.path.exists('ready')
+
+
+try:
+    if not wait_until(daemon_ready, attempts=200, delay=0.1):
+        raise SystemExit('daemon did not become ready')
+
+    host, port = open('ssh.addr', encoding='utf-8').read().strip().rsplit(':', 1)
+    cli_env = os.environ.copy()
+    cli_env.update({
+        'ZE_SSH_HOST': host,
+        'ZE_SSH_PORT': port,
+        'ZE_SSH_USERNAME': 'ci',
+        'ZE_SSH_PASSWORD': 'secret',
+        'ZE_CONFIG_DIR': os.getcwd(),
+    })
+
+    def cli(command):
+        code, out, err = run(['ze', 'cli', '-c', command], cli_env)
+        require(code == 0, '%s exit=%d: %s%s' % (command, code, out, err))
+        return out
+
+    # The whole answer first, so the assertions below measure a CHANGE rather
+    # than an answer that was always narrow.
+    whole = cli('show bgp summary | text')
+    for key in ('router-id', 'local-as', 'peers-configured'):
+        require(key in whole, 'the summary does not carry %s: %r' % (key, whole))
+    require('192.0.2.1' in whole and '192.0.2.2' in whole, 'the peer rows are missing: %r' % whole)
+
+    rows = cli('show bgp summary | peers | text')
+    require('192.0.2.1' in rows, 'the alias dropped the first peer row: %r' % rows)
+    require('192.0.2.2' in rows, 'the alias dropped the second peer row: %r' % rows)
+    require('192.0.2.254' not in rows, 'the router-id survived `| peers`: %r' % rows)
+    require('65000' not in rows, 'the local AS survived `| peers`: %r' % rows)
+
+    # The rows render as a TABLE, so one header line names the peer columns and
+    # each peer sits on a line of its own.
+    header = None
+    for line in rows.split('\n'):
+        fields = line.split()
+        if fields and fields[0] in ('address', 'peers'):
+            header = [f for f in fields if f != 'peers']
+            break
+    require(header is not None, 'the peer rows did not render as a table: %r' % rows)
+    require(header[0] == 'address', 'the peer table must lead with the peer: %r' % header)
+    require('state' in header, 'the peer table lost its state column: %r' % header)
+
+    # The alias is a selection, so every format carries it. A program reading
+    # `| json` sees the same fields the table drew.
+    as_json = cli('show bgp summary | peers | json')
+    require('"address"' in as_json, '`| peers | json` dropped the rows: %r' % as_json)
+    require('router-id' not in as_json, '`| peers | json` kept the aggregates: %r' % as_json)
+
+    # An alias takes no argument, and a word after it is refused by name.
+    code, out, err = run(['ze', 'cli', '-c', 'show bgp summary | peers established'], cli_env)
+    require('peers' in (out + err), 'an argument after the alias was accepted in silence: %r %r' % (out, err))
+finally:
+    daemon.terminate()
+    try:
+        daemon.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        daemon.kill()
+        daemon.wait(timeout=5)
+
+print('OK')
+EOF_PY
+
+cmd=foreground:seq=1:exec=python3 run.py
+expect=exit:code=0
+expect=stdout:contains=OK
