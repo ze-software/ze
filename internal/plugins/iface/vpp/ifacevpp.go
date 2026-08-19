@@ -81,10 +81,14 @@ type vppBackendImpl struct {
 	// mirMu guards mirrors. VPP's sw_interface_span_enable_disable delete
 	// path is keyed on the (from, to, is_l2) triple, but RemoveMirror only
 	// receives the source name. mirrors records, per source ze name, the set
-	// of destination SwIfIndex -> is_l2 SPAN entries installed by SetupMirror
-	// so RemoveMirror can replay each with state DISABLED. Lazily initialized.
+	// of destination ze name -> is_l2 SPAN entries installed by SetupMirror
+	// so RemoveMirror can replay each with state DISABLED. The destination is
+	// held as a NAME, never as a SwIfIndex: a recreated interface keeps its
+	// name and takes a new index, so a stored index would disable SPAN on a
+	// dead one. names is the only resolver, and RemoveMirror reads it fresh.
+	// Lazily initialized.
 	mirMu   sync.Mutex
-	mirrors map[string]map[interface_types.InterfaceIndex]bool
+	mirrors map[string]map[string]bool
 
 	// wgMu guards wgPeers. VPP's wireguard peer set is reconciled by
 	// wireguard_peer_add / wireguard_peer_remove keyed on the peer_index VPP
@@ -255,6 +259,15 @@ func (b *vppBackendImpl) resolveBridgeDomain(name string) (uint32, error) {
 func (b *vppBackendImpl) CreateDummy(name string) error {
 	if err := b.ensureChannel(); err != nil {
 		return err
+	}
+	// create_loopback carries a MAC and nothing else: VPP allocates a fresh
+	// interface and a fresh SwIfIndex for every call, whatever the name the
+	// operator gave it. applyConfig calls this for each dummy entry on each
+	// apply, so sending it again would leave the loopback the last apply made
+	// in the dataplane, holding its addresses and its bridge port, with no ze
+	// name pointing at it. Keep that interface and issue nothing.
+	if _, exists := b.names.lookupIndex(name); exists {
+		return fmt.Errorf("ifacevpp: loopback %q: %w", name, iface.ErrInterfaceExists)
 	}
 	req := &interfaces.CreateLoopback{}
 	reply := &interfaces.CreateLoopbackReply{}

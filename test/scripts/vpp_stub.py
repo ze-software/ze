@@ -546,10 +546,63 @@ def handle_classify_add_del_table(state, sock, context, body):
     write_frame(sock, reply)
 
 
+def handle_create_loopback(state, sock, context, body):
+    """Allocate a fresh sw_if_index for every call and log it.
+
+    CreateLoopbackReply carries {Retval i32; SwIfIndex u32}, so the generic
+    4-byte retval-only fallback would leave SwIfIndex undecodable for GoVPP.
+    A fresh index per call is what real VPP does: create_loopback carries a MAC
+    and nothing else, so it names no interface and reuses none. A stub that
+    answered with one fixed index would hide a caller that creates the same
+    loopback twice, which is the behaviour vpp-loopback-reapply.ci asserts.
+
+    Body (after the 10-byte request header): mac_address u8[6].
+    """
+    if not hasattr(state, "loopback_next_index"):
+        state.loopback_next_index = 1
+    sw_if_index = state.loopback_next_index
+    state.loopback_next_index += 1
+    mac = body[:6].hex(":") if len(body) >= 6 else ""
+    state.log(
+        "create_loopback",
+        context,
+        {"mac_address": mac, "sw_if_index": sw_if_index},
+    )
+    body_out = struct.pack(">iI", 0, sw_if_index)  # Retval=0, SwIfIndex
+    reply = build_reply(state, "create_loopback_reply", context, body_out)
+    write_frame(sock, reply)
+
+
+def handle_sw_interface_add_del_address(state, sock, context, body):
+    """Log the interface the address is programmed on, then retval=0.
+
+    SwInterfaceAddDelAddressReply is retval-only, so the reply is what the
+    generic fallback would send. The handler exists for the LOG: without the
+    decoded sw_if_index a test cannot say which interface an address landed on,
+    and "the address is on the interface the name resolves to" is the assertion
+    vpp-loopback-reapply.ci makes.
+
+    Body (after the 10-byte request header): sw_if_index u32, is_add u8,
+    del_all u8, prefix.
+    """
+    sw_if_index = struct.unpack_from(">I", body, 0)[0] if len(body) >= 4 else 0
+    is_add = bool(body[4]) if len(body) >= 5 else False
+    state.log(
+        "sw_interface_add_del_address",
+        context,
+        {"sw_if_index": sw_if_index, "is_add": is_add},
+    )
+    body_out = struct.pack(">i", 0)  # Retval=0
+    reply = build_reply(state, "sw_interface_add_del_address_reply", context, body_out)
+    write_frame(sock, reply)
+
+
 HANDLERS = {
     "sockclnt_create": handle_sockclnt_create,
     "sockclnt_delete": handle_sockclnt_delete,
     "control_ping": handle_control_ping,
+    "create_loopback": handle_create_loopback,
+    "sw_interface_add_del_address": handle_sw_interface_add_del_address,
     "ip_route_add_del": handle_ip_route_add_del,
     "ip_route_lookup_v2": handle_ip_route_lookup_v2,
     "mpls_route_add_del": handle_mpls_route_add_del,

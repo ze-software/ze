@@ -48,6 +48,13 @@ type progChannel struct {
 	peerIndex uint32
 	sendErr   error
 
+	// loopbackIndex is the SwIfIndex the next create_loopback reply carries,
+	// and it advances after each one. VPP allocates a fresh interface for
+	// every create_loopback (the message names none), so a fake that answered
+	// with one fixed index would let a duplicate create look like a single
+	// interface. Tests that send create_loopback set the first value.
+	loopbackIndex interface_types.InterfaceIndex
+
 	// Dump responses delivered by SendMultiRequest, used by GetWireguardDevice
 	// round-trip tests. Each slice is streamed one entry per ReceiveReply,
 	// then a final (last=true) terminates the dump.
@@ -101,6 +108,10 @@ func (r *progReqCtx) ReceiveReply(msg api.Message) error {
 		return r.ch.sendErr
 	}
 	switch reply := msg.(type) {
+	case *interfaces.CreateLoopbackReply:
+		reply.Retval = r.ch.retval
+		reply.SwIfIndex = r.ch.loopbackIndex
+		r.ch.loopbackIndex++
 	case *gre.GreTunnelAddDelReply:
 		reply.Retval = r.ch.retval
 		reply.SwIfIndex = r.ch.swIfIndex
@@ -418,6 +429,108 @@ func TestSetupMirrorRetvalError(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "retval") {
 		t.Errorf("expected 'retval' in error, got: %v", err)
+	}
+}
+
+// TestRemoveMirrorAfterDestinationRecreated verifies the SPAN disable names the
+// index the destination holds NOW, not the one it held when SetupMirror ran.
+// Method: mirror xe0 -> xe1 while xe1 is index 9, rebind xe1 to index 21 the way
+// a recreate does, then remove the mirror.
+// VALIDATES: AC-4 -- no recorded SwIfIndex outlives the interface it names.
+// PREVENTS: a mirror the operator removed that keeps copying traffic, because
+// the disable landed on an index nothing forwards through any more.
+func TestRemoveMirrorAfterDestinationRecreated(t *testing.T) {
+	ch := &progChannel{}
+	b := newMirrorBackend(ch)
+
+	if err := b.SetupMirror("xe0", "xe1", true, true); err != nil {
+		t.Fatalf("SetupMirror: %v", err)
+	}
+	b.names.Remove("xe1")
+	b.names.Add("xe1", 21, "xe1")
+
+	if err := b.RemoveMirror("xe0"); err != nil {
+		t.Fatalf("RemoveMirror: %v", err)
+	}
+	last, ok := ch.requests[len(ch.requests)-1].(*span.SwInterfaceSpanEnableDisable)
+	if !ok {
+		t.Fatalf("disable request type: got %T", ch.requests[len(ch.requests)-1])
+	}
+	if last.State != span.SPAN_STATE_API_DISABLED {
+		t.Errorf("disable State: got %v, want DISABLED", last.State)
+	}
+	if last.SwIfIndexTo != 21 {
+		t.Errorf("disable SwIfIndexTo: got %d, want 21 (the index xe1 holds now)", last.SwIfIndexTo)
+	}
+}
+
+// newDummyBackend returns a backend wired to a programmable channel with an
+// empty name map, so CreateDummy takes its create path on the first call.
+func newDummyBackend(ch *progChannel) *vppBackendImpl {
+	b := &vppBackendImpl{ch: ch, names: newNameMap()}
+	b.populate.Do(func() {}) // short-circuit ensureChannel populate
+	return b
+}
+
+// TestCreateDummyFirstCallCreates verifies the create path is unchanged when
+// the name is unknown: one create_loopback, and the name bound to the index
+// VPP returned.
+// VALIDATES: AC-5 -- an apply that finds no existing loopback still creates one.
+func TestCreateDummyFirstCallCreates(t *testing.T) {
+	ch := &progChannel{loopbackIndex: 12}
+	b := newDummyBackend(ch)
+
+	if err := b.CreateDummy("lo0"); err != nil {
+		t.Fatalf("CreateDummy: %v", err)
+	}
+	if len(ch.requests) != 1 {
+		t.Fatalf("requests: got %d, want 1", len(ch.requests))
+	}
+	if _, ok := ch.requests[0].(*interfaces.CreateLoopback); !ok {
+		t.Fatalf("request type: got %T, want *interfaces.CreateLoopback", ch.requests[0])
+	}
+	idx, ok := b.names.lookupIndex("lo0")
+	if !ok {
+		t.Fatal("lo0 not registered in the name map")
+	}
+	if idx != 12 {
+		t.Errorf("lo0 index: got %d, want 12", idx)
+	}
+}
+
+// TestCreateDummyKeepsExistingLoopback verifies the second apply of the same
+// dummy entry keeps the interface the first one made. create_loopback carries
+// no name, so a second send would allocate a second loopback and rebind the ze
+// name to it, leaving the first one in the dataplane with its addresses and its
+// bridge port and nothing pointing at it.
+// VALIDATES: AC-1 -- two applies leave one loopback for the name.
+// PREVENTS: one leaked VPP interface per config apply, without bound.
+func TestCreateDummyKeepsExistingLoopback(t *testing.T) {
+	ch := &progChannel{loopbackIndex: 12}
+	b := newDummyBackend(ch)
+
+	if err := b.CreateDummy("lo0"); err != nil {
+		t.Fatalf("first CreateDummy: %v", err)
+	}
+	err := b.CreateDummy("lo0")
+	if !errors.Is(err, iface.ErrInterfaceExists) {
+		t.Fatalf("second CreateDummy: got %v, want iface.ErrInterfaceExists", err)
+	}
+	creates := 0
+	for _, req := range ch.requests {
+		if _, ok := req.(*interfaces.CreateLoopback); ok {
+			creates++
+		}
+	}
+	if creates != 1 {
+		t.Errorf("create_loopback requests: got %d, want 1", creates)
+	}
+	idx, ok := b.names.lookupIndex("lo0")
+	if !ok {
+		t.Fatal("lo0 lost its name-map entry")
+	}
+	if idx != 12 {
+		t.Errorf("lo0 index: got %d, want 12 (the interface the first apply made)", idx)
 	}
 }
 

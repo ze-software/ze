@@ -23,6 +23,18 @@ import (
 // completed its GoVPP handshake. The netlink backend never returns it.
 var ErrBackendNotReady = errors.New("iface: backend not ready")
 
+// ErrInterfaceExists signals that a create step found the name already bound
+// to a live interface, so it kept that interface and issued no create. The
+// step created nothing, and applyConfig reads the sentinel with errors.Is to
+// keep its undo from deleting a device an earlier apply made.
+//
+// A backend that cannot answer "does this name exist" without a create is not
+// required to produce it: the netlink backend returns the kernel's EEXIST and
+// applyConfig falls back to Backend.GetInterface for that case. Produced by
+// ifacevpp.CreateDummy, whose create message (create_loopback) carries no name
+// and allocates a fresh interface on every call.
+var ErrInterfaceExists = errors.New("iface: interface already exists")
+
 // ErrCountersNotResettable indicates the backend cannot physically zero
 // RX/TX counters in the kernel (Linux has no generic reset; only a few
 // drivers support ETHTOOL_* resets). The iface dispatch layer catches

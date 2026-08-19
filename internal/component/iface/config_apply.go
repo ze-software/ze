@@ -626,6 +626,16 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 		created := false
 		if err := applyBackendStep(journal, func() error {
 			if err := b.CreateDummy(e.Name); err != nil {
+				// ErrInterfaceExists is the backend saying it kept the
+				// interface an earlier apply made. GetInterface cannot
+				// settle that case on every backend: the vpp one names a
+				// loopback loopN in the dataplane while the operator names
+				// it here, so the dump filter finds nothing. Either way
+				// this step created nothing, so created stays false and
+				// the undo leaves the device alone.
+				if errors.Is(err, ErrInterfaceExists) {
+					return nil
+				}
 				if _, getErr := b.GetInterface(e.Name); getErr != nil {
 					return err
 				}
@@ -1530,7 +1540,11 @@ func recreateManagedInterface(cfg *ifaceConfig, devices map[string]string, name 
 	}
 	for _, e := range cfg.Dummy {
 		if !e.Disable && e.Name == name {
-			if err := b.CreateDummy(e.Name); err != nil {
+			// The prune step deleted this device, so the create is expected
+			// to make it. A backend that answers ErrInterfaceExists still
+			// holds it, which is the state this undo wanted: keep going and
+			// re-establish the LCP shadow rather than failing the undo.
+			if err := b.CreateDummy(e.Name); err != nil && !errors.Is(err, ErrInterfaceExists) {
 				return err
 			}
 			// Re-establish the LCP shadow on the vpp backend, matching

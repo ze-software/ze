@@ -472,6 +472,14 @@ class API:
 
         Centralizes callback dispatch for both the _pending_requests drain
         and the main read loop in read_line().
+
+        Every method read_line answers MUST be answered here too, because the
+        two routes carry the same callbacks: read_line sees the ones that arrive
+        while the observer is reading, and this sees the ones _call_engine
+        queued while it waited for an RPC reply. post-startup was handled inline
+        in read_line and nowhere here, so the queued copy fell to the trailing
+        else, was acked, and lost its flag -- and the queue is the route it
+        takes on any observer that dispatches before it waits.
         """
         if method == "ze-plugin-callback:deliver-batch":
             self._respond_ok(req_id)
@@ -531,6 +539,9 @@ class API:
                 self._respond_result(req_id, {"data": data or {}})
             else:
                 self._respond_result(req_id, {"data": {}})
+        elif method == "ze-plugin-callback:post-startup":
+            self._post_startup_received = True
+            self._respond_ok(req_id)
         else:
             self._respond_ok(req_id)
 
@@ -1252,8 +1263,7 @@ class API:
                 continue
 
             if method == "ze-plugin-callback:post-startup":
-                self._post_startup_received = True
-                self._respond_ok(req_id)
+                self._handle_callback(req_id, method, params)
                 continue
 
             # Other callbacks -- respond OK and skip, loop back.

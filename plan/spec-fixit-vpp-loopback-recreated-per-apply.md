@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Scope | plugin |
 | Depends | - |
-| Phase | - |
+| Phase | 3/3 |
 | Deferral shard | - |
-| Updated | 2026-08-18 |
+| Updated | 2026-08-19 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -135,20 +135,20 @@ names.
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | No | |
-| No unintended coupling (components stay isolated) | No | |
-| No duplicated functionality (extends existing, does not recreate) | No | |
-| Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
+| No bypassed layers (data flows through the intended path) | Yes | `CreateDummy` reads `b.names`, the same resolver `resolveIndex` reads (`internal/plugins/iface/vpp/ifacevpp.go`) |
+| No unintended coupling (components stay isolated) | Yes | The backend answers with `iface.ErrInterfaceExists`, an existing sentinel shape beside `iface.ErrBackendNotReady` (`internal/component/iface/backend.go`). The apply loop learns nothing about VPP |
+| No duplicated functionality (extends existing, does not recreate) | Yes | The apply loop's create-tolerance branch is extended, not replaced; the netlink EEXIST path is untouched (`internal/component/iface/config_apply.go`) |
+| Zero-copy preserved where applicable (refs, not copies) | N-A | Control plane, one map lookup per apply. No wire path |
+| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | Yes | No new registration, no plugin name in a shared package. The sentinel names a backend CONDITION, not a backend |
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | `create_loopback` always allocates a new interface | the message carries only a MAC field in the vendored binapi | the leak does not exist and only the mirror half remains | a QEMU run that applies twice and dumps the interface list | unvalidated |
-| A-2 | `create_loopback_instance` with a pinned instance returns the existing interface rather than an error when that instance exists | the field names `is_specified` and `user_instance` | the fix becomes an existence check before the create | the same QEMU run | unvalidated |
-| A-3 | Nothing outside `b.mirrors` stores a `SwIfIndex` across an apply | search of the backend for stored index fields | another stale record survives the fix | grep of the backend struct and its writers | unvalidated |
+| A-1 | `create_loopback` always allocates a new interface | the message carries only a MAC field in the vendored binapi | the leak does not exist and only the mirror half remains | `test/plugin/vpp-loopback-reapply.ci` with the fix reverted | confirmed -- the reverted run logs two creates, `sw_if_index` 1 and 2 |
+| A-2 | `create_loopback_instance` with a pinned instance returns the existing interface rather than an error when that instance exists | the field names `is_specified` and `user_instance` | the fix becomes an existence check before the create | the same QEMU run | not needed -- the fix IS an existence check before the create, so no `create_loopback_instance` is sent and the assumption is never relied on |
+| A-3 | Nothing outside `b.mirrors` stores a `SwIfIndex` across an apply | search of the backend for stored index fields | another stale record survives the fix | grep of the backend struct and its writers | broken -- the `b.deleters` closures capture one: `createIPIPTunnel` and `CreateWireguardDevice` close over `reply.SwIfIndex`, `createGRETunnel` over `delTun.SwIfIndex`, and the VXLAN one over `del.Instance` (`internal/plugins/iface/vpp/tunnel.go`, `wireguard.go`, `vxlan.go`). Out of this spec's scope: those creates are also unconditional, so each needs the create-side treatment first |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -178,7 +178,7 @@ names.
 |-------|-------------------|-------------------|
 | AC-1 | Two applies of the same `dummy` interface | The dataplane holds one loopback for that name, and the interface count does not grow |
 | AC-2 | The same, with an address configured | The address stays on the interface the name points at, and no address remains on an unnamed interface |
-| AC-3 | The same, with the loopback a bridge member | The bridge domain holds exactly one port for that name |
+| AC-3 | The same, with the loopback a bridge member | The bridge domain holds exactly one port for that name. **Not reachable from config today:** `list bridge` in `internal/component/iface/yang/ze-iface-conf.yang` carries `ze:backend "netlink"`, and `validateBackendGate` (`internal/component/iface/register.go`) refuses a `bridge` block while `interface { backend vpp; }` is active, so no apply on this backend can make a loopback a bridge member. What the AC is really about is the index: `BridgeAddPort` resolves both sides through `resolveIndex` on every call, so one stable index is one port, and AC-1 is what pins the index |
 | AC-4 | A mirror whose destination is recreated, then removed | The mirror is disabled on the live interface, and no request names a deleted index |
 | AC-5 | An apply that finds no existing loopback | Creation is unchanged, and the rollback still deletes exactly what it created |
 
@@ -194,9 +194,9 @@ names.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestCreateDummyKeepsExistingLoopback` | `internal/plugins/iface/vpp/apply_test.go` | the second create sends no create request, or a create that names the same instance | |
-| `TestCreateDummyFirstCallCreates` | `internal/plugins/iface/vpp/apply_test.go` | the first create is unchanged | |
-| `TestRemoveMirrorAfterDestinationRecreated` | `internal/plugins/iface/vpp/apply_test.go` | the disable request carries the live destination index | |
+| `TestCreateDummyKeepsExistingLoopback` | `internal/plugins/iface/vpp/apply_test.go` | the second create sends no create request and answers `iface.ErrInterfaceExists`; the name still resolves to the first index | pass; red with the fix reverted (`got <nil>, want iface.ErrInterfaceExists`) |
+| `TestCreateDummyFirstCallCreates` | `internal/plugins/iface/vpp/apply_test.go` | the first create is unchanged | pass; green both ways by design, it pins AC-5 |
+| `TestRemoveMirrorAfterDestinationRecreated` | `internal/plugins/iface/vpp/apply_test.go` | the disable request carries the live destination index | pass; red with the fix reverted (`got 9, want 21`) |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -206,7 +206,7 @@ names.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `vpp-loopback-reapply.ci` | `test/plugin/` | the operator reloads and the interface list is unchanged | |
+| `vpp-loopback-reapply.ci` | `test/plugin/` | the operator reloads, the interface list is unchanged, and the address stays on the interface the name resolves to | pass, repeated; red with the fix reverted on BOTH criteria: `AC-1: create_loopback count is 2 (sw_if_index [1, 2]), want 1` and `AC-2: address programmed on sw_if_index [2], want 1` |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -214,12 +214,22 @@ names.
 | N-A | - | - | no wire-visible protocol behavior changes | |
 
 ## Files to Modify
-- `internal/plugins/iface/vpp/ifacevpp.go` - `CreateDummy` becomes idempotent by
-  name
-- `internal/plugins/iface/vpp/mirror.go` - the recorded destination stops being a
-  bare index, or is re-resolved before use
-- `internal/component/iface/config_apply.go` - only if the shared contract for an
-  existing name has to move off the error branch
+- `internal/plugins/iface/vpp/ifacevpp.go` - `CreateDummy` answers
+  `iface.ErrInterfaceExists` for a name the map already holds and sends nothing;
+  `mirrors` is re-typed to hold destination NAMES
+- `internal/plugins/iface/vpp/mirror.go` - `recordMirror` stores the destination
+  ze name and `RemoveMirror` resolves it fresh
+- `internal/component/iface/backend.go` - the `ErrInterfaceExists` sentinel and
+  the contract it carries
+- `internal/component/iface/config_apply.go` - the dummy create-tolerance branch
+  reads the sentinel, so a kept interface leaves `created` false and the undo
+  does not delete it; `recreateManagedInterface` tolerates the same answer
+- `internal/plugins/iface/vpp/apply_test.go` - the create_loopback reply case in
+  the channel fake, with a fresh index per call
+- `test/scripts/vpp_stub.py` - a `create_loopback` handler; the generic fallback
+  answers 4 bytes and `CreateLoopbackReply` needs 8
+- `ai/digests/vpp-dataplane.md` - the (L) lifecycle line, which said the create
+  is unconditional
 
 ## Files to Create
 - `test/plugin/vpp-loopback-reapply.ci` - the reload scenario
@@ -236,7 +246,7 @@ names.
 | Functional test for new RPC/API | No | no new RPC |
 | Pipe completeness | N-A | no new output |
 | Env var registration | No | no environment leaf |
-| Doctor check for runtime dependencies | | decide during design: a check could report duplicate loopbacks on a running system |
+| Doctor check for runtime dependencies | No | The change adds no runtime dependency: no file, socket, module, port, cert or binary. A duplicate-loopback check would report the OLD defect's residue on a machine that ran an earlier build, which is a migration aid rather than a dependency check, and `ze doctor` has no such category |
 | Prometheus counters/metrics | No | no new observable state |
 | BGP family surface (new SAFI / capability / attribute) | N-A | not BGP |
 
@@ -247,19 +257,19 @@ names.
 | 2 | Config syntax changed? | No | |
 | 3 | CLI command added/changed? | No | |
 | 4 | API/RPC added/changed? | No | |
-| 5 | Plugin added/changed? | Yes | the `iface-vpp` behavior on reapply |
-| 6 | Has a user guide page? | | `docs/guide/interfaces.md` |
+| 5 | Plugin added/changed? | Yes | `ai/digests/vpp-dataplane.md`, done: the (L) line now says the create is gated on the name map |
+| 6 | Has a user guide page? | No | There is no `docs/guide/interfaces.md`. The interface reference is `docs/features/interfaces.md` (the `Design:` header of `config_apply.go` and `mirror.go`) and the operator page is `docs/guide/vpp.md`. Both already claim what the fix delivers -- the capability matrix rows "Idempotent setup/cleanup: have" and "`CreateDummy` real (CreateLoopback)" -- so the change makes a published claim true and edits nothing |
 | 7 | Wire format changed? | No | |
 | 8 | Plugin SDK/protocol changed? | No | |
 | 9 | RFC behavior implemented, changed, or newly proven? | No | |
-| 10 | Test infrastructure changed? | | `docs/functional-tests.md` if the reload scenario needs new harness support |
+| 10 | Test infrastructure changed? | Yes | `test/scripts/vpp_stub.py` gained a `create_loopback` handler. `docs/functional-tests.md` names suites and targets, not stub messages, and the suite list is unchanged, so nothing there moves |
 | 11 | Affects daemon comparison? | No | |
-| 12 | Internal architecture changed? | Yes | `ai/digests/vpp-dataplane.md`, the lifecycle section |
+| 12 | Internal architecture changed? | Yes | `ai/digests/vpp-dataplane.md`, the (L) lifecycle line: done |
 | 13 | Route metadata keys added/changed? | No | |
 | 14 | Prometheus counters added/changed? | No | |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | |
-| 16 | Any changed source file referenced by existing doc source anchors? | | grep `docs/` for the changed files |
-| 17 | Existing docs show config/CLI/API examples for this area? | | check the dummy interface examples |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes, none stale | The anchors on `ifacevpp.go` and `mirror.go` in `docs/features/interfaces.md`, `docs/guide/vpp.md`, `docs/features.md`, `docs/architecture/core-design.md` and `ai/DOCS-TO-CODE.md` name the symbols, not the create's conditions, and every named symbol keeps its name |
+| 17 | Existing docs show config/CLI/API examples for this area? | Yes, unchanged | The `create interface dummy name <name>` examples in `docs/features/interfaces.md` describe the CLI ensure path, which was already idempotent and which this change does not touch |
 
 ## Implementation Steps
 
@@ -314,11 +324,26 @@ names.
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
+| `CreateDummy` answers `iface.ErrInterfaceExists` rather than a bare nil | return nil for a name already held | Returning nil sets the apply loop's `created` flag, and its undo then calls `DeleteInterface` on a loopback an EARLIER apply made, with its addresses and its LCP shadow. That inverts the rollback contract the spec preserves and AC-5 states. The sentinel keeps the create a no-op AND keeps `created` false |
+| The sentinel, not `Backend.GetInterface`, settles "it already exists" on VPP | reuse the existing GetInterface fallback the netlink EEXIST path uses | `GetInterface` (`internal/plugins/iface/vpp/query.go`) matches the dump's `InterfaceName`, which VPP sets to `loopN`, while the operator's name is the ze one. So the fallback answers "not found" for a loopback that exists, and the apply would fail rather than tolerate |
+| Not `create_loopback_instance` | pin `user_instance` so a re-create returns the same interface | It would send a message on every apply to learn something one map lookup already answers, and its "instance exists" behavior is unverified (A-2). The name map is the only resolver the backend has, so asking it is the smaller answer |
+| `b.mirrors` holds destination NAMES | keep the index and invalidate it from the monitor | A name is stable across a recreate and an index is not, and `resolveIndex` already reads the map fresh on the delete path. Invalidation needs a second mechanism to stay correct |
 
 ## Known Limitations
 - The spec covers the loopback path. Tunnels and VLAN sub-interfaces record their
   own deleters and are created from a different message, so they need their own
   reading before any claim is made about them.
+  → Constraint: A-3 is now BROKEN and the shape is confirmed there. The GRE,
+  IPIP, VXLAN and WireGuard creates each send unconditionally and each records a
+  deleter closing over the returned `SwIfIndex`. One row in
+  `plan/journal/identifier-reused-after-its-owner-is-gone.md` records it.
+- The fix is per-process, because the name map is. `populateNameMap`
+  (`internal/plugins/iface/vpp/query.go`) seeds the map with VPP's own names, so
+  after a daemon restart the loopback VPP calls `loop0` is registered as `loop0`
+  and the operator's `lo0` resolves to nothing. A restart therefore still creates
+  a second dataplane loopback. Closing that needs the interface to carry the ze
+  name into VPP, which is the `create_loopback_instance` question A-2 asks and
+  which this spec does not answer.
 
 ## Checklist
 

@@ -41,7 +41,7 @@ func (b *vppBackendImpl) SetupMirror(srcIface, dstIface string, ingress, egress 
 	if err := b.spanEnableDisable(fromIdx, toIdx, spanState(ingress, egress), isL2); err != nil {
 		return fmt.Errorf("ifacevpp: SetupMirror %q->%q: %w", srcIface, dstIface, err)
 	}
-	b.recordMirror(srcIface, toIdx, isL2)
+	b.recordMirror(srcIface, dstIface, isL2)
 	return nil
 }
 
@@ -57,7 +57,15 @@ func (b *vppBackendImpl) RemoveMirror(srcIface string) error {
 	if err != nil {
 		return fmt.Errorf("ifacevpp: mirror src %q: %w", srcIface, err)
 	}
-	for toIdx, isL2 := range dests {
+	for dst, isL2 := range dests {
+		// Resolve here, not at setup time: the destination may have been
+		// deleted and recreated since, which gives it a new SwIfIndex under
+		// the same name. Disabling SPAN on the index it held then would leave
+		// the live copy running.
+		toIdx, err := b.resolveIndex(dst)
+		if err != nil {
+			return fmt.Errorf("ifacevpp: mirror dst %q: %w", dst, err)
+		}
 		if err := b.spanEnableDisable(fromIdx, toIdx, span.SPAN_STATE_API_DISABLED, isL2); err != nil {
 			return fmt.Errorf("ifacevpp: RemoveMirror %q: %w", srcIface, err)
 		}
@@ -97,25 +105,27 @@ func (b *vppBackendImpl) spanEnableDisable(from, to interface_types.InterfaceInd
 }
 
 // recordMirror stores a (dst, is_l2) SPAN entry under the source name so
-// RemoveMirror can replay the delete. Re-recording the same destination
-// overwrites (SPAN enable is idempotent in VPP), so a re-apply does not
-// accumulate duplicate entries. Lazily initializes the map.
-func (b *vppBackendImpl) recordMirror(src string, to interface_types.InterfaceIndex, isL2 bool) {
+// RemoveMirror can replay the delete. The destination is the ze NAME, so an
+// interface recreated between the setup and the removal is disabled on the
+// index it holds now rather than on the one it held then. Re-recording the
+// same destination overwrites (SPAN enable is idempotent in VPP), so a
+// re-apply does not accumulate duplicate entries. Lazily initializes the map.
+func (b *vppBackendImpl) recordMirror(src, dst string, isL2 bool) {
 	b.mirMu.Lock()
 	defer b.mirMu.Unlock()
 	if b.mirrors == nil {
-		b.mirrors = make(map[string]map[interface_types.InterfaceIndex]bool)
+		b.mirrors = make(map[string]map[string]bool)
 	}
 	dests := b.mirrors[src]
 	if dests == nil {
-		dests = make(map[interface_types.InterfaceIndex]bool)
+		dests = make(map[string]bool)
 		b.mirrors[src] = dests
 	}
-	dests[to] = isL2
+	dests[dst] = isL2
 }
 
-// takeMirrors removes and returns the recorded SPAN destinations for src.
-func (b *vppBackendImpl) takeMirrors(src string) map[interface_types.InterfaceIndex]bool {
+// takeMirrors removes and returns the recorded SPAN destination names for src.
+func (b *vppBackendImpl) takeMirrors(src string) map[string]bool {
 	b.mirMu.Lock()
 	defer b.mirMu.Unlock()
 	dests := b.mirrors[src]
