@@ -813,7 +813,9 @@ class TestDeferralInDiff(unittest.TestCase):
         """
         with tempfile.TemporaryDirectory() as tmp:
             root = self._repo(tmp, with_plan=False)
-            (root / "page.md").write_text("This behaviour is out of scope for the RFC.\n")
+            (root / "page.md").write_text(
+                "This behaviour is out of scope for the RFC.\n"
+            )
             self.assertEqual(ch.deferral_in_diff_problems(root, ("page.md",), ()), [])
             (root / "plan" / "deferrals").mkdir(parents=True, exist_ok=True)
             self.assertTrue(ch.deferral_in_diff_problems(root, ("page.md",), ()))
@@ -1477,10 +1479,13 @@ class TestStructuralRedAttribution(unittest.TestCase):
 
     @staticmethod
     def _lint_red(related: list[str], group_id: str = "lint:g:gofmt") -> dict:
+        # `classifyLint` (scripts/status/verify_run.go) writes the constant word
+        # `lint` as the kind and keeps the linter in the group id, which is what
+        # lets PATH_BEARING_GROUP_KINDS be an allowlist at all.
         return {
             "stage": "ze-lint",
             "exit-code": 2,
-            "groups": [{"group-id": group_id, "kind": "gofmt", "related": related}],
+            "groups": [{"group-id": group_id, "kind": "lint", "related": related}],
         }
 
     def test_a_red_naming_only_other_files_is_not_charged(self):
@@ -1612,13 +1617,81 @@ class TestStructuralRedAttribution(unittest.TestCase):
                 {
                     "stage": "ze-lint",
                     "exit-code": 2,
-                    "groups": [{"group-id": "lint:g:gofmt", "related": ["theirs/b.txt"]}],
+                    "groups": [
+                        {"group-id": "lint:g:gofmt", "related": ["theirs/b.txt"]}
+                    ],
                 }
             ]
         )
         self.assertEqual(
             ch.structural_gate_reds(root, ("mine/a.txt",)).charged, ("ze-lint",)
         )
+
+    def test_a_kind_the_producer_writes_for_an_unparsed_line_names_no_path(self):
+        """`unparsedGroup` (scripts/status/verify_run.go) writes kind `unparsed`
+        and the member `unparsed-group` for a declared-group line whose JSON did
+        not parse. The checkout here HOLDS an entry of that name, so existence
+        alone would read the member as a path nobody committed and drop the whole
+        gate as another session's. The kind decides instead, and `unparsed` is
+        not in PATH_BEARING_GROUP_KINDS."""
+        root = self._repo(
+            [
+                {
+                    "stage": "ze-doc-wiring-check",
+                    "exit-code": 2,
+                    "groups": [
+                        {
+                            "group-id": "unparsed-group:0",
+                            "kind": "unparsed",
+                            "related": ["unparsed-group"],
+                        }
+                    ],
+                }
+            ]
+        )
+        (root / "unparsed-group").mkdir()
+        reds = ch.structural_gate_reds(root, ("mine/a.txt",))
+        self.assertEqual(reds.charged, ("ze-doc-wiring-check",))
+        self.assertEqual(reds.foreign, ())
+        self.assertEqual(
+            reds.unattributed, ("ze-doc-wiring-check (unparsed-group:0)",)
+        )
+
+    def test_a_kind_no_producer_has_written_yet_names_no_path(self):
+        """The gate reads producer JSON, so the kinds it can meet are not the
+        kinds anybody enumerated. A classifier added after this gate was written
+        must not make its groups attributable by DEFAULT: an unknown kind names
+        no path, and its red is charged rather than dropped as another
+        session's. This is the direction an allowlist buys, and a denylist would
+        drop this gate for a file `theirs/b.txt` this commit never carried."""
+        root = self._repo(
+            [
+                {
+                    "stage": "ze-lint",
+                    "exit-code": 2,
+                    "groups": [
+                        {
+                            "group-id": "coverage:internal",
+                            "kind": "coverage",
+                            "related": ["theirs/b.txt"],
+                        }
+                    ],
+                }
+            ]
+        )
+        reds = ch.structural_gate_reds(root, ("mine/a.txt",))
+        self.assertEqual(reds.charged, ("ze-lint",))
+        self.assertEqual(reds.foreign, ())
+        self.assertEqual(reds.unattributed, ("ze-lint (coverage:internal)",))
+
+    def test_a_lint_red_stays_attributable_under_the_allowlist(self):
+        """The half the allowlist must NOT cost. `lint` is the one classifier
+        whose members are repository files, and 95 open debt rows exist because
+        its reds were charged to sessions that did not cause them."""
+        root = self._repo([self._lint_red(["theirs/b.txt"])])
+        reds = ch.structural_gate_reds(root, ("mine/a.txt",))
+        self.assertEqual(reds.foreign, ("ze-lint",))
+        self.assertEqual(reds.charged, ())
 
     def test_a_red_with_no_group_at_all_is_charged(self):
         """AC-4b. A stage the classifier produced no group for names nothing, so
@@ -1704,7 +1777,7 @@ class TestDebtNotChargedForForeignRed(unittest.TestCase):
                             "groups": [
                                 {
                                     "group-id": "lint:.:gofmt",
-                                    "kind": "gofmt",
+                                    "kind": "lint",
                                     "related": related,
                                 }
                             ],
@@ -3775,6 +3848,304 @@ class TestWeakenedTestsGate(unittest.TestCase):
             self.assertIn("TestOne", err.getvalue())
 
 
+# A Go test file where one function proves an RFC obligation and one does not.
+# RFC1035-3.1-3 is a real requirement id, taken from rfc/short/rfc1035.md, so the
+# fixture never invents one. The gofmt shape matters: rfc_tagged_scope resolves a
+# top-level func by `^func` and its end by `^}` at column 0.
+_TAGGED_GO = """package a
+
+import "testing"
+
+// RFC requirement: RFC1035-3.1-3 positive -- a label longer than 63 octets is refused.
+func TestTagged(t *testing.T) {
+\trequire.Equal(t, 1, f())
+}
+
+func TestPlain(t *testing.T) {
+\trequire.True(t, g())
+}
+"""
+
+# One assertion added inside the tagged function. The weakening detector has no
+# arm for a growing assertion count, so this changes a tagged test and weakens
+# nothing: what refuses it can only be the RFC gate.
+_TAGGED_CHANGED = _TAGGED_GO.replace(
+    "\trequire.Equal(t, 1, f())\n",
+    "\trequire.Equal(t, 1, f())\n\trequire.Positive(t, f())\n",
+)
+
+# The tag leaves and nothing else moves. The detector checks a dropped tag
+# before it compares behavior, because deleting the proof marker is the cheapest
+# way to retire a compliance claim.
+_TAG_REMOVED = _TAGGED_GO.replace(
+    "// RFC requirement: RFC1035-3.1-3 positive -- a label longer than 63 octets is refused.\n",
+    "",
+)
+
+# The whole tagged function goes. A rename and a move to a sibling file look the
+# same from here, which is what the message has to say.
+_TAGGED_DELETED = _TAGGED_GO.replace(
+    "// RFC requirement: RFC1035-3.1-3 positive -- a label longer than 63 octets is refused.\n"
+    "func TestTagged(t *testing.T) {\n"
+    "\trequire.Equal(t, 1, f())\n"
+    "}\n\n",
+    "",
+)
+
+# The same change, carrying the in-file marker the edit-time hook still demands.
+_TAGGED_APPROVED = _TAGGED_CHANGED.replace(
+    "func TestTagged(t *testing.T) {\n",
+    "func TestTagged(t *testing.T) {\n"
+    "\t// rfc-test-change-approved: 2026-08-19 Thomas approved the extra assertion.\n",
+)
+
+# The untagged function changes and the tagged one does not. Scope is the
+# enclosing func, so this owes nothing.
+_PLAIN_CHANGED = _TAGGED_GO.replace(
+    "\trequire.True(t, g())\n",
+    "\trequire.True(t, g())\n\trequire.NotNil(t, g())\n",
+)
+
+
+def _rfc_ledger(*rows: tuple[str, str]) -> str:
+    """test/rfc-changed.md holding the given rows, in the shape that file publishes."""
+    body = "".join(f"| {name} | {reason} |\n" for name, reason in rows)
+    return (
+        "# RFC-tagged tests this commit changes\n\nEach row records one approval.\n\n"
+        "| Test | Reason |\n|------|--------|\n" + body
+    )
+
+
+class TestRfcChangedGate(unittest.TestCase):
+    """test/rfc-changed.md must cover every RFC-tagged test the commit changes.
+
+    VALIDATES: `test/rfc-changed.md`, "The commit carries this file" and "The
+    in-file marker is the old mechanism": the commit gate refuses a tagged
+    change that neither a row nor a marker records, and accepts a marker while
+    saying it is superseded.
+    PREVENTS: a compliance claim losing its evidence with the approval recorded
+    nowhere a reader of git history can find it, and the reverse failure of
+    refusing every author who obeys the edit-time hook.
+    """
+
+    TEST_PATH = "internal/a/a_test.go"
+    LEDGER_PATH = "test/rfc-changed.md"
+
+    def _repo(self, tmp: str) -> Path:
+        root = Path(tmp)
+        _git(root, "init", "-q")
+        _git(root, "config", "user.email", "t@example.com")
+        _git(root, "config", "user.name", "t")
+        _git(root, "config", "commit.gpgsign", "false")
+        (root / "internal" / "a").mkdir(parents=True)
+        (root / self.TEST_PATH).write_text(_TAGGED_GO)
+        (root / "test").mkdir()
+        (root / self.LEDGER_PATH).write_text(_rfc_ledger())
+        (root / "docs").mkdir()
+        (root / "docs" / "x.md").write_text("one line of prose\n")
+        _git(root, "add", "-A")
+        _git(root, "commit", "-qm", "init")
+        return root
+
+    def _change(self, root: Path, content: str, *rows: tuple[str, str]) -> None:
+        (root / self.TEST_PATH).write_text(content)
+        (root / self.LEDGER_PATH).write_text(_rfc_ledger(*rows))
+
+    def test_a_row_lets_the_change_through(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            self._change(
+                root,
+                _TAGGED_CHANGED,
+                ("TestTagged", "Thomas approved it; RFC1035-3.1-3 gains an assertion"),
+            )
+            self.assertEqual(
+                ch.rfc_changed_problems(root, (self.TEST_PATH, self.LEDGER_PATH), ()),
+                [],
+                "a row naming the changed test accepts it",
+            )
+
+    def test_neither_a_row_nor_a_marker_is_refused(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            self._change(root, _TAGGED_CHANGED)
+            problems = ch.rfc_changed_problems(
+                root, (self.TEST_PATH, self.LEDGER_PATH), ()
+            )
+            self.assertTrue(problems, "an unrecorded tagged change must block")
+            joined = "\n".join(problems)
+            self.assertIn(self.LEDGER_PATH, joined)
+            self.assertIn("TestTagged", joined)
+            self.assertIn("RFC1035-3.1-3", joined, "the message must name the id")
+            self.assertIn("| TestTagged |", joined, "the message must give the row")
+
+    def test_the_row_must_be_in_the_commit_not_only_in_the_tree(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            self._change(
+                root,
+                _TAGGED_CHANGED,
+                ("TestTagged", "Thomas approved it; RFC1035-3.1-3 gains an assertion"),
+            )
+            problems = ch.rfc_changed_problems(root, (self.TEST_PATH,), ())
+            self.assertTrue(problems, "an unstaged approval is no approval")
+            joined = "\n".join(problems)
+            self.assertIn(f"--file {self.LEDGER_PATH}", joined)
+            self.assertNotIn(
+                "has no row for it",
+                joined,
+                "the row exists, so the pairing gate must not be what refused",
+            )
+
+    def test_a_stale_row_is_refused(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            self._change(
+                root,
+                _TAGGED_CHANGED,
+                ("TestTagged", "Thomas approved it; RFC1035-3.1-3 gains an assertion"),
+                ("TestGone", "left over from the last commit"),
+            )
+            problems = ch.rfc_changed_problems(
+                root, (self.TEST_PATH, self.LEDGER_PATH), ()
+            )
+            self.assertTrue(problems, "a stale row must block")
+            self.assertIn("TestGone", "\n".join(problems))
+
+    def test_the_refusal_says_what_the_gate_saw(self) -> None:
+        """The author reading a refusal may be right and the gate wrong.
+
+        VALIDATES: `test/rfc-changed.md`, "What this gate cannot see". The
+        message names what the comparison found, so a helper extraction the
+        detector cannot follow is distinguishable from a real removal.
+        PREVENTS: a gate that prints only its demand, which leaves a false
+        finding indistinguishable from a true one.
+        """
+        # The tag stays and the body moves.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            self._change(root, _TAGGED_CHANGED)
+            joined = "\n".join(ch.rfc_changed_problems(root, (self.TEST_PATH,), ()))
+            self.assertIn("what this gate saw", joined)
+            self.assertIn("cannot follow a call", joined)
+
+        # The tag itself goes, and the body does not move.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            self._change(root, _TAG_REMOVED)
+            joined = "\n".join(ch.rfc_changed_problems(root, (self.TEST_PATH,), ()))
+            self.assertIn("tag is no longer on this test", joined)
+
+        # The whole tagged function goes.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            self._change(root, _TAGGED_DELETED)
+            joined = "\n".join(ch.rfc_changed_problems(root, (self.TEST_PATH,), ()))
+            self.assertIn("the test is gone from this file", joined)
+
+    def test_a_marker_alone_passes_and_says_it_is_superseded(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            self._change(root, _TAGGED_APPROVED)
+            self.assertEqual(
+                ch.rfc_changed_problems(root, (self.TEST_PATH,), ()),
+                [],
+                "the hook still demands the marker, so the gate accepts it",
+            )
+            notices = ch.rfc_changed_notices(root, (self.TEST_PATH,), ())
+            joined = "\n".join(notices)
+            self.assertIn("superseded", joined)
+            self.assertIn("TestTagged", joined)
+            self.assertIn(self.LEDGER_PATH, joined)
+
+    def test_a_commit_touching_no_tagged_test_is_unaffected(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            (root / "docs" / "x.md").write_text("one line of prose, edited\n")
+            (root / self.TEST_PATH).write_text(_PLAIN_CHANGED)
+            (root / self.LEDGER_PATH).write_text(
+                _rfc_ledger(("TestGone", "left over from the last commit"))
+            )
+            self.assertEqual(
+                ch.rfc_changed_problems(root, ("docs/x.md", self.TEST_PATH), ()),
+                [],
+                "an untagged function is out of scope, so no row is owed",
+            )
+            self.assertEqual(
+                ch.rfc_changed_notices(root, ("docs/x.md", self.TEST_PATH), ()), []
+            )
+            (root / self.TEST_PATH).write_text(_TAGGED_CHANGED)
+            self.assertTrue(
+                ch.rfc_changed_problems(root, ("docs/x.md", self.TEST_PATH), ()),
+                "changing the tagged function refuses it, so the case is not vacuous",
+            )
+
+    def test_a_path_the_commit_does_not_name_is_invisible(self) -> None:
+        # The BLOCK tier is safe only because the gate reads the commit's own
+        # paths. Several sessions share this checkout.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            self._change(root, _TAGGED_CHANGED)
+            (root / "docs" / "x.md").write_text("one line of prose, edited\n")
+            self.assertEqual(
+                ch.rfc_changed_problems(root, ("docs/x.md",), ()),
+                [],
+                "a path this commit does not name is not this commit's problem",
+            )
+
+    def test_create_itself_refuses_and_names_the_row_to_write(self) -> None:
+        # The whole path an agent meets: `commit_helper.py create` exits 2 and
+        # the message carries the ledger and the row.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            self._change(root, _TAGGED_CHANGED)
+            out, err = io.StringIO(), io.StringIO()
+            with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                rc = ch.main(
+                    [
+                        "--repo",
+                        str(root),
+                        "create",
+                        "--session",
+                        "abcd1234",
+                        "--subject",
+                        "test(a): strengthen TestTagged",
+                        "--file",
+                        self.TEST_PATH,
+                    ]
+                )
+            self.assertEqual(rc, 2, out.getvalue())
+            self.assertIn(self.LEDGER_PATH, err.getvalue())
+            self.assertIn("TestTagged", err.getvalue())
+
+    def test_the_owner_override_flag_clears_it(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            self._change(root, _TAGGED_CHANGED)
+            out, err = io.StringIO(), io.StringIO()
+            with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                rc = ch.main(
+                    [
+                        "--repo",
+                        str(root),
+                        "create",
+                        "--session",
+                        "abcd1234",
+                        "--subject",
+                        "test(a): strengthen TestTagged",
+                        "--file",
+                        self.TEST_PATH,
+                        "--rfc-change-ok",
+                        "Thomas approved it in chat on 2026-08-19",
+                        "--unverified",
+                        "temp repo, no verify record",
+                        "--missing-full-verify-ok",
+                        "temp repo, no verify record",
+                    ]
+                )
+            self.assertEqual(rc, 0, err.getvalue())
+
+
 class TestFullVerifyCoverage(unittest.TestCase):
     """The owner directive of 2026-08-17: a Go-carrying commit owes a full run.
 
@@ -4211,9 +4582,7 @@ class TestDebtClear(unittest.TestCase):
     def test_only_the_rows_whose_gate_passed_are_cleared(self) -> None:
         """One shard, two gates, one verdict each. The green gate's row turns
         and the red gate's row does not."""
-        root = self._repo(
-            [("green fixture gate", "r1"), ("red fixture gate", "r2")]
-        )
+        root = self._repo([("green fixture gate", "r1"), ("red fixture gate", "r2")])
         runners = {
             "green fixture gate": ch.gate_command("true"),
             "red fixture gate": ch.gate_command("false"),
@@ -4279,14 +4648,143 @@ class TestDebtClear(unittest.TestCase):
         """Fail closed: an OSError from the runner is a gate that did not
         answer, and a gate that did not answer has not passed."""
         root = self._repo([("missing binary gate", "r1")])
-        runners = {
-            "missing binary gate": ch.gate_command("ze-no-such-binary-exists")
-        }
+        runners = {"missing binary gate": ch.gate_command("ze-no-such-binary-exists")}
         with mock.patch.dict(ch.DEBT_GATE_RUNNERS, runners):
             rc, msg = self._clear(root)
         self.assertEqual(rc, 0, msg)
         self.assertIn("RED", msg)
         self.assertEqual(len(ch.open_debt_rows(root)), 1)
+
+
+class TestWiringGateAttribution(unittest.TestCase):
+    """The wiring gate's declared groups, attributed against a commit's files.
+
+    VALIDATES: AC-2, AC-3 and AC-4 of the wiring-docs attribution spec, over a
+    failure index shaped the way `declare_failure_group`
+    (scripts/dev/verify_wiring_docs.py) and `classifyStage`
+    (scripts/status/verify_run.go) now build one: a `files` group for each
+    sub-check that knows its paths, and a `subcheck` group for each one that
+    judges a population instead.
+    PREVENTS: the 72 open `structural gates (red)` rows naming this gate, every
+    one of which records a red another session caused. It equally prevents the
+    opposite failure: the ci-sleep ratchet names no file, and a gate dropped for
+    want of a path would let a real red go uncharged.
+    """
+
+    # The wiring gate's own stage name and its rerun line, as the gate prints
+    # them, so the fixture keeps the shape the producer emits.
+    STAGE = "ze-doc-wiring-check"
+    RERUN = "make ze-doc-wiring-check"
+
+    def _group(
+        self, group_id: str, kind: str, related: list[str], summary: str
+    ) -> dict:
+        return {
+            "stage": self.STAGE,
+            "group-id": group_id,
+            "kind": kind,
+            "related": related,
+            "summary": summary,
+            "rerun": self.RERUN,
+            "detail-log": "tmp/verify/ze-doc-wiring-check.log",
+            "parallel": "group",
+        }
+
+    def _repo(self, groups: list[dict]) -> Path:
+        """A checkout holding one file of mine and three of another session's."""
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        root = Path(tmp.name)
+        for rel, body in (
+            ("internal/component/ssh/server.go", "package ssh\n"),
+            ("internal/plugins/ntp/client.go", "package ntp\n"),
+            ("test/runner/theirs.ci", "# theirs\n"),
+            ("internal/component/bgp/mine.go", "package bgp\n"),
+        ):
+            path = root / rel
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(body, encoding="utf-8")
+        (root / "tmp").mkdir()
+        (root / "tmp" / "ze-verify-failures.json").write_text(
+            json.dumps(
+                {"stages": [{"stage": self.STAGE, "exit-code": 1, "groups": groups}]}
+            ),
+            encoding="utf-8",
+        )
+        return root
+
+    def _foreign_groups(self) -> list[dict]:
+        """Three failures, each naming files, none of them this commit's."""
+        return [
+            self._group(
+                "files:wiring",
+                "files",
+                ["internal/component/ssh/server.go"],
+                "an exported symbol added by this change has no non-test reference",
+            ),
+            self._group(
+                "files:design-refs",
+                "files",
+                ["internal/plugins/ntp/client.go"],
+                "a `// Design:` reference does not resolve to a durable document",
+            ),
+            self._group(
+                "files:ci-sleep-justification",
+                "files",
+                ["test/runner/theirs.ci"],
+                "a changed .ci test holds a time.sleep( with no comment saying why",
+            ),
+        ]
+
+    def test_wiring_red_outside_the_commit_is_not_charged(self):
+        """AC-2. Every declared group names files, and every one of those files
+        belongs to another session, so this commit cannot have caused the red and
+        earns no debt row."""
+        root = self._repo(self._foreign_groups())
+        reds = ch.structural_gate_reds(root, ("internal/component/bgp/mine.go",))
+        self.assertEqual(reds.charged, ())
+        self.assertEqual(reds.foreign, (self.STAGE,))
+        self.assertEqual(reds.unattributed, ())
+
+    def test_wiring_red_inside_the_commit_still_refuses(self):
+        """AC-3. Attribution is not a bypass. One file this commit carries inside
+        one declared group charges the gate, exactly as before the gate learned
+        to name its files."""
+        groups = self._foreign_groups()
+        groups[0]["related"] = [
+            "internal/component/ssh/server.go",
+            "internal/component/bgp/mine.go",
+        ]
+        root = self._repo(groups)
+        reds = ch.structural_gate_reds(root, ("internal/component/bgp/mine.go",))
+        self.assertEqual(reds.charged, (self.STAGE,))
+        self.assertEqual(reds.foreign, ())
+        self.assertEqual(reds.unattributed, ())
+
+    def test_unattributable_wiring_red_is_charged(self):
+        """AC-4, and the half that matters most. The ci-sleep ratchet sums every
+        .ci in the tree against one committed ceiling, so it declares a `subcheck`
+        group naming no file. Nobody can rule that red out, so it is CHARGED and
+        the refusal says which group is blind. Dropping it would let a red this
+        session really caused go uncharged (evidence rule: the empty answer must
+        never be the valid-looking one)."""
+        groups = self._foreign_groups()
+        groups.append(
+            self._group(
+                "subcheck:ci-sleep-ratchet",
+                "subcheck",
+                [],
+                "test/**/*.ci holds 41 time.sleep( calls against a ceiling of 40",
+            )
+        )
+        root = self._repo(groups)
+        reds = ch.structural_gate_reds(root, ("internal/component/bgp/mine.go",))
+        self.assertEqual(reds.charged, (self.STAGE,))
+        self.assertEqual(reds.foreign, ())
+        self.assertEqual(
+            reds.unattributed,
+            ("ze-doc-wiring-check (subcheck:ci-sleep-ratchet)",),
+        )
 
 
 if __name__ == "__main__":

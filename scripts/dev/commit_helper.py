@@ -1080,12 +1080,30 @@ class GateReds:
 
 
 # The `failureGroup.Kind` values (scripts/status/verify_run.go) whose `Related`
-# members are names rather than paths: a subcheck name from `classifyWiringDocs`,
-# a stage name from `genericGroup`, a functional suite from `classifyFunctional`,
-# and ExaBGP test names from `classifyExabgp`. Every other kind this gate meets
-# names files -- `classifyLint` records the LINTER as the kind and .go files as
-# the members, `classifyVet` records `package` and a package pattern.
-NON_PATH_GROUP_KINDS = frozenset({"subcheck", "stage", "suite", "mismatch", "timeout"})
+# members can name a repository path, and the producer that writes each one:
+# `files` from `declare_failure_group` (scripts/dev/verify_wiring_docs.py), whose
+# members are repository paths; `lint` from `classifyLint`, whose members are .go
+# files; `package` from `classifyVet`, whose member is a repo-relative package
+# pattern. `classifyGoTest` writes the same word `package` for a go test red
+# whose members are IMPORT paths and test names, and existence refuses those.
+#
+# This is an ALLOWLIST over an OPEN namespace, and the direction is the point.
+# `kind` arrives as JSON a producer wrote, so the values this gate can meet are
+# not the values anybody enumerated here. A kind nobody listed names no path, its
+# group is unattributable, and its red is CHARGED to the session committing.
+# A denylist made each new kind attributable by DEFAULT: `unparsed`
+# (`unparsedGroup`) landed in exactly that hole, and only the absence of a
+# checkout entry called `unparsed-group` kept its red from being dropped as
+# somebody else's. The empty answer must never be the valid-looking one
+# (ai/rules/evidence.md), so the kind a producer adds tomorrow charges its red
+# until this set is taught to read it.
+#
+# One transition rides on that: an artifact written by a runner OLDER than the
+# `lint` kind carries the linter name (`revive`, `typecheck`) instead, so its
+# lint red is charged rather than attributed until the next verify run rewrites
+# the artifact. Charging more than it must is the direction this gate is allowed
+# to be wrong in.
+PATH_BEARING_GROUP_KINDS = frozenset({"files", "lint", "package"})
 
 
 def related_repo_path(repo: Path, related: str) -> str | None:
@@ -1098,7 +1116,8 @@ def related_repo_path(repo: Path, related: str) -> str | None:
     `classifyExabgp` test names, and `genericGroup` the stage's own name. `wiring`
     and `Makefile` are both bare words, so shape decides nothing. Which arm of the
     union it is comes from the group's `kind`, and `group_related_paths` reads
-    that BEFORE calling this. What is left for existence to answer is whether the
+    that BEFORE calling this: this function is reached only for a kind that
+    ALLOWS a path, never for one that merely fails to forbid it. What is left for existence to answer is whether the
     checkout holds a path-bearing member: a name no file answers to is not
     attribution evidence, and the caller charges the debt for it rather than
     reading a path the checkout no longer holds as somebody else's.
@@ -1128,11 +1147,16 @@ def group_related_paths(repo: Path, group: dict) -> list[str]:
     such a name leaves nothing blind, drops the whole gate into `foreign`, and
     the red goes uncharged.
 
-    A group carrying NO kind names nothing here. Every group `writeFailureIndex`
-    writes has one, so its absence says the artifact is not that index, and
-    charging a red nobody attributed is the safe direction.
+    A kind outside `PATH_BEARING_GROUP_KINDS` names nothing here, and that covers
+    three cases with one answer. A kind the list REFUSES: a subcheck name, a
+    stage name, a functional suite, an ExaBGP test name. A kind nobody has SEEN:
+    the artifact is producer JSON, so a classifier written after this gate can
+    put any word here, and an unknown kind must not become attribution evidence
+    by default. NO kind at all: every group `writeFailureIndex` writes carries
+    one, so its absence says the artifact is not that index. Charging a red
+    nobody attributed is the safe direction in all three.
     """
-    if str(group.get("kind") or "") in NON_PATH_GROUP_KINDS | {""}:
+    if str(group.get("kind") or "") not in PATH_BEARING_GROUP_KINDS:
         return []
     found: list[str] = []
     for related in group.get("related") or []:
@@ -2713,6 +2737,334 @@ def weakened_problems(
     return problems
 
 
+RFC_CHANGED_PATH = "test/rfc-changed.md"
+
+# What stands in for an approval marker while the detector judges the change.
+# `_rfc_tagged_change_err` returns None the moment the new text carries
+# `rfc-test-change-approved:`, so a gate that handed it the text unedited could
+# never tell "nothing changed" from "a marker silenced it", and could not say
+# that the marker is superseded. A marker always sits in a comment, and the
+# detector strips comments before it compares behavior, so replacing the token
+# changes nothing else about the judgement.
+_RFC_MARKER_PROBE = "rfc-test-change-approval-withheld"
+
+_RFC_CANNOT_RUN = (
+    "the RFC-tagged-change gate could not run: _rfc_tagged_change_err is not "
+    "importable from .claude/hooks/pretool-writeedit.py, so no tagged change "
+    "was judged. Repair the hook rather than commit past this."
+)
+
+
+@dataclass(frozen=True)
+class RfcChanged:
+    """One RFC-tagged test a commit changes.
+
+    `name` and `package` are the two fields `check_weakened_tests.row_matches`
+    reads, so one matcher pairs the rows of both ledgers and neither can invent
+    a second spelling of `package.TestName`.
+    """
+
+    path: str  # the file that holds it
+    package: str  # the directory that holds the file, the row's qualifier
+    name: str  # the enclosing Go func, or the file stem when there is none
+    tags: tuple[str, ...]  # the requirement ids the change puts at risk
+    marker: bool  # the old in-file `rfc-test-change-approved:` sits in this unit
+    saw: str  # what the comparison against HEAD found, in the author's words
+
+
+def _rfc_hook_parts():
+    """(detector, tag pattern, marker pattern) from the canonical hook, or None.
+
+    The judgement is borrowed whole, exactly as `weakened_problems` borrows
+    `_test_weakening_errs`. `_rfc_tagged_change_err` decides what a behavior
+    change to a tagged test is, and it already exempts a reformat, a comment
+    edit and a Go import-only edit. A second copy here would let the edit-time
+    hook and this gate disagree about one diff, which is the drift
+    `scripts/dev/rfc_tagged_scope.py` exists to record.
+    """
+    module = _writeedit_module()
+    if module is None:
+        return None
+    parts = (
+        getattr(module, "_rfc_tagged_change_err", None),
+        getattr(module, "_RFC_TAG", None),
+        getattr(module, "_RFC_APPROVED", None),
+    )
+    return None if any(part is None for part in parts) else parts
+
+
+def _rfc_saw(tag_re, old_text, new_text):
+    """What the comparison found, said plainly enough for the author to judge it.
+
+    A gate that prints only its demand leaves the author no way to tell a real
+    finding from a blind spot. This one has blind spots, and they are listed
+    under "What this gate cannot see" in `test/rfc-changed.md`: the comparison
+    is textual and cannot follow a call, so an assertion moved into a helper
+    reads exactly like one removed.
+    """
+    if not new_text.strip():
+        return (
+            "the test is gone from this file under this name. A deletion, a "
+            "rename and a move to a sibling file all look like this"
+        )
+    if set(tag_re.findall(old_text)) - set(tag_re.findall(new_text)):
+        return (
+            "the `RFC requirement:` tag is no longer on this test, so the "
+            "proof behind the compliance claim would leave with this commit"
+        )
+    return (
+        "its text differs from HEAD once comments and whitespace are removed. "
+        "The gate compares text and cannot follow a call, so an assertion "
+        "moved into a helper reads the same as one removed"
+    )
+
+
+def _rfc_changed_units(path, old, new, parts):
+    """[(name, tags, marker, saw)] -- the tagged tests `new` changes, named as the ledger names them.
+
+    A non-Go carrier is one unit and its name is the file stem, which is
+    `scope_reader`'s answer for it.
+
+    Go resolves to the enclosing top-level func, so changing an untagged test
+    beside a tagged one owes nothing. The one exception is a tag no func span
+    covers, a hoisted table or a tag separated from its func by a blank line:
+    `tag_scope` falls back to the whole file there because a narrower answer
+    would be a guess, and this gate falls back with it. More checking, never
+    less (`ai/rules/evidence.md`).
+    """
+    detector, tag_re, marker_re = parts
+    scope = check_weakened_tests.rfc_tagged_scope
+    stem = os.path.splitext(os.path.basename(path))[0]
+
+    def judge(name, old_text, new_text):
+        probe = marker_re.sub(_RFC_MARKER_PROBE, new_text)
+        tags = detector(old_text, probe, path)
+        if not tags:
+            return None
+        return (
+            name,
+            tuple(sorted(set(tags))),
+            bool(marker_re.search(new_text)),
+            _rfc_saw(tag_re, old_text, new_text),
+        )
+
+    if scope.scope_reader(path) != "go":
+        found = judge(stem, old, new)
+        return [found] if found else []
+
+    spans = scope.go_func_scopes(old)
+    if any(not any(a <= m.start() < b for a, b in spans) for m in tag_re.finditer(old)):
+        found = judge(stem, old, new)
+        return [found] if found else []
+
+    old_units = check_weakened_tests._units_by_name(old)
+    new_units = check_weakened_tests._units_by_name(new)
+    out = []
+    for name, old_text in old_units.items():
+        if not old_text.strip():
+            continue
+        found = judge(name or stem, old_text, new_units.get(name, ""))
+        if found:
+            out.append(found)
+    return out
+
+
+def rfc_changed_tests(
+    repo: Path, add_paths: tuple[str, ...], remove_paths: tuple[str, ...]
+):
+    """([RfcChanged], [error]) -- every RFC-tagged test the named paths change.
+
+    The population is the commit, never the tree. Several sessions share this
+    checkout, so a gate that read the working tree at large would refuse a
+    commit for a colleague's in-flight edit. Keying on the `--file` and
+    `--remove` lists is what makes the BLOCK tier safe by construction, and it
+    is the same reason `weakened_problems` gives.
+
+    The carrier set is `is_tag_carrier`, not `is_test_path`: an interop
+    `check.py` carries RFC evidence and the weakening gate does not judge one.
+
+    A non-empty error list means no comparison happened, and the empty list
+    beside it says nothing about the commit.
+    """
+    scope = check_weakened_tests.rfc_tagged_scope
+    paths = [p for p in add_paths if scope.is_tag_carrier(p)]
+    removed = [p for p in remove_paths if scope.is_tag_carrier(p)]
+    if not paths and not removed:
+        return [], []
+    parts = _rfc_hook_parts()
+    if parts is None:
+        return [], [_RFC_CANNOT_RUN]
+    tag_re = parts[1]
+    out: list[RfcChanged] = []
+    errors: list[str] = []
+    seen: list[str] = []
+    for path in paths + removed:
+        if path in seen:
+            continue
+        seen.append(path)
+        old, err = check_weakened_tests._head_text(str(repo), path, "HEAD")
+        if err:
+            errors.append(f"the RFC-tagged-change gate could not run: {err}")
+            continue
+        if not tag_re.search(old):
+            continue  # nothing was proven here at HEAD, so nothing is at risk
+        new = (
+            ""
+            if path in removed
+            else check_weakened_tests._worktree_text(str(repo), path)
+        )
+        package = os.path.basename(os.path.dirname(path))
+        for name, tags, marker, saw in _rfc_changed_units(path, old, new, parts):
+            out.append(RfcChanged(path, package, name, tags, marker, saw))
+    return out, errors
+
+
+def _rfc_ids(changed: RfcChanged) -> str:
+    """The requirement ids alone, for a message a person reads.
+
+    `_RFC_TAG` has no capture group, so the detector hands back the whole match,
+    `RFC requirement: RFC1035-3.1-3`. That is the right thing to compare and the
+    wrong thing to print inside a sentence.
+    """
+    return ", ".join(tag.split(":", 1)[-1].strip() for tag in changed.tags)
+
+
+def _rfc_row_to_write(changed: RfcChanged, qualify: bool) -> str:
+    name = f"{changed.package}.{changed.name}" if qualify else changed.name
+    return (
+        f"| {name} | <what the owner approved, and why "
+        f"{_rfc_ids(changed)} is still proven> |"
+    )
+
+
+def rfc_changed_findings(
+    repo: Path, add_paths: tuple[str, ...], remove_paths: tuple[str, ...]
+) -> tuple[list[str], list[str]]:
+    """(problems, notices) -- why `test/rfc-changed.md` does not cover this commit.
+
+    A problem BLOCKS. A notice is printed beside a commit that lands, and there
+    is one: an in-file `rfc-test-change-approved:` marker doing the job the
+    ledger now does.
+
+    The marker is accepted on purpose and only for now.
+    `.claude/hooks/pretool-writeedit.py` still demands one at edit time, so a
+    gate that refused it would refuse every author for obeying the other gate.
+    Removing that acceptance is one branch here, and it goes when the hook stops
+    asking.
+    """
+    changed, errors = rfc_changed_tests(repo, add_paths, remove_paths)
+    if errors:
+        return errors, []
+    if not changed:
+        return [], []  # nothing at risk, so the ledger's content is not read
+
+    problems: list[str] = []
+    notices: list[str] = []
+    ledger = repo / RFC_CHANGED_PATH
+    rows = []
+    if ledger.is_file():
+        text = ledger.read_text(encoding="utf-8", errors="replace")
+        # ONE table reader serves both ledgers, so a row shape that parses in
+        # test/weakened.md parses here. Only the path in its messages differs,
+        # and the reader names its own.
+        rows, row_problems = check_weakened_tests.parse_weakened_file(text)
+        problems += [
+            p.replace(check_weakened_tests.WEAKENED_PATH, RFC_CHANGED_PATH)
+            for p in row_problems
+        ]
+
+    claimed: set[int] = set()
+    for row in rows:
+        hits = [
+            i
+            for i, c in enumerate(changed)
+            if check_weakened_tests.row_matches(row.name, c)
+        ]
+        if not hits:
+            problems.append(
+                f"{RFC_CHANGED_PATH}:{row.line} names {row.name}, which this "
+                f"commit does not change. A row left over from the last commit "
+                f"approves nothing here; delete it."
+            )
+            continue
+        if len(hits) > 1:
+            hit = [changed[i] for i in hits]
+            where = ", ".join(f"{c.package} ({c.path})" for c in hit)
+            problems.append(
+                f"{RFC_CHANGED_PATH}:{row.line} names {row.name}, which this "
+                f"commit changes in {len(hit)} packages: {where}.\n"
+                f"    Write package.TestName, one row each:\n"
+                + "\n".join(f"    {_rfc_row_to_write(c, True)}" for c in hit)
+            )
+        claimed.update(hits)
+
+    for index, changed_test in enumerate(changed):
+        if index in claimed:
+            continue
+        if changed_test.marker:
+            notices.append(
+                f"{changed_test.path} changes the RFC-tagged test "
+                f"{changed_test.name} and records it with an in-file "
+                f"`rfc-test-change-approved:` marker.\n"
+                f"    That marker is the OLD mechanism, and it is superseded "
+                f"by {RFC_CHANGED_PATH}, which is replaced per commit. A "
+                f"marker stays in the test file after the diff it explains is "
+                f"gone, and 255 of them are already there.\n"
+                f"    It is accepted while .claude/hooks/pretool-writeedit.py "
+                f"still demands it. Write the row as well:\n"
+                f"    {_rfc_row_to_write(changed_test, False)}"
+            )
+            continue
+        qualify = sum(1 for c in changed if c.name == changed_test.name) > 1
+        problems.append(
+            f"{changed_test.path} changes the RFC-tagged test "
+            f"{changed_test.name} and {RFC_CHANGED_PATH} has no row for it:\n"
+            f"    - requirement(s) it proves: {_rfc_ids(changed_test)}\n"
+            f"    - what this gate saw: {changed_test.saw}\n"
+            f"    The OWNER approves this, never the author: a self-written "
+            f"justification is not approval. Ask, then add the row and commit "
+            f"the file with the change:\n"
+            f"    {_rfc_row_to_write(changed_test, qualify)}\n"
+            f"    If the gate is wrong about what it saw, the row is still how "
+            f"you say so: name the blind spot, and see "
+            f'"What this gate cannot see" in {RFC_CHANGED_PATH}.'
+        )
+
+    if claimed and RFC_CHANGED_PATH not in add_paths:
+        problems.append(
+            f"this commit changes {len(claimed)} RFC-tagged test(s) and does "
+            f"not carry {RFC_CHANGED_PATH}. The row is in the working tree "
+            f"only, so git history would hold the change with no approval "
+            f"beside it. Name the file too:\n"
+            f"    --file {RFC_CHANGED_PATH}"
+        )
+    return problems, notices
+
+
+def rfc_changed_problems(
+    repo: Path, add_paths: tuple[str, ...], remove_paths: tuple[str, ...]
+) -> list[str]:
+    """BLOCK a commit changing an RFC-tagged test that nothing records.
+
+    Kept out of `commit_gate_problems` because it carries an owner override, and
+    `review_gate_problems` is the precedent for that shape: `create` calls it
+    behind the flag so the flag can clear it.
+    """
+    return rfc_changed_findings(repo, add_paths, remove_paths)[0]
+
+
+def rfc_changed_notices(
+    repo: Path, add_paths: tuple[str, ...], remove_paths: tuple[str, ...]
+) -> list[str]:
+    """What a landing commit is told about the mechanism it used.
+
+    The judgement runs a second time rather than being cached: the commit's
+    files can change between the refusal and the print, and a gate that answered
+    from a stale read would say the wrong thing about the tree it just accepted.
+    """
+    return rfc_changed_findings(repo, add_paths, remove_paths)[1]
+
+
 # The exemptions c_require_design_ref applies, restated here because this gate
 # judges the same population from the other end. Keep the two in step: a file the
 # hook waves through and this refuses would make the sanctioned route impossible.
@@ -2945,7 +3297,9 @@ def commit_gate_problems(
     return problems
 
 
-def commit_gate_warnings(repo: Path, add_paths: tuple[str, ...]) -> list[str]:
+def commit_gate_warnings(
+    repo: Path, add_paths: tuple[str, ...], remove_paths: tuple[str, ...] = ()
+) -> list[str]:
     """All WARN-severity commit-time gates, in one call for create().
 
     deferral_unassigned is advisory, not blocking. An unhomed live deferral row
@@ -2962,6 +3316,7 @@ def commit_gate_warnings(repo: Path, add_paths: tuple[str, ...]) -> list[str]:
         deferral_unassigned_problems(repo)
         + wiring_warnings(add_paths)
         + doc_drift_warnings(repo)
+        + rfc_changed_notices(repo, add_paths, remove_paths)
     )
 
 
@@ -3197,6 +3552,7 @@ DEBT_FLAGS = (
     ("stale_index_ok", "discovery-index freshness"),
     ("review_override", "independent critical review"),
     ("broken_head_fix", "ze-repository-tracked-build-check (HEAD does not compile)"),
+    ("rfc_change_ok", "owner approval for an RFC-tagged test change"),
 )
 
 DEBT_HEADER = (
@@ -3375,6 +3731,11 @@ DEBT_GATE_RUNNERS: dict[str, GateRunner | str] = {
         "set this row to `cleared` by hand"
     ),
     _DEBT_GATE_NAME["broken_head_fix"]: gate_command("make", TRACKED_BUILD_GATE),
+    _DEBT_GATE_NAME["rfc_change_ok"]: (
+        "an approval is the owner's answer, and no command produces one. Ask "
+        "him, write the row in test/rfc-changed.md beside the change it "
+        "approves, then set this row to `cleared` by hand"
+    ),
 }
 
 
@@ -3874,6 +4235,19 @@ def _create(args: argparse.Namespace, repo: Path, session: str, tag: str) -> int
     gate_problems = commit_gate_problems(repo, add_paths, remove_paths)
     if gate_problems:
         raise UsageError("\n\n".join(gate_problems))
+    # RFC-tagged-change gate: a test that proves an RFC obligation is the
+    # evidence behind a public compliance claim, so the owner approves every
+    # behavior change to one and test/rfc-changed.md is where that approval is
+    # recorded. It sits behind its own flag rather than inside
+    # commit_gate_problems, the way the review gate does.
+    if not (args.rfc_change_ok or "").strip():
+        rfc_problems = rfc_changed_problems(repo, add_paths, remove_paths)
+        if rfc_problems:
+            raise UsageError(
+                "\n\n".join(rfc_problems)
+                + '\n  ... or pass --rfc-change-ok "<who approved it, and when>"'
+                " to commit anyway."
+            )
     # Critical-review gate: a spec cannot close without an INDEPENDENT review of
     # its code that is fresh (hash-pinned) and clean. This makes review the
     # central, unskippable step -- it cannot be satisfied by narrating "0 issues"
@@ -3985,7 +4359,7 @@ def _create(args: argparse.Namespace, repo: Path, session: str, tag: str) -> int
         print(reminder, file=sys.stderr)
     # Commit-time WARN gates (plugin .go without .ci, doc drift). Advisory:
     # printed to stderr, the commit still proceeds.
-    for warning in commit_gate_warnings(repo, add_paths):
+    for warning in commit_gate_warnings(repo, add_paths, remove_paths):
         print("warning: " + warning, file=sys.stderr)
     return 0
 
@@ -4112,6 +4486,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="reason this commit lands while a generated discovery index "
         "(ai/PACKAGE-MAP.md, ai/LEARNED-FULL-INDEX.md) is stale or omitted. "
         "SELF-SERVICE and RECORDED: it becomes an open row in "
+        "plan/verification-debt/<session>.md that --push refuses to publish over",
+    )
+    create_cmd.add_argument(
+        "--rfc-change-ok",
+        help="OWNER APPROVAL ONLY: reason this commit changes an RFC-tagged test that "
+        "test/rfc-changed.md does not name. The normal route is the row, because a row "
+        "reaches the reader of git history and a flag does not. Give WHO approved the "
+        "change and WHEN. RECORDED: it becomes an open row in "
         "plan/verification-debt/<session>.md that --push refuses to publish over",
     )
     create_cmd.add_argument(
