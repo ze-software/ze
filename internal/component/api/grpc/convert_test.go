@@ -24,7 +24,7 @@ func TestExecuteRequestRoundTrip(t *testing.T) {
 	assert.Equal(t, caller, req.Caller)
 
 	// Convert result back to proto.
-	result := &api.ExecResult{Status: api.StatusDone, Data: plugin.RawJSON("ok")}
+	result := &api.ExecResult{Status: api.StatusDone, Data: plugin.RawJSON(`{"result":"ok"}`)}
 	resp := execResultToProto(result)
 	assert.Equal(t, api.StatusDone, resp.Status)
 	assert.Equal(t, "", resp.Error)

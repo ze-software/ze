@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"html/template"
 	"net/http"
@@ -39,8 +40,20 @@ func (f *fakeDispatcher) dispatch() CommandDispatcher {
 		if f.response == "" {
 			return plugin.NewResponse(plugin.StatusDone, nil), nil
 		}
-		return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(f.response)), nil
+		return plugin.NewResponse(plugin.StatusDone, dispatchPayload(f.response)), nil
 	}
+}
+
+// dispatchPayload carries a fake's canned output the way a real handler must.
+// JSON passes through verbatim, and anything else goes in a field. RawJSON
+// refuses a payload that is not JSON (internal/component/plugin/types.go), and
+// a pre-rendered answer leaves `| yaml` and `| table` nothing to render
+// (ai/rules/cli.md).
+func dispatchPayload(out string) plugin.ResponseData {
+	if json.Valid([]byte(out)) {
+		return plugin.RawJSON(out)
+	}
+	return plugin.Map{"output": out}
 }
 
 // toolsRequest builds a POST request whose context carries an authenticated

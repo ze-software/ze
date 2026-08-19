@@ -24,7 +24,7 @@ func mockDispatcher(output string) (CommandDispatcher, *string) {
 		if output == "" {
 			return plugin.NewResponse(plugin.StatusDone, nil), nil
 		}
-		return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(output)), nil
+		return plugin.NewResponse(plugin.StatusDone, dispatchPayload(output)), nil
 	}
 	return d, &captured
 }

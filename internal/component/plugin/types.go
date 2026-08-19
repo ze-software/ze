@@ -123,18 +123,31 @@ type Slice[T any] []T
 
 func (Slice[T]) responseData() {}
 
-// RawJSON holds pre-serialized JSON from an RPC boundary.
+// RawJSON holds pre-serialized JSON from an RPC boundary. Its payload MUST be
+// a JSON value. It is the one ResponseData implementor built on a string, so it
+// is the one route by which finished text can reach Response.Data
+// (`ai/rules/cli.md`).
 type RawJSON string
 
 func (RawJSON) responseData() {}
 
+// MarshalJSON emits the payload verbatim, and refuses one that is not JSON.
+// Quoting it would make finished text a valid-looking answer, which is the
+// failure a guard must never produce (`ai/rules/evidence.md`). `| json`,
+// `| yaml` and `| table` would each hand the reader that same text back.
+//
+// An empty payload stays `null`. ExecuteCommandOutput.Data
+// (`pkg/plugin/rpc/types.go`) is `omitempty`, and a command that answers with
+// no data is not an error.
 func (r RawJSON) MarshalJSON() ([]byte, error) {
 	if r == "" {
 		return []byte("null"), nil
 	}
 	b := []byte(r)
 	if !json.Valid(b) {
-		return json.Marshal(string(r))
+		return nil, fmt.Errorf("plugin: response payload is not JSON, so no format "+
+			"can render it: marshal the value instead of pre-rendering it, or answer "+
+			"with plugin.Map or plugin.Slice (got %d bytes starting %.32q)", len(b), string(b))
 	}
 	return b, nil
 }

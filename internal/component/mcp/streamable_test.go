@@ -43,7 +43,7 @@ func newTestStreamable(t *testing.T, cfg StreamableConfig) (*httptest.Server, fu
 	t.Helper()
 	if cfg.Dispatch == nil {
 		cfg.Dispatch = func(_ context.Context, _ plugin.CallerIdentity, cmd string) (*plugin.Response, error) {
-			return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON("ok: "+cmd)), nil
+			return plugin.NewResponse(plugin.StatusDone, plugin.Map{"result": "ok", "message": cmd}), nil
 		}
 	}
 	srv, err := NewStreamable(cfg)
@@ -540,7 +540,7 @@ func TestTasksGetDoesNotAliasRegistryState(t *testing.T) {
 	srv, err := NewStreamable(StreamableConfig{
 		Commands: taskCapableCommands,
 		Dispatch: func(_ context.Context, _ plugin.CallerIdentity, cmd string) (*plugin.Response, error) {
-			return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON("ok: "+cmd)), nil
+			return plugin.NewResponse(plugin.StatusDone, plugin.Map{"result": "ok", "message": cmd}), nil
 		},
 	})
 	if err != nil {

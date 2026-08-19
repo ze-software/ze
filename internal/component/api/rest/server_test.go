@@ -58,7 +58,7 @@ func testEngine() *api.APIEngine {
 		case "show version":
 			return plugin.NewResponse(api.StatusDone, plugin.RawJSON(`{"version":"1.0"}`)), nil
 		default:
-			return plugin.NewResponse(api.StatusDone, plugin.RawJSON("ok: "+command)), nil
+			return plugin.NewResponse(api.StatusDone, plugin.Map{"result": "ok", "message": command}), nil
 		}
 	}
 	cmds := func() []api.CommandMeta {
@@ -299,7 +299,7 @@ func TestExecutePropagatesRequestContextAndRemoteAddr(t *testing.T) {
 		func(ctx context.Context, auth api.CallerIdentity, command string) (*plugin.Response, error) {
 			gotCtx = ctx
 			gotAuth = auth
-			return plugin.NewResponse(api.StatusDone, plugin.RawJSON("ok: "+command)), nil
+			return plugin.NewResponse(api.StatusDone, plugin.Map{"result": "ok", "message": command}), nil
 		},
 		func() []api.CommandMeta {
 			return []api.CommandMeta{{Name: "show bgp summary", ReadOnly: true}}
@@ -425,7 +425,7 @@ func TestRESTSharedIdentitySurvivesStrictAuthorization(t *testing.T) {
 	engine := api.NewAPIEngine(
 		func(_ context.Context, caller api.CallerIdentity, command string) (*plugin.Response, error) {
 			callers = append(callers, caller)
-			return plugin.NewResponse(api.StatusDone, plugin.RawJSON("ok: "+command)), nil
+			return plugin.NewResponse(api.StatusDone, plugin.Map{"result": "ok", "message": command}), nil
 		},
 		commands,
 		func(username, command string) bool {
@@ -779,7 +779,7 @@ func TestRESTExecuteWithParams(t *testing.T) {
 	srv := testServer(t)
 	r := do(t, srv, "POST", "/api/v1/execute", `{"command":"show bgp rib","params":{"family":"ipv4/unicast"}}`)
 	assert.Equal(t, http.StatusOK, r.Status)
-	// The fake executor returns "ok: <command>" for unknown commands.
+	// The fake executor answers an unknown command with {"result":"ok","message":"<command>"}.
 	assert.Contains(t, r.Body, "show bgp rib family ipv4/unicast")
 }
 

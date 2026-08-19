@@ -147,7 +147,7 @@ func TestBuildAPIEngineTranslatesDispatcherAuthorizationDenial(t *testing.T) {
 	ran := false
 	server.Dispatcher().Register(command, func(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 		ran = true
-		return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON("should not run")), nil
+		return plugin.NewResponse(plugin.StatusDone, plugin.Map{"result": "should not run"}), nil
 	}, command)
 	authorizer := &apiStreamTestAuthorizer{allow: false}
 	server.Dispatcher().SetAuthorizer(authorizer)

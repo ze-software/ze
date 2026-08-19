@@ -58,7 +58,7 @@ func testEngine() *api.APIEngine {
 		case "bgp summary":
 			return plugin.NewResponse(api.StatusDone, plugin.RawJSON(`{"peer-count":3}`)), nil
 		default:
-			return plugin.NewResponse(api.StatusDone, plugin.RawJSON("ok: "+command)), nil
+			return plugin.NewResponse(api.StatusDone, plugin.Map{"result": "ok", "message": command}), nil
 		}
 	}
 	cmds := func() []api.CommandMeta {
@@ -295,7 +295,7 @@ func TestExecuteUsesPeerRemoteAddr(t *testing.T) {
 	engine := api.NewAPIEngine(
 		func(_ context.Context, auth api.CallerIdentity, command string) (*plugin.Response, error) {
 			gotAuth = auth
-			return plugin.NewResponse(api.StatusDone, plugin.RawJSON("ok: "+command)), nil
+			return plugin.NewResponse(api.StatusDone, plugin.Map{"result": "ok", "message": command}), nil
 		},
 		func() []api.CommandMeta {
 			return []api.CommandMeta{{Name: "bgp summary", ReadOnly: true}}
@@ -416,7 +416,7 @@ func TestGRPCSharedIdentitySurvivesStrictAuthorization(t *testing.T) {
 	engine := api.NewAPIEngine(
 		func(_ context.Context, caller api.CallerIdentity, command string) (*plugin.Response, error) {
 			callers = append(callers, caller)
-			return plugin.NewResponse(api.StatusDone, plugin.RawJSON("ok: "+command)), nil
+			return plugin.NewResponse(api.StatusDone, plugin.Map{"result": "ok", "message": command}), nil
 		},
 		commands,
 		func(username, command string) bool {

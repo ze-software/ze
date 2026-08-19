@@ -146,3 +146,28 @@ func TestCBOREncodingRemoved(t *testing.T) {
 	require.Error(t, err, "CBOR encoding should not be accepted")
 	assert.Contains(t, err.Error(), "invalid wire encoding")
 }
+
+// VALIDATES: RawJSON refuses a payload that is not JSON (owner decision,
+//
+//	2026-08-19). It quoted one until then, which made finished text a
+//	valid-looking answer that no format can render.
+//
+// PREVENTS: a handler pre-rendering its answer and every reader losing
+//
+//	`| yaml` and `| table` (ai/rules/cli.md).
+func TestRawJSONRefusesNonJSON(t *testing.T) {
+	_, err := json.Marshal(RawJSON("reload initiated"))
+	require.Error(t, err, "text must not marshal as a quoted string")
+	assert.Contains(t, err.Error(), "response payload is not JSON")
+
+	// An empty payload is not an error: ExecuteCommandOutput.Data is omitempty,
+	// so a command that answers with no data arrives here as "".
+	empty, err := json.Marshal(RawJSON(""))
+	require.NoError(t, err)
+	assert.JSONEq(t, "null", string(empty))
+
+	// A JSON value passes through verbatim, object and array alike.
+	obj, err := json.Marshal(RawJSON(`{"peer-count":3}`))
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"peer-count":3}`, string(obj))
+}

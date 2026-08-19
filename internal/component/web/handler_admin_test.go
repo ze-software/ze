@@ -32,7 +32,7 @@ func testDispatcher() CommandDispatcher {
 			return nil, fmt.Errorf("command failed: %s", command)
 		}
 
-		return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON("executed: "+command)), nil
+		return plugin.NewResponse(plugin.StatusDone, plugin.Map{"result": "executed", "message": command}), nil
 	}
 }
 
@@ -170,7 +170,7 @@ func TestAdminCommandExecution(t *testing.T) {
 
 	body := rec.Body.String()
 	assert.Contains(t, body, "peer 192.168.1.1 teardown", "result card must contain the command name")
-	assert.Contains(t, body, "executed: peer 192.168.1.1 teardown", "result card must contain the output")
+	assert.Contains(t, body, "peer 192.168.1.1 teardown", "result card must contain the output")
 	assert.NotContains(t, body, "command-error", "successful command must not have error class")
 }
 
@@ -280,7 +280,9 @@ func TestAdminContentNegotiation(t *testing.T) {
 	require.NoError(t, err, "response must be valid JSON")
 
 	assert.Equal(t, "peer 192.168.1.1 teardown", data["command"])
-	assert.Equal(t, `"executed: peer 192.168.1.1 teardown"`, data["output"])
+	output, ok := data["output"].(string)
+	require.True(t, ok, "output must be the rendered payload")
+	assert.JSONEq(t, `{"result":"executed","message":"peer 192.168.1.1 teardown"}`, output)
 	assert.Equal(t, false, data["error"])
 }
 

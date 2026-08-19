@@ -28,17 +28,19 @@ func fakeCommands() CommandSource {
 }
 
 // fakeExecutor returns an Executor (the unified dispatcher) with typed
-// responses. Structured commands carry JSON via RawJSON; plain-text commands
-// carry raw text via RawJSON (which marshals to a JSON string).
+// responses. Every command carries a JSON value through RawJSON, including the
+// ones whose answer is one sentence: RawJSON refuses a payload that is not JSON
+// (internal/component/plugin/types.go), because a text answer leaves `| yaml`
+// and `| table` nothing to render (ai/rules/cli.md).
 func fakeExecutor() Executor {
 	return func(_ context.Context, _ CallerIdentity, command string) (*plugin.Response, error) {
 		switch command {
 		case "bgp summary":
 			return plugin.NewResponse(StatusDone, plugin.RawJSON(`{"peer-count":3,"established":2}`)), nil
 		case "daemon reload":
-			return plugin.NewResponse(StatusDone, plugin.RawJSON("reload initiated")), nil
+			return plugin.NewResponse(StatusDone, plugin.RawJSON(`{"result":"ok","message":"reload initiated"}`)), nil
 		default:
-			return plugin.NewResponse(StatusDone, plugin.RawJSON("ok")), nil
+			return plugin.NewResponse(StatusDone, plugin.RawJSON(`{"result":"ok"}`)), nil
 		}
 	}
 }
@@ -125,9 +127,14 @@ func TestEngineExecuteDispatch(t *testing.T) {
 	assert.JSONEq(t, `{"peer-count":3,"established":2}`, string(data))
 }
 
-// VALIDATES: AC-2 -- Execute with non-JSON output returns string.
-// PREVENTS: string results lost or mangled.
-func TestEngineExecuteStringOutput(t *testing.T) {
+// VALIDATES: AC-2 -- a one-sentence answer reaches the caller as a JSON object.
+// PREVENTS: results lost or mangled.
+//
+// AC-2 read "Execute with non-JSON output returns string" until 2026-08-19,
+// when the owner ruled that a response payload is structured data and RawJSON
+// refuses anything else (ai/rules/cli.md). A command whose answer is one
+// sentence carries it in a field.
+func TestEngineExecuteSentenceOutput(t *testing.T) {
 	eng := NewAPIEngine(fakeExecutor(), fakeCommands(), allowAllAuth(), nil)
 
 	result, err := eng.Execute(t.Context(), &ExecuteRequest{Caller: CallerIdentity{Username: "admin"}, Command: "daemon reload"})
@@ -135,7 +142,24 @@ func TestEngineExecuteStringOutput(t *testing.T) {
 	assert.Equal(t, StatusDone, result.Status)
 	data, mErr := json.Marshal(result.Data)
 	require.NoError(t, mErr)
-	assert.Equal(t, `"reload initiated"`, string(data))
+	assert.JSONEq(t, `{"result":"ok","message":"reload initiated"}`, string(data))
+}
+
+// VALIDATES: a payload that is not JSON is refused rather than quoted.
+// PREVENTS: finished text reaching a caller as a valid-looking answer, which is
+//
+//	what `| json`, `| yaml` and `| table` cannot each render.
+func TestEngineExecuteRefusesNonJSONPayload(t *testing.T) {
+	executor := func(_ context.Context, _ CallerIdentity, _ string) (*plugin.Response, error) {
+		return plugin.NewResponse(StatusDone, plugin.RawJSON("reload initiated")), nil
+	}
+	eng := NewAPIEngine(executor, fakeCommands(), allowAllAuth(), nil)
+
+	result, err := eng.Execute(t.Context(), &ExecuteRequest{Caller: CallerIdentity{Username: "admin"}, Command: "daemon reload"})
+	require.NoError(t, err)
+	_, mErr := json.Marshal(result.Data)
+	require.Error(t, mErr, "a text payload must not marshal")
+	assert.Contains(t, mErr.Error(), "response payload is not JSON")
 }
 
 // VALIDATES: AC-3 -- Execute with unauthorized user returns auth error.

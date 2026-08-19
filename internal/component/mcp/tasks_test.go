@@ -228,7 +228,7 @@ func TestTaskConcurrencyCapIsPerPrincipal(t *testing.T) {
 			case <-ctx.Done():
 				return nil, ctx.Err()
 			}
-			return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON("ok: "+cmd)), nil
+			return plugin.NewResponse(plugin.StatusDone, plugin.Map{"result": "ok", "message": cmd}), nil
 		},
 	})
 	defer cleanup()
