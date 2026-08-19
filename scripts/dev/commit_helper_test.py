@@ -1653,9 +1653,7 @@ class TestStructuralRedAttribution(unittest.TestCase):
         reds = ch.structural_gate_reds(root, ("mine/a.txt",))
         self.assertEqual(reds.charged, ("ze-doc-wiring-check",))
         self.assertEqual(reds.foreign, ())
-        self.assertEqual(
-            reds.unattributed, ("ze-doc-wiring-check (unparsed-group:0)",)
-        )
+        self.assertEqual(reds.unattributed, ("ze-doc-wiring-check (unparsed-group:0)",))
 
     def test_a_kind_no_producer_has_written_yet_names_no_path(self):
         """The gate reads producer JSON, so the kinds it can meet are not the
@@ -3892,7 +3890,8 @@ _TAGGED_DELETED = _TAGGED_GO.replace(
     "",
 )
 
-# The same change, carrying the in-file marker the edit-time hook still demands.
+# The same change, carrying the in-file marker the edit-time hook demanded until
+# 2026-08-19. It records nothing this gate reads now.
 _TAGGED_APPROVED = _TAGGED_CHANGED.replace(
     "func TestTagged(t *testing.T) {\n",
     "func TestTagged(t *testing.T) {\n"
@@ -3921,11 +3920,9 @@ class TestRfcChangedGate(unittest.TestCase):
 
     VALIDATES: `test/rfc-changed.md`, "The commit carries this file" and "The
     in-file marker is the old mechanism": the commit gate refuses a tagged
-    change that neither a row nor a marker records, and accepts a marker while
-    saying it is superseded.
+    change no row records, an in-file marker included.
     PREVENTS: a compliance claim losing its evidence with the approval recorded
-    nowhere a reader of git history can find it, and the reverse failure of
-    refusing every author who obeys the edit-time hook.
+    nowhere a reader of git history can find it.
     """
 
     TEST_PATH = "internal/a/a_test.go"
@@ -4043,20 +4040,24 @@ class TestRfcChangedGate(unittest.TestCase):
             joined = "\n".join(ch.rfc_changed_problems(root, (self.TEST_PATH,), ()))
             self.assertIn("the test is gone from this file", joined)
 
-    def test_a_marker_alone_passes_and_says_it_is_superseded(self) -> None:
+    def test_a_marker_alone_is_refused(self) -> None:
+        """The old in-file marker records nothing this gate reads.
+
+        VALIDATES: `test/rfc-changed.md`, "The in-file marker is the old
+        mechanism". It was accepted while the edit-time hook still demanded one;
+        that hook reads this ledger now, so a commit whose only record is a
+        marker carries no approval at all.
+        PREVENTS: the marker surviving the mechanism it belonged to, which would
+        leave the ledger optional and the pile growing.
+        """
         with tempfile.TemporaryDirectory() as tmp:
             root = self._repo(tmp)
             self._change(root, _TAGGED_APPROVED)
-            self.assertEqual(
-                ch.rfc_changed_problems(root, (self.TEST_PATH,), ()),
-                [],
-                "the hook still demands the marker, so the gate accepts it",
-            )
-            notices = ch.rfc_changed_notices(root, (self.TEST_PATH,), ())
-            joined = "\n".join(notices)
-            self.assertIn("superseded", joined)
-            self.assertIn("TestTagged", joined)
+            problems = ch.rfc_changed_problems(root, (self.TEST_PATH,), ())
+            self.assertTrue(problems, "a marker is not an approval")
+            joined = "\n".join(problems)
             self.assertIn(self.LEDGER_PATH, joined)
+            self.assertIn("| TestTagged |", joined, "the message must give the row")
 
     def test_a_commit_touching_no_tagged_test_is_unaffected(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -4070,9 +4071,6 @@ class TestRfcChangedGate(unittest.TestCase):
                 ch.rfc_changed_problems(root, ("docs/x.md", self.TEST_PATH), ()),
                 [],
                 "an untagged function is out of scope, so no row is owed",
-            )
-            self.assertEqual(
-                ch.rfc_changed_notices(root, ("docs/x.md", self.TEST_PATH), ()), []
             )
             (root / self.TEST_PATH).write_text(_TAGGED_CHANGED)
             self.assertTrue(

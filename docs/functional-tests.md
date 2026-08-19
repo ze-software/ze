@@ -18,8 +18,10 @@ make ze-functional-reload-test       # Reload tests only
 
 The stage list is **not reproduced here**, deliberately. It lives in
 `stagesForMode` (`scripts/status/verify_run.go`) and nowhere else: both make
-targets shell out to that runner, and `.github/workflows/verify.yml` runs nothing
-but `make ze-precommit-verify`, so a gate absent from that function runs nowhere. To read the
+targets shell out to that runner, and each shard of
+`.github/workflows/verify.yml` reads the same list with
+`make ze-precommit-verify-list` and runs its own share of it, so a gate absent
+from that function runs nowhere and a gate added to it needs no edit to CI. To read the
 current list, run `make ze-precommit-verify-list` (or
 `make ze-precommit-verify-list ZE_VERIFY_MODE=ze-precommit-verify-changed`), or open the function.
 
@@ -71,6 +73,30 @@ follow it; the failure artifacts are published when the run ends.
 | `tmp/ze-verify-failures.json` | Machine-readable failure routing index |
 | `tmp/ze-verify-full.json` | The same index, written by the FULL mode only. It is the record a commit carrying Go is gated on, and it is separate because a `ze-precommit-verify-changed` run in another session republishes the shared path |
 | `tmp/ze-verify.status` | Freshness fingerprint for the last run |
+| `tmp/ze-verify-manifest.txt` | One fingerprint per path that differs from `HEAD`, so a session can ask about its own file list rather than the whole tree |
+
+Several sessions share this checkout, so a whole-tree answer is STALE almost
+always, and almost always for somebody else's file. What the scoped answer
+covers, and the four conditions it never widens, is
+[`docs/architecture/testing/verify-freshness-scope.md`](architecture/testing/verify-freshness-scope.md).
+
+A scoped run also judges fewer Staticcheck matrix rows.
+`make ze-staticcheck-feature-matrix-check` derives one row per feature tag in
+`feature-gates.txt` plus `all_features` and `core_only`, 38 rows today, and each
+row is a full-module analysis. `scopeFeatureMatrix`
+(`scripts/checks/staticcheck_feature_matrix.go`) keeps a row when it omits no tag
+or omits a tag the change reached, so a change local to `ze_ssh` judges 3 rows
+rather than 38. `all_features` and `core_only` judge the combinations Ze ships
+and are never subtracted. Running the target on its own, with
+`ZE_VERIFY_SCOPE_TAGS` unset, judges every row. The rules, the four inputs that
+widen the scope back to 38, and the measured cost are
+[`architecture/testing/verify-freshness-scope.md`](architecture/testing/verify-freshness-scope.md).
+
+Suite selection is NOT scoped: every functional suite runs on every verify,
+whatever the change set says. `go list -deps ./cmd/ze` links 562 of the module's
+646 packages, so no static signal attributes a `.ci` file to a package.
+`plan/spec-verify-scope-5-suite-coverage-map.md` derives that map by observing
+what a suite executes.
 
 The functional test target runs 24 suites: encode, plugin, parse, decode, reload,
 ui, editor, managed, l2tp, firewall, policy, ipsec, ldp, rsvpte, isis, ospf, ospfv3,
@@ -85,6 +111,7 @@ before presenting work as complete.
 <!-- source: scripts/status/verify_run.go -- artifact writing and grouped summaries -->
 <!-- source: scripts/dev/ze-run.sh -- job admission, one registry entry per running job -->
 <!-- source: scripts/dev/verify-status.sh -- tmp/ze-verify.status -->
+<!-- source: scripts/checks/staticcheck_feature_matrix.go -- deriveFeatureMatrix, scopeFeatureMatrix, validateScopedMatrix -->
 <!-- source: mk/test-functional.mk -- ze-functional-test suite list -->
 
 The following shipped test suites are **not in the default release gate** and
@@ -328,13 +355,90 @@ and name, plus periodic progress while tests are still running.
 | Chaos | `ze-test bgp chaos` | `test/chaos/*.ci` | Runs Ze plus chaos peers end-to-end through the BGP `.ci` runner. |
 | Chaos web | `ze-test bgp chaos-web` | `test/chaos-web/*.ci` | Runs chaos dashboard HTTP endpoint checks through the BGP `.ci` runner. |
 | ExaBGP compatibility | `ze-test exabgp` | `test/exabgp-compat/encoding/*.ci` | Runs the ExaBGP compatibility fixtures through the Go `ze-test` runner, starts the mock BGP peer, runs the ExaBGP wrapper client, and checks the expected wire output. |
-| Runner | `ze-test runner` | `test/runner/*.ci` | Exercises the `.ci` orchestration grammar itself (not a product feature): naming a background process (`cmd=background:...:name=`) and stopping it mid-test (`cmd=stop`). Host-safe (spawns only sh/tail helpers); in the gating `ze-functional-test` list. |
+| Runner | `ze-test runner` | `test/runner/*.ci` | Exercises the development tooling that has no product entry point: the `.ci` orchestration grammar itself (naming a background process with `cmd=background:...:name=`, stopping it mid-test with `cmd=stop`), and the verify-freshness, structural-red attribution, verification-debt and change-set-selection tooling the commit path reads (`verify-scope-freshness-scoped.ci`, `verify-scope-wiring-attribution.ci`, `verify-scope-debt-clear.ci`, `verify-scope-selector.ci`). Host-safe (spawns only `sh`, `git`, `make` and `python3` helpers over throwaway git repos, no daemon); in the gating `ze-functional-test` list. |
 <!-- source: internal/test/cli/cmd_bgp.go -- BGP suite routing -->
 <!-- source: internal/test/cli/ci_runner.go -- shared .ci suites -->
 <!-- source: internal/test/cli/cmd_editor.go -- .et suite runner -->
 <!-- source: internal/test/cli/cmd_web.go -- .wb suite runner -->
 <!-- source: internal/test/cli/cmd_vpp.go -- VPP stub-backed suite runner -->
 <!-- source: internal/test/cli/cmd_exabgp.go -- ExaBGP compatibility runner -->
+
+### Per-suite wall-clock budget
+
+Each suite runs under `timeout`, so a stuck subprocess cannot hold the run open.
+`timeout` puts the suite in its own process group and signals the whole group,
+which kills leaked `ze` daemons and mock servers with it.
+
+| Variable | Default | What it sets |
+|----------|---------|--------------|
+| `ZE_SUITE_TIMEOUT` | `600s` | The budget a suite gets when it has no budget of its own. `timeout` accepts a bare number of seconds or an `s`, `m`, `h`, or `d` suffix |
+| `ZE_SUITE_TIMEOUT_PLUGIN` | `1500s` | The `plugin` suite's own budget |
+| `ZE_SUITE_KILL_AFTER` | `10s` | How long after SIGTERM the group gets SIGKILL |
+| `ZE_SUITE_WARN_PERCENT` | `80` | The percentage of the budget that makes a green suite print a warning |
+
+Override any of them on the command line:
+
+```bash
+make ze-functional-test ZE_SUITE_TIMEOUT=1200s
+make ze-functional-plugin-test ZE_SUITE_TIMEOUT_PLUGIN=1800s
+```
+
+#### One suite's budget is its own
+
+`ZE_SUITE_TIMEOUT` protects the other 23 suites, so a slow suite must not raise
+it for all of them. A suite that needs more wall clock gets a
+`ZE_SUITE_TIMEOUT_<SUITE>` of its own instead, and `run_suite` reads that budget
+everywhere: the `timeout` that kills the suite, the runtime line, the warning
+arithmetic, and the variable name the reports tell you to raise.
+
+The `plugin` suite is the one suite that has such a budget today. It holds 663
+`.ci` tests, and it measured 855s on 2026-08-19 against the 600s shared cap that
+had been killing it. The budget is derived from that measurement: the warning
+point (80% of the budget) must sit 40% above 855s, or a busy box warns on every
+run and the warning names no creep. That gives 855 * 1.40 / 0.80 = 1496s,
+rounded up to the whole minute. The kill then lands at 1.75x the measurement,
+which is a wedged suite and not a busy box.
+
+Adding a suite to that family means four edits in `mk/test-functional.mk`, and
+`scripts/dev/functional_suite_test.py` refuses a name that is missing one:
+
+| Edit | Why |
+|------|-----|
+| `ZE_SUITE_TIMEOUT_<SUITE> ?= <duration>` | the budget, overridable and finite |
+| `SUITE_RUN_<SUITE> = timeout --kill-after=$(ZE_SUITE_KILL_AFTER) $(ZE_SUITE_TIMEOUT_<SUITE>)` | the kill uses it |
+| an arm in `run_suite`'s budget `case` | the report uses the same number the kill does |
+| `$(SUITE_RUN_<SUITE>)` on the `run_suite` line and on `_ze-functional-<suite>-test-impl` | `make ze-functional-test` and `make ze-functional-<suite>-test` agree |
+
+`make ze-functional-test` prints one runtime line per suite, and a table of all
+of them at the end:
+
+```
+      suite plugin took 855s of its 1500s budget (57%)
+      suite encode took 431s of its 600s budget (71%)
+
+──── suite runtimes (default budget 600s, warning level 80%) ────
+  plugin 855s of 1500s (57%)
+  encode 431s of 600s (71%)
+```
+
+Two conditions get their own line. A suite that uses `ZE_SUITE_WARN_PERCENT` of
+its budget prints `BUDGET WARNING` and stays green. A suite that reaches its
+budget is killed, `timeout` returns 124, and the run prints `BUDGET EXPIRED`
+with the suite name, the budget, and the variable that owns it:
+
+```
+BUDGET EXPIRED  suite plugin reached its 1500s wall-clock budget (ZE_SUITE_TIMEOUT_PLUGIN) and was killed. The test failures above are that kill, not the product.
+```
+
+Read that line before you read the test failures above it. A killed suite
+reports the tests that were still running as failures, and those failures say
+nothing about the product. The same expiry lands in
+`tmp/ze-verify-failures.json` as a group of kind `timeout`.
+
+A budget that is raised and never watched creeps back to its cap, so the
+warning exists to make the creep visible while the suite is still green.
+<!-- source: mk/test-functional.mk -- ZE_SUITE_TIMEOUT, ZE_SUITE_TIMEOUT_PLUGIN, ZE_SUITE_WARN_PERCENT, run_suite -->
+<!-- source: scripts/dev/functional_suite_test.py -- the budget report's tests -->
 
 ---
 
@@ -512,6 +616,65 @@ subject of the test.
 <!-- source: internal/plugins/policyroute/marks.go -- fwmarkBase deterministic per process -->
 <!-- source: test/traffic/traffic-boot-qdisc-tc.ci -- needs-linux tc qdisc assertion -->
 <!-- source: internal/chaos/peer/simulator_actions_iface_linux.go -- iface fault executor -->
+
+### How a suite's concurrency is chosen
+
+A `.ci` suite runs `-p N` tests at once. Where N comes from depends on the suite:
+
+| Suite | Source of `-p` | Value |
+|-------|----------------|-------|
+| `plugin`, `encode` | `ZE_PLUGIN_PARALLEL`, `ZE_ENCODE_PARALLEL` (`mk/test-functional.mk`) | derived from the host: the core count, floored at 8 |
+| `reload`, `managed` | the make recipe, explicitly | 1. They share the kernel routing table |
+| `vpp` | the command's own default | 1 |
+| the other bgp-runner suites | `runner.DefaultParallelConcurrent` | 20 |
+| the 22 `registerCIRoot` suites | `runner.DefaultSuiteConcurrency` | 2x the core count, floored at 8 |
+
+The floor is 8 for both derivations, and it is one measured figure rather than a
+round number: it is what the `plugin` suite has been running at on GitHub's
+4-vCPU hosted runner. A host at or below it therefore gets exactly what CI runs
+today, which is why deriving the value changed nothing in CI.
+
+The two derivations differ above the floor, and the difference is the shape of
+the suite. `DefaultSuiteConcurrency` scales at 2x the core count because a
+WAIT-bound suite spends most of its wall clock waiting for daemons, and because
+its predecessor was "all at once": every suite declared 0, a non-positive
+`Parallel` means `len(selected)`, and `ze-test ospf --all` launched 97 daemons
+until a GitHub job died mid-suite on 2026-07-26 (exit 143, the runner agent
+itself killed). `plugin` is CORE-bound instead, so it caps at 1x. Measured on a
+32-core box against the suite's 4545s sum of per-test medians:
+
+| `-p` | wall clock | speedup | parallel efficiency |
+|------|-----------|---------|---------------------|
+| 8 | 589.5s | 7.7x | 96% |
+| 16 | 322.5s | 14.1x | 88% |
+| 32 | 216.5s / 166.0s | 23.8x | 74% |
+| 64 | 196.5s | 23.1x | 36% |
+
+64 sits inside the two-run spread at 32, buys no measurable wall clock, and costs
+pass rate. Neither figure transfers to the 22 `registerCIRoot` suites: that sweep
+never measured them.
+
+An explicit value still wins over the derivation, on either side:
+`make ze-functional-plugin-test ZE_PLUGIN_PARALLEL=8` pins the suite, and `-p 0`
+on the command line still means every selected test at once.
+
+Raising concurrency moves flakes before it moves wall clock, so a deadline the
+harness cannot see is fixed first. `ParallelTimeoutHeadroom` widens every budget
+the runner measures a child against, and it cannot reach a deadline the child
+enforces INSIDE its own binary: `ze-test mcp` waited a fixed 10s for the daemon's
+listener, and six of one 32-way run's failures were that one message. The runner
+publishes `ze.test.parallel-factor` into every `cmd=` child's environment so such
+a deadline scales from the same source of truth.
+
+The runner does NOT read the job-admission budget. `scripts/dev/ze-run.sh` admits
+several jobs on a shared box, and a suite still sizes itself for the whole
+machine, so concurrent sessions can oversubscribe it.
+
+<!-- source: mk/test-functional.mk -- ZE_SUITE_PARALLEL_FLOOR, ZE_SUITE_CORES, ZE_SUITE_PARALLEL -->
+<!-- source: internal/test/runner/parallel.go -- SuiteConcurrencyFloor, DefaultSuiteConcurrency, ParallelTimeoutHeadroom, ParallelFactorEnv -->
+<!-- source: internal/test/cli/cmd_bgp.go -- the bgp runner's -p default -->
+<!-- source: internal/test/cli/cmd_vpp.go -- the vpp suite's -p default of 1 -->
+<!-- source: internal/test/cli/cmd_mcp.go -- the MCP readiness deadline, scaled by ChildParallelFactor -->
 
 ### Netns launch mode for netlink `.ci` suites (host-safe firewall/policy/OSPF)
 
@@ -777,9 +940,10 @@ Rules the gate enforces:
   `rfc/requirements/<stem>.md`. It renders the index over them into
   `ai/RFC-REQUIREMENTS.md`.
 - **Do not edit a tagged test to make it pass.** Once a test carries an
-  `RFC requirement:` tag its behavior may not change without explicit user
-  approval, recorded as `// rfc-test-change-approved: <date> <what and why>`. Fix
-  the code instead; the `rfc-tagged-test` hook blocks the edit otherwise.
+  `RFC requirement:` tag its behavior cannot change without the owner's approval.
+  Write it as one row in `test/rfc-changed.md`, and commit that file with the
+  change. Fix the code instead. The `rfc-tagged-test` hook reads the file and
+  blocks the edit until a row names the test.
 
 <!-- source: scripts/dev/rfc_requirements.py -- scan_go_tags/scan_ci_tags -->
 
@@ -1380,6 +1544,7 @@ Real failures exit non-zero.
 | `appliance-kernel-qemu.ci` | `ze appliance kernel --builder qemu` delegates to `run.py`, which selects QEMU and invokes `qemu-build.py` with the resolved fragments (including the shared `efi-console` fragment for the hardware profile) |
 | `appliance-kernel-runtime.ci` | `ze appliance kernel --target runtime` resolves the runtime registry, enforces the runtime floor, and caches the runtime TREE (vmlinuz + lib/modules) under a `target=runtime` cache dir |
 | `appliance-push-image-escape.ci` | `ze appliance push` rejects `--image` candidates that escape the appliance directory before network or TLS work |
+| `appliance-replace-cert.ci` | `ze appliance replace-cert` stores a valid pair, refuses a certificate and key from two different pairs, and leaves `cert.pem` and `key.pem` byte-identical after the refusal |
 | `appliance-iso-default-paths.ci` | `ze appliance iso` succeeds with default kernel/initrd artifact paths and stages those files into the installer tree |
 | `appliance-iso-arm64.ci` | `ze appliance iso` emits arm64 UEFI staging assets and arm64 kernel console settings when `image.arch=arm64` |
 | `kernel-builder-single-driver.ci` | A single shared driver (`tools/kernel-builder/run.py`) replaces the docker/qemu invocation; no Makefile or Go file invokes docker/qemu/build.py directly (AC-1) |
@@ -2269,6 +2434,27 @@ Deterministic RTR (RFC 8210) cache server for RPKI functional tests. Auto-genera
 | 2 | No VRP | NotFound |
 
 Usage: `ze-test rpki --port 3323 [--valid-asn 65001] [--invalid-asn 65099]`
+
+### ze-test irr
+
+Deterministic IRR whois server for firewall and BGP IRR functional tests. It
+answers RPSL `!i` (AS-SET expansion) and `!a4`/`!a6` (prefix lookup) queries for
+one known AS-SET, `AS-TEST`, and answers `D` (key not found) for everything else.
+
+| Query | Reply |
+|-------|-------|
+| `!iAS-TEST` | members AS65001, AS65002, AS65003 |
+| `!a4AS-TEST` | 10.0.0.0/24, 10.0.1.0/24, 172.16.0.0/16 |
+| `!a6AS-TEST` | 2001:db8::/32 |
+| anything else | `D` |
+
+`--empty-after-first` answers each query once with its data and then with `D`
+forever after. It models an IRR server that has a bad minute after a good
+refresh, which is the case ze must not let empty a live filter.
+
+Usage: `ze-test irr --port 4343 [--empty-after-first]`
+
+<!-- source: internal/test/mock/irr/irr.go -- IRR mock whois subcommand -->
 
 ### Security
 

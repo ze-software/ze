@@ -1012,11 +1012,21 @@ def _git(repo: str, *args: str) -> None:
 
 
 def _init_repo() -> str:
+    """A fixture repository shaped like a Ze source checkout.
+
+    The `plan/` tree is load-bearing, not decoration: `deferral_in_diff_problems`
+    returns early for a repository that holds none, because a repository with no
+    `plan/` tree cannot record a deferral and the gate would then have no
+    reachable satisfying action there (`8f2ae417a`). A fixture without one models
+    the published website rather than a source checkout, and every deferral case
+    built on it passes while asserting nothing.
+    """
     repo = tempfile.mkdtemp(prefix="commit-gate-", dir=_fixture_root())
     _git(repo, "init", "-q")
     _git(repo, "config", "user.email", "fixture@example.com")
     _git(repo, "config", "user.name", "fixture")
     _git(repo, "config", "commit.gpgsign", "false")
+    os.makedirs(os.path.join(repo, "plan", "deferrals"), exist_ok=True)
     with open(os.path.join(repo, "seed.txt"), "w", encoding="utf-8") as fh:
         fh.write("seed\n")
     _git(repo, "add", "seed.txt")
@@ -2992,12 +3002,18 @@ def _run_rfc_test_guard(results: Results, mod) -> None:
     )
     results.check("rfc-guard-allows-comment-edit", r is None, repr(r))
 
-    # The user approved: recorded, auditable, allowed.
+    # The user's approval used to be a marker in the replacement text. It is a
+    # comment, so it outlived the diff it explained: 255 of them across 120 test
+    # files. The approval is a row in `test/rfc-changed.md` now, and this guard
+    # reads no marker, so the same edit is refused.
     approved = tagged.replace(
         "func TestX",
         "// rfc-test-change-approved: 2026-07-17 user agreed 3(j) mandates reset\nfunc TestX",
     ).replace("TreatAsWithdraw", "SessionReset")
-    results.check("rfc-guard-allows-user-approved", edit(tagged, approved) is None, "")
+    r = edit(tagged, approved)
+    results.check(
+        "rfc-guard-marker-no-longer-approves", r is not None and r[0] == 2, repr(r)
+    )
 
     # An edit made ONLY of Go import lines passes. New tests need new imports, the import
     # block sits outside every function so the scope widens to the whole file, and the
@@ -3135,13 +3151,14 @@ def _rfc_guard_scope_cases(results: Results, cw, tmp: str) -> None:
     r = edit(body, body + "\t// explain the expectation\n")
     results.check("rfc-guard-body-edit-comment-only-passes", r is None, repr(r))
 
-    # AC-4: the approval token still works when the tag is out of hunk.
+    # AC-4: the retired approval token is refused when the tag is out of hunk too.
+    # Nothing about the marker satisfies this guard any more, whatever the scope.
     r = edit(
         body,
         "\t// rfc-test-change-approved: 2026-07-20 user confirmed\n"
         + body.replace("TreatAsWithdraw", "None"),
     )
-    results.check("rfc-guard-body-edit-approved-passes", r is None, repr(r))
+    results.check("rfc-guard-body-edit-marker-blocks", blocked_on_rfc(r), repr(r))
 
     # Deleting the TAG is not a comment edit. Left unguarded it is the cheapest retirement
     # of a compliance claim there is: drop the marker, then `// test-relax:` buys every
@@ -3730,6 +3747,158 @@ def _weakened_hatch_cases(results: Results, mod, work: str) -> None:
         r is not None and r[0] == 0 and "removing assertions" in r[1],
         repr(r),
     )
+
+
+# --------------------------------------------------------------------------- #
+# The RFC approval ledger: test/rfc-changed.md
+# --------------------------------------------------------------------------- #
+
+
+def run_rfc_changed_ledger(results: Results) -> None:
+    """The owner's approval of a tagged-test change is a row in `test/rfc-changed.md`.
+
+    It used to be an `// rfc-test-change-approved:` comment written into the test
+    itself, which stayed there after the diff it explained was gone: 255 of them
+    across 120 test files. The hook reads the per-commit ledger now, and reads no
+    marker at all, so these cases hold BOTH halves -- a row opens the gate, and a
+    marker no longer does.
+
+    The row is written BEFORE the edit, because the hook reads the file from
+    disk. That ordering is a real workflow change, and the first three cases are
+    the same edit against three states of the file: only the ledger moves.
+
+    PROJECT_DIR is redirected at a fixture tree, which is where the hook looks
+    for the file (`_rfc_changed_hatch`).
+    """
+    print("rfc-changed-ledger:")
+    mod = _load_pretool_writeedit()
+    work = tempfile.mkdtemp(prefix="ze-rfc-changed-", dir=_fixture_root())
+    mod.PROJECT_DIR = work
+    try:
+        _rfc_changed_ledger_cases(results, mod, work)
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
+def _rfc_changed_ledger_cases(results: Results, mod, work: str) -> None:
+    cw = mod.c_test_weakening
+    os.makedirs(os.path.join(work, "test"), exist_ok=True)
+    pkg = os.path.join(work, "internal", "component", "message")
+    os.makedirs(pkg, exist_ok=True)
+
+    fp = os.path.join(pkg, "rfc7606_test.go")
+    tag = "// RFC requirement: RFC7606-7.1-1 negative - ORIGIN len != 1 withdraws.\n"
+    body = "\trequire.Equal(t, RFC7606ActionTreatAsWithdraw, result.Action)\n"
+    other = "\trequire.NoError(t, err)\n"
+    source = (
+        "package message\n"
+        "\n" + tag + "func TestTagged(t *testing.T) {\n" + body + "}\n"
+        "\n"
+        "func TestPlain(t *testing.T) {\n" + other + "}\n"
+    )
+    with open(fp, "w", encoding="utf-8") as fh:
+        fh.write(source)
+
+    ledger_path = os.path.join(work, "test", "rfc-changed.md")
+
+    def ledger(*rows: str) -> None:
+        with open(ledger_path, "w", encoding="utf-8") as fh:
+            fh.write(
+                "# RFC-tagged tests this commit changes\n"
+                "\n"
+                "| Test | Reason |\n"
+                "|------|--------|\n" + "".join(rows)
+            )
+
+    def edit(old: str, new: str, path: str = fp):
+        return cw(
+            {"tool": "Edit", "ti": {"old_string": old, "new_string": new}, "fp": path}
+        )
+
+    def blocked_on_rfc(r) -> bool:
+        """Exit 2 alone is not proof: the weakening path returns 2 as well."""
+        return r is not None and r[0] == 2 and "RFC-tagged test" in r[1]
+
+    swap = body.replace("TreatAsWithdraw", "SessionReset")
+    approved = (
+        "| TestTagged | Thomas ruled on 2026-08-19 that the reset is the "
+        "conformant action; RFC7606-7.1-1 is proven by the same assertion |\n"
+    )
+
+    # No ledger on disk at all. An unreadable ledger is not an open one, so the
+    # edit is refused and the message names the file to write.
+    r = edit(body, swap)
+    results.check(
+        "rfc-changed-absent-ledger-refuses",
+        blocked_on_rfc(r) and "test/rfc-changed.md" in r[1],
+        repr(r),
+    )
+
+    # The ledger exists and names nothing: the same refusal, now carrying the row
+    # the author has to get approved.
+    ledger()
+    r = edit(body, swap)
+    results.check(
+        "rfc-changed-missing-row-refuses-the-edit",
+        blocked_on_rfc(r) and "| TestTagged |" in r[1] and "RFC7606-7.1-1" in r[1],
+        repr(r),
+    )
+
+    # The same edit, with the row written first. One input moved.
+    ledger(approved)
+    r = edit(body, swap)
+    results.check("rfc-changed-row-opens-the-gate", r is None, repr(r))
+
+    # Per test, never per file: a row for the test next door approves nothing.
+    ledger("| TestPlain | a different test entirely |\n")
+    r = edit(body, swap)
+    results.check(
+        "rfc-changed-row-for-another-test-buys-nothing",
+        blocked_on_rfc(r) and "| TestTagged |" in r[1],
+        repr(r),
+    )
+
+    # `package.TestName` is the spelling both ledgers publish for an ambiguous
+    # name, and the commit gate pairs on it. The hook accepts the same row, or an
+    # author writing the qualified form is refused here and accepted there.
+    ledger("| message.TestTagged | the qualified spelling of the same approval |\n")
+    r = edit(body, swap)
+    results.check("rfc-changed-qualified-row-opens-the-gate", r is None, repr(r))
+
+    ledger("| web.TestTagged | the same name in another package |\n")
+    r = edit(body, swap)
+    results.check(
+        "rfc-changed-wrong-package-qualifier-buys-nothing", blocked_on_rfc(r), repr(r)
+    )
+
+    # The old mechanism buys nothing now. A marker in the replacement text was the
+    # whole approval until 2026-08-19, and the message must not send the author
+    # back to writing one.
+    ledger()
+    marker = "\t// rfc-test-change-approved: 2026-08-19 user confirmed\n"
+    r = edit(body, marker + swap)
+    results.check(
+        "rfc-changed-in-file-marker-no-longer-approves",
+        blocked_on_rfc(r) and "test/rfc-changed.md" in r[1],
+        repr(r),
+    )
+    results.check(
+        "rfc-changed-message-does-not-teach-the-marker",
+        r is not None and "// rfc-test-change-approved: <" not in r[1],
+        repr(r),
+    )
+
+    # A ledger the parser cannot read fails CLOSED: a table nobody can pair
+    # against is not an approval of everything in it.
+    with open(ledger_path, "w", encoding="utf-8") as fh:
+        fh.write("# RFC-tagged tests this commit changes\n\nno table at all\n")
+    r = edit(body, swap)
+    results.check("rfc-changed-unreadable-ledger-refuses", blocked_on_rfc(r), repr(r))
+
+    # The untagged test in the same file owes nothing, whatever the ledger says.
+    ledger()
+    r = edit(other, other.replace("NoError", "Error"))
+    results.check("rfc-changed-untagged-func-unaffected", r is None, repr(r))
 
 
 # --------------------------------------------------------------------------- #
@@ -6966,6 +7135,7 @@ SECTIONS = {
     "session-id": run_session_id,
     "rfc-test-guard": run_rfc_test_guard,
     "weakened-hatch": run_weakened_hatch,
+    "rfc-changed-ledger": run_rfc_changed_ledger,
     "draft-incubator": run_draft_incubator,
     "governed-doc-edit": run_governed_doc_edit,
     "mark-source-read": run_mark_source_read,

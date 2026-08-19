@@ -2737,16 +2737,9 @@ def weakened_problems(
     return problems
 
 
-RFC_CHANGED_PATH = "test/rfc-changed.md"
-
-# What stands in for an approval marker while the detector judges the change.
-# `_rfc_tagged_change_err` returns None the moment the new text carries
-# `rfc-test-change-approved:`, so a gate that handed it the text unedited could
-# never tell "nothing changed" from "a marker silenced it", and could not say
-# that the marker is superseded. A marker always sits in a comment, and the
-# detector strips comments before it compares behavior, so replacing the token
-# changes nothing else about the judgement.
-_RFC_MARKER_PROBE = "rfc-test-change-approval-withheld"
+# One spelling of the ledger's path, shared with the edit-time hook through the
+# module both gates read it with.
+RFC_CHANGED_PATH = check_weakened_tests.RFC_CHANGED_PATH
 
 _RFC_CANNOT_RUN = (
     "the RFC-tagged-change gate could not run: _rfc_tagged_change_err is not "
@@ -2768,12 +2761,11 @@ class RfcChanged:
     package: str  # the directory that holds the file, the row's qualifier
     name: str  # the enclosing Go func, or the file stem when there is none
     tags: tuple[str, ...]  # the requirement ids the change puts at risk
-    marker: bool  # the old in-file `rfc-test-change-approved:` sits in this unit
     saw: str  # what the comparison against HEAD found, in the author's words
 
 
 def _rfc_hook_parts():
-    """(detector, tag pattern, marker pattern) from the canonical hook, or None.
+    """(detector, tag pattern) from the canonical hook, or None.
 
     The judgement is borrowed whole, exactly as `weakened_problems` borrows
     `_test_weakening_errs`. `_rfc_tagged_change_err` decides what a behavior
@@ -2788,7 +2780,6 @@ def _rfc_hook_parts():
     parts = (
         getattr(module, "_rfc_tagged_change_err", None),
         getattr(module, "_RFC_TAG", None),
-        getattr(module, "_RFC_APPROVED", None),
     )
     return None if any(part is None for part in parts) else parts
 
@@ -2820,53 +2811,21 @@ def _rfc_saw(tag_re, old_text, new_text):
 
 
 def _rfc_changed_units(path, old, new, parts):
-    """[(name, tags, marker, saw)] -- the tagged tests `new` changes, named as the ledger names them.
+    """[(name, tags, saw)] -- the tagged tests `new` changes, named as the ledger names them.
 
-    A non-Go carrier is one unit and its name is the file stem, which is
-    `scope_reader`'s answer for it.
-
-    Go resolves to the enclosing top-level func, so changing an untagged test
-    beside a tagged one owes nothing. The one exception is a tag no func span
-    covers, a hoisted table or a tag separated from its func by a blank line:
-    `tag_scope` falls back to the whole file there because a narrower answer
-    would be a guess, and this gate falls back with it. More checking, never
-    less (`ai/rules/evidence.md`).
+    `rfc_changed_units` (`scripts/dev/check_weakened_tests.py`) is the shared
+    namer, and the edit-time hook calls it with the same detector, so the two
+    gates cannot ask for two different rows for one change. What this adds is
+    the sentence a person reads: `_rfc_saw` turns the comparison into words the
+    author can judge the finding by.
     """
-    detector, tag_re, marker_re = parts
-    scope = check_weakened_tests.rfc_tagged_scope
-    stem = os.path.splitext(os.path.basename(path))[0]
-
-    def judge(name, old_text, new_text):
-        probe = marker_re.sub(_RFC_MARKER_PROBE, new_text)
-        tags = detector(old_text, probe, path)
-        if not tags:
-            return None
-        return (
-            name,
-            tuple(sorted(set(tags))),
-            bool(marker_re.search(new_text)),
-            _rfc_saw(tag_re, old_text, new_text),
+    detector, tag_re = parts
+    return [
+        (name, tags, _rfc_saw(tag_re, old_text, new_text))
+        for name, tags, old_text, new_text in check_weakened_tests.rfc_changed_units(
+            path, old, new, detector, tag_re
         )
-
-    if scope.scope_reader(path) != "go":
-        found = judge(stem, old, new)
-        return [found] if found else []
-
-    spans = scope.go_func_scopes(old)
-    if any(not any(a <= m.start() < b for a, b in spans) for m in tag_re.finditer(old)):
-        found = judge(stem, old, new)
-        return [found] if found else []
-
-    old_units = check_weakened_tests._units_by_name(old)
-    new_units = check_weakened_tests._units_by_name(new)
-    out = []
-    for name, old_text in old_units.items():
-        if not old_text.strip():
-            continue
-        found = judge(name or stem, old_text, new_units.get(name, ""))
-        if found:
-            out.append(found)
-    return out
+    ]
 
 
 def rfc_changed_tests(
@@ -2914,8 +2873,8 @@ def rfc_changed_tests(
             else check_weakened_tests._worktree_text(str(repo), path)
         )
         package = os.path.basename(os.path.dirname(path))
-        for name, tags, marker, saw in _rfc_changed_units(path, old, new, parts):
-            out.append(RfcChanged(path, package, name, tags, marker, saw))
+        for name, tags, saw in _rfc_changed_units(path, old, new, parts):
+            out.append(RfcChanged(path, package, name, tags, saw))
     return out, errors
 
 
@@ -2937,41 +2896,39 @@ def _rfc_row_to_write(changed: RfcChanged, qualify: bool) -> str:
     )
 
 
-def rfc_changed_findings(
+def rfc_changed_problems(
     repo: Path, add_paths: tuple[str, ...], remove_paths: tuple[str, ...]
-) -> tuple[list[str], list[str]]:
-    """(problems, notices) -- why `test/rfc-changed.md` does not cover this commit.
+) -> list[str]:
+    """[problem] -- why `test/rfc-changed.md` does not cover this commit.
 
-    A problem BLOCKS. A notice is printed beside a commit that lands, and there
-    is one: an in-file `rfc-test-change-approved:` marker doing the job the
-    ledger now does.
+    Every problem BLOCKS. Kept out of `commit_gate_problems` because it carries
+    an owner override, and `review_gate_problems` is the precedent for that
+    shape: `create` calls it behind the flag so the flag can clear it.
 
-    The marker is accepted on purpose and only for now.
-    `.claude/hooks/pretool-writeedit.py` still demands one at edit time, so a
-    gate that refused it would refuse every author for obeying the other gate.
-    Removing that acceptance is one branch here, and it goes when the hook stops
-    asking.
+    An in-file `rfc-test-change-approved:` marker records nothing here. It was
+    accepted while `.claude/hooks/pretool-writeedit.py` demanded one at edit
+    time, because a gate refusing it would have refused every author for obeying
+    the other gate. That hook reads this ledger now, so the acceptance is gone
+    with it and a marker in a commit is neither an approval nor a notice.
     """
     changed, errors = rfc_changed_tests(repo, add_paths, remove_paths)
     if errors:
-        return errors, []
+        return errors
     if not changed:
-        return [], []  # nothing at risk, so the ledger's content is not read
+        return []  # nothing at risk, so the ledger's content is not read
 
     problems: list[str] = []
-    notices: list[str] = []
     ledger = repo / RFC_CHANGED_PATH
     rows = []
     if ledger.is_file():
         text = ledger.read_text(encoding="utf-8", errors="replace")
         # ONE table reader serves both ledgers, so a row shape that parses in
-        # test/weakened.md parses here. Only the path in its messages differs,
-        # and the reader names its own.
-        rows, row_problems = check_weakened_tests.parse_weakened_file(text)
-        problems += [
-            p.replace(check_weakened_tests.WEAKENED_PATH, RFC_CHANGED_PATH)
-            for p in row_problems
-        ]
+        # test/weakened.md parses here. It takes the path it is reading, so its
+        # problems name this file.
+        rows, row_problems = check_weakened_tests.parse_weakened_file(
+            text, RFC_CHANGED_PATH
+        )
+        problems += row_problems
 
     claimed: set[int] = set()
     for row in rows:
@@ -3001,20 +2958,6 @@ def rfc_changed_findings(
     for index, changed_test in enumerate(changed):
         if index in claimed:
             continue
-        if changed_test.marker:
-            notices.append(
-                f"{changed_test.path} changes the RFC-tagged test "
-                f"{changed_test.name} and records it with an in-file "
-                f"`rfc-test-change-approved:` marker.\n"
-                f"    That marker is the OLD mechanism, and it is superseded "
-                f"by {RFC_CHANGED_PATH}, which is replaced per commit. A "
-                f"marker stays in the test file after the diff it explains is "
-                f"gone, and 255 of them are already there.\n"
-                f"    It is accepted while .claude/hooks/pretool-writeedit.py "
-                f"still demands it. Write the row as well:\n"
-                f"    {_rfc_row_to_write(changed_test, False)}"
-            )
-            continue
         qualify = sum(1 for c in changed if c.name == changed_test.name) > 1
         problems.append(
             f"{changed_test.path} changes the RFC-tagged test "
@@ -3038,31 +2981,7 @@ def rfc_changed_findings(
             f"beside it. Name the file too:\n"
             f"    --file {RFC_CHANGED_PATH}"
         )
-    return problems, notices
-
-
-def rfc_changed_problems(
-    repo: Path, add_paths: tuple[str, ...], remove_paths: tuple[str, ...]
-) -> list[str]:
-    """BLOCK a commit changing an RFC-tagged test that nothing records.
-
-    Kept out of `commit_gate_problems` because it carries an owner override, and
-    `review_gate_problems` is the precedent for that shape: `create` calls it
-    behind the flag so the flag can clear it.
-    """
-    return rfc_changed_findings(repo, add_paths, remove_paths)[0]
-
-
-def rfc_changed_notices(
-    repo: Path, add_paths: tuple[str, ...], remove_paths: tuple[str, ...]
-) -> list[str]:
-    """What a landing commit is told about the mechanism it used.
-
-    The judgement runs a second time rather than being cached: the commit's
-    files can change between the refusal and the print, and a gate that answered
-    from a stale read would say the wrong thing about the tree it just accepted.
-    """
-    return rfc_changed_findings(repo, add_paths, remove_paths)[1]
+    return problems
 
 
 # The exemptions c_require_design_ref applies, restated here because this gate
@@ -3316,7 +3235,6 @@ def commit_gate_warnings(
         deferral_unassigned_problems(repo)
         + wiring_warnings(add_paths)
         + doc_drift_warnings(repo)
-        + rfc_changed_notices(repo, add_paths, remove_paths)
     )
 
 

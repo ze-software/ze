@@ -79,6 +79,14 @@ RESET = "\033[0m"
 
 WEAKENED_PATH = "test/weakened.md"
 
+# The second per-commit ledger, and the reason the reader below takes its path as
+# an argument. `test/rfc-changed.md` records the OWNER's approval of a change to
+# an RFC-tagged test, where `test/weakened.md` records the AUTHOR's own reason for
+# a weakening. The two differ in who writes a row and in nothing a parser can see,
+# so one table reader serves both and neither gate can invent a second spelling of
+# `package.TestName`.
+RFC_CHANGED_PATH = "test/rfc-changed.md"
+
 # Prefix of a problem that means "no comparison happened", never "the commit is
 # clean". The CLI turns it into exit 2, which is the code every other check here
 # uses for "could not run" (`scripts/dev/audit-test-relaxation.py`).
@@ -178,7 +186,7 @@ def _cells(line):
     return [p.strip() for p in parts]
 
 
-def parse_weakened_file(text):
+def parse_weakened_file(text, path=WEAKENED_PATH):
     """(rows, problems) -- the `| Test | Reason |` table, and what is wrong with it.
 
     Anchored on the header rather than on "every table row", because the file
@@ -188,18 +196,21 @@ def parse_weakened_file(text):
     Fails closed. A file with no such header yields no rows AND a problem, so a
     header that drifts refuses the commit instead of silently accepting every
     weakening in it.
+
+    `path` names the file in every problem, so `test/rfc-changed.md` reports its
+    own name through this one reader.
     """
     lines = text.split("\n")
     problems = []
     starts = [i for i, line in enumerate(lines) if _cells(line) == list(_HEADER)]
     if not starts:
         return [], [
-            f"{WEAKENED_PATH} has no `| Test | Reason |` table header, so no row "
+            f"{path} has no `| Test | Reason |` table header, so no row "
             f"in it can be read"
         ]
     if len(starts) > 1:
         problems.append(
-            f"{WEAKENED_PATH} has {len(starts)} `| Test | Reason |` tables; "
+            f"{path} has {len(starts)} `| Test | Reason |` tables; "
             f"keep one, or the gate has two answers"
         )
     rows = []
@@ -210,8 +221,7 @@ def parse_weakened_file(text):
             break
         if len(cells) != 2:
             problems.append(
-                f"{WEAKENED_PATH}:{i + 1} has {len(cells)} cells; a row is "
-                f"`| Test | Reason |`"
+                f"{path}:{i + 1} has {len(cells)} cells; a row is `| Test | Reason |`"
             )
             continue
         name, reason = cells
@@ -221,17 +231,17 @@ def parse_weakened_file(text):
         # `filled` must be non-empty above, or `| | |` reads as a separator and
         # a row that names no test disappears instead of being refused.
         if not name:
-            problems.append(f"{WEAKENED_PATH}:{i + 1} names no test")
+            problems.append(f"{path}:{i + 1} names no test")
             continue
         if not reason:
             problems.append(
-                f"{WEAKENED_PATH}:{i + 1} gives no reason for {name}; a row with "
+                f"{path}:{i + 1} gives no reason for {name}; a row with "
                 f"no reason accepts nothing"
             )
             continue
         if name in seen:
             problems.append(
-                f"{WEAKENED_PATH}:{i + 1} names {name} again (already on line "
+                f"{path}:{i + 1} names {name} again (already on line "
                 f"{seen[name]}); one test, one reason"
             )
             continue
@@ -308,6 +318,58 @@ def weakened_units(path, old, new, detector):
     if residual:
         found.append((stem, residual))
     return found
+
+
+def rfc_changed_units(path, old, new, detector, tag_re):
+    """[(name, tags, old_text, new_text)] -- the tagged tests `new` changes, named as the ledger names them.
+
+    The sibling of `weakened_units`, for the other ledger. `detector` is
+    `_rfc_tagged_change_err` from the canonical hook, so what counts as a
+    behavior change is decided once: a reformat, a comment edit and a Go
+    import-only edit are not one, and a rename is. The edit-time hook and the
+    commit gate both call this, so neither can disagree with the other about
+    which unit a row has to name.
+
+    A non-Go carrier is one unit and its name is the file stem, which is
+    `scope_reader`'s answer for it.
+
+    Go resolves to the enclosing top-level func, so changing an untagged test
+    beside a tagged one owes nothing. The one exception is a tag no func span
+    covers, a hoisted table or a tag separated from its func by a blank line:
+    `tag_scope` falls back to the whole file there because a narrower answer
+    would be a guess, and this falls back with it. More checking, never less
+    (`ai/rules/evidence.md`).
+
+    `old_text` and `new_text` come back so a caller can say what the comparison
+    saw. This function judges; it writes no message.
+    """
+    stem = os.path.splitext(os.path.basename(path))[0]
+
+    def judge(name, old_text, new_text):
+        tags = detector(old_text, new_text, path)
+        if not tags:
+            return None
+        return (name, tuple(sorted(set(tags))), old_text, new_text)
+
+    if rfc_tagged_scope.scope_reader(path) != "go":
+        found = judge(stem, old, new)
+        return [found] if found else []
+
+    spans = rfc_tagged_scope.go_func_scopes(old)
+    if any(not any(a <= m.start() < b for a, b in spans) for m in tag_re.finditer(old)):
+        found = judge(stem, old, new)
+        return [found] if found else []
+
+    old_units = _units_by_name(old)
+    new_units = _units_by_name(new)
+    out = []
+    for name, old_text in old_units.items():
+        if not old_text.strip():
+            continue
+        found = judge(name or stem, old_text, new_units.get(name, ""))
+        if found:
+            out.append(found)
+    return out
 
 
 def _git(args, cwd):
@@ -402,6 +464,29 @@ def row_matches(row_name, weak):
     if qualifier:
         return weak.name == bare and weak.package == qualifier
     return weak.name == row_name
+
+
+class _Pairing(NamedTuple):
+    """The two fields `row_matches` reads, for a caller that holds nothing else."""
+
+    package: str
+    name: str
+
+
+def rows_missing(rows, package, names):
+    """[name] -- every name in `names` that no row in `rows` names, in order.
+
+    The pairing rule for a caller that holds names rather than findings, which
+    both edit-time gates do: they know which test the edit touches and have no
+    finding object to hand. `row_matches` stays the ONE definition of "this row
+    names that test", the `package.TestName` qualifier included, so a hook that
+    accepted a row the commit gate refuses is not expressible here.
+    """
+    return [
+        name
+        for name in names
+        if not any(row_matches(row.name, _Pairing(package, name)) for row in rows)
+    ]
 
 
 def _row_to_write(weak, qualify):

@@ -2688,7 +2688,6 @@ def _test_weakening_errs(old, new, fp):
 
 
 _RFC_TAG = re.compile(r"RFC requirement:\s*[A-Za-z0-9][A-Za-z0-9.\-]*-\d+")
-_RFC_APPROVED = re.compile(r"rfc-test-change-approved:[ \t]*\S")
 _GO_LINE_COMMENT = re.compile(r"//.*$", re.MULTILINE)
 _CI_LINE_COMMENT = re.compile(r"^[ \t]*#.*$", re.MULTILINE)
 _WS = re.compile(r"\s+")
@@ -2808,11 +2807,15 @@ def _rfc_tagged_change_err(old, new, fp, tag_scope=None):
     NOT satisfied by a row in `test/weakened.md`: that row is self-service, and an agent
     writing its own justification is not user approval. It is exactly the loophole this
     closes.
+
+    It judges the CHANGE and nothing else. What records the owner's approval is a row in
+    `test/rfc-changed.md`, which the caller pairs against the tests this judgement names
+    (`c_test_weakening`, `scripts/dev/commit_helper.py`). An in-file
+    `rfc-test-change-approved:` comment used to silence this function; it does not, and a
+    caller that wants the approval reads the ledger.
     """
     scope = old if tag_scope is None else tag_scope
     if not _RFC_TAG.search(scope):
-        return None
-    if _RFC_APPROVED.search(new):
         return None
     # Removing the TAG is checked before anything else, because a tag is a comment and the
     # behavior comparison below would wave it through as "comments only" -- after which the
@@ -2927,8 +2930,13 @@ def _weakened_module():
     return _weakened_mod
 
 
-def _weakened_rows(mod):
-    """(rows, problems) -- what `test/weakened.md` accepts, and what stops it being read.
+def _ledger_rows(mod, rel_path):
+    """(rows, problems) -- what a per-commit ledger accepts, and what stops it being read.
+
+    Serves both: `test/weakened.md`, whose row is the author's own reason for a
+    weakening, and `test/rfc-changed.md`, whose row is the owner's approval of a
+    change to an RFC-tagged test. One reader and one table parser, so the two
+    gates cannot disagree about what a row covers.
 
     Read at CALL time under PROJECT_DIR, which CLAUDE_PROJECT_DIR can point at a
     fixture tree.
@@ -2936,20 +2944,20 @@ def _weakened_rows(mod):
     `errors="replace"` is what keeps this fail-CLOSED, and it is the same reader
     the delegate uses (`_read_contract`, `scripts/dev/check_weakened_tests.py`).
     The dispatcher catches an exception from a check and fails OPEN, so a
-    `UnicodeDecodeError` raised here would let the weakening edit through with no
-    row at all. Only OSError is a state this hook reports; a byte it cannot decode
-    is replaced and the row it sat in fails to match, which refuses.
+    `UnicodeDecodeError` raised here would let the edit through with no row at
+    all. Only OSError is a state this hook reports; a byte it cannot decode is
+    replaced and the row it sat in fails to match, which refuses.
     """
     try:
         with open(
-            os.path.join(PROJECT_DIR, mod.WEAKENED_PATH),
+            os.path.join(PROJECT_DIR, rel_path),
             encoding="utf-8",
             errors="replace",
         ) as fh:
             text = fh.read()
     except OSError:
-        return [], [f"{mod.WEAKENED_PATH} does not exist yet; write it, header first"]
-    return mod.parse_weakened_file(text)
+        return [], [f"{rel_path} does not exist yet; write it, header first"]
+    return mod.parse_weakened_file(text, rel_path)
 
 
 def _edited_file_pair(fp, tool, ti, old, new):
@@ -3018,19 +3026,62 @@ def _weakened_hatch(fp, tool, ti, old, new):
             ],
             "test/weakened.md",
         )
-    rows, problems = _weakened_rows(mod)
+    rows, problems = _ledger_rows(mod, mod.WEAKENED_PATH)
     file_old, file_new = _edited_file_pair(fp, tool, ti, old, new)
     package = os.path.basename(os.path.dirname(fp))
-    missing = []
-    for name in _weakened_names(mod, fp, file_old, file_new):
-        # `row_matches` is the ONE definition of "this row names that test", the
-        # `package.TestName` qualifier included. A copy here would let the hook
-        # accept a row the commit gate refuses. It is public for that reason:
-        # the hook is a real caller, not a module poking at its neighbour.
-        weak = mod.Weakened(fp, package, name, [])
-        if not any(mod.row_matches(row.name, weak) for row in rows):
-            missing.append(name)
+    # `rows_missing` carries the ONE definition of "this row names that test",
+    # the `package.TestName` qualifier included. A copy here would let the hook
+    # accept a row the commit gate refuses. It is public for that reason: the
+    # hook is a real caller, not a module poking at its neighbour.
+    missing = mod.rows_missing(
+        rows, package, _weakened_names(mod, fp, file_old, file_new)
+    )
     return missing, problems, mod.WEAKENED_PATH
+
+
+def _rfc_changed_hatch(fp, tool, ti, old, new):
+    """(names with no row, why the ledger could not be read, the ledger's path).
+
+    An empty pair of lists opens the gate: `test/rfc-changed.md` names every
+    RFC-tagged test this edit changes, so the owner approved each one.
+
+    The approval used to be an `rfc-test-change-approved:` comment written into
+    the test in the same edit. A comment stays in the file after the diff it
+    explains is gone, and 255 of them piled up across 120 test files, so nobody
+    read them and writing one cost nothing. The record now lives in one file the
+    commit carries and replaces (`test/rfc-changed.md`).
+
+    `rfc_changed_units` is the shared namer, given the SAME detector the commit
+    gate gives it, so both gates ask for the same row.
+    """
+    mod = _weakened_module()
+    stem = os.path.splitext(os.path.basename(fp))[0]
+    if mod is None:
+        # The module that resolves a name is the module that did not load, so
+        # the stem is the only name available. The refusal stands either way: an
+        # unreadable ledger is not an approval, and the checkout needs fixing.
+        return (
+            [stem],
+            [
+                "scripts/dev/check_weakened_tests.py did not import, so "
+                "test/rfc-changed.md could not be read"
+            ],
+            "test/rfc-changed.md",
+        )
+    rows, problems = _ledger_rows(mod, mod.RFC_CHANGED_PATH)
+    file_old, file_new = _edited_file_pair(fp, tool, ti, old, new)
+    names = []
+    for name, _tags, _old_text, _new_text in mod.rfc_changed_units(
+        fp, file_old, file_new, _rfc_tagged_change_err, _RFC_TAG
+    ):
+        if name not in names:
+            names.append(name)
+    package = os.path.basename(os.path.dirname(fp))
+    return (
+        mod.rows_missing(rows, package, names or [stem]),
+        problems,
+        mod.RFC_CHANGED_PATH,
+    )
 
 
 # ze point: testing/directives/write-the-test-first-and-never-weaken-it
@@ -3081,33 +3132,48 @@ def c_test_weakening(ctx):
     # RFC-tagged tests are checked FIRST, before the `test/weakened.md` hatch below, and
     # deliberately: a row there is self-service, and an agent writing its own justification
     # is not user approval. Letting it run first would leave the loophole open.
+    # An approved change still falls through to that hatch: the owner approved a change to
+    # the evidence, which says nothing about whether the same edit also weakens the test.
     tags = _rfc_tagged_change_err(
         old, new, fp, tag_scope=_enclosing_tagged_scope(fp, hunks)
     )
     if tags:
-        named = "\n".join(f"  - {t}" for t in tags)
-        return (
-            2,
-            f"{RED}{BOLD}BLOCKED: RFC-tagged test - ask the user before changing it{RESET}\n"
-            f"  {os.path.basename(fp)} enforces RFC obligations:\n{named}\n"
-            "  These are the proof behind a public compliance claim\n"
-            "  (docs/features/rfc-status.md), counted by `make ze-rfc-check`.\n"
-            "  Editing the test to match the code inverts that: the obligation stops being\n"
-            "  proven while still being advertised.\n"
-            "  Fix the CODE. If you believe the test is genuinely wrong, STOP and show the\n"
-            "  user the RFC text next to the test -- do not edit first and explain after.\n"
-            "  A row in test/weakened.md does NOT authorize this: it is your own\n"
-            "  justification, not the user's approval.\n"
-            "  Once the USER has approved, record what they approved on the changed test:\n"
-            "    // rfc-test-change-approved: <date> <what the user approved and why>\n"
-            "  PUT IT IN THE LINES YOU ARE WRITING. This check reads only the replacement\n"
-            "  text of THIS edit, so the same marker at the top of the file does not\n"
-            "  satisfy it and the edit is refused again.\n"
-            "  (auditable: grep -rn 'rfc-test-change-approved:')\n"
-            "  Reformatting and comment/tag edits are never blocked, and neither is a .go\n"
-            "  edit made only of import lines. A rename is, because this check cannot tell\n"
-            "  one from a rewrite -- approve it the same way.",
-        )
+        missing, unreadable, ledger = _rfc_changed_hatch(fp, tool, ctx["ti"], old, new)
+        if missing or unreadable:
+            named = "\n".join(f"  - {t}" for t in tags)
+            ids = ", ".join(t.split(":", 1)[-1].strip() for t in tags)
+            rows_to_write = "\n".join(
+                f"    | {name} | <what the owner approved, and why {ids} is still proven> |"
+                for name in missing
+            )
+            blocked = "".join(f"\n  {p}" for p in unreadable)
+            return (
+                2,
+                f"{RED}{BOLD}BLOCKED: RFC-tagged test - the OWNER approves this, not you{RESET}\n"
+                f"  {os.path.basename(fp)} enforces RFC obligations:\n{named}\n"
+                "  These are the proof behind a public compliance claim\n"
+                "  (docs/features/rfc-status.md), counted by `make ze-rfc-check`.\n"
+                "  Editing the test to match the code inverts that: the obligation stops being\n"
+                "  proven while still being advertised.\n"
+                "  Fix the CODE. If you believe the test is genuinely wrong, STOP and show the\n"
+                "  user the RFC text next to the test -- do not edit first and explain after.\n"
+                "  A row in test/weakened.md does NOT authorize this: it is your own\n"
+                "  justification, not the user's approval.\n"
+                f"  Once the USER has approved, write what they approved in {ledger}:\n"
+                f"{rows_to_write}{blocked}\n"
+                "  Two columns, under the header `| Test | Reason |`: the test this edit\n"
+                "  changes, and what the owner approved beside why the requirement is still\n"
+                "  proven after it.\n"
+                "  WRITE THE ROW FIRST, then make this edit again. This hook reads the file\n"
+                "  from disk, so a row you have not written yet buys nothing, and neither\n"
+                "  does a row naming another test.\n"
+                "  The file is replaced per commit and the commit carries it, so the approval\n"
+                "  sits in git history beside the change it authorizes. Read it before you\n"
+                "  write the row: it says who may write one, and what the gate cannot see.\n"
+                "  Reformatting and comment/tag edits are never blocked, and neither is a .go\n"
+                "  edit made only of import lines. A rename is, because this check cannot tell\n"
+                "  one from a rewrite -- approve it the same way.",
+            )
     # Documented, auditable escape hatch. Forces a written reason instead of a
     # silent edit. It reads `test/weakened.md`, which the commit carries and which
     # the commit gate reads again, and it opens only on a row naming the test THIS

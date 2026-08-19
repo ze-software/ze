@@ -423,9 +423,11 @@ class TestRfcDetectorIsShared(unittest.TestCase):
         # VALIDATES (AC-17): the audit reuses the hook's _rfc_tagged_change_err
         # rather than keeping its own copy, so the hook and the branch audit can
         # never drift apart on what counts as an RFC-tagged change.
-        # PREVENTS: someone reimplementing the detector (or its _RFC_TAG /
-        # _RFC_APPROVED regexes) locally in audit-test-relaxation.py, which would
-        # let the two gates diverge silently.
+        # PREVENTS: someone reimplementing the detector (or its _RFC_TAG regex)
+        # locally in audit-test-relaxation.py, which would let the two gates
+        # diverge silently. _RFC_APPROVED is checked too: that regex was the
+        # in-file approval token, it is retired from the hook, and a copy
+        # appearing here would revive a mechanism no gate reads.
         src = SCRIPT.read_text()
         self.assertNotIn(
             "def _rfc_tagged_change_err",
@@ -440,7 +442,7 @@ class TestRfcDetectorIsShared(unittest.TestCase):
         self.assertNotIn(
             "_RFC_APPROVED",
             src,
-            "the approval-token regex must live only in the hook, not be copied here",
+            "the retired approval-token regex must not be revived here",
         )
         # And prove the detector the audit actually loads ORIGINATES in the hook
         # file. co_filename is the discriminator: a local reimplementation would
@@ -473,7 +475,8 @@ class TestRfcTaggedChangeSurfaced(unittest.TestCase):
         "// RFC requirement: RFC4271-9\n"
         "func TestHoldtime(t *testing.T){ require.Equal(t, 90, holdtime()) }\n"
     )
-    # The same value swap, but now carrying a self-written approval token.
+    # The same value swap, carrying the in-file token that silenced the shared
+    # detector until 2026-08-19. It suppresses nothing now.
     RFC_NEW_APPROVED = (
         "package a\n"
         "// RFC requirement: RFC4271-9\n"
@@ -487,11 +490,12 @@ class TestRfcTaggedChangeSurfaced(unittest.TestCase):
         # keeps every weakening count identical, so only the RFC detector catches it.
         # PREVENTS: an equal-count edit to a compliance test passing the audit silently.
         #
-        # The NEGATIVE half documents the real, honest behavior from Fix 3: the SAME
-        # shared detector returns None once a self-written rfc-test-change-approved:
-        # token is present, so the branch audit is silenced exactly like the hook.
-        # PREVENTS: re-introducing the false claim that the audit is a backstop against
-        # a token an agent wrote for itself (the only real backstop is grep + review).
+        # The SECOND half holds the token's retirement: the shared detector used to
+        # return None the moment a self-written rfc-test-change-approved: comment
+        # appeared, which silenced this audit and the hook together. The approval is a
+        # row in test/rfc-changed.md now, so the token suppresses nothing here.
+        # PREVENTS: the marker branch coming back into the detector, where it would
+        # again let an agent's own comment close both gates.
         mod = _load_audit_module()
         rfc_detector = mod.load_rfc_detector(REPO_ROOT)
         self.assertIsNotNone(
@@ -508,9 +512,9 @@ class TestRfcTaggedChangeSurfaced(unittest.TestCase):
         approved = rfc_detector(
             self.RFC_OLD, self.RFC_NEW_APPROVED, "pkg/holdtime_test.go"
         )
-        self.assertIsNone(
+        self.assertTrue(
             approved,
-            "a forged rfc-test-change-approved: token suppresses BOTH gates (Fix 3)",
+            "an in-file rfc-test-change-approved: token must suppress nothing",
         )
 
 

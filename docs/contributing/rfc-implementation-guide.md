@@ -571,9 +571,10 @@ inside a `terminator=` block):
   `/ze-rfc-audit <rfc>`. The re-seal refuses that case by design.
 - **Never change a tagged test to make it pass.** Once a test carries an
   `RFC requirement:` tag it is the requirement: fix your code, not the test.
-  Changing its behavior needs explicit user approval recorded as
-  `// rfc-test-change-approved: <date> <what and why>`; the `rfc-tagged-test` hook
-  blocks the edit otherwise.
+  Changing its behavior needs the owner's approval. Write it as one row in
+  `test/rfc-changed.md`, and commit that file with the change. The
+  `rfc-tagged-test` hook reads the file and blocks the edit until a row names the
+  test.
 
 <!-- source: scripts/dev/rfc_requirements.py -- scan_go_tags/scan_ci_tags, evaluate -->
 <!-- source: ai/skills/ze-rfc.md -- requirement id allocation and annotations -->

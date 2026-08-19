@@ -6,14 +6,19 @@ claim in `docs/features/rfc-status.md`, and `make ze-rfc-check` counts it as
 that proof. `ai/rules/testing.md` refuses every behavior change to one that the
 owner did not approve. This file is the record of the approvals the owner gave.
 
-One gate reads it. `scripts/dev/commit_helper.py` recomputes which tagged tests
-the commit's own paths change, and refuses a commit whose changes this file does
-not name.
+Two gates read it. `c_test_weakening` (`.claude/hooks/pretool-writeedit.py`)
+refuses the edit until this file names the test the edit changes.
+`scripts/dev/commit_helper.py` recomputes which tagged tests the commit's own
+paths change, and refuses a commit whose changes this file does not name.
 
-That gate calls `_rfc_tagged_change_err` (`.claude/hooks/pretool-writeedit.py`),
-which is the function the edit-time hook calls, so the two cannot disagree about
-what counts as a behavior change. A reformat, a comment edit and a Go
-import-only edit are not one. A rename is.
+Both call `_rfc_tagged_change_err` (`.claude/hooks/pretool-writeedit.py`) to
+judge the change, and `rfc_changed_units` (`scripts/dev/check_weakened_tests.py`)
+to name the test that carries it, so neither can disagree with the other about
+what a row covers. A reformat, a comment edit and a Go import-only edit are not
+a behavior change. A rename is.
+
+The hook reads this file from disk, so the row is written BEFORE the edit. A row
+written after the refusal buys nothing until the edit is made again.
 
 A commit that changes no tagged test carries the table with no rows.
 
@@ -58,16 +63,15 @@ rows of any commit beside the change they approved.
 replaces. It is a comment, so it stays in the test file after the diff it
 explains is gone.
 
-**The gate still accepts one, and that acceptance is temporary.**
-`.claude/hooks/pretool-writeedit.py` still demands the marker at edit time, so a
-gate that refused it would refuse every author for obeying the other gate. A
-commit whose only record is a marker therefore passes, and says the marker is
-superseded.
+**No gate reads one.** The hook demanded a marker until 2026-08-19, and the
+commit gate accepted one while it did, because a gate refusing it would have
+refused every author for obeying the other gate. The hook reads this file now,
+so both acceptances are gone: a marker approves nothing, and writing a new one
+records nothing.
 
-Write the row as well while both mechanisms are live. When the hook stops
-demanding the marker, the marker branch of `rfc_changed_findings`
-(`scripts/dev/commit_helper.py`) goes with it, and the markers leave the tree
-in one sweep.
+The 255 markers already in the tree are swept in their own change. Until that
+sweep lands, a marker you meet in a test file is a record of an approval given
+before this file existed. It authorizes no edit you are making today.
 
 ## What this gate cannot see
 
@@ -122,4 +126,3 @@ row. Quote the id, so a reader can open `rfc/short/` beside it.
 
 | Test | Reason |
 |------|--------|
-| TestRFC8955TrafficActionUnusedBitsZero | Thomas ruled on 2026-08-19 that `bogus` should not be supported. The test loops over action specs asserting `require.NoError`, then asserts the reserved octets of the Traffic Action Field are zero, which is what `RFC8955-7.3-1` gates. `bogus` sat in that list only because `parseFlowSpecAction` accepted any word: it asserted that a typo produces a real traffic-action community with S and T both clear rather than an error, so an operator writing `action termnial` got a community they never asked for on a live FlowSpec rule. That is the defect, not the requirement, and `ai/rules/rfc-compliance.md` calls a test pinning non-conformant behaviour the violation with a green bar on top. It is replaced by `none`, which `flowSpecTrafficActionFlags` (`internal/core/bgp/attribute/flowspec_encode.go`) accepts deliberately, because the decoder prints `traffic-action:none` when neither bit is set and a rendered community must stay re-configurable. The loop keeps four iterations and gains a fourth distinct bit pattern, `0x00`, the one case where the final octet must be entirely clear. The tag, the assertions, the loop body and the polarity are untouched; only the input word changed. The change also carries an in-file `rfc-test-change-approved:` marker, because the pre-write hook still demands one: that duplication is the transitional state this ledger's own prose describes, and it disappears when the hook message is rewritten. |

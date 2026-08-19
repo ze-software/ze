@@ -67,6 +67,7 @@ def load_detector(repo_root):
     mod = load_hook_module(repo_root)
     return getattr(mod, "_test_weakening_errs", None) if mod else None
 
+
 _weakened_module = None
 
 
@@ -86,18 +87,19 @@ def load_rfc_detector(repo_root):
     """Import _rfc_tagged_change_err from the canonical hook -- the SAME detector object.
 
     The hook sees one edit as it happens; this sees a whole branch, so it catches an
-    RFC-tagged test changed out-of-band with NO approval token: an edit made before the
-    hook existed, or one made while the hook was disabled. On those the shared detector
-    still fires.
+    RFC-tagged test changed out-of-band: an edit made before the hook existed, or one
+    made while the hook was disabled. On those the shared detector still fires.
 
-    It does NOT provide a second opinion on a forged token. Because this audit imports the
-    hook's exact detector, the `rfc-test-change-approved:` token that silences the hook
-    silences this audit too -- the detector returns None the moment the new content carries
-    one (see _rfc_tagged_change_err). A self-written token therefore defeats BOTH gates.
-    The only backstop against one is `grep -rn 'rfc-test-change-approved:'` plus human
-    review of each hit, which the hook's own block message already instructs. Do not read
-    this audit as catching a token an agent wrote for itself; it cannot
-    (ai/rules/evidence.md, ai/rules/evidence.md).
+    It reports the CHANGE and never the approval. The detector judges text alone, so a
+    test whose change the owner approved is reported here exactly like one nobody
+    approved: the approval lives in `test/rfc-changed.md`, which is a per-commit file and
+    says nothing about the branch this audit spans. Read a finding as "an owner approved
+    this, or nobody did", then read the ledger rows in the commits the branch carries.
+
+    Until 2026-08-19 an `rfc-test-change-approved:` comment in the new text silenced the
+    detector, so a self-written token defeated this audit and the hook together. That
+    branch is gone from `_rfc_tagged_change_err`: no token suppresses a finding here now,
+    and none is written into a test file any more.
     """
     mod = load_hook_module(repo_root)
     return getattr(mod, "_rfc_tagged_change_err", None) if mod else None
@@ -355,9 +357,9 @@ def audit_changes(
         rfc_details = []
         if rfc_tags:
             rfc_details = [
-                "RFC-TAGGED test changed without an approval token: "
-                + ", ".join(rfc_tags),
-                "  the user must approve this; see rfc-test-change-approved:",
+                "RFC-TAGGED test changed: " + ", ".join(rfc_tags),
+                "  only the OWNER approves this, and the approval is a row in "
+                "test/rfc-changed.md in the commit that carries the change",
             ]
 
         kind = "DELETED" if status == "D" else "WEAKENED"
@@ -519,14 +521,10 @@ def selftest():
         "pkg/a_test.go",
         'package a\nfunc TestA(t *testing.T){ t.Skip("x"); require.Equal(t,1,f()) }\n',
     )
-    write(
-        "pkg/b_test.go", "package a\nfunc TestB(t *testing.T){ t.Skip() }\n"
-    )
+    write("pkg/b_test.go", "package a\nfunc TestB(t *testing.T){ t.Skip() }\n")
     write(
         "test/weakened.md",
-        "| Test | Reason |\n"
-        "|------|--------|\n"
-        "| TestB | feature removed in spec-x |\n",
+        "| Test | Reason |\n|------|--------|\n| TestB | feature removed in spec-x |\n",
     )
     os.remove(os.path.join(work, "pkg/c_test.go"))
     commit("weaken tests")
