@@ -139,7 +139,9 @@ func onPanic(rec any) {
 }
 
 // onListenerChange publishes bind/unbind transitions to as112's own
-// listenerUp gauge; the harness never owns metrics.
+// listenerUp gauge, whose label values are this plugin's listen addresses.
+// The harness owns only the metric no consumer can see, the write-failure
+// counter of internal/core/dnsserver/metrics.go.
 func onListenerChange(proto, addr string, up bool) {
 	v := 0.0
 	if up {
@@ -171,7 +173,7 @@ type as112Server struct {
 // runtime listener crash (dnsserver reports it via OnListenerChange up=false).
 func newServerManager(log *slog.Logger, onServing func()) *as112Server {
 	s := &as112Server{upV4: make(map[string]bool), upV6: make(map[string]bool), onServing: onServing}
-	handler := dnsserver.Authoritative(answerQuery, onPanic)
+	handler := dnsserver.Authoritative(log, answerQuery, onPanic)
 	s.mgr = dnsserver.New(log, handler, dnsserver.Options{
 		Freebind:         true,
 		OnListenerChange: s.listenerChanged,

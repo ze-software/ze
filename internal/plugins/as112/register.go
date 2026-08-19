@@ -129,6 +129,10 @@ func init() {
 	}
 	reg.ConfigureMetrics = func(r metrics.Registry) {
 		setMetricsRegistry(r)
+		// The reply write happens inside the shared harness, which owns its own
+		// write-failure counter; without this the harness counts against a no-op
+		// registry and the failure never reaches the host's metrics endpoint.
+		dnsserver.SetMetricsRegistry(r)
 	}
 	// The redistribute producer emits covering-prefix route-change batches on the
 	// in-process EventBus; the hub injects the bus here before RunEngine.

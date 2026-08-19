@@ -11069,11 +11069,18 @@ class TestDebtStatusHonesty(unittest.TestCase):
             self.assertEqual(self.rows[stem]["status"].strip(), "Partial", stem)
 
     def test_the_remaining_cells_still_name_the_unmet_obligations(self):
-        """What makes `Partial` the right word and not a downgrade for its own sake: the two
-        Remaining cells name the missing subset, so the row carries its own evidence. The task
-        was to correct the Status word and nothing else."""
-        self.assertIn("512-octet", self.rows["rfc1035"]["remaining"])
-        self.assertIn("TC bit", self.rows["rfc1035"]["remaining"])
+        """What makes `Partial` the right word and not a downgrade for its own sake: the
+        Remaining cell names the missing subset, so the row carries its own evidence. The task
+        was to correct the Status word and nothing else.
+
+        The named subset SHRINKS as obligations are met, and it must, or this test pins a debt
+        the tree has paid. It read "512-octet" and "TC bit" until 2026-08-19, when the ledger
+        was corrected against its producers: `send` (`internal/core/dnsserver/handler.go`)
+        calls `Msg.Truncate(udpReplyLimit(r))` on a datagram transport, and `Msg.Truncate` sets
+        TC. Asserting those two words today would require the page to keep publishing a claim
+        that is false, which is the opposite of what this test exists to enforce. What survives
+        as debt is zone transfer, so that is what the cell must name."""
+        self.assertIn("zone transfer", self.rows["rfc1035"]["remaining"])
         # rfc5301 carried the third and fourth of these until 2026-08-10, when
         # spec-fixit-isis-hostname-ascii met the three unmet obligations and
         # enrolled the stem. A row that stops being debt stops owing a named

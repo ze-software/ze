@@ -43,7 +43,7 @@ func as112Handler(t *testing.T) dns.HandlerFunc {
 	t.Helper()
 	resetAS112State(t)
 	storeState(buildState(as112Config{Enabled: true}, 1))
-	return dnsserver.Authoritative(answerQuery, nil)
+	return dnsserver.Authoritative(nil, answerQuery, nil)
 }
 
 // askAS112 drives one question through the harness and returns the reply.

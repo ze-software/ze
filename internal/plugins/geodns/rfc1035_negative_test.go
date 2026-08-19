@@ -50,7 +50,7 @@ func negZone(t *testing.T) dns.HandlerFunc {
 		t.Fatalf("parseConfig: %v", err)
 	}
 	storeApplied(cfg, 1)
-	return dnsserver.Authoritative(answerQuery, nil)
+	return dnsserver.Authoritative(nil, answerQuery, nil)
 }
 
 // askFrom drives one question through the harness as a query from client.
@@ -153,7 +153,7 @@ func TestRFC1035_EDNS0OnlyWithoutSubnetStillRefusesOutOfZone(t *testing.T) {
 		t.Fatalf("parseConfig: %v", err)
 	}
 	storeApplied(cfg, 1)
-	handler := dnsserver.Authoritative(answerQuery, nil)
+	handler := dnsserver.Authoritative(nil, answerQuery, nil)
 
 	out := askFrom(t, handler, "198.51.100.7", "elsewhere.invalid.", dns.TypeA)
 	if out.Rcode != dns.RcodeRefused {

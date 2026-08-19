@@ -33,6 +33,19 @@ wire.
 
 <!-- source: internal/core/dnsserver/handler.go -- Authoritative, shapeAuthoritative -->
 
+Owning the write also means owning its failure. `send` counts a refused write in
+`ze_dns_reply_write_failure_total`, labelled by transport, and logs one line at
+Debug. The counter is the harness's own, unlike the listener gauge a consumer
+wires through `Options.OnListenerChange`, because the failure happens where no
+consumer can see it: every plugin serving DNS calls
+`dnsserver.SetMetricsRegistry` from its `ConfigureMetrics`, and the registry is
+idempotent by name, so they share one counter. Debug is the level because the
+transport refuses one reply at a time. A host that stops reading would put one
+line in the log for every query it draws, and the counter is what an operator
+alerts on instead.
+
+<!-- source: internal/core/dnsserver/metrics.go -- the write-failure counter -->
+
 The wrapper also owns the AA bit, and the RCODE decides it. Every reply carries
 AA set except one with RCODE 5 (Refused), which an answer function returns for a
 name under no zone it serves and for a service the operator turned off. RFC 1035

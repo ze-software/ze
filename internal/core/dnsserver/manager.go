@@ -52,8 +52,10 @@ type Options struct {
 
 	// OnListenerChange, if set, is called after each bind/unbind with the
 	// protocol ("udp"/"tcp"), the listen address, and whether the listener is
-	// now up. The harness never owns metrics; a consumer wires its own gauge
-	// through this callback.
+	// now up. The listener gauge stays with the consumer, whose listen
+	// addresses are its label values, and this callback is how it gets one.
+	// The harness owns only the metric a consumer cannot see, which today is
+	// the write-failure counter in metrics.go.
 	OnListenerChange func(proto, addr string, up bool)
 
 	// TLSMaterialResolver resolves a certificate NAME into serving PEM material

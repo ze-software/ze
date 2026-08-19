@@ -58,7 +58,7 @@ func TestRFC1035_ReservedZFieldIsZero(t *testing.T) {
 	// copies Z, so a query alone cannot put it on the wire.
 	dirtyQuery := questionFor("zero.test")
 	dirty := udpWriter()
-	Authoritative(func(msg, r *dns.Msg, p Peer) bool {
+	Authoritative(nil, func(msg, r *dns.Msg, p Peer) bool {
 		msg.Zero = true
 		msg.AuthenticatedData = true
 		return true
@@ -95,7 +95,7 @@ func TestRFC1035_ReservedZFieldIsZero(t *testing.T) {
 	q.Zero = true
 	q.CheckingDisabled = true
 	echoed := udpWriter()
-	Authoritative(func(msg, r *dns.Msg, p Peer) bool { return true }, nil)(echoed, q)
+	Authoritative(nil, func(msg, r *dns.Msg, p Peer) bool { return true }, nil)(echoed, q)
 	if echoed.written == nil {
 		t.Fatal("no reply written for the Z=1 query")
 	}
@@ -126,7 +126,7 @@ func TestRFC1035_AuthoritativeAnswerBitOnEveryReply(t *testing.T) {
 	w := udpWriter()
 	rdQuery := questionFor("aa.test")
 	rdQuery.RecursionDesired = true
-	Authoritative(func(msg, r *dns.Msg, p Peer) bool {
+	Authoritative(nil, func(msg, r *dns.Msg, p Peer) bool {
 		msg.Authoritative = false
 		msg.RecursionAvailable = true
 		return true
@@ -155,7 +155,7 @@ func TestRFC1035_AuthoritativeAnswerBitOnEveryReply(t *testing.T) {
 	noRD := questionFor("aa.test")
 	noRD.RecursionDesired = false
 	plain := udpWriter()
-	Authoritative(func(msg, r *dns.Msg, p Peer) bool { return true }, nil)(plain, noRD)
+	Authoritative(nil, func(msg, r *dns.Msg, p Peer) bool { return true }, nil)(plain, noRD)
 	if plain.written == nil {
 		t.Fatal("no reply written for the RD=0 query")
 	}

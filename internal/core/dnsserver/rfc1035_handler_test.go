@@ -7,10 +7,18 @@
 package dnsserver
 
 import (
+	"bytes"
+	"errors"
+	"log/slog"
 	"net"
+	"strings"
+	"sync"
 	"testing"
 
 	"github.com/miekg/dns"
+
+	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // rfc1035Writer is a dns.ResponseWriter that captures the reply and reports a
@@ -20,9 +28,12 @@ type rfc1035Writer struct {
 	dns.ResponseWriter
 	remote  net.Addr
 	written *dns.Msg
+	// writeErr is what WriteMsg returns, so a test can drive the transport
+	// refusing the reply. Nil is a write that succeeded.
+	writeErr error
 }
 
-func (w *rfc1035Writer) WriteMsg(m *dns.Msg) error { w.written = m; return nil }
+func (w *rfc1035Writer) WriteMsg(m *dns.Msg) error { w.written = m; return w.writeErr }
 func (w *rfc1035Writer) RemoteAddr() net.Addr      { return w.remote }
 
 func udpWriter() *rfc1035Writer {
@@ -79,7 +90,7 @@ func TestRFC1035_UDPReplyBoundedAndTruncated(t *testing.T) {
 	t.Parallel()
 
 	over := udpWriter()
-	Authoritative(answerN(50), nil)(over, questionFor("big.test"))
+	Authoritative(nil, answerN(50), nil)(over, questionFor("big.test"))
 	if over.written == nil {
 		t.Fatal("no reply written for the oversized query")
 	}
@@ -106,7 +117,7 @@ func TestRFC1035_UDPReplyBoundedAndTruncated(t *testing.T) {
 	}
 
 	under := udpWriter()
-	Authoritative(answerN(3), nil)(under, questionFor("small.test"))
+	Authoritative(nil, answerN(3), nil)(under, questionFor("small.test"))
 	if under.written == nil {
 		t.Fatal("no reply written for the small query")
 	}
@@ -135,7 +146,7 @@ func TestRFC1035_UDPBoundFollowsAdvertisedEDNSSize(t *testing.T) {
 	t.Parallel()
 
 	plain := udpWriter()
-	Authoritative(answerN(50), nil)(plain, questionFor("edns.test"))
+	Authoritative(nil, answerN(50), nil)(plain, questionFor("edns.test"))
 	if plain.written == nil {
 		t.Fatal("no reply written for the query without an OPT record")
 	}
@@ -146,7 +157,7 @@ func TestRFC1035_UDPBoundFollowsAdvertisedEDNSSize(t *testing.T) {
 	advertised := questionFor("edns.test")
 	advertised.SetEdns0(4096, false)
 	large := udpWriter()
-	Authoritative(answerN(50), nil)(large, advertised)
+	Authoritative(nil, answerN(50), nil)(large, advertised)
 	if large.written == nil {
 		t.Fatal("no reply written for the EDNS0 query")
 	}
@@ -174,7 +185,7 @@ func TestRFC1035_StreamTransportNotTruncated(t *testing.T) {
 	t.Parallel()
 
 	w := tcpWriter()
-	Authoritative(answerN(50), nil)(w, questionFor("stream.test"))
+	Authoritative(nil, answerN(50), nil)(w, questionFor("stream.test"))
 	if w.written == nil {
 		t.Fatal("no reply written")
 	}
@@ -213,7 +224,7 @@ func TestRFC1035_UnsupportedOpcodeReturnsNotImplemented(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			ran := false
-			h := Authoritative(func(msg, r *dns.Msg, p Peer) bool {
+			h := Authoritative(nil, func(msg, r *dns.Msg, p Peer) bool {
 				ran = true
 				msg.SetRcode(r, dns.RcodeNameError)
 				return true
@@ -257,7 +268,7 @@ func TestRFC1035_QueryOpcodeAnsweredNormally(t *testing.T) {
 	t.Parallel()
 
 	ran := false
-	h := Authoritative(func(msg, r *dns.Msg, p Peer) bool {
+	h := Authoritative(nil, func(msg, r *dns.Msg, p Peer) bool {
 		ran = true
 		msg.Answer = append(msg.Answer, &dns.A{
 			Hdr: dns.RR_Header{Name: r.Question[0].Name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 60},
@@ -283,5 +294,128 @@ func TestRFC1035_QueryOpcodeAnsweredNormally(t *testing.T) {
 	}
 	if len(w.written.Answer) != 1 {
 		t.Errorf("reply carries %d answers, want the 1 the answer func built", len(w.written.Answer))
+	}
+}
+
+// countingRegistry is a metrics.Registry that counts increments per
+// "name{label,label}" key, so a test can assert both that a counter moved and
+// which label values it moved under. Only the counter surfaces record; the
+// harness defines nothing else.
+type countingRegistry struct {
+	mu   sync.Mutex
+	hits map[string]float64
+}
+
+func newCountingRegistry() *countingRegistry { return &countingRegistry{hits: map[string]float64{}} }
+
+func (r *countingRegistry) add(key string) {
+	r.mu.Lock()
+	r.hits[key]++
+	r.mu.Unlock()
+}
+
+func (r *countingRegistry) get(key string) float64 {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.hits[key]
+}
+
+func (r *countingRegistry) Counter(name, _ string) metrics.Counter { return &countingMetric{r, name} }
+func (r *countingRegistry) Gauge(string, string) metrics.Gauge {
+	return metrics.NopRegistry{}.Gauge("", "")
+}
+func (r *countingRegistry) Histogram(name, help string, buckets []float64) metrics.Histogram {
+	return metrics.NopRegistry{}.Histogram(name, help, buckets)
+}
+
+func (r *countingRegistry) CounterVec(name, _ string, _ []string) metrics.CounterVec {
+	return &countingCounterVec{r, name}
+}
+
+func (r *countingRegistry) GaugeVec(name, help string, labels []string) metrics.GaugeVec {
+	return metrics.NopRegistry{}.GaugeVec(name, help, labels)
+}
+
+func (r *countingRegistry) HistogramVec(name, help string, buckets []float64, labels []string) metrics.HistogramVec {
+	return metrics.NopRegistry{}.HistogramVec(name, help, buckets, labels)
+}
+
+type countingMetric struct {
+	r   *countingRegistry
+	key string
+}
+
+func (m *countingMetric) Inc()          { m.r.add(m.key) }
+func (m *countingMetric) Add(v float64) { m.r.add(m.key) }
+
+type countingCounterVec struct {
+	r    *countingRegistry
+	name string
+}
+
+func (v *countingCounterVec) With(labelValues ...string) metrics.Counter {
+	var tb textbuf.Buffer
+	tb.Str(v.name).Byte('{')
+	for i, lv := range labelValues {
+		if i > 0 {
+			tb.Byte(',')
+		}
+		tb.Str(lv)
+	}
+	tb.Byte('}')
+	return &countingMetric{v.r, tb.String()}
+}
+
+func (v *countingCounterVec) Delete(...string) bool { return false }
+
+// VALIDATES: a reply the transport refuses is counted under the transport it
+// was refused on and logged, on a datagram write and on a stream write alike.
+// The two halves run the same handler and differ only in the remote address, so
+// a hard-coded transport label fails one of them.
+// PREVENTS: the write error going back to being discarded (`_ = w.WriteMsg`),
+// which leaves an operator with a server that answers nothing and reports
+// nothing -- no counter to alert on and no line to grep. It is the one failure
+// on the query path with no other witness: the querier sees a timeout, and Ze
+// sees success.
+//
+// Not parallel: it swaps the package metric set, which every other test in this
+// package shares.
+func TestWriteFailureLoggedAndCounted(t *testing.T) {
+	rec := newCountingRegistry()
+	SetMetricsRegistry(rec)
+	t.Cleanup(func() { SetMetricsRegistry(metrics.NopRegistry{}) })
+
+	refused := errors.New("sendmsg: no buffer space available")
+
+	for _, tc := range []struct {
+		name      string
+		writer    *rfc1035Writer
+		transport string
+	}{
+		{name: "datagram", writer: udpWriter(), transport: "datagram"},
+		{name: "stream", writer: tcpWriter(), transport: "stream"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var logged bytes.Buffer
+			log := slog.New(slog.NewTextHandler(&logged, &slog.HandlerOptions{Level: slog.LevelDebug}))
+			tc.writer.writeErr = refused
+
+			Authoritative(log, answerN(1), nil)(tc.writer, questionFor("refused.test"))
+
+			key := "ze_dns_reply_write_failure_total{" + tc.transport + "}"
+			if got := rec.get(key); got != 1 {
+				t.Errorf("%s = %v, want 1 after one refused write", key, got)
+			}
+			line := logged.String()
+			if !strings.Contains(line, "reply write failed") {
+				t.Errorf("log = %q, want it to name the failed write", line)
+			}
+			if !strings.Contains(line, refused.Error()) {
+				t.Errorf("log = %q, want it to carry the transport error %q", line, refused)
+			}
+			if !strings.Contains(line, "level=DEBUG") {
+				t.Errorf("log = %q, want DEBUG: one line per query is a flood at any higher level", line)
+			}
+		})
 	}
 }

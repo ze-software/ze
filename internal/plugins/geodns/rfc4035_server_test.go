@@ -40,7 +40,7 @@ func rfc4035Zone(t *testing.T) dns.HandlerFunc {
 		t.Fatalf("parseConfig: %v", err)
 	}
 	storeApplied(cfg, 1)
-	return dnsserver.Authoritative(answerQuery, nil)
+	return dnsserver.Authoritative(nil, answerQuery, nil)
 }
 
 // hasDNSSECRR reports whether any section of msg carries a DNSSEC RR type.

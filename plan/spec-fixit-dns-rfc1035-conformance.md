@@ -11,6 +11,33 @@
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
+## OUT OF SCOPE (owner decision, 2026-08-18)
+
+**RFC 1035 is out of scope for now. Do not start WP-4 or the remaining
+escalation.** The owner ruled this while the first-release fixit backlog was
+being drained.
+
+What that leaves in the tree, so the next reader does not re-derive it:
+
+| Item | State |
+|------|-------|
+| WP-1, WP-2, WP-3, WP-5, WP-6, WP-7 | landed |
+| `RFC1035-4.2-1` (zone transfer, WP-4) | not implemented, and not to be started |
+| `RFC1035-3.3.13-1` | settled and unrecordable: RFC 2308 Section 4 withdrew it |
+| RFC 1035 enrolment | still `backlog` in `rfc/not-enrolled.txt`, so its MUSTs are not gated |
+
+The question put to the owner was whether `RFC1035-4.2-1` binds at all. RFC 1035
+Section 4.2 states "Zone refresh activities must use virtual circuits because of
+the need for reliable transfer", which constrains the TRANSPORT of zone refresh
+rather than obliging a server to implement zone transfer. Ze performs no zone
+refresh, so it never enters that condition. The owner did not rule on that
+reading; he put the whole RFC out of scope, so the reading stays open and the
+row stays unimplemented.
+
+Reopening this spec means re-raising that reading first, per
+`ai/rules/rfc-compliance.md`: a classification that lowers what Ze owes is the
+owner's to make.
+
 ## Task
 
 `plan/spec-rfcgate-4-ledger.md` re-authored the extraction for RFC 1035 on 2026-07-30.

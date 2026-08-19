@@ -342,7 +342,9 @@ func onPanic(rec any) {
 }
 
 // onListenerChange publishes bind/unbind transitions to geodns's own
-// listenerUp gauge; the harness never owns metrics.
+// listenerUp gauge, whose label values are this plugin's listen addresses.
+// The harness owns only the metric no consumer can see, the write-failure
+// counter of internal/core/dnsserver/metrics.go.
 func onListenerChange(proto, addr string, up bool) {
 	v := 0.0
 	if up {
@@ -364,7 +366,7 @@ type geodnsServer struct {
 // authoritative-answer/recursion-refusal guard; geodns supplies only
 // answerQuery (metrics + policy) and its own listener-up gauge.
 func newServerManager(log *slog.Logger) *geodnsServer {
-	handler := dnsserver.Authoritative(answerQuery, onPanic)
+	handler := dnsserver.Authoritative(log, answerQuery, onPanic)
 	return &geodnsServer{mgr: dnsserver.New(log, handler, dnsserver.Options{
 		OnListenerChange: onListenerChange,
 		// The PKI store lives in the hub process. Injecting the resolver here

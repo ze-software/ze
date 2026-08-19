@@ -28,7 +28,7 @@ func answerOne(msg, r *dns.Msg, _ Peer) bool {
 // echoed back as though ze had authenticated the data, or ze claiming
 // authenticated data it never validated.
 func TestRFC4035_CDCopiedADIgnored(t *testing.T) {
-	handler := Authoritative(answerOne, nil)
+	handler := Authoritative(nil, answerOne, nil)
 
 	set := new(dns.Msg)
 	set.SetQuestion("example.test.", dns.TypeA)

@@ -35,7 +35,7 @@ func TestAuthoritativeWrapper_SetsBitsAndRecovers(t *testing.T) {
 
 	var gotMsg *dns.Msg
 	var gotSrc netip.Addr
-	handler := Authoritative(func(msg, r *dns.Msg, p Peer) bool {
+	handler := Authoritative(nil, func(msg, r *dns.Msg, p Peer) bool {
 		gotMsg = msg
 		gotSrc = RemoteAddr(p)
 		msg.RecursionAvailable = true // fn tries to advertise recursion...
@@ -73,7 +73,7 @@ func TestAuthoritativeWrapper_SetsBitsAndRecovers(t *testing.T) {
 	}
 
 	// send=false must drop the query with no reply.
-	dropped := Authoritative(func(msg, r *dns.Msg, p Peer) bool {
+	dropped := Authoritative(nil, func(msg, r *dns.Msg, p Peer) bool {
 		return false
 	}, nil)
 	fwDrop := &fakeResponseWriter{}
@@ -83,7 +83,7 @@ func TestAuthoritativeWrapper_SetsBitsAndRecovers(t *testing.T) {
 	}
 
 	var panicked any
-	handler = Authoritative(func(msg, r *dns.Msg, p Peer) bool {
+	handler = Authoritative(nil, func(msg, r *dns.Msg, p Peer) bool {
 		panic("boom")
 	}, func(rec any) { panicked = rec })
 

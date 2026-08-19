@@ -1,13 +1,17 @@
 // Design: docs/architecture/dns/server-harness.md -- authoritative-answer
 // shaping, the single-source-of-truth recursion guard (child-2 R-3)
 // RFC: rfc/short/rfc1035.md -- DNS message structure
+// Related: metrics.go -- the write-failure counter send() increments
 
 package dnsserver
 
 import (
+	"log/slog"
 	"net"
 
 	"github.com/miekg/dns"
+
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 // Peer is the read-only view of a query's transport that an AnswerFunc may
@@ -62,7 +66,16 @@ type AnswerFunc func(msg, r *dns.Msg, p Peer) (send bool)
 // check they fall through to fn, where a name inside a served zone draws a
 // normal answer and a name outside one draws NXDOMAIN. Both claim Ze acted on
 // a request it never implemented.
-func Authoritative(fn AnswerFunc, onPanic func(any)) dns.HandlerFunc {
+//
+// log receives the one line the harness writes on the query path, the failure
+// of the wire write (see send). A nil log is taken as "this consumer wants no
+// line" and discards it, which is what the answer-func tests pass: a nil
+// dereference on the query path would be a defect this package can inflict on
+// every reply, and no logging decision is worth that.
+func Authoritative(log *slog.Logger, fn AnswerFunc, onPanic func(any)) dns.HandlerFunc {
+	if log == nil {
+		log = slogutil.DiscardLogger()
+	}
 	return func(w dns.ResponseWriter, r *dns.Msg) {
 		defer func() {
 			if rec := recover(); rec != nil && onPanic != nil {
@@ -73,7 +86,7 @@ func Authoritative(fn AnswerFunc, onPanic func(any)) dns.HandlerFunc {
 		if r.Opcode != dns.OpcodeQuery {
 			msg.SetRcode(r, dns.RcodeNotImplemented)
 			shapeAuthoritative(msg)
-			send(w, msg, r)
+			send(w, msg, r, log)
 			return
 		}
 		msg.SetReply(r)
@@ -82,7 +95,7 @@ func Authoritative(fn AnswerFunc, onPanic func(any)) dns.HandlerFunc {
 			return
 		}
 		shapeAuthoritative(msg)
-		send(w, msg, r)
+		send(w, msg, r, log)
 	}
 }
 
@@ -105,11 +118,26 @@ func Authoritative(fn AnswerFunc, onPanic func(any)) dns.HandlerFunc {
 // harness decides that, never fn. Forcing Compress=false back on would pack the
 // reply longer than the budget Truncate measured, which is the bound this
 // function exists to hold.
-func send(w dns.ResponseWriter, msg, r *dns.Msg) {
+//
+// A write that fails is counted and logged, never discarded. It is the
+// transport refusing this one reply -- a full send buffer, a peer whose route
+// went away, a stream the client already closed -- so there is nothing to
+// retry: the querier retransmits or gives up, and the next query is
+// unaffected. That is why the line is Debug rather than Error. A host that
+// stops reading would otherwise put one line in an operator's log for every
+// query it draws, which is the flood the counter exists to measure instead.
+// The counter is also what survives a log level that hides the line, so it is
+// what an operator alerts on.
+func send(w dns.ResponseWriter, msg, r *dns.Msg, log *slog.Logger) {
+	transport := transportStream
 	if isDatagram(w) {
+		transport = transportDatagram
 		msg.Truncate(udpReplyLimit(r))
 	}
-	_ = w.WriteMsg(msg)
+	if err := w.WriteMsg(msg); err != nil {
+		recordWriteFailure(transport)
+		log.Debug("dnsserver: reply write failed", "transport", transport, "error", err)
+	}
 }
 
 // isDatagram reports whether the query arrived over a datagram transport, the
