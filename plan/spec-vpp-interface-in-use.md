@@ -5,7 +5,7 @@
 | Status | design |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-04 |
+| Updated | 2026-08-18 |
 
 ## Post-Compaction Recovery
 
@@ -110,6 +110,7 @@ Add referential-integrity validation for VPP interface usage:
 | interface used by NAT and assigned as bridge member | → | cross-feature verify rejects | `test/plugin/vpp-interface-in-use.ci` |
 | delete an interface still referenced by sFlow | → | verify blocks deletion | `test/plugin/vpp-interface-in-use.ci` |
 | delete an interface still used as a mirror destination (added 2026-07-10) | → | verify blocks deletion, naming the mirroring source | `test/plugin/vpp-interface-in-use.ci` |
+| remove a VLAN sub-interface still referenced by a feature (added 2026-08-18) | → | verify blocks the removal, naming the sub-interface | `test/plugin/vpp-interface-in-use.ci` |
 
 ## Acceptance Criteria
 
@@ -123,6 +124,8 @@ Add referential-integrity validation for VPP interface usage:
 | AC-6 (added 2026-07-10) | interface configured as a SPAN mirror destination (mirror ingress/egress of another interface), then deleted from `interfaces` | verify rejects the deletion, naming the mirroring source interface |
 | AC-7 (added 2026-07-10) | interface with an LCP pairing (VPP backend), referenced by a feature or deleted while paired | usage aggregation records the LCP-paired role; delete/conflict checks account for it |
 | AC-8 (added 2026-07-10) | VPP-created tunnel interface (gre/gretap/ipip/vxlan) referenced by a feature or as a mirror destination, then deleted | verify rejects, same as for physical interfaces (tunnel interfaces participate in the usage map as reference targets) |
+| AC-9 (added 2026-08-18) | a VLAN sub-interface (`unit`) of a dummy or tunnel interface is referenced by a feature or as a mirror destination, then removed while its parent stays | verify rejects the removal, naming the sub-interface, not only the parent |
+| AC-10 (added 2026-08-18) | an interface with VLAN sub-interfaces is deleted, and one sub-interface is referenced by a feature | verify rejects the parent deletion and names the referenced sub-interface, because deleting the parent removes it |
 
 ## End-to-End User Stories (MANDATORY for new features)
 
