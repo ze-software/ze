@@ -192,31 +192,53 @@ func formatAttributesHuman(sb *textbuf.Buffer, attrs map[string]any) {
 		writeAttrLine(sb, "med", formatNumber(med))
 	}
 
-	if comms, ok := unwrapAttr(attrs["community"]).([]any); ok {
-		writeAttrLabel(sb, "community")
-		for i, c := range comms {
-			if i > 0 {
-				sb.WriteByte(' ')
-			}
-			sb.Str(formatNumber(c))
-		}
-		sb.WriteByte('\n')
+	// The four community attributes, in attribute-code order (8, 16, 25, 32).
+	// Each value is what renderAttributeZe (decode_update.go) put in the map,
+	// so the types here are the Go types that function returns, never the
+	// []any a JSON round trip would give.
+	writeCommunityLine(sb, "community", attrs)
+	writeExtendedCommunityLine(sb, attrs)
+	writeCommunityLine(sb, "ipv6-extended-community", attrs)
+	writeCommunityLine(sb, "large-community", attrs)
+}
+
+// writeCommunityLine writes one line for a community attribute whose value is a
+// list of rendered strings.
+func writeCommunityLine(sb *textbuf.Buffer, label string, attrs map[string]any) {
+	comms, ok := unwrapAttr(attrs[label]).([]string)
+	if !ok {
+		return
 	}
 
-	if extComms, ok := unwrapAttr(attrs["extended-community"]).([]any); ok {
-		writeAttrLabel(sb, "extended-community")
-		for i, ec := range extComms {
-			if i > 0 {
-				sb.WriteByte(' ')
-			}
-			if ecMap, ok := ec.(map[string]any); ok {
-				if s, ok := ecMap["string"].(string); ok {
-					sb.Str(s)
-				}
-			}
+	writeAttrLabel(sb, label)
+	for i, comm := range comms {
+		if i > 0 {
+			sb.WriteByte(' ')
 		}
-		sb.WriteByte('\n')
+		sb.Str(comm)
 	}
+	sb.WriteByte('\n')
+}
+
+// writeExtendedCommunityLine writes the EXTENDED_COMMUNITIES line. It is the
+// one community attribute rendered as objects rather than as strings
+// (decode_extcomm.go), so it reads the decoded name out of each object.
+func writeExtendedCommunityLine(sb *textbuf.Buffer, attrs map[string]any) {
+	extComms, ok := unwrapAttr(attrs["extended-community"]).([]map[string]any)
+	if !ok {
+		return
+	}
+
+	writeAttrLabel(sb, "extended-community")
+	for i, extComm := range extComms {
+		if i > 0 {
+			sb.WriteByte(' ')
+		}
+		if text, ok := extComm["string"].(string); ok {
+			sb.Str(text)
+		}
+	}
+	sb.WriteByte('\n')
 }
 
 // unwrapAttr extracts the value from a flag-annotated attribute map.

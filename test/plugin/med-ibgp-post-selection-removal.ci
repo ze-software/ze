@@ -26,8 +26,19 @@ option=bind:value=127.0.0.2
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 # The raw export filter removes this exact attribute from its override. The
 # forwarding guard restores it because the destination is internal.
-expect=bgp:conn=1:seq=2:contains=80040400000064
-expect=bgp:conn=1:seq=2:contains=180A3E00
+#
+# Both needles are `ordered=`, so consumeOrdered (internal/test/peer/checker.go)
+# pops them from ONE message, in order, at a byte boundary: MED first, the NLRI
+# after it. Two `contains=` needles in one seq group say something else, because
+# consumeMatches consumes at most one needle per message, so the pair demanded
+# TWO deliveries of the single route. The second delivery is the duplicate relay
+# that sendInitialRoutes (internal/component/bgp/reactor/peer_initial_sync.go)
+# records as a KNOWN DEFECT, and it is not what this test claims to prove: when
+# the export filter's second callback missed the observer's serve loop, ze
+# rejected the duplicate, the second needle met the NOTIFICATION instead, and the
+# fixture went red over a route it had already asserted correct.
+expect=bgp:conn=1:seq=2:ordered=80040400000064
+expect=bgp:conn=1:seq=2:ordered=180A3E00
 EOF_DEST
 
 tmpfs=raw-med-drop.run:mode=755:terminator=EOF_RUN

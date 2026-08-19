@@ -21,19 +21,40 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"math"
+	"net/netip"
 	"strconv"
 )
 
 // Extended community type/subtype pairs rendered by name, read as the two type
 // octets in one big-endian uint16.
+//
+// Route Target, Route Origin and rt-redirect each come in three administrator
+// forms, which the HIGH type octet selects: 0x00 two-octet AS (RFC 4360 Section
+// 3.1), 0x01 IPv4 address (RFC 4360 Section 3.2), 0x02 four-octet AS (RFC 5668
+// Section 2). RFC 4360 Sections 4 and 5 name all three for Route Target and
+// Route Origin, and RFC 8955 Section 7.4 names 0x80, 0x81 and 0x82 for the
+// FlowSpec redirect siblings.
 const (
-	extCommRouteTarget        = 0x0002 // RFC 4360 Section 4: Route Target, two-octet AS specific
-	extCommRouteOrigin        = 0x0003 // RFC 4360 Section 5: Route Origin, two-octet AS specific
+	extCommRouteTargetAS2     = 0x0002 // RFC 4360 Section 4: Route Target, two-octet AS specific
+	extCommRouteTargetIPv4    = 0x0102 // RFC 4360 Section 4: Route Target, IPv4 address specific
+	extCommRouteTargetAS4     = 0x0202 // RFC 4360 Section 4: Route Target, four-octet AS specific
+	extCommRouteOriginAS2     = 0x0003 // RFC 4360 Section 5: Route Origin, two-octet AS specific
+	extCommRouteOriginIPv4    = 0x0103 // RFC 4360 Section 5: Route Origin, IPv4 address specific
+	extCommRouteOriginAS4     = 0x0203 // RFC 4360 Section 5: Route Origin, four-octet AS specific
 	extCommTrafficRateBytes   = 0x8006 // RFC 8955 Section 7.1: traffic-rate-bytes
 	extCommTrafficAction      = 0x8007 // RFC 8955 Section 7.3: traffic-action
-	extCommRedirect           = 0x8008 // RFC 8955 Section 7.4: rt-redirect, two-octet AS specific
+	extCommRedirectAS2        = 0x8008 // RFC 8955 Section 7.4: rt-redirect, two-octet AS specific
+	extCommRedirectIPv4       = 0x8108 // RFC 8955 Section 7.4: rt-redirect, IPv4 address specific
+	extCommRedirectAS4        = 0x8208 // RFC 8955 Section 7.4: rt-redirect, four-octet AS specific
 	extCommTrafficMarking     = 0x8009 // RFC 8955 Section 7.5: traffic-marking
 	extCommTrafficRatePackets = 0x800c // RFC 8955 Section 7.2: traffic-rate-packets
+)
+
+// RFC 8955 Section 7.3 Figure 5: the two defined bits of the 6-octet Traffic
+// Action Field are the last two, so both sit in the final octet.
+const (
+	extCommTrafficActionTerminal = 0x01 // T, bit 47
+	extCommTrafficActionSample   = 0x02 // S, bit 46
 )
 
 // RFC 8955 Section 7.5: the DSCP is carried in "the 6 least significant bits of
@@ -43,30 +64,45 @@ const extCommDSCPMask = 0x3f
 // AppendDecoded appends the extended community's named form to buf and returns
 // the extended buffer. It allocates nothing.
 //
-// The names are the ones Ze's own parsers accept on input
-// (route/route_community.go parseExtendedCommunity,
+// The Route Target, Route Origin and rt-redirect names are the ones Ze's own
+// parsers accept on input (route/route_community.go parseExtendedCommunity,
 // config/routeattr_community.go parseOneExtCommunity), so a community written
-// as "target:65000:1" is read back as "target:65000:1".
+// as "target:65000:1" is read back as "target:65000:1", and one written as
+// "target:8.8.8.8:8000" is read back as "target:8.8.8.8:8000".
+//
+// The traffic-action form carries the flag words the config parser reads
+// ("sample", "terminal", "sample-terminal"), behind the "traffic-action:"
+// keyword rather than behind the "action " keyword config writes, so it is
+// read by a human rather than fed back to that parser.
 //
 // A type this function does not name renders as "0x<type><subtype>:<hex>", so
 // the octets stay readable instead of being dropped.
 func (e ExtendedCommunity) AppendDecoded(buf []byte) []byte {
 	switch binary.BigEndian.Uint16(e[0:2]) {
-	case extCommRouteTarget:
-		return appendExtCommASSpecific(buf, "target:", e)
-	case extCommRouteOrigin:
-		return appendExtCommASSpecific(buf, "origin:", e)
-	case extCommRedirect:
-		return appendExtCommASSpecific(buf, "redirect:", e)
+	case extCommRouteTargetAS2:
+		return appendExtCommAS2Specific(buf, "target:", e)
+	case extCommRouteTargetIPv4:
+		return appendExtCommIPv4Specific(buf, "target:", e)
+	case extCommRouteTargetAS4:
+		return appendExtCommAS4Specific(buf, "target:", e)
+	case extCommRouteOriginAS2:
+		return appendExtCommAS2Specific(buf, "origin:", e)
+	case extCommRouteOriginIPv4:
+		return appendExtCommIPv4Specific(buf, "origin:", e)
+	case extCommRouteOriginAS4:
+		return appendExtCommAS4Specific(buf, "origin:", e)
+	case extCommRedirectAS2:
+		return appendExtCommAS2Specific(buf, "redirect:", e)
+	case extCommRedirectIPv4:
+		return appendExtCommIPv4Specific(buf, "redirect:", e)
+	case extCommRedirectAS4:
+		return appendExtCommAS4Specific(buf, "redirect:", e)
 	case extCommTrafficRateBytes:
 		return appendExtCommTrafficRate(buf, e, "")
 	case extCommTrafficRatePackets:
 		return appendExtCommTrafficRate(buf, e, "packets")
 	case extCommTrafficAction:
-		// RFC 8955 Section 7.3: the unused bits of the Traffic Action Field
-		// "MUST be set to 0 on encoding and MUST be ignored during decoding",
-		// so the name carries the whole rendering and no value octet is read.
-		return append(buf, "traffic-action"...)
+		return appendExtCommTrafficAction(buf, e)
 	case extCommTrafficMarking:
 		// RFC 8955 Section 7.5: "reserved (r): MUST be set to 0 on encoding and
 		// MUST be ignored during decoding". Masking to the low 6 bits is what
@@ -91,15 +127,80 @@ func (e ExtendedCommunity) String() string {
 	return string(e.AppendDecoded(buf[:0]))
 }
 
-// appendExtCommASSpecific appends "<name><2-octet AS>:<4-octet local
-// administrator>", the shape RFC 4360 Section 3.1 gives the transitive
-// two-octet AS specific extended community and RFC 8955 Section 7.4 reuses for
-// rt-redirect.
-func appendExtCommASSpecific(buf []byte, name string, e ExtendedCommunity) []byte {
+// appendExtCommAS2Specific appends "<name><2-octet AS>:<4-octet local
+// administrator>", the shape RFC 4360 Section 3.1 gives the two-octet AS
+// specific extended community and RFC 8955 Section 7.4 reuses for rt-redirect
+// type 0x80.
+func appendExtCommAS2Specific(buf []byte, name string, e ExtendedCommunity) []byte {
 	buf = append(buf, name...)
 	buf = strconv.AppendUint(buf, uint64(binary.BigEndian.Uint16(e[2:4])), 10)
 	buf = append(buf, ':')
 	return strconv.AppendUint(buf, uint64(binary.BigEndian.Uint32(e[4:8])), 10)
+}
+
+// appendExtCommAS4Specific appends "<name><4-octet AS>:<2-octet local
+// administrator>", the shape RFC 5668 Section 2 gives the four-octet AS
+// specific extended community, which RFC 4360 Sections 4 and 5 name as type
+// 0x02 and RFC 8955 Section 7.4 reuses for rt-redirect type 0x82.
+//
+// The administrator is four octets wide here and two octets wide in
+// appendExtCommAS2Specific, so the 6-octet value field splits in the other
+// place. A four-byte-ASN deployment carries this form and nothing else.
+func appendExtCommAS4Specific(buf []byte, name string, e ExtendedCommunity) []byte {
+	buf = append(buf, name...)
+	buf = strconv.AppendUint(buf, uint64(binary.BigEndian.Uint32(e[2:6])), 10)
+	buf = append(buf, ':')
+	return strconv.AppendUint(buf, uint64(binary.BigEndian.Uint16(e[6:8])), 10)
+}
+
+// appendExtCommIPv4Specific appends "<name><IPv4 global administrator>:<2-octet
+// local administrator>", the shape RFC 4360 Section 3.2 gives the IPv4 address
+// specific extended community, which RFC 4360 Sections 4 and 5 name as type
+// 0x01 and RFC 8955 Section 7.4 reuses for rt-redirect type 0x81.
+//
+// The administrator is an address rather than a number, so it renders as a
+// dotted quad: that is the form the operator configured and the form Ze's own
+// config parser reads back (config/routeattr_community.go
+// parseRouteTargetOrOrigin).
+func appendExtCommIPv4Specific(buf []byte, name string, e ExtendedCommunity) []byte {
+	buf = append(buf, name...)
+	buf = netip.AddrFrom4([4]byte{e[2], e[3], e[4], e[5]}).AppendTo(buf)
+	buf = append(buf, ':')
+	return strconv.AppendUint(buf, uint64(binary.BigEndian.Uint16(e[6:8])), 10)
+}
+
+// appendExtCommTrafficAction appends "traffic-action:" and the names of the
+// action bits RFC 8955 Section 7.3 defines: S (Sample, bit 46) and T (Terminal
+// Action, bit 47). With neither bit set it appends "traffic-action:none", so
+// the value the peer sent is always spelled out and no reader has to ask
+// whether a bare name hid a set bit.
+//
+// The flag words are the ones the config parser reads on input, "sample",
+// "terminal" and the hyphen-joined "sample-terminal" for both
+// (config/routeattr_community.go parseFlowSpecAction, written in config as
+// `extended-community [action sample-terminal]`), so one community is spelled
+// one way on the way in and on the way out.
+//
+// "terminal" is the RFC's own field name and it reads backwards: T SET tells
+// the filtering engine to go on and evaluate later Flow Specifications, and T
+// CLEAR stops evaluation at this one. The name follows the RFC rather than the
+// behavior, because an operator comparing this output against another
+// implementation's is comparing field names.
+//
+// Every other bit of the 6-octet Traffic Action Field is unused: Section 7.3
+// says they "MUST be set to 0 on encoding and MUST be ignored during decoding",
+// so no octet but the last is read, and only two bits of that one.
+func appendExtCommTrafficAction(buf []byte, e ExtendedCommunity) []byte {
+	buf = append(buf, "traffic-action:"...)
+	switch e[7] & (extCommTrafficActionSample | extCommTrafficActionTerminal) {
+	case extCommTrafficActionSample | extCommTrafficActionTerminal:
+		return append(buf, "sample-terminal"...)
+	case extCommTrafficActionSample:
+		return append(buf, "sample"...)
+	case extCommTrafficActionTerminal:
+		return append(buf, "terminal"...)
+	}
+	return append(buf, "none"...)
 }
 
 // appendExtCommTrafficRate appends "rate-limit:<rate>", and ":<unit>" when the

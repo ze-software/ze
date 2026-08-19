@@ -1,0 +1,19 @@
+# Every community attribute a peer sends reaches `ze bgp decode --json`.
+#
+# Codes 8, 25 and 32 reached no case and no default in parsePathAttributesZe
+# (internal/component/bgp/cli/decode_update.go), so each one left the decode
+# with no trace at all: an operator inspecting a capture was told nothing about
+# a community the peer had sent, rather than being given its text or an error.
+#
+# Wire octets, after the 19-octet header, 0 withdrawn routes, 76 attribute octets:
+#   40 01 01 00                            ORIGIN igp
+#   40 02 06 02 01 0000FDE9                AS_PATH 65001
+#   40 03 04 C0000201                      NEXT_HOP 192.0.2.1
+#   C0 08 04 FDE90064                      COMMUNITIES 65001:100 (RFC 1997)
+#   C0 10 08 0002 0064 00000001            EXTENDED_COMMUNITIES target:100:1 (RFC 4360)
+#   C0 19 14 0002 20010DB8..0001 0064      IPV6_EXTENDED_COMMUNITIES (RFC 5701)
+#   C0 20 0C 0000FDE9 00000001 00000002    LARGE_COMMUNITIES 65001:1:2 (RFC 8092)
+#   18 0A0001                              NLRI 10.0.1.0/24
+stdin=payload:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0067020000004C4001010040020602010000FDE9400304C0000201C00804FDE90064C010080002006400000001C01914000220010DB80000000000000000000000010064C0200C0000FDE90000000100000002180A0001
+cmd=foreground:seq=1:exec=ze bgp decode --json --family ipv4/unicast -:stdin=payload
+expect=json:json={"bgp":{"message":{"direction":"received","id":0,"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"update":{"attr":{"as-path":{"optional":false,"partial":false,"transitive":true,"value":[65001]},"community":{"optional":true,"partial":false,"transitive":true,"value":["65001:100"]},"extended-community":{"optional":true,"partial":false,"transitive":true,"value":[{"string":"target:100:1","value":563379450150913}]},"ipv6-extended-community":{"optional":true,"partial":false,"transitive":true,"value":["000220010db80000000000000000000000010064"]},"large-community":{"optional":true,"partial":false,"transitive":true,"value":["65001:1:2"]},"origin":{"optional":false,"partial":false,"transitive":true,"value":"igp"}},"ipv4/unicast":[{"action":"add","next-hop":"192.0.2.1","nlri":["10.0.1.0/24"]}]}},"type":"bgp"}

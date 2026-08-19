@@ -449,21 +449,30 @@ func TestExtendedCommunities(t *testing.T) {
 			name: "traffic_action",
 			data: []byte{0x80, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
 			want: []map[string]any{
-				{"value": uint64(9225342361691750400), "string": "traffic-action"},
+				{"value": uint64(9225342361691750400), "string": "traffic-action:none"},
+			},
+		},
+		{
+			// RFC 8955 Section 7.3 Figure 5: S is bit 46 and T is bit 47, so
+			// 0x03 sets both.
+			name: "traffic_action_sample_terminal",
+			data: []byte{0x80, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03},
+			want: []map[string]any{
+				{"value": uint64(9225342361691750403), "string": "traffic-action:sample-terminal"},
 			},
 		},
 		{
 			name: "redirect_asn_100",
 			data: []byte{0x80, 0x08, 0x00, 0x64, 0x00, 0x00, 0x00, 0x01},
 			want: []map[string]any{
-				{"value": uint64(9225623836668461057), "string": "redirect:100:1"},
+				{"value": uint64(9225624266165190657), "string": "redirect:100:1"},
 			},
 		},
 		{
 			name: "redirect_asn_65000_local_999",
 			data: []byte{0x80, 0x08, 0xFD, 0xE8, 0x00, 0x00, 0x03, 0xE7},
 			want: []map[string]any{
-				{"value": uint64(9225623947148058599), "string": "redirect:65000:999"},
+				{"value": uint64(9225903009542702055), "string": "redirect:65000:999"},
 			},
 		},
 		{
@@ -484,21 +493,21 @@ func TestExtendedCommunities(t *testing.T) {
 			name: "route_target",
 			data: []byte{0x00, 0x02, 0x00, 0x64, 0x00, 0x00, 0x00, 0x01},
 			want: []map[string]any{
-				{"value": uint64(562954248388609), "string": "target:100:1"},
+				{"value": uint64(563379450150913), "string": "target:100:1"},
 			},
 		},
 		{
 			name: "route_origin",
 			data: []byte{0x00, 0x03, 0x00, 0x64, 0x00, 0x00, 0x00, 0x02},
 			want: []map[string]any{
-				{"value": uint64(844429225099266), "string": "origin:100:2"},
+				{"value": uint64(844854426861570), "string": "origin:100:2"},
 			},
 		},
 		{
 			name: "unknown_type",
 			data: []byte{0x00, 0xFF, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06},
 			want: []map[string]any{
-				{"value": uint64(71776119077928198), "string": "0x00ff:010203040506"},
+				{"value": uint64(71777227213374726), "string": "0x00ff:010203040506"},
 			},
 		},
 		{
@@ -509,7 +518,7 @@ func TestExtendedCommunities(t *testing.T) {
 			},
 			want: []map[string]any{
 				{"value": uint64(9225060886715039744), "string": "rate-limit:0"},
-				{"value": uint64(9225623836668461057), "string": "redirect:100:1"},
+				{"value": uint64(9225624266165190657), "string": "redirect:100:1"},
 			},
 		},
 	}
@@ -522,6 +531,11 @@ func TestExtendedCommunities(t *testing.T) {
 
 			for i := range got {
 				assert.Equal(t, tt.want[i]["string"], got[i]["string"], "community[%d].string", i)
+				// The raw 64-bit value is half of what this attribute renders,
+				// and it went unasserted until 2026-08-19: five rows of the
+				// table above carried a number that was not the big-endian
+				// reading of their own octets, and nothing could say so.
+				assert.Equal(t, tt.want[i]["value"], got[i]["value"], "community[%d].value", i)
 			}
 		})
 	}
@@ -1470,25 +1484,38 @@ func TestRFC8955TrafficRateNegativeDecodesAsZero(t *testing.T) {
 		"a negative traffic-rate-packets must decode as 0 (discard)")
 }
 
-// TestRFC8955TrafficActionUnusedBitsIgnoredOnDecode verifies unused bits in the FlowSpec
-// traffic-action field do not change the decoded community.
+// TestRFC8955TrafficActionUnusedBitsIgnoredOnDecode verifies the two defined bits of the
+// FlowSpec traffic-action field reach the decoded community, and the unused bits do not.
 //
 // VALIDATES: ExtendedCommunity.AppendDecoded (internal/core/bgp/attribute/extcomm_decoded.go),
-// which this CLI path reaches through parseExtendedCommunities, classifies type 0x80 /
-// sub-type 0x07 by its type octets alone and renders "traffic-action" without consulting
-// the 6-octet Traffic Action Field, so the reserved bits are ignored.
+// which this CLI path reaches through parseExtendedCommunities, reads S (Sample, bit 46)
+// and T (Terminal Action, bit 47) out of the Traffic Action Field and reads no other bit
+// of it.
 //
-// PREVENTS: a peer that leaves the reserved Traffic Action Field bits set having its
-// action community decoded as something else (or as an unrecognized generic community).
+// PREVENTS: two failures that look alike from one assertion. A peer that leaves the
+// reserved bits set must not have its action community decoded as something else, and a
+// renderer that ignores the WHOLE field satisfies that on its own -- it returns one
+// constant whatever the wire says, so the equality below cannot fail. The differing pair
+// is what separates "ignores the reserved bits" from "ignores every bit".
+//
+// rfc-test-change-approved: 2026-08-19 owner directive -- the equality assertion could not
+// fail while the renderer returned a constant; the defined-bits assertions below give it
+// something to discriminate against, and the expected strings follow the renderer that now
+// spells the bits.
 func TestRFC8955TrafficActionUnusedBitsIgnoredOnDecode(t *testing.T) {
-	// Terminal + Sample set, every other bit of the action field clear.
+	// RFC 8955 Section 7.3 Figure 5 draws the field as |S|T|, so T is 0x01 and S is 0x02
+	// of the last octet. Terminal + Sample set, every other bit of the field clear.
 	clean := []byte{0x80, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03}
 	// Same action bits with every reserved bit of the field set.
 	reserved := []byte{0x80, 0x07, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}
+	// The same reserved bits with only Terminal set, so the pair below differs in a
+	// DEFINED bit alone.
+	terminalOnly := []byte{0x80, 0x07, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFD}
 
+	// RFC requirement: RFC8955-7.3-1 positive -- the defined traffic-action bits decode to their names (§7.3)
 	gotClean := parseExtendedCommunities(clean)
 	require.Len(t, gotClean, 1)
-	assert.Equal(t, "traffic-action", gotClean[0]["string"])
+	assert.Equal(t, "traffic-action:sample-terminal", gotClean[0]["string"])
 
 	// RFC 8955 Section 7.3: the unused bits of the Traffic Action Field "MUST be set to 0
 	// on encoding and MUST be ignored during decoding."
@@ -1497,4 +1524,12 @@ func TestRFC8955TrafficActionUnusedBitsIgnoredOnDecode(t *testing.T) {
 	require.Len(t, gotReserved, 1)
 	assert.Equal(t, gotClean[0]["string"], gotReserved[0]["string"],
 		"unused traffic-action bits must not change the decode")
+
+	// Clearing S while every reserved bit stays set must change the decode. Without this
+	// the equality above holds for a renderer that reads no bit at all.
+	gotTerminalOnly := parseExtendedCommunities(terminalOnly)
+	require.Len(t, gotTerminalOnly, 1)
+	assert.Equal(t, "traffic-action:terminal", gotTerminalOnly[0]["string"])
+	assert.NotEqual(t, gotReserved[0]["string"], gotTerminalOnly[0]["string"],
+		"the defined traffic-action bits must change the decode")
 }

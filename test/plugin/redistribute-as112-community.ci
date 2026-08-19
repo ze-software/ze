@@ -1,8 +1,18 @@
 # Test: redistribute-as112-community -- an origin-AS redistribute carries the
 # producer's COMMUNITIES onto the wire. fakeas112 emits `community nopeer`
 # (RFC 3765 NOPEER = 0xFFFFFF04 = 65535:65284, RFC 7534's recommended community
-# for AS112 routes to bilateral peers); the consumer renders it as
-# `community [65535:65284]` and the reactor attaches it to every covering prefix.
+# for AS112 routes to bilateral peers), and the reactor attaches it to every
+# covering prefix.
+#
+# The JSON expectation below reads `"community": ["nopeer"]`: renderAttributeZe
+# (internal/component/bgp/cli/decode_update.go) files attribute code 8 under the
+# key `community`, and parseCommunities renders each value through
+# Community.String, which answers with the well-known name the registry carries
+# (internal/core/bgp/attribute/community.go, CommunityNoPeer). That key was
+# ABSENT from this expectation until 2026-08-19, because case 8 reached no arm of
+# that switch and the attribute vanished from the output. The wire assertions
+# above always carried C00804FFFFFF04, so the golden recorded the absence of a
+# community the same UPDATE was proven to carry.
 #
 # VALIDATES: RouteChangeBatch.Community -> COMMUNITIES on the announced covering
 #            prefixes, alongside origin igp + AS_PATH [112] (iBGP).
@@ -26,7 +36,7 @@ option=tcp_connections:value=1
 option=timeout:value=15s
 expect=bgp:conn=1:seq=1:contains=4002060201000000704003047F00000240050400000064C00804FFFFFF0418C0AF30
 expect=bgp:conn=1:seq=1:contains=4002060201000000704003047F00000240050400000064C00804FFFFFF0418C01FC4
-expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"origin":"igp","as-path":[112],"local-preference":100,"ipv4/unicast":[{"action":"add","nlri":["192.175.48.0/24"],"next-hop":"127.0.0.2"}]}
+expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"origin":"igp","as-path":[112],"local-preference":100,"community":["nopeer"],"ipv4/unicast":[{"action":"add","nlri":["192.175.48.0/24"],"next-hop":"127.0.0.2"}]}
 EOF_PEER
 
 # Python observer plugin: drive `fakeas112 emit add asn 112 community nopeer`.

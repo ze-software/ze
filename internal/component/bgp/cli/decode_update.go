@@ -1,12 +1,17 @@
 // Design: docs/architecture/core-design.md — BGP CLI commands
 // Overview: decode.go — top-level decode dispatch
 // Related: decode_mp.go — MP_REACH/MP_UNREACH parsing
-// Related: decode_extcomm.go — extended community parsing
+// Related: decode_extcomm.go — the four community attribute renderers
+// RFC: rfc/short/rfc4271.md — path attribute header, flags and the base attribute codes
+// RFC: rfc/short/rfc7606.md — Section 3.g keep-first for a repeated attribute code
+// RFC: rfc/short/rfc4760.md — MP_REACH_NLRI and MP_UNREACH_NLRI (codes 14, 15)
+// RFC: rfc/short/rfc7752.md — BGP-LS attribute (code 29)
 
 package cli
 
 import (
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
@@ -145,73 +150,30 @@ func parsePathAttributesZe(data []byte) (attrs map[string]any, mpReach, mpUnreac
 		value := data[offset+hdrLen : offset+hdrLen+valueLen]
 		wf := wireFlags(flags)
 
+		// Three codes are consumed rather than rendered under "attr". Every
+		// other code goes through renderAttributeZe, and one whose octets it
+		// cannot read is filed under its raw form rather than dropped.
 		switch code {
-		case 1: // ORIGIN
-			if len(value) >= 1 {
-				origins := []string{"igp", "egp", "incomplete"}
-				if int(value[0]) < len(origins) {
-					attrs["origin"] = wf.wrap(origins[value[0]])
-				}
-			}
-		case 2: // AS_PATH - Ze format uses simple array
-			asPath := parseASPathZe(value)
-			if len(asPath) > 0 {
-				attrs["as-path"] = wf.wrap(asPath)
-			}
-		case 3: // NEXT_HOP
+		case 3: // NEXT_HOP (RFC 4271 Section 5.1.3)
+			// Carried into the announce operation, not into "attr". A length
+			// other than 4 is not a next hop, so it takes the raw form.
 			if len(value) == 4 {
 				var b textbuf.Buffer
 				attrs["_next-hop"] = b.Reset().Uint8(value[0]).Byte('.').Uint8(value[1]).Byte('.').Uint8(value[2]).Byte('.').Uint8(value[3]).String()
+				break
 			}
-		case 4: // MED
-			if len(value) == 4 {
-				attrs["med"] = wf.wrap(binary.BigEndian.Uint32(value))
-			}
-		case 5: // LOCAL_PREF
-			if len(value) == 4 {
-				attrs["local-preference"] = wf.wrap(binary.BigEndian.Uint32(value))
-			}
-		case 6: // ATOMIC_AGGREGATE
-			attrs["atomic-aggregate"] = wf.wrap(true)
-		case 7: // AGGREGATOR
-			if len(value) == 6 {
-				var b textbuf.Buffer
-				ip := b.Reset().Uint8(value[2]).Byte('.').Uint8(value[3]).Byte('.').Uint8(value[4]).Byte('.').Uint8(value[5]).String()
-				var b2 textbuf.Buffer
-				attrs["aggregator"] = wf.wrap(b2.Reset().Uint16(binary.BigEndian.Uint16(value[0:2])).Byte(':').Str(ip).String())
-			} else if len(value) == 8 {
-				var b textbuf.Buffer
-				ip := b.Reset().Uint8(value[4]).Byte('.').Uint8(value[5]).Byte('.').Uint8(value[6]).Byte('.').Uint8(value[7]).String()
-				var b2 textbuf.Buffer
-				attrs["aggregator"] = wf.wrap(b2.Reset().Uint32(binary.BigEndian.Uint32(value[0:4])).Byte(':').Str(ip).String())
-			}
-		case 9: // ORIGINATOR_ID
-			if len(value) == 4 {
-				var b textbuf.Buffer
-				attrs["originator-id"] = wf.wrap(b.Reset().Uint8(value[0]).Byte('.').Uint8(value[1]).Byte('.').Uint8(value[2]).Byte('.').Uint8(value[3]).String())
-			}
-		case 10: // CLUSTER_LIST
-			var clusters []string
-			for i := 0; i+4 <= len(value); i += 4 {
-				var b textbuf.Buffer
-				clusters = append(clusters, b.Reset().Uint8(value[i]).Byte('.').Uint8(value[i+1]).Byte('.').Uint8(value[i+2]).Byte('.').Uint8(value[i+3]).String())
-			}
-			if len(clusters) > 0 {
-				attrs["cluster-list"] = wf.wrap(clusters)
-			}
-		case 16: // EXTENDED_COMMUNITIES
-			extComms := parseExtendedCommunities(value)
-			if len(extComms) > 0 {
-				attrs["extended-community"] = wf.wrap(extComms)
-			}
+			attrs[rawAttrKey(code)] = wf.wrap(hex.EncodeToString(value))
 		case 14: // MP_REACH_NLRI
 			mpReach = value
 		case 15: // MP_UNREACH_NLRI
 			mpUnreach = value
-		case 29: // BGP-LS Attribute (RFC 7752 Section 3.3)
-			bgplsAttr := ls.AttrTLVsToJSON(value)
-			if len(bgplsAttr) > 0 {
-				attrs["bgp-ls"] = wf.wrap(bgplsAttr)
+		default:
+			key, rendered, understood := renderAttributeZe(code, value)
+			switch {
+			case !understood:
+				attrs[rawAttrKey(code)] = wf.wrap(hex.EncodeToString(value))
+			case key != "":
+				attrs[key] = wf.wrap(rendered)
 			}
 		}
 
@@ -219,6 +181,124 @@ func parsePathAttributesZe(data []byte) (attrs map[string]any, mpReach, mpUnreac
 	}
 
 	return attrs, mpReach, mpUnreach
+}
+
+// renderAttributeZe renders one path attribute for `ze bgp decode` JSON. It
+// returns the JSON key to file the attribute under, its value, and whether the
+// octets were the shape the attribute requires.
+//
+// Three outcomes, and the third is what this decoder was missing. Octets it
+// understood give a key and a value. Octets it understood that hold nothing to
+// show give no key, and the attribute stays out of the output, which is how a
+// route the local speaker originated keeps its empty AS_PATH out of "attr".
+// Octets it did NOT understand, and every code with no arm here, give
+// understood=false, and the caller files the attribute under its raw form.
+//
+// Codes 8, 25 and 32 reached no arm of this switch and no default until
+// 2026-08-19, so each one vanished from the output in silence: an operator
+// reading a capture was told nothing about a community the peer had sent.
+func renderAttributeZe(code byte, value []byte) (key string, rendered any, understood bool) {
+	switch code {
+	case 1: // ORIGIN
+		origins := []string{"igp", "egp", "incomplete"}
+		if len(value) >= 1 && int(value[0]) < len(origins) {
+			return "origin", origins[value[0]], true
+		}
+	case 2: // AS_PATH - Ze format uses simple array
+		if asPath := parseASPathZe(value); len(asPath) > 0 {
+			return "as-path", asPath, true
+		}
+		// RFC 4271 Section 5.1.2: a route the local speaker originated
+		// carries an empty AS_PATH, and there is nothing to show for one.
+		if len(value) == 0 {
+			return "", nil, true
+		}
+	case 4: // MED
+		if len(value) == 4 {
+			return "med", binary.BigEndian.Uint32(value), true
+		}
+	case 5: // LOCAL_PREF
+		if len(value) == 4 {
+			return "local-preference", binary.BigEndian.Uint32(value), true
+		}
+	case 6: // ATOMIC_AGGREGATE
+		return "atomic-aggregate", true, true
+	case 7: // AGGREGATOR
+		if len(value) == 6 {
+			var b textbuf.Buffer
+			ip := b.Reset().Uint8(value[2]).Byte('.').Uint8(value[3]).Byte('.').Uint8(value[4]).Byte('.').Uint8(value[5]).String()
+			var b2 textbuf.Buffer
+			return "aggregator", b2.Reset().Uint16(binary.BigEndian.Uint16(value[0:2])).Byte(':').Str(ip).String(), true
+		}
+		if len(value) == 8 {
+			var b textbuf.Buffer
+			ip := b.Reset().Uint8(value[4]).Byte('.').Uint8(value[5]).Byte('.').Uint8(value[6]).Byte('.').Uint8(value[7]).String()
+			var b2 textbuf.Buffer
+			return "aggregator", b2.Reset().Uint32(binary.BigEndian.Uint32(value[0:4])).Byte(':').Str(ip).String(), true
+		}
+	case 8: // COMMUNITIES (RFC 1997)
+		if comms := parseCommunities(value); len(comms) > 0 {
+			return "community", comms, true
+		}
+		if len(value) == 0 {
+			return "", nil, true
+		}
+	case 9: // ORIGINATOR_ID
+		if len(value) == 4 {
+			var b textbuf.Buffer
+			return "originator-id", b.Reset().Uint8(value[0]).Byte('.').Uint8(value[1]).Byte('.').Uint8(value[2]).Byte('.').Uint8(value[3]).String(), true
+		}
+	case 10: // CLUSTER_LIST
+		if len(value)%4 != 0 {
+			break
+		}
+		clusters := make([]string, 0, len(value)/4)
+		for i := 0; i+4 <= len(value); i += 4 {
+			var b textbuf.Buffer
+			clusters = append(clusters, b.Reset().Uint8(value[i]).Byte('.').Uint8(value[i+1]).Byte('.').Uint8(value[i+2]).Byte('.').Uint8(value[i+3]).String())
+		}
+		if len(clusters) > 0 {
+			return "cluster-list", clusters, true
+		}
+		return "", nil, true
+	case 16: // EXTENDED_COMMUNITIES (RFC 4360)
+		if extComms := parseExtendedCommunities(value); len(extComms) > 0 {
+			return "extended-community", extComms, true
+		}
+		if len(value) == 0 {
+			return "", nil, true
+		}
+	case 25: // IPV6_EXTENDED_COMMUNITIES (RFC 5701)
+		if extComms := parseIPv6ExtendedCommunities(value); len(extComms) > 0 {
+			return "ipv6-extended-community", extComms, true
+		}
+		if len(value) == 0 {
+			return "", nil, true
+		}
+	case 29: // BGP-LS Attribute (RFC 7752 Section 3.3)
+		if bgplsAttr := ls.AttrTLVsToJSON(value); len(bgplsAttr) > 0 {
+			return "bgp-ls", bgplsAttr, true
+		}
+	case 32: // LARGE_COMMUNITIES (RFC 8092)
+		if comms := parseLargeCommunities(value); len(comms) > 0 {
+			return "large-community", comms, true
+		}
+		if len(value) == 0 {
+			return "", nil, true
+		}
+	}
+
+	return "", nil, false
+}
+
+// rawAttrKey names an attribute Ze does not render as "attr-<code>", the same
+// spelling appendAttributeJSON (internal/component/bgp/format/text_json.go)
+// gives it on the receive path. Its value is the attribute's octets as
+// lowercase hex, which is what that function writes too, so an operator meets
+// one form on both surfaces.
+func rawAttrKey(code byte) string {
+	var b textbuf.Buffer
+	return b.Reset().Str("attr-").Uint8(code).String()
 }
 
 // wireFlags wraps an AttributeFlags for building flag-annotated attribute maps.

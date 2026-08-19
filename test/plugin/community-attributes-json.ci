@@ -2,8 +2,9 @@
 # VALIDATES: COMMUNITIES, EXTENDED_COMMUNITIES, IPV6_EXTENDED_COMMUNITIES and
 #            LARGE_COMMUNITIES each render under their own ze-bgp JSON key on
 #            the plugin update-received event, and an EXTENDED_COMMUNITIES
-#            entry carries the named form (`target:65000:1`, `mark:46`) that
-#            the FlowSpec firewall bridge matches, not raw hex.
+#            entry carries the named form (`target:65000:1`, `target:65536:100`,
+#            `mark:46`, `traffic-action:sample-terminal`) that the FlowSpec
+#            firewall bridge matches, not raw hex.
 # PREVENTS: the four JSON formatters in filter_community asserting a POINTER
 #           while every parser in internal/core/bgp/attribute/community.go
 #           returns a VALUE. The assertion never matched, appendAttributeJSON
@@ -12,29 +13,45 @@
 #           "attr-32" with a hex payload.
 # RFC requirement: RFC8955-7.5-1 positive -- a traffic-marking community reaches a plugin as its DSCP (§7.5)
 # RFC requirement: RFC8955-7.5-1 negative -- the reserved bits above the 6-bit DSCP field are ignored on decode (§7.5)
+# RFC requirement: RFC8955-7.3-1 positive -- a traffic-action community reaches a plugin as the Terminal and Sample bits it carries (§7.3)
+# RFC requirement: RFC8955-7.3-1 negative -- the unused Traffic Action Field bits are ignored on decode, so two communities differing only in them decode alike (§7.3)
+# rfc-test-change-approved: 2026-08-19 owner directive -- add the four-octet-AS route target and the traffic-action pair to the same UPDATE; the RFC8955-7.5-1 assertions above are unchanged
 
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=20s
 # Hold the session open until the observer has read the event and shut ze down.
 option=linger:value=true
+# rfc-test-change-approved: 2026-08-19 owner directive to complete the extended-community
+# renderer -- three entries are ADDED to the same UPDATE (a four-octet-AS route target and
+# the traffic-action pair) so the RFC8955-7.3-1 tags above have wire bytes behind them. No
+# existing entry, assertion or RFC8955-7.5-1 expectation changes.
 # UPDATE carrying one of each community attribute.
-# Header: marker(16) + len=0069(105) + type=02
-# Body:   withdrawn len=0000, attr len=004E(78)
+# Header: marker(16) + len=0081(129) + type=02
+# Body:   withdrawn len=0000, attr len=0066(102)
 #   40 01 01 00                            ORIGIN igp
 #   40 02 00                               AS_PATH empty (iBGP)
 #   40 03 04 C0A80102                      NEXT_HOP 192.168.1.2
 #   C0 08 04 FDE90064                      COMMUNITIES 65001:100 (RFC 1997)
-#   C0 10 10                               EXTENDED_COMMUNITIES, two entries (RFC 4360)
-#            0002FDE800000001              route target 65000:1
+#   C0 10 28                               EXTENDED_COMMUNITIES, five entries (RFC 4360)
+#            0002FDE800000001              route target 65000:1, two-octet AS form
 #            80090000000000EE              traffic-marking DSCP 46, and BOTH bits above
 #                                          the 6-bit DSCP field set: 0xEE is 0b11_101110,
 #                                          and RFC 8955 Section 7.5 says those two are
 #                                          reserved and ignored during decoding
+#            0202000100000064              route target 65536:100, four-octet AS form:
+#                                          RFC 5668 Section 2 puts a 4-octet administrator
+#                                          and a 2-octet assigned number where the form
+#                                          above puts 2 and 4
+#            8007000000000003              traffic-action, Sample and Terminal set, every
+#                                          unused bit of the Traffic Action Field clear
+#            8007FFFFFFFFFFFF              the same two bits with every unused bit SET:
+#                                          RFC 8955 Section 7.3 says those are ignored on
+#                                          decode, so this must render as the line above
 #   C0 19 14 0002 20010DB8.. 0001          IPV6_EXTENDED_COMMUNITIES 2001:db8::,1 (RFC 5701)
 #   C0 20 0C 0000FDE9 00000001 00000002    LARGE_COMMUNITIES 65001:1:2 (RFC 8092)
 #   18 0A0000                              NLRI 10.0.0.0/24
-action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0069020000004E40010100400200400304C0A80102C00804FDE90064C010100002FDE80000000180090000000000EEC01914000220010DB80000000000000000000000000001C0200C0000FDE90000000100000002180A0000
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0081020000006640010100400200400304C0A80102C00804FDE90064C010280002FDE80000000180090000000000EE020200010000006480070000000000038007FFFFFFFFFFFFC01914000220010DB80000000000000000000000000001C0200C0000FDE90000000100000002180A0000
 EOF_PEER
 
 tmpfs=community-json.run:mode=755:terminator=EOF_RUN
@@ -48,18 +65,38 @@ from ze_api import API, runtime_fail
 # What appendAttributeJSON writes when a formatter claims the attribute. The
 # values are read straight off the wire bytes the peer sent above.
 #
+# rfc-test-change-approved: 2026-08-19 owner directive to complete the extended-community
+# renderer -- three expectations are ADDED to match the three communities added to the
+# UPDATE above. 'target:65000:1' and 'mark:46' are unchanged.
+#
 # extended-communities carries the NAMED form, the vocabulary Ze's own route and
 # config parsers accept on input and the FlowSpec firewall bridge matches on
 # this event. 'mark:46' is the proof that RFC 8955 Section 7.5's two reserved
 # bits were ignored: the octet on the wire is 0xEE, so an unmasked read would
 # say 'mark:238' and the firewall would drop the marking action.
 #
+# The two traffic-action entries are the RFC 8955 Section 7.3 pair. They carry
+# different wire octets and must decode alike, because the only bits the decoder
+# reads are S (Sample, bit 46) and T (Terminal Action, bit 47); every other bit
+# of the Traffic Action Field is unused and ignored on decode. One entry alone
+# would not say that: a decoder that read NO bit would satisfy it too.
+#
+# 'target:65536:100' is the RFC 5668 Section 2 four-octet AS form. It splits the
+# 6-octet value field 4+2 where 'target:65000:1' splits it 2+4, so a renderer
+# that used one split for both reads the wrong number out of each field.
+#
 # ipv6-extended-communities stays hex: RFC 5701 puts a 16-octet IPv6 global
 # administrator where RFC 4360 puts a 2-octet AS, so this vocabulary names
 # nothing in it.
 DECODED = {
     'communities': ['65001:100'],
-    'extended-communities': ['target:65000:1', 'mark:46'],
+    'extended-communities': [
+        'target:65000:1',
+        'mark:46',
+        'target:65536:100',
+        'traffic-action:sample-terminal',
+        'traffic-action:sample-terminal',
+    ],
     'ipv6-extended-communities': ['000220010db80000000000000000000000000001'],
     'large-communities': ['65001:1:2'],
 }
