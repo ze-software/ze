@@ -832,7 +832,7 @@ func (s *Server) execMiddleware() wish.Middleware {
 			dispatched, formatOutput, pipeErr := command.ProcessPipesDefaultFormatChecked(input, "")
 			if pipeErr != "" {
 				fmt.Fprintln(sess.Stderr(), "error:", pipeErr) //nolint:errcheck // best-effort
-				sess.Exit(1)                                       //nolint:errcheck // best-effort
+				sess.Exit(1)                                   //nolint:errcheck // best-effort
 				return
 			}
 
