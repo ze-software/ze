@@ -34,6 +34,8 @@ const (
 	pipeLog                     // | log — append each update instead of replacing
 	pipeFirst                   // | first N — take first N items
 	pipeLast                    // | last N — take last N items
+	pipeDisplay                 // | display <field>... — the fields to answer with, in that order
+	pipeFill                    // | fill [<way>] [reverse] — bring the remaining fields back, in a named order
 	pipeUnknown                 // unrecognized operator
 	pipeInvalid                 // validation error produced while folding command filters
 )
@@ -65,6 +67,8 @@ var knownPipeOps = map[string]pipeKind{
 	"log":     pipeLog,
 	"first":   pipeFirst,
 	"last":    pipeLast,
+	"display": pipeDisplay,
+	"fill":    pipeFill,
 }
 
 // ParsePipe splits user input into the command and a chain of pipe operators.
@@ -91,7 +95,7 @@ func ParsePipe(input string) (command string, ops []pipeOp) {
 
 		op := pipeOp{kind: kind}
 		switch kind { //nolint:exhaustive // only some operators take arguments
-		case pipeMatch:
+		case pipeMatch, pipeDisplay, pipeFill:
 			if len(fields) > 1 {
 				op.arg = textbuf.Join(fields[1:], " ")
 			}
@@ -131,7 +135,12 @@ func foldFilters(command string, ops []pipeOp) (string, []pipeOp, map[string]any
 
 	for _, op := range ops {
 		switch op.kind { //nolint:exhaustive // only classify server vs client ops
-		case pipeNoMore, pipeJSON, pipeNDJSON, pipeTable, pipeText, pipeYAML, pipeRaw, pipeResolve, pipeOrigin, pipeLog:
+		case pipeNoMore, pipeJSON, pipeNDJSON, pipeTable, pipeText, pipeYAML, pipeRaw, pipeResolve, pipeOrigin, pipeLog, pipeDisplay, pipeFill:
+			// This switch has no default arm, so a kind named nowhere in it is
+			// dropped for every command that registers filters, with no error.
+			// pipeDisplay and pipeFill are named here because each is the
+			// operator's own request about the answer they are reading. No
+			// command owns a server-side filter of either name.
 			clientOps = append(clientOps, op)
 		case pipeMatch:
 			if filter, ok := set.byName["match"]; ok {
@@ -282,9 +291,21 @@ func appendFilter(args []string, filter PipeFilter, value string) []string {
 
 // ApplyPipes runs the output through each pipe operator in order.
 // Returns the filtered output and an error message (empty on success).
-// Rejects multiple format operators (json, table, text, yaml).
+// Rejects a chain that names more than one format operator. isFormatOp states
+// which operators those are, and it is the only place that set is written.
 // If meta is non-nil, injects a "pipe" key into JSON output before formatting.
-func ApplyPipes(output string, ops []pipeOp, meta map[string]any) (string, string) {
+//
+// columns carries the column order the command declared, which reaches the
+// table and text renderers only. A program reads json, ndjson and yaml, and
+// column order carries no meaning for a program (owner directive, 2026-08-19).
+//
+// An `| display` the operator typed is the other half of that answer. Its
+// SEQUENCE reaches the same two renderers and replaces the declared order, and
+// so does the sequence an `| fill` asks for. SELECTION reaches every format,
+// because which fields to answer with is a question the operator asked out
+// loud rather than a rendering choice.
+func ApplyPipes(output string, ops []pipeOp, meta map[string]any, columns []ColumnOrder) (string, string) {
+	request := columnsInChain(ops)
 	formatCount := 0
 	for _, op := range ops {
 		if isFormatOp(op.kind) {
@@ -323,9 +344,9 @@ func ApplyPipes(output string, ops []pipeOp, meta map[string]any) (string, strin
 		case pipeNDJSON:
 			result = applyNDJSON(result)
 		case pipeTable:
-			result = ApplyTable(result)
+			result = applyTableStyled(result, tableStyle{orders: columns, request: request})
 		case pipeText:
-			result = applyText(result)
+			result = applyTableStyled(result, tableStyle{plain: true, orders: columns, request: request})
 		case pipeYAML:
 			result = applyYAML(result)
 		case pipeRaw:
@@ -338,6 +359,11 @@ func ApplyPipes(output string, ops []pipeOp, meta map[string]any) (string, strin
 			result = applyFirst(result, op.arg)
 		case pipeLast:
 			result = applyLast(result, op.arg)
+		case pipeDisplay:
+			result = applyDisplaySelect(result, request)
+		case pipeFill:
+			// A sequence for the remaining fields, which changes no data. The
+			// renderers read it from tableStyle.
 		case pipeLog:
 			// Display-mode modifier, not a data transform. Handled by caller.
 		case pipeUnknown:
@@ -399,6 +425,21 @@ func ValidatePipes(ops []pipeOp) string {
 		}
 		if op.kind == pipeMatch && op.arg == "" {
 			return "match requires a pattern"
+		}
+		if op.kind == pipeDisplay {
+			// A display that names no field selects nothing. Saying so beats
+			// an answer the operator cannot tell from a command that produced
+			// no data.
+			if msg := displayError(op.arg); msg != "" {
+				return msg
+			}
+		}
+		if op.kind == pipeFill {
+			// A word nobody reads is a request nobody answered, so an
+			// unrecognized way is refused by name rather than ignored.
+			if msg := fillError(op.arg); msg != "" {
+				return msg
+			}
 		}
 		if op.kind == pipeFirst || op.kind == pipeLast {
 			name := "first"
@@ -705,6 +746,7 @@ func pipeError(msg string) string {
 // format) if the pipe chain is invalid.
 func ProcessPipesChecked(input string) (command string, format func(string) string, errMsg string) {
 	command, ops := ParsePipe(input)
+	columns := ColumnsForCommand(command)
 	command, ops, meta := foldFilters(command, ops)
 	if msg := ValidatePipes(ops); msg != "" {
 		return command, nil, msg
@@ -715,7 +757,7 @@ func ProcessPipesChecked(input string) (command string, format func(string) stri
 	}
 
 	return command, func(rawJSON string) string {
-		result, errMsg := ApplyPipes(rawJSON, ops, meta)
+		result, errMsg := ApplyPipes(rawJSON, ops, meta, columns)
 		if errMsg != "" {
 			return pipeError(errMsg)
 		}
@@ -739,6 +781,7 @@ type PipeFlags struct {
 // See configuredDefault.
 func ProcessPipesDetectLog(input, sessionFormat string) (cmd string, format func(string) string, flags PipeFlags, errMsg string) {
 	cmd, ops := ParsePipe(input)
+	columns := ColumnsForCommand(cmd)
 	cmd, ops, meta := foldFilters(cmd, ops)
 
 	if msg := ValidatePipes(ops); msg != "" {
@@ -771,7 +814,7 @@ func ProcessPipesDetectLog(input, sessionFormat string) (cmd string, format func
 	}
 
 	return cmd, func(rawJSON string) string {
-		result, pipeErr := ApplyPipes(rawJSON, ops, meta)
+		result, pipeErr := ApplyPipes(rawJSON, ops, meta, columns)
 		if pipeErr != "" {
 			return pipeError(pipeErr)
 		}
@@ -821,6 +864,7 @@ func configuredDefault(sessionFormat string) pipeKind {
 // See configuredDefault.
 func ProcessPipesDefaultFormatChecked(input, sessionFormat string) (command string, format func(string) string, errMsg string) {
 	command, ops := ParsePipe(input)
+	columns := ColumnsForCommand(command)
 	command, ops, meta := foldFilters(command, ops)
 	if msg := ValidatePipes(ops); msg != "" {
 		return command, nil, msg
@@ -831,7 +875,7 @@ func ProcessPipesDefaultFormatChecked(input, sessionFormat string) (command stri
 	}
 
 	return command, func(rawJSON string) string {
-		result, errMsg := ApplyPipes(rawJSON, ops, meta)
+		result, errMsg := ApplyPipes(rawJSON, ops, meta, columns)
 		if errMsg != "" {
 			return pipeError(errMsg)
 		}
@@ -845,6 +889,7 @@ func ProcessPipesDefaultFormatChecked(input, sessionFormat string) (command stri
 // one-liner for streaming monitors) while still respecting explicit pipes.
 func ProcessPipesDefaultFunc(input string, defaultFn func(string) string) (command string, format func(string) string) {
 	command, ops := ParsePipe(input)
+	columns := ColumnsForCommand(command)
 	command, ops, meta := foldFilters(command, ops)
 
 	if !hasFormatOp(ops) {
@@ -853,7 +898,7 @@ func ProcessPipesDefaultFunc(input string, defaultFn func(string) string) (comma
 		}
 		// Non-format ops (match, count) still apply before the default formatter.
 		return command, func(rawJSON string) string {
-			result, errMsg := ApplyPipes(rawJSON, ops, meta)
+			result, errMsg := ApplyPipes(rawJSON, ops, meta, columns)
 			if errMsg != "" {
 				return pipeError(errMsg)
 			}
@@ -862,7 +907,7 @@ func ProcessPipesDefaultFunc(input string, defaultFn func(string) string) (comma
 	}
 
 	return command, func(rawJSON string) string {
-		result, errMsg := ApplyPipes(rawJSON, ops, meta)
+		result, errMsg := ApplyPipes(rawJSON, ops, meta, columns)
 		if errMsg != "" {
 			return pipeError(errMsg)
 		}

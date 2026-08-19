@@ -211,7 +211,7 @@ func TestApplyPipes(t *testing.T) {
 		{kind: pipeCount},
 	}
 
-	result, err := ApplyPipes(input, ops, nil)
+	result, err := ApplyPipes(input, ops, nil, nil)
 	if err != "" {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -225,7 +225,7 @@ func TestApplyPipes(t *testing.T) {
 func TestApplyPipesUnknown(t *testing.T) {
 	ops := []pipeOp{{kind: pipeUnknown, arg: "bogus"}}
 
-	_, err := ApplyPipes("input", ops, nil)
+	_, err := ApplyPipes("input", ops, nil, nil)
 	if err == "" {
 		t.Fatal("expected error for unknown pipe operator")
 	}
@@ -245,7 +245,7 @@ func TestParsePipeMatchNoArg(t *testing.T) {
 		t.Error("expected pipeMatch")
 	}
 	// Match with no arg should still parse; ApplyPipes should error.
-	_, err := ApplyPipes("test", ops, nil)
+	_, err := ApplyPipes("test", ops, nil, nil)
 	if err == "" {
 		t.Error("expected error for match with no pattern")
 	}
@@ -265,7 +265,7 @@ func TestApplyJSONPrettyIdempotent(t *testing.T) {
 // PREVENTS: empty operator list altering output.
 func TestApplyPipesEmpty(t *testing.T) {
 	input := "some output"
-	result, err := ApplyPipes(input, nil, nil)
+	result, err := ApplyPipes(input, nil, nil, nil)
 	if err != "" {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -306,7 +306,7 @@ func TestApplyPipesCountOfCount(t *testing.T) {
 		{kind: pipeCount},
 		{kind: pipeCount},
 	}
-	result, err := ApplyPipes(input, ops, nil)
+	result, err := ApplyPipes(input, ops, nil, nil)
 	if err != "" {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -586,7 +586,7 @@ func TestApplyPipesMatchThenJSON(t *testing.T) {
 		{kind: pipeMatch, arg: "address"},
 		{kind: pipeJSON, arg: jsonCompact},
 	}
-	result, err := ApplyPipes(input, ops, nil)
+	result, err := ApplyPipes(input, ops, nil, nil)
 	if err != "" {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -600,7 +600,7 @@ func TestApplyPipesMatchThenJSON(t *testing.T) {
 // PREVENTS: confusing silent passthrough when stacking formatters.
 func TestApplyPipesMultipleFormats(t *testing.T) {
 	ops := []pipeOp{{kind: pipeText}, {kind: pipeJSON, arg: jsonPretty}}
-	_, err := ApplyPipes(`{"a":1}`, ops, nil)
+	_, err := ApplyPipes(`{"a":1}`, ops, nil, nil)
 	if err == "" {
 		t.Fatal("expected error for multiple format operators")
 	}
@@ -906,7 +906,7 @@ func TestApplyResolve_SkipsStar(t *testing.T) {
 func TestApplyPipes_ResolveThenJSON(t *testing.T) {
 	input := `{"hops":[{"ttl":1,"addr":"127.0.0.1","rtt-ms":0.1}]}`
 	ops := []pipeOp{{kind: pipeResolve}, {kind: pipeJSON, arg: "compact"}}
-	result, errMsg := ApplyPipes(input, ops, nil)
+	result, errMsg := ApplyPipes(input, ops, nil, nil)
 	if errMsg != "" {
 		t.Fatalf("unexpected error: %s", errMsg)
 	}
@@ -921,7 +921,7 @@ func TestApplyPipes_ResolveThenJSON(t *testing.T) {
 func TestApplyPipes_JSONThenResolve(t *testing.T) {
 	input := `{"hops":[{"ttl":1,"addr":"127.0.0.1","rtt-ms":0.1},{"ttl":2,"addr":"127.0.0.1","rtt-ms":0.2}]}`
 	ops := []pipeOp{{kind: pipeJSON, arg: "compact"}, {kind: pipeResolve}}
-	result, errMsg := ApplyPipes(input, ops, nil)
+	result, errMsg := ApplyPipes(input, ops, nil, nil)
 	if errMsg != "" {
 		t.Fatalf("unexpected error: %s", errMsg)
 	}
@@ -973,7 +973,7 @@ func TestProcessPipesDetectLog_NDJSON(t *testing.T) {
 func TestApplyPipes_NDJSONThenResolve(t *testing.T) {
 	input := `{"hops":[{"ttl":1,"addr":"127.0.0.1","rtt-ms":0.1},{"ttl":2,"addr":"127.0.0.1","rtt-ms":0.2}]}`
 	ops := []pipeOp{{kind: pipeNDJSON}, {kind: pipeResolve}}
-	result, errMsg := ApplyPipes(input, ops, nil)
+	result, errMsg := ApplyPipes(input, ops, nil, nil)
 	if errMsg != "" {
 		t.Fatalf("unexpected error: %s", errMsg)
 	}
@@ -1008,7 +1008,7 @@ func TestParsePipeLast(t *testing.T) {
 
 func TestApplyFirst(t *testing.T) {
 	input := `[{"a":1},{"a":2},{"a":3},{"a":4},{"a":5}]`
-	result, errMsg := ApplyPipes(input, []pipeOp{{kind: pipeFirst, arg: "3"}}, nil)
+	result, errMsg := ApplyPipes(input, []pipeOp{{kind: pipeFirst, arg: "3"}}, nil, nil)
 	if errMsg != "" {
 		t.Fatalf("unexpected error: %s", errMsg)
 	}
@@ -1021,7 +1021,7 @@ func TestApplyFirst(t *testing.T) {
 
 func TestApplyLast(t *testing.T) {
 	input := `[{"a":1},{"a":2},{"a":3},{"a":4},{"a":5}]`
-	result, errMsg := ApplyPipes(input, []pipeOp{{kind: pipeLast, arg: "2"}}, nil)
+	result, errMsg := ApplyPipes(input, []pipeOp{{kind: pipeLast, arg: "2"}}, nil, nil)
 	if errMsg != "" {
 		t.Fatalf("unexpected error: %s", errMsg)
 	}
@@ -1034,7 +1034,7 @@ func TestApplyLast(t *testing.T) {
 
 func TestApplyFirstUnderCount(t *testing.T) {
 	input := `[{"a":1},{"a":2}]`
-	result, errMsg := ApplyPipes(input, []pipeOp{{kind: pipeFirst, arg: "10"}}, nil)
+	result, errMsg := ApplyPipes(input, []pipeOp{{kind: pipeFirst, arg: "10"}}, nil, nil)
 	if errMsg != "" {
 		t.Fatalf("unexpected error: %s", errMsg)
 	}
@@ -1047,7 +1047,7 @@ func TestApplyFirstUnderCount(t *testing.T) {
 
 func TestApplyFirstNonArray(t *testing.T) {
 	input := `{"count":42}`
-	result, errMsg := ApplyPipes(input, []pipeOp{{kind: pipeFirst, arg: "3"}}, nil)
+	result, errMsg := ApplyPipes(input, []pipeOp{{kind: pipeFirst, arg: "3"}}, nil, nil)
 	if errMsg != "" {
 		t.Fatalf("unexpected error: %s", errMsg)
 	}
@@ -1117,7 +1117,7 @@ func TestPipeMetadataInjected(t *testing.T) {
 
 	// Map output: metadata injected directly.
 	mapInput := `{"count":42}`
-	result, errMsg := ApplyPipes(mapInput, nil, meta)
+	result, errMsg := ApplyPipes(mapInput, nil, meta, nil)
 	if errMsg != "" {
 		t.Fatalf("unexpected error: %s", errMsg)
 	}
@@ -1133,7 +1133,7 @@ func TestPipeMetadataInjected(t *testing.T) {
 
 	// Array output: wrapped as {"data": [...], "pipe": {...}}.
 	arrInput := `[{"a":1},{"a":2}]`
-	result2, errMsg2 := ApplyPipes(arrInput, nil, meta)
+	result2, errMsg2 := ApplyPipes(arrInput, nil, meta, nil)
 	if errMsg2 != "" {
 		t.Fatalf("unexpected error: %s", errMsg2)
 	}
@@ -1145,7 +1145,7 @@ func TestPipeMetadataInjected(t *testing.T) {
 	}
 
 	// Count pipe on array: count produces map, metadata injected into map.
-	result3, errMsg3 := ApplyPipes(arrInput, []pipeOp{{kind: pipeCount}}, meta)
+	result3, errMsg3 := ApplyPipes(arrInput, []pipeOp{{kind: pipeCount}}, meta, nil)
 	if errMsg3 != "" {
 		t.Fatalf("unexpected error: %s", errMsg3)
 	}
@@ -1156,7 +1156,7 @@ func TestPipeMetadataInjected(t *testing.T) {
 
 func TestPipeMetadataAbsentWhenNoPipes(t *testing.T) {
 	input := `{"count":5}`
-	result, errMsg := ApplyPipes(input, nil, nil)
+	result, errMsg := ApplyPipes(input, nil, nil, nil)
 	if errMsg != "" {
 		t.Fatalf("unexpected error: %s", errMsg)
 	}
@@ -1168,7 +1168,7 @@ func TestPipeMetadataAbsentWhenNoPipes(t *testing.T) {
 func TestPipeMetadataTableSkipped(t *testing.T) {
 	input := `[{"name":"a","value":1},{"name":"b","value":2}]`
 	meta := map[string]any{"first": 2}
-	result, errMsg := ApplyPipes(input, []pipeOp{{kind: pipeTable}}, meta)
+	result, errMsg := ApplyPipes(input, []pipeOp{{kind: pipeTable}}, meta, nil)
 	if errMsg != "" {
 		t.Fatalf("unexpected error: %s", errMsg)
 	}
@@ -1200,7 +1200,7 @@ func TestPipeMetadataIdentityPath(t *testing.T) {
 
 func TestApplyFirstSingleKeyWrapper(t *testing.T) {
 	input := `{"routes":[{"a":1},{"a":2},{"a":3}]}`
-	result, errMsg := ApplyPipes(input, []pipeOp{{kind: pipeFirst, arg: "2"}}, nil)
+	result, errMsg := ApplyPipes(input, []pipeOp{{kind: pipeFirst, arg: "2"}}, nil, nil)
 	if errMsg != "" {
 		t.Fatalf("unexpected error: %s", errMsg)
 	}
@@ -1355,5 +1355,63 @@ func TestRawPipeSurvivesFilterFolding(t *testing.T) {
 	const response = `{"routes":[{"prefix":"192.0.2.0/24"}]}`
 	if got := format(response); got != response {
 		t.Errorf("format(%q) = %q, want it unchanged", response, got)
+	}
+}
+
+// VALIDATES: `| json` and `| ndjson` are byte-identical whatever a command
+// declares (AC-5).
+// PREVENTS: the column order reaching the payload a program parses. encoding/json
+// sorts map keys with no override, so an ordered JSON would mean hand-rolled
+// marshaling for a reader that cannot use it.
+func TestApplyJSONIgnoresColumnOrder(t *testing.T) {
+	ResetColumnsForTest()
+	t.Cleanup(ResetColumnsForTest)
+
+	payload := `{"peers":[{"address":"192.0.2.1","description":"transit","state":"established","uptime":"1h0m0s"}]}`
+
+	for _, input := range []string{"show test peers | json", "show test peers | ndjson", "show test peers | raw"} {
+		ResetColumnsForTest()
+		_, before, errMsg := ProcessPipesChecked(input)
+		if errMsg != "" {
+			t.Fatalf("ProcessPipesChecked(%q): %s", input, errMsg)
+		}
+		undeclared := before(payload)
+
+		RegisterColumns([]string{"show test peers"}, ColumnOrder{"state", "address"})
+		_, after, errMsg := ProcessPipesChecked(input)
+		if errMsg != "" {
+			t.Fatalf("ProcessPipesChecked(%q): %s", input, errMsg)
+		}
+		if declared := after(payload); declared != undeclared {
+			t.Errorf("%q changed under a declared column order:\ngot  %q\nwant %q", input, declared, undeclared)
+		}
+		if !strings.Contains(undeclared, `"address"`) {
+			t.Errorf("%q did not answer JSON: %q", input, undeclared)
+		}
+	}
+	requireTextOrderingIsLive(t, payload)
+}
+
+// requireTextOrderingIsLive fails when the registration the caller made leaves
+// `| text` unchanged. An exclusion test asserts that a format did NOT move, and
+// that assertion passes just as well when the whole feature is inert. This is
+// what tells the two apart.
+func requireTextOrderingIsLive(t *testing.T, payload string) {
+	t.Helper()
+
+	ResetColumnsForTest()
+	_, plain, errMsg := ProcessPipesChecked("show test peers | text")
+	if errMsg != "" {
+		t.Fatalf("ProcessPipesChecked: %s", errMsg)
+	}
+	alphabetical := plain(payload)
+
+	RegisterColumns([]string{"show test peers"}, ColumnOrder{"state", "address"})
+	_, ordered, errMsg := ProcessPipesChecked("show test peers | text")
+	if errMsg != "" {
+		t.Fatalf("ProcessPipesChecked: %s", errMsg)
+	}
+	if ordered(payload) == alphabetical {
+		t.Fatal("the declared order changed nothing in | text, so this exclusion test proves nothing")
 	}
 }

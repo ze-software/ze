@@ -1,0 +1,213 @@
+# Test: `| fill` decides whether the columns `| display` did not name come back,
+#       and in what sequence.
+#
+# VALIDATES: spec-cli-order-pipe AC-1. `| display state | fill alpha` leads with
+#            state and brings every other column back by name.
+# VALIDATES: AC-4 and AC-11. A bare `| fill` brings the remainder back in the
+#            order `show bgp peer list` declared, while the displayed name still
+#            leads. Two sequences over two disjoint sets of columns, and the
+#            declaration is not the alphabet, so one answer cannot pass for the
+#            other.
+# VALIDATES: `| fill overall` orders the remaining columns by the width they
+#            RENDER at, narrowest first, and `reverse` flips whichever way is in
+#            force. The widths are read back from the box-drawing border, which
+#            is the only place a rendered width exists.
+#
+# The daemon runs with an ephemeral SSH listener; ZE_SSH_* carry the credentials
+# `ze cli` has no flags for. The peers never establish, and nothing here needs
+# them to: the row is built for every configured peer whatever its state.
+#
+# The timeout is DECLARED because this file starts a daemon and launches `ze`
+# several times, which a first (cold) run or a loaded host can take past the
+# runner's derived bound while every assertion still holds.
+option=timeout:value=60s
+
+tmpfs=run.py:terminator=EOF_PY
+import os
+import subprocess
+
+from ze_api import wait_until
+
+
+def require(condition, message):
+    if not condition:
+        raise SystemExit(message)
+
+
+def run(argv, env):
+    r = subprocess.run(argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env, check=False)
+    return r.returncode, r.stdout, r.stderr
+
+
+def cli(env, command):
+    code, out, err = run(['ze', 'cli', '-c', command], env)
+    require(code == 0, '%s exit=%d: %s%s' % (command, code, out, err))
+    return out
+
+
+def table_header(text, marker):
+    # The peer table is the value of a key, so its header row can share a line
+    # with that key. marker names the header unambiguously.
+    for line in text.split('\n'):
+        if marker in line:
+            fields = line.split()
+            if fields and fields[0] in ('peers', 'peer'):
+                return fields[1:]
+            return fields
+    raise SystemExit('no header row carrying %r in: %r' % (marker, text))
+
+
+password_hash = subprocess.check_output(['ze', 'passwd'], input='secret\n', text=True).strip()
+with open('peers.conf', 'w', encoding='utf-8') as fh:
+    fh.write('''bgp {
+    router-id 192.0.2.254
+    session {
+        asn {
+            local 65000
+        }
+    }
+    group transit {
+        peer peer1 {
+            connection {
+                remote {
+                    ip 192.0.2.1
+                }
+                local {
+                    ip 127.0.0.1
+                }
+            }
+            session {
+                asn {
+                    remote 65001
+                }
+            }
+        }
+        peer peer2 {
+            connection {
+                remote {
+                    ip 192.0.2.2
+                }
+                local {
+                    ip 127.0.0.1
+                }
+            }
+            session {
+                asn {
+                    remote 65002
+                }
+            }
+        }
+    }
+}
+
+system {
+    authentication {
+        user ci {
+            password "''' + password_hash + '''"
+            profile [ admin ]
+        }
+    }
+}
+''')
+
+daemon_env = os.environ.copy()
+daemon_env['ZE_SSH_EPHEMERAL'] = os.path.abspath('ssh.addr')
+daemon_env['ZE_READY_FILE'] = os.path.abspath('ready')
+daemon_env['ZE_CONFIG_DIR'] = os.getcwd()
+# Leave port 179 alone: this suite runs unprivileged and a bind failure there
+# takes the daemon down before it writes `ready`.
+daemon_env['ze_test_bgp_port'] = str(12000 + os.getpid() % 40000)
+daemon = subprocess.Popen(['ze', '-f', 'peers.conf'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=daemon_env)
+
+
+def daemon_ready():
+    if daemon.poll() is not None:
+        out, err = daemon.communicate()
+        raise SystemExit('daemon exited early\nstdout:\n' + out + '\nstderr:\n' + err)
+    return os.path.exists('ssh.addr') and os.path.exists('ready')
+
+
+try:
+    if not wait_until(daemon_ready, attempts=200, delay=0.1):
+        raise SystemExit('daemon did not become ready')
+
+    host, port = open('ssh.addr', encoding='utf-8').read().strip().rsplit(':', 1)
+    cli_env = os.environ.copy()
+    cli_env.update({
+        'ZE_SSH_HOST': host,
+        'ZE_SSH_PORT': port,
+        'ZE_SSH_USERNAME': 'ci',
+        'ZE_SSH_PASSWORD': 'secret',
+        'ZE_CONFIG_DIR': os.getcwd(),
+    })
+
+    # A bare `| fill` brings the rest back in the order the COMMAND declared.
+    # `show bgp peer list` declares one, and it is not the alphabet.
+    out = cli(cli_env, 'show bgp peer list | display state | fill | text')
+    header = table_header(out, 'state')
+    require(header[0] == 'state', 'the displayed column must lead: %r' % header)
+    require(len(header) > 2, 'nothing was filled in, so this file proves nothing: %r' % header)
+    declared = header[1:]
+    require(declared != sorted(declared),
+            'the remainder came back in name order, so the declaration was ignored: %r' % header)
+
+    # `| fill alpha` forces name order over that declaration.
+    out = cli(cli_env, 'show bgp peer list | display state | fill alpha | text')
+    forced = table_header(out, 'state')[1:]
+    require(forced == sorted(forced), 'alpha did not force name order: %r' % forced)
+    require(set(forced) == set(declared), 'alpha changed which columns appear: %r' % forced)
+
+    # `| fill alpha` brings the rest back by name, behind the displayed column.
+    out = cli(cli_env, 'show bgp peer list | display state | fill alpha | text')
+    header = table_header(out, 'state')
+    require(header[0] == 'state', 'the displayed column must lead: %r' % header)
+    require(header[1:] == sorted(header[1:]), 'the remaining columns are not in name order: %r' % header)
+    require(len(header) > 2, 'nothing was filled in, so this file proves nothing: %r' % header)
+    filled = set(header)
+
+    # `reverse` flips the way in force, and nothing else.
+    out = cli(cli_env, 'show bgp peer list | display state | fill alpha reverse | text')
+    reversed_header = table_header(out, 'state')
+    require(reversed_header[0] == 'state', 'the displayed column must still lead: %r' % reversed_header)
+    require(reversed_header[1:] == sorted(reversed_header[1:], reverse=True),
+            'reverse did not flip the name order: %r' % reversed_header)
+    require(set(reversed_header) == filled, 'reverse changed which columns appear: %r' % reversed_header)
+
+    # `| fill overall` orders by rendered width. The top border of a box table
+    # draws each column as its width plus two, so the segments must not shrink
+    # from left to right.
+    out = cli(cli_env, 'show bgp peer list | fill overall | table')
+    border = None
+    for line in out.split('\n'):
+        if line.startswith('┌'):
+            border = line
+            break
+    require(border is not None, 'no box table to measure: %r' % out)
+    segments = [len(part) for part in border[1:-1].split('┬')]
+    require(len(segments) > 2, 'too few columns to say anything: %r' % border)
+    # The first column of `show bgp peer list` is the peer address, which names
+    # the row rather than a field, so it is not part of the fill.
+    widths = segments[1:]
+    require(widths == sorted(widths), 'the columns are not narrowest first: %r' % widths)
+
+    # Without `| fill`, the command answers in its own declared order, so the
+    # width order above is a request rather than the default.
+    plain = table_header(cli(cli_env, 'show bgp peer list | text'), 'state')
+    overall = table_header(cli(cli_env, 'show bgp peer list | fill overall | text'), 'state')
+    require(set(plain) == set(overall), 'fill changed which columns appear: %r vs %r' % (plain, overall))
+    require(plain != overall, 'fill overall answered in the declared order, so it did nothing: %r' % overall)
+
+finally:
+    daemon.terminate()
+    try:
+        daemon.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        daemon.kill()
+        daemon.wait(timeout=5)
+
+print('OK')
+EOF_PY
+
+cmd=foreground:seq=1:exec=python3 run.py
+expect=exit:code=0
+expect=stdout:contains=OK

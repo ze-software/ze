@@ -1,6 +1,7 @@
 package command
 
 import (
+	"slices"
 	"strings"
 	"testing"
 )
@@ -192,7 +193,7 @@ func TestApplyPipesTable(t *testing.T) {
 		{kind: pipeCount},
 	}
 
-	result, err := ApplyPipes(input, ops, nil)
+	result, err := ApplyPipes(input, ops, nil, nil)
 	if err != "" {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -261,7 +262,7 @@ func TestApplyTableBGPCapabilities(t *testing.T) {
 // PREVENTS: box-drawing characters appearing in text output.
 func TestApplyTextRecord(t *testing.T) {
 	input := `{"count":3}`
-	result := applyText(input)
+	result := applyTableStyled(input, tableStyle{plain: true})
 
 	if strings.Contains(result, "┌") || strings.Contains(result, "│") || strings.Contains(result, "─") {
 		t.Errorf("text mode should have no box-drawing characters:\n%s", result)
@@ -279,7 +280,7 @@ func TestApplyTextRecord(t *testing.T) {
 // PREVENTS: missing headers or misaligned columns in text mode.
 func TestApplyTextArray(t *testing.T) {
 	input := `[{"name":"a","value":1},{"name":"b","value":2}]`
-	result := applyText(input)
+	result := applyTableStyled(input, tableStyle{plain: true})
 
 	if strings.Contains(result, "┌") || strings.Contains(result, "│") {
 		t.Errorf("text mode should have no box-drawing:\n%s", result)
@@ -307,7 +308,7 @@ func TestApplyTextArray(t *testing.T) {
 // PREVENTS: crash on non-JSON input to text formatter.
 func TestApplyTextNonJSON(t *testing.T) {
 	input := "this is not json"
-	result := applyText(input)
+	result := applyTableStyled(input, tableStyle{plain: true})
 	if result != input {
 		t.Errorf("non-JSON should pass through, got %q", result)
 	}
@@ -322,7 +323,7 @@ func TestApplyPipesCountThenTable(t *testing.T) {
 		{kind: pipeTable},
 	}
 
-	result, err := ApplyPipes(input, ops, nil)
+	result, err := ApplyPipes(input, ops, nil, nil)
 	if err != "" {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -344,7 +345,7 @@ func TestApplyPipesCountThenText(t *testing.T) {
 		{kind: pipeText},
 	}
 
-	result, err := ApplyPipes(input, ops, nil)
+	result, err := ApplyPipes(input, ops, nil, nil)
 	if err != "" {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -353,5 +354,189 @@ func TestApplyPipesCountThenText(t *testing.T) {
 	}
 	if strings.TrimSpace(result) != "count  3" {
 		t.Errorf("got %q, want %q", strings.TrimSpace(result), "count  3")
+	}
+}
+
+// renderThroughPipes runs input through the pipe pipeline the CLI uses. The
+// declared column order is then resolved the way an operator's command resolves
+// it. The command string is what resolves it, and that string is captured when
+// the formatter is built.
+func renderThroughPipes(t *testing.T, input, payload string) string {
+	t.Helper()
+	_, format, errMsg := ProcessPipesChecked(input)
+	if errMsg != "" {
+		t.Fatalf("ProcessPipesChecked(%q): %s", input, errMsg)
+	}
+	return format(payload)
+}
+
+// headerFields returns the column names of the first rendered row.
+func headerFields(t *testing.T, rendered string) []string {
+	t.Helper()
+	for line := range strings.SplitSeq(rendered, "\n") {
+		line = strings.Map(func(r rune) rune {
+			if strings.ContainsRune("│┌┐└┘├┤┬┴┼─", r) {
+				return ' '
+			}
+			return r
+		}, line)
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		return strings.Fields(line)
+	}
+	t.Fatalf("no header row in %q", rendered)
+	return nil
+}
+
+// VALIDATES: declared columns render in the declared order, not alphabetically (AC-1).
+// PREVENTS: a registration that is resolved and then ignored by the renderer.
+//
+// The declared order is deliberately NOT the alphabetical one: an order that
+// happens to be alphabetical would pass with the feature deleted.
+func TestRenderListDeclaredOrder(t *testing.T) {
+	ResetColumnsForTest()
+	t.Cleanup(ResetColumnsForTest)
+	RegisterColumns([]string{"show test peers"}, ColumnOrder{"state", "address", "uptime", "remote-as"})
+
+	payload := `{"peers":[{"address":"192.0.2.1","remote-as":65001,"state":"established","uptime":"1h0m0s"}]}`
+	want := []string{"state", "address", "uptime", "remote-as"}
+
+	for _, input := range []string{"show test peers | text", "show test peers | table"} {
+		got := headerFields(t, renderThroughPipes(t, input, payload))
+		if !slices.Equal(got, want) {
+			t.Errorf("%q header = %v, want %v", input, got, want)
+		}
+	}
+}
+
+// VALIDATES: a key no order names still renders, after the declared ones,
+// alphabetically (AC-2).
+// PREVENTS: ordering turning into column selection, where a hidden field reads
+// as an absent field.
+func TestRenderListUndeclaredKeysFollowAlphabetically(t *testing.T) {
+	ResetColumnsForTest()
+	t.Cleanup(ResetColumnsForTest)
+	RegisterColumns([]string{"show test peers"}, ColumnOrder{"state", "address"})
+
+	payload := `{"peers":[{"address":"192.0.2.1","description":"transit","state":"established","uptime":"1h0m0s"}]}`
+	want := []string{"state", "address", "description", "uptime"}
+
+	got := headerFields(t, renderThroughPipes(t, "show test peers | text", payload))
+	if !slices.Equal(got, want) {
+		t.Errorf("header = %v, want %v", got, want)
+	}
+}
+
+// VALIDATES: a command that declares nothing renders exactly as before (AC-3).
+// PREVENTS: the change reaching a command that never opted in.
+func TestRenderListNoDeclarationUnchanged(t *testing.T) {
+	ResetColumnsForTest()
+	t.Cleanup(ResetColumnsForTest)
+	RegisterColumns([]string{"show test peers"}, ColumnOrder{"state", "address"})
+
+	payload := `{"peers":[{"address":"192.0.2.1","description":"transit","state":"established","uptime":"1h0m0s"}]}`
+
+	if got, want := renderThroughPipes(t, "show other peers | table", payload), ApplyTable(payload); got != want {
+		t.Errorf("undeclared command rendered %q, want the alphabetical rendering %q", got, want)
+	}
+	got := headerFields(t, renderThroughPipes(t, "show other peers | text", payload))
+	want := []string{"address", "description", "state", "uptime"}
+	if !slices.Equal(got, want) {
+		t.Errorf("header = %v, want the alphabetical %v", got, want)
+	}
+}
+
+// VALIDATES: the key-value record form honors the declared order too.
+// PREVENTS: `show bgp summary`'s outer record staying alphabetical while its
+// peer rows are ordered.
+func TestRenderRecordDeclaredOrder(t *testing.T) {
+	ResetColumnsForTest()
+	t.Cleanup(ResetColumnsForTest)
+	RegisterColumns([]string{"show test status"}, ColumnOrder{"router-id", "uptime", "local-as"})
+
+	payload := `{"status":{"local-as":65000,"router-id":"192.0.2.254","uptime":"2h0m0s"}}`
+	rendered := renderThroughPipes(t, "show test status | text", payload)
+
+	var keys []string
+	for line := range strings.SplitSeq(strings.TrimSpace(rendered), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) > 0 {
+			keys = append(keys, fields[0])
+		}
+	}
+	want := []string{"router-id", "uptime", "local-as"}
+	if !slices.Equal(keys, want) {
+		t.Errorf("record keys = %v, want %v", keys, want)
+	}
+}
+
+// VALIDATES: a declared name the payload does not carry produces no column (AC-6, R-4).
+// PREVENTS: an empty placeholder column when a plugin that owns some keys is absent.
+func TestDeclaredColumnUnknownKeyIsInert(t *testing.T) {
+	ResetColumnsForTest()
+	t.Cleanup(ResetColumnsForTest)
+	RegisterColumns([]string{"show test peers"}, ColumnOrder{"state", "routes-sent", "address"})
+
+	payload := `{"peers":[{"address":"192.0.2.1","description":"transit","state":"established"}]}`
+	rendered := renderThroughPipes(t, "show test peers | text", payload)
+
+	got := headerFields(t, rendered)
+	want := []string{"state", "address", "description"}
+	if !slices.Equal(got, want) {
+		t.Errorf("header = %v, want %v", got, want)
+	}
+	if strings.Contains(rendered, "routes-sent") {
+		t.Errorf("a declared name absent from the payload created a column: %q", rendered)
+	}
+}
+
+// VALIDATES: the map-of-maps rendering orders its child columns.
+// PREVENTS: `show bgp peer list`, whose answer is peers indexed by address,
+// staying alphabetical while every other shape is ordered.
+func TestRenderMapOfMapsDeclaredOrder(t *testing.T) {
+	ResetColumnsForTest()
+	t.Cleanup(ResetColumnsForTest)
+	RegisterColumns([]string{"show test peers"}, ColumnOrder{"name", "group", "remote-as", "state", "uptime"})
+
+	payload := `{"peers":{"192.0.2.1":{"group":"transit","name":"peer1","remote-as":65001,"state":"established","uptime":"1h0m0s"},"192.0.2.2":{"group":"peering","name":"peer2","remote-as":65002,"state":"idle","uptime":"0s"}}}`
+	got := headerFields(t, renderThroughPipes(t, "show test peers | text", payload))
+	want := []string{"name", "group", "remote-as", "state", "uptime"}
+	if !slices.Equal(got, want) {
+		t.Errorf("header = %v, want %v", got, want)
+	}
+}
+
+// VALIDATES: a command that declares one order per record shape gets each shape
+// ordered by the declaration that names it.
+// PREVENTS: `show bgp summary`'s two shapes fighting over "uptime", which one
+// flat list cannot resolve because the key sits sixth in the outer record and
+// seventh in a peer row.
+func TestRenderPicksOrderMatchingTheRecordShape(t *testing.T) {
+	ResetColumnsForTest()
+	t.Cleanup(ResetColumnsForTest)
+	RegisterColumns([]string{"show test summary"},
+		ColumnOrder{"address", "state", "uptime"},
+		ColumnOrder{"router-id", "local-as", "uptime", "peers"},
+	)
+
+	payload := `{"summary":{"local-as":65000,"peers":[{"address":"192.0.2.1","state":"established","uptime":"1h0m0s"}],"router-id":"192.0.2.254","uptime":"2h0m0s"}}`
+	rendered := renderThroughPipes(t, "show test summary | text", payload)
+
+	var outer []string
+	for line := range strings.SplitSeq(strings.TrimSpace(rendered), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) > 0 && !strings.HasPrefix(line, " ") {
+			outer = append(outer, fields[0])
+		}
+	}
+	wantOuter := []string{"router-id", "local-as", "uptime", "peers"}
+	if !slices.Equal(outer, wantOuter) {
+		t.Errorf("outer record keys = %v, want %v", outer, wantOuter)
+	}
+	peerHeader := strings.Index(rendered, "address")
+	stateAt := strings.Index(rendered, "state")
+	if peerHeader < 0 || stateAt < peerHeader {
+		t.Errorf("the peer rows did not take the peer-row order: %q", rendered)
 	}
 }

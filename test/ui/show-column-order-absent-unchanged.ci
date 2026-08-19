@@ -1,0 +1,139 @@
+# Test: a command that declares no column order still renders alphabetically.
+#
+# VALIDATES: spec-cli-column-order AC-3. The built-in order is opt-in: a command
+#            that never declared one is untouched by the change.
+#            `show bgp peer <selector> detail` is that command. It builds a wide
+#            record and declares nothing, while its sibling `show bgp peer list`
+#            declares an order, so the prefix lookup is proven not to leak an
+#            order down to a command that did not ask for one.
+#
+# The same run asserts that `show bgp summary` IS ordered. Without that half, an
+# alphabetical answer would prove nothing: a build where the whole feature was
+# inert would pass this file too.
+#
+# The daemon runs with an ephemeral SSH listener; ZE_SSH_* carry the credentials
+# `ze cli` has no flags for.
+#
+# The timeout is DECLARED because this file starts a daemon and launches `ze`
+# twice, which a first (cold) run or a loaded host can take past the runner's
+# derived bound while every assertion still holds.
+option=timeout:value=60s
+
+tmpfs=run.py:terminator=EOF_PY
+import os
+import subprocess
+
+from ze_api import wait_until
+
+def require(condition, message):
+    if not condition:
+        raise SystemExit(message)
+
+def run(argv, env):
+    r = subprocess.run(argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env, check=False)
+    return r.returncode, r.stdout, r.stderr
+
+def record_keys(text):
+    # A two-column record puts the key first on every line it starts. A nested
+    # value's continuation lines are indented, so they are skipped.
+    keys = []
+    for line in text.split('\n'):
+        if not line or line[0].isspace():
+            continue
+        keys.append(line.split()[0])
+    return keys
+
+password_hash = subprocess.check_output(['ze', 'passwd'], input='secret\n', text=True).strip()
+with open('absent.conf', 'w', encoding='utf-8') as fh:
+    fh.write('''bgp {
+    router-id 192.0.2.254
+    session {
+        asn {
+            local 65000
+        }
+    }
+    group transit {
+        peer peer1 {
+            connection {
+                remote {
+                    ip 192.0.2.1
+                }
+                local {
+                    ip 127.0.0.1
+                }
+            }
+            session {
+                asn {
+                    remote 65001
+                }
+            }
+        }
+    }
+}
+
+system {
+    authentication {
+        user ci {
+            password "''' + password_hash + '''"
+            profile [ admin ]
+        }
+    }
+}
+''')
+
+daemon_env = os.environ.copy()
+daemon_env['ZE_SSH_EPHEMERAL'] = os.path.abspath('ssh.addr')
+daemon_env['ZE_READY_FILE'] = os.path.abspath('ready')
+daemon_env['ZE_CONFIG_DIR'] = os.getcwd()
+# Leave port 179 alone: this suite runs unprivileged and a bind failure there
+# takes the daemon down before it writes `ready`.
+daemon_env['ze_test_bgp_port'] = str(12000 + os.getpid() % 40000)
+daemon = subprocess.Popen(['ze', '-f', 'absent.conf'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=daemon_env)
+
+def daemon_ready():
+    if daemon.poll() is not None:
+        out, err = daemon.communicate()
+        raise SystemExit('daemon exited early\nstdout:\n' + out + '\nstderr:\n' + err)
+    return os.path.exists('ssh.addr') and os.path.exists('ready')
+
+try:
+    if not wait_until(daemon_ready, attempts=200, delay=0.1):
+        raise SystemExit('daemon did not become ready')
+
+    host, port = open('ssh.addr', encoding='utf-8').read().strip().rsplit(':', 1)
+    cli_env = os.environ.copy()
+    cli_env.update({
+        'ZE_SSH_HOST': host,
+        'ZE_SSH_PORT': port,
+        'ZE_SSH_USERNAME': 'ci',
+        'ZE_SSH_PASSWORD': 'secret',
+        'ZE_CONFIG_DIR': os.getcwd(),
+    })
+
+    code, out, err = run(['ze', 'cli', '-c', 'show bgp peer 192.0.2.1 detail | text'], cli_env)
+    require(code == 0, 'show bgp peer detail exit=%d: %s%s' % (code, out, err))
+    keys = record_keys(out)
+    require(len(keys) > 5, 'the detail record is too small to say anything: %r' % out)
+    require(keys == sorted(keys), 'a command that declares no order rendered out of alphabetical order: %r' % keys)
+
+    # The other half: the feature is live in this binary, so the alphabetical
+    # answer above is opt-out, not a feature that never ran.
+    code, out, err = run(['ze', 'cli', '-c', 'show bgp summary | text'], cli_env)
+    require(code == 0, 'show bgp summary exit=%d: %s%s' % (code, out, err))
+    keys = record_keys(out)
+    require(len(keys) > 3, 'the summary record is too small to say anything: %r' % out)
+    require(keys != sorted(keys), 'the declaring command rendered alphabetically, so this file proves nothing: %r' % keys)
+finally:
+    daemon.terminate()
+    try:
+        daemon.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        daemon.kill()
+        daemon.wait(timeout=5)
+
+print('OK')
+EOF_PY
+
+cmd=foreground:seq=1:exec=python3 run.py
+expect=exit:code=0
+expect=stdout:contains=OK

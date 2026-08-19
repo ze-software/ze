@@ -1,0 +1,199 @@
+# Test: the field names after `| display` complete in the SSH CLI, and the way
+#       words after `| fill` complete beside them without ever mixing.
+#
+# VALIDATES: spec-cli-order-pipe AC-8. The operator discovers a command's field
+#            names by pressing Tab rather than by reading the docs, and a name
+#            already typed is not offered again. This runs the real interactive
+#            client over a pseudo-terminal, because a unit test on the completer
+#            cannot show that the command text reaching it still carries its
+#            verb.
+# VALIDATES: the split into two operators. `| display` completes field names and
+#            `| fill` completes keywords, and neither offers the other's set. A
+#            token that is a field name in one position and a keyword in another
+#            is a token nobody can complete.
+#
+# The daemon runs with an ephemeral SSH listener; ZE_SSH_* carry the credentials
+# `ze cli` has no flags for. The peers never establish, and nothing here needs
+# them to: completion reads the column registry, not the sessions.
+#
+# The timeout is DECLARED because this file starts a daemon and drives an
+# interactive client, which a first (cold) run or a loaded host can take past
+# the runner's derived bound while every assertion still holds.
+option=timeout:value=90s
+
+tmpfs=run.py:terminator=EOF_PY
+import os
+import re
+import select
+import signal
+import subprocess
+import sys
+import time
+
+import fcntl
+import pty
+import struct
+import termios
+
+from ze_api import wait_until
+
+ANSI = re.compile(r'\x1b\[[0-9;?]*[a-zA-Z]|\x1b[()][A-Z0-9]|\x1b[=>]')
+
+
+def require(condition, message):
+    if not condition:
+        raise SystemExit(message)
+
+
+def read_available(fd, deadline):
+    chunks = []
+    while time.time() < deadline:
+        ready, _, _ = select.select([fd], [], [], 0.1)
+        if not ready:
+            continue
+        try:
+            data = os.read(fd, 65536)
+        except OSError:
+            break
+        if not data:
+            break
+        chunks.append(data)
+    return b''.join(chunks).decode(errors='replace')
+
+
+def plain(text):
+    return ANSI.sub('', text)
+
+
+password_hash = subprocess.check_output(['ze', 'passwd'], input='secret\n', text=True).strip()
+with open('peers.conf', 'w', encoding='utf-8') as fh:
+    fh.write('''bgp {
+    router-id 192.0.2.254
+    session {
+        asn {
+            local 65000
+        }
+    }
+    group transit {
+        peer peer1 {
+            connection {
+                remote {
+                    ip 192.0.2.1
+                }
+                local {
+                    ip 127.0.0.1
+                }
+            }
+            session {
+                asn {
+                    remote 65001
+                }
+            }
+        }
+    }
+}
+
+system {
+    authentication {
+        user ci {
+            password "''' + password_hash + '''"
+            profile [ admin ]
+        }
+    }
+}
+''')
+
+daemon_env = os.environ.copy()
+daemon_env['ZE_SSH_EPHEMERAL'] = os.path.abspath('ssh.addr')
+daemon_env['ZE_READY_FILE'] = os.path.abspath('ready')
+daemon_env['ZE_CONFIG_DIR'] = os.getcwd()
+# Leave port 179 alone: this suite runs unprivileged and a bind failure there
+# takes the daemon down before it writes `ready`.
+daemon_env['ze_test_bgp_port'] = str(12000 + os.getpid() % 40000)
+daemon = subprocess.Popen(['ze', '-f', 'peers.conf'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=daemon_env)
+
+
+def daemon_ready():
+    if daemon.poll() is not None:
+        out, err = daemon.communicate()
+        raise SystemExit('daemon exited early\nstdout:\n' + out + '\nstderr:\n' + err)
+    return os.path.exists('ssh.addr') and os.path.exists('ready')
+
+
+def tab_after(cli_env, text):
+    """Type text into an interactive client, press Tab, and return the screen."""
+    master, slave = pty.openpty()
+    fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack('HHHH', 50, 200, 0, 0))
+    client = subprocess.Popen(
+        ['ze', 'cli'],
+        stdin=slave, stdout=slave, stderr=slave,
+        env=cli_env, close_fds=True,
+    )
+    os.close(slave)
+    try:
+        read_available(master, time.time() + 2.0)
+        os.write(master, text.encode())
+        read_available(master, time.time() + 1.0)
+        os.write(master, b'\t')
+        screen = read_available(master, time.time() + 2.0)
+        return plain(screen)
+    finally:
+        try:
+            os.write(master, b'\x03')
+        except OSError:
+            pass
+        try:
+            client.wait(timeout=3)
+        except subprocess.TimeoutExpired:
+            client.send_signal(signal.SIGKILL)
+            client.wait(timeout=3)
+        os.close(master)
+
+
+try:
+    if not wait_until(daemon_ready, attempts=200, delay=0.1):
+        raise SystemExit('daemon did not become ready')
+
+    host, port = open('ssh.addr', encoding='utf-8').read().strip().rsplit(':', 1)
+    cli_env = os.environ.copy()
+    cli_env.update({
+        'ZE_SSH_HOST': host,
+        'ZE_SSH_PORT': port,
+        'ZE_SSH_USERNAME': 'ci',
+        'ZE_SSH_PASSWORD': 'secret',
+        'ZE_CONFIG_DIR': os.getcwd(),
+        'TERM': 'xterm',
+        'NO_COLOR': '1',
+    })
+
+    # `show bgp peer list` declares name, group, remote-as, state and uptime.
+    first = tab_after(cli_env, 'show bgp peer list | display ')
+    for name in ('name', 'group', 'remote-as', 'state', 'uptime'):
+        require(name in first, 'Tab after `| display ` did not offer %r:\n%s' % (name, first))
+
+    # The match is on the LAST token typed, so a second field completes too, and
+    # the one already typed is gone from the list.
+    second = tab_after(cli_env, 'show bgp peer list | display state ')
+    for name in ('name', 'group', 'remote-as', 'uptime'):
+        require(name in second, 'Tab after a first field did not offer %r:\n%s' % (name, second))
+
+    # `| fill` completes its keywords, and never a field name.
+    ways = tab_after(cli_env, 'show bgp peer list | fill ')
+    for word in ('alpha', 'overall', 'reverse'):
+        require(word in ways, 'Tab after `| fill ` did not offer %r:\n%s' % (word, ways))
+    for name in ('remote-as', 'uptime'):
+        require(name not in ways, '`| fill` offered the field name %r:\n%s' % (name, ways))
+finally:
+    daemon.terminate()
+    try:
+        daemon.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        daemon.kill()
+        daemon.wait(timeout=5)
+
+print('OK')
+EOF_PY
+
+cmd=foreground:seq=1:exec=python3 run.py
+expect=exit:code=0
+expect=stdout:contains=OK

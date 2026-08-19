@@ -7,7 +7,6 @@ package command
 import (
 	"sort"
 	"strings"
-	"sync"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -26,18 +25,14 @@ type pipeFilterSet struct {
 	byName  map[string]PipeFilter
 }
 
-var pipeFilterRegistry = struct {
-	sync.RWMutex
-	byCommand map[string]pipeFilterSet
-}{byCommand: make(map[string]pipeFilterSet)}
+// pipeFilterRegistry resolves a command to its filter set by the longest
+// registered command path, the same lookup the column-order registry uses.
+var pipeFilterRegistry = newCommandRegistry[pipeFilterSet]()
 
 // RegisterPipeFilters registers command-specific pipe filters for command paths.
 // Passing no filters registers the command as having no command-specific pipes,
 // which prevents a shorter filtered command prefix from matching it.
 func RegisterPipeFilters(commands []string, filters ...PipeFilter) {
-	pipeFilterRegistry.Lock()
-	defer pipeFilterRegistry.Unlock()
-
 	set := pipeFilterSet{filters: append([]PipeFilter(nil), filters...), byName: make(map[string]PipeFilter, len(filters))}
 	for i := range filters {
 		name := strings.ToLower(strings.TrimSpace(filters[i].Name))
@@ -47,34 +42,11 @@ func RegisterPipeFilters(commands []string, filters ...PipeFilter) {
 		set.filters[i].Name = name
 		set.byName[name] = set.filters[i]
 	}
-	for _, command := range commands {
-		command = normalizeCommand(command)
-		if command == "" {
-			continue
-		}
-		pipeFilterRegistry.byCommand[command] = set
-	}
+	pipeFilterRegistry.register(commands, set)
 }
 
 func lookupPipeFilters(command string) (pipeFilterSet, bool) {
-	command = normalizeCommand(command)
-	pipeFilterRegistry.RLock()
-	defer pipeFilterRegistry.RUnlock()
-
-	var best pipeFilterSet
-	bestLen := -1
-	found := false
-	for prefix, set := range pipeFilterRegistry.byCommand {
-		if !commandMatchesPrefix(command, prefix) {
-			continue
-		}
-		if len(prefix) > bestLen {
-			best = set
-			bestLen = len(prefix)
-			found = true
-		}
-	}
-	return best, found
+	return pipeFilterRegistry.lookup(command)
 }
 
 // PipeFiltersForCommand returns command-specific pipe filters registered for a command.
@@ -116,16 +88,6 @@ func filterSuggestions(command string) []Suggestion {
 	return suggestions
 }
 
-func normalizeCommand(command string) string {
-	return strings.ToLower(textbuf.Join(strings.Fields(command), " "))
-}
-
-func commandMatchesPrefix(command, prefix string) bool {
-	return command == prefix || strings.HasPrefix(command, prefix+" ")
-}
-
 func ResetPipeFiltersForTest() {
-	pipeFilterRegistry.Lock()
-	defer pipeFilterRegistry.Unlock()
-	pipeFilterRegistry.byCommand = make(map[string]pipeFilterSet)
+	pipeFilterRegistry.reset()
 }

@@ -54,6 +54,8 @@ var PipeOperators = []Suggestion{
 	{Text: "log", Description: "Append each update (monitor)", Type: "pipe"},
 	{Text: "first", Description: "Take first N items", Type: "pipe"},
 	{Text: "last", Description: "Take last N items", Type: "pipe"},
+	{Text: "display", Description: "Answer with these fields, in this order", Type: "pipe"},
+	{Text: "fill", Description: "Bring the remaining columns back, in the command's order or a named one", Type: "pipe"},
 }
 
 // pipeSubArgs maps pipe operators to their sub-argument completions.
@@ -62,48 +64,46 @@ var pipeSubArgs = map[string][]Suggestion{
 		{Text: "compact", Description: "Single-line JSON", Type: "pipe"},
 		{Text: "pretty", Description: "Indented JSON (default)", Type: "pipe"},
 	},
+	"fill": {
+		{Text: fillWayAlpha, Description: "Remaining columns by field name", Type: "pipe"},
+		{Text: fillWayOverall, Description: "Remaining columns narrowest first", Type: "pipe"},
+		{Text: fillWordReverse, Description: "Flip the order in force", Type: "pipe"},
+	},
 }
 
 // CompletePipe returns global pipe operator completions matching the partial input.
 // When a pipe operator is fully matched (e.g., "json "), returns sub-argument
 // completions instead of repeating the operator.
 func CompletePipe(partial string) []Suggestion {
-	return completePipe(partial, nil)
+	return completePipe("", partial, nil)
 }
 
 // completePipeForCommand returns global pipe completions plus filters registered
 // by the resolved command.
 func completePipeForCommand(command, partial string) []Suggestion {
-	return completePipe(partial, filterSuggestions(command))
+	return completePipe(command, partial, filterSuggestions(command))
 }
 
-func completePipe(partial string, commandFilters []Suggestion) []Suggestion {
+// completePipe completes one pipe segment: its operator name, or the argument
+// of an operator already named.
+//
+// An argument is matched on the LAST token typed, not on everything after the
+// operator name. `| display address st` asks about "st". Matching the whole
+// tail "address st" against a field name answers nothing after the first
+// field.
+func completePipe(command, partial string, commandFilters []Suggestion) []Suggestion {
 	trimmed := strings.TrimSpace(partial)
+	fields := strings.Fields(trimmed)
+	naming := len(fields) > 1 || (len(fields) == 1 && strings.HasSuffix(partial, " "))
 
-	// Check if the first word is a fully matched operator.
-	// "json " → sub-args, "json c" → filtered sub-args, "json" → operator match.
-	spaceIdx := strings.IndexByte(trimmed, ' ')
-	if spaceIdx > 0 {
-		opName := trimmed[:spaceIdx]
-		subPartial := strings.TrimSpace(trimmed[spaceIdx+1:])
-		if subs, ok := pipeSubArgs[opName]; ok {
-			var completions []Suggestion
-			for _, s := range subs {
-				if subPartial == "" || strings.HasPrefix(s.Text, subPartial) {
-					completions = append(completions, s)
-				}
-			}
-			return completions
+	if naming {
+		typed := fields[1:]
+		last := ""
+		if !strings.HasSuffix(partial, " ") {
+			last = typed[len(typed)-1]
+			typed = typed[:len(typed)-1]
 		}
-		return nil // operator has no sub-args
-	}
-
-	// Exact match with trailing space (partial not trimmed has space).
-	if trimmed != "" && strings.HasSuffix(partial, " ") {
-		if subs, ok := pipeSubArgs[trimmed]; ok {
-			return subs
-		}
-		return nil // fully typed operator with no sub-args
+		return completePipeArg(command, fields[0], typed, last)
 	}
 
 	// Prefix matching against operators.
@@ -119,6 +119,64 @@ func completePipe(partial string, commandFilters []Suggestion) []Suggestion {
 		}
 		if trimmed == "" || strings.HasPrefix(op.Text, trimmed) {
 			completions = append(completions, op)
+		}
+	}
+	return completions
+}
+
+// completePipeArg completes the argument of the named operator. typed holds the
+// argument tokens already complete, and last holds the token being typed.
+func completePipeArg(command, opName string, typed []string, last string) []Suggestion {
+	// knownPipeOps is the one list of operator names, so the completer reads
+	// the kind rather than repeating a spelling. An unknown name maps to the
+	// zero kind, which is not this one.
+	//
+	// `| display` takes field names, which are per-command and live in the
+	// column registry. Every other operator takes keywords, which are the same
+	// for every command and sit in pipeSubArgs. Neither set is ever mixed with
+	// the other, because a token that is a field name in one position and a
+	// keyword in another is a token nobody can complete.
+	if knownPipeOps[opName] == pipeDisplay {
+		return completeDisplayFields(command, typed, last)
+	}
+
+	subs, ok := pipeSubArgs[opName]
+	if !ok {
+		return nil // the operator takes no argument
+	}
+	var completions []Suggestion
+	for _, s := range subs {
+		if last == "" || strings.HasPrefix(s.Text, last) {
+			completions = append(completions, s)
+		}
+	}
+	return completions
+}
+
+// completeDisplayFields offers the field names the command declared, which is
+// the only in-process list of what its answer carries. A command that declared
+// no column order can offer none, and the operator types the names by hand.
+//
+// A name already typed is not offered again, because naming a field twice
+// displays it once.
+func completeDisplayFields(command string, typed []string, last string) []Suggestion {
+	named := make(map[string]bool, len(typed))
+	for _, name := range typed {
+		named[strings.ToLower(name)] = true
+	}
+
+	var completions []Suggestion
+	offered := make(map[string]bool)
+	for _, order := range ColumnsForCommand(command) {
+		for _, name := range order {
+			if named[name] || offered[name] {
+				continue
+			}
+			if last != "" && !strings.HasPrefix(name, last) {
+				continue
+			}
+			offered[name] = true
+			completions = append(completions, Suggestion{Text: name, Description: "Column", Type: "value"})
 		}
 	}
 	return completions

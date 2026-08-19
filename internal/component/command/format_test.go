@@ -98,3 +98,35 @@ func TestRenderYAMLStringList(t *testing.T) {
 		t.Errorf("output should format list items with '- ': %q", out)
 	}
 }
+
+// VALIDATES: `| yaml` is byte-identical whatever a command declares (AC-4).
+// PREVENTS: the column order leaking into a format a program reads. YAML keys
+// stay alphabetical because order carries no meaning for a program (owner
+// directive, 2026-08-19).
+func TestRenderYAMLIgnoresColumnOrder(t *testing.T) {
+	ResetColumnsForTest()
+	t.Cleanup(ResetColumnsForTest)
+
+	payload := `{"peers":[{"address":"192.0.2.1","description":"transit","state":"established","uptime":"1h0m0s"}]}`
+
+	_, before, errMsg := ProcessPipesChecked("show test peers | yaml")
+	if errMsg != "" {
+		t.Fatalf("ProcessPipesChecked: %s", errMsg)
+	}
+	undeclared := before(payload)
+
+	RegisterColumns([]string{"show test peers"}, ColumnOrder{"state", "address"})
+	_, after, errMsg := ProcessPipesChecked("show test peers | yaml")
+	if errMsg != "" {
+		t.Fatalf("ProcessPipesChecked: %s", errMsg)
+	}
+	declared := after(payload)
+
+	if declared != undeclared {
+		t.Errorf("a declared column order changed | yaml:\ngot  %q\nwant %q", declared, undeclared)
+	}
+	if !strings.Contains(declared, "- address: 192.0.2.1") {
+		t.Errorf("| yaml did not keep its alphabetical keys: %q", declared)
+	}
+	requireTextOrderingIsLive(t, payload)
+}

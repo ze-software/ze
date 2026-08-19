@@ -1,0 +1,158 @@
+# Test: `show bgp peer list` puts its columns in the declared order.
+#
+# VALIDATES: spec-cli-column-order AC-1 for the second declaring command, over
+#            `| table` rather than `| text`, so both renderings a person reads
+#            are proven end to end.
+#            The rows are indexed by peer address, so the address is already the
+#            first column and the declaration orders what follows it: name,
+#            group, remote-as, state, uptime. Alphabetical put group before
+#            name, which reads as the group owning the row.
+#
+# The daemon runs with an ephemeral SSH listener; ZE_SSH_* carry the credentials
+# `ze cli` has no flags for. The peers never establish, and nothing here needs
+# them to: a row is built for every configured peer whatever its state.
+#
+# The timeout is DECLARED because this file starts a daemon and launches `ze`
+# twice, which a first (cold) run or a loaded host can take past the runner's
+# derived bound while every assertion still holds.
+option=timeout:value=60s
+
+tmpfs=run.py:terminator=EOF_PY
+import os
+import subprocess
+
+from ze_api import wait_until
+
+# The declared order, copied from registerColumns in
+# internal/component/bgp/plugins/cmd/peer/peer.go.
+PEER_LIST_ORDER = ['name', 'group', 'remote-as', 'state', 'uptime']
+
+def require(condition, message):
+    if not condition:
+        raise SystemExit(message)
+
+def run(argv, env):
+    r = subprocess.run(argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env, check=False)
+    return r.returncode, r.stdout, r.stderr
+
+password_hash = subprocess.check_output(['ze', 'passwd'], input='secret\n', text=True).strip()
+with open('peers.conf', 'w', encoding='utf-8') as fh:
+    fh.write('''bgp {
+    router-id 192.0.2.254
+    session {
+        asn {
+            local 65000
+        }
+    }
+    group transit {
+        peer peer1 {
+            connection {
+                remote {
+                    ip 192.0.2.1
+                }
+                local {
+                    ip 127.0.0.1
+                }
+            }
+            session {
+                asn {
+                    remote 65001
+                }
+            }
+        }
+        peer peer2 {
+            connection {
+                remote {
+                    ip 192.0.2.2
+                }
+                local {
+                    ip 127.0.0.1
+                }
+            }
+            session {
+                asn {
+                    remote 65002
+                }
+            }
+        }
+    }
+}
+
+system {
+    authentication {
+        user ci {
+            password "''' + password_hash + '''"
+            profile [ admin ]
+        }
+    }
+}
+''')
+
+daemon_env = os.environ.copy()
+daemon_env['ZE_SSH_EPHEMERAL'] = os.path.abspath('ssh.addr')
+daemon_env['ZE_READY_FILE'] = os.path.abspath('ready')
+daemon_env['ZE_CONFIG_DIR'] = os.getcwd()
+# Leave port 179 alone: this suite runs unprivileged and a bind failure there
+# takes the daemon down before it writes `ready`.
+daemon_env['ze_test_bgp_port'] = str(12000 + os.getpid() % 40000)
+daemon = subprocess.Popen(['ze', '-f', 'peers.conf'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=daemon_env)
+
+def daemon_ready():
+    if daemon.poll() is not None:
+        out, err = daemon.communicate()
+        raise SystemExit('daemon exited early\nstdout:\n' + out + '\nstderr:\n' + err)
+    return os.path.exists('ssh.addr') and os.path.exists('ready')
+
+try:
+    if not wait_until(daemon_ready, attempts=200, delay=0.1):
+        raise SystemExit('daemon did not become ready')
+
+    host, port = open('ssh.addr', encoding='utf-8').read().strip().rsplit(':', 1)
+    cli_env = os.environ.copy()
+    cli_env.update({
+        'ZE_SSH_HOST': host,
+        'ZE_SSH_PORT': port,
+        'ZE_SSH_USERNAME': 'ci',
+        'ZE_SSH_PASSWORD': 'secret',
+        'ZE_CONFIG_DIR': os.getcwd(),
+    })
+
+    code, out, err = run(['ze', 'cli', '-c', 'show bgp peer list | table'], cli_env)
+    require(code == 0, 'show bgp peer list | table exit=%d: %s%s' % (code, out, err))
+    require('│' in out, '| table did not answer a table: %r' % out)
+
+    # `remote-as` names the header row unambiguously: no cell carries that text.
+    header = None
+    for line in out.split('\n'):
+        if 'remote-as' in line:
+            header = line.replace('│', ' ').split()
+            break
+    require(header is not None, 'no peer table in the answer: %r' % out)
+
+    expected = [key for key in PEER_LIST_ORDER if key in header]
+    require(header == expected, 'peer list columns %r, want %r' % (header, expected))
+    require('name' in header and 'group' in header, 'the fixture lost the keys the order is about: %r' % header)
+    require(header != sorted(header), 'the peer list columns are still alphabetical: %r' % header)
+
+    # A program reads | yaml, so the order must not have reached it.
+    code, out, err = run(['ze', 'cli', '-c', 'show bgp peer list | yaml'], cli_env)
+    require(code == 0, 'show bgp peer list | yaml exit=%d: %s%s' % (code, out, err))
+    require('│' not in out, '| yaml answered a table: %r' % out)
+    group_at = out.find('group:')
+    name_at = out.find('name:')
+    require(group_at >= 0 and name_at >= 0, '| yaml lost the keys the order is about: %r' % out)
+    require(group_at < name_at, '| yaml took the declared order instead of its alphabetical keys: %r' % out)
+finally:
+    daemon.terminate()
+    try:
+        daemon.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        daemon.kill()
+        daemon.wait(timeout=5)
+
+print('OK')
+EOF_PY
+
+cmd=foreground:seq=1:exec=python3 run.py
+expect=exit:code=0
+expect=stdout:contains=OK

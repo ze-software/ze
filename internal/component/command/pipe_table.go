@@ -9,6 +9,7 @@ package command
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"unicode/utf8"
@@ -21,7 +22,9 @@ const pipeMetaKey = "pipe"
 
 // tableStyle controls rendering: box-drawing (table) or plain spacing (text).
 type tableStyle struct {
-	plain bool // true = space-aligned columns, no box-drawing
+	plain   bool          // true = space-aligned columns, no box-drawing
+	orders  []ColumnOrder // the command's declared column orders; nil renders alphabetically
+	request columnRequest // what `| display` and `| fill` asked for; it replaces orders rather than joining them
 }
 
 // tableCell holds pre-rendered cell content, potentially multi-line for nested tables.
@@ -30,18 +33,14 @@ type tableCell struct {
 	width int // max display width across all lines
 }
 
-// ApplyTable parses JSON input and renders it as a box-drawing table.
-// Non-JSON input passes through unchanged.
+// ApplyTable parses JSON input and renders it as a box-drawing table with
+// alphabetical columns. Non-JSON input passes through unchanged.
 func ApplyTable(input string) string {
 	return applyTableStyled(input, tableStyle{})
 }
 
-// applyText parses JSON input and renders it as space-aligned columns.
+// applyTableStyled parses JSON input and renders it with the given style.
 // Non-JSON input passes through unchanged.
-func applyText(input string) string {
-	return applyTableStyled(input, tableStyle{plain: true})
-}
-
 func applyTableStyled(input string, style tableStyle) string {
 	var data any
 	if err := json.Unmarshal([]byte(strings.TrimSpace(input)), &data); err != nil {
@@ -128,7 +127,10 @@ func homogeneousMapOfMapsKeys(m map[string]any) []string {
 // renderMapOfMaps renders a map-of-maps as a columnar table.
 // The parent key becomes the first column; child keys become the remaining columns.
 func (s tableStyle) renderMapOfMaps(m map[string]any, childKeys []string) string {
+	// The parent keys identify rows (a peer address, a family name), so they
+	// stay alphabetical. Only the child keys are columns.
 	parentKeys := tableSortedKeys(m)
+	childKeys = s.orderKeys(childKeys, s.mapOfMapsWidths(m, parentKeys, childKeys))
 
 	// All columns: parent key header + child key headers.
 	allCols := make([]string, 0, 1+len(childKeys))
@@ -185,7 +187,7 @@ func (s tableStyle) renderMapOfMaps(m map[string]any, childKeys []string) string
 
 // renderRecord renders a map as a two-column key-value table.
 func (s tableStyle) renderRecord(m map[string]any) string {
-	keys := tableSortedKeys(m)
+	keys := s.orderKeys(tableSortedKeys(m), s.recordWidths(m))
 
 	keyCells := make([]tableCell, len(keys))
 	valCells := make([]tableCell, len(keys))
@@ -235,6 +237,7 @@ func (s tableStyle) renderList(arr []any) string {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
+	keys = s.orderKeys(keys, s.listWidths(arr, keys))
 
 	// Initialize widths from header names.
 	widths := make([]int, len(keys))
@@ -419,6 +422,256 @@ func (s tableStyle) writeRow(b *textbuf.Buffer, cells []tableCell, widths []int)
 		}
 		b.WriteByte('\n')
 	}
+}
+
+// orderKeys returns keys in the sequence the answer renders them, and drops
+// the ones the operator chose not to see.
+//
+// Four cases, and the operators are additive. `| display` names the fields the
+// answer leads with. `| fill` says whether the fields it did not name appear at
+// all and in what sequence.
+//
+//   - Neither operator: the command's own declaration first, then the rest.
+//   - `| fill` alone: every field, in the way it named. Nothing was displayed,
+//     so every field is a remaining field.
+//   - `| display` alone: the named fields alone, in the order they were named.
+//   - Both: the named fields, then the rest in the way fill named.
+//
+// The two sequences are independent, and they cover disjoint key sets. The
+// names `| display` gave order the fields it named. The command's own
+// declaration still orders the rest whenever `| fill` names no way of its own.
+//
+// A BUILT-IN order never hides a field: a reader who did not ask for the order
+// reads an absent column as an absent value. An operator who typed `| display`
+// DID ask, so a key this method drops is one they chose to drop.
+//
+// An operator's request replaces the declared orders rather than joining them.
+// It names the few columns the question is about. Ranking it against a
+// nineteen-name declaration by how many keys each one hits would lose it every
+// time.
+//
+// widths carries the rendered width of each key, and is nil unless the request
+// orders by width. Measuring renders every cell, so a caller measures only when
+// the answer depends on it.
+func (s tableStyle) orderKeys(keys []string, widths map[string]int) []string {
+	request := s.request
+	if len(request.display) == 0 && request.fill == fillNone {
+		return s.declaredKeys(keys)
+	}
+
+	displayed, rest := splitByOrder(keys, request.display)
+	if request.fill == fillNone {
+		// A record that shares none of the displayed fields is not the one
+		// whose columns the operator was choosing. Emptying it would answer a
+		// nested sub-table with a box and no rows.
+		if len(displayed) > 0 {
+			return displayed
+		}
+		return keys
+	}
+	return append(displayed, s.fillKeys(keys, rest, widths)...)
+}
+
+// declaredKeys returns keys with the columns the command declared first, in the
+// declared order. Every other key comes after them in the order given, which
+// every caller has already sorted alphabetically. Nothing is dropped.
+//
+// A command declares one order per record shape, so the order applied here is
+// the one that names the most of these keys. That is what tells the peer rows
+// of `show bgp summary` from the record that carries them. Both hold "uptime",
+// and only the key set says which record is being rendered.
+func (s tableStyle) declaredKeys(keys []string) []string {
+	order := bestColumnOrder(s.orders, keys)
+	if len(order) == 0 {
+		return keys
+	}
+	declared, rest := splitByOrder(keys, order)
+	return append(declared, rest...)
+}
+
+// splitByOrder divides keys into the ones order names, sorted into its
+// sequence, and the ones it does not, left in the order they arrived.
+func splitByOrder(keys []string, order ColumnOrder) (named, rest []string) {
+	if len(order) == 0 {
+		return nil, keys
+	}
+
+	rank := make(map[string]int, len(order))
+	for i, name := range order {
+		if _, seen := rank[name]; !seen {
+			rank[name] = i
+		}
+	}
+
+	named = make([]string, 0, len(keys))
+	rest = make([]string, 0, len(keys))
+	for _, k := range keys {
+		if _, ok := rank[k]; ok {
+			named = append(named, k)
+			continue
+		}
+		rest = append(rest, k)
+	}
+	sort.SliceStable(named, func(i, j int) bool { return rank[named[i]] < rank[named[j]] })
+	return named, rest
+}
+
+// fillKeys returns the remaining keys in the sequence `| fill` asked for.
+//
+// keys is the whole key set of the record, which is what says WHICH record
+// shape is being rendered. rest is the part `| display` did not name, which is
+// what gets ordered.
+func (s tableStyle) fillKeys(keys, rest []string, widths map[string]int) []string {
+	filled := make([]string, len(rest))
+	copy(filled, rest)
+
+	switch s.request.fill {
+	case fillOverall:
+		sortByWidth(filled, widths)
+	case fillAlpha:
+		sort.Strings(filled)
+	case fillDefault:
+		// The command's own declaration orders what the operator did not name.
+		// The shape is read from the whole key set, because that is what tells
+		// one record shape of a command from another. The declaration is then
+		// applied to the part that is left. A command that declared none leaves
+		// the remainder as it arrived, which is by name.
+		declared, undeclared := splitByOrder(filled, bestColumnOrder(s.orders, keys))
+		filled = slices.Concat(declared, undeclared)
+	case fillNone:
+		// Unreachable: orderKeys answers before it calls this.
+	}
+
+	if s.request.reverse {
+		slices.Reverse(filled)
+	}
+	return filled
+}
+
+// sortByWidth orders keys by the width their column renders at, narrowest
+// first. A tie goes to the field name, so the answer is the same on every run.
+// An unmeasured set goes to the field name too: a renderer with no widths
+// answers in a stated order rather than an arbitrary one.
+func sortByWidth(keys []string, widths map[string]int) {
+	if widths == nil {
+		sort.Strings(keys)
+		return
+	}
+	sort.SliceStable(keys, func(i, j int) bool {
+		if widths[keys[i]] != widths[keys[j]] {
+			return widths[keys[i]] < widths[keys[j]]
+		}
+		return keys[i] < keys[j]
+	})
+}
+
+// listWidths returns the rendered width of each column of an array of records:
+// the header name, or the widest value under it. It returns nil unless the
+// request orders by width, because measuring renders every cell a second time.
+func (s tableStyle) listWidths(arr []any, keys []string) map[string]int {
+	if s.request.fill != fillOverall {
+		return nil
+	}
+
+	widths := make(map[string]int, len(keys))
+	for _, k := range keys {
+		widths[k] = displayWidth(k)
+	}
+	for _, item := range arr {
+		record, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		for _, k := range keys {
+			value, exists := record[k]
+			if !exists {
+				continue
+			}
+			if w := s.cellFromValue(value).width; w > widths[k] {
+				widths[k] = w
+			}
+		}
+	}
+	return widths
+}
+
+// mapOfMapsWidths returns the rendered width of each child column of records
+// indexed by a parent key. It returns nil unless the request orders by width.
+func (s tableStyle) mapOfMapsWidths(m map[string]any, parentKeys, childKeys []string) map[string]int {
+	if s.request.fill != fillOverall {
+		return nil
+	}
+
+	widths := make(map[string]int, len(childKeys))
+	for _, k := range childKeys {
+		widths[k] = displayWidth(k)
+	}
+	for _, parentKey := range parentKeys {
+		child, ok := m[parentKey].(map[string]any)
+		if !ok {
+			continue
+		}
+		for _, k := range childKeys {
+			value, exists := child[k]
+			if !exists {
+				continue
+			}
+			if w := s.cellFromValue(value).width; w > widths[k] {
+				widths[k] = w
+			}
+		}
+	}
+	return widths
+}
+
+// recordWidths returns the rendered width of each row of a key-value record:
+// the key, or its value when the value is wider. It returns nil unless the
+// request orders by width.
+func (s tableStyle) recordWidths(m map[string]any) map[string]int {
+	if s.request.fill != fillOverall {
+		return nil
+	}
+
+	widths := make(map[string]int, len(m))
+	for key, value := range m {
+		if key == pipeMetaKey {
+			continue
+		}
+		widths[key] = displayWidth(key)
+		if w := s.cellFromValue(value).width; w > widths[key] {
+			widths[key] = w
+		}
+	}
+	return widths
+}
+
+// bestColumnOrder returns the declared order that names the most of keys, and
+// nil when no order names any of them. A tie goes to the order declared first.
+func bestColumnOrder(orders []ColumnOrder, keys []string) ColumnOrder {
+	if len(orders) == 0 {
+		return nil
+	}
+
+	present := make(map[string]struct{}, len(keys))
+	for _, k := range keys {
+		present[k] = struct{}{}
+	}
+
+	var best ColumnOrder
+	bestHits := 0
+	for _, order := range orders {
+		hits := 0
+		for _, name := range order {
+			if _, ok := present[name]; ok {
+				hits++
+			}
+		}
+		if hits > bestHits {
+			best = order
+			bestHits = hits
+		}
+	}
+	return best
 }
 
 // tableSortedKeys returns map keys sorted alphabetically,

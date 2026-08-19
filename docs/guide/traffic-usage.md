@@ -111,8 +111,10 @@ ze cli -c 'show traffic usage'
 ze cli -c 'show traffic usage name eth0'
 ```
 
-The command produces JSON by default and supports the full set of pipe
-operators.
+The command answers structured data, which `ze cli -c` renders in the format
+`environment cli format default` names. The registered value is `text`. Append
+`| json`, `| table`, `| yaml` or `| ndjson` to select another one, and the full
+set of pipe operators applies.
 <!-- source: internal/plugins/trafficusage/show.go -- ze-show:traffic-usage -->
 
 <!-- terminal-demo: traffic-anomaly -->

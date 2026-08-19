@@ -577,7 +577,9 @@ ze show flow export <collector>   # One collector by name (error if not found)
 
 Each entry reports `name`, `address`, `port`, `protocol`, `datagrams-sent`,
 `bytes-sent`, `errors`, `sequence`, and `last-export-time` (Unix seconds,
-omitted before the first poll). JSON by default; full pipe operators supported.
+omitted before the first poll). The answer is rendered in the format
+`environment cli format default` names, whose registered value is `text`. The
+full pipe operator set applies.
 See the [Flow Export guide](flow-export.md).
 
 <!-- source: internal/plugins/flowexport/cmd_show.go -- handleShowFlowExport, ze-show:flow-export -->
@@ -679,8 +681,10 @@ ze show traffic usage name <interface># One interface by name
 ```
 
 Each entry reports `ingress-ports`, `egress-ports`, `map-entries`, and (only
-when `track-ip` is enabled) `ingress-ips` and `egress-ips`. JSON by default;
-full pipe operators supported. See the [Traffic Usage guide](traffic-usage.md).
+when `track-ip` is enabled) `ingress-ips` and `egress-ips`. The answer is
+rendered in the format `environment cli format default` names, whose registered
+value is `text`. The full pipe operator set applies. See the
+[Traffic Usage guide](traffic-usage.md).
 
 <!-- source: internal/plugins/trafficusage/show.go -- handleShowTrafficUsage, ze-show:traffic-usage -->
 
@@ -1658,10 +1662,12 @@ operators as a standalone filter.
 <command> | ze pipe first <n>          # Take first N items
 <command> | ze pipe last <n>           # Take last N items
 <command> | ze pipe resolve            # Add reverse DNS for IP values
+<command> | ze pipe display <field>... # Answer with these fields, in this order
+<command> | ze pipe fill [alpha|overall] [reverse]  # Bring the rest back
 ```
 
 Format operators (json, yaml, table, text, ndjson) expect JSON input. Filter
-operators (match, count, first, last) work on both JSON and plain text.
+operators (match, count, first, last, display) work on both JSON and plain text.
 `resolve` adds a `<key>-name` sibling field for each IP address value in JSON.
 <!-- source: cmd/ze/ze_core_pipe.go -- runPipe -->
 
@@ -2349,6 +2355,9 @@ Inside `ze cli`:
 | Pipe: streaming log | `monitor traceroute 8.8.8.8 \| log` |
 | Pipe: first N items | `show bgp rib \| first 100` |
 | Pipe: last N items | `show bgp rib \| last 10` |
+| Pipe: choose columns | `show bgp peer list \| display state name` |
+| Pipe: fill the rest back | `show bgp peer list \| display state \| fill alpha` |
+| Pipe: narrowest column first | `show bgp peer list \| fill overall` |
 | Pipe: disable paging | `show bgp peer list \| no-more` |
 | Set default format | `set cli format json` (session override) |
 | Show current format | `set cli format` (no argument) |

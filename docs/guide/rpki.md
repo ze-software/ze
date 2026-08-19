@@ -246,9 +246,13 @@ Query RPKI status through the ze CLI:
 Example:
 
 ```
-$ ze cli -c "show bgp rpki status"
+$ ze cli -c "show bgp rpki status | json compact"
 {"running":true,"vrp-count-ipv4":3,"vrp-count-ipv6":0,"sessions":1,"sessions-synced":1,"synced":true,"aspa-enabled":false,"aspa-records":0,"cache-servers":[{"address":"192.0.2.1","port":3323,"state":"idle","synced":true,"version":2}],"actions":{"invalid":"reject","not-found":"accept","aspa-invalid":"log-only","aspa-unknown":"accept"},"peer-actions":[]}
 ```
+
+The `| json compact` pipe asks for that shape. Without it the answer is rendered
+in the format `environment cli format default` names, whose registered value is
+`text`.
 
 `running` says that a cache server is configured. `synced` says that a cache
 server completed a sync and gave ze a VRP set. The two are different states:

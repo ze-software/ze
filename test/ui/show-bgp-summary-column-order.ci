@@ -1,0 +1,189 @@
+# Test: `show bgp summary` puts its columns in the order an operator reads them.
+#
+# VALIDATES: spec-cli-column-order AC-8. The per-peer row leads with the peer's
+#            identity, then session state, then what the session carries, and
+#            ends on the historical fault counter. Alphabetical order put
+#            connections-dropped second and state fifteenth, which is what this
+#            file exists to keep from coming back.
+# VALIDATES: AC-1 end to end. The order reaches `| text` through the daemon,
+#            the dispatcher and ApplyPipes, not just through a unit test that
+#            calls the renderer directly.
+#
+# The daemon runs with an ephemeral SSH listener; ZE_SSH_* carry the credentials
+# `ze cli` has no flags for. The peers never establish, and nothing here needs
+# them to: the row is built for every configured peer whatever its state.
+#
+# The timeout is DECLARED because this file starts a daemon and launches `ze`
+# twice, which a first (cold) run or a loaded host can take past the runner's
+# derived bound while every assertion still holds.
+option=timeout:value=60s
+
+tmpfs=run.py:terminator=EOF_PY
+import os
+import subprocess
+
+from ze_api import wait_until
+
+# The declared order, copied from registerColumns in
+# internal/component/bgp/plugins/cmd/peer/peer.go. A key the running daemon does
+# not produce (the route counts, which the bgp-rib plugin owns) drops out of the
+# comparison rather than failing it.
+PEER_ORDER = [
+    'address', 'name', 'description', 'remote-as', 'peer-type',
+    'state', 'uptime', 'state-changed', 'last-error',
+    'routes-received', 'routes-accepted', 'routes-sent',
+    'updates-received', 'updates-sent',
+    'keepalives-received', 'keepalives-sent',
+    'eor-received', 'eor-sent',
+    'connections-dropped',
+]
+RECORD_ORDER = [
+    'router-id', 'local-as', 'uptime',
+    'peers-configured', 'peers-established',
+    'family', 'peers-in-family', 'peers',
+]
+
+def require(condition, message):
+    if not condition:
+        raise SystemExit(message)
+
+def run(argv, env):
+    r = subprocess.run(argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env, check=False)
+    return r.returncode, r.stdout, r.stderr
+
+password_hash = subprocess.check_output(['ze', 'passwd'], input='secret\n', text=True).strip()
+with open('summary.conf', 'w', encoding='utf-8') as fh:
+    fh.write('''bgp {
+    router-id 192.0.2.254
+    session {
+        asn {
+            local 65000
+        }
+    }
+    group transit {
+        peer peer1 {
+            connection {
+                remote {
+                    ip 192.0.2.1
+                }
+                local {
+                    ip 127.0.0.1
+                }
+            }
+            session {
+                asn {
+                    remote 65001
+                }
+            }
+        }
+        peer peer2 {
+            connection {
+                remote {
+                    ip 192.0.2.2
+                }
+                local {
+                    ip 127.0.0.1
+                }
+            }
+            session {
+                asn {
+                    remote 65002
+                }
+            }
+        }
+    }
+}
+
+system {
+    authentication {
+        user ci {
+            password "''' + password_hash + '''"
+            profile [ admin ]
+        }
+    }
+}
+''')
+
+daemon_env = os.environ.copy()
+daemon_env['ZE_SSH_EPHEMERAL'] = os.path.abspath('ssh.addr')
+daemon_env['ZE_READY_FILE'] = os.path.abspath('ready')
+daemon_env['ZE_CONFIG_DIR'] = os.getcwd()
+# Leave port 179 alone: this suite runs unprivileged and a bind failure there
+# takes the daemon down before it writes `ready`.
+daemon_env['ze_test_bgp_port'] = str(12000 + os.getpid() % 40000)
+daemon = subprocess.Popen(['ze', '-f', 'summary.conf'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=daemon_env)
+
+def daemon_ready():
+    if daemon.poll() is not None:
+        out, err = daemon.communicate()
+        raise SystemExit('daemon exited early\nstdout:\n' + out + '\nstderr:\n' + err)
+    return os.path.exists('ssh.addr') and os.path.exists('ready')
+
+try:
+    if not wait_until(daemon_ready, attempts=200, delay=0.1):
+        raise SystemExit('daemon did not become ready')
+
+    host, port = open('ssh.addr', encoding='utf-8').read().strip().rsplit(':', 1)
+    cli_env = os.environ.copy()
+    cli_env.update({
+        'ZE_SSH_HOST': host,
+        'ZE_SSH_PORT': port,
+        'ZE_SSH_USERNAME': 'ci',
+        'ZE_SSH_PASSWORD': 'secret',
+        'ZE_CONFIG_DIR': os.getcwd(),
+    })
+
+    code, out, err = run(['ze', 'cli', '-c', 'show bgp summary | text'], cli_env)
+    require(code == 0, 'show bgp summary | text exit=%d: %s%s' % (code, out, err))
+
+    # The peer table is the value of the outer record's `peers` key, so its
+    # header row shares a line with that key. connections-dropped names the
+    # header unambiguously: no value in the table carries that text.
+    header = None
+    for line in out.split('\n'):
+        if 'connections-dropped' in line:
+            header = line.split()
+            break
+    require(header is not None, 'no peer table in the answer: %r' % out)
+    if header and header[0] == 'peers':
+        header = header[1:]
+
+    expected = [key for key in PEER_ORDER if key in header]
+    require(header == expected, 'peer columns %r, want %r' % (header, expected))
+    require(header[0] == 'address', 'the peer row must lead with the peer it is about: %r' % header)
+    require(header[5] == 'state', 'state must be the sixth column, not buried: %r' % header)
+    require(header[-1] == 'connections-dropped', 'the fault counter must come last: %r' % header)
+    require(header != sorted(header), 'the peer columns are still alphabetical: %r' % header)
+
+    # The outer record carries its own order, because it and the peer rows both
+    # hold an "uptime" key in a different place.
+    record = []
+    for line in out.split('\n'):
+        if not line or line[0].isspace():
+            continue
+        record.append(line.split()[0])
+    expected_record = [key for key in RECORD_ORDER if key in record]
+    require(record == expected_record, 'summary record keys %r, want %r' % (record, expected_record))
+    require(record != sorted(record), 'the summary record is still alphabetical: %r' % record)
+
+    # A program reads | json, so the order must not have reached it. The keys of
+    # a JSON object have no order to a parser; what is asserted here is that the
+    # rendering stayed JSON rather than becoming a table.
+    code, out, err = run(['ze', 'cli', '-c', 'show bgp summary | json'], cli_env)
+    require(code == 0, 'show bgp summary | json exit=%d: %s%s' % (code, out, err))
+    require('┌' not in out and '│' not in out, '| json answered a table: %r' % out)
+    require(out.lstrip().startswith('{'), '| json did not answer JSON: %r' % out)
+finally:
+    daemon.terminate()
+    try:
+        daemon.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        daemon.kill()
+        daemon.wait(timeout=5)
+
+print('OK')
+EOF_PY
+
+cmd=foreground:seq=1:exec=python3 run.py
+expect=exit:code=0
+expect=stdout:contains=OK

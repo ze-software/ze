@@ -1,6 +1,7 @@
 package command
 
 import (
+	"slices"
 	"testing"
 )
 
@@ -610,5 +611,122 @@ func TestCompleterArgDefsDedup(t *testing.T) {
 	}
 	if count != 1 {
 		t.Errorf("expected 'max' once, got %d times", count)
+	}
+}
+
+// columnCompleterTree is the smallest tree that resolves `show test peers` to a
+// command, which is what carries the declared column order into completion.
+func columnCompleterTree() *Node {
+	return &Node{
+		Children: map[string]*Node{
+			"show": {Name: "show", Children: map[string]*Node{
+				"test": {Name: "test", Children: map[string]*Node{
+					"peers": {Name: "peers"},
+				}},
+			}},
+		},
+	}
+}
+
+// suggestionTexts returns the text of each suggestion, in order.
+func suggestionTexts(items []Suggestion) []string {
+	texts := make([]string, len(items))
+	for i, item := range items {
+		texts[i] = item.Text
+	}
+	return texts
+}
+
+// VALIDATES: the field names after `| display` come from the column registry
+// (AC-8, first field).
+// PREVENTS: an operator having to read the docs to learn what a command's
+// answer carries. The registry is the only in-process list of those names.
+func TestCompleteDisplayFieldsFromRegistry(t *testing.T) {
+	ResetColumnsForTest()
+	t.Cleanup(ResetColumnsForTest)
+	RegisterColumns([]string{"show test peers"}, ColumnOrder{"address", "state", "uptime"})
+
+	cc := NewTreeCompleter(columnCompleterTree())
+	got := suggestionTexts(cc.Complete("show test peers | display "))
+	want := []string{"address", "state", "uptime"}
+	if !slices.Equal(got, want) {
+		t.Errorf("completions = %v, want the declared names %v", got, want)
+	}
+
+	if got := suggestionTexts(cc.Complete("show test peers | display st")); !slices.Equal(got, []string{"state"}) {
+		t.Errorf("completions = %v, want [state]", got)
+	}
+
+	// A command that declared no order offers no field names.
+	ResetColumnsForTest()
+	if got := cc.Complete("show test peers | display "); len(got) != 0 {
+		t.Errorf("a command that declared no order offered %v", suggestionTexts(got))
+	}
+}
+
+// VALIDATES: a second field name completes as well as the first, because the
+// match is on the LAST token typed (AC-8, A-2).
+// PREVENTS: completePipe matching the whole tail after the operator name, which
+// answers nothing once more than one field is typed.
+func TestCompleteDisplayFieldsAfterFirst(t *testing.T) {
+	ResetColumnsForTest()
+	t.Cleanup(ResetColumnsForTest)
+	RegisterColumns([]string{"show test peers"}, ColumnOrder{"address", "state", "uptime"})
+
+	cc := NewTreeCompleter(columnCompleterTree())
+
+	got := suggestionTexts(cc.Complete("show test peers | display address "))
+	if want := []string{"state", "uptime"}; !slices.Equal(got, want) {
+		t.Errorf("completions = %v, want the remaining names %v", got, want)
+	}
+	if got := suggestionTexts(cc.Complete("show test peers | display address st")); !slices.Equal(got, []string{"state"}) {
+		t.Errorf("completions = %v, want [state]", got)
+	}
+	if got := suggestionTexts(cc.Complete("show test peers | display address state up")); !slices.Equal(got, []string{"uptime"}) {
+		t.Errorf("completions = %v, want [uptime]", got)
+	}
+}
+
+// VALIDATES: a field already typed is not offered again (AC-8).
+// PREVENTS: `| display address address`, which displays one column twice and
+// hides the names the operator has not used yet.
+func TestCompleteDisplaySkipsTypedFields(t *testing.T) {
+	ResetColumnsForTest()
+	t.Cleanup(ResetColumnsForTest)
+	RegisterColumns([]string{"show test peers"}, ColumnOrder{"address", "state", "uptime"})
+
+	cc := NewTreeCompleter(columnCompleterTree())
+	if got := suggestionTexts(cc.Complete("show test peers | display address state ")); !slices.Equal(got, []string{"uptime"}) {
+		t.Errorf("completions = %v, want [uptime]", got)
+	}
+	if got := suggestionTexts(cc.Complete("show test peers | display address a")); len(got) != 0 {
+		t.Errorf("a name already typed was offered again: %v", got)
+	}
+}
+
+// VALIDATES: `| fill` offers its keywords and never a field name (AC-8).
+// PREVENTS: the two argument sets being mixed, which is the failure the split
+// into two operators exists to remove: a token cannot be a field name in one
+// position and a keyword in another.
+func TestCompleteFillOffersKeywordsOnly(t *testing.T) {
+	ResetColumnsForTest()
+	t.Cleanup(ResetColumnsForTest)
+	RegisterColumns([]string{"show test peers"}, ColumnOrder{"address", "state", "uptime"})
+
+	cc := NewTreeCompleter(columnCompleterTree())
+	got := suggestionTexts(cc.Complete("show test peers | fill "))
+	want := []string{"alpha", "overall", "reverse"}
+	if !slices.Equal(got, want) {
+		t.Errorf("completions = %v, want %v", got, want)
+	}
+
+	if got := suggestionTexts(cc.Complete("show test peers | fill ov")); !slices.Equal(got, []string{"overall"}) {
+		t.Errorf("completions = %v, want [overall]", got)
+	}
+	if got := suggestionTexts(cc.Complete("show test peers | fill overall re")); !slices.Equal(got, []string{"reverse"}) {
+		t.Errorf("completions = %v, want [reverse]: the match is on the last token", got)
+	}
+	if got := suggestionTexts(cc.Complete("show test peers | fill add")); len(got) != 0 {
+		t.Errorf("| fill offered a field name: %v", got)
 	}
 }

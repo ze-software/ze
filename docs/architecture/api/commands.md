@@ -205,6 +205,7 @@ the bus from buggy or malicious producers.
 | `ze-monitor:traffic-stat` (args: `[name <interface>]`) | `streamTraffic` in `internal/component/trafficstat/cmd/traffic.go` | Streaming JSON lines (1/s) with the same shape as `ze-show:traffic-stat`. Attaches as a consumer on connect, detaches on disconnect (lazy lifecycle). Also registered as a `MonitorProvider` for full-screen TUI rendering via `createTrafficMonitorSession` in `cmd/render.go`. |
 | `ze-show:traffic-feature` (args: `[name <address>]`) | `handleShowTrafficFeature` in `internal/component/trafficfeature/cmd/traffic_feature.go` | Neutral per-source feature snapshot: `{"degraded": bool, "top-source-ips": [{address, fan-out, out-in-ratio, port-entropy, new-peer, rare-port, beaconing}]}`. `out-in-ratio` is the string `"inf"` when a source has no inbound bytes (else a float). Optional `name <address>` filters to one source. Facts only (no verdict); the anomaly detection family applies judgment. |
 | `ze-show:anomaly` (no args) | `handleShowAnomaly` in `internal/plugins/anomaly/detect/show.go` | Recent behavioral anomaly incidents (report-only): `{"enabled": bool, "incidents": [{entity, cohort, score, severity, at, fired-features: [{name, z}]}]}`. Bounded recent-incident ring; empty until an entity's correlated deviation confirms. `enabled` is false when the detector is not running. The `anomaly/shape` responder consumes the underlying `anomaly-detect` events; this command is the read-only view. |
+| `ze-show:anomaly-observe` (no args) | `handleShowAnomalyObserve` in `internal/plugins/anomaly/observe/show.go` | Behavioral anomaly incident LIFECYCLE, newest first: `{"enabled": bool, "active-count": N, "incidents": [{id, interface, entity, cohort, fired-features: [{name, z}], score, severity, start-time, end-time, active}]}`. `end-time` is omitted while `active` is true. It is set when the incident clears, or when the stale timeout finalizes it. A finished incident's duration is readable here and nowhere else. `enabled` is false when the plugin is not running. |
 | `ze-show:anomaly-shape` (no args) | `handleShowAnomalyShape` in `internal/plugins/anomaly/shape/show.go` | Shadow-first responder status: `{"enabled": bool, "mode": "shadow"\|"armed", "action": "limit"\|"drop", "kill-switch": bool, "armed-count": N, "armed": [source, ...]}`. `enabled` is false before configuration. In shadow mode (default) nothing is installed; armed sources carry a live per-source firewall action with a timed auto-revert. |
 | `ze-show:traffic-usage` (args: `[name <interface>]`) | `handleShowTrafficUsage` in `internal/plugins/trafficusage/show.go` | No arg: JSON array of per-interface objects. `name <interface>`: single interface object. Per-interface fields: `ingress-ports`, `egress-ports`, `map-entries`, and (only when `track-ip` is enabled) `ingress-ips`, `egress-ips`. Bad args: error `usage: show traffic usage [name <interface>]`. When unconfigured: `{"status": "not-configured"}`. |
 | `ze-show:pki-certificates` | `handleShowPKICertificates` in `internal/component/pki/show.go` | `{"certificates": [CertSummary, ...], "count": N}` |
@@ -687,7 +688,7 @@ show bgp rib [filters...] [terminal]        # Unified route display with pipelin
     source filters: received | advertised
     filters: peer <selector>, path <pattern>, prefix <pattern>, community <value>,
              family <afi/safi>
-    terminals: count, prefix-summary, graph (AS topology box-drawing)
+    terminals: count, histogram, graph (AS topology box-drawing)
 show bgp rib best [filters...] [terminal]   # Best-path per prefix (RFC 4271 §9.1.2)
 show bgp rib status                         # RIB status (peer/route counts)
 clear bgp rib in <selector>                  # Clear Adj-RIB-In (* for all peers)
@@ -697,7 +698,7 @@ request bgp rib withdraw <peer> <family> <prefix>       # Remove route from Adj-
 show bgp rib rpf <family> <source-addr>      # RPF lookup (longest-prefix-match in Loc-RIB)
 ```
 
-Generic pipes such as `match`, `json`, `ndjson`, `table`, `text`, `yaml`, `resolve`, `origin`, `log`, and `no-more` remain client-side pipe operators. RIB route filters such as `received`, `advertised`, `peer`, `family`, `prefix`, `path`, and `community` are command-specific filters registered by the RIB command and folded into the RIB iterator request before route output is generated.
+Generic pipes such as `match`, `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `resolve`, `origin`, `log`, `no-more`, `display`, and `fill` remain client-side pipe operators. RIB route filters such as `received`, `advertised`, `peer`, `family`, `prefix`, `path`, and `community` are command-specific filters registered by the RIB command and folded into the RIB iterator request before route output is generated.
 
 Inject attributes: `origin <igp|egp|incomplete>`, `nhop|nexthop <ip>`, `aspath <asn,asn,...>`, `localpref <n>`, `med <n>`. Peer address is a label (valid IP, no session required). Only simple prefix families (IPv4/IPv6 unicast/multicast). IPv4-mapped IPv6 next-hops accepted.
 <!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- injectRoute, withdrawRoute -->
@@ -777,7 +778,7 @@ output. It is set by the engine, not by a peer's attach block: the
 `content { encoding format attribute }` container inside `attach process`
 parses and reaches no field of `ProcessBinding`, so a peer cannot ask for one
 rendering while another peer asks for a different one.
-<!-- source: internal/component/bgp/reactor/peersettings.go -- ProcessBinding -->
+<!-- source: internal/component/bgp/reactor/peer_settings.go -- ProcessBinding -->
 
 Available attribute names:
 | Name | Code | Description |
@@ -1278,6 +1279,70 @@ var Commands = []CommandInfo{
 }
 ```
 <!-- source: internal/component/plugin/server/rpc_register.go -- registeredRPCs -->
+
+### Per-command declarations: pipe filters and column order
+
+Two registries let a command say something about itself to the CLI. Both are
+keyed by command path. Both resolve a command to the declaration registered on
+the longest path that is a prefix of it. So `show bgp rib best` picks up a
+declaration on `show bgp rib` unless it registers one of its own. A command that
+must NOT inherit registers an EMPTY declaration: absent and empty are different
+answers, and this is the trap both registries exist in.
+
+| Registry | Declares | Read by |
+|----------|----------|---------|
+| `RegisterPipeFilters` | the pipe segments this command accepts as its own, which `foldFilters` rewrites into server-side arguments | `foldFilters`, the completer, the pipe validator |
+| `RegisterColumns` | the order the table and text renderers put this command's columns in | `tableStyle.orderKeys`, through the four `ProcessPipes*` wrappers |
+
+One implementation resolves both: `commandRegistry[T]` in `column_order.go`.
+
+A column order never enters the payload. It is captured when the formatter is
+built, from the command string the wrapper already holds, and it reaches
+`| table` and `| text` only. `| json`, `| ndjson` and `| yaml` keep their
+alphabetical keys, because a program reads those three and key order carries no
+meaning for a program.
+
+A command declares one order per record shape. `show bgp summary` renders an
+outer record and a list of peer rows. Both carry an `uptime` key in a different
+position. So the renderer applies the declaration that names the most of the
+keys in the record it has in hand.
+
+### `| display` and `| fill`: the operator's own answer
+
+An operator overrides both halves of that with two generic pipe operators.
+`| display <field>...` names the fields the answer leads with.
+`| fill [alpha|overall] [reverse]` says whether the fields it did not name come
+back at all, and in what sequence. Each takes ONE type of argument, so no token
+is a field name in one position and a keyword in another.
+
+The two halves of the request travel by different routes, and the split is what
+makes them work under every format:
+
+| Half | Where it is applied | Reaches |
+|------|--------------------|---------|
+| Selection: which fields | `applyDisplaySelect`, over the payload, at the operator's position in the chain | every format, `\| json`, `\| ndjson`, `\| yaml` and `\| raw` included |
+| Sequence: in what order | `columnRequest` carried on `tableStyle` | `\| table` and `\| text` only |
+
+Selection is a data question the operator asked out loud, so a program gets the
+answer. Sequence is presentation, so it stops at the two renderers.
+
+`selectFields` walks the same shapes `tableStyle.renderValue` walks, and applies
+the same rule `orderKeys` applies. A record that carries at least one displayed
+field is cut to the displayed ones. A record that carries none is left whole.
+Without that agreement a nested sub-table and the JSON behind it would answer
+with different fields. Without it a record naming nothing displayed would render
+as a box with no rows.
+
+**Both kinds MUST be named in the `foldFilters` switch.** That switch has no
+`default:` arm. So a pipe kind named nowhere in it reaches neither the server
+nor the client, for every command that registers filters of its own. Nothing
+reports the loss. `TestColumnOpsSurviveFoldFiltersOnFilteredCommand` and
+`test/ui/display-fill-filtered-command.ci` are what hold that.
+
+<!-- source: internal/component/command/column_order.go -- RegisterColumns, ColumnsForCommand, commandRegistry -->
+<!-- source: internal/component/command/pipe_filter.go -- RegisterPipeFilters, lookupPipeFilters -->
+<!-- source: internal/component/command/pipe_columns.go -- parseDisplay, parseFill, applyDisplaySelect, selectFields -->
+<!-- source: internal/component/command/pipe_table.go -- tableStyle.orderKeys, fillKeys, bestColumnOrder -->
 
 ---
 

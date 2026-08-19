@@ -13,10 +13,17 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	peersel "github.com/ze-software/ze/internal/core/selector"
 	"github.com/ze-software/ze/internal/core/textbuf"
+)
+
+// The command paths these handlers answer, as an operator types them.
+const (
+	cmdBgpSummary  = "show bgp summary"
+	cmdBgpPeerList = "show bgp peer list"
 )
 
 var (
@@ -33,6 +40,8 @@ func notifDirection(recv bool) string {
 }
 
 func init() {
+	registerColumns()
+
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-list", Handler: handleBgpPeerList},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-detail", Handler: HandleBgpPeerDetail},
@@ -44,6 +53,44 @@ func init() {
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-history", Handler: handlePeerHistory, RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-delete:bgp-peer", Handler: handleBgpPeerRemove, RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-update:bgp-peer-prefix", Handler: handleBgpPeerPrefixUpdate, RequiresSelector: true},
+	)
+}
+
+// registerColumns declares the order the table and text renderers put these
+// commands' columns in. Every name is a JSON key the handler below builds.
+//
+// The order is the one an operator reads a peer in:
+//
+//   - which peer this is.
+//   - whether the session is up, and why it last went down.
+//   - what the session carries.
+//   - the counters reached for only when something is wrong.
+//
+// It is not alphabetical, which put connections-dropped second and state
+// fifteenth.
+func registerColumns() {
+	// Two orders, because `show bgp summary` renders two record shapes and both
+	// carry an "uptime" key: the peer rows, and the record that holds them.
+	command.RegisterColumns([]string{cmdBgpSummary},
+		command.ColumnOrder{
+			"address", "name", "description", "remote-as", "peer-type",
+			"state", "uptime", "state-changed", "last-error",
+			"routes-received", "routes-accepted", "routes-sent",
+			"updates-received", "updates-sent",
+			"keepalives-received", "keepalives-sent",
+			"eor-received", "eor-sent",
+			"connections-dropped",
+		},
+		command.ColumnOrder{
+			"router-id", "local-as", "uptime",
+			"peers-configured", "peers-established",
+			"family", "peers-in-family", "peers",
+		},
+	)
+	// `show bgp peer list` indexes its rows by address, so the address is
+	// already the first column and the order carries the fields that follow it.
+	command.RegisterColumns([]string{cmdBgpPeerList},
+		command.ColumnOrder{"name", "group", "remote-as", "state", "uptime"},
 	)
 }
 
