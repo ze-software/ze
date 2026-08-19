@@ -419,13 +419,14 @@ rounds, so the reader knows that you thought about the case.
 | Formatting | `gofmt` and `goimports`. Ze imports come last, under the local prefix |
 | Linting | `golangci-lint` MUST pass. Do not disable a linter. Fix the finding |
 | A `//nolint` | Carries the specific reason on the same line |
-| Indentation | Tabs, because `gofmt` writes tabs |
+| Indentation | Tabs, because `gofmt` writes tabs. Every other file type is spaces, and `.editorconfig` at the repository root carries the width for each one |
 | Line length | 100 columns is the target, and it is advisory. The number is physical: two copies of the code fit beside each other on one screen |
 | File length | 1000 lines is the point at which you look for a second concern. It is the only threshold |
 | Test file length | No threshold. A table of cases grows with coverage |
 | Function length | One screen is the target, and it is advisory |
 
 <!-- source: .golangci.yml -- linters, formatters -->
+<!-- source: .editorconfig -- indentation per file type -->
 
 ### Dependencies
 

@@ -1,0 +1,87 @@
+# Indentation conventions for the Ze tree.
+# The narrative version lives in docs/contributing/ze-style.md, "By the numbers".
+# Each rule below records what the tracked files already do. It does not
+# introduce a new convention.
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+# Go is tabs because gofmt writes tabs. gofmt owns this file type; the
+# editor must not reformat around it.
+[*.go]
+indent_style = tab
+
+# make requires a tab before every recipe line.
+[{Makefile,*.mk}]
+indent_style = tab
+
+# Functional test scripts embed shell heredocs and expected output. The tabs
+# are part of the recorded text, so leave the trailing bytes alone.
+[*.ci]
+indent_style = tab
+trim_trailing_whitespace = false
+
+[*.et]
+indent_size = 2
+
+[*.py]
+indent_size = 4
+
+[*.sh]
+indent_size = 4
+
+# YANG modules use 4 spaces per level: ai/rules/config.md, "YANG file layout".
+[*.yang]
+indent_size = 4
+
+# Browser assets under internal/ climb in twos: internal/component/web/assets
+# and the chaos, lg and mcp stylesheets beside them.
+[*.{js,css,html}]
+indent_size = 2
+
+# The website tree is the exception. Its stylesheets and pages climb in fours.
+[website/**/*.{js,css,html}]
+indent_size = 4
+
+[*.{yml,yaml,json}]
+indent_size = 2
+
+# Markdown gives a line break to two trailing spaces, so trimming changes the
+# rendered page.
+[*.md]
+indent_size = 2
+trim_trailing_whitespace = false
+
+# Golden files and captured handler output are compared byte for byte. A final
+# newline or a trimmed line breaks the test.
+[**/testdata/**]
+end_of_line = unset
+insert_final_newline = unset
+trim_trailing_whitespace = unset
+indent_style = unset
+indent_size = unset
+
+# RFC text is quoted external text and is never edited.
+[rfc/full/**]
+end_of_line = unset
+insert_final_newline = unset
+trim_trailing_whitespace = unset
+indent_style = unset
+indent_size = unset
+
+# Third-party code keeps its upstream formatting. Three files under these two
+# trees carry CRLF, and the editor must not rewrite them.
+[{vendor,gokrazy/modcache}/**]
+charset = unset
+end_of_line = unset
+insert_final_newline = unset
+trim_trailing_whitespace = unset
+indent_style = unset
+indent_size = unset
