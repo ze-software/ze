@@ -146,11 +146,13 @@ func (b *bridge) handleUpdate(jsonStr, peer string) {
 
 // handleFlowSpecAdd processes a single FlowSpec NLRI addition.
 // Returns true if the rule map changed.
+//
+// Every route it does not enforce moves the refusal counter and writes a log
+// line, the route carrying no traffic action included: translateFlowSpec
+// returns errNoAction for that one, so it takes the same path as every other
+// refusal. Returning early on it instead would leave the peer believing ze
+// filters traffic that ze does not, with nothing recorded anywhere.
 func (b *bridge) handleFlowSpecAdd(peer string, fam family.Family, nlriKey string, nlriJSON json.RawMessage, act flowAction) bool {
-	if !act.discard && act.rateLimit == 0 && !act.hasMark {
-		return false
-	}
-
 	fs, err := parseNLRIJSON(fam, nlriJSON)
 	if err != nil {
 		countRuleRefused(refusalReason(err))

@@ -55,10 +55,11 @@ func translateFlowSpec(fs *flowspec.FlowSpec, act flowAction, nlriKey string) ([
 
 	for _, comp := range fs.Components() {
 		if comp.Type() == flowspec.FlowPort {
-			ranges := valuesToPortRanges(extractNumericValues(comp))
-			if len(ranges) > 0 {
-				portAnyRanges = ranges
+			ranges, err := valuesToPortRanges(comp)
+			if err != nil {
+				return nil, err
 			}
+			portAnyRanges = ranges
 			continue
 		}
 		m, err := componentToMatch(comp, fs.Family())
@@ -154,53 +155,57 @@ func componentToMatch(comp flowspec.FlowComponent, fam family.Family) ([]firewal
 		return protocolMatches(extractNumericValues(comp))
 
 	case flowspec.FlowPort:
-		// Type 4 (Port = src OR dst) is handled in translateFlowSpec by
-		// splitting into two terms. If called directly, return dst-only
-		// as a safe fallback (narrower than the intended OR).
-		ranges := valuesToPortRanges(extractNumericValues(comp))
-		if len(ranges) == 0 {
-			return nil, nil
-		}
-		return []firewall.Match{firewall.MatchDestinationPort{Ranges: ranges}}, nil
+		// Type 4 (Port = src OR dst) is expanded into two terms by
+		// translateFlowSpec, which reads it before this function is called.
+		// A destination-only answer here would enforce half of what the peer
+		// announced, so a caller that reached this line is refused.
+		//
+		// Only a Ze defect reaches this line, which would make it a panic
+		// site. It stays an error return because this function runs on data a
+		// peer sends: an error here is already counted and logged, while a
+		// panic would put the daemon one mistaken call away from exiting.
+		return nil, fmt.Errorf("%w: port (type 4) is expanded by translateFlowSpec, not matched here", errUnsupportedComponent)
 
 	case flowspec.FlowDestPort:
-		ranges := valuesToPortRanges(extractNumericValues(comp))
-		if len(ranges) == 0 {
-			return nil, nil
+		ranges, err := valuesToPortRanges(comp)
+		if err != nil {
+			return nil, err
 		}
 		return []firewall.Match{firewall.MatchDestinationPort{Ranges: ranges}}, nil
 
 	case flowspec.FlowSourcePort:
-		ranges := valuesToPortRanges(extractNumericValues(comp))
-		if len(ranges) == 0 {
-			return nil, nil
+		ranges, err := valuesToPortRanges(comp)
+		if err != nil {
+			return nil, err
 		}
 		return []firewall.Match{firewall.MatchSourcePort{Ranges: ranges}}, nil
 
 	case flowspec.FlowICMPType:
-		vals := extractNumericValues(comp)
-		if len(vals) == 0 {
-			return nil, nil
+		// RFC 8955 Section 4.2.2.7 gives the ICMP type field one octet.
+		val, err := singleValue(comp, 255)
+		if err != nil {
+			return nil, err
 		}
-		return []firewall.Match{firewall.MatchICMPType{Type: uint8(vals[0])}}, nil
+		return []firewall.Match{firewall.MatchICMPType{Type: uint8(val)}}, nil
 
 	case flowspec.FlowTCPFlags:
-		vals := extractNumericValues(comp)
-		if len(vals) == 0 {
-			return nil, nil
+		// RFC 8955 Section 4.2.2.9 allows a one or two octet bitmask, and the
+		// firewall match holds the eight TCP flag bits.
+		val, err := singleValue(comp, 255)
+		if err != nil {
+			return nil, err
 		}
-		if vals[0] > 255 {
-			return nil, fmt.Errorf("%w: tcp-flags value %d exceeds uint8", errUnsupportedComponent, vals[0])
-		}
-		flags := firewall.TCPFlags(vals[0])
+		flags := firewall.TCPFlags(val)
 		return []firewall.Match{firewall.MatchTCPFlags{Flags: flags, Mask: flags}}, nil
 
 	case flowspec.FlowDSCP:
-		vals := extractNumericValues(comp)
-		if len(vals) == 0 {
-			return nil, nil
+		// RFC 8955 Section 4.2.2.11 gives the DSCP field one octet and RFC 2474
+		// defines six bits of it, so 63 is the largest value a match can carry.
+		val, err := singleValue(comp, 63)
+		if err != nil {
+			return nil, err
 		}
-		return []firewall.Match{firewall.MatchDSCP{Value: uint8(vals[0])}}, nil
+		return []firewall.Match{firewall.MatchDSCP{Value: uint8(val)}}, nil
 
 	case flowspec.FlowICMPCode, flowspec.FlowPacketLength,
 		flowspec.FlowFragment, flowspec.FlowFlowLabel:
@@ -348,14 +353,64 @@ func protocolMatches(vals []uint64) ([]firewall.Match, error) {
 	return matches, nil
 }
 
-func valuesToPortRanges(vals []uint64) []firewall.PortRange {
+// valuesToPortRanges maps the values of a port component to single-port
+// ranges, keeping the peer's order. A port component lists ALTERNATIVES, and
+// one MatchSourcePort or MatchDestinationPort carries every one of them, so no
+// term expansion is needed here.
+//
+// Port 0 is translated rather than refused. It is a legal value of the
+// two-octet port field (RFC 8955 Section 4.2.2.5), and both backends express
+// it: the nft backend lowers a single range to one equality comparison
+// (lowerPortMatch, internal/plugins/firewall/nft/lower_linux.go) and the VPP
+// backend to the range 0-0 (internal/plugins/firewall/vpp/translate.go).
+// Refusing a rule ze can enforce, or dropping the value and enforcing the rule
+// without its port condition, are both wrong: the second is the wider one, and
+// it turned "drop tcp to 10.1.0.0/24 destination-port =0" into a drop of ALL
+// tcp to that prefix.
+//
+// A component with no value, or a value the field cannot hold, refuses the
+// whole rule for the same reason: ze cannot read what the peer asked for, so
+// ze must not enforce a looser version of it.
+func valuesToPortRanges(comp flowspec.FlowComponent) ([]firewall.PortRange, error) {
+	vals := extractNumericValues(comp)
+	if len(vals) == 0 {
+		return nil, fmt.Errorf("%w: %s carries no value", errUnreadableValue, comp.Type())
+	}
 	ranges := make([]firewall.PortRange, 0, len(vals))
 	for _, v := range vals {
-		if v > 0 && v <= 65535 {
-			ranges = append(ranges, firewall.PortRange{Lo: uint16(v), Hi: uint16(v)})
+		if v > 65535 {
+			return nil, fmt.Errorf("%w: %s value %d exceeds the two-octet port field", errUnreadableValue, comp.Type(), v)
 		}
+		ranges = append(ranges, firewall.PortRange{Lo: uint16(v), Hi: uint16(v)})
 	}
-	return ranges
+	return ranges, nil
+}
+
+// singleValue reads the one value of a component whose firewall match holds
+// exactly one, and refuses everything else. valueMax is the largest value that
+// match can carry.
+//
+// A component listing several values means "any of these", and a Term ANDs its
+// matches, so alternatives can only be expressed as one term each. Type 3 (IP
+// protocol) is expanded that way because the canonical protocol table bounds
+// the result. ICMP type, TCP flags and DSCP have no such bound, and they
+// multiply with the protocol expansion: 256 ICMP types times 256 protocols is
+// 65536 terms from one NLRI, which is the unbounded expansion protocolMatches
+// exists to prevent. So the rule is refused, counted and logged instead.
+// Enforcing the first value and discarding the rest would enforce a rule the
+// peer never announced.
+func singleValue(comp flowspec.FlowComponent, valueMax uint64) (uint64, error) {
+	vals := extractNumericValues(comp)
+	if len(vals) == 0 {
+		return 0, fmt.Errorf("%w: %s carries no value", errUnreadableValue, comp.Type())
+	}
+	if len(vals) > 1 {
+		return 0, fmt.Errorf("%w: %s lists %d alternatives and one firewall match holds one value", errUnsupportedComponent, comp.Type(), len(vals))
+	}
+	if vals[0] > valueMax {
+		return 0, fmt.Errorf("%w: %s value %d exceeds %d", errUnsupportedComponent, comp.Type(), vals[0], valueMax)
+	}
+	return vals[0], nil
 }
 
 // extractPrefix parses a prefix component's wire bytes into netip.Prefix.
@@ -489,10 +544,13 @@ func parseNLRIJSON(fam family.Family, data json.RawMessage) (*flowspec.FlowSpec,
 	if len(n.ICMPCode) > 0 {
 		return nil, fmt.Errorf("%w: icmp-code", errUnsupportedComponent)
 	}
-	if vals, err := firstUint16Vals(n.TCPFlags); err != nil {
+	// firstNumericVals rather than firstUint16Vals: the component holds one
+	// octet per value, and every value is carried so componentToMatch sees the
+	// list the peer sent rather than its first entry.
+	if vals, err := firstNumericVals(n.TCPFlags, nil, false); err != nil {
 		return nil, err
 	} else if len(vals) > 0 {
-		fs.AddComponent(flowspec.NewFlowTCPFlagsComponent(uint8(vals[0])))
+		fs.AddComponent(flowspec.NewFlowTCPFlagsComponent(vals...))
 	}
 	if len(n.PacketLength) > 0 {
 		return nil, fmt.Errorf("%w: packet-length", errUnsupportedComponent)
