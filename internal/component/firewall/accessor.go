@@ -7,8 +7,9 @@ import "sync/atomic"
 
 // lastApplied holds the desired-state snapshot from the most recent
 // successful backend.Apply. Readers (CLI show handlers, operational
-// RPCs) consume it without going back to the kernel. Engine writes
-// it via StoreLastApplied under the package lock.
+// RPCs) consume it without going back to the kernel. ApplyAll
+// (registry.go) writes it under reconcileMu, and CloseBackend clears
+// it.
 //
 // We use atomic.Pointer[[]Table] so reads never block and are safe
 // across goroutines. The pointed-to slice is immutable once stored --
@@ -16,8 +17,11 @@ import "sync/atomic"
 var lastApplied atomic.Pointer[[]Table]
 
 // StoreLastApplied records the tables just sent to backend.Apply.
-// Called by the engine only after Apply returns nil, so readers never
-// see a partially-applied snapshot. Passing nil clears the snapshot.
+// ApplyAll (registry.go) is the only caller that records a set, and it
+// calls this after Apply returns nil, so readers never see a
+// partially-applied snapshot. Every owner's tables are in that set:
+// the config-derived ones and the plugin-owned ones alike. CloseBackend
+// passes nil to clear the snapshot when the backend goes away.
 //
 // Does a deep copy of the table tree (chains, terms, matches, actions,
 // sets, elements, flowtables) so a later mutation by the caller cannot

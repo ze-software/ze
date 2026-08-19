@@ -322,7 +322,6 @@ func runEngine(conn net.Conn) int {
 		if err := ApplyAll(); err != nil {
 			return fmt.Errorf("firewall config apply: %w", err)
 		}
-		StoreLastApplied(cfg.Tables)
 		activeCfg.Store(cfg)
 		log.Info("firewall config applied", "tables", len(cfg.Tables))
 
@@ -383,7 +382,6 @@ func runEngine(conn net.Conn) int {
 				if applyErr := ApplyAll(); applyErr != nil {
 					return fmt.Errorf("firewall reload: %w", applyErr)
 				}
-				StoreLastApplied(cfg.Tables)
 				return nil
 			},
 			func() error {
@@ -395,7 +393,6 @@ func runEngine(conn net.Conn) int {
 				if rollbackErr := ApplyAll(); rollbackErr != nil {
 					return fmt.Errorf("firewall rollback: %w", rollbackErr)
 				}
-				StoreLastApplied(desired)
 				return nil
 			},
 		)

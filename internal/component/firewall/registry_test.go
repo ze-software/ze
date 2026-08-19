@@ -1,6 +1,9 @@
 package firewall
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
 
 // VALIDATES: a plugin (copp / policy-routes / ddos-local) that registers tables
 // without the operator writing a firewall {} block still gets its tables
@@ -179,14 +182,15 @@ func resetTables() {
 // countingBackend records Apply calls so a test can assert the on-demand
 // backend load actually reconciled the registered tables.
 type countingBackend struct {
-	onApply func([]Table)
+	onApply  func([]Table)
+	applyErr error // returned by Apply, so a test can drive a failed reconcile.
 }
 
 func (c *countingBackend) Apply(d []Table) error {
 	if c.onApply != nil {
 		c.onApply(d)
 	}
-	return nil
+	return c.applyErr
 }
 func (c *countingBackend) ListTables() ([]Table, error)                { return nil, nil }
 func (c *countingBackend) GetCounters(string) ([]ChainCounters, error) { return nil, nil }
@@ -323,5 +327,193 @@ func TestApplyAllDoesNotWaitForADeclaredSet(t *testing.T) {
 	}
 	if applies != 1 {
 		t.Fatalf("backend applies = %d, want 1: a declared set must not defer the reconcile", applies)
+	}
+}
+
+// errApplyFailed is the reconcile failure the snapshot tests drive.
+var errApplyFailed = errors.New("backend refused the desired state")
+
+// snapshotBackend registers a countingBackend under name as the OS default for
+// autoload, returns it so a test can flip applyErr, and restores both registries
+// plus the snapshot when the test ends.
+func snapshotBackend(t *testing.T, name string) *countingBackend {
+	t.Helper()
+	resetBackends()
+	resetTables()
+	StoreLastApplied(nil)
+	t.Cleanup(func() {
+		resetBackends()
+		resetTables()
+		StoreLastApplied(nil)
+	})
+
+	b := &countingBackend{}
+	if err := RegisterBackend(name, func() (Backend, error) { return b, nil }); err != nil {
+		t.Fatalf("RegisterBackend: %v", err)
+	}
+	prev := defaultBackendForAutoload
+	defaultBackendForAutoload = name
+	t.Cleanup(func() { defaultBackendForAutoload = prev })
+	return b
+}
+
+// snapshotNames returns the table names LastApplied reports, in order.
+func snapshotNames(t *testing.T) []string {
+	t.Helper()
+	applied := LastApplied()
+	names := make([]string, 0, len(applied))
+	for i := range applied {
+		names = append(names, applied[i].Name)
+	}
+	return names
+}
+
+// VALIDATES: a reconcile driven by a plugin alone, with no firewall {} section
+// anywhere, records what it applied. `show firewall ruleset ze_irr_iface` and
+// the web pages read LastApplied, so this is what makes a plugin-owned table
+// visible to an operator.
+// PREVENTS: the readback answering "no firewall tables have been applied" for a
+// table that IS in the kernel, which is what every StoreLastApplied call site
+// living in engine.go produced: each passed the config's tables, so the four
+// plugin owners (firewall-irr, copp, policy-routes, ddos-local) were never in
+// the snapshot.
+func TestApplyAllRecordsAPluginOnlyReconcile(t *testing.T) {
+	snapshotBackend(t, "snapshot-plugin-only")
+
+	RegisterTables("firewall-irr", []Table{{Name: "ze_irr_iface", Family: FamilyInet}})
+
+	if err := ApplyAll(); err != nil {
+		t.Fatalf("ApplyAll: %v", err)
+	}
+	if got := snapshotNames(t); len(got) != 1 || got[0] != "ze_irr_iface" {
+		t.Fatalf("LastApplied() = %v, want [ze_irr_iface]", got)
+	}
+}
+
+// VALIDATES: two owners registering one table name and family are both in the
+// snapshot, with the chains of the first and the sets of the second. The
+// snapshot is the MERGED set that reached the backend, not any one owner's view
+// of it.
+// PREVENTS: a readback that shows the engine's chains for ze_wan and claims the
+// IRR-supplied set is absent, so an operator debugging a match-in-set rule reads
+// a table that never existed.
+func TestApplyAllSnapshotHoldsTheMergedTable(t *testing.T) {
+	snapshotBackend(t, "snapshot-merge")
+
+	RegisterTables("firewall", []Table{{
+		Name:   "ze_wan",
+		Family: FamilyInet,
+		Chains: []Chain{{
+			Name:   "input",
+			IsBase: true,
+			Type:   ChainFilter,
+			Hook:   HookInput,
+			Policy: PolicyAccept,
+			Terms: []Term{{
+				Name:    "t",
+				Matches: []Match{MatchInSet{SetName: "irr_v4_AS13335", MatchField: SetFieldSourceAddr, ProvidedType: SetTypeIPv4}},
+				Actions: []Action{Accept{}},
+			}},
+		}},
+	}})
+	RegisterTables("firewall-irr", []Table{{
+		Name:   "ze_wan",
+		Family: FamilyInet,
+		Sets:   []Set{{Name: "irr_v4_AS13335", Type: SetTypeIPv4, Flags: SetFlagInterval}},
+	}})
+
+	if err := ApplyAll(); err != nil {
+		t.Fatalf("ApplyAll: %v", err)
+	}
+	applied := LastApplied()
+	if len(applied) != 1 {
+		t.Fatalf("LastApplied() = %v, want the two owners merged into one table", snapshotNames(t))
+	}
+	if len(applied[0].Chains) != 1 || len(applied[0].Sets) != 1 {
+		t.Fatalf("merged table has %d chains and %d sets, want 1 and 1", len(applied[0].Chains), len(applied[0].Sets))
+	}
+	if applied[0].Sets[0].Name != "irr_v4_AS13335" {
+		t.Fatalf("merged table carries set %q, want irr_v4_AS13335", applied[0].Sets[0].Name)
+	}
+}
+
+// VALIDATES: a reconcile the backend refuses leaves the previous snapshot as it
+// was, so the readback keeps describing the state the kernel still holds.
+// PREVENTS: a failed apply publishing a desired state that was never programmed,
+// which would make the readback a plan rather than a record.
+func TestApplyAllFailedApplyKeepsThePreviousSnapshot(t *testing.T) {
+	b := snapshotBackend(t, "snapshot-failed-apply")
+
+	RegisterTables("copp", []Table{{Name: "ze_copp", Family: FamilyInet}})
+	if err := ApplyAll(); err != nil {
+		t.Fatalf("first ApplyAll: %v", err)
+	}
+
+	b.applyErr = errApplyFailed
+	RegisterTables("firewall-irr", []Table{{Name: "ze_irr_iface", Family: FamilyInet}})
+	if err := ApplyAll(); !errors.Is(err, errApplyFailed) {
+		t.Fatalf("ApplyAll = %v, want the backend error", err)
+	}
+
+	if got := snapshotNames(t); len(got) != 1 || got[0] != "ze_copp" {
+		t.Fatalf("LastApplied() = %v after a failed apply, want the previous [ze_copp]", got)
+	}
+}
+
+// VALIDATES: every owner withdrawing, through a live backend that accepts the
+// empty set, is recorded as an empty snapshot. The kernel holds nothing, so the
+// readback says nothing.
+// PREVENTS: the readback going stale on the one reconcile an operator is most
+// likely to check -- `show firewall ruleset` still listing the tables a withdraw
+// removed.
+func TestApplyAllWithdrawRecordsTheEmptySet(t *testing.T) {
+	snapshotBackend(t, "snapshot-withdraw")
+
+	RegisterTables("copp", []Table{{Name: "ze_copp", Family: FamilyInet}})
+	if err := ApplyAll(); err != nil {
+		t.Fatalf("first ApplyAll: %v", err)
+	}
+	// The withdraw below asserts an ABSENCE, which an implementation that
+	// records nothing at all satisfies too. Pin the presence first, so the
+	// second assertion measures the withdraw rather than a snapshot that was
+	// never written.
+	if got := snapshotNames(t); len(got) != 1 || got[0] != "ze_copp" {
+		t.Fatalf("LastApplied() = %v before the withdraw, want [ze_copp]", got)
+	}
+
+	RegisterTables("copp", nil)
+	if err := ApplyAll(); err != nil {
+		t.Fatalf("withdraw ApplyAll: %v", err)
+	}
+	if got := snapshotNames(t); len(got) != 0 {
+		t.Fatalf("LastApplied() = %v after every owner withdrew, want empty", got)
+	}
+}
+
+// VALIDATES: the no-backend, nothing-to-apply return leaves the snapshot alone.
+// No Apply ran on that path, so it knows nothing about the kernel and must not
+// report a withdraw that never happened. CloseBackend is what clears the
+// snapshot when the backend that owned the state goes away.
+// PREVENTS: an empty merged set with no backend loaded reading as "everything
+// was withdrawn", which is a zero value dressed as an answer.
+func TestApplyAllNoBackendLeavesTheSnapshot(t *testing.T) {
+	snapshotBackend(t, "snapshot-no-backend")
+
+	RegisterTables("copp", []Table{{Name: "ze_copp", Family: FamilyInet}})
+	if err := ApplyAll(); err != nil {
+		t.Fatalf("first ApplyAll: %v", err)
+	}
+
+	// Drop the backend the way a test does, without CloseBackend: the registry
+	// keeps its snapshot and the next reconcile has nothing to apply.
+	resetBackends()
+	resetTables()
+	defaultBackendForAutoload = ""
+
+	if err := ApplyAll(); err != nil {
+		t.Fatalf("ApplyAll with no backend and no tables = %v, want nil", err)
+	}
+	if got := snapshotNames(t); len(got) != 1 || got[0] != "ze_copp" {
+		t.Fatalf("LastApplied() = %v, want the untouched [ze_copp]: no Apply ran", got)
 	}
 }

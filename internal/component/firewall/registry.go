@@ -166,6 +166,13 @@ func ApplyAll() error {
 		// plugin withdraw before any backend loaded succeeds as a no-op.
 		// No backend but tables pending (non-Linux, no OS default): surface
 		// the not-loaded error as before.
+		//
+		// The snapshot is left as it is on the no-op return, because no Apply
+		// ran. The snapshot states what the kernel holds, and this path wrote
+		// nothing to the kernel, so clearing it would report a withdraw that
+		// never happened. CloseBackend clears the snapshot when the backend
+		// that owned the state goes away, which is the only event that makes
+		// "nothing is applied" a fact rather than an empty merged set.
 		if len(all) == 0 {
 			return nil
 		}
@@ -185,6 +192,21 @@ func ApplyAll() error {
 
 	err = b.Apply(all)
 	applyResult = applyResultOf(err)
+	if err == nil {
+		// Record the merged set here, at the one call site of Backend.Apply,
+		// because this is the only place that knows what the kernel now holds:
+		// every owner's tables, not one owner's config. The readback
+		// (LastApplied, consumed by `show firewall ruleset` and the web pages)
+		// would otherwise be blind to a table a plugin owns -- firewall-irr,
+		// copp, policy-routes, ddos-local.
+		//
+		// A merged set that is empty and that a live backend accepted is a
+		// genuine "every owner withdrew", so it is recorded as an empty
+		// snapshot rather than left stale. Only a failed Apply keeps the
+		// previous snapshot, so a red reconcile never publishes state the
+		// kernel does not hold.
+		StoreLastApplied(all)
+	}
 	return err
 }
 

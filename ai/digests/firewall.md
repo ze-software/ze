@@ -68,9 +68,12 @@ resolved prefixes → dynamic nftables interval sets, i.e. "address groups").
    `backend_linux.go`, `backend_linux.go`) so `show firewall ruleset` always has
    packet/byte data; the term name is stashed in `Rule.UserData` (`backend_linux.go`) for
    readback/counters.
-10. **Snapshot for readers.** Once `backend.Apply` returns nil, `StoreLastApplied`
-    (`accessor.go`) deep-copies the applied `[]Table` into an atomic pointer
-    (`firewall/engine.go`, `firewall/engine.go`) so CLI/show/audit never race the live config.
+10. **Snapshot for readers.** Once `backend.Apply` returns nil, `ApplyAll`
+    (`firewall/registry.go`) hands the MERGED set of every owner to `StoreLastApplied`
+    (`accessor.go`), which deep-copies it into an atomic pointer so CLI/show/audit never
+    race the live config. That one call site is why a plugin-owned table (firewall-irr,
+    copp, policy-routes, ddos-local) is visible to the readback. A failed apply leaves the
+    previous snapshot, and `CloseBackend` (`backend.go`) clears it.
 11. **Reload with rollback.** `OnConfigApply` builds an `sdk.Journal` (`firewall/engine.go`) recording
     a forward closure (apply new tables) and a rollback closure (re-`RegisterTables` +
     `ApplyAll` the previous snapshot); on error the journal rolls back immediately
@@ -137,8 +140,16 @@ resolved prefixes → dynamic nftables interval sets, i.e. "address groups").
     (`sets.go`) attaches sets to term-referencing tables, `buildIfaceTables` (`sets.go`)
     builds a dedicated `"ze_irr_iface"` table that accepts an interface's traffic only if the
     source address is in its AS-SET-derived set, else drops (default-deny per interface,
-    `sets.go`). `RegisterTables("firewall-irr", tables)` + `ApplyAll`
-    (`irr.go`) merge into the same shared nftables state.
+    `sets.go`). A binding whose entry has no prefixes emits NOTHING: the drop term alone
+    would drop every packet on the interface, and the apply would succeed. `RegisterTables
+    ("firewall-irr", tables)` + `ApplyAll` (`irr.go`) merge into the same shared nftables
+    state. `verifyRefs` (`irr.go`) refuses a commit whose referenced entry is absent or
+    holds no prefixes, and `checkIRRDataFreshness` (`plugins/irr/doctor.go`) reports the
+    same condition to `ze doctor`. An empty IRR answer never reaches any of this: the guard
+    is `Refresh` in `internal/component/resolve/irr/store/store.go`, which keeps the cached
+    prefixes and returns `store.ErrNoPrefixes`, counted as the `empty` refresh outcome and
+    shown as `status: stale`. `clear firewall irr asn|as-set` (`command.go`, `PrefixStore.
+    Purge`) is the only path that removes prefixes.
 15. **Readback, show, audit.** CLI text formatting: `FormatTables`
     (`internal/component/firewall/cmd/show.go`). The live `show firewall ruleset
     <name>`/`show firewall group <name>` RPCs are served by the nft backend itself
@@ -170,7 +181,8 @@ resolved prefixes → dynamic nftables interval sets, i.e. "address groups").
 | `protocol.go` | Shared IANA protocol-number table (nft L4PROTO, VPP classify/NAT) |
 | `internal/component/firewall/cmd/show.go` | CLI text formatting for Table/Chain/Term (`FormatTables`/`FormatCounters`) |
 | `plugins/irr/irr.go` | IRR/PeeringDB refresh loop + config lifecycle for dynamic address groups |
-| `plugins/irr/sets.go` | Prefix list → nftables interval `Set` (`buildSets`, `buildIRRTables`, `buildIfaceTables`) |
+| `plugins/irr/sets.go` | Prefix list → nftables interval `Set` (`buildSets`, `buildIRRTables`, `buildIfaceTables`); no accept term means no table |
+| `plugins/irr/doctor.go` | `ze doctor` check for IRR data that is stale or absent (`checkIRRDataFreshness`) |
 | `internal/plugins/firewall/nft/backend_linux.go` | nftables `Backend` impl: `Apply`/`ListTables`/`GetCounters` via `google/nftables` |
 | `internal/plugins/firewall/nft/lower_linux.go` | `Match`/`Action` → nftables `expr.Any` lowering; register-allocation discipline |
 | `internal/plugins/firewall/nft/readback_linux.go` | Kernel → Table/Chain/Set/Flowtable readback (structural only, not bijective) |
