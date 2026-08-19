@@ -141,6 +141,17 @@ fsuite plugin "$ZE_TEST_BIN" bgp plugin --all -p "$PARALLEL"
 fsuite parse "$ZE_TEST_BIN" bgp parse --all -p "$PARALLEL"
 fsuite decode "$ZE_TEST_BIN" bgp decode --all -p "$PARALLEL"
 fsuite reload "$ZE_TEST_BIN" bgp reload --all -p 1
+# static: every test here programs kernel routes through netlink, so each one
+# needs CAP_NET_ADMIN and fails "operation not permitted" on an unprivileged dev
+# box. The suite has its own runner (make ze-functional-static-test) and no
+# all_suites entry (mk/test-functional.mk names it as one of the suites carrying
+# a platform dependency that target does not set up), so without this line its
+# tests execute NOWHERE, exactly as the ipsec note below describes.
+#
+# Serial (-p 1) for the reason reload and managed are: the tests share the VM's
+# one routing table, and each asserts on the whole of it via `ip route show
+# table all`. A concurrent test's routes would decide another's verdict.
+fsuite static "$ZE_TEST_BIN" static --all -p 1
 fsuite ui "$ZE_TEST_BIN" ui --all -p "$PARALLEL"
 fsuite editor "$ZE_TEST_BIN" editor
 fsuite managed "$ZE_TEST_BIN" managed --all -p 1
