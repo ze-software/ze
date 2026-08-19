@@ -55,7 +55,6 @@ or `raw`. Two together are rejected. Filter and display operators chain freely.
 | `count` | filter | Count items (JSON-aware: array length or map size) |
 | `first <n>` / `last <n>` | filter | Take first or last N items |
 | `display <field>...` | filter | Answer with these fields, in this order |
-| `fill [alpha\|overall] [reverse]` | display | Bring the remaining columns back, in a named order |
 | `resolve` | display | Add reverse DNS names for IP address values |
 | `origin` | display | Add ASN and network name for IP address values |
 | `log` | display | Append each update instead of replacing (monitor commands) |
@@ -164,7 +163,7 @@ somebody makes that judgment.
 <!-- source: internal/component/command/pipe_table.go -- tableStyle.orderKeys, bestColumnOrder -->
 <!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- registerColumns -->
 
-### Choosing the columns: `| display` and `| fill`
+### Choosing the columns: `| display`
 
 A nineteen-column table answers many questions at once. `| display` cuts it to
 the question you asked:
@@ -176,42 +175,23 @@ show bgp peer list | display state name
 Those two columns render, in that order, and no other column does. Press Tab
 after `| display` and the CLI offers the field names the command declared.
 
-`| fill` brings the rest back, behind what you displayed:
+A column you did not name is gone from that answer, and no operator brings it
+back. To see it again, run the command without the `| display`. Ze had a second
+operator for this, `| fill`, and it was removed on 2026-08-19: its `overall` way
+measured every cell of the whole result to sort the columns by width, which a
+streamed answer cannot do.
 
-```
-show bgp peer list | display state | fill          # then the command's own order
-show bgp peer list | display state | fill alpha    # then by field name
-show bgp peer list | fill overall                 # every column, narrowest first
-show bgp peer list | fill alpha reverse           # every column, reverse by name
-```
-
-| Written | The remaining columns come back |
-|---------|--------------------------------|
-| nothing | not at all |
-| `fill` | in the order the command declares, and by name when it declares none |
-| `fill alpha` | by field name, whatever the command declares |
-| `fill overall` | by the width the column renders at, narrowest first |
-| `fill ... reverse` | in the same way, flipped |
-
-The two operators are independent. `| display` names the fields that lead, and
-`| fill` says what happens to the ones it did not name. With no `| display`
-every column is a remaining column, so `| fill overall` sorts the whole table.
-
-Each takes one type of argument, and that is deliberate: `| display` takes field
-names, `| fill` takes keywords. A token that is a field name in one position and
-a keyword in another is a token you cannot complete and cannot read.
-
-**`| display` reaches `| json`, `| ndjson` and `| yaml`. `| fill` does not.**
-Which fields to answer with is a question you asked out loud, so a program gets
-the answer you asked for. The sequence of JSON keys carries no meaning for a
-program, so it stays alphabetical.
+**`| display` reaches `| json`, `| ndjson` and `| yaml` too.** Which fields to
+answer with is a question you asked out loud, so a program gets the answer you
+asked for. The SEQUENCE you gave stops at `| table` and `| text`, because the
+order of JSON keys carries no meaning for a program.
 
 ```
 show bgp peer list | display state name | json     # two fields per peer
 ```
 
-<!-- source: internal/component/command/pipe_columns.go -- parseDisplay, parseFill, applyDisplaySelect -->
-<!-- source: internal/component/command/pipe_table.go -- tableStyle.orderKeys, fillKeys -->
+<!-- source: internal/component/command/pipe_columns.go -- parseDisplay, displayInChain, applyDisplaySelect -->
+<!-- source: internal/component/command/pipe_table.go -- tableStyle.orderKeys -->
 
 ### A name for a chain: pipe aliases
 
@@ -240,7 +220,7 @@ An alias is fixed at registration, which keeps it readable:
 ### Command-specific filters
 
 Some commands extend the generic set with their own filter vocabulary,
-folded into the command itself rather than staying client-side. `show bgp
+folded into the command itself rather than applying to its answer. `show bgp
 rib`, for example, adds:
 
 | Filter | Description |
@@ -260,9 +240,10 @@ rib`, for example, adds:
 
 These are parsed and validated the same way as generic pipes, but resolved
 into command arguments before the command runs, rather than filtering
-output afterward -- so `show bgp rib | peer 10.0.0.1 | count` counts only
-that peer's routes server-side instead of fetching everything and counting
-client-side.
+output afterward. `show bgp rib | peer 10.0.0.1 | count` counts only that peer's
+routes in the RIB iterator. It does not serialize every route and count the
+answer. Both kinds run in the daemon. A generic pipe filters what the command
+already produced. A command filter stops it being produced.
 
 <!-- source: internal/component/bgp/plugins/cmd/rib/rib.go -- PipeFilter registrations -->
 <!-- source: internal/component/command/pipe.go -- foldFilters, lookupFilter, validateFilter -->

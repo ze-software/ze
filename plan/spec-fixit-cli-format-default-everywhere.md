@@ -316,6 +316,9 @@ N/A: Scope is cli, and no wire-visible behavior changes.
 | 15 | Registered plugin, event, command, or capability changed? | No | none |
 | 16 | Any changed source file referenced by existing doc source anchors? | Yes | grep `docs/` for the modified files and correct each stale claim |
 | 17 | Existing docs show CLI examples for this area? | Yes | any example showing `ze cli -c` output must match the new default |
+| 18 | `docs/architecture/system-architecture.md`, declared by `internal/component/ssh/ssh.go` and `internal/core/ssh/client/client.go` | No | it describes the hub/plugin process split. Its only "pipe" is the plugin IPC transport (`net.Pipe`, line 42), not the operator's `\|` chain, and it states nothing about output format |
+| 19 | `docs/architecture/core-design.md`, declared by `internal/component/cli/client/main.go` and `internal/component/cli/transcript.go` | No | its "Pipe communication" row and every `format` mention are plugin IPC and BGP wire encoding. It makes no claim about which process renders an operator's answer |
+| 20 | `docs/architecture/config/syntax.md`, declared by `internal/component/config/cli/cmd_edit.go` | No | the edit to `cmd_edit.go` is one executor asking for `\| raw`. No config syntax changed. Its own `format parsed \| raw \| full` leaf is the MRT dump format and is unrelated |
 
 ## Implementation Steps
 
@@ -381,30 +384,12 @@ and a pipe chain on them would only change the string those exact-match
 comparisons see. Streaming commands keep the registered monitor formatter,
 which this spec preserves. Only the ordinary-command tail is formatted.
 
-The accepted local credential generation now advances only when a local
-credential CHANGES. `publishAcceptedLocalIdentity` decides it from
-`sameLocalCredentials` (`cmd/ze/hub/aaa_lifecycle.go`), where every reload used
-to advance it. This narrows what ends a live break-glass session: after this
-change no configuration edit except a credential edit ends one, and the
-remaining bound is `sessionTTL`, 24 hours (`internal/component/web/auth.go`).
-
-The narrowing costs no authority, because a policy edit never constrained that
-grant. `authz.Store.authorize` returns `Allow` for `aaa.ReservedRecoveryProfile`
-before it consults any rule (`internal/component/authz/authz.go`), so an
-authorization edit could not reduce what the session was allowed to do. What the
-old behavior did was END the session, and it did that for edits that touched no
-credential, including a bare SIGHUP and the operator's own web commit.
-
-The operator revokes a live break-glass session by changing the local credential
-set. Rotating the `ze init` admin's password, declaring a
-`system authentication user` with the same name so the config entry replaces the
-zefs one (`mergeAuthUsers`, `cmd/ze/hub/main_servers.go`), or changing any user's
-password, profile list, or public keys each publishes a new generation, and every
-session pinned to the old one is refused on its next request. Two other routes
-end one session without a credential edit: logging in again as the same user,
-which deletes the previous token (`SessionStore.createSession`,
-`internal/component/web/auth.go`), and a daemon restart, which clears the
-accepted generation (`closeAAABundle`).
+The pipe chain runs in the DAEMON on every surface, and the two published docs
+that said otherwise are corrected at closure. A generic operator filters or
+renders what the command already produced; a command-owned filter resolves into
+command arguments (`foldFilters`), so the rows are never produced. Both halves
+run daemon-side. Neither has run in the client since `renderCommandOutput` and
+`printFormatted` were deleted from `internal/component/cli/client/main.go`.
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
@@ -437,4 +422,179 @@ accepted generation (`closeAAABundle`).
 
 ## Deviations
 
-None.
+| # | Planned | Done instead | Why |
+|---|---------|--------------|-----|
+| 1 | `pipeRaw` named explicitly in `foldFilters`'s client-side arm | a `default:` arm that carries EVERY unnamed kind to the chain | naming raw fixes raw and leaves the next operator to fall out the same way. A later commit generalized it and `docs/architecture/api/commands.md` records the arm as load-bearing. `TestRawPipeSurvivesFilterFolding` still pins raw |
+| 2 | `docs/architecture/api/commands.md` updated for the `raw` operator only | that, plus two false "client-side pipe" claims corrected there and two more in `docs/features/formatting.md` | Documentation checklist rows 12 and 16 asked for exactly this and the implementation phase paid only half of it. Found at closure, fixed at closure |
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- `execMiddleware` (`internal/component/ssh/ssh.go`) splits the pipe chain with `ProcessPipesDefaultFormatChecked`, dispatches the command without pipes, and applies the returned formatter. The dispatcher's `tokenize` never sees `|` again.
+- `runBGP` (`internal/component/cli/client/main.go`) defaults `--format` to empty. `commandWithFormat` appends the flag as a pipe when the command names no format. `printDaemonOutput` prints what came back and keeps `OK` for an empty answer. `renderCommandOutput` and `printFormatted` are DELETED, not left beside the daemon's renderer.
+- `pipeRaw` (`internal/component/command/pipe.go`) is an identity operator in `knownPipeOps`, `isFormatOp` and `PipeOperators`. `ApplyPipes` clears `meta` when a chain names it.
+- `RawCommand` and `ExecCommandRaw` (`internal/core/ssh/client/client.go`) are the one place `| raw` is spelled. `cliClient.SendCommandRaw` is its in-package twin. Six structured-data call sites moved to them.
+- Four user guides and two architecture docs corrected.
+
+### Bugs Found/Fixed
+- `foldFilters` dropped any pipe kind its switch did not name, for a command owning registered filters. The chain then named no format, the configured default was appended, and an RPC caller got a rendering with no error anywhere. Covered by `TestRawPipeSurvivesFilterFolding`, and generalized to a `default:` arm.
+- Two published architecture docs said the pipe chain runs client-side. Found by this closure's documentation lens, corrected in commit A.
+
+### Documentation Updates
+- `docs/features/formatting.md`: the `| raw` section, anchored `<!-- source: internal/core/ssh/client/client.go -- RawCommand, ExecCommandRaw -->`; two "client-side" claims corrected.
+- `docs/architecture/api/commands.md`: the generic-pipe paragraph now names the daemon as the process that runs the chain, anchored on `execMiddleware` and on `Execute, commandWithFormat, printDaemonOutput`; the `foldFilters` paragraph corrected.
+- `docs/features.md`, `docs/guide/command-reference.md`, `docs/guide/rpki.md`, `docs/guide/flow-export.md`, `docs/guide/traffic-usage.md`, `docs/guide/netlab.md`.
+- `python3 scripts/dev/code_to_docs.py --check` exits 0.
+
+### Deviations from Plan
+See the Deviations table above. Two rows, neither reducing scope.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-1 assumed no test under `test/` depended on the current default format | six shape-asserting files pinned it, and phase 2 alone made the daemon format an answer the client formatted again | `make ze-functional-ui-test` went red at `cli-verb-daemon-dispatch` | phases 2 and 3 land together; A-1 recorded broken then repaired |
+| assumption | A-4 assumed a new pipe operator could be added without a second place knowing it | `foldFilters` carried `//nolint:exhaustive`, so an unnamed kind fell out of BOTH its lists and vanished silently | reading all five hand-written format sets | four sets now call `isFormatOp`, and `foldFilters` grew a `default:` arm |
+| approach | the implementation phase read the Documentation Update Checklist as satisfied once the feature pages were edited | two architecture docs stated the opposite of the change, and row 12 named exactly that gap | this closure's documentation lens | corrected in commit A; the lesson is the journal row |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| One authority decides the format | Done | `configuredDefault`, `ProcessPipesDefaultFormatChecked` (`internal/component/command/pipe.go`) | the daemon is the only process of the pair holding the config |
+| Every surface obeys it | Done | `execMiddleware` (`internal/component/ssh/ssh.go`), `Execute` (`internal/component/cli/client/main.go`), `executeOperationalCommand` (`internal/component/cli/model_mode.go`), `executeTerminalOperational` (`internal/component/web/cli_terminal.go`) | four surfaces, one helper |
+| An explicit `--format` or format pipe still wins | Done | `commandWithFormat` (`internal/component/cli/client/main.go`), `hasFormatOp` (`internal/component/command/pipe.go`) | the flag is skipped when the command already names a format |
+| `ssh host '<cmd> \| table'` runs the pipe | Done | `execMiddleware` (`internal/component/ssh/ssh.go`) | `TestSSHExecRunsAFormatPipe` |
+| Ze's own RPC callers keep the dispatcher JSON | Done | `RawCommand`, `ExecCommandRaw` (`internal/core/ssh/client/client.go`) | six call sites moved |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestSSHExecAppliesConfiguredFormatDefault` (`internal/component/ssh/ssh_test.go`) | registered default is `text` |
+| AC-2 | Done | same test | over a real SSH exec channel |
+| AC-3 | Done | `TestSSHExecRunsAFormatPipe` (`internal/component/ssh/ssh_test.go`) | the dispatcher never sees `\|` |
+| AC-4 | Done | `test/ui/cli-format-default.ci` check 2 | fails against the client at the parent commit |
+| AC-5 | Done | `.ci` check 3, `TestCLIFormatFlagBecomesAPipe` (`internal/component/cli/client/main_test.go`) | four cases including pipe-beats-flag |
+| AC-6 | Done | `.ci` check 4 | `\| yaml` inside the quoted command |
+| AC-7 | Done | `TestPrintDaemonOutputPrintsWhatTheDaemonRendered` (`internal/component/cli/client/main_test.go`), `.ci` check 5 | `OK` only when the command names no format |
+| AC-8 | Done | `executeOperationalCommand` passes `m.cliFormat` (`internal/component/cli/model_mode.go`); `handleSetCLIFormat` (`internal/component/cli/model_keys.go`) | `execMiddleware` passes an empty session format, so the exec channel never inherits one |
+| AC-9 | Done | `TestRawPipeReturnsTheDispatcherJSONUnchanged`, `TestRawPipeSuppressesPipeMetadata`, `TestExecCommandRawAnswersTheDispatcherJSON` | raw keeps a single-key wrapper that `\| json` unwraps |
+| AC-10 | Done | the 17-row table above, re-enumerated at closure | 7 `ExecCommand` + 3 non-raw `SendCommand` remain, 6 moved, 1 wrapper |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestSSHExecAppliesConfiguredFormatDefault`, `TestSSHExecRunsAFormatPipe`, `TestExecCommandRawAnswersTheDispatcherJSON` | green | `internal/component/ssh/ssh_test.go` | package `ok` in 1.727s |
+| `TestCLIFormatFlagBecomesAPipe`, `TestPrintDaemonOutputPrintsWhatTheDaemonRendered`, `TestBuildRuntimeTreeAsksForTheDispatcherJSON`, `TestFetchPeerSelectorsAsksForTheDispatcherJSON`, `TestModelExecutorAsksForTheDispatcherJSON`, `TestExecuteKeepsTheOperatorSurface` | green | `internal/component/cli/client/main_test.go` | package `ok` in 1.791s |
+| the four `TestRawPipe*` and the three `TestRenderYAML*` | green | `internal/component/command/pipe_test.go`, `internal/component/command/format_test.go` | scoped run exit 0 |
+| `TestEditorExecutorAsksForTheDispatcherJSON` | green | `internal/component/config/cli/cmd_edit_test.go` | package `ok` in 238.177s |
+| `cli-format-default` | green | `test/ui/cli-format-default.ci` | in `make ze-functional-ui-test`, 191 passed / 1 skipped of 192 |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| every file under "Files to Modify" | Done | landed in the implementation commit |
+| `test/ui/cli-format-default.ci`, `internal/component/cli/client/main_test.go` | Done | both exist |
+| `demos/terminal/zefs-config/transcript.txt` | Done | re-recorded; it now demonstrates the committed default and `\| raw` |
+| `docs/architecture/api/commands.md` | Changed | the `raw` row landed later; two false client-side claims corrected at closure |
+
+### Audit Summary
+- **Total items:** 24
+- **Done:** 23
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (Deviations row 2)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| One authority decides the format and every surface obeys it | functional | `test/ui/cli-format-default.ci`, nine checks against a running daemon with `cli format default table` committed. In `make ze-functional-ui-test`: 191 passed, 1 skipped, of 192 |
+| An explicit `--format` or format pipe still wins | functional + unit | `.ci` checks 3, 4 and 6; `TestCLIFormatFlagBecomesAPipe` case "an explicit format pipe beats the flag" |
+| `ssh host '<cmd> \| table'` runs the pipe | unit over a real SSH exec channel | `TestSSHExecRunsAFormatPipe` asserts the dispatcher received the command without `\|` |
+| Ze's own RPC callers keep the dispatcher JSON | functional + unit | `.ci` checks 8 and 9 (`ze completion peers` still finds `192.0.2.1`); `TestExecCommandRawAnswersTheDispatcherJSON` over a real channel |
+| Discrimination (the tests would fail if the behavior were reverted) | proven three ways | the client at the parent commit fails check 2; `raw` removed from `knownPipeOps` fails check 8 with `unknown pipe operator: raw`; `peers.go` back on `ExecCommand` fails check 9 with `completion lost the 192.0.2.1 selector` |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| none: the spec declares `Deferral shard: -` | n/a | `ls plan/deferrals/` names no `cli-format` shard. No shard to remove, and no foreign shard was emptied by this closure |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/fixit-cli-format-default-everywhere-2e38eb27-078b-4f5b-a456-56437e962d09.md` |
+| `review_gate.py check` | clean (0 code files in commit A, hashes match) |
+| Rounds | 2. Round 1 found one ISSUE across two files and two NOTEs; round 2 over the fixes found nothing |
+| Reviewer lenses used | wiring + logic + removed-behavior; security + edge cases + allocation; documentation drift + style |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | "Generic pipes ... remain client-side pipe operators" and "a kind the `foldFilters` switch does not name stays client-side ... carries every other kind to the client". Both false since `execMiddleware` took the chain | `docs/architecture/api/commands.md` | rewritten to name the daemon, with source anchors on `execMiddleware` and on `Execute, commandWithFormat, printDaemonOutput` |
+| 2 | ISSUE | the same false dichotomy twice, in the command-specific-filters section | `docs/features/formatting.md` | rewritten: a command filter stops the rows being produced, a generic pipe filters what the command already produced, both daemon-side |
+| 3 | NOTE | three paragraphs about `publishAcceptedLocalIdentity` and break-glass revocation, belonging to an AAA spec | this spec's Design Insights | replaced with the insight this work leaves |
+| 4 | NOTE | two open verification-debt rows for the implementation commit | `plan/verification-debt/06f056c4.md` | left open. They are session `06f056c4`'s rows, and verification debt is paid at the push, which this closure does not perform |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/ui/cli-format-default.ci` | yes | `ls -l` gives 11089 bytes, dated 2026-08-18 |
+| `internal/component/cli/client/main_test.go` | yes | `ls -1` lists it; `grep -n "^func Test"` names 5 of this spec's tests |
+| `docs/architecture/api/commands.md`, `docs/features/formatting.md` | yes | both clean in `git status --porcelain` before this closure edited them |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1, AC-2, AC-3 | the exec channel honors the default and runs a format pipe | `make ze-unit-pkg-test PKG=./internal/component/ssh/...` -> `ok github.com/ze-software/ze/internal/component/ssh 1.727s` |
+| AC-4, AC-5, AC-6, AC-7 | `ze cli -c` honors the default, the flag travels as a pipe, `OK` survives | `ok .../internal/component/cli/client 1.791s`; `test/ui/cli-format-default.ci` green inside 191/192 |
+| AC-8 | the session override still wins | `grep -n ProcessPipesDefaultFormatChecked internal/component/cli/model_mode.go` shows `executeOperationalCommand` passing `m.cliFormat`; `execMiddleware` passes `""` |
+| AC-9 | `\| raw` is identity | `make ze-unit-pkg-test PKG=./internal/component/command RUN='TestRawPipe\|TestRenderYAML\|...'` exit 0 |
+| AC-10 | every call site classified | fresh grep at closure: 7 `sshclient.ExecCommand(` + 3 non-raw `.SendCommand(` + 6 raw + 1 wrapper = 17 |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `ssh host 'show version'` over a real SSH exec channel | `TestSSHExecAppliesConfiguredFormatDefault` (`internal/component/ssh/ssh_test.go`) | yes: it starts a `Server`, connects over SSH, and asserts the table rendering rather than indented JSON |
+| `ssh host 'show version \| json'` | `TestSSHExecRunsAFormatPipe` (same file) | yes: it also asserts the command the executor received carries no `\|` |
+| `ze cli -c 'show version'` against a running daemon | `test/ui/cli-format-default.ci` | yes: read at closure. It starts a daemon with `environment cli format default table` in the config file, blocks `ZE_CLI_FORMAT` from the ambient environment, and launches `ze` nine times |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | broken, then repaired | six shape-asserting files pinned the format. `make ze-functional-ui-test` 191/192 with all phases applied; `ze-functional-parse-test` 311/311; `ze-functional-plugin-test` reds each pass alone; `ze-functional-static-test` needs root |
+| A-2 | confirmed | every arm of `ApplyPipes` transforms the output string alone. The two world-touching arms reach registered resolvers whose only non-test registrars are in `cmd/ze/hub`, so the daemon holds the better view |
+| A-3 | confirmed | `commandWithFormat` composes `<command> \| <format>`; `knownPipeOps` names all five formats; an unknown one is refused by `ValidatePipes` with `unknown pipe operator: <name>` |
+| A-4 | broken, then repaired | `foldFilters` dropped an unnamed kind out of both lists. Four sets now call `isFormatOp`, and the switch grew a `default:` arm. `TestRawPipeSurvivesFilterFolding` covers it |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Row 3, `--format` default | `docs/guide/command-reference.md` reads "The flag has no default of its own", matching `runBGP`'s `fs.String("format", "", ...)` | yes |
+| Row 6, user guide pages | four guides corrected. A scan of every `ze cli -c` example in `docs/` followed by a JSON block finds one hit, in `docs/guide/rpki.md`, and it carries an explicit `\| json compact` | yes |
+| Row 12, internal architecture | `docs/architecture/api/commands.md` and `docs/features/formatting.md` corrected at closure. This was the review's ISSUE | yes |
+| Row 16, source anchors | `python3 scripts/dev/code_to_docs.py --check` exits 0 over the whole tree | yes |
+| Row 17, CLI examples | `grep -rn "ze cli -c.*jq" docs/` and `grep -rn "ssh .*jq" docs/` outside a `json`/`ndjson`/`raw` pipe both return nothing | yes |
+| Rows 18, 19, 20, declared design docs | none of the three states anything about CLI output format or which process runs the chain. Their "pipe" and "format" mentions are plugin IPC, BGP wire encoding, and the MRT dump leaf | yes |
+| `make ze-precommit-verify` | NOT run, and deliberately so: the owner has the test harness mid-rewrite and the tree is broken suite-wide. Scoped equivalents recorded above. `make ze-repository-tracked-build-check` passes | recorded, not green |
+
+## Core Insight
+
+The SSH exec channel is two surfaces wearing one name. It is the operator's
+one-shot command line AND Ze's own RPC transport, and a change that serves one
+breaks the other in silence, because every in-tree caller of it has a graceful
+fallback. Completion simply stops offering peers. The dashboard simply shows
+nothing. Nothing logs, nothing exits non-zero, and no test that checks an exit
+code notices.
+
+What made the fix safe was not the `raw` operator. It was enumerating all 17
+call sites and asking of each one what it DOES with the answer, then giving the
+six that parse it a single helper to ask through. A rule that every future
+caller must remember would have been the same defect with a delay.
