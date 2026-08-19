@@ -508,6 +508,72 @@ class TestDispatchUntilShortCircuit(SentinelTestCase):
         self.assertEqual(len(calls), 3)
 
 
+class TestPostStartupSurvivesTheQueuedPath(unittest.TestCase):
+    """The post-startup callback usually arrives while an RPC is in flight.
+
+    VALIDATES: `_post_startup_received` is set on BOTH routes an inbound
+    callback can take, so `wait_for_post_startup` returns as soon as the engine
+    has fanned out.
+    PREVENTS: the queued copy being acked with its flag dropped, which made the
+    waiter run to POST_STARTUP_FLOOR (30s) every time.
+
+    `_call_engine` queues every inbound request that lands while it waits for
+    its own reply, and only `read_line` drains that queue, through
+    `_handle_callback`. An observer that dispatches before it waits -- the shape
+    of `system-kernel-log-show.ci` -- therefore never took the inline route, and
+    `_handle_callback` had no post-startup branch: the callback was answered and
+    the flag was lost. That test averaged 38.0s against its declared 15s budget
+    and passed only on the 3x parallel headroom, so it timed out under every
+    serial runner (`make ze-netns-plugin-test` runs `-p 1`).
+    """
+
+    @staticmethod
+    def _api_holding_a_queued_post_startup():
+        """An API whose engine already sent post-startup mid-RPC.
+
+        Built with __new__ so the test opens no fd and reads no transport env
+        var, the same reason `_bare_api` gives.
+        """
+        api = ze_api.API.__new__(ze_api.API)
+        api._tls_mode = True
+        api._shutdown = False
+        api._pending_events = []
+        api._post_startup_received = False
+        api._pending_requests = [(7, "ze-plugin-callback:post-startup", None)]
+        api.acked = []
+        api._respond_ok = api.acked.append
+        # The queue is the only thing the engine has to say; the socket is idle.
+        api._read_tls_line = lambda timeout=None: None
+        return api
+
+    def test_the_queued_callback_sets_the_flag(self):
+        api = self._api_holding_a_queued_post_startup()
+        api._handle_callback(7, "ze-plugin-callback:post-startup", None)
+        self.assertTrue(api._post_startup_received)
+        self.assertEqual(api.acked, [7], "the engine still needs its answer")
+
+    def test_the_waiter_returns_on_a_queued_callback(self):
+        """Driven from the entry point, because the helper alone proves nothing.
+
+        The floor is lowered on the instance so a regression fails in
+        milliseconds instead of waiting out the 30s it exists to bound.
+        """
+        api = self._api_holding_a_queued_post_startup()
+        api.POST_STARTUP_FLOOR = 0.05
+        self.assertTrue(api.wait_for_post_startup(timeout=0.05))
+        self.assertEqual(api.acked, [7])
+
+    def test_the_inline_route_still_sets_the_flag(self):
+        """The socket route is the one that already worked; it stays covered."""
+        api = self._api_holding_a_queued_post_startup()
+        api._pending_requests = []
+        lines = ["#7 ze-plugin-callback:post-startup"]
+        api._read_tls_line = lambda timeout=None: lines.pop(0) if lines else None
+        api.POST_STARTUP_FLOOR = 0.05
+        self.assertTrue(api.wait_for_post_startup(timeout=0.05))
+        self.assertEqual(api.acked, [7])
+
+
 class TestWaitForDaemonReady(unittest.TestCase):
     """The standalone-driver readiness wait (spec-fixit-migrate-sleeps-infra P1)."""
 
