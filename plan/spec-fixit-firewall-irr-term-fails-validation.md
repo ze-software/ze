@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | config |
 | Depends | - |
-| Phase | - |
+| Phase | 5/5 |
 | Deferral shard | - |
 | Handoff | - |
 | Updated | 2026-08-18 |
@@ -130,10 +130,10 @@ the sets and the terms in one owner. Only the table-term form is dead.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The rejection is unconditional and cached data does not change it | `collectSetNames` reads only the table's own sets, and the runtime reproduction ran with no cached data | With data cached the config might commit, and the defect would be a race rather than a wall | Repeat the runtime reproduction after fetching the AS-SET, and record both outcomes | unvalidated |
-| A-2 | The interface-binding form is unaffected | its sets and terms are built together by one owner | The whole feature is dead, not half, and the spec's scope grows | The existing interface functional tests must stay green, and one must be read to confirm it exercises the table-free path | unvalidated |
-| A-3 | Validation can consult a registered provider of externally-owned set names without weakening the unknown-set guard | the registry already knows every owner; the check needs the names, not the contents | The guard becomes an exemption and a typo in an AS-SET name reaches the lowering layer | A test that a misspelled non-IRR set name is still refused, and one that a misspelled AS-SET is refused by the IRR-aware check with its own message | unvalidated |
-| A-4 | No third owner will need the same treatment soon | copp, policy routes and ddos-local build their own sets and terms together | The fix is shaped for one plugin and the next one repeats it | Read each owner's table builder in Phase 1 and record whether any emits a match naming another owner's set | unvalidated |
+| A-1 | The rejection is unconditional and cached data does not change it | `collectSetNames` reads only the table's own sets, and the runtime reproduction ran with no cached data | With data cached the config might commit, and the defect would be a race rather than a wall | Repeat the runtime reproduction after fetching the AS-SET, and record both outcomes | confirmed. `test/plugin/firewall-irr-table-term-commit.ci` fetches AS-TEST first and the commit was still refused with `match references unknown set "irr_v4_AS-TEST"`, measured on a build with the fix reverted |
+| A-2 | The interface-binding form is unaffected | its sets and terms are built together by one owner | The whole feature is dead, not half, and the spec's scope grows | The existing interface functional tests must stay green, and one must be read to confirm it exercises the table-free path | confirmed. `firewall-irr-iface-commit.ci` and `firewall-irr-iface-reject.ci` carry no firewall table and both pass |
+| A-3 | Validation can consult a registered provider of externally-owned set names without weakening the unknown-set guard | the registry already knows every owner; the check needs the names, not the contents | The guard becomes an exemption and a typo in an AS-SET name reaches the lowering layer | A test that a misspelled non-IRR set name is still refused, and one that a misspelled AS-SET is refused by the IRR-aware check with its own message | broken as stated, in the way the row predicted. A provider registered by NAMESPACE is the only order-independent shape, and it accepts `source-address "@irr_v4_typo"` typed by hand, which then aborts the whole reconcile at the backend. See the Key Design Decisions row |
+| A-4 | No third owner will need the same treatment soon | copp, policy routes and ddos-local build their own sets and terms together | The fix is shaped for one plugin and the next one repeats it | Read each owner's table builder in Phase 1 and record whether any emits a match naming another owner's set | confirmed. `MatchInSet` has one other producer, `parseAddressMatch` in `internal/plugins/policyroute/translate.go`, and it names a set the operator wrote on that owner's own table. copp and ddos-local emit none |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -186,12 +186,12 @@ the sets and the terms in one owner. Only the table-term form is dead.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestValidateTablesAcceptsIRRTermMatch` | `internal/component/firewall/validate_test.go` | AC-1: the parsed IRR term passes validation | |
-| `TestValidateTablesStillRefusesUnknownSet` | `internal/component/firewall/validate_test.go` | AC-4, validates A-3 | |
-| `TestValidateTablesStillRefusesSetTypeMismatch` | `internal/component/firewall/validate_test.go` | AC-5 | |
-| `TestParseAndValidateSourceASN` | `internal/component/firewall/config_test.go` | the gap that let this survive: parse plus validate in one test, for all four leaves | |
-| `TestVerifyRejectsUncachedTableTerm` | `internal/component/firewall/plugins/irr/verify_test.go` | AC-3 | |
-| `TestConfigureAcceptsIRRTableTerm` | `internal/component/firewall/engine_test.go` | AC-1 through the configure path, not only the verify one | |
+| `TestValidateTablesAcceptsIRRTermMatch` | `internal/component/firewall/validate_test.go` | AC-1: the parsed IRR term passes validation | passes; red before the fix |
+| `TestValidateTablesStillRefusesUnknownSet` | `internal/component/firewall/validate_test.go` | AC-4, validates A-3 | passes; red under a name-prefix exemption, measured |
+| `TestValidateTablesStillRefusesSetTypeMismatch` | `internal/component/firewall/validate_test.go` | AC-5 | passes; red before the fix |
+| `TestParseAndValidateSourceASN` | `internal/component/firewall/config_test.go` | the gap that let this survive: parse plus validate in one test, for all four leaves | passes; red before the fix, all four leaves |
+| `TestVerifyRejectsUncachedTableTerm` | `internal/component/firewall/plugins/irr/verify_test.go` | AC-3 | passes |
+| `TestConfigureAcceptsIRRTableTerm` | `internal/component/firewall/engine_test.go` | AC-1 through the configure path, not only the verify one | passes; red before the fix |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -202,8 +202,8 @@ the sets and the terms in one owner. Only the table-term form is dead.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `firewall-irr-table-term-commit` | `test/plugin/firewall-irr-table-term-commit.ci` | the documented workflow: fetch the AS-SET, commit a table term matching it, and see the rule in the kernel ruleset | `needs-linux`, `caps=net-admin` |
-| `firewall-irr-table-term-uncached-reject` | `test/plugin/firewall-irr-table-term-uncached-reject.ci` | committing a table term for an unfetched AS-SET is refused with the IRR message | | 
+| `firewall-irr-table-term-commit` | `test/plugin/firewall-irr-table-term-commit.ci` | the documented workflow: fetch the AS-SET, commit a table term matching it, and see the rule in the kernel ruleset | passes under `unshare -Urn`; red with the fix reverted (`config verify failed: ... match references unknown set`) |
+| `firewall-irr-table-term-uncached-reject` | `test/plugin/firewall-irr-table-term-uncached-reject.ci` | committing a table term for an unfetched AS-SET is refused with the IRR message | passes; its `reject=stderr:pattern=references unknown set` fires with the fix reverted | 
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -328,13 +328,16 @@ the sets and the terms in one owner. Only the table-term form is dead.
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| Give validation the registered owners' set names | Exempt names carrying the IRR prefix; emit placeholder sets from the parser; move validation to the merged view at apply | The exemption hardcodes plugin spelling into a central package and turns a guard into a hole. Placeholder sets make two owners define the same set. Validating only at apply moves a commit-time error to reconcile time, where a failure already costs every owner's ruleset |
+| The MATCH states the type of the set another owner provides (`MatchInSet.ProvidedType`), set by the config parser for the four IRR leaves and by nothing else | The approved design, a registered provider of set names; exempt names carrying the IRR prefix; emit placeholder sets from the parser; move validation to the merged view at apply | Implementation deviation from the approved design, taken because a registration cannot be exact. A provider registered at init can only claim a NAMESPACE, since the names it will supply depend on a config it has not seen; it therefore accepts `source-address "@irr_v4_typo"` typed by hand, and that unresolvable match aborts the whole reconcile at the backend, which is the failure mode this spec's Security Review names. A provider registered from the config cannot be consulted safely, because the owners register in no fixed order. The parser already spells the IRR set names and is the only thing that knows a match names another owner's set, so it declares the type it expects. No new plugin spelling enters the component, the guard stays exact per term, and nothing depends on registration order |
+| `ApplyAll` holds back the TABLE naming an unregistered provided set and programs every other table, rather than handing the backend a rule it must refuse | Order the plugin apply hooks; register the sets at verify; drop the unresolved term from the applied snapshot; hold back the whole merged snapshot | R-4 fired: with validation fixed, the firewall owner applied first and the backend answered `match-in-set: unknown set "irr_v4_AS-TEST" (not registered on table)`, failing the reconcile for every owner. The order cannot be relied on: at startup the firewall engine configures before the plugin that depends on it, and in a reload transaction the participants apply in whatever order the orchestrator emits. Registering at verify leaves desired state ahead of a transaction that may abort, and it does nothing for startup, where no verify runs. Dropping the term applies a policy the operator did not write. **Amended 2026-08-19.** This row read "`ApplyAll` waits" and scoped the wait to the whole merged snapshot. That wait had no end state on a cold cache. The owner whose registration releases it is the IRR plugin, and a fresh install, a wiped `database.zefs` or a store that fails to open leaves it with no set to register, so the operator's tables, copp, the DDoS tables and the policy routes all stayed out of the kernel behind one WARN. `dropTablesMissingAProvidedSet` (`internal/component/firewall/registry.go`) now removes only the table naming the missing set. One table is the smallest unit that can wait, and it needs no fixpoint: an nftables set is table-local, so a set another table declares can never resolve this table's term. Landed in `20ad3ebb6`. The independent review of this spec confirmed the narrower scope and that `test/plugin/firewall-irr-cold-cache-recovers.ci` discriminates. Recorded here because the code diverged from this row before the row was corrected: the process failure is the unamended record, not the decision |
 | Keep the verify-time check and add to it | Replace it | The check catches typos before anything reaches the kernel, which is worth keeping; it is not wrong, it is under-informed |
 | Fix the documentation in the same spec | Leave the guide alone | The guide currently teaches a config that cannot be committed, which is its own defect class in this repository, and it is the acceptance statement for AC-7 |
 
 ## Known Limitations
 - Validation learns set NAMES, not contents. A name that is registered but whose data is empty is a different problem, owned by the IRR store spec.
 - This spec makes the table-term path reachable. Anything that path meets for the first time at lowering or apply is discovered by the Phase 4 functional test, and R-4 records that finding it is in scope rather than a surprise.
+- An IRR term works in a table whose family is `inet`, and is refused in `ip` or `ip6`. One leaf emits a v4 match and its IPv6 twin, and an address set of the wrong family in a single-family table would lower against the wrong header bytes. The refusal is `validateSetFamilyCompat`'s existing message, which names the family to use. `buildIRRTables` also registers its tables as `inet` only, so an `ip` table would never receive the set. The guide now states the constraint.
+- `firewall-irr-empty-answer-keeps-last-good.ci` and `firewall-irr-iface-no-blackhole.ci` stay red on `a refresh that learned nothing reported success`. Both were red before this spec, for the command-argument defect this spec fixed; the fix moved them onto an assertion that `plan/spec-fixit-irr-empty-answer-clears-set.md` owns. Journalled under `plan/journal/zero-value-as-valid-answer.md`.
 
 ## Checklist
 
