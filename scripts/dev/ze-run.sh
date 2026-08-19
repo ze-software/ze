@@ -17,9 +17,10 @@
 # [A-Za-z0-9_-]. Nothing else is accepted -- a separator or a dot in a label is
 # how a job escapes the registry directory.
 #
-# THE REGISTRY. tmp/.ze-jobs/<label>.<pid>.job holds one KEY=VALUE line per
-# field: LABEL, PID, PGID, TREE (the tree hash the job is judging), STARTED,
-# LOG, STATE and CMD. Its presence IS the claim on a slot; there is no second
+# THE REGISTRY. tmp/.ze-jobs/<label>.<pid>.job holds one FIELD=VALUE line per
+# field: LABEL, PID, PGID, TREE (the tree hash the job is judging), KEY and
+# PARAMS (the work this job does -- see THE WORK KEY), STARTED, LOG, STATE and
+# CMD. Its presence IS the claim on a slot; there is no second
 # record of who is running. The job's own exit trap removes it, and a waiter
 # reaps an entry whose PID is dead, so a crashed job costs one poll interval
 # rather than an operator.
@@ -49,14 +50,43 @@
 # does not queue for a duplicate: it follows that job's log to its own stdout
 # and exits with that job's code. One run answers both.
 #
-# The job key is (label, tree hash), never the label alone. Attaching on the
-# label would certify a session with a run that never saw its code, and the
-# Go-commit coverage gate reads exactly that certificate (full_verify_coverage
-# in scripts/dev/commit_helper.py). A tree hash that is empty or `unknown`
-# matches nothing, another unknown included: an unmeasured tree is not a
-# matching tree. A job that waited re-reads the hash when it is admitted, so
-# the field says which tree the job IS judging rather than which tree its asker
-# saw (plan/spec-shared-machine-job-admission.md, R-2, AC-3 and AC-4).
+# The job key is (label, tree hash, work key), never the label alone. Attaching
+# on the label would certify a session with a run that never saw its code, and
+# the Go-commit coverage gate reads exactly that certificate
+# (full_verify_coverage in scripts/dev/commit_helper.py). A tree hash that is
+# empty or `unknown` matches nothing, another unknown included: an unmeasured
+# tree is not a matching tree. A job that waited re-reads the hash when it is
+# admitted, so the field says which tree the job IS judging rather than which
+# tree its asker saw (plan/spec-shared-machine-job-admission.md, R-2, AC-3 and
+# AC-4).
+#
+# THE WORK KEY. A label names the TARGET, and a parameterised target is many
+# jobs under one name. `make ze-unit-pkg-test PKG=./a` and the same target on
+# `./b` hand this script the same label and the same command, because PKG
+# reaches the `_ze-unit-pkg-test-impl` half alone. Two sessions testing
+# different packages therefore matched, and the second reported the first run's
+# exit code as its own: on 2026-08-19 a package that was never compiled read as
+# passing (plan/journal/stale-artifact-reused.md). The same shape had already
+# bitten the appliance kernel, where `ARCH=` was missing from a rebuild trigger
+# and an amd64 vmlinuz answered an arm64 build.
+#
+# So KEY fingerprints what the job DOES: the command, plus the make
+# command-line variables the caller typed. That set is DERIVED rather than
+# declared -- GNU make puts every `VAR=value` from the command line into
+# MAKEFLAGS -- so a target that grows a parameter tomorrow is keyed on it with
+# no edit here and none in its recipe. A recipe cannot forget to declare what
+# it never declares. The command is in the key too, which is what keys the
+# hand-queued route: two agents naming one label for two commands
+# (ai/rules/commands.md) are the same defect with no make in it.
+#
+# Its boundary, stated because a guard that fails open in silence is the thing
+# this file exists to refuse: a parameter supplied through the ENVIRONMENT
+# (`PKG=./a make ze-unit-pkg-test`) reaches make as a variable but never
+# reaches MAKEFLAGS, and no rule, doc or recipe in this repository spells it
+# that way. It is indistinguishable from the ambient environment, which every
+# session differs in, so keying on that would end sharing altogether. A recipe
+# that needs to be keyed on one passes it into the command it hands this
+# script, which the key already reads.
 #
 # THE RESULT. A job records its exit code in tmp/.ze-jobs/<label>.<pid>.rc
 # BEFORE it removes its entry, so an attacher that watches the entry disappear
@@ -136,7 +166,8 @@ _usage() {
     exit 2
 }
 
-# _field FILE KEY -- the value of one KEY=VALUE line, empty when absent.
+# _field FILE NAME -- the value of one FIELD=VALUE line, empty when absent.
+# NAME rather than KEY, because KEY is now the name of one of those fields.
 _field() {
     awk -v k="$2" 'index($0, k "=") == 1 { print substr($0, length(k) + 2); exit }' \
         "$1" 2>/dev/null || true
@@ -186,6 +217,61 @@ _cores() {
 # already seen the asker's code.
 _tree_hash() {
     "$(dirname "$0")/verify-status.sh" tree_hash 2>/dev/null || echo unknown
+}
+
+# The parameters this job was given: the make command-line variable
+# definitions, one per line. GNU make writes them into MAKEFLAGS behind a `--`
+# separator, after the flags, so `-j4` and `--jobserver-auth` stay out by
+# construction -- neither changes a verdict, and jobserver-auth differs on
+# every invocation.
+#
+# Sorted, because make lists the definitions in the caller's own order: two
+# sessions typing `PKG=./a RUN=X` and `RUN=X PKG=./a` ask for one thing, so the
+# key is over the SET.
+#
+# Four names are dropped, and all four are this script's OWN: they choose how a
+# job is ADMITTED and can change nothing about what it judges. The Makefile
+# documents `make <target> ZE_RUN_SLOTS=1` and ai/rules/git-safety.md documents
+# raising the stall window, so a session following either must still share a
+# running job rather than pay for a second one. MAY_ATTACH is dropped for a
+# second reason as well: it says this job will not take another's verdict, and
+# keying on it would silently make it say that nobody may take THIS job's
+# verdict either.
+_job_params() {
+    case "${MAKEFLAGS:-}" in
+        *' -- '*) ;;
+        *) return 0 ;;
+    esac
+    printf '%s\n' "${MAKEFLAGS#* -- }" \
+        | tr '[:blank:]' '\n' \
+        | grep -v -e '^$' \
+            -e '^ZE_RUN_SLOTS=' -e '^ZE_JOB_STALL_SECONDS=' \
+            -e '^ZE_VERIFY_MAX_LOCK_AGE=' -e '^MAY_ATTACH=' \
+        | LC_ALL=C sort
+}
+
+# The hasher, resolved once. sha256sum ships with GNU coreutils and shasum with
+# macOS; a machine with neither gets no key at all rather than a weaker one.
+if command -v sha256sum >/dev/null 2>&1; then
+    HASH_CMD="sha256sum"
+elif command -v shasum >/dev/null 2>&1; then
+    HASH_CMD="shasum -a 256"
+else
+    HASH_CMD=""
+fi
+
+# _job_key CMD... -- the fingerprint of what this job DOES. See THE WORK KEY at
+# the top of this file.
+#
+# `unknown` when the machine has no hasher, and `unknown` matches nothing --
+# the rule TREE already follows. An unmeasured job is not a matching job, so it
+# queues and runs its own work.
+_job_key() {
+    if [ -z "$HASH_CMD" ]; then
+        echo unknown
+        return 0
+    fi
+    { printf 'CMD=%s\n' "$*"; _job_params; } | $HASH_CMD | awk '{ print $1 }'
 }
 
 # _break_stalled ENTRY LABEL PID PGID LOG STATIC ELAPSED -- kill a holder that
@@ -282,6 +368,11 @@ _write_entry() {
         printf 'PID=%s\n' "$$"
         printf 'PGID=%s\n' "$MY_PGID"
         printf 'TREE=%s\n' "$TREE"
+        # KEY decides whether a later asker may share this run. PARAMS is the
+        # readable half, for the operator asking why two jobs did not share; it
+        # decides nothing.
+        printf 'KEY=%s\n' "$KEY"
+        printf 'PARAMS=%s\n' "$PARAMS"
         printf 'STARTED=%s\n' "$START"
         printf 'LOG=%s\n' "$LOG"
         printf 'STATE=running\n'
@@ -358,13 +449,16 @@ _scan_and_claim() {
             fi
         fi
 
-        # ATTACH AND SHARE: same job, same tree, still running. The tree hash is
-        # what makes sharing safe, so a hash nobody could measure matches
+        # ATTACH AND SHARE: same work, same tree, still running. The tree hash
+        # says the run has seen this asker's code and the work key says it is
+        # doing this asker's job, so a value nobody could measure matches
         # nothing -- including another job that could not measure one either.
         if [ "${MAY_ATTACH:-1}" = "1" ] && [ -z "$attach_entry" ] \
             && [ "$label" = "$LABEL" ] \
             && [ -n "$TREE" ] && [ "$TREE" != "unknown" ] \
             && [ "$(_field "$entry" TREE)" = "$TREE" ] \
+            && [ -n "$KEY" ] && [ "$KEY" != "unknown" ] \
+            && [ "$(_field "$entry" KEY)" = "$KEY" ] \
             && [ "$(_field "$entry" STATE)" = "running" ]; then
             attach_entry="$entry"
             attach_pid="$pid"
@@ -510,6 +604,12 @@ fi
 mkdir -p "$JOBS_DIR"
 MY_PGID=$(ps -o pgid= -p $$ | tr -d ' ')
 TREE=$(_tree_hash)
+# The tree moves while a job waits, so TREE is re-read at admission. What this
+# job DOES cannot move: the command and the parameters were fixed by the caller
+# before this script started, so KEY is measured once, here.
+KEY=$(_job_key "$@")
+PARAMS=$(_job_params | tr '\n' ' ')
+PARAMS="${PARAMS% }"
 # This job's own entry, should it get a slot. The name carries the PID so two
 # jobs with the same label can coexist once more than one slot exists.
 ENTRY="$JOBS_DIR/$LABEL.$$.job"
@@ -522,7 +622,20 @@ last_banner=0
 # without a result would follow one corpse after another and never run
 # anything, so an attach that observed nothing sends this job back to the
 # ordinary queue for good.
-MAY_ATTACH=1
+#
+# The caller may decline sharing outright, and the ENVIRONMENT is where it says
+# so: `MAY_ATTACH=0` makes this job queue for its own run rather than take
+# another's verdict. That is the route ai/rules and plan/journal name for a
+# caller who wants its own answer, so it must be honoured rather than
+# overwritten -- a plain `MAY_ATTACH=1` here destroyed the inherited value, and
+# the opt-out did nothing at all. Any value other than `1` declines, which is
+# the safe direction: a typo costs a duplicate run, never a borrowed verdict.
+#
+# It governs THIS job's asking, and nothing else. A job that declined to attach
+# still runs its own work honestly, so a later asker with the same key may
+# still share its result -- which is why _job_params drops the name from the
+# key rather than letting it split one.
+MAY_ATTACH="${MAY_ATTACH:-1}"
 # Whether this job's tree hash predates its admission (see _scan_and_claim).
 TREE_STALE=0
 while :; do

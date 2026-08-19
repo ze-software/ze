@@ -339,34 +339,188 @@ class ZeRunCase(unittest.TestCase):
             runs.read_text().count("start"), 2, "the second asker must be its own run"
         )
 
+    def _two_askers(
+        self,
+        holder_flags: str,
+        waiter_flags: str,
+        holder_job: str = "",
+        waiter_job: str = "",
+        holder_env: dict | None = None,
+        waiter_env: dict | None = None,
+    ) -> int:
+        """Start two askers for one label on one tree, return how many RAN.
+
+        One is the answer when the second attached to the first; two is the
+        answer when it decided the work was different and ran its own. The two
+        commands are the same string unless a caller wants them apart, so the
+        only difference between the askers is the one the case is about.
+
+        The holder sleeps long enough for the waiter to reach its decision, and
+        every assertion is over the run counter rather than over timing.
+        """
+        self.git_tree()
+        runs = self.root / "runs"
+        default = f"echo start >> {runs}; echo shared-output; sleep 6; exit 7"
+        holder = self.spawn(
+            "ze-unit-pkg-test",
+            "sh",
+            "-c",
+            holder_job or default,
+            name="holder",
+            env=self.env(MAKEFLAGS=holder_flags, **(holder_env or {})),
+        )
+        self.wait_for_entry("ze-unit-pkg-test")
+        waiter = self.spawn(
+            "ze-unit-pkg-test",
+            "sh",
+            "-c",
+            waiter_job or default,
+            name="waiter",
+            env=self.env(MAKEFLAGS=waiter_flags, **(waiter_env or {})),
+        )
+
+        self.assertEqual(
+            holder.wait(timeout=ADMITTED_WITHIN * 2), 7, self.stderr_of(holder)
+        )
+        waiter.wait(timeout=ADMITTED_WITHIN * 2)
+        return runs.read_text().count("start")
+
+    def test_a_different_parameter_set_does_not_attach(self):
+        """The work key carries the make variables, so two packages are two jobs.
+
+        `make ze-unit-pkg-test PKG=./a` and the same target on `./b` hand this
+        wrapper the SAME label and the SAME command: PKG reaches the impl half
+        alone. Keyed on the label the second asker attached and reported the
+        first run's exit code as its own. On 2026-08-19 that read green for a
+        package that was never compiled (plan/journal/stale-artifact-reused.md).
+        """
+        ran = self._two_askers(
+            " --no-print-directory -- PKG=./package-a",
+            " --no-print-directory -- PKG=./package-b",
+        )
+        self.assertEqual(ran, 2, "one run answered for two different packages")
+
+    def test_the_same_parameter_set_still_attaches(self):
+        """The sharing that is correct survives: same parameters, one run.
+
+        The fix must split the jobs the parameters make different, and only
+        those. Two askers for the same package are the same work, and paying
+        for it twice is what the attach path exists to prevent.
+        """
+        flags = " --no-print-directory -- PKG=./package-a RUN=^TestOne$"
+        self.assertEqual(self._two_askers(flags, flags), 1, "an equivalent job re-ran")
+
+    def test_the_parameter_order_does_not_split_a_shared_job(self):
+        """make lists the definitions in the caller's own order; the key sorts.
+
+        Two sessions typing the same pair the other way round are asking for
+        one thing, so the key is over the SET of definitions.
+        """
+        ran = self._two_askers(
+            " --no-print-directory -- PKG=./package-a RUN=^TestOne$",
+            " --no-print-directory -- RUN=^TestOne$ PKG=./package-a",
+        )
+        self.assertEqual(ran, 1, "the same parameters in another order re-ran")
+
+    def test_an_admission_knob_does_not_split_a_shared_job(self):
+        """This wrapper's own variables choose HOW a job is admitted, not WHAT it does.
+
+        `make <target> ZE_RUN_SLOTS=1` is documented in the Makefile, and
+        ai/rules/git-safety.md tells readers to raise ZE_VERIFY_MAX_LOCK_AGE.
+        Neither can change a verdict, so neither may cost a duplicate run.
+        """
+        ran = self._two_askers(
+            " --no-print-directory -- PKG=./package-a",
+            " --no-print-directory -- ZE_RUN_SLOTS=1 PKG=./package-a"
+            " ZE_JOB_STALL_SECONDS=900 ZE_VERIFY_MAX_LOCK_AGE=900",
+        )
+        self.assertEqual(ran, 1, "an admission knob was read as different work")
+
+    def test_the_environment_can_decline_sharing(self):
+        """MAY_ATTACH=0 makes a job queue for its own run, as the rules say.
+
+        This is the opt-out ai/rules and plan/journal name for a caller that
+        wants its OWN verdict, and it was inert: an unconditional MAY_ATTACH=1
+        before the admission loop overwrote whatever the caller exported, so a
+        session using the documented escape still took the running job's exit
+        code. Measured on 2026-08-19 while another session was relying on it.
+        """
+        flags = " --no-print-directory -- PKG=./package-a"
+        ran = self._two_askers(flags, flags, waiter_env={"MAY_ATTACH": "0"})
+        self.assertEqual(ran, 2, "MAY_ATTACH=0 did not decline the shared run")
+
+    def test_declining_to_attach_does_not_stop_others_sharing_this_job(self):
+        """The flag governs this job's ASKING, and nothing else.
+
+        A job that declined to attach still runs its own work honestly, so its
+        verdict is as good as any other job's. Keying on the flag would have
+        turned "I will not take your answer" into "you may not take mine", and
+        the caller asked for the first.
+        """
+        flags = " --no-print-directory -- PKG=./package-a"
+        ran = self._two_askers(flags, flags, holder_env={"MAY_ATTACH": "0"})
+        self.assertEqual(ran, 1, "a job that declined to attach became unshareable")
+
+    def test_two_commands_under_one_label_do_not_attach(self):
+        """The hand-queued route is keyed too: `ze-run.sh <label> <command>`.
+
+        ai/rules/commands.md tells an agent to queue work no make target
+        expresses by naming a label itself. Two agents choosing one label for
+        two commands is the same defect with no make in it.
+        """
+        runs = self.root / "runs"
+        ran = self._two_askers(
+            "",
+            "",
+            holder_job=f"echo start >> {runs}; echo first; sleep 6; exit 7",
+            waiter_job=f"echo start >> {runs}; echo second; sleep 6; exit 7",
+        )
+        self.assertEqual(ran, 2, "one run answered for two different commands")
+
     def test_a_holder_that_dies_mid_attach_leaves_no_verdict_behind(self):
         """A killed job records nothing, so its sharer reports nothing.
 
         The sharer must not hang on a corpse and must not invent a pass. It
         goes back to admission and runs the job itself, which is the answer it
         would have had with no attach path at all.
+
+        The two askers run one command string, because the work key reads the
+        command: a sharer typing something else is a different job and never
+        reaches the attach path this case is about. The run counter is what
+        says the sharer ran its own copy, which a marker only its own command
+        wrote used to say.
         """
         self.git_tree()
-        marker = self.root / "second-ran"
+        runs = self.root / "runs"
+        job = f"echo start >> {runs}; echo holder-output; cat"
         holder = self.spawn(
             "ze-lint",
             "sh",
             "-c",
-            "echo holder-output; sleep 120",
+            job,
             name="holder",
+            stdin=subprocess.PIPE,
             start_new_session=True,
         )
         self.wait_for_entry("ze-lint")
-        sharer = self.spawn("ze-lint", "sh", "-c", f"touch {marker}", name="sharer")
+        sharer = self.spawn(
+            "ze-lint", "sh", "-c", job, name="sharer", stdin=subprocess.PIPE
+        )
         self.wait_for_text(self.root / "sharer.out", "holder-output")
 
         os.killpg(holder.pid, signal.SIGKILL)
 
+        # The sharer's own run holds on `cat`, so closing its stdin is what
+        # ends it. Reaching this point at all means it was admitted.
+        self.wait_for_text(runs, "start\nstart")
+        sharer.stdin.close()
         self.assertEqual(
             sharer.wait(timeout=ADMITTED_WITHIN * 2), 0, self.stderr_of(sharer)
         )
-        self.assertTrue(
-            marker.exists(), "the sharer must run the job it could not observe"
+        self.assertEqual(
+            runs.read_text().count("start"),
+            2,
+            "the sharer must run the job it could not observe",
         )
         self.assertIn(
             "without recording a result",
@@ -549,11 +703,18 @@ class ZeRunCase(unittest.TestCase):
 
     def test_the_slot_count_boundary_is_enforced(self):
         """1..cores. Outside it the job is refused, never run on a guess."""
-        cores = int(subprocess.run(
-            ["nproc"], capture_output=True, text=True, check=True
-        ).stdout.strip())
-        cases = [("0", 2), ("1", 0), (str(cores), 0), (str(cores + 1), 2),
-                 ("all-of-them", 2)]
+        cores = int(
+            subprocess.run(
+                ["nproc"], capture_output=True, text=True, check=True
+            ).stdout.strip()
+        )
+        cases = [
+            ("0", 2),
+            ("1", 0),
+            (str(cores), 0),
+            (str(cores + 1), 2),
+            ("all-of-them", 2),
+        ]
         for value, want in cases:
             with self.subTest(slots=value):
                 marker = self.root / f"ran-{value}"
@@ -603,8 +764,12 @@ class ZeRunCase(unittest.TestCase):
         self.assertEqual(fields.get("LABEL"), "holder")
         self.assertEqual(fields.get("PID"), str(holder.pid))
         self.assertEqual(fields.get("STATE"), "running")
-        for key in ("PGID", "TREE", "STARTED", "LOG", "CMD"):
+        for key in ("PGID", "TREE", "STARTED", "LOG", "CMD", "KEY"):
             self.assertTrue(fields.get(key), f"{key} missing from the entry")
+        # PARAMS is what an operator reads to see WHY two jobs did not share.
+        # It is empty for a job nobody parameterised, so its presence is the
+        # assertion, not its content.
+        self.assertIn("PARAMS", fields, "PARAMS missing from the entry")
         self.assertTrue((self.root / fields["LOG"]).exists(), "the log path is a claim")
 
         holder.stdin.close()
