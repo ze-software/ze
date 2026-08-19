@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | done |
 | Scope | cli |
 | Depends | - |
 | Phase | 4/4 |
@@ -392,3 +392,185 @@ Not applicable. Scope is `cli`; no wire-visible behavior changes.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- `internal/component/command/column_order.go`: `ColumnOrder`, `RegisterColumns`, `ColumnsForCommand`, `ResetColumnsForTest`, and the generic `commandRegistry[T]` that resolves a command to the declaration on the longest registered command path.
+- `internal/component/command/pipe_filter.go`: `pipeFilterRegistry` now IS a `commandRegistry[pipeFilterSet]`. `normalizeCommand` and `commandMatchesPrefix` moved to `column_order.go`, so one lookup implementation serves both registries.
+- `internal/component/command/pipe_table.go`: `tableStyle` carries `orders`. `orderKeys` is the one entry point, and `declaredKeys`, `splitByOrder` and `bestColumnOrder` do the work. `renderList`, `renderRecord` and `renderMapOfMaps` each call `orderKeys` in place of a bare `sort.Strings`.
+- `internal/component/command/pipe.go`: `ApplyPipes` takes the declared orders as a fourth parameter and hands them to the `pipeTable` and `pipeText` arms alone. The four `ProcessPipes*` wrappers each call `ColumnsForCommand` on the parsed command and close over the result.
+- `internal/component/bgp/plugins/cmd/peer/peer.go`: `registerColumns` declares two orders for `show bgp summary` (the peer row and the record that holds it) and one for `show bgp peer list`.
+- Docs: `docs/features/formatting.md` and `docs/architecture/api/commands.md`.
+
+### Bugs Found/Fixed
+- None. No defect was found in the reviewed code.
+
+### Documentation Updates
+- `docs/features/formatting.md`, "Column order": states the built-in order, that `\| table` and `\| text` take it, that `\| json`, `\| ndjson` and `\| yaml` keep alphabetical keys, and that ordering never hides a column. Anchors: `column_order.go -- RegisterColumns, ColumnsForCommand`, `pipe_table.go -- tableStyle.orderKeys, bestColumnOrder`, `peer.go -- registerColumns`.
+- `docs/architecture/api/commands.md`, "Per-command declarations: pipe filters and column order": records the registry beside the pipe-filter registry that shares its lookup. Anchor: `column_order.go -- RegisterColumns, ColumnsForCommand, commandRegistry`.
+- `make ze-doc-verify` was not run at closure. The owner is mid-rewrite of the test harness and the tree is deliberately red, so the run would report someone else's state. Both anchored claims were verified against source instead, symbol by symbol.
+
+### Deviations from Plan
+- The spec's Current Behavior describes `handleBgpSummary` building "the outer summary record". A later commit in the same series flattened that payload, so the aggregates and the peer rows are now siblings at the top level (`TestBgpSummaryPayloadIsFlat`). The declared record order names the flat keys, and `TestBgpSummaryColumnsMatchPayload` compares the declaration against the payload the handler actually builds.
+- `commandRegistry[T]` gained an `each` method after this spec's commit, for the alias registry that landed next. The method is used by `alias.go` at three call sites.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| none | | | | |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| A built-in column order per command, used by the two renderings a person reads | Done | `internal/component/command/pipe_table.go` `tableStyle.orderKeys`, reached from the `pipeTable` and `pipeText` arms of `ApplyPipes` | `\| json`, `\| ndjson` and `\| yaml` construct no `tableStyle` |
+| Alphabetical order stays the fallback for undeclared keys and undeclaring commands | Done | `declaredKeys` returns `keys` unchanged when `bestColumnOrder` finds no order | Callers hand `orderKeys` an already-sorted key slice |
+| `show bgp summary` reads operator-first | Done | `internal/component/bgp/plugins/cmd/peer/peer.go` `registerColumns` | `address` first, `state` sixth, `connections-dropped` last |
+| Order declared in code, never in the payload | Done | `RegisterColumns` is called from `init()`; no handler returns an order | `handleBgpSummary` is unchanged |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestRenderListDeclaredOrder`; `test/ui/show-bgp-summary-column-order.ci`; `test/ui/show-bgp-peer-list-column-order.ci` | Proven through the daemon over `\| text` and `\| table` |
+| AC-2 | Done | `TestRenderListUndeclaredKeysFollowAlphabetically` | `splitByOrder` returns the unnamed keys in arrival order, which every caller has sorted |
+| AC-3 | Done | `TestRenderListNoDeclarationUnchanged`; `test/ui/show-column-order-absent-unchanged.ci` | The `.ci` uses `show bgp peer <selector> detail`, a sibling of a declaring command |
+| AC-4 | Done | `TestRenderYAMLIgnoresColumnOrder`; the `\| yaml` half of `show-bgp-peer-list-column-order.ci` | The `.ci` requires `group` before `name` in YAML and `name` before `group` in the table, from one run |
+| AC-5 | Done | `TestApplyJSONIgnoresColumnOrder`; the `\| json` half of `show-bgp-summary-column-order.ci` | `ApplyJSON` takes no orders; `encoding/json` sorts map keys |
+| AC-6 | Done | `TestDeclaredColumnUnknownKeyIsInert` | `splitByOrder` walks the keys, never the declaration, so a name absent from the payload creates nothing |
+| AC-7 | Done | `TestColumnsForCommandEmptyBlocksInheritance` | `RegisterColumns(commands)` with no order stores an empty declaration, which `lookup` finds and `bestColumnOrder` reads as none |
+| AC-8 | Done | `test/ui/show-bgp-summary-column-order.ci` | Asserts `header[0] == 'address'`, `header[5] == 'state'`, `header[-1] == 'connections-dropped'`, and `header != sorted(header)` |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| The 16 unit tests of the plan | Done | `column_order_test.go`, `pipe_table_test.go`, `format_test.go`, `pipe_test.go`, `summary_test.go` | Every name in the plan resolves to a `func Test...` in the named file |
+| `show-bgp-summary-column-order` | Done | `test/ui/show-bgp-summary-column-order.ci` | PASS 170 of 192 in the ui suite |
+| `show-bgp-peer-list-column-order` | Done | `test/ui/show-bgp-peer-list-column-order.ci` | PASS 169 of 192 |
+| `show-column-order-absent-unchanged` | Done | `test/ui/show-column-order-absent-unchanged.ci` | PASS 171 of 192 |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/command/column_order.go` | Done | Created; also holds the shared lookup |
+| `internal/component/command/column_order_test.go` | Done | Created |
+| `internal/component/command/pipe_table.go` | Done | Modified |
+| `internal/component/command/pipe.go` | Done | Modified |
+| `internal/component/command/pipe_filter.go` | Done | Modified; its own behavior is unchanged |
+| `internal/component/bgp/plugins/cmd/peer/peer.go` | Changed | The spec named this file, and `registerColumns` landed here rather than in `summary.go` |
+| `test/ui/*.ci` (three) | Done | Created |
+| `docs/features/formatting.md`, `docs/architecture/api/commands.md` | Done | Modified |
+
+### Audit Summary
+- **Total items:** 23
+- **Done:** 22
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| An operator reading `show bgp summary` sees identity, then state, then counters | functional | `test/ui/show-bgp-summary-column-order.ci`, PASS 170 of 192 in `make ze-functional-ui-test` (192 of 192, 0 FAIL). It requires `address` first, `state` sixth, `connections-dropped` last, and `header != sorted(header)`, so a revert of the feature fails it |
+| Alphabetical order stays the fallback, and the change is opt-in | functional | `test/ui/show-column-order-absent-unchanged.ci`, PASS 171 of 192. One run asserts an undeclaring command is alphabetical AND that `show bgp summary` is not, so an inert build fails it |
+| The programmatic formats carry no column order | functional | `test/ui/show-bgp-peer-list-column-order.ci`, PASS 169 of 192. One run requires `group` before `name` under `\| yaml` and `name` before `group` under `\| table`. Leaking the order into YAML fails it; an inert order fails the table half |
+| Nothing outside the CLI learns about rendering | unit | `TestBgpSummaryColumnsMatchPayload` reads the payload `handleBgpSummary` and `mergeRibRouteCounts` build and finds no order in it. `handleBgpSummary` is unchanged by this spec |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| none | done | The spec metadata declares no deferral shard, and `plan/deferrals/` holds no `cli-column-order.md`. `plan/deferrals/cli-order-pipe.md` belongs to the sibling spec and stays |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/cli-column-order-2e38eb27-078b-4f5b-a456-56437e962d09.md`, over the 15 feature files |
+| `review_gate.py check` | `review_gate: OK (0 code files, clean, hashes match)` |
+| Rounds | 1 |
+| Reviewer lenses used | wiring and functional coverage, logic and edge cases, security and allocation, simplicity and style, documentation drift |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| - | - | No BLOCKER and no ISSUE was found | - | - |
+
+Three NOTEs were recorded and none blocks. First, `ColumnsForCommand` documents a
+nil return for a command that declares none, and an explicit empty registration
+returns an empty non-nil slice. Every consumer reads it with `len`, so the two
+answers do not differ in behavior. Second, `ColumnsForCommand` returns the
+registry's own slice, so a caller outside the package could edit a declaration.
+The four in-package `ProcessPipes*` wrappers are the only callers. Third, AC-5's
+JSON evidence is structural: `ApplyJSON` takes no orders and `encoding/json`
+sorts map keys, and the `.ci` half asserts only that the answer stayed JSON. The
+discriminating format assertion is the YAML one in
+`show-bgp-peer-list-column-order.ci`.
+
+Two automated pre-checks were run and both reds belong to the owner's
+uncommitted harness rewrite. `make ze-repository-check` reports 22 unwired
+exports in `internal/component/config/validators.go`,
+`internal/component/plugin/process/manager.go` and
+`internal/test/peer/checker.go`, all three modified in the working tree and none
+touched by this spec. `scripts/dev/audit-test-relaxation.py 53e84d473~1` reports
+11 weakened tests, all in `scripts/dev/changed_pkgs_test.go` and
+`scripts/status/verify_run_test.go`, both uncommitted.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/command/column_order.go` | Yes | `ls -l` reports 5101 bytes |
+| `internal/component/command/column_order_test.go` | Yes | `ls -l` reports 4612 bytes |
+| `test/ui/show-bgp-summary-column-order.ci` | Yes | `ls -l` reports 7082 bytes |
+| `test/ui/show-bgp-peer-list-column-order.ci` | Yes | `ls -l` reports 5618 bytes |
+| `test/ui/show-column-order-absent-unchanged.ci` | Yes | `ls -l` reports 4948 bytes |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1, AC-8 | The declared order reaches `\| text` and `\| table` through the daemon | ui suite log: `PASS 170 show-bgp-summary-column-order`, `PASS 169 show-bgp-peer-list-column-order` |
+| AC-2, AC-3, AC-6 | Nothing is dropped, an undeclaring command is unchanged, an unmatched name is inert | `make ze-unit-pkg-test PKG=./internal/component/command/...` exits 0 and holds `TestRenderListUndeclaredKeysFollowAlphabetically`, `TestRenderListNoDeclarationUnchanged`, `TestDeclaredColumnUnknownKeyIsInert` |
+| AC-4, AC-5 | The programmatic formats are unchanged | `internal/component/command/pipe.go` `ApplyPipes`: only the `pipeTable` and `pipeText` arms build a `tableStyle`; `pipeYAML` calls `applyYAML(result)` and `pipeJSON` calls `ApplyJSON(result, op.arg)` |
+| AC-7 | An empty declaration on a child blocks the parent's | `TestColumnsForCommandEmptyBlocksInheritance` in `column_order_test.go`; `RegisterColumns` stores an empty slice, which `commandRegistry.lookup` returns with `ok` true |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Operator runs `show bgp summary \| text` | `test/ui/show-bgp-summary-column-order.ci` | Yes. It runs that command against a started daemon and reads the rendered header |
+| A command registers a column order at startup | `TestColumnsForCommandLongestPrefix` | Yes. `registerColumns` is called from `init()` in `peer.go`, and `ColumnsForCommand` is called in all four `ProcessPipes*` wrappers in `pipe.go` |
+| Operator runs `show bgp summary \| yaml` | `TestRenderYAMLIgnoresColumnOrder`; `show-bgp-peer-list-column-order.ci` | Yes. The `.ci` runs `show bgp peer list \| yaml` and requires the alphabetical order |
+| Operator runs `show bgp summary` with no pipe | `ProcessPipesDefaultFormatChecked` | Yes. It reads `ColumnsForCommand` before `foldFilters`, appends `configuredDefault(...)` when no format op is typed, and `configuredDefault` returns `pipeText` by default, so the bare command takes the order |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `ApplyPipes` gained a fourth parameter. Every caller of it is in `pipe.go` |
+| A-2 | confirmed | `TestBgpSummaryColumnsMatchPayload` compares both directions: no payload key is undeclared, and no declared name is absent from a payload |
+| A-3 | confirmed | `ApplyTable` keeps its single-argument form, so `internal/component/iface/cli/scan.go` renders as before. The ui suite is 192 of 192 |
+| A-4 | confirmed | The same test merges the three `mergeRibRouteCounts` keys into the row before comparing, so the comparison covers the full key set the command can produce |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/features/formatting.md`: the three programmatic formats keep their alphabetical keys | `ApplyPipes` builds a `tableStyle` on the `pipeTable` and `pipeText` arms alone | Yes |
+| `docs/features/formatting.md`: "A column is never hidden" | `declaredKeys` returns `append(declared, rest...)`, and `rest` holds every key the order does not name | Yes |
+| `docs/features/formatting.md`: "Only `show bgp summary` and `show bgp peer list` declare an order today" | `grep -rn 'RegisterColumns(' internal/` finds one caller, `registerColumns` in `peer.go` | Yes |
+| `docs/architecture/api/commands.md`: `RegisterColumns` reaches `tableStyle.orderKeys` through the four `ProcessPipes*` wrappers | `ColumnsForCommand` in each of the four wrappers in `pipe.go`; `orderKeys` in `pipe_table.go` | Yes |
+| Category 16, anchors naming the changed files | `grep -n 'source:' docs/features/formatting.md` lists the three anchors added for this feature, each naming a symbol that exists | Yes |
+
+## Core Insight
+
+One command can render more than one record shape, and the shapes can share a
+key name. `show bgp summary` carries "uptime" in the peer row and in the record
+that holds the rows, and the two belong in different positions. A declaration
+keyed by command name alone cannot state both, so the key SET is what identifies
+the shape: `bestColumnOrder` picks the declared order that names the most of the
+keys in hand. The next command to declare an order will meet the same question
+the moment it answers with more than one shape.
