@@ -12,9 +12,9 @@
 | Status | in-progress |
 | Scope | config |
 | Depends | - |
-| Phase | 1/2 |
+| Phase | 2/2 |
 | Deferral shard | - |
-| Updated | 2026-08-14 |
+| Updated | 2026-08-19 |
 
 <!-- Scope drives which optional blocks below apply. Say which one this is, so
      an absent section reads as "inapplicable" rather than "skipped".
@@ -229,6 +229,7 @@ Stage 4 was the defect: the prefix resolved to a FILE key, stage 5 answered
 | `TestRunnerBlobStorage` | `internal/component/cli/testing/runner_test.go` | AC-5: the option gives the editor a blob-backed store | pass |
 | `TestRunnerUnknownStorageBackendFails` | `internal/component/cli/testing/runner_test.go` | An unrecognized backend name stops the test rather than falling back | pass |
 | `TestRunnerBlobStorageRefusesFileExpectation` | `internal/component/cli/testing/runner_test.go` | `expect=file:` with blob storage stops the test | pass |
+| `TestRunnerBlobStorageWritesBlobNotFile` | `internal/component/cli/testing/runner_test.go` | AC-5: after a commit the blob holds the edit and the config file on disk does not. Added from the review; it is the assertion the three rows above cannot make | pass |
 
 ### Boundary Tests (numeric inputs)
 No numeric input. The unit is a key string, and its cases are enumerated in
@@ -240,7 +241,8 @@ No numeric input. The unit is a key string, and its cases are enumerated in
      Structure: ai/patterns/functional-test.md -->
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `diff-structural-op-blob` | `test/editor/session/diff-structural-op-blob.et` | AC-1, AC-2, AC-5: the operator deletes a peer on blob storage and the review counts it | pass |
+| `diff-structural-op-blob` | `test/editor/session/diff-structural-op-blob.et` | AC-1, AC-2, AC-5: the operator deletes a peer on blob storage and the review counts it and shows it | pass |
+| `diff-structural-op-filesystem` | `test/editor/session/diff-structural-op-filesystem.et` | AC-1: the same delete on filesystem storage, which is what "matching filesystem storage exactly" compares against. Added from the review | pass |
 
 ### Interop Tests (Scope: protocol)
 Not applicable. Nothing wire-visible changes; this is config storage.
@@ -445,3 +447,269 @@ Not applicable. No RFC governs ze's config storage.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+
+Landed in commit `85a79ac9b` (fix(config): show structural ops in the diff an
+operator reviews):
+
+- `internal/component/config/storage/blob.go` - `List` resolves its prefix with
+  the new `resolveDirKey`, which returns an already-namespaced prefix unchanged
+  and maps every other prefix to `zefs.KeyFileActive.Dir()`. `resolvePathToKey`
+  lost the branch both halves of which returned the same expression, the comment
+  that stated the opposite of what it did, and the parameter no branch read;
+  `resolveKey` lost the same parameter.
+- `internal/component/config/storage/pointer.go`,
+  `internal/component/config/storage/storage_test.go` - the call sites of that
+  parameter.
+- `internal/component/cli/testing/headless.go` - both headless constructors take
+  a `storage.Storage` and build the editor with `NewEditorWithStorage`.
+- `internal/component/cli/testing/runner.go` - `option=storage:value=blob`
+  creates one `storage.NewBlob` shared by every model the test builds, refuses
+  `expect=file:` beside it, and fails on an unknown backend name.
+- `test/editor/session/diff-structural-op-blob.et`,
+  `internal/component/config/storage/blob_test.go` - the tests.
+- `docs/functional-tests.md` and
+  `ai/rules/points/testing/editor-tests-et-format/every-et-directive-and-what-it-does.md`
+  - the new `.et` option, documented where the other options are.
+
+Added on 2026-08-19, answering an independent review of that commit:
+
+- `internal/component/cli/testing/runner.go` - `runTestCase` splits into a
+  wrapper that owns the temp directory and `runTestCaseIn`, which runs the case
+  in a directory the caller owns. Nothing else changed: the wrapper creates the
+  directory, removes it, and delegates.
+- `internal/component/cli/testing/runner_test.go` -
+  `TestRunnerBlobStorageWritesBlobNotFile` commits an edit through the runner and
+  then reads both stores, so the test says WHERE the edit landed.
+- `test/editor/session/diff-structural-op-blob.et` - the review must SHOW the
+  delete, not only count it: `expect=viewport:contains=peer peer1`.
+- `test/editor/session/diff-structural-op-filesystem.et` - the counterpart run
+  of the same delete on filesystem storage, so "matching filesystem storage
+  exactly" rests on a test rather than on code symmetry.
+
+### Bugs Found/Fixed
+
+- `blobStorage.List` resolved a directory prefix to a FILE key, so `ReadDir`
+  answered `fs.ErrNotExist` and `Editor.listChangeFiles` read that as "no change
+  files". Every structural op (`delete-entry`, `delete-container`, `rename`)
+  vanished from the pending-change review under blob storage, which is every web
+  editor user. Covered by `TestBlobStorageListFilesystemDirectory`,
+  `TestResolveDirKey` and `test/editor/session/diff-structural-op-blob.et`.
+- The proof of AC-5 did not discriminate. `TestRunnerBlobStorage` asserted the
+  run passed and the editor went dirty, and the `.et` passed under filesystem
+  storage too, so dropping `configStore = blobStore` in `runTestCaseIn` left
+  both green. Covered by `TestRunnerBlobStorageWritesBlobNotFile`, whose three
+  assertions all redden under that mutation (see Pre-Commit Verification).
+
+### Documentation Updates
+
+- `docs/functional-tests.md` - the editor-test option table carries
+  `option=storage:value=blob`. Committed in `85a79ac9b`; its source anchor is
+  `internal/component/cli/testing/parser.go`, which still parses that option.
+- `ai/rules/points/testing/editor-tests-et-format/every-et-directive-and-what-it-does.md`
+  and the rendered `ai/rules/testing.md` - the same option.
+- `docs/guide/config-editor.md` carries the operator-facing statement, under
+  "Structural operations appear in the diff", with source anchors on
+  `resolveDirKey` and `blobStorage.List`. It reached the tree through the
+  doc-sync commit `ee449fdfa`, not through `85a79ac9b`.
+- Nothing was owed for the 2026-08-19 additions: they add no directive and no
+  option, and they change no symbol a doc anchor names.
+  `grep -rn "option=storage" docs/ ai/rules/` returns the three locations above
+  (the point file, its rendered rule, and the editor-test table), and none of
+  them lists the individual `.et` files.
+
+### Deviations from Plan
+
+- A-4 broke. The `.et` runner could not reach the defect as it stood, so the
+  spec's own Files to Modify list grew the runner and both headless
+  constructors. The Mistake Log below carries the row.
+- Files to Create gained `test/editor/session/diff-structural-op-filesystem.et`,
+  which the plan did not name. AC-1 claims the blob review matches filesystem
+  storage, and no test stated what filesystem storage does.
+- `internal/component/cli/testing/runner.go` gained `runTestCaseIn`. The plan
+  named the file for the storage option only. A test that proves which store the
+  runner wrote has to read the store after the run, and `runTestCase` removes
+  its temp directory on the way out.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-4 assumed the `.et` runner could reach the defect as it stood | `newHeadlessModel` built its editor with `cli.NewEditor`, which is filesystem-only, so no `.et` could run on a blob and 164 editor tests ran on a backend the daemon does not use | Read `newHeadlessModel` in `internal/component/cli/testing/headless.go` during step 3 assumption validation, before feature code | Gave both headless constructors a `storage.Storage` parameter and added `option=storage:value=blob` to the runner, rather than moving the proof to `test/web/`. Cost: the runner, both constructors and their call sites entered a spec scoped to a storage backend |
+| approach | The first proof of AC-5 asserted that a blob-backed run passed and went dirty | A pass and a dirty flag are produced by the editor whichever store it holds. Both assertions, and the `.et` beside them, survive `configStore = blobStore` being dropped | An independent review of `85a79ac9b` read the test against the mutation | Added `TestRunnerBlobStorageWritesBlobNotFile`, which commits and then reads both stores. The mutation was made and all three assertions reddened |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| The pending-change review under blob storage shows every pending structural op | Done | `resolveDirKey`, `(*blobStorage).List` in `internal/component/config/storage/blob.go` | The change file is found, so `Editor.PendingChanges` merges it |
+| It matches filesystem storage exactly | Done | `test/editor/session/diff-structural-op-blob.et` and `test/editor/session/diff-structural-op-filesystem.et` | The same delete, the same three assertions, one option apart |
+| `/config/rename/` reaches the same mechanism and is fixed with it | Done | `Editor.listChangeFiles` in `internal/component/cli/editor.go` | One producer serves both: the rename op is recorded in the same change file the fixed `List` now returns |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `test/editor/session/diff-structural-op-blob.et`, steps `show \| changes` | `expect=status:contains=1 pending change` counts it; `expect=viewport:contains=peer peer1` shows it, and the name can reach the viewport only as a removed line because the working config no longer holds it |
+| AC-2 | Done | The same file, `show \| changes all` | `1 pending change across 1 sessions` |
+| AC-3 | Done | `TestBlobStorageListFilesystemDirectory` | Full namespaced keys that round-trip to `ReadFile` |
+| AC-4 | Done | `TestResolveDirKey` | The three namespaced forms pass through unchanged |
+| AC-5 | Done | `TestRunnerBlobStorageWritesBlobNotFile`, `TestRunnerBlobStorage`, `TestRunnerUnknownStorageBackendFails`, `TestRunnerBlobStorageRefusesFileExpectation` | The first is the one that separates a blob-backed editor from a filesystem-backed one |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestBlobStorageListFilesystemDirectory` | Done | `internal/component/config/storage/blob_test.go` | pass |
+| `TestResolveDirKey` | Done | `internal/component/config/storage/blob_test.go` | pass |
+| `TestResolveKeyIdempotent` | Done | `internal/component/config/storage/storage_test.go` | pass |
+| `TestRunnerBlobStorage` | Done | `internal/component/cli/testing/runner_test.go` | pass |
+| `TestRunnerUnknownStorageBackendFails` | Done | `internal/component/cli/testing/runner_test.go` | pass |
+| `TestRunnerBlobStorageRefusesFileExpectation` | Done | `internal/component/cli/testing/runner_test.go` | pass |
+| `TestRunnerBlobStorageWritesBlobNotFile` | Changed | `internal/component/cli/testing/runner_test.go` | Added after the plan, from the review. It is the discriminating proof of AC-5 |
+| `diff-structural-op` (blob) | Done | `test/editor/session/diff-structural-op-blob.et` | pass |
+| `diff-structural-op` (filesystem) | Changed | `test/editor/session/diff-structural-op-filesystem.et` | Added after the plan, from the review. It states what AC-1 compares against |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/config/storage/blob.go` | Done | `resolveDirKey` added; the dead branch, the false comment and the unread parameter removed |
+| `internal/component/config/storage/pointer.go` | Done | Call site updated |
+| `internal/component/config/storage/storage_test.go` | Done | Call sites updated |
+| `internal/component/cli/testing/headless.go` | Done | Both constructors take the backend |
+| `internal/component/cli/testing/headless_test.go` | Done | Call sites updated |
+| `internal/component/cli/testing/runner.go` | Changed | The storage option, plus the `runTestCaseIn` seam the review's proof needs |
+| `ai/rules/points/testing/editor-tests-et-format/...` and `ai/rules/testing.md` | Done | The directive row |
+| `docs/functional-tests.md` | Done | The same row in the editor-test table |
+| `internal/component/config/storage/blob_test.go` | Done | Two new unit tests |
+| `test/editor/session/diff-structural-op-blob.et` | Done | Plus the viewport assertion added on 2026-08-19 |
+| `test/editor/session/diff-structural-op-filesystem.et` | Changed | Not in the plan; added from the review |
+
+### Audit Summary
+- **Total items:** 23 (3 requirements, 5 ACs, 9 tests, 11 files, counted once each where a row repeats)
+- **Done:** 20
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 3 (recorded in Deviations: the extra `.et`, the extra unit test, the `runTestCaseIn` seam)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| The pending-change review under blob storage shows every pending structural op | functional | `test/editor/session/diff-structural-op-blob.et`: an operator deletes `bgp peer peer1` on blob storage, `show \| changes` answers `1 pending change` and the viewport carries the removed entry. Run through `make ze-unit-pkg-test PKG=./internal/component/cli/testing`. It discriminates: forcing `changesEnabled` false in `(*Model).setViewportData` (`internal/component/cli/model_render.go`) reddens it with `viewport does not contain "peer peer1"` |
+| It matches filesystem storage exactly | functional | `test/editor/session/diff-structural-op-filesystem.et`: the same delete, the same three assertions, and the only difference between the two files is `option=storage:value=blob`. Both redden together under the same mutation |
+| An `.et` can ask for blob-backed config storage, so a blob-only editor defect is testable at all | unit | `TestRunnerBlobStorageWritesBlobNotFile`: after a commit the config file in the run directory still holds `1.2.3.4` and the blob holds `5.6.7.8`. Dropping `configStore = blobStore` in `runTestCaseIn` reverses both and reddens all three assertions (output in Pre-Commit Verification) |
+| A directory prefix lists the config files on blob storage | unit | `TestBlobStorageListFilesystemDirectory` and `TestResolveDirKey`, `ok github.com/ze-software/ze/internal/component/config/storage 155.017s` (uncached, 2026-08-19) |
+
+**What this evidence does NOT cover.** The Task states the symptom on
+`/config/diff`, the web review surface. No test in this spec drives that route.
+`us.editor.PendingChanges(sid)` in `internal/component/web/editor.go` is the
+producer the web handler reads, and it is the producer the two `.et` files drive
+through the CLI, so the fix reaches both; the web route's own rendering is
+unproven here.
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| No shard. The metadata table declares `Deferral shard: -` | done | Nothing was deferred: every AC has code and a passing test, and the two review findings were fixed in place rather than recorded |
+
+## Review Gate
+
+<!-- NOT FILLED BY THIS SESSION. The 2026-08-19 changes above (the
+     runTestCaseIn seam, TestRunnerBlobStorageWritesBlobNotFile, the viewport
+     assertion, the filesystem counterpart .et) were authored in this context,
+     and ai/rules/planning.md forbids the authoring context from judging its own
+     work. An independent pass records the artifact with
+     scripts/dev/review_gate.py and fills the table. -->
+
+| Field | Value |
+|-------|-------|
+| Artifact | not recorded |
+| `review_gate.py check` | not run |
+| Rounds | not run |
+| Reviewer lenses used | not run |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | The spec carried no closure half: no Implementation Summary, Audit, Goal Validation, Review Gate, Pre-Commit Verification or Mistake Log | `plan/spec-fixit-zefs-diff-structural-ops.md` | The sections above |
+| 2 | BLOCKER | A-4 is recorded `broken` and owed a Mistake Log row and a Deviations entry, and neither existed | The same file | The Mistake Log row and the Deviations entry above |
+| 3 | ISSUE | AC-5's proof was mutation-blind: `TestRunnerBlobStorage` and the `.et` both stay green with `configStore = blobStore` dropped | `internal/component/cli/testing/runner_test.go` | `TestRunnerBlobStorageWritesBlobNotFile`, on the `runTestCaseIn` seam |
+| 4 | ISSUE | AC-1 claimed the review counts AND shows the delete, and nothing asserted the rendered entry; "matching filesystem storage" rested on code symmetry | `test/editor/session/diff-structural-op-blob.et` | `expect=viewport:contains=peer peer1`, plus the new `diff-structural-op-filesystem.et` counterpart |
+
+## Pre-Commit Verification
+
+Both packages were re-run on 2026-08-19 through the make target, uncached
+(`GOFLAGS=-count=1`) and race-instrumented, because a direct `go test` drops the
+feature tags and the project build cache (`ai/rules/commands.md`):
+
+```
+make ze-unit-pkg-test PKG=./internal/component/config/storage
+ok  	github.com/ze-software/ze/internal/component/config/storage	155.017s
+
+MAY_ATTACH=0 make ze-unit-pkg-test PKG=./internal/component/cli/testing
+ok  	github.com/ze-software/ze/internal/component/cli/testing	282.942s
+```
+
+`MAY_ATTACH=0` is not optional here. `scripts/dev/ze-run.sh` keys job sharing on
+(label, tree hash), and `ze-unit-pkg-test` is one label for every PKG, so the
+first attempt attached to another session's run of a different package and
+returned that package's failure. The row is in
+`plan/journal/stale-artifact-reused.md`.
+
+`make ze-lint-changed` reports one issue, and it is in
+`internal/plugins/flowspec-firewall/bridge_test.go`, a file this spec does not
+touch and another session is editing (`handleUpdate` now takes `*bgp.Event` and
+the test still passes a string). Every package this spec touches lints clean.
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/config/storage/blob_test.go` | Yes | `-rw-rw-r-- 1 thomas thomas 5269 Aug 17 18:11 internal/component/config/storage/blob_test.go` |
+| `test/editor/session/diff-structural-op-blob.et` | Yes | `-rw-rw-r-- 1 thomas thomas 1831 Aug 19 01:50 test/editor/session/diff-structural-op-blob.et` |
+| `test/editor/session/diff-structural-op-filesystem.et` | Yes | `-rw-rw-r-- 1 thomas thomas 1698 Aug 19 01:50 test/editor/session/diff-structural-op-filesystem.et` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | The review counts and shows the delete | `TestFunctionalETFiles/session/diff-structural-op-blob.et` and `.../diff-structural-op-filesystem.et` both pass; under the `changesEnabled` mutation both fail with `step 9 (expect viewport): viewport does not contain "peer peer1"` |
+| AC-2 | The all-sessions view counts it too | The same two files assert `1 pending change across 1 sessions` after `show \| changes all` |
+| AC-3 | A filesystem directory prefix lists the config files as full keys | `TestBlobStorageListFilesystemDirectory` passes in the uncached package run below |
+| AC-4 | A namespaced prefix lists that directory, unchanged | `TestResolveDirKey` passes in the same run; its cases include `file/active`, `file/draft` and `meta/ssh` |
+| AC-5 | An `.et` asking for blob storage gets a blob-backed editor | `TestRunnerBlobStorageWritesBlobNotFile` passes. Mutated (`configStore = blobStore` replaced by `_ = blobStore`) it reports: `"...set bgp router-id 5.6.7.8..." does not contain "1.2.3.4"`, `should not contain "5.6.7.8"`, and `"...router-id 1.2.3.4..." does not contain "5.6.7.8"` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `delete bgp peer <name>` in a session-mode editor on blob storage | `test/editor/session/diff-structural-op-blob.et` | Yes. Read the file: it types `delete bgp peer peer1`, then `show \| changes`, then `show \| changes all`, with `option=storage:value=blob` in force. The runner's blob branch is what serves that option |
+| `Storage.List` with a filesystem directory prefix | `TestBlobStorageListFilesystemDirectory` | Yes. It writes through `blobStorage.WriteFile` and lists the directory the write mapped into |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `resolveKey` and `migrateExistingFiles` in `internal/component/config/storage/blob.go` both build `file/active/<basename>`; `resolveDirKey` maps a filesystem prefix to the same directory |
+| A-2 | confirmed | `gopls references` on `Storage.List`: `cmdLsWithStorage`, `cmdEditWithStorage` (through `selectConfig`) and `Editor.listChangeFiles` |
+| A-3 | confirmed | No consumer of a `List` result calls `Remove`; `DisconnectSession` rebuilds its path from `ChangePath` |
+| A-4 | broken | `newHeadlessModel` built its editor with `cli.NewEditor`, which is filesystem-only. Recorded in the Mistake Log and in Deviations. The runner now takes the backend, so the assumption's consequence ("the proof moves to `test/web/`") did not follow |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `option=storage:value=blob` exists and behaves as the `.et` tables say | `internal/component/cli/testing/runner.go` parses `case "storage"` and serves `blob`, `filesystem` and `""`, and refuses anything else | Yes |
+| `expect=file:` is refused beside blob storage | The same function returns that error before building a model; `TestRunnerBlobStorageRefusesFileExpectation` asserts it | Yes |
+| The docs that anchor the changed files still describe them correctly | `grep -rn "resolveDirKey\|storage/blob.go" docs/` returns three anchors: `docs/guide/config-editor.md` ("Structural operations appear in the diff", anchored on `resolveDirKey` and `blobStorage.List`), `docs/architecture/zefs-format.md` (anchored on `NewBlob`'s corrupt-store self-heal) and `docs/architecture/fleet-config.md` (anchored on `SetWriteObserver`). All three symbols exist and behave as written; the 2026-08-19 changes touch none of them | Yes |
+
+## Core Insight
+
+A storage backend that answers "no files" and a storage backend that has no
+files are indistinguishable to every caller. `blobStorage.List` returned an
+empty result for a prefix shape it could not resolve, and three layers above it
+that read as "this session has nothing pending". A lookup that cannot resolve
+its input has to say so; returning the zero value in that case is what let the
+defect live under complete-looking coverage, and it is the same shape
+`ai/rules/evidence.md` names for a guard.

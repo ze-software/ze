@@ -7,6 +7,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/component/config/storage"
 )
 
 // TestRunnerBasicTest verifies a simple test case runs successfully.
@@ -151,6 +153,69 @@ expect=error:none
 	result := runETTest(etContent)
 	require.NotNil(t, result)
 	assert.True(t, result.Passed, "test should pass: %s", result.Error)
+}
+
+// TestRunnerBlobStorageWritesBlobNotFile commits an edit under
+// option=storage:value=blob and then reads both stores, to say where the edit
+// landed: the blob holds it and the config file on disk does not.
+//
+// The method is to run the test case in a directory this test owns, because the
+// runner removes its own temp directory and takes the evidence with it.
+//
+// VALIDATES: AC-5 -- the editor under test reads and writes a zefs blob.
+// PREVENTS: the option resolving to filesystem storage while every assertion
+// stays green. A pass, a dirty flag and an .et run prove the editor did not
+// crash; only the two stores read afterwards prove which one it wrote.
+func TestRunnerBlobStorageWritesBlobNotFile(t *testing.T) {
+	etContent := `# Blob-backed editor, committed
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  session {
+    asn {
+      local 65000
+    }
+  }
+  router-id 1.2.3.4
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=storage:value=blob
+option=session:user=thomas:origin=local
+
+input=type:text=set bgp router-id 5.6.7.8
+input=enter
+expect=dirty:true
+expect=error:none
+
+input=type:text=commit
+input=enter
+expect=dirty:false
+expect=error:none
+`
+
+	tc, err := parseETFile(etContent)
+	require.NoError(t, err)
+
+	tmpDir := t.TempDir()
+	result := runTestCaseIn(tc, tmpDir)
+	require.NotNil(t, result)
+	require.True(t, result.Passed, "test should pass: %s", result.Error)
+
+	onDisk, err := os.ReadFile(filepath.Join(tmpDir, "test.conf"))
+	require.NoError(t, err)
+	assert.Contains(t, string(onDisk), "1.2.3.4",
+		"the config file on disk keeps its migrated content")
+	assert.NotContains(t, string(onDisk), "5.6.7.8",
+		"a blob-backed editor writes the blob, so the commit must not reach the file")
+
+	blobStore, err := storage.NewBlob(filepath.Join(tmpDir, "database.zefs"), "")
+	require.NoError(t, err)
+	defer blobStore.Close() //nolint:errcheck // test cleanup
+
+	inBlob, err := blobStore.ReadFile("test.conf")
+	require.NoError(t, err)
+	assert.Contains(t, string(inBlob), "5.6.7.8", "the blob holds the committed edit")
 }
 
 // TestRunnerBlobStorageRefusesFileExpectation verifies the two options that

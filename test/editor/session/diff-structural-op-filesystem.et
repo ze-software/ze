@@ -1,0 +1,58 @@
+# Test: a structural delete under filesystem storage appears in the pending-change review
+# VALIDATES: spec-fixit-zefs-diff-structural-ops AC-1 -- the blob-backed review must
+#            match filesystem storage exactly, so this test states what filesystem
+#            storage does. It is the counterpart of diff-structural-op-blob.et and
+#            differs from it in one line: option=storage:value=blob is absent.
+# PREVENTS: "matches filesystem storage" resting on code symmetry alone. Without a
+#           filesystem run of the same delete, a change to the review surface could
+#           move both backends together and no test would name the disagreement.
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  session {
+  	asn {
+  		local 65000
+  	}
+  }
+  router-id 1.2.3.4;
+  peer peer1 {
+  	connection {
+  		remote {
+  			ip 1.1.1.1
+  		}
+  	}
+  	session {
+  		asn {
+  			remote 65001
+  		}
+  	}
+    timer { receive-hold-time 90; }
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+option=session:user=thomas:origin=local
+
+expect=dirty:false
+
+# Delete a list entry. This is a structural op: it is recorded in the per-user
+# change file only, never in the in-memory session metadata.
+input=type:text=delete bgp peer peer1
+input=enter
+expect=dirty:true
+expect=error:none
+
+# The review the operator reads before commit counts that delete and shows it.
+input=type:text=show | changes
+input=enter
+expect=status:contains=1 pending change
+expect=viewport:contains=peer peer1
+expect=error:none
+
+# The cross-session view reads the same change files and agrees.
+input=type:text=show | changes all
+input=enter
+expect=status:contains=1 pending change across 1 sessions
+expect=error:none

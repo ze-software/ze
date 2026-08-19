@@ -65,19 +65,32 @@ func RunETFile(path string) *TestResult {
 	return runETTest(string(content))
 }
 
-// runTestCase executes a parsed test case.
+// runTestCase executes a parsed test case in a temporary directory that it
+// creates and removes.
 func runTestCase(tc *TestCase) *TestResult {
-	result := &TestResult{}
-
 	// Create temp directory for test files
 	tmpDir, err := os.MkdirTemp("", "ze-editor-test-*")
 	if err != nil {
-		result.Error = fmt.Sprintf("creating temp dir: %v", err)
-		return result
+		var tb textbuf.Buffer
+		return &TestResult{Error: tb.Str("creating temp dir: ").Err(err).String()}
 	}
 	defer func() {
 		_ = os.RemoveAll(tmpDir)
 	}()
+
+	return runTestCaseIn(tc, tmpDir)
+}
+
+// runTestCaseIn executes a parsed test case with tmpDir as its working
+// directory. The caller owns tmpDir and MUST remove it.
+//
+// The directory outlives the run for one reason: it holds the config files, the
+// per-user change files and the zefs blob, so a test can read them afterwards
+// and prove WHERE the editor wrote. Every .et expectation runs during the test,
+// and none of them separates a blob-backed editor from a filesystem-backed one
+// (TestRunnerBlobStorageWritesBlobNotFile).
+func runTestCaseIn(tc *TestCase, tmpDir string) *TestResult {
+	result := &TestResult{}
 
 	// Write tmpfs files to temp directory
 	for _, tf := range tc.Tmpfs {

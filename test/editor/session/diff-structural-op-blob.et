@@ -45,10 +45,13 @@ input=enter
 expect=dirty:true
 expect=error:none
 
-# The review the operator reads before commit must count that delete.
+# The review the operator reads before commit must count that delete AND show it.
+# The working config no longer holds peer1, so the name reaches the viewport only
+# as a removed line in the diff gutter.
 input=type:text=show | changes
 input=enter
 expect=status:contains=1 pending change
+expect=viewport:contains=peer peer1
 expect=error:none
 
 # The cross-session view reads the same change files and must agree.
