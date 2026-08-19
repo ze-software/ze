@@ -15,15 +15,24 @@ so a reader does not mistake them for captured numbers.
 
 import base64
 import glob
+import importlib.util
 import os
 import re
+import shutil
 import sys
+import tempfile
 import unittest
+from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import lab  # noqa: E402
 from lab import (  # noqa: E402
     _PKI_PLACEHOLDER,
+    ZE_CLI_PASSWORD_HASH,
+    ZE_CLI_PORT,
+    ZE_CLI_USER,
     Scenario,
+    StrongSwan,
     parse_xfrm_sa_bytes_by_spi,
     pem_to_base64_der,
     resolve_pki_placeholders,
@@ -359,6 +368,105 @@ class TestScenarioPKIFixtures(unittest.TestCase):
             "exactly these scenarios carry PKI material",
         )
         self.assertEqual(15, checked, "each of the five scenarios holds 3 pki leaves")
+
+
+class TestPrepareZeConf(unittest.TestCase):
+    """The CLI account and the SSH listener are rendered, never hand-copied.
+
+    The daemon starts no SSH listener unless its config asks for one
+    (`infraSetup`, cmd/ze/hub/infra_setup.go), and `ze_cli` reaches it over SSH.
+    Two of the sixteen scenarios carried the block by hand, so the next author to
+    add a `ze_cli` call would have met a credential error that says nothing about
+    what their scenario tests. `Scenario._prepare_ze_conf` appends it to the
+    rendered copy instead, the way `_render_scenario_dir` does in
+    test/interop/interop.py.
+    """
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix="ze-lab-test-")
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+
+    def write_conf(self, text):
+        path = os.path.join(self.tmp, "ze.conf")
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(text)
+        return path
+
+    def test_a_config_needing_no_pki_still_gains_the_account_and_listener(self):
+        # No placeholder to resolve, so the resolver returns the text unchanged.
+        # That used to short-circuit the render and hand the container the source
+        # file, which is how fourteen of the sixteen ended up with no listener.
+        path = self.write_conf("vpn {\n\tipsec {\n\t}\n}\n")
+        out = Scenario(self.tmp)._prepare_ze_conf(path, None)
+        self.assertNotEqual(path, out, "the container must mount a rendered copy")
+        with open(out, encoding="utf-8") as fh:
+            text = fh.read()
+        self.assertIn("user %s {" % ZE_CLI_USER, text)
+        self.assertIn(ZE_CLI_PASSWORD_HASH, text)
+        self.assertIn("ssh {", text)
+        self.assertIn("port %s;" % ZE_CLI_PORT, text)
+        self.assertIn("vpn {", text, "the scenario's own config survives")
+
+    def test_no_scenario_config_carries_the_boilerplate(self):
+        # `grep -l authentication` answers sixteen and means nothing: every
+        # scenario carries the IKE peer's own authentication block. The account
+        # name and the hash are what only the render may hold.
+        pattern = os.path.join(LAB_DIR, "scenarios", "*", "ze.conf")
+        for path in sorted(glob.glob(pattern)):
+            with open(path, encoding="utf-8") as fh:
+                text = fh.read()
+            self.assertNotIn(
+                "user %s {" % ZE_CLI_USER,
+                text,
+                "%s: the CLI account is appended by _prepare_ze_conf" % path,
+            )
+            self.assertNotIn(
+                ZE_CLI_PASSWORD_HASH,
+                text,
+                "%s: the CLI password hash is appended by _prepare_ze_conf" % path,
+            )
+
+
+class TestXfrmStateFailsClosed(unittest.TestCase):
+    """A failed XFRM read must raise, not answer "no SAs".
+
+    10-clear-reestablish snapshots strongSwan's ESP SPIs BEFORE its clear and
+    passes when a SPI absent from that snapshot appears after. A reader that
+    answered "" for a failed command made the snapshot empty, and then the SA
+    that already existed satisfied the comparison on the first poll: the
+    scenario passed with the clear having done nothing.
+
+    Empty output is a real answer here -- `ip xfrm state` prints nothing when
+    the kernel holds no SA -- so the fault is read from the EXIT STATUS.
+    """
+
+    def test_xfrm_state_propagates_a_failed_command(self):
+        with mock.patch.object(lab, "docker_exec_quiet", return_value=""):
+            with mock.patch.object(
+                lab, "docker_exec", side_effect=RuntimeError("rc=1")
+            ):
+                with self.assertRaises(RuntimeError):
+                    StrongSwan().xfrm_state()
+
+    def test_scenario_10_refuses_an_empty_before_snapshot(self):
+        check = self.load_scenario_10()
+        swan = mock.Mock()
+        swan.xfrm_state.return_value = ""
+        with mock.patch.object(check, "StrongSwan", return_value=swan):
+            with mock.patch.object(check, "ze_cli") as cli:
+                with self.assertRaises(AssertionError):
+                    check.check()
+        cli.assert_not_called()
+
+    @staticmethod
+    def load_scenario_10():
+        path = os.path.join(
+            LAB_DIR, "scenarios", "10-clear-reestablish", "check.py"
+        )
+        spec = importlib.util.spec_from_file_location("scenario10_check", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
 
 
 if __name__ == "__main__":

@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | - |
+| Phase | 1/1 |
 | Deferral shard | `-` (none was ever created; `ls plan/deferrals/fixit-ipsec-interop-cli-credentials.md` on 2026-08-14 reports no such file) |
-| Updated | 2026-08-14 |
+| Updated | 2026-08-19 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -27,7 +27,7 @@ assertions and passes.
 
 | The spec's measured fact | What the tree holds on 2026-08-14 |
 |--------------------------|-----------------------------------|
-| "The lab provisions no SSH credentials. No `ze init`, no `ze.ssh.username`, no `ze.ssh.password`" | `ze_cli` (`test/ipsec-interop/lab.py`) seeds the client store once with `ZE_CONFIG_DIR=/tmp/ze-cli-store ze init`, fed by a `printf` of user, password, host and port, then runs the command with `ZE_SSH_PASSWORD` in the environment. Its docstring records this spec's exact failure as the reason. Introduced by `7cef0689c` |
+| "The lab provisions no SSH credentials. No `ze init`, no `ze.ssh.username`, no `ze.ssh.password`" | `ze_cli` (`test/interop-ipsec/lab.py`) seeds the client store once with `ZE_CONFIG_DIR=/tmp/ze-cli-store ze init`, fed by a `printf` of user, password, host and port, then runs the command with `ZE_SSH_PASSWORD` in the environment. Its docstring records this spec's exact failure as the reason. Introduced by `7cef0689c` |
 | "Scenario 10's `ze.conf` has no `system` block at all" | It carries `system { authentication { user interop { password "$2a$04$..." } } }` and an `environment { ssh { ... server main { ip 127.0.0.1; port 2222 } } }` listener. The bcrypt hash is `lab.py`'s published `ZE_CLI_PASSWORD_HASH`, the same cost-4 hash `test/plugin/authz-default.ci` uses, so it is no new secret. Introduced by `c36ad1627`, refined by `7cef0689c` |
 
 The fix took the route this spec wanted: it provisioned the credential the guard
@@ -52,7 +52,7 @@ the boilerplate. Two places already claim the IPsec lab does the same, and both
 are false today: the comment on `ZE_CLI_CONFIG`, and the interop-lab paragraph
 in `docs/architecture/testing/interop.md`.
 
-**Live evidence, 2026-08-14.** `python3 test/ipsec-interop/run.py
+**Live evidence, 2026-08-14.** `python3 test/interop-ipsec/run.py
 10-clear-reestablish` against Docker 29.5.2:
 
 ```
@@ -73,7 +73,7 @@ the engine. A run that stopped at the credential wall could not produce it.
 
 The closure review confirmed the discrimination holds for THAT run and found one
 way a future run could pass vacuously. `swan_esp_spis` reads through
-`StrongSwan.xfrm_state`, which calls `docker_exec_quiet` (`test/ipsec-interop/lab.py`),
+`StrongSwan.xfrm_state`, which calls `docker_exec_quiet` (`test/interop-ipsec/lab.py`),
 and that helper returns an empty string on a non-zero exit or any exception. A
 failed `before` snapshot yields an empty set, `now - before` is then non-empty on
 the first poll from the SA that already existed, and `check()` passes with the
@@ -85,7 +85,7 @@ The test does not guarantee that.
 
 | # | Deliverable | Why |
 |---|-------------|-----|
-| W-1 | Append the account and the SSH listener to the rendered `ze.conf` in `Lab._prepare_ze_conf` (`test/ipsec-interop/lab.py`), the way `_render_scenario_dir` does in `test/interop/interop.py`, then delete the two hand-written copies from `10-clear-reestablish/ze.conf` and `24-delete-while-window-held/ze.conf` | AC-3, and R-2. Until this lands, the next `ze cli` caller meets a daemon with no listener |
+| W-1 | Append the account and the SSH listener to the rendered `ze.conf` in `Lab._prepare_ze_conf` (`test/interop-ipsec/lab.py`), the way `_render_scenario_dir` does in `test/interop/interop.py`, then delete the two hand-written copies from `10-clear-reestablish/ze.conf` and `24-delete-while-window-held/ze.conf` | AC-3, and R-2. Until this lands, the next `ze cli` caller meets a daemon with no listener |
 | W-2 | Make the `before` snapshot fail closed: `check()` asserts it is non-empty before the clear, or `xfrm_state` distinguishes "no SAs" from "the command failed" | The scenario's discrimination rests on `before` being real |
 | W-3 | Correct the two claims that the IPsec lab already does W-1: the `ZE_CLI_CONFIG` comment in `test/interop/interop.py`, and the interop-lab paragraph in `docs/architecture/testing/interop.md` | Both are false today. W-1 makes them true, so land them together |
 
@@ -99,7 +99,7 @@ the start.
 exits 1 before any SSH connection is opened, because nothing ever provisioned an SSH
 username for the lab's ze container.**
 
-The scenario aborts at `test/ipsec-interop/scenarios/10-clear-reestablish/check.py`. The
+The scenario aborts at `test/interop-ipsec/scenarios/10-clear-reestablish/check.py`. The
 lab helper raises on any non-zero exit, so the SPI assertions that follow never run. The
 IKE code under test is never reached.
 
@@ -124,7 +124,7 @@ later, fail-closed and correctly, because no source named a user.
 Two facts, both measured:
 
 1. **The lab provisions no SSH credentials.** No `ze init`, no `ze.ssh.username`, no
-   `ze.ssh.password`. `test/ipsec-interop/lab.py` sets only `ZE_STORAGE_BLOB=false` and
+   `ze.ssh.password`. `test/interop-ipsec/lab.py` sets only `ZE_STORAGE_BLOB=false` and
    a log level. The per-scenario `ze-env` seam the lab already supports is unused by
    scenario 10, which carries only `check.py`, `swanctl.conf` and `ze.conf`.
 2. **Scenario 10's `ze.conf` has no `system` block at all.** It is a bare
@@ -134,7 +134,7 @@ Two facts, both measured:
 Every green `ze cli` test in the tree provisions first. `test/ipsec/ipsec-clear-reestablish.ci`
 does not hit this because it drives the engine-steps executor and never opens SSH, and every
 other interop scenario asserts through `swanctl` on the strongSwan side. Scenario 10 is the
-only `ze cli` caller in `test/ipsec-interop/` and the only one with neither step.
+only `ze cli` caller in `test/interop-ipsec/` and the only one with neither step.
 
 **This is not an IKE defect.** The handler `handleClearIPsecSA`
 (`internal/component/ike/cmd/ipsec.go`) is never reached: the client returns before an SSH
@@ -185,7 +185,7 @@ resolver changes.
 ### Entry Point
 
 `docker_exec(ZE_CONTAINER, ["ze", "cli", "-c", "clear vpn ipsec sa"])`, at
-`test/ipsec-interop/scenarios/10-clear-reestablish/check.py`.
+`test/interop-ipsec/scenarios/10-clear-reestablish/check.py`.
 
 ### Transformation Path
 
@@ -210,7 +210,7 @@ resolver changes.
 
 ### Integration Points
 
-- `test/ipsec-interop/lab.py` - the shared container env, and the per-scenario `ze-env` seam
+- `test/interop-ipsec/lab.py` - the shared container env, and the per-scenario `ze-env` seam
   that scenario 10 does not use.
 - `test/plugin/ssh-user-login-yang.ci` - the working precedent: it runs `ze init` with piped
   answers, then invokes `ze cli` with the password in the environment.
@@ -224,7 +224,7 @@ resolver changes.
 | A-1 | The daemon binds its SSH listener with a config that has no `system` block | NOT verified. The default listen address is a package constant, but whether the listener starts absent a `system` section was not read | The fix needs a `system login user` block in `ze.conf`, not only an env credential | Read the SSH component's startup path and confirm | unvalidated |
 | A-2 | Providing a username and password through the per-scenario `ze-env` seam is enough, with no `ze init` | `readCredentials` prefers `ze.ssh.username` and `ze.ssh.password` over the store | The lab must run `ze init` in the container, which is a larger change | Try the env route first; it is the smaller diff | unvalidated |
 | A-3 | Once the command runs, the scenario's SPI assertions pass | The IKE work landed and is recorded in learned 1215 | A second, real IKE defect is hiding behind the credential failure. That would be a separate finding, not a scope change | Run the scenario once the command succeeds | unvalidated |
-| A-4 | Scenario 11 (`11-responder-accepts-reinit`) is unaffected | It uses no `ze cli`; the whole tree has exactly one such call site | Scenario 11 needs the same fix | Grep the tree for `ze cli` under `test/ipsec-interop/` | unvalidated |
+| A-4 | Scenario 11 (`11-responder-accepts-reinit`) is unaffected | It uses no `ze cli`; the whole tree has exactly one such call site | Scenario 11 needs the same fix | Grep the tree for `ze cli` under `test/interop-ipsec/` | unvalidated |
 
 ### Risks
 
@@ -240,13 +240,13 @@ resolver changes.
 |----------|--------|
 | What breaks if this is wrong? | The interop lab only. No daemon behavior changes |
 | How is it reverted? | Single commit, test-tree only |
-| Who else touches this path? | `plan/spec-finish-ci-coverage.md` holds the 2026-07-19 row that deferred scenarios 10 and 11 to CI. This spec answers that row with the measured reason |
+| Who else touches this path? | `plan/deferrals/fixit-ipsec-clear-reestablish.md` holds the 2026-07-19 row that deferred scenarios 10 and 11 to CI. This spec answers that row with the measured reason. The row was homed at `spec-finish-ci-coverage`, closed 2026-08-17, and is now homed at `plan/future/spec-ci-coverage-remaining-surfaces.md` |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `ze cli -c "clear vpn ipsec sa"` inside the lab container | → | SSH client credential resolution, then `handleClearIPsecSA` | `test/ipsec-interop/scenarios/10-clear-reestablish/check.py`, which must reach its SPI comparison |
+| `ze cli -c "clear vpn ipsec sa"` inside the lab container | → | SSH client credential resolution, then `handleClearIPsecSA` | `test/interop-ipsec/scenarios/10-clear-reestablish/check.py`, which must reach its SPI comparison |
 
 ## Acceptance Criteria
 
@@ -270,13 +270,13 @@ resolver changes.
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `ipsec-clear-reestablish` | `test/ipsec/ipsec-clear-reestablish.ci` | The engine-level clear, already green, must stay green | passing |
-| `10-clear-reestablish` | `test/ipsec-interop/scenarios/10-clear-reestablish/check.py` | An operator clear tears down and re-establishes against strongSwan | RED, this spec |
+| `10-clear-reestablish` | `test/interop-ipsec/scenarios/10-clear-reestablish/check.py` | An operator clear tears down and re-establishes against strongSwan | RED, this spec |
 
 ### Interop Tests (Scope: protocol)
 
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `10-clear-reestablish` | `test/ipsec-interop/scenarios/` | strongSwan | The clear reaches the engine and the SA re-establishes with a new SPI | RED |
+| `10-clear-reestablish` | `test/interop-ipsec/scenarios/` | strongSwan | The clear reaches the engine and the SA re-establishes with a new SPI | RED |
 
 ## Files to Modify
 
@@ -284,8 +284,8 @@ Written as a table: no daemon code is expected to change.
 
 | File | Change |
 |------|--------|
-| `test/ipsec-interop/lab.py` | Provision SSH credentials for the ze container, preferring the shared path over a per-scenario override (R-2) |
-| `test/ipsec-interop/scenarios/10-clear-reestablish/ze.conf` | Add a `system login user` block, if A-1 shows the listener needs one |
+| `test/interop-ipsec/lab.py` | Provision SSH credentials for the ze container, preferring the shared path over a per-scenario override (R-2) |
+| `test/interop-ipsec/scenarios/10-clear-reestablish/ze.conf` | Add a `system login user` block, if A-1 shows the listener needs one |
 
 ## Implementation Steps
 
@@ -320,10 +320,10 @@ against.
 
 | Deliverable | Verification method |
 |-------------|---------------------|
-| The lab provisions an SSH credential for the ze container | Read `test/ipsec-interop/lab.py` for `ze_cli`, and check it seeds the store and passes the password |
-| Scenario 10's config accepts that login | Read `test/ipsec-interop/scenarios/10-clear-reestablish/ze.conf` for the `system authentication` account and the SSH listener |
-| The provisioning is shared, not per-scenario | `grep -l "user interop" test/ipsec-interop/scenarios/*/ze.conf` returns NOTHING once W-1 lands, because the account is appended at render time. Never grep the bare word `authentication`: every scenario carries an IKE `authentication` block and the answer is always sixteen |
-| Scenario 10 passes end to end | `python3 test/ipsec-interop/run.py 10-clear-reestablish` |
+| The lab provisions an SSH credential for the ze container | Read `test/interop-ipsec/lab.py` for `ze_cli`, and check it seeds the store and passes the password |
+| Scenario 10's config accepts that login | Read `test/interop-ipsec/scenarios/10-clear-reestablish/ze.conf` for the `system authentication` account and the SSH listener |
+| The provisioning is shared, not per-scenario | `grep -l "user interop" test/interop-ipsec/scenarios/*/ze.conf` returns NOTHING once W-1 lands, because the account is appended at render time. Never grep the bare word `authentication`: every scenario carries an IKE `authentication` block and the answer is always sixteen |
+| Scenario 10 passes end to end | `python3 test/interop-ipsec/run.py 10-clear-reestablish` |
 | The credential guard is untouched | `git log -- internal/core/ssh/client/client.go` |
 
 ## Security Review Checklist
@@ -360,7 +360,7 @@ This section records what landed elsewhere. It is not a closure: W-1 in
 ### What Was Implemented
 Nothing by this spec. Part of its scope landed in the IPsec Delete-path sessions:
 
-- `test/ipsec-interop/lab.py` gained `ze_cli`, which seeds the client zefs store
+- `test/interop-ipsec/lab.py` gained `ze_cli`, which seeds the client zefs store
   with `ze init` once per container and runs the command with `ZE_SSH_PASSWORD`
   in the environment. It also gained `ZE_CLI_USER`, `ZE_CLI_PASSWORD`,
   `ZE_CLI_PORT` and `ZE_CLI_PASSWORD_HASH`, so the daemon-side account is one
@@ -385,7 +385,7 @@ fix runs `ze init` for the username and uses the environment for the password.
 
 | Kind | What happened | What was true instead | How discovered | Action |
 |------|---------------|----------------------|----------------|--------|
-| assumption | A-2: the per-scenario `ze-env` seam would supply both halves, so no `ze init` was needed | The username comes from the seeded store. Only the password rides the environment (`ze_cli`, `test/ipsec-interop/lab.py`) | Reading the landed helper during the 2026-08-14 triage | Recorded; nothing to change |
+| assumption | A-2: the per-scenario `ze-env` seam would supply both halves, so no `ze init` was needed | The username comes from the seeded store. Only the password rides the environment (`ze_cli`, `test/interop-ipsec/lab.py`) | Reading the landed helper during the 2026-08-14 triage | Recorded; nothing to change |
 | approach | This spec planned the work as its own diff | Another session met the same wall while fixing the IKE Delete path and provisioned the credential there, per scenario. The spec then described a tree that no longer existed, so a triage pass read it as fully fixed | Triage pass 2026-08-14, refused by the closure review | Spec kept open on AC-3. The lesson is the class row in `plan/journal/stale-spec-claims-done.md` |
 
 ## Implementation Audit
@@ -393,7 +393,7 @@ fix runs `ze init` for the username and uses the environment for the password.
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
-| Scenario 10 reaches its SPI assertions | Done | `test/ipsec-interop/scenarios/10-clear-reestablish/check.py` | Proven by the 2026-08-14 lab run |
+| Scenario 10 reaches its SPI assertions | Done | `test/interop-ipsec/scenarios/10-clear-reestablish/check.py` | Proven by the 2026-08-14 lab run |
 | Nothing in the credential resolver changes | Done | `internal/core/ssh/client/client.go` `readCredentials` | Untouched; `git log` shows no change from the IPsec commits |
 | The `ze cli` call site survives | Done | `check.py` `ze_cli("clear vpn ipsec sa")` | R-1 held: the coverage was not dropped |
 
@@ -408,14 +408,14 @@ fix runs `ze init` for the username and uses the environment for the password.
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
-| `10-clear-reestablish` | Done, green | `test/ipsec-interop/scenarios/10-clear-reestablish/check.py` | Run live on 2026-08-14 |
+| `10-clear-reestablish` | Done, green | `test/interop-ipsec/scenarios/10-clear-reestablish/check.py` | Run live on 2026-08-14 |
 | `ipsec-clear-reestablish` | Unchanged, green | `test/ipsec/ipsec-clear-reestablish.ci` | The engine-level clear. Untouched by this work |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
-| `test/ipsec-interop/lab.py` | Done, by another session | `ze_cli` plus the four constants |
-| `test/ipsec-interop/scenarios/10-clear-reestablish/ze.conf` | Done, by another session | `system authentication` account and the SSH listener |
+| `test/interop-ipsec/lab.py` | Done, by another session | `ze_cli` plus the four constants |
+| `test/interop-ipsec/scenarios/10-clear-reestablish/ze.conf` | Done, by another session | `system authentication` account and the SSH listener |
 
 ### Audit Summary
 - **Total items:** 9
@@ -428,7 +428,7 @@ fix runs `ze init` for the username and uses the environment for the password.
 
 | Goal (from Task) | Evidence Type | Concrete Evidence |
 |------------------|---------------|-------------------|
-| An operator `clear vpn ipsec sa` tears an SA down and re-establishes it against a real peer | interop, strongSwan | `python3 test/ipsec-interop/run.py 10-clear-reestablish` on 2026-08-14: `PASS 1 scenario(s)`, with the ESP SPI pair changing across the clear |
+| An operator `clear vpn ipsec sa` tears an SA down and re-establishes it against a real peer | interop, strongSwan | `python3 test/interop-ipsec/run.py 10-clear-reestablish` on 2026-08-14: `PASS 1 scenario(s)`, with the ESP SPI pair changing across the clear |
 | The scenario is coverage rather than a wall | interop, discrimination | The assertion that fires is the SPI COMPARISON, not an exit code. A credential failure aborts `check()` before it, which is the state this spec was written in. The SPI change can only be produced by the clear reaching `handleClearIPsecSA` and the peer rebuilding. One caveat, owned by W-2: the `before` snapshot fails open, so the guarantee holds for the recorded run and not for every future one |
 | The credential guard stays fail-closed | source | `readCredentials` (`internal/core/ssh/client/client.go`) is unchanged. The fix provisioned the credential the guard asks for |
 
@@ -450,9 +450,9 @@ fix runs `ze init` for the username and uses the environment for the password.
 ### Findings
 | # | Severity | Finding | Location | Disposition |
 |---|----------|---------|----------|-------------|
-| 1 | BLOCKER | AC-3 is unmet and its evidence was a mis-grep. Only 2 of 16 scenario configs carry the account; a `grep -l authentication` returns 16 because every scenario carries an IKE `authentication` block | `test/ipsec-interop/scenarios/*/ze.conf`, `test/ipsec-interop/lab.py` `ze_cli` | Spec stays OPEN. W-1 owns the fix. Every closure statement that rested on the mis-grep is corrected above |
+| 1 | BLOCKER | AC-3 is unmet and its evidence was a mis-grep. Only 2 of 16 scenario configs carry the account; a `grep -l authentication` returns 16 because every scenario carries an IKE `authentication` block | `test/interop-ipsec/scenarios/*/ze.conf`, `test/interop-ipsec/lab.py` `ze_cli` | Spec stays OPEN. W-1 owns the fix. Every closure statement that rested on the mis-grep is corrected above |
 | 2 | ISSUE | The shared route already exists in `test/interop/interop.py` (`ZE_CLI_CONFIG`, `_render_scenario_dir`), and two places claim the IPsec lab does the same. Both are false | `test/interop/interop.py`, `docs/architecture/testing/interop.md` | W-3 |
-| 3 | ISSUE | The `before` SPI snapshot fails open, so a future run could pass with the clear doing nothing | `test/ipsec-interop/lab.py` `docker_exec_quiet`, `StrongSwan.xfrm_state`; `10-clear-reestablish/check.py` `check` | W-2 |
+| 3 | ISSUE | The `before` SPI snapshot fails open, so a future run could pass with the clear doing nothing | `test/interop-ipsec/lab.py` `docker_exec_quiet`, `StrongSwan.xfrm_state`; `10-clear-reestablish/check.py` `check` | W-2 |
 | 4 | NOTE | The Documentation Verified row understated its own grep | this spec | Corrected below |
 
 ### Refutations that failed
@@ -472,9 +472,9 @@ closed with the host-and-port error, so AC-4 holds.
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
-| `test/ipsec-interop/lab.py` | Yes | Read at closure; `ze_cli` at the "client-side store" block |
-| `test/ipsec-interop/scenarios/10-clear-reestablish/ze.conf` | Yes | Read at closure; carries `system authentication user interop` and the SSH listener |
-| `test/ipsec-interop/scenarios/10-clear-reestablish/check.py` | Yes | Read at closure; `ze_cli("clear vpn ipsec sa")` |
+| `test/interop-ipsec/lab.py` | Yes | Read at closure; `ze_cli` at the "client-side store" block |
+| `test/interop-ipsec/scenarios/10-clear-reestablish/ze.conf` | Yes | 2026-08-19: carries neither the account nor the listener. W-1 moved both into `Scenario._prepare_ze_conf`, which appends them to the rendered copy the container mounts |
+| `test/interop-ipsec/scenarios/10-clear-reestablish/check.py` | Yes | Read at closure; `ze_cli("clear vpn ipsec sa")` |
 | `plan/deferrals/fixit-ipsec-interop-cli-credentials.md` | No | `ls`: no such file. This is the expected answer |
 
 ### AC Verified (grep/test)
@@ -482,24 +482,24 @@ closed with the host-and-port error, so AC-4 holds.
 |-------|-------|----------------|
 | AC-1 | The command exits 0 and reaches the daemon | Lab run 2026-08-14: "ran `clear vpn ipsec sa` on Ze" is printed AFTER `ze_cli` returns, and `docker_exec` raises on any non-zero exit |
 | AC-2 | The scenario reaches its SPI comparison and passes | ESP SPIs `['0x6e3710dd', '0xc293b83a']` -> `['0xb3b57657', '0xc767a33c']`, then `strongSwan SA 'ze' is ESTABLISHED`, then `PASS` |
-| AC-3 | A future caller needs no per-scenario setup | **REFUTED.** `grep -l "user interop" test/ipsec-interop/scenarios/*/ze.conf` returns 2 files, and `grep -l environment` returns 3. The earlier "all 16" reading came from grepping the bare word `authentication`, which every scenario carries for its IKE peer |
+| AC-3 | A future caller needs no per-scenario setup | 2026-08-19, W-1: `Scenario._prepare_ze_conf` (`test/interop-ipsec/lab.py`) appends `ZE_CLI_CONFIG` to the rendered copy of every scenario `ze.conf`, so `grep -l "user interop" test/interop-ipsec/scenarios/*/ze.conf` returns nothing and `TestPrepareZeConf` keeps it that way. It was **REFUTED** on 2026-08-14, when that grep returned 2 files: the earlier "all 16" reading came from grepping the bare word `authentication`, which every scenario carries for its IKE peer |
 | AC-4 | `readCredentials` still fails closed | `git log` records no change to `internal/core/ssh/client/client.go` from the IPsec commits; the function is as this spec described it |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
-| `ze cli -c "clear vpn ipsec sa"` in the lab container -> SSH credential resolution -> `handleClearIPsecSA` | `test/ipsec-interop/scenarios/10-clear-reestablish/check.py` | Yes. Read at closure and RUN at closure. The path is proven by the SPI change on the strongSwan side, which nothing short of the clear reaching the engine produces |
+| `ze cli -c "clear vpn ipsec sa"` in the lab container -> SSH credential resolution -> `handleClearIPsecSA` | `test/interop-ipsec/scenarios/10-clear-reestablish/check.py` | Yes. Read at closure and RUN at closure. The path is proven by the SPI change on the strongSwan side, which nothing short of the clear reaching the engine produces |
 
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
 |----|--------------|----------|
-| A-1 | **broken** | The listener does need config. `ze.conf` carries `environment { ssh { ... } }` and the account, and `ze_cli`'s docstring states "Nothing else in the lab starts a listener, so a config without it refuses the connection" |
+| A-1 | **broken** | The listener does need config. `ZE_CLI_CONFIG` carries `environment { ssh { ... } }` and the account, and `Scenario._prepare_ze_conf` appends it to every rendered `ze.conf` because nothing else in the lab starts a listener |
 | A-2 | **broken** | `ze init` was needed for the username. Only the password rides `ZE_SSH_PASSWORD` (`ze_cli`, `lab.py`) |
 | A-3 | **confirmed** | The SPI assertions pass. No second IKE defect was hiding behind the credential wall |
-| A-4 | **confirmed** | `grep -rn ze_cli test/ipsec-interop/` outside `lab.py` returns two lines, both in scenario 10's `check.py`. Scenario 11 makes no `ze cli` call |
+| A-4 | **confirmed** | `grep -rn ze_cli test/interop-ipsec/` outside `lab.py` returns two lines, both in scenario 10's `check.py`. Scenario 11 makes no `ze cli` call |
 
 ### Documentation Verified
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
-| One doc category applies | Test-tree only for the daemon: no behavior, no config syntax, no CLI surface, no RFC row. `grep -rln "ipsec-interop" docs/` returns EIGHT files, not the five first recorded here. Seven name the lab, the runner target or a scenario, and go nowhere near credentials. The eighth, `docs/architecture/testing/interop.md`, states that `test/ipsec-interop/lab.py` appends the CLI account the way the BGP lab does. That is false today and W-3 owns it | Partly. The false claim is recorded, not yet fixed |
-| The pattern a future author needs | `ze_cli`'s docstring in `test/ipsec-interop/lab.py` states the failure, the seed and the `ze.conf` requirement | Yes, in place |
+| One doc category applies | Test-tree only for the daemon: no behavior, no config syntax, no CLI surface, no RFC row. `grep -rln "ipsec-interop" docs/` returns EIGHT files, not the five first recorded here. Seven name the lab, the runner target or a scenario, and go nowhere near credentials. The eighth, `docs/architecture/testing/interop.md`, states that `test/interop-ipsec/lab.py` appends the CLI account the way the BGP lab does. That is false today and W-3 owns it | Partly. The false claim is recorded, not yet fixed |
+| The pattern a future author needs | `ze_cli`'s docstring in `test/interop-ipsec/lab.py` states the failure, the seed and the `ze.conf` requirement | Yes, in place |

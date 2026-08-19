@@ -234,6 +234,36 @@ ZE_CLI_PORT = "2222"
 # suite uses (test/plugin/authz-default.ci), so it is not a new secret.
 ZE_CLI_PASSWORD_HASH = "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
 
+# The daemon-side half of the same credential: the account `ze cli` authenticates
+# as, and the listener it connects to. `Scenario._prepare_ze_conf` appends this to
+# the RENDERED copy of every scenario ze.conf, so no scenario carries it and none
+# can forget it. Two of the sixteen scenarios once carried the block by hand, and
+# only one of the two calls `ze_cli` at all, so the next author to add a call would
+# have met a credential error that says nothing about what their scenario tests.
+ZE_CLI_CONFIG = """
+system {
+\tauthentication {
+\t\tuser %s {
+\t\t\tpassword "%s"
+\t\t}
+\t}
+}
+
+environment {
+\tssh {
+\t\tenabled true
+\t\tserver main {
+\t\t\tip 127.0.0.1;
+\t\t\tport %s;
+\t\t}
+\t}
+}
+""" % (
+    ZE_CLI_USER,
+    ZE_CLI_PASSWORD_HASH,
+    ZE_CLI_PORT,
+)
+
 
 def ze_cli(command, timeout=30):
     """Run one CLI command against the Ze daemon in the lab container.
@@ -245,9 +275,9 @@ def ze_cli(command, timeout=30):
     through ze.ssh.password, which is exactly what the functional suite does
     (test/plugin/authz-default.ci).
 
-    The scenario's ze.conf MUST enable the SSH server on ZE_CLI_PORT and carry the
-    ZE_CLI_USER account with ZE_CLI_PASSWORD_HASH. Nothing else in the lab starts a
-    listener, so a config without it refuses the connection.
+    The daemon side needs no scenario edit: `Scenario._prepare_ze_conf` appends
+    ZE_CLI_CONFIG, the listener on ZE_CLI_PORT and the ZE_CLI_USER account, to the
+    rendered copy of every ze.conf. Nothing else in the lab starts a listener.
     """
     seed = "printf '%s\\n%s\\n127.0.0.1\\n%s\\n' | ZE_CONFIG_DIR=%s ze init" % (
         ZE_CLI_USER,
@@ -349,8 +379,18 @@ class StrongSwan:
         return output.count("ESTABLISHED")
 
     def xfrm_state(self):
-        """Return XFRM SA state from strongSwan container."""
-        return docker_exec_quiet(self.container, ["ip", "xfrm", "state"])
+        """Return XFRM SA state from the strongSwan container. Raises on failure.
+
+        Empty output is a real answer -- `ip xfrm state` prints nothing when the
+        kernel holds no SA -- so the fault is read from the EXIT STATUS, the way
+        `list_sas` reads it. 10-clear-reestablish snapshots the ESP SPIs through
+        this reader before its clear and passes when a SPI absent from that
+        snapshot appears after. A read that answered "" for a failed command made
+        the snapshot empty, and the SA that already existed then satisfied the
+        comparison on the first poll: the scenario passed with the clear having
+        done nothing.
+        """
+        return docker_exec(self.container, ["ip", "xfrm", "state"])
 
     def xfrm_policy(self):
         """Return XFRM policy state from strongSwan container."""
@@ -715,14 +755,26 @@ class Scenario:
         return None
 
     def _prepare_ze_conf(self, ze_conf, pki_dir):
+        """Write the copy of ze.conf the container mounts, and return its path.
+
+        Two edits, both made here rather than in sixteen fixtures. The PKI
+        placeholders resolve to key material, and ZE_CLI_CONFIG appends the SSH
+        listener plus the account `ze_cli` authenticates as. The daemon starts no
+        listener unless its config asks for one (`infraSetup`,
+        cmd/ze/hub/infra_setup.go), so a scenario without the block answers every
+        `ze cli` call with a credential error. `_render_scenario_dir`
+        (test/interop/interop.py) appends the same two blocks for the BGP lab.
+
+        Every scenario gets a rendered copy, because the append always changes
+        the text. The config parser merges two top-level blocks of one name, so a
+        scenario that already declares `environment { log }` keeps it.
+        """
         with open(ze_conf, encoding="utf-8") as f:
             content = f.read()
         resolved = resolve_pki_placeholders(content, pki_dir)
-        if resolved == content:
-            return ze_conf
         tmp_conf = ze_conf + ".resolved"
         with open(tmp_conf, "w", encoding="utf-8") as f:
-            f.write(resolved)
+            f.write(resolved.rstrip("\n") + "\n" + ZE_CLI_CONFIG)
         return tmp_conf
 
     def setup(self):

@@ -45,8 +45,15 @@ def check():
     swan.wait_child_sa()
     log_pass("Ze initiator established a PSK tunnel with strongSwan")
 
+    # The snapshot the whole scenario rests on. `now - before` is non-empty for
+    # the SA that already existed if `before` is empty, so an empty snapshot
+    # passes step 3 with the clear having done nothing. wait_child_sa above has
+    # already proven an ESP SA is installed, so an empty read here is a fault.
     before = swan_esp_spis(swan)
-    log_info("ESP SPIs before clear: %s" % (sorted(before) or "none"))
+    if not before:
+        log_fail("no ESP SPI read from strongSwan before the clear")
+        raise AssertionError("empty ESP SPI snapshot before clear")
+    log_info("ESP SPIs before clear: %s" % sorted(before))
 
     # 2. Operator bounces the tunnel on Ze. This dispatches clear-all to the engine,
     #    which sends strongSwan an authenticated INFORMATIONAL Delete and re-initiates.
