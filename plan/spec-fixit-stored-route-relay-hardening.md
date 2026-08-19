@@ -222,23 +222,32 @@ change. The same asymmetry sits in two JSON producers, `appendNLRIJSON`
 it is a plugin-API fidelity defect, because a peer's legal path-id 0 is reported
 to a forked plugin as a route with no path-id at all.
 
-RFC7911-2-2 is separate and is NOT settled here. Section 2 states that a speaker
-which re-advertises a route MUST generate its own Path Identifier.
-`rfc/short/rfc7911.md` carries it as a `{gap}` with a public row in
-`docs/features/rfc-status.md`, and the gap re-verified at the producer:
-`fwdReencodeNLRIs` copies the received path-id and nothing in
-`internal/component/bgp/reactor/` mints one. Carrying the stored path-id through
-the relay inherits that gap on a second rail. Minting one in the relay alone
-would diverge from the live forward rail and break the one-egress-transform
-invariant, so the fix belongs at the rail and is not this spec's to make
-unilaterally. The consequence is live on the deployment this replay exists for:
-two route-server clients that each chose path-id 1 for one prefix are advertised
-to a destination as the same (prefix, path-id) twice, so the destination keeps
-one path and the other is lost. Under `ai/rules/rfc-compliance.md` this is a
-choice to do LESS than full compliance, so it is put to Thomas as which way to
-fix it: fix RFC7911-2-2 at the forward rail under its own spec, or keep the
-disclosed gap and let the relay match the rail. Step 2 must not decide it by
-default.
+~~RFC7911-2-2 is separate and is NOT settled here.~~ **SUPERSEDED 2026-08-17: the
+question is CLOSED and no owner decision is owed.** Section 2 states that a
+speaker which re-advertises a route MUST generate its own Path Identifier. The
+paragraph below described the tree as it stood when this text was written; the
+gap was closed on 2026-08-14, after it.
+
+Re-verified at the producer 2026-08-17: `internal/component/bgp/reactor/forward_path_id.go`
+mints ze's own identifier per ingress path (`fwdPathIDTable.generate`, keyed on
+(source, received identifier)), and BOTH rails read it -- the raw same-context
+forward through `fwdRegenerateRawPathIDs` and the re-encode through
+`fwdPathIDMemo` inside `fwdReencodeNLRIs`. `docs/features/rfc-status.md` records
+"Closed 2026-08-14: RFC7911-2-2", and both polarities are tagged in
+`forward_path_id_test.go` and `forward_path_id_gen_test.go`.
+
+→ Decision: **Step 2 carries the stored path-id through the relay and lets the
+existing rail mint the egress identifier.** That is the one-egress-transform
+invariant working as designed, and it inherits no gap. Do NOT put RFC7911-2-2 to
+Thomas, and do NOT mint a second identifier inside the relay.
+
+→ Root cause of the stale blocker, for the process rather than for this spec: a
+spec parked a question against the tree and made a later step depend on it, but
+nothing re-reads a parked question when the step that waits on it resumes. A
+question answered elsewhere then survives as a blocker and costs the owner a
+decision he has already made. General practice: re-verify a parked question at
+its producer before acting on it, and treat spec prose about the tree as a dated
+observation rather than a standing fact (`ai/rules/evidence.md`).
 
 ### I-1b — the ownership claim's ordering is not deterministic, and the naive fix deadlocks
 
@@ -432,7 +441,7 @@ seam is what a filter uses for surgery the text delta cannot express.
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|-----------|-------|----------|--------------|--------|
 | A-1 | The legacy (non-structured) ingest path is still reachable in a supported deployment | `handleReceived` exists for external text/JSON plugins | If dead, storage normalisation is far simpler — one framing only | grep for a config that delivers events as JSON to adj-rib-in | **confirmed (2026-08-14)**: a forked bgp-adj-rib-in has no bridge, so `Process.HasStructuredHandler` is false and `onMessageReceived` sends JSON, which `p.OnEvent` routes to `handleReceived`. See I-1 FINDING part 2 |
-| A-2 | Multi-path (several path-ids for one prefix) is representable end to end today | `compactRouteKey` carries a path-id | The old rail's collapse was masking a storage gap, widening I-1 | store two paths for one prefix and inspect the seqmap | **broken (2026-08-03, re-verified 2026-08-14)**: representable in STORAGE (`routeKeyFromWire` keys on `PathID`), NOT across the relay: `RawRoute` (`adj_rib_in/rib.go`) and `rpc.StoredRoute` (`pkg/plugin/rpc/types.go`) still carry no path-id field. See the I-1 FINDING |
+| A-2 | Multi-path (several path-ids for one prefix) is representable end to end today | `compactRouteKey` carries a path-id | The old rail's collapse was masking a storage gap, widening I-1 | store two paths for one prefix and inspect the seqmap | **broken (2026-08-03, re-verified 2026-08-14)**: representable in STORAGE (`routeKeyFromWire` keys on `PathID`), NOT across the relay: `RawRoute` (`adj_rib_in/rib.go`) and `rpc.StoredRoute` (`pkg/plugin/rpc/types.go`) still carry no path-id field. See the I-1 FINDING. **RESOLVED 2026-08-19 by Step 2**: `RawRoute` and `rpc.StoredRoute` each carry `PathID` plus an `NLRIFraming` marker, so N stored paths for one prefix reach an ADD-PATH destination under N identifiers. Pinned by `TestRelayMultiPathPreserved` and `TestHandleReceivedStructuredAddPathStoresIdentifier` |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation |
@@ -674,8 +683,14 @@ path-id. Step 2's chunking bounds route count rather than bytes.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestRelayAddPathRoundTrip` | `internal/component/bgp/reactor/relay_payload_test.go` | an add-path route reconstructs to wire the destination parses, for both add-path and non-add-path destinations | |
-| `TestRelayMultiPathPreserved` | `internal/component/bgp/reactor/relay_payload_test.go` | two path-ids for one prefix both survive, or the limit is explicit | |
+| `TestRelayAddPathRoundTrip` | `internal/component/bgp/reactor/reactor_api_relay_test.go` | an add-path route reconstructs to wire the destination parses, for both add-path and non-add-path destinations | DONE 2026-08-19 (mutation-verified). It lives beside the fixture that builds the two peers rather than in `relay_payload_test.go`, which drives the byte builders with no reactor |
+| `TestRelayMultiPathPreserved` | `internal/component/bgp/reactor/reactor_api_relay_test.go` | two path-ids for one prefix both survive, or the limit is explicit | DONE 2026-08-19 (mutation-verified). Both survive; there is no limit to state |
+| `TestRelayAddPathZeroPathIDIsRelayed` | `internal/component/bgp/reactor/reactor_api_relay_test.go` | path-id 0 is a value, not an absence: the route reaches the destination and the four octets are written | DONE 2026-08-19 (mutation-verified). The boundary the framing marker exists for |
+| `TestRelayStoredRouteRefusesUnrecordedFraming` | `internal/component/bgp/reactor/reactor_api_relay_test.go` | the narrowed refusal fires only for an unrecorded framing under an add-path source, and a non-add-path source still relays | DONE 2026-08-19 (mutation-verified). Replaces `TestRelayStoredRouteRefusesAddPathSource`, which asserted the behaviour this step removes |
+| `TestSplitRawNLRIHexSkipsPathIdentifiers` | `internal/component/bgp/plugins/adj_rib_in/nlri_hex_test.go` | the legacy raw-section split reads the prefix length past the path-id, so stored bytes agree with the key | DONE 2026-08-19 (mutation-verified) |
+| `TestPrefixToWireHexWritesBarePrefix` | same file | the text-prefix fallback writes RFC 4271 NLRI only, so a legal path-id 0 is not stored as an absence | DONE 2026-08-19 |
+| `TestHandleReceivedAddPathStoresIdentifier` / `...Structured...` | same file | both ingest paths record `PathID` and `NLRIFraming` beside the bare prefix | DONE 2026-08-19 (mutation-verified) |
+| `TestBuildReplayRoutesCarriesFraming` | same file | both fields reach `rpc.StoredRoute` | DONE 2026-08-19 |
 | `TestRelayChunkByteBudget` | `internal/component/bgp/plugins/adj_rib_in/rib_test.go` | chunks stay under `rpc.MaxMessageSize` for large attribute blocks | |
 | `TestReplayOwnershipRespawn` | `internal/component/bgp/plugins/adj_rib_in/rib_test.go` | ownership re-established after respawn; no duplicate | |
 | `TestCoordinatorRelayStoredRouteNoReactor` | `internal/component/plugin/coordinator_test.go` | `ErrNoReactor` branch and the delegation | |
@@ -687,7 +702,7 @@ path-id. Step 2's chunking bounds route count rather than bytes.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| add-path replay | `test/plugin/` | an add-path peer establishes late and receives its routes | |
+| `adj-rib-in-replay-addpath-source.ci` | `test/plugin/` | a route learned from an add-path source is replayed to an add-path peer AND to one without, each receiving the framing it negotiated | DONE 2026-08-19 (mutation-verified both ways: refusing an add-path source, and omitting the four path-id octets, each redden it; baseline green). Carries the RFC7911-3-1 positive and negative tags and an RFC7911-2-2 positive, which is the first functional-tier evidence for 3-1 |
 | `adj-rib-in-replay-on-peerup.ci` rewrite | `test/plugin/` | replay to an ESTABLISHED peer, asserted on wire bytes | DONE (mutation-verified, I-5) |
 
 ## Files to Modify
@@ -709,6 +724,18 @@ path-id. Step 2's chunking bounds route count rather than bytes.
    must not settle it by default.**
 2. Lift the add-path refusal behind the chosen design; prove with the new `.ci` plus the four
    inherited target tests still green under `scripts/dev/stress-repro.py`.
+   **DONE 2026-08-19 (AC-1, AC-2).** `rpc.NLRIFraming` plus `rpc.StoredRoute.PathID`
+   carry the identifier and its presence (`pkg/plugin/rpc/types.go`); both ingest
+   paths record them; `splitRawNLRIHex` takes the add-path flag and returns bare
+   prefixes, and `prefixToWireHex` writes no identifier
+   (`adj_rib_in/nlri_hex.go`); `buildRelayUpdate` writes the four octets whenever
+   the SOURCE context declares ADD-PATH, identifier 0 included, and refuses only an
+   unrecorded framing under such a source (`errRelayNLRIFraming`). One defect was
+   fixed on the way, and it was in the LIVE rail as much as the relay:
+   `forwardUpdateCore` rebuilt the wire after an egress modification without
+   re-stamping the source, so ze's RFC 7911 Section 2 identifiers keyed under the
+   singleton config source. Journal row in
+   `plan/journal/helper-bypassed-by-an-open-coded-copy.md`.
 3. Byte-budget chunking (I-2), with the `last-index` contract asserted across chunks.
 4. Ownership scope and respawn (I-3, I-4).
 5. Make `adj-rib-in-replay-on-peerup.ci` gate (I-5); mutation-verify.

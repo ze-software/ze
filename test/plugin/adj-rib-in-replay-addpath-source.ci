@@ -1,0 +1,383 @@
+# Test: adj-rib-in replays a route learned from an ADD-PATH source to BOTH kinds
+#       of destination, and each one receives the framing it negotiated.
+# VALIDATES: RFC 7911 Section 3 -- "the NLRI encoding MUST be extended by prepending
+#            the Path Identifier field, which is of four octets". The stored route
+#            carries the identifier beside the bare prefix (rpc.StoredRoute.PathID
+#            plus NLRIFraming), buildRelayUpdate rebuilds the SOURCE framing from
+#            the pair, and fwdReencodeNLRIs converts per destination.
+# PREVENTS: the regression this replaces. RelayStoredRoute refused every route whose
+#           SOURCE session negotiated ADD-PATH, and the refusal keyed on the source,
+#           so ONE add-path client killed peer-up replay of its routes to EVERY
+#           destination -- including the destinations without ADD-PATH that worked
+#           before. On a route server, which is the deployment this replay exists
+#           for, that is the common case. The batch also returned an error, which
+#           costs bgp-rs its delta-convergence loop for the whole peer.
+#
+# RFC requirement: RFC7911-3-1 positive -- the destination that negotiated ADD-PATH
+# receives 00000000180A0000, the four-octet Path Identifier prepended to the
+# 10.0.0.0/24 prefix, asserted as exact wire hex on a running daemon (Section 3).
+# RFC requirement: RFC7911-3-1 negative -- the destination that negotiated no
+# ADD-PATH receives 180A0000, the same prefix with no Path Identifier, from the same
+# source UPDATE. One run asserts both framings, so the four octets are shown to
+# follow the negotiation rather than the code path (Section 3).
+# RFC requirement: RFC7911-2-2 positive -- the identifier the destination receives
+# (0) is ze's own and differs from the identifier the source announced (1), on both
+# the live forward and the replay, so a re-advertised route carries a Path
+# Identifier this speaker generated (Section 2).
+#
+# NON-VACUITY (ai/rules/interop-and-goal-validation.md). Each destination receives
+# the route TWICE and each arrival has its own owner:
+#   seq=1 -- the LIVE forward, the control. It proves the session, the negotiated
+#            capability and the egress transform are real.
+#   seq=2 -- the REPLAY, the subject. Nothing else can produce a second copy: no RIB
+#            plugin is loaded, so no destination has a local-table delivery path, and
+#            adj-rib-in receives `state` for the SOURCE peer only, so its own peer-up
+#            self-replay never fires for either destination. The observer's explicit
+#            `request bgp adj-rib-in replay` is the sole producer.
+# Killing the relay reddens seq=2 at both destinations while seq=1 stays green.
+#
+# WHY BOTH DESTINATIONS. They exercise opposite halves of the fix and fail
+# differently. 127.0.0.2 shares the source's framing, so a reconstruction that
+# omitted the four identifier octets would be parsed by that peer with the prefix
+# length read out of the identifier. 127.0.0.3 negotiated no ADD-PATH, so it takes
+# the re-encode rail; it is the destination the blanket refusal took down for no
+# reason at all, and its bytes are what prove the refusal is gone rather than
+# narrowed to something that still fires here.
+
+# ---------------------------------------------------------------------------
+# Source peer -- eBGP, AS 65001, on 127.0.0.1, ADD-PATH send/receive.
+# ---------------------------------------------------------------------------
+stdin=source:terminator=EOF_SOURCE
+option=tcp_connections:value=1
+option=timeout:value=40s
+# The source must outlive both destinations' assertions: if it closes, ze withdraws
+# its routes and each destination receives a withdrawal it has no rule for.
+option=linger:value=true
+
+# seq=1 -- ze's initial-sync End-of-RIB. The observer holds wait_peer_eor_sent()
+# before it injects the seq=2 marker, so this is an ordering assertion, not a race.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+
+# seq=2 -- BARRIER, not an assertion. The observer injects 192.0.2.0/24 to THIS peer
+# only, and only once ALL THREE sessions are established. Without it the source's
+# announcement below can arrive while a destination is not yet a forward target, and
+# that destination then sees the replay alone, so its seq=1 control is lost.
+expect=bgp:conn=1:seq=2:contains=18C00002
+
+# seq=3 -- announce 10.0.0.0/24 under RFC 7911 Path Identifier 1.
+#   ORIGIN:     40010100            IGP
+#   AS_PATH:    40020602010000FDE9  AS_SEQUENCE[65001], 4-byte ASNs
+#   NEXT_HOP:   40030401010101      1.1.1.1
+#   NLRI:       00000001180A0000    path-id 1, then 10.0.0.0/24
+# attr len = 4+9+7 = 20 = 0x14; total = 19+2+2+20+8 = 51 = 0x33.
+# The identifier is 1 rather than 0 so the bytes the DESTINATION receives cannot be
+# satisfied by a build that relays the source's identifier instead of minting its
+# own (RFC 7911 Section 2).
+action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000144001010040020602010000FDE94003040101010100000001180A0000
+EOF_SOURCE
+
+# ---------------------------------------------------------------------------
+# Destination A -- eBGP, AS 65002, on 127.0.0.2, ADD-PATH send/receive.
+# ---------------------------------------------------------------------------
+# Both arrivals carry the SAME bytes: the replay takes the same egress transform the
+# live forward takes, which is the one-egress-transform invariant this rail exists
+# for. RFC 4271 Section 5.1.2 prepends ze's own AS 65000 (0xFDE8) towards an external
+# peer; ORIGIN and NEXT_HOP are relayed verbatim.
+#   AS_PATH:    40020A02020000FDE80000FDE9   AS_SEQUENCE[65000, 65001]
+#   NLRI:       00000000180A0000             ze's OWN identifier, then 10.0.0.0/24
+# ze mints its identifiers from a counter that starts at 0 and it has re-advertised
+# no other path, so the first path it re-advertises leaves under 0. That the value
+# DIFFERS from the source's 1 is the point: RFC 7911 Section 2 requires a speaker
+# that re-advertises a route to generate its own.
+# attr len = 4+13+7 = 24 = 0x18; total = 19+2+2+24+8 = 55 = 0x37.
+stdin=dest-addpath:terminator=EOF_DEST_AP
+option=tcp_connections:value=1
+option=timeout:value=40s
+option=bind:value=127.0.0.2
+
+# seq=1 CONTROL -- the LIVE forward.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003702000000184001010040020A02020000FDE80000FDE94003040101010100000000180A0000
+# seq=2 SUBJECT -- the REPLAY, reconstructed from the stored route.
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003702000000184001010040020A02020000FDE80000FDE94003040101010100000000180A0000
+EOF_DEST_AP
+
+# ---------------------------------------------------------------------------
+# Destination B -- eBGP, AS 65003, on 127.0.0.3, NO ADD-PATH.
+# ---------------------------------------------------------------------------
+# Same transform, and fwdReencodeNLRIs drops the four identifier octets because this
+# session negotiated none.
+#   NLRI:       180A0000
+# attr len = 24 = 0x18; total = 19+2+2+24+4 = 51 = 0x33.
+stdin=dest-plain:terminator=EOF_DEST_PLAIN
+option=tcp_connections:value=1
+option=timeout:value=40s
+option=bind:value=127.0.0.3
+
+# seq=1 CONTROL -- the LIVE forward.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FDE80000FDE940030401010101180A0000
+# seq=2 SUBJECT -- the REPLAY. This is the arrival the blanket refusal removed while
+# nothing about this session had changed.
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FDE80000FDE940030401010101180A0000
+EOF_DEST_PLAIN
+
+# ---------------------------------------------------------------------------
+# Observer: sequences the run and drives both replays.
+# ---------------------------------------------------------------------------
+tmpfs=replay-addpath.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Replay a route learned from an ADD-PATH source to an ADD-PATH peer and a plain one."""
+import sys
+
+from ze_api import API, dispatch, result_json_data, runtime_fail
+
+SOURCE = '127.0.0.1'
+DEST_ADDPATH = '127.0.0.2'
+DEST_PLAIN = '127.0.0.3'
+
+
+def dest_updates(api, peer):
+    """Real UPDATEs written to a peer, End-of-RIB markers excluded.
+
+    updates-sent counts EVERY UPDATE written to the peer, the initial-sync EoR
+    included (IncrUpdatesSent in reactor/reactor_notify.go sees only the message
+    type). eor-sent is the separate marker counter, so the difference is the
+    route traffic this test is about.
+    """
+    return api.peer_counter('updates-sent', peer=peer) - api.peer_counter('eor-sent', peer=peer)
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    # Every poll carries an EXPLICIT budget and they sum inside the 40s envelope, so
+    # a starved daemon reports the barrier that failed rather than an opaque timeout.
+
+    # All three sessions up BEFORE the source announces, so each destination's seq=1
+    # control is the live rail's message.
+    if not api.wait_peers_established(expected_peers=3, attempts=40):
+        runtime_fail('the three peers did not establish')
+
+    # The source asserts ze's EOR frame at its seq=1. Hold that barrier before
+    # injecting, or the marker can overtake the EOR.
+    if not api.wait_peer_eor_sent(peer=SOURCE, attempts=20):
+        runtime_fail('ze never sent its initial-sync EOR to the source peer')
+
+    # Release the source's announcement. This route goes to the SOURCE only; its
+    # NLRI (192.0.2.0/24 -> 18 C0 00 02) is what the source's seq=2 barrier matches.
+    api.send(f'peer {SOURCE} update text origin igp nhop 1.1.1.1 nlri ipv4/unicast add 192.0.2.0/24')
+
+    # quiesce FIRST so each poll behind it is a safety net rather than the mechanism.
+    api.quiesce()
+
+    # The route must be STORED before a replay can carry it.
+    status = api.dispatch_until(
+        'show bgp adj-rib-in status',
+        lambda r: result_json_data(r, {}).get('total-routes', 0) > 0,
+        attempts=20,
+    )
+    if result_json_data(status, {}).get('total-routes', 0) <= 0:
+        runtime_fail('adj-rib-in stored no route from the add-path source peer')
+
+    # ... and the LIVE forward must have landed at BOTH destinations, so each seq=1
+    # control is consumed before its replay arrives. Without this the two identical
+    # messages could be matched in either order and seq=2 would no longer name the
+    # replay.
+    for peer in (DEST_ADDPATH, DEST_PLAIN):
+        if not api.wait_until(lambda: dest_updates(api, peer) >= 1, attempts=20):  # noqa: B023
+            runtime_fail(f'{peer} was never sent the live forward of the source route')
+    print('OK: both destinations were sent the live forward', file=sys.stderr)
+
+    # THE SUBJECT. Two args only, so the cut is UNBOUNDED (rib_commands.go
+    # replayCommand: presence of a third arg is what bounds it). A bounded cut would
+    # exclude this route -- it was ingested after both destinations became forward
+    # targets -- and the replay would be a correct no-op.
+    for peer in (DEST_ADDPATH, DEST_PLAIN):
+        result = dispatch(api, f'request bgp adj-rib-in replay {peer} 0')
+        if result.get('status') != 'done':
+            runtime_fail(f'replay dispatch to {peer} failed: {result}')
+        replayed = result_json_data(result, {}).get('replayed', 0)
+        if replayed < 1:
+            runtime_fail(f'replay to {peer} selected no route to relay: {result}')
+        print(f'OK: replay to {peer} selected {replayed} route(s)', file=sys.stderr)
+
+    # Hold the daemon up until the relayed copy has actually been written to each
+    # destination. This is also the assertion that makes a dead or refusing
+    # RelayStoredRoute fail HERE rather than at the outer timeout: `replayed` above
+    # counts what the PLUGIN selected, which stays 1 even when the engine relays
+    # nothing.
+    for peer in (DEST_ADDPATH, DEST_PLAIN):
+        if not api.wait_until(lambda: dest_updates(api, peer) >= 2, attempts=24):  # noqa: B023
+            runtime_fail(f'{peer} was never sent the relayed copy of the stored route')
+    print('OK: both destinations were sent the relayed copy', file=sys.stderr)
+
+    api.dispatch('request shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ---------------------------------------------------------------------------
+# ze -- AS 65000, three external peers on separate loopbacks.
+# ---------------------------------------------------------------------------
+# No RIB plugin is loaded on purpose: bgp-rib would give each destination a second
+# delivery path for the same prefix out of a local table, and seq=2 would stop naming
+# the relay. adj-rib-in is given `update-received state` on the SOURCE peer only, so
+# it stores that peer's routes and never sees a destination come up.
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal rs {
+		use bgp-rs
+	}
+	external replay-addpath {
+		run ./replay-addpath.run
+		encoder json
+	}
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
+}
+
+bgp {
+	peer source-peer {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+				add-path {
+					direction send/receive
+					family {
+						ipv4/unicast
+					}
+				}
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		attach process replay-addpath {
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+	}
+
+	peer dest-addpath {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.2
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65002
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+				add-path {
+					direction send/receive
+					family {
+						ipv4/unicast
+					}
+				}
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		# The replay puts an UPDATE on this peer's wire, so this peer must grant
+		# adj-rib-in the permission to originate one (maySend,
+		# internal/component/bgp/reactor/send_permission.go). Send only, and no
+		# receive list: the NON-VACUITY note rests on adj-rib-in never being fed
+		# `state` for a destination, so its own peer-up self-replay stays silent.
+		attach process adj-rib-in {
+			send [ update ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+	}
+
+	peer dest-plain {
+		connection {
+			remote {
+				ip 127.0.0.3
+			}
+			local {
+				ip 127.0.0.3
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65003
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		attach process adj-rib-in {
+			send [ update ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=source
+cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --port $PORT:stdin=dest-addpath
+cmd=background:seq=3:exec=ze-peer --bind 127.0.0.3 --port $PORT:stdin=dest-plain
+cmd=foreground:seq=4:exec=ze -:stdin=ze-bgp:timeout=40s
+expect=exit:code=0
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=ZE-OBSERVER-FAIL

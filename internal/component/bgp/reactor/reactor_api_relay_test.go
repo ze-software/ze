@@ -173,8 +173,25 @@ func storedRouteASPath(t *testing.T) []uint32 {
 // body the destination peer received.
 func relayDispatchedBody(t *testing.T, api *reactorAPIAdapter, dispatched *[]fwdItem, mu *sync.Mutex, done chan struct{}) []byte {
 	t.Helper()
+	return relayDispatchedBodyFor(t, api, dispatched, mu, done, storedIPv4Route("10.0.0.1"))
+}
+
+// relayDispatchedBodyFor is relayDispatchedBody with the stored route chosen by
+// the caller, so an ADD-PATH test can supply the RFC 7911 fields.
+func relayDispatchedBodyFor(t *testing.T, api *reactorAPIAdapter, dispatched *[]fwdItem, mu *sync.Mutex, done chan struct{}, route rpc.StoredRoute) []byte {
+	t.Helper()
+	item := relayDispatchedItemFor(t, api, dispatched, mu, done, route)
+	require.NotEmpty(t, item.rawBodies, "the relay must produce wire bodies")
+	return item.rawBodies[0]
+}
+
+// relayDispatchedItemFor runs a one-route replay to 10.0.0.2 and returns the
+// whole dispatched item, for a test that must read the re-encoded updates a
+// cross-context destination gets rather than raw bodies.
+func relayDispatchedItemFor(t *testing.T, api *reactorAPIAdapter, dispatched *[]fwdItem, mu *sync.Mutex, done chan struct{}, route rpc.StoredRoute) fwdItem {
+	t.Helper()
 	require.NoError(t, api.RelayStoredRoute(netip.MustParseAddr("10.0.0.2"),
-		[]rpc.StoredRoute{storedIPv4Route("10.0.0.1")}, plugin.OperatorSender()))
+		[]rpc.StoredRoute{route}, plugin.OperatorSender()))
 
 	select {
 	case <-done:
@@ -187,8 +204,7 @@ func relayDispatchedBody(t *testing.T, api *reactorAPIAdapter, dispatched *[]fwd
 	require.Len(t, *dispatched, 1, "exactly one destination dispatch")
 	item := (*dispatched)[0]
 	require.Equal(t, netip.MustParseAddr("10.0.0.2"), item.peer.Settings().Address)
-	require.NotEmpty(t, item.rawBodies, "the relay must produce wire bodies")
-	return item.rawBodies[0]
+	return item
 }
 
 // TestRelayStoredRouteRSClientPreservesASPath proves a stored route replayed to
@@ -546,36 +562,236 @@ func TestRelayPayloadSizeBoundary(t *testing.T) {
 	assert.Equal(t, "180a0000", hex.EncodeToString(nlri))
 }
 
-// TestRelayStoredRouteRefusesAddPathSource verifies a route whose source session
-// negotiated ADD-PATH is refused rather than relayed.
+// relayBodyNLRI returns the body NLRI section of a forwarded IPv4-unicast
+// UPDATE. RFC 4271 Section 4.3: withdrawn-routes length, withdrawn routes,
+// total-path-attribute length, attributes, then NLRI to the end of the body.
+func relayBodyNLRI(t *testing.T, body []byte) []byte {
+	t.Helper()
+	require.GreaterOrEqual(t, len(body), 4, "an UPDATE body carries both length fields")
+	withdrawnLen := int(binary.BigEndian.Uint16(body[0:2]))
+	attrLenOff := 2 + withdrawnLen
+	require.LessOrEqual(t, attrLenOff+2, len(body), "attribute-length field is inside the body")
+	attrLen := int(binary.BigEndian.Uint16(body[attrLenOff : attrLenOff+2]))
+	nlriOff := attrLenOff + 2 + attrLen
+	require.LessOrEqual(t, nlriOff, len(body), "attribute block is inside the body")
+	return body[nlriOff:]
+}
+
+// relayDispatchedNLRI returns the IPv4-unicast NLRI section a dispatched item
+// carries. buildFwdBody hands a SAME-context destination raw wire bodies and a
+// cross-context one a re-encoded message.Update, so a test that asserts on NLRI
+// framing must read whichever form its destination received.
+func relayDispatchedNLRI(t *testing.T, item fwdItem) []byte {
+	t.Helper()
+	if len(item.rawBodies) > 0 {
+		return relayBodyNLRI(t, item.rawBodies[0])
+	}
+	require.NotEmpty(t, item.updates, "a dispatch carries raw bodies or re-encoded updates")
+	return item.updates[0].NLRI
+}
+
+// relayAddPathContexts re-registers the fixture's source RECEIVE context and
+// destination SEND context, each declaring ADD-PATH for IPv4 unicast or not, and
+// returns the source peer. Both directions matter: the source context decides
+// the framing the reconstruction is built in, and the destination context
+// decides the framing fwdReencodeNLRIs converts it to.
+func relayAddPathContexts(t *testing.T, api *reactorAPIAdapter, srcAddPath, destAddPath bool) *Peer {
+	t.Helper()
+
+	registerContext := func(addPath bool) (*bgpctx.EncodingContext, bgpctx.ContextID) {
+		ctx := bgpctx.EncodingContextForASN4(true)
+		if addPath {
+			ctx = bgpctx.EncodingContextWithAddPath(true, map[family.Family]bool{family.IPv4Unicast: true})
+		}
+		id, err := bgpctx.Registry.Register(ctx)
+		require.NoError(t, err)
+		return ctx, id
+	}
+
+	peer := func(addr string) *Peer {
+		api.r.mu.RLock()
+		p, found := api.r.findPeerByAddr(netip.MustParseAddr(addr))
+		api.r.mu.RUnlock()
+		require.True(t, found, "fixture peer %s", addr)
+		return p
+	}
+
+	src := peer("10.0.0.1")
+	_, srcID := registerContext(srcAddPath)
+	src.recvCtxID = srcID
+
+	dst := peer("10.0.0.2")
+	destCtx, destID := registerContext(destAddPath)
+	dst.sendCtx.Store(destCtx)
+	dst.sendCtxID = destID
+	dst.refreshForwardFacts()
+
+	return src
+}
+
+// storedAddPathRoute is storedIPv4Route from the fixture source with the RFC
+// 7911 fields an ADD-PATH source records: the bare prefix in NLRIHex, the
+// identifier beside it.
+func storedAddPathRoute(pathID uint32) rpc.StoredRoute {
+	route := storedIPv4Route("10.0.0.1")
+	route.PathID = pathID
+	route.NLRIFraming = rpc.NLRIFramingPrefixOnly
+	return route
+}
+
+// TestRelayAddPathRoundTrip verifies a route stored from an ADD-PATH source is
+// relayed, and reaches each destination in that destination's own framing.
 //
-// VALIDATES: the stored NLRI does not record whether it carries an RFC 7911
-// path-id (the structured ingest strips it, the legacy ingest prepends it), so it
-// cannot be emitted under a context that declares add-path.
-// PREVENTS: the worst outcome this change could produce -- a destination sharing
-// the source's context receives the wire verbatim, parses the first four NLRI
-// bytes as a path-id, and resets the session. A peer-up replay would tear down
-// the peer it is replaying to.
-func TestRelayStoredRouteRefusesAddPathSource(t *testing.T) {
-	api, cache, dispatched, mu, _ := relayFixture(t)
+// VALIDATES: AC-1 -- routes from an ADD-PATH source are relayed rather than
+// refused, and the wire is well formed for an ADD-PATH destination and for one
+// without. The reconstruction is built in the SOURCE context (RFC 7911 Section 3
+// prepends four octets there) and fwdReencodeNLRIs converts per destination.
+// PREVENTS: the regression the blanket refusal carried -- ONE ADD-PATH source
+// killing peer-up replay of its routes to EVERY destination, which on a route
+// server is the common case. It also prevents the opposite defect: emitting the
+// bare prefix under an ADD-PATH context, where the destination reads the first
+// four NLRI bytes as an identifier and resets the session.
+func TestRelayAddPathRoundTrip(t *testing.T) {
+	const sourcePathID = 7
 
-	// Re-register the source under a context that negotiated ADD-PATH.
-	addPathCtx := bgpctx.EncodingContextWithAddPath(true, map[family.Family]bool{family.IPv4Unicast: true})
-	addPathCtxID, err := bgpctx.Registry.Register(addPathCtx)
-	require.NoError(t, err)
+	for _, tc := range []struct {
+		name        string
+		destAddPath bool
+	}{
+		{"destination reads path identifiers", true},
+		{"destination reads none", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			api, cache, dispatched, mu, done := relayFixture(t)
+			src := relayAddPathContexts(t, api, true, tc.destAddPath)
 
-	api.r.mu.RLock()
-	src, found := api.r.findPeerByAddr(netip.MustParseAddr("10.0.0.1"))
-	api.r.mu.RUnlock()
-	require.True(t, found)
-	src.recvCtxID = addPathCtxID
+			item := relayDispatchedItemFor(t, api, dispatched, mu, done,
+				storedAddPathRoute(sourcePathID))
+			nlri := relayDispatchedNLRI(t, item)
 
-	relayErr := api.RelayStoredRoute(netip.MustParseAddr("10.0.0.2"),
-		[]rpc.StoredRoute{storedIPv4Route("10.0.0.1")}, plugin.OperatorSender())
-	require.ErrorIs(t, relayErr, errRelayAddPath, "an add-path source must be refused")
+			if !tc.destAddPath {
+				assert.Equal(t, "180a0000", hex.EncodeToString(nlri),
+					"a destination without ADD-PATH receives the bare RFC 4271 prefix")
+				return
+			}
+
+			require.Len(t, nlri, relayPathIDLen+4,
+				"RFC 7911 Section 3: the NLRI encoding is extended by prepending the four-octet Path Identifier")
+			assert.Equal(t, "180a0000", hex.EncodeToString(nlri[relayPathIDLen:]),
+				"the prefix reaches the destination unchanged")
+			assert.Equal(t, fwdPathIDs.generate(src.SourceID(), sourcePathID), binary.BigEndian.Uint32(nlri),
+				"RFC 7911 Section 2: a re-advertised route carries ze's own identifier for this ingress path")
+
+			require.Eventually(t, func() bool { return cache.Len() == 0 }, 2*time.Second, 10*time.Millisecond,
+				"relay cache entry must be evicted, returning its pooled buffer")
+		})
+	}
+}
+
+// TestRelayMultiPathPreserved verifies two paths for ONE prefix both survive the
+// replay, under two distinct identifiers at the destination.
+//
+// VALIDATES: AC-2 -- multi-path is representable across the relay. The stored
+// path identifier travels on rpc.StoredRoute, so two stored paths stay two paths.
+// PREVENTS: the failure that ruled out tagging the reconstruction with a
+// non-ADD-PATH context -- N stored paths each emitted with no identifier, so the
+// destination receives one prefix N times under RFC 7911 Section 5 replacement
+// semantics and keeps exactly one. Silent route loss on a route server.
+func TestRelayMultiPathPreserved(t *testing.T) {
+	api, _, dispatched, mu, done := relayFixture(t)
+	src := relayAddPathContexts(t, api, true, true)
+
+	routes := []rpc.StoredRoute{
+		storedAddPathRoute(1),
+		storedAddPathRoute(2),
+	}
+	require.NoError(t, api.RelayStoredRoute(netip.MustParseAddr("10.0.0.2"), routes, plugin.OperatorSender()))
+
+	for range routes {
+		select {
+		case <-done:
+		case <-time.After(2 * time.Second):
+			t.Fatal("a relayed path never reached the forward pool")
+		}
+	}
 
 	mu.Lock()
-	assert.Empty(t, *dispatched, "nothing may reach the wire for an add-path source")
+	items := append([]fwdItem(nil), (*dispatched)...)
 	mu.Unlock()
-	assert.Equal(t, 0, cache.Len(), "a refused relay must leave no cache entry")
+	require.Len(t, items, 2, "one dispatch per stored path")
+
+	got := make(map[uint32]struct{}, len(items))
+	for _, item := range items {
+		nlri := relayDispatchedNLRI(t, item)
+		require.Len(t, nlri, relayPathIDLen+4)
+		assert.Equal(t, "180a0000", hex.EncodeToString(nlri[relayPathIDLen:]),
+			"both paths announce the same prefix")
+		got[binary.BigEndian.Uint32(nlri)] = struct{}{}
+	}
+
+	want := map[uint32]struct{}{
+		fwdPathIDs.generate(src.SourceID(), 1): {},
+		fwdPathIDs.generate(src.SourceID(), 2): {},
+	}
+	assert.Equal(t, want, got, "two paths for one prefix reach the destination under two identifiers")
+}
+
+// TestRelayAddPathZeroPathIDIsRelayed verifies a stored path identifier of 0 is
+// a value rather than an absence.
+//
+// VALIDATES: AC-1 at the boundary. RFC 7911 Section 3 reserves no identifier, so
+// 0 is legal and its route must reach the destination like any other.
+// PREVENTS: the reason rpc.StoredRoute carries a framing marker beside the
+// identifier. An encoder keyed on "path-id is non-zero" writes the bare prefix
+// for identifier 0; the source context declares ADD-PATH, so the four octets the
+// reader expects are the prefix, and the route is lost. That rule was live in
+// prefixToWireHex, on the storage side of the same path.
+func TestRelayAddPathZeroPathIDIsRelayed(t *testing.T) {
+	api, _, dispatched, mu, done := relayFixture(t)
+	src := relayAddPathContexts(t, api, true, true)
+
+	nlri := relayDispatchedNLRI(t, relayDispatchedItemFor(t, api, dispatched, mu, done, storedAddPathRoute(0)))
+
+	require.Len(t, nlri, relayPathIDLen+4, "identifier 0 is encoded, not omitted")
+	assert.Equal(t, "180a0000", hex.EncodeToString(nlri[relayPathIDLen:]),
+		"the prefix survives an identifier of 0")
+	assert.Equal(t, fwdPathIDs.generate(src.SourceID(), 0), binary.BigEndian.Uint32(nlri),
+		"the path arriving under identifier 0 gets ze's own identifier like any other")
+}
+
+// TestRelayStoredRouteRefusesUnrecordedFraming verifies the ONE case that stays
+// unencodable: a producer that did not record its NLRI framing, under a source
+// session that declares ADD-PATH.
+//
+// VALIDATES: the narrowed refusal. It keys on the ROUTE, not on the source peer,
+// so it can only fire for a forked bgp-adj-rib-in built against the
+// rpc.StoredRoute that had no framing field.
+// PREVENTS: both halves of guessing. Emitting a bare prefix under an ADD-PATH
+// context corrupts the destination's parse; inventing identifier 0 merges every
+// path of the prefix into one.
+func TestRelayStoredRouteRefusesUnrecordedFraming(t *testing.T) {
+	t.Run("add-path source refuses", func(t *testing.T) {
+		api, cache, dispatched, mu, _ := relayFixture(t)
+		relayAddPathContexts(t, api, true, true)
+
+		// storedIPv4Route carries no framing: the zero value is what an older
+		// forked producer sends.
+		relayErr := api.RelayStoredRoute(netip.MustParseAddr("10.0.0.2"),
+			[]rpc.StoredRoute{storedIPv4Route("10.0.0.1")}, plugin.OperatorSender())
+		require.ErrorIs(t, relayErr, errRelayNLRIFraming, "an unrecorded framing must be refused")
+
+		mu.Lock()
+		assert.Empty(t, *dispatched, "nothing may reach the wire for an unencodable route")
+		mu.Unlock()
+		assert.Equal(t, 0, cache.Len(), "a refused relay must leave no cache entry")
+	})
+
+	t.Run("source without add-path relays", func(t *testing.T) {
+		api, _, dispatched, mu, done := relayFixture(t)
+		relayAddPathContexts(t, api, false, false)
+
+		item := relayDispatchedItemFor(t, api, dispatched, mu, done, storedIPv4Route("10.0.0.1"))
+		assert.Equal(t, "180a0000", hex.EncodeToString(relayDispatchedNLRI(t, item)),
+			"a source that declares no ADD-PATH has one framing, so the marker is not consulted")
+	})
 }

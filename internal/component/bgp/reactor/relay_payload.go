@@ -43,6 +43,9 @@ const (
 	maxUpdateBodyLen = message.ExtMsgLen - message.HeaderLen
 	// maxNextHopLen bounds the MP_REACH next-hop, whose length is a single octet.
 	maxNextHopLen = 0xFF
+	// relayPathIDLen is the RFC 7911 Section 3 Path Identifier width: four octets
+	// prepended to each NLRI when the session declares ADD-PATH for the family.
+	relayPathIDLen = 4
 )
 
 // relayAttrSpan describes one path attribute located inside a raw attribute block.

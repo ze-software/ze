@@ -1,4 +1,5 @@
 // Design: docs/architecture/api/process-protocol.md -- stored-route relay (egress-rail)
+// RFC: rfc/short/rfc7911.md -- Section 3, the Path Identifier prepended to an ADD-PATH NLRI
 // Related: reactor_api_forward.go -- forwardUpdateCore, the single egress transform this reuses
 // Related: reactor_api_forward_batch.go -- ForwardUpdatesDirect, the batch shape this mirrors
 //
@@ -17,6 +18,7 @@
 package reactor
 
 import (
+	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -55,35 +57,30 @@ var (
 	errRelayNextHopLen = errors.New("relay-stored-route: ipv4 unicast next-hop is not 4 bytes")
 	errRelayIncomplete = errors.New("relay-stored-route: replay incomplete, some routes were not relayed")
 
-	// errRelayAddPath refuses a route whose source session negotiated ADD-PATH
-	// (RFC 7911). The reconstruction is tagged with the source peer's receive
-	// context so the forward rail decodes attributes at the right ASN width, but
-	// that context also declares the NLRI framing -- and the stored NLRI does not
-	// match it.
+	// errRelayNLRIFraming refuses a route whose producer did not record how its
+	// stored NLRI bytes are framed, when the source session negotiated ADD-PATH
+	// for the family (RFC 7911).
 	//
-	// The structured ingest path drops the 4-byte path-id before storing:
-	// nlri.NLRIIterator.Next advances past it and returns only the prefix bytes
-	// (internal/core/bgp/nlri/iterator.go), which installStructuredNLRIs hex-encodes
-	// verbatim (adj_rib_in/rib.go). The legacy ingest path does the opposite,
-	// prepending the path-id in prefixToWireHex -- and only when it is non-zero,
-	// though RFC 7911 permits path-id 0. So the stored bytes carry one of two
-	// framings and nothing records which.
+	// The reconstruction is tagged with the source peer's receive context so the
+	// forward rail decodes attributes at the right ASN width, and that context
+	// also declares the NLRI framing. RFC 7911 Section 3: "the NLRI encoding MUST
+	// be extended by prepending the Path Identifier field, which is of four
+	// octets". A stored prefix and a stored identifier-plus-prefix are both
+	// well-formed byte strings, so the bytes cannot answer which one they are.
+	// rpc.StoredRoute.NLRIFraming answers it, and its zero value says the producer
+	// did not.
 	//
-	// Emitting them under an add-path context is not a cosmetic mismatch: a
-	// destination sharing the source's context receives the wire verbatim and
-	// parses the first four NLRI bytes as a path-id, producing a malformed UPDATE
-	// and a session reset -- a peer-up replay would tear down the peer it is
-	// replaying to. A destination WITHOUT add-path takes the re-encode path, which
-	// strips four more bytes and announces nothing at all, silently.
+	// Guessing is not available in either direction. Emitting a bare prefix under
+	// an add-path context makes a destination that shares the context parse the
+	// first four NLRI bytes as an identifier, which is a malformed UPDATE and a
+	// session reset -- a peer-up replay would tear down the peer it is replaying
+	// to. Inventing an identifier of 0 silently merges every path of the prefix
+	// into one at the destination.
 	//
-	// Refusing is the honest interim: normalizing the stored framing is the
-	// remaining work. It is homed in
-	// plan/deferrals/fixit-bgp-egress-rail-divergence.md, whose row for it names
-	// plan/spec-fixit-stored-route-relay-hardening.md, where it is AC-1 and AC-2.
-	// It began as assumption A-3 of spec-fixit-bgp-egress-rail-divergence, closed
-	// 2026-08-14. A logged refusal loses the replay; a corrupt frame loses the
-	// session.
-	errRelayAddPath = errors.New("relay-stored-route: add-path source not supported by stored-route replay")
+	// After 2026-08-19 this reaches only a FORKED bgp-adj-rib-in built against the
+	// rpc.StoredRoute that had no framing field: every in-tree producer records
+	// it. A logged refusal loses one route; a corrupt frame loses the session.
+	errRelayNLRIFraming = errors.New("relay-stored-route: stored NLRI framing is unrecorded under an add-path source")
 )
 
 // relaySource holds everything the relay needs about the peer a stored route was
@@ -345,11 +342,32 @@ func (a *reactorAPIAdapter) buildRelayUpdate(route *rpc.StoredRoute, src relaySo
 		return nil, 0, errRelayFamily
 	}
 
-	// Refuse before touching a buffer: the stored NLRI framing does not record
-	// whether it carries an RFC 7911 path-id, so it cannot be emitted under a
-	// context that declares one. See errRelayAddPath.
-	if srcCtx := bgpctx.Registry.Get(src.ctxID); srcCtx != nil && srcCtx.AddPath(fam) {
-		return nil, 0, errRelayAddPath
+	// The reconstruction is emitted under the SOURCE peer's receive context, so
+	// it must carry the framing that context declares. fwdReencodeNLRIs converts
+	// it per destination afterwards, in both directions, exactly as it does for a
+	// live forward -- so there is one framing decision here and none below.
+	srcAddPath := false
+	if srcCtx := bgpctx.Registry.Get(src.ctxID); srcCtx != nil {
+		srcAddPath = srcCtx.AddPath(fam)
+	}
+	// RFC 7911 Section 3: an ADD-PATH session prepends a four-octet Path
+	// Identifier to every NLRI. Written unconditionally when the context declares
+	// ADD-PATH, identifier 0 included -- the RFC reserves no value, and a
+	// non-zero-only rule would drop a legal path.
+	//
+	// A context that declares none needs no decision: the stored bytes carry no
+	// identifier under either framing.
+	pathIDLen := 0
+	if srcAddPath {
+		switch route.NLRIFraming {
+		case rpc.NLRIFramingPrefixOnly:
+			pathIDLen = relayPathIDLen
+		case rpc.NLRIFramingSourceWire:
+			// The bytes already carry the source's framing, identifiers included.
+		default:
+			// Refuse before touching a buffer. See errRelayNLRIFraming.
+			return nil, 0, errRelayNLRIFraming
+		}
 	}
 
 	attrLen := hex.DecodedLen(len(route.AttrHex))
@@ -360,8 +378,10 @@ func (a *reactorAPIAdapter) buildRelayUpdate(route *rpc.StoredRoute, src relaySo
 	}
 
 	// Decode the three stored hex fields into ONE pooled scratch buffer rather
-	// than three heap slices: a peer-up replay runs this per stored route.
-	scratchLen := attrLen + nhLen + nlriLen
+	// than three heap slices: a peer-up replay runs this per stored route. The
+	// path identifier is written into the four octets reserved ahead of the NLRI,
+	// so the NLRI section stays one contiguous span.
+	scratchLen := attrLen + nhLen + pathIDLen + nlriLen
 	scratch := getReadBuf(scratchLen > message.MaxMsgLen-message.HeaderLen)
 	if scratch.Buf == nil {
 		return nil, 0, errRelayBufferPool
@@ -383,8 +403,11 @@ func (a *reactorAPIAdapter) buildRelayUpdate(route *rpc.StoredRoute, src relaySo
 	if _, err := hex.Decode(nextHop, []byte(route.NextHopHex)); err != nil {
 		return nil, 0, errRelayHex
 	}
-	if _, err := hex.Decode(nlri, []byte(route.NLRIHex)); err != nil {
+	if _, err := hex.Decode(nlri[pathIDLen:], []byte(route.NLRIHex)); err != nil {
 		return nil, 0, errRelayHex
+	}
+	if pathIDLen != 0 {
+		binary.BigEndian.PutUint32(nlri, route.PathID)
 	}
 
 	scanned, ok := scanAttrBlock(*spans, attrs)

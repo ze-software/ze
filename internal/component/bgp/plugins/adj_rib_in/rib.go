@@ -29,7 +29,6 @@ import (
 	bgp "github.com/ze-software/ze/internal/component/bgp"
 	adjyang "github.com/ze-software/ze/internal/component/bgp/plugins/adj_rib_in/yang"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
-	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/family"
@@ -79,11 +78,23 @@ func setLogger(l *slog.Logger) {
 // NLRIHex is the individual NLRI wire bytes in hex.
 // Sequence numbers are tracked by the seqmap, not stored in RawRoute.
 type RawRoute struct {
-	Family          family.Family // Address family (e.g. family.IPv4Unicast)
-	AttrHex         string        // Raw path attributes hex from format=full
-	NHopHex         string        // Next-hop as wire hex (e.g. "0a000001" for 10.0.0.1)
-	NLRIHex         string        // Individual NLRI wire bytes hex
-	ValidationState uint8         // RPKI validation state (0=NotValidated, 1=Valid, 2=NotFound, 3=Invalid)
+	Family  family.Family // Address family (e.g. family.IPv4Unicast)
+	AttrHex string        // Raw path attributes hex from format=full
+	NHopHex string        // Next-hop as wire hex (e.g. "0a000001" for 10.0.0.1)
+	NLRIHex string        // Individual NLRI wire bytes hex
+
+	// PathID is the RFC 7911 Path Identifier the source session used, and
+	// NLRIFraming says how NLRIHex is framed. Both travel to the engine on
+	// rpc.StoredRoute, which is where their contract lives.
+	//
+	// The pair exists because NLRIHex alone cannot say whether a path identifier
+	// is present: RFC 7911 Section 3 makes the framing a property of the session.
+	// A zero PathID is a legal identifier, so the marker carries presence and the
+	// value carries the identifier.
+	PathID      uint32
+	NLRIFraming rpc.NLRIFraming
+
+	ValidationState uint8 // RPKI validation state (0=NotValidated, 1=Valid, 2=NotFound, 3=Invalid)
 
 	// MsgID is the reactor's MessageID of the UPDATE this route arrived in
 	// (reactor.nextMsgID, a process-global monotonic counter stamped on every
@@ -422,14 +433,19 @@ func (r *AdjRIBInManager) installStructuredNLRIs(peerAddr netip.Addr, fam family
 			continue
 		}
 		rk := routeKeyFromWire(fam, pfx, pathID)
+		// wirePrefix starts AFTER the path identifier: nlri.NLRIIterator.Next
+		// consumes those four octets, so the stored bytes are prefix-only and the
+		// identifier survives in PathID (RFC 7911 Section 3).
 		nlriHex := hex.EncodeToString(wirePrefix)
 
 		route := &RawRoute{
-			Family:  fam,
-			AttrHex: attrHex,
-			NHopHex: nhopHex,
-			NLRIHex: nlriHex,
-			MsgID:   msgID,
+			Family:      fam,
+			AttrHex:     attrHex,
+			NHopHex:     nhopHex,
+			NLRIHex:     nlriHex,
+			PathID:      pathID,
+			NLRIFraming: rpc.NLRIFramingPrefixOnly,
+			MsgID:       msgID,
 		}
 
 		if r.validationEnabled {
@@ -507,7 +523,11 @@ func (r *AdjRIBInManager) installComplexNLRIs(peerAddr netip.Addr, fam family.Fa
 			AttrHex: attrHex,
 			NHopHex: nhopHex,
 			NLRIHex: nlriHex,
-			MsgID:   msgID,
+			// The whole NLRI section is stored verbatim, so it already carries
+			// whatever framing the source used, path identifiers included. PathID
+			// stays unset: two representations of one identifier would drift.
+			NLRIFraming: rpc.NLRIFramingSourceWire,
+			MsgID:       msgID,
 		}
 		if r.validationEnabled {
 			pr := &pendingRoute{
@@ -548,92 +568,6 @@ func (r *AdjRIBInManager) removeComplexNLRIs(peerAddr netip.Addr, fam family.Fam
 			r.ribIn[peerAddr].Delete(rk)
 		}
 	}
-}
-
-// nhopHexFromWireAttr extracts next-hop from wire NEXT_HOP attribute and hex-encodes it.
-func nhopHexFromWireAttr(attrs *attribute.AttributesWire) string {
-	if attrs == nil {
-		return ""
-	}
-	attr, err := attrs.Get(attribute.AttrNextHop)
-	if err != nil || attr == nil {
-		return ""
-	}
-	nhop, ok := attr.(*attribute.NextHop)
-	if !ok || !nhop.Addr.IsValid() {
-		return ""
-	}
-	return nhopHexFromAddr(nhop.Addr)
-}
-
-// nhopHexFromAddr hex-encodes a netip.Addr for RawRoute storage.
-func nhopHexFromAddr(addr netip.Addr) string {
-	if !addr.IsValid() {
-		return ""
-	}
-	if addr.Unmap().Is4() {
-		b := addr.Unmap().As4()
-		return hex.EncodeToString(b[:])
-	}
-	b := addr.As16()
-	return hex.EncodeToString(b[:])
-}
-
-func legacyNextHop(attrs *attribute.AttributesWire) string {
-	if attrs == nil {
-		return ""
-	}
-	attr, err := attrs.Get(attribute.AttrNextHop)
-	if err != nil || attr == nil {
-		return ""
-	}
-	nhop, ok := attr.(*attribute.NextHop)
-	if !ok || !nhop.Addr.IsValid() {
-		return ""
-	}
-	return nhop.Addr.String()
-}
-
-// wireNLRIsToAny walks wire NLRI bytes and returns prefix strings as []any.
-// Uses stack-allocated [16]byte buffer to avoid per-prefix heap allocation.
-func wireNLRIsToAny(data []byte, addPath bool, fam family.Family) []any {
-	isIPv6 := fam.AFI == family.AFIIPv6
-	addrLen := 4
-	if isIPv6 {
-		addrLen = 16
-	}
-
-	var result []any
-	var buf [16]byte // stack-allocated — large enough for IPv6
-	offset := 0
-	for offset < len(data) {
-		if addPath {
-			if offset+4 >= len(data) {
-				break
-			}
-			offset += 4 // skip path-ID
-		}
-		if offset >= len(data) {
-			break
-		}
-		prefixLen := int(data[offset])
-		byteCount := (prefixLen + 7) / 8
-		offset++ // skip prefix-len byte
-		if offset+byteCount > len(data) {
-			break
-		}
-		// Zero and fill from wire — reuse stack buffer each iteration.
-		clear(buf[:])
-		copy(buf[:], data[offset:offset+byteCount])
-		offset += byteCount
-
-		addr, ok := netip.AddrFromSlice(buf[:addrLen])
-		if !ok {
-			continue
-		}
-		result = append(result, netip.PrefixFrom(addr, prefixLen).String())
-	}
-	return result
 }
 
 // handleStructuredState processes a structured state event from DirectBridge.
@@ -710,9 +644,14 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 		// For complex families (VPN, EVPN), splitRawNLRIHex returns nil
 		// and the raw blob is used directly (see switch below).
 		rawNLRIHex := event.GetRawNLRIHex(fam)
+		// RFC 7911 Section 3 prepends four octets to every NLRI when the session
+		// negotiated ADD-PATH for this family, so the split cannot find the prefix
+		// length without knowing that. The producer sends the flag on the event
+		// (format=full, raw.add-path).
+		addPath := event.AddPath[fam]
 		var splitHexEntries []string
 		if rawNLRIHex != "" {
-			splitHexEntries = splitRawNLRIHex(rawNLRIHex, fam)
+			splitHexEntries = splitRawNLRIHex(rawNLRIHex, fam, addPath)
 		}
 
 		// Del before Add, and the order is load-bearing. RFC 4271 Section 4.3 says an
@@ -744,7 +683,11 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 						}
 						rk := routeKeyFromStrings(fam, prefix, pathID)
 
+						// Both prefix-only branches store the bare RFC 4271 NLRI and
+						// carry the identifier in PathID; the raw-section branch
+						// stores a whole NLRI section in the source's own framing.
 						var nlriHex string
+						framing := rpc.NLRIFramingPrefixOnly
 						switch {
 						case i < len(splitHexEntries):
 							nlriHex = splitHexEntries[i]
@@ -753,15 +696,18 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 								continue
 							}
 							nlriHex = rawNLRIHex
+							framing = rpc.NLRIFramingSourceWire
 						default:
-							nlriHex = prefixToWireHex(fam, prefix, pathID)
+							nlriHex = prefixToWireHex(fam, prefix)
 						}
 
 						route := &RawRoute{
-							Family:  fam,
-							AttrHex: event.GetRawAttributesHex(),
-							NHopHex: nhopHex,
-							NLRIHex: nlriHex,
+							Family:      fam,
+							AttrHex:     event.GetRawAttributesHex(),
+							NHopHex:     nhopHex,
+							NLRIHex:     nlriHex,
+							PathID:      pathID,
+							NLRIFraming: framing,
 						}
 
 						if r.validationEnabled {
@@ -928,11 +874,13 @@ func (r *AdjRIBInManager) buildReplayRoutes(targetPeer netip.Addr, fromIndex uin
 				return true
 			}
 			out = append(out, rpc.StoredRoute{
-				SourcePeer: sourceStr,
-				Family:     rt.Family.String(),
-				AttrHex:    rt.AttrHex,
-				NextHopHex: rt.NHopHex,
-				NLRIHex:    rt.NLRIHex,
+				SourcePeer:  sourceStr,
+				Family:      rt.Family.String(),
+				AttrHex:     rt.AttrHex,
+				NextHopHex:  rt.NHopHex,
+				NLRIHex:     rt.NLRIHex,
+				PathID:      rt.PathID,
+				NLRIFraming: rt.NLRIFraming,
 			})
 			if seq > maxSeq {
 				maxSeq = seq
@@ -983,104 +931,6 @@ func (r *AdjRIBInManager) relayRoutes(destination string, routes []rpc.StoredRou
 		}
 	}
 	return nil
-}
-
-// nhopToHex converts a next-hop IP address string to wire hex.
-// IPv4: "10.0.0.1" -> "0a000001", IPv6: "::1" -> 32 hex chars.
-func nhopToHex(ipStr string) string {
-	addr, err := netip.ParseAddr(ipStr)
-	if err != nil {
-		return ""
-	}
-	if addr.Unmap().Is4() {
-		b := addr.Unmap().As4()
-		return hex.EncodeToString(b[:])
-	}
-	b := addr.As16()
-	return hex.EncodeToString(b[:])
-}
-
-// splitRawNLRIHex splits concatenated raw NLRI hex into individual entries.
-// Only works for simple prefix families (IPv4/IPv6 unicast/multicast).
-// Returns nil for complex families (VPN, EVPN, FlowSpec).
-func splitRawNLRIHex(rawHex string, fam family.Family) []string {
-	data, err := hex.DecodeString(rawHex)
-	if err != nil || len(data) == 0 {
-		return nil
-	}
-
-	if !isSimplePrefixFamily(fam) {
-		return nil
-	}
-
-	var result []string
-	offset := 0
-	for offset < len(data) {
-		prefixLen := int(data[offset])
-		nlriLen := 1 + (prefixLen+7)/8
-
-		if offset+nlriLen > len(data) {
-			break
-		}
-		result = append(result, hex.EncodeToString(data[offset:offset+nlriLen]))
-		offset += nlriLen
-	}
-
-	return result
-}
-
-// isSimplePrefixFamily returns true for families with simple [prefix-len][prefix-bytes] format.
-// Complex families (VPN, EVPN, FlowSpec, etc.) have different NLRI structures.
-func isSimplePrefixFamily(fam family.Family) bool {
-	switch fam {
-	case family.IPv4Unicast, family.IPv4Multicast, family.IPv6Unicast, family.IPv6Multicast:
-		return true
-	}
-	return false
-}
-
-// prefixToWireHex converts a text prefix to NLRI wire hex.
-// Only correct for simple prefix families (IPv4/IPv6 unicast/multicast).
-// Called as fallback when raw NLRI bytes are not available.
-func prefixToWireHex(fam family.Family, prefix string, pathID uint32) string {
-	_, ipnet, err := net.ParseCIDR(prefix)
-	if err != nil {
-		return ""
-	}
-
-	prefixLen, _ := ipnet.Mask.Size()
-	prefixBytes := (prefixLen + 7) / 8
-
-	var ipBytes net.IP
-	switch fam.AFI {
-	case family.AFIIPv4:
-		ipBytes = ipnet.IP.To4()
-	case family.AFIIPv6:
-		ipBytes = ipnet.IP.To16()
-	case family.AFIL2VPN, family.AFIBGPLS:
-		// Complex AFIs handled via raw blob path; prefixToWireHex not called.
-	}
-
-	if ipBytes == nil {
-		return ""
-	}
-
-	var wire []byte
-	if pathID != 0 {
-		wire = make([]byte, 4+1+prefixBytes)
-		wire[0] = byte(pathID >> 24)
-		wire[1] = byte(pathID >> 16)
-		wire[2] = byte(pathID >> 8)
-		wire[3] = byte(pathID)
-		wire[4] = byte(prefixLen)
-		copy(wire[5:], ipBytes[:prefixBytes])
-	} else {
-		wire = make([]byte, 1+prefixBytes)
-		wire[0] = byte(prefixLen)
-		copy(wire[1:], ipBytes[:prefixBytes])
-	}
-
-	return hex.EncodeToString(wire)
 }
 
 // getYANG returns the embedded YANG schema.

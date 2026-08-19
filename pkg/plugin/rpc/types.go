@@ -1,4 +1,5 @@
 // Design: docs/architecture/api/ipc_protocol.md — plugin RPC types
+// RFC: rfc/short/rfc7911.md — ADD-PATH; Section 3 is the NLRIFraming contract below
 // Related: message.go — RPC wire message types
 //
 // Package rpc defines the canonical wire-format types for the ze plugin RPC protocol.
@@ -385,6 +386,81 @@ type ReleaseCachedInput struct {
 	IDs []uint64 `json:"ids"`
 }
 
+// NLRIFraming records how a StoredRoute's NLRIHex bytes are framed, so the
+// engine can rebuild the framing the source session used instead of guessing it
+// from the bytes.
+//
+// RFC 7911 Section 3 makes the framing a property of the SESSION, not of the
+// bytes: "the NLRI encoding MUST be extended by prepending the Path Identifier
+// field, which is of four octets". A stored prefix and a stored
+// path-identifier-plus-prefix are both well-formed byte strings, and nothing in
+// either one says which of the two it is.
+//
+// The zero value is NLRIFramingUnrecorded, and that is load-bearing. StoredRoute
+// crosses a JSON IPC boundary to forked plugins, so a producer built before this
+// field existed omits it, and an omitted JSON value decodes to the zero value. A
+// path identifier of 0 is legal (RFC 7911 Section 3 reserves no value), so a
+// bare PathID of 0 would read as a valid identifier rather than as "this
+// producer does not know". The framing marker is what separates the two.
+type NLRIFraming uint8
+
+const (
+	// NLRIFramingUnrecorded means the producer did not record the framing. The
+	// engine MUST refuse to relay such a route under a source context that
+	// declares ADD-PATH: emitting a bare prefix there corrupts the destination,
+	// and inventing an identifier of 0 silently merges paths.
+	NLRIFramingUnrecorded NLRIFraming = iota
+	// NLRIFramingPrefixOnly means NLRIHex holds RFC 4271 NLRI bytes with no path
+	// identifier, and PathID carries the RFC 7911 identifier the source used. It
+	// is 0 when the source session negotiated no ADD-PATH, which is the value an
+	// NLRI iterator reports for such a session.
+	NLRIFramingPrefixOnly
+	// NLRIFramingSourceWire means NLRIHex holds the NLRI bytes exactly as the
+	// source framed them, path identifiers included. PathID is not consulted.
+	// Complex families (VPN, EVPN, Flowspec) store a whole NLRI section this way
+	// because their NLRI does not split into per-route prefix bytes.
+	NLRIFramingSourceWire
+)
+
+// nlriFramingNames maps each framing to its JSON wire token. Kebab-case, as
+// every other enum on this contract is.
+var nlriFramingNames = [...]string{
+	NLRIFramingUnrecorded: "",
+	NLRIFramingPrefixOnly: "prefix-only",
+	NLRIFramingSourceWire: "source-wire",
+}
+
+// String returns the wire token, for diagnostics. Code MUST compare the typed
+// value, never this string.
+func (f NLRIFraming) String() string {
+	if int(f) >= len(nlriFramingNames) {
+		return ""
+	}
+	return nlriFramingNames[f]
+}
+
+// MarshalText emits the wire token, so the JSON contract stays readable for the
+// author of a forked plugin.
+func (f NLRIFraming) MarshalText() ([]byte, error) {
+	return []byte(f.String()), nil
+}
+
+// UnmarshalText accepts a wire token. A token this build does not know decodes
+// to NLRIFramingUnrecorded rather than failing the frame: "the producer named a
+// framing we cannot honor" and "the producer named none" call for the same
+// fail-closed handling at the relay, and rejecting the frame would lose every
+// route in the chunk instead of the one route that cannot be encoded.
+func (f *NLRIFraming) UnmarshalText(text []byte) error {
+	for i, name := range nlriFramingNames {
+		if name != "" && name == string(text) {
+			*f = NLRIFraming(i) //nolint:gosec // i indexes nlriFramingNames, a 3-entry array
+			return nil
+		}
+	}
+	*f = NLRIFramingUnrecorded
+	return nil
+}
+
 // StoredRoute is one route a plugin holds as raw wire bytes and asks the engine
 // to relay on its behalf (adj-rib-in peer-up replay).
 //
@@ -409,6 +485,13 @@ type StoredRoute struct {
 	AttrHex    string `json:"attr-hex"`
 	NextHopHex string `json:"next-hop-hex"`
 	NLRIHex    string `json:"nlri-hex"`
+	// PathID is the RFC 7911 Path Identifier the source session used for this
+	// route. It is meaningful only when NLRIFraming is NLRIFramingPrefixOnly.
+	PathID uint32 `json:"path-id,omitempty"`
+	// NLRIFraming says how NLRIHex is framed. Its zero value refuses the relay
+	// under an ADD-PATH source, which is what a producer built before this field
+	// existed gets.
+	NLRIFraming NLRIFraming `json:"nlri-framing,omitempty"`
 }
 
 // RelayStoredRouteInput is the input for ze-plugin-engine:relay-stored-route.
