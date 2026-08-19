@@ -354,6 +354,11 @@ func (s *PrefixStore) removePersisted(name string) {
 }
 
 // resolve performs AS-SET resolution and the IRR lookup without mutating state.
+//
+// The lookup goes through RefreshPrefixes, which always queries the server. A
+// refresh answered from the client's 1h cache would stamp a new RefreshedAt on
+// data nobody re-read, and "update firewall irr as-set X" exists to reach the
+// server. This store is the durable cache, in memory and in zefs.
 func (s *PrefixStore) resolve(ctx context.Context, name, asSet string) (*CachedEntry, error) {
 	if err := validateName(name); err != nil {
 		return nil, err
@@ -370,7 +375,7 @@ func (s *PrefixStore) resolve(ctx context.Context, name, asSet string) (*CachedE
 		}
 	}
 
-	pl, err := irrClient.LookupPrefixes(ctx, effective)
+	pl, err := irrClient.RefreshPrefixes(ctx, effective)
 	if err != nil {
 		return &CachedEntry{Name: name, ASSet: effective}, err
 	}

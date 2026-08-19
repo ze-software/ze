@@ -86,13 +86,30 @@ tables it built from what it fetched. Nothing else does on a cold cache:
 
 ### A reload reconfigures the plugin
 
-<!-- source: internal/component/firewall/plugins/irr/irr.go -- configure -->
+<!-- source: internal/component/firewall/plugins/irr/irr.go -- configure, configureStore -->
+<!-- source: internal/component/resolve/irr/store/store.go -- UseClients -->
 
 `OnConfigApply` receives a diff, not the configuration, so the plugin carries the
 config `OnConfigVerify` approved into it and calls the same `configure` that
 `OnConfigure` calls. Anything else leaves the plugin serving what the daemon
 started with: a term added by a commit would never reach the registry, and the
 firewall would wait for a set the plugin was never told to build.
+
+The prefix store survives that reload. It is created once and kept for the life
+of the plugin, and `configureStore` points it at the servers the new
+configuration names through `UseClients`. The cache is what the firewall
+enforces, so a configure that built a second store handed `applyTables` an empty
+one: the sets were registered with no prefixes, `ApplyAll` held back the
+operator's table for naming a set no owner supplied, and the commit that caused
+it reported success. `OnConfigVerify` had accepted that same commit by reading
+the store the apply then discarded, which made the verify-time refusal a
+statement about a store nothing would use. A table that was already filtering
+lost its rules the same way, on a commit that changed something else.
+
+`Open` still runs on each configure. The zefs file is shared with the BGP IRR
+filter, so reading it again picks up what that consumer has fetched since. It
+only adds: an entry held in both places is the same entry, because every store
+mutation persists before it returns.
 
 ### CIDR is encoded as an interval
 
@@ -146,10 +163,13 @@ nothing, and marks the entry stale. Replacing the entry wholesale cost the
 interface binding its IPv6 accept term while the drop term that closes the
 whitelist stayed, which drops every IPv6 packet arriving on the port.
 
-`LookupPrefixes` refuses to cache an empty answer, so an empty one is never
-served for an hour. An answer that carried prefixes IS cached for an hour, and
-an operator forcing a refresh inside that hour is served from that cache rather
-than from the server.
+The IRR client caches an answer that carried prefixes for an hour, and refuses
+to cache an empty one. The cache serves the read-only lookups, `show firewall
+irr` and `ze resolve irr prefix`, so a show command costs one query per hour.
+A refresh does not read it: `PrefixStore.resolve` calls `RefreshPrefixes`, which
+always queries the server, because `update firewall irr as-set X` is the one
+command an operator has to correct data the server changed. It writes the cache
+it did not read, so the show commands see what the refresh learned.
 
 Removing prefixes is an operator action: `clear firewall irr asn|as-set` calls
 `PrefixStore.Purge`. Without it, an AS-SET deregistered upstream would be

@@ -296,6 +296,95 @@ func TestLookupPrefixesDoesNotCacheEmptyAnswer(t *testing.T) {
 	}
 }
 
+// VALIDATES: AC-8 -- the read-only operator lookups keep the 1h cache, so a
+// show command costs one query per hour and not one per invocation.
+// PREVENTS: the refresh path losing its cache read and taking the show commands
+// with it.
+func TestLookupPrefixesServesReadOnlyCallersFromCache(t *testing.T) {
+	var served atomic.Int32
+	addr, cleanup := fakeIRRServer(t, func(conn net.Conn) {
+		defer func() { _ = conn.Close() }()
+		buf := make([]byte, 4096)
+		if _, err := conn.Read(buf); err != nil {
+			return
+		}
+		// The first pair of family queries carries a record; a later query
+		// answers "key not found", so a cache miss is visible in the result.
+		reply := "D\n"
+		if served.Add(1) <= 2 {
+			reply = "A1\n10.0.0.0/24\nC\n"
+		}
+		if _, err := fmt.Fprint(conn, reply); err != nil {
+			return
+		}
+	})
+	defer cleanup()
+
+	c := NewIRR(addr)
+	if _, err := c.LookupPrefixes(context.Background(), "AS-SUBJECT"); err != nil {
+		t.Fatalf("first LookupPrefixes: %v", err)
+	}
+
+	second, err := c.LookupPrefixes(context.Background(), "AS-SUBJECT")
+	if err != nil {
+		t.Fatalf("second LookupPrefixes: %v", err)
+	}
+	if len(second.IPv4) != 1 {
+		t.Fatalf("second lookup v4=%d, want the cached 1", len(second.IPv4))
+	}
+	if got := served.Load(); got != 2 {
+		t.Fatalf("server saw %d queries, want 2: the cached answer was not served", got)
+	}
+}
+
+// VALIDATES: AC-8 -- RefreshPrefixes queries the server inside the cache TTL,
+// and stores what it learned for the read-only lookups.
+// PREVENTS: an operator refresh answered from memory, and a refresh that
+// reaches the server while the show commands keep the answer it replaced.
+func TestRefreshPrefixesAlwaysQueriesServer(t *testing.T) {
+	var served atomic.Int32
+	addr, cleanup := fakeIRRServer(t, func(conn net.Conn) {
+		defer func() { _ = conn.Close() }()
+		buf := make([]byte, 4096)
+		n, err := conn.Read(buf)
+		if err != nil {
+			return
+		}
+		reply := "D\n" // IPv6 holds no route objects in either round
+		if strings.TrimSpace(string(buf[:n])) == "!a4AS-SUBJECT" {
+			reply = "A1\n10.0.0.0/24\nC\n"
+			if served.Add(1) > 1 {
+				reply = "A1\n192.0.2.0/24\nC\n"
+			}
+		}
+		if _, err := fmt.Fprint(conn, reply); err != nil {
+			return
+		}
+	})
+	defer cleanup()
+
+	c := NewIRR(addr)
+	if _, err := c.LookupPrefixes(context.Background(), "AS-SUBJECT"); err != nil {
+		t.Fatalf("seeding LookupPrefixes: %v", err)
+	}
+
+	refreshed, err := c.RefreshPrefixes(context.Background(), "AS-SUBJECT")
+	if err != nil {
+		t.Fatalf("RefreshPrefixes: %v", err)
+	}
+	if len(refreshed.IPv4) != 1 || refreshed.IPv4[0].String() != "192.0.2.0/24" {
+		t.Fatalf("RefreshPrefixes = %v, want the second answer 192.0.2.0/24: it read the cache", refreshed.IPv4)
+	}
+
+	cached, err := c.LookupPrefixes(context.Background(), "AS-SUBJECT")
+	if err != nil {
+		t.Fatalf("LookupPrefixes after refresh: %v", err)
+	}
+	if len(cached.IPv4) != 1 || cached.IPv4[0].String() != "192.0.2.0/24" {
+		t.Fatalf("cached after refresh = %v, want 192.0.2.0/24: the refresh did not update the cache", cached.IPv4)
+	}
+}
+
 // VALIDATES: the RPSL status line is read, not skipped as an unparseable word.
 // PREVENTS: a server error, a not-found and a genuine empty answer collapsing
 // into one indistinguishable state.

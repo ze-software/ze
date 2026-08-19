@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/resolve/irr"
@@ -19,9 +20,10 @@ import (
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
-// fakeIRR starts a TCP whois server answering "!a4<name>" / "!a6<name>" queries
-// from the given per-name prefix tables. Returns the server address.
-func fakeIRR(t *testing.T, v4, v6 map[string]string) string {
+// whoisServer starts a TCP whois server that answers each query with what
+// handle returns. Returns the server address. handle runs on one goroutine per
+// connection, so it MUST be safe for concurrent use.
+func whoisServer(t *testing.T, handle func(query string) string) string {
 	t.Helper()
 	lc := net.ListenConfig{}
 	ln, err := lc.Listen(context.Background(), "tcp", "127.0.0.1:0")
@@ -43,33 +45,35 @@ func fakeIRR(t *testing.T, v4, v6 map[string]string) string {
 				if readErr != nil {
 					return
 				}
-				query := strings.TrimSpace(string(buf[:n]))
-				var table map[string]string
-				var name string
-				switch {
-				case strings.HasPrefix(query, "!a4"):
-					table, name = v4, query[3:]
-				case strings.HasPrefix(query, "!a6"):
-					table, name = v6, query[3:]
-				default:
-					if _, err := fmt.Fprint(c, "D\n"); err != nil {
-						return
-					}
-					return
-				}
-				if prefixes, ok := table[name]; ok && prefixes != "" {
-					if _, err := fmt.Fprintf(c, "A1\n%s\nC\n", prefixes); err != nil {
-						return
-					}
-					return
-				}
-				if _, err := fmt.Fprint(c, "D\n"); err != nil {
+				if _, wErr := fmt.Fprint(c, handle(strings.TrimSpace(string(buf[:n])))); wErr != nil {
 					return
 				}
 			}(conn)
 		}
 	}()
 	return ln.Addr().String()
+}
+
+// fakeIRR starts a TCP whois server answering "!a4<name>" / "!a6<name>" queries
+// from the given per-name prefix tables. Returns the server address.
+func fakeIRR(t *testing.T, v4, v6 map[string]string) string {
+	t.Helper()
+	return whoisServer(t, func(query string) string {
+		var table map[string]string
+		var name string
+		switch {
+		case strings.HasPrefix(query, "!a4"):
+			table, name = v4, query[3:]
+		case strings.HasPrefix(query, "!a6"):
+			table, name = v6, query[3:]
+		default:
+			return "D\n"
+		}
+		if prefixes, ok := table[name]; ok && prefixes != "" {
+			return fmt.Sprintf("A1\n%s\nC\n", prefixes)
+		}
+		return "D\n"
+	})
 }
 
 // fakePeeringDB returns an AS-SET for known ASNs via the /api/net endpoint.
@@ -500,37 +504,12 @@ func TestPrefixStoreOpenNameKeyMismatch(t *testing.T) {
 // found), which is what a real server sends for a name it does not hold.
 func fakeIRRReply(t *testing.T, replies map[string]string) string {
 	t.Helper()
-	lc := net.ListenConfig{}
-	ln, err := lc.Listen(context.Background(), "tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("listen: %v", err)
-	}
-	t.Cleanup(func() { _ = ln.Close() })
-
-	go func() {
-		for {
-			conn, acceptErr := ln.Accept()
-			if acceptErr != nil {
-				return
-			}
-			go func(c net.Conn) {
-				defer func() { _ = c.Close() }()
-				buf := make([]byte, 4096)
-				n, readErr := c.Read(buf)
-				if readErr != nil {
-					return
-				}
-				reply, ok := replies[strings.TrimSpace(string(buf[:n]))]
-				if !ok {
-					reply = "D\n"
-				}
-				if _, wErr := fmt.Fprint(c, reply); wErr != nil {
-					return
-				}
-			}(conn)
+	return whoisServer(t, func(query string) string {
+		if reply, ok := replies[query]; ok {
+			return reply
 		}
-	}()
-	return ln.Addr().String()
+		return "D\n"
+	})
 }
 
 // seedStore refreshes name from a server holding v4Prefix and returns the zefs
@@ -696,6 +675,47 @@ func TestRefreshStoresNothingOnFirstEmptyAnswer(t *testing.T) {
 	}
 	if got := s.Get("AS-TEST"); got != nil {
 		t.Fatalf("empty answer cached an entry: %+v", got)
+	}
+}
+
+// VALIDATES: AC-8 -- a refresh inside the client's 1h prefix cache reaches the
+// server, and reports what the server now holds.
+// PREVENTS: "update firewall irr as-set X", the one command an operator has to
+// correct data the server changed, being answered from memory and reporting a
+// refresh that queried nothing.
+func TestRefreshQueriesServerWithinCacheTTL(t *testing.T) {
+	var v4Queries atomic.Int32 // one per refresh that reached the server
+	addr := whoisServer(t, func(query string) string {
+		if query != "!a4AS-TEST" {
+			return "D\n" // no IPv6 route objects, in either round
+		}
+		if v4Queries.Add(1) == 1 {
+			return "A1\n10.0.0.0/24\nC\n"
+		}
+		return "D\n" // the server now answers that it holds nothing
+	})
+
+	s := New(irr.NewIRR(addr), nil, tempStorePath(t))
+	learned, err := s.Refresh(context.Background(), "AS-TEST", "AS-TEST")
+	if err != nil {
+		t.Fatalf("first Refresh: %v", err)
+	}
+	if len(learned.IPv4) != 1 {
+		t.Fatalf("first Refresh learned v4=%d, want 1", len(learned.IPv4))
+	}
+
+	kept, err := s.Refresh(context.Background(), "AS-TEST", "AS-TEST")
+	if got := v4Queries.Load(); got != 2 {
+		t.Fatalf("server saw %d IPv4 queries, want 2: the second refresh was answered from the client cache", got)
+	}
+	if !errors.Is(err, ErrNoPrefixes) {
+		t.Fatalf("second Refresh error = %v, want ErrNoPrefixes", err)
+	}
+	if len(kept.IPv4) != 1 {
+		t.Fatalf("second Refresh kept v4=%d, want the last good 1", len(kept.IPv4))
+	}
+	if !kept.Stale() {
+		t.Error("an entry enforcing prefixes the server no longer confirms must report itself stale")
 	}
 }
 

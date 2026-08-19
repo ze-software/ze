@@ -244,7 +244,9 @@ func (c *IRR) resolveASSetRecursive(ctx context.Context, asSet string, seen map[
 // LookupPrefixes fetches the announced prefixes for an AS-SET from the IRR.
 // Uses the RPSL "!a4" and "!a6" commands for IPv4 and IPv6 prefix queries.
 // Prefixes are aggregated (collapsed) and sorted.
-// A non-empty result is cached for 1h keyed by AS-SET name.
+// A non-empty result is cached for 1h keyed by AS-SET name, and a cached result
+// is returned without a query. A caller whose purpose is to reach the server
+// MUST call RefreshPrefixes instead.
 // Returns an error if the AS-SET name contains control characters, or if the
 // server refused the query or sent a truncated reply. An AS-SET the server does
 // not hold, and one that holds no route objects, both return an empty list and
@@ -258,6 +260,30 @@ func (c *IRR) LookupPrefixes(ctx context.Context, asSet string) (PrefixList, err
 		return cached, nil
 	}
 
+	return c.queryPrefixes(ctx, asSet)
+}
+
+// RefreshPrefixes fetches the announced prefixes for an AS-SET from the IRR,
+// always querying the server. It returns and caches what LookupPrefixes does,
+// and it never reads that cache.
+//
+// A refresh exists to reach the server. "update firewall irr as-set X" is the
+// one command an operator has to correct data the server has changed, and an
+// answer served from the 1h cache would report a refresh that queried nothing.
+// The durable cache of the answer is the prefix store
+// (internal/component/resolve/irr/store), so a refresh loses nothing by
+// skipping the client cache.
+func (c *IRR) RefreshPrefixes(ctx context.Context, asSet string) (PrefixList, error) {
+	if err := validateASSetName(asSet); err != nil {
+		return PrefixList{}, err
+	}
+
+	return c.queryPrefixes(ctx, asSet)
+}
+
+// queryPrefixes runs the "!a4" and "!a6" queries and caches a non-empty result.
+// It is the only path that asks the server for prefixes.
+func (c *IRR) queryPrefixes(ctx context.Context, asSet string) (PrefixList, error) {
 	ipv4, err := c.lookupFamilyPrefixes(ctx, asSet, 4)
 	if err != nil {
 		return PrefixList{}, err
@@ -274,8 +300,9 @@ func (c *IRR) LookupPrefixes(ctx context.Context, asSet string) (PrefixList, err
 	}
 
 	// An answer that learned nothing is not data. Caching it would serve the
-	// same empty answer for an hour, so an operator who forced a refresh after
-	// noticing the outage would never reach the server.
+	// same empty answer for an hour to every LookupPrefixes caller, and those
+	// callers are the operator show commands: they would report an outage as
+	// an AS-SET that announces nothing, long after the server recovered.
 	if !result.Empty() {
 		c.prefixCache.Set(asSet, result)
 	}

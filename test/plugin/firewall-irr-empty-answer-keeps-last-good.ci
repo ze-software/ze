@@ -84,6 +84,9 @@ firewall {
 	backend nft;
 	irr {
 		server 127.0.0.1:$PORT2;
+		interface eth1 {
+			source-as-set AS-TEST;
+		}
 	}
 }
 bgp {
