@@ -1621,7 +1621,9 @@ def run_commit_gate(results: Results) -> None:
     # 1646 of 10212, which would gate on code the commit never touched.
     repo = _init_repo()
     try:
-        _write(repo, "internal/alpha/a.go", "// Design: docs/a.md -- a\npackage alpha\n")
+        _write(
+            repo, "internal/alpha/a.go", "// Design: docs/a.md -- a\npackage alpha\n"
+        )
         _git(repo, "add", "internal")
         _git(repo, "commit", "-q", "-m", "seed")
 
@@ -1630,7 +1632,7 @@ def run_commit_gate(results: Results) -> None:
         _write(
             repo,
             "internal/alpha/a.go",
-            '// Design: docs/a.md -- a\npackage alpha\n\n'
+            "// Design: docs/a.md -- a\npackage alpha\n\n"
             'func F() { fmt.Printf("regenerated %q (%d years)\\n", n, y) }\n',
         )
         problems = ch.go_style_problems(Path(repo), ("internal/alpha/a.go",))
@@ -1675,6 +1677,66 @@ def run_commit_gate(results: Results) -> None:
             "commit-gate-go-style-non-go-ignored",
             not ch.go_style_problems(Path(repo), ("docs/notes.md",)),
             "non-Go is out of scope",
+        )
+
+        # The exemptions these checks carry must mean the same thing here as at
+        # write time. Four of them test a path form with a LEADING slash
+        # (`"/scripts/" in fp`), which the absolute path the Edit hook receives
+        # satisfies and a repo-relative add_path does not. Left diverged, a
+        # `scripts/*.go` file the hook waves through cannot be committed at all,
+        # and `commit_gate_problems` offers no override flag for it.
+        _write(
+            repo,
+            "scripts/checks/tool.go",
+            "// Design: docs/a.md -- tool\npackage main\n\n"
+            'func F() { os.Exit(1); panic("boom") }\n',
+        )
+        results.check(
+            "commit-gate-go-style-scripts-exempt",
+            not ch.go_style_problems(Path(repo), ("scripts/checks/tool.go",)),
+            "scripts/ is exempt at write time and must be exempt here",
+        )
+        # The other half: the exemption is scripts/, not everywhere. Without
+        # this, passing a form that matched nothing would read as a pass.
+        _write(
+            repo,
+            "internal/alpha/x.go",
+            "// Design: docs/a.md -- x\npackage alpha\n\nfunc F() { os.Exit(1) }\n",
+        )
+        results.check(
+            "commit-gate-go-style-non-scripts-still-fires",
+            "c_os_exit"
+            in "".join(ch.go_style_problems(Path(repo), ("internal/alpha/x.go",))),
+            "os.Exit outside scripts/ must still be refused",
+        )
+
+        # Driven from the ENTRY POINT, not the helper. Deleting the
+        # `go_style_problems` call in commit_gate_problems leaves every check
+        # above green, which is the shape `ai/rules/evidence.md` refuses.
+        results.check(
+            "commit-gate-go-style-reached-from-commit-gate",
+            "c_os_exit"
+            in "".join(
+                ch.commit_gate_problems(Path(repo), ("internal/alpha/x.go",), ())
+            ),
+            "commit_gate_problems must run the Go content checks",
+        )
+
+        # A name that stops resolving is an error, never a silent skip: renaming
+        # a check in the hook would otherwise leave this gate reporting clean.
+        saved = ch.GO_CONTENT_CHECKS
+        ch.GO_CONTENT_CHECKS = saved + ("c_no_such_check_exists",)
+        try:
+            ch.go_style_problems(Path(repo), ("internal/alpha/x.go",))
+            raised = False
+        except ch.UsageError:
+            raised = True
+        finally:
+            ch.GO_CONTENT_CHECKS = saved
+        results.check(
+            "commit-gate-go-style-missing-check-is-loud",
+            raised,
+            "a vanished check must raise",
         )
     finally:
         shutil.rmtree(repo, ignore_errors=True)
@@ -5918,6 +5980,49 @@ def run_phase_gates(results: Results) -> None:
         "agent-skill-unknown-skill-name-blocks", r.returncode == 2, repr(r.stderr)
     )
 
+    # --- the style-guide reminder on a brief that will produce Go.
+    # docs/contributing/ze-style.md is read before any code, every session, and a
+    # subagent gets it from the brief or not at all. The main thread cannot audit
+    # it afterwards: subagent transcripts are under /tmp, which the Bash guard
+    # refuses. Measured 2026-08-19: three fix agents carried the instruction under
+    # a "Before you finish" heading, where it reads as a closing checklist item.
+    # WARN (1), never block: the population is a heuristic over prose.
+    r = spawn("Fix the port 0 handling in translate.go and add a test.")
+    results.check("agent-style-guide-warns", r.returncode == 1, repr(r.stderr))
+    results.check(
+        "agent-style-guide-names-the-guide",
+        "docs/contributing/ze-style.md" in r.stderr,
+        repr(r.stderr)[:160],
+    )
+    results.check(
+        "agent-style-guide-says-precondition",
+        "PRECONDITION" in r.stderr and "before you finish" in r.stderr.lower(),
+        repr(r.stderr)[:160],
+    )
+
+    # Naming the guide is the whole point, so it must silence the reminder.
+    r = spawn(
+        "Fix the port 0 handling in translate.go. Read docs/contributing/ze-style.md first."
+    )
+    results.check("agent-style-guide-named-passes", r.returncode == 0, repr(r.stderr))
+
+    # The three shapes that must NOT warn, each one a real brief from this repo.
+    for name, prompt in (
+        ("docs-only", "Review the wording of docs/guide/firewall.md and report back"),
+        (
+            "python-only",
+            "Fix scripts/dev/check_doc_links.py and go through every caller",
+        ),
+        (
+            "read-only-go",
+            "Explain how translate.go handles ranges. Do not change anything",
+        ),
+    ):
+        r = spawn(prompt)
+        results.check(
+            f"agent-style-guide-quiet-{name}", r.returncode == 0, repr(r.stderr)
+        )
+
     # A guard that wedges delegation on bad input is worse than no guard.
     r = subprocess.run(
         [sys.executable, hook], input="not json", capture_output=True, text=True
@@ -6784,10 +6889,42 @@ def run_governed_doc_edit(results: Results) -> None:
     results.check("governed-read-only-payload-blocks", blocked(reads), reads)
     admitted = 'ZE_ADMIT_GOVERNED_WRITE="reads plan, writes scratch" ' + reads
     results.check("governed-escape-admits", not blocked(admitted), admitted[:60])
+    # Every spelling of an empty reason, because the reason is the only thing
+    # that makes the bypass auditable. The bare form was the one case this
+    # fixture held, and it was the one case the old `["']?\S` test got right:
+    # the optional quote ate the opening quote and \S matched the closing one,
+    # so `=""` admitted -- and `=""` is the spelling the refusal message prints.
+    for name, prefix in (
+        ("bare", "ZE_ADMIT_GOVERNED_WRITE= "),
+        ("double-quoted", 'ZE_ADMIT_GOVERNED_WRITE="" '),
+        ("single-quoted", "ZE_ADMIT_GOVERNED_WRITE='' "),
+        ("whitespace-only", 'ZE_ADMIT_GOVERNED_WRITE=" " '),
+    ):
+        results.check(
+            f"governed-escape-needs-a-reason-{name}",
+            blocked(prefix + reads),
+            f"{name} empty reason must not admit",
+        )
+
+    # Two ordinary ways to spell a command that 83d426a0a stopped seeing when it
+    # anchored the verbs: a command substitution opens with `(` or a backtick,
+    # and a backslash-continued command carries a newline mid-argument. Both
+    # blocked before that commit and passed after it, with no fixture to say so.
+    for name, cmd in (
+        ("subst-paren", "out=$(cp build/x.md plan/spec-foo.md)"),
+        ("subst-backtick", "out=`cp build/x.md plan/spec-foo.md`"),
+        ("continuation-trailing", "cp build/x.md \\\n plan/spec-foo.md"),
+        ("continuation-leading", "cp \\\n build/x.md plan/spec-foo.md"),
+        ("continuation-sed-i", "sed -i \\\n 's/a/b/' plan/spec-foo.md"),
+    ):
+        results.check(f"governed-{name}-blocks", blocked(cmd), cmd.replace("\n", "\\n"))
+
+    # The newline anchor the continuation cases must not cost: a BARE newline
+    # still ends the span, so a verb on one line cannot reach the next command's
+    # path. Only a backslash before the newline continues the command.
+    split = "cp build/x.md /tmp/out.md\ncat plan/spec-foo.md"
     results.check(
-        "governed-escape-needs-a-reason",
-        blocked("ZE_ADMIT_GOVERNED_WRITE= " + reads),
-        "empty reason must not admit",
+        "governed-bare-newline-passes", not blocked(split), split.replace("\n", "\\n")
     )
 
 

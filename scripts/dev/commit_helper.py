@@ -2592,6 +2592,15 @@ def _writeedit_module():
     share it, so neither can disagree with the other about what a diff does.
     Returns None when the hook cannot be loaded, because a broken guard must
     never brick every commit in a shared checkout.
+
+    A FRESH module comes back on every call, so the obvious way to patch one of
+    these checks in a test is a no-op: patch a check on the module you hold, and
+    `go_style_problems` loads its own and never sees it. That matters more than
+    it looks. A discrimination check -- revert the fix, prove the test goes red
+    (`ai/rules/interop-and-goal-validation.md`) -- then reports "no
+    discrimination" when the truth is the opposite, so the proof lies in the one
+    direction the proof exists to catch. Patch THIS function instead, and have
+    it return a module whose checks are already wrapped.
     """
     import importlib.util
 
@@ -2630,11 +2639,20 @@ def go_style_problems(repo: Path, add_paths: tuple[str, ...]) -> list[str]:
     module = _writeedit_module()
     if module is None:
         return []
-    checks = [
-        (name, getattr(module, name))
-        for name in GO_CONTENT_CHECKS
-        if hasattr(module, name)
-    ]
+    # A name that no longer resolves is an ERROR, never a skip. Renaming
+    # c_panic in the hook would otherwise stop this gate checking panics with
+    # the same output as a clean tree, which is the failure `ai/rules/evidence.md`
+    # names: a guard must fail closed or say something. A check that RAISES is a
+    # different case and stays tolerated below, for the reason given there.
+    missing = [name for name in GO_CONTENT_CHECKS if not hasattr(module, name)]
+    if missing:
+        raise UsageError(
+            "GO_CONTENT_CHECKS names checks that pretool-writeedit.py no longer "
+            "defines: " + ", ".join(missing) + "\n"
+            "  Rename them here too, or drop them from the tuple. Skipping one "
+            "silently leaves this gate reporting a clean tree."
+        )
+    checks = [(name, getattr(module, name)) for name in GO_CONTENT_CHECKS]
     problems: list[str] = []
     for path in go_paths:
         # A file HEAD does not carry is entirely new, and `git diff HEAD` prints
@@ -2655,7 +2673,21 @@ def go_style_problems(repo: Path, add_paths: tuple[str, ...]) -> list[str]:
                 continue
         if not added.strip():
             continue
-        ctx = {"fp": path, "content": added, "tool": "Edit", "ti": {}}
+        # The leading slash is load-bearing. Four of these checks exempt a file
+        # by a path form that HAS one -- c_panic, c_os_exit, c_legacy_log and
+        # c_temp_debug test `"/scripts/" in fp`, and two also anchor on
+        # `/main.go$` or `/register.go$`. At write time fp is the absolute path
+        # the tool passes, so those exemptions hold; a repo-relative
+        # `scripts/status/verify_run.go` matches none of them, and this gate
+        # then refused a file the Edit hook had waved through, with no override
+        # flag to get past it (`ai/rules/repo-maintenance.md`: the two paths'
+        # exemptions must stay in step).
+        #
+        # Rooted at the repository rather than at the filesystem on purpose. A
+        # true absolute path drags the checkout's own directory names into every
+        # test, so a clone under a directory named `scripts` would exempt the
+        # whole tree -- a wider failure than the one being fixed.
+        ctx = {"fp": "/" + path, "content": added, "tool": "Edit", "ti": {}}
         for name, check in checks:
             try:
                 result = check(ctx)

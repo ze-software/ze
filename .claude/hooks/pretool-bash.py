@@ -824,19 +824,45 @@ def check_test_deletion(cmd, _ctx):
 # plan-file placement check, none of them.
 GOVERNED_TREE = r"(?:plan/|ai/rules/)"
 
+# What can stand before a verb and still leave it starting a command. Each verb
+# is anchored at a word start, or `cp` matches inside "mcp" and `mv` inside any
+# word ending in it -- "mcp spec" once blocked a plain grep. `(` and a backtick
+# open a command substitution, which is an ordinary way to spell a command, so
+# they belong here too: anchoring the verbs without them let
+# `out=$(cp build/x.md plan/spec-x.md)` through.
+_VERB_START = r"(?:^|[\s;&|(`])"
+
+# The span between a verb and the path it writes. Newline-free, or a verb on one
+# line reaches the path on the NEXT command's line. A backslash before the
+# newline is the exception: it continues THIS command, so it stays inside the
+# span. Spelled so a backslash has exactly one way to match and a run of them
+# cannot make this backtrack.
+_ARG_SPAN = r"(?:[^|;&\n\\]|\\\n?)*"
+
 # Tier one: the write is a shell VERB. Binding on the verb and not on the path
 # is what keeps `grep plan/spec-x.md`, `sed -n '1,40p' plan/spec-x.md` and
 # `commit_helper.py --file plan/spec-x.md` free -- the sanctioned commit path
 # names these paths constantly and would otherwise refuse itself.
 _GOVERNED_SHELL_WRITE = re.compile(
-    # Each verb is anchored at a word start, or `cp` matches inside "mcp" and
-    # `mv` inside any word ending in it -- "mcp spec" once blocked a plain grep.
-    # The span is newline-free for the same class of reason: without it a verb
-    # on one line reached a path on the NEXT command's line.
-    r">>?[ \t]*[\"']?" + GOVERNED_TREE
-    + r"|(?:^|[\s;&|])(?:sed|perl)[ \t]+(?:[^|;&\n]*[ \t])?-i\b[^|;&\n]*" + GOVERNED_TREE
-    + r"|(?:^|[\s;&|])tee[ \t]+(?:-a[ \t]+)?[\"']?" + GOVERNED_TREE
-    + r"|(?:^|[\s;&|])(?:mv|cp)[ \t]+[^|;&\n]*[ \t][\"']?" + GOVERNED_TREE
+    r">>?[ \t]*[\"']?"
+    + GOVERNED_TREE
+    + r"|"
+    + _VERB_START
+    + r"(?:sed|perl)[ \t]+(?:"
+    + _ARG_SPAN
+    + r"[ \t])?-i\b"
+    + _ARG_SPAN
+    + GOVERNED_TREE
+    + r"|"
+    + _VERB_START
+    + r"tee[ \t]+(?:-a[ \t]+)?[\"']?"
+    + GOVERNED_TREE
+    + r"|"
+    + _VERB_START
+    + r"(?:mv|cp)[ \t]+"
+    + _ARG_SPAN
+    + r"[ \t][\"']?"
+    + GOVERNED_TREE
 )
 
 # Tier two: the write is inside an interpreter payload, where the shell sees no
@@ -858,6 +884,21 @@ _GOVERNED_SCRIPT_WRITE = re.compile(
 GOVERNED_ADMIT_VAR = "ZE_ADMIT_GOVERNED_WRITE"
 
 
+def _governed_admit_reason(cmd):
+    """Whether cmd declares a NON-EMPTY reason for the governed-write escape.
+
+    The quotes come off before the emptiness test, the way _raw_job does it for
+    RAW_ADMIT_VAR. Testing the raw text instead admitted an empty reason: with
+    `["']?\\S` the optional quote ate the opening quote and \\S matched the
+    CLOSING one, so `=""` and `=''` both passed while a bare `=` refused. That
+    is the whole escape defeated by the spelling the refusal message itself
+    suggests, and it leaves the transcript with no reason to read -- which is
+    the only thing that made the bypass auditable.
+    """
+    m = re.search(rf"\b{GOVERNED_ADMIT_VAR}=(\S*)", cmd)
+    return bool(m and m.group(1).strip("'\""))
+
+
 # ze point: commands/directives/bash-must-not-edit-a-governed-document
 def check_governed_doc_edit(cmd, _ctx):
     """Refuse a shell write to a tree pretool-writeedit.py guards.
@@ -877,7 +918,7 @@ def check_governed_doc_edit(cmd, _ctx):
     """
     if not (_GOVERNED_SHELL_WRITE.search(cmd) or _GOVERNED_SCRIPT_WRITE.search(cmd)):
         return None
-    if re.search(rf"\b{GOVERNED_ADMIT_VAR}=[\"']?\S", cmd):
+    if _governed_admit_reason(cmd):
         return None
     return (
         2,

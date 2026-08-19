@@ -244,6 +244,65 @@ def review_model_refusal(
     )
 
 
+# A brief that will produce Go, spotted by what it asks the agent to touch. The
+# terms are the ones a Go brief cannot avoid: the language, a Go path, or the
+# lint target every Go change owes (`ai/rules/commands.md`).
+_WRITES_GO = re.compile(
+    r"\bgo\b(?![- ]?(?:ahead|through|on\b))|\.go\b|ze-lint-changed|gofmt|gopls",
+    re.IGNORECASE,
+)
+# The guide, however the brief spells it.
+_NAMES_STYLE_GUIDE = re.compile(r"docs/contributing/ze-style\.md|\bze-style\b")
+# An implementation verb near the top says the agent WRITES rather than reads.
+# `change` and `port` are deliberately absent. "Do not change anything" made a
+# read-only brief look like work, and `port` is a networking noun long before it
+# is a verb -- a FlowSpec brief about port 0 is not a porting task.
+_BRIEF_IS_WORK = re.compile(
+    r"\b(fix|implement|write|add|refactor|migrate|wire|rewrite)\b", re.IGNORECASE
+)
+
+
+# ze point: go-standards/directives/read-the-ze-style-guide-before-go-design-or-review
+def style_guide_reminder(prompt: str) -> str | None:
+    """WARN when a brief that will produce Go never names the style guide.
+
+    `docs/contributing/ze-style.md` is read in full before any code, every
+    session (owner directive, 2026-08-18). A subagent inherits that checklist
+    through no mechanism the main thread can verify, so the brief is the only
+    place the requirement reliably reaches it -- and the main thread cannot
+    audit it afterwards either, because subagent transcripts live under `/tmp`,
+    which `check_system_tmp` in pretool-bash.py refuses.
+
+    Measured 2026-08-19: three fix agents were briefed with "Read
+    docs/contributing/ze-style.md before writing Go" filed under a heading
+    reading "Before you finish". The instruction was present, placed where it
+    reads as a closing checklist item, and bought nothing.
+
+    WARN and never block, for the reason `ai/rules/planning.md` gives the
+    neighbouring `.claude`-versus-`ai` check: the population is a heuristic over
+    prose, so a block would refuse correct work -- a brief for a Python tool that
+    happens to say "go through the callers", say. What the author needs is the
+    question while the prompt is still in their hands.
+    """
+    if not _WRITES_GO.search(prompt) or not _BRIEF_IS_WORK.search(prompt[:400]):
+        return None
+    if _NAMES_STYLE_GUIDE.search(prompt):
+        return None
+    return (
+        "WARN: this brief will produce Go and never names "
+        "docs/contributing/ze-style.md\n"
+        "  The guide is read in full BEFORE any code, every session, and a\n"
+        "  subagent gets it from your brief or not at all.\n"
+        "  → Name it as a PRECONDITION in the brief's opening, never under a\n"
+        "    'before you finish' heading: a precondition filed in a closing\n"
+        "    checklist arrives after the code exists.\n"
+        "  → Ask the agent to REPORT whether it read the guide before writing,\n"
+        "    and say that 'no' carries no penalty. You cannot check afterwards:\n"
+        "    subagent transcripts are under /tmp, which the Bash guard refuses.\n"
+        "  See ai/rules/planning.md, briefing a subagent."
+    )
+
+
 def main() -> int:
     try:
         payload = json.load(sys.stdin)
@@ -259,6 +318,12 @@ def main() -> int:
         return 2
     hit = verdict(prompt)
     if hit is None:
+        # Nothing refuses this brief. The style-guide reminder is the last thing
+        # the author can still act on, and it is a WARN, so the agent launches.
+        reminder = style_guide_reminder(prompt)
+        if reminder:
+            sys.stderr.write(reminder + "\n")
+            return 1
         return 0
     skill, matched = hit
     sys.stderr.write(
