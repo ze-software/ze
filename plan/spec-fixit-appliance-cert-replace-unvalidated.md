@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | done |
 | Scope | cli |
 | Depends | - |
 | Phase | 6/6 |
@@ -375,6 +375,207 @@ does the opposite.
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
 - [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
-- [ ] Learned summary written to `plan/learned/NNN-<name>.md`
-- [ ] **Commit A:** code + tests + docs + spec + learned summary
+- [ ] Journal row written to `plan/journal/<class>.md` (`plan/journal/README.md`). The
+      `plan/learned/NNN-<name>.md` corpus this line named was replaced in `2cff2050a`,
+      and `plan/learned/` now holds only the three uppercase aggregates
+- [ ] **Commit A:** code + tests + docs + spec + journal row
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- `validateTLSPair` (`internal/appliance/cmd_cert.go`) decodes both PEM inputs, calls `tls.X509KeyPair`, parses the leaf, and refuses a certificate past its not-after date with both dates in the message. A not-before in the future is accepted.
+- `writeTLSPair` (`internal/appliance/cmd_cert.go`) writes both halves through `WriteSecret`, which writes a temp file and renames it. It holds the previous certificate until the key write returns, and `restoreTLSFile` puts it back when that write fails. `readForRestore` treats a missing file as absent, so the restore for the initialization case is a delete.
+- `writeTLSSecrets` (`internal/appliance/cmd_init.go`) is now the one write path for `cert.pem` and `key.pem`. It validates before it touches either file and zeroes the key buffer with `defer ZeroBytes`. `runReplaceCert` (`internal/appliance/cmd_cert.go`) writes nothing itself and delegates to it.
+- `checkTLSFlags` (`internal/appliance/cmd_cert.go`) refuses `--cert` without `--key` at both entry points, before the passphrase prompt.
+- `checkWebTLSPair` (`internal/component/doctor/checks_tls.go`) reads the stored key and calls `tls.X509KeyPair`, so a pair an older `ze` wrote without validation is reported under `doctor-tls-invalid`. A key that exists and cannot be read gets its own message and is never reported as missing.
+
+### Bugs Found/Fixed
+- `--cert` without `--key` fell through to self-signed regeneration and destroyed the material the operator meant to keep. Covered by `TestReplaceCertRequiresBothFlags`.
+- `TestCheckWebTLS_ExpiredCert` passed the literal bytes `key-data` as a key, which nothing objected to because nothing read the key. Corrected in `d2202c50a`.
+- `generateTestCertDER` discarded the key it generated, so the three doctor helpers now sit on one primitive that returns both halves. Declared in `test/weakened.md`.
+
+### Documentation Updates
+- `docs/architecture/appliance/builder.md`: the one write path, the validation, and the restore guarantee. Anchor updated to name `validateTLSPair` and `writeTLSPair`.
+- `docs/guide/appliance.md`: what the command refuses, what it leaves behind on a failure, and the `replace-cert <name>` row. Anchors added for `validateTLSPair`, `writeTLSPair` and `writeTLSSecrets`.
+- `docs/functional-tests.md`: the `appliance-replace-cert.ci` row is written in the working tree and is NOT in either implementation commit. Another session holds that file with about 100 uncommitted lines of its own, so the row lands with that session's commit. See Documentation Verified.
+- `internal/core/diagnostic/codes.go`: the `doctor-tls-invalid` title and description update is written in the working tree and is NOT in either implementation commit, for the same reason. The code itself was already registered, so the finding an operator sees is complete; only its `ze explain` text is behind.
+- `make ze-doc-verify` was not run for this closure: it reads the whole working tree, which does not compile (see Pre-Commit Verification).
+
+### Deviations from Plan
+- The spec expected `internal/appliance/crypto.go` to gain a certificate-side sibling of the secret writer. None was added. `WriteSecret` with no passphrase already writes the bytes unchanged through a temp file and a rename, which is exactly what the certificate half needs, so a second writer would have been machinery with one user.
+- The direction between the two entry points inverted. The spec expected the replacement command to keep its own write and the initialization path to adopt the helper. `runReplaceCert` calls `writeTLSSecrets` instead, so there is one write path rather than two that agree.
+- The doctor half (`checkWebTLSPair`) was authorised by the owner on 2026-08-19, after the rest of the spec was implemented, and landed in a second commit.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The spec planned a new certificate writer beside `WriteSecret` | `WriteSecret` with a nil passphrase is already the atomic writer the certificate needs | Reading `WriteSecret` (`internal/appliance/crypto.go`) while implementing phase 3 | No second writer was added; recorded in Deviations |
+| assumption | A-4 assumed the initialization path would need the helper handed to it | The initialization path already held the better shape, so the replacement command adopted it | Reading `runInit` ordering, which A-4 named as its validation | Recorded in Deviations; A-4 confirmed with the inverted direction |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Operator material is validated before anything is written | Done | `validateTLSPair`, called by `writeTLSSecrets` before `writeTLSPair` (`internal/appliance/cmd_init.go`) | Uses `tls.X509KeyPair`, the call `selfcert.NewTLSConfig` makes at boot |
+| Neither file is replaced unless both can be replaced | Done | `writeTLSPair` (`internal/appliance/cmd_cert.go`) | Certificate restored on a failed key write; `WriteSecret` renames only on success, so the key is untouched |
+| A failure leaves the previous material in place, and says so | Done | `writeTLSPair` error text: `the previous certificate and key are unchanged`, or `the previous certificate was not restored` | `TestReplaceCertRestoresOnKeyWriteFailure` |
+| The initialization path gets the same treatment | Done | `writeTLSSecrets` (`internal/appliance/cmd_init.go`) | `TestInitWritesValidatedTLSSecrets` |
+| No truncating write of certificate material remains | Done | Both halves go through `WriteSecret` | `grep -n os.WriteFile internal/appliance/cmd_cert.go internal/appliance/cmd_init.go` returns only the `authorized_keys` writes |
+| The boot-side half is reportable | Done | `checkWebTLSPair` (`internal/component/doctor/checks_tls.go`) | `TestRunChecksReportsUnusableWebTLSPair` proves `runChecks` reaches it |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestReplaceCertRefusesMismatchedPair`, `test/appliance/appliance-replace-cert.ci` | Message names both files and `are not a pair`; both stored files compared byte for byte |
+| AC-2 | Done | `TestReplaceCertRefusesUnparseablePEM` | Message names the certificate file |
+| AC-3 | Done | `TestReplaceCertRestoresOnKeyWriteFailure` | A directory at `key.pem.tmp` makes the key write fail after the certificate write |
+| AC-4 | Done | `TestReplaceCertLeavesNoTempFile`, `test/appliance/appliance-replace-cert.ci` | Also asserts mode `0600` on both files |
+| AC-5 | Done | `TestReplaceCertExpiredCertificate` | Refuses past not-after with both dates; accepts the last window before it and accepts a future not-before, which is the A-3 answer |
+| AC-6 | Done | `TestInitWritesValidatedTLSSecrets` | `runInit` refuses a mismatched pair and `--cert` alone, then stores a valid pair |
+| AC-7 | Done | `TestReplaceCertWritesCertificateThroughTempFile` | A directory at `cert.pem.tmp` fails the write, which a truncating write would not notice |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestReplaceCertRefusesMismatchedPair` | Done | `internal/appliance/cmd_day2_test.go` | |
+| `TestReplaceCertRefusesUnparseablePEM` | Done | `internal/appliance/cmd_day2_test.go` | |
+| `TestReplaceCertRefusesEmptyFile` | Done | `internal/appliance/cmd_day2_test.go` | |
+| `TestReplaceCertRestoresOnKeyWriteFailure` | Done | `internal/appliance/cmd_day2_test.go` | |
+| `TestReplaceCertUpdatesSecrets` | Done | `internal/appliance/cmd_day2_test.go` | Corrected to a real pair; one `require` became an `assert`, declared in `test/weakened.md` |
+| `TestReplaceCertLeavesNoTempFile` | Done | `internal/appliance/cmd_day2_test.go` | |
+| `TestReplaceCertWritesCertificateThroughTempFile` | Done | `internal/appliance/cmd_day2_test.go` | |
+| `TestReplaceCertExpiredCertificate` | Done | `internal/appliance/cmd_day2_test.go` | |
+| `TestReplaceCertRequiresBothFlags` | Done | `internal/appliance/cmd_day2_test.go` | |
+| `TestReplaceCertRegenerates` | Done | `internal/appliance/cmd_day2_test.go` | Unchanged, green through the new write path |
+| `TestInitWritesValidatedTLSSecrets` | Done | `internal/appliance/cmd_init_test.go` | |
+| `TestCheckWebTLS_MatchingPair` | Done | `internal/component/doctor/doctor_test.go` | |
+| `TestCheckWebTLS_MismatchedPair` | Done | `internal/component/doctor/doctor_test.go` | Also asserts no key line reaches the message |
+| `TestCheckWebTLS_UnreadableKey` | Done | `internal/component/doctor/doctor_test.go` | Asserts the message does not say `missing` |
+| `TestRunChecksReportsUnusableWebTLSPair` | Done | `internal/component/doctor/doctor_test.go` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/appliance/cmd_cert.go` | Done | Committed in `890ad584a` |
+| `internal/appliance/cmd_init.go` | Done | Committed in `890ad584a` |
+| `internal/appliance/crypto.go` | Changed | Untouched. `WriteSecret` already had the shape the certificate half needed; see Deviations |
+| `internal/appliance/cmd_day2_test.go` | Done | Committed in `890ad584a` |
+| `docs/architecture/appliance/builder.md` | Done | Committed in `890ad584a` |
+| `docs/guide/appliance.md` | Done | Committed in `890ad584a` and `d2202c50a` |
+| `internal/component/doctor/checks_tls.go` | Done | Committed in `d2202c50a` |
+| `internal/component/doctor/doctor_test.go` | Done | Committed in `d2202c50a` |
+| `internal/core/diagnostic/codes.go` | Partial | The description update is written in the working tree and is not committed. The `doctor-tls-invalid` code was already registered, so the finding is complete and only its `ze explain` text is behind. The file also carries two other sessions' new codes, so committing it would carry their Go |
+| `test/appliance/appliance-replace-cert.ci` | Done | Committed in `890ad584a` |
+| `test/ui/doctor-web-tls-pair.ci` | Done | Committed in `d2202c50a` |
+
+### Audit Summary
+- **Total items:** 39 (6 requirements, 7 AC, 15 tests, 11 files)
+- **Done:** 37
+- **Partial:** 1 (`internal/core/diagnostic/codes.go`, above; owner decision owed on whether the closure commit carries a file two other sessions hold)
+- **Skipped:** 0
+- **Changed:** 1 (`internal/appliance/crypto.go`, recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| `ze appliance replace-cert` never destroys working material before it knows the replacement is usable | functional | `test/appliance/appliance-replace-cert.ci` builds two real appliances, offers one's certificate with the other's key, and `cmp`s both stored files after the refusal. RED at HEAD with `replace-cert accepted a mismatched certificate and key` |
+| A failure between the two writes leaves a usable pair | unit, fault injection | `TestReplaceCertRestoresOnKeyWriteFailure` puts a directory at `key.pem.tmp`, so the key write fails after the certificate write. Both stored files are compared byte for byte against their previous content |
+| An interrupted run leaves no truncated file | unit, fault injection | `TestReplaceCertWritesCertificateThroughTempFile` puts a directory at `cert.pem.tmp`. A truncating write would not notice it, so the test fails when the temp file and rename are removed |
+| The same guarantee applies at initialization | unit | `TestInitWritesValidatedTLSSecrets` drives `runInit`, not the helper |
+| An appliance that already holds a bad pair says so | functional | `test/ui/doctor-web-tls-pair.ci` stores a certificate and a key from two different elliptic-curve pairs and asserts `ze doctor --json` exits 1 with `doctor-tls-invalid` and `certificate and key in storage are not a usable pair` |
+| Protocol interop | N-A | No protocol behavior changes. This is a builder-side command and a local readiness check |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| None. The spec metadata records a `-` deferral shard, and no file under `plan/deferrals/` names this spec | done | No shard exists, so none is removed |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/fixit-appliance-cert-replace-unvalidated-ec4f53d3-1079-4d21-9f07-b7af670f6f34.md` |
+| `review_gate.py check` | clean |
+| Rounds | 1. The pass found no BLOCKER and no ISSUE, so it is the last round: a later round shrinks to the fixes the previous one drove, and this one drove none |
+| Reviewer lenses used | wiring and functional coverage, removed-behavior and test-rewrite audit, logic and guard audit, security and secret handling, allocation, simplicity and altitude, the `docs/contributing/ze-style.md` style pass, documentation drift |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | NOTE | The `doctor-tls-invalid` description update is written in the working tree and is in neither implementation commit. The file also holds two other sessions' new codes, so the closure commit cannot carry it without carrying their Go | `internal/core/diagnostic/codes.go`, `builtinCodes` | Not fixed here. Recorded in Files from Plan and reported to the main thread, which owns the commit-scope decision |
+| 2 | NOTE | The `appliance-replace-cert.ci` row is written in the working tree and is in neither implementation commit. Another session is rewriting the same file and holds about 100 lines in it | `docs/functional-tests.md`, the appliance suite table | Not fixed here. The row lands with that session's commit; recorded in Documentation Verified |
+| 3 | NOTE | `validateTLSPair` passes the `tls.X509KeyPair` error through to the operator, while `checkWebTLSPair` drops the same error and says why. The asymmetry is right, because one prints to the operator's own terminal and the other is kept in every support bundle, but only one side states it | `internal/appliance/cmd_cert.go`, `validateTLSPair` | Not fixed. Go's error names PEM block types, never key material, so no secret reaches either surface |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/appliance/appliance-replace-cert.ci` | Yes | `ls test/appliance/appliance-replace-cert.ci` |
+| `test/ui/doctor-web-tls-pair.ci` | Yes | `ls test/ui/doctor-web-tls-pair.ci` |
+| `internal/appliance/cmd_cert.go` | Yes | Holds `validateTLSPair`, `writeTLSPair`, `readForRestore`, `restoreTLSFile` |
+| `internal/component/doctor/checks_tls.go` | Yes | Holds `checkWebTLSPair` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | A mismatched pair is refused and nothing moves | `make ze-unit-pkg-test PKG=./internal/appliance RUN='TestReplaceCert\|TestInitWritesValidatedTLSSecrets'` exit 0, `ok github.com/ze-software/ze/internal/appliance 16.576s` |
+| AC-2 | Unparseable material is refused | Same run. `validateTLSPair` returns `%s holds no PEM data` before any write |
+| AC-3 | A failed key write restores the certificate | Same run. `writeTLSPair` calls `restoreTLSFile` and reports the restore outcome |
+| AC-4 | A successful run leaves no temp file and keeps mode 0600 | Same run, `TestReplaceCertLeavesNoTempFile` asserts both |
+| AC-5 | An expired certificate is refused with both dates | Same run, `TestReplaceCertExpiredCertificate` |
+| AC-6 | Initialization uses the same validated write | Same run, `TestInitWritesValidatedTLSSecrets` drives `runInit` |
+| AC-7 | The certificate write goes through a temp file | Same run, `TestReplaceCertWritesCertificateThroughTempFile` |
+| Doctor half | A stored pair that does not load is reported | `make ze-unit-pkg-test PKG=./internal/component/doctor/...` exit 0, `ok github.com/ze-software/ze/internal/component/doctor 48.370s` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| The operator supplies a mismatched certificate and key | `test/appliance/appliance-replace-cert.ci` | Yes. Read the file: it runs `ze appliance init` twice, offers lab's certificate with other's key, asserts a non-zero exit, and `cmp`s `cert.pem` and `key.pem` against copies taken before the attempt |
+| The operator supplies unparseable material | `TestReplaceCertRefusesUnparseablePEM` (`internal/appliance/cmd_day2_test.go`) | Yes, driven through `runReplaceCert`, the registered command entry point |
+| The key write fails after the certificate write | `TestReplaceCertRestoresOnKeyWriteFailure` (`internal/appliance/cmd_day2_test.go`) | Yes, driven through `runReplaceCert` |
+| The operator regenerates a self-signed certificate | `TestReplaceCertRegenerates` (`internal/appliance/cmd_day2_test.go`) | Yes, driven through `runReplaceCert` with no flags |
+| An appliance already holds a pair that does not load | `test/ui/doctor-web-tls-pair.ci` | Yes. Read the file: it writes a certificate and a foreign key into `meta/web/`, runs `ze doctor --json`, and asserts exit 1 with `doctor-tls-invalid` |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `TestReplaceCertLeavesNoTempFile` reads the secrets directory after a successful replacement and finds no `.tmp` entry. `WriteSecret` writes a temp file beside the target and renames it |
+| A-2 | confirmed | `validateTLSPair` calls `tls.X509KeyPair`, which is the call `selfcert.NewTLSConfig` makes at boot. `TestReplaceCertRefusesMismatchedPair` refuses a mismatch and `TestReplaceCertRegenerates` accepts the generated pair |
+| A-3 | confirmed | Owner answer recorded in the assumption row and pinned by `TestReplaceCertExpiredCertificate`: past not-after is refused with both dates, a future not-before is accepted |
+| A-4 | confirmed, with the direction inverted | `runInit` creates the TLS directory before it calls `writeTLSSecrets`, and `readForRestore` treats a missing file as absent. No variant was needed; `runReplaceCert` adopted `writeTLSSecrets` instead. Recorded in Deviations |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/architecture/appliance/builder.md` states the one write path, the validation and the restore | Its source anchor names `validateTLSPair` and `writeTLSPair`, both present in `internal/appliance/cmd_cert.go` | Yes, committed |
+| `docs/guide/appliance.md` states what the command refuses and what a refusal leaves | Anchors name `validateTLSPair`, `writeTLSPair` and `writeTLSSecrets`. Each claim matches the producing function: the refusals are the four returns in `validateTLSPair`, the restore is `writeTLSPair` | Yes, committed |
+| `docs/functional-tests.md` carries a row for `appliance-replace-cert.ci` | `git show HEAD:docs/functional-tests.md \| grep -c appliance-replace-cert` returns 0; the working tree has the row | Written, NOT committed. The file carries about 100 uncommitted lines from another session, including documentation of make variables that are themselves uncommitted, so committing it would land claims about code that is not in the tree |
+| `internal/core/diagnostic/codes.go` describes what `doctor-tls-invalid` now covers | `git show HEAD:internal/core/diagnostic/codes.go \| grep -c "do not load as a pair"` returns 0; the working tree has it | Written, NOT committed. The same file also holds `doctor-iface-selector-unmatched` and `doctor-iface-selector-ambiguous` from another session |
+| No RFC status page row is owed | The change is a builder-side command and a local readiness check. No wire protocol behavior changes | Yes |
+| Doctor check for the runtime dependency | `checkWebTLSPair` (`internal/component/doctor/checks_tls.go`) under the `doctor-tls-invalid` code registered in `internal/core/diagnostic/codes.go` | Yes, committed |
+
+### Gates run for this closure
+| Gate | Verdict | Attribution |
+|------|---------|-------------|
+| `make ze-unit-pkg-test PKG=./internal/appliance/...` | exit 0 | |
+| `make ze-unit-pkg-test PKG=./internal/component/doctor/...` | exit 0 | |
+| `python3 scripts/dev/audit-test-relaxation.py origin/main` | 4 findings | All four are in `internal/component/resolve/irr/store/store_test.go`, `internal/core/bgp/capability/negotiated_test.go` and `internal/plugins/flowspec-firewall/bridge_test.go`, each `M` in `git status --porcelain` and none in this spec's commits. Both of this spec's weakenings carry their `test/weakened.md` row |
+| `make ze-repository-check` | 26 findings | Every one is an unwired-export finding in `internal/component/bgp/event.go`, `internal/component/bgp/plugins/adj_rib_in/rib.go`, `internal/component/config/validators.go` and `internal/test/peer/checker.go`, all `M` in `git status --porcelain`. None is in `internal/appliance` or `internal/component/doctor` |
+| `make ze-functional-appliance-test` | could not build | `internal/component/bgp/plugins/adj_rib_in/rib.go` calls `splitRawNLRIHex` with three arguments against a two-argument signature. The file is `M` and was written 25 seconds before the run, and a `rib.go.tmp` file sits beside it, so another session is mid-edit. Taken as working per `ai/rules/precommit-verify.md`. The suite's last recorded result for this spec is `appliance-replace-cert` PASS, 9 of 12 |
+| `make ze-precommit-verify` | not run | The commits carry no `.go`, `go.mod`, `go.sum` or `vendor/` path, so the full-verify coverage gate does not apply. The tree does not compile for the reason above, so a green full pass is unreachable by construction rather than owed |
+
+## Core Insight
+
+One write path is the fix, and two agreeing write paths are not. The defect had two
+entry points with the same shape, and the answer was not to give each one a guard.
+`runReplaceCert` stopped writing files at all and calls `writeTLSSecrets`, so the
+validation, the temp file, the rename and the restore exist once. A guard added to
+each site is a guard that can be added to one of them next time.
