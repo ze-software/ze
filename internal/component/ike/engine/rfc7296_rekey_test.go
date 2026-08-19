@@ -136,8 +136,16 @@ func rkyTwoGroupIKE() ipsec.IKEGroup {
 }
 
 // rkyChildRekeyRequest builds the payload chain of a peer CREATE_CHILD_SA that
-// rekeys the Child SA behind oldSPI. RFC 7296 Section 1.3.2: N(REKEY_SA), SA, Ni.
-func rkyChildRekeyRequest(oldSPI, peerESPSPI uint32, ni []byte) []wire.PayloadEntry {
+// rekeys the Child SA behind oldSPI. RFC 7296 Section 1.3.3: N(REKEY_SA), SA, Ni,
+// TSi, TSr.
+//
+// Every fixture that uses it rekeys a child of an IKE SA established with no configured
+// traffic selectors, so the scope in use is the wildcard IKE_AUTH negotiated. The rekey
+// proposes that same scope: RFC 7296 Section 2.9.2 refuses a proposal that covers less
+// than the scope in use, and these fixtures are about the rekey machinery around the
+// selectors rather than about narrowing them.
+func rkyChildRekeyRequest(t *testing.T, oldSPI, peerESPSPI uint32, ni []byte) []wire.PayloadEntry {
+	t.Helper()
 	spiBytes := make([]byte, 4)
 	binary.BigEndian.PutUint32(spiBytes, oldSPI)
 	return []wire.PayloadEntry{
@@ -149,6 +157,8 @@ func rkyChildRekeyRequest(oldSPI, peerESPSPI uint32, ni []byte) []wire.PayloadEn
 		}},
 		{Payload: espSAPayload(peerESPSPI)},
 		{Payload: &wire.PayloadNonce{NonceData: ni}},
+		{Payload: tsPayload(t, wire.PayloadTypeTSi, "0.0.0.0/0")},
+		{Payload: tsPayload(t, wire.PayloadTypeTSr, "0.0.0.0/0")},
 	}
 }
 
@@ -430,7 +440,7 @@ func TestRkyResponderInstallsTheNewChildBeforeItAnswers(t *testing.T) {
 	}
 	ps.setChildSA(old)
 
-	inner := rkyChildRekeyRequest(old.InboundSPI, 0x0A0B0C0D, testNonce(11))
+	inner := rkyChildRekeyRequest(t, old.InboundSPI, 0x0A0B0C0D, testNonce(11))
 	msg := &wire.Message{Header: wire.Header{MessageID: resp.ExpectedMsgID}}
 	out := ps.handleCreateChildSAOwned(resp, msg, inner, false, myTr, dp, log)
 	if out.newChild == nil {
@@ -479,7 +489,7 @@ func TestRkyResponderInstallsTheNewChildBeforeItAnswers(t *testing.T) {
 	ps2.setChildSA(old2)
 	beforeID := resp2.lastResponseID
 
-	inner2 := rkyChildRekeyRequest(old2.InboundSPI, 0x0B0C0D0E, testNonce(13))
+	inner2 := rkyChildRekeyRequest(t, old2.InboundSPI, 0x0B0C0D0E, testNonce(13))
 	msg2 := &wire.Message{Header: wire.Header{MessageID: resp2.ExpectedMsgID}}
 	out2 := ps2.handleCreateChildSAOwned(resp2, msg2, inner2, false, myTr, refuse, log)
 	if out2.newChild != nil {
@@ -539,7 +549,7 @@ func TestRkyOldAndNewChildBothReceiveUntilThePeerDeletes(t *testing.T) {
 	}
 	ps.setChildSA(old)
 
-	inner := rkyChildRekeyRequest(old.InboundSPI, 0x0C0D0E0F, testNonce(17))
+	inner := rkyChildRekeyRequest(t, old.InboundSPI, 0x0C0D0E0F, testNonce(17))
 	msg := &wire.Message{Header: wire.Header{MessageID: resp.ExpectedMsgID}}
 	out := ps.handleCreateChildSAOwned(resp, msg, inner, false, nil, dp, log)
 	if out.newChild == nil {

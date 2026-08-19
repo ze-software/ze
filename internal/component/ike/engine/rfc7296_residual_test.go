@@ -440,9 +440,14 @@ func TestResSelectedDHGroupNoneOmitsKEFromTheResponse(t *testing.T) {
 		if err != nil {
 			t.Fatalf("createFirstChildSA: %v", err)
 		}
+		// TSi and TSr are part of the rekey request (RFC 7296 Section 1.3.3), and both
+		// cases carry the same pair. The KE payload is the only difference between them,
+		// which is what makes a difference in the response readable.
 		inner := []wire.PayloadEntry{
 			{Payload: espSAPayload(0x01020304)},
 			{Payload: &wire.PayloadNonce{NonceData: testNonce(3)}},
+			{Payload: tsPayload(t, wire.PayloadTypeTSi, "10.0.0.2/32")},
+			{Payload: tsPayload(t, wire.PayloadTypeTSr, "10.0.0.1/32")},
 		}
 		if withKE {
 			inner = append(inner, wire.PayloadEntry{

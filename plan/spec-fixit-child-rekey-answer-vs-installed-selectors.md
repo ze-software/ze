@@ -190,7 +190,7 @@ line, until an operator compares the two SPDs by hand.
 |-------|-------------------|-------------------|
 | AC-1 | A peer-initiated Child SA rekey whose TSi/TSr cover at least one floor pair | The answer and the installed policy selector name the same set, as they do today |
 | AC-2 | A peer-initiated Child SA rekey whose TSi/TSr cover no floor pair | Ze either refuses the exchange or answers and installs one set. No path leaves the two disagreeing |
-| AC-3 | A peer-initiated Child SA rekey carrying no TS payloads | Ze refuses it, rather than answering with the previous exchange's selectors |
+| AC-3 | A peer-initiated Child SA rekey carrying no TS payloads | Ze refuses it with INVALID_SYNTAX, rather than answering with the previous exchange's selectors |
 | AC-4 | Every AC above, on the real XFRM dataplane | The kernel policy selector equals the set the response announced |
 
 ## End-to-End User Stories
@@ -207,7 +207,7 @@ line, until an operator compares the two SPDs by hand.
 |------|------|-----------|--------|
 | `TestRekeyAnswerMatchesTheInstalledSelectors` | `internal/component/ike/engine/child_rekey_orientation_test.go` | the answered pairs equal the installed pairs, in both orientations | green 2026-08-19. It decrypts the response and reads the TS payloads, so it judges the wire answer rather than the value that feeds it |
 | `TestRekeyProposalBelowTheFloorIsRefused` | `internal/component/ike/engine/child_rekey_orientation_test.go` | a proposal covering no floor pair draws TS_UNACCEPTABLE, not a silent divergence | green 2026-08-19, and red with the refusal disabled. It lives beside the test above rather than in `rekey_test.go`: the two share one fixture, and one concern belongs in one file |
-| `TestRekeyWithoutTrafficSelectorsIsRefused` | `internal/component/ike/engine/rekey_test.go` | a rekey request with no TS payloads never reuses the previous exchange's answer | NOT WRITTEN. AC-3 is unimplemented. `TestRespondChildRekey` (`internal/component/ike/engine/rekey_wire_test.go`) sends exactly that request today and asserts it SUCCEEDS, so AC-3 changes an existing test and needs its own pass |
+| `TestRekeyWithoutTrafficSelectorsIsRefused` | `internal/component/ike/engine/rekey_test.go` | a rekey request with no TS payloads never reuses the previous exchange's answer | green 2026-08-19, and red against the pre-fix producer, which announced `10.1.0.0/24 <-> 10.2.0.0/24`: the previous exchange's set, in the orientation of THAT exchange. Four fixtures sent a TS-less rekey and asserted success (`TestRespondChildRekey`, `TestResSelectedDHGroupNoneOmitsKEFromTheResponse`, and the two callers of `rkyChildRekeyRequest`). Each now proposes selectors, which is what RFC 7296 Section 1.3.3 puts in the request |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -229,7 +229,11 @@ line, until an operator compares the two SPDs by hand.
 - `internal/component/ike/engine/rekey.go` - `respondChildRekey` produces the
   answer and the installation from one value. DONE: the comment above
   `pairsToWire` states that invariant rather than the branch that used to hold
-  it.
+  it. DONE (AC-3): a request without TSi or TSr joins the malformed-request
+  guard and draws INVALID_SYNTAX, so `narrowChildSelectors` runs for every
+  request that reaches the answer. The `anyChildTSPayloads` fallback is gone,
+  and a scope no TS payload can carry is refused with `errTSUnacceptable`, as
+  the IKE_AUTH responder already refuses it (`initiator.go`).
 - `internal/component/ike/engine/ts_narrow.go` - `narrowChildSelectors` refuses
   a narrowing that does not cover the scope in use. DONE: `coversFloor` is the
   new predicate, and the refusal reuses `errTSUnacceptable`, which

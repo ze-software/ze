@@ -48,7 +48,7 @@ func TestErrRefusedChildRekeyIsAnswered(t *testing.T) {
 		ps.setChildSA(old)
 
 		// An offer whose ESP proposal names an algorithm the responder does not accept.
-		inner := rkyChildRekeyRequestUnmatched(old.InboundSPI, 0x0A0B0C0D, testNonce(21))
+		inner := rkyChildRekeyRequestUnmatched(t, old.InboundSPI, 0x0A0B0C0D, testNonce(21))
 		msg := &wire.Message{Header: wire.Header{MessageID: resp.ExpectedMsgID}}
 		msgID := resp.ExpectedMsgID
 		out := ps.handleCreateChildSAOwned(resp, msg, inner, false, myTr, dp, log)
@@ -98,7 +98,7 @@ func TestErrRefusedChildRekeyIsAnswered(t *testing.T) {
 		}
 		ps.setChildSA(old)
 
-		inner := rkyChildRekeyRequest(old.InboundSPI, 0x0A0B0C0D, testNonce(22))
+		inner := rkyChildRekeyRequest(t, old.InboundSPI, 0x0A0B0C0D, testNonce(22))
 		msg := &wire.Message{Header: wire.Header{MessageID: resp.ExpectedMsgID}}
 		out := ps.handleCreateChildSAOwned(resp, msg, inner, false, myTr, dp, log)
 		if out.newChild == nil {

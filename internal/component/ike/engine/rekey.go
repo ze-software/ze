@@ -266,6 +266,10 @@ func applyChildRekeyResponse(sa *SA, pending *pendingRekey, inner []wire.Payload
 // installs the replacement Child SA (make-before-break; the old one is removed
 // when the peer's INFORMATIONAL Delete arrives), and returns the SK-encrypted
 // response echoing the request message ID. RFC 7296 §1.3.2.
+//
+// The request states the scope of the SA it asks for, so TSi and TSr are mandatory
+// (RFC 7296 §1.3.3) and a request without them is refused. The answer is then built
+// from the narrowing THIS request produced, never from a previous exchange's.
 func respondChildRekey(sa *SA, inner []wire.PayloadEntry, old *ChildSA, msgID uint32, dp dataplane.Dataplane, log *slog.Logger) ([]byte, *ChildSA, error) {
 	var ni []byte
 	var peerSPI uint32
@@ -295,6 +299,26 @@ func respondChildRekey(sa *SA, inner []wire.PayloadEntry, old *ChildSA, msgID ui
 		return nil, nil, fmt.Errorf("%w: child rekey request missing Ni(%d) or ESP SPI(%d)",
 			errMalformedRequest, len(ni), peerSPI)
 	}
+	if reqTSi == nil || reqTSr == nil {
+		// TSi and TSr are part of the Child SA rekey request (RFC 7296 Section 1.3.3), and
+		// Section 2.9 states what they carry: "TS payloads specify the selection criteria
+		// for packets that will be forwarded over the newly set up SA." A request that omits
+		// either payload states no complete criteria, so there is nothing to narrow and
+		// nothing the answer could describe. This path used to skip the narrowing and answer
+		// from sa.NegotiatedPairs, which announced the PREVIOUS exchange's scope for an SA
+		// this request never proposed. The payload is missing rather than unsatisfiable, so the
+		// refusal joins the case above and draws INVALID_SYNTAX.
+		var absent string
+		switch {
+		case reqTSi == nil && reqTSr == nil:
+			absent = "TSi and TSr"
+		case reqTSi == nil:
+			absent = "TSi"
+		default:
+			absent = "TSr"
+		}
+		return nil, nil, fmt.Errorf("%w: child rekey request missing %s", errMalformedRequest, absent)
+	}
 
 	// The suite that keys this replacement must be one the peer offered. The response
 	// must name it by the peer's own Proposal Num (RFC 7296 Sections 3.3, 3.3.6). A
@@ -310,18 +334,17 @@ func respondChildRekey(sa *SA, inner []wire.PayloadEntry, old *ChildSA, msgID ui
 	// scope in use, so it is passed as the narrowing FLOOR. Without it, a policy that
 	// narrowed since the original SA came up would silently shrink a working tunnel at
 	// its next rekey.
-	if reqTSi != nil && reqTSr != nil {
-		// The floor is compared against THIS request's payloads, so it has to be in THIS
-		// exchange's orientation. The peer sent Ni here, so the peer's side is TSi. The
-		// stored floor is in the orientation of whatever exchange negotiated it, which is
-		// the opposite one whenever this node's side was TSi there.
-		floor := old.Selectors
-		if old.SelectorsLocalIsTSi {
-			floor = swapPairs(floor)
-		}
-		if err := narrowChildSelectors(sa, reqTSi, reqTSr, floor); err != nil {
-			return nil, nil, err
-		}
+	//
+	// The floor is compared against THIS request's payloads, so it has to be in THIS
+	// exchange's orientation. The peer sent Ni here, so the peer's side is TSi. The stored
+	// floor is in the orientation of whatever exchange negotiated it, which is the opposite
+	// one whenever this node's side was TSi there.
+	floor := old.Selectors
+	if old.SelectorsLocalIsTSi {
+		floor = swapPairs(floor)
+	}
+	if err := narrowChildSelectors(sa, reqTSi, reqTSr, floor); err != nil {
+		return nil, nil, err
 	}
 
 	nr, err := GenerateNonce(nonceLen)
@@ -340,27 +363,31 @@ func respondChildRekey(sa *SA, inner []wire.PayloadEntry, old *ChildSA, msgID ui
 	if err != nil {
 		return nil, nil, err
 	}
+	// RFC 7296 Section 2.9: "TS payloads specify the selection criteria for packets that
+	// will be forwarded over the newly set up SA." The answer is therefore a statement
+	// about the Child SA installed below, and it carries that SA's scope in this exchange's
+	// TSi/TSr orientation.
+	//
+	// The answer and the install are one set on every path that reaches here.
+	// narrowChildSelectors ran for THIS request, and it refuses the exchange unless its
+	// narrowing covers the scope in use, so the only answer left is the floor
+	// (ts_narrow.go), which newRekeyedChild installs by inheriting old.Selectors.
+	//
+	// A scope no TS payload can carry is refused rather than answered, as the IKE_AUTH
+	// responder refuses it (initiator.go). A wildcard here would widen the peer's proposal,
+	// and a response without the payloads would drop the criteria Section 2.9 requires.
+	tsi, tsr := pairsToWire(sa.NegotiatedPairs)
+	if tsi == nil || tsr == nil {
+		keys.Clear()
+		return nil, nil, fmt.Errorf("%w: the negotiated scope %s cannot be put on the wire",
+			errTSUnacceptable, pairsText(sa.NegotiatedPairs))
+	}
+
 	// The peer initiated this rekey (sent Ni); our KEYMAT role is responder.
 	child := newRekeyedChild(old, inSPI, peerSPI, keys, false)
 	if err := installChildTolerant(child, prop, dp, log); err != nil {
 		keys.Clear()
 		return nil, nil, err
-	}
-
-	// RFC 7296 Section 2.9: "TS payloads specify the selection criteria for packets that
-	// will be forwarded over the newly set up SA." The answer is therefore a statement
-	// about the Child SA installed above, and it carries that SA's scope in this exchange's
-	// TSi/TSr orientation. It used to carry a wildcard, which satisfied Section 2.9.2's two
-	// MUST NOTs only vacuously, by answering with the widest possible set.
-	//
-	// The answer and the install are one set on every branch, and no branch is left in
-	// which they can disagree. narrowChildSelectors refuses the exchange unless its
-	// narrowing covers the scope in use, so the only answer that reaches here is the floor
-	// (ts_narrow.go), and newRekeyedChild installs that same floor by inheriting
-	// old.Selectors.
-	tsi, tsr := pairsToWire(sa.NegotiatedPairs)
-	if tsi == nil || tsr == nil {
-		tsi, tsr = anyChildTSPayloads(sa)
 	}
 	inner2 := []wire.PayloadEntry{
 		{Payload: &wire.PayloadSA{Proposals: []wire.Proposal{espProposalToWire(prop, inSPI, accepted.Number)}}},

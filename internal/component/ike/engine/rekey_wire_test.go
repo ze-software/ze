@@ -128,9 +128,14 @@ func TestRespondChildRekey(t *testing.T) {
 	installedBefore := len(dp.sas)
 
 	const reqMsgID = 5
+	// TSi and TSr are part of the rekey request (RFC 7296 Section 1.3.3). The peer sent
+	// Ni, so its own side (10.0.0.2) is TSi. This test judges the SHAPE of the response,
+	// so the proposal is the address pair the Child SA already carries.
 	inner := []wire.PayloadEntry{
 		{Payload: espSAPayload(0x01020304)},
 		{Payload: &wire.PayloadNonce{NonceData: testNonce(3)}},
+		{Payload: tsPayload(t, wire.PayloadTypeTSi, "10.0.0.2/32")},
+		{Payload: tsPayload(t, wire.PayloadTypeTSr, "10.0.0.1/32")},
 	}
 
 	resp, child, err := respondChildRekey(sa, inner, old, reqMsgID, dp, log)

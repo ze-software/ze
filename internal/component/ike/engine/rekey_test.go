@@ -2,7 +2,10 @@ package engine
 
 import (
 	"bytes"
+	"errors"
 	"net"
+	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -339,4 +342,81 @@ func TestRekeyKeepsBothESPFormAcceptance(t *testing.T) {
 	if !sawInbound {
 		t.Fatal("no rekeyed inbound SA was installed; every assertion above was vacuous")
 	}
+}
+
+// VALIDATES: a peer-initiated Child SA rekey that carries no traffic selectors is refused
+// with INVALID_SYNTAX and installs nothing, while the same exchange carrying TSi and TSr
+// is answered with the scope the replacement was installed with.
+// PREVENTS: ze answering a selector-less rekey from sa.NegotiatedPairs, which announces
+// the PREVIOUS exchange's scope for an SA this request never proposed. The peer then
+// programs its SPD from that answer while ze programs its own from the retired pair, and
+// traffic inside the difference is protected at one end and dropped at the other.
+//
+// RFC requirement: RFC7296-2.9-1 negative -- "TS payloads specify the selection criteria
+// for packets that will be forwarded over the newly set up SA" (RFC 7296 S2.9,
+// rfc/full/rfc7296.txt:2347-2348), and the responder narrows the proposal without ever
+// widening it (rfc/full/rfc7296.txt:2393-2395). A request that proposes no selectors can
+// be narrowed to nothing, so every answer to it states criteria the peer never proposed.
+// RFC 7296 Section 1.3.3 puts TSi and TSr in the rekey request for that reason, so the
+// request is refused as malformed rather than answered.
+//
+// RFC requirement: RFC7296-2.9-1 positive -- the discriminator. The same fixture, one
+// exchange later, proposes the scope in use and is answered with it. A refusal of both
+// would be a rekey path that is broken rather than a mandatory payload that is checked.
+func TestRekeyWithoutTrafficSelectorsIsRefused(t *testing.T) {
+	t.Run("a rekey proposing no traffic selectors is refused", func(t *testing.T) {
+		sa, old, dp, log := peerRekeyFixture(t)
+		before := scopeText(sa.NegotiatedPairs)
+		installedBefore := len(dp.sas)
+
+		inner := []wire.PayloadEntry{
+			{Payload: espSAPayload(0x01020304)},
+			{Payload: &wire.PayloadNonce{NonceData: testNonce(3)}},
+		}
+		resp, child, err := respondChildRekey(sa, inner, old, 5, dp, log)
+		if err == nil {
+			t.Fatalf("respondChildRekey answered a request that proposed no traffic selectors, "+
+				"announcing %v", scopeText(answeredScope(t, sa, resp)))
+		}
+		if !errors.Is(err, errMalformedRequest) {
+			t.Errorf("refusal = %v, want errMalformedRequest", err)
+		}
+		if got := notifyForRefusal(err); got != wire.NotifyInvalidSyntax {
+			t.Errorf("notify = %d, want INVALID_SYNTAX (%d)", got, wire.NotifyInvalidSyntax)
+		}
+		for _, want := range []string{"TSi", "TSr"} {
+			if !strings.Contains(err.Error(), want) {
+				t.Errorf("the refusal %q does not name %s; an operator cannot see which "+
+					"payload the peer left out", err, want)
+			}
+		}
+		if child != nil {
+			t.Error("a refused rekey installed a replacement Child SA")
+		}
+		if len(dp.sas) != installedBefore {
+			t.Errorf("a refused rekey installed %d dataplane SAs", len(dp.sas)-installedBefore)
+		}
+		if after := scopeText(sa.NegotiatedPairs); !slices.Equal(after, before) {
+			t.Errorf("the refused rekey left the negotiated scope at %v, was %v", after, before)
+		}
+	})
+
+	t.Run("the same rekey proposing the scope in use is answered", func(t *testing.T) {
+		sa, old, dp, log := peerRekeyFixture(t)
+		resp, child, err := respondChildRekey(sa, peerRekeyRequest(t, "10.2.0.0/24", "10.1.0.0/24"), old, 5, dp, log)
+		if err != nil {
+			t.Fatalf("respondChildRekey refused a rekey that proposes the scope in use: %v", err)
+		}
+		if child == nil {
+			t.Fatal("no replacement Child SA was installed")
+		}
+		announced := scopeText(answeredScope(t, sa, resp))
+		if installed := scopeText(installedScope(child)); !slices.Equal(announced, installed) {
+			t.Errorf("the response announces %v and the replacement was installed with %v",
+				announced, installed)
+		}
+		if want := []string{"10.2.0.0/24 <-> 10.1.0.0/24"}; !slices.Equal(announced, want) {
+			t.Errorf("the response announces %v, want %v (the scope in use)", announced, want)
+		}
+	})
 }

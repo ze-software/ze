@@ -58,8 +58,9 @@ func errNotifyIn(t *testing.T, reader *SA, raw []byte) []uint16 {
 // names transforms the responder's esp-group does not offer, so matchOfferedESPProposal
 // finds nothing. The refusal is then a real NO_PROPOSAL_CHOSEN rather than the
 // malformed-request case, which draws INVALID_SYNTAX instead.
-func rkyChildRekeyRequestUnmatched(oldSPI, peerESPSPI uint32, ni []byte) []wire.PayloadEntry {
-	inner := rkyChildRekeyRequest(oldSPI, peerESPSPI, ni)
+func rkyChildRekeyRequestUnmatched(t *testing.T, oldSPI, peerESPSPI uint32, ni []byte) []wire.PayloadEntry {
+	t.Helper()
+	inner := rkyChildRekeyRequest(t, oldSPI, peerESPSPI, ni)
 	for i := range inner {
 		sa, ok := inner[i].Payload.(*wire.PayloadSA)
 		if !ok {
