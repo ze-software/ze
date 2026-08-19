@@ -438,8 +438,9 @@ func TestCheckMachineIDPathOverride(t *testing.T) {
 }
 
 // fakeSysClassNet builds a sysfs-shaped tree where each named device carries the
-// given MAC and an "up" operstate, and points the interface checks at it.
-func fakeSysClassNet(t *testing.T, devices map[string]string) {
+// given MAC and an "up" operstate, points the interface checks at it, and
+// returns its root so a test can add the links between devices.
+func fakeSysClassNet(t *testing.T, devices map[string]string) string {
 	t.Helper()
 	root := t.TempDir()
 	for device, mac := range devices {
@@ -457,6 +458,28 @@ func fakeSysClassNet(t *testing.T, devices map[string]string) {
 	old := sysClassNetDir
 	sysClassNetDir = root
 	t.Cleanup(func() { sysClassNetDir = old })
+	return root
+}
+
+// sysClassNetStack writes the links the kernel writes when upper stands on
+// lower: a lower_<lower> link in the upper device's directory, and an
+// upper_<upper> link in the lower one's. It covers both relations the hardware
+// selector must skip, a vlan or macvlan on a parent and a bridge or bond on a
+// member, because sysfs spells them the same way.
+func sysClassNetStack(t *testing.T, root, upper, lower string) {
+	t.Helper()
+	sysClassNetLink(t, filepath.Join(root, upper, "lower_"+lower), filepath.Join("..", lower))
+	sysClassNetLink(t, filepath.Join(root, lower, "upper_"+upper), filepath.Join("..", upper))
+}
+
+// sysClassNetLink creates one symlink of the fake sysfs tree, failing the test
+// rather than leaving a fixture that says something other than what the test
+// asked for.
+func sysClassNetLink(t *testing.T, from, to string) {
+	t.Helper()
+	if err := os.Symlink(to, from); err != nil {
+		t.Fatalf("symlink %s -> %s: %v", from, to, err)
+	}
 }
 
 // ethernetTree returns a config tree holding one netlink-backed ethernet entry.
@@ -493,13 +516,16 @@ func TestCheckInterfacesFollowsOSNameAlias(t *testing.T) {
 }
 
 // TestCheckInterfacesFollowsMACMatch verifies the check resolves a mac/match
-// selector to the device carrying the address, and reports the two selector
-// verdicts the config apply path distinguishes: an unmatched selector defers
-// (warning), an ambiguous one is refused (error).
+// selector to the device carrying the address as its own, and reports the two
+// selector verdicts the config apply path distinguishes: an unmatched selector
+// defers (warning), an ambiguous one is refused (error). A device wearing
+// another device's address is not a second answer, so the last two cases fix
+// the population the check counts to the one the apply path counts.
 //
 // VALIDATES: spec-fixit-iface-selector-ignored-by-apply, the doctor surface.
 // PREVENTS: doctor staying silent about a selector that leaves an interface
-// unconfigured, and calling a bound one missing.
+// unconfigured, calling a bound one missing, and calling a bridged or VLAN-bearing
+// port ambiguous while the daemon binds to it.
 func TestCheckInterfacesFollowsMACMatch(t *testing.T) {
 	const wanted = "aa:bb:cc:00:00:01"
 
@@ -526,6 +552,38 @@ func TestCheckInterfacesFollowsMACMatch(t *testing.T) {
 		tree := ethernetTree("wan", nil, map[string]string{"match": wanted})
 		diags := checkInterfaces(tree)
 		requireDiag(t, diags, "doctor-iface-selector-ambiguous", diagnostic.SeverityError)
+	})
+
+	t.Run("a bridge wears its member's address", func(t *testing.T) {
+		// The config ze itself creates: the selected port is a bridge member,
+		// so the bridge reports the port's address and two devices answer to
+		// the selector. The apply path binds to the port
+		// (test/plugin/iface-bridge-mac-match-apply.ci), so a doctor calling
+		// this ambiguous is wrong about a working box.
+		root := fakeSysClassNet(t, map[string]string{"enp1s0": wanted, "zebr0": wanted})
+		sysClassNetStack(t, root, "zebr0", "enp1s0")
+
+		tree := ethernetTree("wan", nil, map[string]string{"match": wanted})
+
+		diags := checkInterfaces(tree)
+		assertNoDiagCode(t, diags, "doctor-iface-selector-ambiguous")
+		assertNoDiagCode(t, diags, "doctor-iface-selector-unmatched")
+		assertNoDiagCode(t, diags, "doctor-iface-missing")
+	})
+
+	t.Run("a vlan wears its parent's address", func(t *testing.T) {
+		// The other relation the apply path skips: a vlan inherits the parent's
+		// hardware address, so one vlan unit on the entry makes its own
+		// selector look ambiguous.
+		root := fakeSysClassNet(t, map[string]string{"enp1s0": wanted, "enp1s0.100": wanted})
+		sysClassNetStack(t, root, "enp1s0.100", "enp1s0")
+
+		tree := ethernetTree("wan", nil, map[string]string{"match": wanted})
+
+		diags := checkInterfaces(tree)
+		assertNoDiagCode(t, diags, "doctor-iface-selector-ambiguous")
+		assertNoDiagCode(t, diags, "doctor-iface-selector-unmatched")
+		assertNoDiagCode(t, diags, "doctor-iface-missing")
 	})
 }
 

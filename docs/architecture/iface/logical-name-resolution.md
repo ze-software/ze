@@ -77,7 +77,16 @@ link type, because the type says what a device is and only the membership says
 whose address it wears: a bridge with no port keeps the address the kernel gave
 it, and still answers for it.
 
+`ze doctor` counts the same population, and reaches it another way. The predicate
+takes the backend's interface listing, and the doctor runs on a box whose daemon
+may be down, so it reads the relation from sysfs instead: the kernel writes a
+`lower_<name>` link into the directory of a device standing on another one, for a
+stacked device and for an aggregator that has a member alike, and writes none for
+a port or a veth. A doctor that counted every device carrying the address called
+a bridged port ambiguous, at error severity, while the daemon bound to it.
+
 <!-- source: internal/component/iface/config_apply.go -- validateSelectors, devicesWithMAC, isStackedDevice, aggregatingDevices -->
+<!-- source: internal/component/doctor/checks_linux.go -- netDevicesWithAddress, hasLowerDevice -->
 <!-- source: internal/component/iface/dispatch.go -- resolveOS -->
 
 ## The mapping is published before the apply, not after

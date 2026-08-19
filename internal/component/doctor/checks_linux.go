@@ -354,8 +354,20 @@ func selectedNetDevice(name string, entry *config.Tree) (string, *diagnostic.Dia
 	return name, nil
 }
 
-// netDevicesWithAddress returns the names of the kernel devices whose hardware
-// address equals mac, read from sysfs and sorted for a reproducible message.
+// netDevicesWithAddress returns the names of the kernel devices that carry mac
+// as their OWN hardware address, read from sysfs and sorted for a reproducible
+// message.
+//
+// A device standing on another one is not a candidate, and that exclusion is
+// load-bearing rather than tidy. A vlan and a macvlan hang off a parent, and a
+// bridge or a bond wears the address of a port it holds, so a second device
+// reports the selector's address the moment ze builds anything on the selected
+// port -- which ze does, on the operator's own config
+// (test/plugin/iface-bridge-mac-match-apply.ci). The config apply path skips the
+// same two kinds before it matches (devicesWithMAC,
+// internal/component/iface/config_apply.go), so a doctor that counted them
+// called that config ambiguous, at SeverityError, while the daemon bound to the
+// right port.
 //
 // sysfs exposes the CURRENT address; the daemon's resolver prefers the permanent
 // (factory) one and falls back to the current address only for the virtual kinds
@@ -377,16 +389,53 @@ func netDevicesWithAddress(mac string) []string {
 		if strings.Contains(device, "..") || strings.ContainsAny(device, "/\x00") {
 			continue
 		}
-		addr, readErr := os.ReadFile(tb.Reset().Str(sysClassNetDir).Byte('/').Str(device).Str("/address").String()) //nolint:gosec // path traversal guarded above
+		deviceDir := tb.Reset().Str(sysClassNetDir).Byte('/').Str(device).String()
+		addr, readErr := os.ReadFile(tb.Reset().Str(deviceDir).Str("/address").String()) //nolint:gosec // path traversal guarded above
 		if readErr != nil {
 			continue
 		}
-		if strings.ToLower(strings.TrimSpace(string(addr))) == target {
-			found = append(found, device)
+		if strings.ToLower(strings.TrimSpace(string(addr))) != target {
+			continue
 		}
+		if hasLowerDevice(deviceDir) {
+			continue
+		}
+		found = append(found, device)
 	}
 	sort.Strings(found)
 	return found
+}
+
+// hasLowerDevice reports whether the kernel lists a device standing under the
+// one in deviceDir, which is what makes the address that device reports somebody
+// else's. sysfs writes the relation on the UPPER device, as a lower_<name>
+// symlink, and it writes it for both kinds a hardware selector must skip: a
+// stacked device gets one for its parent, and an aggregator gets one for each
+// member it holds.
+//
+// Measured against a live kernel on 2026-08-19, in a network namespace holding
+// one dummy port: a vlan and a macvlan on that port each carry lower_<port>, a
+// bridge carries lower_<port> once the port is enslaved and carries nothing
+// before that, and a veth carries none at all -- its peer is IFLA_LINK, which
+// sysfs reports as iflink rather than as a link. The port itself carries master
+// and upper_<bridge>, never a lower_ link, so it stays a candidate here exactly
+// as it stays one in the apply path.
+//
+// A directory that cannot be read reports no lower device. The caller has just
+// read this device's address file, so the only reader that arrives here on an
+// unreadable directory is one racing a device that is being removed, and the
+// device it would judge no longer exists.
+func hasLowerDevice(deviceDir string) bool {
+	entries, err := os.ReadDir(deviceDir)
+	if err != nil {
+		return false
+	}
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), "lower_") {
+			return true
+		}
+	}
+	return false
 }
 
 // checkVPPVersion runs `vppctl show version` and warns if the major version
