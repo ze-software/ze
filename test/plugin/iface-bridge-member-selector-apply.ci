@@ -1,0 +1,172 @@
+# Test: a bridge member naming an interface entry enslaves the KERNEL DEVICE
+#       that entry's selector resolves to, not the entry's logical name.
+#
+# VALIDATES: spec-fixit-iface-selector-ignored-by-apply, AC-3 at the naming site
+#            its Phase 2 enumeration missed. The bridge member loop resolves each
+#            member through the same map every other phase reads
+#            (deviceFor + the Phase 2a loop, internal/component/iface/config_apply.go).
+# PREVENTS:  the measured defect. The member loop ran in Phase 1, BEFORE devices
+#            is computed in Phase 2, so it handed BridgeAddPort the logical entry
+#            name. Two outcomes, both wrong: with no device of that name the
+#            netlink call answered "Link not found" and applyConfig rolled the
+#            WHOLE interface config back, and with a device coincidentally
+#            carrying the name that stranger was put in the bridge -- the
+#            wrong-physical-port landing this spec exists to remove, with a whole
+#            broadcast domain behind it. Exit code 0 is therefore half the
+#            assertion: pre-fix the daemon failed its own startup config.
+#
+# The aliased device is created by ze itself as a dummy in the same config,
+# because a functional test has no NIC of its own to alias. Phase 1 creates it
+# before Phase 2 reads the interface list the selectors resolve against, so the
+# member binds on this same startup.
+#
+# needs-linux:caps=net-admin: creating a netdev and a bridge, and enslaving one
+# to the other, need CAP_NET_ADMIN, which the verify runner does not have. Runs
+# as root under `make ze-qemu-needs-linux-test`.
+#
+# KERNEL STATE THIS TEST OWNS: the devices zebmsel0 and zebmbr0, and the address
+# block 198.51.100.144/28. No other file under test/ puts any of them in a
+# kernel. The per-test /28 matters because the plugin suite runs 8-wide in ONE
+# namespace (ZE_PLUGIN_PARALLEL, mk/test-functional.mk).
+option=needs-linux:caps=net-admin
+option=timeout:value=30s
+
+tmpfs=iface-bridge-member-selector-apply.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Assert the bridge holds the kernel device the member's selector names.
+
+The read goes straight to the kernel through `ip -j link show`, not through a ze
+command, so nothing in the assertion shares a resolver with the code under test.
+"""
+
+import json
+import subprocess
+import sys
+
+from ze_api import API
+from ze_api import runtime_fail
+
+DEVICE = "zebmsel0"     # the kernel device the alias names
+LOGICAL = "zebmwan"     # the entry name; no kernel device carries it
+BRIDGE = "zebmbr0"
+CIDR = "198.51.100.145/28"
+
+
+def ip_json(*args):
+    result = subprocess.run(["ip", "-j", *args], capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        return None
+    return json.loads(result.stdout or "[]")
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    api.wait_for_post_startup(timeout=5.0)
+
+    try:
+        if not ip_json("link", "show", BRIDGE):
+            runtime_fail(f'{BRIDGE} was not created: the apply never reached the bridge')
+
+        links = ip_json("link", "show", DEVICE)
+        if not links:
+            runtime_fail(f'{DEVICE} was not created: the apply never reached the aliased device')
+        master = links[0].get("master")
+        if master != BRIDGE:
+            runtime_fail(f'{DEVICE} master={master!r}, want {BRIDGE!r}: the member did not follow the alias')
+
+        if ip_json("link", "show", LOGICAL):
+            runtime_fail(f'a device named {LOGICAL} exists: the apply worked on the logical name')
+
+        addrs = [
+            f'{a["local"]}/{a["prefixlen"]}'
+            for entry in (ip_json("addr", "show", DEVICE) or [])
+            for a in (entry.get("addr_info") or [])
+        ]
+        if CIDR not in addrs:
+            runtime_fail(f'{DEVICE} carries {addrs!r}, not {CIDR}: '
+                         f'a bridged member must still get the entry settings')
+
+        print(f'OK: bridge {BRIDGE} holds {DEVICE}, the device {LOGICAL} resolves to', file=sys.stderr)
+    finally:
+        api._call_engine('ze-plugin-engine:dispatch-command', {'command': 'request shutdown'})
+        api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+	external iface-bridge-member-selector-apply {
+		run ./iface-bridge-member-selector-apply.run
+		encoder json
+	}
+}
+
+interface {
+	backend netlink
+
+	# The device the alias names. ze creates it in Phase 1, before Phase 2
+	# reads the interface list the member resolves against.
+	dummy zebmsel0 {
+	}
+
+	# The entry an operator writes: a human-readable name aliased onto the
+	# kernel device. Nothing in the kernel is named zebmwan.
+	ethernet zebmwan {
+		os-name zebmsel0
+		unit 0 {
+			ipv4 {
+				address [198.51.100.145/28]
+			}
+		}
+	}
+
+	# The member names the ENTRY, which is the only name an operator has.
+	bridge zebmbr0 {
+		member [zebmwan]
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=30s
+expect=exit:code=0
+expect=stderr:contains=bridge zebmbr0 holds zebmsel0
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error

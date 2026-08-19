@@ -47,16 +47,37 @@ never touches them.
 
 <!-- source: internal/component/iface/config_apply.go -- bindDevices, deviceFor, unitOSName -->
 
+Two sites name a SECOND interface rather than the entry's own, and each resolves
+through the same map. A bridge member is enslaved in Phase 2a, after the map
+exists, rather than beside the bridge create in Phase 1: enslaving by the
+logical name put whatever device carried that name into the bridge. A mirror
+destination is resolved when the mirror spec is built, so the tc filter points
+at the capture port's kernel device. Either one, when its selector has no answer
+yet, is left undone with a warning and the commit still succeeds, exactly as
+every other unbound setting defers.
+
+<!-- source: internal/component/iface/config_apply.go -- the Phase 2a bridge member loop -->
+<!-- source: internal/component/iface/config_mirror.go -- mirrorSpecFor, mirrorDestination -->
+
 An entry whose selector names no present device is UNBOUND, and every phase
 skips it. No phase falls back to the logical name: that fallback is what let an
 aliased entry configure whatever else carried its name, and it is the same
 fallback `resolveOS` now refuses for a name that HAS a selector. A `mac/match`
 that names more than one device refuses the apply, because nothing
-distinguishes the candidates. A VLAN sub-interface is excluded from MAC
-matching entirely: it inherits its parent's address, so leaving it in made a
-parent's own selector ambiguous the moment ze created a VLAN on it.
+distinguishes the candidates.
 
-<!-- source: internal/component/iface/config_apply.go -- validateSelectors, devicesWithMAC, isStackedDevice -->
+A device answers a MAC selector only when the address it is matched on is its
+OWN. Linux gives a device an address it did not bring in two ways, and both are
+excluded. A VLAN sub-interface inherits its parent's address, so leaving it in
+made a parent's own selector ambiguous the moment ze created a VLAN on it. A
+bridge or a bond wears a member's address, so leaving it in did the same the
+moment ze put the selected hardware into a bridge the same config file asked
+for. The second exclusion reads IFLA_MASTER from the members rather than the
+link type, because the type says what a device is and only the membership says
+whose address it wears: a bridge with no port keeps the address the kernel gave
+it, and still answers for it.
+
+<!-- source: internal/component/iface/config_apply.go -- validateSelectors, devicesWithMAC, isStackedDevice, aggregatingDevices -->
 <!-- source: internal/component/iface/dispatch.go -- resolveOS -->
 
 ## The mapping is published before the apply, not after

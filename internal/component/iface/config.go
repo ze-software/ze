@@ -420,13 +420,10 @@ func parseIfaceConfig(data string) (*ifaceConfig, error) {
 			if stp, ok := m["stp"].(string); ok {
 				entry.STP = stp == yangTrue
 			}
-			if members, ok := m["member"].([]any); ok {
-				for _, mem := range members {
-					if s, ok := mem.(string); ok {
-						entry.Members = append(entry.Members, s)
-					}
-				}
-			}
+			// parseStringList, not a []any assertion: a leaf-list carrying ONE
+			// value arrives as a bare string, and the assertion dropped it. A
+			// bridge with a single member enslaved nothing, with no error.
+			entry.Members = parseStringList(m, "member")
 			cfg.Bridge = append(cfg.Bridge, entry)
 		}
 	}

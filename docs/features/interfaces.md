@@ -232,9 +232,15 @@ make a backend call: the per-interface sysctl keys and the ethtool offload ioctl
 An entry whose selector names no present device is **unbound**: every phase skips it,
 and none falls back to the logical name. That fallback is what made an aliased entry
 configure whatever else carried its name. An entry whose `mac/match` names more than one
-device refuses the apply. `resolveOS` draws the same line for the by-name dispatch ops:
-a name with no selector passes through unchanged, and a name WITH a selector that fails
-to resolve returns an error rather than the name.
+device refuses the apply, and a device only answers a `mac/match` when the address it is
+matched on is its own: a VLAN inherits its parent's, and a bridge or bond wears a
+member's, so neither is a candidate. `resolveOS` draws the same line for the by-name
+dispatch ops: a name with no selector passes through unchanged, and a name WITH a
+selector that fails to resolve returns an error rather than the name.
+
+The two settings that name a SECOND interface resolve through the same map: a bridge
+member is enslaved by the kernel device its entry selects, and a mirror sends its copy
+to the capture port's kernel device.
 
 <!-- source: internal/component/iface/config_apply.go -- bindDevices, deviceFor, validateSelectors -->
 <!-- source: internal/component/iface/dispatch.go -- resolveOS translation in the by-name dispatch ops -->

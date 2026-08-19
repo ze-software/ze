@@ -333,20 +333,36 @@ func (cfg *ifaceConfig) validateSelectors(infos []InterfaceInfo) error {
 // reports one, else its current address, so a binding survives an operational
 // MAC override.
 //
-// A stacked device is excluded, and that exclusion is load-bearing rather than
-// tidy. A VLAN sub-interface inherits its parent's hardware address, so the
-// moment ze creates one on a mac/match parent, TWO devices carry the selector's
-// MAC and the parent's own binding reads as ambiguous. Measured against a live
-// kernel: creating zesel0.100 on zesel0 made the next resolution of zesel0's
-// selector refuse, and its addresses were never applied.
+// A device is a candidate only when the address it is matched on is its OWN,
+// and that exclusion is load-bearing rather than tidy: the selector names one
+// physical port, so a second device wearing that port's address makes the
+// binding ambiguous and fails the whole apply. Linux hands a device an address
+// it did not bring in two ways, and both are excluded here.
+//
+//   - It hangs off a parent (IFLA_LINK). A VLAN sub-interface inherits its
+//     parent's hardware address, so the moment ze creates one on a mac/match
+//     parent, TWO devices carry the selector's MAC. Measured against a live
+//     kernel: creating zesel0.100 on zesel0 made the next resolution of
+//     zesel0's selector refuse, and its addresses were never applied.
+//   - It aggregates members (IFLA_MASTER). A bridge with no permanent address
+//     of its own wears its lowest-MAC port's address, and a bond master wears a
+//     slave's while the slave keeps its own IFLA_PERM_ADDRESS. Measured against
+//     a live kernel: enslaving a device with MAC 02:00:00:00:be:99 to a bridge
+//     made the bridge report that same address, so an ethernet entry selecting
+//     that MAC and listing itself as a bridge member was refused from the apply
+//     after the one that created the bridge.
 func devicesWithMAC(infos []InterfaceInfo, want string) []int {
 	target := normalizeMAC(want)
 	if target == "" {
 		return nil
 	}
+	aggregators := aggregatingDevices(infos)
 	var matched []int
 	for i := range infos {
 		if isStackedDevice(&infos[i]) {
+			continue
+		}
+		if _, aggregates := aggregators[infos[i].Index]; aggregates {
 			continue
 		}
 		if normalizeMAC(deviceMatchMAC(&infos[i])) == target {
@@ -364,6 +380,33 @@ func devicesWithMAC(infos []InterfaceInfo, want string) []int {
 // why self-parenthood does not count.
 func isStackedDevice(info *InterfaceInfo) bool {
 	return info.ParentIndex != 0 && info.ParentIndex != info.Index
+}
+
+// aggregatingDevices returns the index of every device in infos that another
+// device names as its master (IFLA_MASTER): a bridge that has a port, a bond
+// that has a slave. Such a device wears a member's hardware address rather than
+// one of its own, which is why a hardware selector must not name it.
+//
+// Membership is read from the members rather than from the link type, because
+// the type says what a device is and only the membership says whose address it
+// wears. A bridge with no port keeps the address the kernel gave it at
+// creation, no member claims that address, and this returns nothing for it.
+//
+// The map stays nil until a member is seen, so the common listing -- no bridge,
+// no bond -- allocates nothing on a path walked once per ethernet entry.
+func aggregatingDevices(infos []InterfaceInfo) map[int]struct{} {
+	var masters map[int]struct{}
+	for i := range infos {
+		master := infos[i].MasterIndex
+		if master == 0 || master == infos[i].Index {
+			continue
+		}
+		if masters == nil {
+			masters = make(map[int]struct{})
+		}
+		masters[master] = struct{}{}
+	}
+	return masters
 }
 
 // allIfaceEntries returns every interface entry in the config, across the
@@ -865,15 +908,10 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 		}); err != nil {
 			return record("bridge "+e.Name+" stp", err)
 		}
-		for _, member := range e.Members {
-			if err := applyBackendStep(journal, func() error {
-				return b.BridgeAddPort(e.Name, member)
-			}, func() error {
-				return b.BridgeDelPort(member)
-			}); err != nil {
-				return record("bridge "+e.Name+" add port "+member, err)
-			}
-		}
+		// The members are enslaved in Phase 2a, not here: a member names
+		// another interface, and the map that turns a logical name into a
+		// kernel device cannot exist until Phase 1 has created the devices a
+		// selector can bind to.
 	}
 
 	// Phase 2: Set properties and create VLANs.
@@ -885,13 +923,24 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 	// its own listing at the same point in its own pass: resolving both against a
 	// post-create view is what keeps the two agreeing.
 	//
-	// A backend that cannot list -- the vpp handshake is still in flight --
-	// leaves every ethernet entry unbound, which is what the per-entry presence
-	// probe did before: those entries are skipped here, and the reconcile the
-	// connect event fires picks them up.
+	// A backend that cannot list leaves every ethernet entry unbound: those
+	// entries are skipped here, and a later reconcile picks them up. That drops
+	// the MTU, MAC, offloads and admin state of every ethernet entry from this
+	// apply, so the reason is stated once, HERE, at the level of what it costs.
+	// It is the only line that names the real cause, which is why the per-entry
+	// loop below stays silent after it.
+	//
+	// Which level that is depends on the answer, exactly as the reconcile's own
+	// listing does (reconcileOnReadyWithJournal). The vpp handshake still being
+	// in flight is the designed path and says nothing an operator must act on.
+	// Any other failure is one: the ethernet half of the commit did not happen.
 	infos, listErr := b.ListInterfaces()
 	if listErr != nil {
-		log.Debug("iface config: interface listing unavailable, ethernet bindings deferred", "err", listErr)
+		if errors.Is(listErr, ErrBackendNotReady) {
+			log.Debug("iface config: backend not ready, every ethernet binding deferred", "err", listErr)
+		} else {
+			log.Warn("iface config: interface listing unavailable, every ethernet binding deferred", "err", listErr)
+		}
 		infos = nil
 	}
 	if selectorErr := cfg.validateSelectors(infos); selectorErr != nil {
@@ -900,6 +949,43 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 	devices := cfg.bindDevices(infos)
 	previousDevices := previous.bindDevices(infos)
 	cfg.rememberPreviousManaged(previous, previousDevices)
+
+	// Phase 2a: enslave each bridge's members.
+	//
+	// A member names another interface, so this is the one create-time step
+	// that has to translate a logical name into a kernel device, and the map
+	// that does it cannot exist until Phase 1 has created the devices a
+	// selector can bind to. Enslaving by the logical name is what put the
+	// WRONG physical port in a bridge: a member naming an entry bound by
+	// mac/match reached whatever device happened to carry that name.
+	//
+	// Running here rather than beside the bridge create is safe in both
+	// directions. It still precedes every property the loop below sets, which
+	// is where it ran before. And it cannot invalidate the bindings just
+	// taken, because enslaving a port changes neither its name nor the address
+	// it was matched on: the bridge takes the port's address, never the
+	// reverse.
+	for _, e := range cfg.Bridge {
+		if e.Disable {
+			continue
+		}
+		for _, member := range e.Members {
+			port, bound := deviceFor(devices, member)
+			if !bound {
+				log.Warn("iface config: no present device answers this bridge member's hardware selector, enslaving deferred",
+					"bridge", e.Name, "member", member)
+				continue
+			}
+			if err := applyBackendStep(journal, func() error {
+				return b.BridgeAddPort(e.Name, port)
+			}, func() error {
+				return b.BridgeDelPort(port)
+			}); err != nil {
+				var bPort textbuf.Buffer
+				return record(bPort.Str("bridge ").Str(e.Name).Str(" add port ").Str(port).String(), err)
+			}
+		}
+	}
 
 	allEntries := allIfaceEntries(cfg)
 
@@ -927,20 +1013,26 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 	// bindings), because an entry whose device is absent has nowhere to put its
 	// addresses: adding them by the logical name is what failed the whole commit
 	// before, and what put them on a same-named stranger when one existed.
-	for i := range cfg.Ethernet {
-		e := &cfg.Ethernet[i]
-		if e.Disable {
-			continue
+	//
+	// A listing failure is reported once above instead. Every line below would
+	// name a cause that is not the one that happened: a device the backend
+	// could not list can be present, and its selector can have an answer.
+	if listErr == nil {
+		for i := range cfg.Ethernet {
+			e := &cfg.Ethernet[i]
+			if e.Disable {
+				continue
+			}
+			if _, bound := deviceFor(devices, e.Name); bound {
+				continue
+			}
+			if e.MatchMAC != "" || e.OSName != "" {
+				log.Warn("iface config: no present device answers this interface's hardware selector, binding deferred",
+					"iface", e.Name, "mac-match", e.MatchMAC, "os-name", e.OSName)
+				continue
+			}
+			log.Warn("iface config: configured interface not present, skipping", "iface", e.Name)
 		}
-		if _, bound := deviceFor(devices, e.Name); bound {
-			continue
-		}
-		if e.MatchMAC != "" || e.OSName != "" {
-			log.Warn("iface config: no present device answers this interface's hardware selector, binding deferred",
-				"iface", e.Name, "mac-match", e.MatchMAC, "os-name", e.OSName)
-			continue
-		}
-		log.Warn("iface config: configured interface not present, skipping", "iface", e.Name)
 	}
 	// Drop unbound ethernet entries from every per-interface phase (property set
 	// in Phase 2, admin-up in Phase 2c) so a missing NIC never aborts the apply.
@@ -1028,7 +1120,7 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 			}
 			applySysctl(osName, *u)
 			applySysctlProfiles(osName, u.SysctlProfiles)
-			if mirrorErrs := applyMirror(b, osName, *u, journal); len(mirrorErrs) > 0 {
+			if mirrorErrs := applyMirror(b, osName, *u, devices, journal); len(mirrorErrs) > 0 {
 				errs = append(errs, mirrorErrs...)
 				return rollbackPartial()
 			}

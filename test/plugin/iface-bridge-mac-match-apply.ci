@@ -1,0 +1,209 @@
+# Test: a mac/match entry keeps its binding when the bridge ze built out of that
+#       same hardware ends up wearing the selector's MAC.
+#
+# VALIDATES: spec-fixit-iface-selector-ignored-by-apply, AC-1 and AC-5 against
+#            the second way Linux gives a device an address it did not bring.
+#            devicesWithMAC counts a device as a candidate only when the match
+#            address is its OWN: not inherited from a parent, and not taken from
+#            a member (devicesWithMAC + aggregatingDevices,
+#            internal/component/iface/config_apply.go).
+# PREVENTS:  the measured defect. A Linux bridge reports no permanent address and
+#            wears its lowest-MAC port's, so the moment ze enslaves a mac/match
+#            entry's hardware, TWO devices answer that one selector. Before the
+#            fix the exclusion covered vlan and macvlan only -- the two kinds
+#            linkToInfo sets ParentIndex for -- and missed the two kinds ze
+#            itself builds from the same config file. The entry read as
+#            ambiguous, its binding was dropped, and its address was never
+#            applied; on the apply after the bridge existed, validateSelectors
+#            refused and rolled the WHOLE interface config back.
+#
+# EXIT CODE 0 IS NOT THE ASSERTION HERE, unlike the two sibling selector tests.
+# An ambiguous selector on a fresh boot drops the binding rather than failing the
+# commit, so a daemon carrying the defect starts cleanly and simply never applies
+# the address. The address on the selected device is the whole discriminator, and
+# the bridge's own MAC is asserted first so a fixture that stopped reproducing
+# the ambiguity could not pass by accident.
+#
+# The selected device is created by ze as a dummy in the same config and given
+# the MAC the selector names, because a functional test has no NIC of its own to
+# bind to. The bridge takes that MAC from the kernel, not from the config:
+# Phase 2a enslaves the port and the Phase 2 loop sets its address afterwards,
+# and Linux moves the bridge address with it (verified on a live kernel). The
+# MAC is locally administered (the 0x02 bit), so it can never collide with real
+# hardware.
+#
+# The binding is made by the RECONCILE pass, not by Phase 2, for the reason
+# iface-mac-match-address-apply.ci records: Phase 2 reads the interface list
+# before the loop assigns the dummy its MAC. That is what makes this test the
+# interesting one -- by the time the reconcile takes its own listing, the bridge
+# is already wearing the address the selector names.
+#
+# needs-linux:caps=net-admin: creating netdevs, setting a MAC, enslaving a port
+# and assigning an address need CAP_NET_ADMIN, which the verify runner does not
+# have. Runs as root under `make ze-qemu-needs-linux-test`.
+#
+# KERNEL STATE THIS TEST OWNS: the devices zebasel0 and zebabr0, the MAC
+# 02:00:00:00:be:33 and the address block 198.51.100.176/28. No other file under
+# test/ puts any of them in a kernel. The per-test /28 matters because the plugin
+# suite runs 8-wide in ONE namespace (ZE_PLUGIN_PARALLEL, mk/test-functional.mk).
+option=needs-linux:caps=net-admin
+option=timeout:value=30s
+
+tmpfs=iface-bridge-mac-match-apply.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Assert the mac/match entry's address landed on the port, not nowhere.
+
+The read goes straight to the kernel through `ip -j addr show`, not through a ze
+command, so nothing in the assertion shares a resolver with the code under test.
+"""
+
+import json
+import subprocess
+import sys
+
+from ze_api import API
+from ze_api import runtime_fail
+
+DEVICE = "zebasel0"     # the kernel device carrying the selected MAC
+BRIDGE = "zebabr0"      # the bridge ze builds out of it, which wears that MAC too
+LOGICAL = "zebawan"     # the entry name; no kernel device carries it
+MAC = "02:00:00:00:be:33"
+CIDR = "198.51.100.177/28"
+
+
+def ip_json(*args):
+    result = subprocess.run(["ip", "-j", *args], capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        return None
+    return json.loads(result.stdout or "[]")
+
+
+def addresses_on(device):
+    return [
+        f'{a["local"]}/{a["prefixlen"]}'
+        for entry in (ip_json("addr", "show", device) or [])
+        for a in (entry.get("addr_info") or [])
+    ]
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    api.wait_for_post_startup(timeout=5.0)
+
+    try:
+        links = ip_json("link", "show", DEVICE)
+        if not links:
+            runtime_fail(f'{DEVICE} was not created: the apply never reached the selected device')
+        if links[0].get("address") != MAC:
+            runtime_fail(f'{DEVICE} carries MAC {links[0].get("address")!r}, not {MAC}: '
+                         f'the selector had nothing to bind to')
+        if links[0].get("master") != BRIDGE:
+            runtime_fail(f'{DEVICE} master={links[0].get("master")!r}, want {BRIDGE!r}: '
+                         f'without the enslaving there is no second device to be ambiguous with')
+
+        bridges = ip_json("link", "show", BRIDGE)
+        if not bridges:
+            runtime_fail(f'{BRIDGE} was not created: the apply never reached the bridge')
+        if bridges[0].get("address") != MAC:
+            runtime_fail(f'{BRIDGE} carries MAC {bridges[0].get("address")!r}, not {MAC}: '
+                         f'the kernel did not move the port address onto the bridge, so this '
+                         f'test no longer reproduces the ambiguity it exists to assert')
+
+        found = addresses_on(DEVICE)
+        if CIDR not in found:
+            runtime_fail(f'{DEVICE} carries {found!r}, not {CIDR}: the bridge wearing the '
+                         f'selected MAC made the entry read as ambiguous and dropped its binding')
+
+        if ip_json("link", "show", LOGICAL):
+            runtime_fail(f'a device named {LOGICAL} exists: the apply worked on the logical name')
+
+        print(f'OK: mac/match selector applied {CIDR} to {DEVICE} past the bridge wearing {MAC}',
+              file=sys.stderr)
+    finally:
+        api._call_engine('ze-plugin-engine:dispatch-command', {'command': 'request shutdown'})
+        api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+	external iface-bridge-mac-match-apply {
+		run ./iface-bridge-mac-match-apply.run
+		encoder json
+	}
+}
+
+interface {
+	backend netlink
+
+	# The hardware the selector binds to. ze creates it and gives it the MAC.
+	dummy zebasel0 {
+		mac {
+			address 02:00:00:00:be:33
+		}
+	}
+
+	# The bridge ze builds out of that same hardware. The kernel gives it the
+	# port's address, which is what makes the selector below ambiguous.
+	bridge zebabr0 {
+		member [zebasel0]
+	}
+
+	# The entry an operator writes: a human-readable name bound to a NIC by
+	# its hardware address. Nothing in the kernel is named zebawan.
+	ethernet zebawan {
+		mac {
+			match 02:00:00:00:be:33
+		}
+		unit 0 {
+			ipv4 {
+				address [198.51.100.177/28]
+			}
+		}
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=30s
+expect=exit:code=0
+expect=stderr:contains=past the bridge wearing
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error

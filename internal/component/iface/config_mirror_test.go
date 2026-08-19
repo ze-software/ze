@@ -287,3 +287,58 @@ func TestIndexMirrorSpecsCoversEveryInterfaceFamily(t *testing.T) {
 		}
 	}
 }
+
+// TestMirrorDestinationFollowsItsSelector verifies that the capture port a
+// mirror points at is resolved through the same selector map the mirror SOURCE
+// already used.
+//
+// VALIDATES: a mirror destination selected by MAC or aliased by os-name
+// receives the copy on its kernel device.
+// PREVENTS: the measured defect. setupMirrorSpec took the source from the
+// resolved device and handed SetupMirror the destination straight out of the
+// config, so a mirror toward a selected capture port installed the tc filter
+// toward whatever device carried the logical name -- a traffic copy leaving on
+// the wrong port, which is worse than no copy at all.
+func TestMirrorDestinationFollowsItsSelector(t *testing.T) {
+	cfg := &ifaceConfig{
+		Backend: "netlink",
+		Ethernet: []ifaceEntry{
+			{Name: "wan", MatchMAC: selectedPermMAC, Units: []unitEntry{{Label: "0", MirrorIngress: "capture"}}},
+			{Name: "capture", OSName: "enp9s0"},
+		},
+	}
+	b := selectorBackend()
+	b.ifaces["enp9s0"] = fakeIface{name: "enp9s0", linkType: "device", index: 9}
+
+	errs := applyConfig(cfg, nil, b)
+
+	if len(errs) > 0 {
+		t.Fatalf("applyConfig: %v", errs)
+	}
+	requireOps(t, b, []string{"setup enp1s0 -> enp9s0 (i)"})
+}
+
+// TestMirrorDefersWhenItsDestinationIsAbsent verifies that a destination whose
+// selector has no answer yet installs nothing, rather than installing toward the
+// logical name.
+//
+// VALIDATES: an unbound mirror destination defers, as an unbound source does.
+// PREVENTS: a tc filter mirroring to the device that merely shares the capture
+// port's entry name.
+func TestMirrorDefersWhenItsDestinationIsAbsent(t *testing.T) {
+	cfg := &ifaceConfig{
+		Backend: "netlink",
+		Ethernet: []ifaceEntry{
+			{Name: "wan", MatchMAC: selectedPermMAC, Units: []unitEntry{{Label: "0", MirrorIngress: "capture"}}},
+			{Name: "capture", OSName: "enp9s0"}, // enp9s0 has not appeared
+		},
+	}
+	b := selectorBackend()
+
+	errs := applyConfig(cfg, nil, b)
+
+	if len(errs) > 0 {
+		t.Fatalf("applyConfig: %v", errs)
+	}
+	requireOps(t, b, nil)
+}

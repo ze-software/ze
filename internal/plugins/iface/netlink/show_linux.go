@@ -138,6 +138,12 @@ func linkToInfo(link netlink.Link) iface.InterfaceInfo {
 	if attrs.Alias != "" {
 		info.Alias = attrs.Alias
 	}
+	// IFLA_MASTER names the bridge or bond this device is a member of. The
+	// aggregator takes its hardware address from a member, so a MAC selector
+	// needs the membership to tell which of the two devices carrying that one
+	// address owns it (iface.devicesWithMAC). It is read for every link kind,
+	// because every kind can be enslaved.
+	info.MasterIndex = attrs.MasterIndex
 	if vlan, ok := link.(*netlink.Vlan); ok {
 		info.VlanID = vlan.VlanId
 		info.ParentIndex = attrs.ParentIndex

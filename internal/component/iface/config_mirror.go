@@ -16,15 +16,45 @@ type mirrorSpec struct {
 	egress  string
 }
 
+// mirrorSpecFor returns the mirror one unit asks for, with both destinations
+// resolved through the apply's selector map. A mirror names two interfaces and
+// the destination is as selectable as the source, so a capture port bound by
+// mac/match or aliased by os-name has to be translated here too: tc installs
+// the filter toward a device, and the logical name reaches whatever else
+// carries it.
+func mirrorSpecFor(u *unitEntry, devices map[string]string) mirrorSpec {
+	return mirrorSpec{
+		ingress: mirrorDestination(devices, u.MirrorIngress),
+		egress:  mirrorDestination(devices, u.MirrorEgress),
+	}
+}
+
+// mirrorDestination returns the kernel device a mirror destination names. An
+// empty name asks for no mirror in that direction and stays empty. A name whose
+// selector answers with nothing is UNBOUND and also returns empty: the capture
+// port is not present, and a mirror toward a device that is not there is a
+// mirror the next apply installs, not one to point at a stranger.
+func mirrorDestination(devices map[string]string, name string) string {
+	if name == "" {
+		return ""
+	}
+	device, bound := deviceFor(devices, name)
+	if !bound {
+		return ""
+	}
+	return device
+}
+
 // indexMirrorSpecs returns an OS device name -> mirrorSpec map of the mirrors
 // a config asks for. A disabled interface or unit contributes nothing, so
 // disabling one is a way of asking for no mirror.
 //
 // devices is bindDevices' answer for cfg, so a mirror on an interface selected
 // by mac/match or aliased by os-name is keyed by the kernel device tc installs
-// the filter on. An entry whose binding is unbound contributes nothing: there is
-// no device to mirror, and keying it by the logical name would install the
-// filter on whatever else carries that name.
+// the filter on, and points at the kernel device the capture port resolves to.
+// An entry whose binding is unbound contributes nothing: there is no device to
+// mirror, and keying it by the logical name would install the filter on
+// whatever else carries that name.
 func indexMirrorSpecs(cfg *ifaceConfig, devices map[string]string) map[string]mirrorSpec {
 	if cfg == nil {
 		return nil
@@ -43,7 +73,7 @@ func indexMirrorSpecs(cfg *ifaceConfig, devices map[string]string) map[string]mi
 			if u.Disable || (u.MirrorIngress == "" && u.MirrorEgress == "") {
 				continue
 			}
-			specs[unitOSName(device, u)] = mirrorSpec{ingress: u.MirrorIngress, egress: u.MirrorEgress}
+			specs[unitOSName(device, u)] = mirrorSpecFor(u, devices)
 		}
 	}
 	return specs
@@ -133,12 +163,26 @@ func setupMirrorSpec(b Backend, osName string, m mirrorSpec) error {
 	return nil
 }
 
-// applyMirror installs the mirror a unit asks for. A unit that asks for none
-// is left alone here: retiring a mirror the config dropped is removeStaleMirrors'
-// job, which runs first and has the previous config to compare against.
+// applyMirror installs the mirror a unit asks for, toward the kernel device
+// each destination resolves to. A unit that asks for none is left alone here:
+// retiring a mirror the config dropped is removeStaleMirrors' job, which runs
+// first and has the previous config to compare against. A destination whose
+// selector has no answer yet is dropped with a warning rather than installed
+// toward its logical name, exactly as an unbound source is skipped.
 // Returns one error per mirror operation that failed.
-func applyMirror(b Backend, osName string, u unitEntry, journal *sdk.Journal) []error {
-	desired := mirrorSpec{ingress: u.MirrorIngress, egress: u.MirrorEgress}
+func applyMirror(b Backend, osName string, u unitEntry, devices map[string]string, journal *sdk.Journal) []error {
+	if u.MirrorIngress == "" && u.MirrorEgress == "" {
+		return nil
+	}
+	desired := mirrorSpecFor(&u, devices)
+	if desired.ingress == "" && u.MirrorIngress != "" {
+		loggerPtr.Load().Warn("iface config: no present device answers this mirror destination's hardware selector, ingress mirror deferred",
+			"iface", osName, "destination", u.MirrorIngress)
+	}
+	if desired.egress == "" && u.MirrorEgress != "" {
+		loggerPtr.Load().Warn("iface config: no present device answers this mirror destination's hardware selector, egress mirror deferred",
+			"iface", osName, "destination", u.MirrorEgress)
+	}
 	if desired == (mirrorSpec{}) {
 		return nil
 	}

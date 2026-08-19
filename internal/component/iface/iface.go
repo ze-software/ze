@@ -126,6 +126,12 @@ type InterfaceInfo struct {
 	Addresses   []AddrInfo      `json:"addresses,omitempty"`
 	Stats       *InterfaceStats `json:"stats,omitempty"`
 	ParentIndex int             `json:"parent-index,omitempty"`
+	// MasterIndex is the index of the aggregating device this one is a member
+	// of (IFLA_MASTER): the bridge it is a port of, or the bond it is enslaved
+	// to. Zero when the device is a member of none. An aggregator takes its
+	// hardware address from a member, so this is what tells a hardware selector
+	// which of the two devices carrying one address owns it (devicesWithMAC).
+	MasterIndex int `json:"master-index,omitempty"`
 	// MacvlanMode is the delivery mode ("bridge"/"private") read back for a
 	// macvlan device, so the owned-device reconcile can detect a mode drift
 	// (e.g. a device created by an older binary in the wrong mode). Empty for

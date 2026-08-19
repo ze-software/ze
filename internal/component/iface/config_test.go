@@ -2170,6 +2170,23 @@ type fakeBackend struct {
 	nextIndex        int                    // hands each created device its own kernel index
 	mtuSet           map[string]int         // kernel device -> MTU recorded by SetMTU
 	adminSet         map[string]string      // kernel device -> "up"/"down" recorded by SetAdminUp/Down
+	bridgePorts      []bridgePortCall       // ordered log of BridgeAddPort + BridgeDelPort calls
+}
+
+// The two membership operations a bridge can be asked for.
+const (
+	bridgePortOpAdd = "add"
+	bridgePortOpDel = "del"
+)
+
+// bridgePortCall records one bridge membership operation. The port name is the
+// point of the record: the apply must name the kernel device the member's
+// selector resolved to, never the logical entry name that selector exists to
+// translate.
+type bridgePortCall struct {
+	op     string
+	bridge string
+	port   string
 }
 
 // The two mirror operations a backend can be asked for.
@@ -2201,6 +2218,12 @@ type fakeIface struct {
 	alias       string
 	index       int // the interface's own kernel index
 	parentIndex int // for macvlan: the parent's index
+	// masterIndex is the index of the aggregating device this one is a member
+	// of, IFLA_MASTER: the bridge it is a port of, or the bond it is enslaved
+	// to. A live kernel sets it on the MEMBER, and the aggregator then wears
+	// that member's hardware address, which is the state a mac/match selector
+	// has to read past.
+	masterIndex int
 	mtu         int
 	state       string
 }
@@ -2256,7 +2279,10 @@ func (b *fakeBackend) CreateVeth(name, peerName string) error {
 func (b *fakeBackend) CreateBridge(name string) error {
 	b.ensureMaps()
 	b.created[name] = true
-	b.ifaces[name] = fakeIface{name: name, linkType: "bridge"}
+	// A bridge carries a kernel index of its own, because a port names its
+	// bridge by index (IFLA_MASTER) and an index of zero reads as "no master".
+	b.nextIndex++
+	b.ifaces[name] = fakeIface{name: name, linkType: "bridge", index: 2000 + b.nextIndex}
 	return nil
 }
 
@@ -2525,7 +2551,7 @@ func (b *fakeBackend) ListInterfaces() ([]InterfaceInfo, error) {
 		// (show_linux.go). The resolver reads it back as the device a logical
 		// name resolved to, so a fake that left it empty made every Resolve in
 		// a unit test answer with no device.
-		info := InterfaceInfo{Name: f.name, OsName: f.name, Type: f.linkType, MAC: f.mac, PermanentMAC: f.permMAC, Alias: f.alias, ParentIndex: f.parentIndex, MTU: f.mtu, Index: f.index, State: f.state}
+		info := InterfaceInfo{Name: f.name, OsName: f.name, Type: f.linkType, MAC: f.mac, PermanentMAC: f.permMAC, Alias: f.alias, ParentIndex: f.parentIndex, MasterIndex: f.masterIndex, MTU: f.mtu, Index: f.index, State: f.state}
 		if addrs, ok := b.addrs[f.name]; ok {
 			for _, a := range addrs {
 				// b.addrs stores full CIDR strings (what AddAddress received,
@@ -2559,11 +2585,44 @@ func (b *fakeBackend) GetInterface(name string) (*InterfaceInfo, error) {
 	// state for every device, so its MTU undo and its admin-state undo were
 	// no-ops no test could see.
 	return &InterfaceInfo{Name: f.name, OsName: f.name, Type: f.linkType, MAC: f.mac, PermanentMAC: f.permMAC,
-		Alias: f.alias, ParentIndex: f.parentIndex, MTU: f.mtu, Index: f.index, State: f.state}, nil
+		Alias: f.alias, ParentIndex: f.parentIndex, MasterIndex: f.masterIndex, MTU: f.mtu, Index: f.index, State: f.state}, nil
 }
 
-func (b *fakeBackend) BridgeAddPort(_, _ string) error     { return nil }
-func (b *fakeBackend) BridgeDelPort(_ string) error        { return nil }
+// BridgeAddPort records the call and then models what a live kernel does with
+// it: the port names the bridge as its master, and a bridge with no permanent
+// address of its own takes the port's address. Verified against Linux --
+// enslaving a dummy carrying 02:00:00:00:be:99 made the bridge report that same
+// address with no permanent one, which is what makes a mac/match selector read
+// as ambiguous on every apply after the one that built the bridge.
+func (b *fakeBackend) BridgeAddPort(bridge, port string) error {
+	b.ensureMaps()
+	b.bridgePorts = append(b.bridgePorts, bridgePortCall{op: bridgePortOpAdd, bridge: bridge, port: port})
+	br, haveBridge := b.ifaces[bridge]
+	p, havePort := b.ifaces[port]
+	if !haveBridge {
+		return fmt.Errorf("iface fake: bridge %q does not exist", bridge)
+	}
+	if !havePort {
+		return fmt.Errorf("iface fake: bridge port %q does not exist", port)
+	}
+	p.masterIndex = br.index
+	b.ifaces[port] = p
+	if br.permMAC == "" {
+		br.mac = p.mac
+		b.ifaces[bridge] = br
+	}
+	return nil
+}
+
+func (b *fakeBackend) BridgeDelPort(port string) error {
+	b.ensureMaps()
+	b.bridgePorts = append(b.bridgePorts, bridgePortCall{op: bridgePortOpDel, port: port})
+	if p, ok := b.ifaces[port]; ok {
+		p.masterIndex = 0
+		b.ifaces[port] = p
+	}
+	return nil
+}
 func (b *fakeBackend) BridgeSetSTP(_ string, _ bool) error { return nil }
 
 func (b *fakeBackend) SetupMirror(srcIface, dstIface string, ingress, egress bool) error {
