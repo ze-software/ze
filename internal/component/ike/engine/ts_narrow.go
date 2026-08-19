@@ -60,13 +60,19 @@ type tsPair struct {
 // no entries, and narrowing those to the empty set would answer each of them with
 // TS_UNACCEPTABLE.
 //
-// floor is the selector set of the SA being rekeyed, or nil for a fresh Child SA. When
-// it is set the result is never narrower than the floor:
+// floor is the selector set of the SA being rekeyed, or nil for a fresh Child SA. When it
+// is set, the floor is answered whenever the peer's proposal still covers it:
 //
 //	Section 2.9.2 MUST NOT: "Thus, the new SA MUST NOT have narrower selectors than the
 //	original."
 //	Section 2.9.2 MUST NOT: "The responder MUST NOT narrow down the Traffic Selectors
 //	narrower than the scope currently in use."
+//
+// A proposal that covers no floor pair falls through to the two branches below, and both
+// answer a set derived from the proposal alone. That set is NARROWER than the floor, and
+// this function does not refuse it. narrowChildSelectors does, and it is the only caller.
+// The refusal lives there because the transport-mode filter runs there and can drop a
+// pair as well.
 //
 // The second result is false when nothing is acceptable, and the caller then answers
 // TS_UNACCEPTABLE. Every returned selector is a subset of some proposed selector, so the
@@ -155,6 +161,42 @@ func floorWithinProposal(floor []tsPair, proposedI, proposedR []tsSelector) []ts
 		}
 	}
 	return kept
+}
+
+// coversFloor reports whether every pair of the scope in use sits inside some answered
+// pair.
+//
+// RFC 7296 Section 2.9.2 MUST NOT: "The responder MUST NOT narrow down the Traffic
+// Selectors narrower than the scope currently in use" (rfc/full/rfc7296.txt:2551-2552).
+// A floor pair that no answered pair covers is that narrowing, so it is a refusal rather
+// than an answer.
+//
+// Both arguments are in the SAME orientation. respondChildRekey swaps the stored floor
+// into the exchange's orientation before it narrows, and the answer is already in that
+// orientation. Comparing the two across orientations reports no cover for every pair
+// whose halves differ, which refuses every rekey.
+func coversFloor(answer, floor []tsPair) bool {
+	for _, f := range floor {
+		if !pairWithinAny(f, answer) {
+			return false
+		}
+	}
+	return true
+}
+
+// pairsText renders a selector set for the operator who reads the refusal.
+//
+// The refused rekey logs both sets (inbound.go), and the two are only actionable when an
+// operator can see which prefix pair the peer dropped.
+func pairsText(pairs []tsPair) string {
+	var text textbuf.Buffer
+	for i, p := range pairs {
+		if i > 0 {
+			text.Str(", ")
+		}
+		text.Str(p.I.Net.String()).Str(" <-> ").Str(p.R.Net.String())
+	}
+	return string(text.Bytes())
 }
 
 // coveredBy reports whether some selector in list is a superset of s.
@@ -504,10 +546,14 @@ func netRange(n *net.IPNet) (start, end []byte) {
 // (buildAuthResponse and startResponderEAP) cannot drift apart. A second producer that
 // skipped narrowing would leave the EAP path answering with the old wildcard.
 //
-// floor is the selector set of the SA being rekeyed, or nil for a fresh Child SA.
+// floor is the selector set of the SA being rekeyed, or nil for a fresh Child SA. It is
+// in the orientation of the exchange in hand, which respondChildRekey establishes before
+// it calls.
 //
 // It returns errTSUnacceptable when nothing is acceptable, and notifyForRefusal maps
-// that to the TS_UNACCEPTABLE notify RFC 7296 Section 2.9 asks for.
+// that to the TS_UNACCEPTABLE notify RFC 7296 Section 2.9 asks for. A result that does
+// not cover the floor is one of those cases, so the answer this function records is
+// always a set the caller can install unchanged.
 func narrowChildSelectors(sa *SA, tsi, tsr *wire.PayloadTS, floor []tsPair) error {
 	proposedI := wireToSelectors(tsi.TrafficSelectors)
 	proposedR := wireToSelectors(tsr.TrafficSelectors)
@@ -535,6 +581,28 @@ func narrowChildSelectors(sa *SA, tsi, tsr *wire.PayloadTS, floor []tsPair) erro
 		if len(narrowed) == 0 {
 			return errTSUnacceptable
 		}
+	}
+
+	// RFC 7296 Section 2.9.2 MUST NOT: "Thus, the new SA MUST NOT have narrower selectors
+	// than the original" (rfc/full/rfc7296.txt:2539-2540), and "The responder MUST NOT
+	// narrow down the Traffic Selectors narrower than the scope currently in use"
+	// (rfc/full/rfc7296.txt:2551-2552).
+	//
+	// narrowSelectors answers the floor while the proposal covers it. When the proposal
+	// covers no floor pair it answers the intersection instead, and that answer is narrower
+	// than the scope in use. No legal answer is left: Section 2.9 refuses an answer wider
+	// than the proposal, and Section 2.9.2 refuses one narrower than the floor. So the
+	// exchange is refused with the TS_UNACCEPTABLE that Section 2.9 already names.
+	//
+	// Section 2.9.2 says what such a request means: "If the rekeyed SA would ever need to
+	// have a narrower scope than the currently used SA, that would mean that the policy was
+	// changed in a way such that the currently used SA is against the policy. In that case,
+	// the SA should have been already deleted after the policy change took effect."
+	// Refusing therefore declines a state that should not exist, rather than a workable
+	// rekey.
+	if len(floor) > 0 && !coversFloor(narrowed, floor) {
+		return fmt.Errorf("%w: the rekey proposal narrows the scope in use %s down to %s",
+			errTSUnacceptable, pairsText(floor), pairsText(narrowed))
 	}
 
 	sa.NegotiatedPairs = narrowed

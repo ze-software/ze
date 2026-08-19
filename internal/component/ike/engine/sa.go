@@ -313,6 +313,24 @@ type SA struct {
 	// Ze puts on the wire and the policy Ze programs come from ONE source. RFC 7296
 	// Section 2.9 permits several selectors, so a single prefix pair cannot represent
 	// every conformant answer.
+	//
+	// The orientation is the LAST exchange's, not the IKE SA's. Every responder narrowing
+	// overwrites this field (narrowChildSelectors, ts_narrow.go). RFC 7296 Section 2.9
+	// makes TSi the selector of whoever STARTED the exchange, and Section 1.3.2 lets
+	// either end start a CREATE_CHILD_SA. A rekey the peer starts therefore leaves the
+	// peer's side as TSi here, on a tunnel this node initiated.
+	//
+	// INVARIANT: the one reader that needs the IKE_AUTH orientation runs before any rekey
+	// can write here. createFirstChildSA (child.go) copies this set onto the Child SA and
+	// records its orientation beside it as SelectorsLocalIsTSi, taken from sa.IsInitiator.
+	// Its two production callers both answer IKE_AUTH. initiatorFirstChildSA runs once,
+	// from runEstablished, before maintainSA services any exchange, and buildAuthResponse
+	// (responder.go) builds the IKE_AUTH response itself.
+	//
+	// A third caller placed after establishment would read an orientation that had since
+	// moved, and would install a port-swapped policy. Such a caller MUST read
+	// ChildSA.SelectorsLocalIsTSi instead. That flag travels with the selectors it
+	// describes, and no rekey moves it.
 	NegotiatedPairs []tsPair
 
 	// ProposedChildPairs is the selector set Ze put in its OWN TSi/TSr.

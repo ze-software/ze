@@ -454,7 +454,14 @@ program exactly is narrowed FURTHER, never rounded outward: an address range tha
 prefix becomes the largest prefix inside it, and a port range that is neither all ports nor
 one port becomes its first port. A rekey is never narrowed below the scope in use.
 
-<!-- source: internal/component/ike/engine/ts_narrow.go -- programmableSelector, largestPrefixIn, floorWithinProposal -->
+A peer whose selectors narrow while a tunnel is up proposes exactly that at its next rekey.
+Ze refuses such a rekey with `TS_UNACCEPTABLE` instead of replacing the SA with a narrower
+one. RFC 7296 Section 2.9.2 gives the reason: a rekey that needs a narrower scope means the
+policy changed, and the SA should have been deleted when the change took effect. The log
+line names both selector sets. Narrow the selectors on BOTH ends, or clear the peer, rather
+than waiting for the rekey timer.
+
+<!-- source: internal/component/ike/engine/ts_narrow.go -- programmableSelector, largestPrefixIn, floorWithinProposal, coversFloor -->
 
 | Port value | Meaning | RFC 7296 Section 3.13.1 encoding |
 |---|---|---|

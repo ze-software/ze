@@ -77,6 +77,26 @@ hard lifetime.
 <!-- source: internal/component/ike/engine/fsm.go -- maxRetransmissions -->
 <!-- source: internal/component/ike/engine/established.go -- maintainSA, rekeyRetransmitTimeout -->
 
+**The wire answer against the installed policy.** RFC 7296 Section 2.9 makes the
+TS payloads of a rekey response a statement about the SA that was installed: "TS
+payloads specify the selection criteria for packets that will be forwarded over
+the newly set up SA." `newRekeyedChild` installs the retired pair's selectors, so
+the response must announce that same set.
+
+`narrowChildSelectors` keeps the two as one set. It answers the scope in use
+while the peer's proposal covers it, and it refuses the exchange with
+TS_UNACCEPTABLE when the narrowing does not cover that scope. Section 2.9.2
+leaves no third answer: "The responder MUST NOT narrow down the Traffic Selectors
+narrower than the scope currently in use", and Section 2.9 permits no answer
+wider than the proposal. Before the refusal existed, a proposal that covered no
+pair of the scope in use was answered with the intersection while the replacement
+carried the retired pair's set. The peer then programmed one policy and Ze
+programmed another, and traffic inside the difference was dropped at one end with
+no notification.
+
+<!-- source: internal/component/ike/engine/ts_narrow.go -- narrowChildSelectors, coversFloor -->
+<!-- source: internal/component/ike/engine/rekey.go -- respondChildRekey, newRekeyedChild -->
+
 **A kernel with no XFRM.** `createFirstChildSA` tolerates an unsupported
 dataplane. The rekey install must tolerate it too, or it tears down tunnels that
 the first child was allowed to establish. `installChildTolerant` is that path.

@@ -92,6 +92,23 @@ that comparison means config changes to it never take effect.
 
 <!-- source: internal/component/ike/engine/reconcile.go -- reconcilePeers, peerConfigChanged, Stop -->
 
+**One field cannot carry both the KEYMAT role and the selector orientation.**
+`ChildSA.Selectors` is stored in TSi/TSr order. `ChildSA.SelectorsLocalIsTSi`
+says which half of each pair is this node's side, and the policy install reads
+it. `ChildSA.LocalIsInitiator` answers a different question: which KEYMAT half
+keys this pair (RFC 7296 Section 2.17). That field flips each time the other end
+starts the rekey, and the stored selectors do not move.
+
+Reading it to orient those selectors installed a port-swapped policy at the first
+peer-initiated rekey. The kernel then protected the peer's port as this node's.
+`samePolicySelector` stopped recognizing the pair the replacement shares its
+policy with, so retiring the superseded pair removed the live pair's policy. The
+orientation is written once, at creation, from the IKE_AUTH role, and
+`newRekeyedChild` inherits it unchanged.
+
+<!-- source: internal/component/ike/engine/child.go -- ChildSA.SelectorsLocalIsTSi, selectorPort -->
+<!-- source: internal/component/ike/engine/rekey.go -- newRekeyedChild -->
+
 **Key material flows through four hops and each one must clear.** Derivation,
 the child key struct, the SA parameters, then the install call. Any new path
 inherits the clear chain.

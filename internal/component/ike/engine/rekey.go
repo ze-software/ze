@@ -347,10 +347,17 @@ func respondChildRekey(sa *SA, inner []wire.PayloadEntry, old *ChildSA, msgID ui
 		return nil, nil, err
 	}
 
-	// RFC 7296 Section 2.9: the rekey RESPONSE carries the narrowed selectors, the same
-	// subset the replacement Child SA was installed with. It used to carry a wildcard,
-	// which satisfied Section 2.9.2's two MUST NOTs only vacuously, by answering with the
-	// widest possible set.
+	// RFC 7296 Section 2.9: "TS payloads specify the selection criteria for packets that
+	// will be forwarded over the newly set up SA." The answer is therefore a statement
+	// about the Child SA installed above, and it carries that SA's scope in this exchange's
+	// TSi/TSr orientation. It used to carry a wildcard, which satisfied Section 2.9.2's two
+	// MUST NOTs only vacuously, by answering with the widest possible set.
+	//
+	// The answer and the install are one set on every branch, and no branch is left in
+	// which they can disagree. narrowChildSelectors refuses the exchange unless its
+	// narrowing covers the scope in use, so the only answer that reaches here is the floor
+	// (ts_narrow.go), and newRekeyedChild installs that same floor by inheriting
+	// old.Selectors.
 	tsi, tsr := pairsToWire(sa.NegotiatedPairs)
 	if tsi == nil || tsr == nil {
 		tsi, tsr = anyChildTSPayloads(sa)

@@ -2,16 +2,153 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | - |
+| Phase | 1/1 |
 | Deferral shard | `-` |
-| Updated | 2026-08-01 |
+| Updated | 2026-08-19 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
-## Task
+## Task — REWRITTEN 2026-08-17 to the shipped design
+
+**The headline defect this spec was written for is FIXED. Three residuals
+remain, and one of them is a live product defect. Everything below the "As
+originally written" heading is kept for history and MUST NOT be implemented.**
+
+Re-verified at the producers 2026-08-17:
+
+- `xfrmBackend.InstallPolicy` (`internal/component/ike/dataplane/xfrm_linux.go`)
+  upserts with `netlink.XfrmPolicyUpdate`, never `XfrmPolicyAdd`. No
+  `XfrmPolicyAdd` call remains anywhere in `internal/`, `cmd/` or `pkg/`. The
+  EEXIST this spec was written for cannot occur.
+- `removeChildSAExcept` (`internal/component/ike/engine/child.go`) gates policy
+  removal on `samePolicySelector`, so retiring a superseded pair no longer
+  removes the live pair's policy.
+- The shipped design also grew per-peer policy ownership (`dataplane.SPParams.Owner`,
+  claimed BEFORE the netlink call), which is what now refuses a foreign peer that
+  EEXIST used to refuse.
+
+→ Decision: **the shipped design is KEPT.** This spec originally proposed moving
+the policy to session ownership. That is not what shipped, it is not needed to
+fix the defect, and replacing a shipped, interop-proven design with the
+alternative would be a rewrite with no defect behind it (`ai/rules/no-layering.md`,
+`ai/rules/simplicity.md`).
+
+### R-1 (live product defect) — one field carries two meanings, and a rekey flips it
+
+`ChildSA.LocalIsInitiator` is written per EXCHANGE: `newRekeyedChild`
+(`internal/component/ike/engine/rekey.go`) receives `true` from
+`applyChildRekeyResponse` (ze initiated this rekey) and `false` from
+`respondChildRekey` (the peer did). The same call inherits `Selectors` from the
+retired pair, and those stay in the ORIGINAL exchange's TSi/TSr orientation.
+
+`selectorPort` (`internal/component/ike/engine/child.go`) reads
+`side := pair.R; if local == child.LocalIsInitiator { side = pair.I }`, so it
+uses the per-exchange field to orient a value that did not move. A peer-initiated
+rekey of a ze-initiated Child SA therefore reads the peer's side as ze's.
+
+With asymmetric ports the replacement installs a PORT-SWAPPED policy, and
+`samePolicySelector` then answers false where it should answer true, so the
+retiring pair also removes a selector the live pair still needs. Read, not
+measured: no test today produces a peer-proposed port narrowing.
+
+**Root cause: one field means "my KEYMAT role in this exchange" and is also read
+as "the orientation the stored Selectors are in". Those diverge at the first
+rekey the other side initiates.** The fix separates them: the orientation
+travels with `Selectors` and is inherited unchanged, and `LocalIsInitiator`
+keeps its KEYMAT meaning.
+
+### R-2 (coverage hole) — the rekey `.ci` proves nothing about XFRM
+
+`test/ipsec/ipsec-child-rekey.ci` pins `ze_test_ike_dataplane=noop`, so it
+exercises no policy or state programming at all. There is no
+`ipsec-child-rekey-xfrm.ci`. A test that cannot observe the subject it names is
+the vacuous-test class (`ai/rules/testing.md`).
+
+### R-3 (A-1 is still unvalidated, and it is load-bearing) — no QEMU test proves reqid resolution
+
+The shipped design depends on the kernel resolving ONE installed policy to a
+REPLACED state carrying the same `ReqID` (RFC 4301 Section 4.4.1.2). Neither
+`xfrm_rekey_policy_integration_linux_test.go` nor
+`xfrm_policy_owner_integration_linux_test.go` calls `XfrmStateAdd`, so no QEMU
+test exercises that resolution. The assumption the whole make-before-break rekey
+rests on has never been measured.
+
+### Assumptions, revalidated 2026-08-17
+
+| ID | Outcome | Evidence |
+|----|---------|----------|
+| A-1 | **VALIDATED 2026-08-18**, in QEMU against a real kernel | `TestXFRMPolicyResolvesToAReplacedState` (`internal/component/ike/dataplane/xfrm_reqid_resolution_integration_linux_test.go`): one policy installed once resolved to a state and then to its replacement at the same request id, read from `XfrmOutNoStates` and from each state's own packet counter, bracketed by two controls that DO move the counter |
+| A-2 | **confirmed** | `installChildSA` has exactly two callers (`createFirstChildSA`, `installChildTolerant`); `installChildTolerant` has exactly two (`applyChildRekeyResponse`, `respondChildRekey`). Three install paths, no fourth |
+| A-3 | **confirmed, by a different mechanism than assumed** | `narrowChildSelectors` writes only to `sa.NegotiatedPairs`; `newRekeyedChild` inherits `Selectors` and never reads the narrowing result, so a rekey cannot move the installed selector. R-1's original compare-and-replace mitigation is NOT needed |
+
+### Acceptance criteria that replace AC-1..AC-6
+
+The original AC-1..AC-6 describe the session-owned design and are VOID. The
+criteria for this spec are now:
+
+| AC ID | Input / Condition | Expected Behavior |
+|-------|-------------------|-------------------|
+| AC-R1 | A peer-initiated rekey of a ze-initiated Child SA whose selectors carry asymmetric ports | The replacement's policy selector is oriented identically to the retired pair's, and `samePolicySelector` answers true |
+| AC-R2 | The same, with the roles reversed (ze-initiated rekey of a peer-initiated Child SA) | Same |
+| AC-R3 | A Child SA rekey on the real XFRM dataplane | A functional test observes the state and policy programming, not the noop backend |
+| AC-R4 | A policy installed, a state installed at `ReqID` N, then replaced by a second state at the same `ReqID` | The policy still resolves to the new state, measured in QEMU against a real kernel |
+
+## Implementation record 2026-08-18
+
+R-1, R-2 and R-3 are implemented. Two further defects on the same surface were found
+while implementing them, both measured and both fixed, and each carries a row in
+`plan/journal/field-carries-two-meanings.md`.
+
+| Residual | Outcome | Evidence |
+|----------|---------|----------|
+| R-1 | fixed at the source. The orientation of the stored selectors is recorded beside them and inherited unchanged at rekey, so `LocalIsInitiator` keeps its KEYMAT meaning alone | `TestRekeyKeepsThePolicyOrientationOfTheRetiredPair` (both role directions), RED before and GREEN after |
+| R-2 | `test/ipsec/ipsec-child-rekey-xfrm.ci`, on the REAL xfrm backend, with the two roles crossed so the daemon under test answers a rekey the peer starts | PASS in QEMU. It discriminates: with the orientation read reverted it reports POLICY-MOVED and names the port that changed sides |
+| R-3 | the QEMU test A-1 always needed | see the A-1 row above |
+| found: the responder's narrowing orientation | fixed | `TestPeerInitiatedRekeyIsNarrowedInTheExchangeOrientation`, RED before and GREEN after |
+| found: the responder's Message ID counter | fixed | `TestResponderFirstRequestMatchesWhatTheInitiatorExpects`, RED before and GREEN after |
+
+The original AC-1..AC-6 stay VOID. AC-R1 to AC-R4 are met by the rows above.
+
+RFC 7296 Section 2.2's two-counter rule is EXTRACTED and PROVEN. It is stated in
+indicative prose that carries no RFC 2119 keyword, so the `rfc2119` register derived
+no site for it and it had no checklist row. Commit `86b6aa291` added the row
+`[RFC7296-2.2-3] [MUST]` to `rfc/short/rfc7296.md`, recorded it under section 2.2
+`unsourced-ids` in `rfc/extraction/rfc7296.json` with a resign reason, and tagged it in
+both polarities: positive in
+`internal/component/ike/engine/rfc7296_msgid_responder_request_test.go` and negative in
+`internal/component/ike/engine/rfc7296_msgid_test.go`. Nothing about it is open, and
+`ai/rules/rfc-compliance.md` asks for no question: the ask is owed only when Ze is about
+to do less than the RFC states.
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/fixit-child-sa-rekey-policy-6c2adacb-9282-4d78-9180-bab7cb6a2f15.md` |
+| `review_gate.py check` | not run: the artifact records `findings`, not `clean` |
+| Rounds | 1 |
+| Reviewer lenses used | RFC conformance and extraction state, test discrimination, comment-against-producer, documentation completeness |
+
+**The verdict is `findings` on purpose, and closure is blocked until a fresh pass
+clears it.** The round-1 review was independent: it read commit `86b6aa291` and
+reported 3 BLOCKER and 4 ISSUE. The fixes below were made by the implementation
+session, so that session cannot record a clean verdict over its own edits
+(`ai/rules/planning.md`). An independent pass over the working tree is owed.
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| B1 | BLOCKER | The spec published an OPEN question about RFC 7296 Section 2.2 that `86b6aa291` had already answered. The row, both test tags and the extraction resign reason all landed in that commit | `plan/spec-fixit-child-sa-rekey-policy.md`, Implementation record | The paragraph now records what was done and states that no question is owed |
+| I1 | ISSUE | `asymmetricPortChild` left `SelectorsLocalIsTSi` false in both table cases while its doc comment claimed the flag followed `localIsInitiator`, so the test could not catch a wrong write of that flag | `internal/component/ike/engine/child_rekey_orientation_test.go`, `asymmetricPortChild` | The helper writes both fields and the comment says so. Mutation-checked: deriving the flag from the rekey's exchange role reddens BOTH table cases |
+| I2 | ISSUE | `SA.NegotiatedPairs` carried no record of WHICH exchange's orientation it holds, while `narrowChildSelectors` overwrites it per exchange and `createFirstChildSA` reads it | `internal/component/ike/engine/sa.go`, `SA.NegotiatedPairs` | The documented invariant. Both production callers of `createFirstChildSA` answer IKE_AUTH and run before `maintainSA` services any exchange, so no rekey can move the orientation under them. The comment names that and points a third caller at `ChildSA.SelectorsLocalIsTSi` |
+| I3a | ISSUE | The comment above `pairsToWire(sa.NegotiatedPairs)` claimed the response carries the same subset the replacement was installed with. `newRekeyedChild` installs `old.Selectors` | `internal/component/ike/engine/rekey.go`, `respondChildRekey` | The comment now states which branch of `narrowSelectors` makes the two agree, and names the spec that records the divergence |
+| I3b | ISSUE | The answered set and the installed set diverge on the intersection branch, which is reachable from the wire | `internal/component/ike/engine/rekey.go`, `respondChildRekey` and `newRekeyedChild` | NOT fixed here. RFC 7296 Section 2.9 governs it, so `ai/rules/rfc-compliance.md` routes it to `spec-fixit-child-rekey-answer-vs-installed-selectors` and a question for Thomas, rather than an inline fix inside a closing commit (`ai/rules/rule-precedence.md`) |
+| I4 | ISSUE | Two documentation rows were marked "Yes" and the work had not happened | `plan/spec-fixit-child-sa-rekey-policy.md`, Documentation Update Checklist | `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md` documents the orientation field against the KEYMAT role, the `docs/features/rfc-status.md` RFC 7296 row records the three behaviors this spec proved, and both rows say what landed |
+
+## As originally written (HISTORY — do not implement)
 
 **Every Child SA rekey fails on Linux, and the tunnel stops carrying traffic when
 the retired SA hard-expires.**
@@ -243,7 +380,7 @@ backend and the capability marker the backend needs.
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| a short-lifetime rekey scenario | `test/ipsec-interop/` | strongSwan | a tunnel survives a Child SA rekey and keeps carrying traffic | |
+| a short-lifetime rekey scenario | `test/interop-ipsec/` | strongSwan | a tunnel survives a Child SA rekey and keeps carrying traffic | |
 
 ## Files to Modify
 - `internal/component/ike/engine/child.go` - split the policy install and remove
@@ -280,8 +417,8 @@ backend and the capability marker the backend needs.
 |-----|---------|---------------|
 | Feature list | No | no new feature; a defect is removed |
 | User guide | No | no operator-visible change |
-| RFC compliance | Yes | `docs/features/rfc-status.md` RFC 7296 row: Section 2.8 rekey now survives on the XFRM backend |
-| Architecture | Yes | the Child SA programming page: one policy, successive states |
+| RFC compliance | Yes, done 2026-08-19 | `docs/features/rfc-status.md` RFC 7296 row now records Section 2.2's two independent Message ID counters, Section 2.9's narrowing orientation, and the Section 2.8 rekey measured on the XFRM backend |
+| Architecture | Yes, done 2026-08-19 | `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md`: `SelectorsLocalIsTSi` is the selector orientation and `LocalIsInitiator` is the KEYMAT role, so one field no longer carries both. This row read "one policy, successive states" until 2026-08-19, which described the VOID session-owned design |
 
 ## Implementation Steps
 
