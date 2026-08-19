@@ -90,8 +90,8 @@ class SpecDocAnchorsTest(unittest.TestCase):
             "- `pkg/plugin/rpc/message.go` - the tail\n"
             "- `docs/architecture/api/ipc_protocol.md` - the grammar\n"
             "\n## Files to Create\n"
-            "- `test/plugin/answer.ci` - functional\n"
-            "- `scripts/dev/tool.py` - helper\n"
+            "- `test/plugin/answer.ci` - functional\n"  # <!-- doc-links: ignore (fixture data: the path must NOT exist, that is the property under test) -->
+            "- `scripts/dev/tool.py` - helper\n"  # <!-- doc-links: ignore (fixture data: the path must NOT exist, that is the property under test) -->
         )
         self.assertEqual(
             spec_source_files(spec),
@@ -105,9 +105,9 @@ class SpecDocAnchorsTest(unittest.TestCase):
     def test_integration_checklist_rows_are_not_files(self):
         spec = (
             "## Files to Create\n"
-            "- `internal/a.go` - real\n"
+            "- `internal/a.go` - real\n"  # <!-- doc-links: ignore (fixture data: the path must NOT exist, that is the property under test) -->
             "### Integration Checklist\n"
-            "- `internal/should-not-count.go` - a row, not a file list\n"
+            "- `internal/should-not-count.go` - a row, not a file list\n"  # <!-- doc-links: ignore (fixture data: the path must NOT exist, that is the property under test) -->
         )
         self.assertEqual(spec_source_files(spec), ["internal/a.go"])
 

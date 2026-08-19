@@ -746,7 +746,7 @@ def _run_validate_spec(
             os.path.join(work, "ai", "CODE-TO-DOCS.md"), "w", encoding="utf-8"
         ) as fh:
             fh.write(
-                "# CODE-TO-DOCS\n\n## `internal/fixture/`\n\n| File | Docs |\n|---|---|\n| `z.go` | `docs/architecture/fixture.md` |\n"
+                "# CODE-TO-DOCS\n\n## `internal/fixture/`\n\n| File | Docs |\n|---|---|\n| `z.go` | `docs/architecture/fixture.md` |\n"  # <!-- doc-links: ignore (fixture data: the path must NOT exist, that is the property under test) -->
             )
         for path, design in (sources or {}).items():
             full = os.path.join(work, path)
@@ -1029,8 +1029,8 @@ def run_validate_spec(results: Results) -> None:
     # mux.go, both declaring docs/architecture/api/ipc_protocol.md, and named two
     # OTHER docs while answering the checklist row "Yes".
     owner_spec = _VALID_SPEC.replace("@ARROW@", "->").replace(
-        "- `internal/x/y.go` - fixture feature file",
-        "- `internal/fixture/z.go` - fixture feature file",
+        "- `internal/x/y.go` - fixture feature file",  # <!-- doc-links: ignore (fixture data: the path must NOT exist, that is the property under test) -->
+        "- `internal/fixture/z.go` - fixture feature file",  # <!-- doc-links: ignore (fixture data: the path must NOT exist, that is the property under test) -->
     )
     rc, err = _run_validate_spec(
         script,
@@ -1050,9 +1050,9 @@ def run_validate_spec(results: Results) -> None:
     rc, err = _run_validate_spec(
         script,
         owner_spec.replace(
-            "- `internal/fixture/z.go` - fixture feature file",
-            "- `internal/fixture/z.go` - fixture feature file\n"
-            "- `docs/architecture/fixture.md` - unaffected, states framing only",
+            "- `internal/fixture/z.go` - fixture feature file",  # <!-- doc-links: ignore (fixture data: the path must NOT exist, that is the property under test) -->
+            "- `internal/fixture/z.go` - fixture feature file\n"  # <!-- doc-links: ignore (fixture data: the path must NOT exist, that is the property under test) -->
+            "- `docs/architecture/fixture.md` - unaffected, states framing only",  # <!-- doc-links: ignore (fixture data: the path must NOT exist, that is the property under test) -->
         ),
         sources={"internal/fixture/z.go": "docs/architecture/fixture.md"},
     )
