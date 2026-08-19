@@ -89,6 +89,11 @@ class ReviewGateCase(unittest.TestCase):
         self.assertIn("changed AFTER the review", r.stderr)
 
     def test_findings_verdict_blocks(self):
+        # A findings verdict must carry findings, so the file is part of recording
+        # one; see FindingsBelongToTheReviewCase.
+        (self.root / "findings.md").write_text(
+            f"BLOCKER: {self.rel(self.code)} A() returns before the guard runs."
+        )
         run_gate(
             "record",
             "--rounds",
@@ -97,6 +102,8 @@ class ReviewGateCase(unittest.TestCase):
             "demo",
             "--verdict",
             "findings",
+            "--findings-file",
+            "findings.md",
             "--files",
             self.rel(self.code),
             cwd=self.root,
@@ -401,6 +408,96 @@ class RoundCapCase(unittest.TestCase):
         only.write_text(only.read_text().replace(" rounds=1", ""))
         r = run_gate("check", "--spec", "demo", "--files", "pkg/a.go", cwd=self.root)
         self.assertEqual(r.returncode, 0, r.stderr)
+
+
+class FindingsBelongToTheReviewCase(unittest.TestCase):
+    """The findings body and the artifact header must describe one review.
+
+    VALIDATES: `record` refuses an unreadable --findings-file, refuses a findings
+    verdict that records no findings, and refuses findings that name none of the
+    reviewed files.
+    PREVENTS: an artifact whose header and file hashes name one spec while its
+    Findings section belongs to another. The header comes from --spec and --files
+    and the body from --findings-file, so nothing tied the two together and a gate
+    could pass on evidence about different code.
+    """
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name)
+        (self.root / "tmp" / "review").mkdir(parents=True)
+        self.code = self.root / "pkg" / "a.go"
+        self.code.parent.mkdir()
+        self.code.write_text("package a\nfunc A() {}\n")
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def record(self, *extra, verdict="clean"):
+        return run_gate(
+            "record",
+            "--spec",
+            "demo",
+            "--verdict",
+            verdict,
+            "--rounds",
+            "1",
+            "--files",
+            "pkg/a.go",
+            *extra,
+            cwd=self.root,
+        )
+
+    def findings_file(self, text: str) -> str:
+        p = self.root / "findings.md"
+        p.write_text(text, encoding="utf-8")
+        return "findings.md"
+
+    def artifact(self) -> str:
+        (only,) = (self.root / "tmp" / "review").glob("demo-*.md")
+        return only.read_text()
+
+    def test_a_findings_file_that_does_not_exist_is_refused(self):
+        r = self.record("--findings-file", "no/such/file.md")
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("does not exist", r.stderr)
+        # Nothing may be written: a refused record must leave no artifact behind.
+        self.assertEqual(list((self.root / "tmp" / "review").glob("demo-*.md")), [])
+
+    def test_a_findings_verdict_with_no_findings_is_refused(self):
+        r = self.record(verdict="findings")
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("--findings-file", r.stderr)
+
+    def test_findings_naming_no_reviewed_file_are_refused(self):
+        f = self.findings_file(
+            "B-1: runEstablished leaks the pending swap "
+            "(internal/component/ike/engine/established.go)."
+        )
+        r = self.record("--findings-file", f, verdict="findings")
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("name none of the reviewed files", r.stderr)
+        # The refusal must list what WAS reviewed, or the next agent cannot tell
+        # which of the two inputs is wrong.
+        self.assertIn("pkg/a.go", r.stderr)
+
+    def test_findings_naming_a_reviewed_file_record(self):
+        f = self.findings_file("ISSUE: pkg/a.go A() returns before the guard runs.")
+        r = self.record("--findings-file", f, verdict="findings")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("pkg/a.go A() returns before the guard runs", self.artifact())
+
+    def test_the_base_name_alone_satisfies_the_agreement_check(self):
+        # A reviewer who writes `a.go:12` rather than the repository-relative path
+        # is naming the same file, and the check must not push them into a format.
+        f = self.findings_file("ISSUE: a.go A() returns before the guard runs.")
+        r = self.record("--findings-file", f, verdict="findings")
+        self.assertEqual(r.returncode, 0, r.stderr)
+
+    def test_a_clean_verdict_still_records_without_findings(self):
+        r = self.record()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("(none recorded)", self.artifact())
 
 
 if __name__ == "__main__":

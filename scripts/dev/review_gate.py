@@ -286,8 +286,42 @@ def cmd_record(args: argparse.Namespace) -> int:
     findings = ""
     if args.findings_file:
         fp = Path(args.findings_file)
-        if fp.exists():
-            findings = fp.read_text(encoding="utf-8").strip()
+        # An unreadable findings file used to record as "(none recorded)", so a
+        # mistyped path produced an artifact that reads like a review with nothing
+        # to say. Evidence that cannot be read is refused, never defaulted
+        # (ai/rules/evidence.md).
+        if not fp.exists():
+            print(
+                f"review_gate: --findings-file {fp} does not exist.\n"
+                "  A findings file that cannot be read is not an empty finding "
+                "list. Write the file, then record.",
+                file=sys.stderr,
+            )
+            return 2
+        findings = fp.read_text(encoding="utf-8").strip()
+    if verdict == "findings" and not findings:
+        print(
+            "review_gate: --verdict findings needs a non-empty --findings-file.\n"
+            "  An artifact that claims findings and records none says nothing a "
+            "later reader can act on.",
+            file=sys.stderr,
+        )
+        return 2
+    # The header names the spec and the files; the body arrives as a separate
+    # input, and nothing tied the two together. An artifact could therefore carry
+    # one spec's file hashes over another spec's findings, and read as a review
+    # that never happened. A finding names the function that produces the behavior
+    # (ai/rules/evidence.md), so at least one reviewed path must appear in the body.
+    if findings and not any(f in findings or Path(f).name in findings for f in files):
+        print(
+            "review_gate: the findings name none of the reviewed files.\n"
+            "  Reviewed: " + ", ".join(files) + "\n"
+            "  A finding names the file and the symbol that produce the behavior. "
+            "Findings that name none of these belong to another review.\n"
+            "  See ai/rules/evidence.md.",
+            file=sys.stderr,
+        )
+        return 2
     ts = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
     out = artifact_path(args.spec)
