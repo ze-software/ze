@@ -10,6 +10,10 @@
 // PrefixStore.Refresh in internal/component/resolve/irr/store, which returns
 // store.ErrNoPrefixes and keeps the last known good data. This package counts
 // that outcome apart from a success, logs it, and reports it as a stale entry.
+// The guard also holds per family, so an answer carrying IPv4 and nothing for
+// IPv6 is a success here, with the entry marked stale and its IPv6 prefixes
+// kept. Without that, the interface binding would lose its IPv6 accept term
+// and its drop term would take every IPv6 packet on the port (sets.go).
 package irr
 
 import (
@@ -355,6 +359,14 @@ func (plug *irrPlugin) refreshAllNow() error {
 	return firstErr
 }
 
+// refreshName fetches one entry and programs what it learned.
+//
+// The apply is half the command: the prefixes reach the kernel through the
+// table registry, and a rule naming a set this plugin has not registered holds
+// its whole table back (internal/component/firewall/registry.go). On a cold
+// cache -- a fresh install, a wiped store, an unreadable cache file -- nothing
+// is registered at startup, so `update firewall irr asn|as-set` is the only
+// path back. refresh-interval defaults to 0, so no loop runs behind it.
 func (plug *irrPlugin) refreshName(name string) error {
 	ps := plug.getPrefixStore()
 	if ps == nil {
@@ -382,6 +394,15 @@ func (plug *irrPlugin) refreshName(name string) error {
 	plug.mu.Unlock()
 
 	updateMetricsGauges(ps, plug.configRefs())
+
+	// Both facts go to the operator, as they do after a purge: the prefixes are
+	// cached, and the rules that use them are not in the kernel.
+	if applyErr := plug.applyTables(); applyErr != nil {
+		var tb textbuf.Buffer
+		tb.Str("firewall irr: ").Str(name).Str(" refreshed, but the firewall tables could not be programmed: ")
+		tb.Str(applyErr.Error())
+		return errors.New(tb.String())
+	}
 	return nil
 }
 

@@ -596,6 +596,94 @@ func TestRefreshKeepsLastGoodOnEmptyAnswer(t *testing.T) {
 	}
 }
 
+// seedBothFamilies caches one IPv4 and one IPv6 prefix for name and returns the
+// zefs path they were persisted to. seedStore above seeds IPv4 alone, so it
+// cannot show a family being lost.
+func seedBothFamilies(t *testing.T, name string) string {
+	t.Helper()
+	addr := fakeIRR(t,
+		map[string]string{name: "10.0.0.0/24"},
+		map[string]string{name: "2001:db8::/32"},
+	)
+	path := tempStorePath(t)
+	seed := New(irr.NewIRR(addr), nil, path)
+	if _, err := seed.Refresh(context.Background(), name, name); err != nil {
+		t.Fatalf("seed Refresh: %v", err)
+	}
+	return path
+}
+
+// VALIDATES: AC-1 -- last-known-good is decided per FAMILY. An answer that
+// carries one family and nothing for the other keeps the cached prefixes of the
+// silent family, dates the entry by them, and marks it stale.
+// PREVENTS: the interface binding losing one family's accept term while the
+// drop term that closes the whitelist stays, which drops every packet of that
+// family (internal/component/firewall/plugins/irr/sets.go, buildIfaceTables).
+// A server answers "D" both for a family it does not hold and for a family with
+// no route objects, so an empty family is never evidence that prefixes are gone.
+func TestRefreshKeepsLastGoodPerFamily(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		replies map[string]string
+		wantV4  int
+		wantV6  int
+	}{
+		{
+			name:    "ipv6-answers-nothing",
+			replies: map[string]string{"!a4AS-TEST": "A2\n10.0.0.0/24\n10.1.0.0/24\nC\n"},
+			wantV4:  2,
+			wantV6:  1,
+		},
+		{
+			name:    "ipv4-answers-nothing",
+			replies: map[string]string{"!a6AS-TEST": "A2\n2001:db8::/32\n2001:dba::/32\nC\n"},
+			wantV4:  1,
+			wantV6:  2,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			path := seedBothFamilies(t, "AS-TEST")
+			addr := fakeIRRReply(t, tc.replies) // every unmapped query answers "D"
+
+			s := New(irr.NewIRR(addr), nil, path)
+			if err := s.Open(); err != nil {
+				t.Fatalf("Open: %v", err)
+			}
+			seeded := s.Get("AS-TEST")
+			if seeded == nil {
+				t.Fatal("seeded entry not loaded")
+			}
+
+			entry, err := s.Refresh(context.Background(), "AS-TEST", "AS-TEST")
+			if err != nil {
+				t.Fatalf("a refresh that learned one family must not report a failure: %v", err)
+			}
+			if len(entry.IPv4) != tc.wantV4 || len(entry.IPv6) != tc.wantV6 {
+				t.Fatalf("entry v4=%d v6=%d, want %d,%d", len(entry.IPv4), len(entry.IPv6), tc.wantV4, tc.wantV6)
+			}
+			if !entry.Stale() {
+				t.Error("an entry enforcing a family nobody confirmed must report itself stale")
+			}
+			if !entry.RefreshedAt.Equal(seeded.RefreshedAt) {
+				t.Errorf("RefreshedAt = %v, want the kept family's date %v: the age of the oldest data is what an operator reads",
+					entry.RefreshedAt, seeded.RefreshedAt)
+			}
+
+			reopened := New(irr.NewIRR(addr), nil, path)
+			if err := reopened.Open(); err != nil {
+				t.Fatalf("reopen: %v", err)
+			}
+			persisted := reopened.Get("AS-TEST")
+			if persisted == nil || len(persisted.IPv4) != tc.wantV4 || len(persisted.IPv6) != tc.wantV6 {
+				t.Fatalf("persisted entry not preserved: %+v", persisted)
+			}
+			if !persisted.Stale() {
+				t.Error("staleness must survive a restart")
+			}
+		})
+	}
+}
+
 // VALIDATES: AC-1 -- an empty answer for a name that was never cached stores
 // nothing, so no consumer sees an entry that exists and holds no prefixes.
 // PREVENTS: a zero-prefix entry reading as a valid answer (ai/rules/evidence.md).

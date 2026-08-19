@@ -61,11 +61,16 @@ var ErrNoPrefixes = errors.New("irr/store: IRR returned no prefixes")
 // CachedEntry is one resolved prefix set, keyed by Name.
 // Prefixes serialize to JSON as strings via netip.Prefix's TextMarshaler.
 type CachedEntry struct {
-	Name        string         `json:"name"`
-	ASSet       string         `json:"as-set"`
-	IPv4        []netip.Prefix `json:"ipv4"`
-	IPv6        []netip.Prefix `json:"ipv6"`
-	RefreshedAt time.Time      `json:"refreshed-at"`
+	Name  string         `json:"name"`
+	ASSet string         `json:"as-set"`
+	IPv4  []netip.Prefix `json:"ipv4"`
+	IPv6  []netip.Prefix `json:"ipv6"`
+	// RefreshedAt dates the OLDEST prefixes the entry carries. The two families
+	// are learned by two queries and one of them can answer nothing (Refresh),
+	// so the entry keeps the older date: it is the age an operator needs, and
+	// the newer one would understate how long enforcement has run on
+	// unconfirmed data.
+	RefreshedAt time.Time `json:"refreshed-at"`
 	// StaleSince is when the first refresh since RefreshedAt learned nothing.
 	// Zero means the prefixes above are what the IRR last answered. Non-zero
 	// means they are last-known-good data still being enforced, and the gap
@@ -134,10 +139,15 @@ func (s *PrefixStore) Put(name string, ipv4, ipv6 []netip.Prefix) {
 // previously resolved prefixes stay in memory and on disk and stay enforced,
 // and the returned entry carries them with StaleSince set. Two cases reach it:
 // a lookup error, which is returned unchanged, and a lookup that succeeded and
-// carried no prefixes, which returns ErrNoPrefixes.
+// carried no prefixes for either family, which returns ErrNoPrefixes.
 //
-// On success the in-memory cache and the zefs file are updated and StaleSince
-// is cleared.
+// The decision is made per family, because each family is queried separately
+// and each one is enforced separately (commit). An answer carrying one family
+// and nothing for the other keeps what is cached for the family that answered
+// nothing, marks the entry stale, and reports no error: it did learn prefixes.
+//
+// On success the in-memory cache and the zefs file are updated, and StaleSince
+// is cleared when both families answered.
 func (s *PrefixStore) Refresh(ctx context.Context, name, asSet string) (*CachedEntry, error) {
 	entry, err := s.resolve(ctx, name, asSet)
 	if err != nil {
@@ -146,11 +156,73 @@ func (s *PrefixStore) Refresh(ctx context.Context, name, asSet string) (*CachedE
 	if entry.PrefixList().Empty() {
 		return s.markStale(name, entry), fmt.Errorf("%w for %s (as-set %s)", ErrNoPrefixes, name, entry.ASSet)
 	}
+	return s.commit(name, entry), nil
+}
+
+// commit installs a resolved entry, keeping the cached prefixes of every family
+// the answer carried nothing for, and returns what is now enforced.
+//
+// The last-known-good decision is per family because the risk is per family. An
+// IRR answers each family with its own query, and a family the server does not
+// hold reads exactly like a family with no route objects: both are "D", and
+// lookupFamilyPrefixes returns no prefixes and no error for either
+// (internal/component/resolve/irr/client.go). A wholesale replace therefore
+// drops a family on the strength of an answer that cannot tell an outage from
+// an AS-SET with no IPv6, and the consumer that enforces it emits one accept
+// term per family that has prefixes and closes the interface with a drop term
+// naming no family: every packet of the dropped family is then dropped
+// (internal/component/firewall/plugins/irr/sets.go, buildIfaceTables).
+//
+// Removing prefixes stays an operator action, Purge, for the same reason it is
+// one when both families answer nothing.
+func (s *PrefixStore) commit(name string, fresh *CachedEntry) *CachedEntry {
+	keptV4, keptV6 := false, false
+
 	s.mu.Lock()
-	s.entries[name] = entry
+	if cached := s.entries[name]; cached != nil {
+		fresh.IPv4, keptV4 = enforcedFamily(fresh.IPv4, cached.IPv4)
+		fresh.IPv6, keptV6 = enforcedFamily(fresh.IPv6, cached.IPv6)
+		if keptV4 || keptV6 {
+			// The kept prefixes are the oldest data the entry now carries, so
+			// they date it. StaleSince keeps the value it had: a family that
+			// has been missing for a week must not read as stale since this
+			// tick.
+			fresh.RefreshedAt = cached.RefreshedAt
+			fresh.StaleSince = cached.StaleSince
+			if fresh.StaleSince.IsZero() {
+				fresh.StaleSince = time.Now()
+			}
+		}
+	}
+	s.entries[name] = fresh
 	s.mu.Unlock()
-	s.persist([]*CachedEntry{entry})
-	return entry, nil
+
+	if keptV4 {
+		logger().Warn("irr/store: refresh learned no IPv4 prefixes, keeping the cached ones",
+			"name", name, "kept-prefixes", len(fresh.IPv4))
+	}
+	if keptV6 {
+		logger().Warn("irr/store: refresh learned no IPv6 prefixes, keeping the cached ones",
+			"name", name, "kept-prefixes", len(fresh.IPv6))
+	}
+
+	s.persist([]*CachedEntry{fresh})
+	return fresh
+}
+
+// enforcedFamily answers with the prefixes one family must enforce after a
+// refresh, and whether they are the cached ones rather than the answered ones.
+// An answer that carried nothing for the family keeps what was cached, because
+// nothing distinguishes an AS-SET with no route objects in that family from a
+// server that has stopped answering for it (see commit).
+func enforcedFamily(answered, cached []netip.Prefix) (prefixes []netip.Prefix, kept bool) {
+	if len(answered) > 0 {
+		return answered, false
+	}
+	if len(cached) == 0 {
+		return answered, false
+	}
+	return cached, true
 }
 
 // markStale records a refresh that did not learn prefixes for name. The cached

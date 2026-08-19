@@ -115,6 +115,18 @@ last data it had rather than an empty list, which for a firewall interface
 binding means a drop-everything ruleset and for the BGP filter means rejecting
 every UPDATE from the peer.
 
+The decision is made per FAMILY, because each family is enforced separately.
+IPv4 and IPv6 are two queries, and a server that holds no IPv6 route objects
+answers the second one exactly as a server having a bad minute does: `D`, which
+`lookupFamilyPrefixes` reads as an empty family and not as an error. `commit`
+therefore keeps the cached prefixes of any family the answer carried nothing
+for, dates the entry by the oldest data it now holds, and sets `StaleSince`. The
+lookup still counts as a success, because it did learn prefixes. Without this,
+an AS-SET that answered for IPv4 and not for IPv6 replaced the entry wholesale,
+and the interface binding that lost its IPv6 accept term dropped every IPv6
+packet arriving on the port: `buildIfaceTables` emits one accept term per family
+that has prefixes and one drop term that names no family.
+
 `CachedEntry.Stale` reports the condition, and `Purge` is the deliberate way to
 remove prefixes for a name that is gone upstream.
 

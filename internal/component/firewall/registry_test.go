@@ -193,14 +193,19 @@ func (c *countingBackend) GetCounters(string) ([]ChainCounters, error) { return 
 func (c *countingBackend) Close() error                                { return nil }
 
 // VALIDATES: AC-1 -- a table whose term names a set another owner supplies is
-// held back until that owner registers it, and then the whole ruleset is
-// programmed. The two owners do not register in a fixed order: at startup the
-// firewall engine configures before the plugin that supplies the set, and in a
-// reload transaction the participants apply in whatever order the orchestrator
-// emits.
+// held back until that owner registers it, and then it is programmed. The two
+// owners do not register in a fixed order: at startup the firewall engine
+// configures before the plugin that supplies the set, and in a reload
+// transaction the participants apply in whatever order the orchestrator emits.
+// VALIDATES: the wait is scoped to that ONE table. Every other owner's tables
+// reach the kernel on the same reconcile, because a set is table-local and no
+// other table's rules depend on the missing one.
 // PREVENTS: the first owner to apply failing the reconcile for every owner with
 // `match-in-set: unknown set ... (not registered on table)`, which is what the
 // backend answers when a rule names a set the table does not carry.
+// PREVENTS: a supplier that never arrives -- a cold IRR cache registers no set
+// at all -- leaving copp, the DDoS tables and the policy routes unprogrammed
+// behind one WARN, with nothing on the way to end the wait.
 func TestApplyAllWaitsForAProvidedSet(t *testing.T) {
 	resetBackends()
 	resetTables()
@@ -238,12 +243,18 @@ func TestApplyAllWaitsForAProvidedSet(t *testing.T) {
 			}},
 		}},
 	}})
+	// A second owner, with no stake in the missing set. Its table is what the
+	// all-or-nothing wait used to take down with the first one.
+	RegisterTables("copp", []Table{{Name: "ze_copp", Family: FamilyInet}})
 
 	if err := ApplyAll(); err != nil {
 		t.Fatalf("a pending provider must not fail the reconcile: %v", err)
 	}
-	if applies != 0 {
-		t.Fatalf("the backend was given a rule naming a set nobody registered (%d applies)", applies)
+	if applies != 1 {
+		t.Fatalf("backend applies = %d, want 1: the tables that CAN be programmed must be", applies)
+	}
+	if len(lastApplied) != 1 || lastApplied[0].Name != "ze_copp" {
+		t.Fatalf("applied %+v, want ze_copp alone: ze_wan names a set nobody registered", lastApplied)
 	}
 
 	RegisterTables("firewall-irr", []Table{{
@@ -255,10 +266,15 @@ func TestApplyAllWaitsForAProvidedSet(t *testing.T) {
 	if err := ApplyAll(); err != nil {
 		t.Fatalf("ApplyAll after the provider registered: %v", err)
 	}
-	if applies != 1 {
-		t.Fatalf("backend applies = %d, want 1 once the set is registered", applies)
+	if applies != 2 {
+		t.Fatalf("backend applies = %d, want 2 once the set is registered", applies)
 	}
-	if len(lastApplied) != 1 || len(lastApplied[0].Sets) != 1 || lastApplied[0].Sets[0].Name != "irr_v4_AS13335" {
+	if len(lastApplied) != 2 {
+		t.Fatalf("applied %+v, want both tables once the set is registered", lastApplied)
+	}
+	// ApplyAll walks the owners in name order, so copp's table comes first.
+	wan := lastApplied[1]
+	if wan.Name != "ze_wan" || len(wan.Sets) != 1 || wan.Sets[0].Name != "irr_v4_AS13335" {
 		t.Fatalf("the merged table did not carry the provided set: %+v", lastApplied)
 	}
 }

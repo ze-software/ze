@@ -51,9 +51,10 @@ match that carries it and checks the field against that type; a match without it
 still has to name a set the table itself declares, so `source-address
 "@irr_v4_typo"` typed by hand is refused as it always was.
 
-### The reconcile waits for a set nobody has registered yet
+### One table waits for a set nobody has registered yet
 
-<!-- source: internal/component/firewall/registry.go -- unresolvedProvidedSet -->
+<!-- source: internal/component/firewall/registry.go -- dropTablesMissingAProvidedSet -->
+<!-- source: internal/component/firewall/plugins/irr/irr.go -- refreshName -->
 
 The owners register in no fixed order. At startup the firewall engine configures
 before the plugin that supplies the set, because the plugin depends on it, and in
@@ -61,12 +62,27 @@ a reload transaction the participants apply in whatever order the orchestrator
 emits. The backend refuses a rule whose set is not on the table, and that refusal
 fails the reconcile for every owner.
 
-`ApplyAll` therefore checks the merged tables for a match that names a provided
-set nobody declared, and returns without calling the backend when it finds one,
-logging `reconcile deferred` at WARN. The supplying owner calls `ApplyAll` when
-it registers, and that run programs the complete ruleset. The WARN is what an
-operator has to go on when the supplier never arrives, so it names the table and
-the set.
+`ApplyAll` therefore leaves out each merged table whose term names a provided set
+nobody declared, programs the rest, and logs `table held back` at WARN with the
+table and the set. The supplying owner calls `ApplyAll` when it registers, and
+the table is programmed then.
+
+The unit is one table, and it is the smallest unit that can wait: a set is
+table-local, so no other table's terms can depend on the missing one. Holding
+back the whole reconcile instead made one absent supplier the whole firewall's
+problem. On a cold prefix cache, which is a fresh install, a wiped
+`database.zefs`, or a cache file that cannot be read, the plugin registers no set
+at all and no supplier is on the way, so the operator's tables, copp, the DDoS
+tables and the policy routes all stayed out of the kernel behind one WARN.
+
+A table left out is not programmed, so the traffic it filters is not filtered.
+That is the choice `buildIfaceTables` already makes for a binding with no
+prefixes: a rule set with no data behind it is not a filter, and an unfiltered
+port beats a blackholed one.
+
+`update firewall irr asn|as-set` ends the wait, because `refreshName` applies the
+tables it built from what it fetched. Nothing else does on a cold cache:
+`refresh-interval` defaults to 0.
 
 ### A reload reconfigures the plugin
 
@@ -121,9 +137,19 @@ than a shorter prefix list.
 lookup that succeeds with no prefixes both keep what is cached and set
 `StaleSince` on the entry, and the second returns `store.ErrNoPrefixes`. The
 guard lives in the store, so the firewall table terms, the firewall interface
-bindings and the BGP IRR filter all get it from one place. `LookupPrefixes`
-also refuses to cache an empty answer, so an operator who forces a refresh
-reaches the server instead of the one-hour cache.
+bindings and the BGP IRR filter all get it from one place.
+
+It holds per family. IPv4 and IPv6 are two queries, and an AS-SET with no IPv6
+route objects answers the IPv6 one with `D`, exactly as a server having a bad
+minute does. `commit` keeps the cached prefixes of a family that answered
+nothing, and marks the entry stale. Replacing the entry wholesale cost the
+interface binding its IPv6 accept term while the drop term that closes the
+whitelist stayed, which drops every IPv6 packet arriving on the port.
+
+`LookupPrefixes` refuses to cache an empty answer, so an empty one is never
+served for an hour. An answer that carried prefixes IS cached for an hour, and
+an operator forcing a refresh inside that hour is served from that cache rather
+than from the server.
 
 Removing prefixes is an operator action: `clear firewall irr asn|as-set` calls
 `PrefixStore.Purge`. Without it, an AS-SET deregistered upstream would be

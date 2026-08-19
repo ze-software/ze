@@ -143,25 +143,7 @@ func ApplyAll() error {
 	tableRegistry.mu.Unlock()
 	all = mergeSameNameTables(all)
 
-	// A term can name a set that a DIFFERENT owner registers (the IRR leaves
-	// are the case that exists today). The two owners meet here and nowhere
-	// earlier, and they do not register in a fixed order: at startup the
-	// firewall engine configures before the plugin that supplies the set, and
-	// in a reload transaction the participants apply in whatever order the
-	// orchestrator emits. Handing the backend a rule whose set is not there
-	// yet fails the whole reconcile for every owner, so wait instead: the
-	// supplying owner calls ApplyAll when it registers, and that run programs
-	// the complete ruleset. Reported at WARN because a supplier that never
-	// arrives leaves the ruleset unapplied, and the operator must be able to
-	// see why.
-	if tbl, set, waiting := unresolvedProvidedSet(all); waiting {
-		if log := loggerPtr.Load(); log != nil {
-			log.Warn("firewall: reconcile deferred, a rule names a set no owner has registered yet",
-				"table", tbl, "set", set,
-				"effect", "no firewall table is programmed until the owner of that set registers it")
-		}
-		return nil
-	}
+	all = dropTablesMissingAProvidedSet(all)
 
 	backendsMu.Lock()
 	// A plugin (copp, policy-routes, ddos-local) can register tables without
@@ -231,28 +213,72 @@ func mergeSameNameTables(tables []Table) []Table {
 	return merged
 }
 
-// unresolvedProvidedSet reports the first match in tables that names a set
-// another owner supplies (MatchInSet.ProvidedType is set) and that the merged
-// tables do not declare. It returns the table and set names for the log line.
-// A match with no ProvidedType is not examined here: ValidateTables already
-// refused it at verify, where the operator sees the error.
-func unresolvedProvidedSet(tables []Table) (tableName, setName string, found bool) {
+// dropTablesMissingAProvidedSet returns the tables the backend can program,
+// leaving out each one whose terms name a set no owner registered, and reports
+// every omission at WARN.
+//
+// A term can name a set that a DIFFERENT owner registers (the IRR leaves are
+// the case that exists today). The two owners meet here and nowhere earlier,
+// and they do not register in a fixed order: at startup the firewall engine
+// configures before the plugin that supplies the set, and in a reload
+// transaction the participants apply in whatever order the orchestrator emits.
+// Handing the backend a rule whose set is not there fails the whole reconcile,
+// so the table that names it waits for its supplier: that owner calls ApplyAll
+// when it registers, and the table is programmed then.
+//
+// The unit is one TABLE, and it is the smallest unit that can wait. An
+// nftables set is table-local, so a set another table declares can never
+// resolve this table's term, and dropping this table can never unresolve
+// another one. Holding back the WHOLE reconcile instead was the first answer,
+// and it made one absent supplier the whole firewall's problem: a cold IRR
+// cache registers no set at all, so the operator's tables, copp, the DDoS
+// tables and the policy routes all stayed out of the kernel behind one WARN,
+// with no supplier on the way.
+//
+// A table that is left out is not programmed, so the traffic it filters is not
+// filtered. That is the same choice buildIfaceTables makes for a binding with
+// no prefixes (internal/component/firewall/plugins/irr/sets.go): a rule set
+// with no data behind it is not a filter, and an unfiltered port beats a
+// blackholed one.
+func dropTablesMissingAProvidedSet(tables []Table) []Table {
+	kept := make([]Table, 0, len(tables))
 	for i := range tables {
-		tbl := &tables[i]
-		declared := collectSetNames(tbl)
-		for j := range tbl.Chains {
-			for k := range tbl.Chains[j].Terms {
-				for _, m := range tbl.Chains[j].Terms[k].Matches {
-					in, ok := m.(MatchInSet)
-					if !ok || in.ProvidedType == 0 {
-						continue
-					}
-					if _, ok := declared[in.SetName]; !ok {
-						return tbl.Name, in.SetName, true
-					}
+		setName, missing := unresolvedProvidedSet(&tables[i])
+		if missing {
+			if log := loggerPtr.Load(); log != nil {
+				log.Warn("firewall: table held back, a rule names a set no owner has registered yet",
+					"table", tables[i].Name, "set", setName,
+					"effect", "this table is not programmed until the owner of that set registers it; every other table is")
+			}
+			continue
+		}
+		kept = append(kept, tables[i])
+	}
+	return kept
+}
+
+// unresolvedProvidedSet reports the first match in tbl that names a set another
+// owner supplies (MatchInSet.ProvidedType is set) and that tbl does not
+// declare. It returns the set name for the log line. A match with no
+// ProvidedType is not examined here: ValidateTables already refused it at
+// verify, where the operator sees the error.
+func unresolvedProvidedSet(tbl *Table) (setName string, found bool) {
+	declared := collectSetNames(tbl)
+	for j := range tbl.Chains {
+		for k := range tbl.Chains[j].Terms {
+			for _, m := range tbl.Chains[j].Terms[k].Matches {
+				in, ok := m.(MatchInSet)
+				if !ok {
+					continue
+				}
+				if in.ProvidedType == 0 {
+					continue
+				}
+				if _, ok := declared[in.SetName]; !ok {
+					return in.SetName, true
 				}
 			}
 		}
 	}
-	return "", "", false
+	return "", false
 }

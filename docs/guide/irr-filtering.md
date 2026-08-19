@@ -159,6 +159,8 @@ A refresh that returns prefixes atomically replaces the in-memory list and persi
 
 The prefixes an empty answer left in place are still enforced. `show bgp irr` and `show firewall irr` mark the entry `stale` and give the age of the data, so enforcing data nobody has confirmed is visible rather than silent.
 
+The two address families are kept separately. Ze queries IPv4 and IPv6 with two commands, and a server that returns prefixes for one and nothing for the other keeps the last known good list of the family that returned nothing. The entry is marked `stale` and reports the age of the older list. This matters most for an interface binding, where the rules accept the registered prefixes of each family and drop the rest: a family whose list was emptied would have every packet dropped.
+
 Removing prefixes is always deliberate. When an AS-SET is deregistered upstream for good, clear its cached data:
 
 ```console

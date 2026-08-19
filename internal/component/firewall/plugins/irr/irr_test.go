@@ -14,6 +14,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/firewall"
 	"github.com/ze-software/ze/internal/component/resolve/irr"
 	"github.com/ze-software/ze/internal/component/resolve/irr/store"
 	"github.com/ze-software/ze/internal/core/metrics"
@@ -75,9 +76,64 @@ func fakeIRRWhois(t *testing.T, replies map[string]string) string {
 	return ln.Addr().String()
 }
 
+// recordingBackend is a firewall backend that keeps what it was asked to
+// program. A refresh applies the tables it built, so a test that does not
+// install one reaches the OS default backend and the host's real ruleset.
+type recordingBackend struct {
+	mu      sync.Mutex
+	applied [][]firewall.Table
+}
+
+func (b *recordingBackend) Apply(desired []firewall.Table) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.applied = append(b.applied, desired)
+	return nil
+}
+
+func (b *recordingBackend) ListTables() ([]firewall.Table, error) { return nil, nil }
+
+func (b *recordingBackend) GetCounters(string) ([]firewall.ChainCounters, error) { return nil, nil }
+
+func (b *recordingBackend) Close() error { return nil }
+
+// last returns the tables of the most recent apply, and whether one happened.
+func (b *recordingBackend) last() ([]firewall.Table, bool) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if len(b.applied) == 0 {
+		return nil, false
+	}
+	return b.applied[len(b.applied)-1], true
+}
+
+// useRecordingBackend makes this test's applies land in memory instead of the
+// kernel. The backend name is the test's own, because a registration is global
+// and refusing a duplicate is how the registry protects it.
+func useRecordingBackend(t *testing.T) *recordingBackend {
+	t.Helper()
+	b := &recordingBackend{}
+	name := "recording-" + t.Name()
+	if err := firewall.RegisterBackend(name, func() (firewall.Backend, error) { return b, nil }); err != nil {
+		t.Fatalf("RegisterBackend: %v", err)
+	}
+	if err := firewall.LoadBackend(name); err != nil {
+		t.Fatalf("LoadBackend: %v", err)
+	}
+	t.Cleanup(func() {
+		firewall.RegisterTables("firewall-irr", nil)
+		if err := firewall.CloseBackend(); err != nil {
+			t.Errorf("CloseBackend: %v", err)
+		}
+	})
+	return b
+}
+
 // newTestPlugin builds a plugin whose store queries addr and whose config
-// references AS-TEST from one table term.
-func newTestPlugin(addr string) *irrPlugin {
+// references AS-TEST from one table term. Its applies are recorded rather than
+// programmed.
+func newTestPlugin(t *testing.T, addr string) (*irrPlugin, *recordingBackend) {
+	t.Helper()
 	return &irrPlugin{
 		prefixStore: store.New(irr.NewIRR(addr), nil, ""),
 		config: &irrConfig{
@@ -85,7 +141,7 @@ func newTestPlugin(addr string) *irrPlugin {
 			refs:   []irrRef{{Name: "AS-TEST", IsASSet: true, TableName: "ze_wan"}},
 		},
 		stopCh: make(chan struct{}),
-	}
+	}, useRecordingBackend(t)
 }
 
 // VALIDATES: AC-1 -- a refresh that learns nothing leaves the plugin enforcing
@@ -97,7 +153,7 @@ func TestRefreshFailureKeepsLastGood(t *testing.T) {
 		"!a4AS-TEST": "A1\n10.0.0.0/24\nC\n",
 		"!a6AS-TEST": "C\n",
 	})
-	plug := newTestPlugin(good)
+	plug, _ := newTestPlugin(t, good)
 	if err := plug.refreshName("AS-TEST"); err != nil {
 		t.Fatalf("seed refresh: %v", err)
 	}
@@ -119,6 +175,35 @@ func TestRefreshFailureKeepsLastGood(t *testing.T) {
 	}
 	if !entry.Stale() {
 		t.Error("the kept entry must report itself stale")
+	}
+}
+
+// VALIDATES: AC-1 -- `update firewall irr asn|as-set` programs the prefixes it
+// fetched. Fetching fills the store; the rules reach the kernel only when
+// something applies the tables built from it.
+// PREVENTS: a cold cache staying cold. On a fresh install, a wiped store, or an
+// unreadable cache file, this plugin registers no set, so every rule naming one
+// is held out of the reconcile (internal/component/firewall/registry.go).
+// refresh-interval defaults to 0, so no loop recovers it either, and the
+// operator's one recovery command fetched data and programmed nothing.
+func TestRefreshNameProgramsWhatItLearned(t *testing.T) {
+	plug, backend := newTestPlugin(t, fakeIRRWhois(t, map[string]string{
+		"!a4AS-TEST": "A1\n10.0.0.0/24\nC\n",
+	}))
+
+	if err := plug.refreshName("AS-TEST"); err != nil {
+		t.Fatalf("refreshName: %v", err)
+	}
+
+	applied, ok := backend.last()
+	if !ok {
+		t.Fatal("the refresh programmed nothing: the prefixes it fetched never reached the backend")
+	}
+	if len(applied) != 1 || applied[0].Name != "ze_wan" {
+		t.Fatalf("applied %+v, want the ze_wan table the configured term names", applied)
+	}
+	if len(applied[0].Sets) != 1 || applied[0].Sets[0].Name != "irr_v4_AS-TEST" {
+		t.Fatalf("applied table carries sets %+v, want irr_v4_AS-TEST", applied[0].Sets)
 	}
 }
 
@@ -205,7 +290,7 @@ func TestRefreshOutcomeCountsEmptyDistinctly(t *testing.T) {
 	setMetricsRegistry(reg)
 	t.Cleanup(func() { irrMetricsPtr.Store(nil) })
 
-	plug := newTestPlugin(fakeIRRWhois(t, nil))
+	plug, _ := newTestPlugin(t, fakeIRRWhois(t, nil))
 	plug.prefixStore.Put("AS-TEST", []netip.Prefix{netip.MustParsePrefix("10.0.0.0/24")}, nil)
 
 	if err := plug.refreshName("AS-TEST"); err == nil {
@@ -230,7 +315,7 @@ func TestRefreshOutcomeCountsSuccess(t *testing.T) {
 	setMetricsRegistry(reg)
 	t.Cleanup(func() { irrMetricsPtr.Store(nil) })
 
-	plug := newTestPlugin(fakeIRRWhois(t, map[string]string{
+	plug, _ := newTestPlugin(t, fakeIRRWhois(t, map[string]string{
 		"!a4AS-TEST": "A1\n10.0.0.0/24\nC\n",
 	}))
 	if err := plug.refreshName("AS-TEST"); err != nil {
