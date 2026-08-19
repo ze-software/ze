@@ -464,6 +464,52 @@ func TestRemoveMirrorAfterDestinationRecreated(t *testing.T) {
 	}
 }
 
+// TestRemoveMirrorDisablesEveryDestination verifies one destination that no
+// longer resolves does not abandon the others. setupMirrorSpec
+// (internal/component/iface/config_mirror.go) records two destinations under
+// one source whenever the ingress and egress mirrors name different
+// interfaces, and takeMirrors drops the whole record before the first disable.
+// Method: mirror xe0 ingress to xe1 and egress to xe2, delete xe1 without
+// recreating it, then remove the mirror.
+// VALIDATES: AC-4 -- the mirror is disabled on the live interface.
+// PREVENTS: a mirror the operator removed that keeps copying traffic to the
+// destination recorded beside a failing one, with no record left to replay.
+func TestRemoveMirrorDisablesEveryDestination(t *testing.T) {
+	ch := &progChannel{}
+	b := newMirrorBackend(ch)
+	b.names.Add("xe2", 11, "xe2")
+
+	if err := b.SetupMirror("xe0", "xe1", true, false); err != nil {
+		t.Fatalf("SetupMirror ingress: %v", err)
+	}
+	if err := b.SetupMirror("xe0", "xe2", false, true); err != nil {
+		t.Fatalf("SetupMirror egress: %v", err)
+	}
+	b.names.Remove("xe1") // deleted, and nothing recreated it
+
+	err := b.RemoveMirror("xe0")
+	if err == nil {
+		t.Fatal("RemoveMirror: got nil, want the unresolvable destination reported")
+	}
+	if !strings.Contains(err.Error(), "xe1") {
+		t.Errorf("RemoveMirror error: got %v, want it to name xe1", err)
+	}
+	disabled := 0
+	for _, req := range ch.requests {
+		r, ok := req.(*span.SwInterfaceSpanEnableDisable)
+		if !ok || r.State != span.SPAN_STATE_API_DISABLED {
+			continue
+		}
+		disabled++
+		if r.SwIfIndexTo != 11 {
+			t.Errorf("disable SwIfIndexTo: got %d, want 11 (xe2, the destination that still resolves)", r.SwIfIndexTo)
+		}
+	}
+	if disabled != 1 {
+		t.Errorf("disable requests: got %d, want 1 (xe2 disabled after xe1 failed)", disabled)
+	}
+}
+
 // newDummyBackend returns a backend wired to a programmable channel with an
 // empty name map, so CreateDummy takes its create path on the first call.
 func newDummyBackend(ch *progChannel) *vppBackendImpl {

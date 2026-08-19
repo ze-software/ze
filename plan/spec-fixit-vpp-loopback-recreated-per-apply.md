@@ -373,3 +373,205 @@ names.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- `iface.ErrInterfaceExists` (`internal/component/iface/backend.go`): a sentinel
+  that says a create step KEPT an existing interface and made nothing.
+- `CreateDummy` (`internal/plugins/iface/vpp/ifacevpp.go`) answers that sentinel
+  when `b.names.lookupIndex` already holds the name, and sends no
+  `create_loopback`. The check runs after `ensureChannel`, so the name map is
+  seeded before it is read.
+- `applyConfig` (`internal/component/iface/config_apply.go`) reads the sentinel
+  with `errors.Is` before its `GetInterface` fallback and leaves `created`
+  false, so the undo does not delete a device an earlier apply made.
+  `recreateManagedInterface` tolerates the same answer and still re-establishes
+  the LCP shadow.
+- `b.mirrors` holds destination ze NAMES, not `SwIfIndex` values.
+  `recordMirror` stores the name and `RemoveMirror`
+  (`internal/plugins/iface/vpp/mirror.go`) resolves it fresh, so no recorded
+  index outlives the interface it names.
+- `test/scripts/vpp_stub.py` gained `handle_create_loopback` (a fresh index per
+  call, logged) and `handle_sw_interface_add_del_address` (logs the index and
+  `is_add`). The generic fallback answers 4 bytes and `CreateLoopbackReply`
+  needs 8.
+
+### Bugs Found/Fixed
+- The spec's own defect: one leaked VPP loopback per config apply, with its
+  addresses and its bridge port left behind. Covered by
+  `TestCreateDummyKeepsExistingLoopback` and `test/plugin/vpp-loopback-reapply.ci`.
+- `RemoveMirror` disabled SPAN on a destination index recorded at setup time,
+  which is dead after a recreate. Covered by
+  `TestRemoveMirrorAfterDestinationRecreated`.
+- Found by the review gate, round 1: `RemoveMirror` returned on the FIRST
+  destination that failed, after `takeMirrors` had already consumed the whole
+  record, so the remaining destination kept copying traffic with nothing left to
+  replay. Two destinations under one source are reachable whenever the ingress
+  and egress mirrors name different interfaces (`setupMirrorSpec`,
+  `internal/component/iface/config_mirror.go`). Every destination is now
+  attempted in sorted order and the failures are joined. Covered by
+  `TestRemoveMirrorDisablesEveryDestination`.
+- `_handle_callback` (`test/scripts/ze_api.py`) did not answer
+  `ze-plugin-callback:post-startup`, so the copy `_call_engine` queues fell to
+  the trailing else, was acked, and lost its flag. Both routes now share one
+  handler.
+
+### Documentation Updates
+- `ai/digests/vpp-dataplane.md`, the (L) lifecycle line: it said the create was
+  unconditional. It now states the name-map gate and the sentinel.
+- No `docs/` page moved. Every `<!-- source: -->` anchor over the changed files
+  names a symbol rather than a create condition, and every named symbol keeps
+  its name: `docs/features/interfaces.md`, `docs/guide/vpp.md`,
+  `docs/architecture/core-design.md`, `docs/features.md`.
+- `make ze-doc-verify` is a stage of the full verify run; its red is judged in
+  Pre-Commit Verification below.
+
+### Deviations from Plan
+- The spec's Closure checklist asks for `plan/learned/NNN-<name>.md`. The
+  2026-08-10 owner directive REPLACED that artifact with a journal row, so the
+  lesson is one row in
+  `plan/journal/invariant-enforced-by-an-absent-call-site.md` and no learned
+  summary was written.
+- The review gate added one product fix the spec did not plan
+  (`RemoveMirror` abandoning its remaining destinations) and its test.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-3 assumed nothing outside `b.mirrors` stored a `SwIfIndex` across an apply | the `b.deleters` closures capture one: `createIPIPTunnel`, `CreateWireguardDevice`, `createGRETunnel` and the VXLAN create each close over the index their create returned | grep of the backend struct and its writers | recorded as BROKEN in Risks & Assumptions and as one row in `plan/journal/identifier-reused-after-its-owner-is-gone.md`. Those creates send unconditionally, so each needs the create-side check before its deleter is worth touching |
+| approach | The teardown loop in `RemoveMirror` kept the early return it had before the re-keying | `takeMirrors` consumes the record before the first disable, so an early return loses every destination after the failing one | review gate, round 1 | fixed in this spec: sorted iteration, joined errors, and `TestRemoveMirrorDisablesEveryDestination` proven red against the early return |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Creating a loopback that already exists is a no-op that keeps the existing interface | Done | `CreateDummy`, `internal/plugins/iface/vpp/ifacevpp.go` | answers `iface.ErrInterfaceExists`, sends nothing |
+| No recorded `SwIfIndex` outlives the interface it names | Done | `recordMirror` and `RemoveMirror`, `internal/plugins/iface/vpp/mirror.go` | `b.mirrors` is keyed by name; `resolveIndex` runs at removal time |
+| The rollback contract holds: a step that created something deletes exactly that | Done | `applyConfig`, `internal/component/iface/config_apply.go` | `created` stays false on the sentinel, so the undo is a no-op |
+| Every stored `SwIfIndex` the Task names is re-resolved rather than replayed | Done | `recordMirror` and `RemoveMirror`, `internal/plugins/iface/vpp/mirror.go` | A-1 named the mirror record and A-3 found the same shape in the `b.deleters` closures of `tunnel.go`, `vxlan.go` and `wireguard.go`. Those are a separate problem with their own home, one row in `plan/journal/identifier-reused-after-its-owner-is-gone.md`, and their creates send unconditionally, so the create-side check has to land there before any deleter is touched |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestCreateDummyKeepsExistingLoopback`, `test/plugin/vpp-loopback-reapply.ci` | the `.ci` counts `create_loopback` in the stub log across two applies |
+| AC-2 | Done | `test/plugin/vpp-loopback-reapply.ci` | the address index equals the index the single create returned |
+| AC-3 | Done, by the index | `BridgeAddPort` resolves both sides through `resolveIndex` on every call | not reachable from config: `list bridge` carries `ze:backend "netlink"` and `validateBackendGate` refuses a bridge block under `backend vpp`. One stable index is one port, and AC-1 pins the index |
+| AC-4 | Done | `TestRemoveMirrorAfterDestinationRecreated`, `TestRemoveMirrorDisablesEveryDestination` | the disable names the live index, and one failing destination no longer abandons the others |
+| AC-5 | Done | `TestCreateDummyFirstCallCreates` | the create path is unchanged and the name binds to the returned index |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestCreateDummyKeepsExistingLoopback` | pass | `internal/plugins/iface/vpp/apply_test.go` | red with the fix reverted: `got <nil>, want iface.ErrInterfaceExists` |
+| `TestCreateDummyFirstCallCreates` | pass | same | green both ways by design; it pins AC-5 |
+| `TestRemoveMirrorAfterDestinationRecreated` | pass | same | red with the fix reverted: `got 9, want 21` |
+| `TestRemoveMirrorDisablesEveryDestination` | pass | same | added by the review gate; red with the early return restored: `disable requests: got 0, want 1` |
+| `vpp-loopback-reapply.ci` | pass | `test/plugin/` | red with the fix reverted on both criteria |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/plugins/iface/vpp/ifacevpp.go` | Done | name-map gate, `mirrors` re-typed |
+| `internal/plugins/iface/vpp/mirror.go` | Done, plus the review fix | name-keyed record, fresh resolve, every destination attempted |
+| `internal/component/iface/backend.go` | Done | sentinel and its contract |
+| `internal/component/iface/config_apply.go` | Done | both create-tolerance sites |
+| `internal/plugins/iface/vpp/apply_test.go` | Done | fake reply case with a fresh index per call, four tests |
+| `test/scripts/vpp_stub.py` | Done | two handlers |
+| `test/plugin/vpp-loopback-reapply.ci` | Created | the reload scenario |
+| `ai/digests/vpp-dataplane.md` | Done | the (L) lifecycle line |
+
+### Audit Summary
+- **Total items:** 4 requirements, 5 AC, 5 tests, 8 files
+- **Done:** 4 requirements, 5 AC, 5 tests, 8 files
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** one review-gate fix beyond the plan, recorded in Deviations
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Creating a loopback that already exists keeps the existing interface | functional | `test/plugin/vpp-loopback-reapply.ci`: `OK: one create_loopback across two applies`. With the name check removed the stub log holds two creates, `sw_if_index [1, 2]`, and the run fails `AC-1: create_loopback count is 2` |
+| No interface leaks across a daemon reload | functional | the same test's count assertion, driven by SIGHUP with an address added, so a second apply provably reached phase 3 |
+| An address stays on the interface the ze name points at | functional | the same test's AC-2 assertion; reverted it reports `address programmed on sw_if_index [2], want 1` |
+| No recorded `SwIfIndex` outlives its interface | unit | `TestRemoveMirrorAfterDestinationRecreated`: the disable carries 21, the index the recreated destination holds now. Reverted: `got 9, want 21` |
+| A mirror the operator removed stops copying traffic | unit | `TestRemoveMirrorDisablesEveryDestination`: the live destination is disabled even when a sibling destination no longer resolves. With the early return restored: `disable requests: got 0, want 1` |
+| The rollback still deletes exactly what it created | unit | `TestCreateDummyFirstCallCreates` plus the `created` flag: `applyConfig` returns nil on the sentinel without setting it |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| none | n/a | The spec metadata names no deferral shard, and `plan/deferrals/fixit-vpp-loopback-recreated-per-apply.md` does not exist |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/fixit-vpp-loopback-recreated-per-apply-fa011c6d-dddd-408b-a46c-3ee25189f6a1.md` |
+| `review_gate.py check` | `review_gate: OK (8 code files, clean, hashes match ...)`, exit 0 |
+| Rounds | 2. Round 1 read the landed diff (`c6cfb80bd`) and the uncommitted digest edit and found one ISSUE. Round 2 read the fix and found one prose defect in a comment, which is a NOTE and does not earn another round |
+| Reviewer lenses used | wiring and functional coverage; logic, guard and removed-behavior; style, simplicity and documentation drift |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | `RemoveMirror` returned on the first destination that failed to resolve, after `takeMirrors` had consumed the whole record. A source carries two destinations when the ingress and egress mirrors name different interfaces, so the surviving destination kept copying traffic and no record remained to replay. AC-4 says the mirror is disabled on the live interface | `internal/plugins/iface/vpp/mirror.go`, `RemoveMirror` | every destination is attempted in sorted order, failures joined with `errors.Join`; `TestRemoveMirrorDisablesEveryDestination` proven red against the early return |
+| 2 | NOTE | A comment in the fix packed the symptom into one hyphenated compound | the same function's doc comment | rewritten as two plain sentences |
+| 3 | NOTE | `test/plugin/vpp-loopback-reapply.ci` is the only vpp-stub `.ci` outside `test/vpp/`. That placement is deliberate: `test/vpp/` runs only under `make ze-functional-vpp-test` (release evidence), while `test/plugin/` runs in every `ze-precommit-verify`. It needs no `needs-linux` because it supplies a working backend | `test/plugin/` | kept; recorded here so the next reader does not "correct" the location |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/plugin/vpp-loopback-reapply.ci` | yes | `ls -l` reports 9965 bytes, written 2026-08-19 14:27 |
+| `internal/plugins/iface/vpp/mirror.go` | yes | `grep -n "resolveIndex(dst)"` returns the fresh resolve inside `RemoveMirror`'s loop |
+| `plan/journal/invariant-enforced-by-an-absent-call-site.md` | yes | the closure row appended 2026-08-19, Spec cell `fixit-vpp-loopback-recreated-per-apply` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | the second apply sends no create | `grep -n ErrInterfaceExists internal/plugins/iface/vpp/ifacevpp.go` returns the wrap inside `CreateDummy`; `make _ze-unit-pkg-test-impl PKG=./internal/plugins/iface/vpp/ RUN='TestRemoveMirror\|TestCreateDummy'` printed `ok ... 1.074s`, race-instrumented |
+| AC-2 | the address lands on the surviving index | `test/plugin/vpp-loopback-reapply.ci` asserts `strays` against the single create's index; the run printed `OK: one create_loopback across two applies` |
+| AC-3 | one stable index is one bridge port | `BridgeAddPort` calls `resolveIndex` for both sides on every call (`internal/plugins/iface/vpp/ifacevpp.go`); no config path can make a vpp loopback a bridge member |
+| AC-4 | the disable names the live index, and every destination is attempted | `TestRemoveMirrorAfterDestinationRecreated` and `TestRemoveMirrorDisablesEveryDestination`, both in the run above |
+| AC-5 | the first create is unchanged | `TestCreateDummyFirstCallCreates` in the same run |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| a second config apply with the same `dummy` entry | `test/plugin/vpp-loopback-reapply.ci` | read: it starts `vpp_stub.py`, runs `ze start` with `interface { backend vpp; dummy lo0 }`, rewrites the config to add an address, sends SIGHUP, and counts `create_loopback` in the stub's JSONL log after the address request marks the second apply's phase 3 |
+| a bridge member on a re-applied loopback | the same file | the index is what the AC turns on, and the `.ci` pins the index the address is programmed on |
+| a mirror destination recreated, then removed | unit, `TestRemoveMirrorAfterDestinationRecreated` | no `.ci` route exists: SPAN is programmed through the backend and the stub carries no span handler. The unit test drives `SetupMirror` then `RemoveMirror` through the real backend methods against the fake channel |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | the reverted `.ci` run logs two creates, `sw_if_index` 1 and 2 |
+| A-2 | not relied on | the fix is an existence check before the create, so `create_loopback_instance` is never sent |
+| A-3 | broken | the `b.deleters` closures capture a `SwIfIndex` in `tunnel.go`, `vxlan.go` and `wireguard.go`. Recorded in the Mistake Log, in Known Limitations, and in `plan/journal/identifier-reused-after-its-owner-is-gone.md` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `ai/digests/vpp-dataplane.md` (L) line: the create is gated on the name map | matches `CreateDummy` in `internal/plugins/iface/vpp/ifacevpp.go` | yes |
+| No `docs/` page claims the create is unconditional | a grep of `docs/` and `ai/` for source anchors over the four changed Go files returns 11 hits, each naming a symbol; every named symbol keeps its name | yes |
+| `docs/features/interfaces.md` capability rows ("Idempotent setup/cleanup", "`CreateDummy` real (CreateLoopback)") | the change makes the published claim true rather than changing it | yes, no edit needed |
+| `docs/functional-tests.md` names suites and targets, not stub messages | the suite list is unchanged; `test/plugin` already exists as a suite | yes, no edit needed |
+
+## Core Insight
+
+A tolerance written as an error fallback is a tolerance for the backends that
+FAIL. `applyConfig` promised that a create meeting an existing name keeps the
+interface, and enforced it only after `CreateDummy` returned an error. The
+netlink backend reached that branch through the kernel's EEXIST. The VPP
+backend, whose create succeeds at making the WRONG thing, walked past it on
+every apply. Where two backends share one contract, the contract has to be
+stated where both answer it, which here is a sentinel the caller reads before
+any fallback.

@@ -15,7 +15,10 @@
 package ifacevpp
 
 import (
+	"errors"
 	"fmt"
+	"maps"
+	"slices"
 
 	"go.fd.io/govpp/binapi/interface_types"
 	"go.fd.io/govpp/binapi/span"
@@ -48,6 +51,14 @@ func (b *vppBackendImpl) SetupMirror(srcIface, dstIface string, ingress, egress 
 // RemoveMirror disables every SPAN entry recorded for srcIface. It is
 // idempotent: with no recorded entry it is a no-op, matching the netlink
 // backend's tolerance of an already-absent qdisc.
+//
+// Every recorded destination is attempted, and the failures are joined. One
+// source carries two destinations when the ingress and egress mirrors name
+// different interfaces (setupMirrorSpec, internal/component/iface/
+// config_mirror.go). takeMirrors drops the whole record before the first
+// disable, so a return on the first failure leaves the second destination
+// copying traffic with no record left to replay. The operator removed that
+// mirror and it keeps running.
 func (b *vppBackendImpl) RemoveMirror(srcIface string) error {
 	dests := b.takeMirrors(srcIface)
 	if len(dests) == 0 {
@@ -57,20 +68,26 @@ func (b *vppBackendImpl) RemoveMirror(srcIface string) error {
 	if err != nil {
 		return fmt.Errorf("ifacevpp: mirror src %q: %w", srcIface, err)
 	}
-	for dst, isL2 := range dests {
+	var errs []error
+	// Sorted, so one teardown that fails reports the same way on every run,
+	// the way removeStaleMirrors walks the previous config in its own order
+	// rather than map-random (internal/component/iface/config_mirror.go).
+	for _, dst := range slices.Sorted(maps.Keys(dests)) {
+		isL2 := dests[dst]
 		// Resolve here, not at setup time: the destination may have been
 		// deleted and recreated since, which gives it a new SwIfIndex under
 		// the same name. Disabling SPAN on the index it held then would leave
 		// the live copy running.
 		toIdx, err := b.resolveIndex(dst)
 		if err != nil {
-			return fmt.Errorf("ifacevpp: mirror dst %q: %w", dst, err)
+			errs = append(errs, fmt.Errorf("ifacevpp: mirror dst %q: %w", dst, err))
+			continue
 		}
 		if err := b.spanEnableDisable(fromIdx, toIdx, span.SPAN_STATE_API_DISABLED, isL2); err != nil {
-			return fmt.Errorf("ifacevpp: RemoveMirror %q: %w", srcIface, err)
+			errs = append(errs, fmt.Errorf("ifacevpp: RemoveMirror %q->%q: %w", srcIface, dst, err))
 		}
 	}
-	return nil
+	return errors.Join(errs...)
 }
 
 // spanState maps the (ingress, egress) direction flags to the VPP SPAN state.
