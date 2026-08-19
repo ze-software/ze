@@ -113,18 +113,24 @@ bin/ze init --force            # prompts for confirmation, then backs up and rei
       <span>zefs-config.terminal</span>
       <span>WEBM</span>
     </div>
-    <video controls playsinline preload="metadata" poster="../../assets/demos/zefs-config.png?v=6d5b08c1d1" aria-label="Create ZeFS and commit over SSH demonstration">
-      <source src="../../assets/demos/zefs-config.webm?v=77e7668320" type="video/webm">
-      Your browser cannot play WebM video. <a href="../../assets/demos/zefs-config.webm?v=77e7668320">Download the recording</a>.
+    <video controls playsinline preload="metadata" poster="../../assets/demos/zefs-config.png?v=9e82166aac" aria-label="Create ZeFS and commit over SSH demonstration">
+      <source src="../../assets/demos/zefs-config.webm?v=9651a7e3df" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../assets/demos/zefs-config.webm?v=9651a7e3df">Download the recording</a>.
     </video>
   </div>
   <figcaption>
-    <span>Ze 26.08.17</span><span>1 minute 55 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
-    <a href="../../assets/demos/zefs-config.txt?v=3240b5213c">Plain-text transcript</a>
+    <span>Ze 26.08.19</span><span>2 minutes 21 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
+    <a href="../../assets/demos/zefs-config.txt?v=cf435951c8">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
     <summary>Read the demonstration transcript</summary>
-    <pre><code>$ ze init &lt; &quot;$ZE_INIT_INPUT&quot;
+    <pre><code>$ cat &quot;$ZE_INIT_INPUT&quot;
+admin
+secret123
+127.0.0.1
+2222
+ze-demo
+$ ze init &lt; &quot;$ZE_INIT_INPUT&quot;
 $ ze config ls
 ze.conf
 $ ze data check
@@ -139,8 +145,11 @@ Session committed
 ze# exit
 ze# exit
 $ ze cli -c &#x27;show bgp summary&#x27;
+$ ze cli -c &#x27;show bgp summary | text&#x27;
+$ ze cli -c &#x27;show bgp summary | raw&#x27; | head -14
+$ ze cli -c &#x27;show bgp summary | raw&#x27; | ze pipe text
 
-`ze init` creates `database.zefs`. The first BGP summary uses the default text format. The SSH editor commits the format setting back to ZeFS, not to a second flat file, and the same operational command immediately uses the committed default.</code></pre>
+The five lines answer `ze init`&#x27;s prompts in order: username, password, host, port, and name. It reads them from a file here so the recording is reproducible, and it prints nothing when its input is not a terminal, so the file is shown first rather than left as an unexplained redirection. `ze init` creates `database.zefs`. The first BGP summary uses the default text format. The SSH editor commits the format setting back to ZeFS, not to a second flat file, and the same operational command immediately uses the committed default. The last commands show the two ways to override that default, and they are different pipes. `show bgp summary | text` is Ze&#x27;s own operator, inside the quoted command, and it wins over the committed setting. Then `| raw` on its own shows what every one of these renderings is made from: the payload as the daemon holds it, unrendered. The last command sends that same payload across a real shell pipe, and `ze pipe text` formats it on this side, which is how output captured earlier is formatted later. The command is `ze pipe` rather than `ze format` because the operator language also carries `match`, `count`, `first`, `last` and `resolve`, so `format` would name one clause of it. Every command answers with structured data, so `text`, `table`, `json`, `yaml` and `ndjson` all render the same payload.</code></pre>
   </details>
 </figure>
 
@@ -357,7 +366,7 @@ bin/ze signal restart          # graceful restart (preserves routes via GR)
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 18 August 2026 11:28 UTC</span>
+                    <span class="footer-published">Published 19 August 2026 03:49 UTC</span>
                 </div>
             </div>
         </footer>

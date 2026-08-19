@@ -85,9 +85,9 @@ or `down`. The overall status is the worst of all components.
 
 Read aggregate component health, follow a live stale-prefix warning from the SSH banner into show warnings, then reset a peer and find the retained event in show errors.
 
-[Play the WebM recording](../../assets/demos/health-reports.webm?v=4820118a77) · [View the poster](../../assets/demos/health-reports.png?v=984ee2cfc9) · [Plain-text transcript](../../assets/demos/health-reports.txt?v=113557fa9c)
+[Play the WebM recording](../../assets/demos/health-reports.webm?v=c95587e1ba) · [View the poster](../../assets/demos/health-reports.png?v=4b94b2625a) · [Plain-text transcript](../../assets/demos/health-reports.txt?v=113557fa9c)
 
-Recorded with Ze 26.07.18 on macOS and Linux using VHS 0.11.0. Duration: 1 minute 20 seconds.
+Recorded with Ze 26.08.19 on macOS and Linux using VHS 0.11.0. Duration: 1 minute.
 
 ```console
 $ ssh ze-demo

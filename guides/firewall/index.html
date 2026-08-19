@@ -732,11 +732,15 @@ cached prefixes, and the refusal names the entry and the command that fetches
 it. A term reaches the kernel as two rules, one for the IPv4 prefixes and one
 for the IPv6 prefixes, so the table family must be <code>inet</code>.</p>
 <p>The prefix sets belong to the <code>firewall-irr</code> plugin, not to the table that names
-them. The two arrive at different times, and the firewall waits: while a rule
-names a set no owner has registered, no table is programmed and the daemon logs
-<code>reconcile deferred</code>. The plugin registers the sets moments later and the whole
-ruleset lands. That line staying in the log means the prefixes never arrived,
-and <code>show firewall irr</code> says which entry is missing.</p>
+them. The two arrive at different times, and that one table waits: while a rule
+names a set no owner has registered, the table holding it is not programmed and
+the daemon logs <code>table held back</code>. Every other table is programmed as usual. The
+plugin registers the sets moments later and the table lands.</p>
+<p>That line staying in the log means the prefixes never arrived. <code>show firewall
+irr</code> says which entry is missing, and <code>update firewall irr asn &lt;N&gt;</code> or <code>update
+firewall irr as-set &lt;name&gt;</code> fetches it and programs the table. Use it after a
+fresh install or a restored appliance, where the prefix cache starts empty:
+<code>refresh-interval</code> defaults to 0, so no timer fetches the data for you.</p>
 <h3 id="config-leaves">Config Leaves</h3>
 <table>
 <thead>
@@ -838,6 +842,9 @@ term. A lone drop term would drop every packet arriving on the interface while
 the apply reported success, so one unhelpful answer from an IRR server would take
 a customer-facing port down. The plugin logs the skipped binding, and config
 commit rejects the binding before it gets that far.</p>
+<p>The same reasoning covers one family. A refresh that returns IPv4 prefixes and
+nothing for IPv6 keeps the last known good IPv6 list, so the IPv6 accept term
+stays and the drop term does not become the only rule for that family.</p>
 <p>Same fail-closed semantics apply: config commit rejects if any bound AS-SET
 has no cached prefix data. Removing an interface binding removes its filter
 on the next apply.</p>
@@ -941,7 +948,7 @@ A crash bypasses this path entirely, leaving tables in place.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 18 August 2026 11:28 UTC</span>
+                    <span class="footer-published">Published 19 August 2026 03:49 UTC</span>
                 </div>
             </div>
         </footer>

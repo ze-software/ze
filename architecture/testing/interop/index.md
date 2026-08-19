@@ -142,8 +142,8 @@ SSH. No scenario `ze.conf` asks. The harness appends `ZE_CLI_CONFIG` -- the
 listener plus the account it authenticates against -- to the RENDERED copy of
 every `ze.conf` (`_render_scenario_dir`), so no scenario carries the boilerplate
 and none can forget it. A scenario that forgot it would fail its assertions for a
-reason unrelated to what it tests. `test/interop-ipsec/lab.py` does the same thing
-for the IPsec lab.
+reason unrelated to what it tests. The IPsec lab appends its own copy of the same
+two blocks, in `Scenario._prepare_ze_conf` (`test/interop-ipsec/lab.py`).
 
 **A Ze helper never converts a failed query into a plausible number.**
 `Ze.rib_count` raises when the command fails or answers without a `routes-in`

@@ -52,11 +52,17 @@ bin/ze init --force            # prompts for confirmation, then backs up and rei
 
 Create the ZeFS database, edit the active configuration through Ze's SSH management plane, and verify the committed setting.
 
-[Play the WebM recording](../../assets/demos/zefs-config.webm?v=77e7668320) · [View the poster](../../assets/demos/zefs-config.png?v=6d5b08c1d1) · [Plain-text transcript](../../assets/demos/zefs-config.txt?v=3240b5213c)
+[Play the WebM recording](../../assets/demos/zefs-config.webm?v=9651a7e3df) · [View the poster](../../assets/demos/zefs-config.png?v=9e82166aac) · [Plain-text transcript](../../assets/demos/zefs-config.txt?v=cf435951c8)
 
-Recorded with Ze 26.08.17 on macOS and Linux using VHS 0.11.0. Duration: 1 minute 55 seconds.
+Recorded with Ze 26.08.19 on macOS and Linux using VHS 0.11.0. Duration: 2 minutes 21 seconds.
 
 ```console
+$ cat "$ZE_INIT_INPUT"
+admin
+secret123
+127.0.0.1
+2222
+ze-demo
 $ ze init < "$ZE_INIT_INPUT"
 $ ze config ls
 ze.conf
@@ -72,8 +78,11 @@ Session committed
 ze# exit
 ze# exit
 $ ze cli -c 'show bgp summary'
+$ ze cli -c 'show bgp summary | text'
+$ ze cli -c 'show bgp summary | raw' | head -14
+$ ze cli -c 'show bgp summary | raw' | ze pipe text
 
-`ze init` creates `database.zefs`. The first BGP summary uses the default text format. The SSH editor commits the format setting back to ZeFS, not to a second flat file, and the same operational command immediately uses the committed default.
+The five lines answer `ze init`'s prompts in order: username, password, host, port, and name. It reads them from a file here so the recording is reproducible, and it prints nothing when its input is not a terminal, so the file is shown first rather than left as an unexplained redirection. `ze init` creates `database.zefs`. The first BGP summary uses the default text format. The SSH editor commits the format setting back to ZeFS, not to a second flat file, and the same operational command immediately uses the committed default. The last commands show the two ways to override that default, and they are different pipes. `show bgp summary | text` is Ze's own operator, inside the quoted command, and it wins over the committed setting. Then `| raw` on its own shows what every one of these renderings is made from: the payload as the daemon holds it, unrendered. The last command sends that same payload across a real shell pipe, and `ze pipe text` formats it on this side, which is how output captured earlier is formatted later. The command is `ze pipe` rather than `ze format` because the operator language also carries `match`, `count`, `first`, `last` and `resolve`, so `format` would name one clause of it. Every command answers with structured data, so `text`, `table`, `json`, `yaml` and `ndjson` all render the same payload.
 ```
 
 

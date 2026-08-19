@@ -150,7 +150,7 @@ needs <code>kill -HUP</code> on the ze process inside the node, or a node restar
 as <code>ze cli -c "show $@ | json compact"</code>, and netlab runs it with <code>docker exec</code>. An
 explicit format pipe beats the <code>--format</code> flag, so that command emits JSON.</p>
 <!-- source: contrib/netlab/ze.yml -- clab.group_vars.netlab_show_command -->
-<!-- source: internal/component/cli/client/main.go -- renderCommandOutput -->
+<!-- source: internal/component/cli/client/main.go -- commandWithFormat -->
 
 <h2 id="the-lab-login">The lab login</h2>
 <p>The rendered configuration declares one user, <code>netlab</code>, with the password <code>netlab</code>.
@@ -244,7 +244,7 @@ daemon from a golden file and parses the show command output.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 18 August 2026 11:28 UTC</span>
+                    <span class="footer-published">Published 19 August 2026 03:49 UTC</span>
                 </div>
             </div>
         </footer>

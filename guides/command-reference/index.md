@@ -75,9 +75,9 @@ from stdin (`ze -`) is unaffected.
 
 Use type-ahead filtering and drill-down navigation in Ze's interactive command launcher.
 
-[Play the WebM recording](../../assets/demos/launcher.webm?v=46c97f8572) · [View the poster](../../assets/demos/launcher.png?v=cae872cf66) · [Plain-text transcript](../../assets/demos/launcher.txt?v=0399dbc59f)
+[Play the WebM recording](../../assets/demos/launcher.webm?v=1536c23832) · [View the poster](../../assets/demos/launcher.png?v=7b0e4ac048) · [Plain-text transcript](../../assets/demos/launcher.txt?v=0399dbc59f)
 
-Recorded with Ze 26.07.18 on macOS and Linux using VHS 0.11.0. Duration: 1 minute 5 seconds.
+Recorded with Ze 26.08.19 on macOS and Linux using VHS 0.11.0. Duration: 44 seconds.
 
 ```console
 $ ze
@@ -434,9 +434,9 @@ ze show host kernel                # Kernel release, cmdline, microcode, arch fl
 
 Use Ze's offline command fallback to read the complete kernel, CPU, and memory inventory in human-readable structured output.
 
-[Play the WebM recording](../../assets/demos/host-inventory.webm?v=8c89c5019c) · [View the poster](../../assets/demos/host-inventory.png?v=01c12c6314) · [Plain-text transcript](../../assets/demos/host-inventory.txt?v=5b221c4c0f)
+[Play the WebM recording](../../assets/demos/host-inventory.webm?v=3644670538) · [View the poster](../../assets/demos/host-inventory.png?v=fc7a447153) · [Plain-text transcript](../../assets/demos/host-inventory.txt?v=5b221c4c0f)
 
-Recorded with Ze 26.07.18 in a Linux namespace lab using VHS 0.11.0. Duration: 51 seconds.
+Recorded with Ze 26.08.19 in a Linux namespace lab using VHS 0.11.0. Duration: 37 seconds.
 
 ```console
 An operator needs to inspect an unfamiliar Linux host before starting Ze.
@@ -682,10 +682,12 @@ show anomaly detect                   # Recent anomaly incidents
 The incident lifecycle held by the `anomaly-observe` plugin, newest first. Returns
 `{"enabled": bool, "active-count": N, "incidents": [{id, interface, entity, cohort,
 fired-features: [{name, z}], score, severity, start-time, end-time, active}]}`.
-A finalized incident stays in the list and carries its `end-time`, so this command
-reports how long a finished incident lasted; `show anomaly detect` records
-confirmations only and cannot. `end-time` is absent while `active` is true. An
-incident that receives no clear event is finalized after `stale-incident-timeout`.
+A finalized incident stays in the list and carries its `end-time`. So this
+command reports how long a finished incident lasted. `show anomaly detect`
+records confirmations only, and cannot report it.
+
+`end-time` is absent while `active` is true. An incident that receives no clear
+event is finalized after `stale-incident-timeout`.
 
 ```
 show anomaly observe                  # Incident lifecycle, newest first
@@ -980,10 +982,10 @@ ze clear firewall irr asn <asn>         # Remove one ASN's cached prefixes
 ze clear firewall irr as-set <as-set>   # Remove one AS-SET's cached prefixes
 ```
 
-**`show firewall irr`** reports one entry per configured reference. `status` is
-`ok` when the prefixes are what the IRR last answered, `stale` when a later
-refresh returned nothing and the previous prefixes stay in force, and `missing`
-when nothing is cached. A stale entry also carries `stale-since`, and every
+**`show firewall irr`** reports one entry per configured reference. `status`
+takes one of three values. It is `ok` when the prefixes are what the IRR last
+answered. It is `stale` when a later refresh returned nothing and the previous
+prefixes stay in force. It is `missing` when nothing is cached. A stale entry also carries `stale-since`, and every
 cached entry carries `data-age-seconds`.
 
 **`update firewall irr ...`** reports an error when the server returns no
@@ -1939,9 +1941,11 @@ bgp decode/encode, env, schema, yang, completion). These are dispatched
 via local handlers before attempting SSH connection.
 
 `ze cli` accepts `-c <command>` for single-shot execution and
-`--format <format>` (default: yaml). A format pipe inside the command wins over the
-flag, so `ze cli -c "show bgp peer list | json compact"` prints JSON.
-<!-- source: internal/component/cli/client/main.go -- Run, renderCommandOutput -->
+`--format <format>`. The flag has no default of its own. A command that names no
+format is rendered in the configured default, the `environment cli format
+default` leaf. A format pipe inside the command wins over the flag, so
+`ze cli -c "show bgp peer list | json compact"` prints JSON.
+<!-- source: internal/component/cli/client/main.go -- Run, commandWithFormat -->
 <!-- source: internal/component/command/pipe.go -- HasFormatPipe -->
 
 ### Peer Selector

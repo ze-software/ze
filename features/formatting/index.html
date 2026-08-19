@@ -60,6 +60,7 @@ offline to already-captured output.</p>
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
 <li><a href="#the-simple-way-set-a-default-once">The simple way: set a default once</a></li>
 <li><a href="#piping-inline">Piping inline</a></li>
+<li><a href="#scripting-against-the-daemon-raw">Scripting against the daemon: | raw</a></li>
 <li><a href="#the-offline-way-ze-pipe">The offline way: ze pipe</a></li>
 <li><a href="#configuration-presentation">Configuration presentation</a></li>
 <li><a href="#command-specific-filters">Command-specific filters</a></li>
@@ -112,9 +113,8 @@ show bgp peer list | json compact
 show bgp rib | match established
 show bgp peer list | first 5
 </code></pre>
-<p>Only one format operator (<code>json</code>, <code>ndjson</code>, <code>table</code>, <code>text</code>, <code>yaml</code>) is
-allowed per chain; combining two is rejected. Filter and display operators
-chain freely.</p>
+<p>A chain takes one format operator: <code>json</code>, <code>ndjson</code>, <code>table</code>, <code>text</code>, <code>yaml</code>
+or <code>raw</code>. Two together are rejected. Filter and display operators chain freely.</p>
 <table>
 <thead>
 <tr>
@@ -148,6 +148,11 @@ chain freely.</p>
 <td><code>yaml</code></td>
 <td>format</td>
 <td>YAML output</td>
+</tr>
+<tr>
+<td><code>raw</code></td>
+<td>format</td>
+<td>The dispatcher's JSON, byte for byte. For a program that parses the answer</td>
 </tr>
 <tr>
 <td><code>match &lt;pattern&gt;</code></td>
@@ -187,6 +192,22 @@ chain freely.</p>
 </tbody>
 </table>
 <!-- source: internal/component/command/pipe.go -- knownPipeOps, ApplyPipes, ValidatePipes -->
+
+<h3 id="scripting-against-the-daemon-raw">Scripting against the daemon: <code>| raw</code></h3>
+<p>The SSH exec channel is two surfaces at once. An operator running
+<code>ssh &lt;host&gt; 'show bgp peer list'</code> gets the format <code>environment cli format
+default</code> names. A program that parses the answer wants the data behind that
+rendering, and it must not change the day an operator changes the default.</p>
+<p><code>| raw</code> is how the second caller asks. It answers the command dispatcher's JSON
+byte for byte, so it is the stable contract for a script:</p>
+<pre><code>ssh ze-host 'show bgp peer list | raw'
+</code></pre>
+<p><code>| json</code> is a renderer, not this. It unwraps a single-key object holding an
+array, so <code>{"commands": [...]}</code> reaches the caller as a bare <code>[...]</code>.</p>
+<p>Ze's own tooling uses the same operator. Completion, the runtime command tree
+and the live dashboard each parse an exec-channel answer. Each asks for it
+through one helper, rather than composing the pipe itself.</p>
+<!-- source: internal/core/ssh/client/client.go -- RawCommand, ExecCommandRaw -->
 
 <h3 id="the-offline-way-ze-pipe">The offline way: <code>ze pipe</code></h3>
 <p>Scripts and pipelines outside an interactive session apply the same
@@ -231,13 +252,13 @@ comparison.</p>
       <span>config-views.terminal</span>
       <span>WEBM</span>
     </div>
-    <video controls playsinline preload="metadata" poster="../../assets/demos/config-views.png?v=e7acb6271c" aria-label="Render one configuration for humans and automation demonstration">
-      <source src="../../assets/demos/config-views.webm?v=414a2e496b" type="video/webm">
-      Your browser cannot play WebM video. <a href="../../assets/demos/config-views.webm?v=414a2e496b">Download the recording</a>.
+    <video controls playsinline preload="metadata" poster="../../assets/demos/config-views.png?v=ad33316247" aria-label="Render one configuration for humans and automation demonstration">
+      <source src="../../assets/demos/config-views.webm?v=9286711b41" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../assets/demos/config-views.webm?v=9286711b41">Download the recording</a>.
     </video>
   </div>
   <figcaption>
-    <span>Ze 26.07.18</span><span>1 minute 34 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
+    <span>Ze 26.08.19</span><span>1 minute 16 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
     <a href="../../assets/demos/config-views.txt?v=0f968daa34">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
@@ -372,7 +393,7 @@ client-side.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 18 August 2026 11:28 UTC</span>
+                    <span class="footer-published">Published 19 August 2026 03:49 UTC</span>
                 </div>
             </div>
         </footer>

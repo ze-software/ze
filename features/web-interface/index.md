@@ -35,9 +35,9 @@ the active value. The daemon and browser run locally during generation.
 
 Change a YANG-backed setting, review the generated diff, commit the draft, and verify the active value.
 
-[Play the WebM recording](../../assets/demos/web-config.webm?v=27c8c574fd) · [View the poster](../../assets/demos/web-config.png?v=3ec85c3acd) · [Plain-text transcript](../../assets/demos/web-config.txt?v=a614767cf2)
+[Play the WebM recording](../../assets/demos/web-config.webm?v=a8458dd75a) · [View the poster](../../assets/demos/web-config.png?v=300f2e8e47) · [Plain-text transcript](../../assets/demos/web-config.txt?v=a614767cf2)
 
-Recorded with Ze 26.07.18 on macOS and Linux using Playwright 1.55.0. Duration: 47 seconds.
+Recorded with Ze 26.08.19 on macOS and Linux using Playwright 1.55.0. Duration: 58 seconds.
 
 ```console
 Ze web configuration demo

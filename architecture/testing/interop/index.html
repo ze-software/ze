@@ -342,8 +342,8 @@ SSH. No scenario <code>ze.conf</code> asks. The harness appends <code>ZE_CLI_CON
 listener plus the account it authenticates against -- to the RENDERED copy of
 every <code>ze.conf</code> (<code>_render_scenario_dir</code>), so no scenario carries the boilerplate
 and none can forget it. A scenario that forgot it would fail its assertions for a
-reason unrelated to what it tests. <code>test/interop-ipsec/lab.py</code> does the same thing
-for the IPsec lab.</p>
+reason unrelated to what it tests. The IPsec lab appends its own copy of the same
+two blocks, in <code>Scenario._prepare_ze_conf</code> (<code>test/interop-ipsec/lab.py</code>).</p>
 <p><strong>A Ze helper never converts a failed query into a plausible number.</strong>
 <code>Ze.rib_count</code> raises when the command fails or answers without a <code>routes-in</code>
 field, because 0 is a legitimate RIB size and a failed query is not
@@ -832,7 +832,7 @@ ExaBGP compat covers wire encoding for all supported address families.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 18 August 2026 11:28 UTC</span>
+                    <span class="footer-published">Published 19 August 2026 03:49 UTC</span>
                 </div>
             </div>
         </footer>

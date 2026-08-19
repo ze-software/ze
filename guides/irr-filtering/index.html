@@ -185,6 +185,7 @@ $ ze cli -c 'update bgp irr as-set AS-CUSTOMER'
 <li>The refresh succeeded and returned no prefixes at all. Ze treats "I have nothing" the same as a failure, because an empty allow-list rejects every route the peer sends. A server that answers <code>D</code> (key not found), answers with no records, or reports an error can therefore not empty a live list.</li>
 </ul>
 <p>The prefixes an empty answer left in place are still enforced. <code>show bgp irr</code> and <code>show firewall irr</code> mark the entry <code>stale</code> and give the age of the data, so enforcing data nobody has confirmed is visible rather than silent.</p>
+<p>The two address families are kept separately. Ze queries IPv4 and IPv6 with two commands, and a server that returns prefixes for one and nothing for the other keeps the last known good list of the family that returned nothing. The entry is marked <code>stale</code> and reports the age of the older list. This matters most for an interface binding, where the rules accept the registered prefixes of each family and drop the rest: a family whose list was emptied would have every packet dropped.</p>
 <p>Removing prefixes is always deliberate. When an AS-SET is deregistered upstream for good, clear its cached data:</p>
 <pre><code class="language-console">$ ze cli -c 'clear firewall irr as-set AS-CUSTOMER'
 $ ze cli -c 'clear firewall irr asn 65001'
@@ -215,14 +216,14 @@ $ ze cli -c 'clear firewall irr asn 65001'
       <span>irr-filter.terminal</span>
       <span>WEBM</span>
     </div>
-    <video controls playsinline preload="metadata" poster="../../assets/demos/irr-filter.png?v=fd5f3c7eae" aria-label="Add IRR filtering to an existing BGP peer demonstration">
-      <source src="../../assets/demos/irr-filter.webm?v=6d4db8f71b" type="video/webm">
-      Your browser cannot play WebM video. <a href="../../assets/demos/irr-filter.webm?v=6d4db8f71b">Download the recording</a>.
+    <video controls playsinline preload="metadata" poster="../../assets/demos/irr-filter.png?v=cf1cccdd0d" aria-label="Add IRR filtering to an existing BGP peer demonstration">
+      <source src="../../assets/demos/irr-filter.webm?v=5ad9b5cd15" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../assets/demos/irr-filter.webm?v=5ad9b5cd15">Download the recording</a>.
     </video>
   </div>
   <figcaption>
-    <span>Ze 26.07.20</span><span>3 minutes 37 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
-    <a href="../../assets/demos/irr-filter.txt?v=3fd732070b">Plain-text transcript</a>
+    <span>Ze 26.08.19</span><span>3 minutes 46 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
+    <a href="../../assets/demos/irr-filter.txt?v=d98dd62b1f">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
     <summary>Read the demonstration transcript</summary>
@@ -250,10 +251,10 @@ $ ze cli -c &#x27;show bgp irr prefix customer-a | no-more&#x27;
 10.0.1.0/24
 172.16.0.0/16
 2001:db8::/32
-$ ze cli -c &#x27;show bgp irr check customer-a 10.0.0.0/24 | no-more&#x27;
+$ ze cli -c &#x27;show bgp irr check customer-a 10.0.0.0/24 | no-more | yaml&#x27;
 accepted: true
 matched-entry: 10.0.0.0/24
-$ ze cli -c &#x27;show bgp irr check customer-a 192.168.0.0/24 | no-more&#x27;
+$ ze cli -c &#x27;show bgp irr check customer-a 192.168.0.0/24 | no-more | yaml&#x27;
 accepted: false
 $ ze cli -c &#x27;show bgp adj-rib-in | no-more&#x27;
 10.0.0.0/24
@@ -357,7 +358,7 @@ The operational commands use Ze&#x27;s default text format. Its key/value layout
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 18 August 2026 11:28 UTC</span>
+                    <span class="footer-published">Published 19 August 2026 03:49 UTC</span>
                 </div>
             </div>
         </footer>

@@ -666,6 +666,12 @@ reports the restore. <code>ze appliance init</code> validates and writes the sam
 <!-- source: internal/appliance/cmd_cert.go -- validateTLSPair, writeTLSPair -->
 <!-- source: internal/appliance/cmd_init.go -- writeTLSSecrets -->
 
+<p>A <code>ze</code> older than this validation could store a certificate and a key that do
+not load as a pair. On such an appliance the web listener does not start. Run
+<code>ze doctor</code> to find it: the stored pair is reported as <code>doctor-tls-invalid</code>,
+"certificate and key in storage are not a usable pair". <code>replace-cert</code> fixes it.</p>
+<!-- source: internal/component/doctor/checks_tls.go -- checkWebTLSPair -->
+
 <h3 id="config-layering">Config layering</h3>
 <p>Set <code>config-base</code> in <code>appliance.json</code> to share a base config across appliances:</p>
 <pre><code class="language-json">{
@@ -1052,7 +1058,7 @@ config was saved. If the window completes, the active config hash is written to
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 18 August 2026 11:28 UTC</span>
+                    <span class="footer-published">Published 19 August 2026 03:49 UTC</span>
                 </div>
             </div>
         </footer>

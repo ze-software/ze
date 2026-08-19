@@ -159,6 +159,8 @@ A refresh that returns prefixes atomically replaces the in-memory list and persi
 
 The prefixes an empty answer left in place are still enforced. `show bgp irr` and `show firewall irr` mark the entry `stale` and give the age of the data, so enforcing data nobody has confirmed is visible rather than silent.
 
+The two address families are kept separately. Ze queries IPv4 and IPv6 with two commands, and a server that returns prefixes for one and nothing for the other keeps the last known good list of the family that returned nothing. The entry is marked `stale` and reports the age of the older list. This matters most for an interface binding, where the rules accept the registered prefixes of each family and drop the rest: a family whose list was emptied would have every packet dropped.
+
 Removing prefixes is always deliberate. When an AS-SET is deregistered upstream for good, clear its cached data:
 
 ```console
@@ -185,9 +187,9 @@ The recording starts with a stored BGP peer that has no IRR plugin, server, AS-S
 
 Populate a stored configuration with the IRR plugin, server, AS-SET, and import filter, then prove registered routes pass and unregistered routes do not.
 
-[Play the WebM recording](../../assets/demos/irr-filter.webm?v=6d4db8f71b) · [View the poster](../../assets/demos/irr-filter.png?v=fd5f3c7eae) · [Plain-text transcript](../../assets/demos/irr-filter.txt?v=3fd732070b)
+[Play the WebM recording](../../assets/demos/irr-filter.webm?v=5ad9b5cd15) · [View the poster](../../assets/demos/irr-filter.png?v=cf1cccdd0d) · [Plain-text transcript](../../assets/demos/irr-filter.txt?v=d98dd62b1f)
 
-Recorded with Ze 26.07.20 on macOS and Linux using VHS 0.11.0. Duration: 3 minutes 37 seconds.
+Recorded with Ze 26.08.19 on macOS and Linux using VHS 0.11.0. Duration: 3 minutes 46 seconds.
 
 ```console
 $ ze config cat ze.conf | grep -q bgp-filter-irr || echo 'IRR filtering is not configured'
@@ -214,10 +216,10 @@ $ ze cli -c 'show bgp irr prefix customer-a | no-more'
 10.0.1.0/24
 172.16.0.0/16
 2001:db8::/32
-$ ze cli -c 'show bgp irr check customer-a 10.0.0.0/24 | no-more'
+$ ze cli -c 'show bgp irr check customer-a 10.0.0.0/24 | no-more | yaml'
 accepted: true
 matched-entry: 10.0.0.0/24
-$ ze cli -c 'show bgp irr check customer-a 192.168.0.0/24 | no-more'
+$ ze cli -c 'show bgp irr check customer-a 192.168.0.0/24 | no-more | yaml'
 accepted: false
 $ ze cli -c 'show bgp adj-rib-in | no-more'
 10.0.0.0/24

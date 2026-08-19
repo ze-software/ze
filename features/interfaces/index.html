@@ -964,9 +964,14 @@ make a backend call: the per-interface sysctl keys and the ethtool offload ioctl
 <p>An entry whose selector names no present device is <strong>unbound</strong>: every phase skips it,
 and none falls back to the logical name. That fallback is what made an aliased entry
 configure whatever else carried its name. An entry whose <code>mac/match</code> names more than one
-device refuses the apply. <code>resolveOS</code> draws the same line for the by-name dispatch ops:
-a name with no selector passes through unchanged, and a name WITH a selector that fails
-to resolve returns an error rather than the name.</p>
+device refuses the apply, and a device only answers a <code>mac/match</code> when the address it is
+matched on is its own: a VLAN inherits its parent's, and a bridge or bond wears a
+member's, so neither is a candidate. <code>resolveOS</code> draws the same line for the by-name
+dispatch ops: a name with no selector passes through unchanged, and a name WITH a
+selector that fails to resolve returns an error rather than the name.</p>
+<p>The two settings that name a SECOND interface resolve through the same map: a bridge
+member is enslaved by the kernel device its entry selects, and a mirror sends its copy
+to the capture port's kernel device.</p>
 <!-- source: internal/component/iface/config_apply.go -- bindDevices, deviceFor, validateSelectors -->
 <!-- source: internal/component/iface/dispatch.go -- resolveOS translation in the by-name dispatch ops -->
 <!-- source: internal/component/iface/resolve.go -- Resolve / Addresses / Subscribe logical-name resolver -->
@@ -2226,7 +2231,7 @@ exact-or-reject.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 18 August 2026 11:28 UTC</span>
+                    <span class="footer-published">Published 19 August 2026 03:49 UTC</span>
                 </div>
             </div>
         </footer>

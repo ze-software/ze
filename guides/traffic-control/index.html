@@ -116,6 +116,10 @@ the operator chooses one via the <code>backend</code> leaf.</p>
 <p>Other <code>GenericQdisc</code> types (<code>mq</code>, <code>clsact</code>, ...) stay rejected: those carry state this backend cannot reproduce.</p>
 <!-- source: internal/plugins/traffic/netlink/snapshot_linux.go -- newQdiscSnapshot, tcQdiscSnapshot.restoredByDelete -->
 
+<p><code>clsact</code> and <code>ingress</code> are not configurable on any backend. Neither is a root discipline: they attach at the ingress hook, they carry no classes, and that hook belongs to port mirroring and to flow sampling, which install <code>clsact</code> at <code>ffff:0</code> themselves. The <code>qdisc-type</code> enumeration offers neither, so a config naming one is refused when it is validated. Ze still names both when it reads an interface that already carries one.</p>
+<!-- source: internal/component/traffic/yang/ze-traffic-control-conf.yang -- qdisc-type -->
+<!-- source: internal/plugins/iface/netlink/mirror_linux.go -- clsactQdisc -->
+
 <h2 id="tc-backend-filter-priorities">tc Backend: Filter Priorities</h2>
 <p>The kernel keeps exactly one <code>tcf_proto</code> per (parent, priority), and that instance carries a single link-layer protocol (<code>tcf_chain_tp_find</code>, <code>net/sched/cls_api.c</code>). A second filter at the same priority with a different protocol is rejected with <code>EINVAL</code>.</p>
 <p>Ze therefore allocates one priority per link-layer protocol: the IPv4 (<code>ETH_P_IP</code>) and IPv6 (<code>ETH_P_IPV6</code>) halves of a DSCP or protocol match get distinct priorities, as does a mark filter (<code>ETH_P_ALL</code>). With a shared priority the qdisc and class were created, the IPv4 filter was accepted, and the IPv6 filter at the same priority was refused.</p>
@@ -179,11 +183,6 @@ learn about incompatibilities before the config lands rather than after Apply.</
 <td><code>netem</code></td>
 <td>rejected</td>
 <td>Network emulation not available in VPP</td>
-</tr>
-<tr>
-<td><code>clsact</code> / <code>ingress</code></td>
-<td>rejected</td>
-<td>Ingress policing semantics differ in VPP (deferred)</td>
 </tr>
 </tbody>
 </table>
@@ -333,7 +332,7 @@ produce the same stored policer name.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 18 August 2026 11:28 UTC</span>
+                    <span class="footer-published">Published 19 August 2026 03:49 UTC</span>
                 </div>
             </div>
         </footer>

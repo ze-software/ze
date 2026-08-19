@@ -406,11 +406,16 @@ it. A term reaches the kernel as two rules, one for the IPv4 prefixes and one
 for the IPv6 prefixes, so the table family must be `inet`.
 
 The prefix sets belong to the `firewall-irr` plugin, not to the table that names
-them. The two arrive at different times, and the firewall waits: while a rule
-names a set no owner has registered, no table is programmed and the daemon logs
-`reconcile deferred`. The plugin registers the sets moments later and the whole
-ruleset lands. That line staying in the log means the prefixes never arrived,
-and `show firewall irr` says which entry is missing.
+them. The two arrive at different times, and that one table waits: while a rule
+names a set no owner has registered, the table holding it is not programmed and
+the daemon logs `table held back`. Every other table is programmed as usual. The
+plugin registers the sets moments later and the table lands.
+
+That line staying in the log means the prefixes never arrived. `show firewall
+irr` says which entry is missing, and `update firewall irr asn <N>` or `update
+firewall irr as-set <name>` fetches it and programs the table. Use it after a
+fresh install or a restored appliance, where the prefix cache starts empty:
+`refresh-interval` defaults to 0, so no timer fetches the data for you.
 
 ### Config Leaves
 
@@ -505,6 +510,10 @@ term. A lone drop term would drop every packet arriving on the interface while
 the apply reported success, so one unhelpful answer from an IRR server would take
 a customer-facing port down. The plugin logs the skipped binding, and config
 commit rejects the binding before it gets that far.
+
+The same reasoning covers one family. A refresh that returns IPv4 prefixes and
+nothing for IPv6 keeps the last known good IPv6 list, so the IPv6 accept term
+stays and the drop term does not become the only rule for that family.
 
 Same fail-closed semantics apply: config commit rejects if any bound AS-SET
 has no cached prefix data. Removing an interface binding removes its filter

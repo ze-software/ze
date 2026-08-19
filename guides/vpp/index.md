@@ -128,8 +128,11 @@ Severity follows what the probe proved. A probe that answers and does not list
 the plugin is an ERROR, and `ze doctor` reports the host as not ready. A probe
 that cannot answer degrades to a WARNING and never claims the plugin is missing.
 `vppctl` exits non-zero identically for an absent binary, an absent socket, and a
-wedged VPP. None of those is evidence about which plugins VPP loaded.
-<!-- source: internal/plugins/iface/vpp/doctor.go -- checkVPPLCPPlugin, lcpEnabled, lcpPluginSO -->
+wedged VPP. A zero exit counts as an answer only when the output carries the
+`Plugin path is:` line VPP prints ahead of the plugin rows: empty or truncated
+output lists no plugin at all, so it is a WARNING too. None of those is evidence
+about which plugins VPP loaded.
+<!-- source: internal/plugins/iface/vpp/doctor.go -- checkVPPLCPPlugin, lcpEnabled, lcpPluginSO, vppctlPluginsHeader -->
 <!-- source: internal/core/diagnostic/codes.go -- doctor-vpp-lcp-plugin -->
 
 <!-- source: internal/component/vpp/yang/ze-vpp-conf.yang -- lcp container netns default "dataplane" -->

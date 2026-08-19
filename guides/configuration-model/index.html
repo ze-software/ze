@@ -69,6 +69,7 @@
 <li><a href="#capabilities">Capabilities</a></li>
 <li><a href="#address-families">Address Families</a>
 <ol>
+<li><a href="#a-peer-that-declares-no-family">A Peer That Declares No Family</a></li>
 <li><a href="#prefix-limits">Prefix Limits</a>
 <ol>
 <li><a href="#what-the-count-holds-offered-or-installed">What the count holds: offered or installed</a></li>
@@ -941,6 +942,29 @@ the exemption does nothing, and Ze logs that at configure time naming the peer.<
 </code></pre>
 <p>Use <code>ze --plugins</code> to see available families from registered plugins.</p>
 <!-- source: internal/component/bgp/plugins/nlri/ -- NLRI plugin Families registration -->
+
+<h3 id="a-peer-that-declares-no-family">A Peer That Declares No Family</h3>
+<p>The <code>family { }</code> block can be omitted. The session then negotiates
+ipv4/unicast, which RFC 4271 carries with no capability at all. The OPEN
+message carries no Multiprotocol capability in that case. That OPEN is correct,
+and a peer daemon that follows RFC 4271 reads it as IPv4 unicast.</p>
+<p>Ze sends the End-of-RIB marker for ipv4/unicast once it completes the initial
+routing update, as RFC 4724 Section 4 requires.</p>
+<p>A loaded plugin changes what Ze advertises. When the config declares no family,
+Ze advertises every family the loaded plugins can decode, and the session
+negotiates those.</p>
+<p>Declare the block for any other family. The block replaces the implicit family,
+so it must name IPv4 unicast too when the peer carries it:</p>
+<pre><code>peer transit-a {
+    family {
+        ipv4/unicast { prefix { maximum 1000000; } }
+        ipv6/unicast { prefix { maximum 200000; } }
+    }
+}
+</code></pre>
+<!-- source: internal/core/bgp/capability/negotiated.go -- Negotiate treats a side with no Multiprotocol capability as advertising ipv4/unicast -->
+<!-- source: internal/component/bgp/reactor/session_negotiate.go -- buildOpen, plugin decode families when the config declares none -->
+<!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- sendInitialRoutes, one End-of-RIB marker per negotiated family -->
 
 <h3 id="prefix-limits">Prefix Limits</h3>
 <p>Every family must have a prefix maximum. Ze refuses to start without one.</p>
@@ -2019,9 +2043,12 @@ device by its hardware MAC with <code>mac { match }</code>:</p>
 matches the device's <strong>permanent (factory) address</strong> (<code>IFLA_PERM_ADDRESS</code>) when the NIC
 reports one, so the binding <strong>survives an operational MAC override</strong> (<code>mac { address }</code>) on
 the very same interface; for virtual devices that report no permanent address it matches
-the current address instead. A VLAN sub-interface is never a candidate: it inherits its
-parent's address, so it would otherwise match its own parent's selector. <code>mac/match</code>
-<strong>takes precedence over <code>os-name</code></strong> and, like <code>os-name</code>, applies to <strong>ethernet</strong> only.</p>
+the current address instead. A device is a candidate only when the address it is matched
+on is its <strong>own</strong>: a VLAN sub-interface inherits its parent's address, and a bridge or a
+bond wears the address of a port it holds, so neither is ever a candidate. Without those
+two exclusions, putting the selected port in a bridge, or adding a VLAN on it, made the
+port's own selector ambiguous. <code>mac/match</code> <strong>takes precedence over <code>os-name</code></strong> and, like
+<code>os-name</code>, applies to <strong>ethernet</strong> only.</p>
 <h4 id="what-happens-when-a-selector-does-not-name-one-device">What happens when a selector does not name one device</h4>
 <table>
 <thead>
@@ -4467,7 +4494,7 @@ match criteria, actions, reserved ranges, and CLI usage.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 18 August 2026 11:28 UTC</span>
+                    <span class="footer-published">Published 19 August 2026 03:49 UTC</span>
                 </div>
             </div>
         </footer>

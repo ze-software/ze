@@ -258,13 +258,13 @@ from stdin (<code>ze -</code>) is unaffected.</p>
       <span>launcher.terminal</span>
       <span>WEBM</span>
     </div>
-    <video controls playsinline preload="metadata" poster="../../assets/demos/launcher.png?v=cae872cf66" aria-label="Discover Ze commands interactively demonstration">
-      <source src="../../assets/demos/launcher.webm?v=46c97f8572" type="video/webm">
-      Your browser cannot play WebM video. <a href="../../assets/demos/launcher.webm?v=46c97f8572">Download the recording</a>.
+    <video controls playsinline preload="metadata" poster="../../assets/demos/launcher.png?v=7b0e4ac048" aria-label="Discover Ze commands interactively demonstration">
+      <source src="../../assets/demos/launcher.webm?v=1536c23832" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../assets/demos/launcher.webm?v=1536c23832">Download the recording</a>.
     </video>
   </div>
   <figcaption>
-    <span>Ze 26.07.18</span><span>1 minute 5 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
+    <span>Ze 26.08.19</span><span>44 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
     <a href="../../assets/demos/launcher.txt?v=0399dbc59f">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
@@ -850,13 +850,13 @@ ze show host kernel                # Kernel release, cmdline, microcode, arch fl
       <span>host-inventory.terminal</span>
       <span>WEBM</span>
     </div>
-    <video controls playsinline preload="metadata" poster="../../assets/demos/host-inventory.png?v=01c12c6314" aria-label="Inspect a Linux host before Ze starts demonstration">
-      <source src="../../assets/demos/host-inventory.webm?v=8c89c5019c" type="video/webm">
-      Your browser cannot play WebM video. <a href="../../assets/demos/host-inventory.webm?v=8c89c5019c">Download the recording</a>.
+    <video controls playsinline preload="metadata" poster="../../assets/demos/host-inventory.png?v=fc7a447153" aria-label="Inspect a Linux host before Ze starts demonstration">
+      <source src="../../assets/demos/host-inventory.webm?v=3644670538" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../assets/demos/host-inventory.webm?v=3644670538">Download the recording</a>.
     </video>
   </div>
   <figcaption>
-    <span>Ze 26.07.18</span><span>51 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>VHS 0.11.0</span>
+    <span>Ze 26.08.19</span><span>37 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>VHS 0.11.0</span>
     <a href="../../assets/demos/host-inventory.txt?v=5b221c4c0f">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
@@ -1132,10 +1132,11 @@ responder acts on these incidents.</p>
 <p>The incident lifecycle held by the <code>anomaly-observe</code> plugin, newest first. Returns
 <code>{"enabled": bool, "active-count": N, "incidents": [{id, interface, entity, cohort,
 fired-features: [{name, z}], score, severity, start-time, end-time, active}]}</code>.
-A finalized incident stays in the list and carries its <code>end-time</code>, so this command
-reports how long a finished incident lasted; <code>show anomaly detect</code> records
-confirmations only and cannot. <code>end-time</code> is absent while <code>active</code> is true. An
-incident that receives no clear event is finalized after <code>stale-incident-timeout</code>.</p>
+A finalized incident stays in the list and carries its <code>end-time</code>. So this
+command reports how long a finished incident lasted. <code>show anomaly detect</code>
+records confirmations only, and cannot report it.</p>
+<p><code>end-time</code> is absent while <code>active</code> is true. An incident that receives no clear
+event is finalized after <code>stale-incident-timeout</code>.</p>
 <pre><code>show anomaly observe                  # Incident lifecycle, newest first
 </code></pre>
 <h3 id="show-anomaly-shape">show anomaly shape</h3>
@@ -1377,10 +1378,10 @@ ze update firewall irr as-set &lt;as-set&gt;  # Fetch or refresh one AS-SET
 ze clear firewall irr asn &lt;asn&gt;         # Remove one ASN's cached prefixes
 ze clear firewall irr as-set &lt;as-set&gt;   # Remove one AS-SET's cached prefixes
 </code></pre>
-<p><strong><code>show firewall irr</code></strong> reports one entry per configured reference. <code>status</code> is
-<code>ok</code> when the prefixes are what the IRR last answered, <code>stale</code> when a later
-refresh returned nothing and the previous prefixes stay in force, and <code>missing</code>
-when nothing is cached. A stale entry also carries <code>stale-since</code>, and every
+<p><strong><code>show firewall irr</code></strong> reports one entry per configured reference. <code>status</code>
+takes one of three values. It is <code>ok</code> when the prefixes are what the IRR last
+answered. It is <code>stale</code> when a later refresh returned nothing and the previous
+prefixes stay in force. It is <code>missing</code> when nothing is cached. A stale entry also carries <code>stale-since</code>, and every
 cached entry carries <code>data-age-seconds</code>.</p>
 <p><strong><code>update firewall irr ...</code></strong> reports an error when the server returns no
 prefixes. The cached prefixes are kept rather than replaced with an empty list,
@@ -2620,9 +2621,11 @@ ze-perf track --check --threshold-convergence 15 history.ndjson
 bgp decode/encode, env, schema, yang, completion). These are dispatched
 via local handlers before attempting SSH connection.</p>
 <p><code>ze cli</code> accepts <code>-c &lt;command&gt;</code> for single-shot execution and
-<code>--format &lt;format&gt;</code> (default: yaml). A format pipe inside the command wins over the
-flag, so <code>ze cli -c "show bgp peer list | json compact"</code> prints JSON.</p>
-<!-- source: internal/component/cli/client/main.go -- Run, renderCommandOutput -->
+<code>--format &lt;format&gt;</code>. The flag has no default of its own. A command that names no
+format is rendered in the configured default, the <code>environment cli format
+default</code> leaf. A format pipe inside the command wins over the flag, so
+<code>ze cli -c "show bgp peer list | json compact"</code> prints JSON.</p>
+<!-- source: internal/component/cli/client/main.go -- Run, commandWithFormat -->
 <!-- source: internal/component/command/pipe.go -- HasFormatPipe -->
 
 <h3 id="peer-selector">Peer Selector</h3>
@@ -3956,7 +3959,7 @@ ze-chaos --ai-help                           # Print tool schemas
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 18 August 2026 11:28 UTC</span>
+                    <span class="footer-published">Published 19 August 2026 03:49 UTC</span>
                 </div>
             </div>
         </footer>

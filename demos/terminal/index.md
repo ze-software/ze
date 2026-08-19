@@ -10,9 +10,9 @@ Each demo also appears beside the documentation for the feature it exercises. Th
 
 Use type-ahead filtering and drill-down navigation in Ze's interactive command launcher.
 
-[Play the WebM recording](../../assets/demos/launcher.webm?v=46c97f8572) · [View the poster](../../assets/demos/launcher.png?v=cae872cf66) · [Plain-text transcript](../../assets/demos/launcher.txt?v=0399dbc59f)
+[Play the WebM recording](../../assets/demos/launcher.webm?v=1536c23832) · [View the poster](../../assets/demos/launcher.png?v=7b0e4ac048) · [Plain-text transcript](../../assets/demos/launcher.txt?v=0399dbc59f)
 
-Recorded with Ze 26.07.18 on macOS and Linux using VHS 0.11.0. Duration: 1 minute 5 seconds.
+Recorded with Ze 26.08.19 on macOS and Linux using VHS 0.11.0. Duration: 44 seconds.
 
 ```console
 $ ze
@@ -30,9 +30,9 @@ Press Escape to move back through the menu and return to the shell.
 
 Connect to Ze over SSH, open the live BGP dashboard, sort peers, and inspect one session.
 
-[Play the WebM recording](../../assets/demos/cli-dashboard.webm?v=d655c1d08f) · [View the poster](../../assets/demos/cli-dashboard.png?v=6f3f921d23) · [Plain-text transcript](../../assets/demos/cli-dashboard.txt?v=86542601eb)
+[Play the WebM recording](../../assets/demos/cli-dashboard.webm?v=56620f9bd0) · [View the poster](../../assets/demos/cli-dashboard.png?v=5595195ace) · [Plain-text transcript](../../assets/demos/cli-dashboard.txt?v=86542601eb)
 
-Recorded with Ze 26.07.18 on macOS and Linux using VHS 0.11.0. Duration: 1 minute 2 seconds.
+Recorded with Ze 26.08.19 on macOS and Linux using VHS 0.11.0. Duration: 40 seconds.
 
 ```console
 $ ssh ze-demo
@@ -49,11 +49,17 @@ The dashboard polls three local BGP sessions. Press "s" to sort by the next colu
 
 Create the ZeFS database, edit the active configuration through Ze's SSH management plane, and verify the committed setting.
 
-[Play the WebM recording](../../assets/demos/zefs-config.webm?v=77e7668320) · [View the poster](../../assets/demos/zefs-config.png?v=6d5b08c1d1) · [Plain-text transcript](../../assets/demos/zefs-config.txt?v=3240b5213c)
+[Play the WebM recording](../../assets/demos/zefs-config.webm?v=9651a7e3df) · [View the poster](../../assets/demos/zefs-config.png?v=9e82166aac) · [Plain-text transcript](../../assets/demos/zefs-config.txt?v=cf435951c8)
 
-Recorded with Ze 26.08.17 on macOS and Linux using VHS 0.11.0. Duration: 1 minute 55 seconds.
+Recorded with Ze 26.08.19 on macOS and Linux using VHS 0.11.0. Duration: 2 minutes 21 seconds.
 
 ```console
+$ cat "$ZE_INIT_INPUT"
+admin
+secret123
+127.0.0.1
+2222
+ze-demo
 $ ze init < "$ZE_INIT_INPUT"
 $ ze config ls
 ze.conf
@@ -69,8 +75,11 @@ Session committed
 ze# exit
 ze# exit
 $ ze cli -c 'show bgp summary'
+$ ze cli -c 'show bgp summary | text'
+$ ze cli -c 'show bgp summary | raw' | head -14
+$ ze cli -c 'show bgp summary | raw' | ze pipe text
 
-`ze init` creates `database.zefs`. The first BGP summary uses the default text format. The SSH editor commits the format setting back to ZeFS, not to a second flat file, and the same operational command immediately uses the committed default.
+The five lines answer `ze init`'s prompts in order: username, password, host, port, and name. It reads them from a file here so the recording is reproducible, and it prints nothing when its input is not a terminal, so the file is shown first rather than left as an unexplained redirection. `ze init` creates `database.zefs`. The first BGP summary uses the default text format. The SSH editor commits the format setting back to ZeFS, not to a second flat file, and the same operational command immediately uses the committed default. The last commands show the two ways to override that default, and they are different pipes. `show bgp summary | text` is Ze's own operator, inside the quoted command, and it wins over the committed setting. Then `| raw` on its own shows what every one of these renderings is made from: the payload as the daemon holds it, unrendered. The last command sends that same payload across a real shell pipe, and `ze pipe text` formats it on this side, which is how output captured earlier is formatted later. The command is `ze pipe` rather than `ze format` because the operator language also carries `match`, `count`, `first`, `last` and `resolve`, so `format` would name one clause of it. Every command answers with structured data, so `text`, `table`, `json`, `yaml` and `ndjson` all render the same payload.
 ```
 
 
@@ -80,9 +89,9 @@ $ ze cli -c 'show bgp summary'
 
 Run an allowed NOC command, then show Ze explicitly refuse a known state-changing command.
 
-[Play the WebM recording](../../assets/demos/rbac.webm?v=aaa447ec07) · [View the poster](../../assets/demos/rbac.png?v=3a7f101f5d) · [Plain-text transcript](../../assets/demos/rbac.txt?v=939addc51a)
+[Play the WebM recording](../../assets/demos/rbac.webm?v=189c6c578f) · [View the poster](../../assets/demos/rbac.png?v=83eb6771ce) · [Plain-text transcript](../../assets/demos/rbac.txt?v=939addc51a)
 
-Recorded with Ze 26.07.18 on macOS and Linux using VHS 0.11.0. Duration: 1 minute 30 seconds.
+Recorded with Ze 26.08.19 on macOS and Linux using VHS 0.11.0. Duration: 1 minute 12 seconds.
 
 ```console
 $ ze config show rbac.conf system authorization profile read-only
@@ -111,9 +120,9 @@ The recording displays the command restriction and the NOC user's profile bindin
 
 Run Ze's live traceroute through a deterministic Linux network-namespace lab.
 
-[Play the WebM recording](../../assets/demos/traceroute.webm?v=bda9d06121) · [View the poster](../../assets/demos/traceroute.png?v=ebcd3e247b) · [Plain-text transcript](../../assets/demos/traceroute.txt?v=2b9d95cc69)
+[Play the WebM recording](../../assets/demos/traceroute.webm?v=076e9f586a) · [View the poster](../../assets/demos/traceroute.png?v=8dcfcd9e64) · [Plain-text transcript](../../assets/demos/traceroute.txt?v=2b9d95cc69)
 
-Recorded with Ze 26.07.18 in a Linux namespace lab using VHS 0.11.0. Duration: 1 minute 2 seconds.
+Recorded with Ze 26.08.19 in a Linux namespace lab using VHS 0.11.0. Duration: 42 seconds.
 
 ```console
 $ ssh ze-demo
@@ -130,9 +139,9 @@ The destination and router live in an isolated Linux network-namespace lab. Ze s
 
 Change a YANG-backed setting, review the generated diff, commit the draft, and verify the active value.
 
-[Play the WebM recording](../../assets/demos/web-config.webm?v=27c8c574fd) · [View the poster](../../assets/demos/web-config.png?v=3ec85c3acd) · [Plain-text transcript](../../assets/demos/web-config.txt?v=a614767cf2)
+[Play the WebM recording](../../assets/demos/web-config.webm?v=a8458dd75a) · [View the poster](../../assets/demos/web-config.png?v=300f2e8e47) · [Plain-text transcript](../../assets/demos/web-config.txt?v=a614767cf2)
 
-Recorded with Ze 26.07.18 on macOS and Linux using Playwright 1.55.0. Duration: 47 seconds.
+Recorded with Ze 26.08.19 on macOS and Linux using Playwright 1.55.0. Duration: 58 seconds.
 
 ```console
 Ze web configuration demo
@@ -156,9 +165,9 @@ Expected result: Ze commits the browser user's isolated draft and the active YAN
 
 Commit a hostname change in the interactive editor, leave the confirmation window unanswered, and verify Ze restores the previous configuration.
 
-[Play the WebM recording](../../assets/demos/commit-confirmed.webm?v=21514fce6f) · [View the poster](../../assets/demos/commit-confirmed.png?v=4e03c49d64) · [Plain-text transcript](../../assets/demos/commit-confirmed.txt?v=7dcd8dbbc1)
+[Play the WebM recording](../../assets/demos/commit-confirmed.webm?v=91983a21e7) · [View the poster](../../assets/demos/commit-confirmed.png?v=39936789b5) · [Plain-text transcript](../../assets/demos/commit-confirmed.txt?v=7dcd8dbbc1)
 
-Recorded with Ze 26.07.18 on macOS and Linux using VHS 0.11.0. Duration: 1 minute 31 seconds.
+Recorded with Ze 26.08.19 on macOS and Linux using VHS 0.11.0. Duration: 1 minute 10 seconds.
 
 ```console
 $ ze config edit -f ze.conf
@@ -192,9 +201,9 @@ The first change is left unconfirmed and rolls back. The second receives `confir
 
 Feed three local routes through a deterministic RTR cache, then show Valid and NotFound routes installed while the Invalid route is absent.
 
-[Play the WebM recording](../../assets/demos/rpki.webm?v=d07469afde) · [View the poster](../../assets/demos/rpki.png?v=ee521ed133) · [Plain-text transcript](../../assets/demos/rpki.txt?v=bf49f52038)
+[Play the WebM recording](../../assets/demos/rpki.webm?v=971e751f4f) · [View the poster](../../assets/demos/rpki.png?v=4e7e9269d8) · [Plain-text transcript](../../assets/demos/rpki.txt?v=bf49f52038)
 
-Recorded with Ze 26.07.18 on macOS and Linux using VHS 0.11.0. Duration: 46 seconds.
+Recorded with Ze 26.08.19 on macOS and Linux using VHS 0.11.0. Duration: 34 seconds.
 
 ```console
 $ ze cli -c 'show bgp rpki status | no-more'
@@ -214,9 +223,9 @@ The local RTR cache classifies 9.43.0.0/24 as Valid, 10.43.0.0/24 as Invalid, an
 
 Inject one route, inspect BGP best-path selection, and verify Linux installed it with Ze's route protocol ID. Validation also proves withdrawal removes it.
 
-[Play the WebM recording](../../assets/demos/rib-fib.webm?v=bc58a8c74d) · [View the poster](../../assets/demos/rib-fib.png?v=c78a1b0436) · [Plain-text transcript](../../assets/demos/rib-fib.txt?v=ca05c09bc8)
+[Play the WebM recording](../../assets/demos/rib-fib.webm?v=6b2efa49fe) · [View the poster](../../assets/demos/rib-fib.png?v=7173a6febd) · [Plain-text transcript](../../assets/demos/rib-fib.txt?v=ca05c09bc8)
 
-Recorded with Ze 26.07.18 in a Linux namespace lab using VHS 0.11.0. Duration: 1 minute 6 seconds.
+Recorded with Ze 26.08.19 in a Linux namespace lab using VHS 0.11.0. Duration: 49 seconds.
 
 ```console
 $ ze cli -c 'request bgp rib inject 192.0.2.10 ipv4/unicast 198.51.100.0/24 origin igp nexthop 127.0.0.1 med 42'
@@ -235,9 +244,9 @@ The route enters Ze's BGP RIB, wins best-path selection, reaches the protocol-in
 
 Read aggregate component health, follow a live stale-prefix warning from the SSH banner into show warnings, then reset a peer and find the retained event in show errors.
 
-[Play the WebM recording](../../assets/demos/health-reports.webm?v=4820118a77) · [View the poster](../../assets/demos/health-reports.png?v=984ee2cfc9) · [Plain-text transcript](../../assets/demos/health-reports.txt?v=113557fa9c)
+[Play the WebM recording](../../assets/demos/health-reports.webm?v=c95587e1ba) · [View the poster](../../assets/demos/health-reports.png?v=4b94b2625a) · [Plain-text transcript](../../assets/demos/health-reports.txt?v=113557fa9c)
 
-Recorded with Ze 26.07.18 on macOS and Linux using VHS 0.11.0. Duration: 1 minute 20 seconds.
+Recorded with Ze 26.08.19 on macOS and Linux using VHS 0.11.0. Duration: 1 minute.
 
 ```console
 $ ssh ze-demo
@@ -260,9 +269,9 @@ Health reports aggregate component state. Warnings describe conditions that rema
 
 Show one BGP peer as hierarchical blocks and set commands, round-trip between both with identical canonical output, then compose match and count over Ze's plugin registry.
 
-[Play the WebM recording](../../assets/demos/config-views.webm?v=414a2e496b) · [View the poster](../../assets/demos/config-views.png?v=e7acb6271c) · [Plain-text transcript](../../assets/demos/config-views.txt?v=0f968daa34)
+[Play the WebM recording](../../assets/demos/config-views.webm?v=9286711b41) · [View the poster](../../assets/demos/config-views.png?v=ad33316247) · [Plain-text transcript](../../assets/demos/config-views.txt?v=0f968daa34)
 
-Recorded with Ze 26.07.18 on macOS and Linux using VHS 0.11.0. Duration: 1 minute 34 seconds.
+Recorded with Ze 26.08.19 on macOS and Linux using VHS 0.11.0. Duration: 1 minute 16 seconds.
 
 ```console
 $ ze config show router.conf bgp peer transit-a
@@ -299,9 +308,9 @@ Hierarchical and set syntax are alternate presentations of the same parsed confi
 
 Establish BFD and BGP with a local FRR peer, cut the peer link, and verify BFD drives BGP down before protocol timers expire.
 
-[Play the WebM recording](../../assets/demos/bfd-failover.webm?v=8152cb200d) · [View the poster](../../assets/demos/bfd-failover.png?v=3a17e535af) · [Plain-text transcript](../../assets/demos/bfd-failover.txt?v=ae76cb645e)
+[Play the WebM recording](../../assets/demos/bfd-failover.webm?v=b815e46d6a) · [View the poster](../../assets/demos/bfd-failover.png?v=eadc3dfcc7) · [Plain-text transcript](../../assets/demos/bfd-failover.txt?v=ae76cb645e)
 
-Recorded with Ze 26.07.18 in a Linux namespace lab using VHS 0.11.0. Duration: 2 minutes 9 seconds.
+Recorded with Ze 26.08.19 in a Linux namespace lab using VHS 0.11.0. Duration: 2 minutes 4 seconds.
 
 ```console
 An operator needs to verify that BFD, not the 300-second BGP hold timer, protects an edge session.
@@ -333,9 +342,9 @@ Every protocol result comes directly from `ze cli`; the lab helper is used only 
 
 Inspect the active OSPF configuration, query the running control plane with Ze's CLI, trace a Full neighbor through the LSDB, and confirm the expected route.
 
-[Play the WebM recording](../../assets/demos/ospf-adjacency.webm?v=f3471a25e9) · [View the poster](../../assets/demos/ospf-adjacency.png?v=ba7b8934e0) · [Plain-text transcript](../../assets/demos/ospf-adjacency.txt?v=d82925c752)
+[Play the WebM recording](../../assets/demos/ospf-adjacency.webm?v=0f9d490996) · [View the poster](../../assets/demos/ospf-adjacency.png?v=18f9f5f412) · [Plain-text transcript](../../assets/demos/ospf-adjacency.txt?v=d82925c752)
 
-Recorded with Ze 26.07.18 in a Linux namespace lab using VHS 0.11.0. Duration: 1 minute 4 seconds.
+Recorded with Ze 26.08.19 in a Linux namespace lab using VHS 0.11.0. Duration: 54 seconds.
 
 ```console
 An operator is investigating why 10.255.0.3/32 is missing.
@@ -362,9 +371,9 @@ The recording uses `ze cli` directly. No output wrapper or synthetic summary sit
 
 Attach Ze's pure-Go eBPF accounting to a local veth, generate ICMP and HTTP traffic, and inspect source, protocol, port, and byte totals.
 
-[Play the WebM recording](../../assets/demos/traffic-anomaly.webm?v=8f7e5a9506) · [View the poster](../../assets/demos/traffic-anomaly.png?v=12b8582dae) · [Plain-text transcript](../../assets/demos/traffic-anomaly.txt?v=fe6d21bab0)
+[Play the WebM recording](../../assets/demos/traffic-anomaly.webm?v=f4c762cadb) · [View the poster](../../assets/demos/traffic-anomaly.png?v=bd373dfcc3) · [Plain-text transcript](../../assets/demos/traffic-anomaly.txt?v=fe6d21bab0)
 
-Recorded with Ze 26.07.18 in a Linux namespace lab using VHS 0.11.0. Duration: 1 minute 42 seconds.
+Recorded with Ze 26.08.19 in a Linux namespace lab using VHS 0.11.0. Duration: 1 minute 27 seconds.
 
 ```console
 An operator sees an unexpected burst on `traffic0` and needs to identify the source and application without capturing payloads.
@@ -390,9 +399,9 @@ The complete live snapshot attributes bytes to source 10.77.0.2, ICMP, TCP desti
 
 Inspect the active and live VRRP state, stop the higher-priority Ze router, and prove keepalived takes the same reachable VIP.
 
-[Play the WebM recording](../../assets/demos/vrrp-failover.webm?v=50fbcdb61e) · [View the poster](../../assets/demos/vrrp-failover.png?v=a4b250811a) · [Plain-text transcript](../../assets/demos/vrrp-failover.txt?v=0b9dc45f28)
+[Play the WebM recording](../../assets/demos/vrrp-failover.webm?v=07fd9dcaf7) · [View the poster](../../assets/demos/vrrp-failover.png?v=27c2d1640a) · [Plain-text transcript](../../assets/demos/vrrp-failover.txt?v=0b9dc45f28)
 
-Recorded with Ze 26.07.18 in a Linux namespace lab using VHS 0.11.0. Duration: 2 minutes 54 seconds.
+Recorded with Ze 26.08.19 in a Linux namespace lab using VHS 0.11.0. Duration: 2 minutes 38 seconds.
 
 ```console
 An operator needs to stop the active router without changing the default gateway on every host.
@@ -423,9 +432,9 @@ The final kernel output shows 192.0.2.1 on keepalived's `vrrp.10` interface, and
 
 Use Ze's offline command fallback to read the complete kernel, CPU, and memory inventory in human-readable structured output.
 
-[Play the WebM recording](../../assets/demos/host-inventory.webm?v=8c89c5019c) · [View the poster](../../assets/demos/host-inventory.png?v=01c12c6314) · [Plain-text transcript](../../assets/demos/host-inventory.txt?v=5b221c4c0f)
+[Play the WebM recording](../../assets/demos/host-inventory.webm?v=3644670538) · [View the poster](../../assets/demos/host-inventory.png?v=fc7a447153) · [Plain-text transcript](../../assets/demos/host-inventory.txt?v=5b221c4c0f)
 
-Recorded with Ze 26.07.18 in a Linux namespace lab using VHS 0.11.0. Duration: 51 seconds.
+Recorded with Ze 26.08.19 in a Linux namespace lab using VHS 0.11.0. Duration: 37 seconds.
 
 ```console
 An operator needs to inspect an unfamiliar Linux host before starting Ze.
@@ -449,9 +458,9 @@ The commands work without a running Ze daemon. Every field returned by `ze show 
 
 Inspect and validate a BGP group, then use Ze's dependency graph to prove which peers inherit the value before scheduling maintenance.
 
-[Play the WebM recording](../../assets/demos/config-graph.webm?v=551b0249a0) · [View the poster](../../assets/demos/config-graph.png?v=60a75596e2) · [Plain-text transcript](../../assets/demos/config-graph.txt?v=1708ee2fac)
+[Play the WebM recording](../../assets/demos/config-graph.webm?v=e0904130d3) · [View the poster](../../assets/demos/config-graph.png?v=cf972162a4) · [Plain-text transcript](../../assets/demos/config-graph.txt?v=1708ee2fac)
 
-Recorded with Ze 26.07.18 on macOS and Linux using VHS 0.11.0. Duration: 1 minute 41 seconds.
+Recorded with Ze 26.08.19 on macOS and Linux using VHS 0.11.0. Duration: 1 minute 31 seconds.
 
 ```console
 An operator needs to change the transit group's remote ASN and identify every peer that inherits it before scheduling maintenance.

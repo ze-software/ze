@@ -349,9 +349,9 @@ scripts can parse the output while the interactive CLI renders them.
 
 Establish BFD and BGP with a local FRR peer, cut the peer link, and verify BFD drives BGP down before protocol timers expire.
 
-[Play the WebM recording](../../assets/demos/bfd-failover.webm?v=8152cb200d) · [View the poster](../../assets/demos/bfd-failover.png?v=3a17e535af) · [Plain-text transcript](../../assets/demos/bfd-failover.txt?v=ae76cb645e)
+[Play the WebM recording](../../assets/demos/bfd-failover.webm?v=b815e46d6a) · [View the poster](../../assets/demos/bfd-failover.png?v=eadc3dfcc7) · [Plain-text transcript](../../assets/demos/bfd-failover.txt?v=ae76cb645e)
 
-Recorded with Ze 26.07.18 in a Linux namespace lab using VHS 0.11.0. Duration: 2 minutes 9 seconds.
+Recorded with Ze 26.08.19 in a Linux namespace lab using VHS 0.11.0. Duration: 2 minutes 4 seconds.
 
 ```console
 An operator needs to verify that BFD, not the 300-second BGP hold timer, protects an edge session.

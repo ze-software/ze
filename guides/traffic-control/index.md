@@ -44,6 +44,10 @@ Before installing its own root qdisc, the tc backend snapshots the interface's e
 Other `GenericQdisc` types (`mq`, `clsact`, ...) stay rejected: those carry state this backend cannot reproduce.
 <!-- source: internal/plugins/traffic/netlink/snapshot_linux.go -- newQdiscSnapshot, tcQdiscSnapshot.restoredByDelete -->
 
+`clsact` and `ingress` are not configurable on any backend. Neither is a root discipline: they attach at the ingress hook, they carry no classes, and that hook belongs to port mirroring and to flow sampling, which install `clsact` at `ffff:0` themselves. The `qdisc-type` enumeration offers neither, so a config naming one is refused when it is validated. Ze still names both when it reads an interface that already carries one.
+<!-- source: internal/component/traffic/yang/ze-traffic-control-conf.yang -- qdisc-type -->
+<!-- source: internal/plugins/iface/netlink/mirror_linux.go -- clsactQdisc -->
+
 ## tc Backend: Filter Priorities
 
 The kernel keeps exactly one `tcf_proto` per (parent, priority), and that instance carries a single link-layer protocol (`tcf_chain_tp_find`, `net/sched/cls_api.c`). A second filter at the same priority with a different protocol is rejected with `EINVAL`.
@@ -69,7 +73,6 @@ learn about incompatibilities before the config lands rather than after Apply.
 | `hfsc` | rejected | Service-curve semantics have no VPP equivalent |
 | `fq` / `sfq` / `fq_codel` | rejected | Fair-queue disciplines not available in VPP |
 | `netem` | rejected | Network emulation not available in VPP |
-| `clsact` / `ingress` | rejected | Ingress policing semantics differ in VPP (deferred) |
 
 **`protocol` and `dscp` filters are supported; `mark` is rejected.** A class may
 carry `match protocol <n>` or `match dscp <n>`: the backend then builds per-family

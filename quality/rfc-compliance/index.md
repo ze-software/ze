@@ -5,7 +5,7 @@ Source: `scripts/dev/rfc_requirements.py`, `rfc/short/*.md`, `docs/features/rfc-
 ## Current gate output
 
 ```
-rfc-requirements OK: 2966 gated MUST-level requirement(s) across 171 enrolled RFC(s); 3558 test tag(s) resolved.
+rfc-requirements OK: 2966 gated MUST-level requirement(s) across 171 enrolled RFC(s); 3571 test tag(s) resolved.
 ```
 
 | Metric | Value |
@@ -13,8 +13,8 @@ rfc-requirements OK: 2966 gated MUST-level requirement(s) across 171 enrolled RF
 | Gate issues | 0 |
 | Gated MUST-level requirements | 2,966 |
 | Enrolled RFCs | 171 |
-| Resolved test tags | 3,558 |
-| Declared gaps | 519 |
+| Resolved test tags | 3,571 |
+| Declared gaps | 518 |
 | RFCs with declared gaps | 80 |
 | Fresh semantic audit verdicts | 52 |
 | Shifted semantic audit verdicts | 0 |
@@ -24,10 +24,10 @@ rfc-requirements OK: 2966 gated MUST-level requirement(s) across 171 enrolled RF
 
 | Bucket | Count | Share | Source condition |
 |---|---:|---:|---|
-| Positive and negative tests | 1,238 | 41.7% | `positive tag + negative tag` |
+| Positive and negative tests | 1,239 | 41.8% | `positive tag + negative tag` |
 | One polarity plus reason | 370 | 12.5% | `{single-polarity} annotation + required tag` |
 | Not applicable | 839 | 28.3% | `{not-applicable} annotation` |
-| Declared gap | 519 | 17.5% | `{gap} annotation + public ledger disclosure` |
+| Declared gap | 518 | 17.5% | `{gap} annotation + public ledger disclosure` |
 
 ## Gap disclosure
 
@@ -69,7 +69,7 @@ rfc-requirements OK: 2966 gated MUST-level requirement(s) across 171 enrolled RF
 |---|---|---|
 | Requirement source | `rfc/short/*.md` | 2,966 gated MUST-level requirements |
 | Enrollment | `rfc/enrolled.txt` | 171 enrolled RFCs |
-| Test tags | `internal/, pkg/, test/` | 3,558 resolved tags |
+| Test tags | `internal/, pkg/, test/` | 3,571 resolved tags |
 | Public ledger | `docs/features/rfc-status.md` | 80 RFCs with gaps |
 | Semantic audits | `rfc/audit/*.json` | 52 fresh, 0 shifted, 0 stale, 2,914 missing |
 | AI write/edit guard | `.claude/hooks/pretool-writeedit.py` | ON |

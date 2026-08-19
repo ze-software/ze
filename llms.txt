@@ -16,7 +16,7 @@ This file is intentionally denormalized for AI use. It includes the high-signal 
 - License and repos: AGPLv3. Canonical repository: https://github.com/ze-software/ze. Discord: https://discord.gg/T8s7CjPDne.
 - Current generated counts: 51 shipped or experimental feature cards, 4 roadmap cards, 395 CLI commands, 36 config sections, 96 plugin registrations, 42 direct Go dependencies, 36 weekly change entries.
 - Test evidence counts: 23,100+ unit tests, 78 fuzz targets, 1,600+ end-to-end transcript steps, 128 interop scenarios across 9 target implementations.
-- Generated date: 2026-08-18.
+- Generated date: 2026-08-19.
 
 ## Quality and verification model
 

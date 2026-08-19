@@ -90,13 +90,13 @@
       <span>launcher.terminal</span>
       <span>WEBM</span>
     </div>
-    <video controls playsinline preload="metadata" poster="../../assets/demos/launcher.png?v=cae872cf66" aria-label="Discover Ze commands interactively demonstration">
-      <source src="../../assets/demos/launcher.webm?v=46c97f8572" type="video/webm">
-      Your browser cannot play WebM video. <a href="../../assets/demos/launcher.webm?v=46c97f8572">Download the recording</a>.
+    <video controls playsinline preload="metadata" poster="../../assets/demos/launcher.png?v=7b0e4ac048" aria-label="Discover Ze commands interactively demonstration">
+      <source src="../../assets/demos/launcher.webm?v=1536c23832" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../assets/demos/launcher.webm?v=1536c23832">Download the recording</a>.
     </video>
   </div>
   <figcaption>
-    <span>Ze 26.07.18</span><span>1 minute 5 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
+    <span>Ze 26.08.19</span><span>44 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
     <a href="../../assets/demos/launcher.txt?v=0399dbc59f">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
@@ -126,13 +126,13 @@ Press Escape to move back through the menu and return to the shell.</code></pre>
       <span>cli-dashboard.terminal</span>
       <span>WEBM</span>
     </div>
-    <video controls playsinline preload="metadata" poster="../../assets/demos/cli-dashboard.png?v=6f3f921d23" aria-label="Operate BGP from the live dashboard demonstration">
-      <source src="../../assets/demos/cli-dashboard.webm?v=d655c1d08f" type="video/webm">
-      Your browser cannot play WebM video. <a href="../../assets/demos/cli-dashboard.webm?v=d655c1d08f">Download the recording</a>.
+    <video controls playsinline preload="metadata" poster="../../assets/demos/cli-dashboard.png?v=5595195ace" aria-label="Operate BGP from the live dashboard demonstration">
+      <source src="../../assets/demos/cli-dashboard.webm?v=56620f9bd0" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../assets/demos/cli-dashboard.webm?v=56620f9bd0">Download the recording</a>.
     </video>
   </div>
   <figcaption>
-    <span>Ze 26.07.18</span><span>1 minute 2 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
+    <span>Ze 26.08.19</span><span>40 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
     <a href="../../assets/demos/cli-dashboard.txt?v=86542601eb">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
@@ -161,18 +161,24 @@ The dashboard polls three local BGP sessions. Press &quot;s&quot; to sort by the
       <span>zefs-config.terminal</span>
       <span>WEBM</span>
     </div>
-    <video controls playsinline preload="metadata" poster="../../assets/demos/zefs-config.png?v=6d5b08c1d1" aria-label="Create ZeFS and commit over SSH demonstration">
-      <source src="../../assets/demos/zefs-config.webm?v=77e7668320" type="video/webm">
-      Your browser cannot play WebM video. <a href="../../assets/demos/zefs-config.webm?v=77e7668320">Download the recording</a>.
+    <video controls playsinline preload="metadata" poster="../../assets/demos/zefs-config.png?v=9e82166aac" aria-label="Create ZeFS and commit over SSH demonstration">
+      <source src="../../assets/demos/zefs-config.webm?v=9651a7e3df" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../assets/demos/zefs-config.webm?v=9651a7e3df">Download the recording</a>.
     </video>
   </div>
   <figcaption>
-    <span>Ze 26.08.17</span><span>1 minute 55 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
-    <a href="../../assets/demos/zefs-config.txt?v=3240b5213c">Plain-text transcript</a>
+    <span>Ze 26.08.19</span><span>2 minutes 21 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
+    <a href="../../assets/demos/zefs-config.txt?v=cf435951c8">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
     <summary>Read the demonstration transcript</summary>
-    <pre><code>$ ze init &lt; &quot;$ZE_INIT_INPUT&quot;
+    <pre><code>$ cat &quot;$ZE_INIT_INPUT&quot;
+admin
+secret123
+127.0.0.1
+2222
+ze-demo
+$ ze init &lt; &quot;$ZE_INIT_INPUT&quot;
 $ ze config ls
 ze.conf
 $ ze data check
@@ -187,8 +193,11 @@ Session committed
 ze# exit
 ze# exit
 $ ze cli -c &#x27;show bgp summary&#x27;
+$ ze cli -c &#x27;show bgp summary | text&#x27;
+$ ze cli -c &#x27;show bgp summary | raw&#x27; | head -14
+$ ze cli -c &#x27;show bgp summary | raw&#x27; | ze pipe text
 
-`ze init` creates `database.zefs`. The first BGP summary uses the default text format. The SSH editor commits the format setting back to ZeFS, not to a second flat file, and the same operational command immediately uses the committed default.</code></pre>
+The five lines answer `ze init`&#x27;s prompts in order: username, password, host, port, and name. It reads them from a file here so the recording is reproducible, and it prints nothing when its input is not a terminal, so the file is shown first rather than left as an unexplained redirection. `ze init` creates `database.zefs`. The first BGP summary uses the default text format. The SSH editor commits the format setting back to ZeFS, not to a second flat file, and the same operational command immediately uses the committed default. The last commands show the two ways to override that default, and they are different pipes. `show bgp summary | text` is Ze&#x27;s own operator, inside the quoted command, and it wins over the committed setting. Then `| raw` on its own shows what every one of these renderings is made from: the payload as the daemon holds it, unrendered. The last command sends that same payload across a real shell pipe, and `ze pipe text` formats it on this side, which is how output captured earlier is formatted later. The command is `ze pipe` rather than `ze format` because the operator language also carries `match`, `count`, `first`, `last` and `resolve`, so `format` would name one clause of it. Every command answers with structured data, so `text`, `table`, `json`, `yaml` and `ndjson` all render the same payload.</code></pre>
   </details>
 </figure>
 
@@ -208,13 +217,13 @@ $ ze cli -c &#x27;show bgp summary&#x27;
       <span>rbac.terminal</span>
       <span>WEBM</span>
     </div>
-    <video controls playsinline preload="metadata" poster="../../assets/demos/rbac.png?v=3a7f101f5d" aria-label="Prove read-only RBAC enforcement demonstration">
-      <source src="../../assets/demos/rbac.webm?v=aaa447ec07" type="video/webm">
-      Your browser cannot play WebM video. <a href="../../assets/demos/rbac.webm?v=aaa447ec07">Download the recording</a>.
+    <video controls playsinline preload="metadata" poster="../../assets/demos/rbac.png?v=83eb6771ce" aria-label="Prove read-only RBAC enforcement demonstration">
+      <source src="../../assets/demos/rbac.webm?v=189c6c578f" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../assets/demos/rbac.webm?v=189c6c578f">Download the recording</a>.
     </video>
   </div>
   <figcaption>
-    <span>Ze 26.07.18</span><span>1 minute 30 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
+    <span>Ze 26.08.19</span><span>1 minute 12 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
     <a href="../../assets/demos/rbac.txt?v=939addc51a">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
@@ -255,13 +264,13 @@ The recording displays the command restriction and the NOC user&#x27;s profile b
       <span>traceroute.terminal</span>
       <span>WEBM</span>
     </div>
-    <video controls playsinline preload="metadata" poster="../../assets/demos/traceroute.png?v=ebcd3e247b" aria-label="Trace a live path without external services demonstration">
-      <source src="../../assets/demos/traceroute.webm?v=bda9d06121" type="video/webm">
-      Your browser cannot play WebM video. <a href="../../assets/demos/traceroute.webm?v=bda9d06121">Download the recording</a>.
+    <video controls playsinline preload="metadata" poster="../../assets/demos/traceroute.png?v=8dcfcd9e64" aria-label="Trace a live path without external services demonstration">
+      <source src="../../assets/demos/traceroute.webm?v=076e9f586a" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../assets/demos/traceroute.webm?v=076e9f586a">Download the recording</a>.
     </video>
   </div>
   <figcaption>
-    <span>Ze 26.07.18</span><span>1 minute 2 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>VHS 0.11.0</span>
+    <span>Ze 26.08.19</span><span>42 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>VHS 0.11.0</span>
     <a href="../../assets/demos/traceroute.txt?v=2b9d95cc69">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
@@ -290,13 +299,13 @@ The destination and router live in an isolated Linux network-namespace lab. Ze s
       <span>web-config.browser</span>
       <span>WEBM</span>
     </div>
-    <video controls playsinline preload="metadata" poster="../../assets/demos/web-config.png?v=3ec85c3acd" aria-label="Edit and commit configuration in the browser demonstration">
-      <source src="../../assets/demos/web-config.webm?v=27c8c574fd" type="video/webm">
-      Your browser cannot play WebM video. <a href="../../assets/demos/web-config.webm?v=27c8c574fd">Download the recording</a>.
+    <video controls playsinline preload="metadata" poster="../../assets/demos/web-config.png?v=300f2e8e47" aria-label="Edit and commit configuration in the browser demonstration">
+      <source src="../../assets/demos/web-config.webm?v=a8458dd75a" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../assets/demos/web-config.webm?v=a8458dd75a">Download the recording</a>.
     </video>
   </div>
   <figcaption>
-    <span>Ze 26.07.18</span><span>47 seconds</span><span>macOS and Linux</span><span>Browser</span><span>Playwright 1.55.0</span>
+    <span>Ze 26.08.19</span><span>58 seconds</span><span>macOS and Linux</span><span>Browser</span><span>Playwright 1.55.0</span>
     <a href="../../assets/demos/web-config.txt?v=a614767cf2">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
@@ -332,13 +341,13 @@ Expected result: Ze commits the browser user&#x27;s isolated draft and the activ
       <span>commit-confirmed.terminal</span>
       <span>WEBM</span>
     </div>
-    <video controls playsinline preload="metadata" poster="../../assets/demos/commit-confirmed.png?v=4e03c49d64" aria-label="Watch an unconfirmed change roll back demonstration">
-      <source src="../../assets/demos/commit-confirmed.webm?v=21514fce6f" type="video/webm">
-      Your browser cannot play WebM video. <a href="../../assets/demos/commit-confirmed.webm?v=21514fce6f">Download the recording</a>.
+    <video controls playsinline preload="metadata" poster="../../assets/demos/commit-confirmed.png?v=39936789b5" aria-label="Watch an unconfirmed change roll back demonstration">
+      <source src="../../assets/demos/commit-confirmed.webm?v=91983a21e7" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../assets/demos/commit-confirmed.webm?v=91983a21e7">Download the recording</a>.
     </video>
   </div>
   <figcaption>
-    <span>Ze 26.07.18</span><span>1 minute 31 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
+    <span>Ze 26.08.19</span><span>1 minute 10 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
     <a href="../../assets/demos/commit-confirmed.txt?v=7dcd8dbbc1">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
@@ -384,13 +393,13 @@ The first change is left unconfirmed and rolls back. The second receives `confir
       <span>rpki.terminal</span>
       <span>WEBM</span>
     </div>
-    <video controls playsinline preload="metadata" poster="../../assets/demos/rpki.png?v=ee521ed133" aria-label="Accept valid routes and reject RPKI-invalid ones demonstration">
-      <source src="../../assets/demos/rpki.webm?v=d07469afde" type="video/webm">
-      Your browser cannot play WebM video. <a href="../../assets/demos/rpki.webm?v=d07469afde">Download the recording</a>.
+    <video controls playsinline preload="metadata" poster="../../assets/demos/rpki.png?v=4e7e9269d8" aria-label="Accept valid routes and reject RPKI-invalid ones demonstration">
+      <source src="../../assets/demos/rpki.webm?v=971e751f4f" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../assets/demos/rpki.webm?v=971e751f4f">Download the recording</a>.
     </video>
   </div>
   <figcaption>
-    <span>Ze 26.07.18</span><span>46 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
+    <span>Ze 26.08.19</span><span>34 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
     <a href="../../assets/demos/rpki.txt?v=bf49f52038">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
@@ -422,13 +431,13 @@ The local RTR cache classifies 9.43.0.0/24 as Valid, 10.43.0.0/24 as Invalid, an
       <span>rib-fib.terminal</span>
       <span>WEBM</span>
     </div>
-    <video controls playsinline preload="metadata" poster="../../assets/demos/rib-fib.png?v=c78a1b0436" aria-label="Follow a route from BGP RIB to Linux FIB demonstration">
-      <source src="../../assets/demos/rib-fib.webm?v=bc58a8c74d" type="video/webm">
-      Your browser cannot play WebM video. <a href="../../assets/demos/rib-fib.webm?v=bc58a8c74d">Download the recording</a>.
+    <video controls playsinline preload="metadata" poster="../../assets/demos/rib-fib.png?v=7173a6febd" aria-label="Follow a route from BGP RIB to Linux FIB demonstration">
+      <source src="../../assets/demos/rib-fib.webm?v=6b2efa49fe" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../assets/demos/rib-fib.webm?v=6b2efa49fe">Download the recording</a>.
     </video>
   </div>
   <figcaption>
-    <span>Ze 26.07.18</span><span>1 minute 6 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>VHS 0.11.0</span>
+    <span>Ze 26.08.19</span><span>49 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>VHS 0.11.0</span>
     <a href="../../assets/demos/rib-fib.txt?v=ca05c09bc8">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
@@ -459,13 +468,13 @@ The route enters Ze&#x27;s BGP RIB, wins best-path selection, reaches the protoc
       <span>health-reports.terminal</span>
       <span>WEBM</span>
     </div>
-    <video controls playsinline preload="metadata" poster="../../assets/demos/health-reports.png?v=984ee2cfc9" aria-label="Separate live warnings from recent errors demonstration">
-      <source src="../../assets/demos/health-reports.webm?v=4820118a77" type="video/webm">
-      Your browser cannot play WebM video. <a href="../../assets/demos/health-reports.webm?v=4820118a77">Download the recording</a>.
+    <video controls playsinline preload="metadata" poster="../../assets/demos/health-reports.png?v=4b94b2625a" aria-label="Separate live warnings from recent errors demonstration">
+      <source src="../../assets/demos/health-reports.webm?v=c95587e1ba" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../assets/demos/health-reports.webm?v=c95587e1ba">Download the recording</a>.
     </video>
   </div>
   <figcaption>
-    <span>Ze 26.07.18</span><span>1 minute 20 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
+    <span>Ze 26.08.19</span><span>1 minute</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
     <a href="../../assets/demos/health-reports.txt?v=113557fa9c">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
@@ -500,13 +509,13 @@ Health reports aggregate component state. Warnings describe conditions that rema
       <span>config-views.terminal</span>
       <span>WEBM</span>
     </div>
-    <video controls playsinline preload="metadata" poster="../../assets/demos/config-views.png?v=e7acb6271c" aria-label="Render one configuration for humans and automation demonstration">
-      <source src="../../assets/demos/config-views.webm?v=414a2e496b" type="video/webm">
-      Your browser cannot play WebM video. <a href="../../assets/demos/config-views.webm?v=414a2e496b">Download the recording</a>.
+    <video controls playsinline preload="metadata" poster="../../assets/demos/config-views.png?v=ad33316247" aria-label="Render one configuration for humans and automation demonstration">
+      <source src="../../assets/demos/config-views.webm?v=9286711b41" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../assets/demos/config-views.webm?v=9286711b41">Download the recording</a>.
     </video>
   </div>
   <figcaption>
-    <span>Ze 26.07.18</span><span>1 minute 34 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
+    <span>Ze 26.08.19</span><span>1 minute 16 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
     <a href="../../assets/demos/config-views.txt?v=0f968daa34">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
@@ -555,13 +564,13 @@ Hierarchical and set syntax are alternate presentations of the same parsed confi
       <span>bfd-failover.terminal</span>
       <span>WEBM</span>
     </div>
-    <video controls playsinline preload="metadata" poster="../../assets/demos/bfd-failover.png?v=3a17e535af" aria-label="Let BFD protect a live BGP session demonstration">
-      <source src="../../assets/demos/bfd-failover.webm?v=8152cb200d" type="video/webm">
-      Your browser cannot play WebM video. <a href="../../assets/demos/bfd-failover.webm?v=8152cb200d">Download the recording</a>.
+    <video controls playsinline preload="metadata" poster="../../assets/demos/bfd-failover.png?v=eadc3dfcc7" aria-label="Let BFD protect a live BGP session demonstration">
+      <source src="../../assets/demos/bfd-failover.webm?v=b815e46d6a" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../assets/demos/bfd-failover.webm?v=b815e46d6a">Download the recording</a>.
     </video>
   </div>
   <figcaption>
-    <span>Ze 26.07.18</span><span>2 minutes 9 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>VHS 0.11.0</span>
+    <span>Ze 26.08.19</span><span>2 minutes 4 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>VHS 0.11.0</span>
     <a href="../../assets/demos/bfd-failover.txt?v=ae76cb645e">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
@@ -605,13 +614,13 @@ Every protocol result comes directly from `ze cli`; the lab helper is used only 
       <span>ospf-adjacency.terminal</span>
       <span>WEBM</span>
     </div>
-    <video controls playsinline preload="metadata" poster="../../assets/demos/ospf-adjacency.png?v=ba7b8934e0" aria-label="Diagnose a missing OSPF route demonstration">
-      <source src="../../assets/demos/ospf-adjacency.webm?v=f3471a25e9" type="video/webm">
-      Your browser cannot play WebM video. <a href="../../assets/demos/ospf-adjacency.webm?v=f3471a25e9">Download the recording</a>.
+    <video controls playsinline preload="metadata" poster="../../assets/demos/ospf-adjacency.png?v=18f9f5f412" aria-label="Diagnose a missing OSPF route demonstration">
+      <source src="../../assets/demos/ospf-adjacency.webm?v=0f9d490996" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../assets/demos/ospf-adjacency.webm?v=0f9d490996">Download the recording</a>.
     </video>
   </div>
   <figcaption>
-    <span>Ze 26.07.18</span><span>1 minute 4 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>VHS 0.11.0</span>
+    <span>Ze 26.08.19</span><span>54 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>VHS 0.11.0</span>
     <a href="../../assets/demos/ospf-adjacency.txt?v=d82925c752">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
@@ -650,13 +659,13 @@ The recording uses `ze cli` directly. No output wrapper or synthetic summary sit
       <span>traffic-anomaly.terminal</span>
       <span>WEBM</span>
     </div>
-    <video controls playsinline preload="metadata" poster="../../assets/demos/traffic-anomaly.png?v=12b8582dae" aria-label="Attribute a live traffic burst demonstration">
-      <source src="../../assets/demos/traffic-anomaly.webm?v=8f7e5a9506" type="video/webm">
-      Your browser cannot play WebM video. <a href="../../assets/demos/traffic-anomaly.webm?v=8f7e5a9506">Download the recording</a>.
+    <video controls playsinline preload="metadata" poster="../../assets/demos/traffic-anomaly.png?v=bd373dfcc3" aria-label="Attribute a live traffic burst demonstration">
+      <source src="../../assets/demos/traffic-anomaly.webm?v=f4c762cadb" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../assets/demos/traffic-anomaly.webm?v=f4c762cadb">Download the recording</a>.
     </video>
   </div>
   <figcaption>
-    <span>Ze 26.07.18</span><span>1 minute 42 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>VHS 0.11.0</span>
+    <span>Ze 26.08.19</span><span>1 minute 27 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>VHS 0.11.0</span>
     <a href="../../assets/demos/traffic-anomaly.txt?v=fe6d21bab0">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
@@ -694,13 +703,13 @@ The complete live snapshot attributes bytes to source 10.77.0.2, ICMP, TCP desti
       <span>vrrp-failover.terminal</span>
       <span>WEBM</span>
     </div>
-    <video controls playsinline preload="metadata" poster="../../assets/demos/vrrp-failover.png?v=a4b250811a" aria-label="Keep the gateway reachable while Ze stops demonstration">
-      <source src="../../assets/demos/vrrp-failover.webm?v=50fbcdb61e" type="video/webm">
-      Your browser cannot play WebM video. <a href="../../assets/demos/vrrp-failover.webm?v=50fbcdb61e">Download the recording</a>.
+    <video controls playsinline preload="metadata" poster="../../assets/demos/vrrp-failover.png?v=27c2d1640a" aria-label="Keep the gateway reachable while Ze stops demonstration">
+      <source src="../../assets/demos/vrrp-failover.webm?v=07fd9dcaf7" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../assets/demos/vrrp-failover.webm?v=07fd9dcaf7">Download the recording</a>.
     </video>
   </div>
   <figcaption>
-    <span>Ze 26.07.18</span><span>2 minutes 54 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>VHS 0.11.0</span>
+    <span>Ze 26.08.19</span><span>2 minutes 38 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>VHS 0.11.0</span>
     <a href="../../assets/demos/vrrp-failover.txt?v=0b9dc45f28">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
@@ -743,13 +752,13 @@ The final kernel output shows 192.0.2.1 on keepalived&#x27;s `vrrp.10` interface
       <span>host-inventory.terminal</span>
       <span>WEBM</span>
     </div>
-    <video controls playsinline preload="metadata" poster="../../assets/demos/host-inventory.png?v=01c12c6314" aria-label="Inspect a Linux host before Ze starts demonstration">
-      <source src="../../assets/demos/host-inventory.webm?v=8c89c5019c" type="video/webm">
-      Your browser cannot play WebM video. <a href="../../assets/demos/host-inventory.webm?v=8c89c5019c">Download the recording</a>.
+    <video controls playsinline preload="metadata" poster="../../assets/demos/host-inventory.png?v=fc7a447153" aria-label="Inspect a Linux host before Ze starts demonstration">
+      <source src="../../assets/demos/host-inventory.webm?v=3644670538" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../assets/demos/host-inventory.webm?v=3644670538">Download the recording</a>.
     </video>
   </div>
   <figcaption>
-    <span>Ze 26.07.18</span><span>51 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>VHS 0.11.0</span>
+    <span>Ze 26.08.19</span><span>37 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>VHS 0.11.0</span>
     <a href="../../assets/demos/host-inventory.txt?v=5b221c4c0f">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
@@ -785,13 +794,13 @@ The commands work without a running Ze daemon. Every field returned by `ze show 
       <span>config-graph.terminal</span>
       <span>WEBM</span>
     </div>
-    <video controls playsinline preload="metadata" poster="../../assets/demos/config-graph.png?v=60a75596e2" aria-label="Find every peer affected by a group change demonstration">
-      <source src="../../assets/demos/config-graph.webm?v=551b0249a0" type="video/webm">
-      Your browser cannot play WebM video. <a href="../../assets/demos/config-graph.webm?v=551b0249a0">Download the recording</a>.
+    <video controls playsinline preload="metadata" poster="../../assets/demos/config-graph.png?v=cf972162a4" aria-label="Find every peer affected by a group change demonstration">
+      <source src="../../assets/demos/config-graph.webm?v=e0904130d3" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../assets/demos/config-graph.webm?v=e0904130d3">Download the recording</a>.
     </video>
   </div>
   <figcaption>
-    <span>Ze 26.07.18</span><span>1 minute 41 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
+    <span>Ze 26.08.19</span><span>1 minute 31 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
     <a href="../../assets/demos/config-graph.txt?v=1708ee2fac">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
@@ -821,7 +830,7 @@ No reporting helper creates the displayed relationships. The command filters Ze&
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 18 August 2026 11:28 UTC</span>
+                    <span class="footer-published">Published 19 August 2026 03:49 UTC</span>
                 </div>
             </div>
         </footer>

@@ -654,6 +654,35 @@ family {
 Use `ze --plugins` to see available families from registered plugins.
 <!-- source: internal/component/bgp/plugins/nlri/ -- NLRI plugin Families registration -->
 
+### A Peer That Declares No Family
+
+The `family { }` block can be omitted. The session then negotiates
+ipv4/unicast, which RFC 4271 carries with no capability at all. The OPEN
+message carries no Multiprotocol capability in that case. That OPEN is correct,
+and a peer daemon that follows RFC 4271 reads it as IPv4 unicast.
+
+Ze sends the End-of-RIB marker for ipv4/unicast once it completes the initial
+routing update, as RFC 4724 Section 4 requires.
+
+A loaded plugin changes what Ze advertises. When the config declares no family,
+Ze advertises every family the loaded plugins can decode, and the session
+negotiates those.
+
+Declare the block for any other family. The block replaces the implicit family,
+so it must name IPv4 unicast too when the peer carries it:
+
+```
+peer transit-a {
+    family {
+        ipv4/unicast { prefix { maximum 1000000; } }
+        ipv6/unicast { prefix { maximum 200000; } }
+    }
+}
+```
+<!-- source: internal/core/bgp/capability/negotiated.go -- Negotiate treats a side with no Multiprotocol capability as advertising ipv4/unicast -->
+<!-- source: internal/component/bgp/reactor/session_negotiate.go -- buildOpen, plugin decode families when the config declares none -->
+<!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- sendInitialRoutes, one End-of-RIB marker per negotiated family -->
+
 ### Prefix Limits
 
 Every family must have a prefix maximum. Ze refuses to start without one.
@@ -1624,9 +1653,12 @@ The resolver scans every interface and binds `uplink` to the one carrying that M
 matches the device's **permanent (factory) address** (`IFLA_PERM_ADDRESS`) when the NIC
 reports one, so the binding **survives an operational MAC override** (`mac { address }`) on
 the very same interface; for virtual devices that report no permanent address it matches
-the current address instead. A VLAN sub-interface is never a candidate: it inherits its
-parent's address, so it would otherwise match its own parent's selector. `mac/match`
-**takes precedence over `os-name`** and, like `os-name`, applies to **ethernet** only.
+the current address instead. A device is a candidate only when the address it is matched
+on is its **own**: a VLAN sub-interface inherits its parent's address, and a bridge or a
+bond wears the address of a port it holds, so neither is ever a candidate. Without those
+two exclusions, putting the selected port in a bridge, or adding a VLAN on it, made the
+port's own selector ambiguous. `mac/match` **takes precedence over `os-name`** and, like
+`os-name`, applies to **ethernet** only.
 
 #### What happens when a selector does not name one device
 

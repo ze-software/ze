@@ -185,8 +185,11 @@ reads as on, matching the YANG default.</p>
 the plugin is an ERROR, and <code>ze doctor</code> reports the host as not ready. A probe
 that cannot answer degrades to a WARNING and never claims the plugin is missing.
 <code>vppctl</code> exits non-zero identically for an absent binary, an absent socket, and a
-wedged VPP. None of those is evidence about which plugins VPP loaded.</p>
-<!-- source: internal/plugins/iface/vpp/doctor.go -- checkVPPLCPPlugin, lcpEnabled, lcpPluginSO -->
+wedged VPP. A zero exit counts as an answer only when the output carries the
+<code>Plugin path is:</code> line VPP prints ahead of the plugin rows: empty or truncated
+output lists no plugin at all, so it is a WARNING too. None of those is evidence
+about which plugins VPP loaded.</p>
+<!-- source: internal/plugins/iface/vpp/doctor.go -- checkVPPLCPPlugin, lcpEnabled, lcpPluginSO, vppctlPluginsHeader -->
 <!-- source: internal/core/diagnostic/codes.go -- doctor-vpp-lcp-plugin -->
 
 <!-- source: internal/component/vpp/yang/ze-vpp-conf.yang -- lcp container netns default "dataplane" -->
@@ -707,7 +710,7 @@ and converging sub-second on a full table.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 18 August 2026 11:28 UTC</span>
+                    <span class="footer-published">Published 19 August 2026 03:49 UTC</span>
                 </div>
             </div>
         </footer>

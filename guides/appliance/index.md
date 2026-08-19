@@ -594,6 +594,12 @@ reports the restore. `ze appliance init` validates and writes the same way.
 <!-- source: internal/appliance/cmd_cert.go -- validateTLSPair, writeTLSPair -->
 <!-- source: internal/appliance/cmd_init.go -- writeTLSSecrets -->
 
+A `ze` older than this validation could store a certificate and a key that do
+not load as a pair. On such an appliance the web listener does not start. Run
+`ze doctor` to find it: the stored pair is reported as `doctor-tls-invalid`,
+"certificate and key in storage are not a usable pair". `replace-cert` fixes it.
+<!-- source: internal/component/doctor/checks_tls.go -- checkWebTLSPair -->
+
 ### Config layering
 
 Set `config-base` in `appliance.json` to share a base config across appliances:

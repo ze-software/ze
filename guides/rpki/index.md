@@ -440,9 +440,9 @@ Validation states are predictable (for routes from AS 65001 with default flags):
 
 Feed three local routes through a deterministic RTR cache, then show Valid and NotFound routes installed while the Invalid route is absent.
 
-[Play the WebM recording](../../assets/demos/rpki.webm?v=d07469afde) · [View the poster](../../assets/demos/rpki.png?v=ee521ed133) · [Plain-text transcript](../../assets/demos/rpki.txt?v=bf49f52038)
+[Play the WebM recording](../../assets/demos/rpki.webm?v=971e751f4f) · [View the poster](../../assets/demos/rpki.png?v=4e7e9269d8) · [Plain-text transcript](../../assets/demos/rpki.txt?v=bf49f52038)
 
-Recorded with Ze 26.07.18 on macOS and Linux using VHS 0.11.0. Duration: 46 seconds.
+Recorded with Ze 26.08.19 on macOS and Linux using VHS 0.11.0. Duration: 34 seconds.
 
 ```console
 $ ze cli -c 'show bgp rpki status | no-more'
