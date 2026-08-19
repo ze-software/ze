@@ -307,7 +307,13 @@ ZE_NETNS_PLUGIN_CAPS ?= cap_net_admin,cap_net_raw,cap_net_bind_service,cap_dac_o
 #
 # Adding a test back here is right whenever it genuinely needs a capability;
 # adding one that merely CAN run here is not.
-ZE_NETNS_PLUGIN_TESTS ?= system-kernel-log-show
+# The two flowspec-fw tests need net-admin: they assert a FlowSpec route reaches
+# the kernel ruleset, which is the only place that answer exists. Both ran
+# nowhere before 2026-08-19, and the bridge they cover had never worked end to
+# end, which is what an unrun test costs (plan/journal/unwired-feature.md).
+ZE_NETNS_PLUGIN_TESTS ?= system-kernel-log-show \
+	flowspec-fw-protocol-sctp \
+	flowspec-fw-untranslatable-keeps-others
 ze-netns-plugin-test:
 	@scripts/dev/ze-run.sh ze-netns-plugin-test $(MAKE) --no-print-directory _ze-netns-plugin-test-impl
 

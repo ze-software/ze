@@ -73,6 +73,12 @@ if not ok:
 EOF_PY
 
 stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal flowspec-firewall {
+		use flowspec-firewall
+	}
+}
+
 firewall {
 	backend nft;
 	table fslocal {
@@ -115,6 +121,10 @@ bgp {
 				ipv4/flow { prefix { maximum 10000; } }
 			}
 		}
+
+		attach process flowspec-firewall {
+			receive [ update-received state ]
+		}
 	}
 }
 EOF_CONF
@@ -129,8 +139,14 @@ expect=stdout:contains=table inet ze_fslocal
 expect=stdout:contains=table inet flowspec
 expect=stdout:pattern=l4proto (132|sctp)
 expect=stdout:contains=10.1.0.0/24
-# The refused route enforces nothing, under any spelling.
-reject=stdout:contains=10.2.0.0/24
+# The refused route enforces nothing, under any spelling. The match is what is
+# rejected, not the bare prefix: the refusal WARN this test requires two lines
+# below quotes the whole NLRI, so a bare `10.2.0.0/24` is a string the passing
+# case is obliged to print. Rejecting it made the two assertions contradict each
+# other, and the contradiction was invisible while the bridge dropped every
+# event and printed neither. `daddr` appears in a programmed rule and never in
+# the NLRI spelling, which is what makes this able to fail.
+reject=stdout:pattern=daddr 10\.2\.0\.0/24
 reject=stdout:pattern=l4proto "253"
 # The bridge says so, naming the protocol number and the rule key.
 expect=stderr:contains=rule refused

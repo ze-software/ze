@@ -75,6 +75,12 @@ if not ok:
 EOF_PY
 
 stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal flowspec-firewall {
+		use flowspec-firewall
+	}
+}
+
 bgp {
 	peer peer1 {
 		connection {
@@ -95,6 +101,10 @@ bgp {
 			family {
 				ipv4/flow { prefix { maximum 10000; } }
 			}
+		}
+
+		attach process flowspec-firewall {
+			receive [ update-received state ]
 		}
 	}
 }
