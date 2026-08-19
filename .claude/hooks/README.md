@@ -113,7 +113,7 @@ Automated enforcement of `ai/rules/` requirements.
 |------|------------------|
 | `pre-write-go.sh` | Session state for Go work |
 | `require-docs-read.sh` | Arch docs before spec |
-| `validate-spec.sh` | Spec format + Current Behavior section |
+| `validate-spec.sh` | Spec format + Current Behavior section + the design document declared by every source file the spec names (`scripts/dev/spec_doc_anchors.py`) |
 
 ### Config (config.md)
 | Hook | What it blocks |

@@ -638,13 +638,21 @@ Fixture spec exercising validate-spec.sh arrow handling.
 """
 
 
-def _run_validate_spec(script: str, spec_text: str, *, argv=None, payload=_UNSET):
+def _run_validate_spec(
+    script: str, spec_text: str, *, argv=None, payload=_UNSET, sources=None
+):
     """Drive validate-spec.sh over a crafted spec.
 
     argv/payload let a case bypass the normal JSON-stdin call to assert the
     absent-tool-name refusal: argv=[spec] sends NO stdin, mimicking the
     `validate-spec.sh plan/spec-foo.md` invocation that used to exit 0 without
     running a single check.
+
+    sources maps a repo-relative source path to the `// Design:` document it
+    declares, materializing that file in the fake root. The design-document owner
+    check reads the header from the file itself, so a case that wants the check to
+    FIRE has to provide one. Cases that pass no sources exercise the same code path
+    with nothing to find, which is why they stay green.
     """
     work = tempfile.mkdtemp(prefix="validate-spec-", dir=_fixture_root())
     try:
@@ -653,6 +661,28 @@ def _run_validate_spec(script: str, spec_text: str, *, argv=None, payload=_UNSET
         fp = os.path.join(plan, "spec-fixture.md")
         with open(fp, "w", encoding="utf-8") as fh:
             fh.write(spec_text)
+        # The owner check runs a repo script against a repo-generated index. The
+        # fake root has neither, and a hook that silently skips when its checker is
+        # missing is the fail-open this check exists to prevent -- so the harness
+        # provides both rather than the hook tolerating their absence.
+        here = os.path.dirname(os.path.abspath(__file__))
+        os.makedirs(os.path.join(work, "scripts", "dev"), exist_ok=True)
+        shutil.copy(
+            os.path.join(here, "spec_doc_anchors.py"),
+            os.path.join(work, "scripts", "dev", "spec_doc_anchors.py"),
+        )
+        os.makedirs(os.path.join(work, "ai"), exist_ok=True)
+        with open(
+            os.path.join(work, "ai", "CODE-TO-DOCS.md"), "w", encoding="utf-8"
+        ) as fh:
+            fh.write(
+                "# CODE-TO-DOCS\n\n## `internal/fixture/`\n\n| File | Docs |\n|---|---|\n| `z.go` | `docs/architecture/fixture.md` |\n"
+            )
+        for path, design in (sources or {}).items():
+            full = os.path.join(work, path)
+            os.makedirs(os.path.dirname(full), exist_ok=True)
+            with open(full, "w", encoding="utf-8") as fh:
+                fh.write(f"// Design: {design} -- fixture\n\npackage fixture\n")
         if payload is _UNSET:
             payload = {"tool_name": "Write", "tool_input": {"file_path": fp}}
         stdin = "" if argv else json.dumps(payload)
@@ -918,6 +948,47 @@ def run_validate_spec(results: Results) -> None:
     results.check(
         "validate-spec-where-data-enters-alone-caught",
         rc == 2 and "Entry Point contains placeholder" in err,
+        f"rc={rc} err={err[:200]!r}",
+    )
+
+    # --- design-document owner check ----------------------------------------
+    # A changed .go file declares its design doc in a `// Design:` header. A spec
+    # that changes the file and never names that doc ships a design change with
+    # its design unwritten. This is the shape that got through:
+    # plan/spec-streaming-answer-protocol.md changed pkg/plugin/rpc/message.go and
+    # mux.go, both declaring docs/architecture/api/ipc_protocol.md, and named two
+    # OTHER docs while answering the checklist row "Yes".
+    owner_spec = _VALID_SPEC.replace("@ARROW@", "->").replace(
+        "- `internal/x/y.go` - fixture feature file",
+        "- `internal/fixture/z.go` - fixture feature file",
+    )
+    rc, err = _run_validate_spec(
+        script,
+        owner_spec,
+        sources={"internal/fixture/z.go": "docs/architecture/fixture.md"},
+    )
+    results.check(
+        "validate-spec-undeclared-design-doc-blocks",
+        rc == 2 and "docs/architecture/fixture.md" in err,
+        f"rc={rc} err={err[:200]!r}",
+    )
+
+    # MUST-NOT-FIRE: naming the doc anywhere satisfies it. The requirement is that
+    # the author LOOKED, so a checklist row explaining why it is unaffected counts
+    # exactly as much as listing it for edit. Without this case the check could
+    # demand an edit nobody needs and get worked around.
+    rc, err = _run_validate_spec(
+        script,
+        owner_spec.replace(
+            "- `internal/fixture/z.go` - fixture feature file",
+            "- `internal/fixture/z.go` - fixture feature file\n"
+            "- `docs/architecture/fixture.md` - unaffected, states framing only",
+        ),
+        sources={"internal/fixture/z.go": "docs/architecture/fixture.md"},
+    )
+    results.check(
+        "validate-spec-named-design-doc-accepted",
+        rc == 0 or "docs/architecture/fixture.md" not in err,
         f"rc={rc} err={err[:200]!r}",
     )
 

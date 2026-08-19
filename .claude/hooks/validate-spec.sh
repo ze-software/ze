@@ -473,6 +473,45 @@ if ! grep -qi 'Registration over hardcoding' "$FILE_PATH"; then
     WARNINGS+=("Missing 'Registration over hardcoding' review item (add to Critical Review Checklist + Architectural Verification). New commands/views/families/handlers must register and be core-discovered, not hardcoded into a core/shared package (ai/rules/plugins.md)")
 fi
 
+# === DESIGN DOCUMENT OWNER CHECK ===
+# Every non-test .go file declares its design document in a `// Design:` header
+# (pretool-writeedit.py blocks a write without one). A spec that changes such a
+# file and never names that document is how a design change ships with its design
+# unwritten. The Documentation Update Checklist already asks (row 16), but the
+# author answers it, so the answer is only as good as their memory.
+#
+# How it bit: plan/spec-streaming-answer-protocol.md changes
+# pkg/plugin/rpc/message.go and pkg/plugin/rpc/mux.go, which both declare
+# `// Design: docs/architecture/api/ipc_protocol.md`. Row 16 was answered "Yes"
+# naming process-protocol.md and commands.md, and the primary wire document --
+# the declared design of both changed files -- was named nowhere in the spec.
+#
+# Derived, not asked: scripts/dev/spec_doc_anchors.py reads the `// Design:` line
+# from each file the spec lists. Naming the doc anywhere in the spec satisfies it,
+# including a checklist row saying why it is unaffected: the requirement is that
+# the author looked. Exit 2 means the derivation had no input, which is "could not
+# check" and fails closed rather than passing green (ai/rules/evidence.md).
+# A `skeleton` spec is exempt: it has no Files section yet by design.
+if [[ "$SPEC_STATUS" != "skeleton" ]]; then
+    if [[ ! -f scripts/dev/spec_doc_anchors.py ]]; then
+        # A hook that skips when its checker is absent reports "valid" for a spec
+        # nothing examined. That is the false green this check exists to remove,
+        # so its own absence is a finding (ai/rules/evidence.md).
+        ERRORS+=("scripts/dev/spec_doc_anchors.py is missing, so the design-document owner check did not run. A spec cannot be called valid by a check that never executed")
+    else
+    ANCHOR_OUT=$(python3 scripts/dev/spec_doc_anchors.py "$FILE_PATH" 2>&1) || ANCHOR_RC=$?
+    ANCHOR_RC=${ANCHOR_RC:-0}
+    if [[ "$ANCHOR_RC" -eq 1 ]]; then
+        # Only the blocking half (declared owners) is quoted into the error; the
+        # `note:` mentions the script prints first are advisory.
+        ANCHOR_OWED=$(echo "$ANCHOR_OUT" | sed -n '/DECLARED by this spec/,$p' | grep -oE 'docs/[^ ]+\.md' | sort -u | tr '\n' ' ')
+        ERRORS+=("Design document(s) declared by this spec's own code, never named in it: ${ANCHOR_OWED}-- each changed file's \`// Design:\` header names its design doc. List it under '## Files to Modify', or record in the Documentation Update Checklist why it is unaffected. Full report: python3 scripts/dev/spec_doc_anchors.py $FILE_PATH")
+    elif [[ "$ANCHOR_RC" -eq 2 ]]; then
+        ERRORS+=("Design document owner check could not run: $(echo "$ANCHOR_OUT" | head -1)")
+    fi
+    fi
+fi
+
 # === OUTPUT RESULTS (compact) ===
 if [[ ${#ERRORS[@]} -gt 0 ]]; then
     echo -e "${RED}❌ Spec invalid (${#ERRORS[@]} errors):${RESET}" >&2

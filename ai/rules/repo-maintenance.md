@@ -355,6 +355,7 @@ The five commit-time gates (spec-audit, deferral-in-diff, deferral-unassigned, w
 | auto-lint | `posttool-writeedit.py` | `go-standards.md` | `.go` Write/Edit | `gofmt`/`goimports -w`, then **one** `golangci-lint --new-from-rev=HEAD` pass (flags only issues this edit introduced). BLOCKING on lint failure. |
 | auto-py-format | `posttool-writeedit.py` | (code style) | `.py` Write/Edit | `ruff format` + `ruff check`. Non-blocking. |
 | validate-spec | `validate-spec.sh` | `planning.md` | `plan/spec-*.md` | Validates required sections/format. Exit 2 blocks a structurally invalid spec; both `→` and `->` wiring rows accepted. |
+| design-doc-owner | `validate-spec.sh` via `scripts/dev/spec_doc_anchors.py` | `repo-maintenance.md` | `plan/spec-*.md` past `skeleton` | Reads the `// Design:` header of every source file the spec's Files to Modify and Files to Create name, and BLOCKS until each declared document is named somewhere in the spec. Naming it as unaffected, with the reason, satisfies it: the requirement is that the author looked. Docs that only `<!-- source: -->` mention the file are printed as an advisory `note:`, not blocked, because a change can legitimately leave most of them alone. The checker's own absence is an error, never a skip. Answers Documentation Update Checklist row 16 by derivation instead of from memory. |
 | file-size | `posttool-writeedit.py` | `go-standards.md` | `.go` | Warns >1000 lines. Advisory. |
 | warn-deferral | `posttool-writeedit.py` | `planning.md` | `.md` | Warns on deferral language in doc edits. Advisory. |
 | require-rfc-reference | `posttool-writeedit.py` | `go-standards.md` | `.go` | Suggests `// RFC:` header. Advisory. |
@@ -462,7 +463,9 @@ test-weakening (if removing/weakening tests), check-existing-tests (if new), req
 
 #### Spec files (`plan/spec-*.md`)
 
-validate-spec, design-without-lsp (needs recent investigation of EVERY source kind the spec's own Files to Modify and Files to Create name, where the kind is the file's extension: for Go, LSP invoked or a `.go` read; for a tooling, hooks, YANG or build subject, that file read, and read more than a 20-line window of it, or the whole of it -- a Read that showed nothing, such as a second whole Read the harness answers with `file_unchanged`, records nothing), require-docs-read (if new), source-edit-spec-not-in-progress (if spec not `in-progress`).
+validate-spec, design-without-lsp (needs recent investigation of EVERY source kind the spec's own Files to Modify and Files to Create name, where the kind is the file's extension: for Go, LSP invoked or a `.go` read; for a tooling, hooks, YANG or build subject, that file read, and read more than a 20-line window of it, or the whole of it -- a Read that showed nothing, such as a second whole Read the harness answers with `file_unchanged`, records nothing), require-docs-read (if new), source-edit-spec-not-in-progress (if spec not `in-progress`), design-doc-owner (past `skeleton`: every `// Design:` document declared by a file the spec names must itself be named in the spec).
+
+design-without-lsp and design-doc-owner are the two halves of one question and neither substitutes for the other: the first says the CODE was read, the second says the code's own DESIGN DOCUMENT was accounted for.
 
 #### Python files (`.py`)
 
