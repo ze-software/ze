@@ -74,13 +74,27 @@ type FlowSpecRoute struct {
 }
 
 // FlowSpecActions specifies what to do with matching traffic.
+//
+// Each numeric action carries a companion flag, because zero is a value an
+// operator can mean rather than the absence of one: RFC 8955 Section 7.1 gives a
+// traffic-rate of 0 the meaning "discard all traffic for this flow", and DSCP 0
+// is CS0. Reading the number alone dropped `then rate-limit 0` and `then mark 0`
+// on the way to the wire, turning a discard rule into the default accept.
+//
+// The encoder emits an action when its flag is set OR its value is non-zero, so
+// a caller that fills the value alone is still encoded and the flag only ever
+// adds. That is the shape the flag exists for: it says "0 was asked for", which
+// is the one thing the value cannot say.
 type FlowSpecActions struct {
-	Accept           bool   // Accept traffic (default)
-	Discard          bool   // Drop traffic
-	RateLimit        uint32 // Rate limit in bytes/sec (0 = no limit)
-	RateLimitPackets uint32 // Rate limit in packets/sec (0 = no limit)
-	Redirect         string // Redirect target (RT or IP)
-	MarkDSCP         uint8  // DSCP marking value
+	Accept              bool   // Accept traffic (default)
+	Discard             bool   // Drop traffic
+	RateLimit           uint32 // Rate limit in bytes/sec
+	RateLimitSet        bool   // A bytes/sec rate limit was requested, 0 included
+	RateLimitPackets    uint32 // Rate limit in packets/sec
+	RateLimitPacketsSet bool   // A packets/sec rate limit was requested, 0 included
+	Redirect            string // Redirect target (RT or IP)
+	MarkDSCP            uint8  // DSCP marking value
+	MarkDSCPSet         bool   // A DSCP marking was requested, 0 (CS0) included
 }
 
 // VPLSRoute specifies a VPLS route for announcement.
