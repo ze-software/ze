@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
@@ -1484,4 +1485,29 @@ func TestWarningWithEmptyMessage(t *testing.T) {
 	view := m.View().Content
 	assert.NotContains(t, view, "warning:", "empty message should not render warning line")
 	assert.NotContains(t, view, "run:", "empty message warning should not render command line")
+}
+
+// VALIDATES: an operational model takes a command completer without a config
+// completer beside it.
+// PREVENTS: `ze cli` and `ze start --cli` dying on their first frame.
+// NewCommandModel builds a model with no config completer. That is the whole
+// point of that constructor. SetCommandCompleter asked the absent completer
+// for its backend names, so every interactive session panicked before it drew
+// a prompt. No `-c` run reaches this path to say so.
+func TestCommandModelTakesACompleterWithNoEditor(t *testing.T) {
+	m := NewCommandModel()
+	if m.completer != nil {
+		t.Fatalf("NewCommandModel grew a config completer, so this test no longer covers the case")
+	}
+
+	m.SetCommandCompleter(NewCommandCompleter(&command.Node{
+		Children: map[string]*command.Node{
+			"show": {Name: "show", Children: map[string]*command.Node{"version": {Name: "version"}}},
+		},
+	}))
+
+	got := m.commandCompleter.Complete("show ")
+	if len(got) != 1 || got[0].Text != "version" {
+		t.Errorf("completions = %v, want [version]", got)
+	}
 }

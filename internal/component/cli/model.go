@@ -887,6 +887,9 @@ func (m Model) ViewportContent() string {
 // refreshCompleter updates the config completer tree and propagates
 // derived backend names to the command completer.
 func (m *Model) refreshCompleter() {
+	if m.completer == nil {
+		return
+	}
 	m.completer.SetTree(m.editor.Tree())
 	if cc, ok := m.commandCompleter.(*CommandCompleter); ok {
 		cc.SetActiveBackends(m.completer.Backends())
@@ -897,8 +900,16 @@ func (m *Model) refreshCompleter() {
 // When set, command mode provides operational command completions.
 // When nil, command mode has no completions (editor-only / standalone mode).
 // Accepts any CommandModeCompleter (e.g., *CommandCompleter or *PluginCompleter).
+//
+// The backend names a config completer derives are propagated only when the
+// model HAS a config completer. NewCommandModel builds a model with none, which
+// is what `ze cli` and `ze start --cli` run, and an operational completer needs
+// no YANG-derived backend name to answer.
 func (m *Model) SetCommandCompleter(cc CommandModeCompleter) {
 	m.commandCompleter = cc
+	if m.completer == nil {
+		return
+	}
 	if tc, ok := cc.(*CommandCompleter); ok {
 		tc.SetActiveBackends(m.completer.Backends())
 	}
