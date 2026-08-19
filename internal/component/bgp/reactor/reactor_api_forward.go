@@ -935,7 +935,18 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 				if aspathWidthChanged {
 					ctxID = fwdContextIDWithASN4(peerWire.SourceCtxID(), facts.sendASN4)
 				}
+				srcID := peerWire.SourceID()
 				peerWire = wireu.NewWireUpdate(modified, ctxID)
+				// The rebuild changes the BYTES, never the peer they came from.
+				// buildFwdBody keys ze's RFC 7911 Path Identifier on the ingress
+				// path (source, received identifier), so a rebuilt wire that lost
+				// its source would key every source's paths under the singleton
+				// config source: two clients that both chose identifier 1 for
+				// different prefixes would reach an ADD-PATH destination under one
+				// identifier, and RFC 7911 Section 5 makes the second replace the
+				// first. Every other rebuild site preserves it (wireu/split.go,
+				// wireu/withdrawals.go, session_validation.go).
+				peerWire.SetSourceID(srcID)
 				modBufIdx = bufIdx
 				modPoolRef = modPool
 			}
