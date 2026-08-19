@@ -94,13 +94,17 @@ func (e *CachedEntry) PrefixList() irr.PrefixList {
 // (AS-SET discovery is then skipped, falling back to the literal "AS<asn>"
 // name). An empty path disables persistence (in-memory only).
 type PrefixStore struct {
+	path string
+
+	fileMu sync.Mutex // serializes in-process open->write->flush on the shared zefs file
+
+	// mu guards the cache and the two clients. The clients change when a config
+	// reload moves the IRR server or the PeeringDB URL (UseClients), and the
+	// cache outlives that move.
+	mu        sync.RWMutex
 	irrClient *irr.IRR
 	pdb       *peeringdb.PeeringDB
-	path      string
-
-	fileMu  sync.Mutex // serializes in-process open->write->flush on the shared zefs file
-	mu      sync.RWMutex
-	entries map[string]*CachedEntry
+	entries   map[string]*CachedEntry
 }
 
 // New creates a PrefixStore. irrClient must be non-nil.
@@ -111,6 +115,32 @@ func New(irrClient *irr.IRR, pdb *peeringdb.PeeringDB, path string) *PrefixStore
 		path:      path,
 		entries:   make(map[string]*CachedEntry),
 	}
+}
+
+// UseClients points the store at new resolvers and keeps every cached entry.
+//
+// A config reload can move the IRR server or the PeeringDB URL. The prefixes
+// already resolved outlive that move, because they are what the consumer
+// enforces until a refresh replaces them: a caller that built a second store
+// for the new address would answer every Get with nil, and the rules naming
+// those prefixes would filter nothing until the next fetch.
+//
+// irrClient MUST be non-nil. pdb MAY be nil, and AS-SET discovery is then
+// skipped. Safe for concurrent use.
+func (s *PrefixStore) UseClients(irrClient *irr.IRR, pdb *peeringdb.PeeringDB) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.irrClient = irrClient
+	s.pdb = pdb
+}
+
+// clients returns the resolvers to query. A lookup reads them once here and
+// then runs without the lock: a reload MUST NOT wait behind a whois query, and
+// one lookup MUST NOT change server halfway through.
+func (s *PrefixStore) clients() (irrClient *irr.IRR, pdb *peeringdb.PeeringDB) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.irrClient, s.pdb
 }
 
 // Get returns the cached entry for name, or nil if absent. No network access.
@@ -329,16 +359,18 @@ func (s *PrefixStore) resolve(ctx context.Context, name, asSet string) (*CachedE
 		return nil, err
 	}
 
+	irrClient, pdb := s.clients()
+
 	effective := asSet
 	if effective == "" {
 		if asn, ok := parseBareASN(name); ok {
-			effective = s.discoverASSet(ctx, asn)
+			effective = discoverASSet(ctx, pdb, asn)
 		} else {
 			effective = name
 		}
 	}
 
-	pl, err := s.irrClient.LookupPrefixes(ctx, effective)
+	pl, err := irrClient.LookupPrefixes(ctx, effective)
 	if err != nil {
 		return &CachedEntry{Name: name, ASSet: effective}, err
 	}
@@ -353,9 +385,11 @@ func (s *PrefixStore) resolve(ctx context.Context, name, asSet string) (*CachedE
 
 // discoverASSet returns the AS-SET for a bare ASN via PeeringDB, falling back to
 // the literal "AS<asn>" name when PeeringDB is unavailable or has no AS-SET.
-func (s *PrefixStore) discoverASSet(ctx context.Context, asn uint32) string {
-	if s.pdb != nil {
-		if sets, err := s.pdb.LookupASSet(ctx, asn); err == nil && len(sets) > 0 {
+// pdb is passed in rather than read from the store, so the whole lookup runs on
+// the client resolve took, and no state is read outside the lock.
+func discoverASSet(ctx context.Context, pdb *peeringdb.PeeringDB, asn uint32) string {
+	if pdb != nil {
+		if sets, err := pdb.LookupASSet(ctx, asn); err == nil && len(sets) > 0 {
 			return sets[0]
 		}
 	}

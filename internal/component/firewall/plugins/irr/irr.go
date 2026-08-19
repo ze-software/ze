@@ -151,24 +151,16 @@ func runFirewallIRR(conn net.Conn) int {
 	return 0
 }
 
-// configure installs cfg as the plugin's running configuration: it opens a
-// prefix store against the configured IRR server, replaces the refresh loop,
-// and reconciles the tables the config asks for. Both OnConfigure and
+// configure installs cfg as the plugin's running configuration: it points the
+// prefix store at the configured IRR server, replaces the refresh loop, and
+// reconciles the tables the config asks for. Both OnConfigure and
 // OnConfigApply call it, so a reload changes what a restart would have changed.
 // An apply that skipped it left the plugin serving the config the daemon
 // started with, and a term added by a commit never reached the registry.
 func (plug *irrPlugin) configure(cfg *irrConfig) error {
-	ps := store.New(
-		irr.NewIRR(cfg.Server),
-		peeringdb.NewPeeringDB(cfg.PeeringDBURL),
-		cacheStorePath(),
-	)
-	if err := ps.Open(); err != nil {
-		logger().Warn("firewall-irr: prefix store open failed", "error", err)
-	}
+	ps := plug.configureStore(cfg)
 
 	plug.mu.Lock()
-	plug.prefixStore = ps
 	plug.config = cfg
 	if plug.refreshStop != nil {
 		close(plug.refreshStop)
@@ -194,6 +186,41 @@ func (plug *irrPlugin) configure(cfg *irrConfig) error {
 
 	logger().Debug("configured", "server", cfg.Server, "refresh-interval", cfg.RefreshInterval)
 	return nil
+}
+
+// configureStore returns the plugin's prefix store, pointed at the servers cfg
+// names. The store is created once and then kept for the life of the plugin.
+//
+// The cache is what the firewall enforces, and it MUST survive a reload. A
+// configure that built a second store handed applyTables an empty cache: every
+// IRR set was then registered with no prefixes, ApplyAll held back the
+// operator's table for naming a set no owner supplied, and the commit that
+// caused it reported success. Verify had already accepted that commit by
+// reading the store this function now keeps, so the reload removed from the
+// kernel a table that was filtering a minute earlier.
+//
+// Open is called on each configure, not only at creation: the zefs file is
+// shared with the BGP IRR filter, and reading it again picks up what that
+// consumer has fetched since. It only adds. An entry in both places is the same
+// entry, because every store mutation persists before it returns.
+func (plug *irrPlugin) configureStore(cfg *irrConfig) *store.PrefixStore {
+	irrClient := irr.NewIRR(cfg.Server)
+	pdb := peeringdb.NewPeeringDB(cfg.PeeringDBURL)
+
+	plug.mu.Lock()
+	ps := plug.prefixStore
+	if ps == nil {
+		ps = store.New(irrClient, pdb, cacheStorePath())
+		plug.prefixStore = ps
+	} else {
+		ps.UseClients(irrClient, pdb)
+	}
+	plug.mu.Unlock()
+
+	if err := ps.Open(); err != nil {
+		logger().Warn("firewall-irr: prefix store open failed", "error", err)
+	}
+	return ps
 }
 
 // warnUncachedRefs logs the refusal message verifyRefs would have produced for

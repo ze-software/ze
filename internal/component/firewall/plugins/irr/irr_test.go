@@ -350,3 +350,100 @@ func TestVerifyRefsRefusesEmptyEntry(t *testing.T) {
 		t.Errorf("a populated entry must verify: %v", err)
 	}
 }
+
+// VALIDATES: AC-1, AC-7 -- the prefixes a fetch cached are still cached after
+// the reload that commits the term naming them, so the rule reaches the kernel.
+// PREVENTS: the fail-open this spec's Security Review names. configure built a
+// SECOND store on every apply, so a commit that verify accepted against the
+// populated store applied against an empty one: no set was registered, ApplyAll
+// held the operator's table back, and the commit reported success with nothing
+// in the kernel. A table that was already filtering lost its rules the same way,
+// on any unrelated commit.
+func TestReconfigureKeepsFetchedPrefixes(t *testing.T) {
+	addr := fakeIRRWhois(t, map[string]string{
+		"!a4AS-TEST": "A1\n10.0.0.0/24\nC\n",
+	})
+	plug, backend := newTestPlugin(t, addr)
+
+	if err := plug.refreshName("AS-TEST"); err != nil {
+		t.Fatalf("refreshName: %v", err)
+	}
+
+	// What a commit does: the same config, verified and then applied again.
+	// The server is unchanged, and so is everything the store holds.
+	cfg := &irrConfig{
+		Server: addr,
+		refs:   []irrRef{{Name: "AS-TEST", IsASSet: true, TableName: "ze_wan"}},
+	}
+	if err := verifyRefs(plug.getPrefixStore(), cfg.allRefs()); err != nil {
+		t.Fatalf("verify refused the config it accepted a moment ago: %v", err)
+	}
+	if err := plug.configure(cfg); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+
+	entry := plug.getPrefixStore().Get("AS-TEST")
+	if entry == nil || len(entry.IPv4) != 1 {
+		t.Fatalf("the reload dropped the prefixes the fetch cached: %+v", entry)
+	}
+
+	applied, ok := backend.last()
+	if !ok {
+		t.Fatal("the reload programmed nothing")
+	}
+	if len(applied) != 1 || applied[0].Name != "ze_wan" {
+		t.Fatalf("applied %+v, want the ze_wan table the configured term names", applied)
+	}
+	if len(applied[0].Sets) != 1 || applied[0].Sets[0].Name != "irr_v4_AS-TEST" {
+		t.Fatalf("applied table carries sets %+v, want irr_v4_AS-TEST", applied[0].Sets)
+	}
+	// One prefix lowers to an interval pair, so the count is not the prefix
+	// count. Any element at all is the proof: an empty set is what a rebuilt
+	// store produced, and the table was held back for it.
+	if len(applied[0].Sets[0].Elements) == 0 {
+		t.Fatalf("the set reached the backend empty: %+v", applied[0].Sets[0])
+	}
+}
+
+// VALIDATES: AC-1 -- a reload that moves the IRR server keeps the prefixes the
+// old server answered, because they are what the firewall enforces until a
+// refresh replaces them.
+// PREVENTS: the same fail-open reappearing on the one path a "reuse the store
+// when the server is unchanged" fix leaves open.
+func TestReconfigureToAnotherServerKeepsFetchedPrefixes(t *testing.T) {
+	plug, _ := newTestPlugin(t, fakeIRRWhois(t, map[string]string{
+		"!a4AS-TEST": "A1\n10.0.0.0/24\nC\n",
+	}))
+	if err := plug.refreshName("AS-TEST"); err != nil {
+		t.Fatalf("refreshName: %v", err)
+	}
+
+	moved := fakeIRRWhois(t, map[string]string{
+		"!a4AS-TEST": "A1\n192.0.2.0/24\nC\n",
+	})
+	cfg := &irrConfig{
+		Server: moved,
+		refs:   []irrRef{{Name: "AS-TEST", IsASSet: true, TableName: "ze_wan"}},
+	}
+	if err := plug.configure(cfg); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+
+	entry := plug.getPrefixStore().Get("AS-TEST")
+	if entry == nil || len(entry.IPv4) != 1 {
+		t.Fatalf("moving the server dropped the cached prefixes: %+v", entry)
+	}
+	if entry.IPv4[0] != netip.MustParsePrefix("10.0.0.0/24") {
+		t.Errorf("cached prefix %v, want the one the first server answered", entry.IPv4[0])
+	}
+
+	// The next refresh must reach the new server, not the one the store was
+	// built with.
+	if err := plug.refreshName("AS-TEST"); err != nil {
+		t.Fatalf("refreshName after the move: %v", err)
+	}
+	entry = plug.getPrefixStore().Get("AS-TEST")
+	if entry == nil || len(entry.IPv4) != 1 || entry.IPv4[0] != netip.MustParsePrefix("192.0.2.0/24") {
+		t.Fatalf("the refresh did not query the server the reload named: %+v", entry)
+	}
+}
