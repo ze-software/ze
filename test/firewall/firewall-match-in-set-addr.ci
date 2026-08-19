@@ -75,6 +75,9 @@ cmd=foreground:seq=2:exec=python3 driver.py:timeout=10s
 expect=exit:code=0
 expect=stderr:contains=firewall config applied
 expect=stdout:contains=set blocked
-# nft renders a set-lookup on the source address as `ip saddr @set` or the raw
-# payload expression `@nh,96,32 @set` depending on version; accept either.
-expect=stdout:pattern=(ip saddr|@nh,96,32) @blocked drop
+# The set lookup carries the same `meta nfproto ipv4` guard as a literal
+# prefix match, so nft recovers the field and renders `ip saddr @blocked`.
+# Without that guard the rule prints raw as `@nh,96,32 @blocked`, and it also
+# matches IPv6 packets, because an inet chain applies the raw network-header
+# offset to both families.
+expect=stdout:contains=ip saddr @blocked drop

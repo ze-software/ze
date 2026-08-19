@@ -126,9 +126,14 @@ func validateMatch(tbl *Table, ch *Chain, term *Term, m Match, sets map[string]S
 			return err
 		}
 	case MatchICMPType:
-		// ICMPv4 type numbers only apply to IPv4. An `inet` table
-		// dispatches to ipv4/ipv6 by the packet's L3 proto, so it is
-		// also valid: the rule simply never matches for IPv6 packets.
+		// ICMPv4 type numbers only apply to IPv4. An `inet` table is
+		// accepted, and in it the match is WIDER than the operator
+		// asked for: lowerICMPTypeMatch
+		// (internal/plugins/firewall/nft/lower_linux.go) reads
+		// transport-header offset 0 with no `meta l4proto` guard, so
+		// an ICMPv4 type also matches an ICMPv6 packet carrying that
+		// byte. Recorded in
+		// plan/journal/guard-added-to-one-half-of-a-pair.md.
 		// Any other family is a configuration error.
 		if tbl.Family != FamilyIP && tbl.Family != FamilyInet {
 			return fmt.Errorf("table %q chain %q term %q: icmp-type is valid only in family ip or inet, got %s",
@@ -153,8 +158,9 @@ func validateMatch(tbl *Table, ch *Chain, term *Term, m Match, sets map[string]S
 		// the same offset points at a different byte (traffic-class
 		// high + flow-label high nibble for IPv6; non-IP header for
 		// the others) so the rule would silently misfire. inet is
-		// fine because its chains dispatch per packet to the IPv4
-		// header layout for ipv4 packets.
+		// fine because the lowering emits a `meta nfproto ipv4` guard
+		// ahead of the read there (lowerDSCPMatch,
+		// internal/plugins/firewall/nft/lower_linux.go).
 		if tbl.Family != FamilyIP && tbl.Family != FamilyInet {
 			return fmt.Errorf("table %q chain %q term %q: dscp match is IPv4-only; move to a table with family ip or inet (got %s)",
 				tbl.Name, ch.Name, term.Name, tbl.Family)
@@ -197,8 +203,11 @@ func validateSetFieldMatch(tbl *Table, ch *Chain, term *Term, m MatchInSet, setT
 // validateSetFamilyCompat rejects address-field matches where the set
 // element family and the parent table family contradict. An ipv4 set
 // used in an ip6 table would lower against the IPv6 header at IPv4
-// offsets (wrong bytes). inet tables dispatch per packet to the
-// matching header so both families are valid there.
+// offsets (wrong bytes). Both families are valid in an inet table
+// because the lowering emits a `meta nfproto` guard ahead of the read
+// there (nfprotoGuard, internal/plugins/firewall/nft/lower_linux.go).
+// The chain itself dispatches nothing: it sees both families, and a raw
+// payload read takes whichever bytes sit at the offset.
 //
 // arp/bridge/netdev are also rejected: those families dispatch on
 // non-IP headers, so an address match has no meaningful offset to

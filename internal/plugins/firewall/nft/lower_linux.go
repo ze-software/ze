@@ -221,6 +221,55 @@ type lowerCtx struct {
 	sets  map[string]*nftables.Set
 }
 
+// tableFamily reports the nftables address family of the parent table.
+//
+// A context with no table answers inet, which is the guarded reading: an
+// address match in an inet table carries an nfproto guard, and that guard
+// only ever narrows a match. A family this function cannot read therefore
+// fails closed rather than emitting an unguarded raw header read.
+func (c *lowerCtx) tableFamily() nftables.TableFamily {
+	if c == nil {
+		return nftables.TableFamilyINet
+	}
+	if c.table == nil {
+		return nftables.TableFamilyINet
+	}
+	return c.table.Family
+}
+
+// nfprotoGuard returns the `meta nfproto ipv4` / `meta nfproto ipv6`
+// expression pair that restricts every expression after it to packets of
+// one address family, or nil where no guard is owed.
+//
+// An inet table's chains see IPv4 and IPv6 packets alike, and a raw
+// network-header payload load reads whichever bytes sit at the offset. An
+// IPv4 destination match at offset 16 lands inside the IPv6 SOURCE address
+// (IPv6 src spans bytes 8..23), so without this guard an IPv4 rule matches
+// IPv6 traffic the operator never named.
+//
+// nft's own compiler emits this same pair ahead of every address match in
+// an inet table, and emits none in an ip or ip6 table, where nfproto is
+// constant for the whole ruleset. Following it exactly is also what lets
+// nft render the cooked `ip daddr 10.1.0.0/24` in place of the raw
+// `@nh,128,32 & 0xffffff00 == 0xa010000`.
+//
+// nfproto is unix.NFPROTO_IPV4 or unix.NFPROTO_IPV6. NFPROTO_UNSPEC (0)
+// says the read is valid for both families and needs no guard: a
+// transport-header port sits at the same offset whichever network header
+// precedes it.
+func nfprotoGuard(family nftables.TableFamily, nfproto byte) []expr.Any {
+	if nfproto == unix.NFPROTO_UNSPEC {
+		return nil
+	}
+	if family != nftables.TableFamilyINet {
+		return nil
+	}
+	return []expr.Any{
+		&expr.Meta{Key: expr.MetaKeyNFPROTO, Register: 1},
+		&expr.Cmp{Op: expr.CmpOpEq, Register: 1, Data: []byte{nfproto}},
+	}
+}
+
 // lowerTerm translates a ze Term (matches + actions) into nftables expressions.
 // The context allows helpers that need to register anonymous sets (e.g. a
 // multi-range port match lowers to a Lookup against an anonymous interval set).
@@ -251,9 +300,9 @@ func lowerTerm(ctx *lowerCtx, term *firewall.Term) ([]expr.Any, error) {
 func lowerMatch(ctx *lowerCtx, m firewall.Match) ([]expr.Any, error) {
 	switch v := m.(type) {
 	case firewall.MatchSourceAddress:
-		return lowerAddrMatch(v.Prefix, true)
+		return lowerAddrMatch(ctx.tableFamily(), v.Prefix, true)
 	case firewall.MatchDestinationAddress:
-		return lowerAddrMatch(v.Prefix, false)
+		return lowerAddrMatch(ctx.tableFamily(), v.Prefix, false)
 	case firewall.MatchSourcePort:
 		return lowerPortMatch(ctx, v.Ranges, 0) // src port offset in transport header
 	case firewall.MatchDestinationPort:
@@ -271,7 +320,7 @@ func lowerMatch(ctx *lowerCtx, m firewall.Match) ([]expr.Any, error) {
 	case firewall.MatchConnMark:
 		return lowerConnMarkMatch(v.Value, v.Mask)
 	case firewall.MatchDSCP:
-		return lowerDSCPMatch(v.Value)
+		return lowerDSCPMatch(ctx.tableFamily(), v.Value)
 	case firewall.MatchICMPType:
 		return lowerICMPTypeMatch(v.Type)
 	case firewall.MatchICMPv6Type:
@@ -284,13 +333,31 @@ func lowerMatch(ctx *lowerCtx, m firewall.Match) ([]expr.Any, error) {
 	return nil, fmt.Errorf("unsupported match type %T", m)
 }
 
-// lowerMatchInSet emits Payload + Lookup for a named-set match. The
-// source/destination field identifies which header byte-range to load
-// (IPv4 address: 12/16, IPv6: 8/24, TCP/UDP port: 0/2 in transport
+// payloadLayout says where in the packet a match reads its value, and
+// which address family that read is valid for.
+type payloadLayout struct {
+	base   expr.PayloadBase
+	offset uint32
+	length uint32
+	// nfproto is the address family the offset is meaningful for
+	// (unix.NFPROTO_IPV4 or unix.NFPROTO_IPV6), or NFPROTO_UNSPEC for a
+	// read valid in both. A network-header read is family-specific; a
+	// transport-header port sits at the same offset whichever network
+	// header precedes it.
+	nfproto byte
+}
+
+// lowerMatchInSet emits nfproto guard + Payload + Lookup for a named-set
+// match. The source/destination field identifies which header byte-range to
+// load (IPv4 address: 12/16, IPv6: 8/24, TCP/UDP port: 0/2 in transport
 // header) and the set's KeyType determines the length. Mismatches
 // between the field and the set type (e.g. source-address against an
 // inet_service set) reject here rather than silently programming a
 // rule that would never match.
+//
+// An address set carries the same raw network-header read as a literal
+// prefix match, so it owes the same nfproto guard in an inet table;
+// nfprotoGuard carries why.
 func lowerMatchInSet(ctx *lowerCtx, m firewall.MatchInSet) ([]expr.Any, error) {
 	if ctx == nil || ctx.sets == nil {
 		return nil, fmt.Errorf("match-in-set %q: no set registry in lowering context", m.SetName)
@@ -299,25 +366,25 @@ func lowerMatchInSet(ctx *lowerCtx, m firewall.MatchInSet) ([]expr.Any, error) {
 	if !ok {
 		return nil, fmt.Errorf("match-in-set: unknown set %q (not registered on table)", m.SetName)
 	}
-	base, offset, length, err := matchInSetPayloadLayout(m, set)
+	layout, err := matchInSetPayloadLayout(m, set)
 	if err != nil {
 		return nil, err
 	}
-	return []expr.Any{
-		&expr.Payload{DestRegister: 1, Base: base, Offset: offset, Len: length},
+	return append(nfprotoGuard(ctx.tableFamily(), layout.nfproto),
+		&expr.Payload{DestRegister: 1, Base: layout.base, Offset: layout.offset, Len: layout.length},
 		&expr.Lookup{SourceRegister: 1, SetID: set.ID, SetName: set.Name},
-	}, nil
+	), nil
 }
 
-// matchInSetPayloadLayout picks the header base, byte offset, and byte
-// length for a MatchInSet according to the field and the set's data
-// type. Returns an error if the field and the set type disagree (e.g.
+// matchInSetPayloadLayout picks the header base, byte offset, byte length,
+// and address family for a MatchInSet according to the field and the set's
+// data type. Returns an error if the field and the set type disagree (e.g.
 // source-address against an inet_service set).
-func matchInSetPayloadLayout(m firewall.MatchInSet, set *nftables.Set) (expr.PayloadBase, uint32, uint32, error) {
+func matchInSetPayloadLayout(m firewall.MatchInSet, set *nftables.Set) (payloadLayout, error) {
 	isAddrField := m.MatchField == firewall.SetFieldSourceAddr || m.MatchField == firewall.SetFieldDestAddr
 	isPortField := m.MatchField == firewall.SetFieldSourcePort || m.MatchField == firewall.SetFieldDestPort
 	if !isAddrField && !isPortField {
-		return 0, 0, 0, fmt.Errorf("match-in-set %q: unknown field %d", m.SetName, m.MatchField)
+		return payloadLayout{}, fmt.Errorf("match-in-set %q: unknown field %d", m.SetName, m.MatchField)
 	}
 	if isAddrField {
 		isSource := m.MatchField == firewall.SetFieldSourceAddr
@@ -330,27 +397,27 @@ func matchInSetPayloadLayout(m firewall.MatchInSet, set *nftables.Set) (expr.Pay
 		switch set.KeyType.Name {
 		case nftables.TypeIPAddr.Name:
 			if isSource {
-				return expr.PayloadBaseNetworkHeader, 12, 4, nil
+				return payloadLayout{base: expr.PayloadBaseNetworkHeader, offset: 12, length: 4, nfproto: unix.NFPROTO_IPV4}, nil
 			}
-			return expr.PayloadBaseNetworkHeader, 16, 4, nil
+			return payloadLayout{base: expr.PayloadBaseNetworkHeader, offset: 16, length: 4, nfproto: unix.NFPROTO_IPV4}, nil
 		case nftables.TypeIP6Addr.Name:
 			if isSource {
-				return expr.PayloadBaseNetworkHeader, 8, 16, nil
+				return payloadLayout{base: expr.PayloadBaseNetworkHeader, offset: 8, length: 16, nfproto: unix.NFPROTO_IPV6}, nil
 			}
-			return expr.PayloadBaseNetworkHeader, 24, 16, nil
+			return payloadLayout{base: expr.PayloadBaseNetworkHeader, offset: 24, length: 16, nfproto: unix.NFPROTO_IPV6}, nil
 		}
-		return 0, 0, 0, fmt.Errorf("match-in-set %q: address field requires ipv4_addr or ipv6_addr set type, got %q",
+		return payloadLayout{}, fmt.Errorf("match-in-set %q: address field requires ipv4_addr or ipv6_addr set type, got %q",
 			m.SetName, set.KeyType.Name)
 	}
 	// isPortField
 	if set.KeyType.Name != nftables.TypeInetService.Name {
-		return 0, 0, 0, fmt.Errorf("match-in-set %q: port field requires inet_service set type, got %q",
+		return payloadLayout{}, fmt.Errorf("match-in-set %q: port field requires inet_service set type, got %q",
 			m.SetName, set.KeyType.Name)
 	}
 	if m.MatchField == firewall.SetFieldSourcePort {
-		return expr.PayloadBaseTransportHeader, 0, 2, nil
+		return payloadLayout{base: expr.PayloadBaseTransportHeader, offset: 0, length: 2, nfproto: unix.NFPROTO_UNSPEC}, nil
 	}
-	return expr.PayloadBaseTransportHeader, 2, 2, nil
+	return payloadLayout{base: expr.PayloadBaseTransportHeader, offset: 2, length: 2, nfproto: unix.NFPROTO_UNSPEC}, nil
 }
 
 func lowerAction(a firewall.Action) ([]expr.Any, error) {
@@ -399,19 +466,27 @@ func lowerAction(a firewall.Action) ([]expr.Any, error) {
 
 // --- Lowering helpers ---
 
-// lowerAddrMatch produces Payload+Bitwise+Cmp for an IP prefix match.
+// lowerAddrMatch produces nfproto guard + Payload + Bitwise + Cmp for an IP
+// prefix match.
 // IPv4: src offset 12, dst offset 16, 4-byte address.
 // IPv6: src offset 8, dst offset 24, 16-byte address.
-func lowerAddrMatch(prefix netip.Prefix, isSource bool) ([]expr.Any, error) {
+//
+// The offsets read the network header raw, so they are meaningful only for
+// packets of the prefix's own family. family is the parent table's address
+// family and decides whether the read needs an nfproto guard in front of it;
+// nfprotoGuard carries why.
+func lowerAddrMatch(family nftables.TableFamily, prefix netip.Prefix, isSource bool) ([]expr.Any, error) {
 	addr := prefix.Addr()
 	bits := prefix.Bits()
 
 	var addrBytes []byte
 	var offset uint32
+	var nfproto byte
 
 	if addr.Is4() {
 		b := addr.As4()
 		addrBytes = b[:]
+		nfproto = unix.NFPROTO_IPV4
 		if isSource {
 			offset = 12 // IPv4 src in network header
 		} else {
@@ -420,6 +495,7 @@ func lowerAddrMatch(prefix netip.Prefix, isSource bool) ([]expr.Any, error) {
 	} else {
 		b := addr.As16()
 		addrBytes = b[:]
+		nfproto = unix.NFPROTO_IPV6
 		if isSource {
 			offset = 8 // IPv6 src in network header
 		} else {
@@ -430,11 +506,11 @@ func lowerAddrMatch(prefix netip.Prefix, isSource bool) ([]expr.Any, error) {
 	addrLen := uint32(len(addrBytes))
 	mask := prefixMask(bits, len(addrBytes))
 
-	return []expr.Any{
+	return append(nfprotoGuard(family, nfproto),
 		&expr.Payload{DestRegister: 1, Base: expr.PayloadBaseNetworkHeader, Offset: offset, Len: addrLen},
 		&expr.Bitwise{SourceRegister: 1, DestRegister: 1, Len: addrLen, Mask: mask, Xor: make([]byte, len(addrBytes))},
 		&expr.Cmp{Op: expr.CmpOpEq, Register: 1, Data: maskedAddr(addrBytes, mask)},
-	}, nil
+	), nil
 }
 
 // lowerPortMatch translates a []PortRange into nftables expressions:
@@ -608,13 +684,20 @@ func lowerICMPTypeMatch(icmpType uint8) ([]expr.Any, error) {
 	}, nil
 }
 
-func lowerDSCPMatch(value uint8) ([]expr.Any, error) {
+// lowerDSCPMatch matches the IPv4 DSCP field. validateMatch already refuses
+// this match outside family ip and inet, because the lowering reads the IPv4
+// TOS byte raw.
+//
+// In an inet table that read reaches IPv6 packets too, where offset 1 holds
+// the traffic-class low nibble and the flow-label high nibble, so the guard
+// is what keeps an IPv4-only match off IPv6 traffic; nfprotoGuard carries why.
+func lowerDSCPMatch(family nftables.TableFamily, value uint8) ([]expr.Any, error) {
 	// DSCP is in the TOS byte (offset 1 in IPv4 header), top 6 bits.
-	return []expr.Any{
+	return append(nfprotoGuard(family, unix.NFPROTO_IPV4),
 		&expr.Payload{DestRegister: 1, Base: expr.PayloadBaseNetworkHeader, Offset: 1, Len: 1},
 		&expr.Bitwise{SourceRegister: 1, DestRegister: 1, Len: 1, Mask: []byte{0xFC}, Xor: []byte{0x00}},
 		&expr.Cmp{Op: expr.CmpOpEq, Register: 1, Data: []byte{value << 2}},
-	}, nil
+	), nil
 }
 
 func lowerReject(r firewall.Reject) ([]expr.Any, error) {

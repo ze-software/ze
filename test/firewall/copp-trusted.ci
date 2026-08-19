@@ -40,14 +40,16 @@ out = _out["s"]
 sys.stdout.write(out)
 
 # Verify ordering: trusted accept appears before limit.
-# nft 1.1.1 renders the masked source-address match raw as
-# `@nh,96,32 & 0xffffff00 == 0xc0000200` (0xc0000200 = 192.0.2.0) rather than
-# the cooked `ip saddr 192.0.2.0/24`, so match either rendering.
+# The source-address match carries its `meta nfproto ipv4` guard, so nft
+# recovers the field and renders the cooked `ip saddr 192.0.2.0/24`. Without
+# that guard the same rule prints raw as `@nh,96,32 & 0xffffff00 ==
+# 0xc0000200`, and it also matches IPv6 packets, because an inet chain applies
+# the raw network-header offset to both families.
 lines = out.splitlines()
 trusted_line = None
 limit_line = None
 for i, line in enumerate(lines):
-    if ("192.0.2.0/24" in line or "0xc0000200" in line) and "accept" in line:
+    if "ip saddr 192.0.2.0/24" in line and "accept" in line:
         trusted_line = i
     if "limit rate" in line:
         limit_line = i
@@ -76,6 +78,6 @@ cmd=background:seq=1:exec=ze -:stdin=ze-bgp
 cmd=foreground:seq=2:exec=python3 driver.py:timeout=10s
 expect=exit:code=0
 expect=stderr:contains=ORDER_OK
-# nft may render the trusted source cooked (192.0.2.0/24) or raw (0xc0000200).
-expect=stdout:pattern=(192\.0\.2\.0/24|0xc0000200)
+# The nfproto guard is what lets nft render the trusted source cooked.
+expect=stdout:contains=ip saddr 192.0.2.0/24
 expect=stdout:contains=limit rate

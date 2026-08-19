@@ -1039,6 +1039,53 @@ func TestLowerLimitRejectsUnspecifiedDimension(t *testing.T) {
 	}
 }
 
+// inetCtx builds a lowering context whose parent table is an inet table
+// holding the named sets. The family is stated rather than defaulted, so a
+// test reads as an assertion about inet tables specifically.
+func inetCtx(sets map[string]*nftables.Set) *lowerCtx {
+	return &lowerCtx{
+		table: &nftables.Table{Name: "t", Family: nftables.TableFamilyINet},
+		sets:  sets,
+	}
+}
+
+// nfprotoGuardRest asserts that exprs opens with the `meta nfproto <want>`
+// guard pair, and returns the expressions that follow it. want is
+// unix.NFPROTO_IPV4 or unix.NFPROTO_IPV6.
+func nfprotoGuardRest(t *testing.T, exprs []expr.Any, want byte) []expr.Any {
+	t.Helper()
+	if len(exprs) < 2 {
+		t.Fatalf("expected at least the 2-expression nfproto guard, got %d", len(exprs))
+	}
+	meta, ok := exprs[0].(*expr.Meta)
+	if !ok {
+		t.Fatalf("expr[0] type = %T, want *expr.Meta carrying nfproto", exprs[0])
+	}
+	if meta.Key != expr.MetaKeyNFPROTO {
+		t.Fatalf("expr[0] meta key = %v, want MetaKeyNFPROTO", meta.Key)
+	}
+	if meta.Register != 1 {
+		t.Errorf("expr[0] meta register = %d, want 1", meta.Register)
+	}
+	cmp, ok := exprs[1].(*expr.Cmp)
+	if !ok {
+		t.Fatalf("expr[1] type = %T, want *expr.Cmp", exprs[1])
+	}
+	if cmp.Op != expr.CmpOpEq {
+		t.Errorf("expr[1] cmp op = %v, want CmpOpEq", cmp.Op)
+	}
+	if cmp.Register != 1 {
+		t.Errorf("expr[1] cmp register = %d, want 1", cmp.Register)
+	}
+	if len(cmp.Data) != 1 {
+		t.Fatalf("expr[1] cmp data = %v, want one byte", cmp.Data)
+	}
+	if cmp.Data[0] != want {
+		t.Errorf("expr[1] cmp data = %d, want %d", cmp.Data[0], want)
+	}
+	return exprs[2:]
+}
+
 // VALIDATES: gap-1 -- MatchInSet on a source-address named set lowers to
 // Payload(Network, 12, 4) + Lookup against the set. Before this, the
 // lowerMatch switch had no case for MatchInSet and the rule silently
@@ -1047,7 +1094,7 @@ func TestLowerLimitRejectsUnspecifiedDimension(t *testing.T) {
 // and discovering at Apply that ze rejects the configured rule.
 func TestLowerMatchInSet_SourceAddr_IPv4(t *testing.T) {
 	set := &nftables.Set{Name: "blocked", ID: 1, KeyType: nftables.TypeIPAddr}
-	ctx := &lowerCtx{sets: map[string]*nftables.Set{"blocked": set}}
+	ctx := inetCtx(map[string]*nftables.Set{"blocked": set})
 	exprs, err := lowerMatch(ctx, firewall.MatchInSet{
 		SetName:    "blocked",
 		MatchField: firewall.SetFieldSourceAddr,
@@ -1055,8 +1102,9 @@ func TestLowerMatchInSet_SourceAddr_IPv4(t *testing.T) {
 	if err != nil {
 		t.Fatalf("lowerMatch: %v", err)
 	}
+	exprs = nfprotoGuardRest(t, exprs, unix.NFPROTO_IPV4)
 	if len(exprs) != 2 {
-		t.Fatalf("expected 2 expressions, got %d", len(exprs))
+		t.Fatalf("expected 2 expressions after the guard, got %d", len(exprs))
 	}
 	payload, ok := exprs[0].(*expr.Payload)
 	if !ok {
@@ -1079,7 +1127,7 @@ func TestLowerMatchInSet_SourceAddr_IPv4(t *testing.T) {
 // the IPv4 destination offset (16) not the source offset (12).
 func TestLowerMatchInSet_DestAddr_IPv4(t *testing.T) {
 	set := &nftables.Set{Name: "targets", ID: 2, KeyType: nftables.TypeIPAddr}
-	ctx := &lowerCtx{sets: map[string]*nftables.Set{"targets": set}}
+	ctx := inetCtx(map[string]*nftables.Set{"targets": set})
 	exprs, err := lowerMatch(ctx, firewall.MatchInSet{
 		SetName:    "targets",
 		MatchField: firewall.SetFieldDestAddr,
@@ -1087,6 +1135,7 @@ func TestLowerMatchInSet_DestAddr_IPv4(t *testing.T) {
 	if err != nil {
 		t.Fatalf("lowerMatch: %v", err)
 	}
+	exprs = nfprotoGuardRest(t, exprs, unix.NFPROTO_IPV4)
 	payload, ok := exprs[0].(*expr.Payload)
 	if !ok {
 		t.Fatalf("expr[0] type = %T, want *expr.Payload", exprs[0])
@@ -1110,7 +1159,7 @@ func TestLowerMatchInSet_Addr_IPv6(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			set := &nftables.Set{Name: "peers", ID: 3, KeyType: nftables.TypeIP6Addr}
-			ctx := &lowerCtx{sets: map[string]*nftables.Set{"peers": set}}
+			ctx := inetCtx(map[string]*nftables.Set{"peers": set})
 			exprs, err := lowerMatch(ctx, firewall.MatchInSet{
 				SetName:    "peers",
 				MatchField: tt.field,
@@ -1118,6 +1167,7 @@ func TestLowerMatchInSet_Addr_IPv6(t *testing.T) {
 			if err != nil {
 				t.Fatalf("lowerMatch: %v", err)
 			}
+			exprs = nfprotoGuardRest(t, exprs, unix.NFPROTO_IPV6)
 			payload, ok := exprs[0].(*expr.Payload)
 			if !ok {
 				t.Fatalf("expr[0] type = %T, want *expr.Payload", exprs[0])
@@ -1181,5 +1231,272 @@ func TestLogKeyBitsDistinct(t *testing.T) {
 			t.Errorf("%s shares bit %#x with %s", b.name, b.bit, other)
 		}
 		seen[b.bit] = b.name
+	}
+}
+
+// TestLowerProtoMatchAcceptsEveryCanonicalName is the wiring row for the term
+// the FlowSpec bridge now produces: whatever name translation emits, this
+// backend must lower.
+//
+// VALIDATES: every name firewall.ProtocolNames returns lowers to an L4PROTO
+// comparison against its IANA number, and a spelling outside the table is
+// refused rather than programmed as protocol 0.
+// PREVENTS: a producer and this backend disagreeing about the accepted names.
+// That disagreement is not rule-local: Apply returns a lowering error before
+// its single Flush, so one unlowerable term leaves every owner's ruleset
+// unapplied in the kernel.
+func TestLowerProtoMatchAcceptsEveryCanonicalName(t *testing.T) {
+	for _, name := range firewall.ProtocolNames() {
+		exprs, err := lowerProtoMatch(name)
+		if err != nil {
+			t.Fatalf("canonical protocol %q must lower: %v", name, err)
+		}
+		if len(exprs) != 2 {
+			t.Fatalf("protocol %q lowered to %d expressions, want 2", name, len(exprs))
+		}
+		meta, ok := exprs[0].(*expr.Meta)
+		if !ok || meta.Key != expr.MetaKeyL4PROTO {
+			t.Fatalf("protocol %q did not load the L4PROTO meta key, got %#v", name, exprs[0])
+		}
+		cmp, ok := exprs[1].(*expr.Cmp)
+		if !ok {
+			t.Fatalf("protocol %q did not compare, got %#v", name, exprs[1])
+		}
+		num, _ := firewall.ProtocolNumber(name)
+		if len(cmp.Data) != 1 || cmp.Data[0] != num {
+			t.Errorf("protocol %q compared against %v, want the IANA number %d", name, cmp.Data, num)
+		}
+	}
+
+	for _, name := range []string{"", "132", "TCP", "bogus"} {
+		if _, err := lowerProtoMatch(name); err == nil {
+			t.Errorf("lowerProtoMatch(%q) must refuse a name outside the canonical table", name)
+		}
+	}
+}
+
+// --- nfproto guard on family-specific network-header reads ---
+//
+// An inet table's chains see IPv4 and IPv6 packets alike, and an address
+// match reads the network header raw. Without a leading `meta nfproto`
+// guard the IPv4 destination offset (16) lands inside the IPv6 SOURCE
+// address (IPv6 src spans bytes 8..23), so an IPv4 rule matches IPv6
+// traffic the operator never named. nft's own compiler emits the guard for
+// an inet table and omits it for ip / ip6, where nfproto is constant.
+
+// VALIDATES: a literal address match in an inet table emits
+// `meta nfproto ipv4|ipv6` BEFORE the network-header payload load, driven
+// through lowerTerm, the entry point applyChain calls.
+// PREVENTS: an IPv4 FlowSpec or firewall rule for 10.1.0.0/24 also
+// dropping IPv6 traffic whose source address carries those bytes, and the
+// uncooked `@nh,128,32 & 0xffffff00 == 0xa010000` rendering that goes with
+// it.
+func TestLowerTermInetAddrMatchGuardsOnNFProto(t *testing.T) {
+	tests := []struct {
+		name       string
+		match      firewall.Match
+		wantProto  byte
+		wantOffset uint32
+		wantLen    uint32
+	}{
+		{
+			name:       "ipv4 source",
+			match:      firewall.MatchSourceAddress{Prefix: netip.MustParsePrefix("10.1.0.0/24")},
+			wantProto:  unix.NFPROTO_IPV4,
+			wantOffset: 12,
+			wantLen:    4,
+		},
+		{
+			name:       "ipv4 destination",
+			match:      firewall.MatchDestinationAddress{Prefix: netip.MustParsePrefix("10.1.0.0/24")},
+			wantProto:  unix.NFPROTO_IPV4,
+			wantOffset: 16,
+			wantLen:    4,
+		},
+		{
+			name:       "ipv6 source",
+			match:      firewall.MatchSourceAddress{Prefix: netip.MustParsePrefix("2001:db8::/32")},
+			wantProto:  unix.NFPROTO_IPV6,
+			wantOffset: 8,
+			wantLen:    16,
+		},
+		{
+			name:       "ipv6 destination",
+			match:      firewall.MatchDestinationAddress{Prefix: netip.MustParsePrefix("2001:db8::/32")},
+			wantProto:  unix.NFPROTO_IPV6,
+			wantOffset: 24,
+			wantLen:    16,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			term := &firewall.Term{
+				Name:    "t",
+				Matches: []firewall.Match{tt.match},
+				Actions: []firewall.Action{firewall.Drop{}},
+			}
+			exprs, err := lowerTerm(inetCtx(nil), term)
+			if err != nil {
+				t.Fatalf("lowerTerm: %v", err)
+			}
+			rest := nfprotoGuardRest(t, exprs, tt.wantProto)
+			payload, ok := rest[0].(*expr.Payload)
+			if !ok {
+				t.Fatalf("expression after the guard = %T, want *expr.Payload", rest[0])
+			}
+			if payload.Base != expr.PayloadBaseNetworkHeader {
+				t.Errorf("payload base = %v, want PayloadBaseNetworkHeader", payload.Base)
+			}
+			if payload.Offset != tt.wantOffset {
+				t.Errorf("payload offset = %d, want %d", payload.Offset, tt.wantOffset)
+			}
+			if payload.Len != tt.wantLen {
+				t.Errorf("payload len = %d, want %d", payload.Len, tt.wantLen)
+			}
+		})
+	}
+}
+
+// VALIDATES: an ip or ip6 table emits NO nfproto guard, so a rule in a
+// single-family table keeps the shape it had. nfproto is constant for the
+// whole ruleset there, and every ze producer of such a table splits its
+// prefixes by address family at the source (buildTables in
+// internal/plugins/anomaly/shape/match.go, familyFromPrefix in
+// internal/plugins/ddos/local/responder.go).
+// PREVENTS: charging the DDoS and anomaly mitigation tables, the highest
+// rule counts ze programs, two extra per-packet expressions per rule.
+func TestLowerTermSingleFamilyTableOmitsNFProtoGuard(t *testing.T) {
+	tests := []struct {
+		name   string
+		family nftables.TableFamily
+		prefix string
+	}{
+		{"ip table, ipv4 prefix", nftables.TableFamilyIPv4, "10.1.0.0/24"},
+		{"ip6 table, ipv6 prefix", nftables.TableFamilyIPv6, "2001:db8::/32"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := &lowerCtx{table: &nftables.Table{Name: "t", Family: tt.family}}
+			term := &firewall.Term{
+				Name:    "t",
+				Matches: []firewall.Match{firewall.MatchSourceAddress{Prefix: netip.MustParsePrefix(tt.prefix)}},
+			}
+			exprs, err := lowerTerm(ctx, term)
+			if err != nil {
+				t.Fatalf("lowerTerm: %v", err)
+			}
+			if len(exprs) != 3 {
+				t.Fatalf("expected Payload+Bitwise+Cmp only, got %d expressions", len(exprs))
+			}
+			if _, ok := exprs[0].(*expr.Payload); !ok {
+				t.Fatalf("expr[0] = %T, want *expr.Payload with no guard in front", exprs[0])
+			}
+		})
+	}
+}
+
+// VALIDATES: a named-set address match carries the same guard as a literal
+// prefix match. matchInSetPayloadLayout reads the same raw network-header
+// offsets, so it owes the same guard.
+// PREVENTS: `from { source-address "@blocked"; }` matching IPv6 traffic in
+// an inet table while the literal form is guarded.
+func TestLowerMatchInSetInetAddrGuardsOnNFProto(t *testing.T) {
+	tests := []struct {
+		name      string
+		keyType   nftables.SetDatatype
+		field     firewall.SetFieldType
+		wantProto byte
+	}{
+		{"ipv4 source set", nftables.TypeIPAddr, firewall.SetFieldSourceAddr, unix.NFPROTO_IPV4},
+		{"ipv4 dest set", nftables.TypeIPAddr, firewall.SetFieldDestAddr, unix.NFPROTO_IPV4},
+		{"ipv6 source set", nftables.TypeIP6Addr, firewall.SetFieldSourceAddr, unix.NFPROTO_IPV6},
+		{"ipv6 dest set", nftables.TypeIP6Addr, firewall.SetFieldDestAddr, unix.NFPROTO_IPV6},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			set := &nftables.Set{Name: "s", ID: 7, KeyType: tt.keyType}
+			ctx := inetCtx(map[string]*nftables.Set{"s": set})
+			term := &firewall.Term{
+				Name:    "t",
+				Matches: []firewall.Match{firewall.MatchInSet{SetName: "s", MatchField: tt.field}},
+			}
+			exprs, err := lowerTerm(ctx, term)
+			if err != nil {
+				t.Fatalf("lowerTerm: %v", err)
+			}
+			rest := nfprotoGuardRest(t, exprs, tt.wantProto)
+			if _, ok := rest[0].(*expr.Payload); !ok {
+				t.Fatalf("expression after the guard = %T, want *expr.Payload", rest[0])
+			}
+			if _, ok := rest[1].(*expr.Lookup); !ok {
+				t.Fatalf("expression after the payload = %T, want *expr.Lookup", rest[1])
+			}
+		})
+	}
+}
+
+// VALIDATES: a port set match emits no nfproto guard. A transport-header
+// port sits at the same offset whichever network header precedes it, so
+// the read is valid for both families and a guard would only narrow it.
+// PREVENTS: an inet port rule silently losing its IPv6 half.
+func TestLowerMatchInSetPortNeedsNoNFProtoGuard(t *testing.T) {
+	set := &nftables.Set{Name: "ports", ID: 8, KeyType: nftables.TypeInetService}
+	ctx := inetCtx(map[string]*nftables.Set{"ports": set})
+	exprs, err := lowerMatch(ctx, firewall.MatchInSet{
+		SetName:    "ports",
+		MatchField: firewall.SetFieldDestPort,
+	})
+	if err != nil {
+		t.Fatalf("lowerMatch: %v", err)
+	}
+	if len(exprs) != 2 {
+		t.Fatalf("expected Payload+Lookup only, got %d expressions", len(exprs))
+	}
+	payload, ok := exprs[0].(*expr.Payload)
+	if !ok {
+		t.Fatalf("expr[0] = %T, want *expr.Payload with no guard in front", exprs[0])
+	}
+	if payload.Base != expr.PayloadBaseTransportHeader {
+		t.Errorf("payload base = %v, want PayloadBaseTransportHeader", payload.Base)
+	}
+}
+
+// VALIDATES: a DSCP match in an inet table is guarded to IPv4. The
+// lowering reads the IPv4 TOS byte at network-header offset 1, and
+// validateMatch already declares the match IPv4-only.
+// PREVENTS: `dscp 46` matching an IPv6 packet on offset 1, which holds the
+// traffic-class low nibble and the flow-label high nibble.
+func TestLowerDSCPMatchInetGuardsOnNFProto(t *testing.T) {
+	exprs, err := lowerMatch(inetCtx(nil), firewall.MatchDSCP{Value: 46})
+	if err != nil {
+		t.Fatalf("lowerMatch: %v", err)
+	}
+	rest := nfprotoGuardRest(t, exprs, unix.NFPROTO_IPV4)
+	payload, ok := rest[0].(*expr.Payload)
+	if !ok {
+		t.Fatalf("expression after the guard = %T, want *expr.Payload", rest[0])
+	}
+	if payload.Base != expr.PayloadBaseNetworkHeader {
+		t.Errorf("payload base = %v, want PayloadBaseNetworkHeader", payload.Base)
+	}
+	if payload.Offset != 1 {
+		t.Errorf("payload offset = %d, want 1 (IPv4 TOS byte)", payload.Offset)
+	}
+}
+
+// VALIDATES: a lowering context that carries no table answers inet, so an
+// address match through it is guarded rather than left as a bare raw read.
+// PREVENTS: a future call site that forgets the table silently reopening
+// the unguarded path, which is the shape of the original defect.
+func TestLowerCtxTableFamilyFailsClosedToInet(t *testing.T) {
+	var absent *lowerCtx
+	if got := absent.tableFamily(); got != nftables.TableFamilyINet {
+		t.Errorf("nil ctx family = %v, want TableFamilyINet", got)
+	}
+	if got := (&lowerCtx{}).tableFamily(); got != nftables.TableFamilyINet {
+		t.Errorf("ctx with no table family = %v, want TableFamilyINet", got)
+	}
+	if got := (&lowerCtx{table: &nftables.Table{Family: nftables.TableFamilyIPv6}}).tableFamily(); got != nftables.TableFamilyIPv6 {
+		t.Errorf("ip6 table family = %v, want TableFamilyIPv6", got)
 	}
 }
