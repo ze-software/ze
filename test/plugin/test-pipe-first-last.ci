@@ -170,11 +170,11 @@ def main():
             'show bgp summary',
             lambda r: r.get('status') == 'done' and any(
                 p.get('eor-sent', 0) >= 1
-                for p in result_json_data(r, {}).get('summary', {}).get('peers', [])
+                for p in result_json_data(r, {}).get('peers', [])
             ),
             attempts=40,
         )
-        peers = result_json_data(eor, {}).get('summary', {}).get('peers', [])
+        peers = result_json_data(eor, {}).get('peers', [])
         if not any(p.get('eor-sent', 0) >= 1 for p in peers):
             print(f'FAIL: ze never sent EOR to the peer, summary peers={peers!r}',
                   file=sys.stderr)

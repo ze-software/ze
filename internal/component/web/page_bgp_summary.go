@@ -35,24 +35,22 @@ func fetchBGPSummaryPeers(r *http.Request, dispatch CommandDispatcher) map[strin
 	if err != nil || output == "" {
 		return nil
 	}
-	var envelope struct {
-		Summary struct {
-			Peers []struct {
-				Name     string `json:"name"`
-				State    string `json:"state"`
-				Uptime   string `json:"uptime"`
-				UpdatesR uint64 `json:"updates-received"`
-				UpdatesS uint64 `json:"updates-sent"`
-				KAR      uint64 `json:"keepalives-received"`
-				KAS      uint64 `json:"keepalives-sent"`
-			} `json:"peers"`
-		} `json:"summary"`
+	var record struct {
+		Peers []struct {
+			Name     string `json:"name"`
+			State    string `json:"state"`
+			Uptime   string `json:"uptime"`
+			UpdatesR uint64 `json:"updates-received"`
+			UpdatesS uint64 `json:"updates-sent"`
+			KAR      uint64 `json:"keepalives-received"`
+			KAS      uint64 `json:"keepalives-sent"`
+		} `json:"peers"`
 	}
-	if json.Unmarshal([]byte(output), &envelope) != nil {
+	if json.Unmarshal([]byte(output), &record) != nil {
 		return nil
 	}
-	m := make(map[string]bgpSummaryPeer, len(envelope.Summary.Peers))
-	for _, p := range envelope.Summary.Peers {
+	m := make(map[string]bgpSummaryPeer, len(record.Peers))
+	for _, p := range record.Peers {
 		m[p.Name] = bgpSummaryPeer{
 			State:  p.State,
 			Uptime: p.Uptime,

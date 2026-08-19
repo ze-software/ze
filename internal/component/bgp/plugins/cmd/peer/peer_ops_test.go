@@ -465,8 +465,7 @@ func TestBgpSummaryHandler(t *testing.T) {
 	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 
-	summary, ok := data["summary"].(map[string]any)
-	require.True(t, ok, "expected summary key")
+	summary := map[string]any(data)
 
 	// Check aggregate fields
 	assert.Equal(t, 2, summary["peers-configured"])

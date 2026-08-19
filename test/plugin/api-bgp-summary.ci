@@ -43,18 +43,17 @@ def main():
         if isinstance(data, str):
             data = json.loads(data)
 
-        summary = data.get('summary', {})
-        if 'peers-configured' not in summary:
-            print(f'FAIL: no peers-configured in summary: {list(data.keys())}', file=sys.stderr)
+        if 'peers-configured' not in data:
+            print(f'FAIL: no peers-configured in data: {list(data.keys())}', file=sys.stderr)
             sys.exit(1)
 
-        peers = summary.get('peers', [])
+        peers = data.get('peers', [])
         found = any(p.get('address') == '127.0.0.1' for p in peers)
         if not found:
             print(f'FAIL: 127.0.0.1 not in summary peers', file=sys.stderr)
             sys.exit(1)
 
-        print(f'OK: summary has {summary["peers-configured"]} peer(s) configured', file=sys.stderr)
+        print(f'OK: summary has {data["peers-configured"]} peer(s) configured', file=sys.stderr)
     finally:
         dispatch(api, 'request shutdown')
         api.wait_for_shutdown()

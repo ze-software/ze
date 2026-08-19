@@ -213,18 +213,18 @@ func (s *LGServer) handleUIPeerRoutes(w http.ResponseWriter, r *http.Request) {
 		peerInfo["remote-as-name"] = s.resolveASN(remoteAS)
 	}
 
-	// Get prefix-length summary (fast, constant memory).
+	// Get the prefix-length histogram (fast, constant memory).
 	var tb textbuf.Buffer
-	result := s.query(tb.Str("show bgp rib prefix-summary peer ").Str(address).String())
+	result := s.query(tb.Str("show bgp rib histogram peer ").Str(address).String())
 	zeData := parseJSON(result)
 
 	totalCount := 0
-	var prefixSummary []prefixSummaryRow
+	var histogram []histogramRow
 
 	if zeData != nil {
 		if _, isErr := zeData["error"].(string); !isErr {
 			totalCount = getInt(zeData, "count")
-			prefixSummary = flattenPrefixSummary(zeData)
+			histogram = flattenHistogram(zeData)
 		}
 	}
 
@@ -234,10 +234,10 @@ func (s *LGServer) handleUIPeerRoutes(w http.ResponseWriter, r *http.Request) {
 			ActiveTab: "peers",
 			Page:      pgPeerRoutesPage,
 		},
-		Address:       address,
-		Peer:          peerInfoFrom(peerInfo),
-		PrefixSummary: prefixSummary,
-		Error:         engineError(zeData),
+		Address:   address,
+		Peer:      peerInfoFrom(peerInfo),
+		Histogram: histogram,
+		Error:     engineError(zeData),
 	}
 
 	// For small route tables, also fetch individual routes.
@@ -315,22 +315,22 @@ func (s *LGServer) handleUIPeerDownload(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
-// flattenPrefixSummary converts the nested prefix-summary JSON into a flat
-// sorted list of rows the summary table renders.
-func flattenPrefixSummary(ze map[string]any) []prefixSummaryRow {
-	summary, _ := ze["prefix-summary"].(map[string]any)
-	if summary == nil {
+// flattenHistogram converts the nested histogram JSON into a flat
+// sorted list of rows the histogram table renders.
+func flattenHistogram(ze map[string]any) []histogramRow {
+	histogram, _ := ze["histogram"].(map[string]any)
+	if histogram == nil {
 		return nil
 	}
 
-	var rows []prefixSummaryRow
-	for fam, byLen := range summary {
+	var rows []histogramRow
+	for fam, byLen := range histogram {
 		lenMap, ok := byLen.(map[string]any)
 		if !ok {
 			continue
 		}
 		for length, count := range lenMap {
-			rows = append(rows, prefixSummaryRow{
+			rows = append(rows, histogramRow{
 				Family: fam,
 				Length: length,
 				Count:  scalarString(count),
@@ -637,13 +637,10 @@ func (s *LGServer) extractPeers(ze map[string]any) []peerRow {
 		return nil
 	}
 
-	// Navigate into the "summary" envelope.
-	summary, _ := ze["summary"].(map[string]any)
-	if summary == nil {
-		summary = ze
-	}
-
-	peers, _ := summary["peers"].([]any)
+	// handleBgpSummary answers the aggregates and the rows as siblings, so the
+	// rows are at ze["peers"] (bgp/plugins/cmd/peer/summary.go,
+	// handleBgpSummary).
+	peers, _ := ze["peers"].([]any)
 	var result []peerRow
 
 	for _, p := range peers {
@@ -769,12 +766,7 @@ func findPeer(ze map[string]any, address string) map[string]any {
 		return nil
 	}
 
-	summary, _ := ze["summary"].(map[string]any)
-	if summary == nil {
-		summary = ze
-	}
-
-	peers, _ := summary["peers"].([]any)
+	peers, _ := ze["peers"].([]any)
 	for _, p := range peers {
 		peer, ok := p.(map[string]any)
 		if !ok {

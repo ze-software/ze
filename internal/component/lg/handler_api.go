@@ -784,23 +784,18 @@ func getStr(m map[string]any, key string) string {
 
 // summaryPeers extracts the peer rows from a "show bgp summary" response.
 //
-// handleBgpSummary wraps its payload in a "summary" envelope
-// (internal/component/bgp/plugins/cmd/peer/summary.go:152), so the rows live at
-// ze["summary"]["peers"]. The flat form is still accepted: parseJSON promotes a
-// bare JSON array to ze["peers"], and tests build maps that shape.
-// Mirrors the navigation in handler_ui.go.
+// handleBgpSummary (internal/component/bgp/plugins/cmd/peer/summary.go) answers
+// the aggregates and the rows as siblings, so the rows live at ze["peers"].
+// parseJSON promotes a bare JSON array to the same key, so a producer that
+// answers only the rows lands here too. Mirrors the navigation in
+// handler_ui.go.
 func summaryPeers(ze map[string]any) []any {
-	if summary, ok := ze["summary"].(map[string]any); ok {
-		if peers, ok := summary["peers"].([]any); ok {
-			return peers
-		}
-	}
 	peers, _ := ze["peers"].([]any)
 	return peers
 }
 
 // peerAddress returns a peer's IP. handleBgpSummary emits it as "address"
-// (summary.go:113); "peer-address" is accepted as a fallback for other
+// (summary.go); "peer-address" is accepted as a fallback for other
 // producers. Mirrors the fallback in handler_ui.go.
 func peerAddress(peer map[string]any) string {
 	if addr := getStr(peer, "address"); addr != "" {

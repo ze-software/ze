@@ -260,7 +260,11 @@ func handleBgpSummary(ctx *pluginserver.CommandContext, args []string) (*plugin.
 	rid := stats.RouterID
 	routerID := netip.AddrFrom4([4]byte{byte(rid >> 24), byte(rid >> 16), byte(rid >> 8), byte(rid)}).String()
 
-	summary := map[string]any{
+	// The aggregates and the peer rows are siblings at the top level, which is
+	// the shape every other multi-view handler answers with (handleBgpHealth in
+	// health.go). A `| display peers` therefore selects a sibling key rather
+	// than descending into an envelope.
+	summary := plugin.Map{
 		"router-id":         routerID,
 		"local-as":          stats.LocalAS, // global BGP local AS, kept as "local-as" for summary context
 		"uptime":            stats.Uptime.Truncate(time.Second).String(),
@@ -272,7 +276,7 @@ func handleBgpSummary(ctx *pluginserver.CommandContext, args []string) (*plugin.
 		summary["family"] = familyFilter
 		summary["peers-in-family"] = len(peerRows)
 	}
-	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"summary": summary}}, nil
+	return &plugin.Response{Status: plugin.StatusDone, Data: summary}, nil
 }
 
 // validateFamilyArg caps length + charset on the operator-supplied

@@ -732,7 +732,7 @@ func TestFetchPeerSelectorsAsksForTheDispatcherJSON(t *testing.T) {
 // PREVENTS: an interactive `show bgp peer list | json` answering the configured
 // default, and the dashboard failing to parse its own poll.
 func TestModelExecutorAsksForTheDispatcherJSON(t *testing.T) {
-	const answer = `{"summary":{"router-id":"192.0.2.1"}}`
+	const answer = `{"router-id":"192.0.2.1"}`
 
 	client, sent := rawOnlyJSONClient(answer)
 	output, err := client.modelExecutor()("show bgp summary")

@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/family"
 )
@@ -52,8 +53,7 @@ func TestBgpSummaryFormat(t *testing.T) {
 	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 
-	summary, ok := data["summary"].(map[string]any)
-	require.True(t, ok)
+	summary := map[string]any(data)
 
 	// Check identity fields (AC-3: router-id, local-as)
 	assert.Equal(t, "10.0.0.1", summary["router-id"])
@@ -95,8 +95,7 @@ func TestBgpSummaryNoPeers(t *testing.T) {
 	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 
-	summary, ok := data["summary"].(map[string]any)
-	require.True(t, ok)
+	summary := map[string]any(data)
 	assert.Equal(t, 0, summary["peers-configured"])
 	assert.Equal(t, 0, summary["peers-established"])
 }
@@ -138,8 +137,7 @@ func TestBgpSummary_FilterByFamily(t *testing.T) {
 
 	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
-	summary, ok := data["summary"].(map[string]any)
-	require.True(t, ok)
+	summary := map[string]any(data)
 	assert.Equal(t, "ipv6/unicast", summary["family"])
 	assert.Equal(t, 3, summary["peers-configured"])
 	assert.Equal(t, 1, summary["peers-in-family"])
@@ -170,8 +168,7 @@ func TestBgpSummary_FamilyShorthand(t *testing.T) {
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
-	summary, ok := data["summary"].(map[string]any)
-	require.True(t, ok)
+	summary := map[string]any(data)
 	assert.Equal(t, "ipv4/unicast", summary["family"])
 }
 
@@ -397,8 +394,7 @@ func TestBgpSummaryUptimeTruncatedToSecond(t *testing.T) {
 
 	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
-	summary, ok := data["summary"].(map[string]any)
-	require.True(t, ok)
+	summary := map[string]any(data)
 
 	assert.Equal(t, "1h2m3s", summary["uptime"])
 
@@ -476,8 +472,7 @@ func TestBgpSummaryEmitsStateChangedAndLastError(t *testing.T) {
 
 	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
-	summary, ok := data["summary"].(map[string]any)
-	require.True(t, ok)
+	summary := map[string]any(data)
 	peers, ok := summary["peers"].([]map[string]any)
 	require.True(t, ok)
 	require.Len(t, peers, 1)
@@ -510,8 +505,7 @@ func TestBgpSummaryStateChangedAndLastErrorEmpty(t *testing.T) {
 
 	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
-	summary, ok := data["summary"].(map[string]any)
-	require.True(t, ok)
+	summary := map[string]any(data)
 	peers, ok := summary["peers"].([]map[string]any)
 	require.True(t, ok)
 	require.Len(t, peers, 1)
@@ -639,8 +633,7 @@ func TestBgpSummaryWithoutRibOmitsRouteCounts(t *testing.T) {
 	require.NoError(t, err)
 	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
-	summary, ok := data["summary"].(map[string]any)
-	require.True(t, ok)
+	summary := map[string]any(data)
 	peers, ok := summary["peers"].([]map[string]any)
 	require.True(t, ok)
 	require.Len(t, peers, 1)
@@ -672,4 +665,199 @@ func TestPeerCapabilitiesNotEstablished(t *testing.T) {
 	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	assert.Equal(t, false, data["negotiation-complete"])
+}
+
+// declaredColumnNames returns every name in the orders registered for a command.
+func declaredColumnNames(t *testing.T, cmd string) map[string]bool {
+	t.Helper()
+
+	orders := command.ColumnsForCommand(cmd)
+	require.NotEmpty(t, orders, "%s declares no column order", cmd)
+	names := make(map[string]bool)
+	for _, order := range orders {
+		for _, name := range order {
+			names[name] = true
+		}
+	}
+	return names
+}
+
+// VALIDATES: every name `show bgp summary` declares is a key its handler
+// builds, and every key its handler builds is declared (R-2, A-4).
+// PREVENTS: a renamed key silently returning to the alphabetical tail, and a
+// declaration covering only part of the row, which reads as an arbitrary break
+// rather than an order.
+func TestBgpSummaryColumnsMatchPayload(t *testing.T) {
+	reactor := &mockReactor{
+		peers: []plugin.PeerInfo{
+			{
+				Address:            netip.MustParseAddr("192.0.2.1"),
+				PeerAS:             65001,
+				State:              plugin.PeerStateEstablished,
+				NegotiatedFamilies: []family.Family{family.IPv4Unicast},
+			},
+		},
+		stats: plugin.ReactorStats{PeerCount: 1, RouterID: 0x0a000001, LocalAS: 65000},
+	}
+	ctx := newTestContext(reactor)
+
+	// The family argument is what adds "family" and "peers-in-family", so the
+	// filtered call is the one whose outer record carries every key.
+	resp, err := handleBgpSummary(ctx, []string{"ipv4/unicast"})
+	require.NoError(t, err)
+	data, ok := resp.Data.(plugin.Map)
+	require.True(t, ok)
+	summary := map[string]any(data)
+	peers, ok := summary["peers"].([]map[string]any)
+	require.True(t, ok)
+	require.Len(t, peers, 1)
+
+	// The rib plugin is absent from this context, so its three keys never reach
+	// the row. Merge them here so the comparison covers the full key set the
+	// command can produce (R-4).
+	row := peers[0]
+	mergeRibRouteCounts(row, "192.0.2.1", map[string]ribRouteCount{"192.0.2.1": {in: 7, out: 3}})
+
+	declared := declaredColumnNames(t, "show bgp summary")
+	for key := range row {
+		assert.True(t, declared[key], "peer row key %q is not declared, so it renders after the ordered columns", key)
+	}
+	for key := range summary {
+		assert.True(t, declared[key], "summary record key %q is not declared", key)
+	}
+	for name := range declared {
+		_, inRow := row[name]
+		_, inSummary := summary[name]
+		assert.True(t, inRow || inSummary, "declared column %q is in no payload the handler builds", name)
+	}
+}
+
+// VALIDATES: every name `show bgp peer list` declares is a key its handler
+// builds (R-2).
+// PREVENTS: the same drift on the second declaring command.
+func TestBgpPeerListColumnsMatchPayload(t *testing.T) {
+	reactor := &mockReactor{
+		peers: []plugin.PeerInfo{
+			{
+				Address:   netip.MustParseAddr("192.0.2.1"),
+				Name:      "peer1",
+				GroupName: "transit",
+				PeerAS:    65001,
+				State:     plugin.PeerStateEstablished,
+				Uptime:    time.Minute,
+			},
+		},
+		stats: plugin.ReactorStats{PeerCount: 1},
+	}
+	ctx := newTestContext(reactor)
+
+	resp, err := handleBgpPeerList(ctx, nil)
+	require.NoError(t, err)
+	data, ok := resp.Data.(plugin.Map)
+	require.True(t, ok)
+	rows, ok := data["peers"].(map[string]any)
+	require.True(t, ok)
+	row, ok := rows["192.0.2.1"].(map[string]any)
+	require.True(t, ok)
+
+	declared := declaredColumnNames(t, "show bgp peer list")
+	for key := range row {
+		assert.True(t, declared[key], "peer row key %q is not declared", key)
+	}
+	for name := range declared {
+		_, inRow := row[name]
+		assert.True(t, inRow, "declared column %q is in no row the handler builds", name)
+	}
+}
+
+// TestBgpSummaryPayloadIsFlat verifies the summary answer carries its
+// aggregates and its peer rows as siblings at the top level.
+//
+// VALIDATES: AC-1 — no "summary" envelope; router-id, local-as, uptime,
+// peers-configured, peers-established and peers are top-level keys.
+// PREVENTS: reintroducing an envelope that a pipe operator would have to
+// descend into, which no other handler in the tree requires.
+func TestBgpSummaryPayloadIsFlat(t *testing.T) {
+	reactor := &mockReactor{
+		peers: []plugin.PeerInfo{
+			{
+				Address: netip.MustParseAddr("192.0.2.1"),
+				PeerAS:  65001,
+				State:   plugin.PeerStateEstablished,
+			},
+		},
+		stats: plugin.ReactorStats{
+			PeerCount: 1,
+			Uptime:    10 * time.Minute,
+			RouterID:  0x0a000001, // 10.0.0.1
+			LocalAS:   65000,
+		},
+	}
+
+	resp, err := handleBgpSummary(newTestContext(reactor), nil)
+	require.NoError(t, err)
+	require.Equal(t, plugin.StatusDone, resp.Status)
+
+	data, ok := resp.Data.(plugin.Map)
+	require.True(t, ok)
+
+	_, wrapped := data["summary"]
+	assert.False(t, wrapped, "the summary envelope must be gone, not kept beside the flat form")
+
+	assert.Equal(t, "10.0.0.1", data["router-id"])
+	assert.Equal(t, uint32(65000), data["local-as"])
+	assert.Equal(t, "10m0s", data["uptime"])
+	assert.Equal(t, 1, data["peers-configured"])
+	assert.Equal(t, 1, data["peers-established"])
+
+	peers, ok := data["peers"].([]map[string]any)
+	require.True(t, ok, "the peer rows are a sibling of the aggregates")
+	require.Len(t, peers, 1)
+	assert.Equal(t, "192.0.2.1", peers[0]["address"])
+
+	// An unfiltered summary states no family, so those two keys stay absent.
+	assert.NotContains(t, data, "family")
+	assert.NotContains(t, data, "peers-in-family")
+}
+
+// TestBgpSummaryFamilyKeysAreSiblings verifies the two family keys keep their
+// conditional behavior after the flatten. They are present only when the
+// command carried a family filter. They then sit at the top level, beside the
+// other aggregates.
+//
+// VALIDATES: AC-2.
+// PREVENTS: family and peers-in-family becoming unreachable, or appearing on an
+// unfiltered summary.
+func TestBgpSummaryFamilyKeysAreSiblings(t *testing.T) {
+	reactor := &mockReactor{
+		peers: []plugin.PeerInfo{
+			{
+				Address:            netip.MustParseAddr("192.0.2.1"),
+				PeerAS:             65001,
+				State:              plugin.PeerStateEstablished,
+				NegotiatedFamilies: []family.Family{family.IPv4Unicast},
+			},
+			{
+				Address:            netip.MustParseAddr("192.0.2.2"),
+				PeerAS:             65002,
+				State:              plugin.PeerStateEstablished,
+				NegotiatedFamilies: []family.Family{family.IPv6Unicast},
+			},
+		},
+		stats: plugin.ReactorStats{PeerCount: 2, RouterID: 0x0a000001, LocalAS: 65000},
+	}
+
+	resp, err := handleBgpSummary(newTestContext(reactor), []string{"ipv4"})
+	require.NoError(t, err)
+	require.Equal(t, plugin.StatusDone, resp.Status)
+
+	data, ok := resp.Data.(plugin.Map)
+	require.True(t, ok)
+
+	_, wrapped := data["summary"]
+	assert.False(t, wrapped, "the summary envelope must be gone")
+
+	assert.Equal(t, "ipv4/unicast", data["family"])
+	assert.Equal(t, 1, data["peers-in-family"])
+	assert.Equal(t, 2, data["peers-configured"], "peers-configured counts every peer, filter or not")
 }

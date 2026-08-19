@@ -60,7 +60,7 @@ def main():
         result = dispatch(api, 'show bgp summary')
         if result.get('status') != 'done':
             runtime_fail(f'show bgp summary status={result.get("status")} data={result.get("data")}')
-        summary = result_json_data(result, {}).get('summary', {})
+        summary = result_json_data(result, {})
         if 'peers-configured' not in summary:
             runtime_fail(f'show bgp summary has no peers-configured: {summary}')
         if not any(p.get('address') == '127.0.0.1' for p in summary.get('peers', [])):

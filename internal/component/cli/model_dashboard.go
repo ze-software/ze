@@ -67,28 +67,26 @@ type dashboardSnapshot struct {
 }
 
 // parseDashboardSnapshot parses the JSON output of "show bgp summary" via commandExecutor.
-// The format is: {"summary": {"router-id": ..., "peers": [...]}}.
+// The format is: {"router-id": ..., "peers": [...]}, aggregates and rows as siblings.
 func parseDashboardSnapshot(data string) (*dashboardSnapshot, error) {
 	var raw struct {
-		Summary struct {
-			RouterID         string `json:"router-id"`
-			LocalAS          uint32 `json:"local-as"`
-			Uptime           string `json:"uptime"`
-			PeersConfigured  int    `json:"peers-configured"`
-			PeersEstablished int    `json:"peers-established"`
-			Peers            []struct {
-				Address            string `json:"address"`
-				RemoteAS           uint32 `json:"remote-as"`
-				State              string `json:"state"`
-				Uptime             string `json:"uptime"`
-				UpdatesReceived    uint32 `json:"updates-received"`
-				UpdatesSent        uint32 `json:"updates-sent"`
-				KeepalivesReceived uint32 `json:"keepalives-received"`
-				KeepalivesSent     uint32 `json:"keepalives-sent"`
-				EORReceived        uint32 `json:"eor-received"`
-				EORSent            uint32 `json:"eor-sent"`
-			} `json:"peers"`
-		} `json:"summary"`
+		RouterID         string `json:"router-id"`
+		LocalAS          uint32 `json:"local-as"`
+		Uptime           string `json:"uptime"`
+		PeersConfigured  int    `json:"peers-configured"`
+		PeersEstablished int    `json:"peers-established"`
+		Peers            []struct {
+			Address            string `json:"address"`
+			RemoteAS           uint32 `json:"remote-as"`
+			State              string `json:"state"`
+			Uptime             string `json:"uptime"`
+			UpdatesReceived    uint32 `json:"updates-received"`
+			UpdatesSent        uint32 `json:"updates-sent"`
+			KeepalivesReceived uint32 `json:"keepalives-received"`
+			KeepalivesSent     uint32 `json:"keepalives-sent"`
+			EORReceived        uint32 `json:"eor-received"`
+			EORSent            uint32 `json:"eor-sent"`
+		} `json:"peers"`
 	}
 
 	if err := json.Unmarshal([]byte(data), &raw); err != nil {
@@ -96,14 +94,14 @@ func parseDashboardSnapshot(data string) (*dashboardSnapshot, error) {
 	}
 
 	snap := &dashboardSnapshot{
-		RouterID:         raw.Summary.RouterID,
-		LocalAS:          raw.Summary.LocalAS,
-		Uptime:           raw.Summary.Uptime,
-		PeersConfigured:  raw.Summary.PeersConfigured,
-		PeersEstablished: raw.Summary.PeersEstablished,
-		Peers:            make([]dashboardPeer, len(raw.Summary.Peers)),
+		RouterID:         raw.RouterID,
+		LocalAS:          raw.LocalAS,
+		Uptime:           raw.Uptime,
+		PeersConfigured:  raw.PeersConfigured,
+		PeersEstablished: raw.PeersEstablished,
+		Peers:            make([]dashboardPeer, len(raw.Peers)),
 	}
-	for i, p := range raw.Summary.Peers {
+	for i, p := range raw.Peers {
 		snap.Peers[i] = dashboardPeer{
 			Address:            p.Address,
 			RemoteAS:           p.RemoteAS,

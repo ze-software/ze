@@ -215,7 +215,7 @@ def main():
         if r.get('status') != 'done':
             return False
         try:
-            summary = result_json_data(r, {}).get('summary', {})
+            summary = result_json_data(r, {})
         except json.JSONDecodeError:
             return False
         for p in summary.get('peers', []):

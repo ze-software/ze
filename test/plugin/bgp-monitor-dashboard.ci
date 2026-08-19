@@ -36,19 +36,18 @@ def main():
         if isinstance(data, str):
             data = json.loads(data)
 
-        summary = data.get('summary', {})
-        if 'router-id' not in summary:
+        if 'router-id' not in data:
             runtime_fail(f'show bgp summary: missing router-id: {json.dumps(data)}')
-        if 'peers' not in summary:
+        if 'peers' not in data:
             runtime_fail(f'show bgp summary: missing peers: {json.dumps(data)}')
-        if 'local-as' not in summary:
+        if 'local-as' not in data:
             runtime_fail(f'show bgp summary: missing local-as: {json.dumps(data)}')
 
-        peers = summary.get('peers', [])
+        peers = data.get('peers', [])
         if not isinstance(peers, list):
             runtime_fail(f'show bgp summary: peers is not a list: {type(peers).__name__}')
 
-        print(f'OK: summary has router-id={summary["router-id"]} local-as={summary["local-as"]} peers={len(peers)}', file=sys.stderr)
+        print(f'OK: summary has router-id={data["router-id"]} local-as={data["local-as"]} peers={len(peers)}', file=sys.stderr)
     finally:
         dispatch(api, 'request shutdown')
         api.wait_for_shutdown()

@@ -11,39 +11,37 @@ import (
 // PREVENTS: malformed JSON silently accepted or fields dropped.
 func TestDashboardParseSnapshot(t *testing.T) {
 	input := `{
-  "summary": {
-    "router-id": "1.2.3.4",
-    "local-as": 65000,
-    "uptime": "1h30m0s",
-    "peers-configured": 2,
-    "peers-established": 1,
-    "peers": [
-      {
-        "address": "10.0.0.1",
-        "remote-as": 65001,
-        "state": "established",
-        "uptime": "1h0m0s",
-        "updates-received": 100,
-        "updates-sent": 50,
-        "keepalives-received": 200,
-        "keepalives-sent": 200,
-        "eor-received": 1,
-        "eor-sent": 1
-      },
-      {
-        "address": "10.0.0.2",
-        "remote-as": 65002,
-        "state": "active",
-        "uptime": "0s",
-        "updates-received": 0,
-        "updates-sent": 0,
-        "keepalives-received": 0,
-        "keepalives-sent": 0,
-        "eor-received": 0,
-        "eor-sent": 0
-      }
-    ]
-  }
+  "router-id": "1.2.3.4",
+  "local-as": 65000,
+  "uptime": "1h30m0s",
+  "peers-configured": 2,
+  "peers-established": 1,
+  "peers": [
+    {
+      "address": "10.0.0.1",
+      "remote-as": 65001,
+      "state": "established",
+      "uptime": "1h0m0s",
+      "updates-received": 100,
+      "updates-sent": 50,
+      "keepalives-received": 200,
+      "keepalives-sent": 200,
+      "eor-received": 1,
+      "eor-sent": 1
+    },
+    {
+      "address": "10.0.0.2",
+      "remote-as": 65002,
+      "state": "active",
+      "uptime": "0s",
+      "updates-received": 0,
+      "updates-sent": 0,
+      "keepalives-received": 0,
+      "keepalives-sent": 0,
+      "eor-received": 0,
+      "eor-sent": 0
+    }
+  ]
 }`
 	snap, err := parseDashboardSnapshot(input)
 	if err != nil {
@@ -529,7 +527,7 @@ func TestDashboardDetailAutoRefresh(t *testing.T) {
 	}}
 
 	// Simulate poll with updated data while in detail view.
-	newData := `{"summary":{"router-id":"1.2.3.4","local-as":65000,"uptime":"1h","peers-configured":1,"peers-established":1,"peers":[{"address":"10.0.0.1","remote-as":65001,"state":"established","uptime":"1h","updates-received":200,"updates-sent":0,"keepalives-received":0,"keepalives-sent":0,"eor-received":0,"eor-sent":0}]}}`
+	newData := `{"router-id":"1.2.3.4","local-as":65000,"uptime":"1h","peers-configured":1,"peers-established":1,"peers":[{"address":"10.0.0.1","remote-as":65001,"state":"established","uptime":"1h","updates-received":200,"updates-sent":0,"keepalives-received":0,"keepalives-sent":0,"eor-received":0,"eor-sent":0}]}`
 	result, _ := m.handleDashboardData(dashboardDataMsg{data: newData})
 	m, _ = result.(Model) //nolint:errcheck // test assertion follows
 
@@ -559,7 +557,7 @@ func TestDashboardDetailPeerDisappears(t *testing.T) {
 	}}
 
 	// Poll returns data without the peer we're viewing.
-	newData := `{"summary":{"router-id":"1.2.3.4","local-as":65000,"uptime":"1h","peers-configured":1,"peers-established":1,"peers":[{"address":"10.0.0.2","remote-as":65002,"state":"established","uptime":"1h","updates-received":0,"updates-sent":0,"keepalives-received":0,"keepalives-sent":0,"eor-received":0,"eor-sent":0}]}}`
+	newData := `{"router-id":"1.2.3.4","local-as":65000,"uptime":"1h","peers-configured":1,"peers-established":1,"peers":[{"address":"10.0.0.2","remote-as":65002,"state":"established","uptime":"1h","updates-received":0,"updates-sent":0,"keepalives-received":0,"keepalives-sent":0,"eor-received":0,"eor-sent":0}]}`
 	result, _ := m.handleDashboardData(dashboardDataMsg{data: newData})
 	m, _ = result.(Model) //nolint:errcheck // test assertion follows
 
@@ -569,5 +567,60 @@ func TestDashboardDetailPeerDisappears(t *testing.T) {
 	}
 	if m.statusMessage != "peer disconnected" {
 		t.Errorf("status: got %q, want %q", m.statusMessage, "peer disconnected")
+	}
+}
+
+// TestDashboardParsesFlatPayload verifies the CLI dashboard reads the payload
+// handleBgpSummary answers, where the aggregates and the peer rows are
+// siblings at the top level.
+//
+// VALIDATES: AC-4 -- every header field and every peer row still arrives.
+// PREVENTS: the dashboard rendering an empty header and no peers. A key the
+// parser looks for in the wrong place unmarshals to a zero value, so the
+// failure is a blank screen rather than an error.
+func TestDashboardParsesFlatPayload(t *testing.T) {
+	input := `{"router-id":"1.2.3.4","local-as":65000,"uptime":"1h30m0s",` +
+		`"peers-configured":2,"peers-established":1,"peers":[` +
+		`{"address":"10.0.0.1","remote-as":65001,"state":"established","uptime":"1h0m0s",` +
+		`"updates-received":100,"updates-sent":50,"keepalives-received":200,` +
+		`"keepalives-sent":200,"eor-received":1,"eor-sent":1}]}`
+
+	snap, err := parseDashboardSnapshot(input)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if snap.RouterID != "1.2.3.4" {
+		t.Errorf("router-id: got %q, want %q", snap.RouterID, "1.2.3.4")
+	}
+	if snap.LocalAS != 65000 {
+		t.Errorf("local-as: got %d, want 65000", snap.LocalAS)
+	}
+	if snap.Uptime != "1h30m0s" {
+		t.Errorf("uptime: got %q, want %q", snap.Uptime, "1h30m0s")
+	}
+	if snap.PeersConfigured != 2 {
+		t.Errorf("peers-configured: got %d, want 2", snap.PeersConfigured)
+	}
+	if snap.PeersEstablished != 1 {
+		t.Errorf("peers-established: got %d, want 1", snap.PeersEstablished)
+	}
+	if len(snap.Peers) != 1 {
+		t.Fatalf("peers: got %d rows, want 1", len(snap.Peers))
+	}
+	if snap.Peers[0].Address != "10.0.0.1" {
+		t.Errorf("peer address: got %q, want %q", snap.Peers[0].Address, "10.0.0.1")
+	}
+	if snap.Peers[0].UpdatesReceived != 100 {
+		t.Errorf("updates-received: got %d, want 100", snap.Peers[0].UpdatesReceived)
+	}
+
+	// The envelope is gone, so a payload still carrying it reads as empty.
+	// This is what a missed consumer would have looked like in production.
+	stale, err := parseDashboardSnapshot(`{"summary":` + input + `}`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if stale.RouterID != "" || len(stale.Peers) != 0 {
+		t.Errorf("an enveloped payload parsed as %+v, want an empty snapshot", stale)
 	}
 }

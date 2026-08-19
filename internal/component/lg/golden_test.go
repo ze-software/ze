@@ -249,7 +249,7 @@ func lgPeerRoutesVariants(render func(peerRoutesView) templ.Component) []golden.
 			Peer: &peerInfoRow{
 				State: "idle", RemoteAS: "64501",
 			},
-			PrefixSummary: []prefixSummaryRow{
+			Histogram: []histogramRow{
 				{Family: "ipv4 unicast", Length: "24", Count: "1200"},
 				{Family: "ipv6 unicast", Length: "48", Count: "30"},
 			},

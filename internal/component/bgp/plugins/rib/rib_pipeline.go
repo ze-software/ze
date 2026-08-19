@@ -51,7 +51,7 @@ type RouteItem struct {
 // PipelineMeta holds pipeline result metadata.
 type PipelineMeta struct {
 	Count int
-	JSON  string // set by json, prefix-summary, and graph terminals
+	JSON  string // set by json, histogram, and graph terminals
 }
 
 // pipelineIterator is the pull-based iterator interface for pipeline stages.
@@ -841,33 +841,33 @@ func (ct *countTerminal) Meta() PipelineMeta {
 	return ct.meta
 }
 
-// prefixSummaryTerminal drains the upstream and counts routes by family and prefix length.
-type prefixSummaryTerminal struct {
+// histogramTerminal drains the upstream and counts routes by family and prefix length.
+type histogramTerminal struct {
 	upstream pipelineIterator
 	meta     PipelineMeta
 	drained  bool
 }
 
-func newPrefixSummaryTerminal(upstream pipelineIterator) *prefixSummaryTerminal {
-	return &prefixSummaryTerminal{upstream: upstream}
+func newHistogramTerminal(upstream pipelineIterator) *histogramTerminal {
+	return &histogramTerminal{upstream: upstream}
 }
 
-func (ps *prefixSummaryTerminal) Next() (RouteItem, bool) {
-	if !ps.drained {
-		ps.drain()
+func (h *histogramTerminal) Next() (RouteItem, bool) {
+	if !h.drained {
+		h.drain()
 	}
 	return RouteItem{}, false
 }
 
-func (ps *prefixSummaryTerminal) drain() {
-	ps.drained = true
+func (h *histogramTerminal) drain() {
+	h.drained = true
 
 	// family -> prefix-length -> count
-	summary := make(map[string]map[string]int)
+	histogram := make(map[string]map[string]int)
 	count := 0
 
 	for {
-		item, ok := ps.upstream.Next()
+		item, ok := h.upstream.Next()
 		if !ok {
 			break
 		}
@@ -879,24 +879,24 @@ func (ps *prefixSummaryTerminal) drain() {
 			fam = "unknown"
 		}
 
-		byLen, exists := summary[fam]
+		byLen, exists := histogram[fam]
 		if !exists {
 			byLen = make(map[string]int)
-			summary[fam] = byLen
+			histogram[fam] = byLen
 		}
 		byLen[prefixLen]++
 	}
 
-	ps.meta.Count = count
-	data, _ := json.Marshal(map[string]any{"prefix-summary": summary, "count": count})
-	ps.meta.JSON = string(data)
+	h.meta.Count = count
+	data, _ := json.Marshal(map[string]any{"histogram": histogram, "count": count})
+	h.meta.JSON = string(data)
 }
 
-func (ps *prefixSummaryTerminal) Meta() PipelineMeta {
-	if !ps.drained {
-		ps.drain()
+func (h *histogramTerminal) Meta() PipelineMeta {
+	if !h.drained {
+		h.drain()
 	}
-	return ps.meta
+	return h.meta
 }
 
 // extractPrefixLength returns the "/N" suffix from a prefix string like "10.0.0.0/24".
@@ -1113,8 +1113,8 @@ func (s pipelineStage) apply(upstream pipelineIterator) pipelineIterator {
 		return newCountTerminal(upstream)
 	case "json":
 		return newJSONTerminal(upstream)
-	case "prefix-summary":
-		return newPrefixSummaryTerminal(upstream)
+	case "histogram":
+		return newHistogramTerminal(upstream)
 	case "graph":
 		return newGraphTerminal(upstream)
 	}
@@ -1137,10 +1137,10 @@ var filterKeywords = map[string]bool{
 
 // terminalKeywords are pipeline terminal keywords that take no value.
 var terminalKeywords = map[string]bool{
-	"count":          true,
-	"json":           true,
-	"prefix-summary": true,
-	"graph":          true,
+	"count":     true,
+	"json":      true,
+	"histogram": true,
+	"graph":     true,
 }
 
 // scopeKeywords are positional scope keywords (must appear first).

@@ -67,8 +67,8 @@ func TestDispatchShowSummary(t *testing.T) {
 
 	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
-	_, ok = data["summary"]
-	assert.True(t, ok)
+	_, ok = data["peers-configured"]
+	assert.True(t, ok, "the summary record is flat, so its aggregates are top-level keys")
 }
 
 // TestDispatchShowBGPPeerList verifies the show-convention peer list command.

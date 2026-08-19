@@ -82,7 +82,7 @@ func TestEngineUnavailableReachesTheBrowser(t *testing.T) {
 		t.Parallel()
 
 		srv := testServerWithDispatch(func(context.Context, plugin.CallerIdentity, string) (*plugin.Response, error) {
-			return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(`{"summary":{"peers":[{"address":"192.0.2.1","state":"established"}]}}`)), nil
+			return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(`{"peers":[{"address":"192.0.2.1","state":"established"}]}`)), nil
 		})
 
 		body, err := srv.peerStreamBody()
@@ -156,22 +156,20 @@ func TestExtractPeers(t *testing.T) {
 		}
 	})
 
-	t.Run("summary envelope", func(t *testing.T) {
-		// Real summary handler returns {"summary": {"peers": [...]}}.
+	t.Run("real summary record", func(t *testing.T) {
+		// Real summary handler answers the aggregates and the rows as siblings.
 		ze := map[string]any{
-			"summary": map[string]any{
-				"router-id":         "10.0.0.1",
-				"local-as":          float64(65000),
-				"peers-configured":  float64(1),
-				"peers-established": float64(1),
-				"peers": []any{
-					map[string]any{
-						"address":   "10.0.0.2",
-						"remote-as": float64(65001),
-						"state":     "established",
-						"uptime":    "1h0m0s",
-						"name":      "peer1",
-					},
+			"router-id":         "10.0.0.1",
+			"local-as":          float64(65000),
+			"peers-configured":  float64(1),
+			"peers-established": float64(1),
+			"peers": []any{
+				map[string]any{
+					"address":   "10.0.0.2",
+					"remote-as": float64(65001),
+					"state":     "established",
+					"uptime":    "1h0m0s",
+					"name":      "peer1",
 				},
 			},
 		}
@@ -344,12 +342,10 @@ func TestFindPeer(t *testing.T) {
 		}
 	})
 
-	t.Run("summary envelope with address field", func(t *testing.T) {
+	t.Run("real summary record with address field", func(t *testing.T) {
 		ze := map[string]any{
-			"summary": map[string]any{
-				"peers": []any{
-					map[string]any{"address": "10.0.0.3", "name": "peer3"},
-				},
+			"peers": []any{
+				map[string]any{"address": "10.0.0.3", "name": "peer3"},
 			},
 		}
 		got := findPeer(ze, "10.0.0.3")

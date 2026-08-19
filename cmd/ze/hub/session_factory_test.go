@@ -102,7 +102,7 @@ func TestDashboardFactoryUsesPublicSummaryCommand(t *testing.T) {
 	var command string
 	factory := dashboardFactoryFromExecutor(func(input string) (*plugin.RenderedResponse, error) {
 		command = input
-		return &plugin.RenderedResponse{Output: `{"summary":{"peers-configured":3}}`}, nil
+		return &plugin.RenderedResponse{Output: `{"peers-configured":3}`}, nil
 	})
 
 	poller, err := factory()
@@ -111,5 +111,5 @@ func TestDashboardFactoryUsesPublicSummaryCommand(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, "show bgp summary", command)
-	assert.JSONEq(t, `{"summary":{"peers-configured":3}}`, output)
+	assert.JSONEq(t, `{"peers-configured":3}`, output)
 }

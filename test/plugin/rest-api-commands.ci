@@ -122,7 +122,7 @@ def main():
         payload = result.get('data')
         if isinstance(payload, str):
             payload = json.loads(payload)
-        summary = (payload or {}).get('summary', {})
+        summary = (payload or {})
         if 'peers-configured' not in summary:
             runtime_fail(f'execute returned no peers-configured: {payload}')
         if not any(p.get('address') == '127.0.0.1' for p in summary.get('peers', [])):

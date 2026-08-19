@@ -30,13 +30,13 @@ templ peerRoutesContent(v peerRoutesView) {
 			<a href={ "/lg/peer/" + v.Address + "/download" } class="btn-download" title="Download all routes as compressed CSV">Download CSV</a>
 		</div>
 	}
-	if len(v.PrefixSummary) > 0 {
+	if len(v.Histogram) > 0 {
 		<table class="route-table">
 			<thead>
 				<tr><th>Family</th><th>Prefix Length</th><th>Count</th></tr>
 			</thead>
 			<tbody>
-				for _, s := range v.PrefixSummary {
+				for _, s := range v.Histogram {
 					<tr>
 						<td>{ s.Family }</td>
 						<td>/{ s.Length }</td>
@@ -80,7 +80,7 @@ templ peerRoutesContent(v peerRoutesView) {
 				}
 			</tbody>
 		</table>
-	} else if v.Error == "" && len(v.PrefixSummary) == 0 {
+	} else if v.Error == "" && len(v.Histogram) == 0 {
 		<p class="empty-state">No routes available for this peer.</p>
 	}
 }

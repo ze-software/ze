@@ -305,18 +305,18 @@ func TestBGPSummaryWithLiveData(t *testing.T) {
 	assert.Equal(t, flagClassGreen, peerARow.FlagClass)
 }
 
-// PREVENTS: fetchBGPSummaryPeers silently returning empty map when JSON envelope
-// path does not match the actual "show bgp summary" output shape.
+// PREVENTS: fetchBGPSummaryPeers silently returning empty map when the path it
+// reads does not match the actual "show bgp summary" output shape.
 func TestFetchBGPSummaryPeersJSON(t *testing.T) {
 	// Matches the actual JSON shape from handleBgpSummary:
-	// resp.Data = {"summary": {"peers": [...]}}
-	// The dispatcher marshals resp.Data, so the output is this envelope.
-	jsonOutput := `{"summary":{"router-id":"10.0.0.1","local-as":65000,"peers":[` +
+	// resp.Data = {"router-id": ..., "peers": [...]}, aggregates and rows as
+	// siblings. The dispatcher marshals resp.Data, so the output is this record.
+	jsonOutput := `{"router-id":"10.0.0.1","local-as":65000,"peers":[` +
 		`{"name":"peer-a","state":"Established","uptime":"1h30m",` +
 		`"updates-received":40,"updates-sent":8,"keepalives-received":2,"keepalives-sent":2},` +
 		`{"name":"peer-b","state":"Idle","uptime":"0s",` +
 		`"updates-received":0,"updates-sent":0,"keepalives-received":0,"keepalives-sent":0}` +
-		`]}}`
+		`]}`
 	dispatch := func(_ context.Context, _ plugin.CallerIdentity, _ string) (*plugin.Response, error) {
 		return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(jsonOutput)), nil
 	}

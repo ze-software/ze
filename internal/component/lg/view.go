@@ -68,9 +68,9 @@ type routeRow struct {
 	ExtendedCommunities []string
 }
 
-// prefixSummaryRow is one line of the prefix-length summary a large peer gets
+// histogramRow is one line of the prefix-length histogram a large peer gets
 // instead of its route list.
-type prefixSummaryRow struct {
+type histogramRow struct {
 	Family string
 	Length string
 	Count  string
@@ -123,10 +123,10 @@ type peerRoutesView struct {
 	Address string
 	// Peer is nil when the peer is gone. handleUIPeerRoutes answers 404 in that
 	// case, so only the template capture reaches the nil branch today.
-	Peer          *peerInfoRow
-	PrefixSummary []prefixSummaryRow
-	Routes        []routeRow
-	Error         string
+	Peer      *peerInfoRow
+	Histogram []histogramRow
+	Routes    []routeRow
+	Error     string
 }
 
 // routeDetailView is the expanded attribute panel for one route.

@@ -42,12 +42,11 @@ def main():
         data = result.get('data', {})
         if isinstance(data, str):
             data = json.loads(data)
-        summary = data.get('summary', {})
-        if 'peers-configured' not in summary:
+        if 'peers-configured' not in data:
             print(f'FAIL: no peers-configured in summary', file=sys.stderr)
             sys.exit(1)
 
-        print(f'OK: summary via CLI dispatch has {summary["peers-configured"]} peer(s)', file=sys.stderr)
+        print(f'OK: summary via CLI dispatch has {data["peers-configured"]} peer(s)', file=sys.stderr)
     finally:
         dispatch(api, 'request shutdown')
         api.wait_for_shutdown()

@@ -214,12 +214,12 @@ func peerRoutesContent(v peerRoutesView) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		if len(v.PrefixSummary) > 0 {
+		if len(v.Histogram) > 0 {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<table class=\"route-table\"><thead><tr><th>Family</th><th>Prefix Length</th><th>Count</th></tr></thead> <tbody>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			for _, s := range v.PrefixSummary {
+			for _, s := range v.Histogram {
 				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<tr><td>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -395,7 +395,7 @@ func peerRoutesContent(v peerRoutesView) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-		} else if v.Error == "" && len(v.PrefixSummary) == 0 {
+		} else if v.Error == "" && len(v.Histogram) == 0 {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "<p class=\"empty-state\">No routes available for this peer.</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err

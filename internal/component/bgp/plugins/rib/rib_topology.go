@@ -11,7 +11,7 @@ import (
 
 // graphTerminal drains the upstream pipeline, extracts AS paths from RouteItems,
 // builds an AS topology graph, and renders it as Unicode box-drawing text.
-// The rendered text is stored in PipelineMeta.JSON (following the prefix-summary precedent).
+// The rendered text is stored in PipelineMeta.JSON (following the histogram precedent).
 type graphTerminal struct {
 	upstream pipelineIterator
 	meta     PipelineMeta

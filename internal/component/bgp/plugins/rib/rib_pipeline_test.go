@@ -1379,10 +1379,10 @@ func TestShowPipesUnchanged(t *testing.T) {
 			},
 		},
 		{
-			name: "prefix-summary",
-			args: []string{"received", "prefix-summary"},
+			name: "histogram",
+			args: []string{"received", "histogram"},
 			checkJSON: func(t *testing.T, parsed map[string]any) {
-				assert.Contains(t, parsed, "prefix-summary")
+				assert.Contains(t, parsed, "histogram")
 				assert.Contains(t, parsed, "count")
 			},
 		},

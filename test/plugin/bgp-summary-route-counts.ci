@@ -49,7 +49,7 @@ def main():
         # closes the teardown race: without it, `request shutdown` can close the
         # session before ze writes the EOR the ze-peer expects, and the peer's
         # exchange assertion fails under load. Both are read from one poll.
-        p = find_peer(result_json_data(r, {}).get('summary', {}), '127.0.0.1')
+        p = find_peer(result_json_data(r, {}), '127.0.0.1')
         if p is None:
             return False
         return p.get('routes-received', 0) >= 1 and p.get('eor-sent', 0) >= 1
@@ -64,7 +64,7 @@ def main():
         if result.get('status') != 'done':
             print(f'FAIL: summary status={result.get("status")}', file=sys.stderr)
             sys.exit(1)
-        summary = result_json_data(result, {}).get('summary', {})
+        summary = result_json_data(result, {})
 
         peer = find_peer(summary, '127.0.0.1')
         if peer is None:
@@ -104,12 +104,12 @@ def main():
         # blind sleep. Wait for the all-family count to include both families.
         api.dispatch_until(
             'show bgp summary',
-            lambda r: (find_peer(result_json_data(r, {}).get('summary', {}), '127.0.0.1') or {})
+            lambda r: (find_peer(result_json_data(r, {}), '127.0.0.1') or {})
                 .get('routes-received', 0) >= 2,
         )
 
         # All-family: 1 IPv4 (wire) + 1 IPv6 (inject) = 2.
-        both = find_peer(result_json_data(dispatch(api, 'show bgp summary'), {}).get('summary', {}), '127.0.0.1')
+        both = find_peer(result_json_data(dispatch(api, 'show bgp summary'), {}), '127.0.0.1')
         if both is None:
             print('FAIL: 127.0.0.1 absent from all-family summary', file=sys.stderr)
             sys.exit(1)
@@ -118,7 +118,7 @@ def main():
             sys.exit(1)
 
         # IPv4-filtered: only the IPv4 route -> 1, NOT the all-family 2.
-        v4 = find_peer(result_json_data(dispatch(api, 'show bgp summary ipv4/unicast'), {}).get('summary', {}), '127.0.0.1')
+        v4 = find_peer(result_json_data(dispatch(api, 'show bgp summary ipv4/unicast'), {}), '127.0.0.1')
         if v4 is None:
             print('FAIL: 127.0.0.1 absent from ipv4/unicast summary', file=sys.stderr)
             sys.exit(1)

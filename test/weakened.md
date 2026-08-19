@@ -89,5 +89,12 @@ that row is where you say which of the two happened.
 
 | Test | Reason |
 |------|--------|
-| fakeIRR | An EXTRACTION, and no assertion left the suite. `fakeIRR` and `fakeIRRReply` each open a TCP whois listener and each carried the same `t.Helper()`-guarded listen error check. Both now delegate to one new `whoisServer(t, handle)` in the same file, which owns the listener and carries that check once; each caller keeps only its own reply logic. The single assertion the checker counts as removed moved verbatim into `whoisServer`. `check_weakened_tests.py` counts assertions textually inside one function and cannot follow a `t.Helper()` extraction, so this reads to it as a deletion. |
-| fakeIRRReply | The other half of the same extraction, same helper, same net result: its listen error check moved into `whoisServer` and nothing else changed. |
+| TestBgpSummaryFormat | The assertion that left was the envelope unwrap, `summary, ok := data["summary"].(map[string]any)` with its `require.True(t, ok)`. `handleBgpSummary` no longer builds that envelope, so the check tested a structure the handler cannot produce. Every field it guarded is still asserted, now read from the top level. The suite gained coverage in the same edit: `TestBgpSummaryPayloadIsFlat` asserts the envelope is ABSENT, which nothing did before. |
+| TestBgpSummaryNoPeers | The same envelope unwrap, in the no-peers case. The empty-peer-list assertion it guarded is unchanged and now reads `data["peers"]` directly. |
+| TestBgpSummary_FilterByFamily | Same envelope unwrap. `summary, ok := data["summary"].(map[string]any)` became `summary := map[string]any(data)`, a conversion that cannot fail, so the `require.True(t, ok)` beside it has nothing left to test. Every family assertion is unchanged. |
+| TestBgpSummary_FamilyShorthand | Same envelope unwrap, same conversion. The shorthand-expansion assertions are unchanged. |
+| TestBgpSummaryUptimeTruncatedToSecond | Same envelope unwrap, same conversion. The truncation assertion is unchanged. |
+| TestBgpSummaryEmitsStateChangedAndLastError | Same envelope unwrap, same conversion. Both field assertions are unchanged. |
+| TestBgpSummaryStateChangedAndLastErrorEmpty | Same envelope unwrap, same conversion. Both empty-field assertions are unchanged. |
+| TestBgpSummaryWithoutRibOmitsRouteCounts | Same envelope unwrap, same conversion. The three omitted-key assertions are unchanged. |
+| TestBgpSummaryHandler | Same envelope unwrap in `peer_ops_test.go`, where it carried the message "expected summary key". That key is what this commit removes, so the assertion asserts the old shape. Everything it guarded is unchanged. |

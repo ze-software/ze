@@ -62,7 +62,7 @@ func registerPipeFilters() {
 		command.PipeFilter{Name: "count", Description: "Count matching routes without serializing rows"},
 		command.PipeFilter{Name: "first", Description: "Take first N routes", TakesArg: true},
 		command.PipeFilter{Name: "last", Description: "Take last N routes", TakesArg: true},
-		command.PipeFilter{Name: "prefix-summary", Description: "Summarize by family and prefix length"},
+		command.PipeFilter{Name: "histogram", Description: "Count routes by family and prefix length"},
 		command.PipeFilter{Name: "graph", Description: "Render AS-path topology graph"},
 	)
 	command.RegisterPipeFilters([]string{cmdRibBest},
@@ -75,14 +75,14 @@ func registerPipeFilters() {
 		command.PipeFilter{Name: "count", Description: "Count matching best paths without serializing rows"},
 		command.PipeFilter{Name: "first", Description: "Take first N best paths", TakesArg: true},
 		command.PipeFilter{Name: "last", Description: "Take last N best paths", TakesArg: true},
-		command.PipeFilter{Name: "prefix-summary", Description: "Summarize by family and prefix length"},
+		command.PipeFilter{Name: "histogram", Description: "Count routes by family and prefix length"},
 		command.PipeFilter{Name: "graph", Description: "Render AS-path topology graph"},
 		command.PipeFilter{Name: "reason", Description: "Explain best-path selection"},
 	)
 	// Scalar-result commands: an EMPTY filter set, not an absent one. Filter
 	// lookup is longest-prefix (command.commandMatchesPrefix), so without this
 	// they would inherit cmdRibShow's route filters via the "show bgp rib"
-	// prefix and offer `| peer`, `| prefix-summary`, `| graph` on output that
+	// prefix and offer `| peer`, `| histogram`, `| graph` on output that
 	// has no routes to filter. Registering empty overrides that inheritance.
 	command.RegisterPipeFilters([]string{cmdRibStatus, cmdRibBestStatus, cmdRibRPF})
 }

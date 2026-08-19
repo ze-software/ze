@@ -7,14 +7,14 @@ import (
 )
 
 // realSummaryJSON is the exact payload handleBgpSummary emits, as
-// LGServer.query returns it: peers nested under a "summary" envelope, the peer
-// IP under "address" (not "peer-address"), and uptime as a Go duration string
-// (not a number).
+// LGServer.query returns it: the aggregates and the peer rows as siblings at
+// the top level, the peer IP under "address" (not "peer-address"), and uptime
+// as a Go duration string (not a number).
 //
-// Producer: internal/component/bgp/plugins/cmd/peer/summary.go:112-152.
+// Producer: internal/component/bgp/plugins/cmd/peer/summary.go, handleBgpSummary.
 // Keep this in sync with that handler -- it is the contract this transform
 // consumes in production.
-const realSummaryJSON = `{"summary":{` +
+const realSummaryJSON = `{` +
 	`"router-id":"10.0.0.1","local-as":65000,"uptime":"1h2m3s",` +
 	`"peers-configured":1,"peers-established":1,"peers":[{` +
 	`"address":"192.0.2.1","name":"peer1","description":"transit",` +
@@ -23,17 +23,16 @@ const realSummaryJSON = `{"summary":{` +
 	`"uptime":"6m10s","updates-received":10,"updates-sent":5,` +
 	`"keepalives-received":100,"keepalives-sent":50,` +
 	`"routes-received":60,"routes-accepted":60,"routes-sent":50,` +
-	`"eor-received":1,"eor-sent":1,"connections-dropped":0}]}}`
+	`"eor-received":1,"eor-sent":1,"connections-dropped":0}]}`
 
 // TestTransformProtocolsRealSummaryShape feeds transformProtocols the payload
 // the engine actually produces, rather than a hand-built map.
 //
-// VALIDATES: peers are found inside the "summary" envelope; the peer is keyed
+// VALIDATES: peers are found at the top-level "peers" key; the peer is keyed
 // and addressed from "address"; uptime is a number of seconds.
 // PREVENTS: the /api/looking-glass/protocols/bgp endpoint returning an empty
-// protocols map. transformProtocols read ze["peers"], but handleBgpSummary
-// returns {"summary":{"peers":[...]}}, so every peer was dropped and Alice-LG
-// saw no sessions at all.
+// protocols map. The two sides once disagreed about where the rows live, so
+// every peer was dropped and Alice-LG saw no sessions at all.
 func TestTransformProtocolsRealSummaryShape(t *testing.T) {
 	var ze map[string]any
 	if err := json.Unmarshal([]byte(realSummaryJSON), &ze); err != nil {
@@ -166,9 +165,9 @@ func TestTransformProtocolsShortSinceFromRealSummary(t *testing.T) {
 
 // TestTransformProtocolsShortRealSummaryShape is the short-format counterpart.
 //
-// VALIDATES: the short protocols endpoint finds peers in the "summary" envelope.
+// VALIDATES: the short protocols endpoint finds peers at the top-level "peers".
 // PREVENTS: /api/looking-glass/protocols returning an empty map for the same
-// envelope reason as the full transform.
+// misplaced-rows reason as the full transform.
 func TestTransformProtocolsShortRealSummaryShape(t *testing.T) {
 	var ze map[string]any
 	if err := json.Unmarshal([]byte(realSummaryJSON), &ze); err != nil {
@@ -713,19 +712,15 @@ func TestGetNum(t *testing.T) {
 // beside it; docs/architecture/api/birdwatcher-compat.md records both.
 func TestRouteCountsAvailableFlagsFabricatedZeros(t *testing.T) {
 	withCounts := map[string]any{
-		"summary": map[string]any{
-			"peers": []any{map[string]any{
-				"address": "192.0.2.1", "name": "peer1", "state": "established",
-				"routes-received": float64(60), "routes-accepted": float64(60), "routes-sent": float64(50),
-			}},
-		},
+		"peers": []any{map[string]any{
+			"address": "192.0.2.1", "name": "peer1", "state": "established",
+			"routes-received": float64(60), "routes-accepted": float64(60), "routes-sent": float64(50),
+		}},
 	}
 	withoutCounts := map[string]any{
-		"summary": map[string]any{
-			"peers": []any{map[string]any{
-				"address": "192.0.2.2", "name": "peer2", "state": "established",
-			}},
-		},
+		"peers": []any{map[string]any{
+			"address": "192.0.2.2", "name": "peer2", "state": "established",
+		}},
 	}
 
 	got := func(ze map[string]any) map[string]any {
@@ -789,5 +784,45 @@ func TestBMPProtocolsDeclareCountsUnavailable(t *testing.T) {
 			t.Errorf("%s: routes_counts_available = %v, want false (no source is consulted)",
 				name, m["routes_counts_available"])
 		}
+	}
+}
+
+// TestSummaryPeersReadsFlatPayload verifies the looking-glass API finds the
+// peer rows in the payload handleBgpSummary now answers, where the aggregates
+// and the rows are siblings.
+//
+// VALIDATES: AC-3 — summaryPeers returns the rows from the top-level "peers"
+// key, for the real payload and for the array parseJSON promotes.
+// PREVENTS: the public peer table rendering empty. A missing key unmarshals to
+// a zero value, so a reader that looked in the wrong place would answer no
+// peers rather than an error.
+func TestSummaryPeersReadsFlatPayload(t *testing.T) {
+	var ze map[string]any
+	if err := json.Unmarshal([]byte(realSummaryJSON), &ze); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	peers := summaryPeers(ze)
+	if len(peers) != 1 {
+		t.Fatalf("summaryPeers returned %d rows, want 1", len(peers))
+	}
+	row, ok := peers[0].(map[string]any)
+	if !ok {
+		t.Fatalf("row is not an object: %T", peers[0])
+	}
+	if got, _ := row["address"].(string); got != "192.0.2.1" {
+		t.Errorf("address = %q, want %q", got, "192.0.2.1")
+	}
+
+	// parseJSON promotes a bare array to the same key, so a producer that
+	// answers only the rows reaches the same reader.
+	promoted := map[string]any{"peers": []any{map[string]any{"address": "192.0.2.9"}}}
+	if got := summaryPeers(promoted); len(got) != 1 {
+		t.Fatalf("promoted array: %d rows, want 1", len(got))
+	}
+
+	// A payload with no rows answers none, rather than panicking.
+	if got := summaryPeers(map[string]any{"router-id": "10.0.0.1"}); got != nil {
+		t.Errorf("payload without peers returned %v, want nil", got)
 	}
 }
