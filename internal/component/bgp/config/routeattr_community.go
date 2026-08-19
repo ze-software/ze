@@ -237,8 +237,9 @@ func parseOneExtCommunity(s string) ([]byte, error) {
 	}
 
 	if len(parts) == 2 {
-		// Generic format: ASN:NN or ASN:IP
-		return parseGenericExtCommunity(parts[0], parts[1])
+		// Generic format: ASN:NN, IP:NN or ASN:IP. The subtype an unqualified
+		// pair carries is route target, which is what "target:" spells out.
+		return parseRouteTargetOrOrigin(ecSubtypeRouteTarget, parts[0], parts[1])
 	}
 
 	if len(parts) == 3 {
@@ -322,86 +323,38 @@ func parseExtCommunityHex(s string) ([]byte, error) {
 	return raw, nil
 }
 
-// parseGenericExtCommunity parses ASN:Value format (type 0x00, subtype from context).
-// Supports formats: ASN:NN, IP:NN, ASN:IP (where IP is converted to uint32).
-func parseGenericExtCommunity(asnStr, valStr string) ([]byte, error) {
-	// Check if first part is an IP address (format: IP:NN)
-	if ip, err := netip.ParseAddr(asnStr); err == nil && ip.Is4() {
-		num, err := strconv.ParseUint(valStr, 10, 16)
-		if err != nil {
-			return nil, fmt.Errorf("invalid extended-community number %q", valStr)
-		}
-		b := ip.As4()
-		return []byte{
-			ecTypeTransitiveIPv4, ecSubtypeRouteTarget,
-			b[0], b[1], b[2], b[3],
-			byte(num >> 8), byte(num),
-		}, nil
-	}
-
-	// Parse ASN part (supports "L" suffix for forced 4-byte encoding)
-	asn, forced4Byte, err := parseExtCommunityASN(asnStr)
+// fourByteASExtCommunity builds the four-octet AS specific extended community
+// of RFC 5668 Section 2: a 4-octet global administrator that holds the AS
+// number, and a 2-octet local administrator that holds numStr.
+//
+// The local administrator is two octets wide, and no form in RFC 4360 or RFC
+// 5668 carries a four-byte AS beside a four-octet number, so a number above
+// 65535 is refused here rather than truncated onto the wire.
+//
+// Every route that carries a four-byte AS is written here, so the limit is
+// stated once. RFC 4360 Section 3.2 gives type 0x01 an IPv4 unicast address in
+// its global administrator, which is why an AS number never goes in that form.
+func fourByteASExtCommunity(subtype byte, asn uint64, numStr string) ([]byte, error) {
+	num, err := strconv.ParseUint(numStr, 10, 16)
 	if err != nil {
-		return nil, fmt.Errorf("invalid extended-community ASN %q", asnStr)
+		return nil, fmt.Errorf("invalid extended-community number %q (4-byte ASN format max 65535)", numStr)
 	}
-
-	// "L" suffix forces Type 2 (4-byte ASN, 2-byte number)
-	if forced4Byte {
-		num, err := strconv.ParseUint(valStr, 10, 16)
-		if err != nil {
-			return nil, fmt.Errorf("invalid extended-community number %q (4-byte ASN format max 65535)", valStr)
-		}
-		return []byte{
-			ecTypeTransitive4ByteAS, ecSubtypeRouteTarget,
-			byte(asn >> 24), byte(asn >> 16), byte(asn >> 8), byte(asn),
-			byte(num >> 8), byte(num),
-		}, nil
-	}
-
-	// Check if value is an IP address (format: ASN:IP, IP converted to uint32)
-	if ip, err := netip.ParseAddr(valStr); err == nil && ip.Is4() {
-		b := ip.As4()
-		num := uint32(b[0])<<24 | uint32(b[1])<<16 | uint32(b[2])<<8 | uint32(b[3])
-		if asn <= 0xFFFF {
-			// 2-byte ASN, 4-byte number (from IP)
-			return []byte{
-				ecTypeTransitive2ByteAS, ecSubtypeRouteTarget,
-				byte(asn >> 8), byte(asn),
-				byte(num >> 24), byte(num >> 16), byte(num >> 8), byte(num),
-			}, nil
-		}
-		// 4-byte ASN, 2-byte number (truncate IP to 16 bits)
-		return []byte{
-			ecTypeTransitive4ByteAS, ecSubtypeRouteTarget,
-			byte(asn >> 24), byte(asn >> 16), byte(asn >> 8), byte(asn),
-			byte(num >> 8), byte(num),
-		}, nil
-	}
-
-	// Format: ASN:NN (both numeric)
-	num, err := strconv.ParseUint(valStr, 10, 32)
-	if err != nil {
-		return nil, fmt.Errorf("invalid extended-community number %q", valStr)
-	}
-
-	if asn <= 0xFFFF {
-		// 2-byte ASN, 4-byte number
-		return []byte{
-			ecTypeTransitive2ByteAS, ecSubtypeRouteTarget,
-			byte(asn >> 8), byte(asn),
-			byte(num >> 24), byte(num >> 16), byte(num >> 8), byte(num),
-		}, nil
-	}
-	// 4-byte ASN, 2-byte number
 	return []byte{
-		ecTypeTransitive4ByteAS, ecSubtypeRouteTarget,
+		ecTypeTransitive4ByteAS, subtype,
 		byte(asn >> 24), byte(asn >> 16), byte(asn >> 8), byte(asn),
 		byte(num >> 8), byte(num),
 	}, nil
 }
 
 // parseRouteTargetOrOrigin parses target:ASN:NN or origin:ASN:NN format.
-// Also supports target:IP:NN and target:ASN:IP formats.
+// Also supports target:IP:NN and target:ASN:IP, and the unqualified ASN:NN,
+// IP:NN and ASN:IP pairs, which carry the route target subtype.
+//
+// The administrator widths decide the type. RFC 4360 Section 3.1 gives type
+// 0x00 a 2-octet AS and a 4-octet number; Section 3.2 gives type 0x01 an IPv4
+// unicast address and a 2-octet number; RFC 5668 Section 2 gives type 0x02 a
+// 4-octet AS and a 2-octet number. Nothing carries a 4-octet AS beside a
+// 4-octet number, so that pair is refused.
 func parseRouteTargetOrOrigin(subtype byte, asnStr, numStr string) ([]byte, error) {
 	// Check if ASN part is an IP address (format: IP:NN)
 	if ip, err := netip.ParseAddr(asnStr); err == nil && ip.Is4() {
@@ -425,15 +378,7 @@ func parseRouteTargetOrOrigin(subtype byte, asnStr, numStr string) ([]byte, erro
 
 	// "L" suffix forces Type 2 (4-byte ASN, 2-byte number)
 	if forced4Byte {
-		num, err := strconv.ParseUint(numStr, 10, 16)
-		if err != nil {
-			return nil, fmt.Errorf("invalid extended-community number %q (4-byte ASN format max 65535)", numStr)
-		}
-		return []byte{
-			ecTypeTransitive4ByteAS, subtype,
-			byte(asn >> 24), byte(asn >> 16), byte(asn >> 8), byte(asn),
-			byte(num >> 8), byte(num),
-		}, nil
+		return fourByteASExtCommunity(subtype, asn, numStr)
 	}
 
 	// Check if number part is an IP address (format: ASN:IP -> convert IP to uint32)
@@ -452,34 +397,24 @@ func parseRouteTargetOrOrigin(subtype byte, asnStr, numStr string) ([]byte, erro
 		return nil, err4ByteAsnWithIpValue
 	}
 
+	if asn > 0xFFFF {
+		// RFC 5668 Section 2: type 0x02 carries the AS number in a 4-octet
+		// global administrator. Type 0x01 cannot: RFC 4360 Section 3.2 puts
+		// "an IPv4 unicast address assigned by one of the Internet
+		// registries" in its global administrator, so a peer reads an AS
+		// number written there as a dotted quad.
+		return fourByteASExtCommunity(subtype, asn, numStr)
+	}
+
+	// RFC 4360 Section 3.1: type 0x00, 2-byte ASN, 4-byte number.
 	num, err := strconv.ParseUint(numStr, 10, 32)
 	if err != nil {
 		return nil, fmt.Errorf("invalid extended-community number %q", numStr)
 	}
-
-	if asn <= 0xFFFF {
-		// Type 0: 2-byte ASN, 4-byte number
-		return []byte{
-			ecTypeTransitive2ByteAS, subtype,
-			byte(asn >> 8), byte(asn),
-			byte(num >> 24), byte(num >> 16), byte(num >> 8), byte(num),
-		}, nil
-	}
-
-	// ASN > 65535: Use Type 1 (IPv4) format if number fits in 16 bits.
-	if num <= 0xFFFF {
-		return []byte{
-			ecTypeTransitiveIPv4, subtype,
-			byte(asn >> 24), byte(asn >> 16), byte(asn >> 8), byte(asn),
-			byte(num >> 8), byte(num),
-		}, nil
-	}
-
-	// Type 2: 4-byte ASN, 2-byte number (only when number > 65535)
 	return []byte{
-		ecTypeTransitive4ByteAS, subtype,
-		byte(asn >> 24), byte(asn >> 16), byte(asn >> 8), byte(asn),
-		byte(num >> 8), byte(num),
+		ecTypeTransitive2ByteAS, subtype,
+		byte(asn >> 8), byte(asn),
+		byte(num >> 24), byte(num >> 16), byte(num >> 8), byte(num),
 	}, nil
 }
 
@@ -508,23 +443,19 @@ func parseMUPExtCommunity(asnStr, numStr string) ([]byte, error) {
 }
 
 // parseRouteTargetOrOrigin4 parses target4:ASN:NN or origin4:ASN:NN format.
-// Uses 4-byte representation for ASN, with Type 1 (IPv4) format preferred.
+// It always writes the four-octet AS specific form of RFC 5668 Section 2, type
+// 0x02, whatever the width of the AS number: that is what the "4" in the
+// keyword asks for.
+//
+// RFC 5668 Section 3 tells an operator with a two-octet AS number to prefer the
+// type 0x00 form, and "target:" gives that form. "target4:" is the operator
+// asking for the four-octet form on purpose.
 func parseRouteTargetOrOrigin4(subtype byte, asnStr, numStr string) ([]byte, error) {
 	asn, _, err := parseExtCommunityASN(asnStr)
 	if err != nil {
 		return nil, fmt.Errorf("invalid extended-community ASN %q", asnStr)
 	}
-	num, err := strconv.ParseUint(numStr, 10, 16)
-	if err != nil {
-		return nil, fmt.Errorf("invalid extended-community number %q", numStr)
-	}
-
-	// Use Type 1 (IPv4) format: 4-byte "IP" (really ASN), 2-byte number
-	return []byte{
-		ecTypeTransitiveIPv4, subtype,
-		byte(asn >> 24), byte(asn >> 16), byte(asn >> 8), byte(asn),
-		byte(num >> 8), byte(num),
-	}, nil
+	return fourByteASExtCommunity(subtype, asn, numStr)
 }
 
 // parseFlowSpecRateLimit parses rate-limit:N and rate-limit:N:packets formats for FlowSpec.
@@ -606,24 +537,33 @@ func parseFlowSpecRedirect(asnStr, numStr string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("invalid redirect ASN %q", asnStr)
 	}
+
+	if asn > 0xFFFF {
+		// Type 0x82, subtype 0x08: 4-byte ASN, 2-byte value. RFC 8955 Section
+		// 7.4 gives this type "the same encoding as ... Section 2 of
+		// [RFC5668] (type 0x82: 4-octet AS, 2-octet value)", so the value
+		// stops at 65535 here as it does for a route target.
+		num, err := strconv.ParseUint(numStr, 10, 16)
+		if err != nil {
+			return nil, fmt.Errorf("invalid redirect number %q (4-byte ASN format max 65535)", numStr)
+		}
+		return []byte{
+			0x82, 0x08,
+			byte(asn >> 24), byte(asn >> 16), byte(asn >> 8), byte(asn),
+			byte(num >> 8), byte(num),
+		}, nil
+	}
+
+	// Type 0x80, subtype 0x08: 2-byte ASN, 4-byte value (RFC 8955 Section 7.4,
+	// the RFC 4360 Section 3.1 encoding).
 	num, err := strconv.ParseUint(numStr, 10, 32)
 	if err != nil {
 		return nil, fmt.Errorf("invalid redirect number %q", numStr)
 	}
-
-	if asn <= 0xFFFF {
-		// Type 0x80 (non-transitive), subtype 0x08: 2-byte ASN, 4-byte value
-		return []byte{
-			0x80, 0x08,
-			byte(asn >> 8), byte(asn),
-			byte(num >> 24), byte(num >> 16), byte(num >> 8), byte(num),
-		}, nil
-	}
-	// Type 0x82 (non-transitive 4-byte AS), subtype 0x08: 4-byte ASN, 2-byte value
 	return []byte{
-		0x82, 0x08,
-		byte(asn >> 24), byte(asn >> 16), byte(asn >> 8), byte(asn),
-		byte(num >> 8), byte(num),
+		0x80, 0x08,
+		byte(asn >> 8), byte(asn),
+		byte(num >> 24), byte(num >> 16), byte(num >> 8), byte(num),
 	}, nil
 }
 

@@ -1,0 +1,91 @@
+# Test: a four-byte AS number in a configured route target reaches the wire in
+#       the RFC 5668 Section 2 four-octet AS specific form.
+# VALIDATES: `extended-community [ target:65536:100 ]` in config encodes as type
+#            0x02 with a 4-octet global administrator and a 2-octet local
+#            administrator, and `target4:` does the same for a two-byte AS.
+# PREVENTS: the config parser writing a four-byte AS number into the type 0x01
+#           global administrator, which RFC 4360 Section 3.2 defines as "an IPv4
+#           unicast address assigned by one of the Internet registries". A peer
+#           read 0x0102 00010000 0064 as route target 0.1.0.0:100, so the two
+#           ends of a VPN disagreed on what the target identified.
+
+# ze-peer expectations (what peer expects to receive)
+stdin=peer:terminator=EOF_PEER
+# target:65536:100 -- type 0x02, administrator 0x00010000 (65536), number 0x0064
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003C0200000020400101004002004003040F0F0F0140050400000064C010080202000100000064200A000001
+# origin:4200000001:65535 -- subtype 0x03, and the widest number the 2-octet
+# local administrator holds
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003C0200000020400101004002004003040F0F0F0240050400000064C010080203FA56EA01FFFF200A000002
+# target4:65000:100 -- the operator asking for the four-octet form for a
+# two-byte AS, which RFC 5668 Section 3 otherwise tells them not to prefer
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003C0200000020400101004002004003040F0F0F0340050400000064C0100802020000FDE80064200A000003
+expect=bgp:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 15.15.15.1
+				extended-community [ target:65536:100 ]
+			}
+			nlri {
+				ipv4/unicast add 10.0.0.1/32
+			}
+		}
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 15.15.15.2
+				extended-community [ origin:4200000001:65535 ]
+			}
+			nlri {
+				ipv4/unicast add 10.0.0.2/32
+			}
+		}
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 15.15.15.3
+				extended-community [ target4:65000:100 ]
+			}
+			nlri {
+				ipv4/unicast add 10.0.0.3/32
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s

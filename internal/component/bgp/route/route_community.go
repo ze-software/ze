@@ -288,6 +288,12 @@ func parseExtendedCommunity(s string) (attribute.ExtendedCommunity, error) {
 // parseRouteTargetExtCommunity parses route target extended community.
 // RFC 4360: Route Target (subtype 0x02).
 // Format: target:ASN:NN (Type 0x00 for 2-byte ASN, Type 0x02 for 4-byte ASN).
+//
+// The two forms split the 6-octet value field differently. RFC 4360 Section 3.1
+// gives type 0x00 a 2-octet global administrator and a 4-octet local
+// administrator; RFC 5668 Section 2 gives type 0x02 a 4-octet global
+// administrator and a 2-octet local administrator. So the number a four-byte AS
+// can carry stops at 65535, and a larger one is refused rather than truncated.
 func parseRouteTargetExtCommunity(value string) (attribute.ExtendedCommunity, error) {
 	parts := strings.Split(value, ":")
 	if len(parts) != 2 {
@@ -298,22 +304,27 @@ func parseRouteTargetExtCommunity(value string) (attribute.ExtendedCommunity, er
 	if err != nil {
 		return attribute.ExtendedCommunity{}, fmt.Errorf("invalid ASN in target: %s", parts[0])
 	}
+
+	if asn > 0xFFFF {
+		num, err := strconv.ParseUint(parts[1], 10, 16)
+		if err != nil {
+			return attribute.ExtendedCommunity{}, fmt.Errorf("invalid value in target: %s (4-byte ASN format max 65535)", parts[1])
+		}
+		return attribute.ExtendedCommunity{
+			0x02, 0x02,
+			byte(asn >> 24), byte(asn >> 16), byte(asn >> 8), byte(asn),
+			byte(num >> 8), byte(num),
+		}, nil
+	}
+
 	num, err := strconv.ParseUint(parts[1], 10, 32)
 	if err != nil {
 		return attribute.ExtendedCommunity{}, fmt.Errorf("invalid value in target: %s", parts[1])
 	}
-
-	if asn <= 0xFFFF {
-		return attribute.ExtendedCommunity{
-			0x00, 0x02,
-			byte(asn >> 8), byte(asn),
-			byte(num >> 24), byte(num >> 16), byte(num >> 8), byte(num),
-		}, nil
-	}
 	return attribute.ExtendedCommunity{
-		0x02, 0x02,
-		byte(asn >> 24), byte(asn >> 16), byte(asn >> 8), byte(asn),
-		byte(num >> 8), byte(num),
+		0x00, 0x02,
+		byte(asn >> 8), byte(asn),
+		byte(num >> 24), byte(num >> 16), byte(num >> 8), byte(num),
 	}, nil
 }
 
