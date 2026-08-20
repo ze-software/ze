@@ -65,24 +65,9 @@ type Credentials struct {
 // ExecCommand connects to the daemon via SSH and runs a command.
 // Returns the command output or an error.
 func ExecCommand(creds Credentials, command string) (string, error) {
-	hkCb, err := hostKeyCallback(creds.Host)
+	client, err := dialDaemon(creds)
 	if err != nil {
 		return "", err
-	}
-	config := &ssh.ClientConfig{
-		User: creds.Username,
-		Auth: []ssh.AuthMethod{
-			ssh.Password(creds.Auth),
-		},
-		HostKeyCallback: hkCb,
-		Timeout:         dialTimeout,
-	}
-
-	var tb textbuf.Buffer
-	addr := tb.Str(creds.Host).Byte(':').Str(creds.Port).String()
-	client, err := ssh.Dial("tcp", addr, config)
-	if err != nil {
-		return "", fmt.Errorf("connect to %s: %w", addr, err)
 	}
 	defer client.Close() //nolint:errcheck // best-effort cleanup
 
@@ -154,24 +139,9 @@ func trimErrorPrefix(s string) string {
 // The callback receives the raw JSON event line. If the callback returns an error,
 // streaming stops. The function blocks until the session ends (disconnect or callback error).
 func StreamCommand(creds Credentials, command string, callback func(line string) error) error {
-	hkCb, err := hostKeyCallback(creds.Host)
+	client, err := dialDaemon(creds)
 	if err != nil {
 		return err
-	}
-	config := &ssh.ClientConfig{
-		User: creds.Username,
-		Auth: []ssh.AuthMethod{
-			ssh.Password(creds.Auth),
-		},
-		HostKeyCallback: hkCb,
-		Timeout:         dialTimeout,
-	}
-
-	var tb textbuf.Buffer
-	addr := tb.Str(creds.Host).Byte(':').Str(creds.Port).String()
-	client, err := ssh.Dial("tcp", addr, config)
-	if err != nil {
-		return fmt.Errorf("connect to %s: %w", addr, err)
 	}
 	defer client.Close() //nolint:errcheck // best-effort cleanup
 
@@ -231,24 +201,9 @@ func (ps *ProtocolSession) Wait() error {
 // bidirectional session with the given command. Returns stdin (write) and
 // stdout (read) pipes for speaking the plugin protocol over the SSH channel.
 func OpenProtocolSession(creds Credentials, command string) (*ProtocolSession, error) {
-	hkCb, err := hostKeyCallback(creds.Host)
+	client, err := dialDaemon(creds)
 	if err != nil {
 		return nil, err
-	}
-	config := &ssh.ClientConfig{
-		User: creds.Username,
-		Auth: []ssh.AuthMethod{
-			ssh.Password(creds.Auth),
-		},
-		HostKeyCallback: hkCb,
-		Timeout:         dialTimeout,
-	}
-
-	var tb textbuf.Buffer
-	addr := tb.Str(creds.Host).Byte(':').Str(creds.Port).String()
-	client, err := ssh.Dial("tcp", addr, config)
-	if err != nil {
-		return nil, fmt.Errorf("connect to %s: %w", addr, err)
 	}
 
 	session, err := client.NewSession()

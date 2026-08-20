@@ -234,15 +234,16 @@ func (r Records) rows() iter.Seq[rpc.Record] {
 //
 // Rows is walked once here, so one Records value takes one path, never both.
 func (r Records) MarshalJSON() ([]byte, error) {
-	return collapseRecords(r.Key, r.Fields, r.rows())
+	return CollapseRecords(r.Key, r.Fields, r.rows())
 }
 
-// collapseRecords is the collapse itself, over rows a caller supplies. The
+// CollapseRecords is the collapse itself, over rows a caller supplies. The
 // encoder holds the rows of a short answer and collapses those (WriteAnswer,
-// dispatch.go), so the document it puts in one item= line and the document a
-// buffered surface renders are produced by this one function rather than by two
-// that agree today.
-func collapseRecords(key string, fields []string, rows iter.Seq[rpc.Record]) ([]byte, error) {
+// dispatch.go), and the SSH exec channel collapses the records of an answer
+// whose rendering needs a document (RenderRecords,
+// internal/component/command/render_records.go), so every document a consumer
+// meets is produced by this one function rather than by three that agree today.
+func CollapseRecords(key string, fields []string, rows iter.Seq[rpc.Record]) ([]byte, error) {
 	if key == answerErrorsKey {
 		return nil, errReservedEnvelopeKey
 	}

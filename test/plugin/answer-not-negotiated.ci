@@ -101,25 +101,31 @@ tmpfs=answer-records.run:mode=755:terminator=EOF_RECORDS
 
 import os
 import sys
-import time
 
-from ze_api import API, runtime_fail
+from ze_api import API, runtime_fail, wait_until
 
 MARKER = "plain-answer.txt"
 
 
 def wait_for_plain(timeout=10.0):
-    """Return the bytes the un-negotiated peer received for the same command."""
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        if os.path.exists(MARKER):
-            with open(MARKER, encoding="utf-8") as handle:
-                return handle.read()
-        # Poll interval: the other peer writes this file from its own process,
-        # and a file appearing has no event to wait on.
-        time.sleep(0.1)
-    runtime_fail(f"the un-negotiated peer wrote no answer within {timeout}s")
-    return ""
+    """Return the bytes the un-negotiated peer received for the same command.
+
+    The other peer writes this file from its own process, so a file appearing has
+    no event to wait on and the wait is a bounded poll. The poll INTERVAL lives in
+    ze_api.wait_until rather than here: it is a granularity knob on a real
+    condition, not a guessed duration, and the ci-sleep ratchet counts sleeps in
+    test/**/*.ci so that a knob written here would read as a blind wait.
+    """
+    interval = 0.25
+    if not wait_until(
+        lambda: os.path.exists(MARKER),
+        attempts=max(1, int(timeout / interval)),
+        delay=interval,
+    ):
+        runtime_fail(f"the un-negotiated peer wrote no answer within {timeout}s")
+        return ""
+    with open(MARKER, encoding="utf-8") as handle:
+        return handle.read()
 
 
 def tail_of(line, want_verb="ok"):

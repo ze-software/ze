@@ -167,7 +167,7 @@ func TestCommandDispatcherJSONError(t *testing.T) {
 // PREVENTS: a generator payload being flattened into one line, which is the
 // whole-answer materialization this protocol exists to remove.
 func TestGeneratorAnswerReachesTheEncoder(t *testing.T) {
-	rowCount := answerBufferThreshold + 1
+	rowCount := rpc.AnswerBufferThreshold + 1
 
 	var answer bytes.Buffer
 	if err := WriteAnswer(&answer, 7, NewResponse(StatusDone, Records{Key: "peers", Rows: peerRows(rowCount)})); err != nil {
@@ -358,7 +358,7 @@ func TestSingleRecordUsesTheSameReaderPath(t *testing.T) {
 			// A walk within the threshold is one document, whatever the number
 			// of rows in it; a walk past the threshold is one line for each.
 			wantLines := 3
-			if rowCount > answerBufferThreshold {
+			if rowCount > rpc.AnswerBufferThreshold {
 				wantLines = rowCount + 2
 			}
 			lines := readAnswer(t, answer.Bytes())
@@ -453,7 +453,7 @@ func (w *failingWriter) Write(p []byte) (int, error) {
 // the generator.
 // PREVENTS: a daemon walking a million-row table into a socket that closed.
 func TestTransportErrorEndsTheWalk(t *testing.T) {
-	available := answerBufferThreshold + 100
+	available := rpc.AnswerBufferThreshold + 100
 	produced := 0
 	rows := func(yield func(rpc.Record) bool) {
 		for i := range available {
@@ -464,7 +464,7 @@ func TestTransportErrorEndsTheWalk(t *testing.T) {
 		}
 	}
 
-	// The walk holds answerBufferThreshold records and passes the threshold on
+	// The walk holds rpc.AnswerBufferThreshold records and passes the threshold on
 	// the next one, which is where the first line is written. Write 1 is the
 	// head and write 2 is the first held record, so the transport dies while
 	// the second one is being written.
@@ -473,9 +473,9 @@ func TestTransportErrorEndsTheWalk(t *testing.T) {
 	if !errors.Is(err, errTransportGone) {
 		t.Fatalf("WriteAnswer returned %v, want the transport error", err)
 	}
-	if produced != answerBufferThreshold+1 {
+	if produced != rpc.AnswerBufferThreshold+1 {
 		t.Errorf("the generator produced %d of %d rows, want %d: a dead transport ends the walk",
-			produced, available, answerBufferThreshold+1)
+			produced, available, rpc.AnswerBufferThreshold+1)
 	}
 	written := readAnswer(t, transport.accepted.Bytes())
 	for i := range written {
@@ -610,16 +610,16 @@ func TestStreamedAndBufferedAnswersAreIdentical(t *testing.T) {
 		// The threshold decides how the SAME answer is framed, so each shape is
 		// taken once on each side of it. A pair that agrees only below the
 		// threshold would leave every long answer unproven.
-		{name: "an envelope over a walk within the threshold", key: "peers", rows: func() iter.Seq[rpc.Record] { return peerRows(answerBufferThreshold) }},
-		{name: "an envelope over a walk past the threshold", key: "peers", rows: func() iter.Seq[rpc.Record] { return peerRows(answerBufferThreshold + 1) }},
-		{name: "no envelope past the threshold", key: "", rows: func() iter.Seq[rpc.Record] { return peerRows(answerBufferThreshold + 1) }},
-		{name: "items and faults past the threshold", key: "leaves", rows: func() iter.Seq[rpc.Record] { return mixedRows(answerBufferThreshold, 3) }},
+		{name: "an envelope over a walk within the threshold", key: "peers", rows: func() iter.Seq[rpc.Record] { return peerRows(rpc.AnswerBufferThreshold) }},
+		{name: "an envelope over a walk past the threshold", key: "peers", rows: func() iter.Seq[rpc.Record] { return peerRows(rpc.AnswerBufferThreshold + 1) }},
+		{name: "no envelope past the threshold", key: "", rows: func() iter.Seq[rpc.Record] { return peerRows(rpc.AnswerBufferThreshold + 1) }},
+		{name: "items and faults past the threshold", key: "leaves", rows: func() iter.Seq[rpc.Record] { return mixedRows(rpc.AnswerBufferThreshold, 3) }},
 
 		// A declared column schema changes the wire and not the answer: the
 		// rows travel as positional arrays, and both paths render the objects.
 		{name: "columns within the threshold", key: "peers", fields: peerColumns, rows: func() iter.Seq[rpc.Record] { return columnRows(3) }},
-		{name: "columns past the threshold", key: "peers", fields: peerColumns, rows: func() iter.Seq[rpc.Record] { return columnRows(answerBufferThreshold + 1) }},
-		{name: "columns with no envelope", key: "", fields: peerColumns, rows: func() iter.Seq[rpc.Record] { return columnRows(answerBufferThreshold + 1) }},
+		{name: "columns past the threshold", key: "peers", fields: peerColumns, rows: func() iter.Seq[rpc.Record] { return columnRows(rpc.AnswerBufferThreshold + 1) }},
+		{name: "columns with no envelope", key: "", fields: peerColumns, rows: func() iter.Seq[rpc.Record] { return columnRows(rpc.AnswerBufferThreshold + 1) }},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -776,7 +776,7 @@ func TestRecordsWithNoGeneratorIsAnEmptyAnswer(t *testing.T) {
 // them, which no count and no terminator can report.
 func TestTheThresholdChoosesTheAnswerType(t *testing.T) {
 	t.Run("a walk within the threshold is one document", func(t *testing.T) {
-		rowCount := answerBufferThreshold - 1
+		rowCount := rpc.AnswerBufferThreshold - 1
 
 		var answer bytes.Buffer
 		if err := WriteAnswer(&answer, 2, NewResponse(StatusDone, Records{Key: "peers", Rows: peerRows(rowCount)})); err != nil {
@@ -806,7 +806,7 @@ func TestTheThresholdChoosesTheAnswerType(t *testing.T) {
 	})
 
 	t.Run("a walk past the threshold streams every record in order", func(t *testing.T) {
-		rowCount := answerBufferThreshold + 1
+		rowCount := rpc.AnswerBufferThreshold + 1
 
 		var answer bytes.Buffer
 		if err := WriteAnswer(&answer, 2, NewResponse(StatusDone, Records{Key: "peers", Rows: peerRows(rowCount)})); err != nil {
@@ -836,7 +836,7 @@ func TestTheThresholdChoosesTheAnswerType(t *testing.T) {
 	})
 
 	t.Run("a declared schema streams as positional rows", func(t *testing.T) {
-		rowCount := answerBufferThreshold + 1
+		rowCount := rpc.AnswerBufferThreshold + 1
 
 		var answer bytes.Buffer
 		records := Records{Key: "peers", Fields: peerColumns, Rows: columnRows(rowCount)}
@@ -953,7 +953,7 @@ func TestRowArityIsRefusedOnBothPaths(t *testing.T) {
 	}
 	pastThreshold := func(item string) iter.Seq[rpc.Record] {
 		return func(yield func(rpc.Record) bool) {
-			for record := range columnRows(answerBufferThreshold + 1) {
+			for record := range columnRows(rpc.AnswerBufferThreshold + 1) {
 				if !yield(record) {
 					return
 				}

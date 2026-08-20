@@ -722,7 +722,8 @@ show bgp rib rpf <family> <source-addr>      # RPF lookup (longest-prefix-match 
 
 Generic pipes such as `match`, `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `resolve`, `origin`, `log`, `no-more`, `display`, and `fill` apply to the answer the command produced. The DAEMON runs them, on every surface. `execMiddleware` splits the chain off an SSH exec command and applies it. `ze cli` sends the chain intact and prints what comes back. Only the daemon holds the configuration, so only the daemon can honor `environment cli format default`.
 <!-- source: internal/component/ssh/ssh.go -- execMiddleware -->
-<!-- source: internal/component/cli/client/main.go -- Execute, commandWithFormat, printDaemonOutput -->
+<!-- source: internal/component/cli/client/main.go -- Execute, commandWithFormat -->
+<!-- source: internal/component/cli/client/answer.go -- daemonOutput, newDaemonOutput -->
 
 RIB route filters such as `received`, `advertised`, `peer`, `family`, `prefix`, `path`, and `community` are command-specific filters registered by the RIB command and folded into the RIB iterator request before route output is generated.
 

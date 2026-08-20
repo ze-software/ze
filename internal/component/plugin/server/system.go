@@ -5,8 +5,10 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"iter"
 	"log/slog"
 	"runtime"
 	"strings"
@@ -14,6 +16,7 @@ import (
 
 	plugin "github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 var (
@@ -371,44 +374,73 @@ func handleSystemSubsystemList(ctx *CommandContext, _ []string) (*plugin.Respons
 }
 
 // handleSystemCommandList returns all commands (builtin + plugin).
+//
+// It answers with a row generator rather than a built collection, because this
+// is the longest answer the daemon has: every builtin command and every command
+// every plugin registered, each with its help text. A consumer that reads it
+// through `| first 10` or `| match bgp` pays for the rows it keeps, and one that
+// wants the whole list still receives the document it always received
+// (CollapseRecords, internal/component/plugin/types.go).
 func handleSystemCommandList(ctx *CommandContext, args []string) (*plugin.Response, error) {
 	verbose := len(args) > 0 && args[0] == argVerbose
-
-	var commands []Completion
-
-	// Add builtin commands
-	if ctx.Dispatcher() != nil {
-		for _, cmd := range ctx.Dispatcher().Commands() {
-			c := Completion{
-				Value: cmd.Name,
-				Help:  cmd.Help,
-			}
-			if verbose {
-				c.Source = sourceBuiltin
-			}
-			commands = append(commands, c)
-		}
-
-		// Add plugin commands
-		for _, cmd := range ctx.Dispatcher().Registry().All() {
-			c := Completion{
-				Value:  cmd.Name,
-				Help:   cmd.Description,
-				Hidden: cmd.Hidden,
-			}
-			if verbose {
-				c.Source = cmd.Process.Name()
-			}
-			commands = append(commands, c)
-		}
-	}
+	dispatcher := ctx.Dispatcher()
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: plugin.Map{
-			"commands": commands,
+		Data: plugin.Records{
+			Key:  "commands",
+			Rows: commandRows(dispatcher, verbose),
 		},
 	}, nil
+}
+
+// commandRows yields one row for each command the daemon can dispatch: the
+// builtins first, then the commands the plugins registered.
+//
+// The dispatcher is read when the walk runs rather than when the handler
+// returns, so the rows describe the registry at the moment the answer is
+// written. Both getters copy under their own lock, so a plugin registering a
+// command mid-walk changes the next answer and not this one.
+func commandRows(dispatcher *Dispatcher, verbose bool) iter.Seq[rpc.Record] {
+	return func(yield func(rpc.Record) bool) {
+		if dispatcher == nil {
+			return
+		}
+		for _, cmd := range dispatcher.Commands() {
+			row := Completion{Value: cmd.Name, Help: cmd.Help}
+			if verbose {
+				row.Source = sourceBuiltin
+			}
+			if !yieldCompletion(yield, row) {
+				return
+			}
+		}
+		for _, cmd := range dispatcher.Registry().All() {
+			row := Completion{Value: cmd.Name, Help: cmd.Description, Hidden: cmd.Hidden}
+			if verbose {
+				row.Source = cmd.Process.Name()
+			}
+			if !yieldCompletion(yield, row) {
+				return
+			}
+		}
+	}
+}
+
+// yieldCompletion encodes one row and hands it to the walk, and reports whether
+// the walk wants another. A row that cannot be encoded is yielded as a rejected
+// row, so the answer names the command it could not report instead of being one
+// row shorter than the registry.
+func yieldCompletion(yield func(rpc.Record) bool, row Completion) bool {
+	encoded, err := json.Marshal(row)
+	if err != nil {
+		fault, faultErr := json.Marshal(map[string]string{"command": row.Value, "message": err.Error()})
+		if faultErr != nil {
+			return false
+		}
+		return yield(rpc.Record{Fault: fault})
+	}
+	return yield(rpc.Record{Item: encoded})
 }
 
 // handleSystemCommandHelp returns detailed help for a specific command.

@@ -1,6 +1,7 @@
 package client
 
 import (
+	"bytes"
 	"io"
 	"os"
 	"slices"
@@ -12,6 +13,7 @@ import (
 	unicli "github.com/ze-software/ze/internal/component/cli"
 	"github.com/ze-software/ze/internal/core/env"
 	sshclient "github.com/ze-software/ze/internal/core/ssh/client"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // captureOutput captures stdout or stderr during a function call.
@@ -109,20 +111,26 @@ func TestCLIFormatFlagBecomesAPipe(t *testing.T) {
 	}
 }
 
-// TestPrintDaemonOutputPrintsWhatTheDaemonRendered holds the other half of the
-// client's job: it prints, and it does not format.
+// TestTheOperatorSeesTheDaemonRenderingWhileItArrives holds the other half of
+// the client's job: it prints, and it does not format.
 //
-// VALIDATES: spec-fixit-cli-format-default-everywhere AC-7. An empty answer
+// The answer is written in pieces, as the daemon produces it, so each case is
+// driven twice: once as one write and once split byte by byte. A shape that
+// depends on holding the whole answer fails the second run, which is what makes
+// this a control on the streaming rather than a repeat of the collected form.
 //
-//	prints "OK" when the command names no format operator, and prints
-//	nothing when it names one, because "OK" is not valid JSON. A
-//	non-empty answer reaches the caller unchanged, with exactly one
-//	trailing newline.
+// VALIDATES: spec-fixit-cli-format-default-everywhere AC-7, and AC-3 of the
 //
-// PREVENTS:  the client re-rendering an answer the daemon already rendered, and
+//	streaming answer protocol. An empty answer prints "OK" when the
+//	command names no format operator, and prints nothing when it names
+//	one, because "OK" is not valid JSON. A non-empty answer reaches the
+//	caller unchanged, with exactly one trailing newline.
 //
-//	an empty command losing the "OK" that tells a human it worked.
-func TestPrintDaemonOutputPrintsWhatTheDaemonRendered(t *testing.T) {
+// PREVENTS:  the client re-rendering an answer the daemon already rendered, an
+//
+//	empty command losing the "OK" that tells a human it worked, and a
+//	streamed answer gaining or losing a newline at either edge.
+func TestTheOperatorSeesTheDaemonRenderingWhileItArrives(t *testing.T) {
 	tests := []struct {
 		name    string
 		command string
@@ -142,6 +150,12 @@ func TestPrintDaemonOutputPrintsWhatTheDaemonRendered(t *testing.T) {
 			want:    "",
 		},
 		{
+			name:    "a whitespace-only answer is an empty one",
+			command: "request reload",
+			output:  "\n\n",
+			want:    "OK\n",
+		},
+		{
 			name:    "the daemon rendering is printed unchanged",
 			command: "show version",
 			output:  "version  ze 26.08.18",
@@ -159,17 +173,66 @@ func TestPrintDaemonOutputPrintsWhatTheDaemonRendered(t *testing.T) {
 			output:  "┌─────┐\n│ a   │\n└─────┘\n",
 			want:    "┌─────┐\n│ a   │\n└─────┘\n",
 		},
+		{
+			name:    "a blank line inside a rendering survives",
+			command: "show version",
+			output:  "first\n\nlast\n\n\n",
+			want:    "first\n\nlast\n",
+		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := captureOutput(t, false, func() {
-				printDaemonOutput(tt.command, tt.output)
+		for _, split := range []struct {
+			name  string
+			write func(w io.Writer, s string)
+		}{
+			{name: "one write", write: func(w io.Writer, s string) {
+				if s != "" {
+					w.Write([]byte(s)) //nolint:errcheck // a bytes.Buffer never fails
+				}
+			}},
+			{name: "one byte at a time", write: func(w io.Writer, s string) {
+				for i := range len(s) {
+					w.Write([]byte{s[i]}) //nolint:errcheck // a bytes.Buffer never fails
+				}
+			}},
+		} {
+			t.Run(tt.name+", "+split.name, func(t *testing.T) {
+				var got bytes.Buffer
+				out := newDaemonOutput(&got, tt.command, nil)
+				split.write(out, tt.output)
+				if err := out.Close(); err != nil {
+					t.Fatalf("Close: %v", err)
+				}
+				if got.String() != tt.want {
+					t.Errorf("the operator saw %q, want %q", got.String(), tt.want)
+				}
 			})
-			if got != tt.want {
-				t.Errorf("printDaemonOutput(%q, %q) printed %q, want %q", tt.command, tt.output, got, tt.want)
-			}
-		})
+		}
+	}
+}
+
+// TestTheTranscriptRecordsWhatTheOperatorSaw pins the one caller that keeps a
+// copy of a streamed answer.
+//
+// VALIDATES: the transcript still holds the rendering after the client stopped
+//
+//	collecting it.
+//
+// PREVENTS:  a session recording holding an empty answer for every command,
+//
+//	which is what a streaming client that kept no copy would record.
+func TestTheTranscriptRecordsWhatTheOperatorSaw(t *testing.T) {
+	var transcript textbuf.Buffer
+	var got bytes.Buffer
+	out := newDaemonOutput(&got, "show version", &transcript)
+	for _, piece := range []string{"version ", " ze", " 26.08.18\n"} {
+		if _, err := out.Write([]byte(piece)); err != nil {
+			t.Fatalf("Write: %v", err)
+		}
+	}
+	if recorded := out.Transcript(); recorded != "version  ze 26.08.18" {
+		t.Errorf("the transcript recorded %q, want %q", recorded, "version  ze 26.08.18")
 	}
 }
 
@@ -665,13 +728,26 @@ func TestBuildCommandTreeEnvHintsExcludePrivate(t *testing.T) {
 // can assert which of the two a caller asked for rather than inferring it.
 func rawOnlyJSONClient(jsonAnswer string) (*cliClient, *[]string) {
 	sent := new([]string)
-	return &cliClient{send: func(_ sshclient.Credentials, command string) (string, error) {
+	answer := func(command string) string {
 		*sent = append(*sent, command)
 		if strings.HasSuffix(command, "| raw") {
-			return jsonAnswer, nil
+			return jsonAnswer
 		}
-		return "┌─────────┐\n│ rendered │\n└─────────┘", nil
-	}}, sent
+		return "┌─────────┐\n│ rendered │\n└─────────┘"
+	}
+	send := func(_ sshclient.Credentials, command string) (string, error) {
+		return answer(command), nil
+	}
+	// The streaming transport answers the same bytes to the same commands. A
+	// caller that prints takes it, a caller that parses takes send, and the
+	// recorded command list is shared so a test reads either one.
+	stream := func(_ sshclient.Credentials, command string, body io.Writer) (sshclient.Answer, error) {
+		if _, writeErr := io.WriteString(body, answer(command)); writeErr != nil {
+			return sshclient.Answer{}, writeErr
+		}
+		return sshclient.Answer{Verdict: "done", Count: 1}, nil
+	}
+	return &cliClient{send: send, stream: stream}, sent
 }
 
 // TestBuildRuntimeTreeAsksForTheDispatcherJSON covers the `system command list`

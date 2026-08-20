@@ -1,38 +1,135 @@
-# Test: a large answer reaches the operator record by record
+# Test: an answer past the buffer threshold streams its records
 #
 # Flow:
-# 1. Daemon starts with SSH and two configured BGP peers
-# 2. Shell script creates SSH credentials via ze init
-# 3. `show bgp peer list` names both peers, so the answer carries two records
-# 4. `show bgp peer list | ndjson` renders one line for each of those records
+# 1. Daemon starts with one external plugin on one BGP peer
+# 2. The plugin declares "record-answers" at Stage 3
+# 3. It dispatches `system command list`, whose rows are every command the
+#    daemon can dispatch: far more than the 256-record threshold
+# 4. It asserts the head names type=ndjson, that one item= line carries each
+#    record, and that the terminator counts them all
 #
-# An answer is a head, one line for each record, and a terminator. Each peer is
-# one record under the head's `key=peers` envelope, so ndjson, which renders one
-# record per line, prints one line for each peer. Today the whole answer is one
-# JSON object built before any byte is written, and ndjson prints it as one
-# line: that is the materialization this test exists to detect.
+# The type is decided at RUN TIME from the output and never by the command
+# (WriteAnswer, internal/component/plugin/dispatch.go). The encoder holds up to
+# rpc.AnswerBufferThreshold records: a walk that ends within them is answered as
+# one type=json document, and a walk that passes them switches to a stream and
+# flushes what it held. This test drives the second branch on a running daemon,
+# which is the only place the decision is observable end to end -- an operator
+# reading `ze cli` sees the same rendering either way, by design.
+#
+# `system command list` is the driver because it is the longest answer the
+# daemon has and because it answers a single-key array today, so the streamed
+# records and the document a bounded answer would carry are the same data.
 #
 # VALIDATES: AC-1 -- a successful answer is a head, its records, and a
-# terminator, and the operator reads one record per line.
-# VALIDATES: AC-6 -- a generator of N rows produces N record lines.
+# terminator.
+# VALIDATES: AC-1c -- a walk past the threshold streams, and the records held
+# while the type was being decided go out in walk order ahead of the rest.
+# VALIDATES: AC-6 -- a generator of N rows produces N record lines and a
+# terminator carrying count=N, with no count before it.
 # PREVENTS: the answer being built whole and flattened into one line, which
 # makes the 16 MB message ceiling a ceiling on the whole answer.
 
-# Test script: two peers answered as two records over the SSH exec channel
-tmpfs=test-answer-many-records.sh:mode=755:terminator=EOF_SH
-#!/bin/sh
-set -e
+# ze-peer expectations: one session, so the daemon runs its whole startup.
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=25s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
 
-# Signal test runner readiness
-touch daemon.ready
+# Negotiated plugin: it names record-answers, so every answer is a sequence.
+tmpfs=answer-records.run:mode=755:terminator=EOF_RECORDS
+#!/usr/bin/env python3
+"""A negotiated peer reading a long answer record by record."""
 
-# Generate config with SSH on port 0 (OS-assigned)
-cat > answer-many-records.conf << 'ZECONF'
+import json
+import sys
+
+from ze_api import API, runtime_fail
+
+# THRESHOLD is rpc.AnswerBufferThreshold (pkg/plugin/rpc/message.go). It is the
+# number of records the encoder holds while it decides the type, so an answer
+# must pass it to be streamed at all.
+THRESHOLD = 256
+
+
+def tail_of(line, want_verb="ok"):
+    """Return the key=value tail of one answer line."""
+    parts = line.split(" ", 2)
+    if len(parts) != 3 or parts[1] != want_verb:
+        runtime_fail(f"unexpected answer line: {line[:120]}")
+    return parts[2]
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    # Stage 3 naming the wire shape this peer reads.
+    api.capability_done(protocol=["record-answers"])
+    api.wait_for_registry()
+    api.ready()
+    api.wait_for_post_startup(timeout=5.0)
+
+    lines = api.dispatch_wire_lines("system command list", timeout=10.0)
+    if len(lines) < 3:
+        runtime_fail(f"answer was {len(lines)} lines, want a head, records and a terminator: {lines}")
+
+    head = tail_of(lines[0])
+    if head != "status=done type=ndjson key=commands":
+        runtime_fail(f"head was {head!r}, want 'status=done type=ndjson key=commands'")
+
+    terminator = tail_of(lines[-1])
+    if not terminator.startswith("count="):
+        runtime_fail(f"last line was {terminator!r}, want the terminator's count=")
+    counted = int(terminator[len("count=") :])
+
+    records = lines[1:-1]
+    if len(records) != counted:
+        runtime_fail(f"the answer carries {len(records)} record lines and states count={counted}")
+    if counted <= THRESHOLD:
+        runtime_fail(
+            f"fixture problem: the daemon registers {counted} commands, "
+            f"which is inside the {THRESHOLD}-record threshold, so nothing streams"
+        )
+
+    # No count reaches the peer before the terminator: nothing states a total
+    # the records can contradict.
+    for i, line in enumerate(records):
+        tail = tail_of(line)
+        if not tail.startswith("item="):
+            runtime_fail(f"record {i} was {tail[:120]!r}, want an item=")
+        row = json.loads(tail[len("item=") :])
+        if "value" not in row:
+            runtime_fail(f"record {i} carries no command name: {tail[:120]!r}")
+        if "commands" in row:
+            runtime_fail(f"record {i} carries the envelope; the head carries it as key=: {tail[:120]!r}")
+
+    print(f"OK: {counted} records streamed, one line each", file=sys.stderr)
+
+    # A negotiated peer reads EVERY dispatch answer as a sequence, so the
+    # shutdown goes out the same way.
+    api.dispatch_wire_lines("request shutdown", timeout=2.0, settle=0.2)
+    api.wait_for_shutdown()
+
+
+if __name__ == "__main__":
+    main()
+EOF_RECORDS
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external answer-records {
+		run ./answer-records.run
+		encoder json
+	}
+}
+
 bgp {
 	peer peer1 {
 		connection {
 			remote {
-				ip 127.0.0.2
+				ip 127.0.0.1
 			}
 			local {
 				ip 127.0.0.1
@@ -41,141 +138,28 @@ bgp {
 		}
 		session {
 			asn {
-				local 65533
-				remote 65533
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
 			}
 		}
-	}
-	peer peer2 {
-		connection {
-			remote {
-				ip 127.0.0.3
-			}
-			local {
-				ip 127.0.0.1
-				accept false
-			}
-		}
-		session {
-			asn {
-				local 65533
-				remote 65533
-			}
+		behavior {
+			group-updates disable
 		}
 	}
 }
-
-system {
-	authentication {
-		user admin {
-			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
-			profile [ admin ]
-		}
-	}
-	authorization {
-		profile admin {
-			run {
-				default-action allow
-			}
-			edit {
-				default-action allow
-			}
-		}
-	}
-}
-
-environment {
-	ssh {
-		enabled true
-		server main {
-			ip 127.0.0.1;
-			port 0;
-		}
-	}
-}
-ZECONF
-
-# Use a PID-derived high port for BGP to avoid needing root for port 179
-export ze_test_bgp_port=$((10000 + ($$ % 50000)))
-
-# Start daemon, capture stderr to parse SSH port
-ze start answer-many-records.conf 2>daemon.log &
-DAEMON_PID=$!
-trap 'kill $DAEMON_PID 2>/dev/null; wait $DAEMON_PID 2>/dev/null' EXIT
-
-# Wait for SSH server to report its listening address
-SSH_PORT=""
-for i in $(seq 1 50); do
-	SSH_PORT=$(grep -o '127\.0\.0\.1:[0-9]*' daemon.log 2>/dev/null | head -1 | cut -d: -f2 || true)
-	if [ -n "$SSH_PORT" ]; then
-		break
-	fi
-	sleep 0.2
-done
-
-if [ -z "$SSH_PORT" ]; then
-	echo "FAIL: SSH server did not start (no address in daemon.log)" >&2
-	cat daemon.log >&2
-	exit 1
-fi
-echo "SSH port: $SSH_PORT" >&2
-
-# Brief delay for postStartFunc to wire the authorizer
-sleep 0.5
-
-ADMIN_DIR=$(mktemp -d)
-trap 'rm -rf "$ADMIN_DIR"; kill $DAEMON_PID 2>/dev/null; wait $DAEMON_PID 2>/dev/null' EXIT
-printf 'admin\ntestpass\n127.0.0.1\n%s\n' "$SSH_PORT" | ZE_CONFIG_DIR="$ADMIN_DIR" ze init >/dev/null
-
-# Precondition: the answer covers both peers. A failure here is a fixture
-# problem, not a framing one.
-PEERS=$(ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_PASSWORD="testpass" ze cli -c "show bgp peer list" 2>&1) || {
-	echo "FAIL: show bgp peer list did not answer" >&2
-	echo "OUTPUT: $PEERS" >&2
-	exit 1
-}
-for PEER in 127.0.0.2 127.0.0.3; do
-	echo "$PEERS" | grep -q "$PEER" || {
-		echo "FAIL: fixture problem -- $PEER is missing from the peer list" >&2
-		echo "OUTPUT: $PEERS" >&2
-		exit 1
-	}
-done
-echo "OK: both peers are in the answer" >&2
-
-# One record per peer: ndjson renders one line for each record of the answer.
-NDJSON=$(ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_PASSWORD="testpass" ze cli -c "show bgp peer list | ndjson" 2>&1) || {
-	echo "FAIL: show bgp peer list | ndjson did not answer" >&2
-	echo "OUTPUT: $NDJSON" >&2
-	exit 1
-}
-
-RECORDS=$(printf '%s\n' "$NDJSON" | grep -c '^{' || true)
-if [ "$RECORDS" -ne 2 ]; then
-	echo "FAIL: answer rendered $RECORDS record lines, want 2 (one for each peer)" >&2
-	echo "OUTPUT: $NDJSON" >&2
-	exit 1
-fi
-
-for PEER in 127.0.0.2 127.0.0.3; do
-	SEEN=$(printf '%s\n' "$NDJSON" | grep -c "$PEER" || true)
-	if [ "$SEEN" -ne 1 ]; then
-		echo "FAIL: $PEER appears on $SEEN record lines, want 1" >&2
-		echo "OUTPUT: $NDJSON" >&2
-		exit 1
-	fi
-done
-
-if printf '%s\n' "$NDJSON" | grep -q '"peers"'; then
-	echo "FAIL: a record line carries the peers envelope; the head carries it as key=" >&2
-	echo "OUTPUT: $NDJSON" >&2
-	exit 1
-fi
-
-echo "OK: the answer reached the operator as one record for each peer" >&2
-exit 0
-EOF_SH
+EOF_CONF
 
 # Process orchestration
-cmd=foreground:seq=1:exec=./test-answer-many-records.sh:timeout=20s
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=25s
 expect=exit:code=0
+expect=stderr:pattern=OK: [0-9]+ records streamed, one line each
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic recovered

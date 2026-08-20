@@ -696,7 +696,9 @@ func truncateForLog(cmd string) string {
 // execMiddleware handles non-interactive SSH exec commands (e.g., "ssh daemon stop").
 // If the session has a command, it dispatches through the executor and renders the
 // answer with the command's pipe chain, or with the configured default format
-// (ze.cli.format) when the chain names none.
+// (ze.cli.format) when the chain names none. A handler answering with a row
+// generator is rendered record by record as the rows arrive, and a client that
+// declared the answer shape also receives the frame on stderr (answer.go).
 // Lifecycle commands (stop, restart, reboot), the plugin protocol channel and
 // streaming commands are answered before that split: none of them carries command
 // dispatcher output, so none of them is formatted here.
@@ -836,21 +838,24 @@ func (s *Server) execMiddleware() wish.Middleware {
 				return
 			}
 
+			frame := newAnswerFrame(sess)
 			executor := factory(sess.User(), sess.RemoteAddr().String(), getSessionAuthorizer(sess))
 			result, err := executor(dispatched)
 			if err != nil {
-				fmt.Fprintf(sess.Stderr(), "error: %v\n", err) //nolint:errcheck // best-effort
-				sess.Exit(1)                                   //nolint:errcheck // best-effort
+				writeExecFailure(sess, frame, err)
+				sess.Exit(1) //nolint:errcheck // best-effort
 				result.TransportComplete()
 				return
 			}
 
-			if result != nil {
-				// The formatter can end its rendering with a newline; Fprintln
-				// adds the only one the caller needs.
-				if rendered := strings.TrimRight(formatOutput(result.Output), "\n"); rendered != "" {
-					fmt.Fprintln(sess, rendered) //nolint:errcheck // best-effort
-				}
+			if writeErr := writeExecAnswer(sess, frame, input, formatOutput, result); writeErr != nil {
+				// No terminator is written now, which is what states a short
+				// answer to a client reading the frame. The text says why, for
+				// an operator reading the session.
+				writeExecError(sess, writeErr)
+				sess.Exit(1) //nolint:errcheck // best-effort
+				result.TransportComplete()
+				return
 			}
 			result.TransportComplete()
 		}

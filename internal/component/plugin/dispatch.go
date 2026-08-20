@@ -101,6 +101,42 @@ func (d CommandDispatcher) JSON(ctx context.Context, caller CallerIdentity, comm
 	return &RenderedResponse{Output: output, Response: resp}, renderErr
 }
 
+// Answer dispatches a command for a surface that writes the answer record by
+// record, which today is the SSH exec channel.
+//
+// It is JSON's sibling and differs in exactly one way: a payload that is a row
+// generator is NOT flattened. Records is walked once, so flattening it here
+// would consume the rows the surface exists to write, and the surface would
+// render an answer of no rows. Output is empty for such a payload and Response
+// carries the generator.
+//
+// Every other payload takes the same flatten JSON takes, so a surface that
+// calls this reads what it always read for every command that builds its answer
+// before the answer opens.
+func (d CommandDispatcher) Answer(ctx context.Context, caller CallerIdentity, command string) (*RenderedResponse, error) {
+	resp, err := d(ctx, caller, command)
+	if err != nil {
+		return &RenderedResponse{Response: resp}, err
+	}
+	if _, generated := RecordRows(resp); generated {
+		return &RenderedResponse{Response: resp}, nil
+	}
+	output, renderErr := ResponseJSON(resp, nil)
+	return &RenderedResponse{Output: output, Response: resp}, renderErr
+}
+
+// RecordRows reports the row generator resp answers with, and whether it
+// answers with one at all. A caller that must not walk the rows asks here
+// first, because Records is walked once: a surface that flattens the answer
+// into a string consumes the rows a record surface would have written.
+func RecordRows(resp *Response) (Records, bool) {
+	if resp == nil || resp.Data == nil {
+		return Records{}, false
+	}
+	records, generated := resp.Data.(Records)
+	return records, generated
+}
+
 // ResponseJSON is the single flatten sequence shared by every text surface and
 // by CommandDispatcher.JSON. It is the one place the (error / nil / Status /
 // Data) projection lives after unification. See JSON for the exact semantics.
@@ -132,23 +168,6 @@ func ResponseJSON(resp *Response, err error) (string, error) {
 // slice once, and every later line of that answer reuses the grown slice.
 const answerLineCapacity = 512
 
-// answerBufferThreshold is how many records the encoder holds while it decides
-// how to frame the answer. A walk that ends at or under it is answered as one
-// JSON document; a walk that passes it is streamed, and the records already
-// held go out in walk order ahead of the rest.
-//
-// It bounds what the encoder holds for an answer nobody wants whole, which is
-// the memory this protocol exists to stop growing, and it is of the same order
-// as the queue a consumer reads an answer through (answerQueueDepth in
-// pkg/plugin/rpc, 256): both bound one answer in flight, so one number covers
-// the pair.
-//
-// It is a constant and not a config knob. An operator who tuned it would be
-// choosing the wire shape of every command's answer for every consumer at once,
-// and the two shapes carry the same data, so there is nothing for a deployment
-// to prefer.
-const answerBufferThreshold = 256
-
 // WriteAnswer writes resp to w as the answer sequence every consumer reads the
 // same way: a head line carrying the verdict and the type, one line for each
 // record, and a terminator carrying the counts. A reader never branches on how
@@ -156,7 +175,7 @@ const answerBufferThreshold = 256
 // contradict.
 //
 // The head's type= is decided HERE, from the output, and never by the command.
-// The encoder holds up to answerBufferThreshold records: a walk that ends
+// The encoder holds up to rpc.AnswerBufferThreshold records: a walk that ends
 // within them is answered as one rpc.AnswerTypeJSON document, which is the JSON
 // a command answered with before it produced records at all, so no consumer of
 // an existing command meets a new shape. A walk that passes them is streamed,
@@ -195,7 +214,7 @@ func WriteAnswer(w io.Writer, id uint64, resp *Response) error {
 }
 
 // writeRecordAnswer walks the generator and writes the answer it turns out to
-// be. It holds the first answerBufferThreshold records rather than committing
+// be. It holds the first rpc.AnswerBufferThreshold records rather than committing
 // to a type it cannot take back: the head states the type, so the head is
 // written once the walk has said which type this answer is.
 //
@@ -225,7 +244,7 @@ func writeRecordAnswer(w io.Writer, buf []byte, id uint64, resp *Response, recor
 			return errEmptyAnswerRecord
 		}
 
-		if !streaming && len(held) < answerBufferThreshold {
+		if !streaming && len(held) < rpc.AnswerBufferThreshold {
 			held = append(held, record)
 			continue
 		}
@@ -255,7 +274,7 @@ func writeRecordAnswer(w io.Writer, buf []byte, id uint64, resp *Response, recor
 	}
 
 	if !streaming {
-		document, collapseErr := collapseRecords(records.Key, records.Fields, slices.Values(held))
+		document, collapseErr := CollapseRecords(records.Key, records.Fields, slices.Values(held))
 		if collapseErr != nil {
 			return collapseErr
 		}
@@ -326,10 +345,7 @@ func writeAnswerLine(w io.Writer, line []byte) ([]byte, error) {
 // a streamed answer never reaches the collapse and a handler owes the same
 // refusal whatever its row count turns out to be.
 func answerRecords(resp *Response) (Records, bool, error) {
-	if resp == nil || resp.Data == nil {
-		return Records{}, false, nil
-	}
-	records, generated := resp.Data.(Records)
+	records, generated := RecordRows(resp)
 	if !generated {
 		return Records{}, false, nil
 	}

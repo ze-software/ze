@@ -1,0 +1,174 @@
+# Test: a command text that names no command answers the error verb
+#
+# Flow:
+# 1. Daemon starts with SSH and one configured BGP peer
+# 2. Shell script creates SSH credentials via ze init
+# 3. `ze cli -c "shwo bgp peers"` sends a typo over the exec channel
+# 4. The client reports the daemon's message and exits non-zero, and nothing
+#    reaches stdout
+#
+# The verb says whether the conversation was valid and the command understood.
+# A typo earns `error message=<text>` and it is the WHOLE answer for that
+# command: there is no head, no record and no terminator, because nothing ran.
+# A client reads that apart from a command that ran and failed, which is what
+# lets it offer completion here rather than sending an operator to debug a
+# command that never existed (AppendAnswerNotUnderstood, pkg/plugin/rpc).
+#
+# VALIDATES: AC-4 -- verb error with message=, no status= key, and the answer is
+# the only line.
+# PREVENTS: a typo reaching the operator as an operational failure, and an
+# unknown command being reported as an answer of no records.
+
+# Test script: an unknown command over the SSH exec channel
+tmpfs=test-answer-unknown-command.sh:mode=755:terminator=EOF_SH
+#!/bin/sh
+set -e
+
+# Signal test runner readiness
+touch daemon.ready
+
+# Generate config with SSH on port 0 (OS-assigned)
+cat > answer-unknown-command.conf << 'ZECONF'
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+		}
+	}
+}
+
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+			profile [ admin ]
+		}
+	}
+	authorization {
+		profile admin {
+			run {
+				default-action allow
+			}
+			edit {
+				default-action allow
+			}
+		}
+	}
+}
+
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port 0;
+		}
+	}
+}
+ZECONF
+
+# Use a PID-derived high port for BGP to avoid needing root for port 179
+export ze_test_bgp_port=$((10000 + ($$ % 50000)))
+
+# Start daemon, capture stderr to parse SSH port
+ze start answer-unknown-command.conf 2>daemon.log &
+DAEMON_PID=$!
+trap 'kill $DAEMON_PID 2>/dev/null; wait $DAEMON_PID 2>/dev/null' EXIT
+
+# Wait for SSH server to report its listening address
+SSH_PORT=""
+for i in $(seq 1 50); do
+	SSH_PORT=$(grep -o '127\.0\.0\.1:[0-9]*' daemon.log 2>/dev/null | head -1 | cut -d: -f2 || true)
+	if [ -n "$SSH_PORT" ]; then
+		break
+	fi
+	sleep 0.2
+done
+
+if [ -z "$SSH_PORT" ]; then
+	echo "FAIL: SSH server did not start (no address in daemon.log)" >&2
+	cat daemon.log >&2
+	exit 1
+fi
+echo "SSH port: $SSH_PORT" >&2
+
+# Brief delay for postStartFunc to wire the authorizer
+sleep 0.5
+
+ADMIN_DIR=$(mktemp -d)
+trap 'rm -rf "$ADMIN_DIR"; kill $DAEMON_PID 2>/dev/null; wait $DAEMON_PID 2>/dev/null' EXIT
+printf 'admin\ntestpass\n127.0.0.1\n%s\n' "$SSH_PORT" | ZE_CONFIG_DIR="$ADMIN_DIR" ze init >/dev/null
+
+# The typo. `ze cli` exits non-zero and says what the daemon said.
+set +e
+OUT=$(ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_PASSWORD="testpass" ze cli -c "shwo bgp peers" 2>err.log)
+CODE=$?
+set -e
+
+if [ "$CODE" -eq 0 ]; then
+	echo "FAIL: an unknown command exited 0" >&2
+	echo "OUTPUT: $OUT" >&2
+	cat err.log >&2
+	exit 1
+fi
+
+if [ -n "$OUT" ]; then
+	echo "FAIL: an unknown command wrote to stdout: $OUT" >&2
+	exit 1
+fi
+
+grep -q "unknown command" err.log || {
+	echo "FAIL: the failure does not name the unknown command" >&2
+	cat err.log >&2
+	exit 1
+}
+
+# The frame is the client's to read, never the operator's. A frame line
+# reaching the terminal would mean the client forwarded what it parsed.
+if grep -qE '^(ok|error) (status|count|message)=' err.log; then
+	echo "FAIL: a frame line reached the operator" >&2
+	cat err.log >&2
+	exit 1
+fi
+
+echo "OK: the typo was reported as an unknown command" >&2
+
+# The comparison arm: a command that EXISTS must not be reported this way, or
+# the two would be indistinguishable and a client could not tell a typo from a
+# daemon that ran the command. A command that ran and FAILED carries its message
+# on the terminator instead, which is checked at the frame level by
+# TestAFailedCommandCarriesItsMessageOnTheTerminator (internal/component/ssh).
+ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_PASSWORD="testpass" ze cli -c "show version" >version.out 2>version-err.log || {
+	echo "FAIL: a command that exists did not answer" >&2
+	cat version-err.log >&2
+	exit 1
+}
+
+if grep -q "unknown command" version-err.log; then
+	echo "FAIL: a command that exists was reported as unknown" >&2
+	cat version-err.log >&2
+	exit 1
+fi
+
+echo "OK: a command that exists is not reported as unknown" >&2
+
+exit 0
+EOF_SH
+
+# Process orchestration
+cmd=foreground:seq=1:exec=./test-answer-unknown-command.sh:timeout=25s
+expect=exit:code=0
+expect=stderr:contains=OK: the typo was reported as an unknown command
+expect=stderr:contains=OK: a command that exists is not reported as unknown

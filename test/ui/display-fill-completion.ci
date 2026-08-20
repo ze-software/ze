@@ -177,10 +177,15 @@ try:
     for name in ('name', 'group', 'remote-as', 'uptime'):
         require(name in second, 'Tab after a first field did not offer %r:\n%s' % (name, second))
 
-    # `| fill` completes its keywords, and never a field name.
+    # `| fill` completes its keywords, and never a field name. `overall` was one
+    # of them until 2026-08-19: it ordered by rendered column width, which needs
+    # every cell of the answer measured before the first row can be written, and
+    # that is the buffering the record path exists to remove (fillWay,
+    # internal/component/command/pipe_columns.go). It must not be offered.
     ways = tab_after(cli_env, 'show bgp peer list | fill ')
-    for word in ('alpha', 'overall', 'reverse'):
+    for word in ('alpha', 'reverse'):
         require(word in ways, 'Tab after `| fill ` did not offer %r:\n%s' % (word, ways))
+    require('overall' not in ways, '`| fill` still offers the removed `overall`:\n%s' % ways)
     for name in ('remote-as', 'uptime'):
         require(name not in ways, '`| fill` offered the field name %r:\n%s' % (name, ways))
 finally:

@@ -10,6 +10,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"strings"
@@ -335,10 +336,16 @@ type cliClient struct {
 	// no transport, so a caller MUST NOT build this struct by hand outside a
 	// test.
 	send func(sshclient.Credentials, string) (string, error)
+	// stream is the SSH exec transport for an answer written to the operator
+	// as it arrives. It is a separate field from send because it answers a
+	// different question: send returns the whole answer to a caller that
+	// parses it, and stream writes the answer to a terminal and returns what
+	// the answer turned out to be. A test substitutes either one.
+	stream func(sshclient.Credentials, string, io.Writer) (sshclient.Answer, error)
 }
 
 func newCLIClient(creds sshclient.Credentials) *cliClient {
-	return &cliClient{creds: creds, send: sshclient.ExecCommand}
+	return &cliClient{creds: creds, send: sshclient.ExecCommand, stream: sshclient.ExecCommandStream}
 }
 
 // Execute sends a command to the daemon and prints the answer.
@@ -349,17 +356,7 @@ func newCLIClient(creds sshclient.Credentials) *cliClient {
 // reason, so one implementation renders every surface. This client sends the
 // command with its pipes intact. It prints what comes back.
 func (c *cliClient) Execute(command, format string) int {
-	// This emitter has no command of its own: the daemon resolves the operator's
-	// text against the registry and answers an unknown one.
-	// ze-dispatch-check: dynamic -- command is the operator's own typed input
-	output, err := c.SendCommand(commandWithFormat(command, format))
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		return 1
-	}
-
-	printDaemonOutput(command, output)
-	return 0
+	return c.execute(command, format, nil)
 }
 
 // executeWithTranscript is like Execute but also records the command and response
@@ -367,18 +364,44 @@ func (c *cliClient) Execute(command, format string) int {
 // operators) for transcript fidelity, and the daemon's rendering as the answer,
 // which is what the operator saw.
 func (c *cliClient) executeWithTranscript(command, format string, tw *unicli.TranscriptWriter) int {
+	return c.execute(command, format, tw)
+}
+
+// execute runs one command and prints its answer as the daemon writes it.
+//
+// Nothing is collected on the way through. The daemon streams a long answer
+// record by record, and holding it here to print it in one call would spend the
+// memory again at the last hop. A transcript is the one caller that needs the
+// whole text, so it is the one caller that pays for a copy.
+//
+// A failure is reported after whatever reached the terminal, because a stream
+// cannot be taken back: the operator has already read the rows that arrived,
+// and the message says why the rest did not.
+func (c *cliClient) execute(command, format string, tw *unicli.TranscriptWriter) int {
+	var transcript *textbuf.Buffer
+	if tw != nil {
+		transcript = &textbuf.Buffer{}
+	}
+	out := newDaemonOutput(os.Stdout, command, transcript)
+
 	// This emitter has no command of its own: the daemon resolves the operator's
 	// text against the registry and answers an unknown one.
 	// ze-dispatch-check: dynamic -- command is the operator's own typed input
-	output, err := c.SendCommand(commandWithFormat(command, format))
+	_, err := c.stream(c.creds, commandWithFormat(command, format), out)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
 	}
-
-	tw.Record(command, output)
-
-	printDaemonOutput(command, output)
+	// The transcript is taken before Close, so it holds the rendering and not
+	// the newline that ends the terminal line, nor the OK that stands in for an
+	// answer of nothing. That is what a transcript has always recorded.
+	if tw != nil {
+		tw.Record(command, out.Transcript())
+	}
+	if closeErr := out.Close(); closeErr != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", closeErr)
+		return 1
+	}
 	return 0
 }
 
@@ -403,32 +426,6 @@ func commandWithFormat(command, format string) string {
 	var tb textbuf.Buffer
 	return tb.Str(command).Str(" | ").Str(format).String()
 }
-
-// printDaemonOutput prints the daemon's answer for a `-c` command. The daemon
-// has already applied the pipe chain and the configured default format, so
-// nothing is re-rendered here.
-//
-// An empty answer prints "OK" when the command names no format operator. A
-// human ran a command that reports nothing, and silence does not say it worked.
-// A command that names one gets nothing at all. "OK" is not valid JSON.
-// The --format flag does not decide this branch. A `--format json` on a
-// command with no format pipe still prints "OK". That is what it did before
-// the daemon took over formatting.
-func printDaemonOutput(command, output string) {
-	if output == "" {
-		if !cmd.HasFormatPipe(command) {
-			fmt.Println(okAnswer)
-		}
-		return
-	}
-	// The daemon can end its rendering with a newline. Println adds the only
-	// one the caller needs.
-	fmt.Println(strings.TrimRight(output, "\n"))
-}
-
-// okAnswer is what a command reporting no data prints, so silence never reads
-// as a failure.
-const okAnswer = "OK"
 
 // SendCommand sends a command to the daemon via SSH exec. It returns the
 // answer as an operator would see it. The daemon has already applied the pipe

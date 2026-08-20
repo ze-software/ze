@@ -1,0 +1,339 @@
+# Test: an answer whose connection dies before its terminator reads as truncated
+#
+# Flow:
+# 1. Daemon starts with SSH and one configured BGP peer
+# 2. A TCP relay is started in front of the SSH port. It forwards a complete
+#    answer once and reports how many bytes that cost
+# 3. A second relay forwards half that many bytes and then closes the connection
+# 4. `ze cli` through the second relay must report a SHORT answer, never the
+#    records it did receive
+#
+# The cut is by BYTE COUNT and not by time, so it lands in the same place on
+# every run: after the head and part of the body, and before the terminator.
+# That is the property the mandatory terminator exists for. Without it a client
+# cannot tell a complete answer from the beginning of one, and half a routing
+# table reads as the whole of it.
+#
+# `system command list` is the driver because it is the longest answer the
+# daemon has, so a cut at half the byte count is certainly mid-answer.
+#
+# VALIDATES: AC-9 -- a connection that dies before the terminator is reported as
+# truncation rather than as a complete answer.
+# PREVENTS: a consumer taking a short answer for a whole one, which is silent
+# data loss with exit code 0.
+
+# TCP relay: forwards every connection of one run, and cuts at a byte budget.
+tmpfs=cut-relay.py:mode=755:terminator=EOF_RELAY
+#!/usr/bin/env python3
+"""Forward TCP to the daemon, and cut the answer after a byte budget.
+
+Usage: cut-relay.py <port-file> <daemon-port> <limit> <count-file>
+
+The budget is spent ACROSS connections, because `ze cli -c` opens two: it
+probes the daemon with `show version` before it sends the command (runBGP,
+internal/component/cli/client/main.go). The probe is a few kilobytes and the
+answer is tens of them, so half the total budget always lands inside the
+answer.
+
+A limit of 0 forwards everything, which is how the cut point is MEASURED
+rather than guessed: the count is rewritten after every connection, so the
+caller reads what a complete run cost and cuts the next one at half of it.
+"""
+
+import os
+import socket
+import sys
+import threading
+
+
+def pump(source, target, on_bytes=None):
+    """Copy source to target until either end closes or the budget is spent.
+
+    Bounded by the connection: recv returns empty at EOF and raises when the
+    peer is gone, and on_bytes ends it at the budget.
+    """
+    try:
+        while True:
+            chunk = source.recv(65536)
+            if not chunk:
+                return
+            target.sendall(chunk)
+            if on_bytes is not None and on_bytes(len(chunk)):
+                return
+    except OSError:
+        return
+
+
+def stop_socket(sock):
+    """End both directions of sock, waking whoever is blocked on it.
+
+    A socket already shut down raises, and that is the normal case for the
+    second caller rather than a failure.
+    """
+    try:
+        sock.shutdown(socket.SHUT_RDWR)
+    except OSError:
+        pass
+
+
+def relay(client, daemon_port, count):
+    """Forward one connection both ways, and report whether to stop."""
+    daemon = socket.create_connection(("127.0.0.1", daemon_port))
+
+    def upstream():
+        # Shutting the daemon socket down when this direction ends is what
+        # makes the other direction return. Without it the relay waits for a
+        # daemon that never speaks again, and the caller waits for the relay.
+        # It is shutdown and not close: closing an fd does not wake a recv that
+        # another thread is already blocked in, and shutdown does.
+        pump(client, daemon)
+        stop_socket(daemon)
+
+    threading.Thread(target=upstream, daemon=True).start()
+    pump(daemon, client, count)
+    stop_socket(client)
+    stop_socket(daemon)
+    client.close()
+    daemon.close()
+
+
+def write_count(count_path, connections, forwarded):
+    """Publish `<connections> <bytes>` so far, without a half-written read.
+
+    The connection count is what makes the caller's read deterministic: it
+    waits for the second connection rather than for a moment in time.
+    """
+    with open(count_path + ".tmp", "w", encoding="utf-8") as handle:
+        handle.write(str(connections) + " " + str(forwarded))
+    os.rename(count_path + ".tmp", count_path)
+
+
+def serve(listener, daemon_port, limit, count_path):
+    """Relay connections until the budget is spent, or until killed."""
+    forwarded = [0]
+    stop = [False]
+    connections = 0
+
+    def count(n):
+        forwarded[0] += n
+        if limit > 0 and forwarded[0] >= limit:
+            stop[0] = True
+        return stop[0]
+
+    while not stop[0]:
+        client, _ = listener.accept()
+        connections += 1
+        relay(client, daemon_port, count)
+        write_count(count_path, connections, forwarded[0])
+
+
+def main():
+    port_path, daemon_port, limit, count_path = sys.argv[1:5]
+    listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    listener.bind(("127.0.0.1", 0))
+    listener.listen(4)
+    # Written under a temporary name and renamed, so the reader never opens a
+    # half-written file.
+    with open(port_path + ".tmp", "w", encoding="utf-8") as handle:
+        handle.write(str(listener.getsockname()[1]))
+    os.rename(port_path + ".tmp", port_path)
+    serve(listener, int(daemon_port), int(limit), count_path)
+    listener.close()
+
+
+if __name__ == "__main__":
+    main()
+EOF_RELAY
+
+# Test script: an answer cut mid-stream over the SSH exec channel
+tmpfs=test-answer-truncation.sh:mode=755:terminator=EOF_SH
+#!/bin/sh
+set -e
+
+# Signal test runner readiness
+touch daemon.ready
+
+# Generate config with SSH on port 0 (OS-assigned)
+cat > answer-truncation.conf << 'ZECONF'
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+		}
+	}
+}
+
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+			profile [ admin ]
+		}
+	}
+	authorization {
+		profile admin {
+			run {
+				default-action allow
+			}
+			edit {
+				default-action allow
+			}
+		}
+	}
+}
+
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port 0;
+		}
+	}
+}
+ZECONF
+
+# Use a PID-derived high port for BGP to avoid needing root for port 179
+export ze_test_bgp_port=$((10000 + ($$ % 50000)))
+
+# Start daemon, capture stderr to parse SSH port
+ze start answer-truncation.conf 2>daemon.log &
+DAEMON_PID=$!
+trap 'kill $DAEMON_PID 2>/dev/null; wait $DAEMON_PID 2>/dev/null' EXIT
+
+# Wait for SSH server to report its listening address
+SSH_PORT=""
+for i in $(seq 1 50); do
+	SSH_PORT=$(grep -o '127\.0\.0\.1:[0-9]*' daemon.log 2>/dev/null | head -1 | cut -d: -f2 || true)
+	if [ -n "$SSH_PORT" ]; then
+		break
+	fi
+	sleep 0.2
+done
+
+if [ -z "$SSH_PORT" ]; then
+	echo "FAIL: SSH server did not start (no address in daemon.log)" >&2
+	cat daemon.log >&2
+	exit 1
+fi
+echo "SSH port: $SSH_PORT" >&2
+
+# Brief delay for postStartFunc to wire the authorizer
+sleep 0.5
+
+# wait_for_file blocks until the relay has written a file. A file appearing has
+# no event to wait on, so this polls, bounded at ten seconds.
+wait_for_file() {
+	for _ in $(seq 1 100); do
+		if [ -s "$1" ]; then
+			return 0
+		fi
+		sleep 0.1
+	done
+	echo "FAIL: $1 never appeared" >&2
+	exit 1
+}
+
+# The complete run, through a relay that cuts nothing. It proves the relay
+# carries a whole answer, and it measures what that answer costs on the wire.
+python3 ./cut-relay.py whole.port "$SSH_PORT" 0 whole.count &
+WHOLE_PID=$!
+# Every kill tolerates a process that has already gone: `set -e` is in force
+# inside the trap too, and a failing kill would abandon the trap before it
+# reaches the daemon, which then holds the harness open until it times out.
+trap 'kill $WHOLE_PID 2>/dev/null || true; rm -rf "$ADMIN_DIR"; kill $DAEMON_PID 2>/dev/null || true; wait $DAEMON_PID 2>/dev/null || true' EXIT
+wait_for_file whole.port
+WHOLE_PORT=$(cat whole.port)
+
+# The credentials are made once, against the daemon's own port. `ze init` opens
+# a connection of its own and a relay serves exactly one, so sending it through
+# the relay would spend the connection the answer needs. ZE_SSH_PORT points the
+# client at the relay instead (resolveHostPort, internal/core/ssh/client), and
+# the stored credentials are keyed by host:port, so the identity travels in the
+# environment beside it.
+set +e
+FULL=$(ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_USERNAME="admin" ZE_SSH_PASSWORD="testpass" ZE_SSH_PORT="$WHOLE_PORT" ze cli -c "system command list | ndjson" 2>whole-err.log)
+FULL_CODE=$?
+set -e
+
+if [ "$FULL_CODE" -ne 0 ]; then
+	echo "FAIL: the relay could not carry a complete answer" >&2
+	cat whole-err.log >&2
+	exit 1
+fi
+
+FULL_LINES=$(printf '%s\n' "$FULL" | grep -c '^{' || true)
+if [ "$FULL_LINES" -lt 257 ]; then
+	echo "FAIL: fixture problem -- the complete answer is only $FULL_LINES records" >&2
+	exit 1
+fi
+
+# `ze cli -c` opens two connections: it probes the daemon with `show version`
+# before it sends the command. The relay publishes the count after each one, so
+# waiting for the second is what makes this read the whole run rather than a
+# moment in time.
+for _ in $(seq 1 100); do
+	if [ -s whole.count ] && [ "$(cut -d' ' -f1 whole.count)" -ge 2 ]; then
+		break
+	fi
+	sleep 0.1
+done
+if [ ! -s whole.count ] || [ "$(cut -d' ' -f1 whole.count)" -lt 2 ]; then
+	echo "FAIL: the relay never reported a complete run" >&2
+	exit 1
+fi
+BYTES=$(cut -d' ' -f2 whole.count)
+CUT=$((BYTES / 2))
+echo "OK: a complete answer is $FULL_LINES records and $BYTES bytes on the wire" >&2
+
+# The cut run: the same answer through a relay that stops half way.
+python3 ./cut-relay.py cut.port "$SSH_PORT" "$CUT" cut.count &
+CUT_PID=$!
+trap 'kill $WHOLE_PID $CUT_PID 2>/dev/null || true; rm -rf "$ADMIN_DIR"; kill $DAEMON_PID 2>/dev/null || true; wait $DAEMON_PID 2>/dev/null || true' EXIT
+wait_for_file cut.port
+CUT_PORT=$(cat cut.port)
+
+set +e
+PARTIAL=$(ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_USERNAME="admin" ZE_SSH_PASSWORD="testpass" ZE_SSH_PORT="$CUT_PORT" ze cli -c "system command list | ndjson" 2>cut-err.log)
+CUT_CODE=$?
+set -e
+
+if [ "$CUT_CODE" -eq 0 ]; then
+	echo "FAIL: a cut answer exited 0, so the client took it for a complete one" >&2
+	cat cut-err.log >&2
+	exit 1
+fi
+
+grep -q "answer ended before its terminator" cut-err.log || {
+	echo "FAIL: the client did not report truncation" >&2
+	cat cut-err.log >&2
+	exit 1
+}
+
+PARTIAL_LINES=$(printf '%s\n' "$PARTIAL" | grep -c '^{' || true)
+if [ "$PARTIAL_LINES" -ge "$FULL_LINES" ]; then
+	echo "FAIL: the cut answer is $PARTIAL_LINES records of $FULL_LINES, so the relay cut nothing" >&2
+	exit 1
+fi
+
+echo "OK: a cut answer of $PARTIAL_LINES records was reported as truncated" >&2
+exit 0
+EOF_SH
+
+# Process orchestration
+cmd=foreground:seq=1:exec=./test-answer-truncation.sh:timeout=60s
+expect=exit:code=0
+expect=stderr:pattern=OK: a cut answer of [0-9]+ records was reported as truncated

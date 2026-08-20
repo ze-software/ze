@@ -187,6 +187,47 @@ const (
 	AnswerTypeStream = "stream"
 )
 
+// AnswerBufferThreshold is how many records a producer holds while it decides
+// which type an answer is. A walk that ends at or under it is answered as one
+// AnswerTypeJSON document, which is the JSON a command answered with before it
+// produced records at all; a walk that passes it is streamed, and the records
+// already held go out in walk order ahead of the rest.
+//
+// It bounds what a producer holds for an answer nobody wants whole, which is
+// the memory this protocol exists to stop growing, and it is of the same order
+// as the queue a consumer reads an answer through (answerQueueDepth, mux.go):
+// both bound one answer in flight, so one number covers the pair.
+//
+// It lives here rather than beside either producer because two producers decide
+// it: the plugin connection's encoder and the SSH exec channel's renderer. One
+// number is what makes their heads agree about what a bounded answer is.
+//
+// It is a constant and not a config knob. An operator who tuned it would be
+// choosing the wire shape of every command's answer for every consumer at once,
+// and the two shapes carry the same data, so there is nothing for a deployment
+// to prefer.
+const AnswerBufferThreshold = 256
+
+// AnswerProtocolEnv is the SSH environment variable a client sets to ask the
+// daemon for the answer frame on the exec channel's stderr. Its value is the
+// comma-separated list of shapes the client understands, which is the same
+// vocabulary a plugin declares at Stage 3 (DeclareCapabilitiesInput.Protocol):
+// one name for one shape, so a client and a plugin never disagree about what a
+// name means.
+//
+// It is opt-in and it fails closed. An unset variable, an empty list and an
+// unknown name all leave the client with the bytes it received before the shape
+// existed. It is spelled here because the daemon reads it and the client writes
+// it, and the two are in different trees.
+const AnswerProtocolEnv = "ZE_ANSWER_PROTOCOL"
+
+// AnswerNoID is the id of an answer on a channel that carries exactly one
+// answer, which is the SSH exec channel: one command owns the channel, so
+// nothing needs to be told apart and no #<id> is written. Every other answer
+// travels on the multiplexed plugin connection, whose ids start at 1
+// (Conn.idSeq), so no real id collides with it.
+const AnswerNoID uint64 = 0
+
 // AppendAnswerHead appends an answer head line
 // (#<id> ok status=<status> type=<answerType> [key=<key>] [fields=<fields>]) to
 // buf and returns the extended slice. Newline is NOT appended.
@@ -280,9 +321,8 @@ func AppendAnswerTerminator(buf []byte, id, count, faults uint64, message string
 // is what lets a client offer completion here and an operational message for a
 // command that was understood and then failed.
 func AppendAnswerNotUnderstood(buf []byte, id uint64, code, message string) []byte {
-	buf = append(buf, '#')
-	buf = strconv.AppendUint(buf, id, 10)
-	buf = append(buf, " error"...)
+	buf = appendAnswerID(buf, id)
+	buf = append(buf, "error"...)
 	if code != "" {
 		buf = appendAnswerKey(buf, answerKeyCode)
 		buf = append(buf, code...)
@@ -295,9 +335,24 @@ func AppendAnswerNotUnderstood(buf []byte, id uint64, code, message string) []by
 
 // appendAnswerPrefix appends the `#<id> ok` every answer line opens with.
 func appendAnswerPrefix(buf []byte, id uint64) []byte {
+	buf = appendAnswerID(buf, id)
+	return append(buf, 'o', 'k')
+}
+
+// appendAnswerID appends the `#<id> ` that names which answer a line belongs
+// to, and appends nothing for AnswerNoID. A muxed connection interleaves the
+// answers of many callers and needs the id on every line; the SSH exec channel
+// carries one answer and would be stating a fact with one possible value.
+//
+// Everything after it is the same grammar on both channels, so a reader parses
+// one tail whichever channel it came from.
+func appendAnswerID(buf []byte, id uint64) []byte {
+	if id == AnswerNoID {
+		return buf
+	}
 	buf = append(buf, '#')
 	buf = strconv.AppendUint(buf, id, 10)
-	return append(buf, ' ', 'o', 'k')
+	return append(buf, ' ')
 }
 
 // appendAnswerKey appends the ` <name>=` that opens one tail pair.
@@ -443,6 +498,39 @@ func ParseAnswerTail(payload []byte) (AnswerTail, error) {
 		return AnswerTail{}, err
 	}
 	return tail, nil
+}
+
+// AnswerVerbOK and AnswerVerbError are the two verbs an answer line opens with.
+// The verb says whether the conversation was valid and the command understood;
+// AnswerTail says what happened after that.
+const (
+	AnswerVerbOK    = "ok"
+	AnswerVerbError = "error"
+)
+
+// ParseAnswerLine reads one whole answer line from a channel that carries no
+// id (AnswerNoID), which is the SSH exec channel: the verb, then the tail every
+// answer line shares. It is the reader for what appendAnswerID writes nothing
+// in front of, so the grammar of that channel has one producer and one
+// consumer rather than a split rule each end keeps its own copy of.
+//
+// A line whose verb is neither AnswerVerbOK nor AnswerVerbError is refused, so
+// text that is not an answer at all is named rather than read as an empty one.
+func ParseAnswerLine(line []byte) (string, AnswerTail, error) {
+	verb, rest, found := bytes.Cut(line, []byte(" "))
+	if !found {
+		return "", AnswerTail{}, fmt.Errorf("answer line states no tail: %q", truncate(string(line), 40))
+	}
+	switch string(verb) {
+	case AnswerVerbOK, AnswerVerbError:
+	default:
+		return "", AnswerTail{}, fmt.Errorf("answer line opens with %q, want ok or error", truncate(string(verb), 40))
+	}
+	tail, err := ParseAnswerTail(rest)
+	if err != nil {
+		return "", AnswerTail{}, err
+	}
+	return string(verb), tail, nil
 }
 
 // checkAnswerType refuses a line whose type= and fields= disagree with each

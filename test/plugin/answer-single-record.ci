@@ -3,20 +3,28 @@
 # Flow:
 # 1. Daemon starts with SSH and one configured BGP peer
 # 2. Shell script creates SSH credentials via ze init
-# 3. `show bgp peer list` names that one peer, so the answer carries one record
-# 4. `show bgp peer list | ndjson` renders that record on one line
+# 3. `system command list | first 1 | raw` answers ONE document of one record
+# 4. `| first 2 | raw` answers one document of two, through the same reader
+# 5. The whole list, past the 256-record threshold, answers one document too
+# 6. `| ndjson` on the whole list renders one record per line
 #
-# An answer of one record is a head, one record line, and a terminator carrying
-# `count=1`. The envelope the records belong under is the head's `key=`, so a
-# record line carries the row and not the `peers` wrapper around it. That is the
-# same shape answer-many-records.ci reads, which is the point: the reader never
-# branches on how many records arrive. Today the answer is one built object with
-# the envelope inside it, which is the special case this test exists to detect.
+# `system command list` answers with a row generator. A walk that ends within
+# rpc.AnswerBufferThreshold records is answered as one document, byte for byte
+# the JSON the command answered with before it produced records at all, so no
+# consumer of an existing command meets a new shape. `| first N` bounds the walk
+# under that threshold whatever the registry holds, which is what makes steps 3
+# and 4 read the bounded branch by construction rather than by luck.
 #
-# VALIDATES: AC-2 -- a command producing exactly one record answers with one
-# record line and no special case in the reader.
-# PREVENTS: a one-record answer taking a second path, and the envelope staying
-# in the payload where a consumer must parse JSON to find it.
+# The record count is the only thing that changes across the three runs of step
+# 3 to 5. The chain is one chain and the reader is one reader, so a one-record
+# answer taking a second path would show up here.
+#
+# VALIDATES: AC-2 -- a command producing exactly one record answers through the
+# same path as one producing many, with no special case in the reader.
+# VALIDATES: AC-1b -- a bounded answer is ONE document and it carries the
+# envelope the command has always answered with.
+# PREVENTS: a one-record answer taking a second path, and a bounded answer
+# losing the envelope a consumer of that command reads.
 
 # Test script: a one-record answer over the SSH exec channel
 tmpfs=test-answer-single-record.sh:mode=755:terminator=EOF_SH
@@ -110,50 +118,89 @@ ADMIN_DIR=$(mktemp -d)
 trap 'rm -rf "$ADMIN_DIR"; kill $DAEMON_PID 2>/dev/null; wait $DAEMON_PID 2>/dev/null' EXIT
 printf 'admin\ntestpass\n127.0.0.1\n%s\n' "$SSH_PORT" | ZE_CONFIG_DIR="$ADMIN_DIR" ze init >/dev/null
 
-# Precondition: the answer covers the one peer. A failure here is a fixture
-# problem, not a framing one.
-PEERS=$(ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_PASSWORD="testpass" ze cli -c "show bgp peer list | json" 2>&1) || {
-	echo "FAIL: show bgp peer list | json did not answer" >&2
-	echo "OUTPUT: $PEERS" >&2
-	exit 1
+# rows_in answers how many records a document carries under its envelope.
+rows_in() {
+	printf '%s' "$1" | python3 -c 'import json,sys; print(len(json.load(sys.stdin)["commands"]))'
 }
-echo "$PEERS" | grep -q 127.0.0.2 || {
-	echo "FAIL: fixture problem -- 127.0.0.2 is missing from the peer list" >&2
-	echo "OUTPUT: $PEERS" >&2
-	exit 1
-}
-echo "OK: the peer is in the answer" >&2
 
-# One record, rendered by the path a large answer takes.
-NDJSON=$(ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_PASSWORD="testpass" ze cli -c "show bgp peer list | ndjson" 2>&1) || {
-	echo "FAIL: show bgp peer list | ndjson did not answer" >&2
-	echo "OUTPUT: $NDJSON" >&2
+# Precondition: the command answers at all. A failure here is a fixture
+# problem, not a framing one.
+FULL=$(ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_PASSWORD="testpass" ze cli -c "system command list | raw") || {
+	echo "FAIL: system command list did not answer" >&2
+	echo "OUTPUT: $FULL" >&2
+	exit 1
+}
+FULL_ROWS=$(rows_in "$FULL")
+if [ "$FULL_ROWS" -le 256 ]; then
+	echo "FAIL: fixture problem -- the daemon registers $FULL_ROWS commands, inside the 256-record threshold" >&2
+	exit 1
+fi
+echo "OK: the command list answers $FULL_ROWS records" >&2
+
+# One record, two records, and every record: one command, one chain, and the
+# record count is the only thing that differs. `| first N` bounds the walk under
+# the threshold, so the first two are the branch that answers ONE document; the
+# third passed the threshold and streamed. All three must read the same way.
+for WANT in 1 2 "$FULL_ROWS"; do
+	CHAIN="system command list | raw"
+	if [ "$WANT" != "$FULL_ROWS" ]; then
+		CHAIN="system command list | first $WANT | raw"
+	fi
+
+	OUT=$(ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_PASSWORD="testpass" ze cli -c "$CHAIN") || {
+		echo "FAIL: $CHAIN did not answer" >&2
+		echo "OUTPUT: $OUT" >&2
+		exit 1
+	}
+
+	LINES=$(printf '%s\n' "$OUT" | wc -l)
+	if [ "$LINES" -ne 1 ]; then
+		echo "FAIL: $CHAIN rendered $LINES lines, want one document" >&2
+		echo "OUTPUT: $(printf '%s' "$OUT" | cut -c1-200)" >&2
+		exit 1
+	fi
+
+	GOT=$(rows_in "$OUT")
+	if [ "$GOT" -ne "$WANT" ]; then
+		echo "FAIL: $CHAIN carries $GOT records, want $WANT" >&2
+		exit 1
+	fi
+
+	case "$OUT" in
+		'{"commands":['*) ;;
+		*)
+			echo "FAIL: $CHAIN lost its envelope" >&2
+			echo "OUTPUT: $(printf '%s' "$OUT" | cut -c1-200)" >&2
+			exit 1
+			;;
+	esac
+done
+echo "OK: one record and many records read through one path" >&2
+
+# The streamed rendering: `| ndjson` names one JSON value per line, and the
+# records reach the operator one line each with no envelope around them.
+NDJSON=$(ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_PASSWORD="testpass" ze cli -c "system command list | ndjson") || {
+	echo "FAIL: system command list | ndjson did not answer" >&2
 	exit 1
 }
 
 RECORDS=$(printf '%s\n' "$NDJSON" | grep -c '^{' || true)
-if [ "$RECORDS" -ne 1 ]; then
-	echo "FAIL: answer rendered $RECORDS record lines, want 1 (one peer)" >&2
-	echo "OUTPUT: $NDJSON" >&2
+if [ "$RECORDS" -ne "$FULL_ROWS" ]; then
+	echo "FAIL: ndjson rendered $RECORDS record lines, want $FULL_ROWS" >&2
 	exit 1
 fi
 
-printf '%s\n' "$NDJSON" | grep -q 127.0.0.2 || {
-	echo "FAIL: the record line does not carry the peer it reports" >&2
-	echo "OUTPUT: $NDJSON" >&2
-	exit 1
-}
-
-if printf '%s\n' "$NDJSON" | grep -q '"peers"'; then
-	echo "FAIL: the record line carries the peers envelope; the head carries it as key=" >&2
-	echo "OUTPUT: $NDJSON" >&2
+if printf '%s\n' "$NDJSON" | grep -q '^{"commands"'; then
+	echo "FAIL: a record line carries the commands envelope" >&2
 	exit 1
 fi
 
-echo "OK: the one-record answer reached the operator as one record" >&2
+echo "OK: the streamed answer reached the operator one record per line" >&2
 exit 0
 EOF_SH
 
 # Process orchestration
-cmd=foreground:seq=1:exec=./test-answer-single-record.sh:timeout=20s
+cmd=foreground:seq=1:exec=./test-answer-single-record.sh:timeout=25s
 expect=exit:code=0
+expect=stderr:contains=OK: one record and many records read through one path
+expect=stderr:contains=OK: the streamed answer reached the operator one record per line
