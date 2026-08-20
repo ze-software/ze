@@ -6,7 +6,7 @@
 | Scope | tooling |
 | Depends | `plan/spec-verify-scope-2-change-set-selector.md` |
 | Phase | 3/3 -- the staticcheck half is built, green, documented and review-fixed. The approved phases 3 and 4 (the suite map and the tier derivation) moved to `plan/spec-verify-scope-5-suite-coverage-map.md`, because no static signal attributes a `.ci` file to a Go package |
-| Deferral shard | `plan/deferrals/verify-scope.md` |
+| Deferral shard | `plan/deferrals/verify-scope.md` | <!-- doc-links: ignore (artifact a later phase of this spec will create) -->
 | Handoff | - |
 | Updated | 2026-08-19 |
 
@@ -194,7 +194,7 @@ constraint and the inherited environment.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| N-A | - | - | No `.ci` can drive this: the subject is which build combinations a verify STAGE judges, and the functional runner starts no verify run. `verify-scope-suite-selection.ci` moved with the stage it tested, and `plan/spec-verify-scope-5-suite-coverage-map.md` carries it as `test/runner/verify-scope-suite-map.ci` |
+| N-A | - | - | No `.ci` can drive this: the subject is which build combinations a verify STAGE judges, and the functional runner starts no verify run. `verify-scope-suite-selection.ci` moved with the stage it tested, and `plan/spec-verify-scope-5-suite-coverage-map.md` carries it as `test/runner/verify-scope-suite-map.ci` | <!-- doc-links: ignore (artifact a later phase of this spec will create) -->
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -216,7 +216,7 @@ entries used by no selection: superseding it needs the derived map, which is
 sub-spec 5's deliverable, and no spec supersedes it before that map exists.
 
 ## Files to Create
-- None. The suite map (`scripts/checks/verify_scope_suites.go`, its test, and the `.ci`) is created by `plan/spec-verify-scope-5-suite-coverage-map.md`
+- None. The suite map (`scripts/checks/verify_scope_suites.go`, its test, and the `.ci`) is created by `plan/spec-verify-scope-5-suite-coverage-map.md` <!-- doc-links: ignore (artifact a later phase of this spec will create) -->
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |

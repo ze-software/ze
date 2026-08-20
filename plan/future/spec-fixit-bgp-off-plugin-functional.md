@@ -159,9 +159,9 @@ covered: `test/plugin/fib-table.ci`, `fib-ecmp-realtime.ci`,
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
 | bare `ze_core` build links the always-on plugins | → | `pluginreg.Register` for fib-kernel/fib-p4/fib-vpp/mrt/flow-export | `TestBuildTag_AlwaysOnPluginsPresent` (`cmd/ze/hub`, `//go:build !ze_bgp`) |
-| `ze-stripped config validate` accepts fib/mrt/flow-export config | → | plugin YANG schemas in the bgp-absent binary | `test/plugin/bgp-off-schema-stripped.ci` |
-| `ze-stripped -f conf` boots with fib+mrt+flow-export | → | each plugin's `OnConfigure`/`Start` | `test/plugin/bgp-off-boot-stripped.ci` |
-| `static{}` + `fib{kernel{}}` on a bgp-off binary installs a route | → | `fibkernel` sysrib consumer + backend | `test/plugin/bgp-off-fib-install.ci` (`option=needs-linux`) |
+| `ze-stripped config validate` accepts fib/mrt/flow-export config | → | plugin YANG schemas in the bgp-absent binary | `test/plugin/bgp-off-schema-stripped.ci` | <!-- doc-links: ignore (test this spec will create; it is future work and nothing has built it) -->
+| `ze-stripped -f conf` boots with fib+mrt+flow-export | → | each plugin's `OnConfigure`/`Start` | `test/plugin/bgp-off-boot-stripped.ci` | <!-- doc-links: ignore (test this spec will create; it is future work and nothing has built it) -->
+| `static{}` + `fib{kernel{}}` on a bgp-off binary installs a route | → | `fibkernel` sysrib consumer + backend | `test/plugin/bgp-off-fib-install.ci` (`option=needs-linux`) | <!-- doc-links: ignore (test this spec will create; it is future work and nothing has built it) -->
 
 ## Acceptance Criteria
 
@@ -186,7 +186,7 @@ covered: `test/plugin/fib-table.ci`, `fib-ecmp-realtime.ci`,
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestBuildTag_AlwaysOnPluginsPresent` | `cmd/ze/hub/build_tag_alwayson_present_test.go` (`//go:build !ze_bgp`) | AC-1: fib/mrt/flow-export registered in bare `ze_core` | |
+| `TestBuildTag_AlwaysOnPluginsPresent` | `cmd/ze/hub/build_tag_alwayson_present_test.go` (`//go:build !ze_bgp`) | AC-1: fib/mrt/flow-export registered in bare `ze_core` | | <!-- doc-links: ignore (test this spec will create; it is future work and nothing has built it) -->
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -196,9 +196,9 @@ covered: `test/plugin/fib-table.ci`, `fib-ecmp-realtime.ci`,
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `bgp-off-schema-stripped` | `test/plugin/bgp-off-schema-stripped.ci` | AC-2: fib/mrt/flow-export config validates on `ze-stripped`, `bgp{}` rejected | |
-| `bgp-off-boot-stripped` | `test/plugin/bgp-off-boot-stripped.ci` | AC-3 + AC-5: daemon boots healthy, degrades gracefully | |
-| `bgp-off-fib-install` | `test/plugin/bgp-off-fib-install.ci` (`option=needs-linux`) | AC-4: static route installed in kernel FIB with bgp off | |
+| `bgp-off-schema-stripped` | `test/plugin/bgp-off-schema-stripped.ci` | AC-2: fib/mrt/flow-export config validates on `ze-stripped`, `bgp{}` rejected | | <!-- doc-links: ignore (test this spec will create; it is future work and nothing has built it) -->
+| `bgp-off-boot-stripped` | `test/plugin/bgp-off-boot-stripped.ci` | AC-3 + AC-5: daemon boots healthy, degrades gracefully | | <!-- doc-links: ignore (test this spec will create; it is future work and nothing has built it) -->
+| `bgp-off-fib-install` | `test/plugin/bgp-off-fib-install.ci` (`option=needs-linux`) | AC-4: static route installed in kernel FIB with bgp off | | <!-- doc-links: ignore (test this spec will create; it is future work and nothing has built it) -->
 
 ### Interop Tests (MANDATORY for protocol features)
 - N/A — no wire-protocol change. The "peer" here is a build configuration, not another daemon. (`ai/rules/interop-and-goal-validation.md`: interop not required for build/config-only work.)
@@ -231,10 +231,10 @@ covered: `test/plugin/fib-table.ci`, `fib-ecmp-realtime.ci`,
 | (others) | | No | verify via grep of `docs/` source anchors for the changed test files (none, tests are new) |
 
 ## Files to Create
-- `cmd/ze/hub/build_tag_alwayson_present_test.go` — `//go:build !ze_bgp` presence guard (AC-1)
-- `test/plugin/bgp-off-schema-stripped.ci` — AC-2
-- `test/plugin/bgp-off-boot-stripped.ci` — AC-3 + AC-5
-- `test/plugin/bgp-off-fib-install.ci` — AC-4 (`option=needs-linux`)
+- `cmd/ze/hub/build_tag_alwayson_present_test.go` — `//go:build !ze_bgp` presence guard (AC-1) <!-- doc-links: ignore (test this spec will create; it is future work and nothing has built it) -->
+- `test/plugin/bgp-off-schema-stripped.ci` — AC-2 <!-- doc-links: ignore (test this spec will create; it is future work and nothing has built it) -->
+- `test/plugin/bgp-off-boot-stripped.ci` — AC-3 + AC-5 <!-- doc-links: ignore (test this spec will create; it is future work and nothing has built it) -->
+- `test/plugin/bgp-off-fib-install.ci` — AC-4 (`option=needs-linux`) <!-- doc-links: ignore (test this spec will create; it is future work and nothing has built it) -->
 
 ## Implementation Steps
 

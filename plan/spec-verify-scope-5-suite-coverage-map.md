@@ -6,7 +6,7 @@
 | Scope | tooling |
 | Depends | `plan/spec-verify-scope-2-change-set-selector.md` |
 | Phase | 1/5 |
-| Deferral shard | `plan/deferrals/verify-scope.md` |
+| Deferral shard | `plan/deferrals/verify-scope.md` | <!-- doc-links: ignore (artifact a later phase of this spec will create) -->
 | Handoff | - |
 | Updated | 2026-08-19 |
 
@@ -205,10 +205,10 @@ and 2236s of wall clock against 1472s (+52%).
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
 | `TestEverySuiteRecordsACoverageProfile` | `scripts/dev/functional_suite_test.py` | AC-1: the export reaches every suite | |
-| `TestSuiteSelectionSkipsOnlyUnreachedSuites` | `scripts/checks/verify_scope_suites_test.go` | AC-3 | |
-| `TestAbsentMapRunsEverySuite` | `scripts/checks/verify_scope_suites_test.go` | AC-4, AC-6: the fail-open branches | |
-| `TestStaleMapTreatsTouchedPackagesAsUnknown` | `scripts/checks/verify_scope_suites_test.go` | AC-5 | |
-| `TestEmptyRecordedSetIsARefusal` | `scripts/checks/verify_scope_suites_test.go` | a suite recording nothing must fail, never read as covering nothing | |
+| `TestSuiteSelectionSkipsOnlyUnreachedSuites` | `scripts/checks/verify_scope_suites_test.go` | AC-3 | | <!-- doc-links: ignore (artifact a later phase of this spec will create) -->
+| `TestAbsentMapRunsEverySuite` | `scripts/checks/verify_scope_suites_test.go` | AC-4, AC-6: the fail-open branches | | <!-- doc-links: ignore (artifact a later phase of this spec will create) -->
+| `TestStaleMapTreatsTouchedPackagesAsUnknown` | `scripts/checks/verify_scope_suites_test.go` | AC-5 | | <!-- doc-links: ignore (artifact a later phase of this spec will create) -->
+| `TestEmptyRecordedSetIsARefusal` | `scripts/checks/verify_scope_suites_test.go` | a suite recording nothing must fail, never read as covering nothing | | <!-- doc-links: ignore (artifact a later phase of this spec will create) -->
 | `TestOperatorSkipStillWins` | `scripts/dev/functional_suite_test.py` | AC-8 | |
 | `test_functional_tier_is_unchanged_by_selection` | `scripts/dev/rfc_requirements_test.py` | AC-7 | |
 
@@ -225,7 +225,7 @@ and 2236s of wall clock against 1472s (+52%).
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `verify-scope-suite-map` | `test/runner/verify-scope-suite-map.ci` | A developer edits one SSH file and the functional stage runs only the suites observed to reach it | |
+| `verify-scope-suite-map` | `test/runner/verify-scope-suite-map.ci` | A developer edits one SSH file and the functional stage runs only the suites observed to reach it | | <!-- doc-links: ignore (artifact a later phase of this spec will create) -->
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -239,9 +239,9 @@ and 2236s of wall clock against 1472s (+52%).
 - `ai/rules/testing.md` - what the `functional/verify` tier now MEANS
 
 ## Files to Create
-- `scripts/checks/verify_scope_suites.go` - the map reader and the suite selector
-- `scripts/checks/verify_scope_suites_test.go`
-- `test/runner/verify-scope-suite-map.ci`
+- `scripts/checks/verify_scope_suites.go` - the map reader and the suite selector <!-- doc-links: ignore (artifact a later phase of this spec will create) -->
+- `scripts/checks/verify_scope_suites_test.go` <!-- doc-links: ignore (artifact a later phase of this spec will create) -->
+- `test/runner/verify-scope-suite-map.ci` <!-- doc-links: ignore (artifact a later phase of this spec will create) -->
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |

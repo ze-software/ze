@@ -191,7 +191,7 @@ interface and which address it concerns.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestVerifyMACChangeSupported` | `internal/component/iface/register_test.go` | the verdict per driver | |
+| `TestVerifyMACChangeSupported` | `internal/component/iface/register_test.go` | the verdict per driver | | <!-- doc-links: ignore (artifact this spec will create; it is future work and nothing has built it) -->
 | `TestSetMACAddressErrorNamesInterface` | `internal/plugins/iface/vpp/apply_test.go` | the error text of a refused request | |
 
 ### Boundary Tests (numeric inputs)
@@ -216,7 +216,7 @@ interface and which address it concerns.
   than the unbind path
 
 ## Files to Create
-- `test/parse/iface-vpp-rejects-mac-on-unsupported-driver.ci` - the commit-time
+- `test/parse/iface-vpp-rejects-mac-on-unsupported-driver.ci` - the commit-time <!-- doc-links: ignore (artifact this spec will create; it is future work and nothing has built it) -->
   refusal
 
 ### Integration Checklist
@@ -243,7 +243,7 @@ interface and which address it concerns.
 | 3 | CLI command added/changed? | No | |
 | 4 | API/RPC added/changed? | No | |
 | 5 | Plugin added/changed? | Yes | the `iface-vpp` refusal behavior |
-| 6 | Has a user guide page? | | `docs/guide/interfaces.md` |
+| 6 | Has a user guide page? | | `docs/guide/interfaces.md` | <!-- doc-links: ignore (artifact this spec will create; it is future work and nothing has built it) -->
 | 7 | Wire format changed? | No | |
 | 8 | Plugin SDK/protocol changed? | No | |
 | 9 | RFC behavior implemented, changed, or newly proven? | No | |

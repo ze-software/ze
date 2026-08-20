@@ -137,9 +137,9 @@ match two paths for one answer.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| Operator runs `show bgp \| summary` | → | alias resolved against `show bgp`, then `handleBgpOverview` | `test/ui/show-bgp-alias-summary.ci` |
-| Operator runs `show bgp summary` | → | no dispatcher key exists; the unknown-command path answers | `test/plugin/show-bgp-summary-is-gone.ci` |
-| Operator runs `show bgp rib \| peers` | → | the empty registration blocks the inherited alias | `test/ui/show-bgp-children-do-not-inherit.ci` |
+| Operator runs `show bgp \| summary` | → | alias resolved against `show bgp`, then `handleBgpOverview` | `test/ui/show-bgp-alias-summary.ci` | <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
+| Operator runs `show bgp summary` | → | no dispatcher key exists; the unknown-command path answers | `test/plugin/show-bgp-summary-is-gone.ci` | <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
+| Operator runs `show bgp rib \| peers` | → | the empty registration blocks the inherited alias | `test/ui/show-bgp-children-do-not-inherit.ci` | <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
 
 ## Acceptance Criteria
 
@@ -160,7 +160,7 @@ match two paths for one answer.
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Types `show bgp` for an overview and `show bgp \| peers` for the rows | CLI → alias expansion → `matchBuiltinTokens` → `handleBgpOverview` | `test/ui/show-bgp-alias-summary.ci` |
+| 1 | Types `show bgp` for an overview and `show bgp \| peers` for the rows | CLI → alias expansion → `matchBuiltinTokens` → `handleBgpOverview` | `test/ui/show-bgp-alias-summary.ci` | <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
 | 2 | Loads the public looking glass peer page | LG issues `show bgp` → `summaryPeers` → birdwatcher protocols | `test/ui/lg-peer-table-flat-payload.ci` |
 
 ## 🧪 TDD Test Plan
@@ -182,9 +182,9 @@ match two paths for one answer.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `show-bgp-alias-summary` | `test/ui/show-bgp-alias-summary.ci` | An operator gets both views from `show bgp` and a pipe | |
-| `show-bgp-summary-is-gone` | `test/plugin/show-bgp-summary-is-gone.ci` | The old command answers unknown-command | |
-| `show-bgp-children-do-not-inherit` | `test/ui/show-bgp-children-do-not-inherit.ci` | AC-7 across the child paths | |
+| `show-bgp-alias-summary` | `test/ui/show-bgp-alias-summary.ci` | An operator gets both views from `show bgp` and a pipe | | <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
+| `show-bgp-summary-is-gone` | `test/plugin/show-bgp-summary-is-gone.ci` | The old command answers unknown-command | | <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
+| `show-bgp-children-do-not-inherit` | `test/ui/show-bgp-children-do-not-inherit.ci` | AC-7 across the child paths | | <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
 
 ### Interop Tests (Scope: protocol)
 Not applicable. Scope is `cli`; no wire-visible protocol behaviour changes.
@@ -201,9 +201,9 @@ Not applicable. Scope is `cli`; no wire-visible protocol behaviour changes.
 - `demos/terminal/zefs-config/{demo.tape,transcript.txt,validate.sh}` - the demonstration and its narration
 
 ## Files to Create
-- `test/ui/show-bgp-alias-summary.ci`
-- `test/plugin/show-bgp-summary-is-gone.ci`
-- `test/ui/show-bgp-children-do-not-inherit.ci`
+- `test/ui/show-bgp-alias-summary.ci` <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
+- `test/plugin/show-bgp-summary-is-gone.ci` <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
+- `test/ui/show-bgp-children-do-not-inherit.ci` <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -250,10 +250,10 @@ Not applicable. Scope is `cli`; no wire-visible protocol behaviour changes.
    - Verify: `show bgp` renders in the declared order and accepts the aliases while `show bgp summary` still exists. Nothing is removed yet, so nothing can regress
 2. **Phase: The consumer sweep** -- every caller moves while the old command still answers
    - Tests: the web, lg, cli and plugin suites
-   - Files: `lg`, `web`, `cli`, `mcp`, `api/rest`, `cmd/ze/hub`, and the 39 `.ci` files
+   - Files: `lg`, `web`, `cli`, `mcp`, `api/rest`, `cmd/ze/hub`, and the 39 `.ci` files <!-- doc-links: ignore (a REST route prefix, not a path in the tree) -->
    - Verify: re-grep rather than trust the spec's list. Every consumer works against `show bgp` with the old command still present, so a miss is visible before the removal makes it fatal
 3. **Phase: The removal**
-   - Tests: `TestShowBgpSummaryIsNotRegistered`, `test/plugin/show-bgp-summary-is-gone.ci`
+   - Tests: `TestShowBgpSummaryIsNotRegistered`, `test/plugin/show-bgp-summary-is-gone.ci` <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
    - Files: `ze-peer-cmd.yang`, `summary.go`, then `make generate`
    - Verify: AC-4, AC-6, AC-9, AC-10
 4. **Phase: Docs and the demonstration**

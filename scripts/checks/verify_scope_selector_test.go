@@ -7,7 +7,8 @@
 // against a small fixture module for the graph shape, the manifest read, and
 // the depth boundary.
 //
-// Design: plan/spec-verify-scope-2-change-set-selector.md
+// Design: docs/architecture/testing/verify-freshness-scope.md -- the scoping model
+// Detail: verify_scope_selector.go -- the selector these tests drive
 
 package main
 

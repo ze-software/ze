@@ -182,7 +182,7 @@ line, until an operator compares the two SPDs by hand.
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
 | A peer's CREATE_CHILD_SA rekey whose TS proposal covers no floor pair | → | `respondChildRekey` | `TestRekeyAnswerMatchesTheInstalledSelectors` |
-| The same rekey on the real XFRM backend | → | `installChildTolerant`, `childPolicyParams` | `test/ipsec/ipsec-child-rekey-xfrm-narrowing.ci` |
+| The same rekey on the real XFRM backend | → | `installChildTolerant`, `childPolicyParams` | `test/ipsec/ipsec-child-rekey-xfrm-narrowing.ci` | <!-- doc-links: ignore (test AC-4 of this spec will create; the spec is not authorised to run) -->
 
 ## Acceptance Criteria
 
@@ -197,8 +197,8 @@ line, until an operator compares the two SPDs by hand.
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Narrows the traffic selectors on the peer daemon, then waits for its rekey timer | peer CREATE_CHILD_SA -> `respondChildRekey` -> `narrowSelectors` -> answer plus install | `test/ipsec/ipsec-child-rekey-xfrm-narrowing.ci` |
-| 2 | Runs a strongSwan peer whose child config narrows between establishment and rekey | strongSwan -> Ze responder -> XFRM policy | `test/interop-ipsec/scenarios/NN-child-rekey-narrowing` |
+| 1 | Narrows the traffic selectors on the peer daemon, then waits for its rekey timer | peer CREATE_CHILD_SA -> `respondChildRekey` -> `narrowSelectors` -> answer plus install | `test/ipsec/ipsec-child-rekey-xfrm-narrowing.ci` | <!-- doc-links: ignore (test AC-4 of this spec will create; the spec is not authorised to run) -->
+| 2 | Runs a strongSwan peer whose child config narrows between establishment and rekey | strongSwan -> Ze responder -> XFRM policy | `test/interop-ipsec/scenarios/NN-child-rekey-narrowing` | <!-- doc-links: ignore (test AC-4 of this spec will create; the spec is not authorised to run) -->
 
 ## 🧪 TDD Test Plan
 
@@ -218,7 +218,7 @@ line, until an operator compares the two SPDs by hand.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `ipsec-child-rekey-xfrm-narrowing` | `test/ipsec/ipsec-child-rekey-xfrm-narrowing.ci` | the peer narrows its selectors and rekeys; the kernel policy matches the answer | NOT WRITTEN. AC-4 is unproven on the real dataplane |
+| `ipsec-child-rekey-xfrm-narrowing` | `test/ipsec/ipsec-child-rekey-xfrm-narrowing.ci` | the peer narrows its selectors and rekeys; the kernel policy matches the answer | NOT WRITTEN. AC-4 is unproven on the real dataplane | <!-- doc-links: ignore (test AC-4 of this spec will create; the spec is not authorised to run) -->
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -245,7 +245,7 @@ line, until an operator compares the two SPDs by hand.
   answer against the installed policy".
 
 ## Files to Create
-- `test/ipsec/ipsec-child-rekey-xfrm-narrowing.ci` - the functional test above.
+- `test/ipsec/ipsec-child-rekey-xfrm-narrowing.ci` - the functional test above. <!-- doc-links: ignore (test AC-4 of this spec will create; the spec is not authorised to run) -->
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -291,7 +291,7 @@ line, until an operator compares the two SPDs by hand.
    - Tests: `TestRekeyAnswerMatchesTheInstalledSelectors`,
      `ipsec-child-rekey-xfrm-narrowing`
    - Files: `internal/component/ike/engine/child_rekey_orientation_test.go`,
-     `test/ipsec/ipsec-child-rekey-xfrm-narrowing.ci`
+     `test/ipsec/ipsec-child-rekey-xfrm-narrowing.ci` <!-- doc-links: ignore (test AC-4 of this spec will create; the spec is not authorised to run) -->
    - Verify: both fail on the divergence, naming both selector sets
 2. **Phase: One value** -- apply Thomas's answer from Key Design Decisions
    - Tests: the three unit tests above
@@ -299,7 +299,7 @@ line, until an operator compares the two SPDs by hand.
      `internal/component/ike/engine/ts_narrow.go`
    - Verify: red before, green after, and reverting the change reddens both
 3. **Phase: Interop** -- the strongSwan scenario with a narrowing peer
-   - Tests: `test/interop-ipsec/scenarios/NN-child-rekey-narrowing`
+   - Tests: `test/interop-ipsec/scenarios/NN-child-rekey-narrowing` <!-- doc-links: ignore (test AC-4 of this spec will create; the spec is not authorised to run) -->
    - Verify: the two SPDs agree after the rekey
 
 ### Critical Review Checklist

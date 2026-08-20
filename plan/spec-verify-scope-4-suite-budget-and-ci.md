@@ -6,7 +6,7 @@
 | Scope | tooling |
 | Depends | `plan/spec-verify-scope-0-umbrella.md` |
 | Phase | 4/5 |
-| Deferral shard | `plan/deferrals/verify-scope.md` |
+| Deferral shard | `plan/deferrals/verify-scope.md` | <!-- doc-links: ignore (artifact a later phase of this spec will create) -->
 | Handoff | - |
 | Updated | 2026-08-19 |
 
@@ -234,7 +234,7 @@ run the suite.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `verify-scope-suite-cap` | `test/runner/verify-scope-suite-cap.ci` | A developer's suite exceeds its budget and the run names the budget rather than blaming the tests | replaced by `TestMakeExpandsTheBudgetReport`, see below |
+| `verify-scope-suite-cap` | `test/runner/verify-scope-suite-cap.ci` | A developer's suite exceeds its budget and the run names the budget rather than blaming the tests | replaced by `TestMakeExpandsTheBudgetReport`, see below | <!-- doc-links: ignore (artifact a later phase of this spec will create) -->
 
 **→ Decision (phase 2, 2026-08-19): the `.ci` row is covered by
 `TestMakeExpandsTheBudgetReport`, and no `.ci` file was written.** The scenario
@@ -261,7 +261,7 @@ tier it runs at, not the behavior it proves.
 
 ## Files to Create
 - `scripts/dev/functional_suite_test.py` - the cap and runtime contract
-- `test/runner/verify-scope-suite-cap.ci` - not written; `TestMakeExpandsTheBudgetReport` carries the end-to-end proof (see the Functional Tests decision above)
+- `test/runner/verify-scope-suite-cap.ci` - not written; `TestMakeExpandsTheBudgetReport` carries the end-to-end proof (see the Functional Tests decision above) <!-- doc-links: ignore (artifact a later phase of this spec will create) -->
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |

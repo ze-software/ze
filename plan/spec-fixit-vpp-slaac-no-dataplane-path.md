@@ -206,7 +206,7 @@ advertisements, close this spec and record the evidence.
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
 | `TestBackendGateIPv6Autoconf` | `internal/component/config/backend_gate_test.go` | the gate's verdict for `autoconf` and `accept-ra` under each backend | |
-| `TestApplyUnitSysctlsIPv6Autoconf` | `internal/component/iface/config_sysctl_test.go` | which keys the sysctl step emits, and for which OS name | |
+| `TestApplyUnitSysctlsIPv6Autoconf` | `internal/component/iface/config_sysctl_test.go` | which keys the sysctl step emits, and for which OS name | | <!-- doc-links: ignore (artifact this spec will create; it forbids code until a test proves its premise) -->
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -222,7 +222,7 @@ advertisements, close this spec and record the evidence.
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `NN-vpp-slaac-tap` | `test/qemu/` | an advertisement sender on the link | whether the dataplane delivers advertisements to the tap | |
+| `NN-vpp-slaac-tap` | `test/qemu/` | an advertisement sender on the link | whether the dataplane delivers advertisements to the tap | | <!-- doc-links: ignore (artifact this spec will create; it forbids code until a test proves its premise) -->
 
 ## Files to Modify
 - `internal/component/iface/yang/ze-iface-conf.yang` - the annotation on
@@ -233,9 +233,9 @@ advertisements, close this spec and record the evidence.
   backend-aware
 
 ## Files to Create
-- `test/parse/iface-vpp-autoconf-agrees-with-dataplane.ci` - the commit-time
+- `test/parse/iface-vpp-autoconf-agrees-with-dataplane.ci` - the commit-time <!-- doc-links: ignore (artifact this spec will create; it forbids code until a test proves its premise) -->
   behavior
-- `test/parse/iface-vpp-autoconf-vlan.ci` - the sub-interface behavior
+- `test/parse/iface-vpp-autoconf-vlan.ci` - the sub-interface behavior <!-- doc-links: ignore (artifact this spec will create; it forbids code until a test proves its premise) -->
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -261,7 +261,7 @@ advertisements, close this spec and record the evidence.
 | 3 | CLI command added/changed? | No | |
 | 4 | API/RPC added/changed? | No | |
 | 5 | Plugin added/changed? | | |
-| 6 | Has a user guide page? | | `docs/guide/interfaces.md` |
+| 6 | Has a user guide page? | | `docs/guide/interfaces.md` | <!-- doc-links: ignore (artifact this spec will create; it forbids code until a test proves its premise) -->
 | 7 | Wire format changed? | No | |
 | 8 | Plugin SDK/protocol changed? | No | |
 | 9 | RFC behavior implemented, changed, or newly proven? | | |
