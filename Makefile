@@ -2,10 +2,10 @@
 .PHONY: ze-docker-build ze-docker-lab-build
 .PHONY: ze-lint _ze-lint-impl ze-evidence-vet ze-unit-reactor-test-race ze-unit-linux-test ze-functional-exabgp-test ze-dependency-vulnerability-check
 .PHONY: ze-standard-test ze-precommit-verify ze-precommit-verify-changed ze-precommit-verify-list ze-repository-check ze-repository-tree-check ze-smoke-verify ze-ci-verify ze-verify-all ze-test-all
-.PHONY: ze-lint-changed ze-unit-test-changed ze-scratch-clean ze-session-clean ze-unit-hook-test
+.PHONY: ze-lint-changed ze-unit-test-changed ze-scratch-clean ze-session-clean ze-session-reap ze-unit-hook-test
 .PHONY: ze-tier-check ze-iface-resolution-check ze-plugin-boundary-check ze-config-coercion-check ze-fs-persistence-check ze-dash-stdio-check ze-port-defaults-check ze-yang-leaf-mentions-report ze-platform-vet ze-ci-dispatch-check
 .PHONY: ze-test-sensitivity-check ze-test-health-update ze-test-health-check ze-test-health-record ze-test-weakened-check
-.PHONY: ze-staticcheck-feature-matrix-check ze-repository-tracked-build-check
+.PHONY: ze-staticcheck-feature-matrix-check ze-repository-tracked-build-check ze-verify-scope-selector ze-verify-debt-clear
 .PHONY: ze-iso-build-full ze-iso-initialize ze-iso-build ze-iso-check ze-pxe-build
 .PHONY: ze-vendor-web-sync ze-vendor-web-check ze-vendor-web-update-report ze-htmx-upgrade-check ze-htmx-upgrade-report ze-ai-skills-sync ze-ai-instructions-generate ze-ai-sync-check
 .PHONY: ze-proto-generate ze-plugin-snapshot-update ze-plugin-imports-check ze-fuzz-targets-check ze-yang-glue-check ze-feature-tags-check ze-web-assets-check ze-templ-orphan-check ze-templ-output-check ze-generated-files-update ze-generated-files-reconcile ze-generated-files-check ze-arch-map-update ze-arch-map-check
@@ -721,10 +721,25 @@ _ze-dependency-vulnerability-check-impl:
 
 # ─── Scoped targets (parallel-safe) ────────────────────────────────────────
 
-# Changed-package set = uncommitted .go changes + packages committed since
-# the last green verify (scripts/dev/changed-pkgs.sh). The committed-since
-# term closes a gap where a regression committed before verifying left the
-# working-tree diff and was silently skipped by scoped verify.
+# The changed-package set comes from ONE producer,
+# scripts/checks/verify_scope_selector.go, reached through
+# scripts/dev/changed-pkgs.sh (see ze-verify-scope-selector below). It is the
+# uncommitted .go changes, plus the packages committed since the last green
+# verify, plus the packages that IMPORT either at up to two levels, with the
+# build tags on -- so a //go:build ze_ssh importer is visible, which the old
+# untagged expansion could not see. The committed-since term closes a gap where
+# a regression committed before verifying left the working-tree diff and was
+# silently skipped by scoped verify.
+#
+# Inside `make ze-precommit-verify-changed` the answer is computed ONCE, before
+# the first stage, and both recipes below read the file the run published
+# (scripts/status/verify_run.go, ZE_VERIFY_SCOPE_PACKAGES). Run either target on
+# its own and it selects its own set, at the selector's measured 2.4 to 2.9s.
+#
+# `./...` is a legitimate answer and means the change reaches everything: a
+# dependency moved, or a changed path could not be classified. Both recipes must
+# pass it through unchanged -- treating it as "nothing selected" would verify
+# nothing and report success.
 # The second pass mirrors ze-lint's (see the comment above that target): without
 # it a new //go:build integration test lands unlinted, because the changed-file
 # gate is the only lint most edits ever face. `&&` keeps it fail-closed -- with
@@ -786,6 +801,17 @@ ZE_VERIFY_LOG ?= tmp/ze-verify.log
 # tested implementation beats two, and nothing is forged either way.
 ze-precommit-verify:
 	@scripts/dev/verify-lock.sh ze-precommit-verify env ZE_VERIFY_MAKE="$(MAKE)" $(GO) run ./scripts/status/verify_run.go ze-precommit-verify
+
+# Clear verification debt by RUNNING the gate, never by editing the table.
+# Every open row in plan/verification-debt/ names a gate that had not run green
+# over the commit that owed it, and `commit_helper.py create --push` refuses
+# while one is open. This re-runs each named gate once and writes `cleared` only
+# on exit 0; a red gate leaves its rows open and prints its output, and a gate
+# no command produces (an independent review) says so. It runs whatever the
+# named gates cost, `make ze-precommit-verify` included, so it is an explicit
+# invocation and no other target depends on it.
+ze-verify-debt-clear:
+	@python3 scripts/dev/commit_helper.py debt-clear
 
 # Print the stage list without running anything.
 #   make ze-precommit-verify-list
@@ -960,8 +986,30 @@ ze-test-weakened-check:
 	@python3 scripts/dev/check_weakened_tests.py
 
 # Entry point for the Staticcheck feature-tag matrix gate.
+#
+# ARGS passes the checker's own flags:
+#   ARGS=--print-matrix    print the rows this invocation would judge, and stop
+#   ARGS=--deadline=D      bound the one Staticcheck process
+#
+# ZE_VERIFY_SCOPE_TAGS names the feature-tag answer a verify run published
+# (scripts/status/verify_run.go), and scopes the rows to the ones that change
+# set can move. Unset -- a developer running this target on its own -- judges
+# every row the manifest implies.
 ze-staticcheck-feature-matrix-check:
-	@$(GO) run scripts/checks/staticcheck_feature_matrix.go
+	@$(GO) run scripts/checks/staticcheck_feature_matrix.go $(ARGS)
+
+# The change-set selector (plan/spec-verify-scope-2-change-set-selector.md): one
+# answer for "what must this change retest, and which features can it reach".
+# The reverse import graph is built with every feature tag on, so a gated
+# importer such as cmd/ze/hub's //go:build ze_ssh files is visible.
+#
+# ARGS passes the selector's own flags:
+#   ARGS=--print=tags      the feature-tag answer alone
+#   ARGS=--print=both      both answers, in one sectioned document
+#   ARGS=--depth=1         a narrower reverse walk than the default 2
+#   ARGS=--drop-log=FILE   record what the depth bound dropped
+ze-verify-scope-selector:
+	@$(GO) run scripts/checks/verify_scope_selector.go $(ARGS)
 
 # Tracked-build gate (docs/architecture/testing/tracked-build-gate.md): compile
 # the tree GIT HOLDS, which is the one population no other check compiles. Every
@@ -1210,21 +1258,39 @@ ze-generated-files-reconcile: ze-generated-files-update
 ze-doc-links-check:
 	@python3 scripts/dev/check_doc_links.py
 
-# clean removes bin/, coverage, and THIS session's WHOLE directory
+# clean removes bin/, coverage, THIS session's WHOLE directory
 # tmp/session/<YYYY-MM-DD>-<session-id>/ (via scripts/dev/session-scratch.sh --clean),
-# which is all three subdirectories and not only scratch/: the session's binaries and
-# the etc/ze store they resolve, its scratch/, and its state/ per-spec digest. Losing
-# the digest costs the spec handoff .claude/rules/post-compaction.md reads, so run
-# `make clean` between specs rather than inside one. Every other concurrent session's
-# directory and the shared Go build caches are left intact, so a sibling session keeps
-# its work -- though bin/ and coverage are shared, rebuildable outputs it does remove.
-# For the full per-checkout wipe (bin/ + ALL of tmp/, shared caches included) use
-# `make clean-all`. See plan/spec-relocate-scratch-and-cache.md.
+# the directories of sessions that are no longer running (ze-session-reap), and both
+# Go build caches.
+#
+# --clean takes all three subdirectories and not only scratch/: the session's binaries
+# and the etc/ze store they resolve, its scratch/, and its state/ per-spec digest.
+# Losing the digest costs the spec handoff .claude/rules/post-compaction.md reads, so
+# run `make clean` between specs rather than inside one.
+#
+# A CONCURRENT session keeps its own directory: ze-session-reap removes a directory
+# only when it can show the session that owns it exited, and it errs toward keeping
+# (scripts/dev/session-reap.py). bin/, coverage and the caches are shared, rebuildable
+# outputs, so those go whoever runs this.
+#
+# Two Go caches are emptied because there are two: GOCACHE is overridden to
+# $(CURDIR)/cache/go-cache at the top of this file, so a plain `go clean -cache`
+# reaches that one and never the default user cache. `env -u GOCACHE` drops the
+# override so the second run reaches ~/.cache/go-build. mk/cadence.mk runs the same
+# pair every morning.
+#
+# For the full per-checkout wipe (bin/ + ALL of tmp/, every session's directory
+# included, running or not) use `make clean-all`. See
+# plan/spec-relocate-scratch-and-cache.md.
 clean:
 	@echo "Cleaning this session (bin/, coverage, this session's whole directory: bin/, scratch/, state/)..."
 	rm -rf bin/
 	rm -f coverage.out coverage.html
 	@scripts/dev/session-scratch.sh --clean 2>/dev/null || true
+	@$(MAKE) --no-print-directory ze-session-reap
+	@echo "Emptying both Go build caches (repository override, then the default user cache)..."
+	go clean -cache
+	env -u GOCACHE go clean -cache
 	@python3 scripts/dev/ensure-links.py --quiet
 
 # clean-all is the full per-checkout wipe: bin/ + the SCRATCH contents (the tmp/ symlink
@@ -1316,6 +1382,20 @@ ze-session-clean:
 		removed=$$((removed + 1)); \
 	done; \
 	echo "Removed $$removed session director$$([ $$removed -eq 1 ] && echo y || echo ies) dated before $$BEFORE."
+
+# ze-session-reap asks the question ze-session-clean cannot: is the session that
+# owns this directory still RUNNING? A date says nothing about that, which is why
+# the age timer was refused in the first place -- a directory dated last week can
+# belong to a session still open in a terminal. A directory whose owner exited
+# holds nothing anybody can return to, so this one needs no date from the operator.
+#
+# It keeps on four independent signals and removes only when every one of them is
+# silent, so a session it cannot classify survives. `make clean` runs it, and
+# DRY=1 names what would go without removing it. The signals, the proof that a
+# running session always clears them, and the fail-closed case are in
+# scripts/dev/session-reap.py.
+ze-session-reap:
+	@python3 scripts/dev/session-reap.py $(if $(DRY),--dry-run)
 
 check: fmt vet
 	@echo "Quick check passed"
@@ -1555,6 +1635,7 @@ help-dev:
 	@echo "  Commit integrity:"
 	@echo "    ze-staticcheck-feature-matrix-check        Type-check the working tree across feature-tag configurations"
 	@echo "    ze-repository-tracked-build-check          Compile the tree GIT HOLDS (REV=<sha> for another commit)"
+	@echo "    ze-verify-scope-selector                   Packages to retest and features reached by the change set"
 	@echo ""
 	@echo "  Spec management:"
 	@echo "    ze-spec-status                             Spec inventory with progress status"
@@ -1594,10 +1675,11 @@ help-dev:
 	@echo "    ze-htmx-upgrade-report                     Print every htmx 4 upgrade issue, explained or not"
 	@echo ""
 	@echo "  Cleanup:"
-	@echo "    clean                                      Session-safe: bin/, coverage, this session's scratch only"
-	@echo "    clean-all                                  Full wipe: bin/ + ALL of tmp/ (shared caches, all sessions)"
+	@echo "    clean                                      bin/, coverage, this session's scratch, exited sessions, both Go caches"
+	@echo "    clean-all                                  Full wipe: bin/ + ALL of tmp/ (shared caches, all sessions, running or not)"
 	@echo "    ze-scratch-clean                           Remove tmp/ scratch files older than 24h"
 	@echo "    ze-session-clean                           Remove session dirs dated before BEFORE=<YYYY-MM-DD>"
+	@echo "    ze-session-reap                            Remove session dirs whose Claude session exited (DRY=1 to list)"
 
 # The `_<target>-impl` half of every admitted pair defined in this file.
 # The public half calls the admission wrapper and this half holds the work;

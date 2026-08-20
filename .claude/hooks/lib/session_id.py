@@ -42,6 +42,7 @@ Bash and Python entry points cannot disagree on the marker path.
 
 from __future__ import annotations
 
+import base64
 import json
 import os
 import re
@@ -339,6 +340,7 @@ def session_id() -> str:
     return (
         _sid_from_env() or _sid_from_process_tree() or _sid_from_jwt() or _sid_minted()
     )
+
 
 def _hook_session_id_status(payload: object) -> tuple[int, str]:
     """Return the hook payload status and its safe raw session_id, if present."""
