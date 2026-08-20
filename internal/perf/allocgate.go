@@ -1,7 +1,7 @@
 // Design: docs/functional-tests.md -- alloc-ceiling gate (ze-alloc-check stage)
 //
 // The gate parses `go test -benchmem` output for the reactor hot-path
-// ReportAllocs benchmarks (bufmux / forward-pool / EBGPWire) and asserts a
+// ReportAllocs benchmarks (bufmux / forward-pool / prefix-limits) and asserts a
 // per-benchmark allocs/op ceiling. mk/alloc-gate.mk drives it as a ze-precommit-verify
 // stage. allocs/op is machine-independent, so an integer ceiling is a stable
 // regression signal without a stored baseline host.
@@ -31,11 +31,6 @@ var AllocCeilings = map[string]int{
 	"BenchmarkBufMuxGetReturn": 0,
 	// forward-pool non-blocking TryDispatch -- zero-alloc steady state. Measured 0.
 	"BenchmarkFwdPoolTryDispatch": 0,
-	// EBGPWire cache hit -- single atomic pointer load. Measured 0. The method
-	// has no production caller since the AS-path fold (e2037e598). The entry
-	// stays until the cache is deleted. A change to it cannot regress
-	// unnoticed in the meantime.
-	"BenchmarkEBGPWireCacheHitParallel": 0,
 	// rs-fastpath ForwardUpdatesDirect per-UPDATE path. Measured 5, +1 headroom.
 	"BenchmarkForwardDirect": 6,
 	// checkPrefixLimits per-UPDATE, default `count offered` family. Measured 0.

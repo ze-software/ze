@@ -1,6 +1,5 @@
 # Performance Round 3: Hot-Path Allocation and Lock Reduction
 
-<!-- source: internal/component/bgp/reactor/received_update.go -- ebgpWireSlot, EBGPWire -->
 <!-- source: internal/component/bgp/plugins/rib/rib_attr_format.go -- communityList, communityByteList -->
 <!-- source: internal/component/bgp/reactor/filter_chain.go -- filterAttrs, parseFilterAttrs -->
 
@@ -13,58 +12,48 @@ CLI behavior byte-for-byte. The proof for each is its own Go benchmark, not
 the end-to-end ze-perf convergence number (none of these paths are exercised
 by the single-DUT 100K-route benchmark).
 
-## 1. Lock-Free EBGPWire Cache Hits
+## 1. Lock-Free EBGP Variant Cache Hits (deleted 2026-08-17)
 
-`ReceivedUpdate.EBGPWire` lazily generates the EBGP variant of an UPDATE
-(local ASN prepended to AS_PATH per RFC 4271 9.1.2), cached per ASN-width
-variant. On a route server fanning one UPDATE to N eBGP peers, the wire is
-generated once and re-read N times. Every read took `ebgpMu`.
+The reactor cached the EBGP variant of a received UPDATE (local ASN prepended
+to AS_PATH per RFC 4271 Section 9.1.2), one entry per AS width. On a route
+server that fans one UPDATE to N eBGP peers, the wire was built once and read N
+times. Every read took a mutex.
 
-At 100K UPDATE/s with 150 peers, that is roughly 15 million mutex
-lock/unlock pairs per second to re-read two immutable pointers.
+At 100K UPDATE/s with 150 peers, that is about 15 million lock and unlock pairs
+per second to read two immutable pointers.
 
-The four cache fields (`ebgpWireASN4`, `ebgpWireASN2`, `ebgpPoolBuf4`,
-`ebgpPoolBuf2`) are replaced by two `atomic.Pointer[ebgpWireSlot]` slots.
-Each slot bundles the wire pointer and its backing pool buffer handle in a
-single struct, published atomically. The BufHandle is a three-field struct
-and cannot be stored atomically on its own, which is why the bundling
-matters.
+This round replaced the four cache fields with two atomic slots. Each slot
+bundled the wire pointer and its backing pool buffer handle in one struct,
+published atomically. A `BufHandle` is a three-field struct and cannot be stored
+atomically on its own, which is why the bundling mattered. A cache hit became a
+single atomic pointer load. Generation stayed single-flight under the mutex with
+double-checked locking, the idiom `Peer.negotiated` and `Peer.sendCtx` use.
 
-Cache hits are now a single atomic pointer load. Generation stays
-single-flight under `ebgpMu` with double-checked locking (lock, re-check
-the slot, generate if still nil, store). This matches the existing idiom
-used by `Peer.negotiated` and `Peer.sendCtx`.
-
-Eviction (`evictLocked`, `Delete`) loads each slot atomically and returns
-the handle. The fire-once property (slots written at most once, never
-mutated after publication) means eviction cannot race a reader: the Go
-memory model guarantees that an atomic load observing the stored pointer
-sees the fully initialized struct.
+Eviction loaded each slot atomically and returned the handle. The slots were
+fire-once (written at most once, never mutated after publication), so eviction
+could not race a reader: the Go memory model guarantees that an atomic load
+which observes the stored pointer sees the fully initialized struct.
 
 ```
-BenchmarkEBGPWireCacheHitParallel (16 goroutines, Apple M4 Max, 2026-07):
-  Before:  ~128 ns/op    0 allocs/op
-  After:   ~0.36 ns/op   0 allocs/op
+16 goroutines, Apple M4 Max, 2026-07:
+  Before (mutex hit):   ~128 ns/op    0 allocs/op
+  After (atomic hit):   ~0.36 ns/op   0 allocs/op
 
 Re-measured 2026-08-05, linux/amd64 EPYC 7351, GOMAXPROCS=32, -benchtime=2s:
-  BenchmarkEBGPWireCacheHitParallelMutexBaseline    73.6 ns/op   0 allocs/op
-  BenchmarkEBGPWireCacheHitParallel                 0.26 ns/op   0 allocs/op
+  mutex hit path        73.6 ns/op    0 allocs/op
+  atomic hit path        0.26 ns/op   0 allocs/op
 ```
 
-`b.RunParallel` divides wall time by total operations. Both figures therefore
-scale with GOMAXPROCS. Compare the two benchmarks on one host. Never compare a
-recorded ns/op across machines.
+`b.RunParallel` divides wall time by total operations, so both figures scale
+with GOMAXPROCS. Compare the two numbers on one host. Never compare a recorded
+ns/op across machines.
 
-`BenchmarkEBGPWireCacheHitParallelMutexBaseline` reproduces the pre-change
-mutex hit path. The before number stays re-runnable now that the old code
-is gone.
-
-**Since 2026-08-01 this path is unreachable.** The AS-path fold (`e2037e598`)
-moved eBGP prepending onto the edit-set path. It left `EBGPWire` with no
-non-test caller, so both slots stay nil in a running daemon. The optimization
-above is correct and measured. The traffic it was written for takes another
-route. Deleting the cache is the work of
-`plan/spec-wire-edit-3-deferred-ac9-dead-code.md`.
+**The cache no longer exists.** The AS-path fold (`e2037e598`) moved eBGP
+prepending onto the edit-set path on 2026-08-01 and left the cache with no
+non-test caller. `plan/spec-wire-edit-3-deferred-ac9-dead-code.md` deleted the
+cache, its two benchmarks and its allocation ceiling. The optimization above was
+correct and measured. The traffic it was written for takes another route, so the
+numbers are a record and are not re-runnable.
 
 Files: `received_update.go`, `recent_cache.go`.
 
