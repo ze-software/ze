@@ -113,11 +113,27 @@ Goal: make every answer a sequence of records produced by a generator, with the 
 
 Every line is `#<id> <verb> <tail>`. On the SSH exec channel the `#<id>` prefix is absent, since one command owns the channel.
 
-**Every answer has the same shape, and the code has one path.** A head, then zero or more records, then a terminator. A single-element answer is that shape carrying one record. Nothing declares how many lines follow, so nothing can be wrong about it.
+**Every answer opens with a meta line, then its records, then a terminator, and the code has one path** (owner decision, 2026-08-20). A single-element answer is that shape carrying one record. Nothing declares how many records follow, so nothing can be wrong about the count.
+
+**`type=` on the head says how to read every `item=` that follows.** It is the one key a reader needs before the body, and it removes any first-byte or shape heuristic:
+
+| `type=` | Each `item=` carries | Used for |
+|---------|----------------------|----------|
+| `json` | the whole answer as one JSON document | a bounded answer, the shape a command returns today |
+| `ndjson` | one self-describing object | a sequence whose rows do not share a fixed schema |
+| `stream` | a positional array, read against the head's `fields=` | a long sequence with a fixed schema, where repeating the keys on every row is most of the bytes |
+
+`fields=` appears with `type=stream` and carries the column schema. It is not a declaration that exists to announce a shape: it is data the reader needs anyway, and it carries the column ORDER, which today lives in the separate `column_order.go` registry that a renderer joins by command name.
+
+**Which type an answer uses is decided at run time from the OUTPUT, never by the command.** A handler returns a generator and decides nothing. The encoder pulls up to a threshold of records. A walk that ends at or under it is answered as one document. A walk that passes it streams, flushing the records already held. So a bounded answer keeps its current JSON and no consumer of an existing command breaks, while a long answer never materializes. The threshold is one named constant of the same order as the answer queue (256). It is not a config knob.
+
+`| first 10` still cancels the walk, because 10 is under the threshold. The consumer stops during the buffering window and the decision point is never reached.
+
+**Naming caution, unresolved.** `type=json` and `type=ndjson` share their words with the pipe operators `| json` and `| ndjson`. Those are RENDERINGS an operator asked for, not how the daemon serialized the body. The two are unrelated and a reader must not infer one from the other. Either the wire words change (`document`, `records`, `columns`) or the docs state the independence.
 
 | Line | Verb | Required keys | Optional keys | Position |
 |------|------|---------------|---------------|----------|
-| head | `ok` | `status=` | `key=` | first line for this id |
+| head | `ok` | `status=`, `type=` | `key=`, and `fields=` when `type=stream` (last, open-ended) | first line for this id |
 | result record | `ok` | `item=` | - | between head and terminator |
 | error record | `ok` | `fault=` | - | between head and terminator |
 | terminator | `ok` | `count=` | `faults=`, `message=` | last line for this id |
@@ -125,7 +141,10 @@ Every line is `#<id> <verb> <tail>`. On the SSH exec channel the `#<id>` prefix 
 
 | Example line | Meaning |
 |--------------|---------|
-| `#7 ok status=done key=peers` | answer opens, records follow under the `peers` envelope |
+| `#7 ok status=done type=json` | a bounded answer opens; one `item=` carries the whole document |
+| `#7 ok status=done type=ndjson key=peers` | a sequence of self-describing objects follows, under the `peers` envelope |
+| `#7 ok status=done type=stream fields=["peer","as","state"]` | a long fixed-schema sequence follows; each `item=` is a positional array against these fields |
+| `#7 ok item=["10.0.0.1",65001,"established"]` | one row of a `type=stream` answer |
 | `#7 ok item={"peer":"10.0.0.1","state":"established"}` | one result record |
 | `#7 ok fault={"path":"bgp/peer/10.0.0.2","message":"nexthop unreachable"}` | one error record; the walk continues |
 | `#7 ok count=2` | terminator; two records produced, none faulted |
@@ -226,7 +245,9 @@ A `fault=` record has no place on the wire's item array, but the 24 `CommandDisp
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | Any successful command | A head carrying `status=`, then its records, then a terminator carrying `count=`; the reader follows one path whatever the record count |
+| AC-1 | Any successful command, to a negotiated peer | A head carrying `status=` and `type=`, then its records, then a terminator carrying `count=`; the reader follows one path whatever the record count and whatever the type |
+| AC-1b | A walk that ends at or under the threshold | `type=json`, one `item=` carrying the whole document, and that document is byte-identical to what the command answers today |
+| AC-1c | A walk that passes the threshold with a fixed schema | `type=stream`, `fields=` on the head, one positional `item=` per row, and the records held during buffering are flushed in order before the rest |
 | AC-2 | A command producing exactly one record | Head, one `item=` line, terminator with `count=1`; no special case in the reader. Proven by driving ONE command (`show bgp peer list`) against one peer and against two: a command that answers a fixed single record could not distinguish the shared path from a special case |
 | AC-3 | A command that returns no data | Head, no records, terminator with `count=0`; the operator still sees `OK` when the chain names no format |
 | AC-4 | A command text that is not a command | Verb `error` with `message=`, no `status=` key, and the answer is the only line |
