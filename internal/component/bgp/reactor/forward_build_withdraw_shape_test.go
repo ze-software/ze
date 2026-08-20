@@ -75,13 +75,6 @@ func creatingHandler(flags, code byte) filterapi.AttrModHandler {
 // egress rule may stamp an attribute onto a relayed UPDATE that advertises
 // nothing.
 //
-// rfc-test-change-approved: 2026-08-04 -- Thomas standing authorisation for
-// correctness-only test edits. A mis-drafted RFC4271-4.3-1 tag, written minutes
-// ago in this same session, is REMOVED: that id is the Transitive-bit rule
-// (rfc/short/rfc4271.md:698) and has nothing to do with the shape this test
-// drives. A wrong tag counts as evidence for an obligation nobody proved.
-// No assertion changes.
-//
 // NO `RFC requirement:` TAG. RFC 4271 Section 4.3's "will not include path
 // attributes" is indicative prose with no checklist row, and the MUST that bites
 // -- Section 6.3's Missing Well-known Attribute -- has an extracted row
@@ -195,16 +188,6 @@ func TestRelayCreatesNoAttributeOnABodyAdvertisingNothing(t *testing.T) {
 // VALIDATES: the gate blocks CREATION only. An attribute the source already
 // carries is still rewritten on a body that advertises nothing.
 //
-// rfc-test-change-approved: 2026-08-04 -- Thomas standing authorisation for
-// correctness-only test edits. A mis-drafted RFC6793-4.2.2-1 tag, written earlier
-// in this same session, is REMOVED. That id is "when sending to an OLD speaker,
-// MUST send AS path information in AS_PATH encoded with two-octet AS numbers"
-// (rfc/short/rfc6793.md:498). This test involves no OLD speaker: it hand-builds
-// `narrowed` and asserts those exact bytes return, so the producer of that
-// obligation (ASPathEdit.recordTranscode, wireu/aspath_slot.go) never runs and
-// the assertion is a tautology with respect to the requirement. The real positive
-// lives in rfc6793_as4_test.go. Removing a false claim strengthens the ledger.
-//
 // NO `RFC requirement:` TAG. What this proves is the gate's create-versus-modify
 // boundary, which no checklist row states.
 //
@@ -247,13 +230,6 @@ func TestRelayStillRewritesAnAttributeAWithdrawalCarries(t *testing.T) {
 // VALIDATES: the gate reads the shape the rebuild WRITES, not the shape it
 // reads. An export chain that denies every prefix leaves a body advertising
 // nothing, whatever the source carried.
-//
-// rfc-test-change-approved: 2026-08-04 -- Thomas standing authorisation for
-// correctness-only test edits. A mis-drafted RFC4271-4.3-1 tag, written minutes
-// ago in this same session, is REMOVED: that id is the Transitive-bit rule
-// (rfc/short/rfc4271.md:698) and has nothing to do with the shape this test
-// drives. A wrong tag counts as evidence for an obligation nobody proved.
-// No assertion changes.
 //
 // NO `RFC requirement:` TAG. RFC 4271 Section 4.3's "will not include path
 // attributes" is indicative prose with no checklist row, and the MUST that bites
@@ -407,13 +383,6 @@ func forwardOneBody(t *testing.T, srcPeerAS uint32, destSettings *PeerSettings, 
 // configured, a relayed withdrawal and a relayed End-of-RIB leave ze byte for
 // byte as they arrived, and an advertisement still gets its next-hop rewritten.
 //
-// rfc-test-change-approved: 2026-08-04 -- Thomas standing authorisation for
-// correctness-only test edits. A mis-drafted RFC4271-4.3-1 tag, written minutes
-// ago in this same session, is REMOVED: that id is the Transitive-bit rule
-// (rfc/short/rfc4271.md:698) and has nothing to do with the shape this test
-// drives. A wrong tag counts as evidence for an obligation nobody proved.
-// No assertion changes.
-//
 // NO `RFC requirement:` TAG. RFC 4271 Section 4.3's "will not include path
 // attributes" is indicative prose with no checklist row, and the MUST that bites
 // -- Section 6.3's Missing Well-known Attribute -- has an extracted row
@@ -481,11 +450,7 @@ func TestForwardReflectionLeavesAWithdrawalUntouched(t *testing.T) {
 			PeerAS:               65000, // internal
 			RouterID:             0x01020302,
 			RouteReflectorClient: true,
-			// rfc-test-change-approved: 2026-08-04 -- Thomas standing authorisation
-			// for correctness-only test edits. PeerSettings.ClusterID is a uint32
-			// (peer_settings.go); the netip.Addr this line first carried did not
-			// compile. Same value, 10.0.0.1, no assertion touched.
-			ClusterID: 0x0A000001,
+			ClusterID:            0x0A000001,
 		}
 	}
 

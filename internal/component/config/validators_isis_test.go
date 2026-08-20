@@ -108,21 +108,15 @@ func TestISISSystemIDValidator(t *testing.T) {
 // test in internal/plugins/isis/lsdb, so the config rule and the wire cannot
 // drift apart (spec-fixit-isis-hostname-ascii R-1).
 var ISISHostnameAccepted = []string{
-	"r1",                    // the shortest real fixture
-	"r1-isis",               // an existing functional-test fixture
-	"ze-p2p",                // an existing interop fixture
-	"router-1.example.net",  // a multi-label FQDN
-	"router-1.example.net.", // the absolute form, one trailing dot
-	"core_1",                // an underscore: RFC 2181 sec 11 forbids restricting label characters
-	"a router with spaces",  // RFC 5301 sec 3: "any string operators want to use"
-	" ",                     // 0x20, the low boundary octet
-	"~",                     // 0x7e, the high boundary octet
-	// rfc-test-change-approved: Thomas, 2026-08-10. Removed a row asserting that a
-	// 255-octet SINGLE label is accepted. RFC 2181 section 11 gives a label 1 to 63
-	// octets, so the validator refuses it correctly, and this table already listed a
-	// 64-octet label as refused: the two rows contradicted each other and no code
-	// could satisfy both. The total-length boundary this row claimed to cover is
-	// covered by the next row, which reaches 255 octets with conforming labels.
+	"r1",                            // the shortest real fixture
+	"r1-isis",                       // an existing functional-test fixture
+	"ze-p2p",                        // an existing interop fixture
+	"router-1.example.net",          // a multi-label FQDN
+	"router-1.example.net.",         // the absolute form, one trailing dot
+	"core_1",                        // an underscore: RFC 2181 sec 11 forbids restricting label characters
+	"a router with spaces",          // RFC 5301 sec 3: "any string operators want to use"
+	" ",                             // 0x20, the low boundary octet
+	"~",                             // 0x7e, the high boundary octet
 	strings.Repeat("a", 63),         // a 63-octet label, the last valid label length
 	strings.Repeat("c.", 127) + "d", // 128 short labels: 255 octets, the last valid total
 }
@@ -175,8 +169,6 @@ func TestISISHostnameValidatorCharset(t *testing.T) {
 	}
 
 	// Every octet outside 0x20..0x7e is refused.
-	// rfc-test-change-approved: Thomas, 2026-08-10. Loop form only, to clear the
-	// `intrange` lint finding. Same bounds, same body, same assertions.
 	for c := range 0x100 {
 		if c >= 0x20 && c <= 0x7e {
 			continue
@@ -226,10 +218,6 @@ func TestISISHostnameValidatorLabels(t *testing.T) {
 	if err := v.ValidateFn("isis/hostname", strings.Repeat("a", 64)); err == nil {
 		t.Error("64-octet label accepted, want refused")
 	}
-	// rfc-test-change-approved: Thomas, 2026-08-10. The accepted 255-octet case was
-	// a single label of 255 octets, which RFC 2181 section 11 forbids. It now reaches
-	// 255 octets with conforming labels, so the assertion tests the TOTAL-length
-	// boundary it names instead of contradicting the 64-octet label row above.
 	if err := v.ValidateFn("isis/hostname", strings.Repeat("c.", 127)+"d"); err != nil {
 		t.Errorf("255-octet name rejected: %v", err)
 	}
@@ -283,10 +271,7 @@ func TestISISHostnameUnicodeRefusedNotConverted(t *testing.T) {
 		"münchen",      // umlaut
 		"中文",           // CJK
 		"ру",           // Cyrillic
-		// rfc-test-change-approved: Thomas, 2026-08-10. Escape only, to clear the
-		// staticcheck ST1018 finding. The same three octets reach the validator; the
-		// literal is now readable instead of carrying an invisible character.
-		"a\u200bb", // zero-width space
+		"a\u200bb",     // zero-width space
 	}
 	for _, s := range unicode {
 		if err := v.ValidateFn("isis/hostname", s); err == nil {

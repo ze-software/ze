@@ -60,7 +60,7 @@ func TestRFC8665RangeTLVRoundTrip(t *testing.T) {
 // size 0 fails validation (SRConfig.Validate, config.go:111-115).
 func TestRFC8665RangeSizeZeroRejected(t *testing.T) {
 	v := EncodeRangeValue(srgbRange(16000, 100))
-	put24(v, 0) // rfc-test-change-approved: 2026-07-20 put24 off-arg drop; no behavior change
+	put24(v, 0)
 	if _, err := DecodeRangeValue(v); err == nil {
 		t.Fatalf("Range Size 0 must be rejected")
 	}
@@ -86,7 +86,7 @@ func TestRFC8665RangeSizeZeroRejected(t *testing.T) {
 func TestRFC8665RangeWithoutSIDLabelSubTLVRejected(t *testing.T) {
 	other := writeSubTLV(99, []byte{0, 0, 0, 0})
 	v := make([]byte, 4+len(other))
-	put24(v, 100) // rfc-test-change-approved: 2026-07-20 put24 off-arg drop; no behavior change
+	put24(v, 100)
 	copy(v[4:], other)
 	if _, err := DecodeRangeValue(v); err == nil {
 		t.Fatalf("a range TLV with no SID/Label sub-TLV must be rejected")
@@ -113,7 +113,7 @@ func TestRFC8665RangeWithSingleSIDLabelAccepted(t *testing.T) {
 func TestRFC8665RangeWithTwoSIDLabelSubTLVsIgnored(t *testing.T) {
 	sub := encodeSIDLabelSubTLV(true, 16000)
 	v := make([]byte, 4+2*len(sub))
-	put24(v, 100) // rfc-test-change-approved: 2026-07-20 put24 off-arg drop; no behavior change
+	put24(v, 100)
 	copy(v[4:], sub)
 	copy(v[4+len(sub):], sub)
 	if _, err := DecodeRangeValue(v); err == nil {
