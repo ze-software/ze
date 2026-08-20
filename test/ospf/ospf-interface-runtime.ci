@@ -56,9 +56,9 @@ def require_iface(rows, name, network_type=None, passive=None, state='down'):
     row = by_name.get(name)
     if row is None:
         runtime_fail(f"show ospf interface: missing {name!r} in {rows!r}")
-    if network_type is not None and row.get('network_type') != network_type:
+    if network_type is not None and row.get('network-type') != network_type:
         runtime_fail(
-            f"{name}: network_type = {row.get('network_type')!r}, "
+            f"{name}: network-type = {row.get('network-type')!r}, "
             f"want {network_type!r}")
     if passive is not None and bool(row.get('passive')) != passive:
         runtime_fail(f"{name}: passive = {row.get('passive')!r}, want {passive!r}")

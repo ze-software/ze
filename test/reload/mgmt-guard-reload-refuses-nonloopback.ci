@@ -126,4 +126,4 @@ EOF_CONF2
 
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=25s
-expect=stderr:contains=refusing to migrate mcp to non-loopback listener "0.0.0.0:18088" without authentication
+expect=stderr:contains=mcp listener "0.0.0.0:18088" cannot serve a non-loopback address without authentication

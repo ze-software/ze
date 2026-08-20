@@ -246,4 +246,5 @@ cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
 cmd=background:seq=2:exec=sh trigger.sh
 cmd=foreground:seq=3:exec=ze -:stdin=ze-conf:timeout=30s
 expect=exit:code=0
-expect=stderr:contains=refusing to migrate rest to non-loopback listener
+expect=stderr:contains=listener migration: rest listener
+expect=stderr:contains=cannot serve a non-loopback address without authentication
