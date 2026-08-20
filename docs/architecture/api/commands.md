@@ -1041,6 +1041,35 @@ Response: `{"action":"accept"}`, `{"action":"reject"}`, or
 ```
 <!-- source: internal/component/plugin/types.go -- Response struct -->
 
+### Rejected rows: `errors` and `data`
+
+A handler can answer with a row generator rather than a built payload. It can
+reject a row while the walk continues. A consumer that reads the whole answer as
+one string sees the rejected rows under a SIBLING key. A partial result therefore
+renders, instead of collapsing into one error string.
+
+| Answer | Rendering |
+|--------|-----------|
+| rows, no rejected row | `{"peers":[...]}`, or a bare `[...]` when the handler names no envelope. Unchanged |
+| rows and rejected rows | `{"peers":[...],"errors":[...]}` |
+| rejected rows, no envelope key | `{"data":[...],"errors":[...]}` |
+| the handler names its envelope `errors` | refused, on this path and on the record path |
+<!-- source: internal/component/plugin/types.go -- CollapseRecords, Records.MarshalJSON, answerErrorsKey, answerDefaultKey -->
+<!-- source: internal/component/plugin/dispatch.go -- errReservedEnvelopeKey -->
+
+`errors` appears only when a row was rejected. An ordinary answer keeps the shape
+it had, and no consumer meets a key it has not seen. `data` is where the rows go
+when the handler names no envelope and a row was rejected. A bare array has
+nowhere to carry a sibling.
+
+`| count` counts the rows the command produced and never the rejected ones, so
+the two collections stay separately countable. A commit that applied 97 leaves
+and rejected 3 renders both, rather than the 97 being lost with the error.
+
+Only `system command list` answers with a generator today. Every other command
+returns a built payload, and none of these keys appears for it.
+<!-- source: internal/component/plugin/server/system.go -- handleSystemCommandList, commandRows -->
+
 ### Show Neighbor
 
 ```json
@@ -1437,6 +1466,29 @@ at the same level:
 <!-- source: internal/component/command/alias.go -- RegisterAliases, lookupAlias, AliasesForCommand -->
 <!-- source: internal/component/command/pipe.go -- parsePipeChain, expandAliases, parsePipeOps -->
 <!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- registerAliases -->
+
+### The chain over a row generator
+
+A handler that answers with a row generator runs the same chain, one record at a
+time. `ApplyPipesRecords` is the record half of `ApplyPipes`. `| match`,
+`| count`, `| first`, `| last`, `| display`, `| resolve` and `| origin` each act
+per record, so `| count` holds nothing and `| last 8` holds eight records.
+<!-- source: internal/component/command/pipe_records.go -- ApplyPipesRecords, applyRecordOp, recordsCounted, recordsLast -->
+
+A format operator changes no record. `RenderRecords` renders what the chain
+produced. It writes per record for one chain alone: `| ndjson`, over an answer
+that declares no column schema, whose chain folded no display metadata.
+Every other format needs a document. A column width needs every row, and metadata
+rides in the envelope.
+<!-- source: internal/component/command/render_records.go -- RenderRecords, streamsPerRecord, writeDocument -->
+
+`| table` and `| text` therefore collect. That cost is paid once, in the
+renderer, and the record stage forwards the records untouched.
+
+A chain the validator refuses answers one rejected row and pulls nothing, so an
+unreadable chain never reads as an empty answer.
+<!-- source: internal/component/command/pipe_records.go -- faultRecords -->
+<!-- source: internal/component/command/pipe.go -- ValidatePipes -->
 
 ---
 

@@ -82,6 +82,26 @@ declaration can set a different wire method for command dispatch.
 | `ok` | Success verb |
 | `<json>` | Optional JSON result (absent for void responses) |
 
+## Record Answer
+
+`dispatch-command` and `dispatch-command-args` have a second success form, for a
+peer that named `record-answers` at Stage 3. The answer is a head, zero or more
+records, and a terminator, and each line carries a bare `key=value` tail instead
+of JSON:
+
+```
+#42 ok status=done type=ndjson key=peers
+#42 ok item={"address":"10.0.0.1","state":"established"}
+#42 ok count=1
+```
+
+The head's `type=` says how to take each `item=`. The terminator states no
+status: the verdict is derived from `count=` and `faults=`, and a missing
+terminator means the answer was truncated. The grammar is in
+[ipc_protocol.md](ipc_protocol.md), "Answer Protocol".
+<!-- source: pkg/plugin/rpc/message.go -- AppendAnswerHead, AppendAnswerItem, AppendAnswerTerminator, ParseAnswerTail, Verdict -->
+<!-- source: pkg/plugin/rpc/types.go -- ProtocolRecordAnswers -->
+
 ## Error Response
 
 ```

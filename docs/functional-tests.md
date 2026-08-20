@@ -1833,6 +1833,20 @@ predicate grammar `expect=output:matches=<regexp>` / `absent=<substr>` /
 <!-- source: test/scripts/ze_api.py -- wait_until, dispatch_until, wait_for_event -->
 <!-- source: internal/test/runner/engine_steps.go -- parseEngineExpectContains, engineOutputSatisfied -->
 
+#### Reading a record answer
+
+A fake plugin declares the record answer shape with
+`capability_done(protocol=["record-answers"])`. After that, every
+`dispatch-command` answer is a sequence of lines, so `api.dispatch` and
+`_call_engine` are unusable for a dispatched command: they read one JSON payload.
+Use `api.dispatch_wire_lines(command)`, which returns the head, the records, and
+the terminator as raw lines. Send the test's `request shutdown` through it too.
+
+A plugin that calls `capability_done()` with no argument declares nothing and
+reads today's single line, which is what every other `.ci` does.
+<!-- source: test/scripts/ze_api.py -- capability_done, dispatch_wire_lines -->
+<!-- source: pkg/plugin/rpc/types.go -- ProtocolRecordAnswers -->
+
 ### Tmpfs (Virtual File System)
 
 Tmpfs allows embedding config files directly in `.ci` files:

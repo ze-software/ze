@@ -17,8 +17,23 @@ Every message is a single newline-terminated line:
 | Request | `#<id> <method> [<json-params>]\n` |
 | Success response | `#<id> ok [<json-result>]\n` |
 | Error response | `#<id> error [<json-error>]\n` |
+| Record answer | `#<id> ok <key=value tail>\n`, one line per record |
 
 <!-- source: pkg/plugin/rpc/message.go -- FormatRequest, FormatResult, FormatError -->
+
+The record answer applies to `dispatch-command` and `dispatch-command-args`
+alone, and only for a plugin that asked for it at Stage 3. It replaces the single
+success line with a head, zero or more records, and a terminator. A plugin that
+asks for nothing keeps the three forms above. The grammar is in
+[ipc_protocol.md](../architecture/api/ipc_protocol.md), "Answer Protocol".
+<!-- source: pkg/plugin/rpc/message.go -- AppendAnswerHead, AppendAnswerTerminator -->
+
+The Go SDK cannot ask for it, and must not be made to until it can read it.
+`dispatchCommandRPC` unmarshals the response payload into a
+`DispatchCommandOutput`, and a head such as `status=done type=json` is not JSON.
+Declare the shape only from a client that reads the sequence, such as the Python
+helper `test/scripts/ze_api.py`.
+<!-- source: pkg/plugin/sdk/sdk_engine.go -- dispatchCommandRPC, Plugin.DispatchCommand -->
 
 - `<id>` is a monotonically increasing uint64 correlation ID
 - `<method>` uses YANG-style `<module>:<rpc-name>` naming (e.g., `ze-plugin-engine:declare-registration`)
@@ -136,6 +151,8 @@ Plugin sends `ze-plugin-engine:declare-capabilities` with a `DeclareCapabilities
 | Field | Type | Description |
 |-------|------|-------------|
 | `capabilities` | `[]CapabilityDecl` | BGP capabilities for OPEN injection |
+| `protocol` | `[]string` | Wire shapes this plugin understands. `record-answers` is the only name. Omit it to keep the single-line answer |
+<!-- source: pkg/plugin/rpc/types.go -- DeclareCapabilitiesInput.Understands, ProtocolRecordAnswers -->
 
 Each `CapabilityDecl` has:
 <!-- source: pkg/plugin/rpc/types.go -- CapabilityDecl -->

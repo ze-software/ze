@@ -197,12 +197,14 @@ Events are only sent to plugins that have subscribed.
 
 ## Correlation and Command Dispatch
 
-Every plugin RPC request has a `#<uint64>` correlation ID. The peer returns one
-response with the same ID. The protocol has no serial-free request or streaming
-response form.
+Every plugin RPC request has a `#<uint64>` correlation ID. The peer returns a
+response with the same ID. Every request except `dispatch-command` and
+`dispatch-command-args` receives exactly one response line. Those two receive a
+sequence of lines when the peer negotiated it: see Answer Protocol below.
 <!-- source: pkg/plugin/rpc/message.go -- ParseLine, AppendRequest, AppendResult, AppendError -->
 
-The command dispatcher is a payload protocol inside plugin RPC. For example:
+The command dispatcher is a payload protocol inside plugin RPC. For a peer that
+negotiated nothing:
 
 ```
 #1 ze-plugin-engine:dispatch-command {"command":"show bgp peer * detail"}
@@ -213,6 +215,251 @@ The outer `ok` is the plugin RPC response verb. The inner `status` and `data`
 members belong to `DispatchCommandOutput`. They do not change RPC framing.
 <!-- source: pkg/plugin/rpc/types.go -- DispatchCommandInput, DispatchCommandOutput -->
 <!-- source: internal/core/ipc/message.go -- MapResponse -->
+
+---
+
+## Answer Protocol
+
+A command answer is a sequence of lines: a head, zero or more records, and a
+terminator. One code path writes every answer, whatever its record count, so a
+reader follows one path and nothing declares a shape the payload can contradict.
+<!-- source: pkg/plugin/rpc/message.go -- AppendAnswerHead, AppendAnswerItem, AppendAnswerFault, AppendAnswerTerminator -->
+
+Each line is `#<id> ok <tail>`, and the tail is bare `key=value` pairs, so a
+reader decides how to take the answer without a JSON decoder. On the SSH exec
+channel there is no `#<id>`: one command owns the channel, so nothing needs to be
+told apart.
+<!-- source: pkg/plugin/rpc/message.go -- AnswerNoID, ParseAnswerLine -->
+
+### Negotiation
+
+The default is off. A peer receives the sequence only after it names
+`record-answers` in the `protocol` list of its Stage 3 `declare-capabilities`:
+
+```
+#2 ze-plugin-engine:declare-capabilities {"capabilities":[],"protocol":["record-answers"]}
+#2 ok
+```
+
+The guard fails closed. An absent list, an empty list, an unknown name, and a
+peer whose Stage 3 has not run all read false. A plugin written before this
+shape existed therefore receives `#<id> ok [<json>]` exactly as before.
+<!-- source: pkg/plugin/rpc/types.go -- ProtocolRecordAnswers, DeclareCapabilitiesInput.Understands -->
+<!-- source: internal/component/plugin/process/process.go -- Process.RecordAnswers -->
+
+Only `dispatch-command` and `dispatch-command-args` take this path. Every other
+engine op returns its own typed output, and the startup RPCs keep the
+single-line frame whatever the peer declared. That is what lets Stage 3 itself
+be answered before the shape is known.
+<!-- source: internal/component/plugin/server/dispatch_registry.go -- answerResult, opDispatchCommand, opDispatchCommandArgs -->
+
+A later shape earns a NEW name in `protocol`. `ParseAnswerTail` refuses a key it
+does not know. A key added under an agreed name would make the whole line
+unreadable to the peer that agreed to the older spelling.
+<!-- source: pkg/plugin/rpc/message.go -- ParseAnswerTail -->
+
+### Lines
+
+| Line | Verb | Required keys | Optional keys | Position |
+|------|------|---------------|---------------|----------|
+| head | `ok` | `status=`, `type=` | `key=`, and `fields=` when `type=stream` | first line for this id |
+| result record | `ok` | `item=` | - | between head and terminator |
+| error record | `ok` | `fault=` | - | between head and terminator |
+| terminator | `ok` | `count=` | `faults=`, `message=` | last line for this id |
+| not understood | `error` | `message=` | `code=` | the only line for this id |
+<!-- source: pkg/plugin/rpc/message.go -- AnswerTail, AnswerTail.IsTerminator, AppendAnswerNotUnderstood -->
+
+`item=`, `fault=`, `message=` and `fields=` take the rest of the line verbatim,
+and each is written last. A JSON value that holds `=` or a space therefore needs
+no escaping. At most one open-ended value sits on a line.
+<!-- source: pkg/plugin/rpc/message.go -- isOpenEndedKey, AppendAnswerHead -->
+
+`status=` is `done` or `error`, and every head carries it. It states what the
+daemon knows when the answer opens. A consumer that renders a failure differently
+therefore commits to a rendering on the first line, rather than buffering the
+whole answer to find out.
+<!-- source: pkg/plugin/rpc/types.go -- StatusDone, StatusError -->
+<!-- source: internal/component/plugin/dispatch.go -- answerStatus -->
+
+A `fault=` record is a row the walk rejected, and it does not end the walk. The
+records after it still arrive, and the terminator counts the two collections
+separately:
+
+```
+#7 ok status=done type=ndjson key=peers
+#7 ok item={"peer":"10.0.0.1","state":"established"}
+#7 ok fault={"path":"bgp/peer/10.0.0.2","message":"nexthop unreachable"}
+#7 ok count=1 faults=1
+```
+
+A record too wide for one line is rejected the same way. Every record is one
+line, and a line holds at most 16 MB, so a wider record has no wire form at all.
+The encoder writes a `fault=` in its place, which names the record by its
+position in the walk and states the two sizes, and the walk continues to its
+terminator. The rejected row quotes none of the record, because a row that
+carried 16 MB would not fit the line either.
+
+```
+#7 ok fault={"message":"answer record does not fit one wire message","record":12,"encoded-bytes":16777300,"limit-bytes":16777216}
+```
+<!-- source: internal/component/plugin/dispatch.go -- boundedRecord, answerRecordTooLargeFault -->
+
+### The terminator states no status
+
+The verdict is DERIVED from the counts the terminator already carries. A stated
+status would be a second source of truth for a fact the counts hold, and two
+sources can disagree.
+
+| Terminator | Verdict |
+|------------|---------|
+| `count=N faults=0` | `done` |
+| `count=N faults=M`, N more than 0 | `partial` |
+| `count=0 faults=M` | `error`, nothing succeeded |
+| any `message=` | `aborted`. `count=` states how far the walk got |
+| no terminator | `truncated` |
+<!-- source: pkg/plugin/rpc/message.go -- Verdict, VerdictDone, VerdictPartial, VerdictError, VerdictAborted, VerdictTruncated -->
+
+`message=` makes an aborted walk expressible when no row faulted.
+`count=417 message=rib snapshot expired` is neither done nor partial, and the
+counts alone cannot say so.
+
+A missing terminator makes truncation detectable. A connection that dies part way
+leaves the records that arrived. No line then states how many there were.
+
+### `type=` says how to take each `item=`
+
+| `type=` | Each `item=` carries |
+|---------|----------------------|
+| `json` | the whole answer as one JSON document |
+| `ndjson` | one self-describing object |
+| `stream` | a positional array, read against the head's `fields=` |
+<!-- source: pkg/plugin/rpc/message.go -- AnswerTypeJSON, AnswerTypeNDJSON, AnswerTypeStream, checkAnswerType -->
+
+`fields=` carries the column schema of a `type=stream` answer, in column order. A
+reader zips each positional row back into an object against it.
+<!-- source: internal/component/plugin/answer_row.go -- zipRow, quoteFields -->
+<!-- source: internal/component/plugin/types.go -- CollapseRecords -->
+
+**`type=` and the pipe operators are unrelated, and the shared words are an
+unresolved naming collision.** `| json` and `| ndjson` are renderings an operator
+asked for. `type=json` and `type=ndjson` say how the daemon serialized the body.
+A reader MUST NOT infer one from the other.
+
+A `| ndjson` chain over a bounded answer renders one line per record from a
+`type=json` body. A `| table` chain over a long answer renders one table from a
+`type=ndjson` answer.
+<!-- source: internal/component/command/render_records.go -- RenderRecords, streamsPerRecord -->
+
+### The encoder decides the type, never the command
+
+A handler returns a row generator and states nothing about the wire. The encoder
+holds up to `AnswerBufferThreshold` records while it decides.
+
+| The walk | Head | Body |
+|----------|------|------|
+| ends at or under 256 records | `status=<s> type=json`, no `key=` | one `item=` holding the whole document, or none when the command reported nothing |
+| passes 256, no `fields` declared | `status=<s> type=ndjson key=<k>` | one `item=` per record |
+| passes 256, `fields` declared | `status=<s> type=stream key=<k> fields=[...]` | one positional `item=` per record |
+<!-- source: pkg/plugin/rpc/message.go -- AnswerBufferThreshold -->
+<!-- source: internal/component/plugin/dispatch.go -- WriteAnswer, writeRecordAnswer, writeDocumentAnswer, answerStreamType -->
+
+A walk that passes the threshold flushes the held records in walk order ahead of
+the rest. A bounded answer therefore keeps the JSON its command answered with
+before it produced records at all, and a long answer never materializes.
+
+`count=` counts the records the walk produced, never the `item=` lines, so the
+terminator means the same thing whichever type carried them. A payload that is
+not a generator is one document, and `count=1`. A command that answered with no
+data at all writes no `item=` line and states `count=0`.
+
+The head of a `type=json` answer carries no `key=`. The document already holds
+the envelope, and two statements of one fact can disagree.
+
+The threshold is a constant, not a config knob. An operator who tuned it would
+choose the wire shape of every command's answer for every consumer at once. The
+two shapes carry the same data, so there is nothing to prefer.
+
+`| first 10` never reaches the decision point. The chain runs before the
+threshold is measured, so ten records is a bounded answer however long the walk
+behind it is. The consumer stops the generator inside the buffering window.
+<!-- source: internal/component/command/pipe_records.go -- ApplyPipesRecords, recordsFirst -->
+
+### Not understood against understood-then-failed
+
+| The daemon | Answer |
+|-----------|--------|
+| did not understand the command | `#<id> error message=<text>`, with an optional `code=`. The only line for this id |
+| understood it and it failed | a head stating `status=error`, then a terminator carrying `message=` |
+<!-- source: pkg/plugin/rpc/message.go -- AppendAnswerNotUnderstood, AnswerVerbError -->
+<!-- source: internal/component/ssh/answer.go -- writeExecFailure -->
+
+A client therefore offers completion for the first, and an operational message
+for the second.
+
+### Faults on the buffered path
+
+The `CommandDispatcher.JSON` consumers (web, MCP, REST, gRPC, looking glass) read
+the whole answer as one string. The collapse puts rejected rows under a SIBLING
+key rather than dropping them.
+
+| Answer | Buffered rendering |
+|--------|--------------------|
+| rows, no rejected row | `{"peers":[...]}`, or a bare `[...]` when the handler names no envelope. Unchanged |
+| rows and rejected rows | `{"peers":[...],"errors":[...]}` |
+| rejected rows, no envelope key | `{"data":[...],"errors":[...]}` |
+| the handler names its envelope `errors` | refused on both paths |
+<!-- source: internal/component/plugin/types.go -- CollapseRecords, Records.MarshalJSON, answerErrorsKey, answerDefaultKey -->
+<!-- source: internal/component/plugin/dispatch.go -- errReservedEnvelopeKey -->
+
+`errors` appears only when a row faulted, so an ordinary answer keeps the shape
+it had. `data` is where the rows go when the handler names no envelope and a row
+faulted: a bare array has nowhere to carry a sibling.
+
+A commit that applied 97 leaves and rejected 3 renders both on a web page. The 97
+are no longer lost with the error.
+
+### SSH exec channel
+
+The exec channel splits the answer across its two streams, because the daemon
+renders. The format an operator sees comes from `ze.cli.format` in the daemon's
+configuration, and four of the six renderings run to several lines. Rendered text
+cannot travel inside an `item=`, which is one line by construction.
+
+| Stream | Carries | When |
+|--------|---------|------|
+| stdout | the rendering, written as the records arrive | always |
+| stderr | head, terminator, or the `error` verb line | only for a client that declared the shape |
+<!-- source: internal/component/ssh/answer.go -- answerFrame, writeExecAnswer, writeExecRecords, writeExecDocument -->
+
+Here the head's `type=` describes what the ANSWER turned out to be. It does not
+describe the rendering on stdout, which the operator's chain decides.
+
+A client declares the shape by setting `ZE_ANSWER_PROTOCOL=record-answers` in an
+SSH env request. A plain `ssh <host> <command>` declares nothing and its bytes
+are what they always were.
+<!-- source: pkg/plugin/rpc/message.go -- AnswerProtocolEnv -->
+<!-- source: internal/component/ssh/answer.go -- declaresRecordAnswers -->
+<!-- source: internal/core/ssh/client/answer.go -- ExecCommandStream, readAnswerFrame, ErrAnswerTruncated -->
+
+The head is written after the body, because the type is read from the walk. The
+two streams are read independently, so no reader can order them anyway.
+
+Exit codes are unchanged: 0 for success, 1 for failure. The verdict is on the
+frame, never in the exit status.
+<!-- source: internal/component/cli/client/main.go -- runBGP -->
+
+### What produces records today
+
+`system command list` is the only handler that answers with a row generator.
+Every other command returns a built payload, which the encoder answers as one
+`type=json` document.
+<!-- source: internal/component/plugin/server/system.go -- handleSystemCommandList, commandRows -->
+
+`Records.Fields` has no producer, so no command writes `type=stream` today. The
+column order a renderer applies still lives in the separate registry
+`RegisterColumns` writes.
+<!-- source: internal/component/plugin/types.go -- Records.Fields -->
+<!-- source: internal/component/command/column_order.go -- RegisterColumns -->
 
 ---
 

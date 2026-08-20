@@ -32,6 +32,14 @@ Every message is a single newline-terminated line:
 | Success | `#<id> ok [<json>]\n` | `#1 ok {"peers-affected":2}` |
 | Error | `#<id> error [<json>]\n` | `#1 error {"code":"error","message":"..."}` |
 
+A command answer has a second form. A peer that names `record-answers` at Stage 3
+receives `dispatch-command` and `dispatch-command-args` answers as a head, zero
+or more records, and a terminator, each line `#<id> ok <key=value tail>`. Every
+other request, and every peer that named nothing, keeps the single line above.
+The grammar is in [ipc_protocol.md](ipc_protocol.md), "Answer Protocol".
+<!-- source: pkg/plugin/rpc/message.go -- AppendAnswerHead, AppendAnswerTerminator -->
+<!-- source: internal/component/plugin/server/dispatch_registry.go -- answerResult -->
+
 - `<id>` is a monotonically increasing `uint64` correlation ID
 <!-- source: pkg/plugin/rpc/conn.go -- NextID -->
 - Methods use YANG-style `<module>:<rpc-name>` naming
@@ -118,10 +126,22 @@ Tier-Ordered Startup below).
 |-------|-----------|-----------|------------|
 | 1. Registration | Plugin to Engine | `ze-plugin-engine:declare-registration` | `DeclareRegistrationInput` |
 | 2. Config | Engine to Plugin | `ze-plugin-callback:configure` | `ConfigureInput` |
-| 3. Capability | Plugin to Engine | `ze-plugin-engine:declare-capabilities` | `DeclareCapabilitiesInput` |
+| 3. Capability | Plugin to Engine | `ze-plugin-engine:declare-capabilities` | `DeclareCapabilitiesInput` (see `protocol` below) |
 | 4. Registry | Engine to Plugin | `ze-plugin-callback:share-registry` | `ShareRegistryInput` |
 | 5. Ready | Plugin to Engine | `ze-plugin-engine:ready` | `ReadyInput` |
 | Post | Engine to Plugin | `ze-plugin-callback:post-startup` | (empty) |
+
+**Wire shape negotiation (Stage 3).** `DeclareCapabilitiesInput` carries an
+optional `protocol` list. It names the wire shapes the peer understands.
+`record-answers` is the only name today. It asks for the record answer form of
+`dispatch-command` and `dispatch-command-args`.
+
+The engine records the declaration before the capability injector runs. Every
+answer after the Stage 3 barrier is therefore written in a shape the peer agreed
+to. An absent list, an empty list, and an unknown name all read false.
+<!-- source: pkg/plugin/rpc/types.go -- DeclareCapabilitiesInput.Understands, ProtocolRecordAnswers -->
+<!-- source: internal/component/plugin/server/startup.go -- engineStartupSink -->
+<!-- source: internal/component/plugin/process/process.go -- Process.SetRecordAnswers -->
 
 **Timeout:** Each stage has a 5-second timeout (configurable via `stage-timeout` in plugin config).
 If any plugin fails to complete a stage, startup aborts for all plugins.
@@ -1044,10 +1064,17 @@ peer selector separately, so runtime values are not split by the command tokeniz
 #4 ok {"status":"done","data":{"last-index":7,"replayed":3}}
 ```
 
-Both APIs return `DispatchCommandOutput`. The `data` field carries raw JSON
-(single-decode). On error, the response uses a separate `error` field:
-`{"status":"error","error":"message"}`.
+Both APIs return `DispatchCommandOutput` to a peer that negotiated nothing. The
+`data` field carries raw JSON (single-decode). On error, the response uses a
+separate `error` field: `{"status":"error","error":"message"}`.
 <!-- source: pkg/plugin/rpc/types.go -- DispatchCommandOutput -->
+
+A peer that named `record-answers` at Stage 3 receives the same two answers as a
+head, records, and a terminator instead. The document a bounded answer carries in
+its one `item=` equals the `data` the line above carries. See
+[ipc_protocol.md](ipc_protocol.md), "Answer Protocol".
+<!-- source: internal/component/plugin/server/dispatch_registry.go -- answerResult, recordAnswer -->
+<!-- source: internal/component/plugin/dispatch.go -- WriteAnswer -->
 
 The string API routes by normal dispatcher parsing and remains the compatibility
 surface for CLI and external plugin callers. The typed args API routes by exact
