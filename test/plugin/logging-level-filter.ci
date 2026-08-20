@@ -1,4 +1,33 @@
 # Migrated from test/data/plugin/logging-level-filter.*
+#
+# Test: a per-subsystem log level set in the environment silences that
+#       subsystem's DEBUG output in the running daemon.
+#
+# VALIDATES: ze.log.bgp.server=info stops bgp.server DEBUG lines reaching stderr.
+# PREVENTS:  a level filter that is parsed at startup and never applied.
+#
+# NON-VACUITY (ai/rules/interop-and-goal-validation.md). One line carries the
+# whole claim, reject=stderr:pattern=level=DEBUG, so its discrimination was
+# measured and not argued. The mutation is one word: a copy of this file whose
+# only edit is option=env:var=ze.log.bgp.server:value=debug FAILS, reporting
+# `reject=stderr pattern found: level=DEBUG`, and the lines it finds carry
+# subsystem=bgp.server. That copy was drafted as test/draft/plugin/mut-debuglevel.ci
+# and run on 2026-08-17; a draft is deleted once its subject is promoted, so the
+# path is a record of the run and not a file to open.
+# The rejection is answered by a DEBUG site that fires in this scenario, and not
+# by a subsystem that stays silent whatever the level is.
+#
+# WHY A RUNNER DIRECTIVE IS READ INSIDE A PEER BLOCK. ze-peer does not consume
+# reject=stderr, so ClaimLine (internal/test/peer/expect.go) answers ClaimRunner
+# and validateOnePeerBlock (internal/test/runner/peer_contract.go) gives the line
+# to the runner's own parser where it stands. Before that guard existed, this
+# file stated the same subject while the line was discarded in silence, and it
+# passed on a daemon with no level filter at all.
+#
+# WHAT THIS FILE DOES NOT PROVE. It holds no assertion that bgp.server logged
+# anything in the passing run, so a build that stopped logging that subsystem
+# altogether would also pass. The control for that is the mutation above, not a
+# line in this file.
 
 # Set bgp.server subsystem logging to INFO level (filters out DEBUG).
 # Convention is ze.log.<subsystem> per slogutil.go — see docs/functional-tests.md.

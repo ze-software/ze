@@ -9,11 +9,25 @@
 #            victim.
 #
 # // this test asserts the direction CLASSIFICATION only, not the INPUT-hook
-# drop install. The on-host drop needs the firewall nft backend, and loading it
-# (firewall {} block) deadlocked the daemon's command dispatch under the flood (the
-# firewall component and the ddos-local responder drive nft concurrently). The
-# local->INPUT vs remote->FORWARD hook selection is covered exhaustively by the unit
-# test TestLocalHookByDirection (local/responder_test.go).
+# drop install. The local->INPUT vs remote->FORWARD hook selection is covered
+# exhaustively by the unit test TestLocalHookByDirection (local/responder_test.go).
+#
+# The original reason for the narrow scope was a dispatch deadlock: loading the
+# firewall nft backend (a firewall {} block) alongside the ddos-local responder
+# under a flood wedged the daemon's command dispatch. That deadlock is fixed at
+# the source and is now unreachable by construction (corrected 2026-08-17):
+#   - reconcileMu serializes the whole ApplyAll body, so at most one owner is
+#     ever inside Backend.Apply (internal/component/firewall/registry.go).
+#   - both backends bound the netlink round-trip at 10s, so a wedged dataplane
+#     returns an error instead of blocking forever
+#     (internal/plugins/firewall/nft/deadline_linux.go,
+#     internal/plugins/firewall/vpp/timeout_linux.go).
+#   - status() reads the published snapshot through an atomic.Pointer and takes
+#     no lock, so show ddos local never waits on a reconcile
+#     (internal/plugins/ddos/local/responder.go).
+# Widening this test to assert the on-host drop is therefore possible now, and it
+# is AC-7 of plan/spec-fixit-firewall-concurrency-deadlock.md. Do not read the
+# narrow scope as evidence that the drop path is untestable.
 #
 # STATUS: option=needs-linux:caps=net-admin,bpf. Full daemon path on the QEMU Alpine VM via an in-daemon
 #   observer plugin (ze_api handshake), same harness as ddos-bps-amplification.
