@@ -10,8 +10,10 @@ package main
 // off Codeberg's shared Woodpecker runners.
 //
 // The shape being pinned:
-//   - verify.yml is a push + pull_request gate that runs `make ze-precommit-verify` and
-//     nothing heavy or scheduled (the merge gate stays fast).
+//   - verify.yml is a push + pull_request gate that runs every stage of
+//     `make ze-precommit-verify` across its shards, and nothing heavy or scheduled
+//     (the merge gate stays fast). The shards derive their stages from
+//     `make ze-precommit-verify-list`, so their union is the whole stage list.
 //   - evidence-nightly.yml is scheduled-only, advisory, and runs fuzz AND the
 //     kernel integration suite by make-target name -- but never the QEMU target.
 //   - perf-nightly.yml is scheduled-only.
@@ -27,6 +29,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"maps"
 	"os"
 	"os/exec"
@@ -251,14 +254,18 @@ func makeTargetsInWorkflow(t *testing.T, name string) []string {
 
 // TestVerifyWorkflowIsTheFastMergeGate
 //
-// VALIDATES: verify.yml runs `make ze-precommit-verify` on push and pull_request, and adds
+// VALIDATES: verify.yml reads the verify stage list on push and pull_request, and adds
 // no scheduled or heavy work (the merge gate stays fast).
 // PREVENTS: (a) the fast gate silently becoming scheduled-only or dropping a
 // trigger; (b) a heavy suite being bolted onto every merge.
+//
+// The gate runs its stages one shard at a time now, so the target it names is
+// `ze-precommit-verify-list` -- the command each shard reads its stages from. That the
+// shards then run all of them is TestWorkflowShardsCoverEveryStage.
 func TestVerifyWorkflowIsTheFastMergeGate(t *testing.T) {
 	src := workflowFile(t, "verify.yml")
-	if !slices.Contains(makeTargetsInWorkflow(t, "verify.yml"), "ze-precommit-verify") {
-		t.Error("verify.yml must run `make ze-precommit-verify`")
+	if !slices.Contains(makeTargetsInWorkflow(t, "verify.yml"), "ze-precommit-verify-list") {
+		t.Error("verify.yml must read its stages from `make ze-precommit-verify-list`")
 	}
 	on := onBlock(t, "verify.yml")
 	for _, want := range []string{"push", "pull_request"} {
@@ -330,11 +337,14 @@ func TestVerifyInstallsPinnedStaticcheck(t *testing.T) {
 
 // TestVerifyWorkflowProvisionsTheLoopbackAddress
 //
-// VALIDATES: verify.yml adds fd00::2 to lo before it runs `make ze-precommit-verify`.
+// VALIDATES: verify.yml adds fd00::2 to lo before any shard runs its stages.
 // PREVENTS: the merge gate reddening on every functional fixture that needs a
 // second IPv6 address. The runner cannot add one (CAP_NET_ADMIN), so the
 // workflow is the only place it can happen on this host, and a step that quietly
 // goes away takes the whole plugin suite with it.
+//
+// Every shard runs the step, because any shard can hold ze-functional-test: which one
+// does is derived from the live stage list, not written down here.
 func TestVerifyWorkflowProvisionsTheLoopbackAddress(t *testing.T) {
 	src := workflowFile(t, "verify.yml")
 	const add = "ip -6 addr add fd00::2/128 dev lo"
@@ -342,12 +352,260 @@ func TestVerifyWorkflowProvisionsTheLoopbackAddress(t *testing.T) {
 	if addAt < 0 {
 		t.Fatalf("verify.yml must add the loopback address the fixtures bind: %q", add)
 	}
-	verifyAt := strings.Index(src, "run: make ze-precommit-verify")
+	verifyAt := strings.Index(src, "make ze-precommit-verify-list")
 	if verifyAt < 0 {
-		t.Fatal("verify.yml must run `make ze-precommit-verify`")
+		t.Fatal("verify.yml must read its stages from `make ze-precommit-verify-list`")
 	}
 	if addAt > verifyAt {
-		t.Error("verify.yml must add fd00::2 BEFORE `make ze-precommit-verify`; after it the gate has already run")
+		t.Error("verify.yml must add fd00::2 BEFORE a shard runs its stages; after it the gate has already run")
+	}
+}
+
+// ─── verify.yml shards (plan/spec-verify-scope-4-suite-budget-and-ci.md) ────
+
+// yamlBlockKeys returns the direct keys of the block under a `key:` line, judging
+// membership by indentation the way jobBlocks does. Fatals when the key is absent, so
+// a check built on it can never pass vacuously.
+func yamlBlockKeys(t *testing.T, src, key string) []string {
+	t.Helper()
+	lines := strings.Split(src, "\n")
+	indentOf := func(ln string) int { return len(ln) - len(strings.TrimLeft(ln, " ")) }
+	for i, ln := range lines {
+		if strings.TrimSpace(ln) != key+":" {
+			continue
+		}
+		outer := indentOf(ln)
+		keyIndent := -1
+		var keys []string
+		for _, next := range lines[i+1:] {
+			if strings.TrimSpace(next) == "" {
+				continue
+			}
+			ind := indentOf(next)
+			if ind <= outer {
+				break // back at the outer level: the block ended
+			}
+			if keyIndent < 0 {
+				keyIndent = ind // the first key inside defines the block's key level
+			}
+			if ind != keyIndent {
+				continue // deeper: a value, not a direct key
+			}
+			name, _, ok := strings.Cut(strings.TrimSpace(next), ":")
+			if ok {
+				keys = append(keys, name)
+			}
+		}
+		return keys
+	}
+	t.Fatalf("verify.yml has no %q block; this test must not pass vacuously", key)
+	return nil
+}
+
+var shardMatrixRE = regexp.MustCompile(`(?m)^\s*shard:\s*\[([0-9,\s]+)]\s*$`)
+
+// shardIndices returns the shard numbers verify.yml fans out over, and fatals unless
+// they are exactly 1..N.
+//
+// The count is stated ONCE, in this list: the workflow passes `strategy.job-total`
+// (the size of this matrix) to the selection as SHARD_TOTAL. Contiguous 1..N is what
+// makes the round-robin below cover every residue class, so it is checked here rather
+// than assumed by the simulation.
+func shardIndices(t *testing.T, src string) []int {
+	t.Helper()
+	if keys := yamlBlockKeys(t, src, "matrix"); !slices.Equal(keys, []string{"shard"}) {
+		t.Fatalf("verify.yml's matrix must have `shard` as its only dimension, got %v: "+
+			"a second dimension multiplies strategy.job-total and breaks the shard arithmetic", keys)
+	}
+	m := shardMatrixRE.FindStringSubmatch(src)
+	if m == nil {
+		t.Fatal("verify.yml must declare `shard: [1, 2, ...]`; this test must not pass vacuously")
+	}
+	var idx []int
+	for f := range strings.SplitSeq(m[1], ",") {
+		var n int
+		if _, err := fmt.Sscan(strings.TrimSpace(f), &n); err != nil {
+			t.Fatalf("shard matrix entry %q is not a number: %v", f, err)
+		}
+		idx = append(idx, n)
+	}
+	for i, n := range idx {
+		if n != i+1 {
+			t.Fatalf("verify.yml's shard matrix must be 1..N in order, got %v", idx)
+		}
+	}
+	if len(idx) < 2 {
+		t.Fatalf("verify.yml must fan out over more than one shard, got %v", idx)
+	}
+	if !strings.Contains(src, "SHARD_TOTAL: ${{ strategy.job-total }}") {
+		t.Error("verify.yml must pass SHARD_TOTAL: ${{ strategy.job-total }}: the shard count " +
+			"belongs in the matrix only, and a second spelling of it can disagree with it")
+	}
+	return idx
+}
+
+var shardSelectRE = regexp.MustCompile(`(?m)^\s*(awk -v i=.*)$`)
+
+// shardSelectCommand returns the one command line verify.yml selects a shard's stages
+// with. The test RUNS this line rather than reimplementing it: a copy would agree with
+// itself while the workflow drifted.
+func shardSelectCommand(t *testing.T, src string) string {
+	t.Helper()
+	m := shardSelectRE.FindAllStringSubmatch(src, -1)
+	if len(m) != 1 {
+		t.Fatalf("verify.yml must select its shard's stages with exactly one `awk -v i=...` line, found %d", len(m))
+	}
+	return strings.TrimSpace(m[0][1])
+}
+
+// verifyStageList returns the live verify stage list, one stage per line, as the
+// workflow reads it. stagesForMode (scripts/status/verify_run.go) is its only source.
+//
+// ZE_VERIFY_MODE is passed as a make ARGUMENT, exactly as verify.yml passes it,
+// and the reason is that the name carries two unrelated meanings. The suites read
+// "1" from the environment, and execStage (scripts/status/verify_run.go) exports
+// that value to every stage it runs. This target reads a MODE NAME from the same
+// name ($(or $(ZE_VERIFY_MODE),ze-precommit-verify) in the Makefile), so a run
+// under verify would hand it "1" and the runner would refuse with `unknown mode
+// "1"`. A command-line assignment beats the environment, so this test reads the
+// stage list whether or not a verify run is what invoked it.
+func verifyStageList(t *testing.T) []string {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "make", "--no-print-directory", "ze-precommit-verify-list", "ZE_VERIFY_MODE=ze-precommit-verify")
+	cmd.Dir = repoRoot(t)
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("make ze-precommit-verify-list: %v", err)
+	}
+	var stages []string
+	for ln := range strings.SplitSeq(string(out), "\n") {
+		if s := strings.TrimSpace(ln); s != "" {
+			stages = append(stages, s)
+		}
+	}
+	if len(stages) == 0 {
+		t.Fatal("make ze-precommit-verify-list printed no stage; this test must not pass vacuously")
+	}
+	return stages
+}
+
+// TestVerifyStageListIgnoresTheInheritedVerifyMode
+//
+// VALIDATES: verifyStageList reads the stage list with ZE_VERIFY_MODE=1 already
+// in the environment, which is what every stage of a verify run inherits.
+// PREVENTS: this file's tests passing on a developer's shell and failing inside
+// `make ze-precommit-verify`. execStage (scripts/status/verify_run.go) exports
+// ZE_VERIFY_MODE=1 to every stage, ZE_PACKAGES puts ./scripts/dev inside
+// ze-unit-test-cached, and ze-precommit-verify-list reads that same name as a
+// MODE NAME, so an inherited "1" makes the runner exit 2 with `unknown mode "1"`.
+// The red then lands only in the gate, which is where it costs the most to read.
+func TestVerifyStageListIgnoresTheInheritedVerifyMode(t *testing.T) {
+	t.Setenv("ZE_VERIFY_MODE", "1")
+	verifyStageList(t)
+}
+
+// TestWorkflowShardsCoverEveryStage
+//
+// VALIDATES: the union of verify.yml's shards is EXACTLY the stage list
+// `make ze-precommit-verify-list` prints, each stage on exactly one shard, and no stage
+// named in the workflow itself.
+// PREVENTS: the failure sharding introduces and nothing else catches -- a gate that
+// stops running while CI stays green. A stage added to stagesForMode must land in a
+// shard with no second file to edit, so the workflow may hold a count and an
+// arithmetic rule, never a stage name.
+func TestWorkflowShardsCoverEveryStage(t *testing.T) {
+	src := workflowFile(t, "verify.yml")
+	shards := shardIndices(t, src)
+	selectCmd := shardSelectCommand(t, src)
+	stages := verifyStageList(t)
+
+	// A stage NAME in the workflow is the second list this design refuses. Comments
+	// are already stripped, so the header may still explain which stages are heavy.
+	for _, st := range stages {
+		if strings.Contains(src, st) {
+			t.Errorf("verify.yml names the stage %q: the shards must derive every stage from "+
+				"`make ze-precommit-verify-list`, so no stage name belongs in the workflow", st)
+		}
+	}
+	if !strings.Contains(src, "fail-fast: false") {
+		t.Error("verify.yml must set `fail-fast: false`: a canceled sibling shard leaves its " +
+			"stages unrun and unreported, which is the failure this test exists to refuse")
+	}
+
+	dir := t.TempDir()
+	stageList := filepath.Join(dir, "stages.txt")
+	if err := os.WriteFile(stageList, []byte(strings.Join(stages, "\n")+"\n"), 0o600); err != nil {
+		t.Fatalf("write stage list: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	seen := map[string]int{}
+	for _, idx := range shards {
+		shardList := filepath.Join(dir, fmt.Sprintf("shard-%d.txt", idx))
+		cmd := exec.CommandContext(ctx, "sh", "-c", selectCmd)
+		cmd.Env = append(os.Environ(),
+			"STAGE_LIST="+stageList,
+			"SHARD_LIST="+shardList,
+			fmt.Sprintf("SHARD_INDEX=%d", idx),
+			fmt.Sprintf("SHARD_TOTAL=%d", len(shards)),
+		)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("shard %d selection (%s) failed: %v\n%s", idx, selectCmd, err, out)
+		}
+		body, err := os.ReadFile(shardList) //nolint:gosec // path is this test's temp dir
+		if err != nil {
+			t.Fatalf("read shard %d selection: %v", idx, err)
+		}
+		got := 0
+		for ln := range strings.SplitSeq(string(body), "\n") {
+			if s := strings.TrimSpace(ln); s != "" {
+				seen[s]++
+				got++
+			}
+		}
+		if got == 0 {
+			t.Errorf("shard %d selects no stage out of %d; the workflow's own `test -s` would "+
+				"fail the step, and the shard's share of the gate would not run", idx, len(stages))
+		}
+	}
+
+	for _, st := range stages {
+		switch seen[st] {
+		case 1:
+		case 0:
+			t.Errorf("no shard runs %q: it is in the stage list and would run NOWHERE in CI", st)
+		default:
+			t.Errorf("%d shards run %q; each stage must run exactly once", seen[st], st)
+		}
+		delete(seen, st)
+	}
+	for st := range seen {
+		t.Errorf("a shard selects %q, which is not in the stage list", st)
+	}
+}
+
+// TestVerifyShardsRunStagesTheWayTheVerifyRunnerDoes
+//
+// VALIDATES: a shard runs one `make` per stage with ZE_VERIFY_MODE=1, which is what
+// execStage (scripts/status/verify_run.go) does for every stage of a local
+// `make ze-precommit-verify`.
+// PREVENTS: CI running a WEAKER gate than the developer's. The functional runner reads
+// that variable (VerifyModeEnabled, internal/test/runner/parallel.go) to turn a silent
+// environment skip into a hard failure; without it a shard passes on a suite that
+// skipped itself, and nothing in the log says so.
+func TestVerifyShardsRunStagesTheWayTheVerifyRunnerDoes(t *testing.T) {
+	src := workflowFile(t, "verify.yml")
+	if !strings.Contains(src, `ZE_VERIFY_MODE: "1"`) {
+		t.Error(`verify.yml must run its stages with ZE_VERIFY_MODE: "1", as execStage does`)
+	}
+	// One make per stage, and every stage attempted: `make a b c` would stop at the
+	// first red and leave the rest of the shard's gates unrun.
+	if !strings.Contains(src, `xargs -a "$SHARD_LIST" -n1 -t make --no-print-directory`) {
+		t.Error("verify.yml must run one `make --no-print-directory <stage>` per selected stage, " +
+			"so a red stage does not stop the ones after it")
 	}
 }
 
