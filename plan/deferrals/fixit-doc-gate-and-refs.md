@@ -5,5 +5,5 @@ read from `plan/deferrals/` by `/ze-status`; nothing stores it (`ai/rules/planni
 
 | Date | Source | What | Reason | Destination | Status |
 |------|--------|------|--------|-------------|--------|
-| 2026-07-19 | spec-fixit-doc-gate-and-refs functional-proof | the optional local check-doc-drift.sh hook is owned by a separate follow-up | live-server/QEMU constraint, deferred to CI | plan/spec-finish-ci-coverage.md | deferred |
+| 2026-07-19 | spec-fixit-doc-gate-and-refs functional-proof | the optional local check-doc-drift.sh hook is owned by a separate follow-up | live-server/QEMU constraint, deferred to CI | plan/future/spec-ci-coverage-remaining-surfaces.md | deferred |
 
