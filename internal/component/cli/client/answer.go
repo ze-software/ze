@@ -1,4 +1,4 @@
-// Design: plan/spec-streaming-answer-protocol.md — the answer grammar
+// Design: docs/architecture/api/ipc_protocol.md — the answer grammar
 // Overview: main.go — cliClient.Execute, which writes through this
 //
 // answer.go holds what `ze cli -c` does with the daemon's answer while it is

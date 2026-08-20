@@ -288,6 +288,34 @@ func AppendAnswerFault(buf []byte, id uint64, fault json.RawMessage) []byte {
 	return replaceNewlines(buf, start)
 }
 
+// answerRecordPrefixMax is the capacity the record-line prefix is measured in:
+// one `#`, at most 20 digits of a uint64 id, one space, `ok`, one space, the
+// longest record key (answerKeyFault), and one `=`. That is 31 bytes, so the
+// scratch never grows.
+const answerRecordPrefixMax = 32
+
+// AnswerRecordLineSize reports how many bytes the record line for record
+// occupies under id, its newline terminator excluded. It measures the line
+// AppendAnswerItem writes for a result record and the line AppendAnswerFault
+// writes for a rejected one, so a producer can refuse a record wider than
+// MaxMessageSize before it builds the line rather than after.
+//
+// The prefix is measured by the appenders that write it, and the value reaches
+// the wire byte for byte (replaceNewlines overwrites in place and changes no
+// length), so this size is the line's size rather than an estimate of it.
+//
+// A record carrying neither an item nor a fault measures as an empty item. Its
+// producer refuses it on its own account (errEmptyAnswerRecord,
+// internal/component/plugin/dispatch.go), and an empty record fits every line.
+func AnswerRecordLineSize(id uint64, record Record) int {
+	key, value := answerKeyItem, record.Item
+	if len(record.Fault) > 0 {
+		key, value = answerKeyFault, record.Fault
+	}
+	var scratch [answerRecordPrefixMax]byte
+	return len(appendAnswerKey(appendAnswerPrefix(scratch[:0], id), key)) + len(value)
+}
+
 // AppendAnswerTerminator appends the terminator line
 // (#<id> ok count=<count> [faults=<faults>] [message=<message>]) to buf and
 // returns the extended slice. Newline is NOT appended. The terminator is the

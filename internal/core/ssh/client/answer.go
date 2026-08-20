@@ -1,4 +1,4 @@
-// Design: plan/spec-streaming-answer-protocol.md — the answer grammar
+// Design: docs/architecture/api/ipc_protocol.md — the answer grammar
 // Overview: client.go — ExecCommand, the whole-answer sibling of this file
 //
 // answer.go reads an exec-channel answer as it arrives.

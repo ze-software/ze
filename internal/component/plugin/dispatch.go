@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	"slices"
+	"strconv"
 
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -219,9 +220,11 @@ func WriteAnswer(w io.Writer, id uint64, resp *Response) error {
 // written once the walk has said which type this answer is.
 //
 // A rejected row is written and the walk goes on, so one answer can report 97
-// rows applied and 3 rejected. A failed WRITE ends the walk: the transport is
-// gone, and every later row would be produced for nobody. Returning stops the
-// generator, which the range does by refusing the next yield.
+// rows applied and 3 rejected. A row too wide for one line is rejected the same
+// way (boundedRecord), because refusing one row must not cost the operator the
+// rows around it. A failed WRITE ends the walk: the transport is gone, and
+// every later row would be produced for nobody. Returning stops the generator,
+// which the range does by refusing the next yield.
 func writeRecordAnswer(w io.Writer, buf []byte, id uint64, resp *Response, records Records) error {
 	fields, err := marshalFields(records.Fields)
 	if err != nil {
@@ -235,6 +238,7 @@ func writeRecordAnswer(w io.Writer, buf []byte, id uint64, resp *Response, recor
 		streaming bool
 	)
 	for record := range records.rows() {
+		record = boundedRecord(id, count+faults+1, record)
 		switch {
 		case len(record.Fault) > 0:
 			faults++
@@ -324,6 +328,62 @@ func writeRecordLine(w io.Writer, buf []byte, id uint64, record rpc.Record, fiel
 		return buf, err
 	}
 	return writeAnswerLine(w, rpc.AppendAnswerItem(buf[:0], id, record.Item))
+}
+
+// boundedRecord is record when its line fits one wire message, and the rejected
+// row that stands in for it when it does not. A record is one line, so a record
+// wider than rpc.MaxMessageSize has no wire form at all.
+//
+// Rejecting it rather than failing the write is what keeps the rest of the
+// answer. A walk that stopped there would discard every later row and reach no
+// terminator, and a consumer reads a missing terminator as a truncated answer
+// (rpc.Verdict), so one wide row would be reported as a lost connection. The
+// answer instead reaches its terminator, which counts the rejection in faults=,
+// and the verdict derives to partial.
+//
+// It is measured before the line is built, so the row is never copied into a
+// line buffer that would be thrown away and left grown for the rest of the
+// answer.
+//
+// It runs before the answer type is known, so the rejection reaches both forms
+// the answer can take: the record's own line when the walk streams, and the
+// collapsed document when it does not. The buffered path (ResponseJSON) writes
+// no lines and rejects nothing, so a record this wide is the one payload whose
+// two renderings differ, and they differ because one transport bounds a line
+// and the other does not.
+//
+// ordinal is the record's position in the walk, counted from one, and it is how
+// the rejected row names the record it stands for.
+func boundedRecord(id, ordinal uint64, record rpc.Record) rpc.Record {
+	size := rpc.AnswerRecordLineSize(id, record)
+	if size <= rpc.MaxMessageSize {
+		return record
+	}
+	return rpc.Record{Fault: answerRecordTooLargeFault(ordinal, size)}
+}
+
+// answerFaultCapacity is the capacity answerRecordTooLargeFault builds into: 99
+// bytes of fixed text and three decimal numbers of at most 20 digits each, so
+// 192 holds every fault it can write without growing the slice.
+const answerFaultCapacity = 192
+
+// answerRecordTooLargeFault is the rejected row that stands in for a record
+// wider than one wire message. It names the record by its position in the walk
+// and states the two sizes, so an operator can find the row that was rejected.
+//
+// It quotes nothing of the record. A fault carrying the row it rejected would
+// be rejected for the same reason, and the row can be 16 MB. Its own length is
+// bounded by construction (answerFaultCapacity), so it always fits the line the
+// record did not.
+func answerRecordTooLargeFault(ordinal uint64, size int) json.RawMessage {
+	fault := make([]byte, 0, answerFaultCapacity)
+	fault = append(fault, `{"message":"answer record does not fit one wire message","record":`...)
+	fault = strconv.AppendUint(fault, ordinal, 10)
+	fault = append(fault, `,"encoded-bytes":`...)
+	fault = strconv.AppendInt(fault, int64(size), 10)
+	fault = append(fault, `,"limit-bytes":`...)
+	fault = strconv.AppendInt(fault, rpc.MaxMessageSize, 10)
+	return append(fault, '}')
 }
 
 // writeAnswerLine frames line with the newline that ends every wire message and

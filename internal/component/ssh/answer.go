@@ -1,4 +1,4 @@
-// Design: plan/spec-streaming-answer-protocol.md -- the answer grammar
+// Design: docs/architecture/api/ipc_protocol.md -- the answer grammar
 // Overview: ssh.go -- execMiddleware, the exec channel this frames an answer on
 //
 // answer.go carries the SSH exec channel's half of the answer protocol. The

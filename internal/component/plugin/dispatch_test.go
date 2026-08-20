@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"iter"
+	"math"
 	"slices"
 	"strconv"
 	"strings"
@@ -987,5 +988,202 @@ func TestRowArityIsRefusedOnBothPaths(t *testing.T) {
 				t.Errorf("ResponseJSON returned %v, want %v", err, tc.want)
 			}
 		})
+	}
+}
+
+// oversizedItem is a result record wider than one wire message: a JSON string
+// of rpc.MaxMessageSize characters, so its line is over the limit whatever the
+// id costs. Sixteen megabytes is the point of the test, and no smaller record
+// reaches the limit the transport enforces.
+func oversizedItem() json.RawMessage {
+	item := bytes.Repeat([]byte{'x'}, rpc.MaxMessageSize+2)
+	item[0] = '"'
+	item[len(item)-1] = '"'
+	return item
+}
+
+// framedWriter is what an answer is written to in production: a writer that
+// takes one framed line at a time and refuses a line wider than one wire
+// message, which is the check rpc.Conn makes under the answer writer it hands
+// the encoder. The newline is part of the line here, as it is there.
+//
+// A bytes.Buffer accepts a line of any width, so an answer written to one
+// cannot show what a record too wide for the wire costs.
+type framedWriter struct {
+	lines bytes.Buffer
+}
+
+func (w *framedWriter) Write(line []byte) (int, error) {
+	if len(line) > rpc.MaxMessageSize+1 {
+		return 0, fmt.Errorf("message exceeds maximum size %d", rpc.MaxMessageSize)
+	}
+	return w.lines.Write(line)
+}
+
+// rejectedRow is one entry of the errors collection a buffered consumer reads,
+// as answerRecordTooLargeFault writes it.
+type rejectedRow struct {
+	Message      string `json:"message"`
+	Record       uint64 `json:"record"`
+	EncodedBytes int64  `json:"encoded-bytes"`
+	LimitBytes   int64  `json:"limit-bytes"`
+}
+
+// answerRows is the answer a subtest of TestRecordOverMaxMessageSizeFaults
+// writes: good result records with one record too wide for a line among them.
+type answerRows struct {
+	items     int
+	oversized int
+}
+
+// rows yields the good records in order and the oversized one before the good
+// record at index oversized, so the walk has records to produce after the
+// rejection as well as before it.
+func (a answerRows) rows() iter.Seq[rpc.Record] {
+	return func(yield func(rpc.Record) bool) {
+		for i := range a.items {
+			if i == a.oversized && !yield(rpc.Record{Item: oversizedItem()}) {
+				return
+			}
+			if !yield(rpc.Record{Item: json.RawMessage(`{"peer":"10.0.0.` + strconv.Itoa(i) + `"}`)}) {
+				return
+			}
+		}
+	}
+}
+
+// TestRecordOverMaxMessageSizeFaults checks that one record too wide for a line
+// costs the operator that record and nothing else. The method: an answer of
+// good records carries one record of rpc.MaxMessageSize+2 bytes among them, and
+// the wire is read back for the good records, the terminator and the counts.
+// Both answer types are driven, because a bounded answer collapses its records
+// into one document and a streamed one writes each as a line.
+//
+// VALIDATES: AC-15 -- the wide record is refused with a fault naming it, and
+// the answer continues to its terminator.
+// PREVENTS: the write error the transport returns for a wide line ending the
+// walk, which discards every later record and reaches no terminator. A consumer
+// then reads a lost connection where one row was too wide.
+func TestRecordOverMaxMessageSizeFaults(t *testing.T) {
+	const id = 7
+
+	tests := []struct {
+		name  string
+		items int
+	}{
+		{name: "a bounded answer", items: 4},
+		{name: "a streamed answer", items: rpc.AnswerBufferThreshold + 2},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			answer := answerRows{items: tc.items, oversized: tc.items / 2}
+
+			var wire framedWriter
+			records := Records{Key: "peers", Rows: answer.rows()}
+			if err := WriteAnswer(&wire, id, NewResponse(StatusDone, records)); err != nil {
+				t.Fatalf("WriteAnswer returned %v, want the answer to reach its terminator", err)
+			}
+
+			lines := readAnswer(t, wire.lines.Bytes())
+			assertAnswerShape(t, lines, id, uint64(tc.items), 1)
+
+			terminator := lines[len(lines)-1].tail
+			if verdict := rpc.Verdict(&terminator); verdict != rpc.VerdictPartial {
+				t.Errorf("the answer derives to %q, want %q: a rejected row is not a lost connection", verdict, rpc.VerdictPartial)
+			}
+
+			var collapsed struct {
+				Peers  []json.RawMessage `json:"peers"`
+				Errors []rejectedRow     `json:"errors"`
+			}
+			if err := json.Unmarshal([]byte(reassembleAnswer(t, wire.lines.Bytes())), &collapsed); err != nil {
+				t.Fatalf("read the reassembled answer: %v", err)
+			}
+			if len(collapsed.Peers) != tc.items {
+				t.Errorf("the answer carries %d rows, want the %d the walk produced beside the rejected one", len(collapsed.Peers), tc.items)
+			}
+			if len(collapsed.Errors) != 1 {
+				t.Fatalf("the answer carries %d rejected rows, want one", len(collapsed.Errors))
+			}
+
+			rejected := collapsed.Errors[0]
+			if want := uint64(answer.oversized + 1); rejected.Record != want {
+				t.Errorf("the rejected row names record %d, want %d", rejected.Record, want)
+			}
+			if rejected.EncodedBytes <= rpc.MaxMessageSize {
+				t.Errorf("the rejected row states %d encoded bytes, want more than the %d limit", rejected.EncodedBytes, rpc.MaxMessageSize)
+			}
+			if rejected.LimitBytes != rpc.MaxMessageSize {
+				t.Errorf("the rejected row states a limit of %d, want %d", rejected.LimitBytes, rpc.MaxMessageSize)
+			}
+			if rejected.Message == "" {
+				t.Error("the rejected row states no message, so an operator reads two numbers and no reason")
+			}
+		})
+	}
+}
+
+// TestRecordSizeBoundaryIsTheEncodedLine checks the off-by-one of the refusal.
+// The method: one item is built one byte over the limit and sliced to exactly
+// the limit, and boundedRecord is asked about both. The at-limit record must
+// come back untouched, because refusing a record the transport accepts loses a
+// row for nothing.
+//
+// VALIDATES: AC-15 boundary -- a record line of exactly rpc.MaxMessageSize is
+// written, and one byte more is rejected.
+// PREVENTS: a limit compared against the item rather than the line, which
+// refuses every record within the last few bytes of the range.
+func TestRecordSizeBoundaryIsTheEncodedLine(t *testing.T) {
+	const id = 7
+
+	prefix := rpc.AnswerRecordLineSize(id, rpc.Record{})
+	overLimit := bytes.Repeat([]byte{'x'}, rpc.MaxMessageSize+1-prefix)
+	atLimit := overLimit[:len(overLimit)-1]
+
+	kept := boundedRecord(id, 1, rpc.Record{Item: atLimit})
+	if len(kept.Fault) > 0 {
+		t.Errorf("a record line of exactly %d bytes was rejected: %s", rpc.MaxMessageSize, kept.Fault)
+	}
+	if len(kept.Item) != len(atLimit) {
+		t.Errorf("the kept record carries %d bytes, want the %d it was given", len(kept.Item), len(atLimit))
+	}
+
+	rejected := boundedRecord(id, 1, rpc.Record{Item: overLimit})
+	if len(rejected.Item) > 0 {
+		t.Fatalf("a record line of %d bytes was written, want it rejected", rpc.MaxMessageSize+1)
+	}
+	var row rejectedRow
+	if err := json.Unmarshal(rejected.Fault, &row); err != nil {
+		t.Fatalf("read the rejected row %s: %v", rejected.Fault, err)
+	}
+	if row.EncodedBytes != rpc.MaxMessageSize+1 {
+		t.Errorf("the rejected row states %d encoded bytes, want %d", row.EncodedBytes, rpc.MaxMessageSize+1)
+	}
+}
+
+// TestTheRejectedRowFitsTheLineTheRecordDidNot checks the trap the refusal
+// carries: a fault quoting the record it rejected would be rejected for the
+// same reason, and the answer would then have no way to report anything. The
+// method: the widest fault the builder can write, for the largest id, is
+// measured against the limit and against its own capacity.
+//
+// VALIDATES: AC-15 -- the fault that replaces a wide record always reaches the
+// wire.
+// PREVENTS: a fault built from the record, which is the shape that turns one
+// wide row into a failed answer.
+func TestTheRejectedRowFitsTheLineTheRecordDidNot(t *testing.T) {
+	fault := answerRecordTooLargeFault(math.MaxUint64, math.MaxInt)
+	if len(fault) > answerFaultCapacity {
+		t.Errorf("the widest rejected row is %d bytes and the builder reserves %d, so it grows its slice", len(fault), answerFaultCapacity)
+	}
+	if size := rpc.AnswerRecordLineSize(math.MaxUint64, rpc.Record{Fault: fault}); size > rpc.MaxMessageSize {
+		t.Errorf("the rejected row's line is %d bytes, over the %d limit it exists to report", size, rpc.MaxMessageSize)
+	}
+	var row rejectedRow
+	if err := json.Unmarshal(fault, &row); err != nil {
+		t.Fatalf("the rejected row %s is not readable: %v", fault, err)
+	}
+	if row.Record != math.MaxUint64 {
+		t.Errorf("the rejected row names record %d, want %d", row.Record, uint64(math.MaxUint64))
 	}
 }
