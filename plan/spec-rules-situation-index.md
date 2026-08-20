@@ -234,3 +234,89 @@ Not applicable. No protocol code.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only
+
+## Scope Note (2026-08-18, owner question: one agent per stage of work)
+
+**Where the eager payload actually is.** `make ze-rules-payload-report`:
+21,561 tokens always loaded. `ai/INSTRUCTIONS.md` 6,901, `CORE.md` 13,491,
+`TRIGGERS.md` 1,169.
+
+| `CORE.md` section | Tokens | Stage-variable |
+|-------------------|--------|----------------|
+| Git Safety | 4,701 | Yes, the commit PROCEDURE only |
+| RFC Compliance | 4,655 | Yes, protocol work only |
+| Interop and Goal Validation | 1,556 | Yes, protocol work only |
+| Rule Precedence | 1,399 | No, it is the ladder |
+| Never Destroy, No Layering, Stale Comments | 950 | No |
+
+Two rules carry 70% of `CORE.md`, so SECTION-level tagging on two manifests
+captures most of the win. A predicate on each of 2,245 points is not needed to
+reach it.
+
+→ Decision: tag the manifest SECTION, never the point. `git-safety` has 10
+sections; the corpus has about 150. That is the unit an author can hold.
+
+**The invariant that makes narrowing safe.** The Task section states an absent
+`applies` never routes NARROWER than today. The owner's goal REQUIRES narrowing
+for the tagged sections, so the invariant needs its real form.
+
+→ Constraint: a PROHIBITION stays eager; only a PROCEDURE is stage-scoped. The
+ban on the bare push verb is in the `ai/INSTRUCTIONS.md` DANGER block and refused
+by `.claude/hooks/pretool-bash.py` besides, so dropping the 4,701 tokens of
+commit-helper procedure from a research agent removes a how-to, never a ban.
+
+→ Constraint: `TRIGGERS.md` is never stage-scoped. Stage decides what is
+PRE-LOADED, never what is REACHABLE, so the worst case of a mislabeled stage is
+one extra Read, not an unenforced rule. That property is what makes the change
+cheap to be wrong about.
+
+**Routing is already built.** One skill per stage of work already exists
+(`/ze-explore` research, `/ze-implement` implementation, `/ze-commit` and
+`/ze-close` commit, `/ze-review` review), so the skill IS the stage label and no
+new detection is needed.
+
+**Open scope decision for the owner:** generated checks (the spec's stated
+reason to do it, and its R-1) in the same spec, or split so the loading change
+lands alone.
+
+## Current Behavior, verified 2026-08-18 (research phase)
+
+Read by an agent, each claim re-verified against the producing function in the
+main thread.
+
+| Producer | What it does today |
+|----------|--------------------|
+| `render_text` (`scripts/dev/rules_points.py`) | emits the manifest heading, then EVERY point body of that section, unconditionally. It never reads `Point.stage` |
+| `ManifestSection` + `MANIFEST_SECTION` (same file) | a section line carries `slug`, `heading` and a `^` tight marker, and nothing else. There is no metadata slot |
+| `POINT_KEYS` / `parse_point` (same file) | `stage` is already an authored per-point key, refused if misspelled, and empty in all 2,245 points. `split_rule` writes it empty for every rule-derived point |
+| `load_rules` (`scripts/dev/rules_condensed.py`) | parses each RENDERED `ai/rules/<rule>.md` as one whole record. Section identity does not survive into it |
+| `core_members` (same file) | derives the always-on set at WHOLE-RULE granularity from the precedence ladder, plus three fail-closed reasons |
+| `ARTIFACTS` (same file) | `(("TRIGGERS.md", build_triggers), ("CORE.md", build_core))`, and its comment states a new artifact needs only a row here |
+
+→ Constraint: the two generators are DECOUPLED. `rules_condensed.py` imports
+`re`, `sys`, `collections` and `pathlib` and nothing local; `rules_points.py` is
+imported only by its own test. So a section-level `stage` cannot reach
+`build_core` through the rendered file, which carries headings and no section
+metadata.
+
+→ Decision: the stage view is a NEW artifact produced by `rules_points.py`,
+which already owns manifests and sections. `CORE.md` stays whole-rule and
+`core_members` is untouched. The alternative, teaching `rules_condensed.py` to
+read points, couples two generators to save one walk.
+
+→ Constraint: the authored unit is the manifest SECTION line, so
+`MANIFEST_SECTION`, `parse_manifest`, `format_manifest` and `ManifestSection`
+change together, and `make ze-rules-points-roundtrip-check` is what proves the
+new line shape survives split and render. A line shape it does not know raises
+`RulePointsError`, so render-check, roundtrip-check and gate-map-report fail
+hard rather than silently.
+
+→ Decision: the dead per-point `stage` key is not the carrier. Authoring 2,245
+of them was rejected in the Scope Note. Retiring the key, or stamping it from
+the section at render, is a DESIGN-gate call.
+
+→ Constraint: tests extend in place, no new files.
+`scripts/dev/rules_points_test.py` covers the manifest spine (`SectionSpineTest`,
+`RenderFailureTest`, `TightHeadingTest`) and `scripts/dev/rules_condensed_test.py`
+covers membership and the payload budget (`CoreMembershipTest`,
+`PayloadBudgetTest`, `GeneratedShapeTest`).

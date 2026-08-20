@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | - |
+| Phase | 1/7 |
 | Deferral shard | `plan/deferrals/ad-hoc-2026-08-02-wire-edit-tail.md` |
 | Handoff | verify |
-| Updated | 2026-08-11 |
+| Updated | 2026-08-17 |
 
 <!-- Handoff `verify`: the implementation session commits its work, sets Status to
      `verification`, and STOPS. A later Opus 5 session reviews that commit and closes
@@ -178,12 +178,12 @@ buffer, created on the inbound UPDATE path in `reactor_notify.go`.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | `EBGPWire` has zero non-test call sites. | A tree-wide grep for `.EBGPWire(` over `*.go` on 2026-08-11 returns nothing outside `_test.go`. The only non-test occurrences of the NAME are three lines in `internal/perf/allocgate.go`. | The delete is not a delete. STOP, report the caller, and do not proceed. | Re-run the same grep as step 1 of implementation | unvalidated |
-| A-2 | The four `recent_cache.go` slot reads always find nil in production. | The slots can only be non-nil after an `EBGPWire` store, and A-1 says nothing outside a test calls it. `EBGPWire` is the sole writer: it holds the one `slot.Store` site in the package. | A live path populates the slots, so A-1 is wrong. Same stop as A-1. | A-1 plus the sole-writer grep for `ebgpSlotASN` | unvalidated |
-| A-3 | Every property the deleted tests assert dies with its subject, except one. | Read of all nine functions: six in `received_update_test.go` and two benchmarks assert `EBGPWire`'s own lazy generation, caching, concurrency and error handling. `TestForwardDoesNotRetranscodeASN2RewrittenWire` is the exception: its subject is `buildFwdBody`. | Any test whose property outlives its subject is reworked, never deleted. | Per-test reason recorded in the implementation report | unvalidated |
-| A-4 | `make ze-alloc-check` is the only check that catches a leftover `AllocCeilings` string key. | `TestAllocGateEnforce` skips unless `ZE_ALLOC_GATE_BENCH` is set, and `mk/alloc-gate.mk` is the only thing that sets it. Every other test in `internal/perf` reads the `sampleBenchOutput` fixture. | If some other gate catches it too, no harm: the spec still requires `make ze-alloc-check`. | Run `make ze-alloc-check` and confirm it reds with the key left in | unvalidated |
-| A-5 | `extractFirstASN` in `received_update_test.go` has no caller after the six tests go. | Its one call site sits inside `TestReceivedUpdate_EBGPWireLazyASN4`, which is deleted. | It has another caller and stays. Harmless either way. | The lint run: `golangci-lint` `unused` flags a leftover | unvalidated |
-| A-6 | `testUpdatePayloadWithASPath` and `buildUpdatePayload` survive the delete. | Both have callers outside the deleted set: `forward_readbuf_leak_test.go` calls the first at four sites, `forward_modbuf_leak_test.go` calls the second. | Deleting either breaks four other tests. | The package build | unvalidated |
+| A-1 | `EBGPWire` has zero non-test call sites. | A tree-wide grep for `.EBGPWire(` over `*.go` on 2026-08-11 returns nothing outside `_test.go`. The only non-test occurrences of the NAME are three lines in `internal/perf/allocgate.go`. | The delete is not a delete. STOP, report the caller, and do not proceed. | Re-run the same grep as step 1 of implementation | confirmed |
+| A-2 | The four `recent_cache.go` slot reads always find nil in production. | The slots can only be non-nil after an `EBGPWire` store, and A-1 says nothing outside a test calls it. `EBGPWire` is the sole writer: it holds the one `slot.Store` site in the package. | A live path populates the slots, so A-1 is wrong. Same stop as A-1. | A-1 plus the sole-writer grep for `ebgpSlotASN` | confirmed |
+| A-3 | Every property the deleted tests assert dies with its subject, except one. | Read of all nine functions: six in `received_update_test.go` and two benchmarks assert `EBGPWire`'s own lazy generation, caching, concurrency and error handling. `TestForwardDoesNotRetranscodeASN2RewrittenWire` is the exception: its subject is `buildFwdBody`. | Any test whose property outlives its subject is reworked, never deleted. | Per-test reason recorded in the implementation report | confirmed |
+| A-4 | `make ze-alloc-check` is the only check that catches a leftover `AllocCeilings` string key. | `TestAllocGateEnforce` skips unless `ZE_ALLOC_GATE_BENCH` is set, and `mk/alloc-gate.mk` is the only thing that sets it. Every other test in `internal/perf` reads the `sampleBenchOutput` fixture. | If some other gate catches it too, no harm: the spec still requires `make ze-alloc-check`. | Run `make ze-alloc-check` and confirm it reds with the key left in | unvalidated (no gate may run this session) |
+| A-5 | `extractFirstASN` in `received_update_test.go` has no caller after the six tests go. | Its one call site sits inside `TestReceivedUpdate_EBGPWireLazyASN4`, which is deleted. | It has another caller and stays. Harmless either way. | The lint run: `golangci-lint` `unused` flags a leftover | confirmed |
+| A-6 | `testUpdatePayloadWithASPath` and `buildUpdatePayload` survive the delete. | Both have callers outside the deleted set: `forward_readbuf_leak_test.go` calls the first at four sites, `forward_modbuf_leak_test.go` calls the second. | Deleting either breaks four other tests. | The package build | confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
