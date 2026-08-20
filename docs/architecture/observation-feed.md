@@ -28,11 +28,20 @@ Observation {
     Feature: RxBytes | RxPackets | FlowBytes | FlowPackets | NewFlowCount
     Value:   float64 (collector-native)
     At:      time.Time
+    SrcAS:   uint32 (origin AS of Flow.Src, 0 = unknown)
 }
 ```
 
 `Kind` tells consumers which `Flow` fields are meaningful. `Observation` is a value
 type (embedded `FlowKey`, no pointers) for zero-allocation publish.
+
+`SrcAS` is an optional label the publisher stamps. The flowexport conntrack
+producer copies the origin AS it already resolved from the BGP RIB onto each flow
+observation, so a consumer reads the AS off the feed and never calls into the
+producer's plugin. AS 0 is reserved (RFC 7607), so `SrcAS == 0` is the
+unambiguous "not attributed" value: it is what a consumer sees when the producer
+has no enricher or the RIB holds no matching prefix, and the consumer falls back
+to the address or its prefix.
 
 ## Why this shape
 

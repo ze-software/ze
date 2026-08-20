@@ -14,7 +14,7 @@ RESPONSE.**
 |------|------|
 | `internal/core/stats` | the math primitives: `Window`, `Mean`, `StdDev`, `Quantile`, `Entropy`, `EWMA`, `IntervalRegularity` |
 | `internal/component/trafficstat` | per-key rolling aggregation built on `stats.Window` |
-| `internal/component/trafficfeature` | neutral per-source features: fan-out, out/in ratio, destination-port entropy, new-peer, rare port and protocol, coarse beaconing |
+| `internal/component/trafficfeature` | neutral per-source features: fan-out, out/in ratio, destination-port entropy, new-peer, rare port and protocol, coarse beaconing, plus the entity's origin AS when a publisher supplies it |
 
 <!-- source: internal/core/stats/window.go -- Window, the canonical rolling-rate primitive -->
 <!-- source: internal/component/trafficstat/window.go -- per-key aggregation on stats.Window -->
@@ -46,6 +46,20 @@ consumer of the raw 5-tuple stream, not a consumer of `trafficstat.Snapshot`.
 Fan-out and destination-port entropy need every tuple, and the lossy top-N
 snapshot cannot supply them.
 <!-- source: internal/component/trafficfeature/service.go -- observation.Feed subscription -->
+
+**Origin AS rides the feed; the feature layer never resolves it.** A
+`FeatureEntry` carries `SrcAS`, the origin autonomous system of its entity, and
+`trafficfeature` takes it from `Observation.SrcAS` in the source-role branch of
+`ingest` alone: in the destination-role branch that field describes the other
+endpoint. It is an entity property rather than a window measurement, so it lives
+in the persistent part of `sourceState`, survives the per-window reset, and is
+overwritten only by a non-zero value, which keeps a later unattributed flow from
+erasing a known AS. `SrcAS == 0` means "not attributed" (AS 0 is reserved,
+RFC 7607) and a consumer grouping by AS falls back to the address or its prefix.
+The resolver stays in the publishing plugin: this layer copies a label, so
+neither it nor a consumer of `Snapshot` imports the producer.
+<!-- source: internal/component/trafficfeature/service.go -- FeatureEntry.SrcAS -->
+<!-- source: internal/component/trafficfeature/feature.go -- source-role-only AS stamp in ingest -->
 
 **All seven `stats` primitives shipped together.** `EWMA` and `Quantile` have no
 consumer in the stat and feature layers. They are the foundational API for the

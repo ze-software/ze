@@ -328,6 +328,10 @@ func (e *exporter) exportFlows(flows []ConntrackFlow) {
 			Feature: observation.FeatureFlowBytes,
 			Value:   float64(f.Bytes),
 			At:      now,
+			// Carry the origin AS the enrichment loop above already resolved, so
+			// a consumer of the feed reads it without reaching into this plugin.
+			// 0 when enrichment is off or the RIB has no matching prefix.
+			SrcAS: f.SrcAS,
 		}
 		obs.Flow.Src = f.SrcAddr
 		obs.Flow.Dst = f.DstAddr
