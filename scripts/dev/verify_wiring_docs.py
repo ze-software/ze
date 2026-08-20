@@ -8,6 +8,7 @@ existing direct targets, and only decides which ones apply to the current diff.
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
 import subprocess
@@ -157,6 +158,167 @@ class GateFailure(Exception):
     pass
 
 
+FAILURE_GROUP_PREFIX = "VERIFY FAILURE GROUP:"
+FAILURE_GROUPS_COMPLETE_PREFIX = "VERIFY FAILURE GROUPS COMPLETE:"
+
+# The two kinds a group of this gate can carry. group_related_paths
+# (scripts/dev/commit_helper.py) reads paths out of a group only when its kind is
+# inside PATH_BEARING_GROUP_KINDS, which holds "files" and not "subcheck". So a failure
+# that names files is attributable, and a failure that names none is charged to
+# the session that is committing. Charging is the deliberate half: guessing which
+# files a check name covers would let a real red go uncharged.
+PATH_BEARING_KIND = "files"
+UNATTRIBUTABLE_KIND = "subcheck"
+
+# splitLines (scripts/status/verify_run.go) reads the stage log with a scanner
+# whose token limit is maxLogLineBytes, 4 MiB. A line above it does not just
+# vanish: the scan ENDS there, so that line and every line after it go
+# unclassified, and the reader charges the stage for the part it could not read.
+# A tree-wide check can name hundreds of files, so one group carries at most this
+# many paths and the rest go to sibling groups. Every group line then stays three
+# orders of magnitude below the limit, and nothing is dropped: a truncated
+# `related` would hide the very file that makes the red this session's.
+RELATED_PER_GROUP = 50
+
+# Every group id this run declared, in the order it declared them. The count is
+# what declare_groups_complete publishes, and the consumer refuses to prefer
+# declared groups unless that count matches what it read.
+DECLARED_GROUPS: list[str] = []
+
+
+def declare_failure_group(
+    name: str, related: list[str], summary: str, rerun: str
+) -> None:
+    """Declare the failure group for the failure being reported, right here.
+
+    The producer knows which files its failure is about; the verify runner
+    reading its prose is guessing (classifyWiringDocs, scripts/status/verify_run.go).
+    So each failure prints its own group, and `related` names the repository
+    paths it is about, or is empty when the check judges a population rather than
+    a file.
+
+    MUST be called at the point of failure, never accumulated for an end-of-run
+    dump: `main` returns early when the wiring check fails, and `run_make_target`
+    raises past the remaining targets, so a dump would print the groups of the
+    failures that happen to come last and none of the others.
+
+    The line is built with json.dumps, so a path holding a quote, a newline, or
+    the prefix itself is escaped into the JSON string it belongs to and cannot
+    forge a second group.
+    """
+    kind = PATH_BEARING_KIND if related else UNATTRIBUTABLE_KIND
+    chunks = [
+        related[i : i + RELATED_PER_GROUP]
+        for i in range(0, len(related), RELATED_PER_GROUP)
+    ] or [[]]
+    for number, chunk in enumerate(chunks, start=1):
+        group_id = f"{kind}:{name}" if number == 1 else f"{kind}:{name}#{number}"
+        payload = {
+            "group-id": group_id,
+            "kind": kind,
+            "related": chunk,
+            "summary": summary,
+            "rerun": rerun,
+        }
+        DECLARED_GROUPS.append(group_id)
+        print(f"{FAILURE_GROUP_PREFIX} {json.dumps(payload)}")
+
+
+def declare_groups_complete() -> None:
+    """State how many groups this run declared, which is what lets them be used.
+
+    The verify runner prefers declared groups over its own classifier only when
+    this count matches the number of group lines it read (parseDeclaredGroups,
+    scripts/status/verify_run.go).
+
+    What the count detects is a group set that reached the reader DAMAGED, and
+    all three cases are failures of the channel rather than of a check:
+
+    | The reader sees | Because |
+    |-----------------|---------|
+    | fewer group lines than the count | the stage log was truncated, or the run died between a group and its count |
+    | more group lines than the count | a child process relayed a group line of its own into this stage's log |
+    | no count at all | the run died before it got here, so nothing is trusted |
+
+    It does NOT detect a failure that declared no group. This number is
+    `len(DECLARED_GROUPS)`, so it counts the declarations that were MADE, and a
+    missed failure raises neither side of the comparison. `run_check` is what
+    closes that hole, at the producer: a check that fails having declared nothing
+    gets an unattributable group there, so by the time this line is printed every
+    failure of this run has a group and the count is honest by construction.
+    """
+    print(f"{FAILURE_GROUPS_COMPLETE_PREFIX} {len(DECLARED_GROUPS)}")
+
+
+def run_check(name: str, rerun: str, check: Callable[[], int | None]) -> int:
+    """Run one sub-check, and let no failure of it leave the failure index.
+
+    A check that fails without declaring a group would publish a count that
+    agrees with itself: `declare_groups_complete` counts the declarations that
+    were made, so a missed failure raises neither the count nor the number of
+    group lines the reader parses. The reader would then read `complete=true`,
+    prefer a group set that says nothing about that failure, and drop the red.
+
+    So "declared nothing" is turned into "declared one no-file group" here. Its
+    kind is UNATTRIBUTABLE_KIND, which `structural_gate_reds`
+    (scripts/dev/commit_helper.py) CHARGES to the session that is committing.
+    Every route out of a check is covered: a non-zero return, and a GateFailure
+    raised past the remaining work, which `run_make_target` uses for an unknown
+    target before it has declared anything.
+
+    A check that declared its own group keeps it and gets no second one.
+    """
+    before = len(DECLARED_GROUPS)
+    try:
+        rc = check() or 0
+    except GateFailure:
+        _declare_silent_failure(name, rerun, before)
+        raise
+    if rc:
+        _declare_silent_failure(name, rerun, before)
+    return rc
+
+
+def _declare_silent_failure(name: str, rerun: str, before: int) -> None:
+    """Declare an unattributable group for a failure that declared none."""
+    if len(DECLARED_GROUPS) != before:
+        return
+    declare_failure_group(
+        name,
+        [],
+        f"{name} failed without naming the files it is about",
+        rerun,
+    )
+
+
+# The `<path>:<line>:` prefix every finding of check_doc_links.py carries. The
+# path names the file holding the broken `// Design:` reference, which is the
+# file that has to be edited, and so the file whose owner earns the red.
+CHILD_FINDING_RE = re.compile(r"^([^\s:]+):\d+: ")
+
+
+def child_finding_paths(root: Path, text: str) -> list[str]:
+    """The repository paths a captured child's findings name, sorted and deduped.
+
+    A token is kept only when it is a relative path the checkout holds, which is
+    the same test related_repo_path (scripts/dev/commit_helper.py) applies later.
+    A finding whose prefix names nothing contributes no path, and a check whose
+    findings contribute none declares an unattributable group instead of a false
+    one.
+    """
+    found: set[str] = set()
+    for line in text.splitlines():
+        match = CHILD_FINDING_RE.match(line)
+        if not match:
+            continue
+        candidate = match.group(1)
+        if candidate.startswith("/") or ".." in Path(candidate).parts:
+            continue  # absolute or escaping: not a path in this checkout
+        if (root / candidate).exists():
+            found.add(candidate)
+    return sorted(found)
+
+
 def check_design_refs(root: Path) -> int:
     """Run the Design-ref existence gate (check_doc_links --design-only).
 
@@ -171,11 +333,33 @@ def check_design_refs(root: Path) -> int:
         # Isolated test root or minimal checkout without the checker: skip
         # rather than fail. The real verify always runs with the repo as root.
         return 0
+    # Captured, not inherited. The paths this check is complaining about live in
+    # the child's own output, and this gate has to name them: it is unconditional
+    # and tree-wide, so on a shared checkout it is among the likeliest reds, and a
+    # red naming no file is charged to whoever is committing. Capturing also ends
+    # the interleave -- this script never flushes and its recipe passes no -u, so
+    # a child writing to the inherited descriptor could print ahead of a parent
+    # line produced before it.
     proc = subprocess.run(
         ["python3", "scripts/dev/check_doc_links.py", "--design-only"],
         cwd=root,
+        text=True,
+        capture_output=True,
+        check=False,
     )
-    return 1 if proc.returncode else 0
+    if proc.stdout:
+        print(proc.stdout, end="")
+    if proc.stderr:
+        print(proc.stderr, end="", file=sys.stderr)
+    if not proc.returncode:
+        return 0
+    declare_failure_group(
+        "design-refs",
+        child_finding_paths(root, proc.stdout),
+        "a `// Design:` reference does not resolve to a durable document",
+        "python3 scripts/dev/check_doc_links.py --design-only",
+    )
+    return 1
 
 
 def main() -> int:
@@ -204,9 +388,37 @@ def main() -> int:
 
     root = find_repo_root(Path(args.root).resolve())
     if args.check_plugin_imports:
+        # Not part of the gate: the ze-doc-wiring-check recipe (mk/inventory.mk)
+        # never passes this flag, so this branch declares no group and states no
+        # count. A caller that passes it gets the check and nothing else.
         check_plugin_imports(root)
         return 0
 
+    try:
+        rc = run_gate(root, args)
+    except GateFailure as exc:
+        print(str(exc), file=sys.stderr)
+        rc = 1
+    if rc:
+        declare_groups_complete()
+    return rc
+
+
+def run_gate(root: Path, args: argparse.Namespace) -> int:
+    """Run the selected gates. Every CHECK that fails here declares its group.
+
+    Every check runs through `run_check`, and that is what makes the property
+    structural rather than a convention a new check can forget: a check that
+    fails having declared nothing is given an unattributable group there, so it
+    is charged instead of leaving the failure index. A check that knows its own
+    files still declares them itself, at the point of failure, and keeps them.
+
+    One failure is the RUN's rather than a check's: `changed_files` raises when
+    git is unusable, before any check has run. It declares nothing, so the count
+    is zero, and zero declared groups is what sends the stage back to its
+    classifier.
+    """
+    gate_rerun = "make ze-doc-wiring-check"
     changed = [normalize_changed_path(root, p) for p in args.changed_file]
 
     if not changed:
@@ -223,12 +435,21 @@ def main() -> int:
             print(advisory)
         return 0
 
-    ratchet_rc = check_ci_sleep_ratchet(root, changed)
-    justif_rc = check_ci_sleep_justification(root, changed)
-    excuse_rc = check_known_failure_load_excuses(root, changed)
-    logkey_rc = check_ci_log_subsystem_keys(root, changed)
-    design_rc = check_design_refs(root)
-    gate_rc = ratchet_rc or justif_rc or excuse_rc or logkey_rc or design_rc
+    gate_rc = 0
+    for name, check in (
+        ("ci-sleep-ratchet", lambda: check_ci_sleep_ratchet(root, changed)),
+        ("ci-sleep-justification", lambda: check_ci_sleep_justification(root, changed)),
+        (
+            "known-failure-load-excuse",
+            lambda: check_known_failure_load_excuses(root, changed),
+        ),
+        ("ci-log-subsystem-key", lambda: check_ci_log_subsystem_keys(root, changed)),
+        ("design-refs", lambda: check_design_refs(root)),
+    ):
+        # Every check runs, whatever an earlier one returned, and gate_rc keeps
+        # the first non-zero exactly as the chain of `or`s it replaces did.
+        rc = run_check(name, gate_rerun, check)
+        gate_rc = gate_rc or rc
 
     if not targets:
         print("No wiring/doc/inventory checks needed")
@@ -237,18 +458,17 @@ def main() -> int:
         return gate_rc
 
     if "wiring" in targets:
-        issues = check_wiring(root, changed)
-        if issues:
-            print("Wiring check FAILED:")
-            for issue in issues:
-                print("  - " + issue)
+        if run_check("wiring", gate_rerun, lambda: report_wiring(root, changed)):
             return 1
-        print("Wiring check PASSED")
 
     for target in targets:
         if target == "wiring":
             continue
-        run_make_target(args.make, target, root)
+        run_check(
+            target,
+            f"make {target}",
+            lambda t=target: run_make_target(args.make, t, root),
+        )
 
     if advisory:
         print(advisory)
@@ -341,6 +561,16 @@ def check_ci_sleep_ratchet(root: Path, changed: Iterable[str]) -> int:
             " wait_for_shutdown (test/scripts/ze_api.py), or raise the"
             " ceiling only with explicit user approval (append a `+N` line)."
         )
+        # No file to name: `count` is a sum over every .ci in the tree measured
+        # against one committed ceiling, so no single file is the offender. The
+        # group is declared anyway, naming nothing, so the commit helper charges
+        # this gate to the session that is committing instead of dropping the red.
+        declare_failure_group(
+            "ci-sleep-ratchet",
+            [],
+            f"test/**/*.ci holds {count} time.sleep( calls against a ceiling of {ceiling}",
+            "make ze-doc-wiring-check",
+        )
         return 1
     if count < ceiling:
         print(
@@ -386,6 +616,7 @@ def check_ci_sleep_justification(root: Path, changed: Iterable[str]) -> int:
     if not ci_changed:
         return 0
     violations: list[str] = []
+    offenders: set[str] = set()
     checked = 0
     for rel in ci_changed:
         try:
@@ -400,6 +631,7 @@ def check_ci_sleep_justification(root: Path, changed: Iterable[str]) -> int:
             checked += 1
             if not _sleep_is_justified(lines, i):
                 violations.append(f"{rel}:{i + 1}: {line.strip()}")
+                offenders.add(rel)
     if violations:
         print("ci-sleep justification FAILED:")
         print("  Every time.sleep( in a changed .ci test must carry a comment on the")
@@ -411,6 +643,12 @@ def check_ci_sleep_justification(root: Path, changed: Iterable[str]) -> int:
             "  Add a `#` comment (poll interval, deliberate timer, needs-linux effect,"
         )
         print("  or no queryable readiness signal). See ai/rules/testing.md.")
+        declare_failure_group(
+            "ci-sleep-justification",
+            sorted(offenders),
+            "a changed .ci test holds a time.sleep( with no comment saying why",
+            "make ze-doc-wiring-check",
+        )
         return 1
     if checked:
         print(f"ci-sleep justification OK ({checked} sleeps, all commented)")
@@ -453,6 +691,7 @@ def check_known_failure_load_excuses(root: Path, changed: Iterable[str]) -> int:
     if not shards:
         return 0
     violations: list[str] = []
+    offenders: set[str] = set()
     for rel in shards:
         try:
             lines = (root / rel).read_text(encoding="utf-8").splitlines()
@@ -461,6 +700,7 @@ def check_known_failure_load_excuses(root: Path, changed: Iterable[str]) -> int:
         for i, line in enumerate(lines):
             if LOAD_EXCUSE_RE.search(line):
                 violations.append(f"{rel}:{i + 1}: {line.strip()}")
+                offenders.add(rel)
     if violations:
         print("known-failure load excuse FAILED:")
         print("  A shard may not attribute a red to host load. That attribution IS")
@@ -470,6 +710,12 @@ def check_known_failure_load_excuses(root: Path, changed: Iterable[str]) -> int:
         print("  Fix the test to wait on the condition (ze_api wait_until /")
         print("  dispatch_until / wait_for_event), then delete the shard. Raising a")
         print("  timeout is not a fix. See ai/rules/completion.md.")
+        declare_failure_group(
+            "known-failure-load-excuse",
+            sorted(offenders),
+            "a changed known-failures shard blames host load for its red",
+            "make ze-doc-wiring-check",
+        )
         return 1
     print(f"known-failure load excuse OK ({len(shards)} shard(s) checked)")
     return 0
@@ -566,6 +812,12 @@ def check_ci_log_subsystem_keys(root: Path, changed: Iterable[str]) -> int:
             print(f"      {text}")
         print("  An internal plugin's logger name is CanonicalSubsystemName of its")
         print("  registry name (plugin/inprocess.go): every hyphen becomes a dot.")
+        declare_failure_group(
+            "ci-log-subsystem-key",
+            sorted({rel for rel, _lineno, _subsystem, _text in violations}),
+            "a .ci test sets a ze.log.<subsystem> key that matches no slog subsystem",
+            "make ze-doc-wiring-check",
+        )
         return 1
     print(f"ci log-subsystem key OK ({len(suspects)} hyphenated key(s) declared)")
     return 0
@@ -928,6 +1180,43 @@ def read_head_or_empty(root: Path, path: str) -> str:
     return proc.stdout
 
 
+def report_wiring(root: Path, changed: Iterable[str]) -> int:
+    """Print the wiring check's verdict, declare its group, and say whether it failed.
+
+    `check_wiring` stays a pure function returning text, because `run_gate`
+    decides the exit and the check's own tests read that text. Reporting lives
+    here so the wiring check reaches the failure index through `run_check` like
+    every other check, rather than through a path of its own.
+    """
+    issues = check_wiring(root, changed)
+    if not issues:
+        print("Wiring check PASSED")
+        return 0
+    print("Wiring check FAILED:")
+    for issue in issues:
+        print("  - " + issue)
+    declare_wiring_group(root, issues)
+    return 1
+
+
+def declare_wiring_group(root: Path, issues: list[str]) -> None:
+    """Declare the wiring failure's group, naming every file it reports.
+
+    `check_wiring` stays a pure function returning text, because `main` decides
+    the exit and its own tests read the text. Each issue is formatted below as
+    `{sym.path}:{sym.line}: exported ...`, so the same `<path>:<line>:` prefix
+    check_doc_links.py uses reads them back, and
+    `test_the_wiring_group_names_the_file_check_wiring_reported` holds the two
+    formats together.
+    """
+    declare_failure_group(
+        "wiring",
+        child_finding_paths(root, "\n".join(issues)),
+        "an exported symbol added by this change has no non-test reference",
+        "make ze-doc-wiring-check",
+    )
+
+
 def check_wiring(
     root: Path,
     changed: Iterable[str],
@@ -1107,6 +1396,18 @@ def run_make_target(make: str, target: str, root: Path) -> None:
             print(proc.stdout, end="")
         if proc.stderr:
             print(proc.stderr, end="", file=sys.stderr)
+        # This gate names no file here, deliberately. Every path in the text
+        # above was produced by another program, and reading a delegated
+        # target's output as this gate's attribution would let a red it does not
+        # understand look like somebody else's. The group is declared so the red
+        # is CHARGED rather than dropped; a target that wants its own files named
+        # declares its own groups, which every stage may now do.
+        declare_failure_group(
+            target,
+            [],
+            f"delegated target {target} failed",
+            f"make {target}",
+        )
         raise GateFailure(f"{target} failed")
     print(f"{target} PASSED")
 

@@ -1,0 +1,194 @@
+# Wiring-gate attribution, end to end through scripts/dev/commit_helper.py.
+#
+# Six sessions share this checkout, so `ze-doc-wiring-check` judges every file in
+# it -- including the ones another session is halfway through writing. Its red
+# used to name a CHECK, so no commit could be ruled out of it and 72 open
+# `structural gates (red)` debt rows say the red belonged to somebody else. The
+# gate now declares one failure group per failure, naming the files that failure
+# is about, and the commit helper attributes each group against the commit's own
+# file list.
+#
+# This test drives the operator's story: a developer commits while another
+# session's file reddens the wiring gate, and is not charged a debt row for it.
+# It then drives both refusals, because attribution that only ever drops a red is
+# a bypass rather than a gate.
+#
+# Nothing here touches the real tmp/ze-verify-failures.json, tmp/ze-verify.status
+# or plan/verification-debt/. Every command runs with the working directory
+# inside the scratch repo it creates, commit_helper.py is given `--repo .`, and
+# `structural_gate_reds` (scripts/dev/commit_helper.py) reads the failure index
+# under that repo. Several sessions read the real index at the same time.
+#
+# The scratch repo carries its own copy of verify-status.sh because
+# `verify_status` (scripts/dev/commit_helper.py) resolves it under `--repo` and
+# answers "unknown" when it is absent -- and "unknown" never reaches the
+# structural branch this test is about.
+#
+# If attribution regressed to charging every red, seq=2 would refuse and the
+# `wiring-red-of-another-session-not-charged` marker would never print.
+
+option=timeout:value=90s
+
+tmpfs=setup.sh:terminator=EOF_SETUP
+#!/bin/sh
+set -eu
+repo=$PWD/scratch
+mkdir -p "$repo"
+cd "$repo"
+git init -q .
+git config user.email tester@example.com
+git config user.name Tester
+# A fixture repo has no signing key. Without this, a developer whose global
+# config signs every commit cannot run this test.
+git config commit.gpgsign false
+# tmp/ holds the verify status and the failure index. Untracked files feed the
+# freshness fingerprint, so an unignored tmp/ makes the tree hash its own output.
+printf 'tmp/\n' > .gitignore
+# `create` refuses a .go file with no `// Design:` header, so the fixture carries
+# one on both files. Which file is whose is the only thing this test turns on.
+printf '// Design: docs/architecture/fixture.md -- fixture\npackage mine\n' > mine.go
+printf '// Design: docs/architecture/fixture.md -- fixture\npackage theirs\n' > theirs.go
+git add -A
+git commit -q -m base
+# My own uncommitted work: the change the commit below would carry.
+printf '// Design: docs/architecture/fixture.md -- fixture\npackage mine\n\nfunc Mine() {}\n' > mine.go
+mkdir -p tmp scripts/dev
+cp "$ZE_REPO_ROOT/scripts/dev/verify-status.sh" scripts/dev/verify-status.sh
+# A run that FAILED is stale for every path list, so the freshness answer is
+# fixed here and attribution is the only thing left to decide the verdict.
+./scripts/dev/verify-status.sh write 1 ze-precommit-verify
+echo scratch-repo-ready
+EOF_SETUP
+
+tmpfs=write-index.sh:terminator=EOF_INDEX
+#!/bin/sh
+# Write scratch/tmp/ze-verify-failures.json with the wiring gate red, in the
+# shape declare_failure_group (scripts/dev/verify_wiring_docs.py) prints and
+# classifyStage (scripts/status/verify_run.go) records. $1 is the extra group.
+set -eu
+cd scratch
+cat > tmp/ze-verify-failures.json <<JSON
+{"stages":[{"stage":"ze-doc-wiring-check","exit-code":1,"groups":[
+{"stage":"ze-doc-wiring-check","group-id":"files:wiring","kind":"files",
+ "related":["theirs.go"],
+ "summary":"an exported symbol added by this change has no non-test reference",
+ "rerun":"make ze-doc-wiring-check",
+ "detail-log":"tmp/verify/ze-doc-wiring-check.log","parallel":"group"}
+$1
+]}]}
+JSON
+EOF_INDEX
+
+tmpfs=assert-foreign.sh:terminator=EOF_FOREIGN
+#!/bin/sh
+set -eu
+sh write-index.sh ''
+cd scratch
+
+# Every declared group names theirs.go, and this commit carries mine.go only.
+if ! out=$(python3 "$ZE_REPO_ROOT/scripts/dev/commit_helper.py" --repo . create \
+	--session aaaa1111 --subject "fixture change" --file mine.go \
+	--unverified "another session edited the tree" 2>&1); then
+	echo "the wiring red of another session must not refuse this commit:" >&2
+	echo "$out" >&2
+	exit 1
+fi
+case "$out" in
+*"red for another session only: ze-doc-wiring-check"*) ;;
+*)
+	echo "the drop must be announced, not silent. got:" >&2
+	echo "$out" >&2
+	exit 1
+	;;
+esac
+if grep -q 'structural gates (red)' plan/verification-debt/aaaa1111.md; then
+	echo "a debt row was charged for another session's wiring red" >&2
+	cat plan/verification-debt/aaaa1111.md >&2
+	exit 1
+fi
+# The commit still owes the freshness row: attribution answers WHOSE red it is,
+# never whether the tree was verified.
+if ! grep -q 'ze-precommit-verify (not FRESH-green)' plan/verification-debt/aaaa1111.md; then
+	echo "the freshness debt row is missing, so this run proves nothing" >&2
+	cat plan/verification-debt/aaaa1111.md >&2
+	exit 1
+fi
+echo wiring-red-of-another-session-not-charged
+EOF_FOREIGN
+
+tmpfs=assert-mine.sh:terminator=EOF_MINE
+#!/bin/sh
+set -eu
+# The same red, with my own file inside the same group. Attribution is not a
+# bypass: one file this commit carries charges the gate.
+sh write-index.sh ',
+{"stage":"ze-doc-wiring-check","group-id":"files:design-refs","kind":"files",
+ "related":["mine.go"],
+ "summary":"a `// Design:` reference does not resolve to a durable document",
+ "rerun":"python3 scripts/dev/check_doc_links.py --design-only",
+ "detail-log":"tmp/verify/ze-doc-wiring-check.log","parallel":"group"}'
+cd scratch
+
+if out=$(python3 "$ZE_REPO_ROOT/scripts/dev/commit_helper.py" --repo . create \
+	--session bbbb2222 --subject "fixture change" --file mine.go \
+	--unverified "another session edited the tree" 2>&1); then
+	echo "a wiring red naming this commit's own file must refuse. got:" >&2
+	echo "$out" >&2
+	exit 1
+fi
+case "$out" in
+*"STRUCTURAL GATE"*ze-doc-wiring-check*) ;;
+*)
+	echo "expected the structural refusal naming the wiring gate, got:" >&2
+	echo "$out" >&2
+	exit 1
+	;;
+esac
+echo wiring-red-of-my-own-file-still-refuses
+EOF_MINE
+
+tmpfs=assert-blind.sh:terminator=EOF_BLIND
+#!/bin/sh
+set -eu
+# The ci-sleep ratchet sums every .ci in the tree against one committed ceiling,
+# so it declares a group naming no file. Nobody can rule that red out, so it is
+# charged rather than dropped, and the refusal says which group is blind.
+#
+# The fixture summary paraphrases the ratchet's own wording on purpose. That
+# check counts the token it names across every .ci in the tree, this file
+# included, so quoting it verbatim here would raise the count it measures.
+sh write-index.sh ',
+{"stage":"ze-doc-wiring-check","group-id":"subcheck:ci-sleep-ratchet",
+ "kind":"subcheck","related":[],
+ "summary":"test/**/*.ci holds 41 sleep calls against a ceiling of 40",
+ "rerun":"make ze-doc-wiring-check",
+ "detail-log":"tmp/verify/ze-doc-wiring-check.log","parallel":"group"}'
+cd scratch
+
+if out=$(python3 "$ZE_REPO_ROOT/scripts/dev/commit_helper.py" --repo . create \
+	--session cccc3333 --subject "fixture change" --file mine.go \
+	--unverified "another session edited the tree" 2>&1); then
+	echo "a red nobody can attribute must be charged, not dropped. got:" >&2
+	echo "$out" >&2
+	exit 1
+fi
+case "$out" in
+*"Charged for want of attribution"*subcheck:ci-sleep-ratchet*) ;;
+*)
+	echo "expected the refusal to name the blind group, got:" >&2
+	echo "$out" >&2
+	exit 1
+	;;
+esac
+echo unattributable-wiring-red-is-charged
+EOF_BLIND
+
+cmd=foreground:seq=1:exec=sh setup.sh
+cmd=foreground:seq=2:exec=sh assert-foreign.sh
+cmd=foreground:seq=3:exec=sh assert-mine.sh
+cmd=foreground:seq=4:exec=sh assert-blind.sh
+expect=exit:code=0
+expect=stdout:contains=scratch-repo-ready
+expect=stdout:contains=wiring-red-of-another-session-not-charged
+expect=stdout:contains=wiring-red-of-my-own-file-still-refuses
+expect=stdout:contains=unattributable-wiring-red-is-charged

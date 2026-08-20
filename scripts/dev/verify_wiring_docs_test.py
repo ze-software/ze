@@ -11,22 +11,42 @@ rise still fails. This test pins that arithmetic and the monotonic guarantee.
 
 from __future__ import annotations
 
+import argparse
 import io
+import json
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, os.path.dirname(__file__))
+import verify_wiring_docs
 from verify_wiring_docs import (
+    DECLARED_GROUPS,
+    FAILURE_GROUP_PREFIX,
+    FAILURE_GROUPS_COMPLETE_PREFIX,
     MAKE_TARGETS,
+    PATH_BEARING_KIND,
     TARGET_ORDER,
+    UNATTRIBUTABLE_KIND,
+    GateFailure,
+    check_ci_log_subsystem_keys,
+    check_ci_sleep_justification,
     check_ci_sleep_ratchet,
-    check_wiring,
+    check_design_refs,
     check_known_failure_load_excuses,
+    check_wiring,
+    declare_failure_group,
+    declare_groups_complete,
+    declare_wiring_group,
     parse_sleep_baseline,
+    run_check,
+    run_gate,
+    run_make_target,
     selected_targets,
 )
 
@@ -269,11 +289,13 @@ class DockerExecRoutingTest(unittest.TestCase):
         root = self._root()
         for path in (
             "test/interop/interop.py",
-            "test/interop/scenarios/05-routes-from-frr/check.py",
-            "test/ipsec-interop/lab.py",
+            "test/interop/scenarios/bgp-routes-from-frr/check.py",
+            "test/interop-ipsec/lab.py",
         ):
             with self.subTest(path=path):
-                self.assertIn("ze-functional-docker-exec-check", selected_targets(root, [path]))
+                self.assertIn(
+                    "ze-functional-docker-exec-check", selected_targets(root, [path])
+                )
 
     def test_checker_and_baseline_select_the_target(self):
         root = self._root()
@@ -282,13 +304,17 @@ class DockerExecRoutingTest(unittest.TestCase):
             "test/health/docker-exec-baseline.json",
         ):
             with self.subTest(path=path):
-                self.assertIn("ze-functional-docker-exec-check", selected_targets(root, [path]))
+                self.assertIn(
+                    "ze-functional-docker-exec-check", selected_targets(root, [path])
+                )
 
     def test_a_draft_and_an_unrelated_change_do_not_select_it(self):
         root = self._root()
         for path in ("test/draft/plugin/wip.py", "test/plugin/api-peer.ci"):
             with self.subTest(path=path):
-                self.assertNotIn("ze-functional-docker-exec-check", selected_targets(root, [path]))
+                self.assertNotIn(
+                    "ze-functional-docker-exec-check", selected_targets(root, [path])
+                )
 
     def test_target_is_runnable_and_ordered(self):
         self.assertIn("ze-functional-docker-exec-check", MAKE_TARGETS)
@@ -332,6 +358,428 @@ class TemplRoutingTest(unittest.TestCase):
     def test_target_is_runnable_and_ordered(self):
         self.assertIn("ze-templ-output-check", MAKE_TARGETS)
         self.assertIn("ze-templ-output-check", TARGET_ORDER)
+
+
+def run_capturing(call):
+    """Run `call`, returning what it returned and what it printed to stdout."""
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        value = call()
+    return value, buf.getvalue()
+
+
+def groups_in(text: str) -> list[dict]:
+    """Every failure group declared in `text`, parsed back from its JSON."""
+    prefix = FAILURE_GROUP_PREFIX + " "
+    return [
+        json.loads(line[len(prefix) :])
+        for line in text.splitlines()
+        if line.startswith(prefix)
+    ]
+
+
+class TestEveryWiringSubcheckDeclaresItsFiles(unittest.TestCase):
+    """Every failure path of this gate declares a group, and names its files.
+
+    The gate is a router: five checks run in-process, one reads the tree, and the
+    rest are delegated make targets. Sub-spec 1 attributes a structural red by
+    the files its groups name, and it charges the gate when a group names none.
+    So a path that CAN name files must, or the red lands on whoever happened to
+    be committing (71 of the 102 open structural debt rows are this gate), and a
+    path that cannot must still declare, or its failure disappears from the
+    index entirely.
+
+    One method per non-zero exit path enumerated in
+    plan/spec-verify-scope-6-wiring-docs-attribution.md, minus
+    check_plugin_imports: `main` returns 0 on that branch and the
+    ze-doc-wiring-check recipe (mk/inventory.mk) never passes its flag.
+    """
+
+    def _root(self) -> Path:
+        d = tempfile.mkdtemp(prefix="wiring-groups-")
+        self.addCleanup(lambda: __import__("shutil").rmtree(d, ignore_errors=True))
+        return Path(d)
+
+    def test_ci_sleep_ratchet_declares_a_group_that_names_no_file(self):
+        # The ratchet compares a tree-wide count against one ceiling, so no file
+        # is the offender. It must still declare, and with a kind the commit
+        # helper refuses to read paths from, so the red is charged.
+        root = self._root()
+        write(root, "test/.ci-sleep-baseline", "0\n")
+        write(root, "test/a.ci", ci_with_sleeps(1))
+        rc, out = run_capturing(lambda: check_ci_sleep_ratchet(root, ["test/a.ci"]))
+        self.assertEqual(rc, 1)
+        groups = groups_in(out)
+        self.assertEqual(len(groups), 1)
+        self.assertEqual(groups[0]["group-id"], "subcheck:ci-sleep-ratchet")
+        self.assertEqual(groups[0]["kind"], UNATTRIBUTABLE_KIND)
+        self.assertEqual(groups[0]["related"], [])
+
+    def test_ci_sleep_justification_names_the_changed_file(self):
+        root = self._root()
+        write(root, "test/a.ci", "time.sleep(0.1)\n")
+        rc, out = run_capturing(
+            lambda: check_ci_sleep_justification(root, ["test/a.ci"])
+        )
+        self.assertEqual(rc, 1)
+        groups = groups_in(out)
+        self.assertEqual(len(groups), 1)
+        self.assertEqual(groups[0]["kind"], PATH_BEARING_KIND)
+        self.assertEqual(groups[0]["related"], ["test/a.ci"])
+
+    def test_known_failure_load_excuse_names_the_shard(self):
+        root = self._root()
+        write(root, "plan/known-failures/flaky.md", "It fails under load.\n")
+        rc, out = run_capturing(
+            lambda: check_known_failure_load_excuses(
+                root, ["plan/known-failures/flaky.md"]
+            )
+        )
+        self.assertEqual(rc, 1)
+        groups = groups_in(out)
+        self.assertEqual(len(groups), 1)
+        self.assertEqual(groups[0]["kind"], PATH_BEARING_KIND)
+        self.assertEqual(groups[0]["related"], ["plan/known-failures/flaky.md"])
+
+    def test_ci_log_subsystem_key_names_the_ci_file(self):
+        root = self._root()
+        write(root, "test/a.ci", "env ze.log.bgp.adj-rib-in=debug\n")
+        rc, out = run_capturing(
+            lambda: check_ci_log_subsystem_keys(root, ["test/a.ci"])
+        )
+        self.assertEqual(rc, 1)
+        groups = groups_in(out)
+        self.assertEqual(len(groups), 1)
+        self.assertEqual(groups[0]["kind"], PATH_BEARING_KIND)
+        self.assertEqual(groups[0]["related"], ["test/a.ci"])
+
+    def _stub_checker(self, root: Path, body: str) -> None:
+        """A stand-in for check_doc_links.py, run as the real child is run."""
+        write(root, "scripts/dev/check_doc_links.py", body)
+
+    def test_design_refs_names_the_paths_its_child_reported(self):
+        # The finding lives one process down: this check runs check_doc_links.py.
+        # Before this spec it passed no capture_output and held only the return
+        # code, so the gate's likeliest tree-wide red named no file at all.
+        root = self._root()
+        write(root, "internal/component/ssh/server.go", "package ssh\n")
+        self._stub_checker(
+            root,
+            "import sys\n"
+            "print('internal/component/ssh/server.go:12: broken Design reference: docs/gone.md')\n"
+            "sys.exit(1)\n",
+        )
+        rc, out = run_capturing(lambda: check_design_refs(root))
+        self.assertEqual(rc, 1)
+        self.assertIn("broken Design reference", out)  # the child is re-printed
+        groups = groups_in(out)
+        self.assertEqual(len(groups), 1)
+        self.assertEqual(groups[0]["kind"], PATH_BEARING_KIND)
+        self.assertEqual(groups[0]["related"], ["internal/component/ssh/server.go"])
+
+    def test_design_refs_naming_nothing_the_checkout_holds_declares_no_path(self):
+        # The referencing file is what earns the red, and a token no checkout
+        # holds is not one. Naming it anyway would make the group look
+        # attributable, and the commit helper would drop a red it should charge.
+        root = self._root()
+        self._stub_checker(
+            root,
+            "import sys\n"
+            "print('internal/gone/away.go:12: broken Design reference: docs/gone.md')\n"
+            "print('something went wrong')\n"
+            "sys.exit(1)\n",
+        )
+        rc, out = run_capturing(lambda: check_design_refs(root))
+        self.assertEqual(rc, 1)
+        groups = groups_in(out)
+        self.assertEqual(len(groups), 1)
+        self.assertEqual(groups[0]["kind"], UNATTRIBUTABLE_KIND)
+        self.assertEqual(groups[0]["related"], [])
+
+    def test_a_child_naming_a_path_outside_the_checkout_names_nothing(self):
+        # An absolute or escaping token is not a path this commit can be
+        # compared against, and related_repo_path refuses both downstream. The
+        # producer refuses them too, so the group says "no file" rather than
+        # naming one nobody can attribute.
+        root = self._root()
+        self._stub_checker(
+            root,
+            "import sys\n"
+            "print('/etc/passwd:1: broken Design reference: docs/gone.md')\n"
+            "print('../outside/x.go:2: broken Design reference: docs/gone.md')\n"
+            "sys.exit(1)\n",
+        )
+        _, out = run_capturing(lambda: check_design_refs(root))
+        groups = groups_in(out)
+        self.assertEqual(len(groups), 1)
+        self.assertEqual(groups[0]["related"], [])
+        self.assertEqual(groups[0]["kind"], UNATTRIBUTABLE_KIND)
+
+    def test_the_wiring_group_names_the_file_check_wiring_reported(self):
+        # Holds two formats together: the `{sym.path}:{sym.line}:` prefix
+        # check_wiring writes, and the prefix child_finding_paths reads back.
+        root = self._root()
+        write(
+            root,
+            "internal/component/example/helper.go",
+            "package example\n\nfunc Probe() {}\n",
+        )
+        issues = check_wiring(
+            root,
+            ["internal/component/example/helper.go"],
+            baseline_reader=lambda _path: "",
+        )
+        self.assertEqual(len(issues), 1)
+        _, out = run_capturing(lambda: declare_wiring_group(root, issues))
+        groups = groups_in(out)
+        self.assertEqual(len(groups), 1)
+        self.assertEqual(groups[0]["kind"], PATH_BEARING_KIND)
+        self.assertEqual(groups[0]["related"], ["internal/component/example/helper.go"])
+
+    def test_a_delegated_target_declares_a_group_naming_no_file(self):
+        # Every path in a delegated target's output was produced by another
+        # program. The group names the target so the red is charged, and names
+        # no file so it is never attributed to somebody on a guess.
+        root = self._root()
+
+        def failing_target():
+            with self.assertRaises(GateFailure):
+                run_make_target("false", "ze-doc-verify", root)
+
+        _, out = run_capturing(failing_target)
+        groups = groups_in(out)
+        self.assertEqual(len(groups), 1)
+        self.assertEqual(groups[0]["group-id"], "subcheck:ze-doc-verify")
+        self.assertEqual(groups[0]["kind"], UNATTRIBUTABLE_KIND)
+        self.assertEqual(groups[0]["related"], [])
+        self.assertEqual(groups[0]["rerun"], "make ze-doc-verify")
+
+
+class DeclaredGroupProtocolTest(unittest.TestCase):
+    """The line this gate writes, as the verify runner has to read it back."""
+
+    def test_a_pathological_path_cannot_forge_a_second_group(self):
+        # A file name may hold any byte but the separator, the prefix included.
+        # json.dumps escapes the quote and the newline into the string they
+        # belong to, so the group stays one line and carries the path back whole.
+        evil = 'test/we"ird\n' + FAILURE_GROUP_PREFIX + ' {"kind":"forged"}\n.ci'
+        _, out = run_capturing(
+            lambda: declare_failure_group("ci-sleep-justification", [evil], "s", "r")
+        )
+        self.assertEqual(len(out.splitlines()), 1)
+        groups = groups_in(out)
+        self.assertEqual(len(groups), 1)
+        self.assertEqual(groups[0]["related"], [evil])
+        self.assertEqual(groups[0]["kind"], PATH_BEARING_KIND)
+
+    def test_a_long_file_list_is_split_into_sibling_groups(self):
+        # A line above maxLogLineBytes (4 MiB, scripts/status/verify_run.go) ENDS
+        # the read: splitLines marks the log truncated and every line after the
+        # long one goes unclassified. So a tree-wide check naming hundreds of
+        # files must not print one enormous line. Nothing is dropped: the
+        # siblings carry the rest, and chunking keeps each line far under the
+        # limit rather than near it.
+        paths = [f"internal/component/example/file{n:04d}.go" for n in range(120)]
+        _, out = run_capturing(lambda: declare_failure_group("wiring", paths, "s", "r"))
+        groups = groups_in(out)
+        self.assertEqual(len(groups), 3)
+        self.assertEqual([g["group-id"] for g in groups][0], "files:wiring")
+        self.assertEqual(sorted(p for g in groups for p in g["related"]), sorted(paths))
+        self.assertEqual(len({g["group-id"] for g in groups}), 3)
+        for line in out.splitlines():
+            self.assertLess(len(line), 4 * 1024 * 1024)
+
+    def test_the_completeness_line_counts_every_group_declared(self):
+        before = len(DECLARED_GROUPS)
+        _, out = run_capturing(
+            lambda: (
+                declare_failure_group("ci-sleep-ratchet", [], "s", "r"),
+                declare_failure_group("wiring", ["Makefile"], "s", "r"),
+                declare_groups_complete(),
+            )
+        )
+        self.assertEqual(len(DECLARED_GROUPS) - before, 2)
+        self.assertIn(
+            f"{FAILURE_GROUPS_COMPLETE_PREFIX} {len(DECLARED_GROUPS)}",
+            out.splitlines(),
+        )
+
+    def test_a_failing_run_declares_its_groups_and_states_the_count(self):
+        # The end of the wire this gate owns: the script itself, run the way the
+        # recipe runs it, on a tree whose only fault is an unjustified sleep.
+        root = Path(tempfile.mkdtemp(prefix="wiring-run-"))
+        self.addCleanup(lambda: __import__("shutil").rmtree(root, ignore_errors=True))
+        write(root, "go.mod", "module example\n")
+        write(root, "test/a.ci", "time.sleep(0.1)\n")
+        proc = subprocess.run(
+            [
+                sys.executable,
+                os.path.join(os.path.dirname(__file__), "verify_wiring_docs.py"),
+                "--root",
+                str(root),
+                "--changed-file",
+                "test/a.ci",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(proc.returncode, 1, proc.stdout + proc.stderr)
+        groups = groups_in(proc.stdout)
+        self.assertEqual([g["related"] for g in groups], [["test/a.ci"]])
+        self.assertIn(
+            f"{FAILURE_GROUPS_COMPLETE_PREFIX} {len(groups)}",
+            proc.stdout.splitlines(),
+        )
+
+    def test_the_early_return_still_states_its_count(self):
+        # A wiring failure returns from `main` before the delegated targets run.
+        # Its group must be declared on that path too, and the count must still
+        # be stated, or the runner falls back to the prose classifier and the
+        # gate stays unattributable exactly where it names files best.
+        root = Path(tempfile.mkdtemp(prefix="wiring-early-"))
+        self.addCleanup(lambda: __import__("shutil").rmtree(root, ignore_errors=True))
+        write(root, "go.mod", "module example\n")
+        write(
+            root,
+            "internal/component/example/helper.go",
+            "package example\n\nfunc Probe() {}\n",
+        )
+        proc = subprocess.run(
+            [
+                sys.executable,
+                os.path.join(os.path.dirname(__file__), "verify_wiring_docs.py"),
+                "--root",
+                str(root),
+                "--changed-file",
+                "internal/component/example/helper.go",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(proc.returncode, 1, proc.stdout + proc.stderr)
+        groups = groups_in(proc.stdout)
+        self.assertEqual(
+            [g["related"] for g in groups],
+            [["internal/component/example/helper.go"]],
+        )
+        self.assertIn(
+            f"{FAILURE_GROUPS_COMPLETE_PREFIX} {len(groups)}",
+            proc.stdout.splitlines(),
+        )
+
+    def test_a_green_run_declares_nothing(self):
+        # Nothing failed, so there is no group to declare and no count to state.
+        # A count on a green run would be noise in every stage log the runner
+        # never classifies.
+        root = Path(tempfile.mkdtemp(prefix="wiring-green-"))
+        self.addCleanup(lambda: __import__("shutil").rmtree(root, ignore_errors=True))
+        write(root, "go.mod", "module example\n")
+        write(root, "test/a.ci", "# nothing to see\n")
+        proc = subprocess.run(
+            [
+                sys.executable,
+                os.path.join(os.path.dirname(__file__), "verify_wiring_docs.py"),
+                "--root",
+                str(root),
+                "--changed-file",
+                "test/a.ci",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertNotIn(FAILURE_GROUPS_COMPLETE_PREFIX, proc.stdout)
+        self.assertEqual(groups_in(proc.stdout), [])
+
+
+class ASilentFailureIsChargedTest(unittest.TestCase):
+    """A check that fails without declaring is charged, not dropped.
+
+    The completeness count cannot see this failure. `declare_groups_complete`
+    prints `len(DECLARED_GROUPS)`, the number of declarations that were MADE, so
+    a check that fails and declares nothing publishes a count agreeing with
+    itself: `parseDeclaredGroups` (scripts/status/verify_run.go) reports
+    complete, the runner prefers a group set that says nothing about that
+    failure, and the red leaves the failure index (R-1).
+
+    `run_check` closes it at the producer, so "declared nothing" becomes
+    "declared one no-file group" and `structural_gate_reds`
+    (scripts/dev/commit_helper.py) charges it. The count is then honest by
+    construction rather than by review of every check.
+    """
+
+    def test_a_failing_check_that_declares_nothing_is_charged(self):
+        _, out = run_capturing(
+            lambda: run_check("silent-check", "make ze-doc-wiring-check", lambda: 1)
+        )
+        groups = groups_in(out)
+        self.assertEqual(len(groups), 1)
+        self.assertEqual(groups[0]["group-id"], f"{UNATTRIBUTABLE_KIND}:silent-check")
+        self.assertEqual(groups[0]["kind"], UNATTRIBUTABLE_KIND)
+        self.assertEqual(groups[0]["related"], [])
+        self.assertEqual(groups[0]["rerun"], "make ze-doc-wiring-check")
+
+    def test_a_check_that_raises_past_the_rest_is_charged(self):
+        # run_make_target raises GateFailure for an unknown target before it has
+        # declared anything, and the raise skips every target after it.
+        def raiser():
+            raise GateFailure("silent-check exploded")
+
+        def call():
+            with self.assertRaises(GateFailure):
+                run_check("silent-check", "make ze-doc-wiring-check", raiser)
+
+        _, out = run_capturing(call)
+        groups = groups_in(out)
+        self.assertEqual(len(groups), 1)
+        self.assertEqual(groups[0]["kind"], UNATTRIBUTABLE_KIND)
+
+    def test_a_check_that_declared_its_own_group_gets_no_second_one(self):
+        def declaring():
+            declare_failure_group("wiring", ["Makefile"], "s", "r")
+            return 1
+
+        _, out = run_capturing(
+            lambda: run_check("wiring", "make ze-doc-wiring-check", declaring)
+        )
+        groups = groups_in(out)
+        self.assertEqual(len(groups), 1)
+        self.assertEqual(groups[0]["kind"], PATH_BEARING_KIND)
+        self.assertEqual(groups[0]["related"], ["Makefile"])
+
+    def test_a_passing_check_declares_nothing(self):
+        _, out = run_capturing(
+            lambda: run_check("quiet-check", "make ze-doc-wiring-check", lambda: 0)
+        )
+        self.assertEqual(groups_in(out), [])
+
+    def test_the_dispatch_charges_a_check_that_fails_in_silence(self):
+        # The regression guard for the dispatch itself, not for one check. The
+        # eight methods of TestEveryWiringSubcheckDeclaresItsFiles are hand
+        # written per check; this drives `run_gate`, which is what routes them,
+        # with a check that fails and prints nothing at all.
+        root = Path(tempfile.mkdtemp(prefix="wiring-silent-"))
+        self.addCleanup(lambda: __import__("shutil").rmtree(root, ignore_errors=True))
+        write(root, "go.mod", "module example\n")
+        args = argparse.Namespace(
+            changed_file=["test/a.ci"], dry_run=False, make="false"
+        )
+        with mock.patch.object(
+            verify_wiring_docs,
+            "check_ci_log_subsystem_keys",
+            lambda _root, _changed: 1,
+        ):
+            rc, out = run_capturing(lambda: run_gate(root, args))
+        self.assertEqual(rc, 1, out)
+        groups = groups_in(out)
+        self.assertEqual(len(groups), 1, out)
+        self.assertEqual(
+            groups[0]["group-id"], f"{UNATTRIBUTABLE_KIND}:ci-log-subsystem-key"
+        )
+        self.assertEqual(groups[0]["related"], [])
 
 
 if __name__ == "__main__":
