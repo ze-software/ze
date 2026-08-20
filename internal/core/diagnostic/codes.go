@@ -220,8 +220,8 @@ var builtinCodes = []CodeMeta{
 	},
 	{
 		Code:        "doctor-tls-invalid",
-		Title:       "TLS certificate cannot be parsed",
-		Description: "A TLS certificate file is not valid PEM or the DER content cannot be parsed as an X.509 certificate.",
+		Title:       "TLS certificate or key cannot be used",
+		Description: "A TLS certificate file is not valid PEM, or the DER content cannot be parsed as an X.509 certificate, or a stored certificate and key do not load as a pair. A listener whose material does not load does not start.",
 		Examples:    []string{"ze doctor --json"},
 	},
 	{
@@ -283,6 +283,18 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{"ze doctor --json"},
 	},
 	{
+		Code:        "doctor-iface-selector-unmatched",
+		Title:       "Interface hardware selector matches no device",
+		Description: "An ethernet interface binds to hardware by mac/match, and no device on this system carries that address. The binding stays deferred until one appears, so the interface is left unconfigured.",
+		Examples:    []string{"ze doctor --json"},
+	},
+	{
+		Code:        "doctor-iface-selector-ambiguous",
+		Title:       "Interface hardware selector matches several devices",
+		Description: "An ethernet interface binds to hardware by mac/match, and more than one device carries that address. Nothing distinguishes them, so the config apply refuses rather than guessing which port the interface's addresses reach.",
+		Examples:    []string{"ze doctor --json"},
+	},
+	{
 		Code:        "doctor-config-reference",
 		Title:       "Dangling config reference",
 		Description: "A filter chain in BGP config references a policy name that is not defined under bgp/policy.",
@@ -333,7 +345,7 @@ var builtinCodes = []CodeMeta{
 	{
 		Code:        "doctor-vpp-lcp-plugin",
 		Title:       "VPP linux_cp plugin not loaded",
-		Description: "vpp.lcp is enabled, so ze writes a startup.conf that enables linux_cp_plugin.so, but the running VPP does not report that plugin as loaded. The linux_cp API is therefore unavailable and the config apply fails at the binapi layer with a raw VPP error that names the failing message rather than the missing plugin. Remedy: run a VPP build that ships linux_cp_plugin.so (and linux_nl_plugin.so), or disable vpp.lcp. When the probe itself fails -- vppctl missing, VPP socket absent, VPP wedged -- this is reported as a WARNING instead, because none of those is evidence about which plugins VPP loaded.",
+		Description: "vpp.lcp is enabled, so ze writes a startup.conf that enables linux_cp_plugin.so, but the running VPP does not report that plugin as loaded. The linux_cp API is therefore unavailable and the config apply fails at the binapi layer with a raw VPP error that names the failing message rather than the missing plugin. Remedy: run a VPP build that ships linux_cp_plugin.so (and linux_nl_plugin.so), or disable vpp.lcp. When the probe gives no usable answer -- vppctl missing, VPP socket absent, VPP wedged, or a zero exit whose output carries no plugin listing -- this is reported as a WARNING instead, because none of those is evidence about which plugins VPP loaded.",
 		Examples:    []string{"ze doctor --json", "ze explain doctor-vpp-lcp-plugin"},
 	},
 	{
