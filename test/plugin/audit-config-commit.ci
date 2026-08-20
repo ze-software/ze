@@ -4,6 +4,11 @@
 
 option=timeout:value=30s
 option=env:var=ZE_STORAGE_BLOB:value=false
+# Keep zefs in the per-test working directory. The observer authenticates with
+# the shared bearer token this config names, so a developer database beside the
+# ze binary must not switch the API to per-user mode: that mode ignores the
+# token, answers 401, and the observer reports it as "REST API did not respond".
+option=env:var=ze.config.dir:value=.
 
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
