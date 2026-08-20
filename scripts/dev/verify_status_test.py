@@ -118,6 +118,56 @@ class TestScopedCheck(unittest.TestCase):
         self.assertEqual(result.returncode, 1, result.stdout)
         self.assertIn("HEAD moved", result.stdout)
 
+    def test_check_scoped_ignores_unnamed_paths(self) -> None:
+        """The compare reads the named paths' rows and nothing else.
+
+        Asserted in both directions, because a scope that leaked would be
+        invisible from one alone: an unnamed path that GAINS a change must not
+        turn my answer STALE, and an unnamed path that LOSES one must not turn
+        somebody else's STALE answer FRESH.
+        """
+        self.repo.write("theirs.go", "package b\n// their edit\n")
+        result = self.repo.run("check", "mine.go")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("1 scoped path", result.stdout)
+
+        self.repo.write("mine.go", "package a\n// my edit\n")
+        self.repo.write("theirs.go", "package b\n")
+        result = self.repo.run("check", "mine.go")
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn("STALE", result.stdout)
+
+    def test_a_shell_metacharacter_in_a_path_is_matched_literally(self) -> None:
+        """Paths travel as argv and are compared with awk's `==` and `index()`,
+        so `;`, `$` and `*` are ordinary characters. A path that globbed or
+        substituted would compare some OTHER path's rows, and the wrong answer
+        can fall either way."""
+        self.repo.write("we$ird;name.go", "package w\n")
+        self.repo.write("mine*.go", "package s\n")
+        self.repo.commit_all("metachars")
+        self.assertEqual(
+            self.repo.run("write", "0", "ze-precommit-verify").returncode, 0
+        )
+        self.repo.write("we$ird;name.go", "package w\n// edited\n")
+        self.repo.write("mine.go", "package a\n// edited\n")
+
+        result = self.repo.run("check", "we$ird;name.go")
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn("STALE", result.stdout)
+
+        # `mine*.go` is a real file here and it is untouched. Globbing would
+        # match the edited `mine.go` and report STALE for a file the caller
+        # never named.
+        result = self.repo.run("check", "mine*.go")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("FRESH", result.stdout)
+
+        # Nothing in a path was ever executed.
+        self.assertEqual(
+            sorted(p.name for p in self.repo.root.glob("*.go")),
+            ["mine*.go", "mine.go", "theirs.go", "we$ird;name.go"],
+        )
+
     def test_a_failed_pass_is_never_fresh_for_any_scope(self) -> None:
         self.repo.run("write", "1", "ze-precommit-verify")
         self.assertEqual(self.repo.run("check", "mine.go").returncode, 1)

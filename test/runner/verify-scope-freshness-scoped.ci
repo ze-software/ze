@@ -1,0 +1,151 @@
+# Scoped verify freshness, end to end through scripts/dev/verify-status.sh.
+#
+# Six sessions share this checkout, so the whole-tree fingerprint goes STALE
+# within seconds of a PASS -- almost always for a file the asking session never
+# wrote. The scoped `check PATH...` form is what lets a session hold evidence
+# about its own file list. This test drives that form against a throwaway git
+# repo and asserts both directions: my untouched path stays FRESH while a second
+# writer edits an unrelated file, and every way of losing that evidence still
+# reports STALE.
+#
+# Nothing here touches the real tmp/ze-verify.status or tmp/ze-verify-manifest.txt.
+# verify-status.sh resolves both against the working directory, and every command
+# below runs with the working directory inside the scratch repo it creates.
+#
+# If the scoped arm regressed to the whole-tree compare, `check mine.txt` would
+# report STALE after the second writer's edit and seq=2 would fail.
+
+option=timeout:value=60s
+
+tmpfs=setup.sh:terminator=EOF_SETUP
+#!/bin/sh
+set -eu
+repo=$PWD/scratch
+mkdir -p "$repo"
+cd "$repo"
+git init -q .
+git config user.email tester@example.com
+git config user.name Tester
+# A fixture repo has no signing key. Without this, a developer whose global
+# config signs every commit cannot run this test.
+git config commit.gpgsign false
+# The status file and the manifest both live under tmp/. Untracked files feed
+# the fingerprint, so an unignored tmp/ makes the tree hash its own output.
+printf 'tmp/\n' > .gitignore
+printf 'mine\n' > mine.txt
+printf 'theirs\n' > theirs.txt
+git add -A
+git commit -q -m base
+# My own uncommitted work: the change a commit would carry.
+printf 'mine\nmy edit\n' > mine.txt
+"$ZE_REPO_ROOT/scripts/dev/verify-status.sh" write 0 ze-precommit-verify
+echo scratch-repo-ready
+EOF_SETUP
+
+tmpfs=assert-scope.sh:terminator=EOF_SCOPE
+#!/bin/sh
+set -eu
+cd scratch
+vs="$ZE_REPO_ROOT/scripts/dev/verify-status.sh"
+
+# A second writer edits a file this commit does not carry.
+printf 'theirs\ntheir edit\n' > theirs.txt
+
+# AC-1: the scoped question answers about my path, which nobody touched.
+if ! out=$("$vs" check mine.txt); then
+	echo "AC-1: scoped check refused my untouched path: $out" >&2
+	exit 1
+fi
+case "$out" in
+FRESH*) ;;
+*)
+	echo "AC-1: expected FRESH, got: $out" >&2
+	exit 1
+	;;
+esac
+echo scoped-fresh-for-my-path
+
+# The no-argument form keeps its whole-tree meaning, which hook-parity-check.py
+# pins. The second writer's edit is enough to make it STALE.
+if out=$("$vs" check); then
+	echo "the unscoped check must be STALE after any edit, got: $out" >&2
+	exit 1
+fi
+echo unscoped-still-whole-tree
+
+# Scoping hides nothing: their path is STALE when it is the one named.
+if out=$("$vs" check theirs.txt); then
+	echo "the edited path must be STALE when it is the one named, got: $out" >&2
+	exit 1
+fi
+echo scoped-stale-for-their-path
+
+# AC-2: an edit to a path the commit DOES carry is STALE, as before.
+printf 'mine\nmy second edit\n' > mine.txt
+if out=$("$vs" check mine.txt); then
+	echo "AC-2: my own edit must be STALE, got: $out" >&2
+	exit 1
+fi
+echo scoped-stale-for-my-own-edit
+EOF_SCOPE
+
+tmpfs=assert-moved.sh:terminator=EOF_MOVED
+#!/bin/sh
+set -eu
+cd scratch
+vs="$ZE_REPO_ROOT/scripts/dev/verify-status.sh"
+
+# Put my path back to the content the PASS recorded, so the marker below is the
+# only thing that can decide the answer.
+printf 'mine\nmy edit\n' > mine.txt
+if ! out=$("$vs" check mine.txt); then
+	echo "reverting my edit must restore FRESH: $out" >&2
+	exit 1
+fi
+
+# AC-3: what writeVerifyManifest (scripts/status/verify_run.go) records for a
+# path that changed while the stages were running. Some stages read one content
+# and the rest another, so no stage judged what the checkout now holds. No file
+# content hashes to this word, so the path stays STALE even after the edit is
+# reverted -- which the whole-run tree-moved-during-run sentinel could not say
+# about one path.
+sed 's|^[0-9a-f][0-9a-f]* mine.txt$|MOVED-DURING-RUN mine.txt|' tmp/ze-verify-manifest.txt > tmp/rewritten
+mv tmp/rewritten tmp/ze-verify-manifest.txt
+if ! grep -q '^MOVED-DURING-RUN mine.txt$' tmp/ze-verify-manifest.txt; then
+	echo "the fixture did not mark mine.txt as moved" >&2
+	exit 1
+fi
+if out=$("$vs" check mine.txt); then
+	echo "AC-3: a path that moved during the run must stay STALE, got: $out" >&2
+	exit 1
+fi
+case "$out" in
+*"moved while the run was in flight"*) ;;
+*)
+	echo "AC-3: expected the moved-path reason, got: $out" >&2
+	exit 1
+	;;
+esac
+echo moved-path-stays-stale
+
+# A failed run is STALE for every path list: the check arm reads the exit code
+# before it reads any scope, so scoping is no route around a red.
+"$vs" write 1 ze-precommit-verify
+if out=$("$vs" check mine.txt); then
+	echo "a failed run must be STALE for every scope, got: $out" >&2
+	exit 1
+fi
+echo red-run-stale-for-every-scope
+EOF_MOVED
+
+cmd=foreground:seq=1:exec=sh setup.sh
+cmd=foreground:seq=2:exec=sh assert-scope.sh
+cmd=foreground:seq=3:exec=sh assert-moved.sh
+expect=exit:code=0
+expect=stdout:contains=scratch-repo-ready
+expect=stdout:contains=scoped-fresh-for-my-path
+expect=stdout:contains=unscoped-still-whole-tree
+expect=stdout:contains=scoped-stale-for-their-path
+expect=stdout:contains=scoped-stale-for-my-own-edit
+expect=stdout:contains=moved-path-stays-stale
+expect=stdout:contains=red-run-stale-for-every-scope

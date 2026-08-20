@@ -13,6 +13,8 @@
 #                       STALE almost always, and almost always for somebody
 #                       else's file. A commit is scoped to a file list and its
 #                       evidence must be scopeable to the same list.
+#                       A path that MOVED while the run was in flight is STALE
+#                       whatever it holds now (see MOVED_MARKER below).
 #                       Exit 0 if FRESH, 1 if STALE.
 #   show                Dump the current status file (human-readable).
 #   tree_hash           Print the current tree_hash and nothing else. This is
@@ -82,6 +84,15 @@ tree_hash() {
 # has changed, which is what `manifest_scoped` compares.
 MANIFEST_FILE="tmp/ze-verify-manifest.txt"
 
+# The fingerprint `writeVerifyManifest` (scripts/status/verify_run.go) records
+# for a path that changed WHILE the stages were running. Some stages read it at
+# one content and the rest at another, so no stage judged the file the checkout
+# now holds. No file content hashes to this word, so the path stays STALE even
+# after the edit is reverted -- while every path that held still keeps a real
+# fingerprint and still answers FRESH. That is the granularity the whole-run
+# `tree_hash=tree-moved-during-run` used to lack.
+MOVED_MARKER="MOVED-DURING-RUN"
+
 dirty_manifest() {
     {
         git diff HEAD --name-only 2>/dev/null || true
@@ -98,13 +109,39 @@ dirty_manifest() {
 
 # The manifest rows for the given paths, from a file or from the live tree.
 # A directory argument scopes to everything under it.
+#
+# The row is `<fingerprint> <path>` and the path is EVERYTHING after the first
+# space, never awk's $2. A path holding a space -- `test/plugin/a b.ci` -- read <!-- doc-links: ignore (illustrative path, deliberately absent from the tree) -->
+# as $2 is truncated at the space, so it matched no row in the recorded manifest
+# and no row in the live one. The two empty sets compared EQUAL and the scoped
+# check answered FRESH for a file that had just changed. That is a guard failing
+# OPEN, which `ai/rules/evidence.md` refuses: the empty answer must never be the
+# valid-looking one. The fingerprint itself never holds a space, so splitting on
+# the first one is unambiguous.
+#
+# The scope ARGUMENT reaches awk through ENVIRON, never through -v. `-v`
+# processes escape sequences in its value, so an argument holding a backslash
+# arrives as a different string than the caller named: `-v p='a\tb'` gives awk a
+# 3-character value with a TAB where the caller passed 4 literal characters.
+# ENVIRON is taken verbatim, so the comparison is made against the string the
+# caller actually named.
+#
+# The argument is what needs this, never the row. No ROW can hold a raw
+# backslash: git C-quotes any path carrying a backslash, a double quote, or a
+# byte outside printable ASCII, and `dirty_manifest` records the path exactly as
+# git prints it -- `"caf\303\251.txt"`. A path with that shape is therefore not
+# askable here at all, whatever awk is handed, and `scopeable_paths`
+# (scripts/dev/commit_helper.py) widens to the whole-tree question rather than
+# asking about one. Making the rows hold RAW paths is the repair that would make
+# them askable, and it is a format change: two producers in two languages agree
+# on this format, and a path holding a NEWLINE breaks its one-row-per-line shape.
 manifest_scoped() {
     src="$1"
     shift
     for p in "$@"; do
-        awk -v p="$p" '
-            { path = $2 }
-            path == p || index(path, p "/") == 1 { print }
+        ZE_SCOPE_PATH="$p" awk '
+            { path = substr($0, index($0, " ") + 1) }
+            path == ENVIRON["ZE_SCOPE_PATH"] || index(path, ENVIRON["ZE_SCOPE_PATH"] "/") == 1 { print }
         ' "$src"
     done | LC_ALL=C sort -u
 }
@@ -163,9 +200,14 @@ case "$cmd" in
             live=$(mktemp)
             trap 'rm -f "$live"' EXIT
             dirty_manifest > "$live"
-            if [ "$(manifest_scoped "$MANIFEST_FILE" "$@")" = "$(manifest_scoped "$live" "$@")" ]; then
+            recorded=$(manifest_scoped "$MANIFEST_FILE" "$@")
+            if [ "$recorded" = "$(manifest_scoped "$live" "$@")" ]; then
                 echo "FRESH(${mode:-ze-verify}): $# scoped path(s) unchanged since PASS at $timestamp (sha $git_sha)"
                 exit 0
+            fi
+            if printf '%s\n' "$recorded" | grep -q "^$MOVED_MARKER "; then
+                echo "STALE: a scoped path moved while the run was in flight, so no stage judged the content it now holds (PASS at $timestamp)"
+                exit 1
             fi
             echo "STALE: a scoped path changed since last PASS at $timestamp"
             exit 1

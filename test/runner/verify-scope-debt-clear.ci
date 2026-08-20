@@ -1,0 +1,171 @@
+# Clearing a verification-debt row by RUNNING the gate the row names.
+#
+# The ledger shipped with a human editing the Status cell, and that produced 270
+# open rows against 22 cleared. `make ze-verify-debt-clear` re-runs each owed
+# gate once per pass and writes `cleared` only on exit 0, so a cleared row is
+# evidence rather than a claim.
+#
+# What this test drives, and what it cannot. The make target is one line and its
+# recipe is read with `make -n`, which prints it without running it: running the
+# real target here would enter this repository's own hour-long gates from inside
+# a functional suite. The clearing entry point that recipe names is then driven
+# for real, against two throwaway git repos whose only Makefile target is the
+# one the debt row owes. One exits 0 and one exits 3, so the pass reads a real
+# exit code from a real process and the live ledger is never touched.
+#
+# If clearing ever trusted the row instead of the gate, the red repo's row would
+# clear and seq=3 would fail.
+
+option=timeout:value=60s
+
+tmpfs=setup.sh:terminator=EOF_SETUP
+#!/bin/sh
+set -eu
+base=$PWD
+
+# A fixture repo per verdict: `pass` owes a gate that exits 0, `red` owes one
+# that exits 3.
+for name in pass red; do
+	repo=$base/$name
+	mkdir -p "$repo/plan/verification-debt"
+	cd "$repo"
+	git init -q .
+	git config user.email tester@example.com
+	git config user.name Tester
+	# A fixture repo has no signing key. Without this, a developer whose global
+	# config signs every commit cannot run this test.
+	git config commit.gpgsign false
+	cd "$base"
+done
+
+# A recipe line needs a leading tab, so each Makefile is printed rather than
+# embedded: a tab is the one character an editor silently rewrites.
+printf 'ze-precommit-verify:\n\t@echo fixture-gate-ran-green\n' > "$base/pass/Makefile"
+printf 'ze-precommit-verify:\n\t@echo fixture-gate-said-why\n\t@exit 3\n' > "$base/red/Makefile"
+
+# The row format is the one record_debt renders: six cells, Status last.
+{
+	echo '| Date | Session | Subject | Gate owed | Reason | Status |'
+	echo '|------|---------|---------|-----------|--------|--------|'
+	echo '| 2026-08-19 | fixture | a commit | ze-precommit-verify (not FRESH-green) | the gate had not run | open |'
+	echo '| 2026-08-19 | fixture | a commit | independent critical review | no reviewer | open |'
+} > "$base/pass/plan/verification-debt/fixture.md"
+
+{
+	echo '| Date | Session | Subject | Gate owed | Reason | Status |'
+	echo '|------|---------|---------|-----------|--------|--------|'
+	echo '| 2026-08-19 | fixture | a commit | ze-precommit-verify (not FRESH-green) | the gate had not run | open |'
+} > "$base/red/plan/verification-debt/fixture.md"
+
+echo debt-fixtures-ready
+EOF_SETUP
+
+tmpfs=assert-green-gate.sh:terminator=EOF_GREEN
+#!/bin/sh
+set -eu
+# This suite runs under make, and make exports its own flags. A fixture make
+# inheriting a jobserver flag it cannot join warns on every recipe.
+unset MAKEFLAGS MFLAGS MAKELEVEL
+
+# The make target is the only thing binding `make ze-verify-debt-clear` to the
+# clearing entry point. -n prints its recipe without running it; the recipe has
+# no $(MAKE) in it, so nothing executes.
+recipe=$(make -C "$ZE_REPO_ROOT" -n ze-verify-debt-clear)
+case "$recipe" in
+*"commit_helper.py debt-clear"*) ;;
+*)
+	echo "the make target no longer runs the clearing entry point: $recipe" >&2
+	exit 1
+	;;
+esac
+echo make-target-runs-the-entry-point
+
+out=$(python3 "$ZE_REPO_ROOT/scripts/dev/commit_helper.py" --repo "$PWD/pass" debt-clear)
+printf '%s\n' "$out"
+
+# AC-6: the gate ran in this pass. Its own output is the proof -- a PASS line
+# the clearing pass printed would look the same whether the gate ran or not.
+case "$out" in
+*fixture-gate-ran-green*) ;;
+*)
+	echo "AC-6: the owed gate did not run" >&2
+	exit 1
+	;;
+esac
+
+# A row whose gate no command can produce stays open, and says why.
+case "$out" in
+*"UNRUNNABLE"*"independent critical review"*) ;;
+*)
+	echo "the review row must be reported UNRUNNABLE" >&2
+	exit 1
+	;;
+esac
+
+case "$out" in
+*"cleared 1 row(s), 1 still open"*) ;;
+*)
+	echo "expected one cleared row and one left open, got: $out" >&2
+	exit 1
+	;;
+esac
+
+shard=pass/plan/verification-debt/fixture.md
+if ! grep -q 'ze-precommit-verify (not FRESH-green).*| cleared |' "$shard"; then
+	echo "AC-6: the green gate's row was not written cleared" >&2
+	exit 1
+fi
+if ! grep -q 'independent critical review.*| open |' "$shard"; then
+	echo "the unrunnable row must still be open" >&2
+	exit 1
+fi
+echo green-gate-cleared-its-row
+EOF_GREEN
+
+tmpfs=assert-red-gate.sh:terminator=EOF_RED
+#!/bin/sh
+set -eu
+unset MAKEFLAGS MFLAGS MAKELEVEL
+
+out=$(python3 "$ZE_REPO_ROOT/scripts/dev/commit_helper.py" --repo "$PWD/red" debt-clear)
+printf '%s\n' "$out"
+
+# AC-7: a red gate leaves the row open and prints what the gate said. The code
+# reported is the one the clearing pass read from the process it started, and
+# make exits 2 whenever a recipe fails, whatever code the recipe itself used.
+case "$out" in
+*"RED"*"(exit 2)"*) ;;
+*)
+	echo "AC-7: the gate's exit code was not reported" >&2
+	exit 1
+	;;
+esac
+case "$out" in
+*fixture-gate-said-why*) ;;
+*)
+	echo "AC-7: the red gate's own output was not printed" >&2
+	exit 1
+	;;
+esac
+case "$out" in
+*"cleared 0 row(s), 1 still open"*) ;;
+*)
+	echo "AC-7: a red gate must clear nothing, got: $out" >&2
+	exit 1
+	;;
+esac
+if grep -q 'cleared' red/plan/verification-debt/fixture.md; then
+	echo "AC-7: a row was cleared by a gate that exited 3" >&2
+	exit 1
+fi
+echo red-gate-left-its-row-open
+EOF_RED
+
+cmd=foreground:seq=1:exec=sh setup.sh
+cmd=foreground:seq=2:exec=sh assert-green-gate.sh
+cmd=foreground:seq=3:exec=sh assert-red-gate.sh
+expect=exit:code=0
+expect=stdout:contains=debt-fixtures-ready
+expect=stdout:contains=make-target-runs-the-entry-point
+expect=stdout:contains=green-gate-cleared-its-row
+expect=stdout:contains=red-gate-left-its-row-open
