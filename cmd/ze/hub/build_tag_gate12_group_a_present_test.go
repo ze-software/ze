@@ -27,7 +27,7 @@ import (
 var gate12GroupAPlugins = map[string][]string{
 	"ze_flowexport":   {"flow-export"},
 	"ze_ddos":         {"ddos-detect", "ddos-flowspec", "ddos-flowtriq", "ddos-local", "ddos-observe"},
-	"ze_anomaly":      {"anomaly-detect", "anomaly-shape"},
+	"ze_anomaly":      {"anomaly-detect", "anomaly-observe", "anomaly-shape"},
 	"ze_as112":        {"as112"},
 	"ze_geodns":       {"geodns"},
 	"ze_dhcpserver":   {"dhcpserver"},

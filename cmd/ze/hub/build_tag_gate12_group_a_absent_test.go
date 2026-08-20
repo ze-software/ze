@@ -29,7 +29,7 @@ func TestBuildTag_Gate12GroupA_Absent(t *testing.T) {
 	names := []string{
 		"flow-export",
 		"ddos-detect", "ddos-flowspec", "ddos-flowtriq", "ddos-local", "ddos-observe",
-		"anomaly-detect", "anomaly-shape",
+		"anomaly-detect", "anomaly-observe", "anomaly-shape",
 		"as112", "geodns", "dhcpserver",
 		"tftpserver", "imageserver",
 		"traffic-usage", "policy-routes", "cos", "copp",
