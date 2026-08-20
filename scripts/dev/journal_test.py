@@ -26,6 +26,7 @@ from journal import (  # noqa: E402
     MALFORMED,
     JournalError,
     journal_row_cells,
+    journal_spec_stems,
     main,
     read_journal_at_head,
 )
@@ -103,6 +104,43 @@ class TestJournalRowCells(TestCase):
     def test_missing_leading_pipe_returns_malformed(self) -> None:
         line = "2026-07-15 | some-spec | reactor | symptom | fix |"
         self.assertEqual(journal_row_cells(line), [MALFORMED])
+
+
+class TestJournalSpecStems(TestCase):
+    """Unit tests for the Spec cell parser."""
+
+    def test_a_stem_is_itself(self) -> None:
+        self.assertEqual(journal_spec_stems("some-spec"), ["some-spec"])
+
+    def test_dash_and_none_name_no_spec(self) -> None:
+        for cell in ("-", "none", "None", "n/a", ""):
+            self.assertEqual(journal_spec_stems(cell), [], cell)
+
+    # VALIDATES: a trailing note is the author writing to the next reader, so it
+    # is stripped and the stem still answers.
+    def test_a_trailing_note_is_not_part_of_the_stem(self) -> None:
+        self.assertEqual(
+            journal_spec_stems("verify-scope-1 (measurement only)"), ["verify-scope-1"]
+        )
+
+    # VALIDATES: the shape that sent the review gate to an unwritable path.
+    # PREVENTS: `none (walked into during <spec> closure)` reading as a stem, so
+    # the gate demands tmp/review/none (walked into ...)-<session>.md from a
+    # commit that closes no spec.
+    def test_none_with_a_note_names_no_spec(self) -> None:
+        self.assertEqual(
+            journal_spec_stems("none (walked into during other-spec closure)"), []
+        )
+
+    def test_a_comma_list_names_both_specs(self) -> None:
+        self.assertEqual(journal_spec_stems("spec-a, spec-b"), ["spec-a", "spec-b"])
+
+    # VALIDATES: unreadable is not "no spec". None is what
+    # `commit_helper.journal_row_problems` blocks on, and reading it as [] would
+    # take the review gate off the commit carrying the code.
+    def test_prose_is_unreadable(self) -> None:
+        self.assertIsNone(journal_spec_stems("the spec that found it"))
+        self.assertIsNone(journal_spec_stems("spec-a (note (nested))"))
 
 
 class TestReadJournalAtHead(TestCase):

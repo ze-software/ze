@@ -77,6 +77,53 @@ def journal_row_cells(line: str) -> list[str] | None:
     return cells
 
 
+# A Spec cell names the spec stems a row belongs to, or says the row belongs to
+# no spec. `-` is the documented "no spec" (plan/journal/README.md); rows also
+# write `none`, add a parenthesised note, and list two stems separated by a
+# comma, so all four shapes are read here rather than at each call site.
+JOURNAL_SPEC_STEM_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
+JOURNAL_SPEC_NONE = ("", "-", "none", "n/a")
+_JOURNAL_SPEC_NOTE_RE = re.compile(r"\s*\([^()]*\)\s*$")
+
+
+def journal_spec_stems(cell: str) -> list[str] | None:
+    """The spec stems a Spec cell names: [] for none, None when unreadable.
+
+    A stem is the `plan/spec-<stem>.md` name, and it is a KEY: the gates look
+    up `tmp/review/<stem>-<session>.md` under it. So the cell's prose must not
+    reach them. `commit_helper.py` took the cell verbatim, and a row saying
+    `none (walked into during <spec> closure)` asked the review gate for an
+    artifact filed under that sentence. The gate then blocked a commit that
+    owed no review, and its error named a path nobody could write.
+
+    Four shapes are read, because the journal already holds all four:
+
+    * `-`, `none`, an empty cell -> `[]`. The row belongs to no spec.
+    * `some-spec` -> `["some-spec"]`.
+    * `some-spec (measurement only)` -> `["some-spec"]`. A trailing
+      parenthesised note is the author writing to the next reader, and it is
+      never part of the key.
+    * `spec-a, spec-b` -> both. One row can name two specs.
+
+    Anything else returns None, which means UNREADABLE and does not mean "no
+    spec". That difference is load-bearing: `commit_helper.journal_row_problems`
+    blocks the commit on None, and only that block makes the skip in
+    `_journal_added_spec_stems` safe. Read None as `[]` there and a cell nobody
+    can parse takes the review gate off the commit that carries the code.
+    """
+    text = _JOURNAL_SPEC_NOTE_RE.sub("", cell.strip())
+    stems: list[str] = []
+    for token in text.split(","):
+        token = token.strip()
+        if token.lower() in JOURNAL_SPEC_NONE:
+            continue
+        if not JOURNAL_SPEC_STEM_RE.match(token):
+            return None
+        if token not in stems:
+            stems.append(token)
+    return stems
+
+
 def journal_rows(text: str) -> list[list[str]]:
     """Every table row in one journal file's text."""
     rows: list[list[str]] = []

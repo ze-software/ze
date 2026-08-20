@@ -43,7 +43,7 @@ from discovery_sources import is_discovery_source as _is_discovery_source
 # already diverged: spec-closure-check.py's returned None where the others
 # returned a malformed marker, so closure evidence skipped malformed rows.
 from journal import MALFORMED as JOURNAL_MALFORMED
-from journal import journal_row_cells
+from journal import journal_row_cells, journal_spec_stems
 
 SESSION_RE = re.compile(r"^[0-9a-f]{8}$")
 TAG_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,31}$")
@@ -3356,6 +3356,14 @@ def journal_row_problems(
     row is in this commit, the message names the file and the text, and one
     edit clears it.
 
+    A row whose Spec cell names no stem is refused for the same reason. The cell
+    is the review gate's key, and prose in it was read as a stem: a row saying
+    `none (walked into during <spec> closure)` sent the gate looking for
+    `tmp/review/none (walked into ...)-<session>.md`, so a commit that owed no
+    review was blocked with a path nobody could write. `journal_spec_stems`
+    reads the cell now, and what it cannot read stops here rather than reaching
+    a gate as a key.
+
     The other two readers of the same parser already refuse to be silent:
     `journal.py` `report()` exits 1 and `spec-closure-check.py`
     `_journal_evidence()` warns on stderr. Neither can cover this one: both read
@@ -3366,21 +3374,36 @@ def journal_row_problems(
         return []
     scope = set(journal)
     bad: list[str] = []
+    unreadable_spec: list[str] = []
     for path, line in _prospective_added_lines(repo, add_paths, remove_paths):
         if path not in scope:
             continue
-        if journal_row_cells(line[1:]) == [JOURNAL_MALFORMED]:
+        cells = journal_row_cells(line[1:])
+        if cells == [JOURNAL_MALFORMED]:
             bad.append(f"  {path}: {line[1:].strip()!r}")
-    if not bad:
-        return []
-    return [
-        "this commit adds journal row(s) that do not hold the five cells\n"
-        "  | Date | Spec | Surface | Symptom | Fix |, starting with `|`:\n"
-        + "\n".join(bad)
-        + "\n  A row this parser cannot read carries no Spec cell, so the closure\n"
-        "  stem is unknown and the review gate stops firing on the commit that\n"
-        "  holds the code. Fix the row (plan/journal/README.md)."
-    ]
+        elif cells is not None and journal_spec_stems(cells[1]) is None:
+            unreadable_spec.append(f"  {path}: Spec cell {cells[1]!r}")
+    problems: list[str] = []
+    if bad:
+        problems.append(
+            "this commit adds journal row(s) that do not hold the five cells\n"
+            "  | Date | Spec | Surface | Symptom | Fix |, starting with `|`:\n"
+            + "\n".join(bad)
+            + "\n  A row this parser cannot read carries no Spec cell, so the closure\n"
+            "  stem is unknown and the review gate stops firing on the commit that\n"
+            "  holds the code. Fix the row (plan/journal/README.md)."
+        )
+    if unreadable_spec:
+        problems.append(
+            "this commit adds journal row(s) whose Spec cell names no spec stem:\n"
+            + "\n".join(unreadable_spec)
+            + "\n  The Spec cell is a KEY: the review gate looks up\n"
+            "  tmp/review/<stem>-<session>.md under it. Write `-` when the defect\n"
+            "  was found outside a spec, the spec stem when it was not, and put any\n"
+            "  explanation in a trailing `(note)` or in the Symptom cell\n"
+            "  (plan/journal/README.md)."
+        )
+    return problems
 
 
 def _journal_added_spec_stems(
@@ -3409,7 +3432,9 @@ def _journal_added_spec_stems(
     which `commit_gate_problems` runs before the review gate. That ordering is
     what makes the skip safe: no commit reaches this function carrying a row the
     parser could not read, so the skip can no longer silence the review gate.
-    Drop that gate and this becomes a fail-open branch again.
+    Drop that gate and this becomes a fail-open branch again. An unreadable Spec
+    cell (`journal_spec_stems` returns None) is the same shape and the same gate
+    refuses it, which is why `or ()` below is safe to write.
 
     A row is compared by its CELLS, not by its diff line. The shards are
     unpadded today, so appending one row emits one `+` line; column-pad a class
@@ -3450,9 +3475,9 @@ def _journal_added_spec_stems(
         for cells in added.get(path, []):
             if tuple(cells) in gone:
                 continue  # the same row, reformatted: not new content
-            spec = cells[1]
-            if spec and spec != "-" and spec not in stems:
-                stems.append(spec)
+            for spec in journal_spec_stems(cells[1]) or ():
+                if spec not in stems:
+                    stems.append(spec)
     return stems
 
 

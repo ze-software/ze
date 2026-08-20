@@ -2724,6 +2724,55 @@ class TestJournalRowIsAClosureSignal(unittest.TestCase):
             )
             self.assertEqual(stem, "other")
 
+    # VALIDATES: a Spec cell saying `none` with a parenthesised note names no
+    # spec, so the commit is not read as a closure.
+    # PREVENTS: the measured failure -- the cell was taken verbatim as the stem,
+    # so review_gate.py was asked for
+    # `tmp/review/none (walked into during <spec> closure)-<session>.md` and
+    # blocked a commit that closed nothing. The error named the path, which was
+    # the evidence, and the verdict looked like the ordinary "closure needs an
+    # independent review" red.
+    def test_a_none_spec_cell_with_a_note_is_not_a_closure(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, path = self._journal_repo(tmp)
+            path.write_text(
+                self._JOURNAL_HEAD
+                + "| 2026-08-20 | none (walked into during other closure) | gate"
+                " | it refused | fixed |\n"
+            )
+            add = ("plan/journal/some-class.md",)
+            self.assertIsNone(ch.spec_closure_stem(add, (), root))
+            self.assertEqual(ch.journal_row_problems(root, add, ()), [])
+
+    # VALIDATES: a trailing note beside a REAL stem leaves the stem answering, so
+    # the note costs the gate nothing.
+    def test_a_noted_stem_still_names_the_spec(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, path = self._journal_repo(tmp)
+            path.write_text(
+                self._JOURNAL_HEAD + "| 2026-08-20 | new-spec (measurement only) | gate"
+                " | second time | fixed |\n"
+            )
+            stem = ch.spec_closure_stem(("plan/journal/some-class.md",), (), root)
+            self.assertEqual(stem, "new-spec")
+
+    # VALIDATES: a Spec cell the parser cannot read BLOCKS the commit.
+    # PREVENTS: the fail-open half of the same fix. `_journal_added_spec_stems`
+    # skips a cell it cannot read, so without this block an unreadable cell would
+    # take the review gate off the commit that carries the code.
+    def test_an_unreadable_spec_cell_blocks_the_commit(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, path = self._journal_repo(tmp)
+            path.write_text(
+                self._JOURNAL_HEAD + "| 2026-08-20 | the spec that found it | gate"
+                " | second time | fixed |\n"
+            )
+            problems = ch.journal_row_problems(
+                root, ("plan/journal/some-class.md",), ()
+            )
+            self.assertTrue(problems)
+            self.assertIn("names no spec stem", problems[0])
+
 
 class TestScriptPathIsUniquePerPreparedCommit(unittest.TestCase):
     """A prepared commit owns its own script path.

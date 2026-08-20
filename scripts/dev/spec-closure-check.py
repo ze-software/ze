@@ -54,7 +54,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 # One journal row parser, in journal.py. The copy that lived here returned None
 # for a malformed row, so closure evidence skipped rows the journal gate names.
 from journal import MALFORMED as JOURNAL_MALFORMED  # noqa: E402
-from journal import journal_row_cells  # noqa: E402
+from journal import journal_row_cells, journal_spec_stems  # noqa: E402
 
 PLAN_DIR = Path("plan")
 LEARNED_DIR = PLAN_DIR / "learned"
@@ -182,9 +182,8 @@ def _journal_evidence(repo: Path) -> dict[str, str]:
                     )
                     named_malformed = True
                 continue
-            spec = cells[1]
-            if spec and spec != "-" and spec not in result:
-                result[spec] = relpath
+            for spec in journal_spec_stems(cells[1]) or ():
+                result.setdefault(spec, relpath)
     return result
 
 

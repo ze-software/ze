@@ -1025,10 +1025,12 @@ def run_validate_spec(results: Results) -> None:
     # A changed .go file declares its design doc in a `// Design:` header. A spec
     # that changes the file and never names that doc ships a design change with
     # its design unwritten. This is the shape that got through:
-    # plan/spec-streaming-answer-protocol.md changed pkg/plugin/rpc/message.go and
+    # spec-streaming-answer-protocol changed pkg/plugin/rpc/message.go and
     # mux.go, both declaring docs/architecture/api/ipc_protocol.md, and named two
     # OTHER docs while answering the checklist row "Yes".
-    owner_spec = _VALID_SPEC.replace("@ARROW@", "->").replace(
+    owner_spec = _VALID_SPEC.replace(
+        "@ARROW@", "->"
+    ).replace(
         "- `internal/x/y.go` - fixture feature file",  # <!-- doc-links: ignore (fixture data: the path must NOT exist, that is the property under test) -->
         "- `internal/fixture/z.go` - fixture feature file",  # <!-- doc-links: ignore (fixture data: the path must NOT exist, that is the property under test) -->
     )
@@ -1586,6 +1588,66 @@ def run_commit_gate(results: Results) -> None:
         scripts = glob.glob(os.path.join(repo, "tmp", "commit-cafe5678-*.sh"))
         results.check(
             "commit-gate-journal-wellformed-row-passes",
+            rc == 0 and bool(scripts),
+            f"rc={rc} scripts={scripts}",
+        )
+
+        # A Spec cell holding prose blocks the same way. The cell is the review
+        # gate's key, so prose in it sent the gate to
+        # `tmp/review/<sentence>-<session>.md`, a path nobody can write, and a
+        # commit that closed no spec was refused in the name of an absent review.
+        _write(
+            repo,
+            "plan/journal/a-class.md",
+            _JOURNAL_HEADER + _journal_row("the spec that found it"),
+        )
+        with contextlib.redirect_stderr(io.StringIO()):
+            rc = ch.main(
+                [
+                    "--repo",
+                    repo,
+                    "create",
+                    "--session",
+                    "cafe9abc",
+                    "--subject",
+                    "add a journal row whose Spec cell is prose",
+                    "--file",
+                    "plan/journal/a-class.md",
+                ]
+            )
+        script_exists = bool(
+            glob.glob(os.path.join(repo, "tmp", "commit-cafe9abc-*.sh"))
+        )
+        results.check(
+            "commit-gate-journal-prose-spec-cell-blocks-via-create",
+            rc == 2 and not script_exists,
+            f"rc={rc} script={script_exists}",
+        )
+
+        # `none (<note>)` is the shape that was measured, and it names no spec:
+        # the row lands, and the commit is not read as a closure.
+        _write(
+            repo,
+            "plan/journal/a-class.md",
+            _JOURNAL_HEADER + _journal_row("none (walked into during a closure)"),
+        )
+        with contextlib.redirect_stderr(io.StringIO()):
+            rc = ch.main(
+                [
+                    "--repo",
+                    repo,
+                    "create",
+                    "--session",
+                    "cafedef0",
+                    "--subject",
+                    "add a journal row belonging to no spec",
+                    "--file",
+                    "plan/journal/a-class.md",
+                ]
+            )
+        scripts = glob.glob(os.path.join(repo, "tmp", "commit-cafedef0-*.sh"))
+        results.check(
+            "commit-gate-journal-none-spec-cell-passes",
             rc == 0 and bool(scripts),
             f"rc={rc} scripts={scripts}",
         )
