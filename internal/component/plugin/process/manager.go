@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -83,6 +84,11 @@ type ProcessManager struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	mu     sync.RWMutex
+
+	// stopping is true from the moment Stop signals until the next spawn clears it
+	// (startConfigs). A second entry to Stop returns at once instead of waiting for
+	// the engines a first entry is already waiting for. See Stop for why.
+	stopping atomic.Bool
 }
 
 // SetAcceptor sets the TLS acceptor for external plugin connect-back.
@@ -169,6 +175,12 @@ func (pm *ProcessManager) StartMore(configs []plugin.PluginConfig) error {
 // (incremental spawn). The shared map lets AllProcesses return every process
 // regardless of which spawn phase created it.
 func (pm *ProcessManager) startConfigs(configs []plugin.PluginConfig) error {
+	// Every spawn goes through here, so this is where the re-entry guard Stop sets
+	// is cleared. A manager holding live processes MUST have a Stop that waits for
+	// them: leaving the flag set after a spawn would give the next Stop the
+	// second-entry path and skip the engine wait, which is the release this wait
+	// exists to land.
+	pm.stopping.Store(false)
 	for _, cfg := range configs {
 		proc := NewProcess(cfg)
 		pm.wireMetrics(proc)
@@ -196,6 +208,20 @@ func (pm *ProcessManager) startConfigs(configs []plugin.PluginConfig) error {
 // connection is the shutdown signal for internal plugins, and context
 // cancellation kills external plugins via exec.CommandContext.
 func (pm *ProcessManager) Stop() {
+	// One entry owns the engine wait below. A second entry returns at once: the
+	// first has already canceled the context and closed every connection, which is
+	// the whole shutdown signal, and waiting again for the same engines would only
+	// pile one grace on top of another.
+	//
+	// This is a guard, not the cure. The known re-entrant caller was a plugin engine
+	// whose own shutdown reached back here (Reactor.cleanup stopping the server that
+	// hosts it), and Reactor.cleanup now stops only a server it owns. The guard stays
+	// because a second entry can only ever cost time: a plugin engine calling Stop on
+	// its way out would otherwise wait for itself.
+	if pm.stopping.Swap(true) {
+		return
+	}
+
 	// Cancel context and close all connections immediately.
 	// For internal plugins: closing engine-side net.Pipe unblocks the plugin's
 	// ReadRequest, causing it to return an error and exit the event loop.

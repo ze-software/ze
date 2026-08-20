@@ -1,0 +1,88 @@
+# Test: an operator stops ze and it exits on its own, warning about nothing left behind
+# Exercises: request shutdown -> Server.Wait -> apiServer.Stop -> eng.Stop
+#            (cmd/ze/hub/main.go) with the bgp plugin loaded, which is the engine
+#            whose shutdown used to re-enter the plugin server that hosts it.
+# VALIDATES: spec-fixit-shutdown-waits-out-a-deadlock AC-2 and AC-7 at the daemon:
+#            the stop finishes inside the hub's own 3s budget, and no plugin engine
+#            outlasts pluginStopGrace, so nothing reports a possible leak.
+# PREVENTS:  the cycle coming back. Reactor.cleanup stopping the hub's plugin server
+#            made every clean stop wait 3.0s + 0.5s and log "resources it installed
+#            may be left behind", on a daemon that had released everything.
+
+option=skip-os:value=darwin
+
+option=timeout:value=30s
+
+tmpfs=shutdown-is-prompt.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Ask the daemon to stop once it is fully up, then let it stop."""
+
+import sys
+
+from ze_api import API, dispatch
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    api.wait_for_post_startup(timeout=5.0)
+
+    print('OK: daemon up, requesting shutdown', file=sys.stderr)
+    dispatch(api, 'request shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+	external shutdown-is-prompt {
+		run ./shutdown-is-prompt.run
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=30s
+expect=exit:code=0
+expect=stderr:contains=OK: daemon up, requesting shutdown
+expect=stdout:contains=Ze stopped.
+reject=stderr:pattern=may be left behind
+reject=stderr:pattern=shutdown timeout
+reject=stderr:pattern=panic

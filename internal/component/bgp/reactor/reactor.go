@@ -1921,7 +1921,23 @@ func (r *Reactor) cleanup() {
 	if r.fwdPool != nil {
 		r.fwdPool.Stop()
 	}
-	if r.api != nil {
+	// The plugin server is stopped only when this reactor OWNS it, which is the
+	// guard abortStartup already applies. In borrow mode (production) the hub
+	// constructs the server, hosts this reactor's own bgp engine inside it, and
+	// stops it itself (cmd/ze/hub/main.go, runHub). Stopping it from here is a
+	// component stopping its host, and it costs twice:
+	//   - at daemon shutdown it closes a cycle. Server.Stop calls ProcessManager.Stop,
+	//     which waits for the bgp engine to return; that engine is blocked in
+	//     Reactor.Wait on the monitor goroutine running this cleanup. Only
+	//     pluginStopGrace (3s) plus the 500ms group wait break it, and the daemon
+	//     then warns that resources may have been left behind.
+	//   - at reload it is worse. runBGPEngine (internal/component/bgp/plugin/register.go)
+	//     also returns when bgp is REMOVED at reload, and its tail calls Reactor.Stop,
+	//     so an unguarded stop here takes the hub's whole plugin server down while
+	//     the daemon keeps running.
+	// A standalone reactor builds its own server (startAPIServer) and this cleanup
+	// is its only stop, so the guard is on ownership, never on the call site.
+	if r.api != nil && !r.externalServer {
 		r.api.Stop()
 	}
 	if r.listener != nil {
@@ -1940,7 +1956,10 @@ func (r *Reactor) cleanup() {
 	waitCtx, waitCancel := context.WithTimeout(context.Background(), 2*time.Second)
 	var wg sync.WaitGroup
 
-	if r.api != nil {
+	// Same ownership guard as Phase 1: a borrowed server was never signaled, so
+	// waiting for it here would only spend the whole 2s deadline on a server the
+	// hub is still running.
+	if r.api != nil && !r.externalServer {
 		wg.Go(func() {
 			_ = r.api.Wait(waitCtx)
 		})
