@@ -621,7 +621,7 @@ func TestSummaryAliasDropsRows(t *testing.T) {
 }
 
 // TestTableBuffersAndSaysSo checks the one limit R-6 of
-// plan/spec-streaming-answer-protocol.md accepts, and checks where it is paid.
+// spec-streaming-answer-protocol accepts, and checks where it is paid.
 //
 // Two halves, because a limit nobody measured is a comment. The first half
 // measures the mechanism: a column is as wide as its widest cell, so the LAST

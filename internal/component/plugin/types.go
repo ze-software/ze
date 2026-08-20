@@ -218,7 +218,7 @@ func (r Records) rows() iter.Seq[rpc.Record] {
 // them. With no rejected row it is Key over the items, or a bare array when Key
 // is empty, which is the shape a buffered surface has always seen.
 //
-// It is the buffered half of AC-10 in plan/spec-streaming-answer-protocol.md,
+// It is the buffered half of AC-10 in spec-streaming-answer-protocol,
 // so a surface that takes the whole answer as one string (REST, gRPC, web, MCP,
 // the looking glass) reads through ResponseJSON what a surface reading records
 // reads through WriteAnswer. A commit that applied 97 leaves and rejected 3

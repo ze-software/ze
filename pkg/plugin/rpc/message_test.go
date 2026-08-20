@@ -374,7 +374,7 @@ func TestParseLineFormatRoundTrip(t *testing.T) {
 // answer shape is parsed, and the payload is compared with everything the line
 // carries after the verb.
 //
-// VALIDATES: A-1 of plan/spec-streaming-answer-protocol.md -- the frame layer
+// VALIDATES: A-1 of spec-streaming-answer-protocol -- the frame layer
 // needs no change to carry a tail, because ParseLine cuts the verb at the first
 // space and returns the remainder as one payload.
 // PREVENTS: the tail migration reaching the frame reader, which would break
@@ -636,7 +636,7 @@ func TestAnswerTerminatorCountBoundaries(t *testing.T) {
 // answer, the frame layer hands over the payload, and the decoded error is
 // compared with the text that was written.
 //
-// VALIDATES: R-4 of plan/spec-streaming-answer-protocol.md -- parseRPCError
+// VALIDATES: R-4 of spec-streaming-answer-protocol -- parseRPCError
 // reads the tail rather than treating it as message text.
 // PREVENTS: an operator reading `message=unknown command: shwo bgp peers` with
 // the key still in front of it.
@@ -738,6 +738,42 @@ func TestFieldsRunToEndOfLine(t *testing.T) {
 	head := parseAnswerLine(t, line)
 	assert.Equal(t, "peers", head.Key)
 	assert.Equal(t, []string{"peer address", "as=number", "state"}, head.Fields)
+}
+
+// TestAnswerRecordLineSizeMeasuresTheLineItsAppenderWrites checks that the size
+// a producer refuses a record by is the size of the line it would have written.
+// The method: for a result record and a rejected one, over three id shapes and
+// values holding a space, an = and a newline, the reported size is compared
+// with the length of the appended line itself.
+//
+// VALIDATES: AC-15 of the streaming answer protocol -- a record is measured by
+// its line, so a refusal fires where the transport would have failed.
+// PREVENTS: a second spelling of the line format drifting from the appenders,
+// which would refuse a record that fits or write one that does not.
+func TestAnswerRecordLineSizeMeasuresTheLineItsAppenderWrites(t *testing.T) {
+	t.Parallel()
+
+	values := []json.RawMessage{
+		nil,
+		json.RawMessage(`{"peer":"10.0.0.1"}`),
+		json.RawMessage(`{"leaf":1,"message":"invalid = value"}`),
+		json.RawMessage("{\n\"leaf\": 1\n}"),
+	}
+	for _, id := range []uint64{AnswerNoID, 7, math.MaxUint64} {
+		for _, value := range values {
+			item := AppendAnswerItem(nil, id, value)
+			if size := AnswerRecordLineSize(id, Record{Item: value}); size != len(item) {
+				t.Errorf("id %d: the item line is %d bytes and its size reads %d", id, len(item), size)
+			}
+			if len(value) == 0 {
+				continue
+			}
+			fault := AppendAnswerFault(nil, id, value)
+			if size := AnswerRecordLineSize(id, Record{Fault: value}); size != len(fault) {
+				t.Errorf("id %d: the fault line is %d bytes and its size reads %d", id, len(fault), size)
+			}
+		}
+	}
 }
 
 // parseAnswerLine takes one written answer line back through the frame layer

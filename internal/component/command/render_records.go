@@ -19,7 +19,7 @@
 // the records arrive. Every other format renders a document: `| json` and
 // `| yaml` serialize one, `| table` and `| text` measure a column over every row,
 // and `| raw` is the document itself. Those collect, which is the cost R-6 of
-// plan/spec-streaming-answer-protocol.md accepts and states rather than hides.
+// spec-streaming-answer-protocol accepts and states rather than hides.
 
 package command
 
@@ -62,11 +62,12 @@ type RecordAnswer struct {
 func RenderRecords(w io.Writer, input, sessionFormat, key string, fields []string, rows iter.Seq[rpc.Record]) (RecordAnswer, error) {
 	command, ops := parsePipeChain(input)
 	columns := ColumnsForCommand(command)
-	_, ops, meta := foldFilters(command, ops)
-	if msg := ValidatePipes(ops); msg != "" {
+	_, chain, meta := foldFilters(command, ops)
+	if msg := ValidatePipes(chain); msg != "" {
 		return RecordAnswer{}, errors.New(msg)
 	}
-	ops = renderOps(ops, sessionFormat)
+	answered := chainAnswersItsOwnDocument(chain)
+	ops = renderOps(chain, sessionFormat)
 
 	// The chain runs over the records BEFORE the threshold is measured, so the
 	// threshold is measured over what the operator receives. `| first 10` and
@@ -123,19 +124,31 @@ func RenderRecords(w io.Writer, input, sessionFormat, key string, fields []strin
 	if writing {
 		return answer, nil
 	}
-	return answer, writeDocument(w, held, key, fields, ops, meta, columns)
+	return answer, writeDocument(w, held, key, fields, answered, ops, meta, columns)
+}
+
+// chainAnswersItsOwnDocument reports whether the chain answers a document of
+// its own rather than the rows of the command's answer.
+//
+// `| count` is the one operator that does. It answers {"count":N} whatever it
+// counted, and the string path replaces the whole payload for the same reason
+// (applyCount, pipe.go). Every other operator on the record path filters,
+// shapes or decorates the rows it was given, and those rows still belong to the
+// command that produced them.
+func chainAnswersItsOwnDocument(ops []pipeOp) bool {
+	for _, op := range ops {
+		if op.kind == pipeCount {
+			return true
+		}
+	}
+	return false
 }
 
 // writeDocument collapses the records the walk held into the one document a
 // buffered rendering needs, renders it through the format the chain named, and
 // writes it.
-//
-// The collapse is plugin.CollapseRecords, which is what a surface reading the
-// whole answer as a string gets from the same records (Records.MarshalJSON,
-// internal/component/plugin/types.go). One collapse for both is what keeps
-// `| raw` answering the dispatcher's JSON byte for byte.
-func writeDocument(w io.Writer, held []rpc.Record, key string, fields []string, ops []pipeOp, meta map[string]any, columns []ColumnOrder) error {
-	document, err := plugin.CollapseRecords(key, fields, slices.Values(held))
+func writeDocument(w io.Writer, held []rpc.Record, key string, fields []string, answered bool, ops []pipeOp, meta map[string]any, columns []ColumnOrder) error {
+	document, err := answerDocument(held, key, fields, answered)
 	if err != nil {
 		return err
 	}
@@ -154,6 +167,32 @@ func writeDocument(w io.Writer, held []rpc.Record, key string, fields []string, 
 	}
 	_, err = io.WriteString(w, "\n")
 	return err
+}
+
+// answerDocument is the one document the held records collapse to.
+//
+// A chain that filtered, shaped or decorated the command's rows still answers
+// rows, so they collapse under the answer's envelope. That collapse is
+// plugin.CollapseRecords, which is what a surface reading the whole answer as
+// one string gets from the same records (Records.MarshalJSON,
+// internal/component/plugin/types.go), and one collapse for both is what keeps
+// `| raw` answering the dispatcher's JSON byte for byte.
+//
+// A chain that answered for itself has already produced the whole document in
+// one record, and that record IS the answer. Filing it under the envelope would
+// put `{"count":N}` beneath a key naming the rows it counted, so
+// `system command list | count` would answer one shape on the exec channel and
+// another on every surface that reads the payload whole.
+//
+// A rejected row alongside it keeps the collapse. The envelope is then wrong
+// about one record and right about the rejected ones, which is the lesser of
+// the two, because a fault an operator never sees is one they act as if had not
+// happened. Nothing on this channel produces a fault today.
+func answerDocument(held []rpc.Record, key string, fields []string, answered bool) (json.RawMessage, error) {
+	if answered && len(held) == 1 && len(held[0].Item) > 0 {
+		return held[0].Item, nil
+	}
+	return plugin.CollapseRecords(key, fields, slices.Values(held))
 }
 
 // writeRecordJSON writes one record as one line of newline-delimited JSON.

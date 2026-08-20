@@ -558,7 +558,7 @@ func TestFillDefaultAloneMatchesTheBuiltInOrder(t *testing.T) {
 }
 
 // TestDisplaySelectsPerRecord checks R-10 of
-// plan/spec-streaming-answer-protocol.md: `| display` selects one record at a
+// spec-streaming-answer-protocol: `| display` selects one record at a
 // time, on both paths, so the operator credited with the streaming win produces
 // it.
 //

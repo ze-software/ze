@@ -157,6 +157,56 @@ func TestCommandDispatcherJSONError(t *testing.T) {
 	out.TransportComplete()
 }
 
+// TestAnswerReportsAFailedGeneratorRatherThanItsRows checks the one thing
+// Answer must NOT do differently from JSON: a response that reported a failure
+// is a failure whether or not its payload is a row generator.
+//
+// The method: the same failed response is put through both renderings, once
+// carrying a generator and once carrying a built payload, and the four results
+// are compared. A generator that reached the surface would be walked and would
+// answer done over rows the command never produced.
+//
+// VALIDATES: ai/rules/evidence.md, fail closed -- the record surface reports a
+// failure rather than an answer of no rows.
+// PREVENTS: a command that failed reading as a successful empty answer on the
+// exec channel, where the same command reads as an error on every other one.
+func TestAnswerReportsAFailedGeneratorRatherThanItsRows(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		name string
+		data ResponseData
+	}{
+		{name: "a row generator", data: Records{Key: "peers", Rows: peerRows(3)}},
+		{name: "a built payload", data: Map{"peers": []string{"10.0.0.1"}}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			newDispatcher := func() CommandDispatcher {
+				return func(_ context.Context, _ CallerIdentity, _ string) (*Response, error) {
+					resp := newErrorResponse("denied")
+					resp.Data = tt.data
+					return resp, nil
+				}
+			}
+
+			answered, answerErr := newDispatcher().Answer(context.Background(), CallerIdentity{}, "show bgp peer list")
+			if answerErr == nil || answerErr.Error() != "denied" {
+				t.Fatalf("Answer reported %v, want the response's own denied", answerErr)
+			}
+			if answered.Output != "" {
+				t.Errorf("Answer rendered %q for a failed response, want nothing", answered.Output)
+			}
+
+			_, jsonErr := newDispatcher().JSON(context.Background(), CallerIdentity{}, "show bgp peer list")
+			if jsonErr == nil || jsonErr.Error() != answerErr.Error() {
+				t.Errorf("JSON reported %v and Answer reported %v: one projection, two answers", jsonErr, answerErr)
+			}
+		})
+	}
+}
+
 // TestGeneratorAnswerReachesTheEncoder checks that a handler answering with a
 // row generator reaches the answer encoder, and that the encoder writes the one
 // shape every answer has. The method: a generator of one row past the buffering

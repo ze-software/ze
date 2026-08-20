@@ -107,6 +107,13 @@ func sshWireImpl(handle sshServer, in *sshWireInputs) {
 			if resp == nil {
 				return &plugin.RenderedResponse{}, nil
 			}
+			if _, generated := plugin.RecordRows(resp); generated {
+				// A row generator is walked once, and the SSH exec channel
+				// walks it as it renders. Flattening it here would consume the
+				// rows the answer is made of and leave the channel writing an
+				// answer of none.
+				return &plugin.RenderedResponse{Response: resp}, responseExecErr(resp, "")
+			}
 			formatted := params.FormatResponseData(resp.Data)
 			return &plugin.RenderedResponse{Output: formatted, Response: resp}, responseExecErr(resp, formatted)
 		}
@@ -248,7 +255,9 @@ func sshBuildStandaloneImpl(in *sshStandaloneInputs) func() {
 	dispatch := in.Dispatch
 	srv.SetExecutorFactory(func(username, remoteAddr string, authorizer plugin.Authorizer) zessh.CommandExecutor {
 		return func(input string) (*plugin.RenderedResponse, error) {
-			return dispatch.JSON(context.Background(), plugin.CallerIdentity{
+			// Answer rather than JSON: the exec channel renders a row
+			// generator itself, and Records is walked once.
+			return dispatch.Answer(context.Background(), plugin.CallerIdentity{
 				Username: username, RemoteAddr: remoteAddr, Authorizer: authorizer,
 			}, input)
 		}

@@ -529,3 +529,236 @@ A `fault=` record has no place on the wire's item array, but the 24 `CommandDisp
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only
+
+## Implementation Summary
+
+### What Was Implemented
+
+- **The wire grammar** (`pkg/plugin/rpc/message.go`): `AppendAnswerHead`, `AppendAnswerItem`, `AppendAnswerFault`, `AppendAnswerTerminator`, `AppendAnswerNotUnderstood` write the `key=value` tail; `ParseAnswerTail`, `ParseAnswerLine`, `checkAnswerType`, `Verdict` read it. `AnswerRecordLineSize` measures the line an appender writes. `AnswerBufferThreshold` (256) and `AnswerNoID` (0) are the two numbers both producers share.
+- **The consumer** (`pkg/plugin/rpc/mux.go`): the pending entry has two shapes. `routeResponse` type-switches, `routeAnswerLine` queues 256 lines and abandons rather than stall, `discardOrphanResponse` narrows the flood guard, `endPendingAnswers` closes every queue as the reader exits.
+- **The producer** (`internal/component/plugin/dispatch.go`, `types.go`, `answer_row.go`): `Records` is the generator `ResponseData`. `WriteAnswer` decides the type from the OUTPUT, holds up to the threshold, and flushes in walk order. `CollapseRecords` is the one collapse both paths use. `boundedRecord` turns a record too wide for one line into a rejected row so the answer still reaches its terminator.
+- **Negotiation** (`pkg/plugin/rpc/types.go`, `server/startup.go`, `process/process.go`, `server/dispatch_registry.go`): a peer receives the shape only after naming `record-answers` at Stage 3. Absent, empty and unknown all read false.
+- **The pipe chain over records** (`internal/component/command/pipe_records.go`, `render_records.go`): the same operators, one record at a time, with cancellation falling out of range-over-func. `| display` was rewritten record by record (R-10) and `| fill overall` was removed.
+- **The operator's surface** (`internal/component/ssh/answer.go`, `internal/core/ssh/client/answer.go`, `internal/component/cli/client/answer.go`, `cmd/ze/hub/service_ssh.go`): stdout carries the rendering as it arrives, stderr carries the frame for a client that asked, and `ze cli -c` prints while it reads and holds no copy.
+- **The one producer**: `handleSystemCommandList` (`internal/component/plugin/server/system.go`) answers `plugin.Records{Key: "commands"}`.
+
+### Bugs Found/Fixed
+
+- `readFrame` (`pkg/plugin/rpc/conn.go`) discarded a frame already queued in favour of the reader's terminal error, so a peer that wrote its last line and closed lost it. Covered by `TestAnswerWithoutTerminatorReportsTruncation`. Journal row: `plan/journal/error-path-discards-data-already-received.md`.
+- `PendingRequests.Complete` and `.Partial` dropped a response into a `default:` arm when `RespChan` was full. Both return `error` now, and the three notice paths log what they could not deliver. `TestPartialWaitsForASlowConsumerRatherThanDropping`.
+- `test/ui/display-fill-completion.ci` asserted that `| fill ` still completes `overall` after phase 6 removed that way. Fixed in phase 7 (a test wrong about what it asserts).
+- **`| count` over a row generator answered a different document from the same chain over a whole payload** (closure review): `{"commands":[{"count":N}]}` against the string path's `{"count":N}`. `chainAnswersItsOwnDocument` and `answerDocument` (`internal/component/command/render_records.go`) fix it, and the test compares against the whole-payload chain rather than a literal.
+- **`CommandDispatcher.Answer` dropped the failure projection for a generator response** (closure review): `responseFailure` (`internal/component/plugin/dispatch.go`) is now the one spelling, read by both renderings.
+
+### Documentation Updates
+
+- `docs/architecture/api/ipc_protocol.md`: the `## Answer Protocol` section, nine subsections, plus the oversized-record paragraph.
+- `docs/architecture/api/process-protocol.md`: the second answer form, Stage 3's `protocol` field, inter-plugin communication.
+- `docs/architecture/api/wire-format.md`: `## Record Answer`.
+- `docs/plugin-development/protocol.md`: the record-answer row, the scope, the SDK caveat, Stage 3's `protocol`.
+- `docs/architecture/api/commands.md`: the rejected-rows keys, the chain over a row generator, and (this closure) the chain that answers its own document, plus the authorization boundary.
+- `docs/functional-tests.md`: reading a record answer from a `.ci`.
+- `make ze-doc-index-check`, `make ze-doc-drift-check`, `make ze-doc-wiring-check` all exit 0. `make ze-ste-check` reports zero findings in any file this spec touched.
+
+### Deviations from Plan
+
+| Planned | Actual | Why |
+|---------|--------|-----|
+| `answer-partial-apply.ci` | STRUCK | Nothing originates a fault, so no command answers 97-applied-3-rejected. Writing it needs a semantic change to the commit path, which this spec does not make |
+| A new exit code for a partial verdict | Exit codes stay 0 and 1 | A partial answer is unreachable, so the code would be permanent public surface nothing can emit (A-5, owner decision 2026-08-20) |
+| `| fill` carried unchanged | `fill overall` removed | It ordered columns by measuring every cell of the result, a deeper buffering dependency than `table`'s own (owner decision 2026-08-19) |
+| `TestRecordOverMaxMessageSizeFaults` in `pkg/plugin/rpc/framing_test.go` | in `internal/component/plugin/dispatch_test.go` | `boundedRecord` PRODUCES the refusal; the frame layer only reports that a line is too big. `framing_test.go` holds the transport boundary instead |
+| Prometheus counters (Integration checklist row) | none added | Records answered and answers truncated are observable from the terminator a consumer already reads. A counter with no dashboard and no alert is machinery (`ai/rules/simplicity.md`) |
+| A `ze.*` env var for the negotiation default | none added | The PEER decides per connection. A daemon-side override could only force a shape onto a peer that cannot read it |
+| A single `WriteAnswer` shape | `type=` on the head, chosen at run time from the output | Owner amendment 2026-08-20. A bounded answer keeps its current JSON, so no consumer of an existing command breaks |
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-2: nothing today sets or reads `Response.Partial`, so the streaming vocabulary was believed to be vocabulary only | The FIELD `Response.Partial` is dead, but the METHOD `PendingRequests.Partial` was already a complete, unused mechanism that keeps the entry, resets the timeout and delivers on `RespChan` | Phase 4 read `internal/component/plugin/server/pending.go` instead of inferring it from `MuxConn` | Phase 4 narrowed to `MuxConn.pending`, and the server side gained a PRODUCER rather than a lifetime change |
+| assumption | A-7: the server-side pending registry was believed to need the same lifetime change as `MuxConn` | It needed none. It needed a caller | Same read | Same as A-2; both rows recorded broken in the spec |
+| assumption | A-5: an operator was believed to want a distinct exit code for a derived partial verdict | A partial answer is unreachable. The three `Fault` sites are plumbing that forwards, writes or reads one, and `OperationExecutor.Commit` returns a single error, so a config commit is all-or-nothing | Phase 7 grepped for a fault ORIGINATOR and found none | Exit codes stay 0 and 1 (owner decision). The question returns with whatever change first originates a fault |
+| approach | Phase 7 was cut as three files and could not be finished inside them | It needed a `Records` producer, a records-to-text renderer, a map-to-array contract change with four consumers, and a fault producer that is spec-sized on its own | Phase 7 stopped and wrote a sizing report rather than spreading | The owner re-cut it: `system command list` became the producer, `answer-partial-apply` was struck, and the framing was ruled on before any code was written |
+| escalation | A chain that REPLACES the answer was rendered as if it had shaped it, and a test pinned the wrong document as a literal | `| count` answers a document, not a row of one | Closure review compared the record path against the string path's `applyCount` | Fixed, and the test now compares against the whole-payload chain. The general lesson has a journal row in `plan/journal/gate-excludes-part-of-its-population.md`: the control's population was the chains an operator can type, and it held only the chains that shape nothing |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Every answer is a sequence of records produced by a generator | Done | `WriteAnswer`, `internal/component/plugin/dispatch.go` | One shape whatever the record count |
+| The verdict is on the first line | Done | `AppendAnswerHead`, `pkg/plugin/rpc/message.go` | `status=` is mandatory; `CallAnswer` refuses a head without it |
+| No count known up front | Done | `AppendAnswerTerminator`, same file | `count=` is on the terminator alone |
+| A mandatory terminator whose absence detects truncation | Done | `Verdict`, same file | A nil or non-terminator tail both derive `VerdictTruncated` |
+| A partial result is expressible | Done | `Verdict`, and `CollapseRecords` (`internal/component/plugin/types.go`) | `count=N faults=M` derives partial on the wire; `errors` beside the rows on the buffered path. UNREACHABLE today: nothing originates a fault (A-5) |
+| A per-record error | Done | `AppendAnswerFault`, `writeRecordLine` | Same caveat |
+| "Not understood" separated from "understood and failed" | Done | `AppendAnswerNotUnderstood` and `answerStatus`, `writeExecFailure` (`internal/component/ssh/answer.go`) | The verb against `status=error` |
+| `show bgp rib \| first 10` does not build the whole RIB | Done | `recordsFirst`, `internal/component/command/pipe_records.go` | Proven over `system command list`, the one generator that exists |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestARecordAnswerReachesTheOperatorOverTheExecChannel`; `.ci` `answer-single-record` | 1, 255 and 257 rows through ONE reader |
+| AC-1b | Done | `TestTheRenderingIsTheSameOnBothSidesOfTheThreshold`; `TestTheThresholdChoosesTheAnswerType` | 5 chains x 255/256/257 rows |
+| AC-1c | Done | `TestNDJSONPastTheThresholdAnswersInLockstep`; `.ci` `answer-many-records` | The held records flush in walk order |
+| AC-2 | Done | `TestSingleRecordUsesTheSameReaderPath` | 0, 1, 2 and 1000 rows read by one assertion taking the count as an argument |
+| AC-3 | Done | `TestAnEmptyWalkAnswersTheEmptyCollection`; `TestTheOperatorSeesTheDaemonRenderingWhileItArrives` | `OK` when the chain names no format |
+| AC-4 | Done | `TestAnUnknownCommandAnswersTheErrorVerb`; `TestNotUnderstoodAnswerReachesTheCaller`; `.ci` `answer-unknown-command` | |
+| AC-5 | Done | `TestAFailedCommandCarriesItsMessageOnTheTerminator` | Head `status=error`, terminator carries the text, verdict `aborted` |
+| AC-6 | Done | `TestGeneratorAnswerReachesTheEncoder` | N item lines, `count=N`, no count before it |
+| AC-7 | Done | `answerMessage` + `Verdict`, pinned by `TestVerdictDerivesFromTheCounts` | `count=K message=` derives `aborted` |
+| AC-8 | Done | `TestFaultDoesNotEndTheWalk` | 5-row walk rejecting rows 2 and 4, `count=3 faults=2`, derives partial |
+| AC-9 | Done | `.ci` `answer-truncation-detected` (two processes, cut by byte count); `TestAnAnswerCutMidStreamReportsTruncation`; `TestAnswerWithoutTerminatorReportsTruncation` | |
+| AC-10 | Done | `TestStreamedAndBufferedAnswersAreIdentical`, 13 cases | Discrimination: deleting the `Records` branch fails all four original subtests |
+| AC-11 | Done | `TestOpenEndedKeyRunsToEndOfLine` | Item, fault and message holding `=` and spaces round-trip byte-identically |
+| AC-12 | Done | `TestVerdictDerivesFromTheCounts`, `TestTerminatorCarriesNoStatusKey` | The reader REFUSES `count=2 status=done` |
+| AC-13 | Done | `.ci` `answer-not-negotiated`; `TestAnswerResultTakesTheRecordPathOnlyWhenNegotiated`; `TestAnUndeclaredClientReadsTodaysBytes` | Two plugins, one daemon, one command |
+| AC-14 | Done | `TestFirstNStopsTheGenerator`; `TestABoundedChainStopsTheWalkAndAnswersOneDocument` | 10 kept, 10 produced of 1000 |
+| AC-15 | Done | `TestRecordOverMaxMessageSizeFaults`; `TestRecordSizeBoundaryIsTheEncodedLine`; `TestAnswerRecordLineAtTheSizeLimitCrossesTheFrame` | |
+| AC-16 | Done | `TestOrphanRecordDoesNotCloseConnection` with `TestOrphanJunkStillClosesConnection` | 150 orphan records live, 150 orphan JSON responses close |
+| AC-17 | Done | `TestSlowConsumerDoesNotStallReadLoop` | Fails at 20s under a blocking send |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Every unit row of the TDD table | Done | `pkg/plugin/rpc/{message,mux,types,conn,framing}_test.go`, `internal/component/plugin/{dispatch,answer_row}_test.go`, `internal/component/plugin/server/{pending,dispatch_registry}_test.go`, `internal/component/command/{pipe,pipe_columns,pipe_table,render_records}_test.go`, `internal/component/ssh/answer_test.go`, `internal/component/cli/client/main_test.go` | |
+| `TestRecordOverMaxMessageSizeFaults` | Changed | `internal/component/plugin/dispatch_test.go`, not `framing_test.go` | Recorded in Deviations |
+| `answer-single-record`, `answer-many-records`, `answer-unknown-command`, `answer-truncation-detected`, `answer-not-negotiated` | Done | `test/plugin/answer-*.ci` | 5/5 PASS |
+| `answer-partial-apply` | Skipped | - | STRUCK, owner ruling 2026-08-20, recorded in Deviations |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Every file in "Files to Modify" | Done | |
+| `internal/component/command/pipe_records.go` | Done | Added to the list at phase 6 |
+| `internal/component/command/render_records.go`, `internal/component/ssh/answer.go`, `internal/core/ssh/client/answer.go`, `internal/component/cli/client/answer.go`, `internal/component/plugin/answer_row.go` | Changed | Five files the plan did not name. Each is a concern the phase it belongs to could not put in an existing file without mixing two |
+| `cmd/ze/hub/service_ssh.go` | Changed | Not in the plan. Both SSH executor factories had to stop flattening a generator |
+| `docs/architecture/system-architecture.md`, `docs/features.md`, `docs/guide/command-reference.md`, `docs/architecture/core-design.md`, `docs/plugin-development/metrics.md` | Skipped | Phase 8 grepped each and found no claim this work falsifies. No exit code changed and no counter was added |
+
+### Audit Summary
+- **Total items:** 17 ACs, 8 task requirements, 30 TDD rows, 22 planned files
+- **Done:** 17 ACs, 8 requirements, 29 TDD rows, 17 planned files
+- **Partial:** 0
+- **Skipped:** 1 TDD row (`answer-partial-apply`, owner ruling), 5 planned doc files (grepped, no claim falsified)
+- **Changed:** 1 TDD row homed elsewhere, 6 files added, 7 rows recorded in Deviations
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A command answer is no longer materialized whole before a byte reaches the operator | functional | `.ci` `answer-many-records` reads `type=ndjson key=commands` and one line per record off a running daemon. `TestNDJSONPastTheThresholdAnswersInLockstep`: the first line is written when the walk has produced 257 rows and the last when it has produced 456 |
+| `show ... \| first 10` costs ten rows, not the whole table | benchmark | `TestFirstNStopsTheGenerator`: 10 kept, 10 produced of 1000 available. Reverting `recordsFirst` to a drain fails it with "generator produced 1000 rows, want 10" |
+| The memory the protocol exists to bound is actually bounded | benchmark | Over 4000 records of 8 KiB (32.7 MB), live heap at the last record: `\| count` 0 bytes, `\| last 8` 46,112 bytes, against 38 MB for a collecting implementation. `TestCountConsumesWithoutBuffering`, `TestLastNKeepsRingBufferOnly` |
+| `MaxMessageSize` bounds one record rather than the whole answer | functional | `TestRecordSizeBoundaryIsTheEncodedLine` (written at exactly 16777216, refused at one more) and `TestAnswerRecordLineAtTheSizeLimitCrossesTheFrame` (the same byte at the transport). An oversized record faults and the answer still reaches its terminator: `TestRecordOverMaxMessageSizeFaults` |
+| A truncated answer is distinguishable from a short one | functional | `.ci` `answer-truncation-detected` cuts the connection by byte count across two processes and asserts the client reports truncation. Discrimination: with `answerError` never returning `ErrAnswerTruncated` it fails with "the client did not report truncation" |
+| "Not understood" is distinguishable from "understood and failed" | functional | `.ci` `answer-unknown-command` (the error verb at the operator surface) against `TestAFailedCommandCarriesItsMessageOnTheTerminator` (head `status=error`, verdict `aborted`). Discrimination: dropping the `ErrUnknownCommand` branch from `writeExecFailure` gives verdict `aborted` where `error` is wanted |
+| A partial result is expressible | unit only | `TestFaultDoesNotEndTheWalk`, `TestBufferedAnswerCarriesRejectedRowsBesideTheRows`. **Not proven end to end, and it cannot be: nothing originates a fault** (A-5). The one fault a running daemon can produce is `boundedRecord`'s, over a 16 MB record |
+| No existing consumer breaks | interop-equivalent | `.ci` `answer-not-negotiated`: two plugins, one daemon, one command. The un-negotiated peer's frame is byte-identical (`#<id> ok {"status":"done","data":...}`, one line, nothing within a 0.2s settle window) and the negotiated peer's `item=` equals its `data` byte for byte. Discrimination measured both ways: forced on, `answer-plain` fails with "answered 3 lines, want 1"; forced off, `answer-records` fails with "answer was 1 lines, want head, record, terminator". The plugin SDK is the second implementation and the Python helper drives both sides |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| Record-level streaming for the REST, gRPC, web, MCP and looking-glass surfaces | deferred | **Live, and it needs the owner's word.** All 24 consumers call `CommandDispatcher.JSON` and read `RenderedResponse.Output` as one string; none was edited, so none blocks the goal (A-3 confirmed). It needs its own spec. `plan/deferrals/streaming-answer-protocol.md` is therefore NOT removed by this closure: a shard holding a live row outlives its source spec |
+| `table` and `text` rendering over a record stream | accepted | Terminal. A column is as wide as its widest cell, so the header line depends on the last row. The buffering is paid once, in `applyTableStyled`, and declared in the `case pipeTable, pipeText:` arm of `applyRecordOp`. `TestTableBuffersAndSaysSo` pins it; recorded in Known Limitations |
+
+No FOREIGN shard was emptied by these resolutions.
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/streaming-answer-protocol-23315e71-173b-4a35-b78d-c56fe845dc8a.md` (48 files pinned) |
+| `review_gate.py check` | clean, hashes match |
+| Rounds | 2. Round 1 found 1 BLOCKER, 1 ISSUE and 1 NOTE; round 2 over the fixed code found none |
+| Reviewer lenses used | wire grammar and reader/writer agreement; concurrency and channel lifetime on `MuxConn` and `PendingRequests`; record-versus-string pipe equivalence; guards and fail-closed behaviour; `ze-style` over every changed Go file; the spec's own Security Review Checklist |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | `\| count` over a row generator answered `{"commands":[{"count":N}]}` where the same chain over a whole payload answers `{"count":N}`. `handleSystemCommandList` became a generator in phase 7, so this was a live regression on a shipped command, and the test pinned the wrong shape as a literal | `RenderRecords`, `writeDocument` (`internal/component/command/render_records.go`) against `applyCount` (`pipe.go`) | `chainAnswersItsOwnDocument` states the property; `answerDocument` uses the chain's own record as the document. `TestABoundedChainStopsTheWalkAndAnswersOneDocument` now compares against `renderedDocument`, the whole-payload chain. Mutation: with the early return disabled it fails with the two documents side by side |
+| 2 | ISSUE | `CommandDispatcher.Answer` returned nil for a generator response whose `Status` was `error`, so the standalone SSH executor would have framed `status=done` over an empty walk. A guard that failed open | `Answer` (`internal/component/plugin/dispatch.go`) | `responseFailure`, extracted from `ResponseJSON` so one spelling serves both renderings. `TestAnswerReportsAFailedGeneratorRatherThanItsRows`. Mutation: replacing it with nil fails the generator subtest |
+| 3 | NOTE | `deliver`'s call-site comment in `CancelAll` claimed one caller that stopped reading "cannot hold up the rest"; the deliveries run in turn, each waiting up to that request's own timeout | `CancelAll` (`internal/component/plugin/server/pending.go`) | Corrected to state the real bound and why production does not pay it |
+
+Notes carried forward, none blocking: `jsonArrayLength` counts array elements without matching bracket kinds (no `Records.Fields` producer exists, so no positional row exists); `ExecCommandStream` always declares `ZE_ANSWER_PROTOCOL`, so against a daemon that predates the shape every answer reads as truncated (client and daemon ship in one binary).
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/plugin/answer-single-record.ci` | Yes | `ls -1` prints it |
+| `test/plugin/answer-many-records.ci` | Yes | `ls -1` prints it |
+| `test/plugin/answer-not-negotiated.ci` | Yes | `ls -1` prints it |
+| `test/plugin/answer-unknown-command.ci` | Yes | `ls -1` prints it |
+| `test/plugin/answer-truncation-detected.ci` | Yes | `ls -1` prints it |
+| `plan/deferrals/streaming-answer-protocol.md` | Yes | `ls -1` prints it |
+| `pkg/plugin/rpc/framing_test.go` | Yes | `ls -1` prints it; the TDD row's original home for the AC-15 test |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1, AC-2, AC-6 | one reader path whatever the record count | `make ze-unit-pkg-test PKG=./internal/component/plugin/...` ok, race-instrumented, `TestSingleRecordUsesTheSameReaderPath` and `TestGeneratorAnswerReachesTheEncoder` included |
+| AC-1b, AC-1c, AC-14 | the threshold is invisible to an operator, and a bounded chain stops the walk | `make ze-unit-pkg-test PKG=./internal/component/command/...` ok, race-instrumented, `TestTheRenderingIsTheSameOnBothSidesOfTheThreshold` and `TestABoundedChainStopsTheWalkAndAnswersOneDocument` included |
+| AC-4, AC-9, AC-13 | the operator surface, end to end on a running daemon | `ze-test bgp plugin --pattern answer-`: 5/5 PASS |
+| AC-15 | an oversized record faults and the answer continues | `make ze-unit-pkg-test PKG=./internal/component/plugin/...` ok; `TestRecordOverMaxMessageSizeFaults`, `TestRecordSizeBoundaryIsTheEncodedLine` |
+| AC-16, AC-17 | the flood guard narrows, the reader never stalls | `make ze-unit-pkg-test PKG=./pkg/plugin/...` ok, race-instrumented |
+| every AC | no test was weakened to reach any of this | `python3 scripts/dev/audit-test-relaxation.py`: the only WEAKENED files are `scripts/dev/changed_pkgs_test.go` and `scripts/status/verify_run_test.go`, both another session's verify-scope work, neither touched by this spec |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `ze cli -c "system command list \| ndjson"` over the SSH exec channel | `test/plugin/answer-many-records.ci` | Yes. Read: it declares `record-answers` at Stage 3 and asserts `type=ndjson key=commands` with one line per record |
+| the same encoder path over one record | `test/plugin/answer-single-record.ci` | Yes. Read: 1, 2 and 407 records through one chain |
+| a handler answering with a row generator | `TestGeneratorAnswerReachesTheEncoder` | Yes |
+| a plugin RPC answering with records | `TestMuxConnDeliversEveryRecordToOneCaller` | Yes |
+| `\| first 10` and generator cancellation | `TestFirstNStopsTheGenerator` | Yes |
+| a peer that never negotiated | `test/plugin/answer-not-negotiated.ci` | Yes. Read: two plugins, one daemon, one command, and the plain peer's bytes are asserted whole |
+| an answer cut before its terminator | `test/plugin/answer-truncation-detected.ci` | Yes. Read: a relay cuts by byte count, measured from a complete run |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `TestParseLineCarriesKeyValueTailWhole` passes against an unedited `ParseLine`, over a head, an item holding `=` and spaces, a terminator and a not-understood line |
+| A-2 | broken | The FIELD `Response.Partial` is dead; the METHOD `PendingRequests.Partial` was a complete, unused mechanism. Mistake Log row |
+| A-3 | confirmed | Every one of the dispatcher's `.JSON` call sites still calls `.JSON` unchanged: `internal/chaos/mcp/tools.go`, seven files under `internal/component/web/`, `internal/component/mcp/tools.go` (twice), `internal/component/lg/server.go`, `cmd/ze/hub/main.go`. The ONE edit was the standalone SSH executor moving `dispatch.JSON` to `dispatch.Answer` (`cmd/ze/hub/service_ssh.go`), which is the one-call edit the assumption predicted |
+| A-4 | broken | The spec never fixed a `fault=` shape and gained nothing from the NETCONF alignment. `rpc.Record.Fault` is an opaque `json.RawMessage`, and the one fault a daemon can produce (`answerRecordTooLargeFault`, `internal/component/plugin/dispatch.go`) writes a Ze-specific object naming the ordinal and the two sizes. The alignment was neither needed nor taken |
+| A-5 | broken | A partial answer is unreachable: nothing originates a fault, and `OperationExecutor.Commit` returns a single error. Exit codes stay 0 and 1 (owner decision 2026-08-20). Mistake Log row |
+| A-6 | confirmed, differently | The three-line cost is paid by no production peer, so the before-and-after count on the plugin connection is identical. `ProtocolRecordAnswers` is declared by exactly two `.ci` fixtures (`answer-not-negotiated.ci`, `answer-many-records.ci`) and by `ExecCommandStream` on the exec channel, which is not the plugin connection. `pkg/plugin/sdk` gained no way to declare it, deliberately, because it cannot yet READ the shape |
+| A-7 | broken | `PendingRequests.Partial` already kept the entry, reset the timeout and delivered on `RespChan`, with zero non-test callers. Phase 4 narrowed to `MuxConn.pending`. Mistake Log row |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| 1. New user-facing feature (`docs/features.md`) | No edit. Grepped `docs/` for buffering and answer-shape claims; none is falsified. The framing is not an operator-facing topic of its own | Yes |
+| 3. CLI command changed (`docs/guide/command-reference.md`) | No edit. `cliClient.execute` (`internal/component/cli/client/main.go`) returns 0 and 1 only, so the exit-code table is unchanged | Yes |
+| 4, 7, 8. API/RPC, wire format, plugin SDK | `docs/architecture/api/ipc_protocol.md`, `wire-format.md`, `process-protocol.md`, `commands.md`, `docs/plugin-development/protocol.md`, each with `<!-- source: -->` anchors naming the producing symbols | Yes |
+| 10. Test infrastructure (`docs/functional-tests.md`) | "Reading a record answer", naming `capability_done(protocol=[...])` and `api.dispatch_wire_lines` | Yes |
+| 12. Internal architecture (`docs/architecture/core-design.md`) | No edit; grepped, no claim falsified | Yes |
+| 14. Prometheus counters (`docs/plugin-development/metrics.md`) | No edit; no counter was added by any phase | Yes |
+| 15. Registered capability inventory | `docs/architecture/api/process-protocol.md` Stage 3 gains the `protocol` field | Yes |
+| 16. Source anchors on changed files | Ten wire-format documents split five-and-five, re-verified at phase 8 rather than assumed: the five that need no edit state request framing or a non-dispatch answer | Yes |
+| The chain over a row generator, and the chain that answers its own document | `docs/architecture/api/commands.md`, anchored at `render_records.go -- chainAnswersItsOwnDocument, answerDocument` and `pipe.go -- applyCount` | Yes, written by this closure |
+| Authorization boundary | `docs/architecture/api/commands.md`, anchored at `dispatch.go -- dispatchCommandArgsResponse` and `system.go -- commandRows`. The check is at dispatch and the rows are produced after it, which is what a built payload has always done | Yes, written by this closure |
+| Doc gates | `make ze-doc-index-check` 0, `make ze-doc-drift-check` 0, `make ze-doc-wiring-check` 0. `make ze-doc-links-check` exits 1 on 27 dead references, every one of them inside another session's `plan/` specs (`spec-fixit-child-rekey-*`, `spec-iface-*`, `spec-cli-column-order` and siblings). None is this spec's | Yes |
+
+### Known reds this closure does NOT own
+| Red | Owner |
+|-----|-------|
+| `test/plugin/rest-execute.ci`, `rest-api-commands.ci`, `concurrent-config-commit.ci` | Measured: `rest-execute` still fails with `handleSystemCommandList` reverted to its built form. The tree carries another session's `internal/component/plugin/process/manager.go`, `internal/component/config/reader.go` and `validators*.go` |
+| `make ze-doc-links-check` exit 1 | 27 dead references inside other sessions' `plan/` specs |
+| `make ze-lint-changed`, 8 findings | All in `scripts/evidence/l2tp-*-diag/main.go` at HEAD, journaled in `plan/journal/lint-contract-not-applied.md` |
+| `scripts/dev/audit-test-relaxation.py` WEAKENED rows | `scripts/dev/changed_pkgs_test.go` and `scripts/status/verify_run_test.go`, another session's verify-scope work |
+
+## Core Insight
+
+Two implementations of one answer agree only where a test compares them. This
+spec built a record path beside the existing string path and proved them equal
+with `TestStreamedAndBufferedAnswersAreIdentical` -- over the ANSWER. Nobody
+compared what the two paths do after a pipe CHAIN, and the one operator that
+replaces the answer rather than shaping it, `| count`, diverged from the day
+`system command list` became a generator. The equivalence test was real and its
+scope was the gap. When a second path is built for an existing surface, the
+control belongs at the surface the operator reads, not at the layer the two
+paths share.

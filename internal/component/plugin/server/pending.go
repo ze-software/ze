@@ -257,8 +257,11 @@ func (p *PendingRequests) CancelAll(proc *process.Process) {
 	delete(p.byProcess, proc)
 	p.mu.Unlock()
 
-	// Send error responses. Each delivery waits at most that request's own
-	// timeout, so one caller that stopped reading cannot hold up the rest.
+	// Send error responses. The deliveries run in turn, and each one waits at
+	// most that request's own timeout, so a caller that stopped reading delays
+	// the notices behind it by that much. Every RespChan holds a slot and its
+	// caller reads without blocking (handleArgComplete, system.go), so the wait
+	// is what a caller that stops reading would cost rather than what one does.
 	for _, req := range toCancel {
 		if err := deliver(req, &plugin.Response{
 			Status: plugin.StatusError,

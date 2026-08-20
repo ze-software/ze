@@ -80,7 +80,7 @@ func applyRecordOp(records iter.Seq[rpc.Record], op pipeOp, request columnReques
 		return recordsTransformed(records, originJSON)
 	case pipeTable, pipeText:
 		// The two operators that cannot answer from the record in hand, and the
-		// one limit R-6 of plan/spec-streaming-answer-protocol.md accepts: a
+		// one limit R-6 of spec-streaming-answer-protocol accepts: a
 		// column is as wide as its widest cell, so the header line depends on
 		// the last row. The buffering that costs stays where the measuring
 		// happens, in applyTableStyled, and the records reach it unchanged and

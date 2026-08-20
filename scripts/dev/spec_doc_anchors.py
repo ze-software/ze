@@ -14,7 +14,7 @@ Two edges tie a source file to a document, and they are not equally strong:
 
 `plan/TEMPLATE.md` row 16 of the Documentation Update Checklist already asks the
 question. It was honor-system: the author answers from memory and names the docs
-they happen to remember. `plan/spec-streaming-answer-protocol.md` changes
+they happen to remember. `spec-streaming-answer-protocol` changes
 `pkg/plugin/rpc/message.go` and `pkg/plugin/rpc/mux.go`, both of which declare
 `// Design: docs/architecture/api/ipc_protocol.md`. Its first draft answered row 16
 "Yes", listed two other documents, and never named `ipc_protocol.md` -- the primary

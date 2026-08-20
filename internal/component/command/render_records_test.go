@@ -204,21 +204,32 @@ func (w *witnessWriter) Write(p []byte) (int, error) {
 // that make a long answer bounded, and the promise the spec makes about them:
 // `| first 10` cancels the walk, and `| count` reduces it to one number.
 //
+// Each case is judged against what the SAME chain answers over the whole
+// payload, because a bounded chain that answered a different document would
+// make a command's output depend on whether its handler produces rows or
+// builds them. `| count` is the case that carries that: the string path
+// replaces the payload with {"count":N} and the record path must not file that
+// number under the envelope naming the rows it counted.
+//
 // VALIDATES: AC-14, and the spec's statement that `| first 10` never reaches
 //
 //	the decision point because ten is under the threshold.
 //
 // PREVENTS:  a bounded chain over a long answer streaming anyway, which would
 //
-//	make `show bgp rib | first 10` walk a whole RIB.
+//	make `show bgp rib | first 10` walk a whole RIB, and `| count`
+//	answering one shape on the exec channel and another everywhere else.
 func TestABoundedChainStopsTheWalkAndAnswersOneDocument(t *testing.T) {
+	t.Setenv("ze.cli.format", "text")
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+
 	tests := []struct {
 		name         string
 		chain        string
 		available    int
 		wantProduced int
 		wantCount    uint64
-		wantBody     string
 	}{
 		{
 			name:         "first 10 of a thousand",
@@ -233,7 +244,6 @@ func TestABoundedChainStopsTheWalkAndAnswersOneDocument(t *testing.T) {
 			available:    1000,
 			wantProduced: 1000,
 			wantCount:    1,
-			wantBody:     `{"commands":[{"count":1000}],"pipe":{"count":true}}`,
 		},
 	}
 
@@ -249,8 +259,8 @@ func TestABoundedChainStopsTheWalkAndAnswersOneDocument(t *testing.T) {
 			if answer.Type != rpc.AnswerTypeJSON {
 				t.Errorf("the answer states type %q, want %q", answer.Type, rpc.AnswerTypeJSON)
 			}
-			if tt.wantBody != "" && body != tt.wantBody {
-				t.Errorf("the operator saw %q, want %q", body, tt.wantBody)
+			if want := renderedDocument(t, tt.chain, recordEnvelope, tt.available); body != want {
+				t.Errorf("the operator saw %q, want the whole-payload chain's %q", body, want)
 			}
 		})
 	}

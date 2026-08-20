@@ -111,6 +111,11 @@ func (d CommandDispatcher) JSON(ctx context.Context, caller CallerIdentity, comm
 // render an answer of no rows. Output is empty for such a payload and Response
 // carries the generator.
 //
+// A generator that FAILED still reports its failure, through the same
+// projection JSON applies (responseFailure): a command that reported an error
+// has no rows to write, and handing the generator back would let the surface
+// answer done over an empty walk.
+//
 // Every other payload takes the same flatten JSON takes, so a surface that
 // calls this reads what it always read for every command that builds its answer
 // before the answer opens.
@@ -120,10 +125,29 @@ func (d CommandDispatcher) Answer(ctx context.Context, caller CallerIdentity, co
 		return &RenderedResponse{Response: resp}, err
 	}
 	if _, generated := RecordRows(resp); generated {
-		return &RenderedResponse{Response: resp}, nil
+		return &RenderedResponse{Response: resp}, responseFailure(resp)
 	}
 	output, renderErr := ResponseJSON(resp, nil)
 	return &RenderedResponse{Output: output, Response: resp}, renderErr
+}
+
+// responseFailure is the failure the (error / nil / Status / Data) projection
+// reports for resp, and nil when resp reports none.
+//
+// It is the one spelling of that test, read by both dispatch renderings, so a
+// command that failed reads the same whether its answer is flattened into a
+// string or written record by record.
+func responseFailure(resp *Response) error {
+	if resp == nil {
+		return nil
+	}
+	if resp.Error != "" {
+		return errors.New(resp.Error)
+	}
+	if resp.Status == StatusError {
+		return errStatusErrorNoMessage
+	}
+	return nil
 }
 
 // RecordRows reports the row generator resp answers with, and whether it
@@ -145,16 +169,10 @@ func ResponseJSON(resp *Response, err error) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if resp == nil {
-		return "", nil
+	if failure := responseFailure(resp); failure != nil {
+		return "", failure
 	}
-	if resp.Error != "" {
-		return "", errors.New(resp.Error)
-	}
-	if resp.Status == StatusError {
-		return "", errStatusErrorNoMessage
-	}
-	if resp.Data == nil {
+	if resp == nil || resp.Data == nil {
 		return "", nil
 	}
 	b, jsonErr := json.Marshal(resp.Data)
@@ -187,7 +205,7 @@ const answerLineCapacity = 512
 // It is the record-path sibling of ResponseJSON, which stays the path for a
 // surface that takes the whole answer as one string (REST, gRPC, web, MCP, the
 // looking glass). Both project one *Response, and AC-10 of
-// plan/spec-streaming-answer-protocol.md holds them to the same JSON.
+// spec-streaming-answer-protocol holds them to the same JSON.
 //
 // Each line is `#<id> ok` and a key=value tail, which rpc.AppendAnswerHead and
 // its siblings write. The head carries status= and the terminator carries

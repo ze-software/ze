@@ -223,7 +223,7 @@ func (a *recordAnswer) TransportComplete() {
 // declared the record shape takes the record sequence; every other peer takes
 // the {status, data, error} projection, unchanged, which is what keeps a plugin
 // written before this shape existed working (AC-13 of
-// plan/spec-streaming-answer-protocol.md).
+// spec-streaming-answer-protocol).
 func answerResult(recordAnswers bool, resp *plugin.Response) any {
 	if recordAnswers {
 		return &recordAnswer{resp: resp}
@@ -276,7 +276,7 @@ func (s *Server) serveEngineOpDirect(proc *process.Process, op *engineOp, params
 		// The Direct bridge is a typed in-process call and not the wire, so it
 		// has no line to carry a record on. Project the answer instead, which
 		// is the JSON the record sequence reassembles to (AC-10 of
-		// plan/spec-streaming-answer-protocol.md). Without this the marshal
+		// spec-streaming-answer-protocol). Without this the marshal
 		// below would answer `{}`: recordAnswer exports no field.
 		result = responseToDispatchOutput(answer.resp)
 	}

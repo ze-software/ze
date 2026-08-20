@@ -1485,6 +1485,25 @@ rides in the envelope.
 `| table` and `| text` therefore collect. That cost is paid once, in the
 renderer, and the record stage forwards the records untouched.
 
+A chain that answers a document of its own is not filed under the command's
+envelope. `| count` is the one operator that does: it answers `{"count":N}`
+whatever it counted, and the whole-payload path replaces the payload for the
+same reason. `system command list | count` therefore answers `{"count":N}`, the
+same document every other command's `| count` answers, and not
+`{"commands":[{"count":N}]}`.
+<!-- source: internal/component/command/render_records.go -- chainAnswersItsOwnDocument, answerDocument -->
+<!-- source: internal/component/command/pipe.go -- applyCount -->
+<!-- rfc: none -- this is Ze's own command surface -->
+<!-- since: 2026-08-20 -->
+
+Authorization is decided once, at dispatch, and the rows are produced after that
+decision. That is what a built payload has always done, and a generator changes
+only how long the gap is. There is no per-row authorization, so a handler MUST
+NOT yield a row the caller was not already authorized to receive when the
+command was accepted.
+<!-- source: internal/component/plugin/server/dispatch.go -- dispatchCommandArgsResponse -->
+<!-- source: internal/component/plugin/server/system.go -- commandRows -->
+
 A chain the validator refuses answers one rejected row and pulls nothing, so an
 unreadable chain never reads as an empty answer.
 <!-- source: internal/component/command/pipe_records.go -- faultRecords -->
