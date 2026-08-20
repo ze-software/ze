@@ -18,10 +18,8 @@ var errNoConfigPathSpecified = errors.New("no config path specified")
 
 // schemaInfo holds schema information for handler routing.
 type schemaInfo struct {
-	module    string   // YANG module name
-	namespace string   // YANG namespace URI (optional)
-	handlers  []string // Handler paths this schema provides
-	yang      string   // YANG content (optional)
+	module   string   // YANG module name
+	handlers []string // Handler paths this schema provides
 }
 
 // blockEntry represents a parsed config block stored by the reader.
