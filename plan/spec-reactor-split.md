@@ -152,7 +152,7 @@ Points captured at skeleton creation (2026-07-08), to be re-verified at design:
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | existing decode suite | `test/decode/bgp-flow-1.ci` (and siblings) | UPDATE handling unchanged across the split | |
-| existing encode suite | `test/encode/attributes.ci` (and siblings) | UPDATE build unchanged across the split | |
+| existing encode suite | `test/encode/attributes-encode.ci` (and siblings) | UPDATE build unchanged across the split | |
 
 ### Interop Tests (MANDATORY for protocol features)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |

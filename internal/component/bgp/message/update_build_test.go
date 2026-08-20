@@ -20,7 +20,7 @@ import (
 // to this helper covers the span.
 // BuildMVPN / BuildGroupedMVPN / MVPNParams were removed by
 // spec-route-config-plugin-migration. MVPN routes now build via BuildPlugin; NLRI
-// and grouping are tested byte-for-byte by test/encode/mvpn.ci and the mvpn plugin.
+// and grouping are tested byte-for-byte by test/encode/mvpn-encode.ci and the mvpn plugin.
 
 func sliceAliasesAny(s []byte, backings ...[]byte) bool {
 	if len(s) == 0 {
@@ -770,7 +770,7 @@ func TestUpdateBuilder_BuildVPN_ExtCommunity(t *testing.T) {
 
 // BuildVPLS/VPLSParams removed -- VPLS routes now build via the generic
 // BuildPlugin path (spec-route-config-plugin-migration). Wire output (AFI=25,SAFI=65,
-// MP_REACH) is covered by test/encode/l2vpn.ci and the vpls plugin's config tests.
+// MP_REACH) is covered by test/encode/l2vpn-encode.ci and the vpls plugin's config tests.
 
 // TestUpdateBuilder_BuildFlowSpec_Basic verifies FlowSpec UPDATE building.
 //

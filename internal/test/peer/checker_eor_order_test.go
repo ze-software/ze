@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// The three frames of the test/plugin/mup4.ci and test/plugin/ipv4.ci shape: a
+// The three frames of the test/plugin/mup-ipv4-announce.ci and test/plugin/ipv4-announce-withdraw.ci shape: a
 // plugin's announce, ze's own initial-sync End-of-RIB, and the plugin's
 // withdraw, declared as three consecutive seq groups.
 const (

@@ -520,7 +520,7 @@ func (c *Checker) ExpectedOrKeepalive(msg *Message) (matched, silentAccept bool)
 	//
 	//   the marker the fixture declares later, arrived early. Nothing else will
 	//   fill that slot, so the expectation below it fails and this frame is the
-	//   one that went out of order (test/plugin/mup4.ci).
+	//   one that went out of order (test/plugin/mup-ipv4-announce.ci).
 	//
 	//   an extra marker the daemon emits on its own account. A SECOND, identical
 	//   marker fills the declared slot later and the run is correct

@@ -28,7 +28,7 @@ import sys
 PROBE_DIR = os.path.dirname(os.path.abspath(__file__))
 INTEROP_DIR = os.path.dirname(PROBE_DIR)
 CHECK_PATH = os.path.join(
-    INTEROP_DIR, "scenarios", "55-wire-edit-api-origin-bird", "check.py"
+    INTEROP_DIR, "scenarios", "bgp-wire-edit-api-origin-bird", "check.py"
 )
 
 sys.path.insert(0, INTEROP_DIR)

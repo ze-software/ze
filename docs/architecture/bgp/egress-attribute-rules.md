@@ -146,10 +146,10 @@ path is removed, guarded, or proven unreachable.
 
 | Rule | Unit | Functional | Interop |
 |------|------|-----------|---------|
-| LOCAL_PREF | `forward_local_pref_test.go` | `test/plugin/local-pref-strip-ebgp.ci` | `test/interop/scenarios/54-local-pref-strip-gobgp/` |
-| MULTI_EXIT_DISC, the propagation rule | `forward_med_test.go` | `test/plugin/med-not-propagated-across-as.ci`, `test/plugin/med-locally-set-reaches-peer.ci` | `test/interop/scenarios/60-med-across-as-gobgp/` |
-| MULTI_EXIT_DISC, the configured removal | `forward_med_test.go`, `filter_delta_test.go`, `filter_modify/modify_test.go` | `test/plugin/med-removal-configured.ci`, `test/plugin/med-removal-before-decision.ci`, `test/plugin/med-removal-export-refused.ci` | `test/interop/scenarios/61-med-remove-configured-gobgp/` |
-| MULTI_EXIT_DISC, IBGP post-selection preservation | `forward_med_test.go` | `test/plugin/med-ibgp-post-selection-removal.ci` | `test/interop/scenarios/62-med-ibgp-post-selection-removal-gobgp/` |
+| LOCAL_PREF | `forward_local_pref_test.go` | `test/plugin/local-pref-strip-ebgp.ci` | `test/interop/scenarios/bgp-local-pref-strip-gobgp/` |
+| MULTI_EXIT_DISC, the propagation rule | `forward_med_test.go` | `test/plugin/med-not-propagated-across-as.ci`, `test/plugin/med-locally-set-reaches-peer.ci` | `test/interop/scenarios/bgp-med-across-as-gobgp/` |
+| MULTI_EXIT_DISC, the configured removal | `forward_med_test.go`, `filter_delta_test.go`, `filter_modify/modify_test.go` | `test/plugin/med-removal-configured.ci`, `test/plugin/med-removal-before-decision.ci`, `test/plugin/med-removal-export-refused.ci` | `test/interop/scenarios/bgp-med-remove-configured-gobgp/` |
+| MULTI_EXIT_DISC, IBGP post-selection preservation | `forward_med_test.go` | `test/plugin/med-ibgp-post-selection-removal.ci` | `test/interop/scenarios/bgp-med-ibgp-post-selection-removal-gobgp/` |
 
 Each functional test carries its confining negative in the same run: one
 UPDATE, several destinations, opposite transforms, so neither half can pass by

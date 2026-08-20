@@ -1,7 +1,8 @@
 // Design: docs/architecture/wire/attributes.md -- AS-PATH wire encoding
 // RFC: rfc/short/rfc6793.md -- ASN4-to-ASN2 transcoding for RS-client forwarding
 // RFC: rfc/short/rfc7947.md -- Route Server: MUST NOT modify AS_PATH semantics
-// Related: aspath_rewrite.go -- RewriteASPath (prepend + transcode, used by EBGP non-RS)
+// Related: aspath_slot.go -- ASPathEdit, the edit-set rail that prepends on EBGP egress
+// Related: aspath_rewrite.go -- RewriteASPath (prepend + transcode), which ASPathEdit replaced
 // Related: aspath_as4.go -- shared AS4_PATH construction rule (RFC 6793 Section 4.2.2)
 
 package wireu

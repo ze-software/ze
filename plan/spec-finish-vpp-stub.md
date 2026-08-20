@@ -49,9 +49,9 @@ Corrections against the 2026-07 followup wave (see `tmp/review-followup/context.
 | 1 | HANDLERS at `test/scripts/vpp_stub.py` | HANDLERS dict now at `test/scripts/vpp_stub.py` (the wave inserted `handle_classify_add_del_table` at :517-546) | read 2026-07-10 |
 | 2 | Scope = iface handlers + stats + inject + route dump + 2 `.ci` | Scope EXPANDED: wave added span/wireguard/lcp/gre/gretap/ipip/vxlan/tunnel_types binapi surface and traffic classify/policer messages; vendored govpp binapi packages; 49 of 57 sent request messages unhandled | Message inventory below |
 | 3 | (not stated) | The wave chose real-VPP Docker evidence (`scripts/evidence/effective-vpp-iface.py`, `ze-deployment-vpp-iface-test`) instead of stub coverage for its new surface; the stub gap is this spec's to close | the followup-vpp-iface record, Consequences; `mk/test-integration.mk` |
-| 4 | `test/vpp` has 001,002,005,006,007 | Confirmed: exactly `001-boot.ci`, `002-fib-route.ci`, `005-mpls-push.ci`, `006-iface-create.ci`, `007-fib-route-lookup.ci`; 003/004/008+ absent | `ls test/vpp/` 2026-07-10 |
+| 4 | `test/vpp` has 001,002,005,006,007 | Confirmed: exactly `vpp-boot.ci`, `vpp-fib-route.ci`, `vpp-mpls-push.ci`, `vpp-iface-create.ci`, `vpp-fib-route-lookup.ci`; 003/004/008+ absent | `ls test/vpp/` 2026-07-10 |
 | 5 | (not stated) | The followup-vpp-traffic-protocol record explicitly routed work here: "spec-finish-vpp-stub.md must add sw_interface_dump + policer_add_del handlers before any apply-tier .ci traffic test can run against the stub (A-6 is broken -- only classify_add_del_table was added)" | that record's Consequences |
-| 6 | (not stated) | `test/traffic/020-vpp-accept-dscp-filter.ci` and `026-vpp-accept-multiclass.ci` name this spec as the blocker for apply-tier traffic `.ci` | read 2026-07-10 |
+| 6 | (not stated) | `test/traffic/traffic-vpp-accept-dscp-filter.ci` and `test/traffic/traffic-vpp-accept-multiclass.ci` name this spec as the blocker for apply-tier traffic `.ci` | read 2026-07-10 |
 
 ## Required Reading
 
@@ -65,7 +65,7 @@ Corrections against the 2026-07 followup wave (see `tmp/review-followup/context.
 - [ ] `test/vpp/*.ci` (functional VPP tests)
   → Constraint: verify current behaviour against this source before designing. (Done 2026-07-10.)
   → Decision: all five use an embedded Python driver (tmpfs) that spawns vpp_stub + optionally ze-peer + ze and asserts on the stub's JSONL log; new tests follow the same driver pattern.
-  → Constraint: `006-iface-create.ci` depends on the EMPTY dump behavior ("the dump is empty but the handshake succeeds") -- adding a `sw_interface_dump` handler must keep 006 green (empty table at boot is still a valid dump).
+  → Constraint: `vpp-iface-create.ci` depends on the EMPTY dump behavior ("the dump is empty but the handshake succeeds") -- adding a `sw_interface_dump` handler must keep 006 green (empty table at boot is still a valid dump).
 - [ ] `internal/plugins/iface/vpp/ifacevpp.go`, `internal/plugins/traffic/vpp/` (code the stub exercises)
   → Constraint: verify current behaviour against this source before designing. (Done 2026-07-10; message-by-message inventory below.)
 - [ ] `docs/architecture/traffic/followup-vpp-traffic.md`
@@ -201,9 +201,9 @@ Beyond requests, two non-request surfaces are unemulated:
 
 | Tier | Tests | What they prove | Gap |
 |------|-------|-----------------|-----|
-| test/vpp (stub-backed runtime) | 001-boot, 002-fib-route, 005-mpls-push, 006-iface-create, 007-fib-route-lookup | handshake; ip_route_add_del add path (plain + MPLS label); backend load with EMPTY dump; route lookup | 006 is load-only despite its name (comment :268-270: dump empty by design); no create/withdraw/restart/event/dump/fault/traffic/firewall/telemetry coverage |
+| test/vpp (stub-backed runtime) | vpp-boot, vpp-fib-route, vpp-mpls-push, vpp-iface-create, vpp-fib-route-lookup | handshake; ip_route_add_del add path (plain + MPLS label); backend load with EMPTY dump; route lookup | 006 is load-only despite its name (comment :268-270: dump empty by design); no create/withdraw/restart/event/dump/fault/traffic/firewall/telemetry coverage |
 | test/parse (offline) | iface-vpp-*.ci (11), fib-vpp-config-valid.ci, vpp-config-*.ci (8) | `ze config validate -` commit-gate accept/reject only; no daemon, no stub, no messages | parse-only by construction |
-| test/traffic (runtime, NO stub) | 011-vpp-reject-hfsc, 012-vpp-not-connected, 020-vpp-accept-dscp-filter, 020-vpp-reject-dscp-filter, 024-vpp-reject-prio, 025-vpp-reject-mark, 026-vpp-accept-multiclass | verify-tier accept/reject; "accept" is proven by the 5s WaitConnected timeout logging "vpp not connected" (e.g. 020-accept:139-156) | apply tier never runs; the accept signal is the ABSENCE of VPP -- explicitly "blocked on A-6 stub work in plan/spec-finish-vpp-stub.md" (020:152-153) |
+| test/traffic (runtime, NO stub) | traffic-vpp-reject-hfsc, traffic-vpp-not-connected, traffic-vpp-accept-dscp-filter, traffic-vpp-reject-dscp-filter, traffic-vpp-reject-prio, traffic-vpp-reject-mark, traffic-vpp-accept-multiclass | verify-tier accept/reject; "accept" is proven by the 5s WaitConnected timeout logging "vpp not connected" (e.g. 020-accept:139-156) | apply tier never runs; the accept signal is the ABSENCE of VPP -- explicitly "blocked on A-6 stub work in plan/spec-finish-vpp-stub.md" (020:152-153) |
 | test/firewall | none for vpp | -- | firewall/vpp has unit (fakeOps) + QEMU `go test -tags integration ./internal/plugins/firewall/vpp/...` (`mk/test-integration.mk`) but no functional `.ci` at all |
 | real-VPP evidence (Docker, not CI) | `ze-deployment-vpp-test` -> `scripts/evidence/effective-vpp.py`; `ze-deployment-vpp-iface-test` -> `scripts/evidence/effective-vpp-iface.py` (`mk/test-integration.mk`) | semantic correctness on VPP 25.10 (policer/classify/dscp/multiclass; GRE + SPAN + wireguard) | requires Docker; not run per-commit |
 

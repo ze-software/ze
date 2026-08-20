@@ -1497,7 +1497,7 @@ func TestCollectPrefixWarningsRuntime(t *testing.T) {
 
 // convertMVPNRoute/MVPNRouteConfig removed by spec-route-config-plugin-migration;
 // MVPN config parsing (incl originator-id/cluster-list) is now in plugins/nlri/mvpn/config.go,
-// verified byte-for-byte by test/encode/mvpn.ci.
+// verified byte-for-byte by test/encode/mvpn-encode.ci.
 
 // TestExpandDependenciesResolvesUseLabel pins dependency resolution to the
 // REGISTERED plugin name rather than the operator's config label.

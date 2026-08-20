@@ -33,7 +33,7 @@ gateway, the AC's own session view, and clean teardown when the client stops.
 ## Layout
 
 ```
-test/pppoe-interop/
+test/interop-pppoe/
   run.py               Runner: preflight, image build, scenario selection
   lab.py               Docker lifecycle, helpers, Ze/accel verification
   Dockerfile.ze        Ze PPPoE-client image (Alpine + ze + iproute2 + ppp + kmod)
@@ -62,7 +62,7 @@ was wrong. Run the Docker path first. If the probe refuses, use the QEMU path
 below. The accel-ppp image installs the Alpine `accel-ppp` package (the same
 build the QEMU runner uses), so the image build is fast.
 
-<!-- source: test/pppoe-interop/lab.py -- preflight_strict -->
+<!-- source: test/interop-pppoe/lab.py -- preflight_strict -->
 
 Note that `l2tp_ppp` is a SEPARATE module and was absent on that same host, so
 the sibling L2TP lab (`docs/labs/l2tp-interop.md`) can still refuse where this
@@ -77,8 +77,8 @@ on macOS or any host without PPPoE kernel support.
 
 ```
 make ze-deployment-docker-pppoe-accel-test               # all scenarios
-python3 test/pppoe-interop/run.py 01-pppoe-chap-ipv4     # single scenario
-VERBOSE=1 python3 test/pppoe-interop/run.py              # debug output
+python3 test/interop-pppoe/run.py 01-pppoe-chap-ipv4     # single scenario
+VERBOSE=1 python3 test/interop-pppoe/run.py              # debug output
 ```
 
 Environment variables: `VERBOSE`, `NO_BUILD`, `SESSION_TIMEOUT` (default 90s),
@@ -128,7 +128,7 @@ real, independent AC implementation.
 
 ## Design Pattern
 
-Follows the `test/l2tp-interop/` lab pattern (see `l2tp-interop.md`): scenario
+Follows the `test/interop-l2tp/` lab pattern (see `l2tp-interop.md`): scenario
 directory with daemon configs, per-run Docker network with PID suffix, fixed
 container IPs, `atexit` global cleanup, strict kernel preflight, and `check.py`
 assertion scripts imported by the runner. It is a separate module because the

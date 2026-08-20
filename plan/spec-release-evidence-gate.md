@@ -39,7 +39,7 @@ check, with the tree having moved AGAINST it since:
 
 | Producer | Fact |
 |----------|------|
-| `test/static/004-show.ci`, `005-table-interface.ci` | both carry `option=needs-linux` |
+| `test/static/static-show.ci`, `test/static/static-table-interface.ci` | both carry `option=needs-linux` |
 | `internal/test/runner/record_parse.go` | on `GOOS != linux` the record gets a `SkipReason`, so they never run on the darwin dev host |
 | `mk/test-functional.mk` (`all_suites`) | no `static`, so `make ze-precommit-verify` never runs it |
 | `scripts/evidence/qemu-all-tests.sh` (`fsuite` lines) | no `static`, so `make ze-qemu-needs-linux-test` never runs it -- and that is the only automated Linux functional path (`.github/workflows/qemu-nightly.yml`) |

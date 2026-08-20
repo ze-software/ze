@@ -72,7 +72,7 @@ green afterwards, and faster without the sleep.
 **An establishment barrier was tried here first and does not work; independent
 review caught it and the record is corrected rather than left standing.** The
 first attempt copied the established+`quiesce()` fence from
-`api-rib-clear-out.ci`, and it was vacuous twice over: the predicate substring
+`api-rib-out-clear.ci`, and it was vacuous twice over: the predicate substring
 `'established'` is satisfied by the KEY `connections-established` that every peer
 row carries (`internal/component/bgp/plugins/cmd/peer/peer.go`), so it
 returned before any session existed, and `quiesce()` then also returned at once
@@ -225,10 +225,10 @@ unlike both sibling read paths. Any host able to open a colliding TCP connection
 to a configured peer address could panic the reactor before capability
 negotiation.
 
-### ~~`ze-test bgp plugin 458 show-l2tp-tunnel-detail` -- deterministic on darwin~~ -- RESOLVED 2026-07-25: no longer reproduces
+### ~~`ze-test bgp plugin 458 l2tp-tunnel-detail-show` -- deterministic on darwin~~ -- RESOLVED 2026-07-25: no longer reproduces
 
 Re-run on darwin with the current tree: `ze-test bgp plugin --pattern
-show-l2tp-tunnel-detail` -> PASS (2.8s, test id 460 after renumbering), and the
+l2tp-tunnel-detail-show` -> PASS (2.8s, test id 460 after renumbering), and the
 full plugin suite ran 495/495 in the same session. The shard asserted no root
 cause ("not traced -- outside this session's area"), so nothing here identifies
 which change cleared it; it is closed on the evidence that it passes, not on a
@@ -791,7 +791,7 @@ warnings into JSON decode output. Changed to `cmd.Output()`. Also updated
 **Resolved 2026-06-04.** Clean re-run confirmed host-load artifacts.
 Fixed: UI build tags, expected strings, mpls-doctor semicolons, firewall
 skip-env. Product bugs fixed: L2TP CDN teardown, StopCCN cascade.
-Environment deps (skip-env tagged): show-policy-routes, wireguard-invalid.
+Environment deps (skip-env tagged): policy-routes-show, wireguard-invalid.
 
 ### 2026-06-10 -- routewatch QEMU integration tests flaky (netns roulette)
 

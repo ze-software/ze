@@ -15,7 +15,7 @@
 #           stayed live at the peer.
 #
 # WHY A .ci AND NOT ONLY THE INTEROP SCENARIO. This runs in the verify tier.
-# test/interop/scenarios/53-relay-withdraw-nexthop-self-frr proves a real FRR
+# test/interop/scenarios/bgp-relay-withdraw-nexthop-self-frr proves a real FRR
 # ACCEPTS the shape, but interop is the nightly tier, so without this file the
 # daemon's own wire output for this producer is proven only by unit tests.
 # role-otc-fwd-withdraw.ci does not cover it: its peers configure no next-hop

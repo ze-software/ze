@@ -17,8 +17,8 @@ Before writing a probe that asserts on a dataplane counter, read
 `ai/rules/platform-linux.md`, section "4. Dataplane counters need a real remote
 peer". A VM addressing its own address moves no xfrm counter, so such a probe
 reads zero whether the dataplane works or not.
-`test/ipsec-interop/scenarios/01-psk-site-to-site/check.py` is the in-tree
-pattern, over `assert_esp_accepted` in `test/ipsec-interop/lab.py`.
+`test/interop-ipsec/scenarios/01-psk-site-to-site/check.py` is the in-tree
+pattern, over `assert_esp_accepted` in `test/interop-ipsec/lab.py`.
 """
 
 from __future__ import annotations
@@ -43,7 +43,14 @@ QEMU_BIN = f"qemu-system-{ALPINE_ARCH}"
 GO_VERSION = "1.25.9"
 VM_MEMORY = os.environ.get("ZE_QEMU_MEMORY", "16384")
 VM_CPUS = os.environ.get("ZE_QEMU_CPUS", "8")
-BOOT_TIMEOUT = int(os.environ.get("ZE_QEMU_BOOT_TIMEOUT", "60"))
+# Seconds to wait for the VM's login prompt. 60 was enough on an idle machine and
+# not on a shared one: several agents run gates in this checkout at once, and at load
+# average 112 on 32 cores a boot that takes 10 seconds idle missed 60 and the run
+# reported "VM never reached a login prompt" -- a red that says nothing about the
+# tree. The same command passed unchanged at 300, which is what every install script
+# beside this one already waits (ZE_INSTALL_BOOT_TIMEOUT). The cap exists to catch a
+# VM that will NEVER boot, so it costs nothing to sit well clear of a slow one.
+BOOT_TIMEOUT = int(os.environ.get("ZE_QEMU_BOOT_TIMEOUT", "300"))
 DEFAULT_CMD_TIMEOUT = 1200
 
 

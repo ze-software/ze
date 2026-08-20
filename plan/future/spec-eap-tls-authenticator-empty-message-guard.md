@@ -116,7 +116,7 @@ the operator through the existing IKE path.
 
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|-----------|-------|----------|--------------|--------|
-| A-1 | Every legitimate no-data round is answered by a branch above the last one | The branch comment in `eap_tls.go` calls the last branch defensive, and names the branches that absorb each real case | A conforming peer is refused mid-exchange | Run the eap package tests and `test/ipsec-interop/scenarios/04-eap-tls` with the refusal in place | unvalidated |
+| A-1 | Every legitimate no-data round is answered by a branch above the last one | The branch comment in `eap_tls.go` calls the last branch defensive, and names the branches that absorb each real case | A conforming peer is refused mid-exchange | Run the eap package tests and `test/interop-ipsec/scenarios/04-eap-tls` with the refusal in place | unvalidated |
 | A-2 | `eapTLSMaxPeerBuffered` needs at least one more round after the first empty message | The measurement in `spec-fixit-eap-tls-clienthello-race` | The backlog ceiling becomes unreachable again | `TestEAPTLSProcessRefusesUnboundedPeerBuffer` | unvalidated |
 
 ### Risks
@@ -190,7 +190,7 @@ cheapest seam is a private test env var on the peer half, in the shape
 
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `04-eap-tls` | `test/ipsec-interop/scenarios/` | strongSwan | A conforming peer still authenticates after the refusal lands | |
+| `04-eap-tls` | `test/interop-ipsec/scenarios/` | strongSwan | A conforming peer still authenticates after the refusal lands | |
 
 strongSwan sends a ClientHello, so it cannot exercise AC-1. It is the regression guard for
 AC-2 through AC-5, and `plan/journal/shared-leniency-hides-the-defect.md` records why a

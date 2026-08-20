@@ -4,7 +4,7 @@
 //            path accepted `copy-to-nexthop` while the `update text` API path
 //            answered "invalid extended community format", so a route an operator
 //            could write in config could not be expressed through the API --
-//            and test/plugin/flowspec.ci only noticed intermittently, because its
+//            and test/plugin/flowspec-announce.ci only noticed intermittently, because its
 //            wire assertions were satisfied by the static route in the same config.
 
 package attribute

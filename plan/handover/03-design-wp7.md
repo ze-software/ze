@@ -769,11 +769,11 @@ by hand and its output pasted as evidence.
 
 ### 9.1 The carrier constraint, which shapes everything below
 
-**A tag in `test/ipsec-interop/` is REFUSED.** `ai/rules/testing.md` states it, and the
+**A tag in `test/interop-ipsec/` is REFUSED.** `ai/rules/testing.md` states it, and the
 carrier table confirms it: `interop-ipsec` is declared with `TIER_UNRUN`
 (`scripts/dev/rfc_requirements.py`, `CARRIERS`, the "other three interop trees have runners
 but NO automated caller" entry). Only `test/interop/scenarios/*/check.py` earns
-`interop/nightly`. There are zero `RFC requirement:` tags under `test/ipsec-interop/` today.
+`interop/nightly`. There are zero `RFC requirement:` tags under `test/interop-ipsec/` today.
 
 So the 22 tags must live in:
 
@@ -907,7 +907,7 @@ and adds its two tags.
 
 | Invariant | Why it is at risk | The guard |
 |-----------|-------------------|-----------|
-| **Every `test/ipsec-interop/` scenario stays green** | R-2 names WP-7's TS narrowing as one of four packages that change what a peer sees. Scenarios 01-11 all negotiate Child SAs, and today they get a wildcard. Once Ze narrows, a scenario whose `ze.conf` has no selector config must still produce a working SA | `make ze-interop-ipsec-test` at the package boundary, not at the end. A red is this package's own defect and is fixed here (`ai/rules/completion.md`) |
+| **Every `test/interop-ipsec/` scenario stays green** | R-2 names WP-7's TS narrowing as one of four packages that change what a peer sees. Scenarios 01-11 all negotiate Child SAs, and today they get a wildcard. Once Ze narrows, a scenario whose `ze.conf` has no selector config must still produce a working SA | `make ze-interop-ipsec-test` at the package boundary, not at the end. A red is this package's own defect and is fixed here (`ai/rules/completion.md`) |
 | **A peer with no configured selectors still works** | If "no `tunnel` list configured" narrows to the empty set, every existing config breaks with TS_UNACCEPTABLE | The absent-config default must be "policy allows everything", preserving today's behaviour exactly. Assert it with a fixture that configures no selectors |
 | `RFC4301-4.4.2-1`'s existing coverage | `child_test.go` (`TestChildSAInboundPolicyUsesNegotiatedTS`) asserts the inbound policy carries the negotiated TS. Section 6 changes what "negotiated" means | The test sets `sa.NegotiatedTSi/TSr` directly, so it survives. Re-read it before editing; do not weaken it |
 | `RFC4301-4.4.2-1`'s OTHER binding | `child_test.go` tags `TestNarrowTS`, which section 1.5 deletes | The obligation must be RE-BOUND to the new engine's test in the SAME commit, or `check_evidence_ratchet` fires. **Needs Thomas's `rfc-test-change-approved`** |

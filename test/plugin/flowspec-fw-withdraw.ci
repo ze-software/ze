@@ -10,7 +10,7 @@
 # nothing, while the static route satisfied the wire assertion. The failure was
 # invisible on darwin and red on linux, decided only by whether the observer's
 # ZE-OBSERVER-FAIL sentinel reached the runner before ze stopped. The same crutch
-# was removed from test/plugin/flowspec.ci for the same reason.
+# was removed from test/plugin/flowspec-announce.ci for the same reason.
 #
 # VALIDATES: FlowSpec add and withdraw wire encoding correct with bridge plugin
 # VALIDATES: a FlowSpec withdrawal sent through the external process API reaches

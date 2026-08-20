@@ -200,7 +200,7 @@ given. That gap is what makes the test discriminate.
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `23-vpn-frr` (existing, run as a regression check) | `test/interop/scenarios/` | FRR | The VPNv4 encode rail still produces UPDATEs FRR accepts, with the RD intact and the session stable. Command: `make ze-interop-test INTEROP_SCENARIO=23-vpn-frr` | |
+| `bgp-vpn-frr` (existing, run as a regression check) | `test/interop/scenarios/` | FRR | The VPNv4 encode rail still produces UPDATEs FRR accepts, with the RD intact and the session stable. Command: `make ze-interop-test INTEROP_SCENARIO=bgp-vpn-frr` | |
 | No new scenario | `test/interop/scenarios/` | - | The change IS wire-visible: chunk boundaries move under SAFI 128, and today an over-size UPDATE would draw a NOTIFICATION from the peer. A scenario that reached it would have to negotiate RFC 8654 extended messages on the ingress session and a 4096-octet ceiling on the egress one. No scenario in `test/interop/scenarios/` negotiates extended messages, and the peer-side injector cannot yet build a VPN UPDATE above 4096 octets, so a scenario written today would split nothing and pass with the defect in place. That is the vacuity trap `ai/rules/interop-and-goal-validation.md` names, so the proof is placed at the splitter entry point instead | |
 
 ## Files to Modify
@@ -284,7 +284,7 @@ given. That gap is what makes the test discriminate.
 | Four new tests exist and run | `make ze-unit-pkg-test PKG=./internal/component/bgp/message` names each of them in a `-run` filter and passes |
 | The chunk-size property holds at the daemon's own entry point | `TestSplitUpdate_VPNChunksFitMaxMessageSize` asserts `Update.Len(nil)` at or below 4096 for EVERY emitted chunk |
 | Non-VPN behavior unchanged | The existing split tests pass unedited; no assertion in them is relaxed |
-| The VPN encode rail still interoperates | `make ze-interop-test INTEROP_SCENARIO=23-vpn-frr` passes |
+| The VPN encode rail still interoperates | `make ze-interop-test INTEROP_SCENARIO=bgp-vpn-frr` passes |
 | The deferral row is resolved | `plan/deferrals/fixit-mpreach-split-undercounts-rd.md` names this spec as its Destination |
 
 ### Security Review Checklist
@@ -348,7 +348,7 @@ Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code.
 - [ ] Tests PASS (paste output)
 - [ ] Boundary tests for all numeric inputs
 - [ ] Functional `.ci` tests for end-to-end behavior, or the recorded reason why none can reach this path
-- [ ] Interop tests for protocol features: `23-vpn-frr` re-run, no new scenario, reason recorded
+- [ ] Interop tests for protocol features: `bgp-vpn-frr` re-run, no new scenario, reason recorded
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it

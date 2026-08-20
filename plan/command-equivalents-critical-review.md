@@ -46,7 +46,7 @@ The direction is correct, but the first pass is not merge-ready. The generated p
    `docs/architecture/api/commands.md` still lists `ze-show:dns-cache` instead of the split DNS cache methods.
 
 7. **Functional coverage is incomplete.**
-   `test/plugin/show-dns-cache.ci` dispatches `show dns cache stats` only. It should also dispatch `show dns cache list` and `show dns cache record <name>`.
+   `test/plugin/dns-cache-show.ci` dispatches `show dns cache stats` only. It should also dispatch `show dns cache list` and `show dns cache record <name>`.
 
 8. **Vendor-only gaps are counted but not rendered.**
    The page reports vendor-only gap notes, but entries such as LLDP and NAT are not shown or searchable.

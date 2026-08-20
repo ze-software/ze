@@ -231,7 +231,7 @@ already converted `rbac-web`, so the web suite was not new ground here.
 
 | Entry Point | -> | Feature Code | Test |
 |-------------|---|--------------|------|
-| driver calls `wait_for_daemon_ready()` | -> | `ze_api.wait_for_daemon_ready` (P1) | static/*.ci, show-policy-routes.ci (3x / QEMU) |
+| driver calls `wait_for_daemon_ready()` | -> | `ze_api.wait_for_daemon_ready` (P1) | static/*.ci, policy-routes-show.ci (3x / QEMU) |
 | `.ci` waits on a daemon stderr pattern | -> | runner stderr-wait primitive (P2) | as112/cos/ddos-external-warns/trafficusage/flowexport (QEMU) |
 | observer waits for nft/tc programmed | -> | P3 (ready-implies-programmed or reflecting show) | firewall/policy/traffic (QEMU) |
 | observer waits for a kernel FIB route | -> | fib reflecting-`show` / quiescer (P4) | fib-mpls-kernel/blackhole/srv6-kernel/table (QEMU) |
@@ -241,7 +241,7 @@ already converted `rbac-web`, so the web suite was not new ground here.
 
 | AC ID | Piece | Expected Behavior |
 |-------|-------|-------------------|
-| AC-1 | **P1 wait_for_daemon_ready** | importable helper (works in standalone drivers with no `API()` and in observers); converts the `for..: if exists('daemon.ready'): break; sleep(0.05)` polls + lead-ins in static/firewall/policy/traffic drivers, show-policy-routes:18, ddos-detect-*:46/:43; each converted test green (host or QEMU) |
+| AC-1 | **P1 wait_for_daemon_ready** | importable helper (works in standalone drivers with no `API()` and in observers); converts the `for..: if exists('daemon.ready'): break; sleep(0.05)` polls + lead-ins in static/firewall/policy/traffic drivers, policy-routes-show:18, ddos-detect-*:46/:43; each converted test green (host or QEMU) |
 | AC-2 | **P2 daemon-stderr wait** | a runner-level primitive to wait until the spawned daemon's stderr matches a pattern (bounded); converts the external-warn hold-open sleeps (as112, cos, ddos-detect-external-warns, trafficusage, flowexport-external-refuses); QEMU-verified |
 | AC-3 | **P3 dataplane-programmed** | resolve A-1: if `daemon.ready` implies nft/tc programmed, delete the lead-ins; else add a reflecting readiness. Converts firewall (48), policy (13), traffic (16 netlink); QEMU-verified |
 | AC-4 | **P4 fib reflecting-show / quiescer** | a queryable signal that a kernel-FIB route is installed; converts fib-mpls-kernel, fib-blackhole, fib-srv6-kernel(3), fib-table + non-plugin static/vpp kernel waits; QEMU-verified. **Corrected 2026-08-03: the signal already exists (`show fib kernel`), so this AC is a conversion of the named tests to a bounded poll on it, NOT the construction of a new surface. See the Correction block** |
@@ -255,7 +255,7 @@ already converted `rbac-web`, so the web suite was not new ground here.
 
 | # | User does | Path | Test |
 |---|-----------|------|------|
-| 1 | writes a standalone driver test that waits for boot | `wait_for_daemon_ready()` (no `API()` needed) | static/001-boot-apply.ci |
+| 1 | writes a standalone driver test that waits for boot | `wait_for_daemon_ready()` (no `API()` needed) | static/static-boot-apply.ci |
 | 2 | writes a test asserting an external plugin logged a WARN | runner waits for the daemon stderr pattern | as112-external-refuses.ci (QEMU) |
 | 3 | writes a test asserting a kernel FIB route | reflecting `show fib` poll | fib-blackhole.ci (QEMU) |
 | 4 | writes a test asserting a route was rejected | announce a sentinel; wait for it to land; then assert the rejected prefix absent | prefix-filter-reject.ci |
@@ -325,7 +325,7 @@ Infra (production/test-support) files, each additive:
 | Close | ratchet lowered per piece; two-commit closure |
 
 ### Implementation Phases
-1. **P1 wait_for_daemon_ready** (smallest, host-verifiable in part) — helper + convert static/show-policy-routes/ddos-ready polls.
+1. **P1 wait_for_daemon_ready** (smallest, host-verifiable in part) — helper + convert static/policy-routes-show/ddos-ready polls.
 2. **P5 reject-fence** — host-verifiable; pattern + helper + convert reject/negative tests.
 3. **P6 redistribute/control-message signal** — host-verifiable; convert bgp-redistribute-*, api-raw, api-route-refresh.
 4. **P7 RS inbound-anchor** — host-verifiable; convert bgp-rs-*, remove-private-as-*.
@@ -464,12 +464,12 @@ simply be deleted, and a wait on the nft table would not have covered an
 
 **Converted, 20 sleeps removed, baseline 100 -> 80:**
 - `test/policy/*.ci` -- all six, 12 -> 0. 3x 6/6, and faster (7.6s -> ~4.6s).
-- `test/firewall/*.ci` -- 8 -> 0 across 004-cli-show, 009-set-element-timeout,
+- `test/firewall/*.ci` -- 8 -> 0 across firewall-cli-show, firewall-set-element-timeout,
   ddos-local-withdraw. 3x 23/23.
-- `004-cli-show` could not be deleted either: the SSH CLI server binds separately
+- `firewall-cli-show` could not be deleted either: the SSH CLI server binds separately
   from `OnConfigure`, so `daemon.ready` does not cover it. It now waits on
   127.0.0.1:2222 actually accepting.
-- `006-reload`'s `wait_rules` now delegates to the shared helper while keeping its
+- `policy-reload`'s `wait_rules` now delegates to the shared helper while keeping its
   own 12s deadline, derived per call from the budget still remaining.
 
 **Non-vacuity is demonstrated, not asserted.** Three source mutations, each

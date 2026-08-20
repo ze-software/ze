@@ -10,7 +10,7 @@
 Staleness note (2026-07-22 plan review): substantial phases have landed since
 2026-05-27 without this header moving -- the SRv6 phase CLOSED (learned 1113:
 both FIB backends program SRv6, `nexthop_linux.go` SEG6 + `fib/vpp/srv6.go`,
-with tests and interop `35-srv6-frr`), and ECMP (learned 774) and VPP parity
+with tests and interop `bgp-srv6-frr`), and ECMP (learned 774) and VPP parity
 (learned 798) also landed. The spec's own Current Behavior table still says
 Ze SRv6 = "no", which shipped code contradicts. The live remainder includes
 best-path step 6 (IGP cost: `BestStepIGPCost` deferred at `bestpath.go,182`,

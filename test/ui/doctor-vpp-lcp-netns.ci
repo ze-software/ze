@@ -5,9 +5,9 @@
 # Registration, phase, platform filtering and the diagnostic code all have to
 # line up for this to fire; the unit tests in
 # internal/plugins/iface/vpp/register_test.go exercise the decision logic, and
-# this proves an operator actually sees it. Required by ai/rules/doctor-checks.md
-# ("Test Requirement": unit AND functional), modelled on
-# test/ui/doctor-vpp-lcp-plugin.ci.
+# this proves an operator actually sees it. Required by
+# ai/rules/repo-maintenance.md ("Doctor Checks" -> "Test Requirement": unit AND
+# functional), modelled on test/ui/doctor-vpp-lcp-plugin.ci.
 # PREVENTS: the warning going silent -- the netns leaf DEFAULTS to "dataplane"
 # (ze-vpp-conf.yang), so the broken-by-default case is the one omitting the
 # leaf entirely. A check that only fired on an explicitly-set netns would look

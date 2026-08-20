@@ -18,7 +18,7 @@
 # It was real, not hypothetical. While this writer accepted .py only under
 # scripts/ and .claude/hooks/, and .sh only under .claude/hooks/ and scripts/,
 # 11 open specs named py subjects (test/interop/interop.py,
-# test/ipsec-interop/lab.py, tools/kernel-builder/build.py) and 2 named sh
+# test/interop-ipsec/lab.py, tools/kernel-builder/build.py) and 2 named sh
 # subjects (packaging/deb/preinstall.sh) that NO accepted Read could ever cover.
 # A directory list is a second thing to keep in sync and it silently drifted.
 # An extension has nothing to drift.

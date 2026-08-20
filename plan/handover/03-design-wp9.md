@@ -838,8 +838,8 @@ is not free:
 | `*.et` | `editor/verify` | every push | not applicable |
 | `test/interop/scenarios/*/check.py` | `interop/nightly` | scheduled, advisory | not applicable |
 
-**`test/ipsec-interop/` is REFUSED as a tag carrier.** `ai/rules/testing.md` is explicit:
-a tag in `test/ipsec-interop/` "is REFUSED with an error naming the file, because nothing
+**`test/interop-ipsec/` is REFUSED as a tag carrier.** `ai/rules/testing.md` is explicit:
+a tag in `test/interop-ipsec/` "is REFUSED with an error naming the file, because nothing
 runs those suites automatically and a tag nothing executes is an absence of evidence
 rather than weak evidence".
 
@@ -858,7 +858,7 @@ will fail `make ze-rfc-check` with an error naming the file.
 | `internal/component/ike/engine/cp_test.go` (new) | engine | `2.19-*`, `4-2`, `4-3`, `2.20-1`, `3.15.1-5..-7`; the spec names `TestConfigurationPayloadExchange` here |
 | `internal/component/ike/eap/pool_test.go` (exists) | pool | P4 boundary, P6 prefix, quota and release |
 | `test/ipsec/ipsec-remote-access-cp.ci` (new) | functional | the operator path end to end |
-| `test/ipsec-interop/scenarios/14-remote-access-cp/` (new) | interop | goal validation only, **no tags** |
+| `test/interop-ipsec/scenarios/14-remote-access-cp/` (new) | interop | goal validation only, **no tags** |
 
 ### 9.3 The pairs, and the mutation that must redden each
 
@@ -1048,7 +1048,7 @@ exhaustion-by-churn failure (P3). Neither depends on the CP consumer.
 | **No Child SA or key material is installed on a refusal** | `createFirstChildSA` runs at `responder.go`, before the payload list | `2.19-6`'s positive asserts no Child SA was installed. The mutation that moves the short-circuit after `:623` must redden it |
 | **EAP sessions still establish** | Phase D changes `startResponderEAP`'s signature (`responder_eap.go`) and `handleResponderEAP`'s walk | `TestResponderEAPSessionWired` (`internal/component/ike/engine/responder_test.go`) stays green |
 | **Site-to-site peers are unaffected** | `cpPolicyFor` must return a determined `required=false` for a site-to-site profile, not a miss | `2.19-6`'s negative drives a site-to-site peer and asserts normal establishment |
-| **Every `test/ipsec/` `.ci` and `test/ipsec-interop/` scenario stays green** | the rfcgate-1b RFC 7296 pilot spec | WP-9 changes no wire byte for a peer that sends no CP: the reply is emitted only when `cpRequestFrom` returns `ok` |
+| **Every `test/ipsec/` `.ci` and `test/interop-ipsec/` scenario stays green** | the rfcgate-1b RFC 7296 pilot spec | WP-9 changes no wire byte for a peer that sends no CP: the reply is emitted only when `cpRequestFrom` returns `ok` |
 | **`RFC7296-2.5-6` / `-7` (RESERVED)** | D1 and D2 are literally `2.5-7` and `2.5-6` fixes for this payload | Both existing pairs stay green; the CP codec joins the set of producers they range over |
 
 ---
@@ -1066,7 +1066,7 @@ exhaustion-by-churn failure (P3). Neither depends on the CP consumer.
 | R-WP9-7 | **`2.19-6` tears down the IKE SA.** "Fail the request" reads as "kill the session" | the client retries in a loop; `rfc/full/rfc7296.txt:3185` is violated | `2.19-6`'s positive asserts `StateEstablished` after the refusal |
 | R-WP9-8 | **An authenticated client drains the pool through parallel IKE SAs.** `Allocate()` has no identity and no quota | pool utilisation spikes from one identity | `maximum-leases-per-identity`, default 1, plus address reuse per `rfc/full/rfc7296.txt:6374-6375` |
 | R-WP9-9 | **`plan/spec-ipsec-remote-access.md` already holds decisions this design re-litigates.** It is named by `engine/config.go` as the owner of this surface and was NOT read in this pass | the implementer finds a conflicting design mid-phase | **Read it and `docs/architecture/ike/ipsec-9-ikev2-eap-nat.md` before phase A.** If it is the real owner, OI-5 answers itself |
-| R-WP9-10 | **The interop scenario is tagged and `make ze-rfc-check` refuses it.** `test/ipsec-interop/` is not a carrier | the gate fails naming the file | Section 9.1. Every tag lives in a `_test.go` or in `test/ipsec/*.ci` |
+| R-WP9-10 | **The interop scenario is tagged and `make ze-rfc-check` refuses it.** `test/interop-ipsec/` is not a carrier | the gate fails naming the file | Section 9.1. Every tag lives in a `_test.go` or in `test/ipsec/*.ci` |
 | R-WP9-11 | **P6 hands out addresses outside the configured prefix.** `allocateV6` writes the host ID into `ip6[8:]` only, while the validator permits `/48../126` | a `/96` pool leases addresses in a different subnet | Phase B, `TestAllocateV6RespectsPrefixLongerThan64`. This bug is live today |
 | R-WP9-12 | **Engine line numbers move under a concurrent agent.** `internal/component/ike/engine/` is being edited now | a tag cites a line holding different code | Every citation here names its function. Re-locate by function name before quoting a line |
 

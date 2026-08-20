@@ -38,7 +38,7 @@ test/parse/cli-config-system-archive.ci
 test/parse/cli-config-system.ci
 test/parse/cli-format-default-valid.ci
 test/parse/cli-validate-invalid.ci
-test/parse/community.ci
+test/parse/community-parse.ci
 test/parse/dhcp-auto.ci
 test/parse/dhcp-config-disabled.ci
 test/parse/dhcp-config-enabled.ci
@@ -56,7 +56,7 @@ test/parse/gnmi-schema.ci
 test/parse/graceful-restart-llgr.ci
 test/parse/group-basic.ci
 test/parse/group-peer-name.ci
-test/parse/healthcheck.ci
+test/parse/healthcheck-parse.ci
 test/parse/hub-config-multi-listen.ci
 test/parse/hub-config-valid.ci
 test/parse/ipv6-route-priority.ci
@@ -65,7 +65,7 @@ test/parse/l2tp-remote-relay-config.ci
 test/parse/listener-no-conflict.ci
 test/parse/local-remote-basic.ci
 test/parse/multiple-process.ci
-test/parse/multisession.ci
+test/parse/multisession-parse.ci
 test/parse/no-bgp-empty.ci
 test/parse/no-bgp-interface-only.ci
 test/parse/ntp-disabled.ci
@@ -75,7 +75,7 @@ test/parse/parse-inactive-leaflist-member.ci
 test/parse/parse-nop-keyword.ci
 test/parse/process-receive-leaflist.ci
 test/parse/process-send-leaflist.ci
-test/parse/process.ci
+test/parse/process-parse.ci
 test/parse/redistribute-invalid-source.ci
 test/parse/route-priority.ci
 test/parse/send-enhanced-refresh.ci
@@ -88,7 +88,7 @@ test/parse/sysctl-profile-custom.ci
 test/parse/sysctl-profile-dsr.ci
 test/parse/system-dns-dnssec.ci
 test/parse/test-family-config.ci
-test/parse/ttl.ci
+test/parse/ttl-parse.ci
 test/plugin/config-edit-ssh-session.ci
 test/plugin/config-edit-ssh.ci
 test/plugin/firewall-irr-commit.ci
@@ -103,10 +103,10 @@ test/plugin/rib-best-selection.ci
 test/plugin/rib-graph-best.ci
 test/plugin/rib-graph-filtered.ci
 test/plugin/rib-graph.ci
-test/plugin/smart-show-unconfigured.ci
+test/plugin/smart-unconfigured-show.ci
 test/plugin/smart-show.ci
 test/plugin/sysctl-list.ci
-test/plugin/sysctl-show-describe.ci
+test/plugin/sysctl-describe-show.ci
 test/plugin/traffic-monitor.ci
 test/ui/cli-completion-ghost-no-match.ci
 test/ui/cli-completion-invalid-context.ci

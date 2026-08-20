@@ -232,7 +232,7 @@ No direct RFC wire violation was confirmed. `draft-ietf-bess-mup-safi.md` was re
 - `internal/component/bgp/plugins/nlri/mup/config_test.go,31-102` covers MUP parser registration and valid/error field parsing but not unknown-token rejection.
 - `internal/component/bgp/plugins/nlri/mvpn/config_test.go,31-82` covers MVPN parser registration, valid NLRI bytes, and malformed known fields but not unknown-token rejection.
 - `internal/component/bgp/plugins/nlri/vpls/config_test.go,31-69` covers VPLS parser registration and valid NLRI bytes but not unknown-token rejection.
-- Functional fixtures found by file inventory: `test/decode/bgp-mup-1.ci`, `test/encode/srv6-mup.ci`, `test/encode/srv6-mup-v3.ci`, `test/decode/bgp-mvpn-1.ci`, `test/encode/mvpn.ci`, and `test/decode/bgp-vpls-1.ci`.
+- Functional fixtures found by file inventory: `test/decode/bgp-mup-1.ci`, `test/encode/srv6-mup.ci`, `test/encode/srv6-mup-v3.ci`, `test/decode/bgp-mvpn-1.ci`, `test/encode/mvpn-encode.ci`, and `test/decode/bgp-vpls-1.ci`.
 
 **Regression test plan:**
 
@@ -257,7 +257,7 @@ No direct RFC wire violation was confirmed. `draft-ietf-bess-mup-safi.md` was re
 - `internal/component/plugin/registry/registry.go` returns nil when a registered family has no `InProcessRouteEncoder`.
 - `internal/component/plugin/registry/registry.go` similarly returns `no NLRI encoder for family` when no `InProcessNLRIEncoder` exists.
 - `internal/component/bgp/plugins/nlri/srpolicy/config.go` and `srpolicy/register.go` prove the family already has a config route parser that can build SR-Policy routes from user route content.
-- `test/decode/bgp-srpolicy-1.ci` and `test/decode/bgp-srpolicy-2.ci` cover decode only. `test/exabgp-compat/encoding/conf-sr-policy.ci` proves SR-Policy encoding exists in the ExaBGP compatibility path, not the canonical `ze bgp encode` path.
+- `test/decode/bgp-srpolicy-1-decode.ci` and `test/decode/bgp-srpolicy-2-decode.ci` cover decode only. `test/exabgp-compat/encoding/conf-sr-policy.ci` proves SR-Policy encoding exists in the ExaBGP compatibility path, not the canonical `ze bgp encode` path.
 
 **Reachable trigger:**
 
@@ -282,7 +282,7 @@ Operators and tests cannot use `ze bgp encode` to produce SR-Policy UPDATEs, eve
 **Regression test plan:**
 
 - Add unit tests in `internal/component/bgp/plugins/nlri/srpolicy` asserting `registry.EncodeNLRIByFamily("ipv4/sr-policy", ...)` and `registry.RouteEncoderByFamily("ipv4/sr-policy")` are non-nil and produce the expected NLRI bytes.
-- Add `test/encode/bgp-srpolicy-1.ci` and `test/encode/bgp-srpolicy-2.ci` covering IPv4 and IPv6 SR-Policy through `ze bgp encode`, with hex matched against RFC 9830 field layout.
+- Add `test/encode/bgp-srpolicy-1-encode.ci` and `test/encode/bgp-srpolicy-2-encode.ci` covering IPv4 and IPv6 SR-Policy through `ze bgp encode`, with hex matched against RFC 9830 field layout.
 - Add a command/parser regression if the final user syntax differs from config syntax, so `ze bgp encode` and config route parsing stay in sync.
 
 ## Plausible findings

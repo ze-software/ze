@@ -23,7 +23,7 @@ This is a consolidation skeleton created from verified deferral survivors (backl
 ### Work items (migrated from the 2026-07-06 deferral triage; `L#` = row in the pre-triage `plan/deferrals.md`)
 
 - **Root-cause the empty-bus shutdown hang (L103)** - a `.ci` plugin dispatching `show errors` on an empty bus then `daemon shutdown`+`wait_for_shutdown` hangs to timeout. Product handler is benign (`show.go,118`); fault is in the harness shutdown/IPC path. Blocks L102,L115.
-- **Empty-bus tests, blocked by L103 (L102,L115)** - `show-errors-empty.ci` (L102), `show-warnings-empty.ci` (L115). Unit tests already cover the empty case.
+- **Empty-bus tests, blocked by L103 (L102,L115)** - `errors-empty-show.ci` (L102), `warnings-empty-show.ci` (L115). Unit tests already cover the empty case.
 - **Distinct-blocker report-bus `.ci` (L116,L117,L113,L104)** - config-rollback (L116, multi-phase toggle plugin), config-save (L117, read-only-fs/write-intercept), warnings-clear (L113, ze-peer announce-over-threshold+withdraw), session-dropped (L104, ze-peer abrupt-close action).
 
 ### Post-wave corrections (2026-07-10)
@@ -128,7 +128,7 @@ the log for the "plugin rpc write stalled past watchdog window" warning and the
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| show-errors-empty, show-warnings-empty, +4 (new) (`.ci`) | test/plugin | report-bus show through the daemon on empty and populated bus | |
+| errors-empty-show, warnings-empty-show, +4 (new) (`.ci`) | test/plugin | report-bus show through the daemon on empty and populated bus | |
 
 ## Files to Modify
 

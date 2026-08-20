@@ -7,18 +7,18 @@ cross-compiled ze binaries, runs a curated firewall subset under ZE_TEST_NETNS
 (so `ze` is dropped to a normal user and programs nft inside a throwaway netns),
 and asserts the host `nft list tables` is byte-identical before and after.
 
-Why a curated subset and not `firewall --all`: 009-set-element-timeout crashes
+Why a curated subset and not `firewall --all`: firewall-set-element-timeout crashes
 the Alpine QEMU kernel. That is a pre-existing environment issue unrelated to
 the netns launch mode and is triaged separately. The copp-* suites ARE included:
 they configure only `control-plane-protection` (no firewall {} block), which
 used to fail "firewall backend not loaded" until ApplyAll learned to load the
 OS-default backend on demand -- this run is that fix's Linux regression guard.
-004-cli-show
+firewall-cli-show
 is ALSO included: it drives `ze cli` over the real SSH CLI path (a config-declared
 SSH user + `ze init`-provisioned client credentials), which needs the daemon
 built with ze_ssh (see the make target; ze init is already in ze_core).
 
-It ALSO runs the policy-routing suite in full. 005-next-hop needs an interface on
+It ALSO runs the policy-routing suite in full. policy-next-hop needs an interface on
 the next-hop's subnet to exist inside the netns (enterTestNetns brings up only
 loopback), which the test now provisions via option=netns-link -- this run is
 that fix's real-kernel regression guard.
@@ -70,7 +70,7 @@ ZE_QEMU_BIN = _qemu_bin("ZE_QEMU_BIN", "ze")
 ZE_QEMU_STRIPPED_BIN = _qemu_bin("ZE_QEMU_STRIPPED_BIN", "ze-stripped")
 ZE_QEMU_TEST_BIN = _qemu_bin("ZE_QEMU_TEST_BIN", "ze-test")
 # Confirmed host-safe green firewall subset under the netns launch mode: every
-# test/firewall/*.ci except 009-set-element-timeout (see the module docstring --
+# test/firewall/*.ci except firewall-set-element-timeout (see the module docstring --
 # it crashes the Alpine QEMU kernel). The copp-* names exercise the standalone
 # control-plane-protection path (no firewall {} block) that the ApplyAll
 # on-demand-backend fix unblocks. ddos-local-withdraw drives the ddos-local
@@ -80,21 +80,21 @@ ZE_QEMU_TEST_BIN = _qemu_bin("ZE_QEMU_TEST_BIN", "ze-test")
 # as the numeric nick "17" (there is no 017-*.ci); it touches no nft state and is
 # kept so the enrolled set is unchanged by the numeric-to-name conversion.
 FIREWALL_IDS = [
-    "001-boot-apply",
-    "002-reload",
-    "003-coexistence",
-    "004-cli-show",
-    "005-match-in-set-addr",
-    "006-dscp-ipv6-rejected",
-    "007-setdscp-inet",
-    "008-match-in-set-port",
-    "010-byte-rate-limit",
-    "011-snat-addr-range",
-    "012-icmp-type",
-    "013-iface-wildcard",
-    "014-nat-exclude",
-    "015-masquerade-ports",
-    "016-masquerade-flags",
+    "firewall-boot-apply",
+    "firewall-reload",
+    "firewall-coexistence",
+    "firewall-cli-show",
+    "firewall-match-in-set-addr",
+    "firewall-dscp-ipv6-reject-validate",
+    "firewall-setdscp-inet",
+    "firewall-match-in-set-port",
+    "firewall-byte-rate-limit",
+    "firewall-snat-addr-range",
+    "firewall-icmp-type",
+    "firewall-iface-wildcard",
+    "firewall-nat-exclude",
+    "firewall-masquerade-ports",
+    "firewall-masquerade-flags",
     "command-owner-firewall-root",
     "copp-bgp",
     "copp-trusted",
@@ -105,9 +105,9 @@ FIREWALL_IDS = [
 ]
 
 # Policy-routing suite in full, host-safe under the netns launch mode.
-# 005-next-hop provisions eth1 via option=netns-link so its next-hop auto-route
+# policy-next-hop provisions eth1 via option=netns-link so its next-hop auto-route
 # resolves inside the throwaway netns.
-# 006-reload was excluded while it was believed to be a still-open
+# policy-reload was excluded while it was believed to be a still-open
 # reload-reconciliation failure. It is not: 94b07348d showed both of its verdict
 # assertions matched the base-chain `policy accept` declaration rather than a rule
 # line, so phase 1 was vacuous and phase 2 could never pass -- the reload had
@@ -115,14 +115,15 @@ FIREWALL_IDS = [
 # rule and asserts none (translate.go emits ipRuleSpec only for table/next-hop
 # actions), which is what the old "stale ip rules after SIGHUP" rationale claimed.
 # Its interface match lowers to nftables iifname, a string match that needs no
-# link in the netns -- exactly like 002/003/004, which pass here without one.
+# link in the netns -- exactly like policy-set-table, policy-tcp-flags and
+# policy-tcp-mss, which pass here without one.
 POLICY_IDS = [
-    "001-boot-apply",
-    "002-set-table",
-    "003-tcp-flags",
-    "004-tcp-mss",
-    "005-next-hop",
-    "006-reload",
+    "policy-boot-apply",
+    "policy-set-table",
+    "policy-tcp-flags",
+    "policy-tcp-mss",
+    "policy-next-hop",
+    "policy-reload",
 ]
 
 # OSPF interface subset that exercises the netns launch mode's uid-drop path for

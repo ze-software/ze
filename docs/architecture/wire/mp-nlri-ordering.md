@@ -167,8 +167,8 @@ withdrawal therefore keeps the zero-copy forward path.
 <!-- source: internal/component/bgp/wireu/advertise.go -- PayloadAdvertisesNLRI, the one definition -->
 <!-- source: internal/component/bgp/reactor/forward_build.go -- advertiseGate, planAttr create-versus-modify gate -->
 <!-- source: internal/component/bgp/wireu/aspath_slot.go -- ASPathEdit.Record, the AS_PATH half -->
-<!-- source: test/interop/scenarios/53-relay-withdraw-nexthop-self-frr -- FRR accepts the withdrawal with next-hop-self on -->
-<!-- source: test/interop/scenarios/54-relay-withdraw-reflector-frr -- FRR accepts the reflected withdrawal -->
+<!-- source: test/interop/scenarios/bgp-relay-withdraw-nexthop-self-frr -- FRR accepts the withdrawal with next-hop-self on -->
+<!-- source: test/interop/scenarios/bgp-relay-withdraw-reflector-frr -- FRR accepts the reflected withdrawal -->
 
 **Ze meets requirement 2 and diverges on half of requirement 1:**
 

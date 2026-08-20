@@ -1,5 +1,5 @@
-// Design: which extended community form the `update text` vocabulary writes for
-// an AS number, and which numbers that form can carry.
+// Design: route_community.go — which extended community form the `update text`
+// vocabulary writes for an AS number, and which numbers that form can carry.
 // Related: route_community.go, internal/core/bgp/attribute/extcomm_decoded.go
 
 package route

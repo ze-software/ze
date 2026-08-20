@@ -253,7 +253,7 @@ def main():
     # wait the assertion is reachable only by luck -- the observer finished
     # first, ze closed the session inside the OPEN handshake, and ze-peer
     # reported "connection closed before completion". Same gate, same reason, as
-    # show-l2tp-sessions.ci. No plugin binds send [ update ] here, so
+    # l2tp-sessions-show.ci. No plugin binds send [ update ] here, so
     # apiSendCount is 0 and the EOR follows establishment immediately.
     synced = api.dispatch_until(
         'show bgp peer peer1 detail', eor_on_wire, attempts=60,

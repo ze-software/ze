@@ -454,12 +454,12 @@ preferred.
 |------|----------|-------------------|--------|
 | **`ebgp-localpref-egress-strip`** | `test/plugin/ebgp-localpref-egress-strip.ci` | IBGP source -> EBGP destination: LOCAL_PREF must not appear on the wire. **RED before the fix** | | <!-- doc-links: ignore (test this spec proposes; not written) -->
 | `remove-private-as-export` | `test/plugin/remove-private-as-export.ci` | strip-then-prepend unchanged | |
-| `attributes` | `test/plugin/attributes.ci` | IBGP baseline unchanged | |
+| `attributes` | `test/plugin/plugin-attributes.ci` | IBGP baseline unchanged | |
 
 ### Interop Tests (MANDATORY for protocol features)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `ebgp-egress-conformance-frr` (next free index, currently `47-`) | `test/interop/scenarios/` | FRR (pattern: `36-remove-private-as-frr`) | a real EBGP peer sees no LOCAL_PREF and a correctly prepended AS_PATH | |
+| `ebgp-egress-conformance-frr` (next free index, currently `47-`) | `test/interop/scenarios/` | FRR (pattern: `bgp-remove-private-as-frr`) | a real EBGP peer sees no LOCAL_PREF and a correctly prepended AS_PATH | |
 
 ## Files to Modify
 - `internal/component/bgp/config/peers.go` - the auto-append, mirroring `prependDefaultFilters` onto the export side; `ValidateFilterNames` and `canonicalizeFilterRefs` must accept the reserved names

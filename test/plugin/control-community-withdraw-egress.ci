@@ -1,5 +1,5 @@
 # control-community-withdraw-egress -- the GENERAL forward rail's copy of
-# rs-control-community-withdraw-egress.ci, which asserts the same behavior on the
+# bgp-rs-control-community-withdraw-egress.ci, which asserts the same behavior on the
 # route-server fast-path rail.
 #
 # WHY BOTH. reactorForwardRS (forward_rs.go) and forwardUpdateCore

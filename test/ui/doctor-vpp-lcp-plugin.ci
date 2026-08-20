@@ -9,8 +9,8 @@
 # error there would tell an operator to rebuild VPP when the real problem is
 # that VPP is not running. This host has no vppctl, so it exercises exactly
 # that path.
-# Required by ai/rules/doctor-checks.md ("Test Requirement": unit AND
-# functional), modelled on test/ui/doctor-ipsec-iface.ci.
+# Required by ai/rules/repo-maintenance.md ("Doctor Checks" -> "Test
+# Requirement": unit AND functional), modelled on test/ui/doctor-ipsec-iface.ci.
 #
 # needs-linux: the check returns early on any non-Linux host (VPP is
 # Linux-only, and AC-11 requires that no probe is opened there), so on darwin

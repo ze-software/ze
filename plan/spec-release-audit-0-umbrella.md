@@ -107,7 +107,7 @@ belong in separate future fix work approved after the audit finding is filed.
 - [ ] `test/` - ~~32 test directories~~ (stale count; 2026-07-10 recount: 45 directories), including functional, interop, deployment-like, stress, web, editor, install, firewall, traffic, VPP, L2TP, PPPoE, and managed suites
 - [ ] `internal/**/*.yang` glob - YANG config, command, and API surfaces exist across components and plugins
 - [ ] `internal/**/register.go` glob - extensive startup registration and schema/plugin wiring surface
-- [ ] `test/interop/scenarios/*/check.py` glob - BGP interop scenarios currently include numbered scenarios through `35-srv6-frr`
+- [ ] `test/interop/scenarios/*/check.py` glob - BGP interop scenarios currently include numbered scenarios through `bgp-srv6-frr`
 - [ ] `docs/architecture/testing/interop.md` - documented scenario inventory currently lists scenarios through 32, which appears stale compared with the tree
 - [ ] `plan/spec-release-evidence-gate.md` - release evidence gate already planned as separate target work
 - [ ] `plan/spec-rbac-audit.md` - RBAC and audit hardening already planned separately
@@ -181,7 +181,7 @@ belong in separate future fix work approved after the audit finding is filed.
 | API and MCP | `internal/component/api/`, `internal/component/mcp/` | `release-audit-4-web-lg-api` | Include REST, gRPC, command dispatch, auth, streaming |
 | Linux/system paths | `internal/component/iface/`, `firewall/`, `traffic/`, `vpp/`, plugins under `fib/`, `kernel/`, `ifacenetlink/` | `release-audit-6-system-linux` | Requires QEMU/Linux/deployment evidence where applicable |
 | Release tests | `test/` | all child audits | ~~32 test directories observed~~ (2026-07-10: 45) |
-| Interop tests | `test/interop/scenarios/` | `release-audit-2-bgp-protocol` | ~~Tree has scenarios through `35-srv6-frr`; docs list through 32~~ (2026-07-10: 101 scenario directories; see Post-wave corrections) |
+| Interop tests | `test/interop/scenarios/` | `release-audit-2-bgp-protocol` | ~~Tree has scenarios through `bgp-srv6-frr`; docs list through 32~~ (2026-07-10: 101 scenario directories; see Post-wave corrections) |
 | Documentation | `docs/`, `README*`, guide pages | `release-audit-8-docs-onboarding` | Must match actual command/config behavior |
 
 ## Child Audit Set
@@ -427,7 +427,7 @@ Despite the template heading, these are audit documentation steps only. They do 
 
 | ID | Severity | Surface | Observation | Destination |
 |----|----------|---------|-------------|-------------|
-| RA-DOC-001 | Minor | docs/interop | `docs/architecture/testing/interop.md` lists interop scenarios through 32, while the tree contains `33-bfd-frr`, `34-ecmp-frr`, and `35-srv6-frr` | `spec-release-audit-8-docs-onboarding.md` |
+| RA-DOC-001 | Minor | docs/interop | `docs/architecture/testing/interop.md` lists interop scenarios through 32, while the tree contains `bfd-frr`, `bgp-ecmp-frr`, and `bgp-srv6-frr` | `spec-release-audit-8-docs-onboarding.md` |
 | RA-PROC-001 | Note | process | `tmp/session/selected-spec` lists `spec-doctor-coverage.md`, but no matching `plan/spec-doctor-coverage.md` file exists in this tree | Session/spec hygiene follow-up |
 
 ## Mistake Log
@@ -584,7 +584,7 @@ Re-verified against the current tree after the followup implementation wave (unp
 | "35 component directories" (Current Behavior; Core components inventory row) | 43 directories under `internal/component/` |
 | "22 plugin directories" (Current Behavior; plugins inventory row) | 63 top-level directories under `internal/plugins/`; additionally the nested `internal/plugins/exabgp/bridgeplugin` registers the NEW plugin `exabgp-bridge` (`internal/plugins/exabgp/bridgeplugin/register.go`) |
 | "32 test directories" (Current Behavior; Release tests row) | 45 directories under `test/` |
-| Interop scenarios "through `35-srv6-frr`"; docs "list through 32" (Current Behavior; Interop tests row; finding RA-DOC-001) | 101 scenario directories under `test/interop/scenarios/`; `docs/DESIGN.md` states "101 interop scenarios"; `docs/architecture/testing/interop.md` lists `33-bfd-frr` in its core table (through 37). RA-DOC-001 as filed is superseded; the residual count drift across docs (96 vs 97 vs 101) is tracked in `spec-release-audit-8-docs-onboarding.md` Post-wave corrections |
+| Interop scenarios "through `bgp-srv6-frr`"; docs "list through 32" (Current Behavior; Interop tests row; finding RA-DOC-001) | 101 scenario directories under `test/interop/scenarios/`; `docs/DESIGN.md` states "101 interop scenarios"; `docs/architecture/testing/interop.md` lists `bfd-frr` in its core table (through 37). RA-DOC-001 as filed is superseded; the residual count drift across docs (96 vs 97 vs 101) is tracked in `spec-release-audit-8-docs-onboarding.md` Post-wave corrections |
 | "API and MCP" surface row (streaming via legacy handler implied) | MCP is Streamable-HTTP-only: legacy `internal/component/mcp/handler.go` was deleted; `internal/component/mcp/streamable.go` `handlePOST`, `handleGET`, `handleDELETE` are the sole transport |
 | Inventory seed omits wave-new surfaces | `internal/core/dnsserver` (shared DNS listener core: DoT `secure.go`, DoH `secure.go`, consumed by as112 + geodns) and `internal/plugins/exabgp/bridgeplugin` need owner-audit rows when child audits resume |
 

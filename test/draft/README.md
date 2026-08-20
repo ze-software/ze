@@ -23,7 +23,7 @@ working on unrelated things, who then had to decide whether the red was theirs.
 Mirror the real suite directory one level down:
 
 ```
-test/plugin/eor.ci          <- the real test, every gate applies
+test/plugin/eor-per-family.ci          <- the real test, every gate applies
 test/draft/plugin/eor.ci    <- the draft, no gate applies
 ```
 

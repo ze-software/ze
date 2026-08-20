@@ -34,7 +34,7 @@ So there appear to be two route-programming paths:
 
 | Path | Programs via | Can name an egress interface |
 |------|--------------|------------------------------|
-| static's own backend | `routeBackend` in `internal/plugins/static/` | Yes. `test/static/005-table-interface.ci` and `006-interface-nexthop-no-backend.ci` exercise interface-only next-hops |
+| static's own backend | `routeBackend` in `internal/plugins/static/` | Yes. `test/static/static-table-interface.ci` and `test/static/static-interface-nexthop-no-backend.ci` exercise interface-only next-hops |
 | sysrib merged best path | `(system-rib, best-change)` → `fibkernel` / `fibvpp` | No. There is no field for it |
 
 **None of the following is established, and each changes what this spec should
@@ -83,7 +83,7 @@ external plugin processes decode.
 - [ ] `internal/plugins/static/backend_linux.go`, `backend_vpp_linux.go` - how an interface-only next-hop is programmed today
 
 **Behavior to preserve:**
-- Interface-only next-hops on static routes keep working on both dataplanes. `test/static/005-table-interface.ci` and `006-interface-nexthop-no-backend.ci` must not regress.
+- Interface-only next-hops on static routes keep working on both dataplanes. `test/static/static-table-interface.ci` and `test/static/static-interface-nexthop-no-backend.ci` must not regress.
 - The JSON shape external FIB plugin processes already decode, unless the compatibility decision explicitly versions it.
 
 **Behavior to change:**
@@ -184,9 +184,9 @@ external plugin processes decode.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `005-table-interface` (existing, must not regress) | `test/static/005-table-interface.ci` | An interface-only next-hop still programs | |
-| `006-interface-nexthop-no-backend` (existing, must not regress) | `test/static/006-interface-nexthop-no-backend.ci` | The no-backend case still fails with an actionable error | |
-| `002-fib-route`, `007-fib-route-lookup` (existing, must not regress) | `test/vpp/002-fib-route.ci`, `test/vpp/007-fib-route-lookup.ci` | Routes still program and resolve on VPP after the payload changes | |
+| `static-table-interface` (existing, must not regress) | `test/static/static-table-interface.ci` | An interface-only next-hop still programs | |
+| `static-interface-nexthop-no-backend` (existing, must not regress) | `test/static/static-interface-nexthop-no-backend.ci` | The no-backend case still fails with an actionable error | |
+| `vpp-fib-route`, `vpp-fib-route-lookup` (existing, must not regress) | `test/vpp/vpp-fib-route.ci`, `test/vpp/vpp-fib-route-lookup.ci` | Routes still program and resolve on VPP after the payload changes | |
 | `isis-route-install`, `ospf-route-install` (existing, must not regress) | `test/isis/isis-route-install.ci`, `test/ospf/ospf-route-install.ci` | IGP routes still reach the FIB | |
 | new: interface-scoped route on the merged path | `test/static/*.ci` (only if Q-2 finds a consumer) | A route naming an egress interface reaches the FIB with that interface attached | |
 

@@ -93,7 +93,7 @@ Tests exposed these bugs in `internal/component/config/editor/completer.go`:
 |-----|-------------|------|
 | Missing `environment` | `environment` not exposed as root-level completion target | `cli-completion-env-*.ci` |
 | Missing `plugin` | `plugin` not exposed as root-level completion target | `cli-completion-plugin-external.ci` |
-| `show`/`edit` missing leaves | `show+` and `edit+` only return containers, should also return leaves | `cli-completion-show-targets.ci`, `cli-completion-bgp-edit.ci` |
+| `show`/`edit` missing leaves | `show+` and `edit+` only return containers, should also return leaves | `cli-completion-targets-show.ci`, `cli-completion-bgp-edit.ci` |
 | Set-path list key navigation | `set bgp peer 1.1.1.1 ` should descend into peer context, shows list keys instead | `cli-completion-set-deep-path.ci` |
 
 These are bugs in the Completer, not the test infrastructure. The tests express correct expectations.

@@ -142,8 +142,8 @@ out-of-tree plugin authors who cannot be migrated.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `002-fib-route` (existing, must not regress) | `test/vpp/002-fib-route.ci` | Routes still program on VPP | |
-| `001-boot-apply`, `002-reload-add` (existing, must not regress) | `test/static/001-boot-apply.ci`, `test/static/002-reload-add.ci` | Static routes still program on the kernel | |
+| `vpp-fib-route` (existing, must not regress) | `test/vpp/vpp-fib-route.ci` | Routes still program on VPP | |
+| `static-boot-apply`, `static-reload-add` (existing, must not regress) | `test/static/static-boot-apply.ci`, `test/static/static-reload-add.ci` | Static routes still program on the kernel | |
 | new: discard route round trip | `test/static/*.ci` | A configured blackhole route drops traffic, and the route type an external plugin sees is the documented one | |
 
 ## Files to Modify

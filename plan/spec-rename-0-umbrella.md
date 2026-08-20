@@ -158,7 +158,7 @@ The name dies with the decomposition, whichever destination that work gets.
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | existing decode suite | `test/decode/bgp-flow-1.ci` (and siblings) | BGP UPDATE decode unchanged after children 2-3 | |
-| existing encode suite | `test/encode/attributes.ci` (and siblings) | BGP UPDATE encode unchanged after children 2-3 | |
+| existing encode suite | `test/encode/attributes-encode.ci` (and siblings) | BGP UPDATE encode unchanged after children 2-3 | |
 | existing IPsec parse suite | `test/parse/ipsec-eap-auth.ci` (and siblings) | IKE config + engine unchanged after child 1 | |
 
 ### Interop Tests (MANDATORY for protocol features)

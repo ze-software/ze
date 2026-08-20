@@ -163,8 +163,8 @@ NOT in the repository, and nothing here is sourced from them. See L-2.
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
 | operator commits a NAS-Port-Id template | → | config verify accepts it, or names the supported placeholders | `test/l2tp/radius-nas-port-id.ci`, `test/l2tp/radius-nas-port-id-invalid.ci` |
-| PPP session authenticates via RADIUS with a NAS-Port-Id template configured | → | Access-Request carries attr 87 with the resolved string | `test/l2tp/radius-acct-wire.ci`, `test/l2tp-interop/scenarios/04-radius-acct-attrs` |
-| session with an IPv4 assignment reaches Accounting-Start | → | Accounting-Request carries attrs 8 and 87 | `test/l2tp/radius-acct-wire.ci`, `test/l2tp-interop/scenarios/04-radius-acct-attrs` |
+| PPP session authenticates via RADIUS with a NAS-Port-Id template configured | → | Access-Request carries attr 87 with the resolved string | `test/l2tp/radius-acct-wire.ci`, `test/interop-l2tp/scenarios/04-radius-acct-attrs` |
+| session with an IPv4 assignment reaches Accounting-Start | → | Accounting-Request carries attrs 8 and 87 | `test/l2tp/radius-acct-wire.ci`, `test/interop-l2tp/scenarios/04-radius-acct-attrs` |
 
 ## Acceptance Criteria
 
@@ -183,8 +183,8 @@ NOT in the repository, and nothing here is sourced from them. See L-2.
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | operator configures a NAS-Port-Id template; subscriber connects | config → template resolve → auth and accounting packets | `test/l2tp-interop/scenarios/04-radius-acct-attrs` |
-| 2 | subscriber gets an address; billing reads the accounting records | session event → acct builder → attrs 8 and 87 on the wire | `test/l2tp-interop/scenarios/04-radius-acct-attrs` |
+| 1 | operator configures a NAS-Port-Id template; subscriber connects | config → template resolve → auth and accounting packets | `test/interop-l2tp/scenarios/04-radius-acct-attrs` |
+| 2 | subscriber gets an address; billing reads the accounting records | session event → acct builder → attrs 8 and 87 on the wire | `test/interop-l2tp/scenarios/04-radius-acct-attrs` |
 
 ## 🧪 TDD Test Plan
 
@@ -221,7 +221,7 @@ every input that cannot produce it.
 | `radius-nas-port-id` | `test/l2tp/radius-nas-port-id.ci` | an operator's template is accepted by the same verify path the daemon runs at boot | PASS |
 | `radius-nas-port-id-invalid` | `test/l2tp/radius-nas-port-id-invalid.ci` | a template ze cannot resolve is refused, and the error names what is supported | PASS |
 | `radius-acct-wire` | `test/l2tp/radius-acct-wire.ci` (`needs-linux:caps=net-admin`) | a real kernel PPP session; the RADIUS server decodes attrs 8 and 87, and the peer cross-checks the reported address against the one IPCP settled | PASS in QEMU |
-| `04-radius-acct-attrs` | `test/l2tp-interop/scenarios/04-radius-acct-attrs` | the same proof against a real xl2tpd/pppd LAC | PASS |
+| `04-radius-acct-attrs` | `test/interop-l2tp/scenarios/04-radius-acct-attrs` | the same proof against a real xl2tpd/pppd LAC | PASS |
 
 The wire emission needs a PPP session, a PPP session needs the kernel PPPoL2TP
 channel, and that needs CAP_NET_ADMIN. That rules it out on an unprivileged dev
@@ -234,7 +234,7 @@ proxy LCP AVPs, and IPCP, so ze reaches a real assigned address.
 ### Interop Tests (MANDATORY for protocol features)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `04-radius-acct-attrs` | `test/l2tp-interop/scenarios/` | xl2tpd + pppd (LAC), mock RADIUS server | the attributes decode off the wire, and the address reported is the one pppd negotiated | PASS |
+| `04-radius-acct-attrs` | `test/interop-l2tp/scenarios/` | xl2tpd + pppd (LAC), mock RADIUS server | the attributes decode off the wire, and the address reported is the one pppd negotiated | PASS |
 
 `radius-acct-wire.ci` proves the same behavior against ze's own kernel data
 plane in QEMU; the interop scenario proves it against an independent
@@ -254,14 +254,14 @@ implementation. Both are kept: they catch different failure shapes.
 - `internal/component/l2tp/plugins/authradius/config.go` - `nas-port-id-format`
 - `internal/component/l2tp/plugins/authradius/register.go` - one atomic apply
 - `internal/component/l2tp/plugins/authradius/yang/ze-l2tp-auth-radius-conf.yang` - the leaf
-- `test/l2tp-interop/Dockerfile.ze` - build the lab image with the personality and feature tags
+- `test/interop-l2tp/Dockerfile.ze` - build the lab image with the personality and feature tags
 - `docs/guide/l2tp.md` - the new leaf and the accounting address
 
 ## Files to Create
 - `internal/component/l2tp/plugins/authradius/nasportid.go`
 - `internal/component/l2tp/plugins/authradius/nasportid_test.go`
 - `internal/component/l2tp/plugins/authradius/acct_address_test.go`
-- `test/l2tp-interop/scenarios/04-radius-acct-attrs/` - interop scenario
+- `test/interop-l2tp/scenarios/04-radius-acct-attrs/` - interop scenario
 - `test/l2tp/radius-nas-port-id.ci`, `test/l2tp/radius-nas-port-id-invalid.ci` - config surface
 - `test/l2tp/radius-acct-wire.ci` - the wire, in QEMU, for a real PPP session
 
@@ -286,7 +286,7 @@ implementation. Both are kept: they catch different failure shapes.
 ### Wrong Assumptions
 | What was assumed | What was true | How discovered | Impact |
 |------------------|---------------|----------------|--------|
-| The L2TP interop lab was usable as-is | Its image built `cmd/ze` with no build tags, so the binary had no `start` root command and no L2TP feature; the lab could not boot ze at all | first run of the new scenario printed "unknown command: start" | fixed in `test/l2tp-interop/Dockerfile.ze`, the same fix `test/interop/Dockerfile.ze` already carried |
+| The L2TP interop lab was usable as-is | Its image built `cmd/ze` with no build tags, so the binary had no `start` root command and no L2TP feature; the lab could not boot ze at all | first run of the new scenario printed "unknown command: start" | fixed in `test/interop-l2tp/Dockerfile.ze`, the same fix `test/interop/Dockerfile.ze` already carried |
 | A delegated IPv6 prefix exists somewhere in a session | The allocator is never wired: `startIPv6Service` is called with a nil prefix handler and `l2tp.GetPrefixHandler` has no caller at all | traced the producer of `IPv6Service.delegatedPrefix` | attributes 97 and 123 have no value to report (L-1) |
 
 ## Known Limitations
@@ -330,7 +330,7 @@ implemented, with the value location for each:
 
 **L-5. Interim-update scheduling** stays out of scope: `plan/spec-radius-acct-timewheel.md`.
 
-**L-6. `test/pppoe-interop/Dockerfile.ze` has the same untagged-build defect** the
+**L-6. `test/interop-pppoe/Dockerfile.ze` has the same untagged-build defect** the
 L2TP lab had (see Mistake Log). It was not changed here because no run in this
 session could verify a pppoe lab fix.
 
@@ -350,7 +350,7 @@ session could verify a pppoe lab fix.
   format past 253 octets (also bounded in the YANG leaf), and `{nas-id}` with no
   `nas-identifier` set. Each would otherwise have produced no attribute and no
   diagnostic.
-- `test/l2tp-interop/Dockerfile.ze` now builds with `ze_core` plus the feature tags
+- `test/interop-l2tp/Dockerfile.ze` now builds with `ze_core` plus the feature tags
   from `feature-gates.txt`. Without this the lab could not start ze at all.
 - Interop scenario `04-radius-acct-attrs`: xl2tpd/pppd LAC, ze as LNS, a mock RADIUS
   server that decodes and prints what it received.

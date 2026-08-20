@@ -336,7 +336,7 @@ func runPingBatch(
 	// runPingSession emits in resolution order (a late or lost probe resolves
 	// after later ones); sort by sequence so the batch output is deterministic
 	// and keeps the old serial 0..N-1 order that printPingResults (offline.go)
-	// and show-ping.ci render.
+	// and ping-show.ci render.
 	sort.Slice(replies, func(i, j int) bool {
 		si, _ := replies[i]["seq"].(int)
 		sj, _ := replies[j]["seq"].(int)

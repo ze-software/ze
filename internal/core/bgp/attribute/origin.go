@@ -176,7 +176,7 @@ func ParseOrigin(data []byte) (Origin, error) {
 // reactor/reactor_api_batch.go buildWireModeUpdate (insertAttrOrdered). A route
 // therefore left the daemon as two different byte strings depending on which
 // builder produced it, and an exact-hex functional test became a test of the rail
-// rather than of the route: test/plugin/flowspec.ci asserted EXT_COMMUNITIES
+// rather than of the route: test/plugin/flowspec-announce.ci asserted EXT_COMMUNITIES
 // before MP_REACH because a static config route produced its bytes, while the
 // same route sent through `update text` produced the reverse.
 //

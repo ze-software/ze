@@ -6,7 +6,7 @@
 #            family after the BGP session is established". ipv4/unicast carries a
 #            route here and ipv6/unicast carries none; both get their marker.
 # PREVENTS:  the reading that ze sends End-of-RIB only for families that carried
-#            routes. test/plugin/eor.ci proves the two-family case with NO routes
+#            routes. test/plugin/eor-per-family.ci proves the two-family case with NO routes
 #            at all, where every family is silent and the two readings agree. This
 #            is the fixture that tells them apart.
 #
@@ -24,7 +24,7 @@
 #
 # Marker hex: ipv4/unicast is a minimum-length UPDATE; every other family is an
 # UPDATE carrying only MP_UNREACH_NLRI for its <AFI, SAFI> (RFC 4724 Section 2).
-# Both are copied from test/plugin/eor.ci, which derives them from exabgp.
+# Both are copied from test/plugin/eor-per-family.ci, which derives them from exabgp.
 #
 # The route frame at seq=1, field by field: 16 marker octets, length 0x0031 = 49,
 # type 02 = UPDATE, withdrawn-routes-length 0x0000, path-attribute-length 0x0015 =

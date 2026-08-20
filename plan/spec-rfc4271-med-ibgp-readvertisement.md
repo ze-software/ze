@@ -67,8 +67,8 @@ Closure is blocked: no current runnable normal BGP RIB-selected route-to-peer pr
 - [ ] `internal/component/bgp/reactor/forward_med_test.go` - proves configured ingress removal and normal internal propagation, but does not exercise post-selection raw removal.
 - [ ] `internal/component/bgp/reactor/forward_dedup_test.go` - uses a changed MED as a raw-override identity marker. A future IBGP MED-preservation guard would invalidate that fixture even though the dedup behavior remains correct.
 - [ ] `test/plugin/med-removal-export-refused.ci` - proves the public export directive is refused. It does not cover lower-level raw replacement.
-- [ ] `test/interop/scenarios/60-med-across-as-gobgp/` - proves normal MED propagation behavior against GoBGP. It does not discriminate the post-selection removal finding.
-- [ ] `test/interop/scenarios/61-med-remove-configured-gobgp/` - proves configured ingress removal against GoBGP. It does not discriminate the post-selection removal finding.
+- [ ] `test/interop/scenarios/bgp-med-across-as-gobgp/` - proves normal MED propagation behavior against GoBGP. It does not discriminate the post-selection removal finding.
+- [ ] `test/interop/scenarios/bgp-med-remove-configured-gobgp/` - proves configured ingress removal against GoBGP. It does not discriminate the post-selection removal finding.
 
 **Behavior to preserve:**
 
@@ -221,8 +221,8 @@ Closure is blocked: no current runnable normal BGP RIB-selected route-to-peer pr
 
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `62-med-ibgp-post-selection-removal-gobgp` | `test/interop/scenarios/62-med-ibgp-post-selection-removal-gobgp/` | GoBGP | A foreign IBGP peer receives MED after a reachable raw egress removal attempt on the route-server rail; reverting the guard removes MED and fails the check. This is not normal BGP selected-route readvertisement proof. | written and pending rerun |
-| `61-med-remove-configured-gobgp` | `test/interop/scenarios/61-med-remove-configured-gobgp/` | GoBGP | Existing ingress removal remains absent and is not synthesized | existing |
+| `bgp-med-ibgp-post-selection-removal-gobgp` | `test/interop/scenarios/bgp-med-ibgp-post-selection-removal-gobgp/` | GoBGP | A foreign IBGP peer receives MED after a reachable raw egress removal attempt on the route-server rail; reverting the guard removes MED and fails the check. This is not normal BGP selected-route readvertisement proof. | written and pending rerun |
+| `bgp-med-remove-configured-gobgp` | `test/interop/scenarios/bgp-med-remove-configured-gobgp/` | GoBGP | Existing ingress removal remains absent and is not synthesized | existing |
 
 ## Files to Modify
 
@@ -237,7 +237,7 @@ Closure is blocked: no current runnable normal BGP RIB-selected route-to-peer pr
 ## Files to Create
 
 - `test/plugin/med-ibgp-post-selection-removal.ci` - functional raw producer-to-wire proof through the existing route-server rail.
-- `test/interop/scenarios/62-med-ibgp-post-selection-removal-gobgp/` - discriminating foreign-peer proof through the same route-server rail.
+- `test/interop/scenarios/bgp-med-ibgp-post-selection-removal-gobgp/` - discriminating foreign-peer proof through the same route-server rail.
 
 ### Integration Checklist
 

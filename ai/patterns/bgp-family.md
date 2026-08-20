@@ -166,7 +166,7 @@ New CLI verbs or identifiers can collide with existing config grammar.
 These must exist before claiming done. They are not "nice to have."
 
 ```
-[ ] test/decode/ .ci file per AFI (e.g., bgp-srpolicy-1.ci, bgp-srpolicy-2.ci)
+[ ] test/decode/ .ci file per AFI (e.g., bgp-srpolicy-1-decode.ci, bgp-srpolicy-2-decode.ci)
 [ ] test/encode/ .ci round-trip test if the family supports encoding
 [ ] test/interop/ scenario if FRR/Bird supports the family
       (also check existing interop configs for stale syntax)

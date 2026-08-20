@@ -164,7 +164,7 @@ audit snapshot and implementation.
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | existing decode suites | `test/decode/bgp-flow-1.ci` (and siblings) | lazy UPDATE parse unchanged | |
-| existing encode suites | `test/encode/attributes.ci` (and siblings) | encode + split unchanged | |
+| existing encode suites | `test/encode/attributes-encode.ci` (and siblings) | encode + split unchanged | |
 
 ### Interop Tests (MANDATORY for protocol features)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |

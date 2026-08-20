@@ -33,7 +33,7 @@ Both are blocked on the same fact, and a session that retries them will rediscov
 | Test | Blocker |
 |------|---------|
 | `test/ipsec/ipsec-child-rekey-no-proposal.ci` | A static config cannot make IKE_AUTH succeed and the later CHILD REKEY fail. A disjoint `esp-group` fails `selectResponderESP` at IKE_AUTH, so the SA never establishes and the rekey never happens. `respondChildRekey` matches against `ESPGroup.Proposals[0]`, which `selectResponderESP` has already narrowed to the negotiated suite, so a two-proposal responder still matches |
-| `test/ipsec-interop/scenarios/19-error-notifications/` | Same blocker, against strongSwan |
+| `test/interop-ipsec/scenarios/19-error-notifications/` | Same blocker, against strongSwan |
 
 A session would need one of two things. A config surface that changes `esp-group` on a live
 SA while the peer stays up, or a test seam that narrows `ESPGroup` after establishment.

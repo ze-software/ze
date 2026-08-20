@@ -64,7 +64,7 @@ from ze_api import API, runtime_fail
 def peer_state(event, want):
     """True when event is a BGP state event reporting `want`.
 
-    Shape read from a working observer (test/plugin/refresh.ci): the event is
+    Shape read from a working observer (test/plugin/plugin-refresh.ci): the event is
     {"bgp": {"message": {"type": "state"}, "state": "up"|"down"}}.
     """
     if not isinstance(event, dict):

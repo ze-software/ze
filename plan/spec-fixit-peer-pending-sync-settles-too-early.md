@@ -13,7 +13,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-`test/plugin/mup4.ci` and `test/plugin/ipv6.ci` fail under CPU
+`test/plugin/mup-ipv4-announce.ci` and `test/plugin/ipv6-announce-withdraw.ci` fail under CPU
 oversubscription because a plugin's `quiesce()` returns before the peer's
 initial sync is owed, so a withdraw joins the same initial dump and overtakes
 the End-of-RIB marker.
@@ -54,7 +54,7 @@ with it on, delivering the same relayed route twice. Separating "initial sync
 running" from "End-of-RIB not yet sent" is the shape that unblocks it.
 
 **A ruling must be adjudicated before either half lands.**
-`test/plugin/nexthop.ci` quotes Thomas, 2026-07-27: the marker is ordered only
+`test/plugin/plugin-nexthop.ci` quotes Thomas, 2026-07-27: the marker is ordered only
 against this speaker's own initial dump, never against routes learned
 afterwards. That was applied to a PLUGIN-INJECTED route by analogy with
 `role-otc-unicast-scope.ci`, where the route is FORWARDED from another peer.
@@ -126,7 +126,7 @@ reported against the wrong pair of frames. That is landed and proven.
 | [fill at design time] | [fill at design time] | a connecting peer is not reported settled |
 
 ### Functional Tests
-- [ ] `test/plugin/mup4.ci` and `test/plugin/ipv6.ci` under oversubscribed runs
+- [ ] `test/plugin/mup-ipv4-announce.ci` and `test/plugin/ipv6-announce-withdraw.ci` under oversubscribed runs
 - [ ] `test/plugin/role-otc-rs-withdraw-eor.ci` must not regress
 
 ## Files to Modify

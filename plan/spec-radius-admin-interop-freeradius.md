@@ -48,7 +48,7 @@ confidence (FreeRADIUS quirks), not new wire coverage.
 
 **Source files read:** (to be completed during /ze-spec)
 - [ ] `test/interop/interop.py` -- how a scenario's daemon container is built, started, and probed.
-- [ ] `test/interop/scenarios/01-ebgp-ipv4-frr/` -- reference scenario layout (ze.conf + peer.conf + check.py).
+- [ ] `test/interop/scenarios/bgp-ebgp-ipv4-frr/` -- reference scenario layout (ze.conf + peer.conf + check.py).
 - [ ] `internal/component/radius/authenticator.go` -- the backend the scenario validates.
 
 **Behavior to preserve:** all existing BGP interop scenarios; the admin backend unchanged.

@@ -65,7 +65,8 @@ VRRP_VIP = "172.30.0.100"
 # 127.0.0.1:2222" and the RIB helpers below could not run at all. The harness
 # appends the two blocks to the RENDERED copy of every ze.conf
 # (_render_scenario_dir), so no scenario carries boilerplate and none can
-# forget it. The same arrangement drives test/ipsec-interop/lab.py.
+# forget it. `Scenario._prepare_ze_conf` (test/interop-ipsec/lab.py) appends its
+# own copy of the same two blocks for the IPsec lab.
 #
 # The bcrypt hash is the published cost-4 hash the functional suite already uses
 # (test/plugin/authz-default.ci), so this adds no new secret.
@@ -91,7 +92,7 @@ environment {
 }
 """
 
-# IPv6 link-local must be enabled in the container netns for the OSPFv3 (ospf-v6-frr)
+# IPv6 link-local must be enabled in the container netns for the OSPFv3 (ospfv3-frr)
 # scenario: OSPFv3 runs over ff02::5 on eth0. These sysctls are no-ops on hosts that
 # already default disable_ipv6=0 (the common case) and harmless to IPv4-only scenarios.
 _IPV6_SYSCTLS = [
@@ -914,8 +915,8 @@ class FRR:
         """Check if session is currently Established. Raises when vtysh failed.
 
         Three scenarios read this NEGATIVELY to prove a session went down:
-        `45-max-prefix-cease-frr` waits for the cease teardown, `33-bfd-frr`
-        times the BFD-driven failover, and `46-max-prefix-per-family-frr` holds
+        `bgp-max-prefix-cease-frr` waits for the cease teardown, `bfd-frr`
+        times the BFD-driven failover, and `bgp-max-prefix-per-family-frr` holds
         the session up. A "" from a failed read is not Established, so the first
         two would call the teardown proven the moment the read broke, and the
         second would report a drop that never happened.
@@ -1403,7 +1404,7 @@ class FRROSPF6:
         whole-token type match (against FRR's per-version abbreviations) never matches the
         database header lines, so an empty as-external LSDB reports False.
 
-        That is why it raises when vtysh failed: `ospf-v6-stub-frr` asserts this
+        That is why it raises when vtysh failed: `ospfv3-stub-frr` asserts this
         is False, and a failed read reports False for a reason the stub area had
         nothing to do with.
         """
@@ -1488,7 +1489,7 @@ class BIRD:
     def has_route(self, prefix):
         """Check if prefix in routing table. Raises when birdc failed.
 
-        `39-policy-import-export-frr` asserts this is False to prove the export
+        `bgp-policy-import-export-frr` asserts this is False to prove the export
         prefix-list denied a route, so a failed read would prove the deny.
         """
         output = self._birdc("show route for %s" % prefix)
@@ -1879,7 +1880,7 @@ def wait_containers_healthy(timeout=30):
     # This site catches ONE case: the plugin already stopped ze by the time the
     # loop gave up, so "containers not healthy" would name the symptom 30
     # seconds after the cause. It is not the general net, and the round 4 review
-    # measured why: on `11-addpath-frr` the plugin failed 6s in, this loop had
+    # measured why: on `bgp-addpath-frr` the plugin failed 6s in, this loop had
     # already returned green, and the run still spent 90s reporting the wrong
     # cause. Whether this site fires is a race between the peer daemon becoming
     # responsive and the plugin failing. The site that fires on EVERY scenario

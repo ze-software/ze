@@ -3,7 +3,7 @@
 
 Usage:
     python3 test/interop/run.py                     # run all scenarios
-    python3 test/interop/run.py 01-ebgp-ipv4-frr    # run specific scenario
+    python3 test/interop/run.py bgp-ebgp-ipv4-frr    # run specific scenario
     VERBOSE=1 python3 test/interop/run.py            # verbose output
 
 Environment:

@@ -131,7 +131,7 @@ Check `make ze-spec-status` before starting.
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
 | BGP UPDATE bytes from a peer | → | `bgp/packet` parse -> reactor dispatch | `test/decode/bgp-flow-1.ci` (and decode siblings) pass unchanged |
-| Route announcement outbound | → | reactor -> `bgp/packet` encode -> wire | `test/encode/attributes.ci`, `test/encode/addpath.ci` pass unchanged |
+| Route announcement outbound | → | reactor -> `bgp/packet` encode -> wire | `test/encode/attributes-encode.ci`, `test/encode/addpath-encode.ci` pass unchanged |
 | Integration harness drives a session | → | `test/integration` imports the renamed package directly | `test/integration/session_test.go` and siblings compile + pass |
 
 ## Acceptance Criteria
@@ -169,7 +169,7 @@ Check `make ze-spec-status` before starting.
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | existing decode suites | `test/decode/bgp-flow-1.ci`, `test/decode/bgp-evpn-1.ci` (and siblings) | UPDATE decode unchanged | |
-| existing encode suites | `test/encode/attributes.ci`, `test/encode/addpath.ci` (and siblings) | UPDATE encode unchanged | |
+| existing encode suites | `test/encode/attributes-encode.ci`, `test/encode/addpath-encode.ci` (and siblings) | UPDATE encode unchanged | |
 
 ### Interop Tests (MANDATORY for protocol features)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |

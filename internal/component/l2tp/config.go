@@ -39,7 +39,7 @@ var (
 		Private:     true,
 	})
 	// Test-only: skip the modprobe l2tp_ppp / pppol2tp probe at Start.
-	// The .ci test harness sets this so show-l2tp-empty.ci can verify
+	// The .ci test harness sets this so l2tp-empty-show.ci can verify
 	// the CLI wiring without CAP_NET_ADMIN. Production paths leave it
 	// unset, so the real probe runs and surfaces loader errors.
 	_ = env.MustRegister(env.EnvEntry{

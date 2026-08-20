@@ -75,7 +75,7 @@ Container names include the runner PID as suffix, so concurrent runs do not conf
 Each scenario is a directory under `test/interop/scenarios/`:
 
 ```
-scenarios/01-ebgp-ipv4-frr/
+scenarios/bgp-ebgp-ipv4-frr/
   ze.conf        # Ze configuration (required)
   frr.conf       # FRR configuration (starts FRR container)
   check.py       # Python assertions (required)
@@ -94,14 +94,14 @@ alongside `rpki-server` and `bmp-collector.py`:
 |------|---------|---------|
 | `inject.msg` | `ze-test peer` (raw injector, 172.30.0.9) | Drive Ze with wire bytes no conforming daemon would emit -- e.g. an UPDATE mixing Withdrawn Routes with NLRI (RFC 7606 Section 5.1), which every receiver must accept but no sender may produce. Ze dials it (`accept false` in `ze.conf`), so the injector runs `ze-test peer` in check mode against the `inject.msg` expect/action script. An optional `inject-args` file adds flags (`--asn` is important, or the peer adopts Ze's ASN). Because the injector and Ze start before the peer daemons, a route the injector announces is stored in Ze before FRR connects, so it is delivered by Ze's replay-on-peer-up path -- useful for testing the re-encode/replay rail specifically. |
 | `speaker-args` (and optional `speaker2-args`) | Minimal Python speaker (172.30.0.10; second at 172.30.0.11) | Dial Ze with an INDEPENDENT strict peer that applies one per-test check. The fixed engine (`test/interop/speaker/engine.py`) establishes, loads a plugin named in `speaker-args` (`--test /speaker/plugins/<name>.py`), inspects every UPDATE, and prints a verdict `check.py` reads via `docker logs`. Unlike `ze-test peer`, which asserts only the bytes it was told to expect, a speaker plugin runs its own validator -- e.g. RFC 7606 Section 3(g) duplicate attributes -- so it catches wire output Ze's own lenient validator waves through. Started after Ze (like the daemons), so it exercises the replay rail; keep it connected with `--stop-after-updates 0` when the check bytes arrive on Ze's delta-replay rather than the first initial-sync UPDATE. A `speaker2-args` file starts a second instance at a distinct IP/router-id (scenario 49 proves two engines establish without colliding). See `plan/spec-bgp-plugin-speaker.md`. |
-| `vrps.json` | StayRTR (172.30.0.12:8282) | Serve RPKI VRPs from a real third-party cache, so Ze is the RTR client of an implementation that is not its own. `rpki-server` above runs `ze-test rpki`, which is Ze's encoder answering Ze's decoder, and that pair agrees with itself whatever it does. The file is the rpki-client / Routinator JSON export format: `roas` of prefix, `maxLength` and `asn`. StayRTR serves the same set back on `http://172.30.0.12:9847/rpki.json`. A `check.py` reads that export to learn what the CACHE meant, rather than what the scenario intended. A cache-side decode fault fails OPEN, because every prefix then reads NotFound and `not-found accept` accepts it. So assert the per-prefix validation ANSWER, never the session. Worked example: `58-rtr-stayrtr`. |
+| `vrps.json` | StayRTR (172.30.0.12:8282) | Serve RPKI VRPs from a real third-party cache, so Ze is the RTR client of an implementation that is not its own. `rpki-server` above runs `ze-test rpki`, which is Ze's encoder answering Ze's decoder, and that pair agrees with itself whatever it does. The file is the rpki-client / Routinator JSON export format: `roas` of prefix, `maxLength` and `asn`. StayRTR serves the same set back on `http://172.30.0.12:9847/rpki.json`. A `check.py` reads that export to learn what the CACHE meant, rather than what the scenario intended. A cache-side decode fault fails OPEN, because every prefix then reads NotFound and `not-found accept` accepts it. So assert the per-prefix validation ANSWER, never the session. Worked example: `rtr-stayrtr`. |
 
 <!-- source: test/interop/interop.py -- inject.msg sidecar startup, INJECT_CONTAINER -->
 <!-- source: test/interop/interop.py -- speaker-args sidecar startup, SPEAKER_CONTAINER -->
 <!-- source: test/interop/interop.py -- vrps.json sidecar startup, STAYRTR_CONTAINER -->
-<!-- source: test/interop/scenarios/47-rfc7606-relay-shape-frr/ -- injector worked example -->
-<!-- source: test/interop/scenarios/48-rfc7606-speaker-dup-attr/ -- speaker worked example -->
-<!-- source: test/interop/scenarios/58-rtr-stayrtr/ -- StayRTR worked example -->
+<!-- source: test/interop/scenarios/bgp-rfc7606-relay-shape-frr/ -- injector worked example -->
+<!-- source: test/interop/scenarios/bgp-rfc7606-speaker-dup-attr/ -- speaker worked example -->
+<!-- source: test/interop/scenarios/rtr-stayrtr/ -- StayRTR worked example -->
 
 ### Prove a scenario discriminates
 
@@ -127,7 +127,7 @@ Methods follow a naming convention:
 
 All classes (`FRR`, `BIRD`, `GoBGP`, `Ze`) are defined in `interop.py`. Each wraps the
 daemon's native CLI (`vtysh`, `birdc`, `gobgp`, `ze`) via `docker exec`. Start with an
-existing scenario (e.g., `01-ebgp-ipv4-frr/check.py`) as a template.
+existing scenario (e.g., `bgp-ebgp-ipv4-frr/check.py`) as a template.
 
 ### Querying Ze
 
@@ -145,8 +145,8 @@ SSH. No scenario `ze.conf` asks. The harness appends `ZE_CLI_CONFIG` -- the
 listener plus the account it authenticates against -- to the RENDERED copy of
 every `ze.conf` (`_render_scenario_dir`), so no scenario carries the boilerplate
 and none can forget it. A scenario that forgot it would fail its assertions for a
-reason unrelated to what it tests. `test/ipsec-interop/lab.py` does the same thing
-for the IPsec lab.
+reason unrelated to what it tests. The IPsec lab appends its own copy of the same
+two blocks, in `Scenario._prepare_ze_conf` (`test/interop-ipsec/lab.py`).
 
 **A Ze helper never converts a failed query into a plausible number.**
 `Ze.rib_count` raises when the command fails or answers without a `routes-in`
@@ -190,20 +190,20 @@ Three call sites, and the first covers every failure the other two miss:
 | Site | Fires when |
 |------|-----------|
 | `run.py`, the scenario's `except BaseException` handler | on every scenario failure other than a Ctrl-C. An interrupt is counted and ends the loop, whether it arrives before this point or during the read itself, so the run still prints its summary. Uses `observer_failure_note`, which returns text instead of raising, because a second exception there would replace the failure being reported |
-| `wait_containers_healthy` | only when the plugin already stopped Ze before the health loop gave up. A race, measured as such on `11-addpath-frr` |
+| `wait_containers_healthy` | only when the plugin already stopped Ze before the health loop gave up. A race, measured as such on `bgp-addpath-frr` |
 | `check.py`, before the first wait and again when a wait fails | when the scenario knows which of its own waits the plugin can outrun |
 <!-- source: test/interop/interop.py -- observer_fail_line, raise_if_observer_failed, observer_failure_note -->
 <!-- source: test/interop/run.py -- main -->
-<!-- source: test/interop/scenarios/55-wire-edit-api-origin-bird/check.py -- worked example -->
+<!-- source: test/interop/scenarios/bgp-wire-edit-api-origin-bird/check.py -- worked example -->
 
 ### Scenario Inventory
 
 The suite has grown to over 100 scenario directories in `test/interop/scenarios/`. The table
 below lists the core BGP scenarios (01-37); beyond these, the suite also covers route
 reflection, policy import/export, RPKI origin validation, BMP monitoring, PATHS-LIMIT,
-max-prefix cease, GTSM, AS112, ADD-PATH re-advertisement (`addpath-readvertise-collision-frr`
+max-prefix cease, GTSM, AS112, ADD-PATH re-advertisement (`bgp-addpath-readvertise-collision-frr`
 proves a receiver keeps two paths whose sources both chose one Path Identifier, and
-`addpath-rail-agreement-speaker` proves the live forward and the peer-up replay emit the same
+`bgp-addpath-rail-agreement-speaker` proves the live forward and the peer-up replay emit the same
 bytes for one path), and full IS-IS (auth, convergence, dual-stack, LAN DIS,
 P2P, redistribution) and OSPFv2/OSPFv3 (auth, BFD, TE, LFA/TI-LFA, graceful restart,
 segment routing, opaque LSAs, stub/NSSA, virtual links, and more) interop families.
@@ -253,7 +253,7 @@ segment routing, opaque LSAs, stub/NSSA, virtual links, and more) interop famili
 
 ```bash
 make ze-interop-test                                  # all scenarios
-make ze-interop-test INTEROP_SCENARIO=01-ebgp-ipv4-frr  # single scenario
+make ze-interop-test INTEROP_SCENARIO=bgp-ebgp-ipv4-frr  # single scenario
 VERBOSE=1 make ze-interop-test                         # debug output
 NO_BUILD=1 make ze-interop-test                        # skip image rebuilds
 FRR_IMAGE=quay.io/frrouting/frr:10.3 make ze-interop-test  # override FRR version
@@ -273,7 +273,7 @@ For more detail:
 
 - `VERBOSE=1` enables debug output (polling status, container commands, raw CLI output)
 - `SESSION_TIMEOUT=120` increases the session establishment timeout (default 90s)
-- Single-scenario runs isolate the problem: `make ze-interop-test INTEROP_SCENARIO=13-graceful-restart-frr`
+- Single-scenario runs isolate the problem: `make ze-interop-test INTEROP_SCENARIO=bgp-graceful-restart-frr`
 
 ### Writing a New Scenario
 
@@ -366,11 +366,11 @@ Not yet covered by interop tests:
 
 | Vendor | Limitation | Affected Scenario | Workaround |
 |--------|-----------|-------------------|------------|
-| GoBGP 3.31 | Deduplicates Multiprotocol capabilities by AFI. When two families share the same AFI (e.g., ipv4-unicast + l3vpn-ipv4-unicast, both AFI=1), GoBGP keeps only one. | 29-vpn-gobgp | None from Ze side. Ze's OPEN is correct per RFC 4760. Families with different AFIs (e.g., ipv4-unicast + l2vpn-evpn) work fine. |
-| BIRD 2.15 | Enforces next-hop reachability for IPv6 routes. On IPv4-only Docker networks, IPv6 next-hops are unreachable and BIRD rejects routes as invalid (RFC 7606 treat-as-withdraw). | 25-ipv6-ebgp-bird | Add `multihop;` to BIRD config to disable the directly-connected next-hop check. |
+| GoBGP 3.31 | Deduplicates Multiprotocol capabilities by AFI. When two families share the same AFI (e.g., ipv4-unicast + l3vpn-ipv4-unicast, both AFI=1), GoBGP keeps only one. | bgp-vpn-gobgp | None from Ze side. Ze's OPEN is correct per RFC 4760. Families with different AFIs (e.g., ipv4-unicast + l2vpn-evpn) work fine. |
+| BIRD 2.15 | Enforces next-hop reachability for IPv6 routes. On IPv4-only Docker networks, IPv6 next-hops are unreachable and BIRD rejects routes as invalid (RFC 7606 treat-as-withdraw). | bgp-ipv6-ebgp-bird | Add `multihop;` to BIRD config to disable the directly-connected next-hop check. |
 
-<!-- source: test/interop/scenarios/29-vpn-gobgp -- GoBGP same-AFI dedup -->
-<!-- source: test/interop/scenarios/25-ipv6-ebgp-bird -- BIRD next-hop reachability -->
+<!-- source: test/interop/scenarios/bgp-vpn-gobgp -- GoBGP same-AFI dedup -->
+<!-- source: test/interop/scenarios/bgp-ipv6-ebgp-bird -- BIRD next-hop reachability -->
 
 ## Related Documents
 

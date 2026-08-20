@@ -1,6 +1,6 @@
 // Guard for scenario 55's failure-path diagnosis.
 //
-// `_check` (scenarios/55-wire-edit-api-origin-bird/check.py) catches its own
+// `_check` (scenarios/bgp-wire-edit-api-origin-bird/check.py) catches its own
 // assertion and asks whether a process plugin was the real cause. Since that
 // read was made strict, it has two failure answers rather than one, and they
 // must not be treated alike: a plugin sentinel REPLACES the assertion, an

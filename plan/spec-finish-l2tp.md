@@ -40,7 +40,7 @@ This is a consolidation skeleton created from verified deferral survivors (backl
   -> Constraint: verify current behaviour against this source before designing.
 - [ ] `internal/component/l2tp/ppp/session_run.go` (LCP restart timer / IRC-ZRC at :206,:306,:896)
   -> Constraint: verify current behaviour against this source before designing.
-- [ ] `test/l2tp-interop/`, ~~`mk/test-integration.mk`~~ mk/test-integration.mk :129-131 (interop harness; :112 is stale, see Post-wave corrections 2026-07-10)
+- [ ] `test/interop-l2tp/`, ~~`mk/test-integration.mk`~~ mk/test-integration.mk :129-131 (interop harness; :112 is stale, see Post-wave corrections 2026-07-10)
   -> Constraint: verify current behaviour against this source before designing.
 
 ## Current Behavior (MANDATORY)
@@ -74,7 +74,7 @@ This is a consolidation skeleton created from verified deferral survivors (backl
 
 ### Integration Points
 - `internal/component/l2tp/ppp/`
-- `test/l2tp-interop/`
+- `test/interop-l2tp/`
 - `docs/architecture/core-design.md`
 
 ### Architectural Verification
@@ -118,7 +118,7 @@ This is a consolidation skeleton created from verified deferral survivors (backl
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| accel-ppp-lcp, offline-show-tunnels (new) (`.ci`) | test/l2tp-interop, test/plugin | LNS behaviour vs a real LAC / live daemon | |
+| accel-ppp-lcp, offline-show-tunnels (new) (`.ci`) | test/interop-l2tp, test/plugin | LNS behaviour vs a real LAC / live daemon | |
 
 ## Files to Modify
 
@@ -177,5 +177,5 @@ This is a consolidation skeleton created from verified deferral survivors (backl
 
 ### Post-wave corrections (2026-07-10)
 
-- Stale line ref fixed: `mk/test-integration.mk` no longer points at the l2tp interop harness (line 112 now falls inside the deployment-evidence VPP block, between the `ze-deployment-vpp-test` recipe at :109-111 and `ze-deployment-vpp-iface-test` at :113). Verified current l2tp locations: the l2tp `.PHONY` declarations are at mk/test-integration.mk (plus `ze-qemu-l2tp-ppp-test` in the QEMU line :27); the target recipes are at :121-139 (`ze-deployment-l2tp-test` :121, `ze-deployment-l2tp-ppp-test` :125, `ze-deployment-docker-l2tp-ppp-test` :129, which invokes the `test/l2tp-interop/run.py` harness at :131, `ze-deployment-gokrazy-l2tp-ppp-test` :137) and `ze-qemu-l2tp-ppp-test` at :337. Core NCP/LCP evidence (`ncp.go`, `session_run.go` refs) is untouched by the wave.
+- Stale line ref fixed: `mk/test-integration.mk` no longer points at the l2tp interop harness (line 112 now falls inside the deployment-evidence VPP block, between the `ze-deployment-vpp-test` recipe at :109-111 and `ze-deployment-vpp-iface-test` at :113). Verified current l2tp locations: the l2tp `.PHONY` declarations are at mk/test-integration.mk (plus `ze-qemu-l2tp-ppp-test` in the QEMU line :27); the target recipes are at :121-139 (`ze-deployment-l2tp-test` :121, `ze-deployment-l2tp-ppp-test` :125, `ze-deployment-docker-l2tp-ppp-test` :129, which invokes the `test/interop-l2tp/run.py` harness at :131, `ze-deployment-gokrazy-l2tp-ppp-test` :137) and `ze-qemu-l2tp-ppp-test` at :337. Core NCP/LCP evidence (`ncp.go`, `session_run.go` refs) is untouched by the wave.
 - Coordination note: this spec is DISTINCT from the in-flight `plan/spec-followup-l2tp-call.md` (designed, in-progress as of 2026-07-10). Whoever picks this skeleton up must check that spec's state at design time and coordinate scope so neither duplicates nor contradicts the other's l2tp test work.
