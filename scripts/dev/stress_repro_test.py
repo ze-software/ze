@@ -18,8 +18,11 @@ nothing calls passes every test written about the helper.
 """
 
 import importlib.util
+import os
 import pathlib
 import subprocess
+import sys
+import tempfile
 import unittest
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -155,6 +158,86 @@ class TestRunSlug(unittest.TestCase):
         m = load()
         self.assertEqual(m.run_slug("web --draft", ""), "web-draft")
         self.assertEqual(m.run_slug("web", None), "web")
+
+    def test_main_assigns_the_log_path_it_prints(self):
+        """run_slug must be wired into main, not merely defined.
+
+        The helper landed and its `logpath = ...` call site did not, so every
+        invocation died with `NameError: name 'logpath' is not defined` on the
+        header print, before a single test ran. The tests above all passed:
+        they call run_slug directly, which is exactly the blind spot
+        test_usage_helper_is_actually_wired was written for the first time this
+        happened.
+        """
+        body = SCRIPT.read_text(encoding="utf-8")
+        assigns = [
+            line
+            for line in body.splitlines()
+            if line.lstrip().startswith("logpath =") and "run_slug(" in line
+        ]
+        self.assertEqual(
+            len(assigns),
+            1,
+            f"main must assign logpath from run_slug exactly once, found: {assigns}",
+        )
+
+
+class TestMainRuns(unittest.TestCase):
+    """main() must run end to end, not die on a name it never bound.
+
+    Every test above imports the module and calls a helper, so a NameError in
+    main is invisible to all of them -- and that is what shipped: the tool died
+    on `logpath` before starting a single test. This drives the entry point,
+    with two stub binaries standing in for ze and ze-test so the run reaches
+    the loop, finishes, and reports. A healthy tool prints its log path and
+    exits 1 (nothing reproduced). A broken one exits 1 too, which is why the
+    traceback and the log line are both asserted.
+    """
+
+    def test_entry_point_runs_to_completion(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            stubs = {}
+            for name in ("ze", "ze-test"):
+                path = pathlib.Path(tmp) / name
+                path.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+                path.chmod(0o755)
+                stubs[name] = str(path)
+
+            env = dict(os.environ)
+            env["ZE_BIN"] = stubs["ze"]
+            env["ZE_TEST_BIN"] = stubs["ze-test"]
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    str(SCRIPT),
+                    "bgp plugin",
+                    "--test",
+                    "4",
+                    "--iterations",
+                    "1",
+                    "--parallel",
+                    "1",
+                    "--burners",
+                    "1",
+                    "--minutes",
+                    "1",
+                ],
+                capture_output=True,
+                text=True,
+                env=env,
+                timeout=120,
+            )
+
+        output = proc.stdout + proc.stderr
+        self.assertNotIn("Traceback", output, output)
+        self.assertIn(
+            "log:", proc.stdout, f"the run never printed its capture path\n{output}"
+        )
+        self.assertEqual(
+            proc.returncode,
+            1,
+            f"want the not-reproduced exit; got {proc.returncode}\n{output}",
+        )
 
 
 if __name__ == "__main__":

@@ -121,7 +121,9 @@ def build_stress_ze(tags, out_path):
     ]
     env = os.environ.copy()
     env["CGO_ENABLED"] = "1"
-    print(f"building test-only race-instrumented stress ze: {' '.join(cmd)}", flush=True)
+    print(
+        f"building test-only race-instrumented stress ze: {' '.join(cmd)}", flush=True
+    )
     r = subprocess.run(cmd, cwd=REPO, env=env, capture_output=True, text=True)
     if r.returncode != 0:
         sys.stderr.write(r.stdout + r.stderr)
@@ -321,6 +323,11 @@ def main():
     ts = time.strftime("%Y%m%d-%H%M%S")
     outdir = os.path.join(REPO, "tmp", "stress-repro")
     os.makedirs(outdir, exist_ok=True)
+    # run_slug keeps the suite and selector to ONE filename component. Without
+    # this assignment every invocation died with NameError on the first print
+    # below, before a single test ran -- the same defect shape the module
+    # docstring already records: a helper landed and its call site did not.
+    logpath = os.path.join(outdir, f"{run_slug(args.suite, args.sel)}-{ts}.log")
 
     ze_bin = _bin_from_env("ze.bin", os.path.join(REPO, "bin", "ze"))
     test_bin = _bin_from_env("ze.test.bin", os.path.join(REPO, "bin", "ze-test"))
