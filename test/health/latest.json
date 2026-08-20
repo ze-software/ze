@@ -119,7 +119,7 @@
       "action": "Add a real assertion, or annotate with `// test-asserts-nothing: <why>` when the oracle is genuinely implicit (a must-not-panic smoke test).",
       "detail": "These execute code and pass unconditionally. Breaking the code under test would not turn them red.",
       "inert": {
-        "denominator": 23098,
+        "denominator": 23126,
         "numerator": 134,
         "percent": 0.6
       },
@@ -127,7 +127,7 @@
       "label": "Tests with no reachable failure call",
       "question": "Q1",
       "status": "ok",
-      "value": "134 / 23098 (floor 134)",
+      "value": "134 / 23126 (floor 134)",
       "worst": [
         {
           "file": "cmd/ze/hub/aaa_lifecycle_test.go",
@@ -218,19 +218,19 @@
     {
       "action": "This is volume, not health. It is here to state the counting boundary, because a count that silently includes vendored tests inflates by ~6x.",
       "counts": {
-        "bench_funcs": 137,
+        "bench_funcs": 135,
         "ci_files": 1657,
         "et_files": 165,
         "fuzz_funcs": 78,
         "test_files": 3170,
-        "test_funcs": 23133
+        "test_funcs": 23161
       },
-      "detail": "3170 Go test files, 78 fuzz targets, 137 benchmarks, 1657 .ci scenarios, 165 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.",
+      "detail": "3170 Go test files, 78 fuzz targets, 135 benchmarks, 1657 .ci scenarios, 165 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.",
       "key": "inventory",
       "label": "In-repo test inventory",
       "question": "Q2",
       "status": "ok",
-      "value": "23133 test functions"
+      "value": "23161 test functions"
     },
     {
       "action": "Take the lowest-scoring package and add tests until its survivors die.",
