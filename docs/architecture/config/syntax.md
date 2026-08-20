@@ -953,12 +953,18 @@ update {
 | `rate-limit:<bps>` | Rate limit in bytes per second |
 | `rate-limit:<bps>:bytes` | Explicit bytes-per-second form, canonicalized to `rate-limit:<bps>` |
 | `rate-limit:<pps>:packets` | Rate limit in packets per second |
-| `redirect:<asn>:<value>` | Redirect to VRF |
-| `redirect-to-nexthop <ip>` | Redirect to IP (RFC 7674) |
+| `redirect:<asn>:<value>` | Redirect to the VRF that imports this route-target. A 2-octet AS takes type 0x80 with a 4-octet value; a 4-octet AS takes type 0x82 with a 2-octet value |
+| `redirect:<ipv4>:<value>` | The same redirect with an IPv4-address route-target: type 0x81 with a 2-octet value |
+| `redirect-to-nexthop <ipv4>` | Redirect to one IPv4 address |
+| `redirect-to-nexthop <ipv6>` | Redirect to one IPv6 address. This community is 20 octets, so it travels in IPV6_EXTENDED_COMMUNITIES (attribute 25, RFC 5701) instead of attribute 16 |
 | `redirect-to-nexthop-draft` | Redirect to next-hop (draft) |
 | `copy-to-nexthop` | Copy to next-hop |
-| `action sample-terminal` | Sampling action |
-| `mark <dscp>` | Set DSCP value |
+| `action sample`, `action terminal`, `action sample-terminal`, `action none` | Sampling and terminal action bits. A word outside this set is refused |
+| `mark <dscp>` | Set DSCP value, 0 to 63. RFC 8955 Section 7.5 gives the DSCP six bits, so a larger value is refused instead of truncated |
+
+The three redirect encodings are the three RFC 8955 Section 7.4 names: the administrator you write selects the type, and the type fixes how large the value can be. A value too large for its form is refused, because a truncated route-target names a different VRF.
+
+A rate must be a finite number. A negative rate is refused because RFC 8955 Section 7.1 forbids encoding one, and `NaN` and `Inf` are refused because the RFC gives a rate or the zero that means discard, and a decoder reads `NaN` back as that zero.
 
 Legacy ExaBGP 5.0 packet-rate syntax `rate-limit-packets:<pps>` is still accepted during parsing. ExaBGP's explicit byte form `rate-limit:<bps>:bytes` is also accepted and normalized to bare `rate-limit:<bps>`.
 
