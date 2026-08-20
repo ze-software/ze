@@ -142,6 +142,49 @@ def _is_shutdown_dispatch(method: str, params: Any) -> bool:
     return command.strip() in _SHUTDOWN_COMMANDS
 
 
+# _ANSWER_TAIL_KEYS are every key a record-shaped answer line can open with.
+# The list is the reader's whole grammar: a tail that opens with none of them
+# is not a record-shaped line.
+_ANSWER_TAIL_KEYS = (
+    "status=",
+    "key=",
+    "item=",
+    "fault=",
+    "count=",
+    "faults=",
+    "message=",
+    "code=",
+)
+
+
+def _split_wire_line(line: str) -> tuple[int, str, str]:
+    """Split `#<id> <verb> [<tail>]` and leave the tail undecoded.
+
+    `API._parse_line` json.loads the tail, which a record-shaped answer line
+    is not. This one keeps the bytes, so a test can assert on them.
+    """
+    if not line.startswith("#"):
+        raise RuntimeError(f"line missing # prefix: {line[:80]}")
+    id_str, _, body = line[1:].partition(" ")
+    verb, _, tail = body.partition(" ")
+    return int(id_str), verb, tail
+
+
+def _ends_answer(verb: str, tail: str) -> bool:
+    """Report whether this line is the last one of its answer.
+
+    An answer in the original shape is one line, so any tail that is not a
+    key=value tail ends it. So does the error verb, which carries a
+    not-understood answer on its only line. An answer in the record shape ends
+    at the terminator, which is the line carrying count=.
+    """
+    if verb == "error":
+        return True
+    if not tail.startswith(_ANSWER_TAIL_KEYS):
+        return True
+    return tail.startswith("count=")
+
+
 class API:
     """ZeBGP API client using YANG RPC protocol.
 
@@ -825,12 +868,20 @@ class API:
             }
         )
 
-    def capability_done(self) -> None:
+    def capability_done(self, protocol: list[str] | None = None) -> None:
         """Signal Stage 3 capability declaration complete.
 
         Sends ze-plugin-engine:declare-capabilities RPC.
+
+        Args:
+            protocol: Wire shapes this plugin understands, by name
+                ("record-answers" is the only one). Omitting it declares none,
+                which is what every plugin written before a shape existed
+                sends, and the engine answers it in the original shape.
         """
-        params = {"capabilities": self._capabilities}
+        params: dict[str, Any] = {"capabilities": self._capabilities}
+        if protocol:
+            params["protocol"] = protocol
         self._call_engine("ze-plugin-engine:declare-capabilities", params)
 
     # ==================================================================
@@ -1063,6 +1114,65 @@ class API:
         return self._call_engine(
             "ze-plugin-engine:dispatch-command", {"command": command}
         )
+
+    def dispatch_wire_lines(
+        self, command: str, timeout: float = 5.0, settle: float = 0.5
+    ) -> list[str]:
+        """Dispatch a command and return the RAW answer lines, unparsed.
+
+        This is the wire-shape view ``dispatch`` hides: it returns the bytes
+        the engine wrote, so a test can assert on the frame rather than on a
+        decoded payload. An answer in the original shape is ONE line,
+        ``#<id> ok <json>``. An answer in the record shape is a head, one line
+        for each record, and a terminator carrying ``count=``.
+
+        Reading stops at the first line that ends the answer: a tail that is
+        not a key=value tail, or a terminator. It then waits ``settle`` for one
+        more line and appends whatever arrives, so a test can prove that
+        NOTHING follows the line it expected to be the last. The lines of one
+        answer are written back to back on one connection, so ``settle`` is
+        short by design: it is the cost every call pays.
+
+        Args:
+            command: Full command string for the dispatcher
+            timeout: Seconds to wait for each line of the answer
+            settle: Seconds to wait for a line AFTER the answer ended
+
+        Returns:
+            The raw lines carrying this request's id, in arrival order.
+        """
+        req_id = self._next_id()
+        self._send_rpc(
+            self._engine_fd,
+            req_id,
+            "ze-plugin-engine:dispatch-command",
+            {"command": command},
+        )
+
+        lines: list[str] = []
+        answered = False
+        while True:
+            wait = settle if answered else timeout
+            if self._tls_mode:
+                line = self._read_tls_line(timeout=wait)
+            else:
+                line = self._read_line(self._engine_fd, "_engine_buf", timeout=wait)
+            if line is None:
+                return lines
+            line_id, verb, tail = _split_wire_line(line)
+            if verb not in ("ok", "error"):
+                # An engine-initiated request muxed onto this connection.
+                # Queue it for _serve_one rather than drop it, exactly as
+                # _call_engine does.
+                if self._tls_mode:
+                    self._pending_requests.append(self._parse_line(line))
+                continue
+            if line_id != req_id:
+                continue
+            lines.append(line)
+            if answered:
+                return lines
+            answered = _ends_answer(verb, tail)
 
     def dispatch_until(
         self,
@@ -2342,9 +2452,9 @@ def declare_capability(code: int, payload: str, encoding: str = "b64") -> None:
     _get_api().declare_capability(code, payload, encoding)
 
 
-def capability_done() -> None:
+def capability_done(protocol: list[str] | None = None) -> None:
     """Signal Stage 3 capability declaration complete."""
-    _get_api().capability_done()
+    _get_api().capability_done(protocol)
 
 
 def wait_for_registry(timeout: float = 10.0) -> dict:
