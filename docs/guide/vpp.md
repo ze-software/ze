@@ -121,12 +121,18 @@ without it accepts the config and then fails the WHOLE apply at the binary-API
 layer, with a raw VPP error that names the failing message rather than the missing
 plugin. `ze doctor` reports `doctor-vpp-lcp-plugin` first. The probe reads the
 RUNNING VPP with `vppctl show plugins`, not the filesystem: what matters is what
-the loaded VPP has, not whether a copy exists on disk. A probe that cannot answer
-degrades to a WARNING and never claims the plugin is missing, because `vppctl`
-exits non-zero identically for an absent binary, an absent socket, and a wedged
-VPP, and none of those is evidence about which plugins VPP loaded. An absent
-`enabled` leaf reads as on, matching the YANG default.
-<!-- source: internal/plugins/iface/vpp/doctor.go -- checkVPPLCPPlugin, lcpEnabled, lcpPluginSO -->
+the loaded VPP has, not whether a copy exists on disk. An absent `enabled` leaf
+reads as on, matching the YANG default.
+
+Severity follows what the probe proved. A probe that answers and does not list
+the plugin is an ERROR, and `ze doctor` reports the host as not ready. A probe
+that cannot answer degrades to a WARNING and never claims the plugin is missing.
+`vppctl` exits non-zero identically for an absent binary, an absent socket, and a
+wedged VPP. A zero exit counts as an answer only when the output carries the
+`Plugin path is:` line VPP prints ahead of the plugin rows: empty or truncated
+output lists no plugin at all, so it is a WARNING too. None of those is evidence
+about which plugins VPP loaded.
+<!-- source: internal/plugins/iface/vpp/doctor.go -- checkVPPLCPPlugin, lcpEnabled, lcpPluginSO, vppctlPluginsHeader -->
 <!-- source: internal/core/diagnostic/codes.go -- doctor-vpp-lcp-plugin -->
 
 <!-- source: internal/component/vpp/yang/ze-vpp-conf.yang -- lcp container netns default "dataplane" -->

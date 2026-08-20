@@ -342,9 +342,49 @@ func lcpNetnsIsRootMarker(netns string) bool {
 // the RUNNING VPP loaded it, not whether some copy exists on disk.
 const lcpPluginSO = "linux_cp_plugin.so"
 
+// vppctlPluginsHeader is the first line `vppctl show plugins` prints, ahead of
+// the column titles and the numbered plugin rows. The check requires it before
+// it reads an ABSENT plugin name as evidence: vppctl exits zero for output that
+// is empty or truncated, and a name missing from nothing says nothing about
+// which plugins the running VPP loaded.
+const vppctlPluginsHeader = "Plugin path is:"
+
 // vppProbeTimeout bounds the vppctl probe. Doctor runs before apply and must
 // stay responsive on a host where VPP is wedged rather than merely absent.
 const vppProbeTimeout = 3 * time.Second
+
+// lcpPluginProbe reports which plugins the RUNNING VPP loaded. It carries the
+// raw text of `vppctl show plugins`. It is NIL on every platform VPP does not
+// run on. "No probe is opened there" is then a property of the value, not of a
+// branch no test can reach.
+//
+// A var rather than a plain function, for the reason lcpNetnsDir is one: the
+// unit tests drive all three answers on any platform. The three are plugin
+// listed, plugin absent, and probe failed. Every test that calls
+// checkVPPLCPPlugin MUST set it and MUST restore it. Left alone on Linux it
+// execs the real vppctl, and the answer then depends on the host.
+var lcpPluginProbe = defaultLCPPluginProbe()
+
+// defaultLCPPluginProbe returns the plugin probe for this platform, and nil
+// where VPP does not run.
+func defaultLCPPluginProbe() func(context.Context) (string, error) {
+	if runtime.GOOS != goosLinux {
+		return nil
+	}
+	return vppctlShowPlugins
+}
+
+// vppctlShowPlugins asks the running VPP which plugins it loaded. It goes
+// through the CLI socket vppctl dials. It reports the same error for an absent
+// vppctl binary, an absent socket and a wedged VPP. A caller MUST NOT read that
+// error as evidence about the plugin set.
+func vppctlShowPlugins(ctx context.Context) (string, error) {
+	out, err := exec.CommandContext(ctx, "vppctl", "show", "plugins").Output() //nolint:gosec // fixed command, no user input
+	if err != nil {
+		return "", err
+	}
+	return string(out), nil
+}
 
 // lcpEnabled reports whether vpp.lcp is on. Absent container means off; a
 // present container with no `enabled` leaf means on (the YANG default), which
@@ -366,11 +406,23 @@ func lcpEnabled(tree *config.Tree) bool {
 // message, not the missing plugin. Probing here turns that into an actionable
 // pre-apply diagnostic.
 //
-// A failed probe degrades to a WARNING and never claims the plugin is missing:
-// `vppctl` exits non-zero for an absent binary, an absent socket and a wedged
-// VPP alike, and none of those is evidence about the plugin set. Reporting an
-// error there would fail closed in the wrong direction -- it would tell an
-// operator to rebuild VPP when the real problem is that VPP is not running.
+// Severity follows what the probe PROVED, so the two answers differ.
+//
+// A probe that ANSWERED and did not list the plugin is an ERROR. startup.conf
+// asked for linux_cp_plugin.so (component/vpp/startupconf.go) and the running
+// VPP does not have it. The first lcp_itf_pair_add_del then fails the whole
+// apply, so the failure is certain.
+//
+// A probe that gave no answer degrades to a WARNING and never claims the plugin
+// is missing. `vppctl` exits non-zero for an absent binary, an absent socket and
+// a wedged VPP alike. None of those is evidence about the plugin set. An error
+// there would fail closed in the wrong direction: it would tell an operator to
+// rebuild VPP while the real problem is that VPP is not running.
+//
+// Output that exits zero without vppctlPluginsHeader is no answer either. An
+// empty or truncated stdout carries no plugin row at all, so linux_cp is absent
+// from it whether or not VPP loaded it. That case degrades to the same WARNING,
+// for the same reason: a non-answer is not evidence.
 func checkVPPLCPPlugin(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
 	tree, ok := ctx.Tree.(*config.Tree)
 	if !ok || tree == nil {
@@ -379,16 +431,16 @@ func checkVPPLCPPlugin(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnosti
 	if !lcpEnabled(tree) {
 		return nil
 	}
-	// VPP is Linux-only, so on any other host there is nothing to probe and no
-	// connection is opened. Checked AFTER the config gate so the skip reason is
-	// "wrong platform", not "config absent".
-	if runtime.GOOS != goosLinux {
+	// VPP is Linux-only, so on any other host the probe is nil and nothing is
+	// opened. Checked AFTER the config gate so the skip reason is "wrong
+	// platform", not "config absent".
+	if lcpPluginProbe == nil {
 		return nil
 	}
 
 	probeCtx, cancel := context.WithTimeout(context.Background(), vppProbeTimeout)
 	defer cancel()
-	out, err := exec.CommandContext(probeCtx, "vppctl", "show", "plugins").Output() //nolint:gosec // fixed command, no user input
+	out, err := lcpPluginProbe(probeCtx)
 	var tb textbuf.Buffer
 	if err != nil {
 		return []diagnostic.Diagnostic{{
@@ -398,13 +450,22 @@ func checkVPPLCPPlugin(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnosti
 				Str(lcpPluginSO).Str(": ").Err(err).String(),
 		}}
 	}
-	if strings.Contains(string(out), lcpPluginSO) {
+	if !strings.Contains(out, vppctlPluginsHeader) {
+		return []diagnostic.Diagnostic{{
+			Code:     "doctor-vpp-lcp-plugin",
+			Severity: diagnostic.SeverityWarning,
+			Message: tb.Str("vpp.lcp is enabled but the running VPP could not be probed for ").
+				Str(lcpPluginSO).Str(": the probe exited zero without the \"").Str(vppctlPluginsHeader).
+				Str("\" line, so its output is empty or truncated").String(),
+		}}
+	}
+	if strings.Contains(out, lcpPluginSO) {
 		return nil
 	}
 	return []diagnostic.Diagnostic{{
 		Code:     "doctor-vpp-lcp-plugin",
 		Severity: diagnostic.SeverityError,
-		Message: "vpp.lcp is enabled but the running VPP does not load " + lcpPluginSO +
-			"; the linux_cp API is unavailable and the config apply will fail at the binapi layer",
+		Message: tb.Reset().Str("vpp.lcp is enabled but the running VPP does not load ").Str(lcpPluginSO).
+			Str("; the linux_cp API is unavailable and the config apply will fail at the binapi layer").String(),
 	}}
 }
