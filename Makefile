@@ -1293,16 +1293,27 @@ clean:
 	env -u GOCACHE go clean -cache
 	@python3 scripts/dev/ensure-links.py --quiet
 
-# clean-all is the full per-checkout wipe: bin/ + the SCRATCH contents (the tmp/ symlink
-# target, which includes the shared Go build caches AND every session's state), then
-# re-ensures the symlinks. It NEVER touches the durable cache/ (not scratch). Destructive
-# under concurrency: it removes sibling sessions' scratch and the shared caches -- use
-# `make clean` for the everyday, session-safe clean.
+# clean-all is the full per-checkout wipe: bin/ + the SCRATCH contents (all of tmp/,
+# which is every session's state) + both Go build caches, then it re-ensures the
+# symlinks.
+#
+# The durable cache/ IS emptied here (owner directive, 2026-08-20). It holds GOCACHE
+# (line 20: cache/ -> ~/.cache/ze), and that is the one tree in this checkout that
+# grows without a bound: it reached 261G of a 295G device and turned eight verify
+# stages red with `no space left on device`, twice
+# (plan/journal/full-disk-false-red.md, fourth occurrence). A full wipe that leaves
+# the only directory able to fill a disk is not a full wipe.
+#
+# Destructive under concurrency: it removes sibling sessions' scratch and the shared
+# caches -- use `make clean` for the everyday, session-safe clean.
 clean-all:
-	@echo "Cleaning EVERYTHING (bin/ + all of tmp/, shared caches included)..."
+	@echo "Cleaning EVERYTHING (bin/ + all of tmp/, both Go build caches)..."
 	rm -rf bin/
 	rm -f coverage.out coverage.html
 	@if [ -e tmp ]; then find tmp/ -mindepth 1 -maxdepth 1 -exec rm -rf {} + 2>/dev/null || true; fi
+	@echo "Emptying both Go build caches (repository override, then the default user cache)..."
+	go clean -cache
+	env -u GOCACHE go clean -cache
 	@python3 scripts/dev/ensure-links.py --quiet
 
 # go.mod is EXCLUDED from the file reap below: tmp/go.mod is the TRACKED sentinel
