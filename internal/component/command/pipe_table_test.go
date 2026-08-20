@@ -1,9 +1,13 @@
 package command
 
 import (
+	"encoding/json"
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // VALIDATES: key-value record renders as two-column table.
@@ -612,6 +616,59 @@ func TestSummaryAliasDropsRows(t *testing.T) {
 		fields := strings.Fields(line)
 		if len(fields) > 0 && fields[0] == "peers" {
 			t.Errorf("the peers array survived: %q", rendered)
+		}
+	}
+}
+
+// TestTableBuffersAndSaysSo checks the one limit R-6 of
+// plan/spec-streaming-answer-protocol.md accepts, and checks where it is paid.
+//
+// Two halves, because a limit nobody measured is a comment. The first half
+// measures the mechanism: a column is as wide as its widest cell, so the LAST
+// row decides the FIRST line and no line of a table can be written before the
+// answer ends. The second half holds the record path to the other side of that
+// bargain: `| table` changes no record and collects none, so the cost is the
+// renderer's alone and an operator can see where it goes.
+//
+// VALIDATES: R-6, the buffering is deliberate, named, and paid in one place.
+// PREVENTS: two collections of the same answer -- a record stage that gathers
+// rows for a renderer that gathers them again -- and a consumer that streams a
+// table's lines with widths decided by the rows that happened to arrive first.
+func TestTableBuffersAndSaysSo(t *testing.T) {
+	firstLine := func(rendered string) string {
+		line, _, _ := strings.Cut(rendered, "\n")
+		return line
+	}
+	narrow := ApplyTable(`[{"state":"up"},{"state":"up"}]`)
+	wide := ApplyTable(`[{"state":"up"},{"state":"idle-for-a-very-long-time"}]`)
+	if firstLine(narrow) == firstLine(wide) {
+		t.Errorf("the first line did not change with the last row, so a table would not need every row:\n%q\n%q", narrow, wide)
+	}
+
+	for _, chain := range []string{"show test rows | table", "show test rows | text"} {
+		produced, consumed := 0, 0
+		records := func(yield func(rpc.Record) bool) {
+			for i := range 5 {
+				var b textbuf.Buffer
+				b.Str(`{"row":`).Int(int64(i)).Str(`}`)
+				produced++
+				if !yield(rpc.Record{Item: json.RawMessage(b.String())}) {
+					return
+				}
+			}
+		}
+		for record := range ApplyPipesRecords(chain, records) {
+			consumed++
+			if produced != consumed {
+				t.Errorf("%q had produced %d records when it answered record %d: the record stage is collecting them for the renderer", chain, produced, consumed)
+			}
+			want := textbuf.StrIntStr(`{"row":`, int64(consumed-1), `}`)
+			if string(record.Item) != want {
+				t.Errorf("%q answered record %d as %q, want %q unchanged", chain, consumed, record.Item, want)
+			}
+		}
+		if consumed != produced {
+			t.Errorf("%q answered %d of %d records", chain, consumed, produced)
 		}
 	}
 }

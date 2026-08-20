@@ -1,5 +1,6 @@
 // Design: docs/architecture/api/commands.md — CLI pipe operators
 // Detail: pipe_table.go — table rendering (ApplyTable)
+// Detail: pipe_records.go — the same chain over a streamed answer, one record at a time
 // Related: format.go — YAML and number formatting
 //
 // pipe.go implements VyOS-style pipe operators for command output.
@@ -17,13 +18,11 @@ package command
 
 import (
 	"encoding/json"
-	"iter"
 	"strconv"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // pipeKind identifies the type of pipe operator.
@@ -363,24 +362,6 @@ func appendFilter(args []string, filter PipeFilter, value string) []string {
 		args = append(args, strings.Fields(value)...)
 	}
 	return args
-}
-
-// ApplyPipesRecords runs the pipe chain in input over records pulled one at a
-// time, and returns the records the chain leaves. It is the record-at-a-time
-// half of ApplyPipes: an operator that reads a record and forgets it (json,
-// ndjson, yaml, match, first, count, display) never holds the answer, while
-// table and text buffer because a column width needs every row.
-//
-// Ranging the returned sequence pulls from records, so a consumer that stops
-// ranging stops the walk that produces them. That is what makes `| first 10`
-// over a table with a million rows cost ten rows.
-//
-// No operator reads records yet, so every record passes through and `| first N`
-// bounds nothing. The record-at-a-time operators and the cancellation they
-// carry are phase 6 of plan/spec-streaming-answer-protocol.md, and
-// TestFirstNStopsTheGenerator is what holds them to it.
-func ApplyPipesRecords(input string, records iter.Seq[rpc.Record]) iter.Seq[rpc.Record] {
-	return records
 }
 
 // ApplyPipes runs the output through each pipe operator in order.

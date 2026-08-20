@@ -2,6 +2,8 @@ package command
 
 import (
 	"encoding/json"
+	"iter"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -1515,5 +1517,226 @@ func TestFirstNStopsTheGenerator(t *testing.T) {
 	}
 	if produced != wanted {
 		t.Errorf("generator produced %d rows, want %d: a consumer that stops must stop the walk", produced, wanted)
+	}
+}
+
+// The size of the answer the two memory tests below walk. 4000 records of 8 KiB
+// is 32 MiB, and an operator that collects them holds all of it at the last
+// record. The budget is an eighth of that: three orders of magnitude below what
+// collecting costs, and far above the noise of one measurement.
+const (
+	memoryWalkRecords = 4000
+	memoryWalkPayload = 8192
+	memoryWalkTotal   = memoryWalkRecords * memoryWalkPayload
+	memoryWalkBudget  = memoryWalkTotal / 8
+)
+
+// recordWalk is the generator half of a memory measurement. It counts the
+// records it produced and reads the live heap at the moment it produced the
+// last one, which is the moment an operator that collects records is holding
+// every one of them.
+type recordWalk struct {
+	produced int
+	baseline uint64
+	atLast   uint64
+}
+
+// records answers a generator of count records, each carrying payload bytes of
+// its own. Each record is a fresh allocation, so a consumer that keeps one
+// keeps its bytes and this measurement can see it.
+func (w *recordWalk) records(count, payload int) iter.Seq[rpc.Record] {
+	return func(yield func(rpc.Record) bool) {
+		for i := range count {
+			if i == 0 {
+				w.baseline = liveHeapBytes()
+			}
+			var b textbuf.Buffer
+			b.Str(`{"row":`).Int(int64(i)).Str(`,"pad":"`).Repeat("x", payload).Str(`"}`)
+			w.produced++
+			if i == count-1 {
+				w.atLast = liveHeapBytes()
+			}
+			if !yield(rpc.Record{Item: json.RawMessage(b.String())}) {
+				return
+			}
+		}
+	}
+}
+
+// heldAtLastRecord answers the bytes the consumer was still holding when the
+// walk produced its last record. A negative delta reads as zero: the heap can
+// end smaller than it started, and that is not a consumer holding records.
+func (w *recordWalk) heldAtLastRecord() uint64 {
+	if w.atLast < w.baseline {
+		return 0
+	}
+	return w.atLast - w.baseline
+}
+
+// liveHeapBytes answers the live heap after a full collection, so what it
+// reports is what something still references rather than what has been
+// allocated since.
+func liveHeapBytes() uint64 {
+	runtime.GC()
+	var stats runtime.MemStats
+	runtime.ReadMemStats(&stats)
+	return stats.HeapAlloc
+}
+
+// collectRecords drains a record sequence into a slice, which is what a test
+// asserts over.
+func collectRecords(records iter.Seq[rpc.Record]) []rpc.Record {
+	var collected []rpc.Record
+	for record := range records {
+		collected = append(collected, record)
+	}
+	return collected
+}
+
+// TestCountConsumesWithoutBuffering checks that `| count` answers the number of
+// records without holding them. The method: a generator produces 32 MiB of
+// records and reads the live heap at the last one. A count that collected the
+// records is holding all 32 MiB at that moment, and a count that reads one
+// record and forgets it is holding none of it.
+//
+// VALIDATES: O(1) memory for `| count`, whatever the answer's size.
+// PREVENTS: a record path that counts by collecting. It answers the same
+// number, so an assertion over the answer alone would pass over it, and the
+// memory this protocol exists to save would still be paid.
+func TestCountConsumesWithoutBuffering(t *testing.T) {
+	var walk recordWalk
+	kept := collectRecords(ApplyPipesRecords("show test rows | count", walk.records(memoryWalkRecords, memoryWalkPayload)))
+
+	if len(kept) != 1 {
+		t.Fatalf("| count answered %d records, want 1", len(kept))
+	}
+	if want := `{"count":4000}`; string(kept[0].Item) != want {
+		t.Errorf("| count answered %q, want %q", kept[0].Item, want)
+	}
+	if walk.produced != memoryWalkRecords {
+		t.Errorf("generator produced %d records, want %d: a count reads every one", walk.produced, memoryWalkRecords)
+	}
+	if held := walk.heldAtLastRecord(); held > memoryWalkBudget {
+		t.Errorf("| count held %d bytes at the last record, want under %d of the %d walked: the records are being collected rather than counted",
+			held, uint64(memoryWalkBudget), uint64(memoryWalkTotal))
+	}
+}
+
+// TestLastNKeepsRingBufferOnly checks that `| last N` holds N records and not
+// the answer. The method is TestCountConsumesWithoutBuffering's: 32 MiB walked,
+// the live heap read at the last record, and eight records asked for.
+//
+// VALIDATES: O(N) memory for `| last N`, with N the operator's argument rather
+// than the answer's size.
+// PREVENTS: an implementation that collects every record and slices the tail.
+// It answers the same eight rows, so only the memory tells the two apart.
+func TestLastNKeepsRingBufferOnly(t *testing.T) {
+	const wanted = 8
+
+	var walk recordWalk
+	kept := collectRecords(ApplyPipesRecords("show test rows | last 8", walk.records(memoryWalkRecords, memoryWalkPayload)))
+
+	if len(kept) != wanted {
+		t.Fatalf("| last 8 answered %d records, want %d", len(kept), wanted)
+	}
+	for i, record := range kept {
+		want := textbuf.StrIntStr(`{"row":`, int64(memoryWalkRecords-wanted+i), `,`)
+		if !strings.HasPrefix(string(record.Item), want) {
+			t.Errorf("record %d = %.20q..., want the record starting %q", i, record.Item, want)
+		}
+	}
+	if walk.produced != memoryWalkRecords {
+		t.Errorf("generator produced %d records, want %d: the last N are known only at the end", walk.produced, memoryWalkRecords)
+	}
+	if held := walk.heldAtLastRecord(); held > memoryWalkBudget {
+		t.Errorf("| last 8 held %d bytes at the last record, want under %d of the %d walked: the ring is holding more than the 8 records it was asked for",
+			held, uint64(memoryWalkBudget), uint64(memoryWalkTotal))
+	}
+}
+
+// TestRecordChainMatchesAndRefuses checks the two answers a record chain gives
+// that are not a transform of the rows: `| match` keeps the records that carry
+// the pattern, and a chain ValidatePipes refuses answers one fault and pulls
+// nothing.
+//
+// VALIDATES: `| match` reads one record at a time, and an unreadable chain
+// fails closed.
+// PREVENTS: a chain nobody could validate reaching an operator as an empty
+// answer, which reads exactly like a command that found no data.
+func TestRecordChainMatchesAndRefuses(t *testing.T) {
+	rows := []string{
+		`{"address":"192.0.2.1","state":"established"}`,
+		`{"address":"192.0.2.2","state":"idle"}`,
+		`{"address":"192.0.2.3","state":"established"}`,
+	}
+	produced := 0
+	records := func(yield func(rpc.Record) bool) {
+		for _, row := range rows {
+			produced++
+			if !yield(rpc.Record{Item: json.RawMessage(row)}) {
+				return
+			}
+		}
+	}
+
+	matched := collectRecords(ApplyPipesRecords("show test rows | match established", records))
+	if len(matched) != 2 {
+		t.Fatalf("| match kept %d records, want 2", len(matched))
+	}
+	for i, want := range []string{rows[0], rows[2]} {
+		if string(matched[i].Item) != want {
+			t.Errorf("record %d = %q, want %q", i, matched[i].Item, want)
+		}
+	}
+
+	produced = 0
+	refused := collectRecords(ApplyPipesRecords("show test rows | first zero", records))
+	if len(refused) != 1 {
+		t.Fatalf("a refused chain answered %d records, want one fault", len(refused))
+	}
+	if len(refused[0].Item) > 0 {
+		t.Errorf("a refused chain answered a result %q, want a fault", refused[0].Item)
+	}
+	if want := `{"message":"first requires a positive number"}`; string(refused[0].Fault) != want {
+		t.Errorf("the fault reads %q, want %q", refused[0].Fault, want)
+	}
+	if produced != 0 {
+		t.Errorf("a refused chain walked %d records, want none", produced)
+	}
+}
+
+// TestRecordChainStopsThroughEveryStage checks that a chain of two operators
+// stops the walk as one of them does. The method: `| match` in front of
+// `| first 1`, over rows whose first one matches, so the answer is complete
+// after one row and every stage has to agree to stop.
+//
+// VALIDATES: R-3 through a chain rather than through one operator.
+// PREVENTS: a stage that keeps pulling after the stage behind it stopped, which
+// leaves the generator walking for a consumer that has gone.
+func TestRecordChainStopsThroughEveryStage(t *testing.T) {
+	rows := []string{
+		`{"address":"192.0.2.1","state":"established"}`,
+		`{"address":"192.0.2.2","state":"established"}`,
+		`{"address":"192.0.2.3","state":"established"}`,
+	}
+	produced := 0
+	records := func(yield func(rpc.Record) bool) {
+		for _, row := range rows {
+			produced++
+			if !yield(rpc.Record{Item: json.RawMessage(row)}) {
+				return
+			}
+		}
+	}
+
+	kept := collectRecords(ApplyPipesRecords("show test rows | match established | first 1", records))
+	if len(kept) != 1 {
+		t.Fatalf("the chain kept %d records, want 1", len(kept))
+	}
+	if string(kept[0].Item) != rows[0] {
+		t.Errorf("the chain kept %q, want %q", kept[0].Item, rows[0])
+	}
+	if produced != 1 {
+		t.Errorf("the generator produced %d rows, want 1: a stop must reach it through every stage", produced)
 	}
 }

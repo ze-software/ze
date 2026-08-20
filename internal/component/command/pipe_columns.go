@@ -26,6 +26,8 @@ package command
 
 import (
 	"encoding/json"
+	"errors"
+	"io"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -153,6 +155,17 @@ func fillError(arg string) string {
 // through and the operators carry sequence alone. Non-JSON input passes through
 // as well, as it does for every other data transform in the chain.
 //
+// A sequence of records is selected ONE RECORD AT A TIME. selectSequence
+// decodes an element, selects its fields, writes it out and forgets it, so an
+// answer of a million rows never becomes a million decoded rows in memory. The
+// two shapes such an answer takes are `[...]` and `{"<key>":[...]}`, and both
+// stream.
+//
+// Every other shape is one value rather than a sequence: a record, a map of
+// records indexed by a parent key, a payload carrying pipe metadata. selectMap
+// decides which of those a map is by reading its entries, so that shape is
+// decoded whole and there is nothing to stream over.
+//
 // Numbers are decoded as json.Number so a re-marshaled payload carries the
 // digits the dispatcher wrote, rather than what a float64 round trip leaves.
 func applyDisplaySelect(input string, request columnRequest) string {
@@ -160,22 +173,159 @@ func applyDisplaySelect(input string, request columnRequest) string {
 		return input
 	}
 
-	decoder := json.NewDecoder(strings.NewReader(strings.TrimSpace(input)))
+	keep := keepFields(request.display)
+	payload := strings.TrimSpace(input)
+	if selected, ok := selectSequence(payload, keep); ok {
+		return selected
+	}
+
+	decoder := json.NewDecoder(strings.NewReader(payload))
 	decoder.UseNumber()
 	var data any
 	if err := decoder.Decode(&data); err != nil {
 		return input
-	}
-
-	keep := make(map[string]struct{}, len(request.display))
-	for _, name := range request.display {
-		keep[name] = struct{}{}
 	}
 	out, err := json.Marshal(selectFields(data, keep))
 	if err != nil {
 		return input
 	}
 	return string(out)
+}
+
+// keepFields is the set of field names the operator displayed, in the spelling
+// selectRecord compares against.
+func keepFields(display ColumnOrder) map[string]struct{} {
+	keep := make(map[string]struct{}, len(display))
+	for _, name := range display {
+		keep[name] = struct{}{}
+	}
+	return keep
+}
+
+// selectSequence writes the selection of a sequence of records, decoding one
+// record at a time. ok is false for a payload that is not a sequence, and the
+// caller then decodes that payload whole; whatever was written before the shape
+// was ruled out is discarded with it.
+//
+// A second key, a value that is not an array, and a token after the value each
+// read as "not a sequence", so a shape this function does not recognize reaches
+// selectFields unchanged rather than being answered wrongly.
+func selectSequence(payload string, keep map[string]struct{}) (string, bool) {
+	decoder := json.NewDecoder(strings.NewReader(payload))
+	decoder.UseNumber()
+
+	open, err := decoder.Token()
+	if err != nil {
+		return "", false
+	}
+	delim, isDelim := open.(json.Delim)
+	if !isDelim {
+		return "", false
+	}
+
+	var b textbuf.Buffer
+	switch delim {
+	case '[':
+		if !selectArray(decoder, keep, &b) {
+			return "", false
+		}
+	case '{':
+		if !selectEnvelope(decoder, keep, &b) {
+			return "", false
+		}
+	default:
+		return "", false
+	}
+
+	if _, err := decoder.Token(); !errors.Is(err, io.EOF) {
+		return "", false
+	}
+	return b.String(), true
+}
+
+// selectEnvelope writes `{"<key>":[...]}`, the shape an answer takes under the
+// envelope key its head named. The opening brace is already read.
+func selectEnvelope(decoder *json.Decoder, keep map[string]struct{}, b *textbuf.Buffer) bool {
+	if !decoder.More() {
+		return false
+	}
+	name, err := decoder.Token()
+	if err != nil {
+		return false
+	}
+	key, isString := name.(string)
+	if !isString {
+		return false
+	}
+	open, err := decoder.Token()
+	if err != nil {
+		return false
+	}
+	delim, isDelim := open.(json.Delim)
+	if !isDelim || delim != '[' {
+		return false
+	}
+
+	encoded, err := json.Marshal(key)
+	if err != nil {
+		return false
+	}
+	b.Byte('{')
+	b.Write(encoded) //nolint:errcheck // textbuf.Write never fails
+	b.Byte(':')
+	if !selectArray(decoder, keep, b) {
+		return false
+	}
+	if decoder.More() {
+		// A second key. selectMap decides what such a map is by reading every
+		// entry, so the caller reads it whole.
+		return false
+	}
+	if _, err := decoder.Token(); err != nil { // the closing brace
+		return false
+	}
+	b.Byte('}')
+	return true
+}
+
+// selectArray writes the selection of each element of an array whose opening
+// bracket is already read. One element is decoded, selected, written and
+// forgotten, so the memory cost is one record rather than the whole answer.
+func selectArray(decoder *json.Decoder, keep map[string]struct{}, b *textbuf.Buffer) bool {
+	b.Byte('[')
+	written := 0
+	for decoder.More() {
+		var element any
+		if err := decoder.Decode(&element); err != nil {
+			return false
+		}
+		encoded, err := json.Marshal(selectElement(element, keep))
+		if err != nil {
+			return false
+		}
+		if written > 0 {
+			b.Byte(',')
+		}
+		b.Write(encoded) //nolint:errcheck // textbuf.Write never fails
+		written++
+	}
+	if _, err := decoder.Token(); err != nil { // the closing bracket
+		return false
+	}
+	b.Byte(']')
+	return true
+}
+
+// selectElement keeps the named fields of ONE record of a sequence.
+//
+// An array element is a row, never a wrapper: renderList reads it the same way,
+// and so does the record path, where one rpc.Record carries one element.
+func selectElement(v any, keep map[string]struct{}) any {
+	record, isRecord := v.(map[string]any)
+	if !isRecord {
+		return v
+	}
+	return selectRecord(record, keep)
 }
 
 // selectFields keeps the named fields of every record in v.
@@ -186,16 +336,9 @@ func applyDisplaySelect(input string, request columnRequest) string {
 func selectFields(v any, keep map[string]struct{}) any {
 	switch val := v.(type) {
 	case []any:
-		// An array element is a row, never a wrapper: renderList reads it the
-		// same way.
 		out := make([]any, len(val))
 		for i, item := range val {
-			record, ok := item.(map[string]any)
-			if !ok {
-				out[i] = item
-				continue
-			}
-			out[i] = selectRecord(record, keep)
+			out[i] = selectElement(item, keep)
 		}
 		return out
 	case map[string]any:

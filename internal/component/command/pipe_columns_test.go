@@ -5,6 +5,9 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // columnsPayload is one command answer with two record shapes in it: a list of
@@ -552,4 +555,90 @@ func TestFillDefaultAloneMatchesTheBuiltInOrder(t *testing.T) {
 	if !slices.Equal(got, want) {
 		t.Errorf("header = %v, want the declared order reversed %v", got, want)
 	}
+}
+
+// TestDisplaySelectsPerRecord checks R-10 of
+// plan/spec-streaming-answer-protocol.md: `| display` selects one record at a
+// time, on both paths, so the operator credited with the streaming win produces
+// it.
+//
+// Two halves. On the record path a generator counts what it produced and the
+// consumer counts what it read, and the two must stay level: an implementation
+// that decoded the answer would run the generator to its end before answering
+// the first record. On the string path the streamed sequence must agree byte
+// for byte with what a whole decode answers, because the two are renderings of
+// one payload.
+//
+// VALIDATES: R-10, selection happens on one record and needs no other.
+// PREVENTS: `| display` decoding the whole payload, which answers the same
+// fields at the cost this protocol exists to remove.
+func TestDisplaySelectsPerRecord(t *testing.T) {
+	const rows = 5
+
+	produced, consumed := 0, 0
+	records := func(yield func(rpc.Record) bool) {
+		for i := range rows {
+			var b textbuf.Buffer
+			b.Str(`{"address":"192.0.2.`).Int(int64(i)).Str(`","state":"established","uptime":"1h0m0s"}`)
+			produced++
+			if !yield(rpc.Record{Item: json.RawMessage(b.String())}) {
+				return
+			}
+		}
+	}
+
+	for record := range ApplyPipesRecords("show test peers | display state", records) {
+		consumed++
+		if produced != consumed {
+			t.Errorf("the chain had produced %d records when it answered record %d: selection read more than the record in hand", produced, consumed)
+		}
+		if want := `{"state":"established"}`; string(record.Item) != want {
+			t.Errorf("record %d = %q, want %q", consumed, record.Item, want)
+		}
+	}
+	if consumed != rows {
+		t.Errorf("the chain answered %d records, want %d", consumed, rows)
+	}
+
+	// The string path, over the two shapes an answer of records takes.
+	request := columnRequest{display: ColumnOrder{"state"}}
+	keep := keepFields(request.display)
+	for _, payload := range []string{
+		`[{"address":"192.0.2.1","state":"established"},{"address":"192.0.2.2","state":"idle"}]`,
+		`{"peers":[{"address":"192.0.2.1","state":"established"},{"address":"192.0.2.2","state":"idle"}]}`,
+		`{"peers":[]}`,
+		// A value and a key that json.Marshal escapes. The streamed sequence
+		// writes the key itself, so it has its own chance to escape differently.
+		`{"peers<&>":[{"state":"a&b<c","address":"192.0.2.1"}]}`,
+	} {
+		streamed, ok := selectSequence(payload, keep)
+		if !ok {
+			t.Errorf("%q was not read as a sequence, so the whole payload was decoded to select it", payload)
+			continue
+		}
+		if got := applyDisplaySelect(payload, request); got != streamed {
+			t.Errorf("| display answered %q, and the sequence it streamed is %q", got, streamed)
+		}
+		if want := selectWholePayload(t, payload, keep); streamed != want {
+			t.Errorf("the streamed selection is %q, and a whole decode answers %q", streamed, want)
+		}
+	}
+}
+
+// selectWholePayload is the control for the record-at-a-time selection: it
+// decodes the payload whole, which is what applyDisplaySelect did before it
+// streamed, and answers what that produces.
+func selectWholePayload(t *testing.T, payload string, keep map[string]struct{}) string {
+	t.Helper()
+	decoder := json.NewDecoder(strings.NewReader(payload))
+	decoder.UseNumber()
+	var data any
+	if err := decoder.Decode(&data); err != nil {
+		t.Fatalf("decode %q: %v", payload, err)
+	}
+	out, err := json.Marshal(selectFields(data, keep))
+	if err != nil {
+		t.Fatalf("marshal the selection of %q: %v", payload, err)
+	}
+	return string(out)
 }
