@@ -152,7 +152,9 @@ make ze-unit-test-changed > "$dir/unit.log" 2>&1
 end, not on an age timer, not by a hook. Your directory outlives your session,
 so a log you wrote is still there tomorrow. Cleanup is the operator's:
 `make ze-session-clean BEFORE=<YYYY-MM-DD>` removes the session directories
-dated strictly before that date, and `make clean` removes your own. Do NOT
+dated strictly before that date, `make ze-session-reap` removes the directories
+of sessions that have EXITED (a date says nothing about that, so it reads none),
+and `make clean` removes your own plus both Go build caches. Do NOT
 relocate artifacts that are already session-keyed (commit scripts
 `tmp/commit-<sid>.sh`) or shared by design (`tmp/ze-verify.*`, the durable
 `cache/`) -- those stay put. `GOCACHE` is `cache/go-cache` (`Makefile`), on the
@@ -344,6 +346,35 @@ Fix every issue it reports. Do not claim done with lint failures outstanding.
 - Type mismatches from interface changes
 - Constants/vars that became unreferenced
 - Package-level issues that only manifest with full package analysis
+
+## Which Packages "Changed" Means
+
+`ze-lint-changed`, `ze-unit-test-changed` and `ze-precommit-verify-changed` all
+scope to ONE answer, and `make ze-verify-scope-selector` prints it. The answer is
+the changed packages plus two levels of their importers, and the feature tags the
+change can reach.
+
+```
+make ze-verify-scope-selector ARGS="--print=both"
+make ze-verify-scope-selector ARGS="--print=packages --paths-from=FILE"
+```
+
+A non-Go path seeds the packages whose tests READ it, so a `.ci`, a rules page or
+the `Makefile` selects the tooling packages rather than nothing. `--paths-from`
+asks about a path list you supply, which is how to see the answer for a change
+you have not made yet.
+
+**You MUST read the selector's stderr before you trust a scoped run.** It widens
+to `./...` and names the reason whenever it cannot narrow, and one reason is
+routine: `tmp/ze-verify.status` holding no green commit. With nothing proven,
+every scoped target judges the whole tree until a full run passes. The contract
+is `docs/architecture/testing/verify-freshness-scope.md`.
+
+**A scoped run judges fewer Staticcheck matrix rows too.** `scopeFeatureMatrix` (`scripts/checks/staticcheck_feature_matrix.go`) keeps the two rows that omit no feature tag, plus one row per tag the change reached: 3 of 38 for a `ze_ssh`-local change. `all_features` and `core_only` judge the combinations Ze ships, and `validateScopedMatrix` refuses any scope that subtracts one of them.
+
+**`make ze-staticcheck-feature-matrix-check` typed on its own judges every row**, because only a verify run publishes the feature-tag answer that `ZE_VERIFY_SCOPE_TAGS` names. So does an answer that cannot be read, one naming a tag `feature-gates.txt` does not declare, and one naming every tag. An EMPTY answer is a real answer and judges the two shipped rows.
+
+**Suite selection is not scoped: every functional suite runs on every verify, whatever the change set says.** `go list -deps ./cmd/ze` links 562 of the module's 646 packages, so no static signal attributes a `.ci` file to a Go package.
 
 ## Rationale
 

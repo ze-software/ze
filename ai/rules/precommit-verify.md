@@ -25,8 +25,10 @@ No = skip and note in commit summary. Unsure = run.
 
 `make ze-precommit-verify`, in the foreground ("Running ze-precommit-verify" below). Not `go test`,
 not any subset.
-Before any verify target, check freshness. A FRESH status covers the
-byte-identical tree and forbids rerunning `make ze-precommit-verify` or
+Before any verify target, check freshness. `scripts/dev/verify-status.sh check`
+with no arguments asks about the whole tree, and `check <PATH>...` asks about the
+named paths alone. A FRESH answer covers the paths it was asked about and forbids
+rerunning `make ze-precommit-verify` or
 `make ze-precommit-verify-changed`. The check output is qualified by mode:
 `FRESH(ze-precommit-verify)` covers everything; `FRESH(ze-precommit-verify-changed)` is a
 weaker pass (no full lint, no vet evidence, no cached full unit pass) --
@@ -35,11 +37,13 @@ needs the full gate (release evidence, repo-wide changes), a full
 `make ze-precommit-verify` on a FRESH(ze-precommit-verify-changed) tree is permitted. A pass
 recorded with skipped suites (`ZE_SKIP_SUITES`) reports STALE. `ze-precommit-verify` uses a two-pass strategy: cached
 full pass (no `-race`) + `-race` only on component groups with changed
-`.go` files. `ze-precommit-verify-changed` scopes to packages with uncommitted
-`.go` changes PLUS packages committed since the last green verify
-(`scripts/dev/changed-pkgs.sh`, baseline = `git_sha` in
+`.go` files. `ze-precommit-verify-changed` scopes to the packages the change set
+reaches: the uncommitted and untracked paths, PLUS the paths committed
+since the last green verify (`runSelector`,
+`scripts/checks/verify_scope_selector.go`; baseline = `git_sha` in
 `tmp/ze-verify.status`), so a package committed before it was verified is
-still tested rather than skipped on the now-clean tree. For reactor concurrency changes, also run `make
+still tested rather than skipped on the now-clean tree. What that
+selection answers is below. For reactor concurrency changes, also run `make
 ze-unit-reactor-test-race`. Output writes: `tmp/ze-verify.log`, per-stage logs
 under that run's own `tmp/verify/run-<start>-<mode>-<id>/` (reach one through the
 `detail-log` field of the failure index, never by guessing a path),
@@ -48,6 +52,25 @@ under that run's own `tmp/verify/run-<start>-<mode>-<id>/` (reach one through th
 `tmp/ze-verify-full.json` as well, which is the coverage record a Go-carrying
 commit is gated on: the changed mode never writes it, so a cheaper run cannot
 certify one.
+
+- **One producer answers the change set: `runSelector` (`scripts/checks/verify_scope_selector.go`). `scripts/dev/changed-pkgs.sh` holds no selection logic and only dispatches between the two routes to it.**
+- **A verify run selects ONCE, before the first stage, writes the answer into that run's own artifact directory, and names that file to every stage in `ZE_VERIFY_SCOPE_PACKAGES`.** Two runs of one checkout therefore never share a scope, and no two stages of one run scope to different trees.
+- **A direct `make ze-lint-changed` or `make ze-unit-test-changed` outside a verify run has no published answer, so it selects its own** (2.4 to 2.9s). Both routes reach the same producer.
+- **The import graph is built with `ze_core` and every tag in `feature-gates.txt`, so a `//go:build ze_<feature>` importer is selected.** One file under `internal/component/ssh` selects `./cmd/ze`, `./cmd/ze/hub` and `./internal/component/ssh`, and the feature answer is `ze_ssh` alone.
+- **The reverse walk stops at two levels of importers, and the selector states on stderr how many packages that bound dropped.** `make ze-verify-scope-selector ARGS=--drop-log=FILE` records which ones.
+- **Ask the selector what your own change set answers before you assume the scoped run covered it: `make ze-verify-scope-selector ARGS="--print=both"`.** On a tree several sessions have dirtied the answer is often still wide, and the narrow answer belongs to a change set that touches one feature.
+
+| The change set holds | The scoped stages get |
+|----------------------|-----------------------|
+| a `.go` file | its package, plus every importer within two levels, with the feature tags on |
+| `go.mod`, `go.sum`, or a `vendor/` path | `./...`, and the widening names the path: a dependency moved, so every package that compiles against it is reachable |
+| a kind a rule names: `.py`, `rfc/`, `.md` under `ai/`, `plan/` or `docs/`, `Makefile`, `mk/*.mk`, `.github/*.yml`, a `.claude/hooks/` script | the tooling packages whose tests READ that kind, never the whole tree |
+| a `.ci`, `.et` or `.wb` body under `test/` | the Go test packages that WALK that corpus. `.ci` selects `./internal/test/runner`, `./scripts/dev`, `./scripts/docvalid` and `./scripts/checks`; `.et` selects `./internal/component/cli/testing` and `./scripts/dev`; `.wb` selects `./scripts/dev` |
+| a path under `examples/plugin/go`, matched BEFORE the `.go` rule | no package. It is a separate module, so `go list ./...` never reports it and nothing here compiles or reads it. Ordering is load-bearing: the `.go` rule would seed a directory no package owns and widen the whole run |
+| a path under `gokrazy/modcache/` | no package. A third-party module cache every tree walker names in a skip list |
+| a `.go` file the unit tag set never compiles: `cmd/ze-installer`, the module root | `./scripts/dev` and `./scripts/checks`, the tree walkers that read it. `./...` does not compile it either, so widening would buy nothing |
+| a kind no rule names | the package it sits in when that directory holds Go source, the tooling packages otherwise. The path is NAMED on stderr, which is the evidence for writing it a rule |
+| nothing, and `tmp/ze-verify.status` holds no green commit | `./...`, and the widening names the condition. Without a proven commit, every commit in history is unverified, so a clean tree must not select nothing |
 
 ```
 [ ] 0. `scripts/dev/verify-status.sh check`. FRESH -> MUST NOT run `make ze-precommit-verify` or `make ze-precommit-verify-changed` again; note timestamp. STALE -> continue only if the table above says verification applies.
@@ -264,7 +287,40 @@ unreachable by construction. You MUST NOT wait for one and you MUST NOT re-run f
 | Dirty in `git status --porcelain`, and not in your list | Another session's | Take that code as working. Name it in `--unverified` and commit |
 | Clean and tracked, and your diff PRODUCES a symbol the failure names | Yours | Fix it. Ownership follows the producer, not the file that failed |
 | Clean and tracked, and unrelated to your diff | Pre-existing | Attribute it against `git log`, name it in `--unverified`, and commit |
-| Any deterministic structural gate | Yours until you prove otherwise | Fix it. Those read files rather than a moving tree, so no attribution clears one |
+| Any deterministic structural gate | Yours until you prove otherwise | Fix it. Those read files rather than a moving tree. The helper drops the charge only when every file the failure groups name lies outside your commit |
+
+**A structural gate red is charged to your commit unless EVERY file its failure groups name lies outside your `--file` list. You MUST NOT expect attribution to drop a red whose groups name no file at all.** `structural_gate_reds` (`scripts/dev/commit_helper.py`) reports three sets: `charged` refuses the commit, `foreign` names each gate the file list ruled out, and `unattributed` names each group that carries a check name, a suite name or the stage's own name. A group that names nothing is charged exactly as before, and the refusal prints which one it was. Attribution reaches the gates whose groups name a file or a package directory, and `ze-doc-wiring-check` is one of them: its sub-checks declare their own failure groups (`declare_failure_group`, `scripts/dev/verify_wiring_docs.py`). Its ci-sleep ratchet and its delegated targets judge a population rather than a file, so those two still charge.
+
+| What the red gate's failure groups name | What the helper does | What you do |
+|---|---|---|
+| Files, and one of them is in your `--file` list | Charges the gate and refuses | Fix it. The red is yours |
+| Files, and every one lies outside your list | Drops the charge and prints the gate name | Commit. The gate is still red for the tree, so say whose it is in your report |
+| A check name, a suite name, or the stage itself | Charges the gate and names it as unattributed | Read that stage's log and attribute the red by hand. The file list cannot rule it out for you |
+
+| Gate | What its groups name | Expect |
+|------|----------------------|--------|
+| `ze-lint`, `ze-lint-changed` | the `.go` file each finding sits in | a drop when none of them is in your `--file` list |
+| `ze-evidence-vet` | the package pattern of each red | a drop when your list holds no file under it |
+| `ze-doc-wiring-check` | the files each sub-check is about, one declared group per failure | a drop, except for the ci-sleep ratchet and a delegated target, which name no file and charge |
+| Every other stage, `ze-generated-files-check`, `ze-doc-links-check` and `ze-test-weakened-check` among them | the stage's own name, through `genericGroup` (`scripts/status/verify_run.go`) | a charge, always. Read that stage's log and attribute the red by hand |
+
+`ze-doc-wiring-check` is the gate most open `structural gates (red)` rows in
+`plan/verification-debt/` name, so attribution now reaches the largest single
+class of them. It does not reach most of the rest: a large minority of those rows
+ALSO name a gate no classifier attributes, led by `ze-generated-files-check`,
+`ze-doc-links-check` and `ze-test-weakened-check`, and a further group names no
+gate at all in its Reason prose. A commit meeting one of those is refused exactly
+as before. Read the live split off the ledger rather than a number written here,
+which goes stale as sessions commit.
+
+Attribution also answers a NARROWER question than the ledger asks. It says the
+files this commit carries cannot have caused the red. It never says the red is
+somebody else's work rather than yours from an earlier session.
+
+The declared-group protocol is available to EVERY stage, not only this one
+(`parseDeclaredGroups` and `classifyStage`, `scripts/status/verify_run.go`).
+Teaching another producer to declare its groups is separable work with its own
+evidence, and until it is done that stage's red charges whoever is committing.
 
 **Owner directive, 2026-08-17: code another session holds uncommitted MUST be taken as WORKING. You MUST NOT fix its red, wait for it, or re-run the gate to see whether it cleared.** Attribution is the whole answer: name the file and say whose it is, put that in `--unverified`, and commit. The row that MUST NOT be attributed away is a red your own diff produced, and the table above is what decides which row you are on.
 
@@ -274,6 +330,12 @@ reddens somebody else's at the same time. Expect reds you did not cause. That is
 the condition the attribution table answers, and it is why the run is made ONCE,
 in the foreground, at the end of the work.
 
+**A verify verdict answers about the paths it was ASKED about, and `commit_helper.py create` asks about the commit's own `--file` list. You MUST NOT read a FRESH as a verdict on the whole checkout.** `verify_status` (`scripts/dev/commit_helper.py`) passes that list to `verify-status.sh check <PATH>...`, and `manifest_scoped` (`scripts/dev/verify-status.sh`) compares only the named rows. An edit another session makes to a path your commit does not carry no longer makes your evidence STALE. Three limits come with the narrower question:
+
+- A path that MOVED while the run was in flight is STALE whatever it holds now, because no stage judged the content it holds today (`MOVED_MARKER`, `scripts/dev/verify-status.sh`). The record names which paths moved instead of voiding the run, so this is finer granularity and never leniency.
+- `check` reads the run's recorded exit code BEFORE it reads any scope, so a run that FAILED is STALE for every path list. Scoping is no route around a red run, and it is no route around a red structural gate either: that is `structural_gate_reds`, and it still reads every red the run recorded.
+- `check` with no path arguments keeps its whole-tree meaning. You MUST use that form when the question is about the tree rather than about one commit.
+
 **A commit that carries NO Go owes no full run. You MUST scope its evidence to YOUR
 files, running the narrow gate that owns each surface it changes.** Before preparing
 the commit script, on either route:
@@ -282,7 +344,9 @@ the commit script, on either route:
    and the narrow gate owning each changed surface (the table below) when it does not.
 2. You MUST ATTRIBUTE every red you saw, by the table above: name the file, and say
    whose it is. `git status --porcelain` plus a modification time settles it in seconds.
-3. You MUST prepare the script with `--unverified "<attribution>"`, giving the gates you ran
+3. You MUST prepare the script and let the helper judge your own paths first: `create` scopes
+   the freshness question to your `--file` list, so another session's edit needs no override.
+   When it still refuses, you MUST pass `--unverified "<attribution>"`, giving the gates you ran
    and their verdicts, and naming the concurrent session's paths whose reds you attributed away.
 
 **`--unverified` is the CORRECT path in a shared checkout, not a shortcut.** It
@@ -474,9 +538,23 @@ runs through `TestCLIGrammarGateStatic` (`scripts/checks/cli_grammar_test.go`).
 
 This is enforced, not honor-system: `scripts/dev/commit_helper.py create` reads
 `tmp/ze-verify-failures.json` (which `verify_run.go` rewrites after every run) and
-refuses to prepare a script while any structural gate is red, even with
-`--unverified` (`structural_gate_reds` / `STRUCTURAL_GATES`). A green verify
-rewrites the artifact, so a fixed-and-reverified gate clears automatically.
+refuses to prepare a script while a structural gate red is charged to this
+commit, even with `--unverified` (`structural_gate_reds` / `STRUCTURAL_GATES`).
+A red is charged unless every file its failure groups name lies outside the
+commit's `--file` list, and a group that names no file is charged as it always
+was ("Reading A Red", above). A green verify rewrites the artifact, so a
+fixed-and-reverified gate clears automatically.
+
+**Verification debt MUST be cleared by RUNNING the gate: `make ze-verify-debt-clear`. You MUST NOT edit a row to `cleared`.** Every override on `commit_helper.py create` writes a row into `plan/verification-debt/<session>.md`, and `create --push` refuses while one is open (`ai/rules/completion.md`). The pass re-runs each DISTINCT gate the open rows name, once per pass whatever the row count, and writes `cleared` only on exit 0 (`clear_debt`, `scripts/dev/commit_helper.py`). A gate that exits non-zero leaves its rows open and prints its output. The pass runs whatever the named gates cost, `make ze-precommit-verify` included, so run it in the foreground and let it finish.
+
+**A cleared row says the gate was green in THIS CHECKOUT, not that it is green over the commit alone.** Three of the five runnable gates are plain make targets over the working tree, which carries several sessions' uncommitted files (`DEBT_GATE_RUNNERS`, `scripts/dev/commit_helper.py`). Two answer about what git holds: `index_head_gate` materializes HEAD, and `ze-repository-tracked-build-check` compiles the tracked tree. You MUST read a `cleared` as that narrower claim. Clearing every row over HEAD is the stronger check and is separable work: each gate needs a HEAD-scoped spelling of the kind `discovery_index_head_status` already has.
+
+The pass clears no row whose gate no command produces. A row naming
+`independent critical review` prints UNRUNNABLE and stays open, and a row naming
+a gate string the runner table does not hold stays open the same way. Those rows
+are answered by doing the work the row names, which for a review is `/ze-review`
+recorded through `scripts/dev/review_gate.py`. Read what the pass printed before
+you report the ledger clear.
 
 ## Concurrency
 

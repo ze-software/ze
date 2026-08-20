@@ -198,7 +198,14 @@ expensive failure this repo has (`ai/rules/rule-precedence.md`).
 **Enforcement is at the PUSH, which is where code reaches users: `create --push`
 refuses while any row is open.** A commit that stays local costs nobody anything, so it
 is not the place to hold the line. The next session reads the open rows at session
-start, runs the gate, and sets Status to `cleared`.
+start and runs `make ze-verify-debt-clear`, which re-runs each owed gate ONCE per pass
+and writes `cleared` only where that gate exits 0. A row is never marked by hand: the
+ledger records what a gate did, never what a reader believed.
+
+**Two kinds of row the pass leaves open, and neither is a failure of it.** A row whose
+gate is `independent critical review` names a human judgement with no gate to run, so
+the pass reports it UNRUNNABLE and `/ze-review` answers it. So does a row whose gate
+string no gate is registered for, which is what an older wording leaves behind.
 
 ## The failure this rule exists to stop
 
@@ -735,6 +742,7 @@ This rule is hook-enforced. Breaking it costs a blocked Stop, not a note.
 - `COMPLETION_PHRASES` covers `what next`, `what would you like` and `what do you want to do`. These join the scan ONLY when work remains, which the hook reads as a claimed spec still `in-progress` (the `OPEN_WORK` flag). Asking what to do next is not the same failure as asking permission to do what was already requested. `.claude/rules/session-start.md` REQUIRES the question once the original task is done.
 - **The retry bound is scoped to this scan, and it disables nothing else.** When the harness sets `stop_hook_active`, the flag `STOP_RETRY` skips the scan loop alone. That bounds a refusal loop whose only escape is rewording. The spec-closure gate above it still blocks on a retry, because that gate has two escapes of its own: run commit B, or write `tmp/session/.closure-ack-<stem>`. You MUST NOT read a blocked stop as a licence to stop next turn. The hook also exits 0 on input it cannot parse.
 - A banned phrase inside backticks or a closed fence is treated as QUOTED, not used, and does not block. You MAY write about the phrases freely. Four guards keep that exemption from becoming a bypass. An unclosed fence is not a code block. A fence closes only on a run at least as long as the opener. The hook scans an all-markup message raw. Inline spans are stripped only on a line whose backticks balance, so one stray backtick cannot swallow a real request.
+- **A blocked Stop is not an instruction to do the work you just offered.** The block asks who wanted that work. The user wanted it: finish it, and do not ask again. You thought of it: DROP it, and MUST NOT start it, size it, or offer it a second time. The remedy read `Continue without asking permission` until 2026-08-19, which answered permission-seeking and misread an offer: a turn ending `Want me to spec the streaming writer?` was refused its end and then went and wrote that spec, so the gate against uncommissioned work was producing it.
 - Neither list is exhaustive, so a green Stop is not proof you followed this rule. You MUST finish the work, then report.
 - Fixtures: `python3 scripts/dev/hook-fixture-check.py --only delegation`. Full hook map: `ai/rules/repo-maintenance.md`.
 

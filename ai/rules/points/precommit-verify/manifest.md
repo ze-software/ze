@@ -10,6 +10,8 @@ does-verify-apply ## Does `ze-precommit-verify` Apply?
   run-verify-when-any-file-in-a-mixed-commit-needs-it
 running-the-gate ## Running The Gate
   run-make-ze-verify-and-check-freshness-first
+  what-computes-the-changed-mode-package-list
+  what-each-changed-path-selects
   the-pre-commit-verify-checklist
   run-verify-in-the-foreground-and-wait
   run-the-full-gate-once-when-the-work-is-finished
@@ -33,8 +35,13 @@ reading-a-red ## Reading A Red
   run-the-full-gate-before-any-commit-carrying-go
   one-run-covers-every-commit-until-the-next-go-edit
   who-owns-each-red-a-full-run-reports
+  a-red-is-dropped-only-when-every-group-names-a-foreign-file
+  what-attribution-does-with-each-structural-red
+  which-gates-attribution-reaches-today
+  how-far-attribution-carries-the-open-debt
   take-another-sessions-red-as-working-code
   a-full-gate-run-reddens-other-sessions
+  freshness-answers-about-the-paths-you-name
   use-evidence-scoped-to-your-own-files
   the-scoped-evidence-a-shared-checkout-owes
   unverified-is-correct-in-a-shared-checkout
@@ -64,6 +71,8 @@ after-the-commit ## After The Commit
   the-doc-test-only-checks-that-escape-the-gate
   keep-the-structural-gate-list-matching-live-stages
   the-helper-refuses-a-commit-while-a-gate-is-red
+  clear-verification-debt-by-running-the-gate
+  the-debt-rows-the-clearing-pass-leaves-open
 concurrency ## Concurrency
   run-one-verify-at-a-time-repo-wide
   what-to-do-while-another-verify-holds-the-lock

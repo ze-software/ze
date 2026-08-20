@@ -76,6 +76,12 @@ lint-gate ## Lint Gate
   lint-moments-and-the-action-each-one-needs
   what-it-catches-that-per-edit-hooks-miss
   cross-file-defects-only-package-lint-finds
+the-changed-set-selector ## Which Packages "Changed" Means
+  which-packages-changed-means
+  print-the-answer-before-you-trust-a-scoped-run
+  a-non-go-path-selects-its-readers
+  read-the-stderr-line-before-you-trust-the-answer
+  a-scoped-run-judges-fewer-staticcheck-matrix-rows
 rationale ## Rationale
   fork-cost
   measured-fork-cost-on-macos
