@@ -91,7 +91,7 @@ unless three surfaces genuinely need the same code (`ai/rules/simplicity.md`).
 ### Functional Tests
 | Test | File | Validates |
 |------|------|-----------|
-| <to be filled> | `test/plugin/apply-refuses-live-state.ci` | an apply that would drop live state is refused, and the override lets it through |
+| <to be filled> | `test/plugin/apply-refuses-live-state.ci` | an apply that would drop live state is refused, and the override lets it through |  <!-- doc-links: ignore (fixture this spec will create; the spec is `skeleton` and the work is not implemented) -->
 
 ## Files to Modify
 

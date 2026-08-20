@@ -171,7 +171,7 @@ self-contained review slice.
 - `internal/component/bgp/{message,wire,wireu,attribute,capability,context}`
 - `internal/component/bgp/{fsm,server,events,transaction}`
 - `internal/component/bgp/{reactor,filter,format}`
-- `internal/component/bgp/{rib,route,store,attrpool}`
+- `internal/component/bgp/{rib,route,store,attrpool}`  <!-- doc-links: ignore (a dated audit records the tree as it stood on 2026-04-21; the store package was deleted later, in 1ba6055ca, and repointing this would falsify the record) -->
 - `internal/component/bgp/{config,configjson,textparse,schema}`
 - `internal/component/bgp/plugins/*`
 

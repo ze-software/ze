@@ -13,7 +13,7 @@
 ## Task
 
 `spec-cli-order-pipe` shipped two column operators, `| display <field>...` and
-`| fill [alpha|overall] [reverse]`. It named two modifiers it deliberately left
+`| fill [alpha] [reverse]`. It named two modifiers it deliberately left
 out, and this spec is where both live until somebody decides they run. Neither
 is started. Both rows are recorded in `plan/deferrals/cli-order-pipe.md`.
 

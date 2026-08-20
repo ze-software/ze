@@ -90,7 +90,7 @@ unconfigured, which is the same defect wearing a different hat.
 ### Functional Tests
 | Test | File | Validates |
 |------|------|-----------|
-| <to be filled> | `test/plugin/restore-matches-create.ci` | the same programmed state results whether an object is created fresh or restored |
+| <to be filled> | `test/plugin/restore-matches-create.ci` | the same programmed state results whether an object is created fresh or restored |  <!-- doc-links: ignore (fixture this spec will create; the spec is `skeleton` and the work is not implemented) -->
 
 ## Files to Modify
 
