@@ -13,12 +13,14 @@ directives ## Directives
   open-every-rule-with-a-title-and-metadata-block
   required-structure-in-this-exact-order
   required-elements-of-a-rule-header
+  keep-a-procedure-out-of-an-always-on-rule
 every-directive-states-a-level ## Every directive states a level
   every-directive-states-its-rfc-2119-level
 the-trigger-is-a-routing-key ## The trigger is a routing key
   name-a-situation-in-the-when-line-not-a-summary
   what-a-trigger-line-must-do
   give-a-reference-rule-a-trigger-too
+  score-a-candidate-trigger-before-splitting-a-rule
 the-body-has-a-budget-too ## The body has a budget too
   why-the-body-needs-a-budget-the-lint-cannot-enforce
   what-keeps-a-rule-body-short

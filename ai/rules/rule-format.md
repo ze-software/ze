@@ -53,6 +53,8 @@ Required structure, in this exact order:
 | `**Severity:** blocking\|advisory` | Required. `blocking` = a gate/hook enforces it or violating it breaks correctness; `advisory` = strong convention. It MUST agree with the prose: a rule whose body says BLOCKING may not declare `advisory`. |
 | `**Related:** slug, slug` | Optional. Comma-separated rule slugs (filename without `.md`), no paths. |
 
+- **An always-on rule MUST hold prohibitions, and a PROCEDURE MUST live in its own rule under its own trigger.** `core_members` (`scripts/dev/rules_condensed.py`) derives eagerness from the precedence ladder, so a procedure written inside a rung-1 rule is loaded in full by every session that will never carry it out. The ban and the how-to are separable: the ban earns its permanent seat because acting without it is unrecoverable, and the how-to is one Read away for the session that reaches the work.
+
 ## Every directive states a level
 
 - Every point whose `kind` is `directive` MUST state its obligation in RFC 2119 language, and its `level:` MUST name the strongest TIER the body states. A directive whose weight a reader infers from tone is a directive two readers weigh differently.
@@ -79,6 +81,8 @@ the file, so it MUST name a situation and nothing else.
 Reference rules (a lookup table, a glossary, an architecture summary) get a
 trigger too, phrased as the moment you would reach for them: "looking up which
 check enforces a rule", "reasoning about where a component sits".
+
+- **Before a section is split into a rule of its own, its candidate trigger MUST be scored against the task corpus.** `distinctive_terms` (`scripts/dev/rules_condensed.py`) drops every trigger term that too many other triggers share, and `unreachable_blocking` names each blocking rule no past task would surface. `core_members` then makes exactly that set always-on, so a split whose trigger scores nothing returns the new rule to the core at full size and saves nothing. `make ze-rules-router-report` prints the set and the corpus it read.
 
 ## The body has a budget too
 
