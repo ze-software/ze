@@ -19,12 +19,24 @@ import (
 	pathpkg "path"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
 )
 
 const featureManifestPath = "feature-gates.txt"
+
+// scopeTagsEnv names the file holding this run's feature-tag answer, written
+// once by scripts/status/verify_run.go and read by every stage that run starts.
+// It is unset for a standalone `make ze-staticcheck-feature-matrix-check`, and
+// an unset variable judges every row.
+const scopeTagsEnv = "ZE_VERIFY_SCOPE_TAGS"
+
+// minMatrixRows is the floor no scoped matrix goes under. all_features and
+// core_only judge the two combinations Ze ships, so every run judges them
+// however narrow its change set is.
+const minMatrixRows = 2
 
 const defaultStaticcheckDeadline = 25 * time.Minute
 
@@ -37,6 +49,17 @@ var (
 type featureMatrixRow struct {
 	name string
 	tags []string
+	// omits names the one feature tag this row removes from all_features. It is
+	// empty for all_features and core_only, the two rows every run judges, and
+	// that emptiness is what scopeFeatureMatrix reads as "never subtract me".
+	omits string
+}
+
+// changeScope is the part of the matrix a change set can move: the feature tags
+// the change reaches, or every feature when the answer cannot be narrowed.
+type changeScope struct {
+	tags  map[string]bool
+	every bool
 }
 
 func main() {
@@ -73,12 +96,31 @@ func runStaticcheckFeatureMatrix(args []string, stdout, stderr io.Writer) int {
 		}
 	}
 
-	matrix, err := deriveFeatureMatrix(featureManifestPath)
+	tags, err := readFeatureTags(featureManifestPath)
 	if err != nil {
+		return reportMatrixFailure(stderr, err)
+	}
+	scope, widen := readChangeScope(os.Getenv(scopeTagsEnv), tags)
+	if widen != nil {
+		// Written piece by piece rather than with a format verb or a `+`: this
+		// file is compiled STANDALONE by TestStaticcheckFeatureMatrixRejectsVacuousInput,
+		// so it can import nothing from the module, textbuf included.
 		io.WriteString(stderr, "staticcheck feature matrix: ")
-		io.WriteString(stderr, err.Error())
-		io.WriteString(stderr, "\n")
-		return 2
+		io.WriteString(stderr, widen.Error())
+		io.WriteString(stderr, ", so every row is judged\n")
+	}
+	matrix, err := deriveFeatureMatrix(tags, scope)
+	if err != nil {
+		return reportMatrixFailure(stderr, err)
+	}
+	if !scope.every {
+		io.WriteString(stderr, "staticcheck feature matrix: the change set reaches ")
+		io.WriteString(stderr, strconv.Itoa(len(scope.tags)))
+		io.WriteString(stderr, " feature tag(s), so ")
+		io.WriteString(stderr, strconv.Itoa(bytes.Count(matrix, []byte{'\n'})))
+		io.WriteString(stderr, " of ")
+		io.WriteString(stderr, strconv.Itoa(len(tags)+minMatrixRows))
+		io.WriteString(stderr, " rows are judged\n")
 	}
 	if printMatrix {
 		if _, err := stdout.Write(matrix); err != nil {
@@ -181,16 +223,134 @@ func judgeStaticcheckFeatureMatrix(matrix []byte, deadline time.Duration, stdout
 	return 2
 }
 
-func deriveFeatureMatrix(manifestPath string) ([]byte, error) {
-	tags, err := readFeatureTags(manifestPath)
-	if err != nil {
-		return nil, err
-	}
+// reportMatrixFailure states a matrix that could not be built, in the one form
+// every caller of this check reads.
+func reportMatrixFailure(stderr io.Writer, err error) int {
+	io.WriteString(stderr, "staticcheck feature matrix: ")
+	io.WriteString(stderr, err.Error())
+	io.WriteString(stderr, "\n")
+	return 2
+}
+
+// deriveFeatureMatrix renders the rows this run judges: every row the manifest
+// implies, less the rows the change set cannot move.
+func deriveFeatureMatrix(tags []string, scope changeScope) ([]byte, error) {
 	rows, err := buildFeatureMatrix(tags)
 	if err != nil {
 		return nil, err
 	}
-	return renderFeatureMatrix(rows)
+	scoped, err := scopeFeatureMatrix(rows, scope)
+	if err != nil {
+		return nil, err
+	}
+	return renderFeatureMatrix(scoped)
+}
+
+// readChangeScope reads the run's feature-tag answer and returns the scope the
+// matrix judges. The second result is the reason the scope was widened, and it
+// is a reason rather than a failure: the caller states it and judges every row,
+// exactly as emit does in scripts/checks/verify_scope_selector.go.
+//
+// Every doubt widens: no answer named, an answer that cannot be read, and an
+// answer naming a tag the manifest in hand does not declare all judge the whole
+// matrix. A narrower scope is taken only from an answer that parses against
+// that manifest, because a guard that cannot read its input must not return a
+// valid-looking narrow answer (ai/rules/evidence.md).
+func readChangeScope(answerPath string, manifestTags []string) (changeScope, error) {
+	if strings.TrimSpace(answerPath) == "" {
+		return changeScope{every: true}, nil
+	}
+	raw, err := os.ReadFile(answerPath) //nolint:gosec // the path comes from the verify runner that started this stage
+	if err != nil {
+		return changeScope{every: true}, fmt.Errorf("feature-tag answer %s could not be read (%w)", answerPath, err)
+	}
+	declared := make(map[string]bool, len(manifestTags))
+	for _, tag := range manifestTags {
+		declared[tag] = true
+	}
+	reached := make(map[string]bool, len(manifestTags))
+	for _, rawLine := range strings.Split(string(raw), "\n") {
+		tag := strings.TrimSpace(rawLine)
+		if tag == "" {
+			continue
+		}
+		if !declared[tag] {
+			return changeScope{every: true}, fmt.Errorf(
+				"feature-tag answer %s names %q, which %s does not declare",
+				answerPath,
+				tag,
+				featureManifestPath,
+			)
+		}
+		reached[tag] = true
+	}
+	if len(reached) == len(declared) {
+		return changeScope{every: true}, nil
+	}
+	return changeScope{tags: reached}, nil
+}
+
+// scopeFeatureMatrix subtracts the rows the change set cannot move.
+//
+// It SUBTRACTS from the derived rows and never names the rows to keep: a tag
+// added to feature-gates.txt gains its row in matrixRowsForTags and is judged
+// here for free, where a list of row names would silently stop covering it.
+//
+// A row that omits tag T differs from all_features only in the packages T
+// gates. A change confined to packages gated by the tags in scope therefore
+// moves such a row only when T is one of them: nothing always-on imports a
+// gated package, and dep_audit.py refuses a gated package importing one gated
+// by a different tag, so removing any other tag leaves both the changed package
+// and its whole import closure standing (reachedTags in
+// scripts/checks/verify_scope_selector.go relies on the same two facts).
+//
+// That import argument is about what a row DROPS, and it is only half of what
+// makes the subtraction sound. A file constrained !ze_T is compiled by the rows
+// that dropped T and by no other, so a change to `ze_web && !ze_ssh` source is
+// visible in without_ze_ssh alone. The producer of the answer this function
+// reads is what closes that half: reachedTags unions the tags a changed file
+// NEGATES into the scope, so the row survives the subtraction here.
+func scopeFeatureMatrix(rows []featureMatrixRow, scope changeScope) ([]featureMatrixRow, error) {
+	if scope.every {
+		return rows, nil
+	}
+	scoped := make([]featureMatrixRow, 0, len(scope.tags)+minMatrixRows)
+	for _, row := range rows {
+		if row.omits == "" || scope.tags[row.omits] {
+			scoped = append(scoped, row)
+		}
+	}
+	if err := validateScopedMatrix(scoped); err != nil {
+		return nil, err
+	}
+	return scoped, nil
+}
+
+// validateScopedMatrix refuses a scoped matrix that lost its floor. The two
+// rows omitting no tag are all_features and core_only, and they judge what Ze
+// ships: a filter that drops either one leaves a shipped combination unjudged.
+func validateScopedMatrix(rows []featureMatrixRow) error {
+	if len(rows) < minMatrixRows {
+		return fmt.Errorf(
+			"scoped matrix has %d rows, want at least %d: all_features and core_only judge the shipped combinations",
+			len(rows),
+			minMatrixRows,
+		)
+	}
+	floor := 0
+	for _, row := range rows {
+		if row.omits == "" {
+			floor++
+		}
+	}
+	if floor != minMatrixRows {
+		return fmt.Errorf(
+			"scoped matrix keeps %d of the %d rows that omit no feature tag: all_features and core_only are never subtracted",
+			floor,
+			minMatrixRows,
+		)
+	}
+	return nil
 }
 
 func readFeatureTags(manifestPath string) ([]string, error) {
@@ -299,12 +459,19 @@ func matrixRowsForTags(tags []string) []featureMatrixRow {
 		featureMatrixRow{name: "all_features", tags: allTags},
 		featureMatrixRow{name: "core_only", tags: []string{"ze_core"}},
 	)
+	var name strings.Builder
 	for omitted, tag := range tags {
 		rowTags := make([]string, 0, len(tags)+1)
 		rowTags = append(rowTags, "ze_core", "ze_distro")
 		rowTags = append(rowTags, tags[:omitted]...)
 		rowTags = append(rowTags, tags[omitted+1:]...)
-		rows = append(rows, featureMatrixRow{name: "without_" + tag, tags: rowTags})
+		// Built rather than concatenated with `+`, which allocates a backing
+		// array and copies both sides. textbuf is not reachable here: this file
+		// is compiled standalone by its own vacuity test.
+		name.Reset()
+		name.WriteString("without_")
+		name.WriteString(tag)
+		rows = append(rows, featureMatrixRow{name: name.String(), tags: rowTags, omits: tag})
 	}
 	return rows
 }
@@ -337,6 +504,14 @@ func validateFeatureMatrix(tags []string, rows []featureMatrixRow) error {
 				rows[index].name,
 				strings.Join(rows[index].tags, ","),
 				strings.Join(want[index].tags, ","),
+			)
+		}
+		if rows[index].omits != want[index].omits {
+			return fmt.Errorf(
+				"matrix row %q omits %q, want %q",
+				rows[index].name,
+				rows[index].omits,
+				want[index].omits,
 			)
 		}
 	}

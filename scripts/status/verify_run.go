@@ -16,7 +16,9 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -30,7 +32,49 @@ const (
 	failuresJSONPath   = "tmp/ze-verify-failures.json"
 	fullVerifyJSONPath = "tmp/ze-verify-full.json"
 	statusPath         = "tmp/ze-verify.status"
+	manifestPath       = "tmp/ze-verify-manifest.txt"
 	stageLogDir        = "tmp/verify"
+
+	// scopePackagesFile holds this run's change-set answer, inside the run's own
+	// artifact directory. It is NOT published under a documented tmp/ path: two
+	// sessions verify this checkout at once, and a shared name would hand one
+	// run's scoped stages the other run's tree
+	// (plan/spec-verify-scope-2-change-set-selector.md).
+	scopePackagesFile = "verify-scope-packages.txt"
+
+	// scopePackagesEnv names that file to every stage the run starts.
+	// scripts/dev/changed-pkgs.sh reads it, so _ze-lint-changed-impl and
+	// _ze-unit-test-changed-impl share the one answer instead of each paying for
+	// its own `go list`.
+	scopePackagesEnv = "ZE_VERIFY_SCOPE_PACKAGES"
+
+	// scopeTagsFile holds this run's feature-tag answer, beside the package
+	// answer and isolated for the same reason
+	// (plan/spec-verify-scope-3-selector-consumers.md).
+	scopeTagsFile = "verify-scope-tags.txt"
+
+	// scopeTagsEnv names that file to every stage the run starts.
+	// scripts/checks/staticcheck_feature_matrix.go reads it and judges only the
+	// matrix rows the change set can move; 38 rows cost 874s, and the rows a
+	// tag-local change cannot move are the bulk of it.
+	//
+	// It is set ONLY when the selection succeeded. Absence is what the matrix
+	// reads as "judge every row", and an EMPTY answer is a real answer meaning
+	// "no Go package changed", so a failed selection must not publish one
+	// (ai/rules/evidence.md).
+	scopeTagsEnv = "ZE_VERIFY_SCOPE_TAGS"
+
+	// scopePackagesSection and scopeTagsSection are the headers the selector
+	// writes under --print=both. Reading both answers from ONE selector run is
+	// what keeps the per-run cost at one graph walk.
+	scopePackagesSection = "# packages"
+	scopeTagsSection     = "# tags"
+
+	// everyPackageWord is the widest change-set answer, and the one the runner
+	// writes when the selector cannot answer at all. An EMPTY answer would read
+	// as "nothing to lint or test", which turns the selector's fail-open into a
+	// fail-closed gate (ai/rules/evidence.md).
+	everyPackageWord = "./..."
 
 	maxInlineMembers = 8
 	maxExcerptLines  = 20
@@ -47,6 +91,20 @@ const (
 	// at a time. Pruning by count rather than by age needs no clock and never
 	// deletes the directory of a run that is still writing.
 	maxRetainedRunDirs = 10
+
+	// scopeSelectorDeadline bounds the one change-set selection. The selector's
+	// own budget is 30s (AC-6 of the spec named above) and it measures 2.4 to
+	// 2.9s; the slack covers `go run` compiling it first. The deadline exists so
+	// a wedged toolchain fails the selection, and widens, rather than hanging
+	// the run before its first stage.
+	scopeSelectorDeadline = 5 * time.Minute
+
+	// scopeSelectorSource is the one producer of the change-set answer. It is
+	// `go run` rather than a built binary for the same reason the make target is
+	// (ze-verify-scope-selector): the file carries //go:build ignore, so nothing
+	// compiles it into a package, and go's build cache makes the second run of a
+	// session cost nothing.
+	scopeSelectorSource = "scripts/checks/verify_scope_selector.go"
 )
 
 type stage struct {
@@ -101,6 +159,13 @@ type runArtifacts struct {
 	FailuresLog  string
 	FailuresJSON string
 	FullJSON     string
+	// ScopePackages is the change-set answer this run's scoped stages read. It
+	// is deliberately NOT published under a documented tmp/ path: it is an input
+	// to the stages of THIS run, and a shared name would let a second session's
+	// run rewrite it between two stages of the first.
+	ScopePackages string
+	// ScopeTags is the feature-tag half of that answer, isolated the same way.
+	ScopeTags string
 }
 
 // newRunArtifacts creates the directory for one run and returns its paths.
@@ -125,11 +190,13 @@ func newRunArtifacts(root, mode string, now time.Time) (runArtifacts, error) {
 	}
 	rel := path.Join(stageLogDir, filepath.Base(dir))
 	return runArtifacts{
-		Dir:          rel,
-		CombinedLog:  path.Join(rel, "ze-verify.log"),
-		FailuresLog:  path.Join(rel, "ze-verify-failures.log"),
-		FailuresJSON: path.Join(rel, "ze-verify-failures.json"),
-		FullJSON:     path.Join(rel, "ze-verify-full.json"),
+		Dir:           rel,
+		CombinedLog:   path.Join(rel, "ze-verify.log"),
+		FailuresLog:   path.Join(rel, "ze-verify-failures.log"),
+		FailuresJSON:  path.Join(rel, "ze-verify-failures.json"),
+		FullJSON:      path.Join(rel, "ze-verify-full.json"),
+		ScopePackages: path.Join(rel, scopePackagesFile),
+		ScopeTags:     path.Join(rel, scopeTagsFile),
 	}, nil
 }
 
@@ -243,7 +310,94 @@ type verifyConfig struct {
 	Now         func() time.Time
 	Out         io.Writer
 	RunStage    func(context.Context, string, stage, io.Writer) int
-	WriteStatus func(root string, exitCode int, mode, skipped, startHash string, now time.Time) error
+	WriteStatus func(root string, exitCode int, mode, skipped string, start treeSnapshot, now time.Time) error
+	// SelectScope answers, once per run, which Go packages the change set
+	// reaches and which features it can move. It is injected so a test can drive
+	// the runner without paying for a real `go list` over the tree; production
+	// leaves it nil and gets selectChangeSet.
+	SelectScope func(root string, log io.Writer) (changeSetAnswer, error)
+}
+
+// changeSetAnswer is what the selector answers for one run.
+type changeSetAnswer struct {
+	// Packages holds ./-prefixed package directories the change reaches.
+	Packages []string
+	// Tags holds the feature tags the change can move. Empty is an answer: no
+	// changed path is compiled by a gated package, so only the two rows that
+	// omit no tag can move.
+	Tags []string
+}
+
+// selectChangeSet runs the change-set selector once and returns both halves of
+// its answer: the packages to retest and the feature tags to judge.
+//
+// The selector is the single producer of that answer
+// (scripts/checks/verify_scope_selector.go). Running it HERE, before the first
+// stage, is what makes it a per-run cost instead of a per-stage one: every
+// scoped stage then reads a file the caller writes, through
+// scripts/dev/changed-pkgs.sh for the packages and ZE_VERIFY_SCOPE_TAGS for the
+// tags. --print=both is one run for two consumers, so adding the second
+// consumer added no graph walk.
+//
+// Its stderr goes to the run log rather than being swallowed. That stream
+// carries the paths no rule classifies and what the depth bound dropped, which
+// is the evidence a reader needs to add a rule (ai/rules/repo-maintenance.md
+// refuses a silent cap).
+func selectChangeSet(root string, log io.Writer) (changeSetAnswer, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), scopeSelectorDeadline)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "go", "run", scopeSelectorSource, "--print=both") //nolint:gosec // every argument is a repository constant
+	cmd.Dir = root
+	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
+	cmd.Stderr = log
+	out, err := cmd.Output()
+	if err != nil {
+		return changeSetAnswer{}, fmt.Errorf("run %s: %w", scopeSelectorSource, err)
+	}
+	return parseChangeSetAnswer(string(out))
+}
+
+// parseChangeSetAnswer reads the sectioned document --print=both writes.
+//
+// A missing section is an error rather than an empty half: the two halves mean
+// different things when empty -- no package to retest, and no feature to judge
+// beyond the shipped combinations -- so a truncated answer must widen the run
+// instead of narrowing it silently.
+func parseChangeSetAnswer(out string) (changeSetAnswer, error) {
+	var answer changeSetAnswer
+	seen := make(map[string]bool, 2)
+	section := ""
+	for line := range strings.SplitSeq(out, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		if strings.HasPrefix(line, "#") {
+			if line != scopePackagesSection && line != scopeTagsSection {
+				return changeSetAnswer{}, fmt.Errorf("%s named an unknown section %q", scopeSelectorSource, line)
+			}
+			section = line
+			seen[line] = true
+			continue
+		}
+		switch section {
+		case scopePackagesSection:
+			answer.Packages = append(answer.Packages, line)
+		case scopeTagsSection:
+			answer.Tags = append(answer.Tags, line)
+		default:
+			return changeSetAnswer{}, fmt.Errorf("%s answered %q before naming a section", scopeSelectorSource, line)
+		}
+	}
+	if !seen[scopePackagesSection] || !seen[scopeTagsSection] {
+		return changeSetAnswer{}, fmt.Errorf(
+			"%s answered %d of the 2 sections, so half the change set is unknown",
+			scopeSelectorSource,
+			len(seen),
+		)
+	}
+	return answer, nil
 }
 
 // makeNoExecFlags are the GNU make short options under which recipes are not
@@ -377,8 +531,10 @@ func defaultVerifyConfig(mode string, out io.Writer) verifyConfig {
 
 // stagesForMode is the SINGLE SOURCE OF TRUTH for what `make ze-precommit-verify` and
 // `make ze-precommit-verify-changed` run. Both Makefile targets shell out to this runner,
-// and .github/workflows/verify.yml's only step is `make ze-precommit-verify` -- so a gate that
-// is not listed here runs NOWHERE, in CI or locally.
+// and .github/workflows/verify.yml runs every stage of this list too: each of its
+// shards reads the list at run time with `make ze-precommit-verify-list` and takes
+// every Nth line. So a gate that is not listed here runs NOWHERE, in CI or locally,
+// and a gate ADDED here needs no edit to the workflow.
 //
 // Add a new gate to BOTH branches. The two lists are hand-duplicated on
 // purpose (the changed-mode variants differ), which is precisely how they drift;
@@ -489,6 +645,9 @@ func runVerify(ctx context.Context, cfg verifyConfig) (int, error) {
 	if cfg.WriteStatus == nil {
 		cfg.WriteStatus = writeVerifyStatus
 	}
+	if cfg.SelectScope == nil {
+		cfg.SelectScope = selectChangeSet
+	}
 	if len(cfg.Stages) == 0 {
 		return 2, errors.New("no verify stages configured")
 	}
@@ -527,11 +686,56 @@ func runVerify(ctx context.Context, cfg verifyConfig) (int, error) {
 		writef(out, "WARNING: %s\n\n", warn)
 	}
 
+	// The change set, computed ONCE for the whole run. Every scoped stage reads
+	// the file this writes, so a run pays for one graph walk however many scoped
+	// stages it holds, and no two stages can scope to different trees.
+	scopeAnswer, err := filepath.Abs(filepath.Join(cfg.Root, filepath.FromSlash(art.ScopePackages)))
+	if err != nil {
+		return 2, fmt.Errorf("place the change-set answer: %w", err)
+	}
+	tagAnswer, err := filepath.Abs(filepath.Join(cfg.Root, filepath.FromSlash(art.ScopeTags)))
+	if err != nil {
+		return 2, fmt.Errorf("place the feature-tag answer: %w", err)
+	}
+	answer, scopeErr := cfg.SelectScope(cfg.Root, out)
+	if scopeErr != nil {
+		// Widen. An unanswered selection must not reach a stage as an empty
+		// package list: `make ze-lint-changed` reads that as "nothing to lint"
+		// and reports success having linted nothing.
+		writef(out, "WARNING: the change set could not be selected (%v), so every scoped stage widens to %s\n", scopeErr, everyPackageWord)
+		answer = changeSetAnswer{Packages: []string{everyPackageWord}}
+	}
+	if err := writeScopeAnswer(scopeAnswer, answer.Packages); err != nil {
+		return 2, err
+	}
+	writef(out, "Change set: %d package pattern(s), in %s\n", len(answer.Packages), art.ScopePackages)
+
+	var scopeEnvBuf textbuf.Buffer
+	scopeEnvBuf.Str(scopePackagesEnv).Byte('=').Str(scopeAnswer)
+	scopeEnv := []string{scopeEnvBuf.String()}
+
+	// The feature-tag half is published only when the selection ANSWERED. The
+	// staticcheck matrix reads an absent variable as "judge every row", and an
+	// empty file as "no feature is reachable, so judge the two shipped
+	// combinations". A failed selection means the second, written down, would be
+	// a fail-closed gate wearing a valid answer's shape.
+	if scopeErr == nil {
+		if err := writeScopeAnswer(tagAnswer, answer.Tags); err != nil {
+			return 2, err
+		}
+		var tagEnvBuf textbuf.Buffer
+		tagEnvBuf.Str(scopeTagsEnv).Byte('=').Str(tagAnswer)
+		scopeEnv = append(scopeEnv, tagEnvBuf.String())
+		writef(out, "Feature scope: %d feature tag(s), in %s\n\n", len(answer.Tags), art.ScopeTags)
+	} else {
+		writef(out, "Feature scope: unanswered, so every matrix row is judged\n\n")
+	}
+
 	// The tree as it stands BEFORE any stage runs. The certificate must name
-	// what was verified, and the stages verify this tree: hashing after the loop
-	// stamps whatever the tree became, which in a shared checkout is a different
-	// tree than the early stages judged.
-	startHash := computeTreeHash(cfg.Root)
+	// what was verified, and the stages verify this tree: fingerprinting after
+	// the loop stamps whatever the tree became, which in a shared checkout is a
+	// different tree than the early stages judged.
+	start := snapshotTree(cfg.Root)
 
 	results := make([]stageResult, 0, len(cfg.Stages))
 	exitCode := 0
@@ -546,6 +750,11 @@ func runVerify(ctx context.Context, cfg verifyConfig) (int, error) {
 		writer := io.MultiWriter(cfg.Out, combined, stageLog)
 		writef(writer, "\n### Stage %02d/%02d: %s\n", i+1, len(cfg.Stages), st.Name)
 		writef(writer, "$ %s\n", strings.Join(quoteCommand(st.Command), " "))
+
+		// EXTEND the stage's own environment, never replace it: st is a copy of
+		// the element, so the caller's slice keeps its length, and every variable
+		// the stage list already carried survives.
+		st.Env = append(st.Env, scopeEnv...)
 
 		code := cfg.RunStage(ctx, cfg.Root, st, writer)
 		writef(writer, "\n### Stage result: %s exit=%d\n", st.Name, code)
@@ -577,12 +786,35 @@ func runVerify(ctx context.Context, cfg verifyConfig) (int, error) {
 	if err := writeFailureArtifacts(cfg.Root, art, index); err != nil {
 		return 2, err
 	}
-	if err := cfg.WriteStatus(cfg.Root, exitCode, cfg.Mode, os.Getenv("ZE_SKIP_SUITES"), startHash, cfg.Now()); err != nil {
+	if err := cfg.WriteStatus(cfg.Root, exitCode, cfg.Mode, os.Getenv("ZE_SKIP_SUITES"), start, cfg.Now()); err != nil {
 		return 2, fmt.Errorf("write verify status: %w", err)
 	}
 
 	printFinalSummary(io.MultiWriter(cfg.Out, combined), art, index)
 	return exitCode, nil
+}
+
+// writeScopeAnswer writes the change set as one package pattern per line, the
+// shape scripts/dev/changed-pkgs.sh emits and the make recipes expand as an
+// unquoted word list.
+//
+// An empty answer writes an EMPTY file rather than no file at all. The
+// difference is load-bearing for the reader: a missing file means no run
+// published an answer and the caller must select its own, while an empty file
+// is an answer, and it says no changed path is compiled or read by a Go package.
+// writeScopeAnswer publishes one half of the change-set answer, one entry per
+// line. An empty answer writes an empty file, which is a statement: the half was
+// selected and reached nothing.
+func writeScopeAnswer(path string, entries []string) error {
+	var body strings.Builder
+	for _, entry := range entries {
+		body.WriteString(entry)
+		body.WriteByte('\n')
+	}
+	if err := os.WriteFile(path, []byte(body.String()), 0o600); err != nil {
+		return fmt.Errorf("write the change-set answer: %w", err)
+	}
+	return nil
 }
 
 func execStage(ctx context.Context, root string, st stage, w io.Writer) int {
@@ -726,6 +958,36 @@ func printFinalSummary(w io.Writer, art runArtifacts, index verifyIndex) {
 }
 
 func classifyStage(st stage, detailLog, text string) []failureGroup {
+	groups := classifiedGroups(st, detailLog, text)
+	if truncated, ok := truncatedLogGroup(detailLog, splitLines(text)); ok {
+		groups = append(groups, truncated)
+	}
+	return normalizedGroups(st, detailLog, groups)
+}
+
+// functionalStage is the one stage whose classifier reads the declared groups
+// ITSELF. classifiedGroups names it twice for that reason, and
+// TestTheFunctionalStageKeepsItsSummaryReconciliation holds the two uses
+// together.
+const functionalStage = "ze-functional-test"
+
+func classifiedGroups(st stage, detailLog, text string) []failureGroup {
+	// A producer that named its own failures beats any classifier that reads its
+	// prose, and every stage is asked, not only the six named below: the others
+	// fall through to genericGroup, whose Kind the commit helper refuses to read
+	// paths from, so nothing they print can be attributed today.
+	//
+	// The functional stage is the exception, and it is asked through its own
+	// classifier instead. classifyFunctional reads the declared groups with the
+	// same parser and then reconciles them against the FAIL summary, which names
+	// every suite that failed. That is a STRONGER completeness statement than the
+	// count, so the shortcut here would silently replace it the day a functional
+	// producer starts printing a terminator.
+	if st.Name != functionalStage {
+		if declared, complete := parseDeclaredGroups(detailLog, text); complete && len(declared) > 0 {
+			return declared
+		}
+	}
 	var groups []failureGroup
 	switch st.Name {
 	case "ze-unit-test-cached", "ze-unit-test-race-changed", "ze-unit-test-changed":
@@ -736,7 +998,7 @@ func classifyStage(st stage, detailLog, text string) []failureGroup {
 		groups = classifyVet(st, detailLog, text)
 	case "ze-doc-wiring-check":
 		groups = classifyWiringDocs(st, detailLog, text)
-	case "ze-functional-test":
+	case functionalStage:
 		groups = classifyFunctional(detailLog, text)
 	case "ze-functional-exabgp-test":
 		groups = classifyExabgp(st, detailLog, text)
@@ -744,6 +1006,44 @@ func classifyStage(st stage, detailLog, text string) []failureGroup {
 	if len(groups) == 0 {
 		groups = []failureGroup{genericGroup(st, detailLog, firstUsefulLine(text), excerptFromText(text))}
 	}
+	return groups
+}
+
+// truncatedLogGroup is the group a stage earns when its log could not be read to
+// the end, and false when it could.
+//
+// splitLines appends logTruncatedMarker and stops there, so every failure the
+// lost tail reported is missing from the classification. An incomplete
+// classification is exactly what a failure group says, and no other reader
+// carries the marker: no classifier's regex matches it, and the excerpt cannot
+// either, because excerptFromText keeps the first maxExcerptLines+1 non-empty
+// lines while a log holding a line over maxLogLineBytes is by definition longer
+// than that.
+//
+// The kind is subcheck, which PATH_BEARING_GROUP_KINDS (scripts/dev/commit_helper.py)
+// does not hold, so the gate is CHARGED. What the unread tail said cannot be attributed
+// to anyone, and an unattributable failure is charged, never dropped
+// (ai/rules/evidence.md).
+func truncatedLogGroup(detailLog string, lines []string) (failureGroup, bool) {
+	if len(lines) == 0 || !strings.HasPrefix(lines[len(lines)-1], logTruncatedMarker) {
+		return failureGroup{}, false
+	}
+	marker := lines[len(lines)-1]
+	return failureGroup{
+		GroupID:   "subcheck:stage-log-truncated",
+		Kind:      "subcheck",
+		Related:   []string{"stage-log-truncated"},
+		Summary:   marker,
+		DetailLog: detailLog,
+		Parallel:  wholeStage,
+		Excerpt:   []string{marker},
+	}, true
+}
+
+// normalizedGroups fills in what a group left empty and caps what it left long,
+// so every group in the failure index carries the same fields whichever
+// classifier or producer built it.
+func normalizedGroups(st stage, detailLog string, groups []failureGroup) []failureGroup {
 	for i := range groups {
 		if groups[i].Stage == "" {
 			groups[i].Stage = st.Name
@@ -755,12 +1055,100 @@ func classifyStage(st stage, detailLog, text string) []failureGroup {
 			groups[i].Rerun = st.Rerun
 		}
 		if groups[i].Parallel == "" {
-			groups[i].Parallel = "stage"
+			groups[i].Parallel = wholeStage
 		}
 		groups[i].Related = uniqueStrings(groups[i].Related)
 		groups[i].Excerpt = cappedStrings(groups[i].Excerpt, maxExcerptLines+1)
 	}
 	return groups
+}
+
+// wholeStage is how both failureGroup.Kind and failureGroup.Parallel spell a
+// failure that belongs to the whole stage rather than to one group inside it.
+// The commit helper keeps this token OUT of PATH_BEARING_GROUP_KINDS
+// (scripts/dev/commit_helper.py), so a group of this kind is charged rather than
+// attributed.
+const wholeStage = "stage"
+
+// declaredGroupPrefix introduces one JSON failureGroup a producer declared for
+// itself. declaredCompletePrefix introduces that producer's count of them.
+const (
+	declaredGroupPrefix    = "VERIFY FAILURE GROUP:"
+	declaredCompletePrefix = "VERIFY FAILURE GROUPS COMPLETE:"
+)
+
+// parseDeclaredGroups reads the failure groups a producer declared for itself,
+// and whether it declared one for EVERY failure it reported.
+//
+// A producer knows which files its failure is about, and a classifier reading
+// its prose is guessing. So any stage MAY print declaredGroupPrefix and one JSON
+// failureGroup at the point of failure, then finish with declaredCompletePrefix
+// and the number of groups it printed.
+//
+// complete is that number agreeing with what this parser read, and it is the
+// safety property of the protocol. classifyStage replaces its groups with
+// genericGroup only when the slice is EMPTY, so a run that declared groups for
+// some of its failures and not for the rest would fill the slice and take the
+// missed failures out of the failure index with it. A producer that declares
+// nothing, that dies before its count, or that has another program's group line
+// relayed into its log therefore reports false here, and the caller keeps the
+// classifier it would have used anyway.
+//
+// A line that does not parse becomes a group of its own. The producer printed it
+// because something failed, so skipping it deletes that failure from the index.
+func parseDeclaredGroups(detailLog, text string) (groups []failureGroup, complete bool) {
+	var counts []string
+	for _, line := range splitLines(text) {
+		// The group line is read first: a producer whose summary or path quotes
+		// declaredCompletePrefix must not be read as a count.
+		_, payload, isGroup := strings.Cut(line, declaredGroupPrefix)
+		if !isGroup {
+			if _, count, isCount := strings.Cut(line, declaredCompletePrefix); isCount {
+				counts = append(counts, strings.TrimSpace(count))
+			}
+			continue
+		}
+		var g failureGroup
+		if err := json.Unmarshal([]byte(strings.TrimSpace(payload)), &g); err != nil {
+			groups = append(groups, unparsedGroup(len(groups), detailLog, line, err))
+			continue
+		}
+		if g.DetailLog == "" {
+			g.DetailLog = detailLog
+		}
+		if g.Parallel == "" {
+			g.Parallel = "group"
+		}
+		groups = append(groups, g)
+	}
+	if len(counts) != 1 {
+		return groups, false
+	}
+	declared, err := strconv.Atoi(counts[0])
+	if err != nil {
+		return groups, false
+	}
+	return groups, declared == len(groups)
+}
+
+// unparsedGroup is what a declaredGroupPrefix line gets when its JSON does not
+// parse. Its kind is outside PATH_BEARING_GROUP_KINDS (scripts/dev/commit_helper.py),
+// so group_related_paths reads no path out of it whatever the checkout holds and
+// the commit helper charges the gate: a failure nobody could attribute is
+// charged, never dropped (ai/rules/evidence.md).
+func unparsedGroup(index int, detailLog, line string, err error) failureGroup {
+	var tb textbuf.Buffer
+	groupID := tb.Str("unparsed-group:").Int(int64(index)).String()
+	tb.Reset()
+	return failureGroup{
+		GroupID:   groupID,
+		Kind:      "unparsed",
+		Related:   []string{"unparsed-group"},
+		Summary:   tb.Str("a declared failure group line did not parse: ").Err(err).String(),
+		DetailLog: detailLog,
+		Parallel:  "group",
+		Excerpt:   []string{line},
+	}
 }
 
 func classifyGoTest(st stage, detailLog, text string) []failureGroup {
@@ -828,7 +1216,17 @@ func classifyGoTest(st stage, detailLog, text string) []failureGroup {
 	return groups
 }
 
+// classifyLint splits a lint red into one group per package and linter, whose
+// Related members are the .go files golangci-lint named.
+//
+// The kind is the constant word, never the linter: PATH_BEARING_GROUP_KINDS
+// (scripts/dev/commit_helper.py) is an allowlist, and it can only be an
+// allowlist while Kind is a CLOSED vocabulary. golangci-lint owns the linter
+// names, so putting one in Kind would hand that consumer a set nobody here can
+// enumerate. The linter survives where it is read from: the group id
+// (`lint:<dir>:<linter>`) and the rerun command.
 func classifyLint(st stage, detailLog, text string) []failureGroup {
+	const kindLint = "lint"
 	lineRE := regexp.MustCompile(`^([^:\s][^:]*\.go):\d+:\d+:\s*(.*?)(?:\s+\(([^)]+)\))?$`)
 	groups := map[string]*failureGroup{}
 	order := []string{}
@@ -853,7 +1251,9 @@ func classifyLint(st stage, detailLog, text string) []failureGroup {
 			if dir == "." {
 				pkg = "."
 			}
-			g = &failureGroup{Stage: st.Name, GroupID: "lint:" + key, Kind: linter, Summary: strings.TrimSpace(m[2]), Rerun: "golangci-lint run " + shellQuote(pkg), DetailLog: detailLog, Parallel: "group"}
+			var rerun textbuf.Buffer
+			rerun.Str("golangci-lint run ").Str(shellQuote(pkg))
+			g = &failureGroup{Stage: st.Name, GroupID: groupID("lint", key), Kind: kindLint, Summary: strings.TrimSpace(m[2]), Rerun: rerun.String(), DetailLog: detailLog, Parallel: "group"}
 			groups[key] = g
 			order = append(order, key)
 		}
@@ -913,27 +1313,18 @@ func classifyWiringDocs(st stage, detailLog, text string) []failureGroup {
 	return groups
 }
 
+// classifyFunctional groups the functional stage's failures.
+//
+// The suite runner declares its own groups, so this reads them with the shared
+// parser. It ignores the completeness count, because the functional stage states
+// completeness a second way that predates the count and is stronger: the FAIL
+// summary names every suite that failed, and the loop below adds a group for
+// each suite no declared group covered.
 func classifyFunctional(detailLog, text string) []failureGroup {
-	const prefix = "VERIFY FAILURE GROUP:"
-	var groups []failureGroup
+	groups, _ := parseDeclaredGroups(detailLog, text)
 	seenSuite := map[string]bool{}
-	for _, line := range splitLines(text) {
-		_, payload, ok := strings.Cut(line, prefix)
-		if !ok {
-			continue
-		}
-		var g failureGroup
-		if err := json.Unmarshal([]byte(strings.TrimSpace(payload)), &g); err != nil {
-			continue
-		}
-		if g.DetailLog == "" {
-			g.DetailLog = detailLog
-		}
-		if g.Parallel == "" {
-			g.Parallel = "group"
-		}
-		groups = append(groups, g)
-		seenSuite[g.Stage] = true
+	for i := range groups {
+		seenSuite[groups[i].Stage] = true
 	}
 
 	summaryRE := regexp.MustCompile(`FAIL\s+\d+ suite\(s\) failed:\s+(.+)`)
@@ -946,18 +1337,22 @@ func classifyFunctional(detailLog, text string) []failureGroup {
 			if seenSuite[suite] {
 				continue
 			}
-			groups = append(groups, failureGroup{Stage: suite, GroupID: "suite:" + suite, Kind: "suite", Related: []string{suite}, Summary: "functional suite failed", Rerun: functionalSuiteRerun(suite), DetailLog: detailLog, Parallel: "stage", Excerpt: []string{line}})
+			groups = append(groups, failureGroup{Stage: suite, GroupID: groupID("suite", suite), Kind: "suite", Related: []string{suite}, Summary: "functional suite failed", Rerun: functionalSuiteRerun(suite), DetailLog: detailLog, Parallel: wholeStage, Excerpt: []string{line}})
 			seenSuite[suite] = true
 		}
 	}
 	return groups
 }
 
+// functionalSuiteRerun returns the command that re-runs one functional suite.
+// Every suite in the all_suites list (mk/test-functional.mk) has a target of this
+// name, and TestFunctionalSuiteRerunNamesARealMakeTarget holds that true: a
+// failure report earns its place by naming a command the reader can type, and a
+// name make answers with `No rule to make target` costs the reader twice, once
+// for the failure and once for finding out the advice was wrong.
 func functionalSuiteRerun(suite string) string {
-	if suite == "install" {
-		return "bin/ze-test install --all"
-	}
-	return "make ze-" + suite + "-test"
+	var tb textbuf.Buffer
+	return tb.Str("make ze-functional-").Str(suite).Str("-test").String()
 }
 
 func classifyExabgp(st stage, detailLog, text string) []failureGroup {
@@ -987,7 +1382,7 @@ func genericGroup(st stage, detailLog, summary string, excerpt []string) failure
 	if summary == "" {
 		summary = "stage failed"
 	}
-	return failureGroup{Stage: st.Name, GroupID: "stage:" + st.Name, Kind: "stage", Related: []string{st.Name}, Summary: summary, Rerun: st.Rerun, DetailLog: detailLog, Parallel: "stage", Excerpt: excerpt}
+	return failureGroup{Stage: st.Name, GroupID: groupID("stage", st.Name), Kind: wholeStage, Related: []string{st.Name}, Summary: summary, Rerun: st.Rerun, DetailLog: detailLog, Parallel: wholeStage, Excerpt: excerpt}
 }
 
 func goTestRerun(stageName, pkg string, tests []string) string {
@@ -1053,11 +1448,49 @@ func safeStageLogName(name string) string {
 // The reader is a strings.Reader, so Read returns only io.EOF. Every caller
 // shapes the failure REPORT of a stage that already failed; the run's verdict
 // is the stage exit code collected in runVerify, never anything derived here.
+//
+// One stop is NOT an io.EOF: a line over bufio.MaxScanTokenSize ends the scan
+// and takes the rest of the log with it. So a producer that declares its own
+// groups keeps each line short rather than relying on the reader
+// (RELATED_PER_GROUP, scripts/dev/verify_wiring_docs.py). The repo-wide record
+// of this scanner class is plan/journal/silent-fall-through.md, 2026-08-12.
+// splitLines is the reader every classifier in this file goes through, so a
+// truncated read here loses failure GROUPS rather than log text.
+//
+// `bufio.Scanner` stops on a line above its token limit, and `Scan` returns
+// false for that exactly as it does for EOF. With the DEFAULT 64 KiB limit and
+// no `Err()` check, one over-long line ended the loop and discarded that line
+// AND EVERY LINE AFTER IT, in silence: the classifier then saw a prefix of the
+// stage log and reported whichever failures that prefix happened to contain.
+// Stage logs here reach 900 KB and a single line can be arbitrarily long, so
+// the exemption the 2026-08-12 sweep granted a `strings.Reader` over "this
+// process's own short output" (plan/journal/silent-fall-through.md) does not
+// cover this caller.
+//
+// The limit is raised, and a read that still ends early appends a MARKER rather
+// than vanishing. The marker reaches a reader through ONE route, and it is
+// classifyStage turning it into `truncatedLogGroup`: a log with an over-long
+// line is longer than any excerpt, so the marker is always past the excerpt cap,
+// and no classifier's regex matches it. Being a group of its own is also what
+// charges it, which a rendered line would not do. `parseDeclaredGroups` counts
+// group lines against a declared total on top of that, so a read truncated
+// before a producer's count falls back instead of trusting a partial set
+// (ai/rules/evidence.md).
+const (
+	maxLogLineBytes    = 4 << 20
+	logTruncatedMarker = "### verify runner: stage log read ended early, so what follows was not classified"
+)
+
 func splitLines(text string) []string {
 	s := bufio.NewScanner(strings.NewReader(text))
+	s.Buffer(make([]byte, 0, 64<<10), maxLogLineBytes)
 	lines := []string{}
 	for s.Scan() {
 		lines = append(lines, s.Text())
+	}
+	if err := s.Err(); err != nil {
+		var tb textbuf.Buffer
+		lines = append(lines, tb.Str(logTruncatedMarker).Str(": ").Err(err).String())
 	}
 	return lines
 }
@@ -1158,6 +1591,15 @@ func stripANSI(s string) string {
 	return ansiRE.ReplaceAllString(s, "")
 }
 
+// groupID builds a failure group's identifier, "<kind>:<key>". One helper, so
+// the three call sites do not each write a `+` between two strings: that
+// operator allocates a backing array and copies both sides, and the performance
+// rule bans it in new code.
+func groupID(kind, key string) string {
+	var tb textbuf.Buffer
+	return tb.Str(kind).Byte(':').Str(key).String()
+}
+
 var safeShellRE = regexp.MustCompile(`^[A-Za-z0-9_./:=@%+,-]+$`)
 
 func shellQuote(s string) string {
@@ -1189,18 +1631,49 @@ func writeln(w io.Writer, args ...any) {
 // the fail-closed answer: when the stages judged more than one tree, no single
 // hash is true for the run, and asserting one would certify content that was
 // never verified.
+//
+// It survives at WHOLE-TREE granularity alone, where the question genuinely has
+// no answer: an edit reverted before the check leaves the start hash matching
+// again while the stages read content nobody verified. The per-path question is
+// answered by the manifest instead, where only the paths that moved carry
+// movedDuringRun and every other path keeps a fingerprint a later check matches.
+// One session's edit therefore costs the run that session's paths, not the run.
 const treeMovedSentinel = "tree-moved-during-run"
 
-func writeVerifyStatus(root string, exitCode int, mode, skipped, startHash string, now time.Time) error {
+// movedDuringRun replaces a path's fingerprint in the manifest when the path's
+// content at the run's END snapshot differs from its content at the START
+// snapshot. No file content hashes to the marker, so verify-status.sh reports
+// STALE for that path however the tree looks now -- including after an edit
+// reverted AFTER the run ended, where the fingerprints alone would agree again
+// while the stages read content nobody verified. It is the same fail-closed
+// answer as treeMovedSentinel, charged to the paths that earned it instead of to
+// the whole run.
+//
+// What two snapshots cannot see is an edit that begins and ends BETWEEN them,
+// and that window has two shapes. A path clean at run start, written, and
+// restored appears in neither snapshot. A path already dirty at run start,
+// written, and restored to its start content appears in both with the same
+// fingerprint, so it keeps a real one and answers FRESH. The whole-tree hash has
+// the identical hole for the identical reason, and closing either needs a third
+// observation of the tree rather than a different marker
+// (docs/architecture/testing/verify-freshness-scope.md).
+const movedDuringRun = "MOVED-DURING-RUN"
+
+func writeVerifyStatus(root string, exitCode int, mode, skipped string, start treeSnapshot, now time.Time) error {
 	if err := os.MkdirAll(filepath.Join(root, "tmp"), 0o750); err != nil {
 		return err
 	}
-	// The hash names the tree the stages READ, not the tree that happens to be
-	// on disk now. They agree only when nothing edited the checkout during the
-	// run; where they differ the run certifies nothing.
-	hash := startHash
-	if endHash := computeTreeHash(root); endHash != startHash {
+	// The record names the tree the stages READ, not the tree that happens to be
+	// on disk now. The two agree only when nothing edited the checkout during
+	// the run; where they differ the run certifies nothing about the paths that
+	// moved, and everything it always did about the paths that held still.
+	end := snapshotTree(root)
+	hash := start.hash
+	if end.hash != start.hash {
 		hash = treeMovedSentinel
+	}
+	if err := writeVerifyManifest(root, start.manifest, end.manifest); err != nil {
+		return err
 	}
 	sha := gitOutput(root, "rev-parse", "HEAD")
 	if strings.TrimSpace(sha) == "" {
@@ -1216,6 +1689,89 @@ func writeVerifyStatus(root string, exitCode int, mode, skipped, startHash strin
 	writef(&content, "git_sha=%s\n", strings.TrimSpace(sha))
 	writef(&content, "tree_hash=%s\n", hash)
 	return os.WriteFile(filepath.Join(root, statusPath), []byte(content.String()), 0o600)
+}
+
+// treeSnapshot is the tree at one instant: one whole-tree hash, and one
+// fingerprint per path that differs from HEAD.
+//
+// Both granularities are recorded because two different questions are asked of
+// them. "Is the whole checkout the one that was verified" has a single answer,
+// and a checkout several sessions share stops answering yes within seconds of a
+// PASS. "Was MY file the one that was verified" is the question a commit asks,
+// and it stays answerable while another session works.
+type treeSnapshot struct {
+	hash     string
+	manifest map[string]string
+}
+
+func snapshotTree(root string) treeSnapshot {
+	return treeSnapshot{hash: computeTreeHash(root), manifest: computeDirtyManifest(root)}
+}
+
+// writeVerifyManifest records the per-path fingerprint of the tree the stages
+// read, and names the paths that moved underneath them.
+//
+// A path whose fingerprint differs between the two snapshots was read by some
+// stages at one content and by the rest at another, so no stage judged the file
+// the checkout now holds. It is recorded as movedDuringRun rather than with
+// either fingerprint, which keeps that path STALE even after the edit is
+// reverted. Every other path keeps the fingerprint the stages actually read --
+// including a path that was edited and put back before the END snapshot, which
+// the comparison cannot see either way (see movedDuringRun).
+func writeVerifyManifest(root string, start, end map[string]string) error {
+	paths := make([]string, 0, len(start)+len(end))
+	for rel := range start {
+		paths = append(paths, rel)
+	}
+	for rel := range end {
+		if _, both := start[rel]; !both {
+			paths = append(paths, rel)
+		}
+	}
+	sort.Strings(paths)
+
+	var content strings.Builder
+	for _, rel := range paths {
+		fingerprint := start[rel]
+		if end[rel] != fingerprint {
+			fingerprint = movedDuringRun
+		}
+		writef(&content, "%s %s\n", fingerprint, rel)
+	}
+	return os.WriteFile(filepath.Join(root, manifestPath), []byte(content.String()), 0o600)
+}
+
+// computeDirtyManifest fingerprints every path that differs from HEAD, keyed by
+// the path git prints for it.
+//
+// It mirrors dirty_manifest in scripts/dev/verify-status.sh, which computes the
+// LIVE side of the same comparison. A row here MUST be byte-identical to the row
+// that function produces for a file nobody touched, or the scoped check reports
+// STALE for a path that never changed.
+//
+// Only differing paths are recorded, a few hundred rather than every tracked
+// file. A path in neither side is identical to HEAD in both, which is the same
+// answer as two matching fingerprints.
+func computeDirtyManifest(root string) map[string]string {
+	tracked := nonEmptyLines(gitOutput(root, "diff", "HEAD", "--name-only"))
+	untracked := nonEmptyLines(gitOutput(root, "ls-files", "-o", "--exclude-standard"))
+
+	manifest := make(map[string]string, len(tracked)+len(untracked))
+	for _, rel := range slices.Concat(tracked, untracked) {
+		if _, seen := manifest[rel]; seen {
+			continue
+		}
+		// A deleted tracked file, and a path git names that is not a regular
+		// file, both read as MISSING -- the same word the shell prints for them.
+		data, err := readControlledFile(filepath.Join(root, filepath.FromSlash(rel)))
+		if err != nil {
+			manifest[rel] = "MISSING"
+			continue
+		}
+		sum := sha256.Sum256(data)
+		manifest[rel] = hex.EncodeToString(sum[:])
+	}
+	return manifest
 }
 
 func computeTreeHash(root string) string {

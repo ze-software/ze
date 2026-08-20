@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
@@ -48,6 +49,7 @@ func TestVerifyRunWritesArtifactsAndContinuesAfterStageFailures(t *testing.T) {
 			return run.Code
 		},
 		WriteStatus: testStatusWriter,
+		SelectScope: testScopeSelector,
 	})
 	if err != nil {
 		t.Fatalf("run verify: %v", err)
@@ -110,6 +112,7 @@ func TestVerifyRunProducesStageAndGroupSummaries(t *testing.T) {
 			return 1
 		},
 		WriteStatus: testStatusWriter,
+		SelectScope: testScopeSelector,
 	})
 	if err != nil {
 		t.Fatalf("run verify: %v", err)
@@ -168,6 +171,7 @@ func TestVerifyRunMixedFailureFixture(t *testing.T) {
 			return 1
 		},
 		WriteStatus: testStatusWriter,
+		SelectScope: testScopeSelector,
 	})
 	if err != nil {
 		t.Fatalf("run verify: %v", err)
@@ -193,6 +197,7 @@ func TestVerifyRunAllPassFixture(t *testing.T) {
 			return 0
 		},
 		WriteStatus: testStatusWriter,
+		SelectScope: testScopeSelector,
 	})
 	if err != nil {
 		t.Fatalf("run verify: %v", err)
@@ -218,13 +223,61 @@ func TestVerifyRunFunctionalFixtureWithRelatedPluginFailures(t *testing.T) {
 	}
 }
 
-func TestClassifyFunctionalInstallFallbackUsesSuiteCommand(t *testing.T) {
+func TestClassifyFunctionalSuiteFallbackNamesTheSuiteTarget(t *testing.T) {
 	groups := classifyFunctional("tmp/verify/install.log", "FAIL  1 suite(s) failed: install\n")
 	if len(groups) != 1 {
-		t.Fatalf("expected one install fallback group, got %+v", groups)
+		t.Fatalf("expected one suite fallback group, got %+v", groups)
 	}
-	if groups[0].Rerun != "bin/ze-test install --all" {
-		t.Fatalf("install rerun = %q, want %q", groups[0].Rerun, "bin/ze-test install --all")
+	if want := "make ze-functional-install-test"; groups[0].Rerun != want {
+		t.Fatalf("install rerun = %q, want %q", groups[0].Rerun, want)
+	}
+}
+
+// allSuitesRE captures the one all_suites assignment in the functional recipe.
+var allSuitesRE = regexp.MustCompile(`(?m)^\s*all_suites="([^"]+)"`)
+
+// gatingFunctionalSuites returns the suites `make ze-functional-test` runs, read
+// from the all_suites line that is their single source of truth.
+func gatingFunctionalSuites(t *testing.T) []string {
+	t.Helper()
+	b, err := os.ReadFile(filepath.Join(repoRootFromScriptsStatus(), "mk", "test-functional.mk"))
+	if err != nil {
+		t.Fatalf("read mk/test-functional.mk: %v", err)
+	}
+	m := allSuitesRE.FindAllStringSubmatch(string(b), -1)
+	if len(m) != 1 {
+		t.Fatalf("mk/test-functional.mk must hold exactly one all_suites= line, found %d", len(m))
+	}
+	suites := strings.Fields(m[0][1])
+	if len(suites) < 20 {
+		t.Fatalf("parsed only %d gating suites; the all_suites regex has rotted. This test must not pass vacuously.", len(suites))
+	}
+	return suites
+}
+
+// TestFunctionalSuiteRerunNamesARealMakeTarget
+//
+// VALIDATES: the rerun command functionalSuiteRerun puts on every ordinary
+// functional failure group is a make target that exists, for every suite the
+// gating run can fail on.
+// PREVENTS: a failure report that tells the reader to type a command make
+// answers with `No rule to make target`. The rerun string is never executed by
+// the code that prints it, so nothing else goes red when a suite is added to
+// all_suites without a target, or when the target family is renamed. That is
+// exactly how `make ze-<suite>-test` survived: it named no target for any of the
+// 24 suites (plan/journal/failure-report-names-a-command-that-does-not-exist.md).
+func TestFunctionalSuiteRerunNamesARealMakeTarget(t *testing.T) {
+	targets := declaredMakeTargets(t)
+	for _, suite := range gatingFunctionalSuites(t) {
+		rerun := functionalSuiteRerun(suite)
+		target, ok := strings.CutPrefix(rerun, "make ")
+		if !ok {
+			t.Errorf("functionalSuiteRerun(%q) = %q, which is not a make command", suite, rerun)
+			continue
+		}
+		if !targets[target] {
+			t.Errorf("functionalSuiteRerun(%q) = %q, but no target %q is declared in Makefile or mk/*.mk", suite, rerun, target)
+		}
 	}
 }
 
@@ -255,6 +308,7 @@ func TestVerifyRunCapsInlineMembersAndExcerptLines(t *testing.T) {
 			return 1
 		},
 		WriteStatus: testStatusWriter,
+		SelectScope: testScopeSelector,
 	})
 	if err != nil {
 		t.Fatalf("run verify: %v", err)
@@ -302,6 +356,17 @@ func TestLintFailuresGroupByPackageAndLinter(t *testing.T) {
 	}
 	if groups[2].GroupID != "lint:internal/test/runner:revive" || groups[2].Rerun != "golangci-lint run ./internal/test/runner" {
 		t.Fatalf("unexpected third lint group: %+v", groups[2])
+	}
+	// The kind is the constant word, and the consumer cannot work without that.
+	// PATH_BEARING_GROUP_KINDS (scripts/dev/commit_helper.py) is an ALLOWLIST, so
+	// a kind it does not hold charges the red to the committing session. Putting
+	// the linter here would make the set golangci-lint's to enumerate, and every
+	// linter nobody listed would charge a red it can attribute to a file.
+	for _, g := range groups {
+		if g.Kind != "lint" {
+			t.Fatalf("kind = %q for %s, want lint: PATH_BEARING_GROUP_KINDS "+
+				"(scripts/dev/commit_helper.py) cannot enumerate linter names", g.Kind, g.GroupID)
+		}
 	}
 }
 
@@ -469,6 +534,7 @@ func TestOnlyTheFullModeWritesTheFullVerifyIndex(t *testing.T) {
 				return 0
 			},
 			WriteStatus: testStatusWriter,
+			SelectScope: testScopeSelector,
 		}); err != nil {
 			t.Fatalf("%s: run verify: %v", tc.mode, err)
 		}
@@ -514,6 +580,7 @@ func TestConcurrentRunsDoNotShareArtifactPaths(t *testing.T) {
 				return 1
 			},
 			WriteStatus: testStatusWriter,
+			SelectScope: testScopeSelector,
 		})
 		if err != nil {
 			t.Errorf("%s: run verify: %v", tag, err)
@@ -621,6 +688,7 @@ func TestOldRunDirectoriesArePruned(t *testing.T) {
 		Out:         io.Discard,
 		RunStage:    func(context.Context, string, stage, io.Writer) int { return 0 },
 		WriteStatus: testStatusWriter,
+		SelectScope: testScopeSelector,
 	}); err != nil {
 		t.Fatalf("run verify: %v", err)
 	}
@@ -662,6 +730,7 @@ func TestPruningKeepsTheRunAPublishedPathPointsInto(t *testing.T) {
 			Out:         io.Discard,
 			RunStage:    func(context.Context, string, stage, io.Writer) int { return 0 },
 			WriteStatus: testStatusWriter,
+			SelectScope: testScopeSelector,
 		}); err != nil {
 			t.Fatalf("%s: run verify: %v", mode, err)
 		}
@@ -718,7 +787,7 @@ func fixedNow() time.Time {
 	return time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC)
 }
 
-func testStatusWriter(root string, code int, mode, skipped, startHash string, now time.Time) error {
+func testStatusWriter(root string, code int, mode, skipped string, _ treeSnapshot, now time.Time) error {
 	content := "exit=" + strconv.Itoa(code) + "\n" + "timestamp=" + now.UTC().Format(time.RFC3339) + "\nmode=" + mode + "\nskipped=" + skipped + "\ngit_sha=test\ntree_hash=test\n"
 	return os.WriteFile(filepath.Join(root, statusPath), []byte(content), 0o644)
 }
@@ -752,9 +821,10 @@ func mustReadFileContains(t *testing.T, root, rel, want string) {
 // ── Stage-list SSOT guards (plan/spec-fixit-verify-stage-ssot.md) ───────────
 //
 // stagesForMode is the ONLY live verify stage list: `make ze-precommit-verify` and
-// `make ze-precommit-verify-changed` both shell out to this runner (Makefile), and CI's
-// only step is `make ze-precommit-verify` (.github/workflows/verify.yml). A gate absent from
-// stagesForMode therefore never runs anywhere.
+// `make ze-precommit-verify-changed` both shell out to this runner (Makefile), and CI
+// shards this same list, each shard reading it with `make ze-precommit-verify-list`
+// (.github/workflows/verify.yml). A gate absent from stagesForMode therefore never
+// runs anywhere.
 //
 // The goldens below are deliberately hand-maintained literals, not derived from
 // stagesForMode: their entire job is to be a change-detector. Deriving them from
@@ -2124,13 +2194,13 @@ func TestWriteVerifyStatusNamesTheTreeThatWasVerified(t *testing.T) {
 	// is a REAL hash of this tree rather than a constant, so a later
 	// verify-status.sh comparison can match it.
 	root := t.TempDir()
-	live := computeTreeHash(root)
-	if err := writeVerifyStatus(root, 0, "ze-precommit-verify", "", live, now); err != nil {
+	still := snapshotTree(root)
+	if err := writeVerifyStatus(root, 0, "ze-precommit-verify", "", still, now); err != nil {
 		t.Fatalf("write status: %v", err)
 	}
-	got := readStatusField(t, root, "tree_hash")
-	if got != live {
-		t.Errorf("tree_hash = %q, want the hash the run started with (%q)", got, live)
+	got := readTreeHash(t, root)
+	if got != still.hash {
+		t.Errorf("tree_hash = %q, want the hash the run started with (%q)", got, still.hash)
 	}
 	if got == treeMovedSentinel {
 		t.Error("an unchanged tree must not be certified as moved")
@@ -2139,21 +2209,25 @@ func TestWriteVerifyStatusNamesTheTreeThatWasVerified(t *testing.T) {
 	// The tree moved: no single hash is true for the run, so the certificate
 	// must name none. The sentinel cannot equal any tree's hash, which is what
 	// makes verify-status.sh report STALE rather than FRESH.
-	if err := writeVerifyStatus(root, 0, "ze-precommit-verify", "", "a-tree-that-is-not-this-one", now); err != nil {
+	moved := treeSnapshot{hash: "a-tree-that-is-not-this-one", manifest: still.manifest}
+	if err := writeVerifyStatus(root, 0, "ze-precommit-verify", "", moved, now); err != nil {
 		t.Fatalf("write status: %v", err)
 	}
-	got = readStatusField(t, root, "tree_hash")
+	got = readTreeHash(t, root)
 	if got != treeMovedSentinel {
 		t.Errorf("tree_hash = %q, want %q: a run that spanned an edit certifies nothing", got, treeMovedSentinel)
 	}
-	if got == live {
+	if got == still.hash {
 		t.Error("a moved tree must never be certified with a real hash")
 	}
 }
 
-// readStatusField returns one `key=value` field from the written status file.
-func readStatusField(t *testing.T, root, key string) string {
+// readTreeHash returns the `tree_hash` field of the written status file, which
+// is the one field these tests ask about: it carries either the hash of the tree
+// the stages read or treeMovedSentinel, and that is the whole-tree verdict.
+func readTreeHash(t *testing.T, root string) string {
 	t.Helper()
+	const key = "tree_hash"
 	data, err := os.ReadFile(filepath.Join(root, statusPath))
 	if err != nil {
 		t.Fatalf("read status: %v", err)
@@ -2224,15 +2298,16 @@ func TestVerifyRunCertifiesOnlyATreeThatHeldStill(t *testing.T) {
 				}
 				return 0
 			},
-			WriteStatus: func(_ string, _ int, _, _, startHash string, _ time.Time) error {
+			WriteStatus: func(_ string, _ int, _, _ string, start treeSnapshot, _ time.Time) error {
 				// The real writer's decision, reproduced here so the assertion is
 				// about what runVerify HANDS the writer rather than about the file.
-				written = startHash
-				if end := computeTreeHash(root); end != startHash {
+				written = start.hash
+				if end := computeTreeHash(root); end != start.hash {
 					written = treeMovedSentinel
 				}
 				return nil
 			},
+			SelectScope: testScopeSelector,
 		})
 		if err != nil {
 			t.Fatalf("run verify: %v", err)
@@ -2251,4 +2326,1067 @@ func TestVerifyRunCertifiesOnlyATreeThatHeldStill(t *testing.T) {
 	if still == "" {
 		t.Error("runVerify handed the writer no start hash at all")
 	}
+}
+
+// verifyRepoRoot builds a throwaway git repository whose working tree carries
+// two files that already differ from HEAD, and returns its root.
+//
+// A real repository is required: gitOutput returns "" for every git error, so
+// outside one the per-path record is empty whatever the files say and no test
+// could see a path move. tmp/ is gitignored exactly as the checkout gitignores
+// it, so the run's own artifacts never read as a concurrent edit.
+func verifyRepoRoot(t *testing.T) string {
+	t.Helper()
+	root := t.TempDir()
+	write := func(rel, body string) {
+		if err := os.WriteFile(filepath.Join(root, rel), []byte(body), 0o600); err != nil {
+			t.Fatalf("write %s: %v", rel, err)
+		}
+	}
+	write(".gitignore", "tmp/\n")
+	write("mine.txt", "mine\n")
+	write("theirs.txt", "theirs\n")
+	for _, args := range [][]string{
+		{"init", "-q"},
+		{"config", "user.email", "t@example.com"},
+		{"config", "user.name", "t"},
+		{"config", "commit.gpgsign", "false"},
+		{"add", "-A"},
+		{"commit", "-q", "-m", "fixture"},
+	} {
+		cmd := exec.CommandContext(context.Background(), "git", args...)
+		cmd.Dir = root
+		if out, err := cmd.CombinedOutput(); err != nil {
+			// Never skip. The record under test IS a git question, so a tree
+			// this test cannot build is a broken environment rather than a
+			// reason to stop asserting: a skipped guard reads exactly like a
+			// passing one (ai/rules/testing.md).
+			t.Fatalf("git %v failed, so the freshness record cannot be driven: %v: %s", args, err, out)
+		}
+	}
+	// Both files differ from HEAD before the run starts, so both carry a row in
+	// the per-path record and the assertions can tell which one moved.
+	write("mine.txt", "mine edited\n")
+	write("theirs.txt", "theirs edited\n")
+	return root
+}
+
+// verifyStatusCheck asks scripts/dev/verify-status.sh about root and returns its
+// exit code with its output. That script is the only consumer that parses the
+// record, so the assertions read the record through it rather than through its
+// bytes.
+func verifyStatusCheck(t *testing.T, root string, paths ...string) (int, string) {
+	t.Helper()
+	script, err := filepath.Abs(filepath.Join("..", "dev", "verify-status.sh"))
+	if err != nil {
+		t.Fatalf("locate verify-status.sh: %v", err)
+	}
+	cmd := exec.CommandContext(context.Background(), "bash", append([]string{script, "check"}, paths...)...)
+	cmd.Dir = root
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		return 0, string(out)
+	}
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) {
+		return exitErr.ExitCode(), string(out)
+	}
+	t.Fatalf("run verify-status.sh check %v: %v: %s", paths, err, out)
+	return 0, ""
+}
+
+// TestWriteVerifyStatusRecordsMovedPathsNotSentinel drives the freshness record
+// from runVerify, the entry point that produces it, and reads it back through
+// verify-status.sh, the only consumer that parses it.
+//
+// VALIDATES: a concurrent edit during a run costs the run the paths that moved
+// and nothing else. The record NAMES them, and every path that held still still
+// answers FRESH.
+// PREVENTS: one foreign edit voiding a whole run. writeVerifyStatus wrote
+// treeMovedSentinel into tree_hash and nothing else, and no tree hashes to that
+// value, so the entire record read STALE for ever -- including for the asking
+// session's own files, which nobody had touched. Six sessions share this
+// checkout and it carries hundreds of uncommitted files, so a 25-minute run
+// essentially never sees a still tree: the live tmp/ze-verify.status held that
+// sentinel after a 79-minute PASS.
+func TestWriteVerifyStatusRecordsMovedPathsNotSentinel(t *testing.T) {
+	// A partial pass reports STALE whatever the paths say, so the ambient
+	// setting must not decide what this test measures.
+	t.Setenv("ZE_SKIP_SUITES", "")
+
+	run := func(t *testing.T, moved ...string) string {
+		t.Helper()
+		root := verifyRepoRoot(t)
+		code, err := runVerify(context.Background(), verifyConfig{
+			Root:   root,
+			Mode:   "ze-precommit-verify",
+			Stages: []stage{{Name: "only", Rerun: "make only"}},
+			Now:    fixedNow,
+			Out:    io.Discard,
+			RunStage: func(_ context.Context, _ string, _ stage, w io.Writer) int {
+				_, _ = io.WriteString(w, "ran\n")
+				for _, rel := range moved {
+					// Another session editing the shared checkout mid-run.
+					_ = os.WriteFile(filepath.Join(root, rel), []byte("moved by another session\n"), 0o600)
+				}
+				return 0
+			},
+			SelectScope: testScopeSelector,
+		})
+		if err != nil {
+			t.Fatalf("run verify: %v", err)
+		}
+		if code != 0 {
+			t.Fatalf("verify exit = %d, want 0: only a PASS is worth asking about", code)
+		}
+		return root
+	}
+
+	t.Run("nothing moved", func(t *testing.T) {
+		root := run(t)
+		for _, rel := range []string{"mine.txt", "theirs.txt"} {
+			if code, out := verifyStatusCheck(t, root, rel); code != 0 {
+				t.Errorf("check %s exited %d (%s), want FRESH: the tree held still for the whole run",
+					rel, code, strings.TrimSpace(out))
+			}
+		}
+		if code, out := verifyStatusCheck(t, root); code != 0 {
+			t.Errorf("whole-tree check exited %d (%s), want FRESH", code, strings.TrimSpace(out))
+		}
+		if data := readManifest(t, root); strings.Contains(data, movedDuringRun) {
+			t.Errorf("a still tree recorded a moved path:\n%s", data)
+		}
+	})
+
+	t.Run("a path the asker did not name moved", func(t *testing.T) {
+		root := run(t, "theirs.txt")
+		if code, out := verifyStatusCheck(t, root, "mine.txt"); code != 0 {
+			t.Errorf("check mine.txt exited %d (%s), want FRESH: another session's edit to theirs.txt "+
+				"must not void the verdict about a file it never touched", code, strings.TrimSpace(out))
+		}
+		if got := readManifest(t, root); !strings.Contains(got, movedDuringRun+" theirs.txt") {
+			t.Errorf("the record does not name the path that moved:\n%s", got)
+		}
+	})
+
+	t.Run("the path the asker named moved", func(t *testing.T) {
+		root := run(t, "theirs.txt")
+		if code, out := verifyStatusCheck(t, root, "theirs.txt"); code == 0 {
+			t.Errorf("check theirs.txt reported FRESH (%s), want STALE: a path that moved while the "+
+				"stages ran was verified at neither content", strings.TrimSpace(out))
+		}
+		// Granularity, not leniency. The whole-tree question still has no true
+		// answer, so it keeps the sentinel and keeps reporting STALE.
+		if got := readTreeHash(t, root); got != treeMovedSentinel {
+			t.Errorf("tree_hash = %q, want %q: no single hash is true for a run that spanned an edit", got, treeMovedSentinel)
+		}
+		if code, out := verifyStatusCheck(t, root); code == 0 {
+			t.Errorf("whole-tree check reported FRESH (%s) after the tree moved", strings.TrimSpace(out))
+		}
+		// The record charges the move to the path that moved, and leaves every
+		// other path a fingerprint a later check can match.
+		got := readManifest(t, root)
+		if strings.Contains(got, movedDuringRun+" mine.txt") {
+			t.Errorf("a path that held still was recorded as moved:\n%s", got)
+		}
+		if strings.Contains(got, treeMovedSentinel) {
+			t.Errorf("the per-path record carries the whole-run sentinel, so it voids every path:\n%s", got)
+		}
+	})
+
+	// The record is a comparison of two snapshots, so an edit that begins AND
+	// ends inside the run window is invisible to it. The window has two shapes
+	// and this subtest drives the second: theirs.txt is already dirty at run
+	// start, is written during the stages, and is put back before the end
+	// snapshot, so both snapshots hold the same fingerprint and the path answers
+	// FRESH though some stages read content nobody verified. The whole-tree hash
+	// answers the same way for the same reason.
+	//
+	// This pins a documented limitation, not a requirement
+	// (docs/architecture/testing/verify-freshness-scope.md, "A path that moved
+	// while the run was in flight"). Closing it needs a third observation of the
+	// tree, which no acceptance criterion of this spec asks for. A failure here
+	// means somebody closed it: update the doc paragraph and this expectation
+	// together, and do not restore the blind spot to keep the test green.
+	t.Run("an edit reverted before the run ended is invisible", func(t *testing.T) {
+		root := verifyRepoRoot(t)
+		theirs := filepath.Join(root, "theirs.txt")
+		start, err := os.ReadFile(theirs)
+		if err != nil {
+			t.Fatalf("read the fixture the stages start from: %v", err)
+		}
+		code, err := runVerify(context.Background(), verifyConfig{
+			Root:   root,
+			Mode:   "ze-precommit-verify",
+			Stages: []stage{{Name: "only", Rerun: "make only"}},
+			Now:    fixedNow,
+			Out:    io.Discard,
+			RunStage: func(_ context.Context, _ string, _ stage, w io.Writer) int {
+				_, _ = io.WriteString(w, "ran\n")
+				_ = os.WriteFile(theirs, []byte("edited mid-run\n"), 0o600)
+				_ = os.WriteFile(theirs, start, 0o600)
+				return 0
+			},
+			SelectScope: testScopeSelector,
+		})
+		if err != nil {
+			t.Fatalf("run verify: %v", err)
+		}
+		if code != 0 {
+			t.Fatalf("verify exit = %d, want 0: only a PASS is worth asking about", code)
+		}
+		if code, out := verifyStatusCheck(t, root, "theirs.txt"); code != 0 {
+			t.Errorf("check theirs.txt exited %d (%s), want FRESH: the two snapshots agree, "+
+				"which is the blind spot the doc names", code, strings.TrimSpace(out))
+		}
+		if got := readManifest(t, root); strings.Contains(got, movedDuringRun) {
+			t.Errorf("a path the two snapshots agreed on was recorded as moved:\n%s", got)
+		}
+		if got := readTreeHash(t, root); got == treeMovedSentinel {
+			t.Errorf("tree_hash = %q: the whole-tree hash has the same blind spot and must "+
+				"answer the same way, or the two granularities disagree about one run", got)
+		}
+	})
+}
+
+// readManifest returns the per-path record written beside the status file.
+func readManifest(t *testing.T, root string) string {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join(root, manifestPath))
+	if err != nil {
+		t.Fatalf("read manifest: %v", err)
+	}
+	return string(data)
+}
+
+// testScopeSelector is the injected change-set selector for every runVerify
+// test that is not about the change set. It answers without running the real
+// selector, which would cost a `go list` over the whole tree per test and would
+// make every one of them depend on what the working tree happens to hold.
+func testScopeSelector(string, io.Writer) (changeSetAnswer, error) {
+	return changeSetAnswer{Packages: []string{"./scripts/status"}, Tags: []string{"ze_ssh"}}, nil
+}
+
+// VALIDATES: the change set is selected ONCE per run, published in the run's own
+// artifact directory, and named to every stage through ZE_VERIFY_SCOPE_PACKAGES.
+// PREVENTS: the per-consumer cost this phase exists to remove -- every scoped
+// stage paying for its own reverse-import walk -- and the cross-session
+// collision a shared tmp/ name would carry, since two sessions verify this
+// checkout at once.
+func TestVerifyRunSelectsTheChangeSetOncePerRun(t *testing.T) {
+	root := t.TempDir()
+	answer := []string{"./internal/core/family", "./internal/component/bgp"}
+
+	selections := 0
+	var named []string
+	code, err := runVerify(context.Background(), verifyConfig{
+		Root:   root,
+		Mode:   "ze-precommit-verify-changed",
+		Stages: []stage{{Name: "lint", Rerun: "make lint"}, {Name: "unit", Rerun: "make unit"}},
+		Now:    fixedNow,
+		Out:    io.Discard,
+		RunStage: func(_ context.Context, _ string, st stage, w io.Writer) int {
+			_, _ = io.WriteString(w, "ran\n")
+			for _, entry := range st.Env {
+				if value, ok := strings.CutPrefix(entry, scopePackagesEnv+"="); ok {
+					named = append(named, value)
+				}
+			}
+			return 0
+		},
+		WriteStatus: testStatusWriter,
+		SelectScope: func(string, io.Writer) (changeSetAnswer, error) {
+			selections++
+			return changeSetAnswer{Packages: answer, Tags: []string{"ze_ssh"}}, nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("run verify: %v", err)
+	}
+	if code != 0 {
+		t.Fatalf("verify exit = %d, want 0", code)
+	}
+
+	if selections != 1 {
+		t.Fatalf("the selector ran %d times for a 2-stage run, want 1: the whole point of publishing the answer is that a run pays for it once", selections)
+	}
+	if len(named) != 2 {
+		t.Fatalf("%d of 2 stages were told where the change set is: %v", len(named), named)
+	}
+	if named[0] != named[1] {
+		t.Fatalf("two stages of one run were given different change sets:\n  %s\n  %s", named[0], named[1])
+	}
+
+	runDir := filepath.Join(root, filepath.FromSlash(stageLogDir), runDirNames(t, root)[0])
+	want := filepath.Join(runDir, scopePackagesFile)
+	if named[0] != want {
+		t.Fatalf("stages read %s, want the run's own %s", named[0], want)
+	}
+	body, err := os.ReadFile(want)
+	if err != nil {
+		t.Fatalf("read the published change set: %v", err)
+	}
+	if got := strings.TrimSpace(string(body)); got != strings.Join(answer, "\n") {
+		t.Fatalf("published change set is %q, want %q", got, strings.Join(answer, "\n"))
+	}
+}
+
+// VALIDATES: two runs of one checkout publish their change sets at different
+// paths.
+// PREVENTS: the collision that a documented tmp/ name would carry -- a second
+// session's run rewriting the answer between two stages of the first, so a
+// scoped stage lints a tree nobody selected for it.
+func TestVerifyRunPublishesTheChangeSetPerRun(t *testing.T) {
+	root := t.TempDir()
+
+	published := func() string {
+		var named string
+		if _, err := runVerify(context.Background(), verifyConfig{
+			Root:   root,
+			Mode:   "ze-precommit-verify-changed",
+			Stages: []stage{{Name: "lint", Rerun: "make lint"}},
+			Now:    fixedNow,
+			Out:    io.Discard,
+			RunStage: func(_ context.Context, _ string, st stage, w io.Writer) int {
+				_, _ = io.WriteString(w, "ran\n")
+				for _, entry := range st.Env {
+					if value, ok := strings.CutPrefix(entry, scopePackagesEnv+"="); ok {
+						named = value
+					}
+				}
+				return 0
+			},
+			WriteStatus: testStatusWriter,
+			SelectScope: testScopeSelector,
+		}); err != nil {
+			t.Fatalf("run verify: %v", err)
+		}
+		return named
+	}
+
+	first, second := published(), published()
+	if first == "" || second == "" {
+		t.Fatalf("a run did not name its change set: %q, %q", first, second)
+	}
+	if first == second {
+		t.Fatalf("both runs published their change set at %s, so the second overwrote what the first stages read", first)
+	}
+}
+
+// VALIDATES: a selector that cannot answer widens the run to every package.
+// PREVENTS: the fail-open turning into a fail-closed. An unanswered selection
+// reaching a stage as an EMPTY package list is read by _ze-lint-changed-impl as
+// "No changed Go packages to lint", so the stage would report success having
+// linted nothing at all (ai/rules/evidence.md).
+func TestVerifyRunWidensWhenTheChangeSetCannotBeSelected(t *testing.T) {
+	root := t.TempDir()
+
+	var named, namedTags string
+	code, err := runVerify(context.Background(), verifyConfig{
+		Root:   root,
+		Mode:   "ze-precommit-verify-changed",
+		Stages: []stage{{Name: "lint", Rerun: "make lint"}},
+		Now:    fixedNow,
+		Out:    io.Discard,
+		RunStage: func(_ context.Context, _ string, st stage, w io.Writer) int {
+			_, _ = io.WriteString(w, "ran\n")
+			for _, entry := range st.Env {
+				if value, ok := strings.CutPrefix(entry, scopePackagesEnv+"="); ok {
+					named = value
+				}
+				if strings.HasPrefix(entry, scopeTagsEnv+"=") {
+					namedTags = entry
+				}
+			}
+			return 0
+		},
+		WriteStatus: testStatusWriter,
+		SelectScope: func(string, io.Writer) (changeSetAnswer, error) {
+			return changeSetAnswer{}, errors.New("go list: the toolchain is wedged")
+		},
+	})
+	if err != nil {
+		t.Fatalf("run verify: %v", err)
+	}
+	if code != 0 {
+		t.Fatalf("verify exit = %d, want 0: a widened change set is an answer, not a failure", code)
+	}
+	if named == "" {
+		t.Fatal("the stage was told nothing about the change set, so it would select its own")
+	}
+	body, err := os.ReadFile(named)
+	if err != nil {
+		t.Fatalf("read the published change set: %v", err)
+	}
+	if got := strings.TrimSpace(string(body)); got != everyPackageWord {
+		t.Fatalf("published change set is %q, want %q: a failed selection must widen, never empty", got, everyPackageWord)
+	}
+	// The tag half widens by being ABSENT. An empty feature-tag answer is a real
+	// answer -- no Go package changed, so only the two shipped combinations can
+	// move -- so publishing one here would scope the staticcheck matrix to 2 rows
+	// on a run whose change set is unknown.
+	if namedTags != "" {
+		t.Fatalf("a failed selection published a feature-tag answer (%s), which the matrix would read as a narrow change set", namedTags)
+	}
+	if _, err := os.Stat(filepath.Join(filepath.Dir(named), scopeTagsFile)); !os.IsNotExist(err) {
+		t.Fatalf("a failed selection wrote %s (stat error %v), so a later stage could still narrow on it", scopeTagsFile, err)
+	}
+}
+
+// VALIDATES: scripts/dev/changed-pkgs.sh, the one thing the make recipes call,
+// answers from the file the run published.
+// PREVENTS: the two answers drifting. The script holds no selection logic of its
+// own since this phase, so this is the whole consumer contract:
+// _ze-lint-changed-impl and _ze-unit-test-changed-impl expand what it prints.
+func TestChangedPkgsReadsThePublishedChangeSet(t *testing.T) {
+	script := filepath.Join("..", "..", "scripts", "dev", "changed-pkgs.sh")
+	if _, err := os.Stat(script); err != nil {
+		t.Fatalf("locate changed-pkgs.sh: %v", err)
+	}
+
+	run := func(t *testing.T, answerPath string) (string, string) {
+		t.Helper()
+		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		defer cancel()
+		cmd := exec.CommandContext(ctx, "bash", script) //nolint:gosec // fixed repository script
+		cmd.Env = append(os.Environ(), scopePackagesEnv+"="+answerPath)
+		var stdout, stderr strings.Builder
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
+		if err := cmd.Run(); err != nil {
+			t.Fatalf("changed-pkgs.sh failed: %v\nstderr:\n%s", err, stderr.String())
+		}
+		return stdout.String(), stderr.String()
+	}
+
+	t.Run("the published answer is what the recipes get", func(t *testing.T) {
+		answer := filepath.Join(t.TempDir(), scopePackagesFile)
+		if err := os.WriteFile(answer, []byte("./internal/core/family\n./scripts/status\n"), 0o600); err != nil {
+			t.Fatalf("write the change set: %v", err)
+		}
+		stdout, _ := run(t, answer)
+		if stdout != "./internal/core/family\n./scripts/status\n" {
+			t.Fatalf("changed-pkgs.sh printed %q, not what the run published", stdout)
+		}
+	})
+
+	t.Run("a widened answer stays widened", func(t *testing.T) {
+		answer := filepath.Join(t.TempDir(), scopePackagesFile)
+		if err := os.WriteFile(answer, []byte(everyPackageWord+"\n"), 0o600); err != nil {
+			t.Fatalf("write the change set: %v", err)
+		}
+		stdout, _ := run(t, answer)
+		if strings.TrimSpace(stdout) != everyPackageWord {
+			t.Fatalf("changed-pkgs.sh printed %q for a widened run, want %q", stdout, everyPackageWord)
+		}
+	})
+
+	t.Run("an unreadable answer widens rather than emptying", func(t *testing.T) {
+		stdout, stderr := run(t, filepath.Join(t.TempDir(), "never-written.txt"))
+		if strings.TrimSpace(stdout) != everyPackageWord {
+			t.Fatalf("changed-pkgs.sh printed %q when the published answer was missing, want %q: an empty answer reads as nothing to verify", stdout, everyPackageWord)
+		}
+		if !strings.Contains(stderr, "never-written.txt") {
+			t.Fatalf("the widening was silent about the path that caused it:\n%s", stderr)
+		}
+	})
+
+	t.Run("an empty answer is an answer", func(t *testing.T) {
+		answer := filepath.Join(t.TempDir(), scopePackagesFile)
+		if err := os.WriteFile(answer, nil, 0o600); err != nil {
+			t.Fatalf("write the change set: %v", err)
+		}
+		stdout, _ := run(t, answer)
+		if stdout != "" {
+			t.Fatalf("changed-pkgs.sh printed %q for an empty change set, want nothing: no changed path is compiled or read by a Go package", stdout)
+		}
+	})
+}
+
+// VALIDATES: the production selector call itself, which every other test in this
+// file replaces with testScopeSelector.
+// PREVENTS: a change set that is only ever answered by a stub. The wiring above
+// proves the answer reaches the stages; this proves there is an answer -- the
+// selector runs from the runner's working directory and writes package patterns
+// the make recipes can expand.
+func TestSelectScopePackagesRunsTheRealSelector(t *testing.T) {
+	root := filepath.Join("..", "..")
+	answer, err := selectChangeSet(root, io.Discard)
+	if err != nil {
+		t.Fatalf("select the change set: %v", err)
+	}
+	if len(answer.Packages) == 0 {
+		t.Fatal("the selector answered nothing at all: an empty answer reads as nothing to lint or test")
+	}
+	for _, pkg := range answer.Packages {
+		if !strings.HasPrefix(pkg, "./") {
+			t.Fatalf("the selector answered %q, which no make recipe can expand as a package pattern", pkg)
+		}
+	}
+	// The tag half comes from the same run. It is legitimately EMPTY for a
+	// change no gated package compiles, so the assertion is on the shape of what
+	// is there, not on there being something.
+	for _, tag := range answer.Tags {
+		if !strings.HasPrefix(tag, "ze_") {
+			t.Fatalf("the selector answered feature tag %q, which feature-gates.txt cannot declare", tag)
+		}
+	}
+}
+
+// VALIDATES: the feature-tag half of the change set is published in the run's
+// own directory and named to every stage through ZE_VERIFY_SCOPE_TAGS, from the
+// SAME selector run that answered the packages.
+// PREVENTS: the staticcheck matrix paying 874s to judge 38 rows for a change
+// that can move 3 of them, and the second graph walk a second selector call
+// would cost (plan/spec-verify-scope-3-selector-consumers.md).
+func TestVerifyRunNamesTheFeatureScopeToEveryStage(t *testing.T) {
+	root := t.TempDir()
+	tags := []string{"ze_ssh", "ze_web"}
+
+	selections := 0
+	var named []string
+	code, err := runVerify(context.Background(), verifyConfig{
+		Root:   root,
+		Mode:   "ze-precommit-verify-changed",
+		Stages: []stage{{Name: "matrix", Rerun: "make matrix"}, {Name: "lint", Rerun: "make lint"}},
+		Now:    fixedNow,
+		Out:    io.Discard,
+		RunStage: func(_ context.Context, _ string, st stage, w io.Writer) int {
+			_, _ = io.WriteString(w, "ran\n")
+			for _, entry := range st.Env {
+				if value, ok := strings.CutPrefix(entry, scopeTagsEnv+"="); ok {
+					named = append(named, value)
+				}
+			}
+			return 0
+		},
+		WriteStatus: testStatusWriter,
+		SelectScope: func(string, io.Writer) (changeSetAnswer, error) {
+			selections++
+			return changeSetAnswer{Packages: []string{"./internal/component/ssh"}, Tags: tags}, nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("run verify: %v", err)
+	}
+	if code != 0 {
+		t.Fatalf("verify exit = %d, want 0", code)
+	}
+	if selections != 1 {
+		t.Fatalf("the selector ran %d times for a 2-stage run, want 1: both answers come from one run", selections)
+	}
+	if len(named) != 2 || named[0] != named[1] {
+		t.Fatalf("%d of 2 stages were told where the feature scope is, and they must agree: %v", len(named), named)
+	}
+
+	runDir := filepath.Join(root, filepath.FromSlash(stageLogDir), runDirNames(t, root)[0])
+	want := filepath.Join(runDir, scopeTagsFile)
+	if named[0] != want {
+		t.Fatalf("stages read %s, want the run's own %s", named[0], want)
+	}
+	body, err := os.ReadFile(want)
+	if err != nil {
+		t.Fatalf("read the published feature scope: %v", err)
+	}
+	if got := strings.TrimSpace(string(body)); got != strings.Join(tags, "\n") {
+		t.Fatalf("published feature scope is %q, want %q", got, strings.Join(tags, "\n"))
+	}
+}
+
+// VALIDATES: the --print=both document is read as two answers, and a truncated
+// one is an error rather than an empty half.
+// PREVENTS: a half-read answer narrowing the run. An empty tag list is a REAL
+// answer -- judge the two shipped matrix rows and nothing else -- so a missing
+// "# tags" section must never arrive as one.
+func TestParseChangeSetAnswerReadsBothSections(t *testing.T) {
+	for _, tc := range []struct {
+		name         string
+		out          string
+		wantPackages []string
+		wantTags     []string
+		wantErr      string
+	}{
+		{
+			name:         "both halves",
+			out:          "# packages\n./a\n./b\n# tags\nze_ssh\n",
+			wantPackages: []string{"./a", "./b"},
+			wantTags:     []string{"ze_ssh"},
+		},
+		{
+			name: "both halves empty",
+			out:  "# packages\n# tags\n",
+		},
+		{
+			name:         "no feature is reachable",
+			out:          "# packages\n./docs\n# tags\n",
+			wantPackages: []string{"./docs"},
+		},
+		{
+			name:    "the tag section is missing",
+			out:     "# packages\n./a\n",
+			wantErr: "1 of the 2 sections",
+		},
+		{
+			name:    "an answer before any section",
+			out:     "./a\n# packages\n./b\n# tags\n",
+			wantErr: "before naming a section",
+		},
+		{
+			name:    "an unknown section",
+			out:     "# packages\n./a\n# suites\nweb\n# tags\n",
+			wantErr: "unknown section",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			answer, err := parseChangeSetAnswer(tc.out)
+			if tc.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+					t.Fatalf("error = %v, want one containing %q", err, tc.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("parse the answer: %v", err)
+			}
+			if strings.Join(answer.Packages, ",") != strings.Join(tc.wantPackages, ",") {
+				t.Fatalf("packages = %v, want %v", answer.Packages, tc.wantPackages)
+			}
+			if strings.Join(answer.Tags, ",") != strings.Join(tc.wantTags, ",") {
+				t.Fatalf("tags = %v, want %v", answer.Tags, tc.wantTags)
+			}
+		})
+	}
+}
+
+// VALIDATES: the one consumer of ZE_VERIFY_SCOPE_TAGS spells it exactly as this
+// runner sets it.
+// PREVENTS: the silent half of a rename. A drift here fails OPEN -- the matrix
+// sees no answer and judges all 38 rows -- so no gate goes red, no test fails,
+// and the 874s this spec exists to remove comes back unannounced.
+func TestTheStaticcheckMatrixReadsTheFeatureScopeVariable(t *testing.T) {
+	const consumer = "../checks/staticcheck_feature_matrix.go"
+	source, err := os.ReadFile(consumer)
+	if err != nil {
+		t.Fatalf("read %s: %v", consumer, err)
+	}
+	body := string(source)
+	if want := "scopeTagsEnv = \"" + scopeTagsEnv + "\""; !strings.Contains(body, want) {
+		t.Fatalf("%s does not declare %s, so this runner publishes an answer nothing reads", consumer, want)
+	}
+	if !strings.Contains(body, "os.Getenv(scopeTagsEnv)") {
+		t.Fatalf("%s declares the variable but never reads it, so every run judges every row", consumer)
+	}
+}
+
+// declaredLine builds one VERIFY FAILURE GROUP: line the way a producer does,
+// through encoding/json, so the tests exercise the escaping a real producer gets
+// rather than a hand-written string the author already knows is safe.
+func declaredLine(t *testing.T, g failureGroup) string {
+	t.Helper()
+	payload, err := json.Marshal(g)
+	if err != nil {
+		t.Fatalf("marshal declared group: %v", err)
+	}
+	return declaredGroupPrefix + " " + string(payload) + "\n"
+}
+
+// completeLine is the producer's statement that it declared a group for every
+// failure it reported, carrying the number it printed.
+func completeLine(count int) string {
+	return declaredCompletePrefix + " " + strconv.Itoa(count) + "\n"
+}
+
+// TestMalformedGroupLineIsReported
+//
+// VALIDATES: a VERIFY FAILURE GROUP: line whose JSON does not parse becomes a
+// group of its own, and that group names no path the checkout holds, so the
+// commit helper charges the gate instead of reading the red as somebody else's.
+// PREVENTS: the failure vanishing. The parser used to `continue` past an
+// unmarshal error, which deleted the failure the producer printed the line for:
+// the stage stayed red and the failure index held nothing about it (spec R-2).
+func TestMalformedGroupLineIsReported(t *testing.T) {
+	text := declaredGroupPrefix + " {\"stage\":\"ze-doc-wiring-check\",\n" +
+		completeLine(1)
+	groups, complete := parseDeclaredGroups("tmp/verify/wiring.log", text)
+	if len(groups) != 1 {
+		t.Fatalf("expected the unparseable line to become one group, got %+v", groups)
+	}
+	if !complete {
+		t.Fatalf("an unparseable line still counts toward the declared total, got complete=false")
+	}
+	if groups[0].Kind != "unparsed" {
+		t.Fatalf("kind = %q, want unparsed", groups[0].Kind)
+	}
+	if !strings.Contains(groups[0].Summary, "did not parse") {
+		t.Fatalf("summary does not say the line failed to parse: %q", groups[0].Summary)
+	}
+	if len(groups[0].Excerpt) != 1 || !strings.Contains(groups[0].Excerpt[0], "ze-doc-wiring-check") {
+		t.Fatalf("the unreadable line is not quoted in the excerpt: %+v", groups[0].Excerpt)
+	}
+	if _, err := os.Stat(filepath.Join(repoRootFromScriptsStatus(), groups[0].Related[0])); err == nil {
+		t.Fatalf("related %q names a real path, so the commit helper could read it as attribution", groups[0].Related[0])
+	}
+}
+
+// TestClassifyWiringDocsPrefersDeclaredGroups
+//
+// VALIDATES: when the wiring gate declares a group for every failure it reported
+// and states the count, classifyStage records those groups and not the ones its
+// prose regexes would have built.
+// PREVENTS: the 71 unattributable debt rows this spec exists to remove. The
+// prose path records a CHECK NAME in Related, which resolves to no file, so
+// structural_gate_reds charges the gate to whoever happened to be committing.
+func TestClassifyWiringDocsPrefersDeclaredGroups(t *testing.T) {
+	declared := failureGroup{
+		Stage:   "ze-doc-wiring-check",
+		GroupID: "files:wiring",
+		Kind:    "files",
+		Related: []string{"internal/component/ssh/server.go"},
+		Summary: "wiring check failed",
+		Rerun:   "make ze-doc-wiring-check",
+	}
+	text := "Running ze-doc-verify...\n" +
+		"Wiring check FAILED:\n" +
+		declaredLine(t, declared) +
+		"ze-doc-verify failed\n" +
+		completeLine(1)
+
+	groups := classifyStage(stage{Name: "ze-doc-wiring-check"}, "tmp/verify/wiring.log", text)
+	if len(groups) != 1 {
+		t.Fatalf("expected only the declared group, got %+v", groups)
+	}
+	if groups[0].GroupID != "files:wiring" || groups[0].Kind != "files" {
+		t.Fatalf("unexpected group: %+v", groups[0])
+	}
+	if want := []string{"internal/component/ssh/server.go"}; !slices.Equal(groups[0].Related, want) {
+		t.Fatalf("related = %v, want %v", groups[0].Related, want)
+	}
+	if groups[0].DetailLog != "tmp/verify/wiring.log" {
+		t.Fatalf("detail log = %q, want the stage's own log", groups[0].DetailLog)
+	}
+}
+
+// TestClassifyWiringDocsFallsBackToProse
+//
+// VALIDATES: declared groups are used all-or-nothing. Anything short of "one
+// group for every failure I reported, and here is the count" sends the stage
+// back to its prose classifier.
+// PREVENTS: a silent drop. classifyStage replaces its groups with genericGroup
+// only when the slice is EMPTY, so a partial capture would fill the slice and
+// take the failures it missed out of the index with it (spec R-1).
+func TestClassifyWiringDocsFallsBackToProse(t *testing.T) {
+	one := failureGroup{Stage: "ze-doc-wiring-check", GroupID: "files:wiring", Kind: "files", Related: []string{"internal/component/ssh/server.go"}}
+	prose := "Running ze-doc-verify...\nze-doc-verify failed\n"
+
+	cases := []struct {
+		name string
+		text string
+	}{
+		{"no count at all", prose + declaredLine(t, one)},
+		{"count higher than the groups declared", prose + declaredLine(t, one) + completeLine(2)},
+		{"count lower than the groups declared", prose + declaredLine(t, one) + declaredLine(t, one) + completeLine(1)},
+		{"two counts", prose + declaredLine(t, one) + completeLine(1) + completeLine(1)},
+		{"an unreadable count", prose + declaredLine(t, one) + declaredCompletePrefix + " many\n"},
+		{"nothing declared", prose},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			groups := classifyStage(stage{Name: "ze-doc-wiring-check"}, "tmp/verify/wiring.log", tc.text)
+			if len(groups) != 1 {
+				t.Fatalf("expected the one prose group, got %+v", groups)
+			}
+			if groups[0].GroupID != "subcheck:ze-doc-verify" {
+				t.Fatalf("group = %+v, want the prose subcheck group", groups[0])
+			}
+		})
+	}
+}
+
+// TestAStageWithNoClassifierCanDeclareItsOwnGroups
+//
+// VALIDATES: the declared-group protocol is read for EVERY stage, not only for
+// the six classifyStage dispatches on.
+// PREVENTS: the mechanism reaching one gate. 24 of the 30 stages have no
+// classifier, so they fall through to genericGroup, whose Kind is "stage";
+// PATH_BEARING_GROUP_KINDS (scripts/dev/commit_helper.py) does not hold "stage"
+// and group_related_paths returns nothing for it before any path lookup, so
+// those stages cannot be attributed whatever they print.
+func TestAStageWithNoClassifierCanDeclareItsOwnGroups(t *testing.T) {
+	st := stage{Name: "ze-generated-files-check", Rerun: "make ze-generated-files-check"}
+	declared := failureGroup{
+		GroupID: "files:generated",
+		Kind:    "files",
+		Related: []string{"internal/component/plugin/all/all.go"},
+		Summary: "a generated file is out of date",
+	}
+	text := "some prose the runner has no classifier for\n" + declaredLine(t, declared) + completeLine(1)
+
+	groups := classifyStage(st, "tmp/verify/generated.log", text)
+	if len(groups) != 1 || groups[0].GroupID != "files:generated" {
+		t.Fatalf("expected the declared group, got %+v", groups)
+	}
+	if groups[0].Stage != st.Name {
+		t.Fatalf("stage = %q, want %q", groups[0].Stage, st.Name)
+	}
+	if groups[0].Rerun != st.Rerun {
+		t.Fatalf("rerun = %q, want the stage's own %q", groups[0].Rerun, st.Rerun)
+	}
+
+	// Without the declaration the same stage still falls through to genericGroup,
+	// which is what makes the line above the whole difference.
+	fallback := classifyStage(st, "tmp/verify/generated.log", "some prose the runner has no classifier for\n")
+	if fallback[0].Kind != "stage" {
+		t.Fatalf("undeclared fallback kind = %q, want stage", fallback[0].Kind)
+	}
+}
+
+// TestATruncatedStageLogBecomesItsOwnGroup
+//
+// VALIDATES: a stage whose log could not be read to the end gets a failure group
+// saying so, of a kind the commit helper charges, whether the stage declared its
+// own groups or was classified.
+// PREVENTS: the truncation marker reaching no reader at all. splitLines appends
+// logTruncatedMarker LAST; excerptFromText keeps only the first maxExcerptLines+1
+// non-empty lines and is the only producer of Excerpt; and a log holding a line
+// over maxLogLineBytes is by definition longer than that cap, so the marker was
+// always past it. No classifier's regex matched the marker either, so the read
+// that ended early entered no group and the failure index reported the prefix
+// the scanner happened to reach as if it were the whole log
+// (ai/rules/evidence.md: a partial answer must not look like a whole one).
+func TestATruncatedStageLogBecomesItsOwnGroup(t *testing.T) {
+	overLong := strings.Repeat("x", maxLogLineBytes+1)
+
+	t.Run("a classified stage is charged for what it could not read", func(t *testing.T) {
+		st := stage{Name: "ze-doc-wiring-check", Rerun: "make ze-doc-wiring-check"}
+		text := "Running ze-doc-verify...\nze-doc-verify failed\n" + overLong + "\n"
+		groups := classifyStage(st, "tmp/verify/wiring.log", text)
+
+		truncated := groupByID(groups, "subcheck:stage-log-truncated")
+		if truncated == nil {
+			t.Fatalf("no group carries the truncated read, so nothing reports it: %+v", groups)
+		}
+		if truncated.Kind != "subcheck" {
+			t.Fatalf("kind = %q, want subcheck -- PATH_BEARING_GROUP_KINDS (scripts/dev/commit_helper.py) must not hold it, so the red is charged", truncated.Kind)
+		}
+		if !strings.HasPrefix(truncated.Summary, logTruncatedMarker) {
+			t.Fatalf("summary = %q, want the marker, which names the scanner error", truncated.Summary)
+		}
+		if len(groups) < 2 {
+			t.Fatalf("the classifier's own group was replaced rather than added to: %+v", groups)
+		}
+	})
+
+	t.Run("a declaring stage is charged too", func(t *testing.T) {
+		// The count can still agree when the log is cut AFTER it, and the tail
+		// is unclassified all the same.
+		st := stage{Name: "ze-generated-files-check", Rerun: "make ze-generated-files-check"}
+		declared := failureGroup{GroupID: "files:generated", Kind: "files", Related: []string{"internal/component/plugin/all/all.go"}}
+		text := declaredLine(t, declared) + completeLine(1) + overLong + "\n"
+
+		groups := classifyStage(st, "tmp/verify/generated.log", text)
+		if groupByID(groups, "files:generated") == nil {
+			t.Fatalf("the declared group was lost: %+v", groups)
+		}
+		if groupByID(groups, "subcheck:stage-log-truncated") == nil {
+			t.Fatalf("the truncated read is not reported beside the declared group: %+v", groups)
+		}
+	})
+
+	t.Run("an ordinary log earns no such group", func(t *testing.T) {
+		st := stage{Name: "ze-doc-wiring-check", Rerun: "make ze-doc-wiring-check"}
+		groups := classifyStage(st, "tmp/verify/wiring.log", "Running ze-doc-verify...\nze-doc-verify failed\n")
+		if groupByID(groups, "subcheck:stage-log-truncated") != nil {
+			t.Fatalf("a complete log was reported as truncated: %+v", groups)
+		}
+	})
+}
+
+// TestTheFunctionalStageKeepsItsSummaryReconciliation
+//
+// VALIDATES: ze-functional-test reaches classifyFunctional even when its log
+// carries declared groups and a matching count, so the FAIL summary still adds a
+// group for every suite no declared group covered.
+// PREVENTS: the latent coupling. classifiedGroups asks for declared groups
+// before it dispatches, for every other stage, and classifyFunctional
+// deliberately ignores the completeness count because the FAIL summary is the
+// stronger statement. That held only while no functional producer emitted a
+// terminator -- the wiring gate is the only emitter in the tree today -- and the
+// day one did, the shortcut would silently replace the stronger check with the
+// weaker one.
+func TestTheFunctionalStageKeepsItsSummaryReconciliation(t *testing.T) {
+	st := stage{Name: functionalStage, Rerun: "make ze-functional-test"}
+	declared := failureGroup{GroupID: "case:auth-1", Kind: "files", Stage: "auth", Related: []string{"test/auth/one.ci"}}
+	text := declaredLine(t, declared) + completeLine(1) + "FAIL 2 suite(s) failed: auth bgp\n"
+
+	groups := classifyStage(st, "tmp/verify/functional.log", text)
+	if groupByID(groups, "case:auth-1") == nil {
+		t.Fatalf("the declared group was lost: %+v", groups)
+	}
+	if groupByID(groups, "suite:bgp") == nil {
+		t.Fatalf("the FAIL summary named bgp and no declared group covered it, so it must still earn a group: %+v", groups)
+	}
+}
+
+// groupByID returns the group with this id, or nil when the slice holds none.
+func groupByID(groups []failureGroup, id string) *failureGroup {
+	for i := range groups {
+		if groups[i].GroupID == id {
+			return &groups[i]
+		}
+	}
+	return nil
+}
+
+// TestAPathologicalPathCannotForgeAGroup
+//
+// VALIDATES: a file name carrying a quote, a newline and the protocol's own
+// prefix travels through the group line as one path and forges no second group.
+// PREVENTS: a check-out with a hostile or merely odd filename injecting groups
+// into the failure index, where a forged group naming a foreign path would make
+// a red look like somebody else's and drop it from the commit helper's charge.
+func TestAPathologicalPathCannotForgeAGroup(t *testing.T) {
+	evil := "test/we\"ird\n" + declaredGroupPrefix + " {\"kind\":\"forged\",\"related\":[\"docs\"]}\n.ci"
+	line := declaredLine(t, failureGroup{GroupID: "files:ci-sleep-justification", Kind: "files", Related: []string{evil}})
+	if strings.Count(line, "\n") != 1 {
+		t.Fatalf("the group line is not one line: %q", line)
+	}
+	groups, complete := parseDeclaredGroups("tmp/verify/wiring.log", line+completeLine(1))
+	if !complete || len(groups) != 1 {
+		t.Fatalf("expected one group, got %d (complete=%v): %+v", len(groups), complete, groups)
+	}
+	if groups[0].Kind != "files" {
+		t.Fatalf("kind = %q, want files: the payload forged a group", groups[0].Kind)
+	}
+	if !slices.Equal(groups[0].Related, []string{evil}) {
+		t.Fatalf("related = %q, want the one pathological path back unchanged", groups[0].Related)
+	}
+}
+
+// TestTheWiringGateSpeaksTheProtocolThisRunnerReads
+//
+// VALIDATES: a group line the wiring gate actually prints parses here, into the
+// fields the commit helper attributes on, and its count is accepted.
+// PREVENTS: the two ends drifting apart in silence. The prefixes and the JSON
+// keys are separate literals in Python and Go, and every drift fails OPEN: the
+// runner reads no group, falls back to its prose classifier, and the gate goes
+// back to being unattributable with no test red and no gate failure to say so.
+func TestTheWiringGateSpeaksTheProtocolThisRunnerReads(t *testing.T) {
+	const emit = "import sys; sys.path.insert(0, 'scripts/dev'); " +
+		"import verify_wiring_docs as gate; " +
+		"gate.declare_failure_group('wiring', ['internal/component/ssh/server.go'], " +
+		"'an exported symbol has no non-test reference', 'make ze-doc-wiring-check'); " +
+		"gate.declare_groups_complete()"
+	// Read the gate before running it. go test caches on the files the test
+	// binary opened, and it cannot see a file an exec'd interpreter reads, so
+	// without this the result survives an edit to the producer and the drift
+	// this test exists to catch would be reported from the cache as green.
+	gate := filepath.Join(repoRootFromScriptsStatus(), "scripts", "dev", "verify_wiring_docs.py")
+	source, err := os.ReadFile(gate)
+	if err != nil {
+		t.Fatalf("read %s: %v", gate, err)
+	}
+	if !strings.Contains(string(source), "def declare_groups_complete") {
+		t.Fatalf("%s no longer declares the completeness line this runner requires", gate)
+	}
+
+	cmd := exec.CommandContext(t.Context(), "python3", "-c", emit)
+	cmd.Dir = repoRootFromScriptsStatus()
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("run the gate's own emitter: %v\n%s", err, out)
+	}
+
+	groups, complete := parseDeclaredGroups("tmp/verify/wiring.log", string(out))
+	if !complete {
+		t.Fatalf("the gate's completeness line was not accepted:\n%s", out)
+	}
+	if len(groups) != 1 {
+		t.Fatalf("expected one group, got %+v", groups)
+	}
+	if groups[0].GroupID != "files:wiring" || groups[0].Kind != "files" {
+		t.Fatalf("group-id/kind = %q/%q, want files:wiring/files", groups[0].GroupID, groups[0].Kind)
+	}
+	if want := []string{"internal/component/ssh/server.go"}; !slices.Equal(groups[0].Related, want) {
+		t.Fatalf("related = %v, want %v -- the commit helper attributes on this field", groups[0].Related, want)
+	}
+	if groups[0].Rerun != "make ze-doc-wiring-check" {
+		t.Fatalf("rerun = %q, want the gate's own target", groups[0].Rerun)
+	}
+}
+
+// TestSplitLinesReportsATruncatedRead
+//
+// VALIDATES: splitLines says so when its scanner stops early. An over-long line
+// yields the truncation marker as the last element, a log of ordinary lines is
+// returned unchanged, and a stage log truncated before its count makes
+// parseDeclaredGroups report incomplete, so the caller keeps its classifier
+// instead of trusting the groups the prefix happened to carry.
+// PREVENTS: the silent short read. The scanner ran with the DEFAULT 64 KiB token
+// limit and nobody read Err(), so one over-long line ended the loop and
+// discarded that line AND EVERY LINE AFTER IT. Every classifier in this file
+// reads through splitLines, so the failure index then recorded whichever
+// failures the surviving prefix happened to contain and said nothing about the
+// rest (ai/rules/evidence.md: a partial answer must not look like a whole one).
+func TestSplitLinesReportsATruncatedRead(t *testing.T) {
+	t.Run("an ordinary log is returned unchanged", func(t *testing.T) {
+		text := "### Stage ze-doc-wiring-check\nWiring check FAILED:\nlast line without a newline"
+		want := []string{"### Stage ze-doc-wiring-check", "Wiring check FAILED:", "last line without a newline"}
+		if got := splitLines(text); !slices.Equal(got, want) {
+			t.Fatalf("splitLines(%q) = %q, want %q", text, got, want)
+		}
+	})
+
+	t.Run("an over-long line ends the read and says so", func(t *testing.T) {
+		text := "before the long line\n" + strings.Repeat("x", maxLogLineBytes+1) + "\nafter the long line\n"
+		lines := splitLines(text)
+		if len(lines) != 2 {
+			t.Fatalf("expected the readable prefix and one marker, got %d lines", len(lines))
+		}
+		if lines[0] != "before the long line" {
+			t.Fatalf("the readable prefix was lost: %q", lines[0])
+		}
+		marker := lines[len(lines)-1]
+		if !strings.HasPrefix(marker, logTruncatedMarker) {
+			t.Fatalf("the last line is %q, want the truncation marker -- a short slice with no marker reads as a complete log", marker)
+		}
+		if !strings.Contains(marker, bufio.ErrTooLong.Error()) {
+			t.Fatalf("the marker does not name the scanner error, so a human cannot act on it: %q", marker)
+		}
+		if slices.Contains(lines, "after the long line") {
+			t.Fatalf("the scanner is expected to stop at the over-long line; the marker is what makes the loss visible, got %q", lines)
+		}
+	})
+
+	t.Run("a truncated read makes the declared count disagree", func(t *testing.T) {
+		first := failureGroup{
+			GroupID: "files:wiring",
+			Kind:    "files",
+			Related: []string{"internal/component/ssh/server.go"},
+			Summary: "an exported symbol has no non-test reference",
+			Rerun:   "make ze-doc-wiring-check",
+		}
+		second := failureGroup{
+			GroupID: "subcheck:ci-sleep-ratchet",
+			Kind:    "subcheck",
+			Summary: "the ci-sleep count rose above the baseline",
+			Rerun:   "make ze-doc-wiring-check",
+		}
+		text := declaredLine(t, first) +
+			strings.Repeat("x", maxLogLineBytes+1) + "\n" +
+			declaredLine(t, second) +
+			completeLine(2)
+
+		groups, complete := parseDeclaredGroups("tmp/verify/wiring.log", text)
+		if complete {
+			t.Fatalf("a log whose count was truncated away must not be trusted, got %d group(s) accepted", len(groups))
+		}
+		if len(groups) != 1 {
+			t.Fatalf("expected only the group before the truncation, got %+v", groups)
+		}
+		if !slices.ContainsFunc(splitLines(text), func(line string) bool {
+			return strings.HasPrefix(line, logTruncatedMarker)
+		}) {
+			t.Fatalf("the stage log carries no truncation marker, so the fallback happens for a reason nobody can see")
+		}
+	})
 }

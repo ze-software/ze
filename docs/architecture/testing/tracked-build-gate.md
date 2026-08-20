@@ -21,6 +21,10 @@ distro all-on, bare core, and one row for each omitted feature.
 The matrix covers those direct omissions. It makes no guarantee for arbitrary
 combinations with multiple omitted features.
 
+Those N+2 rows are what the target judges when it is typed on its own. Inside a
+verify run it judges only the rows the change set can move, keeping the distro
+all-on and bare-core rows always: `docs/architecture/testing/verify-freshness-scope.md`.
+
 Staticcheck stops after package and test-variant type checking.
 `ze-repository-tracked-build-check` supplies committed-tree final-link proof for
 its six tracked configurations, not for every shipped build flavor. Keep both

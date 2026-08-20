@@ -1,0 +1,160 @@
+# One SSH file, and the two answers `make ze-verify-scope-selector` gives back.
+#
+# A developer edits `internal/component/ssh/ssh.go` and asks which packages must
+# be retested and which features the change can reach. The selector
+# (`scripts/checks/verify_scope_selector.go`) answers three packages and one
+# feature. This test drives the make target for real and pins both answers
+# exactly, so it proves what the selector NAMES and also that it names nothing
+# more.
+#
+# `./cmd/ze/hub` is the load-bearing member of that set. The hub imports
+# `internal/component/ssh` only from files carrying `//go:build ze_ssh`, so the
+# untagged import graph that `scripts/dev/changed-pkgs.sh` used to build reported
+# the SSH package as having no importer at all. `loadPackageGraph` now runs one
+# `go list` with `ze_core` and every manifest tag on. Drop those tags and this
+# set collapses to `./internal/component/ssh` alone, which is the revert that
+# makes seq=1 fail.
+#
+# Every scenario states its own change set through `--paths-from`. Six sessions
+# share this checkout, so a test reading the live working tree would answer
+# differently on every run and nobody could reproduce a red.
+#
+# The two fail-open directions are pinned beside it. An unclassified path is
+# named on stderr and narrows to the packages that could read it. A move of the
+# module graph widens to every package and says which path moved.
+
+option=timeout:value=180s
+
+tmpfs=assert-ssh.sh:terminator=EOF_SSH
+#!/bin/sh
+set -eu
+# This suite runs under make, and make exports its own flags. A fixture make
+# inheriting a jobserver flag it cannot join warns on every recipe.
+unset MAKEFLAGS MFLAGS MAKELEVEL
+
+printf 'internal/component/ssh/ssh.go\n' > ssh.paths
+if ! make -C "$ZE_REPO_ROOT" --no-print-directory ze-verify-scope-selector \
+	ARGS="--print=both --paths-from=$PWD/ssh.paths" > ssh.out 2> ssh.err; then
+	echo "the selector refused a one-file change set" >&2
+	cat ssh.err >&2
+	exit 1
+fi
+
+# `--print=both` writes one sectioned document: `# packages`, then `# tags`.
+packages=$(sed -n '/^# packages$/,/^# tags$/p' ssh.out | sed '/^#/d')
+tags=$(sed -n '/^# tags$/,$p' ssh.out | sed '/^#/d')
+
+# AC-1 and "nothing more", in one assertion. `./cmd/ze/hub` is what the tagged
+# graph buys; `./cmd/ze` is its own importer, at the second level of the walk.
+# A new importer of internal/component/ssh lands here and fails this line, which
+# is the right cost: the set is the claim.
+expected='./cmd/ze
+./cmd/ze/hub
+./internal/component/ssh'
+if [ "$packages" != "$expected" ]; then
+	echo "one SSH file must select exactly three packages" >&2
+	echo "want:" >&2
+	echo "$expected" >&2
+	echo "got:" >&2
+	echo "$packages" >&2
+	cat ssh.err >&2
+	exit 1
+fi
+echo ssh-selects-its-gated-importer
+
+# AC-3: the feature answer names the one feature the change can reach. ze_bgp is
+# the control -- an always-on seed would answer with every manifest tag.
+if [ "$tags" != "ze_ssh" ]; then
+	echo "the feature answer must be ze_ssh alone, got: $tags" >&2
+	exit 1
+fi
+echo ssh-reaches-one-feature
+EOF_SSH
+
+tmpfs=assert-unclassified.sh:terminator=EOF_UNCLASSIFIED
+#!/bin/sh
+set -eu
+unset MAKEFLAGS MFLAGS MAKELEVEL
+
+# A shell script outside `.claude/hooks/`, in a directory holding no Go source.
+# No row of `nonGoPathRules` names that kind, so `unclassifiedDirs` answers.
+printf 'demos/terminal/rpki/run.sh\n' > unclassified.paths
+if ! make -C "$ZE_REPO_ROOT" --no-print-directory ze-verify-scope-selector \
+	ARGS="--print=packages --paths-from=$PWD/unclassified.paths" \
+	> unclassified.out 2> unclassified.err; then
+	echo "an unclassified path must not stop the selector" >&2
+	cat unclassified.err >&2
+	exit 1
+fi
+
+# The path is named, so the reader who needs a new rule holds the evidence for
+# it. A silent narrowing is what ai/rules/repo-maintenance.md refuses.
+if ! grep -q 'no rule names demos/terminal/rpki/run.sh' unclassified.err; then
+	echo "the unclassified path was not named on stderr" >&2
+	cat unclassified.err >&2
+	exit 1
+fi
+echo unclassified-path-is-named
+
+if grep -qxF './...' unclassified.out; then
+	echo "an unclassified path must not select every package" >&2
+	cat unclassified.err >&2
+	exit 1
+fi
+# `./scripts/checks` is in this set because `walkFirstPartyFiles`
+# (`scripts/checks/checks_test.go`) reads the content of every tracked `.sh`,
+# `.ci`, `.mk`, `.yml`, `Makefile` and `docs/` file. Omitting it made every
+# non-Go row of the classification table under-select.
+readers='./scripts/checks
+./scripts/dev
+./scripts/docvalid
+./scripts/status'
+if [ "$(cat unclassified.out)" != "$readers" ]; then
+	echo "an unclassified path must seed the tooling packages that could read it" >&2
+	echo "want:" >&2
+	echo "$readers" >&2
+	echo "got:" >&2
+	cat unclassified.out >&2
+	exit 1
+fi
+echo unclassified-path-narrows-to-its-readers
+EOF_UNCLASSIFIED
+
+tmpfs=assert-dependency-moved.sh:terminator=EOF_MOVED
+#!/bin/sh
+set -eu
+unset MAKEFLAGS MFLAGS MAKELEVEL
+
+# The three inputs that change what every Go package compiles to. The vendor
+# path is matched by prefix and never opened, so it names no real dependency.
+for changed in go.mod go.sum vendor/example.com/dep/dep.go; do
+	printf '%s\n' "$changed" > moved.paths
+	if ! make -C "$ZE_REPO_ROOT" --no-print-directory ze-verify-scope-selector \
+		ARGS="--print=packages --paths-from=$PWD/moved.paths" \
+		> moved.out 2> moved.err; then
+		echo "a module-graph move must widen the run, not stop it: $changed" >&2
+		cat moved.err >&2
+		exit 1
+	fi
+	if [ "$(cat moved.out)" != './...' ]; then
+		echo "$changed must select every package, got: $(cat moved.out)" >&2
+		exit 1
+	fi
+	if ! grep -q "$changed" moved.err; then
+		echo "the widening reason must name $changed" >&2
+		cat moved.err >&2
+		exit 1
+	fi
+done
+echo dependency-move-widens-and-names-the-path
+EOF_MOVED
+
+cmd=foreground:seq=1:exec=sh assert-ssh.sh
+cmd=foreground:seq=2:exec=sh assert-unclassified.sh
+cmd=foreground:seq=3:exec=sh assert-dependency-moved.sh
+expect=exit:code=0
+expect=stdout:contains=ssh-selects-its-gated-importer
+expect=stdout:contains=ssh-reaches-one-feature
+expect=stdout:contains=unclassified-path-is-named
+expect=stdout:contains=unclassified-path-narrows-to-its-readers
+expect=stdout:contains=dependency-move-widens-and-names-the-path
