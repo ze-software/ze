@@ -207,6 +207,50 @@ func MACAddressValidator() yang.CustomValidator {
 	}
 }
 
+// OSDeviceNameValidator returns a validator for a leaf naming a KERNEL device
+// rather than a ze logical interface: the `os-name` selector. It screens the
+// FORM only, so `ze config validate` catches a name no kernel can carry before
+// the box is asked to apply it.
+//
+// The rules it states are the kernel's, not ze's. IFNAMSIZ caps a device name
+// at 15 characters plus NUL, and '/' and NUL are forbidden in one. Whitespace
+// and ".." are refused as well: the kernel takes them, and a device name
+// reaches a sysfs path in ze and in every tool an operator runs beside it.
+// They are stated here rather than taken from iface.ValidateIfaceName, because
+// config must not import a component that imports it. ISISNETValidator below
+// gives the same reason.
+//
+// iface.ValidateIfaceName stays the authority and is STRICTER. It also refuses
+// the CLI's reserved keywords, which bind a ze interface name and say nothing
+// about what a NIC is called. This screen is therefore weaker by construction,
+// and it cannot refuse a device the daemon accepts.
+//
+// It does NOT check that the device exists. The YANG promises a binding that
+// defers until its device appears, and a config is validated on machines that
+// will never run it.
+//
+// CompleteFn is registered separately by the iface package via
+// yang.RegisterCompleteFn, which offers the device names present on the box.
+func OSDeviceNameValidator() yang.CustomValidator {
+	return yang.CustomValidator{
+		ValidateFn: func(_ string, value any) error {
+			str, ok := value.(string)
+			if !ok {
+				return fmt.Errorf("expected string, got %T", value)
+			}
+			const maxKernelDeviceNameLen = 15 // IFNAMSIZ - 1
+			if str == "" || len(str) > maxKernelDeviceNameLen {
+				return fmt.Errorf("%q is not a valid kernel device name: length %d not in [1, %d]",
+					str, len(str), maxKernelDeviceNameLen)
+			}
+			if strings.ContainsAny(str, "/\x00 \t\n\r") || strings.Contains(str, "..") {
+				return fmt.Errorf("%q is not a valid kernel device name: it contains a forbidden character", str)
+			}
+			return nil
+		},
+	}
+}
+
 // isisSystemIDPattern validates the IS-IS System ID dotted-hex form
 // xxxx.xxxx.xxxx (6 octets = three 4-hex-digit groups). RFC 1195 / ISO/IEC
 // 10589 section 1.4: the System ID is a fixed 6-octet field.
