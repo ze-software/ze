@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/test/runner"
 )
 
 // probeOmit is the probe-* sentinel meaning "leave this out entirely".
@@ -167,7 +168,15 @@ func cmdMcp(args []string) int {
 		client.elicitCaps = elicitCaps
 	}
 
-	if err := client.waitReady(*timeout); err != nil {
+	// Every deadline below lives INSIDE this process, so the runner's per-test
+	// headroom never reaches it (runner.ParallelTimeoutHeadroom widens the budget
+	// this process is measured against, not the clocks it runs itself). Widen by
+	// the factor the runner published for this child, so the readiness wait and
+	// the polling directives track contention from the same source of truth. A
+	// larger constant would not: it is a synonym for an unknown one.
+	waitBudget := *timeout * time.Duration(runner.ChildParallelFactor())
+
+	if err := client.waitReady(waitBudget); err != nil {
 		return mcpFail(fmt.Errorf("MCP server not ready: %w", err))
 	}
 
@@ -178,7 +187,7 @@ func cmdMcp(args []string) int {
 			continue
 		}
 		line = strings.ReplaceAll(line, "$LAST", client.lastOutput)
-		if err := client.directive(line, *timeout); err != nil {
+		if err := client.directive(line, waitBudget); err != nil {
 			return mcpFail(err)
 		}
 	}

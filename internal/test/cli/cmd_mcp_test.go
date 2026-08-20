@@ -10,9 +10,13 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/test/runner"
 )
 
 // captured is one request the fake MCP server saw.
@@ -507,5 +511,94 @@ func TestWaitReadyFailsOnADeadPort(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "127.0.0.1:1") {
 		t.Errorf("error = %q, want it to name the unreachable endpoint", err)
+	}
+}
+
+// captureStderr runs fn with os.Stderr replaced by a pipe and returns what fn
+// wrote there. cmdMcp reports its failure on stderr and returns an exit code,
+// so the message is the only place the effective deadline is observable from
+// the entry point.
+func captureStderr(t *testing.T, fn func()) string {
+	t.Helper()
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("os.Pipe: %v", err)
+	}
+	saved := os.Stderr
+	os.Stderr = w
+	type read struct {
+		out string
+		err error
+	}
+	done := make(chan read, 1)
+	go func() {
+		out, err := io.ReadAll(r)
+		done <- read{out: string(out), err: err}
+	}()
+	fn()
+	os.Stderr = saved
+	if err := w.Close(); err != nil {
+		t.Fatalf("close pipe: %v", err)
+	}
+	got := <-done
+	if got.err != nil {
+		t.Fatalf("read captured stderr: %v", got.err)
+	}
+	if err := r.Close(); err != nil {
+		t.Fatalf("close pipe read end: %v", err)
+	}
+	return got.out
+}
+
+// TestMCPReadinessScalesWithConcurrency pins AC-1: the readiness deadline is
+// WIDENED by the factor the runner published for this child, not replaced by a
+// larger constant.
+//
+// VALIDATES: `ze-test mcp` racing a listener that never appears reports the
+// scaled deadline in its own message, so the value it actually waited is the
+// value under test rather than an elapsed time a loaded box can perturb. Under
+// a serial run (no factor published) the authored value is kept untouched, which
+// is what keeps a real slowdown loud in the single-test debug loop.
+//
+// Mutation that must break it: drop the `* time.Duration(runner.ChildParallelFactor())`
+// from cmdMcp and the 3x case reports "after 150ms" instead of "after 450ms".
+func TestMCPReadinessScalesWithConcurrency(t *testing.T) {
+	cases := []struct {
+		name   string
+		factor string
+		want   string
+	}{
+		{"serial run keeps the authored deadline", "1", "after 150ms"},
+		{"concurrent run widens it by the published factor", "3", "after 450ms"},
+		{"an unpublished factor is 1, not zero", "", "after 150ms"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if err := env.Set(runner.ParallelFactorEnv, c.factor); err != nil {
+				t.Fatalf("publish %s: %v", runner.ParallelFactorEnv, err)
+			}
+			t.Cleanup(func() {
+				if err := env.Set(runner.ParallelFactorEnv, ""); err != nil {
+					t.Fatalf("clear %s: %v", runner.ParallelFactorEnv, err)
+				}
+			})
+
+			var code int
+			// Port 1 is privileged and unbound, so the readiness probe can only
+			// ever run out its deadline. TestWaitReadyFailsOnADeadPort uses the
+			// same endpoint.
+			out := captureStderr(t, func() {
+				code = cmdMcp([]string{"--port", "1", "--timeout", "150ms"})
+			})
+			if code != 1 {
+				t.Fatalf("cmdMcp = %d, want 1 against an unbound port", code)
+			}
+			if !strings.Contains(out, "MCP server not ready") {
+				t.Fatalf("stderr = %q, want the readiness failure", out)
+			}
+			if !strings.Contains(out, c.want) {
+				t.Errorf("stderr = %q, want it to name the deadline %q", out, c.want)
+			}
+		})
 	}
 }

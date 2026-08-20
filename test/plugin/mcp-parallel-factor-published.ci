@@ -1,0 +1,28 @@
+# mcp-parallel-factor-published - the runner hands every child it execs the
+# contention factor, so a child can widen a deadline it enforces itself.
+#
+# VALIDATES: spec-fixit-plugin-concurrency-is-pinned-to-a-ci-constant AC-1, the
+# producer half. (*Runner).parallelFactorEnv (internal/test/runner/runner_exec_util.go)
+# renders the entry and runner_exec.go puts it in the environment of every
+# `cmd=` process. Nothing else in the harness crosses that boundary, so an entry
+# dropped from that list is invisible to every Go test in the runner package.
+#
+# The VALUE is deliberately not pinned: it is 1 when this file runs alone and
+# ParallelTimeoutHeadroom when it runs inside a parallel suite, and a test whose
+# expected value changes with the way it is run cannot assert one. What is
+# asserted is that the variable REACHES the child at all -- printenv exits 1 and
+# prints nothing when the name is unset, so removing the entry turns this test
+# red without any value to agree on.
+#
+# The consumer half, that cmdMcp multiplies its deadline by the value, is
+# mcp-ready-under-load.ci and TestMCPReadinessScalesWithConcurrency.
+#
+# PREVENTS: the MCP readiness deadline silently falling back to the authored
+# value on every host, which is the fixed-10s defect this spec exists to close.
+
+cmd=foreground:seq=1:exec=printenv ze.test.parallel-factor:timeout=15s
+expect=exit:code=0
+# (?m) is load-bearing: the runner matches the regex against the whole captured
+# stdout, trailing newline included, and Go anchors ^ and $ to the text without
+# it.
+expect=stdout:pattern=(?m)^[0-9]+$

@@ -770,6 +770,9 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			// not a constant: see pluginStageStall (plugin_stage_stall.go).
 			r.pluginStageStallEnv(testBudget),
 			r.testBudgetEnv(testBudget),
+			// Contention factor for a deadline the child enforces itself (an
+			// in-binary readiness wait). See parallelFactorEnv.
+			r.parallelFactorEnv(),
 			// Cap doctor reachability probes so they fail fast against
 			// deliberately-unreachable fixtures instead of waiting out their full
 			// multi-second timeout (which dominates wall-clock and flakes under

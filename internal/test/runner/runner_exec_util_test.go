@@ -728,3 +728,24 @@ func TestTerminateAfterSelfExitLetsTheProcessFinish(t *testing.T) {
 		}
 	})
 }
+
+// TestParallelFactorEnvPublishesTheRunnerFactor pins the producer half of the
+// contention factor a child applies to its own in-binary deadlines.
+//
+// VALIDATES: the entry carries (*Runner).parallelFactor, so a serial run hands
+// the child 1 and a concurrent run hands it ParallelTimeoutHeadroom -- the same
+// number withParallelHeadroom applies to the budgets this runner measures the
+// child against. One source of truth, two consumers.
+//
+// Mutation that must break it: publish a constant (any constant) instead of
+// r.parallelFactor(), and one of the two cases below disagrees.
+func TestParallelFactorEnvPublishesTheRunnerFactor(t *testing.T) {
+	serial := (&Runner{concurrency: 1}).parallelFactorEnv()
+	if want := ParallelFactorEnv + "=1"; serial != want {
+		t.Errorf("serial run published %q, want %q: a single test must keep the deadline its author wrote", serial, want)
+	}
+	parallel := (&Runner{concurrency: 8}).parallelFactorEnv()
+	if want := ParallelFactorEnv + "=" + strconv.Itoa(ParallelTimeoutHeadroom); parallel != want {
+		t.Errorf("concurrent run published %q, want %q", parallel, want)
+	}
+}

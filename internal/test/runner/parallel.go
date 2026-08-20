@@ -57,6 +57,29 @@ func DefaultSuiteConcurrency() int {
 	return max(SuiteConcurrencyFloor, 2*runtime.NumCPU())
 }
 
+// ParallelFactorEnv carries the contention factor from the runner to every
+// process it execs, so a child can widen the deadlines it races INSIDE its own
+// binary. withParallelHeadroom reaches the budgets this runner measures a child
+// against; it cannot reach a deadline the child sets for itself, and the MCP
+// test client's readiness wait was one of those.
+const ParallelFactorEnv = "ze.test.parallel-factor"
+
+var _ = env.MustRegister(env.EnvEntry{
+	Key:         ParallelFactorEnv,
+	Type:        "int",
+	Default:     "1",
+	Description: "Set by the functional test runner: the factor a child process must apply to its own in-binary deadlines",
+	Private:     true,
+})
+
+// ChildParallelFactor reports the factor this process must apply to a deadline
+// it enforces itself. It is (*Runner).parallelFactor as the child sees it, from
+// the same source of truth, and it is 1 when no runner published one -- a
+// process started by hand races the value its operator asked for.
+func ChildParallelFactor() int {
+	return max(1, env.GetInt(ParallelFactorEnv, 1))
+}
+
 var _ = env.MustRegister(env.EnvEntry{Key: "ze.verify.mode", Type: "bool", Description: "Set by the verify runner; suites emit machine-readable failure groups"})
 
 func verifyModeEnabled() bool {

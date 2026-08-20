@@ -524,6 +524,15 @@ func TestParallelRunnerExclusiveGroupDoesNotSerializeOthers(t *testing.T) {
 // suite default of 0 meant "all at once" (Runner.Run turns a non-positive
 // Parallel into len(selected)), so `ze-test ospf --all` launched 97 ze daemons
 // simultaneously and the job died with exit 143 mid-suite.
+//
+// It is also AC-8 of spec-fixit-plugin-concurrency-is-pinned-to-a-ci-constant,
+// which derived ZE_PLUGIN_PARALLEL and ZE_ENCODE_PARALLEL from the host and must
+// NOT reach this function. The two suites it measured run through the bgp runner
+// (DefaultParallelConcurrent, internal/test/cli/cmd_bgp.go); this default governs
+// the 22 registerCIRoot suites, which that measurement never covered. The 2x is
+// deliberate for a WAIT-bound suite, so lowering it to 1x on a CORE-bound suite's
+// evidence is a change to 22 suites nobody measured. If this assertion is in your
+// way, measure those suites first.
 func TestDefaultSuiteConcurrencyIsBounded(t *testing.T) {
 	got := DefaultSuiteConcurrency()
 	if got < SuiteConcurrencyFloor {

@@ -1,0 +1,36 @@
+# mcp-ready-under-load - the MCP test client's readiness deadline is WIDENED by
+# the contention factor the harness publishes, instead of racing a fixed 10s.
+#
+# VALIDATES: spec-fixit-plugin-concurrency-is-pinned-to-a-ci-constant AC-1, at
+# the process boundary. cmdMcp (internal/test/cli/cmd_mcp.go) multiplies its
+# --timeout by runner.ChildParallelFactor (internal/test/runner/parallel.go),
+# which reads ze.test.parallel-factor out of the environment the runner handed
+# this child. The failure message names the deadline the client actually waited,
+# so the assertion is on the value under test and not on an elapsed time a busy
+# box can perturb.
+#
+# The factor is set HERE rather than inherited from the suite's own -p, because
+# the inherited value is 3 under `make ze-functional-plugin-test` and 1 under
+# `ze-test bgp plugin mcp-ready-under-load`, and a test whose expected value
+# changes with the way it is run cannot assert one. 5 is neither of those, so a
+# pass cannot come from the runner's own value leaking through.
+#
+# This half proves the CONSUMER across a real exec. The producer half -- that
+# the runner publishes its own parallelFactor and not a constant -- is pinned by
+# TestParallelFactorEnvPublishesTheRunnerFactor
+# (internal/test/runner/runner_exec_util_test.go), which cannot cross a process
+# boundary, exactly as this file cannot see the runner's internals.
+#
+# PREVENTS: the 10s readiness deadline returning as a fixed constant. Six of the
+# 665 plugin tests failed in one 32-way run on nothing but
+# `MCP server not ready: no listener on 127.0.0.1:<port> after 10s`.
+#
+# Port 1 is privileged and unbound, so the readiness probe can only run its
+# deadline out. No daemon is started: what is under test is how long the client
+# waits for one, not what it does when one answers.
+
+option=env:var=ze.test.parallel-factor:value=5
+cmd=foreground:seq=1:exec=ze-test mcp --port 1 --timeout 200ms:timeout=30s
+expect=exit:code=1
+expect=stderr:contains=MCP server not ready
+expect=stderr:contains=no listener on 127.0.0.1:1 after 1s

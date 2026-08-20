@@ -184,6 +184,20 @@ func (r *Runner) testBudgetEnv(testBudget time.Duration) string {
 		String()
 }
 
+// parallelFactorEnv publishes the contention factor to a child that enforces a
+// deadline inside its own binary. withParallelHeadroom widens the budgets this
+// runner measures a child against, and a child racing its own clock never sees
+// that widening: `ze-test mcp` waited a fixed 10s for the daemon's listener and
+// failed six tests in one 32-way plugin run for that reason alone.
+//
+// A factor rather than a duration, because the child owns the value it is
+// scaling. Handing it a wall-clock deadline would move the choice of how long a
+// readiness wait should be out of the code that knows what it is waiting for.
+func (r *Runner) parallelFactorEnv() string {
+	var tb textbuf.Buffer
+	return tb.Str(ParallelFactorEnv).Byte('=').Int(int64(r.parallelFactor())).String()
+}
+
 // parallelFactor is the multiplier withParallelHeadroom applies:
 // ParallelTimeoutHeadroom under concurrent execution, 1 for a serial run.
 // Exposed so COUNT-based budgets (an HTTP readiness poll's retry attempts)
