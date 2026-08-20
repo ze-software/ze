@@ -7,6 +7,8 @@
 | Phase | - |
 | Updated | 2026-07-22 |
 
+**Moved to `plan/future/` 2026-08-17.** Half landed, and the remaining half is coverage for a `ze_bgp`-off build that is not the shipped default binary. Coverage of a non-default build configuration does not hold the first release.
+
 ## Post-Compaction Recovery
 
 **Re-read these after context compaction:**

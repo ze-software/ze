@@ -57,6 +57,34 @@ check enforces the boundary rather than the blanket.
 That is what the rule was written for and it stays forbidden. The point is that
 today nothing can tell the two cases apart.
 
+
+## SETTLED 2026-08-18 -- the rule half is fixed; the corpus half moves here
+
+The contradiction this spec was written for is RESOLVED in the rule, which is the
+half that was actively costing sessions. `ai/rules/points/rfc-compliance/rfc-summaries-rfc-short/keep-ze-specifics-out-of-an-rfc-summary.md`
+now scopes the protocol-only constraint to a summary's PROSE and states that the
+`{...}` annotation on a requirement line is a separate register where naming the
+producing function is MANDATORY, so the two registers can no longer be traded
+against each other.
+
+Measured while settling it, over `rfc/short/*.md`:
+
+| Fact | Count |
+|------|-------|
+| Summaries naming a Ze source path | 148 of 178 |
+| Lines naming `internal/` | 1583 |
+| Annotation kinds carrying one (`{not-applicable:`, `{gap:`, `{single-polarity:`) | 740, 490, 293 |
+| Candidate PROSE lines still naming a Ze path | 121 across 39 files, before false positives |
+
+The candidate count is an upper bound: it counts the English words
+"internal/external" and requirement ids whose shape the sizing heuristic missed.
+
+**What remains is a corpus cleanup and a check, and neither blocks the release.**
+No product behaviour depends on where a path sits inside a summary, so by
+`plan/future/README.md` this is not a defect. It moves here rather than closing,
+because the prose register is still unenforced and will drift again without a
+check that reads the line as annotation or prose.
+
 ## Required Reading
 
 ### Architecture Docs

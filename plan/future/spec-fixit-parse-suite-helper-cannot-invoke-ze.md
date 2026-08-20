@@ -11,6 +11,8 @@
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
+**Moved to `plan/future/` 2026-08-17.** Triage found nothing currently red. This adds a capability to the parse-suite rig (a helper being able to invoke `ze`), so it is an improvement rather than a release defect.
+
 ## Task
 
 A helper script in a parse-suite `.ci` cannot invoke `ze`. It gets `ze: not

@@ -16,6 +16,8 @@
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
+**Moved to `plan/future/` 2026-08-17.** Triage found no established defect: no promiscuous binapi exists under `internal/plugins/iface/vpp`, and nothing in the tree shows VPP dropping tagged frames without one. The premise is unverified, so this is a proposed improvement rather than a release defect.
+
 ## Task
 
 Ze creates VLAN sub-interfaces on VPP-managed interfaces
