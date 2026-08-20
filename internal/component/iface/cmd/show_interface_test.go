@@ -17,7 +17,7 @@ import (
 // The dispatch half of the contract -- that the daemon hands each handler the
 // tokens the operator typed -- is NOT provable here: these call the handlers
 // directly, so they pass whatever args the test chooses. It is proven end to end
-// by test/plugin/show-interface-type.ci and test/plugin/show-interface-errors.ci
+// by test/plugin/interface-type-show.ci and test/plugin/interface-errors-show.ci
 // (ai/rules/evidence.md, "drive the guard from the entry point").
 
 // skipWithoutBackend skips when the response is the no-backend refusal.
@@ -126,4 +126,28 @@ func TestHandleShowInterfaceErrorsShape(t *testing.T) {
 			assert.Contains(t, row, key)
 		}
 	}
+}
+
+// TestHandleShowInterfaceRateNamedFormUsesTheName drives the handler the
+// dispatcher registers for `ze-show:interface-rate` with the named form, which
+// nothing exercised before: test/plugin/interface-rate-show.ci and
+// test/plugin/iface-rate-json.ci both send the bare `show interface rate`.
+//
+// VALIDATES: `show interface rate <name>` reaches iface.GetRate with the name
+// the operator typed, and an unknown name is refused with a message naming it
+// rather than crashing or answering with the whole list.
+// PREVENTS: the named form losing its argument. The bare form answers
+// "rate tracker not running" (or the full list once a tracker is up), so an
+// argument dropped anywhere between the wire method and handleShowInterfaceRate
+// changes this exact string -- which is why the assertion is on the string and
+// not merely on the error status.
+func TestHandleShowInterfaceRateNamedFormUsesTheName(t *testing.T) {
+	const name = "zz-not-an-interface0"
+
+	resp, err := handleShowInterfaceRateCmd(nil, []string{name})
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.Equal(t, plugin.StatusError, resp.Status)
+	assert.Equal(t, "interface not found: "+name, resp.Error)
+	assert.Nil(t, resp.Data, "a refused lookup must carry no rate payload")
 }
