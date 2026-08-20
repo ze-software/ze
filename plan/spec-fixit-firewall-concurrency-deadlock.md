@@ -5,7 +5,43 @@
 | Status | in-progress |
 | Depends | - |
 | Phase | 4/6 (phases 2-5 landed; phase 1 reproduction and its phase-6 `.ci` remain) |
-| Updated | 2026-08-07 |
+| Updated | 2026-08-17 |
+
+> **AC INVENTORY, re-derived from this file on 2026-08-17.** The spec declares
+> **10** AC ids, AC-1 through AC-10, and no more.
+>
+> **Landed: AC-4, AC-5, AC-6, AC-8, AC-9, AC-10.** Each was re-verified at its
+> producing function, and together they mean **every mechanism that could make
+> command dispatch hang is gone**. AC-6 is the one to read carefully: its
+> antecedent ("contention proves inherent, fix not possible") turned out FALSE,
+> because the contention was fixable and was fixed. Its substantive requirement,
+> that the failure be observable rather than a silent hang, is met anyway.
+>
+> - `reconcileMu` now serializes the ENTIRE `ApplyAll` body, snapshot and apply
+>   together, and is the outermost firewall lock (`internal/component/firewall/registry.go`).
+>   Its doc comment states the order `reconcileMu -> tableRegistry.mu -> backendsMu ->
+>   backend-internal` and why no call site can invert it. That is AC-4, AC-5, AC-8
+>   and AC-9 at one layer, so every `ApplyAll` caller inherits the fix.
+> - Both backends bound the netlink round-trip at 10s: `defaultNetlinkTimeout`
+>   with `withNetlinkDeadline` (`internal/plugins/firewall/nft/deadline_linux.go`)
+>   and `defaultReplyTimeout` (`internal/plugins/firewall/vpp/timeout_linux.go`),
+>   each capped by `firewall.MaxBackendDeadline`. `observeApply`
+>   (`internal/component/firewall/metrics.go`) logs the timeout and increments
+>   `applyTimeouts`, so a wedged dataplane is observable rather than silent. That
+>   is AC-10, and it is what makes AC-6's observable-failure requirement met.
+> - `status()` (`internal/plugins/ddos/local/responder.go`) reads `r.published`
+>   through an `atomic.Pointer` and takes NO lock, by design, so the
+>   `show ddos local` dispatch path can no longer wait out a firewall reconcile.
+>
+> **Remaining: AC-1, AC-2, AC-3, AC-7 -- the OBSERVATION itself, still unwritten.**
+> No goroutine dump or lock trace of the 2026-07-12 event was ever captured
+> (AC-1), no deterministic reproduction exists (AC-2), no test drives dispatch
+> against a mitigating responder under a sustained flood (AC-3), and the
+> `test/plugin/ddos-direction.ci` workaround has not been re-evaluated against
+> the fixed code (AC-7). The fixes are structural, so the reproduction can only
+> now be written against a healthy tree: expect it to pass, and treat that pass
+> as evidence only if the test discriminates
+> (`ai/rules/interop-and-goal-validation.md`, "Prove the test discriminates").
 
 ## Task
 
@@ -377,7 +413,7 @@ into `cc.messages`. So serialising inside `ApplyAll` is sufficient; there is no 
 | R-2 | Serialising reconciles trades a deadlock for a longer stall | dispatch latency rises after the fix | measure before and after; prefer a single reconcile actor / queue over a coarse lock |
 | R-3 | Fix regresses the autoload or withdraw-no-op paths | the three registry_test.go contract tests fail | keep them green throughout; they encode the contract |
 | R-4 | Fix serialises mitigation behind config reloads, delaying a drop under attack | mitigation install latency rises under flood | measure install latency under load; consider a non-blocking mitigation path |
-| R-5 | The repro never runs: `make ze-qemu-test-all` SKIPS the `firewall` suite by default (`mk/test-integration.mk` `ZE_QEMU_SKIP_SUITES ?= web,firewall`, passed through at `:239`; the script default agrees at `scripts/evidence/qemu-all-tests.sh`). A session reproducing under QEMU with the default target exercises no firewall `.ci` at all and may read the silence as "cannot reproduce" | QEMU run reports the firewall suite skipped, or finishes suspiciously fast | override it (`make ze-qemu-test-all ZE_QEMU_SKIP_SUITES=web`), or use `ze-qemu-needs-linux-test`, which hardcodes `ZE_QEMU_SKIP_SUITES="web"` and so DOES run firewall (`:248-250` names firewall explicitly). Verified by reading the targets, 2026-07-16 |
+| R-5 | ~~The repro never runs: `make ze-qemu-test-all` SKIPS the `firewall` suite by default (`mk/test-integration.mk` `ZE_QEMU_SKIP_SUITES ?= web,firewall`, passed through at `:239`; the script default agrees at `scripts/evidence/qemu-all-tests.sh`). A session reproducing under QEMU with the default target exercises no firewall `.ci` at all and may read the silence as "cannot reproduce"~~ **RETIRED 2026-08-17: the risk no longer exists.** `plan/spec-fixit-qemu-runtime-kernel.md` AC-2 landed and `firewall` is gone from BOTH defaults, re-verified at each producer: `ZE_QEMU_SKIP_SUITES ?= web` (`mk/test-integration.mk`) and `SKIP_SUITES="${ZE_QEMU_SKIP_SUITES:-web}"` (`scripts/evidence/qemu-all-tests.sh`). `TestFirewallNotInDefaultQemuSkips` (`scripts/evidence/qemu_kernel_wiring_test.go`) reddens if either default takes it back | QEMU run reports the firewall suite skipped, or finishes suspiciously fast | ~~override it (`make ze-qemu-test-all ZE_QEMU_SKIP_SUITES=web`)~~ No override is needed now. `make ze-qemu-test-all` runs the firewall suite by default, and the runtime-kernel spec records it green at 23/23 |
 | R-6 | **The observed "deadlock" may be entangled with a known kernel crash, not only a Go lock hazard.** `mk/test-integration.mk` states the firewall suite is skipped by default because "firewall crashes the Alpine QEMU kernel on nft set-element-timeout operations". The deferral's symptom (dispatch unresponsive ~255s under a sustained flood with `firewall { backend nft }`) was observed in exactly that environment, so an unresponsive daemon there is not automatically a Go-level deadlock | the stall reproduces only under Alpine QEMU and never on real Linux or with a non-nft backend | before concluding anything about `ApplyAll` locking, establish WHERE the repro runs: real Linux vs Alpine QEMU, nft vs another backend. Note the two QEMU targets disagree about whether firewall is safe to run, which is itself unresolved. `plan/spec-fixit-qemu-runtime-kernel.md` owns moving the QEMU targets onto ze's own 7.1.1 kernel and un-skipping firewall; if it lands first this spec inherits a trustworthy repro environment and R-5/R-6 both fall away. Prefer waiting for it over debugging `ApplyAll` on a kernel ze itself declares unsupported (`tools/kernel-builder/build.py` refuses < 7.0). **Re-verified 2026-07-16** (line numbers hold: comment at `mk/test-integration.mk`, default at `:220`, pass-through at `:239`, `ze-qemu-needs-linux-test` pins `ZE_QEMU_SKIP_SUITES="web"` at `:261`). **Design-session update:** R-6 is now MORE than a caveat, it is corroborating evidence. Finding 2 shows a wedged nft subsystem makes `Apply` block forever (no netlink deadline), and `mk/test-integration.mk` documents that this exact kernel crashes on nft ops. That is a coherent joint story: the Alpine kernel crash wedges the netlink ack, `Apply` never returns, `r.mu` is held forever, `show ddos local` hangs until the harness gives up at ~255s. If so the Go-side bugs (Findings 1-3) are REAL and worth fixing, but the observation was triggered by the kernel, and the same test on 7.1.1 may simply pass. Both fixes are still correct: a crashed kernel must not wedge ze's management plane | 
 | R-7 | Fix covers ddos only and leaves the other five `ApplyAll` callers exposed (renumbered from a duplicate `R-5`, 2026-07-16) | review finds copp / policyroute / flowspec unchanged | fix at the registry layer so every owner benefits. Finding 4 settles the split: the CONCURRENT-APPLY fix must be in `ApplyAll` (all six callers); the LOCK-ACROSS-RECONCILE fix is needed in exactly two plugins (ddos-local, anomaly-shape) |
 | R-8 | **The deadline fix converts a hang into a failed mitigation.** Bounding `Apply` (D-2) means a wedged kernel now returns an error instead of blocking. ddos-local's failure path then rolls back and calls `applyAll` a SECOND time (`responder.go`), which will also time out: an attack goes unmitigated in the time it takes to fail twice | mitigation install latency under a wedged kernel equals 2x the deadline | choose the deadline so 2x is still well inside the detector's re-fire interval; do not retry the rollback on a timeout (the registry state is already correct); log + metric so the operator sees the kernel is wedged rather than a silent no-drop |

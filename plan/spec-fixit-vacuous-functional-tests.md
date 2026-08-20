@@ -7,7 +7,7 @@
 | Depends | `spec-fixit-ci-peer-block-silent-directives` |
 | Phase | 1/1 |
 | Deferral shard | `plan/deferrals/ad-hoc-2026-08-02-wire-edit-tail.md` |
-| Updated | 2026-08-15 |
+| Updated | 2026-08-19 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -118,9 +118,9 @@ A `.ci` file read by the functional-test runner, which splits it into a peer blo
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers | No | fill during design: the replacement injection must reach the export gate through the real API rail |
-| No unintended coupling | No | fill during design |
-| No duplicated functionality | No | fill during design: check whether an existing `.ci` already proves the export gate before writing a new driver |
+| No bypassed layers | Yes | The injection uses the real API rail. The observer calls `api.send('peer * update text ... nlri ipv4/flow add ...')` from `test/plugin/filter-family-export-flowspec.ci`, so the route enters through the plugin API and reaches egress through `writeUpdateGated` (`internal/component/bgp/reactor/session_write.go`). No test hook writes to a peer socket, and the suppression is read back from the daemon's own per-peer counters |
+| No unintended coupling | Yes | The diff is test-side only: two `.ci` files and one doc section. The runner behaviour both tests depend on -- `ClaimLine` (`internal/test/peer/expect.go`) answering `ClaimRunner`, and `validateOnePeerBlock` (`internal/test/runner/peer_contract.go`) parsing the line where it stands -- came from the `Depends` spec and is not touched here |
+| No duplicated functionality | Yes | No other `.ci` proves the export direction. `filter-family-import-teardown.ci` and `filter-family-import-remove.ci` both configure `import [ ... ]`, and `test/parse/filter-family-config.ci` only parses the config block. `filter-family-export-flowspec.ci` is the single export-direction test |
 | Zero-copy preserved where applicable | N-A | test-side change |
 | Registration over hardcoding (`ai/rules/plugins.md`) | N-A | no command, view, family, or handler added |
 
@@ -131,7 +131,7 @@ A `.ci` file read by the functional-test runner, which splits it into a peer blo
 |----|-----------|-------|----------|--------------|--------|
 | A-1 | The export-direction family filter actually works, and only its test is broken. | Nothing has proven it either way; the test that claimed to has been vacuous since it was written. | A real defect exists in the export gate and is in scope here (`ai/rules/completion.md`). | make the assertion live and observe | confirmed -- with the filter present the route never reaches the filtered peer; with it removed the peer receives it. No production defect found |
 | A-2 | The `ipv4/flow` EoR is sent at initial sync regardless of export policy. | The hex asserted decodes to an MP_UNREACH with AFI 1, SAFI 133 and no NLRI, which is the EoR for that family. | The current assertion is not vacuous after all, and only the injection half of test 1 is broken. | remove the export filter from the config and re-run: if the test still passes, the assertion is vacuous | confirmed -- the marker survives because `writeUpdateGated` (`internal/component/bgp/reactor/session_write.go`) exempts it through `IsEndOfRIBAnyFamily`. Forcing that predicate false suppresses the marker, so the EoR assertion is load-bearing about the EXEMPTION, not about the filter |
-| A-3 | A `tmpfs` plugin script is the right way to drive a live injection. | Other `.ci` tests in `test/plugin/` use one for API-driven scenarios. | Use whatever the corpus's working injection tests use. | read a working API-injection `.ci` first | confirmed -- `test/plugin/flowspec.ci` and `test/plugin/originated-nexthop-peer-own.ci` both drive the API from a `tmpfs=*.run` observer, and the rewrite follows that shape |
+| A-3 | A `tmpfs` plugin script is the right way to drive a live injection. | Other `.ci` tests in `test/plugin/` use one for API-driven scenarios. | Use whatever the corpus's working injection tests use. | read a working API-injection `.ci` first | confirmed -- `test/plugin/flowspec-announce.ci` and `test/plugin/originated-nexthop-peer-own.ci` both drive the API from a `tmpfs=*.run` observer, and the rewrite follows that shape |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -154,7 +154,7 @@ A `.ci` file read by the functional-test runner, which splits it into a peer blo
 |-------------|---|--------------|------|
 | An operator configures an export family-filter and a route of that family is originated | → | the export gate drops the route before egress | `test/plugin/filter-family-export-flowspec.ci`, rewritten so it fails when the filter is removed |
 | Initial sync completes for a configured family | → | the End-of-RIB marker bypasses the export gate | `test/plugin/filter-family-export-flowspec.ci`, with the filter removed as the discriminating control |
-| `ze.log.bgp.server=info` is set and the server subsystem logs | → | DEBUG lines are suppressed | `test/plugin/logging-level-filter.ci`, with the rejection assertion moved to runner scope |
+| `ze.log.bgp.server=info` is set and the server subsystem logs | → | DEBUG lines are suppressed | `test/plugin/logging-level-filter.ci`. The rejection assertion stays where it always stood, inside the peer block; the `Depends` spec's runner guard is what makes the runner read it |
 
 ## Acceptance Criteria
 
@@ -169,14 +169,16 @@ A `.ci` file read by the functional-test runner, which splits it into a peer blo
 ### AC-4: the corpus audit, with a verdict per class
 
 Measured over every `.ci` whose block is named on a `cmd=...:exec=ze-peer ...:stdin=<name>` line.
+Counts re-derived on 2026-08-17 against the current tree; the earlier run of the
+same scan read 233/78, 11/9 and 3, and the corpus moved under it.
 
 | Class | Sites | Verdict |
 |-------|-------|---------|
-| `reject=bgp:` inside a peer block | 11, in 9 files | Correctly homed. It is a real per-connection ze-peer directive (`internal/test/peer/reject.go`), and `validatePeerBlockRejects` (`internal/test/runner/peer_contract.go`) now refuses one whose connection carries no `expect=bgp` delivery |
+| `reject=bgp:` inside a peer block | 12, in 10 files | Correctly homed. It is a real per-connection ze-peer directive (`internal/test/peer/reject.go`), and `validatePeerBlockRejects` (`internal/test/runner/peer_contract.go`) now refuses one whose connection carries no `expect=bgp` delivery |
 | `reject=stderr:` inside a peer block | 1, `test/plugin/logging-level-filter.ci` | Live. The `default` arm of `validateOnePeerBlock` hands a line ze-peer does not claim to the runner's own parser, so it is read where it stands |
 | Any other `reject=` inside a peer block | 0 | None remain, and a new one cannot be added silently: an unclaimed, unparseable line now fails the file at parse time |
-| `cmd=` inside a peer block | 233, in 78 files | Narration. ze-peer records it as documentation and nobody executes it. 75 of the 78 files carry a live producer as well (a config `update { }`, a `tmpfs` observer, or an `action=`), so the narration is a comment beside a real injection |
-| `cmd=api:` with NO live producer anywhere in the file | 3: `test/encode/bgpls.ci`, `test/encode/unknowncap.ci`, `test/plugin/text-handshake.ci` | Each names a producer that never runs, so each `cmd=api:` line is a wrong comment. None is vacuous: all three assert the initial-sync End-of-RIB for a configured family, which discriminates on the subject each states (BGP-LS capability negotiation, an ignored unknown capability, a completed text-mode plugin handshake). The assertions stand; the three narration lines misattribute their producer |
+| `cmd=` inside a peer block | 230, in 77 files, every one of them a `cmd=api` | Narration. ze-peer records it as documentation and nobody executes it. 75 of the 77 files carry a live producer as well (a config `update { }`, a `tmpfs` observer, or an `action=`), so the narration is a comment beside a real injection |
+| `cmd=api:` with NO live producer anywhere in the file | 2: `test/encode/bgpls-encode.ci`, `test/encode/unknown-capability-encode.ci` | Each names a producer that never runs, so each `cmd=api:` line is a wrong comment. Neither is vacuous: both assert the initial-sync End-of-RIB for a configured family, which discriminates on the subject each states. `bgpls.ci` asserts the marker for AFI 16388 SAFI 71, which ze emits only for a family it negotiated, so it proves BGP-LS negotiation; `unknowncap.ci` asserts the ipv4/unicast marker after its peer sends an unknown capability, so it proves the OPEN was not refused. The assertions stand; the two narration lines misattribute their producer. `test/plugin/text-handshake.ci` was the third site and has since gained a live producer |
 
 ## 🧪 TDD Test Plan
 
@@ -193,8 +195,8 @@ Measured over every `.ci` whose block is named on a `cmd=...:exec=ze-peer ...:st
 
 ## Files to Modify
 - `test/plugin/filter-family-export-flowspec.ci` - make the injection live and the suppression assertion able to fail
-- `test/plugin/logging-level-filter.ci` - move the rejection assertion out of the peer block
-- `docs/architecture/testing/ci-format.md` - state that `cmd=` and `reject=` inside a peer block are discarded, and what to use instead
+- `test/plugin/logging-level-filter.ci` - record the non-vacuity evidence in the file. The rejection assertion needed no move: the `Depends` spec's runner guard made the line live where it already stood, which is the same outcome by a different route than this spec planned
+- `docs/architecture/testing/ci-format.md` - state that `cmd=` and `reject=` inside a peer block are discarded, and what to use instead. Not edited: "What a ze-peer block may carry" already says who reads each directive
 
 ## Files to Create
 - `test/draft/plugin/` - draft both rewrites here first and promote when green (`ai/rules/testing.md`, "Draft a Functional Test Before It Is Live")
@@ -219,6 +221,44 @@ Measured over every `.ci` whose block is named on a `cmd=...:exec=ze-peer ...:st
 
 ## Known Limitations
 - The audit in AC-4 covers `cmd=` and `reject=`. A full sweep of every runner-only directive misplaced into a peer block is wider than this spec, and belongs with the guard spec that owns the parser.
+- AC-3 proves its subject by mutation, not by an in-test control. `logging-level-filter.ci` asserts the ABSENCE of `level=DEBUG` and holds no assertion that `bgp.server` logged anything at all, so a build that stopped logging that subsystem would pass it. The discrimination is real and it is measured elsewhere: the `value=debug` copy of the file FAILS on DEBUG lines carrying `subsystem=bgp.server`, so the rejection is answered by a site that fires in this scenario. An in-test positive control would need a stable INFO-level line to match, which is a second assertion on log TEXT for no gain in what the file discriminates (`ai/rules/simplicity.md`). The mutation is recorded in the file's own NON-VACUITY header, where the next reader meets it.
+- `logging-level-filter.ci` is load-flaky, and this spec is not its cause. Measured 4 FAIL / 4 PASS in 8 sequential runs, failing at load average 38 and passing at 16, with every expected message received and the run still hitting the 10s wall. Both timeout directives predate this work (`84312fe01`). Recorded as one more occurrence of `plan/journal/gate-verdict-depends-on-the-machine.md`, which now holds 23 rows. The class earns a deliberate pass of its own; raising the number here is banned (`ai/rules/testing.md`).
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/fixit-vacuous-functional-tests-6c2adacb-9282-4d78-9180-bab7cb6a2f15.md` |
+| `review_gate.py check` | clean (2 code files, hashes match; also OK for a code-free closure commit) |
+| Rounds | 1 |
+| Reviewer lenses used | the spec's own record against the shipped diff, and test discrimination (does each assertion redden under a mutation) |
+
+The pass was independent of the author: the two `.ci` rewrites were written by
+the 2026-08-17 session and landed in `06c95f65d`, and the runner guard they rely
+on in `b452c9221`. The reviewer re-derived the AC-4 corpus counts from the
+current tree rather than reading them out of the spec, and they matched.
+
+One round, and the loop stopped there on purpose. Every finding was in the
+RECORD, not in the product. `ai/rules/planning.md` ("How each review round is
+scoped and when it ends") states that a false statement in a spec's own closure
+prose is not a reason for another round, so the five were fixed in one edit.
+
+### Findings fixed
+
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | No `## Review Gate` section, which `review_gate_problems` (`scripts/dev/commit_helper.py`) refuses the closure commit without | this spec | this section, and the artifact it cites |
+| 2 | ISSUE | The test is load-flaky: 4 FAIL / 4 PASS in 8 sequential runs, failing at load average 38 and passing at 16, every expected message received and the run still hitting the 10s wall. Not this spec's doing -- both timeout directives exist at `84312fe01` | `test/plugin/logging-level-filter.ci` | one row in `plan/journal/gate-verdict-depends-on-the-machine.md`, the 23rd of that class. Not tuned: raising the number is banned (`ai/rules/testing.md`) and the class earns a deliberate pass of its own |
+| 3 | ISSUE | No non-vacuity rationale in the file itself. The discrimination evidence lived only in a scratch state file due for deletion, while the sibling `filter-family-export-flowspec.ci` carries a NON-VACUITY header | `test/plugin/logging-level-filter.ci` | a NON-VACUITY header naming the mutation that reddens it, why a runner directive is read inside a peer block, and what the file does not prove. Comment-only: `ClaimLine` (`internal/test/peer/expect.go`) and `validateOnePeerBlock` (`internal/test/runner/peer_contract.go`) both skip a `#` line |
+| 4 | ISSUE | Three `fill during design` cells left in the Architectural Verification table | this spec, Data Flow | filled from the shipped design, each cell naming the producing function or the sibling test it was checked against |
+| 5 | ISSUE | The spec misdescribed its own shipped fix: it said the rejection assertion was moved out of the peer block. The line never moved. The `Depends` spec's runner guard made it live where it stood | this spec, Files to Modify and the AC-3 Wiring Test row | both rows corrected. The code is right and is unchanged |
+
+NOTE, recorded and not acted on (`ai/rules/simplicity.md`): AC-3's absence
+assertion discriminates on the mechanism, because a DEBUG site fires on every
+session establishment, but the file holds no in-test control proving
+`bgp.server` logged at all. It is in Known Limitations above and in the file's
+own header. Adding a positive control would assert on log TEXT for no gain in
+what the file discriminates.
 
 ## Checklist
 

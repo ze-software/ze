@@ -13,8 +13,42 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-**`make ze-lint` cannot see any file behind the `integration` build tag. Sixty-eight
-tracked Go files across about twenty-five packages have never been linted.**
+> **STATE OF THE TREE, re-verified at the producers on 2026-08-17. Read this before
+> the Task text below, which describes the tree as it was on 2026-08-02.**
+>
+> **The hole is closed. Every integration-tagged file is linted, and the population
+> has grown since the measurement.** `git grep -l -E '^//go:build .*\bintegration\b'
+> -- '*.go'` returns **78** tracked files today, not 68. (A naive
+> `grep -l "//go:build integration"` also returns 78, but the two sets differ by one
+> at each end: it misses `internal/component/ike/dataplane/vpp_real_integration_test.go`,
+> whose constraint is `//go:build ze_vpp && integration`, and it wrongly picks up
+> `scripts/status/verify_run_test.go`, which carries the string only inside a guard's
+> error message.) All 78 are reachable by the linter: `ze_vpp` is in the
+> `.golangci.yml` `build-tags` list, and `integration` is supplied on the command line.
+>
+> **`.golangci.yml` still has no `integration` entry, and that is BY DESIGN, not an
+> unfinished edit.** The shipped shape added a SECOND lint pass instead of touching
+> the generated file. `TestLintCoversIntegrationTaggedFiles`
+> (`scripts/status/verify_run_test.go`) actively FAILS if `- integration` ever appears
+> in `.golangci.yml`, naming `scripts/codegen/feature_tags.go` as the file's generator.
+> Do not "fix" the absence: adding the entry reddens the guard and is reverted by the
+> next `make generate`.
+>
+> **All six ACs hold today**, re-verified at their producers rather than taken from
+> the Evidence column: `Makefile` defines `ZE_LINT_PKGS` and runs
+> `GOOS=linux golangci-lint run --build-tags integration $(ZE_LINT_PKGS)` as a second
+> pass in both `ze-lint` and `ze-lint-changed`; `scripts/status/verify_run.go`
+> schedules `ze-lint` in full mode and `ze-lint-changed` in changed mode, so the
+> second pass reaches `ze-precommit-verify` and `ze-precommit-verify-changed` alike;
+> and `TestLintCoversIntegrationTaggedFiles` plus
+> `TestChangedLintCoversIntegrationTaggedFiles` (`scripts/status/verify_run_test.go`)
+> pin the pass in each recipe, the `&&` that keeps the two passes fail-closed, and the
+> absence of `integration` from both `.golangci.yml` and `feature-gates.txt`.
+>
+> **What remains is closure bookkeeping only.** No code, no test and no gate is owed.
+
+**`make ze-lint` cannot see any file behind the `integration` build tag. ~~Sixty-eight
+tracked Go files across about twenty-five packages have never been linted.~~**
 
 Found on 2026-08-02 while closing the rfcgate-1b RFC 7296 pilot spec.
 
@@ -26,7 +60,8 @@ the linter analyses, so golangci-lint never loads it and reports nothing about i
 Measured on 2026-08-02 against tracked files only, so no worktree, `tmp/` or vendor
 copy is counted:
 
-- 68 tracked `.go` files carry `//go:build integration`.
+- ~~68~~ tracked `.go` files carry `//go:build integration`. **78 as of 2026-08-17**,
+  and all 78 are linted; the 68 is the 2026-08-02 measurement, kept for the record.
 - 56 of those are named `*_integration_linux_test.go`.
 - The largest clusters are `internal/component/iface` (15),
   `internal/component/ike/dataplane` (7) and `internal/plugins/iface/netlink` (5).
@@ -91,9 +126,15 @@ Neither is chosen here. Phase 2 chooses, with evidence.
 
 **Key insights:** (minimal context to resume after compaction)
 - The one-line fix is wrong twice: the file is generated, and `integration` is not a feature gate.
-- 68 tracked files, about 25 packages, 56 named `*_integration_linux_test.go`.
+- ~~68 tracked files, about 25 packages, 56 named `*_integration_linux_test.go`.~~
+  **78 tracked files as of 2026-08-17, all of them linted.** The population grows;
+  the coverage does not need re-earning, because the second lint pass is keyed on
+  the TAG rather than on a file list.
 - The reported count of about 11 findings is unverified. Measure it in phase 1.
+  → Measured: 132, all fixed (AC-6).
 - Whatever lands must reach `ze-lint-changed`, not only the full lint.
+  → It does: both `ze-lint` and `ze-lint-changed` run the second pass (`Makefile`),
+  and `TestChangedLintCoversIntegrationTaggedFiles` pins it.
 
 ## Current Behavior (MANDATORY)
 

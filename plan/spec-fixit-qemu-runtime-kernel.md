@@ -5,13 +5,26 @@
 | Status | in-progress |
 | Depends | spec-fixit-qemu-artifact-cache (land that first: durable kernel cache) (superseded, removed without landing; absorbed by spec-relocate-scratch-and-cache, learned 1173 -- durable cache now live at mk/gokrazy.mk) |
 | Phase | implementation |
-| Updated | 2026-08-07 |
+| Updated | 2026-08-17 |
+
+> **AC INVENTORY, re-derived from this file on 2026-08-17.** The spec declares
+> **12** AC ids, not more: AC-1 through AC-12. Four of them (AC-6, AC-7, AC-8,
+> AC-9) are struck in the Acceptance Criteria table and were CONSUMED by the
+> artifact-cache work (learned 1173), which leaves **8 live**.
+>
+> Seven of the eight are landed and demonstrated in the Implementation Audit
+> below: AC-1, AC-2, AC-3, AC-4, AC-10, AC-11, AC-12. **AC-5 is the only
+> remaining item in this spec.** What it still lacks is a stock-kernel baseline
+> of the same suites, so the reds that were red in BOTH runtime-kernel runs
+> (`ospf` wholesale, `ddos-detect-characterize`, `ddos-incident-confidence`)
+> are argued unrelated rather than measured unrelated. Nothing else is owed
+> here. See "Still red, and none of it caused by this work".
 
 > **AC-1 IS ANSWERED, 2026-08-07. The premise holds, and a second defect sat behind it.**
 >
 > **The runtime kernel does not crash.** Built for arm64 and booted under QEMU
 > (`Linux localhost 7.1.4 #1 SMP PREEMPT aarch64`), the whole firewall suite ran
-> to completion with no panic, including `009-set-element-timeout`, the operation
+> to completion with no panic, including `firewall-set-element-timeout`, the operation
 > the stock Alpine kernel is documented to die on. A direct probe settles the
 > other half of A-3:
 > `nft add set ip probe4 s { type ipv4_addr; flags timeout; timeout 10s; }` and
@@ -56,9 +69,18 @@
 
 The QEMU functional targets boot the stock Alpine virt kernel (6.12.13-0-virt), which
 is older than the kernel ze actually targets and cannot survive ze's own firewall
-tests: `make ze-qemu-test-all` SKIPS the `firewall` suite by default because it
-"crashes the Alpine QEMU kernel on nft set-element-timeout operations". Run the QEMU
+tests: ~~`make ze-qemu-test-all` SKIPS the `firewall` suite by default because it
+"crashes the Alpine QEMU kernel on nft set-element-timeout operations"~~. Run the QEMU
 targets on the in-tree runtime kernel (7.1.1) instead, then stop skipping firewall.
+
+> **The struck sentence went stale when AC-2 landed; re-verified at both producers
+> on 2026-08-17.** `firewall` is gone from BOTH skip defaults. `mk/test-integration.mk`
+> declares `ZE_QEMU_SKIP_SUITES ?= web` and `scripts/evidence/qemu-all-tests.sh`
+> declares `SKIP_SUITES="${ZE_QEMU_SKIP_SUITES:-web}"`. The suite runs by default, and
+> `TestFirewallNotInDefaultQemuSkips` (`scripts/evidence/qemu_kernel_wiring_test.go`)
+> reddens if either default takes `firewall` back. The Task paragraph is kept as
+> written, struck rather than deleted, so the next reader can see where the frame
+> moved instead of inheriting a premise the tree stopped holding.
 
 The headline finding is that almost none of this needs inventing. The 7.x kernel, the
 builder, the staging path and the QEMU `--kernel` boot path all already exist and are
@@ -120,6 +142,14 @@ need to find a way to run a 7.+ kernel."
 ## Current Behavior (MANDATORY)
 
 **Source files (cite file:line). Producers read, not inferred from callers.**
+
+> -> STALE-QUOTE NOTE (2026-08-17): every quotation of `web,firewall` in this file
+> (Required Reading, Current Behavior, Files to Modify) describes the tree BEFORE
+> AC-2 landed. Both defaults now read `web` alone: `ZE_QEMU_SKIP_SUITES ?= web`
+> (`mk/test-integration.mk`) and `SKIP_SUITES="${ZE_QEMU_SKIP_SUITES:-web}"`
+> (`scripts/evidence/qemu-all-tests.sh`), re-verified at both producers. The quotes
+> are left in place because they are the research record that motivated AC-2, not
+> a description of today. Read them as history, and do not act on them as state.
 
 > -> CITATION DRIFT NOTE (2026-07-17, readiness pass): since the 2026-07-16 research
 > two files grew and their cited line numbers moved. The cited BEHAVIOR is unchanged
@@ -211,7 +241,7 @@ need to find a way to run a 7.+ kernel."
 - `ze-qemu-test-all` must stay runnable without a manual multi-step setup, or people
   will stop running it.
 - The three existing `--kernel` labs keep working.
-- `test/parse/cli-show-version.ci` still passes: the QEMU ze build deliberately omits
+- `test/parse/cli-version-show.ci` still passes: the QEMU ze build deliberately omits
   version ldflags (`mk/test-integration.mk`).
 - Suites that pass on stock today must not regress on the runtime kernel.
 
@@ -329,7 +359,7 @@ work; the change is the harness those `.ci` files run on.
       mark net-admin tests, build QEMU ze with its features") did it between the
       research and the implementation. Measured 2026-08-07: 0 of 23 carry
       `skip-os:value=darwin`, and 21 of 23 carry `option=needs-linux:caps=net-admin`.
-      The other 2 correctly carry no marker at all: `006-dscp-ipv6-rejected.ci` runs
+      The other 2 correctly carry no marker at all: `firewall-dscp-ipv6-reject-validate.ci` runs
       `ze config validate` offline and `command-owner-firewall-root.ci` runs
       `ze firewall help`. Neither starts a daemon, so neither touches the kernel, and
       R-7's "any file whose darwin skip is NOT about the kernel keeps skip-os" is
@@ -397,7 +427,7 @@ work; the change is the harness those `.ci` files run on.
 | ~~AC-9~~ | ~~A config-fragment change MISSES the kernel cache~~ | **MOVED to the cache spec, contract row 4.** Already implemented there: `kernelCacheVariantFor` (`internal/appliance/cache.go`) hashes every resolved fragment + manifest + builder script. The cache spec's job is to route the make path through it |
 | AC-10 | `make ze-qemu-needs-linux-test` after this work | The firewall tests actually RUN, not SKIP. Requires the 21 `.ci` to carry `option=needs-linux` (`record_parse.go`, `:383-397`), not `skip-os:value=darwin`. Without this, the target reports green while running zero firewall tests, which is the status quo and looks identical to success |
 | AC-11 | `make ze-kernel-build` with no `GOKRAZY_ARCH` on an arm64 host, then a QEMU target | Either the correct arm64 kernel is used, or the target fails loudly. NEVER an amd64 vmlinuz silently accepted by `test -f` and then failing at boot (R-6, `mk/gokrazy.mk,177,200`) |
-| AC-12 | `test/parse/cli-show-version.ci` after the change | Still passes. The QEMU ze build deliberately omits version ldflags (`mk/test-integration.mk`); the kernel swap must not tempt anyone to restore them |
+| AC-12 | `test/parse/cli-version-show.ci` after the change | Still passes. The QEMU ze build deliberately omits version ldflags (`mk/test-integration.mk`); the kernel swap must not tempt anyone to restore them |
 
 ## Risks & Assumptions
 
@@ -610,14 +640,14 @@ Recorded here so the two can be reconciled by their owners rather than by a race
 
 | AC | Status | Demonstrated by |
 |----|--------|-----------------|
-| AC-1 | Done | The firewall suite ran to completion on 7.1.4 under QEMU with no panic, `009-set-element-timeout` included. Direct probe: a set with `flags timeout` and an element with `timeout 5s` are accepted, read back as `expires 5s`, and the VM survives `nft flush ruleset` |
+| AC-1 | Done | The firewall suite ran to completion on 7.1.4 under QEMU with no panic, `firewall-set-element-timeout` included. Direct probe: a set with `flags timeout` and an element with `timeout 5s` are accepted, read back as `expires 5s`, and the VM survives `nft flush ruleset` |
 | AC-2 | Done | `firewall` removed from the default skip list in `mk/test-integration.mk` AND `scripts/evidence/qemu-all-tests.sh`. Suite result on the fixed kernel: `pass 23/23 100.0% 28.4s`. Guarded by `TestFirewallNotInDefaultQemuSkips` |
 | AC-3 | Done | Both targets pass `--kernel $(ZE_QEMU_KERNEL)`. The VM reports `Linux localhost 7.1.4 ... aarch64`, not 6.12.13-0-virt. Guarded by `TestQemuFunctionalTargetsBootTheRuntimeKernel` |
 | AC-4 | Done | `tmp/kernel/vmlinuz` moved aside, `make ze-qemu-test-all` exits 2 with `error: tmp/kernel/vmlinuz not found -- this target boots ze's runtime kernel and never stock Alpine (run: make ze-kernel-build KERNEL_ARCH=arm64)`. Restored after. Guarded by `TestQemuTargetsGuardTheStagedKernel` |
 | AC-5 | **Partly** | Every regression the kernel switch caused is found, fixed and re-measured green: `policy` PASS, and the `cos-*`, `iface-*` and `forked-route-install-kernel` tests gone from the failure list. What AC-5 still lacks is a STOCK-kernel baseline for the reds that were red in both runs, so "unrelated" is argued rather than measured for `ospf` and `ddos-*`. See "Full-suite result" |
 | AC-10 | Done | Landed by `6c27ebd37` before this work; verified rather than redone. 21 of 23 carry `option=needs-linux:caps=net-admin`, 0 carry `skip-os:value=darwin`, and the 2 unmarked start no daemon. Guarded by `TestFirewallCiTestsAreNeedsLinux` |
 | AC-11 | Done | A REAL amd64 kernel (Alpine's own `vmlinuz-virt` for x86_64) staged at `tmp/kernel/vmlinuz` on this arm64 host: `make ze-qemu-needs-linux-test` exits 2 with `error: ... is not this tree's arm64 runtime kernel -- wrong architecture, or a kernel config fragment changed after it was staged`. The guard derives its architecture from `QEMU_GOARCH`, never `GOKRAZY_ARCH` |
-| AC-12 | Done | `test/parse/cli-show-version.ci` runs in the `parse` suite of the full pass. No ldflags were added to the QEMU ze build |
+| AC-12 | Done | `test/parse/cli-version-show.ci` runs in the `parse` suite of the full pass. No ldflags were added to the QEMU ze build |
 | AC-6..AC-9 | Consumed | Delivered by the absorbed cache work (learned 1173). `mk/gokrazy.mk` routes `ze-kernel-build` through `~/.cache/ze`, and this spec did not edit it |
 
 Beyond the ACs, and the reason the suite could not have gone green without it:
@@ -663,7 +693,7 @@ Class 2, NOT caused by the kernel, and not this spec's to fix:
 | Red | Attribution |
 |-----|-------------|
 | `firewall-irr-*` (7 tests in `plugin`) | `failed to send request: usage: update firewall irr as-set <as-set>` -- a CLI argument-surface mismatch. `internal/component/firewall/plugins/irr` carries another agent's uncommitted work in this shared checkout. Nothing to do with nftables or the kernel |
-| `cli-host-show-dmi` (`parse`) | NOT `CONFIG_DMI_SYSFS`. `detectDMI` (`internal/component/host/dmi_linux.go`) reads `/sys/class/dmi/id` only, which `CONFIG_DMIID=y` already provides. Cause not yet identified; it is not a symbol this spec removed |
+| `cli-host-dmi-show` (`parse`) | NOT `CONFIG_DMI_SYSFS`. `detectDMI` (`internal/component/host/dmi_linux.go`) reads `/sys/class/dmi/id` only, which `CONFIG_DMIID=y` already provides. Cause not yet identified; it is not a symbol this spec removed |
 | `ssh-cli-status-error-exit-code`, `ddos-*` | Unattributed at this point. Settled below by the re-run: both stayed red after the kernel config fix, so the switch did not cause them. `cos-dynamic-coa` and `cos-dynamic-session` were listed here in an earlier draft and are NOT unattributed: the re-run shows them green, so the tc symbols were their cause |
 
 ### Re-run after the config fix (same target, same kernel version, new symbols)
@@ -715,9 +745,9 @@ Each was red in BOTH runs, so the kernel switch did not cause it:
 
 | Red | Attribution |
 |-----|-------------|
-| `traffic`: `011-vpp-reject-hfsc`, `012-vpp-not-connected`, `020-vpp-accept-dscp-filter`, `021-cs6-priority-config`, `024-vpp-reject-prio`, `025-vpp-reject-mark`, `026-vpp-accept-multiclass` | Every one is a VPP-backend test. No VPP daemon runs in the QEMU VM, and `internal/plugins/traffic/vpp` and `internal/plugins/iface/vpp` carry another agent's uncommitted work in this shared checkout |
+| `traffic`: `traffic-vpp-reject-hfsc`, `traffic-vpp-not-connected`, `traffic-vpp-accept-dscp-filter`, `traffic-cs6-priority-config`, `traffic-vpp-reject-prio`, `traffic-vpp-reject-mark`, `traffic-vpp-accept-multiclass` | Every one is a VPP-backend test. No VPP daemon runs in the QEMU VM, and `internal/plugins/traffic/vpp` and `internal/plugins/iface/vpp` carry another agent's uncommitted work in this shared checkout |
 | `plugin`: `firewall-irr-*` (7) | `usage: update firewall irr as-set <as-set>` -- a CLI argument-surface mismatch in another agent's uncommitted `internal/component/firewall/plugins/irr` |
-| `ospf` (exit 124), `vrrp-idle`, `ddos-detect-characterize`, `ddos-incident-confidence`, `ssh-cli-status-error-exit-code`, `cli-host-show-dmi`, `ze-stripped-surface`, `doctor-geodns`, `pki-reference-reload*` | Red in both runs. `cli-host-show-dmi` is NOT `CONFIG_DMI_SYSFS`: `detectDMI` (`internal/component/host/dmi_linux.go`) reads only `/sys/class/dmi/id`, which `CONFIG_DMIID=y` already provides |
+| `ospf` (exit 124), `vrrp-idle`, `ddos-detect-characterize`, `ddos-incident-confidence`, `ssh-cli-status-error-exit-code`, `cli-host-dmi-show`, `ze-stripped-surface`, `doctor-geodns`, `pki-reference-reload*` | Red in both runs. `cli-host-dmi-show` is NOT `CONFIG_DMI_SYSFS`: `detectDMI` (`internal/component/host/dmi_linux.go`) reads only `/sys/class/dmi/id`, which `CONFIG_DMIID=y` already provides |
 
 **The honest gap, stated rather than papered over.** Every remaining red was red
 before AND after the kernel config fix, which rules the fix out as their cause. It

@@ -5,14 +5,29 @@
 | Status | in-progress |
 | Depends | spec-fixit-migrate-sleeps-infra (P0 carve-out); spec-redistribute-late-join-replay (closed, learned 1062) |
 | Phase | 4/6 |
-| Updated | 2026-07-22 |
+| Updated | 2026-08-17 |
 
 Phase note (cell corrected 2026-07-22; the old "fix proposed, not implemented"
 was stale): F1-F3 are implemented (`internal/test/runner/peer_contract.go` with
 `isSelfValidated`/`validatePeerBlocks`, shared `peer.ConsumesLine` in
-`expect.go`) and F4 is complete (converted `eor-sent`/`local-preference`
+`expect.go`) and F4 is complete (~~converted `eor-sent`/`local-preference`
 expectations in `bgp-redistribute-announce.ci` and
-`forward-mpreach-nexthop-self-two-peer.ci`). F5 and F6 remain open.
+`forward-mpreach-nexthop-self-two-peer.ci`~~). F5 and F6 remain open.
+
+> **F4 SCOPE CORRECTION, measured over the tree on 2026-08-17.** The struck
+> parenthesis names two files and reads as "F4 is complete because two were
+> converted". The conversion is far wider than that, and the number matters
+> because F4's whole point was the size of the class:
+>
+> | Class | Claimed | Measured 2026-08-17 |
+> |-------|---------|---------------------|
+> | A1 (json-only peer block, 9 files) | 2 converted | **all 9** carry a live `expect=bgp:` line, and **none** carries a live `expect=exit` directive. Every remaining `expect=exit` occurrence in those 9 sits inside a `#` comment recording its removal |
+> | A2 (peer block declares nothing, 21 files) | not stated | **all 21** run their peer with `--mode sink` |
+> | `eor-sent` gate | not stated | **76** of the 650 `test/plugin/*.ci` carry it |
+>
+> So F4 is complete as a body of work, not as a two-file sample. The struck text
+> is kept so the next reader sees that the frame moved rather than inheriting a
+> two-file picture of a thirty-file conversion.
 
 ## ROOT CAUSE (2026-07-16) -- there is no engine stall; two test-harness defects
 
@@ -124,12 +139,14 @@ resemblance was only the surface shape ("an observer's command does not get what
 during a long operation"). Both specs must proceed independently; neither unblocks the
 other.
 
-## F1-F3 IMPLEMENTED 2026-07-16 (F4 open); measured blast radius below
+## F1-F3 IMPLEMENTED 2026-07-16 (~~F4 open~~ F4 LANDED, see the Phase note); measured blast radius below
 
 -> Decision: F1, F2 and F3 are implemented and green (`make ze-build` OK,
-`make ze-lint-changed` 0 issues). No production file was touched. F4 (fixing the
+`make ze-lint-changed` 0 issues). No production file was touched. ~~F4 (fixing the
 `.ci` tests) is deliberately NOT done here and is fanned out; see
-`plan/deferrals.md` (5 rows, 2026-07-16) for the sharded work.
+`plan/deferrals.md` (5 rows, 2026-07-16) for the sharded work.~~
+-> Correction (2026-08-17): the fan-out RAN. F4 is landed across all 9 class-A1
+and all 21 class-A2 files; see the F4 scope correction under the header.
 
 | # | Landed | Where | Proof |
 |---|--------|-------|-------|
@@ -170,7 +187,7 @@ not ours).
 -> Constraint: the sibling scan's "23 blocks / 21 files" UNDERCOUNTED. The real
 parser rejects 30 files; it missed `bgp-gtsm-reject`, `bmp-lg-{bestpath-isolation,
 disconnect,ingest}`, `bmp-receiver-{messages,session}`, `family-no-plugin-failure`,
-`show-bmp-sessions`, `show-rr-status`. Vacuity is now proven for far more than
+`bmp-sessions-show`, `rr-status-show`. Vacuity is now proven for far more than
 `bgp-redistribute-announce`: 30 peers provably never bound (parse-time, by the
 guard that mirrors ze-peer's own bail) and 30 more declared an unreachable EOR.
 
@@ -222,8 +239,8 @@ never needed it (they passed at baseline with a peer that never bound). Fix:
   17. `rib-graph.ci`
   18. `rib-graph-best.ci`
   19. `rib-graph-filtered.ci`
-  20. `show-bmp-sessions.ci`
-  21. `show-rr-status.ci`
+  20. `bmp-sessions-show.ci`
+  21. `rr-status-show.ci`
 
 **Class B1 -- F1 runtime, peer declares ONLY the ipv4/unicast EOR (33).** (b) the EOR
 never reaches the peer. ~~unreachable by construction: the `.run` plugin calls
@@ -262,11 +279,11 @@ free. Fixes are additions only.
    2. `adj-rib-in-replay-on-peerup.ci`
    3. `api-commit-lifecycle.ci`
    4. `api-commit-workflow.ci`
-   5. `api-rib-clear-in.ci`
-   6. `api-rib-clear-out.ci`
+   5. `api-rib-in-clear.ci`
+   6. `api-rib-out-clear.ci`
    7. `api-rib-inject.ci`
-   8. `api-rib-show-in.ci`
-   9. `api-rib-show-out.ci`
+   8. `api-rib-in-show.ci`
+   9. `api-rib-out-show.ci`
   10. `api-rib-withdraw.ci`
   11. `bestpath-reason.ci`
   12. `bgp-rs-asn4-transcode.ci`
@@ -285,12 +302,12 @@ free. Fixes are additions only.
   25. `rib-clear-out-family.ci`
   26. `rib-forward-handle-observed.ci`
   27. `rib-inject-rfc5549.ci`
-  28. `rib-show-filter.ci`
+  28. `rib-filter-show.ci`
   29. `rpf-multicast.ci`
   30. `rpki-cache-connect.ci`
   31. `rr-basic.ci`
   32. `rr-ipv6-config.ci`
-  33. `show-l2tp-sessions.ci`
+  33. `l2tp-sessions-show.ci`
 
 **Class B2 -- F1 runtime, peer validates REAL wire content and MISMATCHED (6).**
 POSSIBLE PRODUCT BUGS. The only reds where a substantive BGP assertion is enforced
@@ -686,7 +703,7 @@ second bindable IPv6 loopback the earlier "left red on purpose" note deferred; I
 next-hop-self stays covered by `redistribute-as112-announce.ci`. Independently reviewed:
 SOUND (one stale-comment defect fixed). F5 and F6 remain open.
 
-| F5 (open, 2026-07-16) | **F2's own remedy text can produce a vacuous green.** `validatePeerBlocks` tells the author to "run the peer with `--mode sink`". Doing so makes `hasCheckPeer` false (`peer_contract.go`, re-read 2026-07-16); `isSelfValidated` returns false ONLY for a check peer, so with the peer sinked the bare `rec.ExpectExitCode != nil` at `:72` makes it TRUE. `runner_exec.go` gates the whole BGP branch on `!isSelfValidated(...)`, and `validateJSON` sits inside it at `:1141` (its own comment: "peer path only"). A file whose real assertions are `expect=json` therefore asserts NOTHING once sinked. The guard built to stop vacuous greens hands out a remedy that creates one -- the fail-open shape `ai/rules/evidence.md` names | `internal/test/runner/peer_contract.go` (remedy text + `isSelfValidated`), `runner_exec.go,1141` (the gate) | Found by the test-219 F4 shard |
+| F5 (open, 2026-07-16) | **F2's own remedy text can produce a vacuous green.** `validatePeerBlocks` tells the author to "run the peer with `--mode sink`". Doing so makes `hasCheckPeer` false (`peer_contract.go`, re-verified 2026-08-17); `isSelfValidated` returns false ONLY for a check peer, so with the peer sinked the bare `rec.ExpectExitCode != nil` makes it TRUE. `runner_exec.go` gates the whole BGP branch on `!isSelfValidated(...)`, and `validateJSON` sits inside it (its own comment: "peer path only"). A file whose real assertions are `expect=json` therefore asserts NOTHING once sinked. The guard built to stop vacuous greens hands out a remedy that creates one -- the fail-open shape `ai/rules/evidence.md` names. **Still open, and LATENT: 28 `.ci` run a sinked peer and none combines `expect=json` with `expect=exit`, so no current green rests on it (measured 2026-08-17). The stale `:72` / `:1141` anchors are removed: `isSelfValidated` has moved, and a hand-typed line number is banned anyway (`ai/rules/evidence.md`)** | `internal/test/runner/peer_contract.go` (remedy text + `isSelfValidated`), `runner_exec.go` `validateJSON` (the gate) | Found by the test-219 F4 shard |
 
 -> Evidence (F5, reproduced not inferred): `forward-mpreach-nexthop-self-two-peer.ci`
 turns **PASS in 8.2s while asserting nothing** when sinked, because its only real
@@ -703,10 +720,10 @@ evaluation has no business being gated on the peer path at all.
 -> Constraint (F5, scope): this does NOT affect the 8 tests sinked in `4ce173e32` /
 `282663671`. All 8 were checked: **none declares `expect=json`**, so the skipped
 `validateJSON` costs them nothing, and their surviving assertions were proven live by
-deliberately breaking `show-l2tp-statistics`'s `expect=stderr:contains` (red) and
+deliberately breaking `l2tp-statistics-show`'s `expect=stderr:contains` (red) and
 restoring it byte-exactly (green). The hole is real; those files do not sit in it.
 
-| F6 (open, 2026-07-16) | **Audit the 40 `test/plugin/*.ci` that carry `cmd=api`, where it is INERT.** The D-4 analysis above proves it for `test-pipe-first-last`; the CLASS is unsized. `cmd=api` is an encode-suite directive (`record_parse.go` sets `msg.Cmd`; the ONLY reader is `report.go`, the reporter), and ze-peer discards it (`internal/test/peer/expect.go`: `case "cmd": // Ignore - documentation only`). In `test/encode` the runner drives ze's API from it; in `test/plugin` nothing does, so any test relying on it to inject routes asserts against an EMPTY RIB. `grep -rl "cmd=api" test/plugin/` = **40 files**. Split them: RELIES-ON (vacuous, must be converted to a real injection path such as `option=update:value=send-route:`) vs DOCUMENTS-ONLY (harmless, injection happens elsewhere) | `test/plugin/*.ci` (40 files); contract at `internal/test/peer/expect.go`, `record_parse.go`, `report.go` | Found by the test-506 F4 shard |
+| F6 (open, 2026-07-16) | **Audit the 40 `test/plugin/*.ci` that carry `cmd=api`, where it is INERT.** The D-4 analysis above proves it for `test-pipe-first-last`; the CLASS is unsized. `cmd=api` is an encode-suite directive (`record_parse.go` sets `msg.Cmd`; the ONLY reader is `report.go`, the reporter), and ze-peer discards it (`internal/test/peer/expect.go`: `case "cmd": // Ignore - documentation only`). In `test/encode` the runner drives ze's API from it; in `test/plugin` nothing does, so any test relying on it to inject routes asserts against an EMPTY RIB. `grep -rl "cmd=api" test/plugin/` = **40 files**, re-measured 2026-08-17 and still 40. Split them: RELIES-ON (vacuous, must be converted to a real injection path such as `option=update:value=send-route:`) vs DOCUMENTS-ONLY (harmless, injection happens elsewhere). **Still open, and the class is UNAUDITED rather than known-bad: the two files sampled so far both inject through a `.run` plugin script, so their `cmd=api` is documentation. Two of forty settles nothing about the other thirty-eight** | `test/plugin/*.ci` (40 files); contract at `internal/test/peer/expect.go`, `record_parse.go`, `report.go` | Found by the test-506 F4 shard |
 
 -> Constraint (F6): this is a THIRD vacuity class, distinct from F1 and F2. F1 = the peer
 never bound. F2 = the peer declared nothing to check. F6 = the peer binds and asserts
@@ -767,7 +784,7 @@ recorded here so the next session does not repeat them.
 ### Fixed + committed
 - **`fix(bgp): reconnect backoff floor 5s, not 120s connect-retry` (commit 44ad25d23).**
   `internal/component/bgp/reactor/peer.go` NewPeer(:294) set `reconnectMin :=
-  settings.ConnectRetry` (default 120s, RFC 4271 ConnectRetryTimer, `peersettings.go`),
+  settings.ConnectRetry` (default 120s, RFC 4271 ConnectRetryTimer, `peer_settings.go`),
   while `reconnectMax = DefaultReconnectMax` (60s). So the backoff floor (120s) exceeded
   its ceiling (60s), contradicting the design in `peer_run.go` ("min 5s, max 60s") and
   `DefaultReconnectMin` (5s, peer.go). A failed first connect stranded the peer
@@ -1027,12 +1044,54 @@ ze-peer does with a peer block containing only `expect=json`
 
 ## Acceptance Criteria
 
-- AC-1: a regression test reproduces the stall and fails before the fix.
+- ~~AC-1: a regression test reproduces the stall and fails before the fix.~~
+  **VOID (recorded 2026-08-17).** Its premise is an engine stall, and the ROOT CAUSE
+  section above already establishes there is no engine stall: ze-peer exits before it
+  binds, so every ze dial hits `connection refused`. There is nothing to reproduce, and
+  a test written to satisfy this AC would be a test of a defect that does not exist.
+  The AC row is struck here so the table says what the prose already said.
 - AC-2: root cause cited to `file:line`, with H1-H3 confirmed/refuted from goroutine evidence.
+  → Met by the ROOT CAUSE section: D1 and D2, both cited to the producing functions.
 - AC-3: a single-peer redistribute session establishes while the observer polls the engine.
 - AC-4: the 7 `bgp-redistribute-*` tests (+ api-raw/route-refresh if affected) converted off
   `time.sleep`, verified 3x + concurrently, baseline ratcheted.
+  → Met, and wider than stated: all 9 class-A1 and all 21 class-A2 files (F4 scope
+  correction under the header).
 - AC-5: no regression in `redistribute-as112-announce.ci` or the replay tests.
+
+### What actually remains: F5 and F6, and nothing else
+
+Re-verified at the producers on 2026-08-17.
+
+**F5 -- `isSelfValidated` hands out a remedy that creates a vacuous green.**
+`isSelfValidated` (`internal/test/runner/peer_contract.go`) returns `false` only when
+`hasCheckPeer` is true. Once a peer is run with `--mode sink`, `hasCheckPeer` is false,
+so the function returns true for any record carrying an exit-code assertion or any
+output assertion. `runner_exec.go` gates the entire BGP branch, `validateJSON` included,
+on `!isSelfValidated(...)`. A file whose real assertions are `expect=json` therefore
+asserts nothing once sinked, and `--mode sink` is exactly what `validatePeerBlocks`
+tells the author to do. The guard built to stop vacuous greens can produce one.
+
+**F5 is LATENT, not live.** No `.ci` in the tree combines `--mode sink` with both
+`expect=json` and `expect=exit`: 28 `.ci` files run a sinked peer and none of them
+carries a line-start `expect=json` alongside a line-start `expect=exit`. So the defect
+is in the mechanism, not in a current result. That makes it cheaper to fix now than to
+find later, and it means no existing green is being called into question by F5.
+
+**F6 -- 40 `test/plugin/*.ci` carry `cmd=api`, and the class has never been audited.**
+`cmd=api` is an encode-suite directive: `record_parse.go` sets `msg.Cmd`, `report.go` is
+its only reader, and ze-peer discards it outright (`internal/test/peer/expect.go`,
+`case "cmd": // Ignore - documentation only`). In `test/encode` the runner drives ze's
+API from it; in `test/plugin` nothing does. A test that relies on `cmd=api` to inject
+routes therefore asserts against an empty RIB.
+
+**The class is UNAUDITED, not known-bad.** Two files were sampled and both inject
+through a `.run` plugin script, so their `cmd=api` is documentation and they are sound.
+Two of forty settles nothing about the other thirty-eight
+(`ai/rules/evidence.md`, "one instance is not a population"). The work is to split all
+40 into RELIES-ON (vacuous, needs a real injection path) and DOCUMENTS-ONLY (harmless),
+one file at a time. Do not bulk-convert: whether a `cmd=api` line is load-bearing is a
+per-file fact.
 
 ## Risks & Assumptions
 
@@ -1045,7 +1104,8 @@ ze-peer does with a peer block containing only `expect=json`
 
 ## Checklist
 
-- [ ] Stall reproduced with a failing regression test (AC-1)
+- [ ] ~~Stall reproduced with a failing regression test (AC-1)~~ VOID: there is no
+      stall to reproduce (see the Acceptance Criteria note)
 - [ ] Root cause cited `file:line`, H1-H3 resolved (AC-2)
 - [ ] Fix applied at owning layer; single-peer establishes with active observer (AC-3)
 - [ ] 7 redistribute tests + api-raw/route-refresh converted, verified, baseline ratcheted (AC-4)

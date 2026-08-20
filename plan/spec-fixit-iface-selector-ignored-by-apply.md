@@ -433,3 +433,188 @@ live-kernel integration test caught it on the first run.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+## Implementation Summary
+
+### What Was Implemented
+
+The code landed in three commits before this closure ran. This spec's diff is
+exactly those three, plus two files the closure commit carries:
+
+| Commit | Carries |
+|--------|---------|
+| `30ce55a41` | `bindDevices`, `deviceFor`, `validateSelectors`, `applyAndPublish`, `unitOSName` taking the kernel device, `resolveOS` failing closed, `matchByMAC` refusing ambiguity, `decomposeIfaceOperations` resolving both sides, `checkInterfaces` judging by selector, `detailsToInfo` setting `OsName`, the selector unit and integration tests, two `.ci` files, the architecture and feature docs |
+| `be3394fba` | `devicesWithMAC`, `isStackedDevice` and `aggregatingDevices` excluding a device that wears another device's address, `MasterIndex` and its `linkToInfo` producer, the bridge-member loop moved to Phase 2a, `mirrorSpecFor` and `mirrorDestination`, the bridge selector tests, two more `.ci` files, the `parseStringList` fix for a one-element `member` leaf-list |
+| `eea3b5550` | `netDevicesWithAddress` and `hasLowerDevice`, so the doctor counts a MAC only on the device that owns it |
+| the closure commit | `OSDeviceNameValidator` and its `os-device-name` registration, and the two `doctor-iface-selector-*` codes in the diagnostic catalogue |
+
+`internal/core/diagnostic/codes.go` is the one gap HEAD carried. `checkInterfaces`
+emits `doctor-iface-selector-unmatched` and `doctor-iface-selector-ambiguous`
+(`internal/component/doctor/checks_linux.go`, `selectedNetDevice`), and neither
+code was in `builtinCodes`, so `ze explain` could not describe a code `ze doctor`
+prints.
+
+### Bugs Found/Fixed
+- `detailsToInfo` (`internal/plugins/iface/vpp/query.go`) never set `OsName`, so every selector steered nothing on the VPP backend. Row in `plan/journal/zero-value-as-valid-answer.md`.
+- `parseIfaceConfig` (`internal/component/iface/config.go`) read the bridge `member` leaf-list with a `[]any` assertion, so a bridge with one member enslaved nothing and reported no error. `TestBridgeMemberListSurvivesOneMember`. Row in `plan/journal/helper-bypassed-by-an-open-coded-copy.md`.
+- The apply-path fake backend accepted five operations on a device it did not hold, and gave a VLAN no MAC. Row in `plan/journal/fixture-encodes-an-impossible-state.md`.
+- A bridge or a bond made a `mac/match` selector ambiguous and failed the whole apply, because `devicesWithMAC` excluded only stacked devices. `aggregatingDevices` and `MasterIndex` close it.
+
+### Documentation Updates
+- `docs/architecture/iface/logical-name-resolution.md`: the apply-path translation, the bridge-member and mirror-destination sites, the ambiguity refusal, and the publication order. Anchors on `bindDevices, deviceFor, unitOSName`, on `mirrorSpecFor, mirrorDestination`, on `validateSelectors, devicesWithMAC, isStackedDevice, aggregatingDevices`, on `netDevicesWithAddress, hasLowerDevice`, and on `applyAndPublish`.
+- `docs/features/interfaces.md`: the apply-path paragraph and the `os-device-name` validator, anchored on `internal/component/config/validators.go -- MACAddressValidator, OSDeviceNameValidator`.
+- `docs/guide/configuration.md`: the `os-name` and `mac/match` sections, the VLAN naming rule, and the three selector outcomes, anchored on `bindDevices, deviceFor, unitOSName` and on `checkInterfaces, selectedNetDevice`. Those edits reached git in `8f0d02e81`, a shared-file commit made by another session. The content is preserved and only the attribution is off (`ai/rules/git-safety.md`).
+
+### Deviations from Plan
+- Files to Modify named `internal/component/iface/validate.go` and `config_sysctl.go`. Both are UNCHANGED, and the spec records why: selector validation cannot live in `validate.go`, which runs with no view of the hardware.
+- Files to Modify was short by two naming sites, bridge members and mirror destinations. Both were found against a live kernel and the spec was amended in `eea3b5550`.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The first enumeration of naming sites was treated as complete by construction | Two sites were missing: the bridge-member loop and the mirror destination | The live-kernel `.ci` runs, not any host test | Implementation Step 2 now says the list is compared against the code and amended when the two disagree |
+| assumption | The apply-path fake backend was treated as a faithful model of a kernel | It accepted five operations on a device it did not hold and gave a VLAN no MAC, so six tests passed on states no kernel produces | A VLAN inheriting its parent MAC made the parent match its own selector twice, caught by the integration test | The fake refuses an absent device and inherits the parent MAC. Six tests had their SETUP corrected and no assertion changed |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| The apply path acts on the device the selector names | Done | `bindDevices` and `deviceFor`, `internal/component/iface/config_apply.go` | One listing per apply feeds every phase |
+| The resolver mapping is published before the apply reads it | Done | `applyAndPublish`, `internal/component/iface/config_apply.go` | All three apply sites in `register.go` go through it |
+| The selector surface stops failing open | Done | `resolveOS` (`dispatch.go`), `matchByMAC` (`resolve.go`), `validateSelectors` (`config_apply.go`) | A name that HAS a selector is refused rather than falling back to itself |
+| A selected entry whose device is absent is distinguishable | Done | `bindDevices` maps it to the empty string; `checkInterfaces` reports `doctor-iface-selector-unmatched` | The deferred binding the YANG promises is preserved |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `bindDevices` resolves `mac/match` through `devicesWithMAC`; `desiredState(devices)` keys `addrs` by `unitOSName(device, u)`; `reconcileOnReadyWithJournal` calls `b.AddAddress(osName, addr)` on that key | `TestApplyAddressLandsOnSelectedDevice`, `TestDesiredStateKeysBySelectedDevice`, `test/plugin/iface-mac-match-address-apply.ci` |
+| AC-2 | Done | The Phase 2 entry loop in `applyConfig` takes `device, _ := deviceFor(devices, e.Name)` once and hands it to `SetMTU`, `SetMACAddress`, `applySysctl`, `applyOffloads` and `applyMirror`; Phase 2c hands the same device to `SetAdminUp` | `TestApplyNonAddressSettingsFollowSelector`, `TestMirrorDestinationFollowsItsSelector` |
+| AC-3 | Done | `bindDevices` case `e.OSName != "" && e.OSName != e.Name` | `TestApplyAddressFollowsOsNameAlias`, `test/plugin/iface-osname-alias-apply.ci` |
+| AC-4 | Done | `bindDevices` maps an unanswered selector to the empty string, `deviceFor` returns `bound=false`, and the entry is dropped from `allEntries` before any phase touches it | `TestDeferredBindingStillDefers`, `TestApplyDefersAbsentSelectorOnKernel`, `TestBridgeMemberDefersWhenItsHardwareIsAbsent` |
+| AC-5 | Done | `deviceFor` never falls back to the logical name; `devicesWithMAC` skips `isStackedDevice` and `aggregatingDevices`; `validateSelectors` refuses a MAC that several devices answer | `TestApplyRefusesWrongDeviceForSelector`, `TestSelectorSkipsTheDeviceWearingAMemberAddress`, `TestBridgeMemberIsEnslavedByItsSelectedDevice`, `TestSecondApplySurvivesTheBridgeZeJustBuilt` |
+| AC-6 | Done | `applyAndPublish` calls `setResolverConfig(cfg)` and then `applyConfig(cfg, previous, b)`; `register.go` reaches it at `OnConfigure`, at `OnConfigApply` and at the rollback re-apply | `TestResolverMappingPublishedBeforeApply` |
+| AC-7 | Done | `unitOSName(osName, u)` composes `<osName>.<VLANID>` and its caller passes the resolved device, so the VLAN is named after the kernel device, which is A-2's answer | `TestVLANOnSelectedParent`, `TestVLANOnSelectedParentBoundaryIDs` |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| The nine selector unit tests | Done | `internal/component/iface/config_apply_selector_test.go` | Present, plus `TestDecomposedOperationNamesTheSelectedDevice` |
+| The seven bridge selector tests | Done | `internal/component/iface/config_apply_bridge_selector_test.go` | Present |
+| The two mirror tests | Done | `internal/component/iface/config_mirror_test.go` | Present |
+| The three doctor tests | Done | `internal/component/doctor/checks_linux_test.go` | Present |
+| The two editor-surface tests | Done | `internal/component/iface/config_osname_test.go` | Present |
+| The three integration tests | Done | `internal/component/iface/config_apply_resolve_integration_linux_test.go` | Build tag `integration && linux` |
+| The four `.ci` tests | Done | `test/plugin/` | Each carries `needs-linux:caps=net-admin` |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Every file in Files to Modify | Done | Except `validate.go` and `config_sysctl.go`, which the spec records as deliberately UNCHANGED |
+| Every file in Files to Create | Done | Verified by symbol listing in Pre-Commit Verification |
+
+### Audit Summary
+- **Total items:** 7 acceptance criteria, 4 task requirements, 26 named tests, 2 file lists
+- **Done:** all
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** 2, recorded in Deviations
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A `mac/match` entry carrying an address can be committed, and its address lands on the selected hardware | functional | `test/plugin/iface-mac-match-address-apply.ci`. Before the fix the daemon failed its own startup config with `iface: set up "zemacwan": not found: Link not found` |
+| An `os-name` alias reaches the aliased kernel device | functional | `test/plugin/iface-osname-alias-apply.ci`, with the same pre-fix failure |
+| Nothing is applied to a device that merely shares the entry's logical name | unit and functional | `TestApplyRefusesWrongDeviceForSelector`; `test/plugin/iface-bridge-member-selector-apply.ci` proves the bridge enslaves the selected device |
+| A selector stays usable on the config ze builds itself | functional | `test/plugin/iface-bridge-mac-match-apply.ci`. Before the fix the second apply refused the selector as ambiguous |
+| The apply reads its own commit's mapping | unit | `TestResolverMappingPublishedBeforeApply`, which is red without `applyAndPublish` |
+| The same defect is answered on the operator's pre-flight surface | unit | `TestCheckInterfacesFollowsMACMatch`, `TestCheckInterfacesFollowsOSNameAlias`, `TestCheckInterfacesUnselectedEntryUnchanged` |
+| Interop | N-A | No protocol behavior changes. This is local interface configuration, so `ai/rules/interop-and-goal-validation.md` requires no scenario |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| None | done | The spec metadata records `Deferral shard: -`, and no file under `plan/deferrals/` carries this spec's stem |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/fixit-iface-selector-ignored-by-apply-fa011c6d-dddd-408b-a46c-3ee25189f6a1.md`, 28 files pinned by hash |
+| `review_gate.py check` | clean, exit 0: `review_gate: OK (3 code files, clean, hashes match ...)` over the three code files the closure commit carries |
+| Rounds | 2. Round 1 covered the complete diff and found 0 BLOCKER, 0 ISSUE and 3 NOTEs. Round 2 covered the one file that changed after it, `internal/component/config/validators.go`, whose `OSDeviceNameValidator` doc comment was rewritten for `ai/rules/writing.md` and corrected to name the whitespace and `..` refusals the code makes. Comment only, no behavior change, 0 BLOCKER and 0 ISSUE |
+| Reviewer lenses used | wiring and dead code, functional-test coverage, documentation drift, removed-behavior audit, logic correctness and fail-open guards, allocation and hot path, simplicity and altitude, ze-style, security |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| - | - | No BLOCKER and no ISSUE. Three NOTEs are recorded below, and none blocks | - | - |
+
+Three NOTEs:
+
+1. `make ze-repository-check` reports `OSDeviceNameValidator` as having no cross-package non-test caller, together with the seventeen sibling validators in the same file. `RegisterValidators` (`internal/component/config/validators_register.go`) calls each one from the same package, and `check_cross_package_wiring` counts only cross-package callers. The Makefile documents this class and keeps the check out of `ze-precommit-verify` for exactly this reason. The finding disappears once the file leaves `git diff HEAD`.
+2. `make ze-lint-changed` widened to `./...` and reported 8 findings, all in `scripts/evidence/l2tp-pppox-diag/main.go` and `scripts/evidence/l2tp-tunnel-diag/main.go`. Both are committed and neither is touched here. The class is already counted in `plan/journal/lint-contract-not-applied.md`.
+3. `desiredState` merges the owned-address registry by the name a plugin registered, with no selector translation. Both producers are safe today: as112 registers on `lo`, and VRRP registers on the macvlan device it created itself (`installVIPs`, `internal/plugins/vrrp/instance.go`). A future plugin registering on a selector-bound ethernet name would key by the logical name.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/iface/config_apply_selector_test.go` | Yes | nine `Test*` functions listed by `grep -hn "^func Test"` |
+| `internal/component/iface/config_apply_bridge_selector_test.go` | Yes | seven `Test*` functions |
+| `internal/component/iface/config_apply_resolve_integration_linux_test.go` | Yes | three `Test*` functions |
+| `test/plugin/iface-mac-match-address-apply.ci` | Yes | header read; `needs-linux:caps=net-admin` present |
+| `test/plugin/iface-osname-alias-apply.ci` | Yes | committed in `30ce55a41` |
+| `test/plugin/iface-bridge-mac-match-apply.ci` | Yes | committed in `be3394fba` |
+| `test/plugin/iface-bridge-member-selector-apply.ci` | Yes | committed in `be3394fba` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1, AC-3, AC-5, AC-7 | The apply keys by the resolved device | `make ze-unit-pkg-test PKG=./internal/component/iface/... RACE=0` exit 0, `ok github.com/ze-software/ze/internal/component/iface 0.293s` |
+| AC-2 | Every non-address setting takes the same device | the Phase 2 loop reads `device, _ := deviceFor(devices, e.Name)` once and passes it to every backend call. `allEntries` is filtered by boundness before that loop, so the discarded second return cannot be an unbound entry |
+| AC-4 | A deferred binding still defers | `bindDevices` returns the empty string, `deviceFor` reports `bound=false`, and the reconcile's remove-extra loop iterates `desiredAddrs` keys only, so an unbound entry loses no address |
+| AC-6 | Publication precedes apply | `grep applyAndPublish` finds exactly three production call sites, all in `register.go`, and `setResolverConfig` has one caller, which is `applyAndPublish` |
+| Doctor surface | The two diagnostic codes resolve | `make ze-unit-pkg-test PKG="./internal/component/doctor/... ./internal/component/config/... ./internal/core/diagnostic/... ./internal/plugins/iface/..." RACE=0` exit 0 |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| A commit with a `mac/match` entry whose kernel name differs | `test/plugin/iface-mac-match-address-apply.ci` | Yes. The header states the device, the MAC and the address block it owns, and names the deferred-then-bound path it exercises |
+| An `os-name` alias | `test/plugin/iface-osname-alias-apply.ci` | Yes |
+| A selected port ze puts in a bridge | `test/plugin/iface-bridge-mac-match-apply.ci` | Yes |
+| A bridge enslaving the selected device | `test/plugin/iface-bridge-member-selector-apply.ci` | Yes |
+| `ze doctor` on a box whose selector names nothing | unit, `TestCheckInterfacesFollowsMACMatch` | Yes. `sysClassNetDir` is a variable so the test points the check at a fixture tree |
+| The editor completing `os-name` | unit, `TestOSDeviceNameCompletionOffersPresentDevices` | Yes, registered through `yang.RegisterCompleteFn("os-device-name", osDeviceNameCompleteFn)` |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `TestApplyAddressLandsOnSelectedDevice` was red before the fix with `wan add address 10.0.0.1/24: iface: add address on "wan": not found` |
+| A-2 | confirmed | `VLANSpec` carries no name and both backends compose `<Parent>.<VLANID>`, so the VLAN IS named after the kernel device |
+| A-3 | confirmed | `setResolverConfig` has one caller, `applyAndPublish` |
+| A-4 | confirmed | Failing closed refuses the FALLBACK, never the commit. An unbound selector defers, and an ambiguous one is refused |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| The apply path translates | `docs/architecture/iface/logical-name-resolution.md` anchors `bindDevices, deviceFor, unitOSName`; all three are declared in `config_apply.go` | Yes |
+| The ambiguity refusal | the same file anchors `validateSelectors, devicesWithMAC, isStackedDevice, aggregatingDevices`; all four are declared | Yes |
+| The publication order | the same file anchors `applyAndPublish` and the three `register.go` sites | Yes |
+| The doctor derives the same exclusions from sysfs | the same file anchors `netDevicesWithAddress, hasLowerDevice`; both are declared in `checks_linux.go` | Yes |
+| The `os-device-name` validator | `docs/features/interfaces.md` and its anchor on `MACAddressValidator, OSDeviceNameValidator`; both are declared in `internal/component/config/validators.go` | Yes |
+| The three selector outcomes for an operator | `docs/guide/configuration.md` names both diagnostic codes, and both are in `builtinCodes` after the closure commit | Yes |
+| Categories answered No | `grep -rn "os-device-name" docs/` returns one hit, and no CLI, API, wire-format or RFC surface changed | Yes |
+
+## Core Insight
+
+The apply path must read the config it is applying, never the mapping that
+happens to be published. The rollback re-apply carries the PREVIOUS config, and
+the prune step must name the devices that config made under its OWN selectors.
+That is why the fix resolves from one interface listing per apply rather than
+through the shared resolver, and it is why publication had to move ahead of the
+apply rather than simply be called a second time.

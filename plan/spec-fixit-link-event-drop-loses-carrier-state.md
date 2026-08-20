@@ -153,7 +153,7 @@ backend `GetInterface` call inline on the same goroutine.
 | The worker drains a coalesced entry | → | `handleLinkUp` in `internal/component/iface/register.go` | `TestCoalescedUpRestoresBaseMetric` |
 | An IPv6 router event arrives during a config apply | → | the router event worker | `TestRouterEventDoesNotBlockTheMonitorLoop` |
 | A queue entry is coalesced or dropped | → | the new counter | `TestLinkQueueCoalesceCounted` |
-| A real link flaps on a running daemon during a commit | → | the whole chain to the kernel route table | `test/plugin/iface-link-flap-during-commit.ci` |
+| A real link flaps on a running daemon during a commit | → | the whole chain to the kernel route table | `internal/component/iface/link_flap_integration_linux_test.go` |
 
 ## Acceptance Criteria
 
@@ -170,7 +170,7 @@ backend `GetInterface` call inline on the same goroutine.
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Disables and re-enables an interface inside one commit | config apply → DHCP reconcile → link events → route metric | `test/plugin/iface-link-flap-during-commit.ci` |
+| 1 | Disables and re-enables an interface inside one commit | config apply → DHCP reconcile → link events → route metric | `internal/component/iface/link_flap_integration_linux_test.go` |
 | 2 | Pulls and replugs a cable while a commit runs | kernel → monitor → queue → worker → route | `TestLinkQueueKeepsFinalStateUnderPressure` |
 | 3 | Looks for evidence that events were lost | counter and log output | `TestLinkQueueCoalesceCounted` |
 
@@ -182,7 +182,7 @@ backend `GetInterface` call inline on the same goroutine.
 | `TestLinkQueueKeepsFinalStateUnderPressure` | `internal/component/iface/link_queue_test.go` | AC-1 and AC-2: last state wins when the queue is saturated | |
 | `TestCoalescedUpRestoresBaseMetric` | `internal/component/iface/route_metric_test.go` | the coalesced state reaches the metric state machine and moves the route once | |
 | `TestLinkQueueCoalesceCounted` | `internal/component/iface/link_queue_test.go` | AC-3: coalescing increments the counter and logs the interface | |
-| `TestRouterEventDoesNotBlockTheMonitorLoop` | `internal/component/iface/register_test.go` | AC-4: the router handlers hand off instead of locking inline | |
+| `TestRouterEventDoesNotBlockTheMonitorLoop` | `internal/component/iface/link_queue_test.go` | AC-4: the router handlers hand off instead of locking inline | |
 | `TestLearnedMetricSurvivesTheLinkBounce` | `internal/component/iface/route_metric_test.go` | existing test must stay green: the queue change preserves idempotence | |
 | `TestExtractedWorkerStartsAndStops` | `internal/component/iface/link_queue_test.go` | R-1: the extracted worker keeps its lifecycle, including shutdown | |
 
@@ -195,7 +195,7 @@ backend `GetInterface` call inline on the same goroutine.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `iface-link-flap-during-commit` | `test/plugin/iface-link-flap-during-commit.ci` | a link flaps while a config commit runs, and the default route metric afterwards matches the live carrier | |
+| `iface-link-flap-during-commit` | `internal/component/iface/link_flap_integration_linux_test.go` | a link flaps while a config commit runs, and the default route metric afterwards matches the live carrier | |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -211,7 +211,7 @@ backend `GetInterface` call inline on the same goroutine.
 ## Files to Create
 - `internal/component/iface/link_queue.go` - the extracted queue and worker, so a test can drive them
 - `internal/component/iface/link_queue_test.go` - unit coverage for the queue
-- `test/plugin/iface-link-flap-during-commit.ci` - functional proof, `needs-linux`
+- `internal/component/iface/link_flap_integration_linux_test.go` - functional proof, `needs-linux`
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -222,7 +222,7 @@ backend `GetInterface` call inline on the same goroutine.
 | CLI commands/flags | N-A | no new command |
 | CLI grammar (keyword before value) | N-A | no grammar change |
 | Editor autocomplete | N-A | no new leaf |
-| Functional test for new RPC/API | Yes | `test/plugin/iface-link-flap-during-commit.ci` |
+| Functional test for new RPC/API | Yes | `internal/component/iface/link_flap_integration_linux_test.go` |
 | Pipe completeness | N-A | no new command output |
 | Env var registration | N-A | no `environment/` leaf |
 | Doctor check for runtime dependencies | Yes | a check that acted-on route metric state agrees with live carrier, with a diagnostic code, since the failure is otherwise invisible |
@@ -273,7 +273,7 @@ backend `GetInterface` call inline on the same goroutine.
    - Files: `internal/component/iface/rate.go`, the doctor check and its diagnostic code
    - Verify: a coalesced entry is counted and a disagreement between acted-on and live state is reportable
 6. **Phase: functional proof**
-   - Tests: `test/plugin/iface-link-flap-during-commit.ci`
+   - Tests: `internal/component/iface/link_flap_integration_linux_test.go`
    - Files: the new `.ci`
    - Verify: reverting Phase 3 makes it fail, so the test is not vacuous
 
