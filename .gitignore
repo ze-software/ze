@@ -104,6 +104,9 @@ test/interop-ipsec/scenarios/*/ze.conf.resolved
 /stderr
 /stdout
 screenlog.*
+# The AAA audit trail a daemon started from the repository root appends to.
+# One line per privileged action, with the actor and the remote address on it.
+/ze.audit.jsonl
 etc/ze/*.tmp
 etc/ze/debug.zefs
 # ddos-detect (and other plugins) persist rolling runtime state here; never commit it.
