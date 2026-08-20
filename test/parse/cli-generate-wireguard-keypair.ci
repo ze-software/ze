@@ -8,16 +8,22 @@
 #            through to `wg genkey`.
 #
 # The SUCCESS path -- `wg genkey`, its output piped into `wg pubkey` on stdin, two
-# printed keys -- is NOT here, and cannot be: driving it needs a fake `wg` on PATH,
-# and the parse suite can host neither half. runOneCommand
-# (internal/test/runner/parsing.go) builds a helper script's environment with
-# childEnv, which does not put ze on PATH, and setupWorkDir writes every tmpfs file
-# 0644, so a `mode=755` fixture is never executable. A draft that tried both was
-# measured failing on each. That coverage lives in
-# TestRunWgKeypair_PipesGenkeyIntoPubkey (internal/plugins/diag/diag_test.go),
-# which shims `wg` and asserts `wg pubkey` receives exactly what `wg genkey`
-# printed. Both runner limits are homed at
-# plan/spec-fixit-ci-peer-block-silent-directives.md.
+# printed keys -- is NOT here. It needs a fake `wg` that a helper script puts on
+# PATH, and the parse suite gives that helper no way to call `ze`. runOneCommand
+# (internal/test/runner/parsing.go) builds the child environment with childEnv,
+# which adds no PATH entry for the ze binary, so the helper gets `ze: not found`.
+# A draft that tried it was measured failing on that. The gap is homed at
+# spec-fixit-parse-suite-helper-cannot-invoke-ze.
+#
+# The second limit this comment used to name is FIXED. `parsingRunner.setupWorkDir`
+# materializes through `test.Tmpfs.WriteTo(workDir)`, so a `mode=755` fixture now
+# reaches disk executable in the parse suite. The orchestrated `.ci` path still
+# flattens the block and re-derives the mode from the file extension; that half is
+# recorded in plan/journal/helper-bypassed-by-an-open-coded-copy.md.
+#
+# The success-path coverage lives in TestRunWgKeypair_PipesGenkeyIntoPubkey
+# (internal/plugins/diag/diag_test.go), which shims `wg` and asserts `wg pubkey`
+# receives exactly what `wg genkey` printed.
 
 stdin=config:terminator=EOF_CONF
 # Minimal valid config; the command below never reads it.
