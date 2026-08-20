@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | 6/8 |
+| Phase | 8/8 |
 | Deferral shard | `plan/deferrals/streaming-answer-protocol.md` |
 | Handoff | - |
 | Updated | 2026-08-19 |
@@ -206,7 +206,7 @@ A `fault=` record has no place on the wire's item array, but the 24 `CommandDisp
 | A-7 | The server-side pending registry needs the same lifetime change as `MuxConn` | Assumed from `MuxConn.pending` using `LoadAndDelete`; the server registry was not read | Phase 4 is scoped wrongly and rebuilds a mechanism that already exists | Read `internal/component/plugin/server/pending.go` | **broken, 2026-08-19.** `PendingRequests.Partial` already keeps the entry, resets the timeout, and delivers on `RespChan`, and it has zero non-test callers. The FIELD `Response.Partial` is dead; the METHOD is a complete, unused mechanism. Phase 4 therefore narrows to `MuxConn.pending`, and the server side gains a PRODUCER rather than a lifetime change |
 | A-3 | The 24 dispatcher consumers can each take the buffering path with a one-call edit | They call `CommandDispatcher.JSON` and consume `RenderedResponse.Output` as a string | Web, MCP and looking-glass need per-surface streaming work, multiplying the scope | Read each call site and confirm it consumes `Output` as a whole string | unvalidated |
 | A-4 | A NETCONF `rpc-error` shape fits Ze's existing error modelling for the `fault=` payload | Ze is YANG-modelled throughout; the error modelling itself was not read | The `fault=` payload needs a Ze-specific shape and gains nothing from the alignment | Read the YANG error modelling and the existing error payload producers before fixing the shape | unvalidated |
-| A-5 | An operator wants a distinct exit code for a derived partial verdict | Inferred from the goal, not stated by the owner | A script branching on the new code breaks when the owner picks a different mapping | Owner decision recorded in Key Design Decisions before implementation | unvalidated |
+| A-5 | An operator wants a distinct exit code for a derived partial verdict | Inferred from the goal, not stated by the owner | A script branching on the new code breaks when the owner picks a different mapping | Owner decision recorded in Key Design Decisions before implementation | **broken, 2026-08-20.** A partial answer is UNREACHABLE. The three `Fault` sites are plumbing that forwards, writes or reads one (`pipe_records.go`, `dispatch.go`, `mux.go`). Nothing originates a fault, and `OperationExecutor.Commit` returns a single error, so a config commit is all-or-nothing. A new exit code would be permanent public surface that nothing can produce. **Exit codes stay 0 and 1** (owner decision). The question returns with whatever change first originates a fault |
 | A-6 | Three lines for a one-record answer is an acceptable wire cost on the plugin connection | Owner decision that one code path outranks line economy, 2026-08-19. Command answers are at operator rates; `deliver-event` and `deliver-batch` are requests, not answers, so they do not pay it | A high-rate answer path exists that this triples | Count answer lines per second on the plugin connection under the existing benchmark before and after | unvalidated |
 
 ### Risks
@@ -261,7 +261,7 @@ A `fault=` record has no place on the wire's item array, but the 24 `CommandDisp
 | AC-12 | Every terminator shape in the derivation table | The verdict a consumer computes matches the table, and no `status=` key is written on a terminator |
 | AC-13 | A peer that has not negotiated the new shape | Receives `#<id> ok [<json>]` exactly as today |
 | AC-14 | `show bgp peer list \| first 10` against a large answer | The generator stops after ten rows; the remaining rows are never produced |
-| AC-15 | A single record larger than `MaxMessageSize` | Refused with a fault naming the record, and the answer continues to its terminator |
+| AC-15 | A single record larger than `MaxMessageSize` | Refused with a fault naming the record, and the answer continues to its terminator. `boundedRecord` substitutes the fault before the item/fault classification, so the walk counts it in `faults=`, reaches the terminator, and the verdict derives to partial rather than truncated. The fault quotes none of the row, because a fault carrying a 16 MB row would be rejected for the reason it reports. **The buffered path deliberately differs**: `CollapseRecords` writes no lines and has no limit, so a record this wide is the one payload whose two renderings disagree, and they disagree because one transport bounds a line and the other does not |
 | AC-16 | A record line arriving for an id with no waiting caller | Discarded without incrementing the counter that closes the connection at 100 |
 | AC-17 | A consumer that stops reading mid-answer | `readLoop` does not block; other ids on the same connection keep flowing |
 
@@ -306,7 +306,9 @@ A `fault=` record has no place on the wire's item array, but the 24 `CommandDisp
 | `TestCountConsumesWithoutBuffering` | `internal/component/command/pipe_test.go` | O(1) memory for `count` | |
 | `TestLastNKeepsRingBufferOnly` | `internal/component/command/pipe_test.go` | O(N) memory for `last` | |
 | `TestTableBuffersAndSaysSo` | `internal/component/command/pipe_table_test.go` | R-6, the limit is deliberate | |
-| `TestRecordOverMaxMessageSizeFaults` | `pkg/plugin/rpc/framing_test.go` | AC-15 | |
+| `TestRecordOverMaxMessageSizeFaults` | `internal/component/plugin/dispatch_test.go` | AC-15. Homed with `boundedRecord`, which PRODUCES the refusal, not in `framing_test.go` as this row first said: the frame layer only reports that a line is too big | done |
+| `TestRecordSizeBoundaryIsTheEncodedLine` | `internal/component/plugin/dispatch_test.go` | AC-15's boundary: a line of exactly `MaxMessageSize` is written, one byte more is refused | done |
+| `TestAnswerRecordLineAtTheSizeLimitCrossesTheFrame` | `pkg/plugin/rpc/framing_test.go` | the same byte at the transport, so the encoder and the frame agree where the limit falls | done |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -321,7 +323,7 @@ A `fault=` record has no place on the wire's item array, but the 24 `CommandDisp
 |------|----------|-------------------|--------|
 | `answer-single-record` | `test/plugin/*.ci` | a one-record command answers through the same path as a large one | |
 | `answer-many-records` | `test/plugin/*.ci` | a large answer arrives record by record | |
-| `answer-partial-apply` | `test/plugin/*.ci` | 97 applied, 3 rejected, both counts reported | |
+| ~~`answer-partial-apply`~~ | - | **STRUCK, 2026-08-20.** It cannot be driven: nothing originates a fault, so no command answers 97-applied-3-rejected. Writing it would need a semantic change to the commit path, which this spec does not make. It returns with the change that first originates a fault (A-5) | struck |
 | `answer-unknown-command` | `test/plugin/*.ci` | a mistyped command answers with the `error` verb | |
 | `answer-truncation-detected` | `test/plugin/*.ci` | an answer cut before its terminator is reported as truncated | |
 | `answer-not-negotiated` | `test/plugin/*.ci` | a peer that did not negotiate sees today's frame | |
@@ -389,7 +391,7 @@ A `fault=` record has no place on the wire's item array, but the 24 `CommandDisp
 | 13 | Route metadata keys added/changed? | No | No route metadata |
 | 14 | Prometheus counters added/changed? | Yes | `docs/plugin-development/metrics.md` |
 | 15 | Registered plugin, event type, command, capability, or inventory changed? | Yes | The negotiated capability is new inventory |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes | Ten documents carry the wire format. Five state the ANSWER shape and change: `ipc_protocol.md` (the `Design:` target of `message.go` and `mux.go`), `wire-format.md`, `process-protocol.md`, `commands.md`, `plugin-development/protocol.md`. Five state only the framing `#<id> <verb> [<json>]`, which stays true because requests are untouched: `plugin-development/commands.md`, `plugin-overview.md`, `DESIGN.md`, `why-ze.md`, `api/architecture.md`. Re-grep at implementation and confirm the split still holds |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | Ten documents carry the wire format. Five state the ANSWER shape and change: `ipc_protocol.md` (the `Design:` target of `message.go` and `mux.go`), `wire-format.md`, `process-protocol.md`, `commands.md`, `plugin-development/protocol.md`. Five state only the framing `#<id> <verb> [<json>]`, which stays true because requests are untouched: `docs/plugin-development/commands.md`, `docs/plugin-overview.md`, `docs/DESIGN.md`, `docs/why-ze.md`, `docs/architecture/api/architecture.md`. Re-verified at phase 8 rather than assumed: each states request framing or a non-dispatch answer (`execute-command`, `ze-bgp:peer-list`), neither of which this work changed |
 | 17 | Existing docs show config/CLI/API examples for this area? | Yes | `docs/architecture/api/process-protocol.md` shows `#1 ok {...}` examples that become one of two valid shapes |
 
 ## Implementation Steps
@@ -487,6 +489,8 @@ A `fault=` record has no place on the wire's item array, but the 24 `CommandDisp
 | `error` verb keeps its spelling, narrowed in meaning | Renaming it `err` | `error` is compared by `readLoop` to split responses from requests; renaming breaks every plugin for no gain once `status=` carries execution failure |
 | Terminator identified by `count=` | Identified by position alone | A key-based test needs no reader state beyond "have I seen the head", and it survives a reordering bug rather than silently mis-reading |
 | The terminator states no status; the verdict is derived from `count=`, `faults=` and `message=` | Repeating `status=` on the terminator, with a monotonicity rule forbidding it to improve on the head | A stated status is a second source of truth for what the counts already hold, and two ledgers of one fact drift. Deriving makes the disagreement unrepresentable instead of merely tested for, and deletes the monotonicity invariant entirely. Owner decision, 2026-08-19 |
+| Exit codes stay 0 and 1 | Adding 2 for a partial answer, or 0/1/2/3 separating a usage error from an operational one | A partial answer cannot be produced: nothing originates a fault. A new code would be permanent public surface nothing can emit, which is the dead-export shape `ze-repository-check` exists to catch. The wire now carries `status=`, the verb, `count=`, `faults=` and the terminator's presence, so anything finer than all-or-nothing already has a home. Owner decision, 2026-08-20 |
+| The rendered body goes to stdout and the record frame to stderr | Rendering inside `item=` | `AppendAnswerItem` calls `replaceNewlines`, and four of six formats are multi-line, so rendered text cannot survive a record line. Splitting the streams also keeps a plain `ssh <host> <command>` byte-identical to today, because the frame only appears on stderr for a client that asked for it. Owner decision, 2026-08-20 |
 | A record is one line, bounded by `MaxMessageSize` | Allowing a record to span lines | The bound moves from the whole answer to one record, which is the win; a record that cannot fit is a design error worth a fault |
 | `table` and `text` buffer | Declared column widths, or a two-pass render | Column widths need every row. Declaring widths adds an option nobody asked for, and a human reading a table does not want a million rows |
 
