@@ -244,6 +244,30 @@ then re-run `/ze-rfc-audit <rfc>`, because changing requirement text re-stales e
 verdict bound to it, by design. If the SECTION was wrong, the id changes with it; that is
 safe only while no test tags it (a dangling tag fails the gate, which is the backstop).
 
+## Correcting a LEVEL (BLOCKING)
+
+Lowering a row's level out of the MUST-level set (`MUST`, `MUST NOT`, `SHALL`,
+`SHALL NOT`, `REQUIRED`) removes every coverage obligation attached to it, and the row
+keeps its id and its tests, so no other ratchet can see it happen. `check_level_ratchet`
+refuses it unless the same summary carries the authorisation, as a paragraph:
+
+```
+Correction 2026-08-15: `RFC7296-2.8-1` was extracted at MUST strength. §2.8.1 states the
+collision rule as a recommendation: the redundant SA "SHOULD be closed by the endpoint
+that created it". Same requirement id, corrected text and level.
+```
+
+| Part | Requirement |
+|------|-------------|
+| Opener | `Correction <YYYY-MM-DD>:`, first line of the paragraph. A leading `>` is allowed |
+| The row | The id in backticks. A paragraph naming a neighbour does not authorise this row |
+| The proof | At least 24 characters in double quotes, appearing VERBATIM in `rfc/full/<stem>.txt` or `rfc/drafts/<stem>.txt`. Line wrapping is ignored; the words are compared |
+
+A correction is for a row that MISQUOTED the RFC. When the document really does say MUST,
+restore the level instead — and see `ai/rules/rfc-compliance.md`, "Implement Full
+Compliance", before writing anything that lowers what Ze owes. Raising a level to a gated
+one needs no record: the gate never charges for a conformance improvement.
+
 ## Annotations (when no test is expected)
 
 A MUST-level requirement in an **enrolled** RFC must be covered by tests, or carry exactly
