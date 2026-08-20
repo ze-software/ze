@@ -10,14 +10,18 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 func Run(args []string) int {
 	fs := flag.NewFlagSet("ze-test irr", flag.ExitOnError)
 
 	var port int
+	var emptyAfterFirst bool
 
 	fs.IntVar(&port, "port", 0, "TCP listen port (0 = auto)")
+	fs.BoolVar(&emptyAfterFirst, "empty-after-first", false,
+		"answer each query with its data once, then with \"D\" (key not found) forever after")
 
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, `Usage: ze-test irr [flags]
@@ -29,6 +33,11 @@ Known AS-SETs:
   AS-TEST  -> members: AS65001, AS65002, AS65003
              ipv4: 10.0.0.0/24, 10.0.1.0/24, 172.16.0.0/16
              ipv6: 2001:db8::/32
+
+With -empty-after-first, every query is answered once with its data and then
+with "D" (key not found) forever after. It models an IRR server that has a bad
+minute after a good refresh, which is the case ze must not let empty a live
+filter.
 
 Flags:
 `)
@@ -50,12 +59,17 @@ Flags:
 	_, portStr, _ := net.SplitHostPort(ln.Addr().String())
 	fmt.Fprintf(os.Stderr, "ze-test irr: listening on port %s\n", portStr)
 
+	var answered *servedQueries
+	if emptyAfterFirst {
+		answered = &servedQueries{seen: make(map[string]bool)}
+	}
+
 	for {
 		conn, acceptErr := ln.Accept()
 		if acceptErr != nil {
 			return 0
 		}
-		go handleIRRConn(conn)
+		go handleIRRConn(conn, answered)
 	}
 }
 
@@ -65,7 +79,26 @@ var irrResponses = map[string]string{
 	"!a6AS-TEST": "A1\n2001:db8::/32\nC\n",
 }
 
-func handleIRRConn(conn net.Conn) {
+// servedQueries records which queries have already been answered with data, so
+// -empty-after-first can answer each one exactly once.
+type servedQueries struct {
+	mu   sync.Mutex
+	seen map[string]bool
+}
+
+// firstTime reports whether query has not been answered with data before, and
+// records that it now has been.
+func (s *servedQueries) firstTime(query string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.seen[query] {
+		return false
+	}
+	s.seen[query] = true
+	return true
+}
+
+func handleIRRConn(conn net.Conn, answered *servedQueries) {
 	defer func() { _ = conn.Close() }()
 
 	buf := make([]byte, 4096)
@@ -77,7 +110,7 @@ func handleIRRConn(conn net.Conn) {
 	query := strings.TrimSpace(string(buf[:n]))
 
 	response, ok := irrResponses[query]
-	if !ok {
+	if !ok || (answered != nil && !answered.firstTime(query)) {
 		response = "D\n"
 	}
 

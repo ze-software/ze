@@ -46,7 +46,7 @@ def main():
     if result.get('status') == 'done':
         runtime_fail('a refresh that learned nothing reported success')
 
-    result = api.dispatch_until_done('show firewall ruleset ze_irr_iface')
+    result = api.dispatch_until_done('show firewall ruleset irr_iface')
     if result.get('status') != 'done':
         runtime_fail(f'ruleset dump failed: {result}')
     dumped = str(result_json_data(result, {}))
