@@ -331,8 +331,11 @@ func TestAnswerResultTakesTheRecordPathOnlyWhenNegotiated(t *testing.T) {
 
 		var wire bytes.Buffer
 		require.NoError(t, answer.write(&wire, 7))
+		// The head names the type, and a payload the handler built whole is one
+		// JSON document: the item carries the same bytes the projection above
+		// puts under "data".
 		assert.Equal(t, []string{
-			"#7 ok status=done",
+			"#7 ok status=done type=json",
 			`#7 ok item={"version":"3"}`,
 			"#7 ok count=1",
 		}, strings.Split(strings.TrimSuffix(wire.String(), "\n"), "\n"))

@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"bytes"
 	"encoding/json"
 	"math"
 	"testing"
@@ -436,9 +437,10 @@ func TestParseLineCarriesKeyValueTailWhole(t *testing.T) {
 func TestTailTokenizerNeedsNoJSONDecoder(t *testing.T) {
 	t.Parallel()
 
-	head, err := ParseAnswerTail([]byte("status=error key=peers"))
+	head, err := ParseAnswerTail([]byte("status=error type=ndjson key=peers"))
 	require.NoError(t, err)
 	assert.Equal(t, StatusError, head.Status)
+	assert.Equal(t, AnswerTypeNDJSON, head.Type)
 	assert.Equal(t, "peers", head.Key)
 	assert.False(t, head.IsTerminator())
 
@@ -514,9 +516,10 @@ func TestOpenEndedKeyRunsToEndOfLine(t *testing.T) {
 func TestTerminatorIsTheLineCarryingCount(t *testing.T) {
 	t.Parallel()
 
-	head := parseAnswerLine(t, AppendAnswerHead(nil, 7, StatusDone, "peers"))
+	head := parseAnswerLine(t, AppendAnswerHead(nil, 7, StatusDone, AnswerTypeNDJSON, "peers", nil))
 	assert.False(t, head.IsTerminator())
 	assert.Equal(t, StatusDone, head.Status)
+	assert.Equal(t, AnswerTypeNDJSON, head.Type)
 	assert.Equal(t, "peers", head.Key)
 
 	record := parseAnswerLine(t, AppendAnswerItem(nil, 7, json.RawMessage(`{"peer":"10.0.0.1"}`)))
@@ -569,7 +572,7 @@ func TestVerdictDerivesFromTheCounts(t *testing.T) {
 
 	t.Run("last line is not a terminator", func(t *testing.T) {
 		t.Parallel()
-		head := parseAnswerLine(t, AppendAnswerHead(nil, 7, StatusDone, "peers"))
+		head := parseAnswerLine(t, AppendAnswerHead(nil, 7, StatusDone, AnswerTypeNDJSON, "peers", nil))
 		assert.Equal(t, VerdictTruncated, Verdict(&head))
 	})
 }
@@ -669,6 +672,72 @@ func TestParseRPCErrorReadsMessageKey(t *testing.T) {
 		assert.Empty(t, got.Code)
 		assert.Equal(t, "plain text", got.Message)
 	})
+}
+
+// TestHeadStatesHowItsItemsAreRead checks that every head names a type and that
+// the reader refuses one that does not. The method: each of the three types is
+// written and parsed back, and then five heads that state the type wrongly are
+// fed to the reader.
+//
+// VALIDATES: type= is required on the head, and a reader never guesses how to
+// read the items that follow it.
+// PREVENTS: a consumer inferring the answer's shape from the first byte of the
+// first record, which is the heuristic type= exists to remove.
+func TestHeadStatesHowItsItemsAreRead(t *testing.T) {
+	t.Parallel()
+
+	document := parseAnswerLine(t, AppendAnswerHead(nil, 7, StatusDone, AnswerTypeJSON, "", nil))
+	assert.Equal(t, AnswerTypeJSON, document.Type)
+	assert.Empty(t, document.Fields)
+
+	objects := parseAnswerLine(t, AppendAnswerHead(nil, 7, StatusDone, AnswerTypeNDJSON, "peers", nil))
+	assert.Equal(t, AnswerTypeNDJSON, objects.Type)
+	assert.Equal(t, "peers", objects.Key)
+
+	positional := parseAnswerLine(t, AppendAnswerHead(nil, 7, StatusDone, AnswerTypeStream, "peers", json.RawMessage(`["peer","as","state"]`)))
+	assert.Equal(t, AnswerTypeStream, positional.Type)
+	assert.Equal(t, []string{"peer", "as", "state"}, positional.Fields)
+
+	refused := []struct {
+		name string
+		tail string
+	}{
+		{name: "a head with no type", tail: "status=done key=peers"},
+		{name: "a head stating a type nobody implements", tail: "status=done type=protobuf"},
+		{name: "a type on a line that is not a head", tail: "type=json item=[1]"},
+		{name: "fields with a type that does not read them", tail: `status=done type=ndjson fields=["peer"]`},
+		{name: "a stream with no schema to read against", tail: "status=done type=stream"},
+		{name: "a stream with an empty schema", tail: "status=done type=stream fields=[]"},
+		{name: "a schema that is not an array of names", tail: `status=done type=stream fields={"peer":1}`},
+	}
+	for _, tt := range refused {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			_, err := ParseAnswerTail([]byte(tt.tail))
+			require.Error(t, err, "the reader accepted %q", tt.tail)
+		})
+	}
+}
+
+// TestFieldsRunToEndOfLine checks that the column schema is the last key on the
+// head. The method: a schema holding a space and an = is written after an
+// envelope key, parsed back, and compared name for name.
+//
+// VALIDATES: fields= is open-ended, so a column name needs no escaping.
+// PREVENTS: a key written after fields= being swallowed by it, which is what
+// the writer's ordering exists to prevent.
+func TestFieldsRunToEndOfLine(t *testing.T) {
+	t.Parallel()
+
+	schema := json.RawMessage(`["peer address","as=number","state"]`)
+	line := AppendAnswerHead(nil, 7, StatusDone, AnswerTypeStream, "peers", schema)
+
+	assert.True(t, bytes.HasSuffix(line, schema), "fields= is not last on %q", line)
+
+	head := parseAnswerLine(t, line)
+	assert.Equal(t, "peers", head.Key)
+	assert.Equal(t, []string{"peer address", "as=number", "state"}, head.Fields)
 }
 
 // parseAnswerLine takes one written answer line back through the frame layer

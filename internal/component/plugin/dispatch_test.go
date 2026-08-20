@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"iter"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -157,40 +158,37 @@ func TestCommandDispatcherJSONError(t *testing.T) {
 
 // TestGeneratorAnswerReachesTheEncoder checks that a handler answering with a
 // row generator reaches the answer encoder, and that the encoder writes the one
-// shape every answer has. The method: a two-row generator answer is written to
-// a buffer, and the buffer is compared line for line with the wire grammar.
+// shape every answer has. The method: a generator of one row past the buffering
+// threshold is written to a buffer, and its first and last lines are compared
+// with the wire grammar.
 //
-// VALIDATES: AC-6 -- N rows produce N item lines and a terminator carrying
-// count=N, with no count stated before the terminator.
+// VALIDATES: AC-6 -- a walk past the threshold produces one item line for each
+// row and a terminator carrying count=N, with no count stated before it.
 // PREVENTS: a generator payload being flattened into one line, which is the
 // whole-answer materialization this protocol exists to remove.
 func TestGeneratorAnswerReachesTheEncoder(t *testing.T) {
-	rows := func(yield func(rpc.Record) bool) {
-		for _, peer := range []string{"10.0.0.1", "10.0.0.2"} {
-			if !yield(rpc.Record{Item: json.RawMessage(`{"peer":"` + peer + `"}`)}) {
-				return
-			}
-		}
-	}
+	rowCount := answerBufferThreshold + 1
 
 	var answer bytes.Buffer
-	if err := WriteAnswer(&answer, 7, NewResponse(StatusDone, Records{Key: "peers", Rows: rows})); err != nil {
+	if err := WriteAnswer(&answer, 7, NewResponse(StatusDone, Records{Key: "peers", Rows: peerRows(rowCount)})); err != nil {
 		t.Fatalf("WriteAnswer: %v", err)
 	}
 
-	want := []string{
-		"#7 ok status=done key=peers",
-		`#7 ok item={"peer":"10.0.0.1"}`,
-		`#7 ok item={"peer":"10.0.0.2"}`,
-		"#7 ok count=2",
-	}
 	got := strings.Split(strings.TrimSuffix(answer.String(), "\n"), "\n")
-	if len(got) != len(want) {
-		t.Fatalf("answer has %d lines, want %d: %q", len(got), len(want), answer.String())
+	if len(got) != rowCount+2 {
+		t.Fatalf("answer has %d lines, want %d: a head, %d records and a terminator", len(got), rowCount+2, rowCount)
 	}
-	for i, line := range want {
-		if got[i] != line {
-			t.Errorf("answer line %d is %q, want %q", i+1, got[i], line)
+
+	want := map[int]string{
+		0:            "#7 ok status=done type=ndjson key=peers",
+		1:            `#7 ok item={"peer":"10.0.0.0"}`,
+		2:            `#7 ok item={"peer":"10.0.0.1"}`,
+		rowCount:     `#7 ok item={"peer":"10.0.0.` + strconv.Itoa(rowCount-1) + `"}`,
+		rowCount + 1: "#7 ok count=" + strconv.Itoa(rowCount),
+	}
+	for index, line := range want {
+		if got[index] != line {
+			t.Errorf("answer line %d is %q, want %q", index+1, got[index], line)
 		}
 	}
 }
@@ -228,11 +226,15 @@ func readAnswer(t *testing.T, wire []byte) []answerLine {
 }
 
 // assertAnswerShape checks the one shape every answer has: a head carrying the
-// verdict, then one line for each record, then a terminator carrying the
-// counts. It takes the record count as an argument and branches on nothing
-// else, which is the property AC-2 states: a reader of a one-record answer runs
-// the same code as a reader of a thousand-record one.
-func assertAnswerShape(t *testing.T, lines []answerLine, wantID, wantItems, wantFaults uint64, wantKey string) {
+// verdict and the type, then the records, then a terminator carrying the
+// counts. It takes the record counts as arguments and branches on nothing else,
+// which is the property AC-2 states: a reader of a one-record answer runs the
+// same code as a reader of a thousand-record one.
+//
+// The counts come from the terminator rather than from the line count, because
+// the type the encoder chose decides how many lines carry them: a walk within
+// the buffering threshold puts every record in one document.
+func assertAnswerShape(t *testing.T, lines []answerLine, wantID, wantItems, wantFaults uint64) {
 	t.Helper()
 	if len(lines) < 2 {
 		t.Fatalf("answer has %d lines, want a head and a terminator at least", len(lines))
@@ -250,23 +252,16 @@ func assertAnswerShape(t *testing.T, lines []answerLine, wantID, wantItems, want
 	if head.Status == "" {
 		t.Error("the head states no status=, so a consumer must buffer the answer to know how to render it")
 	}
+	if head.Type == "" {
+		t.Error("the head states no type=, so a consumer cannot read the items that follow it")
+	}
 	if head.IsTerminator() {
 		t.Error("the head carries count=, so a reader cannot tell it from the terminator")
 	}
-	if head.Key != wantKey {
-		t.Errorf("the head names envelope %q, want %q", head.Key, wantKey)
-	}
-
-	var items, faults uint64
 	records := lines[1 : len(lines)-1]
 	for i := range records {
 		tail := &records[i].tail
-		switch {
-		case len(tail.Item) > 0:
-			items++
-		case len(tail.Fault) > 0:
-			faults++
-		default:
+		if len(tail.Item) == 0 && len(tail.Fault) == 0 {
 			t.Errorf("record %d carries neither item= nor fault=", i+1)
 		}
 		if tail.IsTerminator() {
@@ -275,9 +270,6 @@ func assertAnswerShape(t *testing.T, lines []answerLine, wantID, wantItems, want
 		if tail.Status != "" {
 			t.Errorf("record %d carries status=, which only the head carries", i+1)
 		}
-	}
-	if items != wantItems || faults != wantFaults {
-		t.Errorf("answer carries %d item and %d fault lines, want %d and %d", items, faults, wantItems, wantFaults)
 	}
 
 	terminator := lines[len(lines)-1].tail
@@ -299,6 +291,23 @@ func peerRows(count int) iter.Seq[rpc.Record] {
 		for i := range count {
 			item := json.RawMessage(`{"peer":"10.0.0.` + strconv.Itoa(i) + `"}`)
 			if !yield(rpc.Record{Item: item}) {
+				return
+			}
+		}
+	}
+}
+
+// peerColumns is the column schema columnRows produces its rows against.
+var peerColumns = []string{"peer", "as", "state"}
+
+// columnRows is a generator of count positional rows, each an array of values
+// in peerColumns order. It is what a handler that declares its columns yields:
+// the names live on the head, and the rows carry values alone.
+func columnRows(count int) iter.Seq[rpc.Record] {
+	return func(yield func(rpc.Record) bool) {
+		for i := range count {
+			row := json.RawMessage(`["10.0.0.` + strconv.Itoa(i) + `",6500` + strconv.Itoa(i%10) + `,"established"]`)
+			if !yield(rpc.Record{Item: row}) {
 				return
 			}
 		}
@@ -328,10 +337,10 @@ func mixedRows(itemCount, faultCount int) iter.Seq[rpc.Record] {
 }
 
 // TestSingleRecordUsesTheSameReaderPath checks that the record count changes
-// nothing but the number of record lines. The method: the same generator answer
-// is written for 0, 1, 2 and 1000 rows, and one assertion that takes the count
-// as an argument reads all four; a payload that is no generator at all is read
-// by that same assertion as a one-record answer.
+// nothing but how the records are framed. The method: the same generator answer
+// is written for 0, 1, 2 and 1000 rows, and one assertion that takes the counts
+// as arguments reads all four; a payload that is no generator at all is read by
+// that same assertion as a one-record answer.
 //
 // VALIDATES: AC-2 -- a one-record answer is the shared shape carrying one
 // record, and no reader branches on how many records arrive.
@@ -346,12 +355,17 @@ func TestSingleRecordUsesTheSameReaderPath(t *testing.T) {
 				t.Fatalf("WriteAnswer: %v", err)
 			}
 
-			lines := readAnswer(t, answer.Bytes())
-			if len(lines) != rowCount+2 {
-				t.Fatalf("answer has %d lines, want %d: a head, %d records, a terminator",
-					len(lines), rowCount+2, rowCount)
+			// A walk within the threshold is one document, whatever the number
+			// of rows in it; a walk past the threshold is one line for each.
+			wantLines := 3
+			if rowCount > answerBufferThreshold {
+				wantLines = rowCount + 2
 			}
-			assertAnswerShape(t, lines, 3, uint64(rowCount), 0, "peers")
+			lines := readAnswer(t, answer.Bytes())
+			if len(lines) != wantLines {
+				t.Fatalf("answer has %d lines, want %d for %d rows", len(lines), wantLines, rowCount)
+			}
+			assertAnswerShape(t, lines, 3, uint64(rowCount), 0)
 		})
 	}
 
@@ -360,7 +374,7 @@ func TestSingleRecordUsesTheSameReaderPath(t *testing.T) {
 		if err := WriteAnswer(&answer, 3, NewResponse(StatusDone, Map{"version": "1.0"})); err != nil {
 			t.Fatalf("WriteAnswer: %v", err)
 		}
-		assertAnswerShape(t, readAnswer(t, answer.Bytes()), 3, 1, 0, "")
+		assertAnswerShape(t, readAnswer(t, answer.Bytes()), 3, 1, 0)
 	})
 }
 
@@ -398,7 +412,7 @@ func TestFaultDoesNotEndTheWalk(t *testing.T) {
 		t.Errorf("the walk produced %d of 5 rows, so a rejected row ended it", produced)
 	}
 	lines := readAnswer(t, answer.Bytes())
-	assertAnswerShape(t, lines, 9, 3, 2, "leaves")
+	assertAnswerShape(t, lines, 9, 3, 2)
 
 	terminator := lines[len(lines)-1].tail
 	if got := rpc.Verdict(&terminator); got != rpc.VerdictPartial {
@@ -439,9 +453,10 @@ func (w *failingWriter) Write(p []byte) (int, error) {
 // the generator.
 // PREVENTS: a daemon walking a million-row table into a socket that closed.
 func TestTransportErrorEndsTheWalk(t *testing.T) {
+	available := answerBufferThreshold + 100
 	produced := 0
 	rows := func(yield func(rpc.Record) bool) {
-		for i := range 100 {
+		for i := range available {
 			produced++
 			if !yield(rpc.Record{Item: json.RawMessage(`{"row":` + strconv.Itoa(i) + `}`)}) {
 				return
@@ -449,15 +464,18 @@ func TestTransportErrorEndsTheWalk(t *testing.T) {
 		}
 	}
 
-	// Write 1 is the head and write 2 is the first record, so the transport
-	// dies while the second record is being written.
+	// The walk holds answerBufferThreshold records and passes the threshold on
+	// the next one, which is where the first line is written. Write 1 is the
+	// head and write 2 is the first held record, so the transport dies while
+	// the second one is being written.
 	transport := &failingWriter{failAt: 3}
 	err := WriteAnswer(transport, 4, NewResponse(StatusDone, Records{Key: "rows", Rows: rows}))
 	if !errors.Is(err, errTransportGone) {
 		t.Fatalf("WriteAnswer returned %v, want the transport error", err)
 	}
-	if produced != 2 {
-		t.Errorf("the generator produced %d rows, want 2: a dead transport ends the walk", produced)
+	if produced != answerBufferThreshold+1 {
+		t.Errorf("the generator produced %d of %d rows, want %d: a dead transport ends the walk",
+			produced, available, answerBufferThreshold+1)
 	}
 	written := readAnswer(t, transport.accepted.Bytes())
 	for i := range written {
@@ -468,33 +486,47 @@ func TestTransportErrorEndsTheWalk(t *testing.T) {
 }
 
 // reassembleAnswer rebuilds the JSON a consumer of the record path holds once
-// the terminator arrives: the head's envelope over the rows that arrived as
-// item= lines, and the rows that arrived as fault= lines under the sibling key
-// beside them. It derives all of that from the WIRE rather than calling the
-// producer, so an agreement between the two paths is evidence and not a
-// tautology.
+// the terminator arrives. It reads the head's type= and takes the one route
+// that type names: a document arrives whole in a single item, self-describing
+// objects go under the head's envelope, and positional rows are zipped with the
+// head's fields on the way. It derives all of that from the WIRE rather than
+// calling the producer, so an agreement between the two paths is evidence and
+// not a tautology.
 func reassembleAnswer(t *testing.T, wire []byte) string {
 	t.Helper()
 	lines := readAnswer(t, wire)
 	if len(lines) < 2 {
 		t.Fatalf("answer has %d lines, want a head and a terminator at least", len(lines))
 	}
+	head := lines[0].tail
+	records := lines[1 : len(lines)-1]
+
+	if head.Type == rpc.AnswerTypeJSON {
+		switch len(records) {
+		case 0:
+			return ""
+		case 1:
+			return string(records[0].tail.Item)
+		default:
+			t.Fatalf("a type=%s answer carries %d item lines, want one document", rpc.AnswerTypeJSON, len(records))
+		}
+	}
+
 	items := []json.RawMessage{}
 	var faults []json.RawMessage
-	records := lines[1 : len(lines)-1]
 	for i := range records {
 		if fault := records[i].tail.Fault; len(fault) > 0 {
 			faults = append(faults, fault)
 			continue
 		}
-		items = append(items, records[i].tail.Item)
+		items = append(items, zipStreamedRow(t, head, records[i].tail.Item))
 	}
 
 	var (
 		reassembled []byte
 		err         error
 	)
-	key := lines[0].tail.Key
+	key := head.Key
 	switch {
 	case faults == nil && key == "":
 		reassembled, err = json.Marshal(items)
@@ -512,6 +544,45 @@ func reassembleAnswer(t *testing.T, wire []byte) string {
 	return string(reassembled)
 }
 
+// zipStreamedRow renders one row the way a consumer of a type=stream answer
+// must: the head's field names over the row's values, in the head's column
+// order. A type=ndjson row describes itself and passes through.
+//
+// It is written here rather than called from the encoder, because a consumer of
+// the wire has only the wire: an agreement reached by calling the producer's
+// own zip would prove nothing about what a consumer can rebuild.
+func zipStreamedRow(t *testing.T, head rpc.AnswerTail, item json.RawMessage) json.RawMessage {
+	t.Helper()
+	if head.Type != rpc.AnswerTypeStream {
+		return item
+	}
+
+	var values []json.RawMessage
+	if err := json.Unmarshal(item, &values); err != nil {
+		t.Fatalf("a type=%s row is not a positional array: %v", rpc.AnswerTypeStream, err)
+	}
+	if len(values) != len(head.Fields) {
+		t.Fatalf("the row carries %d values and the head declares %d fields", len(values), len(head.Fields))
+	}
+
+	var object bytes.Buffer
+	object.WriteByte('{')
+	for i, field := range head.Fields {
+		if i > 0 {
+			object.WriteByte(',')
+		}
+		name, err := json.Marshal(field)
+		if err != nil {
+			t.Fatalf("marshal field %q: %v", field, err)
+		}
+		object.Write(name)
+		object.WriteByte(':')
+		object.Write(values[i])
+	}
+	object.WriteByte('}')
+	return object.Bytes()
+}
+
 // TestStreamedAndBufferedAnswersAreIdentical is the control of the whole
 // protocol. The method: one generator payload is taken through WriteAnswer and
 // reassembled from its lines, and through ResponseJSON, and the two renderings
@@ -523,9 +594,10 @@ func reassembleAnswer(t *testing.T, wire []byte) string {
 // which surface asked.
 func TestStreamedAndBufferedAnswersAreIdentical(t *testing.T) {
 	tests := []struct {
-		name string
-		key  string
-		rows func() iter.Seq[rpc.Record]
+		name   string
+		key    string
+		fields []string
+		rows   func() iter.Seq[rpc.Record]
 	}{
 		{name: "an envelope over many rows", key: "peers", rows: func() iter.Seq[rpc.Record] { return peerRows(3) }},
 		{name: "an envelope over one row", key: "peers", rows: func() iter.Seq[rpc.Record] { return peerRows(1) }},
@@ -534,19 +606,33 @@ func TestStreamedAndBufferedAnswersAreIdentical(t *testing.T) {
 		{name: "an envelope over items and faults", key: "leaves", rows: func() iter.Seq[rpc.Record] { return mixedRows(3, 2) }},
 		{name: "no envelope over items and faults", key: "", rows: func() iter.Seq[rpc.Record] { return mixedRows(3, 2) }},
 		{name: "an envelope over faults alone", key: "leaves", rows: func() iter.Seq[rpc.Record] { return mixedRows(0, 2) }},
+
+		// The threshold decides how the SAME answer is framed, so each shape is
+		// taken once on each side of it. A pair that agrees only below the
+		// threshold would leave every long answer unproven.
+		{name: "an envelope over a walk within the threshold", key: "peers", rows: func() iter.Seq[rpc.Record] { return peerRows(answerBufferThreshold) }},
+		{name: "an envelope over a walk past the threshold", key: "peers", rows: func() iter.Seq[rpc.Record] { return peerRows(answerBufferThreshold + 1) }},
+		{name: "no envelope past the threshold", key: "", rows: func() iter.Seq[rpc.Record] { return peerRows(answerBufferThreshold + 1) }},
+		{name: "items and faults past the threshold", key: "leaves", rows: func() iter.Seq[rpc.Record] { return mixedRows(answerBufferThreshold, 3) }},
+
+		// A declared column schema changes the wire and not the answer: the
+		// rows travel as positional arrays, and both paths render the objects.
+		{name: "columns within the threshold", key: "peers", fields: peerColumns, rows: func() iter.Seq[rpc.Record] { return columnRows(3) }},
+		{name: "columns past the threshold", key: "peers", fields: peerColumns, rows: func() iter.Seq[rpc.Record] { return columnRows(answerBufferThreshold + 1) }},
+		{name: "columns with no envelope", key: "", fields: peerColumns, rows: func() iter.Seq[rpc.Record] { return columnRows(answerBufferThreshold + 1) }},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// One Records value walks once, so each path gets its own over the
 			// same rows.
 			var answer bytes.Buffer
-			streamedResp := NewResponse(StatusDone, Records{Key: tc.key, Rows: tc.rows()})
+			streamedResp := NewResponse(StatusDone, Records{Key: tc.key, Fields: tc.fields, Rows: tc.rows()})
 			if err := WriteAnswer(&answer, 11, streamedResp); err != nil {
 				t.Fatalf("WriteAnswer: %v", err)
 			}
 			streamed := reassembleAnswer(t, answer.Bytes())
 
-			bufferedResp := NewResponse(StatusDone, Records{Key: tc.key, Rows: tc.rows()})
+			bufferedResp := NewResponse(StatusDone, Records{Key: tc.key, Fields: tc.fields, Rows: tc.rows()})
 			buffered, err := ResponseJSON(bufferedResp, nil)
 			if err != nil {
 				t.Fatalf("ResponseJSON: %v", err)
@@ -662,7 +748,7 @@ func TestRecordsWithNoGeneratorIsAnEmptyAnswer(t *testing.T) {
 	if err := WriteAnswer(&answer, 6, NewResponse(StatusDone, Records{Key: "peers"})); err != nil {
 		t.Fatalf("WriteAnswer: %v", err)
 	}
-	assertAnswerShape(t, readAnswer(t, answer.Bytes()), 6, 0, 0, "peers")
+	assertAnswerShape(t, readAnswer(t, answer.Bytes()), 6, 0, 0)
 
 	buffered, err := ResponseJSON(NewResponse(StatusDone, Records{Key: "peers"}), nil)
 	if err != nil {
@@ -670,5 +756,236 @@ func TestRecordsWithNoGeneratorIsAnEmptyAnswer(t *testing.T) {
 	}
 	if buffered != `{"peers":[]}` {
 		t.Errorf("buffered answer is %s, want {\"peers\":[]}", buffered)
+	}
+}
+
+// TestTheThresholdChoosesTheAnswerType is the decision the encoder exists to
+// make. The method: the same generator is written one row short of the
+// buffering threshold and one row past it, and each answer is read back for the
+// type its head states, the number of lines it took, and the ORDER of the
+// records the encoder was holding when it decided.
+//
+// The order is the half most easily lost: the records held while the encoder
+// waits are written after the head and before the row that ended the wait, so a
+// flush that dropped them, reversed them, or wrote them after the rest would
+// leave an answer that is complete on the terminator and wrong in the middle.
+//
+// VALIDATES: a walk within the threshold is one document, and a walk past it
+// streams every record it held, in walk order, ahead of the rest.
+// PREVENTS: an answer whose first records are lost to the decision that framed
+// them, which no count and no terminator can report.
+func TestTheThresholdChoosesTheAnswerType(t *testing.T) {
+	t.Run("a walk within the threshold is one document", func(t *testing.T) {
+		rowCount := answerBufferThreshold - 1
+
+		var answer bytes.Buffer
+		if err := WriteAnswer(&answer, 2, NewResponse(StatusDone, Records{Key: "peers", Rows: peerRows(rowCount)})); err != nil {
+			t.Fatalf("WriteAnswer: %v", err)
+		}
+
+		lines := readAnswer(t, answer.Bytes())
+		if len(lines) != 3 {
+			t.Fatalf("answer has %d lines, want 3: a head, one document and a terminator", len(lines))
+		}
+		head := lines[0].tail
+		if head.Type != rpc.AnswerTypeJSON {
+			t.Errorf("the head states type=%q, want %q", head.Type, rpc.AnswerTypeJSON)
+		}
+		if head.Key != "" {
+			t.Errorf("the head names envelope %q, which the document already carries", head.Key)
+		}
+
+		var document map[string][]json.RawMessage
+		if err := json.Unmarshal(lines[1].tail.Item, &document); err != nil {
+			t.Fatalf("the item is not the answer document: %v", err)
+		}
+		if len(document["peers"]) != rowCount {
+			t.Errorf("the document carries %d rows, want %d", len(document["peers"]), rowCount)
+		}
+		assertAnswerShape(t, lines, 2, uint64(rowCount), 0)
+	})
+
+	t.Run("a walk past the threshold streams every record in order", func(t *testing.T) {
+		rowCount := answerBufferThreshold + 1
+
+		var answer bytes.Buffer
+		if err := WriteAnswer(&answer, 2, NewResponse(StatusDone, Records{Key: "peers", Rows: peerRows(rowCount)})); err != nil {
+			t.Fatalf("WriteAnswer: %v", err)
+		}
+
+		lines := readAnswer(t, answer.Bytes())
+		if len(lines) != rowCount+2 {
+			t.Fatalf("answer has %d lines, want %d: a head, %d records and a terminator", len(lines), rowCount+2, rowCount)
+		}
+		head := lines[0].tail
+		if head.Type != rpc.AnswerTypeNDJSON {
+			t.Errorf("the head states type=%q, want %q", head.Type, rpc.AnswerTypeNDJSON)
+		}
+		if head.Key != "peers" {
+			t.Errorf("the head names envelope %q, want peers: a streamed record carries none", head.Key)
+		}
+
+		records := lines[1 : len(lines)-1]
+		for i := range records {
+			want := `{"peer":"10.0.0.` + strconv.Itoa(i) + `"}`
+			if got := string(records[i].tail.Item); got != want {
+				t.Fatalf("record %d is %s, want %s: the held records did not reach the wire in walk order", i+1, got, want)
+			}
+		}
+		assertAnswerShape(t, lines, 2, uint64(rowCount), 0)
+	})
+
+	t.Run("a declared schema streams as positional rows", func(t *testing.T) {
+		rowCount := answerBufferThreshold + 1
+
+		var answer bytes.Buffer
+		records := Records{Key: "peers", Fields: peerColumns, Rows: columnRows(rowCount)}
+		if err := WriteAnswer(&answer, 2, NewResponse(StatusDone, records)); err != nil {
+			t.Fatalf("WriteAnswer: %v", err)
+		}
+
+		lines := readAnswer(t, answer.Bytes())
+		head := lines[0].tail
+		if head.Type != rpc.AnswerTypeStream {
+			t.Errorf("the head states type=%q, want %q", head.Type, rpc.AnswerTypeStream)
+		}
+		if !slices.Equal(head.Fields, peerColumns) {
+			t.Errorf("the head declares fields %q, want %q", head.Fields, peerColumns)
+		}
+		if got := string(lines[1].tail.Item); got != `["10.0.0.0",65000,"established"]` {
+			t.Errorf("the first record is %s, want the positional row", got)
+		}
+	})
+
+	t.Run("a declared schema within the threshold is still one document", func(t *testing.T) {
+		var answer bytes.Buffer
+		records := Records{Key: "peers", Fields: peerColumns, Rows: columnRows(2)}
+		if err := WriteAnswer(&answer, 2, NewResponse(StatusDone, records)); err != nil {
+			t.Fatalf("WriteAnswer: %v", err)
+		}
+
+		lines := readAnswer(t, answer.Bytes())
+		if len(lines) != 3 {
+			t.Fatalf("answer has %d lines, want 3: a head, one document and a terminator", len(lines))
+		}
+		if head := lines[0].tail; head.Type != rpc.AnswerTypeJSON || len(head.Fields) != 0 {
+			t.Errorf("the head states type=%q with %d fields, want %q and none", head.Type, len(head.Fields), rpc.AnswerTypeJSON)
+		}
+		want := `{"peers":[{"peer":"10.0.0.0","as":65000,"state":"established"},{"peer":"10.0.0.1","as":65001,"state":"established"}]}`
+		if got := string(lines[1].tail.Item); got != want {
+			t.Errorf("the document is %s, want %s", got, want)
+		}
+	})
+}
+
+// TestABoundedStageStopsTheWalkDuringBuffering checks that the buffering the
+// encoder does to choose a type does not defeat cancellation. The method: a
+// stage that stops after ten rows is put between a thousand-row generator and
+// the encoder, and the test counts what the generator produced.
+//
+// Ten is under the threshold, so the whole exchange happens while the encoder
+// is still holding records: the walk ends before the decision point is reached,
+// and the answer is the document those ten rows collapse to. This is the
+// encoder's half of `| first 10`, whose pipe half is TestFirstNStopsTheGenerator
+// (internal/component/command/pipe_test.go).
+//
+// VALIDATES: AC-14 -- a consumer that stops reading stops the walk.
+// PREVENTS: the encoder pulling rows a stage above it has already refused,
+// which would put the daemon back to walking a table nobody reads.
+func TestABoundedStageStopsTheWalkDuringBuffering(t *testing.T) {
+	produced := 0
+	source := func(yield func(rpc.Record) bool) {
+		for i := range 1000 {
+			produced++
+			if !yield(rpc.Record{Item: json.RawMessage(`{"peer":"10.0.0.` + strconv.Itoa(i) + `"}`)}) {
+				return
+			}
+		}
+	}
+	firstTen := func(yield func(rpc.Record) bool) {
+		kept := 0
+		for record := range source {
+			if !yield(record) {
+				return
+			}
+			kept++
+			if kept == 10 {
+				return
+			}
+		}
+	}
+
+	var answer bytes.Buffer
+	if err := WriteAnswer(&answer, 12, NewResponse(StatusDone, Records{Key: "peers", Rows: firstTen})); err != nil {
+		t.Fatalf("WriteAnswer: %v", err)
+	}
+
+	if produced != 10 {
+		t.Errorf("the generator produced %d rows, want 10: the encoder pulled past the stage that stopped", produced)
+	}
+	lines := readAnswer(t, answer.Bytes())
+	if len(lines) != 3 {
+		t.Fatalf("answer has %d lines, want 3: ten rows are one document", len(lines))
+	}
+	if head := lines[0].tail; head.Type != rpc.AnswerTypeJSON {
+		t.Errorf("the head states type=%q, want %q", head.Type, rpc.AnswerTypeJSON)
+	}
+	assertAnswerShape(t, lines, 12, 10, 0)
+}
+
+// TestRowArityIsRefusedOnBothPaths checks that a row and the schema it is read
+// against must agree. The method: a short row and a long one are taken through
+// both paths, once inside the buffering threshold and once past it, and a row
+// that is no array at all follows them.
+//
+// Neither path repairs the row. A short row padded with a null would invent a
+// value the command never produced, and a long row truncated would drop one it
+// did, and a consumer reading by position cannot tell either from real data.
+//
+// VALIDATES: a row whose length disagrees with the head's fields is refused.
+// PREVENTS: a column schema and its rows drifting apart silently, which turns
+// every later column of that answer into the wrong value.
+func TestRowArityIsRefusedOnBothPaths(t *testing.T) {
+	oneRow := func(item string) iter.Seq[rpc.Record] {
+		return func(yield func(rpc.Record) bool) {
+			yield(rpc.Record{Item: json.RawMessage(item)})
+		}
+	}
+	pastThreshold := func(item string) iter.Seq[rpc.Record] {
+		return func(yield func(rpc.Record) bool) {
+			for record := range columnRows(answerBufferThreshold + 1) {
+				if !yield(record) {
+					return
+				}
+			}
+			yield(rpc.Record{Item: json.RawMessage(item)})
+		}
+	}
+
+	tests := []struct {
+		name string
+		rows func(string) iter.Seq[rpc.Record]
+		item string
+		want error
+	}{
+		{name: "a short row in the document", rows: oneRow, item: `["10.0.0.1",65001]`, want: errRowArity},
+		{name: "a long row in the document", rows: oneRow, item: `["10.0.0.1",65001,"established","extra"]`, want: errRowArity},
+		{name: "a row that is no array", rows: oneRow, item: `{"peer":"10.0.0.1"}`, want: errRowNotPositional},
+		{name: "a short row in the stream", rows: pastThreshold, item: `["10.0.0.1",65001]`, want: errRowArity},
+		{name: "a long row in the stream", rows: pastThreshold, item: `["10.0.0.1",65001,"established","extra"]`, want: errRowArity},
+		{name: "a row that is no array in the stream", rows: pastThreshold, item: `{"peer":"10.0.0.1"}`, want: errRowNotPositional},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			records := Records{Key: "peers", Fields: peerColumns, Rows: tc.rows(tc.item)}
+			if err := WriteAnswer(&bytes.Buffer{}, 1, NewResponse(StatusDone, records)); !errors.Is(err, tc.want) {
+				t.Errorf("WriteAnswer returned %v, want %v", err, tc.want)
+			}
+
+			records.Rows = tc.rows(tc.item)
+			if _, err := ResponseJSON(NewResponse(StatusDone, records), nil); !errors.Is(err, tc.want) {
+				t.Errorf("ResponseJSON returned %v, want %v", err, tc.want)
+			}
+		})
 	}
 }

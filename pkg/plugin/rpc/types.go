@@ -33,6 +33,11 @@ const (
 // a row the command produced, Fault is a row the command rejected while the
 // walk continued. Both hold the JSON the producer marshaled once, so a
 // consumer that forwards a record parses nothing.
+//
+// A producer MUST NOT write over the bytes of a record it has yielded. The
+// encoder holds the records of a short answer until it knows whether they fit
+// in one document, so a generator that refilled one scratch buffer for every
+// row would see the earlier rows change under it.
 type Record struct {
 	Item  json.RawMessage
 	Fault json.RawMessage
@@ -54,9 +59,17 @@ type Record struct {
 type Answer struct {
 	// Status is the head's status= value: StatusDone or StatusError.
 	Status string
+	// Type is the head's type= value, which states how each record's Item is
+	// read: AnswerTypeJSON (one document in one record), AnswerTypeNDJSON (one
+	// self-describing object per record) or AnswerTypeStream (one positional
+	// array per record, read against Fields).
+	Type string
 	// Key is the head's key= value, the envelope the records belong under. It
 	// is empty when the head names none.
-	Key     string
+	Key string
+	// Fields is the head's fields= value, the column names an AnswerTypeStream
+	// answer's rows are read against, in column order.
+	Fields  []string
 	Records iter.Seq[Record]
 
 	// terminator is the line that ended the answer, and nil when the answer

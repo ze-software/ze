@@ -274,7 +274,7 @@ func (m *MuxConn) CallAnswer(ctx context.Context, method string, params any) (*A
 		return nil, headErr
 	}
 
-	answer := &Answer{Status: head.Status, Key: head.Key}
+	answer := &Answer{Status: head.Status, Type: head.Type, Key: head.Key, Fields: head.Fields}
 	answer.Records = m.answerRecords(ctx, idStr, call, answer)
 	return answer, nil
 }

@@ -159,7 +159,9 @@ func AppendError(buf []byte, id uint64, errPayload json.RawMessage) []byte {
 // envelope the records belong under.
 const (
 	answerKeyStatus   = "status"
+	answerKeyType     = "type"
 	answerKeyEnvelope = "key"
+	answerKeyFields   = "fields"
 	answerKeyItem     = "item"
 	answerKeyFault    = "fault"
 	answerKeyCount    = "count"
@@ -168,22 +170,57 @@ const (
 	answerKeyCode     = "code"
 )
 
+// Answer types. The head's type= states how a reader takes every item= that
+// follows, so a consumer needs no first-byte test and no shape heuristic.
+//
+// AnswerTypeJSON carries the whole answer as ONE JSON document in one item,
+// which is the answer a bounded command has always produced. AnswerTypeNDJSON
+// carries one self-describing object per item. AnswerTypeStream carries one
+// positional array per item, read against the head's fields=, which is what
+// takes the repeated keys off a long answer with a fixed schema.
+//
+// The type is decided from the OUTPUT as the answer is written, never by the
+// command: a handler produces records and states none of this.
+const (
+	AnswerTypeJSON   = "json"
+	AnswerTypeNDJSON = "ndjson"
+	AnswerTypeStream = "stream"
+)
+
 // AppendAnswerHead appends an answer head line
-// (#<id> ok status=<status> [key=<key>]) to buf and returns the extended slice.
-// Newline is NOT appended. status is StatusDone or StatusError, and it states
-// what the daemon knows when the answer opens, so a consumer that renders a
-// failure differently commits to a rendering on the first line rather than
-// buffering the whole answer. key names the envelope the records belong under,
-// and an empty key writes no key= at all.
-func AppendAnswerHead(buf []byte, id uint64, status, key string) []byte {
+// (#<id> ok status=<status> type=<answerType> [key=<key>] [fields=<fields>]) to
+// buf and returns the extended slice. Newline is NOT appended.
+//
+// status is StatusDone or StatusError, and it states what the daemon knows when
+// the answer opens, so a consumer that renders a failure differently commits to
+// a rendering on the first line rather than buffering the whole answer.
+//
+// answerType is AnswerTypeJSON, AnswerTypeNDJSON or AnswerTypeStream, and every
+// head carries one: a reader that meets a head without it refuses the answer
+// rather than guessing how to read the items.
+//
+// key names the envelope the records belong under, and an empty key writes no
+// key= at all. fields is the JSON array of column names an AnswerTypeStream
+// answer's positional rows are read against, already encoded by the caller. It
+// is written last, because it runs to the end of the line, and the caller
+// leaves it empty for every other type.
+func AppendAnswerHead(buf []byte, id uint64, status, answerType, key string, fields json.RawMessage) []byte {
 	buf = appendAnswerPrefix(buf, id)
 	buf = appendAnswerKey(buf, answerKeyStatus)
 	buf = append(buf, status...)
-	if key == "" {
+	buf = appendAnswerKey(buf, answerKeyType)
+	buf = append(buf, answerType...)
+	if key != "" {
+		buf = appendAnswerKey(buf, answerKeyEnvelope)
+		buf = append(buf, key...)
+	}
+	if len(fields) == 0 {
 		return buf
 	}
-	buf = appendAnswerKey(buf, answerKeyEnvelope)
-	return append(buf, key...)
+	buf = appendAnswerKey(buf, answerKeyFields)
+	start := len(buf)
+	buf = append(buf, fields...)
+	return replaceNewlines(buf, start)
 }
 
 // AppendAnswerItem appends a result record line (#<id> ok item=<json>) to buf
@@ -306,9 +343,17 @@ type AnswerTail struct {
 	// Status is the head's status=: StatusDone or StatusError. A terminator
 	// states none.
 	Status string
+	// Type is the head's type=: AnswerTypeJSON, AnswerTypeNDJSON or
+	// AnswerTypeStream. It states how every item= of this answer is read, and
+	// every head carries it.
+	Type string
 	// Key is the head's key=, the envelope the records belong under. It is
 	// empty when the head names none.
 	Key string
+	// Fields is the head's fields=, the column names an AnswerTypeStream
+	// answer's positional rows are read against, in column order. It is empty
+	// for every other type.
+	Fields []string
 	// Item is a result record's item=, and Fault an error record's fault=. One
 	// line carries at most one of them.
 	Item  json.RawMessage
@@ -354,8 +399,14 @@ func ParseAnswerTail(payload []byte) (AnswerTail, error) {
 		switch string(name) {
 		case answerKeyStatus:
 			tail.Status = string(value)
+		case answerKeyType:
+			tail.Type = string(value)
 		case answerKeyEnvelope:
 			tail.Key = string(value)
+		case answerKeyFields:
+			if fieldsErr := json.Unmarshal(value, &tail.Fields); fieldsErr != nil {
+				return AnswerTail{}, fmt.Errorf("answer tail fields=%q: %w", truncate(string(value), 40), fieldsErr)
+			}
 		case answerKeyItem:
 			tail.Item = value
 		case answerKeyFault:
@@ -388,7 +439,43 @@ func ParseAnswerTail(payload []byte) (AnswerTail, error) {
 	if len(tail.Item) > 0 && len(tail.Fault) > 0 {
 		return AnswerTail{}, errors.New("answer record carries both item= and fault=")
 	}
+	if err := checkAnswerType(&tail); err != nil {
+		return AnswerTail{}, err
+	}
 	return tail, nil
+}
+
+// checkAnswerType refuses a line whose type= and fields= disagree with each
+// other, or with the line they sit on. Each of the five refusals is a line this
+// build cannot read the BODY of, so it is named rather than read with a default
+// filled in: a head with no type= would have its items guessed at, and a fields=
+// a reader ignored would leave a positional row decoding as data it is not.
+//
+// A head is the line carrying status=, which is the same test IsTerminator
+// makes for count=, so this needs no state either.
+func checkAnswerType(tail *AnswerTail) error {
+	head := tail.Status != ""
+	if head && tail.Type == "" {
+		return errors.New("answer head states no type=, so a consumer cannot read the items that follow it")
+	}
+	if !head && tail.Type != "" {
+		return fmt.Errorf("answer line states type=%q with no status=: type= belongs on the head", truncate(tail.Type, 40))
+	}
+
+	switch tail.Type {
+	case "", AnswerTypeJSON, AnswerTypeNDJSON:
+		if len(tail.Fields) > 0 {
+			return fmt.Errorf("answer line states fields= with type=%q: only type=%s reads its rows against them", truncate(tail.Type, 40), AnswerTypeStream)
+		}
+		return nil
+	case AnswerTypeStream:
+		if len(tail.Fields) == 0 {
+			return fmt.Errorf("answer head states type=%s and no fields=, so its positional rows have no schema", AnswerTypeStream)
+		}
+		return nil
+	default:
+		return fmt.Errorf("answer head states unknown type=%q", truncate(tail.Type, 40))
+	}
 }
 
 // The two bytes an answer tail is cut on: a key from its value, and one pair
@@ -416,9 +503,11 @@ func answerTailToken(tail []byte) (name, value, rest []byte, err error) {
 }
 
 // isOpenEndedKey reports whether name's value runs to the end of the line.
+// fields= joins the three because a column name can hold a space, and the head
+// writes it last for that reason.
 func isOpenEndedKey(name []byte) bool {
 	switch string(name) {
-	case answerKeyItem, answerKeyFault, answerKeyMessage:
+	case answerKeyItem, answerKeyFault, answerKeyMessage, answerKeyFields:
 		return true
 	}
 	return false

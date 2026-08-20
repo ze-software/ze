@@ -19,7 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"iter"
+	"slices"
 
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -132,11 +132,37 @@ func ResponseJSON(resp *Response, err error) (string, error) {
 // slice once, and every later line of that answer reuses the grown slice.
 const answerLineCapacity = 512
 
+// answerBufferThreshold is how many records the encoder holds while it decides
+// how to frame the answer. A walk that ends at or under it is answered as one
+// JSON document; a walk that passes it is streamed, and the records already
+// held go out in walk order ahead of the rest.
+//
+// It bounds what the encoder holds for an answer nobody wants whole, which is
+// the memory this protocol exists to stop growing, and it is of the same order
+// as the queue a consumer reads an answer through (answerQueueDepth in
+// pkg/plugin/rpc, 256): both bound one answer in flight, so one number covers
+// the pair.
+//
+// It is a constant and not a config knob. An operator who tuned it would be
+// choosing the wire shape of every command's answer for every consumer at once,
+// and the two shapes carry the same data, so there is nothing for a deployment
+// to prefer.
+const answerBufferThreshold = 256
+
 // WriteAnswer writes resp to w as the answer sequence every consumer reads the
-// same way: a head line carrying the verdict, one line for each record, and a
-// terminator carrying the counts. An answer of one record is that shape
-// carrying one record, so a reader never branches on how many records arrive,
-// and nothing states a count that the records can contradict.
+// same way: a head line carrying the verdict and the type, one line for each
+// record, and a terminator carrying the counts. A reader never branches on how
+// many records arrive, and nothing states a count that the records can
+// contradict.
+//
+// The head's type= is decided HERE, from the output, and never by the command.
+// The encoder holds up to answerBufferThreshold records: a walk that ends
+// within them is answered as one rpc.AnswerTypeJSON document, which is the JSON
+// a command answered with before it produced records at all, so no consumer of
+// an existing command meets a new shape. A walk that passes them is streamed,
+// as rpc.AnswerTypeStream when the answer declares its columns and
+// rpc.AnswerTypeNDJSON when it does not, and the held records are written first
+// in walk order, so the switch loses none of them.
 //
 // It is the record-path sibling of ResponseJSON, which stays the path for a
 // surface that takes the whole answer as one string (REST, gRPC, web, MCP, the
@@ -147,41 +173,138 @@ const answerLineCapacity = 512
 // its siblings write. The head carries status= and the terminator carries
 // count=, so a reader tells the two apart by a key rather than by position.
 func WriteAnswer(w io.Writer, id uint64, resp *Response) error {
-	key, rows, err := answerRows(resp)
-	if err != nil {
-		return err
-	}
-
 	buf := make([]byte, 0, answerLineCapacity)
-	buf, err = writeAnswerLine(w, rpc.AppendAnswerHead(buf, id, answerStatus(resp), key))
+
+	records, generated, err := answerRecords(resp)
+	if err != nil {
+		return err
+	}
+	if generated {
+		return writeRecordAnswer(w, buf, id, resp, records)
+	}
+
+	document, err := builtDocument(resp)
+	if err != nil {
+		return err
+	}
+	var count uint64
+	if len(document) > 0 {
+		count = 1
+	}
+	return writeDocumentAnswer(w, buf, id, resp, document, count, 0)
+}
+
+// writeRecordAnswer walks the generator and writes the answer it turns out to
+// be. It holds the first answerBufferThreshold records rather than committing
+// to a type it cannot take back: the head states the type, so the head is
+// written once the walk has said which type this answer is.
+//
+// A rejected row is written and the walk goes on, so one answer can report 97
+// rows applied and 3 rejected. A failed WRITE ends the walk: the transport is
+// gone, and every later row would be produced for nobody. Returning stops the
+// generator, which the range does by refusing the next yield.
+func writeRecordAnswer(w io.Writer, buf []byte, id uint64, resp *Response, records Records) error {
+	fields, err := marshalFields(records.Fields)
 	if err != nil {
 		return err
 	}
 
-	// A rejected row is written and the walk goes on, so one answer can report
-	// 97 rows applied and 3 rejected. A failed WRITE ends the walk: the
-	// transport is gone, and every later row would be produced for nobody.
-	// Returning here stops the generator, which the range does by refusing the
-	// next yield.
-	var count, faults uint64
-	for record := range rows {
+	var (
+		held      []rpc.Record
+		count     uint64
+		faults    uint64
+		streaming bool
+	)
+	for record := range records.rows() {
 		switch {
 		case len(record.Fault) > 0:
 			faults++
-			buf, err = writeAnswerLine(w, rpc.AppendAnswerFault(buf[:0], id, record.Fault))
 		case len(record.Item) > 0:
 			count++
-			buf, err = writeAnswerLine(w, rpc.AppendAnswerItem(buf[:0], id, record.Item))
 		default:
 			return errEmptyAnswerRecord
 		}
+
+		if !streaming && len(held) < answerBufferThreshold {
+			held = append(held, record)
+			continue
+		}
+		if !streaming {
+			// This record is the one past the threshold, so the answer cannot
+			// be one document. The head opens the stream and the records
+			// already held go out ahead of it, in the order the walk produced
+			// them.
+			buf, err = writeAnswerLine(w, rpc.AppendAnswerHead(buf[:0], id, answerStatus(resp), answerStreamType(records.Fields), records.Key, fields))
+			if err != nil {
+				return err
+			}
+			for i := range held {
+				buf, err = writeRecordLine(w, buf, id, held[i], records.Fields)
+				if err != nil {
+					return err
+				}
+			}
+			held = nil
+			streaming = true
+		}
+
+		buf, err = writeRecordLine(w, buf, id, record, records.Fields)
 		if err != nil {
 			return err
 		}
 	}
 
+	if !streaming {
+		document, collapseErr := collapseRecords(records.Key, records.Fields, slices.Values(held))
+		if collapseErr != nil {
+			return collapseErr
+		}
+		return writeDocumentAnswer(w, buf, id, resp, document, count, faults)
+	}
+
 	_, err = writeAnswerLine(w, rpc.AppendAnswerTerminator(buf[:0], id, count, faults, answerMessage(resp)))
 	return err
+}
+
+// writeDocumentAnswer writes the answer whose records fit in one document: a
+// head naming rpc.AnswerTypeJSON, one item line carrying that document, and the
+// terminator. The head names no envelope, because the document already carries
+// it, and two statements of one fact can disagree.
+//
+// An empty document is a command that answered with no data at all, and it
+// writes no item line: nothing is not the same answer as an empty collection.
+// The counts are the walk's, so the terminator states what the answer produced
+// whichever type carried it.
+func writeDocumentAnswer(w io.Writer, buf []byte, id uint64, resp *Response, document json.RawMessage, count, faults uint64) error {
+	buf, err := writeAnswerLine(w, rpc.AppendAnswerHead(buf[:0], id, answerStatus(resp), rpc.AnswerTypeJSON, "", nil))
+	if err != nil {
+		return err
+	}
+	if len(document) > 0 {
+		buf, err = writeAnswerLine(w, rpc.AppendAnswerItem(buf[:0], id, document))
+		if err != nil {
+			return err
+		}
+	}
+	_, err = writeAnswerLine(w, rpc.AppendAnswerTerminator(buf[:0], id, count, faults, answerMessage(resp)))
+	return err
+}
+
+// writeRecordLine writes one record of a streamed answer and returns the line
+// buffer for the next one. Its caller has already refused a record carrying
+// neither an item nor a fault, so an item here is never empty.
+//
+// A row of an answer that declares columns is checked against them here,
+// because the row reaches the wire unchanged and a consumer reading it by
+// position cannot tell a short row from a value it should have had.
+func writeRecordLine(w io.Writer, buf []byte, id uint64, record rpc.Record, fields []string) ([]byte, error) {
+	if len(record.Fault) > 0 {
+		return writeAnswerLine(w, rpc.AppendAnswerFault(buf[:0], id, record.Fault))
+	}
+	if err := checkRowArity(record.Item, fields); err != nil {
+		return buf, err
+	}
+	return writeAnswerLine(w, rpc.AppendAnswerItem(buf[:0], id, record.Item))
 }
 
 // writeAnswerLine frames line with the newline that ends every wire message and
@@ -195,39 +318,69 @@ func writeAnswerLine(w io.Writer, line []byte) ([]byte, error) {
 	return line, nil
 }
 
-// answerRows returns the envelope key the head names and the rows the answer
-// carries. A payload that is not a generator is one record, which is what keeps
-// the reader on one path whatever the handler answered with.
-func answerRows(resp *Response) (string, iter.Seq[rpc.Record], error) {
-	if resp == nil {
-		return "", noRecords, nil
+// answerRecords reports the row generator resp answers with, and whether it
+// answers with one at all. A payload the handler built before the answer opened
+// is not a generator: it is one document, and builtDocument renders it.
+//
+// The reserved envelope key is refused here as well as in the collapse, because
+// a streamed answer never reaches the collapse and a handler owes the same
+// refusal whatever its row count turns out to be.
+func answerRecords(resp *Response) (Records, bool, error) {
+	if resp == nil || resp.Data == nil {
+		return Records{}, false, nil
 	}
-	if resp.Data == nil {
-		return "", noRecords, nil
+	records, generated := resp.Data.(Records)
+	if !generated {
+		return Records{}, false, nil
 	}
-	if records, isGenerator := resp.Data.(Records); isGenerator {
-		if records.Key == answerErrorsKey {
-			return "", nil, errReservedEnvelopeKey
-		}
-		return records.Key, records.rows(), nil
+	if records.Key == answerErrorsKey {
+		return Records{}, false, errReservedEnvelopeKey
 	}
-	item, err := json.Marshal(resp.Data)
+	return records, true, nil
+}
+
+// builtDocument marshals a payload the handler built before the answer opened.
+// It is the whole answer in one document, byte for byte what ResponseJSON
+// renders for the same payload. A response carrying no data at all has no
+// document, and the answer then carries no item line.
+func builtDocument(resp *Response) (json.RawMessage, error) {
+	if resp == nil || resp.Data == nil {
+		return nil, nil
+	}
+	document, err := json.Marshal(resp.Data)
 	if err != nil {
-		return "", nil, fmt.Errorf("marshal response: %w", err)
+		return nil, fmt.Errorf("marshal response: %w", err)
 	}
-	return "", oneRecord(rpc.Record{Item: item}), nil
+	return document, nil
+}
+
+// marshalFields encodes the column names a streamed answer's head carries. It
+// runs once for the answer, before any line is written, so a schema that cannot
+// be encoded is named instead of half an answer being written.
+func marshalFields(fields []string) (json.RawMessage, error) {
+	if len(fields) == 0 {
+		return nil, nil
+	}
+	encoded, err := json.Marshal(fields)
+	if err != nil {
+		return nil, fmt.Errorf("marshal answer fields: %w", err)
+	}
+	return encoded, nil
+}
+
+// answerStreamType is how a streamed answer's records are read: positional
+// arrays against the head's fields when the answer declares a column schema,
+// self-describing objects when it does not.
+func answerStreamType(fields []string) string {
+	if len(fields) == 0 {
+		return rpc.AnswerTypeNDJSON
+	}
+	return rpc.AnswerTypeStream
 }
 
 // noRecords is the empty row sequence. A command that produced nothing still
 // writes a head and a terminator, so its answer is complete rather than short.
 func noRecords(func(rpc.Record) bool) {}
-
-// oneRecord is the row sequence of an answer that carries exactly one record.
-func oneRecord(record rpc.Record) iter.Seq[rpc.Record] {
-	return func(yield func(rpc.Record) bool) {
-		yield(record)
-	}
-}
 
 // answerStatus is what the head declares: what the daemon knows when the answer
 // opens. A command that failed before its first row says so on the first line,

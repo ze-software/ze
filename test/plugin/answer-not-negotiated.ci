@@ -115,6 +115,8 @@ def wait_for_plain(timeout=10.0):
         if os.path.exists(MARKER):
             with open(MARKER, encoding="utf-8") as handle:
                 return handle.read()
+        # Poll interval: the other peer writes this file from its own process,
+        # and a file appearing has no event to wait on.
         time.sleep(0.1)
     runtime_fail(f"the un-negotiated peer wrote no answer within {timeout}s")
     return ""
@@ -145,8 +147,10 @@ def main():
         runtime_fail(f"answer was {len(lines)} lines, want head, record, terminator: {lines}")
 
     head = tail_of(lines[0])
-    if head != "status=done":
-        runtime_fail(f"head was {head!r}, want 'status=done'")
+    # type=json says the one item carries the whole answer as one document,
+    # which is what a payload the handler built whole always was.
+    if head != "status=done type=json":
+        runtime_fail(f"head was {head!r}, want 'status=done type=json'")
 
     record = tail_of(lines[1])
     if not record.startswith("item="):

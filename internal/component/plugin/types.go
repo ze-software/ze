@@ -164,9 +164,18 @@ func (r RawJSON) MarshalJSON() ([]byte, error) {
 // Key names the envelope the rows belong under, and the head line carries it.
 // Rows is pulled one row at a time; a consumer that stops ranging stops the
 // walk, which is how `| first 10` bounds a read of a table with a million rows.
+//
+// Fields names the columns of an answer whose rows share one schema, in column
+// order. A handler that declares them yields each row as a JSON array of values
+// in that order, and the encoder writes the names once on the head rather than
+// on every row. It declares the SCHEMA and not the wire shape: whether that
+// answer is streamed at all is decided from how many rows the walk produces
+// (WriteAnswer, dispatch.go). A handler that declares no fields yields
+// self-describing objects.
 type Records struct {
-	Key  string
-	Rows iter.Seq[rpc.Record]
+	Key    string
+	Fields []string
+	Rows   iter.Seq[rpc.Record]
 }
 
 // The two envelope names a buffered answer uses beside the handler's own.
@@ -225,8 +234,21 @@ func (r Records) rows() iter.Seq[rpc.Record] {
 //
 // Rows is walked once here, so one Records value takes one path, never both.
 func (r Records) MarshalJSON() ([]byte, error) {
-	if r.Key == answerErrorsKey {
+	return collapseRecords(r.Key, r.Fields, r.rows())
+}
+
+// collapseRecords is the collapse itself, over rows a caller supplies. The
+// encoder holds the rows of a short answer and collapses those (WriteAnswer,
+// dispatch.go), so the document it puts in one item= line and the document a
+// buffered surface renders are produced by this one function rather than by two
+// that agree today.
+func collapseRecords(key string, fields []string, rows iter.Seq[rpc.Record]) ([]byte, error) {
+	if key == answerErrorsKey {
 		return nil, errReservedEnvelopeKey
+	}
+	names, err := quoteFields(fields)
+	if err != nil {
+		return nil, err
 	}
 
 	// A nil slice marshals to null, and a command that produced no rows
@@ -235,25 +257,37 @@ func (r Records) MarshalJSON() ([]byte, error) {
 	// is rejected, because nil is what states that the sibling key is absent.
 	items := []json.RawMessage{}
 	var faults []json.RawMessage
-	for record := range r.rows() {
+
+	// row is the scratch the positional rows decode into. It is reused for
+	// every row, so a walk of a million rows decodes into one slice.
+	var row []json.RawMessage
+	for record := range rows {
 		switch {
 		case len(record.Fault) > 0:
 			faults = append(faults, record.Fault)
 		case len(record.Item) > 0:
-			items = append(items, record.Item)
+			item := record.Item
+			if names != nil {
+				if err = json.Unmarshal(item, &row); err != nil {
+					return nil, fmt.Errorf("%w: %w", errRowNotPositional, err)
+				}
+				if item, err = zipRow(names, row); err != nil {
+					return nil, err
+				}
+			}
+			items = append(items, item)
 		default:
 			return nil, errEmptyAnswerRecord
 		}
 	}
 
 	if faults == nil {
-		if r.Key == "" {
+		if key == "" {
 			return json.Marshal(items)
 		}
-		return json.Marshal(map[string][]json.RawMessage{r.Key: items})
+		return json.Marshal(map[string][]json.RawMessage{key: items})
 	}
 
-	key := r.Key
 	if key == "" {
 		key = answerDefaultKey
 	}

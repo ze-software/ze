@@ -636,7 +636,7 @@ func TestMuxConnDeliversEveryRecordToOneCaller(t *testing.T) {
 			return
 		}
 		answer := []string{
-			fmt.Sprintf("#%d ok status=done key=peers\n", req.ID),
+			fmt.Sprintf("#%d ok status=done type=ndjson key=peers\n", req.ID),
 			fmt.Sprintf("#%d ok item={\"peer\":\"10.0.0.1\"}\n", req.ID),
 			fmt.Sprintf("#%d ok item={\"peer\":\"10.0.0.2\"}\n", req.ID),
 			fmt.Sprintf("#%d ok count=2\n", req.ID),
@@ -900,7 +900,7 @@ func TestSlowConsumerDoesNotStallReadLoop(t *testing.T) {
 		if err != nil {
 			return
 		}
-		writeLines(engineEnd, fmt.Sprintf("#%d ok status=done key=peers\n", slow.ID))
+		writeLines(engineEnd, fmt.Sprintf("#%d ok status=done type=ndjson key=peers\n", slow.ID))
 		for i := range records {
 			line := fmt.Sprintf("#%d ok item={\"row\":%d}\n", slow.ID, i)
 			if _, writeErr := engineEnd.Write([]byte(line)); writeErr != nil {
@@ -965,7 +965,7 @@ func TestAnswerWithoutTerminatorReportsTruncation(t *testing.T) {
 			return
 		}
 		writeLines(engineEnd,
-			fmt.Sprintf("#%d ok status=done key=peers\n", req.ID),
+			fmt.Sprintf("#%d ok status=done type=ndjson key=peers\n", req.ID),
 			fmt.Sprintf("#%d ok item={\"peer\":\"10.0.0.1\"}\n", req.ID),
 		)
 		if closeErr := engineEnd.Close(); closeErr != nil {
