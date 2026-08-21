@@ -85,18 +85,17 @@ func zeTestVppMain(args []string) error {
 	r.Report().SetLabel("vpp")
 	r.Display().Header()
 
-	portReservation, shifted, err := runner.ReservePorts(cli.port, tests.Count())
-	if err != nil {
-		return fmt.Errorf("allocate ports: %w", err)
-	}
-	defer portReservation.Release()
-	pr := portReservation.PortRange
+	// One test owns TestPortSpan ports ($PORT and $PORT2), so the stride is that
+	// span and not 1: a stride of 1 gave every test the NEXT test's port as its
+	// $PORT2. --port only moves the preferred base; the port a test binds is
+	// leased when that test runs (runner.LeaseTestPorts).
+	pr := runner.PortRange{Start: cli.port, Count: tests.Count() * runner.TestPortSpan}
 	basePort := pr.Start
 	for _, rr := range tests.Registered() {
 		rr.Port = basePort
-		basePort++
+		basePort += runner.TestPortSpan
 	}
-	r.Display().PortInfo(pr, shifted)
+	r.Display().PortInfo(pr)
 
 	if err := r.Build(ctx); err != nil {
 		return err

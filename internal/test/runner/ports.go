@@ -19,9 +19,14 @@ type PortRange struct {
 	Count int
 }
 
-// PortReservation holds advisory locks for a port range assigned to a
-// running test suite. The locks coordinate concurrent ze-test processes;
-// they do not bind the TCP ports, so child ze/ze-peer processes can use them.
+// PortReservation holds advisory locks for a port range assigned to one running
+// test (LeaseTestPorts) or to one running web case (ReservePorts). The locks
+// coordinate concurrent ze-test processes; they do not bind the TCP ports, so
+// child ze/ze-peer processes can use them.
+//
+// flock is per open file description, so a second reservation over a port this
+// process already holds is refused exactly as another process's would be. A
+// suite MUST NOT hold a range that its own tests then lease out of.
 type PortReservation struct {
 	PortRange
 	files []*os.File
@@ -116,6 +121,54 @@ func ReservePorts(base, count int) (*PortReservation, bool, error) {
 	}
 	reservation.Start = start
 	return reservation, true, nil
+}
+
+// TestPortSpan is the number of consecutive ports one .ci test owns: Record.Port
+// is $PORT and Record.Port+1 is $PORT2 (runner_exec.go substitutes both).
+const TestPortSpan = 2
+
+// The band LeaseTestPorts falls back to when a test's preferred pair is taken.
+// It sits above every base a suite prefers (1790 for the .ci runners, 10200 for
+// web, 21790 for vpp) and below the lowest ephemeral range of a supported host
+// (32768 on Linux, 49152 on Darwin), so a lease is never handed a port the
+// kernel can also give to an outbound connection.
+const (
+	leasePortBase  = 25000
+	leasePortLimit = 32760
+)
+
+var errNoLeasablePortPair = errors.New("no free test port pair in the lease band")
+
+// LeaseTestPorts leases the port span one .ci test owns and holds the advisory
+// lock until Release is called, so the lease covers exactly the test that binds
+// the ports.
+//
+// preferred is the port the suite would like this test to have. It is honored
+// when the pair is both unlocked and bindable AT LEASE TIME; otherwise the test
+// gets a pair from the lease band instead. This is the whole mechanism against
+// parallel copies colliding on a deterministic port: every .ci suite numbers its
+// tests from the same base (EncodingTests.parseAndAdd), so the Nth test of every
+// suite prefers the same port, and two ze-test processes running different
+// suites at once both reach it. The lock decides who keeps it, and the loser
+// moves rather than failing at bind.
+func LeaseTestPorts(preferred int) (*PortReservation, error) {
+	if reservation, ok, err := tryReservePortRange(preferred, TestPortSpan); err != nil {
+		return nil, err
+	} else if ok {
+		return reservation, nil
+	}
+
+	for start := leasePortBase; start+TestPortSpan <= leasePortLimit; start += TestPortSpan {
+		reservation, ok, err := tryReservePortRange(start, TestPortSpan)
+		if err != nil {
+			return nil, err
+		}
+		if ok {
+			return reservation, nil
+		}
+	}
+
+	return nil, fmt.Errorf("%w: %d-%d", errNoLeasablePortPair, leasePortBase, leasePortLimit-1)
 }
 
 // CheckPortAvailable checks if a single port is available.

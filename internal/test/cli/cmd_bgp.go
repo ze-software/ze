@@ -306,20 +306,17 @@ func zeTestRunEncodingOrAPI(ctx context.Context, cli *zeTestRunCLIFlags, baseDir
 	}
 	r.Display().UlimitInfo(limitCheck)
 
-	portReservation, shifted, err := runner.ReservePorts(cli.port, tests.Count()*2)
-	if err != nil {
-		return fmt.Errorf("allocate ports: %w", err)
-	}
-	defer portReservation.Release()
-	pr := portReservation.PortRange
-
+	// --port only moves where the suite PREFERS to start. The port a test binds
+	// is leased when that test runs (runner.LeaseTestPorts), so this loop never
+	// has to be right about what is free minutes later.
+	pr := runner.PortRange{Start: cli.port, Count: tests.Count() * runner.TestPortSpan}
 	basePort := pr.Start
 	for _, rr := range tests.Registered() {
 		rr.Port = basePort
-		basePort += 2
+		basePort += runner.TestPortSpan
 	}
 
-	r.Display().PortInfo(pr, shifted)
+	r.Display().PortInfo(pr)
 
 	if err := r.Build(ctx); err != nil {
 		return err

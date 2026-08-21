@@ -56,6 +56,25 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 	rec.State = StateStarting
 	rec.StartTime = time.Now()
 
+	// Lease this test's port pair NOW, and hold the lease until the test is
+	// done. Every consumer of rec.Port below this line reads the leased value:
+	// the tmpfs $PORT/$PORT2 expansion, the ze-peer --port argument, the
+	// ze_test_bgp_port child env, the option=env expansion, the exec strings in
+	// runOrchestrated, and the http= URLs in runner_validate.go.
+	//
+	// The port a test binds used to be decided at DISCOVERY time from a counter
+	// shared by every suite, minutes before the test ran, and nothing rechecked
+	// it. That is what made "bind: address already in use" a suite-wide flake:
+	// see LeaseTestPorts.
+	portLease, err := LeaseTestPorts(rec.Port)
+	if err != nil {
+		rec.State = StateFail
+		rec.Error = fmt.Errorf("lease ports for test: %w", err)
+		return false
+	}
+	defer portLease.Release()
+	rec.Port = portLease.Start
+
 	// Set up Tmpfs temp directory if there are Tmpfs files (needed by both paths)
 	var tmpfsCleanup func()
 	if len(rec.TmpfsFiles) > 0 || len(rec.EngineSteps) > 0 {

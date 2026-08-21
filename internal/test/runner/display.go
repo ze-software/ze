@@ -400,19 +400,15 @@ func (d *Display) Summary() {
 	d.println(b.String())
 }
 
-// PortInfo prints port allocation info.
-func (d *Display) PortInfo(pr PortRange, shifted bool) {
+// PortInfo prints the port band the suite prefers. It is a preference, not an
+// allocation: each test leases its own pair when it runs (LeaseTestPorts).
+func (d *Display) PortInfo(pr PortRange) {
 	if d.quiet {
 		return
 	}
 
-	if shifted {
-		d.Printf("%s %s (base in use, shifted)\n",
-			d.colors.Yellow("ports:"), pr.String())
-	} else {
-		d.Printf("%s %s (%d tests)\n",
-			d.colors.Cyan("ports:"), pr.String(), pr.Count)
-	}
+	d.Printf("%s %s preferred (%d tests, leased per test)\n",
+		d.colors.Cyan("ports:"), pr.String(), pr.Count/TestPortSpan)
 }
 
 // UlimitInfo prints ulimit check info.

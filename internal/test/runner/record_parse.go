@@ -121,19 +121,18 @@ func (et *EncodingTests) parseAndAdd(ciFile string) (*Record, error) {
 
 	name := strings.TrimSuffix(filepath.Base(ciFile), ".ci")
 	r := et.Add(name)
-	// Default per-test port assignment. This is the live allocator for the shared
-	// ci_runner.go path: the registerCIRoot suites (ldp, rsvpte, static, policy,
-	// traffic, ui, isis, l2tp, firewall, ...; see internal/test/cli/register.go)
-	// neither reserve nor rebase, so they consume Record.Port as set here (via
-	// $PORT/$PORT2 substitution and the BGP peer --port in runner_exec.go). The
-	// bgp suite (cmd_bgp.go, including its parse/plugin modes) and the vpp suite
-	// (cmd_vpp.go) instead OVERRIDE every Record.Port from a concurrency-safe
-	// range (they call runner.ReservePorts, then reassign rr.Port) because they
-	// bind real ze and BGP-peer ports and must not collide across parallel
-	// ze-test processes. So this assignment is load-bearing, not vestigial; do
-	// not remove it.
+	// The per-test port PREFERENCE, not the port the test binds. Discovery walks
+	// the directory in sorted order, so the Nth test of every suite gets the same
+	// number here, and it is the number the failure report and the "run this test
+	// alone" hint quote.
+	//
+	// Runner.runTest leases the real pair from this preference when the test
+	// starts (LeaseTestPorts). Nothing between discovery and that lease may
+	// assume the preference is free: discovery can run minutes ahead of the test,
+	// and a second ze-test process on the same machine numbers its own suite from
+	// the same base.
 	r.Port = et.port
-	et.port += 2 // 2 ports per test ($PORT and $PORT2)
+	et.port += TestPortSpan
 	r.CIFile = ciFile
 	r.Files = append(r.Files, ciFile)
 
