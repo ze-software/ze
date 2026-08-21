@@ -422,7 +422,7 @@ N/A — no protocol behavior.
 ### What Was Implemented
 Host-verifiable blind-sleep conversions (each verified 3x+ standalone and concurrently, no flake; baseline ratcheted down per commit):
 - Reject bucket (6): prefix-filter-reject, community-match-reject, aspath-filter-reject, aspath-length-reject, role-otc-ingress-reject, prefix-filter-chain-order — wait `updates-received >= 1` then `quiesce()`.
-- RS bucket (6): bgp-rs-{mod-copy,reactor-fastpath,reactor-fastpath-fallback,fastpath-ibgp-identity,fastpath-ebgp-shared,replaying-gate} — wait all-peers `eor-sent` via `show bgp summary`.
+- RS bucket (6): bgp-rs-{mod-copy,reactor-fastpath,reactor-fastpath-fallback,fastpath-ibgp-identity,fastpath-ebgp-shared,replaying-gate} — wait all-peers `eor-sent` via `show bgp`.
 - BMP (1 file/4 sleeps): bmp-receiver-messages — poll `show bmp peers` / `show bmp sessions` state.
 - RPKI (4): rpki-{validate-reject,maxlength,as-set} wait VRP sync + `updates-received`; rpki-aspa-disabled dropped a redundant lead-in sleep (test-relax token).
 - rfc7606-withdraw (1, commit 9e2bb1821): EOR-fence — peer injects a well-formed EOR after the malformed UPDATE; observer waits `updates-received` (the malformed is uncounted). See Design Insights.

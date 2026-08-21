@@ -1023,7 +1023,7 @@ Settled by the 2026-07-16 root-cause. **No production file is modified.**
    non-re-entrant peer-up replay dispatch, or decouple `quiesce` drain from
    peer-established state). Never weaken the test.
 4. Convert the 7 redistribute tests (+ api-raw/route-refresh) to the proven
-   `established -> eor-sent (show bgp summary) -> updates-sent (show bgp peer detail,
+   `established -> eor-sent (show bgp) -> updates-sent (show bgp peer detail,
    reactor_notify.go)` recipe; verify each 3x + concurrently; ratchet the baseline.
 5. Confirm no regression in `redistribute-as112-announce.ci` and the replay tests.
 

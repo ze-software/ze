@@ -100,7 +100,7 @@ that reads as a valid answer.
 - Alice-LG is the primary consumer of the response.
 
 ### Transformation Path
-1. The LG handler queries the engine with `show bgp summary` through the command dispatcher (`lg/server.go` query path).
+1. The LG handler queries the engine with `show bgp` through the command dispatcher (`lg/server.go` query path).
 2. `handleBgpSummary` (`cmd/peer/summary.go`) builds one row per peer and calls `fetchRibRouteCounts`.
 3. `fetchRibRouteCounts` forwards `show bgp rib status` to the `bgp-rib` plugin over RPC and parses the per-peer `route-counts` map, or returns nil.
 4. `mergeRibRouteCounts` adds `routes-received` / `routes-accepted` / `routes-sent` to the row, or adds nothing.
@@ -109,7 +109,7 @@ that reads as a valid answer.
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| LG component -> BGP engine | CommandDispatcher `show bgp summary` | [ ] |
+| LG component -> BGP engine | CommandDispatcher `show bgp` | [ ] |
 | `cmd/peer` -> `bgp-rib` plugin | `ForwardToPlugin`, string-keyed, JSON over pipe | [ ] |
 | Ze kebab-case -> birdwatcher snake_case | `transformProtocols` | [ ] |
 

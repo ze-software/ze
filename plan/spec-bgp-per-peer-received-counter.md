@@ -122,7 +122,7 @@ evidenced below; a future session should re-design, not re-plumb.
 
 Surface a per-peer PRE-policy received count: how many prefixes the peer advertised
 on the wire BEFORE import policy, distinct from the post-policy accepted count that
-`show bgp summary` already reports. Today `routes-received` equals `routes-accepted`
+`show bgp` already reports. Today `routes-received` equals `routes-accepted`
 (both are the Adj-RIB-In size), so the number of routes the peer sent before filtering
 is invisible in the CLI and in the birdwatcher Looking Glass, even though the reactor
 already maintains it internally for prefix-limit enforcement.
@@ -166,13 +166,13 @@ implement it deliberately rather than half-land it.
 - Prefix-limit enforcement reads of `prefixCounts` on the session goroutine must not regress (no new lock on the hot path).
 
 **Behavior to change:**
-- `show bgp summary` per-peer rows gain a pre-policy received count, distinct from accepted, family-scopable like the existing counts.
+- `show bgp` per-peer rows gain a pre-policy received count, distinct from accepted, family-scopable like the existing counts.
 - Birdwatcher `routes_received` is remapped to the pre-policy count so its semantics match BIRD (received = pre-import, imported = post-import).
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- Operator runs `show bgp summary` (optionally `show bgp summary <afi/safi>`) over the CLI, or the Looking Glass calls the birdwatcher protocols endpoint.
+- Operator runs `show bgp` (optionally `show bgp <afi/safi>`) over the CLI, or the Looking Glass calls the birdwatcher protocols endpoint.
 - Format at entry: text command dispatched to the peer summary handler; JSON envelope back.
 
 ### Transformation Path
@@ -233,22 +233,22 @@ this spec's Task asks for.
 
 | Entry Point | -> | Feature Code | Test |
 |-------------|----|--------------|------|
-| `show bgp summary` after peer sends N routes, M rejected by import policy | -> | pre-policy count in `PeerInfo` merged into the summary row | `test/plugin/bgp-summary-received-prepolicy.ci` |
+| `show bgp` after peer sends N routes, M rejected by import policy | -> | pre-policy count in `PeerInfo` merged into the summary row | `test/plugin/bgp-summary-received-prepolicy.ci` |
 
 ## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | Peer advertises N prefixes, import policy rejects M (0<M<N) | `show bgp summary` reports received = N, accepted = N-M |
-| AC-2 | Concurrent UPDATE load while `show bgp summary` runs | `go test -race` clean; no read of `prefixCounts` under a foreign lock |
+| AC-1 | Peer advertises N prefixes, import policy rejects M (0<M<N) | `show bgp` reports received = N, accepted = N-M |
+| AC-2 | Concurrent UPDATE load while `show bgp` runs | `go test -race` clean; no read of `prefixCounts` under a foreign lock |
 | AC-3 | Birdwatcher protocols endpoint after the same exchange | `routes_received` = N (pre-policy), `routes_imported` = N-M (post-policy) |
-| AC-4 | `show bgp summary <afi/safi>` with a two-family peer | pre-policy count is family-scoped, matching the existing accepted/sent scoping |
+| AC-4 | `show bgp <afi/safi>` with a two-family peer | pre-policy count is family-scoped, matching the existing accepted/sent scoping |
 
 ## End-to-End User Stories (MANDATORY for new features)
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Runs `show bgp summary` and sees how many routes a peer sent vs accepted | wire tally -> atomic snapshot -> PeerInfo -> summary row | `test/plugin/bgp-summary-received-prepolicy.ci` |
+| 1 | Runs `show bgp` and sees how many routes a peer sent vs accepted | wire tally -> atomic snapshot -> PeerInfo -> summary row | `test/plugin/bgp-summary-received-prepolicy.ci` |
 | 2 | Opens the Looking Glass and sees received >= imported per peer | summary JSON -> `transformProtocols` -> birdwatcher fields | `test/web/lg-received-prepolicy.ci` |
 
 ## 🧪 TDD Test Plan

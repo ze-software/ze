@@ -27,7 +27,7 @@ is recorded in `plan/deferrals/cli-pipe-aliases.md`.
 
 An operator who wants a third alias cannot have one. They edit no
 configuration, they write Go and rebuild. The two that ship are the two the
-`show bgp summary` payload happens to split into, and nothing lets a site name
+`show bgp` payload happens to split into, and nothing lets a site name
 the fields it looks at every morning.
 
 ## The blocker is plumbing, not schema

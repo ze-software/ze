@@ -255,7 +255,7 @@ are not verifiable locally.** Cite this section, not that doc.
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | keep-filtered enabled; peer sends N routes, M rejected by import policy | `show bgp summary` reports routes_filtered = M (current-state). M counts NLRI, not rejected UPDATE messages (D-8) |
+| AC-1 | keep-filtered enabled; peer sends N routes, M rejected by import policy | `show bgp` reports routes_filtered = M (current-state). M counts NLRI, not rejected UPDATE messages (D-8) |
 | AC-2 | keep-filtered disabled (default); peer sends rejected routes | routes_filtered stays 0; `routes-filtered` key absent; reject fast path unchanged (no added allocation) |
 | AC-3 | Policy loosened so a filtered route is now accepted | routes_filtered drops; the route appears in accepted. **Depends on the sibling spec** - see Known Limitations |
 | AC-4 | Option B enabled | a per-peer cumulative reject counter increments and is exposed under a distinct `*-total` key/metric, never as routes_filtered |
